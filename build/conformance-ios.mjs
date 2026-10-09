@@ -493,6 +493,51 @@
  *   (p)  names one line more, the marker's decode in PairingOffer.parse,
  *        which holds v, fp, dk and dx and never `ps`.
  *
+ *   PHASE 337.3, the terminal fills the phone (build/p3373/SPEC.md §6.1; his
+ *   words of 2026-10-07: "i'd rather more of the scrollback (if available) in
+ *   vertical mode could be shown", "when you're in horiztonal mode, i want to
+ *   show as much of the terminal as possible", "an ellipses in in the top right
+ *   that show the option to catch me up or end session"). Three rules are new
+ *   and seven widen, each clause that encoded 337.1's look moved on purpose:
+ *
+ *   (aw) THE TERMINAL OPENS FILLED. firstRow is `space == nil ? live : top`;
+ *        reserve(visibleTop:fill:) holds an index space at any depth and moves
+ *        top only up, in whole pages; picture( drops what following holds on
+ *        the alternate screen, another space or width, or a shallower depth,
+ *        and carries rows from the last steady picture alone, marked carried;
+ *        fill(rows:) tells no one; viewed( enters scrolled only off the bottom
+ *        above the live top; want( asks in either mode, its overlap from
+ *        checked rows; a refusal in following draws no line and is not asked
+ *        again until the picture changes; a 404 turns the fill off. Since the
+ *        fix round of 2026-10-08: following NEVER drops at a picture whose
+ *        lines outran the screen, carries what the last picture showed, keeps
+ *        the rest as holes under hi and counts the picture; want( asks the
+ *        live top's page for them at once and accept( joins it (the band);
+ *        two such pictures within outrunGap, at least 1 s, hold following's
+ *        carry and every page until outrunGap after the last (the straddle);
+ *        and a page raises depthSeen only while scrolled (the blink).
+ *   (ax) LANDSCAPE IS THE TERMINAL ALONE. TerminalChrome over the VERTICAL size
+ *        class; ScreenPage draws its header and tray behind it, hides the
+ *        navigation and tab bars and the status bar once each through it, and
+ *        draws Copy in the bar upright or over the terminal sideways, never
+ *        both; screenOnTop set in Screen.swift alone.
+ *   (ay) THE ⋯ MENU. One ToolbarItem holding one Menu labelled ellipsis on iOS
+ *        26 and ellipsis.circle before, spoken Copy.more; Catch Me Up then End
+ *        session…, End where End is drawn today; the Mac's confirmation one
+ *        modifier on the Menu, written once for a single End; the progress
+ *        mark; no owner check named.
+ *   Widened: (b) the tab and navigation bars hidden in ScreenPage's ONE
+ *   toolbarVisibility(chrome.bars, …) alone (the three tab roots keep hiding
+ *   their own navigation bar); (ac) TWO End presses, each .disabled(row ==
+ *   .off); (aq) the pad against every row, the fill before the content is
+ *   sized, following's delta, atBottom from the pin; (ar) the lines at the
+ *   terminal's top; (as) the check pages' 1 s, a carried row never an anchor,
+ *   follow() keeping a contiguous fill; (at) the trailing items exactly
+ *   TerminalMenu, no CatchUpItem and no session-open-catch-up; (t) the
+ *   scrollback-fill-moved arm; and (s) the build is 9 (`PHONE_BUILD`), set
+ *   when this phase was rebased onto 333.1's 8, and its "not uploaded"
+ *   fixtures 10.
+ *
  * Every rule also proves its own scanner on texts it holds, before it reads a
  * file, so a scanner that stopped finding is never taken for a clean tree.
  *
@@ -3063,10 +3108,11 @@ export const PHONE_BUNDLE_ID = 'com.itavero.tortie.phone';
  * as a duplicate. The round that uploads the next build moves this with the
  * project, in the same commit (6 if Phase 316.7 lands first, SPEC §4.2 item 4).
  * 1.0.0 (8) since Phase 333.1 (build/p3331/SPEC.md D26), the build submitted
- * to Beta App Review; (7) is Phase 337.1's, and the "not uploaded" fixtures
- * below are 9.
+ * to Beta App Review; (7) is Phase 337.1's. 1.0.0 (9) since Phase 337.3, set
+ * when it was rebased onto 333.1, and the "not uploaded" fixtures below are
+ * 10.
  */
-export const PHONE_BUILD = '8';
+export const PHONE_BUILD = '9';
 
 /** The asset catalog, relative to the app folder, and the one set it holds. */
 const ICON_CATALOG = 'Assets.xcassets';
@@ -3890,6 +3936,27 @@ function rightSide(bare, from) {
   return bare.slice(from);
 }
 
+/**
+ * `text` with every name a `let NAME = …` in `body` binds replaced by its
+ * right side, up to `depth` times over, so a rule reads what a value is made
+ * of however many local names it passes through (Phase 337.3: the fill and
+ * the pad). A name followed by `:` is an argument label and is left alone, as
+ * is a member after a dot.
+ */
+function expandLocals(body, text, depth = 4) {
+  const lets = new Map();
+  for (const m of body.matchAll(/\blet\s+([A-Za-z_]\w*)\s*(?::\s*[^=\n]+)?=(?!=)/g)) {
+    if (!lets.has(m[1])) lets.set(m[1], rightSide(body, m.index + m[0].length).trim());
+  }
+  let out = text;
+  for (let k = 0; k < depth; k += 1) {
+    const next = out.replace(/(?<![.\w])([A-Za-z_]\w*)\b(?!\s*:)/g, (w) => (lets.has(w) ? `(${lets.get(w)})` : w));
+    if (next === out) break;
+    out = next;
+  }
+  return out;
+}
+
 /** Tarjan's strongly connected components of a name graph; a cycle is a component of two or more, or one that calls itself. */
 function cyclesOf(nodes, edges) {
   const index = new Map();
@@ -4005,18 +4072,131 @@ export const TABS = Object.freeze([
 ]);
 
 /**
+ * THE ONE HIDE (Phase 337.3, build/p3373/SPEC.md §6.1 (b), D15). His words of
+ * 2026-10-07: "when you're in horiztonal mode, i want to show as much of the
+ * terminal as possible and not the top which shows you which session you're in
+ * or the different bottom needs input, sessions or settings menu". So the tab
+ * bar, which Phase 316.6 kept on every pushed page, and the navigation bar are
+ * hidden in ONE place: ScreenPage's body in `Screens/Screen.swift`, by ONE
+ * `.toolbarVisibility(chrome.bars, for: .navigationBar, .tabBar)`, where
+ * `TerminalChrome.bars` is `landscape ? .hidden : .automatic` and `landscape`
+ * is a COMPACT VERTICAL size class (exactly landscape on an iPhone; the
+ * horizontal one is compact upright on every iPhone, so the bars would hide
+ * upright). The three tab roots that draw their own header keep hiding their
+ * own navigation bar, unconditionally, as they have since Phase 316.6; nothing
+ * else hides either bar, by any modifier.
+ */
+export const BARS_PAGE_FILE = 'Screens/Screen.swift';
+/** The tab roots that draw their own header and hide their navigation bar (Phase 316.6, 316.7). */
+export const NAV_BAR_ROOTS = Object.freeze(['Screens/ListScreen.swift', 'Screens/SessionsScreen.swift', 'Screens/SettingsScreen.swift']);
+/** Every other way to hide a navigation bar or a tab bar, refused anywhere in the app. */
+const OTHER_BAR_HIDES = /\.\s*navigationBarHidden\s*\(|\bsetNavigationBarHidden\s*\(|\bisNavigationBarHidden\b|\btabBar\s*\??\s*\.\s*isHidden\b|\bhidesBottomBarWhenPushed\b|\bsetTabBarHidden\s*\(|\bisTabBarHidden\b/g;
+
+/**
+ * Every `.toolbar(…)` and `.toolbarVisibility(…)` that can HIDE a navigation
+ * bar or a tab bar, over bare text: `{ at, name, visibility, bars }`, the
+ * visibility its first argument with its spaces taken out and `bars` the
+ * placements after `for:` (none written is the navigation bar's). A call
+ * whose visibility is literally `.visible` or `.automatic` shows a bar and
+ * hides nothing, and a call naming neither bar is about another one.
+ */
+function barHides(bare) {
+  const out = [];
+  for (const m of bare.matchAll(/\.\s*(toolbar|toolbarVisibility)\s*\(/g)) {
+    const open = m.index + m[0].length - 1;
+    const close = closeParen(bare, open);
+    const args = topLevelArgs(bare.slice(open + 1, close === -1 ? bare.length : close));
+    const visibility = (args[0] ?? '').replace(/\s+/g, '');
+    if (/^\.(?:visible|automatic)$/.test(visibility)) continue;
+    // A labelled first argument (`removing:`, `id:`) is another toolbar call, not a visibility.
+    if (/^[A-Za-z_]\w*:/.test(visibility)) continue;
+    const forAt = args.findIndex((a) => /^for\s*:/.test(a));
+    const bars = forAt === -1 ? ['.navigationBar'] : [args[forAt].replace(/^for\s*:\s*/, ''), ...args.slice(forAt + 1)].map((b) => b.replace(/\s+/g, ''));
+    const tab = bars.includes('.tabBar');
+    const nav = bars.includes('.navigationBar') || bars.includes('.automatic');
+    if (!tab && !nav) continue;
+    out.push({ at: m.index, name: m[1], visibility, bars, tab, nav });
+  }
+  return out;
+}
+
+/**
+ * TerminalChrome's bars and landscape, and the size class ScreenPage builds it
+ * from (build/p3373/SPEC.md D15, §5.3), over Screens/Screen.swift's lexed text
+ * (`{ bare, types }`) or null: `bars` is `landscape ? .hidden : .automatic`;
+ * `landscape` is the init's size class `== .compact`; and every
+ * `TerminalChrome(` ScreenPage builds is handed a property bound to
+ * `@Environment(\.verticalSizeClass)`, and nothing in the file reads the
+ * horizontal one. Shared by (b), where it holds the one hide, and (ax).
+ */
+function chromeReadsVerticalCompact(page) {
+  const findings = [];
+  const said = { built: 0, sizeClass: null };
+  if (page === null) return { findings: [`${BARS_PAGE_FILE} does not exist, so TerminalChrome cannot be read`], said };
+  const at = (i) => `${BARS_PAGE_FILE}:${String(lineOf(page.bare, i))}`;
+  for (const m of page.bare.matchAll(/\bhorizontalSizeClass\b/g)) findings.push(`${at(m.index)} reads horizontalSizeClass; every iPhone is horizontally compact upright, so the bars would hide upright. Sideways is a compact VERTICAL size class (D15)`);
+  const chrome = page.types.find((t) => t.name === 'TerminalChrome' && t.kind === 'struct');
+  if (chrome === undefined) return { findings: [...findings, `${BARS_PAGE_FILE} declares no struct TerminalChrome, the one place the page decides what it draws sideways (D15, §5.3)`], said };
+  const body = page.bare.slice(chrome.open, chrome.close + 1);
+  const norm = (s) => s.replace(/\breturn\b/g, ' ').replace(/\bself\s*\.\s*/g, '').replace(/\s+/g, ' ').trim();
+  // `var NAME: TYPE { EXPR }` at the type's own depth, or `NAME = EXPR` in its init.
+  const member = (name) => {
+    for (const m of body.matchAll(new RegExp(`\\bvar\\s+${name}\\s*:[^{=\\n]*\\{`, 'g'))) {
+      if (!atTopLevel(page.bare, chrome.open, chrome.open + m.index)) continue;
+      const open = chrome.open + m.index + m[0].length - 1;
+      return norm(page.bare.slice(open + 1, matchForward(page.bare, open)));
+    }
+    const init = /\binit\s*\([^)]*\)\s*\{/.exec(body);
+    if (init !== null) {
+      const open = chrome.open + init.index + init[0].length - 1;
+      const inner = page.bare.slice(open + 1, matchForward(page.bare, open));
+      const set = new RegExp(`(?:^|[^.\\w])(?:self\\s*\\.\\s*)?${name}\\s*=(?!=)\\s*([^\\n;]+)`).exec(inner);
+      if (set !== null) return norm(set[1]);
+    }
+    return null;
+  };
+  const bars = member('bars');
+  if (bars === null || !/^landscape \? \.hidden : \.automatic$|^!landscape \? \.automatic : \.hidden$/.test(bars)) findings.push(`TerminalChrome.bars is ${JSON.stringify(bars)}; it is landscape ? .hidden : .automatic, so every bar comes back upright (D15)`);
+  const param = /\binit\s*\(\s*_\s+(\w+)\s*:\s*UserInterfaceSizeClass\s*\?\s*\)/.exec(body)?.[1] ?? null;
+  const stored = [...body.matchAll(/\b(?:let|var)\s+(\w+)\s*:\s*UserInterfaceSizeClass\s*\?/g)].map((m) => m[1]);
+  if (param === null) findings.push('TerminalChrome declares no init(_ sizeClass: UserInterfaceSizeClass?), so what decides it cannot be read (§5.3)');
+  const landscape = member('landscape');
+  const compared = landscape === null ? null : (/^(\w+) == \.compact$/.exec(landscape)?.[1] ?? /^\.compact == (\w+)$/.exec(landscape)?.[1] ?? null);
+  if (compared === null || (compared !== param && !stored.includes(compared))) findings.push(`TerminalChrome.landscape is ${JSON.stringify(landscape)}; it is the size class it was made with == .compact (D15)`);
+  // ScreenPage builds it from the vertical size class, and from nothing else.
+  const pageType = page.types.find((t) => t.name === 'ScreenPage' && t.kind === 'struct');
+  if (pageType === undefined) return { findings: [...findings, `${BARS_PAGE_FILE} declares no struct ScreenPage`], said };
+  const pageBody = page.bare.slice(pageType.open, pageType.close + 1);
+  const vertical = /@Environment\s*\(\s*\\\s*\.\s*verticalSizeClass\s*\)\s*(?:(?:private|fileprivate)\s+)?var\s+(\w+)/.exec(pageBody)?.[1] ?? null;
+  said.sizeClass = vertical;
+  if (vertical === null) findings.push('ScreenPage reads no @Environment(\\.verticalSizeClass), so nothing tells it the phone is sideways (D15)');
+  for (const m of pageBody.matchAll(/\bTerminalChrome\s*\(/g)) {
+    const open = pageType.open + m.index + m[0].length - 1;
+    const close = closeParen(page.bare, open);
+    const arg = page.bare.slice(open + 1, close === -1 ? page.bare.length : close).replace(/\s+/g, '').replace(/^self\./, '');
+    said.built += 1;
+    if (vertical === null || arg !== vertical) findings.push(`${at(pageType.open + m.index)} builds TerminalChrome(${arg}); it is built from the page's @Environment(\\.verticalSizeClass) and nothing else (D15)`);
+  }
+  if (said.built === 0) findings.push('ScreenPage builds no TerminalChrome, so nothing it draws sideways is decided there (D15)');
+  return { findings, said };
+}
+
+/**
  * Rule (b), the tab bar (SPEC §6.1 (b)): exactly three `Tab(` in
  * `App/TortieApp.swift`, labelled `Copy.needsInput`, `Copy.sessions` and
  * `Copy.settings` in that order with `bell`, `list.bullet` and `gearshape`,
- * and none anywhere else; nothing hides the tab bar
- * (`.toolbar(.hidden, for: .tabBar)`, `.toolbarVisibility(.hidden, for:
- * .tabBar)`), because the bar stays on a pushed session; and no
- * `@AppStorage`, `@SceneStorage` or `UserDefaults` in `App/TortieApp.swift`,
- * because the app opens on Needs input every launch and stores no tab.
+ * and none anywhere else; and no `@AppStorage`, `@SceneStorage` or
+ * `UserDefaults` in `App/TortieApp.swift`, because the app opens on Needs
+ * input every launch and stores no tab. Phase 316.6 refused every hide of the
+ * tab bar, because the bar stays on a pushed session; Phase 337.3 allows ONE
+ * (above, `BARS_PAGE_FILE`): the Terminal sideways, through TerminalChrome, in
+ * ScreenPage alone, with the three tab roots' own navigation bar as before.
+ * The parent's tree, which hides no tab bar, passes; rule (ax) is what
+ * requires the landscape hide.
  */
 export function ruleTabs(files) {
   const findings = [];
-  const said = { tabs: 0 };
+  const said = { tabs: 0, landscapeHides: 0, rootHides: 0 };
   const app = files.find((f) => f.name === TAB_FILE);
   if (app === undefined) findings.push(`${TAB_FILE} does not exist, so there is no tab bar to read`);
   for (const f of files) {
@@ -4042,15 +4222,40 @@ export function ruleTabs(files) {
         if (image?.value !== want.image) findings.push(`${at(c.index)}: tab ${String(k + 1)} draws the symbol ${JSON.stringify(image?.value ?? null)}; it is ${JSON.stringify(want.image)}`);
       });
     }
-    for (const m of bare.matchAll(/\.\s*(toolbar|toolbarVisibility)\s*\(/g)) {
-      const open = m.index + m[0].length - 1;
-      const close = closeParen(bare, open);
-      const args = bare.slice(open + 1, close === -1 ? bare.length : close);
-      if (/\.\s*hidden\b/.test(args) && /\.\s*tabBar\b/.test(args)) findings.push(`${at(m.index)} hides the tab bar; it stays on a pushed session, so a session is one tap from Needs input (SPEC §5.1.1)`);
+    // Phase 337.3: every hide of either bar is ScreenPage's one landscape
+    // hide, or a tab root's own navigation bar (build/p3373/SPEC.md §6.1 (b)).
+    const types = typeSpans(bare);
+    const pageBody = f.name === BARS_PAGE_FILE ? varSpan({ bare, types }, 'body', 'ScreenPage') : null;
+    for (const h of barHides(bare)) {
+      const inPage = pageBody !== null && h.at > pageBody.open && h.at < pageBody.close;
+      const readsChrome = /^chrome\.bars$/.test(h.visibility) || /\bTerminalChrome\(.*\)\.bars$/.test(h.visibility);
+      const both = h.bars.length === 2 && h.tab && h.bars.includes('.navigationBar');
+      if (h.name === 'toolbarVisibility' && inPage && readsChrome && both) {
+        said.landscapeHides += 1;
+        continue;
+      }
+      if (h.nav && !h.tab && h.visibility === '.hidden' && NAV_BAR_ROOTS.includes(f.name)) {
+        said.rootHides += 1;
+        continue;
+      }
+      if (h.tab) findings.push(`${at(h.at)} hides the tab bar (.${h.name}(${h.visibility}, for: ${h.bars.join(', ')})); it stays on every page but the Terminal sideways, where ScreenPage hides it once, with toolbarVisibility(chrome.bars, for: .navigationBar, .tabBar), so a session upright is one tap from Needs input (SPEC §5.1.1, build/p3373/SPEC.md D15)`);
+      else findings.push(`${at(h.at)} hides the navigation bar (.${h.name}(${h.visibility}, for: ${h.bars.join(', ')})); ScreenPage hides it sideways through TerminalChrome and the three tab roots (${NAV_BAR_ROOTS.join(', ')}) draw their own header, and nothing else hides it (build/p3373/SPEC.md §6.1 (b))`);
     }
+    for (const m of bare.matchAll(OTHER_BAR_HIDES)) findings.push(`${at(m.index)} names ${m[0].replace(/\s+/g, '')}; a bar is hidden by ScreenPage's one toolbarVisibility(chrome.bars, for: .navigationBar, .tabBar) and by no other modifier (build/p3373/SPEC.md §6.1 (b))`);
     if (f.name === TAB_FILE) {
       for (const m of bare.matchAll(/@AppStorage\b|@SceneStorage\b|\bUserDefaults\b/g)) findings.push(`${at(m.index)} names ${m[0]}; the app opens on Needs input every launch and stores no tab`);
     }
+  }
+  if (said.landscapeHides > 1) findings.push(`ScreenPage hides the bars ${String(said.landscapeHides)} times; ONCE, with toolbarVisibility(chrome.bars, for: .navigationBar, .tabBar) (build/p3373/SPEC.md D15)`);
+  // The one hide holds only over TerminalChrome's own answer for a compact
+  // VERTICAL size class; a hide that is there reads it (the parent hides none).
+  if (said.landscapeHides > 0) {
+    const page = files.find((x) => x.name === BARS_PAGE_FILE);
+    const lx = page === undefined ? null : lexSwift(page.source);
+    const chrome = chromeReadsVerticalCompact(lx === null ? null : { bare: lx.bare, types: typeSpans(lx.bare) });
+    findings.push(...chrome.findings);
+    const pageType = lx === null ? undefined : typeSpans(lx.bare).find((t) => t.name === 'ScreenPage' && t.kind === 'struct');
+    if (pageType !== undefined && !/\bvar\s+chrome\s*:\s*TerminalChrome\b/.test(lx.bare.slice(pageType.open, pageType.close + 1))) findings.push('ScreenPage hides the bars by chrome.bars and declares no var chrome: TerminalChrome, so what decides them cannot be read (D15)');
   }
   return { findings, said };
 }
@@ -4791,7 +4996,12 @@ export const OWNER_CHECK_ABSENT = Object.freeze([
   // Phase 337.1 (build/p3371/SPEC.md §6.4, §Attack B15): the Terminal's scroll
   // view and its history, inside the Screen family and its walls.
   'Screens/ScreenScroller.swift',
-  'Screens/ScreenScrollback.swift'
+  'Screens/ScreenScrollback.swift',
+  // Phase 337.3 (build/p3373/SPEC.md §6.1 (ac), D23): the Terminal's ⋯ and
+  // its tray live here, and the menu's End reaches the owner check only
+  // through EndModel.press, so this file names none (the gates builder's
+  // decision 4, arm ac25).
+  'Screens/SessionScreen.swift'
 ]);
 /** What persists anything; none of it may sit in End's files or the write path. */
 const PERSISTS = /\bUserDefaults\b|@AppStorage\b|@SceneStorage\b|\bSecItemAdd\b|\bSecItemUpdate\b|\bFileManager\b|\.\s*write\s*\(\s*to\s*:|\bNSKeyedArchiver\b|\bcreateFile\b|\bNSUbiquitousKeyValueStore\b/g;
@@ -5100,35 +5310,56 @@ export function ruleOwnerCheck(files, plist) {
  * where `<row>` is the function's parameter of type `EndBarDrawing.Row`, whose
  * cases are exactly `on` and `off`, so `== .off` is every row not drawn on.
  * Pure over the app's Swift files.
+ *
+ * PHASE 337.3 WIDENED IT TO TWO PRESSES (build/p3373/SPEC.md §6.1 (ac), D22;
+ * his words, "an ellipses in in the top right that show the option to catch me
+ * up or end session (we can keep face input for end session)"): End lives in
+ * the Terminal's ⋯ menu now as well as at Catch Me Up's top right. Exactly two
+ * elements in the app are End presses, each ONE site in Screens/EndBar.swift,
+ * each a `Button` whose own chain holds `.disabled(<row> == .off)` over a
+ * parameter, or a stored property of the type that draws it, of type
+ * `EndBarDrawing.Row`: `ID.sessionEnd` in `EndTopControl.row` and
+ * `ID.terminalMenuEnd` in `EndMenuItem`, the latter `role: .destructive`.
  */
-export function ruleEndPressOff(files) {
-  const findings = [];
-  const said = { presses: 0, chain: [] };
-  const all = files.map((f) => lexedFile(files, f.name));
-  const ID_RE = /\.\s*accessibilityIdentifier\s*\(\s*ID\s*\.\s*sessionEnd\s*\)/g;
-  const sites = [];
-  for (const file of all) for (const m of file.bare.matchAll(ID_RE)) sites.push({ file, at: m.index });
-  said.presses = sites.length;
-  if (sites.length !== 1) findings.push(`${String(sites.length)} element(s) in the app are identified ID.sessionEnd; the End press is one, in ${END_BAR_FILE}`);
-  const bar = all.find((f) => f.name === END_BAR_FILE) ?? null;
-  if (bar === null) return { findings: [...findings, `${END_BAR_FILE} does not exist, so the End press cannot be read`], said };
-  const cases = enumCases(bar.source, 'Row');
-  if (cases === null || [...cases].sort().join() !== 'off,on') findings.push(`${END_BAR_FILE}'s EndBarDrawing.Row has the cases ${JSON.stringify(cases)}; this rule reads \`== .off\` as every row not drawn on, which holds only while they are exactly on and off`);
-  const site = sites.find((s) => s.file === bar) ?? null;
-  if (site === null) return { findings: [...findings, `${END_BAR_FILE} identifies no element ID.sessionEnd, so the End press cannot be read`], said };
-  const fn = innermost(bar.funcs, site.at);
-  if (fn === null) return { findings: [...findings, `${atLine(bar, site.at)} identifies the End press outside any function`], said };
-  const param = /([A-Za-z_]\w*)\s*:\s*EndBarDrawing\s*\.\s*Row\b/.exec(bar.bare.slice(fn.at, fn.bodyOpen))?.[1] ?? null;
-  if (param === null) findings.push(`${END_BAR_FILE}'s ${fn.name} takes no EndBarDrawing.Row, so whether its press is off cannot be read`);
-  // Every Button in that function, its closures skipped and its own modifier
-  // chain read; the press is the one whose chain identifies ID.sessionEnd.
-  const text = bar.bare;
+export const END_PRESSES = Object.freeze([
+  { id: 'sessionEnd', type: 'EndTopControl', destructive: false, where: "Catch Me Up's top bar" },
+  { id: 'terminalMenuEnd', type: 'EndMenuItem', destructive: true, where: "the Terminal's ⋯ menu" }
+]);
+
+/**
+ * The modifier chain that starts at bare-text index `k`, right after a call
+ * and its closures: `{ chain, end }`, each modifier `{ name, args, at }` with
+ * its argument text's spaces collapsed, and `end` the index after the last.
+ * ONE reader, for the End presses and for every call (ay) parses.
+ */
+function modifierChainAt(text, k) {
+  const chain = [];
+  for (;;) {
+    const mod = /^\s*\.\s*([A-Za-z_]\w*)\s*\(/.exec(text.slice(k));
+    if (mod === null) break;
+    const open = k + mod[0].length - 1;
+    const close = closeParen(text, open);
+    if (close === -1) break;
+    chain.push({ name: mod[1], args: text.slice(open + 1, close).replace(/\s+/g, ' ').trim(), at: k });
+    k = close + 1;
+  }
+  return { chain, end: k };
+}
+
+/**
+ * The `Button` in `[from, to)` of a lexed file's bare text whose own modifier
+ * chain holds index `site`: `{ args, chain }`, its closures (the action, then
+ * `label:`) skipped, or null when no Button's chain holds it.
+ */
+function buttonChainAt(text, from, to, site) {
   let press = null;
-  for (const m of bodyText(bar, fn).matchAll(/\bButton\s*(?=[({])/g)) {
-    let k = fn.bodyOpen + m.index + m[0].length;
+  for (const m of text.slice(from, to).matchAll(/\bButton\s*(?=[({])/g)) {
+    let k = from + m.index + m[0].length;
+    let args = '';
     if (text[k] === '(') {
       const close = closeParen(text, k);
       if (close === -1) continue;
+      args = text.slice(k + 1, close);
       k = close + 1;
     }
     // Its trailing closures: the action, then `label:`.
@@ -5139,24 +5370,60 @@ export function ruleEndPressOff(files) {
       if (close === -1) break;
       k = close + 1;
     }
-    const chain = [];
-    for (;;) {
-      const mod = /^\s*\.\s*([A-Za-z_]\w*)\s*\(/.exec(text.slice(k));
-      if (mod === null) break;
-      const open = k + mod[0].length - 1;
-      const close = closeParen(text, open);
-      if (close === -1) break;
-      chain.push({ name: mod[1], args: text.slice(open + 1, close).replace(/\s+/g, ' ').trim(), at: k });
-      k = close + 1;
-    }
-    if (chain.some((c) => c.at <= site.at && site.at < k)) press = chain;
+    const { chain, end } = modifierChainAt(text, k);
+    if (chain.some((c) => c.at <= site && site < end)) press = { args: args.replace(/\s+/g, ' ').trim(), chain };
   }
-  if (press === null) findings.push(`${atLine(bar, site.at)} identifies ID.sessionEnd on something that is not a Button's own modifier chain, so the press cannot be read`);
-  else {
-    said.chain = press.map((c) => c.name);
+  return press;
+}
+
+export function ruleEndPressOff(files) {
+  const findings = [];
+  const said = { presses: 0, chain: [], menuChain: [] };
+  const all = files.map((f) => lexedFile(files, f.name));
+  const bar = all.find((f) => f.name === END_BAR_FILE) ?? null;
+  if (bar === null) return { findings: [...findings, `${END_BAR_FILE} does not exist, so the End press cannot be read`], said };
+  const cases = enumCases(bar.source, 'Row');
+  if (cases === null || [...cases].sort().join() !== 'off,on') findings.push(`${END_BAR_FILE}'s EndBarDrawing.Row has the cases ${JSON.stringify(cases)}; this rule reads \`== .off\` as every row not drawn on, which holds only while they are exactly on and off`);
+  const decls = declSpans(bar.bare);
+  for (const want of END_PRESSES) {
+    const re = new RegExp(`\\.\\s*accessibilityIdentifier\\s*\\(\\s*ID\\s*\\.\\s*${want.id}\\s*\\)`, 'g');
+    const sites = all.flatMap((file) => [...file.bare.matchAll(re)].map((m) => ({ file, at: m.index })));
+    said.presses += sites.length;
+    if (sites.length !== 1) findings.push(`${String(sites.length)} element(s) in the app are identified ID.${want.id}; that End press is one, in ${END_BAR_FILE}'s ${want.type} (${want.where}), and the app holds exactly two End presses (build/p3373/SPEC.md §6.1 (ac))`);
+    const site = sites.find((s) => s.file === bar) ?? null;
+    if (site === null) {
+      findings.push(`${END_BAR_FILE} identifies no element ID.${want.id}, so ${want.where}'s End press cannot be read`);
+      continue;
+    }
+    const type = innermost(bar.types, site.at);
+    if (type?.name !== want.type) findings.push(`${atLine(bar, site.at)} identifies ID.${want.id} in ${type?.name ?? 'no type'}; it is ${want.type}'s, ${want.where}`);
+    const decl = innermost(decls, site.at);
+    if (decl === null) {
+      findings.push(`${atLine(bar, site.at)} identifies the End press outside any function or view body`);
+      continue;
+    }
+    // The row: the function's parameter, or a stored property of the type that draws it.
+    let param = decl.params === undefined ? null : (/([A-Za-z_]\w*)\s*:\s*EndBarDrawing\s*\.\s*Row\b/.exec(decl.params)?.[1] ?? null);
+    if (param === null && type !== null) {
+      const typeBody = bar.bare.slice(type.open + 1, type.close);
+      for (const m of typeBody.matchAll(/\b(?:let|var)\s+([A-Za-z_]\w*)\s*:\s*EndBarDrawing\s*\.\s*Row\b(?!\s*\?)/g)) {
+        if (atTopLevel(bar.bare, type.open, type.open + 1 + m.index)) param = m[1];
+      }
+    }
+    if (param === null) findings.push(`${END_BAR_FILE}'s ${want.type}.${decl.name} reads no EndBarDrawing.Row, a parameter or a stored property of its own, so whether its press is off cannot be read`);
+    // Every Button in that declaration, its closures skipped and its own modifier
+    // chain read; the press is the one whose chain identifies the ID.
+    const press = buttonChainAt(bar.bare, decl.bodyOpen, decl.bodyClose, site.at);
+    if (press === null) {
+      findings.push(`${atLine(bar, site.at)} identifies ID.${want.id} on something that is not a Button's own modifier chain, so the press cannot be read`);
+      continue;
+    }
+    if (want.id === 'sessionEnd') said.chain = press.chain.map((c) => c.name);
+    else said.menuChain = press.chain.map((c) => c.name);
     const off = param === null ? [] : [`${param} == .off`, `.off == ${param}`, `${param} != .on`, `.on != ${param}`];
-    const disabled = press.filter((c) => c.name === 'disabled');
-    if (!disabled.some((c) => off.includes(c.args))) findings.push(`${END_BAR_FILE}'s End press carries ${disabled.length === 0 ? 'no .disabled' : disabled.map((c) => `.disabled(${c.args})`).join(' and ')}; it is .disabled(${param ?? 'row'} == .off), so a row drawn off cannot be pressed and reads off to XCUITest and VoiceOver (the reverify's B4)`);
+    const disabled = press.chain.filter((c) => c.name === 'disabled');
+    if (!disabled.some((c) => off.includes(c.args))) findings.push(`${END_BAR_FILE}'s End press in ${want.type} carries ${disabled.length === 0 ? 'no .disabled' : disabled.map((c) => `.disabled(${c.args})`).join(' and ')}; it is .disabled(${param ?? 'row'} == .off), so a row drawn off cannot be pressed and reads off to XCUITest and VoiceOver (the reverify's B4)`);
+    if (want.destructive && !/(?:^|,\s*)role\s*:\s*\.destructive\b/.test(press.args)) findings.push(`${END_BAR_FILE}'s End press in ${want.type} is Button(${press.args}); it is Button(role: .destructive), which iOS draws in the error colour in a menu (D22)`);
   }
   return { findings, said };
 }
@@ -7243,8 +7510,8 @@ const expect = (what, ok) => {
   expect('(s) catches a team set by an xcconfig', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length > 0);
   expect('(s) leaves an xcconfig comment alone', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `// DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length === 0);
   expect('(s) catches another bundle id', sRun(pbxSign({ appRelease: his + identity.replace('com.itavero.tortie.phone;', 'com.itavero.tortie.phone2;') })).length > 0);
-  expect('(s) catches versions that disagree', sRun(pbxSign({ appRelease: his + identity.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 9;') })).length > 0);
-  const nextBuild = (text) => text.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 9;');
+  expect('(s) catches versions that disagree', sRun(pbxSign({ appRelease: his + identity.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 10;') })).length > 0);
+  const nextBuild = (text) => text.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 10;');
   expect('(s) catches the app at a build this round does not upload, even when Debug and Release agree', sRun(pbxSign({ appDebug: adHoc + nextBuild(identity), appRelease: his + nextBuild(identity) })).length > 0);
   expect('(s) catches a test bundle at another build', sRun(pbxSign({ testRelease: `${adHoc}        CURRENT_PROJECT_VERSION = 2;\n` })).length > 0);
   expect('(s) accepts a test bundle at this build', sRun(pbxSign({ testRelease: `${adHoc}        CURRENT_PROJECT_VERSION = ${PHONE_BUILD};\n` })).length === 0);
@@ -7403,9 +7670,53 @@ const expect = (what, ok) => {
   expect('(b) catches a tab built outside the app file', bTabs(tabsOk, [{ name: 'Screens/ListScreen.swift', source: 'let t = Tab(Copy.sessions, systemImage: "x", value: 1) { EmptyView() }\n' }]).length > 0);
   expect('(b) catches the bar hidden on a pushed screen', bTabs(tabsOk, [{ name: 'Screens/SessionScreen.swift', source: 'func f(_ v: some View) -> some View { v.toolbar(.hidden, for: .tabBar) }\n' }]).length > 0);
   expect('(b) catches the bar hidden by toolbarVisibility', bTabs(tabsOk, [{ name: 'Screens/SessionScreen.swift', source: 'func f(_ v: some View) -> some View { v.toolbarVisibility(.hidden, for: .navigationBar, .tabBar) }\n' }]).length > 0);
-  expect('(b) leaves the navigation bar hidden alone', bTabs(tabsOk, [{ name: 'Screens/ListScreen.swift', source: 'func f(_ v: some View) -> some View { v.toolbar(.hidden, for: .navigationBar) }\n' }]).length === 0);
+  expect('(b) leaves a tab root\'s own navigation bar hidden alone', bTabs(tabsOk, [{ name: 'Screens/ListScreen.swift', source: 'func f(_ v: some View) -> some View { v.toolbar(.hidden, for: .navigationBar) }\n' }]).length === 0);
   expect('(b) catches the tab kept in @AppStorage', bTabs(`${tabsOk}struct Kept { @AppStorage("tab") var tab = 0 }\n`).length > 0);
   expect('(b) catches the tab kept in UserDefaults', bTabs(`${tabsOk}func keep() { UserDefaults.standard.set(1, forKey: "tab") }\n`).length > 0);
+  // Phase 337.3 (build/p3373/SPEC.md §6.1 (b), D15): the one landscape hide,
+  // ScreenPage's, over TerminalChrome's answer for a compact VERTICAL size
+  // class, and the three tab roots' own navigation bar; nothing else.
+  const roots = NAV_BAR_ROOTS.map((name) => ({ name, source: 'struct R: View {\n    var body: some View { List {}.toolbar(.hidden, for: .navigationBar) }\n}\n' }));
+  const chromeOk = [
+    'struct TerminalChrome {',
+    '    let landscape: Bool',
+    '    init(_ sizeClass: UserInterfaceSizeClass?) {',
+    '        landscape = sizeClass == .compact',
+    '    }',
+    '    var bars: Visibility { landscape ? .hidden : .automatic }',
+    '}',
+    'struct ScreenPage<Header: View>: View {',
+    '    @Environment(\\.verticalSizeClass) private var sizeClass',
+    '    private var chrome: TerminalChrome { TerminalChrome(sizeClass) }',
+    '    var body: some View {',
+    '        ZStack { content }',
+    '            .toolbar { trailing }',
+    '            .toolbarVisibility(chrome.bars, for: .navigationBar, .tabBar)',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  // The parent's ScreenPage (dfa878b5): no TerminalChrome and no hide at all.
+  const parentPage = 'struct ScreenPage<Header: View>: View {\n    var body: some View {\n        ZStack { content }\n            .toolbarBackground(.visible, for: .navigationBar)\n            .toolbar { trailing }\n    }\n}\n';
+  const bPage = (page, extra = []) => bTabs(tabsOk, [{ name: BARS_PAGE_FILE, source: page }, ...roots, ...extra]);
+  const bSwap = (from, to) => {
+    if (!chromeOk.includes(from)) selfFailures.push(`(b) fixture holds no ${JSON.stringify(from)}`);
+    return chromeOk.replace(from, to);
+  };
+  expect('(b) passes the parent\'s tree, which hides no tab bar (rule ax requires the landscape hide)', bPage(parentPage).length === 0);
+  expect('(b) passes ScreenPage\'s one hide over TerminalChrome, beside the three tab roots\'', bPage(chromeOk).length === 0 && ruleTabs([{ name: TAB_FILE, source: tabsOk }, { name: BARS_PAGE_FILE, source: chromeOk }, ...roots]).said.landscapeHides === 1);
+  expect('(b) passes TerminalChrome\'s landscape written as a computed var', bPage(bSwap('    let landscape: Bool\n    init(_ sizeClass: UserInterfaceSizeClass?) {\n        landscape = sizeClass == .compact\n    }', '    let sizeClass: UserInterfaceSizeClass?\n    init(_ sizeClass: UserInterfaceSizeClass?) {\n        self.sizeClass = sizeClass\n    }\n    var landscape: Bool { sizeClass == .compact }')).length === 0);
+  expect('(b) catches an unconditional hide in ScreenPage', bPage(bSwap('.toolbarVisibility(chrome.bars, for: .navigationBar, .tabBar)', '.toolbarVisibility(.hidden, for: .navigationBar, .tabBar)')).length > 0);
+  expect('(b) catches the hide moved into SessionScreen.swift', bPage(bSwap('            .toolbarVisibility(chrome.bars, for: .navigationBar, .tabBar)\n', ''), [{ name: 'Screens/SessionScreen.swift', source: 'struct TerminalPage: View {\n    var body: some View { ScreenPage().toolbarVisibility(chrome.bars, for: .navigationBar, .tabBar) }\n}\n' }]).length > 0);
+  expect('(b) catches the size class read horizontally, which is compact upright on every iPhone', bPage(bSwap('@Environment(\\.verticalSizeClass)', '@Environment(\\.horizontalSizeClass)')).length > 0);
+  expect('(b) catches .navigationBarHidden(true)', bPage(chromeOk, [{ name: 'Screens/SessionScreen.swift', source: 'func f(_ v: some View) -> some View { v.navigationBarHidden(true) }\n' }]).length > 0);
+  expect('(b) catches a navigation bar hidden outside the tab roots', bPage(chromeOk, [{ name: 'Screens/SessionScreen.swift', source: 'func f(_ v: some View) -> some View { v.toolbar(.hidden, for: .navigationBar) }\n' }]).length > 0);
+  expect('(b) catches the bars hidden upright (bars inverted)', bPage(bSwap('landscape ? .hidden : .automatic', 'landscape ? .automatic : .hidden')).length > 0);
+  expect('(b) catches the hide naming the tab bar alone', bPage(bSwap('for: .navigationBar, .tabBar)', 'for: .tabBar)')).length > 0);
+  expect('(b) catches a second hide in ScreenPage', bPage(bSwap('            .toolbarVisibility(chrome.bars, for: .navigationBar, .tabBar)\n', '            .toolbarVisibility(chrome.bars, for: .navigationBar, .tabBar)\n            .toolbarVisibility(chrome.bars, for: .navigationBar, .tabBar)\n')).length > 0);
+  expect('(b) catches landscape read as a regular size class', bPage(bSwap('sizeClass == .compact', 'sizeClass == .regular')).length > 0);
+  expect('(b) catches the tab bar hidden through UIKit', bPage(chromeOk, [{ name: 'Screens/SessionScreen.swift', source: 'func f(_ c: UITabBarController) { c.tabBar.isHidden = true }\n' }]).length > 0);
+  expect('(b) leaves a toolbar call with a labelled first argument alone (no visibility in it)', bPage(chromeOk, [{ name: 'Screens/SessionScreen.swift', source: 'func f(_ v: some View) -> some View { v.toolbar(removing: .sidebarToggle) }\n' }]).length === 0);
 
   // (k), the one named scope.
   const kScope = (renderer, extra = []) => ruleDoorArithmetic([{ name: 'Door/Contract.swift', source: contractOk }, { name: 'Markdown/Blocks.swift', source: renderer }, ...extra], 'Door/Contract.swift', []).findings;
@@ -8148,7 +8459,22 @@ const expect = (what, ok) => {
     '    }',
     '    let row: Row?',
     '}',
-    'struct EndBar: View {',
+    // Phase 337.3: the Terminal's ⋯ menu's End, the second press (§6.1 (ac)).
+    'struct EndMenuItem: View {',
+    '    let row: EndBarDrawing.Row',
+    '    let drawing: EndBarDrawing',
+    '    let ask: () -> Void',
+    '    var body: some View {',
+    '        Button(role: .destructive) {',
+    '            ask()',
+    '        } label: {',
+    '            Label(drawing.menuLabel, systemImage: drawing.glyph)',
+    '        }',
+    '        .disabled(row == .off)',
+    '        .accessibilityIdentifier(ID.terminalMenuEnd)',
+    '    }',
+    '}',
+    'struct EndTopControl: View {',
     '    @State private var asking = false',
     '    private func row(_ row: EndBarDrawing.Row, drawing: EndBarDrawing) -> some View {',
     '        HStack(spacing: Frame.rowGap) {',
@@ -8185,6 +8511,15 @@ const expect = (what, ok) => {
   expect('(ac) catches the End press identified twice', pressRun(undefined, [{ name: 'Screens/SessionScreen.swift', source: 'struct S: View {\n    var body: some View { Button {} label: { Text(Copy.x) }.accessibilityIdentifier(ID.sessionEnd) }\n}\n' }]).length > 0);
   expect('(ac) catches the End press identified on something that is not a Button', pressRun(pressSwap('            Button {\n                guard drawing.confirm != nil else { return }\n                asking = true\n            } label: {', '            Group {')).length > 0);
   expect('(ac) catches a third Row case, which == .off would leave pressable', pressRun(pressSwap('        case off\n', '        case off\n        case dim\n')).length > 0);
+  // Phase 337.3 (build/p3373/SPEC.md §6.1 (ac)): the second press, in the ⋯ menu.
+  const menuItem = W_PRESS.slice(W_PRESS.indexOf('struct EndMenuItem'), W_PRESS.indexOf('struct EndTopControl'));
+  expect('(ac) catches the parent\'s one press, with no End in the menu', pressRun((s) => s.replace(menuItem, '')).length > 0);
+  expect('(ac) catches the menu\'s End with no .disabled', pressRun(pressSwap('        .disabled(row == .off)\n        .accessibilityIdentifier(ID.terminalMenuEnd)', '        .accessibilityIdentifier(ID.terminalMenuEnd)')).length > 0);
+  expect('(ac) catches ID.terminalMenuEnd moved onto the label', pressRun(pressSwap('            Label(drawing.menuLabel, systemImage: drawing.glyph)\n        }\n        .disabled(row == .off)\n        .accessibilityIdentifier(ID.terminalMenuEnd)', '            Label(drawing.menuLabel, systemImage: drawing.glyph)\n                .accessibilityIdentifier(ID.terminalMenuEnd)\n        }\n        .disabled(row == .off)')).length > 0);
+  expect('(ac) catches the menu\'s End not destructive', pressRun(pressSwap('        Button(role: .destructive) {', '        Button {')).length > 0);
+  expect('(ac) catches the menu\'s End drawn by another type', pressRun(pressSwap('struct EndMenuItem: View {', 'struct MenuEnd: View {')).length > 0);
+  expect('(ac) catches the menu\'s End off over a Row it does not hold', pressRun(pressSwap('    let row: EndBarDrawing.Row\n    let drawing: EndBarDrawing\n    let ask', '    let row: Bool\n    let drawing: EndBarDrawing\n    let ask')).length > 0);
+  expect('(ac) catches the menu\'s End identified twice', pressRun(undefined, [{ name: 'Screens/SessionScreen.swift', source: 'struct S: View {\n    var body: some View { Button(role: .destructive) {} label: { Text(Copy.x) }.accessibilityIdentifier(ID.terminalMenuEnd) }\n}\n' }]).length > 0);
   // (ad)
   expect('(ad) catches targets made a var', adRun(swap(END_BAR_FILE, '    let targets: [String]', '    var targets: [String]')).length > 0);
   expect('(ad) catches targets grown in the runner', adRun(swap(END_BAR_FILE, '    func stop() {', '    func add(_ id: String) { targets.append(id) }\n    func stop() {')).length > 0);
@@ -9820,16 +10155,52 @@ export function ruleScreenPans(files) {
     const lx = lexSwift(f.source);
     for (const m of lx.bare.matchAll(/\bcontentOffset\s*=(?!=)|\bsetContentOffset\s*\(/g)) findings.push(`${f.name}:${String(lineOf(lx.bare, m.index))} writes a scroll view's offset outside ${SCROLLER_FILE}`);
   }
-  // (aq7) The content: the rows and D25's pad, from the view's own bounds and the overlap, in layoutSubviews.
+  // (aq7) The content: the rows and the pad, from the view's own bounds and the overlap, in layoutSubviews.
+  // PHASE 337.3 (build/p3373/SPEC.md D4, his item 1): the pad is the visible
+  // height less EVERY row laid out (the history held or reserved, then the
+  // live rows), never the live rows alone. 337.1's pad against the live rows
+  // held them at the view's top whatever was above them, which is the empty
+  // space below the live rows he reported.
   if (layout === undefined) findings.push('ScreenScrollView does not override layoutSubviews, where the pad and the delta are computed (D25, D26)');
   else {
     const l = bodyText(scroller, layout);
     const visible = /\blet\s+(\w+)\s*=\s*max\s*\(\s*0\s*,[^\n]*\bbounds\s*\.\s*height\b[^\n]*\boverlap\b/.exec(l);
-    const pad = visible === null ? null : new RegExp(`\\blet\\s+(\\w+)\\s*=\\s*max\\s*\\(\\s*0\\s*,[^\\n]*\\b${visible[1]}\\b[^\\n]*rowCount`).exec(l);
+    const pad = visible === null ? null : new RegExp(`\\blet\\s+(\\w+)\\s*=\\s*(max\\s*\\(\\s*0\\s*,[^\\n]*\\b${visible[1]}\\b[^\\n]*)`).exec(l);
+    const padMade = pad === null ? '' : expandLocals(l, pad[2]);
+    const everyRow = (/\bliveRow\b/.test(padMade) && /\browCount\b/.test(padMade)) || /\blayout\s*\)?\s*\.\s*rowCount\b/.test(padMade);
     const sized = pad === null ? false : new RegExp(`\\bheight\\s*:[^\\n]*\\+\\s*${pad[1]}\\b`).test(l) && /\bcontentSize\s*=/.test(l);
-    if (visible === null || pad === null || !sized) findings.push('ScreenScrollView.layoutSubviews does not size the content as the rows plus D25\'s pad, the view\'s visible height (bounds.height less the keyboard\'s overlap) less the live rows\' height, never below 0; without it a page landing above the live rows moved them 492 pt at the 337 build\'s own geometry (§Attack B5)');
+    if (visible === null || pad === null || !sized) findings.push('ScreenScrollView.layoutSubviews does not size the content as the rows plus the pad, the view\'s visible height (bounds.height less the keyboard\'s overlap) less the rows laid out, never below 0; without it a page landing above the live rows moved them 492 pt at the 337 build\'s own geometry (§Attack B5)');
+    else if (!everyRow) findings.push('ScreenScrollView.layoutSubviews pads the content against the live rows alone (337.1\'s D25), which holds them at the view\'s top with empty space below whatever history is held, his defect; the pad is the visible height less EVERY row laid out, (layout.liveRow + picture.rowCount) rows (build/p3373/SPEC.md D4)');
     else said.pad = true;
+    // (aq9) The fill, handed to the history BEFORE the content is sized, from
+    // the view's WHOLE height, and the layout read again after it (D2, D3).
+    const fill = /\bscrollback\s*\.\s*fill\s*\(\s*rows\s*:\s*([^)]*)\)/.exec(l);
+    const sizeAt = l.search(/\bcontentSize\s*=(?!=)/);
+    if (fill === null) findings.push('ScreenScrollView.layoutSubviews never hands the history its fill (scrollback.fill(rows:)), so the Terminal opens with the live rows at the top and empty space below (build/p3373/SPEC.md D2, D3)');
+    else {
+      if (sizeAt !== -1 && fill.index > sizeAt) findings.push('ScreenScrollView.layoutSubviews hands the history its fill AFTER it sizes the content, so the first frame draws the live rows at the top and then jumps (build/p3373/SPEC.md D3)');
+      const after = l.slice(fill.index + fill[0].length);
+      const reread = after.search(/\bscrollback\s*\.\s*layout\b/);
+      if (reread === -1 || (sizeAt !== -1 && fill.index + fill[0].length + reread > sizeAt)) findings.push('ScreenScrollView.layoutSubviews does not read scrollback.layout again after the fill and before it sizes the content, so the pass lays out the layout as it was before the fill reserved its rows (build/p3373/SPEC.md §5.2)');
+      const made = expandLocals(l, fill[1], 6);
+      if (!/\bbounds\s*\.\s*(?:size\s*\.\s*)?height\b/.test(made) || !/\browCount\b/.test(made)) findings.push(`the fill is ${JSON.stringify(fill[1].trim())}; it is the rows the view's own height holds at the cell it lays out, less the live rows (bounds.height and picture.rowCount, build/p3373/SPEC.md D2)`);
+      if (/\boverlap\b/.test(made)) findings.push('the fill reads the keyboard\'s overlap; it is from the view\'s WHOLE height, so a keyboard rising or going reserves nothing (build/p3373/SPEC.md D2)');
+    }
   }
+  // (aq10) Following's delta keeps the live rows' place (D11): its arm is the
+  // rows added or taken above them, never 0.
+  const added = funcsNamed(scroller, 'rowsAdded', 'ScreenScrollView')[0];
+  if (added === undefined) findings.push('ScreenScrollView declares no rowsAdded(from:to:), the delta every layout pass moves the offset by (D26)');
+  else {
+    const arm = /\bcase\s*\(\s*\.following\s*,\s*\.following\s*\)\s*:([\s\S]*?)(?=\bcase\b|\bdefault\b|$)/.exec(bodyText(scroller, added));
+    const keeps = arm !== null && /\blayout\s*\.\s*liveRow\s*\)?\s*-\s*\w*\s*\(?\s*previous\s*\.\s*liveRow\b/.test(arm[1]) && !/\breturn\s+0\s*(?:$|\n)/.test(arm[1]);
+    if (!keeps) findings.push(`rowsAdded's (.following, .following) arm is ${JSON.stringify(arm === null ? null : arm[1].replace(/\s+/g, ' ').trim())}; it is layout.liveRow - previous.liveRow, the rows carried, reserved or dropped above the live rows, so every live row stays where it was as output arrives (build/p3373/SPEC.md D11)`);
+  }
+  // (aq11) report() tells the history whether the view is at its bottom, by the pin (D9).
+  const report = funcsNamed(scroller, 'report', 'ScreenScrollView')[0];
+  const viewedCall = report === undefined ? null : /\.\s*viewed\s*\(([^)]*)\)/.exec(bodyText(scroller, report));
+  const atBottom = viewedCall === null ? null : (/\batBottom\s*:\s*([^,)]+)/.exec(viewedCall[1])?.[1].trim().replace(/^self\s*\.\s*/, '') ?? null);
+  if (atBottom !== 'pinned') findings.push(`report() hands the history atBottom: ${JSON.stringify(atBottom)}; it is the view's own pinned (its offset at its maximum), so following enters scrolled exactly when the view leaves its bottom (build/p3373/SPEC.md D9)`);
   for (const m of scroller.bare.matchAll(/\bcontentSize\s*=(?!=)/g)) {
     const fn = placeOf(scroller, m.index).fn;
     if (fn !== 'layoutSubviews') findings.push(`${atLine(scroller, m.index)} sizes the content in ${fn ?? 'no function'}; the content is sized in layoutSubviews alone, from the view's own bounds (D25)`);
@@ -9962,6 +10333,30 @@ export function ruleScreenKeyboard(files) {
       if (/\bprivate\s+var\s*$|@State\s+private\s+var\s*$/.test(screen.bare.slice(Math.max(0, m.index - 24), m.index + 1))) continue;
       if (rhs !== '$0') findings.push(`${atLine(screen, m.index + 1)} sets the page's overlap to ${rhs.slice(0, 40)}; it is the scroll view's published overlap and nothing else (D24)`);
     }
+    // (ar5, Phase 337.3, build/p3373/SPEC.md D13) THE LINES SIT AT THE
+    // TERMINAL'S TOP. With the terminal filled, the live rows and the prompt
+    // he types into sit at the view's bottom, just above the keyboard, which
+    // is where 337.1 drew its lines; a line there covers the prompt. So the
+    // Terminal's line and the scrollback edge's are drawn in ScreenPage's
+    // `top` view, laid over the terminal with .overlay(alignment: .top), and
+    // never in `bottom`, which keeps the arrow back to live (and Copy
+    // sideways). An overlay moves no row (337's fix round).
+    const top = varSpan(screen, 'top', 'ScreenPage');
+    const bottomSpan = varSpan(screen, 'bottom', 'ScreenPage');
+    const pageBody = varSpan(screen, 'body', 'ScreenPage');
+    if (top === null) findings.push('ScreenPage declares no top view holding the Terminal\'s lines over the terminal\'s top edge (build/p3373/SPEC.md D13)');
+    else {
+      for (const id of ['screenLine', 'screenScrollbackLine']) {
+        const sites = [...screen.bare.matchAll(new RegExp(`\\bID\\s*\\.\\s*${id}\\b`, 'g'))].map((m) => m.index);
+        if (sites.length === 0) findings.push(`Screens/Screen.swift draws no line identified ID.${id}`);
+        for (const at of sites) {
+          if (at > top.open && at < top.close) continue;
+          const inBottom = bottomSpan !== null && at > bottomSpan.open && at < bottomSpan.close;
+          findings.push(`${atLine(screen, at)} draws ID.${id} ${inBottom ? 'in the bottom view, just above the keyboard, over the live rows and the prompt he types into' : 'outside ScreenPage\'s top view'}; the lines are drawn over the terminal's TOP edge (build/p3373/SPEC.md D13)`);
+        }
+      }
+    }
+    if (pageBody !== null && !/\.\s*overlay\s*\(\s*alignment\s*:\s*\.top\s*\)\s*\{\s*top\s*\}/.test(screen.bare.slice(pageBody.open, pageBody.close + 1))) findings.push('ScreenPage\'s body lays no .overlay(alignment: .top) { top } over the terminal, so its lines are not drawn at its top (build/p3373/SPEC.md D13)');
   }
   return { findings, said };
 }
@@ -10037,8 +10432,20 @@ export function ruleScrollbackClient(files) {
     const a = bodyText(sb, accept);
     const joinAt = a.search(/\bheld\s*\[[^\]]*\]\s*=(?!=)/);
     const gate = joinAt === -1 ? a : a.slice(0, joinAt);
+    // Phase 337.3 (the gates builder's stricter (as4)): a comparison counts only
+    // inside a guard whose else REFUSES the page (return .moved, refuse(, edge =
+    // .moved); an early `if … { return .ignored }` that compares the space and
+    // refuses nothing is not the check (ablation arm as3 passed silently over one).
+    const refusing = [];
+    for (const m of gate.matchAll(/\bguard\b([^{}]*?)\belse\s*\{/g)) {
+      const open = m.index + m[0].length - 1;
+      const close = matchForward(gate, open);
+      const block = gate.slice(open, close === -1 ? gate.length : close + 1);
+      if (/\brefuse\s*\(|\.\s*moved\b/.test(block)) refusing.push(m[1]);
+    }
+    const checks = refusing.join('\n');
     for (const [what, re] of [['its space', /\bspace\s*==\s*space\b|\.space\s*==|==\s*[\w.]*\.space\b/], ['its wrap', /\bWrap\s*==\s*wrap\b|\.pageWrap\s*==|==\s*[\w.]*wrap\b/], ['its depth against depthSeen', /\bdepth\s*>=\s*depthSeen\b|\bdepthSeen\s*<=\s*\w+/], ['the overlap rows\' text', /\boverlap\w*\s*\(/]]) {
-      if (!re.test(gate)) findings.push(`accept(_:for:) does not compare ${what} before it joins a page; a page is joined only in the space, the width and the depth it was asked in, and by its overlap rows' text (D13, §Attack B8)`);
+      if (!re.test(checks)) findings.push(`accept(_:for:) does not compare ${what} in a guard that refuses the page before it joins it; a page is joined only in the space, the width and the depth it was asked in, and by its overlap rows' text (D13, §Attack B8)`);
     }
     if (joinAt === -1) findings.push('accept(_:for:) never fills a held row (held[i] = …)');
     for (const m of a.matchAll(/(?:^|[^.\w])(?:top|live)\s*(?:=|\+=|-=)(?!=)/g)) findings.push(`${atLine(sb, accept.bodyOpen + m.index)} accept(_:for:) moves the layout (${m[0].trim()}); a page FILLS reserved rows and changes no layout height, so it never moves what he reads (D26)`);
@@ -10082,10 +10489,65 @@ export function ruleScrollbackClient(files) {
     if (f === null) continue;
     for (const m of f.bare.matchAll(PERSISTS)) findings.push(`${atLine(f, m.index)} names ${m[0]}; nothing of the Terminal's history is kept past the Terminal (§12)`);
   }
+  // PHASE 337.3 (build/p3373/SPEC.md D5, D6, D10): following holds history
+  // now, so rows carried from the live screen sit beside rows pages brought.
+  // (as12) A check page, which only re-reads carried rows, waits checkGap, at
+  // least a second, declared once; a page for reserved rows keeps minGap.
+  said.checkGap = null;
+  const gapDecls = all.flatMap((f) => [...f.bare.matchAll(/\bstatic\s+let\s+checkGap\s*(?::\s*[A-Za-z]+)?\s*=\s*([^\n]+)/g)].map((m) => ({ f, m })));
+  if (gapDecls.length !== 1 || model === undefined || gapDecls[0].f.name !== SCROLLBACK_FILE || gapDecls[0].m.index < model.open || gapDecls[0].m.index > model.close) findings.push(`checkGap is declared ${String(gapDecls.length)} time(s); once, in ScrollbackModel, the pace of the pages that only check carried rows (build/p3373/SPEC.md D6)`);
+  else {
+    const v = gapDecls[0].m[1].trim();
+    const ms = /\.milliseconds\(\s*([0-9_]+)\s*\)/.exec(v);
+    const sec = /\.seconds\(\s*([0-9_.]+)\s*\)|^([0-9_.]+)$/.exec(v);
+    said.checkGap = ms !== null ? Number(ms[1].replace(/_/g, '')) / 1000 : sec !== null ? Number((sec[1] ?? sec[2]).replace(/_/g, '')) : null;
+    if (said.checkGap === null || said.checkGap < 1) findings.push(`ScrollbackModel.checkGap is ${v}; at least 1 s, so a phone watching a busy session costs the Mac at most one check page a second (build/p3373/SPEC.md D6)`);
+  }
+  const pumpFn = funcsNamed(sb, 'pump', 'ScrollbackModel')[0];
+  const pumpText = pumpFn === undefined ? '' : bodyText(sb, pumpFn);
+  if (!/\bchecks\b/.test(pumpText) || !/\b(?:Self|ScrollbackModel)\s*\.\s*checkGap\b/.test(pumpText)) findings.push('ScrollbackModel.pump() does not wait checkGap before an ask that only checks carried rows (ask.checks); check pages would go at the reserved rows\' 0.25 s (build/p3373/SPEC.md D6)');
+  // (as13) A carried row is never an overlap anchor, and a page replaces only a reserved or a carried row.
+  const agrees = funcsNamed(sb, 'overlapAgrees')[0];
+  if (agrees !== undefined && !/!\s*\(?\s*\w+\s*\.\s*carried\b|\b\w+\s*\.\s*carried\s*==\s*false\b/.test(bodyText(sb, agrees))) findings.push('overlapAgrees does not skip a carried row (!…carried): a row carried from the live screen, which the agent may have redrawn since, would anchor a page as if a page had brought it (build/p3373/SPEC.md D5, §5.1)');
+  if (accept !== undefined) {
+    const a = bodyText(sb, accept);
+    let fills = 0;
+    // `= nil` returns a row to reserved (the live top's page joined, the Phase 337.3 fix round), which fills nothing: the
+    // lookahead is anchored after the spaces, since `\s*(?!nil)` backtracks to no space and let `= nil` through.
+    for (const m of a.matchAll(/\bheld\s*\[[^\]]*\]\s*=(?!=)(?!\s*nil\b)/g)) {
+      fills += 1;
+      const head = a.slice(Math.max(0, m.index - 240), m.index);
+      const opener = Math.max(head.lastIndexOf('for '), head.lastIndexOf('if '), head.lastIndexOf('guard '));
+      const guardText = opener === -1 ? '' : head.slice(opener);
+      if (!/\bcarried\b/.test(guardText)) findings.push(`${atLine(sb, accept.bodyOpen + m.index)} accept( writes a held row behind ${JSON.stringify(guardText.replace(/\s+/g, ' ').trim().slice(0, 80) || 'nothing')}; a page fills a reserved row and replaces a CARRIED one, never a checked one (held[index]?.carried ?? true, build/p3373/SPEC.md D6)`);
+    }
+    if (fills === 0) findings.push('accept(_:for:) fills no held row');
+  }
+  // (as14) Back to live keeps a fill that reaches the live top (D10).
+  const followFn = funcsNamed(sb, 'follow', 'ScrollbackLayout')[0];
+  const followText = followFn === undefined ? '' : bodyText(sb, followFn);
+  if (!/\bhi\s*==\s*live\b|\blive\s*==\s*hi\b/.test(followText) || !/!\s*pagingStopped\b|\bpagingStopped\s*==\s*false\b/.test(followText)) findings.push('ScrollbackLayout.follow() does not keep what is held exactly when the held rows reach the live top (hi == live) and paging has not stopped, so every trip back to live blanks the history and fetches it again (build/p3373/SPEC.md D10)');
   return { findings, said };
 }
 
 // ---- (at) TERMINAL FIRST (D16 to D20, §Attack B6, B12) ----------------------
+
+/**
+ * The items TerminalPage hands ScreenPage's `trailing:` closure, by the name
+ * each line begins with (`TerminalMenu(` …), or null when it hands none.
+ * Shared by (at) and (ay) (Phase 337.3).
+ */
+function terminalTrailing(screen) {
+  const terminal = screen === null ? undefined : screen.types.find((t) => t.name === 'TerminalPage');
+  if (terminal === undefined) return null;
+  const tb = screen.bare.slice(terminal.open, terminal.close + 1);
+  const tr = /\btrailing\s*:\s*\{/.exec(tb);
+  if (tr === null) return null;
+  const open = terminal.open + tr.index + tr[0].length - 1;
+  const close = matchForward(screen.bare, open);
+  const inner = screen.bare.slice(open + 1, close);
+  return [...inner.matchAll(/(?:^|\n)\s*([A-Z]\w*)\s*[({]/g)].map((m) => m[1]);
+}
 
 /** Rule (at), pure over the app's Swift files. */
 export function ruleTerminalFirst(files) {
@@ -10133,32 +10595,22 @@ export function ruleTerminalFirst(files) {
   }
   for (const file of all) for (const m of file.bare.matchAll(/\bsessionOpenScreen\b|\bsessionOpenConversation\b/g)) findings.push(`${atLine(file, m.index)} names ${m[0]}; the session page's two rows are gone (D16, D21)`);
   if (screen === null) return { findings: [...findings, `${SESSION_SCREEN_FILE} does not exist`], said };
-  // (at3) The trailing items: exactly the Catch Me Up icon, then End.
+  // (at3) The trailing items: exactly the Terminal's ⋯ (Phase 337.3,
+  // build/p3373/SPEC.md D21; his words, "I'd rather have an ellipses in in
+  // the top right that show the option to catch me up or end session"). Until
+  // 337.3 they were the Catch Me Up icon then End; the icon's clauses moved
+  // into rule (ay) with the menu that holds Catch Me Up now.
   const terminal = screen.types.find((t) => t.name === 'TerminalPage');
   if (terminal === undefined) findings.push(`${SESSION_SCREEN_FILE} declares no TerminalPage`);
   else {
     const tb = screen.bare.slice(terminal.open, terminal.close + 1);
-    const tr = /\btrailing\s*:\s*\{/.exec(tb);
-    if (tr === null) findings.push('TerminalPage hands ScreenPage no trailing items');
-    else {
-      const open = terminal.open + tr.index + tr[0].length - 1;
-      const close = matchForward(screen.bare, open);
-      const inner = screen.bare.slice(open + 1, close);
-      said.trailing = [...inner.matchAll(/(?:^|\n)\s*([A-Z]\w*)\s*[({]/g)].map((m) => m[1]);
-      if (said.trailing.join(',') !== 'CatchUpItem,EndTopItem') findings.push(`TerminalPage's trailing items are ${JSON.stringify(said.trailing)}; exactly the Catch Me Up icon then End, End rightmost (D17, D18)`);
-    }
+    said.trailing = terminalTrailing(screen) ?? [];
+    if (terminalTrailing(screen) === null) findings.push('TerminalPage hands ScreenPage no trailing items');
+    else if (said.trailing.join(',') !== 'TerminalMenu') findings.push(`TerminalPage's trailing items are ${JSON.stringify(said.trailing)}; exactly TerminalMenu, the one ⋯ that holds Catch Me Up and End (build/p3373/SPEC.md D21)`);
     if (!/\bScreenPage\s*\(/.test(tb)) findings.push('TerminalPage is not built from ScreenPage, so the landscape gate and the keyboard opt-out are not its (D33, rule an)');
   }
-  const item = screen.types.find((t) => t.name === 'CatchUpItem');
-  if (item === undefined) findings.push(`${SESSION_SCREEN_FILE} declares no CatchUpItem, the Terminal's Catch Me Up icon (D18)`);
-  else {
-    const ib = screen.bare.slice(item.open, item.close + 1);
-    const symbols = screen.strings.filter((s) => s.start > item.open && s.start < item.close).map((s) => s.value);
-    if (!/\bImage\s*\(\s*systemName\s*:/.test(ib) || !symbols.includes('text.bubble')) findings.push(`CatchUpItem draws ${JSON.stringify(symbols)}; Image(systemName: "text.bubble"), the Mac's own speech bubble for Catch Me Up (D18)`);
-    if (!/\.\s*accessibilityIdentifier\s*\(\s*ID\s*\.\s*sessionOpenCatchUp\s*\)/.test(ib)) findings.push('CatchUpItem is not identified ID.sessionOpenCatchUp');
-    if (!/\.\s*accessibilityLabel\s*\(\s*Text\s*\(\s*verbatim\s*:\s*Copy\s*\.\s*catchMeUp\s*\)\s*\)/.test(ib)) findings.push('CatchUpItem\'s spoken name is not Copy.catchMeUp (D18, D21)');
-    if (/\bWords\s*\(|\bText\s*\(\s*Copy/.test(ib)) findings.push('CatchUpItem draws a word; it is an icon, not prominent (his ruling: "as most people will want to use their terminal")');
-  }
+  // No icon and no identifier of it, anywhere in the app (Phase 337.3, D28).
+  for (const file of all) for (const m of file.bare.matchAll(/\bCatchUpItem\b|\bsessionOpenCatchUp\b/g)) findings.push(`${atLine(file, m.index)} names ${m[0]}; the Terminal's Catch Me Up icon left with Phase 337.3, and Catch Me Up is the ⋯ menu's first item (build/p3373/SPEC.md D21, D28)`);
   // (at4) The tray presses through ReplyModel.press alone, on 318's identifiers, every option whole.
   const tray = screen.types.find((t) => t.name === 'ChoiceTray');
   if (tray === undefined) findings.push(`${SESSION_SCREEN_FILE} declares no ChoiceTray, the Terminal's question tray (D19)`);
@@ -10306,7 +10758,10 @@ export const HOSTILE_SCROLLBACK_ARMS = Object.freeze([
   'scrollback-space',
   'scrollback-chunked',
   'scrollback-never',
-  'scrollback-404'
+  'scrollback-404',
+  // Phase 337.3 (build/p3373/SPEC.md §6.1 (t), §7.3): the fill's first page
+  // answered moved, every later one honest; following draws no line.
+  'scrollback-fill-moved'
 ]);
 
 /** (t)'s Phase 337.1 half, over hostile-door.mjs's text (or null) and Copy.swift's. */
@@ -10333,6 +10788,403 @@ export function ruleHostileScrollbackArms(hostile, copy) {
   for (const arm of ['scrollback-overlap-lie', 'scrollback-space']) {
     const row = new RegExp(`(?:^|\\n)\\s*'${arm}':\\s*\\{([^\\n]*)\\}`).exec(hostile);
     if (row !== null && !/\bstops:\s*true\b/.test(row[1])) findings.push(`hostile-door.mjs's ${arm} does not say paging stops there (stops: true); the phone draws the moved line and asks nothing more (§7.8 PSH)`);
+  }
+  // Phase 337.3 (build/p3373/SPEC.md §7.3): the fill's refused first page ends
+  // in the live terminal drawn, with no line (a refusal while following says
+  // nothing, D8), and spoils the first page alone.
+  const fill = /(?:^|\n)\s*'scrollback-fill-moved':\s*\{([^\n]*)\}/.exec(hostile);
+  if (fill !== null) {
+    if (!/\bends:\s*'drawn'/.test(fill[1])) findings.push("hostile-door.mjs's scrollback-fill-moved does not end in the live terminal drawn (ends: 'drawn'); a refusal while following draws no line (build/p3373/SPEC.md D8)");
+    if (!/\bexpect:\s*\[\s*\]/.test(fill[1])) findings.push("hostile-door.mjs's scrollback-fill-moved expects a sentence; following draws none (expect: [], D8)");
+    if (!/\bfillOnce:\s*true\b/.test(fill[1])) findings.push("hostile-door.mjs's scrollback-fill-moved does not say it spoils the fill's first page alone (fillOnce: true, §7.3)");
+  }
+  return { findings, said };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 337.3: the terminal fills the phone (build/p3373/SPEC.md §6.1)
+// ---------------------------------------------------------------------------
+//
+// His words of 2026-10-07, testing TestFlight build 7: "i'd rather more of the
+// scrollback (if available) in vertical mode could be shown like this [the
+// screen filled with earlier output, the live rows at the bottom]"; "when
+// you're in horiztonal mode, i want to show as much of the terminal as
+// possible and not the top which shows you which session you're in or the
+// different bottom needs input, sessions or settings menu"; and "In vertical
+// mode, I'd rather have an ellipses in in the top right that show the option
+// to catch me up or end session (we can keep face input for end session)."
+// Three rules, one for each, each a set of lines a later round could delete
+// with the Terminal still drawing: (aw) the fill, (ax) the terminal alone
+// sideways, (ay) the ⋯.
+
+/** Is bare-text index `at` inside a `{` block whose opening line (from its line's start to the brace) matches `re`, at any depth out? */
+function insideBlock(bare, at, re) {
+  let k = innermostOpener(bare, at);
+  while (k !== -1) {
+    if (bare[k] === '{' && re.test(bare.slice(bare.lastIndexOf('\n', k) + 1, k))) return true;
+    k = innermostOpener(bare, k);
+  }
+  return false;
+}
+
+/**
+ * The call whose name starts at bare-text index `at`: its name, its argument
+ * text, its trailing closures (`{ open, close }`, a labelled one such as
+ * `label:` included) and its own modifier chain (`{ name, args, at }`).
+ */
+function parseCall(text, at) {
+  const name = /^[A-Za-z_]\w*/.exec(text.slice(at))?.[0] ?? '';
+  let k = at + name.length;
+  let args = '';
+  const paren = /^\s*\(/.exec(text.slice(k));
+  if (paren !== null) {
+    const open = k + paren[0].length - 1;
+    const close = closeParen(text, open);
+    if (close === -1) return null;
+    args = text.slice(open + 1, close);
+    k = close + 1;
+  }
+  const closures = [];
+  for (;;) {
+    const brace = /^\s*(?:[A-Za-z_]\w*\s*:\s*)?\{/.exec(text.slice(k));
+    if (brace === null) break;
+    const open = k + brace[0].length - 1;
+    const close = matchForward(text, open);
+    if (close === -1) break;
+    closures.push({ open, close });
+    k = close + 1;
+  }
+  const { chain, end } = modifierChainAt(text, k);
+  return { name, args: args.replace(/\s+/g, ' ').trim(), closures, chain, end };
+}
+
+/**
+ * A member of the type `type` in a lexed file, at the type's own depth:
+ * `{ text, param }`, the text of `var NAME: … { … }` or `func NAME(…) { … }`
+ * with `return` and `self.` taken out and its spaces collapsed, or the right
+ * side of `NAME = …` in the type's init, and `param` a func's first
+ * parameter's own name. Null when the type declares no such member.
+ */
+function typeMember(file, type, name) {
+  const body = file.bare.slice(type.open, type.close + 1);
+  const norm = (s) => s.replace(/\breturn\b/g, ' ').replace(/\bself\s*\.\s*/g, '').replace(/\s+/g, ' ').trim();
+  for (const m of body.matchAll(new RegExp(`\\b(var|func)\\s+${name}\\b\\s*(\\([^)]*\\))?[^{=\\n]*\\{`, 'g'))) {
+    if (!atTopLevel(file.bare, type.open, type.open + m.index)) continue;
+    const open = type.open + m.index + m[0].length - 1;
+    const param = m[2] === undefined ? null : (/^\(\s*(?:[A-Za-z_]\w*\s+)?([A-Za-z_]\w*)\s*:/.exec(m[2])?.[1] ?? null);
+    return { text: norm(file.bare.slice(open + 1, matchForward(file.bare, open))), code: norm(file.code.slice(open + 1, matchForward(file.bare, open))), param };
+  }
+  const init = /\binit\s*\([^)]*\)\s*\{/.exec(body);
+  if (init !== null) {
+    const open = type.open + init.index + init[0].length - 1;
+    const inner = file.bare.slice(open + 1, matchForward(file.bare, open));
+    const set = new RegExp(`(?:^|[^.\\w])(?:self\\s*\\.\\s*)?${name}\\s*=(?!=)\\s*([^\\n;]+)`).exec(inner);
+    if (set !== null) return { text: norm(set[1]), code: norm(set[1]), param: null };
+  }
+  return null;
+}
+
+/** The `&&` terms of a Bool expression, each with its spaces collapsed and `0 == x` read as `x == 0`. */
+const conjuncts = (text) => text.split('&&').map((t) => t.trim().replace(/^\((.*)\)$/, '$1').replace(/^0\s*==\s*(\w+)$/, '$1 == 0')).sort();
+
+// ---- (aw) THE TERMINAL OPENS FILLED (D1 to D12) ----------------------------
+
+/**
+ * Rule (aw), pure over the app's Swift files. His item 1. Every clause is one
+ * line of Screens/ScreenScrollback.swift a later round can delete with the
+ * Terminal still drawing, and each puts back a shape 337.1 shipped on purpose
+ * (the live rows at the view's top) or a loop of pages over a still screen:
+ *
+ *   firstRow `space == nil ? live : top`, so a held index space lays out
+ *   from `top` in either mode (D1); reserve(visibleTop:fill:) holding an index
+ *   space in following at ANY depth and moving top only up, never toward the
+ *   live top (D2, D7); picture( dropping what following holds on the
+ *   alternate screen, another space or width, or a shallower depth, and
+ *   carrying rows from the last steady picture alone, at most its rows, with
+ *   the held rows reaching the live top, in the same space and width, each
+ *   marked carried (D5, D7); ScrollbackModel.fill(rows:) telling no one, so
+ *   the layout pass that asks it is not asked to lay out again inside itself
+ *   (§5.1); viewed( entering scrolled only off the bottom above the live top
+ *   (D9); want( asking in either mode, its overlap from checked rows alone
+ *   and its check asks only over carried rows (D6); a refusal in following
+ *   drawing no line and holding refusedAt, a 404 turning the fill off (D8);
+ *   and nothing of the history persisted.
+ */
+export function ruleTerminalFill(files) {
+  const findings = [];
+  const said = { firstRow: null, carries: false, refusals: 0 };
+  const sb = lexedFile(files, SCROLLBACK_FILE);
+  if (sb === null) return { findings: [`${SCROLLBACK_FILE} does not exist, so the Terminal's history cannot be read`], said };
+  const layout = sb.types.find((t) => t.name === 'ScrollbackLayout' && t.kind === 'struct');
+  const model = sb.types.find((t) => t.name === 'ScrollbackModel' && t.kind === 'class');
+  if (layout === undefined || model === undefined) return { findings: [`${SCROLLBACK_FILE} declares no struct ScrollbackLayout and final class ScrollbackModel`], said };
+  const lb = sb.bare.slice(layout.open, layout.close + 1);
+  const fnOf = (name, type) => funcsNamed(sb, name, type)[0];
+  const textOf = (fn) => (fn === undefined ? '' : bodyText(sb, fn));
+  // A function's body with the bodies of the ScrollbackLayout functions it
+  // calls laid in after it, once: what a call to drop() or carry(…) does.
+  const withHelpers = (fn) => {
+    let t = textOf(fn);
+    for (const m of t.matchAll(/(?<![.\w])([a-z]\w*)\s*\(/g)) {
+      const h = fnOf(m[1], 'ScrollbackLayout');
+      if (h !== undefined && h !== fn) t += `\n${textOf(h)}`;
+    }
+    return t;
+  };
+  const drops = (t) => /(?:^|[^.\w])space\s*=\s*nil\b/.test(t);
+  // (aw1) The first row laid out.
+  const first = typeMember(sb, layout, 'firstRow');
+  said.firstRow = first?.text ?? null;
+  if (first === null || !/^space == nil \? live : top$|^nil == space \? live : top$|^space != nil \? top : live$/.test(first.text)) findings.push(`ScrollbackLayout.firstRow is ${JSON.stringify(first?.text ?? null)}; it is space == nil ? live : top, so a held index space lays out from top in following too and the history fills above the live rows (build/p3373/SPEC.md D1; 337.1's mode == .scrolled ? top : live put the live rows at the top)`);
+  for (const [name, re] of [['carried', /\b(?:let|var)\s+carried\s*:\s*Bool\b/], ['checked', /\b(?:let|var)\s+checked\s*(?::\s*Int)?\s*=/], ['lastSteady', /\b(?:let|var)\s+lastSteady\s*:\s*ScreenPicture\s*\?/], ['refusedAt', /\b(?:let|var)\s+refusedAt\s*:\s*Offer\s*\?/], ['fillOff', /\b(?:let|var)\s+fillOff\s*(?::\s*Bool)?\s*=/]]) {
+    if (!re.test(sb.bare)) findings.push(`${SCROLLBACK_FILE} declares no ${name}, which the fill holds (build/p3373/SPEC.md §5.1)`);
+  }
+  // (aw2) reserve(visibleTop:fill:): an index space at any depth, top only up.
+  const reserve = fnOf('reserve', 'ScrollbackLayout');
+  if (reserve === undefined || !/\bvisibleTop\s*:\s*Int\s*,\s*fill\s*:\s*Int\b/.test(reserve.params)) findings.push('ScrollbackLayout declares no reserve(visibleTop:fill:), the one place the fill moves top (build/p3373/SPEC.md §5.1, rule as5)');
+  else {
+    const r = withHelpers(reserve);
+    if (/\.\s*depth\s*>\s*0\b|\bdepth\s*>\s*0\b/.test(textOf(reserve))) findings.push('reserve( holds an index space only above depth 0; it holds one at ANY depth, 0 included, so the very first line that scrolls off is carried (build/p3373/SPEC.md D7)');
+    // The fix round (2026-10-08): a refusal holds no page (want( asks it), never the fill's rows. A guard on refusedAt here
+    // left the live rows alone at the view's top from a refused page until the next picture (7 of 60 runs over a trim or a
+    // pane switch, measured), then back at the bottom: the rows he reads jumping twice.
+    if (/\brefusedAt\b/.test(textOf(reserve))) findings.push('reserve( refuses to hold the space while a refusal holds (refusedAt): the live rows jump to the view\'s top from a refused page until the next picture and back; a refusal asks no page (want), and the fill\'s rows stay reserved, the ground (build/p3373/SPEC.md §Rebuilt after the reboot, the fix round)');
+    const ups = [...textOf(reserve).matchAll(/(?:^|[^.\w])top\s*=(?!=)\s*([^\n;]+)/g)].filter((m) => !/^offer\s*\.\s*depth\b/.test(m[1].trim()) && !/\bpageRows\b/.test(m[1]));
+    const guarded = ups.every((m) => {
+      // `if want < top { top = want }` on one line captures `want }`: the value ends at the brace.
+      const v = m[1].trim().replace(/\s*\}.*$/, '');
+      return /^min\s*\(/.test(v) || new RegExp(`\\bif\\s+${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*<\\s*top\\s*\\{\\s*$`).test(textOf(reserve).slice(0, m.index + 1).split('\n').pop() ?? '') || new RegExp(`\\bif\\s+${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*<\\s*top\\b`).test(textOf(reserve).slice(Math.max(0, m.index - 80), m.index + 1));
+    });
+    if (ups.length === 0) findings.push('reserve( never moves top for the fill in following, so nothing is reserved above the live rows (build/p3373/SPEC.md D2)');
+    else if (!guarded) findings.push('reserve( moves top for the fill without asking that the new top is above it (if want < top, or min(top, …)); the reservation only grows, never toward the live top (build/p3373/SPEC.md D2)');
+    if (!/\bpageRows\b/.test(r) || !/\bfill\b/.test(r)) findings.push('reserve( does not reserve the fill in whole pages (pageRows), so a page would reach above what is reserved (build/p3373/SPEC.md D2)');
+    // The fill moves top through reserve( alone (rule as5 reads the same for 337.1's pages).
+    for (const m of lb.matchAll(/(?:^|[^.\w])(?:self\s*\.\s*)?top\s*(?:=|\+=|-=)(?!=)/g)) {
+      const at = layout.open + m.index + 1;
+      if (/\bvar\s*$|\blet\s*$|private\s*\(\s*set\s*\)\s*var\s*$/.test(sb.bare.slice(Math.max(0, at - 24), at))) continue;
+      if (placeOf(sb, at).fn !== 'reserve') findings.push(`${atLine(sb, at)} moves top for the fill outside reserve(visibleTop:fill:), the one place top moves (build/p3373/SPEC.md §5.1, rule as5)`);
+    }
+  }
+  // (aw3) A live picture: the drops and the carry.
+  const picture = fnOf('picture', 'ScrollbackLayout');
+  if (picture === undefined) findings.push('ScrollbackLayout declares no picture(_:)');
+  else {
+    const p = textOf(picture);
+    const pAll = withHelpers(picture);
+    // The alternate screen drops what following holds.
+    const alt = /\bif\s+[^{\n]*\balternate\b[^{\n]*\{/.exec(p);
+    let altBlock = '';
+    if (alt !== null) {
+      const open = picture.bodyOpen + alt.index + alt[0].length - 1;
+      altBlock = sb.bare.slice(open, matchForward(sb.bare, open) + 1);
+      for (const m of altBlock.matchAll(/(?<![.\w])([a-z]\w*)\s*\(/g)) {
+        const h = fnOf(m[1], 'ScrollbackLayout');
+        if (h !== undefined && m[1] !== 'follow') altBlock += `\n${textOf(h)}`;
+      }
+    }
+    if (alt === null || !drops(altBlock)) findings.push('ScrollbackLayout.picture( does not drop what following holds on the alternate screen (space = nil): a full-screen program covers the history, and a terminal it left would draw history over it (build/p3373/SPEC.md D7)');
+    // Another space, another width or a shallower depth drops it too.
+    const mismatch = /\bguard\b([^{}]*\bdepthSeen\b[^{}]*)\belse\s*\{/.exec(p);
+    let elseBlock = '';
+    if (mismatch !== null) {
+      const open = picture.bodyOpen + mismatch.index + mismatch[0].length - 1;
+      elseBlock = sb.bare.slice(open, matchForward(sb.bare, open) + 1);
+      for (const m of elseBlock.matchAll(/(?<![.\w])([a-z]\w*)\s*\(/g)) {
+        const h = fnOf(m[1], 'ScrollbackLayout');
+        if (h !== undefined) elseBlock += `\n${textOf(h)}`;
+      }
+    }
+    if (mismatch === null || !/\bspace\b/.test(mismatch[1]) || !/\bwrap\b|\bcolumns\b/.test(mismatch[1]) || !drops(elseBlock)) findings.push('ScrollbackLayout.picture( does not drop what following holds when a picture offers another space, another width or a depth below depthSeen (a guard on all three whose else drops, space = nil); a trim, a rewrap or another pane would draw the old history (build/p3373/SPEC.md D7)');
+    // Carrying, from the last steady picture alone. The clauses are read in the
+    // ONE function that marks rows carried (picture( itself, or a helper it
+    // calls), never over every helper laid in: follow()'s own `hi == live` and
+    // the mismatch guard's `space == space` had satisfied a first draft that
+    // read them all (ablation arm aw3, the gates builder's decision 5).
+    said.carries = /\bcarried\s*:\s*true\b/.test(pAll);
+    const carrier = [picture, ...[...p.matchAll(/(?<![.\w])([a-z]\w*)\s*\(/g)].map((m) => fnOf(m[1], 'ScrollbackLayout')).filter((h) => h !== undefined && h !== picture)]
+      .find((fn) => /\bcarried\s*:\s*true\b/.test(textOf(fn)));
+    const carryText = carrier === undefined ? '' : textOf(carrier);
+    const carryChecks = [
+      ['lastSteady', /\blastSteady\b/, 'from the last steady picture'],
+      ['carried: true', /\bcarried\s*:\s*true\b/, 'each row marked carried'],
+      ['hi == live', /\bhi\s*==\s*live\b|\blive\s*==\s*hi\b/, 'only while the held rows reach the live top'],
+      ['k at most its rows', /\bmin\s*\(\s*\w+\s*,\s*\w+\s*\.\s*(?:rowCount|rows\s*\.\s*count)\s*\)|\bmin\s*\(\s*\w+\s*\.\s*(?:rowCount|rows\s*\.\s*count)\s*,\s*\w+\s*\)|<=\s*\w+\s*\.\s*(?:rowCount|rows\s*\.\s*count)\b|\b\w+\s*\.\s*(?:rowCount|rows\s*\.\s*count)\s*>=/, 'at most the rows that picture had'],
+      // Scrolled carries only when the rows are every line that scrolled off (337.1's walk, D14); following carries what the last picture showed whatever the lines (the verify of 2026-10-08).
+      ['shown == k || mode == .following', /==\s*k\s*\|\|\s*mode\s*==\s*\.following\b|\bmode\s*==\s*\.following\s*\|\|\s*\w+\s*==\s*k\b|\bk\s*==\s*\w+\s*\|\|\s*mode\s*==\s*\.following\b/, 'while scrolled only as every line that scrolled off, so no hole opens beside what he reads (a partial carry is following\'s alone)'],
+      ['the same space', /\.\s*space\s*==\s*space\b|\bspace\s*==\s*\w+\s*\.\s*space\b/, 'in the same space'],
+      ['the same width', /\.\s*columns\s*==\s*wrap\b|\bwrap\s*==\s*\w+\s*\.\s*columns\b/, 'and the same width']
+    ];
+    for (const [what, re, why] of carryChecks) if (!re.test(carryText)) findings.push(`ScrollbackLayout.picture( does not carry rows ${why} (${what}); a row carried otherwise could be a row the screen never had at that index (build/p3373/SPEC.md D5)`);
+    // The carried rows are placed from `live` upward, never below index 0 (arm aw13).
+    if (carrier !== undefined && /\bless\s*\(\s*live\b/.test(carryText)) findings.push('ScrollbackLayout.picture( carries rows to indices BELOW the live top (less(live, …)); the rows that scrolled off are [live, depth), never below index 0 (build/p3373/SPEC.md D5)');
+    if (!/\blastSteady\s*=(?!=)/.test(pAll)) findings.push('ScrollbackLayout.picture( never keeps the last steady picture (lastSteady = …), so nothing can be carried from it (build/p3373/SPEC.md D5)');
+  }
+  // (aw4) fill(rows:) tells no one: its caller is the layout pass.
+  const fill = fnOf('fill', 'ScrollbackModel');
+  if (fill === undefined || !/^\s*rows\s*:\s*Int\s*$/.test(fill.params)) findings.push('ScrollbackModel declares no fill(rows:), which the scroll view\'s layout pass calls before it sizes the content (build/p3373/SPEC.md §5.1)');
+  else {
+    const f = textOf(fill);
+    if (/\bonLayout\b|\bchanged\s*\(|(?:^|[^.\w])(?:mode|line)\s*=(?!=)/.test(f)) findings.push('ScrollbackModel.fill(rows:) tells the view to lay out again or changes an observed value (onLayout, changed(), mode or line); its caller IS the layout pass (build/p3373/SPEC.md §5.1)');
+    if (!/\blayout\s*\.\s*reserve\s*\([^)]*\bfill\s*:/.test(f)) findings.push('ScrollbackModel.fill(rows:) does not hand the layout its fill through reserve(visibleTop:fill:) (build/p3373/SPEC.md §5.1)');
+  }
+  // (aw5) viewed( enters scrolled only off the bottom, above the live top.
+  const viewed = fnOf('viewed', 'ScrollbackModel');
+  if (viewed === undefined || !/\batBottom\s*:\s*Bool\b/.test(viewed.params)) findings.push('ScrollbackModel declares no viewed(top:bottom:atBottom:), so following cannot tell a view at its bottom from one he moved (build/p3373/SPEC.md D9)');
+  else {
+    const v = textOf(viewed);
+    const calls = [...v.matchAll(/\blayout\s*\.\s*scroll\s*\(\s*\)/g)];
+    if (calls.length === 0) findings.push('ScrollbackModel.viewed( never enters scrolled (layout.scroll()), so a drag up from the filled view is never his place kept (build/p3373/SPEC.md D9)');
+    for (const m of calls) {
+      const head = v.slice(0, m.index);
+      const cond = head.slice(head.lastIndexOf('if ')).split('{')[0];
+      if (!/!\s*atBottom\b/.test(cond) || !/\btop\s*<\s*layout\s*\.\s*live\b|\blayout\s*\.\s*live\s*>\s*top\b/.test(cond)) findings.push(`${atLine(sb, viewed.bodyOpen + m.index)} enters scrolled behind ${JSON.stringify(cond.replace(/\s+/g, ' ').trim())}; only while the view is off its bottom (!atBottom) with its top above the live top (top < layout.live), or every new picture would leave following (build/p3373/SPEC.md D9)`);
+    }
+  }
+  for (const m of sb.bare.matchAll(/\.\s*scroll\s*\(\s*\)/g)) {
+    const pl = placeOf(sb, m.index);
+    if (!(pl.type === 'ScrollbackModel' && pl.fn === 'viewed')) findings.push(`${atLine(sb, m.index)} enters scrolled in ${pl.type ?? 'no type'}.${pl.fn ?? 'no function'}; viewed( alone, off the bottom (build/p3373/SPEC.md D9)`);
+  }
+  if (!/\bmutating\s+func\s+scroll\s*\(\s*\)/.test(lb)) findings.push('ScrollbackLayout declares no scroll(), following to scrolled with no row added (build/p3373/SPEC.md D9)');
+  // (aw6) want( in either mode, its overlap from checked rows, its checks over carried rows.
+  const want = fnOf('want', 'ScrollbackLayout');
+  if (want === undefined) findings.push('ScrollbackLayout declares no want(visibleTop:visibleBottom:)');
+  else {
+    const w = textOf(want);
+    if (/\bguard\s+mode\s*==\s*\.scrolled\b/.test(w)) findings.push('ScrollbackLayout.want( asks only while scrolled (guard mode == .scrolled), so following never fills the rows it reserved (build/p3373/SPEC.md §5.1)');
+    const overlap = /\blet\s+overlap\s*=\s*([^\n]+)/.exec(w);
+    if (overlap === null || !/\bchecked\b/.test(overlap[1]) || /\bhi\b/.test(overlap[1])) findings.push(`ScrollbackLayout.want('s overlap is ${JSON.stringify(overlap?.[1]?.trim() ?? null)}; it is from CHECKED rows alone (min(overlapWanted, checked - lo)), so a page is never anchored on a row carried from the live screen (build/p3373/SPEC.md D5, D6)`);
+    if (!/\bchecks\s*:/.test(withHelpers(want))) findings.push('ScrollbackLayout.want( never says which ask is a check (checks:), so a check page would go at the reserved rows\' pace (build/p3373/SPEC.md D6)');
+    if (!/\bfillOff\b/.test(w) || !/\brefusedAt\b/.test(w)) findings.push('ScrollbackLayout.want( does not hold the fill back while it is off or refused (fillOff, refusedAt), so a refusing door would be asked again at the picture rate (build/p3373/SPEC.md D8)');
+  }
+  // (aw7) A refusal in following draws no line and holds refusedAt; a 404 turns the fill off.
+  const sets = [...lb.matchAll(/(?:^|[^.\w])refusedAt\s*=(?!=)\s*([^\n;]+)/g)].filter((m) => m[1].trim() !== 'nil');
+  said.refusals = sets.length;
+  if (sets.length === 0) findings.push('ScrollbackLayout never holds the offer a refusal came at (refusedAt = …), so a door that refuses the fill is asked again for every picture (build/p3373/SPEC.md D8)');
+  for (const m of sets) {
+    const at = layout.open + m.index;
+    // The arm it sits in: its innermost block, cut at that block's own case labels.
+    const open = innermostOpener(sb.bare, at + 1);
+    const close = open === -1 ? -1 : matchForward(sb.bare, open);
+    let arm = open === -1 ? '' : sb.bare.slice(open + 1, close);
+    const rel = at - open - 1;
+    const labels = [...arm.matchAll(/\bcase\s+[^:\n]+:|\bdefault\s*:/g)].filter((c) => atTopLevel(sb.bare, open, open + 1 + c.index));
+    if (labels.length > 0) {
+      const before = labels.filter((c) => c.index <= rel).pop();
+      const after = labels.find((c) => c.index > rel);
+      arm = arm.slice(before === undefined ? 0 : before.index, after === undefined ? arm.length : after.index);
+    }
+    if (/\bedge\s*=\s*\.moved\b/.test(arm)) findings.push(`${atLine(sb, at)} holds a refusal and draws the moved line beside it; a refusal while following drops the history and says nothing (build/p3373/SPEC.md D8)`);
+  }
+  const stopFn = fnOf('stop', 'ScrollbackLayout');
+  if (stopFn === undefined || !/\bfillOff\s*=\s*true\b/.test(textOf(stopFn))) findings.push('ScrollbackLayout.stop( does not turn the fill off (fillOff = true): a door with no /v1/scrollback, which answers 404, would be asked for the fill at every picture (build/p3373/SPEC.md D8)');
+  // (aw9) THE BAND, THE STRADDLE AND THE BLINK (build/p3373/SPEC.md §Rebuilt
+  // after the reboot, and its fix round of 2026-10-08). Following NEVER drops
+  // what it holds when a picture's lines outran the screen: it carries what the
+  // last picture showed (when the model says carrying), keeps the lines past
+  // them as holes under hi, which moves to the new live top, and counts the
+  // picture (outruns); want( asks the live top's page at once for holes in view
+  // when the checked rows lie more than a page below it, and accept( joins that
+  // page by returning the rows under it, all out of view, to reserved. The
+  // build the verify read dropped instead and refilled after the hold: the band
+  // above the prompt blank for 1.15 to 1.55 s on every return (measured). When
+  // two such pictures come within outrunGap (at least a second) the model has
+  // following carry nothing and ask no page until outrunGap after the last, so
+  // output near or past a screen a picture leaves the ground above the prompt
+  // steadily instead of flashing strips of carried rows 9 to 98 times a minute
+  // (measured), and asks the Mac for nothing it would throw away; scrolled
+  // keeps 337.1's pace. The blink: a page raises depthSeen only while
+  // scrolled, so a picture read before a deeper page is no trim.
+  if (picture !== undefined) {
+    const p = textOf(picture);
+    if (!/\bcarrying\s*:\s*Bool\b/.test(picture.params)) findings.push('ScrollbackLayout.picture( takes no carrying: Bool, so the model cannot hold the carry while output outruns the screen picture after picture (build/p3373/SPEC.md §Rebuilt after the reboot, the fix round)');
+    const blocks = [...p.matchAll(/\bif\s+mode\s*==\s*\.following\s*\{/g)].map((m) => {
+      const open = picture.bodyOpen + m.index + m[0].length - 1;
+      const own = sb.bare.slice(open, matchForward(sb.bare, open) + 1);
+      let block = own;
+      for (const h of own.matchAll(/(?<![.\w])([a-z]\w*)\s*\(/g)) {
+        const fn = fnOf(h[1], 'ScrollbackLayout');
+        if (fn !== undefined && fn !== picture) block += `\n${textOf(fn)}`;
+      }
+      return { own, block };
+    });
+    const band = blocks.find((b) => /(?<![.\w])carry\s*\(/.test(b.own));
+    if (band === undefined) findings.push('ScrollbackLayout.picture( has no following branch that carries the lines that scrolled off (if mode == .following { … carry( … }) (build/p3373/SPEC.md D5)');
+    else {
+      if (drops(band.block)) findings.push('ScrollbackLayout.picture( drops what following holds when a picture\'s lines outran the screen (space = nil in its following branch): a page the picture outran is carried or read again, never dropped to blank; the build the verify read blanked the band for 1.15 to 1.55 s on every return (build/p3373/SPEC.md §Rebuilt after the reboot, the fix round)');
+      if (!/\bif\s+carrying\s*\{[^}\n]*(?<![.\w])carry\s*\(/.test(band.own)) findings.push('ScrollbackLayout.picture( carries in following whatever the model says (if carrying { … carry( … }), so output that outruns the screen picture after picture flashes strips of carried rows above the prompt (build/p3373/SPEC.md §Rebuilt after the reboot, the verify\'s straddle)');
+      if (!/(?:^|[^.\w])outruns\s*=\s*(?:Self\s*\.\s*)?plus\s*\(\s*outruns\b/.test(band.own)) findings.push('ScrollbackLayout.picture( does not count a following picture whose lines outran the screen (outruns = plus(outruns, 1)), so nothing tells the model output is outrunning it (build/p3373/SPEC.md §Rebuilt after the reboot)');
+      if (!/\bhi\s*=\s*offer\s*\.\s*depth\b|\bhi\s*=\s*max\s*\(\s*hi\s*,\s*offer\s*\.\s*depth\s*\)/.test(band.own)) findings.push('ScrollbackLayout.picture( leaves hi under the new live top in following (if hi < offer.depth { hi = offer.depth }), so the lines no picture showed are no holes a page fills and the next picture carries nothing (build/p3373/SPEC.md §Rebuilt after the reboot, the fix round)');
+    }
+  }
+  if (want !== undefined) {
+    const w = textOf(want);
+    const liveTop = [...w.matchAll(/\bif\s+mode\s*==\s*\.following\s*,([^{\n]*)\{/g)].some((m) => /\bchecked\b/.test(m[1]) && /\bpageRows\b/.test(m[1]) && /<\s*live\b/.test(m[1]));
+    if (!liveTop) findings.push('ScrollbackLayout.want( never asks the live top\'s page in following when the checked rows lie more than a page below the live top (if mode == .following, plus(checked, pageRows) < live, …), so a flood\'s or a return\'s holes wait for pages walking up from rows out of view (build/p3373/SPEC.md §Rebuilt after the reboot, the reverify\'s band)');
+  }
+  const acceptFn = fnOf('accept', 'ScrollbackLayout');
+  if (acceptFn !== undefined) {
+    const a = textOf(acceptFn);
+    const join = /\bif\s+mode\s*==\s*\.following\s*,[^{\n]*\blo\s*<\s*from\b[^{\n]*\{/.exec(a);
+    const joinBlock = join === null ? '' : sb.bare.slice(acceptFn.bodyOpen + join.index + join[0].length - 1, matchForward(sb.bare, acceptFn.bodyOpen + join.index + join[0].length - 1) + 1);
+    if (join === null || !/(?:^|[^.\w])lo\s*=\s*from\b/.test(joinBlock)) findings.push('ScrollbackLayout.accept( does not join the live top\'s page in following by returning the rows under it to reserved (if mode == .following, lo < from … { … lo = from … }), so that page is refused or leaves a gap beside the checked rows (build/p3373/SPEC.md §Rebuilt after the reboot)');
+  }
+  const gapDecl = [...sb.bare.slice(model.open, model.close + 1).matchAll(/\bstatic\s+let\s+outrunGap\s*(?::\s*[A-Za-z]+)?\s*=\s*([^\n]+)/g)];
+  if (gapDecl.length !== 1) findings.push(`ScrollbackModel declares outrunGap ${String(gapDecl.length)} time(s); once, how close two pictures that outran the screen come before following carries nothing and asks no page, and how long after the last (build/p3373/SPEC.md §Rebuilt after the reboot)`);
+  else {
+    const v = gapDecl[0][1].trim();
+    const ms = /\.milliseconds\(\s*([\d_]+)\s*\)/.exec(v);
+    const sec = /\.seconds\(\s*([\d_]+)\s*\)|^([\d_.]+)$/.exec(v);
+    const seconds = ms !== null ? Number(ms[1].replace(/_/g, '')) / 1000 : sec !== null ? Number((sec[1] ?? sec[2]).replace(/_/g, '')) : null;
+    if (seconds === null || seconds < 3) findings.push(`ScrollbackModel.outrunGap is ${v}; at least 3 s: under the slowest picture's interval (400 ms ticks on another machine, the watcher's 250 ms floor and the poll's round trip) output that outruns the screen picture after picture is never seen as such, and a shorter hold let output whose pictures pass the view every second or two slip out of it and back, the band filling and going to the ground 13 to 28 times a minute at 1 s and 3.5 at 2 s (1.2 at 3 s, measured; build/p3373/SPEC.md §Rebuilt after the reboot, the fix round)`);
+  }
+  const pumpFn = fnOf('pump', 'ScrollbackModel');
+  const pumpText = pumpFn === undefined ? '' : textOf(pumpFn);
+  if (!/\bif\s+layout\s*\.\s*mode\s*==\s*\.following\s*,[^{\n]*\bholdUntil\b/.test(pumpText)) findings.push('ScrollbackModel.pump() does not hold every page while following until the output has calmed (if layout.mode == .following, let calm = holdUntil …); scrolled keeps 337.1\'s pace (build/p3373/SPEC.md §Rebuilt after the reboot, the fix round)');
+  const modelPicture = fnOf('picture', 'ScrollbackModel');
+  const mp = modelPicture === undefined ? '' : textOf(modelPicture);
+  if (!/\blayout\s*\.\s*picture\s*\([^)\n]*\bcarrying\s*:\s*!\s*fast\s*\(/.test(mp)) findings.push('ScrollbackModel.picture( does not hand the layout carrying: !fast(…), so following carries while output passes the view picture after picture (build/p3373/SPEC.md §Rebuilt after the reboot, the fix round)');
+  if (!/\blayout\s*\.\s*outruns\b/.test(mp) || !/(?:^|[^.\w])lastOutrun\s*=(?!=)/.test(mp)) findings.push('ScrollbackModel.picture( does not note when a picture outran the screen (layout.outruns, lastOutrun = …), so nothing can tell a lone flood from output that outruns it again and again (build/p3373/SPEC.md §Rebuilt after the reboot)');
+  // The opener of a statement in the model's picture(, and the opener around that one.
+  const openersOf = (m) => {
+    const open = innermostOpener(sb.bare, modelPicture.bodyOpen + m.index + 1);
+    const opener = open === -1 ? '' : sb.bare.slice(sb.bare.lastIndexOf('\n', open) + 1, open);
+    const outer = open === -1 ? -1 : innermostOpener(sb.bare, open);
+    const outerOpener = outer === -1 ? '' : sb.bare.slice(sb.bare.lastIndexOf('\n', outer) + 1, outer);
+    return { opener, outerOpener };
+  };
+  const burst = (t) => /\blastOutrun\b/.test(t) && /\boutrunGap\b/.test(t);
+  const holdSets = modelPicture === undefined ? [] : [...mp.matchAll(/(?:^|[^.\w])holdUntil\s*=(?!=)/g)];
+  if (holdSets.length === 0) findings.push('ScrollbackModel.picture( never holds following\'s pages (holdUntil = …), so output that outruns the screen again and again asks the Mac for pages it scrolls away (build/p3373/SPEC.md §Rebuilt after the reboot, the reverify\'s four a second)');
+  for (const m of holdSets) {
+    const { opener } = openersOf(m);
+    if (!burst(opener)) findings.push(`${atLine(sb, modelPicture.bodyOpen + m.index + 1)} holds following's pages behind ${JSON.stringify(opener.trim())}; only when this outrun came within outrunGap of the last (if let last = lastOutrun, at < last.advanced(by: Self.outrunGap)), so a lone flood or return is read again at once (build/p3373/SPEC.md §Rebuilt after the reboot, the verify's band)`);
+  }
+  const fastSets = modelPicture === undefined ? [] : [...mp.matchAll(/(?:^|[^.\w])fastUntil\s*=(?!=)/g)];
+  if (fastSets.length === 0) findings.push('ScrollbackModel.picture( never stops following\'s carry (fastUntil = …), so output that passes the view again and again flashes strips above the prompt (build/p3373/SPEC.md §Rebuilt after the reboot, the verify\'s straddle)');
+  for (const m of fastSets) {
+    const { opener, outerOpener } = openersOf(m);
+    if (!burst(opener) && !burst(outerOpener)) findings.push(`${atLine(sb, modelPicture.bodyOpen + m.index + 1)} stops following's carry outside a burst (${JSON.stringify(opener.trim())}); only when this outrun came within outrunGap of the last, so a lone flood or return carries what it can (build/p3373/SPEC.md §Rebuilt after the reboot, the verify's band)`);
+    else if (!/\bpassed\b|\bviewFill\b/.test(opener) || !/\bfast\s*\(/.test(opener)) findings.push(`${atLine(sb, modelPicture.bodyOpen + m.index + 1)} stops following's carry behind ${JSON.stringify(opener.trim())}; only once a picture of the burst PASSED THE VIEW (passed) or the carry is already stopped (fast(at)): output that outruns the screen by less than the view keeps every row a picture showed (build/p3373/SPEC.md §Rebuilt after the reboot, the fix round)`);
+  }
+  const passedDecl = /\blet\s+passed\s*=\s*([^\n]+)/.exec(mp);
+  if (passedDecl === null || !/\bviewFill\b/.test(passedDecl[1]) || !/\browCount\b/.test(passedDecl[1]) || !/>=/.test(passedDecl[1])) findings.push(`ScrollbackModel.picture('s passed is ${JSON.stringify(passedDecl?.[1]?.trim() ?? null)}; it is a picture whose new lines are at least the screen's rows AND every row the view holds above them (less(layout.live, was) >= plus(picture.rowCount, viewFill)), the one case whose carried rows land above the view (build/p3373/SPEC.md §Rebuilt after the reboot, the fix round)`);
+  const fastFn = fnOf('fast', 'ScrollbackModel');
+  if (fastFn === undefined || !/\blayout\s*\.\s*mode\s*==\s*\.following\b/.test(textOf(fastFn)) || !/\bfastUntil\b/.test(textOf(fastFn))) findings.push('ScrollbackModel declares no fast(_:) that is following\'s alone (guard layout.mode == .following, let until = fastUntil …), so the hold would reach scrolled, where 337.1 pages as he reads (build/p3373/SPEC.md §Rebuilt after the reboot, the fix round)');
+  if (acceptFn !== undefined) {
+    const a = textOf(acceptFn);
+    for (const m of a.matchAll(/(?:^|[^.\w])depthSeen\s*=(?!=)/g)) {
+      const line = a.slice(a.lastIndexOf('\n', m.index) + 1, a.indexOf('\n', m.index) === -1 ? a.length : a.indexOf('\n', m.index));
+      const open = innermostOpener(sb.bare, acceptFn.bodyOpen + m.index + 1);
+      const opener = open === -1 ? '' : sb.bare.slice(sb.bare.lastIndexOf('\n', open) + 1, open);
+      const scrolledOnly = (t) => /\bif\s+mode\s*==\s*\.scrolled\b/.test(t) && !/\belse\b/.test(t);
+      if (!scrolledOnly(line) && !scrolledOnly(opener)) findings.push(`${atLine(sb, acceptFn.bodyOpen + m.index + 1)} raises depthSeen from a page outside if mode == .scrolled; following reads pictures and pages on two connections, so a picture read before a deeper page would land as a trim and blank the history for a round trip (build/p3373/SPEC.md §Rebuilt after the reboot, the reverify's blink)`);
+    }
+  }
+  // (aw8) Nothing of the history persisted (as (as10)).
+  for (const name of [SCROLLBACK_FILE, SCROLLER_FILE]) {
+    const f = lexedFile(files, name);
+    if (f === null) continue;
+    for (const m of f.bare.matchAll(PERSISTS)) findings.push(`${atLine(f, m.index)} names ${m[0]}; nothing of the Terminal's history, carried or paged, is kept past the Terminal (build/p3373/SPEC.md §12)`);
   }
   return { findings, said };
 }
@@ -10718,6 +11570,763 @@ export function ruleReachNote(words) {
   return findings;
 }
 
+// ---- (ax) LANDSCAPE IS THE TERMINAL ALONE (D15 to D19) ---------------------
+
+/** TerminalChrome's members, exactly (build/p3373/SPEC.md §5.3); a stored size class beside them is allowed. */
+export const CHROME_MEMBERS = Object.freeze(['landscape', 'header', 'tray', 'bars', 'statusBarHidden', 'toolbarCopy', 'overlayCopy']);
+/** What each Bool member answers, as its `&&` terms in any order; `<p>` is the member's own parameter. */
+const CHROME_ANSWERS = Object.freeze({
+  header: ['!landscape'],
+  statusBarHidden: ['landscape'],
+  tray: ['!landscape', 'overlap == 0', '!typing'],
+  toolbarCopy: ['<p>', '!landscape'],
+  overlayCopy: ['<p>', 'landscape']
+});
+
+/**
+ * Rule (ax), pure over the app's Swift files. His item 2: sideways, the
+ * Terminal is the terminal alone. TerminalChrome is declared once, in
+ * Screens/Screen.swift, with exactly §5.3's members, each answering what it
+ * says (the header and the tray upright only, the bars hidden and the status
+ * bar hidden sideways, Copy in the bar upright and over the terminal
+ * sideways, the two complements of one landscape), over a COMPACT VERTICAL
+ * size class; ScreenPage draws its header only behind chrome.header and its
+ * tray only behind chrome.tray(, applies .toolbarVisibility(chrome.bars, for:
+ * .navigationBar, .tabBar) and .statusBarHidden(chrome.statusBarHidden) once
+ * each, and draws ID.screenCopy once behind chrome.toolbarCopy( in its toolbar
+ * and once behind chrome.overlayCopy( in its bottom view, so at most one Copy
+ * is drawn at a time; and OrientationGate.screenOnTop is set in Screen.swift
+ * alone ((an) stands). (aq1) still refuses every SwiftUI gesture in a Screen
+ * file, so nothing brings the bars back on a swipe or a tap: turning upright
+ * is the way back (D19).
+ */
+export function ruleLandscapeAlone(files) {
+  const findings = [];
+  const said = { members: [], hides: 0, statusBars: 0, toolbarCopy: 0, overlayCopy: 0 };
+  const all = files.map((f) => lexedFile(files, f.name)).filter((f) => f !== null);
+  const page = lexedFile(files, BARS_PAGE_FILE);
+  if (page === null) return { findings: [`${BARS_PAGE_FILE} does not exist, so the Terminal sideways cannot be read`], said };
+  // (ax1) TerminalChrome, once, in Screen.swift, with exactly its members.
+  const decls = all.flatMap((f) => f.types.filter((t) => t.name === 'TerminalChrome').map((t) => ({ f, t })));
+  if (decls.length !== 1 || decls[0].f.name !== BARS_PAGE_FILE) findings.push(`TerminalChrome is declared ${String(decls.length)} time(s)${decls.length > 0 ? ` (${decls.map((d) => d.f.name).join(', ')})` : ''}; once, in ${BARS_PAGE_FILE}, the one place the page decides what it draws sideways (build/p3373/SPEC.md §5.3)`);
+  const chrome = page.types.find((t) => t.name === 'TerminalChrome' && t.kind === 'struct');
+  if (chrome !== undefined) {
+    const body = page.bare.slice(chrome.open + 1, chrome.close);
+    const members = [];
+    for (const m of body.matchAll(/\b(?:let|var|func)\s+([A-Za-z_]\w*)/g)) if (atTopLevel(page.bare, chrome.open, chrome.open + 1 + m.index)) members.push(m[1]);
+    said.members = members;
+    const extra = members.filter((n) => !CHROME_MEMBERS.includes(n) && n !== 'sizeClass');
+    const lacking = CHROME_MEMBERS.filter((n) => !members.includes(n));
+    if (extra.length > 0 || lacking.length > 0) findings.push(`TerminalChrome's members are ${JSON.stringify(members)}; exactly ${CHROME_MEMBERS.join(', ')}${lacking.length > 0 ? ` (missing ${lacking.join(', ')})` : ''}${extra.length > 0 ? ` (and not ${extra.join(', ')})` : ''}, so every decision the page makes sideways is one member TerminalChromeTests reads (build/p3373/SPEC.md §5.3)`);
+    for (const [name, terms] of Object.entries(CHROME_ANSWERS)) {
+      const m = typeMember(page, chrome, name);
+      if (m === null) continue;
+      const want = terms.map((t) => (t === '<p>' ? m.param ?? '<p>' : t)).sort();
+      if (conjuncts(m.text).join(' && ') !== want.join(' && ')) findings.push(`TerminalChrome.${name} answers ${JSON.stringify(m.text)}; it is ${want.join(' && ')} (build/p3373/SPEC.md §5.3, D15, D17)`);
+    }
+  }
+  // (ax2) Over a compact VERTICAL size class, as (b) reads it.
+  findings.push(...chromeReadsVerticalCompact(page).findings);
+  // (ax3) ScreenPage asks it for everything it draws sideways.
+  const pageBody = varSpan(page, 'body', 'ScreenPage');
+  if (pageBody === null) return { findings: [...findings, `${BARS_PAGE_FILE} declares no ScreenPage body`], said };
+  if (!/\bvar\s+chrome\s*:\s*TerminalChrome\b/.test(page.bare)) findings.push('ScreenPage declares no var chrome: TerminalChrome (build/p3373/SPEC.md §5.3)');
+  const body = page.bare.slice(pageBody.open, pageBody.close + 1);
+  for (const [word, guard, why] of [['header', /\bif\s+chrome\s*\.\s*header\s*$/, 'the status line and End\'s line'], ['tray', /\bif\s+chrome\s*\.\s*tray\s*\([^{]*\)\s*$/, 'the question\'s tray']]) {
+    const sites = [...body.matchAll(new RegExp(`(?<![.\\w])${word}(?![\\w(:])`, 'g'))].map((m) => pageBody.open + m.index);
+    if (sites.length === 0) findings.push(`ScreenPage's body draws no ${word}, ${why}, even upright`);
+    for (const at of sites) if (!insideBlock(page.bare, at, guard)) findings.push(`${atLine(page, at)} draws the ${word} (${why}) outside if chrome.${word === 'header' ? 'header' : 'tray(…)'}, so it is drawn sideways too; sideways the terminal is alone (build/p3373/SPEC.md D15)`);
+  }
+  const hides = barHides(page.bare).filter((h) => h.at > pageBody.open && h.at < pageBody.close && h.name === 'toolbarVisibility' && h.visibility === 'chrome.bars' && h.tab && h.bars.includes('.navigationBar') && h.bars.length === 2);
+  said.hides = hides.length;
+  if (hides.length !== 1) findings.push(`ScreenPage applies .toolbarVisibility(chrome.bars, for: .navigationBar, .tabBar) ${String(hides.length)} time(s); exactly once, so sideways neither bar is drawn and upright both are as before (build/p3373/SPEC.md D15)`);
+  for (const file of all) {
+    for (const m of file.bare.matchAll(/\.\s*statusBarHidden\s*\(([^)]*)\)/g)) {
+      const inBody = file.name === BARS_PAGE_FILE && m.index > pageBody.open && m.index < pageBody.close;
+      if (inBody && m[1].replace(/\s+/g, '') === 'chrome.statusBarHidden') said.statusBars += 1;
+      else findings.push(`${atLine(file, m.index)} hides the status bar by .statusBarHidden(${m[1].trim()}); ScreenPage hides it once, by chrome.statusBarHidden, sideways alone (build/p3373/SPEC.md D15)`);
+    }
+  }
+  if (said.statusBars !== 1) findings.push(`ScreenPage applies .statusBarHidden(chrome.statusBarHidden) ${String(said.statusBars)} time(s); exactly once (build/p3373/SPEC.md D15)`);
+  // (ax4) Copy: in the bar upright and over the terminal sideways, never both.
+  const bottom = varSpan(page, 'bottom', 'ScreenPage');
+  for (const file of all) {
+    for (const m of file.bare.matchAll(/\bID\s*\.\s*screenCopy\b/g)) {
+      if (file.name !== BARS_PAGE_FILE) {
+        findings.push(`${atLine(file, m.index)} draws Copy outside ${BARS_PAGE_FILE}; Copy is the Terminal page's own, in its bar upright and over the terminal sideways (build/p3373/SPEC.md D17)`);
+        continue;
+      }
+      const inBar = insideBlock(page.bare, m.index, /\bif\s+chrome\s*\.\s*toolbarCopy\s*\(\s*copyDrawn\s*\)\s*$/) && m.index > pageBody.open && m.index < pageBody.close;
+      const over = insideBlock(page.bare, m.index, /\bif\s+chrome\s*\.\s*overlayCopy\s*\(\s*copyDrawn\s*\)\s*$/) && bottom !== null && m.index > bottom.open && m.index < bottom.close;
+      if (inBar) said.toolbarCopy += 1;
+      else if (over) said.overlayCopy += 1;
+      else findings.push(`${atLine(page, m.index)} draws Copy behind neither chrome.toolbarCopy(copyDrawn) in the page's toolbar nor chrome.overlayCopy(copyDrawn) in its bottom view, so two could be drawn at once, or one sideways in a bar that is hidden (build/p3373/SPEC.md D17)`);
+    }
+  }
+  if (said.toolbarCopy !== 1 || said.overlayCopy !== 1) findings.push(`ScreenPage draws Copy ${String(said.toolbarCopy)} time(s) in its toolbar and ${String(said.overlayCopy)} over the terminal; once each, the two complements of one landscape (build/p3373/SPEC.md D17)`);
+  // (ax5) The gate that turns the page sideways is the Terminal's alone ((an)).
+  for (const file of all) {
+    for (const m of file.bare.matchAll(/\bscreenOnTop\s*=(?!=)/g)) {
+      if (/\bstatic\s+var\s*$/.test(file.bare.slice(Math.max(0, m.index - 12), m.index))) continue;
+      if (file.name !== BARS_PAGE_FILE) findings.push(`${atLine(file, m.index)} sets OrientationGate.screenOnTop in ${file.name}; only the Terminal page's appear and disappear set it, so no other page turns sideways (rule an, build/p3373/SPEC.md §12)`);
+    }
+  }
+  return { findings, said };
+}
+
+// ---- (ay) THE ⋯ MENU (D21 to D24, D27, D28) --------------------------------
+
+/** The four identifiers Phase 337.3 adds, each with its string (D28). */
+export const TERMINAL_MENU_IDS = Object.freeze([
+  ['terminalMenu', 'terminal-menu'],
+  ['terminalMenuCatchUp', 'terminal-menu-catch-up'],
+  ['terminalMenuEnd', 'terminal-menu-end'],
+  ['endWriting', 'end-writing']
+]);
+
+/**
+ * Rule (ay), pure over the app's Swift files. His item 3: one ⋯ at the
+ * Terminal's top right, upright, holding Catch Me Up and End session…, End
+ * still behind Face ID, Touch ID or the passcode. TerminalPage's trailing
+ * items are exactly TerminalMenu, one ToolbarItem(placement: .topBarTrailing)
+ * holding TerminalMenuControl; that control holds exactly one native Menu,
+ * labelled Image(systemName: TerminalMenuControl.symbol) (`ellipsis` on iOS 26
+ * and later, `ellipsis.circle` before), spoken Copy.more through
+ * Text(verbatim:, identified ID.terminalMenu, with the Mac's confirmation
+ * (.endConfirmation() on the Menu itself, outside its items; its items exactly
+ * a Button labelled Label(Copy.catchMeUp, systemImage: "text.bubble"),
+ * identified ID.terminalMenuCatchUp, that opens Catch Me Up, then EndMenuItem,
+ * drawn only where End's row would be (a writer and a row); EndMenuItem's
+ * label Label(drawing.menuLabel, systemImage: drawing.glyph), menuLabel
+ * Copy.ending or Copy.endSessionMenu; the confirmationDialog for a single End
+ * written ONCE, in EndConfirmation, so the Terminal's and Catch Me Up's cannot
+ * drift; the progress mark ID.endConfirming behind confirming and
+ * ID.endWriting behind the write; Copy.more "More", the phone's; the four new
+ * identifiers; and no owner check named by the menu (End's is EndModel.press's,
+ * rule ac).
+ */
+export function ruleTerminalMenu(files) {
+  const findings = [];
+  const said = { trailing: [], entries: [], chain: [], symbol: null, dialogs: 0 };
+  const all = files.map((f) => lexedFile(files, f.name)).filter((f) => f !== null);
+  const screen = lexedFile(files, SESSION_SCREEN_FILE);
+  const bar = lexedFile(files, END_BAR_FILE);
+  if (screen === null || bar === null) return { findings: [`${SESSION_SCREEN_FILE} and ${END_BAR_FILE} do not both exist, so the ⋯ cannot be read`], said };
+  // (ay1) The trailing items: exactly TerminalMenu.
+  said.trailing = terminalTrailing(screen) ?? [];
+  if (said.trailing.join(',') !== 'TerminalMenu') findings.push(`TerminalPage's trailing items are ${JSON.stringify(said.trailing)}; exactly TerminalMenu, the one ⋯ (build/p3373/SPEC.md D21)`);
+  // (ay2) TerminalMenu: one ToolbarItem at the top right, holding the control.
+  const menuType = screen.types.find((t) => t.name === 'TerminalMenu' && t.kind === 'struct');
+  if (menuType === undefined || !/\bstruct\s+TerminalMenu\s*:\s*ToolbarContent\b/.test(screen.bare)) findings.push(`${SESSION_SCREEN_FILE} declares no struct TerminalMenu: ToolbarContent (build/p3373/SPEC.md §5.4)`);
+  else {
+    const mb = screen.bare.slice(menuType.open, menuType.close + 1);
+    const items = [...mb.matchAll(/\bToolbarItem\s*\(\s*placement\s*:\s*\.\s*([A-Za-z]+)\s*\)\s*\{/g)];
+    if (items.length !== 1 || items[0][1] !== 'topBarTrailing' || !/\bTerminalMenuControl\s*\(/.test(mb)) findings.push(`TerminalMenu holds ${String(items.length)} ToolbarItem(s)${items.length === 1 ? ` at .${items[0][1]}` : ''}; exactly one, at .topBarTrailing, holding TerminalMenuControl (build/p3373/SPEC.md D21)`);
+  }
+  // (ay3) TerminalMenuControl: exactly one Menu, its label, its spoken name, its identifier, its dialog.
+  const control = screen.types.find((t) => t.name === 'TerminalMenuControl' && t.kind === 'struct');
+  if (control === undefined) return { findings: [...findings, `${SESSION_SCREEN_FILE} declares no struct TerminalMenuControl (build/p3373/SPEC.md §5.4)`], said };
+  const cb = screen.bare.slice(control.open, control.close + 1);
+  const menus = [...cb.matchAll(/(?<![.\w])Menu\s*(?=[({])/g)];
+  if (menus.length !== 1) findings.push(`TerminalMenuControl holds ${String(menus.length)} Menu(s); exactly one, the native menu iOS draws (CLAUDE.md "native menus", D21)`);
+  for (const m of cb.matchAll(/\b(?:OwnerCheck|ownerCheck|LAContext|evaluatePolicy|LocalAuthentication)\b/g)) findings.push(`${atLine(screen, control.open + m.index)} TerminalMenuControl names ${m[0]}; End's owner check is EndModel.press's, reached through the Mac's confirmation, and the menu asks nothing itself (rule ac, build/p3373/SPEC.md D23)`);
+  if (menuType !== undefined) for (const m of screen.bare.slice(menuType.open, menuType.close + 1).matchAll(/\b(?:OwnerCheck|ownerCheck|LAContext|evaluatePolicy|LocalAuthentication)\b/g)) findings.push(`${atLine(screen, menuType.open + m.index)} TerminalMenu names ${m[0]}; the menu asks no owner check itself (build/p3373/SPEC.md D23)`);
+  if (menus.length >= 1) {
+    const call = parseCall(screen.bare, control.open + menus[0].index);
+    if (call === null || call.closures.length < 2) findings.push('TerminalMenuControl\'s Menu has no content and label closures to read');
+    else {
+      const [content, label] = call.closures;
+      said.chain = call.chain.map((c) => c.name);
+      const labelText = screen.bare.slice(label.open, label.close + 1);
+      if (!/\bImage\s*\(\s*systemName\s*:\s*(?:TerminalMenuControl|Self)\s*\.\s*symbol\s*\)/.test(labelText)) findings.push('TerminalMenuControl\'s Menu is not labelled Image(systemName: TerminalMenuControl.symbol), the ellipsis and no word (build/p3373/SPEC.md D21)');
+      if (!call.chain.some((c) => c.name === 'accessibilityLabel' && /^Text\s*\(\s*verbatim\s*:\s*Copy\s*\.\s*more\s*\)$/.test(c.args))) findings.push('TerminalMenuControl\'s Menu is not spoken Copy.more through .accessibilityLabel(Text(verbatim: Copy.more)) (build/p3373/SPEC.md D21, D27)');
+      if (!call.chain.some((c) => c.name === 'accessibilityIdentifier' && /^ID\s*\.\s*terminalMenu$/.test(c.args))) findings.push('TerminalMenuControl\'s Menu is not identified ID.terminalMenu in its own chain (build/p3373/SPEC.md D28)');
+      // (ay6) The Mac's confirmation on the Menu itself, outside its items.
+      const dialogs = [...cb.matchAll(/\.\s*endConfirmation\s*\(/g)].map((m) => control.open + m.index);
+      const onMenu = call.chain.filter((c) => c.name === 'endConfirmation').length;
+      if (dialogs.length !== 1 || onMenu !== 1) findings.push(`TerminalMenuControl applies .endConfirmation( ${String(dialogs.length)} time(s), ${String(onMenu)} on the Menu itself; once, on the Menu, outside its items, so the confirmation presents once the menu has closed (build/p3373/SPEC.md D23, §14 M6)`);
+      for (const at of dialogs) if (at > content.open && at < content.close) findings.push(`${atLine(screen, at)} attaches the Mac's confirmation inside the menu's items; it is the Menu's own modifier, outside its content, or it is dismissed with the menu (build/p3373/SPEC.md D23)`);
+      // (ay5) Exactly two entries, in order.
+      const entries = [];
+      for (const m of screen.bare.slice(content.open + 1, content.close).matchAll(/(?<![.\w])([A-Z]\w*)\s*(?=[({])/g)) {
+        const at = content.open + 1 + m.index;
+        let opener = innermostOpener(screen.bare, at);
+        let ok = true;
+        const heads = [];
+        while (opener !== content.open) {
+          const head = opener === -1 ? '' : screen.bare.slice(screen.bare.lastIndexOf('\n', opener) + 1, opener);
+          if (opener === -1 || screen.bare[opener] !== '{' || !/^\s*(?:\}\s*)?(?:if\b[^{]*|else\s*(?:if\b[^{]*)?)$/.test(head)) {
+            ok = false;
+            break;
+          }
+          heads.push(head);
+          opener = innermostOpener(screen.bare, opener);
+        }
+        if (ok) entries.push({ name: m[1], at, heads });
+      }
+      said.entries = entries.map((e) => e.name);
+      if (said.entries.join(',') !== 'Button,EndMenuItem') findings.push(`TerminalMenuControl's menu holds ${JSON.stringify(said.entries)}; exactly a Button for Catch Me Up, then EndMenuItem, in that order (build/p3373/SPEC.md D22)`);
+      const catchUp = entries.find((e) => e.name === 'Button');
+      if (catchUp !== undefined) {
+        const b = parseCall(screen.bare, catchUp.at);
+        const inner = b === null ? '' : b.closures.map((c) => screen.code.slice(c.open, c.close + 1)).join('\n');
+        if (!/\bLabel\s*\(\s*Copy\s*\.\s*catchMeUp\s*,\s*systemImage\s*:\s*"text\.bubble"\s*\)/.test(inner)) findings.push('the menu\'s first item is not labelled Label(Copy.catchMeUp, systemImage: "text.bubble"), the Mac\'s word and its own speech bubble (build/p3373/SPEC.md D22)');
+        if (b === null || !b.chain.some((c) => c.name === 'accessibilityIdentifier' && /^ID\s*\.\s*terminalMenuCatchUp$/.test(c.args))) findings.push('the menu\'s first item is not identified ID.terminalMenuCatchUp in its own chain (build/p3373/SPEC.md D28)');
+        const action = b === null ? '' : `${b.args} ${b.closures.length > 1 ? screen.bare.slice(b.closures[0].open, b.closures[0].close + 1) : ''}`;
+        if (!/\bopenCatchUp\b/.test(action)) findings.push('the menu\'s Catch Me Up does not open Catch Me Up (its action names no openCatchUp) (build/p3373/SPEC.md D22)');
+      }
+      const end = entries.find((e) => e.name === 'EndMenuItem');
+      if (end !== undefined && !end.heads.some((h) => /\bwriter\b/.test(h) && /\brow\b/.test(h))) findings.push('the menu draws EndMenuItem without asking for a writer and a row, so End is drawn where End is absent today (no writer, or the Mac offers no End) (build/p3373/SPEC.md D22)');
+    }
+  }
+  // (ay4) The symbol: ellipsis on iOS 26 and later, ellipsis.circle before.
+  const symbol = typeMember(screen, control, 'symbol');
+  said.symbol = symbol?.code ?? null;
+  if (symbol === null || !/^if #available\(iOS 26(?:\.0)?, \*\) \{ "ellipsis" \} else \{ "ellipsis\.circle" \}$/.test(symbol.code)) findings.push(`TerminalMenuControl.symbol is ${JSON.stringify(symbol?.code ?? null)}; it is "ellipsis" under #available(iOS 26, *), where the bar draws its own glass circle, and "ellipsis.circle" before it (build/p3373/SPEC.md D21)`);
+  // (ay10) The progress mark beside the ⋯ while End is under way.
+  for (const [id, word] of [['endConfirming', 'confirming'], ['endWriting', 'writing']]) {
+    const sites = [...cb.matchAll(new RegExp(`\\bID\\s*\\.\\s*${id}\\b`, 'g'))].map((m) => control.open + m.index);
+    if (sites.length === 0) findings.push(`TerminalMenuControl draws no progress mark identified ID.${id} (build/p3373/SPEC.md D24)`);
+    for (const at of sites) {
+      const line = screen.bare.slice(screen.bare.lastIndexOf('\n', at) + 1, at);
+      const guarded = insideBlock(screen.bare, at, new RegExp(`\\bif\\b[^{]*\\b${word}\\b`)) || new RegExp(`\\bif\\b[^{]*\\b${word}\\b[^{]*\\{[^}]*$`).test(line);
+      if (!guarded) findings.push(`${atLine(screen, at)} identifies the progress mark ID.${id} outside an if on ${word}; the mark says what End is doing (build/p3373/SPEC.md D24)`);
+    }
+  }
+  if (!/\bProgressView\s*\(/.test(cb)) findings.push('TerminalMenuControl draws no ProgressView beside the ⋯ while End is under way (build/p3373/SPEC.md D24)');
+  // (ay7) EndMenuItem's label, and (ay8) its words.
+  const item = bar.types.find((t) => t.name === 'EndMenuItem');
+  if (item === undefined) findings.push(`${END_BAR_FILE} declares no EndMenuItem, the menu's End (build/p3373/SPEC.md §5.4)`);
+  else if (!/\bLabel\s*\(\s*drawing\s*\.\s*menuLabel\s*,\s*systemImage\s*:\s*drawing\s*\.\s*glyph\s*\)/.test(bar.bare.slice(item.open, item.close + 1))) findings.push('EndMenuItem is not labelled Label(drawing.menuLabel, systemImage: drawing.glyph), the Mac\'s words with the owner check\'s glyph (build/p3373/SPEC.md D22)');
+  const drawing = bar.types.find((t) => t.name === 'EndBarDrawing' && t.kind === 'struct');
+  const menuLabel = drawing === undefined ? null : typeMember(bar, drawing, 'menuLabel');
+  const words = menuLabel === null ? [] : [...menuLabel.text.matchAll(/\bCopy\s*\.\s*(\w+)/g)].map((m) => m[1]).sort();
+  if (menuLabel === null || words.join(',') !== 'endSessionMenu,ending') findings.push(`EndBarDrawing.menuLabel is ${JSON.stringify(menuLabel?.text ?? null)}; it is Copy.ending while the write runs, else Copy.endSessionMenu, the Mac's own menu words (build/p3373/SPEC.md D22)`);
+  // (ay9) ONE confirmation for a single End, in EndConfirmation.
+  for (const file of all.filter((f) => [END_BAR_FILE, SESSION_SCREEN_FILE, 'Screens/ConversationScreen.swift'].includes(f.name))) {
+    for (const m of file.bare.matchAll(/\.\s*confirmationDialog\s*\(/g)) {
+      said.dialogs += 1;
+      const t = innermost(file.types, m.index);
+      if (file.name !== END_BAR_FILE || t?.name !== 'EndConfirmation') findings.push(`${atLine(file, m.index)} writes a confirmationDialog for End in ${t?.name ?? 'no type'}; it is written ONCE, in EndConfirmation, which the Terminal's menu and Catch Me Up's End both apply, so the two can never drift (build/p3373/SPEC.md D23)`);
+    }
+  }
+  if (said.dialogs !== 1) findings.push(`a single End's confirmationDialog is written ${String(said.dialogs)} time(s) in ${END_BAR_FILE}, ${SESSION_SCREEN_FILE} and Screens/ConversationScreen.swift; once, in EndConfirmation (build/p3373/SPEC.md D23)`);
+  // (ay11) Copy.more, the phone's word.
+  const copy = files.find((f) => f.name === 'Style/Copy.swift');
+  if (copy === undefined) findings.push('Style/Copy.swift does not exist');
+  else {
+    const lx = lexSwift(copy.source);
+    const decl = /\bstatic\s+let\s+more\s*=\s*"([^"\n]*)"/.exec(lx.code);
+    const above = decl === null ? [] : copy.source.slice(0, decl.index).split('\n');
+    if (decl !== null) above.pop();
+    const block = [];
+    while (above.length > 0 && /^\s*\/\/\//.test(above[above.length - 1])) block.unshift(above.pop());
+    if (decl === null || decl[1] !== 'More') findings.push(`Copy.more is ${JSON.stringify(decl?.[1] ?? null)}; it is "More", iOS's own name for an ellipsis button, the ⋯'s spoken name (build/p3373/SPEC.md D27)`);
+    else if (!block.some((l) => /\/\/\/\s*Phone:/.test(l))) findings.push('Copy.more is not declared /// Phone: with its reason; no Mac surface says the word alone (build/p3373/SPEC.md D27)');
+  }
+  // (ay12) The four new identifiers.
+  const ids = files.find((f) => f.name === 'Screens/Identifiers.swift');
+  const idCode = ids === undefined ? '' : lexSwift(ids.source).code;
+  for (const [name, value] of TERMINAL_MENU_IDS) if (!new RegExp(`\\bstatic\\s+let\\s+${name}\\s*=\\s*"${value}"`).test(idCode)) findings.push(`Screens/Identifiers.swift declares no ID.${name} = "${value}" (build/p3373/SPEC.md D28)`);
+  return { findings, said };
+}
+
+// The Phase 337.3 scanners, proved on texts this file holds, before any file
+// is read: each on a minimal app that keeps the rule, on the PARENT's shape
+// (dfa878b5, TestFlight build 7), which every new rule must refuse, and on the
+// shapes a later round could ship with the rule green.
+{
+  const swapIn = (label, text, from, to) => {
+    if (!text.includes(from)) selfFailures.push(`${label} fixture holds no ${JSON.stringify(from.slice(0, 70))}`);
+    return text.replace(from, to);
+  };
+  // (aw)
+  const fillOk = [
+    'struct ScrollbackRow: Equatable, Sendable {',
+    '    let row: ScreenRowModel',
+    '    let styles: [ScreenStyle]',
+    '    let carried: Bool',
+    '}',
+    'struct ScrollbackLayout: Equatable, Sendable {',
+    '    static let pageRows = 100',
+    '    private(set) var mode: ScrollbackMode = .following',
+    '    private(set) var top = 0',
+    '    private(set) var checked = 0',
+    '    private(set) var lastSteady: ScreenPicture?',
+    '    private(set) var refusedAt: Offer?',
+    '    private(set) var fillOff = false',
+    '    var firstRow: Int { space == nil ? live : top }',
+    '    mutating func picture(_ picture: ScreenPicture, holds: (Character) -> Bool = ScreenFont.holds, carrying: Bool = true) {',
+    '        let offer: Offer? = picture.alternate ? nil : Offer(depth: 1, space: "s", columns: 1)',
+    '        defer { if offer != nil { lastSteady = picture } }',
+    '        if picture.alternate {',
+    '            if mode == .scrolled { _ = follow() }',
+    '            drop()',
+    '            return',
+    '        }',
+    '        guard let offer else { return }',
+    '        guard offer.space == space, offer.columns == wrap, offer.depth >= depthSeen else {',
+    '            switch mode {',
+    '            case .scrolled:',
+    '                edge = .moved(Copy.scrollbackMoved)',
+    '            case .following:',
+    '                drop()',
+    '            }',
+    '            return',
+    '        }',
+    '        depthSeen = offer.depth',
+    '        if mode == .following {',
+    '            let screen = lastSteady?.rowCount ?? liveRows',
+    '            let lines = Self.less(offer.depth, live)',
+    '            if carrying { _ = carry(to: offer.depth, holds: holds) }',
+    '            if lines > screen { outruns = Self.plus(outruns, 1) }',
+    '            if hi < offer.depth { hi = offer.depth }',
+    '            live = offer.depth',
+    '            return',
+    '        }',
+    '        if carry(to: offer.depth, holds: holds) == 0 {',
+    '            live = max(live, offer.depth)',
+    '            return',
+    '        }',
+    '    }',
+    '    mutating func accept(_ page: PocketScrollbackAnswer, for ask: ScrollbackAsk, holds: (Character) -> Bool = ScreenFont.holds) -> ScrollbackLanding {',
+    '        if mode == .following, lo < from, checked < from {',
+    '            for index in lo..<from { held[index] = nil }',
+    '            lo = from',
+    '            checked = end',
+    '        }',
+    '        if mode == .scrolled { depthSeen = max(depthSeen, depth) }',
+    '        return .joined(0)',
+    '    }',
+    '    private mutating func carry(to depth: Int, holds: (Character) -> Bool) -> Int? {',
+    '        guard hi == live, let last = lastSteady, last.space == space, last.columns == wrap,',
+    '              let k = DoorNumber.difference(depth, live), k > 0 else { return nil }',
+    '        let shown = min(k, last.rowCount)',
+    '        guard shown == k || mode == .following else { return nil }',
+    '        for (place, row) in last.rows.prefix(shown).enumerated() {',
+    '            held[Self.plus(live, place)] = ScrollbackRow(row: row, styles: last.styles, carried: true)',
+    '        }',
+    '        hi = depth',
+    '        return Self.less(k, shown)',
+    '    }',
+    '    private mutating func drop() {',
+    '        space = nil',
+    '        held = [:]',
+    '    }',
+    '    mutating func reserve(visibleTop: Int, fill: Int) -> Int {',
+    '        switch mode {',
+    '        case .following:',
+    '            if space == nil {',
+    '                guard let offer = offered, !fillOff else { return 0 }',
+    '                top = offer.depth',
+    '            }',
+    '            var covered = 0',
+    '            while covered < fill { covered = Self.plus(covered, Self.pageRows) }',
+    '            let want = Self.less(live, covered)',
+    '            if want < top { top = want }',
+    '        case .scrolled:',
+    '            top = Self.less(top, Self.pageRows)',
+    '        }',
+    '        return 0',
+    '    }',
+    '    mutating func scroll() {',
+    '        mode = .scrolled',
+    '    }',
+    '    func want(visibleTop: Int, visibleBottom: Int) -> ScrollbackAsk? {',
+    '        guard space != nil, !pagingStopped, top < live else { return nil }',
+    '        if mode == .following, fillOff || refusedAt != nil { return nil }',
+    '        let overlap = min(overlapWanted, Self.less(checked, lo))',
+    '        if mode == .following, Self.plus(checked, Self.pageRows) < live, visibleTop >= Self.less(live, Self.pageRows) {',
+    '            return ask(from: Self.less(live, Self.pageRows), count: Self.pageRows, keep: .bottom, overlap: 0, checks: false)',
+    '        }',
+    '        return ask(from: 0, count: 1, keep: .top, overlap: overlap, checks: false)',
+    '    }',
+    '    private mutating func refuse(_ sentence: String) {',
+    '        switch mode {',
+    '        case .scrolled:',
+    '            edge = .moved(sentence)',
+    '        case .following:',
+    '            refusedAt = offered',
+    '            drop()',
+    '        }',
+    '    }',
+    '    mutating func stop(_ sentence: String) {',
+    '        fillOff = true',
+    '    }',
+    '}',
+    'final class ScrollbackModel {',
+    '    static let outrunGap: Duration = .seconds(3)',
+    '    func picture(_ picture: ScreenPicture?) {',
+    '        let outruns = layout.outruns',
+    '        let was = layout.live',
+    '        let at = now()',
+    '        layout.picture(picture, holds: holds, carrying: !fast(at))',
+    '        if layout.outruns != outruns {',
+    '            let passed = ScrollbackLayout.less(layout.live, was) >= ScrollbackLayout.plus(picture.rowCount, viewFill)',
+    '            if let last = lastOutrun, at < last.advanced(by: Self.outrunGap) {',
+    '                holdUntil = at.advanced(by: Self.outrunGap)',
+    '                if passed || fast(at) { fastUntil = holdUntil }',
+    '            }',
+    '            lastOutrun = at',
+    '        }',
+    '    }',
+    '    private func fast(_ at: ContinuousClock.Instant) -> Bool {',
+    '        guard layout.mode == .following, let until = fastUntil else { return false }',
+    '        return at < until',
+    '    }',
+    '    private func pump() {',
+    '        var due = lastStarted?.advanced(by: gap)',
+    '        if layout.mode == .following, let calm = holdUntil {',
+    '            due = due.map { max($0, calm) } ?? calm',
+    '        }',
+    '    }',
+    '    func fill(rows: Int) -> Int {',
+    '        let reserved = layout.reserve(visibleTop: visibleTop, fill: rows)',
+    '        pump()',
+    '        return reserved',
+    '    }',
+    '    func viewed(top: Int, bottom: Int, atBottom: Bool) -> Int {',
+    '        if layout.mode == .following, !atBottom, top < layout.live {',
+    '            layout.scroll()',
+    '        }',
+    '        return layout.reserve(visibleTop: top, fill: viewFill)',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  // The parent's history (dfa878b5): following holds nothing.
+  const fillParent = [
+    'struct ScrollbackRow: Equatable, Sendable {',
+    '    let row: ScreenRowModel',
+    '    let styles: [ScreenStyle]',
+    '}',
+    'struct ScrollbackLayout: Equatable, Sendable {',
+    '    static let pageRows = 100',
+    '    private(set) var mode: ScrollbackMode = .following',
+    '    private(set) var top = 0',
+    '    var firstRow: Int { mode == .scrolled ? top : live }',
+    '    mutating func picture(_ picture: ScreenPicture) {',
+    '        switch mode {',
+    '        case .following:',
+    '            if let depth = picture.historyDepth { live = depth }',
+    '        case .scrolled:',
+    '            if picture.alternate {',
+    '                _ = follow()',
+    '                return',
+    '            }',
+    '            guard offer.space == space, offer.columns == wrap, offer.depth >= depthSeen else {',
+    '                edge = .moved(Copy.scrollbackMoved)',
+    '                return',
+    '            }',
+    '        }',
+    '    }',
+    '    mutating func reserve(visibleTop: Int) -> Int {',
+    '        guard let offer = offered, offer.depth > 0, visibleTop < live else { return 0 }',
+    '        top = Self.less(offer.depth, Self.pageRows)',
+    '        return 1',
+    '    }',
+    '    func want(visibleTop: Int, visibleBottom: Int) -> ScrollbackAsk? {',
+    '        guard mode == .scrolled, !pagingStopped, top < live else { return nil }',
+    '        let overlap = min(overlapWanted, Self.less(hi, lo))',
+    '        return nil',
+    '    }',
+    '    mutating func stop(_ sentence: String) {',
+    '        guard mode == .scrolled else { return }',
+    '        edge = .moved(sentence)',
+    '    }',
+    '}',
+    'final class ScrollbackModel {',
+    '    func viewed(top: Int, bottom: Int) -> Int {',
+    '        layout.reserve(visibleTop: top)',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const aw = (src) => ruleTerminalFill([{ name: SCROLLBACK_FILE, source: src }]).findings.length;
+  const fq = (from, to) => swapIn('(aw)', fillOk, from, to);
+  expect('(aw) passes the history that fills the Terminal', aw(fillOk) === 0);
+  expect('(aw) catches the parent\'s history, which holds nothing while following (his defect)', aw(fillParent) > 0);
+  expect('(aw) catches firstRow back to mode == .scrolled ? top : live', aw(fq('var firstRow: Int { space == nil ? live : top }', 'var firstRow: Int { mode == .scrolled ? top : live }')) > 0);
+  expect('(aw) catches the fill moving top outside reserve(', aw(fq('    mutating func scroll() {', '    mutating func fillTop(_ want: Int) { top = want }\n    mutating func scroll() {')) > 0);
+  expect('(aw) catches the fill\'s top moved without asking that it is above', aw(fq('if want < top { top = want }', 'top = want')) > 0);
+  expect('(aw) catches the space held only above depth 0', aw(fq('guard let offer = offered, !fillOff else { return 0 }', 'guard let offer = offered, offer.depth > 0, !fillOff else { return 0 }')) > 0);
+  expect('(aw) catches the fill\'s rows refused while a refusal holds (the live rows at the view\'s top until the next picture)', aw(fq('guard let offer = offered, !fillOff else { return 0 }', 'guard let offer = offered, refusedAt == nil, !fillOff else { return 0 }')) > 0);
+  expect('(aw) catches carrying with no hi == live', aw(fq('guard hi == live, let last = lastSteady,', 'guard let last = lastSteady,')) > 0);
+  expect('(aw) catches carrying k past the picture\'s rows', aw(fq('let shown = min(k, last.rowCount)', 'let shown = k')) > 0);
+  expect('(aw) catches a partial carry while scrolled (a hole beside what he reads)', aw(fq('        guard shown == k || mode == .following else { return nil }\n', '')) > 0);
+  expect('(aw) catches carrying across another space', aw(fq(', last.space == space, last.columns == wrap,', ', last.columns == wrap,')) > 0);
+  expect('(aw) catches a carried row not marked carried', aw(fq('carried: true)', 'carried: false)')) > 0);
+  expect('(aw) catches no drop on the alternate screen', aw(fq('            if mode == .scrolled { _ = follow() }\n            drop()\n', '            if mode == .scrolled { _ = follow() }\n')) > 0);
+  expect('(aw) catches no drop for another space, width or a shallower depth', aw(fq('            case .following:\n                drop()\n            }\n            return', '            case .following:\n                break\n            }\n            return')) > 0);
+  expect('(aw) catches a refusal in following drawing the moved line', aw(fq('            refusedAt = offered\n            drop()', '            refusedAt = offered\n            edge = .moved(sentence)\n            drop()')) > 0);
+  expect('(aw) catches no refusedAt, so a refusing door is asked again every picture (a loop)', aw(fq('            refusedAt = offered\n', '')) > 0);
+  expect('(aw) catches the fill asked while refused', aw(fq('        if mode == .following, fillOff || refusedAt != nil { return nil }\n', '')) > 0);
+  expect('(aw) catches a 404 that leaves the fill on', aw(fq('        fillOff = true\n', '')) > 0);
+  expect('(aw) catches fill(rows: calling onLayout', aw(fq('        pump()\n        return reserved', '        onLayout?()\n        pump()\n        return reserved')) > 0);
+  expect('(aw) catches scrolled entered with the view at its bottom', aw(fq('if layout.mode == .following, !atBottom, top < layout.live {', 'if layout.mode == .following, top < layout.live {')) > 0);
+  expect('(aw) catches want( asking only while scrolled', aw(fq('guard space != nil, !pagingStopped, top < live else { return nil }', 'guard mode == .scrolled, !pagingStopped, top < live else { return nil }')) > 0);
+  expect('(aw) catches the overlap taken from carried rows (hi)', aw(fq('Self.less(checked, lo)', 'Self.less(hi, lo)')) > 0);
+  expect('(aw) catches the history persisted', aw(`${fillOk}let p3373Kept = UserDefaults.standard\n`) > 0);
+  // The reverify and the verify of 2026-10-08, and the fix round: the band, the straddle and the blink.
+  expect('(aw) catches a following outrun that drops what it holds (the build the verify read: the band blank on every return)', aw(fq('            if hi < offer.depth { hi = offer.depth }\n', '            if hi < offer.depth { hi = offer.depth }\n            drop()\n')) > 0);
+  expect('(aw) catches the carry taken whatever the model says (the straddle\'s flashing strips)', aw(fq('            if carrying { _ = carry(to: offer.depth, holds: holds) }', '            _ = carry(to: offer.depth, holds: holds)')) > 0);
+  expect('(aw) catches the outrun not counted', aw(fq('            if lines > screen { outruns = Self.plus(outruns, 1) }\n', '')) > 0);
+  expect('(aw) catches the lines no picture showed left out of the holes (hi under the live top)', aw(fq('            if hi < offer.depth { hi = offer.depth }\n', '')) > 0);
+  expect('(aw) catches picture( taking no carrying', aw(fq(', holds: (Character) -> Bool = ScreenFont.holds, carrying: Bool = true) {', ', holds: (Character) -> Bool = ScreenFont.holds) {')) > 0);
+  expect('(aw) catches the live top\'s page never asked (pages walking up from rows out of view)', aw(fq('        if mode == .following, Self.plus(checked, Self.pageRows) < live,', '        if mode == .scrolled, Self.plus(checked, Self.pageRows) < live,')) > 0);
+  expect('(aw) catches the live top\'s page joined without returning the rows under it', aw(fq('            lo = from\n            checked = end\n', '            checked = end\n')) > 0);
+  expect('(aw) catches outrunGap under a second', aw(fq('static let outrunGap: Duration = .seconds(3)', 'static let outrunGap: Duration = .milliseconds(250)')) > 0);
+  expect('(aw) catches outrunGap at one second (the measured flashing at the watcher\'s floor)', aw(fq('static let outrunGap: Duration = .seconds(3)', 'static let outrunGap: Duration = .seconds(1)')) > 0);
+  expect('(aw) catches outrunGap at two seconds (3.5 band blanks a minute at the watcher\'s floor, measured)', aw(fq('static let outrunGap: Duration = .seconds(3)', 'static let outrunGap: Duration = .seconds(2)')) > 0);
+  expect('(aw) passes outrunGap at 3,500 ms', aw(fq('static let outrunGap: Duration = .seconds(3)', 'static let outrunGap: Duration = .milliseconds(3_500)')) === 0);
+  expect('(aw) catches pump() asking a page while the output outruns the screen', aw(fq('        if layout.mode == .following, let calm = holdUntil {\n            due = due.map { max($0, calm) } ?? calm\n        }\n', '')) > 0);
+  expect('(aw) catches pump() holding only while the carry is stopped (pages scrolled away under the view)', aw(fq('if layout.mode == .following, let calm = holdUntil {', 'if layout.mode == .following, let calm = fastUntil {')) > 0);
+  expect('(aw) catches the hold applied while scrolled too (pump)', aw(fq('if layout.mode == .following, let calm', 'if let calm')) > 0);
+  expect('(aw) catches the hold applied while scrolled too (fast)', aw(fq('        guard layout.mode == .following, let until = fastUntil else { return false }', '        guard let until = fastUntil else { return false }')) > 0);
+  expect('(aw) catches the layout handed carrying whatever the output does', aw(fq('carrying: !fast(at))', 'carrying: true)')) > 0);
+  expect('(aw) catches the model never holding following\'s pages', aw(fq('                holdUntil = at.advanced(by: Self.outrunGap)\n', '')) > 0);
+  expect('(aw) catches the model never stopping following\'s carry', aw(fq('                if passed || fast(at) { fastUntil = holdUntil }\n', '')) > 0);
+  expect('(aw) catches the carry stopped on any outrun of a burst (the band dropped under output short of the view)', aw(fq('if passed || fast(at) { fastUntil = holdUntil }', 'fastUntil = holdUntil')) > 0);
+  expect('(aw) catches the carry stopped on a pass alone, never kept stopped (it flashes back between passes)', aw(fq('if passed || fast(at) { fastUntil = holdUntil }', 'if passed { fastUntil = holdUntil }')) > 0);
+  expect('(aw) catches passed read against the screen alone (any outrun passes)', aw(fq('ScrollbackLayout.plus(picture.rowCount, viewFill)', 'picture.rowCount')) > 0);
+  expect('(aw) catches a lone flood or return held (the verify\'s band)', aw(fq('            if let last = lastOutrun, at < last.advanced(by: Self.outrunGap) {\n                holdUntil = at.advanced(by: Self.outrunGap)\n                if passed || fast(at) { fastUntil = holdUntil }\n            }\n', '            holdUntil = at.advanced(by: Self.outrunGap)\n            if passed || fast(at) { fastUntil = holdUntil }\n')) > 0);
+  expect('(aw) catches the model noting no outrun', aw(fq('            lastOutrun = at\n', '')) > 0);
+  expect('(aw) catches a page raising depthSeen while following (the reverify\'s blink)', aw(fq('if mode == .scrolled { depthSeen = max(depthSeen, depth) }', 'depthSeen = max(depthSeen, depth)')) > 0);
+  expect('(aw) catches a page raising depthSeen under a following guard', aw(fq('if mode == .scrolled { depthSeen = max(depthSeen, depth) }', 'if mode == .following { depthSeen = max(depthSeen, depth) }')) > 0);
+  // (ax)
+  const chromePageOk = [
+    'struct TerminalChrome {',
+    '    let landscape: Bool',
+    '    init(_ sizeClass: UserInterfaceSizeClass?) {',
+    '        landscape = sizeClass == .compact',
+    '    }',
+    '    var header: Bool { !landscape }',
+    '    func tray(overlap: CGFloat, typing: Bool) -> Bool {',
+    '        !landscape && overlap == 0 && !typing',
+    '    }',
+    '    var bars: Visibility { landscape ? .hidden : .automatic }',
+    '    var statusBarHidden: Bool { landscape }',
+    '    func toolbarCopy(_ drawn: Bool) -> Bool { drawn && !landscape }',
+    '    func overlayCopy(_ drawn: Bool) -> Bool { drawn && landscape }',
+    '}',
+    'struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {',
+    '    @Environment(\\.verticalSizeClass) private var sizeClass',
+    '    private var chrome: TerminalChrome { TerminalChrome(sizeClass) }',
+    '    var body: some View {',
+    '        ZStack {',
+    '            VStack(spacing: 0) {',
+    '                if chrome.header {',
+    '                    header',
+    '                }',
+    '                content',
+    '                    .overlay(alignment: .bottom) { bottom }',
+    '                if chrome.tray(overlap: overlap, typing: typing) {',
+    '                    tray',
+    '                }',
+    '            }',
+    '        }',
+    '        .toolbar {',
+    '            ToolbarItem(placement: .topBarTrailing) {',
+    '                if chrome.toolbarCopy(copyDrawn) {',
+    '                    Button { copySelection() } label: { Words(Copy.copy, .body, Tokens.accent) }',
+    '                        .accessibilityIdentifier(ID.screenCopy)',
+    '                }',
+    '            }',
+    '            trailing',
+    '        }',
+    '        .toolbarVisibility(chrome.bars, for: .navigationBar, .tabBar)',
+    '        .statusBarHidden(chrome.statusBarHidden)',
+    '        .onAppear { OrientationGate.screenOnTop = true }',
+    '        .onDisappear { OrientationGate.screenOnTop = false }',
+    '    }',
+    '    private var bottom: some View {',
+    '        VStack {',
+    '            if chrome.overlayCopy(copyDrawn) {',
+    '                Button { copySelection() } label: { Words(Copy.copy, .body, Tokens.accent) }',
+    '                    .accessibilityIdentifier(ID.screenCopy)',
+    '            }',
+    '        }',
+    '        .padding(.bottom, overlap)',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  // The parent's page (dfa878b5): the header, the tray and Copy drawn in every orientation.
+  const chromeParent = [
+    'struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {',
+    '    var body: some View {',
+    '        ZStack {',
+    '            VStack(spacing: 0) {',
+    '                header',
+    '                content',
+    '                if overlap == 0, !typing {',
+    '                    tray',
+    '                }',
+    '            }',
+    '        }',
+    '        .toolbar {',
+    '            ToolbarItem(placement: .topBarTrailing) {',
+    '                if copyDrawn {',
+    '                    Button { copySelection() } label: { Words(Copy.copy, .body, Tokens.accent) }',
+    '                        .accessibilityIdentifier(ID.screenCopy)',
+    '                }',
+    '            }',
+    '            trailing',
+    '        }',
+    '        .onAppear { OrientationGate.screenOnTop = true }',
+    '        .onDisappear { OrientationGate.screenOnTop = false }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const ax = (page, more = []) => ruleLandscapeAlone([{ name: BARS_PAGE_FILE, source: page }, ...more]).findings.length;
+  const xq = (from, to) => swapIn('(ax)', chromePageOk, from, to);
+  expect('(ax) passes the terminal alone sideways, through TerminalChrome', ax(chromePageOk) === 0);
+  expect('(ax) catches the parent\'s page, which draws its bars, header and tray sideways (his item 2)', ax(chromeParent) > 0);
+  expect('(ax) catches the header drawn sideways', ax(xq('                if chrome.header {\n                    header\n                }\n', '                header\n')) > 0);
+  expect('(ax) catches the tray drawn sideways', ax(xq('if chrome.tray(overlap: overlap, typing: typing) {', 'if overlap == 0, !typing {')) > 0);
+  expect('(ax) catches the status bar left drawn sideways', ax(xq('        .statusBarHidden(chrome.statusBarHidden)\n', '')) > 0);
+  expect('(ax) catches the bars left drawn sideways', ax(xq('        .toolbarVisibility(chrome.bars, for: .navigationBar, .tabBar)\n', '')) > 0);
+  expect('(ax) catches the toolbar\'s Copy drawn sideways too (two screen-copy)', ax(xq('if chrome.toolbarCopy(copyDrawn) {', 'if copyDrawn {')) > 0);
+  expect('(ax) catches Copy never drawn over the terminal sideways', ax(xq('if chrome.overlayCopy(copyDrawn) {', 'if chrome.toolbarCopy(copyDrawn) {')) > 0);
+  expect('(ax) catches OrientationGate set in SessionScreen.swift', ax(chromePageOk, [{ name: SESSION_SCREEN_FILE, source: 'struct TerminalPage: View {\n    var body: some View { ScreenPage().onAppear { OrientationGate.screenOnTop = true } }\n}\n' }]) > 0);
+  expect('(ax) catches a member TerminalChrome was not given', ax(xq('    var statusBarHidden: Bool { landscape }\n', '    var statusBarHidden: Bool { landscape }\n    var back: Bool { !landscape }\n')) > 0);
+  expect('(ax) catches the header answering the other way', ax(xq('var header: Bool { !landscape }', 'var header: Bool { landscape }')) > 0);
+  expect('(ax) catches the tray drawn under the keyboard sideways', ax(xq('!landscape && overlap == 0 && !typing', '!landscape && !typing')) > 0);
+  expect('(ax) catches the overlay Copy upright', ax(xq('func overlayCopy(_ drawn: Bool) -> Bool { drawn && landscape }', 'func overlayCopy(_ drawn: Bool) -> Bool { drawn }')) > 0);
+  expect('(ax) catches TerminalChrome declared a second time', ax(chromePageOk, [{ name: SESSION_SCREEN_FILE, source: 'struct TerminalChrome {\n    let landscape: Bool\n}\n' }]) > 0);
+  expect('(ax) catches the status bar hidden in another file', ax(chromePageOk, [{ name: SESSION_SCREEN_FILE, source: 'func f(_ v: some View) -> some View { v.statusBarHidden(true) }\n' }]) > 0);
+  expect('(ax) catches the horizontal size class', ax(xq('@Environment(\\.verticalSizeClass)', '@Environment(\\.horizontalSizeClass)')) > 0);
+  // (ay)
+  const menuSessionOk = [
+    'struct TerminalPage: View {',
+    '    var body: some View {',
+    '        ScreenPage(model: screen) {',
+    '            StatusLine(drawing: drawing)',
+    '        } tray: {',
+    '            ChoiceTray(drawing: drawing, reply: reply)',
+    '        } trailing: {',
+    '            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }',
+    '        }',
+    '    }',
+    '}',
+    'struct TerminalMenu: ToolbarContent {',
+    '    var body: some ToolbarContent {',
+    '        ToolbarItem(placement: .topBarTrailing) {',
+    '            TerminalMenuControl(end: end, offer: offer, confirm: confirm, reread: reread, openCatchUp: openCatchUp)',
+    '        }',
+    '    }',
+    '}',
+    'struct TerminalMenuControl: View {',
+    '    @State private var asking = false',
+    '    nonisolated static var symbol: String {',
+    '        if #available(iOS 26, *) { "ellipsis" } else { "ellipsis.circle" }',
+    '    }',
+    '    nonisolated static func progressMark(_ drawing: EndBarDrawing?) -> String? {',
+    '        guard let drawing else { return nil }',
+    '        if drawing.confirming { return ID.endConfirming }',
+    '        if drawing.writing { return ID.endWriting }',
+    '        return nil',
+    '    }',
+    '    var body: some View {',
+    '        HStack(spacing: 4) {',
+    '            if let mark = TerminalMenuControl.progressMark(drawing) {',
+    '                ProgressView().accessibilityIdentifier(mark)',
+    '            }',
+    '            Menu {',
+    '                Button(action: openCatchUp) {',
+    '                    Label(Copy.catchMeUp, systemImage: "text.bubble")',
+    '                }',
+    '                .accessibilityIdentifier(ID.terminalMenuCatchUp)',
+    '                if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {',
+    '                    EndMenuItem(row: row, drawing: drawing) { asking = true }',
+    '                }',
+    '            } label: {',
+    '                Image(systemName: TerminalMenuControl.symbol)',
+    '                    .foregroundStyle(Tokens.accent)',
+    '            }',
+    '            .accessibilityLabel(Text(verbatim: Copy.more))',
+    '            .accessibilityIdentifier(ID.terminalMenu)',
+    '            .endConfirmation(model: end, offer: offer, confirm: confirm, drawing: drawing, isPresented: $asking, reread: reread)',
+    '        }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const menuBarOk = [
+    'struct EndBarDrawing: Equatable {',
+    '    let label: String',
+    '    let menuLabel: String',
+    '    init(offer: PocketEndOffer, confirm: PocketEndConfirm?, kind: OwnerKind, phase: EndModel.Phase, line: String?) {',
+    '        label = phase == .writing ? Copy.ending : Copy.endTop',
+    '        menuLabel = phase == .writing ? Copy.ending : Copy.endSessionMenu',
+    '    }',
+    '}',
+    'struct EndMenuItem: View {',
+    '    var body: some View {',
+    '        Button(role: .destructive) { ask() } label: { Label(drawing.menuLabel, systemImage: drawing.glyph) }',
+    '    }',
+    '}',
+    'struct EndConfirmation: ViewModifier {',
+    '    func body(content: Content) -> some View {',
+    '        content.confirmationDialog(confirm?.title ?? Copy.endSessionMenu, isPresented: $isPresented, titleVisibility: .visible) {',
+    '            Button(Copy.cancel, role: .cancel) {}',
+    '        }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const menuCopyOk = '    /// Phone: the spoken name of the Terminal\'s ⋯ (Phase 337.3), iOS\'s own name for an ellipsis button.\n    static let more = "More"\n';
+  const menuIdsOk = 'enum ID {\n    static let endWriting = "end-writing"\n    static let terminalMenu = "terminal-menu"\n    static let terminalMenuCatchUp = "terminal-menu-catch-up"\n    static let terminalMenuEnd = "terminal-menu-end"\n}\n';
+  // The parent's Terminal (dfa878b5): the Catch Me Up icon, then End, in the bar.
+  const menuParent = [
+    'struct TerminalPage: View {',
+    '    var body: some View {',
+    '        ScreenPage(model: screen) {',
+    '            StatusLine(drawing: drawing)',
+    '        } tray: {',
+    '            ChoiceTray(drawing: drawing, reply: reply)',
+    '        } trailing: {',
+    '            CatchUpItem { openCatchUp(drawing.outcome) }',
+    '            EndTopItem(model: end, offer: drawing.end, confirm: drawing.endConfirm) { await session.load() }',
+    '        }',
+    '    }',
+    '}',
+    'struct CatchUpItem: ToolbarContent {',
+    '    var body: some ToolbarContent {',
+    '        ToolbarItem(placement: .topBarTrailing) {',
+    '            Button(action: open) { Image(systemName: "text.bubble") }',
+    '                .accessibilityLabel(Text(verbatim: Copy.catchMeUp))',
+    '                .accessibilityIdentifier(ID.sessionOpenCatchUp)',
+    '        }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const ay = (edits = {}) => ruleTerminalMenu(Object.entries({ [SESSION_SCREEN_FILE]: menuSessionOk, [END_BAR_FILE]: menuBarOk, 'Style/Copy.swift': menuCopyOk, 'Screens/Identifiers.swift': menuIdsOk, ...edits }).filter(([, v]) => v !== null).map(([name, source]) => ({ name, source }))).findings.length;
+  const yq = (from, to) => ({ [SESSION_SCREEN_FILE]: swapIn('(ay)', menuSessionOk, from, to) });
+  const yb = (from, to) => ({ [END_BAR_FILE]: swapIn('(ay)', menuBarOk, from, to) });
+  expect('(ay) passes the one ⋯, Catch Me Up then End session…', ay() === 0);
+  expect('(ay) catches the parent\'s top right, the icon then End (his item 3)', ay({ [SESSION_SCREEN_FILE]: menuParent }) > 0);
+  expect('(ay) catches a third menu item', ay(yq('                .accessibilityIdentifier(ID.terminalMenuCatchUp)\n', '                .accessibilityIdentifier(ID.terminalMenuCatchUp)\n                Button(action: openCatchUp) { Label(Copy.terminal, systemImage: "terminal") }\n')) > 0);
+  expect('(ay) catches the two items swapped', ay(yq('                Button(action: openCatchUp) {\n                    Label(Copy.catchMeUp, systemImage: "text.bubble")\n                }\n                .accessibilityIdentifier(ID.terminalMenuCatchUp)\n                if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {\n                    EndMenuItem(row: row, drawing: drawing) { asking = true }\n                }\n', '                if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {\n                    EndMenuItem(row: row, drawing: drawing) { asking = true }\n                }\n                Button(action: openCatchUp) {\n                    Label(Copy.catchMeUp, systemImage: "text.bubble")\n                }\n                .accessibilityIdentifier(ID.terminalMenuCatchUp)\n')) > 0);
+  expect('(ay) catches the dialog attached inside the menu\'s content', ay({ [SESSION_SCREEN_FILE]: swapIn('(ay)', swapIn('(ay)', menuSessionOk, '            .endConfirmation(model: end, offer: offer, confirm: confirm, drawing: drawing, isPresented: $asking, reread: reread)\n', ''), '                    EndMenuItem(row: row, drawing: drawing) { asking = true }\n', '                    EndMenuItem(row: row, drawing: drawing) { asking = true }\n                        .endConfirmation(model: end, offer: offer, confirm: confirm, drawing: drawing, isPresented: $asking, reread: reread)\n') }) > 0);
+  expect('(ay) catches a second confirmationDialog( for End copied into SessionScreen.swift', ay(yq('            .endConfirmation(model: end, offer: offer, confirm: confirm, drawing: drawing, isPresented: $asking, reread: reread)\n', '            .confirmationDialog(confirm?.title ?? Copy.endSessionMenu, isPresented: $asking) { Button(Copy.cancel, role: .cancel) {} }\n')) > 0);
+  expect('(ay) catches Copy.more spelled "More…"', ay({ 'Style/Copy.swift': menuCopyOk.replace('"More"', '"More…"') }) > 0);
+  expect('(ay) catches Copy.more with no /// Phone: owner', ay({ 'Style/Copy.swift': menuCopyOk.replace('/// Phone:', '/// The') }) > 0);
+  expect('(ay) catches the symbol fixed to "ellipsis.circle" on every iOS', ay(yq('        if #available(iOS 26, *) { "ellipsis" } else { "ellipsis.circle" }', '        "ellipsis.circle"')) > 0);
+  expect('(ay) catches TerminalMenuControl naming ownerCheck', ay(yq('    @State private var asking = false\n', '    @State private var asking = false\n    let ownerCheck: any OwnerCheck\n')) > 0);
+  expect('(ay) catches Catch Me Up drawn as another symbol', ay(yq('Label(Copy.catchMeUp, systemImage: "text.bubble")', 'Label(Copy.catchMeUp, systemImage: "bubble.left")')) > 0);
+  expect('(ay) catches Catch Me Up with no identifier', ay(yq('                .accessibilityIdentifier(ID.terminalMenuCatchUp)\n', '')) > 0);
+  expect('(ay) catches the ⋯ not spoken More', ay(yq('            .accessibilityLabel(Text(verbatim: Copy.more))\n', '')) > 0);
+  expect('(ay) catches the ⋯ labelled by a word', ay(yq('                Image(systemName: TerminalMenuControl.symbol)', '                Words(Copy.more, .body, Tokens.accent)')) > 0);
+  expect('(ay) catches End drawn where End is absent today', ay(yq('                if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {\n                    EndMenuItem(row: row, drawing: drawing) { asking = true }\n                }\n', '                EndMenuItem(row: .on, drawing: drawing) { asking = true }\n')) > 0);
+  expect('(ay) catches the menu\'s End in the bar\'s word', ay(yb('menuLabel = phase == .writing ? Copy.ending : Copy.endSessionMenu', 'menuLabel = phase == .writing ? Copy.ending : Copy.endTop')) > 0);
+  expect('(ay) catches the progress mark drawn while nothing is under way', ay(yq('        if drawing.writing { return ID.endWriting }\n', '        return ID.endWriting\n')) > 0);
+  expect('(ay) catches two ToolbarItems in TerminalMenu', ay(yq('            TerminalMenuControl(end: end, offer: offer, confirm: confirm, reread: reread, openCatchUp: openCatchUp)\n        }\n', '            TerminalMenuControl(end: end, offer: offer, confirm: confirm, reread: reread, openCatchUp: openCatchUp)\n        }\n        ToolbarItem(placement: .topBarTrailing) { EmptyView() }\n')) > 0);
+  expect('(ay) catches an identifier the menu needs missing', ay({ 'Screens/Identifiers.swift': menuIdsOk.replace('    static let endWriting = "end-writing"\n', '') }) > 0);
+}
+
 // The Phase 337 scanners, proved on texts this file holds, before any file is read.
 {
   const sel = (src) => [{ name: SELECTION_FILE, source: src }];
@@ -10792,12 +12401,35 @@ export function ruleReachNote(words) {
     '    override func layoutSubviews() {',
     '        super.layoutSubviews()',
     '        remeasureKeyboard()',
+    // Phase 337.3 (D2, D3, D4): the fill before the content is sized, the
+    // layout read again after it, and the pad against every row laid out.
+    '        let room = Double(CGFloat(bounds.height) / cell.height).rounded(.up)',
+    '        let fits = Int(exactly: room) ?? 0',
+    '        let fill = ScrollbackLayout.less(fits, picture.rowCount)',
+    '        _ = scrollback.fill(rows: fill)',
+    '        let layout = scrollback.layout',
+    '        let rows = ScrollbackLayout.plus(layout.liveRow, picture.rowCount)',
     '        let visible = max(0, bounds.height - overlap)',
-    '        let pad = max(0, visible - CGFloat(picture.rowCount) * cell.height)',
+    '        let pad = max(0, visible - CGFloat(rows) * cell.height)',
     '        let size = CGSize(width: 1, height: CGFloat(rows) * cell.height + pad)',
     '        contentSize = size',
     '        apply(above: CGPoint(x: 0, y: added))',
     '        keep()',
+    '    }',
+    '    static func rowsAdded(from previous: Laid, to layout: ScrollbackLayout) -> Double {',
+    '        switch (previous.mode, layout.mode) {',
+    '        case (.following, .following):',
+    '            return Double(layout.liveRow) - Double(previous.liveRow)',
+    '        case (.following, .scrolled):',
+    '            return Double(previous.first) - Double(layout.firstRow)',
+    '        case (.scrolled, .scrolled):',
+    '            return Double(previous.first) - Double(layout.firstRow)',
+    '        case (.scrolled, .following):',
+    '            return Double(layout.liveRow) - Double(previous.liveRow)',
+    '        }',
+    '    }',
+    '    private func report() {',
+    '        _ = scrollback.viewed(top: first, bottom: last, atBottom: pinned)',
     '    }',
     '    private func keep() {',
     '        apply(above: CGPoint(x: 0, y: 1))',
@@ -10824,6 +12456,7 @@ export function ruleReachNote(words) {
     '            VStack(spacing: 0) {',
     '                header',
     '                content',
+    '                    .overlay(alignment: .top) { top }',
     '                    .overlay(alignment: .bottom) { bottom }',
     '                if overlap == 0 { tray }',
     '            }',
@@ -10833,6 +12466,13 @@ export function ruleReachNote(words) {
     '    }',
     '    private var content: some View {',
     '        ScreenScroller(actions: ScreenScrollerActions(overlap: { overlap = $0 }))',
+    '    }',
+    // Phase 337.3 (D13): the lines over the terminal's top edge.
+    '    private var top: some View {',
+    '        VStack {',
+    '            if let said = scrollback.line { lineView(said, id: ID.screenScrollbackLine) }',
+    '            if let line = shownLine { lineView(line, id: ID.screenLine) }',
+    '        }',
     '    }',
     '    private var bottom: some View {',
     '        VStack {',
@@ -10888,10 +12528,19 @@ export function ruleReachNote(words) {
   expect('(aq) catches every row of the window an element again (the fix round)', aq(scrollerOk, { 'Screens/ScreenGrid.swift': gridOk.replace('.accessibilityIdentifier(item.spoken ? ID.screenRow(n) : "")', '.accessibilityIdentifier(ID.screenRow(n))') }) > 0);
   expect('(aq) catches an out-of-view row a hidden element rather than none (the fix round)', aq(scrollerOk, { 'Screens/ScreenGrid.swift': gridOk.replace('.accessibilityElement(children: item.spoken ? .ignore : .contain)', '.accessibilityElement()') }) > 0);
   expect('(aq) catches the rows in view never marked (the fix round)', aq(sq('        spoken = spokenFrom..<spokenTo\n', '')) > 0);
+  // Phase 337.3 (build/p3373/SPEC.md §6.1 (aq)): the pad, the fill, the delta and the pin.
+  expect('(aq) catches the parent\'s pad, against the live rows alone (his defect)', aq(sq('let pad = max(0, visible - CGFloat(rows) * cell.height)', 'let pad = max(0, visible - CGFloat(picture.rowCount) * cell.height)')) > 0);
+  expect('(aq) passes the pad against layout.rowCount', aq(sq('let pad = max(0, visible - CGFloat(rows) * cell.height)', 'let pad = max(0, visible - CGFloat(layout.rowCount) * cell.height)')) === 0);
+  expect('(aq) catches no fill at all (the parent\'s layout pass)', aq(sq('        _ = scrollback.fill(rows: fill)\n', '')) > 0);
+  expect('(aq) catches the fill handed over after the content is sized', aq(sq('        _ = scrollback.fill(rows: fill)\n', '').replace('        contentSize = size\n', '        contentSize = size\n        _ = scrollback.fill(rows: fill)\n')) > 0);
+  expect('(aq) catches the layout read only before the fill', aq(sq('        _ = scrollback.fill(rows: fill)\n        let layout = scrollback.layout\n', '        let layout = scrollback.layout\n        _ = scrollback.fill(rows: fill)\n')) > 0);
+  expect('(aq) catches a fill that reads the keyboard\'s overlap', aq(sq('Double(CGFloat(bounds.height) / cell.height)', 'Double(CGFloat(bounds.height - overlap) / cell.height)')) > 0);
+  expect('(aq) catches following\'s delta back to 0', aq(sq('        case (.following, .following):\n            return Double(layout.liveRow) - Double(previous.liveRow)\n', '        case (.following, .following):\n            return 0\n')) > 0);
+  expect('(aq) catches atBottom handed true', aq(sq('atBottom: pinned)', 'atBottom: true)')) > 0);
   const ar = (s = scrollerOk, page = pageOk, more = {}) => ruleScreenKeyboard(scr(s, { 'Screens/Screen.swift': page, ...more })).findings.length;
   const pq = (from, to) => fixSwap('(ar)', pageOk, from, to);
   expect('(ar) passes the root\'s one opt-out and the one keyboard function', ar() === 0);
-  expect('(ar) catches the first draft: the opt-out on the representable alone, a view below it', ar(scrollerOk, pq('                content\n                    .overlay(alignment: .bottom) { bottom }\n', '                content\n                    .ignoresSafeArea(.keyboard, edges: .bottom)\n                    .overlay(alignment: .bottom) { bottom }\n').replace('        .ignoresSafeArea(.keyboard, edges: .bottom)\n        .onAppear', '        .onAppear')) > 0);
+  expect('(ar) catches the first draft: the opt-out on the representable alone, a view below it', ar(scrollerOk, pq('                content\n                    .overlay(alignment: .top) { top }\n', '                content\n                    .ignoresSafeArea(.keyboard, edges: .bottom)\n                    .overlay(alignment: .top) { top }\n').replace('        .ignoresSafeArea(.keyboard, edges: .bottom)\n        .onAppear', '        .onAppear')) > 0);
   expect('(ar) catches a second opt-out inside the page', ar(scrollerOk, pq('                if overlap == 0 { tray }', '                if overlap == 0 { tray.ignoresSafeArea(.keyboard) }')) > 0);
   expect('(ar) catches an opt-out in TerminalPage', ar(scrollerOk, pageOk, { [SESSION_SCREEN_FILE]: 'struct TerminalPage: View {\n    var body: some View { ScreenPage().ignoresSafeArea(.keyboard) }\n}\n' }) > 0);
   expect('(ar) catches the inset written outside keyboardOverlap', ar(sq('    private func pin() {', '    func again() {\n        contentInset = .zero\n    }\n    private func pin() {')) > 0);
@@ -10904,6 +12553,11 @@ export function ruleReachNote(words) {
   expect('(ar) catches the overlap measured again inside the layout pass (the fix round)', ar(sq('        DispatchQueue.main.async { [weak self] in\n            if let note = self?.keyboardNote { self?.keyboardOverlap(note) }\n        }\n', '        if let note = keyboardNote { keyboardOverlap(note) }\n')) > 0);
   expect('(ar) catches the line padded by something else', ar(scrollerOk, pq('.padding(.bottom, overlap)', '.padding(.bottom, 300)')) > 0);
   expect('(ar) catches the overlap set from anything but the scroll view', ar(scrollerOk, pq('overlap: { overlap = $0 }', 'overlap: { overlap = $0 + 20 }')) > 0);
+  // Phase 337.3 (build/p3373/SPEC.md D13): the lines at the terminal's top.
+  expect('(ar) catches the Terminal\'s line moved back into the bottom view, over the prompt', ar(scrollerOk, pq('            if let line = shownLine { lineView(line, id: ID.screenLine) }\n', '').replace('                .accessibilityIdentifier(ID.screenToLive)\n', '                .accessibilityIdentifier(ID.screenToLive)\n            if let line = shownLine { lineView(line, id: ID.screenLine) }\n')) > 0);
+  expect('(ar) catches the scrollback edge\'s line in the bottom view', ar(scrollerOk, pq('            if let said = scrollback.line { lineView(said, id: ID.screenScrollbackLine) }\n', '').replace('                .accessibilityIdentifier(ID.screenToLive)\n', '                .accessibilityIdentifier(ID.screenToLive)\n            if let said = scrollback.line { lineView(said, id: ID.screenScrollbackLine) }\n')) > 0);
+  expect('(ar) catches the top view laid at the bottom', ar(scrollerOk, pq('.overlay(alignment: .top) { top }', '.overlay(alignment: .bottom) { top }')) > 0);
+  expect('(ar) catches the parent\'s page, its lines in the bottom view and no top view', ar(scrollerOk, pq('    private var top: some View {\n        VStack {\n            if let said = scrollback.line { lineView(said, id: ID.screenScrollbackLine) }\n            if let line = shownLine { lineView(line, id: ID.screenLine) }\n        }\n    }\n', '').replace('                    .overlay(alignment: .top) { top }\n', '').replace('                .accessibilityIdentifier(ID.screenToLive)\n', '                .accessibilityIdentifier(ID.screenToLive)\n            if let said = scrollback.line { lineView(said, id: ID.screenScrollbackLine) }\n            if let line = shownLine { lineView(line, id: ID.screenLine) }\n')) > 0);
   // (as)
   const clientAs = 'final class DoorClient {\n    static func scrollbackTarget(_ id: String, from: Int, count: Int, depth: Int, wrap: Int, keep: ScrollbackKeep) -> String {\n        "/v1/scrollback?id=\\(queryValue(id))&from=\\(from)&count=\\(count)&depth=\\(depth)&wrap=\\(wrap)&keep=\\(keep.rawValue)"\n    }\n}\n';
   const historyAs = [
@@ -10922,22 +12576,39 @@ export function ruleReachNote(words) {
     '    mutating func accept(_ page: PocketScrollbackAnswer, for ask: ScrollbackAsk) -> ScrollbackLanding {',
     '        guard page.pageWrap == wrap, page.space == space, depth >= depthSeen else { return .moved }',
     '        guard overlapAgrees(rows, ask: ask) else { return .moved }',
-    '        held[index] = row',
+    // Phase 337.3 (D6): a page fills a reserved row and replaces a carried one, never a checked one.
+    '        for (index, row) in rows where held[index]?.carried ?? true {',
+    '            held[index] = row',
+    '        }',
     '        return .joined(1)',
     '    }',
     '    private func overlapAgrees(_ rows: [Int: ScrollbackRow], ask: ScrollbackAsk) -> Bool {',
-    '        rows.allSatisfy { held[$0.key]?.row.label == $0.value.row.label }',
+    '        for index in rows.keys {',
+    '            guard let mine = held[index], !mine.carried else { return false }',
+    '            guard rows[index]?.row.label == mine.row.label else { return false }',
+    '        }',
+    '        return true',
     '    }',
     '    mutating func evict(visibleTop: Int, visibleBottom: Int) -> Int {',
     '        while held.count > Self.mostHeld { held[lo] = nil }',
     '        return 0',
     '    }',
+    // Phase 337.3 (D10): back to live keeps a fill that reaches the live top.
+    '    mutating func follow() -> Int {',
+    '        mode = .following',
+    '        if hi == live, !pagingStopped { return 0 }',
+    '        space = nil',
+    '        held = [:]',
+    '        return 1',
+    '    }',
     '}',
     'final class ScrollbackModel {',
     '    static let minGap: Duration = .milliseconds(250)',
+    '    static let checkGap: Duration = .seconds(1)',
     '    private func pump() {',
     '        guard inFlight == nil else { return }',
-    '        if let s = lastStarted, s.advanced(by: Self.minGap) > now() { return }',
+    '        let gap = ask.checks ? Self.checkGap : Self.minGap',
+    '        if let s = lastStarted, s.advanced(by: gap) > now() { return }',
     '        inFlight = Task { _ = try await door.scrollback(from: 0, count: 1, depth: 1, wrap: 1, keep: .top) }',
     '    }',
     '}',
@@ -10966,6 +12637,20 @@ export function ruleReachNote(words) {
   expect('(as) catches a key that does not return to live', as({ 'Screens/ScreenKeys.swift': keysAs.replace('        onSend?()\n', '') }) > 0);
   expect('(as) catches the history persisted', as(hq('    static let minGap', '    let kept = UserDefaults.standard\n    static let minGap')) > 0);
   expect('(as) catches the model declared outside its Screen-family file', as({ 'Screens/Scrollback.swift': 'final class ScrollbackModel {}\n' }) > 0);
+  // Phase 337.3 (build/p3373/SPEC.md §6.1 (as)): check pages, carried rows and back to live.
+  expect('(as) catches checkGap at 0.25 s', as(hq('static let checkGap: Duration = .seconds(1)', 'static let checkGap: Duration = .milliseconds(250)')) > 0);
+  expect('(as) catches a check page that waits minGap', as(hq('let gap = ask.checks ? Self.checkGap : Self.minGap', 'let gap = Self.minGap')) > 0);
+  expect('(as) catches checkGap declared twice', as({ 'Screens/ScreenScroller.swift': 'enum P3373Pace {\n    static let checkGap: Duration = .seconds(2)\n}\n' }) > 0);
+  expect('(as) catches a carried row used as an overlap anchor', as(hq('guard let mine = held[index], !mine.carried else { return false }', 'guard let mine = held[index] else { return false }')) > 0);
+  expect('(as) catches a page overwriting a checked row', as(hq('for (index, row) in rows where held[index]?.carried ?? true {', 'for (index, row) in rows {')) > 0);
+  expect('(as) catches the parent\'s join, which never replaces a carried row', as(hq('for (index, row) in rows where held[index]?.carried ?? true {', 'for (index, row) in rows where held[index] == nil {')) > 0);
+  // The fix round (2026-10-08): the live top's page returns the rows under it to reserved, `held[index] = nil`, which
+  // fills nothing; a write of a row there is still caught.
+  expect('(as) passes rows returned to reserved by the live top\'s page (held[index] = nil)', as(hq('for (index, row) in rows where held[index]?.carried ?? true {', 'for index in lo..<from { held[index] = nil }\n        for (index, row) in rows where held[index]?.carried ?? true {')) === 0);
+  expect('(as) catches a row written where rows are returned to reserved', as(hq('for (index, row) in rows where held[index]?.carried ?? true {', 'for index in lo..<from { held[index] = rows[index] }\n        for (index, row) in rows where held[index]?.carried ?? true {')) > 0);
+  expect('(as) catches follow() always dropping (the parent\'s)', as(hq('        if hi == live, !pagingStopped { return 0 }\n', '')) > 0);
+  expect('(as) catches the space compared only by an early return that refuses nothing', as(hq('        guard page.pageWrap == wrap, page.space == space, depth >= depthSeen else { return .moved }\n', '        if page.space == space, depth < depthSeen { return .ignored }\n        guard page.pageWrap == wrap, depth >= depthSeen else { return .moved }\n')) > 0);
+  expect('(as) passes the same early return beside the guard that refuses', as(hq('        guard page.pageWrap == wrap, page.space == space, depth >= depthSeen else { return .moved }\n', '        if page.space == space, depth < depthSeen { return .ignored }\n        guard page.pageWrap == wrap, page.space == space, depth >= depthSeen else { return .moved }\n')) === 0);
   // (at)
   const appAt = [
     'final class SessionRouteModel {',
@@ -11006,17 +12691,8 @@ export function ruleReachNote(words) {
     '        } tray: {',
     '            ChoiceTray(drawing: drawing, reply: reply)',
     '        } trailing: {',
-    '            CatchUpItem { openCatchUp(drawing.outcome) }',
-    '            EndTopItem(model: end) { await session.load() }',
-    '        }',
-    '    }',
-    '}',
-    'struct CatchUpItem: ToolbarContent {',
-    '    var body: some ToolbarContent {',
-    '        ToolbarItem(placement: .topBarTrailing) {',
-    '            Button(action: open) { Image(systemName: "text.bubble") }',
-    '                .accessibilityLabel(Text(verbatim: Copy.catchMeUp))',
-    '                .accessibilityIdentifier(ID.sessionOpenCatchUp)',
+    // Phase 337.3 (D21): the one ⋯, which holds Catch Me Up and End.
+    '            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }',
     '        }',
     '    }',
     '}',
@@ -11046,9 +12722,11 @@ export function ruleReachNote(words) {
   expect('(at) catches the route\'s second child taken out, so the face folds into the route (the fix round)', at(aA('            Color.clear.frame(width: 0, height: 0).accessibilityElement().accessibilityIdentifier(ID.sessionRouteMark).accessibilityHidden(true)\n', '')) > 0);
   expect('(at) catches the route\'s second child spoken by VoiceOver (the fix round)', at(aA('.accessibilityIdentifier(ID.sessionRouteMark).accessibilityHidden(true)', '.accessibilityIdentifier(ID.sessionRouteMark)')) > 0);
   expect('(at) catches Route.screen put back', at({ 'App/TortieApp.swift': `${appAt}enum Route { case screen(id: String) }\n` }) > 0);
-  expect('(at) catches End before the icon', at(pA('            CatchUpItem { openCatchUp(drawing.outcome) }\n            EndTopItem(model: end) { await session.load() }', '            EndTopItem(model: end) { await session.load() }\n            CatchUpItem { openCatchUp(drawing.outcome) }')) > 0);
-  expect('(at) catches the icon drawn as a word', at(pA('Image(systemName: "text.bubble")', 'Words(Copy.catchMeUp, .body, Tokens.accent)')) > 0);
-  expect('(at) catches another symbol', at(pA('"text.bubble"', '"bubble.left"')) > 0);
+  // Phase 337.3 (at3): the trailing items are exactly TerminalMenu; the icon's own clauses moved to (ay).
+  expect('(at) catches the parent\'s trailing items, the icon then End (his item 3)', at(pA('            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n', '            CatchUpItem { openCatchUp(drawing.outcome) }\n            EndTopItem(model: end, offer: drawing.end, confirm: drawing.endConfirm) { await session.load() }\n')) > 0);
+  expect('(at) catches the ⋯ beside End in the bar', at(pA('            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n', '            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n            EndTopItem(model: end, offer: drawing.end, confirm: drawing.endConfirm) { await session.load() }\n')) > 0);
+  expect('(at) catches CatchUpItem kept anywhere in the app', at({ 'Screens/ConversationScreen.swift': 'struct CatchUpItem: ToolbarContent {\n    var body: some ToolbarContent { ToolbarItem(placement: .topBarTrailing) { Button(action: open) { Image(systemName: "text.bubble") } } }\n}\n' }) > 0);
+  expect('(at) catches ID.sessionOpenCatchUp named anywhere in the app', at({ 'Screens/Identifiers.swift': 'enum ID {\n    static let sessionOpenCatchUp = "session-open-catch-up"\n}\n' }) > 0);
   expect('(at) catches the tray pressing outside ReplyModel.press', at(pA('reply.press(option.marker', 'writer.press(option.marker')) > 0);
   expect('(at) catches the tray on new identifiers', at(pA('ID.sessionChoicePress(n)', 'ID.terminalChoice(n)')) > 0);
   expect('(at) catches a line limit in the tray', at(pA('lines: nil)', 'lines: 2)')) > 0);
@@ -11108,10 +12786,14 @@ export function ruleReachNote(words) {
   expect('(ak) catches a second gate', side(sd('    private let sideGate = OneExchange()', '    private let sideGate = OneExchange()\n    private let other = OneExchange()')) > 0);
   expect('(ak) catches a gate that never waits', side(sd('        await withCheckedContinuation { waiting.append($0) }\n', '')) > 0);
   // (t) widened: the scrollback arms
-  const hostileSb = HOSTILE_SCROLLBACK_ARMS.map((a) => `  '${a}': { what: 'x', ends: '${a === 'scrollback-overlap-lie' || a === 'scrollback-space' ? 'sentence' : 'drawn'}', scrollback: 'every', at: 'screen-grid', expect: [${a === 'scrollback-overlap-lie' || a === 'scrollback-space' ? "'scrollbackMoved'" : ''}]${a === 'scrollback-overlap-lie' || a === 'scrollback-space' ? ', stops: true' : ''} },`).join('\n');
+  const hostileSb = HOSTILE_SCROLLBACK_ARMS.map((a) => `  '${a}': { what: 'x', ends: '${a === 'scrollback-overlap-lie' || a === 'scrollback-space' ? 'sentence' : 'drawn'}', scrollback: 'every', at: 'screen-grid', expect: [${a === 'scrollback-overlap-lie' || a === 'scrollback-space' ? "'scrollbackMoved'" : ''}]${a === 'scrollback-overlap-lie' || a === 'scrollback-space' ? ', stops: true' : ''}${a === 'scrollback-fill-moved' ? ', fillOnce: true' : ''} },`).join('\n');
   const copySb = 'static let scrollbackMoved = "Earlier lines changed."\n';
   const tSb = (h, c = copySb) => ruleHostileScrollbackArms(h, c).findings.length;
-  expect('(t) passes the eight scrollback arms', tSb(hostileSb) === 0);
+  expect('(t) passes the nine scrollback arms', tSb(hostileSb) === 0);
+  // Phase 337.3: the fill's refused first page ends drawn, with no sentence, and spoils the first page alone.
+  expect('(t) catches scrollback-fill-moved ending in a sentence', tSb(hostileSb.replace("'scrollback-fill-moved': { what: 'x', ends: 'drawn'", "'scrollback-fill-moved': { what: 'x', ends: 'sentence'")) > 0);
+  expect('(t) catches scrollback-fill-moved expecting a word', tSb(hostileSb.replace("at: 'screen-grid', expect: [], fillOnce: true", "at: 'screen-grid', expect: ['scrollbackMoved'], fillOnce: true")) > 0);
+  expect('(t) catches scrollback-fill-moved spoiling every page', tSb(hostileSb.replace(', fillOnce: true', '')) > 0);
   expect('(t) catches a scrollback arm missing', tSb(hostileSb.replace("'scrollback-404'", "'scrollback-410'")) > 0);
   expect('(t) catches a lie that does not stop paging', tSb(hostileSb.replace(", stops: true },\n  'scrollback-space'", " },\n  'scrollback-space'")) > 0);
   expect('(t) catches an arm expecting a word Copy.swift lacks', tSb(hostileSb, 'static let other = "x"\n') > 0);
@@ -12000,6 +13682,26 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
       `enum SiteLink in ${LINKS_FILE} with ${r.said.cases.join(', ') || 'no'} case(s) and ${String(r.said.addresses)} address(es), each https on tortie.sh made with URL(string:) and never forced, the app's only https:// literals; SiteOpener the one SiteOpening (${r.said.conformers.join(', ') || 'none'}), taking a SiteLink and asking LinkPolicy.opens before its one open, named only in ${SITE_SCREENS.join(' and ')}; QRScanner( built ${String(r.said.scanners)} time(s), each inside if … scanning, scanning set true in startScanning() alone, called from Scan code's own action, and AVCaptureDevice.requestAccess( ${String(r.said.asks)} time(s), in ScannerView.start(); ${String(r.said.words)} Copy word(s) say none of beta, TestFlight, remote desktop, mirror, stream or SSH; the Allow line answered for Copy.cannotReachMac alone and asked ${String(r.said.notes)} time(s), by FailureView; codeFromNewerMac (${String(r.said.newer)}) and codeFromOlderMac (${String(r.said.older)}) thrown only in PairingOffer.parse, behind the marker's guard on fp, dk and dx, against version and the literals 1 and 99 alone; and ${String(presses.said.presses.length)} site presses each the one Button(action:) that names it, drawn by its own Copy word and identified by its own ID on that expression, its body its own site.open (${presses.said.presses.join('; ')})`
     );
   }
+  // Phase 337.3: (aw) to (ay), the terminal that fills the phone (build/p3373/SPEC.md §6.1).
+  {
+    const r = ruleTerminalFill(appNamed);
+    record('aw', 'the Terminal opens filled', r.findings, `ScrollbackLayout.firstRow is ${JSON.stringify(r.said.firstRow)}; reserve(visibleTop:fill:) holds an index space at any depth and moves top only up, in whole pages, and is the one place it moves; picture( drops what following holds on the alternate screen, another space, another width or a shallower depth, and ${r.said.carries ? 'carries' : 'does not carry'} rows from the last steady picture alone, at most its rows, with the held rows at the live top, in its space and width, marked carried; fill(rows:) tells no one; viewed( enters scrolled only off the bottom above the live top; want( asks in either mode, its overlap from checked rows and its checks marked; ${String(r.said.refusals)} refusal hold(s), none drawing the moved line, and a 404 turns the fill off; following never drops at a picture whose lines outran the screen, keeps the lines no picture showed as holes and counts it, the live top's page reads them again at once, two such pictures within outrunGap hold following's carry and its pages until outrunGap after the last, and a page raises depthSeen only while scrolled; nothing of the history persisted`);
+  }
+  {
+    const r = ruleLandscapeAlone(appNamed);
+    record('ax', 'landscape is the terminal alone', r.findings, `TerminalChrome declared once, in ${BARS_PAGE_FILE}, with ${r.said.members.join(', ') || 'no members'}, over the page's compact VERTICAL size class; ScreenPage draws its header and tray behind it, hides the navigation and tab bars ${String(r.said.hides)} time(s) and the status bar ${String(r.said.statusBars)} time(s) through it, and draws Copy ${String(r.said.toolbarCopy)} time(s) in its bar upright and ${String(r.said.overlayCopy)} over the terminal sideways; screenOnTop set in ${BARS_PAGE_FILE} alone`);
+  }
+  {
+    const r = ruleTerminalMenu(appNamed);
+    record('ay', 'the ⋯ menu', r.findings, `TerminalPage's trailing items ${r.said.trailing.join(' then ') || 'none'}, one ToolbarItem at the top right; one Menu labelled TerminalMenuControl.symbol (${JSON.stringify(r.said.symbol)}), its chain ${r.said.chain.join(', ') || 'unread'}, holding ${r.said.entries.join(' then ') || 'nothing'}; End where End is drawn today, its label the Mac's words with the owner check's glyph; the single End's confirmationDialog written ${String(r.said.dialogs)} time(s), in EndConfirmation; the progress mark behind confirming and the write; Copy.more "More", the phone's; the four identifiers; no owner check named by the menu`);
+  }
+}
+// Phase 337.3's three, recorded beside the others when there is no app to read
+// (pushed here rather than spelled in RULE_IDS above, so 333.1's (av) merges
+// into that list with no conflict).
+RULE_IDS.push('aw', 'ax', 'ay');
+if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
+  for (const id of ['aw', 'ax', 'ay']) record(id, 'the app', [`${rel(IOS)} does not exist, so there is no app to read`], '');
 }
 
 // ---------------------------------------------------------------------------

@@ -12,32 +12,53 @@
 // (`ScreenPage` opts the whole page out of the keyboard, once, at its root),
 // and the inset this file sets is the only thing that follows the keyboard.
 //
-// THE CONTENT (D25): every row laid out, one cell tall each, from the
-// layout's first row (Screens/ScreenScrollback.swift): the history (held or
-// reserved), then the live rows, then a PAD of the view's visible height less
-// the live rows' height, never below 0, so the content is never shorter than
-// the view. The pad is computed here, in `layoutSubviews`, from the view's own
-// bounds and the keyboard's overlap, and from no SwiftUI geometry. With it the
-// offset can always grow by exactly what is reserved above, and the offset's
-// maximum (`following`) puts the live rows at the top while they are shorter
-// than the view and the live bottom row just above the keyboard when taller.
+// THE CONTENT (Phase 337.3, build/p3373/SPEC.md D1 to D4, which reverse
+// 337.1's D25 for `following`): every row laid out, one cell tall each, from
+// the layout's first row (Screens/ScreenScrollback.swift): the history (held,
+// carried from the live screen, or reserved), then the live rows, then a PAD
+// of the view's visible height less EVERY row laid out, never below 0, so the
+// content is never shorter than the view. Following holds history too: in
+// every layout pass, BEFORE the content is sized, this view hands the history
+// its FILL (`scrollback.fill(rows:)`: the rows its whole height holds at the
+// cell it lays out, less the live rows), which the history reserves above the
+// live rows in whole pages; so the first frame already draws the live rows at
+// the view's bottom with the ground above them, and the first page fills
+// those rows where they lie, moving nothing. The offset's maximum
+// (`following`) then shows the live bottom at the view's bottom with what the
+// session printed before above it, as a terminal at the Mac does; a history
+// shorter than the view sits at its top, history then live rows; and with no
+// history laid out (nothing printed yet, a full-screen program, a Mac older
+// than 337.1) it is 337.1's look, the live rows at the top. The pad and the
+// fill are computed here, in `layoutSubviews`, from the view's own bounds and
+// the keyboard's overlap, and from no SwiftUI geometry. With the pad the
+// offset can always grow by exactly what is reserved above.
 //
-// EVERY OFFSET CHANGE IS A DELTA (D26). A reservation above, a return to live
-// and a change of cell size each move the CURRENT offset by the change they
-// made, in the layout pass that made it (`apply(above:)`, without animation),
-// so a drag or a fling under way continues from where it is and the row he is
-// reading stays where it was. Only three things write the offset: that delta,
-// following's pin (the offset at its maximum, when it was there), and the
-// keyboard's clamp.
+// EVERY OFFSET CHANGE IS A DELTA (D26 of 337.1, D11 and D12 of 337.3). A
+// reservation above, a return to live and a change of cell size each move the
+// CURRENT offset by the change they made, in the layout pass that made it
+// (`apply(above:)`, without animation), so a drag or a fling under way
+// continues from where it is and the row he is reading stays where it was.
+// Following, rows added above the live rows (carried as they scroll off the
+// live screen, or reserved by the fill) or taken away (a drop) move it by
+// exactly their height too, so every live row stays where it was on screen
+// and what was above it slides up, as on a terminal; following's pin then
+// holds the offset at its maximum. A change of cell size keeps a pinch's or a
+// double tap's focal row, a turn of the phone while following at the bottom
+// keeps the live bottom at the view's bottom (the pin), and anything else
+// keeps the row at the view's top. Only three things write the offset: that
+// delta, following's pin (the offset at its maximum, when it was there), and
+// the keyboard's clamp.
 //
 // THE KEYBOARD (D24): ONE function, `keyboardOverlap(_:)`, reads the
 // keyboard's frame from `keyboardWillChangeFrameNotification` and
 // `keyboardWillHideNotification`, converts it into this view, sets the bottom
 // inset and the indicators' from it, publishes it to the page once (which
-// places the line and the back-to-live button just above it and hides the
-// question tray while it is above 0), and pins or clamps the offset in the
-// keyboard's own animation. Since the fix round it measures again when the
-// view's height changes under a keyboard that is up.
+// places the back-to-live button just above it and hides the question tray
+// while it is above 0; since Phase 337.3 the page's lines sit at the
+// terminal's top, D13), and pins or clamps the offset in the keyboard's own
+// animation, so following keeps the live bottom just above it. Since the fix
+// round it measures again when the view's height changes under a keyboard
+// that is up.
 //
 // THE ROWS ARE DRAWN BY ONE `UIHostingController` that takes no touch: 337's
 // `ScreenRowView`, unchanged, for the rows in view and one screen above and
@@ -383,15 +404,32 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
         guard let picture, bounds.width > 0 else { return }
         laying = true
         defer { laying = false }
-        let layout = scrollback.layout
+        // At its maximum before this pass moved anything: following's pin
+        // keeps it there through whatever the pass adds or takes away (D11,
+        // D12), whatever an offset written below makes of `pinned`.
+        let wasPinned = pinned
         let fitted = ScreenZoom.fitted(columns: picture.columns, width: bounds.width)
         let top = ScreenZoom.top(columns: picture.columns, scale: displayScale, fitted: fitted)
         let now = ScreenCell.wide(ScreenZoom.held(chosen ?? fitted, fitted: fitted, top: top), scale: displayScale)
+        // THE FILL (build/p3373/SPEC.md D2, D3): the rows this view holds at
+        // this cell, less the live rows, never below 0, from its WHOLE height
+        // (never less the keyboard, so a keyboard rising or going reserves
+        // nothing). The history reserves it above the live rows, in whole
+        // pages, BEFORE the content is sized, so the first frame is already
+        // filled. Whole numbers through Int(exactly:) of a finite rounded
+        // value and ScrollbackLayout.less, neither of which can trap.
+        let room = Double(CGFloat(bounds.height) / now.height).rounded(.up)
+        let fits = room.isFinite ? Int(exactly: room) ?? 0 : 0
+        let fill = ScrollbackLayout.less(fits, picture.rowCount)
+        _ = scrollback.fill(rows: fill)
+        // The layout as the fill left it.
+        let layout = scrollback.layout
         let rows = ScrollbackLayout.plus(layout.liveRow, picture.rowCount)
-        // D25's pad: the view's visible height, less the live rows', never
-        // below 0, from this view's own bounds and the keyboard's overlap.
+        // D4's pad: the view's visible height, less EVERY row laid out (the
+        // history held or reserved, then the live rows), never below 0, from
+        // this view's own bounds and the keyboard's overlap.
         let visible = max(0, CGFloat(bounds.height) - overlap)
-        let pad = max(0, CGFloat(visible) - CGFloat(picture.rowCount) * now.height)
+        let pad = max(0, CGFloat(visible) - CGFloat(ScrollbackLayout.plus(layout.liveRow, picture.rowCount)) * now.height)
         let size = CGSize(width: CGFloat(picture.columns) * now.width, height: CGFloat(CGFloat(rows) * now.height) + pad)
         let grew = size != contentSize
         // UIKit clamps an offset it is not tracking when the content size is
@@ -412,8 +450,19 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
         laid = Laid(mode: layout.mode, first: layout.firstRow, liveRow: layout.liveRow, cell: now)
         if previous != laid { dirty = true }
         cell = now
+        // A pinch or a double tap keeps its focal row where it was (D32), and
+        // the pin below leaves it there.
+        var keptFocal = false
         if let previous, previous.cell != now {
-            keepAnchor(from: previous, offset: held)
+            if anchor == nil, layout.mode == .following, wasPinned {
+                // A turn of the phone while following at the bottom: the
+                // live bottom stays at the view's bottom (D12), where keeping
+                // the top row would leave it off screen.
+                pin()
+            } else {
+                keptFocal = anchor != nil
+                keepAnchor(from: previous, offset: held)
+            }
         } else if let previous {
             let added = CGFloat(Self.rowsAdded(from: previous, to: layout)) * now.height
             // Rows added or taken above: the offset he had moved by exactly
@@ -425,7 +474,14 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
         anchor = nil
         if keyboardMoving {
             // The keyboard's own animation pins or clamps.
-        } else if layout.mode == .following, !isTracking, previous == nil || previous?.mode == .scrolled || (pinned && grew) {
+        } else if layout.mode == .following, !isTracking, !keptFocal,
+                  previous == nil || previous?.mode == .scrolled || (wasPinned && !isDecelerating) {
+            // Following's pin: the first layout, a return to live, and every
+            // pass that began at the bottom (a picture's carried rows, the
+            // fill, a drop, a taller or shorter view) end at the bottom; a
+            // view he moved off it, inside a live screen taller than the
+            // view, is not pulled down by each picture, and a bounce at the
+            // bottom runs to its end rather than snapping.
             pin()
         } else if !isTracking, !isDecelerating, contentOffset.y > maxOffsetY {
             // Rows the live screen lost (its height changed): back inside.
@@ -438,16 +494,20 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
         if redraw { report() }
     }
 
-    /// The rows added above what he reads since the last pass, in rows (D26):
-    /// a reservation adds its rows; entering `scrolled` adds the history laid
-    /// above the live rows; a return to live takes away what was above them.
-    /// Following, nothing is above the live rows and nothing moves.
+    /// The rows added above what he reads since the last pass, in rows (D26
+    /// of 337.1, D11 of 337.3). Following keeps the LIVE ROWS' place: the
+    /// rows laid out above them that a picture carried or the fill reserved,
+    /// less those a drop took away, so every live row stays where it was on
+    /// screen and what was above it slides up, as on a terminal. Entering
+    /// `scrolled` and scrolling keep HIS place: the rows reserved above the
+    /// first row, and nothing for the live rows growing below him. A return to
+    /// live keeps the live rows' place: what it took away above them.
     static func rowsAdded(from previous: Laid, to layout: ScrollbackLayout) -> Double {
         switch (previous.mode, layout.mode) {
         case (.following, .following):
-            return 0
-        case (.following, .scrolled):
             return Double(layout.liveRow) - Double(previous.liveRow)
+        case (.following, .scrolled):
+            return Double(previous.first) - Double(layout.firstRow)
         case (.scrolled, .scrolled):
             return Double(previous.first) - Double(layout.firstRow)
         case (.scrolled, .following):
@@ -517,8 +577,11 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
         scrollback.follow()
     }
 
-    /// The view's first and last rows, as absolute indices, to the history:
-    /// it enters `scrolled`, reserves or asks a page as they say (D26, D27).
+    /// The view's first and last rows, as absolute indices, to the history,
+    /// with whether the view is at its bottom (`pinned`, its own offset at
+    /// its maximum): following, a view that leaves its bottom with its top
+    /// above the live top enters `scrolled` (build/p3373/SPEC.md D9); it
+    /// reserves or asks a page as they say (D26, D27 of 337.1).
     private func report() {
         guard picture != nil, cell.height > 0 else { return }
         let first = Double(scrollback.layout.firstRow)
@@ -528,7 +591,7 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
         let bottomIndex = max(topIndex, Double(first) + Double(Double(down) + seen).rounded(.up))
         guard topIndex.isFinite, bottomIndex.isFinite, let top = Int(exactly: topIndex.rounded(.down)),
               let bottom = Int(exactly: bottomIndex.rounded(.down)) else { return }
-        scrollback.viewed(top: top, bottom: bottom)
+        _ = scrollback.viewed(top: top, bottom: bottom, atBottom: pinned)
     }
 
     // MARK: The window of rows

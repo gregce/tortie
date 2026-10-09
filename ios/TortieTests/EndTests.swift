@@ -129,6 +129,9 @@ final class EndTests: XCTestCase {
         let drawing = EndBarDrawing(offer: .offered(batch: true), confirm: WriteAnswers.confirm, kind: .faceID, phase: .idle, line: nil)
         XCTAssertEqual(drawing.row, .on)
         XCTAssertEqual(drawing.label, Copy.endTop, "End at the top right says End (Phase 337)")
+        XCTAssertEqual(drawing.menuLabel, Copy.endSessionMenu, "End in the Terminal's ⋯ says the Mac's End session… (Phase 337.3)")
+        XCTAssertFalse(drawing.writing)
+        XCTAssertFalse(drawing.confirming)
         XCTAssertEqual(drawing.glyph, "faceid")
         XCTAssertEqual(drawing.confirm, WriteAnswers.confirm)
         XCTAssertNil(drawing.line)
@@ -167,15 +170,21 @@ final class EndTests: XCTestCase {
     }
 
     /// Clause: while iOS asks the row is off and `end-confirming` is drawn;
-    /// while the write runs it is off and reads `Ending…`.
+    /// while the write runs it is off and reads `Ending…`, at the top right
+    /// and in the Terminal's ⋯ alike (Phase 337.3), which draws its own mark
+    /// from `writing`.
     func testConfirmingAndWritingDrawTheRowOff() {
         let confirming = EndBarDrawing(offer: .offered(batch: true), confirm: WriteAnswers.confirm, kind: .faceID, phase: .confirming, line: nil)
         XCTAssertEqual(confirming.row, .off)
         XCTAssertTrue(confirming.confirming)
+        XCTAssertFalse(confirming.writing)
+        XCTAssertEqual(confirming.menuLabel, Copy.endSessionMenu)
         XCTAssertNil(confirming.confirm)
         let writing = EndBarDrawing(offer: .offered(batch: true), confirm: WriteAnswers.confirm, kind: .faceID, phase: .writing, line: nil)
         XCTAssertEqual(writing.row, .off)
         XCTAssertEqual(writing.label, Copy.ending)
+        XCTAssertEqual(writing.menuLabel, Copy.ending)
+        XCTAssertTrue(writing.writing)
         XCTAssertFalse(writing.confirming)
     }
 

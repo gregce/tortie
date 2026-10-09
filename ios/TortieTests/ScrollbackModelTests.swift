@@ -3,16 +3,19 @@ import XCTest
 @testable import Tortie
 
 /// The Terminal's history, as the phone holds it (Phase 337.1,
-/// build/p3371/SPEC.md D13, D25 to D28, D31 and section 5.5.4): Paseo's four
-/// behaviours over the Swift model (terminal-scrollback.test.ts at
-/// getpaseo/paseo 2f0cb2f, ported, not copied), every ask's shape and that
-/// none reaches past `depthSeen`, every check a page passes before it is
-/// joined, the reservation one page at a time, a page that fills without
-/// moving anything, the 3,000 cap, the one page in flight and its gap, a key
-/// returning to live, and a selection by absolute index whose Copy waits for
-/// every row. The door and the clock are scripts; nothing reaches a network.
-/// Each test names the clause it holds and fails when that clause is taken
-/// out of Screens/ScreenScrollback.swift.
+/// build/p3371/SPEC.md D13, D25 to D28, D31 and section 5.5.4; Phase 337.3,
+/// build/p3373/SPEC.md D1 to D11 and section 5.1): Paseo's four behaviours
+/// over the Swift model (terminal-scrollback.test.ts at getpaseo/paseo
+/// 2f0cb2f, ported, not copied), every ask's shape and that none reaches past
+/// `depthSeen`, every check a page passes before it is joined, the
+/// reservation one page at a time, a page that fills without moving anything,
+/// the 3,000 cap, the one page in flight and its gap, a key returning to
+/// live, and a selection by absolute index whose Copy waits for every row.
+/// Since Phase 337.3 following holds the fill above the live rows (its own
+/// cases are in TerminalFillTests); these are 337.1's cases, with the ones
+/// whose following moved rewritten for it. The door and the clock are
+/// scripts; nothing reaches a network. Each test names the clause it holds
+/// and fails when that clause is taken out of Screens/ScreenScrollback.swift.
 @MainActor
 final class ScrollbackModelTests: XCTestCase {
     // MARK: The history the tests page through
@@ -65,54 +68,79 @@ final class ScrollbackModelTests: XCTestCase {
         )
     }
 
-    /// A layout entered `scrolled` from a live picture at `depth`.
+    /// A layout entered `scrolled` from a live picture at `depth` with
+    /// nothing held: 337.1's pull past the live top, which a Terminal whose
+    /// fill is off, or not yet reserved, still takes (337.3 D8, D9).
     private func entered(depth: Int, rows: Int = 40) -> ScrollbackLayout {
         var layout = ScrollbackLayout()
         layout.picture(Self.picture(depth: depth, rows: rows))
-        XCTAssertGreaterThan(layout.reserve(visibleTop: max(0, depth - 1)), 0, "entering scrolled reserves the first page")
+        layout.scroll()
+        XCTAssertGreaterThan(layout.reserve(visibleTop: max(0, depth - 1), fill: 0), 0, "a pull past the live top reserves the first page")
         return layout
     }
 
     // MARK: Paseo's four behaviours
 
-    /// Clause (Paseo: following tracks the bottom as live output continues):
-    /// following, the live rows are laid out from the live top, nothing is
-    /// held, and a deeper picture moves the first row with it.
+    /// Clause (Paseo: following tracks the bottom as live output continues;
+    /// 337.3 D1, D5): following holds the fill above the live rows, and a
+    /// deeper picture moves the live rows down while the layout's first row
+    /// stays where it was, so a view pinned at its bottom tracks the live
+    /// bottom; the lines that scrolled off are held at once, carried.
     func testFollowingTracksTheLiveRows() {
         var layout = ScrollbackLayout()
         layout.picture(Self.picture(depth: 500))
+        XCTAssertEqual(layout.firstRow, 500, "before the fill, the live rows alone")
+        XCTAssertEqual(layout.reserve(visibleTop: 500, fill: 57), 100)
         XCTAssertEqual(layout.mode, .following)
-        XCTAssertEqual(layout.firstRow, 500)
-        XCTAssertEqual(layout.liveRow, 0)
-        XCTAssertEqual(layout.rowCount, 40)
+        XCTAssertEqual(layout.firstRow, 400)
+        XCTAssertEqual(layout.liveRow, 100)
+        XCTAssertEqual(layout.rowCount, 140)
         layout.picture(Self.picture(depth: 520))
         XCTAssertEqual(layout.mode, .following)
-        XCTAssertEqual(layout.firstRow, 520, "following tracks the live top")
-        XCTAssertTrue(layout.held.isEmpty)
-        XCTAssertNil(layout.want(visibleTop: 0, visibleBottom: 1_000), "following asks no page")
+        XCTAssertEqual(layout.firstRow, 400, "the first row stays where it was")
+        XCTAssertEqual(layout.liveRow, 120, "the live rows move down by the lines that scrolled off")
+        XCTAssertEqual(layout.held.count, 20, "and those lines are held at once")
+        XCTAssertTrue(layout.held.values.allSatisfy(\.carried))
     }
 
-    /// Clause (Paseo: scroll up moves the viewport into retained history):
-    /// a view above the live top enters `scrolled`, reserves the first page
-    /// at once, and the first page's rows are the lines tmux numbered there.
+    /// Clause (Paseo: scroll up moves the viewport into retained history;
+    /// 337.3 D9): from the filled view, entering `scrolled` adds no row, and
+    /// the next page is reserved as the view's top nears `top`; the first
+    /// page's rows are the lines tmux numbered there.
     func testScrollingUpMovesIntoHistory() throws {
         var layout = ScrollbackLayout()
         layout.picture(Self.picture(depth: 3_000))
-        XCTAssertEqual(layout.reserve(visibleTop: 3_000), 0, "a view at the live top is still following")
-        XCTAssertEqual(layout.reserve(visibleTop: 2_999), 100)
-        XCTAssertEqual(layout.mode, .scrolled)
-        XCTAssertEqual(layout.top, 2_900)
-        XCTAssertLessThan(layout.firstRow, 3_000)
-        let ask = try XCTUnwrap(layout.want(visibleTop: 2_990, visibleBottom: 3_040))
+        XCTAssertEqual(layout.reserve(visibleTop: 2_943, fill: 57), 100)
+        let ask = try XCTUnwrap(layout.want(visibleTop: 2_943, visibleBottom: 3_040))
         XCTAssertEqual(ask, ScrollbackAsk(from: 2_900, count: 100, depth: 3_000, wrap: Self.wrap, keep: .bottom, overlap: 0))
         XCTAssertEqual(layout.accept(Self.answer(ask), for: ask, holds: { _ in true }), .joined(100))
+        let first = layout.firstRow
+        let rows = layout.rowCount
+        layout.scroll()
+        XCTAssertEqual(layout.mode, .scrolled)
+        XCTAssertEqual(layout.firstRow, first, "entering adds no row")
+        XCTAssertEqual(layout.rowCount, rows)
+        XCTAssertEqual(layout.reserve(visibleTop: 2_950, fill: 57), 100, "the next page, as the view's top nears top")
+        XCTAssertEqual(layout.top, 2_800)
         XCTAssertEqual((2_900..<2_903).map { layout.row(at: $0, picture: nil)?.label }, ["L002901", "L002902", "L002903"])
         XCTAssertEqual(layout.row(at: 2_999, picture: nil)?.label, "L003000")
     }
 
+    /// Clause (D26, 337.3 D9): with nothing held (337.1's pull past the live
+    /// top), entering `scrolled` reserves the first page at once.
+    func testAPullWithNothingHeldReservesTheFirstPage() throws {
+        let layout = entered(depth: 3_000)
+        XCTAssertEqual(layout.mode, .scrolled)
+        XCTAssertEqual(layout.top, 2_900)
+        XCTAssertEqual(layout.space, Self.space)
+        let ask = try XCTUnwrap(layout.want(visibleTop: 2_990, visibleBottom: 3_040))
+        XCTAssertEqual(ask, ScrollbackAsk(from: 2_900, count: 100, depth: 3_000, wrap: Self.wrap, keep: .bottom, overlap: 0))
+    }
+
     /// Clause (Paseo: the scrolled place is kept when new output arrives):
     /// a deeper live picture while scrolled moves neither the first row nor
-    /// a held row; the live rows move down below him, and `depthSeen` rises.
+    /// a held row; the live rows move down below him, `depthSeen` rises, and
+    /// the lines that scrolled off are the last picture's top rows (337.3 D5).
     func testTheScrolledPlaceIsKeptWhenOutputArrives() throws {
         var layout = entered(depth: 3_000)
         let ask = try XCTUnwrap(layout.want(visibleTop: 2_950, visibleBottom: 3_000))
@@ -125,47 +153,53 @@ final class ScrollbackModelTests: XCTestCase {
         XCTAssertEqual(layout.liveRow, liveRow + 5, "the live rows move down below him")
         XCTAssertEqual(layout.depthSeen, 3_005)
         XCTAssertEqual(layout.row(at: 2_950, picture: nil)?.label, "L002951", "a held row is where it was")
+        XCTAssertEqual((3_000..<3_005).map { layout.row(at: $0, picture: nil)?.label }, ["live-0", "live-1", "live-2", "live-3", "live-4"])
     }
 
     /// Clause (Paseo: the bottom affordance returns to the tail and resumes
-    /// following): `follow()` drops every held and reserved row and answers
-    /// the rows that were above the live rows, for the offset's delta.
+    /// following; 337.3 D10): `follow()` keeps a fill whose held rows reach
+    /// the live top, so the filled look returns with nothing asked, and
+    /// answers no rows taken away.
     func testTheBottomAffordanceReturnsToTheTail() throws {
         var layout = entered(depth: 3_000)
         let ask = try XCTUnwrap(layout.want(visibleTop: 2_950, visibleBottom: 3_000))
         _ = layout.accept(Self.answer(ask), for: ask, holds: { _ in true })
-        XCTAssertEqual(layout.follow(), 100)
+        XCTAssertEqual(layout.follow(), 0)
         XCTAssertEqual(layout.mode, .following)
-        XCTAssertEqual(layout.firstRow, 3_000)
-        XCTAssertTrue(layout.held.isEmpty)
+        XCTAssertEqual(layout.firstRow, 2_900, "the fill is kept")
+        XCTAssertEqual(layout.held.count, 100)
         XCTAssertNil(layout.edge)
+        XCTAssertNil(layout.want(visibleTop: 2_943, visibleBottom: 3_040), "and nothing is asked again")
     }
 
     // MARK: The asks
 
-    /// Clause (section 5.5.4): every ask's shape. The first page ends at the
-    /// live top and keeps its bottom; an older page adjoins `lo`, asks the 8
-    /// held rows at its bottom too and keeps its bottom; a newer page adjoins
-    /// `hi`, asks the 8 held rows at its top too and keeps its top; every ask
-    /// carries `depthSeen` and the held width.
+    /// Clause (section 5.5.4; 337.3 D6): every ask's shape. The first page
+    /// ends at the live top and keeps its bottom; an older page adjoins `lo`,
+    /// asks the 8 checked rows at its bottom too and keeps its bottom; a newer
+    /// page adjoins the CHECKED rows, asks the 8 at its top too and keeps its
+    /// top; every ask carries `depthSeen` and the held width; none of these
+    /// is a check.
     func testEveryAsksShape() throws {
         var layout = entered(depth: 3_000)
         let first = try XCTUnwrap(layout.want(visibleTop: 2_950, visibleBottom: 3_040))
         XCTAssertEqual(first, ScrollbackAsk(from: 2_900, count: 100, depth: 3_000, wrap: Self.wrap, keep: .bottom, overlap: 0))
         _ = layout.accept(Self.answer(first), for: first, holds: { _ in true })
-        XCTAssertEqual(layout.reserve(visibleTop: 2_901), 100)
+        XCTAssertEqual(layout.reserve(visibleTop: 2_901, fill: 0), 100)
         let older = try XCTUnwrap(layout.want(visibleTop: 2_880, visibleBottom: 2_930))
         XCTAssertEqual(older, ScrollbackAsk(from: 2_800, count: 108, depth: 3_000, wrap: Self.wrap, keep: .bottom, overlap: 8))
         _ = layout.accept(Self.answer(older), for: older, holds: { _ in true })
         XCTAssertEqual(layout.lo, 2_800)
         XCTAssertEqual(layout.hi, 3_000)
-        // Lines scroll in while he reads: the rows between `hi` and the live
-        // rows are reserved, and a view near them asks a newer page.
+        // More lines scroll in than the screen holds while he reads: the rows
+        // between `hi` and the live rows are reserved, and a view near them
+        // asks a newer page.
         layout.picture(Self.picture(depth: 3_150))
         let newer = try XCTUnwrap(layout.want(visibleTop: 3_000, visibleBottom: 3_050))
         XCTAssertEqual(newer, ScrollbackAsk(from: 2_992, count: 108, depth: 3_150, wrap: Self.wrap, keep: .top, overlap: 8))
         _ = layout.accept(Self.answer(newer), for: newer, holds: { _ in true })
         XCTAssertEqual(layout.hi, 3_100)
+        XCTAssertEqual(layout.checked, 3_100)
         let last = try XCTUnwrap(layout.want(visibleTop: 3_090, visibleBottom: 3_160))
         XCTAssertEqual(last, ScrollbackAsk(from: 3_092, count: 58, depth: 3_150, wrap: Self.wrap, keep: .top, overlap: 8))
     }
@@ -177,7 +211,7 @@ final class ScrollbackModelTests: XCTestCase {
         var asks = 0
         var top = 1_233
         while asks < 100 {
-            _ = layout.reserve(visibleTop: top)
+            _ = layout.reserve(visibleTop: top, fill: 0)
             guard let ask = layout.want(visibleTop: top, visibleBottom: top + 60) else {
                 if top == 0 { break }
                 top = max(0, top - 50)
@@ -192,7 +226,7 @@ final class ScrollbackModelTests: XCTestCase {
         XCTAssertEqual(layout.lo, 0, "the whole history was paged")
         XCTAssertEqual(layout.edge, .atOldest)
         XCTAssertEqual(layout.row(at: 0, picture: nil)?.label, "L000001")
-        XCTAssertEqual(layout.reserve(visibleTop: 0), 0, "nothing is reserved above the oldest line")
+        XCTAssertEqual(layout.reserve(visibleTop: 0, fill: 0), 0, "nothing is reserved above the oldest line")
     }
 
     // MARK: What a page must be (D13)
@@ -201,14 +235,15 @@ final class ScrollbackModelTests: XCTestCase {
         var layout = entered(depth: 3_000)
         let first = try XCTUnwrap(layout.want(visibleTop: 2_950, visibleBottom: 3_040))
         _ = layout.accept(Self.answer(first), for: first, holds: { _ in true })
-        _ = layout.reserve(visibleTop: 2_901)
+        _ = layout.reserve(visibleTop: 2_901, fill: 0)
         let older = try XCTUnwrap(layout.want(visibleTop: 2_880, visibleBottom: 2_930))
         return (layout, older)
     }
 
-    /// Clause (D13): a page whose overlap rows do not read as the held rows
-    /// is not joined, and paging stops with the phone's own sentence; nothing
-    /// is asked after it until `following`.
+    /// Clause (D13): while scrolled, a page whose overlap rows do not read as
+    /// the held rows is not joined, and paging stops with the phone's own
+    /// sentence; nothing is asked after it until `following`, which drops
+    /// what was held (paging had stopped, 337.3 D10).
     func testAnOverlapThatDoesNotMatchStopsPaging() throws {
         var (layout, older) = try heldTwoPages()
         let lie = Self.page(from: older.from, count: older.count, depth: 3_000) { index in index >= 2_900 ? "X" : Self.label(index) }
@@ -216,13 +251,14 @@ final class ScrollbackModelTests: XCTestCase {
         XCTAssertEqual(layout.edge, .moved(Copy.scrollbackMoved))
         XCTAssertNil(layout.row(at: 2_850, picture: nil), "nothing of the page is held")
         XCTAssertNil(layout.want(visibleTop: 2_880, visibleBottom: 2_930), "nothing more is asked")
-        XCTAssertEqual(layout.reserve(visibleTop: 2_801), 0, "nothing more is reserved")
+        XCTAssertEqual(layout.reserve(visibleTop: 2_801, fill: 0), 0, "nothing more is reserved")
         _ = layout.follow()
         XCTAssertNil(layout.edge, "following clears it")
+        XCTAssertTrue(layout.held.isEmpty, "and reads it all again")
     }
 
-    /// Clause (D13): a smaller depth, another width and another space are
-    /// each the index space moving.
+    /// Clause (D13): a smaller depth than the one asked, another width and
+    /// another space are each the index space moving.
     func testASmallerDepthAnotherWidthOrAnotherSpaceMoves() throws {
         for (name, make) in [
             ("a shallower history", { (ask: ScrollbackAsk) in Self.page(from: ask.from, count: ask.count, depth: 2_999) }),
@@ -273,7 +309,8 @@ final class ScrollbackModelTests: XCTestCase {
     /// Clause (D27, §Attack B13): while scrolled, a live picture's numeric
     /// depth raises `depthSeen`; a shallower one (a trim), another space or
     /// another width stops paging; a null depth leaves the live rows where
-    /// they were; the alternate screen returns to `following`.
+    /// they were; the alternate screen returns to `following` and drops what
+    /// was held (337.3 D7).
     func testALivePictureWhileScrolled() {
         var layout = entered(depth: 1_000)
         layout.picture(Self.picture(depth: 1_040))
@@ -294,32 +331,43 @@ final class ScrollbackModelTests: XCTestCase {
         layout = entered(depth: 1_000)
         layout.picture(Self.picture(depth: nil, alternate: true))
         XCTAssertEqual(layout.mode, .following, "the program covered the history")
+        XCTAssertNil(layout.space)
+        XCTAssertEqual(layout.firstRow, 1_000)
     }
 
-    /// Clause (D3): a picture that offers no index space (null, the
-    /// alternate screen, an older Mac) does not enter `scrolled`.
+    /// Clause (D3; 337.3 D7, D9): a picture that offers no index space (null,
+    /// the alternate screen, an older Mac) holds none, reserves nothing and
+    /// never enters `scrolled`; one at depth 0 holds its space and reserves
+    /// nothing, there being nothing above.
     func testNoScrollbackWithoutAnIndexSpace() {
-        for picture in [Self.picture(depth: nil), Self.picture(depth: 500, alternate: true), Self.picture(depth: 0)] {
+        for picture in [Self.picture(depth: nil), Self.picture(depth: 500, alternate: true)] {
             var layout = ScrollbackLayout()
             layout.picture(picture)
-            XCTAssertEqual(layout.reserve(visibleTop: 0), 0)
+            XCTAssertEqual(layout.reserve(visibleTop: 0, fill: 57), 0)
+            XCTAssertNil(layout.space)
+            layout.scroll()
             XCTAssertEqual(layout.mode, .following)
         }
+        var layout = ScrollbackLayout()
+        layout.picture(Self.picture(depth: 0))
+        XCTAssertEqual(layout.reserve(visibleTop: 0, fill: 57), 0)
+        XCTAssertEqual(layout.space, Self.space)
+        XCTAssertEqual(layout.mode, .following)
     }
 
     // MARK: Reserving and filling (D26)
 
-    /// Clause (D26): rows are reserved one page at a time, only when the
-    /// view's top is within one page of `top`, and never below 0.
+    /// Clause (D26): while scrolled, rows are reserved one page at a time,
+    /// only when the view's top is within one page of `top`, and never below 0.
     func testReservationIsOnePageAtATimeAndNeverBelowZero() {
         var layout = entered(depth: 250)
         XCTAssertEqual(layout.top, 150)
-        XCTAssertEqual(layout.reserve(visibleTop: 250), 0, "a view more than a page below top reserves nothing")
-        XCTAssertEqual(layout.reserve(visibleTop: 249), 100)
+        XCTAssertEqual(layout.reserve(visibleTop: 250, fill: 0), 0, "a view more than a page below top reserves nothing")
+        XCTAssertEqual(layout.reserve(visibleTop: 249, fill: 0), 100)
         XCTAssertEqual(layout.top, 50)
-        XCTAssertEqual(layout.reserve(visibleTop: 60), 50)
+        XCTAssertEqual(layout.reserve(visibleTop: 60, fill: 0), 50)
         XCTAssertEqual(layout.top, 0)
-        XCTAssertEqual(layout.reserve(visibleTop: 0), 0)
+        XCTAssertEqual(layout.reserve(visibleTop: 0, fill: 0), 0)
         XCTAssertEqual(layout.top, 0)
     }
 
@@ -339,16 +387,18 @@ final class ScrollbackModelTests: XCTestCase {
 
     /// Clause (D28): at most 3,000 rows held; the end farther from the view
     /// goes first, back to reserved; nothing laid out moves; and the evicted
-    /// rows are asked again, adjoining, when he returns to them.
+    /// rows are asked again, adjoining the checked rows, when he returns to
+    /// them.
     func testTheCapEvictsTheFarthestFirst() throws {
         var layout = entered(depth: 6_000)
         var top = 5_999
-        while layout.held.count < 3_100 {
-            _ = layout.reserve(visibleTop: top)
+        for _ in 0..<100 where layout.held.count < 3_100 {
+            _ = layout.reserve(visibleTop: top, fill: 0)
             let ask = try XCTUnwrap(layout.want(visibleTop: top, visibleBottom: top + 60))
             _ = layout.accept(Self.answer(ask), for: ask, holds: { _ in true })
             top = layout.lo
         }
+        XCTAssertGreaterThanOrEqual(layout.held.count, 3_100, "the pages grew past the cap")
         let rows = layout.rowCount
         let first = layout.firstRow
         let hi = layout.hi
@@ -361,7 +411,8 @@ final class ScrollbackModelTests: XCTestCase {
         XCTAssertEqual(layout.firstRow, first)
         let again = try XCTUnwrap(layout.want(visibleTop: hi - 30, visibleBottom: hi))
         XCTAssertEqual(again.keep, .top)
-        XCTAssertEqual(again.from, layout.hi - again.overlap, "asked again, adjoining")
+        XCTAssertEqual(again.from, layout.checked - again.overlap, "asked again, adjoining the checked rows")
+        XCTAssertEqual(layout.checked, layout.hi)
     }
 
     // MARK: Reading a row back (D31)
@@ -379,7 +430,7 @@ final class ScrollbackModelTests: XCTestCase {
         XCTAssertEqual(layout.row(at: 2_999, picture: picture)?.label, "L003000")
         XCTAssertNil(layout.row(at: 2_899, picture: picture), "reserved")
         XCTAssertNil(layout.row(at: 3_040, picture: picture), "past the live rows")
-        _ = layout.reserve(visibleTop: 2_901)
+        _ = layout.reserve(visibleTop: 2_901, fill: 0)
         XCTAssertEqual(layout.row(at: 3_003, picture: picture)?.label, "live-3", "a reservation moves no index")
         XCTAssertEqual(layout.row(at: 2_999, picture: picture)?.label, "L003000")
     }
@@ -400,11 +451,19 @@ final class ScrollbackModelTests: XCTestCase {
 
     private let clock = FakeClock()
 
-    /// A model on the scripted door, whose clock is the test's own: a wait
-    /// ends once the test has moved the clock past its deadline.
     private func model(_ door: ScriptedScreenDoor) -> ScrollbackModel {
-        let clock = clock
-        return ScrollbackModel(
+        Self.scriptedModel(door, clock: clock)
+    }
+
+    private func settle() async {
+        await Self.settleModel()
+    }
+
+    /// A model on the scripted door, whose clock is the test's own: a wait
+    /// ends once the test has moved the clock past its deadline. Shared with
+    /// TerminalFillTests.
+    static func scriptedModel(_ door: ScriptedScreenDoor, clock: FakeClock) -> ScrollbackModel {
+        ScrollbackModel(
             door: door,
             holds: { _ in true },
             now: { clock.now },
@@ -416,7 +475,8 @@ final class ScrollbackModelTests: XCTestCase {
         )
     }
 
-    private func settle() async {
+    /// Long enough for a page in flight on the scripted door to land.
+    static func settleModel() async {
         try? await Task.sleep(nanoseconds: 40_000_000)
         for _ in 0..<5 { await Task.yield() }
     }
@@ -428,12 +488,12 @@ final class ScrollbackModelTests: XCTestCase {
         let door = ScriptedScreenDoor()
         let history = model(door)
         history.picture(Self.picture(depth: 3_000))
-        history.viewed(top: 2_990, bottom: 3_040)
+        history.viewed(top: 2_990, bottom: 3_040, atBottom: false)
         await settle()
         XCTAssertEqual(history.mode, .scrolled)
         XCTAssertEqual(door.pageAsks.count, 1)
         XCTAssertEqual(door.pageAsks.first, ScriptedScreenDoor.PageAsked(from: 2_900, count: 100, depth: 3_000, wrap: Self.wrap, keep: .bottom))
-        history.viewed(top: 2_900, bottom: 2_950)
+        history.viewed(top: 2_900, bottom: 2_950, atBottom: false)
         await settle()
         XCTAssertEqual(door.pageAsks.count, 1, "a second page while one is in flight")
         door.answerPage(.success(Self.page(from: 2_900, count: 100, depth: 3_000)))
@@ -457,7 +517,7 @@ final class ScrollbackModelTests: XCTestCase {
         let door = ScriptedScreenDoor()
         let history = model(door)
         history.picture(Self.picture(depth: 3_000))
-        history.viewed(top: 2_990, bottom: 3_040)
+        history.viewed(top: 2_990, bottom: 3_040, atBottom: false)
         await settle()
         door.answerPage(.success(Self.absence(.busy)))
         await settle()
@@ -482,26 +542,27 @@ final class ScrollbackModelTests: XCTestCase {
         await settle()
         XCTAssertEqual(history.line, DoorWords.scrollbackSentence(for: .refused))
         clock.advance(by: .seconds(8))
-        history.viewed(top: 2_900, bottom: 2_950)
+        history.viewed(top: 2_900, bottom: 2_950, atBottom: false)
         await settle()
         XCTAssertEqual(door.pageAsks.count, 3, "nothing more after a refusal")
     }
 
-    /// Clause (D27): a key he sends returns the Terminal to `following`,
-    /// dropping every held row and the page in flight.
+    /// Clause (D27; 337.3 D10): a key he sends while scrolled returns the
+    /// Terminal to `following` and drops the page in flight; what is held
+    /// stays when it reaches the live top.
     func testAKeySentReturnsToFollowing() async throws {
         let door = ScriptedScreenDoor()
         let history = model(door)
         let picture = Self.picture(depth: 3_000)
         history.picture(picture)
-        history.viewed(top: 2_990, bottom: 3_040)
+        history.viewed(top: 2_990, bottom: 3_040, atBottom: false)
         await settle()
         XCTAssertEqual(history.mode, .scrolled)
         let keys = ScreenKeySender(door: door, picture: { picture })
         keys.onSend = { [weak history] in history?.follow() }
         keys.send([.text("a")])
         XCTAssertEqual(history.mode, .following)
-        XCTAssertTrue(history.layout.held.isEmpty)
+        XCTAssertTrue(history.layout.held.isEmpty, "nothing had landed")
         await settle()
         XCTAssertEqual(door.pagesCancelled, 1, "the page in flight is dropped")
     }
@@ -515,7 +576,7 @@ final class ScrollbackModelTests: XCTestCase {
         let history = model(door)
         let picture = Self.picture(depth: 3_000)
         history.picture(picture)
-        history.viewed(top: 2_990, bottom: 3_040)
+        history.viewed(top: 2_990, bottom: 3_040, atBottom: false)
         await settle()
         let range = ScreenSelectionRange(start: ScreenPoint(row: 2_995, column: 0), end: ScreenPoint(row: 3_001, column: 3))
         XCTAssertFalse(history.drawn(range, picture: picture), "rows 2,995 to 2,999 are reserved: no Copy")
@@ -525,7 +586,7 @@ final class ScrollbackModelTests: XCTestCase {
         XCTAssertTrue(history.drawn(range, picture: picture), "the page filled them while selecting")
         let text = ScreenSelecting.text(range, columns: Self.wrap) { history.row(at: $0, picture: picture) }
         XCTAssertEqual(text.components(separatedBy: "\n"), ["L002996", "L002997", "L002998", "L002999", "L003000", "live-0", "live"])
-        history.viewed(top: 2_900, bottom: 2_950)
+        history.viewed(top: 2_900, bottom: 2_950, atBottom: false)
         XCTAssertEqual(history.layout.top, 2_800, "a page reserved above")
         XCTAssertEqual(ScreenSelecting.text(range, columns: Self.wrap) { history.row(at: $0, picture: picture) }, text, "and the selection still names the same rows")
         history.selecting = false
@@ -542,7 +603,7 @@ final class ScrollbackModelTests: XCTestCase {
         while history.layout.held.count < 3_050 {
             rounds += 1
             guard rounds < 200 else { return XCTFail("the history stopped growing at \(history.layout.held.count) rows") }
-            history.viewed(top: top, bottom: top + 60)
+            history.viewed(top: top, bottom: top + 60, atBottom: false)
             await settle()
             guard let asked = door.pageAsks.last, door.pagesWaiting > 0 else {
                 clock.advance(by: .milliseconds(300))
@@ -575,11 +636,18 @@ final class ScrollbackModelTests: XCTestCase {
         }
     }
 
-    /// Clause (D28): the constants, each declared once.
+    /// Clause (D28; 337.3 D6): the constants, each declared once; a check
+    /// waits at least a second, longer than a page for reserved rows.
     func testTheConstants() {
         XCTAssertEqual(ScrollbackLayout.pageRows, 100)
         XCTAssertEqual(ScrollbackLayout.overlapRows, 8)
         XCTAssertEqual(ScrollbackLayout.mostHeld, 3_000)
         XCTAssertLessThanOrEqual(ScrollbackLayout.pageRows + ScrollbackLayout.overlapRows, PocketScrollbackAnswer.mostRows)
+        XCTAssertEqual(ScrollbackModel.checkGap, .seconds(1))
+        XCTAssertGreaterThan(ScrollbackModel.checkGap, ScrollbackModel.minGap)
+        // Phase 337.3's fix round: a shorter hold lets output whose pictures pass the view every second or two slip out
+        // of it and back (13 to 28 flashes a minute at one second, 3.5 at two, 1.2 at three, measured over the shipping
+        // model at the watcher's floor).
+        XCTAssertEqual(ScrollbackModel.outrunGap, .seconds(3))
     }
 }

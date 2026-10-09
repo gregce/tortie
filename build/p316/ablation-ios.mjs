@@ -185,6 +185,10 @@
  * sentence; (b) a step's number handed to stepRow as a literal (b12, the fix
  * round). `s8` and `s11` moved to build 8.
  *
+ * PHASE 337.3, THE TERMINAL THAT FILLS THE PHONE (build/p3373/SPEC.md §6.2),
+ * adds its arms at the end of the list, and its build is 9, set when it was
+ * rebased onto 333.1: `s8`, `s11` and `s12` moved to build 9.
+ *
  * THE DELTA RULE. The base is run first. An arm passes only when its own rule
  * was GREEN at the base and is RED with the plant, so a rule that was already
  * red proves nothing and says so. An arm whose anchor is gone from the tree
@@ -1326,7 +1330,7 @@ const ARMS = [
     rule: 's',
     what: 'Release a build ahead of Debug',
     file: () => PBX,
-    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 8;/, '$1CURRENT_PROJECT_VERSION = 9;')
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 9;/, '$1CURRENT_PROJECT_VERSION = 10;')
   },
   {
     id: 's9',
@@ -1669,9 +1673,9 @@ const ARMS = [
   {
     id: 's11',
     rule: 's',
-    what: "the app's Release left at build 7, 337.1's, which App Store Connect refuses as a duplicate",
+    what: "the app's Release left at build 8, 333.1's, which App Store Connect refuses as a duplicate",
     file: () => PBX,
-    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 8;/, '$1CURRENT_PROJECT_VERSION = 7;')
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 9;/, '$1CURRENT_PROJECT_VERSION = 8;')
   },
   {
     id: 'x10',
@@ -3074,7 +3078,8 @@ const ARMS = [
     rule: 'as',
     what: "the overlap check removed from a page's join",
     file: () => `${APP}/Screens/ScreenScrollback.swift`,
-    edit: (src) => src.replace('        guard overlapAgrees(rows, ask: ask, askedEnd: asked) else {\n            edge = .moved(Copy.scrollbackMoved)\n            return .moved\n        }\n', '')
+    // Re-pointed by Phase 337.3: the refusal is refuse(Copy.scrollbackMoved) now.
+    edit: (src) => src.replace('        guard overlapAgrees(rows, ask: ask, askedEnd: asked) else {\n            refuse(Copy.scrollbackMoved)\n            return .moved\n        }\n', '')
   },
   {
     id: 'as3',
@@ -3088,7 +3093,8 @@ const ARMS = [
     rule: 'as',
     what: 'two pages in flight',
     file: () => `${APP}/Screens/ScreenScrollback.swift`,
-    edit: (src) => src.replace('        guard !stopped, inFlight == nil, waiting == nil,', '        guard !stopped, waiting == nil,')
+    // Re-pointed by Phase 337.3: pump()'s guard reads inFlight alone before the ask.
+    edit: (src) => src.replace('        guard !stopped, inFlight == nil,\n              let ask = layout.want(', '        guard !stopped,\n              let ask = layout.want(')
   },
   {
     id: 'as5',
@@ -3130,14 +3136,19 @@ const ARMS = [
     rule: 'as',
     what: "a live picture that no longer raises depthSeen while scrolled (§Attack B13)",
     file: () => `${APP}/Screens/ScreenScrollback.swift`,
-    edit: (src) => src.replace('            depthSeen = offer.depth\n            live = max(live, offer.depth)\n', '            live = max(live, offer.depth)\n')
+    // Re-pointed by Phase 337.3: picture( raises depthSeen before it carries
+    // (again by the repair after the reboot, and again by its fix round of
+    // 2026-10-08, whose following branch keeps holes and counts the picture
+    // before scrolled's carry).
+    edit: (src) => src.replace('        depthSeen = offer.depth\n        if mode == .following {\n', '        if mode == .following {\n')
   },
   {
     id: 'as11',
     rule: 'as',
     what: 'the reserved top moved outside reserve(',
     file: () => `${APP}/Screens/ScreenScrollback.swift`,
-    edit: (src) => src.replace('        mode = .following\n        held = [:]\n', '        mode = .following\n        top = live\n        held = [:]\n')
+    // Re-pointed by Phase 337.3: follow() keeps or drops; the plant moves top there.
+    edit: (src) => src.replace('        guard mode == .scrolled else { return 0 }\n        mode = .following\n', '        guard mode == .scrolled else { return 0 }\n        mode = .following\n        top = live\n')
   },
   {
     id: 'as12',
@@ -3165,12 +3176,15 @@ const ARMS = [
   {
     id: 'at2',
     rule: 'at',
-    what: 'End before the Catch Me Up icon',
+    // Re-pointed by Phase 337.3 (at3): the trailing items are exactly TerminalMenu;
+    // the plant puts the parent's End beside it in the bar.
+    what: 'End put back beside the ⋯ in the bar',
     file: () => `${APP}/Screens/SessionScreen.swift`,
     edit: (src) =>
-      src
-        .replace('            CatchUpItem { openCatchUp(drawing.outcome) }\n', '')
-        .replace('            EndTopItem(model: end, offer: drawing.end, confirm: drawing.endConfirm) { await session.load() }\n        }\n', '            EndTopItem(model: end, offer: drawing.end, confirm: drawing.endConfirm) { await session.load() }\n            CatchUpItem { openCatchUp(drawing.outcome) }\n        }\n')
+      src.replace(
+        '            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n',
+        '            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n            EndTopItem(model: end, offer: drawing.end, confirm: drawing.endConfirm) { await session.load() }\n'
+      )
   },
   {
     id: 'at3',
@@ -3196,9 +3210,11 @@ const ARMS = [
   {
     id: 'at6',
     rule: 'at',
-    what: 'the Catch Me Up icon drawn as a word',
+    // Re-pointed by Phase 337.3 (at3): CatchUpItem left with the icon and may
+    // come back nowhere in the app; the plant declares it again, unused.
+    what: 'CatchUpItem declared again in the app',
     file: () => `${APP}/Screens/SessionScreen.swift`,
-    edit: (src) => src.replace('Image(systemName: "text.bubble")', 'Words(Copy.catchMeUp, .body, Tokens.accent)')
+    edit: append('struct CatchUpItem: ToolbarContent {\n    let open: () -> Void\n    var body: some ToolbarContent {\n        ToolbarItem(placement: .topBarTrailing) {\n            Button(action: open) { Image(systemName: "text.bubble") }\n        }\n    }\n}\n')
   },
   {
     id: 'at7',
@@ -3524,9 +3540,9 @@ const ARMS = [
   {
     id: 's12',
     rule: 's',
-    what: 'the build left at 7 in one configuration (Debug), 337.1’s',
+    what: 'the build left at 8 in one configuration (Debug), 333.1’s',
     file: () => PBX,
-    edit: (src) => src.replace('CURRENT_PROJECT_VERSION = 8;', 'CURRENT_PROJECT_VERSION = 7;')
+    edit: (src) => src.replace('CURRENT_PROJECT_VERSION = 9;', 'CURRENT_PROJECT_VERSION = 8;')
   },
   {
     id: 'v32',
@@ -3548,6 +3564,604 @@ const ARMS = [
     what: 'unsupportedCode put back with no sentence',
     file: () => `${APP}/Door/Pairing.swift`,
     edit: (src) => src.replace('    /// A code from an older Tortie for Mac.\n    case codeFromOlderMac\n', '    /// A code from an older Tortie for Mac.\n    case codeFromOlderMac\n    case unsupportedCode\n')
+  },
+  // ---- PHASE 337.3 (build/p3373/SPEC.md §6.2): one arm per new or widened
+  // clause of (b), (ac), (aq), (ar), (as), (at), (t), (k) and the new rules
+  // (aw) the fill, (ax) sideways the terminal alone, (ay) the ⋯ menu; each red
+  // on the rule that owns it against a green base. Rewritten after the reboot
+  // of 2026-10-08 from the gates builder's report and the spec (the file the
+  // builder wrote by shell was lost with /private/tmp).
+  // (b) the tab bar: hidden in ONE place, ScreenPage, sideways alone.
+  {
+    id: 'b7',
+    rule: 'b',
+    what: 'an unconditional hide of the tab bar in ScreenPage',
+    file: () => `${APP}/Screens/Screen.swift`,
+    edit: (src) => src.replace('        .toolbarVisibility(chrome.bars, for: .navigationBar, .tabBar)\n', '        .toolbarVisibility(.hidden, for: .navigationBar, .tabBar)\n')
+  },
+  {
+    id: 'b8',
+    rule: 'b',
+    what: 'the hide moved into TerminalPage',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace('            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n        }\n', '            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n        }\n        .toolbarVisibility(.hidden, for: .tabBar)\n')
+  },
+  {
+    id: 'b9',
+    rule: 'b',
+    what: 'landscape read from the horizontal size class, which every iPhone is compact in upright',
+    file: () => `${APP}/Screens/Screen.swift`,
+    edit: (src) => src.replace('    @Environment(\\.verticalSizeClass) private var sizeClass\n', '    @Environment(\\.horizontalSizeClass) private var sizeClass\n')
+  },
+  {
+    id: 'b10',
+    rule: 'b',
+    what: 'the navigation bar hidden by .navigationBarHidden(true) as well',
+    file: () => `${APP}/Screens/Screen.swift`,
+    edit: (src) => src.replace('        .statusBarHidden(chrome.statusBarHidden)\n', '        .statusBarHidden(chrome.statusBarHidden)\n        .navigationBarHidden(true)\n')
+  },
+  // (ac) two End presses, each .disabled(row == .off).
+  {
+    id: 'ac22',
+    rule: 'ac',
+    what: "EndMenuItem's .disabled(row == .off) removed",
+    file: () => `${APP}/Screens/EndBar.swift`,
+    edit: (src) => src.replace('        .disabled(row == .off)\n        .accessibilityIdentifier(ID.terminalMenuEnd)\n', '        .accessibilityIdentifier(ID.terminalMenuEnd)\n')
+  },
+  {
+    id: 'ac23',
+    rule: 'ac',
+    what: 'ID.terminalMenuEnd moved onto the label, off the Button',
+    file: () => `${APP}/Screens/EndBar.swift`,
+    edit: (src) => src.replace('            Label(drawing.menuLabel, systemImage: drawing.glyph)\n        }\n        .disabled(row == .off)\n        .accessibilityIdentifier(ID.terminalMenuEnd)\n', '            Label(drawing.menuLabel, systemImage: drawing.glyph)\n                .accessibilityIdentifier(ID.terminalMenuEnd)\n        }\n        .disabled(row == .off)\n')
+  },
+  {
+    id: 'ac24',
+    rule: 'ac',
+    what: "the menu's End no longer destructive",
+    file: () => `${APP}/Screens/EndBar.swift`,
+    edit: (src) => src.replace('        Button(role: .destructive) {\n            ask()\n', '        Button {\n            ask()\n')
+  },
+  {
+    id: 'ac25',
+    rule: 'ac',
+    what: 'TerminalMenuControl naming the owner check (the gates builder\'s decision 4)',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace('    @State private var asking = false\n', '    @State private var asking = false\n    let ownerCheck: (any OwnerCheck)? = nil\n')
+  },
+  // (aq) the pan and the delta: the pad, the fill before the size, following's delta, atBottom.
+  {
+    id: 'aq12',
+    rule: 'aq',
+    what: "the pad put back against the live rows alone (the parent's: his defect)",
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('        let pad = max(0, CGFloat(visible) - CGFloat(ScrollbackLayout.plus(layout.liveRow, picture.rowCount)) * now.height)\n', '        let pad = max(0, CGFloat(visible) - CGFloat(picture.rowCount) * now.height)\n')
+  },
+  {
+    id: 'aq13',
+    rule: 'aq',
+    what: 'scrollback.fill(rows: moved after the content is sized',
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) =>
+      src
+        .replace('        _ = scrollback.fill(rows: fill)\n        // The layout as the fill left it.\n', '')
+        .replace('        if grew { contentSize = size }\n', '        if grew { contentSize = size }\n        _ = scrollback.fill(rows: fill)\n')
+  },
+  {
+    id: 'aq14',
+    rule: 'aq',
+    what: "rowsAdded's following arm back to 0 (337.1's)",
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('        case (.following, .following):\n            return Double(layout.liveRow) - Double(previous.liveRow)\n', '        case (.following, .following):\n            return 0\n')
+  },
+  {
+    id: 'aq15',
+    rule: 'aq',
+    what: 'atBottom: handed true whatever the offset',
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('        _ = scrollback.viewed(top: top, bottom: bottom, atBottom: pinned)\n', '        _ = scrollback.viewed(top: top, bottom: bottom, atBottom: true)\n')
+  },
+  // (ar) the lines at the top, never in bottom.
+  {
+    id: 'ar8',
+    rule: 'ar',
+    what: "the Terminal's line moved back into bottom, over the prompt",
+    file: () => `${APP}/Screens/Screen.swift`,
+    edit: (src) =>
+      src
+        .replace('                if let line = shownLine {\n                    lineView(line, id: ID.screenLine)\n                }\n', '')
+        .replace('            if scrollback.mode == .scrolled {\n                Button { scrollback.follow() } label: {', '            if let line = shownLine {\n                lineView(line, id: ID.screenLine)\n            }\n            if scrollback.mode == .scrolled {\n                Button { scrollback.follow() } label: {')
+  },
+  {
+    id: 'ar9',
+    rule: 'ar',
+    what: 'the top view laid at the bottom',
+    file: () => `${APP}/Screens/Screen.swift`,
+    edit: (src) => src.replace('                    .overlay(alignment: .top) { top }\n', '                    .overlay(alignment: .bottom) { top }\n')
+  },
+  // (as) the scrollback client: the check gap, carried rows, follow()'s keep.
+  {
+    id: 'as14',
+    rule: 'as',
+    what: 'checkGap at 0.25 s, so checks go at the reserved rate',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('    static let checkGap: Duration = .seconds(1)\n', '    static let checkGap: Duration = .milliseconds(250)\n')
+  },
+  {
+    id: 'as15',
+    rule: 'as',
+    what: 'a carried row used as an overlap anchor',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('            guard let mine = held[index], !mine.carried else { return false }\n', '            guard let mine = held[index] else { return false }\n')
+  },
+  {
+    id: 'as16',
+    rule: 'as',
+    what: 'accept( overwriting a checked row too',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('        for (index, row) in rows where held[index]?.carried ?? true {\n', '        for (index, row) in rows {\n')
+  },
+  {
+    id: 'as17',
+    rule: 'as',
+    what: 'follow() always dropping (337.1\'s)',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('        if refusedAt == nil, !fillOff {\n            if hi == live, !pagingStopped { return 0 }\n        }\n', '')
+  },
+  // (at) terminal first: the trailing items exactly TerminalMenu.
+  {
+    id: 'at9',
+    rule: 'at',
+    what: 'the Catch Me Up icon put back before the ⋯ (the parent\'s bar)',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) =>
+      src
+        .replace('            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n', '            CatchUpItem { openCatchUp(drawing.outcome) }\n            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n')
+        .replace('struct TerminalMenu: ToolbarContent {', 'struct CatchUpItem: ToolbarContent {\n    let open: () -> Void\n    var body: some ToolbarContent {\n        ToolbarItem(placement: .topBarTrailing) {\n            Button(action: open) { Image(systemName: "text.bubble") }\n        }\n    }\n}\nstruct TerminalMenu: ToolbarContent {')
+  },
+  {
+    id: 'at10',
+    rule: 'at',
+    what: 'ID.sessionOpenCatchUp declared again',
+    file: () => `${APP}/Screens/Identifiers.swift`,
+    edit: (src) => src.replace('    static let terminalMenu = "terminal-menu"\n', '    static let sessionOpenCatchUp = "session-open-catch-up"\n    static let terminalMenu = "terminal-menu"\n')
+  },
+  // (t) the hostile door's fill arm.
+  {
+    id: 't31',
+    rule: 't',
+    what: "the hostile door's scrollback-fill-moved arm spoiling every page, not the first alone",
+    file: () => 'build/p316/hostile-door.mjs',
+    edit: (src) => src.replace("at: 'screen-grid', expect: [], fillOnce: true }", "at: 'screen-grid', expect: [] }")
+  },
+  // (k) the fill's and the carry's arithmetic.
+  {
+    id: 'k21',
+    rule: 'k',
+    what: "the carry's k computed with a trapping -",
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('              let k = DoorNumber.difference(depth, live), k > 0 else { return nil }', '              case let k = depth - live, k > 0 else { return nil }')
+  },
+  // (aw) THE TERMINAL OPENS FILLED.
+  {
+    id: 'aw1',
+    rule: 'aw',
+    what: "firstRow back to 337.1's mode == .scrolled ? top : live (the live rows at the top)",
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('    var firstRow: Int { space == nil ? live : top }\n', '    var firstRow: Int { mode == .scrolled ? top : live }\n')
+  },
+  {
+    id: 'aw2',
+    rule: 'aw',
+    what: 'the fill moving top outside reserve(',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('    mutating func scroll() {\n', '    mutating func fillTop(_ want: Int) { top = want }\n    mutating func scroll() {\n')
+  },
+  {
+    id: 'aw3',
+    rule: 'aw',
+    what: 'carrying with no hi == live (a row beside a gap)',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('        guard hi == live, let last = lastSteady, last.space == space, last.columns == wrap,\n', '        guard let last = lastSteady, last.space == space, last.columns == wrap,\n')
+  },
+  {
+    id: 'aw4',
+    rule: 'aw',
+    what: "carrying k past the picture's rows",
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('        let shown = min(k, last.rowCount)\n', '        let shown = k\n')
+  },
+  {
+    id: 'aw5',
+    rule: 'aw',
+    what: 'no drop on the alternate screen',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('        if picture.alternate {\n            if mode == .scrolled { _ = follow() }\n            drop()\n            return\n        }\n', '        if picture.alternate {\n            if mode == .scrolled { _ = follow() }\n            return\n        }\n')
+  },
+  {
+    id: 'aw6',
+    rule: 'aw',
+    what: 'a refusal in following drawing the moved line',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('        case .following:\n            refusedAt = offered ?? space.map { Offer(depth: depthSeen, space: $0, columns: wrap) }\n            drop()\n', '        case .following:\n            edge = .moved(sentence)\n            refusedAt = offered ?? space.map { Offer(depth: depthSeen, space: $0, columns: wrap) }\n            drop()\n')
+  },
+  {
+    id: 'aw7',
+    rule: 'aw',
+    what: 'no refusedAt: a refusing door asked again at every picture (a loop)',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('            refusedAt = offered ?? space.map { Offer(depth: depthSeen, space: $0, columns: wrap) }\n            drop()\n', '            drop()\n')
+  },
+  {
+    id: 'aw8',
+    rule: 'aw',
+    what: 'fill(rows:) telling the view to lay out again inside its own layout pass',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('        let reserved = layout.reserve(visibleTop: visibleTop, fill: rows)\n        pump()\n        return reserved\n', '        let reserved = layout.reserve(visibleTop: visibleTop, fill: rows)\n        onLayout?()\n        pump()\n        return reserved\n')
+  },
+  {
+    id: 'aw9',
+    rule: 'aw',
+    what: 'the index space held only above depth 0',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('                guard let offer = offered, !fillOff else { return 0 }\n                establish(offer)\n                top = offer.depth\n', '                guard let offer = offered, offer.depth > 0, !fillOff else { return 0 }\n                establish(offer)\n                top = offer.depth\n')
+  },
+  {
+    id: 'aw10',
+    rule: 'aw',
+    what: "the fill's top moved without asking that it is above (toward the live top)",
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('            if want < top { top = want }\n', '            top = want\n')
+  },
+  {
+    id: 'aw11',
+    rule: 'aw',
+    what: 'want( asking only while scrolled (following fills nothing)',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('        guard space != nil, !pagingStopped, top < live else { return nil }\n', '        guard mode == .scrolled, space != nil, !pagingStopped, top < live else { return nil }\n')
+  },
+  {
+    id: 'aw12',
+    rule: 'aw',
+    what: 'want( not held back while the fill is off or refused',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('        if mode == .following, fillOff || refusedAt != nil { return nil }\n', '')
+  },
+  {
+    id: 'aw13',
+    rule: 'aw',
+    what: 'viewed( entering scrolled at the bottom too',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('        if layout.mode == .following, !atBottom, top < layout.live {\n', '        if layout.mode == .following, top < layout.live {\n')
+  },
+  {
+    id: 'aw14',
+    rule: 'aw',
+    what: 'a 404 no longer turning the fill off',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('    mutating func stop(_ sentence: String) {\n        fillOff = true\n', '    mutating func stop(_ sentence: String) {\n')
+  },
+  {
+    id: 'aw15',
+    rule: 'aw',
+    what: 'a carried row not marked carried',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('styles: last.styles, carried: true)', 'styles: last.styles, carried: false)')
+  },
+  {
+    id: 'aw16',
+    rule: 'aw',
+    what: "the history persisted (UserDefaults in the history's file)",
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: append('enum P3373Keep { static func keep(_ rows: [Int: String]) { UserDefaults.standard.set(rows.count, forKey: "p3373") } }\n')
+  },
+  // (aw9) THE BAND, THE STRADDLE AND THE BLINK (build/p3373/SPEC.md §Rebuilt
+  // after the reboot, and its fix round of 2026-10-08), each put back as the
+  // build the verify read shipped it, or loosened one clause at a time.
+  {
+    id: 'aw17',
+    rule: 'aw',
+    what: "a following outrun that drops what it holds (the build the verify read: the band blank for 1.15 to 1.55 s on every return)",
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('            if hi < offer.depth { hi = offer.depth }\n', '            if hi < offer.depth { hi = offer.depth }\n            if lines > screen { drop() }\n')
+  },
+  {
+    id: 'aw18',
+    rule: 'aw',
+    what: 'the outrun not counted, so nothing tells the model the output outruns the screen',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('            if lines > screen { outruns = Self.plus(outruns, 1) }\n', '')
+  },
+  {
+    id: 'aw19',
+    rule: 'aw',
+    what: 'outrunGap at 0.25 s, under the slowest picture interval',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace(/    static let outrunGap: Duration = \.seconds\(\d+\)\n/, '    static let outrunGap: Duration = .milliseconds(250)\n')
+  },
+  {
+    id: 'aw20',
+    rule: 'aw',
+    what: "pump() asking while the output outruns the screen (pages it throws away, the reverify's four a second)",
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('        if layout.mode == .following, let calm = holdUntil {\n            due = due.map { max($0, calm) } ?? calm\n        }\n', '')
+  },
+  {
+    id: 'aw21',
+    rule: 'aw',
+    what: "the hold applied while scrolled too (337.1's paging slowed)",
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('        if layout.mode == .following, let calm = holdUntil {\n', '        if let calm = holdUntil {\n')
+  },
+  {
+    id: 'aw22',
+    rule: 'aw',
+    what: 'the model never stopping the carry (strips flash between pictures that pass the view and pictures that fall short)',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('                if passed || fast(at) { fastUntil = holdUntil }\n', '')
+  },
+  {
+    id: 'aw23',
+    rule: 'aw',
+    what: "a page raising depthSeen while following (the reverify's blink)",
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('        if mode == .scrolled { depthSeen = max(depthSeen, depth) }\n', '        depthSeen = max(depthSeen, depth)\n')
+  },
+  // The fix round of 2026-10-08 (build/p3373/SPEC.md §Rebuilt after the reboot): the holes, the live top's page, the
+  // straddle's hold and the scrolled carry, one clause at a time.
+  {
+    id: 'aw24',
+    rule: 'aw',
+    what: 'following carrying whatever the model says (strips flashed over output that outruns the screen)',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('            if carrying { _ = carry(to: offer.depth, holds: holds) }\n', '            _ = carry(to: offer.depth, holds: holds)\n')
+  },
+  {
+    id: 'aw25',
+    rule: 'aw',
+    what: 'the lines no picture showed left out of the holes (hi under the live top, so nothing carries after a flood)',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('            if hi < offer.depth { hi = offer.depth }\n', '')
+  },
+  {
+    id: 'aw26',
+    rule: 'aw',
+    what: "the live top's page never asked (a flood's holes wait for pages walking up from rows out of view)",
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('        if mode == .following, Self.plus(checked, Self.pageRows) < live, visibleTop >= Self.less(live, Self.pageRows) {\n', '        if mode == .scrolled, Self.plus(checked, Self.pageRows) < live, visibleTop >= Self.less(live, Self.pageRows) {\n')
+  },
+  {
+    id: 'aw27',
+    rule: 'aw',
+    what: "the live top's page joined without returning the rows under it to reserved",
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('            for index in lo..<from { held[index] = nil }\n            lo = from\n', '            for index in lo..<from { held[index] = nil }\n')
+  },
+  {
+    id: 'aw28',
+    rule: 'aw',
+    what: 'the layout handed carrying whatever the output does',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('        layout.picture(picture, holds: holds, carrying: !fast(at))\n', '        layout.picture(picture, holds: holds)\n')
+  },
+  {
+    id: 'aw29',
+    rule: 'aw',
+    what: "a lone flood or return held (the verify's band: read again only after the hold)",
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('            if let last = lastOutrun, at < last.advanced(by: Self.outrunGap) {\n                holdUntil = at.advanced(by: Self.outrunGap)\n                if passed || fast(at) { fastUntil = holdUntil }\n            }\n', '            holdUntil = at.advanced(by: Self.outrunGap)\n            if passed || fast(at) { fastUntil = holdUntil }\n')
+  },
+  {
+    id: 'aw30',
+    rule: 'aw',
+    what: 'the hold reaching scrolled through fast(_:)',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('        guard layout.mode == .following, let until = fastUntil else { return false }\n', '        guard let until = fastUntil else { return false }\n')
+  },
+  {
+    id: 'aw32',
+    rule: 'aw',
+    what: "outrunGap at two seconds (output whose pictures pass the view every second or two slips out of the hold and back: 3.5 band blanks a minute at the watcher's floor, measured; 13 to 28 at one second)",
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('    static let outrunGap: Duration = .seconds(3)\n', '    static let outrunGap: Duration = .seconds(2)\n')
+  },
+  {
+    id: 'aw33',
+    rule: 'aw',
+    what: 'the carry stopped on any outrun of a burst (the band dropped under output that outruns the screen short of the view)',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('                if passed || fast(at) { fastUntil = holdUntil }\n', '                fastUntil = holdUntil\n')
+  },
+  {
+    id: 'aw34',
+    rule: 'aw',
+    what: 'passed read against the screen alone, so any outrun passes the view',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('>= ScrollbackLayout.plus(picture.rowCount, viewFill)\n', '>= picture.rowCount\n')
+  },
+  {
+    id: 'aw35',
+    rule: 'aw',
+    what: 'the model never holding following\'s pages (pages scrolled away as fast as they land)',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('                holdUntil = at.advanced(by: Self.outrunGap)\n', '')
+  },
+  {
+    id: 'aw36',
+    rule: 'aw',
+    what: "the fill's rows refused while a refusal holds (the live rows at the view's top from a refused page until the next picture, then back)",
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('                guard let offer = offered, !fillOff else { return 0 }\n', '                guard let offer = offered, refusedAt == nil, !fillOff else { return 0 }\n')
+  },
+  {
+    id: 'aw31',
+    rule: 'aw',
+    what: 'a partial carry while scrolled (a hole beside what he reads)',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('        guard shown == k || mode == .following else { return nil }\n', '')
+  },
+  // (ax) LANDSCAPE IS THE TERMINAL ALONE.
+  {
+    id: 'ax1',
+    rule: 'ax',
+    what: 'the header drawn sideways',
+    file: () => `${APP}/Screens/Screen.swift`,
+    edit: (src) => src.replace('                if chrome.header {\n                    header\n                }\n', '                header\n')
+  },
+  {
+    id: 'ax2',
+    rule: 'ax',
+    what: 'the tray drawn sideways',
+    file: () => `${APP}/Screens/Screen.swift`,
+    edit: (src) => src.replace('                if chrome.tray(overlap: overlap, typing: typing) {\n', '                if overlap == 0, !typing {\n')
+  },
+  {
+    id: 'ax3',
+    rule: 'ax',
+    what: 'statusBarHidden removed',
+    file: () => `${APP}/Screens/Screen.swift`,
+    edit: (src) => src.replace('        .statusBarHidden(chrome.statusBarHidden)\n', '')
+  },
+  {
+    id: 'ax4',
+    rule: 'ax',
+    what: "the toolbar's Copy drawn sideways too (two screen-copy)",
+    file: () => `${APP}/Screens/Screen.swift`,
+    edit: (src) => src.replace('                if chrome.toolbarCopy(copyDrawn) {\n', '                if copyDrawn {\n')
+  },
+  {
+    id: 'ax5',
+    rule: 'ax',
+    what: 'OrientationGate set in SessionScreen.swift',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: append('enum P3373Turn { static func sideways() { OrientationGate.screenOnTop = true } }\n')
+  },
+  {
+    id: 'ax6',
+    rule: 'ax',
+    what: "TerminalChrome's bars hidden upright as well",
+    file: () => `${APP}/Screens/Screen.swift`,
+    edit: (src) => src.replace('    var bars: Visibility { landscape ? .hidden : .automatic }\n', '    var bars: Visibility { .hidden }\n')
+  },
+  // (ay) THE ⋯ MENU.
+  {
+    id: 'ay1',
+    rule: 'ay',
+    what: 'a third menu item',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace('                .accessibilityIdentifier(ID.terminalMenuCatchUp)\n', '                .accessibilityIdentifier(ID.terminalMenuCatchUp)\n                Button(action: openCatchUp) { Label(Copy.copy, systemImage: "doc.on.doc") }\n')
+  },
+  {
+    id: 'ay2',
+    rule: 'ay',
+    what: 'the two items swapped, End session… first',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) =>
+      src.replace(
+        '                Button(action: openCatchUp) {\n                    Label(Copy.catchMeUp, systemImage: "text.bubble")\n                }\n                .accessibilityIdentifier(ID.terminalMenuCatchUp)\n                if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {\n                    EndMenuItem(row: row, drawing: drawing) {\n                        guard drawing.confirm != nil else { return }\n                        asking = true\n                    }\n                }\n',
+        '                if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {\n                    EndMenuItem(row: row, drawing: drawing) {\n                        guard drawing.confirm != nil else { return }\n                        asking = true\n                    }\n                }\n                Button(action: openCatchUp) {\n                    Label(Copy.catchMeUp, systemImage: "text.bubble")\n                }\n                .accessibilityIdentifier(ID.terminalMenuCatchUp)\n'
+      )
+  },
+  {
+    id: 'ay3',
+    rule: 'ay',
+    what: "the dialog attached inside the menu's content",
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) =>
+      src
+        .replace('            .endConfirmation(model: end, offer: offer, confirm: confirm, drawing: drawing, isPresented: $asking, reread: reread)\n        }\n    }', '        }\n    }')
+        .replace('                    EndMenuItem(row: row, drawing: drawing) {\n                        guard drawing.confirm != nil else { return }\n                        asking = true\n                    }\n', '                    EndMenuItem(row: row, drawing: drawing) {\n                        guard drawing.confirm != nil else { return }\n                        asking = true\n                    }\n                    .endConfirmation(model: end, offer: offer, confirm: confirm, drawing: drawing, isPresented: $asking, reread: reread)\n')
+  },
+  {
+    id: 'ay4',
+    rule: 'ay',
+    what: 'a second confirmationDialog( for End copied into SessionScreen.swift',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace('            .endConfirmation(model: end, offer: offer, confirm: confirm, drawing: drawing, isPresented: $asking, reread: reread)\n', '            .confirmationDialog(confirm?.title ?? Copy.endSessionMenu, isPresented: $asking) { Button(Copy.cancel, role: .cancel) {} }\n')
+  },
+  {
+    id: 'ay5',
+    rule: 'ay',
+    what: 'Copy.more spelled "More…"',
+    file: () => `${APP}/Style/Copy.swift`,
+    edit: (src) => src.replace('    static let more = "More"\n', '    static let more = "More…"\n')
+  },
+  {
+    id: 'ay6',
+    rule: 'ay',
+    what: 'the symbol fixed to "ellipsis.circle" on every iOS',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace('        if #available(iOS 26, *) { "ellipsis" } else { "ellipsis.circle" }\n', '        "ellipsis.circle"\n')
+  },
+  {
+    id: 'ay7',
+    rule: 'ay',
+    what: 'TerminalMenuControl naming ownerCheck',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace('    /// The Mac\'s confirmation is up.\n    @State private var asking = false\n', '    /// The Mac\'s confirmation is up.\n    @State private var asking = false\n    var ownerCheck: String { "none" }\n')
+  },
+  {
+    id: 'ay8',
+    rule: 'ay',
+    what: 'the ⋯ not spoken More',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace('            .accessibilityLabel(Text(verbatim: Copy.more))\n', '')
+  },
+  {
+    id: 'ay9',
+    rule: 'ay',
+    what: 'the ⋯ labelled by a word, not the ellipsis',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace('                Image(systemName: TerminalMenuControl.symbol)\n                    .foregroundStyle(Tokens.accent)\n', '                Words(Copy.more, .body, Tokens.accent)\n')
+  },
+  {
+    id: 'ay10',
+    rule: 'ay',
+    what: 'Catch Me Up drawn with another symbol than the Mac\'s speech bubble',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace('Label(Copy.catchMeUp, systemImage: "text.bubble")', 'Label(Copy.catchMeUp, systemImage: "bubble.left")')
+  },
+  {
+    id: 'ay11',
+    rule: 'ay',
+    what: "the menu's End in the bar's word, End, not End session…",
+    file: () => `${APP}/Screens/EndBar.swift`,
+    edit: (src) => src.replace('        menuLabel = phase == .writing ? Copy.ending : Copy.endSessionMenu\n', '        menuLabel = phase == .writing ? Copy.ending : Copy.endTop\n')
+  },
+  {
+    id: 'ay12',
+    rule: 'ay',
+    what: 'End drawn in the menu where End is absent today (no writer)',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace('                if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {\n', '                if let drawing, let row = drawing.row {\n')
+  },
+  {
+    id: 'ay13',
+    rule: 'ay',
+    what: 'the progress mark identified end-writing while nothing is under way',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace('        if drawing.writing { return ID.endWriting }\n        return nil\n', '        return ID.endWriting\n')
+  },
+  {
+    id: 'ay14',
+    rule: 'ay',
+    what: 'Copy.more with no /// Phone: owner',
+    file: () => `${APP}/Style/Copy.swift`,
+    edit: (src) => src.replace("    /// Phone: the spoken name of the Terminal's ⋯ (Phase 337.3, his \"an ellipses in the top right\"),\n", "    /// The spoken name of the Terminal's ⋯ (Phase 337.3, his \"an ellipses in the top right\"),\n")
+  },
+  {
+    id: 'ay15',
+    rule: 'ay',
+    what: 'a second ToolbarItem in TerminalMenu',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace('            TerminalMenuControl(end: end, offer: offer, confirm: confirm, reread: reread, openCatchUp: openCatchUp)\n        }\n', '            TerminalMenuControl(end: end, offer: offer, confirm: confirm, reread: reread, openCatchUp: openCatchUp)\n        }\n        ToolbarItem(placement: .topBarTrailing) { EmptyView() }\n')
+  },
+  {
+    id: 'ay16',
+    rule: 'ay',
+    what: 'an identifier the menu needs missing (end-writing)',
+    file: () => `${APP}/Screens/Identifiers.swift`,
+    edit: (src) => src.replace('    static let endWriting = "end-writing"\n', '')
   }
 ];
 
@@ -3754,6 +4368,13 @@ if (only.length === 0) {
       say(`rule (${rule}) has no arm that turned it red, so nothing here proves it can fail`);
     }
   }
+  // Phase 337.1's rules and Phase 337.3's ((aw), (ax), (ay)); (av) is Phase 333.1's and joins here when it lands.
+  for (const rule of ['ar', 'as', 'at', 'au', 'aw', 'ax', 'ay']) {
+    if (!rulesProved.has(rule)) {
+      failed += 1;
+      say(`rule (${rule}) has no arm that turned it red, so nothing here proves it can fail`);
+    }
+  }
 }
 if (failed > 0) {
   say(`FAIL: ${String(failed)} problem(s). ${String(rows.filter((r) => r.verdict === 'red').length)} of ${String(arms.length)} arms red on their own rule.`);
@@ -3761,5 +4382,5 @@ if (failed > 0) {
 }
 say(
   `PASS: ${String(arms.length)} of ${String(arms.length)} arms red on the rule that owns them, ` +
-    `${only.length === 0 ? 'every rule (a) to (z) and (aa) to (av) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
+    `${only.length === 0 ? 'every rule (a) to (z) and (aa) to (ay) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
 );

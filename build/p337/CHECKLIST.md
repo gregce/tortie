@@ -1,7 +1,8 @@
-# Phases 337 and 337.1 — the Terminal: his checklist for build 7
+# Phases 337, 337.1 and 337.3 — the Terminal: his checklist for build 7, and the next
 
 For the ONE TestFlight build, build 7, after Phase 337.1 lands (build/p3371/SPEC.md §9; Phase 337's rows,
-build/p337/SPEC.md §9, kept where they still hold). Each row says what to open, what to press and what you should
+build/p337/SPEC.md §9, kept where they still hold), and rows 13 to 15 for the build after it, which holds
+Phase 337.3 (build/p3373/SPEC.md §7.4; the main session writes its number at landing). Each row says what to open, what to press and what you should
 see. The words in quotes are the words on the screen, and the table at the foot says the file and the name each one
 is found under, so a word that moves is found again with one grep.
 
@@ -23,7 +24,8 @@ the command the row names.
 
 2. **Terminal first.** On the iPhone, tap a running Claude Code session.
    **You should see** its terminal at once, one line under the name with the status in its colour, then
-   `Claude Code · <project>`, and a speech-bubble icon then `End` at the top right.
+   `Claude Code · <project>`, and one `⋯` at the top right (since Phase 337.3; build 7 drew a speech-bubble icon
+   then `End` there).
    Pinch the terminal, drag it, and turn the phone sideways.
    **You should see** it grow, move, and fill the wider screen; back on the list it is upright again.
 
@@ -60,7 +62,8 @@ the command the row names.
    **You should see** the live terminal again, as it was before you scrolled. Scroll back once more and type a key:
    that brings you back to live too.
 
-10. **Catch Me Up.** On a running session, press the speech bubble.
+10. **Catch Me Up.** On a running session, press the `⋯` at the top right, then **Catch Me Up** (on build 7, the
+    speech bubble).
     **You should see** `Catch Me Up` under the session's name, the conversation, and at the bottom where things stand:
     the status, the question if there is one, and the message box when the session waits at its prompt.
     Press **Back**.
@@ -72,6 +75,16 @@ the command the row names.
 12. **The keyboard.** Tap the terminal, then put the keyboard away with the bar's last key. Long press a row and
     **Copy**. Paste into Notes.
     **You should see** the rows stay where they were when the keyboard went, and that row's text in Notes.
+
+13. **Open full.** Upright, open a session that has printed a lot.
+    **You should see** its live rows at the bottom and earlier output above them up to the top, with no empty space
+    below.
+
+14. **Sideways.** Turn the phone.
+    **You should see** only the terminal: no bar at the top, none at the bottom. Turn it back: everything returns.
+
+15. **The ⋯.** Upright, press the `⋯` at the top right.
+    **You should see** `Catch Me Up` and `End session…`; `End session…` asks for Face ID.
 
 ## Not covered yet
 
@@ -87,6 +100,9 @@ the command the row names.
   back nothing (the program covers the history, as at your Mac).
 - The one refusal on another machine has the network's one-way time in it: a far agent can draw a question in that
   moment, as it can under the desk's own typing over a far attach.
+- How the filled terminal feels through Funnel: the first page above the live rows is one round trip away, and a
+  return to the Terminal while an agent prints fills again in one page (Phase 337.3).
+- A session wider than about 200 columns, which fills with more than one page, 0.25 s apart, top rows last.
 
 ## Where every word was found
 
@@ -104,9 +120,11 @@ name alone.
 | `…and type into any session as you would at this Mac` | src/main/pocket/pairing.ts | `WRITE_CLAUSES.keys`, joined by `clauseListOf` |
 | `A phone you allow can see what any session’s terminal shows and what it printed before…` | src/shared/ipc/pocket.ts | `POCKET_DOOR_HONESTY` |
 | `Claude Code · <project>` | ios/Tortie/Screens/SessionScreen.swift | `StatusLine`, the agent line `Copy.joined([agentLabel, project])` with `Copy.separator` |
-| the speech bubble, named `Catch Me Up` | ios/Tortie/Screens/SessionScreen.swift | `CatchUpItem`, SF Symbols' `text.bubble`, labelled `Copy.catchMeUp` |
+| the `⋯`, spoken `More` | ios/Tortie/Screens/SessionScreen.swift | `TerminalMenuControl`, SF Symbols' `ellipsis` (`ellipsis.circle` before iOS 26), spoken `Copy.more` (ios/Tortie/Style/Copy.swift); on build 7 the speech bubble, `CatchUpItem`, SF Symbols' `text.bubble`, labelled `Copy.catchMeUp` |
+| `Catch Me Up` in the menu | ios/Tortie/Screens/SessionScreen.swift | the menu's first item, `Label(Copy.catchMeUp, systemImage: "text.bubble")` |
+| `End session…` in the menu | ios/Tortie/Screens/EndBar.swift | `EndMenuItem`, `EndBarDrawing.menuLabel`, the Mac's own `END_SESSION` in src/renderer/session-manager/copy.ts |
 | `Catch Me Up` | ios/Tortie/Style/Copy.swift | `Copy.catchMeUp`, the Mac's own `item('Catch Me Up', …` in src/main/menu.ts |
-| `End` | ios/Tortie/Style/Copy.swift | `Copy.endTop`, drawn by `EndTopControl` in ios/Tortie/Screens/EndBar.swift |
+| `End` | ios/Tortie/Style/Copy.swift | `Copy.endTop`, drawn by `EndTopControl` in ios/Tortie/Screens/EndBar.swift, at the top right of Catch Me Up (and of the Terminal on build 7) |
 | `return`, `ctrl`, `esc`, `tab`, `⇧tab` | ios/Tortie/Style/Copy.swift | `Copy.keyReturn`, `Copy.keyCtrl`, `Copy.keyEsc`, `Copy.keyTab`, `Copy.keyBackTab` |
 | `Waiting for the terminal to redraw.` | ios/Tortie/Style/Copy.swift | `Copy.screenWaitForRedraw` |
 | `Back to the live terminal` | ios/Tortie/Style/Copy.swift | `Copy.backToLive`, the arrow's spoken name |
@@ -115,7 +133,8 @@ name alone.
 | `Ended` | ios/Tortie/Style/Copy.swift | `Copy.ended` |
 | `All` (Sessions) | ios/Tortie/Style/Copy.swift | `Copy.showAll`, the Sessions tab's Show control (Phase 316.7) |
 
-The mocks that draw rows 2, 5, 7, 9 and 12 are docs/design/phone/Session.html (the terminal at rest with a
-question's tray) and docs/design/phone/Screen.html (the terminal with the keyboard up), and Catch Me Up of rows 10
+The mocks that draw rows 2, 5, 7, 9, 12 and 13 are docs/design/phone/Session.html (the terminal at rest with a
+question's tray) and docs/design/phone/Screen.html (the terminal with the keyboard up), row 14 is
+docs/design/phone/Landscape.html, row 15 is docs/design/phone/TerminalMenu.html, and Catch Me Up of rows 10
 and 11 is docs/design/phone/Conversation.html; `npm run conformance:phonecopy` holds every word they draw to the
 files above.

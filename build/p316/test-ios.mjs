@@ -1225,6 +1225,18 @@ export const P3371_SUITES = Object.freeze([
 ]);
 
 /**
+ * The test classes Phase 337.3 adds (build/p3373/SPEC.md §7.2), each of which
+ * must appear in xcodebuild's own suite lines: the fill's model, the Terminal's
+ * chrome sideways and the ⋯ menu. The verifier of 2026-10-08 found none of
+ * them in any list, so one silently dropping out of the bundle read as a pass.
+ */
+export const P3373_SUITES = Object.freeze([
+  'TerminalFillTests',
+  'TerminalChromeTests',
+  'TerminalMenuTests'
+]);
+
+/**
  * The test classes Phase 317 adds or changes (build/p317/SPEC.md §7.3), each of
  * which must appear in xcodebuild's own suite lines for a configuration's run.
  */
@@ -1624,6 +1636,8 @@ async function doorsSelfTest() {
     check('suitesNotRun names a Phase 318 suite that never ran', J(suitesNotRun(ran, P318_SUITES)) === J(['ReplyTests', 'ReplyClientTests', 'P318ReplyTransportTests']));
     check('suitesNotRun names the Phase 337 suites that never ran', J(suitesNotRun(ran, P337_SUITES)) === J(P337_SUITES.filter((n) => !P317_SUITES.includes(n))));
     check('suitesNotRun names every Phase 337.1 suite that never ran', J(suitesNotRun(ran, P3371_SUITES)) === J([...P3371_SUITES]));
+    check('suitesNotRun names every Phase 337.3 suite that never ran', J(suitesNotRun(ran, P3373_SUITES)) === J([...P3373_SUITES]));
+    check('suitesNotRun reads a Phase 337.3 suite that ran', J(suitesNotRun(`${ran}\nTest Suite 'TerminalFillTests' passed at 2026-10-08 12:00:00.000.`, P3373_SUITES)) === J(['TerminalChromeTests', 'TerminalMenuTests']));
   } catch (err) {
     check('the self-test ran', false, String(err?.stack ?? err));
   } finally {
@@ -1857,7 +1871,7 @@ async function main() {
                 `${String(s.executed)} test(s) executed, ${String(s.failures)} failure(s), ${String(s.skipped)} skipped`
             );
             // Phase 317: every class it adds or changes must have run.
-            const notRun = suitesNotRun(`${run.stdout}${run.stderr}`, [...new Set([...P317_SUITES, ...P318_SUITES, ...P337_SUITES, ...P3371_SUITES])]);
+            const notRun = suitesNotRun(`${run.stdout}${run.stderr}`, [...new Set([...P317_SUITES, ...P318_SUITES, ...P337_SUITES, ...P3371_SUITES, ...P3373_SUITES])]);
             if (notRun.length > 0) say(`${c.name}: xcodebuild names no run of ${notRun.join(', ')}, so those rows were not run`);
             if (run.code === 0 && s.executed !== null && s.executed > 0 && s.failures === 0 && transport.length === 0 && notRun.length === 0) passed += 1;
             if (run.code === 0 && (s.executed ?? 0) === 0) say(`${c.name}: ` + 'xcodebuild exited 0 and ran no test, which is not a pass');

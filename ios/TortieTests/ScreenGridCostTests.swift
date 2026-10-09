@@ -60,10 +60,10 @@ final class ScreenGridCostTests: XCTestCase {
     private func history(_ screen: PocketScreen, picture: ScreenPicture) throws -> ScrollbackModel {
         let history = ScrollbackModel(door: ScriptedScreenDoor())
         history.picture(picture)
-        history.viewed(top: Self.depth - 1, bottom: Self.depth + 40)
+        history.viewed(top: Self.depth - 1, bottom: Self.depth + 40, atBottom: false)
         var top = Self.depth - 1
         for _ in 0..<40 where history.layout.held.count < Self.held {
-            history.viewed(top: top, bottom: top + 60)
+            history.viewed(top: top, bottom: top + 60, atBottom: false)
             let ask = try XCTUnwrap(history.layout.want(visibleTop: top, visibleBottom: top + 60))
             _ = history.accept(page(ask, screen), for: ask)
             top = history.layout.lo

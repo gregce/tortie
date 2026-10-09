@@ -2,85 +2,39 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>fix-login — its terminal, typing</title>
+<title>fix-login — its terminal, sideways</title>
 <style>
 html,body{background:#0E0F13}
 body { margin: 0; }
 .t { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
-a { color: #4d9de8; }
-.grid { background: #131417; color: #d8dbe2; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 6.5px; line-height: 8.2px; white-space: pre; overflow: hidden; padding: 4px 0; flex-grow: 1; display: flex; flex-direction: column; justify-content: flex-end; }
-.row { height: 8.2px; flex-shrink: 0; }
-.cursor { background: #e8eaed; opacity: 0.45; }
-.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.dot-attention { background: #f5b84a; }
-.bar { display: flex; gap: 6px; padding: 6px 8px; background: #191B20; border-top: 1px solid #25282E; flex-shrink: 0; overflow: hidden; }
-.cap { min-width: 34px; height: 32px; padding: 0 8px; box-sizing: border-box; border-radius: 6px; background: #252931; color: #C9CACD; display: flex; align-items: center; justify-content: center; font-size: 15px; }
-.key { background: #202329; border-radius: 5px; height: 42px; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #C9CACD; }
+.grid { background: #131417; color: #d8dbe2; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10px; line-height: 11.67px; white-space: pre; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; }
+.row { height: 11.67px; flex-shrink: 0; }
 </style>
 </head>
 <body>
-<!-- Phase 337 (build/p337/SPEC.md §1, D26 to D30) and Phase 337.1 (build/p3371/
-     SPEC.md D17, D24): the session's Terminal with the keyboard up. A tap on
-     the terminal raised it with the key bar above it. The rows are
-     build/fixtures/screen/sample-claude-2.1.287.json, the SHIPPING composer's
-     answer for a committed Claude Code capture, drawn at the Mac's width: in
-     portrait the 120 columns fit the width (a glance); he pinches, drags, or
-     turns the phone sideways, and drags down to scroll back through what the
-     session printed. The keyboard never moves the terminal's frame: only the
-     inset under the rows follows it, and the question tray is hidden while it
-     is up. Nothing here asks Face ID, and nothing sizes the Mac (his rulings 2
-     and 3 of 337). The rows are the agent's own text and are judged by
-     conformance:phonecopy as data, row for row against the sample. Since
-     Phase 337.3 (build/p3373/SPEC.md D1 to D4, D21) the terminal is FILLED,
-     the live bottom just above the key bar and the history the session
-     printed before above it (the rows of src/main/activity/__tests__/
-     fixtures/claude-post-answer.txt above its input box, judged as data),
-     and the top right holds one ⋯, spoken More, whose menu is Catch Me Up
-     and End session… (TerminalMenu.html). -->
-<div class="t" style="width: 390px; height: 844px; box-sizing: border-box; background: #131417; color: #C9CACD; display: flex; flex-direction: column; overflow: hidden;">
+<!-- Phase 337.3 (build/p3373/SPEC.md D15 to D20, his item 2): the Terminal
+     turned SIDEWAYS is the terminal alone. No navigation bar (no back button,
+     title or ⋯), no status line, no question tray, no tab bar, no status bar:
+     every one is back the moment the phone is upright again. The terminal
+     keeps inside the window's safe area (D16): the two side strips, the
+     Dynamic Island's and the far corner's, 62 points each on an iPhone 16 Pro,
+     and the home indicator's strip, 20 points, stay the ground colour; the
+     grid is exactly the safe area, 750 by 382 points measured (§14 M2), 33
+     rows at a 120-column session's fitted cell against 20 or 24 today. The
+     rows are build/fixtures/screen/sample-claude-2.1.287.json, the SHIPPING
+     composer's answer for a committed Claude Code capture, judged by
+     conformance:phonecopy as data; the live bottom is at the grid's bottom
+     (D20: sideways the live rows are taller than the view, so the fill is 0
+     and the view holds the live bottom, as today). The keyboard and the key
+     bar work as upright (D18); Copy for a selection sits at the bottom right
+     (D17). Nothing here draws a word. -->
+<div class="t" style="width: 844px; height: 390px; box-sizing: border-box; background: #0E0F13; color: #C9CACD; display: flex; flex-direction: row; overflow: hidden;">
 
-  <div style="height: 44px; flex-shrink: 0; background: #0E0F13;"></div>
+  <!-- The Dynamic Island's strip. -->
+  <div style="width: 62px; flex-shrink: 0;"></div>
 
-  <div style="height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; flex-shrink: 0; background: #0E0F13;">
-    <a href="Main.html" style="display: flex; align-items: center; gap: 4px; font-size: 17px; color: #4d9de8; text-decoration: none;">
-      <svg width="12" height="18" viewBox="0 0 12 18" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2 3 9l6 7"></path></svg>Sessions
-    </a>
-    <div style="font-size: 17px; font-weight: 600; color: #C9CACD;">fix-login</div>
-    <!-- The ⋯ (Phase 337.3 D21): one control in the box the icon and End
-         took, so the title does not move; a symbol, no word, spoken More. -->
-    <div style="width: 89px; display: flex; align-items: center; justify-content: flex-end;">
-      <a href="TerminalMenu.html" aria-label="More" style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 18px; background: #191B20; color: #4d9de8; text-decoration: none;"><svg width="22" height="6" viewBox="0 0 22 6" fill="currentColor"><circle cx="3" cy="3" r="2.4"></circle><circle cx="11" cy="3" r="2.4"></circle><circle cx="19" cy="3" r="2.4"></circle></svg></a>
-    </div>
-  </div>
-
-  <div style="padding: 8px 16px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; font-size: 15px; background: #0E0F13;">
-    <span class="dot dot-attention"></span>
-    <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><span style="color: #f5b84a;">Needs input</span><span style="color: #9CA1AB;"> · </span><span style="color: #9CA1AB;">Claude Code · webapp</span></div>
-  </div>
-
-  <div class="grid" aria-label="Terminal">
-      <!-- The history above the live rows (Phase 337.3 D1 to D3): the rows
-           the session printed before, brought by Phase 337.1's pages, as many
-           as fill the grid above the key bar; the grid clips what reaches
-           above it. Each row is a line of src/main/activity/__tests__/
-           fixtures/claude-post-answer.txt above its input box, judged as data. -->
-      <div class="row"><span style="color: #d8dbe2;">❯ Append the line HELLO to note.txt</span></div>
-      <div class="row"></div>
-      <div class="row"><span style="color: #949494;">  Read 1 file (ctrl+o to expand)</span></div>
-      <div class="row"></div>
-      <div class="row"><span style="color: #ff87af;">⏺</span><span style="color: #d8dbe2;"> </span><span style="color: #d8dbe2; font-weight: 700;">Update</span><span style="color: #d8dbe2;">(note.txt)</span></div>
-      <div class="row"><span style="color: #949494;">  ⎿  Added 1 line</span></div>
-      <div class="row"><span style="color: #949494;">      1  hello</span></div>
-      <div class="row"><span style="color: #87d787;">      2 +HELLO</span></div>
-      <div class="row"></div>
-      <div class="row"><span style="color: #ff87af;">⏺</span><span style="color: #d8dbe2;"> Appended. note.txt is now:</span></div>
-      <div class="row"></div>
-      <div class="row"><span style="color: #d8dbe2;">  hello</span></div>
-      <div class="row"><span style="color: #d8dbe2;">  HELLO</span></div>
-      <div class="row"></div>
-      <div class="row"><span style="color: #949494;">✻ Baked for 7s</span></div>
-      <div class="row"></div>
-      <!-- The live rows: the sample's forty, the last just above the key bar. -->
+  <div style="flex-grow: 1; display: flex; flex-direction: column; min-width: 0;">
+    <div class="grid" aria-label="Terminal" style="flex-grow: 1;">
       <div class="row"><span style="color: #d78787;"> ▐</span><span style="color: #d78787; background: #000000;">▛███▛█</span><span style="color: #d8dbe2;">   </span><span style="color: #d8dbe2; font-weight: 700;">Claude</span><span style="color: #d8dbe2;"> </span><span style="color: #d8dbe2; font-weight: 700;">Code</span><span style="color: #d8dbe2;"> </span><span style="color: #949494;">v2.1.287</span></div>
       <div class="row"><span style="color: #d78787;">▝▜</span><span style="color: #d78787; background: #000000;">█████</span><span style="color: #d78787;">█▀</span><span style="color: #d8dbe2;">  </span><span style="color: #949494;">Opus</span><span style="color: #d8dbe2;"> </span><span style="color: #949494;">5.5</span><span style="color: #d8dbe2;"> </span><span style="color: #949494;">·</span><span style="color: #d8dbe2;"> </span><span style="color: #949494;">API</span><span style="color: #d8dbe2;"> </span><span style="color: #949494;">Usage</span><span style="color: #d8dbe2;"> </span><span style="color: #949494;">Billing</span></div>
       <div class="row"><span style="color: #d78787;"> ▝▝</span><span style="color: #d8dbe2;">   </span><span style="color: #d78787;">▝▝</span><span style="color: #d8dbe2;">   </span><span style="color: #949494;">/private/tmp/p318cap-claude-71621/proj-claude</span></div>
@@ -121,38 +75,13 @@ a { color: #4d9de8; }
       <div class="row"></div>
       <div class="row"></div>
       <div class="row"></div>
+    </div>
+    <!-- The home indicator's strip. -->
+    <div style="height: 20px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;"><div style="width: 134px; height: 5px; border-radius: 3px; background: #3a3d45;"></div></div>
   </div>
 
-  <!-- The key bar, the hidden field's accessory: esc, tab, shift-tab, the four
-       arrows, a one-shot ctrl, return, and the key that puts the keyboard away.
-       No key auto-repeats. -->
-  <div class="bar">
-    <div class="cap" aria-label="Escape">esc</div>
-    <div class="cap" aria-label="Tab">tab</div>
-    <div class="cap" aria-label="Shift Tab">⇧tab</div>
-    <div class="cap" aria-label="Left"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 2 4 7l5 5"></path></svg></div>
-    <div class="cap" aria-label="Up"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 9l5-5 5 5"></path></svg></div>
-    <div class="cap" aria-label="Down"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 5l5 5 5-5"></path></svg></div>
-    <div class="cap" aria-label="Right"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 2l5 5-5 5"></path></svg></div>
-    <div class="cap" aria-label="Control">ctrl</div>
-    <div class="cap" aria-label="Return">return</div>
-    <div class="cap" aria-label="Hide keyboard"><svg width="16" height="14" viewBox="0 0 16 14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="1" width="14" height="8" rx="1.5"></rect><path d="M5 12l3 1.5 3-1.5"></path></svg></div>
-  </div>
-
-  <div style="background: #202329; padding: 8px 4px 20px 4px; flex-shrink: 0;">
-    <div style="display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 5px; padding: 0 3px;">
-      <div class="key">q</div><div class="key">w</div><div class="key">e</div><div class="key">r</div><div class="key">t</div><div class="key">y</div><div class="key">u</div><div class="key">i</div><div class="key">o</div><div class="key">p</div>
-    </div>
-    <div style="display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 5px; padding: 5px 20px 0 20px;">
-      <div class="key">a</div><div class="key">s</div><div class="key">d</div><div class="key">f</div><div class="key">g</div><div class="key">h</div><div class="key">j</div><div class="key">k</div><div class="key">l</div>
-    </div>
-    <div style="display: grid; grid-template-columns: 1.4fr repeat(7, minmax(0, 1fr)) 1.4fr; gap: 5px; padding: 5px 3px 0 3px;">
-      <div class="key" style="background: #252931;">⇧</div><div class="key">z</div><div class="key">x</div><div class="key">c</div><div class="key">v</div><div class="key">b</div><div class="key">n</div><div class="key">m</div><div class="key" style="background: #252931;">⌫</div>
-    </div>
-    <div style="display: grid; grid-template-columns: 1fr 4fr 1.6fr; gap: 5px; padding: 5px 3px 0 3px;">
-      <div class="key" style="background: #252931;">123</div><div class="key">space</div><div class="key" style="background: #252931; font-size: 15px;">return</div>
-    </div>
-  </div>
+  <!-- The far corner's strip. -->
+  <div style="width: 62px; flex-shrink: 0;"></div>
 </div>
 </body>
 </html>

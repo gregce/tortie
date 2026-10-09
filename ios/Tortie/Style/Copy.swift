@@ -213,8 +213,8 @@ enum Copy {
     /// Mac: src/main/menu.ts ⟦item('Catch Me Up', 'show-overview'⟧
     /// The page that reads the session's conversation and where it stands now
     /// (his ruling, "Yes, rename it"): the Mac's own View menu word for the
-    /// record it reads. The Terminal's icon says it as its spoken name, and
-    /// the page draws it under the session's name.
+    /// record it reads. The Terminal's ⋯ draws it as its first item (Phase
+    /// 337.3), and the page draws it under the session's name.
     static let catchMeUp = "Catch Me Up"
 
     // MARK: - The conversation (the desktop's turn block, drawn in the Session style)
@@ -621,9 +621,9 @@ enum Copy {
     static let scrollbackMoved = "Earlier lines changed on your Mac. Go back to the live terminal to read them again."
 
     /// Phone: End's press, at the top right of a session's page since Phase
-    /// 337 (D33), on the Terminal and on Catch Me Up since Phase 337.1. The
-    /// Mac's menu item is `End session…` and the phone's confirmation is still
-    /// the Mac's own words; a top bar holds one word.
+    /// 337 (D33), and of Catch Me Up's alone since Phase 337.3, whose Terminal
+    /// draws the Mac's menu item `End session…` in its ⋯ instead. The phone's
+    /// confirmation is still the Mac's own words; a top bar holds one word.
     static let endTop = "End"
 
     /// Mac: src/renderer/terminal/terminal-menu.ts ⟦label: 'Copy',⟧
@@ -696,6 +696,11 @@ enum Copy {
     /// Phone: the spoken name of the key bar's last button, drawn as a
     /// symbol, which puts the keyboard away.
     static let hideKeyboard = "Hide keyboard"
+
+    /// Phone: the spoken name of the Terminal's ⋯ (Phase 337.3, his "an ellipses in the top right"),
+    /// iOS's own name for an ellipsis button. The Mac names its machine rows' ⋯ `More for <name>`
+    /// (src/renderer/settings/machines-copy.ts moreLabel); the phone's one ⋯ sits beside the session's name.
+    static let more = "More"
 
     // MARK: - The answer, drawn as markdown (Phase 316.6: Conversation.html, Link.html)
 

@@ -62,12 +62,20 @@
 // AND SINCE PHASE 337.1, TERMINAL FIRST (build/p3371/SPEC.md D16 to D23, his
 // ruling "lets do B"): tapping a session opens its TERMINAL at once, full
 // screen, with one status line under its name, the numbered question's
-// options under it, and the Catch Me Up icon then End at the top right; the
-// terminal scrolls back through what the session printed ("Yes, scroll back
-// on the Screen"). A session with no terminal, an ended one or one on a Mac
-// older than Phase 337, opens on CATCH ME UP, the conversation renamed ("Yes,
-// rename it") with where the session stands now after its newest turn. The
-// face is decided at the session's first answer and kept (`SessionRoute`).
+// options under it, and Catch Me Up and End at the top right (one ⋯ menu
+// since Phase 337.3, below); the terminal scrolls back through what the
+// session printed ("Yes, scroll back on the Screen"). A session with no
+// terminal, an ended one or one on a Mac older than Phase 337, opens on CATCH
+// ME UP, the conversation renamed ("Yes, rename it") with where the session
+// stands now after its newest turn. The face is decided at the session's
+// first answer and kept (`SessionRoute`).
+//
+// AND SINCE PHASE 337.3, THE TERMINAL FILLS THE PHONE (build/p3373/SPEC.md):
+// upright it opens on what the session printed, its live rows at the bottom
+// with earlier output above them; turned sideways it is the terminal alone,
+// with no bar above or below it until it is turned upright again; and one ⋯
+// at its top right holds Catch Me Up, then End session…, End still behind
+// Face ID, Touch ID or the passcode.
 //
 // WHAT IT NEVER DOES. It types nothing he did not press, write or type; it
 // offers no message box while the agent works, asks him something or holds
@@ -127,7 +135,8 @@ enum Route: Hashable {
     /// One session: its Terminal, or Catch Me Up when it has none (Phase
     /// 337.1, D16), decided at its first answer.
     case session(id: String, name: String)
-    /// Catch Me Up, pushed by the Terminal's icon (Phase 337.1, D18).
+    /// Catch Me Up, pushed from the Terminal's ⋯ (Phase 337.1, D18; a menu
+    /// item since Phase 337.3).
     /// `honestLine` is the session's own line, drawn when it has no turns.
     case catchUp(id: String, honestLine: String?)
     /// The session an alert named, opened by a tap. Drawn as `session`, with
@@ -473,7 +482,7 @@ final class AppModel {
         }
     }
 
-    /// Catch Me Up, opened by the Terminal's icon on `tab` (Phase 337.1).
+    /// Catch Me Up, opened from the Terminal's ⋯ on `tab` (Phase 337.1).
     func openCatchUp(_ sessionId: String, honestLine: String?, in tab: AppTab) {
         push(.catchUp(id: sessionId, honestLine: honestLine), on: tab)
     }
@@ -611,8 +620,11 @@ struct RootView: View {
     }
 
     /// The three tabs, each its own stack (build/p3166/SPEC.md section
-    /// 5.1.1). Nothing hides the bar: it stays under a pushed session, so a
-    /// session is one tap from Needs input. `.badge(0)` draws no badge.
+    /// 5.1.1). Nothing here hides the bar: it stays under a pushed session, so
+    /// a session is one tap from Needs input; only the Terminal turned
+    /// sideways hides it, with the navigation bar, and turning it upright
+    /// brings both back (Screens/Screen.swift, Phase 337.3). `.badge(0)`
+    /// draws no badge.
     private func tabs(list: ListModel, sessions: SessionsModel, reader: any DoorReading) -> some View {
         TabView(selection: $app.tab) {
             Tab(Copy.needsInput, systemImage: "bell", value: AppTab.needsInput) {
@@ -912,7 +924,7 @@ private struct TerminalFace: View {
     }
 }
 
-/// Catch Me Up pushed by the Terminal's icon (Phase 337.1, D18): its own
+/// Catch Me Up pushed from the Terminal's ⋯ (Phase 337.1, D18): its own
 /// conversation, its own read of the session, End and the reply, for as long
 /// as it is pushed. Its reads are the reader's own, never the Terminal's kept
 /// lines, which close as the Terminal goes under it.

@@ -112,7 +112,8 @@ import XCTest
 /// session page's card, counts, last answer, message box or Conversation row
 /// (`conversation`, `first`, `markdown`, `link:`, the `reply-` steps that send
 /// a message or read the box, `idle:`, `end-read` and the alert taps' reads)
-/// presses the Catch Me Up icon first when the Terminal is the face, through
+/// presses Catch Me Up first when the Terminal is the face (the icon until
+/// Phase 337.3, its ⋯ menu's item since), through
 /// ONE helper, `toCatchUp(for:)`, which does nothing when Catch Me Up already
 /// is and prints its own `face` line; `reply-press:<n>` presses 318's
 /// `session-choice-press-<n>` wherever it is drawn, which on a live session is
@@ -143,6 +144,45 @@ import XCTest
 /// not the one before it) and `setup-code` (the pairing line after a code the
 /// seam handed). THE UI DRIVE PRESSES NO LINK: Safari never opens and no
 /// request leaves the Simulator; the presses are SiteLinkTests'.
+///
+/// THE TERMINAL FILLS THE PHONE (Phase 337.3, build/p3373/SPEC.md section
+/// 7.3). The Terminal's top right is ONE ⋯ (`terminal-menu`), a native menu of
+/// Catch Me Up then End session…, and sideways the Terminal draws the terminal
+/// alone. So ONE helper, `openTerminalMenu(for:)`, opens the ⋯ and prints a
+/// `terminal-menu` line (the ⋯'s frame, label and whether it can be pressed,
+/// the navigation bar's frame, each item by identifier or, only when that is
+/// absent, by its words with `via`, every row of the open menu, and the owner
+/// check's glyph, the open menu's image named `faceid`, `touchid` or
+/// `lock`); `closeTerminalMenu(for:)` puts it away with no press.
+/// `toCatchUp(for:)` presses the menu's Catch Me Up; `end`, `end-cancel`,
+/// `end-home`, `end-kill:` and `end-off:` press its End session… on the
+/// Terminal (the dialog, iOS's first-use question, `end-confirming` and the
+/// probe's answer exactly as before), and `end-bar` there reads the open menu
+/// (`row` the ⋯'s frame, `enabled` the End item's, `glyphs` the menu's image,
+/// `line` the Terminal's `session-end-line`); after `end`'s re-read the menu
+/// is opened again so the probe reads whether End is still offered, never
+/// from a closed menu. On Catch Me Up End is its top bar's, as before.
+/// `end-top`, `terminal-open` (which also prints `first`, the Terminal read
+/// from the very snapshot that first held a row) and `catch-up` print the ⋯
+/// and its items in place of the icon and End; `screen-rotate` reads the
+/// landscape chrome, turns UPRIGHT before Back (sideways there is no back
+/// button), reads the upright chrome, presses Back, and on the list turns
+/// sideways again to read the window. The new steps: `fill-hold:<s>` (a
+/// reading every quarter second, the finger lifted), `stream-hold:<s>` (the
+/// same after `stream-ready` and the probe's `screen-<seq>`, which starts the
+/// stand-in's stream), `chrome` (the navigation bar, the ⋯, the status line,
+/// the tray, the tab bar with its buttons and badge, the grid and the window
+/// from ONE snapshot), `landscape` and `portrait` (the device turned, 3 s,
+/// then `chrome` with SpringBoard's status bar as read and the Terminal),
+/// `landscape-type:<b64url>` (sideways: the keyboard and the key bar read,
+/// `landscape-type-ready`, the words typed, Return, the hide key),
+/// `landscape-select:<n>` (sideways: a long press along live row n, Copy read
+/// against the grid and pressed, `landscape-copied` for the pasteboard) and
+/// `menu-sideways` (Catch Me Up through the menu, the device sideways, the
+/// window read, upright again, Back). And, since the reverify of 2026-10-08,
+/// `return-hold:<away>:<s>` (PF8: the stream started as `stream-hold` starts
+/// it, Catch Me Up through the menu for `away` seconds while the session
+/// prints, Back, then `fill-hold`'s readings with the return stamped).
 final class P316DriveUITests: XCTestCase {
     @MainActor
     func testDrive() throws {
@@ -210,10 +250,9 @@ private enum Seen {
     static let sessionScreen = "screen-session"
     static let sessionLoading = "session-loading"
     static let sessionFailureId = "session-failure"
-    /// Phase 337.1 (D18, D21): the Terminal's Catch Me Up icon, and Catch Me
-    /// Up, the Conversation renamed: a face inside the session's route, or a
-    /// page of its own pushed by the icon, which carries this alone.
-    static let sessionOpenCatchUp = "session-open-catch-up"
+    /// Phase 337.1 (D21): Catch Me Up, the Conversation renamed: a face inside
+    /// the session's route, or a page of its own pushed from the Terminal
+    /// (since Phase 337.3 by its ⋯ menu's first item), which carries this alone.
     static let catchUpScreen = "screen-catch-up"
     static let catchUpLoading = "catch-up-loading"
     static let catchUpOlder = "catch-up-older"
@@ -396,6 +435,27 @@ private enum Seen {
     static func isSetup(_ id: String) -> Bool {
         id.hasPrefix("pairing-") || id.hasPrefix("settings-") || id.hasSuffix("-failure") || id.hasSuffix("-failure-note")
     }
+    /// Phase 337.3 (build/p3373/SPEC.md D21 to D24, D28): the Terminal's one ⋯
+    /// at the top right, its two items, and End's mark while its write runs
+    /// (Identifiers.swift's `terminalMenu`, `terminalMenuCatchUp`,
+    /// `terminalMenuEnd` and `endWriting`).
+    static let terminalMenu = "terminal-menu"
+    static let terminalMenuCatchUp = "terminal-menu-catch-up"
+    static let terminalMenuEnd = "terminal-menu-end"
+    static let endWriting = "end-writing"
+    /// The menu's words, Copy.swift's `more`, `catchMeUp`, `endSessionMenu`
+    /// and `ending` spelled again, for an item whose identifier XCUITest does
+    /// not hand over: it is found by its label then, and the line says `via`.
+    static let moreWords = "More"
+    static let catchMeUpWords = "Catch Me Up"
+    static let endSessionWords = "End session…"
+    static let endingWords = "Ending…"
+    /// The owner check's glyph in the open menu: an image whose identifier is
+    /// its SF Symbol's name (§14 M5), `EndBarDrawing.glyph`'s three.
+    static let ownerGlyphs: Set<String> = ["faceid", "touchid", "lock"]
+    /// The tab bar's three words, which a button outside the navigation bar
+    /// carrying one of them is (the back button carries the list's title too).
+    static var tabWords: [String] { [tabNeedsInput, tabSessions, tabSettings] }
 }
 
 /// One element read from a snapshot: its identifier, its label and its frame.
@@ -403,6 +463,31 @@ private struct Found {
     let id: String
     let label: String
     let frame: CGRect
+}
+
+/// One item of the Terminal's open ⋯ menu (Phase 337.3): the element to press,
+/// how it was found (`id`, or `label` when XCUITest handed no identifier), and
+/// what it read.
+private struct MenuItemRead {
+    let element: XCUIElement
+    let via: String
+    let identifier: String
+    let label: String
+    let enabled: Bool
+    let frame: CGRect
+}
+
+/// What one opening of the ⋯ read: whether it was there and opened, its two
+/// items by name, and the owner check's glyph the open menu holds.
+private struct MenuRead {
+    let found: Bool
+    let opened: Bool
+    let catchUp: MenuItemRead?
+    let end: MenuItemRead?
+    /// `faceid`, `touchid`, `lock`, or empty when the open menu held none.
+    let glyph: String
+    /// Every owner glyph the open menu held, each image's identifier and label.
+    let glyphs: [[String: String]]
 }
 
 @MainActor
@@ -628,6 +713,25 @@ private final class Drive {
                 trayPress(Int(String(step.dropFirst("tray-press:".count))) ?? 0)
             } else if step == "tray-keyboard" {
                 trayKeyboard()
+            } else if step.hasPrefix("fill-hold:") {
+                fillHold(seconds: TimeInterval(String(step.dropFirst("fill-hold:".count))) ?? 3, step: "fill-hold")
+            } else if step.hasPrefix("stream-hold:") {
+                streamHold(seconds: TimeInterval(String(step.dropFirst("stream-hold:".count))) ?? 10)
+            } else if step.hasPrefix("return-hold:") {
+                let parts = step.dropFirst("return-hold:".count).split(separator: ":")
+                returnHold(away: TimeInterval(String(parts.first ?? "5")) ?? 5, seconds: TimeInterval(String(parts.dropFirst().first ?? "6")) ?? 6)
+            } else if step == "chrome" {
+                emitChrome("chrome")
+            } else if step == "landscape" {
+                turn(to: .landscapeLeft, step: "landscape")
+            } else if step == "portrait" {
+                turn(to: .portrait, step: "portrait")
+            } else if step.hasPrefix("landscape-type:") {
+                landscapeType(String(step.dropFirst("landscape-type:".count)))
+            } else if step.hasPrefix("landscape-select:") {
+                landscapeSelect(Int(String(step.dropFirst("landscape-select:".count))) ?? 3)
+            } else if step == "menu-sideways" {
+                menuSideways()
             } else if step == "relaunch-choices" || step.hasPrefix("relaunch-choices:") {
                 relaunchChoices(step.hasPrefix("relaunch-choices:") ? String(step.dropFirst("relaunch-choices:".count)) : nil)
             } else if step == "setup-read" {
@@ -1344,7 +1448,17 @@ private final class Drive {
     /// and the navigation bar's frame is printed beside End's so the probe
     /// places End inside it. `bar` stays in the line, null on this build and
     /// a frame on a parent's.
-    private func emitBar(_ step: String) {
+    ///
+    /// PHASE 337.3 PUT THE TERMINAL'S END IN ITS ⋯ MENU (build/p3373/SPEC.md
+    /// section 7.3): on the Terminal the menu is OPENED and read, `row` is the
+    /// ⋯'s frame, `enabled` the End item's, `glyphs` the owner check's image
+    /// the open menu holds and `line` the Terminal's `session-end-line`, so
+    /// nothing is read from a closed menu, where it would pass vacuously. The
+    /// menu is put away again unless `keepOpen` (End is pressed next), and the
+    /// reading is answered. On Catch Me Up End is its top bar's, as before.
+    @discardableResult
+    private func emitBar(_ step: String, keepOpen: Bool = false) -> MenuRead? {
+        if faceOf(tree()) == "terminal" { return emitMenuBar(step, keepOpen: keepOpen) }
         let bar = element(Seen.sessionEndBar)
         let row = element(Seen.sessionEnd)
         let tabBar = app.tabBars.firstMatch
@@ -1369,6 +1483,8 @@ private final class Drive {
         lines.emit([
             "step": "end-bar",
             "for": step,
+            "face": faceOf(tree()),
+            "via": "top",
             "bar": bar.exists ? frameOf(bar.frame) as Any : NSNull(),
             "nav": nav.exists ? frameOf(nav.frame) as Any : NSNull(),
             "row": row.exists ? frameOf(row.frame) as Any : NSNull(),
@@ -1379,6 +1495,44 @@ private final class Drive {
             "kind": kind,
             "line": line.exists ? line.label as Any : NSNull()
         ])
+        return nil
+    }
+
+    /// `emitBar` on the Terminal (Phase 337.3): the ⋯ opened and read.
+    private func emitMenuBar(_ step: String, keepOpen: Bool) -> MenuRead {
+        let read = openTerminalMenu(for: step)
+        let bar = element(Seen.sessionEndBar)
+        let menu = menuButton()
+        let nav = app.navigationBars.firstMatch
+        let tabBar = app.tabBars.firstMatch
+        let line = element(Seen.sessionEndLine)
+        let enabled = read.end?.enabled
+        let kind: String
+        switch read.glyph {
+        case "faceid": kind = "faceID"
+        case "touchid": kind = "touchID"
+        case "lock": kind = enabled == true ? "passcode" : "none"
+        default: kind = "unread"
+        }
+        lines.emit([
+            "step": "end-bar",
+            "for": step,
+            "face": "terminal",
+            "via": "menu",
+            "opened": read.opened,
+            "bar": bar.exists ? frameOf(bar.frame) as Any : NSNull(),
+            "nav": nav.exists ? frameOf(nav.frame) as Any : NSNull(),
+            "row": menu.exists ? frameOf(menu.frame) as Any : NSNull(),
+            "endItem": read.end.map(itemLine) ?? NSNull(),
+            "enabled": enabled.map { $0 as Any } ?? NSNull(),
+            "tabBar": tabBar.exists ? frameOf(tabBar.frame) as Any : NSNull(),
+            "glyphs": read.glyphs,
+            "glyph": read.glyph,
+            "kind": kind,
+            "line": line.exists ? line.label as Any : NSNull()
+        ])
+        if !keepOpen { closeTerminalMenu(for: step) }
+        return read
     }
 
     /// A confirmation, drawn as a sheet, an alert or loose buttons: read whole,
@@ -1485,9 +1639,21 @@ private final class Drive {
     /// printed once the owner check is up, and the probe's answer waited for
     /// (`auth-<seq>`). What follows is `after`'s.
     private func end(step: String, after: AfterAuth) {
-        guard poll({ has($0, Seen.sessionEnd) && !has($0, Seen.sessionLoading) }) else { return missing(step) }
-        emitBar(step)
-        element(Seen.sessionEnd).tap()
+        // Phase 337.3: on the Terminal End is the ⋯ menu's End session…; on
+        // Catch Me Up it is the top bar's End, as before.
+        guard poll({ (self.has($0, Seen.sessionEnd) || self.has($0, Seen.terminalMenu)) && !self.has($0, Seen.sessionLoading) }) else { return missing(step) }
+        let onTerminal = faceOf(tree()) == "terminal"
+        if onTerminal {
+            let read = emitBar(step, keepOpen: true)
+            guard let item = read?.end else {
+                if read?.opened == true { closeTerminalMenu(for: step) }
+                return missing(step)
+            }
+            item.element.tap()
+        } else {
+            emitBar(step)
+            element(Seen.sessionEnd).tap()
+        }
         guard confirmDialog(for: step, pick: { labels in labels.first { $0 != Seen.cancelPress && !$0.isEmpty } }) != nil else { return missing(step) }
         guard acceptFaceIDQuestion(for: step) else { return missing(step) }
         let confirming = element(Seen.endConfirming).waitForExistence(timeout: 10)
@@ -1501,14 +1667,23 @@ private final class Drive {
             // asked of the press, because a bar that is never drawn made it
             // true at once and EH write-late read the screen before the
             // phone's 15 s (the fix round of 2026-10-06).
+            // Phase 337.3: on the Terminal End's press is inside the menu, so
+            // its question is its marks beside the ⋯ (D24): neither the owner
+            // check's nor the write's is drawn once End has ended its run.
             _ = poll { found in
-                !self.has(found, Seen.endConfirming) && self.onSessionPage(found)
-                    && (!self.has(found, Seen.sessionEnd) || self.has(found, Seen.sessionEndLine))
+                !self.has(found, Seen.endConfirming) && !self.has(found, Seen.endWriting) && self.onSessionPage(found)
+                    && (onTerminal || !self.has(found, Seen.sessionEnd) || self.has(found, Seen.sessionEndLine))
             }
             Thread.sleep(forTimeInterval: 2)
             _ = poll { self.sessionSettled($0) }
             emitFace(step)
             dump(step)
+            // End after the re-read, read by OPENING the menu (an ended
+            // session's menu holds Catch Me Up alone), never from a closed one.
+            if faceOf(tree()) == "terminal" {
+                let after = openTerminalMenu(for: step + "-after")
+                if after.opened { closeTerminalMenu(for: step + "-after") }
+            }
         case .cancel:
             // What iOS drew after the failed match, read by its own labels
             // (the tests round: no Cancel was ever found, and no reading said
@@ -1590,9 +1765,20 @@ private final class Drive {
         open(sessionId, dumping: "end-off-open")
         guard onSessionPage(tree()) else { return }
         Thread.sleep(forTimeInterval: 1)
-        emitBar("end-off")
-        let row = element(Seen.sessionEnd)
-        if row.exists && row.isEnabled && row.isHittable { row.tap() }
+        if faceOf(tree()) == "terminal" {
+            // Phase 337.3: the menu's End session…, read in the open menu and
+            // pressed only when it can be; otherwise the menu is put away.
+            let read = emitBar("end-off", keepOpen: true)
+            if let item = read?.end, item.enabled, item.element.isHittable {
+                item.element.tap()
+            } else if read?.opened == true {
+                closeTerminalMenu(for: "end-off")
+            }
+        } else {
+            emitBar("end-off")
+            let row = element(Seen.sessionEnd)
+            if row.exists && row.isEnabled && row.isHittable { row.tap() }
+        }
         let dialog = [app.sheets.firstMatch, app.alerts.firstMatch].contains { $0.waitForExistence(timeout: 2) }
         let prompt = springboard.alerts.firstMatch.waitForExistence(timeout: 2)
         lines.emit(["step": "end-off-press", "dialog": dialog, "prompt": prompt])
@@ -2446,22 +2632,41 @@ private final class Drive {
 
     /// Sideways and back: the fitted row width in each, and the session's
     /// page read upright again after Back.
+    ///
+    /// PHASE 337.3 (build/p3373/SPEC.md D15, D19): sideways the Terminal draws
+    /// no navigation bar and so no back button, so the landscape chrome is
+    /// read, the phone is turned UPRIGHT before Back, the upright chrome is
+    /// read, and Back is pressed there. Then, on the list, the device is
+    /// turned sideways again and the window read, which only the Terminal
+    /// turns (rule (an)), and turned back. `pageWindow` is that list's window,
+    /// read sideways, as the parent's Back sideways read it.
     private func screenRotate() {
         guard element(Seen.screenGrid).waitForExistence(timeout: 10) else { return missing("screen-rotate") }
         let portrait = screenReading()
         XCUIDevice.shared.orientation = .landscapeLeft
         Thread.sleep(forTimeInterval: 2)
         let landscape = screenReading()
+        let landscapeChrome = chromeReading()
+        XCUIDevice.shared.orientation = .portrait
+        Thread.sleep(forTimeInterval: 2)
+        let uprightChrome = chromeReading()
         let back = app.navigationBars.buttons.element(boundBy: 0)
-        if back.exists { back.tap() }
+        let backFound = back.exists
+        if backFound { back.tap() }
         // Since Phase 337.1 Back from the Terminal is the list: any page with no Terminal on it.
-        _ = poll { !self.has($0, Seen.screenScreen) && !$0.isEmpty }
+        let backed = poll { !self.has($0, Seen.screenScreen) && !$0.isEmpty }
         Thread.sleep(forTimeInterval: 1)
+        XCUIDevice.shared.orientation = .landscapeLeft
+        Thread.sleep(forTimeInterval: 2)
         let page = (try? app.snapshot())?.frame.size ?? .zero
         lines.emit([
             "step": "screen-rotate",
             "portrait": portrait,
             "landscape": landscape,
+            "landscapeChrome": landscapeChrome,
+            "uprightChrome": uprightChrome,
+            "backFound": backFound,
+            "backed": backed,
             "pageWindow": [Double(page.width), Double(page.height)],
             "pageOrientation": XCUIDevice.shared.orientation.rawValue
         ])
@@ -2660,26 +2865,39 @@ private final class Drive {
         emitScreen("screen-wait", ["tag": tag])
     }
 
-    /// The session's page: End's frame and the navigation bar's, the End bar
-    /// absent, and (Phase 337.1, PS1 re-pointed) the Catch Me Up icon beside
-    /// End on the Terminal, its frame and whether each can be pressed; the
-    /// parent's Screen row is printed when drawn.
+    /// The session's page: its top right and the navigation bar's frame, the
+    /// End bar absent, and the parent's Screen row printed when drawn.
+    ///
+    /// PHASE 337.3 (PS1 re-pointed, build/p3373/SPEC.md D21): the Terminal's
+    /// top right is ONE ⋯ (`menu`: its label, frame and whether it can be
+    /// pressed), End and the Catch Me Up icon are no longer in the bar, so
+    /// every identified element inside the bar (`navIds`) and on the page
+    /// (`ids`, the rows left out) is printed for the probe to look for them;
+    /// then the menu is opened, read (its own `terminal-menu` line) and put
+    /// away. On Catch Me Up, `end` is its top bar's End, as before.
     private func endTop() {
-        guard poll({ self.sessionSettled($0) && self.has($0, Seen.sessionEnd) }) else { return missing("end-top") }
+        guard poll({ self.sessionSettled($0) && (self.has($0, Seen.sessionEnd) || self.has($0, Seen.terminalMenu)) }) else { return missing("end-top") }
         let found = tree()
         let nav = app.navigationBars.firstMatch
+        let navFrame: CGRect? = nav.exists ? nav.frame : nil
         let window = (try? app.snapshot())?.frame.size ?? .zero
-        let icon = element(Seen.sessionOpenCatchUp)
+        let menu = menuButton()
         lines.emit([
             "step": "end-top",
             "face": faceOf(found),
+            "menu": find(found, Seen.terminalMenu).map { ["label": $0.label, "frame": frameOf($0.frame), "hittable": menu.exists && menu.isHittable] as Any } ?? NSNull(),
             "end": find(found, Seen.sessionEnd).map { ["label": $0.label, "frame": frameOf($0.frame), "hittable": element(Seen.sessionEnd).isHittable] as Any } ?? NSNull(),
-            "catchUp": find(found, Seen.sessionOpenCatchUp).map { ["label": $0.label, "frame": frameOf($0.frame), "hittable": icon.isHittable] as Any } ?? NSNull(),
-            "nav": nav.exists ? frameOf(nav.frame) as Any : NSNull(),
+            "nav": navFrame.map { frameOf($0) as Any } ?? NSNull(),
+            "navIds": navIds(found, navFrame),
+            "ids": pageIds(found),
             "endBar": has(found, Seen.sessionEndBar),
             "screen": find(found, Seen.sessionOpenScreen).map { frameOf($0.frame) as Any } ?? NSNull(),
             "window": [Double(window.width), Double(window.height)]
         ])
+        if faceOf(found) == "terminal", has(found, Seen.terminalMenu) {
+            let read = openTerminalMenu(for: "end-top")
+            if read.opened { closeTerminalMenu(for: "end-top") }
+        }
     }
 
     // MARK: Phase 337.1: terminal first, scrollback, Catch Me Up
@@ -2721,25 +2939,29 @@ private final class Drive {
     }
 
     /// THE ONE HELPER (build/p3371/SPEC.md section 7.8, section Attack B6):
-    /// when the Terminal is the face, its Catch Me Up icon pressed and Catch
-    /// Me Up waited for; when Catch Me Up already is, nothing. One line says
-    /// which face the step found and which it read. False when Catch Me Up
-    /// could not be reached.
+    /// when the Terminal is the face, Catch Me Up pressed and waited for; when
+    /// Catch Me Up already is, nothing. One line says which face the step
+    /// found and which it read. False when Catch Me Up could not be reached.
+    ///
+    /// Since Phase 337.3 (build/p3373/SPEC.md D22) Catch Me Up is the first
+    /// item of the Terminal's ⋯ menu, opened and read by `openTerminalMenu`
+    /// (its own line), and the face line says `via`.
     @discardableResult
     private func toCatchUp(for step: String) -> Bool {
         let was = faceOf(tree())
         if was == "catch-up" {
-            lines.emit(["step": "face", "for": step, "was": was, "now": was, "title": navTexts()])
+            lines.emit(["step": "face", "for": step, "was": was, "now": was, "via": "already", "title": navTexts()])
             return true
         }
-        let icon = element(Seen.sessionOpenCatchUp)
-        guard icon.waitForExistence(timeout: 10) else {
-            lines.emit(["step": "face", "for": step, "was": was, "now": NSNull(), "title": navTexts()])
+        let read = openTerminalMenu(for: step)
+        guard let item = read.catchUp else {
+            if read.opened { closeTerminalMenu(for: step) }
+            lines.emit(["step": "face", "for": step, "was": was, "now": NSNull(), "via": "menu", "title": navTexts()])
             return false
         }
-        icon.tap()
+        item.element.tap()
         let ok = poll { self.has($0, Seen.catchUpScreen) && !self.has($0, Seen.catchUpLoading) }
-        lines.emit(["step": "face", "for": step, "was": was, "now": ok ? "catch-up" : NSNull(), "title": navTexts()])
+        lines.emit(["step": "face", "for": step, "was": was, "now": ok ? "catch-up" : NSNull(), "via": "menu", "title": navTexts()])
         return ok
     }
 
@@ -2764,9 +2986,12 @@ private final class Drive {
     /// The Terminal as drawn, from ONE snapshot: every live row and every
     /// history row with its label and frame, the grid, the button back to
     /// live, the scrollback line, the line under the grid, the keyboard and
-    /// the face, stamped by the clock.
-    private func terminalReading() -> [String: Any] {
-        let found = tree()
+    /// the face, stamped by the clock. Since Phase 337.3 the key bar's frame
+    /// too (PF6 holds the live bottom above it), and a snapshot already taken
+    /// may be handed in, so the first frame is read from the very snapshot
+    /// that first held a row.
+    private func terminalReading(_ given: [Found]? = nil) -> [String: Any] {
+        let found = given ?? tree()
         var live: [[String: Any]] = []
         var history: [[String: Any]] = []
         for f in found {
@@ -2789,6 +3014,7 @@ private final class Drive {
             "scrollbackLine": find(found, Seen.screenScrollbackLine).map { ["label": $0.label, "frame": frameOf($0.frame)] as Any } ?? NSNull(),
             "line": find(found, Seen.screenLine).map { ["label": $0.label, "frame": frameOf($0.frame)] as Any } ?? NSNull(),
             "keyboard": keyboard.exists ? frameOf(keyboard.frame) as Any : NSNull(),
+            "keyBar": find(found, Seen.screenKeyBar).map { frameOf($0.frame) as Any } ?? NSNull(),
             "copy": has(found, Seen.screenCopy)
         ]
     }
@@ -2796,19 +3022,27 @@ private final class Drive {
     /// `terminal-open:<id>` (PS10): a list row tapped and the Terminal waited
     /// for, the tap-to-first-row time printed (it holds the one session read
     /// that decides the face); the status line's parts, the top bar's trailing
-    /// items (the icon, then End), every label the app draws, and whether the
-    /// icon is row-shaped.
+    /// items, every label the app draws, and whether the item is row-shaped.
+    ///
+    /// PHASE 337.3 (build/p3373/SPEC.md section 7.3): `first` is the Terminal
+    /// read from the VERY snapshot that first held a row (the fill's first
+    /// frame, PF1), every drawn row and the grid's frame; the top right is
+    /// one ⋯ (`menu`) and every identified element inside the bar is printed
+    /// (`navIds`), End's line beside them; after the dump the ⋯ is opened,
+    /// its two items read (its own `terminal-menu` line) and put away.
     private func terminalOpen(_ sessionId: String) {
         if !onSessionsList() { goToSessionsList() }
         guard onSessionsList(), let row = reveal(Seen.row(sessionId)) else { return missing("terminal-open") }
         let tapped = Date()
         row.tap()
         var firstRowMs: Double?
+        var first: [String: Any]?
         let deadline = Date().addingTimeInterval(wait)
         while Date() < deadline {
             let found = tree()
             if found.contains(where: { index($0.id, after: Seen.screenRow) != nil }) {
                 firstRowMs = Date().timeIntervalSince(tapped) * 1000
+                first = terminalReading(found)
                 break
             }
             if has(found, Seen.catchUpScreen) || has(found, Seen.sessionFailureId) { break }
@@ -2817,9 +3051,10 @@ private final class Drive {
         let found = tree()
         let window = (try? app.snapshot())?.frame.size ?? .zero
         let part = { (id: String) -> Any in self.find(found, id).map { ["label": $0.label, "frame": self.frameOf($0.frame)] as Any } ?? NSNull() }
-        let icon = element(Seen.sessionOpenCatchUp)
+        let menu = menuButton()
         let end = element(Seen.sessionEnd)
         let nav = app.navigationBars.firstMatch
+        let navFrame: CGRect? = nav.exists ? nav.frame : nil
         lines.emit([
             "step": "terminal-open",
             "id": sessionId,
@@ -2830,18 +3065,26 @@ private final class Drive {
             "statusWord": part(Seen.sessionStatus),
             "agent": part(Seen.sessionAgent),
             "machine": part(Seen.sessionMachine),
-            "catchUp": find(found, Seen.sessionOpenCatchUp).map { ["label": $0.label, "frame": frameOf($0.frame), "hittable": icon.isHittable] as Any } ?? NSNull(),
+            "endLine": part(Seen.sessionEndLine),
+            "menu": find(found, Seen.terminalMenu).map { ["label": $0.label, "frame": frameOf($0.frame), "hittable": menu.exists && menu.isHittable] as Any } ?? NSNull(),
             "end": find(found, Seen.sessionEnd).map { ["label": $0.label, "frame": frameOf($0.frame), "hittable": end.isHittable] as Any } ?? NSNull(),
-            "nav": nav.exists ? frameOf(nav.frame) as Any : NSNull(),
+            "nav": navFrame.map { frameOf($0) as Any } ?? NSNull(),
+            "navIds": navIds(found, navFrame),
             "title": navTexts(),
             "labels": allLabels(),
             "window": [Double(window.width), Double(window.height)],
+            "first": first.map { $0 as Any } ?? NSNull(),
             "reading": terminalReading()
         ])
         dump("terminal")
+        if faceOf(found) == "terminal", has(found, Seen.terminalMenu) {
+            let read = openTerminalMenu(for: "terminal-open")
+            if read.opened { closeTerminalMenu(for: "terminal-open") }
+        }
     }
 
-    /// `catch-up` (PS15): the icon pressed; Catch Me Up's turns, its now card,
+    /// `catch-up` (PS15): Catch Me Up pressed (since Phase 337.3 the ⋯ menu's
+    /// first item, through `toCatchUp`); Catch Me Up's turns, its now card,
     /// its message box, End and the title read; Back; the Terminal read.
     private func catchUp() {
         guard poll({ self.sessionSettled($0) }), toCatchUp(for: "catch-up") else { return missing("catch-up") }
@@ -2952,8 +3195,9 @@ private final class Drive {
     /// `keyboard-glitch` (PS14, section 14 M12): row 0 and the grid read at
     /// rest, with the keyboard up (and the line under the grid against the
     /// keyboard's top), right after the bar's hide key, and 2 s later; then a
-    /// long press and drag along row 3 with Copy, the icon and End read for
-    /// whether each can be pressed while it is held, Copy pressed (the probe
+    /// long press and drag along row 3 with Copy and the ⋯ (Phase 337.3; the
+    /// icon and End before it) read for whether each can be pressed, and
+    /// where, while it is held, Copy pressed (the probe
     /// reads the pasteboard on its file), and row 0 read after. Then, with the
     /// keyboard up again and the terminal scrolled back, the button back to
     /// live against the keyboard's top, and the hide key.
@@ -2984,9 +3228,13 @@ private final class Drive {
             start.press(forDuration: 1.0, thenDragTo: end)
             let copy = element(Seen.screenCopy)
             let copyUp = copy.waitForExistence(timeout: 5)
+            // Phase 337.3: Copy beside the ⋯, the top right's one item.
+            let menu = menuButton()
             copyHeld = [
                 "copy": copyUp && copy.isHittable,
-                "catchUp": element(Seen.sessionOpenCatchUp).exists && element(Seen.sessionOpenCatchUp).isHittable,
+                "menu": menu.exists && menu.isHittable,
+                "copyFrame": copyUp ? frameOf(copy.frame) as Any : NSNull(),
+                "menuFrame": menu.exists ? frameOf(menu.frame) as Any : NSNull(),
                 "end": element(Seen.sessionEnd).exists && element(Seen.sessionEnd).isHittable,
                 "reading": terminalReading()
             ]
@@ -3202,6 +3450,415 @@ private final class Drive {
             stack.append(contentsOf: node.children.reversed())
         }
         lines.emit(["step": "setup-inventory", "for": name, "labels": labels, "elements": elements])
+    }
+
+    // MARK: Phase 337.3: the terminal fills the phone
+
+    /// The ⋯ itself: a button carrying its identifier (SwiftUI hands the menu
+    /// and its button the same one, build/p3373/SPEC.md section 14 M5), else
+    /// any element that carries it.
+    private func menuButton() -> XCUIElement {
+        let button = app.buttons.matching(identifier: Seen.terminalMenu).firstMatch
+        return button.exists ? button : element(Seen.terminalMenu)
+    }
+
+    /// An item of the open menu: by its identifier, and only when that is
+    /// absent by one of its words (`via` says which).
+    private func menuItem(id: String, words: [String]) -> (element: XCUIElement, via: String)? {
+        let byId = app.buttons.matching(identifier: id).firstMatch
+        if byId.exists { return (byId, "id") }
+        for word in words {
+            let byLabel = app.buttons.matching(NSPredicate(format: "label == %@", word)).firstMatch
+            if byLabel.exists { return (byLabel, "label") }
+        }
+        return nil
+    }
+
+    /// An item read into the line the probe reads.
+    private func itemLine(_ item: MenuItemRead) -> [String: Any] {
+        ["id": item.identifier, "label": item.label, "enabled": item.enabled, "frame": frameOf(item.frame), "via": item.via]
+    }
+
+    /// THE ONE HELPER THAT OPENS THE ⋯ (build/p3373/SPEC.md section 7.3). Any
+    /// confirmation still leaving is waited for first (section 14 M7: a menu
+    /// opened one second after a dialog's Cancel on iOS 26.3 showed no item);
+    /// then `terminal-menu` is tapped and its first item waited for up to 5 s,
+    /// tapped once more if none came. It prints ONE `terminal-menu` line: the
+    /// ⋯'s frame, label and whether it could be pressed, the navigation
+    /// bar's frame, each of the two items (by identifier, else by its words,
+    /// `via` printed), every row of the open menu from one snapshot (the
+    /// buttons in the column its first item stands in, top first), and the
+    /// owner check's glyph: the open menu's image whose identifier is
+    /// `faceid`, `touchid` or `lock`. The menu is left OPEN; the caller
+    /// presses an item or calls `closeTerminalMenu`.
+    @discardableResult
+    private func openTerminalMenu(for step: String) -> MenuRead {
+        let settle = Date().addingTimeInterval(5)
+        while (app.sheets.firstMatch.exists || app.alerts.firstMatch.exists) && Date() < settle {
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        let menu = menuButton()
+        let nav = app.navigationBars.firstMatch
+        let found = menu.waitForExistence(timeout: 10)
+        let menuFrame: Any = found ? frameOf(menu.frame) : NSNull()
+        let menuLabel: Any = found ? menu.label : NSNull()
+        let menuHittable = found && menu.isHittable
+        let navFrame: Any = nav.exists ? frameOf(nav.frame) : NSNull()
+        var opened = false
+        var taps = 0
+        while found && !opened && taps < 2 {
+            taps += 1
+            menu.tap()
+            let deadline = Date().addingTimeInterval(5)
+            while !opened && Date() < deadline {
+                opened = menuItem(id: Seen.terminalMenuCatchUp, words: [Seen.catchMeUpWords]) != nil
+                if !opened { Thread.sleep(forTimeInterval: 0.1) }
+            }
+        }
+        var catchUp: MenuItemRead?
+        var end: MenuItemRead?
+        var rows: [[String: Any]] = []
+        var glyphs: [[String: String]] = []
+        var glyphVia = "none"
+        if opened {
+            for (id, words) in [(Seen.terminalMenuCatchUp, [Seen.catchMeUpWords]), (Seen.terminalMenuEnd, [Seen.endSessionWords, Seen.endingWords])] {
+                guard let hit = menuItem(id: id, words: words) else { continue }
+                let read = MenuItemRead(element: hit.element, via: hit.via, identifier: hit.element.identifier, label: hit.element.label, enabled: hit.element.isEnabled, frame: hit.element.frame)
+                if id == Seen.terminalMenuCatchUp { catchUp = read } else { end = read }
+            }
+            // ONE snapshot: the menu's rows and the images inside them.
+            if let anchor = catchUp?.frame ?? end?.frame, let root = try? app.snapshot() {
+                var buttons: [XCUIElementSnapshot] = []
+                var images: [XCUIElementSnapshot] = []
+                var stack: [XCUIElementSnapshot] = [root]
+                while let node = stack.popLast() {
+                    if node.elementType == .button { buttons.append(node) }
+                    if node.elementType == .image { images.append(node) }
+                    stack.append(contentsOf: node.children.reversed())
+                }
+                let column = buttons.filter { abs($0.frame.minX - anchor.minX) <= 2 && abs($0.frame.width - anchor.width) <= 2 && $0.frame.height > 0 }
+                var seenRows = Set<String>()
+                for b in column.sorted(by: { $0.frame.minY < $1.frame.minY }) {
+                    let key = "\(Int(b.frame.minY.rounded()))|\(b.identifier)|\(b.label)"
+                    guard seenRows.insert(key).inserted else { continue }
+                    rows.append(["id": b.identifier, "label": b.label, "enabled": b.isEnabled, "frame": frameOf(b.frame)])
+                }
+                let owner = images.filter { Seen.ownerGlyphs.contains($0.identifier) }
+                let inRows = owner.filter { img in column.contains { $0.frame.contains(CGPoint(x: img.frame.midX, y: img.frame.midY)) } }
+                let chosen = inRows.isEmpty ? owner : inRows
+                glyphVia = chosen.isEmpty ? "none" : (inRows.isEmpty ? "app" : "row")
+                var seenGlyph = Set<String>()
+                for img in chosen where seenGlyph.insert(img.identifier).inserted {
+                    glyphs.append(["id": img.identifier, "label": img.label])
+                }
+            }
+        }
+        let glyph = glyphs.first?["id"] ?? ""
+        lines.emit([
+            "step": "terminal-menu",
+            "for": step,
+            "found": found,
+            "menu": found ? ["label": menuLabel, "frame": menuFrame, "hittable": menuHittable] as Any : NSNull(),
+            "nav": navFrame,
+            "taps": taps,
+            "opened": opened,
+            "catchUp": catchUp.map(itemLine) ?? NSNull(),
+            "end": end.map(itemLine) ?? NSNull(),
+            "rows": rows,
+            "glyphs": glyphs,
+            "glyph": glyph,
+            "glyphVia": glyphVia,
+            "orientation": XCUIDevice.shared.orientation.rawValue
+        ])
+        return MenuRead(found: found, opened: opened, catchUp: catchUp, end: end, glyph: glyph, glyphs: glyphs)
+    }
+
+    /// The open ⋯ menu put away with no item pressed: one press on the status
+    /// line's leading edge, which the menu never covers (it hangs from the
+    /// bar's trailing edge) and which does nothing if the press reaches it;
+    /// with no status line, the bar between the back button and the menu.
+    /// Waits up to 3 s for the menu to go and prints whether it went.
+    private func closeTerminalMenu(for step: String) {
+        guard let first = menuItem(id: Seen.terminalMenuCatchUp, words: [Seen.catchMeUpWords]) else { return }
+        let items = [first.element.frame] + [menuItem(id: Seen.terminalMenuEnd, words: [Seen.endSessionWords, Seen.endingWords])?.element.frame].compactMap { $0 }
+        var point: CGPoint?
+        if let status = find(tree(), Seen.terminalStatus)?.frame, status.height > 0 {
+            point = CGPoint(x: status.minX + 8, y: status.midY)
+        } else {
+            let nav = app.navigationBars.firstMatch
+            if nav.exists {
+                let back = nav.buttons.element(boundBy: 0)
+                let left = back.exists ? back.frame.maxX + 8 : nav.frame.minX + 8
+                point = CGPoint(x: left, y: nav.frame.midY)
+            }
+        }
+        if let p = point, items.contains(where: { $0.contains(p) }) { point = nil }
+        let at = point ?? CGPoint(x: 8, y: app.frame.height * 0.2)
+        app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: at.x, dy: at.y)).tap()
+        var gone = false
+        let deadline = Date().addingTimeInterval(3)
+        while !gone && Date() < deadline {
+            gone = menuItem(id: Seen.terminalMenuCatchUp, words: [Seen.catchMeUpWords]) == nil
+            if !gone { Thread.sleep(forTimeInterval: 0.1) }
+        }
+        lines.emit(["step": "terminal-menu-closed", "for": step, "gone": gone, "at": [Double(at.x), Double(at.y)]])
+    }
+
+    /// Every identified element inside the navigation bar's frame (a point of
+    /// slack each way): what the Terminal's top bar holds, on any build.
+    private func navIds(_ found: [Found], _ nav: CGRect?) -> [[String: Any]] {
+        guard let nav, nav.height > 0 else { return [] }
+        var seen = Set<String>()
+        return found.filter { f in
+            f.frame.minY >= nav.minY - 1 && f.frame.maxY <= nav.maxY + 1 && f.frame.height > 0 && seen.insert(f.id).inserted
+        }.map { ["id": $0.id, "label": $0.label, "frame": frameOf($0.frame)] }
+    }
+
+    /// Every identifier on the page once, the terminal's rows and history and
+    /// an answer's blocks left out, so a press that should be gone is looked for.
+    private func pageIds(_ found: [Found]) -> [String] {
+        var seen = Set<String>()
+        return found.map(\.id).filter { id in
+            !id.hasPrefix(Seen.screenRow) && !id.hasPrefix(Seen.screenHistory) && !id.hasPrefix(Seen.md) && seen.insert(id).inserted
+        }
+    }
+
+    /// The Terminal's chrome from ONE snapshot (build/p3373/SPEC.md D15 to
+    /// D17): the navigation bars, the first one's words and every identified
+    /// element inside it, the ⋯, the status line, the tray's presses, the tab bars with
+    /// their buttons (label, badge value, frame), any button outside a bar
+    /// that carries a tab's word, every Copy (`screen-copy`, one at a time),
+    /// the grid, End's line, the window and the orientation; and, beside the
+    /// snapshot, whether the ⋯ can be pressed.
+    private func chromeReading() -> [String: Any] {
+        guard let root = try? app.snapshot() else { return ["read": false] }
+        var navs: [CGRect] = []
+        var tabs: [CGRect] = []
+        var tabButtons: [[String: Any]] = []
+        var buttons: [XCUIElementSnapshot] = []
+        var found: [Found] = []
+        var stack: [(XCUIElementSnapshot, Bool)] = [(root, false)]
+        while let (node, inTab) = stack.popLast() {
+            let isTab = node.elementType == .tabBar
+            if node.elementType == .navigationBar { navs.append(node.frame) }
+            if isTab { tabs.append(node.frame) }
+            if node.elementType == .button {
+                buttons.append(node)
+                if inTab { tabButtons.append(["label": node.label, "value": (node.value as? String).map { $0 as Any } ?? NSNull(), "frame": frameOf(node.frame)]) }
+            }
+            if !node.identifier.isEmpty { found.append(Found(id: node.identifier, label: node.label, frame: node.frame)) }
+            for child in node.children.reversed() { stack.append((child, inTab || isTab)) }
+        }
+        let navFrame = navs.first
+        let inNav = { (f: CGRect) in navs.contains { $0.insetBy(dx: -1, dy: -1).contains(f) } }
+        let tabWords = buttons.filter { b in Seen.tabWords.contains(b.label) && !inNav(b.frame) && b.identifier != "BackButton" }.map { ["label": $0.label, "frame": frameOf($0.frame)] as [String: Any] }
+        let tray = found.compactMap { f -> [String: Any]? in
+            guard let n = index(f.id, after: Seen.sessionChoicePressPrefix) else { return nil }
+            return ["n": n, "label": f.label, "frame": frameOf(f.frame)]
+        }
+        let part = { (id: String) -> Any in self.find(found, id).map { ["label": $0.label, "frame": self.frameOf($0.frame)] as Any } ?? NSNull() }
+        let menu = menuButton()
+        return [
+            "read": true,
+            "navs": navs.count,
+            "nav": navFrame.map { frameOf($0) as Any } ?? NSNull(),
+            // The bar's words (PL4 holds the session's name among them upright again).
+            "navTexts": navTexts(),
+            "navIds": navIds(found, navFrame),
+            "menu": part(Seen.terminalMenu),
+            "menuHittable": menu.exists && menu.isHittable,
+            "status": part(Seen.terminalStatus),
+            "endLine": part(Seen.sessionEndLine),
+            "tray": tray,
+            "tabBars": tabs.count,
+            "tabBar": tabs.first.map { frameOf($0) as Any } ?? NSNull(),
+            "tabButtons": tabButtons,
+            "tabWords": tabWords,
+            "copies": found.filter { $0.id == Seen.screenCopy }.map { frameOf($0.frame) },
+            "grid": part(Seen.screenGrid),
+            "toLive": part(Seen.screenToLive),
+            "window": [Double(root.frame.width), Double(root.frame.height)],
+            "orientation": XCUIDevice.shared.orientation.rawValue
+        ]
+    }
+
+    /// SpringBoard's status bar as XCUITest reads it: printed and never graded
+    /// (section 14 M8, it is reported shown whether or not it is).
+    private func statusBarFrame() -> Any {
+        let bar = springboard.statusBars.firstMatch
+        return bar.exists ? frameOf(bar.frame) : NSNull()
+    }
+
+    /// `chrome`: the chrome, the status bar and the Terminal, now.
+    private func emitChrome(_ step: String) {
+        lines.emit(["step": step, "chrome": chromeReading(), "statusBar": statusBarFrame(), "reading": terminalReading()])
+    }
+
+    /// `landscape` and `portrait`: the device turned, 3 s for the page to lay
+    /// out, then the chrome, the status bar and the Terminal read.
+    private func turn(to orientation: UIDeviceOrientation, step: String) {
+        XCUIDevice.shared.orientation = orientation
+        Thread.sleep(forTimeInterval: 3)
+        emitChrome(step)
+    }
+
+    /// The device sideways when it is not already, for a step that runs there.
+    private func sideways() {
+        guard !XCUIDevice.shared.orientation.isLandscape else { return }
+        XCUIDevice.shared.orientation = .landscapeLeft
+        Thread.sleep(forTimeInterval: 3)
+    }
+
+    /// `fill-hold:<s>` (PF1, PF3, PF4): the finger lifted, the Terminal read
+    /// every quarter second for `s` seconds, each reading the grid's frame and
+    /// every drawn row with its label and frame, stamped by the clock.
+    private func fillHold(seconds: TimeInterval, step: String, extra: [String: Any] = [:]) {
+        var readings: [[String: Any]] = []
+        let deadline = Date().addingTimeInterval(seconds)
+        while Date() < deadline {
+            readings.append(terminalReading())
+            Thread.sleep(forTimeInterval: 0.25)
+        }
+        var object: [String: Any] = ["step": step, "seconds": seconds, "readings": readings]
+        for (k, v) in extra { object[k] = v }
+        lines.emit(object)
+    }
+
+    /// `stream-hold:<s>` (PF2): `stream-ready` printed and the probe's
+    /// `screen-<seq>` waited for, which starts the stand-in's stream, then the
+    /// readings of `fill-hold` for `s` seconds while it streams.
+    private func streamHold(seconds: TimeInterval) {
+        let seq = lines.emit(["step": "stream-ready", "reading": terminalReading()])
+        let acked = ack("screen-\(seq)")
+        fillHold(seconds: seconds, step: "stream-hold", extra: ["acked": acked])
+    }
+
+    /// `return-hold:<away>:<s>` (PF8, the Phase 337.3 reverify's band): with
+    /// the session printing (`stream-ready` printed and the probe's ack
+    /// waited for, which starts the stand-in's stream), Catch Me Up through
+    /// the ⋯ menu, `away` seconds there while it prints, Back to the
+    /// Terminal, then the readings of `fill-hold` for `s` seconds, with the
+    /// moment of the return stamped by the same clock as each reading.
+    private func returnHold(away: TimeInterval, seconds: TimeInterval) {
+        let seq = lines.emit(["step": "stream-ready", "reading": terminalReading()])
+        let acked = ack("screen-\(seq)")
+        Thread.sleep(forTimeInterval: 1)
+        let left = toCatchUp(for: "return-hold")
+        Thread.sleep(forTimeInterval: away)
+        let back = app.navigationBars.buttons.element(boundBy: 0)
+        if back.exists { back.tap() }
+        let returned = poll { self.has($0, Seen.screenScreen) }
+        let backAt = Date().timeIntervalSince1970 * 1000
+        fillHold(seconds: seconds, step: "return-hold", extra: ["acked": acked, "left": left, "returned": returned, "backAt": backAt, "away": away])
+    }
+
+    /// Every key of the key bar: its identifier, label, frame and whether it
+    /// can be pressed.
+    private func keyBarKeys() -> [[String: Any]] {
+        tree().filter { $0.id.hasPrefix(Seen.screenKey) && $0.id != Seen.screenKeyBar && $0.id != Seen.screenKeyField }.map { f in
+            ["id": f.id, "label": f.label, "frame": frameOf(f.frame), "hittable": element(f.id).isHittable] as [String: Any]
+        }
+    }
+
+    /// `landscape-type:<b64url>` (PL2): sideways, the grid tapped, the
+    /// keyboard and the key bar's keys read, `landscape-type-ready` printed and
+    /// the probe's file waited for (it marks the recorder there), the words
+    /// typed, the key bar's return pressed, then its hide key, the Terminal
+    /// read at each step.
+    private func landscapeType(_ b64url: String) {
+        guard let text = Self.words(b64url) else { return missing("landscape-type") }
+        sideways()
+        let grid = element(Seen.screenGrid)
+        guard grid.waitForExistence(timeout: 10) else { return missing("landscape-type") }
+        let before = terminalReading()
+        grid.tap()
+        let up = app.keyboards.firstMatch.waitForExistence(timeout: 5)
+        passKeyboardIntroduction()
+        Thread.sleep(forTimeInterval: 1)
+        let withKeyboard = terminalReading()
+        let keys = keyBarKeys()
+        let seq = lines.emit(["step": "landscape-type-ready", "keyboard": up, "keys": keys])
+        _ = ack("screen-\(seq)")
+        app.typeText(text)
+        let ret = element(Seen.screenKey + "return")
+        let returned = ret.waitForExistence(timeout: 5)
+        if returned { ret.tap() }
+        Thread.sleep(forTimeInterval: 1.5)
+        let typed = terminalReading()
+        let hide = element(Seen.screenKey + Seen.keyHide)
+        let hid = hide.waitForExistence(timeout: 5)
+        if hid { hide.tap() }
+        Thread.sleep(forTimeInterval: 1)
+        lines.emit([
+            "step": "landscape-type",
+            "typed": text.count,
+            "keyboard": up,
+            "keys": keys,
+            "returnFound": returned,
+            "hideKey": hid,
+            "keyboardAfter": app.keyboards.firstMatch.exists,
+            "before": before,
+            "withKeyboard": withKeyboard,
+            "afterTyping": typed,
+            "after": terminalReading(),
+            "orientation": XCUIDevice.shared.orientation.rawValue,
+            "auth": ownerCheckUp()
+        ])
+    }
+
+    /// `landscape-select:<n>` (PL3): sideways, a long press along live row
+    /// `n`, `screen-copy` read (every one drawn, its frame against the grid's,
+    /// whether it can be pressed), Copy pressed, `landscape-copied` printed and
+    /// the probe's file waited for (it reads the device's pasteboard), then the
+    /// selection cleared with a tap and the keyboard put away if it rose.
+    private func landscapeSelect(_ n: Int) {
+        sideways()
+        let row = element(Seen.screenRow + String(n))
+        guard row.waitForExistence(timeout: 10) else { return missing("landscape-select") }
+        let label = row.label
+        let start = row.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.5))
+        let end = row.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.5))
+        start.press(forDuration: 1.0, thenDragTo: end)
+        let copy = element(Seen.screenCopy)
+        let copyUp = copy.waitForExistence(timeout: 5)
+        let chrome = chromeReading()
+        let hittable = copyUp && copy.isHittable
+        let copyFrame: Any = copyUp ? frameOf(copy.frame) : NSNull()
+        if hittable { copy.tap() }
+        let seq = lines.emit(["step": "landscape-copied", "n": n, "row": label, "copy": copyUp, "hittable": hittable, "copyFrame": copyFrame, "chrome": chrome, "orientation": XCUIDevice.shared.orientation.rawValue])
+        _ = ack("screen-\(seq)")
+        element(Seen.screenGrid).tap()
+        Thread.sleep(forTimeInterval: 1)
+        let hide = element(Seen.screenKey + Seen.keyHide)
+        if hide.exists { hide.tap() }
+        Thread.sleep(forTimeInterval: 0.6)
+        lines.emit(["step": "landscape-select", "n": n, "after": terminalReading()])
+    }
+
+    /// `menu-sideways` (PL5): Catch Me Up through the ⋯ menu, the device
+    /// turned sideways and the window read (only the Terminal turns), turned
+    /// upright again, and Back to the Terminal.
+    private func menuSideways() {
+        guard poll({ self.sessionSettled($0) }), toCatchUp(for: "menu-sideways") else { return missing("menu-sideways") }
+        let upright = (try? app.snapshot())?.frame.size ?? .zero
+        XCUIDevice.shared.orientation = .landscapeLeft
+        Thread.sleep(forTimeInterval: 3)
+        let window = (try? app.snapshot())?.frame.size ?? .zero
+        let orientation = XCUIDevice.shared.orientation.rawValue
+        let face = faceOf(tree())
+        XCUIDevice.shared.orientation = .portrait
+        Thread.sleep(forTimeInterval: 2)
+        let back = app.navigationBars.buttons.element(boundBy: 0)
+        if back.exists { back.tap() }
+        let returned = poll { self.has($0, Seen.screenScreen) }
+        lines.emit([
+            "step": "menu-sideways",
+            "face": face,
+            "uprightWindow": [Double(upright.width), Double(upright.height)],
+            "window": [Double(window.width), Double(window.height)],
+            "orientation": orientation,
+            "backToTerminal": returned
+        ])
     }
 
     private func missing(_ step: String) {

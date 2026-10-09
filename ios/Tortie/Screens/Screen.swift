@@ -41,6 +41,17 @@
 // on top as it appears and that it is not as it goes, and App/AppDelegate.swift
 // answers portrait whenever it is not (App/Orientation.swift), so Catch Me Up
 // pushed over the Terminal is portrait.
+//
+// SIDEWAYS IT IS THE TERMINAL ALONE (Phase 337.3, build/p3373/SPEC.md D15 to
+// D19; his words: "when you're in horiztonal mode, i want to show as much of
+// the terminal as possible and not the top which shows you which session
+// you're in or the different bottom needs input, sessions or settings
+// menu"). While the vertical size class is compact, which on an iPhone is
+// exactly landscape, the page hides the navigation bar and the tab bar with
+// SwiftUI's own `toolbarVisibility`, and the status bar, and draws no header
+// and no tray, inside the window's safe area; Copy for a selection moves to
+// the terminal's bottom right. Upright every one of them is drawn as before.
+// Every decision is one member of `TerminalChrome`.
 
 import SwiftUI
 
@@ -187,24 +198,72 @@ struct ScreenCover: View {
     }
 }
 
+// MARK: - Upright and sideways
+
+/// What the Terminal's page draws upright and sideways (Phase 337.3,
+/// build/p3373/SPEC.md D15 to D17): every decision is one member here, which
+/// `ScreenPage` asks and TerminalChromeTests reads. Sideways is a COMPACT
+/// VERTICAL size class, which on an iPhone is exactly landscape; never the
+/// horizontal one, which is compact upright on every iPhone and would hide
+/// the bars upright. No size class (nil) is upright.
+struct TerminalChrome {
+    /// The phone is sideways.
+    let landscape: Bool
+
+    init(_ sizeClass: UserInterfaceSizeClass?) {
+        landscape = sizeClass == .compact
+    }
+
+    /// The header (the status line and End's line): upright only.
+    var header: Bool { !landscape }
+
+    /// The question's tray: upright only, and only while the keyboard
+    /// neither covers the terminal nor is wanted (Phase 337.1's fix round).
+    func tray(overlap: CGFloat, typing: Bool) -> Bool {
+        !landscape && overlap == 0 && !typing
+    }
+
+    /// The navigation bar and the tab bar: hidden sideways, the system's own
+    /// upright.
+    var bars: Visibility { landscape ? .hidden : .automatic }
+
+    /// The status bar: hidden sideways, where the system allows it.
+    var statusBarHidden: Bool { landscape }
+
+    /// Copy in the top bar, while a selection is held and every selected row
+    /// is drawn (`drawn`): upright only.
+    func toolbarCopy(_ drawn: Bool) -> Bool { drawn && !landscape }
+
+    /// Copy over the terminal's bottom right: sideways only, where the bar
+    /// that holds it upright is hidden (D17). The complement of
+    /// `toolbarCopy`, so one Copy is drawn at a time.
+    func overlayCopy(_ drawn: Bool) -> Bool { drawn && landscape }
+}
+
 // MARK: - The screen
 
 /// The Terminal's page (Phase 337, rebuilt by Phase 337.1, build/p3371/SPEC.md
-/// D17, D19, D24, D27, D31 and section 5.5.4): generic over the page that
-/// holds it, which hands it the header under the navigation bar (the
-/// Terminal's status line), the tray under the terminal (the question's
-/// buttons), and the trailing items of its top bar (the Catch Me Up icon, then
-/// End). It draws the header, the terminal, the line (D23's words, or the
-/// scrollback edge's) and the back-to-live button over the terminal's bottom,
-/// the tray while the keyboard is down, and its toolbar: the principal title,
-/// Copy while a selection is held and every selected row is drawn, then the
-/// trailing items.
+/// D17, D19, D24, D27, D31 and section 5.5.4; Phase 337.3, build/p3373/SPEC.md
+/// D13, D15 to D19): generic over the page that holds it, which hands it the
+/// header under the navigation bar (the Terminal's status line), the tray
+/// under the terminal (the question's buttons), and the trailing items of its
+/// top bar (the Terminal's ⋯). Upright it draws the header, the terminal, its
+/// lines (D23's words, or the scrollback edge's) over the terminal's TOP, the
+/// back-to-live button over its bottom right, the tray while the keyboard is
+/// down, and its toolbar: the principal title, Copy while a selection is held
+/// and every selected row is drawn, then the trailing items. Sideways
+/// (`TerminalChrome`) it draws the terminal alone: no navigation bar, no tab
+/// bar, no status bar, no header and no tray, and Copy over the terminal's
+/// bottom right, above the back-to-live button.
 ///
 /// THE KEYBOARD (D24, §Attack B4): the page's ROOT opts out of the keyboard's
 /// safe area, ONCE, and nothing inside it does, so the terminal's frame never
 /// follows the keyboard; the terminal's own scroll view reads the keyboard's
-/// overlap and publishes it here, and the line and the back-to-live button are
-/// placed just above it.
+/// overlap and publishes it here, and the back-to-live button (and Copy
+/// sideways) is placed just above it. The lines sit at the terminal's top
+/// since Phase 337.3 (D13): with the terminal filled, the live rows and the
+/// prompt he types into sit just above the keyboard, where a line would cover
+/// them.
 struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {
     let model: ScreenModel
     /// The keys, or nil for a pairing that writes nothing.
@@ -217,6 +276,8 @@ struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {
     let trailing: Trailing
 
     @Environment(\.scenePhase) private var scenePhase
+    /// Compact while the phone is sideways (Phase 337.3, D15).
+    @Environment(\.verticalSizeClass) private var sizeClass
     /// The keyboard is wanted.
     @State private var typing = false
     @State private var selection = ScreenSelectionModel()
@@ -247,21 +308,28 @@ struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {
         _scrollback = State(initialValue: ScrollbackModel(door: model.door))
     }
 
+    /// What this page draws upright and sideways (Phase 337.3, D15 to D17).
+    private var chrome: TerminalChrome { TerminalChrome(sizeClass) }
+
     var body: some View {
         ZStack {
             Tokens.bgCanvas.ignoresSafeArea()
             VStack(spacing: 0) {
-                header
+                // Sideways the terminal is alone (D15): no header.
+                if chrome.header {
+                    header
+                }
                 content
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .overlay(alignment: .top) { top }
                     .overlay(alignment: .bottom) { bottom }
                 // The tray is hidden while the keyboard is wanted as well as
                 // while it covers the terminal (the fix round): a tray tall
                 // enough to fill the space below the keyboard's top left the
                 // terminal itself uncovered, so its overlap read 0 and the
                 // tray stayed drawn under the keyboard (iOS 18.3, the fix
-                // round's own drive).
-                if overlap == 0, !typing {
+                // round's own drive). Sideways it is not drawn (D15, D26).
+                if chrome.tray(overlap: overlap, typing: typing) {
                     tray
                 }
             }
@@ -289,7 +357,9 @@ struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {
                     .accessibilityAddTraits(.isHeader)
             }
             ToolbarItem(placement: .topBarTrailing) {
-                if copyDrawn {
+                // Upright only: sideways the bar is hidden and Copy is drawn
+                // over the terminal's bottom right instead (D17).
+                if chrome.toolbarCopy(copyDrawn) {
                     Button { copySelection() } label: {
                         Words(Copy.copy, .body, Tokens.accent)
                     }
@@ -299,6 +369,12 @@ struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {
             }
             trailing
         }
+        // Sideways the terminal alone (D15, D16): the navigation bar and the
+        // tab bar hidden by SwiftUI's own visibility, measured right on iOS
+        // 26.3 and 18.3 (build/p3373/SPEC.md section 14 M2, M4), and the
+        // status bar where the system allows; upright each is as before.
+        .toolbarVisibility(chrome.bars, for: .navigationBar, .tabBar)
+        .statusBarHidden(chrome.statusBarHidden)
         .onAppear {
             OrientationGate.screenOnTop = true
             OrientationGate.apply()
@@ -373,12 +449,46 @@ struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {
         }
     }
 
-    /// The back-to-live button while scrolled back, then the scrollback's
-    /// line and the Terminal's own, just above the keyboard's overlap (D24,
-    /// D27).
+    /// The scrollback's line, then the Terminal's own, over the terminal's
+    /// TOP edge (Phase 337.3, D13): under the status line upright, at the
+    /// window's top sideways, an overlay that moves no row (337's fix round).
+    /// With the terminal filled the live rows and the prompt sit at its
+    /// bottom, just above the keyboard while he types, where 337.1 drew these
+    /// lines. Drawn over a terminal only: over the sentence that says why
+    /// there is none, or the loading mark, a line would cover it.
+    @ViewBuilder
+    private var top: some View {
+        if model.picture != nil {
+            VStack(spacing: 0) {
+                if let said = scrollback.line {
+                    lineView(said, id: ID.screenScrollbackLine)
+                }
+                if let line = shownLine {
+                    lineView(line, id: ID.screenLine)
+                }
+            }
+        }
+    }
+
+    /// Copy sideways (D17), then the back-to-live button while scrolled
+    /// back, at the terminal's bottom right, just above the keyboard's
+    /// overlap (D24, D27 of 337.1).
     @ViewBuilder
     private var bottom: some View {
         VStack(alignment: .trailing, spacing: 8) {
+            // Sideways the bar that holds Copy is hidden: Copy is here, the
+            // same press, and the bar's is not drawn (D17).
+            if chrome.overlayCopy(copyDrawn) {
+                Button { copySelection() } label: {
+                    Words(Copy.copy, .body, Tokens.accent)
+                        .padding(.horizontal, Frame.gutter)
+                        .frame(minHeight: 44)
+                        .background(Capsule().fill(Tokens.bgRaised))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier(ID.screenCopy)
+                .padding(.trailing, Frame.gutter)
+            }
             if scrollback.mode == .scrolled {
                 Button { scrollback.follow() } label: {
                     Image(systemName: "arrow.down.to.line")
@@ -392,13 +502,10 @@ struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {
                 .accessibilityIdentifier(ID.screenToLive)
                 .padding(.trailing, Frame.gutter)
             }
-            if let said = scrollback.line {
-                lineView(said, id: ID.screenScrollbackLine)
-            }
-            if let line = shownLine {
-                lineView(line, id: ID.screenLine)
-            }
         }
+        // At the right: with the lines at the top nothing else widens this
+        // stack, and alone it would sit at the bottom's centre.
+        .frame(maxWidth: .infinity, alignment: .trailing)
         .padding(.bottom, overlap)
     }
 
@@ -411,9 +518,9 @@ struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {
             .background(Tokens.bgCanvas)
     }
 
-    /// The one line under the terminal: a held selection, the Mac not
-    /// answering, what the keys came to, or that keys cannot reach the
-    /// session now.
+    /// The Terminal's one line, over its top since Phase 337.3 (D13): a held
+    /// selection, the Mac not answering, what the keys came to, or that keys
+    /// cannot reach the session now.
     private var shownLine: String? {
         if model.selecting { return Copy.screenHeldWhileSelecting }
         if let line = model.line { return line }

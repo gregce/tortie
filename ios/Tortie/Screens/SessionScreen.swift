@@ -7,11 +7,16 @@
 // project`, then the machine's badge for a session elsewhere), End's one line
 // under that when End has said anything, the terminal filling the rest, and
 // the numbered question's options as buttons under it (`ChoiceTray`). Top
-// right: the Catch Me Up icon, then End, End rightmost and still behind Face
-// ID. A session with no terminal (it ended, or the Mac is older than Phase
-// 337) opens on CATCH ME UP instead (`CatchUpPage`), and the face is decided
-// at the route's first answer and then kept (App/TortieApp.swift
-// `SessionRoute`), so nothing he is looking at swaps under him.
+// right, since Phase 337.3 (build/p3373/SPEC.md D21 to D24, his "an ellipses
+// in the top right that show the option to catch me up or end session"): ONE
+// ⋯ (`TerminalMenu`), a native menu of Catch Me Up, then End session… where
+// End is drawn, End still behind Face ID, Touch ID or the passcode, with a
+// progress mark beside the ⋯ while End is under way; sideways the bar is
+// hidden with everything above and below the terminal (Screens/Screen.swift).
+// A session with no terminal (it ended, or the Mac is older than Phase 337)
+// opens on CATCH ME UP instead (`CatchUpPage`), and the face is decided at the
+// route's first answer and then kept (App/TortieApp.swift `SessionRoute`), so
+// nothing he is looking at swaps under him.
 //
 // CATCH ME UP is the conversation (Screens/ConversationScreen.swift), paged
 // back from the newest turn, with THE NOW CARD after the newest turn
@@ -25,9 +30,10 @@
 // turn's answer. Docs/design/phone/Conversation.html; Session.html is the
 // Terminal at rest.
 //
-// END (Phase 317, Screens/EndBar.swift) is at the top right of both faces: on
-// a session the Mac offers End for, its press shows the Mac's own confirmation
-// and asks Face ID, Touch ID or the passcode before anything is sent.
+// END (Phase 317, Screens/EndBar.swift) is in the Terminal's ⋯ menu and at
+// the top right of Catch Me Up: on a session the Mac offers End for, either
+// press shows the Mac's own confirmation, from one modifier, and asks Face ID,
+// Touch ID or the passcode before anything is sent.
 //
 // REPLY (Phase 318, Screens/Reply.swift, Screens/MessageStrip.swift): pressing
 // an option the Mac offers, on the Terminal's tray or on the now card, and one
@@ -379,8 +385,8 @@ struct StatusLine: View {
 
 /// The Terminal: the session's live terminal (Screens/Screen.swift's
 /// `ScreenPage`, which scrolls it back), with the status line and End's line
-/// above it, the question tray under it, and the Catch Me Up icon then End at
-/// the top right.
+/// above it, the question tray under it, and one ⋯ at the top right holding
+/// Catch Me Up and End (Phase 337.3).
 struct TerminalPage: View {
     let screen: ScreenModel
     /// The keys, or nil for a pairing that writes nothing.
@@ -419,9 +425,8 @@ struct TerminalPage: View {
             // itself past that: a CGFloat times a floating literal.
             ChoiceTray(drawing: drawing, reply: reply, cap: pageHeight * 0.4) { await session.load() }
         } trailing: {
-            CatchUpItem { openCatchUp(drawing.outcome) }
-            // End, rightmost (Phase 337, D33).
-            EndTopItem(model: end, offer: drawing.end, confirm: drawing.endConfirm) { await session.load() }
+            // One ⋯: Catch Me Up, then End session… (Phase 337.3, D21).
+            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { pageHeight = $0 }
         .onAppear { follow.appeared() }
@@ -437,23 +442,104 @@ struct TerminalPage: View {
     }
 }
 
-/// The Terminal's Catch Me Up icon (D18): SF Symbols' `text.bubble` in the
-/// accent, the Mac's own speech bubble for Catch Me Up, and `Catch Me Up` as
-/// its spoken name. Not prominent (his ruling: most people will want their
-/// terminal).
-struct CatchUpItem: ToolbarContent {
-    let open: () -> Void
+/// The Terminal's top right, upright (Phase 337.3, build/p3373/SPEC.md D21,
+/// his "an ellipses in the top right that show the option to catch me up or
+/// end session"): ONE item, the ⋯. Sideways the navigation bar is hidden and
+/// this with it (Screens/Screen.swift `TerminalChrome`).
+struct TerminalMenu: ToolbarContent {
+    /// End (Phase 317), or nil for a pairing that writes nothing: then the
+    /// menu holds Catch Me Up alone.
+    let end: EndModel?
+    let offer: PocketEndOffer
+    let confirm: PocketEndConfirm?
+    /// Read the session again, after End.
+    let reread: @MainActor () async -> Bool
+    /// Push Catch Me Up.
+    let openCatchUp: () -> Void
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
-            Button(action: open) {
-                Image(systemName: "text.bubble")
-                    .foregroundStyle(Tokens.accent)
-                    .contentShape(Rectangle())
+            TerminalMenuControl(end: end, offer: offer, confirm: confirm, reread: reread, openCatchUp: openCatchUp)
+        }
+    }
+}
+
+/// The ⋯ and the mark beside it (D21 to D24). A native SwiftUI `Menu`, which
+/// iOS draws as its own menu (CLAUDE.md "native menus"), labelled SF Symbols'
+/// ellipsis in the accent and spoken `More`. Its items, in this order: Catch
+/// Me Up (the Mac's word and its speech bubble), which pushes Catch Me Up
+/// exactly as the icon before it did; then End session… exactly where End's
+/// press at the top right would be drawn, on or off as it would be (no
+/// writer, or the Mac offers no End: Catch Me Up alone). The Mac's
+/// confirmation is attached to the menu itself, outside its items, so it
+/// presents once the menu has closed, and its destructive press is
+/// `EndModel.press`, which asks Face ID, Touch ID or the passcode before
+/// anything is sent: nothing here names the owner check. While End is under
+/// way a progress mark sits left of the ⋯, so the bar never looks idle while
+/// a session is ending.
+struct TerminalMenuControl: View {
+    let end: EndModel?
+    let offer: PocketEndOffer
+    let confirm: PocketEndConfirm?
+    let reread: @MainActor () async -> Bool
+    let openCatchUp: () -> Void
+    /// The Mac's confirmation is up.
+    @State private var asking = false
+
+    /// SF Symbols' `ellipsis` on iOS 26 and later, where the bar draws its own
+    /// glass circle around an item, and `ellipsis.circle` before it.
+    nonisolated static var symbol: String {
+        if #available(iOS 26, *) { "ellipsis" } else { "ellipsis.circle" }
+    }
+
+    /// End's row in the menu, or nil when the menu draws no End: exactly where
+    /// `EndTopControl` would draw one, a writer and a row (D22).
+    nonisolated static func endRow(_ drawing: EndBarDrawing?, writes: Bool) -> EndBarDrawing.Row? {
+        writes ? drawing?.row : nil
+    }
+
+    /// The progress mark's identifier while End is under way, or nil (D24):
+    /// `end-confirming` while the owner check is up, as End's at the top
+    /// right is, and `end-writing` while the write runs.
+    nonisolated static func progressMark(_ drawing: EndBarDrawing?) -> String? {
+        guard let drawing else { return nil }
+        if drawing.confirming { return ID.endConfirming }
+        if drawing.writing { return ID.endWriting }
+        return nil
+    }
+
+    /// End as drawn now, read from its model exactly as `EndTopControl` reads
+    /// it, or nil for a pairing that writes nothing.
+    static func drawing(_ end: EndModel?, offer: PocketEndOffer, confirm: PocketEndConfirm?) -> EndBarDrawing? {
+        end.map { EndBarDrawing(offer: offer, confirm: confirm, kind: $0.kind, phase: $0.phase, line: $0.line) }
+    }
+
+    var body: some View {
+        let drawing = TerminalMenuControl.drawing(end, offer: offer, confirm: confirm)
+        HStack(spacing: 4) {
+            if let mark = TerminalMenuControl.progressMark(drawing) {
+                ProgressView()
+                    .tint(Tokens.textMuted)
+                    .accessibilityIdentifier(mark)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Text(verbatim: Copy.catchMeUp))
-            .accessibilityIdentifier(ID.sessionOpenCatchUp)
+            Menu {
+                Button(action: openCatchUp) {
+                    Label(Copy.catchMeUp, systemImage: "text.bubble")
+                }
+                .accessibilityIdentifier(ID.terminalMenuCatchUp)
+                if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {
+                    EndMenuItem(row: row, drawing: drawing) {
+                        guard drawing.confirm != nil else { return }
+                        asking = true
+                    }
+                }
+            } label: {
+                Image(systemName: TerminalMenuControl.symbol)
+                    .foregroundStyle(Tokens.accent)
+            }
+            .accessibilityLabel(Text(verbatim: Copy.more))
+            .accessibilityIdentifier(ID.terminalMenu)
+            .endConfirmation(model: end, offer: offer, confirm: confirm, drawing: drawing, isPresented: $asking, reread: reread)
         }
     }
 }

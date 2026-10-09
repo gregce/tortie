@@ -105,6 +105,8 @@ final class CopyTests: XCTestCase {
         XCTAssertEqual(byName["backToLive"], Copy.backToLive)
         XCTAssertEqual(byName["scrollbackMoved"], Copy.scrollbackMoved)
         XCTAssertEqual(byName["screenNotAnswering"], Copy.screenNotAnswering)
+        // Phase 337.3: the Terminal's ⋯, spoken `More`.
+        XCTAssertEqual(byName["more"], Copy.more)
     }
 
     /// Clause: the words the approved screens draw are drawn as they are
@@ -132,6 +134,10 @@ final class CopyTests: XCTestCase {
         let menu = try StyleSource.text("docs/design/phone/SessionsMenu.html")
         // Phase 337: the Screen, and End at the top right.
         let screenMock = try StyleSource.text("docs/design/phone/Screen.html")
+        // Phase 337.3 (build/p3373/SPEC.md section 5.7): the Terminal's ⋯
+        // open over it, and the Terminal sideways.
+        let terminalMenu = try StyleSource.text("docs/design/phone/TerminalMenu.html")
+        let landscape = try StyleSource.text("docs/design/phone/Landscape.html")
         let drawn: [(String, String)] = [
             (older, Copy.sessions),
             (older, Copy.needsYourInput(3)),
@@ -235,8 +241,9 @@ final class CopyTests: XCTestCase {
             (link, Copy.cancel),
             // Phase 317: End, and End these with the Mac sheet's words,
             // composed with the mock's own counts. Since Phase 337 End is
-            // `End` at the top right of every session's page (D33).
-            (session, Copy.endTop),
+            // `End` at the top right of a session's page (D33), and since
+            // Phase 337.3 of Catch Me Up's alone: the Terminal's End is its
+            // ⋯'s `End session…` (TerminalMenu.html, below).
             (conversation, Copy.endTop),
             (choice, Copy.endTop),
             (end, Copy.endTop),
@@ -261,6 +268,10 @@ final class CopyTests: XCTestCase {
             (screenMock, Copy.keyBackTab),
             (screenMock, Copy.keyCtrl),
             (screenMock, Copy.keyReturn),
+            // Phase 337.3 (D22): the ⋯ open over the Terminal, its two items
+            // the Mac's own words.
+            (terminalMenu, Copy.catchMeUp),
+            (terminalMenu, Copy.endSessionMenu),
         ]
         for (mock, line) in drawn {
             XCTAssertTrue(mock.contains(">" + line + "<"), "the mock does not draw \(line)")
@@ -270,15 +281,35 @@ final class CopyTests: XCTestCase {
             "every option Answer.html draws is pressable, so it draws no line sending him to the Mac"
         )
         // Phase 337 (D33): the bar at the bottom is gone from every page.
+        // (TerminalMenu.html draws `End session…` as the ⋯'s item, not as a
+        // bar, so it is not read here.)
         for (name, mock) in [("Session", session), ("Choice", choice), ("Answer", answer)] {
             XCTAssertFalse(mock.contains(">" + Copy.endSessionMenu + "<"), "\(name).html still draws the End bar")
         }
-        // Phase 337.1 (D18): the Terminal's Catch Me Up icon draws no word;
-        // its spoken name is the Mac's word. And no page the rename touched
-        // draws the words it took away: no Conversation row or title, no
-        // Screen row or title, and no line keeping the scrollback on the Mac.
-        XCTAssertTrue(session.contains("aria-label=\"" + Copy.catchMeUp + "\""), "Session.html's icon is not named \(Copy.catchMeUp)")
-        XCTAssertFalse(session.contains(">" + Copy.catchMeUp + "<"), "Session.html draws Catch Me Up as a word; it is an icon")
+        // Phase 337.3 (D21, D27): the Terminal's top right is ONE ⋯, which
+        // draws no word and is spoken `More`, at rest and with the keyboard
+        // up; neither page draws Catch Me Up or End, which are the ⋯'s items,
+        // Catch Me Up first (TerminalMenu.html). And no page the rename
+        // touched draws the words it took away: no Conversation row or title,
+        // no Screen row or title, and no line keeping the scrollback on the Mac.
+        for (name, mock) in [("Session", session), ("Screen", screenMock)] {
+            XCTAssertTrue(mock.contains("aria-label=\"" + Copy.more + "\""), "\(name).html's ⋯ is not named \(Copy.more)")
+            XCTAssertFalse(mock.contains(">" + Copy.more + "<"), "\(name).html draws More as a word; the ⋯ is a symbol")
+            for word in [Copy.catchMeUp, Copy.endTop] {
+                XCTAssertFalse(mock.contains(">" + word + "<"), "\(name).html still draws \(word) in the Terminal's bar; it is the ⋯'s item")
+                XCTAssertFalse(mock.contains("aria-label=\"" + word + "\""), "\(name).html still names a control \(word) in the Terminal's bar; it is the ⋯'s item")
+            }
+        }
+        XCTAssertTrue(terminalMenu.contains("aria-label=\"" + Copy.more + "\""), "TerminalMenu.html's ⋯ is not named \(Copy.more)")
+        let menuCatchUp = try XCTUnwrap(terminalMenu.range(of: ">" + Copy.catchMeUp + "<"))
+        let menuEnd = try XCTUnwrap(terminalMenu.range(of: ">" + Copy.endSessionMenu + "<"))
+        XCTAssertLessThan(menuCatchUp.lowerBound, menuEnd.lowerBound, "TerminalMenu.html draws End session… before Catch Me Up")
+        // Phase 337.3 (D15): sideways the Terminal is the terminal alone, with
+        // no bar above it and none below: no ⋯, End or Catch Me Up, no tab.
+        for word in [Copy.needsInput, Copy.sessions, Copy.settings, Copy.catchMeUp, Copy.endTop, Copy.endSessionMenu] {
+            XCTAssertFalse(landscape.contains(">" + word + "<"), "Landscape.html draws \(word); sideways the Terminal is the terminal alone")
+        }
+        XCTAssertFalse(landscape.contains("aria-label=\"" + Copy.more + "\""), "Landscape.html draws the ⋯; sideways the bar is hidden")
         for (name, mock) in [("Session", session), ("Conversation", conversation), ("Screen", screenMock)] {
             XCTAssertFalse(mock.contains(">Conversation<"), "\(name).html still draws Conversation")
             XCTAssertFalse(mock.contains(">Screen<"), "\(name).html still draws Screen")

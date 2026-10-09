@@ -5,7 +5,8 @@ import XCTest
 /// ruling "lets do B"): a session's route reads it once and opens on its
 /// Terminal exactly when the answer says it has one and the reader has a door
 /// to it, else on Catch Me Up; the face is decided at the first answer and
-/// kept; the Terminal's icon pushes Catch Me Up; its tray offers exactly the
+/// kept; the Terminal's ⋯ pushes Catch Me Up (its menu's first item since
+/// Phase 337.3); its tray offers exactly the
 /// options the Mac offers to press; and the door's side line takes one
 /// exchange at a time. The door is a script (ScreensFixtures.swift); nothing
 /// here reaches a network. Each test names the clause it holds, and each
@@ -138,9 +139,9 @@ final class TerminalRouteTests: XCTestCase {
 
     // MARK: The routes
 
-    /// Clause (§5.5.3): the Terminal's icon pushes Catch Me Up on the tab
-    /// it was pressed on, with the session's own line.
-    func testTheIconPushesCatchUpOnItsTab() {
+    /// Clause (§5.5.3): Catch Me Up from the Terminal's ⋯ is pushed on the
+    /// tab it was pressed on, with the session's own line.
+    func testTheMenuPushesCatchUpOnItsTab() {
         let app = AppModel(door: StandInPhone(kept: ScriptedReader()), label: "iPhone", alerts: StandInAlerts())
         app.waitingPath = [.session(id: "w", name: "w")]
         app.openCatchUp("w", honestLine: "The agent is waiting for you.", in: .needsInput)
@@ -173,19 +174,22 @@ final class TerminalRouteTests: XCTestCase {
 
     // MARK: The Terminal's top bar and tray
 
-    /// Clause (D18): the icon is `text.bubble` in the accent, spoken as the
-    /// Mac's `Catch Me Up`, under its own identifier.
-    func testTheIconIsTheMacsSpeechBubble() throws {
+    /// Clause (D18, Phase 337.3's D22): Catch Me Up is the first item of the
+    /// Terminal's ⋯, the Mac's word beside its speech bubble (`text.bubble`),
+    /// under its own identifier, and its press is the push Catch Me Up's icon
+    /// made; the icon and its name are gone.
+    func testCatchUpIsTheMenusSpeechBubble() throws {
         let session = try StyleSource.text("ios/Tortie/Screens/SessionScreen.swift")
-        let item = try XCTUnwrap(session.range(of: "struct CatchUpItem: ToolbarContent {"))
+        XCTAssertFalse(session.contains("CatchUpItem"), "the Catch Me Up icon is still declared")
+        XCTAssertFalse(session.contains("sessionOpenCatchUp"), "SessionScreen.swift still names the icon's identifier")
+        let item = try XCTUnwrap(session.range(of: "struct TerminalMenuControl: View {"))
         let end = try XCTUnwrap(session.range(of: "\n}\n", range: item.upperBound..<session.endIndex))
         let body = String(session[item.upperBound..<end.lowerBound])
-        XCTAssertTrue(body.contains("ToolbarItem(placement: .topBarTrailing)"))
-        XCTAssertTrue(body.contains("Image(systemName: \"text.bubble\")"))
-        XCTAssertTrue(body.contains(".foregroundStyle(Tokens.accent)"))
-        XCTAssertTrue(body.contains(".accessibilityLabel(Text(verbatim: Copy.catchMeUp))"))
-        XCTAssertTrue(body.contains(".accessibilityIdentifier(ID.sessionOpenCatchUp)"))
-        XCTAssertEqual(ID.sessionOpenCatchUp, "session-open-catch-up")
+        XCTAssertTrue(body.contains("Button(action: openCatchUp) {\n                    Label(Copy.catchMeUp, systemImage: \"text.bubble\")\n                }\n                .accessibilityIdentifier(ID.terminalMenuCatchUp)"))
+        XCTAssertEqual(ID.terminalMenuCatchUp, "terminal-menu-catch-up")
+        let menu = try XCTUnwrap(session.range(of: "struct TerminalMenu: ToolbarContent {"))
+        let menuEnd = try XCTUnwrap(session.range(of: "\n}\n", range: menu.upperBound..<session.endIndex))
+        XCTAssertTrue(session[menu.upperBound..<menuEnd.lowerBound].contains("openCatchUp: openCatchUp"), "the ⋯ is not handed the Terminal's push of Catch Me Up")
     }
 
     /// Clause (D19): the tray offers exactly the options the Mac offers to
@@ -245,9 +249,12 @@ final class TerminalRouteTests: XCTestCase {
         XCTAssertEqual(ID.screenToLive, "screen-to-live")
         XCTAssertEqual(ID.screenScrollbackLine, "screen-scrollback-line")
         let identifiers = try StyleSource.text("ios/Tortie/Screens/Identifiers.swift")
-        for gone in ["sessionOpenConversation", "sessionOpenScreen", "conversationScreen", "conversationTerminalLine", "session-open-screen"] {
+        // Phase 337.3 (D28): the Catch Me Up icon's name went with the icon.
+        for gone in ["sessionOpenConversation", "sessionOpenScreen", "conversationScreen", "conversationTerminalLine", "session-open-screen", "sessionOpenCatchUp", "session-open-catch-up"] {
             XCTAssertFalse(identifiers.contains(gone), "Identifiers.swift still names \(gone)")
         }
+        XCTAssertEqual(ID.terminalMenu, "terminal-menu")
+        XCTAssertEqual(ID.terminalMenuEnd, "terminal-menu-end")
     }
 
     // MARK: The side line
@@ -326,8 +333,8 @@ final class TerminalRouteTests: XCTestCase {
     }
 }
 
-/// A door a test holds shut until it opens it.
-private actor Latch {
+/// A door a test holds shut until it opens it. Shared with TerminalMenuTests.
+actor Latch {
     private var opened = false
     private var waiting: [CheckedContinuation<Void, Never>] = []
 

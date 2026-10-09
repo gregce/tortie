@@ -585,6 +585,86 @@
  *       50 pt low after the keyboard (printed as the parent's defect, the arm
  *       that proves PS14 can fail); a parent with no Screen row is UNREADABLE
  *
+ * PHASE 337.3, THE TERMINAL FILLS THE PHONE (build/p3373/SPEC.md §7.3, in the
+ * `screen` group). The Terminal opens on its live rows at the BOTTOM with what
+ * it printed before above them, sideways it is the terminal alone, and its top
+ * right is one ⋯ (`terminal-menu`) holding Catch Me Up then End session…. So
+ * every step that pressed the Catch Me Up icon or the Terminal's End presses
+ * the ⋯ menu's item (the UI test's `openTerminalMenu`, which prints a
+ * `terminal-menu` line: the ⋯, the bar, each item by identifier else by its
+ * words with `via`, every row of the open menu and the owner glyph its image
+ * holds), `end-bar` on the Terminal is read in the OPEN menu, and after End's
+ * re-read the menu is opened again. Beside T.hist the sessions are T3.stream
+ * (`--lines 3000 --stream 4:40`, its 40 lines started by one byte this file
+ * types into its pane at `stream-ready`), T3.away (`--lines 3000 --stream
+ * 20:300`, PF8's, started the same way), T3.fast (`--lines 3000 --stream
+ * 280:8400`, PF9's, started the same way), T3.short (`--lines 5`, depth 0),
+ * T3.altback (`--lines 3000 --alt --alt-for 8`, started at the drive's
+ * `screen-wait:altback`, tmux polled for the moment it leaves), T3.question
+ * (Codex at its approval) and T3.rec (a key recorder). The UI test's new steps
+ * are `fill-hold:<s>`, `stream-hold:<s>`, `return-hold:<away>:<s>`, `chrome`,
+ * `landscape`, `portrait`, `landscape-type:<b64url>`, `landscape-select:<n>`
+ * and `menu-sideways`. THE
+ * MAC'S DOOR STAMPS NO PAGE, so the fill's pages are read at the hostile door,
+ * which stamps every one: PF1 (pages) at its honest arm and PSH's
+ * `scrollback-fill-moved`. The arms:
+ *   PF1 26.3 and 18.3: the fill on open, T.hist, from the very snapshot that
+ *       first held a row through `fill-hold:3`: the live bottom at the grid's
+ *       bottom and still, the history contiguous above it to the top, each
+ *       row tmux's line at its index
+ *   PF1 (pages) 26.3, at the hostile door's honest arm: at most ⌈fill ÷ 100⌉
+ *       pages at open, each at most 128 rows and 250 ms apart by its stamps
+ *   PF2 26.3: T.stream while it prints: the live bottom held in every reading,
+ *       at least 95 percent with no reserved row above it (carried), every
+ *       history row tmux's; the Mac's check pages are not counted (no stamp)
+ *   PF3 26.3: T.short: live row 0 at the grid's top, no history, as today
+ *   PF4 26.3: T.altback: as today while the program draws, the fill after
+ *   PF5 26.3: from PS13's run, back to live by the arrow and by a key: the
+ *       live bottom at the view's bottom with the history right on it
+ *   PF6 26.3 and 18.3: from keyboard-glitch: the live bottom within a row
+ *       above the key bar with the keyboard up, at the bottom after
+ *   PF7 26.3: T.hist turned sideways and back: following at the bottom in
+ *       each, the history back above it upright
+ *   PF8 26.3 (the reverify of 2026-10-08, its band): T3.away printing 20
+ *       lines a second while the phone is on Catch Me Up for 5 s
+ *       (`return-hold:5:6`, the ⋯ menu there and Back here): the view filled
+ *       again (no reserved band above the prompt, its lowest row right above
+ *       the live top by index) within 1.5 s of the return since the fix round
+ *       (3 s before it) and kept filled in 90 percent of the readings after,
+ *       every row tmux's
+ *   PF9 26.3 (the verify of 2026-10-08, its straddle; the fix round):
+ *       T3.fast printing 280 lines a second, near and past a screen a
+ *       picture, through `stream-hold:20`: the live bottom held, no drawn row
+ *       taken away in place, at most six whole-band blank episodes a minute,
+ *       the shares filled, the ground and partly drawn printed; every row
+ *       tmux's and the lowest right above the live top
+ *   PL1 26.3 and 18.3: sideways over T3.question the terminal alone: no
+ *       navigation bar, tab bar, status line, ⋯ or tray, the grid at the
+ *       window's top filling the safe area; SpringBoard's status bar printed
+ *   PL2 26.3: sideways over T3.rec: the keyboard and the key bar answer, the
+ *       typed line and Return reach the recorder exactly, the grid still
+ *   PL3 26.3: sideways over T.hist: ONE Copy inside the grid, and the
+ *       pasteboard holds the row (a row the view shows: a 40-row pane's top
+ *       rows sit above the view sideways, D20, so its row rows - 5)
+ *   PL4 26.3 and 18.3: upright again every bar where it was, half a point
+ *   PL5 26.3: the list and Catch Me Up stay upright with the device sideways
+ *   PM1 26.3 and 18.3: the ⋯ alone in the bar's trailing half, named More;
+ *       its menu exactly Catch Me Up then End session…, End on exactly where
+ *       End's line does not ask for a passcode, its glyph printed; Catch Me Up
+ *       pushed and Back
+ *   PP1 to PP3 with P3373_PARENT_IOS (dfa878b5's ios/, build 7, copied into
+ *       scratch and driven by THIS checkout's UI test, so both builds are read
+ *       by one instrument): live row 0 at the top and nothing above it (PP1),
+ *       the bars still there sideways, the grid's height beside HEAD's (PP2,
+ *       26.3 and 18.3), the icon and End and no ⋯ (PP3)
+ *   PSH 26.3 scrollback-fill-moved: one page at open, answered moved; no line,
+ *       no history row and no page over 5 s of a still screen; a drag pages
+ *       honestly
+ * Re-pointed and run: PS1 (the ⋯ alone), PS3 (Back upright; the list's window
+ * is PL5's), PS10 (the ⋯ and its two items, Copy beside it), PS15 (through the
+ * menu), E1 (the menu's End, Face ID's mark in the open menu, End gone after),
+ * E2, E3, E5 and E6 (End through the menu).
+ *
  * PHASE 316.7, THE SESSIONS TAB (build/p3167/SPEC.md §9.4 and §9.5). The
  * Sessions tab reads `GET /v1/sessions` now and lays out what main composed:
  * Show (All, Active, Ended), projects with a count, one menu for Group by,
@@ -677,7 +757,7 @@
  *       after (a Simulator has no camera, so iOS never asks; his checklist's C4)
  *   SE3 26.3: `pairing-get-mac`, `pairing-privacy` and `pairing-support` each
  *       a button at least 44 points tall
- *   SE4 26.3, paired: Settings' `settings-version` the project's `1.0.0 (8)`,
+ *   SE4 26.3, paired: Settings' `settings-version` the project's `1.0.0 (9)`,
  *       then `settings-mac-site` (Tortie for Mac, tortie.sh), `settings-privacy`
  *       and `settings-support`, each a button at least 44 points tall
  *   SE5 26.3: the door shut, the list's `list-failure` "Tortie could not reach
@@ -752,6 +832,9 @@
  *   P3331_PARENT_IOS=<dir>                Phase 333.1's SEP: cb8d52a6's checkout (its ios/, build 7)
  *   P3371_PARENT_IOS=<dir>                Phase 337.1's PSP: e3837139's checkout (its ios/);
  *                                         P316_PARENT_IOS is read when it is unset
+ *   P3373_PARENT_IOS=<dir>                Phase 337.3's PP1 to PP3: the directory holding dfa878b5's ios/
+ *                                         (`git archive dfa878b5 ios | tar -x` into scratch), copied into
+ *                                         the run's scratch with this checkout's UI test, never written
  *   P316_PARENT_IOS=<dir>                 Phase 316.6's PR arm: the directory holding the
  *                                         parent's ios/ (`git archive 28d89295 ios | tar -x`
  *                                         into scratch), built and driven by its own UI test
@@ -807,6 +890,8 @@ import { hellos as p318Hellos, readLog as p318ReadLog, readState as p318ReadStat
 import { fingerprintDigits, makePhone, pageBack, pairThrough, readOffer, readSessions, shaHex, signedGet } from './node-phone.mjs';
 import { readRecorderLog } from '../p337/key-recorder.mjs';
 import { lineOf as lineOfStandIn, numberOf as numberedLine } from '../p3371/history-stand-in.mjs';
+// Phase 337.3: the stand-in's two tails, pinned in --grader-self-test.
+import { ALT_LEAVE as STAND_IN_ALT_LEAVE, planOf as standInPlanOf, streamLineOf as standInStreamLineOf } from '../p3371/history-stand-in.mjs';
 import { tsxCli } from '../ts-runner.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -925,6 +1010,14 @@ const PARENT_IOS_3371 = (process.env['P3371_PARENT_IOS'] ?? '').trim() || PARENT
 const PARENT_IOS_3331 = (process.env['P3331_PARENT_IOS'] ?? '').trim();
 /** Phase 333.1: where the probe writes `setup-<tag>` once it shut or held the door. */
 const ACKS_SETUP = join(RUN, 'acks-setup');
+/**
+ * Phase 337.3's parent (PP1 to PP3): the directory holding dfa878b5's ios/
+ * (build 7, `git archive dfa878b5 ios | tar -x` into scratch), or empty. It
+ * is copied into the run's scratch with THIS checkout's UI test laid over its
+ * own, so both builds are read by one instrument; the directory itself is
+ * never written.
+ */
+const PARENT_IOS_3373 = (process.env['P3373_PARENT_IOS'] ?? '').trim();
 /**
  * Phase 318: build/p318/stand-in.mjs's wrappers (never on the PATH: this
  * file's own `claude` hands a launch to its `claude` when the next mode is
@@ -3481,6 +3574,17 @@ function gradeE1(r) {
   }
   if (Array.isArray(r.bar?.bar)) problems.push(`an End bar is still drawn at the bottom (${J(r.bar.bar)})`);
   if (!(r.bar?.glyphs ?? []).some((g) => /faceid/i.test(String(g.id)) || /face id/i.test(String(g.label)))) problems.push(`End's mark is ${J(r.bar?.glyphs ?? [])}, not Face ID's`);
+  // PHASE 337.3 (build/p3373/SPEC.md §7.3): on the Terminal End is the ⋯ menu's End session…, read in the OPEN
+  // menu: `row` above is the ⋯'s frame, the menu holds its two items with End on, Face ID's mark is the image the
+  // open menu holds, and after the match the menu is opened again, End gone from it (a closed menu would pass).
+  const viaMenu = r.bar?.via === 'menu';
+  if (r.bar?.via === 'top') unread.push("End was read on Catch Me Up's top bar, not in the Terminal's ⋯ menu");
+  if (viaMenu) {
+    if (r.bar.opened !== true) problems.push('the ⋯ did not open its menu, so End was not read');
+    const labels = (r.menu?.rows ?? []).map((x) => x.label);
+    if (J(labels) !== J([MENU_WORDS.catchMeUp, MENU_WORDS.endSession])) problems.push(`the menu holds ${J(labels)}, not Catch Me Up then End session…`);
+    if (r.bar.enabled !== true) problems.push('End session… is drawn off with Face ID enrolled');
+  }
   const words = dialogWords(r.dialog);
   if (!words.includes(r.want?.title)) problems.push(`the confirmation's title is not the Mac's ${J(r.want?.title)}`);
   if (!words.some((w) => w.includes(r.want?.body ?? '\u0000'))) problems.push('the confirmation does not draw the Mac\'s body for this session');
@@ -3490,7 +3594,10 @@ function gradeE1(r) {
     if (r.tmuxAlive !== false) problems.push('the tmux session is still there');
     if (r.mainStatus !== 'exited') problems.push(`main reads ${J(r.mainStatus)}, not exited`);
     if (r.drawnStatus !== r.doorStatus) problems.push(`the screen draws ${J(r.drawnStatus)} where the door says ${J(r.doorStatus)}`);
-    if (r.endAfter === true) problems.push('End is still drawn on an ended session');
+    if (viaMenu) {
+      if (r.after === null || r.after === undefined || r.after.opened !== true) unread.push('the ⋯ menu was not opened after End, so whether End is still offered was not read');
+      else if (r.after.end !== null && r.after.end !== undefined) problems.push('End session… is still in the ⋯ menu of an ended session');
+    } else if (r.endAfter === true) problems.push('End is still drawn on an ended session');
   } else if (r.authUp !== true && ((typeof r.doneLines === 'number' && r.doneLines > 0) || r.tmuxAlive === false || r.mainStatus === 'exited')) {
     problems.push(`no match was sent, and the session ended (${String(r.doneLines)} done line(s), tmux ${r.tmuxAlive === false ? 'gone' : 'alive'}, main ${J(r.mainStatus)}): an End past the owner check`);
   }
@@ -5122,11 +5229,20 @@ const SCREEN_KEY_HEX = Object.freeze({ esc: '1b', tab: '09', btab: '1b5b5a', lef
  * PS1: End inside the navigation bar's trailing half, the End bar gone, and
  * (Phase 337.1, re-pointed from 337's "Conversation above Screen", rows this
  * build no longer draws) the Catch Me Up icon in the bar to End's left.
+ *
+ * PHASE 337.3 RE-POINTED IT (build/p3373/SPEC.md §7.3, D21): the Terminal's
+ * top right is the ⋯ ALONE, named More and pressable inside the bar's trailing
+ * half; no End and no Catch Me Up icon anywhere on its page (the drive prints
+ * every identifier there, the rows left out), and no End bar at the bottom.
+ * Read whenever the line carries the ⋯'s field (gradePs1Menu); a line without
+ * it, the parent's drive's, is read as 337.1 read it, so 337.1's cases and
+ * the parent arm stay untouched (the probes builder's decision 6).
  */
 function gradePs1(r) {
   const problems = [];
   const t = r.endTop;
   if (t === null || t === undefined) return verdict(null, 'the UI test read no session page (no end-top line)');
+  if (t.menu !== undefined) return gradePs1Menu(r);
   const end = t.end;
   const nav = t.nav;
   if (end === null || !Array.isArray(end.frame)) problems.push('no End on the session\'s page');
@@ -5149,6 +5265,32 @@ function gradePs1(r) {
   }
   if (Array.isArray(t.screen)) problems.push('the parent\'s Screen row is still drawn');
   return decide(problems, [], `End at the top right, no bar at the bottom, the Catch Me Up icon beside it`);
+}
+
+/** PS1 since Phase 337.3: the ⋯ alone, over a line that carries its field. */
+function gradePs1Menu(r) {
+  const problems = [];
+  const t = r.endTop;
+  if (t.face !== 'terminal') return verdict(null, `the page read was ${J(t.face ?? null)}, not the Terminal`);
+  const menu = t.menu ?? null;
+  const nav = t.nav;
+  if (menu === null || !Array.isArray(menu.frame)) problems.push('no ⋯ at the top right of the Terminal');
+  else {
+    if (menu.label !== MENU_WORDS.more) problems.push(`the ⋯ is named ${J(menu.label)}, not ${J(MENU_WORDS.more)}`);
+    if (menu.hittable !== true) problems.push('the ⋯ cannot be pressed');
+    if (!Array.isArray(nav)) problems.push('no navigation bar was read');
+    else {
+      if (!insideBar(menu.frame, nav)) problems.push(`the ⋯ ${J(menu.frame)} is not inside the navigation bar ${J(nav)}`);
+      if (!(centreX(menu.frame) > centreX(nav))) problems.push(`the ⋯ ${J(menu.frame)} is not in the bar's trailing half`);
+    }
+  }
+  const ids = new Set([...(t.ids ?? []), ...(t.navIds ?? []).map((x) => x.id)]);
+  if ((t.end !== null && t.end !== undefined) || ids.has('session-end')) problems.push('End is still drawn on the Terminal (it belongs in the ⋯ menu)');
+  if (ids.has('session-open-catch-up')) problems.push('the Catch Me Up icon is still drawn beside the ⋯');
+  if (!Array.isArray(t.ids)) problems.push('the page\'s identifiers were not printed, so no End or icon could be looked for');
+  if (t.endBar === true) problems.push('the End bar is still drawn at the bottom');
+  if (Array.isArray(t.screen)) problems.push('the parent\'s Screen row is still drawn');
+  return decide(problems, [], `the ⋯ alone at the top right, named ${J(MENU_WORDS.more)}; no End, no Catch Me Up icon and no bar at the bottom`);
 }
 
 /**
@@ -5251,6 +5393,15 @@ function gradePs3(r) {
   const lw = w(r.landscape?.rows);
   if (pw === null || lw === null) problems.push('row 0 was not read in both orientations');
   else if (!(lw > pw * 1.2)) problems.push(`sideways the fitted rows are ${String(lw)} pt wide, upright ${String(pw)}: they did not grow`);
+  // PHASE 337.3 (build/p3373/SPEC.md §7.3, D19): sideways the Terminal draws no back button, so the landscape chrome
+  // is read and Back is pressed UPRIGHT, from a bar the upright chrome holds; "the page came back upright" became
+  // PL5's list clause (the list read sideways), which `pageWindow` still feeds.
+  if (r.landscapeChrome !== undefined) {
+    if (r.landscapeChrome?.read !== true) problems.push('the landscape chrome was not read');
+    if (!(r.uprightChrome?.navs > 0)) problems.push('upright again no navigation bar was drawn to press Back in');
+    if (r.backFound !== true || r.backed !== true) problems.push('Back, pressed upright, did not reach the list');
+    return decide(problems, unread, 'pinch grew the cells, a swipe and a slow drag moved them sideways and a swipe up moved them up, sideways grew the fitted rows, and Back, pressed upright, reached the list');
+  }
   if (!Array.isArray(r.pageWindow) || !(r.pageWindow[0] < r.pageWindow[1])) problems.push(`back on the session's page the window is ${J(r.pageWindow)}, not upright`);
   return decide(problems, unread, 'pinch grew the cells, a swipe and a slow drag moved them sideways and a swipe up moved them up, sideways grew the fitted rows, and the page came back upright');
 }
@@ -5414,6 +5565,9 @@ function gradePs10(r) {
   if ((o.reading?.live ?? []).length === 0) p.push('no live row was drawn');
   if (typeof o.firstRowMs !== 'number') p.push('the first row was never drawn after the tap');
   const window = Array.isArray(o.window) ? o.window : null;
+  // PHASE 337.3 (build/p3373/SPEC.md §7.3, D21, D22): the top right is ONE ⋯, its menu Catch Me Up then End
+  // session…, and Copy beside the ⋯ while selecting. Read whenever the line carries the ⋯'s field.
+  if (o.menu !== undefined) return gradePs10Menu(r, p, u, window);
   const icon = o.catchUp ?? null;
   const end = o.end ?? null;
   if (icon === null) p.push('no Catch Me Up icon');
@@ -5442,6 +5596,46 @@ function gradePs10(r) {
   if (r.held === null || r.held === undefined) u.push('no selection was held, so Copy beside the icon and End was not read');
   else if (!(r.held.copy === true && r.held.catchUp === true && r.held.end === true)) p.push(`with a selection held: Copy ${String(r.held.copy)}, the icon ${String(r.held.catchUp)}, End ${String(r.held.end)} (each must be pressable)`);
   return decide(p, u, `the Terminal at once (its first row ${typeof o.firstRowMs === 'number' ? String(Math.round(o.firstRowMs)) : '?'} ms after the tap, the session read that decides the face included, printed); the status line the door's; the icon then End top right; Copy beside them while selecting`);
+}
+
+/**
+ * PS10, re-pointed by Phase 337.3 (build/p3373/SPEC.md §7.3, D21, D22): the
+ * row opens the Terminal at once with the status line the door's; the top
+ * right is the ⋯ alone, named More, pressable, in the bar's trailing half, no
+ * End and no Catch Me Up icon in the bar; opened, its menu holds Catch Me Up
+ * then End session…; and while a selection is held, Copy and the ⋯ are both
+ * pressable, Copy to the ⋯'s left.
+ */
+function gradePs10Menu(r, p, u, window) {
+  const o = r.open;
+  const m = o.menu ?? null;
+  if (m === null || !Array.isArray(m.frame)) p.push('no ⋯ at the top right');
+  else {
+    if (m.label !== MENU_WORDS.more) p.push(`the ⋯ is named ${J(m.label)}, not ${J(MENU_WORDS.more)}`);
+    if (window !== null && m.frame[2] > window[0] / 2) p.push(`the ⋯ is ${String(m.frame[2])} pt wide: a row, not an item`);
+    if (m.hittable !== true) p.push('the ⋯ cannot be pressed');
+    if (!Array.isArray(o.nav)) p.push('no navigation bar was read');
+    else if (!insideBar(m.frame, o.nav) || !(centreX(m.frame) > centreX(o.nav))) p.push(`the ⋯ ${J(m.frame)} is not in the navigation bar's trailing half ${J(o.nav)}`);
+  }
+  const navIds = new Set((o.navIds ?? []).map((x) => x.id));
+  if ((o.end !== null && o.end !== undefined) || navIds.has('session-end')) p.push('End is still drawn in the bar beside the ⋯');
+  if (navIds.has('session-open-catch-up')) p.push('the Catch Me Up icon is still drawn beside the ⋯');
+  const menu = r.menu;
+  if (menu === null || menu === undefined) u.push('the ⋯ was not opened, so its items were not read');
+  else if (menu.opened !== true) p.push('the ⋯ did not open its menu');
+  else {
+    const labels = (menu.rows ?? []).map((x) => x.label);
+    if (J(labels) !== J([MENU_WORDS.catchMeUp, MENU_WORDS.endSession])) p.push(`the menu holds ${J(labels)}, not Catch Me Up then End session…`);
+  }
+  const old = [...new Set((o.labels ?? []).filter((l) => OLD_PAGE_WORDS.includes(l)))];
+  if (old.length > 0) p.push(`the Terminal draws ${J(old)}`);
+  if (o.statusWord?.label !== r.door.statusTitle) p.push(`the status line reads ${J(o.statusWord?.label ?? null)}, the door ${J(r.door.statusTitle)}`);
+  if (o.agent?.label !== r.door.agentLine) p.push(`the agent line reads ${J(o.agent?.label ?? null)}, the door's agent and project ${J(r.door.agentLine)}`);
+  const h = r.held;
+  if (h === null || h === undefined) u.push('no selection was held, so Copy beside the ⋯ was not read');
+  else if (h.copy !== true || h.menu !== true) p.push(`with a selection held: Copy ${String(h.copy)}, the ⋯ ${String(h.menu)} (each must be pressable)`);
+  else if (Array.isArray(h.copyFrame) && Array.isArray(h.menuFrame) && !(centreX(h.copyFrame) < centreX(h.menuFrame))) p.push('Copy is not to the ⋯\'s left while selecting');
+  return decide(p, u, `the Terminal at once (its first row ${typeof o.firstRowMs === 'number' ? String(Math.round(o.firstRowMs)) : '?'} ms after the tap, printed); the status line the door's; the ⋯ alone top right, its menu Catch Me Up then End session…; Copy beside it while selecting`);
 }
 
 /** PS11: an ended session opens on Catch Me Up: the two-line title, its turns or its empty line, the now card, no grid. */
@@ -5647,7 +5841,9 @@ function gradePs15(r) {
   const old = [...new Set((x.labels ?? []).filter((l) => OLD_PAGE_WORDS.includes(l)))];
   if (old.length > 0) p.push(`Catch Me Up draws ${J(old)}`);
   if (c.backToTerminal !== true || c.after?.face !== 'terminal') p.push('Back did not return to the Terminal');
-  return decide(p, [], 'Catch Me Up from its icon: the title, the now card after the newest turn, the box, End top right, Back to the Terminal');
+  // Phase 337.3 (D22): Catch Me Up is reached through the Terminal's ⋯ menu, the face line says so.
+  if (r.via !== undefined && r.via !== 'menu') p.push(`Catch Me Up was reached ${J(r.via)}, not through the ⋯ menu`);
+  return decide(p, [], `Catch Me Up from ${r.via === 'menu' ? 'the ⋯ menu' : 'its icon'}: the title, the now card after the newest turn, the box, End top right, Back to the Terminal`);
 }
 
 /** PS16: a full-screen program: drags up draw no history row and no line. */
@@ -5707,6 +5903,1150 @@ function gradePsp3371(r) {
   return decide(p, [], `the parent opens its session page, and its rows sat ${String(Math.round((r.after - r.before) * 10) / 10)} pt low after the keyboard (the defect, printed)`);
 }
 
+// ---------------------------------------------------------------------------
+// Phase 337.3: the terminal fills the phone (build/p3373/SPEC.md §7.3)
+// ---------------------------------------------------------------------------
+
+/** The ⋯ menu's words and the tabs', from Copy.swift (never typed here twice). */
+const MENU_WORDS = {
+  more: copyOf('more'),
+  catchMeUp: copyOf('catchMeUp'),
+  endSession: copyOf('endSessionMenu'),
+  ending: copyOf('ending'),
+  needsPasscode: copyOf('endNeedsPasscode'),
+  tabs: [copyOf('needsInput'), copyOf('sessions'), copyOf('settings')]
+};
+/** The owner check's glyphs: an image's identifier in the open menu (EndBarDrawing.glyph's three, §14 M5). */
+const OWNER_GLYPHS = Object.freeze(['faceid', 'touchid', 'lock']);
+/** UIDeviceOrientation's two sideways values, as XCUITest reports them. */
+const SIDEWAYS = Object.freeze([3, 4]);
+/** A page's rows (ScrollbackLayout.pageRows, 337.1 D27) and the most one may carry (PocketScrollbackAnswer.mostRows). */
+const PAGE_ROWS = 100;
+const PAGE_MOST_ROWS = 128;
+/** The phone's least gap between two pages it starts (ScrollbackModel.minGap), less the loopback's jitter at the door. */
+const PAGE_GAP_MS = 250;
+const PAGE_GAP_SLACK_MS = 25;
+/** PF2: the share of readings, while the agent prints, that must hold no reserved row between the history and the live top. */
+const PF2_CARRIED_SHARE = 0.95;
+/** PL1: an iPhone 16 Pro's landscape safe area (§14 M2, M4): the island's and the far corner's strips, and the home indicator's. */
+const LANDSCAPE_SIDE_PT = 62;
+const LANDSCAPE_HOME_PT = 20;
+/** PF4: a reading this long before tmux saw the program leave is the program's; this long after, the fill's (a picture and a page). */
+const ALT_BEFORE_MS = 300;
+const ALT_AFTER_MS = 2_500;
+/** PSH scrollback-fill-moved: how long over a still screen the phone must ask nothing more after the refused fill (D8). */
+const FILL_STILL_MS = 5_000;
+
+/** A reading's live rows, top first. */
+const liveOf = (reading) => (Array.isArray(reading?.live) ? [...reading.live].sort((a, b) => a.n - b.n) : []);
+/** A reading's last live row (the live bottom), or null. */
+const liveLast = (reading) => liveOf(reading).at(-1) ?? null;
+const bottomOf = (f) => f[1] + f[3];
+const sameFrame = (x, y, tol = STILL_PT) => Array.isArray(x) && Array.isArray(y) && x.length === y.length && x.every((v, i) => near(v, y[i], tol));
+/** The live rows' last row ends at the grid's bottom, within half a point (D1, D4). */
+const liveAtBottom = (reading) => {
+  const last = liveLast(reading);
+  const g = reading?.grid;
+  return last !== null && Array.isArray(g) && near(bottomOf(last.frame), bottomOf(g), STILL_PT);
+};
+/** Live row 0 starts at the grid's top, within half a point: the look of today, 337.1 D25's. */
+const liveAtTop = (reading) => {
+  const r0 = liveRow0(reading);
+  const g = reading?.grid;
+  return r0 !== null && Array.isArray(g) && near(r0.frame[1], g[1], STILL_PT);
+};
+/**
+ * The history drawn ABOVE the live rows in one reading: the rows in view, top
+ * first; whether their indices are contiguous; whether the lowest sits right on
+ * live row 0 (no reserved row, which is no element, between them); whether the
+ * topmost reaches the grid's top within a row; and every drawn row (in view or
+ * not) whose label is not tmux's line at its index, when `lines` is given.
+ *
+ * `adjoins` (the Phase 337.3 verify's minor, 2026-10-08): whether the lowest
+ * history row's INDEX is the one right above the live top, read from live row
+ * 0's own numbered line (the stand-in's line n is tmux's index n - 1): true,
+ * false, or null when live row 0 is no numbered line or nothing is drawn.
+ * Geometry and each row's own label cannot see lines lost between the history
+ * and the live top: a history shifted three lines down, every row its own
+ * index's line, touches the live rows and reads tmux's lines everywhere.
+ */
+function historyAbove(reading, lines) {
+  const vis = visibleHistory(reading);
+  const idx = vis.map((h) => h.i).sort((a, b) => a - b);
+  const r0 = liveRow0(reading);
+  const rowH = r0?.frame?.[3] ?? null;
+  const lowest = vis.reduce((a, h) => (a === null || h.frame[1] > a.frame[1] ? h : a), null);
+  const topmost = vis[0] ?? null;
+  const g = reading?.grid;
+  const expect = (i) => String(lines?.[i] ?? '').replace(/ +$/, '');
+  const r0Line = r0 === null ? null : numberedLine(r0.label);
+  return {
+    count: vis.length,
+    contiguous: idx.every((ix, k) => k === 0 || ix === idx[k - 1] + 1),
+    touches: lowest !== null && r0 !== null && near(bottomOf(lowest.frame), r0.frame[1], STILL_PT),
+    adjoins: lowest === null || r0Line === null || r0Line === undefined || r0Line.prefix !== 'L' ? null : lowest.i + 2 === r0Line.n,
+    reachesTop: topmost !== null && Array.isArray(g) && rowH !== null && topmost.frame[1] <= g[1] + rowH + STILL_PT,
+    lowest: lowest?.i ?? null,
+    topmost: topmost?.i ?? null,
+    wrong: Array.isArray(lines) ? (reading?.history ?? []).filter((h) => h.label !== expect(h.i)).map((h) => h.i) : []
+  };
+}
+
+/**
+ * PF1 (26.3 and 18.3): THE FILL ON OPEN, over T.hist. At terminal-open's FIRST
+ * reading, the very snapshot that first held a row, the live rows' last row
+ * ends at the grid's bottom (half a point, the keyboard down) and live row 0
+ * is not at its top; through fill-hold that row never moves; once a page has
+ * landed the history in view is contiguous, ends right on the live top (index
+ * depth - 1) and reaches the grid's top within a row, and every drawn history
+ * row is tmux's line at its index. The pages a door was asked are PF1
+ * (pages)'s, read where a door stamps them.
+ */
+function gradePf1(r) {
+  const p = [];
+  const u = [];
+  const first = r.open?.first ?? null;
+  if (first === null || first === undefined) return verdict(null, 'terminal-open printed no first reading (the Terminal drew no row)');
+  if (!Array.isArray(r.lines) || r.lines.length === 0) return verdict(null, "the Mac's history was not read");
+  const last0 = liveLast(first);
+  if (last0 === null || !Array.isArray(first.grid)) return verdict(null, 'the first reading held no live row or no grid');
+  if (first.keyboard !== null && first.keyboard !== undefined) u.push('the keyboard was up at the first reading');
+  if (!liveAtBottom(first)) p.push(`at the first frame the live rows end at y ${String(bottomOf(last0.frame))}, not at the grid's bottom ${String(bottomOf(first.grid))}`);
+  if (liveAtTop(first)) p.push("at the first frame live row 0 sits at the grid's top: the parent's look, his defect");
+  const holds = r.hold?.readings ?? [];
+  if (holds.length === 0) u.push('no fill-hold reading');
+  const moved = holds.filter((x) => {
+    const l = liveLast(x);
+    return l === null || !near(bottomOf(l.frame), bottomOf(last0.frame), STILL_PT);
+  });
+  if (moved.length > 0) p.push(`the live bottom moved in ${String(moved.length)} of ${String(holds.length)} hold reading(s) (to ${J(liveLast(moved[0])?.frame ?? null)})`);
+  const all = [first, r.open?.reading, ...holds].filter((x) => x !== null && x !== undefined);
+  const wrong = [...new Set(all.flatMap((x) => historyAbove(x, r.lines).wrong))];
+  if (wrong.length > 0) p.push(`history row(s) ${J(wrong.slice(0, 5))} drawn otherwise than tmux's line at that index`);
+  const landed = [...all].reverse().find((x) => visibleHistory(x).length > 0) ?? null;
+  if (landed === null) p.push('no history was drawn above the live rows through the hold: the fill never filled');
+  else {
+    const h = historyAbove(landed, r.lines);
+    if (!h.contiguous) p.push('the history drawn above the live rows is not contiguous');
+    if (!h.touches) p.push('the history does not end right on the live rows (reserved rows between them)');
+    if (typeof r.depth === 'number' && h.lowest !== r.depth - 1) p.push(`the history ends at index ${String(h.lowest)}, not ${String(r.depth - 1)} right above the live top`);
+    if (!h.reachesTop) p.push(`the history's topmost row in view (index ${String(h.topmost)}) does not reach the grid's top within a row`);
+  }
+  return decide(p, u, `the live rows end at the grid's bottom from the first frame (y ${String(Math.round(bottomOf(last0.frame) * 10) / 10)}) and stay through ${String(holds.length)} reading(s); above them the history to the grid's top, ${String(landed === null ? 0 : visibleHistory(landed).length)} row(s) in view, each tmux's line`);
+}
+
+/**
+ * PF1 (pages), 26.3: THE FILL'S PAGES AT OPEN, read where a door stamps them,
+ * the hostile door's honest arm (the Mac's own door stamps no page, so its
+ * pages are not observable from here). At most ⌈fill ÷ 100⌉ pages before any
+ * drag (the fill the rows the grid holds less the live rows, from the first
+ * reading's own frames), at least one when the fill is above 0, each asking at
+ * most 128 rows and starting at least 250 ms after the one before by the
+ * door's own stamps; every history row drawn the door's line at its index.
+ */
+function gradePf1Pages(r) {
+  const first = r.open?.first ?? null;
+  if (first === null || first === undefined) return verdict(null, "the honest door's Terminal drew no row");
+  const live = liveOf(first);
+  const rowH = live[0]?.frame?.[3] ?? null;
+  if (!Array.isArray(first.grid) || !(rowH > 0)) return verdict(null, "the grid or a live row's height was not read");
+  const p = [];
+  const fill = Math.max(0, Math.ceil(first.grid[3] / rowH - 1e-6) - live.length);
+  const allowed = Math.ceil(fill / PAGE_ROWS);
+  const pages = (r.pages ?? []).filter((e) => typeof e.at === 'number').sort((a, b) => a.at - b.at);
+  if (pages.length > allowed) p.push(`${String(pages.length)} page(s) asked at open for a fill of ${String(fill)} row(s), past ${String(allowed)}`);
+  if (fill > 0 && pages.length === 0) p.push(`no page was asked for a fill of ${String(fill)} row(s)`);
+  const big = pages.filter((e) => !(e.ask?.count <= PAGE_MOST_ROWS));
+  if (big.length > 0) p.push(`page(s) asking ${J(big.map((e) => e.ask?.count ?? null))} rows, past ${String(PAGE_MOST_ROWS)}`);
+  const close = pages.filter((e, k) => k > 0 && e.at - pages[k - 1].at < PAGE_GAP_MS - PAGE_GAP_SLACK_MS);
+  if (close.length > 0) p.push(`${String(close.length)} page(s) asked under ${String(PAGE_GAP_MS)} ms after the one before`);
+  const rows = [first, r.open?.reading, ...(r.hold?.readings ?? [])].flatMap((x) => x?.history ?? []);
+  const off = rows.filter((h) => !(numberedLine(h.label)?.prefix === 'L' && numberedLine(h.label)?.n === h.i + 1));
+  if (off.length > 0) p.push(`history row(s) at ${J([...new Set(off.map((h) => h.i))].slice(0, 3))} drawn otherwise than the door's line at that index`);
+  if (fill > 0 && rows.length === 0) p.push('no history row was drawn from the pages the door answered');
+  return decide(p, [], `${String(pages.length)} page(s) at open for a fill of ${String(fill)} row(s), at most ${String(allowed)}, each at most ${String(PAGE_MOST_ROWS)} rows and ${String(PAGE_GAP_MS)} ms apart by the door's own stamps; every row drawn the door's`);
+}
+
+/**
+ * PF2 (26.3): FOLLOWING WHILE THE AGENT PRINTS, T.stream through stream-hold.
+ * In every reading the live rows' last row ends at the grid's bottom; in at
+ * least 95 percent of them the history's lowest row sits right on live row 0
+ * (the lines that scrolled off carried, no reserved row between), the count
+ * printed; every drawn history row is tmux's line at its index (read after
+ * the stream: a line keeps its index once it has scrolled off). The rate of
+ * check pages at the Mac is NOT read: the Mac's door stamps no page.
+ */
+function gradePf2(r) {
+  const h = r.hold;
+  if (h === null || h === undefined) return verdict(null, 'the UI test printed no stream-hold line');
+  if (h.acked !== true) return verdict(null, "the stream's start was never acknowledged, so the agent never printed while the phone read");
+  if (!Array.isArray(r.lines) || r.lines.length === 0) return verdict(null, "the Mac's history was not read after the stream");
+  const readings = h.readings ?? [];
+  if (readings.length < 4) return verdict(null, `${String(readings.length)} reading(s) while the agent printed`);
+  if (!(r.streamed > 0)) return verdict(null, 'no line scrolled into the history while the phone read');
+  const p = [];
+  const notBottom = readings.filter((x) => !liveAtBottom(x)).length;
+  if (notBottom > 0) p.push(`the live bottom left the grid's bottom in ${String(notBottom)} of ${String(readings.length)} reading(s)`);
+  const u = [];
+  const carried = readings.filter((x) => historyAbove(x, null).touches).length;
+  if (carried / readings.length < PF2_CARRIED_SHARE) p.push(`only ${String(carried)} of ${String(readings.length)} reading(s) held no reserved row between the history and the live top (at least ${String(Math.round(PF2_CARRIED_SHARE * 100))} percent)`);
+  // The history's lowest row is the line right above the live top, by index, not by geometry alone (the verify's minor).
+  const lost = readings.filter((x) => {
+    const a = historyAbove(x, null);
+    return a.touches && a.adjoins === false;
+  });
+  if (lost.length > 0) p.push(`in ${String(lost.length)} reading(s) the history touching the live rows ends at index ${String(historyAbove(lost[0], null).lowest)}, not the line right above the live top: lines lost between the history and the live top`);
+  const judged = readings.filter((x) => historyAbove(x, null).adjoins !== null).length;
+  if (readings.some((x) => historyAbove(x, null).count > 0) && judged === 0) u.push("live row 0 was never read as a numbered line, so no reading could say whether the history ends right above the live top");
+  const wrong = [...new Set(readings.flatMap((x) => historyAbove(x, r.lines).wrong))];
+  if (wrong.length > 0) p.push(`history row(s) ${J(wrong.slice(0, 5))} drawn otherwise than tmux's line at that index`);
+  return decide(p, u, `${String(readings.length)} reading(s) while ${String(r.streamed)} line(s) scrolled off: the live bottom held at the grid's bottom, ${String(carried)} of ${String(readings.length)} with no reserved row above it and the history's lowest row right above the live top by index (${String(judged)} judged), every history row tmux's; the Mac's check pages are not counted here (its door stamps no page)`);
+}
+
+/**
+ * PF8: how soon after the return the view must be filled again. Since the fix
+ * round of 2026-10-08 a return is ONE picture that outran the screen, so its
+ * page goes at once: a picture, a page's round trip (one in flight before it
+ * at most, and the quarter second between two) and a snapshot of the tree,
+ * with room. It was 3 s while a lone return waited out the hold (the verify:
+ * blank for 1.30 to 1.55 s, measured).
+ */
+const PF8_FILLED_MS = 1_500;
+/** PF8: the share of readings, once filled, that must stay filled while the agent prints. */
+const PF8_HELD_SHARE = 0.9;
+
+/**
+ * PF8 (26.3), THE PHASE 337.3 REVERIFY'S BAND: back on the Terminal from
+ * Catch Me Up while the agent prints (T3.away, 20 lines a second), the view
+ * is FILLED again (the history in view contiguous, right on the live rows and
+ * up to the grid's top: no reserved band above the prompt) within
+ * PF8_FILLED_MS of the return, and stays so in at least 90 percent of the
+ * readings after; the live bottom at the grid's bottom in every reading; and
+ * every history row tmux's line at its index. The build before the fix kept
+ * a band of reserved rows right above the prompt for a median of 3 s and up to
+ * 18 s after such a return (measured), which this arm reads live.
+ */
+function gradePf8(r) {
+  const h = r.hold;
+  if (h === null || h === undefined) return verdict(null, 'the UI test printed no return-hold line');
+  if (h.acked !== true) return verdict(null, "the stream's start was never acknowledged, so the agent never printed while the phone was away");
+  if (h.left !== true || h.returned !== true) return verdict(null, 'Catch Me Up was not reached through the ⋯, or Back did not return to the Terminal');
+  if (!Array.isArray(r.lines) || r.lines.length === 0) return verdict(null, "the Mac's history was not read after the stream");
+  if (typeof h.backAt !== 'number') return verdict(null, 'the moment of the return was not stamped');
+  const readings = (h.readings ?? []).filter((x) => typeof x?.at === 'number');
+  if (readings.length < 4) return verdict(null, `${String(readings.length)} reading(s) after the return`);
+  const p = [];
+  const notBottom = readings.filter((x) => !liveAtBottom(x)).length;
+  if (notBottom > 0) p.push(`the live bottom left the grid's bottom in ${String(notBottom)} of ${String(readings.length)} reading(s) after the return`);
+  const filled = (x) => {
+    const a = historyAbove(x, null);
+    return a.count > 0 && a.contiguous && a.touches && a.reachesTop;
+  };
+  // The history's lowest row is the line right above the live top, by index (the verify's minor).
+  const lost = readings.filter((x) => {
+    const a = historyAbove(x, null);
+    return a.touches && a.adjoins === false;
+  });
+  if (lost.length > 0) p.push(`in ${String(lost.length)} reading(s) after the return the history touching the live rows ends at index ${String(historyAbove(lost[0], null).lowest)}, not the line right above the live top: lines lost between the history and the live top`);
+  const u = [];
+  if (readings.some((x) => historyAbove(x, null).count > 0) && !readings.some((x) => historyAbove(x, null).adjoins !== null)) u.push("live row 0 was never read as a numbered line, so no reading could say whether the history ends right above the live top");
+  const first = readings.find(filled) ?? null;
+  let tookMs = null;
+  if (first === null) p.push('the view was never filled again after the return: a reserved band stayed above the prompt');
+  else {
+    tookMs = Math.round(first.at - h.backAt);
+    if (tookMs > PF8_FILLED_MS) p.push(`the view was filled again ${String(tookMs)} ms after the return, past ${String(PF8_FILLED_MS)} ms`);
+    const after = readings.filter((x) => x.at >= first.at);
+    const held = after.filter(filled).length;
+    if (held / after.length < PF8_HELD_SHARE) p.push(`only ${String(held)} of ${String(after.length)} reading(s) after it was filled stayed filled (at least ${String(Math.round(PF8_HELD_SHARE * 100))} percent)`);
+  }
+  const wrong = [...new Set(readings.flatMap((x) => historyAbove(x, r.lines).wrong))];
+  if (wrong.length > 0) p.push(`history row(s) ${J(wrong.slice(0, 5))} drawn otherwise than tmux's line at that index`);
+  return decide(p, u, `back from Catch Me Up after ${String(h.away ?? '?')} s while the agent printed: the view filled again ${String(tookMs)} ms after the return (at most ${String(PF8_FILLED_MS)}) and stayed so, its lowest row right above the live top by index; the live bottom held; every history row tmux's`);
+}
+
+/**
+ * PF9: the whole-band blank episodes a minute allowed while output runs near
+ * and past a screen a picture: the fix round's entry into the ground when
+ * pictures pass the view, with room (1.2 a minute at most over the shipping
+ * model at the watcher's floor, 250 to 400 lines a second, ten seeds,
+ * measured; the build the verify read flashed 9 to 98).
+ */
+const PF9_BLANKS_PER_MIN = 6;
+
+/**
+ * The history row indices one reading has in view, drawn or not: from live
+ * row 0's own numbered line (index L) up to the grid's top, by the row
+ * height. Null when live row 0 is no numbered line or the grid is unread.
+ */
+function indicesInView(reading) {
+  const r0 = liveRow0(reading);
+  const line = r0 === null ? null : numberedLine(r0.label);
+  const g = reading?.grid;
+  if (line === null || line === undefined || line.prefix !== 'L' || !Array.isArray(g) || !(r0.frame?.[3] > 0)) return null;
+  const live = line.n - 1;
+  const above = Math.max(0, Math.floor((r0.frame[1] - g[1]) / r0.frame[3] + STILL_PT / r0.frame[3]));
+  return { from: Math.max(0, live - above), to: live };
+}
+
+/**
+ * PF9 (26.3), THE PHASE 337.3 VERIFY'S STRADDLE (2026-10-08): T3.fast prints
+ * 280 lines a second, near and past a screen a picture (build/p3373/SPEC.md
+ * §Rebuilt after the reboot, the fix round). Through stream-hold: the live
+ * bottom at the grid's bottom in every reading; every drawn history row
+ * tmux's line at its index, and the lowest one right above the live top by
+ * index; NO drawn row taken away in place (a history row drawn in one reading
+ * whose index is still in view in the next and drawn no more); and at most
+ * PF9_BLANKS_PER_MIN whole-band blank episodes a minute (a reading with
+ * history in view followed by one with none). The shares of readings filled,
+ * the ground and partly drawn are printed, not graded: output that outruns
+ * the screen short of the view keeps every row a picture showed, holes
+ * beside them, and output that passes the view leaves the ground, both by
+ * design (build/p3373/SPEC.md §Rebuilt after the reboot, the fix round). The
+ * build the verify read flashed strips of carried rows above the prompt 9 to
+ * 98 times a minute here; build 7 drew 40 steady rows.
+ */
+function gradePf9(r) {
+  const h = r.hold;
+  if (h === null || h === undefined) return verdict(null, 'the UI test printed no stream-hold line for the fast session');
+  if (h.acked !== true) return verdict(null, "the fast stream's start was never acknowledged, so the agent never printed while the phone read");
+  if (!Array.isArray(r.lines) || r.lines.length === 0) return verdict(null, "the Mac's history was not read after the fast stream");
+  const readings = (h.readings ?? []).filter((x) => typeof x?.at === 'number').sort((a, b) => a.at - b.at);
+  if (readings.length < 12) return verdict(null, `${String(readings.length)} reading(s) while the agent printed fast`);
+  if (!(r.streamed > 0)) return verdict(null, 'no line scrolled into the history while the phone read the fast stream');
+  const p = [];
+  const u = [];
+  const notBottom = readings.filter((x) => !liveAtBottom(x)).length;
+  if (notBottom > 0) p.push(`the live bottom left the grid's bottom in ${String(notBottom)} of ${String(readings.length)} reading(s)`);
+  const wrong = [...new Set(readings.flatMap((x) => historyAbove(x, r.lines).wrong))];
+  if (wrong.length > 0) p.push(`history row(s) ${J(wrong.slice(0, 5))} drawn otherwise than tmux's line at that index`);
+  const lost = readings.filter((x) => {
+    const a = historyAbove(x, null);
+    return a.touches && a.adjoins === false;
+  });
+  if (lost.length > 0) p.push(`in ${String(lost.length)} reading(s) the history touching the live rows ends at index ${String(historyAbove(lost[0], null).lowest)}, not the line right above the live top`);
+  let taken = 0;
+  let judged = 0;
+  for (let k = 1; k < readings.length; k++) {
+    const view = indicesInView(readings[k]);
+    if (view === null) continue;
+    judged += 1;
+    const now = new Set(visibleHistory(readings[k]).map((x) => x.i));
+    taken += visibleHistory(readings[k - 1]).filter((x) => x.i >= view.from && x.i < view.to && !now.has(x.i)).length > 0 ? 1 : 0;
+  }
+  if (judged === 0) u.push('live row 0 was never read as a numbered line, so no drawn row could be followed from one reading to the next');
+  if (taken > 0) p.push(`in ${String(taken)} reading(s) a history row drawn in the reading before, its index still in view, was drawn no more (a row taken away in place)`);
+  let blanks = 0;
+  for (let k = 1; k < readings.length; k++) if (visibleHistory(readings[k - 1]).length > 0 && visibleHistory(readings[k]).length === 0) blanks += 1;
+  const minutes = Math.max((readings.at(-1).at - readings[0].at) / 60_000, 1 / 60);
+  const perMin = blanks / minutes;
+  if (perMin > PF9_BLANKS_PER_MIN) p.push(`${String(blanks)} whole-band blank episode(s) in ${String(Math.round(minutes * 600) / 10)} min (${String(Math.round(perMin * 10) / 10)} a minute, at most ${String(PF9_BLANKS_PER_MIN)})`);
+  const filled = readings.filter((x) => {
+    const a = historyAbove(x, null);
+    return a.count > 0 && a.contiguous && a.touches && a.reachesTop;
+  }).length;
+  const ground = readings.filter((x) => visibleHistory(x).length === 0).length;
+  return decide(p, u, `${String(readings.length)} reading(s) while ${String(r.streamed)} line(s) scrolled off at 280 a second: the live bottom held, every history row tmux's and none taken away in place, ${String(blanks)} whole-band blank episode(s) (${String(Math.round(perMin * 10) / 10)} a minute); the band filled in ${String(filled)}, the ground in ${String(ground)} and partly drawn in ${String(readings.length - filled - ground)} reading(s), share filled ${String(Math.round((filled / readings.length) * 100))} percent`);
+}
+
+/** PF3 (26.3): NO HISTORY, AS TODAY, T.short: live row 0 at the grid's top and no history element, at the first frame and through fill-hold. */
+function gradePf3(r) {
+  const first = r.open?.first ?? null;
+  if (first === null || first === undefined) return verdict(null, "the short session's Terminal drew no row");
+  const all = [first, r.open?.reading, ...(r.hold?.readings ?? [])].filter((x) => x !== null && x !== undefined);
+  if (all.length < 3) return verdict(null, `${String(all.length)} reading(s) of the short session`);
+  if (typeof r.depth === 'number' && r.depth !== 0) return verdict(null, `the short session's history is ${String(r.depth)} line(s), not 0`);
+  const p = [];
+  const notTop = all.filter((x) => !liveAtTop(x)).length;
+  if (notTop > 0) p.push(`live row 0 left the grid's top in ${String(notTop)} of ${String(all.length)} reading(s)`);
+  const withHistory = all.filter((x) => (x.history ?? []).length > 0).length;
+  if (withHistory > 0) p.push(`${String(withHistory)} reading(s) drew a history row over a session with nothing scrolled off`);
+  return decide(p, [], `live row 0 at the grid's top in ${String(all.length)} reading(s) and no history drawn, as today (at depth 0 no page can be asked)`);
+}
+
+/**
+ * PF4 (26.3): A FULL-SCREEN PROGRAM, AS TODAY, THEN THE FILL BACK, T.altback.
+ * While tmux says the program has the screen (readings up to ALT_BEFORE_MS
+ * before it left) live row 0 is at the grid's top with no history; once it has
+ * left (ALT_AFTER_MS for a picture and a page) the fill is PF1's: the live
+ * bottom at the grid's bottom, the history contiguous right on it, each row
+ * tmux's.
+ */
+function gradePf4(r) {
+  if (typeof r.altOffAt !== 'number') return verdict(null, 'tmux was never seen leaving the alternate screen');
+  const readings = [r.open?.first, r.open?.reading, ...(r.hold?.readings ?? [])].filter((x) => x !== null && x !== undefined && typeof x.at === 'number');
+  const during = readings.filter((x) => x.at < r.altOffAt - ALT_BEFORE_MS);
+  const after = readings.filter((x) => x.at > r.altOffAt + ALT_AFTER_MS);
+  const p = [];
+  const u = [];
+  if (during.length === 0) u.push('no reading while the program had the screen');
+  if (after.length === 0) u.push('no reading after the program left');
+  const duringBad = during.filter((x) => !liveAtTop(x) || (x.history ?? []).length > 0).length;
+  if (duringBad > 0) p.push(`${String(duringBad)} of ${String(during.length)} reading(s) while the program had the screen drew history or left live row 0 off the grid's top`);
+  const lastAfter = after.at(-1) ?? null;
+  if (lastAfter !== null) {
+    if (!liveAtBottom(lastAfter)) p.push("after the program left the live rows do not end at the grid's bottom");
+    const h = historyAbove(lastAfter, r.lines);
+    if (h.count === 0) p.push('after the program left no history was drawn above the live rows');
+    else if (!h.contiguous || !h.touches) p.push('after the program left the history is not contiguous right on the live rows');
+    if (h.wrong.length > 0) p.push(`after the program left history row(s) ${J(h.wrong.slice(0, 3))} read otherwise than tmux`);
+  }
+  return decide(p, u, `${String(during.length)} reading(s) while the program drew: row 0 at the top and no history; ${String(after.length)} after it left: the fill back`);
+}
+
+/**
+ * Where the live bottom must sit in a reading: the grid's bottom (half a
+ * point), or, with the keyboard up, within one row above the key bar's top
+ * (the keyboard's top when no key bar was read).
+ */
+function liveAtVisibleBottom(reading) {
+  const last = liveLast(reading);
+  if (last === null) return false;
+  const ref = Array.isArray(reading?.keyBar) ? reading.keyBar[1] : Array.isArray(reading?.keyboard) ? reading.keyboard[1] : null;
+  if (ref === null) return liveAtBottom(reading);
+  const end = bottomOf(last.frame);
+  return end <= ref + STILL_PT && end >= ref - last.frame[3] - STILL_PT;
+}
+
+/** PF5 (26.3): BACK TO LIVE RETURNS THE FILL, from PS13's run: after to-live and after scroll-key:esc, the live bottom at the view's bottom and the history contiguous right on it, each row tmux's. */
+function gradePf5(r) {
+  const p = [];
+  const u = [];
+  if (!Array.isArray(r.lines) || r.lines.length === 0) return verdict(null, "the Mac's history was not read");
+  for (const [name, x] of [['to-live', r.toLive?.after], ['a key', r.key?.after]]) {
+    if (x === null || x === undefined) {
+      u.push(`no reading after ${name}`);
+      continue;
+    }
+    if (!liveAtVisibleBottom(x)) p.push(`after ${name} the live rows do not end at the view's bottom`);
+    const h = historyAbove(x, r.lines);
+    if (h.count === 0) p.push(`after ${name} no history is drawn above the live rows`);
+    else if (!h.contiguous || !h.touches) p.push(`after ${name} the history is not contiguous right on the live rows`);
+    if (h.wrong.length > 0) p.push(`after ${name} history row(s) ${J(h.wrong.slice(0, 3))} read otherwise than tmux`);
+  }
+  return decide(p, u, "back to live, by the arrow and by a key: the live bottom at the view's bottom with the history right on it");
+}
+
+/** PF6 (26.3 and 18.3): THE KEYBOARD OVER THE FILL, from keyboard-glitch: with it up the live rows' last row ends within one row above the key bar's top; after it goes, at the grid's bottom again. PS14's clauses are PS14's. */
+function gradePf6(r) {
+  const g = r.glitch;
+  if (g === null || g === undefined) return verdict(null, 'the UI test printed no keyboard-glitch line');
+  const up = g.up;
+  const ref = Array.isArray(up?.keyBar) ? up.keyBar[1] : Array.isArray(up?.keyboard) ? up.keyboard[1] : null;
+  if (ref === null) return verdict(null, 'no key bar or keyboard was read with the keyboard up');
+  const last = liveLast(up);
+  if (last === null) return verdict(null, 'no live row was read with the keyboard up');
+  const p = [];
+  const end = bottomOf(last.frame);
+  if (!liveAtVisibleBottom(up)) p.push(`with the keyboard up the live rows end at y ${String(end)}, not within one row above the key bar's top ${String(ref)}`);
+  if (!liveAtBottom(g.after)) p.push("after the keyboard went the live rows do not end at the grid's bottom");
+  return decide(p, [], `with the keyboard up the live bottom ${String(Math.round((ref - end) * 10) / 10)} pt above the key bar's top; after it went, at the grid's bottom`);
+}
+
+/** PF7 (26.3): A TURN OVER THE FILL: upright, sideways and upright again the live bottom at the grid's bottom; upright again the history contiguous right on it and every label tmux's. */
+function gradePf7(r) {
+  const steps = [['upright', r.before], ['sideways', r.landscape?.reading], ['upright again', r.portrait?.reading]];
+  if (steps.some(([, x]) => x === null || x === undefined)) return verdict(null, `a reading is missing: ${J(steps.map(([n, x]) => `${n} ${x === null || x === undefined ? 'not read' : 'read'}`))}`);
+  if (!SIDEWAYS.includes(r.landscape?.chrome?.orientation)) return verdict(null, 'the device did not turn sideways');
+  if (!Array.isArray(r.lines) || r.lines.length === 0) return verdict(null, "the Mac's history was not read");
+  const p = [];
+  for (const [name, x] of steps) if (!liveAtBottom(x)) p.push(`${name} the live rows do not end at the grid's bottom`);
+  const h = historyAbove(r.portrait.reading, r.lines);
+  if (h.count === 0) p.push('upright again no history is drawn above the live rows');
+  else if (!h.contiguous || !h.touches) p.push('upright again the history is not contiguous right on the live rows');
+  const wrong = [...new Set(steps.flatMap(([, x]) => historyAbove(x, r.lines).wrong))];
+  if (wrong.length > 0) p.push(`history row(s) ${J(wrong.slice(0, 3))} read otherwise than tmux`);
+  return decide(p, [], "upright, sideways and upright again the live bottom at the grid's bottom; upright again the history right on it, each row tmux's");
+}
+
+/**
+ * PL1 (26.3 and 18.3): SIDEWAYS, THE TERMINAL ALONE, over a session waiting on
+ * a question: no navigation bar and no tab bar in the tree (and no button
+ * carrying a tab's word), no status line, no ⋯, no tray press; the grid's top
+ * at the window's top (a point), its frame inside the window less the side
+ * strips and the home indicator's strip and reaching that area's bottom; the
+ * live rows drawn. SpringBoard's status bar is printed, not graded (§14 M8).
+ */
+function gradePl1(r) {
+  const c = r.landscape?.chrome ?? null;
+  if (c === null || c.read !== true) return verdict(null, 'the landscape chrome was not read');
+  if (!SIDEWAYS.includes(c.orientation)) return verdict(null, `the device reads orientation ${J(c.orientation)}, not sideways`);
+  const p = [];
+  if (c.navs > 0) p.push(`a navigation bar is in the tree sideways (${J(c.nav)})`);
+  if (c.tabBars > 0 || (c.tabWords ?? []).length > 0) p.push(`the tab bar is in the tree sideways (${J(c.tabBar)}, ${J((c.tabWords ?? []).map((t) => t.label))})`);
+  if (c.status !== null && c.status !== undefined) p.push('the status line is drawn sideways');
+  if (c.menu !== null && c.menu !== undefined) p.push('the ⋯ is drawn sideways');
+  if ((c.tray ?? []).length > 0) p.push(`${String(c.tray.length)} tray press(es) drawn sideways`);
+  const g = c.grid?.frame ?? null;
+  const w = c.window;
+  if (!Array.isArray(g) || !Array.isArray(w)) p.push('the grid or the window was not read');
+  else {
+    if (!near(g[1], 0, 1)) p.push(`the grid's top is at y ${String(g[1])}, not the window's top`);
+    const inside = g[0] >= LANDSCAPE_SIDE_PT - 1 && g[0] + g[2] <= w[0] - LANDSCAPE_SIDE_PT + 1 && bottomOf(g) <= w[1] - LANDSCAPE_HOME_PT + 1;
+    if (!inside) p.push(`the grid ${J(g)} is not inside the window ${J(w)} less its side strips (${String(LANDSCAPE_SIDE_PT)} pt) and the home indicator's (${String(LANDSCAPE_HOME_PT)} pt)`);
+    else if (!(bottomOf(g) >= w[1] - LANDSCAPE_HOME_PT - 2)) p.push(`the grid ends at y ${String(bottomOf(g))}, short of the safe area's bottom ${String(w[1] - LANDSCAPE_HOME_PT)}`);
+  }
+  if (liveOf(r.landscape?.reading).length === 0) p.push('no live row is drawn sideways');
+  if (r.question !== true) return decide(p, ['the session drew no tray upright before the turn, so a tray hidden sideways was not read'], '');
+  return decide(p, [], `the terminal alone sideways: the grid ${J(g)} in a window ${J(w)}, no bar above or below it, no status line, ⋯ or tray; SpringBoard's status bar read as ${J(r.landscape?.statusBar ?? null)}, not graded`);
+}
+
+/** PL2 (26.3): THE KEYBOARD SIDEWAYS: the keyboard and every key of the key bar hittable, the typed line and Return the recorder's exact bytes, the hide key puts it away, and the grid's frame never follows the keyboard. */
+function gradePl2(r) {
+  const s = r.step;
+  if (s === null || s === undefined) return verdict(null, 'the UI test printed no landscape-type line');
+  if (!SIDEWAYS.includes(s.orientation)) return verdict(null, `the step ran in orientation ${J(s.orientation)}, not sideways`);
+  const p = [];
+  if (s.keyboard !== true) p.push('the keyboard did not rise sideways');
+  const keys = s.keys ?? [];
+  if (keys.length === 0) p.push('no key of the key bar was drawn sideways');
+  else if (keys.some((k) => k.hittable !== true)) p.push(`key(s) ${J(keys.filter((k) => k.hittable !== true).map((k) => k.id))} cannot be pressed sideways`);
+  if (s.returnFound !== true) p.push('the key bar drew no return key sideways');
+  if (r.bytes !== r.want) p.push(`the recorder read ${J(r.bytes)}, not exactly ${J(r.want)}`);
+  if (s.hideKey !== true || s.keyboardAfter !== false) p.push('the hide key did not put the keyboard away');
+  const grids = [s.before?.grid, s.withKeyboard?.grid, s.after?.grid];
+  if (!grids.every((g) => sameFrame(g, grids[0]))) p.push(`the grid's frame moved with the keyboard (${J(grids)})`);
+  if (s.auth === true) p.push('a key asked for Face ID');
+  return decide(p, [], `sideways the keyboard and ${String(keys.length)} key(s) answered, ${J(r.want)} reached the recorder exactly, the hide key put it away, and the grid never moved`);
+}
+
+/** PL3 (26.3): COPY SIDEWAYS: a long press on live row 3 draws ONE screen-copy, inside the grid's frame and hittable; pressed, the device's pasteboard holds that row's text, which is tmux's. */
+function gradePl3(r) {
+  const c = r.copied;
+  if (c === null || c === undefined) return verdict(null, 'the UI test printed no landscape-copied line');
+  if (!SIDEWAYS.includes(c.orientation)) return verdict(null, `the selection ran in orientation ${J(c.orientation)}, not sideways`);
+  if (r.pasteboard === null || r.pasteboard === undefined) return verdict(null, "the device's pasteboard was not read");
+  const p = [];
+  if (c.copy !== true || c.hittable !== true) p.push('Copy was not drawn, or could not be pressed, over the selection sideways');
+  const copies = c.chrome?.copies ?? [];
+  if (copies.length !== 1) p.push(`${String(copies.length)} Copy element(s) drawn at once, not one`);
+  const g = c.chrome?.grid?.frame ?? null;
+  const f = c.copyFrame;
+  if (!Array.isArray(f) || !Array.isArray(g)) p.push("Copy's frame or the grid's was not read");
+  else if (!(f[0] >= g[0] - 1 && f[1] >= g[1] - 1 && f[0] + f[2] <= g[0] + g[2] + 1 && bottomOf(f) <= bottomOf(g) + 1)) p.push(`Copy ${J(f)} is not inside the grid ${J(g)}`);
+  const copied = String(r.pasteboard).trim();
+  if (copied === '' || !String(c.row ?? '').includes(copied)) p.push(`the pasteboard holds ${J(copied)}, which is not text of row ${String(c.n)} ${J(c.row)}`);
+  if (typeof r.tmuxRow === 'string' && String(c.row ?? '') !== r.tmuxRow.replace(/ +$/, '')) p.push(`row ${String(c.n)} reads ${J(c.row)}, not tmux's ${J(r.tmuxRow)}`);
+  return decide(p, [], `sideways ONE Copy inside the grid at ${J(f)}, and it copied ${J(copied)}`);
+}
+
+/**
+ * PL4 (26.3 and 18.3): UPRIGHT AGAIN: the navigation bar with the session's
+ * name, the ⋯, the status line, the tray (on a question) and the tab bar with
+ * its three tabs, each frame within half a point of its frame before the turn.
+ */
+function gradePl4(r) {
+  const a = r.before?.chrome ?? null;
+  const b = r.after?.chrome ?? null;
+  if (a === null || b === null || a.read !== true || b.read !== true) return verdict(null, 'the chrome was not read before and after the turn');
+  if (SIDEWAYS.includes(b.orientation) || SIDEWAYS.includes(a.orientation)) return verdict(null, 'the device was sideways where it is read upright');
+  const p = [];
+  for (const [name, x, y] of [['the navigation bar', a.nav, b.nav], ['the ⋯', a.menu?.frame, b.menu?.frame], ['the status line', a.status?.frame, b.status?.frame], ['the tab bar', a.tabBar, b.tabBar], ['the grid', a.grid?.frame, b.grid?.frame]]) {
+    if (!Array.isArray(x)) p.push(`${name} was not drawn before the turn`);
+    else if (!sameFrame(x, y)) p.push(`${name} came back at ${J(y ?? null)}, not ${J(x)}`);
+  }
+  if (typeof r.name === 'string' && !(b.navTexts ?? []).includes(r.name)) p.push(`the bar's words read ${J(b.navTexts ?? [])}, without the session's name`);
+  const tabsOf = (c) => ((c.tabButtons ?? []).length > 0 ? c.tabButtons : c.tabWords ?? []);
+  for (const word of MENU_WORDS.tabs) {
+    const x = tabsOf(a).find((t) => t.label === word);
+    const y = tabsOf(b).find((t) => t.label === word);
+    if (x === undefined) p.push(`the ${J(word)} tab was not drawn before the turn`);
+    else if (y === undefined || !sameFrame(x.frame, y.frame)) p.push(`the ${J(word)} tab came back at ${J(y?.frame ?? null)}, not ${J(x.frame)}`);
+  }
+  const trayA = [...(a.tray ?? [])].sort((m, n) => m.n - n.n);
+  const trayB = [...(b.tray ?? [])].sort((m, n) => m.n - n.n);
+  if (r.question === true && trayA.length === 0) p.push('no tray was drawn before the turn on a session waiting on a question');
+  if (trayA.length !== trayB.length || trayA.some((t, k) => trayB[k]?.n !== t.n || !sameFrame(t.frame, trayB[k]?.frame))) p.push(`the tray came back as ${J(trayB.map((t) => t.frame))}, not ${J(trayA.map((t) => t.frame))}`);
+  return decide(p, [], `upright again every bar where it was: the navigation bar, the ⋯, the status line, ${String(trayA.length)} tray press(es) and the three tabs, each within half a point`);
+}
+
+/** PL5 (26.3): EVERY OTHER PAGE STAYS UPRIGHT: the list and Catch Me Up (reached through the menu), the device sideways, each read with an upright window. */
+function gradePl5(r) {
+  const p = [];
+  const u = [];
+  const list = r.rotate;
+  if (list === null || list === undefined) u.push('the list was not read sideways');
+  else if (!SIDEWAYS.includes(list.pageOrientation)) u.push('the device did not turn sideways over the list');
+  else if (!Array.isArray(list.pageWindow) || !(list.pageWindow[0] < list.pageWindow[1])) p.push(`sideways the list's window is ${J(list.pageWindow ?? null)}, not upright`);
+  const c = r.sideways;
+  if (c === null || c === undefined) u.push('Catch Me Up was not read sideways');
+  else if (c.face !== 'catch-up') u.push(`the face read sideways was ${J(c.face)}, not Catch Me Up`);
+  else if (!SIDEWAYS.includes(c.orientation)) u.push('the device did not turn sideways over Catch Me Up');
+  else {
+    if (!Array.isArray(c.window) || !(c.window[0] < c.window[1])) p.push(`sideways Catch Me Up's window is ${J(c.window ?? null)}, not upright`);
+    if (c.backToTerminal !== true) p.push('Back from Catch Me Up did not return to the Terminal');
+  }
+  if (r.via !== undefined && r.via !== 'menu') u.push(`Catch Me Up was reached ${J(r.via)}, not through the ⋯ menu`);
+  return decide(p, u, 'sideways the list and Catch Me Up stayed upright; only the Terminal turns');
+}
+
+/**
+ * PM1 (26.3 and 18.3): THE ⋯. Upright on the Terminal the bar's trailing half
+ * holds `terminal-menu`, named More, pressable; no Catch Me Up icon and no End
+ * on the Terminal; opened, exactly two rows in order, Catch Me Up and End
+ * session…; End enabled exactly where the Terminal's End line does not say a
+ * passcode is needed (whichever iOS answers is printed); its glyph the image
+ * the open menu holds; Catch Me Up pushes Catch Me Up and Back returns.
+ */
+function gradePm1(r) {
+  const o = r.open;
+  if (o === null || o === undefined) return verdict(null, 'the UI test printed no terminal-open line');
+  if (o.face !== 'terminal') return verdict(null, `the session opened on ${J(o.face)}, not its Terminal`);
+  const p = [];
+  const u = [];
+  const m = o.menu ?? null;
+  if (m === null || !Array.isArray(m.frame)) p.push('no ⋯ in the top bar');
+  else {
+    if (m.label !== MENU_WORDS.more) p.push(`the ⋯ is named ${J(m.label)}, not ${J(MENU_WORDS.more)}`);
+    if (m.hittable !== true) p.push('the ⋯ cannot be pressed');
+    if (!Array.isArray(o.nav) || !insideBar(m.frame, o.nav) || !(centreX(m.frame) > centreX(o.nav))) p.push(`the ⋯ ${J(m.frame)} is not in the navigation bar's trailing half ${J(o.nav ?? null)}`);
+  }
+  const ids = new Set([...(r.dump?.elements ?? []).map((e) => e.id), ...(o.navIds ?? []).map((x) => x.id)]);
+  for (const gone of ['session-open-catch-up', 'session-end']) if (ids.has(gone)) p.push(`${gone} is still drawn on the Terminal`);
+  const menu = r.menu;
+  let kind = 'unread';
+  if (menu === null || menu === undefined || menu.opened !== true) p.push('the ⋯ did not open its menu');
+  else {
+    const rows = menu.rows ?? [];
+    const labels = rows.map((x) => x.label);
+    if (J(labels) !== J([MENU_WORDS.catchMeUp, MENU_WORDS.endSession])) p.push(`the menu holds ${J(labels)}, not exactly Catch Me Up then End session…`);
+    if (menu.catchUp?.label !== MENU_WORDS.catchMeUp) p.push(`Catch Me Up's item reads ${J(menu.catchUp?.label ?? null)}`);
+    if (menu.end === null || menu.end === undefined) p.push('the menu holds no End session… on a session the Mac offers End on');
+    else {
+      const passcodeLine = o.endLine?.label === MENU_WORDS.needsPasscode;
+      if (menu.end.enabled !== !passcodeLine) p.push(`End session… is ${menu.end.enabled ? 'on' : 'off'} where the End line ${passcodeLine ? 'says a passcode is needed' : 'says none is'}`);
+      if (!OWNER_GLYPHS.includes(menu.glyph)) p.push(`the open menu holds no owner glyph (${J(menu.glyphs ?? [])})`);
+      kind = menu.glyph === 'faceid' ? 'Face ID' : menu.glyph === 'touchid' ? 'Touch ID' : menu.glyph === 'lock' ? (menu.end.enabled ? 'the passcode alone' : 'no passcode') : 'unread';
+      if (menu.glyph === 'lock' && !menu.end.enabled && !passcodeLine) p.push('End session… is off with the lock and no passcode line');
+    }
+    for (const it of [menu.catchUp, menu.end]) if (it !== null && it !== undefined && it.via !== 'id') u.push(`${J(it.label)} was found by its words, not its identifier`);
+  }
+  const c = r.catchUp;
+  if (c === null || c === undefined) u.push('Catch Me Up was not pressed from the menu');
+  else {
+    if (r.face?.via !== 'menu' || r.face?.now !== 'catch-up') p.push(`the menu's Catch Me Up did not push Catch Me Up (${J(r.face ?? null)})`);
+    if (c.backToTerminal !== true) p.push('Back from Catch Me Up did not return to the Terminal');
+  }
+  return decide(p, u, `the ⋯ alone in the bar's trailing half, named ${J(MENU_WORDS.more)}; its menu Catch Me Up then End session…, End ${menu?.end?.enabled ? 'on' : 'off'} as iOS answered (${kind}); Catch Me Up pushed and Back returned`);
+}
+
+/** PP1 (26.3), the parent (dfa878b5's ios/, build 7, read by this drive): T.hist opens with live row 0 at the grid's top and no history drawn, his item 1's defect, the arm that proves PF1 can fail. */
+function gradePp1(r) {
+  const first = r.open?.first ?? null;
+  if (first === null || first === undefined) return verdict(null, "the parent's Terminal drew no row");
+  const all = [first, r.open?.reading, ...(r.hold?.readings ?? [])].filter((x) => x !== null && x !== undefined);
+  const p = [];
+  if (all.some((x) => !liveAtTop(x))) p.push("the parent did not keep live row 0 at the grid's top (it is not the parent's look)");
+  if (all.some((x) => (x.history ?? []).length > 0)) p.push('the parent drew history at rest');
+  return decide(p, [], `the parent opens with live row 0 at the grid's top and nothing above it, in ${String(all.length)} reading(s): his item 1, printed`);
+}
+
+/** PP2 (26.3 and 18.3), the parent: sideways the navigation bar and the tab bar are still in the tree; the grid's height printed beside HEAD's. */
+function gradePp2(r) {
+  const c = r.landscape?.chrome ?? null;
+  if (c === null || c.read !== true) return verdict(null, "the parent's landscape chrome was not read");
+  if (!SIDEWAYS.includes(c.orientation)) return verdict(null, 'the parent was not turned sideways');
+  const p = [];
+  if (!(c.navs > 0)) p.push('the parent drew no navigation bar sideways');
+  if (!(c.tabBars > 0) && (c.tabWords ?? []).length < 3) p.push('the parent drew no tab bar sideways');
+  const h = Array.isArray(c.grid?.frame) ? c.grid.frame[3] : null;
+  return decide(p, [], `the parent sideways keeps the navigation bar and the tab bar; its grid is ${J(h)} pt tall, HEAD's ${J(r.headHeight ?? null)}: his item 2, printed`);
+}
+
+/** PP3 (26.3), the parent: the Catch Me Up icon and End in the bar, and no ⋯. */
+function gradePp3(r) {
+  const o = r.open;
+  if (o === null || o === undefined) return verdict(null, "the parent's terminal-open line was not printed");
+  const ids = new Set([...(r.dump?.elements ?? []).map((e) => e.id), ...(o.navIds ?? []).map((x) => x.id)]);
+  const navIds = new Set((o.navIds ?? []).map((x) => x.id));
+  const p = [];
+  for (const want of ['session-open-catch-up', 'session-end']) if (!navIds.has(want)) p.push(`the parent's bar holds no ${want}`);
+  if (ids.has('terminal-menu')) p.push('the parent draws a ⋯');
+  return decide(p, [], "the parent's top right: the Catch Me Up icon then End, no ⋯: his item 3, printed");
+}
+
+/**
+ * PSH scrollback-fill-moved (26.3, D8): the fill asks ONE page at open, which
+ * the door answers moved; following then draws no line and no history row and
+ * asks nothing more over a still screen; and a drag pages honestly, every row
+ * it draws the door's line at its index.
+ */
+function gradePshFill(r) {
+  const p = [];
+  const u = [];
+  if (r.alive !== RUNNING_FOREGROUND) p.push(`the app's state is ${J(r.alive)}, not running in the foreground`);
+  const hold = r.hold?.readings ?? [];
+  if (hold.length === 0) return verdict(null, 'no reading while following');
+  if (typeof r.dragAt !== 'number') return verdict(null, 'the drag was not read');
+  const pages = (r.pages ?? []).filter((e) => typeof e.at === 'number').sort((a, b) => a.at - b.at);
+  const before = pages.filter((e) => e.at < r.dragAt);
+  const after = pages.filter((e) => e.at >= r.dragAt);
+  if (before.length !== 1) p.push(`${String(before.length)} page(s) asked before the drag, not the fill's one`);
+  else if (before[0].why !== 'moved') u.push("the fill's page was not the one the door answered moved");
+  if (hold.some((x) => x.scrollbackLine !== null && x.scrollbackLine !== undefined)) p.push('a scrollback line was drawn while following after the refused fill');
+  if (hold.some((x) => (x.history ?? []).length > 0)) p.push('a history row was drawn while following after the refused fill');
+  const holdEnd = Math.max(...hold.map((x) => (typeof x.at === 'number' ? x.at : -Infinity)));
+  if (before.length >= 1 && !(holdEnd - before[0].at >= FILL_STILL_MS - 500)) u.push(`the still screen was read for ${String(Math.round(holdEnd - before[0].at))} ms after the fill, under ${String(FILL_STILL_MS)}`);
+  if (after.length === 0) p.push('the drag asked no page');
+  if (after.some((e) => e.hostile !== undefined)) p.push('a page after the drag was answered hostile');
+  const drawn = (r.afterDrag ?? []).flatMap((x) => x?.history ?? []);
+  if (drawn.length === 0) p.push('the drag drew no history row');
+  const off = drawn.filter((h) => !(numberedLine(h.label)?.prefix === 'L' && numberedLine(h.label)?.n === h.i + 1));
+  if (off.length > 0) p.push(`history row(s) at ${J([...new Set(off.map((h) => h.i))].slice(0, 3))} drawn otherwise than the door's line`);
+  return decide(p, u, `one page at open, answered moved, then no line, no history row and no page over ${String(Math.round(holdEnd - (before[0]?.at ?? holdEnd)))} ms of a still screen; the drag asked ${String(after.length)} honest page(s) and drew the door's lines`);
+}
+
+/**
+ * Phase 337.3's readers of one drive's events, pure (the run feeds the
+ * graders through them, and the self-test reads drive-shaped lines through
+ * them): a session's first `terminal-open` line, and a step's first line after
+ * it, so a step is read for the session it followed, never another session's.
+ */
+const openOf3373 = (ev, id) => ev.find((e) => e.step === 'terminal-open' && e.id === id) ?? null;
+const afterOpen3373 = (ev, id, step) => {
+  const k = ev.findIndex((e) => e.step === 'terminal-open' && e.id === id);
+  return k < 0 ? null : (ev.slice(k + 1).find((e) => e.step === step) ?? null);
+};
+/** PF1's reading: the open line (its first frame), the fill-hold after it, tmux's lines and its depth. */
+const pf1Reading = (ev, id, depth, lines) => ({ depth, lines, open: openOf3373(ev, id), hold: afterOpen3373(ev, id, 'fill-hold') });
+/** PM1's reading: the first open line, its dump, the ⋯ read there, and Catch Me Up pressed through it. */
+function pm1Of(ev) {
+  const k = ev.findIndex((e) => e.step === 'terminal-open');
+  return {
+    open: k < 0 ? null : ev[k],
+    dump: k < 0 ? null : (ev.slice(k).find((e) => e.step === 'screen' && e.name === 'terminal') ?? null),
+    menu: ev.find((e) => e.step === 'terminal-menu' && e.for === 'terminal-open') ?? null,
+    catchUp: ev.find((e) => e.step === 'catch-up') ?? null,
+    face: ev.find((e) => e.step === 'face' && e.for === 'catch-up') ?? null
+  };
+}
+
+/**
+ * Phase 337.3's graders, proved both ways on readings written here (PF1 to
+ * PF7 and PF1 (pages), PL1 to PL5, PM1, PP1 to PP3, PSH scrollback-fill-moved),
+ * and the stand-in's two tails pinned. Rewritten after the reboot of
+ * 2026-10-08 (the probes builder's fill self-test was written by shell and
+ * lost with /private/tmp). The geometry is §14 M1's: the grid [0, 146, 402,
+ * 645] upright on an iPhone 16 Pro, 40 live rows of 6.67 pt, a 120-column
+ * session; sideways §14 M2's, the grid [62, 0, 750, 382] in a window of
+ * 874 × 402.
+ */
+function fillSelfTest() {
+  const cases = [];
+  const add = (what, grader, input, want) => cases.push({ what, got: () => grader(input).ok, want });
+  const edit = (base, fn) => {
+    const copy = structuredClone(base);
+    fn(copy);
+    return copy;
+  };
+  const GRID = [0, 146, 402, 645];
+  const ROW = 6.67;
+  const LIVE = 40;
+  const DEPTH = 3000;
+  const FILL = 57;
+  const lines = Array.from({ length: DEPTH + 200 }, (_, i) => lineOfStandIn(i + 1));
+  /**
+   * One Terminal reading: `live` rows whose top is `liveTop`, each tmux's numbered line (live row n is line depth + n + 1, as
+   * the stand-in draws it), and `hist` history rows stacked right above them (indices depth - hist .. depth - 1), a `gap` of
+   * reserved rows (no element) between when given. `shift` moves every history row's INDEX down that many lines while its
+   * frame still touches the live rows and its label is still its own index's line (the verify's V3: lines lost between the
+   * history and the live top, which geometry and each row's own label cannot see).
+   */
+  const reading = ({ at = 0, depth = DEPTH, live = LIVE, liveTop = null, hist = 0, gap = 0, shift = 0, grid = GRID, row = ROW, wrong = [], keyboard = null, keyBar = null, scrollbackLine = null } = {}) => {
+    const top = liveTop ?? grid[1] + grid[3] - live * row;
+    const liveRows = Array.from({ length: live }, (_, n) => ({ n, label: lineOfStandIn(depth + n + 1), frame: [0, top + n * row, grid[2], row] }));
+    const history = Array.from({ length: hist }, (_, k) => {
+      const i = depth - 1 - gap - shift - k;
+      return { i, label: wrong.includes(i) ? 'not the line' : lineOfStandIn(i + 1), frame: [0, top - (gap + k + 1) * row, grid[2], row] };
+    });
+    return { at, grid, live: liveRows, history, keyboard, keyBar, scrollbackLine };
+  };
+  const atBottom = (o = {}) => reading(o);
+  const atTop = (o = {}) => reading({ liveTop: GRID[1], ...o });
+
+  // PF1: the fill on open.
+  const pf1 = { depth: DEPTH, lines, open: { first: atBottom({ at: 0 }), reading: atBottom({ at: 400, hist: FILL }) }, hold: { readings: [1, 2, 3].map((k) => atBottom({ at: 400 + k * 250, hist: FILL })) } };
+  add('PF1 passes its honest reading', gradePf1, pf1, true);
+  add("PF1 is red on live row 0 at the grid's top at the first frame (the parent's look)", gradePf1, edit(pf1, (r) => void (r.open.first = atTop({ at: 0 }))), false);
+  add('PF1 is red on the live bottom moving through the hold', gradePf1, edit(pf1, (r) => void (r.hold.readings[1] = atBottom({ at: 650, hist: FILL, liveTop: 500 }))), false);
+  add('PF1 is red on no history ever drawn', gradePf1, edit(pf1, (r) => Object.assign(r, { open: { first: atBottom({ at: 0 }), reading: atBottom({ at: 400 }) }, hold: { readings: [atBottom({ at: 650 })] } })), false);
+  add('PF1 is red on a reserved row between the history and the live top (the verifier\'s F3 shape)', gradePf1, edit(pf1, (r) => void (r.hold.readings[2] = atBottom({ at: 900, hist: FILL - 2, gap: 2 }))), false);
+  add('PF1 is red on a history row drawn otherwise than tmux\'s line', gradePf1, edit(pf1, (r) => void (r.hold.readings[2] = atBottom({ at: 900, hist: FILL, wrong: [DEPTH - 3] }))), false);
+  add('PF1 is red on a history that does not reach the grid\'s top', gradePf1, edit(pf1, (r) => void (r.hold.readings = [atBottom({ at: 650, hist: 10 })])), false);
+  add('PF1 is red on a history that ends under the live top', gradePf1, edit(pf1, (r) => void (r.hold.readings = [atBottom({ at: 650, hist: FILL, depth: DEPTH + 5 })])), false);
+  add('PF1 is UNREADABLE with no first reading', gradePf1, edit(pf1, (r) => void (r.open.first = null)), null);
+  add("PF1 is UNREADABLE with the Mac's history unread", gradePf1, edit(pf1, (r) => void (r.lines = [])), null);
+  add('PF1 is UNREADABLE with no hold reading', gradePf1, edit(pf1, (r) => void (r.hold.readings = [])), null);
+
+  // PF1 (pages): the fill's pages at the honest door.
+  const pf1p = { open: { first: atBottom({ at: 0 }), reading: atBottom({ at: 400, hist: FILL }) }, hold: { readings: [atBottom({ at: 700, hist: FILL })] }, pages: [{ at: 50, ask: { from: 2900, count: 100 } }] };
+  add('PF1 (pages) passes one page of 100 rows', gradePf1Pages, pf1p, true);
+  add('PF1 (pages) is red on two pages for one page of fill', gradePf1Pages, edit(pf1p, (r) => void r.pages.push({ at: 400, ask: { from: 2800, count: 100 } })), false);
+  add('PF1 (pages) is red on no page for a fill above 0', gradePf1Pages, edit(pf1p, (r) => void (r.pages = [])), false);
+  add('PF1 (pages) is red on a page past 128 rows', gradePf1Pages, edit(pf1p, (r) => void (r.pages[0].ask.count = 129)), false);
+  // A 200-column session: the fitted cell is 3 pt tall, so the grid holds 215 rows and the fill past a 10-row live screen is 205 rows, three pages.
+  const wide = (at, hist = 0) => atBottom({ at, live: 10, row: 3, hist });
+  add('PF1 (pages) is red on two pages under 250 ms apart (a 200-column session)', gradePf1Pages, edit(pf1p, (r) => Object.assign(r, { open: { first: wide(0), reading: wide(400, 205) }, hold: { readings: [wide(700, 205)] }, pages: [{ at: 50, ask: { count: 100 } }, { at: 150, ask: { count: 100 } }] })), false);
+  add('PF1 (pages) passes three pages 250 ms apart for a fill past two pages', gradePf1Pages, edit(pf1p, (r) => Object.assign(r, { open: { first: wide(0), reading: wide(400, 205) }, hold: { readings: [wide(700, 205)] }, pages: [{ at: 50, ask: { count: 100 } }, { at: 310, ask: { count: 100 } }, { at: 570, ask: { count: 100 } }] })), true);
+  add('PF1 (pages) is red on four pages for a fill of three', gradePf1Pages, edit(pf1p, (r) => Object.assign(r, { open: { first: wide(0), reading: wide(400, 205) }, hold: { readings: [wide(700, 205)] }, pages: [{ at: 50, ask: { count: 100 } }, { at: 310, ask: { count: 100 } }, { at: 570, ask: { count: 100 } }, { at: 830, ask: { count: 100 } }] })), false);
+  add("PF1 (pages) is red on a row drawn otherwise than the door's line", gradePf1Pages, edit(pf1p, (r) => void (r.hold.readings[0] = atBottom({ at: 700, hist: FILL, wrong: [DEPTH - 1] }))), false);
+  add('PF1 (pages) is red on no row drawn from the pages', gradePf1Pages, edit(pf1p, (r) => Object.assign(r, { open: { first: atBottom({ at: 0 }), reading: atBottom({ at: 400 }) }, hold: { readings: [] } })), false);
+  add('PF1 (pages) is UNREADABLE with no first reading', gradePf1Pages, edit(pf1p, (r) => void (r.open.first = null)), null);
+
+  // PF2: following while the agent prints.
+  const stream = Array.from({ length: 20 }, (_, k) => atBottom({ at: 500 + k * 250, depth: DEPTH + k, hist: FILL }));
+  const pf2 = { hold: { acked: true, readings: stream }, lines, streamed: 19 };
+  add('PF2 passes its honest reading', gradePf2, pf2, true);
+  add('PF2 is red on the live bottom leaving the grid\'s bottom', gradePf2, edit(pf2, (r) => void (r.hold.readings[5] = atBottom({ at: 1750, depth: DEPTH + 5, hist: FILL, liveTop: 400 }))), false);
+  add('PF2 is red on reserved rows above the live top in more than 5 percent of readings', gradePf2, edit(pf2, (r) => { for (const k of [3, 7]) r.hold.readings[k] = atBottom({ at: 500 + k * 250, depth: DEPTH + k, hist: FILL - 1, gap: 1 }); }), false);
+  add('PF2 passes one reading in twenty with a reserved row (within the 5 percent)', gradePf2, edit(pf2, (r) => void (r.hold.readings[7] = atBottom({ at: 2250, depth: DEPTH + 7, hist: FILL - 1, gap: 1 }))), true);
+  add("PF2 is red on a history row drawn otherwise than tmux's", gradePf2, edit(pf2, (r) => void (r.hold.readings[9] = atBottom({ at: 2750, depth: DEPTH + 9, hist: FILL, wrong: [DEPTH + 2] }))), false);
+  add('PF2 is UNREADABLE with the stream never acknowledged', gradePf2, edit(pf2, (r) => void (r.hold.acked = false)), null);
+  add('PF2 is UNREADABLE with under four readings', gradePf2, edit(pf2, (r) => void (r.hold.readings = r.hold.readings.slice(0, 3))), null);
+  add('PF2 is UNREADABLE with nothing scrolled off', gradePf2, edit(pf2, (r) => void (r.streamed = 0)), null);
+  add('PF2 is UNREADABLE with no stream-hold line', gradePf2, { lines, streamed: 5 }, null);
+  // The verify's minor (2026-10-08): lines lost between the history and the live top, every row its own index's line.
+  add("PF2 is red on three lines lost between the history and the live top (the verify's V3)", gradePf2, edit(pf2, (r) => void (r.hold.readings = r.hold.readings.map((x, k) => atBottom({ at: x.at, depth: DEPTH + k, hist: FILL, shift: 3 })))), false);
+  add('PF2 is red on ONE reading with a line lost between the history and the live top', gradePf2, edit(pf2, (r) => void (r.hold.readings[11] = atBottom({ at: 3250, depth: DEPTH + 11, hist: FILL, shift: 1 }))), false);
+  add('PF2 is UNREADABLE when live row 0 is never a numbered line (nothing can say the history adjoins it)', gradePf2, edit(pf2, (r) => { for (const x of r.hold.readings) for (const l of x.live) l.label = `live ${String(l.n)}`; }), null);
+
+  // PF8: back from Catch Me Up while the agent prints (the reverify's band).
+  const pf8 = {
+    lines,
+    hold: {
+      acked: true,
+      left: true,
+      returned: true,
+      away: 5,
+      backAt: 10_000,
+      readings: [
+        atBottom({ at: 10_250, depth: DEPTH, hist: 2 }),
+        ...Array.from({ length: 19 }, (_, k) => atBottom({ at: 10_500 + k * 250, depth: DEPTH + k, hist: FILL }))
+      ]
+    }
+  };
+  add('PF8 passes its honest reading (filled again 0.5 s after the return, the lone return read again at once)', gradePf8, pf8, true);
+  add('PF8 passes a view filled again 1.5 s after the return (the bound itself)', gradePf8, edit(pf8, (r) => { r.hold.readings = r.hold.readings.map((x, k) => (x.at < 11_500 ? atBottom({ at: x.at, depth: DEPTH, hist: 2 }) : x)); }), true);
+  add("PF8 is red on the live bottom off the grid's bottom after the return", gradePf8, edit(pf8, (r) => void (r.hold.readings[10] = reading({ at: 13_000, depth: DEPTH + 6, liveTop: 400, hist: 39 }))), false);
+  add('PF8 is red on a view never filled again (the band the reverify measured)', gradePf8, edit(pf8, (r) => void (r.hold.readings = r.hold.readings.map((x, k) => atBottom({ at: x.at, depth: DEPTH + k, hist: 10 })))), false);
+  add('PF8 is red on a view filled again past 3 s', gradePf8, edit(pf8, (r) => { r.hold.readings = r.hold.readings.map((x, k) => (x.at < 13_500 ? atBottom({ at: x.at, depth: DEPTH + k, hist: 10 }) : x)); }), false);
+  add('PF8 is red on a view that does not stay filled', gradePf8, edit(pf8, (r) => { for (const k of [8, 12, 16]) r.hold.readings[k] = atBottom({ at: r.hold.readings[k].at, depth: DEPTH + k - 4, hist: 10 }); }), false);
+  add("PF8 is red on a history row drawn otherwise than tmux's", gradePf8, edit(pf8, (r) => void (r.hold.readings[9] = atBottom({ at: 12_750, depth: DEPTH + 5, hist: FILL, wrong: [DEPTH + 1] }))), false);
+  add('PF8 is UNREADABLE with no return-hold line', gradePf8, { lines }, null);
+  add('PF8 is UNREADABLE with the stream never acknowledged', gradePf8, edit(pf8, (r) => void (r.hold.acked = false)), null);
+  add('PF8 is UNREADABLE when Catch Me Up was not reached', gradePf8, edit(pf8, (r) => void (r.hold.left = false)), null);
+  add('PF8 is UNREADABLE when Back did not return to the Terminal', gradePf8, edit(pf8, (r) => void (r.hold.returned = false)), null);
+  add("PF8 is UNREADABLE with the Mac's history unread", gradePf8, edit(pf8, (r) => void (r.lines = [])), null);
+  add('PF8 is UNREADABLE with the return not stamped', gradePf8, edit(pf8, (r) => void delete r.hold.backAt), null);
+  add('PF8 is UNREADABLE with under four readings', gradePf8, edit(pf8, (r) => void (r.hold.readings = r.hold.readings.slice(0, 3))), null);
+  // The fix round (2026-10-08): a lone return is read again at once, so 1.5 s, not 3; and lines lost under the history.
+  add('PF8 is red on a view filled again 2 s after the return (past 1.5 s; green under the old 3 s bound)', gradePf8, edit(pf8, (r) => { r.hold.readings = r.hold.readings.map((x, k) => (x.at < 12_000 ? atBottom({ at: x.at, depth: DEPTH + k, hist: 10 }) : x)); }), false);
+  add("PF8 is red on three lines lost between the history and the live top (the verify's V3b)", gradePf8, edit(pf8, (r) => void (r.hold.readings = r.hold.readings.map((x, k) => (x.at >= 11_500 ? atBottom({ at: x.at, depth: DEPTH + k, hist: FILL, shift: 3 }) : x)))), false);
+  add('PF8 is red on ONE reading with a line lost after the view filled (the rest held)', gradePf8, edit(pf8, (r) => void (r.hold.readings[12] = atBottom({ at: r.hold.readings[12].at, depth: DEPTH + 11, hist: FILL, shift: 1 }))), false);
+
+  // PF9: output near and past a screen a picture (the verify's straddle; the fix round of 2026-10-08).
+  const linesFast = Array.from({ length: DEPTH + 24 * 200 + 100 }, (_, i) => lineOfStandIn(i + 1));
+  const fast = (k, hist, o = {}) => atBottom({ at: 500 + k * 850, depth: DEPTH + k * 200, hist, ...o });
+  const pf9 = { lines: linesFast, streamed: 4_800, hold: { acked: true, readings: Array.from({ length: 24 }, (_, k) => fast(k, k < 2 ? FILL : 0)) } };
+  add('PF9 passes the band going to the ground once and staying there', gradePf9, pf9, true);
+  add('PF9 passes the band filled throughout', gradePf9, edit(pf9, (r) => void (r.hold.readings = r.hold.readings.map((x, k) => fast(k, FILL)))), true);
+  add("PF9 is red on the band flickering every other reading (the verify's straddle)", gradePf9, edit(pf9, (r) => void (r.hold.readings = r.hold.readings.map((x, k) => fast(k, k % 2 === 0 ? FILL : 0)))), false);
+  add('PF9 is red on a whole-band blank every four readings (past six a minute)', gradePf9, edit(pf9, (r) => void (r.hold.readings = r.hold.readings.map((x, k) => fast(k, k % 4 === 3 ? 0 : FILL)))), false);
+  add('PF9 is red on two whole-band blanks in 19.5 s with the band filled in 22 of 24 readings (6.2 a minute, steady but blinking)', gradePf9, edit(pf9, (r) => void (r.hold.readings = r.hold.readings.map((x, k) => fast(k, k === 7 || k === 15 ? 0 : FILL)))), false);
+  add('PF9 passes a band partly drawn throughout (output short of the view keeps what pictures showed)', gradePf9, edit(pf9, (r) => void (r.hold.readings = r.hold.readings.map((x, k) => fast(k, 30)))), true);
+  add('PF9 is red on a drawn row taken away in place', gradePf9, edit(pf9, (r) => { r.hold.readings = r.hold.readings.map((x, k) => fast(k, FILL)); r.hold.readings[6] = atBottom({ at: 500 + 6 * 850, depth: DEPTH + 5 * 200, hist: 30 }); }), false);
+  add('PF9 is red on lines lost between the history and the live top', gradePf9, edit(pf9, (r) => void (r.hold.readings[1] = fast(1, FILL, { shift: 3 }))), false);
+  add("PF9 is red on a history row drawn otherwise than tmux's", gradePf9, edit(pf9, (r) => void (r.hold.readings[1] = fast(1, FILL, { wrong: [DEPTH + 200 - 4] }))), false);
+  add("PF9 is red on the live bottom off the grid's bottom", gradePf9, edit(pf9, (r) => void (r.hold.readings[9] = fast(9, 0, { liveTop: 400 }))), false);
+  add('PF9 is UNREADABLE with no stream-hold line', gradePf9, { lines: linesFast, streamed: 5 }, null);
+  add('PF9 is UNREADABLE with the stream never acknowledged', gradePf9, edit(pf9, (r) => void (r.hold.acked = false)), null);
+  add('PF9 is UNREADABLE with under twelve readings', gradePf9, edit(pf9, (r) => void (r.hold.readings = r.hold.readings.slice(0, 11))), null);
+  add('PF9 is UNREADABLE with nothing scrolled off', gradePf9, edit(pf9, (r) => void (r.streamed = 0)), null);
+  add("PF9 is UNREADABLE with the Mac's history unread", gradePf9, edit(pf9, (r) => void (r.lines = [])), null);
+  add('PF9 is UNREADABLE when live row 0 is never a numbered line', gradePf9, edit(pf9, (r) => { for (const x of r.hold.readings) for (const l of x.live) l.label = `live ${String(l.n)}`; }), null);
+
+  // PF3: no history, as today.
+  const pf3 = { depth: 0, open: { first: atTop({ at: 0, depth: 0 }), reading: atTop({ at: 400, depth: 0 }) }, hold: { readings: [atTop({ at: 650, depth: 0 }), atTop({ at: 900, depth: 0 })] } };
+  add('PF3 passes its honest reading', gradePf3, pf3, true);
+  add("PF3 is red on the live rows at the grid's bottom (the verifier's F5)", gradePf3, edit(pf3, (r) => void (r.hold.readings[1] = atBottom({ at: 900, depth: 0 }))), false);
+  add('PF3 is red on a history row over a session at depth 0', gradePf3, edit(pf3, (r) => void r.hold.readings[1].history.push({ i: 0, label: 'x', frame: [0, 100, 402, ROW] })), false);
+  add('PF3 is UNREADABLE with a history that is not 0', gradePf3, edit(pf3, (r) => void (r.depth = 12)), null);
+  add('PF3 is UNREADABLE with under three readings', gradePf3, edit(pf3, (r) => void (r.hold.readings = [])), null);
+
+  // PF4: a full-screen program, then the fill back.
+  const pf4 = { altOffAt: 5000, lines, open: { first: atTop({ at: 0 }), reading: atTop({ at: 400 }) }, hold: { readings: [atTop({ at: 1000 }), atTop({ at: 3000 }), atBottom({ at: 8000, hist: FILL }), atBottom({ at: 8250, hist: FILL })] } };
+  add('PF4 passes its honest reading', gradePf4, pf4, true);
+  add('PF4 is red on history drawn while the program has the screen', gradePf4, edit(pf4, (r) => void (r.hold.readings[0] = atTop({ at: 1000, hist: 3 }))), false);
+  add("PF4 is red on the live rows off the grid's top while the program draws", gradePf4, edit(pf4, (r) => void (r.hold.readings[1] = atBottom({ at: 3000 }))), false);
+  add('PF4 is red on no fill after the program left', gradePf4, edit(pf4, (r) => void (r.hold.readings[3] = atTop({ at: 8250 }))), false);
+  add('PF4 is red on a gapped history after the program left', gradePf4, edit(pf4, (r) => void (r.hold.readings[3] = atBottom({ at: 8250, hist: FILL - 1, gap: 1 }))), false);
+  add('PF4 is UNREADABLE with tmux never seen leaving the alternate screen', gradePf4, edit(pf4, (r) => void (r.altOffAt = null)), null);
+  add('PF4 is UNREADABLE with no reading after the program left', gradePf4, edit(pf4, (r) => void (r.hold.readings = r.hold.readings.slice(0, 2))), null);
+
+  // PF5: back to live returns the fill.
+  const pf5 = { lines, toLive: { after: atBottom({ at: 100, hist: FILL }) }, key: { after: atBottom({ at: 200, hist: FILL }) } };
+  add('PF5 passes its honest reading', gradePf5, pf5, true);
+  add("PF5 is red on the live rows at the grid's top after to-live", gradePf5, edit(pf5, (r) => void (r.toLive.after = atTop({ at: 100 }))), false);
+  add('PF5 is red on no history after a key', gradePf5, edit(pf5, (r) => void (r.key.after = atBottom({ at: 200 }))), false);
+  add('PF5 is red on a wrong row after to-live', gradePf5, edit(pf5, (r) => void (r.toLive.after = atBottom({ at: 100, hist: FILL, wrong: [DEPTH - 10] }))), false);
+  add('PF5 passes with the keyboard up after a key (the live bottom above the key bar)', gradePf5, edit(pf5, (r) => void (r.key.after = atBottom({ at: 200, hist: FILL, liveTop: 500 - LIVE * ROW, keyBar: [0, 500, 402, 44] }))), true);
+  add('PF5 is UNREADABLE with no reading after a key', gradePf5, edit(pf5, (r) => void (r.key = null)), null);
+  add("PF5 is UNREADABLE with the Mac's history unread", gradePf5, edit(pf5, (r) => void (r.lines = [])), null);
+
+  // PF6: the keyboard over the fill.
+  const pf6 = { glitch: { up: atBottom({ at: 100, hist: FILL, liveTop: 500 - LIVE * ROW, keyBar: [0, 500, 402, 44], keyboard: [0, 544, 402, 300] }), after: atBottom({ at: 900, hist: FILL }) } };
+  add('PF6 passes its honest reading', gradePf6, pf6, true);
+  add('PF6 is red on the live bottom under the key bar', gradePf6, edit(pf6, (r) => void (r.glitch.up = atBottom({ at: 100, hist: FILL, keyBar: [0, 500, 402, 44] }))), false);
+  add('PF6 is red on the live bottom two rows above the key bar', gradePf6, edit(pf6, (r) => void (r.glitch.up = atBottom({ at: 100, hist: FILL, liveTop: 500 - (LIVE + 2) * ROW, keyBar: [0, 500, 402, 44] }))), false);
+  add("PF6 is red on the live rows not back at the grid's bottom after the keyboard went", gradePf6, edit(pf6, (r) => void (r.glitch.after = atTop({ at: 900 }))), false);
+  add('PF6 is UNREADABLE with no key bar and no keyboard read', gradePf6, edit(pf6, (r) => Object.assign(r.glitch.up, { keyBar: null, keyboard: null })), null);
+  add('PF6 is UNREADABLE with no keyboard-glitch line', gradePf6, {}, null);
+
+  // PF7: a turn over the fill.
+  const SIDE_GRID = [62, 0, 750, 382];
+  const side = (o = {}) => reading({ grid: SIDE_GRID, row: 11.67, liveTop: SIDE_GRID[1] + SIDE_GRID[3] - LIVE * 11.67, ...o });
+  const pf7 = { lines, before: atBottom({ at: 0, hist: FILL }), landscape: { chrome: { orientation: 3 }, reading: side({ at: 3000 }) }, portrait: { reading: atBottom({ at: 6000, hist: FILL }) } };
+  add('PF7 passes its honest reading', gradePf7, pf7, true);
+  add("PF7 is red on the live bottom off the grid's bottom sideways", gradePf7, edit(pf7, (r) => void (r.landscape.reading = side({ at: 3000, liveTop: 0 }))), false);
+  add('PF7 is red on no history upright again', gradePf7, edit(pf7, (r) => void (r.portrait.reading = atBottom({ at: 6000 }))), false);
+  add('PF7 is red on a wrong row upright again', gradePf7, edit(pf7, (r) => void (r.portrait.reading = atBottom({ at: 6000, hist: FILL, wrong: [DEPTH - 2] }))), false);
+  add('PF7 is UNREADABLE when the device did not turn', gradePf7, edit(pf7, (r) => void (r.landscape.chrome.orientation = 1)), null);
+  add('PF7 is UNREADABLE with a reading missing', gradePf7, edit(pf7, (r) => void (r.portrait.reading = null)), null);
+
+  // PL1: sideways, the terminal alone.
+  const WINDOW = [874, 402];
+  const chromeSide = () => ({ read: true, orientation: 3, navs: 0, nav: null, tabBars: 0, tabBar: null, tabWords: [], status: null, menu: null, tray: [], grid: { frame: SIDE_GRID }, window: WINDOW });
+  const pl1 = { question: true, landscape: { chrome: chromeSide(), reading: side({ at: 3000 }), statusBar: [0, 0, 54, 402] } };
+  add('PL1 passes its honest reading', gradePl1, pl1, true);
+  add('PL1 is red on a navigation bar sideways', gradePl1, edit(pl1, (r) => Object.assign(r.landscape.chrome, { navs: 1, nav: [0, 24, 874, 54] })), false);
+  add("PL1 is red on the tab bar's room left under the grid (the verifier's F2)", gradePl1, edit(pl1, (r) => void (r.landscape.chrome.grid.frame = [62, 0, 750, 318])), false);
+  add('PL1 is red on a tab bar in the tree', gradePl1, edit(pl1, (r) => Object.assign(r.landscape.chrome, { tabBars: 1, tabBar: [0, 338, 874, 64] })), false);
+  add("PL1 is red on a tab's word drawn as a button", gradePl1, edit(pl1, (r) => void (r.landscape.chrome.tabWords = [{ label: MENU_WORDS.tabs[1], frame: [300, 350, 100, 40] }])), false);
+  add('PL1 is red on the status line sideways', gradePl1, edit(pl1, (r) => void (r.landscape.chrome.status = { frame: [0, 60, 874, 30] })), false);
+  add('PL1 is red on the ⋯ sideways', gradePl1, edit(pl1, (r) => void (r.landscape.chrome.menu = { frame: [820, 10, 36, 36] })), false);
+  add('PL1 is red on a tray press sideways', gradePl1, edit(pl1, (r) => void (r.landscape.chrome.tray = [{ n: 1, frame: [0, 300, 874, 44] }])), false);
+  add("PL1 is red on the grid under the window's top", gradePl1, edit(pl1, (r) => void (r.landscape.chrome.grid.frame = [62, 54, 750, 328])), false);
+  add("PL1 is red on the grid under the Dynamic Island", gradePl1, edit(pl1, (r) => void (r.landscape.chrome.grid.frame = [0, 0, 874, 382])), false);
+  add('PL1 is red on no live row sideways', gradePl1, edit(pl1, (r) => void (r.landscape.reading = side({ at: 3000, live: 0 }))), false);
+  add('PL1 is UNREADABLE on a session with no question (the tray not read)', gradePl1, edit(pl1, (r) => void (r.question = false)), null);
+  add('PL1 is UNREADABLE when the device did not turn', gradePl1, edit(pl1, (r) => void (r.landscape.chrome.orientation = 1)), null);
+  add('PL1 is UNREADABLE with the chrome unread', gradePl1, edit(pl1, (r) => void (r.landscape.chrome.read = false)), null);
+
+  // PL2: the keyboard sideways.
+  const keys = ['esc', 'tab', 'btab', 'left', 'up', 'down', 'right', 'ctrl', 'return', 'hide'].map((id) => ({ id, hittable: true }));
+  const pl2 = { want: 'p3373 sideways\r', bytes: 'p3373 sideways\r', step: { orientation: 3, keyboard: true, keys, returnFound: true, hideKey: true, keyboardAfter: false, auth: false, before: { grid: SIDE_GRID }, withKeyboard: { grid: SIDE_GRID }, after: { grid: SIDE_GRID } } };
+  add('PL2 passes its honest reading', gradePl2, pl2, true);
+  add('PL2 is red on the keyboard not rising', gradePl2, edit(pl2, (r) => void (r.step.keyboard = false)), false);
+  add('PL2 is red on a key that cannot be pressed', gradePl2, edit(pl2, (r) => void (r.step.keys[2].hittable = false)), false);
+  add('PL2 is red on no key drawn', gradePl2, edit(pl2, (r) => void (r.step.keys = [])), false);
+  add('PL2 is red on the bytes not reaching the recorder exactly', gradePl2, edit(pl2, (r) => void (r.bytes = 'p3373 sideway\r')), false);
+  add('PL2 is red on the hide key not putting the keyboard away', gradePl2, edit(pl2, (r) => void (r.step.keyboardAfter = true)), false);
+  add("PL2 is red on the grid's frame following the keyboard", gradePl2, edit(pl2, (r) => void (r.step.withKeyboard.grid = [62, 0, 750, 200])), false);
+  add('PL2 is red on a key asking Face ID', gradePl2, edit(pl2, (r) => void (r.step.auth = true)), false);
+  add('PL2 is UNREADABLE when the step ran upright', gradePl2, edit(pl2, (r) => void (r.step.orientation = 1)), null);
+  add('PL2 is UNREADABLE with no landscape-type line', gradePl2, { want: 'x', bytes: 'x' }, null);
+
+  // PL3: Copy sideways.
+  const pl3 = { pasteboard: lineOfStandIn(3036), tmuxRow: `${lineOfStandIn(3036)}   `, copied: { orientation: 3, copy: true, hittable: true, n: 35, row: lineOfStandIn(3036), copyFrame: [700, 320, 90, 44], chrome: { copies: [{ frame: [700, 320, 90, 44] }], grid: { frame: SIDE_GRID } } } };
+  add('PL3 passes its honest reading', gradePl3, pl3, true);
+  add('PL3 is red on Copy not drawn', gradePl3, edit(pl3, (r) => void (r.copied.copy = false)), false);
+  add('PL3 is red on two Copy elements at once', gradePl3, edit(pl3, (r) => void r.copied.chrome.copies.push({ frame: [300, 10, 60, 32] })), false);
+  add('PL3 is red on Copy outside the grid', gradePl3, edit(pl3, (r) => void (r.copied.copyFrame = [700, 390, 90, 44])), false);
+  add("PL3 is red on the pasteboard holding another row's text", gradePl3, edit(pl3, (r) => void (r.pasteboard = lineOfStandIn(3010))), false);
+  add("PL3 is red on the row read otherwise than tmux's", gradePl3, edit(pl3, (r) => void (r.tmuxRow = lineOfStandIn(3037))), false);
+  add('PL3 is UNREADABLE with the pasteboard unread', gradePl3, edit(pl3, (r) => void (r.pasteboard = null)), null);
+  add('PL3 is UNREADABLE when the selection ran upright', gradePl3, edit(pl3, (r) => void (r.copied.orientation = 1)), null);
+
+  // PL4: upright again.
+  const chromeUp = () => ({ read: true, orientation: 1, nav: [0, 62, 402, 54], navTexts: ['Sessions', 'fix-login'], menu: { frame: [346, 66, 36, 36] }, status: { frame: [0, 116, 402, 30] }, tabBar: [0, 791, 402, 83], grid: { frame: GRID }, tabButtons: MENU_WORDS.tabs.map((label, k) => ({ label, frame: [k * 134, 791, 134, 83] })), tray: [{ n: 1, frame: [16, 600, 370, 44] }, { n: 2, frame: [16, 650, 370, 44] }] });
+  const pl4 = { name: 'fix-login', question: true, before: { chrome: chromeUp() }, after: { chrome: chromeUp() } };
+  add('PL4 passes its honest reading', gradePl4, pl4, true);
+  add("PL4 is red on the navigation bar back 42 pt taller (the verifier's F4)", gradePl4, edit(pl4, (r) => void (r.after.chrome.nav = [0, 62, 402, 96])), false);
+  add('PL4 is red on the ⋯ back elsewhere', gradePl4, edit(pl4, (r) => void (r.after.chrome.menu.frame = [300, 66, 36, 36])), false);
+  add('PL4 is red on the status line not back', gradePl4, edit(pl4, (r) => void (r.after.chrome.status = null)), false);
+  add('PL4 is red on the tab bar not back', gradePl4, edit(pl4, (r) => void (r.after.chrome.tabBar = null)), false);
+  add('PL4 is red on a tab back elsewhere', gradePl4, edit(pl4, (r) => void (r.after.chrome.tabButtons[2].frame = [268, 800, 134, 74])), false);
+  add("PL4 is red on the bar without the session's name", gradePl4, edit(pl4, (r) => void (r.after.chrome.navTexts = ['Sessions'])), false);
+  add('PL4 is red on the tray back as one press', gradePl4, edit(pl4, (r) => void (r.after.chrome.tray = r.after.chrome.tray.slice(0, 1))), false);
+  add('PL4 is red on no tray before the turn on a question', gradePl4, edit(pl4, (r) => Object.assign(r.before.chrome, { tray: [] }) && (r.after.chrome.tray = [])), false);
+  add('PL4 passes a session with no question and no tray', gradePl4, edit(pl4, (r) => { r.question = false; r.before.chrome.tray = []; r.after.chrome.tray = []; }), true);
+  add('PL4 is UNREADABLE with the device sideways where it is read upright', gradePl4, edit(pl4, (r) => void (r.after.chrome.orientation = 3)), null);
+  add('PL4 is UNREADABLE with the chrome unread', gradePl4, edit(pl4, (r) => void (r.before.chrome.read = false)), null);
+
+  // PL5: every other page stays upright.
+  const pl5 = { via: 'menu', rotate: { pageOrientation: 3, pageWindow: [402, 874] }, sideways: { face: 'catch-up', orientation: 3, window: [402, 874], backToTerminal: true } };
+  add('PL5 passes its honest reading', gradePl5, pl5, true);
+  add("PL5 is red on the list's window sideways", gradePl5, edit(pl5, (r) => void (r.rotate.pageWindow = [874, 402])), false);
+  add("PL5 is red on Catch Me Up's window sideways", gradePl5, edit(pl5, (r) => void (r.sideways.window = [874, 402])), false);
+  add('PL5 is red on Back not returning to the Terminal', gradePl5, edit(pl5, (r) => void (r.sideways.backToTerminal = false)), false);
+  add('PL5 is UNREADABLE when Catch Me Up was reached by the icon', gradePl5, edit(pl5, (r) => void (r.via = 'icon')), null);
+  add('PL5 is UNREADABLE when the device did not turn over the list', gradePl5, edit(pl5, (r) => void (r.rotate.pageOrientation = 1)), null);
+  add('PL5 is UNREADABLE with Catch Me Up unread sideways', gradePl5, edit(pl5, (r) => void (r.sideways = null)), null);
+
+  // PM1: the ⋯.
+  const menuRows = () => [{ id: 'terminal-menu-catch-up', label: MENU_WORDS.catchMeUp, enabled: true, via: 'id' }, { id: 'terminal-menu-end', label: MENU_WORDS.endSession, enabled: true, via: 'id' }];
+  const pm1 = {
+    open: { face: 'terminal', menu: { label: MENU_WORDS.more, frame: [346, 66, 36, 36], hittable: true }, nav: [0, 62, 402, 54], navIds: [{ id: 'terminal-menu' }], endLine: null },
+    dump: { elements: [{ id: 'terminal-menu' }, { id: 'terminal-status' }, { id: 'screen-grid' }] },
+    menu: { opened: true, rows: menuRows(), catchUp: menuRows()[0], end: menuRows()[1], glyph: 'faceid', glyphs: ['faceid'] },
+    catchUp: { backToTerminal: true },
+    face: { via: 'menu', now: 'catch-up' }
+  };
+  add('PM1 passes its honest reading (Face ID)', gradePm1, pm1, true);
+  add('PM1 passes the lock with the passcode alone', gradePm1, edit(pm1, (r) => Object.assign(r.menu, { glyph: 'lock', glyphs: ['lock'] })), true);
+  add('PM1 passes End off with no passcode and the lock', gradePm1, edit(pm1, (r) => { r.menu.glyph = 'lock'; r.menu.glyphs = ['lock']; r.menu.end.enabled = false; r.open.endLine = { label: MENU_WORDS.needsPasscode }; }), true);
+  add('PM1 is red on no ⋯', gradePm1, edit(pm1, (r) => void (r.open.menu = null)), false);
+  add('PM1 is red on the ⋯ named otherwise', gradePm1, edit(pm1, (r) => void (r.open.menu.label = 'Menu')), false);
+  add('PM1 is red on the ⋯ that cannot be pressed', gradePm1, edit(pm1, (r) => void (r.open.menu.hittable = false)), false);
+  add("PM1 is red on the ⋯ floating outside the navigation bar (the verifier's F1)", gradePm1, edit(pm1, (r) => void (r.open.menu.frame = [346, 700, 36, 36])), false);
+  add("PM1 is red on the ⋯ in the bar's leading half", gradePm1, edit(pm1, (r) => void (r.open.menu.frame = [12, 66, 36, 36])), false);
+  add('PM1 is red on the Catch Me Up icon still drawn', gradePm1, edit(pm1, (r) => void r.dump.elements.push({ id: 'session-open-catch-up' })), false);
+  add('PM1 is red on End still drawn in the bar', gradePm1, edit(pm1, (r) => void r.open.navIds.push({ id: 'session-end' })), false);
+  add('PM1 is red on the menu not opening', gradePm1, edit(pm1, (r) => void (r.menu.opened = false)), false);
+  add('PM1 is red on a third item', gradePm1, edit(pm1, (r) => void r.menu.rows.push({ id: 'x', label: 'Copy', enabled: true, via: 'id' })), false);
+  add('PM1 is red on the two items swapped', gradePm1, edit(pm1, (r) => void r.menu.rows.reverse()), false);
+  add('PM1 is red on no End session… on a session the Mac offers End on', gradePm1, edit(pm1, (r) => { r.menu.rows = r.menu.rows.slice(0, 1); r.menu.end = null; }), false);
+  add('PM1 is red on End off where no passcode line says so', gradePm1, edit(pm1, (r) => void (r.menu.end.enabled = false)), false);
+  add('PM1 is red on End on where the line says a passcode is needed', gradePm1, edit(pm1, (r) => void (r.open.endLine = { label: MENU_WORDS.needsPasscode })), false);
+  add('PM1 is red on no owner glyph in the open menu', gradePm1, edit(pm1, (r) => Object.assign(r.menu, { glyph: null, glyphs: [] })), false);
+  add("PM1 is red on Catch Me Up not pushing Catch Me Up", gradePm1, edit(pm1, (r) => void (r.face.now = 'terminal')), false);
+  add('PM1 is red on Back not returning', gradePm1, edit(pm1, (r) => void (r.catchUp.backToTerminal = false)), false);
+  add('PM1 is UNREADABLE when an item was found by its words alone', gradePm1, edit(pm1, (r) => void (r.menu.end.via = 'label')), null);
+  add('PM1 is UNREADABLE when Catch Me Up was not pressed', gradePm1, edit(pm1, (r) => void (r.catchUp = null)), null);
+  add('PM1 is UNREADABLE on Catch Me Up\'s page', gradePm1, edit(pm1, (r) => void (r.open.face = 'catch-up')), null);
+  add('PM1 is UNREADABLE with no terminal-open line', gradePm1, { menu: pm1.menu }, null);
+
+  // PP1 to PP3: the parent.
+  const pp1 = { open: { first: atTop({ at: 0 }), reading: atTop({ at: 400 }) }, hold: { readings: [atTop({ at: 650 }), atTop({ at: 900 })] } };
+  add('PP1 passes the parent\'s look', gradePp1, pp1, true);
+  add('PP1 is red on the parent filling (not the parent\'s look)', gradePp1, edit(pp1, (r) => void (r.hold.readings[1] = atBottom({ at: 900, hist: FILL }))), false);
+  add('PP1 is red on the parent drawing history', gradePp1, edit(pp1, (r) => void (r.hold.readings[1] = atTop({ at: 900, hist: 3 }))), false);
+  add('PP1 is UNREADABLE with no first reading', gradePp1, edit(pp1, (r) => void (r.open.first = null)), null);
+  const pp2 = { headHeight: 382, landscape: { chrome: { read: true, orientation: 3, navs: 1, nav: [0, 24, 874, 54], tabBars: 1, tabBar: [0, 338, 874, 64], tabWords: [], grid: { frame: [62, 108, 750, 230] } } } };
+  add("PP2 passes the parent's landscape", gradePp2, pp2, true);
+  add('PP2 is red on the parent drawing no navigation bar sideways', gradePp2, edit(pp2, (r) => void (r.landscape.chrome.navs = 0)), false);
+  add('PP2 is red on the parent drawing no tab bar sideways', gradePp2, edit(pp2, (r) => Object.assign(r.landscape.chrome, { tabBars: 0, tabWords: [] })), false);
+  add('PP2 passes the tab bar read by its three words', gradePp2, edit(pp2, (r) => Object.assign(r.landscape.chrome, { tabBars: 0, tabWords: MENU_WORDS.tabs.map((label) => ({ label })) })), true);
+  add('PP2 is UNREADABLE when the parent did not turn', gradePp2, edit(pp2, (r) => void (r.landscape.chrome.orientation = 1)), null);
+  const pp3 = { open: { navIds: [{ id: 'session-open-catch-up' }, { id: 'session-end' }] }, dump: { elements: [{ id: 'terminal-status' }] } };
+  add("PP3 passes the parent's top right", gradePp3, pp3, true);
+  add('PP3 is red on the parent with no icon', gradePp3, edit(pp3, (r) => void (r.open.navIds = r.open.navIds.slice(1))), false);
+  add('PP3 is red on the parent drawing a ⋯', gradePp3, edit(pp3, (r) => void r.dump.elements.push({ id: 'terminal-menu' })), false);
+  add('PP3 is UNREADABLE with no terminal-open line', gradePp3, { dump: { elements: [] } }, null);
+
+  // PSH scrollback-fill-moved.
+  const psh = {
+    alive: RUNNING_FOREGROUND,
+    hold: { readings: [0, 1, 2, 3, 4, 5].map((k) => atBottom({ at: 100 + k * 1000 })) },
+    dragAt: 6000,
+    pages: [{ at: 50, why: 'moved' }, { at: 6200 }, { at: 6500 }],
+    afterDrag: [atBottom({ at: 6600, hist: 20 })]
+  };
+  add('PSH (scrollback-fill-moved) passes its honest reading', gradePshFill, psh, true);
+  add('PSH (scrollback-fill-moved) is red on two pages asked before the drag (the loop D8 refuses)', gradePshFill, edit(psh, (r) => void r.pages.unshift({ at: 2000, why: 'moved' })), false);
+  add('PSH (scrollback-fill-moved) is red on a scrollback line while following', gradePshFill, edit(psh, (r) => void (r.hold.readings[3].scrollbackLine = 'Earlier lines changed')), false);
+  add('PSH (scrollback-fill-moved) is red on a history row while following after the refusal', gradePshFill, edit(psh, (r) => void (r.hold.readings[4] = atBottom({ at: 4100, hist: 3 }))), false);
+  add('PSH (scrollback-fill-moved) is red on the drag asking no page', gradePshFill, edit(psh, (r) => void (r.pages = r.pages.slice(0, 1))), false);
+  add('PSH (scrollback-fill-moved) is red on a hostile page after the drag', gradePshFill, edit(psh, (r) => void (r.pages[1].hostile = 'moved')), false);
+  add('PSH (scrollback-fill-moved) is red on the drag drawing no row', gradePshFill, edit(psh, (r) => void (r.afterDrag = [atBottom({ at: 6600 })])), false);
+  add("PSH (scrollback-fill-moved) is red on a row drawn otherwise than the door's line", gradePshFill, edit(psh, (r) => void (r.afterDrag = [atBottom({ at: 6600, hist: 20, wrong: [DEPTH - 5] })])), false);
+  add('PSH (scrollback-fill-moved) is red on the app not in the foreground', gradePshFill, edit(psh, (r) => void (r.alive = 2)), false);
+  add('PSH (scrollback-fill-moved) is UNREADABLE under 5 s of still screen', gradePshFill, edit(psh, (r) => void (r.hold.readings = r.hold.readings.slice(0, 2))), null);
+  add('PSH (scrollback-fill-moved) is UNREADABLE with the drag unread', gradePshFill, edit(psh, (r) => void (r.dragAt = null)), null);
+
+  // Every clause on its own break (the repairer of 2026-10-08, after a clause
+  // ablation of this file found 36 of 150 clauses that no case above turned:
+  // each case here is caught by its clause ALONE). Where two guards give the
+  // same verdict, the case reads the guard's own words.
+  const says = (grader, re) => (x) => ({ ok: re.test(String(grader(x).said ?? '')) });
+  const mid = (at, hist = 0) => reading({ at, liveTop: 400, hist });
+  add('PF1 says the first reading is missing, by its own guard', says(gradePf1, /printed no first reading/), edit(pf1, (r) => void (r.open.first = null)), true);
+  add('PF1 is UNREADABLE with a first reading holding no live row', gradePf1, edit(pf1, (r) => void (r.open.first = atBottom({ at: 0, live: 0 }))), null);
+  add('PF1 is UNREADABLE with the keyboard up at the first reading', gradePf1, edit(pf1, (r) => void (r.open.first.keyboard = [0, 500, 402, 374])), null);
+  add("PF1 is red on the live rows short of the grid's bottom at the first frame, row 0 not at its top", gradePf1, edit(pf1, (r) => { r.open.first = mid(0); r.open.reading = mid(400, 39); r.hold.readings = [1, 2, 3].map((k) => mid(400 + k * 250, 39)); }), false);
+  add("PF1 is red on live row 0 at the grid's top at the first frame, the live bottom at its bottom too", gradePf1, edit(pf1, (r) => void (r.open.first = reading({ at: 0, live: 100, row: 6.45 }))), false);
+  add('PF1 is red on a history whose indices skip', gradePf1, edit(pf1, (r) => { const top = r.hold.readings[2].history.at(-1); top.i -= 5; top.label = lineOfStandIn(top.i + 1); }), false);
+  add('PF1 is red on a history drawn a row above the live rows with no index between', gradePf1, edit(pf1, (r) => { for (const h of r.hold.readings[2].history) h.frame[1] -= ROW; }), false);
+  add("PF1 (pages) is UNREADABLE with no live row's height read", gradePf1Pages, edit(pf1p, (r) => void (r.open.first = atBottom({ at: 0, live: 0 }))), null);
+  add("PF2 is UNREADABLE with the Mac's history unread after the stream", gradePf2, edit(pf2, (r) => void (r.lines = [])), null);
+  add('PF3 is UNREADABLE with no first reading', gradePf3, edit(pf3, (r) => void (r.open.first = null)), null);
+  add('PF4 says tmux was never seen leaving, by its own guard', says(gradePf4, /never seen leaving/), edit(pf4, (r) => void (r.altOffAt = null)), true);
+  add('PF4 is UNREADABLE with no reading while the program had the screen', gradePf4, edit(pf4, (r) => void (r.altOffAt = 100)), null);
+  add("PF4 is red on the live rows short of the grid's bottom after the program left", gradePf4, edit(pf4, (r) => void (r.hold.readings[3] = mid(8250, 39))), false);
+  add('PF4 is red on the live rows at the bottom with no history after the program left', gradePf4, edit(pf4, (r) => void (r.hold.readings[3] = atBottom({ at: 8250 }))), false);
+  add('PF4 is red on a wrong row after the program left', gradePf4, edit(pf4, (r) => void (r.hold.readings[3] = atBottom({ at: 8250, hist: FILL, wrong: [DEPTH - 3] }))), false);
+  add("PF5 is red on the live rows short of the view's bottom after to-live, the history right on them", gradePf5, edit(pf5, (r) => void (r.toLive.after = mid(100, 39))), false);
+  add('PF5 is red on a reserved row between the history and the live rows after to-live', gradePf5, edit(pf5, (r) => void (r.toLive.after = atBottom({ at: 100, hist: FILL - 2, gap: 2 }))), false);
+  add('PF6 is UNREADABLE with no live row read with the keyboard up', gradePf6, edit(pf6, (r) => void (r.glitch.up = atBottom({ at: 100, live: 0, keyBar: [0, 500, 402, 44] }))), null);
+  add("PF7 is UNREADABLE with the Mac's history unread", gradePf7, edit(pf7, (r) => void (r.lines = [])), null);
+  add('PF7 is red on a reserved row between the history and the live rows upright again', gradePf7, edit(pf7, (r) => void (r.portrait.reading = atBottom({ at: 6000, hist: FILL - 1, gap: 1 }))), false);
+  add('PL1 is red on the grid unread sideways', gradePl1, edit(pl1, (r) => void (r.landscape.chrome.grid = null)), false);
+  add('PL2 is red on no return key sideways', gradePl2, edit(pl2, (r) => void (r.step.returnFound = false)), false);
+  add('PL3 is UNREADABLE with no landscape-copied line', gradePl3, edit(pl3, (r) => void (r.copied = null)), null);
+  add("PL3 is red on Copy's frame unread", gradePl3, edit(pl3, (r) => void (r.copied.copyFrame = null)), false);
+  add('PL4 is red on the status line not drawn before the turn', gradePl4, edit(pl4, (r) => void (r.before.chrome.status = null)), false);
+  add('PL4 is red on a tab not drawn before the turn', gradePl4, edit(pl4, (r) => void (r.before.chrome.tabButtons = r.before.chrome.tabButtons.slice(0, 2))), false);
+  add('PL5 is UNREADABLE with the list unread sideways', gradePl5, edit(pl5, (r) => void (r.rotate = null)), null);
+  add('PL5 is UNREADABLE when the face read sideways was not Catch Me Up', gradePl5, edit(pl5, (r) => void (r.sideways.face = 'terminal')), null);
+  add('PL5 is UNREADABLE when the device did not turn over Catch Me Up', gradePl5, edit(pl5, (r) => void (r.sideways.orientation = 1)), null);
+  add("PM1 is red on Catch Me Up's item read in other words", gradePm1, edit(pm1, (r) => void (r.menu.catchUp.label = 'Catch me up')), false);
+  add('PM1 is red on no End item found though the rows list it', gradePm1, edit(pm1, (r) => void (r.menu.end = null)), false);
+  add('PM1 says End is off with the lock and no passcode line, by its own clause', says(gradePm1, /off with the lock and no passcode line/), edit(pm1, (r) => { r.menu.glyph = 'lock'; r.menu.glyphs = ['lock']; r.menu.end.enabled = false; }), true);
+  add("PP1 is red on the parent's live rows off the grid's top with no history", gradePp1, edit(pp1, (r) => void (r.hold.readings[1] = atBottom({ at: 900 }))), false);
+  add("PP2 is UNREADABLE with the parent's landscape chrome unread", gradePp2, edit(pp2, (r) => void (r.landscape.chrome.read = false)), null);
+  add('PSH (scrollback-fill-moved) says no reading while following, by its own guard', says(gradePshFill, /no reading while following/), edit(psh, (r) => void (r.hold.readings = [])), true);
+  add("PSH (scrollback-fill-moved) is UNREADABLE when the fill's page was not the one answered moved", gradePshFill, edit(psh, (r) => void delete r.pages[0].why), null);
+
+  // The run's readers over drive-shaped lines (the repairer of 2026-10-08, with
+  // the wiring the reboot took): what the run hands each grader is the step
+  // after THAT session's open, the open line's own first frame, and the ⋯
+  // read at the open.
+  const opened = (id, first, at) => ({ step: 'terminal-open', id, face: 'terminal', first, reading: first, menu: { label: MENU_WORDS.more, frame: [346, 66, 36, 36], hittable: true }, nav: [0, 62, 402, 54], navIds: [{ id: 'terminal-menu' }], endLine: null, at });
+  const drivePf = [
+    { step: 'list' },
+    opened('p3373-short', atTop({ at: 0, depth: 0 }), 0),
+    { step: 'fill-hold', readings: [atTop({ at: 250, depth: 0 }), atTop({ at: 500, depth: 0 })] },
+    { step: 'back' },
+    opened('p3371-hist', atBottom({ at: 1000 }), 1000),
+    { step: 'screen', name: 'terminal', elements: [{ id: 'terminal-menu' }, { id: 'terminal-status' }, { id: 'screen-grid' }] },
+    { step: 'terminal-menu', for: 'terminal-open', found: true, opened: true, rows: menuRows(), catchUp: menuRows()[0], end: menuRows()[1], glyph: 'faceid', glyphs: [{ id: 'faceid', label: 'face id' }] },
+    { step: 'fill-hold', readings: [1, 2, 3].map((k) => atBottom({ at: 1000 + k * 250, hist: FILL })) },
+    { step: 'face', for: 'catch-up', was: 'terminal', now: 'catch-up', via: 'menu' },
+    { step: 'catch-up', backToTerminal: true }
+  ];
+  add("the run's PF1 reading is the fill-hold after THAT session's open", gradePf1, pf1Reading(drivePf, 'p3371-hist', DEPTH, lines), true);
+  add("the run's PF1 reading of another session is that session's (its live rows at the top)", gradePf1, pf1Reading(drivePf, 'p3373-short', DEPTH, lines), false);
+  add("the run's PF3 reading of the short session passes", gradePf3, { depth: 0, open: openOf3373(drivePf, 'p3373-short'), hold: afterOpen3373(drivePf, 'p3373-short', 'fill-hold') }, true);
+  add("the run's PF1 reading is UNREADABLE for a session never opened", gradePf1, pf1Reading(drivePf, 'p3373-never', DEPTH, lines), null);
+  add("the run's PM1 reading passes the drive's own lines", gradePm1, pm1Of(drivePf), true);
+  add("the run's PM1 reading is red when the ⋯ read at the open held End first", gradePm1, pm1Of(drivePf.map((e) => (e.step === 'terminal-menu' ? { ...e, rows: [...menuRows()].reverse() } : e))), false);
+
+  // The stand-in's two tails, pinned (§7.3).
+  const streamPlan = standInPlanOf(['--lines', '3000', '--stream', '4:40']);
+  add("the stand-in's --stream R:N follows --lines", () => verdict(streamPlan.why === undefined && streamPlan.stream?.rate === 4 && streamPlan.stream?.total === 40, ''), null, true);
+  add("the stand-in's stream continues --lines' numbers (line 3001 first)", () => verdict(standInStreamLineOf(streamPlan, 1) === lineOfStandIn(3001) && numberedLine(standInStreamLineOf(streamPlan, 40))?.n === 3040, ''), null, true);
+  add("the stand-in's --stream is refused beside --rate", () => verdict(typeof standInPlanOf(['--rate', '20', '--stream', '4:40']).why === 'string', ''), null, true);
+  add("the stand-in's --stream is refused beside --counter (one tail at a time)", () => verdict(typeof standInPlanOf(['--lines', '3000', '--counter', '--stream', '4:40']).why === 'string', ''), null, true);
+  add("the stand-in's --alt-for S follows --alt", () => verdict(standInPlanOf(['--lines', '3000', '--alt', '--alt-for', '8']).altFor === 8, ''), null, true);
+  add("the stand-in's --alt-for is refused without --alt", () => verdict(typeof standInPlanOf(['--lines', '3000', '--alt-for', '8']).why === 'string', ''), null, true);
+  add("the stand-in's --alt-for 0 is refused", () => verdict(typeof standInPlanOf(['--lines', '3000', '--alt', '--alt-for', '0']).why === 'string', ''), null, true);
+  add("the stand-in leaves the alternate screen with the 1049 low sequence", () => verdict(STAND_IN_ALT_LEAVE === '\u001b[?1049l', ''), null, true);
+
+  let bad = 0;
+  for (const c of cases) {
+    let got;
+    try {
+      got = c.got();
+    } catch {
+      got = 'threw';
+    }
+    const ok = got === c.want;
+    if (!ok) bad += 1;
+    console.log(`${ok ? 'ok  ' : 'FAIL'} ${c.what}${ok ? '' : ` (got ${J(got)}, want ${J(c.want)})`}`);
+  }
+  return { total: cases.length, bad };
+}
+
 /** Every Screen grader, proved both ways on readings written here. */
 function screenSelfTest() {
   const cases = [];
@@ -5727,6 +7067,20 @@ function screenSelfTest() {
   add('PS1 is red on the icon under the bar (Phase 337.1)', gradePs1, edit(ps1, (r) => void (r.endTop.catchUp.frame = [286, 140, 36, 32])), false);
   add('PS1 is red on another word for End', gradePs1, edit(ps1, (r) => void (r.endTop.end.label = 'End session…')), false);
   add('PS1 is UNREADABLE with no page read', gradePs1, { endTop: null }, null);
+  // Phase 337.3 (D21): the line carries the ⋯'s field, so the ⋯ alone is read.
+  const ps1m = { endTop: { face: 'terminal', menu: { label: MENU_WORDS.more, frame: [346, 66, 36, 36], hittable: true }, end: null, catchUp: null, nav: [0, 62, 402, 54], ids: ['terminal-menu', 'terminal-status', 'screen-grid'], navIds: [{ id: 'terminal-menu' }], endBar: false, screen: null, window: [402, 874] } };
+  add('PS1 (the ⋯) passes its honest reading', gradePs1, ps1m, true);
+  add('PS1 (the ⋯) is red on no ⋯', gradePs1, edit(ps1m, (r) => void (r.endTop.menu = null)), false);
+  add('PS1 (the ⋯) is red on the ⋯ named otherwise', gradePs1, edit(ps1m, (r) => void (r.endTop.menu.label = 'Menu')), false);
+  add('PS1 (the ⋯) is red on a ⋯ that cannot be pressed', gradePs1, edit(ps1m, (r) => void (r.endTop.menu.hittable = false)), false);
+  add('PS1 (the ⋯) is red on the ⋯ in the leading half', gradePs1, edit(ps1m, (r) => void (r.endTop.menu.frame = [12, 66, 36, 36])), false);
+  add('PS1 (the ⋯) is red on the ⋯ under the bar (the verifier\'s F1)', gradePs1, edit(ps1m, (r) => void (r.endTop.menu.frame = [346, 700, 36, 36])), false);
+  add('PS1 (the ⋯) is red on End still drawn beside it', gradePs1, edit(ps1m, (r) => void (r.endTop.end = { label: SCREEN_WORDS.endTop, frame: [300, 66, 40, 32], hittable: true })), false);
+  add('PS1 (the ⋯) is red on session-end among the page\'s identifiers', gradePs1, edit(ps1m, (r) => void r.endTop.ids.push('session-end')), false);
+  add('PS1 (the ⋯) is red on the Catch Me Up icon still drawn', gradePs1, edit(ps1m, (r) => void r.endTop.navIds.push({ id: 'session-open-catch-up' })), false);
+  add('PS1 (the ⋯) is red on the identifiers not printed', gradePs1, edit(ps1m, (r) => void (r.endTop.ids = null)), false);
+  add('PS1 (the ⋯) is red on the End bar still drawn', gradePs1, edit(ps1m, (r) => void (r.endTop.endBar = true)), false);
+  add('PS1 (the ⋯) is UNREADABLE on Catch Me Up\'s page', gradePs1, edit(ps1m, (r) => void (r.endTop.face = 'catch-up')), null);
   // The fix round of 2026-10-06: the verify's own reading on iOS 26.3, the
   // whole Screen as the grid's element, row 0 centred in it at y 337.67, the
   // rows 400 pt wide (80 cells of 5.0, the 5.025 fit snapped to the pixel at
@@ -5870,6 +7224,38 @@ function screenSelfTest() {
   add('PS10 is red on no first row timed', gradePs10, edit(ps10, (r) => void (r.open.firstRowMs = null)), false);
   add('PS10 is UNREADABLE with no selection held', gradePs10, edit(ps10, (r) => void (r.held = null)), null);
   add('PS10 is UNREADABLE with no door reading', gradePs10, edit(ps10, (r) => void (r.door = null)), null);
+  // Phase 337.3 (D21, D22): the line carries the ⋯'s field, so gradePs10Menu
+  // reads it; each case below is caught by its clause alone (the repairer of
+  // 2026-10-08: these cases had gone with /private/tmp, and a clause ablation
+  // found every clause of gradePs10Menu unproved).
+  const ps10m = edit(ps10, (r) => {
+    delete r.open.catchUp;
+    delete r.open.end;
+    r.open.menu = { label: MENU_WORDS.more, frame: [346, 58, 36, 36], hittable: true };
+    r.open.navIds = [{ id: 'terminal-menu' }];
+    r.open.labels = ['p3371-hist', 'Working', 'Claude Code · p316', 'L000001 abc'];
+    r.menu = { opened: true, rows: [{ label: MENU_WORDS.catchMeUp }, { label: MENU_WORDS.endSession }] };
+    r.held = { copy: true, menu: true, copyFrame: [290, 58, 50, 36], menuFrame: [346, 58, 36, 36] };
+  });
+  add('PS10 (the ⋯) passes its honest reading', gradePs10, ps10m, true);
+  add('PS10 (the ⋯) is red on no ⋯', gradePs10, edit(ps10m, (r) => void (r.open.menu = null)), false);
+  add('PS10 (the ⋯) is red on the ⋯ named otherwise', gradePs10, edit(ps10m, (r) => void (r.open.menu.label = 'Menu')), false);
+  add('PS10 (the ⋯) is red on a ⋯ as wide as a row', gradePs10, edit(ps10m, (r) => void (r.open.menu.frame = [210, 58, 250, 36])), false);
+  add('PS10 (the ⋯) is red on a ⋯ that cannot be pressed', gradePs10, edit(ps10m, (r) => void (r.open.menu.hittable = false)), false);
+  add('PS10 (the ⋯) is red on no navigation bar read', gradePs10, edit(ps10m, (r) => void (r.open.nav = null)), false);
+  add("PS10 (the ⋯) is red on the ⋯ in the bar's leading half", gradePs10, edit(ps10m, (r) => void (r.open.menu.frame = [12, 58, 36, 36])), false);
+  add('PS10 (the ⋯) is red on End still drawn beside it', gradePs10, edit(ps10m, (r) => void (r.open.end = { label: SCREEN_WORDS.endTop, frame: [300, 60, 40, 32], hittable: true })), false);
+  add("PS10 (the ⋯) is red on session-end among the bar's identifiers", gradePs10, edit(ps10m, (r) => void r.open.navIds.push({ id: 'session-end' })), false);
+  add('PS10 (the ⋯) is red on the Catch Me Up icon still drawn', gradePs10, edit(ps10m, (r) => void r.open.navIds.push({ id: 'session-open-catch-up' })), false);
+  add('PS10 (the ⋯) is UNREADABLE with the ⋯ never opened', gradePs10, edit(ps10m, (r) => void (r.menu = null)), null);
+  add('PS10 (the ⋯) is red on the ⋯ not opening its menu', gradePs10, edit(ps10m, (r) => void (r.menu.opened = false)), false);
+  add('PS10 (the ⋯) is red on the two items swapped', gradePs10, edit(ps10m, (r) => void r.menu.rows.reverse()), false);
+  add('PS10 (the ⋯) is red on Conversation drawn', gradePs10, edit(ps10m, (r) => void r.open.labels.push('Conversation')), false);
+  add("PS10 (the ⋯) is red on a status word other than the door's", gradePs10, edit(ps10m, (r) => void (r.open.statusWord.label = 'Idle')), false);
+  add("PS10 (the ⋯) is red on an agent line other than the door's", gradePs10, edit(ps10m, (r) => void (r.open.agent.label = 'Claude Code')), false);
+  add('PS10 (the ⋯) is UNREADABLE with no selection held', gradePs10, edit(ps10m, (r) => void (r.held = null)), null);
+  add('PS10 (the ⋯) is red on Copy hiding the ⋯ while selecting', gradePs10, edit(ps10m, (r) => void (r.held.menu = false)), false);
+  add("PS10 (the ⋯) is red on Copy to the ⋯'s right while selecting", gradePs10, edit(ps10m, (r) => void (r.held.copyFrame = [380, 58, 20, 36])), false);
   const ps11 = { dump: { step: 'screen', name: 'session', elements: [{ id: 'screen-session', label: '' }, { id: 'screen-catch-up', label: '' }, { id: 'catch-up-empty', label: 'x' }, { id: 'session-status', label: 'Ended' }] }, title: ['p3371-ended', TERMINAL_WORDS.catchMeUp], name: 'p3371-ended', turnCount: 0 };
   add('PS11 passes its honest reading', gradePs11, ps11, true);
   add('PS11 is red on a terminal drawn for an ended session', gradePs11, edit(ps11, (r) => void r.dump.elements.push({ id: 'screen-grid', label: '' })), false);
@@ -5967,6 +7353,9 @@ function screenSelfTest() {
   add('PS15 is red on a title with no Catch Me Up', gradePs15, edit(ps15, (r) => void (r.line.reading.title = ['p3371-idle'])), false);
   add('PS15 is red on Conversation drawn', gradePs15, edit(ps15, (r) => void r.line.reading.labels.push('Conversation')), false);
   add('PS15 is UNREADABLE with no catch-up line', gradePs15, { line: null }, null);
+  // Phase 337.3 (D22): Catch Me Up is reached through the Terminal's ⋯ menu.
+  add('PS15 passes Catch Me Up reached through the ⋯ menu', gradePs15, edit(ps15, (r) => void (r.via = 'menu')), true);
+  add('PS15 is red on Catch Me Up reached by the icon at HEAD', gradePs15, edit(ps15, (r) => void (r.via = 'icon')), false);
   const ps16 = { scroll: { before: tr(liveAt(166, ['A000161 full screen row'])), readings: [tr(liveAt(166, ['A000161 full screen row'])), tr(liveAt(166, ['A000161 full screen row']))] } };
   add('PS16 passes its honest reading', gradePs16, ps16, true);
   add('PS16 is red on a history row over a full-screen program', gradePs16, edit(ps16, (r) => void (r.scroll.readings[1].history = [hrow(100, 120)])), false);
@@ -6747,7 +8136,14 @@ function selfTest() {
       ? `${TAG} setup self-test PASS: ${String(setupCases.total)} cases (SE1 to SE7, which SE8 reads again on the floor, SEP, the codes and the words) graded as they must be.`
       : `${TAG} setup self-test FAIL: ${String(setupCases.bad)} of ${String(setupCases.total)} case(s) graded wrongly.`
   );
-  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 && ends.bad === 0 && replies.bad === 0 && screens.bad === 0 && sessionsCases.bad === 0 && setupCases.bad === 0 ? 0 : 1);
+  // Phase 337.3: the fill, sideways, the ⋯, the parent and the fill's hostile arm.
+  const fill = fillSelfTest();
+  console.log(
+    fill.bad === 0
+      ? `${TAG} fill self-test PASS: ${String(fill.total)} cases (PF1 to PF9 and PF1 (pages), PL1 to PL5, PM1, PP1 to PP3, PSH scrollback-fill-moved, the run's readers and the stand-in's two tails) graded as they must be.`
+      : `${TAG} fill self-test FAIL: ${String(fill.bad)} of ${String(fill.total)} case(s) graded wrongly.`
+  );
+  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 && ends.bad === 0 && replies.bad === 0 && screens.bad === 0 && sessionsCases.bad === 0 && setupCases.bad === 0 && fill.bad === 0 ? 0 : 1);
 }
 // NOT `--self-test`: build/cdp-target.mjs, imported above, runs ITS fixtures
 // and exits when argv holds that exact word.
@@ -8197,6 +9593,9 @@ exit 0
                     return { seen: p.some((e) => e.seen === true), pressed: p.find((e) => e.pressed !== undefined)?.pressed ?? null, stillUp: p.some((e) => e.stillUp === true) };
                   })(),
                   bar: byFor(events, 'end-bar', 'end')[0] ?? null,
+                  // Phase 337.3: the open ⋯ menu End was read in, and the menu opened again after End.
+                  menu: byFor(events, 'terminal-menu', 'end')[0] ?? null,
+                  after: byFor(events, 'terminal-menu', 'end-after')[0] ?? null,
                   dialog: byFor(events, 'end-dialog', 'end')[0] ?? null,
                   want: wantE1,
                   doneLines: before === null || marks['screen:end'] === undefined ? null : marks['screen:end'].done - before,
@@ -8207,7 +9606,7 @@ exit 0
                   endAfter: el(d, 'session-end') !== null
                 };
                 const v = gradeE1(reading);
-                arm('E1 End at the top right with Face ID\'s mark, the Mac\'s confirmation, iOS\'s first-use question accepted, a match, one act', v.ok, v.said);
+                arm('E1 End session… in the Terminal\'s ⋯ menu with Face ID\'s mark, the Mac\'s confirmation, iOS\'s first-use question accepted, a match, one act, and gone from the menu after', v.ok, v.said);
               }
               // E2
               {
@@ -8309,6 +9708,8 @@ exit 0
                 acked: byFor(ev, 'end-auth-answered', 'end').some((e) => e.acked === true),
                 permission: { seen: byFor(ev, 'faceid-permission', 'end').some((e) => e.seen === true), pressed: byFor(ev, 'faceid-permission', 'end').find((e) => e.pressed !== undefined)?.pressed ?? null, stillUp: byFor(ev, 'faceid-permission', 'end').some((e) => e.stillUp === true) },
                 bar: byFor(ev, 'end-bar', 'end')[0] ?? null,
+                menu: byFor(ev, 'terminal-menu', 'end')[0] ?? null,
+                after: byFor(ev, 'terminal-menu', 'end-after')[0] ?? null,
                 dialog: byFor(ev, 'end-dialog', 'end')[0] ?? null,
                 want: wantE10,
                 doneLines: before === null || marks['screen:end'] === undefined ? null : marks['screen:end'].done - before,
@@ -9011,6 +10412,8 @@ exit 0
             };
           };
 
+          /** Phase 337.3: PS3's screen-rotate line, which PL5 reads the list sideways from. */
+          let rotate3373 = null;
           const S = {
             claude: await screenSession('p337-screen-claude', 'claude'),
             codex: await screenSession('p337-screen-codex', 'codex'),
@@ -9144,7 +10547,8 @@ exit 0
                 // PS1
                 {
                   const v = gradePs1({ endTop: ofStepS(ev, 'end-top')[0] ?? null });
-                  arm('PS1 a session\'s page: End inside the navigation bar\'s trailing half, no End bar, the Catch Me Up icon beside it', v.ok, v.said);
+                  // Phase 337.3 (D21): the Terminal's top right is the ⋯ alone.
+                  arm('PS1 a session\'s page: the ⋯ alone in the navigation bar\'s trailing half, no End there and no End bar, no Catch Me Up icon', v.ok, v.said);
                 }
                 // PS2
                 {
@@ -9155,8 +10559,11 @@ exit 0
                 {
                   const z = ofStepS(ev, 'screen-zoom')[0] ?? {};
                   const rot = ofStepS(ev, 'screen-rotate')[0] ?? {};
-                  const v = gradePs3({ before: z.before ?? null, pinched: z.pinched ?? null, dragged: z.dragged ?? null, slow: z.slow ?? null, up: z.up ?? null, selectionAfterDrags: z.selectionAfterDrags ?? null, gridFrame: z.grid ?? null, rowCount: pane.shell.rows, portrait: rot.portrait ?? null, landscape: rot.landscape ?? null, pageWindow: rot.pageWindow ?? null });
-                  arm('PS3 pinch, drag and turn the phone: the cells grow, the content moves, the fit grows sideways, the page comes back upright', v.ok, v.said);
+                  // Phase 337.3 (D19): sideways the Terminal draws no back button, so the drive reads the landscape
+                  // chrome, turns upright BEFORE Back, and reads the list sideways (PL5's clause, kept below).
+                  rotate3373 = ofStepS(ev, 'screen-rotate')[0] ?? null;
+                  const v = gradePs3({ before: z.before ?? null, pinched: z.pinched ?? null, dragged: z.dragged ?? null, slow: z.slow ?? null, up: z.up ?? null, selectionAfterDrags: z.selectionAfterDrags ?? null, gridFrame: z.grid ?? null, rowCount: pane.shell.rows, portrait: rot.portrait ?? null, landscape: rot.landscape ?? null, pageWindow: rot.pageWindow ?? null, landscapeChrome: rot.landscapeChrome ?? null, uprightChrome: rot.uprightChrome ?? null, backFound: rot.backFound ?? null, backed: rot.backed ?? null });
+                  arm('PS3 pinch, drag and turn the phone: the cells grow, the content moves, the fit grows sideways, and Back, pressed upright, reaches the list', v.ok, v.said);
                 }
                 // PS4
                 {
@@ -9441,6 +10848,14 @@ exit 0
                 };
                 /** The 337.1 readings of one drive's events, cut where each step began. */
                 const of3371 = (ev, step) => ev.filter((e) => e.step === step);
+                // ---- Phase 337.3's readers (build/p3373/SPEC.md §7.3; the pure ones are module-level and self-tested)
+                /** A session's history size, read now by this file's own tmux. */
+                const depthOf3373 = (s) => {
+                  const n = Number(String(tmuxS('display-message', '-p', '-t', `=${s.tmuxName}:`, '#{history_size}') ?? '').trim());
+                  return Number.isFinite(n) ? n : null;
+                };
+                /** PF1's reading of a session in one drive, its depth read now. */
+                const pf1Of = (ev, s, lines) => pf1Reading(ev, s.id, depthOf3373(s), lines);
                 const doorOf = (session) => (session === null ? null : { statusTitle: session.statusTitle, agentLine: [session.agentLabel, session.project].filter((x) => typeof x === 'string' && x !== '').join(' · ') });
                 /** PS13's reading of the steps between `terminal-open` and `keyboard-glitch`. */
                 const ps13Of = (ev) => {
@@ -9476,8 +10891,10 @@ exit 0
                 // Each hold begins as a drag's finger lifts (`scroll-drag-hold`, the fix round): read 1.2 s
                 // after a drag, as `scroll-up` reads, the page it asked had landed already, and the 337.1
                 // verifier's PS13 saw fewer than three landings (UNREADABLE).
+                // Phase 337.3 (PF1): the fill read through `fill-hold:3`, the finger lifted, right after the open.
                 const terminalSteps = [
                   `terminal-open:${T.hist.id}`,
+                  'fill-hold:3',
                   'scroll-up:1',
                   'scroll-drag-hold',
                   'scroll-up:2',
@@ -9528,8 +10945,10 @@ exit 0
                     const open = of3371(ev, 'terminal-open')[0] ?? null;
                     const copied = of3371(ev, 'glitch-copied')[0] ?? null;
                     {
-                      const v = gradePs10({ open, door: open === null ? null : (doorOf(marksT.door ?? (await readSession3371(T.hist.id)))), held: copied?.held ?? null });
-                      arm('PS10 terminal first: a list row opens the Terminal at once, the status line the door\'s, the icon then End top right', v.ok, v.said);
+                      // Phase 337.3 (D21, D22): the open line carries the ⋯, so its menu is read too.
+                      const menu = ev.find((e) => e.step === 'terminal-menu' && e.for === 'terminal-open') ?? null;
+                      const v = gradePs10({ open, door: open === null ? null : (doorOf(marksT.door ?? (await readSession3371(T.hist.id)))), held: copied?.held ?? null, menu });
+                      arm('PS10 terminal first: a list row opens the Terminal at once, the status line the door\'s, the ⋯ alone top right holding Catch Me Up then End session…', v.ok, v.said);
                       if (typeof open?.firstRowMs === 'number') report.readings.terminalFirstRowMs = open.firstRowMs;
                     }
                     {
@@ -9566,8 +10985,25 @@ exit 0
                     }
                     {
                       const idleDoor = await readSession3371(T.idle.id);
-                      const v = gradePs15({ line: of3371(ev, 'catch-up')[0] ?? null, idle: idleDoor?.reply?.canSay === true });
-                      arm('PS15 Catch Me Up from its icon: the now card after the newest turn, the box, End top right, Back to the Terminal', v.ok, v.said);
+                      const v = gradePs15({ line: of3371(ev, 'catch-up')[0] ?? null, idle: idleDoor?.reply?.canSay === true, via: ev.find((e) => e.step === 'face' && e.for === 'catch-up')?.via });
+                      arm('PS15 Catch Me Up through the ⋯ menu: the now card after the newest turn, the box, End top right, Back to the Terminal', v.ok, v.said);
+                    }
+                    // ---- Phase 337.3 on this drive: PF1, PM1, PF5 and PF6 (26.3) ----
+                    {
+                      const v = gradePf1(pf1Of(ev, T.hist, lines3371));
+                      arm('PF1 the fill on open (iOS 26.3): the live rows at the grid\'s bottom from the first frame and still, the history above them to the top, each row tmux\'s', v.ok, v.said);
+                    }
+                    {
+                      const v = gradePm1(pm1Of(ev));
+                      arm('PM1 the ⋯ (iOS 26.3): alone in the bar\'s trailing half, named More, its menu Catch Me Up then End session…, End on where iOS can ask, Catch Me Up pushed and Back', v.ok, v.said);
+                    }
+                    {
+                      const v = gradePf5({ lines: lines3371, toLive: of3371(ev, 'to-live')[0] ?? null, key: of3371(ev, 'scroll-key')[0] ?? null });
+                      arm('PF5 back to live returns the fill: by the arrow and by a key, the live bottom at the view\'s bottom with the history right on it', v.ok, v.said);
+                    }
+                    {
+                      const v = gradePf6({ glitch: of3371(ev, 'keyboard-glitch')[0] ?? null });
+                      arm('PF6 the keyboard over the fill (iOS 26.3): the live bottom within a row above the key bar, back at the grid\'s bottom after', v.ok, v.said);
                     }
                     {
                       // The drags over the full-screen session itself (the probe review, 2026-10-06): the first
@@ -9588,7 +11024,8 @@ exit 0
                   const simRef = { sim: null };
                   await withSimulator({ label: 'p316-terminal-floor', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-terminal-floor'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
                     simRef.sim = sim;
-                    const run = await pairAndRead(sim, ['pair', 'list', ...terminalSteps], 'terminal-floor', { env: { P316_ACKS: acksF.dir }, react: react3371(acksF, marksF, simRef) });
+                    // Phase 337.3: PM1's Catch Me Up from the ⋯ on the floor too, after PS13's steps.
+                    const run = await pairAndRead(sim, ['pair', 'list', ...terminalSteps, `open:${T.hist.id}`, 'catch-up', 'back'], 'terminal-floor', { env: { P316_ACKS: acksF.dir }, react: react3371(acksF, marksF, simRef) });
                     const ev = run.ok ? run.result.events : [];
                     if (!run.ok || ev.length === 0) {
                       arm('PS13 and PS14 the floor (iOS 18.3)', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
@@ -9598,12 +11035,20 @@ exit 0
                     arm('PS13 the scrollback (iOS 18.3, the floor)', v13.ok, v13.said);
                     const v14 = gradePs14(ps14Of(ev, marksF));
                     arm('PS14 the keyboard (iOS 18.3, the floor)', v14.ok, v14.said);
+                    const vf1 = gradePf1(pf1Of(ev, T.hist, lines3371));
+                    arm('PF1 the fill on open (iOS 18.3, the floor)', vf1.ok, vf1.said);
+                    const vf6 = gradePf6({ glitch: of3371(ev, 'keyboard-glitch')[0] ?? null });
+                    arm('PF6 the keyboard over the fill (iOS 18.3, the floor)', vf6.ok, vf6.said);
+                    const vm1 = gradePm1(pm1Of(ev));
+                    arm('PM1 the ⋯ (iOS 18.3, the floor)', vm1.ok, vm1.said);
                   });
                 }
 
                 // ---- PSH: the hostile door's scrollback arms -----------------------
                 await withSimulator({ label: 'p316-terminal-hostile', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-terminal-hostile'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
-                  for (const name of SCROLLBACK_ARMS) {
+                  // Phase 337.3's `scrollback-fill-moved` refuses the fill, not a page he scrolled back to: it runs in
+                  // its own block below, with the fill's steps and its own grader, never with these.
+                  for (const name of SCROLLBACK_ARMS.filter((a) => a !== 'scrollback-fill-moved')) {
                     const spec = HOSTILE_ARMS[name];
                     await sim.simctl('keychain', 'reset');
                     const door = await startDoorChild(name);
@@ -9693,6 +11138,318 @@ exit 0
                     });
                   }
                 } else report.readings.terminalParent = 'not run: neither P3371_PARENT_IOS nor P316_PARENT_IOS is set';
+
+                // ==============================================================
+                // PHASE 337.3 (build/p3373/SPEC.md §7.3): THE TERMINAL FILLS THE
+                // PHONE, sideways it is the terminal alone, and its top right is
+                // one ⋯. Beside T.hist: T3.stream (3,000 lines, then 40 more at 4
+                // a second, started by one byte typed into its pane at the
+                // drive's `stream-ready`), T3.short (5 lines, depth 0),
+                // T3.altback (a shell that runs the stand-in's full-screen
+                // program at the drive's `screen-wait:altback`, tmux polled for
+                // the moment it leaves), T3.question (Codex at its approval) and
+                // T3.rec (a key recorder). Every grade is on the drawn labels and
+                // frames against this file's own capture-pane, the recorder's log
+                // or the device's pasteboard, never on the phone's report. The
+                // fill's pages are read where a door stamps them: the hostile
+                // door's honest arm and its `scrollback-fill-moved`.
+                // ==============================================================
+                {
+                  const T3 = {
+                    stream: await standInSession('p3373-stream', '--lines 3000 --stream 4:40'),
+                    // PF8 (the reverify's band): 300 more lines at 20 a second, printing while the phone is away.
+                    away: await standInSession('p3373-away', '--lines 3000 --stream 20:300'),
+                    // PF9 (the verify's straddle, the fix round): 280 lines a second, near and past a screen a picture.
+                    fast: await standInSession('p3373-fast', '--lines 3000 --stream 280:8400'),
+                    short: await standInSession('p3373-short', '--lines 5'),
+                    altback: await screenSession('p3373-altback', 'shell'),
+                    question: await screenSession('p3373-question', 'codex'),
+                    rec: await recorderSessionS('p3373-rec', 'normal')
+                  };
+                  if (Object.values(T3).some((x) => x === null)) {
+                    arm('PF, PL and PP the 337.3 sessions', null, `not every session was made: ${J(Object.fromEntries(Object.entries(T3).map(([k, v]) => [k, v?.status ?? null])))}`);
+                  } else {
+                    // The stream's 3,000 lines whole and still before the phone reads; the short one's 5 drawn.
+                    for (const s of [T3.stream, T3.away, T3.fast]) {
+                      let seen = -1;
+                      await untilS(() => {
+                        const h = depthOf3373(s) ?? -1;
+                        const still = h >= 2_900 && h === seen;
+                        seen = h;
+                        return still ? true : null;
+                      }, 30_000, 1_000);
+                    }
+                    {
+                      await untilS(() => (String(tmuxS('capture-pane', '-p', '-t', `=${T3.short.tmuxName}:`) ?? '').includes(lineOfStandIn(5)) ? true : null), 20_000, 250);
+                    }
+                    await tellS(T3.question.id, [{ op: 'press', command: 'touch p3373-pl1.txt' }]);
+                    const altOn3373 = (s) => String(tmuxS('display-message', '-p', '-t', `=${s.tmuxName}:`, '#{alternate_on}') ?? '').trim() === '1';
+                    const want3373 = 'p3373 sideways';
+                    /** What this file read at the drive's moments: the stream's start, the recorder's mark, the pasteboard, the program's leaving. */
+                    const marks3373 = { openId: null, streamDepth: null, fastDepth: null, recFrom: null, pasteboard: null, tmuxRow: null, altStarted: false, altOn: null, altOff: null };
+                    const react3373 = (acks3, simRef) => async (event) => {
+                      if (event.step === 'terminal-open' && typeof event.id === 'string') marks3373.openId = event.id;
+                      if (event.step === 'stream-ready') {
+                        // The stream of the session the phone has open (PF2's T3.stream, PF8's T3.away, PF9's T3.fast) starts now.
+                        const s = [T3.stream, T3.away, T3.fast].find((x) => x.id === marks3373.openId) ?? null;
+                        if (s === T3.stream) marks3373.streamDepth = depthOf3373(T3.stream);
+                        if (s === T3.fast) marks3373.fastDepth = depthOf3373(T3.fast);
+                        if (s !== null) tmuxS('send-keys', '-t', `=${s.tmuxName}:`, '-l', 'g');
+                        acks3.ack(event.seq);
+                        return;
+                      }
+                      if (event.step === 'landscape-type-ready') {
+                        marks3373.recFrom = hrS();
+                        acks3.ack(event.seq);
+                        return;
+                      }
+                      if (event.step === 'landscape-copied') {
+                        await sleep(800);
+                        const pb = simRef.sim === null ? null : await simRef.sim.pasteboard().catch(() => null);
+                        marks3373.pasteboard = pb !== null && pb.code === 0 ? String(pb.stdout ?? '') : null;
+                        const capture = String(tmuxS('capture-pane', '-p', '-t', `=${T.hist.tmuxName}:`) ?? '').split('\n');
+                        marks3373.tmuxRow = typeof event.n === 'number' ? (capture[event.n] ?? null) : null;
+                        acks3.ack(event.seq);
+                        return;
+                      }
+                      if (event.step === 'screen-wait' && event.tag === 'altback' && !marks3373.altStarted) {
+                        // The full-screen program starts NOW, with the Terminal up over the shell: 3,000 lines, then
+                        // the alternate screen for 8 s. tmux is polled for the moment it takes the screen and leaves.
+                        marks3373.altStarted = true;
+                        tmuxS('send-keys', '-t', `=${T3.altback.tmuxName}:`, '-l', `exec '${process.execPath}' '${STAND_IN_3371}' --lines 3000 --alt --alt-for 8`);
+                        tmuxS('send-keys', '-t', `=${T3.altback.tmuxName}:`, 'Enter');
+                        marks3373.altOn = await untilS(() => (altOn3373(T3.altback) ? Date.now() : null), 20_000, 100);
+                        marks3373.altOff = marks3373.altOn === null ? Promise.resolve(null) : untilS(() => (altOn3373(T3.altback) ? null : Date.now()), 30_000, 100);
+                        acks3.ack(event.seq);
+                        return;
+                      }
+                      if (/-ready$/.test(event.step) || event.step === 'screen-wait') acks3.ack(event.seq);
+                    };
+                    /** HEAD's grid height sideways on each runtime, printed beside the parent's (PP2). */
+                    const headLandscape = { current: null, floor: null };
+
+                    // ---- PF2 to PF4, PF7, PL1 to PL5 on iOS 26.3 -------------------
+                    await confirmListening(cdp);
+                    {
+                      const acks3 = ackDirS('fill');
+                      const simRef3 = { sim: null };
+                      await withSimulator({ label: 'p316-fill', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-fill'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                        simRef3.sim = sim;
+                        const steps = [
+                          'pair',
+                          'list',
+                          `terminal-open:${T3.stream.id}`,
+                          'stream-hold:10',
+                          'back',
+                          `terminal-open:${T3.fast.id}`,
+                          'stream-hold:20',
+                          'back',
+                          `terminal-open:${T3.away.id}`,
+                          'fill-hold:2',
+                          'return-hold:5:6',
+                          'back',
+                          `terminal-open:${T3.short.id}`,
+                          'fill-hold:3',
+                          'back',
+                          `terminal-open:${T3.altback.id}`,
+                          'screen-wait:altback',
+                          'fill-hold:14',
+                          'back',
+                          `terminal-open:${T.hist.id}`,
+                          'fill-hold:2',
+                          'landscape',
+                          'landscape-select:35',
+                          'portrait',
+                          'back',
+                          `terminal-open:${T3.question.id}`,
+                          'chrome',
+                          'landscape',
+                          'portrait',
+                          'back',
+                          `terminal-open:${T3.rec.id}`,
+                          `landscape-type:${b64uText(want3373)}`,
+                          'portrait',
+                          'back',
+                          `terminal-open:${T.hist.id}`,
+                          'menu-sideways',
+                          'back'
+                        ];
+                        const run = await pairAndRead(sim, steps, 'fill', { env: { P316_ACKS: acks3.dir }, react: react3373(acks3, simRef3) });
+                        const ev = run.ok ? run.result.events : [];
+                        if (!run.ok || ev.length === 0) {
+                          arm('PF2 to PL5 the fill and the terminal sideways', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
+                          return;
+                        }
+                        {
+                          const before = marks3373.streamDepth;
+                          const now = depthOf3373(T3.stream);
+                          const v = gradePf2({ hold: afterOpen3373(ev, T3.stream.id, 'stream-hold'), lines: historyLines(T3.stream), streamed: before === null || now === null ? 0 : now - before });
+                          arm('PF2 following while the agent prints: the live bottom held, no reserved row above it in 95 percent of readings, every history row tmux\'s', v.ok, v.said);
+                        }
+                        {
+                          const v = gradePf8({ hold: afterOpen3373(ev, T3.away.id, 'return-hold'), lines: historyLines(T3.away) });
+                          arm('PF8 back from Catch Me Up while the agent prints (the reverify\'s band): the view filled again within 1.5 s of the return and kept filled, its lowest row right above the live top, the live bottom held, every row tmux\'s', v.ok, v.said);
+                        }
+                        {
+                          const before = marks3373.fastDepth;
+                          const now = depthOf3373(T3.fast);
+                          const v = gradePf9({ hold: afterOpen3373(ev, T3.fast.id, 'stream-hold'), lines: historyLines(T3.fast), streamed: before === null || now === null ? 0 : now - before });
+                          arm('PF9 output near and past a screen a picture (the verify\'s straddle): at most six whole-band blanks a minute, no row taken away in place, the live bottom held, every row tmux\'s', v.ok, v.said);
+                        }
+                        {
+                          const v = gradePf3({ depth: depthOf3373(T3.short), open: openOf3373(ev, T3.short.id), hold: afterOpen3373(ev, T3.short.id, 'fill-hold') });
+                          arm('PF3 no history, as today: live row 0 at the grid\'s top and no history drawn', v.ok, v.said);
+                        }
+                        {
+                          const altOffAt = marks3373.altOff === null ? null : await marks3373.altOff;
+                          const v = gradePf4({ altOffAt, lines: historyLines(T3.altback), open: openOf3373(ev, T3.altback.id), hold: afterOpen3373(ev, T3.altback.id, 'fill-hold') });
+                          arm('PF4 a full-screen program as today, then the fill back when it leaves', v.ok, v.said);
+                        }
+                        {
+                          const v = gradePf7({ lines: lines3371, before: afterOpen3373(ev, T.hist.id, 'fill-hold')?.readings?.at(-1) ?? null, landscape: afterOpen3373(ev, T.hist.id, 'landscape'), portrait: afterOpen3373(ev, T.hist.id, 'portrait') });
+                          arm('PF7 a turn over the fill: following at the bottom upright, sideways and upright again, the history back above it', v.ok, v.said);
+                        }
+                        {
+                          const v = gradePl3({ pasteboard: marks3373.pasteboard, tmuxRow: marks3373.tmuxRow, copied: ev.find((e) => e.step === 'landscape-copied') ?? null });
+                          arm('PL3 Copy sideways: ONE Copy inside the grid, and it copied the row tmux holds', v.ok, v.said);
+                        }
+                        {
+                          const upright = afterOpen3373(ev, T3.question.id, 'chrome');
+                          const sideways = afterOpen3373(ev, T3.question.id, 'landscape');
+                          const again = afterOpen3373(ev, T3.question.id, 'portrait');
+                          const question = (upright?.chrome?.tray ?? []).length > 0;
+                          headLandscape.current = sideways?.chrome?.grid?.frame?.[3] ?? null;
+                          const v1 = gradePl1({ question, landscape: sideways });
+                          arm('PL1 sideways the terminal alone (iOS 26.3): no navigation bar, tab bar, status line, ⋯ or tray, the grid filling the safe area', v1.ok, v1.said);
+                          const v4 = gradePl4({ name: T3.question.name, question, before: { chrome: upright?.chrome ?? null }, after: { chrome: again?.chrome ?? null } });
+                          arm('PL4 upright again every bar where it was (iOS 26.3)', v4.ok, v4.said);
+                        }
+                        {
+                          const hex = marks3373.recFrom === null ? '' : recBytes(T3.rec.id, marks3373.recFrom);
+                          const v = gradePl2({ want: `${want3373}\r`, bytes: Buffer.from(hex, 'hex').toString('utf8'), step: ev.find((e) => e.step === 'landscape-type') ?? null });
+                          arm('PL2 the keyboard sideways: the key bar answers, the typed line and Return reach the recorder exactly, the grid still', v.ok, v.said);
+                        }
+                        {
+                          const v = gradePl5({ via: ev.find((e) => e.step === 'face' && e.for === 'menu-sideways')?.via, rotate: rotate3373, sideways: ev.find((e) => e.step === 'menu-sideways') ?? null });
+                          arm('PL5 every other page stays upright: the list and Catch Me Up, the device sideways', v.ok, v.said);
+                        }
+                      });
+                    }
+
+                    // ---- PL1 and PL4 on the floor, iOS 18.3 ----------------------
+                    await confirmListening(cdp);
+                    {
+                      const acks3 = ackDirS('fill-floor');
+                      await withSimulator({ label: 'p316-fill-floor', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-fill-floor'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                        const steps = ['pair', 'list', `terminal-open:${T3.question.id}`, 'chrome', 'landscape', 'portrait', 'back'];
+                        const run = await pairAndRead(sim, steps, 'fill-floor', { env: { P316_ACKS: acks3.dir }, react: react3373(acks3, { sim }) });
+                        const ev = run.ok ? run.result.events : [];
+                        if (!run.ok || ev.length === 0) {
+                          arm('PL1 and PL4 the floor (iOS 18.3)', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
+                          return;
+                        }
+                        const upright = afterOpen3373(ev, T3.question.id, 'chrome');
+                        const sideways = afterOpen3373(ev, T3.question.id, 'landscape');
+                        const question = (upright?.chrome?.tray ?? []).length > 0;
+                        headLandscape.floor = sideways?.chrome?.grid?.frame?.[3] ?? null;
+                        const v1 = gradePl1({ question, landscape: sideways });
+                        arm('PL1 sideways the terminal alone (iOS 18.3, the floor)', v1.ok, v1.said);
+                        const v4 = gradePl4({ name: T3.question.name, question, before: { chrome: upright?.chrome ?? null }, after: { chrome: afterOpen3373(ev, T3.question.id, 'portrait')?.chrome ?? null } });
+                        arm('PL4 upright again every bar where it was (iOS 18.3, the floor)', v4.ok, v4.said);
+                      });
+                    }
+
+                    // ---- PF1 (pages) and PSH scrollback-fill-moved: the pages a door stamps
+                    await withSimulator({ label: 'p316-fill-hostile', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-fill-hostile'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                      for (const name of ['honest', 'scrollback-fill-moved']) {
+                        const label = name === 'honest' ? 'PF1 (pages) the fill\'s pages at open, at the hostile door\'s honest arm: at most ⌈fill ÷ 100⌉, each at most 128 rows and 250 ms apart by its stamps' : `PSH scrollback-fill-moved: ${HOSTILE_ARMS[name]?.what ?? 'the fill refused'}; no line, no history row and no page over a still screen, then a drag pages honestly`;
+                        await sim.simctl('keychain', 'reset');
+                        const door = await startDoorChild(name);
+                        doorChildren.add(door.child);
+                        try {
+                          if (door.facts === null) {
+                            arm(label, null, door.why ?? 'the hostile door did not start');
+                            continue;
+                          }
+                          const armAcks = ackDirS(`fill-${name}`);
+                          const id = door.facts.sessionToOpen;
+                          const steps = name === 'honest' ? ['pair', 'list', `terminal-open:${id}`, 'fill-hold:3'] : ['pair', 'list', `terminal-open:${id}`, 'fill-hold:6', 'scroll-drag-hold'];
+                          const r = await drive(sim, {
+                            test: { id: UI_TEST },
+                            label: `fill-${name}`,
+                            env: { P316_PAYLOAD: door.facts.payload, P316_STEPS: steps.join(','), P316_WAIT_S: '60', P316_ACKS: armAcks.dir, P330_DOOR_ENDPOINT: `127.0.0.1:${String(door.facts.port)}` },
+                            onEvent: async (event) => {
+                              if (/-ready$/.test(event.step) || event.step === 'screen-wait') armAcks.ack(event.seq);
+                            }
+                          });
+                          if (r.events.length === 0) {
+                            arm(label, null, `the UI test printed no P316 line (xcodebuild exited ${String(r.code)})`);
+                            continue;
+                          }
+                          const pages = door.events.filter((e) => e.kind === 'request' && e.route === 'GET /v1/scrollback').map((e) => ({ at: e.at, ask: e.ask ?? null, why: e.why, hostile: e.hostile }));
+                          const open = r.events.find((e) => e.step === 'terminal-open') ?? null;
+                          const hold = r.events.find((e) => e.step === 'fill-hold') ?? null;
+                          if (name === 'honest') {
+                            const v = gradePf1Pages({ open, hold, pages });
+                            arm(label, v.ok, v.said);
+                          } else {
+                            // The drag begins once the still hold has ended: every page stamped before that is the fill's.
+                            const holdEnd = Math.max(...(hold?.readings ?? []).map((x) => (typeof x.at === 'number' ? x.at : -Infinity)));
+                            const v = gradePshFill({ alive: aliveOf(r.events), hold, dragAt: Number.isFinite(holdEnd) ? holdEnd + 1 : null, pages, afterDrag: r.events.filter((e) => e.step === 'scroll-hold').flatMap((e) => e.readings ?? []) });
+                            arm(label, v.ok, v.said);
+                          }
+                        } finally {
+                          await endDoorChild(door.child);
+                          doorChildren.delete(door.child);
+                        }
+                      }
+                    });
+
+                    // ---- PP1 to PP3: the parent's app (build 7), read by THIS drive
+                    if (PARENT_IOS_3373 !== '') {
+                      const parentSrc = join(resolve(PARENT_IOS_3373), 'ios');
+                      const parentRoot = join(XCODE, 'parent-3373');
+                      const parentProject = join(parentRoot, 'ios', 'Tortie.xcodeproj');
+                      const parentDd = join(XCODE, 'dd-parent-3373');
+                      let laid = false;
+                      if (existsSync(join(parentSrc, 'Tortie.xcodeproj'))) {
+                        rmSync(parentRoot, { recursive: true, force: true });
+                        mkdirSync(parentRoot, { recursive: true });
+                        const cp = spawnSync('cp', ['-Rc', parentSrc, join(parentRoot, 'ios')], { encoding: 'utf8', timeout: 120_000 });
+                        if (cp.status === 0) {
+                          writeFileSync(join(parentRoot, 'ios', 'TortieUITests', 'P316DriveUITests.swift'), readFileSync(join(ROOT, 'ios', 'TortieUITests', 'P316DriveUITests.swift')));
+                          laid = true;
+                        }
+                      }
+                      const built = laid ? await xcodebuildRun({ label: 'parent-fill', scratch: XCODE, derivedDataPath: parentDd, args: ['build-for-testing', '-project', parentProject, '-scheme', SCHEME, '-configuration', 'Debug', '-destination', 'generic/platform=iOS Simulator'] }) : { code: -1 };
+                      if (built.code !== 0) arm('PP1 to PP3 the parent\'s app (build 7)', null, `the parent's project did not ${laid ? `build (${String(built.code)})` : 'copy from P3373_PARENT_IOS'}`);
+                      else {
+                        for (const [runtime, floor] of [[RUNTIME_CURRENT, false], [RUNTIME_FLOOR, true]]) {
+                          await confirmListening(cdp);
+                          const acksP = ackDirS(floor ? 'fill-parent-floor' : 'fill-parent');
+                          await withSimulator({ label: floor ? 'p316-fill-parent-floor' : 'p316-fill-parent', runtime, scratch: join(XCODE, floor ? 'sim-fill-parent-floor' : 'sim-fill-parent'), derivedDataPath: parentDd, keep: KEEP }, async (sim) => {
+                            const steps = floor ? ['pair', 'list', `terminal-open:${T.hist.id}`, 'landscape', 'portrait', 'back'] : ['pair', 'list', `terminal-open:${T.hist.id}`, 'fill-hold:3', 'landscape', 'portrait', 'back'];
+                            const run = await pairAndRead(sim, steps, floor ? 'fill-parent-floor' : 'fill-parent', { project: parentProject, derivedDataPath: parentDd, env: { P316_ACKS: acksP.dir }, react: async (event) => { if (/-ready$/.test(event.step) || event.step === 'screen-wait') acksP.ack(event.seq); } });
+                            const ev = run.ok ? run.result.events : [];
+                            if (!run.ok || ev.length === 0) {
+                              arm(`PP1 to PP3 the parent's app (build 7, iOS ${floor ? '18.3' : '26.3'})`, null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
+                              return;
+                            }
+                            const open = openOf3373(ev, T.hist.id);
+                            const v2 = gradePp2({ headHeight: floor ? headLandscape.floor : headLandscape.current, landscape: afterOpen3373(ev, T.hist.id, 'landscape') });
+                            arm(`PP2 the parent's landscape (iOS ${floor ? '18.3' : '26.3'}): the bars still there sideways, its grid's height beside HEAD's`, v2.ok, v2.said);
+                            if (floor) return;
+                            const v1 = gradePp1({ open, hold: afterOpen3373(ev, T.hist.id, 'fill-hold') });
+                            arm('PP1 the parent\'s top, his item 1: live row 0 at the grid\'s top and nothing above it', v1.ok, v1.said);
+                            const k = ev.findIndex((e) => e.step === 'terminal-open' && e.id === T.hist.id);
+                            const v3 = gradePp3({ open, dump: k < 0 ? null : (ev.slice(k).find((e) => e.step === 'screen' && e.name === 'terminal') ?? null) });
+                            arm('PP3 the parent\'s top right, his item 3: the Catch Me Up icon and End, no ⋯', v3.ok, v3.said);
+                          });
+                        }
+                      }
+                    } else report.readings.fillParent = 'not run: P3373_PARENT_IOS is not set';
+                  }
+                }
               }
             }
           }

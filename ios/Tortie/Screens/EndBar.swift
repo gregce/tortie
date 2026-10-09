@@ -1,19 +1,22 @@
 // End, on one session (Phase 317, build/p317/SPEC.md section 5.8.3; at the
 // top right since Phase 337, build/p337/SPEC.md D33; on both of a session's
-// faces since Phase 337.1, build/p3371/SPEC.md D17 and D20).
+// faces since Phase 337.1, build/p3371/SPEC.md D17 and D20; in the Terminal's
+// ⋯ menu since Phase 337.3, build/p3373/SPEC.md D21 to D24).
 //
-// docs/design/phone/End.html and Session.html. The navigation bar's trailing
-// item on a session the Mac offers End for, rightmost, after the Terminal's
-// Catch Me Up icon: the owner check's glyph and `End` in the error colour;
-// its one line is drawn under the session's status (`EndLine`), on the
-// Terminal under its status line and on Catch Me Up under the now card's
-// status, and the bar that sat above the tab bar until Phase 337 is gone.
-// Pressing it shows the Mac's OWN confirmation, word for word (the
-// door composes it with the Mac's `endSessionConfirm` over main's own row);
-// its destructive press asks iOS for Face ID, Touch ID or the passcode, and
-// only a match sends anything. The Mac asks both of its End gates again by id
-// when the write arrives, so what this bar draws decides what is drawn and
-// nothing else.
+// docs/design/phone/End.html, Conversation.html and TerminalMenu.html. On
+// Catch Me Up, the navigation bar's trailing item on a session the Mac offers
+// End for: the owner check's glyph and `End` in the error colour
+// (`EndTopItem`). On the Terminal, the second item of its ⋯ menu: the Mac's
+// own `End session…` with the same glyph, destructive (`EndMenuItem`). Its
+// one line is drawn under the session's status (`EndLine`), on the Terminal
+// under its status line and on Catch Me Up under the now card's status, and
+// the bar that sat above the tab bar until Phase 337 is gone. Either press
+// shows the Mac's OWN confirmation, word for word (the door composes it with
+// the Mac's `endSessionConfirm` over main's own row), from ONE modifier both
+// apply (`EndConfirmation`); its destructive press asks iOS for Face ID,
+// Touch ID or the passcode, and only a match sends anything. The Mac asks both
+// of its End gates again by id when the write arrives, so what this bar draws
+// decides what is drawn and nothing else.
 //
 // THE RUNNER. Every End, single or batch, is an `EndRunner`: made at the
 // destructive press BEFORE the owner check, registered with the app, its list
@@ -126,6 +129,9 @@ struct EndBarDrawing: Equatable {
     let row: Row?
     /// `End`, or `Ending…` while the write is under way.
     let label: String
+    /// The Terminal's ⋯ menu item (Phase 337.3, D22): the Mac's own
+    /// `End session…`, or `Ending…` while the write is under way.
+    let menuLabel: String
     /// The owner check's glyph: an image, never a word.
     let glyph: String
     /// The one line under the row, or nil. Never empty.
@@ -134,6 +140,8 @@ struct EndBarDrawing: Equatable {
     let confirm: PocketEndConfirm?
     /// The owner check is up.
     let confirming: Bool
+    /// The write is under way (Phase 337.3, D24).
+    let writing: Bool
 
     /// The bar is drawn at all.
     var drawn: Bool { row != nil || line != nil }
@@ -141,7 +149,9 @@ struct EndBarDrawing: Equatable {
     init(offer: PocketEndOffer, confirm: PocketEndConfirm?, kind: OwnerKind, phase: EndModel.Phase, line: String?) {
         glyph = Self.glyph(kind)
         confirming = phase == .confirming
+        writing = phase == .writing
         label = phase == .writing ? Copy.ending : Copy.endTop
+        menuLabel = phase == .writing ? Copy.ending : Copy.endSessionMenu
         let said = line.flatMap { $0.isEmpty ? nil : $0 }
         switch offer {
         case .offered:
@@ -282,10 +292,11 @@ final class EndModel {
     }
 }
 
-// MARK: - End at the top right (Phase 337, D33)
+// MARK: - End at the top right (Phase 337, D33; Catch Me Up's since Phase 337.3)
 
-/// End's press, the navigation bar's trailing item. A pairing that writes
-/// nothing, or a session End is not offered on, draws none.
+/// End's press, the navigation bar's trailing item on Catch Me Up (the
+/// Terminal's is its ⋯ menu's `EndMenuItem` since Phase 337.3). A pairing that
+/// writes nothing, or a session End is not offered on, draws none.
 struct EndTopItem: ToolbarContent {
     let model: EndModel?
     let offer: PocketEndOffer
@@ -318,18 +329,7 @@ struct EndTopControl: View {
         let drawing = drawing
         if model.writer != nil, let row = drawing.row {
             self.row(row, drawing: drawing)
-                .confirmationDialog(confirm?.title ?? Copy.endSessionMenu, isPresented: $asking, titleVisibility: .visible) {
-                    if let shown = drawing.confirm {
-                        Button(shown.confirmLabel, role: .destructive) {
-                            model.press(shown, reread: reread)
-                        }
-                    }
-                    Button(Copy.cancel, role: .cancel) {}
-                } message: {
-                    if let shown = drawing.confirm {
-                        Text(verbatim: shown.body)
-                    }
-                }
+                .endConfirmation(model: model, offer: offer, confirm: confirm, drawing: drawing, isPresented: $asking, reread: reread)
         }
     }
 
@@ -363,6 +363,91 @@ struct EndTopControl: View {
             .disabled(row == .off)
             .accessibilityIdentifier(ID.sessionEnd)
         }
+    }
+}
+
+// MARK: - End in the Terminal's ⋯ menu (Phase 337.3, D22 to D24)
+
+/// End as the Terminal's ⋯ menu draws it: the Mac's own `End session…`, or
+/// `Ending…` while the write runs, with the owner check's glyph, destructive,
+/// drawn off exactly where End's press at the top right is drawn off (an
+/// unreachable machine, no passcode, an End under way). The menu draws it only
+/// where `EndTopControl` would draw a row (a writer, and a row). Its press asks
+/// for the Mac's confirmation, which the menu's control holds OUTSIDE the
+/// menu (`endConfirmation`), so it presents once the menu has closed.
+///
+/// THE PRESS IS ONE BUTTON whose own chain says off when it is drawn off
+/// (rule ac's second press): a menu item iOS draws from it, read by its
+/// identifier, with the glyph an image whose name is the symbol's.
+struct EndMenuItem: View {
+    let row: EndBarDrawing.Row
+    let drawing: EndBarDrawing
+    /// Ask for the Mac's confirmation.
+    let ask: () -> Void
+
+    var body: some View {
+        Button(role: .destructive) {
+            ask()
+        } label: {
+            Label(drawing.menuLabel, systemImage: drawing.glyph)
+        }
+        .disabled(row == .off)
+        .accessibilityIdentifier(ID.terminalMenuEnd)
+    }
+}
+
+// MARK: - The Mac's confirmation, once (Phase 337.3, D23)
+
+/// The Mac's own confirmation over an End press, word for word (Phase 317):
+/// its title, its destructive press, which hands the confirmation to
+/// `EndModel.press` (the runner, then Face ID, Touch ID or the passcode, then
+/// the one write), Cancel, and its body. ONE modifier, applied by Catch Me
+/// Up's End at the top right and by the Terminal's ⋯ menu, so the two can
+/// never drift. The destructive press is drawn only over the Mac's offer and
+/// while End's row is on (the drawing's `confirm`); a session with no End (a
+/// pairing that writes nothing) hands no model and no drawing, and nothing
+/// can be pressed.
+struct EndConfirmation: ViewModifier {
+    let model: EndModel?
+    let offer: PocketEndOffer
+    let confirm: PocketEndConfirm?
+    let drawing: EndBarDrawing?
+    @Binding var isPresented: Bool
+    let reread: @MainActor () async -> Bool
+
+    /// What the destructive press confirms, or nil when it is not drawn.
+    private var shown: PocketEndConfirm? {
+        offer.isOffered ? drawing?.confirm : nil
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .confirmationDialog(confirm?.title ?? Copy.endSessionMenu, isPresented: $isPresented, titleVisibility: .visible) {
+                if let model, let shown {
+                    Button(shown.confirmLabel, role: .destructive) {
+                        model.press(shown, reread: reread)
+                    }
+                }
+                Button(Copy.cancel, role: .cancel) {}
+            } message: {
+                if let shown {
+                    Text(verbatim: shown.body)
+                }
+            }
+    }
+}
+
+extension View {
+    /// The Mac's confirmation over End's press (`EndConfirmation`).
+    func endConfirmation(
+        model: EndModel?,
+        offer: PocketEndOffer,
+        confirm: PocketEndConfirm?,
+        drawing: EndBarDrawing?,
+        isPresented: Binding<Bool>,
+        reread: @escaping @MainActor () async -> Bool
+    ) -> some View {
+        modifier(EndConfirmation(model: model, offer: offer, confirm: confirm, drawing: drawing, isPresented: isPresented, reread: reread))
     }
 }
 

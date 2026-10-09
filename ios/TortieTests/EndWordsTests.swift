@@ -138,13 +138,16 @@ final class EndWordsTests: XCTestCase {
         ])
     }
 
-    /// Clause: the Mac's four words, by their names.
+    /// Clause: the Mac's four words, by their names; and the Terminal's ⋯
+    /// draws End as the Mac's own `END_SESSION` (Phase 337.3, D22).
     func testTheMacsConstants() throws {
         let file = try words()
         XCTAssertEqual(file.constants["END_SESSION"], Copy.endSessionMenu)
         XCTAssertEqual(file.constants["END_SELECTED"], Copy.endSelected)
         XCTAssertEqual(file.constants["BATCH_STOP"], Copy.stop)
         XCTAssertEqual(file.constants["BATCH_DONE"], Copy.done)
+        let menu = EndBarDrawing(offer: .offered(batch: false), confirm: WriteAnswers.confirm, kind: .touchID, phase: .idle, line: nil)
+        XCTAssertEqual(menu.menuLabel, file.constants["END_SESSION"], "the ⋯'s End is not the Mac's End session…")
     }
 
     /// Clause: every n the fixture names, each composer says the singular for

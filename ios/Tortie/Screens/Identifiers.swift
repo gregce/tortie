@@ -14,7 +14,7 @@
 //                                route WHICHEVER face it draws (the Terminal
 //                                or Catch Me Up, build/p3371/SPEC.md D16), and
 //                                screen-catch-up is Catch Me Up, as a face
-//                                inside it or pushed by the Terminal's icon
+//                                inside it or pushed from the Terminal's ⋯
 //   screen-needs-input, screen-settings
 //                                the first and third tabs (Phase 316.6); the
 //                                Sessions tab is screen-list. A tab's button
@@ -53,8 +53,6 @@
 //   session-loading, session-failure
 //                                the session route's first read: the spinner,
 //                                and its one sentence when it did not come back
-//   session-open-catch-up        the Terminal's Catch Me Up icon, a button in
-//                                the top bar beside End (Phase 337.1, D18)
 //   catch-up-older               the spinner, present exactly while older
 //                                turns remain to be asked for
 //   catch-up-older-line          the one line when a page of older turns was
@@ -133,6 +131,8 @@
 //                                lock
 //   end-confirming               present while iOS asks Face ID, Touch ID or
 //                                the passcode
+//   end-writing                  present beside the Terminal's ⋯ while End's
+//                                write runs (Phase 337.3)
 //   list-select                  `Select`, or `Cancel` while selecting, at the
 //                                Sessions title's trailing edge
 //   list-selected-count          `3 selected`
@@ -174,6 +174,11 @@
 //                                title; a container of session-dot,
 //                                session-status, session-agent and
 //                                session-machine
+//   terminal-menu                the Terminal's one ⋯ at the top right, a
+//                                menu (Phase 337.3, build/p3373/SPEC.md D21)
+//   terminal-menu-catch-up, terminal-menu-end
+//                                its two items, Catch Me Up then End
+//                                session…; buttons, found once it is open
 //   screen-grid                  the grid of rows, at the Mac's width
 //   screen-loading, screen-failure
 //                                the spinner before the first picture, and the
@@ -308,8 +313,6 @@ enum ID {
     static let sessionAnswer = "session-answer"
     static let sessionLoading = "session-loading"
     static let sessionFailure = "session-failure"
-    /// The Terminal's Catch Me Up icon (Phase 337.1, D18).
-    static let sessionOpenCatchUp = "session-open-catch-up"
 
     // Catch Me Up's conversation (Phase 337.1: the conversation's names).
     static let catchUpOlder = "catch-up-older"
@@ -386,6 +389,8 @@ enum ID {
     /// The owner check's glyph on the End row: `faceid`, `touchid` or `lock`.
     static func sessionEndGlyph(_ glyph: String) -> String { "session-end-glyph-" + glyph }
     static let endConfirming = "end-confirming"
+    /// Beside the Terminal's ⋯ while End's write runs (Phase 337.3, D24).
+    static let endWriting = "end-writing"
     static let listSelect = "list-select"
     static let listSelectedCount = "list-selected-count"
     static let listEndSelected = "list-end-selected"
@@ -417,6 +422,12 @@ enum ID {
     static let screen = "screen-screen"
     /// The Terminal's one status line (Phase 337.1, D17).
     static let terminalStatus = "terminal-status"
+    /// The Terminal's one ⋯ at the top right, a menu (Phase 337.3, D21).
+    static let terminalMenu = "terminal-menu"
+    /// Its first item, Catch Me Up (D22).
+    static let terminalMenuCatchUp = "terminal-menu-catch-up"
+    /// Its second item, End session… (D22).
+    static let terminalMenuEnd = "terminal-menu-end"
     static let screenGrid = "screen-grid"
     static let screenLoading = "screen-loading"
     static let screenFailure = "screen-failure"

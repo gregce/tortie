@@ -183,9 +183,18 @@
  *   scrollback-never        no page ever answered, past the phone's 15 s: asked
  *                           again after the back-off, the live rows still drawn
  *   scrollback-404          every page a 404 with no body
+ *   scrollback-fill-moved   (Phase 337.3, build/p3373/SPEC.md §7.3) the FIRST
+ *                           page answered `moved` with the Mac's own sentence
+ *                           (src/shared/screen-copy.ts SCROLLBACK_MOVED, as
+ *                           main's absence carries it), every later one
+ *                           honest: the Terminal's fill at open is refused, so
+ *                           following draws no line and no history row and
+ *                           asks nothing more over a still screen (D8), and a
+ *                           drag then pages honestly
  * Each names where it ends (`at`) and the Copy.swift words it may end in
  * (`expect`); `retried` marks an arm whose page must be asked again after its
- * back-off, `stops` one after which no page may be asked. Every
+ * back-off, `stops` one after which no page may be asked, and `fillOnce` the
+ * arm whose one hostile page is the fill's at open. Every
  * `/v1/scrollback` event carries the ask's numbers and the connection's own
  * serial, never a row.
  *
@@ -423,7 +432,9 @@ export const HOSTILE_ARMS = Object.freeze({
   'scrollback-space': { what: 'a page of another space than the live picture', ends: 'sentence', scrollback: 'every', at: 'screen-scrollback-line', expect: ['scrollbackMoved'], stops: true },
   'scrollback-chunked': { what: 'a /v1/scrollback page chunked', ends: 'drawn', scrollback: 'every', raw: true, at: 'screen-grid', expect: [], retried: true },
   'scrollback-never': { what: 'a /v1/scrollback page never answered, past the phone\'s 15 s', ends: 'drawn', scrollback: 'every', at: 'screen-grid', expect: [], retried: true, live: true },
-  'scrollback-404': { what: 'a 404 with no body to a page', ends: 'drawn', scrollback: 'every', at: 'screen-grid', expect: [] }
+  'scrollback-404': { what: 'a 404 with no body to a page', ends: 'drawn', scrollback: 'every', at: 'screen-grid', expect: [] },
+  // PHASE 337.3 (build/p3373/SPEC.md §7.3, D8): the fill's one page at open answered moved, every later page honest.
+  'scrollback-fill-moved': { what: 'the first /v1/scrollback page answered moved with the Mac\'s sentence, every later one honest', ends: 'drawn', scrollback: 'first', at: 'screen-grid', expect: [], fillOnce: true }
 });
 
 /** The names of the Screen's arms (Phase 337). */
@@ -515,6 +526,33 @@ export function hostilePage(arm, honest, lineOf) {
     default:
       return a;
   }
+}
+
+/**
+ * Whether a scrollback arm spoils its `n`th page (1-based): `every` page,
+ * the `first` alone (Phase 337.3's fill-moved), or every one `after-first`.
+ */
+export function pageIsHostile(spec, n) {
+  if (typeof spec?.scrollback !== 'string') return false;
+  if (spec.scrollback === 'every') return true;
+  if (spec.scrollback === 'first') return n === 1;
+  return n > 1;
+}
+
+/**
+ * Phase 337.3: main's absence for a page whose history moved, field for field
+ * as src/main/screen/scrollback.ts's `absent` writes it: nothing read is
+ * carried, and the sentence is the Mac's own SCROLLBACK_MOVED.
+ */
+export function movedPageOf(ask, sentence) {
+  return { sessionId: ask.id, at: Date.now(), from: null, depth: null, wrap: null, space: null, styles: [], rows: [], why: 'moved', sentence };
+}
+
+/** Phase 337.3: the Mac's own words a scrollback absence carries (src/shared/screen-copy.ts), under tsx. */
+async function screenWords() {
+  const copy = await import(pathToFileURL(join(ROOT, 'src', 'shared', 'screen-copy.ts')).href);
+  if (typeof copy.SCROLLBACK_MOVED !== 'string') throw new Error('the shipping tree has no SCROLLBACK_MOVED, which scrollback-fill-moved answers its first page with');
+  return { SCROLLBACK_MOVED: copy.SCROLLBACK_MOVED };
 }
 
 /** How long an honest door holds a /v1/screen read whose `since` is current, before `unchanged`. */
@@ -1079,6 +1117,8 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
     // Phase 318: a reply arm's session offers a press or a message.
     const replyWordsNow = HOSTILE_ARMS[arm].reply === true || arm === 'honest' ? await replyWords() : null;
     if (HOSTILE_ARMS[arm].reply === true) offerReply(world, arm);
+    // Phase 337.3: the fill-moved arm answers its first page with the Mac's own sentence.
+    const screenWordsNow = HOSTILE_ARMS[arm].fillOnce === true ? await screenWords() : null;
     /** write-cut-reread-refused: every signed read after its write is refused. */
     let refuseReads = false;
     // PHASE 316.7: the sessions read, composed by the SHIPPING composer. A
@@ -1346,13 +1386,14 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
           if (refuseReads) return send(res, 404, '', { ...ev, refusedAfterWrite: true });
           const honest = honestPageOf(ask, historyLineOf);
           const spec = HOSTILE_ARMS[arm];
-          const hostileNow = typeof spec.scrollback === 'string' && (spec.scrollback === 'every' || n > 1);
+          const hostileNow = pageIsHostile(spec, n);
           if (!hostileNow) return send(res, 200, J(honest), ev);
           if (arm === 'scrollback-never') {
             emit({ kind: 'request', arm, ...ev, status: 200, bytes: 0, held: true });
             return;
           }
           if (arm === 'scrollback-404') return send(res, 404, '', { ...ev, hostile: arm });
+          if (spec.fillOnce === true) return send(res, 200, J(movedPageOf(ask, screenWordsNow.SCROLLBACK_MOVED)), { ...ev, hostile: arm, why: 'moved' });
           if (spec.raw === true) return sendRaw(req, rawAnswerOf('chunked', J(honest)), { ...ev, hostile: arm });
           return send(res, 200, J(hostilePage(arm, honest, historyLineOf)), { ...ev, hostile: arm });
         }
@@ -1872,6 +1913,24 @@ async function selfTest() {
           const raw = await rawExchange({ door: d, bytes: request, identity: phone, capBytes: 8 * 1024 * 1024 });
           const chunked = /\r\ntransfer-encoding: chunked\r\n/i.test(raw.bytes.toString('utf8'));
           check(arm, screenOk && raw.handshook && chunked, `the Screen drew; the page was written as raw bytes${chunked ? ' with Transfer-Encoding: chunked' : ' WITHOUT Transfer-Encoding: chunked'}, which the phone's reader refuses`);
+          continue;
+        }
+        // PHASE 337.3: the fill's page at open answered moved, as main's absence and in the Mac's own words; every
+        // later page honest, the very same ask again among them, so a drag pages the door's own lines.
+        if (spec.fillOnce === true) {
+          const { SCROLLBACK_MOVED } = await screenWords();
+          const p1 = await scrollbackRead(phone, d, sid, firstAsk);
+          const prob1 = p1.answer === null ? ['no answer'] : scrollbackAnswerProblems(p1.answer, firstAsk);
+          const moved = p1.status === 200 && prob1.length === 0 && p1.answer.why === 'moved' && p1.answer.sentence === SCROLLBACK_MOVED && p1.answer.rows.length === 0 && p1.answer.from === null;
+          const honestAt = async (ask) => {
+            const p = await scrollbackRead(phone, d, sid, ask);
+            const prob = p.answer === null ? ['no answer'] : scrollbackAnswerProblems(p.answer, ask);
+            return { ok: p.status === 200 && prob.length === 0 && p.answer.why === null && J(p.answer.rows.map(screenRowText)) === J(honestTexts(ask)), prob };
+          };
+          const again = await honestAt(firstAsk);
+          const older = await honestAt(olderAsk);
+          const hostileEvents = events.filter((e) => e.kind === 'request' && e.route === 'GET /v1/scrollback' && e.hostile === arm).length;
+          check(arm, screenOk && moved && again.ok && older.ok && hostileEvents === 1, `the Screen drew with a history of ${String(H)}; the first page answered ${String(p1.status)} ${J(p1.answer?.why ?? null)} with the Mac's own sentence: ${String(p1.answer?.sentence === SCROLLBACK_MOVED)} and no row (refused for ${J(prob1)}); the same ask again and an older page honest: ${String(again.ok)} and ${String(older.ok)} (${J([...again.prob, ...older.prob].slice(0, 2))}); ${String(hostileEvents)} hostile page(s) in all`);
           continue;
         }
         // extra-rows is read on an older page, where its rows stay inside the depth, so only the asked range refuses it.

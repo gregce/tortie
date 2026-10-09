@@ -22,6 +22,10 @@
   .phone { width:390px; height:844px; border-radius:44px; border:1px solid var(--line);
     background:#0E0F13; overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,0.55); }
   iframe { width:390px; height:844px; border:0; display:block; }
+  /* Phase 337.3: a landscape figure gets a landscape frame of its own. */
+  figure.wide { width:844px; }
+  .phone.wide { width:844px; height:390px; }
+  iframe.wide { width:844px; height:390px; }
   footer { padding:0 32px 72px; max-width:80ch; font-size:15px; line-height:23px; color:var(--faint); }
   footer code { font-family:ui-monospace,Menlo,monospace; font-size:13px; color:var(--dim); }
   @media (max-width:700px) { header { padding:32px 20px 4px; } h1 { font-size:30px; line-height:36px; }
@@ -31,9 +35,11 @@
 <body>
 <header>
   <h1>Tortie for iPhone</h1>
-  <p class="sub">A remote control for the Tortie client on your Mac. Nineteen screens. Since Phase 337.1 a session opens on its own
-  terminal, as the Mac draws it now, which scrolls back through what the session printed and types into it; Catch Me Up, the
-  conversation and where things stand, is one tap away.
+  <p class="sub">A remote control for the Tortie client on your Mac. Twenty-one screens. Since Phase 337.1 a session opens on its own
+  terminal, as the Mac draws it now, which scrolls back through what the session printed and types into it, and since
+  Phase 337.3 it opens full, with what the session printed before filling the screen above its live rows, shows the
+  terminal alone when the phone is sideways, and keeps Catch Me Up, the conversation and where things stand, and End
+  session in one ⋯ at the top right.
   Every word on them is a string Tortie already says, taken from the module that owns it, or a word of the
   phone's own, declared once with its reason. Colour is spent on state and nothing else: the amber dot is the loudest
   object on every screen and the only thing that pulses.</p>
@@ -56,8 +62,12 @@
       <div class="phone"><iframe src="SessionsOlderMac.html" title="2c · A Mac not yet updated" loading="eager"></iframe></div>
     </figure>
     <figure>
-      <figcaption><span class="n">3 · Its terminal</span><span class="d">Tap a session and its terminal opens, with how it is going under its name. A question the Mac can press is buttons under the terminal; the speech bubble is Catch Me Up, and End sits beside it.</span></figcaption>
+      <figcaption><span class="n">3 · Its terminal</span><span class="d">Tap a session and its terminal opens full: its live rows at the bottom and what it printed before above them, with how it is going under its name. A question the Mac can press is buttons under the terminal; the ⋯ at the top right holds Catch Me Up and End.</span></figcaption>
       <div class="phone"><iframe src="Session.html" title="3 · Its terminal" loading="eager"></iframe></div>
+    </figure>
+    <figure>
+      <figcaption><span class="n">3a · The ⋯</span><span class="d">One menu at the top right, iOS's own: Catch Me Up, then End session…, which asks for Face ID, Touch ID or the passcode exactly as End does. Two taps to either, by design.</span></figcaption>
+      <div class="phone"><iframe src="TerminalMenu.html" title="3a · The ⋯" loading="eager"></iframe></div>
     </figure>
     <figure>
       <figcaption><span class="n">3b · At its prompt</span><span class="d">A Claude Code or Codex session idle at its own empty prompt: the message box at rest above the End bar, Send not a press until it holds words.</span></figcaption>
@@ -83,12 +93,16 @@
       <figcaption><span class="n">5b · Typing</span><span class="d">The terminal with the keyboard up, drawn at the Mac's width: pinch, drag, scroll back or turn the phone sideways, and the Mac's window never changes size. Every key, Ctrl-C included, with no Face ID; inside a numbered question, one batch per picture.</span></figcaption>
       <div class="phone"><iframe src="Screen.html" title="5b · Typing" loading="eager"></iframe></div>
     </figure>
+    <figure class="wide">
+      <figcaption><span class="n">5c · Sideways</span><span class="d">Turn the phone and the terminal is all there is: no bar above, none below, the whole safe area for the session's rows. The keyboard and the key bar still work; Copy sits at the bottom right. Turn it back and every bar returns.</span></figcaption>
+      <div class="phone wide"><iframe class="wide" src="Landscape.html" title="5c · Sideways" loading="eager"></iframe></div>
+    </figure>
     <figure>
       <figcaption><span class="n">6 · Open a link</span><span class="d">The one way out: the whole address first, and nothing opens until you press Open. Owed by a later phase: markdown is off, so today no link can be pressed.</span></figcaption>
       <div class="phone"><iframe src="Link.html" title="6 · Open a link" loading="eager"></iframe></div>
     </figure>
     <figure>
-      <figcaption><span class="n">7 · End, behind Face ID</span><span class="d">End sits at the top right of a session. The confirmation is the Mac's own, word for word, and only Face ID, Touch ID or the passcode sends it. Restore and Remove stay on the Mac.</span></figcaption>
+      <figcaption><span class="n">7 · End, behind Face ID</span><span class="d">End is in a session's ⋯ menu, and at the top right of Catch Me Up. The confirmation is the Mac's own, word for word, and only Face ID, Touch ID or the passcode sends it. Restore and Remove stay on the Mac.</span></figcaption>
       <div class="phone"><iframe src="End.html" title="7 · End, behind Face ID" loading="eager"></iframe></div>
     </figure>
     <figure>
@@ -117,7 +131,7 @@
     </figure>
 </main>
 <footer>
-  Scroll sideways for all nineteen. Tap the first row of screen 1 or 2 to walk list → session → composer, and the tab bar to move between the three tabs; screen 4b's
+  Scroll sideways for all twenty-one. Tap the first row of screen 1 or 2 to walk list → session → composer, and the tab bar to move between the three tabs; screen 4b's
   hand-off goes back to the session. Grounds are Tortie's own surround <code>#0E0F13</code> with cards at
   <code>#191B20</code> — never the work's <code>#131417</code>, because the phone is the frame around the
   Mac's work rather than the work itself.

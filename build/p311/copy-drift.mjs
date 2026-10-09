@@ -259,10 +259,60 @@ function screenSampleRows() {
   return out;
 }
 
+/**
+ * The rows of the history the filled Terminal draws above its live rows
+ * (Phase 337.3, build/p3373/SPEC.md §5.7): a committed Claude Code capture's
+ * own rows above its input box (src/main/activity/__tests__/fixtures/
+ * claude-post-answer.txt, the rows before its first rule line), each tidied
+ * the way a drawn line is, split at Tortie's separator, unique, in order.
+ * Session.html and Screen.html draw THAT history, so a row the mock invents
+ * fails by name. Empty when the capture is not there, which leaves the rows
+ * uncovered and failing by name.
+ */
+const HISTORY_CAPTURE = join('src', 'main', 'activity', '__tests__', 'fixtures', 'claude-post-answer.txt');
+function historyCaptureRows() {
+  let text;
+  try {
+    text = readFileSync(join(ROOT, HISTORY_CAPTURE), 'utf8');
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const line of text.split('\n')) {
+    if (/^─{10,}/.test(line)) break;
+    for (const piece of line.split(' · ')) {
+      const value = piece.replace(/ /g, ' ').replace(/\s+/g, ' ').trim();
+      if (value !== '' && !out.includes(value)) out.push(value);
+    }
+  }
+  return out;
+}
+
 const LEDGER = [
   // -------------------------------------------------------------------------
   // Words Tortie already says
   // -------------------------------------------------------------------------
+  // PHASE 337.3 (build/p3373/SPEC.md D21, D22, D27, §6.3): the Terminal's ⋯,
+  // spoken More, the phone's own word (iOS's name for an ellipsis button; the
+  // Mac names its machine rows' ⋯ `More for <name>`), drawn as an aria-label
+  // by Session.html, Screen.html and TerminalMenu.html; and the menu's second
+  // item, End session…, the session manager's own menu word, drawn by
+  // TerminalMenu.html. Declared first because `More` is one word the general
+  // rules below would otherwise take.
+  owned({
+    is: 'More',
+    module: PHONE_COPY,
+    needle: 'static let more = "More"',
+    draws: 'More',
+    why: "the spoken name of the Terminal's ⋯ at the top right, which holds Catch Me Up and End session…; the phone's own word, declared /// Phone: in Copy.swift"
+  }),
+  owned({
+    is: 'End session…',
+    module: MANAGER_COPY,
+    needle: "export const END_SESSION = 'End session…';",
+    draws: 'End session…',
+    why: "the ⋯ menu's End item, the Mac's own session menu word; it draws the Mac's confirmation (End.html) and only Face ID, Touch ID or the passcode sends it"
+  }),
   owned({
     is: 'Sessions',
     module: MANAGER_COPY,
@@ -853,6 +903,16 @@ const LEDGER = [
       why: "a row of a session's own screen, the agent's own text, drawn as the Mac's terminal shows it: build/fixtures/screen/sample-claude-2.1.287.json, the shipping composer's answer for a committed Claude Code capture"
     })
   ),
+  // THE HISTORY'S ROWS (Phase 337.3, build/p3373/SPEC.md D1 to D3, §5.7): the
+  // rows the filled Terminal draws above its live rows, a committed capture's
+  // own (claude-post-answer.txt), declared one row at a time, so Session.html
+  // and Screen.html draw THAT history and a row the mock invents fails by name.
+  ...historyCaptureRows().map((is) =>
+    data({
+      is,
+      why: `a row of the history above a session's live rows, the agent's own text the Mac's pages bring: ${HISTORY_CAPTURE}, a committed Claude Code capture, the rows above its input box`
+    })
+  ),
   // Markdown off (2026-10-02): Link.html's press is owed, not drawn. The word
   // stays the Mac's own (`ARCH_INSPECT_OPEN = 'Open'`), and Copy.swift's
   // `open` still says so under its `/// Mac:` line; the owned-rule floor
@@ -1217,7 +1277,11 @@ const OWED_ABSENCE_FLOOR = 16;
    with the old mock (the first step "In Tortie on your Mac, open Settings then
    Phone and press Pair." and "There is nothing else to install."),
    build/p3331/SPEC.md §5.6.3. */
-const OWNED_RULE_FLOOR = 101;
+/* PHASE 337.3 RAISED IT BY TWO, FROM 101 TO 103, the count the run matches: the
+   Terminal's ⋯, spoken More (Copy.swift's own word), and the menu's End
+   session…, the session manager's own menu word, which TerminalMenu.html
+   draws again now that the End bar is gone; build/p3373/SPEC.md §6.3. */
+const OWNED_RULE_FLOOR = 103;
 
 // ---------------------------------------------------------------------------
 // Judgement
@@ -1390,6 +1454,55 @@ function checkContactSheet(names, sheet) {
       why: 'the sheet may only frame the screens; a frame of its own makes its prose product copy'
     });
   }
+  return findings;
+}
+
+// ---------------------------------------------------------------------------
+// The Terminal's faces (Phase 337.3, build/p3373/SPEC.md §5.7, §6.3)
+// ---------------------------------------------------------------------------
+
+/**
+ * Which words each Terminal mock may draw, the same rules
+ * ios/TortieTests/CopyTests.swift holds under XCTest, read here in plain node.
+ * The ledger alone cannot fail "Catch Me Up put back as Session.html's icon
+ * label": Catch Me Up is a Tortie word wherever it appears. So, by face:
+ * Session.html and Screen.html name their ⋯ `More` as a spoken name and draw
+ * no `More` word, and name or draw neither Catch Me Up nor End in the bar
+ * (both are the ⋯'s items); TerminalMenu.html names the ⋯ `More` and draws
+ * Catch Me Up BEFORE End session…; Landscape.html draws no ⋯ and no word of
+ * the bars (the tabs, Catch Me Up, End, End session…). Pure over the screens
+ * so the self-test can mutate one in memory.
+ */
+const TERMINAL_FACES = Object.freeze({
+  more: 'More',
+  catchMeUp: 'Catch Me Up',
+  endTop: 'End',
+  endSessionMenu: 'End session…',
+  tabs: ['Needs input', 'Sessions', 'Settings']
+});
+function checkTerminalFaces(screens) {
+  const findings = [];
+  const page = (name) => screens.get(name) ?? '';
+  const drawsWord = (source, word) => source.includes(`>${word}<`);
+  const namesControl = (source, word) => source.includes(`aria-label="${word}"`);
+  for (const name of ['Session.html', 'Screen.html']) {
+    const source = page(name);
+    if (!namesControl(source, TERMINAL_FACES.more)) findings.push({ file: name, text: TERMINAL_FACES.more, why: "the Terminal's ⋯ is not spoken More (build/p3373/SPEC.md D21, D27)" });
+    if (drawsWord(source, TERMINAL_FACES.more)) findings.push({ file: name, text: TERMINAL_FACES.more, why: 'the ⋯ draws More as a word; it is a symbol spoken More (build/p3373/SPEC.md D21)' });
+    for (const word of [TERMINAL_FACES.catchMeUp, TERMINAL_FACES.endTop]) {
+      if (drawsWord(source, word) || namesControl(source, word)) findings.push({ file: name, text: word, why: "drawn or named in the Terminal's bar; it is the ⋯ menu's item (build/p3373/SPEC.md D22)" });
+    }
+  }
+  const menu = page('TerminalMenu.html');
+  if (!namesControl(menu, TERMINAL_FACES.more)) findings.push({ file: 'TerminalMenu.html', text: TERMINAL_FACES.more, why: "the ⋯ is not spoken More (build/p3373/SPEC.md D21)" });
+  const catchUpAt = menu.indexOf(`>${TERMINAL_FACES.catchMeUp}<`);
+  const endAt = menu.indexOf(`>${TERMINAL_FACES.endSessionMenu}<`);
+  if (catchUpAt === -1 || endAt === -1 || catchUpAt > endAt) findings.push({ file: 'TerminalMenu.html', text: `${TERMINAL_FACES.catchMeUp} then ${TERMINAL_FACES.endSessionMenu}`, why: 'the menu holds Catch Me Up and then End session…, in that order (build/p3373/SPEC.md D22)' });
+  const landscape = page('Landscape.html');
+  for (const word of [...TERMINAL_FACES.tabs, TERMINAL_FACES.catchMeUp, TERMINAL_FACES.endTop, TERMINAL_FACES.endSessionMenu]) {
+    if (drawsWord(landscape, word)) findings.push({ file: 'Landscape.html', text: word, why: 'sideways the Terminal is the terminal alone, with no bar above or below (build/p3373/SPEC.md D15)' });
+  }
+  if (namesControl(landscape, TERMINAL_FACES.more)) findings.push({ file: 'Landscape.html', text: TERMINAL_FACES.more, why: 'the ⋯ drawn sideways; the bar is hidden (build/p3373/SPEC.md D15)' });
   return findings;
 }
 
@@ -1894,15 +2007,70 @@ const MUTATIONS = [
     names: 'Over'
   },
   {
-    // Phase 337.1: the Terminal's icon spoken in other words must go red
-    // against Copy.swift's `catchMeUp`, the Mac's word (build/p3371/SPEC.md §6.4).
-    what: "the Catch Me Up icon's spoken name re-cased in the mock",
+    // Phase 337.1 wrote this over the Terminal's icon; Phase 337.3 re-points
+    // it to the ⋯ that took the icon's place (build/p3373/SPEC.md §6.3): the
+    // ⋯ spoken in other words must go red against Copy.swift's `more`.
+    what: "the ⋯'s spoken name re-cased in the mock",
     apply(screens) {
       const next = new Map(screens);
-      next.set('Session.html', (next.get('Session.html') ?? '').replace('aria-label="Catch Me Up"', 'aria-label="Catch me up"'));
+      next.set('Session.html', (next.get('Session.html') ?? '').replace('aria-label="More"', 'aria-label="more"'));
       return next;
     },
-    names: 'Catch me up'
+    names: 'More'
+  },
+  {
+    // Phase 337.3 (§6.3): Catch Me Up put back as Session.html's icon label.
+    // The ledger alone cannot fail this (Catch Me Up is a Tortie word wherever
+    // it appears); the faces check does.
+    what: "Catch Me Up put back as the Terminal's icon label",
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('Session.html', (next.get('Session.html') ?? '').replace('aria-label="More"', 'aria-label="Catch Me Up"'));
+      return next;
+    },
+    names: 'Catch Me Up'
+  },
+  {
+    // Phase 337.3 (§6.3): End drawn in Session.html's top bar again.
+    what: "End drawn in the Terminal's top bar",
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('Session.html', (next.get('Session.html') ?? '').replace('</svg></a>\n    </div>\n  </div>', '</svg></a><span>End</span>\n    </div>\n  </div>'));
+      return next;
+    },
+    names: 'End'
+  },
+  {
+    // Phase 337.3 (§6.3): a row the mock invents in the history above the live
+    // rows must fail by name against the committed capture.
+    what: "an invented row in the Terminal's history",
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('Session.html', (next.get('Session.html') ?? '').replace('❯ Append the line HELLO to note.txt', '❯ Append the line HELLO to notes.txt'));
+      return next;
+    },
+    names: '❯ Append the line HELLO to notes.txt'
+  },
+  {
+    // Phase 337.3 (D22): the menu's two items swapped.
+    what: "the ⋯ menu's items swapped",
+    apply(screens) {
+      const next = new Map(screens);
+      const menu = next.get('TerminalMenu.html') ?? '';
+      next.set('TerminalMenu.html', menu.replace('>Catch Me Up<', '>\u0000<').replace('>End session…<', '>Catch Me Up<').replace('>\u0000<', '>End session…<'));
+      return next;
+    },
+    names: 'Catch Me Up then End session…'
+  },
+  {
+    // Phase 337.3 (D15): a tab drawn on the sideways Terminal.
+    what: 'a tab drawn sideways',
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('Landscape.html', (next.get('Landscape.html') ?? '').replace('</body>', '<div>Sessions</div></body>'));
+      return next;
+    },
+    names: 'Sessions'
   },
   {
     // Phase 337.1: the word the rename took away, put back in a mock (D21).
@@ -1946,6 +2114,13 @@ const MODULE_MUTATIONS = [
     module: PHONE_COPY,
     edit: (text) => text.replace('static let siteName = "tortie.sh"', 'static let siteName = "tortie.io"'),
     names: 'static let siteName = "tortie.sh"'
+  },
+  {
+    // Phase 337.3 (build/p3373/SPEC.md §6.3): More cased differently in Copy.swift.
+    what: 'More cased differently in Copy.swift',
+    module: PHONE_COPY,
+    edit: (text) => text.replace('static let more = "More"', 'static let more = "more"'),
+    names: 'static let more = "More"'
   }
 ];
 
@@ -2149,6 +2324,7 @@ function main() {
     production
   );
   findings.push(...checkContactSheet([...screens.keys()], sheet));
+  findings.push(...checkTerminalFaces(screens));
 
   // Every rule must earn its place: one that matches nothing is a rule about a
   // mock that has moved on, and it would go on passing forever.
@@ -2245,8 +2421,11 @@ function main() {
   if (selfTest) {
     const base = new Set(findings.map((f) => `${f.file}\u0000${f.text}`));
     for (const mutation of MUTATIONS) {
-      const mutated = judge(mutation.apply(screens), modules, production);
-      const caught = mutated.findings.some((f) => f.text === mutation.names);
+      const mutatedScreens = mutation.apply(screens);
+      const mutated = judge(mutatedScreens, modules, production);
+      // Phase 337.3: the Terminal's faces are judged beside the ledger.
+      const found = [...mutated.findings, ...checkTerminalFaces(mutatedScreens)];
+      const caught = found.some((f) => f.text === mutation.names);
       const wasThere = [...base].some((k) => k.endsWith(`\u0000${mutation.names}`));
       if (!caught) {
         failed = true;

@@ -5,21 +5,27 @@ import XCTest
 /// End at the top right (Phase 337, build/p337/SPEC.md D33): the same End,
 /// owner check and Mac confirmation as Phase 317's, now the navigation bar's
 /// trailing item, its one line under the session's status, and no bar at the
-/// bottom; since Phase 337.1 on both of a session's faces, the Terminal and
-/// Catch Me Up. Each test names the clause it holds and fails when that
-/// clause is taken out of Screens/EndBar.swift, Screens/SessionScreen.swift
-/// or Screens/ConversationScreen.swift.
+/// bottom; since Phase 337.1 on both of a session's faces, and since Phase
+/// 337.3 (build/p3373/SPEC.md D21 to D23) Catch Me Up's top right and the
+/// Terminal's ⋯ menu (TerminalMenuTests.swift reads the menu). Each test
+/// names the clause it holds and fails when that clause is taken out of
+/// Screens/EndBar.swift, Screens/SessionScreen.swift or
+/// Screens/ConversationScreen.swift.
 @MainActor
 final class EndTopTests: XCTestCase {
     /// Clause: End's word at the top is `End`, and `Ending…` while the write
-    /// runs; its states are 317's.
+    /// runs; its states are 317's. In the Terminal's ⋯ menu the same End says
+    /// the Mac's own `End session…`, and `Ending…` while the write runs
+    /// (Phase 337.3, D22).
     func testTheWordAndTheStates() {
         let on = EndBarDrawing(offer: .offered(batch: true), confirm: WriteAnswers.confirm, kind: .faceID, phase: .idle, line: nil)
         XCTAssertEqual(on.label, Copy.endTop)
+        XCTAssertEqual(on.menuLabel, Copy.endSessionMenu)
         XCTAssertEqual(on.row, .on)
         XCTAssertEqual(on.confirm, WriteAnswers.confirm)
         let writing = EndBarDrawing(offer: .offered(batch: true), confirm: WriteAnswers.confirm, kind: .faceID, phase: .writing, line: nil)
         XCTAssertEqual(writing.label, Copy.ending)
+        XCTAssertEqual(writing.menuLabel, Copy.ending)
         XCTAssertEqual(writing.row, .off)
         let passcode = EndBarDrawing(offer: .offered(batch: true), confirm: WriteAnswers.confirm, kind: .none, phase: .idle, line: nil)
         XCTAssertEqual(passcode.row, .off)
@@ -29,10 +35,11 @@ final class EndTopTests: XCTestCase {
 
     /// Clause: End is a toolbar item at the top right, in EndBar.swift: the
     /// `ID.sessionEnd` Button, `.disabled(row == .off)`, inside
-    /// `ToolbarItem(placement: .topBarTrailing)`; and since Phase 337.1 BOTH
-    /// of a session's faces put it there: the Terminal as its last trailing
-    /// item, after the Catch Me Up icon, so End is rightmost (D17), and Catch
-    /// Me Up in its toolbar (D20).
+    /// `ToolbarItem(placement: .topBarTrailing)`, on Catch Me Up in its
+    /// toolbar (D20); and since Phase 337.3 the Terminal's trailing items are
+    /// exactly the ⋯ (`TerminalMenu`), handed End, the session's re-read and
+    /// Catch Me Up with the session's own line, with no End of its own in the
+    /// bar and no Catch Me Up icon (D21).
     func testEndIsTheTopBarsTrailingItemOnBothFaces() throws {
         let bar = try StyleSource.text("ios/Tortie/Screens/EndBar.swift")
         XCTAssertTrue(bar.contains("ToolbarItem(placement: .topBarTrailing)"))
@@ -41,9 +48,16 @@ final class EndTopTests: XCTestCase {
         let session = try StyleSource.text("ios/Tortie/Screens/SessionScreen.swift")
         let terminal = try XCTUnwrap(session.range(of: "struct TerminalPage: View {"))
         let trailing = try XCTUnwrap(session.range(of: "} trailing: {", range: terminal.upperBound..<session.endIndex))
-        let icon = try XCTUnwrap(session.range(of: "CatchUpItem {", range: trailing.upperBound..<session.endIndex))
-        let end = try XCTUnwrap(session.range(of: "EndTopItem(", range: trailing.upperBound..<session.endIndex))
-        XCTAssertLessThan(icon.lowerBound, end.lowerBound, "End is not after the Catch Me Up icon, so it is not rightmost")
+        let close = try XCTUnwrap(session.range(of: "\n        }\n", range: trailing.upperBound..<session.endIndex))
+        let items = String(session[trailing.upperBound..<close.lowerBound])
+        XCTAssertTrue(
+            items.contains("TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }"),
+            "the Terminal's trailing item is not the ⋯ holding End and Catch Me Up"
+        )
+        XCTAssertEqual(items.components(separatedBy: "TerminalMenu(").count, 2)
+        XCTAssertFalse(items.contains("EndTopItem("), "End is still its own item in the Terminal's bar")
+        XCTAssertFalse(items.contains("CatchUpItem"), "the Catch Me Up icon is still in the Terminal's bar")
+        XCTAssertFalse(session.contains("EndTopItem("), "SessionScreen.swift still draws End at the top right of a page")
         let conversation = try StyleSource.text("ios/Tortie/Screens/ConversationScreen.swift")
         let toolbar = try XCTUnwrap(conversation.range(of: ".toolbar {"))
         let item = try XCTUnwrap(conversation.range(of: "EndTopItem(", range: toolbar.upperBound..<conversation.endIndex))
@@ -87,7 +101,8 @@ final class EndTopTests: XCTestCase {
 
     /// Clause (Phase 337.1, D16): no session page draws a row to open the
     /// conversation or the screen any more: a running session opens on its
-    /// Terminal, and Catch Me Up is an icon. The answer's `screen` still
+    /// Terminal, and Catch Me Up is an item of its ⋯ (an icon until Phase
+    /// 337.3). The answer's `screen` still
     /// reads false from a Mac older than 337, which is what sends such a
     /// session to Catch Me Up.
     func testNoRowOpensTheConversationOrTheScreen() throws {
