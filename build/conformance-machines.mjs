@@ -593,6 +593,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 // PHASE 242.2. Condition 88g RUNS the shipping image-put text under /bin/sh
 // over real links on real disks, in a scratch directory it removes in a
 // `finally`. Nothing under the person's home is opened: `HOME` is inside that
@@ -634,6 +635,9 @@ import ts from 'typescript';
 // scratch tree under the system temporary directory removed in a `finally`,
 // with `HOME` pointed inside it. Loading the module starts nothing.
 import { ownerOfProblem as ownerOfP336Problem, runArms as runP336Arms } from './p336/script-arms.mjs';
+// PHASE 342. Condition 149 drives the four far texts under /bin/sh and
+// /bin/dash with a GNU stat stand-in first on PATH, through the same runner.
+import { farRunner as p342FarRunner } from './p336/script-arms.mjs';
 // PHASE 340. Conditions 127, 130, 137 and 138 read build/p340/far-check.mts,
 // which the pinned tsx runs ONCE: the shipping far check under /bin/sh,
 // /bin/dash and /bin/ksh over eighteen trees, and the shipping
@@ -1075,7 +1079,14 @@ const EXPECTED_CLASSES = [
   // program and ran none of them. Both are Tortie's own words, so both are
   // `noGolden` rows in the manifest.
   'client-failed',
-  'program-choice'
+  'program-choice',
+  // Phase 342 (build/p342/SPEC.md D10). `program-refused` is a machine that
+  // ANSWERED and whose tmux Tortie will not use as it is: a setting durability
+  // or scroll-back rests on refused, a program updated beside a server that
+  // kept running, or a server Tortie started that reports another version
+  // than its program said. Tortie's own words, so a `noGolden` row; it is
+  // never "could not reach", which condition 10 holds below.
+  'program-refused'
 ].sort();
 
 const gotClasses = data.taxonomy.map((row) => row.class).sort();
@@ -1109,6 +1120,17 @@ if (alarming.join('|') !== data.alarmClass) {
     if (missing.headline === failed.headline) fail('condition 10: client-failed and client-missing share a headline, so an ssh that would not start still reads as a missing one (Phase 340, D14).');
     if (/\bno ssh\b/i.test(failed.headline)) fail(`condition 10: client-failed's headline ${JSON.stringify(failed.headline)} says this Mac has no ssh.`);
     if (!/\bno ssh program\b/i.test(missing.headline)) fail(`condition 10: client-missing's headline ${JSON.stringify(missing.headline)} no longer says this Mac has no ssh program.`);
+  }
+}
+
+// PHASE 342 (D10). The class this phase adds says the machine answered and
+// never that it could not be reached, which is the defect the phase removes.
+{
+  const refused = data.taxonomy.find((row) => row.class === 'program-refused');
+  if (refused === undefined) fail('condition 10: the taxonomy has no program-refused row (Phase 342, D10).');
+  else {
+    if (/could not reach/i.test(refused.headline)) fail(`condition 10: program-refused's headline ${JSON.stringify(refused.headline)} says the machine could not be reached, which it was (D10).`);
+    if (refused.alarm === true) fail('condition 10: program-refused is alarming; only a changed host key is.');
   }
 }
 
@@ -12556,12 +12578,16 @@ const P337_KEY_NAMES = (() => {
     // -H bytes into a session on THIS Mac over the core's own control client
     // (build/p337/SPEC.md D18); it never reaches a machine's carriage, which
     // takes the phone's keys through typePhoneKeys alone (condition 123).
+    // PHASE 342 (build/p342/SPEC.md D11, D30): and src/main/tmux/scroll.ts,
+    // where '-H' may stand only inside enterCopyModeArgs, the one spelling of
+    // copy mode's entry on another machine, which condition 147 holds.
     const hexSpellers = filesNaming("'-H'");
-    if (JSON.stringify(hexSpellers) !== JSON.stringify(['src/main/machines/scroll-shapes.ts', 'src/main/screen/keys.ts'])) {
+    if (JSON.stringify(hexSpellers) !== JSON.stringify(['src/main/machines/scroll-shapes.ts', 'src/main/screen/keys.ts', 'src/main/tmux/scroll.ts'])) {
       fail(
         `the production files that spell '-H' are ${JSON.stringify(hexSpellers)}. Only ` +
-          `scroll-shapes.ts may, where the seventh row and its one composer live, and ` +
-          `src/main/screen/keys.ts, the Screen's keys on this Mac's own control client.`
+          `scroll-shapes.ts may, where the seventh row and its one composer live, ` +
+          `src/main/screen/keys.ts, the Screen's keys on this Mac's own control client, ` +
+          `and src/main/tmux/scroll.ts, inside enterCopyModeArgs alone (Phase 342).`
       );
     }
   }
@@ -14757,6 +14783,860 @@ const P337_KEY_NAMES = (() => {
       'execOn( of the display, the capture and the display with the one format, and a far page by one more of the ' +
       'same three, its -S and -E whole numbers checked before any argv exists (driven over ten refusals), at the ' +
       'live address asked first, naming no carriage row.\n'
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 342, conditions 142 to 149. Linux machines on the tmux their
+// distribution ships (build/p342/SPEC.md §6.1, D30).
+// ---------------------------------------------------------------------------
+//
+// Prepare's twelve rows each declare the oldest tmux that took them and what
+// Tortie does without them, `history-limit` is written first, a refusal is
+// read only in tmux's own seven shapes, the four rows before 3.6 carry the
+// programs measured against them, a server Tortie started must report the
+// version its program said, copy mode on another machine is entered with
+// `-H`, a far tmux name holds no `$`, 3.4's dollar and 3.2a's padding are
+// undone only behind their rows' quirks, and no far script keeps the stdout of
+// a BSD `stat -f` it ran before the GNU spelling. Every clause below names its
+// condition, so `ablation:p342` can require the condition that owns a clause
+// to be the one that goes red; the driven halves are the probe's
+// (`data.phase342`, over a `/bin/sh` stand-in for the sign-in program that
+// answers tmux's own refusal words), and the far scripts are driven HERE under
+// `/bin/sh` and `/bin/dash` with `build/p342/gnu-stat-standin.sh` first on
+// PATH, over a scratch tree removed in a `finally`.
+{
+  const p = data.phase342 ?? null;
+  const files = productionSources();
+  const codeOf = (file) => files.find((one) => one.file === file)?.code ?? null;
+  const filesNaming = (needle) => files.filter((one) => one.code.includes(needle)).map((one) => one.file).sort();
+  const cantJudge = (which, what) =>
+    failures.push(`condition ${which}: cannot be judged: ${what}. A missing module is a failure and never a skip.`);
+  /** The body of a function, read by matching braces. */
+  const bodyOf = (code, name) => {
+    if (code === null) return null;
+    const head = new RegExp(`(?:^|\\n)[ \\t]*(?:export\\s+)?(?:async\\s+)?function\\s+${name}\\s*(?:<[^>]*>)?\\(`);
+    const m = head.exec(code);
+    if (m === null) return null;
+    let depth = 0;
+    let i = m.index + m[0].length - 1;
+    for (; i < code.length; i += 1) {
+      if (code[i] === '(') depth += 1;
+      else if (code[i] === ')') {
+        depth -= 1;
+        if (depth === 0) break;
+      }
+    }
+    const open = code.indexOf('{', i);
+    if (open === -1) return null;
+    depth = 0;
+    for (let j = open; j < code.length; j += 1) {
+      if (code[j] === '{') depth += 1;
+      else if (code[j] === '}') {
+        depth -= 1;
+        if (depth === 0) return code.slice(open, j + 1);
+      }
+    }
+    return null;
+  };
+  const J = (x) => JSON.stringify(x);
+  const OPTIONS = 'src/main/tmux/server-options.ts';
+  const VERSION = 'src/main/tmux/version.ts';
+  const SERVER = 'src/main/machines/remote-server.ts';
+  const PREPARE = 'src/main/machines/prepare.ts';
+  const PLANE = 'src/main/machines/control-plane.ts';
+  const LEAF = 'src/main/machines/far-tmux.ts';
+  const READY = 'src/main/machines/ready-context.ts';
+  const RESTORE = 'src/main/machines/remote-restore.ts';
+  const REMOVAL = 'src/main/machines/removal.ts';
+  const IPC = 'src/main/machines/ipc.ts';
+  const CORE = 'src/main/sessions/core.ts';
+  const SCROLL = 'src/main/tmux/scroll.ts';
+  const SHAPES = 'src/main/machines/scroll-shapes.ts';
+  const SESSIONS = 'src/main/machines/remote-sessions.ts';
+  const CAPSULE = 'src/main/machines/remote-capsule.ts';
+  const HISTORY = 'src/main/machines/remote-pane-history.ts';
+  const SCRIPTS = 'src/main/machines/remote-scripts.ts';
+
+  if (p === null) {
+    cantJudge('142 to 149', 'the probe answered nothing for Phase 342');
+  } else {
+    for (const [key, why] of Object.entries(p.loadErrors ?? {})) cantJudge('142 to 149', `${key}: ${why}`);
+  }
+  const REQUIRED = ['exit-empty', 'history-limit', 'mouse', 'remain-on-exit'];
+  const MEASURED = ['3.2a', '3.3a', '3.4', '3.5a', '3.6', '3.6a', '3.6b', '3.7b', '3.7c'];
+  const OLDER = ['3.2a', '3.3a', '3.4', '3.5a'];
+  /** The pairs measured on the packages (SPEC §5.3, D2), the gate's OWN list. */
+  const PAIRS = { '3.2a': ['3.2a'], '3.3a': ['3.3a', '3.5a'], '3.4': ['3.4'], '3.5a': ['3.5a'] };
+  const LACKS = {
+    '3.2a': ['allow-passthrough', 'copy-mode-position-format', 'mode-style'],
+    '3.3a': ['copy-mode-position-format', 'mode-style'],
+    '3.4': ['copy-mode-position-format', 'mode-style'],
+    '3.5a': ['copy-mode-position-format', 'mode-style']
+  };
+  const QUIRKS = { '3.2a': { joinedCapturePads: true }, '3.4': { dollarOnRead: true } };
+
+  // --- 142. The option table -----------------------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 142: ${message}`);
+    const o = p?.options ?? null;
+    if (o === null) cantJudge(142, 'server-options.ts was not read');
+    else {
+      const rows = o.rows ?? [];
+      if (rows.length !== 12) fail(`SERVER_OPTIONS has ${String(rows.length)} rows, not twelve.`);
+      for (const row of rows) {
+        if (!MEASURED.includes(row.oldest)) fail(`${row.name} declares oldest ${J(row.oldest)}, which is not a measured version (D5).`);
+        const kind = row.without?.kind;
+        if (!['required', 'fallback', 'skip'].includes(kind)) fail(`${row.name} declares without ${J(row.without)}; it is required, fallback or skip (D5).`);
+        if (kind === 'required' && !['history', 'stays-up', 'failed-screen', 'scrolling'].includes(row.without.purpose)) fail(`${row.name} is required for ${J(row.without.purpose)}, not one of the four purposes.`);
+      }
+      const required = rows.filter((r) => r.without?.kind === 'required').map((r) => r.name).sort();
+      if (J(required) !== J(REQUIRED)) fail(`the required rows are ${J(required)}; exactly ${J(REQUIRED)} are, the four durability or scroll-back rests on (D5).`);
+      const fallback = rows.filter((r) => r.without?.kind === 'fallback');
+      if (fallback.length !== 1 || fallback[0].name !== 'mode-style' || fallback[0].without.value !== 'bg=default,fg=default') {
+        fail(`the fallback rows are ${J(fallback.map((r) => [r.name, r.without?.value]))}; exactly mode-style falls back, to bg=default,fg=default (D5).`);
+      }
+      const oldest = Object.fromEntries(rows.map((r) => [r.name, r.oldest]));
+      if (oldest['allow-passthrough'] !== '3.3a' || oldest['copy-mode-position-format'] !== '3.6' || oldest['mode-style'] !== '3.6') {
+        fail(`the oldest versions read ${J(oldest)}; allow-passthrough took from 3.3a and the two copy-mode rows from 3.6 (§5.1).`);
+      }
+      for (const [name, v] of Object.entries(oldest)) {
+        if (!['allow-passthrough', 'copy-mode-position-format', 'mode-style'].includes(name) && v !== '3.2a') fail(`${name} declares oldest ${J(v)}; it took on 3.2a (§5.1).`);
+      }
+      const boot = o.bootOrder ?? [];
+      if (o.bootThrew !== null) fail(`remoteBootOptions threw: ${o.bootThrew}`);
+      const listOrder = rows.map((r) => r.name);
+      if (boot[0] !== 'history-limit') fail(`remoteBootOptions() writes ${J(boot[0])} first; history-limit is written FIRST, so a refusal of a later row never leaves a server at tmux's 2,000 lines (D4).`);
+      if (J(boot.slice(1)) !== J(listOrder.filter((n) => n !== 'history-limit'))) fail(`after history-limit, remoteBootOptions() writes ${J(boot.slice(1))}, not SERVER_OPTIONS' own order (D4).`);
+      if (J([...boot].sort()) !== J([...listOrder].sort())) fail('remoteBootOptions() is not the twelve rows of SERVER_OPTIONS.');
+      const local = o.localOrder ?? [];
+      if (local.length !== 5) fail(`localReassertOptions() is ${String(local.length)} rows, not the five of today (D20).`);
+      if (J(local) !== J((data.localReassertOrder ?? []).map(String))) fail('localReassertOptions() moved (D20).');
+      for (const [i, argv] of (o.setArgv ?? []).entries()) {
+        const row = rows[i];
+        if (argv === null || J(argv) !== J(['set-option', row.scope, row.name, row.value])) fail(`setOptionArgs for ${row?.name} is ${J(argv)}; it is set-option <scope> <name> <value> and never carries -q, which rescues a name and not a value (D6).`);
+      }
+      const optionsCode = codeOf(OPTIONS) ?? '';
+      for (const file of [OPTIONS, ...files.filter((f) => f.file.startsWith('src/main/machines/')).map((f) => f.file)]) {
+        const code = file === OPTIONS ? optionsCode : codeOf(file);
+        if (code !== null && /set-option'?\s*,\s*'-q'|\bset-option -q\b/.test(code)) fail(`${file} names set-option -q (D6).`);
+      }
+      if (!o.refusalsFixture) cantJudge(142, 'build/fixtures/p342/refusals.json is not committed');
+      else if ((o.refusalsFixtureRows ?? 0) < 7) fail(`refusals.json holds ${String(o.refusalsFixtureRows)} measured lines; the seven shapes of §14 M5 are at least seven.`);
+      const driven = o.refusalsDriven ?? [];
+      const shapes = new Set();
+      for (const row of driven) {
+        if (row.got !== row.want) fail(`isOptionRefusal(${J(row.text)}, ${J(row.name)}, ${J(row.value)}) answered ${J(row.got)} for "${row.label}"; it answers ${J(row.want)} (D6: tmux's seven shapes on the last line, the name or the value byte for byte, and nothing else).`);
+        if (row.label.startsWith('fixture ')) shapes.add(row.label.slice(8));
+      }
+      for (const shape of ['invalid option', 'invalid style', 'unknown value', 'bad value', 'value is invalid', 'value is too small', 'value is too large']) {
+        if (o.refusalsFixture && !shapes.has(shape)) fail(`the fixture drives no "${shape}" line through isOptionRefusal.`);
+      }
+    }
+  }
+
+  // --- 143. The rows -------------------------------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 143: ${message}`);
+    const r = p?.rows ?? null;
+    if (r === null) cantJudge(143, 'version.ts was not read');
+    else {
+      const list = r.list ?? [];
+      const versions = list.map((row) => row.version);
+      if (J(versions.slice(0, 4)) !== J(OLDER) || versions[4] !== '3.6') fail(`the table begins ${J(versions.slice(0, 5))}; the four rows of D1 stand oldest first, before 3.6.`);
+      const byVersion = new Map(list.map((row) => [row.version, row]));
+      for (const v of OLDER) {
+        const row = byVersion.get(v);
+        if (row === undefined) {
+          fail(`there is no ${v} row (D1).`);
+          continue;
+        }
+        if (J(row.measured) !== J({ exec: true, control: true })) fail(`${v} is measured ${J(row.measured)}; both planes were measured (D1, §Attack M-A2).`);
+        if (!Array.isArray(row.programs) || row.programs[0] !== v) fail(`${v}'s programs ${J(row.programs)} do not begin with its own version (D2).`);
+        for (const program of row.programs ?? []) if (!versions.includes(program)) fail(`${v}'s programs name ${J(program)}, which is not on the table (D2).`);
+        if (J(row.programs) !== J(PAIRS[v])) fail(`${v}'s programs are ${J(row.programs)}; measured on the packages, ${J(PAIRS[v])} (D2, §5.3).`);
+        if (J(row.lacks) !== J(LACKS[v])) fail(`${v} lacks ${J(row.lacks)}; it refused ${J(LACKS[v])} on the packages (D7, §5.1).`);
+        if (J(row.quirks ?? null) !== J(QUIRKS[v] ?? null)) fail(`${v}'s quirks are ${J(row.quirks)}; measured ${J(QUIRKS[v] ?? null)} (D13, D14).`);
+      }
+      for (const row of list) {
+        if (OLDER.includes(row.version)) continue;
+        if (row.programs !== null) fail(`${row.version} carries programs; a pair gate on a row from 3.6 refuses the rolling upgrade that works today (D2, §12).`);
+        if (row.lacks !== null) fail(`${row.version} carries lacks; no row from 3.6 refuses a row (D7).`);
+        if (row.quirks !== null) fail(`${row.version} carries quirks (D13, D14).`);
+      }
+      // Each row's lacks equals the matrix's refusals, and each option's oldest
+      // the first version in the matrix's order that took it.
+      const matrix = r.matrix ?? null;
+      if (matrix === null) cantJudge(143, 'build/fixtures/p342/matrix.json is not committed');
+      else {
+        const cells = matrix.versions ?? {};
+        const order = matrix.order ?? Object.keys(cells);
+        for (const v of OLDER) {
+          const opts = cells[v]?.options ?? null;
+          if (opts === null) {
+            fail(`matrix.json holds no ${v} cell.`);
+            continue;
+          }
+          const refused = Object.entries(opts).filter(([, c]) => c.took !== true).map(([name]) => name).sort();
+          const lacks = [...(byVersion.get(v)?.lacks ?? [])].sort();
+          if (J(refused) !== J(lacks)) fail(`${v} refused ${J(refused)} in matrix.json and its row lacks ${J(lacks)}; the two are one fact (D7).`);
+        }
+        for (const v of MEASURED.filter((x) => !OLDER.includes(x))) {
+          const opts = cells[v]?.options;
+          if (opts === undefined) continue;
+          const refused = Object.entries(opts).filter(([, c]) => c.took !== true).map(([name]) => name);
+          if (refused.length > 0) fail(`${v} refused ${J(refused)} in matrix.json and its row declares no lacks.`);
+        }
+        const rows = p?.options?.rows ?? [];
+        for (const row of rows) {
+          const first = order.find((v) => cells[v]?.options?.[row.name]?.took === true) ?? null;
+          if (first !== null && first !== row.oldest) fail(`${row.name} declares oldest ${J(row.oldest)}; the first version of the matrix's order that took it is ${J(first)} (D5).`);
+        }
+      }
+      const drawn = r.drawn ?? null;
+      if (drawn === null) cantJudge(143, 'MEASURED_VERSIONS could not be read from machines-copy.ts');
+      else if (J(drawn) !== J(versions.filter((v) => byVersion.get(v)?.measured?.exec === true))) fail(`the drawn list ${J(drawn)} is not main's exec list ${J(versions)} (D17).`);
+      else if (drawn.length !== 9) fail(`the drawn list has ${String(drawn.length)} entries, not nine (D17).`);
+    }
+  }
+
+  // --- 144. The pair -------------------------------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 144: ${message}`);
+    const r = p?.rows ?? null;
+    if (r === null) cantJudge(144, 'version.ts was not read');
+    else {
+      const pair = r.pair ?? [];
+      if (pair.length < 90) cantJudge(144, `decideRemotePair was driven over ${String(pair.length)} cells`);
+      for (const cell of pair) {
+        const programs = PAIRS[cell.server] ?? null;
+        const want = programs === null ? { kind: 'server-only' } : cell.program !== null && programs.includes(cell.program) ? { kind: 'measured' } : { kind: 'refused', server: cell.server, program: cell.program };
+        if (J(cell.verdict) !== J(want)) fail(`decideRemotePair(${J(cell.server)}, ${J(cell.program)}) answered ${J(cell.verdict)}, not ${J(want)} (D25: server-only from 3.6, measured exactly for the pairs of §5.3, refused otherwise).`);
+      }
+    }
+    const leaf = codeOf(LEAF);
+    const plane = codeOf(PLANE);
+    const prepare = codeOf(PREPARE);
+    if (leaf === null) cantJudge(144, `${LEAF} is not there`);
+    else {
+      const imports = [...leaf.matchAll(/from\s+'([^']+)'/g)].map((m) => m[1]).filter((s) => !s.startsWith('node:'));
+      if (J([...new Set(imports)].sort()) !== J(['../errors', '../tmux/version'])) fail(`${LEAF} imports ${J(imports)}; the leaf imports only ../tmux/version and ../errors, so anything may ask it without a cycle (D24).`);
+      if (!/\bdecideRemotePair\s*\(/.test(leaf)) fail(`${LEAF} does not reach decideRemotePair (D25).`);
+      const farPairOf = bodyOf(leaf, 'farPairOf');
+      if (farPairOf === null || !/serverVersions\.get\(machineId\)\s*===\s*record\.server\s*\?\s*record\s*:\s*null/.test(farPairOf)) {
+        fail('farPairOf does not answer the record ONLY while it was read against the server version this run last noted; a verdict about a server that restarted at another version would refuse the live connection for the rest of the run (§Attack F2).');
+      }
+    }
+    if (plane === null) cantJudge(144, `${PLANE} is not there`);
+    else {
+      if (plane.includes("'-V'") || /\bexecRemoteShell\s*\(/.test(plane) || /\breadRemoteProgramVersion\s*\(/.test(plane)) {
+        fail(`${PLANE} reads a far program's version itself; the ONE program read is Prepare's, and the precheck and openControlPlane only CONSULT the leaf (D3, §Attack F1).`);
+      }
+      const assertBody = bodyOf(plane, 'assertControlDialectMeasured');
+      if (assertBody === null || !/if\s*\(\s*farPairBlocksLive\s*\(\s*machineId\s*\)\s*\)\s*\{\s*\n?\s*throw\b/.test(assertBody)) {
+        fail('assertControlDialectMeasured does not consult farPairBlocksLive(machineId) and refuse; a reconnect on the client\'s own backoff would open a live connection across a refused pair (D3).');
+      }
+      const openBody = bodyOf(plane, 'openControlPlane');
+      if (openBody === null) fail('openControlPlane is not declared.');
+      else {
+        const gate = openBody.search(/\bdecideRemoteControlGate\s*\(/);
+        const consult = openBody.search(/\bfarPairBlocksLive\s*\(/);
+        const spawn = openBody.search(/new\s+TmuxControlClient\b/);
+        if (gate === -1 || consult === -1 || spawn === -1 || !(gate < consult && consult < spawn)) {
+          fail('openControlPlane does not consult farPairBlocksLive after its version gate and before new TmuxControlClient (D3).');
+        }
+      }
+    }
+    if (prepare === null) cantJudge(144, `${PREPARE} is not there`);
+    else {
+      const body = bodyOf(prepare, 'prepareMachineOnce') ?? '';
+      const read = body.search(/\breadRemoteProgramVersion\s*\(\s*ctx\s*\)/);
+      if (read === -1) fail('prepareMachineOnce never reads the program beside a warm server (D3).');
+      else {
+        const before = body.slice(0, read);
+        const guard = before.lastIndexOf('if (');
+        const guardText = guard === -1 ? '' : before.slice(guard, guard + 120);
+        if (!/if\s*\(\s*row\?\.programs\s*!==\s*undefined\s*\)/.test(guardText)) {
+          fail(`the program read in Prepare stands behind ${J(guardText.split('\n')[0])}; it is read only when the server's row carries programs, so a machine that works today is sent nothing more (D3).`);
+        }
+      }
+      if (!/\bnoteFarPair\s*\(/.test(body)) fail('prepareMachineOnce records no pair verdict (D3).');
+      if (!/\bnoteFarServerVersion\s*\(\s*input\.machineId\s*,\s*version\s*\)/.test(body)) fail('prepareMachineOnce does not remember the version the gate read (D9, D24).');
+    }
+    const askers = filesNaming('assertFarPairUsable(').filter((f) => f !== LEAF);
+    if (J(askers) !== J([SESSIONS, RESTORE, CORE].sort())) {
+      fail(`assertFarPairUsable is asked in ${J(askers)}; it is asked in attachListedRemote, remoteCreate and the remote restore and NOWHERE ELSE (D4b: refusing in readyRemoteContext would take the Explorer away).`);
+    }
+    const core = codeOf(CORE);
+    if (core !== null) {
+      // A method of GmuxCore, so the function reader does not find it: the
+      // body is read from the method's own head by matching braces.
+      const attach = (() => {
+        const m = /\n[ \t]*(?:private\s+|public\s+)?(?:async\s+)?attachListedRemote\s*\(/.exec(core);
+        if (m === null) return null;
+        const open = core.indexOf('{', core.indexOf(')', m.index + m[0].length));
+        return open === -1 ? null : blockAt(core, open);
+      })();
+      if (attach === null || !/\bassertFarPairUsable\s*\(/.test(attach)) fail('attachListedRemote does not ask assertFarPairUsable (D4b).');
+      else {
+        const ask = attach.search(/\bassertFarPairUsable\s*\(/);
+        const ready = attach.search(/\breadyRemoteContext\s*\(/);
+        const spawn = attach.search(/this\.attachHost\.attach\s*\(/);
+        if (ready === -1 || spawn === -1 || !(ready < ask && ask < spawn)) fail('attachListedRemote asks assertFarPairUsable before readyRemoteContext or after the attach itself (D4b: after the context, before the spawn, synchronously).');
+      }
+      const launch = /markMachineQuiet\(row\.id\)/.exec(core);
+      if (launch === null) fail('the launch sign-in no longer marks a quiet machine; condition 144 cannot read its guard.');
+      else {
+        const line = core.slice(core.lastIndexOf('\n', launch.index) + 1, core.indexOf('\n', launch.index));
+        if (!/if\s*\(\s*result\.class\s*!==\s*'program-refused'\s*\)\s*markMachineQuiet/.test(line)) {
+          fail(`the launch sign-in marks a machine quiet on ${J(line.trim())}; a program-refused machine ANSWERED, and marking it quiet writes every row unknown (§Attack F3).`);
+        }
+      }
+    }
+    const ready = codeOf(READY);
+    if (ready !== null && /\bassertFarPairUsable\b|\bfar-tmux\b/.test(ready)) fail(`${READY} asks the pair; the Explorer, saving and every read work across it (D4b).`);
+    const restore = codeOf(RESTORE);
+    if (restore !== null) {
+      const ask = restore.search(/\bassertFarPairUsable\s*\(/);
+      const boot = restore.search(/await\s+ensureRemoteServer\s*\(\s*ctx\s*\)/);
+      if (ask === -1 || boot === -1 || ask < boot) fail('the remote restore asks assertFarPairUsable BEFORE its ensureRemoteServer; a restore after a reboot would be refused by a verdict about the server that is gone (§Attack F4).');
+    }
+    const forgetters = filesNaming('forgetFarTmux(').filter((f) => f !== LEAF).sort();
+    if (J(forgetters) !== J([IPC, REMOVAL].sort())) fail(`forgetFarTmux is called in ${J(forgetters)}; it stands beside both forgetRowFacts calls, in removal.ts and ipc.ts (D24).`);
+  }
+
+  // --- 145. The born server's version ------------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 145: ${message}`);
+    const runs = p?.setUp?.runs ?? [];
+    const by = (label) => runs.find((r) => r.label === label) ?? null;
+    if (runs.length === 0) cantJudge(145, 'ensureRemoteServer was not driven');
+    else {
+      if (p.setUp.scratchGone !== true) fail('the stand-in\'s scratch directory was left behind.');
+      const dis = by('born-disagrees');
+      if (dis === null) cantJudge(145, 'the born-disagrees run is missing');
+      else {
+        const sent = dis.sent ?? [];
+        const bootAt = sent.indexOf(dis.bootLine);
+        const readAt = sent.indexOf('display-message -p #{version}');
+        const firstSet = sent.findIndex((s) => s.startsWith('set-option'));
+        if (bootAt === -1 || readAt === -1 || readAt < bootAt) fail(`a born server was not asked #{version} after the boot line: sent ${J(sent)} (D9).`);
+        if (firstSet !== -1) fail(`a born server reporting 3.2a under a program that said 3.7c was sent ${J(sent[firstSet])}; zero set-options are sent on a disagreement (D9).`);
+        if (dis.thrown?.name !== 'RemoteTmuxRefused' || dis.thrown?.refusal?.kind !== 'disagrees') fail(`the disagreement threw ${J(dis.thrown ?? dis.threw)}, not RemoteTmuxRefused({ kind: 'disagrees' }) (D9).`);
+        if (dis.thrown?.born !== true) fail('the disagreement does not say the server it started is there (D9: it stays, empty).');
+        if (J(dis.thrown?.refusal) !== J({ kind: 'disagrees', said: '3.7c', ran: '3.2a' })) fail(`the disagreement carries ${J(dis.thrown?.refusal)} (D9).`);
+        if (dis.noted !== '3.2a') fail(`after the re-read the machine's noted version is ${J(dis.noted)}, not the version the server RUNS (D9, D24).`);
+        // PHASE 342'S SECOND FIX ROUND. The disagreement is remembered, keyed
+        // by the version the server ran as, so the same program read again
+        // beside that server is said as sentence (4) and never as an update.
+        if (J(dis.disagreement) !== J({ said: '3.7c', ran: '3.2a' })) fail(`the disagreement was remembered as ${J(dis.disagreement)}; the next Prepare of that warm server would say the program was updated (the second fix round).`);
+        if (dis.pairLineAfterLie !== "This machine's tmux is not the version it says.") fail(`the same lying program read again beside the server it started is said ${J(dis.pairLineAfterLie)}; it is sentence (4)'s line, never "updated while its sessions kept running" (the second fix round).`);
+      }
+      const agreed = by('born-agrees');
+      if (agreed !== null && agreed.disagreement !== null) fail(`a born server that agrees with its program left ${J(agreed.disagreement)} remembered (the second fix round).`);
+      {
+        const prepareCode = codeOf(PREPARE);
+        const prepBody = prepareCode === null ? null : bodyOf(prepareCode, 'prepareMachineOnce');
+        if (prepBody !== null && !/const\s+lies\s*=\s*farPairIsDisagreement\s*\(\s*input\.machineId\s*\)/.test(prepBody)) fail("Prepare's pair arm does not ask whether the refused program is one this run saw lie about its version (the second fix round).");
+      }
+      const noted = by('born-noted');
+      if (noted === null) cantJudge(145, 'the born-noted run is missing');
+      else {
+        if (!(noted.sent ?? []).includes('display-message -p #{version}')) fail('a born server with no version to compare with (a restore or a create) was not asked its version; the re-read is made whatever the caller passed (§Attack F4).');
+        if (noted.noted !== '3.4') fail(`the re-read noted ${J(noted.noted)}, not 3.4 (D9, D24).`);
+        if (J(noted.pair) !== J({ server: '3.4', program: '3.4', kind: 'measured' })) fail(`the re-read recorded the pair ${J(noted.pair)}, not (3.4, 3.4) measured, which clears a stale refusal (§Attack F4).`);
+        if (noted.resolved === null) fail(`a born server that agrees with nothing threw: ${J(noted.threw)}.`);
+      }
+      const agrees = by('born-agrees');
+      if (agrees !== null && agrees.resolved === null) fail(`a born server that reports what its program said threw: ${J(agrees.threw)}.`);
+    }
+    const server = codeOf(SERVER);
+    const body = server === null ? null : bodyOf(server, 'ensureRemoteServer');
+    if (body === null) cantJudge(145, 'ensureRemoteServer is not declared');
+    else {
+      const read = body.search(/execOn\s*\(\s*ctx\s*,\s*\[\s*'display-message'\s*,\s*'-p'\s*,\s*'#\{version\}'\s*\]\s*\)/);
+      const firstSet = body.search(/\bsetOrRefused\s*\(|\bsetOptionArgs\s*\(/);
+      if (read === -1) fail('ensureRemoteServer never sends display-message -p #{version} to a server it started (D9).');
+      else if (firstSet !== -1 && read > firstSet) fail('the born re-read stands after the first option write (D9: before any option).');
+      const readLine = read === -1 ? '' : body.slice(body.lastIndexOf('\n', read) + 1, body.indexOf('\n', read));
+      if (/how\.version/.test(readLine)) fail(`the born re-read is conditional on how.version (${J(readLine.trim())}); it is made on every born server (§Attack F4).`);
+      if (!/\bnoteFarServerVersion\s*\(\s*ctx\.machineId\s*,\s*ran\s*\)/.test(body) || !/\bnoteFarPair\s*\(\s*ctx\.machineId\s*,\s*ran\s*,\s*ran\s*\)/.test(body)) fail('the born re-read does not note the version and record the pair (ran, ran) (D9, D24).');
+      if (!/new\s+RemoteTmuxRefused\s*\(\s*\{\s*kind:\s*'disagrees'/.test(body)) fail('ensureRemoteServer never throws RemoteTmuxRefused on a disagreement (D9).');
+    }
+  }
+
+  // --- 146. The refusal path, driven ---------------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 146: ${message}`);
+    const runs = p?.setUp?.runs ?? [];
+    const by = (label) => runs.find((r) => r.label === label) ?? null;
+    const s = p?.sentences ?? null;
+    if (runs.length === 0) cantJudge(146, 'ensureRemoteServer was not driven');
+    else {
+      const listOrder = (p?.options?.rows ?? []).map((r) => r.name);
+      for (const v of MEASURED) {
+        const run = by(`warm-${v}`);
+        if (run === null) {
+          cantJudge(146, `the warm ${v} run is missing`);
+          continue;
+        }
+        if (run.resolved === null) {
+          fail(`a warm ${v} server refusing exactly what its row lacks ended in ${J(run.threw)}; it ends prepared (D6, D7).`);
+          continue;
+        }
+        const refused = run.resolved.refused ?? [];
+        const names = refused.map((r) => r.name).sort();
+        if (J(names) !== J([...(LACKS[v] ?? [])].sort())) fail(`${v} records refusals ${J(names)}, not ${J(LACKS[v] ?? [])} (D7).`);
+        if (refused.some((r) => r.expected !== true)) fail(`${v} records a refusal as unexpected: ${J(refused)}; every refusal its row lacks is expected and said nowhere (D7).`);
+        const ms = refused.find((r) => r.name === 'mode-style');
+        if (ms !== undefined && ms.outcome !== 'fallback') fail(`${v}'s mode-style refusal ended ${J(ms.outcome)}; the fallback took on every measured version (D5).`);
+        const sent = run.sent ?? [];
+        const first = sent.find((x) => x.startsWith('set-option'));
+        if (first !== 'set-option -g history-limit 25000') fail(`${v} was sent ${J(first)} first, not history-limit (D4).`);
+        if (OLDER.includes(v) && !sent.includes('set-option -g mode-style bg=default,fg=default')) fail(`${v} was never sent mode-style's fallback (D5).`);
+        const read = run.resolved.options.map((o) => o.name);
+        const want = listOrder.filter((n) => !refused.some((r) => r.name === n && r.outcome === 'skipped'));
+        if (J(read) !== J(want)) fail(`${v}'s read-back is ${J(read)}, not SERVER_OPTIONS' order without the skipped rows ${J(want)} (D4, the row's settings list reads as today).`);
+        if (OLDER.includes(v)) {
+          const msRead = run.resolved.options.find((o) => o.name === 'mode-style');
+          if (msRead === undefined || msRead.wanted !== 'bg=default,fg=default' || msRead.agrees !== true) fail(`${v}'s mode-style is read back ${J(msRead)}; a fallback row is read back against its fallback (D6).`);
+        }
+        if (run.settingsRefusal !== null) fail(`${v} ended with a settings refusal recorded: ${J(run.settingsRefusal)}; a set-up that holds every required row clears it.`);
+      }
+      const optional = by('warm-3.7c-refuses-allow-passthrough');
+      if (optional === null) cantJudge(146, 'the unexpected optional refusal run is missing');
+      else if (optional.resolved === null) fail(`3.7c refusing allow-passthrough ended in ${J(optional.threw)}; an optional refusal is skipped and the machine prepared (D7).`);
+      else if (J(optional.resolved.refused) !== J([{ name: 'allow-passthrough', expected: false, outcome: 'skipped' }])) fail(`3.7c refusing allow-passthrough records ${J(optional.resolved.refused)}; it is one unexpected skip, which appends sentence (2) (D7).`);
+      const req = by('warm-3.7c-refuses-remain-on-exit');
+      if (req === null) cantJudge(146, 'the required refusal run is missing');
+      else {
+        const sent = req.sent ?? [];
+        const at = sent.indexOf('set-option -g remain-on-exit failed');
+        if (req.thrown?.name !== 'RemoteTmuxRefused' || req.thrown?.refusal?.kind !== 'required' || req.thrown?.refusal?.name !== 'remain-on-exit') fail(`3.7c refusing remain-on-exit ended ${J(req.thrown ?? req.threw ?? 'prepared')}; a required refusal stops the set-up with RemoteTmuxRefused (D6).`);
+        if (!sent.includes('set-option -g history-limit 25000') || sent.indexOf('set-option -g history-limit 25000') > at) fail('history-limit was not sent before the refused row (D4).');
+        if (at !== -1 && sent.length !== at + 1) fail(`after the refusal ${J(sent.slice(at + 1))} was still sent; nothing is sent after a required refusal (D6).`);
+        if (!String(req.thrown?.detail ?? '').includes('3.7c') || !String(req.thrown?.detail ?? '').includes("keep a session's screen when its program fails")) fail(`the required refusal's detail is ${J(req.thrown?.detail)}; it names the version and the purpose (D10).`);
+        if (req.thrown?.headline !== "This machine's tmux is too old for Tortie.") fail(`the required refusal's headline is ${J(req.thrown?.headline)} (D10).`);
+        if (req.settingsRefusal?.name !== 'remain-on-exit' || req.settingsRefusal?.server !== '3.7c') fail(`the required refusal was recorded as ${J(req.settingsRefusal)}; a create asks it before its create line (the fix round).`);
+      }
+      // The fix round: a required row taken but read back as another value, and
+      // exit-empty refused on the boot line.
+      const kept = by('warm-3.7c-history-not-kept');
+      if (kept === null) cantJudge(146, 'the not-kept run is missing');
+      else if (kept.thrown?.name !== 'RemoteTmuxRefused' || kept.thrown?.refusal?.name !== 'history-limit') fail(`a server that took history-limit and read back 2000 ended ${J(kept.thrown ?? kept.threw ?? 'prepared')}; it is refused as sentence (1) (the fix round).`);
+      else if (kept.settingsRefusal?.name !== 'history-limit') fail(`the not-kept refusal was recorded as ${J(kept.settingsRefusal)}.`);
+      const boot = by('born-refuses-exit-empty');
+      if (boot === null) cantJudge(146, 'the boot-line refusal run is missing');
+      else {
+        if (boot.thrown?.name !== 'RemoteTmuxRefused' || boot.thrown?.refusal?.name !== 'exit-empty') fail(`exit-empty refused on the boot line ended ${J(boot.thrown ?? boot.threw ?? 'prepared')}; it is that row's refusal, sentence (1) (the fix round).`);
+        if ((boot.sent ?? []).some((x) => x.startsWith('set-option') || x.startsWith('display-message'))) fail(`after the boot line's refusal ${J(boot.sent)} was still sent.`);
+      }
+      const fb = by('warm-3.2a-refuses-fallback');
+      if (fb !== null && fb.resolved !== null) {
+        const ms = (fb.resolved.refused ?? []).find((r) => r.name === 'mode-style');
+        if (ms === undefined || ms.outcome !== 'skipped' || ms.expected !== false) fail(`a refused fallback records ${J(ms)}; it is a skip and never expected, because every measured version took the fallback.`);
+      }
+    }
+    // PHASE 342'S FIX ROUND. A refusal recorded by one set-up is CLEARED by a
+    // later set-up of the same machine that holds every row, so a create is
+    // refused only while the server still refuses.
+    {
+      const first = by('refused-then-held-first');
+      const second = by('refused-then-held-second');
+      if (first === null || second === null) cantJudge(146, 'the refused-then-held runs are missing');
+      else {
+        if (first.settingsRefusal?.name !== 'mouse') fail(`a set-up refused mouse and recorded ${J(first.settingsRefusal)}; the refusal is recorded before it is thrown, for the create that asks it (the fix round).`);
+        if (second.resolved === null) fail(`a later set-up of the same machine that holds every row ended ${J(second.threw)} (the fix round).`);
+        else if (second.settingsRefusal !== null) fail(`a later set-up that held every row left ${J(second.settingsRefusal)} recorded; it is cleared, so a create may start one again (the fix round).`);
+      }
+    }
+    // PHASE 342'S SECOND FIX ROUND. A row Tortie cannot do without whose write
+    // FAILED in words tmux never uses is read back ONCE: a server that holds
+    // another value is that row's refusal, sentence (1), recorded for the
+    // create; one that holds the wanted value, or answers nothing, is thrown as
+    // it came with nothing recorded (D6 reads no words). An optional row is
+    // never read back. The verifier measured the gap: chip Ready, and a create
+    // started a session whose remain-on-exit read off.
+    {
+      const notHeld = by('warm-3.7c-other-words-not-held');
+      const held = by('warm-3.7c-other-words-held');
+      const unread = by('warm-3.7c-other-words-unread');
+      const optional = by('warm-3.7c-other-words-optional');
+      const WRITE = 'set-option -g remain-on-exit failed';
+      const READ = 'show-options -gv remain-on-exit';
+      if (notHeld === null || held === null || unread === null || optional === null) cantJudge(146, 'the other-words runs are missing');
+      else {
+        if (notHeld.thrown?.name !== 'RemoteTmuxRefused' || notHeld.thrown?.refusal?.name !== 'remain-on-exit') fail(`a required row refused in other words, read back as off, ended ${J(notHeld.thrown ?? notHeld.threw ?? 'prepared')}; a server that holds another value is that row's refusal, sentence (1) (the second fix round).`);
+        else if (notHeld.settingsRefusal?.name !== 'remain-on-exit') fail(`that refusal was recorded as ${J(notHeld.settingsRefusal)}; a create asks it (the second fix round).`);
+        const nhSent = notHeld.sent ?? [];
+        const nhAt = nhSent.indexOf(WRITE);
+        if (nhAt === -1 || J(nhSent.slice(nhAt + 1)) !== J([READ])) fail(`after the failed write ${J(nhAt === -1 ? nhSent : nhSent.slice(nhAt + 1))} was sent; the row is read back once and nothing else is sent (the second fix round).`);
+        for (const [label, run] of [['holding the wanted value', held], ['answering nothing', unread]]) {
+          if (run.resolved !== null || run.thrown?.name === 'RemoteTmuxRefused' || run.threw === null) fail(`a required row refused in other words and ${label} ended ${J(run.thrown ?? run.threw ?? 'prepared')}; it is thrown as it came (D6).`);
+          if (run.settingsRefusal !== null) fail(`a required row refused in other words and ${label} recorded ${J(run.settingsRefusal)}; nothing is known about the option, so nothing is recorded.`);
+        }
+        if (optional.resolved !== null || optional.thrown?.name === 'RemoteTmuxRefused' || optional.threw === null) fail(`an optional row refused in other words ended ${J(optional.thrown ?? optional.threw ?? 'prepared')}; it is thrown as it came, as today (D6).`);
+        if ((optional.sent ?? []).some((x) => x.startsWith('show-options'))) fail('an optional row refused in other words was read back; only a row Tortie cannot do without is.');
+      }
+      const door = p?.setUp?.startDoor ?? null;
+      if (door === null || door.present !== true) cantJudge(146, 'readyContextToStart was not driven');
+      else {
+        const said = String(door.afterBoot?.message ?? '');
+        if (!said.includes('would not keep running with no session open, so Tortie will not start sessions there.')) fail(`a create after the boot line's refusal of exit-empty is answered ${J(said)}; it is sentence (1), never "has not signed in" (the second fix round).`);
+        if (!String(door.control?.message ?? '').includes('Tortie has not signed in to that machine yet')) fail(`a machine with no refusal recorded is answered ${J(door.control?.message ?? null)} at the create's door; it is "has not signed in", as it always was.`);
+        if (!String(door.afterDisagreement?.message ?? '').includes("This machine's tmux is not the version it says.")) fail(`a create after a server Tortie started ran as another version than its program said is answered ${J(door.afterDisagreement?.message ?? null)}; it is sentence (4)'s line, never "has not signed in" (the second fix round).`);
+      }
+      const sessionsCode = codeOf(SESSIONS);
+      const restoreCode = codeOf(RESTORE);
+      const door2 = sessionsCode === null ? null : bodyOf(sessionsCode, 'readyContextToStart');
+      if (door2 === null) cantJudge(146, 'readyContextToStart is not declared');
+      else if (!/try\s*\{\s*return\s+readyRemoteContext\s*\(\s*machineId\s*\)\s*;\s*\}\s*catch\s*\(\s*err\s*\)\s*\{\s*assertFarSettingsHeld\s*\(\s*machineId\s*\)\s*;\s*assertFarVersionAgrees\s*\(\s*machineId\s*\)\s*;\s*throw\s+err\s*;\s*\}/.test(door2)) fail('readyContextToStart does not ask the recorded refusal and the recorded disagreement ONLY when the context was refused; a ready machine reaches the create\'s own ask before its create line (the second fix round).');
+      const create = sessionsCode === null ? null : bodyOf(sessionsCode, 'remoteCreate');
+      if (create !== null && !/const\s+ctx\s*=\s*readyContextToStart\s*\(\s*input\.machineId\s*\)/.test(create)) fail('remoteCreate does not reach its context through readyContextToStart (the second fix round).');
+      if (restoreCode !== null && !/const\s+ctx\s*=\s*readyContextToStart\s*\(\s*machineId\s*\)/.test(restoreCode)) fail('the remote restore does not reach its context through readyContextToStart (the second fix round).');
+      const server = codeOf(SERVER);
+      const refuse = server === null ? null : bodyOf(server, 'refuseIfNotHeld');
+      if (refuse === null) cantJudge(146, 'refuseIfNotHeld is not declared');
+      else if (!/machineClassOf\s*\(\s*err\s*\)\s*!==\s*null\s*\)\s*return/.test(refuse) || !/payload\.code\s*!==\s*'UNKNOWN'/.test(refuse)) fail('refuseIfNotHeld reads back after a failure a taxonomy class placed; a link that dropped or a server that is gone proves nothing about the option (the second fix round).');
+    }
+    // PHASE 342'S FIX ROUND. A create asks the recorded refusal SYNCHRONOUSLY,
+    // beside the pair, immediately before its create line, and NOTHING ELSE asks
+    // it: an attach opens a session already running there, and refusing it
+    // would hide a person's running work, which is worse than today.
+    {
+      const sessionsCode = codeOf(SESSIONS);
+      const coreCode = codeOf(CORE);
+      const askers = filesNaming('assertFarSettingsHeld(').filter((f) => f !== LEAF);
+      if (J(askers) !== J([SESSIONS])) fail(`assertFarSettingsHeld is asked in ${J(askers)}; a create asks it, in remote-sessions.ts, and nothing else does (the fix round).`);
+      if (coreCode !== null && /\bassertFarSettingsHeld\b/.test(coreCode)) fail('the attach asks assertFarSettingsHeld; an attach opens a session already running there, and refusing it would hide his running work (the fix round).');
+      const create = sessionsCode === null ? null : bodyOf(sessionsCode, 'remoteCreate');
+      if (create === null) cantJudge(146, 'remoteCreate is not declared');
+      else {
+        const pair = create.search(/\bassertFarPairUsable\s*\(\s*input\.machineId\s*\)/);
+        const held = create.search(/\bassertFarSettingsHeld\s*\(\s*input\.machineId\s*\)/);
+        const line = create.search(/\bremoteCreateArgs\s*\(/);
+        if (held === -1) fail('remoteCreate never asks assertFarSettingsHeld, so a session starts on a server Prepare said it would not use (the fix round, major 1).');
+        else if (pair === -1 || line === -1 || !(pair < held && held < line)) fail('remoteCreate does not ask assertFarSettingsHeld beside the pair and before its create line is composed (the fix round).');
+        else if (/\bawait\b/.test(create.slice(held, line))) fail('remoteCreate awaits between assertFarSettingsHeld and its create line; the ask is synchronous with nothing awaited before the create (the fix round).');
+        if (!/await\s+ensureRemoteServer\s*\(\s*ctx\s*\)\s*\.catch\s*\(\s*throwAsSessionError\s*\)/.test(create)) fail("remoteCreate's set-up does not answer a refusal through throwAsSessionError; it reached a person as Electron's prefix and a class name in front of the sentence (the fix round).");
+      }
+      const restoreCode = codeOf(RESTORE);
+      if (restoreCode !== null && !/await\s+ensureRemoteServer\s*\(\s*ctx\s*\)\s*\.catch\s*\(\s*throwAsSessionError\s*\)/.test(restoreCode)) fail("the remote restore's set-up does not answer a refusal through throwAsSessionError (the fix round).");
+      const a = p?.asSession ?? null;
+      if (a === null || a.present !== true) cantJudge(146, 'throwAsSessionError was not driven');
+      else {
+        if (a.isPlainRefusal || a.payload === null) fail('throwAsSessionError threw the plain RemoteTmuxRefused, which crosses the invoke boundary as "Error invoking remote method …" (the fix round).');
+        else if (a.payload.message !== a.refusedMessage) fail(`throwAsSessionError's message is ${J(a.payload.message)}, not the refusal's own sentence ${J(a.refusedMessage)} (the fix round).`);
+        if (a.otherPassedThrough !== true) fail('throwAsSessionError changed a failure that was not a refusal; every other failure is thrown exactly as it came.');
+      }
+    }
+    // PHASE 342'S FIX ROUND. What Prepare answers: a server that is not the
+    // version its program said is drawn as the version it RUNS; a failure the
+    // taxonomy places never draws a gmux error's JSON (the ssh command line) as
+    // the hover; and a prepared answer carries sentence (2) alone as `note`,
+    // which the Ready hover and Add a machine's last step draw.
+    {
+      const prepareCode = codeOf(PREPARE);
+      const body = prepareCode === null ? null : bodyOf(prepareCode, 'prepareMachineOnce');
+      if (body === null) cantJudge(146, 'prepareMachineOnce is not declared');
+      else {
+        if (!/version:\s*err\.refusal\.kind\s*===\s*'disagrees'\s*\?\s*err\.refusal\.ran\s*:\s*version/.test(body)) fail("Prepare draws a server that is not the version it says as the version its program CLAIMED, beside a sentence saying that version is not true (the fix round).");
+        if (/detail:\s*err\s+instanceof\s+GmuxError\s*\?\s*sentenceOf\s*\(\s*err\s*\)/.test(body)) fail("Prepare's failure arm draws a gmux error's message, its whole payload as JSON with the ssh command line inside, as the row's hover (the fix round).");
+        if (!/detail:\s*payload\s*!==\s*null\s*&&\s*payload\.code\s*!==\s*'UNKNOWN'\s*\?\s*payload\.message\s*:\s*copy\.detail/.test(body)) fail("Prepare's failure arm does not draw the payload's own sentence, or the taxonomy's for the exec plane's catch-all (the fix round).");
+        const unexpected = body.search(/server\.refused\.some\s*\(\s*\(\s*one\s*\)\s*=>\s*!one\.expected\s*\)/);
+        if (unexpected === -1) fail('Prepare composes sentence (2) from something other than an unexpected refusal (D7).');
+        if (!/\n\s*note\s*\n?\s*\}/.test(body) && !/,\s*note\s*\}/.test(body)) fail('the prepared answer does not carry sentence (2) alone as note, so the Ready hover and Add a machine draw it nowhere (the fix round, minor).');
+      }
+      const status = codeOf('src/renderer/settings/machine-status.ts');
+      if (status !== null && !/signIn\?\.note/.test(status)) fail("the row's Ready arm does not read the sign-in's note (the fix round).");
+      const add = codeOf('src/renderer/settings/AddMachine.tsx');
+      if (add !== null && !/result\?\.note/.test(add)) fail("Add a machine's last step does not draw the prepared answer's note (the fix round).");
+    }
+    // The sentences, and never "could not reach".
+    if (s === null) cantJudge(146, 'the four sentences were not composed');
+    else {
+      const all = [s.required, s.requiredHistory, s.requiredStaysUp, s.requiredScrolling, s.pair, s.disagrees].flatMap((x) => [x?.headline ?? '', x?.detail ?? '']).concat([s.setting ?? '', s.settingNoVersion ?? '']);
+      for (const text of all) {
+        if (text === '') fail('a sentence of D10 composed as nothing.');
+        if (/could not reach/i.test(text)) fail(`a sentence says "could not reach": ${J(text)} (D10: a machine that answered is never said unreached).`);
+      }
+      if (s.required?.detail !== "tmux 3.7c would not keep a session's screen when its program fails, so Tortie will not start sessions there.") fail(`sentence (1) reads ${J(s.required?.detail)} (D10).`);
+      if (s.requiredHistory?.detail !== 'tmux 3.2a would not keep 25,000 lines of each session, so Tortie will not start sessions there.') fail(`sentence (1) for history-limit reads ${J(s.requiredHistory?.detail)} (D10).`);
+      if (s.setting !== "tmux 3.7c on this machine is too old for one of Tortie's settings, so a session there can look a little different from one on this Mac.") fail(`sentence (2) reads ${J(s.setting)} (D10).`);
+      if (s.pair?.headline !== "This machine's tmux was updated while its sessions kept running." || s.pair?.detail !== 'Tortie has not measured tmux 3.6b with the tmux 3.5a that still runs them, so it opens no session there. After that machine restarts, Tortie can restore them.') fail(`sentence (3) reads ${J(s.pair)} (D10, §Attack F5).`);
+      if (s.disagrees?.headline !== "This machine's tmux is not the version it says." || s.disagrees?.detail !== 'It says 3.7c and runs as 3.2a, so Tortie will not use it.') fail(`sentence (4) reads ${J(s.disagrees)} (D10).`);
+      if (s.classCopy !== null && s.classCopy?.alarm !== false) fail('program-refused is alarming; only a changed host key is (D10).');
+    }
+    const server = codeOf(SERVER);
+    if (server !== null) {
+      const set = bodyOf(server, 'setOrRefused');
+      if (set === null || !/if\s*\(\s*isOptionRefusal\s*\(\s*said\s*,\s*row\.name\s*,\s*value\s*\)\s*\)\s*return\s+false\s*;/.test(set)) fail('setOrRefused does not read a refusal through isOptionRefusal and throw anything else as today (D6).');
+      const body = bodyOf(server, 'ensureRemoteServer') ?? '';
+      if (!/for\s*\(\s*const\s+row\s+of\s+SERVER_OPTIONS\s*\)\s*\{\s*\n?\s*if\s*\(\s*skipped\.has\(\s*row\.name\s*\)\s*\)\s*continue\s*;/.test(body)) fail("the read-back does not walk SERVER_OPTIONS in its own order, skipping the skipped rows; the row's settings list would read history-limit first (D4).");
+      if (!/for\s*\(\s*const\s+row\s+of\s+remoteBootOptions\(\)\s*\)/.test(body)) fail('the write loop does not walk remoteBootOptions() (D4).');
+    }
+    const prepare = codeOf(PREPARE);
+    if (prepare !== null) {
+      const body = bodyOf(prepare, 'prepareMachineOnce') ?? '';
+      const catchAt = body.lastIndexOf('} catch (err) {');
+      const tail = catchAt === -1 ? '' : body.slice(catchAt);
+      const refused = tail.search(/if\s*\(\s*err\s+instanceof\s+RemoteTmuxRefused\s*\)\s*\{/);
+      const taxonomy = tail.search(/\bclassOfFailure\s*\(\s*err\s*\)/);
+      if (refused === -1 || taxonomy === -1 || refused > taxonomy) fail("Prepare asks the taxonomy before it asks for RemoteTmuxRefused, which reads tmux's refusal of a setting as a machine it could not reach (D6, D10).");
+      if (!/class:\s*'program-refused'/.test(tail)) fail("Prepare's catch answers no program-refused class (D10).");
+    }
+  }
+
+  // --- 147. Scroll-back's entry -----------------------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 147: ${message}`);
+    const e = p?.entry ?? null;
+    if (e === null || e.present !== true) cantJudge(147, 'scroll.ts exports no enterCopyModeArgs');
+    else {
+      if (J(e.local) !== J(['copy-mode', '-e', '-t', '$7'])) fail(`enterCopyModeArgs for this Mac's runner answers ${J(e.local)}; it is today's four elements byte for byte (D20).`);
+      if (J(e.remote) !== J(['copy-mode', '-e', '-H', '-t', '$7'])) fail(`enterCopyModeArgs for a runner that names a server answers ${J(e.remote)}; it is copy-mode -e -H -t <target> (D11).`);
+      if (J(e.orderedRemote) !== J(['copy-mode', '-e', '-H', '-t', '$7'])) fail(`enterCopyModeArgs for an ordered machine runner answers ${J(e.orderedRemote)} (D11).`);
+      if (e.fourAdmitted?.ok !== false) fail(`the table admits copy-mode -e -t $1 (${J(e.fourAdmitted)}); the entry is ONE spelling, with -H (D11).`);
+      if (e.fiveAdmitted?.ok !== true || e.fiveAdmitted?.shape !== 'enter-copy-mode') fail(`the table answers ${J(e.fiveAdmitted)} for copy-mode -e -H -t $1; it is the enter-copy-mode row (D11).`);
+      if (J([...(e.hRows ?? [])].sort()) !== J(['enter-copy-mode', 'type-bytes'])) fail(`-H stands in the rows ${J(e.hRows)}; it stands in exactly enter-copy-mode and type-bytes (D11).`);
+    }
+    const shapes = data.phase3201?.shapes ?? [];
+    const row = shapes.find((r) => r.id === 'enter-copy-mode');
+    if (row !== undefined && J(row.slots) !== J(['copy-mode', '-e', '-H', '-t', 'target'])) fail(`the carriage's enter-copy-mode row is ${J(row.slots)}; it is [copy-mode, -e, -H, -t, TARGET] (D11).`);
+    const scroll = codeOf(SCROLL);
+    if (scroll === null) cantJudge(147, `${SCROLL} is not there`);
+    else {
+      const fn = bodyOf(scroll, 'enterCopyModeArgs') ?? '';
+      if (!/run\.server\s*===\s*undefined\s*\?\s*\[\s*'copy-mode'\s*,\s*'-e'\s*,\s*'-t'\s*,\s*target\s*\]\s*:\s*\[\s*'copy-mode'\s*,\s*'-e'\s*,\s*'-H'\s*,\s*'-t'\s*,\s*target\s*\]/.test(fn)) {
+        fail("enterCopyModeArgs is not the one branch on run.server, four elements for this Mac and -H for a machine (D11, D20).");
+      }
+      const outside = stripComments(scroll.replace(fn, ''));
+      const literals = (outside.match(/'copy-mode'/g) ?? []).length;
+      if (literals > 0) fail(`${SCROLL} spells 'copy-mode' ${String(literals)} time(s) outside enterCopyModeArgs; the four entry sites call the helper and no other literal stands (D11).`);
+      // The declaration's own head stands outside the body read above; it is
+      // not a call, so it is not counted.
+      const calls = (outside.match(/(?<!function\s+)\benterCopyModeArgs\s*\(/g) ?? []).length;
+      if (calls !== 4) fail(`${SCROLL} calls enterCopyModeArgs ${String(calls)} time(s), not at its four entry sites (D11).`);
+      const hOutside = (outside.match(/'-H'/g) ?? []).length;
+      if (hOutside > 0) fail(`${SCROLL} spells '-H' outside enterCopyModeArgs (D30).`);
+    }
+    const shapesCode = codeOf(SHAPES);
+    if (shapesCode !== null && !/argv:\s*\[\s*word\('copy-mode'\)\s*,\s*word\('-e'\)\s*,\s*word\('-H'\)\s*,\s*word\('-t'\)\s*,\s*TARGET\s*\]/.test(shapesCode)) {
+      fail(`${SHAPES} does not spell the enter-copy-mode row as [copy-mode, -e, -H, -t, TARGET] (D11).`);
+    }
+  }
+
+  // --- 148. The far names and the read quirks -----------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 148: ${message}`);
+    const n = p?.names ?? null;
+    if (n === null) cantJudge(148, 'remote-sessions.ts or remote-capsule.ts was not read');
+    else {
+      const want = { 'cost $HOME': 'cost _HOME', $: '_', '$HOME notes': '_HOME notes', 'plain name': 'plain name', 'a$b$c': 'a_b_c', taken: 'cost _HOME-2' };
+      for (const [input, got] of n.farName ?? []) {
+        if (got !== want[input]) fail(`farTmuxName(${J(input)}) answers ${J(got)}, not ${J(want[input])} (D12: $ becomes _, never -, which rename-session reads as flags).`);
+        if (typeof got === 'string' && (got.startsWith('-') || got.includes('$'))) fail(`farTmuxName(${J(input)}) answers ${J(got)}, which holds $ or begins with - (D12, §Attack M-A4).`);
+      }
+      if (n.dollarFixture !== true) cantJudge(148, 'build/fixtures/p342/dollar-3.4.json is not committed');
+      else {
+        const driven = n.undoDriven ?? [];
+        if (driven.length < 13) fail(`undoDollarEscape was driven over ${String(driven.length)} values, not §14 M9's thirteen and more.`);
+        for (const row of driven) {
+          if (row.answer34 !== null && row.undone !== row.value) fail(`undoDollarEscape(${J(row.answer34)}) answers ${J(row.undone)}, not the stored ${J(row.value)} (D13).`);
+          // A value whose stored form already holds a backslash before such a
+          // dollar is the one the undo WOULD change, which is exactly why it
+          // stands behind 3.4's quirk alone; every other value 3.3a answered
+          // as stored comes through it whole.
+          if (row.answer33 !== null && !/\\\$[A-Za-z_{]/.test(row.value) && row.undone33 !== row.value) fail(`undoDollarEscape over 3.3a's ${J(row.answer33)} answers ${J(row.undone33)}; a value no version changed is kept (D13).`);
+        }
+      }
+      for (const [input, got] of n.undoKeepsOthers ?? []) {
+        if (got !== input) fail(`undoDollarEscape(${J(input)}) answers ${J(got)}; only a backslash before $ and a letter, _ or { is removed (D13).`);
+      }
+      if (n.capFixtures !== true) cantJudge(148, 'build/fixtures/p342/capj-3.2a.txt or capj-3.3a.txt is not committed');
+      else {
+        const st = n.stripped ?? {};
+        if (st.equalAfterStrip !== true) fail("stripJoinedPadding over 3.2a's joined capture does not read as 3.3a's capture less a line's own trailing spaces, compared as the text a person sees (D14).");
+        if (st.neverWider !== true) fail("a line of 3.2a's joined capture is still wider than 3.3a's after stripJoinedPadding (D14).");
+        if (!(st.padded32 > st.padded33)) fail(`the fixtures pad ${String(st.padded32)} lines on 3.2a and ${String(st.padded33)} on 3.3a; 3.2a pads every line (§14 M10).`);
+        if (st.keepsOwn !== true) fail("stripJoinedPadding strips more than trailing ASCII spaces (D14).");
+      }
+    }
+    // A regular expression literal is blanked by stripComments, so the two
+    // clauses that read one read the raw text, inside the function's own body
+    // (which holds no comment) or as one whole call.
+    const textOfFile = (file) => files.find((one) => one.file === file)?.text ?? null;
+    const sessions = codeOf(SESSIONS);
+    if (sessions === null) cantJudge(148, `${SESSIONS} is not there`);
+    else {
+      const fn = bodyOf(textOfFile(SESSIONS), 'farTmuxName') ?? '';
+      if (!fn.includes("sanitizeSessionName(display).replace(/\\$/g, '_')")) fail("farTmuxName does not map every $ to _ before it dedupes (D12).");
+      const calls = (sessions.match(/(?<!function\s+)\bfarTmuxName\s*\(/g) ?? []).length;
+      if (calls < 2) fail(`farTmuxName is called ${String(calls)} time(s) in ${SESSIONS}; the create and the rename call it (D12).`);
+      if (!/dollarOnRead\s*\?\s*withDollarUndone\(listed\)\s*:\s*listed/.test(sessions)) fail("the feed's pass does not undo 3.4's dollar ONLY behind dollarOnRead (D13).");
+      if (!/quirks\?\.dollarOnRead\s*===\s*true/.test(sessions)) fail('the pass does not read dollarOnRead from the server\'s row (D13).');
+    }
+    const restoreText = textOfFile(RESTORE);
+    if (restoreText !== null && !/const tmuxName = \(record\.tmuxName\.length > 0 \? record\.tmuxName : record\.name\)\.replace\(\s*\/\\\$\/g\s*,\s*'_'\s*\)/.test(restoreText)) fail('the remote restore does not map $ to _ in the record\'s name (D12).');
+    const stripUsers = filesNaming('stripJoinedPadding').sort();
+    if (J(stripUsers) !== J([CAPSULE, HISTORY].sort())) fail(`stripJoinedPadding is named in ${J(stripUsers)}; it is applied at exactly the capsule's two captures and the joined history copy, and nowhere else (D14, §Attack F8).`);
+    const capsule = codeOf(CAPSULE);
+    if (capsule !== null) {
+      // The two captures reach it through one wrapper, capturedText, which
+      // asks the quirk; the wrapper is called at both.
+      const wrapper = bodyOf(capsule, 'capturedText');
+      if (wrapper === null || !/\bstripJoinedPadding\s*\(/.test(wrapper)) fail('remote-capsule.ts declares no capturedText that applies stripJoinedPadding behind the quirk (D14).');
+      const sites = (stripComments(capsule).match(/\btext = capturedText\(/g) ?? []).length;
+      if (sites < 2) fail(`remote-capsule.ts applies capturedText at ${String(sites)} site(s), not at its two captures (D14).`);
+    }
+    const history = codeOf(HISTORY);
+    if (history !== null && !/joinedCapturePads/.test(history)) fail('remote-pane-history.ts does not read joinedCapturePads (D14).');
+    if (capsule !== null && !/joinedCapturePads/.test(capsule)) fail('remote-capsule.ts does not read joinedCapturePads (D14).');
+  }
+
+  // --- 149. The far scripts read GNU first, driven --------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 149: ${message}`);
+    const scripts = codeOf(SCRIPTS);
+    const textOf = (id) => (data.remoteRun?.scripts ?? []).find((row) => row.id === id)?.text ?? '';
+    if (scripts === null) cantJudge(149, `${SCRIPTS} is not there`);
+    else {
+      const filePut = textOf('file-put');
+      const dirNew = textOf('dir-new');
+      const rename = textOf('entry-rename');
+      const storeList = textOf('store-list');
+      if (filePut === '' || dirNew === '' || rename === '' || storeList === '') cantJudge(149, 'the four texts were not read from the catalogue');
+      if (!/if \[ "\$wq" = -c \]; then m=\$\(stat -c %a "\$f" 2>\/dev\/null \|\| true\); else m=\$\(stat -f %Lp "\$f" 2>\/dev\/null \|\| true\); fi/.test(filePut)) {
+        fail("file-put's mode read does not branch on the wq the prelude chose; a BSD stat -f run first on GNU prints five lines of file-system status that chmod refuses (D15).");
+      }
+      if (!/if \[ "\$wq" = -c \]; then m=\$\(stat -c %a "\$p" 2>\/dev\/null \|\| true\); else m=\$\(stat -f %Lp "\$p" 2>\/dev\/null \|\| true\); fi/.test(dirNew)) {
+        fail("dir-new's mode read does not branch on the wq the prelude chose (D15).");
+      }
+      const c = storeList.indexOf("stat -c '%Y %s %n'");
+      const f = storeList.indexOf("stat -f '%m %z %N'");
+      if (c === -1 || f === -1 || c > f) fail('store-list does not run the GNU find first (D15).');
+      // ENTRY_RENAME's identity pair is the ONE named exception: compared and
+      // never printed, and left exactly as it was, because the real identity
+      // sends two names of one file to mv, which GNU refuses with no answer
+      // where today's text answers exists (§Attack F9).
+      if (!rename.includes("a=$(stat -f '%d %i' \"$s\" 2>/dev/null || true)") || !rename.includes("b=$(stat -f '%d %i' \"$t\" 2>/dev/null || true)")) {
+        fail("entry-rename's identity pair is not the shipping stat -f '%d %i' pair; it is compared, never printed, and left as it was (§Attack F9).");
+      }
+      // The whole catalogue: no other text keeps the stdout of a BSD stat -f it
+      // ran before a GNU spelling.
+      for (const row of data.remoteRun?.scripts ?? []) {
+        if (row.id === 'entry-rename') continue;
+        const text = String(row.text ?? '');
+        // The defect's own shape: a BSD `stat -f` captured into a variable, and
+        // the GNU spelling tried on the next line only when it came back empty.
+        // On GNU the first prints five lines of file-system status and keeps them.
+        for (const m of text.matchAll(/^[^\n]*=\$\(stat -f [^\n]*\n[^\n]*stat -c [^\n]*$/gm)) {
+          fail(`${row.id} keeps the stdout of a BSD stat -f it runs before a GNU spelling: ${J(m[0].split('\n')[0].trim().slice(0, 100))} (D15).`);
+        }
+      }
+    }
+    // DRIVEN under /bin/sh and /bin/dash with the GNU stand-in first on PATH,
+    // and again with this Mac's own stat.
+    const STANDIN = join(process.cwd(), 'build', 'p342', 'gnu-stat-standin.sh');
+    if (!existsSync(STANDIN)) cantJudge(149, 'build/p342/gnu-stat-standin.sh is not there');
+    else {
+      const scratch = mkdtempSync(join(tmpdir(), 'p342-c149-'));
+      try {
+        const bin = join(scratch, 'bin');
+        mkdirSync(bin, { recursive: true, mode: 0o700 });
+        symlinkSync(STANDIN, join(bin, 'stat'));
+        // The stand-in's own self-test: -c %a equals BSD %Lp, -c '%d:%i' the
+        // pair, and -f FILE prints five lines to stdout and exits 1. A stand-in
+        // that answers -f quietly would pass the BSD-first texts too.
+        const probeFile = join(scratch, 'self.txt');
+        writeFileSync(probeFile, 'x\n', { mode: 0o644 });
+        const real = (args) => spawnSync('/usr/bin/stat', args, { encoding: 'utf8' }).stdout.trim();
+        const fake = (args) => spawnSync('/bin/sh', [STANDIN, ...args], { encoding: 'utf8' });
+        if (fake(['-c', '%a', probeFile]).stdout.trim() !== real(['-f', '%Lp', probeFile])) fail("the GNU stand-in's -c %a is not this Mac's %Lp.");
+        if (fake(['-c', '%d:%i', probeFile]).stdout.trim() !== real(['-f', '%d:%i', probeFile])) fail("the GNU stand-in's -c '%d:%i' is not this Mac's pair.");
+        const fs = fake(['-f', '%Lp', probeFile]);
+        if (fs.status !== 1 || fs.stdout.split('\n').filter((l) => l.length > 0).length !== 5 || !fs.stdout.includes('File:')) {
+          fail(`the GNU stand-in's -f prints ${J(fs.stdout.slice(0, 80))} and exits ${String(fs.status)}; GNU prints five lines of file-system status to stdout and exits 1, which is the shape that broke saving (§14 M11).`);
+        }
+        const texts = { marker: data.remoteRun?.marker ?? '__TORTIE_RUN__', scripts: (data.remoteRun?.scripts ?? []).map((row) => ({ id: row.id, mode: row.mode, params: row.params, text: row.text })) };
+        const arms = (label, path) => {
+          const far = p342FarRunner({ texts, scratch: join(scratch, label), path });
+          const out = {};
+          for (const shell of ['/bin/sh', '/bin/dash']) {
+            const home = join(scratch, label, `home-${shell.replace(/\//g, '')}`);
+            const folder = join(home, 'proj');
+            mkdirSync(join(folder, 'sub'), { recursive: true, mode: 0o755 });
+            chmodSync(folder, 0o755);
+            writeFileSync(join(folder, 'a.txt'), 'old\n', { mode: 0o644 });
+            writeFileSync(join(folder, 'b.txt'), 'b\n', { mode: 0o644 });
+            writeFileSync(join(folder, 'sub', 'c.txt'), 'c\n', { mode: 0o644 });
+            const pin = far.pin(shell, folder, { home });
+            const oldSum = createHash('sha256').update('old\n').digest('hex');
+            const put = far.run(shell, 'file-put', [folder, 'a.txt', oldSum, Buffer.from('new\n').toString('base64'), pin], { home });
+            const mode = (file) => real(['-f', '%Lp', file]);
+            const made = far.run(shell, 'dir-new', [folder, 'made', pin], { home });
+            const moved = far.run(shell, 'entry-rename', [folder, 'b.txt', 'd.txt', pin], { home });
+            const exists = far.run(shell, 'entry-rename', [folder, 'd.txt', 'a.txt', pin], { home });
+            const list = far.run(shell, 'store-list', [folder, '2', '0'], { home });
+            const listLines = (list.fields ?? []).join(' ').split('\n').filter((l) => l.length > 0);
+            out[shell] = {
+              put: put.word ?? null,
+              putContent: existsSync(join(folder, 'a.txt')) ? readFileSync(join(folder, 'a.txt'), 'utf8') : null,
+              putMode: existsSync(join(folder, 'a.txt')) ? mode(join(folder, 'a.txt')) : null,
+              partLeft: readdirSync(folder).some((f) => f.endsWith('.tortie-part')),
+              made: `${made.word ?? ''}${made.payload ? ` ${String(made.payload).trim()}` : ''}`.trim(),
+              madeMode: existsSync(join(folder, 'made')) ? mode(join(folder, 'made')) : null,
+              moved: moved.word ?? null,
+              exists: exists.word ?? null,
+              listLines,
+              listThreeFields: listLines.length > 0 && listLines.every((l) => /^\d+ \d+ \S/.test(l))
+            };
+          }
+          return out;
+        };
+        const gnu = arms('gnu', `${bin}:/usr/bin:/bin:/usr/sbin:/sbin`);
+        const bsd = arms('bsd', '/usr/bin:/bin:/usr/sbin:/sbin');
+        for (const [label, got] of [['the GNU stand-in', gnu], ["this Mac's stat", bsd]]) {
+          for (const shell of ['/bin/sh', '/bin/dash']) {
+            const r = got[shell];
+            if (r.put !== 'wrote') fail(`under ${label} and ${shell}, file-put over an existing 644 file answered ${J(r.put)}, not wrote (D15, §1 item 2).`);
+            if (r.putContent !== 'new\n') fail(`under ${label} and ${shell}, file-put left the file reading ${J(r.putContent)} (D15).`);
+            if (r.putMode !== '644') fail(`under ${label} and ${shell}, file-put left the file mode ${J(r.putMode)}, not 644 (D15).`);
+            if (r.partLeft) fail(`under ${label} and ${shell}, file-put left a .tortie-part beside the file (§1 item 2).`);
+            if (!/^made\b/.test(r.made) || r.madeMode !== '755') fail(`under ${label} and ${shell}, dir-new under a 755 parent answered ${J(r.made)} and made ${J(r.madeMode)}; it answers made 755 and makes 755 (D15).`);
+            if (r.moved !== 'moved') fail(`under ${label} and ${shell}, entry-rename answered ${J(r.moved)}, not moved.`);
+            if (r.exists !== 'exists') fail(`under ${label} and ${shell}, entry-rename onto an existing name answered ${J(r.exists)}, not exists (§Attack F9).`);
+            if (!r.listThreeFields) fail(`under ${label} and ${shell}, store-list answered ${J(r.listLines.slice(0, 3))}; every line is three fields, never file-system status (D15).`);
+          }
+          // Compared on what each shell answered and left, never on a listing's
+          // clock or the scratch home's own path, which differ by construction.
+          const shape = (r) => ({ ...r, listLines: r.listLines.length, listThreeFields: r.listThreeFields });
+          if (J(shape(got['/bin/sh'])) !== J(shape(got['/bin/dash']))) fail(`under ${label}, /bin/sh and /bin/dash disagree: ${J(shape(got['/bin/sh'])).slice(0, 200)} against ${J(shape(got['/bin/dash'])).slice(0, 200)}.`);
+        }
+        const words = (r) => [r.put, r.made.split(' ')[0], r.moved, r.exists, r.listThreeFields];
+        if (J(words(gnu['/bin/sh'])) !== J(words(bsd['/bin/sh']))) fail(`the GNU stand-in and this Mac's stat answer differently: ${J(words(gnu['/bin/sh']))} against ${J(words(bsd['/bin/sh']))}; the Mac's far machines do not move (D15, §Attack M-A1).`);
+      } catch (err) {
+        fail(`the far arms threw: ${err instanceof Error ? err.message : String(err)}`);
+      } finally {
+        rmSync(scratch, { recursive: true, force: true });
+      }
+      if (existsSync(scratch)) fail('the far arms left their scratch tree behind.');
+    }
+  }
+
+  process.stdout.write(
+    '\nLinux machines on the tmux their distribution ships hold (Phase 342): each of the twelve rows declares the ' +
+      'oldest tmux that took it and what Tortie does without it, history-limit is written first, a refusal is read in ' +
+      "tmux's seven shapes alone (driven over the measured lines), the four rows before 3.6 carry the programs measured " +
+      'against them and the pair gate was driven over every cell, a server Tortie started is asked its version before ' +
+      'any option and refused on a disagreement (driven over a stand-in sign-in program), every measured version ' +
+      'prepares with its refusals expected and a required refusal stops the set-up with nothing sent after it (a ' +
+      'required row refused in other words is read back once, and a server holding another value is that refusal; a ' +
+      'create or a restore after the boot line refused exit-empty says so, never "has not signed in"), copy ' +
+      'mode on another machine is entered with -H and this Mac\'s with today\'s four elements, a far tmux name holds ' +
+      "no $, 3.4's dollar and 3.2a's padding are undone only behind their rows' quirks, and the far scripts answer " +
+      'wrote, made 755, moved, exists and three-field lines under a GNU stat stand-in and under this Mac\'s own, ' +
+      'under /bin/sh and /bin/dash.\n'
   );
 }
 

@@ -1870,7 +1870,11 @@ const p3201 = await (async () => {
       let gotoFailed = false;
       const run = (args: readonly string[]): Promise<string> => {
         const copy = [...args].map(String);
-        if (o.server || copy[0] !== 'display-message') {
+        // PHASE 342 (D11, D20): the fallback road is this Mac's alone, and its
+        // copy-mode entry, today's four elements, never crosses to a machine,
+        // so it is not recorded; condition 103's corpus asks that the table
+        // refuses it, and condition 147 that it is byte for byte today's.
+        if (o.server || (copy[0] !== 'display-message' && copy[0] !== 'copy-mode')) {
           recorded.push({ via, args: copy, verdict: verdictOf(copy), expected: expectedShapeOf(copy) });
         }
         if (o.failGotoOnce === true && copy.includes('goto-line') && !gotoFailed) {
@@ -1986,6 +1990,9 @@ const p3201 = await (async () => {
     { label: 'a name target', args: ['send-keys', '-t', 'p320-sh', '-X', 'cancel'] },
     { label: '-c', args: ['send-keys', '-c', '/dev/ttys001', '-t', '$1', '-X', 'cancel'] },
     { label: '-e on send-keys', args: ['send-keys', '-e', '-t', '$1', '-X', 'cancel'] },
+    // PHASE 342 (D11): this Mac's own entry, four elements, which a machine's
+    // carriage refuses now that the one spelling carries -H.
+    { label: "copy-mode without -H, this Mac's entry", args: ['copy-mode', '-e', '-t', '$1'] },
     { label: '-u on copy-mode', args: ['copy-mode', '-u', '-t', '$1'] },
     { label: 'copy-mode flags in another order', args: ['copy-mode', '-t', '$1', '-e'] },
     { label: 'copy-mode, one element more', args: ['copy-mode', '-e', '-t', '$1', '-u'] },
@@ -3389,6 +3396,534 @@ const p340 = await (async () => {
   return { loadErrors, texts, testArgv, reasons, identity, status, menu };
 })();
 
+// ---------------------------------------------------------------------------
+// Phase 342, conditions 142 to 149. Linux machines on the tmux their
+// distribution ships (build/p342/SPEC.md §6.1), the driven halves.
+// ---------------------------------------------------------------------------
+//
+// PHASE 342 ADDED ONE SPAWN, said here because the header says this probe
+// spawns nothing. Conditions 145 and 146 drive the SHIPPING `ensureRemoteServer`
+// over a remote context whose sign-in program is a `/bin/sh` STAND-IN this
+// block writes under a scratch directory of its own, answering tmux's own
+// refusal words from a table and logging every argv, so the set-up's reader
+// meets the measured shapes without a machine. The stand-in reaches no
+// network, starts no tmux and writes only under that scratch directory, which
+// is removed in a `finally`. Everything else here is pure: the option table,
+// the version rows, the pair gate, the scroll entry, the far names and the two
+// read quirks are driven in this process.
+
+const p342 = await (async () => {
+  const loadErrors: Record<string, string> = {};
+  const load = optionalLoader(loadErrors);
+  const tryIt = <T>(f: () => T): { value: T | null; threw: string | null } => {
+    try {
+      return { value: f(), threw: null };
+    } catch (err) {
+      return { value: null, threw: err instanceof Error ? `${err.name}: ${err.message}`.slice(0, 400) : String(err) };
+    }
+  };
+  const tryAsync = async <T>(f: () => Promise<T>): Promise<{ value: T | null; threw: string | null; name: string | null; message: string | null }> => {
+    try {
+      return { value: await f(), threw: null, name: null, message: null };
+    } catch (err) {
+      const e = err as { name?: string; message?: string; headline?: string; detail?: string; refusal?: unknown; born?: boolean };
+      return {
+        value: null,
+        threw: err instanceof Error ? `${err.name}: ${err.message}`.slice(0, 600) : String(err),
+        name: typeof e?.name === 'string' ? e.name : null,
+        message: typeof e?.message === 'string' ? e.message : null
+      };
+    }
+  };
+
+  const optionsMod = await load('serverOptions', 'src/main/tmux/server-options.ts');
+  const versionMod = await load('version', 'src/main/tmux/version.ts');
+  const leafMod = await load('farTmux', 'src/main/machines/far-tmux.ts');
+  const serverMod = await load('remoteServer', 'src/main/machines/remote-server.ts');
+  const errorsMod = await load('errors', 'src/main/machines/errors.ts');
+  const scrollMod = await load('scroll', 'src/main/tmux/scroll.ts');
+  const shapesMod = await load('shapes', 'src/main/machines/scroll-shapes.ts');
+  const sessionsMod = await load('sessions', 'src/main/machines/remote-sessions.ts');
+  const capsuleMod = await load('capsule', 'src/main/machines/remote-capsule.ts');
+  const ctxMod = await load('context', 'src/main/machines/context.ts');
+
+  // --- 142. The option table ---------------------------------------------------
+  const options = (() => {
+    if (optionsMod === null) return null;
+    const rows = (optionsMod['SERVER_OPTIONS'] as Record<string, unknown>[] | undefined) ?? [];
+    const boot = tryIt(() => (optionsMod['remoteBootOptions'] as () => Record<string, unknown>[])());
+    const local = tryIt(() => (optionsMod['localReassertOptions'] as () => Record<string, unknown>[])());
+    const setArgs = optionsMod['setOptionArgs'] as ((row: unknown, value: string) => string[]) | undefined;
+    const isRefusal = optionsMod['isOptionRefusal'] as ((text: string, name: string, value: string) => boolean) | undefined;
+    const fixturePath = join(repoRoot, 'build', 'fixtures', 'p342', 'refusals.json');
+    let fixture: { refusals?: { text: string; name: string; value: string; shape: string }[] } | null = null;
+    try {
+      fixture = JSON.parse(readFileSync(fixturePath, 'utf8')) as typeof fixture;
+    } catch {
+      fixture = null;
+    }
+    const driven: { label: string; text: string; name: string; value: string; want: boolean; got: boolean | null }[] = [];
+    const ask = (label: string, text: string, name: string, value: string, want: boolean) => {
+      const got = isRefusal === undefined ? null : tryIt(() => isRefusal(text, name, value)).value;
+      driven.push({ label, text, name, value, want, got });
+    };
+    for (const r of fixture?.refusals ?? []) ask(`fixture ${r.shape}`, r.text, r.name, r.value, true);
+    ask('a dropped link', 'Connection closed by remote host\n', 'mouse', 'off', false);
+    ask('no server running', 'no server running on /tmp/tmux-1000/p342', 'mouse', 'off', false);
+    ask('error connecting', 'error connecting to /tmp/tmux-1000/p342 (No such file or directory)', 'mouse', 'off', false);
+    ask('a refusal naming another row', 'invalid option: mouse', 'allow-passthrough', 'on', false);
+    ask('a value one byte different', 'bad value: of', 'mouse', 'off', false);
+    ask('a value with a trailing space', 'bad value: off ', 'mouse', 'off', false);
+    ask('an empty text', '', 'mouse', 'off', false);
+    ask('the refusal not on the last line', 'invalid option: mouse\nsomething else', 'mouse', 'off', false);
+    ask('a shell banner then the refusal', 'welcome\r\ninvalid option: mode-style\r\n', 'mode-style', 'x', true);
+    return {
+      rows: rows.map((r) => ({ name: r['name'], scope: r['scope'], value: r['value'], oldest: r['oldest'] ?? null, without: r['without'] ?? null, localReassert: r['localReassert'] === true })),
+      bootOrder: (boot.value ?? []).map((r) => r['name']),
+      bootThrew: boot.threw,
+      localOrder: (local.value ?? []).map((r) => r['name']),
+      setArgv: setArgs === undefined ? null : rows.map((r) => tryIt(() => setArgs(r, String(r['value']))).value),
+      refusalsFixture: fixture !== null,
+      refusalsFixtureRows: (fixture?.refusals ?? []).length,
+      refusalsDriven: driven
+    };
+  })();
+
+  // --- 143 and 144. The rows and the pair ------------------------------------
+  const rows = (() => {
+    if (versionMod === null) return null;
+    const list = (versionMod['TESTED_REMOTE_TMUX_VERSIONS'] as Record<string, unknown>[] | undefined) ?? [];
+    const decide = versionMod['decideRemotePair'] as ((server: string, program: string | null) => unknown) | undefined;
+    const versions = list.map((r) => String(r['version']));
+    const pair: { server: string; program: string | null; verdict: unknown }[] = [];
+    if (decide !== undefined) {
+      for (const server of versions) {
+        for (const program of [...versions, null, '3.9z']) {
+          pair.push({ server, program, verdict: tryIt(() => decide(server, program)).value });
+        }
+      }
+      pair.push({ server: '3.0a', program: '3.0a', verdict: tryIt(() => decide('3.0a', '3.0a')).value });
+    }
+    let matrix: Record<string, unknown> | null = null;
+    try {
+      matrix = JSON.parse(readFileSync(join(repoRoot, 'build', 'fixtures', 'p342', 'matrix.json'), 'utf8')) as Record<string, unknown>;
+    } catch {
+      matrix = null;
+    }
+    // The drawn list, read as text from the renderer's copy (a renderer module
+    // may not be loaded here).
+    const copySource = readFileSync(join(repoRoot, 'src', 'renderer', 'settings', 'machines-copy.ts'), 'utf8');
+    const m = /export const MEASURED_VERSIONS:[^=]*=\s*\[([\s\S]*?)\];/.exec(copySource);
+    const drawn = m === null ? null : [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]);
+    return {
+      list: list.map((r) => ({
+        version: r['version'],
+        measured: r['measured'],
+        measuredAt: r['measuredAt'],
+        subject: r['subject'],
+        note: r['note'],
+        programs: r['programs'] ?? null,
+        lacks: r['lacks'] ?? null,
+        quirks: r['quirks'] ?? null
+      })),
+      pair,
+      matrix,
+      drawn
+    };
+  })();
+
+  // --- 145 and 146. The set-up, DRIVEN over a stand-in sign-in program -------
+  const setUp = await (async () => {
+    if (serverMod === null || ctxMod === null || leafMod === null) return null;
+    const { mkdtempSync, writeFileSync: write, rmSync, readFileSync: read, chmodSync, mkdirSync: mkdir } = await import('node:fs');
+    const ensure = serverMod['ensureRemoteServer'] as (ctx: unknown, how?: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    const register = ctxMod['registerRemoteMachineContext'] as (ctx: Record<string, unknown>) => Record<string, unknown>;
+    const resetLeaf = leafMod['resetFarTmuxForTests'] as () => void;
+    const noteVersion = leafMod['noteFarServerVersion'] as (id: string, v: string | null) => void;
+    const serverVersionOf = leafMod['farServerVersion'] as (id: string) => string | null;
+    const pairOf = leafMod['farPairOf'] as (id: string) => unknown;
+    const settingsRefusalOf = leafMod['farSettingsRefusal'] as (id: string) => unknown;
+    const disagreementOf = leafMod['farDisagreementOf'] as ((id: string) => unknown) | undefined;
+    const pairRefusalOf = leafMod['farPairRefusal'] as ((id: string) => unknown) | undefined;
+    const scratch = mkdtempSync(join('/private/tmp', `p342-conformance-${String(process.pid)}-`));
+    const standIn = join(scratch, 'ssh-stand-in.sh');
+    write(
+      standIn,
+      [
+        '#!/bin/sh',
+        '# Phase 342 conformance stand-in for the sign-in program: answers the',
+        '# far command in its LAST argument from a table, logs every one.',
+        'for last; do :; done',
+        'printf \'%s\\n\' "$last" >> "$P342_LOG"',
+        'case "$last" in',
+        '  *__TORTIE_PATH__*) printf \'__TORTIE_PATH__/usr/bin:/bin__TORTIE_PATH__\\n\'; exit 0;;',
+        'esac',
+        'eval "set -- $last"',
+        'shift 5',
+        'verb=$1',
+        'case "$verb" in',
+        '  list-sessions)',
+        '    if [ "$P342_NO_SERVER" = 1 ] && [ ! -f "$P342_STATE/born" ]; then printf \'no server running on /tmp/tmux-1000/p342\\n\' >&2; exit 1; fi',
+        '    printf \'$0\\n\'; exit 0;;',
+        '  start-server)',
+        '    case " $P342_REFUSE " in *" exit-empty "*) printf \'invalid option: exit-empty\\n\' >&2; exit 1;; esac',
+        '    : > "$P342_STATE/born"; exit 0;;',
+        '  display-message) printf \'%s\\n\' "$P342_VERSION"; exit 0;;',
+        '  set-environment) exit 0;;',
+        '  set-option)',
+        '    name=$3; value=$4',
+        '    case " $P342_OTHER_WORDS " in *" $name "*) printf \'policy: that option is not allowed here\\n\' >&2; exit 1;; esac',
+        '    case " $P342_REFUSE " in',
+        '      *" $name "*)',
+        '        if [ "$name" = mode-style ] && [ "$value" = "$P342_FALLBACK" ]; then printf \'%s\\n\' "$value" > "$P342_STATE/opt-$name"; exit 0; fi',
+        '        case "$name" in',
+        '          mode-style) printf \'invalid style: %s\\n\' "$value" >&2;;',
+        '          remain-on-exit|status|extended-keys) printf \'unknown value: %s\\n\' "$value" >&2;;',
+        '          mouse) printf \'bad value: %s\\n\' "$value" >&2;;',
+        '          history-limit) printf \'value is invalid: %s\\n\' "$value" >&2;;',
+        '          *) printf \'invalid option: %s\\n\' "$name" >&2;;',
+        '        esac',
+        '        exit 1;;',
+        '    esac',
+        '    printf \'%s\\n\' "$value" > "$P342_STATE/opt-$name"; exit 0;;',
+        '  show-options)',
+        '    name=$3',
+        '    for kv in $P342_NOT_KEPT; do case "$kv" in "$name="*) printf \'%s\\n\' "${kv#*=}"; exit 0;; esac; done',
+        '    if [ -f "$P342_STATE/opt-$name" ]; then cat "$P342_STATE/opt-$name"; fi; exit 0;;',
+        'esac',
+        'printf \'unknown command: %s\\n\' "$verb" >&2',
+        'exit 1'
+      ].join('\n'),
+      { mode: 0o700 }
+    );
+    chmodSync(standIn, 0o700);
+    const BOOT_LINE = 'start-server ; set-option -s exit-empty off';
+    let n = 0;
+    const drive = async (
+      label: string,
+      plan: { version: string; noServer: boolean; refuse: string[]; notKept?: string; fallback?: string; otherWords?: string[] },
+      how: Record<string, unknown>,
+      opts: { reuse?: boolean } = {}
+    ) => {
+      // `reuse` drives a second set-up of the SAME machine with the leaf kept,
+      // which is how a refusal an earlier set-up recorded is seen cleared.
+      if (opts.reuse !== true) n += 1;
+      const machineId = `p342-${String(n)}`;
+      const state = join(scratch, `state-${String(n)}`);
+      mkdir(state, { recursive: true });
+      const log = join(scratch, `log-${String(n)}.txt`);
+      write(log, '');
+      if (opts.reuse !== true) resetLeaf();
+      // What Prepare would have noted before the set-up: the warm server's own
+      // version, or the program's when no server answered and it was read.
+      noteVersion(machineId, plan.noServer ? (typeof how['version'] === 'string' ? how['version'] : null) : plan.version);
+      const ctx = register({
+        kind: 'remote',
+        machineId,
+        sshBin: standIn,
+        host: `${machineId}.invalid`,
+        user: null,
+        port: null,
+        remoteTmuxPath: '/usr/bin/tmux',
+        socket: 'p342conf',
+        controlPath: join(scratch, `cp-${String(n)}-%C`),
+        hostKeys: { tortie: join(scratch, 'kh-tortie'), user: join(scratch, 'kh-user') },
+        acceptedTmuxVersion: null,
+        label: null,
+        identityFile: null
+      });
+      const saved = { ...process.env };
+      process.env['P342_LOG'] = log;
+      process.env['P342_STATE'] = state;
+      process.env['P342_VERSION'] = plan.version;
+      process.env['P342_NO_SERVER'] = plan.noServer ? '1' : '0';
+      process.env['P342_REFUSE'] = plan.refuse.join(' ');
+      process.env['P342_NOT_KEPT'] = plan.notKept ?? '';
+      process.env['P342_FALLBACK'] = plan.fallback ?? '';
+      process.env['P342_OTHER_WORDS'] = (plan.otherWords ?? []).join(' ');
+      let result: { value: Record<string, unknown> | null; threw: string | null };
+      const caught: { thrown: { name: string | null; refusal: unknown; born: unknown; headline: unknown; detail: unknown } | null } = { thrown: null };
+      try {
+        result = await tryAsync(async () => {
+          try {
+            return await ensure(ctx, how);
+          } catch (err) {
+            const e = err as { name?: string; refusal?: unknown; born?: unknown; headline?: unknown; detail?: unknown };
+            caught.thrown = { name: e?.name ?? null, refusal: e?.refusal ?? null, born: e?.born ?? null, headline: e?.headline ?? null, detail: e?.detail ?? null };
+            throw err;
+          }
+        });
+      } finally {
+        for (const key of Object.keys(process.env)) if (key.startsWith('P342_')) delete process.env[key];
+        for (const [key, value] of Object.entries(saved)) if (key.startsWith('P342_') && value !== undefined) process.env[key] = value;
+      }
+      const sent = read(log, 'utf8')
+        .split('\n')
+        .filter((line) => line.length > 0)
+        .map((line) => {
+          if (line.includes('__TORTIE_PATH__')) return 'PATH-CAPTURE';
+          const words = [...line.matchAll(/'((?:[^']|'\\'')*)'|(\S+)/g)].map((x) => (x[1] !== undefined ? x[1].replace(/'\\''/g, "'") : x[2]));
+          return words.slice(5).join(' ');
+        });
+      const value = result.value;
+      return {
+        label,
+        plan,
+        how,
+        sent,
+        bootLine: BOOT_LINE,
+        resolved: value === null ? null : {
+          born: value['born'],
+          options: ((value['options'] as Record<string, unknown>[] | undefined) ?? []).map((o) => ({ name: o['name'], wanted: o['wanted'], observed: o['observed'], agrees: o['agrees'] })),
+          disagreed: ((value['disagreed'] as unknown[] | undefined) ?? []).length,
+          refused: value['refused'] ?? null
+        },
+        threw: result.threw,
+        thrown: caught.thrown,
+        noted: serverVersionOf(machineId),
+        pair: pairOf(machineId),
+        settingsRefusal: settingsRefusalOf(machineId),
+        // PHASE 342'S SECOND FIX ROUND: what a server this set-up started ran
+        // as beside what its program said, and the pair line said of the same
+        // program read again beside that server.
+        disagreement: disagreementOf === undefined ? 'absent' : disagreementOf(machineId),
+        pairLineAfterLie: (() => {
+          if (pairRefusalOf === undefined || plan.noServer !== true || typeof how['version'] !== 'string') return null;
+          (leafMod['noteFarPair'] as (id: string, s: string, p: string | null) => void)(machineId, plan.version, how['version']);
+          return pairRefusalOf(machineId);
+        })()
+      };
+    };
+    const LACKS: Record<string, string[]> = {
+      '3.2a': ['allow-passthrough', 'copy-mode-position-format', 'mode-style'],
+      '3.3a': ['copy-mode-position-format', 'mode-style'],
+      '3.4': ['copy-mode-position-format', 'mode-style'],
+      '3.5a': ['copy-mode-position-format', 'mode-style'],
+      '3.6': [],
+      '3.6a': [],
+      '3.6b': [],
+      '3.7b': [],
+      '3.7c': []
+    };
+    const FALLBACK = 'bg=default,fg=default';
+    const runs: Record<string, unknown>[] = [];
+    let startDoor: Record<string, unknown> | null = null;
+    let disagreeDoor: Record<string, unknown> | null = null;
+    try {
+      // 145: a born server that is not the version its program said.
+      runs.push(await drive('born-disagrees', { version: '3.2a', noServer: true, refuse: [], fallback: FALLBACK }, { version: '3.7c' }));
+      // 146 (the second fix round): that set-up stopped after its boot and
+      // before the PATH capture, so a create's door is answered sentence (4)'s
+      // line, never "has not signed in". Asked before the next drive resets
+      // the leaf.
+      {
+        const start = sessionsMod?.['readyContextToStart'] as ((id: string) => unknown) | undefined;
+        disagreeDoor = start === undefined ? null : await tryAsync(async () => start(`p342-${String(n)}`));
+      }
+      // 145: a born server with nothing to compare with (a restore or a create).
+      runs.push(await drive('born-noted', { version: '3.4', noServer: true, refuse: LACKS['3.4'] ?? [], fallback: FALLBACK }, {}));
+      // 145: a born server that agrees with its program.
+      runs.push(await drive('born-agrees', { version: '3.5a', noServer: true, refuse: LACKS['3.5a'] ?? [], fallback: FALLBACK }, { version: '3.5a' }));
+      // 146: every measured version, warm, refusing exactly what its row lacks.
+      for (const [version, lacks] of Object.entries(LACKS)) {
+        runs.push(await drive(`warm-${version}`, { version, noServer: false, refuse: lacks, fallback: FALLBACK }, {}));
+      }
+      // 146: a refusal the measurement did not predict, optional.
+      runs.push(await drive('warm-3.7c-refuses-allow-passthrough', { version: '3.7c', noServer: false, refuse: ['allow-passthrough'], fallback: FALLBACK }, {}));
+      // 146: a refusal the measurement did not predict, required.
+      runs.push(await drive('warm-3.7c-refuses-remain-on-exit', { version: '3.7c', noServer: false, refuse: ['remain-on-exit'], fallback: FALLBACK }, {}));
+      // 146 (the fix round): a required row taken but read back as another value.
+      runs.push(await drive('warm-3.7c-history-not-kept', { version: '3.7c', noServer: false, refuse: [], notKept: 'history-limit=2000', fallback: FALLBACK }, {}));
+      // 146 (the fix round): exit-empty refused on the boot line.
+      runs.push(await drive('born-refuses-exit-empty', { version: '3.7c', noServer: true, refuse: ['exit-empty'], fallback: FALLBACK }, { version: '3.7c' }));
+      // 146 (the second fix round): the boot line's refusal stops the set-up
+      // before the PATH capture, so the context is refused as not signed in;
+      // the door a create and a restore start through answers sentence (1)
+      // instead, and a machine with no refusal recorded still answers what it
+      // always did.
+      {
+        const start = sessionsMod?.['readyContextToStart'] as ((id: string) => unknown) | undefined;
+        const asked = async (id: string) => (start === undefined ? null : await tryAsync(async () => start(id)));
+        startDoor = {
+          present: start !== undefined,
+          afterBoot: await asked(`p342-${String(n)}`),
+          control: await asked('p342-never-registered')
+        };
+      }
+      // 146: a fallback refused too is a skip, and never expected.
+      runs.push(await drive('warm-3.2a-refuses-fallback', { version: '3.2a', noServer: false, refuse: LACKS['3.2a'] ?? [], fallback: 'nothing-takes' }, {}));
+      // 146 (the fix round): a refusal recorded by one set-up, then a later
+      // set-up of the SAME machine that holds every row, which clears it.
+      runs.push(await drive('refused-then-held-first', { version: '3.7c', noServer: false, refuse: ['mouse'], fallback: FALLBACK }, {}));
+      runs.push(await drive('refused-then-held-second', { version: '3.7c', noServer: false, refuse: [], fallback: FALLBACK }, {}, { reuse: true }));
+      // 146 (the second fix round): a required row whose write failed in words
+      // tmux never uses, read back once. Holding another value is the row's
+      // refusal; holding the wanted value, or answering nothing, is the
+      // failure thrown as it came, with nothing recorded.
+      runs.push(await drive('warm-3.7c-other-words-not-held', { version: '3.7c', noServer: false, refuse: [], otherWords: ['remain-on-exit'], notKept: 'remain-on-exit=off', fallback: FALLBACK }, {}));
+      runs.push(await drive('warm-3.7c-other-words-held', { version: '3.7c', noServer: false, refuse: [], otherWords: ['remain-on-exit'], notKept: 'remain-on-exit=failed', fallback: FALLBACK }, {}));
+      runs.push(await drive('warm-3.7c-other-words-unread', { version: '3.7c', noServer: false, refuse: [], otherWords: ['remain-on-exit'], fallback: FALLBACK }, {}));
+      // An OPTIONAL row refused in other words is thrown as it came, as today.
+      runs.push(await drive('warm-3.7c-other-words-optional', { version: '3.7c', noServer: false, refuse: [], otherWords: ['allow-passthrough'], notKept: 'allow-passthrough=off', fallback: FALLBACK }, {}));
+    } finally {
+      resetLeaf();
+      rmSync(scratch, { recursive: true, force: true });
+    }
+    return { runs, startDoor: startDoor === null ? null : { ...startDoor, afterDisagreement: disagreeDoor }, scratchGone: !existsSync(scratch) };
+  })();
+
+  // --- The four sentences ----------------------------------------------------
+  const sentences = (() => {
+    if (errorsMod === null) return null;
+    const compose = errorsMod['composeTmuxRefusal'] as ((r: unknown) => { headline: string; detail: string }) | undefined;
+    const setting = errorsMod['machineTmuxSettingRefused'] as ((v: string | null) => string) | undefined;
+    const copyOf = errorsMod['machineOutcomeCopy'] as ((cls: string) => { headline: string; detail: string; alarm: boolean }) | undefined;
+    if (compose === undefined || setting === undefined) return null;
+    return {
+      required: tryIt(() => compose({ kind: 'required', version: '3.7c', purpose: 'failed-screen', lines: 25000 })).value,
+      requiredHistory: tryIt(() => compose({ kind: 'required', version: '3.2a', purpose: 'history', lines: 25000 })).value,
+      requiredStaysUp: tryIt(() => compose({ kind: 'required', version: null, purpose: 'stays-up', lines: 25000 })).value,
+      requiredScrolling: tryIt(() => compose({ kind: 'required', version: '3.4', purpose: 'scrolling', lines: 25000 })).value,
+      setting: tryIt(() => setting('3.7c')).value,
+      settingNoVersion: tryIt(() => setting(null)).value,
+      pair: tryIt(() => compose({ kind: 'pair', server: '3.5a', program: '3.6b' })).value,
+      disagrees: tryIt(() => compose({ kind: 'disagrees', said: '3.7c', ran: '3.2a' })).value,
+      classCopy: copyOf === undefined ? null : tryIt(() => copyOf('program-refused')).value
+    };
+  })();
+
+  // --- 146 (the fix round). How a create and a restore answer a refusal ------
+  // `throwAsSessionError` is handed a RemoteTmuxRefused and must throw the
+  // structured error whose message is the sentence itself, so no session
+  // surface draws Electron's prefix and a class name in front of it; anything
+  // else is thrown exactly as it came.
+  const asSession = await (async () => {
+    if (serverMod === null) return null;
+    const errorsDoor = await load('errorsDoor', 'src/main/errors.ts');
+    const Refused = serverMod['RemoteTmuxRefused'] as (new (r: unknown, born?: boolean) => Error) | undefined;
+    const convert = serverMod['throwAsSessionError'] as ((err: unknown) => never) | undefined;
+    const payloadOf = errorsDoor?.['gmuxErrorPayloadOf'] as ((err: unknown) => { code: string; message: string; detail?: string } | null) | undefined;
+    if (Refused === undefined || convert === undefined || payloadOf === undefined) return { present: false };
+    const caught = (f: () => unknown): unknown => {
+      try {
+        f();
+        return null;
+      } catch (err) {
+        return err;
+      }
+    };
+    const refused = new Refused({ kind: 'required', name: 'remain-on-exit', purpose: 'failed-screen', version: '3.7c', lines: 25000 }, false);
+    const out = caught(() => convert(refused));
+    const plain = new Error('a plain failure');
+    const passed = caught(() => convert(plain));
+    const payload = payloadOf(out);
+    return {
+      present: true,
+      refusedMessage: refused.message,
+      payload,
+      isPlainRefusal: out instanceof Refused,
+      otherPassedThrough: passed === plain
+    };
+  })();
+
+  // --- 147. Scroll-back's entry ------------------------------------------------
+  const entry = (() => {
+    if (scrollMod === null || shapesMod === null) return null;
+    const enter = scrollMod['enterCopyModeArgs'] as ((run: unknown, target: string) => readonly string[]) | undefined;
+    const admit = shapesMod['admitScrollArgv'] as ((argv: readonly string[]) => { ok: boolean; shape?: string; reason?: string }) | undefined;
+    const local = Object.assign(() => Promise.resolve(''), {});
+    const remote = Object.assign(() => Promise.resolve(''), { server: 'machine:probe' });
+    const orderedRemote = Object.assign(() => Promise.resolve(''), { server: 'machine:probe', ordered: true });
+    return {
+      present: enter !== undefined,
+      local: enter === undefined ? null : tryIt(() => [...enter(local, '$7')]).value,
+      remote: enter === undefined ? null : tryIt(() => [...enter(remote, '$7')]).value,
+      orderedRemote: enter === undefined ? null : tryIt(() => [...enter(orderedRemote, '$7')]).value,
+      fourAdmitted: admit === undefined ? null : tryIt(() => admit(['copy-mode', '-e', '-t', '$1'])).value,
+      fiveAdmitted: admit === undefined ? null : tryIt(() => admit(['copy-mode', '-e', '-H', '-t', '$1'])).value,
+      hRows: ((shapesMod['SCROLL_SHAPES'] as Record<string, unknown>[] | undefined) ?? [])
+        .filter((row) => Array.isArray(row['argv']) && (row['argv'] as Record<string, unknown>[]).some((s) => s['kind'] === 'word' && s['word'] === '-H'))
+        .map((row) => row['id'])
+    };
+  })();
+
+  // --- 148. The far names and the two read quirks ------------------------------
+  const names = (() => {
+    if (sessionsMod === null || capsuleMod === null) return null;
+    const farName = sessionsMod['farTmuxName'] as ((display: string, taken: ReadonlySet<string>) => string) | undefined;
+    const undo = sessionsMod['undoDollarEscape'] as ((s: string) => string) | undefined;
+    const strip = capsuleMod['stripJoinedPadding'] as ((s: string) => string) | undefined;
+    const none = new Set<string>();
+    let dollar: { values?: { value: string; answers?: Record<string, string> }[] } | null = null;
+    try {
+      dollar = JSON.parse(readFileSync(join(repoRoot, 'build', 'fixtures', 'p342', 'dollar-3.4.json'), 'utf8')) as typeof dollar;
+    } catch {
+      dollar = null;
+    }
+    const capText = (name: string): string | null => {
+      try {
+        return readFileSync(join(repoRoot, 'build', 'fixtures', 'p342', name), 'utf8').replace(/\\033\[/g, '\u001b[');
+      } catch {
+        return null;
+      }
+    };
+    const cap32 = capText('capj-3.2a.txt');
+    const cap33 = capText('capj-3.3a.txt');
+    const trimOwn = (t: string) => t.split('\n').map((l) => l.replace(/ +$/, '')).join('\n');
+    // What a person sees of a line: its escapes removed, and on both sides its
+    // trailing spaces, because 3.2a puts a line's colour reset at its end and
+    // 3.3a at the start of the next one (builder "far", measured), so the two
+    // agree on the drawn text and not byte for byte.
+    const seen = (t: string) => t.split('\n').map((l) => l.replace(/\u001b\[[0-9;]*m/g, '').replace(/ +$/, ''));
+    return {
+      farName: farName === undefined ? null : [
+        ['cost $HOME', tryIt(() => farName('cost $HOME', none)).value],
+        ['$', tryIt(() => farName('$', none)).value],
+        ['$HOME notes', tryIt(() => farName('$HOME notes', none)).value],
+        ['plain name', tryIt(() => farName('plain name', none)).value],
+        ['a$b$c', tryIt(() => farName('a$b$c', none)).value],
+        ['taken', tryIt(() => farName('cost $HOME', new Set(['cost _HOME']))).value]
+      ],
+      undoDriven: undo === undefined || dollar === null ? null : (dollar.values ?? []).map((v) => ({
+        value: v.value,
+        answer34: v.answers?.['3.4'] ?? null,
+        undone: v.answers?.['3.4'] === undefined ? null : tryIt(() => undo(v.answers?.['3.4'] ?? '')).value,
+        answer33: v.answers?.['3.3a'] ?? null,
+        undone33: v.answers?.['3.3a'] === undefined ? null : tryIt(() => undo(v.answers?.['3.3a'] ?? '')).value
+      })),
+      undoKeepsOthers: undo === undefined ? null : [
+        ['a\\$1', tryIt(() => undo('a\\$1')).value],
+        ['\\\\', tryIt(() => undo('\\\\')).value],
+        ['a\\b', tryIt(() => undo('a\\b')).value],
+        ['\\$', tryIt(() => undo('\\$')).value]
+      ],
+      dollarFixture: dollar !== null,
+      capFixtures: cap32 !== null && cap33 !== null,
+      stripped: strip === undefined || cap32 === null || cap33 === null ? null : {
+        equalAfterStrip: JSON.stringify(seen(strip(cap32))) === JSON.stringify(seen(cap33)),
+        neverWider: (() => {
+          const a = strip(cap32).split('\n').map((l) => l.replace(/\u001b\[[0-9;]*m/g, '').length);
+          const b = cap33.split('\n').map((l) => l.replace(/\u001b\[[0-9;]*m/g, '').length);
+          return a.length === b.length && a.every((w, i) => w <= (b[i] ?? 0));
+        })(),
+        trimmedOwnIs: trimOwn(cap33).length,
+        lines32: cap32.split('\n').length,
+        padded32: cap32.split('\n').filter((l) => / $/.test(l)).length,
+        padded33: cap33.split('\n').filter((l) => / $/.test(l)).length,
+        keepsOwn: strip('a  \nb\t\n') === 'a\nb\t\n' && strip('x \u001b[0m  \n') === 'x \u001b[0m\n'
+      }
+    };
+  })();
+
+  // --- 149. The far scripts, read as text; the drive is the gate's own -----------
+  const scripts = (() => {
+    const scriptsSource = readFileSync(join(repoRoot, 'src', 'main', 'machines', 'remote-scripts.ts'), 'utf8');
+    return { hasWqBranchFilePut: /if \[ "\$wq" = -c \]; then m=\$\(stat -c %a "\$f"/.test(scriptsSource), hasWqBranchDirNew: /if \[ "\$wq" = -c \]; then m=\$\(stat -c %a "\$p"/.test(scriptsSource) };
+  })();
+
+  return { loadErrors, options, rows, setUp, asSession, sentences, entry, names, scripts };
+})();
+
 process.stdout.write(
   JSON.stringify({
     id: ID,
@@ -3398,6 +3933,8 @@ process.stdout.write(
     phase336: p336,
     // Phase 340, conditions 125 to 139.
     phase340: p340,
+    // Phase 342, conditions 142 to 149.
+    phase342: p342,
     base,
     sameAgain: machineExecutionHash(ID, { ...BASE }),
     fields: fieldRows,

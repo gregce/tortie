@@ -283,7 +283,7 @@ describe('address live, carriage live: the operation on that machine', () => {
       // pane not known parked (D3), which found it parked; then the sequence.
       PROOF_READ,
       PROOF_READ,
-      'copy-mode -e -t $7',
+      'copy-mode -e -H -t $7',
       'send-keys -t $7 -X -N 5 scroll-up',
       'send-keys -t $7 -X top-line',
       PROOF_READ
@@ -293,7 +293,7 @@ describe('address live, carriage live: the operation on that machine', () => {
     lines.length = 0;
     await core.scrollBy({ sessionId: 'sess', lines: 5 });
     expect(lines).toEqual([
-      'copy-mode -e -t $7',
+      'copy-mode -e -H -t $7',
       'send-keys -t $7 -X -N 5 scroll-up',
       'send-keys -t $7 -X top-line',
       PROOF_READ
@@ -345,7 +345,7 @@ describe('the read proof: never park what cannot be read (Phase 320.1\'s fix rou
       inMode: true
     });
     expect(next.lines[0]).toBe(PROOF_READ);
-    expect(next.lines).toContain('copy-mode -e -t $7');
+    expect(next.lines).toContain('copy-mode -e -H -t $7');
   });
 
   it('a proof read that got no answer proves nothing: the value, and the next operation asks again', async () => {
@@ -360,7 +360,7 @@ describe('the read proof: never park what cannot be read (Phase 320.1\'s fix rou
     fail = false;
     expect(await core.scrollBy({ sessionId: 'sess', lines: 5 })).toMatchObject({ hasPane: true, position: 120 });
     expect(live.lines[1]).toBe(PROOF_READ);
-    expect(live.lines).toContain('copy-mode -e -t $7');
+    expect(live.lines).toContain('copy-mode -e -H -t $7');
   });
 
   it('after a good proof, an operation whose read cannot be read is the not-reachable-now value, never live', async () => {
@@ -676,7 +676,7 @@ async function settle(): Promise<void> {
 
 const TYPED = (hex: string): string => `send-keys -t $7 -H ${hex}`;
 const CANCEL = 'send-keys -t $7 -X cancel';
-const PARK = ['copy-mode -e -t $7', 'send-keys -t $7 -X -N 5 scroll-up', 'send-keys -t $7 -X top-line'];
+const PARK = ['copy-mode -e -H -t $7', 'send-keys -t $7 -X -N 5 scroll-up', 'send-keys -t $7 -X top-line'];
 
 describe('keysOrderedInMain: every remote answer says main orders the keys (D5)', () => {
   it('rides a live answer from every verb, and the not-reachable-now value', async () => {

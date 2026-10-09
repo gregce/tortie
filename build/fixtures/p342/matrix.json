@@ -1,0 +1,709 @@
+{
+ "source": "Measured by npm run measure:p342 (build/p342/measure-p342.mjs) on 2026-10-08, in throwaway containers made by build/docker-run.mjs from the distributions' own images, each with the tmux its own package manager installs, on scratch sockets inside each container. Never -L gmux, never this Mac's tmux.",
+ "order": [
+  "3.2a",
+  "3.3a",
+  "3.4",
+  "3.5a",
+  "3.6",
+  "3.7c"
+ ],
+ "versions": {
+  "3.2a": {
+   "rows": [
+    {
+     "row": "u2204",
+     "ref": "ubuntu:22.04",
+     "os": "Ubuntu 22.04.5 LTS",
+     "arch": "aarch64",
+     "package": "3.2a-4ubuntu0.2",
+     "tmux": "tmux 3.2a",
+     "coreutils": "stat (GNU coreutils) 8.32",
+     "sh": "/usr/bin/dash"
+    }
+   ],
+   "agree": true,
+   "options": {
+    "status": {
+     "value": "off",
+     "took": true,
+     "refusal": null,
+     "readBack": "off"
+    },
+    "escape-time": {
+     "value": "0",
+     "took": true,
+     "refusal": null,
+     "readBack": "0"
+    },
+    "extended-keys": {
+     "value": "on",
+     "took": true,
+     "refusal": null,
+     "readBack": "on"
+    },
+    "allow-passthrough": {
+     "value": "on",
+     "took": false,
+     "refusal": "invalid option: allow-passthrough",
+     "readBack": ""
+    },
+    "focus-events": {
+     "value": "on",
+     "took": true,
+     "refusal": null,
+     "readBack": "on"
+    },
+    "default-terminal": {
+     "value": "tmux-256color",
+     "took": true,
+     "refusal": null,
+     "readBack": "tmux-256color"
+    },
+    "remain-on-exit": {
+     "value": "failed",
+     "took": true,
+     "refusal": null,
+     "readBack": "failed"
+    },
+    "exit-empty": {
+     "value": "off",
+     "took": true,
+     "refusal": null,
+     "readBack": "off"
+    },
+    "mouse": {
+     "value": "off",
+     "took": true,
+     "refusal": null,
+     "readBack": "off"
+    },
+    "copy-mode-position-format": {
+     "value": "",
+     "took": false,
+     "refusal": "invalid option: copy-mode-position-format",
+     "readBack": ""
+    },
+    "mode-style": {
+     "value": "noattr,bg=default,fg=default",
+     "took": false,
+     "refusal": "invalid style: noattr,bg=default,fg=default",
+     "readBack": "bg=yellow,fg=black",
+     "fallback": {
+      "value": "bg=default,fg=default",
+      "took": true,
+      "refusal": null
+     }
+    },
+    "history-limit": {
+     "value": "25000",
+     "took": true,
+     "refusal": null,
+     "readBack": "25000"
+    }
+   },
+   "indicator": {
+    "plain": "2948                                                                   [30/2977]",
+    "hidden": "2948"
+   },
+   "capture": {
+    "joined": {
+     "bytes": 890,
+     "trailingSpaceLines": 36
+    },
+    "plain": {
+     "bytes": 266,
+     "trailingSpaceLines": 0
+    }
+   },
+   "pair": null
+  },
+  "3.3a": {
+   "rows": [
+    {
+     "row": "d12",
+     "ref": "debian:bookworm-slim",
+     "os": "Debian GNU/Linux 12 (bookworm)",
+     "arch": "aarch64",
+     "package": "3.3a-3",
+     "tmux": "tmux 3.3a",
+     "coreutils": "stat (GNU coreutils) 9.1",
+     "sh": "/usr/bin/dash"
+    }
+   ],
+   "agree": true,
+   "options": {
+    "status": {
+     "value": "off",
+     "took": true,
+     "refusal": null,
+     "readBack": "off"
+    },
+    "escape-time": {
+     "value": "0",
+     "took": true,
+     "refusal": null,
+     "readBack": "0"
+    },
+    "extended-keys": {
+     "value": "on",
+     "took": true,
+     "refusal": null,
+     "readBack": "on"
+    },
+    "allow-passthrough": {
+     "value": "on",
+     "took": true,
+     "refusal": null,
+     "readBack": "on"
+    },
+    "focus-events": {
+     "value": "on",
+     "took": true,
+     "refusal": null,
+     "readBack": "on"
+    },
+    "default-terminal": {
+     "value": "tmux-256color",
+     "took": true,
+     "refusal": null,
+     "readBack": "tmux-256color"
+    },
+    "remain-on-exit": {
+     "value": "failed",
+     "took": true,
+     "refusal": null,
+     "readBack": "failed"
+    },
+    "exit-empty": {
+     "value": "off",
+     "took": true,
+     "refusal": null,
+     "readBack": "off"
+    },
+    "mouse": {
+     "value": "off",
+     "took": true,
+     "refusal": null,
+     "readBack": "off"
+    },
+    "copy-mode-position-format": {
+     "value": "",
+     "took": false,
+     "refusal": "invalid option: copy-mode-position-format",
+     "readBack": ""
+    },
+    "mode-style": {
+     "value": "noattr,bg=default,fg=default",
+     "took": false,
+     "refusal": "invalid style: noattr,bg=default,fg=default",
+     "readBack": "bg=yellow,fg=black",
+     "fallback": {
+      "value": "bg=default,fg=default",
+      "took": true,
+      "refusal": null
+     }
+    },
+    "history-limit": {
+     "value": "25000",
+     "took": true,
+     "refusal": null,
+     "readBack": "25000"
+    }
+   },
+   "indicator": {
+    "plain": "2948                                                                   [30/2977]",
+    "hidden": "2948"
+   },
+   "capture": {
+    "joined": {
+     "bytes": 268,
+     "trailingSpaceLines": 1
+    },
+    "plain": {
+     "bytes": 266,
+     "trailingSpaceLines": 0
+    }
+   },
+   "pair": {
+    "before": {
+     "program": "tmux 3.3a",
+     "server": "3.3a 6576"
+    },
+    "install": 0,
+    "after": {
+     "program": "tmux 3.5a",
+     "server": "3.3a 6576"
+    },
+    "oldLive": "%begin 1791477799 279 1|gmux-control|keep|%end 1791477799 279 1|",
+    "newLive": {
+     "bytes": 85,
+     "exit": "124",
+     "head": "%begin 1791477800 280 0|%end 1791477800 280 0|%session-chang"
+    },
+    "attach": "\u001b[?1049h\u001b[22;0;0t\u001b[?1h\u001b=\u001b[H\u001b[2J\u001b[?12l\u001b[?25h\u001b[?1000l\u001b[?1002l\u001b[?1003l\u001b[?1006l\u001b[?1005l\u001b(B\u001b[m\u001b[?12l\u001b[?25h\u001b[?1006l\u001b[?1000l\u001b[?1002l\u001b[?1003l\u001b[?2004l\u001b[1;1H\u001b[1;24r\u001b[>c\u001b[>q\u001b[23;1H\u001b[?25l\u001b[H79\u001b[K|80\u001b[K|81\u001b[K|8",
+    "server": {
+     "version": "3.3a 6576",
+     "sessions": "gmux-control keep "
+    }
+   }
+  },
+  "3.4": {
+   "rows": [
+    {
+     "row": "u2404",
+     "ref": "ubuntu:24.04",
+     "os": "Ubuntu 24.04.5 LTS",
+     "arch": "aarch64",
+     "package": "3.4-1ubuntu0.1",
+     "tmux": "tmux 3.4",
+     "coreutils": "stat (GNU coreutils) 9.4",
+     "sh": "/usr/bin/dash"
+    }
+   ],
+   "agree": true,
+   "options": {
+    "status": {
+     "value": "off",
+     "took": true,
+     "refusal": null,
+     "readBack": "off"
+    },
+    "escape-time": {
+     "value": "0",
+     "took": true,
+     "refusal": null,
+     "readBack": "0"
+    },
+    "extended-keys": {
+     "value": "on",
+     "took": true,
+     "refusal": null,
+     "readBack": "on"
+    },
+    "allow-passthrough": {
+     "value": "on",
+     "took": true,
+     "refusal": null,
+     "readBack": "on"
+    },
+    "focus-events": {
+     "value": "on",
+     "took": true,
+     "refusal": null,
+     "readBack": "on"
+    },
+    "default-terminal": {
+     "value": "tmux-256color",
+     "took": true,
+     "refusal": null,
+     "readBack": "tmux-256color"
+    },
+    "remain-on-exit": {
+     "value": "failed",
+     "took": true,
+     "refusal": null,
+     "readBack": "failed"
+    },
+    "exit-empty": {
+     "value": "off",
+     "took": true,
+     "refusal": null,
+     "readBack": "off"
+    },
+    "mouse": {
+     "value": "off",
+     "took": true,
+     "refusal": null,
+     "readBack": "off"
+    },
+    "copy-mode-position-format": {
+     "value": "",
+     "took": false,
+     "refusal": "invalid option: copy-mode-position-format",
+     "readBack": ""
+    },
+    "mode-style": {
+     "value": "noattr,bg=default,fg=default",
+     "took": false,
+     "refusal": "invalid style: noattr,bg=default,fg=default",
+     "readBack": "bg=yellow,fg=black",
+     "fallback": {
+      "value": "bg=default,fg=default",
+      "took": true,
+      "refusal": null
+     }
+    },
+    "history-limit": {
+     "value": "25000",
+     "took": true,
+     "refusal": null,
+     "readBack": "25000"
+    }
+   },
+   "indicator": {
+    "plain": "2948                                                          16:42:31 [30/2977]",
+    "hidden": "2948"
+   },
+   "capture": {
+    "joined": {
+     "bytes": 258,
+     "trailingSpaceLines": 1
+    },
+    "plain": {
+     "bytes": 256,
+     "trailingSpaceLines": 0
+    }
+   },
+   "pair": null
+  },
+  "3.5a": {
+   "rows": [
+    {
+     "row": "d13",
+     "ref": "debian:13",
+     "os": "Debian GNU/Linux 13 (trixie)",
+     "arch": "aarch64",
+     "package": "3.5a-3",
+     "tmux": "tmux 3.5a",
+     "coreutils": "stat (GNU coreutils) 9.7",
+     "sh": "/usr/bin/dash"
+    }
+   ],
+   "agree": true,
+   "options": {
+    "status": {
+     "value": "off",
+     "took": true,
+     "refusal": null,
+     "readBack": "off"
+    },
+    "escape-time": {
+     "value": "0",
+     "took": true,
+     "refusal": null,
+     "readBack": "0"
+    },
+    "extended-keys": {
+     "value": "on",
+     "took": true,
+     "refusal": null,
+     "readBack": "on"
+    },
+    "allow-passthrough": {
+     "value": "on",
+     "took": true,
+     "refusal": null,
+     "readBack": "on"
+    },
+    "focus-events": {
+     "value": "on",
+     "took": true,
+     "refusal": null,
+     "readBack": "on"
+    },
+    "default-terminal": {
+     "value": "tmux-256color",
+     "took": true,
+     "refusal": null,
+     "readBack": "tmux-256color"
+    },
+    "remain-on-exit": {
+     "value": "failed",
+     "took": true,
+     "refusal": null,
+     "readBack": "failed"
+    },
+    "exit-empty": {
+     "value": "off",
+     "took": true,
+     "refusal": null,
+     "readBack": "off"
+    },
+    "mouse": {
+     "value": "off",
+     "took": true,
+     "refusal": null,
+     "readBack": "off"
+    },
+    "copy-mode-position-format": {
+     "value": "",
+     "took": false,
+     "refusal": "invalid option: copy-mode-position-format",
+     "readBack": ""
+    },
+    "mode-style": {
+     "value": "noattr,bg=default,fg=default",
+     "took": false,
+     "refusal": "invalid style: noattr,bg=default,fg=default",
+     "readBack": "bg=yellow,fg=black",
+     "fallback": {
+      "value": "bg=default,fg=default",
+      "took": true,
+      "refusal": null
+     }
+    },
+    "history-limit": {
+     "value": "25000",
+     "took": true,
+     "refusal": null,
+     "readBack": "25000"
+    }
+   },
+   "indicator": {
+    "plain": "2948                                                          16:42:31 [30/2977]",
+    "hidden": "2948"
+   },
+   "capture": {
+    "joined": {
+     "bytes": 258,
+     "trailingSpaceLines": 1
+    },
+    "plain": {
+     "bytes": 256,
+     "trailingSpaceLines": 0
+    }
+   },
+   "pair": {
+    "before": {
+     "program": "tmux 3.5a",
+     "server": "3.5a 6612"
+    },
+    "install": 0,
+    "after": {
+     "program": "tmux 3.6b",
+     "server": "3.5a 6612"
+    },
+    "oldLive": "%begin 1791477800 287 1|gmux-control|keep|%end 1791477800 287 1|",
+    "newLive": {
+     "bytes": 6,
+     "exit": "124",
+     "head": "%exit|"
+    },
+    "attach": "open terminal failed: not a terminal|",
+    "server": {
+     "version": "3.5a 6612",
+     "sessions": "gmux-control keep "
+    }
+   }
+  },
+  "3.6": {
+   "rows": [
+    {
+     "row": "u2604",
+     "ref": "ubuntu:26.04",
+     "os": "Ubuntu 26.04.1 LTS",
+     "arch": "aarch64",
+     "package": "3.6a-2ubuntu0.1",
+     "tmux": "tmux 3.6",
+     "coreutils": "stat (uutils coreutils) 0.10.0",
+     "sh": "/usr/bin/dash"
+    }
+   ],
+   "agree": true,
+   "options": {
+    "status": {
+     "value": "off",
+     "took": true,
+     "refusal": null,
+     "readBack": "off"
+    },
+    "escape-time": {
+     "value": "0",
+     "took": true,
+     "refusal": null,
+     "readBack": "0"
+    },
+    "extended-keys": {
+     "value": "on",
+     "took": true,
+     "refusal": null,
+     "readBack": "on"
+    },
+    "allow-passthrough": {
+     "value": "on",
+     "took": true,
+     "refusal": null,
+     "readBack": "on"
+    },
+    "focus-events": {
+     "value": "on",
+     "took": true,
+     "refusal": null,
+     "readBack": "on"
+    },
+    "default-terminal": {
+     "value": "tmux-256color",
+     "took": true,
+     "refusal": null,
+     "readBack": "tmux-256color"
+    },
+    "remain-on-exit": {
+     "value": "failed",
+     "took": true,
+     "refusal": null,
+     "readBack": "failed"
+    },
+    "exit-empty": {
+     "value": "off",
+     "took": true,
+     "refusal": null,
+     "readBack": "off"
+    },
+    "mouse": {
+     "value": "off",
+     "took": true,
+     "refusal": null,
+     "readBack": "off"
+    },
+    "copy-mode-position-format": {
+     "value": "",
+     "took": true,
+     "refusal": null,
+     "readBack": ""
+    },
+    "mode-style": {
+     "value": "noattr,bg=default,fg=default",
+     "took": true,
+     "refusal": null,
+     "readBack": "noattr,bg=default,fg=default"
+    },
+    "history-limit": {
+     "value": "25000",
+     "took": true,
+     "refusal": null,
+     "readBack": "25000"
+    }
+   },
+   "indicator": {
+    "plain": "2948",
+    "hidden": "2948"
+   },
+   "capture": {
+    "joined": {
+     "bytes": 254,
+     "trailingSpaceLines": 1
+    },
+    "plain": {
+     "bytes": 252,
+     "trailingSpaceLines": 0
+    }
+   },
+   "pair": null
+  },
+  "3.7c": {
+   "rows": [
+    {
+     "row": "fed",
+     "ref": "fedora:latest",
+     "os": "Fedora Linux 44 (Container Image)",
+     "arch": "aarch64",
+     "package": "tmux-3.7c-1.fc44.aarch64",
+     "tmux": "tmux 3.7c",
+     "coreutils": "stat (GNU coreutils) 9.10",
+     "sh": "/usr/bin/bash"
+    },
+    {
+     "row": "arch",
+     "ref": "archlinux:latest",
+     "os": "Arch Linux",
+     "arch": "x86_64",
+     "package": "tmux 3.7_c-1",
+     "tmux": "tmux 3.7c",
+     "coreutils": "stat (GNU coreutils) 9.12",
+     "sh": "/usr/bin/bash"
+    }
+   ],
+   "agree": true,
+   "options": {
+    "status": {
+     "value": "off",
+     "took": true,
+     "refusal": null,
+     "readBack": "off"
+    },
+    "escape-time": {
+     "value": "0",
+     "took": true,
+     "refusal": null,
+     "readBack": "0"
+    },
+    "extended-keys": {
+     "value": "on",
+     "took": true,
+     "refusal": null,
+     "readBack": "on"
+    },
+    "allow-passthrough": {
+     "value": "on",
+     "took": true,
+     "refusal": null,
+     "readBack": "on"
+    },
+    "focus-events": {
+     "value": "on",
+     "took": true,
+     "refusal": null,
+     "readBack": "on"
+    },
+    "default-terminal": {
+     "value": "tmux-256color",
+     "took": true,
+     "refusal": null,
+     "readBack": "tmux-256color"
+    },
+    "remain-on-exit": {
+     "value": "failed",
+     "took": true,
+     "refusal": null,
+     "readBack": "failed"
+    },
+    "exit-empty": {
+     "value": "off",
+     "took": true,
+     "refusal": null,
+     "readBack": "off"
+    },
+    "mouse": {
+     "value": "off",
+     "took": true,
+     "refusal": null,
+     "readBack": "off"
+    },
+    "copy-mode-position-format": {
+     "value": "",
+     "took": true,
+     "refusal": null,
+     "readBack": ""
+    },
+    "mode-style": {
+     "value": "noattr,bg=default,fg=default",
+     "took": true,
+     "refusal": null,
+     "readBack": "noattr,bg=default,fg=default"
+    },
+    "history-limit": {
+     "value": "25000",
+     "took": true,
+     "refusal": null,
+     "readBack": "25000"
+    }
+   },
+   "indicator": {
+    "plain": "2948",
+    "hidden": "2948"
+   },
+   "capture": {
+    "joined": {
+     "bytes": 254,
+     "trailingSpaceLines": 1
+    },
+    "plain": {
+     "bytes": 252,
+     "trailingSpaceLines": 0
+    }
+   },
+   "pair": null
+  }
+ }
+}

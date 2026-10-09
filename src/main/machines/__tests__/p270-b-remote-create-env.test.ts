@@ -540,3 +540,83 @@ describe('the far server is booted before a create that carries names', () => {
     expect(sent.some((argv) => argv[0] === 'start-server')).toBe(false);
   });
 });
+
+/**
+ * PHASE 342'S FIX ROUND (major 1 and the minor on plain errors). Prepare told
+ * the person "so Tortie will not start sessions there" about a server that
+ * would not keep a setting Tortie cannot do without, and the verifier then
+ * started a session there from the sheet: the set-up had captured the PATH
+ * before it wrote the options, and a create that carries no names never runs
+ * the set-up again. The set-up now records the refusal, keyed by the server's
+ * version, and the create asks it beside the pair, before its create line.
+ * And a refusal met by the create's own set-up reaches the person as the
+ * structured error whose message is the sentence, never as Electron's prefix
+ * and a class name in front of it.
+ */
+describe('Phase 342: a create on a machine whose tmux would not keep a setting Tortie needs', () => {
+  const SENTENCE =
+    "tmux 3.7c would not keep a session's screen when its program fails, so Tortie will not start sessions there.";
+
+  it('is refused with sentence (1) before anything is created, when the set-up recorded the refusal', async () => {
+    const leaf = await import('../far-tmux');
+    leaf.resetFarTmuxForTests();
+    leaf.noteFarServerVersion(MACHINE, '3.7c');
+    leaf.noteFarSettingsRefused(MACHINE, { server: '3.7c', name: 'remain-on-exit', sentence: SENTENCE });
+    far.names = [];
+    answers['new-session'] = '$4\n';
+    const err = await remoteCreate({
+      machineId: MACHINE,
+      name: 'work',
+      projectPath: '/srv/repo',
+      cwd: '/srv/repo',
+      agent: 'shell'
+    }).catch((one: unknown) => one);
+    const { gmuxErrorPayloadOf } = await import('../../errors');
+    expect(gmuxErrorPayloadOf(err)?.code).toBe('INVALID_INPUT');
+    expect(gmuxErrorPayloadOf(err)?.message).toBe(SENTENCE);
+    expect(createArgv()).toBeNull();
+    expect(record.rows.size).toBe(0);
+    leaf.resetFarTmuxForTests();
+  });
+
+  it('a refusal met by the create’s own set-up is the structured error with the sentence, and a later create is refused too', async () => {
+    const leaf = await import('../far-tmux');
+    leaf.resetFarTmuxForTests();
+    leaf.noteFarServerVersion(MACHINE, '3.7c');
+    far.names = ['ANTHROPIC_API_KEY'];
+    far.answer = { resolved: ['ANTHROPIC_API_KEY'], missing: [], probeFailed: false };
+    answers['new-session'] = '$4\n';
+    // tmux's own refusal of the row written first, history-limit.
+    answers['set-option'] = gmuxError('TMUX_UNREACHABLE', 'set-option failed', 'invalid option: history-limit');
+    const err = await remoteCreate({
+      machineId: MACHINE,
+      name: 'work',
+      projectPath: '/srv/repo',
+      cwd: '/srv/repo',
+      agent: 'shell'
+    }).catch((one: unknown) => one);
+    const { gmuxErrorPayloadOf } = await import('../../errors');
+    const payload = gmuxErrorPayloadOf(err);
+    expect(payload?.code).toBe('INVALID_INPUT');
+    expect(payload?.message).toMatch(/^tmux 3\.7c would not keep [\d,]+ lines of each session, so Tortie will not start sessions there\.$/);
+    expect(String((err as Error).message)).not.toContain('RemoteTmuxRefused');
+    expect(createArgv()).toBeNull();
+    // Nothing was sent after the refused row.
+    const setAt = sent.findIndex((argv) => argv[0] === 'set-option');
+    expect(sent.slice(setAt + 1)).toEqual([]);
+    // The refusal was recorded, so a create with no names is refused as well.
+    expect(leaf.farSettingsRefusal(MACHINE)?.name).toBe('history-limit');
+    far.names = [];
+    delete answers['set-option'];
+    const again = await remoteCreate({
+      machineId: MACHINE,
+      name: 'work',
+      projectPath: '/srv/repo',
+      cwd: '/srv/repo',
+      agent: 'shell'
+    }).catch((one: unknown) => one);
+    expect(gmuxErrorPayloadOf(again)?.code).toBe('INVALID_INPUT');
+    expect(createArgv()).toBeNull();
+    leaf.resetFarTmuxForTests();
+  });
+});

@@ -148,9 +148,12 @@ describe('what the deadline branch must not take', () => {
   it('leaves a machine that answered with a version alone', async () => {
     shellSpent = 0;
     shellAnswer = 'tmux 3.6a\n';
+    // Phase 342: the answer says which read it came from, and a `-V` through
+    // the login shell is the program's own.
     expect(await readRemoteTmuxVersion(CTX)).toEqual({
       kind: 'version',
-      version: '3.6a'
+      version: '3.6a',
+      from: 'program'
     });
   });
 

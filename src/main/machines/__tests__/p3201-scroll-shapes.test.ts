@@ -24,7 +24,12 @@
  *    tab-separated `STATE_FORMAT` is refused, and the module names no format
  *    of its own (Phase 320.1's fix round);
  *  - the caller-side deadline answers the caller and leaves the late answer
- *    handled.
+ *    handled;
+ *  - since Phase 342 (build/p342/SPEC.md D11) the entry is ONE spelling,
+ *    `copy-mode -e -H -t $N`, which every runner that names a server emits,
+ *    `-H` stands in exactly two rows, and today's four-element entry, which
+ *    this Mac's runner still sends and which never reaches the table, is
+ *    refused beside the five-element spelling of every hostile copy-mode shape.
  */
 
 import { readFileSync } from 'node:fs';
@@ -153,6 +158,37 @@ describe('the table', () => {
     }
   });
 
+  it('admits the entry as exactly copy-mode -e -H -t $N, one spelling, since Phase 342', () => {
+    // build/p342/SPEC.md D11: `-H` hides tmux's position box on a tmux that
+    // has no copy-mode-position-format for Prepare to empty (3.2a to 3.5a).
+    const entry = SCROLL_SHAPES.find((shape) => shape.id === 'enter-copy-mode');
+    expect(entry?.argv).toEqual([
+      { kind: 'word', word: 'copy-mode' },
+      { kind: 'word', word: '-e' },
+      { kind: 'word', word: '-H' },
+      { kind: 'word', word: '-t' },
+      { kind: 'target' }
+    ]);
+    expect(entry?.idempotent).toBe(true);
+    expect(entry?.repeat).toContain('position 100');
+    expect(entry?.repeat).toContain('-H');
+    expect(admitScrollArgv(['copy-mode', '-e', '-H', '-t', '$3'])).toEqual({
+      ok: true,
+      shape: 'enter-copy-mode'
+    });
+    expect(admitScrollArgv(['copy-mode', '-e', '-t', '$3'])).toMatchObject({ ok: false });
+    // `-H` stands in exactly two rows, the entry and the seventh, and in no
+    // other slot of either.
+    const withH = SCROLL_SHAPES.filter((shape) =>
+      shape.argv.some((slot) => slot.kind === 'word' && slot.word === '-H')
+    ).map((shape) => shape.id);
+    expect(withH).toEqual(['enter-copy-mode', 'type-bytes']);
+    for (const shape of SCROLL_SHAPES) {
+      const hs = shape.argv.filter((slot) => slot.kind === 'word' && slot.word === '-H');
+      expect(hs.length, shape.id).toBeLessThanOrEqual(1);
+    }
+  });
+
   it('admits the seventh row with 1 to 256 lowercase two-digit bytes, and nothing else after -H', () => {
     expect(TYPED_BYTES_PER_COMMAND).toBe(256);
     const typed = (bytes: string[]): boolean =>
@@ -211,6 +247,10 @@ describe('every argv the shipping scroll.ts emits is admitted', () => {
     it(`through a ${flavour} runner`, async () => {
       const emitted = await everyEmittedArgv(flavour);
       expect(emitted.length).toBeGreaterThan(25);
+      // Phase 342: a runner that names a server enters with `-H`, every time.
+      const entries = emitted.filter((argv) => argv[0] === 'copy-mode');
+      expect(entries.length).toBeGreaterThan(0);
+      for (const argv of entries) expect(argv).toEqual(['copy-mode', '-e', '-H', '-t', '$3']);
       const seen = new Set<ScrollShapeId>();
       for (const argv of emitted) {
         const verdict = admitScrollArgv(argv);
@@ -234,6 +274,19 @@ describe('every argv the shipping scroll.ts emits is admitted', () => {
     await readPaneScroll(here, '$3');
     expect(calls).toEqual([['display-message', '-p', '-t', '$3', '-F', STATE_FORMAT]]);
     expect(admitScrollArgv(calls[0] ?? [])).toMatchObject({ ok: false });
+  });
+
+  it('this Mac\'s runner enters copy mode with today\'s four elements, which never reach the table (Phase 342)', async () => {
+    const calls: string[][] = [];
+    const here: TmuxScrollRunner = (args) => {
+      calls.push([...args]);
+      return Promise.resolve(args[0] === 'display-message' ? '1\t7\t9000\t40\t0\t0\t120\t' : '');
+    };
+    resetSeekSupportForTests();
+    await scrollPaneBy(here, '$3', 7);
+    const entries = calls.filter((argv) => argv[0] === 'copy-mode');
+    expect(entries).toEqual([['copy-mode', '-e', '-t', '$3']]);
+    expect(admitScrollArgv(entries[0] ?? [])).toMatchObject({ ok: false });
   });
 });
 
@@ -371,6 +424,34 @@ const HOSTILE: readonly (readonly unknown[])[] = [
   // Not strings at all.
   ['send-keys', '-t', 1, '-X', 'cancel'],
   ['send-keys', '-t', '$1', '-X', '-N', 5, 'scroll-up'],
+  // PHASE 342 (build/p342/SPEC.md D11, §6.1 condition 147). The entry is ONE
+  // spelling, `copy-mode -e -H -t $N`. Today's four elements, honest target
+  // and all, are refused now; every four-element copy-mode shape above stays
+  // refused; and every one of them again with `-H`, plus `-H` in any other
+  // place, twice, with a value, or folded into `-e`.
+  ['copy-mode', '-e', '-t', '$1'],
+  ['copy-mode', '-e', '-t', '$3'],
+  ['copy-mode', '-e', '-H', '-t', '@1'],
+  ['copy-mode', '-e', '-H', '-t'],
+  ['copy-mode', '-e', '-H', '-t', '$1', '-u'],
+  ['copy-mode', '-u', '-H', '-t', '$1'],
+  ['copy-mode', '-e', '-H', '-u', '-t', '$1'],
+  ['copy-mode', '-H', '-t', '$1', '-e'],
+  ['copy-mode', '-H', '-e', '-t', '$1'],
+  ['copy-mode', '-e', '-t', '$1', '-H'],
+  ['copy-mode', '-e', '-t', '-H', '$1'],
+  ['copy-mode', '-e', '-H', '-H', '-t', '$1'],
+  ['copy-mode', '-e', '-H', '61', '-t', '$1'],
+  ['copy-mode', '-eH', '-t', '$1'],
+  ['copy-mode', '-e', '-h', '-t', '$1'],
+  ['copy-mode', '-H', '-t', '$1'],
+  ['copy-mode', '-e', '-H', '-t', '%1'],
+  ['copy-mode', '-e', '-H', '-t', '=name'],
+  ['copy-mode', '-e', '-H', '-t', 'name'],
+  ['copy-mode', '-e', '-H', '-t', '$01'],
+  ['copy-mode', '-e', '-H', '-t', '$1 ; kill-server'],
+  ['copy-mode', '-e', '-H', '-t', '$1', ';', 'kill-server'],
+  ['copy-mode', '-e', '-H', '-t', 1],
   // THE SEVENTH ROW'S EDGES (build/p3201/SPEC.md §6.3): `-H` with no byte and
   // with 257, a byte in any other spelling, a key name after it, the other
   // send-keys flags beside it, `-H` before `-t`, and every target that is not
@@ -561,10 +642,10 @@ describe('the guarded runner', () => {
       isCurrent: () => true,
       server: 'machine:rig'
     });
-    void run(['copy-mode', '-e', '-t', '$3']).catch(() => undefined);
+    void run(['copy-mode', '-e', '-H', '-t', '$3']).catch(() => undefined);
     void run(['send-keys', '-t', '$3', '-X', '-N', '5', 'scroll-up']).catch(() => undefined);
     // No await between the two calls and the read below.
-    expect(lines).toEqual(['copy-mode -e -t $3', 'send-keys -t $3 -X -N 5 scroll-up']);
+    expect(lines).toEqual(['copy-mode -e -H -t $3', 'send-keys -t $3 -X -N 5 scroll-up']);
   });
 
   it('answers the caller at the deadline and leaves the late answer handled', async () => {

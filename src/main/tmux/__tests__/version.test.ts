@@ -24,6 +24,7 @@ import {
   TESTED_REMOTE_TMUX_VERSIONS,
   TESTED_TMUX_PAIRS,
   decideRemoteControlGate,
+  decideRemotePair,
   decideRemoteVersionGate,
   assertServerVersionUsable,
   composeVersionRemedy,
@@ -642,7 +643,7 @@ describe('decideRemoteControlGate', () => {
   it('refuses a version it could not read, and names what it has measured', () => {
     const gate = decideRemoteControlGate(null);
     assert.equal(gate.kind, 'unreadable');
-    assert.deepEqual([...gate.supported], ['3.6', '3.6a', '3.6b', '3.7b', '3.7c']);
+    assert.deepEqual([...gate.supported], ['3.2a', '3.3a', '3.4', '3.5a', '3.6', '3.6a', '3.6b', '3.7b', '3.7c']);
   });
 
   it('holds the five versions the probes measured on the live connection', () => {
@@ -653,7 +654,7 @@ describe('decideRemoteControlGate', () => {
     const measured = TESTED_REMOTE_TMUX_VERSIONS.filter(
       (row) => row.measured.control
     ).map((row) => row.version);
-    assert.deepEqual(measured, ['3.6', '3.6a', '3.6b', '3.7b', '3.7c']);
+    assert.deepEqual(measured, ['3.2a', '3.3a', '3.4', '3.5a', '3.6', '3.6a', '3.6b', '3.7b', '3.7c']);
   });
 
   it('never measures control without measuring exec first', () => {
@@ -758,7 +759,7 @@ describe('decideRemoteVersionGate', () => {
     const measured = TESTED_REMOTE_TMUX_VERSIONS.filter(
       (row) => row.measured.exec
     ).map((row) => row.version);
-    assert.deepEqual(measured, ['3.6', '3.6a', '3.6b', '3.7b', '3.7c']);
+    assert.deepEqual(measured, ['3.2a', '3.3a', '3.4', '3.5a', '3.6', '3.6a', '3.6b', '3.7b', '3.7c']);
   });
 
   it('accepts 3.7c, which is what the Mac Pro reports, and still refuses a made up version', () => {
@@ -807,8 +808,10 @@ describe('the 3.6 family rows (Phase 324)', () => {
   });
 
   it('admits nothing near them: the gates compare whole strings', () => {
-    // No version arithmetic, no trim, no case folding, and no row for an
-    // older version (his ruling of 2026-09-23 on 3.2a to 3.5a: "Not now").
+    // No version arithmetic, no trim, no case folding, and no row for a
+    // version nobody measured. PHASE 342 (build/p342/SPEC.md D1) measured 3.2a,
+    // 3.3a, 3.4 and 3.5a on the packages, so those four are rows now and
+    // their neighbours take their place here.
     for (const version of [
       '3.6 ',
       '3.6\r',
@@ -817,10 +820,14 @@ describe('the 3.6 family rows (Phase 324)', () => {
       '3.6-rc',
       'next-3.6',
       '3.6A',
-      '3.5a',
-      '3.4',
-      '3.3a',
-      '3.2a',
+      '3.5a ',
+      '3.5',
+      '3.4a',
+      '3.3',
+      '3.2',
+      '3.2A',
+      '3.1c',
+      '3.0a',
       '3.7',
       '3.7a',
       '3.8-rc'
@@ -893,5 +900,86 @@ describe('the 3.6 family rows (Phase 324)', () => {
     assert.ok(row !== undefined, '3.6a is not in the list');
     assert.equal(row.subject, 'the copy of tmux already on this Mac');
     assert.equal(row.measuredAt, '2026-08-17');
+  });
+});
+
+// PHASE 342 (build/p342/SPEC.md D1, D2, D7, D13, D14, D25). The four rows
+// before the 3.6 wire change, what each carries, and the pure pair gate.
+describe('the four rows before 3.6 and the pair (Phase 342)', () => {
+  const OLDER = ['3.2a', '3.3a', '3.4', '3.5a'] as const;
+
+  it('lists them oldest first, before 3.6, each measured on both planes', () => {
+    const versions = TESTED_REMOTE_TMUX_VERSIONS.map((row) => row.version);
+    assert.deepEqual(versions.slice(0, 4), [...OLDER]);
+    assert.equal(versions[4], '3.6');
+    for (const version of OLDER) {
+      const row = TESTED_REMOTE_TMUX_VERSIONS.find((one) => one.version === version);
+      assert.ok(row !== undefined, `${version} is not in the list`);
+      assert.deepEqual(row.measured, { exec: true, control: true });
+      assert.equal(row.measuredAt, '2026-10-07');
+    }
+  });
+
+  it('carries programs only before 3.6, each list its own version first and every member on the table', () => {
+    const table = new Set(TESTED_REMOTE_TMUX_VERSIONS.map((row) => row.version));
+    for (const row of TESTED_REMOTE_TMUX_VERSIONS) {
+      if ((OLDER as readonly string[]).includes(row.version)) {
+        assert.ok(row.programs !== undefined, `${row.version} carries no programs`);
+        assert.equal(row.programs[0], row.version);
+        for (const program of row.programs) assert.ok(table.has(program), program);
+      } else {
+        assert.equal(row.programs, undefined, `${row.version} carries programs`);
+        assert.equal(row.lacks, undefined, `${row.version} carries lacks`);
+        assert.equal(row.quirks, undefined, `${row.version} carries quirks`);
+      }
+    }
+    const programs = Object.fromEntries(
+      TESTED_REMOTE_TMUX_VERSIONS.filter((row) => row.programs).map((row) => [row.version, row.programs])
+    );
+    assert.deepEqual(programs, {
+      '3.2a': ['3.2a'],
+      '3.3a': ['3.3a', '3.5a'],
+      '3.4': ['3.4'],
+      '3.5a': ['3.5a']
+    });
+  });
+
+  it('declares what each refuses and how it answers, exactly as measured', () => {
+    const by = (version: string) => TESTED_REMOTE_TMUX_VERSIONS.find((row) => row.version === version);
+    assert.deepEqual(by('3.2a')?.lacks, ['allow-passthrough', 'copy-mode-position-format', 'mode-style']);
+    for (const version of ['3.3a', '3.4', '3.5a']) {
+      assert.deepEqual(by(version)?.lacks, ['copy-mode-position-format', 'mode-style'], version);
+    }
+    assert.deepEqual(by('3.2a')?.quirks, { joinedCapturePads: true });
+    assert.equal(by('3.3a')?.quirks, undefined);
+    assert.deepEqual(by('3.4')?.quirks, { dollarOnRead: true });
+    assert.equal(by('3.5a')?.quirks, undefined);
+  });
+
+  it('decides the pair purely: server-only from 3.6, measured on the list, refused otherwise', () => {
+    const versions = TESTED_REMOTE_TMUX_VERSIONS.map((row) => row.version);
+    for (const row of TESTED_REMOTE_TMUX_VERSIONS) {
+      for (const program of [...versions, null, '3.9z']) {
+        const verdict = decideRemotePair(row.version, program);
+        if (row.programs === undefined) {
+          assert.deepEqual(verdict, { kind: 'server-only' }, `${row.version} under ${String(program)}`);
+        } else if (program !== null && row.programs.includes(program)) {
+          assert.deepEqual(verdict, { kind: 'measured' }, `${row.version} under ${program}`);
+        } else {
+          assert.deepEqual(
+            verdict,
+            { kind: 'refused', server: row.version, program },
+            `${row.version} under ${String(program)}`
+          );
+        }
+      }
+    }
+    // A version with no row at all is server-only: nothing here admits it,
+    // and the version gate already refused it.
+    assert.deepEqual(decideRemotePair('3.0a', '3.0a'), { kind: 'server-only' });
+    // 3.2a under a 3.4 program is unmeasured on the packages, so refused.
+    assert.deepEqual(decideRemotePair('3.2a', '3.4'), { kind: 'refused', server: '3.2a', program: '3.4' });
+    assert.deepEqual(decideRemotePair('3.3a', '3.5a'), { kind: 'measured' });
+    assert.deepEqual(decideRemotePair('3.5a', '3.6b'), { kind: 'refused', server: '3.5a', program: '3.6b' });
   });
 });

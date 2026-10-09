@@ -111,12 +111,30 @@ import {
   type SpawnPlan
 } from './context';
 import { execOn } from './exec-plane';
+// PHASE 342 (build/p342/SPEC.md D3, D24). What this run knows about the
+// machine's tmux: the server version every read here reports is noted there,
+// and the verdict Prepare's one read of the program led to is CONSULTED, never
+// re-derived. This module reads no program, so the precheck stays the one
+// read it is and `execRemoteShell` gains no caller.
+import {
+  farPairBlocksLive,
+  farPairOf,
+  farPairRefusal,
+  noteFarServerVersion
+} from './far-tmux';
 import {
   guardedScrollRunner,
   type RemoteScrollCarriage
 } from './scroll-shapes';
 
 const machinesLog = getLog('config');
+
+/**
+ * The link's reason for a machine whose tmux has no live connection
+ * measurement, or whose program beside its server named no version (Phase
+ * 342). Not exported: the module's export list is condition 101's.
+ */
+const UNMEASURED_LINK_REASON = 'runs a version Tortie has not measured';
 
 /**
  * How long the precheck gets before Tortie gives up on this attempt.
@@ -564,21 +582,45 @@ export function remoteControlTransport(machineId: string): ControlTransport {
  * Exported so `GMUX_SMOKE` modes and the unit tests can watch the refusal fire.
  * A refusal nobody has watched fire is not a refusal.
  *
- * @throws GmuxError INVALID_INPUT with {@link CONTROL_DIALECT_UNMEASURED}
+ * PHASE 342 (build/p342/SPEC.md D3, D24). It is also the precheck's consult of
+ * the pair, which is why it lives here and not in the precheck: condition 100b
+ * holds the precheck to its three statements, and this can only REFUSE. The
+ * version it is handed is the SERVER's (the precheck's one read), so it is
+ * noted first, and a pair verdict recorded against a server that has since
+ * restarted at another version stops counting at that line. Then the gate
+ * refuses as it always did. Then, when the last Prepare read a program beside
+ * this very server that nobody measured with it, or one that named no version,
+ * it refuses with the pair's own first line, so the client's own backoff reads
+ * again and spawns nothing, exactly as a refused dialect does.
+ *
+ * @throws GmuxError INVALID_INPUT with {@link CONTROL_DIALECT_UNMEASURED}, or
+ *   with the pair sentence's first line
  */
 export function assertControlDialectMeasured(
   machineId: string,
   version: string | null
 ): string {
+  noteFarServerVersion(machineId, version);
   const gate = decideRemoteControlGate(version);
-  if (gate.kind === 'measured') return gate.version;
-  throw gmuxError(
-    'INVALID_INPUT',
-    CONTROL_DIALECT_UNMEASURED,
-    `${machineId} reports ${version ?? 'no version at all'} and this release ` +
-      `has measured the live connection for ` +
-      `${joinVersionList(gate.supported)}`
-  );
+  if (gate.kind !== 'measured') {
+    throw gmuxError(
+      'INVALID_INPUT',
+      CONTROL_DIALECT_UNMEASURED,
+      `${machineId} reports ${version ?? 'no version at all'} and this release ` +
+        `has measured the live connection for ` +
+        `${joinVersionList(gate.supported)}`
+    );
+  }
+  if (farPairBlocksLive(machineId)) {
+    throw gmuxError(
+      'INVALID_INPUT',
+      farPairRefusal(machineId) ?? CONTROL_DIALECT_UNMEASURED,
+      `${machineId}'s tmux ${gate.version} server runs beside a program the ` +
+        `last Prepare read as ${farPairOf(machineId)?.program ?? 'no version at all'}, ` +
+        `a pair Tortie has not measured, so no live connection is opened`
+    );
+  }
+  return gate.version;
 }
 
 // ---------------------------------------------------------------------------
@@ -598,6 +640,10 @@ export function assertControlDialectMeasured(
  *     in one command.
  *  4. The control gate. An unmeasured dialect returns false and NOTHING is
  *     opened, so that machine keeps the timer feed.
+ *  4a. PHASE 342. The pair the last Prepare read beside this server, consulted
+ *     in `./far-tmux.ts`. A program nobody measured with that server, or one
+ *     that named no version, returns false in the same way, and the read in
+ *     step 3 is what notes the server version the verdict is asked against.
  *  5. Start the client, which composes its plan through the one composer.
  *
  * It never throws. A machine that cannot be reached is a fact a surface draws,
@@ -672,15 +718,40 @@ export async function openControlPlane(
     );
     return false;
   }
+  // PHASE 342 (D3, D24). The read above is the SERVER's version, so the leaf
+  // learns it here, after the route check (a read over retired details is not
+  // this machine's) and whatever the gate says next.
+  noteFarServerVersion(machineId, version);
 
   const gate = decideRemoteControlGate(version);
   if (gate.kind !== 'measured') {
     dialectRefused.add(machineId);
-    setLink(machineId, 'polling', 'runs a version Tortie has not measured');
+    setLink(machineId, 'polling', UNMEASURED_LINK_REASON);
     machinesLog.info(
       `${machineId} reports ${version ?? 'no version at all'}, and this release ` +
         `has measured a live connection for ` +
         `${joinVersionList(gate.supported) || 'no version at all'}. It keeps the ` +
+        `timer feed and nothing was changed on either machine.`
+    );
+    return false;
+  }
+
+  // PHASE 342 (D3). The program beside this server, as the last Prepare read
+  // it, CONSULTED and never read here. A program nobody measured with this
+  // server would never greet over a live connection (measured: a 3.6b program
+  // beside a running 3.5a server sent nothing in ten seconds), so none is
+  // spawned, scroll-back there is the pass-through, and the machine keeps the
+  // timer feed, which answers across the pair. A connection already open
+  // returned above and is left alone: it is the old program's process, and it
+  // was measured still answering after the program was replaced.
+  if (farPairBlocksLive(machineId)) {
+    const pairLine = farPairRefusal(machineId);
+    dialectRefused.add(machineId);
+    setLink(machineId, 'polling', pairLine ?? UNMEASURED_LINK_REASON);
+    machinesLog.info(
+      `${machineId} runs tmux ${gate.version} beside a program the last Prepare ` +
+        `read as ${farPairOf(machineId)?.program ?? 'no version at all'}, a pair ` +
+        `Tortie has not measured, so no live connection was opened. It keeps the ` +
         `timer feed and nothing was changed on either machine.`
     );
     return false;

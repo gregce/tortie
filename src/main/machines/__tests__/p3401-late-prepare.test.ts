@@ -122,7 +122,8 @@ vi.mock('../remote-server', async (importOriginal) => {
         throw new real.RemoteServerSetUpStopped(true);
       }
       context.setMachineRemotePath(ctx.machineId, '/usr/bin:/bin');
-      return { born: false, remotePath: '/usr/bin:/bin', options: [], disagreed: [] };
+      // PHASE 342: the set-up also answers which optional rows were refused.
+      return { born: false, remotePath: '/usr/bin:/bin', options: [], disagreed: [], refused: [] };
     },
     remoteServerVerdict: () => Promise.resolve('running')
   };
@@ -577,7 +578,10 @@ describe('a restore overtaken by the same confirm (read from its body; no test d
     const start = src.indexOf('export async function restoreRemoteSession(');
     expect(start).toBeGreaterThan(-1);
     const body = src.slice(start);
-    const ctx = body.indexOf('const ctx = readyRemoteContext(machineId);');
+    // Phase 342's second fix round: the restore reaches its context through
+    // the create's own door, `readyContextToStart`, which is
+    // `readyRemoteContext` but for a set-up the boot line stopped.
+    const ctx = body.indexOf('const ctx = readyContextToStart(machineId);');
     const read = body.indexOf('const routeEpoch = machineRouteEpoch(machineId);');
     const server = body.indexOf('await ensureRemoteServer(ctx)');
     const guard = body.indexOf('if (machineRouteEpoch(machineId) === routeEpoch) {');

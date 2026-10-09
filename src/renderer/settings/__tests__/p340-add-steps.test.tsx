@@ -620,6 +620,24 @@ describe('the ready step', () => {
     expect(html).not.toContain('is ready.');
   });
 
+  // PHASE 342'S FIX ROUND. Main's one sentence that a session there can look
+  // a little different from one on this Mac, when the machine's tmux refused
+  // a setting its version was not measured refusing: one line under the ready
+  // line, and nothing at all on every machine Tortie measured. The verifier
+  // found it drawn nowhere a person could read it.
+  it('draws the prepared answer’s note under the ready line, and nothing when it carried none', () => {
+    const note =
+      "tmux 3.7c on this machine is too old for one of Tortie's settings, so a session there can look a little different from one on this Mac.";
+    const html = view({ added: { id: 'studio', label: 'Studio' }, addedResult: { ...prepared, note } });
+    expect(html).toContain('data-machines-ready-note="studio"');
+    expect(html).toContain(note.replace(/'/g, '&#x27;'));
+    expect(html.indexOf('>Studio is ready.<')).toBeLessThan(html.indexOf('data-machines-ready-note'));
+    for (const none of [undefined, null, '', '   ']) {
+      const bare = view({ added: { id: 'studio', label: 'Studio' }, addedResult: { ...prepared, note: none } });
+      expect(bare).not.toContain('data-machines-ready-note');
+    }
+  });
+
   it('draws main’s answer and Phase 83’s sheet when Prepare refused a new version', () => {
     const html = view({
       added: { id: 'studio', label: 'Studio' },

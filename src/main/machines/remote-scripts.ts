@@ -638,6 +638,15 @@ const MACHINE_FACTS = [
  * GNU `stat -c` answers on Linux. A machine with neither answers with the empty
  * word, which a caller reads as no candidates rather than as an error.
  *
+ * GNU IS TRIED FIRST since Phase 342, the order `context-read` gives its
+ * reason for: GNU `stat -f` is file-system status and printed five lines per
+ * file into the payload before it failed, and BSD `stat -c` prints nothing.
+ * Measured on GNU 8.32, 9.1, 9.4 and 9.7, uutils 0.10.0 and BusyBox, the
+ * BSD-first text answered six lines for every file, five of them file-system
+ * status and then the three-field one, and GNU first answers that one line
+ * alone; this Mac's answer is the same in both orders (SPEC D15, §Attack M-A1,
+ * and builder "far"'s re-run of the HEAD texts on 8.32, 9.1 and 9.4).
+ *
  * A listing that matched nothing answers {@link REMOTE_SCRIPT_EMPTY} rather
  * than nothing at all. That is deliberate: `./remote-run.ts` reads an empty
  * payload as a link that did not answer, and a store with no new records is a
@@ -657,8 +666,8 @@ const STORE_LIST = [
   'set -e',
   'umask 077',
   'if [ -d "$1" ]; then',
-  '  o=$({ find "$1" -maxdepth "$2" -type f -exec stat -f \'%m %z %N\' {} + 2>/dev/null ||',
-  '    find "$1" -maxdepth "$2" -type f -exec stat -c \'%Y %s %n\' {} + 2>/dev/null ||',
+  '  o=$({ find "$1" -maxdepth "$2" -type f -exec stat -c \'%Y %s %n\' {} + 2>/dev/null ||',
+  '    find "$1" -maxdepth "$2" -type f -exec stat -f \'%m %z %N\' {} + 2>/dev/null ||',
   '    true; } | awk -v s="$3" \'{ split($0, p, " "); if (s + 0 <= p[1] + 0) print $0 }\')',
   'else',
   '  o=',
@@ -2301,7 +2310,8 @@ const COMMIT_FILES = [
  *
  * Metadata comes from `stat` in its two spellings, batched through
  * `find -exec … {} +` rather than one spawn per entry, the `STORE_LIST`
- * precedent. The ORDER IS REVERSED from `STORE_LIST`, deliberately. GNU
+ * precedent. The ORDER WAS REVERSED from `STORE_LIST`, deliberately, until
+ * Phase 342 put `STORE_LIST` in this order too. GNU
  * `stat -f` means "file system status" and prints multi line blocks to stdout
  * before failing on the format string, so trying the BSD spelling first on a
  * Linux machine would put garbage lines into the payload. BSD `stat -c` fails
@@ -2834,8 +2844,22 @@ const repoAnchor = (
  *     before the `mv`, on the checksum arm only. Research 57 section 4.2
  *     measured a 755 file put through the `image-put` shape coming back 600,
  *     and reading the mode and running `chmod` before the `mv` returning it to
- *     755. `stat -f %Lp` is tried first and `stat -c %a` second, because only
- *     one arm64 Mac was ever tested and no Linux machine was contacted.
+ *     755. Until Phase 342 `stat -f %Lp` was tried first and `stat -c %a`
+ *     second, because only one arm64 Mac was ever tested and no Linux machine
+ *     was contacted. Phase 342 contacted seven (SPEC §14 M11): on every GNU
+ *     and uutils build, `stat -f %Lp` printed five lines of file-system status
+ *     to stdout and exited 1, `chmod` refused them as a mode, and every save
+ *     over an existing file ended with no answer, its old contents kept and a
+ *     `.tortie-part` left beside it. The mode is now read by the spelling
+ *     {@link folderCheck} chose once as `wq`: `stat -c %a` when `wq` is `-c`,
+ *     `stat -f %Lp` otherwise. GNU's `%a` keeps a set-group-ID bit (`2775`),
+ *     which `chmod` then applies, as BSD's `%Lp` never carried. `dir-new`
+ *     reads its parent's mode the same way. `entry-rename`'s two `stat` pairs
+ *     still try BSD first, and that is deliberate: its pair is COMPARED and
+ *     never printed or kept, GNU's two file-system blocks differ in their
+ *     `File:` line for any two names, and reading the real identity there
+ *     sent two names of one file to `mv`, which GNU refuses with no answer
+ *     (SPEC D15, §Attack M-A1).
  *  5. On the `new` arm there is no existing file, so there is no mode to read
  *     and `nomode` cannot fire. The new file is created under `umask 077`,
  *     which the whole catalogue sets on its second line, so it lands at 600. A
@@ -2925,8 +2949,11 @@ const FILE_PUT = [
   "    printf '__TORTIE_RUN__stale %s none__TORTIE_RUN__\\n' \"$c\"",
   '    exit 0',
   '  fi',
-  '  m=$(stat -f %Lp "$f" 2>/dev/null || true)',
-  '  if [ -z "$m" ]; then m=$(stat -c %a "$f" 2>/dev/null || true); fi',
+  // PHASE 342. The spelling `folderCheck` chose ONCE, as `wq`, rather than
+  // BSD first: GNU `stat -f` is file-system status and prints five lines to
+  // stdout before it fails, which `chmod` then refused, so every save over an
+  // existing file on Linux stopped here with no answer (SPEC D15, §14 M11).
+  '  if [ "$wq" = -c ]; then m=$(stat -c %a "$f" 2>/dev/null || true); else m=$(stat -f %Lp "$f" 2>/dev/null || true); fi',
   '  if [ -z "$m" ]; then',
   "    printf '__TORTIE_RUN__nomode none none__TORTIE_RUN__\\n'",
   '    exit 0',
@@ -3063,8 +3090,10 @@ const DIR_NEW = [
   "  printf '__TORTIE_RUN__denied none__TORTIE_RUN__\\n'",
   '  exit 0',
   'fi',
-  'm=$(stat -f %Lp "$p" 2>/dev/null || true)',
-  'if [ -z "$m" ]; then m=$(stat -c %a "$p" 2>/dev/null || true); fi',
+  // PHASE 342. By the spelling `folderCheck` chose, for the reason `file-put`
+  // gives at its mode line: BSD first made every folder 700 on Linux and
+  // answered `made` followed by five lines main cannot read.
+  'if [ "$wq" = -c ]; then m=$(stat -c %a "$p" 2>/dev/null || true); else m=$(stat -f %Lp "$p" 2>/dev/null || true); fi',
   'mkdir "$d"',
   'case "$m" in',
   '  *[57][57]) chmod 755 "$d";;',

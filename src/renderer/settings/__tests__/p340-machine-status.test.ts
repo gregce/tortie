@@ -132,6 +132,38 @@ describe('the revised table, row by row, first match wins', () => {
     expect(NEXT_STEP_LABEL['review-version']).toBe('Review…');
   });
 
+  // PHASE 342 (build/p342/SPEC.md D18, §Attack F10). A machine whose tmux
+  // Tortie will not use as it is: the Not usable chip with main's first
+  // sentence and no next step, BEFORE the link's arms, because when the
+  // program was replaced beside a running server the context stays registered
+  // and the link polls, which the Ready arm would draw as Ready.
+  it('last sign in program-refused: Not usable, main’s own sentences, no next step', () => {
+    const s = machineStatusOf(row({ signIn: signIn('program-refused') }), idle);
+    expect(s.chip).toBe('not-usable');
+    expect(s.word).toBe('Not usable');
+    expect(s.next).toBeNull();
+    expect(s.hover).toBe('headline for program-refused. detail for program-refused.');
+  });
+
+  it('last sign in program-refused beats a ready row with an answering link', () => {
+    for (const link of ['connected', 'polling'] as const) {
+      const s = machineStatusOf(row({ ready: true, link, signIn: signIn('program-refused') }), idle);
+      expect({ link, chip: s.chip, next: s.next }).toEqual({ link, chip: 'not-usable', next: null });
+    }
+  });
+
+  it('a prepared sign in carrying a note draws it after the Ready hover (the fix round)', () => {
+    const note = "tmux 3.7c on this machine is too old for one of Tortie's settings, so a session there can look a little different from one on this Mac.";
+    const s = machineStatusOf(
+      row({ ready: true, link: 'connected', linkDetail: 'It is answering.', signIn: { ...(signIn('prepared') as NonNullable<MachineRowView['signIn']>), note } }),
+      idle
+    );
+    expect(s.chip).toBe('ready');
+    expect(s.hover).toBe(`It is answering. ${note}`);
+    const bare = machineStatusOf(row({ ready: true, link: 'connected', linkDetail: 'It is answering.', signIn: signIn('prepared') }), idle);
+    expect(bare.hover).toBe('It is answering.');
+  });
+
   it('a Prepare in flight here, or link connecting: Connecting, no next step', () => {
     const inFlight = machineStatusOf(row({ ready: true, link: 'connected' }), {
       preparing: true

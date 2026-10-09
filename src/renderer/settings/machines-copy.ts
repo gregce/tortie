@@ -692,7 +692,20 @@ export const COLOUR_LABEL: Readonly<Record<MachineColor, string>> = {
  * fails when the two disagree, so the list is kept honest by a test rather
  * than by a promise.
  */
-export const MEASURED_VERSIONS: readonly string[] = ['3.6', '3.6a', '3.6b', '3.7b', '3.7c'];
+export const MEASURED_VERSIONS: readonly string[] = [
+  // PHASE 342 (build/p342/SPEC.md D1, D17). The four rows before 3.6, each
+  // measured on the copy a package manager installs on a scratch machine
+  // Tortie made for the measurement, oldest first.
+  '3.2a',
+  '3.3a',
+  '3.4',
+  '3.5a',
+  '3.6',
+  '3.6a',
+  '3.6b',
+  '3.7b',
+  '3.7c'
+];
 
 /** The one row drawn while the check runs. `label` is the machine's name. */
 export function checkingLine(label: string): string {
@@ -982,7 +995,12 @@ export const REMEDY: Readonly<Record<MachineTestClass, string | null>> = {
   // is the option main never names, so it goes first.
   'version-unmeasured':
     'Wait for a Tortie release that has measured the version that machine ' +
-    'runs, or put a version Tortie has already measured on it.'
+    'runs, or put a version Tortie has already measured on it.',
+  // PHASE 342 (build/p342/SPEC.md D18). No advice: main's detail says what
+  // is true (a setting that tmux is too old for, a program updated beside a
+  // server that kept running, a server that is not the version it says), and
+  // Tortie names no install command (the rule in src/main/machines/errors.ts).
+  'program-refused': null
 };
 
 /**

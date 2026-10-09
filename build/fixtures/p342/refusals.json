@@ -1,0 +1,170 @@
+{
+ "source": "Measured by npm run measure:p342 (build/p342/measure-p342.mjs) on 2026-10-08, in throwaway containers made by build/docker-run.mjs from the distributions' own images, each with the tmux its own package manager installs, on scratch sockets inside each container. Never -L gmux, never this Mac's tmux.",
+ "refusals": [
+  {
+   "shape": "bad value",
+   "scope": "-g",
+   "name": "mouse",
+   "value": "maybe",
+   "text": "bad value: maybe",
+   "versions": [
+    "3.2a",
+    "3.4",
+    "3.6",
+    "3.3a",
+    "3.5a",
+    "3.7c"
+   ]
+  },
+  {
+   "shape": "value is invalid",
+   "scope": "-g",
+   "name": "history-limit",
+   "value": "abc",
+   "text": "value is invalid: abc",
+   "versions": [
+    "3.2a",
+    "3.4",
+    "3.6",
+    "3.3a",
+    "3.5a",
+    "3.7c"
+   ]
+  },
+  {
+   "shape": "value is too small",
+   "scope": "-g",
+   "name": "history-limit",
+   "value": "-5",
+   "text": "value is too small: -5",
+   "versions": [
+    "3.2a",
+    "3.4",
+    "3.6",
+    "3.3a",
+    "3.5a",
+    "3.7c"
+   ]
+  },
+  {
+   "shape": "value is too large",
+   "scope": "-g",
+   "name": "history-limit",
+   "value": "2147483648",
+   "text": "value is too large: 2147483648",
+   "versions": [
+    "3.2a",
+    "3.4",
+    "3.6",
+    "3.3a",
+    "3.5a",
+    "3.7c"
+   ]
+  },
+  {
+   "shape": "value is too large",
+   "scope": "-g",
+   "name": "history-limit",
+   "value": "99999999999",
+   "text": "value is too large: 99999999999",
+   "versions": [
+    "3.2a",
+    "3.4",
+    "3.6",
+    "3.3a",
+    "3.5a",
+    "3.7c"
+   ]
+  },
+  {
+   "shape": "unknown value",
+   "scope": "-g",
+   "name": "remain-on-exit",
+   "value": "sometimes",
+   "text": "unknown value: sometimes",
+   "versions": [
+    "3.2a",
+    "3.4",
+    "3.6",
+    "3.3a",
+    "3.5a",
+    "3.7c"
+   ]
+  },
+  {
+   "shape": "value is invalid",
+   "scope": "-s",
+   "name": "escape-time",
+   "value": "x",
+   "text": "value is invalid: x",
+   "versions": [
+    "3.2a",
+    "3.4",
+    "3.6",
+    "3.3a",
+    "3.5a",
+    "3.7c"
+   ]
+  },
+  {
+   "shape": "value is too large",
+   "scope": "-s",
+   "name": "escape-time",
+   "value": "99999999999",
+   "text": "value is too large: 99999999999",
+   "versions": [
+    "3.2a",
+    "3.4",
+    "3.6",
+    "3.3a",
+    "3.5a",
+    "3.7c"
+   ]
+  },
+  {
+   "shape": "invalid style",
+   "scope": "-g",
+   "name": "mode-style",
+   "value": "bogus=1",
+   "text": "invalid style: bogus=1",
+   "versions": [
+    "3.2a",
+    "3.4",
+    "3.6",
+    "3.3a",
+    "3.5a",
+    "3.7c"
+   ]
+  },
+  {
+   "shape": "invalid option",
+   "scope": "-g",
+   "name": "no-such-option",
+   "value": "x",
+   "text": "invalid option: no-such-option",
+   "versions": [
+    "3.2a",
+    "3.4",
+    "3.6",
+    "3.3a",
+    "3.5a",
+    "3.7c"
+   ]
+  },
+  {
+   "shape": "unknown value",
+   "scope": "-g",
+   "name": "status",
+   "value": "sometimes",
+   "text": "unknown value: sometimes",
+   "versions": [
+    "3.2a",
+    "3.4",
+    "3.6",
+    "3.3a",
+    "3.5a",
+    "3.7c"
+   ]
+  }
+ ]
+}

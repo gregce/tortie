@@ -356,9 +356,35 @@ export {
   ensureRemoteServer,
   remoteBootArgs,
   remoteServerVerdict,
+  // Phase 342: a server whose tmux Tortie will not use as it is, and how a
+  // create and a restore answer it.
+  RemoteTmuxRefused,
+  throwAsSessionError,
   type RemoteOptionReadback,
-  type RemoteServerResult
+  type RemoteOptionRefusal,
+  type RemoteServerResult,
+  type RemoteTmuxRefusal
 } from './remote-server';
+
+// Phase 342 (build/p342/SPEC.md D24). What this run knows about a machine's
+// tmux: the server version, the pair verdict, and a setting Tortie cannot do
+// without that the server would not keep. A leaf, so anything may ask it.
+export {
+  assertFarPairUsable,
+  assertFarSettingsHeld,
+  farPairBlocksLive,
+  farPairOf,
+  farPairRefusal,
+  farServerRow,
+  farServerVersion,
+  farSettingsRefusal,
+  forgetFarTmux,
+  noteFarPair,
+  noteFarServerVersion,
+  type FarPairKind,
+  type FarPairRecord,
+  type FarSettingsRefusal
+} from './far-tmux';
 
 export {
   captureRemotePath,

@@ -1061,6 +1061,15 @@ export const CHECKS = [
   // twenty-two helper ablations prove it. It spawns nothing and needs no
   // Xcode, and it runs inside npm run build.
   pure('gate:simulator'),
+  // PHASE 342 (build/p342/SPEC.md §6.2). Only build/docker-run.mjs hands
+  // the container program a spawn, every name it composes begins
+  // tortie-p342-, it never prunes, builds, logs in, mounts, names the socket or
+  // removes by pattern, its teardown is inside a `finally` with the four
+  // signal handlers installed before the first pull or run, it never pulls or
+  // removes an image his before list holds, and the population of callers has
+  // a floor. Bad fixtures, controls and one-clause helper ablations prove it
+  // can fail. It spawns nothing and runs inside npm run build.
+  pure('gate:docker'),
   // PHASE 206 ITEM 5. The same rule for anything else a script starts, being a
   // shell, a server, a sleeper or a load generator. It scans build/ for an
   // asynchronous spawn that is detached or is a runner that does not stop by
@@ -1240,6 +1249,20 @@ export const CHECKS = [
   // Antigravity, Grok and Droid binaries. No model turn and no token.
   // `--grader-self-test` grades recorded fixtures and starts nothing.
   remote('probe:p343'),
+  // PHASE 342's app run (build/p342/SPEC.md §7.5 to §7.7): the Linux matrix
+  // in the app. ONE Electron per build through build/electron-run.mjs's
+  // withElectron, the parent first when P342_PARENT_CHECKOUT names a built
+  // checkout, each on its own scratch profile, HOME and harness socket,
+  // reaching THROWAWAY CONTAINERS in his Docker, made and ended only by
+  // build/docker-run.mjs (every one removed by exact name in a `finally`, the
+  // lists compared with the before lists), through an ssh wrapper whose first
+  // two arguments are -F <the run's own config> and the tailnet stand-in, both
+  // preflighted by sha256 and sampled. N1 runs on the loopback machine with
+  // P342_FAR=loopback, which is why this is `remote`. A scratch agents.json
+  // renames the Gemini, Qwen, Antigravity, Grok and Droid binaries; every
+  // agent is a /bin/sh stand-in. No model turn and no token.
+  // `--grader-self-test` grades recorded fixtures and starts nothing.
+  remote('probe:p342'),
   // PHASE 326's app run (build/p326/SPEC.md §8): the first session in a remote
   // tab draws its screen. TWO Electrons one after the other on one scratch
   // profile through build/electron-run.mjs's withElectron, a scratch HOME and
@@ -1340,6 +1363,23 @@ export const CHECKS = [
   // stand-in, recorder and sampler pid is ended by pid in its `finally`.
   // `--grader-self-test` grades recorded fixtures and starts nothing.
   remote('probe:p337'),
+  // PHASE 342's measurement (build/p342/SPEC.md §7.4): the re-derivation
+  // outside Electron. Through build/docker-run.mjs, one throwaway container per
+  // distribution in his Docker, each the distribution's own image with its own
+  // tmux installed inside by its own package manager, every one removed by
+  // exact name in a `finally` and the lists compared; the SHIPPING composers
+  // and readers through the pinned tsx (build/p342/drive-p342.mts), every far
+  // string handed to the container's /bin/sh by an ssh stand-in that runs only
+  // its last argument there; the far texts on this Mac under /bin/sh and
+  // /bin/dash over a scratch tree removed in a `finally`. It writes
+  // build/fixtures/p342/ with --write and grades the committed fixtures
+  // otherwise; `--self-test` grades recorded fixtures and starts nothing. No
+  // Electron, no real ssh, no model, no agent; nothing names -L gmux. His
+  // shell history is read, size and time only, before and after.
+  remote(
+    'measure:p342',
+    'Docker Desktop answering, at least 10 GB free, the pinned tsx; throwaway containers named tortie-p342-*, every one removed and proved gone; nothing on this Mac is installed'
+  ),
   // PHASE 337's measurement (build/p337/SPEC.md §7.6): the SHIPPING
   // src/main/screen/** (the read, the composer, the watcher and the keys
   // verb), TmuxControlClient and the carriage's key composer under the pinned
@@ -2438,6 +2478,20 @@ export const CHECKS = [
   // --self-test run nothing. No Electron, no tmux, no real ssh, no agent.
   // About twenty minutes for every arm (1,182 s measured, 31 arms).
   pure('ablation:p340'),
+  // PHASE 342's attack on its own gate (build/p342/SPEC.md §6.3): one clause
+  // at a time broken in the SHIPPING source of a `cp -Rc` clone of src/,
+  // build/ and resources/ under /private/tmp (node_modules symlinked), each
+  // required to turn THE CONDITION THAT OWNS IT (142 to 149, and 10's, 102's
+  // and 109's re-pointed clauses) or the renderer case that owns the chip
+  // newly red, plus one control arm that edits a comment and must leave every
+  // check where the base left it. Every clone file is restored and proved by
+  // sha256 in a `finally`, the clone is removed in a `finally` and on a
+  // signal, and the worktree's bytes are asserted unmoved. The gate it runs
+  // starts the shells its conditions name over scratch trees it removes,
+  // conditions 145, 146 and 149's /bin/sh stand-ins among them. P342_ONLY runs
+  // named arms; --list and --self-test run nothing. No Electron, no tmux, no
+  // ssh, no Docker, no agent.
+  pure('ablation:p342', NEEDS.vitest),
   // PHASE 343's attack on its own rules (build/p343/SPEC.md §9.2): one clause
   // at a time broken in the SHIPPING source of a `cp -Rc` clone of src/,
   // build/ and resources/ under /private/tmp (node_modules symlinked), each

@@ -107,7 +107,9 @@ import { assertArgvBelongsToMachine, findRemoteProgram } from './remote-argv';
 // the per machine agent map, on both arms, for zero extra round trips.
 import { noteMachineAgent } from './machine-agents';
 import { execOn } from './exec-plane';
-import { ensureRemoteServer } from './remote-server';
+import { ensureRemoteServer, throwAsSessionError } from './remote-server';
+// PHASE 342 (build/p342/SPEC.md D4b, D24). The pair verdict, asked after step 3.
+import { assertFarPairUsable } from './far-tmux';
 // PHASE 340.1's fix round. Whether a confirm of changed details retired this
 // machine's route while a restore was out, read around the restore's feed.
 import { machineRouteEpoch } from './context';
@@ -148,6 +150,7 @@ import {
   oneLine,
   parseRemoteListLine,
   pollRemoteMachine,
+  readyContextToStart,
   readyRemoteContext,
   REMOTE_CREATE_ENV_TIMEOUT_MS,
   remoteCreateArgs,
@@ -317,7 +320,11 @@ export async function restoreRemoteSession(
   // compares two answers that came from two places. They agree by construction
   // today, and the day they stop agreeing is the day a restore would compose a
   // command for one machine and send it to another.
-  const ctx = readyRemoteContext(machineId);
+  //
+  // PHASE 342'S SECOND FIX ROUND. A machine whose set-up stopped on a setting
+  // Tortie cannot do without before it could sign in says so, never "has not
+  // signed in" (`readyContextToStart`, the create's own door).
+  const ctx = readyContextToStart(machineId);
   assertArgvBelongsToMachine(machineId, ctx.machineId);
   // PHASE 340.1's fix round. Read in the same tick as the context, and asked
   // again before step 8's feed.
@@ -327,7 +334,23 @@ export async function restoreRemoteSession(
   // mutation. A machine that rebooted between two passes has a fresh server with
   // tmux's own defaults on it, and `ensureRemoteServer` is what puts Tortie's
   // back and captures the PATH the new pane will take.
-  const server = await ensureRemoteServer(ctx);
+  //
+  // PHASE 342'S FIX ROUND. A server that would not keep a setting Tortie cannot
+  // do without stops the restore here, before anything is created, with the
+  // structured error whose message is sentence (1): a plain error reached the
+  // person as "Error invoking remote method 'sessions:restore':
+  // RemoteTmuxRefused: …", and at the parent this step threw the exec plane's
+  // error, whose message carried the whole ssh command line.
+  const server = await ensureRemoteServer(ctx).catch(throwAsSessionError);
+  // PHASE 342 (build/p342/SPEC.md D4b). A machine whose tmux was replaced while
+  // its server kept running, by a program Tortie has not measured with that
+  // server, gets no restored session, because its attach would exit at once.
+  // AFTER step 3, never before it: a restore after a reboot meets a server
+  // `ensureRemoteServer` has just started, and its re-read of that server's
+  // version clears a verdict recorded against the server that is gone. Before
+  // the create below is composed, and synchronous. It throws the pair
+  // sentence's first line.
+  assertFarPairUsable(machineId);
 
   // Step 3b. WHERE THAT MACHINE KEEPS THE PROGRAM, ASKED AGAIN, AND THE ANSWER
   // IS WHAT LAUNCHES.
@@ -460,7 +483,15 @@ export async function restoreRemoteSession(
   // Step 6. The create. `remoteCreateArgs` is the SAME composer the create path
   // uses, so both identity variables ride the line itself and a create whose
   // answer is lost is still identifiable by reading the pane environment back.
-  const tmuxName = record.tmuxName.length > 0 ? record.tmuxName : record.name;
+  // PHASE 342 (build/p342/SPEC.md D12). Every `$` in the record's far name as
+  // `_`, the create's own rule (`farTmuxName`), and no dedupe, as today: tmux
+  // 3.2a to 3.4 store a `$` and a letter with a backslash, so `=<name>` would
+  // miss the session this restore makes, and a name beginning with `$` reads as
+  // an id. The manifest takes the new name at step 8.
+  const tmuxName = (record.tmuxName.length > 0 ? record.tmuxName : record.name).replace(
+    /\$/g,
+    '_'
+  );
   // PHASE 270, issue 20. The same names a create reads, read the same way, so a
   // person's remote session does not hold its variables until the first restore
   // and then quietly lose them — which is the silence this phase exists to end.

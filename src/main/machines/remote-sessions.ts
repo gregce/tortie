@@ -210,7 +210,18 @@ import type { MachineExecutionFields } from './confirm';
 import { readyRemoteContext } from './ready-context';
 import { REMOTE_STAMPS, oneLine, remoteStampArgs } from './remote-stamps';
 import { execOn } from './exec-plane';
-import { ensureRemoteServer } from './remote-server';
+import { ensureRemoteServer, throwAsSessionError } from './remote-server';
+// PHASE 342 (build/p342/SPEC.md D4b, D13, D24). The leaf holding what this run
+// knows about a machine's tmux: the row for the server version Prepare read
+// (whose quirks the feed's pass reads) and the pair verdict a create asks, and
+// since its fix round a setting Tortie cannot do without that the server
+// would not keep, which a create asks too.
+import {
+  assertFarPairUsable,
+  assertFarSettingsHeld,
+  assertFarVersionAgrees,
+  farServerRow
+} from './far-tmux';
 import { machineColorOf, machineLabelOf, machineRow } from './store';
 // Phase 72, widened in Phase 84. The per machine program path, captured on that
 // machine and recorded against that machine's id. Since Phase 84 it is also
@@ -1014,6 +1025,64 @@ export function parseRemoteListLine(line: string): RemoteListRow | null {
   };
 }
 
+/**
+ * tmux 3.4's dollar on read, undone (Phase 342, build/p342/SPEC.md D13). Pure.
+ *
+ * 3.4 alone answers every stored value and path that holds `$` followed by a
+ * letter, `_` or `{` with ONE backslash inserted before that `$`, on OUTPUT
+ * only: a stamp `a $HOME b` reads back `a \$HOME b`, a folder `/tmp/x $d`
+ * reads back `/tmp/x \$d`, while the pane itself printed `a$b` (§14 M9). It
+ * never inserts one before `$` and a digit, `$-`, `$$`, `$#`, `$}`, `$é` or a
+ * trailing `$`, and 3.2a, 3.3a, 3.5a and later insert none. So this removes
+ * exactly ONE backslash immediately before every `$[A-Za-z_{]`, which is the
+ * one 3.4 put there; a backslash the value really held before such a `$` was
+ * answered as two and keeps one.
+ *
+ * It is applied after {@link splitQuotedLine} has undone tmux's own quoting,
+ * to `@gmux-name`, `@gmux-project` and `session_path` alone, and only for a
+ * machine whose server reported 3.4 (the row's `dollarOnRead` quirk); the
+ * pure line reader {@link parseRemoteListLine} does not know about it.
+ */
+export function undoDollarEscape(field: string): string {
+  return field.replace(/\\(\$[A-Za-z_{])/g, '$1');
+}
+
+/** One listed row with 3.4's dollar undone in the three fields a person reads. */
+function withDollarUndone(row: RemoteListRow): RemoteListRow {
+  return {
+    ...row,
+    name: undoDollarEscape(row.name),
+    projectPath: undoDollarEscape(row.projectPath),
+    cwd: undoDollarEscape(row.cwd)
+  };
+}
+
+/**
+ * The tmux name a session on another machine is created or renamed to (Phase
+ * 342, build/p342/SPEC.md D12): this Mac's sanitizer, then every `$` as `_`,
+ * then the dedupe against the names that machine already holds. Pure.
+ *
+ * WHY NO `$`. tmux 3.2a, 3.3a and 3.4 STORE a session name holding `$` and a
+ * letter with a backslash (`cost $HOME` becomes `cost \$HOME`), so the exact
+ * target `=cost $HOME` misses it, the create's own confirmation misses the
+ * session it just made, and a second session with the same display name meets
+ * tmux's "duplicate session" (§14 M9). `$` alone misses `=$` on every version.
+ * And a name that BEGINS with `$` reads as an immutable id to every `-t` this
+ * file composes through `formatSessionTarget`.
+ *
+ * WHY `_` AND NEVER `-`. `rename-session` reads its name as a positional with
+ * no `--`, and a name beginning with `-` is read as flags on every version,
+ * 3.6 included (`-HOME` answers "unknown flag -H", §Attack M-A4), so `-` would
+ * break a rename to `$HOME notes` on the machines that work today. `_HOME
+ * notes` renames and matches on all of them.
+ *
+ * Only the FAR tmux name moves. The display name (`@gmux-name`) keeps every
+ * character a person typed, and this Mac's own session names are untouched.
+ */
+export function farTmuxName(display: string, taken: ReadonlySet<string>): string {
+  return dedupeSessionName(sanitizeSessionName(display).replace(/\$/g, '_'), taken);
+}
+
 /** What the last completed list knew about one row, for the ladder below. */
 export interface RemoteRowMemory {
   /** That machine's clock, from the last list that held this row. */
@@ -1564,6 +1633,38 @@ export function machineCanHoldSession(machineId: string): boolean {
 }
 
 /**
+ * The context a create or a restore STARTS a session through (Phase 342's
+ * second fix round): {@link readyRemoteContext}, except that a machine it
+ * refuses as not signed in, whose set-up stopped on a setting Tortie cannot do
+ * without, is refused with that refusal's own sentence (1).
+ *
+ * WHY. When a tmux refuses `exit-empty` on the boot line, which is the first
+ * thing a born server is sent, the set-up stops before the PATH capture, so
+ * {@link readyRemoteContext} refuses the create with "Tortie has not signed in
+ * to that machine yet … prepare it", which is untrue (it signed in) and sends
+ * the person back to a Prepare that repeats the refusal. The verifier
+ * measured it. The refusal the set-up recorded is the true sentence, and it
+ * is asked ONLY when the context was refused, so every machine that is ready
+ * reaches the create's own synchronous ask before its create line exactly as
+ * before, and a machine that is simply not signed in still reads the sentence
+ * it always did. A set-up that stopped because the server it started runs as
+ * another version than its program said stops at the same place, and is
+ * answered sentence (4)'s first line for the same reason.
+ *
+ * @throws GmuxError INVALID_INPUT with sentence (1), sentence (4)'s first line,
+ *   or {@link readyRemoteContext}'s own.
+ */
+export function readyContextToStart(machineId: string): RemoteMachineContext {
+  try {
+    return readyRemoteContext(machineId);
+  } catch (err) {
+    assertFarSettingsHeld(machineId);
+    assertFarVersionAgrees(machineId);
+    throw err;
+  }
+}
+
+/**
  * Create a session on a machine.
  *
  * The order is fixed and every step is where it is on purpose:
@@ -1642,7 +1743,10 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
   if (input.name.trim().length === 0) {
     throw gmuxError('INVALID_INPUT', 'Session name cannot be empty.');
   }
-  const ctx = readyRemoteContext(input.machineId);
+  // PHASE 342'S SECOND FIX ROUND. A machine whose set-up stopped on a setting
+  // Tortie cannot do without before it could sign in says so, never "has not
+  // signed in" (`readyContextToStart`).
+  const ctx = readyContextToStart(input.machineId);
   // PHASE 340.1's fix round. The route this create signs in over, read in the
   // same tick as its context. A confirm of changed details retires the route
   // while the create is out (the reverify's arm D), and the create's last step
@@ -1669,10 +1773,8 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
   // the create below, still ends as tmux's own refusal, and that is honest: it is
   // also what makes new-session safe to run twice.
   await pollRemoteMachine(input.machineId);
-  const tmuxName = dedupeSessionName(
-    sanitizeSessionName(input.name),
-    takenNames(input.machineId)
-  );
+  // PHASE 342. No `$` in the far tmux name, for the reason `farTmuxName` gives.
+  const tmuxName = farTmuxName(input.name, takenNames(input.machineId));
   // Step 4. Before anything is written and before the create line is composed.
   const cwd = input.cwd ?? '';
   await assertRemoteDirUsable(ctx, cwd);
@@ -1734,11 +1836,33 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
   // does not go through a login shell at all — its far side is the bare tmux
   // argv over ssh — so it cannot carry an rc-exported value into the globals,
   // and it must not pay the dozen round trips this costs.
-  if (passthrough.length > 0) await ensureRemoteServer(ctx);
+  //
+  // PHASE 342'S FIX ROUND. A server that would not keep a setting Tortie cannot
+  // do without answers the structured error with sentence (1), never a plain
+  // error drawn behind Electron's prefix and a class name.
+  if (passthrough.length > 0) await ensureRemoteServer(ctx).catch(throwAsSessionError);
   const envProbe: RemoteEnvProbeResult | null =
     passthrough.length === 0
       ? null
       : await probeRemoteEnvNames(ctx, passthrough);
+  // PHASE 342 (build/p342/SPEC.md D3, D4b). A machine whose tmux was replaced
+  // while its server kept running, by a program Tortie has not measured with
+  // that server, gets no new session: the attach to it would exit at once. Asked
+  // SYNCHRONOUSLY, immediately before the create line is composed, and after the
+  // boot above, whose re-read of a server it started clears a verdict recorded
+  // against a server that is gone. Nothing is awaited between here and the
+  // create's `execOn`. It throws the pair sentence's first line.
+  assertFarPairUsable(input.machineId);
+  // PHASE 342'S FIX ROUND. A machine whose server would not keep a setting
+  // Tortie cannot do without gets no new session either: Prepare told the
+  // person "so Tortie will not start sessions there", and the verifier
+  // measured a create that started one anyway, on a server whose
+  // `remain-on-exit` read `off` and whose `history-limit` read 2,000, because
+  // the set-up had already captured the PATH and a create that carries no
+  // names never runs the set-up again. The set-up recorded the refusal,
+  // keyed by the server's version; asked here, synchronously, beside the
+  // pair. It throws sentence (1).
+  assertFarSettingsHeld(input.machineId);
   const args = remoteCreateArgs({
     tmuxName,
     ...(cwd.length > 0 ? { cwd } : {}),
@@ -2167,7 +2291,9 @@ export async function remoteRename(
   const ctx = readyRemoteContext(row.machineId);
   const taken = takenNames(row.machineId);
   taken.delete(row.tmuxName);
-  const tmuxName = dedupeSessionName(sanitizeSessionName(newDisplayName), taken);
+  // PHASE 342. `$` becomes `_` here too, so a rename to `$HOME notes` is never
+  // a name beginning with `$` or with `-` (`farTmuxName`).
+  const tmuxName = farTmuxName(newDisplayName, taken);
   if (tmuxName !== row.tmuxName) {
     await execOn(ctx, ['rename-session', '-t', row.tmuxId, tmuxName]);
   }
@@ -2831,9 +2957,16 @@ async function onePass(
   const names = new Set<string>();
   const unclaimed: string[] = [];
   let foreign = 0;
+  // PHASE 342 (build/p342/SPEC.md D13). Read once per pass: a machine whose
+  // server reported 3.4 answers `$` and a letter with a backslash added in the
+  // name, the project and the folder, which would show in the session's name,
+  // group it under the wrong tab and give it the wrong folder. Undone here and
+  // nowhere else, for that version alone.
+  const dollarOnRead = farServerRow(machineId)?.quirks?.dollarOnRead === true;
   for (const line of printed.split('\n')) {
-    const parsed = parseRemoteListLine(line);
-    if (parsed === null) continue;
+    const listed = parseRemoteListLine(line);
+    if (listed === null) continue;
+    const parsed = dollarOnRead ? withDollarUndone(listed) : listed;
     if (parsed.tmuxName.length > 0) names.add(parsed.tmuxName);
     if (parsed.gmuxId.length === 0) {
       // PHASE 326. A create running in this process is binding this row: its own

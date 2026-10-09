@@ -472,12 +472,19 @@ const HELPER = 'electron-run.mjs';
  * Tailscale, Approve in Tailscale or Copy link, never calls pocket:setupAction,
  * and ends every stand-in read it left alive by pid in its `finally`.
  *
+ * Phase 342 raises it to 171 for `build/p342/probe-p342.mjs`, the Linux matrix
+ * in the app: one Electron per build through the helper, the parent first
+ * when `P342_PARENT_CHECKOUT` names a built checkout, each on its own scratch
+ * profile, HOME and harness socket, reaching throwaway containers in his
+ * Docker (made and ended only by `build/docker-run.mjs`) through an ssh
+ * wrapper and the tailnet stand-in, every one ended in a `finally`.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 171;
+const HELPER_USER_FLOOR = 172;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

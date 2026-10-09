@@ -59,14 +59,25 @@ vi.mock('../context', () => ({
 
 vi.mock('../exec-plane', () => ({
   execOn: () => Promise.resolve(`tmux ${reported}\n`),
-  execRemoteShell: () => Promise.reject(new Error('the -V read is not reached here'))
+  // PHASE 342 (D3). On the four rows before 3.6 Prepare reads the program
+  // beside a warm server with its own -V; it answers the same version here,
+  // a measured pair, so these cases stay about the acceptance alone.
+  execRemoteShell: () => Promise.resolve(`tmux ${reported}\n`)
 }));
 
 vi.mock('../remote-server', () => ({
   ensureRemoteServer: () => {
     booted += 1;
-    return Promise.resolve({ born: false, remotePath: '/usr/bin:/bin', options: [], disagreed: [] });
-  }
+    return Promise.resolve({
+      born: false,
+      remotePath: '/usr/bin:/bin',
+      options: [],
+      disagreed: [],
+      refused: []
+    });
+  },
+  RemoteServerSetUpStopped: class extends Error {},
+  RemoteTmuxRefused: class extends Error {}
 }));
 
 vi.mock('../remote-sessions', () => ({
@@ -128,8 +139,8 @@ beforeEach(() => {
 });
 
 describe('a stored acceptance meeting a version Tortie measured (Phase 324)', () => {
-  it('holds the five measured versions this round is about', () => {
-    expect(MEASURED).toEqual(['3.6', '3.6a', '3.6b', '3.7b', '3.7c']);
+  it('holds the five measured versions this round is about, and the four Phase 342 added before them', () => {
+    expect(MEASURED).toEqual(['3.2a', '3.3a', '3.4', '3.5a', '3.6', '3.6a', '3.6b', '3.7b', '3.7c']);
   });
 
   // THE CASE THE REVERIFY DROVE, and the two rows this phase added.
@@ -182,29 +193,30 @@ describe('a stored acceptance meeting a version Tortie measured (Phase 324)', ()
 
 describe('the refusals that are still true (Phase 324)', () => {
   it('still refuses an acceptance carrying to another version Tortie has not measured', async () => {
-    // 3.5a accepted, and the machine now reports 3.4: nothing about that is
-    // measured, and the program is not the one the person accepted.
-    const result = await prepare('3.5a', '3.4');
+    // 3.1c accepted, and the machine now reports 3.0a: nothing about that is
+    // measured, and the program is not the one the person accepted. (Phase
+    // 342 measured 3.4 and 3.5a, which stood here before it.)
+    const result = await prepare('3.1c', '3.0a');
     expect(result.class).toBe('version-unmeasured');
     expect(result.headline).toBe('Tortie has not measured the program this machine runs.');
     expect(result.detail).toBe(
       `${MACHINE_VERSION_ACCEPT_MISMATCH} ${MACHINE_VERSION_ACCEPT_OFFER}`
     );
     expect(result.acceptSheet?.lines.at(-1)).toBe(
-      'Accepts this version of the program, which Tortie has not measured: 3.4'
+      'Accepts this version of the program, which Tortie has not measured: 3.0a'
     );
     expect(booted).toBe(0);
   });
 
   it('still starts work on the version a person accepted, and says it was accepted', async () => {
-    const result = await prepare('3.5a', '3.5a');
+    const result = await prepare('3.1c', '3.1c');
     expect(result.class).toBe('prepared');
     expect(result.detail).toContain(MACHINE_VERSION_ACCEPTED_HONESTY);
     expect(booted).toBe(1);
   });
 
   it('refuses an unmeasured version on a machine with no acceptance, and offers the sheet', async () => {
-    const result = await prepare(null, '3.5a');
+    const result = await prepare(null, '3.1c');
     expect(result.class).toBe('version-unmeasured');
     expect(result.detail).not.toContain(MACHINE_VERSION_ACCEPT_MISMATCH);
     expect(result.detail).toContain(MACHINE_VERSION_ACCEPT_OFFER);
@@ -213,15 +225,15 @@ describe('the refusals that are still true (Phase 324)', () => {
   });
 
   it('treats an acceptance of a measured version as no acceptance when the program falls back', async () => {
-    // Accepted 3.6 on an older build; the machine now reports 3.5a. The row no
+    // Accepted 3.6 on an older build; the machine now reports 3.1c. The row no
     // longer draws the 3.6 acceptance, so the refusal does not speak of one: it
     // is the plain refusal any measured machine gets, with its sheet.
-    const result = await prepare('3.6', '3.5a');
+    const result = await prepare('3.6', '3.1c');
     expect(result.class).toBe('version-unmeasured');
     expect(result.detail).not.toContain(MACHINE_VERSION_ACCEPT_MISMATCH);
     expect(result.detail).toContain(MACHINE_VERSION_ACCEPT_OFFER);
     expect(result.acceptSheet?.lines.at(-1)).toBe(
-      'Accepts this version of the program, which Tortie has not measured: 3.5a'
+      'Accepts this version of the program, which Tortie has not measured: 3.1c'
     );
     expect(booted).toBe(0);
   });
@@ -240,9 +252,9 @@ describe('the lines a person reads about an acceptance (Phase 324)', () => {
   });
 
   it('still draws it for a version Tortie has not measured', () => {
-    const lines = describeMachine('studio', { ...FIELDS, acceptedTmuxVersion: '3.5a' }).lines;
+    const lines = describeMachine('studio', { ...FIELDS, acceptedTmuxVersion: '3.1c' }).lines;
     expect(lines.at(-1)).toBe(
-      'Accepts this version of the program, which Tortie has not measured: 3.5a'
+      'Accepts this version of the program, which Tortie has not measured: 3.1c'
     );
   });
 

@@ -1618,6 +1618,59 @@ const ARCH_AIM_REFUSALS = [
   }
 ];
 
+/**
+ * PHASE 342 (build/p342/SPEC.md D10, §6.4). The four sentences of the class
+ * `program-refused`, which a machine that ANSWERED is told instead of "could
+ * not reach": a setting durability or scroll-back rests on that its tmux is too
+ * old for, one optional setting its version was not measured refusing, a
+ * program updated beside a server that kept running, and a server that runs as
+ * another version than its program said. Until this phase the first was said
+ * as "Tortie could not reach this machine, and it does not recognise the
+ * reason." about a machine Tortie had reached, which is the defect the phase
+ * removes; a bundler that dropped one of these would bring that sentence back.
+ *
+ * Their own table, as `ARCH_AIM_REFUSALS` is, so `MACHINE_REFUSALS`' count,
+ * which `docs/audits/contract-baseline.txt` quotes, does not move (D23). Each
+ * fragment is ONE literal piece of its composer, so it is whole in the source
+ * and in the folded bundle alike.
+ */
+const MACHINE_TMUX_REFUSALS = [
+  {
+    id: 'machine.tmux-too-old',
+    source: 'src/main/machines/errors.ts',
+    why:
+      'without it a server that refused a setting Tortie cannot do without is ' +
+      'said as a machine Tortie could not reach, which it had reached',
+    fragments: ["This machine's tmux is too old for Tortie.", 'start sessions there.']
+  },
+  {
+    id: 'machine.tmux-setting-refused',
+    source: 'src/main/machines/errors.ts',
+    why:
+      'without it a refused optional setting the measurement did not predict ' +
+      'is skipped and said nowhere, which hides a fact about the machine',
+    fragments: [" is too old for one of Tortie's settings, so a session there can "]
+  },
+  {
+    id: 'machine.tmux-updated-under-sessions',
+    source: 'src/main/machines/far-tmux.ts',
+    why:
+      'without it a program updated beside a running server opens a terminal ' +
+      'that closes at once, with nothing said about why',
+    fragments: ["This machine's tmux was updated while its sessions kept running."]
+  },
+  {
+    id: 'machine.tmux-version-disagrees',
+    // Phase 342's second fix round moved the line into the leaf, which says
+    // it of a refused pair whose program this run saw lie about its version.
+    source: 'src/main/machines/far-tmux.ts',
+    why:
+      'without it a server that runs as another version than its program said ' +
+      'is set up as the version it is not',
+    fragments: ["This machine's tmux is not the version it says."]
+  }
+];
+
 const LOG_REFUSALS = [
   {
     id: 'log.crash-dumps-stay-local',
@@ -1847,7 +1900,8 @@ function main() {
     ['MACHINE_REFUSALS', MACHINE_REFUSALS.length, 53],
     ['UPDATER_REFUSALS', UPDATER_REFUSALS.length, 8],
     ['LOG_REFUSALS', LOG_REFUSALS.length, 1],
-    ['ARCH_AIM_REFUSALS', ARCH_AIM_REFUSALS.length, 6]
+    ['ARCH_AIM_REFUSALS', ARCH_AIM_REFUSALS.length, 6],
+    ['MACHINE_TMUX_REFUSALS', MACHINE_TMUX_REFUSALS.length, 4]
   ];
   const miscounted = EXPECTED_COUNTS.filter(([, found, want]) => found !== want);
   if (miscounted.length > 0) {
@@ -1876,7 +1930,8 @@ function main() {
     ...MACHINE_REFUSALS,
     ...UPDATER_REFUSALS,
     ...LOG_REFUSALS,
-    ...ARCH_AIM_REFUSALS
+    ...ARCH_AIM_REFUSALS,
+    ...MACHINE_TMUX_REFUSALS
   ]) {
     const sourcePath = join(repoRoot, refusal.source);
     if (!sources.has(refusal.source)) {
@@ -1955,6 +2010,10 @@ function main() {
   );
   console.log(
     `[refusals] ${String(ARCH_AIM_REFUSALS.length)} aiming-verb refusals are in the shipped bundles (four are the renderer's delivery guard, two are the composer's two grade rule in main).`
+  );
+
+  console.log(
+    `[refusals] ${String(MACHINE_TMUX_REFUSALS.length)} program-refused sentences are in out/main/index.js.`
   );
 
   assertNoUpload();

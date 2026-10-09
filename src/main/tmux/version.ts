@@ -148,6 +148,34 @@ export interface TestedRemoteTmux {
    */
   readonly subject: string;
   readonly note: string;
+  /**
+   * PHASE 342 (build/p342/SPEC.md D2). The program versions MEASURED working
+   * against a server of this version, its own always first. Only a row from
+   * before the 3.6 wire change carries it: a program from 3.6 or later never
+   * greeted a 3.5a server over a live connection, and an attach through it
+   * exited at once, while the server and its sessions ran on. A row from 3.6
+   * on carries none and keeps the server-only read exactly as before, because
+   * a pair gate there would refuse an upgrade that works. Membership in this
+   * list is byte equality, never version arithmetic.
+   */
+  readonly programs?: readonly string[];
+  /**
+   * PHASE 342 (D7). The server options this version refuses, as measured. A
+   * refusal of one of these is expected and said nowhere, because each one's
+   * fallback changes nothing a person sees; a refusal of any other optional
+   * row adds one sentence to the prepared detail.
+   */
+  readonly lacks?: readonly string[];
+  /**
+   * PHASE 342 (D13, D14). How this version answers that differs from 3.6's,
+   * measured: `dollarOnRead`, a stored value holding a dollar sign before a
+   * letter, an underscore or a brace is answered with one backslash added;
+   * `joinedCapturePads`, a joined capture pads every line to the pane's width.
+   */
+  readonly quirks?: {
+    readonly dollarOnRead?: true;
+    readonly joinedCapturePads?: true;
+  };
 }
 
 /**
@@ -160,9 +188,10 @@ export interface TestedRemoteTmux {
  * of `show-options -gv <name>`, and the stderr text and exit code a machine with
  * no server produces.
  *
- * WHAT IS NOT HERE, and it is owed rather than assumed. Every row below was
- * measured against a scratch server on THIS Mac, reached over a scratch sign in
- * program on 127.0.0.1. No row was measured across a real machine boundary. A
+ * WHAT IS NOT HERE, and it is owed rather than assumed. Every row from 3.6 on
+ * was measured against a scratch server on THIS Mac, reached over a scratch
+ * sign in program on 127.0.0.1, and none of those was measured across a real
+ * machine boundary (the four before it were, below). A
  * row also names one COPY of a version rather than the version in general, and
  * that is what the `subject` field carries. A distribution's patched build is a
  * different subject from an upstream tarball, so a row measured against one
@@ -171,8 +200,127 @@ export interface TestedRemoteTmux {
  * The 3.6 and 3.6b rows were measured by `npm run probe:p324` instead, which
  * reaches a scratch server on this same Mac through /bin/sh in place of the
  * sign in program.
+ *
+ * PHASE 342. The four rows before 3.6 were measured across a real machine
+ * boundary for the first time: a scratch machine Tortie made for the
+ * measurement, its own copy of tmux installed by its own package manager, a
+ * real sign in program between the two, by `npm run measure:p342` and
+ * `npm run probe:p342`. Which copies they were is in build/p342/SPEC.md and
+ * in that phase's commit, and never in a row (his ruling on research 131:
+ * "add to allow list but dont add a weird label"). They come first, so the
+ * list reads oldest first, and each carries the three fields its version
+ * needs: `programs`, `lacks`, and `quirks` where it has one.
  */
 export const TESTED_REMOTE_TMUX_VERSIONS: readonly TestedRemoteTmux[] = [
+  {
+    version: '3.2a',
+    measured: { exec: true, control: true },
+    measuredAt: '2026-10-07',
+    subject:
+      'the copy a package manager installs on a scratch machine Tortie made ' +
+      'for the measurement',
+    note:
+      'Measured by "npm run measure:p342" and driven by "npm run probe:p342" ' +
+      'over the sign in program to a scratch machine Tortie made for the ' +
+      'measurement. The version reads answered 3.2a. Nine of the twelve ' +
+      'server options took as written and read back, history-limit 25000 ' +
+      'among them. allow-passthrough and copy-mode-position-format were ' +
+      'refused as invalid options, which changes nothing Tortie draws: this ' +
+      'version passes a wrapped sequence through always, and copy mode on ' +
+      'another machine is entered with -H. mode-style refused noattr and took ' +
+      'bg=default,fg=default. The list format answered its ten fields, and ' +
+      'the list over a live connection equalled the same list over the exec ' +
+      'plane. Control mode matched the 3.6 row\'s copy on all eight ' +
+      'comparable steps. A joined capture pads every line to the width of ' +
+      'the pane, which the two readers that join lines strip. A program that ' +
+      'asks for the second level of extended keys is answered at the first, ' +
+      'so a few key combinations reach it in their older form. The one ' +
+      'program measured against this server is its own.',
+    programs: ['3.2a'],
+    lacks: ['allow-passthrough', 'copy-mode-position-format', 'mode-style'],
+    quirks: { joinedCapturePads: true }
+  },
+  {
+    version: '3.3a',
+    measured: { exec: true, control: true },
+    measuredAt: '2026-10-07',
+    subject:
+      'the copy a package manager installs on a scratch machine Tortie made ' +
+      'for the measurement',
+    note:
+      'Measured by "npm run measure:p342" and driven by "npm run probe:p342" ' +
+      'over the sign in program to a scratch machine Tortie made for the ' +
+      'measurement. The version reads answered 3.3a. Ten of the twelve ' +
+      'server options took as written and read back, history-limit 25000 ' +
+      'among them. copy-mode-position-format was refused as an invalid ' +
+      'option, which changes nothing Tortie draws because copy mode on ' +
+      'another machine is entered with -H, and mode-style refused noattr and ' +
+      'took bg=default,fg=default. The list format answered its ten fields, ' +
+      'and the list over a live connection equalled the same list over the ' +
+      'exec plane. Control mode matched the 3.6 row\'s copy on all eight ' +
+      'comparable steps. A program that asks for the second level of ' +
+      'extended keys is answered at the first, so a few key combinations ' +
+      'reach it in their older form. A 3.5a program installed beside a ' +
+      'running server of this version greeted it over a live connection, so ' +
+      'this server is used under its own program and under 3.5a.',
+    programs: ['3.3a', '3.5a'],
+    lacks: ['copy-mode-position-format', 'mode-style']
+  },
+  {
+    version: '3.4',
+    measured: { exec: true, control: true },
+    measuredAt: '2026-10-07',
+    subject:
+      'the copy a package manager installs on a scratch machine Tortie made ' +
+      'for the measurement',
+    note:
+      'Measured by "npm run measure:p342" and driven by "npm run probe:p342" ' +
+      'over the sign in program to a scratch machine Tortie made for the ' +
+      'measurement. The version reads answered 3.4. Ten of the twelve server ' +
+      'options took as written and read back, history-limit 25000 among ' +
+      'them. copy-mode-position-format was refused as an invalid option, ' +
+      'which changes nothing Tortie draws because copy mode on another ' +
+      'machine is entered with -H, and mode-style refused noattr and took ' +
+      'bg=default,fg=default. The list format answered its ten fields, and ' +
+      'the list over a live connection equalled the same list over the exec ' +
+      'plane. Control mode matched the 3.6 row\'s copy on all eight ' +
+      'comparable steps. A stored value holding a dollar sign before a ' +
+      'letter, an underscore or a brace is answered with one backslash ' +
+      'before the dollar, and the list reader removes exactly that backslash ' +
+      'from a session name, its project and its folder on this version. A ' +
+      'program that asks for the second level of extended keys is answered ' +
+      'at the first, so a few key combinations reach it in their older form. ' +
+      'The one program measured against this server is its own.',
+    programs: ['3.4'],
+    lacks: ['copy-mode-position-format', 'mode-style'],
+    quirks: { dollarOnRead: true }
+  },
+  {
+    version: '3.5a',
+    measured: { exec: true, control: true },
+    measuredAt: '2026-10-07',
+    subject:
+      'the copy a package manager installs on a scratch machine Tortie made ' +
+      'for the measurement',
+    note:
+      'Measured by "npm run measure:p342" and driven by "npm run probe:p342" ' +
+      'over the sign in program to a scratch machine Tortie made for the ' +
+      'measurement. The version reads answered 3.5a. Ten of the twelve ' +
+      'server options took as written and read back, history-limit 25000 ' +
+      'among them. copy-mode-position-format was refused as an invalid ' +
+      'option, which changes nothing Tortie draws because copy mode on ' +
+      'another machine is entered with -H, and mode-style refused noattr and ' +
+      'took bg=default,fg=default. The list format answered its ten fields, ' +
+      'and the list over a live connection equalled the same list over the ' +
+      'exec plane. Control mode matched the 3.6 row\'s copy on all eight ' +
+      'comparable steps. A 3.6b program installed beside a running server of ' +
+      'this version never greeted it over a live connection, and an attach ' +
+      'through it exited at once while the server and its sessions ran on, ' +
+      'so this server is used under its own program alone and that pair is ' +
+      'said rather than opened.',
+    programs: ['3.5a'],
+    lacks: ['copy-mode-position-format', 'mode-style']
+  },
   {
     version: '3.6',
     measured: { exec: true, control: true },
@@ -392,6 +540,39 @@ export function decideRemoteVersionGate(
   const bound = accepted ?? '';
   if (bound !== '' && bound === version) return { kind: 'accepted', version };
   return { kind: 'unmeasured', version, supported };
+}
+
+/** What a machine's server and the program beside it add up to (Phase 342). */
+export type RemotePairVerdict =
+  /** The server's row carries no `programs`: the server's version decides. */
+  | { readonly kind: 'server-only' }
+  /** The program is on the server's row's `programs`. */
+  | { readonly kind: 'measured' }
+  /** It is not, or it could not be read (`program` null). */
+  | { readonly kind: 'refused'; readonly server: string; readonly program: string | null };
+
+/**
+ * Decide whether the program on a machine may talk to the server it runs
+ * beside (build/p342/SPEC.md D2, D25). Pure.
+ *
+ * Only a row before the 3.6 wire change carries `programs`, so a server from
+ * 3.6 on answers `server-only` whatever the program is, which is exactly the
+ * read before this phase. A server with no row answers `server-only` too: the
+ * version gates already decided about it, and this question is only about a
+ * pair a row has measured. Membership is byte equality on the whole string,
+ * because THERE IS NO VERSION ARITHMETIC here either: a program nobody
+ * measured against that server is refused with a true sentence rather than
+ * admitted because its number looks close.
+ */
+export function decideRemotePair(
+  server: string,
+  program: string | null,
+  list: readonly TestedRemoteTmux[] = TESTED_REMOTE_TMUX_VERSIONS
+): RemotePairVerdict {
+  const programs = list.find((row) => row.version === server)?.programs;
+  if (programs === undefined) return { kind: 'server-only' };
+  if (program !== null && programs.includes(program)) return { kind: 'measured' };
+  return { kind: 'refused', server, program };
 }
 
 /**

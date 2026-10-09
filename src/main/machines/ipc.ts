@@ -209,6 +209,10 @@ import {
 } from './confirm';
 // PHASE 340 (D24). Two facts the Settings row draws, held in memory in main.
 import { forgetRowFacts, onRowFactsChanged, rowOsOf, rowSignInOf } from './row-facts';
+// PHASE 342 (build/p342/SPEC.md D24). The server version and the pair this run
+// read for the machine go with the row's other memory on a confirm of changed
+// details.
+import { forgetFarTmux } from './far-tmux';
 import {
   cancelLiveMachineTest,
   cancelMachineTest,
@@ -454,7 +458,10 @@ function viewOf(
             at: signIn.at,
             version: signIn.version,
             headline: signIn.headline,
-            detail: signIn.detail
+            detail: signIn.detail,
+            // PHASE 342'S FIX ROUND. The prepared answer's sentence about
+            // how a session there can look different, for the Ready hover.
+            note: signIn.note
           },
     os: rowOsOf(row.id)
   };
@@ -835,6 +842,7 @@ export function registerMachinesIpc(ipc: IpcMain): void {
         stopSignInRetry(row.id, 'confirmation-moved');
         retireMachineRoute(row.id);
         forgetRowFacts(row.id);
+        forgetFarTmux(row.id);
       }
       return viewOf(row);
     }

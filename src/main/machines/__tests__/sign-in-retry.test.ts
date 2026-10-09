@@ -402,6 +402,22 @@ describe('what stops it', () => {
     expect(prepareCalls).toHaveLength(2);
   });
 
+  // PHASE 342 (build/p342/SPEC.md D21). A machine whose tmux Tortie will not
+  // use as it is, is retried every five minutes like any other answer that is
+  // not prepared: its Prepare is what learns the machine restarted on a tmux
+  // that is fine, and nothing new is started by it.
+  it('not by a program-refused answer, which is retried until a Prepare says prepared', async () => {
+    prepareAnswers.push(result('program-refused'), result('program-refused'), result('prepared'));
+    retry.armSignInRetry('studio');
+    await pass(30_000);
+    expect(retry.signInRetryFacts('studio')).not.toBeNull();
+    await pass(60_000);
+    expect(retry.signInRetryFacts('studio')).not.toBeNull();
+    await pass(120_000);
+    expect(prepareCalls).toHaveLength(3);
+    expect(retry.signInRetryFacts('studio')).toBeNull();
+  });
+
   it('prepared, by a press in Settings', async () => {
     retry.armSignInRetry('studio');
     retry.stopSignInRetry('studio', 'prepared');
@@ -472,6 +488,20 @@ describe('what stops it', () => {
     const body = core.slice(start, core.indexOf('\n  }', start));
     expect(body.split('armSignInRetry(row.id);').length - 1).toBe(2);
     expect(core.split('armSignInRetry(').length - 1).toBe(2);
+  });
+
+  // PHASE 342 (build/p342/SPEC.md D4b, §Attack F3). A machine whose tmux
+  // Tortie will not use as it is ANSWERED, and when its program was replaced
+  // beside a running server its feed runs and its sessions are listed, so the
+  // launch sign-in arms its retry and does NOT mark it quiet, which would
+  // write every row unknown and the link "did not answer".
+  it('arms a program-refused machine’s retry and does not mark it quiet', () => {
+    const core = readFileSync(join(HERE, '..', '..', 'sessions', 'core.ts'), 'utf8');
+    const start = core.indexOf('private async signInToConfirmedMachines()');
+    const body = core.slice(start, core.indexOf('\n  }', start));
+    const guard = body.indexOf("if (result.class !== 'program-refused') markMachineQuiet(row.id);");
+    expect(guard).toBeGreaterThan(-1);
+    expect(body.indexOf('armSignInRetry(row.id);', guard)).toBeGreaterThan(guard);
   });
 });
 

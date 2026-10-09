@@ -150,7 +150,10 @@ describe('every class carries copy', () => {
     // running a version nobody measured, and `prepared` for the success answer.
     // Phase 79.1 added two, being `key-installed` and `password-required`.
     // Phase 340 added two, being `client-failed` and `program-choice`.
-    expect(MACHINE_OUTCOME_CLASSES).toHaveLength(18);
+    // Phase 342 added one, being `program-refused`: the machine answered and
+    // Tortie will not use its tmux as it is (build/p342/SPEC.md D10).
+    expect(MACHINE_OUTCOME_CLASSES).toHaveLength(19);
+    expect(MACHINE_OUTCOME_CLASSES).toContain('program-refused');
     expect(MACHINE_OUTCOME_CLASSES).toContain('client-failed');
     expect(MACHINE_OUTCOME_CLASSES).toContain('program-choice');
   });
@@ -410,5 +413,70 @@ describe('the last printed line', () => {
 
   it('is empty for empty output', () => {
     expect(lastPrintedLine('\n\n')).toBe('');
+  });
+});
+
+/**
+ * PHASE 342 (build/p342/SPEC.md D10). The four sentences of `program-refused`,
+ * composed here and nowhere else, each said about a machine that ANSWERED, so
+ * none says "could not reach", none names a command, and none is alarming.
+ */
+describe('Phase 342: the four sentences of program-refused', () => {
+  it('composes each shape from its facts, word for word', async () => {
+    const errors = await import('../errors');
+    expect(
+      errors.composeTmuxRefusal({ kind: 'required', version: '3.7c', purpose: 'failed-screen', lines: 25_000 })
+    ).toEqual({
+      headline: "This machine's tmux is too old for Tortie.",
+      detail: "tmux 3.7c would not keep a session's screen when its program fails, so Tortie will not start sessions there."
+    });
+    expect(errors.machineTmuxTooOldDetail('3.2a', 'history', 25_000)).toBe(
+      'tmux 3.2a would not keep 25,000 lines of each session, so Tortie will not start sessions there.'
+    );
+    expect(errors.machineTmuxTooOldDetail(null, 'stays-up', 25_000)).toBe(
+      "This machine's tmux would not keep running with no session open, so Tortie will not start sessions there."
+    );
+    expect(errors.machineTmuxTooOldDetail('3.4', 'scrolling', 25_000)).toBe(
+      'tmux 3.4 would not leave scrolling to Tortie, so Tortie will not start sessions there.'
+    );
+    expect(errors.machineTmuxSettingRefused('3.7c')).toBe(
+      "tmux 3.7c on this machine is too old for one of Tortie's settings, so a session there can look a little different from one on this Mac."
+    );
+    expect(errors.composeTmuxRefusal({ kind: 'pair', server: '3.5a', program: '3.6b' })).toEqual({
+      headline: "This machine's tmux was updated while its sessions kept running.",
+      detail:
+        'Tortie has not measured tmux 3.6b with the tmux 3.5a that still runs them, so it opens no session there. ' +
+        'After that machine restarts, Tortie can restore them.'
+    });
+    expect(errors.composeTmuxRefusal({ kind: 'disagrees', said: '3.7c', ran: '3.2a' })).toEqual({
+      headline: "This machine's tmux is not the version it says.",
+      detail: 'It says 3.7c and runs as 3.2a, so Tortie will not use it.'
+    });
+  });
+
+  it('never says "could not reach", names no command, and is never the alarming class', async () => {
+    const errors = await import('../errors');
+    const all = [
+      errors.composeTmuxRefusal({ kind: 'required', version: '3.7c', purpose: 'history', lines: 25_000 }),
+      errors.composeTmuxRefusal({ kind: 'pair', server: '3.5a', program: '3.6b' }),
+      errors.composeTmuxRefusal({ kind: 'disagrees', said: '3.7c', ran: '3.2a' }),
+      errors.composeOutcomeCopy('program-refused', {})
+    ];
+    for (const copy of all) {
+      const text = `${copy.headline} ${copy.detail} ${errors.machineTmuxSettingRefused(null)}`;
+      expect(text).not.toMatch(/could not reach|recognise the reason/i);
+      expect(text).not.toMatch(/apt|dnf|pacman|install|sudo|kill/i);
+    }
+    expect(errors.composeOutcomeCopy('program-refused', {}).alarm).toBe(false);
+    // Handed its facts, the composer answers that shape's own sentence.
+    expect(
+      errors.composeOutcomeCopy('program-refused', { tmuxRefusal: { kind: 'pair', server: '3.5a', program: '3.6b' } }).headline
+    ).toBe(errors.MACHINE_TMUX_UPDATED_HEADLINE);
+  });
+
+  it('the pair headline is the leaf’s own, re-exported, so every asker says the same line', async () => {
+    const errors = await import('../errors');
+    const leaf = await import('../far-tmux');
+    expect(errors.MACHINE_TMUX_UPDATED_HEADLINE).toBe(leaf.MACHINE_TMUX_UPDATED_HEADLINE);
   });
 });

@@ -10,7 +10,9 @@
  * FIRST MATCH WINS, in the order of the table in the spec, and the order is the
  * design. The three confirmation states come first, because a row nobody
  * agreed to is not usable whatever its link says. The last sign-in's three
- * classes a person must act on come next. Then what the link says now.
+ * classes a person must act on come next, and beside them (Phase 342) the one
+ * that says a machine's tmux will not be used as it is. Then what the link
+ * says now.
  *
  * READY MEANS ANSWERING, and the arm that draws it says so in its own words
  * rather than through a helper. `ready` on a row is main's
@@ -177,6 +179,15 @@ export function machineStatusOf(
   if (signInClass === 'version-unmeasured') {
     return status('new-version', firstSentence(signInSentence(signIn)), 'review-version');
   }
+  // PHASE 342 (build/p342/SPEC.md D18). A machine whose tmux Tortie will not
+  // use as it is. BEFORE the link's arms, because when its program was
+  // replaced beside a running server Prepare leaves its context registered
+  // and its link polling, which the Ready arm would draw as Ready. Main's own
+  // sentence is the hover, and there is no next step: the sentence says what
+  // is true, and nothing a person presses here would change it.
+  if (signInClass === 'program-refused') {
+    return status('not-usable', firstSentence(signInSentence(signIn)), null);
+  }
   if (facts.preparing || link === 'connecting') {
     return status(
       'connecting',
@@ -186,10 +197,18 @@ export function machineStatusOf(
   }
   // READY MEANS ANSWERING: `ready` alone is a registered context, which a
   // machine that went to sleep keeps. The two links are written out here.
+  //
+  // PHASE 342'S FIX ROUND. A prepared sign-in may carry one more sentence,
+  // that a session there can look a little different from one on this Mac
+  // because its tmux refused a setting its version was not measured
+  // refusing. It is drawn after the hover's own, on the Ready arm alone,
+  // because the verifier found it drawn nowhere a person could read it.
   if (row.ready === true && (link === 'connected' || link === 'polling')) {
+    const note = signInClass === 'prepared' ? (signIn?.note ?? null) : null;
+    const hover = firstSentence(row.linkDetail, STATE_SENTENCE.confirmed);
     return status(
       'ready',
-      firstSentence(row.linkDetail, STATE_SENTENCE.confirmed),
+      typeof note === 'string' && note.trim() !== '' ? `${hover} ${note}` : hover,
       'open-folder'
     );
   }

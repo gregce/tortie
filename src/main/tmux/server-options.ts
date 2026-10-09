@@ -35,7 +35,42 @@
  * value and the same scope flag, and every `set` line in the file appears here.
  * `build/conformance-machines.mjs` runs the same comparison, so the gate is
  * executable outside the test suite too.
+ *
+ * ## Each row says the oldest tmux that took it, and what Tortie does without it
+ *
+ * PHASE 342 (build/p342/SPEC.md D4 to D8). Before this phase Prepare set every
+ * row one at a time and stopped at the first one a machine refused, which
+ * left that machine's server at tmux's own `history-limit 2000` and told the
+ * person Tortie could not reach a machine it had reached. MEASURED on the
+ * package manager's own copies of 3.2a, 3.3a, 3.4, 3.5a, 3.6 and 3.7c, set
+ * then read back: nine rows took on every one of them, `allow-passthrough`
+ * from 3.3a, and `copy-mode-position-format` and the `noattr` in `mode-style`
+ * only from 3.6. So each row carries `oldest`, the first measured version
+ * that took it, and `without`, what Tortie does on a server that refuses it:
+ *
+ *  - `required` for the four rows durability or scroll-back rests on. A server
+ *    that refuses one is not used, and the person is told the version is too
+ *    old for it rather than that the machine could not be reached.
+ *  - `fallback` for `mode-style`, whose value without `noattr` took on every
+ *    measured version. Tortie never draws a tmux selection, so the style is
+ *    never seen either way.
+ *  - `skip` for the other seven, each measured to change nothing a person sees
+ *    on the versions that refuse it (the spec's D8 says why, row by row).
+ *
+ * `history-limit` is WRITTEN first on another machine ({@link remoteBootOptions}),
+ * so a refusal of anything can never leave that machine's server at 2,000
+ * lines. The list's own order is unchanged, because this Mac's conf, its boot
+ * and the read-back all walk it as it is.
  */
+
+/** Why a row Tortie cannot do without matters, one word per row. */
+export type RequiredPurpose = 'history' | 'stays-up' | 'failed-screen' | 'scrolling';
+
+/** What Tortie does on a server that refuses a row (Phase 342, D5). */
+export type OptionWithout =
+  | { readonly kind: 'required'; readonly purpose: RequiredPurpose }
+  | { readonly kind: 'fallback'; readonly value: string }
+  | { readonly kind: 'skip' };
 
 export interface ServerOption {
   readonly name: string;
@@ -50,6 +85,15 @@ export interface ServerOption {
   readonly fromSettings?: true;
   /** True when the local boot re-asserts it on a warm server. */
   readonly localReassert?: true;
+  /**
+   * PHASE 342 (D5). The oldest measured tmux that took this row's value, as
+   * the whole version string that tmux prints. A fact, never a comparison:
+   * nothing compares a version with it, because there is no version
+   * arithmetic anywhere in Tortie (`./version.ts`).
+   */
+  readonly oldest: string;
+  /** PHASE 342 (D5). What Tortie does on a server that refuses this row. */
+  readonly without: OptionWithout;
 }
 
 /**
@@ -63,46 +107,91 @@ export interface ServerOption {
  */
 export const SERVER_OPTIONS: readonly ServerOption[] = [
   // gmux renders everything itself. No tmux chrome, ever.
-  { name: 'status', scope: '-g', value: 'off' },
+  { name: 'status', scope: '-g', value: 'off', oldest: '3.2a', without: { kind: 'skip' } },
   // No ESC delay: agents and TUIs need instant escape sequences.
-  { name: 'escape-time', scope: '-s', value: '0' },
+  { name: 'escape-time', scope: '-s', value: '0', oldest: '3.2a', without: { kind: 'skip' } },
   // CSI-u style extended key reporting for modern TUIs.
-  { name: 'extended-keys', scope: '-s', value: 'on' },
-  // Let applications pass escape sequences through untouched.
-  { name: 'allow-passthrough', scope: '-g', value: 'on' },
+  { name: 'extended-keys', scope: '-s', value: 'on', oldest: '3.2a', without: { kind: 'skip' } },
+  // Let applications pass escape sequences through untouched. MEASURED: 3.2a
+  // has no such option because it passes every wrapped sequence through
+  // always, so a server that refuses it loses nothing Tortie draws.
+  {
+    name: 'allow-passthrough',
+    scope: '-g',
+    value: 'on',
+    oldest: '3.3a',
+    without: { kind: 'skip' }
+  },
   // Forward focus in and out to applications.
-  { name: 'focus-events', scope: '-s', value: 'on' },
+  { name: 'focus-events', scope: '-s', value: 'on', oldest: '3.2a', without: { kind: 'skip' } },
   // Correct terminfo inside panes.
-  { name: 'default-terminal', scope: '-g', value: 'tmux-256color' },
+  {
+    name: 'default-terminal',
+    scope: '-g',
+    value: 'tmux-256color',
+    oldest: '3.2a',
+    without: { kind: 'skip' }
+  },
   // The five the local boot re-asserts, in the order it asserts them.
+  //
+  // `failed` is the exit code truth main reads before it reaps a session, so a
+  // server that will not keep a failed program's screen is not used.
   {
     name: 'remain-on-exit',
     scope: '-g',
     value: 'failed',
-    localReassert: true
+    localReassert: true,
+    oldest: '3.2a',
+    without: { kind: 'required', purpose: 'failed-screen' }
   },
-  { name: 'exit-empty', scope: '-s', value: 'off', localReassert: true },
-  { name: 'mouse', scope: '-g', value: 'off', localReassert: true },
+  // The server staying up with no session open is durability itself.
+  {
+    name: 'exit-empty',
+    scope: '-s',
+    value: 'off',
+    localReassert: true,
+    oldest: '3.2a',
+    without: { kind: 'required', purpose: 'stays-up' }
+  },
+  // The wheel stays in Tortie's hands, which scroll-back rests on.
+  {
+    name: 'mouse',
+    scope: '-g',
+    value: 'off',
+    localReassert: true,
+    oldest: '3.2a',
+    without: { kind: 'required', purpose: 'scrolling' }
+  },
+  // Copy mode on another machine is entered with `-H`, which hides the same
+  // position indicator on a tmux that has no such option.
   {
     name: 'copy-mode-position-format',
     scope: '-g',
     value: '',
-    localReassert: true
+    localReassert: true,
+    oldest: '3.6',
+    without: { kind: 'skip' }
   },
+  // `noattr` is what older versions refuse; the colours alone took on all of
+  // them, and Tortie never makes a tmux selection, so the style is never drawn.
   {
     name: 'mode-style',
     scope: '-g',
     value: 'noattr,bg=default,fg=default',
-    localReassert: true
+    localReassert: true,
+    oldest: '3.6',
+    without: { kind: 'fallback', value: 'bg=default,fg=default' }
   },
   // The one whose runtime value is the person's Settings value. The number in the
   // conf is the first boot default and it has already moved once, from 50,000 to
-  // 25,000 in Phase 13.7.
+  // 25,000 in Phase 13.7. It is the scroll-back depth, so it is required.
   {
     name: 'history-limit',
     scope: '-g',
     value: '25000',
-    fromSettings: true
+    fromSettings: true,
+    oldest: '3.2a',
+    without: { kind: 'required', purpose: 'history' }
   }
 ];
 
@@ -123,9 +212,55 @@ export function localReassertOptions(): readonly ServerOption[] {
  *
  * `history-limit` is in this list and its value is replaced with the person's
  * Settings value by the caller, exactly as the local path does.
+ *
+ * PHASE 342 (D4). `history-limit` comes FIRST, then the other eleven in the
+ * list's own order. A server that refuses any later row can then never be left
+ * at tmux's own 2,000 lines, which is 8 % of the depth the product promises.
+ * Only the order of the writes moves: the read-back walks
+ * {@link SERVER_OPTIONS} as it is, so the row's settings list reads as before.
  */
 export function remoteBootOptions(): readonly ServerOption[] {
-  return SERVER_OPTIONS;
+  const first = SERVER_OPTIONS.filter((row) => row.name === 'history-limit');
+  const rest = SERVER_OPTIONS.filter((row) => row.name !== 'history-limit');
+  return [...first, ...rest];
+}
+
+/** The six refusals of a value, each followed by the value tmux was sent. */
+const REFUSED_VALUE_SHAPES: readonly string[] = [
+  'invalid style:',
+  'unknown value:',
+  'bad value:',
+  'value is invalid:',
+  'value is too small:',
+  'value is too large:'
+];
+
+/**
+ * Whether one `set-option` that exited non zero was REFUSED, in tmux's own
+ * words, rather than failing for any other reason (Phase 342, D6).
+ *
+ * The seven shapes were MEASURED identical on 3.2a, 3.6 and 3.7c (spec §14 M5):
+ * `invalid option: <the row's name>`, and `invalid style:`, `unknown value:`,
+ * `bad value:`, `value is invalid:`, `value is too small:` and
+ * `value is too large:`, each followed by the value that was sent. The LAST
+ * line with anything on it is compared WHOLE, and the name or the value byte
+ * for byte, so a dropped link, a server that is not there, a refusal naming
+ * another row and a value one byte different are all NOT a refusal, and the
+ * caller throws them exactly as before. Pure.
+ *
+ * tmux's quiet flag on `set-option` is never the answer. It hides a missing
+ * NAME and not a bad value, and it would hide a fact about the machine either
+ * way.
+ */
+export function isOptionRefusal(text: string, name: string, value: string): boolean {
+  const lines = text
+    .split('\n')
+    .map((line) => line.replace(/\r$/, ''))
+    .filter((line) => line.trim().length > 0);
+  const last = lines[lines.length - 1];
+  if (last === undefined) return false;
+  if (last === `invalid option: ${name}`) return true;
+  return REFUSED_VALUE_SHAPES.some((shape) => last === `${shape} ${value}`);
 }
 
 /** The `set-option` argv for one row, with the value the caller decided. */

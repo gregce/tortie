@@ -337,6 +337,16 @@ function ReadyStep({
           <div className="mach-ready-line" data-machines-ready={added.id}>
             {readyLine(added.label)}
           </div>
+          {/* PHASE 342'S FIX ROUND. Main's one sentence that a session there
+              can look a little different from one on this Mac, when the
+              machine's tmux refused a setting its version was not measured
+              refusing. One line under the ready line, and nothing at all on
+              every machine Tortie measured. */}
+          {typeof result?.note === 'string' && result.note.trim() !== '' ? (
+            <div className="mach-note" data-machines-ready-note={added.id}>
+              {result.note}
+            </div>
+          ) : null}
           {/* D19. The agents appear after Add, from the one scan Prepare
               starts, and only once that scan has answered. */}
           {agents === null || agents.length === 0 ? null : (

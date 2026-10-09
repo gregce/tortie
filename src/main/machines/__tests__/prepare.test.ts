@@ -88,7 +88,9 @@ describe('readRemoteTmuxVersion', () => {
     verbAnswer = 'tmux 3.6a\n';
     expect(await readRemoteTmuxVersion(CTX)).toEqual({
       kind: 'version',
-      version: '3.6a'
+      version: '3.6a',
+      // PHASE 342 (D3). Whose version it is: the running server's.
+      from: 'server'
     });
   });
 
@@ -101,7 +103,9 @@ describe('readRemoteTmuxVersion', () => {
     shellAnswer = 'tmux 3.7b\n';
     expect(await readRemoteTmuxVersion(CTX)).toEqual({
       kind: 'version',
-      version: '3.7b'
+      version: '3.7b',
+      // PHASE 342 (D3). The program's own -V, because no server answered.
+      from: 'program'
     });
   });
 
@@ -281,7 +285,10 @@ describe('prepareMachine', () => {
    */
   it('says what is still not true rather than reporting a failure', () => {
     expect(src).toContain('feedStarted = false;');
-    expect(src).toContain('${copy.detail} ${MACHINE_FEED_NOT_STARTED}');
+    // PHASE 342 (D7). `said` is the success sentence, with sentence (2)
+    // appended when the server refused an optional setting its version's
+    // measurement did not predict; the feed sentence still follows it.
+    expect(src).toContain('${said} ${MACHINE_FEED_NOT_STARTED}');
   });
 
   it('names the button a person can press again', () => {

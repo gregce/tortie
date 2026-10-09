@@ -505,7 +505,7 @@ describe('D3, the read before a park', () => {
     return { run, calls };
   }
   const park = async (run: TmuxScrollRunner, target: string): Promise<PaneScrollState> => {
-    await run(['copy-mode', '-e', '-t', target]);
+    await run(['copy-mode', '-e', '-H', '-t', target]);
     return parkedState();
   };
 
@@ -523,7 +523,7 @@ describe('D3, the read before a park', () => {
   it('already in copy mode: the operation, as today, and never undone', async () => {
     const { run, calls } = scripted([fields({ inMode: true, mouse: true, alt: true })]);
     const attempt = await readBeforePark(run, '$7', async (r, t) => {
-      await r(['copy-mode', '-e', '-t', t]);
+      await r(['copy-mode', '-e', '-H', '-t', t]);
       return parkedState({ innerAlt: true, innerMouse: true });
     });
     expect(attempt.outcome).toBe('already');
@@ -544,7 +544,7 @@ describe('D3, the read before a park', () => {
   it('a park the program raced is cancelled, and the read after the cancel is the answer', async () => {
     const { run, calls } = scripted([LIVE, fields({})]);
     const attempt = await readBeforePark(run, '$7', async (r, t) => {
-      await r(['copy-mode', '-e', '-t', t]);
+      await r(['copy-mode', '-e', '-H', '-t', t]);
       return parkedState({ innerMouse: true });
     });
     expect(attempt.outcome).toBe('parked');
@@ -564,7 +564,7 @@ describe('D3, the read before a park', () => {
     noteWritten('sess');
     const run = stampedRunner('sess', carriage.run);
     const parked = readBeforePark(run, '$7', async (r, t) => {
-      await r(['copy-mode', '-e', '-t', t]);
+      await r(['copy-mode', '-e', '-H', '-t', t]);
       return parkedState();
     });
     expect(far.stdin).toEqual([READ]);
@@ -573,7 +573,7 @@ describe('D3, the read before a park', () => {
     await settle();
     far.pump();
     await parked;
-    expect(far.stdin).toEqual([READ, CANCEL, 'send-keys -t $7 -H 6b', READ, 'copy-mode -e -t $7']);
+    expect(far.stdin).toEqual([READ, CANCEL, 'send-keys -t $7 -H 6b', READ, 'copy-mode -e -H -t $7']);
   });
 });
 
@@ -606,7 +606,7 @@ describe('answers in write order', () => {
     );
     void run(['display-message', '-p', '-t', '$7', '-F', REMOTE_STATE_FORMAT]);
     const before = run.lastStamp();
-    void run(['copy-mode', '-e', '-t', '$7']);
+    void run(['copy-mode', '-e', '-H', '-t', '$7']);
     expect(roadFacts('sess').parked).toBe(true);
     noteAnswer('sess', parkedState({ inMode: false }), before);
     expect(roadFacts('sess').parked).toBe(true);
@@ -712,7 +712,7 @@ describe('a cancel written marks the pane live at once (the integrator\'s round)
     expect(roadFacts('sess').parked).toBe(false);
     const carriage = far.carriage();
     if (carriage.kind !== 'live') throw new Error('unreachable');
-    void stampedRunner('sess', carriage.run)(['copy-mode', '-e', '-t', '$7']).catch(() => undefined);
+    void stampedRunner('sess', carriage.run)(['copy-mode', '-e', '-H', '-t', '$7']).catch(() => undefined);
     expect(roadFacts('sess').parked).toBe(true);
   });
 });
@@ -776,7 +776,7 @@ describe('a park or a cancel written clears "may be parked" at once (x17)', () =
     stampedRunner('sess', Object.assign(() => Promise.resolve(''), { ordered: true as const, server: 'machine:far' }));
   it('a park written over a pane that may be parked: parked, and no longer only feared', () => {
     noteAnswer('sess', 'failed');
-    void runner()(['copy-mode', '-e', '-t', '$7']);
+    void runner()(['copy-mode', '-e', '-H', '-t', '$7']);
     expect(roadFacts('sess')).toMatchObject({ parked: true, mayBeParked: false });
   });
   it('a cancel written over a pane that may be parked: live, and no longer feared', () => {
@@ -799,7 +799,7 @@ describe('F2 and F3, the read before a park, with the core\'s hooks', () => {
     return { run, calls };
   }
   const park = async (run: TmuxScrollRunner, target: string): Promise<PaneScrollState> => {
-    await run(['copy-mode', '-e', '-t', target]);
+    await run(['copy-mode', '-e', '-H', '-t', target]);
     return parkedState();
   };
 
@@ -1031,7 +1031,7 @@ describe('F4, keys over a parked pane while its connection is down', () => {
     carriages.set('far', far.carriage(2));
     const fresh = far.carriage(2);
     if (fresh.kind !== 'live') throw new Error('unreachable');
-    void stampedRunner('sess', fresh.run)(['copy-mode', '-e', '-t', '$7']).catch(() => undefined);
+    void stampedRunner('sess', fresh.run)(['copy-mode', '-e', '-H', '-t', '$7']).catch(() => undefined);
     const from = far.stdin.length;
     time.sleepers.shift()?.wake();
     await settle();

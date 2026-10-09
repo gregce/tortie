@@ -367,8 +367,10 @@ const ARMS = [
     file: ADD_MACHINE,
     name: 'the Add Machine sheet draws a distribution label beside the measured versions',
     expect: 'measured-versions line draws',
-    find: "              {MEASURED_VERSIONS.join(', ')}\n",
-    to: "              {MEASURED_VERSIONS.join(', ')} (3.6 is Ubuntu 26.04 LTS, 3.6b is Debian 13 backports)\n"
+    // Re-pointed by Phase 342 (anchors only): the list is drawn inside its
+    // span on one line since Phase 340, so the arm plants the label there.
+    find: "data-measured-versions=\"1\">{MEASURED_VERSIONS.join(', ')}</span>",
+    to: "data-measured-versions=\"1\">{MEASURED_VERSIONS.join(', ')} (3.6 is Ubuntu 26.04 LTS, 3.6b is Debian 13 backports)</span>"
   },
   {
     n: 25,

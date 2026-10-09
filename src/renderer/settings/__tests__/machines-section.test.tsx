@@ -542,7 +542,8 @@ describe('What Tortie runs there…', () => {
 
 describe('a version a person accepted, in What Tortie runs there…', () => {
   it('names a version Tortie has not measured, under a label that says what it is', () => {
-    for (const version of ['3.9a', '3.5a', '3.6c', '3.6A']) {
+    // PHASE 342 measured 3.5a, so 3.1c stands in its place here.
+    for (const version of ['3.9a', '3.1c', '3.6c', '3.6A']) {
       const html = drawPanel(row({ acceptedTmuxVersion: version }), 'what');
       expect(html).toContain(ACCEPTED_VERSION_LABEL);
       expect(html).toContain(`>${version}<`);

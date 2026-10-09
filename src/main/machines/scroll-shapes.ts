@@ -35,7 +35,10 @@
  *    `-R`, no `copy-pipe*` (which investigator B measured running a program
  *    from copy mode), no `;`, no `%` or `=` or name target, no `-c`, no `-e` on
  *    the scroll verbs, no `-u` on copy mode, and no other flag order. `-H`
- *    exists in exactly one row, the seventh, and nowhere else.
+ *    exists in exactly two rows and nowhere else: the seventh, where it
+ *    carries typed bytes, and, since Phase 342, `enter-copy-mode`, where it
+ *    is a bare flag that hides tmux's position indicator and carries nothing
+ *    (build/p342/SPEC.md D11).
  *  - none of the five `-X` shapes can put a byte in front of the program: with
  *    no mode active each answers "not in a mode" and a raw-mode recorder took 0
  *    bytes, on both measured builds (research 130 §4).
@@ -77,6 +80,15 @@
  * matched one row, and `__tests__/p3201-scroll-shapes.test.ts` records the four
  * entry points again through this module's own check, and every sequence
  * `typedSequence` composes.
+ *
+ * PHASE 342 (build/p342/SPEC.md D11). `enter-copy-mode` is ONE spelling,
+ * `copy-mode -e -H -t $N`, the form `enterCopyModeArgs` in `scroll.ts`
+ * composes for a runner that names a `server`, which every runner this table
+ * guards does. The four-element form it replaces is now REFUSED here; it is
+ * still this Mac's entry, byte for byte, and this Mac's runner is never
+ * handed to this table. It is not a ninth row and adds no power: the same
+ * verb on the same target, which types nothing, accepted on tmux 3.2a to
+ * 3.7c (§14 M3).
  *
  * WHAT A HOSTILE CALLER COULD STILL DO through this door is park, cancel, or
  * type into a `$N` pane its own live rows name. That is what the same
@@ -191,9 +203,12 @@ export const SCROLL_SHAPES: readonly ScrollShape[] = [
   },
   {
     id: 'enter-copy-mode',
-    argv: [word('copy-mode'), word('-e'), word('-t'), TARGET],
+    argv: [word('copy-mode'), word('-e'), word('-H'), word('-t'), TARGET],
     idempotent: true,
-    repeat: 'Idempotent, measured: entering copy mode twice kept the view at position 100.'
+    repeat:
+      'Idempotent, measured: entering copy mode twice kept the view at position 100. With -H the drawn ' +
+      'rows are the same as without it on a tmux that has copy-mode-position-format, and tmux\'s ' +
+      'position box is hidden on one that has not.'
   },
   {
     id: 'scroll-lines',

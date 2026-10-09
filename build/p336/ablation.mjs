@@ -487,8 +487,10 @@ export const ABLATIONS = [
     n: 'a120g', check: 'machines', owner: 'C120', file: MACHINE_ROW,
     name: "the machine row's warning typed as JSX text whose grant is broken across three lines",
     why: 'no single line of the source names the grant, so only a read that folds white space as the page does finds it.',
-    from: '              {row.writeHonesty}\n',
-    to: '              Saving on this machine is on because you\n              let it\n              save.\n'
+    // Re-pointed by Phase 342 (anchors only): Phase 340 moved the line to
+    // ten spaces of indent, so the fourteen-space shape matched nothing.
+    from: '          {row.writeHonesty}\n',
+    to: '          Saving on this machine is on because you\n          let it\n          save.\n'
   },
   {
     n: 'a120h', check: 'machines', owner: 'C120', file: TREE_MENU,

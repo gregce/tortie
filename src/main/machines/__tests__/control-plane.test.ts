@@ -179,8 +179,10 @@ describe('the precheck', () => {
     expect(sent).toEqual([['display-message', '-p', '#{version}']]);
   });
 
+  // PHASE 342 measured 3.2a to 3.5a on the live connection, so 3.0a stands
+  // in here for a version nobody measured.
   it('refuses when the version has no control measurement', async () => {
-    versionAnswer = 'tmux 3.2a\n';
+    versionAnswer = 'tmux 3.0a\n';
     const err = await remoteControlTransport('studio')
       .precheck()
       .catch((one: unknown) => one);
@@ -191,7 +193,7 @@ describe('the precheck', () => {
   it('names the versions that do have one, in the detail', () => {
     const err = (() => {
       try {
-        assertControlDialectMeasured('studio', '3.2a');
+        assertControlDialectMeasured('studio', '3.0a');
         return null;
       } catch (one) {
         return one as GmuxError;
@@ -218,7 +220,7 @@ describe('opening', () => {
   });
 
   it('opens NOTHING for a version with no control measurement', async () => {
-    versionAnswer = 'tmux 3.2a\n';
+    versionAnswer = 'tmux 3.0a\n';
     expect(await openControlPlane('studio')).toBe(false);
     expect(openControlPlaneCount()).toBe(0);
     expect(FakeClient.made).toHaveLength(0);
@@ -471,5 +473,98 @@ describe('closing', () => {
     sent = [];
     closeControlPlane('studio');
     expect(sent).toEqual([]);
+  });
+});
+
+/**
+ * PHASE 342 (build/p342/SPEC.md D3, D24, §Attack F1 and F2). The live
+ * connection only CONSULTS the pair verdict Prepare's one program read led
+ * to, in the precheck (through `assertControlDialectMeasured`) and in
+ * `openControlPlane`, and never reads a program itself. A program nobody
+ * measured beside the server that still runs the sessions gets no live
+ * connection: measured, a 3.6b program beside a running 3.5a server never
+ * greeted. A verdict counts only while the server version the reads note is
+ * the one it was read against, so a machine that restarted on the new tmux
+ * opens again with nothing to clear.
+ */
+const leaf = await import('../far-tmux');
+
+describe('Phase 342: the pair, consulted and never read', () => {
+
+  beforeEach(() => {
+    leaf.resetFarTmuxForTests();
+  });
+
+  afterEach(() => {
+    leaf.resetFarTmuxForTests();
+  });
+
+  it('the precheck refuses a pair nobody measured with its first line, sends one read and spawns nothing', async () => {
+    versionAnswer = 'tmux 3.5a\n';
+    leaf.noteFarPair('studio', '3.5a', '3.6b');
+    const err = await remoteControlTransport('studio')
+      .precheck()
+      .catch((one: unknown) => one);
+    expect(err).toBeInstanceOf(GmuxError);
+    expect((err as GmuxError).payload.message).toBe(leaf.MACHINE_TMUX_UPDATED_HEADLINE);
+    expect(sent).toEqual([['display-message', '-p', '#{version}']]);
+    expect(FakeClient.made).toHaveLength(0);
+  });
+
+  it('assertControlDialectMeasured notes the server version before it consults the verdict', () => {
+    leaf.noteFarPair('studio', '3.5a', '3.6b');
+    expect(() => assertControlDialectMeasured('studio', '3.5a')).toThrow(GmuxError);
+    expect(leaf.farServerVersion('studio')).toBe('3.5a');
+    // The server restarted on the new tmux: the old verdict stops counting.
+    expect(assertControlDialectMeasured('studio', '3.6b')).toBe('3.6b');
+  });
+
+  it('opens nothing across a refused pair: the link polls with the pair line, and the timer feed keeps the machine', async () => {
+    versionAnswer = 'tmux 3.5a\n';
+    leaf.noteFarPair('studio', '3.5a', '3.6b');
+    expect(await openControlPlane('studio')).toBe(false);
+    expect(openControlPlaneCount()).toBe(0);
+    expect(FakeClient.made).toHaveLength(0);
+    expect(machineLinkFacts('studio').link).toBe('polling');
+    expect(machineLinkFacts('studio').reason).toBe(leaf.MACHINE_TMUX_UPDATED_HEADLINE);
+    // It read the server's version and nothing else: no program read here.
+    expect(sent.every((argv) => argv[0] === 'display-message' && !argv.includes('-V'))).toBe(true);
+  });
+
+  it('a program that named no version refuses the live connection alone, with no pair sentence', async () => {
+    versionAnswer = 'tmux 3.4\n';
+    leaf.noteFarPair('studio', '3.4', null);
+    expect(await openControlPlane('studio')).toBe(false);
+    expect(FakeClient.made).toHaveLength(0);
+    expect(machineLinkFacts('studio').reason).toBe('runs a version Tortie has not measured');
+    expect(() => leaf.assertFarPairUsable('studio')).not.toThrow();
+  });
+
+  it('a pair measured with that server opens, and so does every row from 3.6 whatever the program', async () => {
+    versionAnswer = 'tmux 3.3a\n';
+    leaf.noteFarPair('studio', '3.3a', '3.5a');
+    expect(await openControlPlane('studio')).toBe(true);
+    expect(FakeClient.made).toHaveLength(1);
+    closeControlPlane('studio');
+    resetControlPlanesForTests();
+    FakeClient.made = [];
+    versionAnswer = 'tmux 3.6a\n';
+    leaf.noteFarPair('studio', '3.6a', '3.7c');
+    expect(await openControlPlane('studio')).toBe(true);
+    expect(FakeClient.made).toHaveLength(1);
+  });
+
+  it('a machine that restarted on the new program opens again with nothing to clear', async () => {
+    leaf.noteFarPair('studio', '3.5a', '3.6b');
+    versionAnswer = 'tmux 3.6b\n';
+    expect(await openControlPlane('studio')).toBe(true);
+    expect(FakeClient.made).toHaveLength(1);
+    expect(leaf.farPairRefusal('studio')).toBeNull();
+  });
+
+  it('every row before 3.6 is measured on the live connection', () => {
+    for (const version of ['3.2a', '3.3a', '3.4', '3.5a']) {
+      expect(assertControlDialectMeasured('studio', version)).toBe(version);
+    }
   });
 });

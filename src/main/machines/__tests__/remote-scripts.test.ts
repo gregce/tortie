@@ -16,7 +16,19 @@
  */
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -836,9 +848,15 @@ describe('the folder write', () => {
     expect(text.indexOf('exists')).toBeLessThan(text.indexOf('denied'));
   });
 
-  it('reads the mode with both stat spellings and survives neither', () => {
-    expect(write?.text).toContain('stat -f %Lp "$p"');
-    expect(write?.text).toContain('stat -c %a "$p"');
+  it('reads the mode by the spelling folderCheck chose, and survives neither', () => {
+    // PHASE 342. One line, branching on the `wq` the shared prelude set, with
+    // GNU's `stat -c %a` on the `-c` arm and BSD's `stat -f %Lp` on the other.
+    // It used to try BSD first, which on Linux printed file-system status into
+    // the answer and made the folder 700 whatever its parent (SPEC D15).
+    expect(write?.text).toContain(
+      'if [ "$wq" = -c ]; then m=$(stat -c %a "$p" 2>/dev/null || true); else m=$(stat -f %Lp "$p" 2>/dev/null || true); fi'
+    );
+    expect(write?.text).not.toContain('if [ -z "$m" ]; then m=$(stat');
     expect(write?.text).toContain('|| true');
   });
 
@@ -904,6 +922,320 @@ describe('the rename write', () => {
       MUTATING.includes(word)
     );
     expect([...new Set(named)]).toEqual(['mv']);
+  });
+
+  it('still tries BSD first for its pair, which it compares and never keeps (Phase 342)', () => {
+    // SPEC D15 and §Attack F9. The one exception to "GNU first": reading the
+    // real identity here sent two names of one file to `mv`, which GNU refuses
+    // with no answer under `set -e`, where today's text answers `exists`.
+    const text = write?.text ?? '';
+    expect(text.indexOf("a=$(stat -f '%d %i' \"$s\"")).toBeLessThan(
+      text.indexOf("a=$(stat -c '%d %i' \"$s\"")
+    );
+    expect(text).not.toContain('stat "$wq" \'%d %i\'');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 342. The far mode reads and the store listing read GNU first
+// ---------------------------------------------------------------------------
+
+/**
+ * GNU coreutils' `stat`, as far as the three edited texts reach it, built on
+ * this Mac's BSD `stat`. `-c FORMAT` maps GNU's letters (`%Y %s %n %a`) to
+ * BSD's and answers; `-f` is GNU's FILE-SYSTEM status: every operand is a
+ * file, so the format word itself is a missing one, and each file that is
+ * there gets GNU's five-line block on STDOUT, then exit 1. That is the shape
+ * measured on GNU 8.32 to 9.12 and uutils 0.10.0 (SPEC §14 M11), and it is
+ * what made every save of an existing file on Linux stop with no answer.
+ */
+const GNU_STAT_STANDIN = String.raw`#!/bin/sh
+l=
+if [ "$1" = -L ]; then l=-L; shift; fi
+case "$1" in
+  -c)
+    fmt=$(printf '%s' "$2" | sed -e 's/%Y/%m/g' -e 's/%s/%z/g' -e 's/%n/%N/g' -e 's/%a/%Lp/g')
+    shift 2
+    exec /usr/bin/stat $l -f "$fmt" "$@"
+    ;;
+  -f)
+    shift
+    rc=0
+    for x in "$@"; do
+      if [ -e "$x" ]; then
+        printf '  File: "%s"\n    ID: 75e1c9e4ec627d38 Namelen: 255     Type: overlayfs\nBlock size: 4096       Fundamental block size: 4096\nBlocks: Total: 1  Free: 1  Available: 1\nInodes: Total: 1  Free: 1\n' "$x"
+      else
+        printf "stat: cannot read file system information for '%s': No such file or directory\n" "$x" >&2
+        rc=1
+      fi
+    done
+    exit "$rc"
+    ;;
+esac
+printf 'stat stand-in: a shape no edited text sends: %s\n' "$*" >&2
+exit 2
+`;
+
+/** Today's two mode lines and listing lines, put back to measure the parent. */
+const PARENT_LINES: Readonly<Record<string, readonly [string, string]>> = {
+  'file-put': [
+    '  if [ "$wq" = -c ]; then m=$(stat -c %a "$f" 2>/dev/null || true); else m=$(stat -f %Lp "$f" 2>/dev/null || true); fi',
+    '  m=$(stat -f %Lp "$f" 2>/dev/null || true)\n  if [ -z "$m" ]; then m=$(stat -c %a "$f" 2>/dev/null || true); fi'
+  ],
+  'dir-new': [
+    'if [ "$wq" = -c ]; then m=$(stat -c %a "$p" 2>/dev/null || true); else m=$(stat -f %Lp "$p" 2>/dev/null || true); fi',
+    'm=$(stat -f %Lp "$p" 2>/dev/null || true)\nif [ -z "$m" ]; then m=$(stat -c %a "$p" 2>/dev/null || true); fi'
+  ],
+  'store-list': [
+    "  o=$({ find \"$1\" -maxdepth \"$2\" -type f -exec stat -c '%Y %s %n' {} + 2>/dev/null ||\n    find \"$1\" -maxdepth \"$2\" -type f -exec stat -f '%m %z %N' {} + 2>/dev/null ||",
+    "  o=$({ find \"$1\" -maxdepth \"$2\" -type f -exec stat -f '%m %z %N' {} + 2>/dev/null ||\n    find \"$1\" -maxdepth \"$2\" -type f -exec stat -c '%Y %s %n' {} + 2>/dev/null ||"
+  ]
+};
+
+/** A shipping text, or the parent's spelling of it, replaced exactly once. */
+function textOf(id: string, which: 'head' | 'parent'): string {
+  const text = remoteScript(id)?.text ?? '';
+  const swap = PARENT_LINES[id];
+  if (which === 'head' || swap === undefined) return text;
+  const [head, parent] = swap;
+  expect(text.split(head)).toHaveLength(2);
+  return text.replace(head, parent);
+}
+
+describe('Phase 342: the far texts read GNU first, driven', () => {
+  const SHELLS = ['/bin/sh', '/bin/dash'].filter((shell) => existsSync(shell));
+  const sha = (bytes: string | Buffer): string =>
+    createHash('sha256').update(bytes).digest('hex');
+  const modeOf = (path: string): string => (statSync(path).mode & 0o7777).toString(8);
+
+  interface World {
+    readonly root: string;
+    readonly proj: string;
+    readonly env: NodeJS.ProcessEnv;
+  }
+
+  /** A scratch project, a scratch home, and `stat` as GNU or as this Mac. */
+  function world(gnu: boolean): World {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'p342-far-')));
+    const home = join(root, 'home');
+    const bin = join(root, 'bin');
+    const proj = join(root, 'proj');
+    mkdirSync(home);
+    mkdirSync(bin);
+    mkdirSync(join(proj, 'priv'), { recursive: true });
+    chmodSync(home, 0o700);
+    chmodSync(proj, 0o755);
+    chmodSync(join(proj, 'priv'), 0o700);
+    writeFileSync(join(proj, 'a.txt'), 'hello\n');
+    chmodSync(join(proj, 'a.txt'), 0o644);
+    writeFileSync(join(proj, 'run.sh'), '#!/bin/sh\n');
+    chmodSync(join(proj, 'run.sh'), 0o755);
+    writeFileSync(join(proj, 'b.txt'), 'b\n');
+    if (gnu) {
+      writeFileSync(join(bin, 'stat'), GNU_STAT_STANDIN);
+      chmodSync(join(bin, 'stat'), 0o755);
+    }
+    // Built from nothing: a scratch HOME and ZDOTDIR, no history file, and no
+    // TERM_SESSION_ID, so no shell this test starts can reach his.
+    const env: NodeJS.ProcessEnv = {
+      PATH: `${bin}:/usr/bin:/bin:/usr/sbin:/sbin`,
+      HOME: home,
+      ZDOTDIR: home,
+      HISTFILE: '/dev/null',
+      LANG: 'C'
+    };
+    return { root, proj, env };
+  }
+
+  function run(
+    w: World,
+    shell: string,
+    id: string,
+    args: readonly string[],
+    which: 'head' | 'parent' = 'head'
+  ): { status: number | null; answer: string | null } {
+    const r = spawnSync(shell, ['-c', textOf(id, which), `tortie-${id}`, ...args], {
+      encoding: 'utf8',
+      env: w.env,
+      cwd: w.root,
+      timeout: 30_000
+    });
+    const found = /__TORTIE_RUN__([\s\S]*?)__TORTIE_RUN__/.exec(r.stdout ?? '');
+    return { status: r.status, answer: found === null ? null : (found[1] ?? '') };
+  }
+
+  const pinOf = (w: World, shell: string): string =>
+    run(w, shell, 'folder-pin', [w.proj]).answer?.trim() ?? 'none';
+
+  const b64 = (text: string): string => Buffer.from(text, 'utf8').toString('base64');
+
+  it('has a stand-in that answers -c as GNU does and -f with file-system status', () => {
+    const w = world(true);
+    try {
+      const c = spawnSync('stat', ['-c', '%a', join(w.proj, 'a.txt')], {
+        encoding: 'utf8',
+        env: w.env
+      });
+      expect(c.status).toBe(0);
+      expect(c.stdout.trim()).toBe('644');
+      const f = spawnSync('stat', ['-f', '%Lp', join(w.proj, 'a.txt')], {
+        encoding: 'utf8',
+        env: w.env
+      });
+      expect(f.status).toBe(1);
+      expect(f.stdout.trim().split('\n')).toHaveLength(5);
+      expect(f.stdout).toContain('File: "');
+    } finally {
+      rmSync(w.root, { recursive: true, force: true });
+    }
+  });
+
+  it('reproduces the parent: under GNU stat today\'s texts fail as measured on Linux', () => {
+    // The method that proves the stand-in is hostile enough: the parent's
+    // three texts, put back exactly, answer as SPEC §14 M11 measured on seven
+    // distributions. A save over an existing file ends with no answer, its
+    // contents kept and a `.tortie-part` left; a folder is made 700 and its
+    // answer is `made` followed by file-system status; a listing is noise.
+    for (const shell of SHELLS) {
+      const w = world(true);
+      try {
+        const pin = pinOf(w, shell);
+        expect(pin).toMatch(/^\d+:\d+$/);
+        const put = run(
+          w,
+          shell,
+          'file-put',
+          [w.proj, 'a.txt', sha('hello\n'), b64('saved\n'), pin],
+          'parent'
+        );
+        expect(put.answer).toBeNull();
+        expect(put.status).not.toBe(0);
+        expect(readFileSync(join(w.proj, 'a.txt'), 'utf8')).toBe('hello\n');
+        expect(existsSync(join(w.proj, 'a.txt.tortie-part'))).toBe(true);
+        const made = run(w, shell, 'dir-new', [w.proj, 'made', pin], 'parent');
+        expect(made.answer?.startsWith('made ')).toBe(true);
+        expect(made.answer).toContain('File: "');
+        expect(modeOf(join(w.proj, 'made'))).toBe('700');
+        const list = run(w, shell, 'store-list', [w.proj, '2', '0'], 'parent');
+        const lines = (list.answer ?? '').split('\n').filter((l) => l.length > 0);
+        expect(lines.some((l) => !/^\d+ \d+ \//.test(l))).toBe(true);
+      } finally {
+        rmSync(w.root, { recursive: true, force: true });
+      }
+    }
+  });
+
+  it('saves over an existing file under GNU stat, keeping its mode and leaving nothing', () => {
+    for (const shell of SHELLS) {
+      const w = world(true);
+      try {
+        const pin = pinOf(w, shell);
+        for (const [file, before, mode] of [
+          ['a.txt', 'hello\n', '644'],
+          ['run.sh', '#!/bin/sh\n', '755']
+        ] as const) {
+          const put = run(w, shell, 'file-put', [w.proj, file, sha(before), b64('saved\n'), pin]);
+          expect(put.status).toBe(0);
+          expect(put.answer).toBe(`wrote ${sha('saved\n')} 6`);
+          expect(readFileSync(join(w.proj, file), 'utf8')).toBe('saved\n');
+          expect(modeOf(join(w.proj, file))).toBe(mode);
+        }
+        expect(readdirSync(w.proj).filter((n) => n.endsWith('.tortie-part'))).toEqual([]);
+      } finally {
+        rmSync(w.root, { recursive: true, force: true });
+      }
+    }
+  });
+
+  it('makes a folder under GNU stat with its parent\'s mode and an answer main reads', () => {
+    for (const shell of SHELLS) {
+      const w = world(true);
+      try {
+        const pin = pinOf(w, shell);
+        expect(run(w, shell, 'dir-new', [w.proj, 'made', pin]).answer).toBe('made 755');
+        expect(modeOf(join(w.proj, 'made'))).toBe('755');
+        expect(run(w, shell, 'dir-new', [w.proj, 'priv/made', pin]).answer).toBe('made 700');
+        expect(modeOf(join(w.proj, 'priv', 'made'))).toBe('700');
+      } finally {
+        rmSync(w.root, { recursive: true, force: true });
+      }
+    }
+  });
+
+  it('lists a store under GNU stat with only the three-field lines', () => {
+    for (const shell of SHELLS) {
+      const w = world(true);
+      try {
+        const list = run(w, shell, 'store-list', [w.proj, '2', '0']);
+        const lines = (list.answer ?? '').split('\n').filter((l) => l.length > 0);
+        expect(lines).toHaveLength(3);
+        for (const line of lines) expect(line).toMatch(/^\d+ \d+ \//);
+      } finally {
+        rmSync(w.root, { recursive: true, force: true });
+      }
+    }
+  });
+
+  it('renames under GNU stat exactly as at the parent, entry-rename being untouched', () => {
+    for (const shell of SHELLS) {
+      const w = world(true);
+      try {
+        const pin = pinOf(w, shell);
+        expect(run(w, shell, 'entry-rename', [w.proj, 'b.txt', 'c.txt', pin]).answer).toBe(
+          'moved none'
+        );
+        expect(run(w, shell, 'entry-rename', [w.proj, 'c.txt', 'a.txt', pin]).answer).toBe(
+          'exists none'
+        );
+      } finally {
+        rmSync(w.root, { recursive: true, force: true });
+      }
+    }
+  });
+
+  it('answers on this Mac\'s BSD stat exactly as the parent texts do', () => {
+    // The Mac's far machines must not move. Each edited text and its parent,
+    // over the same fixture: the same answer, the same mode, the same files.
+    for (const shell of SHELLS) {
+      const seen: Record<'head' | 'parent', unknown[]> = { head: [], parent: [] };
+      for (const which of ['head', 'parent'] as const) {
+        const w = world(false);
+        try {
+          const pin = pinOf(w, shell);
+          const put = run(
+            w,
+            shell,
+            'file-put',
+            [w.proj, 'run.sh', sha('#!/bin/sh\n'), b64('saved\n'), pin],
+            which
+          );
+          const made = run(w, shell, 'dir-new', [w.proj, 'made', pin], which);
+          const priv = run(w, shell, 'dir-new', [w.proj, 'priv/made', pin], which);
+          const list = run(w, shell, 'store-list', [w.proj, '2', '0'], which);
+          const listed = (list.answer ?? '')
+            .split('\n')
+            .filter((l) => l.length > 0)
+            .map((l) => l.split(' ').slice(2).join(' ').replace(w.root, '<root>'))
+            .sort();
+          seen[which].push(
+            put.answer,
+            modeOf(join(w.proj, 'run.sh')),
+            made.answer,
+            modeOf(join(w.proj, 'made')),
+            priv.answer,
+            modeOf(join(w.proj, 'priv', 'made')),
+            listed,
+            readdirSync(w.proj).sort()
+          );
+        } finally {
+          rmSync(w.root, { recursive: true, force: true });
+        }
+      }
+      expect(seen.head).toEqual(seen.parent);
+      expect(seen.head[0]).toBe(`wrote ${sha('saved\n')} 6`);
+      expect(seen.head[2]).toBe('made 755');
+      expect(seen.head[4]).toBe('made 700');
+    }
   });
 });
 

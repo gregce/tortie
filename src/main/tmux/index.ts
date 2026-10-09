@@ -134,12 +134,17 @@ export {
 // Phase 83 added a third version and a fourth exec outcome, `accepted`, which
 // is a version one person accepted for one machine. The control gate takes no
 // acceptance and never will.
+// Phase 342 added the pair: whether the program on a machine may talk to the
+// server it runs beside, decided over the rows before 3.6 that carry the
+// programs measured against them.
 export {
   decideRemoteControlGate,
+  decideRemotePair,
   decideRemoteVersionGate,
   joinVersionList,
   TESTED_REMOTE_TMUX_VERSIONS,
   type RemoteControlGate,
+  type RemotePairVerdict,
   type RemoteVersionGate,
   type TestedRemoteTmux
 } from './version';
@@ -153,13 +158,18 @@ export { serverProbeVerdict, type ServerProbeVerdict } from './errors';
 // Phase 69. Every option the private server runs with, as ONE list. The local
 // boot re-asserts five of them and a machine booted with -f /dev/null needs all
 // of them, and both read the same rows so the two cannot drift.
+// Phase 342: each row says the oldest tmux that took it and what Tortie does
+// without it, and a refusal is read only in tmux's own words.
 export {
+  isOptionRefusal,
   localReassertOptions,
   remoteBootOptions,
   runtimeValueOf,
   setOptionArgs,
   showOptionArgs,
   SERVER_OPTIONS,
+  type OptionWithout,
+  type RequiredPurpose,
   type ServerOption
 } from './server-options';
 

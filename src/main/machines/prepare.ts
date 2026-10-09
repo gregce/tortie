@@ -84,12 +84,30 @@
  * {@link prepareMachine} is a wrapper: it runs {@link prepareMachineOnce} and
  * records what it answered in `./row-facts.ts`, in memory only, whoever started
  * it, so the Settings row can draw the last sign in's class and version.
+ *
+ * ## The server's version, and the program beside it (Phase 342)
+ *
+ * build/p342/SPEC.md D3, D9, D10. The version the gate reads is remembered for
+ * the machine the moment it is read (`./far-tmux.ts`), so the set-up judges
+ * each option's refusal against the server's own measured row and the feed's
+ * first pass reads that version's quirks. On a WARM server whose row carries
+ * `programs` (the four versions before 3.6), the program beside the server is
+ * read once, with its own `-V`, through {@link readRemoteProgramVersion}, the
+ * one reader of it, and the pair verdict is recorded keyed by that server
+ * version. A pair nobody measured still gets the set-up and the feed, because
+ * the exec plane answers across it and the sessions are listed, and Prepare
+ * then answers `program-refused` with the pair sentence and scans no agents. A
+ * server the set-up refused for good, and a server it started that reports
+ * another version than its program said, both answer `program-refused` with
+ * their own sentence, asked BEFORE the taxonomy, which would have read a
+ * refusal as a machine Tortie could not reach. A refused optional setting the
+ * measurement did not predict adds one sentence to the prepared detail.
  */
 
 import { app } from 'electron';
 import { homedir } from 'node:os';
 import { getLog } from '../log';
-import { GmuxError } from '../errors';
+import { GmuxError, gmuxErrorPayloadOf } from '../errors';
 import {
   decideRemoteVersionGate,
   joinVersionList,
@@ -113,9 +131,23 @@ import {
   MACHINE_VERSION_ACCEPT_MISMATCH,
   MACHINE_VERSION_ACCEPT_OFFER,
   classifyMachineOutput,
-  composeOutcomeCopy
+  composeOutcomeCopy,
+  lastPrintedLine,
+  machineTmuxSettingRefused
 } from './errors';
-import { ensureRemoteServer, RemoteServerSetUpStopped } from './remote-server';
+import {
+  ensureRemoteServer,
+  RemoteServerSetUpStopped,
+  RemoteTmuxRefused
+} from './remote-server';
+// PHASE 342 (D3, D24). What this run knows about the machine's tmux.
+import {
+  farPairIsDisagreement,
+  farPairOf,
+  farServerVersion,
+  noteFarPair,
+  noteFarServerVersion
+} from './far-tmux';
 // PHASE 84, item 4. Preparing a machine is what makes its sessions visible, and
 // until this phase it started nothing that reads them. `startMachineFeed` is a
 // no-op for a machine that already has one, so calling it here and at the launch
@@ -175,8 +207,17 @@ export interface PrepareInput {
  * all" and the person's sentence named the path.
  */
 export type RemoteVersionRead =
-  /** The machine answered and named a version. */
-  | { readonly kind: 'version'; readonly version: string }
+  /**
+   * The machine answered and named a version. PHASE 342: `from` says whose,
+   * the running SERVER's (`display-message`) or the PROGRAM's own `-V`, which
+   * is read when no server answered and, on the four rows before 3.6, beside
+   * a server that did.
+   */
+  | {
+      readonly kind: 'version';
+      readonly version: string;
+      readonly from: 'server' | 'program';
+    }
   /** The machine answered and the program named no version Tortie could read. */
   | { readonly kind: 'unreadable' }
   /** Nothing reached the machine. Nothing was learned about any program on it. */
@@ -228,11 +269,28 @@ export async function readRemoteTmuxVersion(
       timeoutMs: REMOTE_VERSION_TIMEOUT_MS
     });
     const parsed = parseTmuxVersion(out);
-    if (parsed !== null) return { kind: 'version', version: parsed };
+    if (parsed !== null) return { kind: 'version', version: parsed, from: 'server' };
   } catch {
     // A machine with nothing of Tortie's running on it lands here, and that is
     // the ordinary case for a machine nobody has prepared.
   }
+  return readRemoteProgramVersion(ctx);
+}
+
+/**
+ * What the PROGRAM on that machine says its version is, with its own `-V`
+ * (Phase 342, D3: factored out of {@link readRemoteTmuxVersion}, whose second
+ * read it is, unchanged).
+ *
+ * THE ONE READER OF IT. Prepare calls it again beside a warm server whose row
+ * carries `programs`, and nothing else in the tree reads a far program's
+ * version: the live connection's precheck and its open CONSULT the verdict
+ * this read leads to (`./far-tmux.ts`), so `execRemoteShell` gains no caller
+ * and the precheck stays the one read it is.
+ */
+export async function readRemoteProgramVersion(
+  ctx: RemoteMachineContext
+): Promise<RemoteVersionRead> {
   // PHASE 235, item 3. The clock the deadline branch below reads. It starts
   // here rather than at the top of the function, so it measures THIS read's own
   // deadline and not the first read's as well.
@@ -249,7 +307,9 @@ export async function readRemoteTmuxVersion(
       { timeoutMs: REMOTE_VERSION_TIMEOUT_MS }
     );
     const parsed = parseTmuxVersion(out);
-    return parsed === null ? { kind: 'unreadable' } : { kind: 'version', version: parsed };
+    return parsed === null
+      ? { kind: 'unreadable' }
+      : { kind: 'version', version: parsed, from: 'program' };
   } catch (err) {
     const cls = classOfFailure(err);
     if (UNREACHED_CLASSES.includes(cls)) {
@@ -430,6 +490,11 @@ export async function prepareMachineOnce(
 
   const version = read.kind === 'version' ? read.version : null;
   const accepted = ctx.acceptedTmuxVersion ?? null;
+  // PHASE 342 (D9, D24). Remembered the moment it is read, so the set-up
+  // judges each refusal against this version's own row and the feed's first
+  // pass reads its quirks. A server the set-up starts is asked again and
+  // replaces it.
+  noteFarServerVersion(input.machineId, version);
 
   /**
    * The sheet a person reads to accept the version this machine reports.
@@ -542,13 +607,59 @@ export async function prepareMachineOnce(
     };
   }
 
+  // Step 4a. PHASE 342 (D3). The program beside a WARM server, read once, and
+  // only on a row that carries `programs`, which no row from 3.6 does, so a
+  // machine that works today is sent nothing more. The verdict is recorded
+  // whatever it is, keyed by this server version, which is what clears an
+  // old refusal; only a read that reached nothing records none. A server that
+  // did not answer has no pair to read: the set-up starts one and asks it its
+  // own version.
+  if (read.kind === 'version' && read.from === 'server') {
+    const row = TESTED_REMOTE_TMUX_VERSIONS.find((one) => one.version === read.version);
+    if (row?.programs !== undefined) {
+      const program = await readRemoteProgramVersion(ctx);
+      if (overtaken()) return stopped(false);
+      if (program.kind === 'unreached') {
+        // Nothing reached the program, so nothing was learnt about the pair:
+        // no verdict is recorded, and one an earlier Prepare recorded against
+        // this server stands. A blip here must not keep a machine whose pair
+        // is fine off its live connection for the rest of the run.
+        machinesLog.warn(
+          `${input.machineId}'s program beside its tmux ${read.version} server ` +
+            `could not be asked its version, so nothing was learnt about the ` +
+            `two: ${program.detail}`
+        );
+      } else {
+        const ran = program.kind === 'version' ? program.version : null;
+        if (ran === null) {
+          machinesLog.warn(
+            `${input.machineId}'s program beside its tmux ${read.version} server ` +
+              `named no version, so Tortie opens no new live connection there.`
+          );
+        }
+        noteFarPair(input.machineId, read.version, ran);
+      }
+    } else {
+      noteFarPair(input.machineId, read.version, null);
+    }
+  }
+
   // Step 5.
   let serverBorn = false;
   try {
     // PHASE 340.1's fix round. The set-up asks the route epoch after every
     // command it sends, so a confirm of changed details that lands inside it
     // stops it at the next command rather than after the last.
-    const server = await ensureRemoteServer(ctx, { stillRouted: () => !overtaken() });
+    //
+    // PHASE 342 (D9). The program's own version goes with it when that is
+    // what the gate read, because no server answered: a server the set-up
+    // starts must report the same.
+    const server = await ensureRemoteServer(ctx, {
+      stillRouted: () => !overtaken(),
+      ...(read.kind === 'version' && read.from === 'program'
+        ? { version: read.version }
+        : {})
+    });
     serverBorn = server.born;
     // PHASE 340.1. The server over the old details is as far as it got: no
     // feed is started for a route that was retired while it was being set up.
@@ -573,6 +684,54 @@ export async function prepareMachineOnce(
     // PHASE 340.1. Retired while the feed was starting: the feed stopped
     // itself, and this is not the prepared machine the new details describe.
     if (overtaken()) return stopped(server.born);
+    const readback = server.options.map((row) => ({
+      name: row.name,
+      wanted: row.wanted,
+      observed: row.observed,
+      agrees: row.agrees
+    }));
+    // Step 5a2. PHASE 342 (D3). A program nobody measured beside the server
+    // that still runs the sessions. The set-up and the feed ran, because the
+    // exec plane answers across the pair and the sessions are listed; no
+    // session is opened there (the live connection, an attach, a create and a
+    // restore each consult the verdict), no agent is scanned, and nothing is
+    // ended (his ruling 3, "Only say so"). Asked of the recorded verdict, so a
+    // server the set-up started, which recorded its own pair, answers prepared.
+    const pair = farPairOf(input.machineId);
+    if (pair !== null && pair.kind === 'refused' && pair.program !== null) {
+      // PHASE 342'S SECOND FIX ROUND. A program this run saw say another
+      // version than the server it started runs as, still beside that very
+      // server, is said as sentence (4) again, never as an update: the second
+      // verifier read "updated while its sessions kept running … After that
+      // machine restarts, Tortie can restore them" of a program that lies,
+      // which nothing updated and no restart changes.
+      const lies = farPairIsDisagreement(input.machineId);
+      const refusedCopy = composeOutcomeCopy('program-refused', {
+        tmuxRefusal: lies
+          ? { kind: 'disagrees', said: pair.program, ran: pair.server }
+          : { kind: 'pair', server: pair.server, program: pair.program }
+      });
+      machinesLog.warn(
+        `${input.machineId} runs a tmux ${pair.server} server beside a ` +
+          `${pair.program} program, a pair Tortie has not measured` +
+          `${lies ? ', a program this run saw say another version than the server it started' : ''}, ` +
+          `so it lists its sessions and opens none.`
+      );
+      return {
+        id: input.machineId,
+        class: 'program-refused',
+        alarm: refusedCopy.alarm,
+        headline: refusedCopy.headline,
+        detail: refusedCopy.detail,
+        version,
+        supported,
+        serverBorn: server.born,
+        options: readback,
+        pathCaptured: machineGeneration(input.machineId).remotePath !== null,
+        acceptSheet: null,
+        durationMs: Date.now() - startedAt
+      };
+    }
     // Step 5b. PHASE 109. One batched read of which agents this machine has,
     // started with `void` so nothing a person is waiting on awaits it. It
     // runs on the prepared arm ONLY, because every other arm is a machine
@@ -596,6 +755,19 @@ export async function prepareMachineOnce(
       // this version".
       versionAccepted: gate.kind === 'accepted'
     });
+    // PHASE 342 (D7). An optional setting the server refused that its
+    // version's measurement did not predict: ONE sentence, said once however
+    // many there were, about the server's own version.
+    //
+    // PHASE 342'S FIX ROUND. Carried alone as `note` as well as at the end of
+    // the detail, because the verifier found it drawn NOWHERE: the row's
+    // Ready chip draws its own hover and no prepared detail, and Add a
+    // machine's last step draws "<name> is ready." alone. Both draw the note.
+    const unexpected = server.refused.some((one) => !one.expected);
+    const note = unexpected
+      ? machineTmuxSettingRefused(farServerVersion(input.machineId) ?? version)
+      : null;
+    const said = note === null ? copy.detail : `${copy.detail} ${note}`;
     return {
       id: input.machineId,
       class: 'prepared',
@@ -603,31 +775,59 @@ export async function prepareMachineOnce(
       headline: copy.headline,
       // PHASE 84. The one sentence that says what is still not true, appended
       // rather than replacing the success sentence, because both are true.
-      detail: feedStarted
-        ? copy.detail
-        : `${copy.detail} ${MACHINE_FEED_NOT_STARTED}`,
+      detail: feedStarted ? said : `${said} ${MACHINE_FEED_NOT_STARTED}`,
       version,
       supported,
       serverBorn: server.born,
-      options: server.options.map((row) => ({
-        name: row.name,
-        wanted: row.wanted,
-        observed: row.observed,
-        agrees: row.agrees
-      })),
+      options: readback,
       pathCaptured: machineGeneration(input.machineId).remotePath !== null,
       acceptSheet: null,
-      durationMs: Date.now() - startedAt
+      durationMs: Date.now() - startedAt,
+      note
     };
   } catch (err) {
     // PHASE 340.1. A failure of the old details' server is not this machine's,
     // and neither is a set-up the confirm stopped part way, which says whether
     // it had started the server by then.
     if (overtaken()) {
-      return stopped(serverBorn || (err instanceof RemoteServerSetUpStopped && err.born));
+      return stopped(
+        serverBorn ||
+          ((err instanceof RemoteServerSetUpStopped || err instanceof RemoteTmuxRefused) &&
+            err.born)
+      );
+    }
+    // PHASE 342 (D6, D9, D10). Asked BEFORE the taxonomy, which reads tmux's
+    // refusal of a setting as a machine Tortie could not reach. The machine
+    // answered; its tmux is too old for a setting Tortie cannot do without, or
+    // the server the set-up started is not the version its program said.
+    if (err instanceof RemoteTmuxRefused) {
+      return {
+        ...base,
+        // PHASE 342'S FIX ROUND. A server that is not the version its program
+        // said is drawn as the version it RUNS, so the row's line of facts
+        // agrees with the sentence under it rather than naming the version
+        // that sentence says is not true.
+        version: err.refusal.kind === 'disagrees' ? err.refusal.ran : version,
+        class: 'program-refused',
+        alarm: false,
+        headline: err.headline,
+        detail: err.detail,
+        serverBorn: serverBorn || err.born,
+        pathCaptured: machineGeneration(input.machineId).remotePath !== null,
+        durationMs: Date.now() - startedAt
+      };
     }
     const cls = classOfFailure(err);
-    const copy = composeOutcomeCopy(cls, { lastLine: sentenceOf(err) });
+    // PHASE 342'S FIX ROUND. A gmux error's `message` is its whole payload as
+    // JSON, so this arm drew that JSON, the ssh command line inside it, as the
+    // row's hover. The payload is read instead: the program's own last line
+    // for the taxonomy's sentence, and the payload's own sentence for a
+    // person, except the exec plane's catch-all (code UNKNOWN), whose message
+    // is the failed command line and is no sentence at all.
+    const payload = gmuxErrorPayloadOf(err);
+    const copy = composeOutcomeCopy(cls, {
+      lastLine: lastPrintedLine(payload?.detail ?? sentenceOf(err))
+    });
     return {
       ...base,
       version,
@@ -636,7 +836,7 @@ export async function prepareMachineOnce(
       // A gmux error already carries a sentence written for a person, so it is
       // drawn rather than replaced by the taxonomy's generic one.
       headline: copy.headline,
-      detail: err instanceof GmuxError ? sentenceOf(err) : copy.detail,
+      detail: payload !== null && payload.code !== 'UNKNOWN' ? payload.message : copy.detail,
       pathCaptured: machineGeneration(input.machineId).remotePath !== null,
       durationMs: Date.now() - startedAt
     };

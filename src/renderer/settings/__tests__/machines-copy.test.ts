@@ -611,12 +611,15 @@ describe('the three copies of main, checked by machine', () => {
     // person is waiting for is the machine's own.
     // PHASE 340 added `program-choice`: the buttons under the question are the
     // next step, so there is nothing to add under them.
+    // PHASE 342 added `program-refused`: main's detail says what is true
+    // and Tortie names no install command (build/p342/SPEC.md D18).
     expect(nothingToDo).toEqual([
       'cancelled',
       'key-installed',
       'ok',
       'prepared',
-      'program-choice'
+      'program-choice',
+      'program-refused'
     ]);
   });
 

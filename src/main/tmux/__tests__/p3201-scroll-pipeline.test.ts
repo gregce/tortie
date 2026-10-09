@@ -15,6 +15,10 @@
  *    the fields, Phase 320.1's fix round) and this Mac's with `STATE_FORMAT`,
  *    so the comparisons below read every `-F` value as the one word "READ"
  *    and each runner is answered in its own format.
+ *  - Since Phase 342 a runner with a `server` enters copy mode with `-e -H`
+ *    and this Mac's with `-e` alone (build/p342/SPEC.md D11), so the
+ *    comparisons read copy mode's entry without the `-H` and hold each runner
+ *    to its own spelling.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -42,9 +46,18 @@ const tabbed = (fields: readonly string[]): string => `${fields.join('\t')}\n`;
 /** The fields as a machine's read answers them (`REMOTE_STATE_FORMAT`). */
 const spaced = (fields: readonly string[]): string => `${fields.join(' ')}\n`;
 
-/** Every argv with its `-F` value read as one word, so two readers' writes compare. */
+/**
+ * Every argv with its `-F` value read as one word, and copy mode's entry read
+ * without the `-H` a runner with a `server` adds (Phase 342, build/p342/SPEC.md
+ * D11), so two readers' writes compare. Each runner's own entry is held to its
+ * own spelling in the scenarios below, so nothing is lost by the reading.
+ */
 function shapeOf(calls: readonly (readonly string[])[]): string[][] {
-  return calls.map((args) => (args[0] === 'display-message' ? [...args.slice(0, -1), 'READ'] : [...args]));
+  return calls.map((args) => {
+    if (args[0] === 'display-message') return [...args.slice(0, -1), 'READ'];
+    if (args[0] === 'copy-mode') return args.filter((arg) => arg !== '-H');
+    return [...args];
+  });
 }
 
 /** Which argv fails, and with what, for one scenario. */
@@ -188,6 +201,14 @@ describe('an ordered runner keeps the serial code\'s answers and errors', () => 
       const ordered = runner('ordered', scenario.answer, scenario.fail);
       const orderedOutcome = await outcome(scenario.op(ordered.run));
       expect(orderedOutcome).toEqual(serialOutcome);
+      // Each runner enters copy mode in its own spelling: this Mac's `-e`
+      // alone, byte for byte as before, and a machine's `-e -H` (Phase 342 D11).
+      for (const call of serial.calls.filter((args) => args[0] === 'copy-mode')) {
+        expect(call).toEqual(['copy-mode', '-e', '-t', '$3']);
+      }
+      for (const call of ordered.calls.filter((args) => args[0] === 'copy-mode')) {
+        expect(call).toEqual(['copy-mode', '-e', '-H', '-t', '$3']);
+      }
       // What the pipeline writes is exactly what the serial code writes when
       // NOTHING fails, whatever fails here: it writes before it knows. So the
       // serial code's commands, which stop or skip on a failure, are an ordered

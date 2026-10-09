@@ -1,0 +1,1061 @@
+{
+ "_note": "HAND-WRITTEN to the shape an honest HEAD run of probe:p342 records (no builder launches Electron); a verifier who keeps a real run's records (P342_KEEP=1) may replace it. Rebuilt after the reboot of 2026-10-08 to the fix round's grader.",
+ "rows": {
+  "u2204": {
+   "L1": {
+    "peerListed": true,
+    "cls": "prepared",
+    "found": "/usr/bin/tmux",
+    "version": "3.2a",
+    "acceptSheet": false,
+    "ready": true,
+    "typed": 0,
+    "presses": 3,
+    "detail": "{\"id\":\"p342-u2204\",\"label\":\"p342-u2204\",\"color\":\"blue\",\"host\":\"p342-u2204\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.2a\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L2": {
+    "options": {
+     "status": "off",
+     "escape-time": "0",
+     "extended-keys": "on",
+     "allow-passthrough": null,
+     "focus-events": "on",
+     "default-terminal": "tmux-256color",
+     "remain-on-exit": "failed",
+     "exit-empty": "off",
+     "mouse": "off",
+     "copy-mode-position-format": null,
+     "mode-style": "bg=default,fg=default",
+     "history-limit": "25000"
+    },
+    "detail": "{\"id\":\"p342-u2204\",\"label\":\"p342-u2204\",\"color\":\"blue\",\"host\":\"p342-u2204\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.2a\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L3": {
+    "listedName": "cost $HOME _",
+    "farName": "cost _HOME _",
+    "utf8": false,
+    "dollarCwd": "/home/tortie/cost $d",
+    "dollarProject": "/home/tortie/cost $d",
+    "wantDollarCwd": "/home/tortie/cost $d"
+   },
+   "L4": {
+    "link": "connected",
+    "strangerShown": false,
+    "renamedArrived": true,
+    "dollarFar": "_HOME notes"
+   },
+   "L5": {
+    "attached": true,
+    "inMode": "1",
+    "position": "30",
+    "row0": "2949",
+    "controlRow0": "2949                                                                   [30/2978]",
+    "liveAgain": true
+   },
+   "L6": {
+    "trail": [
+     {
+      "ms": 0,
+      "status": "running"
+     },
+     {
+      "ms": 2100,
+      "status": "unknown"
+     },
+     {
+      "ms": 6400,
+      "status": "restorable"
+     }
+    ],
+    "prepareAfterRestart": "prepared",
+    "restorable": true,
+    "restored": true,
+    "path": "/home/tortie/proj",
+    "wantPath": "/home/tortie/proj",
+    "dollarPath": "/home/tortie/cost $d",
+    "wantDollarPath": "/home/tortie/cost $d"
+   },
+   "L7": {
+    "outcome": "wrote",
+    "sha": "69253383f6603de322005092bb1643bf84a07fee34d7dba98c3cbd91ddc92ae5",
+    "wantSha": "69253383f6603de322005092bb1643bf84a07fee34d7dba98c3cbd91ddc92ae5",
+    "mode": "644",
+    "parts": 0
+   },
+   "L8": {
+    "made": "made",
+    "mode": "755",
+    "renamed": "moved",
+    "child": "made",
+    "homeRefused": true
+   },
+   "L9": {
+    "linkKind": "dir",
+    "linkMark": "dir",
+    "inner": [
+     "inner",
+     "inner/f"
+    ]
+   },
+   "L10": {
+    "line": "remote",
+    "codexSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb",
+    "codexWantSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb"
+   },
+   "L11": {
+    "staged": "done",
+    "committed": "committed",
+    "subject": "p342 commit",
+    "porcelain": ""
+   },
+   "L12": {
+    "attached": true,
+    "got": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     }
+    },
+    "want": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     }
+    }
+   }
+  },
+  "d12": {
+   "L1": {
+    "peerListed": true,
+    "cls": "prepared",
+    "found": "/usr/bin/tmux",
+    "version": "3.3a",
+    "acceptSheet": false,
+    "ready": true,
+    "typed": 0,
+    "presses": 3,
+    "detail": "{\"id\":\"p342-d12\",\"label\":\"p342-d12\",\"color\":\"blue\",\"host\":\"p342-d12\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.3a\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L2": {
+    "options": {
+     "status": "off",
+     "escape-time": "0",
+     "extended-keys": "on",
+     "allow-passthrough": "on",
+     "focus-events": "on",
+     "default-terminal": "tmux-256color",
+     "remain-on-exit": "failed",
+     "exit-empty": "off",
+     "mouse": "off",
+     "copy-mode-position-format": null,
+     "mode-style": "bg=default,fg=default",
+     "history-limit": "25000"
+    },
+    "detail": "{\"id\":\"p342-d12\",\"label\":\"p342-d12\",\"color\":\"blue\",\"host\":\"p342-d12\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.3a\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L3": {
+    "listedName": "cost $HOME _",
+    "farName": "cost _HOME _",
+    "utf8": false,
+    "dollarCwd": "/home/tortie/cost $d",
+    "dollarProject": "/home/tortie/cost $d",
+    "wantDollarCwd": "/home/tortie/cost $d"
+   },
+   "L4": {
+    "link": "connected",
+    "strangerShown": false,
+    "renamedArrived": true,
+    "dollarFar": "_HOME notes"
+   },
+   "L5": {
+    "attached": true,
+    "inMode": "1",
+    "position": "30",
+    "row0": "2949",
+    "controlRow0": "2949                                                                   [30/2978]",
+    "liveAgain": true
+   },
+   "L6": {
+    "trail": [
+     {
+      "ms": 0,
+      "status": "running"
+     },
+     {
+      "ms": 2100,
+      "status": "unknown"
+     },
+     {
+      "ms": 6400,
+      "status": "restorable"
+     }
+    ],
+    "prepareAfterRestart": "prepared",
+    "restorable": true,
+    "restored": true,
+    "path": "/home/tortie/proj",
+    "wantPath": "/home/tortie/proj",
+    "dollarPath": "/home/tortie/cost $d",
+    "wantDollarPath": "/home/tortie/cost $d"
+   },
+   "L7": {
+    "outcome": "wrote",
+    "sha": "69253383f6603de322005092bb1643bf84a07fee34d7dba98c3cbd91ddc92ae5",
+    "wantSha": "69253383f6603de322005092bb1643bf84a07fee34d7dba98c3cbd91ddc92ae5",
+    "mode": "644",
+    "parts": 0
+   },
+   "L8": {
+    "made": "made",
+    "mode": "755",
+    "renamed": "moved",
+    "child": "made",
+    "homeRefused": true
+   },
+   "L9": {
+    "linkKind": "dir",
+    "linkMark": "dir",
+    "inner": [
+     "inner",
+     "inner/f"
+    ]
+   },
+   "L10": {
+    "line": "remote",
+    "codexSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb",
+    "codexWantSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb"
+   },
+   "L11": {
+    "staged": "done",
+    "committed": "committed",
+    "subject": "p342 commit",
+    "porcelain": ""
+   },
+   "L12": {
+    "attached": true,
+    "got": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     }
+    },
+    "want": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     }
+    }
+   }
+  },
+  "u2404": {
+   "L1": {
+    "peerListed": true,
+    "cls": "prepared",
+    "found": "/usr/bin/tmux",
+    "version": "3.4",
+    "acceptSheet": false,
+    "ready": true,
+    "typed": 0,
+    "presses": 3,
+    "detail": "{\"id\":\"p342-u2404\",\"label\":\"p342-u2404\",\"color\":\"blue\",\"host\":\"p342-u2404\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.4\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L2": {
+    "options": {
+     "status": "off",
+     "escape-time": "0",
+     "extended-keys": "on",
+     "allow-passthrough": "on",
+     "focus-events": "on",
+     "default-terminal": "tmux-256color",
+     "remain-on-exit": "failed",
+     "exit-empty": "off",
+     "mouse": "off",
+     "copy-mode-position-format": null,
+     "mode-style": "bg=default,fg=default",
+     "history-limit": "25000"
+    },
+    "detail": "{\"id\":\"p342-u2404\",\"label\":\"p342-u2404\",\"color\":\"blue\",\"host\":\"p342-u2404\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.4\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L3": {
+    "listedName": "cost $HOME é",
+    "farName": "cost _HOME é",
+    "utf8": true,
+    "dollarCwd": "/home/tortie/cost $d",
+    "dollarProject": "/home/tortie/cost $d",
+    "wantDollarCwd": "/home/tortie/cost $d"
+   },
+   "L4": {
+    "link": "connected",
+    "strangerShown": false,
+    "renamedArrived": true,
+    "dollarFar": "_HOME notes"
+   },
+   "L5": {
+    "attached": true,
+    "inMode": "1",
+    "position": "30",
+    "row0": "2949",
+    "controlRow0": "2949 19:34:50 [30/2978]",
+    "liveAgain": true
+   },
+   "L6": {
+    "trail": [
+     {
+      "ms": 0,
+      "status": "running"
+     },
+     {
+      "ms": 2100,
+      "status": "unknown"
+     },
+     {
+      "ms": 6400,
+      "status": "restorable"
+     }
+    ],
+    "prepareAfterRestart": "prepared",
+    "restorable": true,
+    "restored": true,
+    "path": "/home/tortie/proj",
+    "wantPath": "/home/tortie/proj",
+    "dollarPath": "/home/tortie/cost $d",
+    "wantDollarPath": "/home/tortie/cost $d"
+   },
+   "L7": {
+    "outcome": "wrote",
+    "sha": "69253383f6603de322005092bb1643bf84a07fee34d7dba98c3cbd91ddc92ae5",
+    "wantSha": "69253383f6603de322005092bb1643bf84a07fee34d7dba98c3cbd91ddc92ae5",
+    "mode": "644",
+    "parts": 0
+   },
+   "L8": {
+    "made": "made",
+    "mode": "755",
+    "renamed": "moved",
+    "child": "made",
+    "homeRefused": true
+   },
+   "L9": {
+    "linkKind": "dir",
+    "linkMark": "dir",
+    "inner": [
+     "inner",
+     "inner/f"
+    ]
+   },
+   "L10": {
+    "line": "remote",
+    "codexSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb",
+    "codexWantSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb"
+   },
+   "L11": {
+    "staged": "done",
+    "committed": "committed",
+    "subject": "p342 commit",
+    "porcelain": ""
+   },
+   "L12": {
+    "attached": true,
+    "got": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     }
+    },
+    "want": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     }
+    }
+   }
+  },
+  "d13": {
+   "L1": {
+    "peerListed": true,
+    "cls": "prepared",
+    "found": "/usr/bin/tmux",
+    "version": "3.5a",
+    "acceptSheet": false,
+    "ready": true,
+    "typed": 0,
+    "presses": 3,
+    "detail": "{\"id\":\"p342-d13\",\"label\":\"p342-d13\",\"color\":\"blue\",\"host\":\"p342-d13\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.5a\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L2": {
+    "options": {
+     "status": "off",
+     "escape-time": "0",
+     "extended-keys": "on",
+     "allow-passthrough": "on",
+     "focus-events": "on",
+     "default-terminal": "tmux-256color",
+     "remain-on-exit": "failed",
+     "exit-empty": "off",
+     "mouse": "off",
+     "copy-mode-position-format": null,
+     "mode-style": "bg=default,fg=default",
+     "history-limit": "25000"
+    },
+    "detail": "{\"id\":\"p342-d13\",\"label\":\"p342-d13\",\"color\":\"blue\",\"host\":\"p342-d13\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.5a\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L3": {
+    "listedName": "cost $HOME _",
+    "farName": "cost _HOME _",
+    "utf8": false,
+    "dollarCwd": "/home/tortie/cost $d",
+    "dollarProject": "/home/tortie/cost $d",
+    "wantDollarCwd": "/home/tortie/cost $d"
+   },
+   "L4": {
+    "link": "connected",
+    "strangerShown": false,
+    "renamedArrived": true,
+    "dollarFar": "_HOME notes"
+   },
+   "L5": {
+    "attached": true,
+    "inMode": "1",
+    "position": "30",
+    "row0": "2949",
+    "controlRow0": "2949 19:34:50 [30/2978]",
+    "liveAgain": true
+   },
+   "L6": {
+    "trail": [
+     {
+      "ms": 0,
+      "status": "running"
+     },
+     {
+      "ms": 2100,
+      "status": "unknown"
+     },
+     {
+      "ms": 6400,
+      "status": "restorable"
+     }
+    ],
+    "prepareAfterRestart": "prepared",
+    "restorable": true,
+    "restored": true,
+    "path": "/home/tortie/proj",
+    "wantPath": "/home/tortie/proj",
+    "dollarPath": "/home/tortie/cost $d",
+    "wantDollarPath": "/home/tortie/cost $d"
+   },
+   "L7": {
+    "outcome": "wrote",
+    "sha": "69253383f6603de322005092bb1643bf84a07fee34d7dba98c3cbd91ddc92ae5",
+    "wantSha": "69253383f6603de322005092bb1643bf84a07fee34d7dba98c3cbd91ddc92ae5",
+    "mode": "644",
+    "parts": 0
+   },
+   "L8": {
+    "made": "made",
+    "mode": "755",
+    "renamed": "moved",
+    "child": "made",
+    "homeRefused": true
+   },
+   "L9": {
+    "linkKind": "dir",
+    "linkMark": "dir",
+    "inner": [
+     "inner",
+     "inner/f"
+    ]
+   },
+   "L10": {
+    "line": "remote",
+    "codexSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb",
+    "codexWantSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb"
+   },
+   "L11": {
+    "staged": "done",
+    "committed": "committed",
+    "subject": "p342 commit",
+    "porcelain": ""
+   },
+   "L12": {
+    "attached": true,
+    "got": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b32373b323b397e",
+      "C-c": "1b5b32373b353b39397e",
+      "Up": "1b5b41",
+      "C-j": "1b5b32373b353b3130367e"
+     }
+    },
+    "want": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b32373b323b397e",
+      "C-c": "1b5b32373b353b39397e",
+      "Up": "1b5b41",
+      "C-j": "1b5b32373b353b3130367e"
+     }
+    }
+   }
+  },
+  "u2604": {
+   "L1": {
+    "peerListed": true,
+    "cls": "prepared",
+    "found": "/usr/bin/tmux",
+    "version": "3.6",
+    "acceptSheet": false,
+    "ready": true,
+    "typed": 0,
+    "presses": 3,
+    "detail": "{\"id\":\"p342-u2604\",\"label\":\"p342-u2604\",\"color\":\"blue\",\"host\":\"p342-u2604\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.6\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L2": {
+    "options": {
+     "status": "off",
+     "escape-time": "0",
+     "extended-keys": "on",
+     "allow-passthrough": "on",
+     "focus-events": "on",
+     "default-terminal": "tmux-256color",
+     "remain-on-exit": "failed",
+     "exit-empty": "off",
+     "mouse": "off",
+     "copy-mode-position-format": "",
+     "mode-style": "noattr,bg=default,fg=default",
+     "history-limit": "25000"
+    },
+    "detail": "{\"id\":\"p342-u2604\",\"label\":\"p342-u2604\",\"color\":\"blue\",\"host\":\"p342-u2604\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.6\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L3": {
+    "listedName": "cost $HOME _",
+    "farName": "cost _HOME _",
+    "utf8": false,
+    "dollarCwd": "/home/tortie/cost $d",
+    "dollarProject": "/home/tortie/cost $d",
+    "wantDollarCwd": "/home/tortie/cost $d"
+   },
+   "L4": {
+    "link": "connected",
+    "strangerShown": false,
+    "renamedArrived": true,
+    "dollarFar": "_HOME notes"
+   },
+   "L5": {
+    "attached": true,
+    "inMode": "1",
+    "position": "30",
+    "row0": "2949",
+    "controlRow0": "2949",
+    "liveAgain": true
+   },
+   "L6": {
+    "trail": [
+     {
+      "ms": 0,
+      "status": "running"
+     },
+     {
+      "ms": 2100,
+      "status": "unknown"
+     },
+     {
+      "ms": 6400,
+      "status": "restorable"
+     }
+    ],
+    "prepareAfterRestart": "prepared",
+    "restorable": true,
+    "restored": true,
+    "path": "/home/tortie/proj",
+    "wantPath": "/home/tortie/proj",
+    "dollarPath": "/home/tortie/cost $d",
+    "wantDollarPath": "/home/tortie/cost $d"
+   },
+   "L7": {
+    "outcome": "wrote",
+    "sha": "69253383f6603de322005092bb1643bf84a07fee34d7dba98c3cbd91ddc92ae5",
+    "wantSha": "69253383f6603de322005092bb1643bf84a07fee34d7dba98c3cbd91ddc92ae5",
+    "mode": "644",
+    "parts": 0
+   },
+   "L8": {
+    "made": "made",
+    "mode": "755",
+    "renamed": "moved",
+    "child": "made",
+    "homeRefused": true
+   },
+   "L9": {
+    "linkKind": "dir",
+    "linkMark": "dir",
+    "inner": [
+     "inner",
+     "inner/f"
+    ]
+   },
+   "L10": {
+    "line": "remote",
+    "codexSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb",
+    "codexWantSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb"
+   },
+   "L11": {
+    "staged": "done",
+    "committed": "committed",
+    "subject": "p342 commit",
+    "porcelain": ""
+   },
+   "L12": {
+    "attached": true,
+    "got": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b32373b323b397e",
+      "C-c": "1b5b32373b353b39397e",
+      "Up": "1b5b41",
+      "C-j": "1b5b32373b353b3130367e"
+     }
+    },
+    "want": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b32373b323b397e",
+      "C-c": "1b5b32373b353b39397e",
+      "Up": "1b5b41",
+      "C-j": "1b5b32373b353b3130367e"
+     }
+    }
+   }
+  },
+  "fed": {
+   "L1": {
+    "peerListed": true,
+    "cls": "prepared",
+    "found": "/usr/bin/tmux",
+    "version": "3.7c",
+    "acceptSheet": false,
+    "ready": true,
+    "typed": 0,
+    "presses": 3,
+    "detail": "{\"id\":\"p342-fed\",\"label\":\"p342-fed\",\"color\":\"blue\",\"host\":\"p342-fed\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.7c\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L2": {
+    "options": {
+     "status": "off",
+     "escape-time": "0",
+     "extended-keys": "on",
+     "allow-passthrough": "on",
+     "focus-events": "on",
+     "default-terminal": "tmux-256color",
+     "remain-on-exit": "failed",
+     "exit-empty": "off",
+     "mouse": "off",
+     "copy-mode-position-format": "",
+     "mode-style": "noattr,bg=default,fg=default",
+     "history-limit": "25000"
+    },
+    "detail": "{\"id\":\"p342-fed\",\"label\":\"p342-fed\",\"color\":\"blue\",\"host\":\"p342-fed\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.7c\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L3": {
+    "listedName": "cost $HOME é",
+    "farName": "cost _HOME é",
+    "utf8": true,
+    "dollarCwd": "/home/tortie/cost $d",
+    "dollarProject": "/home/tortie/cost $d",
+    "wantDollarCwd": "/home/tortie/cost $d"
+   },
+   "L4": {
+    "link": "connected",
+    "strangerShown": false,
+    "renamedArrived": true,
+    "dollarFar": "_HOME notes"
+   },
+   "L5": {
+    "attached": true,
+    "inMode": "1",
+    "position": "30",
+    "row0": "2949",
+    "controlRow0": "2949",
+    "liveAgain": true
+   },
+   "L6": {
+    "trail": [
+     {
+      "ms": 0,
+      "status": "running"
+     },
+     {
+      "ms": 2100,
+      "status": "unknown"
+     },
+     {
+      "ms": 6400,
+      "status": "restorable"
+     }
+    ],
+    "prepareAfterRestart": "prepared",
+    "restorable": true,
+    "restored": true,
+    "path": "/home/tortie/proj",
+    "wantPath": "/home/tortie/proj",
+    "dollarPath": "/home/tortie/cost $d",
+    "wantDollarPath": "/home/tortie/cost $d"
+   },
+   "L7": {
+    "outcome": "wrote",
+    "sha": "69253383f6603de322005092bb1643bf84a07fee34d7dba98c3cbd91ddc92ae5",
+    "wantSha": "69253383f6603de322005092bb1643bf84a07fee34d7dba98c3cbd91ddc92ae5",
+    "mode": "644",
+    "parts": 0
+   },
+   "L8": {
+    "made": "made",
+    "mode": "755",
+    "renamed": "moved",
+    "child": "made",
+    "homeRefused": true
+   },
+   "L9": {
+    "linkKind": "dir",
+    "linkMark": "dir",
+    "inner": [
+     "inner",
+     "inner/f"
+    ]
+   },
+   "L10": {
+    "line": "remote",
+    "codexSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb",
+    "codexWantSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb"
+   },
+   "L11": {
+    "staged": "done",
+    "committed": "committed",
+    "subject": "p342 commit",
+    "porcelain": ""
+   },
+   "L12": {
+    "attached": true,
+    "got": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b32373b323b397e",
+      "C-c": "1b5b32373b353b39397e",
+      "Up": "1b5b41",
+      "C-j": "1b5b32373b353b3130367e"
+     }
+    },
+    "want": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b32373b323b397e",
+      "C-c": "1b5b32373b353b39397e",
+      "Up": "1b5b41",
+      "C-j": "1b5b32373b353b3130367e"
+     }
+    }
+   }
+  },
+  "arch": {
+   "L1": {
+    "peerListed": true,
+    "cls": "prepared",
+    "found": "/usr/bin/tmux",
+    "version": "3.7c",
+    "acceptSheet": false,
+    "ready": true,
+    "typed": 0,
+    "presses": 3,
+    "detail": "{\"id\":\"p342-arch\",\"label\":\"p342-arch\",\"color\":\"blue\",\"host\":\"p342-arch\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.7c\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L2": {
+    "options": {
+     "status": "off",
+     "escape-time": "0",
+     "extended-keys": "on",
+     "allow-passthrough": "on",
+     "focus-events": "on",
+     "default-terminal": "tmux-256color",
+     "remain-on-exit": "failed",
+     "exit-empty": "off",
+     "mouse": "off",
+     "copy-mode-position-format": "",
+     "mode-style": "noattr,bg=default,fg=default",
+     "history-limit": "25000"
+    },
+    "detail": "{\"id\":\"p342-arch\",\"label\":\"p342-arch\",\"color\":\"blue\",\"host\":\"p342-arch\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.7c\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L3": {
+    "listedName": "cost $HOME é",
+    "farName": "cost _HOME é",
+    "utf8": true,
+    "dollarCwd": "/home/tortie/cost $d",
+    "dollarProject": "/home/tortie/cost $d",
+    "wantDollarCwd": "/home/tortie/cost $d"
+   },
+   "L4": {
+    "link": "connected",
+    "strangerShown": false,
+    "renamedArrived": true,
+    "dollarFar": "_HOME notes"
+   },
+   "L5": {
+    "attached": true,
+    "inMode": "1",
+    "position": "30",
+    "row0": "2949",
+    "controlRow0": "2949",
+    "liveAgain": true
+   },
+   "L6": {
+    "trail": [
+     {
+      "ms": 0,
+      "status": "running"
+     },
+     {
+      "ms": 2100,
+      "status": "unknown"
+     },
+     {
+      "ms": 6400,
+      "status": "restorable"
+     }
+    ],
+    "prepareAfterRestart": "prepared",
+    "restorable": true,
+    "restored": true,
+    "path": "/home/tortie/proj",
+    "wantPath": "/home/tortie/proj",
+    "dollarPath": "/home/tortie/cost $d",
+    "wantDollarPath": "/home/tortie/cost $d"
+   },
+   "L7": {
+    "outcome": "wrote",
+    "sha": "69253383f6603de322005092bb1643bf84a07fee34d7dba98c3cbd91ddc92ae5",
+    "wantSha": "69253383f6603de322005092bb1643bf84a07fee34d7dba98c3cbd91ddc92ae5",
+    "mode": "644",
+    "parts": 0
+   },
+   "L8": {
+    "made": "made",
+    "mode": "755",
+    "renamed": "moved",
+    "child": "made",
+    "homeRefused": true
+   },
+   "L9": {
+    "linkKind": "dir",
+    "linkMark": "dir",
+    "inner": [
+     "inner",
+     "inner/f"
+    ]
+   },
+   "L10": {
+    "line": "remote",
+    "codexSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb",
+    "codexWantSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb"
+   },
+   "L11": {
+    "staged": "done",
+    "committed": "committed",
+    "subject": "p342 commit",
+    "porcelain": ""
+   },
+   "L12": {
+    "attached": true,
+    "got": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b32373b323b397e",
+      "C-c": "1b5b32373b353b39397e",
+      "Up": "1b5b41",
+      "C-j": "1b5b32373b353b3130367e"
+     }
+    },
+    "want": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b32373b323b397e",
+      "C-c": "1b5b32373b353b39397e",
+      "Up": "1b5b41",
+      "C-j": "1b5b32373b353b3130367e"
+     }
+    }
+   }
+  }
+ },
+ "once": {
+  "K1a": {
+   "cls": "prepared",
+   "ready": true,
+   "detail": "Tortie started the program and set it up. tmux 3.6 on this machine is too old for one of Tortie's settings, so a session there can look a little different from one on this Mac."
+  },
+  "K1b": {
+   "cls": "program-refused",
+   "headline": "This machine's tmux is too old for Tortie.",
+   "detail": "tmux 3.6 would not keep a session's screen when its program fails, so Tortie will not start sessions there.",
+   "historyLimit": "25000",
+   "afterRefusal": []
+  },
+  "K2b": {
+   "cls": "program-refused",
+   "headline": "This machine's tmux is not the version it says.",
+   "detail": "It says 3.7c and runs as 3.2a, so Tortie will not use it.",
+   "afterBoot": [
+    "display-message"
+   ],
+   "serverLeft": true
+  },
+  "K3": {
+   "setUp": true,
+   "cls": "program-refused",
+   "headline": "This machine's tmux was updated while its sessions kept running.",
+   "detail": "Tortie has not measured tmux 3.6b with the tmux 3.5a that still runs them, so it opens no session there. After that machine restarts, Tortie can restore them.",
+   "ms": 2380,
+   "oldLiveAnswered": true,
+   "spawnsAfterDrop": 0,
+   "listed": true,
+   "unknown": false,
+   "chip": "not-usable",
+   "attachRefused": true,
+   "attachSshT": 0,
+   "saveOutcome": "wrote",
+   "relaunchQuiet": false,
+   "relaunchLink": "polling",
+   "relaunchSpawns": 0,
+   "afterRestartPrepare": "prepared",
+   "afterRestartReady": true,
+   "afterRestartLink": "connected",
+   "afterRestartRestored": true
+  },
+  "K3d12": {
+   "cls": "prepared",
+   "ready": true,
+   "link": "connected"
+  },
+  "N1": {
+   "options": {
+    "status": "off",
+    "escape-time": "0",
+    "extended-keys": "on",
+    "allow-passthrough": "on",
+    "focus-events": "on",
+    "default-terminal": "tmux-256color",
+    "remain-on-exit": "failed",
+    "exit-empty": "off",
+    "mouse": "off",
+    "copy-mode-position-format": "",
+    "mode-style": "noattr,bg=default,fg=default",
+    "history-limit": "25000"
+   },
+   "detail": "{\"id\":\"p342-loopback\",\"label\":\"p342-loopback\",\"color\":\"blue\",\"host\":\"p342-loopback\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.6a\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie found the program already running and set it up.\",\"note\":null},\"os\":\"Linux\"}",
+   "saveOutcome": "wrote",
+   "saveMode": "644",
+   "made": "made",
+   "madeMode": "755",
+   "dollarFar": "_HOME notes",
+   "costFar": "cost _HOME",
+   "row0": "2949"
+  },
+  "RUN": {
+   "dockerClean": true,
+   "dockerProblems": [],
+   "electronsLeft": 0,
+   "historyMoved": false,
+   "samplerViolations": 0,
+   "farContentInLog": false,
+   "preflightsOk": true
+  }
+ }
+}

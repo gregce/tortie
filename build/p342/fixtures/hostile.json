@@ -1,0 +1,1120 @@
+{
+ "_note": "Every grader broken alone on a realistic misreading, each failing EXACTLY the clauses it names; the verifier’s five broken records that passed are among them (the absent readings). Rebuilt after the reboot of 2026-10-08.",
+ "cases": [
+  {
+   "what": "the check found the path in its title sentence, not its text",
+   "arm": "L1",
+   "row": "u2204",
+   "reading": {
+    "peerListed": true,
+    "cls": "prepared",
+    "found": "Found by its login shell.",
+    "version": "3.2a",
+    "acceptSheet": false,
+    "ready": true,
+    "typed": 0,
+    "presses": 3,
+    "detail": "{\"id\":\"p342-u2204\",\"label\":\"p342-u2204\",\"color\":\"blue\",\"host\":\"p342-u2204\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.2a\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "fails": [
+    "the check found"
+   ]
+  },
+  {
+   "what": "an acceptance sheet offered for 3.4",
+   "arm": "L1",
+   "row": "u2404",
+   "reading": {
+    "peerListed": true,
+    "cls": "prepared",
+    "found": "/usr/bin/tmux",
+    "version": "3.4",
+    "acceptSheet": true,
+    "ready": true,
+    "typed": 0,
+    "presses": 3,
+    "detail": "{\"id\":\"p342-u2404\",\"label\":\"p342-u2404\",\"color\":\"blue\",\"host\":\"p342-u2404\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.4\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "fails": [
+    "an acceptance sheet was offered"
+   ]
+  },
+  {
+   "what": "the older version read as unreachable, not Ready",
+   "arm": "L1",
+   "row": "d13",
+   "reading": {
+    "peerListed": true,
+    "cls": "prepared",
+    "found": "/usr/bin/tmux",
+    "version": "3.5a",
+    "acceptSheet": false,
+    "ready": false,
+    "typed": 0,
+    "presses": 3,
+    "detail": "Tortie could not reach this machine, and it does not recognise the reason."
+   },
+   "fails": [
+    "did not read Ready",
+    "said to be unreachable"
+   ]
+  },
+  {
+   "what": "a field typed by hand",
+   "arm": "L1",
+   "row": "d12",
+   "reading": {
+    "peerListed": true,
+    "cls": "prepared",
+    "found": "/usr/bin/tmux",
+    "version": "3.3a",
+    "acceptSheet": false,
+    "ready": true,
+    "typed": 1,
+    "presses": 3,
+    "detail": "{\"id\":\"p342-d12\",\"label\":\"p342-d12\",\"color\":\"blue\",\"host\":\"p342-d12\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.3a\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "fails": [
+    "field(s) were typed"
+   ]
+  },
+  {
+   "what": "history-limit left at tmux’s 2,000",
+   "arm": "L2",
+   "row": "u2204",
+   "reading": {
+    "options": {
+     "status": "off",
+     "escape-time": "0",
+     "extended-keys": "on",
+     "allow-passthrough": null,
+     "focus-events": "on",
+     "default-terminal": "tmux-256color",
+     "remain-on-exit": "failed",
+     "exit-empty": "off",
+     "mouse": "off",
+     "copy-mode-position-format": null,
+     "mode-style": "bg=default,fg=default",
+     "history-limit": "2000"
+    },
+    "detail": "{\"id\":\"p342-u2204\",\"label\":\"p342-u2204\",\"color\":\"blue\",\"host\":\"p342-u2204\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.2a\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "fails": [
+    "history-limit read back"
+   ]
+  },
+  {
+   "what": "mode-style read with noattr on 3.3a",
+   "arm": "L2",
+   "row": "d12",
+   "reading": {
+    "options": {
+     "status": "off",
+     "escape-time": "0",
+     "extended-keys": "on",
+     "allow-passthrough": "on",
+     "focus-events": "on",
+     "default-terminal": "tmux-256color",
+     "remain-on-exit": "failed",
+     "exit-empty": "off",
+     "mouse": "off",
+     "copy-mode-position-format": null,
+     "mode-style": "noattr,bg=default,fg=default",
+     "history-limit": "25000"
+    },
+    "detail": "{\"id\":\"p342-d12\",\"label\":\"p342-d12\",\"color\":\"blue\",\"host\":\"p342-d12\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.3a\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "fails": [
+    "mode-style read back"
+   ]
+  },
+  {
+   "what": "status not written on 3.7c",
+   "arm": "L2",
+   "row": "fed",
+   "reading": {
+    "options": {
+     "status": "on",
+     "escape-time": "0",
+     "extended-keys": "on",
+     "allow-passthrough": "on",
+     "focus-events": "on",
+     "default-terminal": "tmux-256color",
+     "remain-on-exit": "failed",
+     "exit-empty": "off",
+     "mouse": "off",
+     "copy-mode-position-format": "",
+     "mode-style": "noattr,bg=default,fg=default",
+     "history-limit": "25000"
+    },
+    "detail": "{\"id\":\"p342-fed\",\"label\":\"p342-fed\",\"color\":\"blue\",\"host\":\"p342-fed\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.7c\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "fails": [
+    "status read back"
+   ]
+  },
+  {
+   "what": "focus-events never read",
+   "arm": "L2",
+   "row": "arch",
+   "reading": {
+    "options": {
+     "status": "off",
+     "escape-time": "0",
+     "extended-keys": "on",
+     "allow-passthrough": "on",
+     "default-terminal": "tmux-256color",
+     "remain-on-exit": "failed",
+     "exit-empty": "off",
+     "mouse": "off",
+     "copy-mode-position-format": "",
+     "mode-style": "noattr,bg=default,fg=default",
+     "history-limit": "25000"
+    },
+    "detail": "{\"id\":\"p342-arch\",\"label\":\"p342-arch\",\"color\":\"blue\",\"host\":\"p342-arch\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.7c\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "fails": [
+    "focus-events was not read"
+   ]
+  },
+  {
+   "what": "sentence (2) on a measured version",
+   "arm": "L2",
+   "row": "u2404",
+   "reading": {
+    "options": {
+     "status": "off",
+     "escape-time": "0",
+     "extended-keys": "on",
+     "allow-passthrough": "on",
+     "focus-events": "on",
+     "default-terminal": "tmux-256color",
+     "remain-on-exit": "failed",
+     "exit-empty": "off",
+     "mouse": "off",
+     "copy-mode-position-format": null,
+     "mode-style": "bg=default,fg=default",
+     "history-limit": "25000"
+    },
+    "detail": "tmux 3.4 on this machine is too old for one of Tortie's settings, so a session there can look a little different from one on this Mac."
+   },
+   "fails": [
+    "carries sentence (2)"
+   ]
+  },
+  {
+   "what": "a far name that still holds $",
+   "arm": "L3",
+   "row": "u2404",
+   "reading": {
+    "listedName": "cost $HOME é",
+    "farName": "cost $HOME é",
+    "utf8": true,
+    "dollarCwd": "/home/tortie/cost $d",
+    "dollarProject": "/home/tortie/cost $d",
+    "wantDollarCwd": "/home/tortie/cost $d"
+   },
+   "fails": [
+    "the far tmux name is"
+   ]
+  },
+  {
+   "what": "the folder holding $ read back with a backslash (3.4)",
+   "arm": "L3",
+   "row": "u2404",
+   "reading": {
+    "listedName": "cost $HOME é",
+    "farName": "cost _HOME é",
+    "utf8": true,
+    "dollarCwd": "/home/tortie/cost \\$d",
+    "dollarProject": "/home/tortie/cost \\$d",
+    "wantDollarCwd": "/home/tortie/cost $d"
+   },
+   "fails": [
+    "reads its folder as",
+    "its project reads"
+   ]
+  },
+  {
+   "what": "the verifier’s broken record: the folder and its want both absent",
+   "arm": "L3",
+   "row": "u2204",
+   "reading": {
+    "listedName": "cost $HOME _",
+    "farName": "cost _HOME _",
+    "utf8": false,
+    "dollarProject": "/home/tortie/cost $d"
+   },
+   "fails": [
+    "not read: dollarCwd, wantDollarCwd"
+   ]
+  },
+  {
+   "what": "the second verifier’s broken record: a name that only begins like the one typed, on a row with no UTF-8 LANG",
+   "arm": "L3",
+   "row": "u2204",
+   "reading": {
+    "listedName": "cost $HOMEWORK",
+    "farName": "cost _HOME _",
+    "utf8": false,
+    "dollarCwd": "/home/tortie/cost $d",
+    "dollarProject": "/home/tortie/cost $d",
+    "wantDollarCwd": "/home/tortie/cost $d"
+   },
+   "fails": [
+    "the session is listed as"
+   ]
+  },
+  {
+   "what": "a stranger session shown",
+   "arm": "L4",
+   "row": "d13",
+   "reading": {
+    "link": "connected",
+    "strangerShown": true,
+    "renamedArrived": true,
+    "dollarFar": "_HOME notes"
+   },
+   "fails": [
+    "no @gmux-id was shown"
+   ]
+  },
+  {
+   "what": "a rename to $HOME notes read as flags",
+   "arm": "L4",
+   "row": "u2604",
+   "reading": {
+    "link": "connected",
+    "strangerShown": false,
+    "renamedArrived": true,
+    "dollarFar": null
+   },
+   "fails": [
+    "arrived as"
+   ]
+  },
+  {
+   "what": "the link left polling",
+   "arm": "L4",
+   "row": "d12",
+   "reading": {
+    "link": "polling",
+    "strangerShown": false,
+    "renamedArrived": true,
+    "dollarFar": "_HOME notes"
+   },
+   "fails": [
+    "the link reads"
+   ]
+  },
+  {
+   "what": "the attach never reached the far session (history 0)",
+   "arm": "L5",
+   "row": "u2204",
+   "reading": {
+    "attached": false,
+    "inMode": "1",
+    "position": "0",
+    "row0": "2949",
+    "controlRow0": "2949                                                                   [30/2978]",
+    "liveAgain": true
+   },
+   "fails": [
+    "the attach never reached",
+    "the far pane reads"
+   ]
+  },
+  {
+   "what": "tmux’s position box on the drawn top row",
+   "arm": "L5",
+   "row": "d12",
+   "reading": {
+    "attached": true,
+    "inMode": "1",
+    "position": "30",
+    "row0": "2949                                                                   [30/2978]",
+    "controlRow0": "2949                                                                   [30/2978]",
+    "liveAgain": true
+   },
+   "fails": [
+    "position box"
+   ]
+  },
+  {
+   "what": "a control that drew no box, so the box could not have been seen",
+   "arm": "L5",
+   "row": "u2404",
+   "reading": {
+    "attached": true,
+    "inMode": "1",
+    "position": "30",
+    "row0": "2949",
+    "controlRow0": "2949",
+    "liveAgain": true
+   },
+   "fails": [
+    "drew no box"
+   ]
+  },
+  {
+   "what": "the verifier’s broken record: no top row read at all",
+   "arm": "L5",
+   "row": "u2204",
+   "reading": {
+    "attached": true,
+    "inMode": "1",
+    "position": "30",
+    "controlRow0": "2949                                                                   [30/2978]",
+    "liveAgain": true
+   },
+   "fails": [
+    "not read: row0"
+   ]
+  },
+  {
+   "what": "the session read unknown after the restart, never restorable",
+   "arm": "L6",
+   "row": "d13",
+   "reading": {
+    "trail": [
+     {
+      "ms": 0,
+      "status": "unknown"
+     }
+    ],
+    "prepareAfterRestart": "prepared",
+    "restorable": false,
+    "restored": false,
+    "path": null,
+    "wantPath": "/home/tortie/proj",
+    "dollarPath": null,
+    "wantDollarPath": "/home/tortie/cost $d"
+   },
+   "fails": [
+    "did not read restorable",
+    "did not bring a session back",
+    "runs in",
+    "restored into"
+   ]
+  },
+  {
+   "what": "no Prepare pressed after the restart",
+   "arm": "L6",
+   "row": "u2204",
+   "reading": {
+    "trail": [
+     {
+      "ms": 0,
+      "status": "running"
+     },
+     {
+      "ms": 2100,
+      "status": "unknown"
+     },
+     {
+      "ms": 6400,
+      "status": "restorable"
+     }
+    ],
+    "prepareAfterRestart": null,
+    "restorable": true,
+    "restored": true,
+    "path": "/home/tortie/proj",
+    "wantPath": "/home/tortie/proj",
+    "dollarPath": "/home/tortie/cost $d",
+    "wantDollarPath": "/home/tortie/cost $d"
+   },
+   "fails": [
+    "Prepare after the restart answered"
+   ]
+  },
+  {
+   "what": "no trail recorded",
+   "arm": "L6",
+   "row": "fed",
+   "reading": {
+    "trail": [],
+    "prepareAfterRestart": "prepared",
+    "restorable": true,
+    "restored": true,
+    "path": "/home/tortie/proj",
+    "wantPath": "/home/tortie/proj",
+    "dollarPath": "/home/tortie/cost $d",
+    "wantDollarPath": "/home/tortie/cost $d"
+   },
+   "fails": [
+    "no trail"
+   ]
+  },
+  {
+   "what": "the $ folder restored into its backslashed spelling",
+   "arm": "L6",
+   "row": "u2404",
+   "reading": {
+    "trail": [
+     {
+      "ms": 0,
+      "status": "running"
+     },
+     {
+      "ms": 2100,
+      "status": "unknown"
+     },
+     {
+      "ms": 6400,
+      "status": "restorable"
+     }
+    ],
+    "prepareAfterRestart": "prepared",
+    "restorable": true,
+    "restored": true,
+    "path": "/home/tortie/proj",
+    "wantPath": "/home/tortie/proj",
+    "dollarPath": "/home/tortie/cost \\$d",
+    "wantDollarPath": "/home/tortie/cost $d"
+   },
+   "fails": [
+    "restored into"
+   ]
+  },
+  {
+   "what": "the parent’s save: no answer and a .tortie-part left",
+   "arm": "L7",
+   "row": "u2604",
+   "reading": {
+    "outcome": "unanswered",
+    "sha": "2b543cb7273f2f6f26e9cd8416b54190126bcff663d1fe9a26d947312e59882b",
+    "wantSha": "69253383f6603de322005092bb1643bf84a07fee34d7dba98c3cbd91ddc92ae5",
+    "mode": "644",
+    "parts": 1
+   },
+   "fails": [
+    "the save answered",
+    "not what was saved",
+    ".tortie-part"
+   ]
+  },
+  {
+   "what": "the mode not kept",
+   "arm": "L7",
+   "row": "arch",
+   "reading": {
+    "outcome": "wrote",
+    "sha": "69253383f6603de322005092bb1643bf84a07fee34d7dba98c3cbd91ddc92ae5",
+    "wantSha": "69253383f6603de322005092bb1643bf84a07fee34d7dba98c3cbd91ddc92ae5",
+    "mode": "600",
+    "parts": 0
+   },
+   "fails": [
+    "the file's mode"
+   ]
+  },
+  {
+   "what": "the verifier’s broken record: both checksums absent",
+   "arm": "L7",
+   "row": "fed",
+   "reading": {
+    "outcome": "wrote",
+    "mode": "644",
+    "parts": 0
+   },
+   "fails": [
+    "not read: sha, wantSha"
+   ]
+  },
+  {
+   "what": "the folder made 700 under a 755 parent",
+   "arm": "L8",
+   "row": "d12",
+   "reading": {
+    "made": "made",
+    "mode": "700",
+    "renamed": "moved",
+    "child": "made",
+    "homeRefused": true
+   },
+   "fails": [
+    "the folder is"
+   ]
+  },
+  {
+   "what": "a folder at the home itself not refused",
+   "arm": "L8",
+   "row": "u2204",
+   "reading": {
+    "made": "made",
+    "mode": "755",
+    "renamed": "moved",
+    "child": "made",
+    "homeRefused": false
+   },
+   "fails": [
+    "the home itself was not refused"
+   ]
+  },
+  {
+   "what": "the link listed as a file and not followed",
+   "arm": "L9",
+   "row": "arch",
+   "reading": {
+    "linkKind": "file",
+    "linkMark": "dir",
+    "inner": []
+   },
+   "fails": [
+    "the link lists as",
+    "the link expands to"
+   ]
+  },
+  {
+   "what": "a remote session read as if its turns were on this Mac",
+   "arm": "L10",
+   "row": "d13",
+   "reading": {
+    "line": "no-turns",
+    "codexSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb",
+    "codexWantSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb"
+   },
+   "fails": [
+    "not remote"
+   ]
+  },
+  {
+   "what": "Catch Me Up answering a session on another machine differently from the parent on the same row",
+   "arm": "L10",
+   "row": "u2604",
+   "reading": {
+    "line": "remote",
+    "parentLine": "refused",
+    "codexSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb",
+    "codexWantSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb"
+   },
+   "fails": [
+    "differs from the parent's"
+   ]
+  },
+  {
+   "what": "the Codex conversation never copied back",
+   "arm": "L10",
+   "row": "u2204",
+   "reading": {
+    "line": "remote",
+    "codexSha": null,
+    "codexWantSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb"
+   },
+   "fails": [
+    "copied back as"
+   ]
+  },
+  {
+   "what": "a copy whose bytes are not the far file’s",
+   "arm": "L10",
+   "row": "fed",
+   "reading": {
+    "line": "remote",
+    "codexSha": "c98b1eab78bd0826aa1b6161e7aad23cfd326583d1753ea690236c048b18e5c0",
+    "codexWantSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb"
+   },
+   "fails": [
+    "copied back as"
+   ]
+  },
+  {
+   "what": "the commit refused",
+   "arm": "L11",
+   "row": "u2604",
+   "reading": {
+    "staged": "done",
+    "committed": "refused",
+    "subject": "p342 base",
+    "porcelain": "M  a.txt"
+   },
+   "fails": [
+    "commit answered",
+    "git log -1 names",
+    "git status --porcelain reads"
+   ]
+  },
+  {
+   "what": "Shift+Tab reached a level-2 program on 3.5a in legacy bytes",
+   "arm": "L12",
+   "row": "d13",
+   "reading": {
+    "attached": true,
+    "got": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b5a",
+      "C-c": "1b5b32373b353b39397e",
+      "Up": "1b5b41",
+      "C-j": "1b5b32373b353b3130367e"
+     }
+    },
+    "want": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b32373b323b397e",
+      "C-c": "1b5b32373b353b39397e",
+      "Up": "1b5b41",
+      "C-j": "1b5b32373b353b3130367e"
+     }
+    }
+   },
+   "fails": [
+    "mok2 BTab"
+   ]
+  },
+  {
+   "what": "the attach never reached the far session before the keys were typed",
+   "arm": "L12",
+   "row": "u2204",
+   "reading": {
+    "attached": false,
+    "got": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     }
+    },
+    "want": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     }
+    }
+   },
+   "fails": [
+    "the attach never reached"
+   ]
+  },
+  {
+   "what": "the verifier’s broken record: no bytes and no reference read",
+   "arm": "L12",
+   "row": "u2404",
+   "reading": {
+    "attached": true
+   },
+   "fails": [
+    "not read: got, want"
+   ]
+  },
+  {
+   "what": "an unexpected optional refusal said nowhere",
+   "arm": "K1a",
+   "reading": {
+    "cls": "prepared",
+    "ready": true,
+    "detail": "Tortie started the program and set it up."
+   },
+   "fails": [
+    "does not carry sentence (2)"
+   ]
+  },
+  {
+   "what": "a refused remain-on-exit said as could not reach",
+   "arm": "K1b",
+   "reading": {
+    "cls": "unknown",
+    "headline": "Tortie could not reach this machine, and it does not recognise the reason.",
+    "detail": "Tortie could not reach this machine.",
+    "historyLimit": "25000",
+    "afterRefusal": []
+   },
+   "fails": [
+    "a refused remain-on-exit ended",
+    "its headline reads",
+    "its detail reads",
+    "it said could not reach"
+   ]
+  },
+  {
+   "what": "history-limit written last, so left at 2,000",
+   "arm": "K1b",
+   "reading": {
+    "cls": "program-refused",
+    "headline": "This machine's tmux is too old for Tortie.",
+    "detail": "tmux 3.6 would not keep a session's screen when its program fails, so Tortie will not start sessions there.",
+    "historyLimit": "2000",
+    "afterRefusal": []
+   },
+   "fails": [
+    "so it was not written first"
+   ]
+  },
+  {
+   "what": "options sent after the refusal",
+   "arm": "K1b",
+   "reading": {
+    "cls": "program-refused",
+    "headline": "This machine's tmux is too old for Tortie.",
+    "detail": "tmux 3.6 would not keep a session's screen when its program fails, so Tortie will not start sessions there.",
+    "historyLimit": "25000",
+    "afterRefusal": [
+     "exit-empty",
+     "mouse"
+    ]
+   },
+   "fails": [
+    "was sent after the refusal"
+   ]
+  },
+  {
+   "what": "the verifier’s broken record: no list of what followed the refusal",
+   "arm": "K1b",
+   "reading": {
+    "cls": "program-refused",
+    "headline": "This machine's tmux is too old for Tortie.",
+    "detail": "tmux 3.6 would not keep a session's screen when its program fails, so Tortie will not start sessions there.",
+    "historyLimit": "25000"
+   },
+   "fails": [
+    "not read: afterRefusal"
+   ]
+  },
+  {
+   "what": "a lying -V set up as the version it said",
+   "arm": "K2b",
+   "reading": {
+    "cls": "prepared",
+    "headline": "This machine is ready.",
+    "detail": "Tortie started the program.",
+    "afterBoot": [
+     "display-message",
+     "set-environment",
+     "set-option"
+    ],
+    "serverLeft": true
+   },
+   "fails": [
+    "a lying -V ended",
+    "its detail reads",
+    "after the boot it sent"
+   ]
+  },
+  {
+   "what": "K3 met no running 3.5a server of its own (the verifier’s finding)",
+   "arm": "K3",
+   "reading": {
+    "setUp": false,
+    "cls": "program-refused",
+    "headline": "This machine's tmux was updated while its sessions kept running.",
+    "detail": "Tortie has not measured tmux 3.6b with the tmux 3.5a that still runs them, so it opens no session there. After that machine restarts, Tortie can restore them.",
+    "ms": 2380,
+    "oldLiveAnswered": true,
+    "spawnsAfterDrop": 0,
+    "listed": true,
+    "unknown": false,
+    "chip": "not-usable",
+    "attachRefused": true,
+    "attachSshT": 0,
+    "saveOutcome": "wrote",
+    "relaunchQuiet": false,
+    "relaunchLink": "polling",
+    "relaunchSpawns": 0,
+    "afterRestartPrepare": "prepared",
+    "afterRestartReady": true,
+    "afterRestartLink": "connected",
+    "afterRestartRestored": true
+   },
+   "fails": [
+    "did not set up its own"
+   ]
+  },
+  {
+   "what": "a reconnect spawned a control child across the refused pair",
+   "arm": "K3",
+   "reading": {
+    "setUp": true,
+    "cls": "program-refused",
+    "headline": "This machine's tmux was updated while its sessions kept running.",
+    "detail": "Tortie has not measured tmux 3.6b with the tmux 3.5a that still runs them, so it opens no session there. After that machine restarts, Tortie can restore them.",
+    "ms": 2380,
+    "oldLiveAnswered": true,
+    "spawnsAfterDrop": 1,
+    "listed": true,
+    "unknown": false,
+    "chip": "not-usable",
+    "attachRefused": true,
+    "attachSshT": 0,
+    "saveOutcome": "wrote",
+    "relaunchQuiet": false,
+    "relaunchLink": "polling",
+    "relaunchSpawns": 0,
+    "afterRestartPrepare": "prepared",
+    "afterRestartReady": true,
+    "afterRestartLink": "connected",
+    "afterRestartRestored": true
+   },
+   "fails": [
+    "spawned after the link dropped"
+   ]
+  },
+  {
+   "what": "the session opened across the pair",
+   "arm": "K3",
+   "reading": {
+    "setUp": true,
+    "cls": "program-refused",
+    "headline": "This machine's tmux was updated while its sessions kept running.",
+    "detail": "Tortie has not measured tmux 3.6b with the tmux 3.5a that still runs them, so it opens no session there. After that machine restarts, Tortie can restore them.",
+    "ms": 2380,
+    "oldLiveAnswered": true,
+    "spawnsAfterDrop": 0,
+    "listed": true,
+    "unknown": false,
+    "chip": "not-usable",
+    "attachRefused": false,
+    "attachSshT": 1,
+    "saveOutcome": "wrote",
+    "relaunchQuiet": false,
+    "relaunchLink": "polling",
+    "relaunchSpawns": 0,
+    "afterRestartPrepare": "prepared",
+    "afterRestartReady": true,
+    "afterRestartLink": "connected",
+    "afterRestartRestored": true
+   },
+   "fails": [
+    "did not refuse with the pair line"
+   ]
+  },
+  {
+   "what": "the relaunch marked the machine quiet",
+   "arm": "K3",
+   "reading": {
+    "setUp": true,
+    "cls": "program-refused",
+    "headline": "This machine's tmux was updated while its sessions kept running.",
+    "detail": "Tortie has not measured tmux 3.6b with the tmux 3.5a that still runs them, so it opens no session there. After that machine restarts, Tortie can restore them.",
+    "ms": 2380,
+    "oldLiveAnswered": true,
+    "spawnsAfterDrop": 0,
+    "listed": true,
+    "unknown": false,
+    "chip": "not-usable",
+    "attachRefused": true,
+    "attachSshT": 0,
+    "saveOutcome": "wrote",
+    "relaunchQuiet": true,
+    "relaunchLink": "quiet",
+    "relaunchSpawns": 0,
+    "afterRestartPrepare": "prepared",
+    "afterRestartReady": true,
+    "afterRestartLink": "connected",
+    "afterRestartRestored": true
+   },
+   "fails": [
+    "marked quiet"
+   ]
+  },
+  {
+   "what": "the row read Ready across the pair",
+   "arm": "K3",
+   "reading": {
+    "setUp": true,
+    "cls": "program-refused",
+    "headline": "This machine's tmux was updated while its sessions kept running.",
+    "detail": "Tortie has not measured tmux 3.6b with the tmux 3.5a that still runs them, so it opens no session there. After that machine restarts, Tortie can restore them.",
+    "ms": 2380,
+    "oldLiveAnswered": true,
+    "spawnsAfterDrop": 0,
+    "listed": true,
+    "unknown": false,
+    "chip": "ready",
+    "attachRefused": true,
+    "attachSshT": 0,
+    "saveOutcome": "wrote",
+    "relaunchQuiet": false,
+    "relaunchLink": "polling",
+    "relaunchSpawns": 0,
+    "afterRestartPrepare": "prepared",
+    "afterRestartReady": true,
+    "afterRestartLink": "connected",
+    "afterRestartRestored": true
+   },
+   "fails": [
+    "the row's chip reads"
+   ]
+  },
+  {
+   "what": "the second verifier’s finding: Prepare after the restart could not reach the machine, and nothing said what it answered",
+   "arm": "K3",
+   "reading": {
+    "setUp": true,
+    "cls": "program-refused",
+    "headline": "This machine's tmux was updated while its sessions kept running.",
+    "detail": "Tortie has not measured tmux 3.6b with the tmux 3.5a that still runs them, so it opens no session there. After that machine restarts, Tortie can restore them.",
+    "ms": 2380,
+    "oldLiveAnswered": true,
+    "spawnsAfterDrop": 0,
+    "listed": true,
+    "unknown": false,
+    "chip": "not-usable",
+    "attachRefused": true,
+    "attachSshT": 0,
+    "saveOutcome": "wrote",
+    "relaunchQuiet": false,
+    "relaunchLink": "polling",
+    "relaunchSpawns": 0,
+    "afterRestartPrepare": "refused",
+    "afterRestartReady": true,
+    "afterRestartLink": "connected",
+    "afterRestartRestored": true
+   },
+   "fails": [
+    "after the restart, Prepare answered"
+   ]
+  },
+  {
+   "what": "the measured pair refused",
+   "arm": "K3d12",
+   "reading": {
+    "cls": "program-refused",
+    "ready": false,
+    "link": "polling"
+   },
+   "fails": [
+    "a 3.5a program under a 3.3a server ended",
+    "its live connection reads"
+   ]
+  },
+  {
+   "what": "the loopback machine got -HOME, which rename-session reads as flags",
+   "arm": "N1",
+   "reading": {
+    "options": {
+     "status": "off",
+     "escape-time": "0",
+     "extended-keys": "on",
+     "allow-passthrough": "on",
+     "focus-events": "on",
+     "default-terminal": "tmux-256color",
+     "remain-on-exit": "failed",
+     "exit-empty": "off",
+     "mouse": "off",
+     "copy-mode-position-format": "",
+     "mode-style": "noattr,bg=default,fg=default",
+     "history-limit": "25000"
+    },
+    "detail": "{\"id\":\"p342-loopback\",\"label\":\"p342-loopback\",\"color\":\"blue\",\"host\":\"p342-loopback\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.6a\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie found the program already running and set it up.\",\"note\":null},\"os\":\"Linux\"}",
+    "saveOutcome": "wrote",
+    "saveMode": "644",
+    "made": "made",
+    "madeMode": "755",
+    "dollarFar": "_HOME notes",
+    "costFar": "cost -HOME",
+    "row0": "2949"
+   },
+   "fails": [
+    "has the far name"
+   ]
+  },
+  {
+   "what": "the loopback machine left at tmux’s 2,000 lines (the probe's own read, never a constant it wrote)",
+   "arm": "N1",
+   "reading": {
+    "options": {
+     "status": "off",
+     "escape-time": "0",
+     "extended-keys": "on",
+     "allow-passthrough": "on",
+     "focus-events": "on",
+     "default-terminal": "tmux-256color",
+     "remain-on-exit": "failed",
+     "exit-empty": "off",
+     "mouse": "off",
+     "copy-mode-position-format": "",
+     "mode-style": "noattr,bg=default,fg=default",
+     "history-limit": "2000"
+    },
+    "detail": "{\"id\":\"p342-loopback\",\"label\":\"p342-loopback\",\"color\":\"blue\",\"host\":\"p342-loopback\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.6a\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie found the program already running and set it up.\",\"note\":null},\"os\":\"Linux\"}",
+    "saveOutcome": "wrote",
+    "saveMode": "644",
+    "made": "made",
+    "madeMode": "755",
+    "dollarFar": "_HOME notes",
+    "costFar": "cost _HOME",
+    "row0": "2949"
+   },
+   "fails": [
+    "history-limit read back"
+   ]
+  },
+  {
+   "what": "a container left in his Docker",
+   "arm": "RUN",
+   "reading": {
+    "dockerClean": false,
+    "dockerProblems": [
+     "container tortie-p342-u2204-p1 is still there"
+    ],
+    "electronsLeft": 0,
+    "historyMoved": false,
+    "samplerViolations": 0,
+    "farContentInLog": false,
+    "preflightsOk": true
+   },
+   "fails": [
+    "Docker is not as it was found"
+   ]
+  },
+  {
+   "what": "his shell history moved",
+   "arm": "RUN",
+   "reading": {
+    "dockerClean": true,
+    "dockerProblems": [],
+    "electronsLeft": 0,
+    "historyMoved": true,
+    "samplerViolations": 0,
+    "farContentInLog": false,
+    "preflightsOk": true
+   },
+   "fails": [
+    "his shell history moved"
+   ]
+  },
+  {
+   "what": "an ssh of the run without its own -F config",
+   "arm": "RUN",
+   "reading": {
+    "dockerClean": true,
+    "dockerProblems": [],
+    "electronsLeft": 0,
+    "historyMoved": false,
+    "samplerViolations": 1,
+    "farContentInLog": false,
+    "preflightsOk": true
+   },
+   "fails": [
+    "sampler violation"
+   ]
+  }
+ ]
+}

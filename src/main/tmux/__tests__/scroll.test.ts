@@ -220,6 +220,74 @@ describe('scrollPaneBy', () => {
   });
 });
 
+describe('enterCopyModeArgs, the one entry (Phase 342, build/p342/SPEC.md D11)', () => {
+  /** A machine's runner: the strict space-separated read, parked at 7. */
+  function farRecorder(ordered: boolean): { run: TmuxScrollRunner; calls: string[][] } {
+    const calls: string[][] = [];
+    const fn = async (args: readonly string[]): Promise<string> => {
+      calls.push([...args]);
+      return args[0] === 'display-message' ? '1 7 9000 40 0 0 120 \n' : '';
+    };
+    const run: TmuxScrollRunner = ordered
+      ? Object.assign(fn, { ordered: true as const, server: 'machine:far' })
+      : Object.assign(fn, { server: 'machine:far' });
+    return { run, calls };
+  }
+
+  it('answers today\'s four elements for this Mac\'s runner, which names no server', () => {
+    const { run } = recorder([state('0', '', '10')]);
+    assert.deepEqual(scrollModule.enterCopyModeArgs(run, '$3'), ['copy-mode', '-e', '-t', '$3']);
+  });
+
+  it('answers -H between -e and -t for a runner that names a server, ordered or not', () => {
+    for (const ordered of [false, true]) {
+      const { run } = farRecorder(ordered);
+      assert.deepEqual(scrollModule.enterCopyModeArgs(run, '$9'), [
+        'copy-mode',
+        '-e',
+        '-H',
+        '-t',
+        '$9'
+      ]);
+    }
+  });
+
+  it('is what all four entry sites send, on both kinds of runner', async () => {
+    const entries = (calls: string[][]): string[][] => calls.filter((c) => c[0] === 'copy-mode');
+    for (const ordered of [false, true]) {
+      // scrollPaneBy up (serial and pipelined), and the seek (serial and pipelined).
+      for (const drive of [
+        (run: TmuxScrollRunner) => scrollPaneBy(run, '$3', 5),
+        (run: TmuxScrollRunner) => scrollPaneTo(run, '$3', 50)
+      ]) {
+        resetSeekSupportForTests();
+        const far = farRecorder(ordered);
+        await drive(far.run);
+        assert.deepEqual(entries(far.calls), [['copy-mode', '-e', '-H', '-t', '$3']]);
+        resetSeekSupportForTests();
+        const here = recorder([state('1', '7', '9000')]);
+        await drive(here.run);
+        assert.deepEqual(entries(here.calls), [['copy-mode', '-e', '-t', '$3']]);
+      }
+    }
+  });
+
+  it('is the only place scroll.ts spells copy-mode or -H', () => {
+    const source = readFileSync(join(__dirname, '..', 'scroll.ts'), 'utf8');
+    const start = source.indexOf('export function enterCopyModeArgs(');
+    assert.ok(start > 0);
+    const end = source.indexOf('\n}\n', start);
+    const body = source.slice(start, end);
+    const outside = source.slice(0, start) + source.slice(end);
+    assert.equal(body.split("'copy-mode'").length - 1, 2);
+    assert.equal(body.split("'-H'").length - 1, 1);
+    assert.equal(outside.split("'copy-mode'").length - 1, 0);
+    assert.equal(outside.split("'-H'").length - 1, 0);
+    // And it is called at the four sites.
+    assert.equal(outside.split('enterCopyModeArgs(run, target)').length - 1, 4);
+  });
+});
+
 describe('scrollPaneTo', () => {
   it('SEEKS to the absolute offset instead of walking to it', async () => {
     // Phase 13.7. The old implementation issued one `-N <delta> scroll-up`,

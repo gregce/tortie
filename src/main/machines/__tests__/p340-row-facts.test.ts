@@ -137,7 +137,10 @@ describe('row-facts holds two facts per machine, in memory', () => {
       at: 1_000,
       version: '3.6a',
       headline: 'This machine is ready.',
-      detail: 'Tortie started the program.'
+      detail: 'Tortie started the program.',
+      // PHASE 342's fix round: a prepared answer's one appended sentence,
+      // null when it carried none.
+      note: null
     });
     expect(facts.rowSignInOf('other')).toBeNull();
   });
@@ -315,7 +318,7 @@ describe('the row view carries the facts, and a change re-broadcasts the state',
     id: string;
     link?: string | null;
     linkDetail?: string | null;
-    signIn?: unknown;
+    signIn?: { note?: string | null } | null;
     os?: string | null;
   }
 
@@ -343,9 +346,19 @@ describe('the row view carries the facts, and a change re-broadcasts the state',
       at: 5_000,
       version: '3.6a',
       headline: 'This machine is ready.',
-      detail: 'Tortie started the program.'
+      detail: 'Tortie started the program.',
+      note: null
     });
     expect(row.os).toBe('Darwin');
+  });
+
+  it("carries a prepared answer's note to the row view, and drops an empty one (Phase 342's fix round)", () => {
+    facts.noteRowSignIn('studio', { ...PREPARED, note: 'A session there can look a little different.' }, 6_000);
+    let row = call<{ rows: Row[] }>('machines:rows').rows[0] as Row;
+    expect(row.signIn?.note).toBe('A session there can look a little different.');
+    facts.noteRowSignIn('studio', { ...PREPARED, note: '   ' }, 7_000);
+    row = call<{ rows: Row[] }>('machines:rows').rows[0] as Row;
+    expect(row.signIn?.note).toBeNull();
   });
 
   it('a confirm answers a view with the same fields', () => {

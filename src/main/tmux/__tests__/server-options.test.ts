@@ -16,6 +16,7 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SCROLLBACK_LINES } from '@shared/settings';
 import {
+  isOptionRefusal,
   localReassertOptions,
   remoteBootOptions,
   runtimeValueOf,
@@ -125,7 +126,14 @@ describe('the five the local boot re-asserts', () => {
 
 describe('what a machine gets, and what takes its value from Settings', () => {
   it('gives a machine every row, because -f /dev/null gives it none', () => {
-    expect(remoteBootOptions()).toEqual(SERVER_OPTIONS);
+    // PHASE 342 (build/p342/SPEC.md D4). The same twelve rows, `history-limit`
+    // WRITTEN first so a refusal of a later row can never leave the server at
+    // tmux's own 2,000 lines; the list itself keeps its order.
+    const boot = remoteBootOptions();
+    expect(boot).toHaveLength(SERVER_OPTIONS.length);
+    expect(boot[0]?.name).toBe('history-limit');
+    expect(boot.slice(1)).toEqual(SERVER_OPTIONS.filter((row) => row.name !== 'history-limit'));
+    expect(new Set(boot)).toEqual(new Set(SERVER_OPTIONS));
   });
 
   it('takes exactly one row from Settings, being the scrollback depth', () => {
@@ -176,5 +184,77 @@ describe('the two argv shapes', () => {
       'copy-mode-position-format',
       ''
     ]);
+  });
+});
+
+// PHASE 342 (build/p342/SPEC.md D5 to D8, §6.1 condition 142). Each row says the
+// oldest measured tmux that took it and what Tortie does without it, and a
+// refusal is read only in tmux's own seven shapes.
+describe('what each row says Tortie does without it (Phase 342)', () => {
+  it('gives every row an oldest version from the measured table and a without', () => {
+    const measured = new Set(['3.2a', '3.3a', '3.4', '3.5a', '3.6', '3.6a', '3.6b', '3.7b', '3.7c']);
+    for (const row of SERVER_OPTIONS) {
+      expect(measured.has(row.oldest), row.name).toBe(true);
+      expect(['required', 'fallback', 'skip']).toContain(row.without.kind);
+    }
+  });
+
+  it('requires exactly the four rows durability and scroll-back rest on', () => {
+    const required = SERVER_OPTIONS.filter((row) => row.without.kind === 'required');
+    expect(required.map((row) => row.name).sort()).toEqual(
+      ['exit-empty', 'history-limit', 'mouse', 'remain-on-exit'].sort()
+    );
+    expect(
+      required.map((row) => (row.without.kind === 'required' ? row.without.purpose : null)).sort()
+    ).toEqual(['failed-screen', 'history', 'scrolling', 'stays-up'].sort());
+  });
+
+  it('falls back on exactly one row, mode-style, to the colours without noattr', () => {
+    const fallback = SERVER_OPTIONS.filter((row) => row.without.kind === 'fallback');
+    expect(fallback.map((row) => row.name)).toEqual(['mode-style']);
+    expect(fallback[0]?.without).toEqual({ kind: 'fallback', value: 'bg=default,fg=default' });
+  });
+
+  it('declares the measured oldest per row: 3.3a for allow-passthrough, 3.6 for the two copy-mode rows', () => {
+    const oldest = Object.fromEntries(SERVER_OPTIONS.map((row) => [row.name, row.oldest]));
+    expect(oldest['allow-passthrough']).toBe('3.3a');
+    expect(oldest['copy-mode-position-format']).toBe('3.6');
+    expect(oldest['mode-style']).toBe('3.6');
+    for (const [name, version] of Object.entries(oldest)) {
+      if (!['allow-passthrough', 'copy-mode-position-format', 'mode-style'].includes(name)) {
+        expect(version, name).toBe('3.2a');
+      }
+    }
+  });
+
+  it("reads a refusal only in tmux's seven measured shapes, on the last line", () => {
+    expect(isOptionRefusal('invalid option: allow-passthrough', 'allow-passthrough', 'on')).toBe(true);
+    expect(isOptionRefusal('invalid style: noattr,bg=default,fg=default\n', 'mode-style', 'noattr,bg=default,fg=default')).toBe(true);
+    expect(isOptionRefusal('unknown value: sometimes', 'remain-on-exit', 'sometimes')).toBe(true);
+    expect(isOptionRefusal('bad value: maybe', 'mouse', 'maybe')).toBe(true);
+    expect(isOptionRefusal('value is invalid: abc', 'history-limit', 'abc')).toBe(true);
+    expect(isOptionRefusal('value is too small: -5', 'history-limit', '-5')).toBe(true);
+    expect(isOptionRefusal('value is too large: 99999999999', 'history-limit', '99999999999')).toBe(true);
+    // A shell start-up file that prints first, then the refusal: the LAST line.
+    expect(isOptionRefusal('welcome\r\ninvalid option: mode-style\r\n', 'mode-style', 'x')).toBe(true);
+  });
+
+  it('refuses to read anything else as a refusal', () => {
+    expect(isOptionRefusal('', 'mouse', 'off')).toBe(false);
+    expect(isOptionRefusal('no server running on /tmp/tmux-1000/gmux', 'mouse', 'off')).toBe(false);
+    expect(isOptionRefusal('error connecting to /tmp/tmux-1000/gmux (No such file or directory)', 'mouse', 'off')).toBe(false);
+    expect(isOptionRefusal('Connection closed by remote host', 'mouse', 'off')).toBe(false);
+    // A refusal naming ANOTHER row, and a value one byte different.
+    expect(isOptionRefusal('invalid option: mouse', 'allow-passthrough', 'on')).toBe(false);
+    expect(isOptionRefusal('bad value: of', 'mouse', 'off')).toBe(false);
+    expect(isOptionRefusal('bad value: off ', 'mouse', 'off')).toBe(false);
+    // The refusal followed by something else is not the last line.
+    expect(isOptionRefusal('invalid option: mouse\nsomething else', 'mouse', 'off')).toBe(false);
+  });
+
+  it('never sends set-option -q, which rescues a name and not a value', () => {
+    const source = readFileSync(resolve(import.meta.dirname, '../server-options.ts'), 'utf8');
+    expect(source.includes("'-q'")).toBe(false);
+    expect(setOptionArgs(SERVER_OPTIONS[0]!, 'x')).not.toContain('-q');
   });
 });

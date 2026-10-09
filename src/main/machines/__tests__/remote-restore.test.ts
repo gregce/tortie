@@ -386,6 +386,38 @@ describe('the shape a remote restore takes, read off its own source', () => {
     expect(create).toBeGreaterThan(-1);
     expect(boot).toBeLessThan(create);
   });
+
+  /**
+   * PHASE 342 (build/p342/SPEC.md D4b). A machine whose tmux was updated while
+   * its server kept running gets no restored session, and the pair is asked
+   * AFTER step 3: a restore after a reboot meets a server `ensureRemoteServer`
+   * has just started, whose re-read clears a verdict recorded against the
+   * server that is gone. Asked once, here, and before the create is composed.
+   * `./p342-far-names.test.ts` drives both orders.
+   */
+  it('asks the pair after its server and before it composes the create', () => {
+    const boot = code.indexOf('ensureRemoteServer(');
+    const ask = code.indexOf('assertFarPairUsable(machineId);');
+    const create = code.indexOf('remoteCreateArgs({');
+    expect(boot).toBeGreaterThan(-1);
+    expect(ask).toBeGreaterThan(boot);
+    expect(create).toBeGreaterThan(ask);
+    expect(code.split('assertFarPairUsable(')).toHaveLength(2);
+  });
+
+  /**
+   * PHASE 342 (D12). The record's far name with every `$` as `_`, the create's
+   * own rule, and no dedupe, as at the parent: tmux 3.2a to 3.4 store a `$` and
+   * a letter with a backslash, so `=<name>` misses the session the restore
+   * makes. The manifest takes the new name at step 8.
+   */
+  it('maps every $ in the record\'s far name to _, and dedupes nothing', () => {
+    expect(code).toMatch(
+      /const tmuxName = \(record\.tmuxName\.length > 0 \? record\.tmuxName : record\.name\)\.replace\(\s*\/\\\$\/g,\s*'_'\s*\);/
+    );
+    expect(code).not.toContain('dedupeSessionName');
+    expect(code).toMatch(/updateSession\(sessionId, \{\s*tmuxName,/);
+  });
 });
 
 // ---------------------------------------------------------------------------

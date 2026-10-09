@@ -78,6 +78,9 @@ import {
 } from '../restore/snapshots';
 import { isControlPlaneLive, onMachineLinkChanged } from './control-plane';
 import { execOn } from './exec-plane';
+// PHASE 342 (build/p342/SPEC.md D14, D24). The row of the server version this
+// run read for a machine, whose `joinedCapturePads` quirk the two captures ask.
+import { farServerRow } from './far-tmux';
 import {
   readyRemoteContext,
   remoteMachineFacts,
@@ -149,6 +152,46 @@ export function remoteCaptureArgs(tmuxId: string, lines: number): string[] {
     '-S',
     `-${String(Math.max(0, Math.floor(lines)))}`
   ];
+}
+
+/**
+ * tmux 3.2a's joined capture, with its padding taken off (Phase 342,
+ * build/p342/SPEC.md D14). Pure.
+ *
+ * 3.2a pads EVERY line of a `capture-pane -J` answer with spaces after the
+ * line's last escape (`ESC[31mred ESC[39m` and then spaces): 63,143 bytes for
+ * 3,004 lines where 3.3a answers 13,973 for the same lines (§14 M10), and in
+ * an 80-column pane a three-letter line came back 20 cells wide and a joined
+ * 100-character line 120 (builder "far"'s re-run, Ubuntu 22.04's own 3.2a),
+ * so a saved-output replay into a narrower terminal draws padded lines as
+ * wrapped blank ones. 3.3a and later keep only a line's own trailing spaces,
+ * which no reader of a joined copy needs, so this removes every trailing
+ * ASCII space of every line and nothing else: no other whitespace, no escape,
+ * no line. 3.2a keeps a line's own trailing spaces only where an escape
+ * follows them, and those stay.
+ *
+ * It is applied only behind the 3.2a row's `joinedCapturePads` quirk, and only
+ * to the two far reads that send `-J` and keep its spaces: this file's two
+ * captures and the joined history copy in `./remote-pane-history.ts`. Not to
+ * the armed resume's screen read, whose counter takes every space out before
+ * it counts (`./remote-arm.ts`).
+ */
+export function stripJoinedPadding(text: string): string {
+  return text
+    .split('\n')
+    .map((line) => {
+      let end = line.length;
+      while (end > 0 && line.charCodeAt(end - 1) === 0x20) end -= 1;
+      return end === line.length ? line : line.slice(0, end);
+    })
+    .join('\n');
+}
+
+/** A capture this file read from `machineId`, with 3.2a's padding undone behind its quirk. */
+function capturedText(machineId: string, text: string): string {
+  return farServerRow(machineId)?.quirks?.joinedCapturePads === true
+    ? stripJoinedPadding(text)
+    : text;
 }
 
 // ---------------------------------------------------------------------------
@@ -406,13 +449,16 @@ export async function captureMachineOnce(machineId: string): Promise<number> {
       let text: string;
       try {
         commandsSent += 1;
-        text = await execOn(ctx, remoteCaptureArgs(target.tmuxId, lines), {
-          timeoutMs: REMOTE_CAPSULE_TIMEOUT_MS,
-          // Phase 118. Named for the ledger that owns the ssh child. A capture
-          // is not journaled: it is a read onto this Mac that the next pass
-          // redoes, so a cut one leaves nothing on either computer.
-          execution: { kind: 'capture', subject: target.id }
-        });
+        text = capturedText(
+          machineId,
+          await execOn(ctx, remoteCaptureArgs(target.tmuxId, lines), {
+            timeoutMs: REMOTE_CAPSULE_TIMEOUT_MS,
+            // Phase 118. Named for the ledger that owns the ssh child. A capture
+            // is not journaled: it is a read onto this Mac that the next pass
+            // redoes, so a cut one leaves nothing on either computer.
+            execution: { kind: 'capture', subject: target.id }
+          })
+        );
       } catch {
         // A read that failed says nothing about the session and nothing about
         // the machine that the list is not already saying. The next pass asks
@@ -521,11 +567,14 @@ export async function captureRemoteSessionNow(
   let text: string;
   try {
     commandsSent += 1;
-    text = await execOn(ctx, remoteCaptureArgs(row.tmuxId, savedSnapshotLines()), {
-      timeoutMs: REMOTE_END_CAPTURE_TIMEOUT_MS,
-      // Phase 118. Named for the ledger, not journaled. See the pass above.
-      execution: { kind: 'capture', subject: row.name }
-    });
+    text = capturedText(
+      machineId,
+      await execOn(ctx, remoteCaptureArgs(row.tmuxId, savedSnapshotLines()), {
+        timeoutMs: REMOTE_END_CAPTURE_TIMEOUT_MS,
+        // Phase 118. Named for the ledger, not journaled. See the pass above.
+        execution: { kind: 'capture', subject: row.name }
+      })
+    );
   } catch (err) {
     capsuleLog.warn(
       `the screen of ${sessionId} on ${machineId} could not be read before it ` +

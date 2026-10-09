@@ -1,0 +1,525 @@
+{
+ "_note": "HAND-WRITTEN to the shape an honest PARENT run records: printed, never graded, except the facts this phase changed (parentFacts).",
+ "rows": {
+  "u2204": {
+   "L1": {
+    "peerListed": true,
+    "cls": "version-unmeasured",
+    "found": "/usr/bin/tmux",
+    "version": "3.2a",
+    "acceptSheet": true,
+    "ready": false,
+    "typed": 0,
+    "presses": 3,
+    "detail": "{\"id\":\"p342-u2204\",\"label\":\"p342-u2204\",\"color\":\"blue\",\"host\":\"p342-u2204\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":false,\"link\":\"quiet\",\"linkDetail\":null,\"signIn\":{\"class\":\"version-unmeasured\",\"at\":1791480000000,\"version\":\"3.2a\",\"headline\":\"Tortie has not measured the version that machine runs.\",\"detail\":\"This machine runs tmux 3.2a, which this release has not measured.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L2": null,
+   "L3": null,
+   "L4": null,
+   "L5": null,
+   "L6": null,
+   "L7": null,
+   "L8": null,
+   "L9": null,
+   "L10": null,
+   "L11": null,
+   "L12": null
+  },
+  "d12": {
+   "L1": {
+    "peerListed": true,
+    "cls": "version-unmeasured",
+    "found": "/usr/bin/tmux",
+    "version": "3.3a",
+    "acceptSheet": true,
+    "ready": false,
+    "typed": 0,
+    "presses": 3,
+    "detail": "{\"id\":\"p342-d12\",\"label\":\"p342-d12\",\"color\":\"blue\",\"host\":\"p342-d12\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":false,\"link\":\"quiet\",\"linkDetail\":null,\"signIn\":{\"class\":\"version-unmeasured\",\"at\":1791480000000,\"version\":\"3.3a\",\"headline\":\"Tortie has not measured the version that machine runs.\",\"detail\":\"This machine runs tmux 3.3a, which this release has not measured.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L2": null,
+   "L3": null,
+   "L4": null,
+   "L5": null,
+   "L6": null,
+   "L7": null,
+   "L8": null,
+   "L9": null,
+   "L10": null,
+   "L11": null,
+   "L12": null
+  },
+  "u2404": {
+   "L1": {
+    "peerListed": true,
+    "cls": "version-unmeasured",
+    "found": "/usr/bin/tmux",
+    "version": "3.4",
+    "acceptSheet": true,
+    "ready": false,
+    "typed": 0,
+    "presses": 3,
+    "detail": "{\"id\":\"p342-u2404\",\"label\":\"p342-u2404\",\"color\":\"blue\",\"host\":\"p342-u2404\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":false,\"link\":\"quiet\",\"linkDetail\":null,\"signIn\":{\"class\":\"version-unmeasured\",\"at\":1791480000000,\"version\":\"3.4\",\"headline\":\"Tortie has not measured the version that machine runs.\",\"detail\":\"This machine runs tmux 3.4, which this release has not measured.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L2": null,
+   "L3": null,
+   "L4": null,
+   "L5": null,
+   "L6": null,
+   "L7": null,
+   "L8": null,
+   "L9": null,
+   "L10": null,
+   "L11": null,
+   "L12": null
+  },
+  "d13": {
+   "L1": {
+    "peerListed": true,
+    "cls": "version-unmeasured",
+    "found": "/usr/bin/tmux",
+    "version": "3.5a",
+    "acceptSheet": true,
+    "ready": false,
+    "typed": 0,
+    "presses": 3,
+    "detail": "{\"id\":\"p342-d13\",\"label\":\"p342-d13\",\"color\":\"blue\",\"host\":\"p342-d13\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":false,\"link\":\"quiet\",\"linkDetail\":null,\"signIn\":{\"class\":\"version-unmeasured\",\"at\":1791480000000,\"version\":\"3.5a\",\"headline\":\"Tortie has not measured the version that machine runs.\",\"detail\":\"This machine runs tmux 3.5a, which this release has not measured.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L2": null,
+   "L3": null,
+   "L4": null,
+   "L5": null,
+   "L6": null,
+   "L7": null,
+   "L8": null,
+   "L9": null,
+   "L10": null,
+   "L11": null,
+   "L12": null
+  },
+  "u2604": {
+   "L1": {
+    "peerListed": true,
+    "cls": "prepared",
+    "found": "/usr/bin/tmux",
+    "version": "3.6",
+    "acceptSheet": false,
+    "ready": true,
+    "typed": 0,
+    "presses": 3,
+    "detail": "{\"id\":\"p342-u2604\",\"label\":\"p342-u2604\",\"color\":\"blue\",\"host\":\"p342-u2604\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.6\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L2": {
+    "options": {
+     "status": "off",
+     "escape-time": "0",
+     "extended-keys": "on",
+     "allow-passthrough": "on",
+     "focus-events": "on",
+     "default-terminal": "tmux-256color",
+     "remain-on-exit": "failed",
+     "exit-empty": "off",
+     "mouse": "off",
+     "copy-mode-position-format": "",
+     "mode-style": "noattr,bg=default,fg=default",
+     "history-limit": "25000"
+    },
+    "detail": "{\"id\":\"p342-u2604\",\"label\":\"p342-u2604\",\"color\":\"blue\",\"host\":\"p342-u2604\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.6\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L3": {
+    "listedName": "cost $HOME _",
+    "farName": "cost _HOME _",
+    "utf8": false,
+    "dollarCwd": "/home/tortie/cost $d",
+    "dollarProject": "/home/tortie/cost $d",
+    "wantDollarCwd": "/home/tortie/cost $d"
+   },
+   "L4": {
+    "link": "connected",
+    "strangerShown": false,
+    "renamedArrived": true,
+    "dollarFar": "_HOME notes"
+   },
+   "L5": {
+    "attached": true,
+    "inMode": "1",
+    "position": "30",
+    "row0": "2949",
+    "controlRow0": "2949",
+    "liveAgain": true
+   },
+   "L6": {
+    "trail": [
+     {
+      "ms": 0,
+      "status": "running"
+     },
+     {
+      "ms": 2100,
+      "status": "unknown"
+     },
+     {
+      "ms": 6400,
+      "status": "restorable"
+     }
+    ],
+    "prepareAfterRestart": "prepared",
+    "restorable": true,
+    "restored": true,
+    "path": "/home/tortie/proj",
+    "wantPath": "/home/tortie/proj",
+    "dollarPath": "/home/tortie/cost $d",
+    "wantDollarPath": "/home/tortie/cost $d"
+   },
+   "L7": {
+    "outcome": "unanswered",
+    "sha": "2b543cb7273f2f6f26e9cd8416b54190126bcff663d1fe9a26d947312e59882b",
+    "wantSha": "69253383f6603de322005092bb1643bf84a07fee34d7dba98c3cbd91ddc92ae5",
+    "mode": "644",
+    "parts": 1
+   },
+   "L8": {
+    "made": null,
+    "mode": "700",
+    "renamed": null,
+    "child": null,
+    "homeRefused": true
+   },
+   "L9": {
+    "linkKind": "dir",
+    "linkMark": "dir",
+    "inner": [
+     "inner",
+     "inner/f"
+    ]
+   },
+   "L10": {
+    "line": "remote",
+    "codexSha": null,
+    "codexWantSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb"
+   },
+   "L11": {
+    "staged": "done",
+    "committed": "committed",
+    "subject": "p342 commit",
+    "porcelain": ""
+   },
+   "L12": {
+    "attached": true,
+    "got": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b32373b323b397e",
+      "C-c": "1b5b32373b353b39397e",
+      "Up": "1b5b41",
+      "C-j": "1b5b32373b353b3130367e"
+     }
+    },
+    "want": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b32373b323b397e",
+      "C-c": "1b5b32373b353b39397e",
+      "Up": "1b5b41",
+      "C-j": "1b5b32373b353b3130367e"
+     }
+    }
+   }
+  },
+  "fed": {
+   "L1": {
+    "peerListed": true,
+    "cls": "prepared",
+    "found": "/usr/bin/tmux",
+    "version": "3.7c",
+    "acceptSheet": false,
+    "ready": true,
+    "typed": 0,
+    "presses": 3,
+    "detail": "{\"id\":\"p342-fed\",\"label\":\"p342-fed\",\"color\":\"blue\",\"host\":\"p342-fed\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.7c\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L2": {
+    "options": {
+     "status": "off",
+     "escape-time": "0",
+     "extended-keys": "on",
+     "allow-passthrough": "on",
+     "focus-events": "on",
+     "default-terminal": "tmux-256color",
+     "remain-on-exit": "failed",
+     "exit-empty": "off",
+     "mouse": "off",
+     "copy-mode-position-format": "",
+     "mode-style": "noattr,bg=default,fg=default",
+     "history-limit": "25000"
+    },
+    "detail": "{\"id\":\"p342-fed\",\"label\":\"p342-fed\",\"color\":\"blue\",\"host\":\"p342-fed\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.7c\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L3": {
+    "listedName": "cost $HOME é",
+    "farName": "cost _HOME é",
+    "utf8": true,
+    "dollarCwd": "/home/tortie/cost $d",
+    "dollarProject": "/home/tortie/cost $d",
+    "wantDollarCwd": "/home/tortie/cost $d"
+   },
+   "L4": {
+    "link": "connected",
+    "strangerShown": false,
+    "renamedArrived": true,
+    "dollarFar": "_HOME notes"
+   },
+   "L5": {
+    "attached": true,
+    "inMode": "1",
+    "position": "30",
+    "row0": "2949",
+    "controlRow0": "2949",
+    "liveAgain": true
+   },
+   "L6": {
+    "trail": [
+     {
+      "ms": 0,
+      "status": "running"
+     },
+     {
+      "ms": 2100,
+      "status": "unknown"
+     },
+     {
+      "ms": 6400,
+      "status": "restorable"
+     }
+    ],
+    "prepareAfterRestart": "prepared",
+    "restorable": true,
+    "restored": true,
+    "path": "/home/tortie/proj",
+    "wantPath": "/home/tortie/proj",
+    "dollarPath": "/home/tortie/cost $d",
+    "wantDollarPath": "/home/tortie/cost $d"
+   },
+   "L7": {
+    "outcome": "unanswered",
+    "sha": "2b543cb7273f2f6f26e9cd8416b54190126bcff663d1fe9a26d947312e59882b",
+    "wantSha": "69253383f6603de322005092bb1643bf84a07fee34d7dba98c3cbd91ddc92ae5",
+    "mode": "644",
+    "parts": 1
+   },
+   "L8": {
+    "made": null,
+    "mode": "700",
+    "renamed": null,
+    "child": null,
+    "homeRefused": true
+   },
+   "L9": {
+    "linkKind": "dir",
+    "linkMark": "dir",
+    "inner": [
+     "inner",
+     "inner/f"
+    ]
+   },
+   "L10": {
+    "line": "remote",
+    "codexSha": null,
+    "codexWantSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb"
+   },
+   "L11": {
+    "staged": "done",
+    "committed": "committed",
+    "subject": "p342 commit",
+    "porcelain": ""
+   },
+   "L12": {
+    "attached": true,
+    "got": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b32373b323b397e",
+      "C-c": "1b5b32373b353b39397e",
+      "Up": "1b5b41",
+      "C-j": "1b5b32373b353b3130367e"
+     }
+    },
+    "want": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b32373b323b397e",
+      "C-c": "1b5b32373b353b39397e",
+      "Up": "1b5b41",
+      "C-j": "1b5b32373b353b3130367e"
+     }
+    }
+   }
+  },
+  "arch": {
+   "L1": {
+    "peerListed": true,
+    "cls": "prepared",
+    "found": "/usr/bin/tmux",
+    "version": "3.7c",
+    "acceptSheet": false,
+    "ready": true,
+    "typed": 0,
+    "presses": 3,
+    "detail": "{\"id\":\"p342-arch\",\"label\":\"p342-arch\",\"color\":\"blue\",\"host\":\"p342-arch\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.7c\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L2": {
+    "options": {
+     "status": "off",
+     "escape-time": "0",
+     "extended-keys": "on",
+     "allow-passthrough": "on",
+     "focus-events": "on",
+     "default-terminal": "tmux-256color",
+     "remain-on-exit": "failed",
+     "exit-empty": "off",
+     "mouse": "off",
+     "copy-mode-position-format": "",
+     "mode-style": "noattr,bg=default,fg=default",
+     "history-limit": "25000"
+    },
+    "detail": "{\"id\":\"p342-arch\",\"label\":\"p342-arch\",\"color\":\"blue\",\"host\":\"p342-arch\",\"user\":null,\"port\":null,\"remoteTmuxPath\":\"/usr/bin/tmux\",\"state\":\"confirmed\",\"usable\":true,\"ready\":true,\"link\":\"connected\",\"linkDetail\":\"It is answering.\",\"signIn\":{\"class\":\"prepared\",\"at\":1791480000000,\"version\":\"3.7c\",\"headline\":\"This machine is ready.\",\"detail\":\"Tortie started the program and set it up.\",\"note\":null},\"os\":\"Linux\"}"
+   },
+   "L3": {
+    "listedName": "cost $HOME é",
+    "farName": "cost _HOME é",
+    "utf8": true,
+    "dollarCwd": "/home/tortie/cost $d",
+    "dollarProject": "/home/tortie/cost $d",
+    "wantDollarCwd": "/home/tortie/cost $d"
+   },
+   "L4": {
+    "link": "connected",
+    "strangerShown": false,
+    "renamedArrived": true,
+    "dollarFar": "_HOME notes"
+   },
+   "L5": {
+    "attached": true,
+    "inMode": "1",
+    "position": "30",
+    "row0": "2949",
+    "controlRow0": "2949",
+    "liveAgain": true
+   },
+   "L6": {
+    "trail": [
+     {
+      "ms": 0,
+      "status": "running"
+     },
+     {
+      "ms": 2100,
+      "status": "unknown"
+     },
+     {
+      "ms": 6400,
+      "status": "restorable"
+     }
+    ],
+    "prepareAfterRestart": "prepared",
+    "restorable": true,
+    "restored": true,
+    "path": "/home/tortie/proj",
+    "wantPath": "/home/tortie/proj",
+    "dollarPath": "/home/tortie/cost $d",
+    "wantDollarPath": "/home/tortie/cost $d"
+   },
+   "L7": {
+    "outcome": "unanswered",
+    "sha": "2b543cb7273f2f6f26e9cd8416b54190126bcff663d1fe9a26d947312e59882b",
+    "wantSha": "69253383f6603de322005092bb1643bf84a07fee34d7dba98c3cbd91ddc92ae5",
+    "mode": "644",
+    "parts": 1
+   },
+   "L8": {
+    "made": null,
+    "mode": "700",
+    "renamed": null,
+    "child": null,
+    "homeRefused": true
+   },
+   "L9": {
+    "linkKind": "dir",
+    "linkMark": "dir",
+    "inner": [
+     "inner",
+     "inner/f"
+    ]
+   },
+   "L10": {
+    "line": "remote",
+    "codexSha": null,
+    "codexWantSha": "31cf0f44e0fa4e9a941a78db9eb6fff0fc65da09ba923b211634e44eb00f4bcb"
+   },
+   "L11": {
+    "staged": "done",
+    "committed": "committed",
+    "subject": "p342 commit",
+    "porcelain": ""
+   },
+   "L12": {
+    "attached": true,
+    "got": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b32373b323b397e",
+      "C-c": "1b5b32373b353b39397e",
+      "Up": "1b5b41",
+      "C-j": "1b5b32373b353b3130367e"
+     }
+    },
+    "want": {
+     "normal": {
+      "BTab": "1b5b5a",
+      "C-c": "03",
+      "Up": "1b5b41",
+      "C-j": "0a"
+     },
+     "mok2": {
+      "BTab": "1b5b32373b323b397e",
+      "C-c": "1b5b32373b353b39397e",
+      "Up": "1b5b41",
+      "C-j": "1b5b32373b353b3130367e"
+     }
+    }
+   }
+  }
+ },
+ "once": {
+  "K1a": null,
+  "K1b": null,
+  "K2b": null,
+  "K3": null,
+  "K3d12": null
+ }
+}

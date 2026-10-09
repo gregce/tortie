@@ -35,7 +35,11 @@ import type { CapturePaneResult } from '@shared/ipc';
 import { gmuxError } from '../errors';
 import { clampHistoryRange } from '../tmux/scroll';
 import { execOn } from './exec-plane';
+// PHASE 342 (build/p342/SPEC.md D14). 3.2a pads every joined line with
+// spaces; the joined copy takes them off behind that row's quirk.
+import { farServerRow } from './far-tmux';
 import { readyRemoteContext } from './ready-context';
+import { stripJoinedPadding } from './remote-capsule';
 import { isRemoteRecord, remoteRecordOf } from './remote-record';
 import { remoteScrollAddress } from './remote-sessions';
 import { SCROLL_TARGET } from './scroll-shapes';
@@ -189,6 +193,14 @@ export async function readRemoteHistoryRange(
   const cut = clampHistoryRange(range, extent);
   if (cut.paneRange === null) return { ansi: '', firstLine: cut.firstLine };
   const [, capture] = remoteHistoryArgs(address.tmuxId, cut.paneRange, join);
-  const ansi = await execOn(ctx, capture, { timeoutMs: REMOTE_HISTORY_TIMEOUT_MS });
+  const printed = await execOn(ctx, capture, { timeoutMs: REMOTE_HISTORY_TIMEOUT_MS });
+  // PHASE 342. A copy that joins wrapped lines, from a machine whose server is
+  // 3.2a, would otherwise carry every line padded with spaces past its end
+  // (`stripJoinedPadding` in ./remote-capsule.ts has the measurement). An
+  // unjoined copy is answered as tmux printed it, on every version.
+  const ansi =
+    join && farServerRow(address.machineId)?.quirks?.joinedCapturePads === true
+      ? stripJoinedPadding(printed)
+      : printed;
   return { ansi, firstLine: cut.firstLine };
 }

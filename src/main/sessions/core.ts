@@ -202,6 +202,8 @@ import {
 // checks every command against a closed table before it writes. This file is
 // its one scroll caller, in `remoteScroll`.
 import { remoteScrollRunner } from '../machines/control-plane';
+// PHASE 342 (D4b). The pair the last Prepare read, asked before a remote attach.
+import { assertFarPairUsable } from '../machines/far-tmux';
 // PHASE 320.1, THE SECOND BUILD (build/p3201/SPEC.md D3, D6 to D9). The two
 // roads to a far pane, the attach and the control connection, kept apart: which
 // one each keystroke takes (`routeKey`, handed to the attach host below), the
@@ -1620,7 +1622,14 @@ export class GmuxCore {
           sessionsLog.warn(
             `${row.id} answered ${result.class} at launch: ${result.detail}`
           );
-          markMachineQuiet(row.id);
+          // PHASE 342 (build/p342/SPEC.md D4b, D21). A machine whose tmux
+          // Tortie will not use as it is ANSWERED, and when its program was
+          // replaced beside a running server its feed is running and its
+          // sessions are listed, so it is not marked as one that did not
+          // answer, which would write every row unknown. Its retry is armed
+          // all the same, because the retry's Prepare is what learns the
+          // machine restarted.
+          if (result.class !== 'program-refused') markMachineQuiet(row.id);
           armSignInRetry(row.id);
           return;
         }
@@ -3787,6 +3796,13 @@ export class GmuxCore {
       );
     }
     const machine: RemoteMachineContext = readyRemoteContext(remote.machineId);
+    // PHASE 342 (build/p342/SPEC.md D4b). A machine whose tmux was replaced
+    // while its server kept running, by a program Tortie has not measured with
+    // that server, would open a terminal that closes at once (measured: "open
+    // terminal failed"), so the attach is refused here with the pair's own
+    // first line, before anything spawns. Synchronous, with nothing awaited
+    // between it and the spawn below.
+    assertFarPairUsable(remote.machineId);
     this.attachHost.attach({
       sessionId,
       tmuxName: remote.tmuxId,

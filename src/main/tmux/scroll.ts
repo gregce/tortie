@@ -302,6 +302,33 @@ function readFormatFor(run: TmuxScrollRunner): string {
   return run.server === undefined ? STATE_FORMAT : REMOTE_STATE_FORMAT;
 }
 
+/**
+ * The argv that enters copy mode on `target`, and the ONE place in this file
+ * that spells it (Phase 342, build/p342/SPEC.md D11).
+ *
+ * ANOTHER MACHINE'S RUNNER, one that names a `server` (the rule
+ * {@link readFormatFor} follows), enters with `-H`, which hides tmux's
+ * position indicator. A tmux before 3.6 has no `copy-mode-position-format`
+ * for Prepare to empty, and an attached client's top row, parked 30 lines
+ * back, drew `2948 [30/2978]` on 3.2a and 3.3a and `2948 19:34:50 [30/2978]`
+ * on 3.4 and 3.5a with `copy-mode -e`, and `2948` with `-e -H` on all four; on
+ * 3.6 and 3.7c the drawn row was byte-identical either way (SPEC §14 M7). It
+ * is the same verb on the same target and types nothing, and re-entering an
+ * active copy mode re-initialises nothing, so the measured idempotence holds.
+ *
+ * THIS MAC'S RUNNER enters exactly as it always has, `-e` alone, byte for
+ * byte (D20): its bundled tmux has the option and resources/gmux-tmux.conf
+ * empties it.
+ */
+export function enterCopyModeArgs(
+  run: TmuxScrollRunner,
+  target: string
+): readonly string[] {
+  return run.server === undefined
+    ? ['copy-mode', '-e', '-t', target]
+    : ['copy-mode', '-e', '-H', '-t', target];
+}
+
 /** Read one answer with the reader that matches the format {@link readFormatFor} asked for. */
 function parseFor(run: TmuxScrollRunner, out: string): PaneScrollState {
   return run.server === undefined ? parseState(out) : parseRemoteState(out);
@@ -623,14 +650,14 @@ async function scrollFrom(
   // to wait for that answer before it knows what to send next.
   if (run.ordered === true && run.server !== undefined) {
     const answers = await pipelined(run, [
-      { args: ['copy-mode', '-e', '-t', target] },
+      { args: enterCopyModeArgs(run, target) },
       { args: ['send-keys', '-t', target, '-X', 'goto-line', String(clamped)] },
       topLineStep(target),
       readStep(run, target)
     ]);
     return parseFor(run, lastAnswer(answers));
   }
-  await run(['copy-mode', '-e', '-t', target]);
+  await run(enterCopyModeArgs(run, target));
   await seekPaneTo(run, target, clamped, now.position);
   await cursorToTopRow(run, target);
   return readPaneScroll(run, target);
@@ -671,7 +698,7 @@ export async function scrollPaneBy(
       run,
       n > 0
         ? [
-            { args: ['copy-mode', '-e', '-t', target] },
+            { args: enterCopyModeArgs(run, target) },
             { args: ['send-keys', '-t', target, '-X', '-N', String(n), 'scroll-up'] },
             topLineStep(target),
             readStep(run, target)
@@ -688,7 +715,7 @@ export async function scrollPaneBy(
     return parseFor(run, lastAnswer(answers));
   }
   if (n > 0) {
-    await run(['copy-mode', '-e', '-t', target]);
+    await run(enterCopyModeArgs(run, target));
     await run(['send-keys', '-t', target, '-X', '-N', String(n), 'scroll-up']);
     await cursorToTopRow(run, target);
   } else {

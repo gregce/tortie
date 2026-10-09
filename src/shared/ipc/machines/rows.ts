@@ -185,6 +185,12 @@ export interface MachineRowView {
     version: string | null;
     headline: string;
     detail: string;
+    /**
+     * APPENDED (Phase 342's fix round): that Prepare's
+     * {@link MachinePrepareResult.note}, which the Ready chip's hover draws.
+     * Null or absent when it carried none.
+     */
+    note?: string | null;
   } | null;
   /**
    * APPENDED (Phase 340, D24): what `uname -s` answered the last time Tortie
@@ -415,6 +421,17 @@ export interface MachinePrepareResult {
    * Optional, so a fixture written against the older contract is still valid.
    */
   acceptSheet?: MachineConfirmSheet | null;
+  /**
+   * APPENDED (Phase 342's fix round): on a `prepared` answer, the one
+   * sentence that says a session there can look a little different from one
+   * on this Mac, because the machine's tmux refused an optional setting its
+   * version's measurement did not predict (build/p342/SPEC.md D7, sentence 2).
+   * It is also at the end of `detail`; it is carried alone so the surfaces
+   * that read a Ready machine (the row's hover, Add a machine's last step)
+   * draw it, which `detail` on a prepared answer is not. Null or absent on
+   * every other answer.
+   */
+  note?: string | null;
 }
 
 // ---------------------------------------------------------------------------

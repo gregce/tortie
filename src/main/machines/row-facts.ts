@@ -39,6 +39,13 @@ export interface RowSignIn {
   readonly version: string | null;
   readonly headline: string;
   readonly detail: string;
+  /**
+   * PHASE 342'S FIX ROUND (build/p342/SPEC.md D7, sentence 2). On a prepared
+   * answer, the one sentence that a session there can look a little different
+   * from one on this Mac, carried alone so the Ready hover can draw it. Null
+   * when the answer carried none.
+   */
+  readonly note: string | null;
 }
 
 const signIns = new Map<string, RowSignIn>();
@@ -64,7 +71,7 @@ function changed(): void {
  */
 export function noteRowSignIn(
   machineId: string,
-  result: Pick<MachinePrepareResult, 'class' | 'version' | 'headline' | 'detail'>,
+  result: Pick<MachinePrepareResult, 'class' | 'version' | 'headline' | 'detail' | 'note'>,
   at: number = Date.now()
 ): void {
   const previous = signIns.get(machineId);
@@ -73,7 +80,8 @@ export function noteRowSignIn(
     at,
     version: result.version ?? previous?.version ?? null,
     headline: result.headline,
-    detail: result.detail
+    detail: result.detail,
+    note: typeof result.note === 'string' && result.note.trim() !== '' ? result.note : null
   });
   changed();
 }

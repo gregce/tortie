@@ -124,7 +124,8 @@ afterEach(() => {
 
 describe('none: no connection this run', () => {
   it('for a tmux the control gate refused, until a fresh attempt or a prepare', async () => {
-    versionAnswer = 'tmux 3.2a\n';
+    // PHASE 342 measured 3.2a, so the version nobody measured is 3.0a now.
+    versionAnswer = 'tmux 3.0a\n';
     expect(await openControlPlane('studio')).toBe(false);
     expect(remoteScrollRunner('studio')).toEqual({ kind: 'none' });
     // Prepared again: the refusal is forgotten and the machine waits.
@@ -156,7 +157,7 @@ describe('none: no connection this run', () => {
   });
 
   it('is forgotten by the test reset', async () => {
-    versionAnswer = 'tmux 3.2a\n';
+    versionAnswer = 'tmux 3.0a\n';
     await openControlPlane('studio');
     expect(remoteScrollRunner('studio').kind).toBe('none');
     resetControlPlanesForTests();
@@ -358,7 +359,7 @@ describe('a keystroke asks a machine that missed its greeting once more (the rul
 
   it('a keystroke\'s ask still stands behind the precheck and the gate', async () => {
     await missed();
-    versionAnswer = 'tmux 3.2a\n';
+    versionAnswer = 'tmux 3.0a\n';
     const made = FakeClient.made.length;
     expect(await openControlPlane('studio', { keystroke: true })).toBe(false);
     expect(FakeClient.made.length).toBe(made);

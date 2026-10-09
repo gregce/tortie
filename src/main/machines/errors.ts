@@ -90,9 +90,25 @@
  *    ran none of them. The person picks one.
  *
  * Both are Tortie's own words, so neither has a golden: no program prints them.
+ *
+ * ## The class Phase 342 added (build/p342/SPEC.md D10)
+ *
+ *  - `program-refused` is a machine that answered, whose tmux Tortie will not use
+ *    as it is, in one of three shapes, each with its own sentence: a server
+ *    that refused a setting durability or scroll-back rests on (the version is
+ *    too old for it), a program updated beside a server that kept running
+ *    (Tortie has not measured the two together), and a server Tortie started
+ *    that reports a different version from the one its program said. Until
+ *    this phase the first was said as "could not reach" about a machine that
+ *    answered, because the refusal fell to `unknown`. None of the three says
+ *    "could not reach", none names a command, and Tortie ends nothing.
  */
 
 import type { MachineTestClass } from '@shared/ipc';
+import type { RequiredPurpose } from '../tmux/server-options';
+// PHASE 342 (D10). The pair sentence's first line, written in the leaf that
+// hands it out (see `machineTmuxUpdatedDetail` below for why).
+import { MACHINE_TMUX_DISAGREES_HEADLINE, MACHINE_TMUX_UPDATED_HEADLINE } from './far-tmux';
 
 /** One class, its copy, and whether it is the alarming one. */
 export interface MachineOutcomeCopy {
@@ -342,8 +358,143 @@ const COPY: Readonly<Record<MachineTestClass, MachineOutcomeCopy>> = {
     headline: 'The key is on that machine.',
     detail:
       'Tortie added its key to that machine and is testing the connection now.'
+  },
+  // PHASE 342 (D10). The three shapes compose their own headline and detail
+  // below, from the facts of the run; this is what is true of all three, for a
+  // caller that hands no facts.
+  'program-refused': {
+    class: 'program-refused',
+    alarm: false,
+    headline: "Tortie will not use this machine's tmux as it is.",
+    detail: 'Tortie opens no session there.'
   }
 };
+
+/**
+ * PHASE 342 (D10). What Tortie needs from each required server option, as the
+ * end of "tmux 3.x would not ...". `history` takes the person's Settings value.
+ */
+export function tmuxPurposeWords(purpose: RequiredPurpose, lines: number): string {
+  switch (purpose) {
+    case 'history':
+      return `keep ${lines.toLocaleString()} lines of each session`;
+    case 'stays-up':
+      return 'keep running with no session open';
+    case 'failed-screen':
+      return "keep a session's screen when its program fails";
+    case 'scrolling':
+      return 'leave scrolling to Tortie';
+  }
+}
+
+/**
+ * PHASE 342 (D10, sentence 1). A server that refused a row Tortie cannot do
+ * without. Pinned by `build/assert-bundle-refusals.mjs` as
+ * `machine.tmux-too-old`.
+ */
+export const MACHINE_TMUX_TOO_OLD_HEADLINE = "This machine's tmux is too old for Tortie.";
+
+export function machineTmuxTooOldDetail(
+  version: string | null,
+  purpose: RequiredPurpose,
+  lines: number
+): string {
+  const who = version === null ? "This machine's tmux" : `tmux ${version}`;
+  return (
+    `${who} would not ${tmuxPurposeWords(purpose, lines)}, so Tortie will not ` +
+    `start sessions there.`
+  );
+}
+
+/**
+ * PHASE 342 (D7, D10, sentence 2). Appended once to the PREPARED detail when a
+ * server refused an optional row its version's measurement did not predict.
+ * The class stays `prepared`. Pinned as `machine.tmux-setting-refused`.
+ */
+export function machineTmuxSettingRefused(version: string | null): string {
+  const who = version === null ? "This machine's tmux" : `tmux ${version} on this machine`;
+  return (
+    `${who} is too old for one of Tortie's settings, so a session there can ` +
+    `look a little different from one on this Mac.`
+  );
+}
+
+/**
+ * PHASE 342 (D3, D10, sentence 3). A program updated beside a server that kept
+ * running, a pair nobody measured (his ruling 3 on research 131: "Only say
+ * so"). It ends nothing and names no command. "has not measured" rather than
+ * "cannot open", because one such pair works on other builds and is refused
+ * here only for want of a measurement (the adversary's F5). The headline is
+ * pinned as `machine.tmux-updated-under-sessions`.
+ *
+ * THE HEADLINE IS WRITTEN IN `./far-tmux.ts` AND RE-EXPORTED HERE. That leaf
+ * hands the line to every asker that refuses a pair (the live connection, an
+ * attach, a create, a restore), and it may import nothing but the version
+ * table and the error door, so the words live there and this file composes
+ * the detail under them.
+ */
+export { MACHINE_TMUX_UPDATED_HEADLINE };
+
+export function machineTmuxUpdatedDetail(program: string, server: string): string {
+  return (
+    `Tortie has not measured tmux ${program} with the tmux ${server} that ` +
+    `still runs them, so it opens no session there. After that machine ` +
+    `restarts, Tortie can restore them.`
+  );
+}
+
+/**
+ * PHASE 342 (D9, D10, sentence 4). A server Tortie started that reports a
+ * different version from the one its program said. The empty server stays,
+ * because nothing in this layer kills anything. Pinned as
+ * `machine.tmux-version-disagrees`.
+ *
+ * THE HEADLINE IS WRITTEN IN `./far-tmux.ts` AND RE-EXPORTED HERE since
+ * Phase 342's second fix round, as sentence (3)'s is and for its reason: the
+ * leaf says it of a refused pair whose program this run saw lie about its
+ * version, so the next Prepare of that warm server never says the program
+ * was updated.
+ */
+export { MACHINE_TMUX_DISAGREES_HEADLINE };
+
+export function machineTmuxDisagreesDetail(said: string, ran: string): string {
+  return `It says ${said} and runs as ${ran}, so Tortie will not use it.`;
+}
+
+/** The three shapes of `program-refused`, as the facts a composer needs. */
+export type MachineTmuxRefusal =
+  | {
+      readonly kind: 'required';
+      readonly version: string | null;
+      readonly purpose: RequiredPurpose;
+      readonly lines: number;
+    }
+  | { readonly kind: 'pair'; readonly server: string; readonly program: string }
+  | { readonly kind: 'disagrees'; readonly said: string; readonly ran: string };
+
+/** The headline and detail of one `program-refused` answer. Pure. */
+export function composeTmuxRefusal(refusal: MachineTmuxRefusal): {
+  readonly headline: string;
+  readonly detail: string;
+} {
+  switch (refusal.kind) {
+    case 'required':
+      return {
+        headline: MACHINE_TMUX_TOO_OLD_HEADLINE,
+        detail: machineTmuxTooOldDetail(refusal.version, refusal.purpose, refusal.lines)
+      };
+    case 'pair':
+      return {
+        headline: MACHINE_TMUX_UPDATED_HEADLINE,
+        detail: machineTmuxUpdatedDetail(refusal.program, refusal.server)
+      };
+    case 'disagrees':
+      return {
+        headline: MACHINE_TMUX_DISAGREES_HEADLINE,
+        detail: machineTmuxDisagreesDetail(refusal.said, refusal.ran)
+      };
+  }
+}
 
 /** Every class, for the conformance gate and the tests. */
 export const MACHINE_OUTCOME_CLASSES: readonly MachineTestClass[] = Object.keys(
@@ -580,9 +731,17 @@ export function composeOutcomeCopy(
      * the machine could not be reached.
      */
     answerUnread?: boolean;
+    /**
+     * PHASE 342 (D10). Which of the three `program-refused` shapes this is, with
+     * its facts. Absent, the class's own fixed copy is answered.
+     */
+    tmuxRefusal?: MachineTmuxRefusal;
   }
 ): MachineOutcomeCopy {
   const base = COPY[cls];
+  if (cls === 'program-refused' && facts.tmuxRefusal !== undefined) {
+    return { ...base, ...composeTmuxRefusal(facts.tmuxRefusal) };
+  }
   if (cls === 'unknown' && facts.answerUnread === true) {
     return {
       ...base,

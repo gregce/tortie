@@ -96,6 +96,9 @@ import { forgetRemoteMachineHome } from './remote-image';
 // PHASE 340 (build/p340/SPEC.md D24). The two facts the Settings row draws,
 // held in memory only, go with the machine.
 import { forgetRowFacts } from './row-facts';
+// PHASE 342 (build/p342/SPEC.md D24). What this run knew about the machine's
+// tmux, the server version and the pair, goes with it too.
+import { forgetFarTmux } from './far-tmux';
 // Phase 72, Builder A. The one place a remote session meets the manifest.
 import {
   remoteRecordsForMachine,
@@ -256,6 +259,7 @@ export function removeMachineCompletely(
   forgetMachineAgents(machineId);
   forgetRemoteMachineHome(machineId);
   forgetRowFacts(machineId);
+  forgetFarTmux(machineId);
   closeControlPlane(machineId);
   forgetMachineRuntime(machineId);
   removeMachineRow(machineId);

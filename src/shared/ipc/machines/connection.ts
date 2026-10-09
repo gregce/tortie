@@ -94,7 +94,13 @@ export type MachineTestClass =
   | 'client-failed'
   // PHASE 340 (D4). The check found more than one distinct program, and ran
   // none of them. The person chooses, and only then is one asked its version.
-  | 'program-choice';
+  | 'program-choice'
+  // PHASE 342 (build/p342/SPEC.md D10). The machine answered and Tortie will
+  // not use its tmux as it is: a setting durability or scroll-back rests on
+  // was refused, its program was updated beside a server that kept running,
+  // or a server Tortie started reports another version than its program
+  // said. Never "could not reach", and the sentence is main's.
+  | 'program-refused';
 
 /**
  * The outcome, composed in main.
