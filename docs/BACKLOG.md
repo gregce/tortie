@@ -41617,6 +41617,103 @@ So the two gaps are:
 - No new clause family. R2, R4, R5 and A4 widen; F1 gains at most the commit check the spec step decides on.
 - No change to the rule itself: adding stays allowed, and nothing here may turn a control (C1 to C5) red.
 
+## Phase 344 — "my mac pro tab on the current dev build tends to come back after i close it, i thought we long solved this" — a closed tab for a folder on another machine stays closed, whoever started its sessions (operator, 2026-10-09)
+
+**Subject.** `fix(machines): keep a closed remote tab closed whoever started its sessions`
+
+**First body line.** `Phase 344: a closed folder is remembered by itself`
+
+**Semver.** Patch, and it rides in 0.111.0: he asked for it in this release ("we can probably include it in the
+relase"). The 0.111.0 draft of 9 October (`cb36deaf`, tag `v0.111.0`) was never published, so the landing re-cuts
+it on his word, and the CHANGELOG item joins its Fixed list.
+
+**Tier 3.** It adds a manifest table and a migration, which is durability-critical state, and it changes what the
+re-home writes on every pass for every machine. Two independent methods, one of them an attack, and the parent
+measured.
+
+**Charter.** His report of 9 October, on his dev build at `af1358a5` (0.110.0 plus everything through Phase 343):
+a tab for a folder on his Mac Pro comes back after he closes it. Phase 306 (`6f194ddb`, GitHub issue 35) recorded
+this exact case as its stated limit (`src/main/machines/remote-rehome.ts:62-67`): "A folder none of whose sessions
+has a record on this Mac, being one a Tortie on that machine or on another Mac started, carries no stamp and still
+gets its tab back. That is the stated limit, and a record of a close that needs no session row would be a schema
+change." He confirmed it is his Mac Pro, a machine he added ("its a remote machine that i added and that tab tends to come
+back so lets solve it the correct way"). Sessions there that this Mac holds no row for, being ones started from
+Tortie on the Mac Pro itself, from another Mac, or by a build before Phase 90.3, leave nothing to stamp. He
+authorized connecting to it for the checking ("i authorize you to connect to it when checking", 2026-10-09).
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **The record of a close today is a stamp on session rows.** `removeProject` in `src/main/sessions/core.ts`
+  (about `:4060-4130`) calls `markProjectTabClosed` (`src/main/manifest/sessions-repository.ts:845`), which writes
+  `project_tombstone` on every non-discarded `sessions` row whose `project_path` and machine match, in one durable
+  transaction, then deletes the project row. Zero rows is an ordinary answer, and then nothing records the close.
+- **The read is `projectTabClosedFor`** (`sessions-repository.ts:930`), asked by `rehomeRemoteSessions`
+  (`remote-rehome.ts:225`) before it upserts a folder's row, and by `releaseFoldersAfterFailedRemoteCreate`
+  (`:379`). The re-home's folders come from the machine's own live list, so a session with no manifest row still
+  yields a folder (`:183-200`), and that folder is re-opened on the next pass.
+- **Every way back already runs one clear.** `clearProjectTabClosed` (`sessions-repository.ts:885`) is called by
+  the local add (`core.ts:3971`, `:3984`), the remote add (`core.ts:4044`, which Go to session and opening the
+  folder reach), `openTabsForRemoteCreate` (`remote-rehome.ts:317`) and the failed-create release (`:393`). So a
+  record kept beside the stamp, written by the same mark and cleared by the same clear, is reached by every path
+  without a new caller.
+- **The window only decides WHEN to re-read**, never whether a tab opens (`reconcileRemoteTabs`,
+  `src/renderer/state/sessions-slice.ts:568-615`); its memo keys on `session.closedProject`, which a session with
+  no row never carries. A folder main holds closed costs the window one list read and no tab.
+- **The schema is at 19** (`MANIFEST_SCHEMA_VERSION`, `src/main/manifest/schema.ts:680`), the last migration
+  `019-remote-folder-pins` (`:647`), and `MANIFEST_MIN_COMPATIBLE_VERSION` is 13 (`:804`), held there by every
+  additive migration since with a paragraph saying why.
+
+### The mechanism
+
+1. **Migration 020, `020-closed-remote-folders`**, adds one table keyed exactly as `remote_folder_pins` is:
+   `closed_folders (machine_id TEXT NOT NULL, path TEXT NOT NULL, closed_at INTEGER NOT NULL, project_name TEXT,
+   PRIMARY KEY (machine_id, path))`. `MANIFEST_SCHEMA_VERSION` moves to 20 and the minimum compatible version stays
+   at 13, with the paragraph saying why: a build at 13 to 19 neither reads nor writes the table, a close it makes is
+   recorded the old way, and a tab it re-opens has its row back, which the re-home checks before it asks.
+2. **`markProjectTabClosed` writes the folder row in the SAME durable transaction as the stamp**, whether or not any
+   session row matched, so the record of a close no longer needs a session. Machine ids follow the stamp's rule
+   (`LOCAL_MACHINE_ROW` for this Mac), so `/Users/gdc/x` here and on the Mac Pro stay two folders.
+3. **`clearProjectTabClosed` deletes the folder row** as well as clearing the stamps, so every way back named above
+   clears both, with no new caller.
+4. **`projectTabClosedFor` answers yes when the folder row exists OR a stamp holds** by today's two tests. The
+   stamp half stays, so a close made by a build before this one still holds.
+5. **Removing a machine** deletes that machine's folder rows with its other records, and nothing else does.
+6. **The spec step decides, and measures before deciding,** whether a closed folder also holds a session reported in
+   a SUBFOLDER of it. Phase 306 held the exact folder only, and a different subfolder opening its own tab may be what
+   he sees. The default is the exact folder, as today.
+
+### The proof, run rather than read
+
+- **The gates** for these paths: `typecheck`, `build`, `vitest`, `smoke:t1`, `conformance:remoteclose`,
+  `conformance:farattach` and `gate:contract`, with the baseline regenerated in the same commit for the new
+  migration name and the body naming the moved lines.
+- **The parent measured, the app run.** `probe:p306` gains an arm: on the loopback machine, a folder whose only
+  sessions were made on the far server with a `@gmux-id` this Mac has no row for (a Tortie elsewhere), its tab
+  closed, then a relaunch and a pass. At `P306_PARENT_CHECKOUT` the tab comes back; at HEAD it stays closed, and
+  opening the folder, Go to session and a create there each bring it back. Every earlier arm still passes.
+- **His Mac Pro, read only, under his authorization of 9 October.** A verifier (never a builder) reaches it the
+  way `build/p3201/real-machine.mjs` does, with his key by path through a scratch agent, and reads his `-L gmux`
+  server there ONCE with `list-sessions -F` naming only `#{session_id}`, whether `@gmux-id` is set, and
+  `#{session_path}`, to confirm which of his folders hold sessions with an id but no row on this Mac's side as the
+  cause. Nothing is created, ended, attached or written on his server, no pane is read, and his `~/.zsh_history`
+  there is stat-ed before and after. Then `probe:p306` gains `P306_FAR=real` through `real-machine.mjs` (its
+  refusal 4 learns a `gmux-p306…` harness socket), and the new arm runs on a SCRATCH server on the Mac Pro, at the
+  parent and at HEAD.
+- **The attack.** A schema-19 manifest written by the parent build, closed tabs and all, opened by HEAD (migrates,
+  holds what it held), then by the parent again (opens, ignores the table), then HEAD again: nothing lost, no tab
+  wrongly held, no tab wrongly opened. And one ablation per clause: drop the folder write, the folder clear, the
+  folder read and the machine-removal delete, each red on a test that owns it.
+
+### What is NOT in this phase
+
+- **No change to local tabs**, which nothing re-opens by itself.
+- **No change to what a tab holds, to any session's status, or to what Remove, End or restore do.** Closing a tab
+  still ends nothing.
+- **No record of anything on the machine.** The record lives in this Mac's manifest only; another Mac keeps its own.
+- **No new window, menu or setting.** No surface moves, so the menus do not change.
+
+---
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -42819,3 +42916,5 @@ cycle rather than only the evening it was written.
 - 2026-10-09, **0.111.0 PREPARED AS A DRAFT, at his word ("ok prepare 111")**: `cb36deaf` `chore(release): 0.111.0`, tag `v0.111.0`, the release lane green in 18.5 minutes (run 37971646162), the draft holding the notarized DMG, ZIP, blockmaps and `latest-mac.yml`, its notes the CHANGELOG entry verbatim. The ten iPhone items written phase by phase were folded into five that describe the app as it ships (29 items to 24, all 38 commit links kept), because their "allow the phone door again after this update" clauses and "it only reads and ends sessions" were true only of builds he alone ran. Typecheck, build, vitest and smoke:t1 green before the tag. NOT PUBLISHED: he checks the draft's DMG pairs with build 9, and it is promoted when Apple approves the beta or on Wednesday 14 October, whichever is first, with tortie.sh/iphone, the public link, the README line and the closing notes on #31, #35 and #36 the same day.
 
 - 2026-10-09, **PHASE 333.9 CHECKLIST LANDED, `29cfe9c0` — the App Store listing, at his word ("lets do it and get it prepared").** `build/p333/STORE-CHECKLIST.md`, and a copy without the sources table in his Downloads as "Tortie App Store submission.md": every Distribution-tab field in order with the words to paste, verified (needs_work on four majors, fixed) and reverified (approved). The submission itself is his and waits for See a sample (333.3) and the iPad and iOS 27 pass (333.4) in a build, the use video on the newest iOS (his videos read iOS 26.7), and the Ita Vero licence if he stays Individual; the review notes get See a sample's paragraph and 333.4's devices line before he pastes them. Apple now requires one screenshot at the medium Dynamic Island size (1206 by 2622), which research 136 §6.4 said was not accepted; his phone is a 16 Pro Max, so an agent makes 6.3-inch copies of his shots. Next in the store lane: 333.3, then 333.4, then his submission, then 333.10 on release day.
+
+- 2026-10-09, **QUEUED AND STARTED PHASE 344 — a closed tab for a folder on another machine stays closed, whoever started its sessions** (his report on his Mac Pro tab, "lets solve it the correct way", and "we can probably include it in the relase"). Phase 306's stated limit: a folder whose sessions this Mac holds no row for had nothing to stamp, so its tab came back. Migration 020 records the closed folder itself. Tier 3, the full build lane; his Mac Pro read once, read only, under his authorization. It rides in 0.111.0, whose unpublished draft is re-cut on his word when it lands. Also cleaned, at his word: every landed phase's scratch, logs and the reboot's worktree backups (31 MB; the reboot of 8 October had already taken the rest), with no stale worktree, remote branch, Simulator or Docker image left.
