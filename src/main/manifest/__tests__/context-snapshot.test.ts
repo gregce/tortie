@@ -148,8 +148,9 @@ describe('migration 009', () => {
     // appended 012, Phase 71 appended 013, Phase 72 appended 014, Phase 90.3
     // appended 015, Phase 93 appended 016 and Phase 118 appended 017, so the
     // version moved to 17 and this migration's own position is what stays
-    // pinned. Phase 202 appended 018 and Phase 336 appended 019.
-    expect(MANIFEST_SCHEMA_VERSION).toBe(19);
+    // pinned. Phase 202 appended 018, Phase 336 appended 019 and Phase 344
+    // appended 020.
+    expect(MANIFEST_SCHEMA_VERSION).toBe(20);
     expect(MANIFEST_MIGRATION_NAMES[8]).toBe('009-context-snapshot');
   });
 

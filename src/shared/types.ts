@@ -314,7 +314,9 @@ export interface Session {
    *
    * Present only on a row whose tab was closed while the session existed, and
    * cleared the moment the same folder is opened as a tab again. It says nothing
-   * about status: the session is still running and still reachable.
+   * about status: the session is still running and still reachable. Since Phase
+   * 344 it is also carried on a session on another machine whose folder's tab
+   * was closed, whether or not that session existed then.
    *
    * It exists so a surface can tell a folder whose tab a person closed from a
    * folder that never had one. Opening a tab a person closed needs no

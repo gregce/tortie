@@ -12,9 +12,11 @@
  *
  * ## What it asserts, each a clause the phase adds
  *
- *  1. The version is 19 and the minimum stays 13, and a build at schema 18
- *     is still allowed to open the file afterwards (the minimum is what
- *     decides, and it did not move).
+ *  1. 019 is the nineteenth migration and the minimum stays 13, and a build
+ *     at schema 18 is still allowed to open the file afterwards (the minimum is
+ *     what decides, and it did not move). Since Phase 344 it is no longer the
+ *     LAST migration (020-closed-remote-folders follows it), so the file is read
+ *     as landing on this build's version rather than on 19.
  *  2. 019 leaves every row a schema 18 build wrote byte for byte, runs once,
  *     and a second open runs nothing.
  *  3. A pin is set, read back, and OVERWRITTEN by a second set for the same
@@ -125,22 +127,22 @@ function tableNames(): string[] {
 }
 
 describe('migration 019, the remote_folder_pins table', () => {
-  it('is the nineteenth migration, the version is 19 and the minimum stays 13', () => {
-    expect(MANIFEST_SCHEMA_VERSION).toBe(19);
-    expect(MIGRATIONS).toHaveLength(19);
+  // Phase 344 appended 020-closed-remote-folders, so 019 is pinned by its own
+  // position and no longer as the last migration or the version.
+  it('is the nineteenth migration and the minimum stays 13', () => {
     expect(MIGRATIONS[18]?.name).toBe('019-remote-folder-pins');
-    expect(MANIFEST_MIGRATION_NAMES.at(-1)).toBe('019-remote-folder-pins');
+    expect(MANIFEST_MIGRATION_NAMES[18]).toBe('019-remote-folder-pins');
     expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBe(13);
   });
 
-  it('runs over a schema 18 file, lands it on 19, and a schema 18 build may still open it', () => {
+  it("runs over a schema 18 file, lands it on this build's version, and a schema 18 build may still open it", () => {
     buildSchema18();
     expect(tableNames()).not.toContain('remote_folder_pins');
     const store = new ManifestStore(dbPath);
     store.close();
     const db = new Database(dbPath, { readonly: true });
     try {
-      expect(db.pragma('user_version', { simple: true })).toBe(19);
+      expect(db.pragma('user_version', { simple: true })).toBe(MANIFEST_SCHEMA_VERSION);
       const min = db
         .prepare("SELECT value FROM meta WHERE key = 'min_compatible_version'")
         .get() as { value: string } | undefined;

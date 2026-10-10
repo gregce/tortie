@@ -14,6 +14,10 @@ import {
   serializeResumeProvenance
 } from './contract';
 import { serializeContextSnapshot } from './context-snapshot';
+import {
+  ClosedRemoteFolders,
+  type ClosedRemoteFolder
+} from './closed-remote-folders';
 import type { ResumeProvenance } from './agents';
 import type { ContextSnapshot } from '@shared/context-snapshot';
 import type {
@@ -89,7 +93,17 @@ export interface MarkMachinesForgottenHooks {
 }
 
 export class SessionsRepository {
-  constructor(private readonly db: Database.Database) {}
+  /**
+   * PHASE 344. The record of a close kept by the folder itself, for a folder on
+   * another machine. It shares this connection, so its write and its delete run
+   * inside the transactions of {@link markProjectTabClosed} and
+   * {@link clearProjectTabClosed} below, beside the stamps.
+   */
+  private readonly closedFolders: ClosedRemoteFolders;
+
+  constructor(private readonly db: Database.Database) {
+    this.closedFolders = new ClosedRemoteFolders(db);
+  }
 
   // -------------------------------------------------------------------------
   // The durable commits (Phase 20 item 4)
@@ -836,6 +850,18 @@ export class SessionsRepository {
    * `remote_projects` table. A NULL `machine_id` counts as this Mac, because
    * that is what {@link rowToRecord} reads it as.
    *
+   * AND THE FOLDER, BY ITSELF (Phase 344). For a folder on another machine the
+   * same durable transaction records the close in `closed_remote_folders`,
+   * whether or not any session row matched, because a folder none of whose
+   * sessions has a row on this Mac (Tortie on that machine or on another Mac
+   * started them) carries no stamp, and the re-home opened its tab again on
+   * the next pass. It is written only when the stamp just written is one
+   * {@link projectTabClosedFor} would accept for this folder: the codec reads
+   * the tab back whole, and the tab names this folder and this machine. A
+   * folder on this Mac writes no row, because nothing re-opens a local tab by
+   * itself, so a local close writes exactly what it wrote before this phase.
+   * The return value still counts session rows only.
+   *
    * NOTHING IS SENT TO ANY MACHINE by this method or by its caller.
    *
    * @returns how many rows were stamped, so the caller can log it. Zero is an
@@ -859,6 +885,18 @@ export class SessionsRepository {
         )
         .run(JSON.stringify(tab), target.path, machine);
       changed = info.changes;
+      // PHASE 344. The folder's own record, in this transaction. The codec's
+      // answer is read into its own name, so the reader's two tests below keep
+      // their one spelling.
+      const kept = parseClosedProjectTab(JSON.stringify(tab));
+      if (machine !== LOCAL_MACHINE_ROW && kept !== undefined && kept.path === target.path && kept.machineId === machine) {
+        this.closedFolders.recordClosedRemoteFolder({
+          machineId: machine,
+          path: target.path,
+          projectName: kept.projectName,
+          closedAt: kept.closedAt
+        });
+      }
     });
     return changed;
   }
@@ -880,20 +918,33 @@ export class SessionsRepository {
    * The match is the same folder and machine pair {@link markProjectTabClosed}
    * writes, and a discarded row is left alone for the same reason.
    *
-   * @returns how many rows were cleared.
+   * AND THE FOLDER'S OWN RECORD (Phase 344), deleted beside the stamps in ONE
+   * ordinary transaction, so every way back that already clears (the two adds,
+   * a create on the machine, a failed create's release) clears it with no new
+   * caller. It is not durable for the reason above: a record lost beside a tab
+   * that is open again holds nothing while the tab's row exists, and the next
+   * close writes it again. A folder on this Mac has no such record, so a local
+   * target deletes nothing.
+   *
+   * @returns how many session rows were cleared.
    */
   clearProjectTabClosed(target: { path: string; machineId?: string }): number {
     const machine = target.machineId ?? LOCAL_MACHINE_ROW;
-    return this.db
-      .prepare<[string, string]>(
-        `UPDATE sessions
-            SET project_tombstone = NULL
-          WHERE project_path = ?
-            AND COALESCE(NULLIF(machine_id, ''), '${LOCAL_MACHINE_ROW}') = ?
-            AND project_tombstone IS NOT NULL
-            AND status <> 'discarded'`
-      )
-      .run(target.path, machine).changes;
+    let cleared = 0;
+    this.db.transaction(() => {
+      cleared = this.db
+        .prepare<[string, string]>(
+          `UPDATE sessions
+              SET project_tombstone = NULL
+            WHERE project_path = ?
+              AND COALESCE(NULLIF(machine_id, ''), '${LOCAL_MACHINE_ROW}') = ?
+              AND project_tombstone IS NOT NULL
+              AND status <> 'discarded'`
+        )
+        .run(target.path, machine).changes;
+      this.closedFolders.forgetClosedRemoteFolder(machine, target.path);
+    })();
+    return cleared;
   }
 
   /**
@@ -905,7 +956,15 @@ export class SessionsRepository {
    * folder's row absent cannot tell a folder that never had a tab from one a
    * person closed. This is the record that tells them apart.
    *
-   * TWO TESTS, AND BOTH MUST HOLD.
+   * THE FOLDER'S RECORD, OR TWO TESTS (Phase 344). A close of a folder on
+   * another machine is recorded for the folder itself
+   * (`closed_remote_folders`, written by {@link markProjectTabClosed}), so a
+   * folder none of whose sessions has a row on this Mac is held too. That
+   * record is asked first and answers alone. Otherwise the stamp answers, by
+   * the two tests below, unchanged, so a close made by a build before Phase
+   * 344, which recorded only the stamp, is still held.
+   *
+   * THE STAMP: TWO TESTS, AND BOTH MUST HOLD.
    *
    * The WHERE clause is {@link clearProjectTabClosed}'s, clause for clause, so
    * "this folder on this machine" has one spelling, and so the rows read here
@@ -924,11 +983,13 @@ export class SessionsRepository {
    * stamp is. A value that codec drops whole holds nothing, and a hand-damaged
    * value cannot throw out of the pass the way SQLite's `json_extract` would.
    *
-   * A READ. It writes nothing, and nothing is sent to any machine. The column it
-   * filters on first is indexed (`idx_sessions_project`).
+   * A READ. It writes nothing, and nothing is sent to any machine. The folder's
+   * record is read by its primary key, and the column the stamps are filtered
+   * on first is indexed (`idx_sessions_project`).
    */
   projectTabClosedFor(target: { path: string; machineId?: string }): boolean {
     const machine = target.machineId ?? LOCAL_MACHINE_ROW;
+    if (this.closedFolders.closedRemoteFolder(machine, target.path) !== undefined) return true;
     const rows = this.db
       .prepare<[string, string], { project_tombstone: string }>(
         `SELECT project_tombstone FROM sessions
@@ -946,6 +1007,15 @@ export class SessionsRepository {
       }
     }
     return false;
+  }
+
+  /**
+   * PHASE 344. The record of a close for one folder on another machine, or
+   * undefined when there is none or the row is not in the one shape. A read,
+   * for the store's facade; see `./closed-remote-folders.ts`.
+   */
+  closedRemoteFolder(machineId: string, path: string): ClosedRemoteFolder | undefined {
+    return this.closedFolders.closedRemoteFolder(machineId, path);
   }
 
   /**

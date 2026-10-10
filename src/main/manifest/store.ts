@@ -25,6 +25,7 @@
  * - ./restore-journal.ts      the `restore_attempts` table
  * - ./reconciliation.ts       the manifest judged against live tmux truth
  * - ./remote-folder-pins.ts   the `remote_folder_pins` table (Phase 336)
+ * - ./closed-remote-folders.ts the `closed_remote_folders` table (Phase 344)
  */
 
 import Database from 'better-sqlite3';
@@ -82,6 +83,7 @@ import {
   RemoteFolderPins,
   type RemoteFolderPin
 } from './remote-folder-pins';
+import type { ClosedRemoteFolder } from './closed-remote-folders';
 import {
   reconcileManifest,
   type LiveTmuxSession,
@@ -132,6 +134,7 @@ export {
   isRemoteFolderIdentity,
   type RemoteFolderPin
 } from './remote-folder-pins';
+export type { ClosedRemoteFolder } from './closed-remote-folders';
 export type {
   LiveTmuxSession,
   ReconcileOptions,
@@ -511,6 +514,16 @@ export class ManifestStore {
    */
   projectTabClosedFor(target: { path: string; machineId?: string }): boolean {
     return this.sessions.projectTabClosedFor(target);
+  }
+
+  /**
+   * PHASE 344. The record of a close for one folder on another machine, kept
+   * by the folder itself, or undefined when there is none or the row is not in
+   * the one shape. A read. `listSessions` carries it on that folder's sessions
+   * that have no stamp of their own; see ./closed-remote-folders.ts.
+   */
+  closedRemoteFolder(machineId: string, path: string): ClosedRemoteFolder | undefined {
+    return this.sessions.closedRemoteFolder(machineId, path);
   }
 
   /**

@@ -86,8 +86,10 @@ describe('listSessions, the manifest loop', () => {
   // PHASE 152 changed the tail of this loop from `return out;` to a call that
   // stamps where each session's record lives, and the fix round made that call
   // take the whole list at once so the re-asking has a budget for the pass. The
-  // marker follows it and still ends the slice at the same statement.
-  const loop = body('const covered = new Set<string>();', 'return stampRecordLocations(out)');
+  // marker follows it and still ends the slice at the same statement. PHASE 344
+  // wrapped the list that call takes (`withClosedFolderRecords(out, …)`), so the
+  // marker is the call's opening, which still ends the slice at that statement.
+  const loop = body('const covered = new Set<string>();', 'return stampRecordLocations(');
 
   it('stamps savedOutputAt on a remote manifest row', () => {
     const manifestArm = loop.slice(0, loop.indexOf('for (const session of'));

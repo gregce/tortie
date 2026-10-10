@@ -245,7 +245,8 @@ import { captureRemoteSessionNow } from '../machines/remote-capsule';
 // imports above are.
 import {
   rehomeRemoteSessions,
-  remoteProjectPathFor
+  remoteProjectPathFor,
+  withClosedFolderRecords
 } from '../machines/remote-rehome';
 // PHASE 90.3. The one check a folder on another machine gets before it becomes
 // a tab. It reads that folder once and writes nothing.
@@ -3238,7 +3239,14 @@ export class GmuxCore {
     // whose record is already known, and the whole list is handed over in one
     // call so that the re-asking about rows whose record is NOT known yet has a
     // budget for the pass rather than a cost per row. See ./record-path.ts.
-    return stampRecordLocations(out);
+    //
+    // PHASE 344. A session on another machine with no stamp of its own carries
+    // its folder's record of a close, because since this phase a close is
+    // recorded for the folder itself and a session this Mac holds no row for
+    // has no stamp. The window's memo re-reads the project list when that
+    // record appears or goes, and Go to session reads it. One point read per
+    // such session; a session on this Mac is never touched.
+    return stampRecordLocations(withClosedFolderRecords(out, (m, p) => this.manifest.closedRemoteFolder(m, p)));
   }
 
   /**
@@ -4090,8 +4098,13 @@ export class GmuxCore {
     // running, keeps its `project_path` and its `machine_id`, and stays in the
     // attention list where it can be reached and cleared.
     let stampedCount = 0;
+    // PHASE 344. Whether the tab closed was for a folder on another machine,
+    // whose close is recorded for the folder itself whether or not a session
+    // row was stamped.
+    let closedOnMachine = false;
     if (project !== undefined) {
       const machineId = project.machineId ?? 'local';
+      closedOnMachine = machineId !== 'local';
       stampedCount = this.manifest.markProjectTabClosed(
         machineId === 'local'
           ? { path: project.path }
@@ -4125,7 +4138,12 @@ export class GmuxCore {
     // coming back needs a sentence, so a person who closed a tab themselves
     // could be told the folder had never had one. It is pushed here, once,
     // rather than waiting for the next poll.
-    if (stampedCount > 0) this.broadcastSessions();
+    //
+    // PHASE 344. A close of a tab on a machine is pushed even when it stamped
+    // no row, because `listSessions` now carries the folder's record on that
+    // folder's sessions this Mac did not start. A local close with no session
+    // still pushes nothing.
+    if (stampedCount > 0 || closedOnMachine) this.broadcastSessions();
   }
 
   // -------------------------------------------------------------------------

@@ -73,15 +73,15 @@ describe('the two schema numbers', () => {
   // machines, and a build at schema 12 would read such a row as a session on
   // this Mac and could recreate it here. Migration 010, which is what this file
   // covers, is still additive and moved neither number itself.
-  // Phase 336 appended 019, so the version reads 19.
-  it('schema version is 19 and the minimum is 13', () => {
-    expect(MANIFEST_SCHEMA_VERSION).toBe(19);
+  // Phase 336 appended 019 and Phase 344 appended 020, so the version reads 20.
+  it('schema version is 20 and the minimum is 13', () => {
+    expect(MANIFEST_SCHEMA_VERSION).toBe(20);
     expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBe(13);
   });
 
   it('stamps both numbers on the file', () => {
     const state = store.schemaState();
-    expect(state.userVersion).toBe(19);
+    expect(state.userVersion).toBe(20);
     expect(state.minCompatible).toBe(13);
   });
 });
@@ -130,7 +130,7 @@ describe('migration 010 against a schema 9 file', () => {
     // First open: all five pending migrations run.
     const migrated = new ManifestStore(dbPath);
     const state = migrated.schemaState();
-    expect(state.userVersion).toBe(19);
+    expect(state.userVersion).toBe(20);
     expect(state.minCompatible).toBe(13);
     // Migration 013 backfilled the row this fixture wrote at schema 9.
     expect(migrated.getSession('old-row')?.machineId).toBe('local');
@@ -147,7 +147,7 @@ describe('migration 010 against a schema 9 file', () => {
 
     // Second open: nothing pending, nothing changes.
     const again = new ManifestStore(dbPath);
-    expect(again.schemaState().userVersion).toBe(19);
+    expect(again.schemaState().userVersion).toBe(20);
     expect(again.getSession('old-row')?.removedAt).toBe(removedAt);
     expect(again.getSession('old-row')?.status).toBe('discarded');
     again.close();

@@ -22,7 +22,9 @@
  *  H4  The decision is per folder: ten sessions are one count.
  *  H5  The line is written when the count moves, and only then.
  *  H6  A machine that stopped answering still reads held.
- *  H7  The stated limit: a folder no recorded session is in comes back.
+ *  H7  (Phase 344, which closed Phase 306's stated limit) A folder no
+ *      recorded session is in stays closed too, because the close records the
+ *      folder by itself.
  *  C1-C5  A create on a machine opens, and clears the stamp on, every folder
  *      it places a session in: the folder it was given, and the folder the
  *      re-home's own rule puts the new session in.
@@ -329,20 +331,20 @@ describe('the re-home leaves a folder whose tab a person closed without one', ()
     expect(db().getRemoteProject(MACHINE, F)).toBeUndefined();
   });
 
-  it('H7 the stated limit: a folder with no recorded session comes back', () => {
+  it('H7 a folder with no recorded session stays closed too (Phase 344)', () => {
     // A tab opened and closed over a folder whose only session a Tortie on
     // that machine, or on another Mac, started: no row here, so the close
-    // stamps nothing and the next pass opens the folder again. Pinned, so a
-    // round that changes the limit says so.
+    // stamps nothing. Phase 306 stated this as its limit and pinned it coming
+    // back; Phase 344 records the folder by itself, so it stays closed.
     db().upsertRemoteProject({ machineId: MACHINE, path: F, name: 'alpha' });
     expect(closeTab(db(), F)).toBe(0);
     expect(db().getRemoteProject(MACHINE, F)).toBeUndefined();
     const result = rehomeRemoteSessions([
       onMachine({ id: 'started-elsewhere', projectPath: F, cwd: F })
     ]);
-    expect(result.projectsAdded).toBe(1);
-    expect(result.tabsHeldClosed).toBe(0);
-    expect(db().getRemoteProject(MACHINE, F)).toBeDefined();
+    expect(result.projectsAdded).toBe(0);
+    expect(result.tabsHeldClosed).toBe(1);
+    expect(db().getRemoteProject(MACHINE, F)).toBeUndefined();
   });
 });
 

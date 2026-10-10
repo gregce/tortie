@@ -254,10 +254,10 @@ usage:statusLine
 
 [sqlite.identity]
 application_id=1414681669
-user_version=19
+user_version=20
 min_compatible_version=13
 
-[sqlite.migrations] count=19
+[sqlite.migrations] count=20
 001-initial
 002-exit-code
 003-death-forensics
@@ -277,8 +277,9 @@ min_compatible_version=13
 017-remote-executions
 018-login
 019-remote-folder-pins
+020-closed-remote-folders
 
-[sqlite.schema] objects=12
+[sqlite.schema] objects=13
 -- index idx_remote_executions_open
 CREATE INDEX idx_remote_executions_open
           ON remote_executions(outcome)
@@ -291,6 +292,14 @@ CREATE INDEX idx_sessions_project
 -- index idx_sessions_tmux_name
 CREATE INDEX idx_sessions_tmux_name
           ON sessions(tmux_name)
+-- table closed_remote_folders
+CREATE TABLE closed_remote_folders (
+          machine_id   TEXT NOT NULL,
+          path         TEXT NOT NULL,
+          project_name TEXT NOT NULL,
+          closed_at    INTEGER NOT NULL,
+          PRIMARY KEY (machine_id, path)
+        )
 -- table meta
 CREATE TABLE meta (
        key   TEXT PRIMARY KEY,

@@ -172,10 +172,11 @@ describe('migration 016, the project_tombstone column', () => {
       // Phase 118 appended 017-remote-executions, so an open now lands on 17.
       // What this file pins is that migration 016 runs and that the minimum
       // does not move, and both are still true. Phase 202 appended 018 and
-      // Phase 336 appended 019-remote-folder-pins, so the open lands on 19.
-      expect(version?.user_version).toBe(19);
+      // Phase 336 appended 019-remote-folder-pins and Phase 344 appended
+      // 020-closed-remote-folders, so the open lands on 20.
+      expect(version?.user_version).toBe(20);
       db.close();
-      expect(MANIFEST_SCHEMA_VERSION).toBe(19);
+      expect(MANIFEST_SCHEMA_VERSION).toBe(20);
       expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBe(13);
     } finally {
       store.close();

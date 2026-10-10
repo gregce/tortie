@@ -50,21 +50,26 @@
  * leave the row alone.
  *
  * It does not open a tab again for a folder a person closed (Phase 306, GitHub
- * issue 35, "Tortie remote project always comes back"). Closing a tab stamps
- * every recorded session in that folder on that machine (Phase 93,
- * `markProjectTabClosed`). A pass that finds the folder's row absent and such a
- * stamp present leaves the row absent, and counts it. The way back is the
- * person's: Go to session, opening the folder on that machine, or a session
- * created there, and each of those clears the stamp. A create there that
- * threw opens it again too, because the session can be running over there
- * with its answer lost ({@link releaseFoldersAfterFailedRemoteCreate}). The
- * sessions themselves are not touched: a session in a held folder is still
- * moved to that folder, so the session manager lists it under the folder's own
- * name with the tab shut, and nothing here ends anything. A folder none of
- * whose sessions has a record on this Mac, being one a Tortie on that machine
- * or on another Mac started, carries no stamp and still gets its tab back.
- * That is the stated limit, and a record of a close that needs no session row
- * would be a schema change.
+ * issue 35, "Tortie remote project always comes back"). Closing a tab records
+ * the close for the folder itself on that machine (Phase 344,
+ * `closed_remote_folders`) and stamps every recorded session in it (Phase 93),
+ * in ONE durable write (`markProjectTabClosed`), so a folder none of whose
+ * sessions has a record on this Mac, being one a Tortie on that machine or on
+ * another Mac started, is held like any other; a close made by a build before
+ * Phase 344 is still read from its stamps. A pass that finds the folder's row
+ * absent and the record of a close present leaves the row absent, and counts
+ * it. The way back is the person's, and it is the same as before: Go to
+ * session, opening the folder on that machine, or a session created there,
+ * and each of those clears the record. A create there that threw opens it
+ * again too, because the session can be running over there with its answer
+ * lost ({@link releaseFoldersAfterFailedRemoteCreate}). The sessions
+ * themselves are not touched: a session in a held folder is still moved to
+ * that folder, so the session manager lists it under the folder's own name
+ * with the tab shut, and nothing here ends anything. A session Tortie on that
+ * machine starts in a folder he closed here is listed the same way, under the
+ * folder's name with the tab shut, until he opens the folder, and
+ * {@link withClosedFolderRecords} carries the folder's record on it so the
+ * window knows the folder's tab was closed rather than never there.
  *
  * ## The departure from research 56 section 4.4, and the reason
  *
@@ -82,7 +87,7 @@ import type { Session } from '@shared/types';
 import { getLog } from '../log';
 // PHASE 306. A type import compiles to nothing, which is how
 // `./remote-record.ts` already names the store.
-import type { ManifestStore } from '../manifest/store';
+import type { ClosedRemoteFolder, ManifestStore } from '../manifest/store';
 import { projectNameForPath } from '../projects/name';
 import { remoteManifest, remoteManifestInstalled } from './remote-record';
 
@@ -145,6 +150,55 @@ export interface RehomeResult {
    * person closed theirs. One per folder, however many sessions are in it.
    */
   readonly tabsHeldClosed: number;
+}
+
+/**
+ * PHASE 344. Carry the record of a closed folder on every session listed in it
+ * that has no record of its own. PURE: it reads through `closedFolder` and
+ * writes nothing.
+ *
+ * Since Phase 344 a close of a tab for a folder on another machine is recorded
+ * for the folder itself, so a session in that folder this Mac holds no row for
+ * (Tortie on that machine or on another Mac started it) has no stamp to carry,
+ * and without this the window could not tell its folder had a tab a person
+ * closed. The window's memo (`reconcileRemoteTabs`) re-reads the project list
+ * when that record appears or goes, which is how a tab a create on the machine
+ * opened in main reaches the strip; and Go to session reads it to decide
+ * whether a tab coming back needs a sentence.
+ *
+ * Only a session on another machine, and only one with no `closedProject` of
+ * its own: its own stamp is what Tortie knew about that session's own tab and
+ * wins. A session on this Mac is never touched. `projectPath` is already the
+ * folder on that machine (`atHomeOnItsMachine` in `../sessions/core.ts`), and
+ * the record is keyed by that path byte for byte, so a folder holds itself and
+ * no folder under it. A session it does not change is returned as the same
+ * object.
+ *
+ * @param closedFolder the store's read of one folder's record
+ *   (`ManifestStore.closedRemoteFolder`).
+ */
+export function withClosedFolderRecords(
+  sessions: readonly Session[],
+  closedFolder: (
+    machineId: string,
+    path: string
+  ) => Pick<ClosedRemoteFolder, 'projectName' | 'closedAt'> | undefined
+): Session[] {
+  return sessions.map((session) => {
+    const machineId = session.machine?.id;
+    if (machineId === undefined) return session;
+    if (session.closedProject !== undefined) return session;
+    const record = closedFolder(machineId, session.projectPath);
+    if (record === undefined) return session;
+    return {
+      ...session,
+      closedProject: {
+        name: record.projectName,
+        path: session.projectPath,
+        closedAt: record.closedAt
+      }
+    };
+  });
 }
 
 /**
@@ -257,11 +311,11 @@ export function rehomeRemoteSessions(
 }
 
 /**
- * PHASE 306. The tabs a create on another machine opens, and the tab-closed
- * stamps it clears: the folder it was given, and the folder the re-home's own
+ * PHASE 306. The tabs a create on another machine opens, and the record of a
+ * close it clears: the folder it was given, and the folder the re-home's own
  * rule places the new session in, once each. Returns the folders it opened.
  *
- * A folder whose upsert failed is still returned, because its stamp was still
+ * A folder whose upsert failed is still returned, because its record was still
  * cleared and the next completed pass opens it.
  *
  * ## Why the create must open and clear, and not only clear

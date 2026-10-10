@@ -469,6 +469,10 @@ describe('rebuilding from capsules and stamps', () => {
     expect(report.plan.candidates).toHaveLength(1);
     expect(report.result.gaps.join(' ')).toMatch(/environment/);
     expect(Object.keys(report.result.digests).sort()).toEqual([
+      // Phase 344. The additive table that records a closed tab for a folder
+      // on another machine by the folder itself. It is a user table like the
+      // rest, so the digest covers it.
+      'closed_remote_folders',
       // Phase 21. `meta` carries the schema version and the minimum
       // compatible version, so it is a user table like the rest and the
       // digest covers it.

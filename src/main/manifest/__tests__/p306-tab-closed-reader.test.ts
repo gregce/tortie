@@ -27,8 +27,16 @@
  * of the column. The mismatched stamps of R2a and R2b are written by handing
  * it a target and a tab that disagree, which no caller in the product does;
  * they stand for a row a hand edit or a future caller could leave behind.
+ *
+ * PHASE 344. A close of a folder on a machine now also records the folder by
+ * itself, in `closed_remote_folders`, and that record holds the folder whatever
+ * the stamps say. R3 and R5 are claims about the STAMP half, so each removes
+ * the folder's record through a raw handle on the same file before it reads
+ * the stamp half alone. Their titles are unchanged, because
+ * `build/p306/ablation.mjs` keys on them.
  */
 
+import Database from 'better-sqlite3';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -102,6 +110,20 @@ function close(path: string, machineId?: string): number {
   return db().markProjectTabClosed(target, tab(path, machineId));
 }
 
+/**
+ * PHASE 344. Remove every folder record a close wrote, through a raw handle on
+ * the same file, so the test that follows reads the stamp half of the reader
+ * alone. Answers how many records it removed.
+ */
+function forgetFolderRecords(): number {
+  const raw = new Database(join(root, 'manifest.db'));
+  try {
+    return raw.prepare('DELETE FROM closed_remote_folders').run().changes;
+  } finally {
+    raw.close();
+  }
+}
+
 /** The question the re-home asks. */
 function held(path: string, machineId?: string): boolean {
   return db().projectTabClosedFor(
@@ -149,6 +171,9 @@ describe('projectTabClosedFor, clause by clause', () => {
   it('R3 a row moved out of a folder holds neither folder', () => {
     row('s1', F, 'm1');
     expect(close(F, 'm1')).toBe(1);
+    // Phase 344: the close also recorded F by itself, which holds F whatever
+    // the stamps say. It is removed so this test reads the stamp half alone.
+    expect(forgetFolderRecords()).toBe(1);
     // The re-home's MOVE. The stamp is not a column the patch names, so it
     // stays on the row and still names F.
     db().updateSession('s1', { projectPath: G });
@@ -170,6 +195,10 @@ describe('projectTabClosedFor, clause by clause', () => {
   it("R5 a removed session's stamp holds nothing", () => {
     row('s1', F, 'm1');
     expect(close(F, 'm1')).toBe(1);
+    expect(held(F, 'm1')).toBe(true);
+    // Phase 344: the close also recorded F by itself, which holds F whatever
+    // the stamps say. It is removed so this test reads the stamp half alone.
+    expect(forgetFolderRecords()).toBe(1);
     expect(held(F, 'm1')).toBe(true);
     db().markSessionRemoved('s1');
     expect(db().getSession('s1')?.status).toBe('discarded');

@@ -264,24 +264,25 @@ function userVersion(): number {
 // ---------------------------------------------------------------------------
 
 describe('the three compatibility numbers', () => {
-  it('the schema version is the migration count, and both are 19', () => {
-    expect(MANIFEST_SCHEMA_VERSION).toBe(19);
-    expect(MIGRATIONS.length).toBe(19);
+  it('the schema version is the migration count, and both are 20', () => {
+    expect(MANIFEST_SCHEMA_VERSION).toBe(20);
+    expect(MIGRATIONS.length).toBe(20);
   });
 
   // Phase 90.3 appended 015-remote-projects, Phase 93 appended
   // 016-project-tombstone, Phase 118 appended 017-remote-executions,
-  // Phase 202 appended 018-login and Phase 336 appended
-  // 019-remote-folder-pins. The two this file is about keep their positions,
-  // which is what these lines exist to pin.
+  // Phase 202 appended 018-login, Phase 336 appended 019-remote-folder-pins
+  // and Phase 344 appended 020-closed-remote-folders. The two this file is
+  // about keep their positions, which is what these lines exist to pin.
   it('keeps 013-machine-id and 014-machine-tombstone in their places', () => {
-    expect(MIGRATIONS.at(-1)?.name).toBe('019-remote-folder-pins');
-    expect(MIGRATIONS.at(-2)?.name).toBe('018-login');
-    expect(MIGRATIONS.at(-3)?.name).toBe('017-remote-executions');
-    expect(MIGRATIONS.at(-4)?.name).toBe('016-project-tombstone');
-    expect(MIGRATIONS.at(-5)?.name).toBe('015-remote-projects');
-    expect(MIGRATIONS.at(-6)?.name).toBe('014-machine-tombstone');
-    expect(MIGRATIONS.at(-7)?.name).toBe('013-machine-id');
+    expect(MIGRATIONS.at(-1)?.name).toBe('020-closed-remote-folders');
+    expect(MIGRATIONS.at(-2)?.name).toBe('019-remote-folder-pins');
+    expect(MIGRATIONS.at(-3)?.name).toBe('018-login');
+    expect(MIGRATIONS.at(-4)?.name).toBe('017-remote-executions');
+    expect(MIGRATIONS.at(-5)?.name).toBe('016-project-tombstone');
+    expect(MIGRATIONS.at(-6)?.name).toBe('015-remote-projects');
+    expect(MIGRATIONS.at(-7)?.name).toBe('014-machine-tombstone');
+    expect(MIGRATIONS.at(-8)?.name).toBe('013-machine-id');
   });
 
   /**
@@ -330,7 +331,7 @@ describe('a manifest built at schema 12, migrated', () => {
     const store = new ManifestStore(dbPath);
     try {
       // 1. The version moved.
-      expect(userVersion()).toBe(19);
+      expect(userVersion()).toBe(20);
 
       // 2. Every pre-existing row reads local.
       const records = store.listSessions();
@@ -383,7 +384,7 @@ describe('a manifest built at schema 12, migrated', () => {
     const second = new ManifestStore(dbPath);
     second.close();
     expect(rawRows()).toEqual(afterOnce);
-    expect(userVersion()).toBe(19);
+    expect(userVersion()).toBe(20);
   });
 
   it('a row inserted after the migration carries local', () => {

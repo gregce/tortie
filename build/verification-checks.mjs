@@ -1293,7 +1293,11 @@ export const CHECKS = [
   // `remote` and not `electron`. Its feed-only sessions, the pass witness
   // among them, are made on that machine's scratch server and end with it.
   // Every session is a shell, it renames five agents' binaries before each
-  // launch, and it spends no token.
+  // launch, and it spends no token. PHASE 344 runs the loopback machine with
+  // its quiet shell, a scratch far home and the run's own key alone, adds the
+  // arms B, BH, BX, BO, BG and BC (a folder whose sessions this Mac did not
+  // start), and with P306_FAR=real runs those arms on a scratch server on the
+  // operator's machine through build/p3201/real-machine.mjs, verifiers only.
   remote('probe:p306'),
   // PHASE 317's app run, the Mac side of End from the phone
   // (build/p317/SPEC.md §7.4). ONE Electron at HEAD through
@@ -2395,6 +2399,21 @@ export const CHECKS = [
   // proves it by sha256, and removes the clone in a `finally` and on a signal.
   // No Electron, no tmux, no ssh, no agent, no token.
   pure('ablation:p306'),
+  // PHASE 344's attack on its unit proof (build/p344/SPEC.md §7.4): sixteen
+  // entries, each breaking ONE clause of the closed folder's record, being its
+  // write inside the close's durable transaction and only for a folder on
+  // another machine the stamp agrees on, its clear beside the stamps in an
+  // ordinary transaction, the reader's folder half, its key and its shape
+  // check, the exact folder, a removed machine keeping the record, the list
+  // carrying it on a session with no stamp of its own and the push after a
+  // close on a machine, and each proved to redden THE TEST THAT OWNS IT as a
+  // DELTA against an unedited control, over five vitest files. It never writes
+  // into the working tree: it clones src/ and build/ with `cp -Rc` under
+  // /private/tmp, symlinks node_modules, restores each edited clone file and
+  // proves it by sha256, and removes the clone in a `finally` and on a signal.
+  // P344_ONLY runs named entries; --list runs nothing. No Electron, no tmux,
+  // no ssh, no agent, no token.
+  pure('ablation:p344', NEEDS.vitest),
   // PHASE 313's attack on the three checks above. A GREEN GATE IS ONLY EVIDENCE
   // IF IT CAN GO RED: this one breaks ONE CLAUSE AT A TIME in the shipping
   // source of src/main/pocket/ and proves each break reddens THE RULE THAT OWNS
