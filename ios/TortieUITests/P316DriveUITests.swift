@@ -183,6 +183,30 @@ import XCTest
 /// `return-hold:<away>:<s>` (PF8: the stream started as `stream-hold` starts
 /// it, Catch Me Up through the menu for `away` seconds while the session
 /// prints, Back, then `fill-hold`'s readings with the return stamped).
+///
+/// SEE A SAMPLE (Phase 333.3, build/p3333/SPEC.md section 7.4, the `sample`
+/// group). Four steps, appended: `sample-see` (Pairing dumped as
+/// `sample-before`, See a sample pressed, the Sample bar waited for, then
+/// `{"step":"sample-open"}` and a dump `sample-open` once the first tab has
+/// read), `sample-see-settings` (the same from the Settings tab of a paired
+/// phone, its row brought into view under Unpair first), `sample-leave`
+/// (`{"step":"sample-leaving"}`, Leave sample pressed, a root page waited
+/// for, then `{"step":"sample-left"}` saying where it landed, and a dump
+/// `sample-left`) and `sample-inventory:<tag>` (every element on the screen
+/// that has an identifier or a label, with its type and frame, as
+/// `setup-inventory` reads). `sample-open` and `sample-leaving` each wait for
+/// the probe's file `sample-<seq>` in P316_ACKS when one is named, so the
+/// probe counts the relay's connections AT those moments: the leaving mark
+/// comes BEFORE the press, because a paired phone reads its Mac again as soon
+/// as it has left, and that read is not the sample's. Every dump taken while
+/// the sample is open (and every `sessions-dump`) says whether `sample-label`
+/// is in it (`sampleLabel`); `screen-type` inside the sample also reads the
+/// Terminal between its words and its Return (`typedBeforeReturn`), because
+/// the sample draws them on its own prompt and Return then clears it; and End's
+/// glyph `lock.open` is read as `unasked`, the sample's End on an iPhone with
+/// no passcode. Every other reading is an existing step. The drive asserts
+/// nothing, and the sample's words are the probe's to read, from the
+/// committed sample.json and Copy.swift.
 final class P316DriveUITests: XCTestCase {
     @MainActor
     func testDrive() throws {
@@ -451,8 +475,29 @@ private enum Seen {
     static let endSessionWords = "End session…"
     static let endingWords = "Ending…"
     /// The owner check's glyph in the open menu: an image whose identifier is
-    /// its SF Symbol's name (§14 M5), `EndBarDrawing.glyph`'s three.
-    static let ownerGlyphs: Set<String> = ["faceid", "touchid", "lock"]
+    /// its SF Symbol's name (§14 M5), `EndBarDrawing.glyph`'s three, and since
+    /// Phase 333.3 the sample's `lock.open` (OwnerKind.unasked: no passcode
+    /// set, and the writer is the sample's).
+    static let ownerGlyphs: Set<String> = ["faceid", "touchid", "lock", "lock.open"]
+    /// Phase 333.3 (build/p3333/SPEC.md D13, D14, D22): See a sample on
+    /// Pairing and in Settings, and the one strip above the three tabs while
+    /// the sample is open (Identifiers.swift's `pairingSeeSample`,
+    /// `settingsSeeSample`, `sampleBar`, `sampleLabel`, `sampleLeave`).
+    static let pairingSeeSample = "pairing-see-sample"
+    static let settingsSeeSample = "settings-see-sample"
+    static let sampleBar = "sample-bar"
+    static let sampleLabel = "sample-label"
+    static let sampleLeave = "sample-leave"
+    /// What clips what it holds, for the sample's inventory (the fix round):
+    /// every scroll view, table and collection, and by name the Terminal's
+    /// grid and Catch Me Up, whatever type iOS reports for them.
+    static let scrollContainers: Set<XCUIElement.ElementType> = [.scrollView, .table, .collectionView]
+    static let scrollContainerIds: Set<String> = ["screen-grid", "screen-catch-up"]
+    /// The root pages Leave sample may land on, each by its screen id and the
+    /// word the `sample-left` line says for it.
+    static let sampleRoots: [(id: String, word: String)] = [
+        (pairingScreen, "pairing"), (needsScreen, "needs-input"), (listScreen, "sessions"), (settingsScreen, "settings")
+    ]
     /// The tab bar's three words, which a button outside the navigation bar
     /// carrying one of them is (the back button carries the list's title too).
     static var tabWords: [String] { [tabNeedsInput, tabSessions, tabSettings] }
@@ -517,6 +562,10 @@ private final class Drive {
     /// iOS's Slide to Type introduction has been looked for once in this
     /// run, so a later keyboard looks for it only briefly.
     private var introductionLooked = false
+    /// Phase 333.3: See a sample is open, from its `sample-open` line to its
+    /// `sample-left` line, so every dump in between says whether the Sample
+    /// bar's label is in it.
+    private var inSample = false
 
     init(run: String, env: [String: String]) {
         lines = ProbeLines(run: run, file: env["P316_LINES"])
@@ -744,6 +793,14 @@ private final class Drive {
                 setupFailure(String(step.dropFirst("setup-failure:".count)))
             } else if step == "setup-code" {
                 setupCode()
+            } else if step == "sample-see" {
+                sampleSee()
+            } else if step == "sample-see-settings" {
+                sampleSeeSettings()
+            } else if step == "sample-leave" {
+                sampleLeave()
+            } else if step.hasPrefix("sample-inventory:") {
+                sampleInventory(String(step.dropFirst("sample-inventory:".count)))
             } else {
                 lines.emit(["step": "unknown-step", "name": step])
             }
@@ -1477,6 +1534,9 @@ private final class Drive {
             kind = "touchID"
         } else if glyph.hasSuffix("-lock") {
             kind = enabled ? "passcode" : "none"
+        } else if glyph.hasSuffix("-lock.open") {
+            // Phase 333.3: the sample's End on an iPhone with no passcode.
+            kind = "unasked"
         } else {
             kind = "unread"
         }
@@ -1512,6 +1572,8 @@ private final class Drive {
         case "faceid": kind = "faceID"
         case "touchid": kind = "touchID"
         case "lock": kind = enabled == true ? "passcode" : "none"
+        // Phase 333.3: the sample's End on an iPhone with no passcode.
+        case "lock.open": kind = "unasked"
         default: kind = "unread"
         }
         lines.emit([
@@ -2433,14 +2495,17 @@ private final class Drive {
             swipes += 1
             Thread.sleep(forTimeInterval: 0.35)
         }
-        lines.emit([
+        var walked: [String: Any] = [
             "step": "sessions-dump",
             "tag": tag,
             "complete": complete,
             "swipes": swipes,
             "window": [Double(app.frame.width), Double(app.frame.height)],
             "elements": order.compactMap { items[$0] }
-        ])
+        ]
+        // Phase 333.3: inside the sample, whether the Sample bar's label is drawn at the walk's end.
+        if inSample { walked["sampleLabel"] = has(tree(), Seen.sampleLabel) }
+        lines.emit(walked)
     }
 
     /// `sessions-face`: the Sessions tab selected and its face read as drawn,
@@ -2687,10 +2752,23 @@ private final class Drive {
         let seq = lines.emit(["step": "screen-type-ready", "keyboard": up])
         _ = ack("screen-\(seq)")
         app.typeText(text)
+        // Phase 333.3: the sample draws the words on its own prompt and Return
+        // clears them, so inside it the Terminal is also read between the two,
+        // with whether an owner check was up then. Outside the sample this
+        // step is as it always was.
+        var beforeReturn: [String: Any]?
+        if inSample {
+            Thread.sleep(forTimeInterval: 1.5)
+            var reading = terminalReading()
+            reading["auth"] = ownerCheckUp()
+            beforeReturn = reading
+        }
         let ret = element(Seen.screenKey + "return")
         if ret.waitForExistence(timeout: 5) { ret.tap() }
         Thread.sleep(forTimeInterval: 1.5)
-        emitScreen("screen-type", ["typed": text.count, "auth": ownerCheckUp()])
+        var extra: [String: Any] = ["typed": text.count, "auth": ownerCheckUp()]
+        if let beforeReturn { extra["typedBeforeReturn"] = beforeReturn }
+        emitScreen("screen-type", extra)
     }
 
     /// iOS's one-time Slide to Type introduction, passed by its own Continue
@@ -3452,6 +3530,138 @@ private final class Drive {
         lines.emit(["step": "setup-inventory", "for": name, "labels": labels, "elements": elements])
     }
 
+    // MARK: Phase 333.3: See a sample (build/p3333/SPEC.md section 7.4)
+
+    /// `sample-see`: See a sample pressed on Pairing (at rest under Scan code,
+    /// or under the camera's line after it). Nothing about the sample is
+    /// judged here; the probe reads the dumps.
+    private func sampleSee() {
+        guard poll({ self.has($0, Seen.pairingScreen) && self.has($0, Seen.pairingSeeSample) }) else { return missing("sample-see") }
+        openSample(on: Seen.pairingScreen, press: Seen.pairingSeeSample, step: "sample-see")
+    }
+
+    /// `sample-see-settings`: the Settings tab of a paired phone, its See a
+    /// sample row (under Unpair) brought into view and pressed.
+    private func sampleSeeSettings() {
+        guard selectTab(Seen.tabSettings), poll({ self.has($0, Seen.settingsScreen) }) else { return missing("sample-see-settings") }
+        // What iOS allows is read on appear: a moment for the page to settle.
+        Thread.sleep(forTimeInterval: 1)
+        openSample(on: Seen.settingsScreen, press: Seen.settingsSeeSample, step: "sample-see-settings")
+    }
+
+    /// The press, brought into view on `screen` first, the page dumped as
+    /// `sample-before` (the line Pairing drew, the rows Settings drew), the
+    /// press, and the Sample bar waited for. Then `sample-open` and, when
+    /// P316_ACKS names a directory, the probe's file `sample-<seq>`, so its
+    /// count of the relay's connections is taken before anything else in
+    /// the sample happens; then the first tab's read waited for and the page
+    /// dumped as `sample-open`.
+    private func openSample(on screen: String, press id: String, step: String) {
+        let button = element(id)
+        guard button.waitForExistence(timeout: 10) else { return missing(step) }
+        var tries = 0
+        while !(button.exists && button.isHittable) && tries < 6 {
+            element(screen).swipeUp()
+            Thread.sleep(forTimeInterval: 0.6)
+            tries += 1
+        }
+        dump("sample-before")
+        guard button.isHittable else { return missing(step) }
+        button.tap()
+        guard poll({ self.has($0, Seen.sampleBar) }) else { return missing(step) }
+        inSample = true
+        let seq = lines.emit(["step": "sample-open", "for": step, "from": screen])
+        let acked = acks == nil ? false : ack("sample-\(seq)", within: 60)
+        _ = poll { found in !self.has(found, Seen.needsLoading) && !self.has(found, Seen.listLoading) }
+        Thread.sleep(forTimeInterval: 1)
+        lines.emit(["step": "sample-opened", "for": step, "acked": acked])
+        dump("sample-open")
+    }
+
+    /// `sample-leave`: `sample-leaving` printed and the probe's file waited
+    /// for BEFORE the press (a paired phone reads its Mac as soon as it has
+    /// left, and that read is not the sample's), Leave sample pressed, a root
+    /// page with no Sample bar waited for, its first read waited for, then
+    /// `sample-left` saying which page it is, and a dump `sample-left`.
+    private func sampleLeave() {
+        let button = element(Seen.sampleLeave)
+        guard button.waitForExistence(timeout: 10) else { return missing("sample-leave") }
+        let seq = lines.emit(["step": "sample-leaving"])
+        let acked = acks == nil ? false : ack("sample-\(seq)", within: 60)
+        button.tap()
+        let landed = poll { found in
+            !self.has(found, Seen.sampleBar) && Seen.sampleRoots.contains { self.has(found, $0.id) }
+        }
+        _ = poll { found in !self.has(found, Seen.needsLoading) && !self.has(found, Seen.listLoading) }
+        Thread.sleep(forTimeInterval: 1)
+        let found = tree()
+        inSample = has(found, Seen.sampleBar)
+        let page = Seen.sampleRoots.first { has(found, $0.id) }
+        lines.emit([
+            "step": "sample-left",
+            "acked": acked,
+            "landed": landed,
+            "page": page.map { $0.word as Any } ?? NSNull(),
+            "bar": has(found, Seen.sampleBar),
+            "label": has(found, Seen.sampleLabel)
+        ])
+        dump("sample-left")
+    }
+
+    /// `sample-inventory:<tag>`: every element of ONE snapshot that has an
+    /// identifier or a label, with its type, whether it is a button and its
+    /// frame, beside the window and the orientation, so the probe can hold the
+    /// Sample bar above everything else on the page and find any word
+    /// anywhere on it. Each element inside a scroll container carries `clip`,
+    /// the part of the window its containers show (the intersection of their
+    /// frames), because XCUITest reports a row scrolled out of view at its
+    /// unclipped frame (the fix round: Catch Me Up's turns scrolled above it
+    /// read as over the bar). And the page says whether iOS can hit the bar's
+    /// two words at their centres (`barHittable`), which is what a person's
+    /// tap meets.
+    private func sampleInventory(_ tag: String) {
+        Thread.sleep(forTimeInterval: 1)
+        guard let root = try? app.snapshot() else {
+            lines.emit(["step": "sample-inventory", "for": tag, "read": false, "inSample": inSample, "elements": [[String: Any]]()])
+            return
+        }
+        var elements: [[String: Any]] = []
+        var stack: [(node: XCUIElementSnapshot, clip: CGRect?)] = [(root, nil)]
+        while let next = stack.popLast() {
+            let node = next.node
+            let clip = next.clip
+            if !node.identifier.isEmpty || !node.label.isEmpty {
+                var entry: [String: Any] = [
+                    "id": node.identifier,
+                    "label": node.label,
+                    "type": Int(node.elementType.rawValue),
+                    "button": node.elementType == .button,
+                    "frame": frameOf(node.frame)
+                ]
+                if let clip { entry["clip"] = frameOf(clip) }
+                elements.append(entry)
+            }
+            let contains = Seen.scrollContainers.contains(node.elementType) || Seen.scrollContainerIds.contains(node.identifier)
+            let inner = contains ? (clip.map { $0.intersection(node.frame) } ?? node.frame) : clip
+            stack.append(contentsOf: node.children.reversed().map { ($0, inner) })
+        }
+        let hittable: [String: Any] = [
+            "label": element(Seen.sampleLabel).exists && element(Seen.sampleLabel).isHittable,
+            "leave": element(Seen.sampleLeave).exists && element(Seen.sampleLeave).isHittable
+        ]
+        lines.emit([
+            "step": "sample-inventory",
+            "for": tag,
+            "read": true,
+            "inSample": inSample,
+            "sampleLabel": elements.contains { ($0["id"] as? String) == Seen.sampleLabel },
+            "barHittable": hittable,
+            "window": [Double(root.frame.width), Double(root.frame.height)],
+            "orientation": XCUIDevice.shared.orientation.rawValue,
+            "elements": elements
+        ])
+    }
+
     // MARK: Phase 337.3: the terminal fills the phone
 
     /// The ⋯ itself: a button carrying its identifier (SwiftUI hands the menu
@@ -3946,13 +4156,19 @@ private final class Drive {
             if let id = e["id"] as? String, id.hasPrefix(Seen.md), let label = e["label"] as? String, drawn[id] == nil { drawn[id] = label }
         }
         let composed = MarkdownLabels.composeAll(drawn)
-        lines.emit([
+        var object: [String: Any] = [
             "step": "screen",
             "name": name,
             "window": [Double(window.width), Double(window.height)],
             "elements": elements,
             "composed": composed
-        ])
+        ]
+        // Phase 333.3: inside the sample, whether the Sample bar's label is in
+        // this very snapshot. Outside it the line is as it always was.
+        if inSample {
+            object["sampleLabel"] = elements.contains { ($0["id"] as? String) == Seen.sampleLabel }
+        }
+        lines.emit(object)
     }
 }
 

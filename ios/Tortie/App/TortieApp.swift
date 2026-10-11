@@ -77,6 +77,15 @@
 // at its top right holds Catch Me Up, then End session…, End still behind
 // Face ID, Touch ID or the passcode.
 //
+// AND SINCE PHASE 333.3, SEE A SAMPLE (build/p3333/SPEC.md D1, D13 to D19):
+// under Scan code, and in Settings for a paired phone, made-up sessions from a
+// file inside the app (Sample/sample.json, composed by the Mac's own code),
+// opened and answered, typed into and ended as any session is. Every page says
+// Sample in one strip above the tabs; nothing in it leaves the phone, reads or
+// writes the Keychain, or is kept, and the paired reads stop while it is open.
+// Leave sample returns to where See a sample was pressed: Pairing as it was,
+// or the paired Mac's lists with the pairing untouched.
+//
 // WHAT IT NEVER DOES. It types nothing he did not press, write or type; it
 // offers no message box while the agent works, asks him something or holds
 // words typed at the Mac (the Mac decides, and asks again when the write
@@ -151,9 +160,17 @@ final class AppModel {
     enum Root: Equatable {
         case pairing
         case reading
+        /// See a sample (Phase 333.3): the three tabs over made-up sessions,
+        /// under the Sample bar.
+        case sample
     }
 
     private(set) var root: Root
+    /// See a sample is open (Phase 333.3).
+    var inSample: Bool { root == .sample }
+    /// Where See a sample was pressed, Pairing or the paired lists, so Leave
+    /// sample goes back there; nil outside the sample.
+    private var sampleFrom: Root?
     /// The tab on screen. Needs input every launch, and never stored.
     var tab: AppTab = .needsInput
     /// What is pushed over the Needs input tab's list.
@@ -233,7 +250,7 @@ final class AppModel {
         pairing = PairingModel(door: door, label: label, alerts: alerts) { [weak self] reader, first in
             self?.paired(reader, first: first)
         }
-        if let reader { makeLists(reader) }
+        if let reader { makeLists(reader, store: choices) }
     }
 
     /// The app as it launches on a phone or in the Simulator.
@@ -291,7 +308,7 @@ final class AppModel {
 
     func paired(_ reader: any DoorReading, first: PocketBlockedAnswer) {
         self.reader = reader
-        makeLists(reader).adopt(first)
+        makeLists(reader, store: choices).adopt(first)
         startOver()
         root = .reading
         // The launch's check, at once (the 316.5 fix round): an Allow pressed
@@ -305,6 +322,12 @@ final class AppModel {
     /// 404 is every refusal the door makes, including one while the Mac is
     /// quitting, and a pairing that still works comes back on the next code.
     func lostPairing() {
+        // Inside the sample, which refuses nothing, a refusal leaves it first
+        // (Phase 333.3, D16).
+        if root == .sample {
+            leaveSample()
+            return
+        }
         startOver()
         list = nil
         sessions = nil
@@ -396,18 +419,77 @@ final class AppModel {
     private func readKeptPairing() {
         guard root == .pairing, let reader = door.pairedReader() else { return }
         self.reader = reader
-        makeLists(reader)
+        makeLists(reader, store: choices)
         root = .reading
     }
 
     /// The list and the Sessions tab's model, over one reader: made together
-    /// and dropped together. Answers the list.
+    /// and dropped together. Answers the list. `store` keeps the Sessions
+    /// tab's three words: the phone's own for a paired Mac, and the sample's,
+    /// in memory, for See a sample (Phase 333.3, D17).
     @discardableResult
-    private func makeLists(_ reader: any DoorReading) -> ListModel {
+    private func makeLists(_ reader: any DoorReading, store: any SessionsChoicesStore) -> ListModel {
         let list = ListModel(door: reader, routing: listRouting)
         self.list = list
-        sessions = SessionsModel(door: reader, list: list, store: choices)
+        sessions = SessionsModel(door: reader, list: list, store: store)
         return list
+    }
+
+    // MARK: See a sample (Phase 333.3, build/p3333/SPEC.md D13 to D17)
+
+    /// See a sample, from Pairing or from Settings on a paired phone: the
+    /// three tabs over made-up sessions read from the app's own file. It asks
+    /// nothing of the door and the Keychain: the paired list, the Sessions
+    /// model and the reader are dropped (the pairing itself is not forgotten),
+    /// every write, press and key under way stops as on a trip to the
+    /// background, and the Sessions tab's words are kept in memory, fresh
+    /// each time. A file that will not read leaves everything as it was.
+    func openSample() {
+        guard root != .sample, let sample = SampleReader.bundled() else { return }
+        sampleFrom = root
+        wentAway()
+        startOver()
+        reader = sample
+        makeLists(sample, store: SampleChoices())
+        root = .sample
+    }
+
+    /// Leave sample: back to where See a sample was pressed. From Pairing,
+    /// Pairing as it was, with nothing asked of the door. From the paired
+    /// lists, the kept pairing's reader, read once, and the Needs input tab,
+    /// which reads on appear; a pairing that no longer reads back goes to
+    /// Pairing with the not-paired line, as `lostPairing` does.
+    func leaveSample() {
+        guard root == .sample else { return }
+        defer { sampleFrom = nil }
+        wentAway()
+        startOver()
+        list = nil
+        sessions = nil
+        reader = nil
+        if sampleFrom == .reading {
+            if let paired = door.pairedReader() {
+                reader = paired
+                makeLists(paired, store: choices)
+                root = .reading
+                // The list made here is new, so the alert line the launch's
+                // check drew is asked again, as a pairing asks it.
+                addressCheck = Task { [weak self] in await self?.checkAlertAddress() }
+            } else {
+                pairing.pairAgain()
+                root = .pairing
+            }
+        } else {
+            root = .pairing
+        }
+    }
+
+    /// The owner check End asks for `reader`'s sessions: the device's own for
+    /// every paired reader, and for the sample's alone the sample's, which on
+    /// an iPhone with no passcode ends the sample's copy without asking
+    /// (D11, D12).
+    func endCheck(for reader: any DoorReading) -> any OwnerCheck {
+        reader is SampleReader ? SampleOwnerCheck(inner: ownerCheck) : ownerCheck
     }
 
     /// A row tapped on `tab`'s list opens that session on that tab.
@@ -421,6 +503,11 @@ final class AppModel {
     /// was pushed there: its list, or the one session the alert named. The
     /// Sessions tab keeps its place.
     func openFromAlert(_ tap: AlertTap) {
+        // A tap inside the sample leaves it first, then routes as ever
+        // (Phase 333.3, D16).
+        if root == .sample {
+            leaveSample()
+        }
         readKeptPairing()
         guard root == .reading, let list else { return }
         list.clearNotice()
@@ -526,7 +613,8 @@ final class AppModel {
 
     /// End these, for the Sessions tab of a pairing that writes.
     func endBatchSetup(_ reader: any DoorReading) -> EndBatchSetup? {
-        reader.writer.map { EndBatchSetup(writer: $0, ownerCheck: ownerCheck, registry: self) }
+        let check = endCheck(for: reader)
+        return reader.writer.map { EndBatchSetup(writer: $0, ownerCheck: check, registry: self) }
     }
 }
 
@@ -585,7 +673,7 @@ struct RootView: View {
         Group {
             switch app.root {
             case .pairing:
-                PairingScreen(model: app.pairing)
+                PairingScreen(model: app.pairing, seeSample: { app.openSample() })
                     .task {
                         if let code = app.takeLaunchCode() {
                             await app.pairing.read(code)
@@ -594,6 +682,15 @@ struct RootView: View {
             case .reading:
                 if let list = app.list, let sessions = app.sessions, let reader = app.reader {
                     tabs(list: list, sessions: sessions, reader: reader)
+                }
+            case .sample:
+                // See a sample (Phase 333.3, D14): ONE strip above the three
+                // tabs, so every page, upright or sideways, says Sample.
+                if let list = app.list, let sessions = app.sessions, let reader = app.reader {
+                    VStack(spacing: 0) {
+                        SampleBar(leave: { app.leaveSample() })
+                        tabs(list: list, sessions: sessions, reader: reader)
+                    }
                 }
             }
         }
@@ -684,7 +781,7 @@ struct RootView: View {
             SessionRoute(
                 id: id, name: name, reader: reader, routing: app.routing(tab),
                 isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick,
-                ownerCheck: app.ownerCheck, registry: app, replies: app, keys: app
+                ownerCheck: app.endCheck(for: reader), registry: app, replies: app, keys: app
             ) { honestLine in
                 app.openCatchUp(id, honestLine: honestLine, in: tab)
             }
@@ -692,13 +789,13 @@ struct RootView: View {
             CatchUpRoute(
                 id: id, honestLine: honestLine, reader: reader, routing: app.routing(tab),
                 isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick,
-                ownerCheck: app.ownerCheck, registry: app, replies: app
+                ownerCheck: app.endCheck(for: reader), registry: app, replies: app
             )
         case .alerted(let id):
             SessionRoute(
                 id: id, name: "", reader: reader, routing: app.alertedRouting,
                 isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick,
-                ownerCheck: app.ownerCheck, registry: app, replies: app, keys: app
+                ownerCheck: app.endCheck(for: reader), registry: app, replies: app, keys: app
             ) { honestLine in
                 app.openCatchUp(id, honestLine: honestLine, in: tab)
             }

@@ -107,6 +107,34 @@ final class CopyTests: XCTestCase {
         XCTAssertEqual(byName["screenNotAnswering"], Copy.screenNotAnswering)
         // Phase 337.3: the Terminal's ⋯, spoken `More`.
         XCTAssertEqual(byName["more"], Copy.more)
+        // Phase 333.3: See a sample's five words.
+        XCTAssertEqual(byName["seeSample"], Copy.seeSample)
+        XCTAssertEqual(byName["sample"], Copy.sample)
+        XCTAssertEqual(byName["leaveSample"], Copy.leaveSample)
+        XCTAssertEqual(byName["sampleNothingRan"], Copy.sampleNothingRan)
+        XCTAssertEqual(byName["sampleEndUnasked"], Copy.sampleEndUnasked)
+    }
+
+    /// Clause (Phase 333.3, build/p3333/SPEC.md D21): See a sample's five
+    /// words, each the phone's own (no Mac surface has a sample), each its
+    /// pinned value; the line Return draws is ASCII, because the sample draws
+    /// it as one terminal run of one cell per character.
+    func testSeeASamplesFiveWordsAreThePhonesOwn() throws {
+        let byName = Dictionary(uniqueKeysWithValues: try entries().map { ($0.name, $0) })
+        let pinned: [(String, String)] = [
+            ("seeSample", "See a sample"),
+            ("sample", "Sample"),
+            ("leaveSample", "Leave sample"),
+            ("sampleNothingRan", "Nothing ran: this is a sample."),
+            ("sampleEndUnasked", "No passcode is set, so the sample ends without asking.")
+        ]
+        for (name, value) in pinned {
+            let entry = try XCTUnwrap(byName[name], "Copy.\(name) is not declared")
+            XCTAssertEqual(entry.literal, value, name)
+            guard case .phone(let reason)? = entry.owner else { return XCTFail("Copy.\(name) is not the phone's own word") }
+            XCTAssertFalse(reason.isEmpty, name)
+        }
+        XCTAssertTrue(Copy.sampleNothingRan.unicodeScalars.allSatisfy { $0.value >= 0x20 && $0.value <= 0x7E }, "Return's line is not printable ASCII")
     }
 
     /// Clause: the words the approved screens draw are drawn as they are
@@ -138,6 +166,9 @@ final class CopyTests: XCTestCase {
         // open over it, and the Terminal sideways.
         let terminalMenu = try StyleSource.text("docs/design/phone/TerminalMenu.html")
         let landscape = try StyleSource.text("docs/design/phone/Landscape.html")
+        // Phase 333.3 (build/p3333/SPEC.md section 5.7): the Needs input tab
+        // inside the sample, under the Sample bar.
+        let sampleMock = try StyleSource.text("docs/design/phone/Sample.html")
         let drawn: [(String, String)] = [
             (older, Copy.sessions),
             (older, Copy.needsYourInput(3)),
@@ -272,6 +303,12 @@ final class CopyTests: XCTestCase {
             // the Mac's own words.
             (terminalMenu, Copy.catchMeUp),
             (terminalMenu, Copy.endSessionMenu),
+            // Phase 333.3 (D13, D14, D26): See a sample under Scan code, and
+            // the Sample bar with Leave sample over the sample's Needs input.
+            (pairing, Copy.seeSample),
+            (sampleMock, Copy.sample),
+            (sampleMock, Copy.leaveSample),
+            (sampleMock, Copy.needsInput),
         ]
         for (mock, line) in drawn {
             XCTAssertTrue(mock.contains(">" + line + "<"), "the mock does not draw \(line)")

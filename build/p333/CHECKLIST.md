@@ -157,16 +157,25 @@ you.
 ## The texts you paste
 
 Every text is plain ASCII, so its count in characters is also its count in bytes. None says "beta", "TestFlight",
-"remote desktop", "mirror", "stream", "SSH" or "sample".
+"remote desktop", "mirror", "stream" or "SSH", and only texts A, B and C name See a sample.
 
-### A. Beta App Description: 681 characters
+### A. Beta App Description: 732 characters
 
 Testers see it on the public link's page and in TestFlight, so nothing in it is for the reviewer. None of Apple's
-pages read on 7 October states a limit for this field; 681 is under the 4,000 that Apple sets for the review
-notes.
+pages read on 7 October states a limit for this field; 732 is under the 4,000 that Apple sets for the review
+notes. Its last sentence names See a sample, which builds 10 and later carry: paste this text when build 10 goes
+to Public, and until then leave out its last sentence.
 
 ```text
-Tortie for iPhone works with Tortie for Mac, the free, open-source app at tortie.sh that keeps your coding-agent sessions and shells running on your Mac. Tap a session to open its terminal: read it, scroll back, and type into it, with keys for Esc, Tab, the arrows, Control and Return. See which sessions are waiting on you, answer a numbered question with a tap, catch up on what a session said, and end a session after Face ID, Touch ID or your passcode. You pair it once by scanning a code in Tortie on your Mac, and then it talks only to that Mac. You need an Apple silicon Mac running Tortie for Mac 0.111 or later, awake with Tortie open, and Tailscale signed in on that Mac.
+Tortie for iPhone works with Tortie for Mac, the free, open-source app at tortie.sh that keeps your coding-agent sessions and shells running on your Mac. Tap a session to open its terminal: read it, scroll back, and type into it, with keys for Esc, Tab, the arrows, Control and Return. See which sessions are waiting on you, answer a numbered question with a tap, catch up on what a session said, and end a session after Face ID, Touch ID or your passcode. You pair it once by scanning a code in Tortie on your Mac, and then it talks only to that Mac. You need an Apple silicon Mac running Tortie for Mac 0.111 or later, awake with Tortie open, and Tailscale signed in on that Mac. Before you pair, open See a sample to look around.
+```
+
+### B. What to Test, build 10: 507 characters
+
+Build 10 carries See a sample, so its text begins with it; the rest is build 8's text, below.
+
+```text
+Before you pair, tap See a sample to look around. Update Tortie for Mac to 0.111 or later. Then, in Tortie on your Mac, open Settings then Phone, switch on Let my phone reach this Mac, follow the three steps and scan the code. The first code can take several minutes. Open a session's terminal and type into it, answer a numbered question if one is waiting, open Catch Me Up, and end a session you do not need. Tell us anything that reads wrong or does not work, and which version of Tortie for Mac you run.
 ```
 
 ### B. What to Test, build 8: 457 characters
@@ -177,9 +186,10 @@ No limit is stated for this field either. Every later build gets its own.
 Update Tortie for Mac to 0.111 or later. Then, in Tortie on your Mac, open Settings then Phone, switch on Let my phone reach this Mac, follow the three steps and scan the code. The first code can take several minutes. Open a session's terminal and type into it, answer a numbered question if one is waiting, open Catch Me Up, and end a session you do not need. Tell us anything that reads wrong or does not work, and which version of Tortie for Mac you run.
 ```
 
-### C. Beta App Review notes: 2,325 characters as written, at most 3,098 filled in
+### C. Beta App Review notes: 2,917 characters as written, at most 3,690 filled in
 
-Apple's limit is 4,000 characters. Fill in the placeholders before you save:
+Apple's limit is 4,000 characters. Its paragraph beginning "Without a Mac" is for build 10 and later, which carry
+See a sample; leave it out for an earlier build. Fill in the placeholders before you save:
 
 - `<seller name>`, twice: the seller name on your account, Gregory Ceccarelli, as your signing certificate names
   you (research 136 §10), unless App Store Connect shows another. Up to 40 characters.
@@ -187,12 +197,14 @@ Apple's limit is 4,000 characters. Fill in the placeholders before you save:
 - `<devices tested, from 333.4>`: the line Phase 333.4 wrote. Up to 600 characters.
 - `<phone>`: the number you typed in row 7. Up to 20 characters.
 
-At those lengths the notes are 3,098 characters. If the Ita Vero sentence goes, they are 46 shorter.
+At those lengths the notes are 3,690 characters. If the Ita Vero sentence goes, they are 46 shorter.
 
 ```text
 WHAT THIS APP IS. Tortie for iPhone is the companion to Tortie for Mac, a free, open-source (Apache-2.0) desktop app at https://tortie.sh. Both are one open-source project by its author, <seller name>, who is the seller of this app; the source of both is public at https://github.com/gregce/tortie. Tortie belongs to Ita Vero, LLC, his company. Tortie for Mac keeps a developer's terminal sessions, coding agents and plain shells, running on their own Mac through quits and crashes, and brings them back after a restart. The iPhone app is for that developer away from the Mac. It lists their sessions with the ones waiting on them first. Tapping one opens its terminal, to read, scroll back and type into. It answers a numbered question with one tap, shows what the session said (Catch Me Up), and ends a session after Face ID, Touch ID or the passcode.
 
 HOW TO REVIEW IT. The app needs the developer's own Mac. Two videos show it working on a physical iPhone: a camera video of pairing, with the code scanned and Allow pressed on the Mac, at <clip 1 link>, and a screen recording of use from launch, at <clip 2 link>.
+
+Without a Mac, tap See a sample on the first screen. Made-up sessions load from a file inside the app; every page says Sample at the top, and nothing leaves the phone. Tap a session under Needs input; it opens on its terminal. Pinch, scroll up, turn the phone sideways, and tap the terminal to type: keys appear on the sample's prompt, and Return shows that nothing ran. Tap an option under a waiting session, then the More button at the top right for Catch Me Up and End session, which asks for Face ID, Touch ID or the passcode and ends only the sample's copy. Tap Leave sample to return.
 
 CODE EXECUTION (2.5.2). Nothing is downloaded or run on the phone. The terminal is text the Mac sends. Keys go to that session on the person's own Mac, and every command runs there.
 
@@ -218,8 +230,9 @@ starts a new review, after which App Review can no longer reply to your earlier 
 **If they reject build 8.** A rejected build can never be used in TestFlight again, so anything that fixes it
 goes up as build 9. Tell the main session which guideline they cite, then:
 
-- **2.1, they could not use the app without a Mac.** Reply once with the two clip links. Build 9 brings See a
-  sample (Phase 333.3) and goes to review as soon as it is built.
+- **2.1, they could not use the app without a Mac.** Reply once with the two clip links. Build 10 carries See a
+  sample (Phase 333.3); upload it as row 14 says, with build 10's text B and the review notes' See a sample
+  paragraph.
 - **4.3, spam or a copy of other apps.** Paste text D, with its placeholders filled as in text C.
 - **4.2.7, the rule for apps that show another computer.** Paste text E.
 - **Never** offer to remove, hide or rename the terminal, or send a build without it to get past review and put
@@ -250,7 +263,12 @@ A screen recording of the app from launch is at <clip 2 link>, and pairing is fi
 
 ## Not covered yet
 
-- **See a sample.** Build 8 has none, and the notes do not mention it. Phase 333.3 builds it for build 9.
+- **See a sample before build 10.** Builds 8 and 9 have none. Build 10 carries it (Phase 333.3), and only texts A,
+  B and C name it, so paste those words with build 10 and not before.
+- **See a sample's End on an iPhone with no passcode.** No Simulator shows it: with Face ID off, a Simulator still
+  asks for the passcode, so only the unit tests hold it. On a spare iPhone with no passcode, open See a sample on
+  build 10 and end a session: End shows an open lock and "No passcode is set, so the sample ends without asking.",
+  and the session ends with nothing asked.
 - **The rest of launch day.** Pointing tortie.sh/iphone at the link, promoting the Mac release and merging the
   README are Phase 333.7's.
 - **Whether two clips and notes are enough at Beta App Review.** CC Pocket passed the App Store that way for

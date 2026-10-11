@@ -722,6 +722,23 @@ enum Copy {
     /// Phone: the same, for more than one line.
     static let moreLinesTail = " more lines"
 
+    // MARK: - See a sample (Phase 333.3)
+
+    /// Phone: made-up sessions inside the app, before or without a Mac (research 136 §8; research 140 §8 row 4). No Mac surface has a sample.
+    static let seeSample = "See a sample"
+
+    /// Phone: said at the top of every page while the sample is open, so nothing in it reads as the person's own Mac.
+    static let sample = "Sample"
+
+    /// Phone: back to where See a sample was pressed, Pairing or the paired Mac's lists.
+    static let leaveSample = "Leave sample"
+
+    /// Phone: what Return draws on a sample's terminal in place of any answer, because nothing runs on the phone (guideline 2.5.2).
+    static let sampleNothingRan = "Nothing ran: this is a sample."
+
+    /// Phone: End's line in the sample on an iPhone with no passcode, where a paired Mac's End is off.
+    static let sampleEndUnasked = "No passcode is set, so the sample ends without asking."
+
     // MARK: - The door, when it does not answer as it should
 
     /// Phone: no connection, or the connection was cut.

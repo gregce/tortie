@@ -165,7 +165,9 @@ struct EndBarDrawing: Equatable {
             let on = kind != .none && phase == .idle
             row = on ? .on : .off
             self.confirm = on ? confirm : nil
-            self.line = said ?? (kind == .none ? Copy.endNeedsPasscode : nil)
+            // With no passcode a paired Mac's End is off and says so; the
+            // sample's ends without asking, and says that (Phase 333.3, D12).
+            self.line = said ?? (kind == .none ? Copy.endNeedsPasscode : kind == .unasked ? Copy.sampleEndUnasked : nil)
         case .unreachable(let title):
             row = .off
             self.confirm = nil
@@ -177,12 +179,15 @@ struct EndBarDrawing: Equatable {
         }
     }
 
-    /// `faceid`, `touchid`, or `lock` for the passcode alone.
+    /// `faceid`, `touchid`, or `lock` for the passcode alone; `lock.open`
+    /// for the sample's End on an iPhone with no passcode, which asks nothing
+    /// (Phase 333.3, D12).
     static func glyph(_ kind: OwnerKind) -> String {
         switch kind {
         case .faceID: "faceid"
         case .touchID: "touchid"
         case .passcode, .none: "lock"
+        case .unasked: "lock.open"
         }
     }
 }

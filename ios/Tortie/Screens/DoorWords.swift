@@ -51,10 +51,11 @@
 //
 // THE SCREEN (Phase 337, build/p337/SPEC.md section 5.8.3). `screenDoor(_:)`
 // is a REQUIREMENT too, for the same reason as `writer`, and its extension
-// default is nil: a reader with no Screen (the tests' fakes, and See a
-// Sample until Phase 333.3 answers one) draws no Screen. A paired reader's
-// Screen door holds its own two kept connections, one for the poll and one
-// for the keys (Door/DoorClient.swift `DoorLine`). Keys ask no Face ID (his
+// default is nil: a reader with no Screen (the tests' fakes) draws no Screen,
+// and since Phase 333.3 See a sample answers one, over its own made-up
+// screens (Sample/SampleReader.swift). A paired reader's Screen door holds
+// its own two kept connections, one for the poll and one for the keys
+// (Door/DoorClient.swift `DoorLine`). Keys ask no Face ID (his
 // ruling 3, "Every key, including Ctrl-C"); a keys write's result becomes a
 // sentence in `keysSentence`, and a failed read of the screen in
 // `screenSentence`.

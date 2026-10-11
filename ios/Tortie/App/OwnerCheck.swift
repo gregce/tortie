@@ -10,7 +10,10 @@
 // an iPhone whose Face ID fails three times all fall back to the passcode, and
 // each must still be able to end a session (research 136 section 14). Only an
 // iPhone with no passcode at all cannot, and the End bar says so in one line
-// before any press (`OwnerKind.none`).
+// before any press (`OwnerKind.none`). In See a sample (Phase 333.3,
+// build/p3333/SPEC.md D12) such an iPhone ends the sample's own copy without
+// asking, there being nothing iOS can ask, and End's line says so
+// (`OwnerKind.unasked`, answered by the sample's check alone).
 //
 // A NEW CONTEXT PER CALL, and no reuse window is ever set on one: an earlier
 // match never stands in for this press.
@@ -43,6 +46,10 @@ enum OwnerKind: Equatable, Sendable {
     case passcode
     /// No passcode is set, so nothing can confirm the owner: End is drawn off.
     case none
+    /// No passcode is set, and the writer is the sample's: nothing is asked,
+    /// the sample's copy ends, and End's line says so. Only SampleOwnerCheck
+    /// answers it (Phase 333.3, build/p3333/SPEC.md D12).
+    case unasked
 }
 
 /// How one confirmation ended.
@@ -55,7 +62,9 @@ enum OwnerAnswer: Equatable, Sendable {
 }
 
 /// The check the End press asks. `DeviceOwnerCheck` is the one conformer in
-/// the app; the tests hand in their own.
+/// the app that asks iOS; since Phase 333.3 the sample's End asks it through
+/// `SampleOwnerCheck` (Sample/SampleOwnerCheck.swift), which `AppModel.endCheck`
+/// hands only to the sample's reader. The tests hand in their own.
 protocol OwnerCheck: Sendable {
     /// What this iPhone confirms its owner with, now.
     func kind() -> OwnerKind

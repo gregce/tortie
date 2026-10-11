@@ -125,7 +125,8 @@
  * each configuration every row the SEALED files name (each arm, decode,
  * request, and today's answers on a frozen route) must be printed exactly
  * once and read as sealed (`frozenRowProblems`), and `P33311_SUITES` must be
- * named in xcodebuild's own suite lines.
+ * named in xcodebuild's own suite lines. So must `P3333_SUITES` since Phase
+ * 333.3, the four classes that hold See a sample.
  *
  * THE ORDER.
  *   1. The preflight: xcodebuild, simctl, the runtime and the iPhone 16 Pro
@@ -133,7 +134,11 @@
  *      absent and exits 2, before anything is created. It never passes
  *      quietly (build/verification-checks.mjs, "Xcode and Go harness").
  *   2. `vectors.mjs --check`, so a stale fixture fails here by name rather
- *      than as a wall of Swift assertion failures.
+ *      than as a wall of Swift assertion failures; then (Phase 333.3,
+ *      build/p3333/SPEC.md §7.5) `build/p3333/sample.mjs --check`, which makes
+ *      See a sample's book again with the shipping composer and compares it
+ *      with the committed ios/Tortie/Sample/sample.json, so a stale sample
+ *      refuses the run, exit 1, before anything boots.
  *   3. `build-for-testing` for the Simulator SDK, which boots nothing, into a
  *      scratch derived data path, ad hoc with no team: Debug, and Release
  *      beside it (`<derived data>-release`, with ENABLE_TESTABILITY=YES so the
@@ -170,7 +175,11 @@
  *      build/p3331/SPEC.md §7.8): every build, Debug and Release, must hold
  *      each of SiteLink's three addresses (`https://tortie.sh`, `/privacy`,
  *      `/support`) WHOLE, its bytes ended by a NUL, so an address cut short or
- *      a byte off names itself. PASS_WORDS do not change: his checklist quotes
+ *      a byte off names itself. AND SEE A SAMPLE'S BOOK (Phase 333.3,
+ *      build/p3333/SPEC.md §7.5): every build, Debug and Release, and the
+ *      archive `--read-app` reads, must hold `sample.json` at the bundle's root
+ *      with the committed file's sha256, a problem line naming both digests
+ *      otherwise. PASS_WORDS do not change: his checklist quotes
  *      them. Each Simulator build's entitlements are read
  *      too: a Simulator app is signed ad hoc and its signature carries none
  *      (`codesign -d --entitlements` answers an empty dictionary), so what the
@@ -226,7 +235,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { X509Certificate, createHash, createPrivateKey } from 'node:crypto';
-import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, readSync, realpathSync, rmSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, readSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer as createHttp } from 'node:http';
 import { createServer as createNet } from 'node:net';
 import { createServer as createTls } from 'node:tls';
@@ -416,7 +425,7 @@ function tailscaleKitPaths(dir) {
  * build, whose presence is the control (`{ debug: true }`). Returns the
  * problems (sentences) and what was read.
  */
-export function builtAppProblems(app, { debug = false } = {}) {
+export function builtAppProblems(app, { debug = false, sampleBook = SAMPLE_BOOK } = {}) {
   const problems = [];
   if (!existsSync(app)) return { problems: [`${app} does not exist, so the built app cannot be read`], files: 0 };
   const files = machOFiles(app);
@@ -482,14 +491,60 @@ export function builtAppProblems(app, { debug = false } = {}) {
   }
   // Phase 333.1 (build/p3331/SPEC.md §7.8): Debug and Release alike.
   if (files.length > 0) problems.push(...siteAddressProblems(app, siteHeld));
+  // Phase 333.3 (build/p3333/SPEC.md §7.5): See a sample's book, the committed bytes, Debug and Release alike.
+  const sampleRead = sampleBookProblems(app, sampleBook);
+  problems.push(...sampleRead);
   return {
     problems,
     files: files.length,
     seams: seamsFound.size,
     registering: registering.length,
     unregistering: unregistering.length,
-    siteAddresses: Object.fromEntries(siteHeld)
+    siteAddresses: Object.fromEntries(siteHeld),
+    sampleBook: sampleRead.length === 0
   };
+}
+
+/**
+ * See a sample's book (Phase 333.3, build/p3333/SPEC.md §5.1.3, §7.5, D29):
+ * the committed ios/Tortie/Sample/sample.json, which `node build/p3333/sample.mjs
+ * --check` holds to the shipping composer.
+ */
+const SAMPLE_BOOK = join(ROOT, 'ios', 'Tortie', 'Sample', 'sample.json');
+
+/**
+ * The book in a built app: the app's own `sample.json`, at the bundle's root
+ * where the synchronized folder copies it and `Bundle.main.path(forResource:
+ * "sample", ofType: "json")` finds it, is there and its sha256 is the
+ * committed file's, so an app he uploads carries the sample the shipping
+ * composer made and no other. Returns the problems (sentences), each naming
+ * the difference.
+ */
+export function sampleBookProblems(app, committed = SAMPLE_BOOK) {
+  let want;
+  try {
+    want = createHash('sha256').update(readFileSync(committed)).digest('hex');
+  } catch (err) {
+    return [`the committed ${relative(ROOT, committed)} could not be read (${String(err?.code ?? err?.message ?? err)}), so the app's sample cannot be compared with it (Phase 333.3)`];
+  }
+  const bundled = join(app, 'sample.json');
+  if (!existsSync(bundled)) return [`the app holds no sample.json at its root, so See a sample has no sessions to open (Phase 333.3)`];
+  const got = createHash('sha256').update(readFileSync(bundled)).digest('hex');
+  if (got === want) return [];
+  return [`the app's sample.json is sha256 ${got.slice(0, 16)}, the committed ${relative(ROOT, committed)} ${want.slice(0, 16)}, so the app carries a sample the shipping composer did not make; run node build/p3333/sample.mjs and build again (Phase 333.3)`];
+}
+
+/**
+ * The preflight's reading of `node build/p3333/sample.mjs --check` (Phase
+ * 333.3, build/p3333/SPEC.md §7.5): null when it held (exit 0), else the
+ * refusal, with the writer's last two lines, so a stale sample stops the run
+ * by name before anything boots.
+ */
+export function sampleBookCheckProblem(r) {
+  if (r?.error !== undefined && r?.error !== null) return `See a sample's book could not be checked: ${String(r.error?.message ?? r.error)}`;
+  if (r?.status === 0) return null;
+  const tail = `${r?.stdout ?? ''}${r?.stderr ?? ''}`.trim().split('\n').slice(-2).join(' ');
+  return `See a sample's book is stale, so the app would carry answers the shipping composer no longer makes (build/p3333/sample.mjs --check exited ${String(r?.status ?? r?.signal ?? 'with no status')}): ${tail}`;
 }
 
 /**
@@ -1285,6 +1340,14 @@ export const P317_SUITES = Object.freeze([
 /** The test class Phase 333.11 adds, which must appear in xcodebuild's own suite lines. */
 export const P33311_SUITES = Object.freeze(['DoorFrozenTests']);
 
+/**
+ * The test classes Phase 333.3 adds (build/p3333/SPEC.md §7.2): See a sample's
+ * book, its world and reader, its owner check and the app around it. Each must
+ * appear in xcodebuild's own suite lines, as 337.3's must, so a class that
+ * drops out of the bundle is not read as a pass.
+ */
+export const P3333_SUITES = Object.freeze(['SampleBookTests', 'SampleReaderTests', 'SampleOwnerCheckTests', 'SampleAppTests']);
+
 /** Where the frozen sets live, beside the vectors the phone's tests read. */
 export const FROZEN_DIR = join(ROOT, 'ios', 'TortieTests', 'Fixtures', 'frozen');
 
@@ -1656,6 +1719,57 @@ export async function frozenGraderSelfTest() {
 export function suitesNotRun(text, names = P317_SUITES) {
   const ran = new Set([...String(text).matchAll(/Test Suite '([A-Za-z0-9_]+)' (?:passed|failed)/g)].map((m) => m[1]));
   return names.filter((n) => !ran.has(n));
+}
+
+/**
+ * `--self-test`'s half for Phase 333.3 (build/p3333/SPEC.md §7.5): the
+ * preflight's reading of the book's check and the built app's read of its
+ * sample.json, each held both ways over files made in a scratch directory,
+ * and the read proved wired into `builtAppProblems` (an app with a stale
+ * sample is refused there, and one with the committed bytes is not).
+ */
+export function sampleBookSelfTest() {
+  const results = [];
+  const check = (what, ok, detail = '') => {
+    results.push(ok);
+    say(`${ok ? 'ok  ' : 'FAIL'} ${what}${ok || detail === '' ? '' : ` (${detail})`}`);
+  };
+  const scratch = mkdtempSync(join(tmpdir(), 'p3333-sample-book-'));
+  try {
+    check('the book\'s check passes on exit 0', sampleBookCheckProblem({ status: 0, stdout: '[p3333 sample] PASS', stderr: '' }) === null);
+    const stale = sampleBookCheckProblem({ status: 1, stdout: 'line one\n[p3333 sample] FAIL clause 1: the file is not what the composer makes', stderr: '' });
+    check('the book\'s check refuses exit 1 and carries the writer\'s own line', stale !== null && stale.includes('stale') && stale.includes('FAIL clause 1'), String(stale));
+    check('the book\'s check refuses a writer that could not start or timed out', sampleBookCheckProblem({ status: null, signal: 'SIGTERM', error: new Error('spawnSync node ETIMEDOUT') }) !== null);
+    check('the book\'s check refuses a writer killed by a signal', sampleBookCheckProblem({ status: null, signal: 'SIGKILL', stdout: '', stderr: '' }) !== null);
+    const committed = join(scratch, 'committed-sample.json');
+    writeFileSync(committed, '{"format":1}\n');
+    const app = (name, bytes) => {
+      const dir = join(scratch, name, 'Tortie.app');
+      mkdirSync(dir, { recursive: true });
+      if (bytes !== null) writeFileSync(join(dir, 'sample.json'), bytes);
+      return dir;
+    };
+    const same = app('same', '{"format":1}\n');
+    const other = app('other', '{"format":1} \n');
+    const none = app('none', null);
+    check('an app carrying the committed bytes reads clean', sampleBookProblems(same, committed).length === 0, J(sampleBookProblems(same, committed)));
+    const diff = sampleBookProblems(other, committed);
+    check('an app carrying one byte more is refused, both digests named', diff.length === 1 && /sha256 [0-9a-f]{16}, the committed .* [0-9a-f]{16}/.test(diff[0]), J(diff));
+    check('an app with no sample.json is refused', sampleBookProblems(none, committed).length === 1);
+    check('a committed file that cannot be read is refused, never passed', sampleBookProblems(same, join(scratch, 'absent.json')).length === 1);
+    const wired = (dir) => builtAppProblems(dir, { sampleBook: committed }).problems.filter((p) => p.includes('sample.json'));
+    check('builtAppProblems refuses an app whose sample is stale', wired(other).length === 1, J(builtAppProblems(other, { sampleBook: committed }).problems));
+    check('builtAppProblems refuses an app with no sample', wired(none).length === 1);
+    check('builtAppProblems says nothing of a sample that is the committed one', wired(same).length === 0);
+    check('builtAppProblems reads the sample in a Debug build too', builtAppProblems(other, { debug: true, sampleBook: committed }).problems.some((p) => p.includes('sample.json')));
+  } catch (err) {
+    check('the sample book self-test ran', false, String(err?.stack ?? err));
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+  const failed = results.filter((ok) => !ok).length;
+  say(failed === 0 ? `sample book self-test PASS: ${String(results.length)} checks` : `sample book self-test FAIL: ${String(failed)} of ${String(results.length)}`);
+  return failed === 0;
 }
 
 /**
@@ -2035,6 +2149,8 @@ async function doorsSelfTest() {
     check('suitesNotRun names every Phase 337.1 suite that never ran', J(suitesNotRun(ran, P3371_SUITES)) === J([...P3371_SUITES]));
     check('suitesNotRun names every Phase 337.3 suite that never ran', J(suitesNotRun(ran, P3373_SUITES)) === J([...P3373_SUITES]));
     check('suitesNotRun reads a Phase 337.3 suite that ran', J(suitesNotRun(`${ran}\nTest Suite 'TerminalFillTests' passed at 2026-10-08 12:00:00.000.`, P3373_SUITES)) === J(['TerminalChromeTests', 'TerminalMenuTests']));
+    check('suitesNotRun names every Phase 333.3 suite that never ran', J(suitesNotRun(ran, P3333_SUITES)) === J([...P3333_SUITES]));
+    check('suitesNotRun reads the Phase 333.3 suites that ran', suitesNotRun(`${ran}\n${P3333_SUITES.map((n) => `Test Suite '${n}' passed at 2026-10-10 12:00:00.000.`).join('\n')}`, P3333_SUITES).length === 0);
   } catch (err) {
     check('the self-test ran', false, String(err?.stack ?? err));
   } finally {
@@ -2081,7 +2197,9 @@ async function main() {
     const doorsHeld = await doorsSelfTest();
     // Phase 333.11: the frozen wire's grader, over a set made here.
     const frozenHeld = await frozenGraderSelfTest();
-    process.exit(doorsHeld && frozenHeld ? 0 : 1);
+    // Phase 333.3: See a sample's two reads, over files made here.
+    const sampleHeld = sampleBookSelfTest();
+    process.exit(doorsHeld && frozenHeld && sampleHeld ? 0 : 1);
   }
 
   const runtime = (process.env['P316_RUNTIME'] ?? '').trim() || RUNTIME_CURRENT;
@@ -2108,6 +2226,13 @@ async function main() {
   const vectors = spawnSync(process.execPath, [join(ROOT, 'build', 'p316', 'vectors.mjs'), '--check'], { cwd: ROOT, encoding: 'utf8', timeout: 120_000 });
   if (vectors.status !== 0) {
     process.stderr.write(`${TAG} the vectors are stale, so the Swift would be held to the wrong bytes: ${`${vectors.stdout ?? ''}${vectors.stderr ?? ''}`.trim().split('\n').slice(-2).join(' ')}\n`);
+    process.exit(1);
+  }
+  // Phase 333.3: See a sample's book, regenerated in memory by the shipping composer and held to the committed bytes.
+  const sampleBookCheck = spawnSync(process.execPath, [join(ROOT, 'build', 'p3333', 'sample.mjs'), '--check'], { cwd: ROOT, encoding: 'utf8', timeout: 120_000 });
+  const sampleBookWhy = sampleBookCheckProblem(sampleBookCheck);
+  if (sampleBookWhy !== null) {
+    process.stderr.write(`${TAG} ${sampleBookWhy}\n`);
     process.exit(1);
   }
   // Phase 333.11: the frozen sets, and which of them the phone's decoders still
@@ -2284,7 +2409,7 @@ async function main() {
                 `${String(s.executed)} test(s) executed, ${String(s.failures)} failure(s), ${String(s.skipped)} skipped`
             );
             // Phase 317: every class it adds or changes must have run.
-            const notRun = suitesNotRun(`${run.stdout}${run.stderr}`, [...new Set([...P317_SUITES, ...P318_SUITES, ...P337_SUITES, ...P3371_SUITES, ...P3373_SUITES, ...P33311_SUITES])]);
+            const notRun = suitesNotRun(`${run.stdout}${run.stderr}`, [...new Set([...P317_SUITES, ...P318_SUITES, ...P337_SUITES, ...P3371_SUITES, ...P3373_SUITES, ...P33311_SUITES, ...P3333_SUITES])]);
             if (notRun.length > 0) say(`${c.name}: xcodebuild names no run of ${notRun.join(', ')}, so those rows were not run`);
             // Phase 333.11: every frozen row, graded against the sealed sets.
             const frozen = frozenRowProblems(`${run.stdout}${run.stderr}`, frozenPre.sets, new Set(frozenPre.proof), frozenToday, c.name);

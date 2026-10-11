@@ -4,6 +4,12 @@ Each commit appears once under Added, Changed or Fixed. Every bullet stays on on
 
 The operator set the style on 2026-08-23 by rewriting every entry, and it binds every entry after. An item is one or two sentences. It says what a person can now do or what no longer goes wrong, in plain words, and then stops. A limit that a person will hit goes in the same item in one clause, e.g. "Saves have no undo", and a limit nobody will hit stays in the commit body. No measured numbers unless the number is the point. No build story, no file names, no gate names. The lead paragraph says what the release is about in two or three sentences and lists nothing.
 
+## Unreleased
+
+### Added
+
+- Tortie for iPhone now has See a sample, on its first screen and in Settings: made-up Claude Code and Codex sessions you can open, scroll back, type into, answer and end before you pair a Mac, with every page marked Sample and nothing leaving the phone. What you type there only appears on the sample's own prompt, and Leave sample takes you back
+
 ## 0.111.0 (2026-10-09)
 
 This release brings Tortie to your iPhone and to more of your machines. Tortie for iPhone, in public beta through TestFlight, lists your sessions with the ones waiting on you first, opens each one's terminal, answers its questions and ends it, through the Tailscale already on your Mac. Sessions on another machine now scroll back, save and commit as they do on your Mac, and Ubuntu and Debian machines can be added with the tmux they already have.

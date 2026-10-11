@@ -15,6 +15,12 @@
 // code is typed instead ("Enter a code instead" is not drawn: the payload is
 // several hundred characters and no short-code design exists).
 //
+// SEE A SAMPLE (Phase 333.3, build/p3333/SPEC.md D13): one press under Scan
+// code at rest, and under the camera's line after Scan code, drawn whenever no
+// pairing is under way. It opens made-up sessions inside the app (the app's
+// own `openSample`), with no Mac, no pairing and no network; nothing on this
+// screen moves when it is pressed, so Leave sample comes back to it as it was.
+//
 // THE FOOT: "Nothing else to install on this phone." (since Phase 330 the
 // phone reaches the Mac's public name as an ordinary TLS client, with no
 // Tailscale, VPN or profile of its own), this screen's one line, `Pair again`
@@ -201,10 +207,13 @@ struct PairingScreen: View {
     let model: PairingModel
     /// Tortie's own site. The app hands `SiteOpener`; a test hands its own.
     let site: any SiteOpening
+    /// See a sample: the app opens it (Phase 333.3, D13).
+    let seeSample: () -> Void
 
-    init(model: PairingModel, site: any SiteOpening = SiteOpener()) {
+    init(model: PairingModel, site: any SiteOpening = SiteOpener(), seeSample: @escaping () -> Void = {}) {
         self.model = model
         self.site = site
+        self.seeSample = seeSample
     }
 
     var body: some View {
@@ -223,9 +232,15 @@ struct PairingScreen: View {
                         Words(Copy.pairStepScan, .secondary, Tokens.textSecondary, lines: nil)
                             .accessibilityIdentifier(ID.pairingPoint)
                             .padding(Frame.gutter)
+                        if !model.busy {
+                            seeSampleButton
+                        }
                     } else {
                         steps
                         scanButton
+                        if !model.busy {
+                            seeSampleButton
+                        }
                     }
                     if let fingerprint = model.fingerprint {
                         match(fingerprint)
@@ -257,6 +272,11 @@ struct PairingScreen: View {
     /// Support, at the foot.
     func openSupport() {
         site.open(.support)
+    }
+
+    /// See a sample (Phase 333.3, D13): handed to the app, which opens it.
+    func pressSeeSample() {
+        seeSample()
     }
 
     /// `padding: 24px 16px 0`: the title.
@@ -333,6 +353,21 @@ struct PairingScreen: View {
         .buttonStyle(.plain)
         .accessibilityIdentifier(ID.pairingScanCode)
         .padding(.top, 24)
+        .padding(.horizontal, Frame.gutter)
+    }
+
+    /// See a sample, `margin: 8px 16px 0`: the accent's words, centred, on no
+    /// fill, the whole row a 44-tall press (Phase 333.3, D13).
+    private var seeSampleButton: some View {
+        Button(action: pressSeeSample) {
+            Words(Copy.seeSample, .body, Tokens.accent)
+                .frame(maxWidth: .infinity)
+                .frame(height: PairingFrame.pressHeight)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(ID.pairingSeeSample)
+        .padding(.top, 8)
         .padding(.horizontal, Frame.gutter)
     }
 

@@ -735,6 +735,101 @@
  *   `relaunch-choices[:<key>=<value>]`; `open:` and `select:` bring a row into
  *   view before they press it.
  *
+ * PHASE 333.3, SEE A SAMPLE (build/p3333/SPEC.md §7.4 to §7.6). Pairing gains
+ * See a sample under Scan code and a paired phone's Settings a row under
+ * Unpair; it opens made-up sessions inside the app, from the bundled
+ * ios/Tortie/Sample/sample.json (the shipping composer's answers over a
+ * made-up world), under one Sample bar on every page, and Leave sample goes
+ * back. Every expected word is that committed file's or Copy.swift's: the
+ * sessions are found in it by their variants and agents, never named here.
+ *   THE `sample` GROUP (P316_ARMS=sample, in the default list and the floor's):
+ *   a FRESH drive on 26.3 that never pairs, launched with no code, Face ID
+ *   enrolled and answered `match` from the host:
+ *   SA1  `pairing-see-sample` reads Copy.seeSample, a button at least 44
+ *        points tall, directly under `pairing-scan-code`; after Scan code,
+ *        directly under `pairing-point`
+ *   SA2  `sample-see`: `sample-bar` above everything, `sample-label` Sample,
+ *        `sample-leave` Leave sample a 44-point button; Needs input's rows the
+ *        book's start state's waiting sessions, in its order
+ *   SA3  `sample-label` in EVERY dump inside the sample, and on Needs input,
+ *        Sessions, Settings, a Terminal upright and sideways and Catch Me Up
+ *        (`sample-inventory:<tag>`) every other element starts at or below the
+ *        bar's bottom; sideways, the grid too
+ *   SA4  Claude Code's waiting session opens on its Terminal, each drawn
+ *        `screen-row-<n>` the book's row; the tray's `session-choice-press-<n>`
+ *        its pressable options whole; `reply-press:0` asks nothing, the tray
+ *        goes, the status line reads the `answered` variant's title, and Needs
+ *        input no longer lists it
+ *   SA5  Codex CLI's waiting session the same, its command under the question
+ *   SA6  the idle Codex session: `screen-type:` the words on the prompt row
+ *        (read between the words and Return), Return empties it and draws
+ *        Copy.sampleNothingRan on the note row, `screen-ctrl:c` draws ^C, the
+ *        key bar's Return empties it again; no owner check at any key
+ *   SA7  `scroll-up:8`: `screen-history-0` and every drawn history row the
+ *        book's, and no `screen-scrollback-line`; the top is reached only when
+ *        `screen-history-0` lies inside the grid (the probe review)
+ *   SA8  `first`: Catch Me Up paged to its first turn, every ask the book's
+ *   SA9  End on the working session: Face ID's mark, the book's `endConfirm`
+ *        word for word, `end-auth-up` answered `match`, then the ended
+ *        variant's title and main's ended sentence in `screen-failure`
+ *   SA10 Sessions: Show All, Active and Ended, Group by None, Sort by Name and
+ *        the agent filter, each walk graded as the book answers it for the
+ *        state after SA4, SA5 and SA9 (`gradeSessionsDump`, one answer both
+ *        sides, because the book's ages do not tick)
+ *   SA11 End these over the three live rows: the press counts them, Face ID,
+ *        each Ended and the heading n of n (Copy.swift's pieces), then Show
+ *        Ended (Group by None) lists every session
+ *   SA12 Settings inside the sample: About, and no `settings-mac`,
+ *        `settings-alerts`, `settings-unpair` or `settings-see-sample`
+ *   SA13 `sample-leave`: Pairing, no bar, its `pairing-line` as before
+ *   SAX  THE ATTACK: the relay's count does not move from the launch to the
+ *        end of the drive, the door listening on both sides; UNREADABLE when
+ *        the drive never reached Leave sample (the probe review)
+ *   SD   the sample opened again, `end-off:` unenrols Face ID: when iOS answers
+ *        passcodeNotSet, End is on with `lock.open` and
+ *        Copy.sampleEndUnasked and `end` ends the session with no owner check
+ *        up; when it answers the passcode or Face ID, UNREADABLE
+ *   SB   18.3, fresh: SA1, SA2, SA4, SA6, SA9, SA13 and SAX (its steps hold
+ *        `sample-inventory:needs`, which SA2 reads; the probe review)
+ *   SC1  26.3, PAIRED through the relay: the list draws the Mac's sessions,
+ *        `settings-see-sample` under `settings-unpair`, and no reading inside
+ *        the sample holds a Mac session's name or id
+ *   SC2  THE ATTACK: a Terminal on the Mac's shell open, then Settings, See a
+ *        sample; the relay's count at `sample-open` equals its count at
+ *        `sample-leaving`, across `idle:20`, a Terminal and a keys write in
+ *        the sample, and Home and back (`screen-home:`); and (the probe
+ *        review) so does its count of REQUESTS, every phone record of at
+ *        least TLS_REQUEST_MIN bytes, because the Terminal's poll keeps its
+ *        connection (DoorLine) and a request on a kept connection moves no
+ *        connection count. The forwarded connections open at `sample-open`
+ *        are printed, not graded: ScreenPage.onDisappear stops the Mac's
+ *        Terminal when Settings is selected, so the paired poll is not live
+ *        when the sample opens
+ *   SC3  Leave sample: Needs input with the Mac's sessions, a connection at
+ *        the relay within 15 s of `sample-leaving`, and Settings' fingerprint
+ *        and address as before the sample
+ *   SP   26.3, with P3333_PARENT_IOS (e1e17899's ios/, build 9): its own app
+ *        and UI test, `setup-read` then `idle:20`: no label holding "sample",
+ *        and the relay counts nothing
+ *   SE1 (333.1's) is widened: exactly one label holds "sample", See a
+ *   sample's, under Scan code. The steps P316DriveUITests.swift adds:
+ *   `sample-see`, `sample-see-settings`, `sample-leave` and
+ *   sample-inventory:<tag>`; `sample-open` and `sample-leaving` each wait for
+ *   this file's `sample-<seq>`, so the relay is counted at those moments, and
+ *   every dump inside the sample carries `sampleLabel`. No step presses a
+ *   link, and no word of the sample is spelled in either file.
+ *   THE PROBE REVIEW (docs/method/HOW-WE-BUILT-THIS.md rule 9): the plan and
+ *   the grading are `samplePlan`, `gradeSampleFresh`, `gradeSampleFloor` and
+ *   `gradeSamplePaired`, which the run calls, and --grader-self-test plays
+ *   recorded drives of that very plan over the committed book through them
+ *   (`sampleRecordedDrive`): an honest drive every arm PASS, one broken
+ *   reading per arm red on that arm alone, one connection, one request on a
+ *   kept connection, a drive that printed nothing and one that stopped part
+ *   way, never a PASS where nothing was read. A missing reading is UNREADABLE
+ *   in every sample grader, never a FAIL; SA3 judges the Terminal's rows by
+ *   the part the grid shows, and nothing but the bar's own words may sit
+ *   inside the bar's frame.
+ *
  * PHASE 333.1, A STRANGER'S FIRST RUN (build/p3331/SPEC.md §7.7). The pairing
  * screen's resting face is three numbered steps and Scan code, the camera is
  * built only after Scan code, About gains three pages of Tortie's own site, a
@@ -751,13 +846,15 @@
  *   (the fix round: read first, it left SE5 and SE6 unreadable in every run).
  *   SE1 26.3: `pairing-title`, the three step rows top to bottom, Scan code,
  *       `pairing-nothing-else`, `pairing-line` the not-paired line,
- *       `pairing-privacy` and `pairing-support`, and no label anywhere on the
- *       screen holding "sample" (`setup-inventory` prints every label)
+ *       `pairing-privacy` and `pairing-support`, and (widened by Phase 333.3)
+ *       exactly one "sample" on the screen, `pairing-see-sample`'s, directly
+ *       under Scan code: any OTHER label holding it is red
+ *       (`setup-inventory` prints every label)
  *   SE2 26.3: no `pairing-scanner` before Scan code; it and `pairing-point`
  *       after (a Simulator has no camera, so iOS never asks; his checklist's C4)
  *   SE3 26.3: `pairing-get-mac`, `pairing-privacy` and `pairing-support` each
  *       a button at least 44 points tall
- *   SE4 26.3, paired: Settings' `settings-version` the project's `1.0.0 (9)`,
+ *   SE4 26.3, paired: Settings' `settings-version` the project's `1.0.0 (10)`,
  *       then `settings-mac-site` (Tortie for Mac, tortie.sh), `settings-privacy`
  *       and `settings-support`, each a button at least 44 points tall
  *   SE5 26.3: the door shut, the list's `list-failure` "Tortie could not reach
@@ -816,7 +913,7 @@
  * (exit 2) when the checkout has no build.
  *
  *   npm run -s probe:p316
- *   P316_ARMS=order,floor,deny,hostile,end,reply,screen,sessions,setup    which arms (default all; `order` holds N11 and N0 to N8; `end` is Phase 317's, `reply` Phase 318's, `screen` Phase 337's, `sessions` Phase 316.7's, `setup` Phase 333.1's)
+ *   P316_ARMS=order,floor,deny,hostile,end,reply,screen,sessions,setup,sample    which arms (default all; `order` holds N11 and N0 to N8; `end` is Phase 317's, `reply` Phase 318's, `screen` Phase 337's, `sessions` Phase 316.7's, `setup` Phase 333.1's, `sample` Phase 333.3's)
  *   P316_HOSTILE=honest,wrong-key         which hostile arms (default all)
  *   P316_HOSTILE_FLOOR=all|<arm,…>        which hostile sessions arms also run on iOS 18.3 (default those marked `floor`)
  *   P316_DERIVED_DATA=<dir>               derived data (never the repo, never home; kept)
@@ -830,6 +927,8 @@
  *                                         deleted whatever this says.
  *   P316_PARENT_CHECKOUT=<dir>            the parent reading: whether it has ios/
  *   P3331_PARENT_IOS=<dir>                Phase 333.1's SEP: cb8d52a6's checkout (its ios/, build 7)
+ *   P3333_PARENT_IOS=<dir>                Phase 333.3's SP: the directory holding e1e17899's ios/
+ *                                         (`git archive e1e17899 ios | tar -x` into scratch, build 9)
  *   P3371_PARENT_IOS=<dir>                Phase 337.1's PSP: e3837139's checkout (its ios/);
  *                                         P316_PARENT_IOS is read when it is unset
  *   P3373_PARENT_IOS=<dir>                Phase 337.3's PP1 to PP3: the directory holding dfa878b5's ios/
@@ -919,7 +1018,8 @@ const PROJECT = join(ROOT, 'ios', 'Tortie.xcodeproj');
 // `deny` is Phase 316.5's (SPEC §7.4 ND): a fourth Simulator, notifications denied.
 // `sessions` is Phase 316.7's (build/p3167/SPEC.md §9.4): SL1 to SL8 on a fresh Simulator of its own, and SL1, SL6 and SL8 on the floor.
 // `setup` is Phase 333.1's (build/p3331/SPEC.md §7.7): SE1 to SE7 on a fresh Simulator, SE8 on the floor, SEP with P3331_PARENT_IOS.
-const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,deny,hostile,end,reply,screen,sessions,setup').split(',').map((s) => s.trim()));
+// `sample` is Phase 333.3's (build/p3333/SPEC.md §7.4): SA1 to SA13, SAX and SD fresh on 26.3, SB on the floor, SC1 to SC3 paired, SP with P3333_PARENT_IOS.
+const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,deny,hostile,end,reply,screen,sessions,setup,sample').split(',').map((s) => s.trim()));
 if (ARMS.has('ats')) {
   // The ATS arm left with TailscaleKit (Phase 330): the phone has no tailnet
   // and no ATS exception, so there is nothing for it to prove.
@@ -929,7 +1029,11 @@ if (ARMS.has('ats')) {
 // Phase 317: the end group's E10 is the floor's too; Phase 318's P9 likewise.
 // Phase 316.7: the sessions group's SL1, SL6 and SL8, and the hostile sessions arms marked `floor`, run on the floor too.
 // Phase 333.1: the setup group's SE8 is the floor's.
-const runtimes = ARMS.has('floor') || ARMS.has('end') || ARMS.has('reply') || ARMS.has('screen') || ARMS.has('sessions') || ARMS.has('hostile') || ARMS.has('setup') ? [RUNTIME_CURRENT, RUNTIME_FLOOR] : [RUNTIME_CURRENT];
+// Phase 333.3: the sample group's SB is the floor's.
+const runtimes =
+  ARMS.has('floor') || ARMS.has('end') || ARMS.has('reply') || ARMS.has('screen') || ARMS.has('sessions') || ARMS.has('hostile') || ARMS.has('setup') || ARMS.has('sample')
+    ? [RUNTIME_CURRENT, RUNTIME_FLOOR]
+    : [RUNTIME_CURRENT];
 
 /** B0, asked once, synchronously, before anything is started or served. */
 function preflight() {
@@ -1010,6 +1114,12 @@ const PARENT_IOS_3371 = (process.env['P3371_PARENT_IOS'] ?? '').trim() || PARENT
 const PARENT_IOS_3331 = (process.env['P3331_PARENT_IOS'] ?? '').trim();
 /** Phase 333.1: where the probe writes `setup-<tag>` once it shut or held the door. */
 const ACKS_SETUP = join(RUN, 'acks-setup');
+/**
+ * Phase 333.3's SP (build/p3333/SPEC.md §7.4): the directory holding
+ * e1e17899's ios/ (`git archive e1e17899 ios | tar -x` into scratch, build 9,
+ * which draws no sample), built and driven by its OWN UI test, or empty.
+ */
+const PARENT_IOS_3333 = (process.env['P3333_PARENT_IOS'] ?? '').trim();
 /**
  * Phase 337.3's parent (PP1 to PP3): the directory holding dfa878b5's ios/
  * (build 7, `git archive dfa878b5 ios | tar -x` into scratch), or empty. It
@@ -1374,9 +1484,41 @@ export function tlsClientRecords(state, chunk) {
   }
 }
 
+/**
+ * A TLS record no shorter than this is a request or a handshake flight, never
+ * an alert: TLS 1.3 sends every alert, `close_notify` among them, as a 19-byte
+ * record (its two bytes, the inner type and the 16-byte tag). Phase 333.3's
+ * probe review: what SC2 counts beside the connections.
+ */
+export const TLS_REQUEST_MIN = 64;
+
+/**
+ * Phase 333.3's probe review (SC2): the records the phone has sent on one
+ * connection, read off their headers alone, and how many of them were at
+ * least `min` bytes long. Since Phase 337 the Terminal keeps its connection
+ * (`DoorLine`), so a request can ride a connection opened BEFORE a mark and
+ * never move the connection count; it cannot hide from this one. Returns the
+ * new state; `state` is `{ buf: Buffer, big: number }`.
+ */
+export function tlsRecordTally(state, chunk, min = TLS_REQUEST_MIN) {
+  let buf = state.buf.length === 0 ? chunk : Buffer.concat([state.buf, chunk]);
+  let big = state.big;
+  for (;;) {
+    if (buf.length < 5) return { buf: Buffer.from(buf), big };
+    const len = buf.readUInt16BE(3);
+    if (buf.length < 5 + len) return { buf: Buffer.from(buf), big };
+    if (len >= min) big += 1;
+    buf = buf.subarray(5 + len);
+  }
+}
+
 async function startRelay() {
   const sockets = new Set();
   let connections = 0;
+  // Phase 333.3's probe review (SC2): the requests every plainly forwarded
+  // connection carried, and how many of those connections are open now.
+  let requests = 0;
+  let plainOpen = 0;
   // Phase 317 (E5, E7): past its allowance a connection is taken and HELD,
   // never dialled onward, so its TLS handshake never completes and the app's
   // write is never handed its bytes; `heldTotal` counts every one so held.
@@ -1514,6 +1656,19 @@ async function startRelay() {
     });
     upstream.on('error', () => client.destroy());
     client.on('close', () => upstream.destroy());
+    // Phase 333.3's probe review (SC2): read beside the pipe, never instead
+    // of it, so nothing forwarded changes. Attached in the same tick as the
+    // pipe, before any byte can arrive.
+    plainOpen += 1;
+    client.on('close', () => {
+      plainOpen -= 1;
+    });
+    let tally = { buf: Buffer.alloc(0), big: 0 };
+    client.on('data', (b) => {
+      const was = tally.big;
+      tally = tlsRecordTally(tally, b);
+      requests += tally.big - was;
+    });
     client.pipe(upstream);
     upstream.pipe(client);
   });
@@ -1560,7 +1715,15 @@ async function startRelay() {
     /** Phase 333.1: the door no longer shut (a pause or a hold is the caller's to end with `resume`). */
     open: () => {
       shut = false;
-    }
+    },
+    /**
+     * Phase 333.3's probe review (SC2): every record of at least
+     * TLS_REQUEST_MIN bytes the phone sent on a plainly forwarded connection,
+     * a request on a kept connection among them.
+     */
+    records: () => requests,
+    /** Phase 333.3's probe review (SC2): plainly forwarded connections open now. */
+    live: () => plainOpen
   };
 }
 
@@ -7426,6 +7589,27 @@ function screenSelfTest() {
 }
 
 /** Every reply grader, proved both ways on readings written here. */
+/**
+ * Run one self-test's cases, printing each, and count the ones that did not
+ * read as wanted. The reply, setup and sample self-tests share it (Phase
+ * 333.3's integrator: one runner rather than a third copy of the same loop).
+ */
+function runSelfTestCases(cases) {
+  let bad = 0;
+  for (const c of cases) {
+    let got;
+    try {
+      got = c.got();
+    } catch (err) {
+      got = `threw ${String(err?.message ?? err)}`;
+    }
+    const ok = got === c.want;
+    if (!ok) bad += 1;
+    console.log(`${ok ? 'ok  ' : 'FAIL'} ${c.what}${ok ? '' : ` (graded ${J(got)}, wanted ${J(c.want)})`}`);
+  }
+  return { total: cases.length, bad };
+}
+
 function replySelfTest() {
   const cases = [];
   const add = (what, grader, input, want) => cases.push({ what, got: () => grader(input).ok, want });
@@ -7560,19 +7744,7 @@ function replySelfTest() {
   // The pure helpers.
   add('pasteFrame writes LF as CR between the paste marks and ends with a carriage return', () => verdict(pasteFrame('a\nb') === Buffer.from('\u001b[200~a\rb\u001b[201~\r', 'latin1').toString('hex'), ''), null, true);
   add('b64uText carries a comma the step list would split on', () => verdict(!b64uText('a, b').includes(',') && Buffer.from(b64uText('a, b'), 'base64url').toString('utf8') === 'a, b', ''), null, true);
-  let bad = 0;
-  for (const c of cases) {
-    let got;
-    try {
-      got = c.got();
-    } catch (err) {
-      got = `threw ${String(err?.message ?? err)}`;
-    }
-    const ok = got === c.want;
-    if (!ok) bad += 1;
-    console.log(`${ok ? 'ok  ' : 'FAIL'} ${c.what}${ok ? '' : ` (graded ${J(got)}, wanted ${J(c.want)})`}`);
-  }
-  return { total: cases.length, bad };
+  return runSelfTestCases(cases);
 }
 
 // ---------------------------------------------------------------------------
@@ -7601,7 +7773,9 @@ const SETUP_WORD_NAMES = Object.freeze([
   'macDidNotAnswer',
   'pairNewerMac',
   'pairOlderMac',
-  'pairNotACode'
+  'pairNotACode',
+  // Phase 333.3: See a sample, the ONE word on the resting face holding "sample" (SE1).
+  'seeSample'
 ]);
 
 /**
@@ -7621,7 +7795,14 @@ const SETUP_WORDS = setupWordsOf(COPY_SWIFT);
 const SETUP_PRESS_MIN = 44;
 /** XCUITest reports a frame in fractions of a point; a third of one is its rounding, never a shorter press. */
 const SETUP_FRAME_SLACK = 0.34;
-/** No surface of build 8 draws See a sample (his answer, research 140: 333.3 adds it in build 9). */
+/**
+ * The word only See a sample may say on the resting face. Build 8 drew none
+ * (his answer, research 140); since Phase 333.3 (build/p3333/SPEC.md §3 row
+ * 12, §7.4 SE1) exactly ONE label holds it, `pairing-see-sample`'s, so SE1 is
+ * red on any OTHER label holding it. What is counted is the distinct words
+ * holding it, because a button's words may reach XCUITest twice (the button
+ * and the text inside it), and every identified element that says it.
+ */
 const SETUP_NEVER = /sample/i;
 
 const setupLabel = (dump, id) => el(dump, id)?.label ?? null;
@@ -7631,11 +7812,15 @@ const setupHolds = (label, word) => typeof label === 'string' && typeof word ===
 /** The words a grader needs that Copy.swift does not hold, as UNREADABLE reasons. */
 const setupWordsMissing = (words, names) => names.filter((n) => typeof words?.[n] !== 'string').map((n) => `Copy.swift holds no ${n}, so it cannot be read`);
 
-/** SE1: the resting face, launched with no code: the title, the three steps in their places, Scan code, the foot, and no "sample". */
+/**
+ * SE1: the resting face, launched with no code: the title, the three steps in
+ * their places, Scan code, the foot, and since Phase 333.3 exactly one
+ * "sample": See a sample's, directly under Scan code.
+ */
 function gradeSe1(r) {
   const d = r.dump;
   if (d === null || d === undefined) return verdict(null, 'the UI test printed no "setup-read" dump');
-  const missingWords = setupWordsMissing(r.words, ['pairTitle', 'setupGetMac', 'setupOpenPhone', 'setupScan', 'scanCode', 'pairNothingElse', 'notPaired', 'privacy', 'support']);
+  const missingWords = setupWordsMissing(r.words, ['pairTitle', 'setupGetMac', 'setupOpenPhone', 'setupScan', 'scanCode', 'pairNothingElse', 'notPaired', 'privacy', 'support', 'seeSample']);
   if (missingWords.length > 0) return verdict(null, missingWords.join('; '));
   if (el(d, 'screen-pairing') === null) return verdict(false, 'the app did not open on Pairing with no code');
   const w = r.words;
@@ -7657,13 +7842,24 @@ function gradeSe1(r) {
   if (order.some((y) => !Number.isFinite(y)) || !order.every((y, i) => i === 0 || y > order[i - 1])) p.push(`the three steps and Scan code are not drawn top to bottom (${J(order)})`);
   if (setupLabel(d, 'pairing-nothing-else') !== w.pairNothingElse) p.push(`pairing-nothing-else reads ${J(setupLabel(d, 'pairing-nothing-else'))}, not ${J(w.pairNothingElse)}`);
   if (setupLabel(d, 'pairing-line') !== w.notPaired) p.push(`pairing-line reads ${J(setupLabel(d, 'pairing-line'))}, not ${J(w.notPaired)}`);
+  // Phase 333.3: See a sample, in its words, directly under Scan code.
+  const see = el(d, 'pairing-see-sample');
+  if (see === null) p.push('pairing-see-sample is not drawn');
+  else {
+    if (see.label !== w.seeSample) p.push(`pairing-see-sample reads ${J(see.label)}, not ${J(w.seeSample)}`);
+    const under = sampleUnder(d, 'pairing-scan-code', 'pairing-see-sample');
+    if (under !== null) p.push(under);
+  }
   const labels = r.inventory?.labels;
   if (!Array.isArray(labels)) u.push('the UI test printed no setup-inventory line, so "sample" was not looked for in every label');
   else {
-    const sample = [...labels, ...(d.elements ?? []).map((e) => e.label)].filter((l) => typeof l === 'string' && SETUP_NEVER.test(l));
-    if (sample.length > 0) p.push(`a label holds "sample": ${J(sample.slice(0, 3))}`);
+    const holding = [...new Set([...labels, ...(d.elements ?? []).map((e) => e.label)].filter((l) => typeof l === 'string' && SETUP_NEVER.test(l)))];
+    const others = holding.filter((l) => l !== w.seeSample);
+    if (others.length > 0) p.push(`a label other than See a sample's holds "sample": ${J(others.slice(0, 3))}`);
+    const elsewhere = (d.elements ?? []).filter((e) => e.id !== 'pairing-see-sample' && typeof e.label === 'string' && SETUP_NEVER.test(e.label)).map((e) => e.id);
+    if (elsewhere.length > 0) p.push(`an element other than pairing-see-sample says "sample": ${J(elsewhere.slice(0, 3))}`);
   }
-  return decide(p, u, `Pairing at rest: the title, the three steps top to bottom, Scan code, ${J(w.pairNothingElse)}, the not-paired line, Privacy and Support, and no "sample" in ${String(labels?.length ?? 0)} label(s)`);
+  return decide(p, u, `Pairing at rest: the title, the three steps top to bottom, Scan code, See a sample directly under it, ${J(w.pairNothingElse)}, the not-paired line, Privacy and Support, and no other "sample" in ${String(labels?.length ?? 0)} label(s)`);
 }
 
 /** SE2: no camera before Scan code; the camera's square and the line under it after. */
@@ -7868,7 +8064,9 @@ function setupSelfTest() {
       E('pairing-nothing-else', words.pairNothingElse, 700),
       E('pairing-line', words.notPaired, 732),
       E('pairing-privacy', words.privacy, 770, 44, 16, 60),
-      E('pairing-support', words.support, 770, 44, 90, 70)
+      E('pairing-support', words.support, 770, 44, 90, 70),
+      // Phase 333.3: See a sample, 8 points under Scan code (index 10, after every index the cases below edit).
+      E('pairing-see-sample', words.seeSample, 351, 44)
     ]
   };
   const restInventory = {
@@ -7891,7 +8089,14 @@ function setupSelfTest() {
   add('SE1 is red on the old nothing-to-install line', gradeSe1, edit(se1, (r) => void (r.dump.elements[6].label = 'There is nothing else to install.')), false);
   add('SE1 is red on a pairing line that is not the not-paired line', gradeSe1, edit(se1, (r) => void (r.dump.elements[7].label = 'That is not a Tortie pairing code.')), false);
   add('SE1 is red with no Privacy', gradeSe1, edit(se1, (r) => void r.dump.elements.splice(8, 1)), false);
-  add('SE1 is red on "sample" in a label no identifier names', gradeSe1, edit(se1, (r) => void r.inventory.labels.push('See a sample')), false);
+  add('SE1 is red on another label holding "sample" that no identifier names', gradeSe1, edit(se1, (r) => void r.inventory.labels.push('Try a sample')), false);
+  add('SE1 passes See a sample\'s words read twice (the button and the text inside it)', gradeSe1, edit(se1, (r) => void r.inventory.labels.push(r.words.seeSample)), true);
+  add('SE1 is red with no See a sample', gradeSe1, edit(se1, (r) => void ((r.dump.elements = r.dump.elements.filter((e) => e.id !== 'pairing-see-sample')), (r.inventory.labels = r.inventory.labels.filter((l) => l !== r.words.seeSample)))), false);
+  add('SE1 is red on See a sample in other words', gradeSe1, edit(se1, (r) => void (r.dump.elements[10].label = 'See a demo')), false);
+  add('SE1 is red on See a sample above Scan code', gradeSe1, edit(se1, (r) => void (r.dump.elements[10].frame[1] = 250)), false);
+  add('SE1 is red on an element drawn between Scan code and See a sample', gradeSe1, edit(se1, (r) => void r.dump.elements.push(E('pairing-other', 'x', 344, 5))), false);
+  add('SE1 is red on a second element saying See a sample', gradeSe1, edit(se1, (r) => void r.dump.elements.push(E('pairing-again-sample', r.words.seeSample, 600))), false);
+  add('SE1 with no seeSample word is UNREADABLE', gradeSe1, edit(se1, (r) => void (r.words.seeSample = null)), null);
   add('SE1 is red on "Sample" in a drawn element', gradeSe1, edit(se1, (r) => void (r.dump.elements[6].label = 'Sample session')), false);
   add('SE1 is red on "Samples" anywhere in a label', gradeSe1, edit(se1, (r) => void r.inventory.labels.push('Try the Samples')), false);
   add('SE1 with no inventory line is UNREADABLE', gradeSe1, edit(se1, (r) => void (r.inventory = null)), null);
@@ -7995,19 +8200,2258 @@ function setupSelfTest() {
     return verdict(w.privacy === 'Pri"vacy' && w.support === null, '');
   }, null, true);
 
-  let bad = 0;
-  for (const c of cases) {
-    let got;
-    try {
-      got = c.got();
-    } catch (err) {
-      got = `threw ${String(err?.message ?? err)}`;
-    }
-    const ok = got === c.want;
-    if (!ok) bad += 1;
-    console.log(`${ok ? 'ok  ' : 'FAIL'} ${c.what}${ok ? '' : ` (graded ${J(got)}, wanted ${J(c.want)})`}`);
+  return runSelfTestCases(cases);
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 333.3, SEE A SAMPLE (build/p3333/SPEC.md §7.4 to §7.6): the `sample`
+// group, SA1 to SA13, SAX, SB, SC1 to SC3, SD and SP. Every grader is pure
+// over what a drive printed, the relay's counts and the committed book,
+// ios/Tortie/Sample/sample.json (§5.1.3: the shipping composer's answers over
+// a made-up world), which is read only when the group runs. Every expected
+// word is the book's or Copy.swift's, and none is spelled here: the ids, the
+// names, the rows, the options and the sentences are the book's, and the
+// phone's own words are Copy.swift's. --grader-self-test proves each clause
+// red on its own break over a small book of its own making.
+// ---------------------------------------------------------------------------
+
+/** The committed book See a sample draws (§5.1.3). Read when the group runs, never at load. */
+const SAMPLE_BOOK_PATH = join(ROOT, 'ios', 'Tortie', 'Sample', 'sample.json');
+/** The phone's words this group reads, by name: See a sample's five, End's, and the pieces End these composes from. */
+const SAMPLE_WORD_NAMES = Object.freeze([
+  'seeSample',
+  'sample',
+  'leaveSample',
+  'sampleNothingRan',
+  'sampleEndUnasked',
+  'endNeedsPasscode',
+  'ended',
+  'batchEndLead',
+  'space',
+  'sessionSingular',
+  'sessionPlural',
+  'doneMid',
+  'doneTail'
+]);
+/** Those words, SPELLED from one Copy.swift's text; a word the file does not hold is null. */
+function sampleWordsOf(text) {
+  const of = (name) => {
+    const m = new RegExp(`static let ${name}\\s*=\\s*"((?:[^"\\\\]|\\\\.)*)"`).exec(String(text));
+    return m === null ? null : m[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+  };
+  return Object.fromEntries(SAMPLE_WORD_NAMES.map((n) => [n, of(n)]));
+}
+const SAMPLE_WORDS = sampleWordsOf(COPY_SWIFT);
+/** The words a grader needs that Copy.swift does not hold, as UNREADABLE reasons. */
+const sampleWordsMissing = (words, names) => names.filter((n) => typeof words?.[n] !== 'string').map((n) => `Copy.swift holds no ${n}, so it cannot be read`);
+/** End these' press and its done heading, put together from Copy.swift's pieces as `Copy.batchConfirmLabel` and `batchDoneHeading` put them. */
+const sampleBatchWords = (w, ended, count) => {
+  const word = count === 1 ? w.sessionSingular : w.sessionPlural;
+  return { confirm: `${w.batchEndLead}${String(count)}${w.space}${word}`, done: `${String(ended)}${w.doneMid}${String(count)}${w.space}${word}${w.doneTail}` };
+};
+/** A third of a point: XCUITest's rounding of a frame, never a real gap. */
+const SAMPLE_SLACK = 0.34;
+/** The Sample bar's own three identifiers. */
+const SAMPLE_BAR_PARTS = new Set(['sample-bar', 'sample-label', 'sample-leave']);
+/** The pages SA3 holds the bar on, each read by `sample-inventory:<tag>` inside the sample. */
+const SAMPLE_PAGES = Object.freeze(['needs', 'sessions', 'settings', 'terminal', 'terminal-sideways', 'catch-up']);
+/** A project header's parts, never the header (the drive's `isGroupPart`). */
+const SAMPLE_GROUP_PART = /^group-(?:label|count|machine|folder|waiting|left-out)-/;
+
+// ---- the book --------------------------------------------------------------
+
+/** Why a parsed book is not §5.1.3's shape, or null. */
+export function sampleBookShapeProblem(book) {
+  if (book === null || typeof book !== 'object' || Array.isArray(book)) return 'sample.json holds no object';
+  if (book.format !== 1) return `sample.json's format is ${J(book.format)}, not 1`;
+  if (!Array.isArray(book.ids) || book.ids.length === 0 || !book.ids.every((id) => typeof id === 'string' && id !== '')) return 'sample.json names no sessions';
+  if (!Array.isArray(book.variants) || book.variants.length !== book.ids.length || book.variants.some((v) => !Array.isArray(v) || v.length === 0)) return 'sample.json\'s variants are not one list per session';
+  for (const k of ['constants', 'pieces', 'lists', 'session', 'turns', 'screen', 'history']) {
+    if (book[k] === null || typeof book[k] !== 'object' || Array.isArray(book[k])) return `sample.json has no ${k}`;
   }
-  return { total: cases.length, bad };
+  for (const k of ['blockedRows', 'sessionsRows', 'groups', 'choices']) if (!Array.isArray(book.pieces[k])) return `sample.json's pieces have no ${k}`;
+  if (book.lists[sampleStart(book)] === undefined) return 'sample.json has no lists for its start state';
+  return null;
+}
+
+/** The book from its text: `{ book }`, or `{ why }` when it cannot be read as §5.1.3's shape. */
+export function readSampleBook(text) {
+  let book;
+  try {
+    book = JSON.parse(String(text));
+  } catch (err) {
+    return { why: `sample.json is not JSON: ${String(err?.message ?? err).slice(0, 120)}` };
+  }
+  const why = sampleBookShapeProblem(book);
+  return why === null ? { book } : { why };
+}
+
+/** The state a fresh sample opens in: each session's first variant, in `ids` order. */
+export const sampleStart = (book) => book.variants.map((v) => v[0]).join('.');
+/** The state after the variants `at` names (id to variant); every other session at its first. */
+export const sampleState = (book, at = {}) => book.ids.map((id, i) => at[id] ?? book.variants[i][0]).join('.');
+/** A row of runs joined, every cell kept. */
+const sampleRunsJoin = (runs) => (Array.isArray(runs) ? runs.map((r) => String(r?.text ?? '')).join('') : '');
+/** A row as the phone labels it: its text with the trailing blanks dropped (ScreenRowModel.label). */
+export const sampleRowLabel = (text) => String(text).replace(/ +$/, '');
+/** `<show>.<group>.<sort>.<agent or *>`, the book's key for one Sessions question. */
+export const sampleQueryKey = (q) => `${q.show}.${q.group}.${q.sort}.${q.agent ?? '*'}`;
+
+/** Needs input's answer in `state`, assembled from the pieces, or null. */
+export function sampleBlocked(book, state) {
+  const s = book?.lists?.[state]?.blocked;
+  if (s === undefined || s === null) return null;
+  const P = book.pieces.blockedRows;
+  return { rows: (s.rows ?? []).map((i) => P[i]), others: (s.others ?? []).map((i) => P[i]), othersOmitted: s.othersOmitted ?? 0 };
+}
+
+/** `/v1/sessions`' answer to `q` in `state`, assembled from the pieces as the phone assembles it, or null. */
+export function sampleSessions(book, state, q) {
+  const s = book?.lists?.[state]?.sessions?.[sampleQueryKey(q)];
+  if (s === undefined || s === null) return null;
+  const P = book.pieces;
+  return {
+    asked: { show: q.show, group: q.group, sort: q.sort, agent: q.agent ?? null, machine: null },
+    rows: (s.rows ?? []).map((i) => P.sessionsRows[i]),
+    groups: (s.groups ?? []).map((i) => P.groups[i]),
+    agents: (s.agents ?? []).map((i) => P.choices[i]),
+    machines: (s.machines ?? []).map((i) => P.choices[i]),
+    total: s.total,
+    omitted: s.omitted,
+    at: 0,
+    ageNote: book.constants?.sessionsAgeNote ?? null
+  };
+}
+
+/** One session's detail (`/v1/session`'s `session`) at a variant, or null. */
+export function sampleSession(book, id, variant) {
+  const a = book?.session?.[id]?.[variant];
+  if (a === undefined || a === null) return null;
+  return a.session ?? a;
+}
+
+/** One session's turns at a variant, or null. */
+export function sampleTurns(book, id, variant) {
+  const a = book?.turns?.[id]?.[variant];
+  return Array.isArray(a?.turns) ? a.turns : null;
+}
+
+/** One session's screen at a variant: each row's label, each row whole, the width, the echo's two rows and the absence, or null. */
+export function sampleScreen(book, id, variant) {
+  const s = book?.screen?.[id]?.[variant];
+  if (s === undefined || s === null) return null;
+  const answer = s.answer ?? null;
+  const lines = answer?.screen?.lines;
+  return {
+    rows: Array.isArray(lines) ? lines.map((runs) => sampleRowLabel(sampleRunsJoin(runs))) : null,
+    raw: Array.isArray(lines) ? lines.map(sampleRunsJoin) : null,
+    cols: answer?.screen?.cols ?? null,
+    prompt: s.prompt ?? null,
+    note: s.note ?? null,
+    why: answer?.why ?? null,
+    sentence: answer?.sentence ?? null
+  };
+}
+
+/** One session's page of history, each row's label by its index from the oldest, or null. */
+export function sampleHistory(book, id) {
+  const h = book?.history?.[id];
+  return Array.isArray(h?.rows) ? h.rows.map((runs) => sampleRowLabel(sampleRunsJoin(runs))) : null;
+}
+
+/** The ids the book's start state holds by kind, by the book's own variants and agents: who waits, who runs, who ended. */
+export function sampleCast(book) {
+  const start = (id) => book.variants[book.ids.indexOf(id)][0];
+  const agentOf = (id) => sampleSession(book, id, start(id))?.agent ?? null;
+  const pick = (variant, agent) => book.ids.find((id) => start(id) === variant && agentOf(id) === agent) ?? null;
+  return {
+    waitingClaude: pick('waiting', 'claude'),
+    waitingCodex: pick('waiting', 'codex'),
+    liveClaude: pick('live', 'claude'),
+    liveCodex: pick('live', 'codex'),
+    ended: book.ids.find((id) => start(id) === 'ended') ?? null
+  };
+}
+
+// ---- what the drive printed ---------------------------------------------------
+
+/**
+ * Each time the sample was open in one drive: from a `sample-open` to the
+ * next `sample-left` (or the drive's end), the `sample-leaving` mark, and the
+ * events in between (nothing after the leaving mark is the sample's).
+ */
+export function sampleWindows(events) {
+  const out = [];
+  let cur = null;
+  for (const e of events ?? []) {
+    if (e?.step === 'sample-open') {
+      cur = { open: e, leaving: null, left: null, events: [] };
+      out.push(cur);
+      continue;
+    }
+    if (cur === null) continue;
+    if (e?.step === 'sample-left') {
+      cur.left = e;
+      cur = null;
+      continue;
+    }
+    if (e?.step === 'sample-leaving') cur.leaving = e;
+    else if (cur.leaving === null) cur.events.push(e);
+  }
+  return out;
+}
+/** The last `sample-inventory` for `tag` among `events`, or null. */
+const sampleInventoryOf = (events, tag) => (events ?? []).filter((e) => e?.step === 'sample-inventory' && e.for === tag).at(-1) ?? null;
+/** The first event after `from` in `list` that `pred` holds, before any event `stop` holds; null when there is none or `from` is not in `list`. */
+const sampleNext = (list, from, pred, stop = () => false) => {
+  const at = from === null || from === undefined ? -1 : list.indexOf(from);
+  if (at === -1) return null;
+  for (const e of list.slice(at + 1)) {
+    if (stop(e)) return null;
+    if (pred(e)) return e;
+  }
+  return null;
+};
+/** A frame as a rectangle, or null. */
+const sampleRect = (e) =>
+  Array.isArray(e?.frame) && e.frame.length === 4 && e.frame.every((n) => typeof n === 'number' && Number.isFinite(n)) ? { x: e.frame[0], y: e.frame[1], w: e.frame[2], h: e.frame[3] } : null;
+const sampleInside = (a, b) => a.x >= b.x - SAMPLE_SLACK && a.y >= b.y - SAMPLE_SLACK && a.x + a.w <= b.x + b.w + SAMPLE_SLACK && a.y + a.h <= b.y + b.h + SAMPLE_SLACK;
+/** Needs input's rows as drawn, top to bottom. */
+export function sampleNeedsRows(dump) {
+  const rows = (dump?.elements ?? []).filter((e) => typeof e.id === 'string' && /^needs-row-/.test(e.id) && !/^needs-row-(?:dot|name|machine|age|line)-/.test(e.id));
+  return { ids: rows.sort((a, b) => (sampleRect(a)?.y ?? 0) - (sampleRect(b)?.y ?? 0)).map((e) => e.id.slice('needs-row-'.length)) };
+}
+
+/**
+ * Null when `lowerId` is drawn under `upperId` with no identified element
+ * wholly in the gap between them; else the problem.
+ */
+export function sampleUnder(dump, upperId, lowerId) {
+  const up = sampleRect(el(dump, upperId));
+  const low = sampleRect(el(dump, lowerId));
+  if (up === null || low === null) return `${up === null ? upperId : lowerId} is not drawn`;
+  const upBottom = up.y + up.h;
+  if (!(low.y + SAMPLE_SLACK >= upBottom)) return `${lowerId} (top ${String(low.y)}) is not under ${upperId} (bottom ${String(upBottom)})`;
+  const between = (dump.elements ?? []).filter((e) => {
+    if (e.id === upperId || e.id === lowerId) return false;
+    const r = sampleRect(e);
+    return r !== null && r.h > 0 && r.y >= upBottom - SAMPLE_SLACK && r.y + r.h <= low.y + SAMPLE_SLACK;
+  });
+  return between.length > 0 ? `${J(between.map((e) => e.id))} drawn between ${upperId} and ${lowerId}` : null;
+}
+
+/**
+ * The Terminal's content, drawn inside `screen-grid`, a UIKit scroll view
+ * that clips it: its live and history rows, its cursor and its selection.
+ * XCUITest reports a row scrolled out of the grid at its unclipped frame
+ * (`visibleHistory` above reads only the rows inside the grid for that
+ * reason), so a row above the grid's top is not drawn over anything.
+ */
+const SAMPLE_GRID_CONTENT = /^screen-(?:row|history)-\d+$|^screen-(?:cursor|selection)$/;
+/**
+ * iOS's own elements a page can hold after a menu has closed (the ⋯ menu's
+ * dimming view, reported over the top of Catch Me Up at [-120, -8, 642, 228]
+ * once its menu has gone, with no identifier the app sets). Excused ONLY on a
+ * page where iOS hit the bar's Leave sample at its centre (`barHittable`), so
+ * one that really covers the bar still reads as over it (the fix round).
+ */
+const SAMPLE_SYSTEM_LEFTOVERS = new Set(['AdditionalDimmingOverlay']);
+/** The part of `a` inside `b`, or null when none is. */
+const sampleClip = (a, b) => {
+  const x = Math.max(a.x, b.x);
+  const y = Math.max(a.y, b.y);
+  const right = Math.min(a.x + a.w, b.x + b.w);
+  const bottom = Math.min(a.y + a.h, b.y + b.h);
+  return right > x && bottom > y ? { x, y, w: right - x, h: bottom - y } : null;
+};
+
+/**
+ * The Sample bar on one page (a dump or an inventory): its label is Sample,
+ * and every other element on the window that is neither one of the bar's own
+ * words nor what holds the bar starts at or below the bar's bottom, so it is
+ * above everything and overlaps nothing. What holds the bar is an element with
+ * NO identifier that contains it (the app, the window): an identified page
+ * whose frame runs under the bar overlaps it. The bar's own words are its
+ * three identifiers and, with NO identifier, a text inside it saying Sample or
+ * Leave sample (a button's text reaches XCUITest beside the button); anything
+ * else inside the bar's frame is over it (the probe review: an identified
+ * element wholly inside the bar was excused). The Terminal's rows are judged
+ * by the part the grid shows (`SAMPLE_GRID_CONTENT`), and the grid itself as
+ * any element (the probe review: a row scrolled above the grid sideways, or a
+ * page of history above it upright, read as over the bar). Since the fix
+ * round, every element the drive read inside a scroll container is judged by
+ * its `clip`, the part its containers show (Catch Me Up's turns scrolled above
+ * it read as over the bar, both verifiers), the containers themselves as any
+ * element; and where the drive read whether iOS can hit the bar's words, a
+ * Leave sample it cannot hit is over-drawn whatever the frames say.
+ */
+export function sampleBarProblems(page, words, tag) {
+  const els = page?.elements ?? [];
+  const label = els.find((e) => e.id === 'sample-label') ?? null;
+  if (label === null) return [`${tag}: no sample-label is drawn`];
+  const p = [];
+  if (label.label !== words.sample) p.push(`${tag}: sample-label reads ${J(label.label)}, not ${J(words.sample)}`);
+  const bar = sampleRect(els.find((e) => e.id === 'sample-bar') ?? label);
+  if (bar === null) return [...p, `${tag}: the Sample bar has no frame`];
+  const win = Array.isArray(page.window) && page.window.length === 2 ? { w: page.window[0], h: page.window[1] } : null;
+  const grid = sampleRect(els.find((e) => e.id === 'screen-grid') ?? null);
+  const barWords = new Set(['', words.sample, words.leaveSample]);
+  const hit = page?.barHittable ?? null;
+  if (hit !== null && hit.leave !== true) p.push(`${tag}: iOS cannot hit Leave sample at its centre, so something is drawn over the bar`);
+  const above = [];
+  for (const e of els) {
+    if (SAMPLE_BAR_PARTS.has(e.id)) continue;
+    if (SAMPLE_SYSTEM_LEFTOVERS.has(e.id) && hit?.leave === true) continue;
+    let r = sampleRect(e);
+    if (r === null || r.w <= 0 || r.h <= 0) continue;
+    const clip = sampleRect({ frame: e.clip });
+    if (clip !== null) {
+      r = sampleClip(r, clip);
+      if (r === null) continue;
+    } else if (grid !== null && typeof e.id === 'string' && SAMPLE_GRID_CONTENT.test(e.id)) {
+      r = sampleClip(r, grid);
+      if (r === null) continue;
+    }
+    if (win !== null && (r.y + r.h <= 0 || r.x + r.w <= 0 || r.y >= win.h || r.x >= win.w)) continue;
+    const unnamed = e.id === '' || e.id === undefined;
+    if (unnamed && barWords.has(String(e.label ?? '')) && sampleInside(r, bar)) continue;
+    if (unnamed && sampleInside(bar, r)) continue;
+    if (r.y < bar.y + bar.h - SAMPLE_SLACK) above.push(e.id !== '' && e.id !== undefined ? e.id : `"${String(e.label)}"`);
+  }
+  if (above.length > 0) p.push(`${tag}: ${J(above.slice(0, 4))} reach above the Sample bar's bottom (${String(bar.y + bar.h)})`);
+  return p;
+}
+
+/** What SA6 types on the sample's prompt: printable ASCII, so each character is one cell. */
+const SAMPLE_TYPED = 'ls -la';
+
+/**
+ * Every grader's input from ONE drive that never paired: its events, the
+ * relay's marks and counts, and the door's state around it. Each reading is
+ * taken inside the sample's FIRST window, searched forward from the step that
+ * made it and never past the next Terminal opened (so a reading missing for
+ * one session is never another session's); SD's is the SECOND window (the
+ * sample opened again with Face ID unenrolled); SA1's and SA13's are
+ * Pairing's. Pure, so the self-test holds the plumbing as it holds the graders.
+ */
+export function sampleFreshReadings(got, book, cast, words = SAMPLE_WORDS) {
+  const events = got?.run?.events ?? [];
+  const wins = sampleWindows(events);
+  const first = wins[0] ?? { open: null, leaving: null, left: null, events: [] };
+  const inWin = first.events;
+  const isOpen = (e) => e?.step === 'terminal-open';
+  const openOf = (id) => inWin.find((e) => isOpen(e) && e.id === id) ?? null;
+  const nextIn = (from, pred) => sampleNext(inWin, from, pred, isOpen);
+  const screenNamed = (name) => (e) => e?.step === 'screen' && e.name === name;
+  const step = (name, forName) => (e) => e?.step === name && (forName === undefined || e.for === forName);
+  const marks = got?.marks ?? {};
+  const matchedFor = (authUp) => (authUp === null ? null : (marks.auth ?? []).find((a) => a.seq === authUp.seq)?.code ?? null);
+  const pressOf = (id, command) => {
+    const open = openOf(id);
+    const pressed = nextIn(open, step('reply-pressed'));
+    return { id, book, command, open, offer: nextIn(open, step('reply-offer')), pressed, after: nextIn(pressed, screenNamed('reply-press')), needs: nextIn(pressed, screenNamed('tab-needs')) };
+  };
+  const typing = openOf(cast.liveCodex);
+  const authBetween = [];
+  if (typing !== null) {
+    for (const e of inWin.slice(inWin.indexOf(typing) + 1)) {
+      if (isOpen(e)) break;
+      if (e?.step === 'end-auth-up') authBetween.push(e);
+    }
+  }
+  const working = openOf(cast.liveClaude);
+  const endBar = inWin.find(step('end-bar', 'end')) ?? null;
+  const endWithin = (pred) => sampleNext(inWin, endBar, pred, isOpen);
+  const endAuth = endWithin(step('end-auth-up', 'end'));
+  const theseAuth = inWin.find(step('end-auth-up', 'end-these')) ?? null;
+  const sdIn = wins[1]?.events ?? [];
+  const sdAuth = sdIn.find(step('end-auth-up', 'end')) ?? null;
+  const openAt = first.open === null ? events.length : events.indexOf(first.open);
+  return {
+    sa1: { inventory: events.filter(step('setup-inventory', 'setup-read')).at(-1) ?? null, rest: lastDump(events, 'setup-read'), scan: lastDump(events, 'setup-scan'), words },
+    sa2: { open: inWin.find(screenNamed('sample-open')) ?? null, needs: inWin.find(screenNamed('tab-needs')) ?? null, page: sampleInventoryOf(inWin, 'needs'), book, words },
+    sa3: { windows: first.open === null ? [] : [first], pages: Object.fromEntries(SAMPLE_PAGES.map((t) => [t, sampleInventoryOf(inWin, t)])), words },
+    sa4: pressOf(cast.waitingClaude, false),
+    sa5: pressOf(cast.waitingCodex, true),
+    sa6: {
+      id: cast.liveCodex,
+      book,
+      words,
+      text: SAMPLE_TYPED,
+      letter: 'c',
+      typed: nextIn(typing, step('screen-type')),
+      ctrl: nextIn(typing, step('screen-ctrl')),
+      ret: nextIn(typing, (e) => e?.step === 'screen-key' && e.key === 'return'),
+      authUps: authBetween
+    },
+    sa7: { id: cast.liveClaude, book, scroll: nextIn(working, step('scroll-up')) },
+    sa8: { id: cast.liveClaude, book, turns: nextIn(working, step('turns')) },
+    sa9: {
+      id: cast.liveClaude,
+      book,
+      bar: endBar,
+      dialog: endWithin(step('end-dialog', 'end')),
+      authUp: endAuth,
+      acked: endWithin(step('end-auth-answered', 'end'))?.acked === true,
+      matched: matchedFor(endAuth),
+      after: endWithin(screenNamed('end'))
+    },
+    sa11: {
+      select: inWin.find(step('select')) ?? null,
+      dialog: inWin.find(step('end-dialog', 'end-these')) ?? null,
+      authUp: theseAuth,
+      acked: inWin.find(step('end-auth-answered', 'end-these'))?.acked === true,
+      matched: matchedFor(theseAuth),
+      these: inWin.find(step('end-these', 'end-these')) ?? null
+    },
+    walk: (tag) => inWin.find((e) => e?.step === 'sessions-dump' && e.tag === tag) ?? null,
+    sa12: { dump: inWin.find(screenNamed('tab-settings')) ?? null },
+    sa13: { before: events.slice(0, openAt).filter(screenNamed('sample-before')).at(-1) ?? null, left: first.left, leftDump: sampleNext(events, first.left, screenNamed('sample-left')) },
+    sax: { counts: got?.counts ?? null, listening: got?.listening ?? null, windows: wins.length, complete: first.left !== null && first.left !== undefined },
+    sd: {
+      id: cast.liveClaude,
+      book,
+      words,
+      unenrol: marks.unenrol ?? null,
+      bar: sdIn.find(step('end-bar', 'end-off')) ?? sdIn.find(step('end-bar', 'end')) ?? null,
+      authUp: sdAuth,
+      permissions: sdIn.filter(step('faceid-permission', 'end')),
+      after: sampleNext(sdIn, sdAuth, screenNamed('end'))
+    }
+  };
+}
+
+// ---- the graders ---------------------------------------------------------------
+
+/** SA1: See a sample on Pairing: its words, a button at least 44 points tall, directly under Scan code at rest and under the camera's line after it. */
+export function gradeSa1(r) {
+  const missingWords = sampleWordsMissing(r.words, ['seeSample']);
+  if (missingWords.length > 0) return verdict(null, missingWords.join('; '));
+  if (r.rest === null || r.rest === undefined) return verdict(null, 'the UI test printed no "setup-read" dump');
+  if (r.inventory === null || r.inventory === undefined) return verdict(null, 'the UI test printed no setup-inventory line for the resting face');
+  const p = [];
+  const u = [];
+  const item = (r.inventory.elements ?? []).find((e) => e.id === 'pairing-see-sample');
+  let h = Number.NaN;
+  if (item === undefined) p.push('See a sample is not drawn on the resting face');
+  else {
+    if (item.label !== r.words.seeSample) p.push(`pairing-see-sample reads ${J(item.label)}, not ${J(r.words.seeSample)}`);
+    if (item.button !== true) p.push('pairing-see-sample is not a button');
+    h = sampleRect(item)?.h ?? Number.NaN;
+    if (!(h + SAMPLE_SLACK >= SETUP_PRESS_MIN)) p.push(`pairing-see-sample is ${String(h)} pt tall, under ${String(SETUP_PRESS_MIN)}`);
+  }
+  const rest = sampleUnder(r.rest, 'pairing-scan-code', 'pairing-see-sample');
+  if (rest !== null) p.push(`at rest: ${rest}`);
+  if (r.scan === null || r.scan === undefined) u.push('the UI test printed no "setup-scan" dump, so See a sample was not read after Scan code');
+  else {
+    const scan = sampleUnder(r.scan, 'pairing-point', 'pairing-see-sample');
+    if (scan !== null) p.push(`after Scan code: ${scan}`);
+  }
+  return decide(p, u, `See a sample reads ${J(r.words.seeSample)}, a button ${String(Math.round(h * 100) / 100)} pt tall, directly under Scan code at rest and under the camera's line after it`);
+}
+
+/** SA2: the sample opens under its bar (Sample, Leave sample as a 44-point button, above everything), and Needs input lists the book's start state's waiting sessions, in its order. */
+export function gradeSa2(r) {
+  const missingWords = sampleWordsMissing(r.words, ['sample', 'leaveSample']);
+  if (missingWords.length > 0) return verdict(null, missingWords.join('; '));
+  if (r.book === null || r.book === undefined) return verdict(null, 'no book was read');
+  if (r.open === null || r.open === undefined) return verdict(null, 'the UI test printed no "sample-open" dump');
+  const want = sampleBlocked(r.book, sampleStart(r.book));
+  if (want === null) return verdict(null, 'the book holds no Needs input answer for its start state');
+  const p = [];
+  const u = [];
+  if (el(r.open, 'sample-bar') === null) p.push('no sample-bar is drawn');
+  const leave = el(r.open, 'sample-leave');
+  if (leave === null) p.push('no sample-leave is drawn');
+  else {
+    if (leave.label !== r.words.leaveSample) p.push(`sample-leave reads ${J(leave.label)}, not ${J(r.words.leaveSample)}`);
+    const h = sampleRect(leave)?.h ?? Number.NaN;
+    if (!(h + SAMPLE_SLACK >= SETUP_PRESS_MIN)) p.push(`Leave sample is ${String(h)} pt tall, under ${String(SETUP_PRESS_MIN)}`);
+  }
+  if (r.page === null || r.page === undefined) u.push('the Needs input page was not inventoried, so whether Leave sample is a button was not read');
+  else if ((r.page.elements ?? []).find((e) => e.id === 'sample-leave')?.button !== true) p.push('sample-leave is not a button');
+  p.push(...sampleBarProblems(r.open, r.words, 'sample-open'));
+  const wantIds = want.rows.map((x) => x.sessionId);
+  if (r.needs === null || r.needs === undefined) u.push('the Needs input tab was not read inside the sample');
+  else {
+    const drawn = sampleNeedsRows(r.needs).ids;
+    if (J(drawn) !== J(wantIds)) p.push(`Needs input draws ${J(drawn)}, the book's start state ${J(wantIds)}`);
+    for (const row of want.rows) {
+      const name = el(r.needs, `needs-row-name-${row.sessionId}`)?.label ?? null;
+      if (drawn.includes(row.sessionId) && name !== row.name) p.push(`row ${row.sessionId} is named ${J(name)}, the book's ${J(row.name)}`);
+    }
+  }
+  return decide(p, u, `the Sample bar at the top (${J(r.words.sample)}, ${J(r.words.leaveSample)} a button), and Needs input lists the book's ${String(wantIds.length)} waiting session(s) in its order`);
+}
+
+/** SA3: the Sample bar in every dump inside the sample, and on every page above everything, overlapping nothing; sideways, the grid under it. */
+export function gradeSa3(r) {
+  const missingWords = sampleWordsMissing(r.words, ['sample']);
+  if (missingWords.length > 0) return verdict(null, missingWords.join('; '));
+  const p = [];
+  const u = [];
+  const inside = (r.windows ?? []).flatMap((w) => w.events.filter((e) => e?.step === 'screen' || e?.step === 'sessions-dump'));
+  if (inside.length === 0) u.push('no dump was taken inside the sample');
+  const without = inside.filter((e) => e.sampleLabel !== true);
+  if (without.length > 0) p.push(`${String(without.length)} dump(s) inside the sample hold no sample-label: ${J(without.map((e) => e.name ?? e.tag ?? e.step).slice(0, 5))}`);
+  for (const tag of r.required ?? SAMPLE_PAGES) {
+    const page = r.pages?.[tag] ?? null;
+    if (page === null || page.read !== true) {
+      u.push(`the ${tag} page was not read`);
+      continue;
+    }
+    if (page.inSample !== true) {
+      u.push(`the ${tag} page was read outside the sample`);
+      continue;
+    }
+    p.push(...sampleBarProblems(page, r.words, tag));
+    if (tag === 'terminal-sideways') {
+      const [w, h] = Array.isArray(page.window) ? page.window : [0, 0];
+      if (!(w > h)) u.push('the Terminal was not read sideways (its window is not wider than tall)');
+      if (!(page.elements ?? []).some((e) => e.id === 'screen-grid')) u.push('no grid was read sideways');
+    }
+  }
+  return decide(p, u, `sample-label in all ${String(inside.length)} dump(s) inside the sample, and on ${String((r.required ?? SAMPLE_PAGES).length)} page(s) the bar is above every other element and overlaps none`);
+}
+
+/**
+ * SA4 and SA5: a waiting session opens on its Terminal, every drawn row the
+ * book's; the tray's buttons are its pressable options (SA5: the command line
+ * drawn under the question); the first press asks nothing, the tray goes, the
+ * status line reads the answered variant's title, and Needs input no longer
+ * lists it.
+ */
+export function gradeSaPress(r) {
+  if (r.book === null || r.book === undefined) return verdict(null, 'no book was read');
+  const waiting = sampleSession(r.book, r.id, 'waiting');
+  const answered = sampleSession(r.book, r.id, 'answered');
+  const screen = sampleScreen(r.book, r.id, 'waiting');
+  if (waiting === null || answered === null || screen?.rows === null || screen === null) return verdict(null, `the book holds no waiting and answered ${J(r.id)}`);
+  if (r.open === null || r.open === undefined) return verdict(null, `the UI test printed no terminal-open line for ${J(r.id)}`);
+  const p = [];
+  const u = [];
+  if (r.open.face !== 'terminal') p.push(`${r.id} opened ${J(r.open.face)}, not its Terminal`);
+  const live = r.open.reading?.live ?? [];
+  if (live.length === 0) p.push('no live row was drawn');
+  const wrong = live.filter((row) => row.label !== screen.rows[row.n]);
+  if (wrong.length > 0) p.push(`${String(wrong.length)} of ${String(live.length)} row(s) are not the book's, first row ${String(wrong[0].n)} ${J(wrong[0].label)} against ${J(screen.rows[wrong[0].n] ?? null)}`);
+  const pressable = waiting.reply?.pressable ?? [];
+  const want = (waiting.choices ?? []).map((c, n) => ({ ...c, n })).filter((c) => pressable.includes(c.marker));
+  if (want.length === 0) return verdict(null, `the book offers no press on ${J(r.id)}`);
+  if (r.offer === null || r.offer === undefined) u.push('the tray was not read before the press');
+  else {
+    const presses = r.offer.reading?.presses ?? [];
+    if (presses.length !== want.length) p.push(`${String(presses.length)} button(s) for the book's ${String(want.length)} pressable option(s)`);
+    for (const c of want) {
+      const b = presses.find((x) => x.n === c.n);
+      if (b === undefined || !String(b.label).includes(c.text)) p.push(`option ${String(c.n)} is not drawn whole as a button (${J(b?.label ?? null)})`);
+    }
+    if (r.command === true && r.offer.reading?.command !== waiting.reply?.command) p.push(`the command drawn is ${J(r.offer.reading?.command ?? null)}, the book's ${J(waiting.reply?.command ?? null)}`);
+  }
+  if (r.pressed === null || r.pressed === undefined) u.push('the press never answered');
+  else {
+    if (r.pressed.faceId === true) p.push('the press asked for Face ID');
+    if ((r.pressed.after?.presses ?? []).length > 0) p.push('the tray is still drawn after the press');
+  }
+  if (r.after === null || r.after === undefined) u.push('the Terminal was not read after the press');
+  else {
+    const status = el(r.after, 'session-status')?.label ?? null;
+    if (status !== answered.statusTitle) p.push(`the status line reads ${J(status)}, the answered variant's ${J(answered.statusTitle)}`);
+  }
+  if (r.needs === null || r.needs === undefined) u.push('Needs input was not read after the press');
+  else if (sampleNeedsRows(r.needs).ids.includes(r.id)) p.push(`Needs input still lists ${r.id} after its question was answered`);
+  return decide(p, u, `${r.id}'s Terminal draws the book's ${String(live.length)} row(s); ${String(want.length)} option(s) as buttons${r.command === true ? ' under its command line' : ''}; the press asked nothing, the tray went, it reads ${J(answered.statusTitle)} and Needs input no longer lists it`);
+}
+
+/** SA6: keys echo on the sample's own prompt: the words, Return's line, `^C`, and no owner check at any key. */
+export function gradeSa6(r) {
+  const missingWords = sampleWordsMissing(r.words, ['sampleNothingRan']);
+  if (missingWords.length > 0) return verdict(null, missingWords.join('; '));
+  if (r.book === null || r.book === undefined) return verdict(null, 'no book was read');
+  const screen = sampleScreen(r.book, r.id, 'live');
+  if (screen === null || screen.raw === null || screen.prompt === null || screen.note === null) return verdict(null, `the book draws no prompt on ${J(r.id)}`);
+  const pr = screen.prompt.row;
+  const nr = screen.note.row;
+  const base = screen.raw[pr] ?? '';
+  const nothing = sampleRowLabel(typeof screen.cols === 'number' ? String(r.words.sampleNothingRan).slice(0, screen.cols) : r.words.sampleNothingRan);
+  const rowOf = (reading, n) => (reading?.live ?? reading?.rows ?? []).find((x) => x.n === n)?.label;
+  const p = [];
+  const u = [];
+  const holds = (what, reading, n, want) => {
+    const got = rowOf(reading, n);
+    if (got === undefined) u.push(`${what}: row ${String(n)} was not drawn`);
+    else if (got !== want) p.push(`${what}: row ${String(n)} reads ${J(got)}, not ${J(want)}`);
+  };
+  if (r.typed === null || r.typed === undefined) u.push('the words were never typed');
+  else {
+    if (r.typed.typedBeforeReturn === null || r.typed.typedBeforeReturn === undefined) u.push('the Terminal was not read between the words and Return');
+    else {
+      holds('the words', r.typed.typedBeforeReturn, pr, sampleRowLabel(base + r.text));
+      if (r.typed.typedBeforeReturn.auth === true) p.push('an owner check was up while typing');
+    }
+    holds('Return', r.typed, pr, sampleRowLabel(base));
+    holds('Return\'s line', r.typed, nr, nothing);
+  }
+  if (r.ctrl === null || r.ctrl === undefined) u.push('ctrl was never pressed');
+  else holds(`ctrl then ${String(r.letter)}`, r.ctrl, pr, sampleRowLabel(`${base}^${String(r.letter).toUpperCase()}`));
+  if (r.ret === null || r.ret === undefined) u.push('Return was never pressed on the key bar');
+  else {
+    holds('the key bar\'s Return', r.ret, pr, sampleRowLabel(base));
+    holds('the key bar\'s Return\'s line', r.ret, nr, nothing);
+  }
+  if ([r.typed, r.ctrl, r.ret].some((x) => x?.auth === true)) p.push('an owner check was up at a key');
+  if ((r.authUps ?? []).length > 0) p.push(`${String(r.authUps.length)} owner check(s) came up between the keys`);
+  return decide(p, u, `${J(r.text)} on the prompt, Return empties it and draws ${J(nothing)}, ctrl then ${String(r.letter)} draws ^${String(r.letter).toUpperCase()}, and no owner check at any key`);
+}
+
+/** SA7: scrolled to the top, `screen-history-0` and every history row drawn are the book's, with no line where paging back stopped. */
+export function gradeSa7(r) {
+  if (r.book === null || r.book === undefined) return verdict(null, 'no book was read');
+  const rows = sampleHistory(r.book, r.id);
+  if (rows === null) return verdict(null, `the book holds no history for ${J(r.id)}`);
+  if (r.scroll === null || r.scroll === undefined) return verdict(null, 'the UI test printed no scroll-up line');
+  const readings = [r.scroll.before, ...(r.scroll.readings ?? [])].filter((x) => x !== null && x !== undefined);
+  const drawn = readings.flatMap((x) => x.history ?? []);
+  const p = [];
+  if (drawn.length === 0) p.push('no history row was drawn after scrolling up');
+  const wrong = drawn.filter((h) => h.label !== rows[h.i]);
+  if (wrong.length > 0) p.push(`${String(wrong.length)} history row(s) are not the book's, first ${J({ i: wrong[0].i, label: wrong[0].label })} against ${J(rows[wrong[0].i] ?? null)}`);
+  const stopped = readings.map((x) => x.scrollbackLine).filter((x) => x !== null && x !== undefined);
+  if (stopped.length > 0) p.push(`the line where paging back stopped is drawn: ${J(stopped[0]?.label ?? stopped[0])}`);
+  const u = [];
+  // The probe review: the top is reached when the first line lies INSIDE the
+  // grid (`visibleHistory`), because a row scrolled out of the grid is still in
+  // the tree at its unclipped frame, so `screen-history-0` read anywhere says
+  // the page arrived, not that the drags reached it, and with no line where
+  // paging stopped proves nothing about the top.
+  if (p.length === 0 && !drawn.some((h) => h.i === 0)) u.push(`the drags never reached the top (the oldest row drawn is ${String(Math.min(...drawn.map((h) => h.i)))})`);
+  else if (p.length === 0 && !readings.some((x) => visibleHistory(x).some((h) => h.i === 0))) u.push('screen-history-0 was drawn but never inside the grid, so the drags never reached the top');
+  return decide(p, u, `scrolled to the top: screen-history-0 reads the book's first line inside the grid, ${String(drawn.length)} drawn row(s) all the book's, and no line where paging stopped`);
+}
+
+/** SA8: Catch Me Up paged to its first turn, every turn the book's, every ask word for word. */
+export function gradeSa8(r) {
+  if (r.book === null || r.book === undefined) return verdict(null, 'no book was read');
+  const want = sampleTurns(r.book, r.id, r.variant ?? 'live');
+  if (want === null || want.length === 0) return verdict(null, `the book holds no turns for ${J(r.id)}`);
+  if (r.turns === null || r.turns === undefined) return verdict(null, 'the UI test printed no "turns" line');
+  const p = [];
+  const asks = r.turns.asks ?? {};
+  for (const t of want) {
+    const got = asks[String(t.index)];
+    if (got !== t.askText) p.push(`turn ${String(t.index)}'s ask reads ${J(got ?? null)}, the book's ${J(t.askText)}`);
+  }
+  const drawnIdx = [...new Set((r.turns.indexes ?? []).map(Number))].sort((a, b) => a - b);
+  const wantIdx = want.map((t) => t.index).sort((a, b) => a - b);
+  if (J(drawnIdx) !== J(wantIdx)) p.push(`the turns drawn are ${J(drawnIdx)}, the book's ${J(wantIdx)}`);
+  return decide(p, [], `Catch Me Up paged to its first turn: ${String(want.length)} turn(s), every ask the book's`);
+}
+
+/** SA9: End on the working session: Face ID's mark, the book's confirmation word for word, the REAL owner check, then the ended title and main's ended sentence. */
+export function gradeSa9(r) {
+  if (r.book === null || r.book === undefined) return verdict(null, 'no book was read');
+  const live = sampleSession(r.book, r.id, 'live');
+  const ended = sampleSession(r.book, r.id, 'ended');
+  const screen = sampleScreen(r.book, r.id, 'ended');
+  if (live?.endConfirm === null || live?.endConfirm === undefined || ended === null || screen === null) return verdict(null, `the book holds no End confirmation or ended answer for ${J(r.id)}`);
+  const want = live.endConfirm;
+  const p = [];
+  const u = [];
+  const endRead = r.bar !== null && r.bar !== undefined;
+  if (!endRead) u.push('End was not read');
+  else if (r.bar.kind !== 'faceID') p.push(`End's mark reads ${J(r.bar.kind)}, not Face ID's, with Face ID enrolled`);
+  // The probe review: a drive that never reached End is UNREADABLE here, never a FAIL.
+  if (r.dialog === null || r.dialog === undefined) (endRead ? p : u).push('no confirmation came');
+  else {
+    const text = [r.dialog.title, ...(r.dialog.texts ?? [])].filter((x) => typeof x === 'string').join(' ').replace(/\s+/g, ' ').trim();
+    if (foldedAt(text, want.title) === -1) p.push(`the confirmation does not draw the book's title ${J(want.title)}`);
+    if (foldedAt(text, want.body) === -1) p.push('the confirmation does not draw the book\'s body');
+    if (!(r.dialog.buttons ?? []).includes(want.confirmLabel)) p.push(`the confirmation's press is not ${J(want.confirmLabel)} (${J(r.dialog.buttons ?? [])})`);
+  }
+  if (r.authUp === null || r.authUp === undefined || r.acked !== true) u.push('the owner check was never seen up and answered');
+  else if (r.matched !== 0) u.push(`Face ID's match was not given (${J(r.matched)})`);
+  if (u.length === 0) {
+    if (r.after === null || r.after === undefined) u.push('the Terminal was not read after the match');
+    else {
+      const status = el(r.after, 'session-status')?.label ?? null;
+      if (status !== ended.statusTitle) p.push(`the status line reads ${J(status)}, the ended variant's ${J(ended.statusTitle)}`);
+      const failure = el(r.after, 'screen-failure')?.label ?? null;
+      if (failure !== screen.sentence) p.push(`screen-failure reads ${J(failure)}, main's ${J(screen.sentence)}`);
+    }
+  }
+  return decide(p, u, `the book's ${J(want.title)} word for word, Face ID asked and matched, then ${J(ended.statusTitle)} and main's sentence`);
+}
+
+/** SA10: Sessions inside the sample: each Show, Group by, Sort by and the agent filter drawn as the book composed it for the state now. */
+export function gradeSa10(r) {
+  if (r.book === null || r.book === undefined) return verdict(null, 'no book was read');
+  const vs = [];
+  for (const x of r.reads ?? []) {
+    const answer = sampleSessions(r.book, r.state, x.query);
+    if (answer === null) {
+      vs.push(verdict(null, `${x.tag}: the book holds no answer for ${sampleQueryKey(x.query)} in ${r.state}`));
+      continue;
+    }
+    if (x.dump === null || x.dump === undefined) {
+      vs.push(verdict(null, `${x.tag}: the UI test printed no sessions dump`));
+      continue;
+    }
+    const v = gradeSessionsDump({ dump: x.dump, before: answer, after: answer, tag: x.tag });
+    const extra = [];
+    if (x.query.group === 'project') {
+      const headers = (x.dump.elements ?? []).filter((e) => typeof e.id === 'string' && /^group-/.test(e.id) && !SAMPLE_GROUP_PART.test(e.id));
+      if (headers.length !== answer.groups.length) extra.push(`${x.tag}: ${String(headers.length)} project header(s) drawn, the book's ${String(answer.groups.length)}`);
+    }
+    if (x.dump.sampleLabel !== true) extra.push(`${x.tag}: the walk ended with no sample-label drawn`);
+    if (typeof x.query.agent === 'string') {
+      const all = sampleSessions(r.book, r.state, { ...x.query, agent: null });
+      if (all === null || !(all.rows.length > answer.rows.length)) {
+        vs.push(verdict(null, `${x.tag}: the book's filter for ${x.query.agent} does not narrow its list, so a narrowing cannot be read`));
+        continue;
+      }
+    }
+    vs.push(extra.length > 0 ? verdict(false, [v.ok === false ? v.said : null, ...extra].filter((s) => s !== null).join('; ')) : v);
+  }
+  if (vs.length === 0) return verdict(null, 'no Sessions reading was taken inside the sample');
+  return foldVerdicts(vs, `${String(vs.length)} Sessions reading(s) inside the sample draw the book's rows in its order, each header its label and count, the agent filter narrowing`);
+}
+
+/** SA11: End these over the live rows: the press counts them, the REAL owner check, every one Ended and the heading n of n, then Show Ended lists every session. */
+export function gradeSa11(r) {
+  const missingWords = sampleWordsMissing(r.words, ['ended', 'batchEndLead', 'space', 'sessionSingular', 'sessionPlural', 'doneMid', 'doneTail']);
+  if (missingWords.length > 0) return verdict(null, missingWords.join('; '));
+  if (r.book === null || r.book === undefined) return verdict(null, 'no book was read');
+  const words = sampleBatchWords(r.words, r.targets.length, r.targets.length);
+  const p = [];
+  const u = [];
+  const selected = r.select !== null && r.select !== undefined;
+  if (!selected) u.push('Select was not read');
+  else if (J([...(r.select.ticked ?? [])].sort()) !== J([...r.targets].sort())) p.push(`Select ticked ${J(r.select.ticked ?? [])}, not ${J(r.targets)}`);
+  // The probe review: a drive that never reached End these is UNREADABLE here, never a FAIL.
+  if (r.dialog === null || r.dialog === undefined) (selected ? p : u).push('no confirmation came for End these');
+  else if (!(r.dialog.buttons ?? []).includes(words.confirm)) p.push(`the confirmation's press is not ${J(words.confirm)} (${J(r.dialog.buttons ?? [])})`);
+  if (r.authUp === null || r.authUp === undefined || r.acked !== true) u.push('the owner check was never seen up and answered');
+  else if (r.matched !== 0) u.push(`Face ID's match was not given (${J(r.matched)})`);
+  if (u.length === 0) {
+    if (r.these === null || r.these === undefined) u.push('End these never read its end');
+    else {
+      if (r.these.heading !== words.done) p.push(`the heading reads ${J(r.these.heading ?? null)}, not ${J(words.done)}`);
+      for (const id of r.targets) if (r.these.outcomes?.[id] !== r.words.ended) p.push(`${id} reads ${J(r.these.outcomes?.[id] ?? null)}, not ${J(r.words.ended)}`);
+    }
+    const answer = sampleSessions(r.book, r.state, r.endedRead?.query ?? {});
+    if (answer === null) u.push(`the book holds no answer for ${sampleQueryKey(r.endedRead?.query ?? {})} in ${r.state}`);
+    else if (r.endedRead?.dump === null || r.endedRead?.dump === undefined) u.push('Show Ended was not read after Done');
+    else {
+      const v = gradeSessionsDump({ dump: r.endedRead.dump, before: answer, after: answer, tag: 'SA11 Ended' });
+      if (v.ok === false) p.push(v.said);
+      else if (v.ok === null) u.push(v.said);
+      const drawn = rowIdsOf(r.endedRead.dump.elements);
+      if (drawn.length !== r.book.ids.length) p.push(`Show Ended lists ${String(drawn.length)} session(s), not all ${String(r.book.ids.length)}`);
+    }
+  }
+  return decide(p, u, `${J(words.confirm)}, Face ID matched, ${J(words.done)} with every row ${J(r.words.ended)}, and Show Ended lists all ${String(r.book.ids.length)}`);
+}
+
+/** SA12: Settings inside the sample: About, and no paired Mac, Alerts, Unpair or See a sample. */
+export function gradeSa12(r) {
+  if (r.dump === null || r.dump === undefined) return verdict(null, 'Settings was not read inside the sample');
+  const p = [];
+  for (const id of ['settings-mac', 'settings-alerts', 'settings-unpair', 'settings-see-sample']) if (el(r.dump, id) !== null) p.push(`${id} is drawn inside the sample`);
+  if (el(r.dump, 'settings-about') === null) p.push('settings-about is not drawn');
+  if (r.dump.sampleLabel !== true) p.push('Settings inside the sample holds no sample-label');
+  return decide(p, [], 'Settings inside the sample draws About alone: no paired Mac, no Alerts, no Unpair and no See a sample');
+}
+
+/** SA13: Leave sample lands on Pairing, with no Sample bar and the very line Pairing drew before See a sample. */
+export function gradeSa13(r) {
+  if (r.left === null || r.left === undefined) return verdict(null, 'Leave sample was never pressed');
+  if (r.before === null || r.before === undefined) return verdict(null, 'Pairing was not read before See a sample');
+  const p = [];
+  const u = [];
+  // The probe review: the page is the drive's word, and what is on it the
+  // dump after it; a dump the drive never printed is UNREADABLE, never a FAIL.
+  const dumped = r.leftDump !== null && r.leftDump !== undefined;
+  if (r.left.page !== 'pairing' || (dumped && el(r.leftDump, 'screen-pairing') === null)) p.push(`Leave sample landed on ${J(r.left.page ?? null)}, not Pairing`);
+  if (r.left.bar === true || (dumped && el(r.leftDump, 'sample-label') !== null)) p.push('the Sample bar is still drawn after Leave sample');
+  const was = el(r.before, 'pairing-line')?.label ?? null;
+  const now = el(r.leftDump, 'pairing-line')?.label ?? null;
+  if (!dumped) u.push('Pairing was not read after Leave sample');
+  else if (was === null) u.push('Pairing drew no line before See a sample');
+  else if (now !== was) p.push(`the pairing line reads ${J(now)}, not ${J(was)} as it did before See a sample`);
+  return decide(p, u, `back on Pairing with no Sample bar, its line ${J(was)} as before`);
+}
+
+/** SAX, THE ATTACK: no connection reached the relay from the launch to the end of a drive that never paired, with the door listening throughout. */
+export function gradeSax(r) {
+  if (r.listening?.before !== true || r.listening?.after !== true) return verdict(null, 'the door was not published and listening the whole drive, so a count of zero would prove nothing');
+  if (typeof r.counts?.before !== 'number' || typeof r.counts?.after !== 'number') return verdict(null, 'the relay was not counted around the drive');
+  if (!(r.windows > 0)) return verdict(null, 'the sample was never opened');
+  // The probe review: a count over a drive that stopped inside the sample
+  // covers part of SA1 to SA13 only, so it proves nothing about the rest.
+  if (r.complete !== true) return verdict(null, 'the drive never reached Leave sample, so the count covers only part of the sample');
+  const n = r.counts.after - r.counts.before;
+  return n === 0
+    ? verdict(true, `0 connections at the relay from the launch to the end, the sample opened ${String(r.windows)} time(s), the door listening throughout`)
+    : verdict(false, `${String(n)} connection(s) reached the relay during a drive that never paired`);
+}
+
+/** SC1: paired, the list draws the Mac's sessions, See a sample sits under Unpair, and no reading inside the sample holds a Mac session's name or id. */
+export function gradeSc1(r) {
+  if (!Array.isArray(r.mac) || r.mac.length === 0) return verdict(null, 'the Mac\'s sessions were not read');
+  if (r.list === null || r.list === undefined) return verdict(null, 'the list was not read before the sample');
+  if (!(r.windows?.length > 0)) return verdict(null, 'the sample was never opened');
+  const p = [];
+  const u = [];
+  const macIds = new Set(r.mac.map((s) => s.id));
+  if (rowIdsOf(r.list.elements).filter((id) => macIds.has(id)).length === 0) p.push('the list draws none of the Mac\'s sessions');
+  const inside = r.windows.flatMap((w) => w.events);
+  if (!inside.some((e) => e?.step === 'screen')) u.push('no dump was taken inside the sample');
+  const text = inside.map((e) => J(e)).join('\n');
+  const names = [...new Set(r.mac.map((s) => s.name).filter((n) => typeof n === 'string' && n.length >= 4))];
+  const nameHits = names.filter((n) => text.includes(n));
+  if (nameHits.length > 0) p.push(`a reading inside the sample holds the Mac's session name(s) ${J(nameHits.slice(0, 3))}`);
+  const idHits = [...macIds].filter((id) => typeof id === 'string' && id.length >= 8 && text.includes(id));
+  if (idHits.length > 0) p.push(`a reading inside the sample holds ${String(idHits.length)} of the Mac's session id(s)`);
+  if (r.settingsBefore === null || r.settingsBefore === undefined) u.push('Settings was not read before See a sample');
+  else {
+    const unpair = sampleRect(el(r.settingsBefore, 'settings-unpair'));
+    const see = sampleRect(el(r.settingsBefore, 'settings-see-sample'));
+    if (unpair === null || see === null) p.push(`Settings draws ${unpair === null ? 'no Unpair' : 'no See a sample'} on a paired phone`);
+    else if (!(see.y + SAMPLE_SLACK >= unpair.y + unpair.h)) p.push('See a sample is not under Unpair this iPhone');
+  }
+  return decide(p, u, `the Mac's sessions listed; See a sample under Unpair; ${String(inside.length)} reading(s) inside the sample hold none of the Mac's ${String(names.length)} session name(s) or ids`);
+}
+
+/**
+ * SC2, THE ATTACK: with a Terminal on the Mac's session open before it, the
+ * relay counted nothing from sample-open to Leave sample across idle, Home and
+ * back, a Terminal and a keys write in the sample: no connection, and (the
+ * probe review) no request on a connection opened before the sample, because
+ * the Terminal's poll keeps its connection (Phase 337's `DoorLine`) and a
+ * poll that went on through the sample would move no connection count. How
+ * many forwarded connections were open at sample-open is printed beside the
+ * pass, never graded: the Terminal stops its poll when Settings is selected
+ * (`ScreenPage.onDisappear`), so it is usually 0.
+ */
+export function gradeSc2(r) {
+  if (r.macTerminal === null || r.macTerminal === undefined || (r.macTerminal.rows ?? []).length === 0) return verdict(null, 'no Terminal on the Mac\'s session was drawn before the sample opened, so no paired poll was live');
+  if (typeof r.counts?.open !== 'number' || typeof r.counts?.leaving !== 'number') return verdict(null, 'the relay was not counted at sample-open and before Leave sample');
+  if (typeof r.records?.open !== 'number' || typeof r.records?.leaving !== 'number') return verdict(null, 'the relay\'s requests were not counted at sample-open and before Leave sample, so a request on a kept connection would not be seen');
+  const n = r.counts.leaving - r.counts.open;
+  if (n !== 0) return verdict(false, `${String(n)} connection(s) reached the relay while the sample was open`);
+  const q = r.records.leaving - r.records.open;
+  if (q !== 0) return verdict(false, `${String(q)} request(s) reached the relay on a connection opened before the sample, while it was open`);
+  const u = [];
+  for (const [k, what] of SC2_SURFACES) {
+    if (r.inside?.[k] !== true) u.push(`${what} did not happen inside the sample`);
+  }
+  return decide([], u, `0 connections and 0 requests from sample-open to Leave sample, across ${SC2_SURFACES.map(([, what]) => what).join(', ')}, with the Mac's Terminal open before it (${typeof r.live === 'number' ? String(r.live) : 'an uncounted number of'} forwarded connection(s) open at sample-open)`);
+}
+
+/**
+ * Every surface SC2 counts the relay across, each read from the paired
+ * drive's own events inside the sample's window. The fix round widened it
+ * from four to every surface the sample has, because a write that reached the
+ * paired Mac (the seal attack's S5b) is only counted if the drive makes one.
+ */
+const SC2_SURFACES = [
+  ['idle', 'idle:20'],
+  ['settings', 'Settings'],
+  ['sessions', 'the Sessions tab'],
+  ['press', 'both questions pressed'],
+  ['terminal', 'a Terminal'],
+  ['keys', 'keys'],
+  ['ctrl', 'Ctrl'],
+  ['return', 'Return'],
+  ['home', 'Home and back'],
+  ['scroll', 'a page of history'],
+  ['catchUp', 'Catch Me Up'],
+  ['end', 'End with Face ID'],
+  ['endThese', 'End these']
+];
+/** SC2's surfaces as they happened inside the sample's window, from its events. */
+export function sc2Inside(inside) {
+  const has = (pred) => inside.some(pred);
+  return {
+    idle: has((e) => e.step === 'idle-start') && has((e) => e.step === 'idle-end'),
+    settings: has((e) => e.step === 'screen' && e.name === 'tab-settings'),
+    sessions: has((e) => e.step === 'sessions-dump'),
+    press: inside.filter((e) => e.step === 'reply-pressed').length >= 2,
+    terminal: has((e) => e.step === 'terminal-open' && e.face === 'terminal'),
+    keys: has((e) => e.step === 'screen-type'),
+    ctrl: has((e) => e.step === 'screen-ctrl'),
+    return: has((e) => e.step === 'screen-key'),
+    home: has((e) => e.step === 'screen-home-pressed'),
+    scroll: has((e) => e.step === 'scroll-up'),
+    catchUp: has((e) => e.step === 'turns'),
+    end: has((e) => e.step === 'end-auth-answered' && e.for === 'end'),
+    endThese: has((e) => e.step === 'end-these')
+  };
+}
+
+/** SC3: Leave sample lands on Needs input with the Mac's sessions, the paired reads start again within 15 s, and Settings' fingerprint and address read as before. */
+export function gradeSc3(r) {
+  if (r.left === null || r.left === undefined) return verdict(null, 'Leave sample was never pressed');
+  const p = [];
+  const u = [];
+  // The probe review: a dump the drive never printed is UNREADABLE, never a FAIL.
+  const dumped = r.leftDump !== null && r.leftDump !== undefined;
+  if (r.left.page !== 'needs-input' || (dumped && el(r.leftDump, 'screen-needs-input') === null)) p.push(`Leave sample landed on ${J(r.left.page ?? null)}, not Needs input`);
+  if (r.left.bar === true) p.push('the Sample bar is still drawn after Leave sample');
+  if (!dumped) u.push('Needs input was not read after Leave sample');
+  const rows = dumped ? sampleNeedsRows(r.leftDump).ids : [];
+  const macIds = new Set((r.mac ?? []).map((s) => s.id));
+  const sampleRows = rows.filter((id) => (r.sampleIds ?? []).includes(id));
+  if (sampleRows.length > 0) p.push(`Needs input after the sample lists the sample's ${J(sampleRows)}`);
+  const strangers = rows.filter((id) => !macIds.has(id));
+  if (strangers.length > 0 && sampleRows.length === 0) p.push(`Needs input lists ${J(strangers)}, which the Mac does not hold`);
+  if (dumped && (r.mac ?? []).some((s) => s.status === 'needs_input') && rows.filter((id) => macIds.has(id)).length === 0) p.push('Needs input lists none of the Mac\'s waiting sessions');
+  if (r.moved === undefined) u.push('the relay was not watched after Leave sample');
+  else if (r.moved === null) p.push('no connection reached the relay within 15 s of Leave sample, so the paired reads did not start again');
+  const fp = (d) => el(d, 'settings-fingerprint')?.label ?? null;
+  const ad = (d) => el(d, 'settings-mac-address')?.label ?? null;
+  if (r.settingsBefore === null || r.settingsBefore === undefined || r.settingsAfter === null || r.settingsAfter === undefined) u.push('Settings was not read both before and after the sample');
+  else if (fp(r.settingsBefore) === null || ad(r.settingsBefore) === null) u.push('Settings drew no fingerprint or address before the sample');
+  else {
+    if (fp(r.settingsAfter) !== fp(r.settingsBefore)) p.push(`the fingerprint reads ${J(fp(r.settingsAfter))} after the sample, ${J(fp(r.settingsBefore))} before`);
+    if (ad(r.settingsAfter) !== ad(r.settingsBefore)) p.push(`the address reads ${J(ad(r.settingsAfter))} after the sample, ${J(ad(r.settingsBefore))} before`);
+  }
+  return decide(p, u, `back on Needs input with the Mac's sessions, a connection ${typeof r.moved === 'number' ? String(r.moved) : '?'} ms after Leave sample, and Settings' fingerprint and address as before`);
+}
+
+/**
+ * SD: Face ID unenrolled. When iOS answers passcodeNotSet the sample's End is
+ * on with `lock.open` and its line, and its press ends the session with no
+ * owner check up; when iOS answers the passcode (or Face ID) the premise is
+ * unmet and the arm is UNREADABLE, never a pass.
+ */
+export function gradeSd(r) {
+  const missingWords = sampleWordsMissing(r.words, ['sampleEndUnasked']);
+  if (missingWords.length > 0) return verdict(null, missingWords.join('; '));
+  if (r.book === null || r.book === undefined) return verdict(null, 'no book was read');
+  if (r.unenrol !== 0) return verdict(null, `Face ID could not be unenrolled (${J(r.unenrol ?? null)})`);
+  const bar = r.bar ?? null;
+  if (bar === null) return verdict(null, 'End was not read with Face ID unenrolled');
+  if (bar.kind === 'faceID' || bar.kind === 'touchID') return verdict(null, `iOS still answers ${String(bar.kind)} with Face ID unenrolled: an unmet premise`);
+  if (bar.kind === 'passcode') return verdict(null, 'iOS answers the passcode, not passcodeNotSet: an unmet premise, never a pass (SampleOwnerCheckTests carries the logic)');
+  if (bar.kind === 'none') return verdict(false, `the sample's End is drawn off with ${J(bar.line ?? null)}: the sample did not answer unasked where iOS answers passcodeNotSet`);
+  if (bar.kind !== 'unasked') return verdict(null, `End's mark could not be read (${J(bar.glyph ?? null)})`);
+  const ended = sampleSession(r.book, r.id, 'ended');
+  if (ended === null) return verdict(null, `the book holds no ended ${J(r.id)}`);
+  const p = [];
+  const u = [];
+  if (bar.enabled !== true) p.push('End is drawn off');
+  if (bar.line !== r.words.sampleEndUnasked) p.push(`End's line reads ${J(bar.line ?? null)}, not ${J(r.words.sampleEndUnasked)}`);
+  if (r.authUp === null || r.authUp === undefined) u.push('End was never pressed');
+  else {
+    if (r.authUp.confirming === true) p.push('End\'s owner check mark was drawn, so something was asked');
+    if ((r.permissions ?? []).some((x) => x.seen === true)) p.push('iOS\'s Face ID question came up');
+    if (r.after === null || r.after === undefined) u.push('the Terminal was not read after End');
+    else {
+      const status = el(r.after, 'session-status')?.label ?? null;
+      if (status !== ended.statusTitle) p.push(`the status line reads ${J(status)}, the ended variant's ${J(ended.statusTitle)}`);
+    }
+  }
+  return decide(p, u, `iOS answers passcodeNotSet: End is on with lock.open and ${J(r.words.sampleEndUnasked)}, and its press ends the session with nothing asked`);
+}
+
+/** SP: the parent's own app and drive (build 9): no label on its pairing screen holds "sample", and the relay counts nothing over its idle:20. */
+export function gradeSp(r) {
+  if (r.inventory === null || r.inventory === undefined) return verdict(null, 'the parent\'s drive printed no setup-inventory line');
+  const p = [];
+  const u = [];
+  const holding = [...(r.inventory.labels ?? []), ...(r.dump?.elements ?? []).map((e) => e.label)].filter((l) => typeof l === 'string' && SETUP_NEVER.test(l));
+  if (holding.length > 0) p.push(`the parent's pairing screen holds "sample": ${J(holding.slice(0, 3))}`);
+  if (typeof r.counts?.idleStart !== 'number' || typeof r.counts?.idleEnd !== 'number') u.push('the parent\'s idle:20 was not counted');
+  else if (r.counts.idleEnd !== r.counts.idleStart) p.push(`${String(r.counts.idleEnd - r.counts.idleStart)} connection(s) during the parent's idle:20`);
+  if (typeof r.counts?.before === 'number' && typeof r.counts?.after === 'number' && r.counts.after !== r.counts.before) p.push(`${String(r.counts.after - r.counts.before)} connection(s) during the parent's drive`);
+  return decide(p, u, 'the parent: no "sample" on its pairing screen, and 0 connections over its idle:20');
+}
+
+// ---- the plan and the grades, one function each (the probe review) ---------------
+//
+// What the `sample` group asks the drive to do and how it grades what came
+// back, out of the run's body, so --grader-self-test drives the very plan and
+// wiring the run does over recorded readings, rather than the graders alone.
+
+/**
+ * The `sample` group's plan for `book` (§7.4): the agent filter's choice, the
+ * Sessions questions SA10 walks and SA11's, the three drives' steps, and the
+ * states SA10 and SA11 are graded in. `macShellId` is the paired drive's Mac
+ * session, or null when the Mac holds none.
+ */
+export function samplePlan(book, cast, W = SESSIONS_WORDS, macShellId = null) {
+  const A = cast.waitingClaude;
+  const B = cast.waitingCodex;
+  const R = cast.liveClaude;
+  const T = cast.liveCodex;
+  const start = sampleStart(book);
+  // The agent filter's choice, from the book's own answer for the default words: Codex CLI's when it is offered.
+  const agentChoice = (() => {
+    const s = book.lists[start]?.sessions?.[sampleQueryKey({ show: 'active', group: 'project', sort: 'recent' })];
+    const offered = (s?.agents ?? []).map((i) => book.pieces.choices[i]).filter((c) => c !== undefined && typeof c.label === 'string' && c.label !== '');
+    return offered.find((c) => c.id === 'codex') ?? offered[0] ?? null;
+  })();
+  // SA10's readings, each a Sessions question the book answers for the state
+  // after SA4, SA5 and SA9, and the choices that reach it.
+  const sa10Plan = [
+    ['sa10-active-project-recent', { show: 'active', group: 'project', sort: 'recent' }, []],
+    ['sa10-all-project-recent', { show: 'all', group: 'project', sort: 'recent' }, ['show:all']],
+    ['sa10-ended-project-recent', { show: 'ended', group: 'project', sort: 'recent' }, ['show:ended']],
+    ['sa10-active-none-recent', { show: 'active', group: 'none', sort: 'recent' }, ['show:active', `menu:${W.groupBy}:${W.group.none}`]],
+    ['sa10-active-none-name', { show: 'active', group: 'none', sort: 'name' }, [`menu:${W.sortBy}:${W.sort.name}`]],
+    ['sa10-active-project-name', { show: 'active', group: 'project', sort: 'name' }, [`menu:${W.groupBy}:${W.group.project}`]],
+    ...(agentChoice === null ? [] : [['sa10-agent', { show: 'active', group: 'project', sort: 'name', agent: agentChoice.id }, [`menu:${W.agent}:${String(agentChoice.label)}`]]]),
+    ['sa10-cleared', { show: 'all', group: 'project', sort: 'name' }, ['clear-filters']]
+  ];
+  const sa11Query = { show: 'ended', group: 'none', sort: 'name' };
+  const freshSteps = [
+    'setup-read',
+    'setup-scan',
+    'sample-see',
+    'tab:needs',
+    'sample-inventory:needs',
+    'tab:sessions',
+    'sample-inventory:sessions',
+    'tab:settings',
+    'sample-inventory:settings',
+    `terminal-open:${A}`,
+    'sample-inventory:terminal',
+    'landscape',
+    'sample-inventory:terminal-sideways',
+    'portrait',
+    'reply-press:0',
+    'tab:needs',
+    `terminal-open:${B}`,
+    'reply-press:0',
+    'tab:needs',
+    `terminal-open:${T}`,
+    `screen-type:${b64uText(SAMPLE_TYPED)}`,
+    'screen-ctrl:c',
+    'screen-key:return',
+    'back',
+    `terminal-open:${R}`,
+    'scroll-up:8',
+    'first',
+    'sample-inventory:catch-up',
+    'back',
+    `terminal-open:${R}`,
+    'end',
+    ...sa10Plan.flatMap(([tag, , between]) => [...between, `sessions-dump:${tag}`]),
+    `select:${[A, B, T].join('+')}`,
+    'end-these',
+    'batch-done',
+    'show:ended',
+    `menu:${W.groupBy}:${W.group.none}`,
+    'sessions-dump:sa11-ended',
+    'sample-leave',
+    // SD: the sample opened again (a fresh copy), Face ID unenrolled, End read and pressed.
+    'sample-see',
+    `end-off:${R}`,
+    'end'
+  ];
+  // SB's floor half. `sample-inventory:needs` is the page SA2 reads Leave
+  // sample's button on (the probe review: without it SA2 on the floor was
+  // UNREADABLE in every run, never a pass).
+  const floorSteps = [
+    'setup-read',
+    'setup-scan',
+    'sample-see',
+    'tab:needs',
+    'sample-inventory:needs',
+    `terminal-open:${A}`,
+    'reply-press:0',
+    'tab:needs',
+    `terminal-open:${T}`,
+    `screen-type:${b64uText(SAMPLE_TYPED)}`,
+    'screen-ctrl:c',
+    'screen-key:return',
+    'back',
+    `terminal-open:${R}`,
+    'end',
+    'sample-leave'
+  ];
+  // The paired drive (SC1 to SC3). Since the fix round it drives the sample
+  // on EVERY surface from a paired phone, so a write, a press, a key or a page
+  // the sample sent to the paired Mac is counted at the relay (SC2): the seal
+  // attack's static hook (S5b) sent six connections there through the presses
+  // and End these, and the drive before this one pressed nothing in the sample.
+  const pairedSteps = [
+    'pair',
+    'list',
+    'settings',
+    ...(macShellId === null ? [] : [`open:${macShellId}`, 'screen-open']),
+    'sample-see-settings',
+    'sample-inventory:sc',
+    'idle:20',
+    'tab:settings',
+    'sample-inventory:sc-settings',
+    'tab:sessions',
+    'sample-inventory:sc-sessions',
+    'show:all',
+    'sessions-dump:sc-all',
+    'tab:needs',
+    `terminal-open:${A}`,
+    'reply-press:0',
+    'tab:needs',
+    `terminal-open:${B}`,
+    'reply-press:0',
+    'tab:needs',
+    `terminal-open:${T}`,
+    `screen-type:${b64uText('pwd')}`,
+    'screen-ctrl:c',
+    'screen-key:return',
+    `screen-home:${b64uText('x')}`,
+    'back',
+    `terminal-open:${R}`,
+    'scroll-up:8',
+    'first',
+    'sample-inventory:sc-catch-up',
+    'back',
+    `terminal-open:${R}`,
+    'end',
+    'tab:sessions',
+    'show:all',
+    `select:${[A, B, T].join('+')}`,
+    'end-these',
+    'batch-done',
+    'show:ended',
+    'sessions-dump:sc-ended',
+    'sample-leave',
+    'settings'
+  ];
+  return {
+    agentChoice,
+    sa10Plan,
+    sa11Query,
+    freshSteps,
+    floorSteps,
+    pairedSteps,
+    stateAfterEnd: sampleState(book, { [A]: 'answered', [B]: 'answered', [R]: 'ended' }),
+    allEnded: sampleState(book, Object.fromEntries(book.ids.map((id, i) => [id, book.variants[i].at(-1)])))
+  };
+}
+
+/** Every fresh-drive grade (SA1 to SA13, SAX and SD) of one drive, by arm, beside the readings. */
+export function gradeSampleFresh(got, book, cast, plan, words = SAMPLE_WORDS) {
+  const F = sampleFreshReadings(got, book, cast, words);
+  return {
+    F,
+    SA1: gradeSa1(F.sa1),
+    SA2: gradeSa2(F.sa2),
+    SA3: gradeSa3(F.sa3),
+    SA4: gradeSaPress(F.sa4),
+    SA5: gradeSaPress(F.sa5),
+    SA6: gradeSa6(F.sa6),
+    SA7: gradeSa7(F.sa7),
+    SA8: gradeSa8(F.sa8),
+    SA9: gradeSa9(F.sa9),
+    SA10: gradeSa10({ book, state: plan.stateAfterEnd, reads: plan.sa10Plan.map(([tag, query]) => ({ tag, query, dump: F.walk(tag) })) }),
+    SA11: gradeSa11({ ...F.sa11, book, words, targets: [cast.waitingClaude, cast.waitingCodex, cast.liveCodex], state: plan.allEnded, endedRead: { query: plan.sa11Query, dump: F.walk('sa11-ended') } }),
+    SA12: gradeSa12(F.sa12),
+    SA13: gradeSa13(F.sa13),
+    SAX: gradeSax(F.sax),
+    SD: gradeSd(F.sd)
+  };
+}
+
+/** SB's grades of the floor's drive: SA1, SA2, SA4, SA6, SA9, SA13 and SAX, in that order. */
+export function gradeSampleFloor(got, book, cast, words = SAMPLE_WORDS) {
+  const F = sampleFreshReadings(got, book, cast, words);
+  return [
+    ['SA1', gradeSa1(F.sa1)],
+    ['SA2', gradeSa2(F.sa2)],
+    ['SA4', gradeSaPress(F.sa4)],
+    ['SA6', gradeSa6(F.sa6)],
+    ['SA9', gradeSa9(F.sa9)],
+    ['SA13', gradeSa13(F.sa13)],
+    ['SAX', gradeSax(F.sax)]
+  ];
+}
+
+/**
+ * SC1 to SC3 of one paired drive: its events, the reactions' marks (the
+ * relay's connections and requests at `sample-open` and `sample-leaving`, and
+ * how long after leaving the paired reads started again), the Mac's sessions
+ * read before and after the drive, and the book.
+ */
+export function gradeSamplePaired({ events, marks, macBefore, macAfter, book }) {
+  const wins = sampleWindows(events);
+  const w = wins[0] ?? null;
+  const mw = marks?.windows?.[0] ?? null;
+  const openAt = w === null ? events.length : events.indexOf(w.open);
+  const lastBefore = (pred) => events.slice(0, openAt).filter(pred).at(-1) ?? null;
+  const mac = [...macAfter, ...macBefore.filter((b) => !macAfter.some((a) => a.id === b.id))];
+  const settingsDumps = dumps(events, 'settings');
+  const inside = w?.events ?? [];
+  return {
+    SC1: gradeSc1({ mac, list: lastDump(events, 'list'), windows: wins, settingsBefore: lastBefore((e) => e.step === 'screen' && e.name === 'sample-before') }),
+    SC2: gradeSc2({
+      macTerminal: lastBefore((e) => e.step === 'screen-open'),
+      counts: { open: mw?.open, leaving: mw?.leaving },
+      records: { open: mw?.records, leaving: mw?.recordsLeaving },
+      live: mw?.live,
+      inside: sc2Inside(inside)
+    }),
+    SC3: gradeSc3({
+      left: w?.left ?? null,
+      leftDump: w?.left ? sampleNext(events, w.left, (e) => e.step === 'screen' && e.name === 'sample-left') : null,
+      mac: macAfter,
+      sampleIds: book.ids,
+      moved: mw?.movedMs,
+      settingsBefore: settingsDumps.length >= 2 ? settingsDumps[0] : null,
+      settingsAfter: settingsDumps.length >= 2 ? settingsDumps.at(-1) : null
+    })
+  };
+}
+
+/** SP of the parent's drive: its events, the relay's counts around it and its idle, and whether the door listened throughout. */
+export function gradeSampleParent(events, counts, listening) {
+  if (listening?.before !== true || listening?.after !== true) return verdict(null, 'the door was not published and listening throughout the parent\'s drive');
+  return gradeSp({
+    inventory: events.filter((e) => e.step === 'setup-inventory' && e.for === 'setup-read').at(-1) ?? null,
+    dump: lastDump(events, 'setup-read'),
+    counts
+  });
+}
+
+// ---- --grader-self-test ----------------------------------------------------------
+
+/**
+ * A book of this self-test's own: three made-up sessions (one waiting with a
+ * press, one live with a prompt, one ended), words that are no sample's, and
+ * only the parts the graders read. Built here, so no grader is proved over
+ * the committed book.
+ */
+function sampleFixtureBook() {
+  const run = (text, style = 0) => ({ text, style, cells: text.length });
+  const screenOf = (texts, extra = {}) => ({ answer: { sessionId: 'x', revision: '000000000000', unchanged: false, screen: { cols: 40, rows: texts.length, lines: texts.map((t) => (t === '' ? [] : [run(t)])) }, why: null, sentence: null }, prompt: null, note: null, ...extra });
+  const absent = { answer: { sessionId: 'x', revision: '000000000000', unchanged: false, screen: null, why: 'ended', sentence: 'fixture: it has no terminal.' }, prompt: null, note: null };
+  const blocked = (id, name) => ({ sessionId: id, name, project: 'fixture-yard', machine: null, agent: 'claude', agentLabel: 'Fixture Agent', statusLabel: 'waiting', statusTitle: 'Fixture waits', statusDot: 'attention', question: 'Fixture asks?', choices: [], blockedSince: 1, seenAtWake: false, ageText: '4m', end: { state: 'offered', batch: true } });
+  const srow = (id, name, group, status, waiting = false) => ({ sessionId: id, name, group, machine: null, statusDot: 'x', statusTitle: status, ageText: '5m', waiting, question: waiting ? 'Fixture asks?' : null, end: { state: 'offered', batch: true } });
+  const group = (id, label, count, collapsed = false) => ({ id, label, machine: null, folder: null, count, omitted: 0, waiting: false, collapsed });
+  const detail = (id, name, agent, status, extra = {}) => ({ sessionId: id, name, project: 'fixture-yard', machine: null, agent, agentLabel: 'Fixture Agent', statusLabel: status, statusTitle: status, statusDot: 'x', question: null, choices: [], blockedSince: 0, seenAtWake: false, ageText: '5m', ...extra });
+  const confirm = { title: 'End fixture-two?', body: 'Fixture body: it stops.', confirmLabel: 'End fixture' };
+  return {
+    format: 1,
+    clock: 1,
+    ids: ['fx-1', 'fx-2', 'fx-3'],
+    variants: [['waiting', 'answered', 'ended'], ['live', 'ended'], ['ended']],
+    agents: ['claude', 'codex'],
+    constants: { blockedAgeNote: 'note', sessionsAgeNote: 'note', emptyLine: 'none' },
+    pieces: {
+      blockedRows: [blocked('fx-1', 'fixture-one')],
+      sessionsRows: [srow('fx-1', 'fixture-one', 0, 'Fixture waits', true), srow('fx-2', 'fixture-two', 0, 'Fixture runs'), srow('fx-2', 'fixture-two', 0, 'Fixture runs'), srow('fx-3', 'fixture-three', 0, 'Fixture ended'), srow('fx-1', 'fixture-one', 0, 'Fixture ended'), srow('fx-2', 'fixture-two', 0, 'Fixture ended')],
+      groups: [group('g-yard', 'fixture-yard', 2), group('g-yard', 'fixture-yard', 1), group('g-yard', 'fixture-yard', 3)],
+      choices: [{ id: 'claude', label: 'Fixture Agent' }, { id: 'codex', label: 'Fixture Other' }]
+    },
+    lists: {
+      'waiting.live.ended': {
+        blocked: { rows: [0], others: [], othersOmitted: 0 },
+        sessions: {
+          'active.project.recent.*': { rows: [0, 1], groups: [0], agents: [0, 1], machines: [], total: 3, omitted: 0 },
+          'active.project.recent.codex': { rows: [2], groups: [1], agents: [0, 1], machines: [], total: 3, omitted: 0 }
+        }
+      },
+      'ended.ended.ended': {
+        blocked: { rows: [], others: [], othersOmitted: 0 },
+        sessions: { 'ended.none.name.*': { rows: [4, 3, 5], groups: [2], agents: [0, 1], machines: [], total: 3, omitted: 0 } }
+      }
+    },
+    session: {
+      'fx-1': {
+        waiting: { session: detail('fx-1', 'fixture-one', 'claude', 'Fixture waits', { choices: [{ marker: '1', text: 'Fixture yes' }, { marker: '2', text: 'Fixture no' }], reply: { question: 'q', mark: 'm', pressable: ['1', '2'], command: 'fixture --run', canSay: false } }) },
+        answered: { session: detail('fx-1', 'fixture-one', 'claude', 'Fixture runs') }
+      },
+      'fx-2': { live: { session: detail('fx-2', 'fixture-two', 'codex', 'Fixture idles', { endConfirm: confirm }) }, ended: { session: detail('fx-2', 'fixture-two', 'codex', 'Fixture ended') } },
+      'fx-3': { ended: { session: detail('fx-3', 'fixture-three', 'claude', 'Fixture ended') } }
+    },
+    turns: { 'fx-2': { live: { sessionId: 'fx-2', turns: [{ index: 0, askText: 'fixture ask zero' }, { index: 1, askText: 'fixture ask one' }], more: false, note: null } } },
+    screen: {
+      'fx-1': { waiting: screenOf(['fixture question', 'fixture 1. yes']) },
+      'fx-2': { live: screenOf(['fixture output', '', '> '], { prompt: { row: 2, column: 2, style: 0 }, note: { row: 1, style: 0 } }), ended: absent }
+    },
+    history: { 'fx-2': { rows: [[run('fixture old 0')], [run('fixture old 1  ')]] } }
+  };
+}
+
+function sampleSelfTest() {
+  const cases = [];
+  const add = (what, grader, input, want) => cases.push({ what, got: () => grader(input).ok, want });
+  const edit = (base, fn) => {
+    const copy = structuredClone(base);
+    fn(copy);
+    return copy;
+  };
+  const words = sampleWordsOf(SAMPLE_WORD_NAMES.map((n) => `    static let ${n} = "${{ batchEndLead: 'End ', space: ' ', sessionSingular: 'session', sessionPlural: 'sessions', doneMid: ' of ', doneTail: ' ended', ended: 'Ended' }[n] ?? `word ${n}`}"`).join('\n'));
+  const book = sampleFixtureBook();
+  const E = (id, label, y, h = 20, x = 16, w = 370) => ({ id, label, frame: [x, y, w, h] });
+  const dump = (name, elements, extra = {}) => ({ step: 'screen', name, window: [402, 874], elements, ...extra });
+
+  // ---- the book's readers
+  add('readSampleBook reads the fixture', () => verdict(readSampleBook(J(book)).book !== undefined, ''), null, true);
+  add('readSampleBook refuses text that is not JSON', () => verdict(readSampleBook('{').why !== undefined, ''), null, true);
+  add('readSampleBook refuses a format that is not 1', () => verdict(readSampleBook(J({ ...book, format: 2 })).why !== undefined, ''), null, true);
+  add('readSampleBook refuses variants that are not one list per session', () => verdict(readSampleBook(J({ ...book, variants: [['waiting']] })).why !== undefined, ''), null, true);
+  add('readSampleBook refuses a book with no lists for its start state', () => verdict(readSampleBook(J({ ...book, lists: {} })).why !== undefined, ''), null, true);
+  add('sampleStart and sampleState read the variants', () => verdict(sampleStart(book) === 'waiting.live.ended' && sampleState(book, { 'fx-1': 'ended', 'fx-2': 'ended' }) === 'ended.ended.ended', ''), null, true);
+  add('sampleSessions assembles a skeleton by dereference, the query its asked', () => {
+    const a = sampleSessions(book, 'waiting.live.ended', { show: 'active', group: 'project', sort: 'recent' });
+    return verdict(a !== null && J(a.rows.map((x) => x.sessionId)) === J(['fx-1', 'fx-2']) && a.groups[0].label === 'fixture-yard' && a.asked.agent === null && a.total === 3, '');
+  }, null, true);
+  add('sampleSessions answers null for a question the book does not hold', () => verdict(sampleSessions(book, 'waiting.live.ended', { show: 'all', group: 'none', sort: 'name' }) === null, ''), null, true);
+  add('sampleScreen labels each row as the phone does, trailing blanks dropped, and keeps each row whole', () => {
+    const s = sampleScreen(book, 'fx-2', 'live');
+    return verdict(J(s.rows) === J(['fixture output', '', '>']) && s.raw[2] === '> ' && s.prompt.row === 2, '');
+  }, null, true);
+  add('sampleHistory labels each row with its trailing blanks dropped', () => verdict(J(sampleHistory(book, 'fx-2')) === J(['fixture old 0', 'fixture old 1']), ''), null, true);
+  add('sampleCast finds who waits, who runs and who ended by the book\'s own variants and agents', () => {
+    const c = sampleCast(book);
+    return verdict(c.waitingClaude === 'fx-1' && c.liveCodex === 'fx-2' && c.ended === 'fx-3' && c.waitingCodex === null, '');
+  }, null, true);
+  add('sampleWindows splits a drive at sample-open and sample-left, and nothing after the leaving mark is the sample\'s', () => {
+    const w = sampleWindows([{ step: 'a' }, { step: 'sample-open' }, { step: 'b' }, { step: 'sample-leaving' }, { step: 'c' }, { step: 'sample-left' }, { step: 'd' }, { step: 'sample-open' }, { step: 'e' }]);
+    return verdict(w.length === 2 && J(w[0].events.map((e) => e.step)) === J(['b']) && w[0].leaving !== null && w[0].left !== null && J(w[1].events.map((e) => e.step)) === J(['e']) && w[1].left === null, '');
+  }, null, true);
+  add('sampleWordsOf reads a word with an escaped quote, and null for a word not there', () => {
+    const w = sampleWordsOf('    static let sample = "Sam\\"ple"\n    static let sampleNothingRan = "x"\n');
+    return verdict(w.sample === 'Sam"ple' && w.sampleNothingRan === 'x' && w.seeSample === null, '');
+  }, null, true);
+  add('sampleBatchWords puts the press and the heading together from the pieces', () => {
+    const b = sampleBatchWords(words, 3, 3);
+    return verdict(b.confirm === 'End 3 sessions' && b.done === '3 of 3 sessions ended' && sampleBatchWords(words, 1, 1).confirm === 'End 1 session', '');
+  }, null, true);
+
+  // ---- SA1
+  const rest = dump('setup-read', [E('screen-pairing', '', 0, 874, 0, 402), E('pairing-scan-code', 'Scan code', 293, 50), E('pairing-see-sample', words.seeSample, 351, 44), E('pairing-nothing-else', 'x', 700)]);
+  const scan = dump('setup-scan', [E('screen-pairing', '', 0, 874, 0, 402), E('pairing-scanner', '', 120, 370), E('pairing-point', 'x', 506), E('pairing-see-sample', words.seeSample, 534, 44)]);
+  const inventory = { step: 'setup-inventory', for: 'setup-read', labels: [], elements: [{ id: 'pairing-see-sample', label: words.seeSample, button: true, frame: [16, 351, 370, 44] }] };
+  const sa1 = { rest, scan, inventory, words };
+  add('SA1 passes its honest reading', gradeSa1, sa1, true);
+  add('SA1 is red with no See a sample', gradeSa1, edit(sa1, (r) => void (r.inventory.elements = [])), false);
+  add('SA1 is red on See a sample in other words', gradeSa1, edit(sa1, (r) => void (r.inventory.elements[0].label = 'See a demo')), false);
+  add('SA1 is red on See a sample that is not a button', gradeSa1, edit(sa1, (r) => void (r.inventory.elements[0].button = false)), false);
+  add('SA1 is red on a 40 pt See a sample', gradeSa1, edit(sa1, (r) => void (r.inventory.elements[0].frame[3] = 40)), false);
+  add('SA1 is red on See a sample above Scan code', gradeSa1, edit(sa1, (r) => void (r.rest.elements[2].frame[1] = 250)), false);
+  add('SA1 is red on an element between Scan code and See a sample', gradeSa1, edit(sa1, (r) => void r.rest.elements.push(E('pairing-other', 'x', 344, 5))), false);
+  add('SA1 is red on See a sample above the camera\'s line after Scan code', gradeSa1, edit(sa1, (r) => void (r.scan.elements[3].frame[1] = 400)), false);
+  add('SA1 with no Scan code dump is UNREADABLE', gradeSa1, edit(sa1, (r) => void (r.scan = null)), null);
+  add('SA1 with no resting dump is UNREADABLE', gradeSa1, edit(sa1, (r) => void (r.rest = null)), null);
+  add('SA1 with no seeSample word is UNREADABLE', gradeSa1, edit(sa1, (r) => void (r.words.seeSample = null)), null);
+
+  // ---- SA2
+  // Made fresh for every page that holds it, so an edit to one page's bar is that page's alone.
+  const barOf = () => [E('sample-bar', '', 0, 44, 0, 402), E('sample-label', words.sample, 12, 20, 16, 60), E('sample-leave', words.leaveSample, 0, 44, 290, 100)];
+  const open = dump('sample-open', [...barOf(), E('screen-needs-input', '', 44, 830, 0, 402), E('needs-input-title', 'x', 100), E('needs-row-fx-1', '', 160, 60, 0, 402), E('needs-row-name-fx-1', 'fixture-one', 166)], { sampleLabel: true });
+  const needsPage = { step: 'sample-inventory', for: 'needs', read: true, inSample: true, window: [402, 874], elements: [{ id: '', label: 'Tortie', button: false, frame: [0, 0, 402, 874] }, ...barOf().map((e) => ({ ...e, button: e.id === 'sample-leave' })), { id: '', label: 'Leave sample', button: false, frame: [300, 12, 80, 20] }, { id: 'needs-input-title', label: 'x', button: false, frame: [16, 100, 370, 20] }] };
+  const sa2 = { open, needs: structuredClone(open), page: needsPage, book, words };
+  add('SA2 passes its honest reading', gradeSa2, sa2, true);
+  add('SA2 is red with no Sample bar', gradeSa2, edit(sa2, (r) => void r.open.elements.splice(0, 1)), false);
+  add('SA2 is red on the bar\'s label in other words', gradeSa2, edit(sa2, (r) => void (r.open.elements[1].label = 'Demo')), false);
+  add('SA2 is red on Leave sample in other words', gradeSa2, edit(sa2, (r) => void (r.open.elements[2].label = 'Exit')), false);
+  add('SA2 is red on a 30 pt Leave sample', gradeSa2, edit(sa2, (r) => void (r.open.elements[2].frame[3] = 30)), false);
+  add('SA2 is red on a Leave sample that is not a button', gradeSa2, edit(sa2, (r) => void (r.page.elements[3].button = false)), false);
+  add('SA2 is red on an element above the bar\'s bottom', gradeSa2, edit(sa2, (r) => void (r.open.elements[4].frame[1] = 30)), false);
+  add('SA2 is red on a Needs input that lists nothing', gradeSa2, edit(sa2, (r) => void r.needs.elements.splice(5, 2)), false);
+  add('SA2 is red on a row that is not the book\'s', gradeSa2, edit(sa2, (r) => void r.needs.elements.push(E('needs-row-fx-9', '', 230, 60, 0, 402))), false);
+  add('SA2 is red on a row named other than the book', gradeSa2, edit(sa2, (r) => void (r.needs.elements[6].label = 'fixture-nine')), false);
+  add('SA2 with no Needs input read is UNREADABLE', gradeSa2, edit(sa2, (r) => void (r.needs = null)), null);
+  add('SA2 with no book is UNREADABLE', gradeSa2, edit(sa2, (r) => void (r.book = null)), null);
+
+  // ---- SA3
+  const page = (tag, extra = []) => ({ step: 'sample-inventory', for: tag, read: true, inSample: true, window: tag === 'terminal-sideways' ? [874, 402] : [402, 874], elements: [{ id: '', label: 'Tortie', frame: tag === 'terminal-sideways' ? [0, 0, 874, 402] : [0, 0, 402, 874] }, ...barOf(), { id: 'screen-grid', label: '', frame: [0, 60, 402, 300] }, ...extra] });
+  const pages = Object.fromEntries(SAMPLE_PAGES.map((t) => [t, page(t)]));
+  const sa3 = { windows: [{ events: [open, { step: 'sessions-dump', tag: 't', sampleLabel: true, elements: [] }] }], pages, words };
+  add('SA3 passes its honest reading', gradeSa3, sa3, true);
+  add('SA3 is red on a dump inside the sample with no sample-label', gradeSa3, edit(sa3, (r) => void (r.windows[0].events[0].sampleLabel = false)), false);
+  add('SA3 is red on a sessions walk inside the sample with no sample-label', gradeSa3, edit(sa3, (r) => void delete r.windows[0].events[1].sampleLabel), false);
+  add('SA3 is red on a page with no sample-label', gradeSa3, edit(sa3, (r) => void r.pages.settings.elements.splice(2, 1)), false);
+  add('SA3 is red on an element overlapping the bar on Catch Me Up', gradeSa3, edit(sa3, (r) => void r.pages['catch-up'].elements.push({ id: 'catch-up-title', label: 'x', frame: [16, 30, 200, 30] })), false);
+  add('SA3 is red on the grid above the bar\'s bottom sideways', gradeSa3, edit(sa3, (r) => void (r.pages['terminal-sideways'].elements[4].frame[1] = 20)), false);
+  add('SA3 is red on the bar\'s label in other words on one page', gradeSa3, edit(sa3, (r) => void (r.pages.sessions.elements[2].label = 'Demo')), false);
+  add('SA3 is red on an identified page drawn under the bar (its frame holding the bar\'s)', gradeSa3, edit(sa3, (r) => void r.pages.needs.elements.push({ id: 'screen-needs-input', label: '', frame: [0, 0, 402, 874] })), false);
+  add('SA3 passes the same page drawn from the bar\'s bottom', gradeSa3, edit(sa3, (r) => void r.pages.needs.elements.push({ id: 'screen-needs-input', label: '', frame: [0, 44, 402, 830] })), true);
+  add('SA3 with a page not read is UNREADABLE', gradeSa3, edit(sa3, (r) => void (r.pages.terminal = null)), null);
+  // The fix round: an element inside a scroll container is judged by its clip.
+  const scrolledTurn = (r, clip) => void r.pages['catch-up'].elements.push({ id: 'screen-catch-up', label: '', frame: [0, 44, 402, 830] }, { id: 'turn-1', label: '', frame: [16, -149, 370, 218], ...(clip === undefined ? {} : { clip }) });
+  add('SA3 passes a Catch Me Up turn scrolled above its view, judged by its clip', gradeSa3, edit(sa3, (r) => scrolledTurn(r, [0, 44, 402, 830])), true);
+  add('SA3 is red on the same turn read with no clip', gradeSa3, edit(sa3, (r) => scrolledTurn(r, undefined)), false);
+  add('SA3 is red on an element inside the bar that its clip does not cut', gradeSa3, edit(sa3, (r) => void r.pages['catch-up'].elements.push({ id: 'turn-2', label: '', frame: [16, 10, 370, 20], clip: [0, 0, 402, 874] })), false);
+  add('SA3 is red on a scroll view itself drawn under the bar', gradeSa3, edit(sa3, (r) => void r.pages['catch-up'].elements.push({ id: 'screen-catch-up', label: '', frame: [0, 0, 402, 874] })), false);
+  const leftover = (r, hit) => {
+    r.pages['catch-up'].elements.push({ id: 'AdditionalDimmingOverlay', label: '', frame: [-120, -8, 642, 228] });
+    if (hit !== undefined) r.pages['catch-up'].barHittable = { label: true, leave: hit };
+  };
+  add('SA3 excuses iOS\'s dimming leftover on a page where it hits Leave sample', gradeSa3, edit(sa3, (r) => leftover(r, true)), true);
+  add('SA3 is red on the same leftover where iOS cannot hit Leave sample', gradeSa3, edit(sa3, (r) => leftover(r, false)), false);
+  add('SA3 is red on the same leftover where the hit was not read', gradeSa3, edit(sa3, (r) => leftover(r, undefined)), false);
+  add('SA3 is red on a page where iOS cannot hit Leave sample, whatever the frames say', gradeSa3, edit(sa3, (r) => void (r.pages.needs.barHittable = { label: true, leave: false })), false);
+  add('SA3 with the Terminal never turned is UNREADABLE', gradeSa3, edit(sa3, (r) => void (r.pages['terminal-sideways'].window = [402, 874])), null);
+
+  // ---- SA4 and SA5
+  const liveRows = [{ n: 0, label: 'fixture question' }, { n: 1, label: 'fixture 1. yes' }];
+  const press = {
+    id: 'fx-1',
+    book,
+    command: true,
+    open: { step: 'terminal-open', id: 'fx-1', face: 'terminal', reading: { live: liveRows } },
+    offer: { step: 'reply-offer', reading: { presses: [{ n: 0, label: '1, Fixture yes', enabled: true }, { n: 1, label: '2, Fixture no', enabled: true }], command: 'fixture --run' } },
+    pressed: { step: 'reply-pressed', faceId: false, after: { presses: [] } },
+    after: dump('reply-press', [E('session-status', 'Fixture runs', 100)], { sampleLabel: true }),
+    needs: dump('tab-needs', [E('screen-needs-input', '', 44, 830)], { sampleLabel: true })
+  };
+  add('SA4 passes its honest reading', gradeSaPress, press, true);
+  add('SA4 is red on a session that opened Catch Me Up', gradeSaPress, edit(press, (r) => void (r.open.face = 'catch-up')), false);
+  add('SA4 is red on a row that is not the book\'s', gradeSaPress, edit(press, (r) => void (r.open.reading.live[1].label = 'fixture 1. no')), false);
+  add('SA4 is red on no row drawn', gradeSaPress, edit(press, (r) => void (r.open.reading.live = [])), false);
+  add('SA4 is red on a missing button', gradeSaPress, edit(press, (r) => void r.offer.reading.presses.pop()), false);
+  add('SA4 is red on a button that does not hold its option whole', gradeSaPress, edit(press, (r) => void (r.offer.reading.presses[0].label = '1, Fixture')), false);
+  add('SA5 is red on a command that is not the book\'s', gradeSaPress, edit(press, (r) => void (r.offer.reading.command = 'fixture --other')), false);
+  add('SA4 reads no command when it is not asked to', gradeSaPress, edit(press, (r) => void ((r.command = false), (r.offer.reading.command = null))), true);
+  add('SA4 is red on a press that asked for Face ID', gradeSaPress, edit(press, (r) => void (r.pressed.faceId = true)), false);
+  add('SA4 is red on a tray still drawn after the press', gradeSaPress, edit(press, (r) => void (r.pressed.after.presses = [{ n: 0 }])), false);
+  add('SA4 is red on a status line that is not the answered variant\'s', gradeSaPress, edit(press, (r) => void (r.after.elements[0].label = 'Fixture waits')), false);
+  add('SA4 is red on Needs input still listing it', gradeSaPress, edit(press, (r) => void r.needs.elements.push(E('needs-row-fx-1', '', 160, 60, 0, 402))), false);
+  add('SA4 with no terminal-open line is UNREADABLE', gradeSaPress, edit(press, (r) => void (r.open = null)), null);
+  add('SA4 with Needs input not read after is UNREADABLE', gradeSaPress, edit(press, (r) => void (r.needs = null)), null);
+
+  // ---- SA6
+  const rows3 = (prompt, note) => [{ n: 0, label: 'fixture output' }, { n: 1, label: note }, { n: 2, label: prompt }];
+  const sa6 = {
+    id: 'fx-2',
+    book,
+    words,
+    text: 'ls -la',
+    letter: 'c',
+    typed: { step: 'screen-type', auth: false, rows: rows3('>', words.sampleNothingRan), typedBeforeReturn: { live: rows3('> ls -la', ''), auth: false } },
+    ctrl: { step: 'screen-ctrl', auth: false, rows: rows3('> ^C', words.sampleNothingRan) },
+    ret: { step: 'screen-key', key: 'return', auth: false, rows: rows3('>', words.sampleNothingRan) },
+    authUps: []
+  };
+  add('SA6 passes its honest reading', gradeSa6, sa6, true);
+  add('SA6 is red on the words not on the prompt', gradeSa6, edit(sa6, (r) => void (r.typed.typedBeforeReturn.live[2].label = '>')), false);
+  add('SA6 is red on Return that did not empty the prompt', gradeSa6, edit(sa6, (r) => void (r.typed.rows[2].label = '> ls -la')), false);
+  add('SA6 is red on a shell\'s answer where Return\'s line belongs', gradeSa6, edit(sa6, (r) => void (r.typed.rows[1].label = 'total 0')), false);
+  add('SA6 is red on ctrl then c not drawn as ^C', gradeSa6, edit(sa6, (r) => void (r.ctrl.rows[2].label = '> c')), false);
+  add('SA6 is red on the key bar\'s Return not emptying the prompt', gradeSa6, edit(sa6, (r) => void (r.ret.rows[2].label = '> ^C')), false);
+  add('SA6 is red on an owner check up at a key', gradeSa6, edit(sa6, (r) => void (r.ctrl.auth = true)), false);
+  add('SA6 is red on an owner check that came up between the keys', gradeSa6, edit(sa6, (r) => void r.authUps.push({ step: 'end-auth-up' })), false);
+  add('SA6 with the prompt row not drawn is UNREADABLE', gradeSa6, edit(sa6, (r) => void r.ret.rows.pop()), null);
+  add('SA6 over a book with no prompt is UNREADABLE', gradeSa6, edit(sa6, (r) => void (r.book.screen['fx-2'].live.prompt = null)), null);
+
+  // ---- SA7
+  const sa7 = { id: 'fx-2', book, scroll: { step: 'scroll-up', before: { history: [], scrollbackLine: null }, readings: [{ history: [{ i: 1, label: 'fixture old 1' }], scrollbackLine: null }, { history: [{ i: 0, label: 'fixture old 0' }, { i: 1, label: 'fixture old 1' }], scrollbackLine: null }] } };
+  add('SA7 passes its honest reading', gradeSa7, sa7, true);
+  // The probe review: with the grid read, the first line must lie inside it.
+  const sa7Grid = edit(sa7, (r) => void r.scroll.readings.forEach((x) => Object.assign(x, { grid: [0, 200, 402, 480] })));
+  add('SA7 passes the first line drawn inside the grid', gradeSa7, edit(sa7Grid, (r) => void r.scroll.readings[1].history.forEach((h) => (h.frame = [0, 200 + h.i * 9.4, 402, 9.4]))), true);
+  add('SA7 with the first line in the tree but above the grid is UNREADABLE (the page arrived, the drags never reached it)', gradeSa7, edit(sa7Grid, (r) => void r.scroll.readings[1].history.forEach((h) => (h.frame = [0, 100 + h.i * 9.4, 402, 9.4]))), null);
+  add('SA7 is red on a history row that is not the book\'s', gradeSa7, edit(sa7, (r) => void (r.scroll.readings[1].history[0].label = 'fixture new 0')), false);
+  add('SA7 is red on a history row past the book\'s depth', gradeSa7, edit(sa7, (r) => void r.scroll.readings[1].history.push({ i: 2, label: 'fixture old 2' })), false);
+  add('SA7 is red on the line where paging stopped', gradeSa7, edit(sa7, (r) => void (r.scroll.readings[1].scrollbackLine = { label: 'Stopped.' })), false);
+  add('SA7 is red on no history drawn', gradeSa7, edit(sa7, (r) => void (r.scroll.readings = [])), false);
+  add('SA7 that never reached the top is UNREADABLE', gradeSa7, edit(sa7, (r) => void r.scroll.readings.pop()), null);
+
+  // ---- SA8
+  const sa8 = { id: 'fx-2', book, turns: { step: 'turns', indexes: [0, 1], asks: { 0: 'fixture ask zero', 1: 'fixture ask one' } } };
+  add('SA8 passes its honest reading', gradeSa8, sa8, true);
+  add('SA8 is red on an ask that is not the book\'s', gradeSa8, edit(sa8, (r) => void (r.turns.asks[1] = 'fixture ask uno')), false);
+  add('SA8 is red on Catch Me Up not paged to its first turn', gradeSa8, edit(sa8, (r) => void ((r.turns.indexes = [1]), delete r.turns.asks[0])), false);
+  add('SA8 with no turns line is UNREADABLE', gradeSa8, edit(sa8, (r) => void (r.turns = null)), null);
+
+  // ---- SA9
+  const sa9 = {
+    id: 'fx-2',
+    book,
+    bar: { step: 'end-bar', for: 'end', kind: 'faceID' },
+    dialog: { step: 'end-dialog', for: 'end', title: 'End fixture-two?', texts: ['End fixture-two?', 'Fixture body:', 'it stops.'], buttons: ['End fixture', 'Cancel'] },
+    authUp: { step: 'end-auth-up', for: 'end', seq: 7 },
+    acked: true,
+    matched: 0,
+    after: dump('end', [E('session-status', 'Fixture ended', 100), E('screen-failure', 'fixture: it has no terminal.', 400)], { sampleLabel: true })
+  };
+  add('SA9 passes its honest reading', gradeSa9, sa9, true);
+  add('SA9 is red on End marked with the lock while Face ID is enrolled', gradeSa9, edit(sa9, (r) => void (r.bar.kind = 'passcode')), false);
+  add('SA9 is red on a confirmation with no title', gradeSa9, edit(sa9, (r) => void ((r.dialog.title = null), (r.dialog.texts = r.dialog.texts.slice(1)))), false);
+  add('SA9 is red on a confirmation with another body', gradeSa9, edit(sa9, (r) => void (r.dialog.texts = ['End fixture-two?', 'Another body.'])), false);
+  add('SA9 is red on a press in other words', gradeSa9, edit(sa9, (r) => void (r.dialog.buttons = ['End', 'Cancel'])), false);
+  add('SA9 is red on a status line that is not the ended variant\'s', gradeSa9, edit(sa9, (r) => void (r.after.elements[0].label = 'Fixture idles')), false);
+  add('SA9 is red on a screen-failure that is not main\'s', gradeSa9, edit(sa9, (r) => void (r.after.elements[1].label = 'Gone.')), false);
+  add('SA9 with the owner check never answered is UNREADABLE', gradeSa9, edit(sa9, (r) => void (r.acked = false)), null);
+  add('SA9 with no match given is UNREADABLE', gradeSa9, edit(sa9, (r) => void (r.matched = -1)), null);
+
+  // ---- SA10
+  const header = (gid, label, count, y) => [E(`group-${gid}`, '', y, 44, 0, 402), E(`group-label-${gid}`, label, y + 10), E(`group-count-${gid}`, String(count), y + 10, 20, 350, 30)];
+  const listRow = (id, name, line, y) => [E(`row-${id}`, '', y, 57, 0, 402), E(`row-name-${id}`, name, y + 6), E(`row-age-${id}`, '5m', y + 9, 15, 361, 25), E(`row-line-${id}`, line, y + 31)];
+  const walk = (tag, elements) => ({ step: 'sessions-dump', tag, complete: true, swipes: 1, sampleLabel: true, elements: [{ id: 'list-show-active', label: 'Active', selected: true, frame: [16, 100, 100, 30] }, ...elements] });
+  const sa10 = {
+    book,
+    state: 'waiting.live.ended',
+    reads: [
+      { tag: 'all', query: { show: 'active', group: 'project', sort: 'recent' }, dump: walk('all', [...header('g-yard', 'fixture-yard', 2, 140), ...listRow('fx-1', 'fixture-one', 'Fixture asks?', 190), ...listRow('fx-2', 'fixture-two', 'Fixture runs', 250)]) },
+      { tag: 'codex', query: { show: 'active', group: 'project', sort: 'recent', agent: 'codex' }, dump: walk('codex', [...header('g-yard', 'fixture-yard', 1, 140), ...listRow('fx-2', 'fixture-two', 'Fixture runs', 190)]) }
+    ]
+  };
+  add('SA10 passes its honest readings', gradeSa10, sa10, true);
+  add('SA10 is red on rows out of the book\'s order', gradeSa10, edit(sa10, (r) => void (r.reads[0].dump.elements = [r.reads[0].dump.elements[0], ...header('g-yard', 'fixture-yard', 2, 140), ...listRow('fx-2', 'fixture-two', 'Fixture runs', 190), ...listRow('fx-1', 'fixture-one', 'Fixture asks?', 250)])), false);
+  add('SA10 is red on a header label that is not the book\'s', gradeSa10, edit(sa10, (r) => void (r.reads[0].dump.elements[2].label = 'fixture-field')), false);
+  add('SA10 is red on a second project header the book does not draw', gradeSa10, edit(sa10, (r) => void r.reads[0].dump.elements.push(...header('g-other', 'fixture-yard', 0, 600))), false);
+  add('SA10 is red on an agent filter that did not narrow the list', gradeSa10, edit(sa10, (r) => void (r.reads[1].dump.elements = [r.reads[1].dump.elements[0], ...header('g-yard', 'fixture-yard', 1, 140), ...listRow('fx-1', 'fixture-one', 'Fixture asks?', 190), ...listRow('fx-2', 'fixture-two', 'Fixture runs', 250)])), false);
+  add('SA10 is red on a walk that ended with no sample-label', gradeSa10, edit(sa10, (r) => void (r.reads[1].dump.sampleLabel = false)), false);
+  add('SA10 with a question the book does not hold is UNREADABLE', gradeSa10, edit(sa10, (r) => void (r.reads[0].query = { show: 'all', group: 'none', sort: 'name' })), null);
+
+  // ---- SA11
+  const endedWalk = { step: 'sessions-dump', tag: 'sa11', complete: true, swipes: 1, sampleLabel: true, elements: [{ id: 'list-show-ended', label: 'Ended', selected: true, frame: [16, 100, 100, 30] }, ...listRow('fx-1', 'fixture-one', 'Fixture ended · fixture-yard', 160), ...listRow('fx-3', 'fixture-three', 'Fixture ended · fixture-yard', 220), ...listRow('fx-2', 'fixture-two', 'Fixture ended · fixture-yard', 280)] };
+  const sa11 = {
+    book,
+    words,
+    targets: ['fx-1', 'fx-2'],
+    state: 'ended.ended.ended',
+    select: { step: 'select', ticked: ['fx-1', 'fx-2'] },
+    dialog: { step: 'end-dialog', for: 'end-these', buttons: ['End 2 sessions', 'Cancel'] },
+    authUp: { step: 'end-auth-up', for: 'end-these', seq: 9 },
+    acked: true,
+    matched: 0,
+    these: { step: 'end-these', heading: '2 of 2 sessions ended', outcomes: { 'fx-1': 'Ended', 'fx-2': 'Ended' } },
+    endedRead: { query: { show: 'ended', group: 'none', sort: 'name' }, dump: endedWalk }
+  };
+  add('SA11 passes its honest reading', gradeSa11, sa11, true);
+  add('SA11 is red on a row Select did not tick', gradeSa11, edit(sa11, (r) => void (r.select.ticked = ['fx-1'])), false);
+  add('SA11 is red on a press that counts another number', gradeSa11, edit(sa11, (r) => void (r.dialog.buttons = ['End 3 sessions', 'Cancel'])), false);
+  add('SA11 is red on a heading that counts one ended', gradeSa11, edit(sa11, (r) => void (r.these.heading = '1 of 2 sessions ended')), false);
+  add('SA11 is red on a target that is not Ended', gradeSa11, edit(sa11, (r) => void (r.these.outcomes['fx-2'] = 'Not ended.')), false);
+  add('SA11 is red on Show Ended missing a session', gradeSa11, edit(sa11, (r) => void r.endedRead.dump.elements.splice(5, 4)), false);
+  add('SA11 with the owner check never answered is UNREADABLE', gradeSa11, edit(sa11, (r) => void (r.authUp = null)), null);
+
+  // ---- SA12
+  const settingsIn = dump('tab-settings', [E('screen-settings', '', 44, 830), E('settings-title', 'Settings', 60), E('settings-about', '', 120, 200), E('settings-version', '1.0.0 (0)', 140)], { sampleLabel: true });
+  const sa12 = { dump: settingsIn };
+  add('SA12 passes its honest reading', gradeSa12, sa12, true);
+  for (const id of ['settings-mac', 'settings-alerts', 'settings-unpair', 'settings-see-sample']) add(`SA12 is red on ${id} drawn inside the sample`, gradeSa12, edit(sa12, (r) => void r.dump.elements.push(E(id, 'x', 400))), false);
+  add('SA12 is red with no About', gradeSa12, edit(sa12, (r) => void r.dump.elements.splice(2, 1)), false);
+  add('SA12 is red on Settings with no sample-label', gradeSa12, edit(sa12, (r) => void (r.dump.sampleLabel = false)), false);
+  add('SA12 with Settings never read is UNREADABLE', gradeSa12, { dump: null }, null);
+
+  // ---- SA13
+  const pairingDump = (name, line, extra = []) => dump(name, [E('screen-pairing', '', 0, 874, 0, 402), E('pairing-line', line, 732), ...extra]);
+  const sa13 = { before: pairingDump('sample-before', 'fixture not paired'), left: { step: 'sample-left', page: 'pairing', bar: false }, leftDump: pairingDump('sample-left', 'fixture not paired') };
+  add('SA13 passes its honest reading', gradeSa13, sa13, true);
+  add('SA13 is red on Leave sample landing on Needs input', gradeSa13, edit(sa13, (r) => void ((r.left.page = 'needs-input'), (r.leftDump.elements[0].id = 'screen-needs-input'))), false);
+  add('SA13 is red on the Sample bar still drawn', gradeSa13, edit(sa13, (r) => void r.leftDump.elements.push(E('sample-label', words.sample, 12))), false);
+  add('SA13 is red on a pairing line that changed', gradeSa13, edit(sa13, (r) => void (r.leftDump.elements[1].label = 'fixture paired')), false);
+  add('SA13 with Leave sample never pressed is UNREADABLE', gradeSa13, edit(sa13, (r) => void (r.left = null)), null);
+
+  // ---- SAX
+  const sax = { counts: { before: 41, after: 41 }, listening: { before: true, after: true }, windows: 2, complete: true };
+  add('SAX passes 0 connections', gradeSax, sax, true);
+  add('SAX is red on one connection', gradeSax, edit(sax, (r) => void (r.counts.after = 42)), false);
+  add('SAX over a drive that never left the sample is UNREADABLE (the probe review)', gradeSax, edit(sax, (r) => void (r.complete = false)), null);
+  add('SAX with the door not listening is UNREADABLE', gradeSax, edit(sax, (r) => void (r.listening.after = false)), null);
+  add('SAX with the sample never opened is UNREADABLE', gradeSax, edit(sax, (r) => void (r.windows = 0)), null);
+
+  // ---- SC1
+  const mac = [{ id: 'mac-session-aaaa1111', name: 'p316-shell', status: 'running' }, { id: 'mac-session-bbbb2222', name: 'p316-ask', status: 'needs_input' }];
+  const sc1 = {
+    mac,
+    list: dump('list', [E('row-mac-session-aaaa1111', '', 160, 57, 0, 402)]),
+    windows: [{ events: [open, { step: 'sample-inventory', for: 'sc', elements: [{ id: 'needs-row-name-fx-1', label: 'fixture-one' }] }] }],
+    settingsBefore: dump('sample-before', [E('settings-unpair', 'Unpair this iPhone', 400, 44), E('settings-see-sample', words.seeSample, 445, 44)])
+  };
+  add('SC1 passes its honest reading', gradeSc1, sc1, true);
+  add('SC1 is red on a list that draws none of the Mac\'s sessions', gradeSc1, edit(sc1, (r) => void (r.list.elements = [])), false);
+  add('SC1 is red on a reading inside the sample that holds a Mac session\'s name', gradeSc1, edit(sc1, (r) => void r.windows[0].events.push(dump('tab-needs', [E('needs-row-name-x', 'p316-ask', 160)]))), false);
+  add('SC1 is red on a reading inside the sample that holds a Mac session\'s id', gradeSc1, edit(sc1, (r) => void r.windows[0].events.push(dump('tab-needs', [E('needs-row-mac-session-bbbb2222', '', 160)]))), false);
+  add('SC1 is red on See a sample above Unpair', gradeSc1, edit(sc1, (r) => void (r.settingsBefore.elements[1].frame[1] = 380)), false);
+  add('SC1 with the Mac\'s sessions not read is UNREADABLE', gradeSc1, edit(sc1, (r) => void (r.mac = [])), null);
+
+  // ---- SC2
+  const sc2 = { macTerminal: { step: 'screen-open', rows: [{ n: 0, label: '$' }] }, counts: { open: 12, leaving: 12 }, records: { open: 70, leaving: 70 }, live: 0, inside: Object.fromEntries(SC2_SURFACES.map(([k]) => [k, true])) };
+  add('SC2 passes 0 connections inside the sample', gradeSc2, sc2, true);
+  add('SC2 is red on one connection inside the sample', gradeSc2, edit(sc2, (r) => void (r.counts.leaving = 13)), false);
+  add('SC2 is red on one request on a connection kept from before the sample (the probe review)', gradeSc2, edit(sc2, (r) => void (r.records.leaving = 71)), false);
+  add('SC2 with the requests not counted is UNREADABLE (the probe review)', gradeSc2, edit(sc2, (r) => void (r.records = null)), null);
+  add('SC2 with no Mac Terminal before the sample is UNREADABLE', gradeSc2, edit(sc2, (r) => void (r.macTerminal = null)), null);
+  add('SC2 with no Home and back inside the sample is UNREADABLE', gradeSc2, edit(sc2, (r) => void (r.inside.home = false)), null);
+  for (const [k, what] of SC2_SURFACES.filter(([key]) => key !== 'home')) add(`SC2 with no ${what} inside the sample is UNREADABLE (the fix round)`, gradeSc2, edit(sc2, (r) => void (r.inside[k] = false)), null);
+  add('sc2Inside reads both presses, End and End these from the drive\'s own events, and one press is not both', () => {
+    const one = sc2Inside([{ step: 'reply-pressed' }, { step: 'end-auth-answered', for: 'end' }, { step: 'end-these', for: 'end-these' }]);
+    const two = sc2Inside([{ step: 'reply-pressed' }, { step: 'reply-pressed' }]);
+    const theseOnly = sc2Inside([{ step: 'end-auth-answered', for: 'end-these' }]);
+    return verdict(one.press === false && one.end === true && one.endThese === true && two.press === true && theseOnly.end === false, '');
+  }, null, true);
+
+  // ---- SC3
+  const settingsPaired = (fp, address) => dump('settings', [E('settings-fingerprint', fp, 300), E('settings-mac-address', address, 260)]);
+  const sc3 = {
+    left: { step: 'sample-left', page: 'needs-input', bar: false },
+    leftDump: dump('sample-left', [E('screen-needs-input', '', 44, 830), E('needs-row-mac-session-bbbb2222', '', 160, 60, 0, 402)]),
+    mac,
+    sampleIds: book.ids,
+    moved: 1_200,
+    settingsBefore: settingsPaired('1234 5678', 'fixture.example'),
+    settingsAfter: settingsPaired('1234 5678', 'fixture.example')
+  };
+  add('SC3 passes its honest reading', gradeSc3, sc3, true);
+  add('SC3 is red on Leave sample landing on Pairing', gradeSc3, edit(sc3, (r) => void (r.left.page = 'pairing')), false);
+  add('SC3 is red on Needs input still listing a sample session', gradeSc3, edit(sc3, (r) => void r.leftDump.elements.push(E('needs-row-fx-1', '', 230, 60, 0, 402))), false);
+  add('SC3 is red on Needs input listing none of the Mac\'s waiting sessions', gradeSc3, edit(sc3, (r) => void r.leftDump.elements.splice(1, 1)), false);
+  add('SC3 is red on no connection within 15 s of Leave sample', gradeSc3, edit(sc3, (r) => void (r.moved = null)), false);
+  add('SC3 is red on a fingerprint that moved', gradeSc3, edit(sc3, (r) => void (r.settingsAfter.elements[0].label = '1234 0000')), false);
+  add('SC3 is red on an address that moved', gradeSc3, edit(sc3, (r) => void (r.settingsAfter.elements[1].label = 'other.example')), false);
+  add('SC3 with Settings not read after is UNREADABLE', gradeSc3, edit(sc3, (r) => void (r.settingsAfter = null)), null);
+
+  // ---- SD
+  const sd = {
+    id: 'fx-2',
+    book,
+    words,
+    unenrol: 0,
+    bar: { step: 'end-bar', for: 'end-off', kind: 'unasked', glyph: 'lock.open', enabled: true, line: words.sampleEndUnasked },
+    authUp: { step: 'end-auth-up', for: 'end', confirming: false },
+    permissions: [{ step: 'faceid-permission', for: 'end', seen: false }],
+    after: dump('end', [E('session-status', 'Fixture ended', 100)], { sampleLabel: true })
+  };
+  add('SD passes its honest reading', gradeSd, sd, true);
+  add('SD is red on the sample\'s End drawn off with the passcode line', gradeSd, edit(sd, (r) => void Object.assign(r.bar, { kind: 'none', glyph: 'lock', enabled: false, line: 'Set a passcode.' })), false);
+  add('SD is red on End drawn off with lock.open', gradeSd, edit(sd, (r) => void (r.bar.enabled = false)), false);
+  add('SD is red on End\'s line in other words', gradeSd, edit(sd, (r) => void (r.bar.line = 'Ends at once.')), false);
+  add('SD is red on End\'s owner check mark drawn', gradeSd, edit(sd, (r) => void (r.authUp.confirming = true)), false);
+  add('SD is red on iOS\'s Face ID question coming up', gradeSd, edit(sd, (r) => void (r.permissions[0].seen = true)), false);
+  add('SD is red on a session that did not end', gradeSd, edit(sd, (r) => void (r.after.elements[0].label = 'Fixture idles')), false);
+  add('SD where iOS answers the passcode is UNREADABLE', gradeSd, edit(sd, (r) => void Object.assign(r.bar, { kind: 'passcode', glyph: 'lock' })), null);
+  add('SD where iOS still answers Face ID is UNREADABLE', gradeSd, edit(sd, (r) => void Object.assign(r.bar, { kind: 'faceID', glyph: 'faceid' })), null);
+  add('SD with the unenrol refused is UNREADABLE', gradeSd, edit(sd, (r) => void (r.unenrol = 1)), null);
+
+  // ---- SP
+  const sp = { inventory: { step: 'setup-inventory', for: 'setup-read', labels: ['Pair with your Mac', 'Scan code'] }, dump: rest, counts: { before: 50, after: 50, idleStart: 50, idleEnd: 50 } };
+  const spDump = { ...rest, elements: rest.elements.filter((e) => e.id !== 'pairing-see-sample') };
+  add('SP passes its honest reading', gradeSp, { ...sp, dump: spDump }, true);
+  add('SP is red on a parent that draws "sample"', gradeSp, { ...sp, dump: rest }, false);
+  add('SP is red on a label holding "Sample" anywhere', gradeSp, edit({ ...sp, dump: spDump }, (r) => void r.inventory.labels.push('Sample')), false);
+  add('SP is red on a connection during the parent\'s idle', gradeSp, edit({ ...sp, dump: spDump }, (r) => void (r.counts.idleEnd = 51)), false);
+  add('SP is red on a connection during the parent\'s drive', gradeSp, edit({ ...sp, dump: spDump }, (r) => void (r.counts.after = 51)), false);
+  add('SP with no inventory is UNREADABLE', gradeSp, edit({ ...sp, dump: spDump }, (r) => void (r.inventory = null)), null);
+
+  // ---- the plumbing: one made-up fresh drive read the way the run reads it
+  const ev = (o) => o;
+  const cast = { waitingClaude: 'fx-1', waitingCodex: 'fx-9', liveClaude: 'fx-2', liveCodex: 'fx-8', ended: 'fx-3' };
+  const stream = [
+    ev({ step: 'setup-inventory', for: 'setup-read', tag: 'inv' }),
+    dump('setup-read', []),
+    dump('setup-scan', []),
+    dump('sample-before', [E('pairing-line', 'first', 700)]),
+    ev({ step: 'sample-open' }),
+    dump('sample-open', [], { sampleLabel: true }),
+    dump('tab-needs', [], { sampleLabel: true, tag: 'needs-0' }),
+    ev({ step: 'terminal-open', id: 'fx-1' }),
+    ev({ step: 'reply-offer', tag: 'offer-A' }),
+    ev({ step: 'reply-pressed', tag: 'pressed-A' }),
+    dump('reply-press', [], { tag: 'after-A' }),
+    dump('tab-needs', [], { tag: 'needs-A' }),
+    ev({ step: 'terminal-open', id: 'fx-9' }),
+    ev({ step: 'reply-offer', tag: 'offer-B' }),
+    ev({ step: 'reply-pressed', tag: 'pressed-B' }),
+    dump('reply-press', [], { tag: 'after-B' }),
+    dump('tab-needs', [], { tag: 'needs-B' }),
+    ev({ step: 'terminal-open', id: 'fx-8' }),
+    ev({ step: 'screen-type', tag: 'typed' }),
+    ev({ step: 'screen-ctrl', tag: 'ctrl' }),
+    ev({ step: 'screen-key', key: 'return', tag: 'ret' }),
+    ev({ step: 'terminal-open', id: 'fx-2' }),
+    ev({ step: 'scroll-up', tag: 'scroll' }),
+    ev({ step: 'turns', tag: 'turns' }),
+    ev({ step: 'terminal-open', id: 'fx-2' }),
+    ev({ step: 'end-bar', for: 'end', tag: 'bar' }),
+    ev({ step: 'end-dialog', for: 'end', tag: 'dialog' }),
+    ev({ step: 'end-auth-up', for: 'end', seq: 50 }),
+    ev({ step: 'end-auth-answered', for: 'end', acked: true }),
+    dump('end', [], { tag: 'end-after' }),
+    ev({ step: 'select', tag: 'select' }),
+    ev({ step: 'end-dialog', for: 'end-these', tag: 'these-dialog' }),
+    ev({ step: 'end-auth-up', for: 'end-these', seq: 60 }),
+    ev({ step: 'end-auth-answered', for: 'end-these', acked: true }),
+    ev({ step: 'end-these', for: 'end-these', tag: 'these' }),
+    ev({ step: 'sessions-dump', tag: 'sa11-ended' }),
+    ev({ step: 'sample-leaving' }),
+    ev({ step: 'sample-left', page: 'pairing' }),
+    dump('sample-left', [], { tag: 'left' }),
+    dump('sample-before', [E('pairing-line', 'second', 700)]),
+    ev({ step: 'sample-open' }),
+    ev({ step: 'end-bar', for: 'end-off', tag: 'sd-bar' }),
+    ev({ step: 'end-auth-up', for: 'end', seq: 70 }),
+    ev({ step: 'faceid-permission', for: 'end', seen: false }),
+    dump('end', [], { tag: 'sd-after' })
+  ];
+  const fresh = { run: { events: stream }, marks: { auth: [{ seq: 50, code: 0 }, { seq: 60, code: 0 }, { seq: 70, code: null }], unenrol: 0 }, counts: { before: 3, after: 3 }, listening: { before: true, after: true } };
+  const R = sampleFreshReadings(fresh, book, cast, words);
+  const tagOf = (x) => x?.tag ?? null;
+  add('the fresh reader takes each press from its own Terminal', () => verdict(tagOf(R.sa4.offer) === 'offer-A' && tagOf(R.sa4.after) === 'after-A' && tagOf(R.sa4.needs) === 'needs-A' && tagOf(R.sa5.offer) === 'offer-B' && tagOf(R.sa5.needs) === 'needs-B' && R.sa5.command === true, ''), null, true);
+  add('the fresh reader never takes the next session\'s offer for a missing one', () => {
+    const r = sampleFreshReadings({ ...fresh, run: { events: stream.filter((e) => e.tag !== 'offer-A') } }, book, cast, words);
+    return verdict(r.sa4.offer === null && tagOf(r.sa5.offer) === 'offer-B', '');
+  }, null, true);
+  add('the fresh reader takes SA2\'s Needs input as the first one inside the sample', () => verdict(tagOf(R.sa2.needs) === 'needs-0', ''), null, true);
+  add('the fresh reader takes the keys from the typing Terminal, with no owner check between', () => verdict(tagOf(R.sa6.typed) === 'typed' && tagOf(R.sa6.ctrl) === 'ctrl' && tagOf(R.sa6.ret) === 'ret' && R.sa6.authUps.length === 0, ''), null, true);
+  add('the fresh reader takes SA9 from End, its match by its seq', () => verdict(tagOf(R.sa9.bar) === 'bar' && tagOf(R.sa9.dialog) === 'dialog' && R.sa9.acked === true && R.sa9.matched === 0 && tagOf(R.sa9.after) === 'end-after', ''), null, true);
+  add('the fresh reader takes End these and the Ended walk', () => verdict(tagOf(R.sa11.these) === 'these' && R.sa11.matched === 0 && tagOf(R.walk('sa11-ended')) === 'sa11-ended', ''), null, true);
+  add('the fresh reader takes SA13\'s line from Pairing before the FIRST sample, and SD from the second', () => verdict(el(R.sa13.before, 'pairing-line')?.label === 'first' && tagOf(R.sa13.leftDump) === 'left' && tagOf(R.sd.bar) === 'sd-bar' && R.sd.authUp?.seq === 70 && tagOf(R.sd.after) === 'sd-after' && R.sax.windows === 2, ''), null, true);
+  add('the fresh reader counts an owner check that came up while typing', () => {
+    const at = stream.findIndex((e) => e.tag === 'ctrl');
+    const r = sampleFreshReadings({ ...fresh, run: { events: [...stream.slice(0, at), ev({ step: 'end-auth-up', for: 'stray', seq: 99 }), ...stream.slice(at)] } }, book, cast, words);
+    return verdict(r.sa6.authUps.length === 1, '');
+  }, null, true);
+
+  return runSelfTestCases(cases);
+}
+
+// ---- the probe review's recorded drives ------------------------------------------
+//
+// Phase 333.3's probe review (docs/method/HOW-WE-BUILT-THIS.md rule 9): the
+// graders above are proved on a small book of the builder's making. These
+// cases prove the RUN's wiring as well: `samplePlan`'s own step lists over
+// the COMMITTED book, played through a stand-in for P316DriveUITests.swift
+// that prints, step by step, the lines the drive prints (their names and
+// fields read from the Swift), as an honest app draws the book, then graded by
+// `gradeSampleFresh`, `gradeSampleFloor` and `gradeSamplePaired` as the run
+// grades them. An honest drive must read every arm PASS; each broken one
+// must turn its own arm red; a drive that printed nothing, or stopped part
+// way, must read UNREADABLE and never PASS or FAIL. Every expected word below
+// is the book's or Copy.swift's, re-read here with code of this section's own.
+
+/** One recorded drive of `steps` over `book`: `{ run: { events, code }, marks, counts, listening }`. */
+function sampleRecordedDrive(book, cast, steps, words, opts = {}) {
+  const events = [];
+  let seq = 0;
+  const emit = (o) => {
+    seq += 1;
+    const line = { ...o, seq };
+    events.push(line);
+    return line;
+  };
+  const marks = { windows: [], auth: [], unenrol: null, unenrolled: false, idleStart: null, idleEnd: null };
+  const relayCount = opts.connections ?? 3;
+  // The app.
+  let inSample = false;
+  let world = null;
+  let echoes = {};
+  let unenrolled = false;
+  let landscape = false;
+  let scanned = false;
+  let tab = 'needs';
+  const stack = { needs: [], sessions: [], settings: [] };
+  let words3 = { show: 'active', group: 'project', sort: 'recent', agent: null };
+  let selected = [];
+  const variantOf = (id) => world[id];
+  const key = () => book.ids.map((id) => world[id]).join('.');
+  const textOf = (runs) => (runs ?? []).map((r) => String(r.text)).join('');
+  const rowLabel = (s) => s.replace(/ +$/, '');
+  const detail = (id) => book.session[id][variantOf(id)].session;
+  const screenEntry = (id) => book.screen?.[id]?.[variantOf(id)] ?? null;
+  const nothingRan = [...String(words.sampleNothingRan)].filter((c) => c >= ' ' && c <= '~').join('');
+  // Geometry: an iPhone 16 Pro, upright and sideways.
+  const W0 = landscapeNow => (landscapeNow ? [874, 402] : [402, 874]);
+  const E = (id, label, frame, extra = {}) => ({ id, label, frame, ...extra });
+  const barEls = () => (landscape
+    ? [E('sample-bar', '', [62, 0, 750, 44]), E('sample-label', words.sample, [78, 12, 60, 20]), E('sample-leave', words.leaveSample, [692, 0, 104, 44])]
+    : [E('sample-bar', '', [0, 62, 402, 44]), E('sample-label', words.sample, [16, 74, 60, 20]), E('sample-leave', words.leaveSample, [282, 62, 104, 44])]);
+  const pairingEls = () => [
+    E('screen-pairing', '', [0, 0, 402, 874]),
+    E('pairing-title', 'Pair with your Mac', [16, 80, 370, 34]),
+    ...(scanned
+      ? [E('pairing-scanner', '', [16, 130, 370, 370]), E('pairing-point', 'Point the camera at the code.', [16, 516, 370, 20]), E('pairing-see-sample', words.seeSample, [16, 560, 370, 44])]
+      : [E('pairing-scan-code', 'Scan code', [16, 293, 370, 50]), E('pairing-see-sample', words.seeSample, [16, 351, 370, 44])]),
+    E('pairing-nothing-else', 'Nothing else to install.', [16, 700, 370, 20]),
+    E('pairing-line', 'Not paired yet.', [16, 732, 370, 20])
+  ];
+  // What the Terminal draws for `id` now: the book's rows, and on a prompt
+  // the sample's echo (SampleWorld.echoed).
+  const liveLabels = (id) => {
+    const s = screenEntry(id);
+    const lines = s?.answer?.screen?.lines;
+    if (!Array.isArray(lines)) return null;
+    const raw = lines.map(textOf);
+    const e = echoes[id];
+    if (e !== undefined && s.prompt !== null && s.prompt !== undefined) {
+      raw[s.prompt.row] = `${raw[s.prompt.row]}${e.text}`;
+      if (e.returned && s.note !== null && s.note !== undefined) raw[s.note.row] = nothingRan.slice(0, s.answer.screen.cols);
+    }
+    return raw.map(rowLabel);
+  };
+  const historyLabels = (id) => (book.history?.[id]?.rows ?? []).map((runs) => rowLabel(textOf(runs)));
+  // The grid and its rows: upright the live rows end at the grid's bottom
+  // and a page of history runs on above it, out of the grid and up past the
+  // bar (as XCUITest reports a scrolled row: its unclipped frame); sideways
+  // the 30 rows are taller than the grid and the top ones run up under it.
+  const gridOf = () => (landscape ? [62, 44, 750, 338] : [0, 200, 402, 480]);
+  const rowH = () => (landscape ? 17.5 : 9.4);
+  const terminalEls = (id) => {
+    const g = gridOf();
+    const live = liveLabels(id) ?? [];
+    const h = rowH();
+    const top = g[1] + g[3] - live.length * h;
+    const els = [E('screen-grid', 'Terminal', g), ...live.map((label, n) => E(`screen-row-${String(n)}`, label, [g[0], top + n * h, g[2], h]))];
+    const hist = historyLabels(id);
+    hist.forEach((label, i) => els.push(E(`screen-history-${String(i)}`, label, [g[0], top - (hist.length - i) * h, g[2], h])));
+    return els;
+  };
+  const pressesOf = (id) => {
+    const d = detail(id);
+    const pressable = d.reply?.pressable ?? [];
+    return (d.choices ?? []).map((c, n) => ({ c, n })).filter(({ c }) => pressable.includes(c.marker));
+  };
+  const terminalPage = (id) => {
+    const d = detail(id);
+    const tray = landscape ? [] : pressesOf(id).map(({ c, n }) => E(`session-choice-press-${String(n)}`, `${c.marker}. ${c.text}`, [16, 690 + n * 30, 370, 28]));
+    const command = !landscape && d.reply?.command ? [E('session-command', d.reply.command, [16, 680, 370, 20])] : [];
+    const chrome = landscape ? [] : [E('screen-session', '', [0, 106, 402, 685]), E('screen-screen', '', [0, 106, 402, 685]), E('session-status', d.statusTitle, [16, 170, 200, 20]), E('terminal-menu', 'More', [346, 110, 36, 36])];
+    return [...chrome, ...terminalEls(id), ...command, ...tray];
+  };
+  // Catch Me Up as the real page reports it (the fix round, both verifiers):
+  // its conversation a scroll view, a turn scrolled above it reported at its
+  // unclipped frame (here the first, from 40 pt above the window's top, so
+  // under the bar), and every element inside it carrying the clip the drive
+  // reads, which is what SA3 judges it by.
+  const catchUpPage = (id) => {
+    const turns = book.turns?.[id]?.[variantOf(id)]?.turns ?? [];
+    const view = [0, 106, 402, 685];
+    return [
+      E('screen-session', '', [0, 106, 402, 685]),
+      E('screen-catch-up', '', view),
+      E('session-status', detail(id).statusTitle, [16, 170, 200, 20], { clip: view }),
+      ...turns.flatMap((t) => [E(`turn-${String(t.index)}`, '', [0, -40 + t.index * 120, 402, 110], { clip: view }), E(`turn-ask-${String(t.index)}`, t.askText, [16, -30 + t.index * 120, 370, 40], { clip: view })])
+    ];
+  };
+  const sessionsAnswer = () => {
+    const s = book.lists[key()]?.sessions?.[`${words3.show}.${words3.group}.${words3.sort}.${words3.agent ?? '*'}`] ?? null;
+    if (s === null) return null;
+    return { rows: s.rows.map((i) => book.pieces.sessionsRows[i]), groups: s.groups.map((i) => book.pieces.groups[i]) };
+  };
+  const sessionsEls = () => {
+    const a = sessionsAnswer();
+    const els = [E('screen-list', '', [0, 106, 402, 685]), ...['all', 'active', 'ended'].map((w, k) => E(`list-show-${w}`, w, [16 + k * 120, 170, 110, 30], { selected: w === words3.show, enabled: true }))];
+    if (a === null) return els;
+    let y = 210;
+    const rowEls = (r) => {
+      const g = a.groups[r.group];
+      const line = words3.group === 'project' ? (r.waiting && r.question !== null ? r.question : r.statusTitle) : r.waiting && r.question !== null ? `${g.label}${SEPARATOR}${r.question}` : `${r.statusTitle}${SEPARATOR}${g.label}`;
+      const out = [E(`row-${r.sessionId}`, '', [0, y, 402, 57]), E(`row-name-${r.sessionId}`, r.name, [34, y + 6, 200, 20]), E(`row-age-${r.sessionId}`, r.ageText ?? SESSIONS_WORDS.dash, [361, y + 9, 25, 16]), E(`row-line-${r.sessionId}`, line, [16, y + 31, 370, 18])];
+      y += 57;
+      return out;
+    };
+    if (words3.group === 'none') {
+      for (const r of a.rows) els.push(...rowEls(r));
+      return els;
+    }
+    a.groups.forEach((g, gi) => {
+      els.push(E(`group-${g.id}`, '', [0, y, 402, 44], { selected: !g.collapsed, enabled: true }), E(`group-label-${g.id}`, g.label, [16, y + 10, 200, 20]), E(`group-count-${g.id}`, String(g.count), [350, y + 10, 30, 20]));
+      if (g.waiting) els.push(E(`group-waiting-${g.id}`, '', [330, y + 16, 10, 10]));
+      y += 44;
+      if (!g.collapsed) for (const r of a.rows.filter((x) => x.group === gi)) els.push(...rowEls(r));
+    });
+    return els;
+  };
+  const needsEls = () => {
+    const s = book.lists[key()].blocked;
+    const rows = s.rows.map((i) => book.pieces.blockedRows[i]);
+    return [E('screen-needs-input', '', [0, 106, 402, 685]), E('needs-input-title', 'Needs input', [16, 120, 370, 34]), ...rows.flatMap((r, k) => [E(`needs-row-${r.sessionId}`, '', [0, 170 + k * 60, 402, 60]), E(`needs-row-name-${r.sessionId}`, r.name, [34, 176 + k * 60, 200, 20])])];
+  };
+  const settingsEls = () => [E('screen-settings', '', [0, 106, 402, 685]), E('settings-title', 'Settings', [16, 120, 370, 34]), E('settings-about', '', [16, 200, 370, 200]), E('settings-version', '1.0.0 (10)', [16, 220, 370, 20])];
+  const page = () => {
+    if (!inSample) return pairingEls();
+    const top = stack[tab].at(-1);
+    const body = top === undefined ? { needs: needsEls, sessions: sessionsEls, settings: settingsEls }[tab]() : top.face === 'terminal' ? terminalPage(top.id) : catchUpPage(top.id);
+    return [...barEls(), ...body];
+  };
+  const dump = (name) => emit({ step: 'screen', name, window: W0(landscape), elements: page(), composed: {}, ...(inSample ? { sampleLabel: true } : {}) });
+  const inventoryOf = (tag) => {
+    const els = page().map((e) => ({ ...e, button: e.id === 'sample-leave' || /^session-choice-press-/.test(e.id) || e.id === 'pairing-see-sample' }));
+    const extra = [E('', 'Tortie', [0, 0, ...W0(landscape)]), ...(inSample ? [E('', words.leaveSample, landscape ? [700, 12, 90, 20] : [290, 74, 90, 20])] : [])];
+    return emit({ step: 'sample-inventory', for: tag, read: true, inSample, sampleLabel: inSample, window: W0(landscape), orientation: landscape ? 3 : 1, elements: [...extra, ...els] });
+  };
+  const terminalReading = (id) => {
+    const g = gridOf();
+    const live = liveLabels(id) ?? [];
+    const h = rowH();
+    const top = g[1] + g[3] - live.length * h;
+    return { face: 'terminal', live: live.map((label, n) => ({ n, label, frame: [g[0], top + n * h, g[2], h] })), history: [], grid: g, scrollbackLine: null, line: null, keyboard: null };
+  };
+  const screenReading = (id) => ({ rows: terminalReading(id).live, grid: gridOf(), failure: null, window: W0(landscape) });
+  const replyReading = (id) => ({ presses: pressesOf(id).map(({ c, n }) => ({ n, label: `${c.marker}. ${c.text}`, enabled: true })), note: false, strip: false, command: detail(id).reply?.command ?? null, choices: 0 });
+  const pushedId = () => stack[tab].at(-1)?.id ?? null;
+  const toSessionsList = () => {
+    tab = 'sessions';
+    stack.sessions = [];
+  };
+  const openSession = (id) => {
+    toSessionsList();
+    const face = screenEntry(id)?.answer?.screen ? 'terminal' : 'catch-up';
+    stack.sessions.push({ id, face });
+    return face;
+  };
+  const auth = (forStep) => {
+    const code = unenrolled ? null : 0;
+    const up = emit({ step: 'end-auth-up', for: forStep, confirming: forStep === 'end-these' ? true : !unenrolled });
+    marks.auth.push({ for: forStep, seq: up.seq, answer: unenrolled ? 'none' : 'match', code });
+    emit({ step: 'end-auth-answered', for: forStep, acked: true });
+  };
+  const menuWord = {
+    [SESSIONS_WORDS.groupBy]: (label) => ({ group: label === SESSIONS_WORDS.group.none ? 'none' : 'project' }),
+    [SESSIONS_WORDS.sortBy]: (label) => ({ sort: label === SESSIONS_WORDS.sort.name ? 'name' : label === SESSIONS_WORDS.sort.oldest ? 'oldest' : 'recent' }),
+    [SESSIONS_WORDS.agent]: (label) => ({ agent: book.pieces.choices.find((c) => c.label === label)?.id ?? null })
+  };
+  for (const step of steps) {
+    if (opts.stopAt !== undefined && step === opts.stopAt) break;
+    const [name, ...rest] = step.split(':');
+    const arg = rest.join(':');
+    if (step === 'setup-read') {
+      emit({ step: 'setup-inventory', for: 'setup-read', labels: [...pairingEls().map((e) => e.label).filter((l) => l !== ''), words.seeSample], elements: pairingEls().filter((e) => e.id.startsWith('pairing-')).map((e) => ({ ...e, button: e.id === 'pairing-scan-code' || e.id === 'pairing-see-sample' })) });
+      dump('setup-read');
+    } else if (step === 'setup-scan') {
+      emit({ step: 'setup-scan-before', scanner: false, point: false });
+      scanned = true;
+      dump('setup-scan');
+    } else if (step === 'sample-see' || step === 'sample-see-settings') {
+      dump('sample-before');
+      inSample = true;
+      world = Object.fromEntries(book.ids.map((id, i) => [id, book.variants[i][0]]));
+      echoes = {};
+      tab = 'needs';
+      stack.needs = [];
+      stack.sessions = [];
+      stack.settings = [];
+      words3 = { show: 'active', group: 'project', sort: 'recent', agent: null };
+      emit({ step: 'sample-open', for: step, from: 'screen-pairing' });
+      marks.windows.push({ open: relayCount, records: 0, live: 0, leaving: null, recordsLeaving: null, left: null, movedMs: undefined });
+      emit({ step: 'sample-opened', for: step, acked: true });
+      dump('sample-open');
+    } else if (name === 'tab') {
+      emit({ step: 'tab-before', name: arg });
+      tab = arg;
+      stack[tab] = [];
+      dump(`tab-${arg}`);
+    } else if (name === 'sample-inventory') {
+      inventoryOf(arg);
+    } else if (name === 'terminal-open') {
+      const face = openSession(arg);
+      emit({ step: 'terminal-open', id: arg, face, reading: face === 'terminal' ? terminalReading(arg) : { face, live: [], history: [] } });
+      dump('terminal');
+    } else if (step === 'landscape' || step === 'portrait') {
+      landscape = step === 'landscape';
+      emit({ step: 'chrome', for: step, window: W0(landscape) });
+    } else if (name === 'reply-press') {
+      const id = pushedId();
+      emit({ step: 'reply-offer', for: 'reply-press', n: Number(arg), reading: replyReading(id), face: 'terminal' });
+      emit({ step: 'reply-offer-acked', acked: true });
+      if (variantOf(id) === 'waiting') world[id] = 'answered';
+      emit({ step: 'reply-pressed', faceId: false, line: null, after: replyReading(id), face: 'terminal' });
+      dump('reply-press');
+    } else if (name === 'screen-type') {
+      const id = pushedId();
+      const text = Buffer.from(arg, 'base64url').toString('utf8');
+      echoes[id] ??= { text: '', returned: false };
+      emit({ step: 'screen-type-ready', keyboard: true });
+      echoes[id].text += text;
+      const before = { ...terminalReading(id), auth: false };
+      echoes[id].text = '';
+      echoes[id].returned = true;
+      emit({ step: 'screen-type', ...screenReading(id), typed: text.length, auth: false, typedBeforeReturn: before });
+    } else if (name === 'screen-ctrl') {
+      const id = pushedId();
+      echoes[id] ??= { text: '', returned: false };
+      emit({ step: 'screen-ctrl-ready', letter: arg });
+      echoes[id].text += `^${arg.toUpperCase()}`;
+      emit({ step: 'screen-ctrl', ...screenReading(id), letter: arg, auth: false });
+    } else if (name === 'screen-key') {
+      const id = pushedId();
+      echoes[id] ??= { text: '', returned: false };
+      emit({ step: 'screen-key-ready', key: arg });
+      if (arg === 'return') {
+        echoes[id].text = '';
+        echoes[id].returned = true;
+      }
+      emit({ step: 'screen-key', ...screenReading(id), key: arg, auth: false });
+    } else if (step === 'back') {
+      stack[tab] = [];
+      dump('back');
+    } else if (name === 'scroll-up') {
+      const id = pushedId();
+      const hist = historyLabels(id);
+      // Each drag brings older rows down into the grid; the last reading has
+      // the first line at the grid's top, the rows after it below.
+      const g = gridOf();
+      const reading = (from) => ({ ...terminalReading(id), history: hist.map((label, i) => ({ i, label, frame: [g[0], g[1] + (i - from) * rowH(), g[2], rowH()] })).slice(from), scrollbackLine: null });
+      emit({ step: 'scroll-up', n: Number(arg), before: { ...terminalReading(id), history: [] }, readings: [reading(40), reading(20), reading(0)] });
+    } else if (step === 'first') {
+      const id = pushedId();
+      stack[tab].push({ id, face: 'catch-up' });
+      const turns = book.turns?.[id]?.[variantOf(id)]?.turns ?? [];
+      emit({ step: 'turns', indexes: turns.map((t) => t.index), asks: Object.fromEntries(turns.map((t) => [String(t.index), t.askText])), answers: {}, absences: {} });
+      dump('conversation-top');
+    } else if (step === 'end') {
+      const id = pushedId();
+      const d = detail(id);
+      const kind = unenrolled ? 'unasked' : 'faceID';
+      emit({ step: 'end-bar', for: 'end', face: 'terminal', via: 'menu', opened: true, enabled: true, glyph: unenrolled ? 'lock.open' : 'faceid', kind, line: unenrolled ? words.sampleEndUnasked : null });
+      emit({ step: 'end-dialog', for: 'end', via: 'alert', title: d.endConfirm.title, texts: [d.endConfirm.title, d.endConfirm.body], buttons: [d.endConfirm.confirmLabel, 'Cancel'] });
+      emit({ step: 'faceid-permission', for: 'end', seen: false, drew: [] });
+      auth('end');
+      world[id] = 'ended';
+      emit({ step: 'face', for: 'end', face: 'terminal' });
+      const ended = screenEntry(id);
+      emit({ step: 'screen', name: 'end', window: W0(landscape), elements: [...barEls(), E('screen-session', '', [0, 106, 402, 685]), E('session-status', detail(id).statusTitle, [16, 170, 200, 20]), E('screen-failure', ended.answer.sentence, [16, 400, 370, 40])], composed: {}, sampleLabel: true });
+    } else if (name === 'show') {
+      toSessionsList();
+      words3 = { ...words3, show: arg };
+      emit({ step: 'show', word: arg, found: true, enabled: true });
+    } else if (name === 'menu') {
+      toSessionsList();
+      const [section, label] = [arg.slice(0, arg.indexOf(':')), arg.slice(arg.indexOf(':') + 1)];
+      words3 = { ...words3, ...(menuWord[section]?.(label) ?? {}) };
+      emit({ step: 'menu', section, label, found: true });
+    } else if (step === 'clear-filters') {
+      toSessionsList();
+      words3 = { ...words3, show: 'all', agent: null };
+      emit({ step: 'clear-filters', via: 'menu' });
+    } else if (name === 'sessions-dump') {
+      toSessionsList();
+      emit({ step: 'sessions-dump', tag: arg, complete: true, swipes: 1, window: W0(landscape), elements: sessionsEls(), sampleLabel: true });
+    } else if (name === 'select') {
+      toSessionsList();
+      selected = arg.split('+');
+      emit({ step: 'select', asked: selected, ticked: selected, controls: true });
+      dump('select');
+    } else if (step === 'end-these') {
+      const n = selected.length;
+      const word = n === 1 ? words.sessionSingular : words.sessionPlural;
+      emit({ step: 'end-dialog', for: 'end-these', via: 'alert', title: '', texts: [], buttons: [`${words.batchEndLead}${String(n)}${words.space}${word}`, 'Cancel'] });
+      emit({ step: 'faceid-permission', for: 'end-these', seen: false, drew: [] });
+      auth('end-these');
+      for (const id of selected) world[id] = 'ended';
+      emit({ step: 'end-these', for: 'end-these', heading: `${String(n)}${words.doneMid}${String(n)}${words.space}${word}${words.doneTail}`, outcomes: Object.fromEntries(selected.map((id) => [id, words.ended])), done: true });
+      dump('end-these');
+    } else if (step === 'batch-done') {
+      dump('batch-done');
+    } else if (step === 'sample-leave') {
+      emit({ step: 'sample-leaving' });
+      const w = marks.windows.at(-1);
+      if (w !== undefined) {
+        w.leaving = relayCount;
+        w.recordsLeaving = 0;
+      }
+      inSample = false;
+      world = null;
+      tab = 'needs';
+      emit({ step: 'sample-left', acked: true, landed: true, page: 'pairing', bar: false, label: false });
+      if (w !== undefined) w.left = relayCount;
+      dump('sample-left');
+    } else if (name === 'end-off') {
+      const r = emit({ step: 'ready-for-unenrol' });
+      void r;
+      unenrolled = true;
+      marks.unenrol = 0;
+      marks.unenrolled = true;
+      emit({ step: 'unenrolled', acked: true });
+      openSession(arg);
+      dump('end-off-open');
+      emit({ step: 'end-bar', for: 'end-off', face: 'terminal', via: 'menu', opened: true, enabled: true, glyph: 'lock.open', kind: 'unasked', line: words.sampleEndUnasked });
+      emit({ step: 'end-off-press', dialog: true, prompt: false });
+      dump('end-off');
+    } else {
+      emit({ step: 'unknown-step', name: step });
+    }
+  }
+  return { run: { events, code: opts.code ?? 0 }, marks, counts: { before: relayCount, after: relayCount + (opts.connectionsDuring ?? 0) }, listening: { before: true, after: true } };
+}
+
+/** The recorded drives' cases (the probe review), over the committed book. */
+function sampleRecordedSelfTest() {
+  const cases = [];
+  const say1 = (what, got, want) => cases.push({ what, got, want });
+  let book = null;
+  try {
+    book = readSampleBook(readFileSync(SAMPLE_BOOK_PATH, 'utf8')).book ?? null;
+  } catch {
+    book = null;
+  }
+  say1('the committed book reads as §5.1.3\'s shape', () => book !== null, true);
+  if (book === null) return runSelfTestCases(cases);
+  const cast = sampleCast(book);
+  const words = SAMPLE_WORDS;
+  say1('the cast is whole: two waiting (Claude Code, Codex CLI), two live, one ended', () => Object.values(cast).every((id) => typeof id === 'string'), true);
+  const plan = samplePlan(book, cast);
+  say1('the plan\'s agent filter is Codex CLI\'s', () => plan.agentChoice?.id === 'codex', true);
+  say1('the book answers every Sessions question SA10 walks, in the state after SA4, SA5 and SA9', () => plan.sa10Plan.every(([, q]) => sampleSessions(book, plan.stateAfterEnd, q) !== null), true);
+  say1('the book answers SA11\'s question with every session ended', () => sampleSessions(book, plan.allEnded, plan.sa11Query) !== null, true);
+  const ARMS_FRESH = ['SA1', 'SA2', 'SA3', 'SA4', 'SA5', 'SA6', 'SA7', 'SA8', 'SA9', 'SA10', 'SA11', 'SA12', 'SA13', 'SAX', 'SD'];
+  const freshOf = (opts = {}, edit = null) => {
+    const got = sampleRecordedDrive(book, cast, plan.freshSteps, words, opts);
+    if (edit !== null) edit(got.run.events, got);
+    return gradeSampleFresh(got, book, cast, plan, words);
+  };
+  const honest = freshOf();
+  for (const a of ARMS_FRESH) say1(`recorded honest fresh drive: ${a} PASS`, () => (honest[a].ok === true ? true : `${String(honest[a].ok)}: ${honest[a].said}`), true);
+  // One arm red, every other arm as honest.
+  const only = (arm, g) => ARMS_FRESH.filter((a) => a !== arm).every((a) => g[a].ok === true) ? g[arm].ok : `others moved: ${J(ARMS_FRESH.filter((a) => a !== arm && g[a].ok !== true))}`;
+  const find = (events, pred) => events.find(pred);
+  const screenNamed = (n) => (e) => e.step === 'screen' && e.name === n;
+  const broken = [
+    ['SA1', 'See a sample drawn above Scan code at rest', (ev) => void (find(ev, screenNamed('setup-read')).elements.find((e) => e.id === 'pairing-see-sample').frame[1] = 250)],
+    ['SA2', 'Needs input lists a session that is not waiting', (ev) => void find(ev, screenNamed('tab-needs')).elements.push({ id: `needs-row-${cast.liveCodex}`, label: '', frame: [0, 300, 402, 60] })],
+    ['SA3', 'one dump inside the sample without the Sample bar\'s label', (ev) => void (find(ev, screenNamed('back')).sampleLabel = false)],
+    ['SA3', 'sideways, the grid itself runs up under the Sample bar', (ev) => void (find(ev, (e) => e.step === 'sample-inventory' && e.for === 'terminal-sideways').elements.find((e) => e.id === 'screen-grid').frame[1] = 20)],
+    ['SA3', 'Settings draws an identified element wholly inside the bar (over it)', (ev) => void find(ev, (e) => e.step === 'sample-inventory' && e.for === 'settings').elements.push({ id: 'settings-title', label: 'Settings', frame: [16, 70, 100, 30], button: false })],
+    ['SA3', 'Needs input\'s page holds its container from the window\'s top, under the bar', (ev) => void (find(ev, (e) => e.step === 'sample-inventory' && e.for === 'needs').elements.find((e) => e.id === 'screen-needs-input').frame = [0, 0, 402, 874])],
+    ['SA3', 'Catch Me Up\'s turns read with no clip, so the one scrolled above it is over the bar', (ev) => void find(ev, (e) => e.step === 'sample-inventory' && e.for === 'catch-up').elements.forEach((e) => delete e.clip)],
+    ['SA3', 'Catch Me Up holds a turn inside the bar that its clip does not cut', (ev) => void find(ev, (e) => e.step === 'sample-inventory' && e.for === 'catch-up').elements.push({ id: 'turn-ask-9', label: 'x', frame: [16, 60, 370, 40], clip: [0, 0, 402, 874], button: false })],
+    ['SA3', 'iOS cannot hit Leave sample on Settings', (ev) => void (find(ev, (e) => e.step === 'sample-inventory' && e.for === 'settings').barHittable = { label: true, leave: false })],
+    ['SA4', 'the tray is still drawn after Claude Code\'s press', (ev) => void (find(ev, (e) => e.step === 'reply-pressed').after.presses = [{ n: 0, label: 'x', enabled: true }])],
+    ['SA5', 'Codex CLI\'s command is not the book\'s', (ev) => void (ev.filter((e) => e.step === 'reply-offer')[1].reading.command = 'npm run migrate')],
+    ['SA6', 'Return draws a shell\'s answer where nothing ran belongs', (ev) => {
+      const t = find(ev, (e) => e.step === 'screen-type');
+      const note = sampleScreen(book, cast.liveCodex, 'live').note.row;
+      t.rows.find((x) => x.n === note).label = 'total 0';
+    }],
+    ['SA7', 'history row 0 is not the book\'s', (ev) => void (find(ev, (e) => e.step === 'scroll-up').readings.at(-1).history[0].label = 'made up')],
+    ['SA8', 'a turn\'s ask is not the book\'s', (ev) => void (find(ev, (e) => e.step === 'turns').asks['1'] = 'made up')],
+    ['SA9', 'End marked with the lock while Face ID is enrolled', (ev) => void (find(ev, (e) => e.step === 'end-bar' && e.for === 'end').kind = 'passcode')],
+    ['SA10', 'one walk draws its rows in another order', (ev) => {
+      const w = find(ev, (e) => e.step === 'sessions-dump' && e.tag === 'sa10-active-none-name');
+      const rows = w.elements.filter((e) => /^row-/.test(e.id));
+      const others = w.elements.filter((e) => !/^row-/.test(e.id));
+      w.elements = [...others, ...rows.slice(4), ...rows.slice(0, 4)];
+    }],
+    ['SA11', 'End these\' heading counts one fewer ended', (ev) => void (find(ev, (e) => e.step === 'end-these' && e.for === 'end-these').heading = `2${words.doneMid}3${words.space}${words.sessionPlural}${words.doneTail}`)],
+    ['SA12', 'Unpair is drawn on Settings inside the sample', (ev) => void find(ev, screenNamed('tab-settings')).elements.push({ id: 'settings-unpair', label: 'Unpair this iPhone', frame: [16, 450, 370, 44] })],
+    ['SA13', 'Leave sample lands with the bar still drawn', (ev) => void (find(ev, (e) => e.step === 'sample-left').bar = true)],
+    ['SD', 'with no passcode the sample\'s End is drawn off with the passcode line', (ev) => Object.assign(find(ev, (e) => e.step === 'end-bar' && e.for === 'end-off'), { kind: 'none', glyph: 'lock', enabled: false, line: words.endNeedsPasscode })]
+  ];
+  for (const [arm, what, edit] of broken) {
+    say1(`recorded fresh drive, broken: ${what}: ${arm} FAIL and no other arm moves`, () => only(arm, freshOf({}, edit)), false);
+  }
+  // The honest drive holds what the clip rule is for: Terminal rows the
+  // tree reports between the window's top and the bar's bottom, upright and
+  // sideways, which the grid does not show.
+  {
+    const got = sampleRecordedDrive(book, cast, plan.freshSteps, words);
+    const band = (tag, barBottom) => (got.run.events.find((e) => e.step === 'sample-inventory' && e.for === tag)?.elements ?? []).filter((e) => /^screen-(?:row|history)-/.test(e.id) && e.frame[1] + e.frame[3] > 0 && e.frame[1] < barBottom).length;
+    say1('the honest drive\'s Terminal pages hold rows the tree reports under the bar (upright history, sideways live rows), so SA3\'s pass is about the clip', () => band('terminal', 106) > 0 && band('terminal-sideways', 44) > 0, true);
+    const turnsUnder = (got.run.events.find((e) => e.step === 'sample-inventory' && e.for === 'catch-up')?.elements ?? []).filter((e) => /^turn-/.test(e.id) && e.frame[1] < 106 && Array.isArray(e.clip)).length;
+    say1('the honest drive\'s Catch Me Up holds turns the tree reports under the bar, each with its clip, so SA3\'s pass there is about the clip (the fix round)', () => turnsUnder > 0, true);
+  }
+  say1('recorded fresh drive whose drags never brought the first line into the grid: SA7 UNREADABLE, never a pass', () => freshOf({}, (ev) => void ev.find((e) => e.step === 'scroll-up').readings.at(-1).history.forEach((h) => (h.frame = [0, 120, 402, 9.4]))).SA7.ok, null);
+  const one = freshOf({ connectionsDuring: 1 });
+  say1('recorded fresh drive that made ONE connection: SAX FAIL and no other arm moves', () => only('SAX', one), false);
+  // A drive that printed nothing, and one that stopped part way.
+  const nothing = gradeSampleFresh({ run: { events: [], code: 65 }, marks: { windows: [], auth: [] }, counts: { before: 3, after: 3 }, listening: { before: true, after: true } }, book, cast, plan, words);
+  for (const a of ARMS_FRESH) say1(`a fresh drive that printed nothing: ${a} UNREADABLE`, () => nothing[a].ok, null);
+  const cut = freshOf({ stopAt: 'reply-press:0' });
+  // SA12 reads Settings before the first press, so it was read before the stop.
+  const passedBefore = ['SA1', 'SA2', 'SA12'];
+  for (const a of ARMS_FRESH) {
+    if (passedBefore.includes(a)) say1(`a fresh drive that stopped at Claude Code's press: ${a}, read before it stopped, PASS`, () => cut[a].ok, true);
+    else say1(`a fresh drive that stopped at Claude Code's press: ${a} never PASS and never FAIL`, () => cut[a].ok, null);
+  }
+  // SB: the floor's drive from its own step list.
+  const floorGot = sampleRecordedDrive(book, cast, plan.floorSteps, words);
+  for (const [a, v] of gradeSampleFloor(floorGot, book, cast, words)) say1(`recorded honest floor drive: SB ${a} PASS`, () => (v.ok === true ? true : `${String(v.ok)}: ${v.said}`), true);
+  const oldFloor = plan.floorSteps.filter((s) => s !== 'sample-inventory:needs');
+  say1('the floor\'s step list as the builders wrote it (no sample-inventory:needs) read SB SA2 UNREADABLE', () => gradeSampleFloor(sampleRecordedDrive(book, cast, oldFloor, words), book, cast, words).find(([a]) => a === 'SA2')[1].ok, null);
+  const floorNothing = gradeSampleFloor({ run: { events: [] }, marks: {}, counts: { before: 0, after: 0 }, listening: { before: true, after: true } }, book, cast, words);
+  for (const [a, v] of floorNothing) say1(`a floor drive that printed nothing: SB ${a} UNREADABLE`, () => v.ok, null);
+  // SC1 to SC3: one paired drive, recorded by hand in the drive's shapes.
+  const macBefore = [{ id: '$mac-shell-0001', name: 'p316-shell', status: 'idle' }, { id: '$mac-ask-0002', name: 'p316-ask', status: 'needs_input' }];
+  const pairedOf = (edit = null) => {
+    let s = 0;
+    const ev = (o) => ({ ...o, seq: (s += 1) });
+    const E2 = (id, label, frame) => ({ id, label, frame });
+    const settingsDump = () => ev({ step: 'screen', name: 'settings', window: [402, 874], elements: [E2('screen-settings', '', [0, 62, 402, 729]), E2('settings-mac-address', 'mac.example.ts.net', [16, 160, 370, 20]), E2('settings-fingerprint', '1234 5678 9abc', [16, 190, 370, 20]), E2('settings-unpair', 'Unpair this iPhone', [16, 400, 370, 44]), E2('settings-see-sample', words.seeSample, [16, 452, 370, 44])] });
+    const inSample = (o) => ({ ...o, sampleLabel: true });
+    const events = [
+      ev({ step: 'list-before' }),
+      ev({ step: 'screen', name: 'list', window: [402, 874], elements: [E2('screen-list', '', [0, 62, 402, 729]), E2('row-$mac-shell-0001', '', [0, 200, 402, 57]), E2('row-$mac-ask-0002', '', [0, 257, 402, 57])] }),
+      settingsDump(),
+      ev({ step: 'screen', name: 'session', window: [402, 874], elements: [E2('screen-session', '', [0, 62, 402, 729])] }),
+      ev({ step: 'screen-open', rows: [{ n: 0, label: 'p316 %', frame: [0, 300, 402, 9.4] }] }),
+      ev({ step: 'screen', name: 'sample-before', window: [402, 874], elements: settingsDump().elements }),
+      ev({ step: 'sample-open', for: 'sample-see-settings', from: 'screen-settings' }),
+      ev({ step: 'sample-opened', for: 'sample-see-settings', acked: true }),
+      ev(inSample({ step: 'screen', name: 'sample-open', window: [402, 874], elements: [E2('sample-bar', '', [0, 62, 402, 44]), E2('sample-label', words.sample, [16, 74, 60, 20]), E2('needs-row-name-sample-1', 'fix-login-redirect', [34, 176, 200, 20])] })),
+      ev({ step: 'sample-inventory', for: 'sc', read: true, inSample: true, elements: [] }),
+      ev({ step: 'idle-start', seconds: 20 }),
+      ev({ step: 'idle-end' }),
+      // The fix round: every surface of the sample, so SC2 counts its writes.
+      ev(inSample({ step: 'screen', name: 'tab-settings', window: [402, 874], elements: [E2('settings-about', '', [16, 200, 370, 200])] })),
+      ev(inSample({ step: 'sessions-dump', tag: 'sc-all', elements: [E2('row-name-sample-1', 'fix-login-redirect', [34, 216, 200, 20])] })),
+      ev({ step: 'terminal-open', id: cast.waitingClaude, face: 'terminal', reading: { live: [] } }),
+      ev({ step: 'reply-pressed', faceId: false, line: null, face: 'terminal' }),
+      ev({ step: 'terminal-open', id: cast.waitingCodex ?? cast.waitingClaude, face: 'terminal', reading: { live: [] } }),
+      ev({ step: 'reply-pressed', faceId: false, line: null, face: 'terminal' }),
+      ev({ step: 'terminal-open', id: cast.liveCodex, face: 'terminal', reading: { live: [] } }),
+      ev({ step: 'screen-type', rows: [], typed: 3, auth: false }),
+      ev({ step: 'screen-ctrl', rows: [], letter: 'c', auth: false }),
+      ev({ step: 'screen-key', rows: [], key: 'return', auth: false }),
+      ev({ step: 'screen-home-pressed', state: 2 }),
+      ev({ step: 'screen-home', back: true }),
+      ev({ step: 'scroll-up', n: 8, before: null, readings: [] }),
+      ev({ step: 'turns', asks: {} }),
+      ev({ step: 'end-auth-up', for: 'end', confirming: true }),
+      ev({ step: 'end-auth-answered', for: 'end', acked: true }),
+      ev({ step: 'end-auth-up', for: 'end-these', confirming: true }),
+      ev({ step: 'end-auth-answered', for: 'end-these', acked: true }),
+      ev({ step: 'end-these', for: 'end-these', heading: '3 of 3 sessions ended', outcomes: [], done: true }),
+      ev({ step: 'sample-leaving' }),
+      ev({ step: 'sample-left', acked: true, landed: true, page: 'needs-input', bar: false, label: false }),
+      ev({ step: 'screen', name: 'sample-left', window: [402, 874], elements: [E2('screen-needs-input', '', [0, 106, 402, 685]), E2('needs-row-$mac-ask-0002', '', [0, 170, 402, 60])] }),
+      settingsDump()
+    ];
+    const marks2 = { windows: [{ open: 9, records: 40, live: 0, leaving: 9, recordsLeaving: 40, left: 10, movedMs: 1_300 }] };
+    const r = { events, marks: marks2, macBefore, macAfter: macBefore, book };
+    if (edit !== null) edit(r);
+    return gradeSamplePaired(r);
+  };
+  const P = pairedOf();
+  for (const a of ['SC1', 'SC2', 'SC3']) say1(`recorded honest paired drive: ${a} PASS`, () => (P[a].ok === true ? true : `${String(P[a].ok)}: ${P[a].said}`), true);
+  say1('recorded paired drive with ONE connection inside the sample: SC2 FAIL', () => pairedOf((r) => void (r.marks.windows[0].leaving = 10)).SC2.ok, false);
+  say1('recorded paired drive with ONE request on a connection kept from before the sample (no new connection): SC2 FAIL', () => pairedOf((r) => void (r.marks.windows[0].recordsLeaving = 41)).SC2.ok, false);
+  say1('recorded paired drive whose requests were never counted: SC2 UNREADABLE, never a pass', () => pairedOf((r) => void (r.marks.windows[0].records = undefined)).SC2.ok, null);
+  say1('recorded paired drive that pressed nothing inside the sample (the drive before the fix round): SC2 UNREADABLE, never a pass', () => pairedOf((r) => void (r.events = r.events.filter((e) => e.step !== 'reply-pressed' && e.step !== 'end-these' && e.step !== 'end-auth-answered'))).SC2.ok, null);
+  say1('the paired step list drives every surface SC2 counts (the fix round)', () => {
+    const st = plan.pairedSteps;
+    const has = (x) => st.some((s) => s === x || s.startsWith(`${x}:`));
+    return ['tab', 'show', 'sessions-dump', 'reply-press', 'screen-type', 'screen-ctrl', 'screen-key', 'screen-home', 'scroll-up', 'first', 'end', 'select', 'end-these', 'idle'].filter((x) => !has(x)).join(',') || true;
+  }, true);
+  say1('recorded paired drive with a Mac session\'s name inside the sample: SC1 FAIL', () => pairedOf((r) => void r.events.splice(10, 0, { step: 'screen', name: 'tab-needs', sampleLabel: true, elements: [{ id: 'needs-row-name-x', label: 'p316-ask', frame: [0, 0, 1, 1] }] })).SC1.ok, false);
+  say1('recorded paired drive whose Leave sample landed on Pairing: SC3 FAIL', () => pairedOf((r) => void (r.events.find((e) => e.step === 'sample-left').page = 'pairing')).SC3.ok, false);
+  say1('recorded paired drive whose paired reads never started again: SC3 FAIL', () => pairedOf((r) => void (r.marks.windows[0].movedMs = null)).SC3.ok, false);
+  say1('recorded paired drive that stopped before its sample-left dump: SC3 UNREADABLE, never a FAIL', () => pairedOf((r) => void (r.events = r.events.filter((e) => !(e.step === 'screen' && e.name === 'sample-left')))).SC3.ok, null);
+  const pairedNothing = gradeSamplePaired({ events: [], marks: { windows: [] }, macBefore, macAfter: macBefore, book });
+  for (const a of ['SC1', 'SC2', 'SC3']) say1(`a paired drive that printed nothing: ${a} UNREADABLE`, () => pairedNothing[a].ok, null);
+  // SP: the parent's own drive (build 9), `setup-read` then `idle:20`, as its drive prints them.
+  {
+    const parentEvents = (labels) => [
+      { step: 'setup-inventory', for: 'setup-read', labels, elements: [{ id: 'pairing-scan-code', label: 'Scan code', button: true, frame: [16, 293, 370, 50] }], seq: 1 },
+      { step: 'screen', name: 'setup-read', window: [402, 874], elements: [{ id: 'screen-pairing', label: '', frame: [0, 0, 402, 874] }, { id: 'pairing-scan-code', label: 'Scan code', frame: [16, 293, 370, 50] }], seq: 2 },
+      { step: 'idle-start', seconds: 20, seq: 3 },
+      { step: 'idle-end', seq: 4 }
+    ];
+    const honestLabels = ['Pair with your Mac', 'Scan code', 'Nothing else to install.'];
+    const listening = { before: true, after: true };
+    say1('recorded honest parent drive: SP PASS', () => gradeSampleParent(parentEvents(honestLabels), { before: 7, after: 7, idleStart: 7, idleEnd: 7 }, listening).ok, true);
+    say1('recorded parent drive that made ONE connection during its idle: SP FAIL', () => gradeSampleParent(parentEvents(honestLabels), { before: 7, after: 8, idleStart: 7, idleEnd: 8 }, listening).ok, false);
+    say1('recorded parent drive that draws See a sample: SP FAIL', () => gradeSampleParent(parentEvents([...honestLabels, words.seeSample]), { before: 7, after: 7, idleStart: 7, idleEnd: 7 }, listening).ok, false);
+    say1('a parent drive that printed nothing: SP UNREADABLE', () => gradeSampleParent([], { before: 7, after: 7, idleStart: null, idleEnd: null }, listening).ok, null);
+    say1('a parent drive with the door not listening throughout: SP UNREADABLE', () => gradeSampleParent(parentEvents(honestLabels), { before: 7, after: 7, idleStart: 7, idleEnd: 7 }, { before: true, after: false }).ok, null);
+  }
+  // SE1 (widened by this phase) over a drive that printed nothing.
+  say1('a setup drive that printed nothing: SE1 UNREADABLE', () => gradeSe1({ dump: lastDump([], 'setup-read'), inventory: null, words: SETUP_WORDS }).ok, null);
+  // The relay's request count over real record bytes (a 19-byte close_notify is no request).
+  const rec = (type, len) => Buffer.concat([Buffer.from([type, 3, 3, len >> 8, len & 255]), Buffer.alloc(len)]);
+  const tally = (chunks) => chunks.reduce((st, c) => tlsRecordTally(st, c), { buf: Buffer.alloc(0), big: 0 }).big;
+  const request = rec(23, 412);
+  say1('tlsRecordTally counts a request record, however it is split', () => [tally([request]), tally([request.subarray(0, 3), request.subarray(3, 200), request.subarray(200)])].join(','), '1,1');
+  say1('tlsRecordTally never counts a close_notify (a 19-byte record)', () => tally([rec(23, 19)]), 0);
+  say1('tlsRecordTally counts each of two requests sent in one chunk, and not a half record', () => tally([Buffer.concat([request, request, rec(23, 300).subarray(0, 100)])]), 2);
+  return runSelfTestCases(cases);
 }
 
 function selfTest() {
@@ -8136,6 +10580,20 @@ function selfTest() {
       ? `${TAG} setup self-test PASS: ${String(setupCases.total)} cases (SE1 to SE7, which SE8 reads again on the floor, SEP, the codes and the words) graded as they must be.`
       : `${TAG} setup self-test FAIL: ${String(setupCases.bad)} of ${String(setupCases.total)} case(s) graded wrongly.`
   );
+  // Phase 333.3: See a sample (SA1 to SA13, SAX, SB's floor reads, SC1 to SC3, SD, SP and the book's readers).
+  const sampleCases = sampleSelfTest();
+  console.log(
+    sampleCases.bad === 0
+      ? `${TAG} sample self-test PASS: ${String(sampleCases.total)} cases (the book's readers, SA1 to SA13 with SB's floor reads, SAX, SC1 to SC3, SD and SP) graded as they must be.`
+      : `${TAG} sample self-test FAIL: ${String(sampleCases.bad)} of ${String(sampleCases.total)} case(s) graded wrongly.`
+  );
+  // Phase 333.3's probe review: the recorded drives, over the committed book, through the run's own plan and wiring.
+  const recordedCases = sampleRecordedSelfTest();
+  console.log(
+    recordedCases.bad === 0
+      ? `${TAG} sample recorded-drive self-test PASS: ${String(recordedCases.total)} cases (the run's own plan over the committed book: an honest fresh, floor and paired drive, one broken reading per arm, one connection, one request on a kept connection, a drive that printed nothing and one that stopped part way) graded as they must be.`
+      : `${TAG} sample recorded-drive self-test FAIL: ${String(recordedCases.bad)} of ${String(recordedCases.total)} case(s) graded wrongly.`
+  );
   // Phase 337.3: the fill, sideways, the ⋯, the parent and the fill's hostile arm.
   const fill = fillSelfTest();
   console.log(
@@ -8143,7 +10601,7 @@ function selfTest() {
       ? `${TAG} fill self-test PASS: ${String(fill.total)} cases (PF1 to PF9 and PF1 (pages), PL1 to PL5, PM1, PP1 to PP3, PSH scrollback-fill-moved, the run's readers and the stand-in's two tails) graded as they must be.`
       : `${TAG} fill self-test FAIL: ${String(fill.bad)} of ${String(fill.total)} case(s) graded wrongly.`
   );
-  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 && ends.bad === 0 && replies.bad === 0 && screens.bad === 0 && sessionsCases.bad === 0 && setupCases.bad === 0 && fill.bad === 0 ? 0 : 1);
+  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 && ends.bad === 0 && replies.bad === 0 && screens.bad === 0 && sessionsCases.bad === 0 && setupCases.bad === 0 && sampleCases.bad === 0 && recordedCases.bad === 0 && fill.bad === 0 ? 0 : 1);
 }
 // NOT `--self-test`: build/cdp-target.mjs, imported above, runs ITS fixtures
 // and exits when argv holds that exact word.
@@ -11745,7 +14203,7 @@ exit 0
           const R = readingsOf(cur);
           report.readings.setup = { codes: codes !== null, rest: R.rest, paired: R.paired, asks: R.asks };
           let v = gradeSe1(R.se1);
-          arm(`SE1 iOS ${String(cur.runtime)}: with no code, Pairing draws its title, the three steps in their places, Scan code, the foot's two lines, Privacy and Support, and no "sample"`, v.ok, v.said);
+          arm(`SE1 iOS ${String(cur.runtime)}: with no code, Pairing draws its title, the three steps in their places, Scan code with See a sample under it, the foot's two lines, Privacy and Support, and no other "sample"`, v.ok, v.said);
           v = gradeSe2(R.se2);
           arm(`SE2 iOS ${String(cur.runtime)}: no camera before Scan code, the camera and the line under it after`, v.ok, v.said);
           v = gradeSe3(R.se3);
@@ -11821,6 +14279,251 @@ exit 0
               arm(sepName, v.ok, v.said);
             }
           } else report.readings.setupParent = 'not run: P3331_PARENT_IOS is not set';
+        }
+
+        // ==================================================================
+        // Phase 333.3: SEE A SAMPLE (build/p3333/SPEC.md §7.4 to §7.6). Three
+        // drives and a parent. A FRESH drive on iOS 26.3 that never pairs
+        // (SA1 to SA13, then the sample opened again and Face ID unenrolled for
+        // SD), its floor half on iOS 18.3 (SB), and a PAIRED drive (SC1 to SC3)
+        // whose Terminal on one of the Mac's sessions is left open before
+        // Settings, See a sample. THE ATTACK is the relay, which counts every
+        // connection the app opens toward the door: SAX is zero over each whole
+        // fresh drive with the door listening throughout, and SC2 is zero from
+        // `sample-open` to `sample-leaving`, which the drive prints and waits on
+        // BEFORE it presses Leave sample, because a paired phone reads its Mac
+        // as soon as it has left and that read is not the sample's. SP is the
+        // parent's own app and drive (P3333_PARENT_IOS, build 9). Every expected
+        // word is the committed book's (ios/Tortie/Sample/sample.json) or
+        // Copy.swift's; the sessions are found in the book by their variants
+        // and agents, never named here.
+        // ==================================================================
+        if (ARMS.has('sample')) {
+          relay.open();
+          relay.resume();
+          let bookRead;
+          let bookSha = null;
+          try {
+            const text = readFileSync(SAMPLE_BOOK_PATH, 'utf8');
+            bookSha = shaHex(text).slice(0, 12);
+            bookRead = readSampleBook(text);
+          } catch (err) {
+            bookRead = { why: `${relative(ROOT, SAMPLE_BOOK_PATH)} could not be read: ${String(err?.message ?? err)}` };
+          }
+          const book = bookRead.book ?? null;
+          const cast = book === null ? null : sampleCast(book);
+          const premise = [
+            ...(book === null ? [String(bookRead.why)] : []),
+            ...sampleWordsMissing(SAMPLE_WORDS, ['seeSample', 'sample', 'leaveSample', 'sampleNothingRan', 'sampleEndUnasked']),
+            ...(cast === null ? [] : Object.entries(cast).filter(([, id]) => id === null).map(([k]) => `the book holds no ${k} session`))
+          ];
+          report.readings.sample = { book: bookSha, cast };
+          if (premise.length > 0) {
+            arm('SA the sample group\'s book and words', null, premise.join('; '));
+          } else {
+            // The plan (steps, questions and states) is `samplePlan`'s, so the
+            // self-test drives the very plan this run does (the probe review).
+            const plan = samplePlan(book, cast);
+            /** One drive's acknowledgement directory, made fresh. */
+            const acksFor = (label) => {
+              const dir = join(RUN, `acks-sample-${label}`);
+              rmSync(dir, { recursive: true, force: true });
+              mkdirSync(dir, { recursive: true });
+              return dir;
+            };
+            const newMarks = () => ({ windows: [], auth: [], unenrol: null, unenrolled: false, idleStart: null, idleEnd: null });
+            /**
+             * The reactions every sample drive shares: the relay counted at
+             * `sample-open`, at `sample-leaving` (then watched 15 s for the
+             * paired reads starting again, SC3) and at `sample-left`, each mark
+             * acknowledged so the drive goes on only after it; every key and
+             * press acknowledged; Face ID answered `match` for an End until it
+             * is unenrolled (SD), and after that answered nothing.
+             */
+            const sampleReact = (sim, dir, marks) => async (event) => {
+              const ackFile = (name) => writeFileSync(join(dir, name), 'ok\n');
+              const step = String(event?.step ?? '');
+              if (step === 'sample-open') {
+                // The probe review: the requests and the open connections too (SC2).
+                marks.windows.push({ open: relay.count(), records: relay.records(), live: relay.live(), leaving: null, recordsLeaving: null, left: null, movedMs: undefined });
+                ackFile(`sample-${String(event.seq)}`);
+              } else if (step === 'sample-leaving') {
+                const w = marks.windows.at(-1) ?? null;
+                const from = relay.count();
+                if (w !== null) {
+                  w.leaving = from;
+                  w.recordsLeaving = relay.records();
+                }
+                ackFile(`sample-${String(event.seq)}`);
+                const t0 = Date.now();
+                let moved = null;
+                while (Date.now() - t0 < 15_000) {
+                  if (relay.count() > from) {
+                    moved = Date.now() - t0;
+                    break;
+                  }
+                  await sleep(100);
+                }
+                if (w !== null) w.movedMs = moved;
+              } else if (step === 'sample-left') {
+                const w = marks.windows.at(-1) ?? null;
+                if (w !== null) w.left = relay.count();
+              } else if (/^screen-(?:type|key|ctrl|question)-ready$/.test(step) || ['screen-home-ready', 'screen-home-away', 'screen-wait', 'stream-ready', 'screen-select-held', 'screen-copied'].includes(step)) {
+                ackFile(`screen-${String(event.seq)}`);
+              } else if (step === 'reply-offer' || step === 'reply-send-ready') {
+                ackFile(`reply-${String(event.seq)}`);
+              } else if (step === 'ready-for-unenrol') {
+                const b = await sim.biometry('unenrol').catch(() => ({ code: -1 }));
+                marks.unenrol = b.code;
+                marks.unenrolled = true;
+                ackFile(`unenrol-${String(event.seq)}`);
+              } else if (step === 'end-auth-up') {
+                if (marks.unenrolled === true) marks.auth.push({ for: event.for, seq: event.seq, answer: 'none', code: null });
+                else {
+                  const b = await sim.biometry('match').catch(() => ({ code: -1 }));
+                  marks.auth.push({ for: event.for, seq: event.seq, answer: 'match', code: b.code });
+                }
+                ackFile(`auth-${String(event.seq)}`);
+              } else if (step === 'idle-start') {
+                marks.idleStart = relay.count();
+              } else if (step === 'idle-end') {
+                marks.idleEnd = relay.count();
+              }
+            };
+            const listeningNow = async () => {
+              const s = await pocket(cdp, 'status');
+              return s.ok && s.value?.state === 'listening';
+            };
+            /** A drive that never pairs, launched with no code: the relay counted around it and the door's state read on both sides. */
+            const freshDrive = async (sim, label, steps) => {
+              const marks = newMarks();
+              const dir = acksFor(label);
+              await confirmListening(cdp);
+              const listeningBefore = await listeningNow();
+              const before = relay.count();
+              const run = await drive(sim, {
+                test: { id: UI_TEST },
+                derivedDataPath: DD,
+                label,
+                timeoutMs: 2_700_000,
+                env: { P316_PAYLOAD: '', P316_STEPS: steps.join(','), P316_WAIT_S: '60', P330_DOOR_ENDPOINT: `127.0.0.1:${String(relay.port)}`, P316_ACKS: dir },
+                onEvent: sampleReact(sim, dir, marks)
+              });
+              const after = relay.count();
+              return { run, marks, counts: { before, after }, listening: { before: listeningBefore, after: await listeningNow() } };
+            };
+            const ranOk = (got) => got?.run !== undefined && (got.run.events ?? []).length > 0;
+            const notRun = (got) => `the drive did not run (xcodebuild exited ${String(got?.run?.code)}, ${String((got?.run?.events ?? []).length)} line(s))`;
+
+            // ---- SA1 to SA13 and SD: fresh on iOS 26.3 ----------------------
+            const fresh = await withSimulator({ label: 'p316-sample', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-sample'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+              const enrol = await sim.biometry('enrol');
+              const got = await freshDrive(sim, 'sample', plan.freshSteps);
+              return { ...got, enrol: enrol.code, runtime: sim.runtime };
+            });
+            report.readings.sample.fresh = { code: fresh.run?.code ?? null, lines: (fresh.run?.events ?? []).length, enrol: fresh.enrol, counts: fresh.counts, listening: fresh.listening, windows: fresh.marks.windows, auth: fresh.marks.auth, unenrol: fresh.marks.unenrol, reactionErrors: fresh.run?.reactionErrors ?? [] };
+            if (!ranOk(fresh)) {
+              arm(`SA iOS ${String(RUNTIME_CURRENT)}: See a sample, fresh`, null, notRun(fresh));
+            } else {
+              const at = `iOS ${String(fresh.runtime)}`;
+              const G = gradeSampleFresh(fresh, book, cast, plan);
+              const F = G.F;
+              arm(`SA1 ${at}: with no code, See a sample is a button under Scan code, and under the camera's line after it`, G.SA1.ok, G.SA1.said);
+              arm(`SA2 ${at}: See a sample opens under the Sample bar, and Needs input lists the book's waiting sessions in its order`, G.SA2.ok, G.SA2.said);
+              arm(`SA3 ${at}: the Sample bar in every dump inside the sample, above everything on Needs input, Sessions, Settings, the Terminal upright and sideways, and Catch Me Up`, G.SA3.ok, G.SA3.said);
+              arm(`SA4 ${at}: Claude Code's waiting session opens on the book's Terminal, its options press with nothing asked, and it moves on`, G.SA4.ok, G.SA4.said);
+              arm(`SA5 ${at}: Codex CLI's waiting session the same, its command drawn under the question`, G.SA5.ok, G.SA5.said);
+              arm(`SA6 ${at}: keys echo on the sample's own prompt, Return draws that nothing ran, ctrl then c draws ^C, and nothing is asked`, G.SA6.ok, G.SA6.said);
+              arm(`SA7 ${at}: scrolled to the top, the history is the book's from its first line`, G.SA7.ok, G.SA7.said);
+              arm(`SA8 ${at}: Catch Me Up pages to the first turn, every ask the book's`, G.SA8.ok, G.SA8.said);
+              arm(`SA9 ${at}: End asks Face ID behind the book's own confirmation, and the session reads ended`, G.SA9.ok, G.SA9.said);
+              arm(`SA10 ${at}: Sessions draws each Show, Group by, Sort by and the agent filter as the book answers them`, G.SA10.ok, G.SA10.said);
+              arm(`SA11 ${at}: End these over the three live rows asks Face ID, ends each, and Show Ended lists every session`, G.SA11.ok, G.SA11.said);
+              arm(`SA12 ${at}: Settings inside the sample draws About alone`, G.SA12.ok, G.SA12.said);
+              arm(`SA13 ${at}: Leave sample returns to Pairing as it was`, G.SA13.ok, G.SA13.said);
+              arm(`SAX ${at}, THE ATTACK: no connection reached the door from the launch to the end, with the door listening throughout`, G.SAX.ok, G.SAX.said);
+              report.readings.sample.sd = { kind: F.sd.bar?.kind ?? null, glyph: F.sd.bar?.glyph ?? null, enabled: F.sd.bar?.enabled ?? null, line: F.sd.bar?.line ?? null, unenrol: F.sd.unenrol };
+              say(`SD: with Face ID unenrolled iOS answers ${J(F.sd.bar?.kind ?? null)} (glyph ${J(F.sd.bar?.glyph ?? null)}, End ${F.sd.bar?.enabled === true ? 'on' : 'off'}, line ${J(F.sd.bar?.line ?? null)})`);
+              arm(`SD ${at}: with no passcode the sample's End is on with lock.open and its line, and ends the session with nothing asked`, G.SD.ok, G.SD.said);
+            }
+
+            // ---- SB: the floor, iOS 18.3 ----------------------------------
+            const floor = await withSimulator({ label: 'p316-sample-floor', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-sample-floor'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+              await sim.biometry('enrol');
+              const got = await freshDrive(sim, 'sample-floor', plan.floorSteps);
+              return { ...got, runtime: sim.runtime };
+            });
+            report.readings.sample.floor = { code: floor.run?.code ?? null, lines: (floor.run?.events ?? []).length, counts: floor.counts, listening: floor.listening, windows: floor.marks.windows, auth: floor.marks.auth, reactionErrors: floor.run?.reactionErrors ?? [] };
+            if (!ranOk(floor)) {
+              arm(`SB iOS ${String(RUNTIME_FLOOR)}: See a sample on the floor`, null, notRun(floor));
+            } else {
+              for (const [id, got] of gradeSampleFloor(floor, book, cast)) {
+                arm(`SB iOS ${String(floor.runtime)}, ${id}: as on ${String(RUNTIME_CURRENT)}`, got.ok, got.said);
+              }
+            }
+
+            // ---- SC1 to SC3: paired with the real Mac, through the relay ---
+            await confirmListening(cdp);
+            const macBefore = await mainSessions(cdp);
+            const macShell = macBefore.find((s) => s.name === N.shell && ['running', 'idle', 'needs_input'].includes(s.status)) ?? null;
+            const pairedSteps = samplePlan(book, cast, SESSIONS_WORDS, macShell?.id ?? null).pairedSteps;
+            const sc = await withSimulator({ label: 'p316-sample-paired', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-sample-paired'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+              // Face ID, so End and End these inside the sample are answered
+              // and their writes made (the fix round: SC2 counts them).
+              await sim.biometry('enrol');
+              const marks = newMarks();
+              const dir = acksFor('paired');
+              const run = await pairAndRead(sim, pairedSteps, 'sample-paired', { env: { P316_ACKS: dir }, react: sampleReact(sim, dir, marks), waitS: '150', timeoutMs: 1_800_000 });
+              return { run, marks, runtime: sim.runtime };
+            });
+            const macAfter = await mainSessions(cdp);
+            report.readings.sample.paired = { ok: sc.run.ok, code: sc.run.result?.code ?? null, shell: macShell !== null, windows: sc.marks.windows, reactionErrors: sc.run.result?.reactionErrors ?? [] };
+            if (!sc.run.ok || (sc.run.result?.events ?? []).length === 0) {
+              const why = `the paired drive did not run: ${String(sc.run.why ?? `no P316 line (xcodebuild exited ${String(sc.run.result?.code)})`)}`;
+              for (const id of ['SC1', 'SC2', 'SC3']) arm(`${id} iOS ${String(RUNTIME_CURRENT)}: See a sample from a paired phone`, null, why);
+            } else {
+              const at = `iOS ${String(sc.runtime)}`;
+              const G = gradeSamplePaired({ events: sc.run.result.events, marks: sc.marks, macBefore, macAfter, book });
+              arm(`SC1 ${at}: paired, the list draws the Mac's sessions, See a sample sits under Unpair, and nothing inside the sample holds a Mac session`, G.SC1.ok, G.SC1.said);
+              arm(`SC2 ${at}, THE ATTACK: with the Mac's Terminal open before it, no connection and no request from sample-open to Leave sample across every surface of the sample, its presses, keys, End and End these among them`, G.SC2.ok, G.SC2.said);
+              arm(`SC3 ${at}: Leave sample returns to Needs input with the Mac's sessions, the paired reads start again within 15 s, and Settings reads as before`, G.SC3.ok, G.SC3.said);
+            }
+
+            // ---- SP: the parent's own app and drive (build 9) ---------------
+            if (PARENT_IOS_3333 !== '') {
+              const parentProject = join(resolve(PARENT_IOS_3333), 'ios', 'Tortie.xcodeproj');
+              const parentDd = join(XCODE, 'dd-parent-3333');
+              const spName = 'SP the parent\'s own app (build 9): no label on its pairing screen holds "sample", and the relay counts nothing over its idle:20';
+              const built = existsSync(parentProject)
+                ? await xcodebuildRun({ label: 'parent-sample', scratch: XCODE, derivedDataPath: parentDd, args: ['build-for-testing', '-project', parentProject, '-scheme', SCHEME, '-configuration', 'Debug', '-destination', 'generic/platform=iOS Simulator'] })
+                : { code: -1 };
+              if (built.code !== 0) arm(spName, null, `the parent's project did not build (${String(built.code)}); P3333_PARENT_IOS names the directory holding e1e17899's ios/`);
+              else {
+                await confirmListening(cdp);
+                const listeningBefore = await listeningNow();
+                const sp = await withSimulator({ label: 'p316-sample-parent', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-sample-parent'), derivedDataPath: parentDd, keep: KEEP }, async (sim) => {
+                  const marks = newMarks();
+                  const dir = acksFor('parent');
+                  const before = relay.count();
+                  // The parent's UI test knows no sample step: `setup-read` and `idle:` are 333.1's and 316.6's.
+                  const run = await drive(sim, {
+                    test: { id: UI_TEST, project: parentProject },
+                    derivedDataPath: parentDd,
+                    label: 'sample-parent',
+                    timeoutMs: 600_000,
+                    env: { P316_PAYLOAD: '', P316_STEPS: 'setup-read,idle:20', P316_WAIT_S: '60', P330_DOOR_ENDPOINT: `127.0.0.1:${String(relay.port)}` },
+                    onEvent: sampleReact(sim, dir, marks)
+                  });
+                  return { run, marks, before, after: relay.count() };
+                });
+                const listeningAfter = await listeningNow();
+                const ev = sp.run.events ?? [];
+                report.readings.sample.parent = { code: sp.run.code, lines: ev.length, counts: { before: sp.before, after: sp.after, idleStart: sp.marks.idleStart, idleEnd: sp.marks.idleEnd }, reactionErrors: sp.run.reactionErrors ?? [] };
+                const v = gradeSampleParent(ev, { before: sp.before, after: sp.after, idleStart: sp.marks.idleStart, idleEnd: sp.marks.idleEnd }, { before: listeningBefore, after: listeningAfter });
+                arm(spName, v.ok, v.said);
+              }
+            } else report.readings.sampleParent = 'not run: P3333_PARENT_IOS is not set';
+          }
         }
 
         if (ARMS.has('hostile')) {

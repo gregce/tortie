@@ -30,7 +30,8 @@
  *
  * THE CONTACT SHEET IS NOT A SCREEN. `index.html` draws every screen (twelve
  * since Phase 316.6, thirteen since Phase 317's End these, fifteen since Phase
- * 316.7's Sessions tab, its menu and its older-Mac face) through
+ * 316.7's Sessions tab, its menu and its older-Mac face, twenty-two since
+ * Phase 333.3's See a sample) through
  * `<iframe src="…">` and its own prose is
  * commentary about the mock. It
  * is exempt as a class, with that reason, and the exemption is paid for: the run
@@ -269,6 +270,36 @@ function screenSampleRows() {
  * fails by name. Empty when the capture is not there, which leaves the rows
  * uncovered and failing by name.
  */
+/**
+ * The made-up words of See a sample (Phase 333.3, build/p3333/SPEC.md §6.3),
+ * read from the file the app bundles, ios/Tortie/Sample/sample.json, which
+ * build/p3333/sample.mjs composes with the Mac's shipping code: every
+ * session's name and every project's label (the blocked and sessions rows and
+ * the groups), and the waiting rows' questions. Each list is one pattern of
+ * exact strings. A file that is not there answers patterns that match
+ * nothing, so Sample.html's rows fail by name.
+ */
+const SAMPLE_BOOK = join('ios', 'Tortie', 'Sample', 'sample.json');
+function sampleBookWords() {
+  let book = null;
+  try {
+    book = JSON.parse(readFileSync(join(ROOT, SAMPLE_BOOK), 'utf8'));
+  } catch {
+    book = null;
+  }
+  const names = new Set();
+  const questions = new Set();
+  const pieces = book?.pieces ?? {};
+  for (const row of [...(pieces.blockedRows ?? []), ...(pieces.sessionsRows ?? [])]) {
+    for (const value of [row?.name, row?.project]) if (typeof value === 'string' && value !== '') names.add(value);
+  }
+  for (const group of pieces.groups ?? []) if (typeof group?.label === 'string' && group.label !== '') names.add(group.label);
+  for (const row of pieces.blockedRows ?? []) if (typeof row?.question === 'string' && row.question !== '') questions.add(row.question);
+  const exactly = (set) => new RegExp(`^(?:${[...set].sort().map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') || '(?!)'})$`);
+  return { names: exactly(names), questions: exactly(questions), counts: { names: names.size, questions: questions.size } };
+}
+const SAMPLE_WORDS = sampleBookWords();
+
 const HISTORY_CAPTURE = join('src', 'main', 'activity', '__tests__', 'fixtures', 'claude-post-answer.txt');
 function historyCaptureRows() {
   let text;
@@ -400,6 +431,31 @@ const LEDGER = [
     needle: 'static let scanCode = "Scan code"',
     draws: 'Scan code',
     why: 'the press that opens the camera, and only then asks for it (D20, av5)'
+  }),
+  // Phase 333.3 (build/p3333/SPEC.md §5.6, §6.3): See a sample, under Scan code
+  // on Pairing.html, and the Sample bar on every page of the sample, which
+  // Sample.html draws over its Needs input tab. Each the phone's own word,
+  // declared /// Phone: in Copy.swift; no Mac surface has a sample.
+  owned({
+    is: 'See a sample',
+    module: PHONE_COPY,
+    needle: 'static let seeSample = "See a sample"',
+    draws: 'See a sample',
+    why: 'the press under Scan code that opens made-up sessions inside the app, before or without a Mac (research 140 §8 row 4, D13)'
+  }),
+  owned({
+    is: 'Sample',
+    module: PHONE_COPY,
+    needle: 'static let sample = "Sample"',
+    draws: 'Sample',
+    why: "said at the top of every page while the sample is open, so nothing in it reads as the person's own Mac (D14)"
+  }),
+  owned({
+    is: 'Leave sample',
+    module: PHONE_COPY,
+    needle: 'static let leaveSample = "Leave sample"',
+    draws: 'Leave sample',
+    why: 'the Sample bar\'s press, back to where See a sample was pressed: Pairing, or the paired Mac\'s lists (D15)'
   }),
   owned({
     is: 'This iPhone is not paired with a Mac.',
@@ -1142,6 +1198,19 @@ const LEDGER = [
       why: "the agent's own answer in Conversation.html, drawn there as the markdown the later phase switches back on: one exact string each, never a shape. While markdown is off the phone draws these words as written, one text, as Phase 316.5 did"
     })
   ),
+  // PHASE 333.3, See a sample (build/p3333/SPEC.md §6.3): the sample's
+  // sessions and projects are made up, and the names are read from the file
+  // the app bundles, so Sample.html can draw only what the sample holds. They
+  // are declared here, before the name rule below, because each is a single
+  // lowercase name that rule would otherwise take.
+  data({
+    when: SAMPLE_WORDS.names,
+    why: 'a made-up session of See a sample, ios/Tortie/Sample/sample.json, data as any session\'s name is: its name or its project\'s label'
+  }),
+  data({
+    when: SAMPLE_WORDS.questions,
+    why: "a made-up session's question in See a sample, ios/Tortie/Sample/sample.json: the agent's own words in its own shape, as main composed them for the waiting row"
+  }),
   data({
     when: /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/,
     why: "a session's name or a project folder's name, which are the person's own words"
@@ -1281,7 +1350,11 @@ const OWED_ABSENCE_FLOOR = 16;
    Terminal's ⋯, spoken More (Copy.swift's own word), and the menu's End
    session…, the session manager's own menu word, which TerminalMenu.html
    draws again now that the End bar is gone; build/p3373/SPEC.md §6.3. */
-const OWNED_RULE_FLOOR = 103;
+/* PHASE 333.3 RAISED IT BY THREE, FROM 103 TO 106, the count the run matches:
+   See a sample, under Scan code on Pairing.html, and the Sample bar's Sample
+   and Leave sample, which Sample.html draws over its Needs input tab, each
+   the phone's own word in Copy.swift; build/p3333/SPEC.md §6.3. */
+const OWNED_RULE_FLOOR = 106;
 
 // ---------------------------------------------------------------------------
 // Judgement
@@ -1503,6 +1576,61 @@ function checkTerminalFaces(screens) {
     if (drawsWord(landscape, word)) findings.push({ file: 'Landscape.html', text: word, why: 'sideways the Terminal is the terminal alone, with no bar above or below (build/p3373/SPEC.md D15)' });
   }
   if (namesControl(landscape, TERMINAL_FACES.more)) findings.push({ file: 'Landscape.html', text: TERMINAL_FACES.more, why: 'the ⋯ drawn sideways; the bar is hidden (build/p3373/SPEC.md D15)' });
+  return findings;
+}
+
+// ---------------------------------------------------------------------------
+// The sample's Needs input tab (Phase 333.3, build/p3333/SPEC.md §5.7, §6.3)
+// ---------------------------------------------------------------------------
+
+/**
+ * The rows Sample.html may draw: the waiting rows of the START state of
+ * ios/Tortie/Sample/sample.json (every session at its first variant), each as
+ * the phone's ListScreen draws it, `name`, `ageText`, then `project ·
+ * question` (or `statusTitle · project` with no question), in the answer's
+ * order, and the bell's count their number. Null when the file cannot be read.
+ */
+function sampleStartRows() {
+  let book;
+  try {
+    book = JSON.parse(readFileSync(join(ROOT, SAMPLE_BOOK), 'utf8'));
+  } catch {
+    return null;
+  }
+  const state = (book?.ids ?? []).map((_, i) => book.variants?.[i]?.[0]).join('.');
+  const rows = (book?.lists?.[state]?.blocked?.rows ?? []).map((i) => book.pieces?.blockedRows?.[i]).filter((r) => r !== undefined);
+  return rows.map((r) => ({ name: r.name, age: r.ageText, line: typeof r.question === 'string' ? `${r.project}${SEPARATOR}${r.question}` : `${r.statusTitle}${SEPARATOR}${r.project}` }));
+}
+
+/**
+ * Sample.html draws exactly the book's start state: the same rows in the same
+ * order, each its name, age and line, no other session or project name, and
+ * the bell's count. The ledger alone cannot hold this, because a sample name
+ * is a lowercase name the general name rule would take, so a row the mock
+ * invented or re-ordered would pass it. Pure over the screens so the
+ * self-test can mutate one in memory.
+ */
+function checkSampleFace(screens, rows = sampleStartRows()) {
+  const findings = [];
+  const page = screens.get('Sample.html');
+  if (page === undefined) return [{ file: 'Sample.html', text: 'Sample.html', why: 'See a sample has no mock (build/p3333/SPEC.md §5.7)' }];
+  if (rows === null || rows.length === 0) return [{ file: SAMPLE_BOOK, text: SAMPLE_BOOK, why: 'the sample\'s start state cannot be read, so Sample.html is held to nothing' }];
+  const drawn = extractStrings(page).filter((x) => x.kind === 'text').map((x) => x.text);
+  let at = 0;
+  for (const row of rows) {
+    const k = drawn.indexOf(row.name, at);
+    if (k === -1 || drawn[k + 1] !== row.age || drawn[k + 2] !== row.line) {
+      findings.push({ file: 'Sample.html', text: row.name, why: `the start state draws ${row.name}, ${row.age}, ${JSON.stringify(row.line)}, in that place and order, and the mock does not (ios/Tortie/Sample/sample.json)` });
+      continue;
+    }
+    at = k + 3;
+  }
+  const names = new Set(rows.map((r) => r.name));
+  for (const text of drawn) {
+    if (/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(text) && !names.has(text)) findings.push({ file: 'Sample.html', text, why: 'a session name the start state does not list as waiting; the sample\'s Needs input tab draws its own waiting rows and nothing else' });
+  }
+  const badge = /<div class="badge">(\d+)<\/div>/.exec(page)?.[1];
+  if (badge !== String(rows.length)) findings.push({ file: 'Sample.html', text: `badge ${badge ?? 'none'}`, why: `the bell counts the sample's own ${String(rows.length)} waiting row(s), so the badge and the list never disagree (D19)` });
   return findings;
 }
 
@@ -2083,6 +2211,48 @@ const MUTATIONS = [
     names: 'Conversation'
   },
   {
+    // Phase 333.3 (build/p3333/SPEC.md §6.3): the Sample bar's press renamed
+    // in the mock must go red against Copy.swift's `leaveSample`.
+    what: 'Leave sample renamed in Sample.html',
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('Sample.html', (next.get('Sample.html') ?? '').replace('>Leave sample<', '>Leave the sample<'));
+      return next;
+    },
+    names: 'Leave the sample'
+  },
+  {
+    // Phase 333.3: the sample's rows are read from the file the app bundles,
+    // so a question the mock re-words is one the sample does not hold.
+    what: "a sample session's question re-worded in Sample.html",
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('Sample.html', (next.get('Sample.html') ?? '').replace('Would you like to run the following command?', 'Shall I run this command?'));
+      return next;
+    },
+    names: 'Shall I run this command?'
+  },
+  {
+    // Phase 333.3: a sample row drawn with an age its start state does not say.
+    what: 'a sample row drawn with another age',
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('Sample.html', (next.get('Sample.html') ?? '').replace('>4m<', '>5m<'));
+      return next;
+    },
+    names: 'fix-login-redirect'
+  },
+  {
+    // Phase 333.3: a sample session the book does not have, drawn as waiting.
+    what: 'a sample row the book does not list as waiting',
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('Sample.html', (next.get('Sample.html') ?? '').replace('>migrate-orders<', '>tidy-readme<'));
+      return next;
+    },
+    names: 'tidy-readme'
+  },
+  {
     // Phase 316.7: Clear filters is the Mac's own reset (D12).
     what: "the Mac's Clear filters re-worded in the menu",
     apply(screens) {
@@ -2121,6 +2291,14 @@ const MODULE_MUTATIONS = [
     module: PHONE_COPY,
     edit: (text) => text.replace('static let more = "More"', 'static let more = "more"'),
     names: 'static let more = "More"'
+  },
+  {
+    // Phase 333.3 (build/p3333/SPEC.md §6.3): See a sample changed by one
+    // letter in Copy.swift; Pairing.html then draws a word the phone does not say.
+    what: "seeSample's value changed by one letter in Copy.swift",
+    module: PHONE_COPY,
+    edit: (text) => text.replace('static let seeSample = "See a sample"', 'static let seeSample = "See a simple"'),
+    names: 'static let seeSample = "See a sample"'
   }
 ];
 
@@ -2325,6 +2503,7 @@ function main() {
   );
   findings.push(...checkContactSheet([...screens.keys()], sheet));
   findings.push(...checkTerminalFaces(screens));
+  findings.push(...checkSampleFace(screens));
 
   // Every rule must earn its place: one that matches nothing is a rule about a
   // mock that has moved on, and it would go on passing forever.
@@ -2424,7 +2603,7 @@ function main() {
       const mutatedScreens = mutation.apply(screens);
       const mutated = judge(mutatedScreens, modules, production);
       // Phase 337.3: the Terminal's faces are judged beside the ledger.
-      const found = [...mutated.findings, ...checkTerminalFaces(mutatedScreens)];
+      const found = [...mutated.findings, ...checkTerminalFaces(mutatedScreens), ...checkSampleFace(mutatedScreens)];
       const caught = found.some((f) => f.text === mutation.names);
       const wasThere = [...base].some((k) => k.endsWith(`\u0000${mutation.names}`));
       if (!caught) {

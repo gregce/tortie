@@ -77,6 +77,10 @@
 //   pairing-nothing-else         `Nothing else to install on this phone.`
 //   pairing-privacy, pairing-support
 //                                the foot's two pages of Tortie's site; buttons
+//   pairing-see-sample           See a sample, under Scan code at rest and
+//                                under pairing-point after it, whenever no
+//                                pairing is under way; a button (Phase 333.3,
+//                                build/p3333/SPEC.md D13)
 //   <failure id>-retry           `Try again` under list-failure,
 //                                needs-list-failure, session-failure and
 //                                catch-up-failure
@@ -113,6 +117,8 @@
 //                                says it
 //   settings-unpair              Unpair this iPhone; a button
 //   settings-unpair-line         the sentence when the phone could not forget
+//   settings-see-sample          See a sample, under Unpair on a paired phone;
+//                                a button (Phase 333.3, D13)
 //   settings-about, settings-version
 //                                the About card and its `1.0.0 (4)`
 //   settings-mac-site            Tortie for Mac, a button that opens tortie.sh
@@ -121,6 +127,13 @@
 //   settings-privacy, settings-support
 //                                the privacy and support pages; buttons
 //
+// SEE A SAMPLE (Phase 333.3, build/p3333/SPEC.md D14): made-up sessions inside
+// the app, under one strip at the top of every page:
+//
+//   sample-bar                   the strip above the three tabs; a container
+//   sample-label                 `Sample`, at its leading edge
+//   sample-leave                 `Leave sample`, at its trailing edge; a button
+//
 // END (Phase 317, build/p317/SPEC.md section 5.8.8; moved to the top bar in
 // Phase 337, D33, and its bar at the bottom is gone):
 //
@@ -128,7 +141,8 @@
 //                                button
 //   session-end-line             the one line about End, under the status
 //   session-end-glyph-<name>     the row's glyph, an image: faceid, touchid or
-//                                lock
+//                                lock, and lock.open in the sample on an
+//                                iPhone with no passcode (Phase 333.3)
 //   end-confirming               present while iOS asks Face ID, Touch ID or
 //                                the passcode
 //   end-writing                  present beside the Terminal's ⋯ while End's
@@ -348,6 +362,13 @@ enum ID {
     static let pairingNothingElse = "pairing-nothing-else"
     static let pairingPrivacy = "pairing-privacy"
     static let pairingSupport = "pairing-support"
+    /// See a sample, under Scan code (Phase 333.3, D13).
+    static let pairingSeeSample = "pairing-see-sample"
+
+    // See a sample (Phase 333.3, D14): the one strip above the three tabs.
+    static let sampleBar = "sample-bar"
+    static let sampleLabel = "sample-label"
+    static let sampleLeave = "sample-leave"
 
     // The Needs input tab (Phase 316.6).
     static let needsInputScreen = "screen-needs-input"
@@ -382,11 +403,14 @@ enum ID {
     static let settingsAlertsLine = "settings-alerts-line"
     static let settingsUnpair = "settings-unpair"
     static let settingsUnpairLine = "settings-unpair-line"
+    /// See a sample, under Unpair this iPhone on a paired phone (Phase 333.3, D13).
+    static let settingsSeeSample = "settings-see-sample"
 
     // End and End these (Phase 317; End in the top bar since Phase 337).
     static let sessionEnd = "session-end"
     static let sessionEndLine = "session-end-line"
-    /// The owner check's glyph on the End row: `faceid`, `touchid` or `lock`.
+    /// The owner check's glyph on the End row: `faceid`, `touchid` or `lock`
+    /// (`lock.open` in the sample with no passcode, Phase 333.3).
     static func sessionEndGlyph(_ glyph: String) -> String { "session-end-glyph-" + glyph }
     static let endConfirming = "end-confirming"
     /// Beside the Terminal's ⋯ while End's write runs (Phase 337.3, D24).

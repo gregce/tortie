@@ -189,6 +189,32 @@
  * adds its arms at the end of the list, and its build is 9, set when it was
  * rebased onto 333.1: `s8`, `s11` and `s12` moved to build 9.
  *
+ * PHASE 333.3, SEE A SAMPLE (build/p3333/SPEC.md §6.2), made-up sessions inside
+ * the app before a Mac is paired, whose whole promise is that nothing in them
+ * reaches the network or the Keychain. Its sixteen arms, at the end of the
+ * list, are the ways that promise could break: (az) the door client, the
+ * pairing store or a pairing code named in the sample, Network.framework
+ * imported there (which (c) must catch too: the arm's `also`), a Keychain
+ * read, its words written to UserDefaults, a file read through contentsOf:,
+ * the sample made by the paired door, the door asked to forget by
+ * openSample(), leaveSample() reading the kept pairing whatever the sample was
+ * opened from, an alert's tap acting inside the sample, one byte of the
+ * bundled sample.json moved from what the shipping composer makes, and a
+ * second Sample bar; and (ac) the sample's check confirming for every phone,
+ * every reader handed it, and iOS's own check answering the sample's word.
+ * Its build is 10: `s8`, `s11` and `s12` moved to build 10, so Release a build
+ * ahead reads 11 and a configuration left behind reads 9, 337.3's. Its fix
+ * round adds seventeen more (az17 to az33), the seal attack's own shapes, every
+ * one of which had passed every gate: an alert tap and an outside name read
+ * from the sample, an extension member and a second lineBox it would reach, a
+ * name hidden in an interpolation, an NSURLSession and openURL: found by name,
+ * Safari opened through a variable, a static hook on the reader and a static
+ * instance of its choices, the hook set where lists are made, an extension of
+ * the reader outside its folder, a nonisolated(unsafe) place beside the app's
+ * types, a class instance kept by Copy, (g) a class found by its name
+ * anywhere in the app, and two members added to types the sample may name, one
+ * reading the kept pairing and one posting an alert tap (its closed reach).
+ *
  * THE DELTA RULE. The base is run first. An arm passes only when its own rule
  * was GREEN at the base and is RED with the plant, so a rule that was already
  * red proves nothing and says so. An arm whose anchor is gone from the tree
@@ -373,6 +399,13 @@ const allOf = (...pairs) => (src) => {
 };
 const PAIRING_SCREEN = `${APP}/Screens/PairingScreen.swift`;
 const LINKS = `${APP}/Markdown/Links.swift`;
+/** Phase 333.3's files (build/p3333/SPEC.md §5.2, §5.3). */
+const TORTIE_APP = `${APP}/App/TortieApp.swift`;
+const SAMPLE_READER = `${APP}/Sample/SampleReader.swift`;
+const SAMPLE_WORLD = `${APP}/Sample/SampleWorld.swift`;
+const SAMPLE_BOOK_SWIFT = `${APP}/Sample/SampleBook.swift`;
+const SAMPLE_OWNER = `${APP}/Sample/SampleOwnerCheck.swift`;
+const SAMPLE_BAR = `${APP}/Sample/SampleBar.swift`;
 
 const PBX = 'ios/Tortie.xcodeproj/project.pbxproj';
 const INFO = `${APP}/Info.plist`;
@@ -1330,7 +1363,7 @@ const ARMS = [
     rule: 's',
     what: 'Release a build ahead of Debug',
     file: () => PBX,
-    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 9;/, '$1CURRENT_PROJECT_VERSION = 10;')
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 10;/, '$1CURRENT_PROJECT_VERSION = 11;')
   },
   {
     id: 's9',
@@ -1673,9 +1706,9 @@ const ARMS = [
   {
     id: 's11',
     rule: 's',
-    what: "the app's Release left at build 8, 333.1's, which App Store Connect refuses as a duplicate",
+    what: "the app's Release left at build 9, 337.3's, which App Store Connect refuses as a duplicate",
     file: () => PBX,
-    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 9;/, '$1CURRENT_PROJECT_VERSION = 8;')
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 10;/, '$1CURRENT_PROJECT_VERSION = 9;')
   },
   {
     id: 'x10',
@@ -3450,7 +3483,9 @@ const ARMS = [
     rule: 'av',
     what: 'QRScanner( built outside the Scan code branch, so iOS asks for the camera at once',
     file: () => PAIRING_SCREEN,
-    edit: (src) => src.replace('                    } else {\n                        steps\n                        scanButton\n                    }', '                    } else {\n                        scanner(QRScanner(active: false) { _ in })\n                        steps\n                        scanButton\n                    }')
+    // Since Phase 333.3 See a sample is drawn under Scan code in this branch,
+    // so the anchor ends at Scan code rather than at the branch's brace.
+    edit: (src) => src.replace('                    } else {\n                        steps\n                        scanButton\n', '                    } else {\n                        scanner(QRScanner(active: false) { _ in })\n                        steps\n                        scanButton\n')
   },
   {
     id: 'av5b',
@@ -3540,9 +3575,9 @@ const ARMS = [
   {
     id: 's12',
     rule: 's',
-    what: 'the build left at 8 in one configuration (Debug), 333.1’s',
+    what: 'the build left at 9 in one configuration (Debug), 337.3’s',
     file: () => PBX,
-    edit: (src) => src.replace('CURRENT_PROJECT_VERSION = 9;', 'CURRENT_PROJECT_VERSION = 8;')
+    edit: (src) => src.replace('CURRENT_PROJECT_VERSION = 10;', 'CURRENT_PROJECT_VERSION = 9;')
   },
   {
     id: 'v32',
@@ -4162,6 +4197,248 @@ const ARMS = [
     what: 'an identifier the menu needs missing (end-writing)',
     file: () => `${APP}/Screens/Identifiers.swift`,
     edit: (src) => src.replace('    static let endWriting = "end-writing"\n', '')
+  },
+  // Phase 333.3, See a sample (build/p3333/SPEC.md §6.2): each a plant the
+  // sample's promise refuses, red on the rule that owns it in the clone and
+  // green at the base. `also` names a second rule the same plant must redden.
+  {
+    id: 'az1',
+    rule: 'az',
+    what: 'the door client named in the sample\'s reader',
+    file: () => SAMPLE_READER,
+    edit: append('let _ = DoorClient.self\n')
+  },
+  {
+    id: 'az2',
+    rule: 'az',
+    also: ['c'],
+    what: 'Network.framework imported into the sample\'s world, and an NWConnection named there',
+    file: () => SAMPLE_WORLD,
+    edit: append('import Network\nlet _ = NWConnection.self\n')
+  },
+  {
+    id: 'az3',
+    rule: 'az',
+    what: 'a Keychain read in the sample\'s book',
+    file: () => SAMPLE_BOOK_SWIFT,
+    edit: append('_ = SecItemCopyMatching([:] as CFDictionary, nil)\n')
+  },
+  {
+    id: 'az4',
+    rule: 'az',
+    what: 'the pairing store (a Keys type) named in the sample\'s reader',
+    file: () => SAMPLE_READER,
+    edit: append('let _ = PairingStore.self\n')
+  },
+  {
+    id: 'az5',
+    rule: 'az',
+    what: 'a pairing code parsed in the sample\'s reader',
+    file: () => SAMPLE_READER,
+    edit: append('let _ = try? PairingOffer.parse("")\n')
+  },
+  {
+    id: 'az6',
+    rule: 'az',
+    what: 'the sample\'s words written to UserDefaults in SampleChoices.save',
+    file: () => SAMPLE_READER,
+    edit: (src) => src.replace(/(\bclass\s+SampleChoices\b[\s\S]*?\bfunc\s+save\s*\([^)]*\)[^{\n]*\{[ \t]*\n)/, '$1        UserDefaults.standard.set(1, forKey: "x")\n')
+  },
+  {
+    id: 'az7',
+    rule: 'az',
+    what: 'a file read through contentsOf: in SampleBook.bundled()',
+    file: () => SAMPLE_BOOK_SWIFT,
+    edit: (src) => src.replace(/(\bstatic\s+func\s+bundled\s*\(\s*\)\s*->\s*SampleBook\?\s*\{[ \t]*\n)/, '$1        _ = try? Data(contentsOf: URL(fileURLWithPath: "/"))\n')
+  },
+  {
+    id: 'az8',
+    rule: 'az',
+    what: 'the sample made by LiveDoor.pairedReader(), the paired door',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(\bstruct\s+LiveDoor\b[\s\S]*?\bfunc\s+pairedReader\s*\(\s*\)[^{\n]*\{[ \t]*\n)/, '$1        _ = SampleReader.bundled()\n')
+  },
+  {
+    id: 'az9',
+    rule: 'az',
+    what: 'door.forget() added to openSample()',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(\bfunc\s+openSample\s*\(\s*\)[^{\n]*\{[ \t]*\n)/, '$1        door.forget()\n')
+  },
+  {
+    id: 'az10',
+    rule: 'az',
+    what: "leaveSample()'s pairedReader() branch made unconditional (its test of sampleFrom == .reading taken out)",
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(\bfunc\s+leaveSample\s*\(\s*\)[\s\S]*?)\bsampleFrom\s*==\s*\.reading\b/, '$1true')
+  },
+  {
+    id: 'az11',
+    rule: 'az',
+    what: 'the leaveSample() call taken out of openFromAlert(',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(\bfunc\s+openFromAlert\s*\([^)]*\)[^{\n]*\{[\s\S]*?)\bleaveSample\s*\(\s*\)/, '$1')
+  },
+  {
+    id: 'az12',
+    rule: 'az',
+    what: "one byte of sample.json changed (a session name's first letter): the writer's --check reads it",
+    file: () => `${APP}/Sample/sample.json`,
+    edit: (src) => src.replace(/("name"\s*:\s*")([a-z])/, (_, head, c) => `${head}${c.toUpperCase()}`)
+  },
+  {
+    id: 'az13',
+    rule: 'az',
+    what: 'a second SampleBar( drawn in case .reading',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(\bstruct\s+RootView\b[\s\S]*?\n([ \t]*)case\s+\.reading\s*:[ \t]*\n)/, '$1$2    SampleBar(leave: { app.leaveSample() })\n')
+  },
+  {
+    id: 'az14',
+    rule: 'ac',
+    what: 'SampleOwnerCheck.confirm answering .confirmed with the .none test taken out',
+    file: () => SAMPLE_OWNER,
+    edit: (src) => src.replace(/(\bfunc\s+confirm\s*\(\s*reason\s*:\s*String\s*\)\s*async\s*->\s*OwnerAnswer\s*\{)[\s\S]*?\n    \}/, '$1\n        _ = inner.kind()\n        return .confirmed\n    }')
+  },
+  {
+    id: 'az15',
+    rule: 'ac',
+    what: 'endCheck(for:) answering SampleOwnerCheck for every reader',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(\bfunc\s+endCheck\s*\(\s*for\s+reader\s*:\s*any\s+DoorReading\s*\)\s*->\s*any\s+OwnerCheck\s*\{)[\s\S]*?\n    \}/, '$1\n        SampleOwnerCheck(inner: ownerCheck)\n    }')
+  },
+  {
+    id: 'az16',
+    rule: 'ac',
+    what: 'DeviceOwnerCheck.kind() answering .unasked for passcodeNotSet',
+    file: () => `${APP}/App/OwnerCheck.swift`,
+    edit: (src) => src.replace(/(isPasscodeNotSet\(error\)\s*\?\s*)\.none\b/, '$1.unasked')
+  },
+  // Phase 333.3's fix round (the seal attack): the shapes the verifiers
+  // planted that passed every gate, each red now on the clause that closes it.
+  {
+    id: 'az17',
+    rule: 'az',
+    what: "an alert tap posted from the sample's End (S8): AlertInbox is no name the sample may use",
+    file: () => SAMPLE_READER,
+    edit: (src) => src.replace(/(\bfunc\s+end\s*\(\s*_\s+sessionId\s*:\s*String\s*,\s*batch\s*:\s*Bool\s*\)\s*async\s*->\s*WriteResult\s*\{[ \t]*\n)/, '$1        await MainActor.run { AlertInbox.shared.post(.list) }\n')
+  },
+  {
+    id: 'az18',
+    rule: 'az',
+    what: 'a shared place outside the sample read from it (OrientationGate.screenOnTop), a name no list holds',
+    file: () => SAMPLE_WORLD,
+    edit: append('extension SampleWorld {\n    @MainActor func p3333() -> Bool { OrientationGate.screenOnTop }\n}\n')
+  },
+  {
+    id: 'az19',
+    rule: 'az',
+    what: "an extension member declared outside the sample (View's card) called from it",
+    file: () => SAMPLE_BAR,
+    edit: append('extension SampleBar {\n    var p3333: some View { body.card() }\n}\n')
+  },
+  {
+    id: 'az20',
+    rule: 'az',
+    what: 'a second lineBox declared in an extension outside the sample, an overload the bar would reach',
+    file: () => `${APP}/Screens/LineBoxAgain.swift`,
+    create: true,
+    edit: () => 'import SwiftUI\n\nextension Text {\n    func lineBox(_ face: Face) -> some View { self }\n}\n'
+  },
+  {
+    id: 'az21',
+    rule: 'az',
+    what: "an alert inbox named inside a string interpolation in the sample's End",
+    file: () => SAMPLE_READER,
+    edit: (src) => src.replace(/(\bfunc\s+end\s*\(\s*_\s+sessionId\s*:\s*String\s*,\s*batch\s*:\s*Bool\s*\)\s*async\s*->\s*WriteResult\s*\{[ \t]*\n)/, '$1        _ = await MainActor.run { "\\(AlertInbox.shared)" }\n')
+  },
+  {
+    id: 'az22',
+    rule: 'az',
+    also: ['g'],
+    what: "an NSURLSession made by its name in the sample's End (S12)",
+    file: () => SAMPLE_READER,
+    edit: (src) => src.replace(/(\bfunc\s+end\s*\(\s*_\s+sessionId\s*:\s*String\s*,\s*batch\s*:\s*Bool\s*\)\s*async\s*->\s*WriteResult\s*\{[ \t]*\n)/, '$1        _ = NSClassFromString("NSURL" + "Session")\n')
+  },
+  {
+    id: 'az23',
+    rule: 'az',
+    what: "Safari opened from the bar through a variable and an implicit URL init (S11)",
+    file: () => SAMPLE_BAR,
+    edit: append('extension SampleBar {\n    static func p3333() {\n        let place: Foundation.URL? = .init(string: "https:" + "//example.invalid")\n        let app = UIApplication.shared\n        if let place { app.open(place) }\n    }\n}\n')
+  },
+  {
+    id: 'az24',
+    rule: 'az',
+    also: ['g'],
+    what: "openURL: performed by its selector from the bar (S9b)",
+    file: () => SAMPLE_BAR,
+    edit: append('extension SampleBar {\n    static func p3333() {\n        _ = UIApplication.shared.perform(NSSelectorFromString("open" + "URL:"), with: nil)\n    }\n}\n')
+  },
+  {
+    id: 'az25',
+    rule: 'az',
+    what: "a nonisolated(unsafe) static hook on the sample's reader its writer reads (S5)",
+    file: () => SAMPLE_READER,
+    edit: (src) => src.replace(/(\n([ \t]*)var\s+writer\s*:\s*\(any\s+DoorWriting\)\?\s*\{)/, '\n$2nonisolated(unsafe) static var relay: (any DoorWriting)?\n$1')
+  },
+  {
+    id: 'az26',
+    rule: 'az',
+    what: "a static instance of the sample's choices, kept past the sample",
+    file: () => SAMPLE_READER,
+    edit: (src) => src.replace(/(\bfinal\s+class\s+SampleChoices\b[^{]*\{[ \t]*\n)/, '$1    static let kept = SampleChoices()\n')
+  },
+  {
+    id: 'az27',
+    rule: 'az',
+    what: "a hook on the sample's reader set where every list is made (S5b)",
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(\n([ \t]*)let\s+list\s*=\s*ListModel\s*\(\s*door\s*:\s*reader\s*,\s*routing\s*:\s*listRouting\s*\))/, '\n$2if !(reader is SampleReader) { SampleReader.relay = reader.writer }$1')
+  },
+  {
+    id: 'az28',
+    rule: 'az',
+    what: "an extension of the sample's reader outside its folder that reads the kept pairing (S4)",
+    file: () => `${APP}/App/SampleKept.swift`,
+    create: true,
+    edit: () => 'extension SampleReader {\n    var keptPairing: Bool { PairingStore.keychain.load() != nil }\n}\n'
+  },
+  {
+    id: 'az29',
+    rule: 'az',
+    what: "a nonisolated(unsafe) static place for a reader beside the app's types (the second lens's LastReader)",
+    file: () => `${APP}/Screens/LastReader.swift`,
+    create: true,
+    edit: () => 'enum LastReader {\n    nonisolated(unsafe) static var held: (any DoorReading)?\n}\n'
+  },
+  {
+    id: 'az30',
+    rule: 'az',
+    what: 'an instance of an app class kept by an allowed type (a box on Copy)',
+    file: () => `${APP}/Style/Copy.swift`,
+    edit: append('final class P3333Box: @unchecked Sendable {\n    var held: (any DoorWriting)?\n}\n\nextension Copy {\n    static let box = P3333Box()\n}\n')
+  },
+  {
+    id: 'az32',
+    rule: 'az',
+    what: 'a member added to PairedFacts, a type the sample may name, that reads the kept pairing (az11)',
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) => src.replace(/(\n([ \t]*)init\s*\(\s*_\s+door\s*:\s*PairedDoor\s*\)\s*\{)/, '\n$2static var p3333Kept: Bool { PairingStore.keychain.load() != nil }\n$1')
+  },
+  {
+    id: 'az33',
+    rule: 'az',
+    what: 'an extension of Copy, a type the sample may name, that posts an alert tap (az11)',
+    file: () => `${APP}/Style/Copy.swift`,
+    edit: append('extension Copy {\n    @MainActor static func p3333Leak() { AlertInbox.shared.post(.list) }\n}\n')
+  },
+  {
+    id: 'az31',
+    rule: 'g',
+    what: 'a class found by its name outside the sample (NSClassFromString in the pieces)',
+    file: () => `${APP}/Screens/Pieces.swift`,
+    edit: append('enum P3333Lookup {\n    static func session() -> AnyClass? { NSClassFromString("NSURL" + "Session") }\n}\n')
   }
 ];
 
@@ -4244,6 +4521,12 @@ function judge(arm, base, got, relPath) {
   const collateral = Object.entries(got.rules)
     .filter(([k, v]) => k !== arm.rule && !v.ok && base.rules[k]?.ok === true)
     .map(([k]) => k);
+  // Phase 333.3: an arm that names `also` (az2, a network type in the sample)
+  // proves those rules too, each green at the base and red with the plant.
+  const alsoMissed = (arm.also ?? []).filter((k) => !(base.rules[k]?.ok === true && got.rules[k]?.ok === false));
+  if (wasGreen && nowRed && alsoMissed.length > 0) {
+    return { arm, verdict: 'FAIL', why: `(${arm.rule}) went red, but ${alsoMissed.map((k) => `(${k})`).join(', ')} did not go from green to red with the plant in ${relPath}`, file: relPath };
+  }
   if (wasGreen && nowRed) {
     return { arm, verdict: 'red', why: `(${arm.rule}) went red${collateral.length > 0 ? `; also red: ${collateral.join(', ')}` : ''}`, file: relPath };
   }
@@ -4368,8 +4651,8 @@ if (only.length === 0) {
       say(`rule (${rule}) has no arm that turned it red, so nothing here proves it can fail`);
     }
   }
-  // Phase 337.1's rules and Phase 337.3's ((aw), (ax), (ay)); (av) is Phase 333.1's and joins here when it lands.
-  for (const rule of ['ar', 'as', 'at', 'au', 'aw', 'ax', 'ay']) {
+  // Phase 337.1's rules, Phase 337.3's ((aw), (ax), (ay)) and Phase 333.3's (az); (av) is Phase 333.1's and joins here when it lands.
+  for (const rule of ['ar', 'as', 'at', 'au', 'aw', 'ax', 'ay', 'az']) {
     if (!rulesProved.has(rule)) {
       failed += 1;
       say(`rule (${rule}) has no arm that turned it red, so nothing here proves it can fail`);
@@ -4382,5 +4665,5 @@ if (failed > 0) {
 }
 say(
   `PASS: ${String(arms.length)} of ${String(arms.length)} arms red on the rule that owns them, ` +
-    `${only.length === 0 ? 'every rule (a) to (z) and (aa) to (ay) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
+    `${only.length === 0 ? 'every rule (a) to (z) and (aa) to (az) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
 );

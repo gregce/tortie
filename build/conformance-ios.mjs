@@ -79,7 +79,10 @@
  *       A link flag assembled from build settings (`$(A)$(B)`) is text no
  *       rule can read, so `test:ios` reads the BUILT app's load commands.
  *   (g) Nothing fetched is ever run as code: no `JSContext`, `WKWebView`,
- *       `dlopen`, `evaluateJavaScript` or their kin.
+ *       `dlopen`, `evaluateJavaScript` or their kin; and (Phase 333.3's fix
+ *       round) no class, selector or C symbol found by its NAME at run time
+ *       (`NSClassFromString`, `NSSelectorFromString`, `objc_msgSend`,
+ *       `@_silgen_name`), which every rule that reads names would miss.
  *   (h) `askText`, the person's own words, reaches only `Text(verbatim:` —
  *       never markdown, never a `LocalizedStringKey`.
  *   (i) Every UI test plan has screenshots off, attachments `keepNever` and
@@ -538,11 +541,79 @@
  *   when this phase was rebased onto 333.1's 8, and its "not uploaded"
  *   fixtures 10.
  *
+ *   PHASE 333.3, SEE A SAMPLE (build/p3333/SPEC.md §6.1; research 140 §8 row 4;
+ *   his ruling of 10 October: real agents, made-up sessions). The app works
+ *   before a Mac is paired, over made-up sessions the Mac's own composer wrote
+ *   into a file inside the app, and its whole promise is that the sample never
+ *   reaches the network or the Keychain. One rule is new and two widen:
+ *
+ *   (az) SEE A SAMPLE NEVER REACHES THE NETWORK OR THE KEYCHAIN. az1
+ *        `ios/Tortie/Sample/` holds `sample.json` and at least five Swift
+ *        files, every one read by every clause below (derived, never listed);
+ *        az2 none of them names a type Door/ declares at its top level, other
+ *        than Contract.swift's decoders and DoorFailure, WriteResult and
+ *        SentWrite, nor PairedReader, PairedScreenDoor, LiveDoor or PhoneDoor,
+ *        nor a typealias anywhere in the app that stands for one (the set is
+ *        DERIVED from Door/*.swift and must hold the fifteen the SPEC names);
+ *        az3 none names a network type, the URL loading system, a Keychain or
+ *        Security call, CryptoKit, LocalAuthentication, UserDefaults or any
+ *        other store, the notification center, a badge, a way out or a file
+ *        write; az4 the one file read is `Bundle.main.path(forResource:
+ *        "sample", ofType: "json")` and `FileManager.default.contents(atPath:`,
+ *        once each, in `SampleBook.bundled()`, and no `contentsOf:` or other
+ *        `forResource:`; az5 outside Sample/ a SampleReader is made only in
+ *        `AppModel.openSample()`, `SampleBar(` is drawn once, in RootView's
+ *        `case .sample`, `openSample()` names no `door`, and `leaveSample()`
+ *        names it once, as `door.pairedReader()` behind a test of `sampleFrom
+ *        == .reading`, neither naming `forget(` or `unpair(`; az6
+ *        `lostPairing()` and `openFromAlert(` leave the sample first, under a
+ *        test of `root == .sample`; az7 `build/p3333/sample.mjs --check` exits
+ *        0 over the ROOT's own sources, as (j) runs vectors.mjs, so the bundled
+ *        sample is what the shipping composer makes of the made-up world.
+ *        THE FIX ROUND (the seal attack: a paired writer left in a static
+ *        hook, an extension of the reader outside its folder, an alert tap,
+ *        and Safari and an NSURLSession reached through the Objective-C
+ *        runtime, each passing every gate) closes the sample as well as
+ *        refusing into it: az2 is also a LIST, so of what the app declares
+ *        outside Sample/ the sample names only the contract's decoders and
+ *        `SAMPLE_MAY_NAME`, never the module as a qualifier, and of the
+ *        members the app's extensions declare only `SAMPLE_MAY_CALL`, none
+ *        declared more often than pinned; az3 also refuses any `URL`, the
+ *        Objective-C runtime and every name lookup, `UIApplication`, `open(`
+ *        on any receiver, the notification center and the pasteboard; az2 and
+ *        az3 read string interpolations as the code they are; az8 the sample
+ *        keeps nothing past itself (no stored static, `nonisolated(unsafe)`,
+ *        task local or file-scope declaration, and a `static let` only a
+ *        literal or a closure); az9 nothing outside Sample/ names what it
+ *        declares but the five sites that open, check and draw it, each once,
+ *        so no file extends it or sets a hook on it; az10 the WHOLE app's
+ *        shared places (a stored static var, `nonisolated(unsafe)`, a
+ *        top-level var, a static holding one of its classes) are exactly
+ *        `APP_SHARED_STATE`'s, each with its reason; az11 the sample's REACH
+ *        is closed: what it names is followed through every name their
+ *        declarations, extensions and `SAMPLE_MAY_CALL`'s bodies use, to a
+ *        fixpoint that adds exactly `SAMPLE_REACH` (one edge named and never
+ *        followed, `SAMPLE_REACH_UNFOLLOWED`), and az3's refusals hold over
+ *        every reached body, so a member added to an allowed type that reads
+ *        the Keychain or posts an alert is red.
+ *   (ac) also: the conformers are exactly DeviceOwnerCheck and
+ *        SampleOwnerCheck, the second declared in Sample/SampleOwnerCheck.swift
+ *        and made ONCE, in `AppModel.endCheck(for:)`, behind `is SampleReader`;
+ *        its `confirm` answers `.confirmed` only under a test of `inner.kind()
+ *        == .none` and otherwise returns `await inner.confirm(reason:`; only
+ *        SampleOwnerCheck answers `OwnerKind.unasked`, which DeviceOwnerCheck
+ *        never names; and nothing names `app.ownerCheck`, the stored check is
+ *        read in `AppModel` by `endCheck(for:)` alone, and every `ownerCheck:`
+ *        AppModel hands is `endCheck(for:`, so a paired reader's End asks iOS
+ *        exactly as it did.
+ *   (s)  the build is 10 (`PHONE_BUILD`), and its "not uploaded" fixtures 11.
+ *
  * Every rule also proves its own scanner on texts it holds, before it reads a
  * file, so a scanner that stopped finding is never taken for a clean tree.
  *
  * WHAT IT REFUSES TO DO. It spawns only the pinned tsx, through
- * build/p316/vectors.mjs, for (j), and /usr/bin/plutil, which every Mac has,
+ * build/p316/vectors.mjs, for (j), and through build/p3333/sample.mjs, for
+ * (az7), and /usr/bin/plutil, which every Mac has,
  * to read a property list (e, o, s). It decodes the icon and the master in
  * node (r). It needs no Xcode, starts no Simulator, opens no socket and reads
  * nothing under the person's home.
@@ -1360,6 +1431,14 @@ export function ruleNoVpn(name, source) {
 }
 
 const CODE_RUNNERS = [/\bJSContext\b/, /\bJSValue\b/, /\bJavaScriptCore\b/, /\bWKWebView\b/, /\bimport\s+WebKit\b/, /\bdlopen\b/, /\bdlsym\b/, /\bevaluateJavaScript\b/, /\bNSExpression\b/];
+/**
+ * Phase 333.3's fix round: a class, a selector or a C symbol found by its NAME
+ * at run time. The seal attack made an NSURLSession request with
+ * `NSClassFromString("NSURL" + "Session")`, which (c) cannot see because (c)
+ * reads names, so no app file looks one up. `#selector`, which UIKit's targets
+ * need and which names a method the compiler checks, is not one of these.
+ */
+const RUNTIME_LOOKUPS = [/\bNSClassFromString\b/, /\bNSSelectorFromString\b/, /\bNSProtocolFromString\b/, /\bobjc_(?:msgSend|getClass|lookUpClass|getProtocol|getRequiredClass|allocateClassPair)\w*/, /@_silgen_name\b/, /@_cdecl\b/];
 
 /** Rule (g), over one app file. */
 export function ruleNothingRunsAsCode(name, source) {
@@ -1367,6 +1446,9 @@ export function ruleNothingRunsAsCode(name, source) {
   const findings = [];
   for (const re of CODE_RUNNERS) {
     for (const m of bare.matchAll(new RegExp(re.source, 'g'))) findings.push(`${name}:${String(lineOf(bare, m.index))} names ${m[0]}; nothing the door sends is ever run as code`);
+  }
+  for (const re of RUNTIME_LOOKUPS) {
+    for (const m of bare.matchAll(new RegExp(re.source, 'g'))) findings.push(`${name}:${String(lineOf(bare, m.index))} names ${m[0]}, a class, selector or symbol found by its name at run time, which no rule that reads names can see (c, n, az)`);
   }
   return findings;
 }
@@ -2987,10 +3069,12 @@ export const PHONE_BUNDLE_ID = 'com.itavero.tortie.phone';
  * project, in the same commit (6 if Phase 316.7 lands first, SPEC §4.2 item 4).
  * 1.0.0 (8) since Phase 333.1 (build/p3331/SPEC.md D26), the build submitted
  * to Beta App Review; (7) is Phase 337.1's. 1.0.0 (9) since Phase 337.3, set
- * when it was rebased onto 333.1, and the "not uploaded" fixtures below are
- * 10.
+ * when it was rebased onto 333.1, the build he submitted to Beta App Review on
+ * 2026-10-09. 1.0.0 (10) since Phase 333.3 (build/p3333/SPEC.md D23, §5.8), the
+ * build that carries See a sample, and the "not uploaded" fixtures below are
+ * 11.
  */
-export const PHONE_BUILD = '9';
+export const PHONE_BUILD = '10';
 
 /** The asset catalog, relative to the app folder, and the one set it holds. */
 const ICON_CATALOG = 'Assets.xcassets';
@@ -5128,7 +5212,14 @@ export function ruleOwnerCheck(files, plist) {
     for (const s of file.strings) if (/faceID|[Bb]iometr|ownerCheck/.test(s.value)) findings.push(`${atLine(file, s.start)} writes ${JSON.stringify(s.value)}; nothing stores a Face ID setting, and there is no switch (his ruling)`);
   }
   if (said.evaluations !== 1) findings.push(`the app evaluates a policy ${String(said.evaluations)} time(s); once, in DeviceOwnerCheck.confirm`);
-  if (said.conformers.join() !== 'DeviceOwnerCheck') findings.push(`the app's OwnerCheck conformers are ${said.conformers.join(', ') || 'none'}; DeviceOwnerCheck is the one, and a test hands in its own`);
+  // Phase 333.3 (D11): the sample's End asks the same iOS through
+  // SampleOwnerCheck, so the conformers are exactly these two.
+  if ([...said.conformers].sort().join() !== 'DeviceOwnerCheck,SampleOwnerCheck') findings.push(`the app's OwnerCheck conformers are ${said.conformers.join(', ') || 'none'}; they are DeviceOwnerCheck and, for the sample alone, SampleOwnerCheck, and a test hands in its own`);
+  {
+    const sample = sampleOwnerFindings(all);
+    findings.push(...sample.findings);
+    said.sampleMade = sample.said.made;
+  }
   if (owner !== null) {
     const confirm = funcsNamed(owner, 'confirm')[0] ?? null;
     if (confirm === null || !/\bLAContext\s*\(\s*\)/.test(bodyText(owner, confirm))) findings.push(`${OWNER_CHECK_FILE}'s confirm makes no new LAContext() of its own, so one press's match could stand in for another`);
@@ -6815,6 +6906,10 @@ const expect = (what, ok) => {
   expect('(f) catches NetworkExtension', ruleNoVpn('F.swift', 'import NetworkExtension\n').length > 0);
   expect('(f) leaves a comment about a VPN alone', ruleNoVpn('F.swift', '// no VPN profile\nlet x = 1\n').length === 0);
   expect('(g) catches a web view', ruleNothingRunsAsCode('F', 'let w = WKWebView()\n').length > 0);
+  expect('(g) catches a class found by its name (333.3, S12)', ruleNothingRunsAsCode('F', 'let c: AnyClass? = NSClassFromString("NSURL" + "Session")\n').length > 0);
+  expect('(g) catches a selector found by its name (333.3, S9b)', ruleNothingRunsAsCode('F', 'let s = NSSelectorFromString("open" + "URL:")\n').length > 0);
+  expect('(g) catches a C symbol declared by name (333.3)', ruleNothingRunsAsCode('F', '@_silgen_name("SecItemCopyMatching") func p3333(_ q: CFDictionary, _ r: UnsafeMutablePointer<CFTypeRef?>?) -> OSStatus\n').length > 0);
+  expect('(g) leaves #selector alone, which UIKit\'s targets need', ruleNothingRunsAsCode('F', 'let s = #selector(Coordinator.tapped(_:))\n').length === 0);
   const drawn = [];
   expect('(h) accepts Text(verbatim: turn.askText)', ruleAskVerbatim('F', 'Text(verbatim: turn.askText)\n', drawn).length === 0 && drawn.length === 1);
   expect('(h) catches the ask as markdown', ruleAskVerbatim('F', 'Text(try! AttributedString(markdown: turn.askText))\n', []).length > 0);
@@ -7388,8 +7483,8 @@ const expect = (what, ok) => {
   expect('(s) catches a team set by an xcconfig', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length > 0);
   expect('(s) leaves an xcconfig comment alone', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `// DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length === 0);
   expect('(s) catches another bundle id', sRun(pbxSign({ appRelease: his + identity.replace('com.itavero.tortie.phone;', 'com.itavero.tortie.phone2;') })).length > 0);
-  expect('(s) catches versions that disagree', sRun(pbxSign({ appRelease: his + identity.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 10;') })).length > 0);
-  const nextBuild = (text) => text.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 10;');
+  expect('(s) catches versions that disagree', sRun(pbxSign({ appRelease: his + identity.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 11;') })).length > 0);
+  const nextBuild = (text) => text.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 11;');
   expect('(s) catches the app at a build this round does not upload, even when Debug and Release agree', sRun(pbxSign({ appDebug: adHoc + nextBuild(identity), appRelease: his + nextBuild(identity) })).length > 0);
   expect('(s) catches a test bundle at another build', sRun(pbxSign({ testRelease: `${adHoc}        CURRENT_PROJECT_VERSION = 2;\n` })).length > 0);
   expect('(s) accepts a test bundle at this build', sRun(pbxSign({ testRelease: `${adHoc}        CURRENT_PROJECT_VERSION = ${PHONE_BUILD};\n` })).length === 0);
@@ -8248,6 +8343,11 @@ const expect = (what, ok) => {
   const W_APP = [
     'final class AppModel: EndRunnerRegistry {',
     '    private var runners: [ObjectIdentifier: EndRunner] = [:]',
+    // Phase 333.3 (D11): the one place a reader's End check is chosen.
+    '    let ownerCheck: any OwnerCheck',
+    '    func endCheck(for reader: any DoorReading) -> any OwnerCheck {',
+    '        reader is SampleReader ? SampleOwnerCheck(inner: ownerCheck) : ownerCheck',
+    '    }',
     '    func register(_ runner: EndRunner) {',
     '        runners[ObjectIdentifier(runner)] = runner',
     '    }',
@@ -8268,6 +8368,20 @@ const expect = (what, ok) => {
     ''
   ].join('\n');
   const W_SETTINGS = 'struct SettingsScreen: View {\n    var body: some View { Text(Copy.settings) }\n}\n';
+  // Phase 333.3 (D11, D12): the sample's check, the second conformer.
+  const W_SAMPLE_OWNER = [
+    'struct SampleOwnerCheck: OwnerCheck {',
+    '    let inner: any OwnerCheck',
+    '    func kind() -> OwnerKind {',
+    '        inner.kind() == .none ? .unasked : inner.kind()',
+    '    }',
+    '    func confirm(reason: String) async -> OwnerAnswer {',
+    '        guard inner.kind() != .none else { return .confirmed }',
+    '        return await inner.confirm(reason: reason)',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
   const wFiles = (edits = {}) =>
     [
       ['Door/DoorClient.swift', W_CLIENT],
@@ -8275,7 +8389,8 @@ const expect = (what, ok) => {
       [END_BATCH_FILE, W_BATCH],
       [OWNER_CHECK_FILE, W_OWNER],
       ['App/TortieApp.swift', W_APP],
-      ['Screens/SettingsScreen.swift', W_SETTINGS]
+      ['Screens/SettingsScreen.swift', W_SETTINGS],
+      ['Sample/SampleOwnerCheck.swift', W_SAMPLE_OWNER]
     ]
       .map(([name, source]) => ({ name, source: typeof edits[name] === 'function' ? edits[name](source) : source }))
       // An edit that answers null takes the file away.
@@ -8321,6 +8436,8 @@ const expect = (what, ok) => {
   expect('(ac) catches a second evaluation', acRun(swap(OWNER_CHECK_FILE, '        return context.biometryType', '        _ = try? await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "x")\n        return context.biometryType')).length > 0);
   expect('(ac) catches a context kept rather than made per press', acRun(swap(OWNER_CHECK_FILE, '    func confirm(reason: String) async -> OwnerAnswer {\n        let context = LAContext()', '    func confirm(reason: String) async -> OwnerAnswer {\n        let context = Self.shared')).length > 0);
   expect('(ac) catches a second conformer in the app', acRun(swap(OWNER_CHECK_FILE, 'struct DeviceOwnerCheck', 'struct AlwaysYes: OwnerCheck {}\nstruct DeviceOwnerCheck')).length > 0);
+  expect('(ac) catches the sample\'s check gone, DeviceOwnerCheck the only conformer (Phase 333.3)', acRun({ 'Sample/SampleOwnerCheck.swift': () => null, 'App/TortieApp.swift': (s) => s.replace('reader is SampleReader ? SampleOwnerCheck(inner: ownerCheck) : ownerCheck', 'ownerCheck') }).length > 0);
+  expect('(ac) catches the sample\'s check confirming for every phone (Phase 333.3)', acRun(swap('Sample/SampleOwnerCheck.swift', '        guard inner.kind() != .none else { return .confirmed }\n        return await inner.confirm(reason: reason)\n', '        .confirmed\n')).length > 0);
   expect('(ac) catches a run outside the confirmed case', acRun(swap(END_BAR_FILE, '        runner.task = task\n', '        Task { await runner.run { _, _ in } }\n        runner.task = task\n')).length > 0);
   expect('(ac) catches the owner check named in Settings', acRun(swap('Screens/SettingsScreen.swift', 'var body', 'let ownerCheck: any OwnerCheck\n    var body')).length > 0);
   expect('(ac) catches the owner check asked by Unpair', acRun(swap('App/TortieApp.swift', '        switch door.unpair() {', '        Task { _ = await ownerCheck.confirm(reason: "x") }\n        switch door.unpair() {')).length > 0);
@@ -12915,6 +13032,1348 @@ export function ruleTerminalMenu(files) {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 333.3: See a sample (build/p3333/SPEC.md §6.1)
+// ---------------------------------------------------------------------------
+//
+// The app works before a Mac is paired: See a sample opens made-up sessions
+// the Mac's own composer wrote into `Sample/sample.json`, inside the app. Its
+// whole promise is that nothing it does reaches the network or the Keychain,
+// so (az) holds that promise as text, the way (c) holds the one network file
+// and (n) holds the Keychain: what the sample's Swift may NAME (az2, az3), the
+// one file it reads (az4), who opens and leaves it and what they touch (az5,
+// az6), and that the file is what the shipping composer makes (az7). What the
+// Swift DOES is test:ios's (SampleBookTests, SampleReaderTests, SampleAppTests)
+// and probe:p316's `sample` arms, where the relay counts zero connections.
+
+// Its functions match with String.prototype.match rather than RegExp.exec:
+// build/assert-background-teardown.mjs reads any function that names `exec(`
+// as one that starts a process, and a self-test's fixtures then read as a loop.
+
+/** The sample's folder, relative to the app folder (az1). */
+export const SAMPLE_DIR = 'Sample/';
+/** The fewest Swift files az1 must find there: the book, the world, the reader, the owner check and the bar (SPEC §5.2). */
+export const SAMPLE_SWIFT_FLOOR = 5;
+/** The file the sample is made from (SPEC §5.1.3), relative to the app folder. */
+export const SAMPLE_BOOK = 'Sample/sample.json';
+/** The Door/ names the sample may use beyond Contract.swift's decoders: the write results its writer answers (az2, SPEC §5.2). */
+export const SAMPLE_DOOR_ALLOWED = Object.freeze(['DoorFailure', 'WriteResult', 'SentWrite']);
+/** The paired reader's own types, declared outside Door/, which the sample never names (az2). */
+export const SAMPLE_PAIRED_NAMES = Object.freeze(['PairedReader', 'PairedScreenDoor', 'LiveDoor', 'PhoneDoor']);
+/**
+ * Refused beside the SPEC's list, each because it reaches what the sample may
+ * not from outside Door/: `AppModel` holds the door and the pairing (the sample
+ * is handed to it and never reaches back); `KeptSessionsWords` is the paired
+ * Sessions tab's UserDefaults store (D17: the sample keeps its words in
+ * SampleChoices); `SystemPushAddressing` asks iOS about alerts (D19).
+ */
+export const SAMPLE_ALSO_REFUSED = Object.freeze(['AppModel', 'KeptSessionsWords', 'SystemPushAddressing']);
+/** The fifteen Door/ types the SPEC refuses by name (§6.1 az2); the derived set must hold every one, or the derivation stopped finding. */
+export const SAMPLE_DOOR_NAMED = Object.freeze([
+  'DoorClient',
+  'DoorLine',
+  'DoorTransport',
+  'PairingStore',
+  'PairedDoor',
+  'KeychainSecretStore',
+  'KeychainClientKeys',
+  'InstallMark',
+  'PhoneKeys',
+  'ClientKeys',
+  'PairingOffer',
+  'PairingFlow',
+  'PendingPairing',
+  'RequestSigner',
+  'WriteId'
+]);
+
+/** The names a Swift file declares at its top level (`struct|class|enum|actor|protocol|typealias NAME`, at brace depth 0), over bare text. */
+export function topLevelTypeNames(source) {
+  const { bare } = lexSwift(source);
+  const depthAt = new Int32Array(bare.length + 1);
+  let depth = 0;
+  for (let k = 0; k < bare.length; k += 1) {
+    depthAt[k] = depth;
+    if (bare[k] === '{') depth += 1;
+    else if (bare[k] === '}') depth -= 1;
+  }
+  const out = [];
+  for (const m of bare.matchAll(/\b(struct|class|enum|actor|protocol|typealias)\s+([A-Za-z_]\w*)/g)) {
+    if (depthAt[m.index] !== 0) continue;
+    if (/^(?:func|var|let|init|subscript|static|override|final|private|public|internal|fileprivate)$/.test(m[2])) continue;
+    if (/\bimport\s+$/.test(bare.slice(Math.max(0, m.index - 12), m.index))) continue;
+    if (!out.includes(m[2])) out.push(m[2]);
+  }
+  return out;
+}
+
+/** The control words at bracket depth 0 of `text`, in order: `{ kw, at }`, never after `#`, `.` or a letter. */
+function controlWords(text) {
+  const out = [];
+  let depth = 0;
+  for (let k = 0; k < text.length; k += 1) {
+    const c = text[k];
+    if (c === '(' || c === '[') depth += 1;
+    else if (c === ')' || c === ']') depth -= 1;
+    else if (depth <= 0 && /[a-z]/.test(c) && (k === 0 || !/[\w#.$]/.test(text[k - 1]))) {
+      const m = text.slice(k).match(/^(if|guard|else|switch|while|for|repeat|do|catch|defer)\b/);
+      if (m !== null) {
+        out.push({ kw: m[1], at: k });
+        k += m[1].length - 1;
+      }
+    }
+  }
+  return out;
+}
+
+/** Where the statement holding `at` begins: back to a `{`, `}` or `;` at bracket depth 0, over newlines, so a condition list on several lines is one head. */
+function statementStart(bare, at) {
+  let depth = 0;
+  for (let k = at - 1; k >= 0; k -= 1) {
+    const c = bare[k];
+    if (c === ')' || c === ']') depth += 1;
+    else if (c === '(' || c === '[') depth -= 1;
+    else if (depth <= 0 && (c === '{' || c === '}' || c === ';')) return k + 1;
+  }
+  return 0;
+}
+
+/** The last `case …:` (or `default`) at the switch's own depth between its `{` at `open` and `at`: the label's text, or null. */
+function caseLabelAt(bare, open, at) {
+  let depth = 0;
+  let label = null;
+  for (let k = open + 1; k < at; k += 1) {
+    const c = bare[k];
+    if (c === '{' || c === '(' || c === '[') depth += 1;
+    else if (c === '}' || c === ')' || c === ']') depth -= 1;
+    else if (depth === 0 && (c === 'c' || c === 'd') && !/[\w#.$]/.test(bare[k - 1] ?? '')) {
+      const m = bare.slice(k, k + 8).match(/^(case|default)\b/);
+      if (m === null) continue;
+      if (/\b(?:if|guard|while)\s+$/.test(bare.slice(Math.max(0, k - 8), k))) continue;
+      if (m[1] === 'default') {
+        label = 'default';
+        continue;
+      }
+      let j = k + 4;
+      let d = 0;
+      for (; j < at; j += 1) {
+        if (bare[j] === '(' || bare[j] === '[') d += 1;
+        else if (bare[j] === ')' || bare[j] === ']') d -= 1;
+        else if (d === 0 && bare[j] === ':') break;
+      }
+      label = bare.slice(k + 4, j).trim();
+      k = j;
+    }
+  }
+  return label;
+}
+
+/**
+ * The tests the position `at` stands behind, inside the body opened at
+ * `bodyOpen`, each `{ kind, cond, label? }`:
+ *   if           inside the block of an `if` (or `else if`, `while`), or later
+ *                in that `if`'s own condition list than the test;
+ *   guard-head   later in a `guard`'s own condition list than the test;
+ *   guard-else   inside a `guard`'s else block, where `cond` is NOT true;
+ *   guard-after  after a `guard` in a block that still holds `at`;
+ *   case         inside a `switch` over `cond`, under the case `label`;
+ *   ternary      in the true arm of `cond ? … : …`.
+ * A position inside an `else` block stands behind nothing it can name.
+ */
+export function conditionsAt(bare, bodyOpen, at) {
+  const out = [];
+  const opens = openBlocksAt(bare, bodyOpen, at);
+  for (const open of opens) {
+    if (open === bodyOpen) continue;
+    const from = statementStart(bare, open);
+    const head = bare.slice(from, open);
+    const words = controlWords(head);
+    const last = words[words.length - 1];
+    if (last === undefined) continue;
+    if (last.kw === 'if' || last.kw === 'while') out.push({ kind: 'if', cond: head.slice(last.at + last.kw.length) });
+    else if (last.kw === 'else' && words.length >= 2 && words[words.length - 2].kw === 'guard') {
+      const g = words[words.length - 2];
+      out.push({ kind: 'guard-else', cond: head.slice(g.at + 5, last.at) });
+    } else if (last.kw === 'switch') {
+      const label = caseLabelAt(bare, open, at);
+      if (label !== null) out.push({ kind: 'case', cond: head.slice(last.at + 6), label });
+    }
+  }
+  const from = statementStart(bare, at);
+  const head = bare.slice(from, at);
+  const words = controlWords(head);
+  const last = words[words.length - 1];
+  if (last !== undefined && (last.kw === 'if' || last.kw === 'while')) out.push({ kind: 'if', cond: head.slice(last.at + last.kw.length) });
+  if (last !== undefined && last.kw === 'guard') out.push({ kind: 'guard-head', cond: head.slice(last.at + 5) });
+  // A ternary's true arm: the last `?` at depth 0 with white space on both
+  // sides (never `x?.y` or `??`), and no `:` at depth 0 between it and `at`.
+  {
+    let depth = 0;
+    let q = -1;
+    for (let k = 0; k < head.length; k += 1) {
+      const c = head[k];
+      if (c === '(' || c === '[' || c === '{') depth += 1;
+      else if (c === ')' || c === ']' || c === '}') depth -= 1;
+      else if (depth === 0 && c === '?' && /\s/.test(head[k - 1] ?? '') && /\s/.test(head[k + 1] ?? '')) q = k;
+      else if (depth === 0 && c === ':' && q !== -1) q = -1;
+    }
+    if (q !== -1) {
+      let lineStart = head.lastIndexOf('\n', q - 1) + 1;
+      if (head.slice(lineStart, q).trim() === '') lineStart = head.lastIndexOf('\n', lineStart - 2) + 1;
+      out.push({ kind: 'ternary', cond: head.slice(lineStart, q) });
+    }
+  }
+  for (const m of bare.slice(bodyOpen, at).matchAll(/(?<![\w#.$])guard\b/g)) {
+    const g = bodyOpen + m.index;
+    const holder = openBlocksAt(bare, bodyOpen, g).pop();
+    if (!opens.includes(holder)) continue;
+    const tail = controlWords(bare.slice(g, at)).find((w) => w.kw === 'else');
+    if (tail === undefined) continue;
+    const elseAt = g + tail.at;
+    const open = bare.indexOf('{', elseAt);
+    if (open === -1 || open >= at) continue;
+    const close = matchForward(bare, open);
+    if (close === -1 || close >= at) continue;
+    out.push({ kind: 'guard-after', cond: bare.slice(g + 5, elseAt) });
+  }
+  return out;
+}
+
+/**
+ * Whether one of `conditions` is a test that `cond` holds, where `yes` reads a
+ * condition that says it and `no` one that says its opposite (a guard's else
+ * block), and `subject`/`label` read a switch over it; each condition's text
+ * read through the function's own `let` names (`expandLocals`).
+ */
+function stoodBehind(conditions, body, { yes, no, subject, label }) {
+  const holds = (test, text) => (test === undefined ? false : typeof test === 'function' ? test(text) : test.test(text));
+  return conditions.some((c) => {
+    // A name a condition BINDS (`if let paired = …`) is not read through the
+    // body's lets: its right side there runs on to the blocks after it.
+    const cond = expandLocals(body, c.cond.replace(/\b(let|var)\s+[A-Za-z_]\w*/g, '$1 _'));
+    if (c.kind === 'if' || c.kind === 'guard-head' || c.kind === 'guard-after' || c.kind === 'ternary') return holds(yes, cond);
+    if (c.kind === 'guard-else') return holds(no, cond);
+    if (c.kind === 'case') return holds(subject, cond) && holds(label, c.label);
+    return false;
+  });
+}
+
+/** az3: what the sample's Swift never names, with what each one is. */
+const SAMPLE_REFUSED = [
+  [/\bimport\s+(?:(?:struct|class|enum|protocol|typealias|func|let|var|actor)\s+)?`?(?:Network|Security|CryptoKit|LocalAuthentication|UserNotifications|NetworkExtension|WebKit|SafariServices|AuthenticationServices)`?(?![\w])/g, 'a framework that reaches the network, the Keychain, the owner check or the notification center'],
+  ...NETWORK_TOKENS.map((re) => [new RegExp(re.source, 'g'), 'a network type']),
+  [/\bNW[A-Z]\w*/g, 'a Network.framework type'],
+  [/\bCF(?:Stream|Socket|Network|HTTP)\w*/g, 'a Core Foundation socket'],
+  ...URL_LOADING.map((re) => [new RegExp(re.source, 'g'), 'the URL loading system']),
+  [/\bURL\s*\(|\bURLComponents\b/g, 'an address'],
+  [/\bSecItem\w*|\bSecKey\w*|\bkSec\w*|\bSecRandomCopyBytes\b|\bSecTrust\w*|\bSecCertificate\w*|\bSecIdentity\w*|\bSecAccessControl\w*|\bSecureEnclave\b/g, 'a Keychain or Security call'],
+  [/\bLocalAuthentication\b|\bLAContext\b|\bevaluatePolicy\b/g, 'the owner check itself'],
+  [/\bUserDefaults\b|\bNSUserDefaults\b|@AppStorage\b|@SceneStorage\b|\bNSUbiquitousKeyValueStore\b|\bNSKeyedArchiver\b/g, 'a store that outlives the sample'],
+  [/\bUNUserNotificationCenter\b|\bUNNotification\w*|\bregisterForRemoteNotifications\b/g, 'the notification center'],
+  [/\bapplicationIconBadgeNumber\b|\bsetBadgeCount\b/g, 'a badge'],
+  [/\bopenURL\b|\bOpenURLAction\b|\bUIApplication\s*\.\s*shared\s*\.\s*open\s*\(|(?<![\w$.])Link\s*\(|\bcanOpenURL\b|\bSFSafariViewController\b/g, 'a way out'],
+  [/\bwrite\s*\(\s*to\s*:|\bcreateFile\s*\(|\bcreateDirectory\s*\(|\bremoveItem\s*\(|\bmoveItem\s*\(|\bcopyItem\s*\(|\bFileHandle\b/g, 'a file write'],
+  // The fix round (build/p3333/SPEC.md §As built, the seal attack): what
+  // reaches a refused thing WITHOUT naming it. S9b, S11 and S12 opened Safari
+  // and made an NSURLSession request from the sample through the Objective-C
+  // runtime, an implicit `.init(string:)` and `open(` on a variable, and every
+  // rule passed them.
+  [/\bimport\s+(?:(?:struct|class|enum|protocol|typealias|func|let|var|actor)\s+)?`?(?:ObjectiveC|Darwin|JavaScriptCore|CloudKit|MultipeerConnectivity|CoreBluetooth|ExternalAccessory|MessageUI)`?(?![\w])/g, 'a framework that reaches past the app (the Objective-C runtime, the C library, another device or a mail sheet)'],
+  [/\bURL\b|\bNSURL\w*/g, 'an address, however it is made'],
+  [/\bNSClass\w*|\bNSSelector\w*|\bNSStringFrom(?:Selector|Class|Protocol)\b|\bNSProtocolFromString\b|\bNSInvocation\b|\bNSObject\b|\bSelector\s*\(|#selector\b|(?<![\w$])perform\w*\s*\(|\bvalue\s*\(\s*forKey(?:Path)?\s*:|\bsetValue\s*\(|\bobjc_\w+|\b(?:class|method|sel|imp|object|protocol|ivar|property)_[a-z]\w*\s*\(|@objc\b|\bAnyObject\b|\bAnyClass\b|\bunsafeBitCast\b|@_silgen_name\b|@_cdecl\b|\bdl(?:open|sym)\b/g, 'the Objective-C runtime or a symbol found by its name, which reaches any class without naming it'],
+  [/\bUIApplication\w*|(?<![\w$])open\s*\(|\bNotificationCenter\b|\bNSNotification\w*|\bUIPasteboard\b/g, 'the app object, a way out or the pasteboard']
+];
+
+/**
+ * Whether a refused match at `at` sits in a type declaration's inheritance
+ * list (`protocol ScreenDoor: AnyObject, Sendable {`), which constrains a type
+ * and calls nothing, rather than in code.
+ */
+function inInheritance(text, at) {
+  const lineStart = text.lastIndexOf('\n', at - 1) + 1;
+  return /\b(?:protocol|class|actor|struct|enum|extension)\s+[A-Za-z_][\w.]*(?:<[^>]*>)?\s*:[^{=()]*$/.test(text.slice(lineStart, at));
+}
+
+/**
+ * az2, its other half (the fix round): of everything the app declares at the
+ * top level OUTSIDE Sample/, the sample may name Contract.swift's decoders
+ * (derived) and these, and nothing else. A list rather than a refusal, because
+ * the seal attack reached the paired reader through names no refusal held: an
+ * alert inbox (S8), a static hook declared beside DoorReading (the second
+ * lens's LastReader). Each entry says why the sample needs it; a name added
+ * here is a decision a reviewer reads.
+ */
+export const SAMPLE_MAY_NAME = Object.freeze({
+  DoorFailure: 'its reads refuse with the door\'s own failures',
+  WriteResult: 'its writes answer as the door\'s do',
+  SentWrite: 'its message answers not taken',
+  DoorReading: 'it is a reader',
+  DoorWriting: 'it is its own writer',
+  ScreenDoor: 'each session\'s Terminal',
+  PairedFacts: 'its facts, empty',
+  AlertsKept: 'its alerts, none',
+  OwnerCheck: 'SampleOwnerCheck wraps the app\'s own check',
+  OwnerKind: 'the kind it answers',
+  OwnerAnswer: 'the answer it passes through',
+  SessionsChoicesStore: 'SampleChoices keeps the Sessions tab\'s words in memory',
+  SessionsQuery: 'the question a Sessions list asks',
+  SessionsWords: 'the words SampleChoices keeps',
+  Copy: 'the bar\'s words and Return\'s line',
+  Tokens: 'the bar\'s colours',
+  ID: 'the bar\'s identifiers',
+  Frame: 'the bar\'s gutters',
+  Words: 'the bar draws its words as every page does',
+  Hairline: 'the line under the bar'
+});
+/**
+ * az2, the members: of what the app's EXTENSIONS declare outside Sample/ (a
+ * member there joins the sample's own types without a name the list above
+ * reads, which is S4's shape written as a protocol's extension), the sample
+ * may call these, each declared outside Sample/ no more often than this: a
+ * second declaration of an allowed name is an overload the sample could reach.
+ */
+export const SAMPLE_MAY_CALL = Object.freeze({ lineBox: 1, writer: 1, screenDoor: 1, sessions: 1, holdsTogether: 2, indexSpaceHolds: 1 });
+/**
+ * az11 (the fix round): THE SAMPLE'S REACH IS CLOSED. The types the sample may
+ * name (the contract's decoders and SAMPLE_MAY_NAME) are followed through
+ * every name their declarations and their extensions outside Sample/ use, and
+ * so are the members of SAMPLE_MAY_CALL, to a fixpoint: code the sample can
+ * run without naming it. What that adds is exactly this list, each with why
+ * the sample's reach holds it; a name a reached body starts to use is red
+ * until it is here, and az3's refusals hold over every reached body. So a
+ * member added to an allowed type that reads the Keychain or posts an alert
+ * (a shape no gate read before) is red.
+ */
+export const SAMPLE_REACH = Object.freeze({
+  SessionsShow: 'the Sessions words a query and the contract\'s asked echo hold',
+  SessionsGroupBy: 'the same',
+  SessionsSortBy: 'the same',
+  Base64URL: 'the pairing answer\'s decoder reads base64url; a pure codec',
+  Hex: 'an alert address is hex; a pure codec',
+  ExchangeEnd: 'how an exchange ended, which WriteResult reads; a value',
+  DoorReply: 'the status and body an exchange ended with; a value',
+  PushAddress: 'the alert address AlertsKept holds; a value',
+  PushEnvironment: 'which of Apple\'s two hosts an address is for; a value',
+  BatchSkip: 'why End these left a session, which a Copy word names',
+  Token: 'the colour table Tokens reads',
+  Face: 'the type faces Words draws in'
+});
+/**
+ * az11's edges that are NAMED and never followed, each with how often: a type
+ * the sample can neither make nor call into, named where another part of the
+ * app builds a reached value from it.
+ */
+export const SAMPLE_REACH_UNFOLLOWED = Object.freeze({
+  'PairedFacts>PairedDoor': { count: 1, why: 'Settings makes a paired Mac\'s facts from its door; the sample makes its facts with the memberwise init and holds no door' }
+});
+
+/**
+ * az10: every place in the WHOLE app where something can be left for later
+ * that is not an instance's own state: a stored `static var`, a
+ * `nonisolated(unsafe)` declaration, a top-level `var`, and a `static let` (or
+ * top-level `let`) holding an instance of a class or actor the app declares. A
+ * paired reader left in any of them can be read from anywhere, the sample
+ * included (the second lens's plant was one, beside DoorReading), so each is
+ * named here with why it exists, and any other is red.
+ */
+export const APP_SHARED_STATE = Object.freeze([
+  { file: 'App/Orientation.swift', name: 'screenOnTop', kind: 'static var', why: 'the Terminal says it is on top, so the app allows landscape (Phase 337, D27)' },
+  { file: 'Screens/ScreenRows.swift', name: 'probe', kind: 'nonisolated(unsafe)', why: 'an immutable CTFont CoreText reads from any thread (Phase 337)' },
+  { file: 'Alerts/Alerts.swift', name: 'shared', kind: 'instance', why: 'AlertInbox, where a tapped alert lands (Phase 316.5)' },
+  { file: 'Alerts/SystemAlerts.swift', name: 'shared', kind: 'instance', why: 'SystemPushAddressing, what the app asks iOS about alerts (Phase 316.5)' },
+  { file: 'Screens/ScreenKeyField.swift', name: 'shared', kind: 'instance', why: 'ScreenDropRefusal, the Terminal key field\'s drop refusal (Phase 337)' },
+  { file: 'Door/Keys.swift', name: 'keychain', kind: 'instance', why: 'PairingStore, the Keychain\'s one pairing store (Phase 316)' }
+]);
+
+/**
+ * A lexed file's bare text with every string interpolation's CODE put back
+ * (each hole lexed again, so a string inside it is still blanked). `bare`
+ * blanks a literal whole, interpolations included, so `"\(AlertInbox.shared)"`
+ * named nothing to a rule reading it (the fix round).
+ */
+export function bareWithHoles(lx) {
+  const out = lx.bare.split('');
+  for (const s of lx.strings ?? []) {
+    for (const h of s.holes ?? []) {
+      const inner = bareWithHoles(lexSwift(lx.code.slice(h.start, h.end)));
+      for (let k = 0; k < inner.length; k += 1) out[h.start + k] = inner[k];
+    }
+  }
+  return out.join('');
+}
+
+/** The brace depth at every offset of `text`. */
+function braceDepths(text) {
+  const at = new Int32Array(text.length + 1);
+  let depth = 0;
+  for (let k = 0; k < text.length; k += 1) {
+    at[k] = depth;
+    if (text[k] === '{') depth += 1;
+    else if (text[k] === '}') depth -= 1;
+  }
+  at[text.length] = depth;
+  return at;
+}
+
+/** The `func`, `var` and `let` names a file declares at its top level (brace depth 0), over bare text. */
+export function topLevelValueNames(bare) {
+  const depth = braceDepths(bare);
+  const out = [];
+  for (const m of bare.matchAll(/(?<![\w$.])(func|var|let)\s+([A-Za-z_]\w*)/g)) {
+    if (depth[m.index] !== 0) continue;
+    out.push({ kind: m[1], name: m[2], at: m.index });
+  }
+  return out;
+}
+
+/** The members each `extension` of a lexed file declares at its own depth: `{ type, name, at }`. */
+export function extensionMembers(file) {
+  const out = [];
+  for (const t of file.types.filter((x) => x.kind === 'extension')) {
+    const body = file.bare.slice(t.open + 1, t.close);
+    const depth = braceDepths(body);
+    for (const m of body.matchAll(/(?<![\w$.])(?:func|var|let)\s+([A-Za-z_]\w*)/g)) {
+      if (depth[m.index] === 0) out.push({ type: t.name, name: m[1], at: t.open + 1 + m.index });
+    }
+  }
+  return out;
+}
+
+/**
+ * Every `static`/`class` stored property and every place state can be shared,
+ * over bare text: `{ at, name, kind, decl, init, stored }`, `kind` one of
+ * `static var`, `static let`, `nonisolated(unsafe)`, `top var`, `top let`.
+ * A `static var` is stored when it is assigned, observed or has no body; one
+ * whose `{` opens a getter is computed.
+ */
+export function sharedDeclarations(bare) {
+  const depth = braceDepths(bare);
+  const out = [];
+  const declAt = (k) => {
+    // The declaration's own line: from `k` to the end of the line, or to its
+    // body's matching brace when it opens one on that line.
+    const eol = bare.indexOf('\n', k);
+    return bare.slice(k, eol === -1 ? bare.length : eol);
+  };
+  const initOf = (decl) => {
+    const m = decl.match(/(?<![=!<>])=(?![=>])/);
+    return m === null ? null : decl.slice(m.index + 1).trim();
+  };
+  for (const m of bare.matchAll(/(?<![\w$.])(var|let)\s+([A-Za-z_]\w*)/g)) {
+    const lineStart = bare.lastIndexOf('\n', m.index - 1) + 1;
+    const before = bare.slice(lineStart, m.index);
+    // `static` (or `class`) and `nonisolated(unsafe)` as MODIFIERS of this
+    // declaration: followed by nothing but other modifiers up to its keyword,
+    // so `final class Box { var held }` on one line is not a static.
+    const MODS = '(?:(?:static|class|private|fileprivate|internal|public|open|final|override|lazy|nonisolated|weak|unowned)(?:\\([^)]*\\))?\\s+)*$';
+    const isStatic = new RegExp(`(?<![\\w$.])(?:static|class)\\s+${MODS}`).test(before);
+    const unsafe = new RegExp(`\\bnonisolated\\s*\\(\\s*unsafe\\s*\\)\\s+${MODS}`).test(before);
+    const top = depth[m.index] === 0;
+    if (!isStatic && !unsafe && !top) continue;
+    const decl = declAt(m.index);
+    const init = initOf(decl);
+    let stored = true;
+    if (m[1] === 'var') {
+      const brace = decl.indexOf('{');
+      if (init === null && brace !== -1) {
+        const close = matchForward(bare, m.index + brace);
+        const block = bare.slice(m.index + brace, close === -1 ? bare.length : close + 1);
+        stored = /(?<![\w$.])(?:willSet|didSet)\b/.test(block);
+      }
+    }
+    const base = { at: m.index, name: m[2], decl: decl.trim(), init, stored };
+    if (unsafe) out.push({ ...base, kind: 'nonisolated(unsafe)' });
+    if (top) out.push({ ...base, kind: m[1] === 'var' ? 'top var' : 'top let' });
+    else if (isStatic) out.push({ ...base, kind: m[1] === 'var' ? 'static var' : 'static let' });
+  }
+  return out;
+}
+
+/** The type a declaration holds, read from its annotation (`: T`) or its initializer (`T(`, `T.`): the first type-shaped name, or null. */
+function heldTypeName(decl, init) {
+  // A let made nil holds nothing, ever (an EnvironmentKey's default).
+  if (init !== null && /^nil\b/.test(init)) return null;
+  const head = init === null ? decl : decl.slice(0, decl.length - init.length);
+  const annotated = head.match(/:\s*(?:any\s+|some\s+)?\(?\s*([A-Z]\w*)/);
+  if (annotated !== null) return annotated[1];
+  const made = (init ?? '').match(/^([A-Z]\w*)\s*(?:\.\s*(?:init|shared|standard|make\w*)\b|\()/);
+  return made === null ? null : made[1];
+}
+
+/**
+ * Rule (az), pure over the app's Swift files named relative to the app folder,
+ * whether `Sample/sample.json` is there, and the writer's own check
+ * (`{ status, line }`, build/p3333/sample.mjs --check run over the ROOT).
+ */
+export function ruleSample(files, { book = false, check = null, pinned = false } = {}) {
+  const findings = [];
+  const said = { files: [], refused: 0, derived: 0, aliases: [], reads: 0, readers: 0, bars: 0, check: '', mayName: 0, mayCall: 0, reaches: 0, shared: 0, reach: 0 };
+  const lexedAll = files.map((f) => lexedFile(files, f.name)).map((f) => ({ ...f, scan: bareWithHoles(f) }));
+  const sample = lexedAll.filter((f) => f.name.startsWith(SAMPLE_DIR) && f.name.endsWith('.swift'));
+  said.files = sample.map((f) => f.name);
+  // az1: the folder, its Swift files and its book.
+  if (sample.length === 0) findings.push(`az1: the app holds no ${SAMPLE_DIR} Swift file, so See a sample has nothing to open (SPEC §5.2)`);
+  else if (sample.length < SAMPLE_SWIFT_FLOOR) findings.push(`az1: ${SAMPLE_DIR} holds ${String(sample.length)} Swift file(s); the book, the world, the reader, the owner check and the bar are at least ${String(SAMPLE_SWIFT_FLOOR)} (SPEC §5.2), so a file this rule should read is missing`);
+  if (!book) findings.push(`az1: ${SAMPLE_BOOK} is not in the app, so the sample has nothing the Mac composed to draw (SPEC §5.1.3)`);
+
+  // az2: the Door/ names, derived, and the typealiases that stand for one.
+  const contract = new Set(lexedAll.filter((f) => f.name === 'Door/Contract.swift').flatMap((f) => topLevelTypeNames(f.source)));
+  const derived = new Set();
+  for (const f of lexedAll.filter((x) => x.name.startsWith('Door/') && x.name !== 'Door/Contract.swift')) {
+    for (const name of topLevelTypeNames(f.source)) if (!contract.has(name) && !SAMPLE_DOOR_ALLOWED.includes(name)) derived.add(name);
+  }
+  said.derived = derived.size;
+  for (const want of SAMPLE_DOOR_NAMED) if (!derived.has(want)) findings.push(`az2: no Door/ file declares ${want} at its top level, which the SPEC refuses by name, so the derivation of the Door/ names has stopped finding them (or ${want} moved, and this list moves with it)`);
+  const refused = new Set([...derived, ...SAMPLE_PAIRED_NAMES, ...SAMPLE_ALSO_REFUSED]);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const f of lexedAll) {
+      for (const m of f.bare.matchAll(/\btypealias\s+([A-Za-z_]\w*)\s*(?:<[^>=]*>)?\s*=\s*([^\n;]+)/g)) {
+        if (refused.has(m[1])) continue;
+        if ([...refused].some((name) => new RegExp(`(?<![\\w$])${name}(?![\\w$])`).test(m[2]))) {
+          refused.add(m[1]);
+          said.aliases.push(`${m[1]} (${atLine(f, m.index)})`);
+          grew = true;
+        }
+      }
+    }
+  }
+  said.refused = refused.size;
+  for (const f of sample) {
+    for (const name of refused) {
+      for (const m of f.scan.matchAll(new RegExp(`(?<![\\w$])${name}(?![\\w$])`, 'g'))) {
+        findings.push(`az2: ${atLine(f, m.index)} names ${name}; the sample is its own reader over its own copy, and names no Door/ type but the contract's decoders and ${SAMPLE_DOOR_ALLOWED.join(', ')}, nor the paired reader's`);
+      }
+    }
+  }
+  // az2, the other half (the fix round): what the sample may name of the app
+  // outside it is a LIST, the contract's decoders and SAMPLE_MAY_NAME. Read
+  // over the bare text with every interpolation's code put back, since a
+  // string literal's hole is code.
+  const outside = lexedAll.filter((f) => !f.name.startsWith(SAMPLE_DIR));
+  const declaredOutside = new Map();
+  for (const f of outside) {
+    for (const name of topLevelTypeNames(f.source)) if (!declaredOutside.has(name)) declaredOutside.set(name, f.name);
+    for (const v of topLevelValueNames(f.bare)) if (!declaredOutside.has(v.name)) declaredOutside.set(v.name, f.name);
+  }
+  const ownNames = new Set(sample.flatMap((f) => [...topLevelTypeNames(f.source), ...topLevelValueNames(f.bare).map((v) => v.name)]));
+  const mayName = new Set([...contract, ...Object.keys(SAMPLE_MAY_NAME)]);
+  said.mayName = mayName.size;
+  for (const f of sample) {
+    for (const m of f.scan.matchAll(/(?<![\w$.])([A-Za-z_]\w*)(?![\w$])/g)) {
+      const name = m[1];
+      if (!declaredOutside.has(name) || mayName.has(name) || ownNames.has(name) || refused.has(name)) continue;
+      findings.push(`az2: ${atLine(f, m.index)} names ${name}, which ${declaredOutside.get(name)} declares; of the app outside it the sample names only the contract's decoders and ${Object.keys(SAMPLE_MAY_NAME).join(', ')} (SAMPLE_MAY_NAME), so nothing it names can hand it a reader, a writer or a way off the phone`);
+    }
+    for (const m of f.scan.matchAll(/(?<![\w$.])Tortie\s*\./g)) findings.push(`az2: ${atLine(f, m.index)} names the app's module as a qualifier (Tortie.), which reaches any of its types past the names this rule reads`);
+  }
+  if (pinned) {
+    for (const name of Object.keys(SAMPLE_MAY_NAME)) {
+      if (!declaredOutside.has(name)) findings.push(`az2: SAMPLE_MAY_NAME lists ${name}, which nothing outside ${SAMPLE_DIR} declares any more, so the list has rotted (take it out, or name what replaced it)`);
+      if (refused.has(name)) findings.push(`az2: SAMPLE_MAY_NAME lists ${name}, which this rule also refuses`);
+    }
+  }
+  // The members the app's extensions declare outside the sample: the sample
+  // calls only SAMPLE_MAY_CALL of them, and none is declared more often than
+  // the list says (a second declaration is an overload the sample could reach).
+  const extMembers = new Map();
+  for (const f of outside) {
+    for (const x of extensionMembers(f)) {
+      if (!extMembers.has(x.name)) extMembers.set(x.name, []);
+      extMembers.get(x.name).push(`${f.name} (extension ${x.type})`);
+    }
+  }
+  said.mayCall = Object.keys(SAMPLE_MAY_CALL).length;
+  for (const f of sample) {
+    for (const m of f.scan.matchAll(/(?<![\w$])([A-Za-z_]\w*)(?![\w$])/g)) {
+      const name = m[1];
+      if (!extMembers.has(name) || Object.hasOwn(SAMPLE_MAY_CALL, name)) continue;
+      findings.push(`az2: ${atLine(f, m.index)} reaches ${name}, a member ${extMembers.get(name)[0]} declares outside ${SAMPLE_DIR}; of the app's extensions the sample calls only ${Object.keys(SAMPLE_MAY_CALL).join(', ')} (SAMPLE_MAY_CALL), so no member added beside a type it uses joins it unread`);
+    }
+  }
+  for (const [name, most] of Object.entries(SAMPLE_MAY_CALL)) {
+    const n = (extMembers.get(name) ?? []).length;
+    if (n > most) findings.push(`az2: ${name}, a member the sample may call, is declared ${String(n)} time(s) in extensions outside ${SAMPLE_DIR} (${(extMembers.get(name) ?? []).join(', ')}); at most ${String(most)}, so a second one is an overload the sample reaches unread`);
+    else if (pinned && n < most) findings.push(`az2: ${name}, a member SAMPLE_MAY_CALL lists ${String(most)} time(s), is declared ${String(n)} time(s) in extensions outside ${SAMPLE_DIR}, so the list has rotted`);
+  }
+
+  // az3: no network, no Keychain, no store, no alert, no way out, no write.
+  for (const f of sample) {
+    for (const [re, what] of SAMPLE_REFUSED) {
+      for (const m of f.scan.matchAll(re)) {
+        if (inInheritance(f.scan, m.index)) continue;
+        findings.push(`az3: ${atLine(f, m.index)} names ${m[0].replace(/\s+/g, ' ').trim()}, ${what}; nothing the sample does leaves the phone or outlives it`);
+      }
+    }
+    for (const s of f.strings) if (/:\/\//.test(s.value)) findings.push(`az3: ${atLine(f, s.start)} writes the address ${JSON.stringify(s.value.slice(0, 60))}; the sample has nowhere to go`);
+  }
+
+  // az4: the one file read, in SampleBook.bundled().
+  const paths = [];
+  const contents = [];
+  for (const f of sample) {
+    for (const m of f.bare.matchAll(/\bcontentsOf\s*:/g)) findings.push(`az4: ${atLine(f, m.index)} reads contentsOf:; the sample reads its one file through FileManager.default.contents(atPath:, in SampleBook.bundled()`);
+    for (const m of f.bare.matchAll(/\bforResource\s*:/g)) paths.push({ f, at: m.index });
+    for (const m of f.bare.matchAll(/\bBundle\s*(?:\(|\.\s*(?!main\b)[A-Za-z_])/g)) findings.push(`az4: ${atLine(f, m.index)} reaches a bundle other than Bundle.main's one path (${m[0].replace(/\s+/g, '')})`);
+    for (const m of f.bare.matchAll(/\bFileManager\b/g)) contents.push({ f, at: m.index });
+  }
+  said.reads = paths.length;
+  if (paths.length !== 1) findings.push(`az4: ${String(paths.length)} forResource: under ${SAMPLE_DIR}; the sample reads ONE file, sample.json, once`);
+  for (const { f, at } of paths) {
+    const call = f.bare.slice(Math.max(0, at - 40), at).match(/\bBundle\s*\.\s*main\s*\.\s*path\s*\(\s*$/);
+    const open = f.bare.lastIndexOf('(', at);
+    const args = call === null ? '' : f.code.slice(open + 1, closeParen(f.bare, open)).replace(/\s+/g, ' ').trim();
+    if (args !== 'forResource: "sample", ofType: "json"') findings.push(`az4: ${atLine(f, at)} asks the bundle for ${args === '' ? 'something other than Bundle.main.path(' : `(${args})`}; the one read is Bundle.main.path(forResource: "sample", ofType: "json")`);
+    const p = placeOf(f, at);
+    if (f.name !== 'Sample/SampleBook.swift' || p.type !== 'SampleBook' || p.fn !== 'bundled') findings.push(`az4: ${atLine(f, at)} reads the bundle in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; it is SampleBook.bundled()'s alone`);
+  }
+  if (contents.length !== 1) findings.push(`az4: FileManager is named ${String(contents.length)} time(s) under ${SAMPLE_DIR}; once, as FileManager.default.contents(atPath:, in SampleBook.bundled()`);
+  for (const { f, at } of contents) {
+    if (!/^FileManager\s*\.\s*default\s*\.\s*contents\s*\(\s*atPath\s*:/.test(f.bare.slice(at))) findings.push(`az4: ${atLine(f, at)} uses FileManager for something other than contents(atPath:); the sample reads its one file and writes nothing`);
+    const p = placeOf(f, at);
+    if (p.type !== 'SampleBook' || p.fn !== 'bundled') findings.push(`az4: ${atLine(f, at)} reads a file in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; it is SampleBook.bundled()'s alone`);
+  }
+
+  // az5: who opens it, who draws the bar, and what opening and leaving touch.
+  const app = lexedAll.find((f) => f.name === 'App/TortieApp.swift') ?? null;
+  if (app === null) findings.push('az5: App/TortieApp.swift does not exist, so who opens and leaves the sample cannot be read');
+  for (const f of lexedAll.filter((x) => !x.name.startsWith(SAMPLE_DIR))) {
+    for (const m of f.bare.matchAll(/(?<![\w$.])SampleReader\s*(?:\.\s*(bundled|init)\s*)?\(/g)) {
+      said.readers += 1;
+      const p = placeOf(f, m.index);
+      if (f !== app || p.type !== 'AppModel' || p.fn !== 'openSample') findings.push(`az5: ${atLine(f, m.index)} makes a SampleReader in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; only AppModel.openSample() does`);
+      const open = m.index + m[0].length - 1;
+      if (m[1] !== 'bundled' || f.bare.slice(open + 1, closeParen(f.bare, open)).trim() !== '') findings.push(`az5: ${atLine(f, m.index)} makes the sample with ${m[0].replace(/\s+/g, '')}…; it is SampleReader.bundled(), handed nothing, so no paired reader or door can reach into it`);
+    }
+  }
+  if (app !== null && said.readers === 0) findings.push('az5: AppModel.openSample() makes no SampleReader.bundled(), so See a sample opens nothing');
+  for (const f of lexedAll) {
+    for (const m of f.bare.matchAll(/(?<![\w$.])SampleBar\s*\(/g)) {
+      said.bars += 1;
+      const p = placeOf(f, m.index);
+      const decl = innermost(declSpans(f.bare), m.index);
+      const inCase = decl !== null && stoodBehind(conditionsAt(f.bare, decl.bodyOpen, m.index), f.bare.slice(decl.bodyOpen, decl.bodyClose), { yes: () => false, subject: /\broot\b/, label: /^\.\s*sample$/ });
+      if (f !== app || p.type !== 'RootView' || !inCase) findings.push(`az5: ${atLine(f, m.index)} draws SampleBar( in ${p.type ?? 'no type'}${inCase ? '' : ', outside RootView\'s case .sample'}; the bar is drawn once, on the sample's root, so every page says Sample (D14)`);
+    }
+  }
+  if (said.bars !== 1) findings.push(`az5: SampleBar( is drawn ${String(said.bars)} time(s) in the app; once, in RootView's case .sample (D14)`);
+  if (app !== null) {
+    const openFn = funcsNamed(app, 'openSample', 'AppModel')[0] ?? null;
+    const leaveFn = funcsNamed(app, 'leaveSample', 'AppModel')[0] ?? null;
+    if (openFn === null) findings.push('az5: AppModel declares no openSample(), so nothing opens the sample');
+    if (leaveFn === null) findings.push('az5: AppModel declares no leaveSample(), so nothing leaves the sample');
+    for (const fn of [openFn, leaveFn].filter((x) => x !== null)) {
+      for (const m of bodyText(app, fn).matchAll(/\b(?:forget|unpair)\w*\s*\(/g)) findings.push(`az5: AppModel.${fn.name} calls ${m[0].replace(/\s+/g, '')}…; opening and leaving the sample forget no pairing (D15)`);
+    }
+    if (openFn !== null) {
+      for (const m of bodyText(app, openFn).matchAll(/\bdoor\b/g)) findings.push(`az5: ${atLine(app, openFn.bodyOpen + m.index)} names the door in AppModel.openSample(); opening the sample asks the door nothing (D15)`);
+    }
+    if (leaveFn !== null) {
+      const body = bodyText(app, leaveFn);
+      const doors = [...body.matchAll(/\bdoor\b/g)];
+      if (doors.length !== 1) findings.push(`az5: AppModel.leaveSample() names the door ${String(doors.length)} time(s); once, as door.pairedReader(), for a sample opened from the paired lists (D15)`);
+      for (const m of doors) {
+        const at = leaveFn.bodyOpen + m.index;
+        if (!/^door\s*\.\s*pairedReader\s*\(\s*\)/.test(body.slice(m.index))) findings.push(`az5: ${atLine(app, at)} asks the door for more than its paired reader in leaveSample()`);
+        const behind = stoodBehind(conditionsAt(app.bare, leaveFn.bodyOpen, at), body, {
+          yes: /\bsampleFrom\s*==\s*\.\s*reading\b|\.\s*reading\s*==\s*(?:self\s*\.\s*)?sampleFrom\b/,
+          no: /\bsampleFrom\s*!=\s*\.\s*reading\b|\.\s*reading\s*!=\s*(?:self\s*\.\s*)?sampleFrom\b/,
+          subject: /\bsampleFrom\b/,
+          label: /^\.\s*reading$/
+        });
+        if (!behind) findings.push(`az5: ${atLine(app, at)} asks the door in leaveSample() without a test of sampleFrom == .reading, so leaving a sample opened from Pairing reads the Keychain (D15)`);
+      }
+    }
+  }
+
+  // az6: an alert's tap and a lost pairing leave the sample first.
+  if (app !== null) {
+    for (const name of ['lostPairing', 'openFromAlert']) {
+      const fn = funcsNamed(app, name, 'AppModel')[0] ?? null;
+      if (fn === null) {
+        findings.push(`az6: AppModel declares no ${name}(, so it cannot be read`);
+        continue;
+      }
+      const rest = app.bare.slice(fn.bodyOpen + 1, fn.bodyClose);
+      const first = rest.match(/^\s*(if|guard)\b([^{]*)\{/);
+      let ok = false;
+      if (first !== null) {
+        const open = fn.bodyOpen + 1 + first[0].length - 1;
+        const block = app.bare.slice(open, matchForward(app.bare, open) + 1);
+        const leaves = /(?<![\w$.])(?:self\s*\.\s*)?leaveSample\s*\(\s*\)/.test(block);
+        const sampleTest = first[1] === 'if'
+          ? /^\s*(?:self\s*\.\s*)?root\s*==\s*\.\s*sample\s*$|^\s*\.\s*sample\s*==\s*(?:self\s*\.\s*)?root\s*$/.test(first[2])
+          : /^\s*(?:self\s*\.\s*)?root\s*!=\s*\.\s*sample\s+else\s*$/.test(first[2]);
+        ok = leaves && sampleTest;
+      }
+      if (!ok) findings.push(`az6: AppModel.${name}( does not leave the sample first, as its first statement, under a test of root == .sample, so ${name === 'openFromAlert' ? 'a tap on an alert' : 'a refusal'} inside the sample would act on the sample's lists (D16)`);
+    }
+  }
+
+  // az7: the bundled sample is what the shipping composer makes.
+  if (check === null) findings.push('az7: build/p3333/sample.mjs --check was not run, so the bundled sample is held to nothing');
+  else {
+    said.check = check.line;
+    if (check.status !== 0) findings.push(`az7: build/p3333/sample.mjs --check exited ${String(check.status)}: ${check.line || 'with no words'}; the bundled sample.json is not what the shipping composer makes of the made-up world, so a change to what the door composes regenerates it in the same commit (D29)`);
+  }
+
+  // az8 (the fix round): the sample keeps nothing past itself. Its state is
+  // its instances' alone: no stored static, no `nonisolated(unsafe)`, no
+  // `@TaskLocal`, nothing at file scope but types, and every `static let` a
+  // literal or a closure. S5 and S5b left the paired writer in a static on
+  // SampleReader, and every gate passed them.
+  for (const f of sample) {
+    for (const m of f.scan.matchAll(/@TaskLocal\b/g)) findings.push(`az8: ${atLine(f, m.index)} declares a task local, a value that outlives the sample`);
+    for (const d of sharedDeclarations(f.scan)) {
+      if (d.kind === 'nonisolated(unsafe)') findings.push(`az8: ${atLine(f, d.at)} declares ${d.name} nonisolated(unsafe), a place another part of the app can leave something for the sample`);
+      else if (d.kind === 'top var' || d.kind === 'top let') findings.push(`az8: ${atLine(f, d.at)} declares ${d.name} at file scope; everything the sample holds lives in its own types`);
+      else if (d.kind === 'static var' && d.stored) findings.push(`az8: ${atLine(f, d.at)} declares a stored static var ${d.name}, a place another part of the app can leave a reader or a writer for the sample (S5)`);
+      else if (d.kind === 'static let' && !/^(?:[-+]?(?:0x[\da-fA-F_]+|[\d_]+(?:\.[\d_]+)?(?:e[-+]?\d+)?)\b|"|true\b|false\b|nil\b|\{|\[[^(\n]*\]\s*$)/.test(d.init ?? '')) {
+        findings.push(`az8: ${atLine(f, d.at)} holds ${d.init === null ? 'no literal' : `"${d.init.slice(0, 40)}"`} in static let ${d.name}; a sample static is a literal or a closure, never an instance that outlives the sample`);
+      }
+    }
+    for (const v of topLevelValueNames(f.scan)) if (v.kind === 'func') findings.push(`az8: ${atLine(f, v.at)} declares func ${v.name} at file scope; everything the sample does lives in its own types`);
+  }
+
+  // az9 (the fix round): nothing outside the sample reaches into it. A name
+  // Sample/ declares appears outside it only where AppModel and RootView open,
+  // check and draw it, each once; so no file can extend a sample type (S4),
+  // set a hook on one (S5, S5b) or hand it anything.
+  const sampleNames = new Set(sample.flatMap((f) => [...topLevelTypeNames(f.source), ...topLevelValueNames(f.bare).map((v) => v.name)]));
+  const sites = [
+    { type: 'AppModel', fn: 'openSample', name: 'SampleReader', after: /^\s*\.\s*bundled\s*\(\s*\)/, before: null, said: 'SampleReader.bundled() in AppModel.openSample()' },
+    { type: 'AppModel', fn: 'openSample', name: 'SampleChoices', after: /^\s*\(\s*\)/, before: null, said: 'SampleChoices() in AppModel.openSample()' },
+    { type: 'AppModel', fn: 'endCheck', name: 'SampleReader', after: null, before: /(?<![\w$.])is\s+$/, said: 'is SampleReader in AppModel.endCheck(for:)' },
+    { type: 'AppModel', fn: 'endCheck', name: 'SampleOwnerCheck', after: /^\s*\(\s*inner\s*:/, before: null, said: 'SampleOwnerCheck(inner: in AppModel.endCheck(for:)' },
+    { type: 'RootView', fn: null, name: 'SampleBar', after: /^\s*\(/, before: null, said: 'SampleBar( in RootView' }
+  ];
+  const used = new Map();
+  for (const f of outside) {
+    for (const name of sampleNames) {
+      for (const m of f.scan.matchAll(new RegExp(`(?<![\\w$])${name}(?![\\w$])`, 'g'))) {
+        said.reaches += 1;
+        const p = placeOf(f, m.index);
+        const site = f !== app ? null : sites.find((s) => s.name === name && s.type === p.type && (s.fn === null || s.fn === p.fn) && (s.after === null || s.after.test(f.scan.slice(m.index + name.length))) && (s.before === null || s.before.test(f.scan.slice(Math.max(0, m.index - 12), m.index))));
+        if (site === undefined || site === null) {
+          const extending = /\bextension\s+$/.test(f.scan.slice(Math.max(0, m.index - 16), m.index));
+          findings.push(`az9: ${atLine(f, m.index)} ${extending ? 'extends' : 'names'} ${name} outside ${SAMPLE_DIR}${p.type === null ? '' : ` (in ${p.type}${p.fn === null ? '' : `.${p.fn}`})`}; only ${sites.map((s) => s.said).join(', ')} reach the sample, so nothing outside it can ${extending ? 'add a member to it' : 'hand it a reader, a writer or a hook'}`);
+          continue;
+        }
+        used.set(site, (used.get(site) ?? 0) + 1);
+      }
+    }
+  }
+  for (const [site, n] of used) if (n > 1) findings.push(`az9: ${site.said} is written ${String(n)} times; once`);
+
+  // az10 (the fix round): the whole app keeps no shared place beyond the
+  // pinned ones. A stored static var, a nonisolated(unsafe) declaration, a
+  // top-level var and a static (or top-level) let holding an instance of one
+  // of the app's classes or actors can each be read from anywhere, the sample
+  // included, so a paired reader left in one reaches it (the second lens's
+  // `enum LastReader { nonisolated(unsafe) static var held }`).
+  const classes = new Set(lexedAll.flatMap((f) => f.types.filter((t) => t.kind === 'class' || t.kind === 'actor').map((t) => t.name)));
+  const met = new Set();
+  for (const f of lexedAll) {
+    for (const d of sharedDeclarations(f.scan)) {
+      let kind = null;
+      if (d.kind === 'nonisolated(unsafe)') kind = 'nonisolated(unsafe)';
+      else if ((d.kind === 'static var' || d.kind === 'top var') && d.stored) kind = d.kind;
+      else if (d.kind === 'static let' || d.kind === 'top let') {
+        const held = heldTypeName(d.decl, d.init);
+        if (held !== null && classes.has(held)) kind = 'instance';
+      }
+      if (kind === null) continue;
+      said.shared += 1;
+      const pin = APP_SHARED_STATE.find((x) => x.file === f.name && x.name === d.name && x.kind === (kind === 'top var' ? 'static var' : kind));
+      if (pin === undefined) {
+        findings.push(`az10: ${atLine(f, d.at)} keeps ${d.name} as ${kind === 'instance' ? 'a shared instance of one of the app\'s classes' : kind === 'nonisolated(unsafe)' ? 'nonisolated(unsafe)' : `a stored ${kind}`}, a place any code can leave a paired reader for any other, the sample included; the app's shared places are APP_SHARED_STATE's ${String(APP_SHARED_STATE.length)}, each with its reason`);
+      } else met.add(pin);
+    }
+  }
+  if (pinned) for (const pin of APP_SHARED_STATE) if (!met.has(pin)) findings.push(`az10: APP_SHARED_STATE pins ${pin.file}'s ${pin.name} (${pin.kind}), which is no longer there, so the list has rotted`);
+
+  // az11 (the fix round): the sample's reach, followed to a fixpoint.
+  const spansNamed = (name) => outside.flatMap((f) => f.types.filter((t) => t.name === name || t.name.startsWith(`${name}.`)).map((t) => ({ f, from: name, at: t.at, text: f.scan.slice(t.at, t.close + 1) })));
+  const memberSpans = [];
+  for (const f of outside) {
+    for (const x of extensionMembers(f)) {
+      if (!Object.hasOwn(SAMPLE_MAY_CALL, x.name)) continue;
+      const open = f.scan.indexOf('{', x.at);
+      const eol = f.scan.indexOf('\n', x.at);
+      const end = open !== -1 && (eol === -1 || open < eol + 200) ? matchForward(f.scan, open) : eol;
+      memberSpans.push({ f, from: `${x.type}.${x.name}`, at: x.at, text: f.scan.slice(x.at, end === -1 ? f.scan.length : end + 1) });
+    }
+  }
+  const reach = new Set(mayName);
+  const reachedBy = new Map();
+  const unfollowed = new Map();
+  const queue = [...memberSpans, ...[...reach].flatMap(spansNamed)];
+  const scanned = [];
+  while (queue.length > 0) {
+    const span = queue.shift();
+    scanned.push(span);
+    for (const m of span.text.matchAll(/(?<![\w$.])([A-Za-z_]\w*)(?![\w$])/g)) {
+      const name = m[1];
+      if (name === span.from || !declaredOutside.has(name) || reach.has(name) || ownNames.has(name)) continue;
+      const edge = `${span.from.split('.')[0]}>${name}`;
+      if (Object.hasOwn(SAMPLE_REACH_UNFOLLOWED, edge)) {
+        unfollowed.set(edge, (unfollowed.get(edge) ?? 0) + 1);
+        continue;
+      }
+      reach.add(name);
+      reachedBy.set(name, `${span.from} (${atLine(span.f, span.at + m.index)})`);
+      queue.push(...spansNamed(name));
+    }
+  }
+  said.reach = reach.size;
+  for (const [name, by] of reachedBy) {
+    if (!Object.hasOwn(SAMPLE_REACH, name)) findings.push(`az11: ${by} names ${name}, so the sample reaches ${name}'s code without naming it; the sample's reach beyond what it names is SAMPLE_REACH's, each with its reason`);
+  }
+  if (pinned) for (const name of Object.keys(SAMPLE_REACH)) if (!reach.has(name)) findings.push(`az11: SAMPLE_REACH lists ${name}, which the sample's reach no longer holds, so the list has rotted`);
+  for (const [edge, pin] of Object.entries(SAMPLE_REACH_UNFOLLOWED)) {
+    const n = unfollowed.get(edge) ?? 0;
+    if (n > pin.count) findings.push(`az11: ${edge.replace('>', ' names ')} ${String(n)} time(s), an edge the sample's reach never follows; at most ${String(pin.count)}, so a new use of it is code the sample could reach`);
+    else if (pinned && n < pin.count) findings.push(`az11: SAMPLE_REACH_UNFOLLOWED pins ${edge} ${String(pin.count)} time(s) and it is named ${String(n)}, so the list has rotted`);
+  }
+  for (const span of scanned) {
+    for (const [re, what] of SAMPLE_REFUSED) {
+      for (const m of span.text.matchAll(re)) {
+        if (inInheritance(span.text, m.index)) continue;
+        findings.push(`az11: ${atLine(span.f, span.at + m.index)}, in ${span.from}'s code, which the sample reaches without naming it, names ${m[0].replace(/\s+/g, ' ').trim()}, ${what}`);
+      }
+    }
+  }
+  return { findings, said };
+}
+
+/**
+ * Rule (ac), widened by Phase 333.3 (build/p3333/SPEC.md §6.1, D11, D12): the
+ * sample's End asks the REAL owner check, through SampleOwnerCheck, which
+ * only the sample's reader is handed. Pure over the lexed app files.
+ */
+function sampleOwnerFindings(all) {
+  const findings = [];
+  const said = { made: 0, unasked: 0 };
+  const sampleFile = all.find((f) => f.name === 'Sample/SampleOwnerCheck.swift') ?? null;
+  const declared = all.flatMap((f) => f.types.filter((t) => t.name === 'SampleOwnerCheck' && t.kind !== 'extension').map((t) => ({ f, t })));
+  if (declared.length !== 1 || declared[0].f !== sampleFile) findings.push(`SampleOwnerCheck is declared ${declared.length === 0 ? 'nowhere' : `in ${declared.map((d) => d.f.name).join(', ')}`}; once, in Sample/SampleOwnerCheck.swift (SPEC §5.2.5)`);
+  // Made once, in AppModel.endCheck(for:), behind `is SampleReader`.
+  for (const f of all) {
+    for (const m of f.bare.matchAll(/(?<![\w$.])SampleOwnerCheck\s*(?:\.\s*init\s*)?\(/g)) {
+      said.made += 1;
+      const p = placeOf(f, m.index);
+      const fn = innermost(f.funcs, m.index);
+      const behind = fn !== null && stoodBehind(conditionsAt(f.bare, fn.bodyOpen, m.index), bodyText(f, fn), { yes: /\bis\s+SampleReader\b/, subject: undefined });
+      if (f.name !== 'App/TortieApp.swift' || p.type !== 'AppModel' || p.fn !== 'endCheck' || !behind) findings.push(`${atLine(f, m.index)} makes a SampleOwnerCheck in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}${behind ? '' : ' without a test of is SampleReader'}; only AppModel.endCheck(for:) makes one, for the sample's reader alone, so a paired Mac's End asks iOS exactly as it did (D11)`);
+    }
+  }
+  if (said.made !== 1) findings.push(`SampleOwnerCheck is made ${String(said.made)} time(s) in the app; once, in AppModel.endCheck(for:) (D11)`);
+  // Its confirm: .confirmed only behind a test that the device has no passcode, else iOS's own answer.
+  const owner = declared[0]?.t ?? null;
+  if (sampleFile !== null && owner !== null) {
+    const confirm = funcsNamed(sampleFile, 'confirm', 'SampleOwnerCheck')[0] ?? null;
+    const kind = funcsNamed(sampleFile, 'kind', 'SampleOwnerCheck')[0] ?? null;
+    // `inner.kind()` (or `self.inner.kind()`) compared with `.none`, read
+    // through the function's own `let` names.
+    const asksInner = (c) => /\binner\s*\.\s*kind\s*\(\s*\)/.test(c);
+    const none = {
+      yes: (c) => asksInner(c) && /==\s*\.\s*none\b|\.\s*none\s*==/.test(c),
+      no: (c) => asksInner(c) && /!=\s*\.\s*none\b|\.\s*none\s*!=/.test(c),
+      subject: asksInner,
+      label: /^\.\s*none$/
+    };
+    if (confirm === null) findings.push('Sample/SampleOwnerCheck.swift declares no confirm(reason:), so the sample\'s End cannot be read');
+    else {
+      const body = bodyText(sampleFile, confirm);
+      const bare = sampleFile.bare;
+      for (const m of body.matchAll(/\.\s*confirmed\b/g)) {
+        const at = confirm.bodyOpen + m.index;
+        if (!stoodBehind(conditionsAt(bare, confirm.bodyOpen, at), body, none)) findings.push(`${atLine(sampleFile, at)} answers .confirmed without a test of inner.kind() == .none; the sample confirms unasked only on a phone with no passcode, and asks iOS everywhere else (D12)`);
+      }
+      if (!/\bawait\s+inner\s*\.\s*confirm\s*\(\s*reason\s*:/.test(body)) findings.push('SampleOwnerCheck.confirm never returns await inner.confirm(reason:, so the sample\'s End does not ask iOS where a passcode is set (D11)');
+    }
+    if (kind === null) findings.push('Sample/SampleOwnerCheck.swift declares no kind(), so the sample\'s glyph cannot be read');
+    else {
+      const body = bodyText(sampleFile, kind);
+      const bare = sampleFile.bare;
+      for (const m of body.matchAll(/\.\s*unasked\b/g)) {
+        said.unasked += 1;
+        const at = kind.bodyOpen + m.index;
+        if (!stoodBehind(conditionsAt(bare, kind.bodyOpen, at), body, none)) findings.push(`${atLine(sampleFile, at)} answers .unasked without a test of inner.kind() == .none (D12)`);
+      }
+    }
+  }
+  // .unasked answered by SampleOwnerCheck alone: DeviceOwnerCheck never names
+  // it, and no other function that answers an OwnerKind does.
+  for (const f of all) {
+    for (const t of f.types.filter((x) => x.name === 'DeviceOwnerCheck')) {
+      for (const m of f.bare.slice(t.open, t.close).matchAll(/\.\s*unasked\b/g)) findings.push(`${atLine(f, t.open + m.index)} names .unasked in DeviceOwnerCheck; iOS's own check answers .none with no passcode, and only SampleOwnerCheck answers .unasked (D12)`);
+    }
+    for (const fn of f.funcs.filter((x) => /->\s*OwnerKind\b/.test(f.bare.slice(x.paramsClose, x.bodyOpen)))) {
+      if (innermost(f.types, fn.at)?.name === 'SampleOwnerCheck') continue;
+      for (const m of bodyText(f, fn).matchAll(/\.\s*unasked\b/g)) findings.push(`${atLine(f, fn.bodyOpen + m.index)} answers .unasked from ${innermost(f.types, fn.at)?.name ?? 'no type'}.${fn.name}; only SampleOwnerCheck does (D12)`);
+    }
+  }
+  // Every route made with the reader's own check: nothing names app.ownerCheck,
+  // AppModel reads its stored check in endCheck(for:) alone, and every
+  // `ownerCheck:` it hands is endCheck(for:.
+  for (const f of all) {
+    for (const m of f.bare.matchAll(/\bapp\s*\.\s*ownerCheck\b/g)) findings.push(`${atLine(f, m.index)} names app.ownerCheck; a route is handed app.endCheck(for: reader), so the sample's reader gets the sample's check and every other the device's (D11)`);
+  }
+  const appFile = all.find((f) => f.name === 'App/TortieApp.swift') ?? null;
+  const model = appFile?.types.find((t) => t.name === 'AppModel' && t.kind !== 'extension') ?? null;
+  if (appFile !== null && model !== null) {
+    if (funcsNamed(appFile, 'endCheck', 'AppModel').length !== 1) findings.push('AppModel declares no endCheck(for:) of its own, so which check a reader is handed cannot be read (D11)');
+    const inits = declSpans(appFile.bare).filter((d) => d.name === 'init');
+    for (const m of appFile.bare.slice(model.open, model.close).matchAll(/(?<![\w$])ownerCheck\b/g)) {
+      const at = model.open + m.index;
+      const before = appFile.bare.slice(Math.max(0, at - 24), at);
+      // Another value's member of that name is not AppModel's check; `self.` is.
+      if (/\.\s*$/.test(before) && !/\bself\s*\.\s*$/.test(before)) continue;
+      const after = appFile.bare.slice(at + m[0].length);
+      const labelled = /^\s*:/.test(after) && /(?:[(,]|\b(?:let|var))\s*$/.test(before);
+      if (labelled) {
+        const value = after.replace(/^\s*:\s*/, '');
+        if (/^(?:any|some)\s+OwnerCheck\b|^OwnerCheck\b/.test(value) || /\b(?:let|var)\s*$/.test(before)) continue;
+        // Read through the function's own lets (`let check = endCheck(for: reader)`).
+        const fn = innermost(appFile.funcs, at);
+        // The argument's own text: up to its `,` or the call's `)` at depth 0.
+        let end = 0;
+        for (let depth = 0; end < value.length; end += 1) {
+          const c = value[end];
+          if (c === '(' || c === '[' || c === '{') depth += 1;
+          else if (c === ')' || c === ']' || c === '}') {
+            if (depth === 0) break;
+            depth -= 1;
+          } else if (depth === 0 && (c === ',' || c === '\n')) break;
+        }
+        const first = value.slice(0, end);
+        const read = fn === null ? first : expandLocals(bodyText(appFile, fn), first.trim()).replace(/^\(\s*|\s*\)$/g, '');
+        if (!/^(?:self\s*\.\s*)?endCheck\s*\(\s*for\s*:/.test(read.trim())) findings.push(`${atLine(appFile, at)} hands ownerCheck: ${value.split('\n')[0].trim().slice(0, 40)}; AppModel hands every route endCheck(for: reader) (D11)`);
+        continue;
+      }
+      if (inits.some((s) => at > s.bodyOpen && at < s.bodyClose && innermost(appFile.types, at)?.name === 'AppModel')) continue;
+      if (placeOf(appFile, at).fn !== 'endCheck') findings.push(`${atLine(appFile, at)} reads AppModel's stored owner check in ${placeOf(appFile, at).fn ?? 'no function'}; only endCheck(for:) reads it (D11)`);
+    }
+  }
+  return { findings, said };
+}
+
+// (az) and (ac)'s sample half, proved on texts this file holds: the shape
+// SPEC §5.2 to §5.5 names passes, and each clause is broken once and must
+// read red. Every edit's anchor must be in its text, or the self-test throws.
+{
+  const AZ_DOOR = {
+    'Door/Contract.swift': 'struct PocketBlockedAnswer: Decodable {\n    struct Nested {}\n}\nenum DoorNumber {}\nstruct PocketWriteAnswer {}\nstruct PocketScreen {}\n',
+    'Door/DoorClient.swift': 'enum DoorFailure: Error {\n    case malformed\n    case refused\n}\nstruct DoorEndpoint {}\nfinal class DoorClient {}\nenum WriteId {}\nenum WriteResult {\n    case notTaken\n}\nstruct SentWrite {}\nfinal class DoorLine {}\nprivate final class DoorExchange {}\nextension PocketWriteAnswer {}\n',
+    'Door/Keys.swift': 'struct PhoneKeys {}\nenum ClientKeys {}\nstruct KeychainClientKeys {}\nstruct PairedDoor {}\nstruct KeychainSecretStore {}\nfinal class PairingStore {}\nstruct InstallMark {}\n',
+    'Door/Pairing.swift': 'struct PairingOffer {}\nstruct PendingPairing {}\nfinal class PairingFlow {}\n',
+    'Door/Transport.swift': 'protocol DoorTransport {}\n',
+    'Door/Signing.swift': 'enum Hex {}\nstruct RequestSigner {}\n'
+  };
+  const AZ_BOOK = [
+    'import Foundation',
+    '',
+    '/// The bundled file, decoded. A comment naming DoorClient and URLSession is prose.',
+    'struct SampleBook: @unchecked Sendable {',
+    '    let root: [String: Any]',
+    '    static func bundled() -> SampleBook? {',
+    '        guard let path = Bundle.main.path(forResource: "sample", ofType: "json"),',
+    '              let data = FileManager.default.contents(atPath: path),',
+    '              let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return nil }',
+    '        return SampleBook(root: root)',
+    '    }',
+    '    func blocked(state: String, at: Int) throws -> PocketBlockedAnswer {',
+    '        throw DoorFailure.malformed',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const AZ_WORLD = [
+    'import Foundation',
+    '',
+    'actor SampleWorld {',
+    '    private let book: SampleBook',
+    '    init(book: SampleBook) {',
+    '        self.book = book',
+    '    }',
+    '    func endSession(_ id: String) -> WriteResult {',
+    '        .notTaken',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const AZ_READER = [
+    'import Foundation',
+    '',
+    'struct SampleReader: DoorReading, DoorWriting {',
+    '    let world: SampleWorld',
+    '    static func bundled() -> SampleReader? {',
+    '        SampleBook.bundled().map { SampleReader(world: SampleWorld(book: $0)) }',
+    '    }',
+    '    func say(_ id: String, text: String, write: String?) async -> SentWrite {',
+    '        SentWrite(result: .notTaken, write: nil)',
+    '    }',
+    '}',
+    '',
+    'final class SampleChoices: SessionsChoicesStore {',
+    '    private var words = SessionsWords.standard',
+    '    func load() -> SessionsWords {',
+    '        words',
+    '    }',
+    '    func save(_ next: SessionsWords) {',
+    '        words = next',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const AZ_OWNER = [
+    'struct SampleOwnerCheck: OwnerCheck {',
+    '    let inner: any OwnerCheck',
+    '    func kind() -> OwnerKind {',
+    '        let kind = inner.kind()',
+    '        return kind == .none ? .unasked : kind',
+    '    }',
+    '    func confirm(reason: String) async -> OwnerAnswer {',
+    '        if inner.kind() == .none { return .confirmed }',
+    '        return await inner.confirm(reason: reason)',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const AZ_BAR = [
+    'import SwiftUI',
+    '',
+    'struct SampleBar: View {',
+    '    let leave: () -> Void',
+    '    var body: some View {',
+    '        HStack {',
+    '            Words(Copy.sample, .small, Tokens.textSecondary)',
+    '            Button(action: leave) {',
+    '                Words(Copy.leaveSample, .small, Tokens.accent)',
+    '            }',
+    '        }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const AZ_APP = [
+    'final class AppModel {',
+    '    enum Root: Equatable {',
+    '        case pairing',
+    '        case reading',
+    '        case sample',
+    '    }',
+    '    private(set) var root: Root',
+    '    private var sampleFrom: Root?',
+    '    private let door: any PhoneDoor',
+    '    let ownerCheck: any OwnerCheck',
+    '    init(door: any PhoneDoor, ownerCheck: any OwnerCheck = DeviceOwnerCheck()) {',
+    '        self.door = door',
+    '        self.ownerCheck = ownerCheck',
+    '        root = .pairing',
+    '    }',
+    '    func lostPairing() {',
+    '        if root == .sample {',
+    '            leaveSample()',
+    '            return',
+    '        }',
+    '        startOver()',
+    '        root = .pairing',
+    '    }',
+    '    func openFromAlert(_ tap: AlertTap) {',
+    '        if root == .sample { leaveSample() }',
+    '        readKeptPairing()',
+    '    }',
+    '    func openSample() {',
+    '        guard root != .sample, let sample = SampleReader.bundled() else { return }',
+    '        sampleFrom = root',
+    '        wentAway()',
+    '        startOver()',
+    '        reader = sample',
+    '        makeLists(sample, store: SampleChoices())',
+    '        root = .sample',
+    '    }',
+    '    func leaveSample() {',
+    '        guard root == .sample else { return }',
+    '        wentAway()',
+    '        startOver()',
+    '        reader = nil',
+    '        if sampleFrom == .reading, let paired = door.pairedReader() {',
+    '            reader = paired',
+    '            makeLists(paired, store: choices)',
+    '            root = .reading',
+    '        } else if sampleFrom == .reading {',
+    '            pairing.pairAgain()',
+    '            root = .pairing',
+    '        } else {',
+    '            root = .pairing',
+    '        }',
+    '        sampleFrom = nil',
+    '    }',
+    '    func endCheck(for reader: any DoorReading) -> any OwnerCheck {',
+    '        reader is SampleReader ? SampleOwnerCheck(inner: ownerCheck) : ownerCheck',
+    '    }',
+    '    func endBatchSetup(_ reader: any DoorReading) -> EndBatchSetup? {',
+    '        reader.writer.map { EndBatchSetup(writer: $0, ownerCheck: endCheck(for: reader), registry: self) }',
+    '    }',
+    '}',
+    '',
+    'struct RootView: View {',
+    '    let app: AppModel',
+    '    var body: some View {',
+    '        switch app.root {',
+    '        case .pairing:',
+    '            PairingScreen(model: app.pairing, seeSample: { app.openSample() })',
+    '        case .reading:',
+    '            tabs',
+    '        case .sample:',
+    '            VStack(spacing: 0) {',
+    '                SampleBar(leave: app.leaveSample)',
+    '                tabs',
+    '            }',
+    '        }',
+    '    }',
+    '    private func destination(_ route: Route, reader: any DoorReading) -> some View {',
+    '        SessionRoute(id: route.id, reader: reader, ownerCheck: app.endCheck(for: reader), registry: app)',
+    '    }',
+    '}',
+    '',
+    'struct LiveDoor: PhoneDoor {',
+    '    func pairedReader() -> (any DoorReading)? {',
+    '        nil',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const AZ_OWNER_APP = [
+    'struct DeviceOwnerCheck: OwnerCheck {',
+    '    func kind() -> OwnerKind {',
+    '        guard canAsk else { return isPasscodeNotSet ? .none : .passcode }',
+    '        return .faceID',
+    '    }',
+    '    func confirm(reason: String) async -> OwnerAnswer {',
+    '        .notConfirmed',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const azBase = {
+    ...AZ_DOOR,
+    'App/OwnerCheck.swift': AZ_OWNER_APP,
+    'App/TortieApp.swift': AZ_APP,
+    'Sample/SampleBook.swift': AZ_BOOK,
+    'Sample/SampleWorld.swift': AZ_WORLD,
+    'Sample/SampleReader.swift': AZ_READER,
+    'Sample/SampleOwnerCheck.swift': AZ_OWNER,
+    'Sample/SampleBar.swift': AZ_BAR
+  };
+  // Its parameters are named for this block alone: build/assert-background-
+  // teardown.mjs reads a name from every value the file ever gives it.
+  const azEdit = (azEdits = {}) =>
+    Object.entries({ ...azBase, ...azEdits })
+      .filter(([, v]) => v !== null)
+      .map(([name, v]) => ({ name, source: typeof v === 'function' ? v(azBase[name]) : v }));
+  const swapIn = (from, to) => (src) => {
+    if (!src.includes(from)) throw new Error(`(az) self-test anchor missing: ${from}`);
+    return src.replace(from, to);
+  };
+  const okCheck = { status: 0, line: '[p3333 sample] PASS' };
+  const azRun = (azEdits = {}, azOptions = {}) => ruleSample(azEdit(azEdits), { book: true, check: okCheck, ...azOptions }).findings;
+  const azHas = (azEdits, clause, azOptions) => azRun(azEdits, azOptions).some((f) => f.startsWith(`${clause}:`));
+  const acSample = (azEdits = {}) => sampleOwnerFindings(azEdit(azEdits).map((f) => lexedFile([f], f.name))).findings;
+  try {
+    expect('(az) passes the sample in the shape SPEC §5.2 to §5.4 names', azRun().length === 0);
+    expect('(ac) passes the sample\'s owner check in the shape SPEC §5.2.5 and §5.3 name', acSample().length === 0);
+    // The scanners' own readings.
+    expect('(az) reads a file\'s top-level types and not a nested one', topLevelTypeNames(AZ_DOOR['Door/Contract.swift']).join() === 'PocketBlockedAnswer,DoorNumber,PocketWriteAnswer,PocketScreen');
+    expect('(az) reads a private top-level class and skips an extension', topLevelTypeNames(AZ_DOOR['Door/DoorClient.swift']).includes('DoorExchange') && !topLevelTypeNames(AZ_DOOR['Door/DoorClient.swift']).includes('PocketWriteAnswer'));
+    {
+      const src = 'func f() {\n    let k = a()\n    if x == .reading, let r = door.pairedReader() {\n        y()\n    }\n    guard q else { return }\n    switch s {\n    case .one:\n        z()\n    default:\n        w()\n    }\n    return k == .none ? .confirmed : .notConfirmed\n}\n';
+      const { bare } = lexSwift(src);
+      const open = bare.indexOf('{');
+      const kinds = (needle) => conditionsAt(bare, open, bare.indexOf(needle)).map((c) => `${c.kind}:${c.cond.trim()}${c.label === undefined ? '' : `@${c.label}`}`).join('|');
+      expect('(az) reads a call in an if\'s own condition list as behind the test before it', kinds('door.pairedReader') === 'if:x == .reading, let r =');
+      expect('(az) reads a statement inside an if block as behind its test', kinds('y()') === 'if:x == .reading, let r = door.pairedReader()');
+      expect('(az) reads a statement after a guard as behind it, and a switch case by its label', kinds('z()') === 'case:s@.one|guard-after:q');
+      expect('(az) reads a default case as no test of its own', kinds('w()') === 'case:s@default|guard-after:q');
+      expect('(az) reads a ternary\'s true arm as behind its test', kinds('.confirmed') === 'ternary:return k == .none|guard-after:q');
+      expect('(az) reads a ternary\'s false arm as behind nothing of its own', kinds('.notConfirmed') === 'guard-after:q');
+    }
+    // az1
+    expect('(az) az1 catches no Sample/ folder', azHas(Object.fromEntries(Object.keys(azBase).filter((k) => k.startsWith('Sample/')).map((k) => [k, null])), 'az1'));
+    expect('(az) az1 catches fewer Swift files than the book, the world, the reader, the check and the bar', azHas({ 'Sample/SampleBar.swift': null, 'App/Bar.swift': AZ_BAR }, 'az1'));
+    expect('(az) az1 catches sample.json missing', azHas({}, 'az1', { book: false }));
+    // az2
+    expect('(az) az2 catches the door client named in the sample', azHas({ 'Sample/SampleReader.swift': (s) => `${s}let p3333 = DoorClient.self\n` }, 'az2'));
+    expect('(az) az2 catches the pairing store named in the sample', azHas({ 'Sample/SampleWorld.swift': (s) => `${s}let p3333 = PairingStore.self\n` }, 'az2'));
+    expect('(az) az2 catches a Door/ type the SPEC does not list (Hex), derived', azHas({ 'Sample/SampleWorld.swift': (s) => `${s}let p3333 = Hex.self\n` }, 'az2'));
+    expect('(az) az2 catches the paired reader named in the sample', azHas({ 'Sample/SampleReader.swift': (s) => `${s}let p3333: PairedReader? = nil\n` }, 'az2'));
+    expect('(az) az2 catches the app model named in the sample', azHas({ 'Sample/SampleReader.swift': (s) => `${s}let p3333: AppModel? = nil\n` }, 'az2'));
+    expect('(az) az2 catches the pairing store reached through a typealias declared outside the sample', azHas({ 'Screens/Alias.swift': 'typealias Vault = PairingStore\n', 'Sample/SampleWorld.swift': (s) => `${s}let p3333 = Vault.self\n` }, 'az2'));
+    expect('(az) az2 catches a typealias of a typealias', azHas({ 'Screens/Alias.swift': 'typealias Vault = PairingStore\ntypealias Box = [Vault]\n', 'Sample/SampleWorld.swift': (s) => `${s}let p3333 = Box.self\n` }, 'az2'));
+    expect('(az) az2 catches a Door/ file that stopped declaring a type the SPEC names', azHas({ 'Door/Pairing.swift': (s) => swapIn('final class PairingFlow {}\n', '')(s) }, 'az2'));
+    expect('(az) az2 leaves the contract\'s decoders and the write results alone', !azHas({ 'Sample/SampleWorld.swift': (s) => `${s}let p3333: (PocketScreen, DoorNumber, WriteResult, SentWrite, DoorFailure)? = nil\n` }, 'az2'));
+    // az3
+    for (const [what, line] of [
+      ['import Network', 'import Network\n'],
+      ['an NWConnection', 'let p3333 = NWConnection.self\n'],
+      ['a URLSession', 'let p3333 = URLSession.shared\n'],
+      ['a Keychain read', '_ = SecItemCopyMatching([:] as CFDictionary, nil)\n'],
+      ['a Keychain attribute', 'let p3333 = kSecClass\n'],
+      ['import CryptoKit', 'import CryptoKit\n'],
+      ['import Security', 'import Security\n'],
+      ['an LAContext', 'let p3333 = LAContext()\n'],
+      ['UserDefaults', 'let p3333 = UserDefaults.standard\n'],
+      ['the notification center', 'let p3333 = UNUserNotificationCenter.current()\n'],
+      ['a badge', 'func p3333() async throws { try await UNUserNotificationCenter.current().setBadgeCount(1) }\n'],
+      ['an openURL', 'let p3333 = \\EnvironmentValues.openURL\n'],
+      ['an address made', 'let p3333 = URL(string: "x")\n'],
+      ['a file written', 'func p3333(_ d: Data) throws { try d.write(to: here) }\n'],
+      ['a file removed', 'func p3333() throws { try FileManager.default.removeItem(atPath: "x") }\n'],
+      ['an address written as a string', 'let p3333 = "https://example.invalid"\n']
+    ]) {
+      expect(`(az) az3 catches ${what} in the sample`, azHas({ 'Sample/SampleWorld.swift': (s) => `${s}${line}` }, 'az3'));
+    }
+    expect('(az) az3 leaves a plain word in a string alone', !azHas({ 'Sample/SampleWorld.swift': (s) => `${s}let p3333 = "Leave sample"\n` }, 'az3'));
+    // az4
+    expect('(az) az4 catches contentsOf:', azHas({ 'Sample/SampleBook.swift': swapIn('              let data = FileManager.default.contents(atPath: path),', '              let data = try? Data(contentsOf: URL(fileURLWithPath: path)),') }, 'az4'));
+    expect('(az) az4 catches a second resource asked for', azHas({ 'Sample/SampleWorld.swift': (s) => `${s}let p3333 = Bundle.main.path(forResource: "other", ofType: "json")\n` }, 'az4'));
+    expect('(az) az4 catches the one resource asked for under another name', azHas({ 'Sample/SampleBook.swift': swapIn('forResource: "sample"', 'forResource: "demo"') }, 'az4'));
+    expect('(az) az4 catches the bundle read through a URL', azHas({ 'Sample/SampleBook.swift': swapIn('Bundle.main.path(forResource:', 'Bundle.main.url(forResource:') }, 'az4'));
+    expect('(az) az4 catches the file read outside SampleBook.bundled()', azHas({ 'Sample/SampleWorld.swift': (s) => `${s}func p3333() -> Data? { FileManager.default.contents(atPath: "x") }\n` }, 'az4'));
+    expect('(az) az4 catches another bundle', azHas({ 'Sample/SampleWorld.swift': (s) => `${s}let p3333 = Bundle(for: SampleWorld.self)\n` }, 'az4'));
+    // Each az4 clause alone: a contentsOf: beside the one read, and the one
+    // read asked for twice in its own place.
+    expect('(az) az4 catches contentsOf: beside the one read, on its own', azHas({ 'Sample/SampleBook.swift': swapIn('        return SampleBook(root: root)\n', '        let other = try? Data(contentsOf: here)\n        return SampleBook(root: root)\n') }, 'az4'));
+    expect('(az) az4 catches the one resource asked for twice in SampleBook.bundled(), on its own', azHas({ 'Sample/SampleBook.swift': swapIn('        return SampleBook(root: root)\n', '        let again = Bundle.main.path(forResource: "sample", ofType: "json")\n        return SampleBook(root: root)\n') }, 'az4'));
+    // az5
+    expect('(az) az5 catches the sample made by the paired door', azHas({ 'App/TortieApp.swift': swapIn('    func pairedReader() -> (any DoorReading)? {\n        nil', '    func pairedReader() -> (any DoorReading)? {\n        SampleReader.bundled()') }, 'az5'));
+    expect('(az) az5 catches the sample handed something by the app', azHas({ 'App/TortieApp.swift': swapIn('let sample = SampleReader.bundled()', 'let sample = SampleReader(world: world)') }, 'az5'));
+    expect('(az) az5 catches openSample making no sample', azHas({ 'App/TortieApp.swift': swapIn(', let sample = SampleReader.bundled() else', ', let sample = made else') }, 'az5'));
+    expect('(az) az5 catches a second SampleBar( drawn in case .reading', azHas({ 'App/TortieApp.swift': swapIn('        case .reading:\n            tabs', '        case .reading:\n            SampleBar(leave: app.leaveSample)\n            tabs') }, 'az5'));
+    expect('(az) az5 catches the one SampleBar( drawn under the wrong case', azHas({ 'App/TortieApp.swift': (s) => swapIn('        case .reading:\n            tabs', '        case .reading:\n            SampleBar(leave: app.leaveSample)\n            tabs')(swapIn('                SampleBar(leave: app.leaveSample)\n', '')(s)) }, 'az5'));
+    expect('(az) az5 catches the door asked by openSample', azHas({ 'App/TortieApp.swift': swapIn('        sampleFrom = root\n', '        sampleFrom = root\n        door.forget()\n') }, 'az5'));
+    // Each az5 clause alone: the door read (not forgotten) by openSample, the
+    // paired reader asked twice behind the test, and two bars in case .sample.
+    expect('(az) az5 catches openSample reading the kept pairing, on its own', azHas({ 'App/TortieApp.swift': swapIn('        sampleFrom = root\n', '        sampleFrom = root\n        _ = door.pairedReader()\n') }, 'az5'));
+    expect('(az) az5 catches leaveSample asking the door twice behind its test, on its own', azHas({ 'App/TortieApp.swift': swapIn('        } else if sampleFrom == .reading {\n            pairing.pairAgain()\n', '        } else if sampleFrom == .reading {\n            _ = door.pairedReader()\n            pairing.pairAgain()\n') }, 'az5'));
+    expect('(az) az5 catches two Sample bars in case .sample, on its own', azHas({ 'App/TortieApp.swift': swapIn('                SampleBar(leave: app.leaveSample)\n', '                SampleBar(leave: app.leaveSample)\n                SampleBar(leave: app.leaveSample)\n') }, 'az5'));
+    expect('(az) az5 catches leaveSample asking the door whatever the sample was opened from', azHas({ 'App/TortieApp.swift': swapIn('if sampleFrom == .reading, let paired = door.pairedReader() {', 'if let paired = door.pairedReader() {') }, 'az5'));
+    expect('(az) az5 catches the test after the door is asked', azHas({ 'App/TortieApp.swift': swapIn('if sampleFrom == .reading, let paired = door.pairedReader() {', 'if let paired = door.pairedReader(), sampleFrom == .reading {') }, 'az5'));
+    expect('(az) az5 catches leaveSample naming the door twice', azHas({ 'App/TortieApp.swift': swapIn('        sampleFrom = nil\n', '        _ = door.pairedReader()\n        sampleFrom = nil\n') }, 'az5'));
+    expect('(az) az5 catches leaveSample forgetting a pairing', azHas({ 'App/TortieApp.swift': swapIn('            pairing.pairAgain()\n', '            pairing.forgetKept()\n') }, 'az5'));
+    expect('(az) az5 passes leaveSample\'s test written as an outer if', !azHas({ 'App/TortieApp.swift': swapIn('        if sampleFrom == .reading, let paired = door.pairedReader() {\n            reader = paired\n            makeLists(paired, store: choices)\n            root = .reading\n        } else if sampleFrom == .reading {\n            pairing.pairAgain()\n            root = .pairing\n        } else {', '        if sampleFrom == .reading {\n            if let paired = door.pairedReader() {\n                reader = paired\n                root = .reading\n            } else {\n                pairing.pairAgain()\n                root = .pairing\n            }\n        } else {') }, 'az5'));
+    expect('(az) az5 passes leaveSample\'s test written as a switch', !azHas({ 'App/TortieApp.swift': swapIn('        if sampleFrom == .reading, let paired = door.pairedReader() {\n            reader = paired\n            makeLists(paired, store: choices)\n            root = .reading\n        } else if sampleFrom == .reading {\n            pairing.pairAgain()\n            root = .pairing\n        } else {\n            root = .pairing\n        }', '        switch sampleFrom {\n        case .reading:\n            if let paired = door.pairedReader() { reader = paired }\n        default:\n            root = .pairing\n        }') }, 'az5'));
+    // az6
+    expect('(az) az6 catches the leave taken out of openFromAlert(', azHas({ 'App/TortieApp.swift': swapIn('        if root == .sample { leaveSample() }\n', '') }, 'az6'));
+    expect('(az) az6 catches lostPairing leaving the sample after it has started over', azHas({ 'App/TortieApp.swift': swapIn('    func lostPairing() {\n        if root == .sample {', '    func lostPairing() {\n        startOver()\n        if root == .sample {') }, 'az6'));
+    expect('(az) az6 catches the leave behind another test', azHas({ 'App/TortieApp.swift': swapIn('        if root == .sample { leaveSample() }\n', '        if root == .reading { leaveSample() }\n') }, 'az6'));
+    expect('(az) az6 passes the leave written as a guard', !azHas({ 'App/TortieApp.swift': swapIn('        if root == .sample {\n            leaveSample()\n            return\n        }', '        guard root != .sample else {\n            leaveSample()\n            return\n        }') }, 'az6'));
+    // az7
+    expect('(az) az7 catches the writer\'s check failing', azHas({}, 'az7', { check: { status: 1, line: '[p3333 sample] FAIL' } }));
+    expect('(az) az7 catches the writer\'s check not run', azHas({}, 'az7', { check: null }));
+    // The fix round's scanners, read on their own first.
+    expect('(az) reads an interpolation\'s code back into the bare text', bareWithHoles(lexSwift('let a = "x \\(Alert.shared) y"\n')).includes('Alert.shared') && !bareWithHoles(lexSwift('let a = "Alert.shared"\n')).includes('Alert'));
+    expect('(az) reads a string inside an interpolation as a string', !bareWithHoles(lexSwift('let a = "\\(f("Alert"))"\n')).includes('Alert'));
+    expect('(az) reads top-level values and not a member', topLevelValueNames(lexSwift('var a = 1\nfunc b() {}\nstruct C {\n    var d = 2\n}\n').bare).map((v) => v.name).join() === 'a,b');
+    {
+      const lx = lexSwift('extension View {\n    func lineBox() -> some View {\n        let inner = 1\n        return self\n    }\n    var card: Int { 1 }\n}\nstruct S {\n    func not() {}\n}\n');
+      expect('(az) reads an extension\'s members and nothing inside them or outside it', extensionMembers({ bare: lx.bare, types: typeSpans(lx.bare) }).map((x) => `${x.type}.${x.name}`).join() === 'View.lineBox,View.card');
+    }
+    {
+      const kinds = sharedDeclarations(lexSwift('enum A {\n    static var a = 0\n    static var b: Int { 1 }\n    static var c: Int? \n    static var d = 0 { didSet {} }\n    nonisolated(unsafe) static let e = 1\n    private static let f = Box()\n}\nfinal class Box { var held = 0 }\nvar g = 1\nlet h = 2\n').bare).map((d) => `${d.name}:${d.kind}:${d.stored ? 's' : 'c'}`).join();
+      expect('(az) reads stored and computed statics, unsafe ones, and file scope, and not a one-line class\'s own var', kinds === 'a:static var:s,b:static var:c,c:static var:s,d:static var:s,e:nonisolated(unsafe):s,e:static let:s,f:static let:s,g:top var:s,h:top let:s');
+    }
+    // az2's list (the fix round): what the sample may name of the app.
+    const AZ_ALERTS = 'final class AlertInbox {\n    static let shared = AlertInbox()\n    func post(_ tap: Int) {}\n}\nstruct AlertsKept {}\n';
+    expect('(az) az2 catches an alert inbox named in the sample (S8)', azHas({ 'Alerts/Alerts.swift': AZ_ALERTS, 'Sample/SampleWorld.swift': (s) => `${s}extension SampleWorld {\n    func p3333() { AlertInbox.shared.post(1) }\n}\n` }, 'az2'));
+    expect('(az) az2 catches a type declared beside DoorReading that no list holds', azHas({ 'Screens/DoorWords.swift': 'protocol DoorReading {}\nenum LastReader {}\n', 'Sample/SampleWorld.swift': (s) => `${s}extension SampleWorld {\n    func p3333() -> Any { LastReader.self }\n}\n` }, 'az2'));
+    expect('(az) az2 catches a name hidden in a string interpolation', azHas({ 'Alerts/Alerts.swift': AZ_ALERTS, 'Sample/SampleWorld.swift': (s) => `${s}extension SampleWorld {\n    func p3333() -> String { "\\(AlertInbox.shared)" }\n}\n` }, 'az2'));
+    expect('(az) az2 catches the app module as a qualifier', azHas({ 'Sample/SampleWorld.swift': (s) => `${s}extension SampleWorld {\n    func p3333() -> Any { Tortie.SampleWorld.self }\n}\n` }, 'az2'));
+    expect('(az) az2 leaves a name on the list alone', !azHas({ 'Style/Copy.swift': 'enum Copy {\n    static let sample = "Sample"\n}\n', 'Sample/SampleWorld.swift': (s) => `${s}extension SampleWorld {\n    func p3333() -> String { Copy.sample }\n}\n` }, 'az2'));
+    expect('(az) az2 catches an extension member outside the sample it calls (a protocol\'s, S4\'s shape)', azHas({ 'Screens/DoorWords.swift': 'protocol DoorReading {}\nextension DoorReading {\n    var keptPairing: Bool { false }\n}\n', 'Sample/SampleWorld.swift': (s) => `${s}extension SampleWorld {\n    func p3333(_ r: SampleReader) -> Bool { r.keptPairing }\n}\n` }, 'az2'));
+    expect('(az) az2 catches an allowed member declared a second time (an overload)', azHas({ 'Screens/Pieces.swift': 'extension View {\n    func lineBox() -> some View { self }\n}\nextension Text {\n    func lineBox() -> some View { self }\n}\n' }, 'az2'));
+    expect('(az) az2 leaves an allowed member declared once alone', !azHas({ 'Screens/Pieces.swift': 'extension View {\n    func lineBox() -> some View { self }\n}\n', 'Sample/SampleBar.swift': swapIn('            Words(Copy.sample, .small, Tokens.textSecondary)\n', '            Words(Copy.sample, .small, Tokens.textSecondary)\n                .lineBox()\n') }, 'az2'));
+    expect('(az) az2, pinned, catches a list naming what nothing declares', azHas({}, 'az2', { pinned: true }));
+    // az3, widened (the fix round): what reaches a refused thing unnamed.
+    for (const [what, line] of [
+      ['a class found by its name (S12)', 'extension SampleWorld {\n    func p3333() -> Any? { NSClassFromString("NSURL" + "Session") }\n}\n'],
+      ['a selector performed (S9b)', 'extension SampleWorld {\n    func p3333(_ a: Any) { _ = (a as AnyObject).perform(NSSelectorFromString("x")) }\n}\n'],
+      ['an address made by an implicit init (S11)', 'extension SampleWorld {\n    func p3333() -> Foundation.URL? { .init(string: "x") }\n}\n'],
+      ['open( on a variable (S11)', 'extension SampleWorld {\n    func p3333(_ a: Opener, _ b: Place) { a.open(b) }\n}\n'],
+      ['the app object', 'extension SampleWorld {\n    func p3333() -> Any { UIApplication.self }\n}\n'],
+      ['the notification center', 'extension SampleWorld {\n    func p3333() { NotificationCenter.default.post(name: n, object: nil) }\n}\n'],
+      ['a C symbol by name', '@_silgen_name("SecItemCopyMatching") func p3333(_ q: CFDictionary) -> Int32\n'],
+      ['a refused name inside an interpolation', 'extension SampleWorld {\n    func p3333() -> String { "\\(NSClassFromString("x") as Any)" }\n}\n'],
+      ['the Objective-C runtime imported', 'import ObjectiveC\n']
+    ]) {
+      expect(`(az) az3 catches ${what} in the sample`, azHas({ 'Sample/SampleWorld.swift': (s) => `${s}${line}` }, 'az3'));
+    }
+    // az8 (the fix round): the sample keeps nothing past itself.
+    const inReader = (line) => ({ 'Sample/SampleReader.swift': swapIn('    let world: SampleWorld\n    static func bundled', `    let world: SampleWorld\n${line}    static func bundled`) });
+    expect('(az) az8 catches a stored static var on the sample\'s reader (S5)', azHas(inReader('    static var relay: Int = 0\n'), 'az8'));
+    expect('(az) az8 catches a nonisolated(unsafe) static', azHas(inReader('    nonisolated(unsafe) static var relay: (any DoorWriting)?\n'), 'az8'));
+    expect('(az) az8 catches a static var with no value and no getter', azHas(inReader('    static var relay: (any DoorWriting)?\n'), 'az8'));
+    expect('(az) az8 catches an observed static var', azHas(inReader('    static var relay = 0 { didSet {} }\n'), 'az8'));
+    expect('(az) az8 catches a static let holding an instance', azHas(inReader('    static let shared = SampleChoices()\n'), 'az8'));
+    expect('(az) az8 catches a task local', azHas(inReader('    @TaskLocal static var relay = 0\n'), 'az8'));
+    expect('(az) az8 catches a var at file scope', azHas({ 'Sample/SampleWorld.swift': (s) => `${s}var p3333 = 0\n` }, 'az8'));
+    expect('(az) az8 catches a func at file scope', azHas({ 'Sample/SampleWorld.swift': (s) => `${s}func p3333() {}\n` }, 'az8'));
+    expect('(az) az8 leaves a computed static, a literal and a closure alone', !azHas(inReader('    static var p3333: Int { 1 }\n    static let height = 44\n    static let join = "."\n    static let clock: @Sendable () -> Double = { 0 }\n'), 'az8'));
+    // az9 (the fix round): nothing outside the sample reaches into it.
+    expect('(az) az9 catches an extension of the sample\'s reader outside its folder (S4)', azHas({ 'App/SampleKept.swift': 'extension SampleReader {\n    var keptPairing: Bool { true }\n}\n' }, 'az9'));
+    expect('(az) az9 catches a hook set on the sample from the app model (S5, S5b)', azHas({ 'App/TortieApp.swift': swapIn('        root = .pairing\n    }\n    func lostPairing() {', '        root = .pairing\n        SampleReader.relay = nil\n    }\n    func lostPairing() {') }, 'az9'));
+    expect('(az) az9 catches a cast to the sample\'s reader outside the five sites', azHas({ 'App/TortieApp.swift': swapIn('        startOver()\n        root = .pairing\n    }', '        startOver()\n        _ = reader as? SampleReader\n        root = .pairing\n    }') }, 'az9'));
+    expect('(az) az9 catches SampleChoices() made twice in openSample()', azHas({ 'App/TortieApp.swift': swapIn('        makeLists(sample, store: SampleChoices())\n', '        makeLists(sample, store: SampleChoices())\n        _ = SampleChoices()\n') }, 'az9'));
+    expect('(az) az9 catches a sample name inside an interpolation outside it', azHas({ 'Screens/Words.swift': 'struct P3333 {\n    func f() -> String { "\\(SampleReader.self)" }\n}\n' }, 'az9'));
+    // az10 (the fix round): the whole app's shared places are pinned.
+    expect('(az) az10 catches a nonisolated(unsafe) static var beside DoorReading (the second lens\'s plant)', azHas({ 'Screens/DoorWords.swift': 'protocol DoorReading {}\nenum LastReader {\n    nonisolated(unsafe) static var held: (any DoorReading)?\n}\n' }, 'az10'));
+    expect('(az) az10 catches a stored static var anywhere', azHas({ 'Screens/Hook.swift': 'enum Hook {\n    @MainActor static var held: Int = 0\n}\n' }, 'az10'));
+    expect('(az) az10 catches an instance of an app class held by an allowed type', azHas({ 'Style/Copy.swift': 'enum Copy {}\nfinal class Box {}\nextension Copy {\n    static let box = Box()\n}\n' }, 'az10'));
+    expect('(az) az10 catches a var at file scope anywhere', azHas({ 'Screens/Hook.swift': 'var p3333: Int = 0\n' }, 'az10'));
+    expect('(az) az10 leaves the pinned ones, a computed static, a nil default and a one-line class alone', !azHas({ 'App/Orientation.swift': 'enum OrientationGate {\n    static var screenOnTop = false\n    static var allowed: Int { 1 }\n}\n', 'Alerts/Alerts.swift': AZ_ALERTS, 'Screens/Keys.swift': 'final class Model { var held = 0 }\nprivate struct K {\n    static let defaultValue: Model? = nil\n}\n' }, 'az10'));
+    expect('(az) az10, pinned, catches a pin that matches nothing', azHas({}, 'az10', { pinned: true }));
+    // az11 (the fix round): the sample's reach, followed to a fixpoint.
+    expect('(az) az11 catches a member added to an allowed type that reads the pairing store', azHas({ 'Screens/DoorWords.swift': 'struct PairedFacts {\n    static var kept: Bool { PairingStore.keychain.load() != nil }\n}\n' }, 'az11'));
+    expect('(az) az11 catches a member of an allowed type that posts an alert', azHas({ 'Alerts/Alerts.swift': AZ_ALERTS, 'Style/Copy.swift': 'enum Copy {\n    static func leak() { AlertInbox.shared.post(1) }\n}\n' }, 'az11'));
+    expect('(az) az11 catches a Keychain call in an allowed type\'s own body', azHas({ 'Style/Copy.swift': 'enum Copy {\n    static func leak() { _ = SecItemCopyMatching([:] as CFDictionary, nil) }\n}\n' }, 'az11'));
+    expect('(az) az11 catches a refusal in an allowed type\'s extension, wherever it is written', azHas({ 'Style/Copy.swift': 'enum Copy {}\n', 'Screens/More.swift': 'extension Copy {\n    static func leak() { _ = UserDefaults.standard }\n}\n' }, 'az11'));
+    expect('(az) az11 follows a reached type into its own body', azHas({ 'Screens/Pieces.swift': 'struct Words {\n    let face: Face\n}\nstruct Face {\n    static func leak() { _ = UserDefaults.standard }\n}\n' }, 'az11'));
+    expect('(az) az11 leaves an allowed type that names only the reach alone', !azHas({ 'Screens/Pieces.swift': 'struct Words {\n    let face: Face\n}\nstruct Face {\n    let size: Int\n}\n' }, 'az11'));
+    expect('(az) az11 leaves the paired door named once where facts are made from it, and does not follow it', !azHas({ 'Screens/DoorWords.swift': 'struct PairedFacts {\n    init(_ door: PairedDoor) {}\n}\n', 'Door/Keys.swift': (s) => `${s}extension PairedDoor {\n    func leak() { _ = SecItemCopyMatching([:] as CFDictionary, nil) }\n}\n` }, 'az11'));
+    expect('(az) az11 catches a second use of the paired door in the facts', azHas({ 'Screens/DoorWords.swift': 'struct PairedFacts {\n    init(_ door: PairedDoor) {}\n    static func f(_ d: PairedDoor) {}\n}\n' }, 'az11'));
+    expect('(az) az11 reads an allowed extension member\'s body', azHas({ 'Screens/Pieces.swift': 'extension View {\n    func lineBox() -> some View {\n        _ = UserDefaults.standard\n        return self\n    }\n}\n' }, 'az11'));
+    expect('(az) az11 leaves a protocol\'s class constraint alone', !azHas({ 'Screens/DoorWords.swift': 'protocol ScreenDoor: AnyObject, Sendable {\n    func close()\n}\n' }, 'az11'));
+    expect('(az) az11, pinned, catches a reach list naming what is no longer reached', azHas({}, 'az11', { pinned: true }));
+    // (ac), the sample's half.
+    expect('(ac) catches the sample confirming with the passcode test taken out', acSample({ 'Sample/SampleOwnerCheck.swift': swapIn('        if inner.kind() == .none { return .confirmed }\n', '        _ = inner.kind()\n        return .confirmed\n') }).length > 0);
+    expect('(ac) catches the sample confirming behind another test', acSample({ 'Sample/SampleOwnerCheck.swift': swapIn('if inner.kind() == .none { return .confirmed }', 'if inner.kind() != .faceID { return .confirmed }') }).length > 0);
+    expect('(ac) catches the sample never asking iOS', acSample({ 'Sample/SampleOwnerCheck.swift': swapIn('        return await inner.confirm(reason: reason)\n', '        return .notConfirmed\n') }).length > 0);
+    expect('(ac) passes the sample\'s test written as a guard', acSample({ 'Sample/SampleOwnerCheck.swift': swapIn('        if inner.kind() == .none { return .confirmed }\n', '        guard inner.kind() != .none else { return .confirmed }\n') }).length === 0);
+    expect('(ac) passes the sample\'s test written as a switch', acSample({ 'Sample/SampleOwnerCheck.swift': swapIn('        if inner.kind() == .none { return .confirmed }\n        return await inner.confirm(reason: reason)\n', '        switch inner.kind() {\n        case .none: return .confirmed\n        default: return await inner.confirm(reason: reason)\n        }\n') }).length === 0);
+    expect('(ac) catches the sample answering .unasked unasked', acSample({ 'Sample/SampleOwnerCheck.swift': swapIn('return kind == .none ? .unasked : kind', 'return .unasked') }).length > 0);
+    expect('(ac) catches endCheck handing the sample\'s check to every reader', acSample({ 'App/TortieApp.swift': swapIn('reader is SampleReader ? SampleOwnerCheck(inner: ownerCheck) : ownerCheck', 'SampleOwnerCheck(inner: ownerCheck)') }).length > 0);
+    expect('(ac) passes endCheck written as an if', acSample({ 'App/TortieApp.swift': swapIn('        reader is SampleReader ? SampleOwnerCheck(inner: ownerCheck) : ownerCheck\n', '        if reader is SampleReader { return SampleOwnerCheck(inner: ownerCheck) }\n        return ownerCheck\n') }).length === 0);
+    expect('(ac) catches a second SampleOwnerCheck made', acSample({ 'App/TortieApp.swift': swapIn('ownerCheck: app.endCheck(for: reader)', 'ownerCheck: SampleOwnerCheck(inner: app.endCheck(for: reader))') }).length > 0);
+    expect('(ac) catches SampleOwnerCheck declared outside Sample/', acSample({ 'Sample/SampleOwnerCheck.swift': null, 'App/SampleOwnerCheck.swift': AZ_OWNER }).length > 0);
+    expect('(ac) catches DeviceOwnerCheck answering .unasked with no passcode', acSample({ 'App/OwnerCheck.swift': swapIn('isPasscodeNotSet ? .none : .passcode', 'isPasscodeNotSet ? .unasked : .passcode') }).length > 0);
+    expect('(ac) catches another kind() answering .unasked', acSample({ 'App/OwnerCheck.swift': (s) => `${s}struct Other {\n    func kind() -> OwnerKind {\n        .unasked\n    }\n}\n` }).length > 0);
+    expect('(ac) catches a route handed app.ownerCheck', acSample({ 'App/TortieApp.swift': swapIn('ownerCheck: app.endCheck(for: reader)', 'ownerCheck: app.ownerCheck') }).length > 0);
+    expect('(ac) catches End these handed the stored check', acSample({ 'App/TortieApp.swift': swapIn('ownerCheck: endCheck(for: reader), registry: self', 'ownerCheck: ownerCheck, registry: self') }).length > 0);
+    expect('(ac) catches End these handed self.ownerCheck', acSample({ 'App/TortieApp.swift': swapIn('ownerCheck: endCheck(for: reader), registry: self', 'ownerCheck: self.ownerCheck, registry: self') }).length > 0);
+    expect('(ac) catches the stored check read outside endCheck(for:)', acSample({ 'App/TortieApp.swift': swapIn('        sampleFrom = nil\n', '        let p3333 = ownerCheck\n        sampleFrom = nil\n') }).length > 0);
+    // Each (ac) clause alone: a second check made inside endCheck behind its
+    // test, DeviceOwnerCheck naming .unasked outside a kind(), and End these
+    // handed a check that is neither the stored one nor endCheck's.
+    expect('(ac) catches SampleOwnerCheck made twice inside endCheck(for:), on its own', acSample({ 'App/TortieApp.swift': swapIn('? SampleOwnerCheck(inner: ownerCheck) :', '? SampleOwnerCheck(inner: SampleOwnerCheck(inner: ownerCheck)) :') }).length > 0);
+    expect('(ac) catches DeviceOwnerCheck naming .unasked outside its kind(), on its own', acSample({ 'App/OwnerCheck.swift': swapIn('    func confirm(reason: String) async -> OwnerAnswer {\n        .notConfirmed', '    var never: OwnerKind { .unasked }\n    func confirm(reason: String) async -> OwnerAnswer {\n        .notConfirmed') }).length > 0);
+    expect('(ac) catches End these handed a fresh device check, on its own', acSample({ 'App/TortieApp.swift': swapIn('ownerCheck: endCheck(for: reader), registry: self', 'ownerCheck: DeviceOwnerCheck(), registry: self') }).length > 0);
+  } catch (err) {
+    expect(`(az) self-test could not run: ${String(err?.message ?? err)}`, false);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Run the rules over the tree
 // ---------------------------------------------------------------------------
 
@@ -13573,13 +15032,32 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     const r = ruleTerminalMenu(appNamed);
     record('ay', 'the ⋯ menu', r.findings, `TerminalPage's trailing items ${r.said.trailing.join(' then ') || 'none'}, one ToolbarItem at the top right; one Menu labelled TerminalMenuControl.symbol (${JSON.stringify(r.said.symbol)}), its chain ${r.said.chain.join(', ') || 'unread'}, holding ${r.said.entries.join(' then ') || 'nothing'}; End where End is drawn today, its label the Mac's words with the owner check's glyph; the single End's confirmationDialog written ${String(r.said.dialogs)} time(s), in EndConfirmation; the progress mark behind confirming and the write; Copy.more "More", the phone's; the four identifiers; no owner check named by the menu`);
   }
+  // Phase 333.3: (az), See a sample (build/p3333/SPEC.md §6.1).
+  {
+    // az7: the ROOT's own writer over the ROOT's own sources, spawned as (j)
+    // spawns vectors.mjs, so a clone the ablation made is judged against
+    // itself and never against this tree.
+    const writer = join(ROOT, 'build', 'p3333', 'sample.mjs');
+    const w = existsSync(writer)
+      ? spawnSync(process.execPath, [writer, '--check'], { cwd: ROOT, encoding: 'utf8', timeout: 120_000 })
+      : { status: 1, stdout: '', stderr: `${rel(writer)} does not exist` };
+    const out = `${w.stdout ?? ''}${w.stderr ?? ''}`.trim().split('\n').filter((l) => l.trim() !== '');
+    const check = { status: w.status ?? 1, line: w.status === 0 ? (out[out.length - 1] ?? '') : out.slice(-3).join(' ') || `sample.mjs ended by ${String(w.signal ?? 'nothing')}` };
+    const r = ruleSample(appNamed, { book: existsSync(join(APP, ...SAMPLE_BOOK.split('/'))), check, pinned: true });
+    record(
+      'az',
+      'See a sample never reaches the network or the Keychain',
+      r.findings,
+      `${String(r.said.files.length)} Swift file(s) under ios/Tortie/${SAMPLE_DIR} (${r.said.files.map((f) => f.slice(SAMPLE_DIR.length)).join(', ') || 'none'}) and ${SAMPLE_BOOK.slice(SAMPLE_DIR.length)}; none names any of ${String(r.said.refused)} refused types (${String(r.said.derived)} derived from Door/'s top level, the paired reader's four, ${String(SAMPLE_ALSO_REFUSED.length)} more and ${String(r.said.aliases.length)} typealias(es) standing for one), a network, Keychain, store, alert, badge, way out or file write; ${String(r.said.reads)} bundle read, sample.json through FileManager.default.contents(atPath:, in SampleBook.bundled(); a SampleReader made ${String(r.said.readers)} time(s) outside the folder, by AppModel.openSample(), and SampleBar drawn ${String(r.said.bars)} time(s), in RootView's case .sample; openSample() asks the door nothing and leaveSample() its paired reader alone, behind sampleFrom == .reading; lostPairing() and openFromAlert( leave the sample first; ${r.said.check || 'the writer\'s check said nothing'}; of the app outside it the sample names only ${String(r.said.mayName)} names (the contract's decoders and SAMPLE_MAY_NAME) and calls ${String(r.said.mayCall)} extension members, keeps no static, file-scope or unsafe state, and is reached from outside at ${String(r.said.reaches)} place(s), the five AppModel and RootView sites; its reach is ${String(r.said.reach)} type(s), closed, with no refusal in any reached body; the app keeps ${String(r.said.shared)} shared place(s), each pinned with its reason`
+    );
+  }
 }
 // Phase 337.3's three, recorded beside the others when there is no app to read
 // (pushed here rather than spelled in RULE_IDS above, so 333.1's (av) merges
-// into that list with no conflict).
-RULE_IDS.push('aw', 'ax', 'ay');
+// into that list with no conflict). Phase 333.3's (az) is pushed the same way.
+RULE_IDS.push('aw', 'ax', 'ay', 'az');
 if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
-  for (const id of ['aw', 'ax', 'ay']) record(id, 'the app', [`${rel(IOS)} does not exist, so there is no app to read`], '');
+  for (const id of ['aw', 'ax', 'ay', 'az']) record(id, 'the app', [`${rel(IOS)} does not exist, so there is no app to read`], '');
 }
 
 // ---------------------------------------------------------------------------

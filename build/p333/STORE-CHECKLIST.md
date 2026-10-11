@@ -7,7 +7,7 @@ Everything happens at appstoreconnect.apple.com: Apps, then Tortie, then the **D
 ## Submit only when these are true
 
 1. **The public beta has run for a while** with no report of the phone app breaking.
-2. **The build has See a sample (Phase 333.3).** It lets a reviewer use the app with made-up sessions and no Mac, which answers Apple's most likely rejection (guideline 2.1, "we could not use the app"). When it lands I give you a final version of the review notes that tells the reviewer how to open it.
+2. **The build has See a sample (Phase 333.3), which build 10 carries.** It lets a reviewer use the app with made-up sessions and no Mac, which answers Apple's most likely rejection (guideline 2.1, "we could not use the app"). Text 4 below holds the paragraph that tells the reviewer how to open it.
 3. **The build has passed the iPad and iOS 27 check (Phase 333.4).** Apple reviewers have rejected iPhone-only apps this year after trying them on an iPad. That phase also gives you the line listing the devices tested, for the notes.
 4. **Your use video shows the newest iOS.** Your videos were made on iOS 26.7. If a newer iOS is out by then, record the use video again from launch, the same way as before, and send it to me so I replace the copy on tortie.sh before you submit.
 5. **If you stay Individual, you have a written licence from Ita Vero, LLC for the name.** The copyright line and tortie.sh both name Ita Vero, LLC, while the app is sold under your own name. If you do not have one, stop and tell me.
@@ -19,7 +19,7 @@ Everything happens at appstoreconnect.apple.com: Apps, then Tortie, then the **D
 
 ## Screenshots
 
-Apple requires at least one screenshot at the 6.3-inch size (1206 by 2622 pixels) and accepts up to 10 at the 6.9-inch size (1320 by 2868 pixels). Your screen recording was 1320 by 2868, so your iPhone takes the 6.9-inch size, and I make the 6.3-inch copies. Apple also says screenshots must show made-up data, not a real person's, so take them in See a sample once it is in the build, or in the demo folder from the videos with nothing private on screen.
+Apple requires at least one screenshot at the 6.3-inch size (1206 by 2622 pixels) and accepts up to 10 at the 6.9-inch size (1320 by 2868 pixels). Your screen recording was 1320 by 2868, so your iPhone takes the 6.9-inch size, and I make the 6.3-inch copies. Apple also says screenshots must show made-up data, not a real person's, so take them in See a sample, which build 10 carries (on your paired phone it is in Settings, under Unpair this iPhone), or in the demo folder from the videos with nothing private on screen.
 
 1. Take 5 screenshots by pressing the side button and volume up together:
    - the Needs input tab with a session waiting
@@ -79,7 +79,7 @@ In the sidebar under **iOS App**, click **1.0 Prepare for Submission**.
 10. **App Review Information:**
     - Sign-in required: leave it off. The app has no account.
     - Contact: your first name, last name, phone starting with + and the country code, and `support@tortie.sh`.
-    - Notes: paste text 4 as I give it to you once See a sample lands, with your phone number filled in.
+    - Notes: paste text 4 as I give it to you, with your phone number and the devices line filled in.
     - Attachment: attach `pairing_mac.mp4` from Downloads (the converted copy, 14 MB).
 11. **App Store Version Release:** choose **Manually release this version**, so the store page goes live on the day the site and README change.
 12. Click **Save** at the top right.
@@ -138,14 +138,16 @@ Tortie works with the coding agents you already run. Tortie is an independent pr
 coding agent,agent sessions,terminal,developer,ai coding,session status,workflow,shell,pairing
 ```
 
-### 4. Review notes (2,527 of 4,000 bytes before the sample paragraph, your phone number and the devices line are filled in)
+### 4. Review notes (3,119 of 4,000 bytes before your phone number and the devices line are filled in)
 
-This is the version for today's build. Once See a sample lands I add the paragraph that tells the reviewer how to use it, and Phase 333.4 fills in the devices line, so ask me for the final notes before you paste them.
+This is the version for build 10, which carries See a sample: its paragraph beginning "Without a Mac" tells the reviewer how to use it. Phase 333.4 fills in the devices line, so ask me for the final notes before you paste them.
 
 ```text
 WHAT THIS APP IS. Tortie for iPhone is the companion to Tortie for Mac, a free, open-source (Apache-2.0) desktop app at https://tortie.sh. Both are one open-source project by its author, Gregory Ceccarelli, who is the seller of this app; the source of both is public at https://github.com/gregce/tortie. Tortie belongs to Ita Vero, LLC, his company. Tortie for Mac keeps a developer's terminal sessions, coding agents and plain shells, running on their own Mac through quits and crashes, and brings them back after a restart. The iPhone app is for that developer away from the Mac. It lists their sessions with the ones waiting on them first. Tapping one opens its terminal, to read, scroll back and type into. It answers a numbered question from Claude Code or Codex with one tap, shows what the session said (Catch Me Up), and ends a session after Face ID, Touch ID or the passcode.
 
 HOW TO REVIEW IT. The app needs the developer's own Mac. Two videos show it working on a physical iPhone: a camera video of pairing, with the code scanned and Allow pressed on the Mac, at https://tortie.sh/videos/pairing_mac.mp4, and a screen recording of use from launch, at https://tortie.sh/videos/using_tortie.mp4. The pairing video is also attached to this submission.
+
+Without a Mac, tap See a sample on the first screen. Made-up sessions load from a file inside the app; every page says Sample at the top, and nothing leaves the phone. Tap a session under Needs input; it opens on its terminal. Pinch, scroll up, turn the phone sideways, and tap the terminal to type: keys appear on the sample's prompt, and Return shows that nothing ran. Tap an option under a waiting session, then the More button at the top right for Catch Me Up and End session, which asks for Face ID, Touch ID or the passcode and ends only the sample's copy. Tap Leave sample to return.
 
 CODE EXECUTION (2.5.2). Nothing is downloaded or run on the phone. The terminal is text the Mac sends. Keys go through the person's own Mac to that session, and every command runs on the person's own computers, never on the phone.
 

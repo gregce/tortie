@@ -148,6 +148,12 @@ final class EndWordsTests: XCTestCase {
         XCTAssertEqual(file.constants["BATCH_DONE"], Copy.done)
         let menu = EndBarDrawing(offer: .offered(batch: false), confirm: WriteAnswers.confirm, kind: .touchID, phase: .idle, line: nil)
         XCTAssertEqual(menu.menuLabel, file.constants["END_SESSION"], "the ⋯'s End is not the Mac's End session…")
+        // Phase 333.3 (D12): in the sample with no passcode it is the same
+        // Mac word under the open lock, and its line is the phone's own.
+        let sample = EndBarDrawing(offer: .offered(batch: false), confirm: WriteAnswers.confirm, kind: .unasked, phase: .idle, line: nil)
+        XCTAssertEqual(sample.menuLabel, file.constants["END_SESSION"], "the sample's End is not the Mac's End session…")
+        XCTAssertEqual(sample.glyph, "lock.open")
+        XCTAssertEqual(sample.line, Copy.sampleEndUnasked)
     }
 
     /// Clause: every n the fixture names, each composer says the singular for

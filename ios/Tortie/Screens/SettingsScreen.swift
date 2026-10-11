@@ -25,6 +25,13 @@
 // UNPAIR forgets the pairing on this iPhone only. The Mac keeps listing the
 // phone until he presses Remove there; its half is Phase 317's, and the
 // question says so in the Mac's own words.
+//
+// SEE A SAMPLE (Phase 333.3, build/p3333/SPEC.md D13, D18). A paired phone
+// has a row of its own under Unpair, See a sample, which opens the made-up
+// sessions with the pairing untouched. Inside the sample Settings draws its
+// title and About alone: no paired Mac, no Alerts card, no Unpair (which would
+// forget a real pairing from inside a made-up one) and no See a sample. Leave
+// sample is in the strip above every page.
 
 import SwiftUI
 import UIKit
@@ -125,9 +132,11 @@ struct SettingsScreen: View {
         self.site = site
     }
 
-    private var drawing: SettingsDrawing {
+    /// What the screen draws. Inside the sample, no facts: the sample's
+    /// reader holds none, and nothing here may read as a Mac (D18).
+    var drawing: SettingsDrawing {
         SettingsDrawing(
-            facts: app.reader?.facts,
+            facts: app.inSample ? nil : app.reader?.facts,
             list: app.list?.state,
             alertsLine: app.list?.alertsLine,
             permission: app.alertPermission,
@@ -147,12 +156,18 @@ struct SettingsScreen: View {
                 if let state = drawing.notificationsState {
                     alertsCard(state: state, line: drawing.alertsLine)
                 }
-                unpairRow
-                if let line = drawing.unpairLine {
-                    Words(line, .secondary, Tokens.textSecondary, lines: nil)
-                        .accessibilityIdentifier(ID.settingsUnpairLine)
-                        .padding(.horizontal, Frame.gutter)
-                        .padding(.top, 8)
+                let rows = rows
+                if rows.unpair {
+                    unpairRow
+                    if let line = drawing.unpairLine {
+                        Words(line, .secondary, Tokens.textSecondary, lines: nil)
+                            .accessibilityIdentifier(ID.settingsUnpairLine)
+                            .padding(.horizontal, Frame.gutter)
+                            .padding(.top, 8)
+                    }
+                }
+                if rows.seeSample {
+                    seeSampleRow
                 }
                 aboutCard(drawing.version)
             }
@@ -293,6 +308,38 @@ struct SettingsScreen: View {
         .padding(.horizontal, Frame.gutter)
     }
 
+    /// Which of Settings' own rows are drawn where the app is now (D13, D18).
+    var rows: SettingsRows {
+        SettingsRows(root: app.root)
+    }
+
+    /// See a sample, for a paired phone: a card row in Unpair's shape, the
+    /// body's colour and the chevron of a row that opens something, directly
+    /// under Unpair and its line (Phase 333.3, D13).
+    private var seeSampleRow: some View {
+        Button(action: openSample) {
+            HStack(spacing: Frame.rowGap) {
+                Words(Copy.seeSample, .body, Tokens.textPrimary)
+                    .lineBox(.body)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Chevron()
+            }
+            .padding(.horizontal, Frame.cardPadding)
+            .frame(height: Frame.linkRowHeight)
+            .contentShape(Rectangle())
+            .card()
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(ID.settingsSeeSample)
+        .padding(.top, Frame.cardGap)
+        .padding(.horizontal, Frame.gutter)
+    }
+
+    /// See a sample's press: the app opens it (Phase 333.3).
+    func openSample() {
+        app.openSample()
+    }
+
     /// About: the app's version and build, then the three pages of Tortie's
     /// own site, each a row at least 44 tall (Phase 333.1, D22).
     private func aboutCard(_ version: String) -> some View {
@@ -379,6 +426,19 @@ struct SettingsScreen: View {
     private func openNotificationSettings() {
         guard let url = URL(string: UIApplication.openNotificationSettingsURLString) else { return }
         UIApplication.shared.open(url)
+    }
+}
+
+/// Which of Settings' own rows are drawn, by where the app is (Phase 333.3,
+/// D13, D18): Unpair everywhere but inside the sample, and See a sample only
+/// for a paired phone, never inside the sample itself.
+struct SettingsRows: Equatable {
+    let unpair: Bool
+    let seeSample: Bool
+
+    init(root: AppModel.Root) {
+        unpair = root != .sample
+        seeSample = root == .reading
     }
 }
 

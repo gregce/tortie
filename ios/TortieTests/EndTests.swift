@@ -149,6 +149,48 @@ final class EndTests: XCTestCase {
         XCTAssertEqual(drawing.glyph, "lock")
     }
 
+    /// Clause (Phase 333.3, D12): the sample's End on an iPhone with no
+    /// passcode, `.unasked`, is drawn ON, with the open lock and the sample's
+    /// own line, and offers the Mac's confirmation; a paired Mac's End with no
+    /// passcode stays off with its own line, and no other kind says either.
+    func testTheSampleWithNoPasscodeDrawsEndOnAndSaysSo() {
+        let drawing = EndBarDrawing(offer: .offered(batch: true), confirm: WriteAnswers.confirm, kind: .unasked, phase: .idle, line: nil)
+        XCTAssertEqual(drawing.row, .on)
+        XCTAssertEqual(drawing.confirm, WriteAnswers.confirm)
+        XCTAssertEqual(drawing.glyph, "lock.open")
+        XCTAssertEqual(EndBarDrawing.glyph(.unasked), "lock.open")
+        XCTAssertEqual(drawing.line, Copy.sampleEndUnasked)
+        XCTAssertEqual(drawing.menuLabel, Copy.endSessionMenu)
+        // A line the press drew still wins over the kind's.
+        XCTAssertEqual(EndBarDrawing(offer: .offered(batch: true), confirm: WriteAnswers.confirm, kind: .unasked, phase: .idle, line: Copy.endNoAnswer).line, Copy.endNoAnswer)
+        let paired = EndBarDrawing(offer: .offered(batch: true), confirm: WriteAnswers.confirm, kind: .none, phase: .idle, line: nil)
+        XCTAssertEqual(paired.row, .off)
+        XCTAssertEqual(paired.line, Copy.endNeedsPasscode)
+        for kind in [OwnerKind.faceID, .touchID, .passcode] {
+            let other = EndBarDrawing(offer: .offered(batch: true), confirm: WriteAnswers.confirm, kind: kind, phase: .idle, line: nil)
+            XCTAssertNil(other.line, "\(kind) says a line before any press")
+            XCTAssertNotEqual(other.glyph, "lock.open", "\(kind) draws the open lock")
+        }
+    }
+
+    /// Clause (Phase 333.3, D12): with `.unasked` the press goes through the
+    /// SAME runner, inside the confirmed case, and its one write is sent once
+    /// the check confirms; End's press is not a separate path for the sample.
+    func testTheSamplesUnaskedEndSendsThroughTheRunner() async {
+        let writer = ScriptedWriter(ends: [WriteAnswers.done])
+        let owner = ScriptedOwnerCheck(kind: .unasked, answers: [.confirmed])
+        let registry = RunnerRecord()
+        let model = EndModel(sessionId: "s", writer: writer, ownerCheck: owner, registry: registry)
+        XCTAssertEqual(model.kind, .unasked)
+        model.press(WriteAnswers.confirm) { true }
+        await model.pressing?.value
+        let sent = await writer.endedIds
+        XCTAssertEqual(sent, ["s"])
+        XCTAssertEqual(owner.askedCount, 1, "End did not ask its check")
+        XCTAssertEqual(registry.made.count, 1, "the sample's End did not go through a registered runner")
+        XCTAssertNil(model.line)
+    }
+
     /// Clause: a session Tortie cannot see draws the row off with the door's
     /// own sentence under it; one End is not offered on draws no bar at all;
     /// and an offer without the Mac's words draws no row, so the phone never

@@ -171,10 +171,11 @@ final class SettingsTests: XCTestCase {
 
     /// Clause: the version line is the bundle's own version and build, a dash
     /// for either it does not say; and the app this test is hosted in is
-    /// 1.0.0, build 9 (Phase 337.3, set when it was rebased onto Phase
-    /// 333.1; build 8 was 333.1's, build/p3331/SPEC.md D26, the build
-    /// submitted to Beta App Review; build 7 was Phase 337's, build 6 Phase
-    /// 318's).
+    /// 1.0.0, build 10 (Phase 333.3's See a sample, build/p3333/SPEC.md D23;
+    /// build 9 was Phase 337.3's, set when it was rebased onto Phase 333.1,
+    /// and the build submitted to Beta App Review on 2026-10-09; build 8 was
+    /// 333.1's, build/p3331/SPEC.md D26; build 7 was Phase 337's, build 6
+    /// Phase 318's).
     func testTheVersionLine() {
         XCTAssertEqual(AppVersion.line(["CFBundleShortVersionString": "1.0.0", "CFBundleVersion": "4"]), "1.0.0 (4)")
         XCTAssertEqual(AppVersion.line(["CFBundleShortVersionString": "1.0.0"]), "1.0.0 (" + Copy.dash + ")")
@@ -182,7 +183,7 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(AppVersion.line(["CFBundleShortVersionString": "", "CFBundleVersion": 4]), Copy.dash + " (" + Copy.dash + ")")
         XCTAssertEqual(AppVersion.line(nil), Copy.dash + " (" + Copy.dash + ")")
         #if os(iOS)
-        XCTAssertEqual(AppVersion.line(Bundle.main.infoDictionary), "1.0.0 (9)", "the app these tests are hosted in is not 1.0.0 (9)")
+        XCTAssertEqual(AppVersion.line(Bundle.main.infoDictionary), "1.0.0 (10)", "the app these tests are hosted in is not 1.0.0 (10)")
         #endif
     }
 
@@ -220,5 +221,46 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(ID.settingsMacSiteName, "settings-mac-site-name")
         XCTAssertEqual(ID.settingsPrivacy, "settings-privacy")
         XCTAssertEqual(ID.settingsSupport, "settings-support")
+    }
+
+    /// Clause (Phase 333.3, D13, D18): which of Settings' own rows are drawn.
+    /// A paired phone draws Unpair and See a sample; inside the sample
+    /// neither is drawn, because Unpair there would forget a real pairing from
+    /// inside a made-up one, and Leave sample is in the bar above every page.
+    func testUnpairAndSeeASampleByWhereTheAppIs() {
+        let paired = SettingsRows(root: .reading)
+        XCTAssertTrue(paired.unpair, "a paired phone draws no Unpair")
+        XCTAssertTrue(paired.seeSample, "a paired phone draws no See a sample")
+        let sample = SettingsRows(root: .sample)
+        XCTAssertFalse(sample.unpair, "the sample draws Unpair")
+        XCTAssertFalse(sample.seeSample, "the sample draws See a sample")
+        XCTAssertFalse(SettingsRows(root: .pairing).seeSample)
+    }
+
+    /// Clause (Phase 333.3, D13, D18): the body draws Unpair and its line only
+    /// under `rows.unpair`, then See a sample only under `rows.seeSample`,
+    /// directly under them and above About; See a sample is a card row in
+    /// Unpair's shape whose press opens the app's sample, identified
+    /// `settings-see-sample`; and the facts are nil inside the sample. Read
+    /// from the source, because SwiftUI draws nothing in a unit test.
+    func testSeeASampleIsUnderUnpairAndTheSampleDrawsNoMac() throws {
+        let source = try StyleSource.text("ios/Tortie/Screens/SettingsScreen.swift")
+        let start = try XCTUnwrap(source.range(of: "    var body: some View {")).lowerBound
+        let end = try XCTUnwrap(source.range(of: "/// `Settings`, 28/34 semibold", range: start..<source.endIndex)).lowerBound
+        let body = String(source[start..<end])
+        let order = ["if rows.unpair {", "unpairRow", "ID.settingsUnpairLine", "if rows.seeSample {", "seeSampleRow", "aboutCard(drawing.version)"]
+        let places = try order.map { needle in
+            try XCTUnwrap(body.range(of: needle), "Settings' body does not draw \(needle)").lowerBound
+        }
+        XCTAssertEqual(places, places.sorted(), "See a sample is not drawn under Unpair and above About, each under its own row's rule")
+        XCTAssertTrue(source.contains("facts: app.inSample ? nil : app.reader?.facts,"), "Settings in the sample may draw a Mac")
+        let row = try XCTUnwrap(source.range(of: "private var seeSampleRow: some View {")).lowerBound
+        let drawn = String(source[row...].prefix(800))
+        for needle in ["Button(action: openSample)", "Copy.seeSample", "Chevron()", ".frame(height: Frame.linkRowHeight)", ".card()", "ID.settingsSeeSample"] {
+            XCTAssertTrue(drawn.contains(needle), "See a sample's row does not hold \(needle)")
+        }
+        let press = try XCTUnwrap(source.range(of: "    func openSample() {")).lowerBound
+        XCTAssertTrue(String(source[press...].prefix(80)).contains("app.openSample()"), "See a sample's press does not open the app's sample")
+        XCTAssertEqual(ID.settingsSeeSample, "settings-see-sample")
     }
 }
