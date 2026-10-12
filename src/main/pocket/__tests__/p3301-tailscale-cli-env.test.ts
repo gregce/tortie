@@ -30,7 +30,17 @@ const STATUS = JSON.stringify({
   BackendState: 'Running',
   CurrentTailnet: { Name: 'example.ts.net' },
   Self: { DNSName: 'p3301-mac.tail0000.ts.net.', CapMap: {} },
-  Peer: {}
+  // One other machine, online, so the Machines list has something to show
+  // only when the status was read: the window sentence would list nothing.
+  Peer: {
+    'nodekey:p3301': {
+      HostName: 'p3301-other',
+      DNSName: 'p3301-other.tail0000.ts.net.',
+      TailscaleIPs: ['100.64.0.2'],
+      OS: 'linux',
+      Online: true
+    }
+  }
 });
 
 let dir = '';
@@ -133,7 +143,9 @@ describe('Phase 330.1, the Tailscale program is told to answer as a command line
       alreadyAdded: []
     });
     expect(result.binary).toBe(program);
-    // It answered, and listed no other machines: the stand-in has no peers.
-    expect(result.note).toBe(TAILSCALE_EMPTY_NOTE);
+    // It answered and listed the one other machine; the window sentence would
+    // have listed none and drawn the empty note.
+    expect(result.note).toBeNull();
+    expect(result.peers.filter((p) => !p.isThisMac).map((p) => p.name)).toContain('p3301-other');
   });
 });
