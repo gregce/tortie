@@ -41712,6 +41712,407 @@ authorized connecting to it for the checking ("i authorize you to connect to it 
 - **No record of anything on the machine.** The record lives in this Mac's manifest only; another Mac keeps its own.
 - **No new window, menu or setting.** No surface moves, so the menus do not change.
 
+## Phase 333.12 — "a Mac update that adds a door route silently turns off every paired phone until Allow" — an update keeps every paired phone working, and only a new route waits for Allow (research 140 §7.3; research 141 §4.1; queued 2026-10-12)
+
+**Subject.** `feat(pocket): keep the door open across an update, and let only a new route wait for Allow`
+
+**First body line.** `Phase 333.12: an update that adds a route no longer switches a phone off`
+
+**Semver.** Minor, unreleased. What a person can now do: after a Tortie update that adds something the iPhone can do,
+every paired phone keeps reading, typing and getting alerts, and only the new thing waits for Allow in Settings then
+Phone; and (question 9's default) removing one phone no longer stops the others. Draft CHANGELOG items, written under
+`## Unreleased` by this phase: "A Tortie update that adds something your iPhone can do no longer switches the iPhone
+off: what you allowed keeps working, and only the new thing waits for Allow in Settings then Phone." and "Removing one
+phone in Settings then Phone no longer stops your other phones until you press Allow." The first is invisible until a
+later phase adds a route (346 is the first), so the release that carries it carries 346 or says nothing of it.
+
+**Tier 3.** It decides which requests from the internet are answered, which is refusal 8's ground, and whether every
+stranger's paired phone stays reachable across an update. Two independent methods, one an attack, and the parent
+measured at `v0.111.1`. It touches no tmux, manifest or session.
+
+**Charter.** Research 141 §4.1 (the judge's J36 to J44) and §2.3; research 140 §7.3, which said "333.12 is a research
+lane first" (research 141 is that lane); his answer of 2026-10-07 that 318.1 waits for 333.12 "so no stranger's paired
+phone is silently switched off by a Mac update" (`docs/BACKLOG.md:42862`); and his request of 2026-10-12, "the phone
+being able to start new sessions, as I believe that is the major missing piece" (Phase 346), which needs a new route
+and so cannot ship before this. Refusal 8 binds every clause: no route answers before a person at the Mac confirmed
+lines that name it, and the hash stays over what decides what runs.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **The route list is a hashed field, always this build's table.** `fields().routes` is `pocketRouteIds()`
+  (`src/main/pocket/ipc.ts:815`), sorted by `NORMALIZE.routes` (`src/main/pocket/pairing.ts:296`), hashed under
+  `sha256-pocket-exec-v3` (`:324`), named on the Allow lines (`:445`) with a clause per write (`WRITE_CLAUSES`,
+  `:410-415`).
+- **A moved hash shuts the whole door and the alerts.** `pocketConfirmStatus` reads `changed` (`pairing.ts:549-551`;
+  sentence `:506-512`); `mayOpen` refuses with one log line (`ipc.ts:1500-1512`); the launch's result is discarded
+  (`src/main/capabilities.ts:464`); "A MOVED FIELD NEVER RESTARTS" (`ipc.ts:1434`). `pushDestinations` and
+  `alertsCanSend` answer nothing unless confirmed (`ipc.ts:2318-2323`, `:2351-2355`). Pairing stops too: the pairing
+  Allow needs a listening door (`pairing.ts:1618-1625`).
+- **One list has ever been confirmed by a stranger.** The eleven routes of 0.111.0 and 0.111.1; `v0.110.0` has no
+  door; 0.111.1 changed only `funnel.ts`'s environment (research 141 §2.1). Their membership hash `ea5930e0…` equals R4's
+  pin (`build/conformance-pocket.mjs:951`) and `launch.wire.json`'s `routeMembership`.
+- **Three confirm paths confirm the whole field set today.** `confirmDoor` (`ipc.ts:2157-2190`); the alerts-off press,
+  which confirms itself when exactly one line moved (`src/renderer/settings/PhoneSection.tsx:1399-1415`); and the
+  pairing Allow, `confirmPocketDoor(next, consent)` (`pairing.ts:1626`), recording first and saving the phones second
+  (`:1626-1640`).
+- **Remove shuts the door for every other phone.** `removePhone` calls `forgetPocketDoor()` (`ipc.ts:2203-2216`,
+  `:2212`).
+- **The store can carry a new field without a migration.** `PocketStore` (`pairing.ts:704-739`) is sealed under its own
+  prefix (`:654`) and rebuilt field by field on read (`readPocketStore`, `:805-858`); `nameConfirmed` and
+  `deadPushTokens` were added this way. An older Mac drops an unknown field on its next write (`:830-858`).
+- **The door process is handed its pins** in `start` and `update` (`src/main/pocket/door/wire.ts:89-96`) and refuses an
+  unknown route with 404 `route` before the signature (`src/main/pocket/door/listener.ts:488-491`); main refuses the
+  same (`src/main/pocket/server.ts:176-181`).
+- **The gates that move.** SU6 holds "Keep today's block" (`build/conformance-pocket.mjs:312`). SU5 holds the eleven
+  routes and the v3 algorithm (`:10588`, `:11420`) and stays green, because this phase adds no route. The vitest at
+  `src/main/pocket/__tests__/pairing.test.ts:553-570` asserts that an added id moves the hash and is re-aimed, not
+  deleted. Editing `PhoneSection.tsx` triggers `conformance:machines` and `conformance:phonecopy`. The honesty sentence
+  is a fixed constant today (`src/shared/ipc/pocket.ts:1107`).
+- **What does not move.** The contract baseline holds no types (`docs/audits/contract-baseline.txt`), so it moves only if
+  a channel is added; reusing `pocket:confirmDoor` adds none.
+
+### The mechanism
+
+1. **`allowedRoutes` in the sealed store.** `PocketStore` gains `allowedRoutes`, read back whole or not at all by
+   `readPocketStore` and written only by `writePocketStore` (`src/main/pocket/pairing.ts:1032`), inside the seal. A
+   constant `LEGACY_ALLOWED_ROUTES` holds the eleven, and a gate holds it equal to `launch.wire.json`'s `routes`.
+2. **Two field sets, never confused.** `fields()` (`src/main/pocket/ipc.ts:806-819`) is what a record is checked against:
+   when a confirm record exists, its routes are `allowedRoutes`, or `LEGACY_ALLOWED_ROUTES` when the field is absent or
+   does not read back whole, and never `pocketRouteIds()`. A second function (the spec names it) is the PROPOSAL the
+   sheet shows when something waits: the allowed set plus this build's routes that are not in it. With no confirm
+   record at all, the proposal is the build's whole table, so a door set up for the first time allows every route at
+   its first Allow (J39).
+3. **What is served.** The routes both allowed and in this build. `ToDoor`'s `start` and `update` carry that set beside
+   `pins` (`src/main/pocket/door/wire.ts:89-96`); the door process refuses a route outside it with 404 `route` before the
+   body, as it refuses an unknown route today (`door/listener.ts:488-491`); main refuses the same in
+   `src/main/pocket/server.ts:176-181`. Main's last check before an act (`src/main/pocket/writes.ts:583-589`) and the read
+   path ask "is this route still allowed", not only "is this phone still paired", because the door process's copy can
+   lag. A removed route needs no prompt: the served set simply shrinks.
+4. **What the sheet shows.** `PocketStatus` (`src/shared/ipc/pocket.ts`) gains the waiting route ids and the proposal's
+   lines and hash. Settings then Phone (`src/renderer/settings/PhoneSection.tsx:844-870`, the `data-phone-confirm` block
+   at `:849`) draws the waiting lines inside today's confirm block with Allow, while the door stays published and alerts
+   flow. When nothing waits, the block is exactly today's (SU6, his ruling "Keep today's block"). Just enough words: the
+   waiting lines are the lines a route has always had, and no paragraph is added.
+5. **Three confirm paths, each named and held.**
+   - `confirmDoor` (`ipc.ts:2157-2190`) confirms the proposal its lines named and writes `allowedRoutes` to exactly the
+     routes those lines named: the record first, the store second, the pairing path's order and its stated safe
+     direction (`pairing.ts:1626-1640`). An Allow on a published door updates the door process with no restart.
+   - The pairing Allow (`pairing.ts:1626`) records over the CURRENT allowed set with the new phone, never the proposal.
+   - The alerts-off press (`PhoneSection.tsx:1399-1415`) records over the current allowed set with alerts off, never the
+     proposal. While a route waits, the spec decides whether it goes through a main-side path of its own or is refused in
+     the renderer; either way it can never widen the allowed set (question 10's default: only the Allow whose lines name
+     a route allows it).
+6. **The words follow the allowed set.** `POCKET_DOOR_HONESTY` (`src/shared/ipc/pocket.ts:1107`) becomes a composer over
+   the allowed set, byte for byte today's sentence for the eleven, and `describePocketDoor`'s clauses
+   (`pairing.ts:430-450`) read the set they are handed. `WRITE_CLAUSES` (`pairing.ts:410-415`) is add-only per id.
+7. **An allowed id never changes meaning.** A committed route ledger (the spec names its path) lists, per id ever shipped
+   to any build: method, path, signed, window only, body cap and Allow clause. A gate holds it add-only on every build
+   and holds the table to it. A digest per allowed id in the store was rejected because it would move the eleven's hash.
+8. **Remove confirms the narrower door (question 9).** In `removePhone` (`ipc.ts:2203-2216`), when the door read
+   confirmed before the press and the fields after differ from the fields before ONLY by that phone, the door records the
+   fields after with the press as its consent, and the other phones keep reading. Otherwise it withdraws as today. A
+   subtraction needs no second press ("a subtraction needs no human", `pairing.ts:724`).
+9. **The gates that move, on purpose.** `conformance:pocket` new rules: `fields()` never reads `pocketRouteIds()` when a
+   record exists; the legacy list equals the frozen launch routes; `allowedRoutes` is written only by `confirmDoor`, after
+   its record; both refusals sit before the body; the last check asks the allowed set; the honesty sentence and lines are
+   derived from it; the three confirm paths; the route ledger add-only. SU6 widens to "today's block, plus waiting lines
+   inside it". `conformance:pocket:hostile` gains a pending-route arm. gate:onlyadd's R2 and R5 drive a door set up with
+   the legacy allowed set, and a new clause checks that a launch-shaped store hashes, under today's `fields()`, to the
+   hash over the frozen routes. `ablation:p313` gains one arm per new rule.
+
+### The proof, run rather than read
+
+- **The gates** for these paths: `typecheck`, `build`, `vitest`, `smoke:t1`, `conformance:pocket`,
+  `conformance:pocket:hostile`, `gate:onlyadd`, `conformance:machines`, `conformance:phonecopy` and `conformance:push`,
+  then the full battery.
+- **The parent measured (method 1).** At `v0.111.1`, a clone with a planted twelfth route reads `changed`: the door
+  process and the Funnel child never start, the node phone (`build/p316/node-phone.mjs`) cannot reach the Mac, and
+  Phase 314's APNs stand-in records nothing.
+- **HEAD with the same planted route.** A profile paired at the parent is relaunched at HEAD with no press: the door
+  publishes, reads and keys answer, the APNs stand-in records alerts, and the planted route answers 404 `route` until
+  Allow and 200 after, with the same door and Funnel process ids. Control: a moved public name still shuts the door.
+  Remove one of two phones: the other keeps reading with no press.
+- **The attack (method 2).** Clone ablation, one arm per rule, each red on the rule that owns it. Each of the three
+  confirm paths is tried as a way to widen the allowed set. `allowedRoutes` deleted, emptied, given an unknown id, or
+  given a route this build does not have. A downgrade to `v0.111.1` and back reads `changed`, never wider.
+- **One app run** in the shape of `probe:p313`, with `P313_PARENT_CHECKOUT` at `v0.111.1`, the stand-in Tailscale behind
+  its preflight and sampler, the DNS stand-in, and the five agents' binaries renamed before each launch. No vendor
+  process, no token.
+- **One checklist row for him:** his real phone paired, then the 333.12 build installed over 0.111.1 on his real
+  Funnel, with Tortie opened from the Dock and not a shell (the 0.111.1 lesson on origin/main's running log). The phone
+  keeps reading with no press.
+
+### What is NOT in this phase
+
+- **No new route,** and no route's meaning moves. SU5 stays green.
+- **No key telling the phone which routes are offered.** 346 adds its own.
+- **No v4 hash, no per-route off switch, no last-seen time per phone.**
+- **No other field relaxes.** A new public name, tailnet, program, port, push switch or `bindAtLaunch` still shuts the
+  door until Allow, as today.
+- **No phone code,** so no phone build number moves. The phone's Allow line (`ios/Tortie/Style/Copy.swift:752`) stays
+  true for those fields.
+- **No change to 318.1.** It is re-read once this lands.
+- **No release.** No menu changes, because no surface is added or removed.
+
+## Phase 345 — "am I able to have my phone paired to more than one mac at a time?" … "Yes, I do" — one iPhone, several Macs (operator, 2026-10-12; research 141 §4.2)
+
+**Subject.** `feat(ios): pair one iPhone with several Macs`
+
+**First body line.** `Phase 345: one iPhone, several Macs`
+
+**Semver.** Minor, unreleased, phone only: the phone's build number moves to the next one after main's, and no Mac code
+changes. Draft CHANGELOG item, written under `## Unreleased`: "Pair your iPhone with more than one Mac: Needs input shows
+every Mac, Sessions shows one at a time, and each Mac has its own Unpair in Settings."
+
+**Tier 3.** It rewrites how the phone keeps its credentials (Keychain records and Secure Enclave client keys), and an
+upgrade must keep the existing pairing of every public phone. A mistake unpairs a stranger, or signs a read for the wrong
+Mac. Two independent methods, one an attack, plus a per-row matrix.
+
+**Charter.** His words of 2026-10-12: "am I able to have my phone paired to more than one mac at a time?", then "Yes,
+I do". Research 141 §4.2 (the judge's J1 to J12) and §2.2. Phase 316 deferred it: "more than one Mac per phone | Later,
+if asked" (`build/p316/SPEC.md:748`). His three rules: no scenario worse than today, so with one Mac kept every screen
+draws exactly as today; just enough words, so Mac names and the Mac menu appear only with two or more Macs.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **Nothing on the Mac changes.** Every pairing makes new keys (`ios/Tortie/Door/Pairing.swift:382-385`); the Mac
+  derives the phone's id and pin from them (`src/main/pocket/pairing.ts:1115-1130`) and allows 64 phones (`:1590-1600`);
+  the QR v:3 carries everything per Mac (`:1370-1381`); signatures are bound per pairing (`:1736-1760`). No route, no
+  hashed field, no QR or `/pair` change, so this does not wait for 333.12.
+- **One record, replaced.** Account `pairing-v2` (`ios/Tortie/Door/Keys.swift:471`) under `com.itavero.tortie.phone.door`
+  (`:417`); `save` replaces it (`:502-505`); a write removes then adds (`:448-455`).
+- **The hazard.** `load()` calls the global `forget()` on any record that does not decode (`Keys.swift:492-500`), and
+  `forget()` deletes every client key tag (`:518-524`).
+- **One reader.** `AppModel.reader` (`ios/Tortie/App/TortieApp.swift:192`, set at `:242`); `Route` carries no Mac
+  (`:143-155`); `destination` uses the one reader (`:778`); a refused list read is `.pairAgain`
+  (`ios/Tortie/Screens/DoorWords.swift:265-275`) and `lostPairing()` clears every model (`TortieApp.swift:324-338`);
+  `readKeptPairing()` swaps the root on return (`:419-423`); the DEBUG code is read only with no pairing kept
+  (`:225-249`); Unpair unregisters every alert (`:560-570`); the badge is one count (`:593-596`); three tabs, a fourth
+  refused (`:134-135`).
+- **Alerts reach only his phone.** Only a Mac with the key sends (`src/main/pocket/ipc.ts:2338-2355`); the phone offers
+  its address only to such a Mac and keeps `macSends` (`Pairing.swift:467-482`, `:531`).
+- **Names.** The first label of the public name (`DoorWords.swift:220-226`); Tailscale keeps names unique within one
+  tailnet only (https://tailscale.com/kb/1098/machine-names).
+- **What pins one pairing.** conformance:ios rules (n) and (x) (`build/conformance-ios.mjs:245-256`), (d) (`:1102`), (k)
+  (`:1588`), (aa) (`:365-370`), az5, `APP_SHARED_STATE` (`:13378-13385`) and (s) `PHONE_BUILD` (`:3077`);
+  `DoorKeychainTests.testThePairingStoreKeepsOnePairing`, `UnpairKeychainTests`, `UnpairTests`; probe:p316 R1 and U1
+  (`build/p316/probe-p316.mjs:79`, `:210`); `Copy.thisMac`'s note (`ios/Tortie/Style/Copy.swift:371-375`).
+  gate:onlyadd parses `SessionsChoices.swift` and `SessionsScreen.swift` (`launch.wire.json`, `read`).
+- **What it cannot change.** A session one Tortie started on another Mac shows only through the Tortie that started it,
+  because each adopts only ids its own manifest knows (`src/main/sessions/core.ts:2216-2236`;
+  `src/main/sessions/reconcile-plan.ts:302-324`). The identity invariant stays.
+
+### The mechanism
+
+1. **One Keychain item per Mac** (`ios/Tortie/Door/Keys.swift`). `pairing-v2` stays the first Mac's account, so an
+   older build still reads it. Further account names are made by the phone, never taken from a Mac. A new record is
+   saved after Allow and a first read, as today (`Pairing.swift:531-538`), and only then are an older record for the
+   same Mac (the same `dk`, or the same full public name) and its client key removed. Removal is per record and per tag.
+   A record that does not decode removes only itself. Orphaned client keys are swept, sparing a pairing in progress. The
+   cap is four Macs (question 4), refused at the pairing screen with one sentence.
+2. **A reader per Mac** (`ios/Tortie/App/TortieApp.swift`). `Route` carries its Mac; every read and write goes to the
+   reader that drew the row, never resolved by session id across Macs. `lostPairing()` becomes per Mac; the app goes to
+   Pairing only when no Mac is kept.
+3. **Needs input** has one section per Mac, in pairing order, each drawn as its answer arrives (reads side by side, each
+   bounded by the 15 s at `ios/Tortie/Door/DoorClient.swift:180`). A Mac with nothing waiting draws nothing. A Mac that
+   fails draws one line naming it and counts 0. Headers appear only with two or more Macs. The badge is a sum, through a
+   named entry under rule (k) or `DoorNumber`.
+4. **Sessions** shows one Mac at a time, through a menu on the title row (`ios/Tortie/Screens/SessionsScreen.swift:683-699`)
+   that appears only with two or more Macs. The choice is held in memory for the app's life and opens on the first Mac
+   paired; it is never a fourth stored word (rule (aa)). Filters stay that Mac's own. `Copy.thisMac` stays "This Mac"
+   inside one Mac's list.
+5. **Settings** (`ios/Tortie/Screens/SettingsScreen.swift:205-297`) has one row per Mac (its name and when it was
+   paired), opening that Mac's card with its own Unpair, and a "Pair another Mac" row whose pairing opens as a sheet over
+   the lists. With one Mac kept, today's card stays as it is, and the one new row is the only change.
+6. **Names.** The first label, or the full public name when two kept Macs share a first label.
+7. **Alerts, phone only.** `forgetAddress()` (`TortieApp.swift:567`) runs only when no kept pairing has `macSends`. An
+   alert tap asks only the kept pairings whose `macSends` is true: one, open there; several, open where exactly one
+   answers for that session id; otherwise open the list. Never a guess.
+8. **See a sample** (`leaveSample`, `TortieApp.swift:462-482`) returns to the lists when any Mac is kept.
+9. **A DEBUG seam** that hands a second pairing code while one is kept, inside `#if DEBUG`; rule (d)'s list
+   (`build/conformance-ios.mjs:1102`) and `test-ios.mjs --read-app` move with it.
+10. **The gates that move, on purpose:** rules (n), (x), (d), (k), az5, `APP_SHARED_STATE`, (s); the one-pairing tests,
+    rewritten to the per-Mac promise; `ablation:p316` arms for each moved clause; `conformance:phonecopy` for every new
+    word; gate:onlyadd's P0 still parsing both Sessions files.
+
+### The proof, run rather than read
+
+- **The gates:** `conformance:ios`, `ablation:p316`, `conformance:phonecopy`, `gate:onlyadd`, and `test:ios` on iOS 26.3
+  and the 18.3 floor, Debug and Release, with `--read-app` finding no DEBUG seam in Release.
+- **The parent measured (method 1).** The public build's app (build 10's commit, or the newest public build at the time)
+  installed on a Simulator and paired, then upgraded in place to HEAD: the pairing reads back and every screen draws as
+  before. probe:p316's R1 and U1 arms run unchanged with one Mac.
+- **The matrix (real door data),** with two doors on loopback, routed by TLS server name, each through its own stand-in
+  Tailscale: one Mac; two Macs; one asleep (its door stopped); Remove on one; Unpair one; re-pair one; one corrupt
+  record. Each row is read from the phone's drawn screens and from each door's own log of who asked.
+- **The attack (method 2).** A hostile second door that claims it sends alerts, shares the first label, refuses
+  everything, and answers yes to every session id. It may only ever touch its own section, never the other Mac's reads,
+  writes, keys or alerts.
+- **His checklist row:** his phone, upgraded from the public build, keeps its pairing, then pairs his second Mac.
+
+### What is NOT in this phase
+
+- **No Mac change, no route, no hashed field, no alert payload.** A collapse id per Mac, a Mac tag and a badge per Mac
+  are 345.1, mentioned and not queued (question 3).
+- **No sessions another Tortie started.** The identity invariant stays (question 1).
+- **No merged, sorted Sessions list, and no fourth tab.**
+- **No Start.** That is 346.
+- **No release.** One TestFlight build follows 345 and 346. Never beside 337.2 or 337.4, which share
+  `build/p316/probe-p316.mjs` and `ios/TortieUITests/P316DriveUITests.swift`.
+
+## Phase 346 — "the phone being able to start new sessions, as I believe that is the major missing piece" — start a session from the iPhone (operator, 2026-10-12; research 141 §4.3)
+
+**Subject.** `feat(pocket): start a session from the iPhone`
+
+**First body line.** `Phase 346: start a session from the phone`
+
+**Semver.** Minor, unreleased, Mac and phone; the phone's build number moves. Draft CHANGELOG item: "Start a session from
+the iPhone in any project open on your Mac, with your Mac's launch defaults; its terminal opens at once."
+
+**Tier 3.** It starts a process from a door on the public internet, under his login, and it is session lifecycle. It
+claims to work across every compiled agent and on other machines, so its evidence is a per-row matrix. Two independent
+methods, one an attack.
+
+**Charter.** His words of 2026-10-12: "I also want you to add an entry for the phone being able to start new sessions,
+as I believe that is the major missing piece." Research 141 §4.3 (the judge's J14 to J35), §2.4 to §2.6. It supersedes
+research 127's "Writes not in v1: … Create" (`docs/research/127-the-phone.md:790`), and the phase records that his
+request is what changed `conformance:pocket` R3's reason for `createSession` ("a write verb, and refusal 8: nothing may
+start a process", `build/conformance-pocket.mjs:1279`). Refusal 8 is about configuration; a start is his press. It waits
+for 333.12 (a new route must not switch phones off) and for 345 (a start names one Mac).
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **The one guarded create.** `GmuxCore.createSession` inside `ledger.admit('createSession', …)`
+  (`src/main/sessions/core.ts:3290-3293`). Restart builds a `CreateSessionInput` in main (`src/main/restart/restart.ts:157-182`).
+- **Slow creates.** PATH capture up to `PATH_CAPTURE_TIMEOUT_MS`, 10 s (`src/main/sessions/create-local.ts:303`;
+  `src/main/tmux/resolve.ts:128`), then a shell-variable probe when names are set (`create-local.ts:646-669`), against
+  the door's 15 s (`src/main/pocket/door/limits.ts:35`), after which the door cuts a forwarded write
+  (`src/main/pocket/door/listener.ts:543-556`).
+- **The fifth composer.** `create-local.ts:195-200` warns of it. The renderer alone holds the usable-machine refusal
+  (`src/renderer/state/sessions-slice.ts:1124-1160`), the name dedupe (`:1162-1172`) and `nextOrdinal` (`:464-472`),
+  used by `quickCreate` (`:1265-1303`), `src/renderer/settings/launch-agent.ts:52` and
+  `src/renderer/app/CreateSessionModal.tsx:738`, `:820`. Main already checks a machine's readiness
+  (`src/main/machines/remote-sessions.ts:1746-1749`).
+- **Flags.** `defaultLaunchArgs` keeps only verified presets the person turned on (`src/shared/settings.ts:1380-1397`);
+  a danger preset is sealed by the Settings window alone (`src/main/settings/store.ts:17-41`); 28 `danger: true`
+  presets (`src/main/agents/flags.ts`). pi runs tools unprompted (`flags.ts:496`), qwen's default Auto mode ran every
+  command (`src/main/agents/registry.ts:1445-1447`).
+- **Offering agents must start nothing.** `getUserPath()`'s first call starts a login shell
+  (`src/main/tmux/resolve.ts:774-780`), and `resolveBinary` waits on it (`:1270-1276`); `listDetectedAgents()` starts
+  the version scan (`src/main/agents/detection.ts:678-681`); `peekDetectedAgents()` (`:719-728`) and
+  `resolveBinaryAgainst` (`resolve.ts:1204-1220`) start nothing; no synchronous accessor returns the captured PATH
+  today (`userPathSource()`, `:761-763`, says only whether one settled). Another machine's agents are held in memory,
+  only `absent` greying one (`src/main/machines/machine-agents.ts:1-30`).
+- **The write path.** Seven steps (`src/main/pocket/writes.ts:1-60`); the ledger keyed on phone, verb and write id
+  (`:23-28`), 120 s (`:101`), memory only (`:62-63`); one in flight per phone and per session (`:569-575`); a session id
+  may be `start:<uuid>` (`:124-125`). Connections, not requests, are capped (`door/limits.ts:21-23`). The frozen
+  `PocketWriteAnswer.Verb` is `choose, end, keys, say` and its `Reason` twelve words (`launch.wire.json`, `types`);
+  `verb` is typed by `POCKET_WRITE_ROUTE_IDS` (`src/shared/ipc/pocket.ts:139`, `:707-708`); gate:onlyadd A3 refuses a
+  word the frozen phone refuses (`build/assert-door-only-adds.mjs:938-944`, `:1029-1030`).
+- **The gates refuse it today.** R3 (`build/conformance-pocket.mjs:1279`, over `src/main/pocket/**` only,
+  `:1326-1343`); X5 (`:6166-6186`).
+- **What a phone can already do.** Keys into any live session (`src/main/screen/keys.ts:108-113`); `!` and `/` pass in a
+  message (`src/main/reply/text-rules.ts:18-19`). Face ID asks only for End (`ios/Tortie/App/OwnerCheck.swift:1-6`), and
+  End passes the Mac's `confirmLabel` to iOS's prompt (`ios/Tortie/Screens/EndBar.swift:254`).
+- **The new session can be shown at once.** A local row is `running` before tmux exists
+  (`src/main/sessions/launch-plan.ts:443`); `screenLive` offers its terminal (`src/main/pocket/routes.ts:892`); a remote
+  create returns after the machine's list (`remote-sessions.ts:2069`, `:2086`).
+
+### The mechanism
+
+1. **Two signed routes** in `src/main/pocket/door/table.ts`: a read, the offer, and a write, the start, alive outside any
+   pairing window, its cap about 512 in `POCKET_WRITE_BODY_CAPS` (`src/main/pocket/door/limits.ts:77`). Both wait for
+   Allow under 333.12, with an Allow clause that names the reach to other machines; the route ledger gains both rows.
+2. **The contract** (`src/shared/ipc/pocket.ts`). `start` joins `POCKET_WRITE_ROUTE_IDS` (`:139`), because R2 ties the
+   table's write rows to it. `PocketWriteAnswer.verb` (`:707-708`) is narrowed to the frozen four. A new
+   `PocketStartAnswer` carries the write id, the outcome, a reason, the Mac's sentence, and the new session's id and
+   name. An optional key on the `/v1/sessions` answer says starting is offered here, which gate:onlyadd allows
+   (`build/assert-door-only-adds.mjs:14-19`).
+3. **The body** is exactly `{agent, project, write}`, read one character at a time as End's is (`src/main/pocket/writes.ts`).
+   `agent` is compared with `===` against `LAUNCHABLE_AGENT_IDS` (`src/main/agents/registry.ts:2028`): never `shell`
+   (question 7), never a row only `agents.json` holds. `project` is a project id.
+4. **The offer** answers the projects open on that Mac (`src/main/manifest/projects-repository.ts:153-159`), each with
+   its name, folder and machine; the agents found WITHOUT starting anything, from `peekDetectedAgents()`, from
+   `resolveBinaryAgainst` over a PATH already captured (through a new synchronous accessor in
+   `src/main/tmux/resolve.ts` that answers null before the first capture settled), and for another machine from
+   `machine-agents.ts`'s answer; `settings.defaultAgent` (`src/shared/settings.ts:29`); and, per agent, the label of a
+   sealed safeguard-off default that would apply. It names no `listDetectedAgents`, `rescanAgents`, `getUserPath`,
+   `installUserPath` or spawn.
+5. **The act** lives in one new module outside the door (for example `src/main/sessions/pocket-start.ts`), reached by a
+   pass-through `start` in `createPocketWrites` (`src/main/sessions/pocket-writes.ts`), as `src/main/reply/` and
+   `src/main/screen/` are. It re-reads the project row by id, the agent's offer and, for another machine, its readiness;
+   builds `CreateSessionInput` as Restart does (`src/main/restart/restart.ts:157-182`): `projectPath` and
+   `projectMachineId` from the row, `extraArgs` from `defaultLaunchArgs(agent, getSettings(), getFlagCatalogViews())`,
+   `capture` from `captureDefaultFor` (`src/shared/settings.ts:872-880`), the name `<agent>-<n>` from the shared
+   ordinal and dedupe; calls `createSession`; tells failures apart by error code only; and sets no status. It never takes
+   from the phone a path, working folder, arguments, environment, name, login, `signIn`, `startAnyway`, first prompt,
+   machine id, folder creation or worktree. `AGENT_INTERPRETER_MISSING` is refused with a sentence, because Start it
+   anyway stays on the Mac.
+6. **One rule for names.** `nextOrdinal` and the dedupe move to `src/shared/`, called by `quickCreate`,
+   `launch-agent.ts:52`, `CreateSessionModal.tsx:738` and `:820`, and the new module (`conformance:manager`,
+   `conformance:machines`).
+7. **Limits on the Mac, each declared once.** One start in flight per Mac across all phones; a per-phone rate limit;
+   starts in a set of their own, never keyed inside `sessionsInFlight` (`writes.ts:569-575`). The spec measures real
+   create times first and sets the numbers. No ceiling on live sessions.
+8. **A lost answer.** The phone keeps the write id 60 s and sends the SAME id on Try again, only after it has re-read
+   Sessions; the ledger answers `busy` marked `acted` while the start runs and the recorded answer after
+   (`writes.ts:548-562`). Stated limit: the ledger is memory, so a Mac that relaunches between a cut answer and Try again
+   can start a second session, which Tortie never ends.
+9. **The gates, on purpose.** R3 gains an entry forbidding the new module by name inside the door, and its reason for
+   `createSession` is reworded with his request named; X5 gains `start` as one pass-through call; a new rule family holds
+   the module (the body's two ids the only phone bytes reaching the input, read by the syntax tree and a hostile corpus;
+   no spawn in the offer; codes only; no status setter; the limits declared once). R2 and R4's pin move; X1 to X12 widen;
+   SU5's route clause retires on purpose, naming this phase. conformance:ios (ab), (ac), (ad), (ag), (t), (v), (s) and
+   az7 widen. `gate:contract` moves only if a channel is added.
+10. **The phone.** "+" on the Sessions title row (`ios/Tortie/Screens/SessionsScreen.swift:683-699`), only when the
+    Mac's key says starting is offered; nothing drawn while it waits for Allow. A sheet: Project (preselected by the
+    spec's measured rule), Agent (the Mac's default), one line for a sealed default, Create. Face ID on every Start, with
+    a fixed string the phone owns and a fresh context (`ios/Tortie/App/OwnerCheck.swift`). A `StartRunner` modelled on
+    End's (`ios/Tortie/Screens/EndBar.swift`): made at the press, registered, stopped when the app goes away, never
+    retried by itself. Done opens the new session's terminal. A refusal keeps the sheet with the Mac's sentence. No
+    answer says "Your Mac did not answer. If it started the session, it is in Sessions." and reads Sessions again.
+    Nothing else reaches Start: no URL scheme, App Intent, widget or notification action. See a sample shows New
+    session, with Create saying nothing ran (question 11), through the Mac's shipping composer (rule az7).
+11. **Release obligations.** The Mac release that carries 346 carries 333.12 or ships after it, beside the phone build
+    that calls Start. At that release a second frozen set is taken and `FROZEN_SETS_FLOOR` raised
+    (`build/assert-door-only-adds.mjs:141`). The review notes say what Start does (guideline 2.3.1(a)).
+12. **The menus.** Start adds a phone surface and no Mac surface, so the Mac's native menus do not change; the spec says
+    so in the brief.
+
+### The proof, run rather than read
+
+- **The gates:** `conformance:pocket`, `conformance:pocket:hostile`, `ablation:p313`, `gate:onlyadd`,
+  `conformance:manager`, `conformance:machines`, `conformance:ios`, `ablation:p316`, `conformance:phonecopy`,
+  `test:ios` on 26.3 and 18.3, and the full battery. `HELPER_USER_FLOOR` raised in the same commit if a new probe reaches
+  `build/electron-run.mjs`.
+- **Re-derive (method 1).** The `CreateSessionInput` main builds equals `quickCreate`'s byte for byte for every compiled
+  agent, local and remote, over settings fixtures with and without sealed defaults and capture.
+- **The attack (method 2).** A hostile phone: malformed bodies, extra keys, an `agents.json`-only id, `shell`, a
+  project id from another Mac, replays, a cut answer sent again, a flood against every limit, a closed tab, a machine
+  that is not ready. Clone ablation, one arm per new rule.
+- **The parent measured.** At the parent the start route answers 404 `route`, and nothing is forwarded.
+- **The app run.** One Electron at HEAD on a loopback machine (`build/with-scratch-machine.mjs`), two node phones,
+  stand-in agents (`build/p318/stand-in.mjs`), the stand-in Tailscale and the DNS stand-in, five agents' binaries renamed
+  first. It measures create times (cold, warm, with and without shell variable names, local and remote) before the
+  limits and the no-answer words are fixed, and starts on each, reading every new session from main and its terminal
+  from the door. No vendor process, no token.
+- **Real agents, a matrix.** Each compiled agent that is installed, started only as far as its first screen under a
+  scratch HOME. Never qwen, agy or grok.
+- **The phone.** A `start` group in `probe:p316` on 26.3 and 18.3, Face ID answered from the host by `handle.biometry`,
+  the no-answer case driven by a relay that holds the answer.
+
+### What is NOT in this phase
+
+- **No Shell** (question 7), and no free command line.
+- **No typed folder, recent folders, folder creation, worktree or clone.**
+- **No first prompt, no flag, no login and no name chosen on the phone.**
+- **No Mac switch inside the sheet.** Sessions' own Mac decides (Phase 345).
+- **No "New session here" in the terminal's ⋯.** A later phase, if asked.
+- **No ceiling on live sessions, and nothing ends a session.** A start that ran twice is ended by him, never by Tortie.
+- **No change to End, keys or a message,** or to Face ID's scope beyond adding Start.
+- **No URL scheme, App Intent, widget or notification action.**
+- **No release by itself.**
+
 ---
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
@@ -42928,3 +43329,5 @@ cycle rather than only the evening it was written.
 - 2026-10-12, **LAUNCH DAY: TORTIE 0.111.0 PUBLISHED AND THE iPHONE PUBLIC BETA LIVE (Phase 333.7).** Apple approved phone build 9 for the external group Public; he made the public link (https://testflight.apple.com/join/HtMtBRFh) and said "get all of this live". 0.111.0 published as Latest at 14:41 UTC (`0e667e04`, carrying 344). tortie.sh (`5efa831b`, deployed): `/iphone` and `/iphone/` 307 to the link, the only place it lives; a grey "Get the iPhone beta" under the hero's macOS action (beside it had no room in the 300 px column, so the macOS button keeps its exact rectangle) and "Tortie for iPhone · Join the beta" in Download, the macOS action the one blue action and the navigation unchanged, read at 320 to 1440 px with no horizontal scroll; a tight "Your iPhone" docs page; Remote machines and every write-root, "early" and Linux-untested sentence corrected; llms.txt, structured data and the comparison row name iOS; site:verify asserts the redirect, one blue action and no direct TestFlight link. README (`25bc4ef7`): the tagline, a "Join the beta on TestFlight" button, "Tortie for iPhone (beta)", "On your iPhone (beta)" under Install, and "Remote machines" without "(early)". The repo description gained "with an iPhone app" and the `ios` and `iphone` topics. Issues #31, #35 and #36 closed with notes; #33 and #32 noted as partly fixed and left open. REMINDER: build 9 was uploaded on 9 October and stops working about 7 January 2027, so a newer approved build must reach Public by about 23 December; build 10 (See a sample) resets it. Next: 333.4, then build 10 and the App Store submission.
 
 - 2026-10-12, **HOTFIX: PHASE 330.1 LANDED (`3cece73e`) AND TORTIE 0.111.1 PUBLISHED AS LATEST (15:49 UTC), at his word ("fix it immediately", "we need to get this hotfix out immediately and released").** His report an hour after launch, on the released 0.111.0: Settings then Phone said "Tortie could not read what Tailscale answered, so it published nothing." The program inside Tailscale's macOS app answers as a command line only when its environment carries TAILSCALE_BE_CLI=1, TERM or SHLVL; a Tortie opened from the Dock or Finder has none, so it read "The Tailscale GUI failed to start" where the status should be. Every development build and test was started from a shell (SHLVL) and every probe used the stand-in, so nothing before launch saw it; Settings then Machines' tailnet list had been empty from the Dock since at least 0.100.0 for the same reason. Every run of the program (the door's status and serve reads, the Funnel child, the Machines list) now gets tailscaleCliEnv(). Measured on his Mac with no shell between node and Tailscale: 0.111.0's code "unreadable", 0.111.1's reads the tailnet; an independent verifier re-measured both and approved, and its two minor findings were fixed after (`c3710e45`, the list test made able to fail; `b9bb3f1c`, the notes no longer say the list "works again"; `a3e6f8c0`, an unused import that turned main's gates red). Gates green, the release lane green (run 38270779449). tortie.sh (`5f088dc`) and the README now say Tortie 0.111.1 or later. LESSON, for every later phone or Tailscale phase: a probe of the Tailscale path must also run the real program once with no shell between Tortie and it, or the stand-in must refuse to answer without the variable, as the real program does.
+
+- 2026-10-12, **RESEARCH 141 LANDED — several Macs on one iPhone, and starting a session from it, `docs/research/141-several-macs-and-starting-sessions-from-the-phone.md`** (his questions of 12 October: "am I able to have my phone paired to more than one mac at a time?" then "Yes, I do", and "the phone being able to start new sessions, as I believe that is the major missing piece"; run as a research phase at his word, four investigators, three adversaries, a judge; nothing started, nothing committed). It recommends both, in three phases, and QUEUES THEM WITH FULL SECTIONS above this log, in build order: **333.12** (Mac, Tier 3): a Mac update keeps every paired phone working and only a new route waits for Allow, because today any added route switches every phone and its alerts off, so the only way back after an update that adds Start would be to allow Start too; the hash keeps `routes` but they become the routes a person allowed, stored sealed, and a 0.111.x store hashes byte for byte as before, so the fixing update switches nobody off; Remove on one phone stops darkening the others. **345** (phone only, Tier 3): one iPhone, several Macs, needing no route, hashed field, QR or Mac change, so it builds beside 333.12; Needs input shows every Mac, Sessions one Mac at a time, a Settings row and Unpair per Mac, and with one Mac every screen is today's but for a "Pair another Mac" row. **346** (both, Tier 3), after both: a "+" on Sessions, Project and Agent, Create behind Face ID; main builds the session exactly as the Mac's one-press create, and the phone sends no folder, flag, name, command or login. Order: 333.11.1 beside 333.4; then 333.12 beside 345; then 346; 318.1 re-read after 333.12 (as written it sends through `/v1/say` and adds no route); never beside 337.2 or 337.4; no release from these, one TestFlight build after 345 and 346. **345.1** (alerts from a second Mac holding the push key) is MENTIONED, not queued. Stated, not fixed: the far Mac's own Tortie never shows sessions another Tortie started there (the identity invariant); a token Apple rejected stays dead on that Mac. NOTE FOR THE MERGE: origin/main holds 0.111.1's line after launch day, so this line goes below it. **Eleven questions wait on him**, each with a default: (1) a second desk running its own Tortie, its limit said plainly, yes; (2) Needs input every Mac, Sessions one at a time, yes; (3) a second Mac holding the alert key, not now; (4) Macs per phone, 4; (5) Face ID on every Start, yes; (6) a phone Start uses the Mac's sealed launch defaults, shown as one line, yes; (7) Shell in Start, no; (8) remote projects in Start's first build, yes; (9) Remove keeps the other phones working, yes; (10) a pairing Allow allowing a waiting route, never; (11) See a sample shows New session, yes.
