@@ -16,7 +16,7 @@ This release fixes setting up the iPhone app from Tortie for Mac. In 0.111.0, To
 
 ### Fixed
 
-- Settings then Phone now reads Tailscale and publishes your Mac for your iPhone when Tortie is opened from the Dock or Finder, where 0.111.0 said it could not read what Tailscale answered and published nothing; choosing a machine from your tailnet in Settings then Machines works again too
+- Settings then Phone now reads Tailscale and publishes your Mac for your iPhone when Tortie is opened from the Dock or Finder, where 0.111.0 said it could not read what Tailscale answered and published nothing; choosing a machine from your tailnet in Settings then Machines works again too ([`3cece73e`](https://github.com/gregce/tortie/commit/3cece73e))
 
 ## 0.111.0 (2026-10-11)
 

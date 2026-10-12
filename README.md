@@ -154,7 +154,7 @@ Your sessions keep running on your Mac. The iPhone app lets you check on them an
 - **Catch up, then end it.** Read what a session said and where it stands, and end one or several sessions behind Face ID, Touch ID or your passcode.
 - **No account and no server of ours.** You pair once by scanning a code in Tortie on your Mac. The app then talks only to that Mac, through Tailscale on it, encrypted from your phone to your Mac. It collects nothing ([privacy](https://tortie.sh/privacy)).
 
-You need an Apple silicon Mac running Tortie 0.111 or later, awake with Tortie open, with [Tailscale](https://tailscale.com) signed in, and an iPhone on iOS 18.1 or later. [Join the beta on TestFlight →](https://tortie.sh/iphone)
+You need an Apple silicon Mac running Tortie 0.111.1 or later, awake with Tortie open, with [Tailscale](https://tailscale.com) signed in, and an iPhone on iOS 18.1 or later. [Join the beta on TestFlight →](https://tortie.sh/iphone)
 
 ## Other features
 
