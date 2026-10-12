@@ -10,6 +10,14 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 - Tortie for iPhone now has See a sample, on its first screen and in Settings: made-up Claude Code and Codex sessions you can open, scroll back, type into, answer and end before you pair a Mac, with every page marked Sample and nothing leaving the phone. What you type there only appears on the sample's own prompt, and Leave sample takes you back ([`ad317f86`](https://github.com/gregce/tortie/commit/ad317f86))
 
+## 0.111.1 (2026-10-12)
+
+This release fixes setting up the iPhone app from Tortie for Mac. In 0.111.0, Tortie opened from the Dock or Finder could not read Tailscale, so it could not publish your Mac for your phone or list your tailnet's machines.
+
+### Fixed
+
+- Settings then Phone now reads Tailscale and publishes your Mac for your iPhone when Tortie is opened from the Dock or Finder, where 0.111.0 said it could not read what Tailscale answered and published nothing; choosing a machine from your tailnet in Settings then Machines works again too
+
 ## 0.111.0 (2026-10-11)
 
 This release brings Tortie to your iPhone and to more of your machines. Tortie for iPhone, in public beta through TestFlight, lists your sessions with the ones waiting on you first, opens each one's terminal, answers its questions and ends it, through the Tailscale already on your Mac. Sessions on another machine now scroll back, save and commit as they do on your Mac, and Ubuntu and Debian machines can be added with the tmux they already have.

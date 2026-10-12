@@ -79,6 +79,7 @@ import {
   TAILSCALE_DEADLINE_MS,
   TAILSCALE_MAX_OUTPUT,
   resolveTailscale,
+  tailscaleCliEnv,
   type TailscaleResolution
 } from '../machines/tailscale';
 
@@ -293,7 +294,9 @@ export function defaultFunnelDeps(): FunnelDeps {
       spawnChild(file, [...args], {
         shell: false,
         stdio: ['ignore', 'pipe', 'pipe'],
-        detached: false
+        detached: false,
+        // Phase 330.1: the Funnel child is the same program, told the same thing.
+        env: tailscaleCliEnv(process.env)
       }),
     ps: psReal,
     kill: (pid, signal) => {
@@ -811,7 +814,11 @@ function execRefusal(result: FunnelExecResult): PocketFunnelRefusal {
 export async function readTailnet(deps: FunnelDeps): Promise<TailnetRead> {
   const program = funnelProgramOf(deps.resolve());
   if (!program.ok) return { ok: false, reason: program.reason };
-  const status = await deps.exec(program.path, ['status', '--json', '--peers=false']);
+  // Phase 330.1: told to answer as a command line, or the app's program prints
+  // a sentence about its window where the status should be.
+  const status = await deps.exec(program.path, ['status', '--json', '--peers=false'], {
+    env: tailscaleCliEnv(process.env)
+  });
   const facts = parseTailnetStatus(status.stdout);
   if (!facts.ok) {
     // A program that could not answer at all says why better than its stdout.
@@ -837,7 +844,9 @@ export async function readServe(
   deps: FunnelDeps,
   program: string
 ): Promise<ServeConfigLike | null | undefined> {
-  const served = await deps.exec(program, ['serve', 'status', '--json']);
+  const served = await deps.exec(program, ['serve', 'status', '--json'], {
+    env: tailscaleCliEnv(process.env)
+  });
   if (served.failed) return undefined;
   return parseServeStatus(served.stdout);
 }

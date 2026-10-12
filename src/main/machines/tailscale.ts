@@ -72,6 +72,32 @@ export const TAILSCALE_DEADLINE_MS = 5_000;
 /** The most output Tortie will buffer from it. */
 export const TAILSCALE_MAX_OUTPUT = 4 * 1024 * 1024;
 
+/**
+ * THE VARIABLE THAT MAKES TAILSCALE'S APP ANSWER AS ITS COMMAND LINE (Phase
+ * 330.1). The program inside the Tailscale app answers as a command line only
+ * when its environment looks like a shell's: `TAILSCALE_BE_CLI=1`, a
+ * terminal's `TERM`, or a shell's `SHLVL`. Without any of them it tries to open
+ * Tailscale's window, fails, and prints "The Tailscale GUI failed to start" on
+ * stdout with exit status 0. A Tortie opened from the Dock or Finder has none,
+ * so 0.111.0 read that sentence where it expected the status and said it could
+ * not read what Tailscale answered; a development build started from a shell
+ * always had `SHLVL`, and so did every test run from one. Measured on his Mac on
+ * 2026-10-12 with Tailscale 1.102.4, the program run by node with no shell
+ * between: `{HOME}` alone gives the sentence, `{HOME, SHLVL}` and
+ * `{HOME, TAILSCALE_BE_CLI=1}` give the status. Homebrew's and the standalone
+ * command line ignore the variable.
+ */
+export const TAILSCALE_CLI_VARIABLE = 'TAILSCALE_BE_CLI';
+
+/**
+ * The environment every run of the Tailscale program gets: the base, unchanged
+ * and not mutated, with {@link TAILSCALE_CLI_VARIABLE} set to `1`. Every
+ * `execFile` and `spawn` of the program passes it.
+ */
+export function tailscaleCliEnv(base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  return { ...base, [TAILSCALE_CLI_VARIABLE]: '1' };
+}
+
 /** The Tailscale app's bundle, which Open Tailscale opens (Phase 333.1, D13). */
 export const TAILSCALE_APP_BUNDLE = '/Applications/Tailscale.app';
 
@@ -292,7 +318,9 @@ function runTailscale(path: string): Promise<{ stdout: string; error: string }> 
         maxBuffer: TAILSCALE_MAX_OUTPUT,
         // No shell, so nothing in the environment can change what runs.
         shell: false,
-        encoding: 'utf8'
+        encoding: 'utf8',
+        // Phase 330.1: the app's program answers as a command line only when told.
+        env: tailscaleCliEnv(process.env)
       },
       (err, stdout) => {
         resolve({ stdout: stdout, error: err === null ? '' : err.message });
