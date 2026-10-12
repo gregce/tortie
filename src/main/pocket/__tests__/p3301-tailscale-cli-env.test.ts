@@ -18,7 +18,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   TAILSCALE_CLI_VARIABLE,
-  TAILSCALE_EMPTY_NOTE,
   readTailnetMachines,
   tailscaleCliEnv
 } from '../../machines/tailscale';
