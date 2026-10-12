@@ -4,11 +4,14 @@
 
 <h1 align="center">Tortie</h1>
 
-<p align="center"><b>A calm agent multiplexer with familiar IDE features, for macOS.</b></p>
+<p align="center"><b>A calm agent multiplexer with familiar IDE features, for macOS, with an iPhone app.</b></p>
 
 <p align="center">
   <a href="https://github.com/gregce/tortie/releases/latest">
     <img src="https://img.shields.io/badge/Download_for_macOS-Apple_silicon-4D9DE8?style=for-the-badge&logo=apple&logoColor=white" alt="Download for macOS" />
+  </a>
+  <a href="https://tortie.sh/iphone">
+    <img src="https://img.shields.io/badge/Tortie_for_iPhone-Join_the_beta_on_TestFlight-2A2E36?style=for-the-badge" alt="Tortie for iPhone: join the beta on TestFlight" />
   </a>
   <a href="https://tortie.sh">
     <img src="https://img.shields.io/badge/Tortie.sh_website-2A2E36?style=for-the-badge" alt="Tortie.sh website" />
@@ -141,6 +144,18 @@ Tortie includes **13 built-in CLI agent profiles** you can run in durable sessio
 
 Need another CLI? [Add it with one JSON file](https://github.com/gregce/tortie/blob/main/resources/config/README.md)—no rebuild required. Tortie asks before a new definition starts a process. The bundled SpecStory integration can capture supported conversations as Markdown.
 
+## Tortie for iPhone (beta)
+
+Your sessions keep running on your Mac. The iPhone app lets you check on them and answer them when you are away from it.
+
+- **See what needs you.** Every session on your Mac, with the ones waiting on you first, grouped by project.
+- **Open a session's terminal.** Scroll back through what it printed and type into it, with keys for Esc, Tab, the arrows, Control and Return. Turn the phone sideways to see the terminal alone.
+- **Answer with a tap.** A numbered question from Claude Code or Codex gets one button per answer, and you can send an idle session a message as if you had typed it at your Mac.
+- **Catch up, then end it.** Read what a session said and where it stands, and end one or several sessions behind Face ID, Touch ID or your passcode.
+- **No account and no server of ours.** You pair once by scanning a code in Tortie on your Mac. The app then talks only to that Mac, through Tailscale on it, encrypted from your phone to your Mac. It collects nothing ([privacy](https://tortie.sh/privacy)).
+
+You need an Apple silicon Mac running Tortie 0.111 or later, awake with Tortie open, with [Tailscale](https://tailscale.com) signed in, and an iPhone on iOS 18.1 or later. [Join the beta on TestFlight →](https://tortie.sh/iphone)
+
 ## Other features
 
 ### Familiar IDE features
@@ -153,14 +168,14 @@ Need another CLI? [Add it with one JSON file](https://github.com/gregce/tortie/b
 - **Read an agent's prose edits as a redline.** Open a Markdown or text file in the Redline tab and every change since the last commit is marked up in place, the way you would mark up a document. For a file git does not know, it marks everything since you opened it. It redraws itself when an agent writes to the file. Point at one change, press a key, and that phrase alone goes back while every other edit stands — or accept them all. You can type in the redline too.
 - **Context for every agent.** See each agent's skills, MCP servers, hooks, plugins and instruction files, and install skills through Skills.sh.
 
-### Remote machines (early)
+### Remote machines
 
-- **Open a folder on another Mac as a project tab.** Add the machine in Settings. Tailscale works out of the box. The file tree, search, `⌘P`, Git sidebar and GitHub Actions runs all read from that machine.
-- **Run agents there.** Start a session on the machine, see what is already running, and get it back after a restart with its resume command waiting.
-- **Editing is off until you switch it on.** Pick one folder per machine in Settings. Tortie writes only under it. You get save, new folder and rename. There is no undo.
-- **Nothing gets installed over there.** Tortie uses that machine's tmux over ssh, and can make and install a key for you.
+- **Open a folder on another computer as a project tab.** Pick the machine from your tailnet or type its address in Settings, and Tortie signs in, finds tmux and sets the machine up with one Add. The file tree, search, `⌘P`, Git sidebar and GitHub Actions runs all read from that machine.
+- **Run agents there.** Start a session on the machine, see what is already running, scroll back through it as you would on your Mac, and get it back after a restart with its resume command waiting.
+- **Edit as you would locally.** Save, rename, make files and folders, stage and commit in any project you open there, with nothing to switch on. Tortie never writes in a home folder itself or inside `.git` or `.ssh`.
+- **Nothing gets installed over there.** Tortie uses that machine's own tmux over ssh, and can make and install a key for you.
 
-Early because it has only been tested against Macs. The machine needs ssh, Remote Login on and tmux. Nothing in the code turns a Linux host away and the scripts handle both BSD and GNU tools, so a Linux VM should work, but has not been fully tested.
+Works with Macs and with Ubuntu 22.04 and 24.04 and Debian 12 and 13, on the tmux they ship (3.2a or newer). The machine needs ssh, and on a Mac, Remote Login turned on.
 
 ## What Tortie does not do
 
@@ -176,6 +191,12 @@ own copy of tmux, so a fresh Mac needs no Homebrew and no command line setup.
 1. [Download the latest release](https://github.com/gregce/tortie/releases/latest) and open the DMG.
 2. Drag **Tortie** to Applications and open it.
 3. Point it at a project folder. A git repository gets the full sidebar; any folder works.
+
+### On your iPhone (beta)
+
+1. [Join the beta on TestFlight](https://tortie.sh/iphone) and install Tortie for iPhone.
+2. In Tortie on your Mac, open **Settings**, then **Phone**, and follow the three steps: get Tailscale, publish this Mac, and pair your phone. The first code can take a few minutes while your Mac's name reaches the internet.
+3. Scan the code with the app, check that the six groups match on both screens, and press **Allow** on your Mac.
 
 ## Built with
 
