@@ -12,11 +12,11 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ## 0.111.1 (2026-10-12)
 
-This release fixes setting up the iPhone app from Tortie for Mac. In 0.111.0, Tortie opened from the Dock or Finder could not read Tailscale, so it could not publish your Mac for your phone or list your tailnet's machines.
+This release fixes setting up the iPhone app from Tortie for Mac. Tortie opened from the Dock or Finder could not read Tailscale, so 0.111.0 could not publish your Mac for your phone, and Settings then Machines could not list your tailnet's machines.
 
 ### Fixed
 
-- Settings then Phone now reads Tailscale and publishes your Mac for your iPhone when Tortie is opened from the Dock or Finder, where 0.111.0 said it could not read what Tailscale answered and published nothing; choosing a machine from your tailnet in Settings then Machines works again too ([`3cece73e`](https://github.com/gregce/tortie/commit/3cece73e))
+- Settings then Phone now reads Tailscale and publishes your Mac for your iPhone when Tortie is opened from the Dock or Finder, where 0.111.0 said it could not read what Tailscale answered and published nothing; Settings then Machines now lists your tailnet's machines there too ([`3cece73e`](https://github.com/gregce/tortie/commit/3cece73e))
 
 ## 0.111.0 (2026-10-11)
 
