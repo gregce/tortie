@@ -42115,7 +42115,7 @@ for 333.12 (a new route must not switch phones off) and for 345 (a start names o
 
 ---
 
-## Phase 347 — "command+C deletes everything in the text box", "file links unclickable on broken lines" and "file buffer not updated by agent interactions in gitignored files" — three of John's bugs, fixed for the next release (operator, 2026-10-12; issues 41, 40 and 33)
+## Phase 347 — "command+C deletes everything in the text box", "file links unclickable on broken lines" and "file buffer not updated by agent interactions in gitignored files" — three of John's bugs, fixed for the next release (operator, 2026-10-12; issues 41, 40 and 33) ✅ LANDED `1c00cbc0` (issues 41 and 33; issue 40 moved to 347.1), 2026-10-13
 
 **Subject.** `fix(terminal): Cmd+C only copies, a wrapped path opens, and an ignored file updates while you watch`
 
@@ -42151,6 +42151,61 @@ for 333.12 (a new route must not switch phones off) and for 345 (a start names o
 - **No link for a path the doors would refuse whole**, and no change to which kinds of file open.
 - **No watching of ignored directories**, no change to the watcher's exclusion set or its cap, and nothing for files open from another machine.
 - **Not issues 39, 26, 32, 34, 23 or 14.**
+
+---
+
+## Phase 347.1 — "file links unclickable on broken lines" — a path broken over rows opens whole, and never moves a link that opens today (operator, 2026-10-13; issue 40)
+
+**Subject.** `fix(terminal): a file path broken over rows opens as one link`
+
+**First body line.** `Phase 347.1: a broken path opens whole`
+
+**Semver.** Patch.
+
+**Tier 2, plus the attack.** A rendered surface with no new state, but a link that opens the wrong file is the failure
+the path doors exist to prevent, so the verifier's independent method is the attack over corpora, not a reading.
+
+**Charter.** Issue 40 (John Berryman), taken out of Phase 347 by his ruling of 2026-10-13 ("Ship 41 + 33, redo 40")
+after its second needs_work. Phase 347 built a join over rows (`joinedPathAt` in `src/shared/path-spans.ts`, one
+`ILink` over every row in `src/renderer/terminal/path-links.ts`, rule 17 of `conformance:pathdoors`), and three
+reverifies found it re-pointed links the parent opened in narrow shapes: a relative folder after other words short of
+the edge (fixed by J8), the same folder heading a list item (fixed by J8 at the chain's top), and an absolute, `~/` or
+`-`-ending top above a list item the door accepts on its own (7,557 cells in 191 of 20,425 list layouts, open). The
+work is kept outside the tree at
+`~/.claude/projects/-Users-gdc-gmux/69469eba-62a7-4552-8d1e-1ba54287a99f/backups/p347-issue40-wip.patch` with its two
+test files and `p347-SPEC.md` (§4.2, D5 to D10, J1 to J8, L4, L11 to L13, and the three reverify sections).
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **Issue 40's rows are the agent's own break** (45/42/30 columns, breaks after `-` and `/`), not a soft wrap; Codex
+  0.160.0 breaks the same way. `isWrapped` is wrong after reflow (research 115) and is never read.
+- **The corpora exist and were run against the parent `af2662e6`:** a 44,200-layout prose corpus, a 3,663-layout real
+  capture corpus and a 20,425-layout list corpus from the repository's own paths under every gutter, each with an
+  existence door and a files-only door (the shipping `decidePathDoor` refuses a directory). With J8 at the chain's top,
+  prose and captures read 0 parent-right-HEAD-wrong cells; the list corpus reads 7,557 with the existence door and 0
+  with the files-only door, all on the LOWER row's links.
+
+### The mechanism
+
+1. **Re-apply the kept work** (the patch, the two test files, rule 17, the probe's P1 to P6 arms, `build/p247/path-open.mjs`'s
+   arm E) onto the tree of the day, and re-measure before deciding anything.
+2. **One governing rule, the reverifier's: a join never takes a cell from a row span the door already accepts**, judged
+   over every row of the chain, so no link that opens today can move. J1 to J8 stay as the shape rules; this one is the
+   guarantee, and it replaces any further shape-by-shape patching.
+3. **Measured on the files-only door the product ships**, with the existence door reported beside it.
+
+### The proof, run rather than read
+
+- **The three corpora at the parent and HEAD**: 0 cells where the parent opened a file and HEAD opens a different one or
+  none, on every corpus and both doors; the gain reported.
+- **Issue 40's own rows** join at 45 to 49 columns from every row; `probe:p347`'s P arms at the parent and HEAD.
+- **The gates**: `conformance:pathdoors` with rule 17 and one ablation per clause, the new rule among them.
+
+### What is NOT in this phase
+
+- **No change to which kinds of file open**, to the doors, or to a link on a single row.
+- **No reading of `isWrapped`.**
+- **Nothing for paths whose first part has scrolled above the session**, which stay plain.
 
 ---
 
@@ -43372,3 +43427,5 @@ cycle rather than only the evening it was written.
 - 2026-10-12, **RESEARCH 141 LANDED — several Macs on one iPhone, and starting a session from it, `docs/research/141-several-macs-and-starting-sessions-from-the-phone.md`** (his questions of 12 October: "am I able to have my phone paired to more than one mac at a time?" then "Yes, I do", and "the phone being able to start new sessions, as I believe that is the major missing piece"; run as a research phase at his word, four investigators, three adversaries, a judge; nothing started, nothing committed). It recommends both, in three phases, and QUEUES THEM WITH FULL SECTIONS above this log, in build order: **333.12** (Mac, Tier 3): a Mac update keeps every paired phone working and only a new route waits for Allow, because today any added route switches every phone and its alerts off, so the only way back after an update that adds Start would be to allow Start too; the hash keeps `routes` but they become the routes a person allowed, stored sealed, and a 0.111.x store hashes byte for byte as before, so the fixing update switches nobody off; Remove on one phone stops darkening the others. **345** (phone only, Tier 3): one iPhone, several Macs, needing no route, hashed field, QR or Mac change, so it builds beside 333.12; Needs input shows every Mac, Sessions one Mac at a time, a Settings row and Unpair per Mac, and with one Mac every screen is today's but for a "Pair another Mac" row. **346** (both, Tier 3), after both: a "+" on Sessions, Project and Agent, Create behind Face ID; main builds the session exactly as the Mac's one-press create, and the phone sends no folder, flag, name, command or login. Order: 333.11.1 beside 333.4; then 333.12 beside 345; then 346; 318.1 re-read after 333.12 (as written it sends through `/v1/say` and adds no route); never beside 337.2 or 337.4; no release from these, one TestFlight build after 345 and 346. **345.1** (alerts from a second Mac holding the push key) is MENTIONED, not queued. Stated, not fixed: the far Mac's own Tortie never shows sessions another Tortie started there (the identity invariant); a token Apple rejected stays dead on that Mac. NOTE FOR THE MERGE: origin/main holds 0.111.1's line after launch day, so this line goes below it. **Eleven questions wait on him**, each with a default: (1) a second desk running its own Tortie, its limit said plainly, yes; (2) Needs input every Mac, Sessions one at a time, yes; (3) a second Mac holding the alert key, not now; (4) Macs per phone, 4; (5) Face ID on every Start, yes; (6) a phone Start uses the Mac's sealed launch defaults, shown as one line, yes; (7) Shell in Start, no; (8) remote projects in Start's first build, yes; (9) Remove keeps the other phones working, yes; (10) a pairing Allow allowing a waiting route, never; (11) See a sample shows New session, yes.
 
 - 2026-10-12, **QUEUED AND STARTED PHASE 347 — three of John's bugs for 0.111.2** (his triage of every open issue that day): issue 41, Cmd+C with nothing selected does nothing (his ruling "Nothing"; Ctrl+C stays the interrupt), because at an agent's prompt the interrupt cleared typed notes; issue 40, a file path broken over rows is clickable as one link, refusal 8's purpose kept; issue 33's rest, a file open in an ignored folder updates while watched, one watch per open file and never a dirty tab. Tier 2 for 41 and 40, Tier 3 for 33. Not queued, and why: 39 (a daily summary across projects) and 14 (moving a conversation) are features; 26 (richer status) needs its inaccuracy investigated; 32 and 34 (Redline) are larger; 23 is a video only.
+
+- 2026-10-13, **PHASE 347 LANDED, `1c00cbc0`, released as 0.111.2 (`7bd05d22`) — issues 41 and 33.** ⌘C with nothing selected does nothing (his ruling "Nothing"); ⌃C is listed as Interrupt in Settings then Keyboard; a file open in an ignored folder updates while watched, one descriptor-armed watch per open file, never the folder, never replacing unsaved typing. The first run built nothing because his questions about issue 33 reached its agents (build prompts now say it is a build, and verifiers check code exists); the second built it and its reverify approved. Issue 40 failed two reverifies of the join (a link the parent opened re-pointed in list layouts), so by his ruling ("Ship 41 + 33, redo 40") it left this commit and is QUEUED as Phase 347.1, in full above this log, with the rule that a join never takes a cell from a link the door already accepts. conformance:pathdoors rule 5, red since 333.1, is green. Full battery green (21,132 tests). Also learned: macOS deleted /private/tmp/tortie-ops/battery.sh and lock.sh, and this worktree's git link, overnight; restored.
