@@ -10,10 +10,14 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 - Tortie for iPhone now has See a sample, on its first screen and in Settings: made-up Claude Code and Codex sessions you can open, scroll back, type into, answer and end before you pair a Mac, with every page marked Sample and nothing leaving the phone. What you type there only appears on the sample's own prompt, and Leave sample takes you back ([`ad317f86`](https://github.com/gregce/tortie/commit/ad317f86))
 
+## 0.111.2 (2026-10-13)
+
+This release fixes two things John Berryman reported. ⌘C no longer clears what you typed at an agent's prompt, and a file open in an ignored folder now updates while you watch it.
+
 ### Fixed
 
-- ⌘C in a session now only copies: with nothing selected it does nothing, where it used to send the interrupt that Claude Code, Codex and pi read as clearing what you had typed at their prompt; ⌃C still interrupts, and Settings then Keyboard now lists it. Reported by [John Berryman](https://github.com/JnBrymn) in [#41](https://github.com/gregce/tortie/issues/41)
-- A file open in the editor now shows an agent's changes while you watch it, even in a folder your repository ignores, where it used to update only when you looked away and back; what you are typing is never replaced. Reported by [John Berryman](https://github.com/JnBrymn) in [#33](https://github.com/gregce/tortie/issues/33)
+- ⌘C in a session now only copies: with nothing selected it does nothing, where it used to send the interrupt that Claude Code, Codex and pi read as clearing what you had typed at their prompt; ⌃C still interrupts, and Settings then Keyboard now lists it. Reported by [John Berryman](https://github.com/JnBrymn) in [#41](https://github.com/gregce/tortie/issues/41) ([`1c00cbc0`](https://github.com/gregce/tortie/commit/1c00cbc0))
+- A file open in the editor now shows an agent's changes while you watch it, even in a folder your repository ignores, where it used to update only when you looked away and back; what you are typing is never replaced. Reported by [John Berryman](https://github.com/JnBrymn) in [#33](https://github.com/gregce/tortie/issues/33) ([`1c00cbc0`](https://github.com/gregce/tortie/commit/1c00cbc0))
 
 ## 0.111.1 (2026-10-12)
 
