@@ -1,0 +1,1635 @@
+{
+ "parent": {
+  "K1": {
+   "focused": true,
+   "drafted": true,
+   "draft": "p347 draft notes",
+   "newBytes": [
+    "03"
+   ],
+   "promptRow": ">",
+   "clipboardWrites": 0
+  },
+  "K2": {
+   "patched": true,
+   "banner": "P347 COPY ROW 0a1b2c3d",
+   "copied": "P347 COPY ROW 0a1b2c3d",
+   "newWrites": 1,
+   "newBytes": [],
+   "attempts": 1
+  },
+  "K3": {
+   "focused": true,
+   "newBytes": [
+    "03"
+   ]
+  },
+  "K4": {
+   "settings": [
+    {
+     "action": "Copy or interrupt",
+     "explain": "With text selected it copies. With nothing selected it sends the interrupt an agent reads as “stop” — the gesture you want when something runs away.",
+     "keys": "⌘C"
+    },
+    {
+     "action": "Select all output",
+     "explain": "Selects everything on the session’s screen.",
+     "keys": "⌘A"
+    }
+   ],
+   "overlay": [
+    {
+     "action": "Copy or interrupt",
+     "keys": "⌘C"
+    },
+    {
+     "action": "Select all output",
+     "keys": "⌘A"
+    }
+   ]
+  },
+  "P1": {
+   "found": true,
+   "calibrated": true,
+   "rows": [
+    "mkP1 /s/head/proj/arcturus-",
+    "labs/rook/agent-workspace-01/software-",
+    "factory/.planning/brainstorming.md:134 end"
+   ],
+   "pointers": [
+    false,
+    false,
+    false
+   ],
+   "pressRow": 1,
+   "onLinkAtPress": false,
+   "whole": "/s/head/proj/arcturus-labs/rook/agent-workspace-01/software-factory/.planning/brainstorming.md",
+   "opened": [],
+   "line": null
+  },
+  "P2": {
+   "found": true,
+   "calibrated": true,
+   "rows": [
+    "mkP2 a",
+    "b",
+    "c end"
+   ],
+   "pointers": [
+    false,
+    false,
+    false
+   ],
+   "pressRow": 1,
+   "onLinkAtPress": false,
+   "whole": "/s/head/proj/arcturus-labs/rook/agent-workspace-01/software-factory/.planning/brainstorm-wrap.md",
+   "opened": [],
+   "line": null
+  },
+  "P3": {
+   "found": true,
+   "calibrated": true,
+   "rows": [
+    "mkP1 /s/head/proj/arcturus-",
+    "labs/rook/agent-workspace-01/software-",
+    "factory/.planning/brainstorming.md:134 end"
+   ],
+   "pointers": [
+    false,
+    false,
+    false
+   ],
+   "pressRow": 2,
+   "onLinkAtPress": true,
+   "whole": "/s/head/proj/arcturus-labs/rook/agent-workspace-01/software-factory/.planning/brainstorm-p3.md",
+   "planted": "/s/head/proj/.planning/brainstorm-p3.md",
+   "plantedExists": true,
+   "opened": [
+    "/s/head/proj/.planning/brainstorm-p3.md"
+   ],
+   "line": 134
+  },
+  "P4": {
+   "found": true,
+   "calibrated": true,
+   "rows": [
+    "mkP1 /s/head/proj/arcturus-",
+    "labs/rook/agent-workspace-01/software-",
+    "factory/.planning/brainstorming.md:134 end"
+   ],
+   "pointers": [
+    false,
+    false,
+    false
+   ],
+   "pressRow": 1,
+   "onLinkAtPress": false,
+   "whole": "/s/head/proj/arcturus-labs/rook/agent-workspace-01/software-factory/.planning/brainstorm-none.md",
+   "opened": [],
+   "line": null
+  },
+  "P5": {
+   "found": true,
+   "calibrated": true,
+   "shortOfEdge": true,
+   "onLink": true,
+   "readme": "/s/head/proj/README.md",
+   "opened": [
+    "/s/head/proj/README.md"
+   ]
+  },
+  "P6": {
+   "width": 48,
+   "rows": [
+    "mkP6 kkkkkkkkkkkkkkkkkkkkkkkkkkk hw6/README.md",
+    ".bak beside it, just in case."
+   ],
+   "readme": "/s/parent/proj/hw6/README.md",
+   "bak": "/s/parent/proj/hw6/README.md.bak",
+   "bakExists": true,
+   "shortBy": 2,
+   "found": true,
+   "calibrated": true,
+   "offset": 0,
+   "pointerTop": true,
+   "pointerBelow": false,
+   "openedTop": [
+    "/s/parent/proj/hw6/README.md"
+   ],
+   "openedBelow": []
+  },
+  "W0": {
+   "doorFree": true,
+   "previous": "p\n",
+   "written": "w\n",
+   "after": {
+    "value": "w\n",
+    "savedContents": "w\n",
+    "dirty": false
+   }
+  },
+  "W1": {
+   "iterations": [
+    {
+     "doorFree": true,
+     "previous": "old 0\n",
+     "written": "new 0\n",
+     "after": {
+      "value": "old 0\n",
+      "savedContents": "old 0\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 1\n",
+     "written": "new 1\n",
+     "after": {
+      "value": "old 1\n",
+      "savedContents": "old 1\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 2\n",
+     "written": "new 2\n",
+     "after": {
+      "value": "old 2\n",
+      "savedContents": "old 2\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 3\n",
+     "written": "new 3\n",
+     "after": {
+      "value": "old 3\n",
+      "savedContents": "old 3\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 4\n",
+     "written": "new 4\n",
+     "after": {
+      "value": "old 4\n",
+      "savedContents": "old 4\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    }
+   ]
+  },
+  "W2": {
+   "iterations": [
+    {
+     "doorFree": true,
+     "previous": "old 0\n",
+     "written": "new 0\n",
+     "after": {
+      "savedContents": "old 0\n",
+      "drawnHasMarker": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 1\n",
+     "written": "new 1\n",
+     "after": {
+      "savedContents": "old 1\n",
+      "drawnHasMarker": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 2\n",
+     "written": "new 2\n",
+     "after": {
+      "savedContents": "old 2\n",
+      "drawnHasMarker": false
+     },
+     "seenAtMs": null
+    }
+   ]
+  },
+  "W3": {
+   "iterations": [
+    {
+     "doorFree": true,
+     "previous": "old 0\n",
+     "written": "new 0\n",
+     "after": {
+      "value": "old 0\n",
+      "savedContents": "old 0\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 1\n",
+     "written": "new 1\n",
+     "after": {
+      "value": "old 1\n",
+      "savedContents": "old 1\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 2\n",
+     "written": "new 2\n",
+     "after": {
+      "value": "old 2\n",
+      "savedContents": "old 2\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    }
+   ]
+  },
+  "W4": {
+   "landedP": true,
+   "doorFree": true,
+   "name": "d.md",
+   "written": "w\n",
+   "seen": false,
+   "seenAtMs": null,
+   "disk": "w\n",
+   "stopped": "stale",
+   "toasts": [
+    "'d.md' changed on disk, so nothing was written. Tortie stopped saving it on its own — press ⌘S when you are ready."
+   ]
+  },
+  "W5": {
+   "typed": true,
+   "previous": "p\n",
+   "written": "w\n",
+   "after": {
+    "value": "p\nD",
+    "savedContents": "p\n",
+    "dirty": true
+   },
+   "disk": "w\n",
+   "dialog": {
+    "open": true,
+    "buttons": [
+     "Overwrite",
+     "Cancel",
+     "Compare"
+    ]
+   },
+   "afterCancel": {
+    "open": false,
+    "dirty": true,
+    "disk": "w\n"
+   }
+  },
+  "W6": {
+   "typedText": "ABCDEFGHJKLMNPQRSTUV",
+   "typedDone": true,
+   "writes": 20,
+   "buffer": "w6 writer 20 abcd\nABCDEFGHJKLMNPQRSTUV",
+   "disk": "w6 writer 20 abcd\n",
+   "stopped": "stale",
+   "toasts": []
+  },
+  "W7": {
+   "a": {
+    "doorFree": true,
+    "removed": true,
+    "previous": "p\n",
+    "written": "a\n",
+    "after": {
+     "value": "p\n",
+     "savedContents": "p\n",
+     "dirty": false
+    },
+    "seenAtMs": null,
+    "banner": false,
+    "look": {
+     "after": {
+      "value": "a\n",
+      "savedContents": "a\n",
+      "dirty": false
+     },
+     "banner": false
+    }
+   },
+   "b": {
+    "doorFree": true,
+    "removed": true,
+    "previous": "a\n",
+    "written": "b\n",
+    "bannerBeforeRecreate": false,
+    "recreatedAtMs": 3010,
+    "afterRecreate": {
+     "after": {
+      "value": "a\n",
+      "savedContents": "a\n",
+      "dirty": false
+     },
+     "banner": false
+    },
+    "look": {
+     "after": {
+      "value": "b\n",
+      "savedContents": "b\n",
+      "dirty": false
+     },
+     "banner": false
+    }
+   }
+  },
+  "W8": {
+   "lsofOk": true,
+   "closed": true,
+   "armedBefore": false,
+   "namedAfter": false
+  },
+  "W10": {
+   "lsofOk": true,
+   "named": 0,
+   "control": 0,
+   "xSeen": true,
+   "logSeen": true
+  },
+  "W13": {
+   "lsofOk": true,
+   "swapped": true,
+   "armedBefore": false,
+   "secretNamed": false,
+   "old": "c\n",
+   "v0": "s0\n",
+   "writes": [
+    "s1\n",
+    "s2\n",
+    "s3\n"
+   ],
+   "afterWrites": "c\n",
+   "afterLook": "s3\n"
+  },
+  "W14": {
+   "iterations": [
+    {
+     "doorFree": true,
+     "previous": "old 0\n",
+     "written": "new 0\n",
+     "after": {
+      "value": "old 0\n",
+      "savedContents": "old 0\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 1\n",
+     "written": "new 1\n",
+     "after": {
+      "value": "old 1\n",
+      "savedContents": "old 1\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 2\n",
+     "written": "new 2\n",
+     "after": {
+      "value": "old 2\n",
+      "savedContents": "old 2\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 3\n",
+     "written": "new 3\n",
+     "after": {
+      "value": "old 3\n",
+      "savedContents": "old 3\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 4\n",
+     "written": "new 4\n",
+     "after": {
+      "value": "old 4\n",
+      "savedContents": "old 4\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 5\n",
+     "written": "new 5\n",
+     "after": {
+      "value": "old 5\n",
+      "savedContents": "old 5\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 6\n",
+     "written": "new 6\n",
+     "after": {
+      "value": "old 6\n",
+      "savedContents": "old 6\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 7\n",
+     "written": "new 7\n",
+     "after": {
+      "value": "old 7\n",
+      "savedContents": "old 7\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 8\n",
+     "written": "new 8\n",
+     "after": {
+      "value": "old 8\n",
+      "savedContents": "old 8\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 9\n",
+     "written": "new 9\n",
+     "after": {
+      "value": "old 9\n",
+      "savedContents": "old 9\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 10\n",
+     "written": "new 10\n",
+     "after": {
+      "value": "old 10\n",
+      "savedContents": "old 10\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 11\n",
+     "written": "new 11\n",
+     "after": {
+      "value": "old 11\n",
+      "savedContents": "old 11\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 12\n",
+     "written": "new 12\n",
+     "after": {
+      "value": "old 12\n",
+      "savedContents": "old 12\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 13\n",
+     "written": "new 13\n",
+     "after": {
+      "value": "old 13\n",
+      "savedContents": "old 13\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 14\n",
+     "written": "new 14\n",
+     "after": {
+      "value": "old 14\n",
+      "savedContents": "old 14\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 15\n",
+     "written": "new 15\n",
+     "after": {
+      "value": "old 15\n",
+      "savedContents": "old 15\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 16\n",
+     "written": "new 16\n",
+     "after": {
+      "value": "old 16\n",
+      "savedContents": "old 16\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 17\n",
+     "written": "new 17\n",
+     "after": {
+      "value": "old 17\n",
+      "savedContents": "old 17\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 18\n",
+     "written": "new 18\n",
+     "after": {
+      "value": "old 18\n",
+      "savedContents": "old 18\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 19\n",
+     "written": "new 19\n",
+     "after": {
+      "value": "old 19\n",
+      "savedContents": "old 19\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 20\n",
+     "written": "new 20\n",
+     "after": {
+      "value": "old 20\n",
+      "savedContents": "old 20\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 21\n",
+     "written": "new 21\n",
+     "after": {
+      "value": "old 21\n",
+      "savedContents": "old 21\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 22\n",
+     "written": "new 22\n",
+     "after": {
+      "value": "old 22\n",
+      "savedContents": "old 22\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 23\n",
+     "written": "new 23\n",
+     "after": {
+      "value": "old 23\n",
+      "savedContents": "old 23\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 24\n",
+     "written": "new 24\n",
+     "after": {
+      "value": "old 24\n",
+      "savedContents": "old 24\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 25\n",
+     "written": "new 25\n",
+     "after": {
+      "value": "old 25\n",
+      "savedContents": "old 25\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 26\n",
+     "written": "new 26\n",
+     "after": {
+      "value": "old 26\n",
+      "savedContents": "old 26\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 27\n",
+     "written": "new 27\n",
+     "after": {
+      "value": "old 27\n",
+      "savedContents": "old 27\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 28\n",
+     "written": "new 28\n",
+     "after": {
+      "value": "old 28\n",
+      "savedContents": "old 28\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 29\n",
+     "written": "new 29\n",
+     "after": {
+      "value": "old 29\n",
+      "savedContents": "old 29\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    }
+   ]
+  },
+  "W15": {
+   "iterations": [
+    {
+     "doorFree": true,
+     "previous": "old 0\n",
+     "written": "new 0\n",
+     "after": {
+      "value": "old 0\n",
+      "savedContents": "old 0\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 1\n",
+     "written": "new 1\n",
+     "after": {
+      "value": "old 1\n",
+      "savedContents": "old 1\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    },
+    {
+     "doorFree": true,
+     "previous": "old 2\n",
+     "written": "new 2\n",
+     "after": {
+      "value": "old 2\n",
+      "savedContents": "old 2\n",
+      "dirty": false
+     },
+     "seenAtMs": null
+    }
+   ]
+  },
+  "W11": {
+   "lsofOk": true,
+   "opened": 30,
+   "before": 120,
+   "after": 120,
+   "named": 0,
+   "perFileMax": 0
+  },
+  "W9": {
+   "lsofOk": true,
+   "closed": true,
+   "files": 2,
+   "namedBefore": 0,
+   "namedAfter": 0
+  },
+  "W12": {
+   "appLog": true,
+   "exited": true,
+   "quitMs": 800,
+   "armedAtQuit": 0,
+   "watcherErrors": []
+  }
+ },
+ "head": {
+  "K1": {
+   "focused": true,
+   "drafted": true,
+   "draft": "p347 draft notes",
+   "newBytes": [],
+   "promptRow": "> p347 draft notes",
+   "clipboardWrites": 0
+  },
+  "K2": {
+   "patched": true,
+   "banner": "P347 COPY ROW 0a1b2c3d",
+   "copied": "P347 COPY ROW 0a1b2c3d",
+   "newWrites": 1,
+   "newBytes": [],
+   "attempts": 1
+  },
+  "K3": {
+   "focused": true,
+   "newBytes": [
+    "03"
+   ]
+  },
+  "K4": {
+   "settings": [
+    {
+     "action": "Copy",
+     "explain": "Copies the selected text. With nothing selected it does nothing, so a draft at an agent’s prompt is never cleared; ⌃C is the interrupt.",
+     "keys": "⌘C"
+    },
+    {
+     "action": "Select all output",
+     "explain": "Selects everything on the session’s screen.",
+     "keys": "⌘A"
+    }
+   ],
+   "overlay": [
+    {
+     "action": "Copy",
+     "keys": "⌘C"
+    },
+    {
+     "action": "Select all output",
+     "keys": "⌘A"
+    }
+   ]
+  },
+  "P1": {
+   "found": true,
+   "calibrated": true,
+   "rows": [
+    "mkP1 /s/head/proj/arcturus-",
+    "labs/rook/agent-workspace-01/software-",
+    "factory/.planning/brainstorming.md:134 end"
+   ],
+   "pointers": [
+    true,
+    true,
+    true
+   ],
+   "pressRow": 1,
+   "onLinkAtPress": true,
+   "whole": "/s/head/proj/arcturus-labs/rook/agent-workspace-01/software-factory/.planning/brainstorming.md",
+   "opened": [
+    "/s/head/proj/arcturus-labs/rook/agent-workspace-01/software-factory/.planning/brainstorming.md"
+   ],
+   "line": 134
+  },
+  "P2": {
+   "found": true,
+   "calibrated": true,
+   "rows": [
+    "mkP2 a",
+    "b",
+    "c end"
+   ],
+   "pointers": [
+    true,
+    true,
+    true
+   ],
+   "pressRow": 1,
+   "onLinkAtPress": true,
+   "whole": "/s/head/proj/arcturus-labs/rook/agent-workspace-01/software-factory/.planning/brainstorm-wrap.md",
+   "opened": [
+    "/s/head/proj/arcturus-labs/rook/agent-workspace-01/software-factory/.planning/brainstorm-wrap.md"
+   ],
+   "line": 134
+  },
+  "P3": {
+   "found": true,
+   "calibrated": true,
+   "rows": [
+    "mkP1 /s/head/proj/arcturus-",
+    "labs/rook/agent-workspace-01/software-",
+    "factory/.planning/brainstorming.md:134 end"
+   ],
+   "pointers": [
+    true,
+    true,
+    true
+   ],
+   "pressRow": 2,
+   "onLinkAtPress": true,
+   "whole": "/s/head/proj/arcturus-labs/rook/agent-workspace-01/software-factory/.planning/brainstorm-p3.md",
+   "planted": "/s/head/proj/.planning/brainstorm-p3.md",
+   "plantedExists": true,
+   "opened": [
+    "/s/head/proj/arcturus-labs/rook/agent-workspace-01/software-factory/.planning/brainstorm-p3.md"
+   ],
+   "line": 134
+  },
+  "P4": {
+   "found": true,
+   "calibrated": true,
+   "rows": [
+    "mkP1 /s/head/proj/arcturus-",
+    "labs/rook/agent-workspace-01/software-",
+    "factory/.planning/brainstorming.md:134 end"
+   ],
+   "pointers": [
+    false,
+    false,
+    false
+   ],
+   "pressRow": 1,
+   "onLinkAtPress": false,
+   "whole": "/s/head/proj/arcturus-labs/rook/agent-workspace-01/software-factory/.planning/brainstorm-none.md",
+   "opened": [],
+   "line": null
+  },
+  "P5": {
+   "found": true,
+   "calibrated": true,
+   "shortOfEdge": true,
+   "onLink": true,
+   "readme": "/s/head/proj/README.md",
+   "opened": [
+    "/s/head/proj/README.md"
+   ]
+  },
+  "P6": {
+   "width": 48,
+   "rows": [
+    "mkP6 kkkkkkkkkkkkkkkkkkkkkkkkkkk hw6/README.md",
+    ".bak beside it, just in case."
+   ],
+   "readme": "/s/head/proj/hw6/README.md",
+   "bak": "/s/head/proj/hw6/README.md.bak",
+   "bakExists": true,
+   "shortBy": 2,
+   "found": true,
+   "calibrated": true,
+   "offset": 0,
+   "pointerTop": true,
+   "pointerBelow": false,
+   "openedTop": [
+    "/s/head/proj/hw6/README.md"
+   ],
+   "openedBelow": []
+  },
+  "W0": {
+   "doorFree": true,
+   "previous": "p\n",
+   "written": "w\n",
+   "after": {
+    "value": "w\n",
+    "savedContents": "w\n",
+    "dirty": false
+   }
+  },
+  "W1": {
+   "iterations": [
+    {
+     "doorFree": true,
+     "previous": "old 0\n",
+     "written": "new 0\n",
+     "after": {
+      "value": "new 0\n",
+      "savedContents": "new 0\n",
+      "dirty": false
+     },
+     "seenAtMs": 400
+    },
+    {
+     "doorFree": true,
+     "previous": "old 1\n",
+     "written": "new 1\n",
+     "after": {
+      "value": "new 1\n",
+      "savedContents": "new 1\n",
+      "dirty": false
+     },
+     "seenAtMs": 401
+    },
+    {
+     "doorFree": true,
+     "previous": "old 2\n",
+     "written": "new 2\n",
+     "after": {
+      "value": "new 2\n",
+      "savedContents": "new 2\n",
+      "dirty": false
+     },
+     "seenAtMs": 402
+    },
+    {
+     "doorFree": true,
+     "previous": "old 3\n",
+     "written": "new 3\n",
+     "after": {
+      "value": "new 3\n",
+      "savedContents": "new 3\n",
+      "dirty": false
+     },
+     "seenAtMs": 403
+    },
+    {
+     "doorFree": true,
+     "previous": "old 4\n",
+     "written": "new 4\n",
+     "after": {
+      "value": "new 4\n",
+      "savedContents": "new 4\n",
+      "dirty": false
+     },
+     "seenAtMs": 404
+    }
+   ]
+  },
+  "W2": {
+   "iterations": [
+    {
+     "doorFree": true,
+     "previous": "old 0\n",
+     "written": "new 0\n",
+     "after": {
+      "savedContents": "new 0\n",
+      "drawnHasMarker": true
+     },
+     "seenAtMs": 400
+    },
+    {
+     "doorFree": true,
+     "previous": "old 1\n",
+     "written": "new 1\n",
+     "after": {
+      "savedContents": "new 1\n",
+      "drawnHasMarker": true
+     },
+     "seenAtMs": 401
+    },
+    {
+     "doorFree": true,
+     "previous": "old 2\n",
+     "written": "new 2\n",
+     "after": {
+      "savedContents": "new 2\n",
+      "drawnHasMarker": true
+     },
+     "seenAtMs": 402
+    }
+   ]
+  },
+  "W3": {
+   "iterations": [
+    {
+     "doorFree": true,
+     "previous": "old 0\n",
+     "written": "new 0\n",
+     "after": {
+      "value": "new 0\n",
+      "savedContents": "new 0\n",
+      "dirty": false
+     },
+     "seenAtMs": 400
+    },
+    {
+     "doorFree": true,
+     "previous": "old 1\n",
+     "written": "new 1\n",
+     "after": {
+      "value": "new 1\n",
+      "savedContents": "new 1\n",
+      "dirty": false
+     },
+     "seenAtMs": 401
+    },
+    {
+     "doorFree": true,
+     "previous": "old 2\n",
+     "written": "new 2\n",
+     "after": {
+      "value": "new 2\n",
+      "savedContents": "new 2\n",
+      "dirty": false
+     },
+     "seenAtMs": 402
+    }
+   ]
+  },
+  "W4": {
+   "landedP": true,
+   "doorFree": true,
+   "name": "d.md",
+   "written": "w\n",
+   "seen": true,
+   "seenAtMs": 500,
+   "disk": "w\nQ",
+   "stopped": null,
+   "toasts": []
+  },
+  "W5": {
+   "typed": true,
+   "previous": "p\n",
+   "written": "w\n",
+   "after": {
+    "value": "p\nD",
+    "savedContents": "p\n",
+    "dirty": true
+   },
+   "disk": "w\n",
+   "dialog": {
+    "open": true,
+    "buttons": [
+     "Overwrite",
+     "Cancel",
+     "Compare"
+    ]
+   },
+   "afterCancel": {
+    "open": false,
+    "dirty": true,
+    "disk": "w\n"
+   }
+  },
+  "W6": {
+   "typedText": "ABCDEFGHJKLMNPQRSTUV",
+   "typedDone": true,
+   "writes": 20,
+   "buffer": "w6 writer 20 abcd\nABCDEFGHJKLMNPQRSTUV",
+   "disk": "w6 writer 20 abcd\n",
+   "stopped": "stale",
+   "toasts": []
+  },
+  "W7": {
+   "a": {
+    "doorFree": true,
+    "removed": true,
+    "previous": "p\n",
+    "written": "a\n",
+    "after": {
+     "value": "a\n",
+     "savedContents": "a\n",
+     "dirty": false
+    },
+    "seenAtMs": 600,
+    "banner": false,
+    "look": {
+     "after": {
+      "value": "a\n",
+      "savedContents": "a\n",
+      "dirty": false
+     },
+     "banner": false
+    }
+   },
+   "b": {
+    "doorFree": true,
+    "removed": true,
+    "previous": "a\n",
+    "written": "b\n",
+    "bannerBeforeRecreate": true,
+    "recreatedAtMs": 3010,
+    "afterRecreate": {
+     "after": {
+      "value": "a\n",
+      "savedContents": "a\n",
+      "dirty": false
+     },
+     "banner": true
+    },
+    "look": {
+     "after": {
+      "value": "b\n",
+      "savedContents": "b\n",
+      "dirty": false
+     },
+     "banner": false
+    }
+   }
+  },
+  "W8": {
+   "lsofOk": true,
+   "closed": true,
+   "armedBefore": true,
+   "namedAfter": false
+  },
+  "W10": {
+   "lsofOk": true,
+   "named": 0,
+   "control": 5,
+   "xSeen": true,
+   "logSeen": true
+  },
+  "W13": {
+   "lsofOk": true,
+   "swapped": true,
+   "armedBefore": true,
+   "secretNamed": false,
+   "old": "c\n",
+   "v0": "s0\n",
+   "writes": [
+    "s1\n",
+    "s2\n",
+    "s3\n"
+   ],
+   "afterWrites": "s0\n",
+   "afterLook": "s3\n"
+  },
+  "W14": {
+   "iterations": [
+    {
+     "doorFree": true,
+     "previous": "old 0\n",
+     "written": "new 0\n",
+     "after": {
+      "value": "new 0\n",
+      "savedContents": "new 0\n",
+      "dirty": false
+     },
+     "seenAtMs": 400
+    },
+    {
+     "doorFree": true,
+     "previous": "old 1\n",
+     "written": "new 1\n",
+     "after": {
+      "value": "new 1\n",
+      "savedContents": "new 1\n",
+      "dirty": false
+     },
+     "seenAtMs": 401
+    },
+    {
+     "doorFree": true,
+     "previous": "old 2\n",
+     "written": "new 2\n",
+     "after": {
+      "value": "new 2\n",
+      "savedContents": "new 2\n",
+      "dirty": false
+     },
+     "seenAtMs": 402
+    },
+    {
+     "doorFree": true,
+     "previous": "old 3\n",
+     "written": "new 3\n",
+     "after": {
+      "value": "new 3\n",
+      "savedContents": "new 3\n",
+      "dirty": false
+     },
+     "seenAtMs": 403
+    },
+    {
+     "doorFree": true,
+     "previous": "old 4\n",
+     "written": "new 4\n",
+     "after": {
+      "value": "new 4\n",
+      "savedContents": "new 4\n",
+      "dirty": false
+     },
+     "seenAtMs": 404
+    },
+    {
+     "doorFree": true,
+     "previous": "old 5\n",
+     "written": "new 5\n",
+     "after": {
+      "value": "new 5\n",
+      "savedContents": "new 5\n",
+      "dirty": false
+     },
+     "seenAtMs": 405
+    },
+    {
+     "doorFree": true,
+     "previous": "old 6\n",
+     "written": "new 6\n",
+     "after": {
+      "value": "new 6\n",
+      "savedContents": "new 6\n",
+      "dirty": false
+     },
+     "seenAtMs": 406
+    },
+    {
+     "doorFree": true,
+     "previous": "old 7\n",
+     "written": "new 7\n",
+     "after": {
+      "value": "new 7\n",
+      "savedContents": "new 7\n",
+      "dirty": false
+     },
+     "seenAtMs": 407
+    },
+    {
+     "doorFree": true,
+     "previous": "old 8\n",
+     "written": "new 8\n",
+     "after": {
+      "value": "new 8\n",
+      "savedContents": "new 8\n",
+      "dirty": false
+     },
+     "seenAtMs": 408
+    },
+    {
+     "doorFree": true,
+     "previous": "old 9\n",
+     "written": "new 9\n",
+     "after": {
+      "value": "new 9\n",
+      "savedContents": "new 9\n",
+      "dirty": false
+     },
+     "seenAtMs": 409
+    },
+    {
+     "doorFree": true,
+     "previous": "old 10\n",
+     "written": "new 10\n",
+     "after": {
+      "value": "new 10\n",
+      "savedContents": "new 10\n",
+      "dirty": false
+     },
+     "seenAtMs": 410
+    },
+    {
+     "doorFree": true,
+     "previous": "old 11\n",
+     "written": "new 11\n",
+     "after": {
+      "value": "new 11\n",
+      "savedContents": "new 11\n",
+      "dirty": false
+     },
+     "seenAtMs": 411
+    },
+    {
+     "doorFree": true,
+     "previous": "old 12\n",
+     "written": "new 12\n",
+     "after": {
+      "value": "new 12\n",
+      "savedContents": "new 12\n",
+      "dirty": false
+     },
+     "seenAtMs": 412
+    },
+    {
+     "doorFree": true,
+     "previous": "old 13\n",
+     "written": "new 13\n",
+     "after": {
+      "value": "new 13\n",
+      "savedContents": "new 13\n",
+      "dirty": false
+     },
+     "seenAtMs": 413
+    },
+    {
+     "doorFree": true,
+     "previous": "old 14\n",
+     "written": "new 14\n",
+     "after": {
+      "value": "new 14\n",
+      "savedContents": "new 14\n",
+      "dirty": false
+     },
+     "seenAtMs": 414
+    },
+    {
+     "doorFree": true,
+     "previous": "old 15\n",
+     "written": "new 15\n",
+     "after": {
+      "value": "new 15\n",
+      "savedContents": "new 15\n",
+      "dirty": false
+     },
+     "seenAtMs": 415
+    },
+    {
+     "doorFree": true,
+     "previous": "old 16\n",
+     "written": "new 16\n",
+     "after": {
+      "value": "new 16\n",
+      "savedContents": "new 16\n",
+      "dirty": false
+     },
+     "seenAtMs": 416
+    },
+    {
+     "doorFree": true,
+     "previous": "old 17\n",
+     "written": "new 17\n",
+     "after": {
+      "value": "new 17\n",
+      "savedContents": "new 17\n",
+      "dirty": false
+     },
+     "seenAtMs": 417
+    },
+    {
+     "doorFree": true,
+     "previous": "old 18\n",
+     "written": "new 18\n",
+     "after": {
+      "value": "new 18\n",
+      "savedContents": "new 18\n",
+      "dirty": false
+     },
+     "seenAtMs": 418
+    },
+    {
+     "doorFree": true,
+     "previous": "old 19\n",
+     "written": "new 19\n",
+     "after": {
+      "value": "new 19\n",
+      "savedContents": "new 19\n",
+      "dirty": false
+     },
+     "seenAtMs": 419
+    },
+    {
+     "doorFree": true,
+     "previous": "old 20\n",
+     "written": "new 20\n",
+     "after": {
+      "value": "new 20\n",
+      "savedContents": "new 20\n",
+      "dirty": false
+     },
+     "seenAtMs": 420
+    },
+    {
+     "doorFree": true,
+     "previous": "old 21\n",
+     "written": "new 21\n",
+     "after": {
+      "value": "new 21\n",
+      "savedContents": "new 21\n",
+      "dirty": false
+     },
+     "seenAtMs": 421
+    },
+    {
+     "doorFree": true,
+     "previous": "old 22\n",
+     "written": "new 22\n",
+     "after": {
+      "value": "new 22\n",
+      "savedContents": "new 22\n",
+      "dirty": false
+     },
+     "seenAtMs": 422
+    },
+    {
+     "doorFree": true,
+     "previous": "old 23\n",
+     "written": "new 23\n",
+     "after": {
+      "value": "new 23\n",
+      "savedContents": "new 23\n",
+      "dirty": false
+     },
+     "seenAtMs": 423
+    },
+    {
+     "doorFree": true,
+     "previous": "old 24\n",
+     "written": "new 24\n",
+     "after": {
+      "value": "new 24\n",
+      "savedContents": "new 24\n",
+      "dirty": false
+     },
+     "seenAtMs": 424
+    },
+    {
+     "doorFree": true,
+     "previous": "old 25\n",
+     "written": "new 25\n",
+     "after": {
+      "value": "new 25\n",
+      "savedContents": "new 25\n",
+      "dirty": false
+     },
+     "seenAtMs": 425
+    },
+    {
+     "doorFree": true,
+     "previous": "old 26\n",
+     "written": "new 26\n",
+     "after": {
+      "value": "new 26\n",
+      "savedContents": "new 26\n",
+      "dirty": false
+     },
+     "seenAtMs": 426
+    },
+    {
+     "doorFree": true,
+     "previous": "old 27\n",
+     "written": "new 27\n",
+     "after": {
+      "value": "new 27\n",
+      "savedContents": "new 27\n",
+      "dirty": false
+     },
+     "seenAtMs": 427
+    },
+    {
+     "doorFree": true,
+     "previous": "old 28\n",
+     "written": "new 28\n",
+     "after": {
+      "value": "new 28\n",
+      "savedContents": "new 28\n",
+      "dirty": false
+     },
+     "seenAtMs": 428
+    },
+    {
+     "doorFree": true,
+     "previous": "old 29\n",
+     "written": "new 29\n",
+     "after": {
+      "value": "new 29\n",
+      "savedContents": "new 29\n",
+      "dirty": false
+     },
+     "seenAtMs": 429
+    }
+   ]
+  },
+  "W15": {
+   "iterations": [
+    {
+     "doorFree": true,
+     "previous": "old 0\n",
+     "written": "new 0\n",
+     "after": {
+      "value": "new 0\n",
+      "savedContents": "new 0\n",
+      "dirty": false
+     },
+     "seenAtMs": 450
+    },
+    {
+     "doorFree": true,
+     "previous": "old 1\n",
+     "written": "new 1\n",
+     "after": {
+      "value": "new 1\n",
+      "savedContents": "new 1\n",
+      "dirty": false
+     },
+     "seenAtMs": 451
+    },
+    {
+     "doorFree": true,
+     "previous": "old 2\n",
+     "written": "new 2\n",
+     "after": {
+      "value": "new 2\n",
+      "savedContents": "new 2\n",
+      "dirty": false
+     },
+     "seenAtMs": 452
+    }
+   ]
+  },
+  "W11": {
+   "lsofOk": true,
+   "opened": 30,
+   "before": 120,
+   "after": 150,
+   "named": 30,
+   "perFileMax": 1
+  },
+  "W9": {
+   "lsofOk": true,
+   "closed": true,
+   "files": 2,
+   "namedBefore": 2,
+   "namedAfter": 0
+  },
+  "W12": {
+   "appLog": true,
+   "exited": true,
+   "quitMs": 900,
+   "armedAtQuit": 8,
+   "watcherErrors": []
+  }
+ },
+ "run": {
+  "historyMoved": [],
+  "leftPids": [],
+  "leftByProfile": []
+ }
+}

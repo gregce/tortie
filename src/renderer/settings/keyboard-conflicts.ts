@@ -57,6 +57,15 @@ export function shortcutConflictNote(
 
   const builtIn = builtInOwner(canonical);
   if (builtIn !== undefined) {
+    // Phase 347: ⌃C is the interrupt only inside a session, where the
+    // terminal takes it; with the editor or the Explorer focused nothing else
+    // owns it, so a stored ⌃C agent shortcut still starts a session there.
+    // Every other built-in keeps the sentence it had: ⌘C and ⌘A belong to the
+    // Edit menu outside a session (the reverify of 2026-10-13), so "never
+    // starts a session" stays true of them.
+    if (builtIn.id === 'terminal.interrupt') {
+      return `Inside a session this is ${plain(builtIn.action)}, and that wins; anywhere else it starts this agent. Record a different shortcut.`;
+    }
     return `Built in as ${plain(builtIn.action)}, and the built-in wins — this never starts a session. Record a different shortcut.`;
   }
 

@@ -148,7 +148,7 @@ export function terminalMenuItems(
     {
       label: 'Copy',
       ...menuGlyph('copy'),
-      hint: keyDisplay('terminal.copyOrInterrupt'),
+      hint: keyDisplay('terminal.copy'),
       disabled: !selected,
       run: () => void copySelection(session.id, snapshot)
     },

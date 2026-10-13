@@ -355,3 +355,58 @@ export interface GitIgnoreInvokeChannelMap {
 export interface GmuxGitIgnoreExtras {
   checkIgnore(input: GitCheckIgnoreInput): Promise<string[]>;
 }
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 347 (issue 33). A file open in a tab, inside a folder the
+// repository watcher cannot see, updates while you watch it.
+//
+// The worktree watcher excludes `.git` and the repository's ignored
+// directories, so `git:changed` never fires for a write there and the open tab
+// changed only when somebody looked at it. The window now DECLARES the files
+// its walk reads; main watches, one file each, only those the repository's
+// own running watcher excludes, and tells the window that declared them with a
+// notice of its own. Not `git:changed`: that wakes status, the tree and SCM for
+// a write git does not track. The window answers the notice with the same walk
+// every door takes (`rereadRepo`).
+//
+// Main handler: registerGitIpc (src/main/git/ipc.ts) over
+// src/main/watcher/open-files.ts. Both members are installed by the one
+// preload; Phase 122's rule holds, so they are required like `checkIgnore`,
+// and the renderer still asks whether the bridge is there at all.
+// ---------------------------------------------------------------------------
+
+import type { Unsubscribe } from './base';
+
+/** One file a window's walk reads, in the repository it reads it for. Both absolute. */
+export interface GitOpenFileEntry {
+  repoPath: string;
+  path: string;
+}
+
+/** New invoke channel appended by Phase 347. */
+export interface GitOpenFilesInvokeChannelMap {
+  /**
+   * The window's WHOLE set, replacing what it declared before. Main reads at
+   * most 512 entries, skips any that is not two absolute strings, and answers
+   * how many of them it watches now (0 when `GMUX_NO_OPEN_FILE_WATCH=1`). A
+   * non-array rejects with INVALID_INPUT.
+   */
+  'git:watchOpenFiles': {
+    req: [entries: GitOpenFileEntry[]];
+    res: { watched: number };
+  };
+}
+
+/** A watched file in this repository changed; the window's walk reads it. */
+export const EVT_GIT_OPEN_FILE_CHANGED = 'git:openFileChanged' as const;
+
+/** Payload of EVT_GIT_OPEN_FILE_CHANGED: the repoPath string the window declared. */
+export interface GitOpenFilesEventPayloadMap {
+  'git:openFileChanged': [repoPath: string];
+}
+
+/** Extension to GmuxApi['git'] (Phase 347). */
+export interface GmuxGitOpenFilesExtras {
+  watchOpenFiles(entries: GitOpenFileEntry[]): Promise<{ watched: number }>;
+  onOpenFileChanged(cb: (repoPath: string) => void): Unsubscribe;
+}

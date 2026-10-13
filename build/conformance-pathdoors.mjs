@@ -573,13 +573,22 @@ function externalDoorFindings(text) {
    * MADE, which is why they were never a precedent for this phase. The fourth
    * is this phase's, and it is the only one that takes a path a person did not
    * pick out of a surface Tortie drew.
+   *
+   * `src/main/pocket/ipc.ts` was added by Phase 333.1 (700f54ed) without its
+   * row, so this rule read red from then until Phase 347 declared it: its
+   * three calls open Tailscale's download page and app bundle, both compiled
+   * constants, on a person's setup press that a harness launch never reaches,
+   * and the approval URL Tailscale printed only after `approvalOpens` passes
+   * it (https, exactly login.tailscale.com, no port, no credentials). None
+   * takes a path it was handed, and none takes anything the renderer sent.
    */
   const DECLARED = new Map([
     ['src/main/config/guide.ts', 'the configuration folder Tortie made'],
     ['src/main/log/ipc.ts', 'the log directory Tortie made'],
     ['src/main/migrate/notice.ts', 'the migration notice’s own folder'],
     ['src/main/fs/path-open.ts', 'PHASE 247, and it re-asks the whole sequence'],
-    ['src/main/security/trusted-window.ts', 'an https URL through setWindowOpenHandler, which is not a path']
+    ['src/main/security/trusted-window.ts', 'an https URL through setWindowOpenHandler, which is not a path'],
+    ['src/main/pocket/ipc.ts', 'PHASE 333.1: Tailscale’s compiled download page and app bundle on a setup press, and the approval URL only after approvalOpens; never a path it was handed']
   ]);
   const found = filesNaming(join(repoRoot, 'src/main'), 'shell.open').sort();
   const undeclared = found.filter((f) => !DECLARED.has(f));

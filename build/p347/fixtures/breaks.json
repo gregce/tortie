@@ -1,0 +1,1133 @@
+[
+ {
+  "label": "K1: HEAD sent the interrupt",
+  "arm": "K1",
+  "build": "head",
+  "set": {
+   "newBytes": [
+    "03"
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "K1: HEAD cleared the draft",
+  "arm": "K1",
+  "build": "head",
+  "set": {
+   "promptRow": ">"
+  },
+  "want": false
+ },
+ {
+  "label": "K1: HEAD wrote the clipboard with nothing selected",
+  "arm": "K1",
+  "build": "head",
+  "set": {
+   "clipboardWrites": 1
+  },
+  "want": false
+ },
+ {
+  "label": "K1: the parent sent nothing",
+  "arm": "K1",
+  "build": "parent",
+  "set": {
+   "newBytes": []
+  },
+  "want": false
+ },
+ {
+  "label": "K1: the parent kept the draft",
+  "arm": "K1",
+  "build": "parent",
+  "set": {
+   "promptRow": "> p347 draft notes"
+  },
+  "want": false
+ },
+ {
+  "label": "K1: a draft that never arrived is unreadable",
+  "arm": "K1",
+  "build": "head",
+  "set": {
+   "drafted": false
+  },
+  "want": null
+ },
+ {
+  "label": "K1: an unfocused terminal is unreadable",
+  "arm": "K1",
+  "build": "parent",
+  "set": {
+   "focused": false
+  },
+  "want": null
+ },
+ {
+  "label": "K1: an unread clipboard at HEAD is unreadable",
+  "arm": "K1",
+  "build": "head",
+  "set": {
+   "clipboardWrites": null
+  },
+  "want": null
+ },
+ {
+  "label": "K2: the copy missed the row",
+  "arm": "K2",
+  "build": "head",
+  "set": {
+   "copied": "something else"
+  },
+  "want": false
+ },
+ {
+  "label": "K2: a byte reached the session",
+  "arm": "K2",
+  "build": "parent",
+  "set": {
+   "newBytes": [
+    "03"
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "K2: nothing was copied",
+  "arm": "K2",
+  "build": "head",
+  "set": {
+   "copied": null
+  },
+  "want": false
+ },
+ {
+  "label": "K2: no recorder is unreadable",
+  "arm": "K2",
+  "build": "head",
+  "set": {
+   "patched": false
+  },
+  "want": null
+ },
+ {
+  "label": "K3: ⌃C sent nothing at HEAD",
+  "arm": "K3",
+  "build": "head",
+  "set": {
+   "newBytes": []
+  },
+  "want": false
+ },
+ {
+  "label": "K3: ⌃C sent nothing at the parent",
+  "arm": "K3",
+  "build": "parent",
+  "set": {
+   "newBytes": [
+    "63"
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "K4: HEAD kept the old action",
+  "arm": "K4",
+  "build": "head",
+  "set": {
+   "settings.0.action": "Copy or interrupt"
+  },
+  "want": false
+ },
+ {
+  "label": "K4: HEAD kept the old explain",
+  "arm": "K4",
+  "build": "head",
+  "set": {
+   "settings.0.explain": "With text selected it copies. With nothing selected it sends the interrupt an agent reads as “stop” — the gesture you want when something runs away."
+  },
+  "want": false
+ },
+ {
+  "label": "K4: the overlay kept the old action",
+  "arm": "K4",
+  "build": "head",
+  "set": {
+   "overlay.0.action": "Copy or interrupt"
+  },
+  "want": false
+ },
+ {
+  "label": "K4: two ⌘C rows",
+  "arm": "K4",
+  "build": "head",
+  "set": {
+   "settings.1.keys": "⌘ C"
+  },
+  "want": false
+ },
+ {
+  "label": "K4: the parent already said Copy",
+  "arm": "K4",
+  "build": "parent",
+  "set": {
+   "settings.0.action": "Copy"
+  },
+  "want": false
+ },
+ {
+  "label": "K4: the overlay says neither word",
+  "arm": "K4",
+  "build": "head",
+  "set": {
+   "overlay.0.action": "Copy text"
+  },
+  "want": false
+ },
+ {
+  "label": "K4: the parent overlay already said Copy",
+  "arm": "K4",
+  "build": "parent",
+  "set": {
+   "overlay.0.action": "Copy"
+  },
+  "want": false
+ },
+ {
+  "label": "K4: an empty Settings is unreadable",
+  "arm": "K4",
+  "build": "head",
+  "set": {
+   "settings": []
+  },
+  "want": null
+ },
+ {
+  "label": "P1: HEAD missed a row",
+  "arm": "P1",
+  "build": "head",
+  "set": {
+   "pointers.2": false
+  },
+  "want": false
+ },
+ {
+  "label": "P1: HEAD opened nothing",
+  "arm": "P1",
+  "build": "head",
+  "set": {
+   "opened": [],
+   "line": null
+  },
+  "want": false
+ },
+ {
+  "label": "P1: HEAD opened at line 1",
+  "arm": "P1",
+  "build": "head",
+  "set": {
+   "line": 1
+  },
+  "want": false
+ },
+ {
+  "label": "P1: HEAD opened a fragment",
+  "arm": "P1",
+  "build": "head",
+  "set": {
+   "opened": [
+    "/s/head/proj/.planning/brainstorming.md"
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "P1: the parent drew a pointer",
+  "arm": "P1",
+  "build": "parent",
+  "set": {
+   "pointers.0": true
+  },
+  "want": false
+ },
+ {
+  "label": "P1: the parent opened something",
+  "arm": "P1",
+  "build": "parent",
+  "set": {
+   "opened": [
+    "/x"
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "P1: rows not on screen are unreadable",
+  "arm": "P1",
+  "build": "head",
+  "set": {
+   "found": false
+  },
+  "want": null
+ },
+ {
+  "label": "P1: no calibration is unreadable",
+  "arm": "P1",
+  "build": "parent",
+  "set": {
+   "calibrated": false
+  },
+  "want": null
+ },
+ {
+  "label": "P2: HEAD missed the wrap",
+  "arm": "P2",
+  "build": "head",
+  "set": {
+   "pointers": [
+    true,
+    false,
+    false
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "P2: the parent opened the file",
+  "arm": "P2",
+  "build": "parent",
+  "set": {
+   "opened": [
+    "/s/head/proj/arcturus-labs/rook/agent-workspace-01/software-factory/.planning/brainstorm-wrap.md"
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "P3: HEAD opened the planted fragment",
+  "arm": "P3",
+  "build": "head",
+  "set": {
+   "opened": [
+    "/s/head/proj/.planning/brainstorm-p3.md"
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "P3: the parent opened the whole file",
+  "arm": "P3",
+  "build": "parent",
+  "set": {
+   "opened": [
+    "/s/head/proj/arcturus-labs/rook/agent-workspace-01/software-factory/.planning/brainstorm-p3.md"
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "P3: nothing planted is unreadable",
+  "arm": "P3",
+  "build": "head",
+  "set": {
+   "plantedExists": false
+  },
+  "want": null
+ },
+ {
+  "label": "P4: HEAD drew a pointer on a path that is not there",
+  "arm": "P4",
+  "build": "head",
+  "set": {
+   "pointers.1": true
+  },
+  "want": false
+ },
+ {
+  "label": "P4: the parent opened something",
+  "arm": "P4",
+  "build": "parent",
+  "set": {
+   "opened": [
+    "/x"
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "P5: HEAD opened sub/README.md",
+  "arm": "P5",
+  "build": "head",
+  "set": {
+   "opened": [
+    "/s/head/proj/sub/README.md"
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "P5: the parent opened nothing",
+  "arm": "P5",
+  "build": "parent",
+  "set": {
+   "opened": []
+  },
+  "want": false
+ },
+ {
+  "label": "P5: a folder row at the edge is unreadable",
+  "arm": "P5",
+  "build": "head",
+  "set": {
+   "shortOfEdge": false
+  },
+  "want": null
+ },
+ {
+  "label": "P6: HEAD opened README.md.bak from the path’s own row",
+  "arm": "P6",
+  "build": "head",
+  "set": {
+   "openedTop": [
+    "/s/head/proj/hw6/README.md.bak"
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "P6: the parent opened nothing from the path",
+  "arm": "P6",
+  "build": "parent",
+  "set": {
+   "openedTop": []
+  },
+  "want": false
+ },
+ {
+  "label": "P6: HEAD drew a pointer on .bak",
+  "arm": "P6",
+  "build": "head",
+  "set": {
+   "pointerBelow": true
+  },
+  "want": false
+ },
+ {
+  "label": "P6: the press on .bak opened README.md.bak",
+  "arm": "P6",
+  "build": "head",
+  "set": {
+   "openedBelow": [
+    "/s/head/proj/hw6/README.md.bak"
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "P6: no pointer on the path",
+  "arm": "P6",
+  "build": "parent",
+  "set": {
+   "pointerTop": false
+  },
+  "want": false
+ },
+ {
+  "label": "P6: README.md.bak not planted is unreadable",
+  "arm": "P6",
+  "build": "head",
+  "set": {
+   "bakExists": false
+  },
+  "want": null
+ },
+ {
+  "label": "P6: a row at the last column is unreadable",
+  "arm": "P6",
+  "build": "head",
+  "set": {
+   "shortBy": 0
+  },
+  "want": null
+ },
+ {
+  "label": "W0: the live bus did not update",
+  "arm": "W0",
+  "build": "head",
+  "set": {
+   "after": {
+    "value": "p\n",
+    "savedContents": "p\n",
+    "dirty": false
+   }
+  },
+  "want": false
+ },
+ {
+  "label": "W0: a door in the air is unreadable",
+  "arm": "W0",
+  "build": "parent",
+  "set": {
+   "doorFree": false
+  },
+  "want": null
+ },
+ {
+  "label": "W1: HEAD missed a write",
+  "arm": "W1",
+  "build": "head",
+  "set": {
+   "iterations.3.after": {
+    "value": "old 3\n",
+    "savedContents": "old 3\n",
+    "dirty": false
+   }
+  },
+  "want": false
+ },
+ {
+  "label": "W1: HEAD showed a write late",
+  "arm": "W1",
+  "build": "head",
+  "set": {
+   "iterations.1.seenAtMs": 2000
+  },
+  "want": false
+ },
+ {
+  "label": "W1: the parent showed a write",
+  "arm": "W1",
+  "build": "parent",
+  "set": {
+   "iterations.0.after": {
+    "value": "new 0\n",
+    "savedContents": "new 0\n",
+    "dirty": false
+   }
+  },
+  "want": false
+ },
+ {
+  "label": "W1: a write with a door in the air is unreadable",
+  "arm": "W1",
+  "build": "head",
+  "set": {
+   "iterations.2.doorFree": false
+  },
+  "want": null
+ },
+ {
+  "label": "W1: four writes of five is unreadable",
+  "arm": "W1",
+  "build": "parent",
+  "del": [
+   "iterations.4"
+  ],
+  "want": null
+ },
+ {
+  "label": "W2: HEAD read the bytes and never drew them",
+  "arm": "W2",
+  "build": "head",
+  "set": {
+   "iterations.1.after.drawnHasMarker": false
+  },
+  "want": false
+ },
+ {
+  "label": "W2: the parent drew the marker",
+  "arm": "W2",
+  "build": "parent",
+  "set": {
+   "iterations.2.after.drawnHasMarker": true
+  },
+  "want": false
+ },
+ {
+  "label": "W3: HEAD lost the watch on a rename-over",
+  "arm": "W3",
+  "build": "head",
+  "set": {
+   "iterations.2.after": {
+    "value": "old 2\n",
+    "savedContents": "old 2\n",
+    "dirty": false
+   }
+  },
+  "want": false
+ },
+ {
+  "label": "W3: HEAD reloaded the model and left the tab dirty",
+  "arm": "W3",
+  "build": "head",
+  "set": {
+   "iterations.0.after": {
+    "value": "new 0\n",
+    "savedContents": "new 0\n",
+    "dirty": true
+   }
+  },
+  "want": false
+ },
+ {
+  "label": "W4: HEAD did not show the shell's bytes after the save",
+  "arm": "W4",
+  "build": "head",
+  "set": {
+   "seen": false
+  },
+  "want": false
+ },
+ {
+  "label": "W4: HEAD stopped auto save",
+  "arm": "W4",
+  "build": "head",
+  "set": {
+   "stopped": "stale"
+  },
+  "want": false
+ },
+ {
+  "label": "W4: HEAD raised a change-on-disk toast",
+  "arm": "W4",
+  "build": "head",
+  "set": {
+   "toasts": [
+    "'d.md' changed on disk, so nothing was written."
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "W4: HEAD wrote over the writer",
+  "arm": "W4",
+  "build": "head",
+  "set": {
+   "disk": "pPQ"
+  },
+  "want": false
+ },
+ {
+  "label": "W4: the parent showed the bytes",
+  "arm": "W4",
+  "build": "parent",
+  "set": {
+   "seen": true
+  },
+  "want": false
+ },
+ {
+  "label": "W4: the parent raised no toast",
+  "arm": "W4",
+  "build": "parent",
+  "set": {
+   "toasts": []
+  },
+  "want": false
+ },
+ {
+  "label": "W4: a P that never landed is unreadable",
+  "arm": "W4",
+  "build": "head",
+  "set": {
+   "landedP": false
+  },
+  "want": null
+ },
+ {
+  "label": "W5: the typing was replaced",
+  "arm": "W5",
+  "build": "head",
+  "set": {
+   "after": {
+    "value": "w\n",
+    "savedContents": "w\n",
+    "dirty": false
+   }
+  },
+  "want": false
+ },
+ {
+  "label": "W5: savedContents moved under the typing",
+  "arm": "W5",
+  "build": "head",
+  "set": {
+   "after.savedContents": "w\n"
+  },
+  "want": false
+ },
+ {
+  "label": "W5: ⌘S did not ask",
+  "arm": "W5",
+  "build": "parent",
+  "set": {
+   "dialog": {
+    "open": false,
+    "buttons": []
+   }
+  },
+  "want": false
+ },
+ {
+  "label": "W5: Cancel wrote the disk",
+  "arm": "W5",
+  "build": "head",
+  "set": {
+   "afterCancel.disk": "p\nD"
+  },
+  "want": false
+ },
+ {
+  "label": "W5: a D that never landed is unreadable",
+  "arm": "W5",
+  "build": "head",
+  "set": {
+   "typed": false
+  },
+  "want": null
+ },
+ {
+  "label": "W6: a typed character was lost",
+  "arm": "W6",
+  "build": "head",
+  "set": {
+   "buffer": "w6 writer 20 abcd\nABCDEFGHJKLMNPQRSTU",
+   "disk": "w6 writer 20 abcd\n"
+  },
+  "want": false
+ },
+ {
+  "label": "W6: the parent lost one",
+  "arm": "W6",
+  "build": "parent",
+  "set": {
+   "buffer": "ABCDEFGHJKLMNPQRSTV"
+  },
+  "want": false
+ },
+ {
+  "label": "W6: typing that did not finish is unreadable",
+  "arm": "W6",
+  "build": "head",
+  "set": {
+   "typedDone": false
+  },
+  "want": null
+ },
+ {
+  "label": "W7: HEAD missed the quick recreate",
+  "arm": "W7",
+  "build": "head",
+  "set": {
+   "a.after": {
+    "value": "p\n",
+    "savedContents": "p\n",
+    "dirty": false
+   }
+  },
+  "want": false
+ },
+ {
+  "label": "W7: HEAD left the deleted sentence",
+  "arm": "W7",
+  "build": "head",
+  "set": {
+   "a.banner": true
+  },
+  "want": false
+ },
+ {
+  "label": "W7: HEAD dropped the sentence before a look",
+  "arm": "W7",
+  "build": "head",
+  "set": {
+   "b.afterRecreate.banner": false
+  },
+  "want": false
+ },
+ {
+  "label": "W7: HEAD never said the file was deleted",
+  "arm": "W7",
+  "build": "head",
+  "set": {
+   "b.bannerBeforeRecreate": false
+  },
+  "want": false
+ },
+ {
+  "label": "W7: the parent re-read without a look",
+  "arm": "W7",
+  "build": "parent",
+  "set": {
+   "a.after": {
+    "value": "a\n",
+    "savedContents": "a\n",
+    "dirty": false
+   }
+  },
+  "want": false
+ },
+ {
+  "label": "W7: the look did not show the new bytes",
+  "arm": "W7",
+  "build": "parent",
+  "set": {
+   "b.look.after": {
+    "value": "a\n",
+    "savedContents": "a\n",
+    "dirty": false
+   }
+  },
+  "want": false
+ },
+ {
+  "label": "W7: a recreate before 3 s is unreadable",
+  "arm": "W7",
+  "build": "head",
+  "set": {
+   "b.recreatedAtMs": 1200
+  },
+  "want": null
+ },
+ {
+  "label": "W8: HEAD still holds the closed file",
+  "arm": "W8",
+  "build": "head",
+  "set": {
+   "namedAfter": true
+  },
+  "want": false
+ },
+ {
+  "label": "W8: the parent watched the file",
+  "arm": "W8",
+  "build": "parent",
+  "set": {
+   "armedBefore": true
+  },
+  "want": false
+ },
+ {
+  "label": "W8: an unwatched file at HEAD is unreadable",
+  "arm": "W8",
+  "build": "head",
+  "set": {
+   "armedBefore": false
+  },
+  "want": null
+ },
+ {
+  "label": "W9: HEAD still holds a closed project",
+  "arm": "W9",
+  "build": "head",
+  "set": {
+   "namedAfter": 1
+  },
+  "want": false
+ },
+ {
+  "label": "W9: the parent watched a file",
+  "arm": "W9",
+  "build": "parent",
+  "set": {
+   "namedBefore": 1
+  },
+  "want": false
+ },
+ {
+  "label": "W9: a project that did not close is unreadable",
+  "arm": "W9",
+  "build": "head",
+  "set": {
+   "closed": false
+  },
+  "want": null
+ },
+ {
+  "label": "W10: a tracked file is in main",
+  "arm": "W10",
+  "build": "head",
+  "set": {
+   "named": 1
+  },
+  "want": false
+ },
+ {
+  "label": "W10: the ignored file in a tracked folder did not update",
+  "arm": "W10",
+  "build": "parent",
+  "set": {
+   "logSeen": false
+  },
+  "want": false
+ },
+ {
+  "label": "W11: HEAD rose by more than the armed count",
+  "arm": "W11",
+  "build": "head",
+  "set": {
+   "after": 151
+  },
+  "want": false
+ },
+ {
+  "label": "W11: HEAD armed one file twice",
+  "arm": "W11",
+  "build": "head",
+  "set": {
+   "perFileMax": 2
+  },
+  "want": false
+ },
+ {
+  "label": "W11: HEAD armed 29",
+  "arm": "W11",
+  "build": "head",
+  "set": {
+   "named": 29,
+   "after": 149
+  },
+  "want": false
+ },
+ {
+  "label": "W11: the parent rose",
+  "arm": "W11",
+  "build": "parent",
+  "set": {
+   "after": 121
+  },
+  "want": false
+ },
+ {
+  "label": "W11: 29 tabs open is unreadable",
+  "arm": "W11",
+  "build": "head",
+  "set": {
+   "opened": 29
+  },
+  "want": null
+ },
+ {
+  "label": "W13: HEAD watched the outside file",
+  "arm": "W13",
+  "build": "head",
+  "set": {
+   "secretNamed": true
+  },
+  "want": false
+ },
+ {
+  "label": "W13: HEAD showed an outside write",
+  "arm": "W13",
+  "build": "head",
+  "set": {
+   "afterWrites": "s2\n"
+  },
+  "want": false
+ },
+ {
+  "label": "W13: the look did not show the last bytes",
+  "arm": "W13",
+  "build": "parent",
+  "set": {
+   "afterLook": "s2\n"
+  },
+  "want": false
+ },
+ {
+  "label": "W13: the parent changed without a look",
+  "arm": "W13",
+  "build": "parent",
+  "set": {
+   "afterWrites": "s0\n"
+  },
+  "want": false
+ },
+ {
+  "label": "W13: a swap that did not happen is unreadable",
+  "arm": "W13",
+  "build": "head",
+  "set": {
+   "swapped": false
+  },
+  "want": null
+ },
+ {
+  "label": "W14: HEAD missed one pair",
+  "arm": "W14",
+  "build": "head",
+  "set": {
+   "iterations.17.after": {
+    "value": "old 17\n",
+    "savedContents": "old 17\n",
+    "dirty": false
+   }
+  },
+  "want": false
+ },
+ {
+  "label": "W14: the parent showed a pair",
+  "arm": "W14",
+  "build": "parent",
+  "set": {
+   "iterations.29.after": {
+    "value": "new 29\n",
+    "savedContents": "new 29\n",
+    "dirty": false
+   }
+  },
+  "want": false
+ },
+ {
+  "label": "W15: HEAD missed a file in the decomposed folder",
+  "arm": "W15",
+  "build": "head",
+  "set": {
+   "iterations.1.after": {
+    "value": "old 1\n",
+    "savedContents": "old 1\n",
+    "dirty": false
+   }
+  },
+  "want": false
+ },
+ {
+  "label": "W15: the parent saw the decomposed folder",
+  "arm": "W15",
+  "build": "parent",
+  "set": {
+   "iterations.0.after": {
+    "value": "new 0\n",
+    "savedContents": "new 0\n",
+    "dirty": false
+   }
+  },
+  "want": false
+ },
+ {
+  "label": "W15: a door in the air is unreadable",
+  "arm": "W15",
+  "build": "head",
+  "set": {
+   "iterations.0.doorFree": false
+  },
+  "want": null
+ },
+ {
+  "label": "W12: HEAD quit slower than the parent plus 2 s",
+  "arm": "W12",
+  "build": "head",
+  "set": {
+   "quitMs": 2801
+  },
+  "want": false
+ },
+ {
+  "label": "W12: a watcher error in app.log",
+  "arm": "W12",
+  "build": "head",
+  "set": {
+   "watcherErrors": [
+    "warn watcher: x"
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "W12: the parent did not end on SIGTERM",
+  "arm": "W12",
+  "build": "parent",
+  "set": {
+   "exited": false
+  },
+  "want": false
+ },
+ {
+  "label": "W12: no watch armed at the quit is unreadable",
+  "arm": "W12",
+  "build": "head",
+  "set": {
+   "armedAtQuit": 0
+  },
+  "want": null
+ },
+ {
+  "label": "W12: no app.log is unreadable",
+  "arm": "W12",
+  "build": "parent",
+  "set": {
+   "appLog": false
+  },
+  "want": null
+ },
+ {
+  "label": "RUN: his history moved",
+  "arm": "RUN",
+  "build": "-",
+  "set": {
+   "historyMoved": [
+    "~/.zsh_history"
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "RUN: an app left alive",
+  "arm": "RUN",
+  "build": "-",
+  "set": {
+   "leftPids": [
+    4242
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "RUN: a process naming the scratch",
+  "arm": "RUN",
+  "build": "-",
+  "set": {
+   "leftByProfile": [
+    "4243 Electron"
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "W10: a HEAD read that names no watched file is unreadable (the probe review)",
+  "arm": "W10",
+  "build": "head",
+  "set": {
+   "control": 0
+  },
+  "want": null
+ },
+ {
+  "label": "W4: the parent showed the bytes late (the probe review)",
+  "arm": "W4",
+  "build": "parent",
+  "set": {
+   "seenAtMs": 2000
+  },
+  "want": false
+ },
+ {
+  "label": "W13: a tab unread after the writes is unreadable (the probe review)",
+  "arm": "W13",
+  "build": "head",
+  "set": {
+   "afterWrites": null
+  },
+  "want": null
+ },
+ {
+  "label": "an arm that threw is unreadable",
+  "arm": "W5",
+  "build": "parent",
+  "replace": {
+   "unreadable": "it threw: boom"
+  },
+  "want": null
+ }
+]

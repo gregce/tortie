@@ -479,12 +479,21 @@ const HELPER = 'electron-run.mjs';
  * Docker (made and ended only by `build/docker-run.mjs`) through an ssh
  * wrapper and the tailnet stand-in, every one ended in a `finally`.
  *
+ * PHASE 347 RAISED IT FROM 172 TO 173, by one for build/p347/probe-p347.mjs
+ * (`probe:p347`), three of John's bugs in the real app: ⌘C with nothing
+ * selected, a path broken over rows, and a file in an ignored folder that an
+ * outside writer changes. The parent first (P347_PARENT_CHECKOUT, required),
+ * then HEAD, never two Electrons at once, each launch through the helper on a
+ * scratch profile, HOME and ZDOTDIR with HISTFILE=/dev/null, the five hidden
+ * agents renamed before it; every session a plain shell running
+ * build/p347/stand-in.sh, and every other process it starts synchronous.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 172;
+const HELPER_USER_FLOOR = 173;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

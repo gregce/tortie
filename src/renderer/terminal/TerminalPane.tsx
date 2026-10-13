@@ -345,8 +345,8 @@ export function TerminalPane({
     });
 
     // ⌘C / ⌘A / ⌘K, ⇧PageUp/⇧PageDown and ⇧Enter. ⌘C with a selection copies;
-    // with NO selection it sends SIGINT — the renderer sees the key before the
-    // app menu (see ./keys), so this handler, not `role:'copy'`, decides which.
+    // with NO selection it does nothing (Phase 347). The renderer sees the key
+    // before the menu (see ./keys), so this handler, not `role:'copy'`, decides.
     // The closures are read per keystroke, never captured: a session can be
     // renamed, and the agent it runs is what picks the ⇧Enter newline bytes.
     const sessionRow = (): Session | undefined =>

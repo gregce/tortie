@@ -93,12 +93,15 @@ import type {
   GitDepthInvokeChannelMap,
   GitGraphInvokeChannelMap,
   GitIgnoreInvokeChannelMap,
+  GitOpenFilesEventPayloadMap,
+  GitOpenFilesInvokeChannelMap,
   GitSyncInvokeChannelMap,
   GmuxGitBranchExtras,
   GmuxGitDepthExtras,
   GmuxGitExtras,
   GmuxGitGraphExtras,
   GmuxGitIgnoreExtras,
+  GmuxGitOpenFilesExtras,
   GmuxGitSyncExtras,
   ScmInvokeChannelMap
 } from './git';
@@ -289,6 +292,8 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   ScrollbackInvokeChannelMap &
   GitGraphInvokeChannelMap &
   GitIgnoreInvokeChannelMap &
+  // Phase 347. A window declares the open files its walk reads.
+  GitOpenFilesInvokeChannelMap &
   SpecStoryStatusInvokeChannelMap &
   CloneInvokeChannelMap &
   RecentsInvokeChannelMap &
@@ -370,7 +375,10 @@ export type AllEventPayloadMap = EventPayloadMap &
   LoginsEventPayloadMap &
   // Phase 313. The door's whole status, pushed when anything about it moves —
   // a phone allowed, a phone removed, a bind that refused.
-  PocketEventPayloadMap;
+  PocketEventPayloadMap &
+  // Phase 347. A watched open file changed, sent only to the window that
+  // declared it.
+  GitOpenFilesEventPayloadMap;
 
 export type AllEventChannel = keyof AllEventPayloadMap;
 
@@ -410,7 +418,8 @@ export type InstalledGitApi = GmuxApi['git'] &
   GmuxGitBranchExtras &
   GmuxGitSyncExtras &
   GmuxGitGraphExtras &
-  GmuxGitIgnoreExtras;
+  GmuxGitIgnoreExtras &
+  GmuxGitOpenFilesExtras;
 
 /**
  * The `fs` object the preload installs: base plus tree, ops, image and the

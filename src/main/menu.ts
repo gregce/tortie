@@ -17,9 +17,9 @@
  * app's own handlers. Every registered item still forwards a MenuActionId
  * over EVT_MENU_ACTION so both routes end in the same action.
  *
- * This ordering is load-bearing for the terminal: ⌘C with no selection must
- * send SIGINT, which only works because src/renderer/terminal/keys/ sees
- * the key before the Edit menu's `role:'copy'` and can suppress it.
+ * This ordering is load-bearing for the terminal: ⌘C in a terminal is decided
+ * by src/renderer/terminal/keys/, which sees the key before the Edit menu's
+ * `role:'copy'` and suppresses it (since Phase 347 it only ever copies).
  * Renderer-only chords (⌘1…⌘9, ⌘⇧]/⌘⇧[, ⌘↩ commit) stay off the menu on
  * purpose: they are context-sensitive or would bloat it.
  *

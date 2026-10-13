@@ -69,6 +69,11 @@
  *     saveOutsideProject(…)` — rule 11. The 282.1 reverifier planted it and
  *     read the gate green; only the vitest "a timer's request never reaches
  *     the plain door" (p277-save-completion.test.ts) went red.
+ *  33. PHASE 347. MonacoHost's dirty mark deferred by `setTimeout`, the attack
+ *     verifier's X7 — rule 28. The open file watch runs the walk on every write
+ *     to a file in an ignored folder, and the walk replaces a tab it reads clean.
+ *  34-35. The walk's skip of a draft never saved removed (X9), and moved below
+ *     the existence check — rule 29.
  *
  * Then the files are restored and the gate must exit ZERO again.
  */
@@ -115,6 +120,8 @@ const TAB_IO = join(REPO, 'src/renderer/editor/tab-io.ts');
 const EDITOR_STORE = join(REPO, 'src/renderer/editor/store.ts');
 // PHASE 282. The Redline view's typing hook, which arms 24 to 27 break.
 const REDLINE_EDITS = join(REPO, 'src/renderer/editor/redline-edits.ts');
+// PHASE 347. MonacoHost, whose content listener arm 33 breaks.
+const MONACO_HOST = join(REPO, 'src/renderer/editor/MonacoHost.tsx');
 const GATE = join(REPO, 'build/conformance-save.mjs');
 const AUDIT_TEST = join(REPO, 'src/renderer/editor/__tests__/audit-0914-auto-save.test.ts');
 
@@ -149,6 +156,7 @@ const originals = new Map([
   [TAB_IO, readFileSync(TAB_IO, 'utf8')],
   [EDITOR_STORE, readFileSync(EDITOR_STORE, 'utf8')],
   [REDLINE_EDITS, readFileSync(REDLINE_EDITS, 'utf8')],
+  [MONACO_HOST, readFileSync(MONACO_HOST, 'utf8')],
   [AUDIT_TEST, readFileSync(AUDIT_TEST, 'utf8')]
 ]);
 
@@ -653,6 +661,44 @@ try {
     restore();
   }
 
+  // ------------------------------------------------------------- 33 to 35
+  // PHASE 347. The two clauses the walk's "never replace typing" rests on,
+  // which the open file watch now exercises on every write to a file in an
+  // ignored folder. Both were unowned at the parent (build/p347/SPEC.md §6.3).
+  {
+    ablate(
+      MONACO_HOST,
+      '      markDirty(tab.id, model.getValue() !== current.savedContents);\n',
+      '      setTimeout(() => markDirty(tab.id, model.getValue() !== current.savedContents), 0);\n'
+    );
+    const { code, failed } = runGate();
+    say(`33 (MonacoHost's dirty mark deferred by setTimeout): exit ${String(code)}, rules ${failed.join(', ') || 'none'}`);
+    if (code === 0) problems.push('33. a dirty mark deferred by a timer passed the gate');
+    if (!failed.includes('28')) problems.push('33. rule 28 did not go red');
+    restore();
+  }
+  const DRAFT_SKIP_LINE = "      if (tab.draft != null && tab.savedContents === '') continue;\n";
+  {
+    ablate(TAB_IO, DRAFT_SKIP_LINE, '');
+    const { code, failed } = runGate();
+    say(`34 (the walk's draft skip removed): exit ${String(code)}, rules ${failed.join(', ') || 'none'}`);
+    if (code === 0) problems.push('34. a walk with no draft skip passed the gate');
+    if (!failed.includes('29')) problems.push('34. rule 29 did not go red');
+    restore();
+  }
+  {
+    const RELOAD = "      // Reload clean buffers so the editor tracks the agent's edits.\n";
+    ablate(TAB_IO, DRAFT_SKIP_LINE, '');
+    const moved = readFileSync(TAB_IO, 'utf8');
+    if (!moved.includes(RELOAD)) throw new Error('the reload comment is not below the existence check');
+    writeFileSync(TAB_IO, moved.replace(RELOAD, `${DRAFT_SKIP_LINE}${RELOAD}`), 'utf8');
+    const { code, failed } = runGate();
+    say(`35 (the walk's draft skip moved below the existence check): exit ${String(code)}, rules ${failed.join(', ') || 'none'}`);
+    if (code === 0) problems.push('35. a draft skip below the existence check passed the gate');
+    if (!failed.includes('29')) problems.push('35. rule 29 did not go red');
+    restore();
+  }
+
   // ---------------------------------------------------------------- restored
   {
     const { code, failed } = runGate();
@@ -683,6 +729,6 @@ if (problems.length > 0) {
   process.exit(1);
 }
 say(
-  'PASS: 32 ablations, each red on the rule that owns it, and the tree restored byte for byte by sha256.'
+  'PASS: 35 ablations, each red on the rule that owns it, and the tree restored byte for byte by sha256.'
 );
 process.exit(0);

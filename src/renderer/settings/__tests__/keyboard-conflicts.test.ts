@@ -24,6 +24,23 @@ describe('shortcutConflictNote', () => {
     expect(note).toContain('Record a different shortcut');
   });
 
+  it('Phase 347: ⌃C says it is the interrupt only inside a session', () => {
+    const note = shortcutConflictNote('Ctrl+C', 'claude', none);
+    expect(note).toBe(
+      'Inside a session this is Interrupt, and that wins; anywhere else it starts this agent. Record a different shortcut.'
+    );
+  });
+
+  it('Phase 347: ⌘C and ⌘A keep the sentence that says they never start a session', () => {
+    // The Edit menu's Copy and Select All win outside a session, so the
+    // session-only wording would be false for them (the reverify of 2026-10-13).
+    for (const chord of ['Cmd+C', 'Cmd+A']) {
+      const note = shortcutConflictNote(chord, 'claude', none);
+      expect(note).toContain('the built-in wins — this never starts a session');
+      expect(note).not.toContain('anywhere else');
+    }
+  });
+
   it('is insensitive to modifier order', () => {
     expect(shortcutConflictNote('Cmd+Shift+N', 'claude', none)).toContain(
       'New project'

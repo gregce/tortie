@@ -138,7 +138,7 @@ export function hasLiveTerminal(sessionId: string): boolean {
  * A selection held in the history (Phase 209) counts even when none of it is
  * on screen, because the person scrolled away from it rather than dropping
  * it: command C then copies it, exactly as Apple's Terminal does, rather than
- * sending an interrupt to the session.
+ * doing nothing, which is what it does with no selection (Phase 347).
  */
 export function hasSelection(sessionId: string): boolean {
   return (

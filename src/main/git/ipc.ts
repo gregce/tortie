@@ -20,19 +20,33 @@
  *    the sidebar snaps without waiting out the debounce.
  *  - Non-repo folders are a friendly state: git:status resolves with
  *    isRepo:false; mutations throw NOT_A_GIT_REPO (structured GmuxError).
+ *  - Phase 347: a window declares the open files its walk reads
+ *    (git:watchOpenFiles); the ones the repository's own running watcher
+ *    excludes are watched one file each (../watcher/open-files.ts), and a
+ *    change is told to that window alone as EVT_GIT_OPEN_FILE_CHANGED.
  */
 
-import type { IpcMain } from 'electron';
+import { webContents } from 'electron';
+import type { IpcMain, WebContents } from 'electron';
 import { existsSync, statSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
-import { EVT_GIT_CHANGED } from '@shared/ipc';
+import { EVT_GIT_CHANGED, EVT_GIT_OPEN_FILE_CHANGED } from '@shared/ipc';
 import { gmuxError } from '../errors';
-import { emitRepoChanged, onRepoChanged, RepoWatcher } from '../watcher';
+import { canonicalPathSync } from '../fs/folder-identity';
+import {
+  afterKernelSees,
+  armFileByDescriptor,
+  createOpenFileWatches,
+  emitRepoChanged,
+  fileIdentity,
+  onRepoChanged,
+  RepoWatcher
+} from '../watcher';
 import { registerGitDepthIpc } from './depth-ipc';
 import { runGitOrThrow } from './exec';
 import { GitService } from './service';
 import { handle } from '../typed-ipc';
-import { broadcastEvent } from '../typed-events';
+import { broadcastEvent, sendEvent } from '../typed-events';
 import { getLog } from '../log';
 
 /**
@@ -120,6 +134,74 @@ function ensureWatcher(repoPath: string): void {
   watchers.set(key, promise);
 }
 
+/**
+ * `normalizeRepoPath`'s answer, or null where it would throw. Phase 347's
+ * declaration is an enhancement, so a folder that is not there is no error.
+ */
+function repoKeyOrNull(repoPath: string): string | null {
+  try {
+    return normalizeRepoPath(repoPath);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * PHASE 347 (issue 33). The open files the bus cannot see, one watch each.
+ *
+ * `planFor` hands every entry the repository's own RUNNING watcher, started by
+ * the same `ensureWatcher` every git read uses, so `excludes` is asked of the
+ * exclusion plan the subscription really has (D11). `canonical` is Phase 274's
+ * one canonicalising realpath, a throw answering null. The notice goes to the
+ * one window that declared it, never a destroyed one (D16).
+ */
+const openFileWatches = createOpenFileWatches({
+  planFor: async (repoPath) => {
+    const key = repoKeyOrNull(repoPath);
+    if (key === null) return null;
+    ensureWatcher(key);
+    const pending = watchers.get(key);
+    if (pending === undefined) return null;
+    return pending.catch(() => null);
+  },
+  canonical: (path) => {
+    try {
+      return canonicalPathSync(path);
+    } catch {
+      return null;
+    }
+  },
+  armFile: armFileByDescriptor,
+  identity: fileIdentity,
+  afterKernelSees,
+  setTimeout: (fn, ms) => {
+    const timer = setTimeout(fn, ms);
+    return { clear: () => clearTimeout(timer) };
+  },
+  send: (senderId, repoPath) => {
+    const target = webContents.fromId(senderId);
+    if (target === undefined || target.isDestroyed()) return;
+    sendEvent(target, EVT_GIT_OPEN_FILE_CHANGED, repoPath);
+  },
+  env: () => process.env,
+  log: (level, message) => {
+    if (level === 'warn') gitLog.warn(message);
+    else gitLog.info(message);
+  }
+});
+
+/** Senders whose end is already hooked, so each is hooked exactly once (the search/ipc.ts shape). */
+const openFileSenders = new WeakSet<WebContents>();
+
+/** D19: a window destroyed, or its renderer gone, takes every watch it declared with it. */
+function hookOpenFileSender(sender: WebContents): void {
+  if (openFileSenders.has(sender)) return;
+  openFileSenders.add(sender);
+  const id = sender.id;
+  sender.once('destroyed', () => openFileWatches.dropSender(id));
+  sender.on('render-process-gone', () => openFileWatches.dropSender(id));
+}
+
 /** One repository's drop and re-read counts, for the diagnostics report. */
 export interface WatcherObservationRow {
   repoPath: string;
@@ -150,6 +232,8 @@ export function watchedRepoCount(): number {
 /** Stop watching a repo (call when its project tab is removed). */
 export async function unwatchGitRepo(repoPath: string): Promise<void> {
   const key = resolvePath(repoPath);
+  // Phase 347: the open files watched for this repository close with it.
+  openFileWatches.dropRepo(key);
   const pending = watchers.get(key);
   watchers.delete(key);
   services.delete(key);
@@ -161,6 +245,9 @@ export async function unwatchGitRepo(repoPath: string): Promise<void> {
 
 /** Quit-time teardown: stop every watcher, drop every service. */
 export async function disposeGitIpc(): Promise<void> {
+  // Phase 347: every open file watch closed and every window timer cleared,
+  // before the watchers are awaited, so nothing arms against a stopping one.
+  openFileWatches.dispose();
   const pending = [...watchers.values()];
   watchers.clear();
   services.clear();
@@ -236,6 +323,14 @@ export function registerGitIpc(ipc: IpcMain): void {
   handle(ipc, 'git:checkIgnore', (_e, input) => {
     const svc = getGitService(input.repoPath);
     return svc.checkIgnore(input.paths);
+  });
+
+  // Phase 347 (issue 33): the window's whole set of open files its walk
+  // reads. Main watches the ones the running watcher excludes and answers how
+  // many. A non-array rejects INVALID_INPUT inside `declare`.
+  handle(ipc, 'git:watchOpenFiles', (event, entries) => {
+    hookOpenFileSender(event.sender);
+    return openFileWatches.declare(event.sender.id, entries);
   });
 
   // Appended optional channel (ScmInvokeChannelMap): the §6.3

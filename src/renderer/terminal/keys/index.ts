@@ -16,10 +16,15 @@
  * carries the same measurement. Phase 156 removed the request.)
  *
  * What that buys us, in order of importance:
- *  - **⌘C keeps working as interrupt.** With a selection it copies; with no
- *    selection it must still send SIGINT, because that is the gesture people
- *    reach for when an agent runs away. Left to the Edit menu's `role:'copy'`
- *    the no-selection case would silently do nothing.
+ *  - **⌘C only copies (Phase 347, issue 41).** With a selection it copies;
+ *    with none it does nothing: no byte reaches the session and the clipboard
+ *    is untouched. It used to send the interrupt, and Claude Code, Codex and
+ *    pi read that byte at their prompt as "clear what I typed", so one ⌘C
+ *    with nothing selected threw a draft away. ⌃C is the interrupt and never
+ *    reaches this switch (`isPlainMeta` is false for it, so xterm sends its
+ *    own byte). The `preventDefault()` stays on BOTH branches, so the Edit
+ *    menu's `role:'copy'` never acts on the chord in a focused session and
+ *    "nothing" does not depend on that role having nothing to copy.
  *  - ⌘A selects the buffer once, not twice (xterm handles ⌘A itself but does
  *    not preventDefault, so `role:'selectAll'` fired straight after it).
  *  - ⌘K clears, and since Phase 96 only for a session on THIS Mac.
@@ -54,9 +59,6 @@ import {
   selectAll
 } from '../capture';
 import type { ScrollSurface } from '../scroll/surface';
-
-/** ASCII end-of-text — what ⌃C sends, and what SIGINT is made of. */
-const ETX = '\u0003';
 
 function isPlainMeta(event: KeyboardEvent): boolean {
   return event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey;
@@ -162,8 +164,8 @@ export function terminalKeyHandler(
         if (hasSelection(sessionId)) {
           void copySelection(sessionId);
         } else {
-          // No selection → this is an interrupt, not a copy.
-          term.input(ETX);
+          // PHASE 347 (issue 41, his ruling "Nothing"). No selection → no byte. An agent reads
+          // ⌃C's byte as "clear what I typed"; ⌃C is still the interrupt, handed to xterm above.
         }
         return false;
       case 'a':

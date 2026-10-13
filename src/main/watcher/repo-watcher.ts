@@ -68,6 +68,7 @@ import type { AsyncSubscription, Event } from '@parcel/watcher';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { planWorktreeIgnore, readIgnoredRoots } from './ignored-roots';
+import type { WorktreeIgnorePlan } from './ignored-roots';
 import { trackWatcherClose } from './teardown';
 import { getLog } from '../log';
 // PHASE 274. The ONE canonicalising realpath. `fs.realpathSync` is Node's own
@@ -166,6 +167,83 @@ export function isRescanRequired(err: Error): boolean {
   return /must be re-scanned/i.test(err.message);
 }
 
+/**
+ * PHASE 347. What the running worktree subscription can never deliver an event
+ * for, kept so `excludes` can answer from it. It is the plan the subscription
+ * was handed, with one change made once, at start: every kernel path is spelled
+ * the way the DISK stores it.
+ *
+ * WHY THE KERNEL PATHS ARE RESPELLED, AND WHY ONLY THEY ARE. Git on macOS runs
+ * with `core.precomposeunicode=true`, so it reports an ignored folder's name
+ * composed (NFC) even when the folder is stored decomposed (NFD), which is how
+ * Finder and Cocoa make names. `FSEventStreamSetExclusionPaths` still excludes
+ * that folder (the reverify measured 0 events for writes inside it), so the bus
+ * is blind to it, while `canonicalPathSync` spells a file inside it with the
+ * stored bytes. A string compare of the two would answer "not excluded" for a
+ * file the bus cannot see. So each kernel path is passed through
+ * `canonicalPathSync` once, which ASKS THE FILESYSTEM for the stored name; no
+ * string is normalised or case folded (conformance:samefolder rule 23), and a
+ * path that cannot be resolved keeps its own spelling.
+ *
+ * The OVERFLOW matchers are left exactly as the subscription has them. They are
+ * matched in userspace against the event's path relative to the root, as text,
+ * so a matcher spelled composed does not exclude a folder stored decomposed, the
+ * bus sees that folder, and reading the canonical path with the same matcher is
+ * what mirrors it. That reasoning is not measured over FSEvents here; the
+ * kernel half is.
+ */
+export interface ExclusionView {
+  /** The kernel exclusion paths, `.git` first, each in its stored spelling. */
+  readonly paths: readonly string[];
+  /** The userspace matchers, run against the POSIX path relative to the root. */
+  readonly overflow: readonly RegExp[];
+}
+
+/** PHASE 347. The plan as `excludes` reads it, kernel paths respelled once. */
+export function exclusionViewOf(plan: WorktreeIgnorePlan): ExclusionView {
+  return {
+    paths: plan.paths.map((p) => {
+      try {
+        return canonicalPathSync(p);
+      } catch {
+        return p;
+      }
+    }),
+    overflow: [...plan.overflow]
+  };
+}
+
+/** True when `child` is `parent` or sits under it, as path components. */
+function isAtOrUnder(child: string, parent: string): boolean {
+  if (child === parent) return true;
+  const prefix = parent.endsWith(sep) ? parent : parent + sep;
+  return child.startsWith(prefix);
+}
+
+/**
+ * PHASE 347, D11. True when the worktree subscription never delivers an event
+ * for this canonical path: it is one of the view's kernel paths or under one,
+ * or its POSIX path relative to the root matches an overflow matcher. False
+ * outside the root, and false with no view (a watcher not started, or stopped).
+ * Byte exact on canonical spellings; nothing here folds case or normalises.
+ */
+export function excludedBy(
+  view: ExclusionView | null,
+  watchRoot: string,
+  canonicalPath: string
+): boolean {
+  if (view === null) return false;
+  if (canonicalPath === watchRoot || !isAtOrUnder(canonicalPath, watchRoot)) {
+    return false;
+  }
+  for (const p of view.paths) {
+    if (isAtOrUnder(canonicalPath, p)) return true;
+  }
+  if (view.overflow.length === 0) return false;
+  const rel = relative(watchRoot, canonicalPath).split(sep).join('/');
+  return view.overflow.some((r) => r.test(rel));
+}
+
 export class RepoWatcher {
   /** The path as the caller gave it — reported verbatim in onChange. */
   readonly repoPath: string;
@@ -198,6 +276,14 @@ export class RepoWatcher {
 
   private flushTimer: NodeJS.Timeout | null = null;
   private disposed = false;
+
+  /**
+   * PHASE 347. The exclusion plan the worktree subscription was started with,
+   * kept for `excludes` (it used to be a local of `watch()`). Null until the
+   * subscription exists, and null again from the first step of `dispose()`, so
+   * a holder of a stopped watcher is told nothing is excluded and arms nothing.
+   */
+  private plan: ExclusionView | null = null;
 
   /**
    * Phase 163, the observation Phase 151 left owed. Three integers kept in
@@ -263,15 +349,30 @@ export class RepoWatcher {
       // below covers HEAD/refs. The rest are this repository's ignored roots.
       { ignore: plan.ignore }
     );
+    // Phase 347: kept for `excludes`, the kernel paths spelled as stored.
+    rw.plan = exclusionViewOf(plan);
 
     await rw.tryStartDotgitWatcher();
     return rw;
+  }
+
+  /**
+   * PHASE 347. True when the worktree subscription never delivers an event
+   * for this canonical path: it is one of the plan's kernel paths (`.git`
+   * included) or under one, or its POSIX path relative to the root matches an
+   * overflow matcher. False outside the root. The plan is fixed for the life
+   * of the subscription, and false once `dispose()` has begun.
+   */
+  excludes(canonicalPath: string): boolean {
+    return excludedBy(this.plan, this.watchRoot, canonicalPath);
   }
 
   /** Stop both subscriptions. Safe to call twice. */
   async dispose(): Promise<void> {
     if (this.disposed) return;
     this.disposed = true;
+    // Phase 347: first, so a holder of this watcher arms nothing from now on.
+    this.plan = null;
     if (this.flushTimer !== null) {
       clearTimeout(this.flushTimer);
       this.flushTimer = null;

@@ -177,6 +177,8 @@ import { createAutoSave } from './auto-save';
 // remembered place, which goes with the tab at every site a tab is dropped.
 import { createRereadFloor, REREAD_FLOOR_MS } from './reread-on-return';
 import { forgetRedlineScroll } from './redline-scroll';
+// PHASE 347. The window's half of the open file watch (issue 33).
+import { startOpenFileWatch } from './open-file-watch';
 import { remoteTabWriteFolder, tabIsReadOnly } from './tab-readonly';
 import type { AutoSaveStopWhy } from './auto-save';
 import { useSettingsStore } from '../settings/settings-store';
@@ -887,6 +889,18 @@ export const useEditor = create<EditorState>((set, get) => {
       onRepoChanged((repoPath) => {
         if (!get().tabs.some((t) => t.repoPath === repoPath)) return;
         void io.refreshRepo(repoPath);
+      });
+      // PHASE 347, D17: a notice for a file the bus is blind to walks unfloored, as the bus does.
+      startOpenFileWatch({
+        subscribe: (l) => useEditor.subscribe(l),
+        tabs: () => get().tabs,
+        walked: walkedByRefresh,
+        declare: gmux.git.watchOpenFiles?.bind(gmux.git),
+        onChanged: gmux.git.onOpenFileChanged?.bind(gmux.git),
+        changed: (repoPath) => {
+          if (!get().tabs.some((t) => t.repoPath === repoPath && walkedByRefresh(t))) return;
+          get().rereadRepo(repoPath);
+        }
       });
     },
 

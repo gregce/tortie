@@ -1930,7 +1930,9 @@ for (const build of ['parent', 'head']) {
           HOME: world.home,
           GMUX_TMUX_SOCKET: socket,
           GMUX_PROBES: '1',
-          GMUX_SPECSTORY_NO_CLOUD: '1'
+          GMUX_SPECSTORY_NO_CLOUD: '1',
+          // Phase 347 D20: HEAD watches an open file in an ignored folder, so A0's blind bus and the A-arms' doors are read with that watch off.
+          ...(build === 'head' ? { GMUX_NO_OPEN_FILE_WATCH: '1' } : {})
         }),
         graceMs: 8000,
         ceilingMs: 30 * 60 * 1000

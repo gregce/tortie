@@ -4,7 +4,7 @@
  */
 
 import type { InstalledGitApi } from '../shared/ipc';
-import { EVT_GIT_CHANGED } from '../shared/ipc';
+import { EVT_GIT_CHANGED, EVT_GIT_OPEN_FILE_CHANGED } from '../shared/ipc';
 import { invoke, on } from './bridge';
 
 /**
@@ -17,7 +17,10 @@ import { invoke, on } from './bridge';
  * ref-scoped, topologically ordered page with its divergence and last-fetch
  * age attached) + the Phase-47 ignore read (git:checkIgnore — which of the
  * paths the file tree has loaded the repository ignores), all feature-detected
- * by the renderer.
+ * by the renderer, + the Phase-347 open file watch (git:watchOpenFiles — the
+ * window declares the files its walk reads — and git:openFileChanged, sent to
+ * that window alone when one in a folder the repository watcher cannot see
+ * changes).
  */
 export const git: InstalledGitApi = {
   status: (repoPath) => invoke('git:status', repoPath),
@@ -47,5 +50,7 @@ export const git: InstalledGitApi = {
   pull: (input) => invoke('git:pull', input),
   sync: (input) => invoke('git:sync', input),
   graphLog: (input) => invoke('git:graphLog', input),
-  checkIgnore: (input) => invoke('git:checkIgnore', input)
+  checkIgnore: (input) => invoke('git:checkIgnore', input),
+  watchOpenFiles: (entries) => invoke('git:watchOpenFiles', entries),
+  onOpenFileChanged: (cb) => on(EVT_GIT_OPEN_FILE_CHANGED, cb)
 };

@@ -12,16 +12,42 @@
  * It subscribes to the bus and it starts nothing: no new FSEvents subscription,
  * no new exclusion path, and therefore no change to the eight path budget
  * `npm run conformance:watcher` exists to protect.
+ *
+ * Phase 347 added the one thing in this directory that is NOT a consumer of the
+ * bus: ./open-files.ts watches, one file each, the open files the bus cannot
+ * see because the running watcher's own plan excludes them. It is `node:fs`'s
+ * watch on a file, so it adds no subscription and no exclusion path either.
  */
 
 export {
   DEFAULT_DEBOUNCE_MS,
   RepoWatcher,
+  excludedBy,
+  exclusionViewOf,
   isRelevantDotGitPath,
   isRescanRequired,
   readGitdirPointer,
+  type ExclusionView,
   type RepoWatcherOptions
 } from './repo-watcher';
+export {
+  ARM_RECHECKS,
+  OPEN_FILE_DECLARE_MAX,
+  OPEN_FILE_WATCH_CAP,
+  OPEN_FILE_WATCH_OFF_ENV,
+  afterKernelSees,
+  armFileByDescriptor,
+  createOpenFileWatches,
+  fileIdentity,
+  parseOpenFileEntries,
+  type ArmedFile,
+  type FileIdentity,
+  type OpenFileEntry,
+  type OpenFileEventKind,
+  type OpenFilePlan,
+  type OpenFileWatchDeps,
+  type OpenFileWatches
+} from './open-files';
 export {
   EXCLUSION_PATH_BUDGET,
   parseIgnoredRoots,

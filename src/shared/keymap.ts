@@ -440,11 +440,26 @@ export const KEYMAP = [
 
   // -- Terminal & scrolling -------------------------------------------------
   {
-    id: 'terminal.copyOrInterrupt',
+    id: 'terminal.copy',
     keys: [k('Cmd+C')],
-    action: 'Copy or interrupt',
+    action: 'Copy',
     explain:
-      'With text selected it copies. With nothing selected it sends the interrupt an agent reads as “stop” — the gesture you want when something runs away.',
+      'Copies the selected text. With nothing selected it does nothing, so a draft at an agent’s prompt is never cleared; ⌃C is the interrupt.',
+    group: 'terminal',
+    scope: 'terminal',
+    assignable: false,
+    source: 'built-in'
+  },
+  {
+    // Phase 347 (issue 41): listed so the interrupt can be found now that ⌘C
+    // only copies. Tortie does not handle it: the terminal sends it to the
+    // session as it always did. Listing it also keeps it from being recorded
+    // as an agent shortcut (RESERVED_APP_CHORDS).
+    id: 'terminal.interrupt',
+    keys: [k('Ctrl+C')],
+    action: 'Interrupt',
+    explain:
+      'Sends the interrupt an agent reads as “stop”, the gesture you want when something runs away. ⌘C only copies.',
     group: 'terminal',
     scope: 'terminal',
     assignable: false,

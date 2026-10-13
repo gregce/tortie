@@ -2103,6 +2103,17 @@ export const CHECKS = [
   // in the same turn as an activation is kept, and Redline's scrollTop is read
   // per tab. It spawns no agent and spends no token.
   electron('probe:p334'),
+  // PHASE 347. Three of John's bugs in the real app, at the parent and at
+  // HEAD: TWO Electrons ONE AFTER THE OTHER, the parent first
+  // (P347_PARENT_CHECKOUT, a built checkout, or it exits 2), each on a scratch
+  // profile with a scratch HOME and ZDOTDIR under its own GMUX_HARNESS_DIR and
+  // the socket gmux-p347-<checkout>-<pid>, the hidden agents renamed before each
+  // launch. Every session is a plain shell running build/p347/stand-in.sh,
+  // which logs every byte it reads: ⌘C with nothing selected sends none, a
+  // path broken over rows opens whole, and a file in an ignored folder shows
+  // an outside /bin/sh writer's bytes with no look, with main's descriptors
+  // read by lsof. It spawns no agent and spends no token.
+  electron('probe:p347'),
   // PHASE 268's attack. It breaks conformance:save one clause at a time, the
   // count living in the script rather than here,
   // and proves each reddens the rule that owns it — then restores the tree in

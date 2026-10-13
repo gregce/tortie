@@ -140,6 +140,15 @@
  * state when it did decided whether that adoption was refused. Rules 18 to 24
  * are Phase 277's and 25 to 27c are Phase 282's; each is written at the block
  * that asks it rather than here, and each has an arm in build/p268/ablation.mjs.
+ *
+ * AND MONACOHOST SINCE PHASE 347, whose open file watch makes the watcher's walk
+ * run on every write to a file in an ignored folder. The walk's "never replace
+ * typing" rests on two clauses nothing owned until then (build/p347/SPEC.md §6.3):
+ *
+ *  28. MonacoHost's content listener calls `markDirty(` in its own turn, never
+ *      deferred and never after an `await`, so a keystroke is dirty before a walk.
+ *  29. `refreshRepo`'s loop opens with the `continue` on a draft never saved,
+ *      before any read or patch, so a walk never marks that draft deleted.
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
@@ -169,6 +178,9 @@ const EDITOR_STORE = 'src/renderer/editor/store.ts';
 // is the only other module that decides whether a tab is dirty while a write
 // of its own is in the air.
 const REDLINE_EDITS = 'src/renderer/editor/redline-edits.ts';
+// PHASE 347. MonacoHost, whose content listener rule 28 reads: the one place a
+// keystroke in Source becomes the dirty flag every refusal in this file reads.
+const MONACO_HOST = 'src/renderer/editor/MonacoHost.tsx';
 // PHASE 273. The two MAIN-side files rules 16 and 17 read. This gate has only
 // ever read the renderer, and it reads them now because the word a person
 // meets is decided in one and logged in the other, and a sentence map that is
@@ -429,6 +441,122 @@ function dirtyMarkPlace(body) {
   const mark = body.indexOf(DIRTY_MARK);
   if (mark === -1) return 'absent';
   return mark < step ? 'before' : 'inside';
+}
+
+// PHASE 347. Rule 28's reader. MonacoHost's content listener is the callback
+// handed to this call, and the listener is the only thing that turns a
+// keystroke in Source into the `dirty` flag the walk's clean test reads.
+const CONTENT_LISTENER = 'contentListener.current = model.onDidChangeContent(';
+
+/**
+ * Where an arrow's EXPRESSION body that starts at `from` ends: the `,` or `;`
+ * at its own depth, or the bracket that closes the one it sits in. Quotes are
+ * tracked, so a bracket inside a string is not counted.
+ */
+function expressionEnd(code, from) {
+  let depth = 0;
+  let quote = '';
+  for (let i = from; i < code.length; i += 1) {
+    const c = code[i];
+    if (quote !== '') {
+      if (c === '\\') i += 1;
+      else if (c === quote) quote = '';
+      continue;
+    }
+    if (c === "'" || c === '"' || c === '`') quote = c;
+    else if (c === '(' || c === '[' || c === '{') depth += 1;
+    else if (c === ')' || c === ']' || c === '}') {
+      if (depth === 0) return i;
+      depth -= 1;
+    } else if ((c === ',' || c === ';') && depth === 0) return i;
+  }
+  return code.length;
+}
+
+/**
+ * PHASE 347. `code` with every function NESTED in it blanked character for
+ * character: each arrow from its `=>` to the end of its body, block or
+ * expression, and each `function` from the keyword to its closing brace. What
+ * is left is what runs in the same turn as the code's own first statement, so a
+ * call handed to `setTimeout`, `queueMicrotask`, `requestAnimationFrame` or a
+ * `.then(` is gone from it whatever the scheduler is called.
+ */
+function ownTurnOf(code) {
+  const out = code.split('');
+  const blank = (from, to) => {
+    for (let i = from; i < to && i < out.length; i += 1) if (out[i] !== '\n') out[i] = ' ';
+  };
+  for (let at = code.indexOf('=>'); at !== -1; ) {
+    let i = at + 2;
+    while (i < code.length && /\s/.test(code[i])) i += 1;
+    const close = code[i] === '{' ? closeOf(code, i) : -1;
+    const end = code[i] === '{' ? (close === -1 ? code.length : close + 1) : expressionEnd(code, i);
+    blank(at, end);
+    at = code.indexOf('=>', end);
+  }
+  const keyword = /\bfunction\b/g;
+  let m;
+  while ((m = keyword.exec(code)) !== null) {
+    const open = code.indexOf('{', m.index);
+    const close = open === -1 ? -1 : closeOf(code, open);
+    blank(m.index, close === -1 ? code.length : close + 1);
+    if (close !== -1) keyword.lastIndex = close + 1;
+  }
+  return out.join('');
+}
+
+/**
+ * PHASE 347. Where MonacoHost's content listener marks the tab dirty: 'own'
+ * when `markDirty(` is a call of the listener's own turn with no `await` above
+ * it, 'deferred' when it is only inside a function the listener hands to
+ * something else, 'after-await' when an `await` comes first, and 'absent' when
+ * the listener never names it. Null when there is no listener to read.
+ */
+function contentListenerMark(code) {
+  const at = code.indexOf(CONTENT_LISTENER);
+  if (at === -1) return null;
+  const callback = callArguments(code, at + CONTENT_LISTENER.length - 1)[0] ?? '';
+  let body = null;
+  if (/^(?:async\s+)?function\b/.test(callback)) {
+    const open = callback.indexOf('{');
+    const close = open === -1 ? -1 : closeOf(callback, open);
+    if (close !== -1) body = callback.slice(open + 1, close);
+  } else {
+    const arrow = callback.indexOf('=>');
+    if (arrow !== -1) {
+      let i = arrow + 2;
+      while (i < callback.length && /\s/.test(callback[i])) i += 1;
+      const close = callback[i] === '{' ? closeOf(callback, i) : -1;
+      body = callback[i] === '{' ? (close === -1 ? null : callback.slice(i + 1, close)) : callback.slice(i);
+    }
+  }
+  if (body === null) return null;
+  const own = ownTurnOf(body);
+  const mark = own.indexOf('markDirty(');
+  if (mark === -1) return body.includes('markDirty(') ? 'deferred' : 'absent';
+  const wait = own.search(/\bawait\b/);
+  return wait !== -1 && wait < mark ? 'after-await' : 'own';
+}
+
+// PHASE 347. Rule 29's statement, read with its whitespace collapsed.
+const DRAFT_SKIP = "if (tab.draft != null && tab.savedContents === '') continue;";
+
+/**
+ * PHASE 347. Where `refreshRepo`'s loop skips a draft never saved: 'first'
+ * when it is the loop's first statement, 'later' when something runs before
+ * it, 'absent' when it is gone. Null when the loop cannot be found.
+ */
+function draftSkipPlace(body) {
+  if (body === null) return null;
+  const loop = /for\s*\(\s*const\s+tab\s+of\s+tabs\s*\)\s*\{/.exec(body);
+  if (loop === null) return null;
+  const open = loop.index + loop[0].length - 1;
+  const close = closeOf(body, open);
+  const squash = (t) => t.replace(/\s+/g, ' ').trim();
+  const inner = squash(close === -1 ? body.slice(open + 1) : body.slice(open + 1, close));
+  const skip = squash(DRAFT_SKIP);
+  if (inner.startsWith(skip)) return 'first';
+  return inner.includes(skip) ? 'later' : 'absent';
 }
 
 // ---------------------------------------------------------------------------
@@ -992,6 +1120,102 @@ const FIXTURES = [
         'return',
         'applyModelText('
       ) === null
+  },
+  // -- Phase 347, rules 28 and 29 -------------------------------------------
+  {
+    name: "MonacoHost's content listener marking dirty in its own turn is clean",
+    catches: false,
+    code:
+      `    ${CONTENT_LISTENER}() => {\n` +
+      '      const current = useEditor.getState().tabs.find((t) => t.id === tab.id);\n' +
+      '      if (current === undefined) return;\n' +
+      '      markDirty(tab.id, model.getValue() !== current.savedContents);\n' +
+      '    });',
+    check: (c) => contentListenerMark(stripComments(c)) === 'own'
+  },
+  {
+    name: 'THE VERIFIER\'S X7: the mark deferred by setTimeout is caught',
+    catches: true,
+    code:
+      `    ${CONTENT_LISTENER}() => {\n` +
+      '      const current = useEditor.getState().tabs.find((t) => t.id === tab.id);\n' +
+      '      if (current === undefined) return;\n' +
+      '      setTimeout(() => markDirty(tab.id, model.getValue() !== current.savedContents), 0);\n' +
+      '    });',
+    check: (c) => contentListenerMark(stripComments(c)) === 'deferred'
+  },
+  {
+    name: 'the mark deferred by queueMicrotask is caught',
+    catches: true,
+    code:
+      `    ${CONTENT_LISTENER}() => {\n` +
+      '      queueMicrotask(() => { markDirty(tab.id, true); });\n' +
+      '    });',
+    check: (c) => contentListenerMark(stripComments(c)) === 'deferred'
+  },
+  {
+    name: 'the mark deferred by a .then( is caught',
+    catches: true,
+    code:
+      `    ${CONTENT_LISTENER}() => {\n` +
+      '      void Promise.resolve().then(() => markDirty(tab.id, true));\n' +
+      '    });',
+    check: (c) => contentListenerMark(stripComments(c)) === 'deferred'
+  },
+  {
+    name: 'the mark deferred by requestAnimationFrame through a function expression is caught',
+    catches: true,
+    code:
+      `    ${CONTENT_LISTENER}() => {\n` +
+      '      requestAnimationFrame(function () { markDirty(tab.id, true); });\n' +
+      '    });',
+    check: (c) => contentListenerMark(stripComments(c)) === 'deferred'
+  },
+  {
+    name: 'the mark made after an await is caught',
+    catches: true,
+    code:
+      `    ${CONTENT_LISTENER}async () => {\n` +
+      '      await Promise.resolve();\n' +
+      '      markDirty(tab.id, true);\n' +
+      '    });',
+    check: (c) => contentListenerMark(stripComments(c)) === 'after-await'
+  },
+  {
+    name: 'a listener that never marks dirty is caught',
+    catches: true,
+    code: `    ${CONTENT_LISTENER}() => {\n      void tab;\n    });`,
+    check: (c) => contentListenerMark(stripComments(c)) === 'absent'
+  },
+  {
+    name: "refreshRepo's loop opening with the draft skip is clean",
+    catches: false,
+    code:
+      'const refreshRepo = async (repoPath) => { const tabs = deps.worktreeTabsIn(repoPath); ' +
+      `for (const tab of tabs) { ${DRAFT_SKIP} ` +
+      'const dir = await fsExtras.readDir(dirOf(tab.path)); if (!dir.entries.length) { deps.patch(tab.id, { deleted: true }); continue; } ' +
+      'const result = await gmux.fs.readFile(tab.path); } };',
+    check: (c) => draftSkipPlace(namedFunctions(stripComments(c)).get('refreshRepo') ?? null) === 'first'
+  },
+  {
+    name: 'THE VERIFIER\'S X9: the draft skip removed is caught',
+    catches: true,
+    code:
+      'const refreshRepo = async (repoPath) => { const tabs = deps.worktreeTabsIn(repoPath); ' +
+      'for (const tab of tabs) { ' +
+      'const dir = await fsExtras.readDir(dirOf(tab.path)); if (!dir.entries.length) { deps.patch(tab.id, { deleted: true }); continue; } ' +
+      'const result = await gmux.fs.readFile(tab.path); } };',
+    check: (c) => draftSkipPlace(namedFunctions(stripComments(c)).get('refreshRepo') ?? null) === 'absent'
+  },
+  {
+    name: 'the draft skip moved below the existence check is caught',
+    catches: true,
+    code:
+      'const refreshRepo = async (repoPath) => { const tabs = deps.worktreeTabsIn(repoPath); ' +
+      'for (const tab of tabs) { ' +
+      'const dir = await fsExtras.readDir(dirOf(tab.path)); if (!dir.entries.length) { deps.patch(tab.id, { deleted: true }); continue; } ' +
+      `${DRAFT_SKIP} const result = await gmux.fs.readFile(tab.path); } };`,
+    check: (c) => draftSkipPlace(namedFunctions(stripComments(c)).get('refreshRepo') ?? null) === 'later'
   }
 ];
 
@@ -2011,6 +2235,56 @@ const PROJECT_CLOSED_SENTENCE =
         '27c. the typing effect returns without applying when savedContents moved since the edit was typed, and re-derives dirty from the model'
       );
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 347's rules. The open file watch (issue 33) makes the watcher's walk run
+// on every write to a file in an ignored folder, so the two clauses its "never
+// replace typing" rests on get an owner. Both were unowned at the parent: the
+// attack verifier deferred the first by one task and removed the second in a
+// clone, and the whole editor suite and this gate stayed green both times
+// (build/p347/SPEC.md §6.3). Each has an arm in build/p268/ablation.mjs.
+// ---------------------------------------------------------------------------
+
+// Rule 28. MONACO MARKS A KEYSTROKE DIRTY IN THE SAME TURN. The walk reloads a
+// tab only when it reads clean before and after its read, and `refreshRepo`
+// says its safety depends on MonacoHost marking the tab dirty inside the
+// model's own change event. A mark handed to a timer, a microtask, a frame or a
+// `.then(` is a window in which a walk reads the tab clean and replaces the
+// typing, which is the verifier's X7.
+{
+  const place = contentListenerMark(source(MONACO_HOST));
+  if (place === null) {
+    fail(`28. ${MONACO_HOST} holds no \`${CONTENT_LISTENER}\` callback this rule could read, so it read nothing`);
+  } else if (place === 'absent') {
+    fail('28. MonacoHost\'s content listener never calls markDirty, so a keystroke in Source is invisible to the walk\'s clean test');
+  } else if (place === 'deferred') {
+    fail(
+      '28. MonacoHost\'s content listener marks the tab dirty only inside a function it hands on (a timer, a microtask, a frame or a .then), so a walk in that gap reads the tab clean and replaces the typing'
+    );
+  } else if (place === 'after-await') {
+    fail('28. MonacoHost\'s content listener awaits before it marks the tab dirty, so a walk in that gap reads the tab clean and replaces the typing');
+  } else {
+    say("28. MonacoHost's content listener calls markDirty in its own turn, with nothing deferred and no await before it");
+  }
+}
+
+// Rule 29. THE WALK SKIPS A DRAFT NEVER SAVED BEFORE IT READS OR PATCHES
+// ANYTHING. A draft's file does not exist yet, so the existence check below the
+// skip would mark it deleted, read only, under a person still typing, and a
+// notice for its repository now runs that walk whenever a file beside it is
+// written (the verifier's X9).
+{
+  const place = draftSkipPlace(bodyOf(TAB_IO, 'refreshRepo', '29'));
+  if (place === null) {
+    fail('29. refreshRepo holds no `for (const tab of tabs)` loop, so this rule read nothing');
+  } else if (place === 'absent') {
+    fail('29. refreshRepo no longer skips a draft never saved, so a walk marks that draft deleted and read only while it is being typed');
+  } else if (place === 'later') {
+    fail('29. refreshRepo skips a draft never saved only after another statement of its loop, so a read or a patch reaches the draft first');
+  } else {
+    say("29. refreshRepo's loop opens with the skip of a draft never saved, before any read or patch");
   }
 }
 
