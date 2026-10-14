@@ -40420,7 +40420,7 @@ limits; `.ssh` and `.git` stay refused by name and identity wherever they are.
 - **No Linux far side measured** (none is available).
 - **No release.**
 
-## Phase 318.1 — "there is no place to type" — a message box in every conversation, like a terminal's prompt, and End in the top bar (operator, testing TestFlight build 6, 2026-10-05)
+## Phase 318.1 — "there is no place to type" — a message box in every conversation, like a terminal's prompt, and End in the top bar (operator, testing TestFlight build 6, 2026-10-05) ⏸ DEFERRED, 2026-10-13 (his word: the Screen's terminal input is already good)
 
 **Subject.** `feat(pocket): a place to type in every conversation, and End in the top bar`
 
@@ -43433,3 +43433,5 @@ cycle rather than only the evening it was written.
 - 2026-10-13, **0.111.2 PUBLISHED as Latest** (release run 38417708284; its first attempt failed `stapler validate` on the build folder's app with Error 68 while the DMG and zip copies passed and spctl read Notarized, and the unchanged rerun passed every gate). Site keyboard docs say ⌘C copies and ⌃C interrupts (tortiedotsh `7ede3ef`); issues 41 and 33 closed with notes, 40 left open with a note that 347.1 redoes it.
 
 - 2026-10-13, **PHONE BUILD 10 ARCHIVED, AND PHASES 333.4, 347.1 AND 333.11.1 STARTED** (his word: "ok lets do that … i'd like to start the queued phases"). Build 10 (1.0.0, See a sample) archived signed from `5f5efba2` with `--read-app` passing, and placed in his Organizer as "Tortie 1.0.0 (10)" for his Distribute App; it is the store candidate unless 333.4 changes the app, which makes the store build 11. 333.4 (the devices App Review uses) runs on iOS 18.3 and 26.3 with an iPad Air 11-inch (M3), an iPhone SE (3rd generation) and no biometrics; iOS 27 and iPhone Duo are UNMEASURED until he installs them. 347.1 (a broken path opens whole, issue 40) re-applies the kept patch onto `5f5efba2`; the three corpora were scratch and are rebuilt as committed tooling. 333.11.1 (the guardrail's two gaps). 333.12, 345 and 346 wait for his answers to research 141; 318.1 waits for 333.12, with the recommendation that it be re-scoped to a paste-and-dictate box or dropped, since 337 moved End and 337.1 gave every session a keyboard.
+
+- 2026-10-13, **PHASE 318.1 DEFERRED** (the message box in every conversation). His words: "yeah lets defer 318.1 for a while as the terminal input is already good." Phase 337 already moved End to the top right and 337.1 opens every session on its terminal with a keyboard, idle or working, here or on another machine; what 318.1 would still add is a compose-then-send box that takes a paste and dictation. It is no longer waiting on 333.12; it waits on his word, and if it returns it is re-scoped to that box alone.
