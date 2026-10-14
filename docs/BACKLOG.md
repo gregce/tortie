@@ -41539,7 +41539,7 @@ Running-log line (append at the end of `docs/BACKLOG.md`, newest last):
 
 - 2026-10-08, **PHASE 333.11 STARTED at his word ("ok that sounds great. do it") — the door's answers only add.** The spec (`build/p33311/SPEC.md`) freezes, as `launch`, the eleven routes the phone calls, every key, word, bound and format its own decoders require, the words it sends and the Mac's request limits, beside a byte copy of the vectors, and adds `gate:onlyadd` inside `npm run build`: a new Mac with an old phone (routes still dispatched, frozen requests replayed through the shipping door, answers and TypeScript types inside the frozen shape, caps inside the phone's bounds) and an old Mac with a new phone (read as text; and `DoorFrozenTests` in `test:ios`). The spec step found that adding a key is safe but adding a word to one of eight closed sets is not, and that the phone's bounds and the door's connection limits are part of the type. Tier 2, no semver, no CHANGELOG item; it lands after 333.1 and 337.3, and is re-frozen at landing only if the gate says the phone's wire moved.
 
-## Phase 333.11.1 — "Land it, queue the gaps": the guardrail replays every way the launch phone asks, and a resealed Mac limit is caught (operator, 2026-10-08)
+## Phase 333.11.1 — "Land it, queue the gaps": the guardrail replays every way the launch phone asks, and a resealed Mac limit is caught (operator, 2026-10-08) ✅ LANDED `3285a710`, 2026-10-14 (his ruling on the second needs_work: "Land it, queue the gaps"; the gaps are 333.11.2)
 
 **Subject.** `test(pocket): replay every request the launch phone can make, and hold the Mac's limits to the phone`
 
@@ -42206,6 +42206,74 @@ test files and `p347-SPEC.md` (§4.2, D5 to D10, J1 to J8, L4, L11 to L13, and t
 - **No change to which kinds of file open**, to the doors, or to a link on a single row.
 - **No reading of `isWrapped`.**
 - **Nothing for paths whose first part has scrolled above the session**, which stay plain.
+
+---
+
+## Phase 333.11.2 — "Land it, queue the gaps", again: the guardrail's record cannot be renamed or thinned out of its own history (operator, 2026-10-14)
+
+**Subject.** `test(pocket): hold the frozen set to its history by label, and every frozen request to its committed copies`
+
+**First body line.** `Phase 333.11.2: the guardrail's record holds to its history`
+
+**Semver.** None, and no release follows. Nothing a person sees moves: no route, answer, QR field, hashed field, phone
+code, copy or menu, no build number and no CHANGELOG item.
+
+**Tier 2.** Invisible to a person, so the gates are the evidence and the verifier re-derives and attacks. It touches no
+tmux, manifest, restore or session, spawns nothing for a person, holds no credential and sends nothing anywhere.
+
+**Charter.** His ruling of 2026-10-14 on Phase 333.11.1's second needs_work, "Land it, queue the gaps". 333.11.1 landed
+as `3285a710`: `gate:onlyadd` (`build/assert-door-only-adds.mjs`) replays 158 ways the launch phone asks, reads the Mac's
+limits from the files its own tables name, and compares the frozen set with every committed copy of itself through F1
+(a) and (b), `macSideLosses` and `requestLosses`. Its reverify, with a stand-in `git` that played the post-commit
+history, found three ways around it that each need someone to rewrite the guardrail's own record. Its plants are
+written here in full, because the scratch that held them is removed when 333.11.1 lands:
+
+| Plant | What it does | Today | Should read |
+| --- | --- | --- | --- |
+| R1 | `ios/TortieTests/Fixtures/frozen/launch.wire.json` renamed `launch-b.wire.json`, the `POCKET_WRITE_BODY_CAPS.say` row resealed at 16,384, `src/main/pocket/door/limits.ts` set to `say: 16_384` | green: F1 notes "no committed copy (a new or untracked set)" and compares 0 copies; `test-ios.mjs` `frozenProof` still proves `launch` | red on F1 |
+| R2 | R1 with the set's label renamed too | green | red on F1 |
+| R1c (control) | the same lowering without the rename | red on F1 | red on F1 |
+| V1 | the frozen `odd-id` request dropped from `launch.vectors.json`, the wire's `vectors.sha256` repinned and resealed, main's session arm refusing an id outside `[0-9a-f-]` | green: 157 replayed (45 frozen) | red on F1 |
+| V1c (control) | the Mac change alone | red on R5 | red on R5 |
+| K1, K2, K4 | a fourth kept line spelled `private let extra: DoorLine = .init(keeps: true)`, `DoorLine.init(keeps: true)`, or through `typealias KeptLine = DoorLine` | green: the reader counts 4 with 0 unread while the phone opens 5, so R4 passes against `PER_SOURCE_MAX = 4` | red on P0 (unread) |
+| K3 (control) | a `lazy var` kept line | red on R4 | red on R4 |
+
+### The mechanism
+
+1. **Committed copies found by the frozen directory and the label, not by the file's path.** `clauseF1Copies` reads
+   every `*.wire.json` ever committed under `ios/TortieTests/Fixtures/frozen/` (`git log --name-only -- <dir>`) and
+   compares each committed copy with the working set of the same label, so a rename is still compared. A set committed
+   at HEAD that is missing from the working directory is red unless its retirement is ruled, by lowering
+   `FROZEN_SETS_FLOOR` and naming the label in the same commit.
+2. **Every frozen request held to every committed copy.** F1 (b) reads each committed copy's vectors
+   (`git show <c>:<frozen dir>/<wire.vectors.file>`) and requires every committed request to stay, by name, method,
+   target and body. `--replace` refuses a set whose vectors drop a frozen request, through the same function
+   (`requestLosses` widened, or a sibling it calls).
+3. **Every spelling of a kept line is counted or unread.** `keptLinesByType` in `build/p33311/swift-wire.mjs` treats as
+   unread any `.init(` whose declared or annotated type is `DoorLine`, any `DoorLine.init(`, any typealias of `DoorLine`,
+   and any stored property annotated `DoorLine` whose initializer is not the counted literal. Each spelling joins
+   `build/p33311/fixtures/requests-unread.swift.txt` and its expect file.
+4. **The ablation.** `build/p33311/ablation.mjs` gains R1, R2 and V1 as arms red on F1, and K1, K2 and K4 red on P0,
+   beside R1c, V1c and K3 as controls that keep their clause.
+5. **The nit 333.11.1 left out of bounds.** `pure('ablation:p33311')` in `build/verification-checks.mjs` names git in its
+   needs (the ablation fails without it), and its comment counts the controls the ablation has.
+
+### The proof, run rather than read
+
+- `npm run gate:onlyadd` green on main; `npm run ablation:p33311` with the new arms red and every control green; the
+  history half driven with real commits in a scratch clone (a rename committed, then judged), not a stand-in.
+- `gate:checks` green with the needs corrected; `test:ios` on iOS 26.3 and 18.3 only if a frozen file moves.
+- The verifier's independent step: plants of its own against the label and vectors comparison (a set split in two, a
+  label reused for a different set, a request whose body is reordered rather than dropped), and a re-derivation by hand
+  of which committed copies each set is compared with.
+
+### What is NOT in this phase
+
+- No change to the phone app, the door, any route, answer, QR field or hashed field, so no build number moves.
+- No re-freeze of `launch`, unless the label-and-vectors comparison needs a format field, and then once, with
+  `--replace --why` and the moved lines named in the commit body.
+- Not 333.12 (a Mac update that adds a door route asks every paired phone to press Allow again).
+- No new clause family: F1, P0 and R4 widen.
 
 ---
 
@@ -43445,3 +43513,5 @@ cycle rather than only the evening it was written.
 - 2026-10-14, **333.4, 347.1 AND 333.11.1 PAUSED at his word** ("go ahead and pause these workflows temporarily"), minutes after they were resumed. Each worktree keeps its work; no Simulator, Electron, lock slot or parent worktree was left. Each resumes from its run when he says so.
 
 - 2026-10-14, **333.4, 347.1 AND 333.11.1 RESUMED at his word** ("ok we can repick back up on those phases"), each from its run: 333.4 at its integrator, 347.1 at its probe review, 333.11.1 at its reverify.
+
+- 2026-10-14, **PHASE 333.11.1 LANDED, `3285a710` — the guardrail's two gaps, no release.** gate:onlyadd now replays 158 ways the launch phone asks (46 before) and holds the Mac's limits to the phone's own Swift and to every committed copy of the set; `launch` re-frozen once (184 lines: the request record and the asks). The verify's major (a bound re-ruled and resealed) and three minors were fixed; the reverify came back needs_work a second time on two minors and a nit, all needing the record itself rewritten. **HIS RULING: "Land it, queue the gaps."** Battery green at `43084f93`, test:ios on 26.3 and 18.3 included; after the push the gate compares 2 committed copies. **QUEUED 333.11.2** with a full section above: the frozen set held to its history by directory and label, every frozen request held to its committed copies, every spelling of a kept line counted or unread.
