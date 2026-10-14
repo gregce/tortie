@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * assert-door-only-adds.mjs, `npm run gate:onlyadd` (Phase 333.11, "the
- * door's answers only add", build/p33311/SPEC.md §6).
+ * door's answers only add", build/p33311/SPEC.md §6; widened by Phase
+ * 333.11.1, "Land it, queue the gaps", build/p33311/SPEC-1.md §4).
  *
  * WHY IT EXISTS. The phone and the Mac update separately, so a phone on an
  * older build talks to a newer Mac and the reverse. The launch phone in
@@ -21,38 +22,74 @@
  * `<label>.vectors.json` (a byte copy of `vectors.json` at the freeze). The
  * phone's shapes in a set were read from the phone's own Swift by
  * `build/p33311/swift-wire.mjs`, never guessed from the Mac's composer (D1).
+ * Format 2 (Phase 333.11.1) also seals the REQUEST RECORD, read from the
+ * phone's request builders: per route, every query name and body key, whether
+ * the phone sends it always or only sometimes, whether it may be null, and
+ * the closed set its value is drawn from; and the ASKS, the numbers the
+ * phone's own Swift asks of the Mac (the keys write's items and text bytes,
+ * the rows a page asks for, how long it keeps a line, how many it holds).
  *
  * THE CLAUSES, each counting what it checked; a count of zero where the set
  * holds items is red, so a scanner that stopped finding is never taken for a
  * clean tree. `npm run ablation:p33311` plants one break per clause.
  *
- *   F1  every wire parses, its `format` is one this gate reads, its seal holds
+ *   F1  every wire parses, its `format` is one this gate reads, its seal
+ *       holds, and against every committed copy of itself (`git log` and
+ *       `git show`, read only; SPEC-1 D9): (a) a set whose seal differs from
+ *       the copy at HEAD carries that copy's seal as the next entry of its
+ *       append-only history, or it was edited and resealed by hand; (b) no
+ *       Mac-side row (a limit, a bound's Mac constants, an ask) is lower,
+ *       shorter or missing against ANY committed copy, because a seal anyone
+ *       can recompute does not stop a lowered limit being resealed; since
+ *       the fix round, no bound re-ruled or loosened, no row moved to a file
+ *       the gate's own tables do not name, and no way the frozen phone asks
+ *       taken out (a route, a record, a name, a `sometimes`, a nullable key,
+ *       a closed set's shape or one of its words). With no
+ *       `git`, outside a repository, or in a shallow clone it says so in a
+ *       note and decides on the rest, never red and never silent
  *   F2  its vectors file is byte for byte the one its seal names
  *   F3  at least FROZEN_SETS_FLOOR sets; each holds together (answers typed,
  *       membership hashed, kinds resolved, instances and arms resolve), and
  *       its arms and unarmed list are EXACTLY what the freeze's own generator
  *       makes from its sealed types, formats and instances (the fix round:
  *       a seal anyone can recompute does not stop a resealed edit, so the
- *       arms are re-derived rather than trusted)
+ *       arms are re-derived rather than trusted); and its request record
+ *       holds together (one record per frozen route, every word set a sends
+ *       row and every query word unreserved, every frozen request on a
+ *       recorded route conforming to its record, every way of asking
+ *       replayable, every ask well formed)
  *   F4  the gate and the phone half are wired (package.json's build,
  *       verification-checks, test-ios.mjs's P33311_SUITES and P33311_PROOF,
  *       DoorFrozenTests.swift, conformance:ios rule j's vectors.mjs --check)
  *
  *   A NEW MAC WITH AN OLD PHONE
  *   R1  every frozen route is a row of the shipping POCKET_ROUTES, unchanged
- *   R2  every frozen request replays through the SHIPPING route match, URL
- *       parse, verifier at its own clock, query readers and write path
+ *   R2  every request the frozen phone can make replays through the SHIPPING
+ *       route match, URL parse, verifier at its own clock, query readers and
+ *       write path: the frozen requests, and every other point of the cross
+ *       product of the sealed record (every word of every closed set, a Bool
+ *       both ways, every sometimes-sent name absent and present, a nullable
+ *       key null and not, a keys write with every key name), each signed as
+ *       the frozen phone signs: its own seed, its canonical template and its
+ *       body bytes, each proved first on the frozen requests (SPEC-1 §4.4).
+ *       At most REPLAY_CEILING a set; past it is red, never sampled
  *   R3  the frozen presentations open under the SHIPPING opener, their proof
  *       holding over the shipping proof text
- *   R4  the Mac's request and connection limits are at least the frozen ones,
- *       and every word the phone sends is still a word the Mac reads
- *   R5  main still answers every frozen read route, DRIVEN (the fix round):
- *       every frozen read request goes through the SHIPPING server.ts handler
- *       into ipc.ts's own read switch, cut out by the parser and transpiled
- *       in memory over a recording `routes`, and must reach routes.<id> once
- *       with every frozen query word and be answered 200 with what it
- *       answered; every frozen /pair answer goes through server.ts's pair
- *       arm; and every frozen write is a write route
+ *   R4  the Mac's request and connection limits are at least the frozen ones
+ *       and at least what the phone's own Swift asks (the asks, read on every
+ *       run and held at the largest of today's and every sealed value), and
+ *       every word the phone sends is still a word the Mac reads; every
+ *       constant read from the file the gate's own tables name for it, never
+ *       a sealed row's (the fix round)
+ *   R5  main still answers every request the frozen phone can make on a read
+ *       route, DRIVEN (the fix round): every read request of R2's replay set,
+ *       the frozen ones and every other way the frozen phone asks, goes
+ *       through the SHIPPING server.ts handler into ipc.ts's own read switch,
+ *       cut out by the parser and transpiled in memory over a recording
+ *       `routes`, and must reach routes.<id> once with every word of its
+ *       query and be answered 200 with what it answered; every frozen /pair
+ *       answer goes through server.ts's pair arm; and every frozen write is a
+ *       write route
  *   R6  phoneIdOf, pairFingerprint, pairingBinding, clientKeyPinOf and
  *       spkiPinOf compute what the old phone computed
  *   A1  today's vectors still hold an instance of every frozen route that had
@@ -62,12 +99,18 @@
  *   A3  the Mac's TypeScript answer types still promise every frozen required
  *       key, admit null only where the phone does, and keep every closed
  *       union inside its frozen set (a branch the vectors never compose)
- *   A4  the Mac's caps stay inside the frozen phone's bounds
+ *   A4  the Mac's caps stay inside the frozen phone's bounds and today's, and
+ *       every bound the Mac must hold names at least one Mac constant: the
+ *       constants checked are the sealed list joined with the reader's own
+ *       BOUND_ROWS list, so an emptied, resealed list holds nothing less;
+ *       since the fix round the reader's rule and file are applied whatever
+ *       the sealed row names, so a re-ruled or re-filed bound does neither
  *   A5  every status the door answers is one the frozen phone reads
  *
  *   AN OLD MAC WITH A NEW PHONE, read as text
  *   P0  the reader reads today's phone whole, and reads the same bytes the
- *       same way (byte-identical files give an equal projection)
+ *       same way (byte-identical files give an equal projection, its request
+ *       record included)
  *   P1  nothing is required today that the frozen phone did not require
  *   P2  no frozen path is narrowed (kind, null, word, case, open to closed)
  *   P3  no phone bound below its frozen value; version, ports and statuses kept
@@ -78,21 +121,30 @@
  * because a set is frozen before the gate is wired) and writes both files;
  * it refuses an existing label unless `--replace --why "<sentence>"`, which
  * appends the replaced seal and the reason to `history` and prints every
- * projection line that moved. `--into <dir>` reads and writes the sets in
- * `dir`; `--root <dir>` judges another tree (the ablation's clone); `--json`
- * ends with one `GATE_ONLYADD:{…}` line.
+ * projection, `macLimits` and `asks` line that moved. `--replace` refuses a
+ * set whose Mac-side rows are lower, shorter, missing, re-ruled or moved, or
+ * that takes out a way the frozen phone asks, against the one it replaces
+ * (F1 (b)'s two asks), prints every such row and writes nothing: that is a
+ * retirement of the set by the operator's ruling, never a re-freeze (SPEC-1
+ * D11). `--into <dir>` reads and writes the sets in `dir`; `--root <dir>`
+ * judges another tree (the ablation's clone); `--json` ends with one
+ * `GATE_ONLYADD:{…}` line.
  *
- * WHAT IT DOES NOT DO. It opens no socket, binds nothing, starts nothing but
- * the pinned tsx once, and reads nothing under the person's home. Its one
- * Program is `src/shared/ipc/pocket.ts` and `src/main/pocket/pairing.ts`;
- * every other file is parsed alone. It runs itself under the pinned tsx
- * (`build/ts-runner.mjs`) so it can import the shipping TypeScript.
+ * WHAT IT DOES NOT DO. It opens no socket, binds nothing, and starts nothing
+ * but the pinned tsx once and `git` read only (`rev-parse`, `log`, `show`,
+ * with GIT_OPTIONAL_LOCKS=0 and with no global or system git configuration,
+ * so it reads none of the person's own git settings and writes nothing,
+ * not even the index). Outside the judged repository it reads nothing under
+ * the person's home. Its one Program is `src/shared/ipc/pocket.ts` and
+ * `src/main/pocket/pairing.ts`; every other file is parsed alone. It runs
+ * itself under the pinned tsx (`build/ts-runner.mjs`) so it can import the
+ * shipping TypeScript.
  */
 
 import { spawnSync } from 'node:child_process';
-import { createHash, createPublicKey, verify as verifyWith } from 'node:crypto';
+import { createHash, createPrivateKey, createPublicKey, sign as signWith, verify as verifyWith } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const HERE = fileURLToPath(import.meta.url);
@@ -139,8 +191,24 @@ const reader = await import('./p33311/swift-wire.mjs');
 
 /** A commit that adds a set raises this; a ruled retirement lowers it and names the label. */
 const FROZEN_SETS_FLOOR = 1;
-/** Every wire format this gate reads. A later vocabulary writes 2 and keeps reading 1 (§4.1). */
-const FORMATS_READ = [1];
+/**
+ * Every wire format this gate reads (§4.1). Format 2 (Phase 333.11.1) is
+ * format 1 plus the sealed request record and asks, with format 1's arm
+ * generator unchanged. Format 1 was retired by that phase's ruled re-freeze
+ * of `launch`, the only set that used it (SPEC-1 D6): a format is retired
+ * only by a ruled re-freeze of every set that uses it.
+ */
+const FORMATS_READ = [2];
+/** The format `--freeze` writes. */
+const FORMAT_WRITTEN = 2;
+/** Why a set of a retired format is red, by format. */
+const FORMATS_RETIRED = { 1: "format 1 was retired by Phase 333.11.1's ruled re-freeze; re-freeze with --freeze <label> --replace --why" };
+/**
+ * The most requests one set may replay, frozen and generated together
+ * (SPEC-1 D4): 1,024 replays measured about 160 ms over 46, keeping the gate
+ * inside its 3 s budget. A cross product past it is R2 red, never sampled.
+ */
+const REPLAY_CEILING = 1_024;
 const FROZEN_DIR = valueOf('--into') !== null ? resolve(valueOf('--into')) : join(ROOT, 'ios', 'TortieTests', 'Fixtures', 'frozen');
 const VECTORS_PATH = join(ROOT, 'ios', 'TortieTests', 'Fixtures', 'vectors.json');
 const JSON_OUT = has('--json');
@@ -171,23 +239,48 @@ const MAC_LIMITS = [
   { mac: 'KEEP_ALIVE_TIMEOUT_MS', file: 'src/main/pocket/door/limits.ts' }
 ];
 
+/**
+ * Where the gate's OWN tables say each Mac constant lives (Phase 333.11.1's
+ * fix round): MAC_LIMITS and the reader's BOUND_ROWS, ASK_ROWS and
+ * SEND_ROWS. R4 and A4 read every constant these tables name from THIS file,
+ * never from the file a sealed row names, so a row resealed to point at a
+ * decoy that still holds the old value reads nothing less (the reverify's
+ * W21 and W22). A constant no table names is read from its sealed file, and
+ * F1 (b) holds that file to every committed copy. Two tables naming one
+ * constant in two files is the gate's own defect, red on R4.
+ */
+const GATE_FILES = new Map();
+const GATE_FILE_CONFLICTS = [];
+for (const [mac, file] of [
+  ...MAC_LIMITS.map((r) => [r.mac, r.file]),
+  ...reader.BOUND_ROWS.flatMap((r) => r.mac.map((m) => [m, r.macFile])),
+  ...reader.ASK_ROWS.map((r) => [r.mac, r.macFile]),
+  ...reader.SEND_ROWS.map((r) => [r.mac, r.macFile])
+]) {
+  if (typeof file !== 'string') continue;
+  if (!GATE_FILES.has(mac)) GATE_FILES.set(mac, file);
+  else if (GATE_FILES.get(mac) !== file) GATE_FILE_CONFLICTS.push(`the gate's own tables name ${mac} in ${GATE_FILES.get(mac)} and in ${file}`);
+}
+/** The file the gate's own tables name for a Mac constant, or null. */
+const gateFileOf = (mac) => (typeof mac === 'string' && GATE_FILES.has(mac) ? GATE_FILES.get(mac) : null);
+
 const ARM_OPS = { remove: ['refuse'], kind: ['refuse'], null: ['refuse'], fraction: ['refuse', 'accept'], word: ['refuse', 'accept'], add: ['refuse'], format: ['refuse'], older: ['accept'], unknown: ['accept'] };
 
 const CLAUSES = {
-  F1: 'every frozen wire parses, its format is read here, and its seal holds',
+  F1: 'every frozen wire parses, its format is read here, its seal holds, and against its committed copies it is neither edited by hand, nor lower on the Mac side, nor asking less',
   F2: 'every frozen vectors file is the one its wire names, byte for byte',
-  F3: `at least ${String(FROZEN_SETS_FLOOR)} frozen set(s), each holding together`,
+  F3: `at least ${String(FROZEN_SETS_FLOOR)} frozen set(s), each holding together, its request record agreeing with its vectors`,
   F4: 'the gate and the phone half are wired',
   R1: 'every frozen route is a row of the shipping table, unchanged',
-  R2: 'every frozen request replays through the shipping door',
+  R2: 'every request the frozen phone can make replays through the shipping door',
   R3: 'the frozen presentations open under the shipping opener',
-  R4: "the Mac's limits are at least the frozen ones, and every word the phone sends is still read",
-  R5: 'main still answers every frozen route',
+  R4: "the Mac's limits are at least the frozen ones and the phone's own, and every word the phone sends is still read",
+  R5: 'main still answers every request the frozen phone can make on a read route',
   R6: 'the identities an old phone computes are the ones the Mac computes',
   A1: "today's vectors still cover every frozen route and every required type",
   A2: "every answer in today's vectors conforms to the frozen phone",
   A3: "the Mac's types promise every frozen key and keep every closed word inside its set",
-  A4: "the Mac's caps stay inside the frozen phone's bounds",
+  A4: "the Mac's caps stay inside the frozen and today's phone bounds, and every Mac-held bound names its constants",
   A5: 'every status the door answers is one the frozen phone reads',
   P0: "the reader reads today's phone whole, and the same bytes the same way",
   P1: 'nothing is required today that the frozen phone did not require',
@@ -1046,6 +1139,774 @@ function tsChecks(wire, findings, counts) {
 }
 
 // ---------------------------------------------------------------------------
+// The request record and the replay set (Phase 333.11.1, SPEC-1 §2.2, §4.3, §4.4)
+// ---------------------------------------------------------------------------
+
+const RECORD_SENT = ['always', 'sometimes'];
+const ASK_RULES = ['mac>=phone', 'mac>phone*1000'];
+/** A name or key the point leaves out, as a `sometimes` one is. */
+const ABSENT = Symbol('absent');
+const isPlainObject = (x) => x !== null && typeof x === 'object' && !Array.isArray(x);
+const shortJson = (x) => (x === ABSENT ? 'absent' : String(JSON.stringify(x)).slice(0, 60));
+const requestPath = (r) => String(r?.target ?? '').split('?')[0];
+/** Whether a vectors request is on a record's route: its method compared in capitals, as the canonical text writes it. */
+const onRecord = (r, rec) => String(r?.method ?? '').toUpperCase() === rec.method && requestPath(r) === rec.path;
+
+/** Whether a record value is in the closed vocabulary: text, int, bool, words, array, oneOf (SPEC-1 §2.2). */
+function recordValueOk(v) {
+  if (v === 'text' || v === 'int' || v === 'bool') return true;
+  if (!isPlainObject(v) || Object.keys(v).length !== 1) return false;
+  if (typeof v.words === 'string') return v.words !== '';
+  if (v.array !== undefined) return recordValueOk(v.array);
+  if (Array.isArray(v.oneOf)) {
+    const keys = new Set();
+    for (const alt of v.oneOf) {
+      if (!isPlainObject(alt) || Object.keys(alt).length !== 2 || typeof alt.key !== 'string' || alt.key === '' || keys.has(alt.key) || !recordValueOk(alt.value)) return false;
+      keys.add(alt.key);
+    }
+    return keys.size > 0;
+  }
+  return false;
+}
+
+/** Why one sealed record is outside the vocabulary, or null. */
+function recordShapeProblem(rec) {
+  if (!isPlainObject(rec)) return 'it is not an object';
+  if (typeof rec.method !== 'string' || typeof rec.path !== 'string' || !rec.path.startsWith('/')) return 'it names no method and path';
+  if (!Array.isArray(rec.query)) return 'its query is not a list';
+  const names = new Set();
+  for (const q of rec.query) {
+    if (!isPlainObject(q) || typeof q.name !== 'string' || q.name === '' || !RECORD_SENT.includes(q.sent) || !recordValueOk(q.value)) return `its query item ${shortJson(q)} is not { name, sent, value } in the record's vocabulary`;
+    if (names.has(q.name)) return `it names the query name ${q.name} twice`;
+    names.add(q.name);
+  }
+  if (rec.body === null) return null;
+  if (!isPlainObject(rec.body) || Object.keys(rec.body).length !== 1) return 'its body is not null, { fields } or { opaque: "presentation" }';
+  if (rec.query.length > 0) return 'it names both a query and a body, and the phone writes no query on a request with a body';
+  if (rec.body.opaque !== undefined) return rec.body.opaque === 'presentation' ? null : `its opaque body is ${shortJson(rec.body.opaque)}, not "presentation"`;
+  if (!Array.isArray(rec.body.fields)) return 'its body is not null, { fields } or { opaque: "presentation" }';
+  let last = null;
+  for (const f of rec.body.fields) {
+    if (!isPlainObject(f) || typeof f.name !== 'string' || f.name === '' || !RECORD_SENT.includes(f.sent) || typeof f.null !== 'boolean' || !recordValueOk(f.value)) return `its body field ${shortJson(f)} is not { name, sent, null, value } in the record's vocabulary`;
+    if (last !== null && !(last < f.name)) return `its body fields are not sorted by key (${last}, then ${f.name}), as the phone writes them`;
+    last = f.name;
+  }
+  return null;
+}
+
+/** Every word set a record value names. */
+function wordSetsIn(v, out = new Set()) {
+  if (!isPlainObject(v)) return out;
+  if (typeof v.words === 'string') out.add(v.words);
+  if (v.array !== undefined) wordSetsIn(v.array, out);
+  if (Array.isArray(v.oneOf)) for (const alt of v.oneOf) wordSetsIn(alt?.value, out);
+  return out;
+}
+
+/** A target's query as it is spelled: `[name, raw value]` pairs, still percent-encoded; a pair with no `=` has a null value. */
+function rawQuery(target) {
+  const t = String(target ?? '');
+  const at = t.indexOf('?');
+  if (at === -1 || at === t.length - 1) return [];
+  return t.slice(at + 1).split('&').map((p) => {
+    const eq = p.indexOf('=');
+    return eq === -1 ? [p, null] : [p.slice(0, eq), p.slice(eq + 1)];
+  });
+}
+
+/**
+ * THE FROZEN PHONE'S BODY BYTES (SPEC-1 D3): `JSONEncoder` with
+ * `.sortedKeys`, which writes every `/` as `\/`. Proved on every frozen write
+ * body before any generated body is written with it.
+ */
+const swiftString = (s) => JSON.stringify(s).replace(/\//g, '\\/');
+function swiftJson(v) {
+  if (Array.isArray(v)) return `[${v.map(swiftJson).join(',')}]`;
+  if (isPlainObject(v)) return `{${Object.keys(v).sort().map((k) => `${swiftString(k)}:${swiftJson(v[k])}`).join(',')}}`;
+  if (typeof v === 'string') return swiftString(v);
+  return JSON.stringify(v);
+}
+
+/** A request's values by record name: the raw query (a GET) or the parsed body (a POST), or null when the body is not an object. */
+function requestValues(rec, r) {
+  if (rec.body === null) return new Map(rawQuery(r.target));
+  try {
+    const body = JSON.parse(String(r.body ?? ''));
+    return isPlainObject(body) ? new Map(Object.entries(body)) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** One JSON value against its record kind. */
+function conformJson(v, kind, wordsOf, where, out) {
+  if (kind === 'text') {
+    if (typeof v !== 'string') out.push(`${where}: ${shortJson(v)} is not text`);
+  } else if (kind === 'int') {
+    if (!Number.isInteger(v)) out.push(`${where}: ${shortJson(v)} is not a whole number`);
+  } else if (kind === 'bool') {
+    if (typeof v !== 'boolean') out.push(`${where}: ${shortJson(v)} is not a boolean`);
+  } else if (typeof kind?.words === 'string') {
+    const words = wordsOf(kind.words);
+    if (typeof v !== 'string' || words === null || !words.includes(v)) out.push(`${where}: ${shortJson(v)} is not one of ${kind.words}'s words`);
+  } else if (kind?.array !== undefined) {
+    if (!Array.isArray(v)) out.push(`${where}: ${shortJson(v)} is not a list`);
+    else v.forEach((e, i) => conformJson(e, kind.array, wordsOf, `${where}/${String(i)}`, out));
+  } else if (Array.isArray(kind?.oneOf)) {
+    const alt = isPlainObject(v) && Object.keys(v).length === 1 ? kind.oneOf.find((a) => a.key === Object.keys(v)[0]) : undefined;
+    if (alt === undefined) out.push(`${where}: ${shortJson(v)} is none of its ${kind.oneOf.map((a) => `{ ${a.key} }`).join(' or ')} shapes`);
+    else conformJson(v[alt.key], alt.value, wordsOf, `${where}/${alt.key}`, out);
+  } else out.push(`${where}: a kind this gate cannot read (${shortJson(kind)})`);
+}
+
+/** One raw query value against its record kind. */
+function conformRaw(raw, kind, wordsOf, where, out) {
+  if (raw === null) out.push(`${where}: it is sent with no value`);
+  else if (kind === 'int') {
+    if (!/^-?(0|[1-9][0-9]*)$/.test(raw)) out.push(`${where}: ${shortJson(raw)} is not a whole number`);
+  } else if (kind === 'bool') {
+    if (raw !== 'true' && raw !== 'false') out.push(`${where}: ${shortJson(raw)} is not a boolean`);
+  } else if (typeof kind?.words === 'string') {
+    const words = wordsOf(kind.words);
+    if (words === null || !words.includes(raw)) out.push(`${where}: ${shortJson(raw)} is not one of ${kind.words}'s words`);
+  } else if (kind !== 'text') out.push(`${where}: a query value of kind ${shortJson(kind)} cannot be read`);
+}
+
+/**
+ * A frozen vectors request against its record (F3): its names in the
+ * record's order, every `always` name present, no other name, a word inside
+ * its set, a whole number a whole number, a `bool` a boolean, `null` only
+ * where allowed, every item one of the `oneOf` shapes.
+ */
+function conformRequest(rec, r, wordsOf) {
+  const out = [];
+  const where = `request ${String(r?.name)}`;
+  const items = rec.body === null ? rec.query : rec.body.fields;
+  let names;
+  if (rec.body === null) {
+    const pairs = rawQuery(r.target);
+    names = pairs.map(([n]) => n);
+    const seen = new Set();
+    for (const n of names) {
+      if (seen.has(n)) out.push(`${where}: it sends ${n} twice`);
+      seen.add(n);
+    }
+    const values = new Map(pairs);
+    for (const it of items) if (values.has(it.name)) conformRaw(values.get(it.name), it.value, wordsOf, `${where} ${it.name}`, out);
+  } else {
+    const values = requestValues(rec, r);
+    if (values === null) return [`${where}: its body is not a JSON object`];
+    names = [...values.keys()];
+    for (const it of items) {
+      if (!values.has(it.name)) continue;
+      const x = values.get(it.name);
+      if (x === null) {
+        if (!it.null) out.push(`${where} ${it.name}: null, and its record says the phone never sends null there`);
+        continue;
+      }
+      conformJson(x, it.value, wordsOf, `${where} ${it.name}`, out);
+    }
+  }
+  const order = items.map((it) => it.name);
+  let last = -1;
+  for (const n of names) {
+    const at = order.indexOf(n);
+    if (at === -1) {
+      out.push(`${where}: it sends ${n}, which its record does not name`);
+      continue;
+    }
+    if (at < last) out.push(`${where}: it sends ${n} out of its record's order (${order.join(', ')})`);
+    last = Math.max(last, at);
+  }
+  for (const it of items) if (it.sent === 'always' && !names.includes(it.name)) out.push(`${where}: it does not send ${it.name}, which its record says the phone always sends`);
+  return out;
+}
+
+/**
+ * EVERY WAY ONE ROUTE CAN BE ASKED (SPEC-1 §4.4 steps 2 to 4), from the
+ * SEALED record and the FROZEN requests only: the launch phone is the one
+ * frozen, so today's reading never widens or narrows what it asks.
+ *
+ * A query item or body field is a DIMENSION when its value is a word set
+ * (every word, in its sends row's order), a `bool` (false, then true), sent
+ * only `sometimes` (absent, then the present form), `null: true` (null, then
+ * the first non-null value any frozen request on the route sends), or a list
+ * whose `oneOf` has a word alternative (every distinct list the frozen
+ * requests send, by the frozen phone's bytes, in vectors order, then a
+ * one-item list for every word not already one). Everything else takes the
+ * BASE's value as it is: the first frozen request on the route that holds
+ * every name (a GET) or every always-sent key (a POST). A value that is not a
+ * dimension (an id, a whole number, free text) is never invented.
+ */
+function planOf(rec, requests, wordsOf) {
+  const problems = [];
+  const onRoute = requests.filter((r) => onRecord(r, rec));
+  const plan = { rec, onRoute, opaque: false, isGet: rec.body === null, items: [], dims: [], base: null, problems };
+  if (isPlainObject(rec.body) && rec.body.opaque !== undefined) return { ...plan, opaque: true };
+  const isGet = rec.body === null;
+  const items = isGet ? rec.query : rec.body.fields;
+  plan.items = items;
+  const parsed = onRoute.map((r) => ({ r, values: requestValues(rec, r) }));
+  plan.parsed = parsed;
+  const holdsBase = ({ values }) => values !== null && items.every((it) => (!isGet && it.sent !== 'always') || values.has(it.name));
+  const base = parsed.find(holdsBase);
+  if (base === undefined) {
+    problems.push(`${rec.method} ${rec.path}: no frozen request on it holds every ${isGet ? 'name' : 'always-sent key'} of its record, so no other way it asks can be built`);
+    return plan;
+  }
+  plan.base = base;
+  for (const it of items) {
+    const v = it.value;
+    const keyOf = isGet ? (x) => x : (x) => swiftJson(x);
+    let present = null;
+    if (isPlainObject(v) && typeof v.words === 'string') {
+      const words = wordsOf(v.words);
+      if (words === null) {
+        problems.push(`${rec.method} ${rec.path}: ${it.name} is drawn from ${v.words}, which no sends row holds`);
+        continue;
+      }
+      present = [...words];
+    } else if (v === 'bool') {
+      present = isGet ? ['false', 'true'] : [false, true];
+    } else if (!isGet && isPlainObject(v?.array) && Array.isArray(v.array.oneOf) && v.array.oneOf.some((a) => typeof a?.value?.words === 'string')) {
+      const lists = new Map();
+      for (const { values } of parsed) {
+        const x = values?.get(it.name);
+        if (Array.isArray(x) && !lists.has(swiftJson(x))) lists.set(swiftJson(x), x);
+      }
+      for (const alt of v.array.oneOf) {
+        if (typeof alt?.value?.words !== 'string') continue;
+        for (const word of wordsOf(alt.value.words) ?? []) {
+          const one = [{ [alt.key]: word }];
+          if (!lists.has(swiftJson(one))) lists.set(swiftJson(one), one);
+        }
+      }
+      present = [...lists.values()];
+    }
+    const absentable = it.sent === 'sometimes';
+    const nullable = !isGet && it.null === true;
+    let single = false;
+    if (present === null) {
+      if (!absentable && !nullable) continue;
+      const sent = (m) => m?.has(it.name) === true && m.get(it.name) !== null;
+      const first = parsed.find(({ values }) => sent(values));
+      const rep = !nullable && sent(base.values) ? base.values.get(it.name) : first?.values.get(it.name);
+      if (rep === undefined) {
+        problems.push(`${rec.method} ${rec.path}: ${it.name} is ${absentable ? 'sent only sometimes' : 'sent as null or not'}, and no frozen request on the route sends a value for it, so the other form cannot be replayed`);
+        continue;
+      }
+      present = [rep];
+      single = true;
+    }
+    const choices = [...(nullable ? [null] : []), ...(absentable ? [ABSENT] : []), ...present];
+    if (choices.length > 1) plan.dims.push({ name: it.name, choices, single, keyOf });
+  }
+  return plan;
+}
+
+/** The point a frozen request names on a plan's dimensions, or null when it names none (F3 says why). */
+function pointOf(plan, values) {
+  if (values === null) return null;
+  let index = 0;
+  for (const dim of plan.dims) {
+    let at;
+    if (!values.has(dim.name)) at = dim.choices.indexOf(ABSENT);
+    else if (values.get(dim.name) === null) at = dim.choices.indexOf(null);
+    else if (dim.single) at = dim.choices.length - 1;
+    else {
+      const key = dim.keyOf(values.get(dim.name));
+      at = dim.choices.findIndex((c) => c !== ABSENT && c !== null && dim.keyOf(c) === key);
+    }
+    if (at < 0) return null;
+    index = index * dim.choices.length + at;
+  }
+  return index;
+}
+
+/** How many ways a plan's route can be asked: the size of its cross product. */
+const waysOf = (plan) => plan.dims.reduce((n, d) => n * d.choices.length, 1);
+
+/**
+ * THE PROOFS (SPEC-1 §4.4 step 1), over the frozen requests: (i) the
+ * canonical template, (ii) the frozen phone's own key, (iii) its body bytes.
+ * Answers the problems and, when there are none, the signer.
+ */
+function signingProofs(w, v) {
+  const problems = [];
+  const requests = Array.isArray(v?.requests) ? v.requests : [];
+  if (requests.length === 0) return { problems: ['proof (i): the frozen vectors hold no request, so the way the frozen phone signs cannot be proved'], sign: null, lead: null };
+  const lead = String(requests[0].canonical ?? '').split('\n')[0];
+  const binding = v.identity?.binding;
+  const canonicalOf = (r) => [lead, String(r.method).toUpperCase(), r.target, sha256hex(Buffer.from(String(r.body ?? ''), 'utf8')), r.timestamp, r.nonce, binding].join('\n');
+  for (const r of requests) {
+    if (String(r.canonical ?? '').split('\n')[0] !== lead) problems.push(`proof (i): request ${String(r.name)}'s canonical text does not begin ${JSON.stringify(lead)} as every other frozen one does`);
+    else if (canonicalOf(r) !== r.canonical) problems.push(`proof (i): the frozen phone's canonical template does not re-derive request ${String(r.name)}'s canonical text, so no other way it asks can be signed as it signs`);
+  }
+  let key = null;
+  try {
+    const seed = Buffer.from(String(v.keys?.phoneSigningSeed ?? ''), 'hex');
+    key = createPrivateKey({ key: Buffer.concat([Buffer.from(PKCS8.ed25519, 'hex'), seed]), format: 'der', type: 'pkcs8' });
+    const spki = createPublicKey(key).export({ type: 'spki', format: 'der' }).toString('base64url');
+    if (spki !== v.keys?.phoneSigningKey) problems.push("proof (ii): the frozen phoneSigningSeed is not the private half of the frozen phoneSigningKey");
+  } catch (err) {
+    problems.push(`proof (ii): the frozen phoneSigningSeed is not an Ed25519 seed: ${String(err?.message ?? err)}`);
+    key = null;
+  }
+  const sign = key === null ? null : (text) => signWith(null, Buffer.from(text, 'utf8'), key).toString('base64url');
+  if (sign !== null) {
+    for (const r of requests) if (sign(String(r.canonical ?? '')) !== r.signature) problems.push(`proof (ii): re-signing request ${String(r.name)} with the frozen phone's seed does not give its frozen signature`);
+  }
+  const writes = new Set((w.routes ?? []).filter((x) => x.reads === false).map((x) => `${x.method} ${x.path}`));
+  let bodies = 0;
+  for (const r of requests) {
+    if (!writes.has(`${String(r.method).toUpperCase()} ${requestPath(r)}`)) continue;
+    bodies += 1;
+    let again = null;
+    try {
+      again = swiftJson(JSON.parse(String(r.body ?? '')));
+    } catch {
+      again = null;
+    }
+    if (again !== r.body) problems.push(`proof (iii): the serializer does not write request ${String(r.name)}'s frozen body back byte for byte${again === null ? ' (it is not JSON)' : ''}`);
+  }
+  if (bodies === 0 && writes.size > 0) problems.push('proof (iii): the frozen vectors hold no write body to prove the serializer on');
+  return { problems, sign: problems.length === 0 ? sign : null, canonicalOf };
+}
+
+/** What a generated request carries so R2 can read it back: `asked` (sessions), `page` (scrollback). */
+function readBackOf(route, target) {
+  const at = target.indexOf('?');
+  const q = new URLSearchParams(at === -1 ? '' : target.slice(at + 1));
+  if (route === 'sessions') return { asked: { show: q.get('show'), group: q.get('group'), sort: q.get('sort'), agent: q.get('agent'), machine: q.get('machine') } };
+  if (route === 'scrollback') {
+    const num = (n) => (q.get(n) === null ? null : Number(q.get(n)));
+    return { page: { id: q.get('id'), from: num('from'), count: num('count'), depth: num('depth'), wrap: num('wrap'), keep: q.get('keep') } };
+  }
+  return {};
+}
+
+const replayCache = new Map();
+/**
+ * EVERY REQUEST THE FROZEN PHONE CAN MAKE (SPEC-1 §4.4), once per set,
+ * deterministic: `{ frozen, generated, problems, notes }`. The proofs run
+ * first; any that fails is R2 red by name and nothing is generated. Every
+ * unoccupied point of each route's cross product is one generated request,
+ * named `variant:<route>:<index>` by its position in the product (the first
+ * dimension of the record varying slowest), signed with the frozen phone's
+ * seed over its canonical template, its nonce `sha256("p33311.1|<route>|<index>")`.
+ */
+function replaysOf(set) {
+  if (replayCache.has(set)) return replayCache.get(set);
+  const w = set.wire;
+  const v = set.vectors;
+  const out = { frozen: Array.isArray(v?.requests) ? v.requests : [], generated: [], problems: [], notes: [] };
+  replayCache.set(set, out);
+  const proofs = signingProofs(w, v);
+  if (proofs.problems.length > 0) {
+    out.problems.push(...proofs.problems);
+    return out;
+  }
+  if (!Array.isArray(w.requests)) {
+    out.notes.push(`${set.name}: no request record, so only its frozen requests replay (F3 names the missing record)`);
+    return out;
+  }
+  const wordsOf = (e) => (w.sends ?? []).find((s) => s.phone === e)?.words ?? null;
+  const plans = [];
+  let total = out.frozen.length;
+  for (const rec of w.requests) {
+    if (recordShapeProblem(rec) !== null || typeof rec.route !== 'string') continue; // F3 names it
+    const plan = planOf(rec, out.frozen, wordsOf);
+    if (plan.opaque || plan.base === null || plan.problems.length > 0) continue; // R3 owns /pair; F3 names a plan's problems
+    const occupied = new Set();
+    for (const { values } of plan.parsed) {
+      const at = pointOf(plan, values);
+      if (at !== null) occupied.add(at);
+    }
+    plans.push({ plan, occupied });
+    total += waysOf(plan) - occupied.size;
+  }
+  if (total > REPLAY_CEILING) {
+    out.problems.push(`the cross product of ${String(w.label ?? set.name)} is ${String(total)} requests, over the ceiling of ${String(REPLAY_CEILING)} measured to keep the gate inside its 3 s budget (build/p33311/SPEC-1.md §2.3): raise it with a measurement, never sample`);
+    return out;
+  }
+  for (const { plan, occupied } of plans) {
+    const { rec, base, dims, items, isGet } = plan;
+    const ways = waysOf(plan);
+    for (let index = 0; index < ways; index += 1) {
+      if (occupied.has(index)) continue;
+      const chosen = new Map();
+      let rest = index;
+      for (let d = dims.length - 1; d >= 0; d -= 1) {
+        chosen.set(dims[d].name, dims[d].choices[rest % dims[d].choices.length]);
+        rest = Math.floor(rest / dims[d].choices.length);
+      }
+      let target = rec.path;
+      let body = String(base.r.body ?? '');
+      if (isGet) {
+        const pairs = [];
+        for (const it of items) {
+          const value = chosen.has(it.name) ? chosen.get(it.name) : base.values.get(it.name);
+          if (value === ABSENT || value === undefined) continue;
+          pairs.push(`${it.name}=${String(value)}`);
+        }
+        if (pairs.length > 0) target = `${rec.path}?${pairs.join('&')}`;
+      } else {
+        const object = Object.fromEntries(base.values);
+        for (const [name, value] of chosen) {
+          if (value === ABSENT) delete object[name];
+          else object[name] = value;
+        }
+        body = swiftJson(object);
+      }
+      const r = {
+        name: `variant:${rec.route}:${String(index)}`,
+        method: rec.method,
+        target,
+        id: base.r.id ?? null,
+        body,
+        bodySha256: sha256hex(Buffer.from(body, 'utf8')),
+        timestamp: base.r.timestamp,
+        nonce: sha256hex(`p33311.1|${rec.route}|${String(index)}`).slice(0, 32),
+        generated: true,
+        ...readBackOf(rec.route, target)
+      };
+      r.canonical = proofs.canonicalOf(r);
+      r.signature = proofs.sign(r.canonical);
+      out.generated.push(r);
+    }
+  }
+  return out;
+}
+
+/**
+ * F3's half for the request record and the asks (SPEC-1 §4.3): the record
+ * holds together, agrees with the frozen vectors, and every way it asks can
+ * be replayed.
+ */
+function clauseF3Record(set) {
+  const w = set.wire;
+  const name = set.name;
+  checked('F3');
+  if (!Array.isArray(w.asks)) fail('F3', `${name}: it holds no asks (the numbers the phone's own Swift asks of the Mac), which format 2 seals`);
+  else {
+    const phones = new Set();
+    for (const row of w.asks) {
+      checked('F3');
+      const ok = isPlainObject(row) && typeof row.phone === 'string' && row.phone !== '' && typeof row.value === 'number' && Number.isFinite(row.value) && row.value >= 0 && typeof row.mac === 'string' && row.mac !== '' && typeof row.macFile === 'string' && row.macFile !== '' && ASK_RULES.includes(row.rule);
+      if (!ok) fail('F3', `${name}: the ask ${shortJson(row)} is not { phone, value >= 0, mac, macFile, rule } with rule ${ASK_RULES.join(' or ')}`);
+      else if (phones.has(row.phone)) fail('F3', `${name}: the ask ${row.phone} is sealed twice`);
+      if (isPlainObject(row)) phones.add(row.phone);
+    }
+  }
+  checked('F3');
+  if (!Array.isArray(w.requests)) {
+    fail('F3', `${name}: it holds no request record (requests), so the ways the launch phone asks cannot be replayed: format 2 seals one`);
+    return;
+  }
+  const sends = Array.isArray(w.sends) ? w.sends : [];
+  const wordsOf = (e) => sends.find((s) => s.phone === e)?.words ?? null;
+  const records = [];
+  for (const rec of w.requests) {
+    checked('F3');
+    const why = recordShapeProblem(rec);
+    if (why !== null) {
+      fail('F3', `${name}: a request record ${shortJson(rec)}: ${why}`);
+      continue;
+    }
+    const route = (w.routes ?? []).find((r) => r.method === rec.method && r.path === rec.path);
+    if (route === undefined) fail('F3', `${name}: the request record for ${rec.method} ${rec.path} names no frozen route`);
+    else if (rec.route !== route.id) fail('F3', `${name}: the request record for ${rec.method} ${rec.path} names route ${shortJson(rec.route)}, and the frozen route there is ${route.id}`);
+    records.push(rec);
+  }
+  for (const route of w.routes ?? []) {
+    checked('F3');
+    const n = w.requests.filter((rec) => isPlainObject(rec) && rec.method === route.method && rec.path === route.path).length;
+    if (n !== 1) fail('F3', `${name}: route ${String(route.id)} (${route.method} ${route.path}) has ${String(n)} request record(s), not exactly one`);
+  }
+  // Words: every set a record names is a sends row, every sends row is used,
+  // and a word sent in a query is RFC 3986 unreserved, so the phone's
+  // queryValue writes it as it is.
+  const used = new Set();
+  for (const rec of records) {
+    for (const item of [...rec.query, ...(Array.isArray(rec.body?.fields) ? rec.body.fields : [])]) {
+      for (const e of wordSetsIn(item.value)) {
+        used.add(e);
+        checked('F3');
+        const words = wordsOf(e);
+        if (words === null || !Array.isArray(words)) {
+          fail('F3', `${name}: ${rec.method} ${rec.path}'s ${item.name} is drawn from ${e}, which no sends row holds`);
+          continue;
+        }
+        if (rec.query.includes(item)) {
+          const reserved = words.filter((x) => typeof x !== 'string' || !/^[A-Za-z0-9._~-]+$/.test(x));
+          if (reserved.length > 0) fail('F3', `${name}: ${e}'s ${reserved.map((x) => JSON.stringify(x)).join(', ')} would be percent-encoded in a query, and a word the phone sends is spelled as it is`);
+        }
+      }
+    }
+  }
+  for (const row of sends) {
+    checked('F3');
+    if (!used.has(row.phone)) fail('F3', `${name}: the sends row ${String(row.phone)} is used by no request record`);
+  }
+  // Every frozen request on a recorded route conforms to its record, and
+  // every way the record asks can be built from the frozen requests.
+  const requests = Array.isArray(set.vectors?.requests) ? set.vectors.requests : [];
+  for (const rec of records) {
+    const plan = planOf(rec, requests, wordsOf);
+    if (plan.opaque) continue; // /pair: R3 opens the presentation
+    for (const r of plan.onRoute) {
+      checked('F3');
+      for (const f of conformRequest(rec, r, wordsOf)) fail('F3', `${name}: ${f}, so the record and the frozen phone's own requests disagree`);
+    }
+    checked('F3');
+    for (const p of plan.problems) fail('F3', `${name}: ${p}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The committed copies (Phase 333.11.1, SPEC-1 D9, §4.2), and what the Mac holds
+// ---------------------------------------------------------------------------
+
+/**
+ * Every Mac-side row `next` holds lower, shorter, missing, re-ruled or moved
+ * against `previous` (SPEC-1 §4.8, widened by the fix round): a `macLimits`
+ * row by `mac` (its value, and the file it is read from), a bound by `phone`
+ * (its Mac list, the rule it holds the Mac by, the file its constants are
+ * read from, its value, its least value and the paths it bounds), an ask by
+ * `phone` (its value, its Mac constant, its rule and its file). One function,
+ * used by F1 (b) against every committed copy and by `--replace` against the
+ * set it replaces. A file may move only to the one the gate's own tables
+ * name, which is a refactor that moved a constant; any other move points the
+ * row at a file the gate does not vouch for (the reverify's W21 and W22). A
+ * rule a frozen set held the Mac by is never changed (the reverify's W20:
+ * `mac<=phone` resealed as `instance<=phone` took the Mac out of A4).
+ */
+function macSideLosses(previous, next) {
+  const out = [];
+  const rows = (x, key) => (Array.isArray(x?.[key]) ? x[key].filter(isPlainObject) : []);
+  const moved = (was, now, own) => typeof was === 'string' && now !== was && now !== own;
+  for (const row of rows(previous, 'macLimits')) {
+    if (typeof row.mac !== 'string') continue;
+    const now = rows(next, 'macLimits').find((r) => r.mac === row.mac);
+    if (now === undefined) {
+      out.push(`${row.mac} (${String(row.value)}) is missing from its Mac limits`);
+      continue;
+    }
+    if (typeof row.value === 'number' && !(typeof now.value === 'number' && now.value >= row.value)) out.push(`${row.mac} is ${String(now.value)}, lower than the ${String(row.value)} it held`);
+    if (moved(row.file, now.file, gateFileOf(row.mac))) out.push(`${row.mac} is read from ${String(now.file)}, not the ${row.file} it was held in, and the gate's own tables name ${gateFileOf(row.mac) ?? 'no file'} for it`);
+  }
+  for (const row of rows(previous, 'bounds')) {
+    if (typeof row.phone !== 'string') continue;
+    const list = Array.isArray(row.mac) ? row.mac : [];
+    const now = rows(next, 'bounds').find((r) => r.phone === row.phone);
+    if (now === undefined) {
+      out.push(`the bound ${row.phone}${list.length > 0 ? `, which held ${list.join(', ')} to the phone,` : ''} is missing`);
+      continue;
+    }
+    if (MAC_HELD_RULES.includes(row.rule) && now.rule !== row.rule) out.push(`${row.phone} is held by ${String(now.rule)}, where it held the Mac by ${row.rule}`);
+    const lost = list.filter((m) => !(Array.isArray(now.mac) && now.mac.includes(m)));
+    if (lost.length > 0) out.push(`${row.phone}'s Mac list is shorter: it no longer names ${lost.join(', ')}`);
+    const own = reader.BOUND_ROWS.find((b) => b.phone === row.phone);
+    if (list.length > 0 && moved(row.macFile, now.macFile, own?.macFile ?? null)) out.push(`${row.phone}'s Mac constants are read from ${String(now.macFile)}, not the ${String(row.macFile)} they were held in, and the reader's own BOUND_ROWS name ${own?.macFile ?? 'no file'} for them`);
+    const looser = boundLooser(row, now);
+    if (looser !== null) out.push(`${row.phone} ${looser}`);
+    if (typeof row.min === 'number' && !(typeof now.min === 'number' && now.min >= row.min)) out.push(`${row.phone}'s least value is ${String(now.min)}, below the ${String(row.min)} the frozen phone holds`);
+    const unbounded = (Array.isArray(row.applies) ? row.applies : []).filter((a) => !(Array.isArray(now.applies) && now.applies.includes(a)));
+    if (unbounded.length > 0) out.push(`${row.phone} no longer bounds ${unbounded.join(', ')}`);
+  }
+  for (const row of rows(previous, 'asks')) {
+    if (typeof row.phone !== 'string') continue;
+    const now = rows(next, 'asks').find((r) => r.phone === row.phone);
+    if (now === undefined) {
+      out.push(`the ask ${row.phone} (${String(row.value)}, held against ${String(row.mac)}) is missing`);
+      continue;
+    }
+    if (typeof row.value === 'number' && !(typeof now.value === 'number' && now.value >= row.value)) out.push(`the ask ${row.phone} is ${String(now.value)}, lower than the ${String(row.value)} it held`);
+    if (now.mac !== row.mac) out.push(`the ask ${row.phone} is held against ${String(now.mac)}, where it held ${String(row.mac)}`);
+    if (now.rule !== row.rule) out.push(`the ask ${row.phone} holds the Mac by ${String(now.rule)}, where it held it by ${String(row.rule)}`);
+    if (moved(row.macFile, now.macFile, gateFileOf(row.mac))) out.push(`the ask ${row.phone}'s ${String(row.mac)} is read from ${String(now.macFile)}, not the ${row.macFile} it was held in, and the gate's own tables name ${gateFileOf(row.mac) ?? 'no file'} for it`);
+  }
+  return out;
+}
+
+/**
+ * How a bound `now` holds the Mac less than `was` did, or null: an upper
+ * bound (`mac<=phone`, `mac<phone*1000`, `instance<=phone`) raised, an
+ * `equal` value changed, or a `mac-in-phone` list grown by a value the frozen
+ * phone does not take. Read by `was`'s rule, so a rule changed as well is
+ * judged by the rule the frozen phone held.
+ */
+function boundLooser(was, now) {
+  const p = was.value;
+  const n = now.value;
+  if (was.rule === 'equal') return reader.canonical(p) === reader.canonical(n) ? null : `is ${JSON.stringify(n)}, not the ${JSON.stringify(p)} the frozen phone reads`;
+  if (was.rule === 'mac-in-phone') {
+    if (!Array.isArray(p)) return null;
+    if (!Array.isArray(n)) return `is ${JSON.stringify(n)}, not a list inside ${JSON.stringify(p)}`;
+    const extra = n.filter((x) => !p.some((y) => reader.canonical(y) === reader.canonical(x)));
+    return extra.length > 0 ? `now admits ${JSON.stringify(extra)}, which the frozen phone does not take` : null;
+  }
+  if (typeof p !== 'number') return null;
+  return typeof n === 'number' && n <= p ? null : `is ${String(n)}, above the ${String(p)} the frozen phone holds the Mac to`;
+}
+
+/**
+ * Every way of asking `next` no longer records against `previous` (the fix
+ * round, the reverify's W16): a route the frozen phone calls, a request
+ * record, a query name or body key, a name sent only sometimes now recorded
+ * as always, a key that may be null now never, a value drawn from a closed
+ * set, a Bool or a key list recorded with another shape, and a word a closed
+ * set the phone sends held. R2 and R5 replay what the SEALED record and
+ * `sends` hold, so a record resealed with a way of asking taken out replays
+ * nothing for it, and P0's same-bytes rule holds it only while every phone
+ * file is unchanged. Used by F1 (b) and by `--replace`, as macSideLosses is.
+ */
+function requestLosses(previous, next) {
+  const out = [];
+  const rows = (x, key) => (Array.isArray(x?.[key]) ? x[key].filter(isPlainObject) : []);
+  const keyOf = (r) => `${String(r.method).toUpperCase()} ${String(r.path)}`;
+  for (const r of rows(previous, 'routes')) {
+    if (!rows(next, 'routes').some((x) => keyOf(x) === keyOf(r))) out.push(`${keyOf(r)}, a route the frozen phone calls, is gone`);
+  }
+  const replayed = (v) => v === 'bool' || (isPlainObject(v) && (typeof v.words === 'string' || replayed(v.array) || (Array.isArray(v.oneOf) && v.oneOf.some((a) => replayed(a?.value)))));
+  const compare = (where, was, now) => {
+    if (!isPlainObject(now)) {
+      out.push(`${where} is no longer recorded`);
+      return;
+    }
+    if (was.sent === 'sometimes' && now.sent !== 'sometimes') out.push(`${where} is recorded as sent ${String(now.sent)}, where the frozen phone sends it only sometimes: the request without it is no longer replayed`);
+    if (was.null === true && now.null !== true) out.push(`${where} is recorded as never null, where the frozen phone sends null`);
+    if (replayed(was.value) && reader.canonical(was.value) !== reader.canonical(now.value)) out.push(`${where} is recorded as ${shortJson(now.value)}, where the frozen phone draws it from ${shortJson(was.value)}`);
+  };
+  const byName = (list, name) => (Array.isArray(list) ? list.find((x) => isPlainObject(x) && x.name === name) : undefined);
+  for (const rec of rows(previous, 'requests')) {
+    const now = rows(next, 'requests').find((x) => keyOf(x) === keyOf(rec));
+    if (now === undefined) {
+      out.push(`the request record of ${keyOf(rec)} is gone`);
+      continue;
+    }
+    for (const item of (Array.isArray(rec.query) ? rec.query : []).filter(isPlainObject)) compare(`${keyOf(rec)}'s query name ${String(item.name)}`, item, byName(now.query, item.name));
+    if (isPlainObject(rec.body) && rec.body.opaque !== undefined && now.body?.opaque !== rec.body.opaque) out.push(`${keyOf(rec)}'s body is recorded as ${shortJson(now.body)}, where the frozen phone sends ${shortJson(rec.body)}`);
+    for (const field of (Array.isArray(rec.body?.fields) ? rec.body.fields : []).filter(isPlainObject)) compare(`${keyOf(rec)}'s body key ${String(field.name)}`, field, byName(now.body?.fields, field.name));
+  }
+  for (const s of rows(previous, 'sends')) {
+    const now = rows(next, 'sends').find((x) => x.phone === s.phone);
+    if (now === undefined) {
+      out.push(`${String(s.phone)}, the words the frozen phone sends, is gone`);
+      continue;
+    }
+    const lost = (Array.isArray(s.words) ? s.words : []).filter((w) => !(Array.isArray(now.words) && now.words.includes(w)));
+    if (lost.length > 0) out.push(`${String(s.phone)} no longer holds ${lost.join(', ')}, which the frozen phone sends`);
+  }
+  return out;
+}
+
+/**
+ * `git`'s environment (SPEC-1 §4.2): no optional locks, no prompt, none of
+ * the variables a git hook hands a build (they would point it at another
+ * repository), and no global or system configuration, so the gate reads
+ * nothing under the person's home and a configured colour, pager or
+ * signature line cannot reach what it parses.
+ */
+const GIT_ENV = (() => {
+  const env = { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' };
+  for (const k of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_COMMON_DIR', 'GIT_OBJECT_DIRECTORY', 'GIT_ALTERNATE_OBJECT_DIRECTORIES']) delete env[k];
+  return env;
+})();
+const gitStats = { copies: 0, notes: 0 };
+/** One read-only git command in ROOT: `{ ok, out }` or `{ ok: false, why }`. */
+function git(args) {
+  const run = spawnSync('git', ['-C', ROOT, ...args], { encoding: 'utf8', timeout: 10_000, maxBuffer: 64 * 1024 * 1024, env: GIT_ENV });
+  if (run.error !== undefined) return { ok: false, why: run.error.code === 'ENOENT' ? 'git is not on PATH' : `git ${args[0]} could not run (${String(run.error.code ?? run.error.message)})` };
+  if (run.status !== 0) return { ok: false, why: `git ${args[0]} exited ${String(run.status)}${String(run.stderr ?? '').trim() === '' ? '' : ` (${String(run.stderr).trim().split('\n')[0].slice(0, 120)})`}` };
+  return { ok: true, out: String(run.stdout ?? '') };
+}
+const gitNote = (msg) => {
+  note('F1', msg);
+  gitStats.notes += 1;
+};
+
+/**
+ * F1 against the committed copies (SPEC-1 D9, §4.2). Every environmental
+ * failure (no git, not a repository, ROOT inside one, a set outside ROOT or
+ * never committed) is a NOTE naming what was not compared; only a finding is
+ * red. (a) A set whose seal differs from HEAD's copy must continue that
+ * copy's history with that copy's seal, or it was edited and resealed by
+ * hand. (b) No Mac-side row lower, shorter, missing, re-ruled or moved, and
+ * no way the frozen phone asks taken out, against ANY copy (the fix round:
+ * macSideLosses and requestLosses, the two `--replace` asks too).
+ */
+function clauseF1Copies(sets) {
+  const under = [];
+  for (const set of sets) {
+    if (set.wire === null || !isPlainObject(set.wire)) continue;
+    const rel = relative(ROOT, set.path);
+    if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) gitNote(`${set.name}: it is not under the judged tree, so its committed copies were not compared`);
+    else under.push({ set, rel: rel.split(sep).join('/') });
+  }
+  if (under.length === 0) return;
+  const top = git(['rev-parse', '--show-prefix', '--is-shallow-repository']);
+  if (!top.ok) {
+    gitNote(`${top.why}: committed copies not compared`);
+    return;
+  }
+  const [prefix = '', shallow = ''] = top.out.split('\n');
+  if (prefix.trim() !== '') {
+    gitNote(`the judged tree is ${prefix.trim()} inside its repository, not its top level: committed copies not compared`);
+    return;
+  }
+  if (shallow.trim() === 'true') gitNote('a shallow clone: only the copies after its graft');
+  for (const { set, rel } of under) {
+    const label = String(set.wire.label ?? set.name);
+    const log = git(['log', '--format=%H', '--', rel]);
+    if (!log.ok) {
+      gitNote(`${set.name}: ${log.why}: committed copies not compared`);
+      continue;
+    }
+    const commits = log.out.split('\n').map((l) => l.trim()).filter((l) => /^[0-9a-f]{40}([0-9a-f]{24})?$/.test(l));
+    if (commits.length === 0) {
+      gitNote(`${set.name}: no committed copy (a new or untracked set), so there is nothing to compare it with`);
+      continue;
+    }
+    expects('F1');
+    const copyAt = (rev) => {
+      const shown = git(['show', `${rev}:${rel}`]);
+      if (!shown.ok) return { why: shown.why };
+      try {
+        const copy = JSON.parse(shown.out);
+        return isPlainObject(copy) ? { copy } : { why: 'it is not a JSON object' };
+      } catch {
+        return { why: 'it is not JSON' };
+      }
+    };
+    // (a) No hand edit since the commit.
+    const head = copyAt('HEAD');
+    if (head.copy === undefined) gitNote(`${set.name}: its copy at HEAD cannot be read (${head.why}), so (a) was not compared`);
+    else {
+      checked('F1');
+      if (head.copy.seal !== set.wire.seal) {
+        const theirs = Array.isArray(head.copy.history) ? head.copy.history : [];
+        const mine = Array.isArray(set.wire.history) ? set.wire.history : [];
+        const continues = mine.length > theirs.length && theirs.every((e, i) => reader.canonical(e) === reader.canonical(mine[i])) && mine[theirs.length]?.seal === head.copy.seal;
+        if (!continues) fail('F1', `${label} differs from the copy committed at HEAD (${String(head.copy.seal).slice(0, 8)}) and its history does not continue that copy's: it was edited and resealed by hand, not replaced with --freeze --replace --why`);
+      }
+    }
+    // (b) Never lower on the Mac side than any committed copy.
+    for (const c of commits) {
+      const at = copyAt(c);
+      if (at.copy === undefined) {
+        gitNote(`${set.name}: its copy at ${c.slice(0, 8)} cannot be read (${at.why}), so it was not compared`);
+        continue;
+      }
+      checked('F1');
+      gitStats.copies += 1;
+      for (const loss of macSideLosses(at.copy, set.wire)) fail('F1', `${label} against its copy committed at ${c.slice(0, 8)}: ${loss}. A Mac-side row lowered, shortened, dropped, re-ruled or moved and resealed is not a re-freeze: it is a retirement of the set, by ruling`);
+      for (const loss of requestLosses(at.copy, set.wire)) fail('F1', `${label} against its copy committed at ${c.slice(0, 8)}: ${loss}. A way the frozen phone asks, taken out and resealed, is not a re-freeze: it is a retirement of the set, by ruling`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The clauses
 // ---------------------------------------------------------------------------
 
@@ -1064,7 +1925,10 @@ function clauseF(sets, inMemory) {
       continue;
     }
     const w = set.wire;
-    if (!FORMATS_READ.includes(w.format)) fail('F1', `${set.name}: format ${JSON.stringify(w.format)} is not one this gate reads (${FORMATS_READ.join(', ')})`);
+    if (!FORMATS_READ.includes(w.format)) {
+      const retired = Object.hasOwn(FORMATS_RETIRED, String(w.format)) ? FORMATS_RETIRED[w.format] : undefined;
+      fail('F1', `${set.name}: ${retired ?? `format ${JSON.stringify(w.format)} is not one this gate reads (${FORMATS_READ.join(', ')})`}`);
+    }
     if (typeof w.seal !== 'string' || w.seal !== sealOf(w)) fail('F1', `${set.name}: its seal does not hold: the file was edited without --freeze (sealed ${String(w.seal)}, its body hashes to ${sealOf(w)})`);
     checked('F2');
     if (set.vectorsBytes === null) fail('F2', `${set.name}: its vectors file ${String(w.vectors?.file)} does not exist beside it`);
@@ -1161,6 +2025,8 @@ function clauseF(sets, inMemory) {
         fail('F3', `${set.name}: arm ${String(arm.id)} (${arm.op}) points at ${String(arm.pointer)}, which ${arm.instance} does not hold`);
       }
     }
+    // Format 2: the request record and the asks hold together (SPEC-1 §4.3).
+    clauseF3Record(set);
   }
 }
 
@@ -1262,13 +2128,24 @@ function frozenParties(vectors) {
   return { mac, phone };
 }
 
+/** What R2 replayed, for the PASS line and the summary. */
+const replayStats = { frozen: 0, generated: 0 };
+
 async function clauseR2(sets) {
   for (const set of sets) {
     const w = set.wire;
     const v = set.vectors;
     if (w === null || v === null) continue;
-    const requests = v.requests ?? [];
-    if (requests.length > 0) expects('R2');
+    // Every request the frozen phone can make (SPEC-1 §4.4): the frozen ones
+    // and every other point of its sealed record's cross product. A proof
+    // that fails, or a product past the ceiling, is red by name, and nothing
+    // of that set is replayed.
+    const replays = replaysOf(set);
+    if (replays.frozen.length > 0 || replays.problems.length > 0) expects('R2');
+    for (const p of replays.problems) fail('R2', `${set.name}: ${p}`);
+    for (const n of replays.notes) note('R2', n);
+    if (replays.problems.length > 0) continue;
+    const requests = [...replays.frozen, ...replays.generated];
     if (pairing.loadError !== undefined || tableMod.loadError !== undefined || routesMod.loadError !== undefined || writesMod.loadError !== undefined || limitsMod.loadError !== undefined) {
       fail('R2', `the shipping door could not be loaded: ${[pairing, tableMod, routesMod, writesMod, limitsMod].map((m) => m.loadError).filter(Boolean).join('; ')}`);
       return;
@@ -1282,7 +2159,9 @@ async function clauseR2(sets) {
     }
     for (const r of requests) {
       checked('R2');
-      const where = `${set.name} request ${String(r.name)}`;
+      if (r.generated === true) replayStats.generated += 1;
+      else replayStats.frozen += 1;
+      const where = `${set.name} request ${String(r.name)}${r.generated === true ? ` (${r.method} ${String(r.target).slice(0, 100)}${r.method === 'GET' ? '' : ` ${String(r.body).slice(0, 100)}`})` : ''}`;
       const pathname = String(r.target).split('?')[0];
       const facts = { method: r.method, target: r.target, bodySha256: sha256hex(Buffer.from(r.body ?? '', 'utf8')), timestamp: r.timestamp, nonce: r.nonce, binding: v.identity.binding };
       if (pairing.canonicalRequestText(facts) !== r.canonical) fail('R2', `${where}: the shipping canonicalRequestText no longer writes the text the old phone signed`);
@@ -1437,25 +2316,110 @@ function clauseR3(sets) {
   }
 }
 
-function clauseR4(sets) {
+/**
+ * The sentence for an ask the Mac falls short of (SPEC-1 §4.6), by the
+ * phone's constant; any other ask is said in the general words below.
+ */
+const ASK_SAYS = {
+  'DoorLine.keptLines+1': 'connections the phone opens at once',
+  'ScreenKeySender.mostItems': 'keys the phone sends in one write',
+  'ScreenKeySender.mostTextBytes': 'text bytes the phone sends in one keys write',
+  'ScrollbackLayout.pageRows+overlapRows': 'rows one scrollback page asks for',
+  'DoorLine.freshFor': 'the phone keeps a line'
+};
+
+/**
+ * R4's half for THE PHONE'S OWN NUMBERS (SPEC-1 D7, §4.6): the asks of
+ * today's reading and of every sealed set, joined by the phone's constant and
+ * each held at the LARGEST value any of them names, so a resealed ask cannot
+ * lower a floor the Swift still states, and a sealed ask today's reader no
+ * longer names still holds at its sealed value.
+ */
+function clauseR4Asks(sets, today) {
+  const joined = new Map();
+  const take = (row) => {
+    if (!isPlainObject(row) || typeof row.phone !== 'string' || typeof row.value !== 'number' || !Number.isFinite(row.value)) return; // F3 names a malformed sealed ask, P0 an unread one
+    const entry = joined.get(row.phone) ?? { value: -Infinity, swift: null, macs: new Map() };
+    if (row.value > entry.value) {
+      entry.value = row.value;
+      entry.swift = typeof row.swift === 'string' ? row.swift : entry.swift;
+    }
+    // The file the gate's own tables name for the constant, never a sealed
+    // decoy's (the fix round); the sealed file only when no table names it.
+    const macFile = gateFileOf(row.mac) ?? row.macFile;
+    entry.macs.set(`${String(row.mac)}|${String(macFile)}|${String(row.rule)}`, { mac: row.mac, macFile, rule: row.rule });
+    joined.set(row.phone, entry);
+  };
+  for (const row of Array.isArray(today.asks) ? today.asks : []) take(row);
+  for (const set of sets) for (const row of Array.isArray(set.wire?.asks) ? set.wire.asks : []) take(row);
+  for (const [phone, { value, swift, macs }] of [...joined].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
+    for (const { mac, macFile, rule } of macs.values()) {
+      expects('R4');
+      checked('R4');
+      if (typeof mac !== 'string' || typeof macFile !== 'string') {
+        fail('R4', `the ask ${phone} names no Mac constant and file`);
+        continue;
+      }
+      const now = macConstant(macFile, mac);
+      if (now.error !== undefined) {
+        fail('R4', `${mac}: ${now.error}`);
+        continue;
+      }
+      const x = now.value;
+      const said = Object.hasOwn(ASK_SAYS, phone) ? ASK_SAYS[phone] : undefined;
+      const from = `\`${phone}\`, ${swift ?? 'its Swift'}`;
+      if (rule === 'mac>=phone') {
+        if (!(typeof x === 'number' && x >= value)) fail('R4', `\`${mac}\` is ${String(x)}, below the ${String(value)} ${said ?? "the phone's own Swift asks of it"} (${from})`);
+      } else if (rule === 'mac>phone*1000') {
+        if (!(typeof x === 'number' && x > value * 1000)) fail('R4', `\`${mac}\` is ${String(x)} ms, not more than the ${String(value)} s ${said ?? "the phone's own Swift holds"} (${from})${phone === 'DoorLine.freshFor' ? ': the door would close a line the phone still means to reuse' : ''}`);
+      } else fail('R4', `the ask ${phone} holds ${mac} by ${String(rule)}, which is not ${ASK_RULES.join(' or ')}`);
+    }
+  }
+}
+
+/** R4: the frozen limits and words first, then the phone's own numbers (SPEC-1 §4.6). */
+function clauseR4(sets, today) {
+  clauseR4Frozen(sets);
+  clauseR4Asks(sets, today);
+}
+
+/**
+ * R4's frozen half. Every constant is read from the file the gate's own
+ * tables name for it, and from the sealed file only when no table names it
+ * (the fix round, the reverify's W22: a row resealed to point at a decoy
+ * holding the old value read the decoy). The words the frozen phone sends
+ * are held against the sealed list AND the list the reader's own SEND_ROWS
+ * names for the same phone enum, read from its own file in its own form.
+ */
+function clauseR4Frozen(sets) {
+  for (const conflict of GATE_FILE_CONFLICTS) {
+    expects('R4');
+    fail('R4', conflict);
+  }
   for (const set of sets) {
     for (const row of set.wire?.macLimits ?? []) {
       expects('R4');
       checked('R4');
-      const now = macConstant(row.file, row.mac);
+      const file = gateFileOf(row.mac) ?? row.file;
+      const now = macConstant(file, row.mac);
       if (now.error !== undefined) fail('R4', `${row.mac}: ${now.error}`);
-      else if (typeof now.value !== 'number' || now.value < row.value) fail('R4', `${row.mac} is ${String(now.value)} today, below the ${String(row.value)} an old phone's requests were built to fit (${row.file})`);
+      else if (typeof now.value !== 'number' || now.value < row.value) fail('R4', `${row.mac} is ${String(now.value)} today, below the ${String(row.value)} an old phone's requests were built to fit (${file})`);
     }
     for (const row of set.wire?.sends ?? []) {
-      expects('R4');
-      checked('R4');
-      const now = macWords(row.macFile, row.mac, row.macForm);
-      if (now.error !== undefined) {
-        fail('R4', `${row.mac}: ${now.error}`);
-        continue;
+      const own = reader.SEND_ROWS.find((r) => r.phone === row.phone);
+      const lists = [{ mac: row.mac, file: gateFileOf(row.mac) ?? row.macFile, form: own !== undefined && own.mac === row.mac ? own.macForm : row.macForm }];
+      if (own !== undefined && own.mac !== row.mac) lists.push({ mac: own.mac, file: own.macFile, form: own.macForm });
+      for (const { mac, file, form } of lists) {
+        expects('R4');
+        checked('R4');
+        const now = macWords(file, mac, form);
+        if (now.error !== undefined) {
+          fail('R4', `${mac}: ${now.error}`);
+          continue;
+        }
+        const lost = (row.words ?? []).filter((w) => !now.value.includes(w));
+        if (lost.length > 0) fail('R4', `${mac} no longer reads ${lost.join(', ')}, which the frozen phone sends as ${row.phone}`);
       }
-      const lost = (row.words ?? []).filter((w) => !now.value.includes(w));
-      if (lost.length > 0) fail('R4', `${row.mac} no longer reads ${lost.join(', ')}, which the frozen phone sends as ${row.phone}`);
     }
   }
 }
@@ -1633,12 +2597,17 @@ async function clauseR5(sets) {
         }
       });
       if (!answers) fail('R5', `${fr.id}: main's case '${fr.id}' returns no routes.${fr.id}(…)`);
-      // DRIVEN: every frozen request of this route, through server.ts into the
-      // read switch main runs. It must reach routes.<id> exactly once, hand it
-      // every word of the frozen query, and be answered 200 with what
-      // routes.<id> answered. A condition that answers an old phone's query
-      // null (a newly required name, a refused value) is a 404 to that phone.
-      const requests = (v?.requests ?? []).filter((r) => r.method === fr.method && String(r.target).split('?')[0] === fr.path);
+      // DRIVEN: every request the frozen phone can make on this route (R2's
+      // replay set, SPEC-1 §4.4: the frozen ones, and every other way it asks
+      // with a sometimes-sent name absent or present and every word of each
+      // closed set), through server.ts into the read switch main runs. Each
+      // must reach routes.<id> exactly once, hand it every word of its query,
+      // and be answered 200 with what routes.<id> answered: an arm that
+      // answers null to a way the launch phone asks is a 404 to that phone.
+      // When R2's proofs failed, only the frozen requests are driven here.
+      const replays = v === null ? null : replaysOf(set);
+      const pool = replays === null ? [] : [...replays.frozen, ...(replays.problems.length === 0 ? replays.generated : [])];
+      const requests = pool.filter((r) => r.method === fr.method && String(r.target).split('?')[0] === fr.path);
       if (requests.length === 0) {
         note('R5', `${set.name}: no frozen request on ${fr.method} ${fr.path} to drive; its arm is held as text alone`);
         continue;
@@ -1649,7 +2618,7 @@ async function clauseR5(sets) {
       }
       for (const r of requests) {
         checked('R5');
-        const where = `${set.name} request ${String(r.name)}`;
+        const where = `${set.name} request ${String(r.name)}${r.generated === true ? ` (${String(r.target).slice(0, 100)})` : ''}`;
         const { routes, calls } = recordingRoutes();
         let res;
         try {
@@ -1814,23 +2783,94 @@ function clauseA3(sets) {
   }
 }
 
-function clauseA4(sets) {
-  for (const set of sets) {
-    for (const row of set.wire?.bounds ?? []) {
-      for (const mac of row.mac ?? []) {
-        expects('A4');
-        checked('A4');
-        const now = macConstant(row.macFile, mac);
-        if (now.error !== undefined) {
-          fail('A4', `${mac}: ${now.error}`);
-          continue;
-        }
-        const x = now.value;
-        if (row.rule === 'mac<=phone' && !(typeof x === 'number' && x <= row.value)) fail('A4', `${mac} is ${String(x)}, past ${row.phone} (${String(row.value)}): every old phone refuses what it composes at that size`);
-        if (row.rule === 'mac<phone*1000' && !(typeof x === 'number' && x < row.value * 1000)) fail('A4', `${mac} is ${String(x)} ms, not under ${row.phone} (${String(row.value)} s): an old phone gives up before the answer`);
-        if (row.rule === 'equal' && x !== row.value) fail('A4', `${mac} is ${JSON.stringify(x)}, not the ${JSON.stringify(row.value)} the frozen phone reads (${row.phone})`);
-        if (row.rule === 'mac-in-phone' && !(Array.isArray(x) && x.every((p) => row.value.includes(p)))) fail('A4', `${mac} is ${JSON.stringify(x)}, and the frozen phone dials only ${JSON.stringify(row.value)}`);
+/** The rules by which a bound holds a Mac constant; `instance<=phone` rows hold the vectors alone and keep an empty list. */
+const MAC_HELD_RULES = ['mac<=phone', 'mac<phone*1000', 'equal', 'mac-in-phone'];
+
+/**
+ * A4 (SPEC-1 D10, §4.7). Every bound whose rule names the Mac must list at
+ * least one Mac constant in the sealed set, so emptying a list and resealing
+ * is red; and the constants checked are the sealed list joined with the
+ * reader's own BOUND_ROWS list for the same phone constant, so the emptied
+ * list is held anyway. The phone value is the SMALLER of the sealed one and
+ * today's for `<=` and `<`, both for `equal`, and their intersection for
+ * `mac-in-phone`, so a resealed phone value cannot loosen it either.
+ *
+ * The fix round (the reverify's W20 and W21): the RULE and the FILE come
+ * from the reader's own BOUND_ROWS as well as from the seal. A bound the
+ * reader holds against the Mac is held by the reader's rule whatever rule
+ * the sealed row names, and by the sealed rule too when that one names the
+ * Mac, so `mac<=phone` resealed as `instance<=phone` still holds the Mac; and
+ * every constant the reader names is read from the reader's file, never from
+ * a sealed `macFile` that may point at a decoy (a constant only the seal
+ * names is read from the file the gate's own tables name, else the sealed
+ * one). A sealed rule that differs from the reader's is a note, never red
+ * here: F1 (b) holds the rule to every committed copy. A Mac-held bound the
+ * reader names and the sealed set lacks (resealed under another name, say)
+ * is held at today's value, with a note.
+ */
+function clauseA4(sets, today) {
+  const todayOf = (phone) => (today.bounds ?? []).find((b) => b.phone === phone)?.value ?? null;
+  /** Hold every constant to `value` (and today's `t`) by every rule. */
+  const hold = (phone, rules, constants, value, t) => {
+    for (const { mac, file } of constants) {
+      expects('A4');
+      checked('A4');
+      if (typeof file !== 'string') {
+        fail('A4', `${mac}: the bound ${String(phone)} names no Mac file to read it from`);
+        continue;
       }
+      const now = macConstant(file, mac);
+      if (now.error !== undefined) {
+        fail('A4', `${mac}: ${now.error}`);
+        continue;
+      }
+      const x = now.value;
+      const bound = typeof t === 'number' && typeof value === 'number' ? Math.min(value, t) : value;
+      const which = typeof t === 'number' && t < value ? `today's ${String(t)}` : String(value);
+      for (const rule of rules) {
+        if (rule === 'mac<=phone' && !(typeof x === 'number' && typeof bound === 'number' && x <= bound)) fail('A4', `${mac} is ${String(x)}, past ${phone} (${which}): every old phone refuses what it composes at that size`);
+        if (rule === 'mac<phone*1000' && !(typeof x === 'number' && typeof bound === 'number' && x < bound * 1000)) fail('A4', `${mac} is ${String(x)} ms, not under ${phone} (${which} s): an old phone gives up before the answer`);
+        if (rule === 'equal' && (x !== value || (t !== null && x !== t))) fail('A4', `${mac} is ${JSON.stringify(x)}, not the ${JSON.stringify(value)} the frozen phone reads${t !== null && t !== value ? ` and the ${JSON.stringify(t)} today's reads` : ''} (${phone})`);
+        if (rule === 'mac-in-phone') {
+          const dialed = Array.isArray(value) ? value.filter((p) => !Array.isArray(t) || t.includes(p)) : [];
+          if (!(Array.isArray(x) && x.every((p) => dialed.includes(p)))) fail('A4', `${mac} is ${JSON.stringify(x)}, and the frozen phone and today's both dial only ${JSON.stringify(dialed)}`);
+        }
+      }
+    }
+  };
+  for (const set of sets) {
+    const bounds = (set.wire?.bounds ?? []).filter(isPlainObject);
+    for (const row of bounds) {
+      const own = reader.BOUND_ROWS.find((b) => b.phone === row.phone);
+      const sealedHeld = MAC_HELD_RULES.includes(row.rule);
+      const ownHeld = own !== undefined && MAC_HELD_RULES.includes(own.rule);
+      if (!sealedHeld && !ownHeld) continue;
+      expects('A4');
+      checked('A4');
+      const sealed = Array.isArray(row.mac) ? row.mac : [];
+      if (sealedHeld && sealed.length === 0) fail('A4', `${String(row.phone)}'s Mac list is empty in the sealed set: nothing holds a Mac constant to this bound`);
+      if (ownHeld && row.rule !== own.rule) note('A4', `${set.name}: the sealed set holds ${String(row.phone)} by ${String(row.rule)} and the reader's BOUND_ROWS by ${own.rule}; ${sealedHeld ? 'both are applied' : `${own.rule} is applied`}`);
+      const rules = [...new Set([...(sealedHeld ? [row.rule] : []), ...(ownHeld ? [own.rule] : [])])];
+      const ownList = ownHeld ? own.mac : [];
+      const constants = [...new Set([...sealed, ...ownList])].map((mac) => ({ mac, file: ownList.includes(mac) ? own.macFile : (gateFileOf(mac) ?? row.macFile ?? own?.macFile ?? null) }));
+      hold(row.phone, rules, constants, row.value, todayOf(row.phone));
+    }
+    // A Mac-held bound the reader names that the sealed set does not (a set
+    // frozen before the reader knew it, or a row resealed under another
+    // name): held at today's value by the reader's own rule and file, so a
+    // renamed row does not take the Mac out of A4 either. A note, never red
+    // for the absence itself; F1 (b) holds the name to every committed copy.
+    for (const own of reader.BOUND_ROWS) {
+      if (!MAC_HELD_RULES.includes(own.rule) || bounds.some((b) => b.phone === own.phone)) continue;
+      const t = todayOf(own.phone);
+      if (t === null) {
+        note('A4', `${set.name}: the sealed set holds no bound ${own.phone}, and today's phone was not read for it (P0 names why)`);
+        continue;
+      }
+      note('A4', `${set.name}: the sealed set holds no bound ${own.phone}; the reader's is held at today's ${JSON.stringify(t)}`);
+      expects('A4');
+      checked('A4');
+      hold(own.phone, [own.rule], own.mac.map((mac) => ({ mac, file: own.macFile })), t, t);
     }
   }
 }
@@ -1975,6 +3015,20 @@ function buildWire(label, today, vectorsBytes, previous) {
   }
   routes.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const notCalled = (rows ?? []).filter((x) => !routes.some((r) => r.id === x.id)).map((x) => x.id);
+  // Format 2 (SPEC-1 §4.1): the request record, each entry with the id of the
+  // table row of the same method and path, and the phone's own asks.
+  const requests = [];
+  if (!Array.isArray(today.requests)) problems.push("the reader returned no request record (requests), so the ways the phone asks cannot be frozen");
+  for (const rec of Array.isArray(today.requests) ? today.requests : []) {
+    const row = (rows ?? []).find((x) => x.method === rec?.method && x.path === rec?.path);
+    if (row === undefined) {
+      problems.push(`the phone's request record names ${String(rec?.method)} ${String(rec?.path)}, which the door's table does not hold`);
+      continue;
+    }
+    requests.push({ route: row.id, method: rec.method, path: rec.path, query: rec.query, body: rec.body });
+  }
+  if (!Array.isArray(today.asks)) problems.push("the reader returned no asks, so the phone's own numbers cannot be frozen");
+  const asks = (Array.isArray(today.asks) ? today.asks : []).map(({ phone, value, mac, macFile, rule, swift }) => ({ phone, value, mac, macFile, rule, swift }));
   const macLimits = MAC_LIMITS.map((row) => {
     const c = macConstant(row.file, row.mac);
     if (c.error !== undefined || typeof c.value !== 'number') problems.push(`${row.mac}: ${c.error ?? 'not a number'}`);
@@ -1994,7 +3048,7 @@ function buildWire(label, today, vectorsBytes, previous) {
   const sortedRead = Object.fromEntries(Object.keys(readHashes).sort().map((k) => [k, readHashes[k]]));
   const draft = {
     about: aboutOf(label),
-    format: 1,
+    format: FORMAT_WRITTEN,
     label,
     phoneBuild: uniq(/CURRENT_PROJECT_VERSION = ([^;]+);/g),
     phoneVersion: uniq(/MARKETING_VERSION = ([^;]+);/g),
@@ -2009,6 +3063,8 @@ function buildWire(label, today, vectorsBytes, previous) {
     bounds: today.bounds.map(({ phone, value, applies, measure, min, mac, macFile, rule, swift }) => ({ phone, value, applies, measure, min, mac, macFile, rule, swift })),
     macLimits,
     sends: today.sends.map(({ phone, words, mac, macFile, macForm }) => ({ phone, words, mac, macFile, macForm })),
+    requests,
+    asks,
     statuses: today.statuses
   };
   const instances = instancesOf(vectors);
@@ -2106,6 +3162,21 @@ if (FREEZE !== null) {
     for (const p of freezeResult.problems) process.stdout.write(`  - ${p}\n`);
     process.exit(1);
   }
+  // SPEC-1 D11: a re-freeze never lowers what the Mac holds for the phone.
+  // Lowering a limit, shortening a bound's Mac list or dropping an ask is a
+  // retirement of the set by the operator's ruling, never this flag. The fix
+  // round: nor does it re-rule a bound, move a row to a file the gate does
+  // not name, or take out a way the frozen phone asks (the same two asks F1
+  // (b) makes of every committed copy, so the two never disagree).
+  if (previous !== null) {
+    const losses = [...macSideLosses(previous, freezeResult.wire), ...requestLosses(previous, freezeResult.wire)];
+    if (losses.length > 0) {
+      process.stdout.write(`${TAG} FAIL: --replace would lower what the Mac holds for the phone, or take out a way the phone asks, in ${FREEZE}:\n`);
+      for (const l of losses) process.stdout.write(`  - ${l}\n`);
+      process.stdout.write(`${TAG} nothing was written: lowering a Mac-side row or taking out a way the frozen phone asks is a retirement of the set by ruling, never a re-freeze\n`);
+      process.exit(1);
+    }
+  }
   const others = loadSets(FROZEN_DIR).filter((s) => s.name !== `${FREEZE}.wire.json`);
   sets = [...others, { name: `${FREEZE}.wire.json`, path: target, wire: freezeResult.wire, error: null, vectorsBytes: todayBytes, vectors: todayVectors }];
 } else {
@@ -2127,12 +3198,13 @@ async function guarded(clause, fn) {
   }
 }
 await guarded('F3', () => clauseF(sets, false));
+await guarded('F1', () => clauseF1Copies(sets));
 if (FREEZE === null) await guarded('F4', () => clauseF4());
 const usable = sets.filter((s) => s.wire !== null && s.vectors !== null);
 await guarded('R1', () => clauseR1(usable));
 await guarded('R2', () => clauseR2(usable));
 await guarded('R3', () => clauseR3(usable));
-await guarded('R4', () => clauseR4(usable));
+await guarded('R4', () => clauseR4(usable, today));
 await guarded('R5', () => clauseR5(usable));
 await guarded('R6', () => clauseR6(usable));
 const aStats = { instances: 0, routes: new Set(), fields: 0, formats: 0, bounds: 0 };
@@ -2141,7 +3213,7 @@ if (todayVectors === null) {
   fail('A2', `${relPath(VECTORS_PATH)} cannot be read`);
 } else await guarded('A2', () => clauseA(usable, todayVectors, aStats));
 await guarded('A3', () => clauseA3(usable));
-await guarded('A4', () => clauseA4(usable));
+await guarded('A4', () => clauseA4(usable, today));
 await guarded('A5', () => clauseA5(usable));
 const p4 = (await guarded('P0', () => clauseP(usable, today))) ?? [];
 if (FREEZE !== null) await guarded('F4', () => clauseF4());
@@ -2163,7 +3235,9 @@ const summary = {
   ms,
   sets: usable.map((s) => s.wire.label),
   clauses: Object.fromEntries(order.map((id) => [id, { ok: state[id].findings.length === 0, checked: state[id].checked, findings: state[id].findings.slice(0, MAX_FINDINGS) }])),
-  p4
+  p4,
+  replays: { frozen: replayStats.frozen, generated: replayStats.generated },
+  git: { copies: gitStats.copies, notes: gitStats.notes }
 };
 
 if (FREEZE !== null) {
@@ -2176,8 +3250,9 @@ if (FREEZE !== null) {
   const target = join(FROZEN_DIR, `${FREEZE}.wire.json`);
   if (REPLACE && existsSync(target)) {
     const old = JSON.parse(readFileSync(target, 'utf8'));
-    const before = new Set([...reader.leafLines(reader.projectionOf(old)), ...reader.leafLines({ macLimits: old.macLimits ?? [] }).map((l) => `macLimits${l}`)]);
-    const after = new Set([...reader.leafLines(reader.projectionOf(w)), ...reader.leafLines({ macLimits: w.macLimits }).map((l) => `macLimits${l}`)]);
+    const askLines = (x) => (Array.isArray(x.asks) && x.asks.length > 0 ? reader.leafLines(x.asks).map((l) => `asks${l}`) : []);
+    const before = new Set([...reader.leafLines(reader.projectionOf(old)), ...reader.leafLines({ macLimits: old.macLimits ?? [] }).map((l) => `macLimits${l}`), ...askLines(old)]);
+    const after = new Set([...reader.leafLines(reader.projectionOf(w)), ...reader.leafLines({ macLimits: w.macLimits }).map((l) => `macLimits${l}`), ...askLines(w)]);
     const gone = [...before].filter((l) => !after.has(l)).sort();
     const added = [...after].filter((l) => !before.has(l)).sort();
     process.stdout.write(`${TAG} --replace ${FREEZE}: ${String(gone.length + added.length)} line(s) moved. Name every one in the commit body, and why:\n`);
@@ -2204,7 +3279,7 @@ const limits = usable.reduce((n, s) => n + (s.wire.macLimits?.length ?? 0), 0);
 const equalLine = p4.map((p) => (p.equal ? `EQUALS ${p.label}` : `DIFFERS from ${p.label} at ${String(p.count)} paths: ${p.paths.join(', ')}`)).join('; ');
 process.stdout.write(`${TAG} every clause held in ${String(ms)} ms\n`);
 process.stdout.write(
-  `${TAG} PASS: ${String(usable.length)} frozen set${usable.length === 1 ? '' : 's'} (${describe}); ${String(state.R1.checked)} routes served, ${String(state.R2.checked)} requests replayed, ${String(state.R3.checked)} presentations opened, ${String(aStats.instances)} instances over ${String(aStats.routes.size)} routes conform, ${String(limits)} Mac limits held, ${String(unarmed)} fields unarmed; the phone's wire today ${equalLine}.\n`
+  `${TAG} PASS: ${String(usable.length)} frozen set${usable.length === 1 ? '' : 's'} (${describe}); ${String(state.R1.checked)} routes served, ${String(state.R2.checked)} requests replayed (${String(replayStats.frozen)} frozen, ${String(replayStats.generated)} more ways the frozen phone asks), ${String(state.R3.checked)} presentations opened, ${String(aStats.instances)} instances over ${String(aStats.routes.size)} routes conform, ${String(limits)} Mac limits held, ${String(gitStats.copies)} committed cop${gitStats.copies === 1 ? 'y' : 'ies'} compared${gitStats.notes > 0 ? ` (${String(gitStats.notes)} note${gitStats.notes === 1 ? '' : 's'} under F1)` : ''}, ${String(unarmed)} fields unarmed; the phone's wire today ${equalLine}.\n`
 );
 if (JSON_OUT) process.stdout.write(`GATE_ONLYADD:${JSON.stringify(summary)}\n`);
 process.exit(0);

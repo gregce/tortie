@@ -1,0 +1,513 @@
+// Request idioms this reader does NOT know (Phase 333.11.1, SPEC-1 §3.6),
+// each reported with its line, one unread line each, and never read as
+// something else. SPEC-1's eight: `target.append(…)`; `if since != nil`; a
+// literal query value (`&keep=top`); an interpolation calling an unknown
+// function; a `switch` in a builder; `try? c.encode(…)`; an `encode` of a
+// computed expression; `DoorLine(keeps: flag)`. Beside them, one line for
+// every other refusal the request reader makes, so each has a test: a String
+// sent without `queryValue`, text around an interpolation, `max` of a
+// variable, `if let` of a non-optional, `&` appended to a target with no `?`,
+// an interpolation in the path, a static target with a query, a name sent
+// twice, a `queryValue` that is not the builder's own, a `Double`, a `[T?]`, an
+// object of fields inside a value, a type that is not Encodable, a
+// synthesized enum, an `encode` of another signature, a `let` container, a
+// key not in CodingKeys, a key written twice, a `default:`, `.rawValue` of a
+// String, a type that holds itself, a `signedPost` case of another shape, an
+// encoder that does not sort its keys, two encoders, and a kept line outside
+// any type; and, under each of those rules, one line for each of its own
+// refusals (`if var`, a signature, a default, an instance func, a value that
+// is not a string, no return, an optional, the wrong kind, no CodingKeys, an
+// enum encoder with no switch, two encoders of one type, a signedPost with
+// no switch, a switch on something else, a body type it cannot find, a verb
+// encoded twice). Each line the reader must refuse ends `// unread`.
+let globalLine = DoorLine(keeps: true) // unread
+
+enum Keep: String, Equatable, Sendable {
+    case top, bottom
+}
+
+final class DoorClient {
+    static let queryTarget = "/v1/l?x=1" // unread
+
+    static func appendTarget(_ sessionId: String, to: Int?) -> String {
+        var target = "/v1/a?id=\(queryValue(sessionId))"
+        if let to { target.append("&to=\(to)") } // unread
+        return target
+    }
+
+    static func nilTarget(_ sessionId: String, since: String?) -> String {
+        var target = "/v1/b?id=\(queryValue(sessionId))"
+        if since != nil { target += "&since=\(queryValue(since ?? ""))" } // unread
+        return target
+    }
+
+    static func literalTarget(_ sessionId: String) -> String {
+        "/v1/c?id=\(queryValue(sessionId))&keep=top" // unread
+    }
+
+    static func unknownTarget(_ sessionId: String) -> String {
+        "/v1/d?id=\(escape(sessionId))" // unread
+    }
+
+    static func switchTarget(_ keep: Keep) -> String {
+        var target = "/v1/e"
+        switch keep { // unread
+        case .top: target += "?keep=top"
+        case .bottom: target += "?keep=bottom"
+        }
+        return target
+    }
+
+    static func bareTarget(_ sessionId: String) -> String {
+        "/v1/f?id=\(sessionId)" // unread
+    }
+
+    static func aroundTarget(_ sessionId: String) -> String {
+        "/v1/g?id=x\(queryValue(sessionId))" // unread
+    }
+
+    static func maxTarget(_ limit: Int, floor: Int) -> String {
+        "/v1/i?limit=\(max(floor, limit))" // unread
+    }
+
+    static func unwrapTarget(_ sessionId: String) -> String {
+        var target = "/v1/j?a=\(queryValue(sessionId))"
+        if let sessionId { target += "&id=\(queryValue(sessionId))" } // unread
+        return target
+    }
+
+    static func noQueryTarget(to: Int?) -> String {
+        var target = "/v1/k"
+        if let to { target += "&to=\(to)" } // unread
+        return target
+    }
+
+    static func pathTarget(_ sessionId: String) -> String {
+        "/v1/\(queryValue(sessionId))/x" // unread
+    }
+
+    static func twiceTarget(_ a: String, _ b: String) -> String {
+        "/v1/m?id=\(queryValue(a))&id=\(queryValue(b))" // unread
+    }
+
+    static func notStringTarget(_ sessionId: String) -> Int { // unread
+        1
+    }
+
+    static func defaultTarget(_ sessionId: String = "x") -> String { // unread
+        "/v1/o?id=\(queryValue(sessionId))"
+    }
+
+    func instanceTarget(_ sessionId: String) -> String { // unread
+        "/v1/o?id=\(Self.queryValue(sessionId))"
+    }
+
+    static func exprTarget(_ sessionId: String) -> String {
+        prefix + "/v1/o" // unread
+    }
+
+    static func varNotStringTarget(_ sessionId: String) -> String {
+        var target = prefix // unread
+        return target
+    }
+
+    static func noReturnTarget(_ sessionId: String) -> String {
+        var target = "/v1/o?id=\(queryValue(sessionId))"
+        target // unread
+    }
+
+    static func questionTarget(_ sessionId: String, to: Int?) -> String {
+        var target = "/v1/p?id=\(queryValue(sessionId))"
+        if let to { target += "?to=\(to)" } // unread
+        return target
+    }
+
+    static func emptyNameTarget(_ sessionId: String) -> String {
+        "/v1/q?=\(queryValue(sessionId))" // unread
+    }
+
+    static func classPropTarget(_ holder: Holder) -> String {
+        "/v1/r?id=\(queryValue(holder.name))" // unread
+    }
+
+    static func optionalPropTarget(_ query: Query?) -> String {
+        "/v1/r?id=\(queryValue(query.name))" // unread
+    }
+
+    static func optionalTarget(_ sessionId: String?) -> String {
+        "/v1/s?id=\(queryValue(sessionId))" // unread
+    }
+
+    static func rawStringTarget(_ sessionId: String) -> String {
+        "/v1/t?id=\(sessionId.rawValue)" // unread
+    }
+
+    static func numberThroughTarget(_ count: Int) -> String {
+        "/v1/u?n=\(queryValue(count))" // unread
+    }
+
+    static func boolTarget(_ flag: Bool) -> String {
+        "/v1/v?flag=\(flag)" // unread
+    }
+
+    static func varBindTarget(_ sessionId: String, to: Int?) -> String {
+        var target = "/v1/w?id=\(queryValue(sessionId))"
+        if var to { target += "&to=\(to)" } // unread
+        return target
+    }
+
+    static func queryValue(_ value: String) -> String {
+        value
+    }
+
+    private func signedPost(route: WriteRoute) -> Data? {
+        let body: Data
+        do {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.sortedKeys]
+            switch route {
+            case .first(let session, let write):
+                body = try encoder.encode(TryBody(session: session, write: write))
+            case .made(let session): // unread
+                body = Data(session.utf8)
+            }
+        } catch {
+            return nil
+        }
+        return body
+    }
+}
+
+enum Other {
+    static func otherTarget(_ sessionId: String) -> String {
+        "/v1/n?id=\(queryValue(sessionId))" // unread
+    }
+}
+
+final class Unsorted {
+    private func signedPost(route: WriteRoute) -> Data? { // unread
+        let body: Data
+        do {
+            let encoder = JSONEncoder()
+            switch route {
+            case .first(let session, let write):
+                body = try encoder.encode(PlainOk(session: session, write: write))
+            }
+        } catch {
+            return nil
+        }
+        return body
+    }
+}
+
+final class Twice {
+    private func signedPost(route: WriteRoute) -> Data? { // unread
+        let body: Data
+        do {
+            let encoder = JSONEncoder()
+            let other = JSONEncoder()
+            encoder.outputFormatting = [.sortedKeys]
+            switch route {
+            case .first(let session, let write):
+                body = try encoder.encode(PlainOk(session: session, write: write))
+            }
+        } catch {
+            return nil
+        }
+        return body
+    }
+}
+
+enum WriteRoute: Equatable, Sendable {
+    case first(session: String, write: String)
+    case made(session: String)
+}
+
+struct PlainOk: Encodable, Sendable {
+    let session: String
+    let write: String
+}
+
+struct TryBody: Encodable, Sendable {
+    let session: String
+    let write: String
+
+    enum CodingKeys: String, CodingKey { case session, write }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(session, forKey: .session)
+        try? c.encode(write, forKey: .write) // unread
+    }
+}
+
+struct ComputedBody: Encodable, Sendable {
+    let session: String
+
+    enum CodingKeys: String, CodingKey { case session }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(session.lowercased(), forKey: .session) // unread
+    }
+}
+
+struct DoubleBody: Encodable, Sendable {
+    let ratio: Double // unread
+    let session: String
+}
+
+struct MaybesBody: Encodable, Sendable {
+    let maybes: [String?] // unread
+}
+
+struct NestedBody: Encodable, Sendable {
+    let inner: PlainOk // unread
+}
+
+struct NotEncodable: Sendable { // unread
+    let session: String
+}
+
+enum SynthEnum: Codable { // unread
+    case text(String)
+}
+
+struct WrongSignature: Encodable, Sendable {
+    let session: String
+
+    enum CodingKeys: String, CodingKey { case session }
+
+    func encode(into encoder: Encoder) throws { // unread
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(session, forKey: .session)
+    }
+}
+
+struct LetContainer: Encodable, Sendable {
+    let session: String
+
+    enum CodingKeys: String, CodingKey { case session }
+
+    func encode(to encoder: Encoder) throws {
+        let c = encoder.container(keyedBy: CodingKeys.self) // unread
+        try c.encode(session, forKey: .session)
+    }
+}
+
+struct OtherKey: Encodable, Sendable {
+    let session: String
+
+    enum CodingKeys: String, CodingKey { case session }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(session, forKey: .other) // unread
+    }
+}
+
+struct TwiceKey: Encodable, Sendable {
+    let session: String
+
+    enum CodingKeys: String, CodingKey { case session }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(session, forKey: .session)
+        try c.encode(session, forKey: .session) // unread
+    }
+}
+
+enum DefaultItem: Equatable, Sendable {
+    case text(String)
+    case key(Keep)
+}
+
+extension DefaultItem: Encodable {
+    enum CodingKeys: String, CodingKey { case t, k }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .text(let text): try c.encode(text, forKey: .t)
+        default: try c.encode("", forKey: .k) // unread
+        }
+    }
+}
+
+enum RawText: Equatable, Sendable {
+    case text(String)
+}
+
+extension RawText: Encodable {
+    enum CodingKeys: String, CodingKey { case t }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .text(let text): try c.encode(text.rawValue, forKey: .t) // unread
+        }
+    }
+}
+
+enum Tree: Equatable, Sendable { // unread
+    case leaf(String)
+    case node([Tree])
+}
+
+extension Tree: Encodable {
+    enum CodingKeys: String, CodingKey { case l, n }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .leaf(let name): try c.encode(name, forKey: .l)
+        case .node(let kids): try c.encode(kids, forKey: .n)
+        }
+    }
+}
+
+final class Lines {
+    private let kept = DoorLine(keeps: true)
+
+    func line(_ flag: Bool) -> DoorLine {
+        DoorLine(keeps: flag) // unread
+    }
+}
+
+final class Holder {
+    var name: String = ""
+}
+
+struct Query: Equatable, Sendable {
+    var name: String
+}
+
+struct NoKeys: Encodable, Sendable {
+    let session: String
+
+    func encode(to encoder: Encoder) throws { // unread
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(session, forKey: .session)
+    }
+}
+
+enum EnumNoSwitch: Equatable, Sendable {
+    case text(String)
+}
+
+extension EnumNoSwitch: Encodable {
+    enum CodingKeys: String, CodingKey { case t }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode("x", forKey: .t) // unread
+    }
+}
+
+struct EncodeTwice: Encodable, Sendable {
+    let session: String
+
+    enum CodingKeys: String, CodingKey { case session }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(session, forKey: .session)
+    }
+}
+
+extension EncodeTwice {
+    func encode(to encoder: Encoder) throws { // unread
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(session, forKey: .session)
+    }
+}
+
+final class NoSwitch {
+    private func signedPost(route: WriteRoute) -> Data? { // unread
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return try? encoder.encode(PlainOk(session: "s", write: "w"))
+    }
+}
+
+final class KindSwitch {
+    private func signedPost(route: WriteRoute) -> Data? {
+        let body: Data
+        do {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.sortedKeys]
+            switch route.kind { // unread
+            case .first(let session, let write):
+                body = try encoder.encode(PlainOk(session: session, write: write))
+            }
+        } catch {
+            return nil
+        }
+        return body
+    }
+}
+
+final class UnknownType {
+    private func signedPost(route: WriteRoute) -> Data? {
+        let body: Data
+        do {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.sortedKeys]
+            switch route {
+            case .first(let session, let write): // unread
+                body = try encoder.encode(Missing(session: session, write: write))
+            }
+        } catch {
+            return nil
+        }
+        return body
+    }
+}
+
+final class DupVerb {
+    private func signedPost(route: WriteRoute) -> Data? {
+        let body: Data
+        do {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.sortedKeys]
+            switch route {
+            case .first(let session, let write):
+                body = try encoder.encode(PlainOk(session: session, write: write))
+            case .first(let session, let write): // unread
+                body = try encoder.encode(PlainOk(session: write, write: session))
+            }
+        } catch {
+            return nil
+        }
+        return body
+    }
+}
+
+// A kept line made anywhere but as the whole initializer of a stored
+// property in a type's body (Phase 333.11.1's fix round, the reverify's W18):
+// a factory, an extension's factory, a local, a computed property, a list and
+// a chained call. Each is unread, so a type that holds its lines through a
+// factory (`let held = Factory.kept()`) is never counted short.
+final class Factory {
+    static func kept() -> DoorLine {
+        DoorLine(keeps: true) // unread
+    }
+
+    func make() -> DoorLine {
+        let line = DoorLine(keeps: true) // unread
+        return line
+    }
+
+    var computed: DoorLine { DoorLine(keeps: true) } // unread
+    private let both = [DoorLine(keeps: true)] // unread
+    private let chained = DoorLine(keeps: true).self // unread
+    private let held = Factory.kept()
+    private let typed: DoorLine = DoorLine(keeps: true)
+}
+
+extension DoorLine {
+    static func kept() -> DoorLine {
+        DoorLine(keeps: true) // unread
+    }
+}

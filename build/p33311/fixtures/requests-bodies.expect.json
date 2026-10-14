@@ -1,0 +1,34 @@
+{
+  "roots": [],
+  "types": {},
+  "unread": [],
+  "requests": {
+    "bodies": {
+      "PlainBody": {
+        "fields": [
+          { "name": "batch", "sent": "always", "null": false, "value": "bool" },
+          { "name": "keep", "sent": "always", "null": false, "value": { "words": "Keep" } },
+          { "name": "n", "sent": "always", "null": false, "value": "int" },
+          { "name": "note", "sent": "sometimes", "null": false, "value": "text" },
+          { "name": "session", "sent": "always", "null": false, "value": "text" }
+        ]
+      },
+      "ItemsBody": {
+        "fields": [
+          { "name": "dialog", "sent": "always", "null": true, "value": "text" },
+          {
+            "name": "items",
+            "sent": "always",
+            "null": false,
+            "value": { "array": { "oneOf": [{ "key": "t", "value": "text" }, { "key": "k", "value": { "words": "KeyName" } }] } }
+          },
+          { "name": "mark", "sent": "sometimes", "null": false, "value": "text" },
+          { "name": "write", "sent": "always", "null": false, "value": "text" }
+        ]
+      },
+      "Item": { "oneOf": [{ "key": "t", "value": "text" }, { "key": "k", "value": { "words": "KeyName" } }] }
+    },
+    "writes": { "DoorClient": { "plain": "PlainBody", "items": "ItemsBody" } },
+    "kept": { "Screen": 2, "Pane": 3, "Pane.Inner": 1 }
+  }
+}

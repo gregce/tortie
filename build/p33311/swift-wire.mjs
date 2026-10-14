@@ -54,6 +54,17 @@
  * into the frozen file, so a later edit of this table never weakens a frozen
  * set.
  *
+ * WHAT THE PHONE SENDS (Phase 333.11.1, build/p33311/SPEC-1.md §3). The same
+ * reader reads the phone's REQUEST BUILDERS in `Door/DoorClient.swift` (the
+ * query targets and the write bodies) into a REQUEST RECORD, `requests`: per
+ * route, each query name or body key, whether the phone sends it always or
+ * only sometimes, whether it may be null, and the closed set its value is
+ * drawn from. It reads exactly the idioms of SPEC-1 §3.2 and §3.3, and
+ * anything else is an unread statement, as for decoders. Beside it, `asks`:
+ * the phone's own numbers a Mac limit must cover (`ASK_ROWS`), read from the
+ * Swift with `mod.used` put back afterwards, so the files they live in never
+ * join `read` (SPEC-1 D7). Its proof is three more fixtures (SPEC-1 §3.6).
+ *
  * Plain node: it imports `node:crypto`, `node:fs`, `node:path` and the lexer,
  * and nothing else, so `build/p316/test-ios.mjs` imports it with no tsx.
  */
@@ -125,6 +136,23 @@ export const SEND_ROWS = Object.freeze([
   { phone: 'ScreenKeyName', mac: 'POCKET_SCREEN_KEY_NAMES', macFile: 'src/shared/ipc/pocket.ts', macForm: 'array' }
 ]);
 
+/**
+ * The phone's own numbers that a Mac limit must cover (Phase 333.11.1,
+ * SPEC-1 §2.4, D7): `phone` names the number, `mac` the Mac constant held to
+ * it by `rule` in `macFile`. A `sum` row's value is the sum of its Swift
+ * constants; the `kept` row's is the most kept `DoorLine`s any one type holds,
+ * plus `plus` (one one-shot exchange beside them, build/p3371/SPEC.md D30).
+ * Read from the Swift on every run and sealed at a freeze, so a later edit of
+ * this table never lowers a frozen floor.
+ */
+export const ASK_ROWS = Object.freeze([
+  { phone: 'DoorLine.freshFor', sum: ['DoorLine.freshFor'], mac: 'KEEP_ALIVE_TIMEOUT_MS', macFile: 'src/main/pocket/door/limits.ts', rule: 'mac>phone*1000' },
+  { phone: 'DoorLine.keptLines+1', kept: 'DoorLine', plus: 1, mac: 'PER_SOURCE_MAX', macFile: 'src/main/pocket/door/limits.ts', rule: 'mac>=phone' },
+  { phone: 'ScreenKeySender.mostItems', sum: ['ScreenKeySender.mostItems'], mac: 'POCKET_KEYS_MAX_ITEMS', macFile: 'src/shared/ipc/pocket.ts', rule: 'mac>=phone' },
+  { phone: 'ScreenKeySender.mostTextBytes', sum: ['ScreenKeySender.mostTextBytes'], mac: 'POCKET_KEYS_MAX_TEXT_BYTES', macFile: 'src/shared/ipc/pocket.ts', rule: 'mac>=phone' },
+  { phone: 'ScrollbackLayout.pageRows+overlapRows', sum: ['ScrollbackLayout.pageRows', 'ScrollbackLayout.overlapRows'], mac: 'POCKET_SCROLLBACK_MAX_COUNT', macFile: 'src/shared/ipc/pocket.ts', rule: 'mac>=phone' }
+]);
+
 // ---------------------------------------------------------------------------
 // Tokens
 // ---------------------------------------------------------------------------
@@ -178,7 +206,9 @@ function tokenize(src) {
     if (c === '"' || (c === '#' && /^#+"/.test(bare.slice(i, i + 8)))) {
       const s = src.stringAt.get(i);
       if (s !== undefined) {
-        toks.push({ t: 'str', v: s.value, at: i, interpolated: s.interpolated });
+        // Each interpolation's CODE rides on the token (SPEC-1 §3.1), read
+        // with `holeTokens` by the request reader.
+        toks.push({ t: 'str', v: s.value, at: i, interpolated: s.interpolated, holes: s.holes.map((h) => src.text.slice(h.start, h.end)) });
         i = s.end;
         continue;
       }
@@ -257,6 +287,14 @@ function matchOf(toks) {
 
 const isOp = (t, v) => t !== undefined && t.t === 'op' && t.v === v;
 const isId = (t, v) => t !== undefined && t.t === 'id' && (v === undefined || t.v === v);
+
+/**
+ * One interpolation's code as tokens (SPEC-1 §3.1): the same tokenizer over
+ * a source made of that text, newlines taken out.
+ */
+function holeTokens(text) {
+  return sourceOf('', text).toks.filter((t) => t.t !== 'nl');
+}
 
 /** The tokens of [from, to) with every newline taken out. */
 const solid = (toks, from, to) => toks.slice(from, to).filter((t) => t.t !== 'nl');
@@ -609,6 +647,8 @@ function scanMembers(decl) {
         j += 1;
         if (isOp(toks[j], '(') && match[j] > j) {
           item.associated = true;
+          // The associated values' tokens, for the request reader's enum encoders.
+          item.assoc = solid(toks, j + 1, match[j]);
           j = match[j] + 1;
         }
         if (isOp(toks[j], '=')) {
@@ -672,8 +712,10 @@ function scanMembers(decl) {
  */
 export function readSwiftModule(files) {
   const registry = new Map();
+  const srcs = [];
   for (const file of files) {
     const src = sourceOf(file.path, file.text);
+    srcs.push(src);
     for (const decl of scanDecls(src)) {
       let entry = registry.get(decl.qual);
       if (entry === undefined) {
@@ -702,7 +744,7 @@ export function readSwiftModule(files) {
     }
     return registry.has(name) ? name : null;
   };
-  return { registry, entry, resolve, used };
+  return { registry, entry, resolve, used, srcs };
 }
 
 const decodable = (e) => e !== undefined && (e.inherits.has('Codable') || e.inherits.has('Decodable'));
@@ -1437,8 +1479,14 @@ function preReadAsksMore(pre, answer) {
   return null;
 }
 
-/** The routes the phone calls (§5.3), each with the type it decodes the answer with. */
-function readRoutes(mod, problems) {
+/**
+ * The routes the phone calls (§5.3), each with the type it decodes the answer
+ * with. `builders` is handed back filled, `"<method> <path>"` to the target
+ * builder the route was read through (and, for a write, its `WriteRoute`
+ * verb; for `/pair`, that its body is the sealed presentation), which is
+ * where the request reader starts (SPEC-1 §3.2).
+ */
+function readRoutes(mod, problems, builders = new Map()) {
   const routes = [];
   const used = new Set();
   const owner = 'DoorClient';
@@ -1468,7 +1516,10 @@ function readRoutes(mod, problems) {
       const path = targetPath(mod, owner, target, problems);
       used.add(target);
       const answer = mod.resolve(type, owner);
-      if (path !== null) routes.push({ method: getMethod, path, signed: true, answer, via: 'signedGet' });
+      if (path !== null) {
+        routes.push({ method: getMethod, path, signed: true, answer, via: 'signedGet' });
+        builders.set(`${String(getMethod)} ${path}`, { name: target });
+      }
     }
   }
   // `POST /pair`: `present`'s `Self.decode(T.self` beside `Self.pairTarget`.
@@ -1479,7 +1530,9 @@ function readRoutes(mod, problems) {
     const type = decodedIn(present, true);
     if (hasTarget && type !== null) {
       used.add('pairTarget');
-      routes.push({ method: methodIn(present), path: targetPath(mod, owner, 'pairTarget', problems), signed: false, answer: mod.resolve(type, owner), via: 'present' });
+      const route = { method: methodIn(present), path: targetPath(mod, owner, 'pairTarget', problems), signed: false, answer: mod.resolve(type, owner), via: 'present' };
+      routes.push(route);
+      builders.set(`${String(route.method)} ${String(route.path)}`, { name: 'pairTarget', opaque: 'presentation' });
     } else problems.push({ file: present.src.path, line: present.line, why: 'present names no pairTarget or decodes no answer this reader can read' });
   } else problems.push({ file: '', line: 0, why: 'no DoorClient.present: the pairing route cannot be read' });
   // The writes: `WriteRoute.target`'s cases, answered as `WriteResult.of` decodes.
@@ -1501,7 +1554,10 @@ function readRoutes(mod, problems) {
       if (!(isId(ts[i], 'case') && isOp(ts[i + 1], '.') && isId(ts[i + 2]) && isOp(ts[i + 3], ':') && isId(ts[i + 4], owner) && isOp(ts[i + 5], '.') && isId(ts[i + 6]))) continue;
       const path = targetPath(mod, owner, ts[i + 6].v, problems);
       used.add(ts[i + 6].v);
-      if (path !== null) routes.push({ method: postMethod, path, signed: true, answer: mod.resolve(writeType, 'WriteResult'), via: 'signedPost' });
+      if (path !== null) {
+        routes.push({ method: postMethod, path, signed: true, answer: mod.resolve(writeType, 'WriteResult'), via: 'signedPost' });
+        builders.set(`${String(postMethod)} ${path}`, { name: ts[i + 6].v, verb: ts[i + 2].v });
+      }
     }
   }
   // EVERY TARGET THE PHONE SPELLS IS ACCOUNTED FOR. A `<x>Target` the network
@@ -1547,6 +1603,711 @@ function readStatuses(mod, problems) {
   return [...all].sort((a, b) => a - b);
 }
 
+// ---------------------------------------------------------------------------
+// What the phone SENDS (Phase 333.11.1, build/p33311/SPEC-1.md §3)
+// ---------------------------------------------------------------------------
+
+/**
+ * EVERY `sent` THIS READER WRITES GOES THROUGH THE ONE LINE BELOW (SPEC-1
+ * §3.2), a query name's and a body key's alike: what the phone writes under a
+ * condition (an `if let`, an optional the synthesized encoder leaves out, an
+ * `encodeIfPresent`) is sent sometimes, anything else always. The ablation's
+ * X5 plants that line, spelled exactly, and the `requests-targets` fixture
+ * must then read red.
+ */
+const sentIn = (conditional) => (conditional ? 'sometimes' : 'always');
+
+/** The whole-number types a request may carry, each read as `"int"`. */
+const SEND_INTS = new Set(['Int', 'Int8', 'Int16', 'Int32', 'Int64', 'UInt', 'UInt8', 'UInt16', 'UInt32', 'UInt64']);
+
+const byName = (a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+
+function prevSolid(toks, j) {
+  while (j >= 0 && toks[j].t === 'nl') j -= 1;
+  return j;
+}
+
+const spelled = (ts) => ts.map((t) => (t.t === 'str' ? `"${t.v.replaceAll(HOLE, '\\(…)')}"` : t.v)).join(' ');
+
+/**
+ * `"…"` or `"…" + "…" + …` as its static text, a HOLE where each
+ * interpolation sat, and the holes' code in order; null for anything else.
+ */
+function stringExprOf(ts) {
+  if (ts.length % 2 === 0) return null;
+  let text = '';
+  const holes = [];
+  for (let i = 0; i < ts.length; i += 1) {
+    if (i % 2 === 1) {
+      if (!isOp(ts[i], '+')) return null;
+      continue;
+    }
+    if (ts[i].t !== 'str') return null;
+    text += ts[i].v;
+    holes.push(...ts[i].holes);
+  }
+  return text.split(HOLE).length - 1 === holes.length ? { text, holes } : null;
+}
+
+/**
+ * A target's text as its path and query names (SPEC-1 §3.2): the path is the
+ * text before `?` and holds no interpolation; after it, `&`-separated
+ * `name=<one interpolation>` pairs. An appended piece (`initial` false) is
+ * `&` and pairs. `{ why }` for anything else.
+ */
+function splitTarget(text, initial) {
+  let path = null;
+  let rest;
+  if (initial) {
+    const q = text.indexOf('?');
+    path = q < 0 ? text : text.slice(0, q);
+    if (path.includes(HOLE)) return { why: `an interpolation in the path ${JSON.stringify(path.replaceAll(HOLE, '\\(…)'))}` };
+    if (q < 0) return { path, names: [], query: false };
+    rest = text.slice(q + 1);
+  } else {
+    if (!text.startsWith('&')) return { why: `an appended piece that does not begin \`&\`: ${JSON.stringify(text.replaceAll(HOLE, '\\(…)'))}` };
+    rest = text.slice(1);
+  }
+  const names = [];
+  for (const pair of rest.split('&')) {
+    const eq = pair.indexOf('=');
+    const name = eq < 0 ? '' : pair.slice(0, eq);
+    const value = eq < 0 ? pair : pair.slice(eq + 1);
+    if (name === '' || name.includes(HOLE) || name.includes('?')) return { why: `a query name this reader cannot read: ${JSON.stringify(pair.replaceAll(HOLE, '\\(…)'))}` };
+    if (value !== HOLE) return { why: `the value of \`${name}\` is not exactly one interpolation: ${JSON.stringify(value.replaceAll(HOLE, '\\(…)'))}` };
+    names.push(name);
+  }
+  return { path, names, query: true };
+}
+
+/** A static function's parameters (`func f(_ a: T, b: U?) -> String`), internal name to type, or `{ why }`. */
+function targetParamsOf(f, name) {
+  const { toks, match } = f.src;
+  let k = prevSolid(toks, f.open - 1);
+  if (!isId(toks[k], 'String')) return { why: `${name} does not return a String` };
+  k = prevSolid(toks, k - 1);
+  if (!isOp(toks[k], '->')) return { why: `${name} is not \`(…) -> String\`` };
+  k = prevSolid(toks, k - 1);
+  if (!isOp(toks[k], ')') || match[k] < 0) return { why: `${name}'s parameters cannot be read` };
+  const open = match[k];
+  if (!isId(toks[prevSolid(toks, open - 1)], name)) return { why: `${name} is generic, or its parameters cannot be read` };
+  const params = new Map();
+  const list = solid(toks, open + 1, k);
+  if (list.length === 0) return { params };
+  for (const p of splitCommas(list)) {
+    const colon = p.findIndex((t) => isOp(t, ':'));
+    const names = colon < 0 ? [] : p.slice(0, colon);
+    const typeToks = colon < 0 ? [] : p.slice(colon + 1);
+    // A default (`= x`) is not a type, so `typeSpecOf` refuses it.
+    const spec = names.length >= 1 && names.length <= 2 && names.every((t) => isId(t)) ? typeSpecOf(typeToks) : null;
+    if (spec === null) return { why: `${name} has a parameter this reader cannot read: ${spelled(p)}` };
+    params.set(names[names.length - 1].v, spec);
+  }
+  return { params };
+}
+
+/**
+ * One target builder of `owner` read into `{ path, query }` (SPEC-1 §3.2), or
+ * null with every statement it cannot read in `unread`. A static
+ * `let <x> = "<path>"` has no query; a static func's body is EXACTLY one
+ * string expression, or a `var` set to one, `if let` pieces appended with
+ * `+=`, and `return` of the var.
+ */
+function readTargetBuilder(mod, owner, name, unread) {
+  const before = unread.length;
+  const miss = (file, line, why) => {
+    unread.push({ file, line, why });
+    return null;
+  };
+  const s = staticOf(mod, owner, name);
+  if (s !== null) {
+    const e = s.expr === null ? null : stringExprOf(solid(s.src.toks, s.expr[0], s.expr[1]));
+    if (e === null || e.holes.length > 0) return miss(s.src.path, s.line, `${owner}.${name} is not one string with no interpolation`);
+    if (e.text.includes('?')) return miss(s.src.path, s.line, `${owner}.${name} is a static target with a query`);
+    return { path: e.text, query: [] };
+  }
+  const f = funcOf(mod, owner, name);
+  if (f === null) return miss('', 0, `${owner}.${name} is not a target this reader can find`);
+  if (!f.isStatic) return miss(f.src.path, f.line, `${owner}.${name} is not a static func`);
+  const { src } = f;
+  const { toks } = src;
+  const sig = targetParamsOf(f, name);
+  if (sig.why !== undefined) return miss(src.path, f.line, `${owner}.${sig.why}`);
+  const ownQueryValue = funcOf(mod, owner, 'queryValue')?.isStatic === true;
+
+  // The pieces of the target, in order: the first always sent, each `if let`'s sometimes.
+  const pieces = [];
+  const stmts = parseBlock(src, f.open + 1, f.close).stmts;
+  if (stmts.length === 1 && stmts[0].k === 'expr') {
+    const e = stringExprOf(solid(toks, stmts[0].expr[0], stmts[0].expr[1]));
+    if (e === null) return miss(src.path, stmts[0].line, `${owner}.${name}'s one expression is not a string: ${spelled(solid(toks, stmts[0].expr[0], stmts[0].expr[1]))}`);
+    pieces.push({ e, conditional: false, line: stmts[0].line, bindings: new Map() });
+  } else {
+    const first = stmts[0];
+    const isVar =
+      stmts.length >= 2 && first.k === 'bind' && isId(toks[first.span[0]], 'var') && first.expr !== null &&
+      (first.typeToks.length === 0 || (first.typeToks.length === 1 && isId(first.typeToks[0], 'String')));
+    if (!isVar) return miss(src.path, first?.line ?? f.line, `${owner}.${name}'s body is not one string, nor a \`var\` built up and returned`);
+    const t = first.name;
+    const e0 = stringExprOf(solid(toks, first.expr[0], first.expr[1]));
+    if (e0 === null) return miss(src.path, first.line, `\`var ${t}\` is not set to a string: ${spelled(solid(toks, first.expr[0], first.expr[1]))}`);
+    pieces.push({ e: e0, conditional: false, line: first.line, bindings: new Map() });
+    for (const st of stmts.slice(1, -1)) {
+      const branch = st.k === 'if' && st.branches.length === 1 && st.elseBody === null ? st.branches[0] : null;
+      const c = branch === null ? [] : solid(toks, branch.cond[0], branch.cond[1]);
+      if (branch === null || !(c.length >= 2 && isId(c[0], 'let') && isId(c[1]) && (c.length === 2 || isOp(c[2], '=')))) {
+        miss(src.path, st.line, `a statement this reader does not know in a target builder (only \`if let\` pieces appended with +=): ${spelled(solid(toks, st.span[0], st.span[1])).slice(0, 120)}`);
+        continue;
+      }
+      // `if let n` (a parameter) or `if let n = <ref>`: n is the optional's wrapped type.
+      const bound = c.length === 2 ? { spec: sig.params.get(c[1].v), scope: owner } : refOf(mod, owner, sig.params, new Map(), c.slice(3));
+      if (bound.why !== undefined || bound.spec === undefined || bound.spec.optional !== true) {
+        miss(src.path, st.line, `${owner}.${name}: \`if let ${c[1].v}\` does not unwrap an optional parameter or a parameter's optional property`);
+        continue;
+      }
+      const body = branch.body;
+      const appended = body.length === 1 && body[0].k === 'expr' ? solid(toks, body[0].expr[0], body[0].expr[1]) : [];
+      const e = appended.length >= 3 && isId(appended[0], t) && isOp(appended[1], '+=') ? stringExprOf(appended.slice(2)) : null;
+      if (e === null) {
+        miss(src.path, body[0]?.line ?? st.line, `an \`if let\` piece that is not \`${t} += "…"\`: ${spelled(appended.length > 0 ? appended : solid(toks, st.span[0], st.span[1])).slice(0, 120)}`);
+        continue;
+      }
+      pieces.push({ e, conditional: true, line: body[0].line, bindings: new Map([[c[1].v, { spec: { ...bound.spec, optional: false }, scope: bound.scope }]]) });
+    }
+    const last = stmts[stmts.length - 1];
+    const ret = last.k === 'return' ? solid(toks, last.expr[0], last.expr[1]) : [];
+    if (!(ret.length === 1 && isId(ret[0], t))) miss(src.path, last.line, `${owner}.${name} does not end \`return ${t}\``);
+  }
+
+  let path = null;
+  let hasQuery = false;
+  const query = [];
+  for (const [index, piece] of pieces.entries()) {
+    const split = splitTarget(piece.e.text, index === 0);
+    if (split.why !== undefined) {
+      miss(src.path, piece.line, `${owner}.${name}: ${split.why}`);
+      continue;
+    }
+    if (index === 0) {
+      path = split.path;
+      hasQuery = split.query;
+    } else if (!hasQuery) {
+      miss(src.path, piece.line, `${owner}.${name} appends \`&\` to a target with no \`?\``);
+      continue;
+    }
+    for (const [k, qname] of split.names.entries()) {
+      const value = holeKind(mod, owner, sig.params, piece.bindings, ownQueryValue, piece.e.holes[k]);
+      if (value.why !== undefined) {
+        miss(src.path, piece.line, `${owner}.${name}, \`${qname}\`: ${value.why}`);
+        continue;
+      }
+      if (query.some((q) => q.name === qname)) {
+        miss(src.path, piece.line, `${owner}.${name} sends \`${qname}\` twice`);
+        continue;
+      }
+      query.push({ name: qname, sent: sentIn(piece.conditional), value: value.kind });
+    }
+  }
+  return unread.length > before || path === null ? null : { path, query };
+}
+
+/**
+ * A reference a target reads (SPEC-1 §3.2): an `if let` binding, a parameter,
+ * or `<parameter>.<property>` of a struct read with `scanMembers`. Answers
+ * `{ spec, scope }` (the scope its type is resolved in) or `{ why }`.
+ */
+function refOf(mod, owner, params, bindings, ts) {
+  const name = dotted(ts);
+  if (name === null) return { why: `\`${spelled(ts)}\` is not a parameter, an if-let binding or a parameter's property` };
+  const parts = name.split('.');
+  if (parts.length === 1) {
+    const bound = bindings.get(parts[0]);
+    if (bound !== undefined) return bound;
+    const spec = params.get(parts[0]);
+    return spec === undefined ? { why: `\`${name}\` is not a parameter or an if-let binding` } : { spec, scope: owner };
+  }
+  const base = parts.length === 2 && !bindings.has(parts[0]) ? params.get(parts[0]) : undefined;
+  if (base === undefined || base.optional || base.array !== undefined) return { why: `\`${name}\` is not a property of a parameter this reader can read` };
+  const q = mod.resolve(base.name, owner);
+  const e = q === null ? undefined : mod.entry(q);
+  const prop = e?.kind === 'struct' ? e.parts.flatMap((p) => p.members.stored).find((p) => p.name === parts[1]) : undefined;
+  const spec = prop === undefined ? null : typeSpecOf(prop.typeToks);
+  if (spec === null) return { why: `\`${name}\` is not a stored property of a struct this reader can read` };
+  return { spec, scope: q };
+}
+
+/**
+ * One interpolation of a target (SPEC-1 §3.2): `queryValue(<String>)` is
+ * text, `queryValue(<E>.rawValue)` or `<E>.rawValue` of a raw String enum is
+ * its words, an `Int` or `max(<integer>, <Int>)` is a whole number. Answers
+ * `{ kind }` or `{ why }`.
+ */
+function holeKind(mod, owner, params, bindings, ownQueryValue, code) {
+  const ts = holeTokens(code ?? '');
+  const m = matchOf(ts);
+  const wraps = (fn) => ts.length >= 4 && isId(ts[0], fn) && isOp(ts[1], '(') && m[1] === ts.length - 1;
+  const raw = (xs) => xs.length >= 3 && isOp(xs[xs.length - 2], '.') && isId(xs[xs.length - 1], 'rawValue');
+  const typed = (xs, want) => {
+    const r = refOf(mod, owner, params, bindings, xs);
+    if (r.why !== undefined) return r;
+    const { spec, scope } = r;
+    if (spec.optional || spec.array !== undefined) return { why: `\`${spelled(xs)}\` is optional or an array` };
+    if (want === 'words') {
+      const q = mod.resolve(spec.name, scope);
+      return q !== null && rawEnum(mod.entry(q)) ? { kind: { words: q } } : { why: `\`${spelled(xs)}\` is not a raw String enum` };
+    }
+    if (want === 'text') return spec.name === 'String' ? { kind: 'text' } : { why: `\`${spelled(xs)}\` is not a String` };
+    if (SEND_INTS.has(spec.name)) return { kind: 'int' };
+    return { why: spec.name === 'String' ? `\`${spelled(xs)}\` is a String sent without queryValue, so it would not be percent-encoded` : `\`${spelled(xs)}\` is not a whole number` };
+  };
+  if (wraps('queryValue')) {
+    if (!ownQueryValue) return { why: `queryValue is not ${owner}'s own static func` };
+    const inner = ts.slice(2, -1);
+    return raw(inner) ? typed(inner.slice(0, -2), 'words') : typed(inner, 'text');
+  }
+  if (raw(ts)) return typed(ts.slice(0, -2), 'words');
+  if (wraps('max')) {
+    const args = splitCommas(ts.slice(2, -1));
+    if (args.length === 2 && args[0].length === 1 && args[0][0].t === 'num' && /^[0-9_]+$/.test(args[0][0].v)) return typed(args[1], 'int');
+    return { why: `\`${code}\` is not \`max(<integer>, <Int>)\`` };
+  }
+  if (dotted(ts) === null) return { why: `\`${code}\` is not a query value this reader knows` };
+  return typed(ts, 'int');
+}
+
+/**
+ * `signedPost`'s `switch route` (SPEC-1 §3.3): each verb to the body type
+ * its one statement, `<body> = try <encoder>.encode(<Type>(…))`, encodes,
+ * the encoder the function's one `JSONEncoder()` with sorted keys.
+ */
+function readWriteBodies(mod, owner, unread) {
+  const out = new Map();
+  const f = funcOf(mod, owner, 'signedPost');
+  if (f === null) {
+    unread.push({ file: '', line: 0, why: `no ${owner}.signedPost: the write bodies cannot be read` });
+    return out;
+  }
+  const { src } = f;
+  const { toks } = src;
+  const miss = (line, why) => unread.push({ file: src.path, line, why });
+  const all = solid(toks, f.open + 1, f.close);
+  const encoders = [];
+  for (let i = 0; i + 5 < all.length; i += 1) {
+    if (isId(all[i], 'let') && isId(all[i + 1]) && isOp(all[i + 2], '=') && isId(all[i + 3], 'JSONEncoder') && isOp(all[i + 4], '(') && isOp(all[i + 5], ')')) encoders.push(all[i + 1].v);
+  }
+  const encoder = encoders.length === 1 ? encoders[0] : null;
+  const sorted = encoder !== null && all.some((t, i) =>
+    isId(t, encoder) && isOp(all[i + 1], '.') && isId(all[i + 2], 'outputFormatting') && isOp(all[i + 3], '=') &&
+    isOp(all[i + 4], '[') && isOp(all[i + 5], '.') && isId(all[i + 6], 'sortedKeys') && isOp(all[i + 7], ']'));
+  if (encoder === null) {
+    miss(f.line, `${owner}.signedPost makes ${String(encoders.length)} JSONEncoder()s, not the one this reader reads`);
+    return out;
+  }
+  if (!sorted) miss(f.line, `${owner}.signedPost's encoder is not \`${encoder}.outputFormatting = [.sortedKeys]\`, which the record's key order assumes`);
+  const at = [];
+  for (let i = f.open + 1; i < f.close; i += 1) if (isId(toks[i], 'switch') && isId(toks[nextSolid(toks, i + 1, f.close)], 'route')) at.push(i);
+  if (at.length !== 1) {
+    miss(f.line, `${owner}.signedPost has ${String(at.length)} \`switch route\`, not one: the write bodies cannot be read`);
+    return out;
+  }
+  const node = parseStatement(src, at[0], f.close).node;
+  const subject = node.k === 'switch' ? solid(toks, node.subject[0], node.subject[1]) : [];
+  if (!(subject.length === 1 && isId(subject[0], 'route'))) {
+    miss(node.line, `${owner}.signedPost's \`switch route\` cannot be parsed`);
+    return out;
+  }
+  const bindsOnly = (xs) => splitCommas(xs).every((p) => p.length === 2 && isId(p[0], 'let') && isId(p[1]));
+  for (const clause of node.cases) {
+    const label = clause.bad || clause.isDefault || clause.labels.length !== 1 ? [] : clause.labels[0];
+    const labelOk = label.length >= 2 && isOp(label[0], '.') && isId(label[1]) &&
+      (label.length === 2 || (isOp(label[2], '(') && isOp(label[label.length - 1], ')') && bindsOnly(label.slice(3, -1))));
+    const e = clause.body.length === 1 && clause.body[0].k === 'expr' ? solid(toks, clause.body[0].expr[0], clause.body[0].expr[1]) : [];
+    const m = matchOf(e);
+    const inner = e.findIndex((t, i) => i > 7 && isOp(t, '('));
+    const typeName = inner < 0 ? null : dotted(e.slice(7, inner));
+    const bodyOk =
+      e.length >= 11 && isId(e[0]) && isOp(e[1], '=') && isId(e[2], 'try') && encoder !== null && isId(e[3], encoder) &&
+      isOp(e[4], '.') && isId(e[5], 'encode') && isOp(e[6], '(') && m[6] === e.length - 1 && typeName !== null && m[inner] === e.length - 2;
+    if (!labelOk || !bodyOk) {
+      miss(clause.line, `a case of ${owner}.signedPost's \`switch route\` this reader does not know (only \`case .<verb>(let …): <body> = try ${encoder}.encode(<Type>(…))\`)`);
+      continue;
+    }
+    const q = mod.resolve(typeName, owner);
+    if (q === null) miss(clause.line, `${owner}.signedPost encodes ${typeName}, which this reader cannot find`);
+    else if (out.has(label[1].v)) miss(clause.line, `${owner}.signedPost encodes .${label[1].v} twice`);
+    else out.set(label[1].v, { type: q, file: src.path, line: clause.line });
+  }
+  return out;
+}
+
+/**
+ * What one Swift type encodes (SPEC-1 §3.3): `{ fields: [...] }` for a
+ * struct, synthesized or with a custom `encode(to:)`, or `{ oneOf: [...] }`
+ * for an enum whose custom encoder writes one key per case. Null, with the
+ * statements it cannot read in `unread`, for anything else.
+ */
+function readBodyType(mod, qual, unread, seen = []) {
+  const before = unread.length;
+  const e = mod.entry(qual);
+  const at = e?.parts[0]?.decl;
+  const miss = (file, line, why) => {
+    unread.push({ file, line, why, type: qual });
+    return null;
+  };
+  if (e === undefined) return miss('', 0, `no type named ${qual}`);
+  if (seen.includes(qual)) return miss(at.src.path, at.line, `${qual} holds itself`);
+  const encoders = e.parts.flatMap((p) => {
+    const f = p.members.funcs.get('encode');
+    return f === undefined ? [] : [f];
+  });
+  if (encoders.length > 1) return miss(encoders[1].src.path, encoders[1].line, `${qual} declares encode more than once`);
+  if (encoders.length === 1) return readEncoder(mod, qual, e, encoders[0], unread, [...seen, qual]);
+  if (!(e.inherits.has('Encodable') || e.inherits.has('Codable'))) return miss(at.src.path, at.line, `${qual} is not Encodable`);
+  const decl = e.parts.find((p) => p.decl.kind === 'struct');
+  if (e.kind !== 'struct' || decl === undefined) return miss(at.src.path, at.line, `${qual} is a synthesized Encodable ${String(e.kind)} this reader does not read`);
+  const keys = codingKeysOf(mod, qual);
+  const fields = [];
+  for (const prop of decl.members.stored) {
+    const wire = keys === null ? prop.name : keys.get(prop.name);
+    if (wire === undefined) continue;
+    const spec = typeSpecOf(prop.typeToks);
+    if (spec === null) {
+      miss(decl.decl.src.path, prop.line, `${qual}.${prop.name}: a type this reader cannot read`);
+      continue;
+    }
+    const value = sendKindOf(mod, { ...spec, optional: false }, qual, unread, decl.decl.src.path, prop.line, [...seen, qual]);
+    if (value !== null) fields.push({ name: wire, sent: sentIn(spec.optional), null: false, value });
+  }
+  return unread.length > before ? null : { fields: fields.sort(byName) };
+}
+
+/** A value's kind in the request record: text, int, bool, words, an array, or a oneOf; null with the miss recorded. */
+function sendKindOf(mod, spec, scope, unread, file, line, seen) {
+  const miss = (why) => {
+    unread.push({ file, line, why, type: scope });
+    return null;
+  };
+  if (spec.optional) return miss('an optional inside a value, which the record has no word for');
+  if (spec.array !== undefined) {
+    const inner = sendKindOf(mod, spec.array, scope, unread, file, line, seen);
+    return inner === null ? null : { array: inner };
+  }
+  if (spec.name === 'String') return 'text';
+  if (spec.name === 'Bool') return 'bool';
+  if (SEND_INTS.has(spec.name)) return 'int';
+  if (BUILTIN.has(spec.name)) return miss(`a ${spec.name}, which the record has no word for`);
+  const q = mod.resolve(spec.name, scope);
+  if (q === null) return miss(`no type named ${spec.name}`);
+  if (rawEnum(mod.entry(q))) return { words: q };
+  const record = readBodyType(mod, q, unread, seen);
+  if (record === null) return null;
+  if (record.oneOf === undefined) return miss(`${q} encodes an object of fields inside a value, which the record has no word for`);
+  return { oneOf: record.oneOf };
+}
+
+/** A custom `func encode(to encoder: Encoder) throws` (SPEC-1 §3.3). */
+function readEncoder(mod, qual, e, f, unread, seen) {
+  const before = unread.length;
+  const { src } = f;
+  const { toks, match } = src;
+  const miss = (line, why) => {
+    unread.push({ file: src.path, line, why, type: qual });
+    return null;
+  };
+  // `func encode(to <name>: Encoder) throws {`
+  const throwsAt = prevSolid(toks, f.open - 1);
+  const close = prevSolid(toks, throwsAt - 1);
+  const open = isOp(toks[close], ')') ? match[close] : -1;
+  const sig = open < 0 ? [] : solid(toks, open + 1, close);
+  if (!(isId(toks[throwsAt], 'throws') && open >= 0 && isId(toks[prevSolid(toks, open - 1)], 'encode') && sig.length === 4 &&
+    isId(sig[0], 'to') && isId(sig[1]) && isOp(sig[2], ':') && isId(sig[3], 'Encoder'))) {
+    return miss(f.line, `${qual}.encode is not \`func encode(to encoder: Encoder) throws\``);
+  }
+  const param = sig[1].v;
+  const keys = codingKeysOf(mod, qual);
+  if (keys === null) return miss(f.line, `${qual} has no CodingKeys this reader can read`);
+  const stmts = parseBlock(src, f.open + 1, f.close).stmts;
+  const first = stmts[0];
+  const c0 = first?.k === 'bind' && first.expr !== null ? solid(toks, first.expr[0], first.expr[1]) : [];
+  const isContainer =
+    first?.k === 'bind' && isId(toks[first.span[0]], 'var') && c0.length === 10 && isId(c0[0], param) && isOp(c0[1], '.') &&
+    isId(c0[2], 'container') && isOp(c0[3], '(') && isId(c0[4], 'keyedBy') && isOp(c0[5], ':') && isId(c0[6], 'CodingKeys') &&
+    isOp(c0[7], '.') && isId(c0[8], 'self') && isOp(c0[9], ')');
+  if (!isContainer) return miss(first?.line ?? f.line, `${qual}.encode does not begin \`var <c> = ${param}.container(keyedBy: CodingKeys.self)\``);
+  const container = first.name;
+  /** `try <c>.<method>(<value>, forKey: .<key>)` as `{ method, value, key }`, or null. */
+  const encodeCall = (ts) => {
+    const m = matchOf(ts);
+    if (!(ts.length >= 6 && isId(ts[0], 'try') && isId(ts[1], container) && isOp(ts[2], '.') && isId(ts[3]) && isOp(ts[4], '(') && m[4] === ts.length - 1)) return null;
+    const args = splitCommas(ts.slice(5, -1));
+    const k = args[1];
+    if (args.length !== 2 || !(k.length === 4 && isId(k[0], 'forKey') && isOp(k[1], ':') && isOp(k[2], '.') && isId(k[3]))) return null;
+    return { method: ts[3].v, value: args[0], key: k[3].v };
+  };
+  const rest = stmts.slice(1);
+  if (e.kind === 'enum') {
+    const sw = rest.length === 1 && rest[0].k === 'switch' ? rest[0] : null;
+    const subject = sw === null ? [] : solid(toks, sw.subject[0], sw.subject[1]);
+    if (!(subject.length === 1 && isId(subject[0], 'self'))) return miss(rest[0]?.line ?? f.line, `${qual}.encode is not one \`switch self\` over its cases`);
+    const cases = e.parts.filter((p) => p.decl.kind === 'enum').flatMap((p) => p.members.cases);
+    const written = new Map();
+    for (const clause of sw.cases) {
+      const label = clause.bad || clause.isDefault || clause.labels.length !== 1 ? [] : clause.labels[0];
+      const item = label.length === 6 && isOp(label[0], '.') && isId(label[1]) && isOp(label[2], '(') && isId(label[3], 'let') && isId(label[4]) && isOp(label[5], ')')
+        ? cases.find((c) => c.name === label[1].v)
+        : undefined;
+      const call = item !== undefined && clause.body.length === 1 && clause.body[0].k === 'expr' ? encodeCall(solid(toks, clause.body[0].expr[0], clause.body[0].expr[1])) : null;
+      const bound = label[4]?.v;
+      const asRaw = call !== null && call.value.length === 3 && isId(call.value[0], bound) && isOp(call.value[1], '.') && isId(call.value[2], 'rawValue');
+      const asIs = call !== null && call.value.length === 1 && isId(call.value[0], bound);
+      const assoc = item?.assoc === undefined ? [] : splitCommas(item.assoc);
+      const one = assoc.length === 1 ? (isId(assoc[0][0]) && isOp(assoc[0][1], ':') ? assoc[0].slice(2) : assoc[0]) : null;
+      const spec = one === null ? null : typeSpecOf(one);
+      if (call === null || call.method !== 'encode' || !(asRaw || asIs) || spec === null || written.has(item.name)) {
+        miss(clause.line, `a case of ${qual}.encode this reader does not know (only \`case .<case>(let x): try ${container}.encode(x[.rawValue], forKey: .<key>)\` over one associated value)`);
+        continue;
+      }
+      const wire = keys.get(call.key);
+      if (wire === undefined) {
+        miss(clause.line, `.${call.key} is not a case of ${qual}.CodingKeys`);
+        continue;
+      }
+      let value;
+      if (asRaw) {
+        const q = spec.optional || spec.array !== undefined ? null : mod.resolve(spec.name, qual);
+        value = q !== null && rawEnum(mod.entry(q)) ? { words: q } : miss(clause.line, `${qual}.${item.name}'s value is not a raw String enum`);
+      } else value = sendKindOf(mod, spec, qual, unread, src.path, clause.line, seen);
+      if (value !== null) written.set(item.name, { key: wire, value });
+    }
+    if (unread.length > before) return null;
+    return { oneOf: cases.filter((c) => written.has(c.name)).map((c) => written.get(c.name)) };
+  }
+  if (e.kind !== 'struct') return miss(f.line, `${qual} is a ${String(e.kind)} with an encoder this reader does not read`);
+  const stored = e.parts.flatMap((p) => p.members.stored);
+  const fields = [];
+  for (const st of rest) {
+    const call = st.k === 'expr' ? encodeCall(solid(toks, st.expr[0], st.expr[1])) : null;
+    if (call === null || (call.method !== 'encode' && call.method !== 'encodeIfPresent')) {
+      miss(st.line, `a statement of ${qual}.encode this reader does not know (only \`try ${container}.encode\` or \`encodeIfPresent\` of a stored property): ${spelled(solid(toks, st.span[0], st.span[1])).slice(0, 120)}`);
+      continue;
+    }
+    const prop = call.value.length === 1 && isId(call.value[0]) ? stored.find((p) => p.name === call.value[0].v) : undefined;
+    const spec = prop === undefined ? null : typeSpecOf(prop.typeToks);
+    if (spec === null) {
+      miss(st.line, `${qual}.encode writes something other than a stored property: ${spelled(call.value)}`);
+      continue;
+    }
+    const wire = keys.get(call.key);
+    if (wire === undefined) {
+      miss(st.line, `.${call.key} is not a case of ${qual}.CodingKeys`);
+      continue;
+    }
+    if (fields.some((x) => x.name === wire)) {
+      miss(st.line, `${qual}.encode writes \`${wire}\` twice`);
+      continue;
+    }
+    const value = sendKindOf(mod, { ...spec, optional: false }, qual, unread, src.path, st.line, seen);
+    const ifPresent = call.method === 'encodeIfPresent';
+    if (value !== null) fields.push({ name: wire, sent: sentIn(ifPresent), null: !ifPresent && spec.optional, value });
+  }
+  return unread.length > before ? null : { fields: fields.sort(byName) };
+}
+
+/**
+ * The kept connections each type holds (SPEC-1 §3.4): every `DoorLine(` in
+ * the module is `DoorLine(keeps: true)` or `DoorLine(keeps: false)`, a
+ * literal argument, or unread; a kept one counts against the innermost type
+ * declaration that holds it. Answers `Map<type, { count, file }>`.
+ *
+ * Since the fix round (the reverify's W18) a kept line counts only where it
+ * is HELD: as the whole initializer of a stored property written directly in
+ * a type's body (`let poll = DoorLine(keeps: true)`, or with `: DoorLine`).
+ * Anywhere else (a factory such as `static func kept() -> DoorLine`, a
+ * computed property, a local, a list or any other expression) it is unread,
+ * because the type that holds such a line holds it through a call this
+ * reader does not count, and the count would fall short.
+ */
+function keptLinesByType(mod, unread, name = 'DoorLine') {
+  const counts = new Map();
+  const declsOf = new Map();
+  for (const entry of mod.registry.values()) {
+    for (const part of entry.parts) {
+      const list = declsOf.get(part.decl.src) ?? [];
+      list.push(part.decl);
+      declsOf.set(part.decl.src, list);
+    }
+  }
+  for (const src of mod.srcs) {
+    const { toks, match } = src;
+    const decls = declsOf.get(src) ?? [];
+    for (let i = 0; i < toks.length; i += 1) {
+      if (!isId(toks[i], name) || !isOp(toks[i + 1], '(') || match[i + 1] < 0) continue;
+      const line = src.lineOf(toks[i].at);
+      const args = solid(toks, i + 2, match[i + 1]);
+      const literal = args.length === 3 && isId(args[0], 'keeps') && isOp(args[1], ':') && (isId(args[2], 'true') || isId(args[2], 'false'));
+      if (!literal) {
+        unread.push({ file: src.path, line, why: `a ${name}( whose argument is not the literal \`keeps: true\` or \`keeps: false\`, so the connections the phone holds at once cannot be counted` });
+        continue;
+      }
+      if (args[2].v !== 'true') continue;
+      const holder = decls.filter((d) => d.open < i && i < d.close).sort((a, b) => b.open - a.open)[0];
+      if (holder === undefined) {
+        unread.push({ file: src.path, line, why: `a kept ${name} outside any type` });
+        continue;
+      }
+      const heldWhereMade = storedInitializer(toks, match, holder.open, i, name);
+      if (!heldWhereMade) {
+        unread.push({ file: src.path, line, why: `a kept ${name} that is not the whole initializer of a stored property in a type's body (a factory, a computed property, a local or an expression), so the connections the type holding it opens at once cannot be counted` });
+        continue;
+      }
+      const c = counts.get(holder.qual) ?? { count: 0, file: src.path };
+      c.count += 1;
+      counts.set(holder.qual, c);
+    }
+  }
+  return counts;
+}
+
+/**
+ * Whether the call at `i` is the whole initializer of a stored property
+ * written directly in the body that opens at `open`: no bracket between that
+ * body's `{` and `i` is still open at `i`, the tokens before it read
+ * `let|var <name> [: <Type>[?|!]] =`, and the call's `)` ends the statement.
+ */
+function storedInitializer(toks, match, open, i, type) {
+  for (let j = open + 1; j < i; j += 1) {
+    if ((isOp(toks[j], '{') || isOp(toks[j], '(') || isOp(toks[j], '[')) && match[j] > i) return false;
+  }
+  let k = i - 1;
+  const back = () => {
+    while (k >= 0 && toks[k].t === 'nl') k -= 1;
+  };
+  back();
+  if (!isOp(toks[k], '=')) return false;
+  k -= 1;
+  back();
+  if (isOp(toks[k], '?') || isOp(toks[k], '!')) {
+    k -= 1;
+    back();
+  }
+  if (isId(toks[k], type)) {
+    k -= 1;
+    back();
+    if (!isOp(toks[k], ':')) return false;
+    k -= 1;
+    back();
+  }
+  if (!isId(toks[k]) || isId(toks[k], 'let') || isId(toks[k], 'var')) return false;
+  k -= 1;
+  back();
+  if (!(isId(toks[k], 'let') || isId(toks[k], 'var'))) return false;
+  const close = match[i + 1];
+  const after = toks[close + 1];
+  return after === undefined || after.t === 'nl' || isOp(after, ';') || isOp(after, '}');
+}
+
+/** The file a static constant `Type.name` is declared in, or null. */
+function constantFile(mod, qualName) {
+  const at = qualName.lastIndexOf('.');
+  return at < 0 ? null : (staticOf(mod, qualName.slice(0, at), qualName.slice(at + 1))?.src.path ?? null);
+}
+
+/**
+ * The phone's own numbers (SPEC-1 §3.4), one per `ASK_ROWS` row, sorted by
+ * `phone`. `mod.used` is put back as it was before them, so the files they are
+ * read from never join `read` (D7): those files move in most phone phases,
+ * and naming them would switch off P0's same-bytes guard for the decoders.
+ */
+function readAsks(mod, unread) {
+  const before = [...mod.used];
+  const asks = [];
+  for (const row of ASK_ROWS) {
+    let value = null;
+    let swift = null;
+    if (row.sum !== undefined) {
+      let total = 0;
+      for (const constant of row.sum) {
+        const c = readConstant(mod, constant);
+        if (c.error !== undefined || typeof c.value !== 'number') {
+          unread.push({ file: '', line: 0, why: `ask ${row.phone}: ${c.error ?? `${constant} is not one number`}` });
+          total = null;
+          break;
+        }
+        total += c.value;
+        swift ??= constantFile(mod, constant);
+      }
+      value = total;
+    } else if (row.kept !== undefined) {
+      let most = null;
+      for (const c of keptLinesByType(mod, unread, row.kept).values()) if (most === null || c.count > most.count) most = c;
+      if (most === null) unread.push({ file: '', line: 0, why: `ask ${row.phone}: no type holds a kept line, so the connections the phone opens at once cannot be read` });
+      else {
+        value = most.count + row.plus;
+        swift = most.file;
+      }
+    } else unread.push({ file: '', line: 0, why: `ask ${row.phone}: a row this reader cannot read` });
+    if (value !== null) asks.push({ phone: row.phone, value, mac: row.mac, macFile: row.macFile, rule: row.rule, swift });
+  }
+  mod.used.clear();
+  for (const path of before) mod.used.add(path);
+  return asks.sort((a, b) => (a.phone < b.phone ? -1 : a.phone > b.phone ? 1 : 0));
+}
+
+/** Every `{ words }` a value names, recursively. */
+function wordsIn(value, into) {
+  if (value === null || typeof value !== 'object') return into;
+  if (typeof value.words === 'string') into.add(value.words);
+  if (value.array !== undefined) wordsIn(value.array, into);
+  for (const alt of value.oneOf ?? []) wordsIn(alt.value, into);
+  return into;
+}
+
+/**
+ * The request record (SPEC-1 §2.2): one entry per route `readRoutes` read,
+ * sorted by path then method, from its target builder and, for a write, the
+ * body `signedPost` encodes for its verb.
+ */
+function readRequests(mod, routes, builders, unread) {
+  const owner = 'DoorClient';
+  const bodies = readWriteBodies(mod, owner, unread);
+  const verbs = new Set();
+  const requests = [];
+  for (const r of routes) {
+    const b = builders.get(`${String(r.method)} ${String(r.path)}`);
+    const none = (why) => unread.push({ file: '', line: 0, why: `the route ${String(r.method)} ${String(r.path)} has no request record: ${why}` });
+    if (b === undefined) {
+      none('no target builder was read for it');
+      continue;
+    }
+    const target = readTargetBuilder(mod, owner, b.name, unread);
+    if (target === null) {
+      none(`${owner}.${b.name} cannot be read`);
+      continue;
+    }
+    let body = null;
+    if (b.opaque !== undefined) body = { opaque: b.opaque };
+    else if (b.verb !== undefined) {
+      verbs.add(b.verb);
+      const w = bodies.get(b.verb);
+      const record = w === undefined ? null : readBodyType(mod, w.type, unread);
+      if (w === undefined) {
+        none(`${owner}.signedPost encodes no body for .${b.verb}`);
+        continue;
+      }
+      if (record === null || record.fields === undefined) {
+        none(`${w.type} is not a body of fields this reader can read`);
+        continue;
+      }
+      body = record;
+    }
+    requests.push({ method: r.method, path: r.path, query: target.query, body });
+  }
+  for (const [verb, w] of bodies) {
+    if (!verbs.has(verb)) unread.push({ file: w.file, line: w.line, why: `${owner}.signedPost encodes a body for .${verb}, which WriteRoute.target sends to no route` });
+  }
+  return requests.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : a.method < b.method ? -1 : a.method > b.method ? 1 : 0));
+}
+
 /**
  * The phone's wire, read from its Swift (§5.4): the routes it calls and the
  * type each answer is decoded with, the QR's type, every reachable type, the
@@ -1558,7 +2319,8 @@ export function readPhoneWire(root) {
   const files = listSwift(app).map((p) => ({ path: relative(root, p).split(sep).join('/'), text: readFileSync(p, 'utf8') }));
   const mod = readSwiftModule(files);
   const problems = [];
-  const routes = readRoutes(mod, problems);
+  const builders = new Map();
+  const routes = readRoutes(mod, problems, builders);
   // The QR's answer is the LAST type `parse` decodes, the one the offer is
   // built from; any decoded before it is a pre-read of the same payload
   // (Phase 333.1's `Marker`), held to asking nothing more below.
@@ -1601,13 +2363,25 @@ export function readPhoneWire(root) {
   const statuses = readStatuses(mod, unread);
   const version = bounds.find((b) => b.phone === 'PairingOffer.version')?.value ?? null;
   const ports = bounds.find((b) => b.phone === 'DoorEndpoint.publicPorts')?.value ?? null;
+  // What the phone sends (Phase 333.11.1, SPEC-1 §3.5). The record is read
+  // from files the projection already reads, and they stay in `read`.
+  const requests = readRequests(mod, routes, builders, unread);
+  const sent = new Set();
+  for (const r of requests) {
+    for (const q of r.query) wordsIn(q.value, sent);
+    for (const f of r.body?.fields ?? []) wordsIn(f.value, sent);
+  }
+  for (const w of [...sent].sort()) if (!SEND_ROWS.some((row) => row.phone === w)) unread.push({ file: '', line: 0, why: `the phone sends the words of ${w}, which no send row holds the Mac to` });
+  for (const row of SEND_ROWS) if (!sent.has(row.phone)) unread.push({ file: '', line: 0, why: `send ${row.phone}: no request the phone makes carries its words` });
+  // The asks are read last and leave `mod.used` as it was (D7).
+  const asks = readAsks(mod, unread);
   for (const f of ['ios/Tortie/Door/DoorClient.swift', 'ios/Tortie/Door/Pairing.swift']) if (files.some((x) => x.path === f)) mod.used.add(f);
   const read = {};
   for (const path of [...mod.used].sort()) {
     const file = files.find((f) => f.path === path);
     if (file !== undefined) read[path] = sha256(file.text);
   }
-  return { routes, qr, types, formats, bounds, sends, statuses, version, ports, unread, read, files: files.length };
+  return { routes, qr, types, formats, bounds, sends, statuses, version, ports, unread, read, files: files.length, requests, asks };
 }
 
 // ---------------------------------------------------------------------------
@@ -1638,7 +2412,13 @@ export function projectionOf(wire) {
     types: wire.types ?? {},
     bounds: (wire.bounds ?? []).map((b) => ({ phone: b.phone, value: b.value })).sort(byKey('phone')),
     sends: (wire.sends ?? []).map((s) => ({ phone: s.phone, words: s.words === null ? null : [...s.words].sort() })).sort(byKey('phone')),
-    statuses: [...(wire.statuses ?? [])].sort((a, b) => a - b)
+    statuses: [...(wire.statuses ?? [])].sort((a, b) => a - b),
+    // What the phone sends (Phase 333.11.1, SPEC-1 §3.5): the request record
+    // without the frozen file's route ids, which today's reading has none of.
+    // The asks are not in the projection (D7).
+    requests: (wire.requests ?? [])
+      .map(({ method, path, query, body }) => ({ method, path, query, body }))
+      .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : a.method < b.method ? -1 : a.method > b.method ? 1 : 0))
   };
 }
 
@@ -1680,6 +2460,13 @@ export function differingPaths(a, b, limit = 10) {
 /**
  * Read every `*.swift.txt` under `dir` and compare with its `*.expect.json`:
  * `{ roots, types, unread: [line, …], constants: { "T.n": value }, words: { E: [...] } }`.
+ * Since Phase 333.11.1 (SPEC-1 §3.6) an expect may also name `requests`,
+ * the request reader's own run over the fixture: `targets`
+ * (`{ "<Owner>.<name>": { path, query } }`), `bodies` (`{ "<Type>": <its
+ * record> }`), `kept` (`{ "<Type>": <kept lines> }`) and `writes`
+ * (`{ "<Owner>": { "<verb>": "<Type>" } }`, read from `<Owner>.signedPost`'s
+ * switch, as the phone's is from `DoorClient`'s), a target or body `null`
+ * where it cannot be read; its unread lines join the decoder's in `unread`.
  * Answers `{ files, problems }`; a fixture that reads otherwise is a problem.
  */
 export function proveReader(dir) {
@@ -1697,6 +2484,27 @@ export function proveReader(dir) {
     const got = classify(mod, expect.roots ?? []);
     if (expect.types !== undefined && canonical(got.types) !== canonical(expect.types)) {
       problems.push(`${name}: types read as ${canonical(got.types)}, expected ${canonical(expect.types)}`);
+    }
+    const want = expect.requests;
+    if (want !== undefined) {
+      const said = (what, read, wanted) => {
+        if (canonical(read) !== canonical(wanted)) problems.push(`${name}: ${what} read as ${canonical(read)}, expected ${canonical(wanted)}`);
+      };
+      const mine = [];
+      for (const [key, wanted] of Object.entries(want.targets ?? {})) {
+        const at = key.lastIndexOf('.');
+        said(`the target ${key}`, readTargetBuilder(mod, key.slice(0, at), key.slice(at + 1), mine), wanted);
+      }
+      for (const [qual, wanted] of Object.entries(want.bodies ?? {})) said(`the body ${qual}`, readBodyType(mod, qual, mine), wanted);
+      if (want.kept !== undefined) {
+        const kept = Object.fromEntries([...keptLinesByType(mod, mine)].map(([qual, c]) => [qual, c.count]));
+        said('the kept lines', kept, want.kept);
+      }
+      for (const [owner, wanted] of Object.entries(want.writes ?? {})) {
+        const writes = Object.fromEntries([...readWriteBodies(mod, owner, mine)].map(([verb, w]) => [verb, w.type]));
+        said(`${owner}.signedPost's writes`, writes, wanted);
+      }
+      got.unread.push(...mine);
     }
     const gotLines = got.unread.map((u) => u.line).sort((a, b) => a - b);
     const wantLines = [...(expect.unread ?? [])].sort((a, b) => a - b);

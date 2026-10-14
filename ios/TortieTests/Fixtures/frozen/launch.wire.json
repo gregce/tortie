@@ -1,14 +1,14 @@
 {
   "about": "The wire Tortie's phone spoke when this set was frozen: the routes it calls, what it requires of each answer, the words and bounds it holds the Mac to, and the arms that prove it. Written by node build/assert-door-only-adds.mjs --freeze launch. Never edit it by hand: gate:onlyadd checks the seal on every build.",
-  "format": 1,
+  "format": 2,
   "label": "launch",
-  "phoneBuild": "7",
+  "phoneBuild": "10",
   "phoneVersion": "1.0.0",
-  "macVersion": "0.110.0",
+  "macVersion": "0.111.2",
   "read": {
     "ios/Tortie/Door/Contract.swift": "0562bd947096e7211beb9cb0bdcc844b702ea62f0e0172ee4334fc6c9eb4e7f7",
     "ios/Tortie/Door/DoorClient.swift": "9c67dc95676484d20b46bb7a052df782ef1f420e52e3a4bf1bb4a1bd33511398",
-    "ios/Tortie/Door/Pairing.swift": "3fa834c62ce5173b659bf31ad5747e58a208d97121f055ab267b1db132c30a81",
+    "ios/Tortie/Door/Pairing.swift": "f2ed8963eb62aedd1feae570d4c1b52ea3d3b3146fbf06c9282b62b83c8c201d",
     "ios/Tortie/Screens/SessionsChoices.swift": "dbb3abdaaa24757a7502ae57e376f4f9d8931ade50ec1f704bab30f4b7c8bf0e",
     "ios/Tortie/Screens/SessionsScreen.swift": "7f13082230f31d15952b4d4321aa86454ba789cfc50ee77821bded89eabbd4ea",
     "ios/TortieTests/Fixtures/vectors.json": "dcbcf27c422ce7a93364a67155aea5c9685ec92153426f97e3f78fc67104bfcb",
@@ -565,6 +565,159 @@
       "mac": "POCKET_SCREEN_KEY_NAMES",
       "macFile": "src/shared/ipc/pocket.ts",
       "macForm": "array"
+    }
+  ],
+  "requests": [
+    {"route":"pair","method":"POST","path":"/pair","query":[],"body":{"opaque":"presentation"}},
+    {"route":"blocked","method":"GET","path":"/v1/blocked","query":[],"body":null},
+    {
+      "route": "choose",
+      "method": "POST",
+      "path": "/v1/choose",
+      "query": [],
+      "body": {
+        "fields": [
+          {"name":"mark","sent":"always","null":false,"value":"text"},
+          {"name":"marker","sent":"always","null":false,"value":"text"},
+          {"name":"question","sent":"always","null":false,"value":"text"},
+          {"name":"session","sent":"always","null":false,"value":"text"},
+          {"name":"write","sent":"always","null":false,"value":"text"}
+        ]
+      }
+    },
+    {
+      "route": "end",
+      "method": "POST",
+      "path": "/v1/end",
+      "query": [],
+      "body": {
+        "fields": [
+          {"name":"batch","sent":"always","null":false,"value":"bool"},
+          {"name":"session","sent":"always","null":false,"value":"text"},
+          {"name":"write","sent":"always","null":false,"value":"text"}
+        ]
+      }
+    },
+    {
+      "route": "keys",
+      "method": "POST",
+      "path": "/v1/keys",
+      "query": [],
+      "body": {
+        "fields": [
+          {"name":"dialog","sent":"always","null":true,"value":"text"},
+          {
+            "name": "keys",
+            "sent": "always",
+            "null": false,
+            "value": {"array":{"oneOf":[{"key":"t","value":"text"},{"key":"k","value":{"words":"ScreenKeyName"}}]}}
+          },
+          {"name":"session","sent":"always","null":false,"value":"text"},
+          {"name":"turn","sent":"always","null":false,"value":"text"},
+          {"name":"write","sent":"always","null":false,"value":"text"}
+        ]
+      }
+    },
+    {
+      "route": "say",
+      "method": "POST",
+      "path": "/v1/say",
+      "query": [],
+      "body": {
+        "fields": [
+          {"name":"session","sent":"always","null":false,"value":"text"},
+          {"name":"text","sent":"always","null":false,"value":"text"},
+          {"name":"write","sent":"always","null":false,"value":"text"}
+        ]
+      }
+    },
+    {
+      "route": "screen",
+      "method": "GET",
+      "path": "/v1/screen",
+      "query": [{"name":"id","sent":"always","value":"text"},{"name":"since","sent":"sometimes","value":"text"}],
+      "body": null
+    },
+    {
+      "route": "scrollback",
+      "method": "GET",
+      "path": "/v1/scrollback",
+      "query": [
+        {"name":"id","sent":"always","value":"text"},
+        {"name":"from","sent":"always","value":"int"},
+        {"name":"count","sent":"always","value":"int"},
+        {"name":"depth","sent":"always","value":"int"},
+        {"name":"wrap","sent":"always","value":"int"},
+        {"name":"keep","sent":"always","value":{"words":"ScrollbackKeep"}}
+      ],
+      "body": null
+    },
+    {"route":"session","method":"GET","path":"/v1/session","query":[{"name":"id","sent":"always","value":"text"}],"body":null},
+    {
+      "route": "sessions",
+      "method": "GET",
+      "path": "/v1/sessions",
+      "query": [
+        {"name":"show","sent":"always","value":{"words":"SessionsShow"}},
+        {"name":"group","sent":"always","value":{"words":"SessionsGroupBy"}},
+        {"name":"sort","sent":"always","value":{"words":"SessionsSortBy"}},
+        {"name":"agent","sent":"sometimes","value":"text"},
+        {"name":"machine","sent":"sometimes","value":"text"}
+      ],
+      "body": null
+    },
+    {
+      "route": "turns",
+      "method": "GET",
+      "path": "/v1/turns",
+      "query": [
+        {"name":"id","sent":"always","value":"text"},
+        {"name":"limit","sent":"always","value":"int"},
+        {"name":"to","sent":"sometimes","value":"int"}
+      ],
+      "body": null
+    }
+  ],
+  "asks": [
+    {
+      "phone": "DoorLine.freshFor",
+      "value": 4,
+      "mac": "KEEP_ALIVE_TIMEOUT_MS",
+      "macFile": "src/main/pocket/door/limits.ts",
+      "rule": "mac>phone*1000",
+      "swift": "ios/Tortie/Door/DoorClient.swift"
+    },
+    {
+      "phone": "DoorLine.keptLines+1",
+      "value": 4,
+      "mac": "PER_SOURCE_MAX",
+      "macFile": "src/main/pocket/door/limits.ts",
+      "rule": "mac>=phone",
+      "swift": "ios/Tortie/App/TortieApp.swift"
+    },
+    {
+      "phone": "ScreenKeySender.mostItems",
+      "value": 64,
+      "mac": "POCKET_KEYS_MAX_ITEMS",
+      "macFile": "src/shared/ipc/pocket.ts",
+      "rule": "mac>=phone",
+      "swift": "ios/Tortie/Screens/ScreenKeys.swift"
+    },
+    {
+      "phone": "ScreenKeySender.mostTextBytes",
+      "value": 1024,
+      "mac": "POCKET_KEYS_MAX_TEXT_BYTES",
+      "macFile": "src/shared/ipc/pocket.ts",
+      "rule": "mac>=phone",
+      "swift": "ios/Tortie/Screens/ScreenKeys.swift"
+    },
+    {
+      "phone": "ScrollbackLayout.pageRows+overlapRows",
+      "value": 108,
+      "mac": "POCKET_SCROLLBACK_MAX_COUNT",
+      "macFile": "src/shared/ipc/pocket.ts",
+      "rule": "mac>=phone",
+      "swift": "ios/Tortie/Screens/ScreenScrollback.swift"
     }
   ],
   "statuses": [200,404],
@@ -1423,6 +1576,13 @@
     "PocketTurn.absence",
     "PocketTurn.notice"
   ],
-  "history": [],
-  "seal": "28e18b14bea6787e2ce16ad37df8dace98f65ca6692ddc0ee43700b75d1823ff"
+  "history": [
+    {
+      "seal": "28e18b14bea6787e2ce16ad37df8dace98f65ca6692ddc0ee43700b75d1823ff",
+      "phoneBuild": "7",
+      "macVersion": "0.110.0",
+      "why": "Phase 333.11.1: format 2 adds the request record (every way the launch phone asks) and its asks (the numbers its requests need of the Mac); the wire it reads and sends is otherwise unchanged, P4 read EQUALS launch before"
+    }
+  ],
+  "seal": "7a9b955f6fa401eaa69da47792c6c515d95925e9fff80c60fdd785073ade71a4"
 }

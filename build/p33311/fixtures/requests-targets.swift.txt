@@ -1,0 +1,40 @@
+// The request reader's target builders (Phase 333.11.1, SPEC-1 §3.6): a
+// static target; a one-expression builder with `queryValue`, `.rawValue` (bare
+// and through queryValue) and a whole number; a `var` builder continued with
+// `+` across lines and two `if let` pieces (one `= query.agent`, one bare),
+// with `max(1, limit)`; and a struct of query words. Nothing here is unread.
+enum Keep: String, Equatable, Sendable {
+    case top, bottom
+}
+
+enum Show: String, CaseIterable, Sendable, Codable {
+    case all
+    case active
+    case ended = "gone"
+}
+
+struct Query: Equatable, Sendable {
+    var show: Show
+    var agent: String?
+    var machine: String?
+}
+
+final class DoorClient {
+    static let plainTarget = "/v1/plain"
+
+    static func oneTarget(_ sessionId: String, from: Int, keep: Keep, mode: Keep) -> String {
+        "/v1/one?id=\(queryValue(sessionId))&from=\(from)&keep=\(keep.rawValue)&mode=\(queryValue(mode.rawValue))"
+    }
+
+    static func manyTarget(_ query: Query, limit: Int, to: Int?) -> String {
+        var target = "/v1/many?show=\(queryValue(query.show.rawValue))"
+            + "&limit=\(max(1, limit))"
+        if let agent = query.agent { target += "&agent=\(queryValue(agent))" }
+        if let to { target += "&to=\(to)" }
+        return target
+    }
+
+    static func queryValue(_ value: String) -> String {
+        value
+    }
+}

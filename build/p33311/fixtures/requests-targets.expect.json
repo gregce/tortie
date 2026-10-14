@@ -1,0 +1,28 @@
+{
+  "roots": [],
+  "types": {},
+  "unread": [],
+  "requests": {
+    "targets": {
+      "DoorClient.plainTarget": { "path": "/v1/plain", "query": [] },
+      "DoorClient.oneTarget": {
+        "path": "/v1/one",
+        "query": [
+          { "name": "id", "sent": "always", "value": "text" },
+          { "name": "from", "sent": "always", "value": "int" },
+          { "name": "keep", "sent": "always", "value": { "words": "Keep" } },
+          { "name": "mode", "sent": "always", "value": { "words": "Keep" } }
+        ]
+      },
+      "DoorClient.manyTarget": {
+        "path": "/v1/many",
+        "query": [
+          { "name": "show", "sent": "always", "value": { "words": "Show" } },
+          { "name": "limit", "sent": "always", "value": "int" },
+          { "name": "agent", "sent": "sometimes", "value": "text" },
+          { "name": "to", "sent": "sometimes", "value": "int" }
+        ]
+      }
+    }
+  }
+}
