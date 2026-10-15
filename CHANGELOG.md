@@ -12,7 +12,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Changed
 
-- Settings then Phone asks for Allow in a few short lines, with the full detail one click away
+- Settings then Phone asks for Allow in a few short lines, with the full detail one click away ([`2aff4e4a`](https://github.com/gregce/tortie/commit/2aff4e4a))
 
 ### Fixed
 
