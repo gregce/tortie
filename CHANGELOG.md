@@ -15,7 +15,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 - A Tortie update that adds something your iPhone can do no longer switches the iPhone off: what you allowed keeps working, and only the new thing waits for Allow in Settings then Phone ([`786ee1c6`](https://github.com/gregce/tortie/commit/786ee1c6))
 - Removing one phone in Settings then Phone no longer stops your other phones until you press Allow ([`786ee1c6`](https://github.com/gregce/tortie/commit/786ee1c6))
 - Turning alerts off in Settings then Phone no longer stops your phones until you press Allow ([`786ee1c6`](https://github.com/gregce/tortie/commit/786ee1c6))
-- A file path an agent breaks across lines in a session now opens as one link when it starts with / or ~/: point at any of its lines to underline the whole path, and a press opens the file at its line. Reported by [John Berryman](https://github.com/JnBrymn) in [#40](https://github.com/gregce/tortie/issues/40)
+- A file path an agent breaks across lines in a session now opens as one link when it starts with / or ~/: point at any of its lines to underline the whole path, and a press opens the file at its line. Reported by [John Berryman](https://github.com/JnBrymn) in [#40](https://github.com/gregce/tortie/issues/40) ([`9fc57248`](https://github.com/gregce/tortie/commit/9fc57248))
 
 ## 0.111.2 (2026-10-13)
 
