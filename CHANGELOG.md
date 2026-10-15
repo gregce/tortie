@@ -12,9 +12,9 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Fixed
 
-- A Tortie update that adds something your iPhone can do no longer switches the iPhone off: what you allowed keeps working, and only the new thing waits for Allow in Settings then Phone
-- Removing one phone in Settings then Phone no longer stops your other phones until you press Allow
-- Turning alerts off in Settings then Phone no longer stops your phones until you press Allow
+- A Tortie update that adds something your iPhone can do no longer switches the iPhone off: what you allowed keeps working, and only the new thing waits for Allow in Settings then Phone ([`786ee1c6`](https://github.com/gregce/tortie/commit/786ee1c6))
+- Removing one phone in Settings then Phone no longer stops your other phones until you press Allow ([`786ee1c6`](https://github.com/gregce/tortie/commit/786ee1c6))
+- Turning alerts off in Settings then Phone no longer stops your phones until you press Allow ([`786ee1c6`](https://github.com/gregce/tortie/commit/786ee1c6))
 
 ## 0.111.2 (2026-10-13)
 

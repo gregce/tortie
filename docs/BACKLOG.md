@@ -41712,7 +41712,7 @@ authorized connecting to it for the checking ("i authorize you to connect to it 
 - **No record of anything on the machine.** The record lives in this Mac's manifest only; another Mac keeps its own.
 - **No new window, menu or setting.** No surface moves, so the menus do not change.
 
-## Phase 333.12 — "a Mac update that adds a door route silently turns off every paired phone until Allow" — an update keeps every paired phone working, and only a new route waits for Allow (research 140 §7.3; research 141 §4.1; queued 2026-10-12)
+## Phase 333.12 — "a Mac update that adds a door route silently turns off every paired phone until Allow" — an update keeps every paired phone working, and only a new route waits for Allow (research 140 §7.3; research 141 §4.1; queued 2026-10-12) ✅ LANDED `786ee1c6`, 2026-10-15
 
 **Subject.** `feat(pocket): keep the door open across an update, and let only a new route wait for Allow`
 
@@ -42421,6 +42421,50 @@ Phone                                           Read, then allow
 - No change to what Allow does, to the hash, the fields, the routes or the three confirm paths.
 - No change to the pairing card, and no phone code.
 - No release on its own: it ships with 346 in the Mac release that carries Start.
+
+---
+
+## Phase 333.12.2 — a second Allow must never leave a door answering behind a refused face (found by 333.12's reverify, 2026-10-15; older than 333.12)
+
+**Subject.** `fix(pocket): one Allow starts the door once, however many arrive`
+
+**First body line.** `Phase 333.12.2: no door behind a refused face`
+
+**Semver.** Patch, Mac only. Nothing a person sees moves unless they press Allow twice in a row after turning alerts on;
+then the sheet and the door agree. CHANGELOG item only if the spec finds a person could meet it.
+
+**Tier 3.** Refusal 8's ground: a door process answering the internet while main reads `refused`. Two independent
+methods, one an attack.
+
+**Charter.** Phase 333.12's reverify (a seeded model-based random walk of 60,000 presses over the shipping PocketHost),
+recorded in build/p33312/SPEC.md's last §As built: after alerts were turned on (the door shut, `changed`), two
+`pocket:confirmDoor` calls with one hash each call `queueStart` in `src/main/pocket/ipc.ts`. In the in-memory rig this
+left the door process listening and a Funnel child alive with a published session while main read state `refused` and
+funnel `idle`; the next door-on then picked the other public port (8443 to 10000), so the gate read `changed` with that
+door process still up. HEAD and v0.111.1 give identical readings: it is not 333.12's regression.
+
+### The mechanism, for the spec to settle
+
+1. Measure it live first: the rig's sequence through the SHIPPING host with the stand-in Tailscale, and in the app
+   through probe:p33312's harness, before anything is changed; say whether the second Allow can be sent by the sheet
+   (a double click, a click during `opening`) or only through the bridge.
+2. `confirmDoor` takes the switch queue's turn for its start: a confirm whose hash is already recorded while a start
+   is queued or running starts nothing more, and any start that loses a race ends the process and child it made, in
+   that order, before it returns.
+3. A rule in `conformance:pocket` that every `queueStart` caller is behind the queue's one-in-flight check, with an
+   ablation arm.
+
+### The proof, run rather than read
+
+- The random walk re-run at HEAD with the walk's seed: 0 states where a door process or a Funnel child lives while main
+  reads anything but `listening`.
+- The attack: two, three and ten Allows in one tick, an Allow during `opening`, an Allow racing Remove and alerts on.
+- One app run beside 786ee1c6: the double press driven through the sheet and the bridge, the processes read by pid.
+
+### What is NOT in this phase
+
+- No change to the hash, the fields, the routes or what Allow allows.
+- No phone code. No release on its own.
 
 ---
 
@@ -43680,3 +43724,5 @@ cycle rather than only the evening it was written.
 - 2026-10-15, **347.1: THE `--` FIX IS IN, AND ONE SIBLING; HIS RULING "Add that refusal, quick check, land".** The quick check re-ran the reverify's census (1,320 wrong layouts to 0, every right layout kept), ran 1,478,812 layouts of its own and the live app (issue 40 opens brainstorming.md:134 from every row at 45 to 49), and found Python's textwrap with break_long_words=False still opening the file named before `--` when a path chunk overflowed its row (3,477 layouts, live 5 of 5; present in the round before too). The measured narrower refusal (bottom piece ending in a word character above a row starting `--` and a word character, with a full row above) catches 5,856 of 5,856 at a cost of 3,838 right layouts (1.59%), every one a path followed by a flag, where the parent opens nothing. Applied with tests, readings and ablations, then one more lighter check, then landing.
 
 - 2026-10-15, **QUEUED 333.12.1 — the phone's Allow, one line per fact** (his words: "can we make this screen and text more sleek and to the point like how we redesigned the connection screen", then on the design shown, "ok i like your proposed design, ship it"). It REPLACES his ruling 2 of Phase 333.1 ("Keep today's block"; nothing behind a disclosure): the hashed lines move behind Details byte for byte, the face says each fact once, and an update that adds a feature asks in one line ("New: start a session from your phone"). Full section above. Starts when 333.12 lands, with lighter checking (Tier 2); ships with 346. He was also told how many Allows a person meets: two on the first day (the Mac, then each phone), one optional after an update that adds a feature, one when an important field moves, none for removing a phone or turning alerts off.
+
+- 2026-10-15, **PHASE 333.12 LANDED, `786ee1c6` — an update that adds a phone feature no longer switches every phone off; unreleased.** The sealed store keeps the routes a person allowed (the eleven launch routes when absent, so 0.111.x records hash as before); the door serves allowed routes only, a waiting one answers 404 route before the body, and only the Allow whose lines name it allows it (his answer 10); Remove of one phone among several and alerts off record the narrower door, so the others keep reading (his answer 9). Two lenses needs_work (two majors, three minors), the fix once, the reverify approved after a 60,000-press random walk. Battery green at `24097f39` (ablation:p313 took 66 minutes); R8's real-git ablation red after the landing, as the spec asked. Three CHANGELOG items under Unreleased, the first invisible until 346. **QUEUED 333.12.2** (full section above): the reverify's older minor, a second Allow after alerts were turned on leaving a door process up behind a refused face, identical at v0.111.1. Stated for him, his answer awaited only if he wants it changed: removing the LAST phone still withdraws the door until Allow, as today. **333.12.1 STARTS NOW**; 333.11.2 lands next.
