@@ -42344,6 +42344,86 @@ and two are the probe's and the gate's.
 
 ---
 
+## Phase 333.12.1 — "can we make this screen and text more sleek and to the point like how we redesigned the connection screen" — the phone's Allow, one line per fact (operator, 2026-10-15)
+
+**Subject.** `feat(settings): ask for the phone's Allow in one line per fact`
+
+**First body line.** `Phase 333.12.1: Allow, said in a few lines`
+
+**Semver.** Patch, unreleased, Mac only. What a person notices: Settings then Phone asks for Allow in a few labelled lines
+and one button, and an update that adds something the phone can do asks in one line. CHANGELOG item under
+`## Unreleased`: "Settings then Phone asks for Allow in a few short lines, with the full detail one click away."
+
+**Tier 2, with lighter checking** (his ruling of 2026-10-15): a rendered surface with no new state. The attack is the
+independent method, because these are the words refusal 8 rests on: a person at the Mac must be able to read everything
+that decides what runs before it answers the internet.
+
+**Charter.** His words of 2026-10-15, after the Allow block was shown to him: "can we make this screen and text more
+sleek and to the point like how we redesigned the connection screen, etc?", then, on the proposed design below, "ok i
+like your proposed design, ship it." **This replaces his ruling 2 of Phase 333.1 ("Keep today's block", SU6 in
+`build/conformance-pocket.mjs`, D18 in build/p33312/SPEC.md: every hashed line, both warnings, nothing behind a
+disclosure):** the hashed lines move behind a Details disclosure, byte for byte, and the face says each fact once.
+Builds on Phase 333.12 (`routesAllowed`, `routesWaiting`, the proposal's lines, `pocketDoorHonesty`,
+`POCKET_HONESTY_ADDED`) and lands before 346, which is the first update to show the waiting face.
+
+### The design he approved
+
+A waiting feature, on a published door (phones keep working):
+
+```
+Phone                                                   Published
+  New: start a session from your phone                   [Allow]
+  Your phone could start Claude Code or Codex in a project here.
+```
+
+First setup (`Read, then allow`) or a moved field (`Changed since you allowed it`):
+
+```
+Phone                                           Read, then allow
+  Reachable at   <public name>:<port>, by Tailscale
+  Your phone can see your sessions, type into them, answer questions,
+                 send a message, end a session
+  Phones         <each phone's label>
+  Alerts         through Apple, never what an agent asks
+                                                         [Allow]
+  Details ›
+```
+
+### The mechanism, for the spec to settle
+
+1. **One composer for the face**, in `src/shared/ipc/pocket.ts` beside `pocketDoorHonesty`, from the same fields the hash
+   covers and never a literal: Reachable at (public name, port and the program's name), Your phone can (one short
+   clause per allowed write and the reads, from `WRITE_CLAUSES` in `src/main/pocket/pairing.ts` and the read routes),
+   Phones (each label), Alerts (on through Apple, or off). A field the hash covers that the face does not name (the
+   tailnet, the program's full path, each key, each push address, the route ids, `bindAtLaunch`) is named in Details.
+2. **The waiting face** names each waiting route by a short title and one sentence, a new per-route table beside
+   `POCKET_HONESTY_ADDED`, add-only, with no row for a route that has none yet (346 adds Start's).
+3. **Details** is a native disclosure in the confirm block of `src/renderer/settings/PhoneSection.tsx` holding
+   `status.confirmLines` exactly as today and the two warnings (`POCKET_CONFIRM_WARNING`, `pocketDoorHonesty`), closed
+   at rest. Just enough words: no paragraph on the resting face.
+4. **The rows** in `src/renderer/settings/phone/steps.ts` keep their states (`Published`, `Read, then allow`,
+   `Changed since you allowed it`); only the confirm piece's body changes. The pairing card's comparison is not this
+   phase's.
+5. **The gates that move, on purpose:** SU6 rewritten to his new ruling (the face from the composer, Details holding the
+   hashed lines byte for byte), a rule that every hashed field moves either the face or Details, `conformance:phonecopy`
+   for the new words, `conformance:machines` (the settings folder), and `ablation:p313` arms for each moved clause.
+
+### The proof, run rather than read
+
+- The gates, then one app run beside the parent (333.12's landing commit): the first-setup face, the changed face after
+  a moved public name, and the waiting face with a planted route (build/p33312/plant.mjs), every word and rectangle read,
+  Details opened and its lines equal to `confirmLines` byte for byte, Allow pressed and the block gone.
+- The attack: each hashed field moved one at a time, and each must change the face or Details and read `changed` where it
+  did before; a route waiting with no title row must still draw its id rather than nothing.
+
+### What is NOT in this phase
+
+- No change to what Allow does, to the hash, the fields, the routes or the three confirm paths.
+- No change to the pairing card, and no phone code.
+- No release on its own: it ships with 346 in the Mac release that carries Start.
+
+---
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -43598,3 +43678,5 @@ cycle rather than only the evening it was written.
 - 2026-10-15, **PHASE 345 STARTED — one iPhone, several Macs** (unblocked by 333.4's landing), built to his answers of 2026-10-14, which override the entry where they differ: each paired Mac is its own space, switched from the bottom bar (replacing mechanism steps 3 and 4, the per-Mac Needs input sections and the Sessions title-row menu), with one Mac kept drawing exactly as today; up to four Macs; alerts with one Mac; the identity invariant stated. Full Tier 3 checking (two lenses: the attack with a hostile second door, and the two-door matrix beside build 10). 346 (Start from the phone) follows 333.12 and 345.
 
 - 2026-10-15, **347.1: THE `--` FIX IS IN, AND ONE SIBLING; HIS RULING "Add that refusal, quick check, land".** The quick check re-ran the reverify's census (1,320 wrong layouts to 0, every right layout kept), ran 1,478,812 layouts of its own and the live app (issue 40 opens brainstorming.md:134 from every row at 45 to 49), and found Python's textwrap with break_long_words=False still opening the file named before `--` when a path chunk overflowed its row (3,477 layouts, live 5 of 5; present in the round before too). The measured narrower refusal (bottom piece ending in a word character above a row starting `--` and a word character, with a full row above) catches 5,856 of 5,856 at a cost of 3,838 right layouts (1.59%), every one a path followed by a flag, where the parent opens nothing. Applied with tests, readings and ablations, then one more lighter check, then landing.
+
+- 2026-10-15, **QUEUED 333.12.1 — the phone's Allow, one line per fact** (his words: "can we make this screen and text more sleek and to the point like how we redesigned the connection screen", then on the design shown, "ok i like your proposed design, ship it"). It REPLACES his ruling 2 of Phase 333.1 ("Keep today's block"; nothing behind a disclosure): the hashed lines move behind Details byte for byte, the face says each fact once, and an update that adds a feature asks in one line ("New: start a session from your phone"). Full section above. Starts when 333.12 lands, with lighter checking (Tier 2); ships with 346. He was also told how many Allows a person meets: two on the first day (the Mac, then each phone), one optional after an update that adds a feature, one when an important field moves, none for removing a phone or turning alerts off.
