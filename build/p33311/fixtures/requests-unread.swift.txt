@@ -511,3 +511,180 @@ extension DoorLine {
         DoorLine(keeps: true) // unread
     }
 }
+
+// Every other spelling of a line (Phase 333.11.2, build/p33311/SPEC-2.md
+// §4.1), each refused on its own line: K1's `.init(keeps:)` on a stored
+// DoorLine, K2's `DoorLine.init`, `DoorLine.init` as a value and bare and
+// split over two lines, K4's typealias and the call through it, generic and
+// continued typealiases, `.init(keeps:)` in an initializer, `Self(keeps:)` in
+// an extension of DoorLine, stored DoorLines made any other way (a one-shot
+// line with a tail, a global), and a holder of kept lines held as a stored
+// property: made, made through `.init`, in a list, as a tuple, named in an
+// annotation, in a list's annotation, and as a global. Beside them, the shapes
+// no rule may refuse: a line handed in, an optional or unwrapped line set to
+// `nil` (no line), a stored one-shot line, a kept line across two lines, a
+// typealias that ends before a DoorLine, an `init`, `init?`, `init!`, `func`,
+// generic `func`, `subscript` and enum `case` declaring `keeps:`, and a typed
+// line and a holder in a function's locals.
+typealias KeptLine = DoorLine // unread
+
+typealias Pair<T> = (T, DoorLine) // unread
+
+typealias Spread = Array< // unread
+    DoorLine
+>
+
+typealias Both = Sendable & // unread
+    DoorLine
+
+typealias Either = Sendable // unread
+    & DoorLine
+
+typealias Later = // unread
+    DoorLine
+
+typealias Member = Tortie. // unread
+    DoorLine
+
+typealias Member2 = Tortie // unread
+    .DoorLine
+
+typealias Maker = (Bool) -> // unread
+    DoorLine
+
+typealias Maker2 = (Bool) // unread
+    -> DoorLine
+
+typealias Count = Int
+let afterAlias = DoorLine.once()
+
+final class Spellings {
+    private let extra: DoorLine = .init(keeps: true) // unread
+    private let viaInit = DoorLine.init(keeps: true) // unread
+    private let make = DoorLine.init(keeps:) // unread
+    private let bare = DoorLine.init // unread
+    private let split = DoorLine // unread
+        .init(keeps: true) // unread
+    private let aliased = KeptLine(keeps: true) // unread
+    private let once: DoorLine = DoorLine.once() // unread
+    private var maybe: DoorLine? = nil
+    private var forced: DoorLine! = nil
+    private let tail: DoorLine = DoorLine(keeps: false).self // unread
+    private let oneShot: DoorLine = DoorLine(keeps: false)
+    private let handed: DoorLine
+    private let line: DoorLine
+
+    init(handed: DoorLine) {
+        self.handed = handed
+        self.line = .init(keeps: true) // unread
+    }
+
+    func locals() {
+        let local: DoorLine = DoorLine.once()
+        let pairHere = LinePair()
+    }
+}
+
+extension DoorLine {
+    static func fresh() -> DoorLine {
+        Self(keeps: false) // unread
+    }
+}
+
+let globalOnce: DoorLine = DoorLine.once() // unread
+
+final class Late {
+    private let late: DoorLine =
+        DoorLine(keeps: true)
+}
+
+final class LinePair {
+    let a = DoorLine(keeps: true)
+    let b = DoorLine(keeps: true)
+}
+
+final class PairHolder {
+    private let pair = LinePair() // unread
+    private let viaInitPair = LinePair.init() // unread
+    private let both = [LinePair(), LinePair()] // unread
+    private let (left, right) = (LinePair(), LinePair()) // unread
+    private let other: LinePair? // unread
+    private let many: [LinePair] // unread
+}
+
+let globalPair = LinePair() // unread
+
+final class Flags {
+    let flag: Bool
+
+    init(keeps: Bool) {
+        flag = keeps
+    }
+
+    init?(keeps: Int) {
+        flag = keeps > 0
+    }
+
+    init!(keeps: String) {
+        flag = !keeps.isEmpty
+    }
+
+    func make(keeps: Bool) -> Bool {
+        keeps
+    }
+
+    func pick<T>(keeps: T) -> T {
+        keeps
+    }
+
+    subscript(keeps: Bool) -> Int {
+        0
+    }
+}
+
+enum Kept {
+    case kept(keeps: Bool)
+}
+
+// The fix round (build/p33311/SPEC-2.md §As built, "The fix round"), the
+// verifier's spellings no rule refused: a kept line held through a superclass
+// and a holder held through its subclass (R-h, refused at the subclass), a
+// holder named through a typealias (R-g, refused at the alias), a generic
+// holder specialised and a holder made through `.self.init()` (R-f past
+// `<…>` and `.self`), and `Self()` in a holder's own extension (R-f's `Self`).
+// Beside them, a holder's metatype held, which constructs nothing.
+class LineBase {
+    let k = DoorLine(keeps: true)
+}
+
+final class LineChild: LineBase { // unread
+}
+
+class OpenPair {
+    let a = DoorLine(keeps: true)
+    let b = DoorLine(keeps: true)
+}
+
+final class MorePair: OpenPair { // unread
+}
+
+typealias PairAlias = LinePair // unread
+
+typealias Pairs = [LinePair] // unread
+
+final class GenericPair<T> {
+    let a = DoorLine(keeps: true)
+    let b = DoorLine(keeps: true)
+}
+
+final class MadeOtherwise {
+    private let generic = GenericPair<Int>() // unread
+    private let nested = GenericPair<[Int]>.init() // unread
+    private let viaSelf = LinePair.self.init() // unread
+    private let genericSelf = GenericPair<Int>.self.init() // unread
+    private let metatype = LinePair.self
+}
+
+extension LinePair {
+    static let shared = Self() // unread
+}

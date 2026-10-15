@@ -56,6 +56,52 @@
  * function once a committed copy holds a record), and M8, refusing a bound
  * re-ruled, raised, its least value lowered or a path unbounded.
  *
+ * PHASE 333.11.2 (build/p33311/SPEC-2.md §5) adds the plants 333.11.1's
+ * reverify found green, each with a REAL commit in the clone's own
+ * repository rather than a stand-in git: R1, the frozen wire renamed
+ * `launch-b.wire.json` with its `say` limit resealed lower and the Mac
+ * lowered to match, committed; R2, the same with the label renamed too; and
+ * V1h (the entry's V1; `V1` already names a 333.11.1 arm), the frozen
+ * `odd-id` request dropped from the set's vectors, the wire repinned and
+ * resealed, and main's session arm refusing that id, committed: each red on
+ * F1, because a set is its LABEL and every request a committed copy's vectors
+ * hold must stay. Beside them the same plants uncommitted (R1w, R2w, V1w,
+ * V1w with the HEAD copy's seal appended to its history as `--replace` writes
+ * it, so F1 (b) alone holds it), and the entry's controls that keep their
+ * clause: R1c (the lowering without the rename, committed) red on F1, V1c
+ * (the Mac change alone) red on R5, and K3 (a `lazy var` kept line) red on R4.
+ * K1, K2 and K4 add a fourth kept line spelled `: DoorLine = .init(keeps:)`,
+ * `DoorLine.init(keeps:)` and through `typealias KeptLine = DoorLine`, and K6
+ * holds a type that holds two kept lines; each is red on P0, because the
+ * reader refuses every spelling it does not count. The spec's own: F1d (two
+ * sets holding one label, red on F1 and F3), F1x (the clone's own gate
+ * retiring `launch` while a set still holds it), F3o (a new set beside
+ * `launch` with FROZEN_SETS_FLOOR unraised, red on F3 with F1 green), and X7
+ * and X8, the clone's reader no longer refusing a `keeps:` call or a held
+ * holder, refused by its own `requests-unread` fixture. The gate builder's
+ * own, so every red condition it adds is seen red once: F1hr (F1h's hand
+ * edit under a new name, red on F1 (a) alone, because a set's copy at HEAD
+ * is found by its label) and F1m (RETIRED_SETS naming a key that is not a
+ * label, with no ruling). The CONTROL F1r is a retirement done right, which
+ * must read green: a second set and the floor at 2 committed, then the set's
+ * file removed, its label named in the clone gate's RETIRED_SETS and the
+ * floor back at 1. Mode M9 drives `--replace` refusing a set whose vectors
+ * would drop or change a request the replaced set's vectors hold, and M10
+ * (the gate builder's own) `--replace` refusing, writing nothing, when the
+ * replaced set's own vectors do not hold together.
+ *
+ * THE FIX ROUND (SPEC-2 §As built, "The fix round") adds the verifier's
+ * kept-line spellings that every clause passed, each red on P0: K7, a kept
+ * line PairedScreenDoor holds through a superclass; K8, a holder held
+ * through its subclass; K9, a holder named through a typealias; K10, a
+ * generic holder specialised (`GenericPair<Int>()`); K11, a holder made as
+ * `LinePair.self.init()`; and K12, a second door held as `Self()` in the
+ * door's own extension. X9 to X14 break each new reader rule in the clone's
+ * reader (R-h, R-g, R-f past `<…>`, past `.self` and through `Self`, and R-e's
+ * `nil`), each refused by the `requests-unread` fixture. The CONTROL K5n, an
+ * optional DoorLine set to `nil` beside the door's three kept lines, must
+ * read green, because `nil` makes no line.
+ *
  * PHASE 333.12 (build/p33312/SPEC.md §6.4) adds the attack on R7 and R8, the
  * allowed set and the route ledger: R7a (`LEGACY_ALLOWED_ROUTES` without
  * `keys`, red on R7 and on R2, whose launch served set then refuses every
@@ -64,22 +110,40 @@
  * 404), R8a (a ledger row's path moved against the frozen set), R8h (the
  * history half driven through `ledgerLosses` with a PLANTED older copy whose
  * row differs, handed to the gate by `--ledger-copy`) and R8g (a ledger row
- * edited in the clone and read against the REAL committed copies through
- * git; until a committed copy of the ledger exists it prints `not run: no
- * committed copy of the ledger yet` and counts as neither a pass nor a fail),
- * and one CONTROL, R8c, a twelfth ledger row appended, green: the ledger may
- * only add. An arm's `args` are handed to the gate after `--json`, and a
- * `create` may be a function of the clone's directory.
+ * edited in the clone and read against the clone's committed copy through
+ * git, from the same reads F1's copies come from), and one CONTROL, R8c, a
+ * twelfth ledger row appended, green: the ledger may only add. Joined with
+ * Phase 333.11.2, the clone is a repository of its own, so R8gh is a HISTORY
+ * arm: a ledger row edited and COMMITTED, so the working ledger equals the
+ * copy at HEAD and only the base commit's copy holds it, red on R8 because
+ * R8 reads every committed copy and not only HEAD's. R8g and R8gh print `not
+ * run: no committed copy of the ledger` and count as neither a pass nor a
+ * fail when the tree holds no ledger to commit. An arm's `args` are handed to
+ * the gate after `--json`, and a `create` may be a function of the clone's
+ * directory.
  *
- * `git` IS REQUIRED. The clone is a `cp -Rc` of the tree, so its `.git` file
- * reaches the same history, and F1 compares the clone's frozen set with
- * every committed copy of it. With no `git` the gate only notes it, so G6 and
- * the `alsoRed` halves read MISS and the run fails, never passes.
+ * `git` IS REQUIRED, and the clone is a repository of ITS OWN (SPEC-2 D11).
+ * After the copy (and `--into`), the clone's own copy of `.git` is removed:
+ * a worktree's FILE, which reaches the operator's history, or (since the fix
+ * round) a checkout's or a `git clone`'s DIRECTORY, which `cp -Rc` copied
+ * whole, so removing it touches nothing of the original; only as `.git`
+ * directly inside this run's own `ablation-<pid>` directory, and a link is
+ * removed, never followed. Then `git init -b p33311`, `git add -A` and one
+ * commit make BASE, with no global or system configuration, no hooks, no
+ * signing and a made-up author. Every arm is judged against that history,
+ * and nothing reaches the worktree's. A HISTORY arm (`commit: [edits]`)
+ * plants and commits those edits as a second commit, plants its own edits
+ * uncommitted, and is put back with `git reset --hard BASE` and `git clean
+ * -fdq` (never `-x`, which would remove node_modules), then `git status
+ * --porcelain` must be empty and HEAD must be BASE, or the run stops. With no
+ * `git` the run fails here, never passes.
  *
- * Between arms every planted file is put back and its sha256 compared with
- * the original, so no arm sees another's plant. The clone is removed in a
- * `finally`, whatever happened. Every process it starts it waits for
- * (`spawnSync`), so nothing outlives it.
+ * Between plain arms every planted file is put back and its sha256 compared
+ * with the original, so no arm sees another's plant, and `git status
+ * --porcelain` is read once after the last arm and mode. The clone is removed
+ * in a `finally`, whatever happened (and only a clone this run made: an
+ * `ablation-<pid>` already there stops the run before the copy). Every
+ * process it starts it waits for (`spawnSync`), so nothing outlives it.
  *
  *   node build/p33311/ablation.mjs [--scratch <dir>] [--into <dir>] [--only id,id]
  *
@@ -88,16 +152,17 @@
  * into the clone's `ios/TortieTests/Fixtures/frozen/` first (a builder's
  * scratch set before the integrator freezes); `--only` runs the named arms.
  * It prints one line per arm and `ABLATION_P33311: <red>/<arms> red,
- * <green>/<controls> controls green` (76 arms and 13 controls since Phase
- * 333.12, R8g among the arms once a committed ledger exists and `not run`
- * before, and modes M1 to M8); any arm that does not read as it must exits 1.
+ * <green>/<controls> controls green` (109 arms and 15 controls, and modes M1
+ * to M10, since Phase 333.12 joined Phase 333.11.2's fix round; R8g and R8gh
+ * among the arms, or `not run` when the tree holds no route ledger); any arm
+ * that does not read as it must exits 1.
  */
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { canonical } from './swift-wire.mjs';
@@ -120,6 +185,45 @@ const WIRE = `${FROZEN}/launch.wire.json`;
 const VECTORS = 'ios/TortieTests/Fixtures/vectors.json';
 /** A file the clone does not have, planted to hold an old value (A4f, R4f). */
 const DECOY = 'p33311-decoy.ts';
+/** The clone gate's own copy, which `own` arms plant into (F1x, F1m, F1r). */
+const OWN_GATE = 'build/assert-door-only-adds.mjs';
+const APP = 'ios/Tortie/App/TortieApp.swift';
+/** PairedScreenDoor's third kept line, and the line a K arm adds after it. */
+const SIDE = '    private let side = DoorLine(keeps: true)\n';
+const DOOR = 'final class PairedScreenDoor: ScreenDoor {\n';
+const SESSION = { file: 'src/main/pocket/ipc.ts', find: 'return id === null ? null : await routes.session(id);', to: 'return id === null || !/^[0-9a-f-]+$/.test(id) ? null : await routes.session(id);' };
+/** The route ledger's end row given another clause (R8g, R8gh, Phase 333.12): an edit, never an append. */
+const LEDGER_END_CLAUSE = { file: 'src/main/pocket/route-ledger.ts', find: "clause: 'end a session'", to: "clause: 'end any session'" };
+
+/**
+ * `git` in the clone, which is a repository of its own (SPEC-2 §5.1): no
+ * global or system configuration, no prompt, none of the variables a git
+ * hook hands a build, no hooks, no signing and a made-up author, so nothing
+ * reads the operator's settings and nothing reaches his history.
+ */
+const CLONE_GIT_ENV = (() => {
+  const env = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_TERMINAL_PROMPT: '0' };
+  for (const k of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_COMMON_DIR', 'GIT_OBJECT_DIRECTORY', 'GIT_ALTERNATE_OBJECT_DIRECTORIES']) delete env[k];
+  return env;
+})();
+const CLONE_GIT_FLAGS = ['-c', 'user.name=p33311', '-c', 'user.email=p33311@example.invalid', '-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=/dev/null'];
+/** One git command in the clone; throws why it failed. */
+function cloneGit(...args) {
+  const run = spawnSync('git', [...CLONE_GIT_FLAGS, '-C', CLONE, ...args], { encoding: 'utf8', timeout: 120_000, maxBuffer: 64 * 1024 * 1024, env: CLONE_GIT_ENV });
+  if (run.error !== undefined) throw new Error(`git ${args[0]} could not run in the clone (${String(run.error.code ?? run.error.message)}): the ablation needs git`);
+  if (run.status !== 0) throw new Error(`git ${args.join(' ')} exited ${String(run.status)} in the clone: ${String(run.stderr).trim().split('\n')[0]}`);
+  return String(run.stdout).trim();
+}
+/** The clone's one base commit, set once the clone is a repository. */
+let BASE = null;
+/** A history arm's restore: back to BASE, nothing untracked, or the run stops. */
+function resetToBase() {
+  cloneGit('reset', '-q', '--hard', BASE);
+  cloneGit('clean', '-fdq');
+  const status = cloneGit('status', '--porcelain');
+  const head = cloneGit('rev-parse', 'HEAD');
+  if (status !== '' || head !== BASE) throw new Error(`the clone did not return to its base commit (HEAD ${head.slice(0, 8)}, ${status === '' ? 'clean' : `status: ${status.split('\n').slice(0, 3).join(' | ')}`}), so the run stops`);
+}
 
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 /** The seal the gate checks (F1), recomputed for an arm that reseals on purpose. */
@@ -134,17 +238,68 @@ const reseal = (wire) => {
  * once), `{ file, re, to }` (a pattern that must match exactly once),
  * `{ file, remove: true }`, `{ file, create: text }` (a file the clone does
  * not have; the restore removes it), `{ file, json: (value) => value }` and
- * `{ file, bytes: (text) => text }`; `edits: []` plants nothing (Z0).
+ * `{ file, bytes: (text) => text }`; `edits: []` plants nothing (Z0). Since
+ * Phase 333.11.2, `{ file, renameTo }` (the restore puts `file` back and
+ * removes `renameTo`) and `{ file, from, json? }` (`from` copied to a `file`
+ * the clone does not have, optionally transformed; the restore removes it).
  * `regen` regenerates the clone's vectors after the plant. `alsoGreen` names
  * clauses that must stay green, `alsoRed` clauses that must read red beside
  * the arm's own (Phase 333.11.1: each of the two holds the plant alone).
  * A reader arm's `fixture` names the fixture whose proof must refuse it.
+ * `commit: [edits]` makes a HISTORY arm: those edits are planted and
+ * committed in the clone's own repository first (SPEC-2 §5.2), and the arm is
+ * put back by a reset to BASE; `own: true` judges it with the clone's own gate.
  */
 
 /** A frozen set's `macLimits` row, by its Mac constant. */
 const limitRow = (w, mac) => w.macLimits.find((r) => r.mac === mac);
 /** A frozen set's request record, by its route id. */
 const recordOf = (w, route) => w.requests.find((r) => r.route === route);
+/** The `say` cap resealed at 16,384 in the wire, and the Mac lowered to match (G6, R1c). */
+const SAY_LOWER = [
+  { file: WIRE, json: (w) => (limitRow(w, 'POCKET_WRITE_BODY_CAPS.say').value = 16384, reseal(w)) },
+  { file: 'src/main/pocket/door/limits.ts', find: 'say: 32_768', to: 'say: 16_384' }
+];
+/** SAY_LOWER, the wire renamed launch-b.wire.json, and (R2) its label renamed too. */
+const SAY_RENAMED = (label) => [
+  ...SAY_LOWER,
+  ...(label === null ? [] : [{ file: WIRE, json: (w) => reseal({ ...w, label }) }]),
+  { file: WIRE, renameTo: `${FROZEN}/launch-b.wire.json` }
+];
+/**
+ * The frozen `odd-id` request dropped from the set's vectors, the wire's
+ * `vectors.sha256` repinned and resealed, and main's session arm refusing an
+ * id outside [0-9a-f-]; with `asReplace`, the replaced seal appended to the
+ * wire's history as `--replace` writes it (V1w), so (a) passes.
+ */
+const ODD_DROPPED = (asReplace) => [
+  { file: `${FROZEN}/launch.vectors.json`, json: (v) => ((v.requests = v.requests.filter((r) => r.name !== 'odd-id')), v) },
+  { file: WIRE, json: (w) => {
+    const was = { seal: w.seal, phoneBuild: w.phoneBuild, macVersion: w.macVersion, why: 'ablation: V1w' };
+    w.vectors.sha256 = sha256(readFileSync(join(CLONE, FROZEN, 'launch.vectors.json')));
+    if (asReplace) w.history = [...w.history, was];
+    return reseal(w);
+  } },
+  SESSION
+];
+/** The reader's two new refusals, broken in the clone's own reader (X7: R-d, X8: R-f). */
+const READER = 'build/p33311/swift-wire.mjs';
+const X7_EDIT = { file: READER, find: '      refuse(src, toks[p].at, R_D);\n', to: '      void R_D;\n' };
+const X8_EDIT = { file: READER, find: '    const held = named ?? made;\n', to: '    const held = undefined;\n' };
+/**
+ * The fix round's reader rules, each broken in the clone's own reader: R-h
+ * (X9), R-g (X10), R-f past `<…>` (X11), past `.self` (X12) and through
+ * `Self` (X13), and R-e's `nil` (X14, which refuses an optional set to nil
+ * again, so the fixture's two lines that must NOT be unread are).
+ */
+const X9_EDIT = { file: READER, find: 'const inherited = [...d.inherits].find((n) => holders.has(n));', to: 'const inherited = undefined;' };
+const X10_EDIT = { file: READER, find: 'const h = a.toks.find((t) => isId(t) && holders.has(t.v));', to: 'const h = undefined;' };
+const X11_EDIT = { file: READER, find: "  if (isOp(ts[k], '<')) {\n", to: '  if (false) {\n' };
+const X12_EDIT = { file: READER, find: "  if (isOp(ts[k], '.') && isId(ts[k + 1], 'self')) k += 2;\n", to: '  void 0;\n' };
+const X13_EDIT = { file: READER, find: 'const own = s.owner !== null && holders.has(lastOf(s.owner.qual)) ? lastOf(s.owner.qual) : null;', to: 'const own = null;' };
+const X14_EDIT = { file: READER, find: "const noLine = t.length === 2 && s.init !== null && s.init.length === 1 && isId(s.init[0], 'nil');", to: 'const noLine = false;' };
+/** The holder of two kept lines the K arms plant beside PairedScreenDoor. */
+const PAIR = (head) => `${head} {\n    let a = DoorLine(keeps: true)\n    let b = DoorLine(keeps: true)\n}\n\n`;
 const ARMS = [
   // F: the frozen sets themselves
   { id: 'F1', clause: 'F1', what: 'a field deleted from types.PocketBlockedAnswer.fields, the seal left as it was', edits: [{ file: `${FROZEN}/launch.wire.json`, json: (w) => (delete w.types.PocketBlockedAnswer.fields.ageNote, w) }] },
@@ -293,6 +448,83 @@ const ARMS = [
     { file: 'src/shared/ipc/pocket.ts', find: 'export const POCKET_SCREEN_MAX_COLS = 512;', to: 'export const POCKET_SCREEN_MAX_COLS = 1024;' }
   ] },
   { id: 'X6', reader: true, fixture: 'requests-unread', what: 'the reader counts a kept line made by a factory or an expression as held (the reverify\'s W18)', edits: [{ file: 'build/p33311/swift-wire.mjs', find: 'const heldWhereMade = storedInitializer(toks, match, holder.open, i, name);', to: 'const heldWhereMade = true;' }] },
+  // Phase 333.11.2 (SPEC-2 §5.3): the plants 333.11.1's reverify found green.
+  // A SET IS ITS LABEL: a rename or a relabel committed is judged against
+  // every copy its label ever had (R1, R2), and every request a committed
+  // copy's vectors hold stays (V1h, the entry's V1), each committed in the
+  // clone's own repository and each red on F1 ...
+  { id: 'R1', clause: 'F1', what: "the say limit resealed at 16384 (and limits.ts), the wire renamed launch-b.wire.json with its label kept, committed", commit: SAY_RENAMED(null), edits: [] },
+  { id: 'R2', clause: 'F1', what: 'R1 with the label renamed launch-b too, committed', commit: SAY_RENAMED('launch-b'), edits: [] },
+  { id: 'V1h', clause: 'F1', what: "the entry's V1: the odd-id request dropped from launch.vectors.json, the wire repinned and resealed, and main's session arm refusing that id, committed", commit: ODD_DROPPED(false), edits: [] },
+  // ... the controls that keep their clause ...
+  { id: 'R1c', clause: 'F1', what: 'the say limit resealed at 16384 (and limits.ts), no rename, committed', commit: [...SAY_LOWER], edits: [] },
+  { id: 'V1c', clause: 'R5', what: "main's session arm refusing an id outside [0-9a-f-] alone (the frozen odd-id request still in the vectors)", edits: [SESSION] },
+  { id: 'K3', clause: 'R4', what: 'a fourth kept line as a lazy var, which the reader does not count', edits: [{ file: APP, find: SIDE, to: `${SIDE}    private lazy var extra = DoorLine(keeps: true)\n` }] },
+  // ... the same plants left uncommitted ...
+  { id: 'R1w', clause: 'F1', what: 'R1 uncommitted: red on (a) and (b)', edits: SAY_RENAMED(null) },
+  { id: 'R2w', clause: 'F1', what: 'R2 uncommitted: red on (c), launch gone', edits: SAY_RENAMED('launch-b') },
+  { id: 'V1w', clause: 'F1', what: "V1h uncommitted, with the HEAD copy's seal appended to history as --replace writes it, so (a) passes and (b) alone holds it", edits: ODD_DROPPED(true) },
+  // ... every spelling of a kept line counted or unread (red on P0) ...
+  { id: 'K1', clause: 'P0', what: 'a fourth kept line spelled private let extra: DoorLine = .init(keeps: true)', edits: [{ file: APP, find: SIDE, to: `${SIDE}    private let extra: DoorLine = .init(keeps: true)\n` }] },
+  { id: 'K2', clause: 'P0', what: 'a fourth kept line spelled private let extra = DoorLine.init(keeps: true)', edits: [{ file: APP, find: SIDE, to: `${SIDE}    private let extra = DoorLine.init(keeps: true)\n` }] },
+  { id: 'K4', clause: 'P0', what: 'a fourth kept line spelled KeptLine(keeps: true) through typealias KeptLine = DoorLine', edits: [
+    { file: APP, find: SIDE, to: `${SIDE}    private let extra = KeptLine(keeps: true)\n` },
+    { file: APP, find: DOOR, to: `typealias KeptLine = DoorLine\n\n${DOOR}` }
+  ] },
+  { id: 'K6', clause: 'P0', what: 'PairedScreenDoor holds a LinePair, a type holding two kept lines', edits: [
+    { file: APP, find: SIDE, to: `${SIDE}    private let pair = LinePair()\n` },
+    { file: APP, find: DOOR, to: `final class LinePair {\n    let a = DoorLine(keeps: true)\n    let b = DoorLine(keeps: true)\n}\n\n${DOOR}` }
+  ] },
+  // ... and, since the fix round (SPEC-2 §As built, "The fix round"), the
+  // verifier's spellings every clause passed: a kept line held through a
+  // superclass (K7, its KI1), a holder held through its subclass (K8, KI2),
+  // named through a typealias (K9, KA1), specialised (K10, KG1), made through
+  // `.self.init()` (K11, KS1) and through `Self()` in the door's own
+  // extension (K12), each red on P0 ...
+  { id: 'K7', clause: 'P0', what: 'a fourth kept line held through a superclass: class DoorBase holds one, and PairedScreenDoor inherits it', edits: [
+    { file: APP, find: DOOR, to: 'class DoorBase {\n    let extra = DoorLine(keeps: true)\n}\n\nfinal class PairedScreenDoor: DoorBase, ScreenDoor {\n' }
+  ] },
+  { id: 'K8', clause: 'P0', what: 'PairedScreenDoor holds a MorePair, a subclass of LinePair, which holds two kept lines', edits: [
+    { file: APP, find: SIDE, to: `${SIDE}    private let pair = MorePair()\n` },
+    { file: APP, find: DOOR, to: `${PAIR('class LinePair')}final class MorePair: LinePair {}\n\n${DOOR}` }
+  ] },
+  { id: 'K9', clause: 'P0', what: 'PairedScreenDoor holds a LinePair named through typealias Pair = LinePair', edits: [
+    { file: APP, find: SIDE, to: `${SIDE}    private let pair = Pair()\n` },
+    { file: APP, find: DOOR, to: `${PAIR('final class LinePair')}typealias Pair = LinePair\n\n${DOOR}` }
+  ] },
+  { id: 'K10', clause: 'P0', what: 'PairedScreenDoor holds a GenericPair<Int>(), a generic type holding two kept lines', edits: [
+    { file: APP, find: SIDE, to: `${SIDE}    private let pair = GenericPair<Int>()\n` },
+    { file: APP, find: DOOR, to: `${PAIR('final class GenericPair<T>')}${DOOR}` }
+  ] },
+  { id: 'K11', clause: 'P0', what: 'PairedScreenDoor holds a LinePair made as LinePair.self.init()', edits: [
+    { file: APP, find: SIDE, to: `${SIDE}    private let pair = LinePair.self.init()\n` },
+    { file: APP, find: DOOR, to: `${PAIR('final class LinePair')}${DOOR}` }
+  ] },
+  { id: 'K12', clause: 'P0', what: 'a second PairedScreenDoor held as static let spare = Self() in its own extension', edits: [
+    { file: APP, find: DOOR, to: `extension PairedScreenDoor {\n    static let spare = Self()\n}\n\n${DOOR}` }
+  ] },
+  // ... and the spec's own, so every red condition the phase adds is seen
+  // red once: a hand edit under a new name (F1 (a) by label, which no
+  // other arm holds alone); one label, two sets; a retired label held;
+  // RETIRED_SETS malformed; a set beside launch with the floor unraised; and
+  // the reader's two new refusals broken in the clone's own reader.
+  { id: 'F1hr', clause: 'F1', what: "F1h under a new name: the wire's history emptied, resealed and renamed launch-b.wire.json with its label kept, so (a) holds it to the HEAD copy of its label", edits: [
+    { file: WIRE, json: (w) => ((w.history = []), reseal(w)) },
+    { file: WIRE, renameTo: `${FROZEN}/launch-b.wire.json` }
+  ] },
+  { id: 'F1d', clause: 'F1', alsoRed: ['F3'], what: "launch-copy.wire.json holding the wire's exact bytes: one label, two sets", edits: [{ file: `${FROZEN}/launch-copy.wire.json`, from: WIRE }] },
+  { id: 'F1x', clause: 'F1', own: true, what: "the clone's gate retires launch while launch.wire.json still holds it", edits: [{ file: OWN_GATE, find: 'const RETIRED_SETS = Object.freeze({});', to: "const RETIRED_SETS = Object.freeze({ launch: '2026-10-15: ablation' });" }] },
+  { id: 'F1m', clause: 'F1', own: true, what: "the clone's gate's RETIRED_SETS names Launch, not a label, with no ruling", edits: [{ file: OWN_GATE, find: 'const RETIRED_SETS = Object.freeze({});', to: "const RETIRED_SETS = Object.freeze({ Launch: '' });" }] },
+  { id: 'F3o', clause: 'F3', alsoGreen: ['F1'], what: 'second.wire.json, the wire with the label second and resealed, beside launch with FROZEN_SETS_FLOOR unraised (a new set: F1 notes it)', edits: [{ file: `${FROZEN}/second.wire.json`, from: WIRE, json: (w) => reseal({ ...w, label: 'second' }) }] },
+  { id: 'X7', reader: true, fixture: 'requests-unread', what: 'the reader stops refusing a call passing keeps: that is not DoorLine(keeps:) (R-d)', edits: [X7_EDIT] },
+  { id: 'X8', reader: true, fixture: 'requests-unread', what: 'the reader stops refusing a stored property holding a type that holds kept lines (R-f)', edits: [X8_EDIT] },
+  // ... and the fix round's reader rules, each broken in the clone's reader.
+  { id: 'X9', reader: true, fixture: 'requests-unread', what: 'the reader stops refusing a type that inherits a type holding kept lines (R-h)', edits: [X9_EDIT] },
+  { id: 'X10', reader: true, fixture: 'requests-unread', what: 'the reader stops refusing a typealias naming a type that holds kept lines (R-g)', edits: [X10_EDIT] },
+  { id: 'X11', reader: true, fixture: 'requests-unread', what: "the reader's R-f stops reading past a generic argument clause H<…>", edits: [X11_EDIT] },
+  { id: 'X12', reader: true, fixture: 'requests-unread', what: "the reader's R-f stops reading past H.self", edits: [X12_EDIT] },
+  { id: 'X13', reader: true, fixture: 'requests-unread', what: "the reader's R-f stops reading Self as the holder in its own body or extension", edits: [X13_EDIT] },
+  { id: 'X14', reader: true, fixture: 'requests-unread', what: "the reader's R-e refuses an optional DoorLine set to nil again", edits: [X14_EDIT] },
   // Controls: adding is allowed
   { id: 'C1', control: true, what: 'the Mac adds macVersion?: string to PocketBlockedAnswer and the blocked composer sends it', regen: true, edits: [
     { file: 'src/shared/ipc/pocket.ts', find: 'one spelling, handed over rather than spelled by a client.\n   */\n  ageNote: string;', to: 'one spelling, handed over rather than spelled by a client.\n   */\n  ageNote: string;\n  macVersion?: string;' },
@@ -313,6 +545,9 @@ const ARMS = [
   { id: 'C6', control: true, what: 'the blocked arm reads an optional query name no old phone sends', edits: [{ file: 'src/main/pocket/ipc.ts', find: 'return routes.blocked();', to: "return query.get('v') === 'later' ? null : routes.blocked();" }] },
   // Phase 333.11.1: the replay reaches no further than the launch phone.
   { id: 'Z0', control: true, what: 'nothing planted', edits: [] },
+  // The fix round: an optional line set to nil makes no line (the
+  // verifier's KV2), so honest code written that way leaves P0 green.
+  { id: 'K5n', control: true, what: 'an optional DoorLine set to nil beside the three kept lines, which makes no line', edits: [{ file: APP, find: SIDE, to: `${SIDE}    private var spare: DoorLine? = nil\n` }] },
   { id: 'V5', control: true, what: 'the turns arm refuses a query with no limit, which the phone always sends', edits: [{ file: 'src/main/pocket/ipc.ts', find: 'return id === null\n              ? null\n              : await routes.turns(', to: "return id === null || query.get('limit') === null\n              ? null\n              : await routes.turns(" }] },
   { id: 'V6', control: true, what: 'the sessions arm refuses a query missing show, group or sort, which the phone always sends', edits: [{ file: 'src/main/pocket/ipc.ts', find: 'return routes.sessions(query);', to: "return query.get('show') === null || query.get('group') === null || query.get('sort') === null ? null : routes.sessions(query);" }] },
   { id: 'V7', control: true, what: 'the sessions arm refuses show=archived, which the phone never sends', edits: [{ file: 'src/main/pocket/ipc.ts', find: 'return routes.sessions(query);', to: "return query.get('show') === 'archived' ? null : routes.sessions(query);" }] },
@@ -320,18 +555,31 @@ const ARMS = [
   { id: 'G2', control: true, what: 'the Mac raises POCKET_WRITE_BODY_CAPS.say to 65_536', edits: [{ file: 'src/main/pocket/door/limits.ts', find: 'say: 32_768', to: 'say: 65_536' }] },
   // PHASE 333.12 (build/p33312/SPEC.md §6.4): R7, a launch-shaped store keeps
   // the eleven's hash and serves the launch routes; R8, the route ledger only
-  // adds. R8g needs a committed copy of the ledger and says `not run` before.
+  // adds. R8g and R8gh read the clone's committed copies of the ledger and say
+  // `not run` when there is none; R8gh is a HISTORY arm, so R8 is seen reading
+  // a copy that is not HEAD's.
   { id: 'R7a', clause: 'R7', alsoRed: ['R2'], what: 'LEGACY_ALLOWED_ROUTES without keys', edits: [{ file: 'src/shared/ipc/pocket.ts', find: "  'end',\n  'keys',\n  'pair',", to: "  'end',\n  'pair'," }] },
   { id: 'R7b', clause: 'R7', alsoRed: ['R5'], what: 'allowedRoutesFor answers [] for a store that never recorded a set', edits: [{ file: 'src/main/pocket/allowed-routes.ts', find: '  return stored ?? LEGACY_ALLOWED_ROUTES;', to: '  return stored ?? [];' }] },
   { id: 'R8a', clause: 'R8', what: "the ledger's turns row moved to /v1/turnz against the frozen set", edits: [{ file: 'src/main/pocket/route-ledger.ts', find: "path: '/v1/turns'", to: "path: '/v1/turnz'" }] },
   { id: 'R8h', clause: 'R8', args: ['--ledger-copy', 'p33312-ledger-copy.ts'], what: 'a planted older copy of the ledger whose end row said another clause, through the pure ledgerLosses', edits: [{ file: 'p33312-ledger-copy.ts', create: (clone) => readFileSync(join(clone, 'src/main/pocket/route-ledger.ts'), 'utf8').replace("clause: 'end a session'", "clause: 'end any session'") }] },
-  { id: 'R8g', clause: 'R8', committedLedger: true, what: "a ledger row's clause edited in the clone, read against the REAL committed copies through git", edits: [{ file: 'src/main/pocket/route-ledger.ts', find: "clause: 'end a session'", to: "clause: 'end any session'" }] },
-  { id: 'R8c', control: true, what: 'a twelfth ledger row appended (the ledger only adds)', edits: [{ file: 'src/main/pocket/route-ledger.ts', find: "clause: 'type into any session as you would at this Mac' }\n]);", to: "clause: 'type into any session as you would at this Mac' },\n  { id: 'probe', method: 'GET', path: '/v1/probe', reads: true, signed: true, windowOnly: false, bodyCap: 1024, clause: null }\n]);" }] }
+  { id: 'R8g', clause: 'R8', committedLedger: true, what: "a ledger row's clause edited in the clone, read against its committed copy through git", edits: [LEDGER_END_CLAUSE] },
+  { id: 'R8gh', clause: 'R8', committedLedger: true, what: "a ledger row's clause edited and COMMITTED, so only the base commit's copy holds it", commit: [LEDGER_END_CLAUSE], edits: [] },
+  { id: 'R8c', control: true, what: 'a twelfth ledger row appended (the ledger only adds)', edits: [{ file: 'src/main/pocket/route-ledger.ts', find: "clause: 'type into any session as you would at this Mac' }\n]);", to: "clause: 'type into any session as you would at this Mac' },\n  { id: 'probe', method: 'GET', path: '/v1/probe', reads: true, signed: true, windowOnly: false, bodyCap: 1024, clause: null }\n]);" }] },
+  // Phase 333.11.2: a retirement done right reads green. A second set and
+  // the floor at 2 committed; then its file removed, its label named in the
+  // clone gate's RETIRED_SETS and the floor back at 1, judged by that gate.
+  { id: 'F1r', control: true, own: true, what: 'a ruled retirement: second.wire.json and FROZEN_SETS_FLOOR = 2 committed, then the file removed, second named in RETIRED_SETS and the floor at 1', commit: [
+    { file: `${FROZEN}/second.wire.json`, from: WIRE, json: (w) => reseal({ ...w, label: 'second' }) },
+    { file: OWN_GATE, find: 'const FROZEN_SETS_FLOOR = 1;', to: 'const FROZEN_SETS_FLOOR = 2;' }
+  ], edits: [
+    { file: `${FROZEN}/second.wire.json`, remove: true },
+    { file: OWN_GATE, find: 'const RETIRED_SETS = Object.freeze({});', to: "const RETIRED_SETS = Object.freeze({ second: '2026-10-15: ablation, a ruled retirement' });" },
+    { file: OWN_GATE, find: 'const FROZEN_SETS_FLOOR = 2;', to: 'const FROZEN_SETS_FLOOR = 1;' }
+  ] }
 ];
 
 /** Apply one arm's edits in the clone; answers the originals, or throws why it could not plant. */
-function plant(arm) {
-  const originals = new Map();
+function plant(arm, originals = new Map()) {
   for (const edit of arm.edits) {
     const path = join(CLONE, edit.file);
     if (!originals.has(edit.file)) originals.set(edit.file, existsSync(path) ? readFileSync(path) : null);
@@ -345,6 +593,22 @@ function plant(arm) {
       const made = typeof edit.create === 'function' ? edit.create(CLONE) : edit.create;
       if (typeof made !== 'string' || made.length === 0) throw new Error(`${edit.file}: the planted text is empty`);
       writeFileSync(path, made);
+      continue;
+    }
+    // Phase 333.11.2: a rename, which the restore undoes, and a file made from
+    // another, which the restore removes.
+    if (edit.renameTo !== undefined) {
+      const to = join(CLONE, edit.renameTo);
+      if (!existsSync(path)) throw new Error(`${edit.file} does not exist, so it cannot be renamed`);
+      if (!originals.has(edit.renameTo)) originals.set(edit.renameTo, existsSync(to) ? readFileSync(to) : null);
+      if (originals.get(edit.renameTo) !== null) throw new Error(`${edit.renameTo} exists, so ${edit.file} cannot be renamed to it`);
+      renameSync(path, to);
+      continue;
+    }
+    if (edit.from !== undefined) {
+      if (originals.get(edit.file) !== null) throw new Error(`${edit.file} exists, so it cannot be made from ${edit.from}`);
+      const source = readFileSync(join(CLONE, edit.from));
+      writeFileSync(path, edit.json === undefined ? source : `${JSON.stringify(edit.json(JSON.parse(source.toString('utf8'))), null, 2)}\n`);
       continue;
     }
     if (!existsSync(path)) throw new Error(`${edit.file} does not exist`);
@@ -367,6 +631,17 @@ function plant(arm) {
   return originals;
 }
 
+/** plant(), and when an edit cannot be planted, the edits before it put back before the error is thrown on. */
+function plantWhole(arm) {
+  const partial = new Map();
+  try {
+    return plant(arm, partial);
+  } catch (err) {
+    restore(partial);
+    throw err;
+  }
+}
+
 /** Put every planted file back, and prove it by sha256. */
 function restore(originals) {
   for (const [file, bytes] of originals) {
@@ -380,7 +655,11 @@ function restore(originals) {
   }
 }
 
-/** The gate over the clone: this tree's gate, or (`own`) the clone's own, which imports the clone's reader. */
+/**
+ * The gate over the clone: this tree's gate, or (`own`) the clone's own,
+ * which imports the clone's reader and holds the clone's RETIRED_SETS and
+ * FROZEN_SETS_FLOOR. `extra` (Phase 333.12) is handed to it after `--json`.
+ */
 function gate(own = false, extra = []) {
   const script = own ? join(CLONE, 'build', 'assert-door-only-adds.mjs') : GATE;
   const run = spawnSync(process.execPath, [script, '--root', CLONE, '--json', ...extra], { cwd: CLONE, encoding: 'utf8', timeout: 180_000, maxBuffer: 32 * 1024 * 1024 });
@@ -504,6 +783,17 @@ function modes() {
     widest.applies.push('P33311.only');
     wire.bounds.find((b) => b.phone === 'PocketScreen.tallest').rule = 'equal';
   }, ['above the 256', 'least value', 'P33311.only', 'where it held the Mac by equal'])]);
+  // Phase 333.11.2 (SPEC-2 D8, §5.4): --replace refuses a set whose vectors
+  // drop or change a request the replaced set's own vectors hold, through
+  // the vectorLosses F1 (b) asks of every committed copy ...
+  out.push(['M9', '--replace refuses a set whose vectors drop a frozen request or change one\'s target, names both, and writes nothing', replaceRefuses('p33311-freeze-g', () => {}, ['p33311-gone', 'odd-id'], (vectors) => {
+    vectors.requests.push({ ...vectors.requests.find((r) => r.name === 'blocked'), name: 'p33311-gone' });
+    vectors.requests.find((r) => r.name === 'odd-id').target = '/v1/session?id=p33311-moved';
+    return vectors;
+  })]);
+  // ... and refuses, writing nothing, when the replaced set's own vectors do
+  // not hold together, because then what it froze cannot be compared.
+  out.push(['M10', '--replace refuses a set whose own vectors do not hold together, and writes nothing', replaceRefuses('p33311-freeze-h', () => {}, ['do not hold together'], (vectors) => ({ ...vectors, about: `${String(vectors.about)} p33311` }), false)]);
   return out;
 }
 
@@ -512,13 +802,20 @@ function modes() {
  * one being replaced (resealed, so it is a set `--replace` reads), then
  * `--replace` it from the unchanged tree: it must exit 1, print every
  * `names` and `nothing was written`, and leave both files at their sha256.
+ * `editVectors` (Phase 333.11.2) edits that set's vectors first, and the
+ * wire's `vectors.sha256` is repinned to them unless `repin` is false.
  */
-function replaceRefuses(dir, edit, names) {
+function replaceRefuses(dir, edit, names, editVectors = null, repin = true) {
   const at = join(CLONE, dir);
   try {
     const fresh = freeze(['--freeze', 'launch', '--into', at]);
     if (fresh.status !== 0) return false;
     const wire = JSON.parse(readFileSync(join(at, 'launch.wire.json'), 'utf8'));
+    if (editVectors !== null) {
+      const path = join(at, 'launch.vectors.json');
+      writeFileSync(path, `${JSON.stringify(editVectors(JSON.parse(readFileSync(path, 'utf8'))), null, 2)}\n`);
+      if (repin) wire.vectors.sha256 = sha256(readFileSync(path));
+    }
     edit(wire);
     writeFileSync(join(at, 'launch.wire.json'), `${JSON.stringify(reseal(wire), null, 2)}\n`);
     const before = ['launch.wire.json', 'launch.vectors.json'].map((f) => sha256(readFileSync(join(at, f))));
@@ -535,20 +832,30 @@ function replaceRefuses(dir, edit, names) {
 }
 
 /**
- * Is there a committed copy of the route ledger the clone's git can read
- * (Phase 333.12, R8g)? Read only, with the gate's own git environment: no
- * optional locks, no global or system configuration.
+ * Is there a committed copy of the route ledger in the clone's own
+ * repository (Phase 333.12, R8g and R8gh)? Since Phase 333.11.2 the clone's
+ * base commit holds the whole tree, so this is the tree holding a ledger;
+ * read through the clone's own git (cloneGit), never the operator's history.
  */
 function ledgerCommitted() {
-  const env = { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' };
-  for (const k of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_COMMON_DIR', 'GIT_OBJECT_DIRECTORY', 'GIT_ALTERNATE_OBJECT_DIRECTORIES']) delete env[k];
-  const run = spawnSync('git', ['-C', CLONE, 'log', '--format=%H', '--', 'src/main/pocket/route-ledger.ts'], { encoding: 'utf8', timeout: 10_000, env });
-  return run.status === 0 && /^[0-9a-f]{40}/m.test(String(run.stdout ?? ''));
+  try {
+    return /^[0-9a-f]{40}/m.test(cloneGit('log', '--format=%H', '--', LEDGER_END_CLAUSE.file));
+  } catch {
+    return false;
+  }
 }
 
 function regenerate() {
   const run = spawnSync(process.execPath, [join(CLONE, 'build', 'p316', 'vectors.mjs')], { cwd: CLONE, encoding: 'utf8', timeout: 180_000, maxBuffer: 32 * 1024 * 1024 });
   if (run.status !== 0) throw new Error(`the clone's vectors.mjs refused to regenerate: ${`${run.stdout ?? ''}${run.stderr ?? ''}`.trim().split('\n').slice(-3).join(' | ')}`);
+}
+
+// One id names one arm, so `--only` and every report line name exactly one.
+const ids = ARMS.map((a) => a.id);
+const doubled = ids.filter((id, i) => ids.indexOf(id) !== i);
+if (doubled.length > 0) {
+  process.stdout.write(`${TAG} FAIL: arm id(s) used twice: ${[...new Set(doubled)].join(', ')}\n`);
+  process.exit(1);
 }
 
 const t0 = Date.now();
@@ -559,16 +866,50 @@ const misses = [];
 const arms = ARMS.filter((a) => ONLY === null || ONLY.has(a.id));
 const armCount = arms.filter((a) => !a.control).length;
 const controlCount = arms.filter((a) => a.control).length;
+/** Whether anything, a dangling link included, is at `path`. */
+const present = (path) => {
+  try {
+    lstatSync(path);
+    return true;
+  } catch {
+    return false;
+  }
+};
+/** Set once this run has started making CLONE; only then does the `finally` remove it. */
+let made = false;
 try {
   mkdirSync(SCRATCH, { recursive: true });
   // THE CLONE, copy-on-write: `cp -Rc` on APFS shares every block until written.
+  // It is this run's own `ablation-<pid>` directory, which must not exist yet.
+  if (present(CLONE)) throw new Error(`${CLONE} already exists, so the clone would not be this run's own`);
+  made = true;
   const cp = spawnSync('/bin/cp', ['-Rc', REPO, CLONE], { encoding: 'utf8', timeout: 600_000 });
   if (cp.status !== 0) throw new Error(`cp -Rc failed: ${String(cp.stderr).trim()}`);
   if (INTO !== null) {
     mkdirSync(join(CLONE, FROZEN), { recursive: true });
     for (const name of readdirSync(INTO).filter((n) => n.endsWith('.json'))) cpSync(join(INTO, name), join(CLONE, FROZEN, name));
   }
-  process.stdout.write(`${TAG} clone at ${CLONE} (${String(Math.round((Date.now() - t0) / 1000))} s); ${String(armCount)} arm(s), ${String(controlCount)} control(s)\n`);
+  // THE CLONE IS A REPOSITORY OF ITS OWN (SPEC-2 §5.1, D11; the fix round).
+  // `cp -Rc` copies the tree's `.git` too: a worktree's FILE, which points at
+  // the operator's history, or a checkout's or a `git clone`'s DIRECTORY, a
+  // self-contained copy of one. Either is the CLONE's own copy, removed
+  // before any git command here, which touches nothing of the original. It
+  // is removed only as `.git` directly inside the `ablation-<pid>` directory
+  // this run made under the scratch directory, and never followed if a link.
+  const dotGit = join(CLONE, '.git');
+  if (!made || dirname(dotGit) !== CLONE || dirname(CLONE) !== SCRATCH || basename(CLONE) !== `ablation-${String(process.pid)}`) {
+    throw new Error(`the clone is not this run's own ablation-${String(process.pid)} under ${SCRATCH}, so its .git is not removed`);
+  }
+  if (present(dotGit)) {
+    if (lstatSync(dotGit).isDirectory()) rmSync(dotGit, { recursive: true, force: true });
+    else rmSync(dotGit);
+  }
+  if (present(dotGit)) throw new Error(`the clone's .git could not be removed, so the clone is not a repository of its own`);
+  cloneGit('init', '-q', '-b', 'p33311');
+  cloneGit('add', '-A');
+  cloneGit('commit', '-q', '-m', 'p33311 ablation base');
+  BASE = cloneGit('rev-parse', 'HEAD');
+  process.stdout.write(`${TAG} clone at ${CLONE}, a repository of its own at ${BASE.slice(0, 8)} (${String(Math.round((Date.now() - t0) / 1000))} s); ${String(armCount)} arm(s), ${String(controlCount)} control(s)\n`);
   const base = gate();
   process.stdout.write(`${TAG} unplanted: ${base.verdict?.ok === true ? 'PASS' : `FAIL (${Object.entries(base.verdict?.clauses ?? {}).filter(([, c]) => !c.ok).map(([id]) => id).join(', ') || base.tail})`}\n`);
   if (base.verdict?.ok !== true) misses.push('the unplanted clone does not pass, so no arm below proves its own clause');
@@ -577,18 +918,24 @@ try {
     const started = Date.now();
     let originals = null;
     let line;
-    // PHASE 333.12 (R8g): an arm that reads the REAL committed copies of the
-    // route ledger has nothing to read until one is committed. It says so, and
-    // is neither a pass nor a fail.
+    // PHASE 333.12 (R8g, R8gh): an arm that reads the committed copies of the
+    // route ledger has nothing to read when the clone's base commit holds
+    // none. It says so, and is neither a pass nor a fail.
     if (arm.committedLedger === true && !ledgerCommitted()) {
       notRun += 1;
-      process.stdout.write(`  not run ${arm.id}  ${arm.what}: no committed copy of the ledger yet\n`);
+      process.stdout.write(`  not run ${arm.id}  ${arm.what}: no committed copy of the ledger\n`);
       continue;
     }
     try {
-      originals = plant(arm);
+      if (arm.commit !== undefined) {
+        // A HISTORY arm (SPEC-2 §5.2): its plant committed as a second commit.
+        plant({ edits: arm.commit });
+        cloneGit('add', '-A');
+        cloneGit('commit', '-q', '-m', `plant ${arm.id}`);
+      }
+      originals = plantWhole(arm);
       if (arm.regen) regenerate();
-      const r = gate(arm.reader === true, arm.args ?? []);
+      const r = gate(arm.reader === true || arm.own === true, arm.args ?? []);
       const reds = Object.entries(r.verdict?.clauses ?? {}).filter(([id, c]) => !c.ok && id !== 'P4').map(([id]) => id);
       if (arm.reader === true) {
         // Red before any clause: the reader's own fixtures refused it, and
@@ -632,7 +979,10 @@ try {
       misses.push(`${arm.id}: ${String(err.message)}`);
       line = `  MISS ${arm.id}  ${arm.what}: ${String(err.message)}`;
     } finally {
-      if (originals !== null) restore(originals);
+      // A history arm is put back by a reset to BASE, which throws (and so
+      // stops the run) when the clone does not come back clean.
+      if (arm.commit !== undefined) resetToBase();
+      else if (originals !== null) restore(originals);
       if (arm.regen) {
         writeFileSync(join(CLONE, VECTORS), vectorsBefore);
         if (sha256(readFileSync(join(CLONE, VECTORS))) !== sha256(vectorsBefore)) misses.push(`${arm.id}: vectors.json did not restore`);
@@ -646,10 +996,15 @@ try {
       if (!ok) misses.push(`${id}: ${what}, and it did not`);
     }
   }
+  // Once, after the last arm and mode: the clone is back at BASE, clean.
+  const status = cloneGit('status', '--porcelain');
+  const head = cloneGit('rev-parse', 'HEAD');
+  if (status !== '' || head !== BASE) misses.push(`the clone is not back at its base commit after the last arm and mode (HEAD ${head.slice(0, 8)}${status === '' ? '' : `, status: ${status.split('\n').slice(0, 3).join(' | ')}`})`);
+  else process.stdout.write(`${TAG} the clone is back at ${BASE.slice(0, 8)}, git status empty\n`);
 } catch (err) {
   misses.push(String(err.message));
 } finally {
-  rmSync(CLONE, { recursive: true, force: true });
+  if (made) rmSync(CLONE, { recursive: true, force: true });
 }
 process.stdout.write(`ABLATION_P33311: ${String(red)}/${String(armCount - notRun)} red, ${String(green)}/${String(controlCount)} controls green${notRun > 0 ? `, ${String(notRun)} not run` : ''} (${String(Math.round((Date.now() - t0) / 1000))} s)\n`);
 if (misses.length > 0) {

@@ -2,7 +2,9 @@
 /**
  * assert-door-only-adds.mjs, `npm run gate:onlyadd` (Phase 333.11, "the
  * door's answers only add", build/p33311/SPEC.md §6; widened by Phase
- * 333.11.1, "Land it, queue the gaps", build/p33311/SPEC-1.md §4).
+ * 333.11.1, "Land it, queue the gaps", build/p33311/SPEC-1.md §4, and by
+ * Phase 333.11.2, the record held to its history by label,
+ * build/p33311/SPEC-2.md §3).
  *
  * WHY IT EXISTS. The phone and the Mac update separately, so a phone on an
  * older build talks to a newer Mac and the reverse. The launch phone in
@@ -34,22 +36,39 @@
  * clean tree. `npm run ablation:p33311` plants one break per clause.
  *
  *   F1  every wire parses, its `format` is one this gate reads, its seal
- *       holds, and against every committed copy of itself (`git log` and
- *       `git show`, read only; SPEC-1 D9): (a) a set whose seal differs from
- *       the copy at HEAD carries that copy's seal as the next entry of its
+ *       holds, and against every committed copy of its LABEL (read only:
+ *       SPEC-1 D9; by label since Phase 333.11.2, build/p33311/SPEC-2.md
+ *       §3): every `*.wire.json` ever committed directly under the frozen
+ *       directory, found over the directory's whole history and grouped by
+ *       the `label` it holds, so a set renamed is still compared with every
+ *       copy it ever had. (a) A set whose seal differs from a copy of its
+ *       label at HEAD carries that copy's seal as the next entry of its
  *       append-only history, or it was edited and resealed by hand; (b) no
  *       Mac-side row (a limit, a bound's Mac constants, an ask) is lower,
  *       shorter or missing against ANY committed copy, because a seal anyone
  *       can recompute does not stop a lowered limit being resealed; since
- *       the fix round, no bound re-ruled or loosened, no row moved to a file
- *       the gate's own tables do not name, and no way the frozen phone asks
- *       taken out (a route, a record, a name, a `sometimes`, a nullable key,
- *       a closed set's shape or one of its words). With no
- *       `git`, outside a repository, or in a shallow clone it says so in a
- *       note and decides on the rest, never red and never silent
+ *       333.11.1's fix round, no bound re-ruled or loosened, no row moved to
+ *       a file the gate's own tables do not name, and no way the frozen
+ *       phone asks taken out (a route, a record, a name, a `sometimes`, a
+ *       nullable key, a closed set's shape or one of its words); and since
+ *       333.11.2, every request a committed copy's vectors hold (the
+ *       committed blob whose sha256 is the copy's `vectors.sha256`) stays in
+ *       the set's own vectors (the `<label>.vectors.json` beside it; in a
+ *       freeze, today's `vectors.json`) by name, method, target and body,
+ *       because R2 replays only the requests those vectors hold. (c) A
+ *       label any committed copy holds and no working set holds is red
+ *       unless RETIRED_SETS names it: a set is retired only on his word, in
+ *       one commit that removes its two files, names its label there and
+ *       lowers FROZEN_SETS_FLOOR. Without git: (d) a label RETIRED_SETS names is
+ *       never held again, and (e) one label names one set. With no `git`,
+ *       outside a repository, or in a shallow clone it says so in a note and
+ *       decides on the rest, never red and never silent
  *   F2  its vectors file is byte for byte the one its seal names
- *   F3  at least FROZEN_SETS_FLOOR sets; each holds together (answers typed,
- *       membership hashed, kinds resolved, instances and arms resolve), and
+ *   F3  exactly FROZEN_SETS_FLOOR sets in the frozen directory (since Phase
+ *       333.11.2 an equality there, so a retirement lowers it and a new set
+ *       raises it; under `--into` and in a freeze at least that many); each
+ *       holds together (answers typed, membership hashed, kinds resolved,
+ *       instances and arms resolve), and
  *       its arms and unarmed list are EXACTLY what the freeze's own generator
  *       makes from its sealed types, formats and instances (the fix round:
  *       a seal anyone can recompute does not stop a resealed edit, so the
@@ -110,9 +129,10 @@
  *   R8  the route ledger only adds (Phase 333.12): every frozen route is a
  *       row of src/main/pocket/route-ledger.ts with its frozen method, path,
  *       signing, window and reads; and against every committed copy of the
- *       ledger (`git log` and `git show`, read only, F1's machinery), every
- *       row of the copy is in today's ledger unchanged, by ONE pure function,
- *       `ledgerLosses`. No committed copy (true until Phase 333.12 lands), no
+ *       ledger (read only, from the same four git reads as F1's copies
+ *       since Phase 333.11.2: one `log --raw` over both paths, one `ls-tree`
+ *       and one `cat-file --batch`), every row of the copy is in today's
+ *       ledger unchanged, by ONE pure function, `ledgerLosses`. No committed copy (true until Phase 333.12 lands), no
  *       git, or a tree that is not its repository's top is a note, never red
  *       and never silent. `--ledger-copy <file>` compares one more copy, a
  *       planted older one (`ablation:p33311` R8h)
@@ -147,19 +167,27 @@
  * appends the replaced seal and the reason to `history` and prints every
  * projection, `macLimits` and `asks` line that moved. `--replace` refuses a
  * set whose Mac-side rows are lower, shorter, missing, re-ruled or moved, or
- * that takes out a way the frozen phone asks, against the one it replaces
- * (F1 (b)'s two asks), prints every such row and writes nothing: that is a
+ * that takes out a way the frozen phone asks, or (since Phase 333.11.2)
+ * whose vectors drop or change a request the replaced set's own vectors
+ * hold, against the one it replaces (F1 (b)'s asks, through the same
+ * functions), prints every such row and writes nothing: that is a
  * retirement of the set by the operator's ruling, never a re-freeze (SPEC-1
- * D11). `--into <dir>` reads and writes the sets in `dir`; `--root <dir>`
- * judges another tree (the ablation's clone); `--ledger-copy <file>`, under
- * `--root`, adds a copy of the route ledger to R8's comparison (it can only
- * add a finding); `--json` ends with one `GATE_ONLYADD:{…}` line.
+ * D11). It also refuses, writing nothing, when the replaced set's vectors do
+ * not hold together, because then what it froze cannot be compared. A
+ * freeze that leaves the frozen directory above FROZEN_SETS_FLOOR prints the
+ * reminder to raise it. `--into <dir>` reads and writes the sets in `dir`;
+ * `--root <dir>` judges another tree (the ablation's clone); `--ledger-copy
+ * <file>`, under `--root`, adds a copy of the route ledger to R8's
+ * comparison (it can only add a finding); `--json` ends with one
+ * `GATE_ONLYADD:{…}` line.
  *
  * WHAT IT DOES NOT DO. It opens no socket, binds nothing, and starts nothing
- * but the pinned tsx once and `git` read only (`rev-parse`, `log`, `show`,
- * with GIT_OPTIONAL_LOCKS=0 and with no global or system git configuration,
- * so it reads none of the person's own git settings and writes nothing,
- * not even the index). Outside the judged repository it reads nothing under
+ * but the pinned tsx once and `git` read only, at most four commands a run
+ * (`rev-parse`, `log`, `ls-tree`, `cat-file --batch`, whatever the history
+ * holds, shared by F1's frozen copies and R8's ledger copies), with GIT_OPTIONAL_LOCKS=0, literal pathspecs, no lazy fetch and
+ * no global or system git configuration, so it reads none of the person's
+ * own git settings, fetches nothing and writes nothing, not even the
+ * index. Outside the judged repository it reads nothing under
  * the person's home. Its one Program is `src/shared/ipc/pocket.ts` and
  * `src/main/pocket/pairing.ts`; every other file is parsed alone. It runs
  * itself under the pinned tsx (`build/ts-runner.mjs`) so it can import the
@@ -214,8 +242,22 @@ const { createRequire } = await import('node:module');
 const ts = createRequire(import.meta.url)('typescript');
 const reader = await import('./p33311/swift-wire.mjs');
 
-/** A commit that adds a set raises this; a ruled retirement lowers it and names the label. */
+/**
+ * A commit that adds a set raises this; a ruled retirement lowers it, in the
+ * commit that names the label below (Phase 333.11.2, build/p33311/SPEC-2.md
+ * D3). F3 holds the canonical frozen directory to EXACTLY this many sets, so
+ * a retirement that removes a set's files without lowering the floor is red,
+ * and so is one that lowers the floor without naming the label here.
+ */
 const FROZEN_SETS_FLOOR = 1;
+/**
+ * Every frozen set retired by his ruling, label → '<date>: <his words>'. A
+ * label any committed copy holds and no working set holds must be named
+ * here (F1), and a label named here is never held again (F1).
+ */
+const RETIRED_SETS = Object.freeze({});
+/** A frozen set's label, as `--freeze` takes it and RETIRED_SETS names it. */
+const LABEL_PATTERN = /^[a-z][a-z0-9-]{0,31}$/;
 /**
  * Every wire format this gate reads (§4.1). Format 2 (Phase 333.11.1) is
  * format 1 plus the sealed request record and asks, with format 1's arm
@@ -234,7 +276,8 @@ const FORMATS_RETIRED = { 1: "format 1 was retired by Phase 333.11.1's ruled re-
  * inside its 3 s budget. A cross product past it is R2 red, never sampled.
  */
 const REPLAY_CEILING = 1_024;
-const FROZEN_DIR = valueOf('--into') !== null ? resolve(valueOf('--into')) : join(ROOT, 'ios', 'TortieTests', 'Fixtures', 'frozen');
+const CANONICAL_FROZEN_DIR = join(ROOT, 'ios', 'TortieTests', 'Fixtures', 'frozen');
+const FROZEN_DIR = valueOf('--into') !== null ? resolve(valueOf('--into')) : CANONICAL_FROZEN_DIR;
 const VECTORS_PATH = join(ROOT, 'ios', 'TortieTests', 'Fixtures', 'vectors.json');
 const JSON_OUT = has('--json');
 const FREEZE = valueOf('--freeze');
@@ -292,9 +335,9 @@ const gateFileOf = (mac) => (typeof mac === 'string' && GATE_FILES.has(mac) ? GA
 const ARM_OPS = { remove: ['refuse'], kind: ['refuse'], null: ['refuse'], fraction: ['refuse', 'accept'], word: ['refuse', 'accept'], add: ['refuse'], format: ['refuse'], older: ['accept'], unknown: ['accept'] };
 
 const CLAUSES = {
-  F1: 'every frozen wire parses, its format is read here, its seal holds, and against its committed copies it is neither edited by hand, nor lower on the Mac side, nor asking less',
+  F1: 'every frozen wire parses, its format is read here, its seal holds, one label names one set and a retired one is never reused, and against every committed copy of its label it is neither edited by hand, nor lower on the Mac side, nor asking less, nor missing a frozen request; no committed label is gone unless retired by ruling',
   F2: 'every frozen vectors file is the one its wire names, byte for byte',
-  F3: `at least ${String(FROZEN_SETS_FLOOR)} frozen set(s), each holding together, its request record agreeing with its vectors`,
+  F3: `exactly FROZEN_SETS_FLOOR (${String(FROZEN_SETS_FLOOR)}) frozen set(s), each holding together, its request record agreeing with its vectors`,
   F4: 'the gate and the phone half are wired',
   R1: 'every frozen route is a row of the shipping table, unchanged',
   R2: 'every request the frozen phone can make replays through the shipping door',
@@ -1809,8 +1852,11 @@ function boundLooser(was, now) {
  * `sends` hold, so a record resealed with a way of asking taken out replays
  * nothing for it, and P0's same-bytes rule holds it only while every phone
  * file is unchanged. Used by F1 (b) and by `--replace`, as macSideLosses is.
+ * Given the two sets' vectors (Phase 333.11.2, SPEC-2 D7), it also asks
+ * vectorLosses, so every request the frozen phone was recorded sending stays
+ * by name, method, target and body; a `nextVectors` of null loses them all.
  */
-function requestLosses(previous, next) {
+function requestLosses(previous, next, previousVectors = null, nextVectors = null) {
   const out = [];
   const rows = (x, key) => (Array.isArray(x?.[key]) ? x[key].filter(isPlainObject) : []);
   const keyOf = (r) => `${String(r.method).toUpperCase()} ${String(r.path)}`;
@@ -1847,6 +1893,43 @@ function requestLosses(previous, next) {
     const lost = (Array.isArray(s.words) ? s.words : []).filter((w) => !(Array.isArray(now.words) && now.words.includes(w)));
     if (lost.length > 0) out.push(`${String(s.phone)} no longer holds ${lost.join(', ')}, which the frozen phone sends`);
   }
+  if (previousVectors !== null) out.push(...vectorLosses(previousVectors, nextVectors));
+  return out;
+}
+
+/**
+ * Every request `previousVectors` records that `nextVectors` no longer holds
+ * the same (Phase 333.11.2, SPEC-2 D7): for each request with a string
+ * `name`, the next vectors must hold one with that name whose `method`,
+ * `target` and `body` are the same strings. R2 replays the requests the
+ * WORKING vectors hold, so a frozen request taken out of them and resealed
+ * replayed nothing for itself, and a request whose body was reordered,
+ * retargeted or re-cased replayed the edited one. `id`, `timestamp`,
+ * `nonce`, `canonical` and `signature` are not compared: they are the
+ * signing, which R2's proof (iii) holds. Used by F1 (b) through
+ * requestLosses, and by `--replace` through the same call.
+ */
+function vectorLosses(previousVectors, nextVectors) {
+  const out = [];
+  const requests = (v) => (isPlainObject(v) && Array.isArray(v.requests) ? v.requests.filter(isPlainObject) : []);
+  // A body's length and the head of its sha256, so a body reordered to the
+  // same length still reads as two different bodies in the sentence.
+  const bytesOf = (body) => (typeof body === 'string' ? `${String(Buffer.byteLength(body, 'utf8'))} bytes (sha256 ${sha256hex(Buffer.from(body, 'utf8')).slice(0, 8)})` : `no string (${shortJson(body)})`);
+  const now = requests(nextVectors);
+  for (const was of requests(previousVectors)) {
+    if (typeof was.name !== 'string') continue;
+    const named = now.filter((r) => r.name === was.name);
+    if (named.length === 0) {
+      out.push(`the frozen request ${was.name} (${String(was.method)} ${String(was.target).slice(0, 60)}) is gone from its vectors`);
+      continue;
+    }
+    if (named.some((r) => r.method === was.method && r.target === was.target && r.body === was.body)) continue;
+    const is = named[0];
+    const moved = ['method', 'target', 'body'].filter((k) => is[k] !== was[k]);
+    out.push(
+      `the frozen request ${was.name} is ${String(is.method)} ${String(is.target).slice(0, 60)} with a body of ${bytesOf(is.body)}, where the frozen phone sent ${String(was.method)} ${String(was.target).slice(0, 60)} with ${bytesOf(was.body)} (its ${moved.join(' and ')} moved)`
+    );
+  }
   return out;
 }
 
@@ -1855,102 +1938,294 @@ function requestLosses(previous, next) {
  * the variables a git hook hands a build (they would point it at another
  * repository), and no global or system configuration, so the gate reads
  * nothing under the person's home and a configured colour, pager or
- * signature line cannot reach what it parses.
+ * signature line cannot reach what it parses. Since Phase 333.11.2 (SPEC-2
+ * §3.2) every pathspec is literal, every call passes `-c
+ * core.quotePath=false` so a path comes back as its bytes, and a partial
+ * clone never fetches a blob it lacks (GIT_NO_LAZY_FETCH, which git reads
+ * from 2.44): the gate opens no socket, so a blob that is not there is a
+ * note ("<oid> missing"), never a download.
  */
 const GIT_ENV = (() => {
-  const env = { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' };
+  const env = {
+    ...process.env,
+    GIT_OPTIONAL_LOCKS: '0',
+    GIT_TERMINAL_PROMPT: '0',
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_CONFIG_GLOBAL: '/dev/null',
+    GIT_LITERAL_PATHSPECS: '1',
+    GIT_NO_LAZY_FETCH: '1'
+  };
   for (const k of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_COMMON_DIR', 'GIT_OBJECT_DIRECTORY', 'GIT_ALTERNATE_OBJECT_DIRECTORIES']) delete env[k];
   return env;
 })();
-const gitStats = { copies: 0, notes: 0 };
-/** One read-only git command in ROOT: `{ ok, out }` or `{ ok: false, why }`. */
-function git(args) {
-  const run = spawnSync('git', ['-C', ROOT, ...args], { encoding: 'utf8', timeout: 10_000, maxBuffer: 64 * 1024 * 1024, env: GIT_ENV });
+const gitStats = { copies: 0, labels: 0, notes: 0 };
+/**
+ * One read-only git command in ROOT: `{ ok, out }` or `{ ok: false, why }`.
+ * `input` is written to its standard input, and `bytes` answers `out` as a
+ * Buffer: `cat-file --batch`'s answer is read as bytes, because the vectors
+ * hold non-ASCII and a decoded string's length is not the size git names.
+ */
+function git(args, { input = null, bytes = false } = {}) {
+  const run = spawnSync('git', ['-c', 'core.quotePath=false', '-C', ROOT, ...args], {
+    ...(bytes ? {} : { encoding: 'utf8' }),
+    input: input ?? undefined,
+    timeout: 10_000,
+    maxBuffer: 256 * 1024 * 1024,
+    env: GIT_ENV
+  });
   if (run.error !== undefined) return { ok: false, why: run.error.code === 'ENOENT' ? 'git is not on PATH' : `git ${args[0]} could not run (${String(run.error.code ?? run.error.message)})` };
   if (run.status !== 0) return { ok: false, why: `git ${args[0]} exited ${String(run.status)}${String(run.stderr ?? '').trim() === '' ? '' : ` (${String(run.stderr).trim().split('\n')[0].slice(0, 120)})`}` };
-  return { ok: true, out: String(run.stdout ?? '') };
+  return { ok: true, out: bytes ? run.stdout : String(run.stdout ?? '') };
 }
 const gitNote = (msg) => {
   note('F1', msg);
   gitStats.notes += 1;
 };
+const COMMIT_LINE = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
+/** A path directly under the frozen directory `dir` (no deeper), as git prints it. */
+const directlyUnder = (dir, path) => path.startsWith(`${dir}/`) && !path.slice(dir.length + 1).includes('/');
+/** The route ledger, relative to the judged tree's top (R8, Phase 333.12). */
+const LEDGER_REL = 'src/main/pocket/route-ledger.ts';
 
 /**
- * F1 against the committed copies (SPEC-1 D9, §4.2). Every environmental
- * failure (no git, not a repository, ROOT inside one, a set outside ROOT or
- * never committed) is a NOTE naming what was not compared; only a finding is
- * red. (a) A set whose seal differs from HEAD's copy must continue that
- * copy's history with that copy's seal, or it was edited and resealed by
- * hand. (b) No Mac-side row lower, shorter, missing, re-ruled or moved, and
- * no way the frozen phone asks taken out, against ANY copy (the fix round:
- * macSideLosses and requestLosses, the two `--replace` asks too).
+ * THE COMMITTED HISTORY, read once a run for F1 and R8 (Phase 333.11.2,
+ * SPEC-2 §3.2; R8, Phase 333.12's route ledger, reads its committed copies
+ * from these same reads rather than its own), in four read-only reads:
+ * `rev-parse`; ONE `log --raw --root` over the frozen directory's and the
+ * ledger's whole history (every `*.wire.json` blob a commit added or changed
+ * directly under the frozen directory is a committed copy, every other
+ * `*.json` blob there a vectors candidate, and every blob of the ledger's
+ * path a committed ledger, each with the newest commit naming it); `ls-tree
+ * HEAD` over both (the wire blobs at HEAD, for F1 (a), and a blob only a
+ * merge made); and ONE `cat-file --batch` for every distinct blob, read as
+ * bytes. A frozen directory outside the judged tree leaves it out of the
+ * reads, and the ledger is still read. Answers `{ why }` when the history
+ * cannot be read at all, else the blobs, with each note kept for the clause
+ * it concerns (`notes.f1`, `notes.r8`): each clause says the environment in
+ * its own words, and never red.
  */
-function clauseF1Copies(sets) {
-  const under = [];
-  for (const set of sets) {
-    if (set.wire === null || !isPlainObject(set.wire)) continue;
-    const rel = relative(ROOT, set.path);
-    if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) gitNote(`${set.name}: it is not under the judged tree, so its committed copies were not compared`);
-    else under.push({ set, rel: rel.split(sep).join('/') });
-  }
-  if (under.length === 0) return;
+let historyRead = null;
+function committedHistory() {
+  if (historyRead === null) historyRead = readHistory();
+  return historyRead;
+}
+function readHistory() {
+  const dirRel = relative(ROOT, FROZEN_DIR);
+  const dir = dirRel === '' || dirRel.startsWith('..') || isAbsolute(dirRel) ? null : dirRel.split(sep).join('/');
   const top = git(['rev-parse', '--show-prefix', '--is-shallow-repository']);
-  if (!top.ok) {
-    gitNote(`${top.why}: committed copies not compared`);
-    return;
-  }
+  if (!top.ok) return { dir, why: top.why };
   const [prefix = '', shallow = ''] = top.out.split('\n');
-  if (prefix.trim() !== '') {
-    gitNote(`the judged tree is ${prefix.trim()} inside its repository, not its top level: committed copies not compared`);
-    return;
-  }
-  if (shallow.trim() === 'true') gitNote('a shallow clone: only the copies after its graft');
-  for (const { set, rel } of under) {
-    const label = String(set.wire.label ?? set.name);
-    const log = git(['log', '--format=%H', '--', rel]);
-    if (!log.ok) {
-      gitNote(`${set.name}: ${log.why}: committed copies not compared`);
+  if (prefix.trim() !== '') return { dir, why: `the judged tree is ${prefix.trim()} inside its repository, not its top level` };
+  const notes = { f1: [], r8: [] };
+  const log = git(['log', '--format=%H', '--raw', '--no-abbrev', '--no-renames', '--root', '--', ...(dir === null ? [] : [dir]), LEDGER_REL]);
+  if (!log.ok) return { dir, why: log.why };
+  /** wire blob → the newest commit naming it, and its path there. */
+  const wires = new Map();
+  const candidates = new Set();
+  /** ledger blob → the newest commit naming it. */
+  const ledger = new Map();
+  let commit = null;
+  for (const line of log.out.split('\n')) {
+    if (COMMIT_LINE.test(line)) {
+      commit = line;
       continue;
     }
-    const commits = log.out.split('\n').map((l) => l.trim()).filter((l) => /^[0-9a-f]{40}([0-9a-f]{24})?$/.test(l));
-    if (commits.length === 0) {
+    const tab = line.indexOf('\t');
+    if (!line.startsWith(':') || tab === -1 || commit === null) continue;
+    const [, mode = '', , blob = '', status = ''] = line.slice(1, tab).split(' ');
+    const path = line.slice(tab + 1);
+    // A deletion names no blob to read, so it is skipped before its path is.
+    if (!['A', 'M', 'T'].includes(status)) continue;
+    // The ledger's path holds nothing git quotes, so a quoted path is under
+    // the frozen directory.
+    if (path.startsWith('"')) {
+      notes.f1.push(`git quoted the path ${path.slice(0, 80)} committed at ${commit.slice(0, 8)}, so it was not read`);
+      continue;
+    }
+    const isLedger = path === LEDGER_REL;
+    if (!isLedger && (dir === null || !directlyUnder(dir, path) || !path.endsWith('.json'))) continue;
+    if (mode !== '100644' && mode !== '100755') {
+      (isLedger ? notes.r8 : notes.f1).push(`${path} committed at ${commit.slice(0, 8)} is not a file (mode ${mode}), so it was not read`);
+      continue;
+    }
+    if (isLedger) {
+      if (!ledger.has(blob)) ledger.set(blob, { commit, path });
+    } else if (!path.endsWith('.wire.json')) candidates.add(blob);
+    else if (!wires.has(blob)) wires.set(blob, { commit, path });
+  }
+  const headBlobs = new Set();
+  const tree = git(['ls-tree', 'HEAD', '--', ...(dir === null ? [] : [`${dir}/`]), LEDGER_REL]);
+  const headRead = tree.ok;
+  if (tree.ok) {
+    for (const line of tree.out.split('\n')) {
+      const tab = line.indexOf('\t');
+      if (tab === -1) continue;
+      const [, type = '', oid = ''] = line.slice(0, tab).split(' ');
+      const path = line.slice(tab + 1);
+      if (type !== 'blob') continue;
+      // A blob only a merge made is in no commit's own diff (SPEC-2 §10).
+      if (path === LEDGER_REL) {
+        if (!ledger.has(oid)) ledger.set(oid, { commit: 'HEAD', path });
+        continue;
+      }
+      if (dir === null || !directlyUnder(dir, path) || !path.endsWith('.wire.json')) continue;
+      headBlobs.add(oid);
+      if (!wires.has(oid)) wires.set(oid, { commit: 'HEAD', path });
+    }
+  }
+  const f1Wanted = new Set([...wires.keys(), ...candidates]);
+  const wanted = [...new Set([...f1Wanted, ...ledger.keys()])];
+  /** Where a note about the blob `oid` belongs: the clause that asked for it, or (unknown) every clause that asked for any. */
+  const notesFor = (oid) => {
+    const mine = [...(f1Wanted.has(oid) ? [notes.f1] : []), ...(ledger.has(oid) ? [notes.r8] : [])];
+    return mine.length > 0 ? mine : [...(f1Wanted.size > 0 ? [notes.f1] : []), ...(ledger.size > 0 ? [notes.r8] : [])];
+  };
+  const blobs = new Map();
+  if (wanted.length > 0) {
+    const cat = git(['cat-file', '--batch'], { input: `${wanted.join('\n')}\n`, bytes: true });
+    if (!cat.ok) return { dir, why: cat.why };
+    const buf = cat.out;
+    let at = 0;
+    while (at < buf.length) {
+      const nl = buf.indexOf(0x0a, at);
+      if (nl === -1) break;
+      const header = buf.subarray(at, nl).toString('utf8');
+      at = nl + 1;
+      const parts = header.split(' ');
+      if (parts.length !== 3) {
+        for (const n of notesFor(parts[0])) n.push(`git cat-file answered ${header.slice(0, 80)}, so that blob was not read`);
+        continue;
+      }
+      const size = Number(parts[2]);
+      if (!Number.isSafeInteger(size) || size < 0 || at + size > buf.length) {
+        for (const n of notesFor(null)) n.push(`git cat-file answered a size it did not send (${header.slice(0, 80)}), so nothing after it was read`);
+        break;
+      }
+      blobs.set(parts[0], buf.subarray(at, at + size));
+      at += size + 1;
+    }
+  }
+  return { dir, why: null, shallow: shallow.trim() === 'true', notes, wires, candidates, headBlobs, headRead, headWhy: tree.ok ? null : tree.why, ledger, blobs };
+}
+
+/**
+ * Every copy ever committed directly under the frozen directory, by LABEL
+ * (Phase 333.11.2, SPEC-2 §3.2 and §3.3), from the committed history above.
+ * A copy's vectors are the candidate whose sha256 is its own
+ * `vectors.sha256` (SPEC-2 D6), so a renamed vectors file and a shallow
+ * graft change nothing. Answers `null` when nothing could be compared (a note
+ * says why), else `{ dir, byLabel, headRead }`, `byLabel` mapping each label
+ * to its copies newest first.
+ */
+function committedCopies() {
+  const h = committedHistory();
+  if (h.dir === null) {
+    gitNote(`the frozen directory ${FROZEN_DIR} is not under the judged tree, so its committed copies were not compared`);
+    return null;
+  }
+  if (h.why !== null) {
+    gitNote(`${h.why}: committed copies not compared`);
+    return null;
+  }
+  const { dir, wires, candidates, headBlobs, headRead, blobs } = h;
+  if (h.shallow) gitNote('a shallow clone: only the copies after its graft');
+  for (const n of h.notes.f1) gitNote(n);
+  if (!headRead) gitNote(`${h.headWhy}: no HEAD to read, so (a) was not compared`);
+  const vectorsBySha = new Map();
+  for (const blob of candidates) {
+    const bytes = blobs.get(blob);
+    if (bytes !== undefined) vectorsBySha.set(sha256hex(bytes), bytes);
+  }
+  const byLabel = new Map();
+  for (const [blob, where] of wires) {
+    const bytes = blobs.get(blob);
+    if (bytes === undefined) continue;
+    let copy;
+    try {
+      copy = JSON.parse(bytes.toString('utf8'));
+    } catch {
+      copy = undefined;
+    }
+    if (!isPlainObject(copy) || typeof copy.label !== 'string') {
+      gitNote(`${where.path} committed at ${where.commit.slice(0, 8)} ${isPlainObject(copy) ? 'holds no string label' : 'is not a JSON object'}, so it was not compared`);
+      continue;
+    }
+    const vectorsBytes = typeof copy.vectors?.sha256 === 'string' ? vectorsBySha.get(copy.vectors.sha256) : undefined;
+    let vectors = null;
+    if (vectorsBytes === undefined) gitNote(`${copy.label}'s copy committed at ${where.commit.slice(0, 8)} as ${where.path}: its vectors were never committed under ${dir}, so its requests were not compared`);
+    else {
+      try {
+        const parsed = JSON.parse(vectorsBytes.toString('utf8'));
+        vectors = isPlainObject(parsed) ? parsed : null;
+      } catch {
+        vectors = null;
+      }
+      if (vectors === null) gitNote(`${copy.label}'s copy committed at ${where.commit.slice(0, 8)} as ${where.path}: its vectors are not a JSON object, so its requests were not compared`);
+    }
+    if (!byLabel.has(copy.label)) byLabel.set(copy.label, []);
+    byLabel.get(copy.label).push({ commit: where.commit, path: where.path, wire: copy, vectors, head: headBlobs.has(blob) });
+  }
+  return { dir, byLabel, headRead };
+}
+
+/**
+ * F1 against the committed copies (SPEC-1 D9, §4.2; by label since Phase
+ * 333.11.2, SPEC-2 §3.4). Every environmental failure (no git, not a
+ * repository, ROOT inside one, the frozen directory outside ROOT, a shallow
+ * clone, no HEAD, a copy that is not JSON or has no label, a copy whose
+ * vectors were never committed, a path git quoted) is a NOTE naming what was
+ * not compared; only a finding is red. A SET IS ITS LABEL, NOT ITS FILE: (c)
+ * every label any committed copy holds is held by a working set or named in
+ * RETIRED_SETS, so a set renamed, relabelled or deleted is still compared or
+ * red; (a) a set whose seal differs from a copy of its label at HEAD must
+ * continue that copy's history with that copy's seal, or it was edited and
+ * resealed by hand; (b) no Mac-side row lower, shorter, missing, re-ruled or
+ * moved, no way the frozen phone asks taken out, and no request the copy's
+ * vectors hold gone or changed, against ANY copy of its label
+ * (macSideLosses and requestLosses, the two `--replace` asks too).
+ */
+function clauseF1Copies(sets) {
+  const working = sets.filter((s) => isPlainObject(s.wire) && typeof s.wire.label === 'string');
+  const found = committedCopies();
+  if (found === null) return;
+  const { dir, byLabel, headRead } = found;
+  gitStats.labels = byLabel.size;
+  if (byLabel.size > 0) expects('F1');
+  const held = new Set(working.map((s) => s.wire.label));
+  // (c) No committed label gone, unless retired by ruling.
+  for (const [label, copies] of byLabel) {
+    if (held.has(label)) continue;
+    checked('F1');
+    if (Object.hasOwn(RETIRED_SETS, label)) continue;
+    fail('F1', `${label}, frozen at ${copies[0].commit.slice(0, 8)} as ${copies[0].path}, is not in ${dir}: a frozen set is retired only on his word, in one commit that removes its two files, names its label in RETIRED_SETS and lowers FROZEN_SETS_FLOOR; renamed or relabelled, it is still that set`);
+  }
+  for (const set of working) {
+    const label = set.wire.label;
+    const copies = byLabel.get(label) ?? [];
+    if (copies.length === 0) {
       gitNote(`${set.name}: no committed copy (a new or untracked set), so there is nothing to compare it with`);
       continue;
     }
-    expects('F1');
-    const copyAt = (rev) => {
-      const shown = git(['show', `${rev}:${rel}`]);
-      if (!shown.ok) return { why: shown.why };
-      try {
-        const copy = JSON.parse(shown.out);
-        return isPlainObject(copy) ? { copy } : { why: 'it is not a JSON object' };
-      } catch {
-        return { why: 'it is not JSON' };
-      }
-    };
-    // (a) No hand edit since the commit.
-    const head = copyAt('HEAD');
-    if (head.copy === undefined) gitNote(`${set.name}: its copy at HEAD cannot be read (${head.why}), so (a) was not compared`);
-    else {
-      checked('F1');
-      if (head.copy.seal !== set.wire.seal) {
-        const theirs = Array.isArray(head.copy.history) ? head.copy.history : [];
+    const as = (copy) => (copy.path.endsWith(`/${set.name}`) ? '' : ` as ${copy.path}`);
+    // (a) No hand edit since the commit, against every copy of its label at HEAD.
+    if (headRead) {
+      for (const copy of copies.filter((c) => c.head)) {
+        checked('F1');
+        if (copy.wire.seal === set.wire.seal) continue;
+        const theirs = Array.isArray(copy.wire.history) ? copy.wire.history : [];
         const mine = Array.isArray(set.wire.history) ? set.wire.history : [];
-        const continues = mine.length > theirs.length && theirs.every((e, i) => reader.canonical(e) === reader.canonical(mine[i])) && mine[theirs.length]?.seal === head.copy.seal;
-        if (!continues) fail('F1', `${label} differs from the copy committed at HEAD (${String(head.copy.seal).slice(0, 8)}) and its history does not continue that copy's: it was edited and resealed by hand, not replaced with --freeze --replace --why`);
+        const continues = mine.length > theirs.length && theirs.every((e, i) => reader.canonical(e) === reader.canonical(mine[i])) && mine[theirs.length]?.seal === copy.wire.seal;
+        if (!continues) fail('F1', `${label} differs from the copy committed at HEAD${as(copy)} (${String(copy.wire.seal).slice(0, 8)}) and its history does not continue that copy's: it was edited and resealed by hand, not replaced with --freeze --replace --why`);
       }
     }
-    // (b) Never lower on the Mac side than any committed copy.
-    for (const c of commits) {
-      const at = copyAt(c);
-      if (at.copy === undefined) {
-        gitNote(`${set.name}: its copy at ${c.slice(0, 8)} cannot be read (${at.why}), so it was not compared`);
-        continue;
-      }
+    // (b) Never lower on the Mac side, never asking less and never missing a
+    // frozen request, against any committed copy of its label.
+    for (const copy of copies) {
       checked('F1');
       gitStats.copies += 1;
-      for (const loss of macSideLosses(at.copy, set.wire)) fail('F1', `${label} against its copy committed at ${c.slice(0, 8)}: ${loss}. A Mac-side row lowered, shortened, dropped, re-ruled or moved and resealed is not a re-freeze: it is a retirement of the set, by ruling`);
-      for (const loss of requestLosses(at.copy, set.wire)) fail('F1', `${label} against its copy committed at ${c.slice(0, 8)}: ${loss}. A way the frozen phone asks, taken out and resealed, is not a re-freeze: it is a retirement of the set, by ruling`);
+      const at = `${label} against its copy committed at ${copy.commit.slice(0, 8)}${as(copy)}`;
+      for (const loss of macSideLosses(copy.wire, set.wire)) fail('F1', `${at}: ${loss}. A Mac-side row lowered, shortened, dropped, re-ruled or moved and resealed is not a re-freeze: it is a retirement of the set, by ruling`);
+      for (const loss of requestLosses(copy.wire, set.wire, copy.vectors, set.vectors)) fail('F1', `${at}: ${loss}. A way the frozen phone asks, taken out and resealed, is not a re-freeze: it is a retirement of the set, by ruling`);
     }
   }
 }
@@ -1964,6 +2239,36 @@ function clauseF(sets, inMemory) {
     expects('F3');
     checked('F3');
     if (sets.length < FROZEN_SETS_FLOOR) fail('F3', `${String(sets.length)} frozen set(s) under ${relPath(FROZEN_DIR)}, below the floor of ${String(FROZEN_SETS_FLOOR)}: a frozen phone was removed or never written`);
+    // Phase 333.11.2 (SPEC-2 D3): in the canonical directory the floor is an
+    // EQUALITY, so a retirement must lower it and a new set must raise it.
+    // Under `--into` (a scratch directory) only "at least" applies, and a
+    // freeze prints the reminder instead (§3.6).
+    else if (FREEZE === null && FROZEN_DIR === CANONICAL_FROZEN_DIR && sets.length > FROZEN_SETS_FLOOR) {
+      fail('F3', `${String(sets.length)} frozen sets under ${relPath(FROZEN_DIR)}, above FROZEN_SETS_FLOOR (${String(FROZEN_SETS_FLOOR)}): the commit that adds a set raises the floor, and a retirement lowers it only beside RETIRED_SETS`);
+    }
+  }
+  // F1 without git (Phase 333.11.2, SPEC-2 §3.4): RETIRED_SETS is well
+  // formed, (e) one label names one set, and (d) a retired label is never
+  // held again. These hold with no repository at all.
+  for (const [label, why] of Object.entries(RETIRED_SETS)) {
+    expects('F1');
+    checked('F1');
+    if (!LABEL_PATTERN.test(label)) fail('F1', `RETIRED_SETS names ${JSON.stringify(label)}, which is not a label (${String(LABEL_PATTERN)})`);
+    if (typeof why !== 'string' || why.trim() === '') fail('F1', `RETIRED_SETS retires ${JSON.stringify(label)} with no ruling: its value is '<date>: <his words>'`);
+  }
+  const holders = new Map();
+  for (const set of sets) {
+    if (!isPlainObject(set.wire) || typeof set.wire.label !== 'string') continue;
+    if (!holders.has(set.wire.label)) holders.set(set.wire.label, []);
+    holders.get(set.wire.label).push(set.name);
+  }
+  for (const [label, names] of holders) {
+    expects('F1');
+    checked('F1');
+    if (names.length > 1) fail('F1', `${label} is held by ${names.join(' and ')}: one label names one set`);
+    if (Object.hasOwn(RETIRED_SETS, label)) {
+      for (const name of names) fail('F1', `${name} holds the label ${label}, which RETIRED_SETS retired (${String(RETIRED_SETS[label])}): a retired label is never reused; freeze a new phone under a new label`);
+    }
   }
   for (const set of sets) {
     expects('F1');
@@ -2819,7 +3124,6 @@ function clauseR7(sets) {
  * the launch phone was frozen calling are ledger rows with their frozen
  * method, path, signing, window and reads.
  */
-const LEDGER_REL = 'src/main/pocket/route-ledger.ts';
 /** `--ledger-copy <file>`: one more copy of the ledger to compare, under ROOT (the ablation's planted older copy). */
 const LEDGER_COPIES = argv.flatMap((a, i) => (a === '--ledger-copy' && argv[i + 1] !== undefined ? [argv[i + 1]] : []));
 
@@ -2922,41 +3226,32 @@ function clauseR8(sets) {
     if (copy.error !== undefined) fail('R8', `--ledger-copy ${rel}: ${copy.error}`);
     else for (const loss of ledgerLosses(copy.rows, today.rows)) fail('R8', `against the copy ${rel}: ${loss}. A ledger row is never edited or removed, only appended`);
   }
-  // Every committed copy, read only, with F1's machinery.
-  const top = git(['rev-parse', '--show-prefix', '--is-shallow-repository']);
-  if (!top.ok) {
-    note('R8', `${top.why}: committed copies of the ledger not compared`);
+  // Every committed copy, read only, from the same four git reads F1's
+  // copies come from (committedHistory: one log, one ls-tree and one
+  // cat-file for both), one comparison per distinct blob.
+  const h = committedHistory();
+  if (h.why !== null) {
+    note('R8', `${h.why}: committed copies of the ledger not compared`);
     return;
   }
-  const [prefix = '', shallow = ''] = top.out.split('\n');
-  if (prefix.trim() !== '') {
-    note('R8', `the judged tree is ${prefix.trim()} inside its repository, not its top level: committed copies of the ledger not compared`);
-    return;
-  }
-  if (shallow.trim() === 'true') note('R8', 'a shallow clone: only the ledger copies after its graft');
-  const log = git(['log', '--format=%H', '--', LEDGER_REL]);
-  if (!log.ok) {
-    note('R8', `${log.why}: committed copies of the ledger not compared`);
-    return;
-  }
-  const commits = log.out.split('\n').map((l) => l.trim()).filter((l) => /^[0-9a-f]{40}([0-9a-f]{24})?$/.test(l));
-  if (commits.length === 0) {
+  if (h.shallow) note('R8', 'a shallow clone: only the ledger copies after its graft');
+  for (const n of h.notes.r8) note('R8', n);
+  if (h.ledger.size === 0) {
     note('R8', `no committed copy of ${LEDGER_REL} yet, so its history was not compared (true until Phase 333.12 lands)`);
     return;
   }
-  for (const c of commits) {
-    const shown = git(['show', `${c}:${LEDGER_REL}`]);
-    if (!shown.ok) {
-      note('R8', `its copy at ${c.slice(0, 8)} cannot be read (${shown.why}), so it was not compared`);
-      continue;
-    }
-    const copy = ledgerRowsOf(shown.out);
+  for (const [blob, where] of h.ledger) {
+    const bytes = h.blobs.get(blob);
+    // A blob git did not answer is already a note (committedHistory).
+    if (bytes === undefined) continue;
+    const at = where.commit.slice(0, 8);
+    const copy = ledgerRowsOf(bytes.toString('utf8'));
     checked('R8');
     if (copy.error !== undefined) {
-      fail('R8', `its copy committed at ${c.slice(0, 8)} cannot be read as a ledger (${copy.error}), so what an id meant then is not known`);
+      fail('R8', `its copy committed at ${at} cannot be read as a ledger (${copy.error}), so what an id meant then is not known`);
       continue;
     }
-    for (const loss of ledgerLosses(copy.rows, today.rows)) fail('R8', `against its copy committed at ${c.slice(0, 8)}: ${loss}. A ledger row is never edited or removed, only appended`);
+    for (const loss of ledgerLosses(copy.rows, today.rows)) fail('R8', `against its copy committed at ${at}: ${loss}. A ledger row is never edited or removed, only appended`);
   }
 }
 
@@ -3465,7 +3760,28 @@ if (FREEZE !== null) {
   // not name, or take out a way the frozen phone asks (the same two asks F1
   // (b) makes of every committed copy, so the two never disagree).
   if (previous !== null) {
-    const losses = [...macSideLosses(previous, freezeResult.wire), ...requestLosses(previous, freezeResult.wire)];
+    // Phase 333.11.2 (SPEC-2 D8): the replaced set's own vectors, read by
+    // its `vectors.file` and held to its `vectors.sha256`, so every request
+    // it froze is asked of the new vectors through the same function F1 (b)
+    // uses. Vectors that do not hold together cannot be compared, so the
+    // replace is refused rather than taken on trust.
+    const vf = previous?.vectors?.file;
+    const vp = typeof vf === 'string' && vf !== '' && !vf.includes('/') && !vf.includes('\\') ? join(FROZEN_DIR, vf) : null;
+    const vb = vp !== null && existsSync(vp) ? readFileSync(vp) : null;
+    let previousVectors = null;
+    if (vb !== null && sha256hex(vb) === previous?.vectors?.sha256) {
+      try {
+        const parsed = JSON.parse(vb.toString('utf8'));
+        previousVectors = isPlainObject(parsed) ? parsed : null;
+      } catch {
+        previousVectors = null;
+      }
+    }
+    if (previousVectors === null) {
+      process.stdout.write(`${TAG} FAIL: --replace: ${FREEZE}'s own vectors do not hold together (F2), so what it froze cannot be compared; nothing was written\n`);
+      process.exit(1);
+    }
+    const losses = [...macSideLosses(previous, freezeResult.wire), ...requestLosses(previous, freezeResult.wire, previousVectors, todayVectors)];
     if (losses.length > 0) {
       process.stdout.write(`${TAG} FAIL: --replace would lower what the Mac holds for the phone, or take out a way the phone asks, in ${FREEZE}:\n`);
       for (const l of losses) process.stdout.write(`  - ${l}\n`);
@@ -3535,7 +3851,7 @@ const summary = {
   clauses: Object.fromEntries(order.map((id) => [id, { ok: state[id].findings.length === 0, checked: state[id].checked, findings: state[id].findings.slice(0, MAX_FINDINGS) }])),
   p4,
   replays: { frozen: replayStats.frozen, generated: replayStats.generated },
-  git: { copies: gitStats.copies, notes: gitStats.notes }
+  git: { copies: gitStats.copies, labels: gitStats.labels, notes: gitStats.notes }
 };
 
 if (FREEZE !== null) {
@@ -3562,6 +3878,8 @@ if (FREEZE !== null) {
   writeFileSync(target, `${pretty(w)}\n`, 'utf8');
   if (freezeResult.notCalled.length > 0) process.stdout.write(`${TAG} routes of the door's table the phone calls no target for, not frozen: ${freezeResult.notCalled.join(', ')}\n`);
   process.stdout.write(`${TAG} froze ${FREEZE}: phone build ${w.phoneBuild}, Mac ${String(w.macVersion)}, ${String(w.routes.length)} routes, ${String(Object.keys(w.types).length)} types, ${String(w.arms.length)} arms, ${String(w.unarmed.length)} unarmed (${String(ms)} ms)\n`);
+  // SPEC-2 §3.6: in freeze mode "above the floor" is a reminder, not red.
+  if (FROZEN_DIR === CANONICAL_FROZEN_DIR && sets.length > FROZEN_SETS_FLOOR) process.stdout.write(`${TAG} raise FROZEN_SETS_FLOOR to ${String(sets.length)} in the commit that adds ${FREEZE}\n`);
   if (JSON_OUT) process.stdout.write(`GATE_ONLYADD:${JSON.stringify(summary)}\n`);
   process.exit(0);
 }

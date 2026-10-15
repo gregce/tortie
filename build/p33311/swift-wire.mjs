@@ -64,6 +64,11 @@
  * the phone's own numbers a Mac limit must cover (`ASK_ROWS`), read from the
  * Swift with `mod.used` put back afterwards, so the files they live in never
  * join `read` (SPEC-1 D7). Its proof is three more fixtures (SPEC-1 §3.6).
+ * Since Phase 333.11.2 (build/p33311/SPEC-2.md §4.1) a kept line spelled any
+ * way but `DoorLine(keeps: …)` as a stored property's whole initializer, and
+ * a stored property holding a type that holds kept lines, are unread too;
+ * since its fix round, so are a typealias naming such a type and a type that
+ * inherits one.
  *
  * Plain node: it imports `node:crypto`, `node:fs`, `node:path` and the lexer,
  * and nothing else, so `build/p316/test-ios.mjs` imports it with no tsx.
@@ -2126,6 +2131,45 @@ function readEncoder(mod, qual, e, f, unread, seen) {
  * computed property, a local, a list or any other expression) it is unread,
  * because the type that holds such a line holds it through a call this
  * reader does not count, and the count would fall short.
+ *
+ * Since Phase 333.11.2 (build/p33311/SPEC-2.md §4.1) every OTHER spelling of
+ * a line is unread too, so P0 is red by name where the count would have
+ * fallen short in silence. The one spelling of a line is `DoorLine(keeps: …)`:
+ *
+ *   R-b `DoorLine.init` in any form: a call, a function value or bare;
+ *   R-c a typealias whose right side, to the end of its statement, names
+ *       `DoorLine` (a name for it this reader does not follow);
+ *   R-d any call whose first argument label is `keeps:` other than the
+ *       `DoorLine(` above (`.init(keeps:`, `self.init(keeps:`, `Self(keeps:`,
+ *       an alias's), `DoorLine`'s one initializer being `init(keeps:)`; a
+ *       `(` that opens the parameters of an `init`, a `func`, a `subscript`
+ *       or an enum `case` is a declaration and is skipped (`declaresParams`);
+ *   R-e a stored property typed `DoorLine` (`?` or `!` allowed) whose `=`
+ *       initializer is anything but exactly `DoorLine(keeps: true|false)`;
+ *       with NO initializer it is a line handed in and nothing is said,
+ *       because `DoorExchange.line` is exactly that (SPEC-2 D9), and an
+ *       optional's bare `nil` is the same (the fix round): it makes no line;
+ *   R-f after the counts, a stored property holding a type that holds kept
+ *       lines: its annotation names that type, or its initializer constructs
+ *       it (`H(` or `H.init`, anywhere in it, past a generic argument clause
+ *       `H<…>` and a `.self`; `H.kept()` is a static call and `H.self` alone a
+ *       metatype, neither a constructor), because the count is per type
+ *       (SPEC-2 D10); in a holder's own body or an extension of it, `Self`
+ *       is the holder;
+ *   R-g after the counts, a typealias whose right side names a type that
+ *       holds kept lines, a name for the holder R-f does not follow;
+ *   R-h after the counts, a type whose inheritance clause names a type that
+ *       holds kept lines, because a subclass holds its superclass's lines and
+ *       its own count does not (the verifier's KI1 and KI2, the fix round).
+ *
+ * R-e and R-f read every stored property written directly in a type's body
+ * AND every one at a file's top level (a global holds a line as surely as a
+ * type does, and a kept line outside any type is already unread above).
+ *
+ * A LINE is reported ONCE by this pass, with the first rule that refuses it
+ * (the main scan, then R-b to R-h in that order), because `proveReader`
+ * compares the unread lines as a sorted list. Nothing here asks `mod.entry`,
+ * so `readAsks` still leaves `mod.used` as it found it.
  */
 function keptLinesByType(mod, unread, name = 'DoorLine') {
   const counts = new Map();
@@ -2137,35 +2181,272 @@ function keptLinesByType(mod, unread, name = 'DoorLine') {
       declsOf.set(part.decl.src, list);
     }
   }
+  const told = new Set();
+  const refuseLine = (src, line, why) => {
+    const key = `${src.path}\u0000${line}`;
+    if (told.has(key)) return;
+    told.add(key);
+    unread.push({ file: src.path, line, why });
+  };
+  const refuse = (src, at, why) => refuseLine(src, src.lineOf(at), why);
+  const write = `write \`${name}(keeps: true)\` as a stored property's whole initializer, so the connections the phone holds at once can be counted`;
+  const R_B = `a ${name} made or named through \`${name}.init\`, which this reader does not count: ${write}`;
+  const R_C = `a typealias naming ${name}, a name for ${name} this reader does not follow: ${write}`;
+  const R_D = `a call passing \`keeps:\` that is not \`${name}(keeps: …)\` (\`.init\`, \`self.init\`, \`Self\`, an alias or any other), so the line it may make cannot be counted: ${write}`;
+  const R_E = `a stored ${name} whose initializer is not exactly \`${name}(keeps: true)\` or \`${name}(keeps: false)\`, so the line it holds cannot be counted: ${write}`;
+  const stored = [];
+  const aliases = [];
   for (const src of mod.srcs) {
     const { toks, match } = src;
     const decls = declsOf.get(src) ?? [];
     for (let i = 0; i < toks.length; i += 1) {
       if (!isId(toks[i], name) || !isOp(toks[i + 1], '(') || match[i + 1] < 0) continue;
-      const line = src.lineOf(toks[i].at);
       const args = solid(toks, i + 2, match[i + 1]);
       const literal = args.length === 3 && isId(args[0], 'keeps') && isOp(args[1], ':') && (isId(args[2], 'true') || isId(args[2], 'false'));
       if (!literal) {
-        unread.push({ file: src.path, line, why: `a ${name}( whose argument is not the literal \`keeps: true\` or \`keeps: false\`, so the connections the phone holds at once cannot be counted` });
+        refuse(src, toks[i].at, `a ${name}( whose argument is not the literal \`keeps: true\` or \`keeps: false\`, so the connections the phone holds at once cannot be counted`);
         continue;
       }
       if (args[2].v !== 'true') continue;
       const holder = decls.filter((d) => d.open < i && i < d.close).sort((a, b) => b.open - a.open)[0];
       if (holder === undefined) {
-        unread.push({ file: src.path, line, why: `a kept ${name} outside any type` });
+        refuse(src, toks[i].at, `a kept ${name} outside any type`);
         continue;
       }
       const heldWhereMade = storedInitializer(toks, match, holder.open, i, name);
       if (!heldWhereMade) {
-        unread.push({ file: src.path, line, why: `a kept ${name} that is not the whole initializer of a stored property in a type's body (a factory, a computed property, a local or an expression), so the connections the type holding it opens at once cannot be counted` });
+        refuse(src, toks[i].at, `a kept ${name} that is not the whole initializer of a stored property in a type's body (a factory, a computed property, a local or an expression), so the connections the type holding it opens at once cannot be counted`);
         continue;
       }
       const c = counts.get(holder.qual) ?? { count: 0, file: src.path };
       c.count += 1;
       counts.set(holder.qual, c);
     }
+    // R-b: `DoorLine.init`, called, passed as a value or bare.
+    for (let i = 0; i < toks.length; i += 1) {
+      if (!isId(toks[i], name)) continue;
+      const dot = nextSolid(toks, i + 1, toks.length);
+      if (isOp(toks[dot], '.') && isId(toks[nextSolid(toks, dot + 1, toks.length)], 'init')) refuse(src, toks[i].at, R_B);
+    }
+    // R-c: a typealias whose right side names DoorLine. Every alias is asked
+    // again once the counts are known (R-g).
+    for (let i = 0; i < toks.length; i += 1) {
+      if (!isId(toks[i], 'typealias')) continue;
+      const right = typealiasRight(toks, match, i);
+      if (right === null) continue;
+      const rightToks = toks.slice(right[0], right[1]);
+      if (rightToks.some((t) => isId(t, name))) refuse(src, toks[i].at, R_C);
+      aliases.push({ src, at: toks[i].at, toks: rightToks });
+    }
+    // R-d: a call passing `keeps:` first, other than the main scan's `DoorLine(`.
+    for (let p = 0; p < toks.length; p += 1) {
+      if (!isOp(toks[p], '(')) continue;
+      const label = nextSolid(toks, p + 1, toks.length);
+      if (!isId(toks[label], 'keeps') || !isOp(toks[nextSolid(toks, label + 1, toks.length)], ':')) continue;
+      if (isId(toks[p - 1], name) && match[p] >= 0) continue;
+      if (declaresParams(toks, p)) continue;
+      refuse(src, toks[p].at, R_D);
+    }
+    // Every stored property directly in a type's body or at the top level.
+    const inner = innerBrackets(toks, match);
+    const bodies = new Map(decls.map((d) => [d.open, d]));
+    for (let k = 0; k < toks.length; k += 1) {
+      if (!(isId(toks[k], 'let') || isId(toks[k], 'var'))) continue;
+      if (inner[k] !== -1 && !bodies.has(inner[k])) continue;
+      const property = storedProperty(toks, match, k);
+      if (property !== null) stored.push({ src, at: toks[k].at, owner: bodies.get(inner[k]) ?? null, ...property });
+    }
+  }
+  // R-e: a stored DoorLine whose initializer is not the one spelling.
+  for (const s of stored) {
+    const t = s.typeToks;
+    const typed = t.length > 0 && isId(t[0], name) && (t.length === 1 || (t.length === 2 && (isOp(t[1], '?') || isOp(t[1], '!'))));
+    const noLine = t.length === 2 && s.init !== null && s.init.length === 1 && isId(s.init[0], 'nil');
+    if (typed && s.init !== null && !theOneSpelling(s.init, name) && !noLine) refuse(s.src, s.at, R_E);
+  }
+  // R-f: a stored property holding a type that holds kept lines.
+  const lastOf = (qual) => qual.slice(qual.lastIndexOf('.') + 1);
+  const holders = new Map();
+  for (const [qual, c] of counts) holders.set(lastOf(qual), c.count);
+  const lines = (n) => `${String(n)} kept line${n === 1 ? '' : 's'}`;
+  for (const s of stored) {
+    // In a holder's own body, or an extension of it, `Self` is the holder.
+    const own = s.owner !== null && holders.has(lastOf(s.owner.qual)) ? lastOf(s.owner.qual) : null;
+    const holderOf = (t) => (isId(t) && holders.has(t.v) ? t.v : own !== null && isId(t, 'Self') ? own : null);
+    const named = s.typeToks.map(holderOf).find((h) => h !== null);
+    const init = s.init ?? [];
+    const made = init.map((t, j) => (holderOf(t) !== null && constructs(init, j) ? holderOf(t) : null)).find((h) => h !== null);
+    const held = named ?? made;
+    if (held !== undefined) {
+      refuse(s.src, s.at, `holds \`${held}\`, which holds ${lines(holders.get(held))}, and the count is per type, so the connections the type holding it opens at once cannot be counted: ${write}`);
+    }
+  }
+  // R-g: a typealias whose right side names a type that holds kept lines.
+  for (const a of aliases) {
+    const h = a.toks.find((t) => isId(t) && holders.has(t.v));
+    if (h !== undefined) refuse(a.src, a.at, `a typealias naming \`${h.v}\`, which holds ${lines(holders.get(h.v))}, a name for it this reader does not follow, so the connections a type holding it opens at once cannot be counted: ${write}`);
+  }
+  // R-h: a type whose inheritance clause names a type that holds kept lines.
+  for (const list of declsOf.values()) {
+    for (const d of list) {
+      const inherited = [...d.inherits].find((n) => holders.has(n));
+      if (inherited !== undefined) refuseLine(d.src, d.line, `inherits \`${inherited}\`, which holds ${lines(holders.get(inherited))}, and a subclass holds its superclass's lines, which its own count does not, so the connections it opens at once cannot be counted: ${write}`);
+    }
   }
   return counts;
+}
+
+/**
+ * Whether the type name at `j` in `ts` (tokens with no line breaks) is
+ * CONSTRUCTED there (SPEC-2 §4.1 R-f, widened in the fix round): followed,
+ * past a generic argument clause `<…>` and a `.self`, by `(` or `.init`.
+ * `H.kept()` (a static call) and `H.self` alone (a metatype) are not.
+ */
+function constructs(ts, j) {
+  let k = j + 1;
+  if (isOp(ts[k], '<')) {
+    let depth = 0;
+    for (; k < ts.length; k += 1) {
+      if (isOp(ts[k], '<')) depth += 1;
+      else if (isOp(ts[k], '>')) {
+        depth -= 1;
+        if (depth === 0) break;
+      }
+    }
+    if (k >= ts.length) return false;
+    k += 1;
+  }
+  if (isOp(ts[k], '.') && isId(ts[k + 1], 'self')) k += 2;
+  return isOp(ts[k], '(') || (isOp(ts[k], '.') && isId(ts[k + 1], 'init'));
+}
+
+/**
+ * Whether the `(` at `p` opens a DECLARATION's parameters rather than a
+ * call's arguments (SPEC-2 §4.1 R-d): the token before it (a generic clause
+ * `<…>` skipped) is `init`, `init?` or `init!` not after a `.`; or
+ * `subscript`; or a name after `func` or `case`.
+ */
+function declaresParams(toks, p) {
+  let b = prevSolid(toks, p - 1);
+  if (isOp(toks[b], '>')) {
+    let depth = 0;
+    for (; b >= 0; b -= 1) {
+      if (isOp(toks[b], '>')) depth += 1;
+      else if (isOp(toks[b], '<')) {
+        depth -= 1;
+        if (depth === 0) break;
+      }
+    }
+    if (b < 0) return false;
+    b = prevSolid(toks, b - 1);
+  }
+  if ((isOp(toks[b], '?') || isOp(toks[b], '!')) && isId(toks[prevSolid(toks, b - 1)], 'init')) b = prevSolid(toks, b - 1);
+  if (isId(toks[b], 'init')) return !isOp(toks[prevSolid(toks, b - 1)], '.');
+  if (isId(toks[b], 'subscript')) return true;
+  if (!isId(toks[b])) return false;
+  const before = toks[prevSolid(toks, b - 1)];
+  return isId(before, 'func') || isId(before, 'case');
+}
+
+/** Operators that carry a type over a line break: after them, or before them. */
+const TYPE_GOES_ON_AFTER = new Set(['&', '.', '->']);
+const TYPE_GOES_ON_BEFORE = new Set(['&', '.', '->']);
+
+/**
+ * The right side of the `typealias` at `i`, as `[from, to)`, to the end of
+ * its statement: `typealias <Name>[<…>] = …`, brackets and a generic's
+ * `<…>` read whole, a line break ending it only outside them and where no
+ * operator on either side carries the type on. Null for any other shape.
+ */
+function typealiasRight(toks, match, i) {
+  let j = nextSolid(toks, i + 1, toks.length);
+  if (!isId(toks[j])) return null;
+  j = nextSolid(toks, j + 1, toks.length);
+  if (isOp(toks[j], '<')) {
+    let depth = 0;
+    for (; j < toks.length; j += 1) {
+      if (isOp(toks[j], '<')) depth += 1;
+      else if (isOp(toks[j], '>')) {
+        depth -= 1;
+        if (depth === 0) break;
+      }
+    }
+    j = nextSolid(toks, j + 1, toks.length);
+  }
+  if (!isOp(toks[j], '=')) return null;
+  const from = nextSolid(toks, j + 1, toks.length);
+  let angle = 0;
+  let last = null;
+  let k = from;
+  while (k < toks.length) {
+    const t = toks[k];
+    if (t.t === 'nl') {
+      const next = nextSolid(toks, k, toks.length);
+      const goesOn = angle > 0 || (last !== null && last.t === 'op' && TYPE_GOES_ON_AFTER.has(last.v)) || (next < toks.length && toks[next].t === 'op' && TYPE_GOES_ON_BEFORE.has(toks[next].v));
+      if (!goesOn) break;
+      k = next;
+      continue;
+    }
+    if (isOp(t, ';') || isOp(t, '}') || isOp(t, '{')) break;
+    if ((isOp(t, '(') || isOp(t, '[')) && match[k] > k) {
+      last = toks[match[k]];
+      k = match[k] + 1;
+      continue;
+    }
+    if (isOp(t, '<')) angle += 1;
+    else if (isOp(t, '>') && angle > 0) angle -= 1;
+    last = t;
+    k += 1;
+  }
+  return [from, k];
+}
+
+/**
+ * For every token, the innermost `(`, `[` or `{` still open at it (one that
+ * closes later, as `matchOf` paired them), or -1 at a file's top level.
+ */
+function innerBrackets(toks, match) {
+  const inner = new Array(toks.length).fill(-1);
+  const open = [];
+  for (let i = 0; i < toks.length; i += 1) {
+    while (open.length > 0 && match[open[open.length - 1]] <= i) open.pop();
+    inner[i] = open.length > 0 ? open[open.length - 1] : -1;
+    const t = toks[i];
+    if (t.t === 'op' && (t.v === '(' || t.v === '[' || t.v === '{') && match[i] > i) open.push(i);
+  }
+  return inner;
+}
+
+/**
+ * The stored property the `let` or `var` at `k` declares: its annotation's
+ * tokens (empty with none) and its `=` initializer's (null with none), read
+ * to the end of the statement. Null when no name or pattern follows.
+ */
+function storedProperty(toks, match, k) {
+  let j = nextSolid(toks, k + 1, toks.length);
+  if (isId(toks[j])) j += 1;
+  else if (isOp(toks[j], '(') && match[j] > j) j = match[j] + 1;
+  else return null;
+  let typeToks = [];
+  if (isOp(toks[j], ':')) {
+    const end = readType(toks, match, j + 1, toks.length);
+    typeToks = solid(toks, j + 1, end);
+    j = end;
+  }
+  let init = null;
+  if (isOp(toks[j], '=')) {
+    const value = nextSolid(toks, j + 1, toks.length);
+    init = solid(toks, value, readExpr(toks, match, value, toks.length));
+  }
+  return { typeToks, init };
+}
+
+/** Exactly `DoorLine ( keeps : true|false )`, and nothing after it. */
+function theOneSpelling(ts, name) {
+  return (
+    ts.length === 6 && isId(ts[0], name) && isOp(ts[1], '(') && isId(ts[2], 'keeps') && isOp(ts[3], ':') &&
+    (isId(ts[4], 'true') || isId(ts[4], 'false')) && isOp(ts[5], ')')
+  );
 }
 
 /**
