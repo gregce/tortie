@@ -38493,7 +38493,7 @@ video). Needs 333.1 landed, and 317 and 318, so the sample covers End and Reply.
 
 ---
 
-## Phase 333.4 — the devices App Review uses (research 136 §7, the adversary's finding, 2026-09-30)
+## Phase 333.4 — the devices App Review uses (research 136 §7, the adversary's finding, 2026-09-30) ✅ LANDED `c5dced56`, 2026-10-15 (his ruling on the second needs_work: "Land it, queue the gaps"; the gaps are 333.4.1)
 
 **Subject.** `test(ios): drive the app on an iPad, on iOS 27 and without Face ID`
 
@@ -42277,6 +42277,73 @@ written here in full, because the scratch that held them is removed when 333.11.
 
 ---
 
+## Phase 333.4.1 — "Land it, queue the gaps": the iPhone SE's top bar after a turn, the return key on a 375-point window, and the device probe's two gaps (operator, 2026-10-15)
+
+**Subject.** `fix(ios): keep the Terminal's top bar in place after a turn on iOS 26, and give the return key its word`
+
+**First body line.** `Phase 333.4.1: the small screens App Review uses`
+
+**Semver.** Patch to the phone app: `CURRENT_PROJECT_VERSION` 10 to 11, and the App Store build becomes 11. The Mac does not
+move. CHANGELOG items under `## Unreleased`, only for what a person would notice.
+
+**Tier 2.** A rendered surface with no new state, and test tooling. One app run per device beside the parent, plus one
+independent method; under his lighter-checking ruling of 2026-10-15, one verifier.
+
+**Charter.** His ruling of 2026-10-15 on Phase 333.4's second needs_work, "Land it, queue the gaps". 333.4 landed as
+`c5dced56` with build/p3334/SPEC.md (§3 F2, §11, both "§As built" sections) and `probe:p3334`. Two findings are the app's
+and two are the probe's and the gate's.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **F2, the top bar after a turn.** iPhone SE (3rd generation) on iOS 26.3.1: the Terminal turned sideways and back moves the
+  navigation bar from [0,20,375,54] to [0,10,375,54] and the grid from [0,104,375,480] to [0,94,375,490], under the status
+  bar's [0,0,375,20]; it persists after 5 s idle, Back and reopen, and a tab switch. Inside See a sample the whole top stack
+  moves 20 pt: the Sample bar from [0,0,375,64] to [0,0,375,44], Leave sample from y 20 to y 0, the Sample label into the
+  clock's band. iPhone SE (2nd generation) on 26.3 the same; the SE on 18.3 and the iPhone 16 Pro on 26.3 and 18.3 read
+  back exactly. Four scratch builds (status bar left to iOS; the navigation bar left drawn; both bars and the status bar left
+  alone; `.visible` upright) all still shifted, so the Terminal's chrome code was not shown to be the cause.
+- **The return key.** `ScreenKeyBar` in `ios/Tortie/Screens/ScreenKeyField.swift` gives `return` 41.5 pt on every
+  375-pt-wide window (the iPhone SE and the iPad's iPhone window) where it takes 59.7 pt on the iPhone 16 Pro's 402; at
+  the largest accessibility size the arrows grow from 30x36 to 36x44 and ⇧tab, ctrl and return are squeezed to 34 pt
+  (ideal 41.3, 41.3 and 59.7). Every key stays tappable.
+- **The probe's hidden death.** `driveWithRetry` in `build/p3334/probe-p3334.mjs` reads crash reports only when the drive
+  ended with the app gone; when XCUITest's own crash is followed by a new app process the drive ends alive, and the probe
+  graded G1 and G9 as the app's FAIL (the reverify's R1 ipad-18, Tortie-2026-10-15-002047.ips).
+- **Rule 10's dodges.** `deviceKindShape` in `build/assert-simulator-teardown.mjs` stays green when the picked row is edited
+  before the capabilities read: `if (typeof options?.capabilitiesFrom === 'string') deviceType.bundlePath = …` and
+  `Object.assign(deviceType, options?.typeOverrides ?? {})`, each just above `const capabilitiesRead =`.
+
+### The mechanism
+
+1. **F2.** Measure first, in a scratch app, what iOS 26.3 does to a `NavigationStack` with a hidden status bar across a
+   rotation on a 2x 375-pt screen; then fix it where it is caused (the Terminal's own presentation in
+   `ios/Tortie/Screens/Screen.swift` and the Sample bar in `ios/Tortie/Sample/SampleBar.swift`), never by an offset that
+   would be wrong on another device. If the measurement shows iOS alone does it with nothing Tortie can change, state it and
+   say what the person sees.
+2. **The return key.** The key bar gives `return` the width its word needs before the arrows on a narrow window, or draws its
+   glyph instead of the word there; read as a frame, never a photograph.
+3. **The probe.** Crash reports are read for every drive, alive or not, matched by device, pid and time, and an XCUITest
+   death the app came back from is driven again and never graded as the app's.
+4. **Rule 10.** The gate refuses any assignment to the picked row, or any read of the caller's options, between the pick and
+   the capabilities read, with both dodges as fixtures and ablations.
+
+### The proof, run rather than read
+
+- `test:ios` on the iPhone SE (`P316_DEVICE`) on 26.3 and 18.3 and on the iPhone 16 Pro, and `probe:p3334` whole beside the
+  parent: F2's frames equal before and after the turn on every row, the return key's frame holds its word, and no other row
+  moves. `conformance:ios`, `gate:simulator`, `ablation:p316` if a rule moved.
+- `node build/p316/test-ios.mjs --read-app` on the new archive, and the build number 11 in both places conformance:ios
+  rule (s) reads.
+
+### What is NOT in this phase
+
+- **No iPad layout.** `TARGETED_DEVICE_FAMILY` stays 1.
+- **No iOS 27 or iPhone Duo row**, until he installs Xcode 27 on macOS Tahoe.
+- **No screenshot**, no physical device and no install by an agent.
+- **No release.** He archives and submits build 11 when it lands.
+
+---
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -43525,3 +43592,5 @@ cycle rather than only the evening it was written.
 - 2026-10-15, **HE CHOSE LIGHTER CHECKING AGAIN ("ok do the lighter verifier for the appropriate phases")**, after asking why the phases take so long (the machine read a load average near 690 on 12 cores, from a stress test another session started in his runstory project, his virtual machine, and three phases at once). Applied as on 2026-10-07: one verifier instead of two lenses, no separate probe review (the verifier self-tests every grader it relies on and feeds each a broken fixture of its own), one app run beside the parent plus one attack where the phase has an app, at least three ablations, then the fix round and an independent reverify; on a second needs_work the main session decides and lands, as for 333.1 and 342. **Appropriate means Tier 1 and Tier 2:** 333.11.2 now, and later rounds of that tier (337.5 when queued). **Not lightened, because their risk is the kind CLAUDE.md's tiers name:** 333.12 (which requests from the internet a Mac answers, refusal 8), 345 (the phone's Keychain records and keys for every public phone) and 346 (a process started from the internet); and nothing changes for 333.4 and 347.1, each already down to its last single re-check. 333.11.2 starts when the first running phase lands, so no more than three run at once.
 
 - 2026-10-15, **PHASE 347.1 (absolute only) CAME BACK needs_work, AND HIS RULINGS.** The round built J10 (a broken path joins only when it starts with `/` or `~/`) and J11 (a cutter's signature refused); the attack lens approved, the app lens and the reverify each found one more wrong-file class, and the reverify read 0 moved cells and 0 wrong opens over more than 16 million layouts but one: Python's textwrap breaks before a `--` run, so a bottom row ending just before `--` opened a regular file named the text before it (1,320 of 346,473 hostile layouts, live 2 of 2), with the glued residue (two absolute paths on adjoining rows, the first exactly full) stated in L8. He asked whether that was all that was left; told yes, **HIS RULING: "Add the `--` fix, quick check, land"**: the reverify's measured one-line refusal in movedFragmentCells (1,320 to 0, every right join kept), with a test, a rule-17 reading, an ablation and a `--` name in prose-cutters, then one lighter re-check, then landing and closing issue 40. **333.12 APPROVED** by its reverify (one pre-existing minor at v0.111.1 too: two Allows of one hash after alerts were turned on can leave a door process up behind a refused face; queued at landing). **333.11.2 came back needs_work twice under lighter checking** on one minor (a generic holder split across lines escapes the reader); under his delegation the main session lands it with that stated. **333.4: HIS RULING "Land it, queue the gaps"**; landing now.
+
+- 2026-10-15, **PHASE 333.4 LANDED, `c5dced56` — the devices App Review uses, no app change, no release.** The Release app passes on an iPad Air 11-inch (M3) in its iPhone window, an iPhone SE with Touch ID and an iPhone 16 Pro with nothing enrolled (End asks the passcode), on iOS 26.3 and 18.3, and every row reads as the parent; build 10 stays the build App Review gets. iOS 27 and iPhone Duo are UNMEASURED (Xcode 27 needs macOS Tahoe). New: Touch ID and device kinds in simulator-run.mjs, P316_DEVICE for test:ios, probe:p3334, SIMULATOR_USER_FLOOR 3; the fitted-row test fixed for 2x screens. **HIS RULING on the second needs_work (tooling only): "Land it, queue the gaps." QUEUED 333.4.1** with a full section above: the iPhone SE's top bar after a turn on iOS 26.3 (10 pt, 20 inside See a sample), the return key on a 375-pt window, and the probe's and the gate's two gaps; it moves the phone to build 11, so if it lands first the App Store gets 11. Battery green at `1a3629a1`, test:ios on 26.3 and 18.3 included. **345 STARTS NEXT** (one iPhone, several Macs, switched from the bottom bar).
