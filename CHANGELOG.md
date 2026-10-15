@@ -10,6 +10,10 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 - Tortie for iPhone now has See a sample, on its first screen and in Settings: made-up Claude Code and Codex sessions you can open, scroll back, type into, answer and end before you pair a Mac, with every page marked Sample and nothing leaving the phone. What you type there only appears on the sample's own prompt, and Leave sample takes you back ([`ad317f86`](https://github.com/gregce/tortie/commit/ad317f86))
 
+### Changed
+
+- Settings then Phone asks for Allow in a few short lines, with the full detail one click away
+
 ### Fixed
 
 - A Tortie update that adds something your iPhone can do no longer switches the iPhone off: what you allowed keeps working, and only the new thing waits for Allow in Settings then Phone ([`786ee1c6`](https://github.com/gregce/tortie/commit/786ee1c6))

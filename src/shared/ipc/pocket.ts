@@ -933,6 +933,13 @@ export interface PocketStatus {
   /** The hash {@link confirmLines} were drawn from. */
   confirmHash: string;
   /**
+   * The confirm block's face (Phase 333.12.1, build/p333121/SPEC.md D1): the few facts a person reads before Allow,
+   * composed in main by {@link pocketConfirmFace} from the SAME proposal {@link confirmLines} and {@link confirmHash}
+   * come from. Its rows are empty while the agreement on record holds every fact but the waiting routes. Every
+   * hashed fact is in {@link confirmLines}, which the sheet draws behind Details.
+   */
+  confirmFace: PocketConfirmFace;
+  /**
    * Whether {@link confirmLines} may be agreed to NOW (the Phase 330 fix
    * round): a public name read from Tailscale, a public port Tortie chose, and
    * no Tailscale read or port choice that failed since. When false the lines
@@ -1198,6 +1205,178 @@ export function pocketDoorHonesty(allowed: readonly string[]): string {
  * reads as changed and closes, so it says so. Never drawn on a happy path.
  */
 export const POCKET_ALLOWED_NOT_SAVED = 'Tortie could not save what you allowed, so the door will not answer until you allow it again.';
+
+// ---------------------------------------------------------------------------
+// The confirm block's face (Phase 333.12.1)
+// ---------------------------------------------------------------------------
+//
+// His ruling of 2026-10-15 ("ok i like your proposed design, ship it"),
+// replacing his ruling 2 of Phase 333.1: the confirm block in Settings then
+// Phone says each fact once, in a few labelled rows, and every hashed line is
+// behind Details, byte for byte (build/p333121/SPEC.md §1, §3). MAIN composes
+// the face from the one proposal the lines and the hash come from (D1), and
+// the composer's input names only the five facts the face may say (D2), so the
+// tailnet, start-with-Tortie, the route ids, each key and each alert address
+// can only ever be read in Details.
+
+/** The face's four rows, in the order they are drawn (D3). */
+export type PocketFaceRowKey = 'reach' | 'can' | 'phones' | 'alerts';
+
+/** One labelled row of the face: a label and the one value beside it. */
+export interface PocketFaceRow {
+  readonly key: PocketFaceRowKey;
+  readonly label: string;
+  readonly value: string;
+}
+
+/** A route that waits for this Allow, as the face names it (D7). */
+export interface PocketFaceNew {
+  readonly id: PocketRouteId;
+  /** `New: <title>`, or `New: <id>` when the route has no row in {@link POCKET_NEW_ROUTE_WORDS}. */
+  readonly title: string;
+  /** Its one sentence, or null when it has no row. */
+  readonly sentence: string | null;
+}
+
+/**
+ * What the sheet draws above Allow (D1, D6): the four rows for a first setup,
+ * a moved field or an unread agreement, none while the agreement on record
+ * holds; then every waiting route.
+ */
+export interface PocketConfirmFace {
+  readonly rows: readonly PocketFaceRow[];
+  readonly added: readonly PocketFaceNew[];
+}
+
+/**
+ * THE FIVE FACTS THE FACE MAY SAY, AND NO OTHER (D2). `PocketExecutionFields`
+ * is assignable to it, so main hands the proposal itself; a hashed fact this
+ * type does not name cannot reach the face and is named in Details alone.
+ */
+export interface PocketFaceFacts {
+  readonly funnelProgram: string;
+  readonly publicName: string;
+  readonly publicPort: number;
+  readonly phones: readonly { readonly id: string; readonly label: string }[];
+  readonly pushAlerts: boolean;
+}
+
+/** A waiting route's words on the face (D7). */
+export interface PocketNewRouteWords {
+  readonly title: string;
+  readonly sentence: string;
+}
+
+/**
+ * The waiting routes' words, keyed by the routes that CAN wait: every route
+ * that is not one of {@link LEGACY_ALLOWED_ROUTES} (D7).
+ */
+export type PocketNewRouteTable = Readonly<Partial<Record<Exclude<PocketRouteId, LegacyAllowedRouteId>, PocketNewRouteWords>>>;
+
+/** The first row's label. */
+export const POCKET_FACE_REACH = 'Reachable at';
+/** The second row's label. */
+export const POCKET_FACE_CAN = 'Your phone can';
+/** The third row's label. */
+export const POCKET_FACE_PHONES = 'Phones';
+/** The fourth row's label. */
+export const POCKET_FACE_ALERTS = 'Alerts';
+/** `Phones` with no phone allowed. */
+export const POCKET_FACE_NO_PHONE = 'none yet';
+/** `Your phone can` with no clause. Unreachable while the eleven are always allowed. */
+export const POCKET_FACE_CAN_NOTHING = 'do nothing';
+/** `Alerts` while the push is on: what goes through Apple, and what never does. */
+export const POCKET_FACE_ALERTS_ON = 'through Apple, never what an agent asks';
+/** `Alerts` while the push is off. */
+export const POCKET_FACE_ALERTS_OFF = 'off';
+/** The waiting route's lead word: `New: <title or id>`. */
+export const POCKET_FACE_NEW = 'New';
+
+/**
+ * WHAT EACH ROUTE LETS A PHONE DO, ON THE FACE (D5): the six reads say one
+ * clause, each write its own, and `pair` none. Keyed by EVERY route, so a
+ * phase that adds a route cannot compile until it writes the face's words, as
+ * `POCKET_HONESTY_ADDED` and `WRITE_CLAUSES` already make it write theirs. The
+ * composer says each clause once, in this key order, joined by `, `.
+ * `WRITE_CLAUSES` (src/main/pocket/pairing.ts) stays main's and Details': an
+ * id's clause is its meaning there, and these are shorter.
+ */
+export const POCKET_FACE_CLAUSES: Readonly<Record<PocketRouteId, string | null>> = Object.freeze({
+  blocked: 'see your sessions',
+  session: 'see your sessions',
+  turns: 'see your sessions',
+  sessions: 'see your sessions',
+  screen: 'see your sessions',
+  scrollback: 'see your sessions',
+  keys: 'type into them',
+  choose: 'answer questions',
+  say: 'send a message',
+  end: 'end a session',
+  pair: null
+});
+
+/**
+ * A WAITING ROUTE'S TITLE AND SENTENCE (D7). ADD-ONLY: a row is never edited
+ * or removed, only added, and only for a route that can wait (the type holds
+ * it to the routes that are not one of {@link LEGACY_ALLOWED_ROUTES}). EMPTY
+ * today, because no route of this build can wait; Phase 346 adds Start's row.
+ * A waiting route with no row is drawn `New: <its id>`, never left off.
+ */
+export const POCKET_NEW_ROUTE_WORDS: PocketNewRouteTable = Object.freeze({});
+
+/** The program as the face names it (D4): the app's name under /Applications, else the whole path. */
+export function pocketFaceProgram(path: string): string {
+  const app = /^\/Applications\/([^/]+)\.app\/Contents\/MacOS\/[^/]+$/.exec(path);
+  return app === null ? path : (app[1] ?? path);
+}
+
+/**
+ * THE FACE (D1 to D8), composed by main in `status()` from the proposal the
+ * lines and the hash come from, `routesOffered`, `routesWaiting` and the
+ * gate's state. Pure: no clock, no import, nothing localized. `words` is for
+ * the tests; main passes four arguments.
+ *
+ * - The waiting routes are `New: <title>` and their sentence, or `New: <id>`
+ *   and no sentence, in the order handed in (D7), on both faces (D8).
+ * - `confirmed`: no rows, because every fact but the waiting routes is what
+ *   the person already allowed (D6).
+ * - Otherwise four rows: where the door is reached and by which program (D4),
+ *   what an allowed phone can do over the offered routes less the waiting
+ *   ones, each clause once (D5), the phones' labels in id order, and alerts.
+ */
+export function pocketConfirmFace(
+  facts: PocketFaceFacts,
+  offered: readonly PocketRouteId[],
+  waiting: readonly PocketRouteId[],
+  state: PocketStatus['confirmState'],
+  words: PocketNewRouteTable = POCKET_NEW_ROUTE_WORDS
+): PocketConfirmFace {
+  const table: Readonly<Record<string, PocketNewRouteWords | undefined>> = words;
+  const added = waiting.map((id) => {
+    const row = table[id];
+    return { id, title: `${POCKET_FACE_NEW}: ${row?.title ?? id}`, sentence: row?.sentence ?? null };
+  });
+  if (state === 'confirmed') return { rows: [], added };
+  const clauses: Readonly<Record<string, string | null | undefined>> = POCKET_FACE_CLAUSES;
+  const can: string[] = [];
+  for (const id of Object.keys(clauses)) {
+    const clause = clauses[id];
+    if (clause === null || clause === undefined || can.includes(clause)) continue;
+    if (!offered.some((r) => r === id) || waiting.some((r) => r === id)) continue;
+    can.push(clause);
+  }
+  const program = pocketFaceProgram(facts.funnelProgram);
+  const labels = [...facts.phones].sort((a, b) => (a.id < b.id ? -1 : 1)).map((p) => p.label);
+  return {
+    rows: [
+      { key: 'reach', label: POCKET_FACE_REACH, value: `${facts.publicName}:${String(facts.publicPort)}${program === '' ? '' : `, by ${program}`}` },
+      { key: 'can', label: POCKET_FACE_CAN, value: can.length === 0 ? POCKET_FACE_CAN_NOTHING : can.join(', ') },
+      { key: 'phones', label: POCKET_FACE_PHONES, value: labels.length === 0 ? POCKET_FACE_NO_PHONE : labels.join(', ') },
+      { key: 'alerts', label: POCKET_FACE_ALERTS, value: facts.pushAlerts ? POCKET_FACE_ALERTS_ON : POCKET_FACE_ALERTS_OFF }
+    ],
+    added
+  };
+}
 
 /**
  * How the phone reaches this Mac (rewritten in Phase 330, research 132 Route

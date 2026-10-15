@@ -117,7 +117,8 @@ export function doorNeedsConfirm(status: PocketStatus): boolean {
  * Allow whose lines name it (Phase 333.12, build/p33312/SPEC.md D23): main's
  * `routesWaiting`, never worked out here, and only while the lines may be
  * agreed to. The door stays published and every allowed route keeps
- * answering meanwhile; step 2 draws today's confirm block under Published.
+ * answering meanwhile; step 2 draws the confirm block (main's face, Allow and
+ * Details, Phase 333.12.1) under Published.
  */
 export function routesWait(status: PocketStatus): boolean {
   return status.state === 'listening' && status.confirmable && status.routesWaiting.length > 0;
@@ -178,7 +179,7 @@ export type StepPiece =
   | { readonly kind: 'try-again-quiet' }
   /** Try again, as today: the switch's own press again. */
   | { readonly kind: 'try-again' }
-  /** Today's `[data-phone-confirm]` block, whole, at rest (his ruling 2, D18). */
+  /** The `[data-phone-confirm]` block: the confirm block (main's face, Allow and Details, Phase 333.12.1). */
   | { readonly kind: 'confirm' }
   /** Today's `[data-phone-approval]` block. */
   | { readonly kind: 'approval' }
@@ -361,8 +362,9 @@ function publishRow(status: PocketStatus, drawnAbove: boolean): Row {
     };
   }
   if (status.state === 'listening') {
-    // A route that waits draws today's confirm block under Published (Phase
-    // 333.12, D23); with nothing waiting, today's face exactly.
+    // A route that waits draws the confirm block (main's face, Allow and
+    // Details, Phase 333.12.1) under Published (Phase 333.12, D23); with
+    // nothing waiting, today's face exactly.
     return {
       state: STATE_PUBLISHED,
       stateKey: 'published',

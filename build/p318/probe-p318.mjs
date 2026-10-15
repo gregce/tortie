@@ -1764,7 +1764,10 @@ try {
       const asking = await waitStatus(main, (s) => s.confirmable === true && s.state !== 'opening' && s.confirmState !== 'confirmed' && s.confirmLines.some((l) => l.includes(`https://${PUBLIC_NAME}:`)), 40_000);
       const confirmBlock = asking.ok
         ? await waitFor(async () => {
-            const text = await cdpEval(settings, `(() => { const b = document.querySelector('section[aria-label="Phone"] [data-phone-confirm]'); return b === null ? null : b.innerText; })()`);
+            // textContent, never innerText (Phase 333.12.1, D14): the hashed lines and
+            // the warnings sit inside the block's shut <details>, whose content is not
+            // rendered and so is not in innerText.
+            const text = await cdpEval(settings, `(() => { const b = document.querySelector('section[aria-label="Phone"] [data-phone-confirm]'); return b === null ? null : b.textContent; })()`);
             return typeof text === 'string' && text.length > 0 ? text : null;
           }, 10_000, 200)
         : null;

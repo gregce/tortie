@@ -1272,9 +1272,10 @@ exit 0
 
     // ---- W1: the door asks again ------------------------------------------
     // The sheet is read WHILE ITS CONFIRM BLOCK IS DRAWN, before Allow:
-    // PhoneSection.tsx draws POCKET_DOOR_HONESTY and the lines inside
-    // `[data-phone-confirm]` alone, and that block goes once the door is
-    // allowed (the tests round; the reverify found the sheet read after Allow).
+    // PhoneSection.tsx draws POCKET_DOOR_HONESTY and the lines inside the
+    // `[data-phone-confirm]` block's Details (Phase 333.12.1), and that block
+    // goes once the door is allowed (the tests round; the reverify found the
+    // sheet read after Allow).
     let settings = null;
     try {
       settings = await attachSettings(main);
@@ -1282,7 +1283,10 @@ exit 0
       const asking = await waitStatus(main, (s) => s.confirmable === true && s.state !== 'opening' && s.confirmState !== 'confirmed' && s.confirmLines.some((l) => l.includes(`https://${PUBLIC_NAME}:`)), 40_000);
       const confirmBlock = asking.ok
         ? await waitFor(async () => {
-            const text = await cdpEval(settings, `(() => { const b = document.querySelector('section[aria-label="Phone"] [data-phone-confirm]'); return b === null ? null : b.innerText; })()`);
+            // textContent, never innerText (Phase 333.12.1, D14): the hashed lines and
+            // the warnings sit inside the block's shut <details>, whose content is not
+            // rendered and so is not in innerText.
+            const text = await cdpEval(settings, `(() => { const b = document.querySelector('section[aria-label="Phone"] [data-phone-confirm]'); return b === null ? null : b.textContent; })()`);
             return typeof text === 'string' && text.length > 0 ? text : null;
           }, 10_000, 200)
         : null;

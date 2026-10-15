@@ -156,6 +156,25 @@
  * onto `routesOffered`, what the Allow beside it grants, composed from the one
  * proposal the lines and the hash come from.
  *
+ * PHASE 333.12.1 MAKES THE CONFIRM BLOCK A FACE AND DETAILS (build/p333121/
+ * SPEC.md §6.1). His ruling of 2026-10-15, "ok i like your proposed design,
+ * ship it", REPLACES ruling 2 ("Keep today's block"): main composes a few
+ * labelled rows (`PocketStatus.confirmFace`) from the one proposal the lines
+ * and the hash come from, and every hashed line and both warnings move,
+ * byte for byte, behind ONE shut Details with Allow outside it. SU6 is
+ * rewritten to that (one shut <details> with no open, its summary Details,
+ * the lines unsliced, the two warnings, the honesty composer and the Funnel
+ * right inside it and nowhere else, the one confirm-door press outside it,
+ * the face read outside it, and confirmDoor handed back exactly the lines and
+ * the hash), AR11 reads routesOffered and routesWaiting through the one const
+ * of status() the answer now carries by shorthand, and four rules joined:
+ * AF1 the face is main's, composed once in status() over the proposal and
+ * the two lists, from an input type that names five facts; AF2 what it says,
+ * DRIVEN in memory, and its tables' types; AF3 the sheet draws it and
+ * composes none, with no list item or warning outside Details; AF4 Details
+ * names every hashed fact, read off NORMALIZE itself. One hundred and
+ * fifty-two rules in all.
+ *
  * HOW IT READS. The source, parsed with the TypeScript compiler's own parser,
  * so a comment, a string and a call are each read as what they are. A rule
  * that could be satisfied by a word in a comment is not a rule, and three of
@@ -338,7 +357,11 @@ const RULES = [
   ['SU3', 'build/p3331/SPEC.md D11 to D13, §5.2.3; r2 §Attack F23', 'THE SETUP PRESSES: POCKET_SETUP_ACTIONS is exactly get-tailscale, open-tailscale and copy-admin-link; setupAction’s first statement after the parse returns false under isHarnessLaunch(process.env); each act once, after setupActionsNow(, the page TAILSCALE_DOWNLOAD_PAGE, the app TAILSCALE_APP_BUNDLE and the held link after approvalOpens(, written as funnel.ts’s one approvalCopyText( spells it (null unless approvalOpens(, else new URL(…).href beginning https://login.tailscale.com/, never the printed text; the 333.1 reverify); the press’s word reaches no act; shell.openExternal only in openApproval and electronSetupSeam, shell.openPath and clipboard only in electronSetupSeam, each read inside an arrow’s body; open-tailscale listed only for a pinned, non-override program at TAILSCALE_APP_PROGRAM; PocketHostDeps.setup handed by tests alone'],
   ['SU4', 'build/p3331/SPEC.md D2, D3', 'THE STAT: status() calls this.funnel.resolve() exactly once, reaches the program only through funnelProgramOf( and hands the same resolution to setupActionsNow(, and names no readTailnet(, readServe(, exec, spawn or sweepFunnelOrphan(; tailscale is this.tailscaleNow( called once, in status(), and its body names no tailnetFacts, readStore(, facts( or fields('],
   ['SU5', 'build/p3331/SPEC.md D4, D30', 'DRAWN AND NEVER HASHED: no account in PocketExecutionFields, NORMALIZE, PocketStore, facts.ts, routes.ts, door/**, any contract type but PocketStatus, or any log call’s arguments in the domain; POCKET_EXECUTION_HASH_ALGORITHM is sha256-pocket-exec-v3 and POCKET_ROUTE_IDS the eleven routes it was'],
-  ['SU6', 'build/p3331/SPEC.md D18; his ruling 2, “Keep today’s block”; build/p33312/SPEC.md §6.1', 'THE CONFIRM UNCHANGED, plus the waiting lines inside it, which are the proposal’s own lines: the one element carrying data-phone-confirm holds the confirmLines, POCKET_CONFIRM_WARNING, the honesty sentence as pocketDoorHonesty(status.routesOffered) (what this Allow grants, Phase 333.12’s fix round) and never the bare constant, POCKET_FUNNEL_RIGHT_WARNING under funnel.asksApproval and confirm-door, and none of it sits inside a <details>; confirmDoor hands linesRead: current.confirmLines and hashRead: current.confirmHash, unsliced and unmapped'],
+  // PHASE 333.12.1 (build/p333121/SPEC.md §6.1): his ruling of 2026-10-15,
+  // "ok i like your proposed design, ship it", REPLACES ruling 2: the hashed
+  // lines and both warnings move behind ONE shut Details, byte for byte, and
+  // Allow stays outside it beside main's face.
+  ['SU6', 'his ruling of 2026-10-15, replacing ruling 2; build/p333121/SPEC.md D9 to D12', 'THE CONFIRM BLOCK IS A FACE AND DETAILS: exactly one element of the sheet’s surface carries data-phone-confirm, and it sits inside no <details>; it holds exactly one <details>, carrying data-phone-confirm-details and NO open attribute (and no spread), whose first child is a <summary> drawing DISCLOSE_DETAILS (Details); inside that <details>, and nowhere else in the block: Lines handed status.confirmLines unsliced and unmapped, POCKET_CONFIRM_WARNING, pocketDoorHonesty(status.routesOffered) (never the bare constant) and POCKET_FUNNEL_RIGHT_WARNING under funnel.asksApproval; the block’s one confirm-door press is in the block and NOT inside the <details>; outside the <details> the block reads status.confirmFace; confirmDoor hands linesRead: current.confirmLines and hashRead: current.confirmHash, unsliced and unmapped'],
   ['SU7', 'build/p3331/SPEC.md D17; r2 §Attack F11, F27', 'THE CODE ASKED FOR: setPairAfterAllow(\'pressed\') is called exactly twice outside onPair, in the live onSetDoor and the live onRetryDoor, each under a condition holding status !== null && status.phones.length === 0; pairAfterAllowNext reads .rechecks and names no nameProgress and no nameCheck'],
   ['SU8', 'build/p3331/SPEC.md D6; §Attack F9', 'THE ADMIN LINK: adminLink is assigned a URL exactly once, in the start’s not-approved arm, under approvalOpens(; no adminText exists; status() names no adminLink, which is read in setupActionsNow and in setupAction’s copy-admin-link arm alone; it is never cleared in readOnReturn or recheck, and sweepAndRead clears it only under !read.asksApproval; approvalText is composed from this.approvalUrl as today'],
   ['SU9', 'build/p3331/SPEC.md D29; research 140 §10; his answer (3)', 'THE WORDS: no string literal, template text or JSX text in PhoneSection.tsx, phone/** or src/shared/ipc/pocket.ts, nor PUSH_PUBLISHER_ONLY’s value, says beta, TestFlight, remote desktop, mirror, stream or SSH, word-bounded and case-insensitive; comments are not read'],
@@ -355,7 +378,15 @@ const RULES = [
   ['AR9', 'build/p33312/SPEC.md D12', 'THE TABLE IS HELD TO THE LEDGER: POCKET_ROUTE_LEDGER’s rows are literals and the ledger imports nothing; every POCKET_ROUTES row has a ledger row of the same id with the same method, path, reads, signed and windowOnly; its bodyCap is the door’s cap for that row and its clause WRITE_CLAUSES[id] for a write and null for a read; ledger ids are distinct; every LEGACY_ALLOWED_ROUTES id is a ledger id'],
   ['AR10', 'build/p33312/SPEC.md D11c; his answer 9', 'REMOVE KEEPS THE OTHERS: removePhone reads this.fields() and pocketConfirmStatus( BEFORE its store write, which stays before the first await; narrowPocketDoor( is called only under the confirmed reading AND while another phone remains; forgetPocketDoor() is reached only when that did not record'],
   ['AR11', 'build/p33312/SPEC.md D5, D6', 'THE STATUS: status() answers confirmLines and confirmHash from ONE describePocketDoor( call over this.proposal( (directly or through one const), routesOffered: servedRoutesOf(<that proposal>.routes, pocketRouteIds()) (the fix round), routesAllowed: this.servedRoutes(), and routesWaiting from waitingRoutesOf( over fields.routes with the on-record condition naming confirmed and changed; PocketStatus declares the three lists readonly PocketRouteId[]; the proposal is proposedRoutes(fields.routes, pocketRouteIds(), state !== never), and proposedRoutes answers the build alone when not on record (DRIVEN, with servedRoutesOf and waitingRoutesOf)'],
-  ['AR12', 'build/p33312/SPEC.md D23', 'THE SHEET DRAWS A WAITING ROUTE ON A PUBLISHED DOOR: steps.ts’s publishRow listening arm keeps STATE_PUBLISHED, published and doorListening( and draws [{ kind: confirm }] exactly under routesWait(status), which reads state === listening, confirmable and routesWaiting.length > 0 and nothing else; doorNeedsConfirm’s body is unchanged']
+  ['AR12', 'build/p33312/SPEC.md D23', 'THE SHEET DRAWS A WAITING ROUTE ON A PUBLISHED DOOR: steps.ts’s publishRow listening arm keeps STATE_PUBLISHED, published and doorListening( and draws [{ kind: confirm }] exactly under routesWait(status), which reads state === listening, confirmable and routesWaiting.length > 0 and nothing else; doorNeedsConfirm’s body is unchanged'],
+  // PHASE 333.12.1, the confirm block's face (build/p333121/SPEC.md §6.1):
+  // main composes a few labelled rows from the one proposal the lines and the
+  // hash come from; the sheet draws them and composes none; Details names
+  // every hashed fact.
+  ['AF1', 'build/p333121/SPEC.md D1, D2', 'THE FACE IS MAIN’S, FROM THE PROPOSAL: pocketConfirmFace is declared once, in src/shared/ipc/pocket.ts; its first parameter is typed PocketFaceFacts, which declares exactly funnelProgram, publicName, publicPort, phones (whose element type declares exactly id and label) and pushAlerts; PocketStatus declares confirmFace: PocketConfirmFace, required; under src/main/** (tests excepted) it is called exactly once, inside status(), with exactly four arguments: the identifier describePocketDoor( is handed there, which is the one const initialised from this.proposal(, then routesOffered, routesWaiting and gate.state, where those two are consts of status() initialised to servedRoutesOf(<that proposal>.routes, pocketRouteIds()) and waitingRoutesOf(fields.routes, pocketRouteIds(), …); the answer carries confirmFace from that call'],
+  ['AF2', 'build/p333121/SPEC.md D3 to D8', 'THE FACE SAYS EACH FACT ONCE, DRIVEN: transpiled in memory, pocketConfirmFace answers for never, changed and unknown the rows reach, can, phones, alerts in that order labelled Reachable at, Your phone can, Phones, Alerts; reach is <name>:<port>, by Tailscale for the app’s path, by the whole path otherwise and no by for an empty one; can over the eleven is exactly “see your sessions, type into them, answer questions, send a message, end a session”, says each clause once and leaves out a route not offered or waiting; phones the labels in id order joined by “, ” or “none yet”; alerts “through Apple, never what an agent asks” or “off”; confirmed gives no rows; a waiting route with a row in the table handed in reads New: <title> and its sentence, with none New: <id> and null, in the order handed in; POCKET_FACE_CLAUSES is typed Readonly<Record<PocketRouteId, string | null>> with a key for every route, POCKET_NEW_ROUTE_WORDS is PocketNewRouteTable, frozen, and PocketNewRouteTable is Readonly<Partial<Record<Exclude<PocketRouteId, LegacyAllowedRouteId>, PocketNewRouteWords>>>; the composer and pocketFaceProgram name no imported identifier, no Date, no process and no toLocale'],
+  ['AF3', 'build/p333121/SPEC.md D1, D12', 'THE SHEET DRAWS THE FACE AND COMPOSES NONE: outside its <details> the confirm block draws text only through row.label and row.value of status.confirmFace.rows.map(, the title and sentence of status.confirmFace.added.map( and BTN_ALLOW, draws each of the five, and no JSX text and no string literal is drawn as a child; it holds no <li>, <ul> or set-config-warning outside the <details>; its layout, data-phone-confirm-face, is chosen from status.confirmFace.rows.length and no other field; no file under src/renderer that is not a test names pocketConfirmFace, pocketFaceProgram, POCKET_FACE_CLAUSES, POCKET_NEW_ROUTE_WORDS or any POCKET_FACE_ constant'],
+  ['AF4', 'build/p333121/SPEC.md §2.3, §4', 'DETAILS NAMES EVERY HASHED FACT: describePocketDoor reads fields.<key> for every key of NORMALIZE, and <phone>.<member> over fields.phones for every member NORMALIZE’s phones emits but id (which is phoneIdOf(signingKey)); a key added to NORMALIZE without a read here is red. Its DRIVEN half is p333121-face.test.ts F3, ablation:p313’s face check']
 ];
 
 if (process.argv.includes('--list')) {
@@ -11493,61 +11524,159 @@ function accountRule() {
   }
 }
 
-// ---- SU6, the confirm unchanged ------------------------------------------------
+// ---- SU6, the confirm block: a face and Details --------------------------------
 
-function confirmBlockRule() {
-  const surface = phoneSurfaceFiles();
+/**
+ * PHASE 333.12.1 (build/p333121/SPEC.md D9 to D12). His ruling of 2026-10-15,
+ * "ok i like your proposed design, ship it", REPLACES ruling 2 ("Keep today's
+ * block"): the hashed lines and both warnings move, byte for byte, behind ONE
+ * native <details> that is shut at rest and at every mount, and Allow stays
+ * outside it beside main's face. Refusal 8 still holds because those lines
+ * are in the DOM, one press away, and Allow hands back exactly those lines and
+ * their hash (the last clause, unchanged since Phase 333.1).
+ */
+
+/** A JSX element's tag name, or null. */
+function jsxTagOf(el) {
+  if (ts.isJsxElement(el)) return el.openingElement.tagName.getText();
+  if (ts.isJsxSelfClosingElement(el)) return el.tagName.getText();
+  return null;
+}
+
+/** Is `n` a JSX element (with or without children)? */
+const isJsxEl = (n) => ts.isJsxElement(n) || ts.isJsxSelfClosingElement(n);
+
+/** A JSX element's attributes node (opening or self-closing), or null. */
+function jsxAttributesOf(el) {
+  if (ts.isJsxElement(el)) return el.openingElement.attributes;
+  if (ts.isJsxSelfClosingElement(el)) return el.attributes;
+  return null;
+}
+
+/** The attribute named `name` on a JSX element, or undefined. */
+function jsxAttributeOf(el, name) {
+  return jsxAttributesOf(el)?.properties.find((p) => ts.isJsxAttribute(p) && p.name.getText() === name);
+}
+
+/** A JSX attribute's `{…}` expression, or undefined. */
+function jsxAttributeExpression(attr) {
+  const init = attr?.initializer;
+  return init !== undefined && ts.isJsxExpression(init) ? init.expression : undefined;
+}
+
+/** A JSX element's children that are not whitespace alone. */
+function jsxKidsOf(el) {
+  return ts.isJsxElement(el) ? el.children.filter((c) => !(ts.isJsxText(c) && c.containsOnlyTriviaWhiteSpaces)) : [];
+}
+
+/** Every element of the sheet's surface carrying `data-phone-confirm` (exactly that name), as `{ file, el }`. */
+function confirmBlocks() {
   const blocks = [];
-  for (const file of surface) {
+  for (const file of phoneSurfaceFiles()) {
     for (const n of nodesOf(file)) {
       if (!ts.isJsxAttribute(n) || n.name.getText(astOf(file)) !== 'data-phone-confirm') continue;
       // JsxAttribute → JsxAttributes → the opening (or self-closing) element → the element.
       let el = n.parent;
-      while (el !== undefined && !ts.isJsxElement(el) && !ts.isJsxSelfClosingElement(el)) el = el.parent;
+      while (el !== undefined && !isJsxEl(el)) el = el.parent;
       if (el !== undefined) blocks.push({ file, el });
     }
   }
+  return blocks;
+}
+
+/** The block's <details> elements, the block itself excluded. */
+const confirmDetailsOf = (el) => descendantsOf(el).filter((n) => n !== el && isJsxEl(n) && jsxTagOf(n) === 'details');
+
+function confirmBlockRule() {
+  const blocks = confirmBlocks();
   checked('SU6');
   if (blocks.length !== 1) {
-    fail('SU6', `the sheet's surface holds ${String(blocks.length)} element(s) carrying data-phone-confirm; one, today's confirm block (D18)`);
+    fail('SU6', `the sheet's surface holds ${String(blocks.length)} element(s) carrying data-phone-confirm; one, the confirm block (his ruling of 2026-10-15, D9)`);
   }
-  const tagOf = (el) => (ts.isJsxElement(el) ? el.openingElement.tagName.getText() : ts.isJsxSelfClosingElement(el) ? el.tagName.getText() : null);
+  // The summary's word is the connection screen's own, declared once on the surface.
+  const words = declarationsOf(phoneSurfaceFiles(), 'DISCLOSE_DETAILS');
+  const word = words.length === 1 && ts.isVariableDeclaration(words[0].n) ? bare(words[0].n.initializer) : undefined;
+  checked('SU6');
+  if (word === undefined || !ts.isStringLiteralLike(word) || word.text !== 'Details') {
+    fail('SU6', `DISCLOSE_DETAILS is declared ${String(words.length)} time(s) on the sheet's surface${word !== undefined && ts.isStringLiteralLike(word) ? ` as ${J(word.text)}` : ''}; once, as 'Details', the connection screen's own word (D3, D9)`);
+  }
   for (const { file, el } of blocks) {
     const nodes = descendantsOf(el);
-    const has = (pred) => nodes.some(pred);
-    for (const [what, ok] of [
-      ['the confirmLines', has((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'confirmLines')],
-      ['POCKET_CONFIRM_WARNING', has((n) => ts.isIdentifier(n) && n.text === 'POCKET_CONFIRM_WARNING')],
-      // PHASE 333.12 (build/p33312/SPEC.md §6.1, D13): the honesty sentence
-      // is the composer over what THIS Allow grants, main's routesOffered
-      // (the fix round; it read the served set, which left out the very
-      // route the Allow beside it grants), which answers today's sentence
-      // byte for byte for the eleven.
-      ['pocketDoorHonesty(status.routesOffered)', has((n) => ts.isCallExpression(n) && calleeName(n) === 'pocketDoorHonesty' && n.arguments.length === 1 && squash(codeOfNode(file, n.arguments[0])) === 'status.routesOffered')],
-      ['confirm-door', has((n) => ts.isStringLiteralLike(n) && n.text === 'confirm-door')]
-    ]) {
-      checked('SU6');
-      if (!ok) fail('SU6', `${where(file, el)}: the confirm block holds no ${what}. The confirm at Allow is today's block, byte for byte (his ruling 2, "Keep today's block"), with the waiting lines inside it`);
-    }
-    checked('SU6');
-    if (has((n) => ts.isIdentifier(n) && n.text === 'POCKET_DOOR_HONESTY')) fail('SU6', `${where(file, el)}: the confirm block draws the bare POCKET_DOOR_HONESTY. It draws pocketDoorHonesty(status.routesOffered), which is that sentence for the eleven and says an added route's clause beside the Allow that grants it (build/p33312/SPEC.md D13, the fix round)`);
-    const right = nodes.filter((n) => ts.isIdentifier(n) && n.text === 'POCKET_FUNNEL_RIGHT_WARNING');
-    checked('SU6');
-    if (right.length !== 1 || !guardsOf(file, right[0], el).some((g) => /funnel\.asksApproval$/.test(g) || /funnel\.asksApproval/.test(g))) {
-      fail('SU6', `${where(file, el)}: POCKET_FUNNEL_RIGHT_WARNING is ${right.length === 0 ? 'not in' : 'not under funnel.asksApproval in'} the confirm block; when Funnel asks approval it is read at rest before Allow (D18)`);
-    }
-    // None of it behind a disclosure.
+    // (a) The block itself sits inside no <details>: Allow and the face are at rest.
     checked('SU6');
     for (let p = el.parent; p !== undefined; p = p.parent) {
-      if ((ts.isJsxElement(p) || ts.isJsxSelfClosingElement(p)) && tagOf(p) === 'details') fail('SU6', `${where(file, el)}: the confirm block sits inside a <details>. Nothing of it goes behind a disclosure (his ruling 2)`);
+      if (isJsxEl(p) && jsxTagOf(p) === 'details') fail('SU6', `${where(file, el)}: the confirm block sits inside a <details>. The face and Allow are at rest; only the hashed lines and the warnings go behind Details (D9)`);
+    }
+    // (b) ONE <details>, named, shut, and opened by nothing the sheet passes it.
+    const details = confirmDetailsOf(el);
+    checked('SU6');
+    if (details.length !== 1) {
+      fail('SU6', `${where(file, el)}: the confirm block holds ${String(details.length)} <details>; exactly one, Details, which holds every hashed line and both warnings (D9)`);
+    }
+    const d = details.length === 1 ? details[0] : null;
+    if (d !== null) {
+      checked('SU6', 4);
+      if (jsxAttributeOf(d, 'data-phone-confirm-details') === undefined) fail('SU6', `${where(file, d)}: the confirm block's <details> carries no data-phone-confirm-details, so the app run cannot find the one Details it reads (D9)`);
+      if (jsxAttributeOf(d, 'open') !== undefined) fail('SU6', `${where(file, d)}: the confirm block's <details> carries open. Details is shut at rest and at every mount, and nothing remembers it (D9, §Attack A11)`);
+      if ((jsxAttributesOf(d)?.properties ?? []).some((p) => ts.isJsxSpreadAttribute(p))) fail('SU6', `${where(file, d)}: the confirm block's <details> takes a spread, which can open it at rest; it is uncontrolled and names its two attributes (D9)`);
+      const first = jsxKidsOf(d)[0];
+      const summary = first !== undefined && ts.isJsxElement(first) && jsxTagOf(first) === 'summary' ? jsxKidsOf(first) : null;
+      const says = summary !== null && summary.length === 1 && ts.isJsxExpression(summary[0]) && summary[0].expression !== undefined && ts.isIdentifier(summary[0].expression) ? summary[0].expression.text : null;
+      if (says !== 'DISCLOSE_DETAILS') fail('SU6', `${where(file, d)}: the confirm block's <details> does not open with a <summary> drawing DISCLOSE_DETAILS alone (its first child is ${first === undefined ? 'nothing' : J(codeOfNode(file, first).slice(0, 80))}); the house disclosure, the connection screen's Details (D9)`);
+    }
+    const inD = (n) => d !== null && inside(n, d);
+    const behind = 'it is drawn inside Details and nowhere else in the block, byte for byte (his ruling of 2026-10-15, D9, D10)';
+    // (c) The lines, handed whole, inside Details.
+    const lines = nodes.filter((n) => isJsxEl(n) && jsxTagOf(n) === 'Lines');
+    checked('SU6');
+    if (lines.length !== 1) fail('SU6', `${where(file, el)}: the confirm block draws ${String(lines.length)} <Lines>; one, handed status.confirmLines, inside Details (D9)`);
+    for (const l of lines) {
+      const v = jsxAttributeExpression(jsxAttributeOf(l, 'lines'));
+      const got = v === undefined ? '' : squash(codeOfNode(file, v));
+      checked('SU6', 2);
+      if (got !== 'status.confirmLines') fail('SU6', `${where(file, l)}: <Lines> is handed ${got === '' ? 'nothing' : got}, not status.confirmLines unsliced and unmapped. Details holds every hashed line, and Allow records exactly those (D9, §4)`);
+      if (!inD(l)) fail('SU6', `${where(file, l)}: the hashed lines are drawn outside Details; ${behind}`);
     }
     for (const n of nodes) {
-      if (n !== el && (ts.isJsxElement(n) || ts.isJsxSelfClosingElement(n)) && tagOf(n) === 'details') fail('SU6', `${where(file, n)}: a <details> inside the confirm block hides part of it; every line, both warnings and the honesty sentence are at rest (his ruling 2)`);
+      if (!ts.isPropertyAccessExpression(n) || n.name.text !== 'confirmLines') continue;
+      checked('SU6');
+      if (!inD(n)) fail('SU6', `${where(file, n)}: the confirm block reads confirmLines outside Details; ${behind}`);
     }
+    // (d) The two warnings and the Funnel right, inside Details.
+    const warning = nodes.filter((n) => ts.isIdentifier(n) && n.text === 'POCKET_CONFIRM_WARNING');
+    checked('SU6');
+    if (warning.length === 0) fail('SU6', `${where(file, el)}: the confirm block holds no POCKET_CONFIRM_WARNING; ${behind}`);
+    for (const n of warning) if (!inD(n)) fail('SU6', `${where(file, n)}: POCKET_CONFIRM_WARNING is drawn outside Details; ${behind}`);
+    // PHASE 333.12 (build/p33312/SPEC.md D13, its fix round): the honesty
+    // sentence is the composer over what THIS Allow grants, main's
+    // routesOffered, which answers today's sentence byte for byte for the eleven.
+    const honesty = callsIn(el, 'pocketDoorHonesty');
+    checked('SU6');
+    if (honesty.length !== 1 || honesty[0].arguments.length !== 1 || squash(codeOfNode(file, honesty[0].arguments[0])) !== 'status.routesOffered') {
+      fail('SU6', `${where(file, el)}: the confirm block draws ${honesty.length === 0 ? 'no pocketDoorHonesty(' : J(honesty.map((c) => codeOfNode(file, c)).join(', '))}, not ONE pocketDoorHonesty(status.routesOffered). The sentence says what the Allow beside it grants (build/p33312/SPEC.md D13, the fix round)`);
+    }
+    for (const c of honesty) if (!inD(c)) fail('SU6', `${where(file, c)}: the honesty sentence is drawn outside Details; ${behind}. probe:p317 W1, probe:p318 R0 and probe:p337 S0 read it in the block's textContent`);
+    checked('SU6');
+    if (nodes.some((n) => ts.isIdentifier(n) && n.text === 'POCKET_DOOR_HONESTY')) fail('SU6', `${where(file, el)}: the confirm block draws the bare POCKET_DOOR_HONESTY. It draws pocketDoorHonesty(status.routesOffered), which is that sentence for the eleven and says an added route's clause beside the Allow that grants it (build/p33312/SPEC.md D13, the fix round)`);
+    const right = nodes.filter((n) => ts.isIdentifier(n) && n.text === 'POCKET_FUNNEL_RIGHT_WARNING');
+    checked('SU6');
+    if (right.length !== 1 || !guardsOf(file, right[0], el).some((g) => /funnel\.asksApproval/.test(g))) {
+      fail('SU6', `${where(file, el)}: POCKET_FUNNEL_RIGHT_WARNING is ${right.length === 0 ? 'not in' : right.length > 1 ? 'drawn more than once in' : 'not under funnel.asksApproval in'} the confirm block; while Funnel asks approval it is read in Details before Allow (D10)`);
+    }
+    for (const n of right) if (!inD(n)) fail('SU6', `${where(file, n)}: POCKET_FUNNEL_RIGHT_WARNING is drawn outside Details; ${behind}`);
+    // (e) ONE Allow, in the block, never behind Details.
+    const press = nodes.filter((n) => ts.isStringLiteralLike(n) && n.text === 'confirm-door');
+    checked('SU6');
+    if (press.length !== 1) fail('SU6', `${where(file, el)}: the confirm block holds ${String(press.length)} confirm-door press(es); one place in the markup, laid out by data-phone-confirm-face (D11, §Attack A13)`);
+    for (const n of press) if (inD(n)) fail('SU6', `${where(file, n)}: the confirm-door press sits inside Details. Allow is at rest beside the face; a press behind a shut disclosure is a press nobody finds (D11)`);
+    // (f) The face is main's, read outside Details.
+    const face = nodes.filter((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'confirmFace' && squash(codeOfNode(file, n)) === 'status.confirmFace' && !inD(n));
+    checked('SU6');
+    if (face.length === 0) fail('SU6', `${where(file, el)}: outside Details the confirm block never reads status.confirmFace, so the face a person reads before Allow is not main's (D1)`);
   }
   // The lines and the hash handed back unedited.
   const sends = [];
-  for (const file of surface) {
+  for (const file of phoneSurfaceFiles()) {
     for (const call of callsOf(file)) {
       if (calleeName(call) !== 'confirmDoor' || !ts.isPropertyAccessExpression(call.expression)) continue;
       const arg = call.arguments[0];
@@ -11566,6 +11695,7 @@ function confirmBlockRule() {
     if (text(hash) !== 'current.confirmHash') fail('SU6', `${where(file, call)}: confirmDoor is handed hashRead: ${text(hash) || '(nothing)'}, not current.confirmHash`);
   }
 }
+
 
 // ---- SU7, the code asked for -------------------------------------------------
 
@@ -12952,7 +13082,22 @@ function arStatusRule() {
         return st !== undefined && ts.isVariableDeclaration(st) && ts.isIdentifier(st.name) ? st.name.text : null;
       })();
       const objs = arReturned(status);
-      const prop = (name) => objs.map((o) => propOf(o, name)).find((p) => p !== undefined);
+      const answered = (name) => objs.map((o) => propOf(o, name)).find((p) => p !== undefined);
+      // PHASE 333.12.1 (build/p333121/SPEC.md §6.1): routesOffered and
+      // routesWaiting may be answered by shorthand, or by name, from ONE const
+      // of status() initialised to exactly today's expression, because the face
+      // is composed over the same two lists the answer carries. The rule reads
+      // that const's initializer where it read the property; two consts of the
+      // name, a let, or none at all read as the bare name, which is red.
+      const viaConst = new Set(['routesOffered', 'routesWaiting']);
+      const prop = (name) => {
+        const p = answered(name);
+        const e = p === undefined ? undefined : bare(p);
+        if (!viaConst.has(name) || e === undefined || !ts.isIdentifier(e)) return p;
+        const decls = descendantsOf(status).filter((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === e.text);
+        const one = decls.length === 1 ? decls[0] : undefined;
+        return one?.initializer !== undefined && (ts.getCombinedNodeFlags(one) & ts.NodeFlags.Const) !== 0 ? one.initializer : p;
+      };
       for (const [name, want] of [
         ['confirmLines', holder === null ? null : `${holder}.lines`],
         ['confirmHash', holder === null ? null : `${holder}.hash`],
@@ -13097,6 +13242,473 @@ function allowedRouteRules() {
 }
 
 // ---------------------------------------------------------------------------
+// AF — PHASE 333.12.1: the confirm block's face (build/p333121/SPEC.md §6.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * THE FACE A PERSON READS BEFORE ALLOW, AND DETAILS BEHIND IT. His ruling of
+ * 2026-10-15 replaced "Keep today's block" with a few labelled rows main
+ * composes (`PocketStatus.confirmFace`) and every hashed line behind one shut
+ * Details (SU6). Refusal 8 now rests on four more clauses, each a line a later
+ * round could delete with every other gate green:
+ *
+ *   AF1  the face is composed in main, once, in status(), from the SAME
+ *        proposal the lines and the hash come from, and its input type can
+ *        name only five facts, so a key or an alert address cannot reach it;
+ *   AF2  what the composer SAYS, driven in memory over the shipping source
+ *        (the words, the order, the program rule, a waiting route said once,
+ *        the phones in id order, nothing on a confirmed door, New: <id> for a
+ *        route with no words), and its tables' types;
+ *   AF3  the sheet draws the face and composes none of it;
+ *   AF4  Details names every hashed fact, read off NORMALIZE itself, so a
+ *        field that joins the hash without a line is red here. Its driven half
+ *        is p333121-face.test.ts F3, ablation:p313's `face` check.
+ */
+const AF_OWNER = "Phase 333.12.1 builder face's";
+const AF_RULE_IDS = ['AF1', 'AF2', 'AF3', 'AF4'];
+/** The face's rows and words, spelled HERE (build/p333121/SPEC.md §3.1), so a reword is an edit to this gate. */
+const AF_ROW_KEYS = ['reach', 'can', 'phones', 'alerts'];
+const AF_LABELS = ['Reachable at', 'Your phone can', 'Phones', 'Alerts'];
+const AF_CAN_ELEVEN = 'see your sessions, type into them, answer questions, send a message, end a session';
+const AF_ALERTS_ON = 'through Apple, never what an agent asks';
+const AF_ALERTS_OFF = 'off';
+const AF_NO_PHONE = 'none yet';
+const AF_APP_PROGRAM = '/Applications/Tailscale.app/Contents/MacOS/Tailscale';
+const AF_BREW_PROGRAM = '/opt/homebrew/bin/tailscale';
+const AF_FACTS_MEMBERS = ['funnelProgram', 'phones', 'publicName', 'publicPort', 'pushAlerts'];
+
+/** A file an AF rule needs, or null with the rule failed by name and its owner. */
+function afFile(path, id) {
+  if (existsSync(path)) return path;
+  fail(id, `${rel(path)} does not exist, so this rule read nothing. It is ${AF_OWNER} (build/p333121/SPEC.md §8). A gate that passed here would go green on the day the face does not exist.`);
+  return null;
+}
+
+/** A type with `readonly` and parentheses taken off. */
+function afBareType(type) {
+  let t = type;
+  while (t !== undefined && (ts.isParenthesizedTypeNode(t) || (ts.isTypeOperatorNode(t) && t.operator === ts.SyntaxKind.ReadonlyKeyword))) t = t.type;
+  return t;
+}
+
+/** The members a type declares: a type literal, or an interface or a type alias of one declared in `file`; null otherwise. */
+function afMembersOf(file, type) {
+  const t = afBareType(type);
+  if (t === undefined) return null;
+  if (ts.isTypeLiteralNode(t)) return [...t.members];
+  if (ts.isTypeReferenceNode(t) && ts.isIdentifier(t.typeName)) {
+    const iface = interfaceOf(file, t.typeName.text);
+    if (iface !== null) return [...iface.members];
+    const alias = nodesOf(file).find((n) => ts.isTypeAliasDeclaration(n) && n.name.text === t.typeName.text);
+    if (alias !== undefined) return afMembersOf(file, alias.type);
+  }
+  return null;
+}
+
+/** An array type's element type (`readonly X[]`, `X[]`, `ReadonlyArray<X>`, `Array<X>`), or undefined. */
+function afElementOf(type) {
+  const t = afBareType(type);
+  if (t === undefined) return undefined;
+  if (ts.isArrayTypeNode(t)) return t.elementType;
+  if (ts.isTypeReferenceNode(t) && ts.isIdentifier(t.typeName) && ['ReadonlyArray', 'Array'].includes(t.typeName.text)) return t.typeArguments?.[0];
+  return undefined;
+}
+
+/** A type alias declared in a file, or undefined. */
+const afAliasOf = (file, name) => nodesOf(file).find((n) => ts.isTypeAliasDeclaration(n) && n.name.text === name);
+
+/** The one const of a method named `name` (a `let` or a second declaration answers undefined). */
+function afOneConst(method, name) {
+  const ds = descendantsOf(method).filter((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === name);
+  const d = ds.length === 1 ? ds[0] : undefined;
+  return d !== undefined && d.initializer !== undefined && (ts.getCombinedNodeFlags(d) & ts.NodeFlags.Const) !== 0 ? d : undefined;
+}
+
+/** The local names a file binds by import: default, namespace and named, `type` imports included. */
+function afImportBindings(file) {
+  const out = new Set();
+  for (const n of nodesOf(file)) {
+    if (!ts.isImportDeclaration(n)) continue;
+    const c = n.importClause;
+    if (c?.name !== undefined) out.add(c.name.text);
+    const b = c?.namedBindings;
+    if (b !== undefined && ts.isNamespaceImport(b)) out.add(b.name.text);
+    if (b !== undefined && ts.isNamedImports(b)) for (const el of b.elements) out.add(el.name.text);
+  }
+  return out;
+}
+
+// ---- AF1, the face is main's, from the proposal ------------------------------
+
+function afMainRule() {
+  const id = 'AF1';
+  const contract = afFile(AR_CONTRACT, id);
+  const decls = declarationsOf(arFilesNaming(join(ROOT, 'src'), 'pocketConfirmFace'), 'pocketConfirmFace');
+  checked(id);
+  if (decls.length !== 1 || (contract !== null && decls[0].file !== contract)) {
+    fail(id, `pocketConfirmFace is declared ${String(decls.length)} time(s) (${decls.map((d) => where(d.file, d.n)).join(', ') || 'nowhere'}); once, in src/shared/ipc/pocket.ts, so there is one answer to what the face says (D1)`);
+  }
+  if (contract !== null) {
+    const fn = decls.length === 1 && decls[0].file === contract && ts.isFunctionDeclaration(decls[0].n) ? decls[0].n : null;
+    const first = fn?.parameters[0];
+    checked(id);
+    if (first?.type === undefined || squash(first.type.getText(astOf(contract))) !== 'PocketFaceFacts') {
+      fail(id, `${fn === null ? rel(contract) : where(contract, fn)}: pocketConfirmFace's first parameter is ${first?.type === undefined ? 'untyped or absent' : J(first.type.getText(astOf(contract)))}, not PocketFaceFacts. Its input names only the five facts the face may say, so the rest is Details' by construction (D2)`);
+    }
+    // PocketFaceFacts: exactly the five, and a phone exactly its id and label.
+    const iface = interfaceOf(contract, 'PocketFaceFacts');
+    const members = iface !== null ? [...iface.members] : afMembersOf(contract, afAliasOf(contract, 'PocketFaceFacts')?.type);
+    checked(id, 2);
+    if (members === null) {
+      fail(id, `${rel(contract)} declares no PocketFaceFacts interface or object type, so what the face may say cannot be read (D2)`);
+    } else {
+      const names = members.map((m) => memberName(m)).sort();
+      if (J(names) !== J(AF_FACTS_MEMBERS)) fail(id, `${rel(contract)}: PocketFaceFacts declares ${J(names)}, not exactly ${J(AF_FACTS_MEMBERS)}. A fact the face may say is a fact a person reads before Allow instead of Details; a key, an alert address or the tailnet on it is the face saying what only Details may (D2)`);
+      const phones = members.find((m) => memberName(m) === 'phones');
+      const el = afElementOf(phones?.type);
+      const inner = el === undefined ? null : afMembersOf(contract, el);
+      const innerNames = inner === null ? null : inner.map((m) => memberName(m)).sort();
+      if (innerNames === null || J(innerNames) !== J(['id', 'label'])) fail(id, `${phones === undefined ? rel(contract) : where(contract, phones)}: PocketFaceFacts' phones is ${phones?.type === undefined ? 'absent or untyped' : J(phones.type.getText(astOf(contract)))}, not an array of exactly id and label. A phone's keys and alert address are Details' alone (D2)`);
+    }
+    const status = interfaceOf(contract, 'PocketStatus');
+    const m = status?.members.find((x) => memberName(x) === 'confirmFace');
+    checked(id);
+    if (m === undefined || m.type === undefined || squash(m.type.getText(astOf(contract))) !== 'PocketConfirmFace' || m.questionToken !== undefined) {
+      fail(id, `${rel(contract)}: PocketStatus's confirmFace is ${m === undefined ? 'absent' : J(m.getText())}, not a required PocketConfirmFace; main answers the face and the sheet composes none (D1)`);
+    }
+  }
+  // ONE call under src/main/**, in status(), over the proposal and the two lists.
+  const calls = arFilesNaming(join(ROOT, 'src', 'main'), 'pocketConfirmFace').flatMap((file) => callsOf(file).filter((c) => calleeName(c) === 'pocketConfirmFace').map((call) => ({ file, call })));
+  checked(id);
+  if (calls.length !== 1 || calls[0].file !== AR_IPC || hostMethodOf(calls[0].call) !== 'status') {
+    fail(id, `src/main calls pocketConfirmFace ${String(calls.length)} time(s) (${calls.map((c) => `${where(c.file, c.call)} in ${String(hostMethodOf(c.call))}`).join(', ') || 'nowhere'}); exactly once, in PocketHost.status(), so the face is composed from the one proposal the answer's lines and hash come from (D1). It is ${AF_OWNER}.`);
+    return;
+  }
+  const { call } = calls[0];
+  const ipc = AR_IPC;
+  const status = arHostMethod(ipc, 'status', id);
+  if (status === null) return;
+  const args = call.arguments;
+  checked(id);
+  if (args.length !== 4) fail(id, `${where(ipc, call)}: pocketConfirmFace is handed ${String(args.length)} argument(s); exactly four in main, the proposal, routesOffered, routesWaiting and gate.state. The fifth, the title table, is the tests' (D7)`);
+  const described = callsIn(status, 'describePocketDoor');
+  const handed = described.length === 1 ? bare(described[0].arguments[0]) : undefined;
+  const handedName = handed !== undefined && ts.isIdentifier(handed) ? handed.text : null;
+  const proposalDecl = handedName === null ? undefined : afOneConst(status, handedName);
+  const proposalInit = proposalDecl === undefined ? undefined : bare(proposalDecl.initializer);
+  checked(id, 2);
+  if (proposalInit === undefined || !ts.isCallExpression(proposalInit) || squash(proposalInit.expression.getText()) !== 'this.proposal') {
+    fail(id, `${where(ipc, status)}: status() hands describePocketDoor( ${handed === undefined ? 'nothing' : J(codeOfNode(ipc, handed))}, not ONE const initialised from this.proposal(; the face, the lines and the hash are one proposal (D1)`);
+  }
+  const a0 = bare(args[0]);
+  if (a0 === undefined || !ts.isIdentifier(a0) || handedName === null || a0.text !== handedName) {
+    fail(id, `${where(ipc, call)}: pocketConfirmFace is handed ${a0 === undefined ? 'nothing' : J(codeOfNode(ipc, a0))} first, not ${handedName ?? 'the proposal'}, the const describePocketDoor( is handed. A face over this.fields() or another proposal says one thing while Allow records another (D1)`);
+  }
+  for (const [index, name, wanted, ok] of [
+    [1, 'routesOffered', `servedRoutesOf(${handedName ?? '<the proposal>'}.routes, pocketRouteIds())`, (init) => handedName !== null && squash(codeOfNode(ipc, init)) === `servedRoutesOf(${handedName}.routes,pocketRouteIds())`],
+    [2, 'routesWaiting', 'waitingRoutesOf(fields.routes, pocketRouteIds(), …)', (init) => ts.isCallExpression(init) && calleeName(init) === 'waitingRoutesOf' && init.arguments.length === 3 && arText(ipc, init.arguments[0]) === 'fields.routes' && arText(ipc, init.arguments[1]) === 'pocketRouteIds()']
+  ]) {
+    const a = bare(args[index]);
+    checked(id, 2);
+    if (a === undefined || !ts.isIdentifier(a) || a.text !== name) {
+      fail(id, `${where(ipc, call)}: pocketConfirmFace's argument ${String(index + 1)} is ${a === undefined ? 'absent' : J(codeOfNode(ipc, a))}, not ${name}, the const the answer carries. The face says what the Allow beside it grants and what waits for it, over the very lists the sheet is handed (D1, D5)`);
+      continue;
+    }
+    const decl = afOneConst(status, name);
+    const init = decl === undefined ? undefined : bare(decl.initializer);
+    if (init === undefined || !ok(init)) fail(id, `${where(ipc, decl ?? status)}: ${name} is ${init === undefined ? 'not ONE const of status()' : `initialised to ${J(codeOfNode(ipc, init))}`}, not ${wanted} (D1; build/p33312/SPEC.md D6 and its fix round)`);
+  }
+  const a3 = args[3] === undefined ? '' : arText(ipc, args[3]);
+  checked(id);
+  if (a3 !== 'gate.state') fail(id, `${where(ipc, call)}: pocketConfirmFace's state is ${J(a3 || '(nothing)')}, not gate.state, the state the sheet draws beside it. A face whose rows follow another state draws rows on a waiting face, or none on a door that changed (D6)`);
+  // The answer carries confirmFace from that call (directly, or through one const).
+  const p = arReturned(status).map((o) => propOf(o, 'confirmFace')).find((x) => x !== undefined);
+  const e = p === undefined ? undefined : bare(p);
+  const via = e !== undefined && ts.isIdentifier(e) ? afOneConst(status, e.text) : undefined;
+  const carried = via === undefined ? e : bare(via.initializer);
+  checked(id);
+  if (carried !== call) fail(id, `${where(ipc, status)}: status() answers confirmFace as ${p === undefined ? '(nothing)' : J(codeOfNode(ipc, p))}, not the one pocketConfirmFace( call over the proposal (D1)`);
+}
+
+// ---- AF2, the face says each fact once, driven -------------------------------
+
+function afDrivenRule() {
+  const id = 'AF2';
+  const contract = afFile(AR_CONTRACT, id);
+  if (contract === null) return;
+  const sf = astOf(contract);
+  // The tables' types: every route must name its face words; only a route that can wait has a title.
+  for (const [what, node, want] of [
+    ['POCKET_FACE_CLAUSES', constNamed(contract, 'POCKET_FACE_CLAUSES')?.type, 'Readonly<Record<PocketRouteId,string|null>>'],
+    ['POCKET_NEW_ROUTE_WORDS', constNamed(contract, 'POCKET_NEW_ROUTE_WORDS')?.type, 'PocketNewRouteTable'],
+    ['PocketNewRouteTable', afAliasOf(contract, 'PocketNewRouteTable')?.type, 'Readonly<Partial<Record<Exclude<PocketRouteId,LegacyAllowedRouteId>,PocketNewRouteWords>>>']
+  ]) {
+    checked(id);
+    if (node === undefined || squash(node.getText(sf)) !== want) {
+      fail(id, `${rel(contract)}: ${what} is ${node === undefined ? 'not declared with a type' : `typed ${J(node.getText(sf))}`}, not ${want}. Keyed by every route, a phase that adds one cannot compile until it writes the face's words; the title table is held to the routes that can wait and is add-only (D5, D7)`);
+    }
+  }
+  // Pure: no import, no clock, no process, nothing localized.
+  const imported = afImportBindings(contract);
+  for (const name of ['pocketConfirmFace', 'pocketFaceProgram']) {
+    const fns = functionsNamed(contract, name);
+    checked(id);
+    if (fns.length !== 1) {
+      fail(id, `${rel(contract)} declares ${name} ${String(fns.length)} time(s); once (D1, D4)`);
+      continue;
+    }
+    for (const n of descendantsOf(fns[0])) {
+      if (!ts.isIdentifier(n)) continue;
+      if (imported.has(n.text) || n.text === 'Date' || n.text === 'process' || /^toLocale/.test(n.text)) {
+        checked(id);
+        fail(id, `${where(contract, n)}: ${name} names ${n.text}. The face is pure: no imported identifier, no clock, no process and nothing localized, so main and every test compose the same words (§5.1)`);
+      }
+    }
+  }
+  // DRIVEN over the shipping source, transpiled in memory as AR7 drives pocketDoorHonesty.
+  const mod = arLoad(contract, id);
+  if (mod === null) return;
+  checked(id);
+  if (typeof mod.pocketConfirmFace !== 'function' || !Array.isArray(mod.POCKET_ROUTE_IDS) || mod.POCKET_FACE_CLAUSES === undefined || mod.POCKET_NEW_ROUTE_WORDS === undefined) {
+    fail(id, `${rel(contract)} exports no pocketConfirmFace, POCKET_ROUTE_IDS, POCKET_FACE_CLAUSES or POCKET_NEW_ROUTE_WORDS to drive`);
+    return;
+  }
+  const routes = [...mod.POCKET_ROUTE_IDS];
+  checked(id, 2);
+  if (J(Object.keys(mod.POCKET_FACE_CLAUSES).sort()) !== J([...routes].sort())) fail(id, `POCKET_FACE_CLAUSES has the keys ${J(Object.keys(mod.POCKET_FACE_CLAUSES).sort())}, not one per route of POCKET_ROUTE_IDS (D5)`);
+  if (!Object.isFrozen(mod.POCKET_FACE_CLAUSES) || !Object.isFrozen(mod.POCKET_NEW_ROUTE_WORDS)) fail(id, 'POCKET_FACE_CLAUSES or POCKET_NEW_ROUTE_WORDS is not frozen, so a renderer or a test could write the face\'s words at run time (§5.1)');
+  const name = 'mac.tail0000.ts.net';
+  const reach = (program) => `${name}:8443${program === '' ? '' : `, by ${program}`}`;
+  const facts = (over = {}) => ({ funnelProgram: AF_APP_PROGRAM, publicName: name, publicPort: 8443, phones: [], pushAlerts: false, ...over });
+  const rowsOf = (values) => AF_ROW_KEYS.map((key, i) => [key, AF_LABELS[i], values[i]]);
+  const shape = (face) => ({
+    rows: Array.isArray(face?.rows) ? face.rows.map((r) => [r.key, r.label, r.value]) : face?.rows,
+    added: Array.isArray(face?.added) ? face.added.map((a) => [a.id, a.title, a.sentence]) : face?.added
+  });
+  const drive = (what, args, want, why) => {
+    checked(id);
+    let got;
+    try {
+      got = shape(mod.pocketConfirmFace(...args));
+    } catch (err) {
+      fail(id, `${what}: pocketConfirmFace threw ${err instanceof Error ? err.message : String(err)}`);
+      return;
+    }
+    if (J(got) !== J(want)) fail(id, `${what}: pocketConfirmFace answers ${J(got)?.slice(0, 400)}, not ${J(want).slice(0, 400)}. ${why}`);
+  };
+  const eleven = rowsOf([reach('Tailscale'), AF_CAN_ELEVEN, AF_NO_PHONE, AF_ALERTS_OFF]);
+  for (const state of ['never', 'changed', 'unknown']) {
+    drive(`a first setup read as ${state}`, [facts(), routes, [], state], { rows: eleven, added: [] }, 'Four rows, Reachable at, Your phone can, Phones, Alerts, in that order, the app named by its name (D3 to D6)');
+  }
+  drive('the program at Homebrew\'s path', [facts({ funnelProgram: AF_BREW_PROGRAM }), routes, [], 'changed'], { rows: rowsOf([reach(AF_BREW_PROGRAM), AF_CAN_ELEVEN, AF_NO_PHONE, AF_ALERTS_OFF]), added: [] }, 'A program outside /Applications is named by its whole path, so a move between /usr/local/bin and /opt/homebrew/bin moves the face (D4, §Attack A2)');
+  drive('no program', [facts({ funnelProgram: '' }), routes, [], 'never'], { rows: rowsOf([reach(''), AF_CAN_ELEVEN, AF_NO_PHONE, AF_ALERTS_OFF]), added: [] }, 'An empty program draws no ", by" (§3.1)');
+  drive('alerts on', [facts({ pushAlerts: true }), routes, [], 'never'], { rows: rowsOf([reach('Tailscale'), AF_CAN_ELEVEN, AF_NO_PHONE, AF_ALERTS_ON]), added: [] }, 'Alerts on says what goes through Apple and what never does (§3.1)');
+  drive('two phones handed out of id order', [facts({ phones: [{ id: 'b2', label: 'Second phone' }, { id: 'a1', label: 'First phone' }] }), routes, [], 'changed'], { rows: rowsOf([reach('Tailscale'), AF_CAN_ELEVEN, 'First phone, Second phone', AF_ALERTS_OFF]), added: [] }, 'The phones are their labels in id order, as the lines and the hash order them, joined by ", " (D3)');
+  drive('a route that waits on a door that changed', [facts(), routes, ['keys'], 'changed'], { rows: rowsOf([reach('Tailscale'), 'see your sessions, answer questions, send a message, end a session', AF_NO_PHONE, AF_ALERTS_OFF]), added: [['keys', 'New: keys', null]] }, 'A waiting route is said ONCE, as New, and left out of Your phone can (D5, D8, §Attack A9)');
+  drive('three reads offered', [facts(), ['pair', 'blocked', 'session'], [], 'never'], { rows: rowsOf([reach('Tailscale'), 'see your sessions', AF_NO_PHONE, AF_ALERTS_OFF]), added: [] }, 'Each clause once, and only for a route offered (D5)');
+  drive('the agreement on record holds', [facts({ pushAlerts: true }), routes, ['probe', 'spare'], 'confirmed'], { rows: [], added: [['probe', 'New: probe', null], ['spare', 'New: spare', null]] }, 'A confirmed door draws no rows, and a waiting route with no words reads New: <its id> in the order handed in, never nothing (D6, D7, §Attack A6)');
+  drive('a title table handed in', [facts(), routes, ['spare', 'probe'], 'confirmed', { probe: { title: 'read a probe', sentence: 'Your phone could read a probe.' } }], { rows: [], added: [['spare', 'New: spare', null], ['probe', 'New: read a probe', 'Your phone could read a probe.']] }, 'A waiting route with a row reads New: <title> and its sentence (D7)');
+}
+
+// ---- AF3, the sheet draws the face and composes none ---------------------------
+
+/** The expressions a JSX child expression DRAWS: through `?:`, `&&`, `||`, `??` and a `.map(` callback's return; JSX and null draw nothing of their own. */
+function afDrawnLeaves(expr) {
+  const e = bare(expr);
+  if (e === undefined || e.kind === ts.SyntaxKind.NullKeyword || (ts.isIdentifier(e) && e.text === 'undefined')) return [];
+  if (ts.isJsxElement(e) || ts.isJsxSelfClosingElement(e) || ts.isJsxFragment(e)) return [];
+  if (ts.isConditionalExpression(e)) return [...afDrawnLeaves(e.whenTrue), ...afDrawnLeaves(e.whenFalse)];
+  if (ts.isBinaryExpression(e)) {
+    const op = e.operatorToken.kind;
+    if (op === ts.SyntaxKind.AmpersandAmpersandToken) return afDrawnLeaves(e.right);
+    if (op === ts.SyntaxKind.BarBarToken || op === ts.SyntaxKind.QuestionQuestionToken) return [...afDrawnLeaves(e.left), ...afDrawnLeaves(e.right)];
+  }
+  if (ts.isCallExpression(e) && calleeName(e) === 'map' && e.arguments.length === 1 && (ts.isArrowFunction(e.arguments[0]) || ts.isFunctionExpression(e.arguments[0]))) {
+    const fn = e.arguments[0];
+    if (!ts.isBlock(fn.body)) return afDrawnLeaves(fn.body);
+    return ownReturnsOf(fn).flatMap((r) => (r.expression === undefined ? [] : afDrawnLeaves(r.expression)));
+  }
+  return [e];
+}
+
+/** Is a drawn leaf `<param>.<member>` of a `.map(` over `<over>`? */
+function afMapped(file, leaf, members, over) {
+  if (!ts.isPropertyAccessExpression(leaf) || !members.includes(leaf.name.text) || !ts.isIdentifier(leaf.expression)) return false;
+  const param = leaf.expression.text;
+  for (let n = leaf.parent; n !== undefined; n = n.parent) {
+    if (!(ts.isArrowFunction(n) || ts.isFunctionExpression(n))) continue;
+    if (!n.parameters.some((p) => ts.isIdentifier(p.name) && p.name.text === param)) continue;
+    const call = n.parent;
+    return call !== undefined && ts.isCallExpression(call) && call.arguments[0] === n && calleeName(call) === 'map' && ts.isPropertyAccessExpression(call.expression) && squash(codeOfNode(file, call.expression.expression)) === over;
+  }
+  return false;
+}
+
+function afSheetRule() {
+  const id = 'AF3';
+  const blocks = confirmBlocks();
+  checked(id);
+  if (blocks.length === 0) fail(id, 'the sheet holds no data-phone-confirm block, so what it draws beside Allow cannot be read');
+  for (const { file, el } of blocks) {
+    const details = confirmDetailsOf(el);
+    const d = details.length === 1 ? details[0] : null;
+    checked(id);
+    if (d === null) {
+      fail(id, `${where(file, el)}: the confirm block holds ${String(details.length)} <details>, so what it draws outside Details cannot be told apart (SU6)`);
+      continue;
+    }
+    const outside = descendantsOf(el).filter((n) => !inside(n, d));
+    // Text drawn outside Details: main's face and Allow, nothing composed here,
+    // and every piece of the face drawn (a sheet that drew Allow alone would
+    // still read status.confirmFace for its layout and say none of it).
+    const seen = new Set();
+    for (const n of outside) {
+      if (ts.isJsxText(n) && !n.containsOnlyTriviaWhiteSpaces) {
+        checked(id);
+        fail(id, `${where(file, n)}: the confirm block draws the text ${J(n.text.trim().slice(0, 60))} outside Details. The face is main's words alone (D1)`);
+        continue;
+      }
+      if (!ts.isJsxExpression(n) || n.parent === undefined || !(ts.isJsxElement(n.parent) || ts.isJsxFragment(n.parent))) continue;
+      for (const leaf of afDrawnLeaves(n.expression)) {
+        checked(id);
+        const kind =
+          ts.isIdentifier(leaf) && leaf.text === 'BTN_ALLOW'
+            ? 'BTN_ALLOW'
+            : afMapped(file, leaf, ['label', 'value'], 'status.confirmFace.rows')
+              ? `rows.${leaf.name.text}`
+              : afMapped(file, leaf, ['title', 'sentence'], 'status.confirmFace.added')
+                ? `added.${leaf.name.text}`
+                : null;
+        if (kind === null) fail(id, `${where(file, leaf)}: outside Details the confirm block draws ${J(codeOfNode(file, leaf).slice(0, 80))}. It draws only a row's label and value from status.confirmFace.rows, a waiting route's title and sentence from status.confirmFace.added, and BTN_ALLOW: the sheet composes none of the face (D1)`);
+        else seen.add(kind);
+      }
+    }
+    const missing = ['rows.label', 'rows.value', 'added.title', 'added.sentence', 'BTN_ALLOW'].filter((k) => !seen.has(k));
+    checked(id);
+    if (missing.length > 0) fail(id, `${where(file, el)}: outside Details the confirm block never draws ${missing.join(', ')}. At rest it draws each row's label and value, each waiting route's title and sentence, and Allow (D3, D6 to D8, D11)`);
+    // No hashed-line or warning shape outside Details (probe:p33312 H4 and H7 read those as the lines and the warnings).
+    for (const n of outside) {
+      if (isJsxEl(n) && ['li', 'ul'].includes(jsxTagOf(n) ?? '')) {
+        checked(id);
+        fail(id, `${where(file, n)}: the confirm block draws a <${jsxTagOf(n)}> outside Details. A list item there is read as a hashed line by every reader of the block; the face is a <dl> (D12, §Attack A12)`);
+      }
+      const text = ts.isStringLiteralLike(n) || ts.isTemplateHead(n) || ts.isTemplateMiddle(n) || ts.isTemplateTail(n) ? n.text : null;
+      if (text !== null && /(?:^|\s)set-config-warning(?:\s|$)/.test(text)) {
+        checked(id);
+        fail(id, `${where(file, n)}: the confirm block names set-config-warning outside Details. The warnings are Details' alone, and a face line in that class is read as one (D10, D12)`);
+      }
+    }
+    // The layout follows the face's rows and no other field.
+    const layout = jsxAttributeExpression(jsxAttributeOf(el, 'data-phone-confirm-face'));
+    checked(id);
+    if (layout === undefined) {
+      fail(id, `${where(file, el)}: the confirm block carries no data-phone-confirm-face={…}, so its layout follows nothing main answered (D6, D11)`);
+    } else {
+      const chains = descendantsOf(layout).filter((n) => ts.isPropertyAccessExpression(n) && !(n.parent !== undefined && ts.isPropertyAccessExpression(n.parent) && n.parent.expression === n));
+      const reads = chains.map((n) => squash(codeOfNode(file, n)));
+      const loose = descendantsOf(layout).filter((n) => ts.isIdentifier(n) && !chains.some((c) => inside(n, c)));
+      const words = descendantsOf(layout).filter((n) => ts.isStringLiteralLike(n)).map((n) => n.text).sort();
+      if (reads.length === 0 || reads.some((r) => r !== 'status.confirmFace.rows.length') || loose.length > 0 || J(words) !== J(['new', 'whole'])) {
+        fail(id, `${where(file, layout)}: data-phone-confirm-face is ${J(codeOfNode(file, layout))}. It is 'whole' or 'new', chosen from status.confirmFace.rows.length and no other field (D6, D11)`);
+      }
+    }
+  }
+  // No renderer file composes the face.
+  const names = new Set(['pocketConfirmFace', 'pocketFaceProgram', 'POCKET_FACE_CLAUSES', 'POCKET_NEW_ROUTE_WORDS']);
+  const renderer = join(ROOT, 'src', 'renderer');
+  const files = new Set([...names, 'POCKET_FACE_'].flatMap((w) => arFilesNaming(renderer, w)));
+  checked(id);
+  for (const file of files) {
+    for (const n of nodesOf(file)) {
+      if (!ts.isIdentifier(n) || !(names.has(n.text) || n.text.startsWith('POCKET_FACE_'))) continue;
+      checked(id);
+      fail(id, `${where(file, n)}: the renderer names ${n.text}. Main composes the face in status() and the sheet draws strings; a second composer could disagree with the lines Allow records (D1, §Attack A1)`);
+    }
+  }
+}
+
+// ---- AF4, Details names every hashed fact --------------------------------------
+
+function afDetailsRule() {
+  const id = 'AF4';
+  const pairing = afFile(AR_PAIRING, id);
+  if (pairing === null) return;
+  const normalize = constNamed(pairing, 'NORMALIZE');
+  const obj = normalize === null ? undefined : bare(normalize.initializer);
+  checked(id);
+  if (obj === undefined || !ts.isObjectLiteralExpression(obj)) {
+    fail(id, `${rel(pairing)} declares no NORMALIZE object literal, so which facts are hashed cannot be read`);
+    return;
+  }
+  const keys = obj.properties.map((p) => memberName(p)).filter((k) => k !== null);
+  // What each phone emits: the members its .map( callback reads.
+  const phonesProp = obj.properties.find((p) => memberName(p) === 'phones');
+  const phoneMembers = new Set();
+  if (phonesProp !== undefined) {
+    for (const call of descendantsOf(phonesProp).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'map')) {
+      const cb = call.arguments[0];
+      const param = cb !== undefined && (ts.isArrowFunction(cb) || ts.isFunctionExpression(cb)) && cb.parameters[0] !== undefined && ts.isIdentifier(cb.parameters[0].name) ? cb.parameters[0].name.text : null;
+      if (param === null) continue;
+      for (const n of descendantsOf(cb)) if (ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === param) phoneMembers.add(n.name.text);
+    }
+  }
+  checked(id, 2);
+  if (keys.length === 0) fail(id, `${where(pairing, normalize)}: NORMALIZE names no key`);
+  if (keys.includes('phones') && phoneMembers.size === 0) fail(id, `${where(pairing, normalize)}: NORMALIZE's phones emits no member this rule can read, so what a phone is hashed by cannot be read`);
+  const describe = oneFunction(pairing, 'describePocketDoor');
+  checked(id);
+  if (describe === null) {
+    fail(id, `${rel(pairing)} declares no single describePocketDoor`);
+    return;
+  }
+  const first = describe.parameters[0]?.name;
+  const param = first !== undefined && ts.isIdentifier(first) ? first.text : null;
+  const nodes = descendantsOf(describe);
+  const read = new Set(nodes.filter((n) => ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === param).map((n) => n.name.text));
+  for (const key of keys) {
+    checked(id);
+    if (!read.has(key)) fail(id, `${where(pairing, describe)}: describePocketDoor never reads ${String(param)}.${key}, which NORMALIZE hashes. A hashed fact no line names is a fact a person agrees to without reading; Details is the lines, byte for byte (§2.3, §4)`);
+  }
+  // The phones: the loop variable over <param>.phones, or a callback's over it.
+  const phoneVars = new Set();
+  for (const n of nodes) {
+    if (ts.isForOfStatement(n) && squash(codeOfNode(pairing, n.expression)).includes(`${String(param)}.phones`)) {
+      const init = n.initializer;
+      if (ts.isVariableDeclarationList(init)) for (const d of init.declarations) if (ts.isIdentifier(d.name)) phoneVars.add(d.name.text);
+    }
+    if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && ['map', 'forEach', 'flatMap'].includes(n.expression.name.text) && squash(codeOfNode(pairing, n.expression.expression)).includes(`${String(param)}.phones`)) {
+      const cb = n.arguments[0];
+      const p0 = cb !== undefined && (ts.isArrowFunction(cb) || ts.isFunctionExpression(cb)) ? cb.parameters[0]?.name : undefined;
+      if (p0 !== undefined && ts.isIdentifier(p0)) phoneVars.add(p0.text);
+    }
+  }
+  const phoneRead = new Set(nodes.filter((n) => ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.expression) && phoneVars.has(n.expression.text)).map((n) => n.name.text));
+  for (const member of [...phoneMembers].filter((m) => m !== 'id').sort()) {
+    checked(id);
+    if (!phoneRead.has(member)) fail(id, `${where(pairing, describe)}: describePocketDoor never reads a phone's ${member} over ${String(param)}.phones, which NORMALIZE's phones hashes. Every hashed fact of a phone is on a line Details holds (§2.3, §4)`);
+  }
+}
+
+function confirmFaceRules() {
+  for (const [rid, run] of [
+    ['AF1', afMainRule],
+    ['AF2', afDrivenRule],
+    ['AF3', afSheetRule],
+    ['AF4', afDetailsRule]
+  ]) {
+    try {
+      run();
+    } catch (err) {
+      fail(rid, `could not be read: ${err instanceof Error ? err.stack ?? err.message : String(err)}`);
+    }
+  }
+  // A ZERO WHERE SOMETHING MUST BE IS RED: a rule that read nothing asserted nothing.
+  for (const rid of AF_RULE_IDS) {
+    if (checks.get(rid) === 0 && failures.get(rid).length === 0) fail(rid, 'checked nothing, so it asserts nothing');
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
 
@@ -13165,7 +13777,9 @@ const PHASES = [
   // PHASE 333.1, a stranger's first run (build/p3331/SPEC.md §6.1).
   ['a stranger’s first run', setupRules, 'SU1'],
   // PHASE 333.12, an update keeps the door open (build/p33312/SPEC.md §6.1).
-  ['an update keeps the door open', allowedRouteRules, 'AR1']
+  ['an update keeps the door open', allowedRouteRules, 'AR1'],
+  // PHASE 333.12.1, the confirm block's face (build/p333121/SPEC.md §6.1).
+  ['the confirm block’s face', confirmFaceRules, 'AF1']
 ];
 
 for (const [name, run, onError] of PHASES) {

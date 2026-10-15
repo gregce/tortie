@@ -15,11 +15,13 @@
  *      draws the frame; this file fills the bodies.
  *      - Step 2 draws, whenever the door's details are not the ones a person
  *        agreed to, or a route of this build waits for its Allow under a
- *        published door (Phase 333.12), TODAY'S CONFIRM BLOCK, whole and at
- *        rest (his ruling 2): the lines to read, both warnings, and Allow.
- *        Those lines name the internet, the tailnet, the public port and the
- *        program that publishes it, so nothing starts until a person has read
- *        them (CLAUDE.md refusal 8). While Tailscale waits on its own approval
+ *        published door (Phase 333.12), THE CONFIRM BLOCK: since Phase
+ *        333.12.1 (his ruling of 2026-10-15, replacing ruling 2) main's face,
+ *        a few labelled lines, then Allow, then Details, shut at rest, holding
+ *        every hashed line byte for byte and both warnings. Those lines name
+ *        the internet, the tailnet, the public port and the program that
+ *        publishes it, so nothing starts until a person can read them
+ *        (CLAUDE.md refusal 8). While Tailscale waits on its own approval
  *        page, Approve in Tailscale.
  *      - Step 3 is the pair card: on a first setup the code shows by itself
  *        once the door answers and the name is live (D17); with a phone
@@ -43,8 +45,9 @@
  * THERE IS NO KEY FIELD (Phase 330): the phone never joins the tailnet, so
  * there is no tailnet key to paste, no grant to copy and no policy to narrow.
  * Two shut disclosures hold what a person needs once (What’s this? on step 1,
- * What this allows while Tailscale's page is waited on), and the confirm at
- * Allow is never inside one.
+ * What this allows while Tailscale's page is waited on), and a third, the
+ * confirm block's Details (Phase 333.12.1), holds the hashed lines. Allow is
+ * never inside one.
  *
  * JUST ENOUGH WORDS (CLAUDE.md UI rule). The resting face is labels and one
  * line each. Every sentence of explanation is main's, from the shared contract.
@@ -113,6 +116,8 @@ export { DOOR_NOT_LISTENING, DOOR_OPENING, doorListening, doorMayRetry, doorNeed
 export const PHONE_TITLE = 'Phone';
 export const DOOR_LABEL = 'Let my phone reach this Mac';
 export const BTN_ALLOW = 'Allow';
+/** The confirm block's disclosure (Phase 333.12.1, D9): the connection screen's own word. */
+export const DISCLOSE_DETAILS = 'Details';
 export const BTN_TRY_AGAIN = 'Try again';
 /**
  * The approval page's button (Phase 330), whose words became "Approve in
@@ -810,7 +815,7 @@ function stepPiece(props: StepBodyProps, piece: StepPiece, key: string): React.J
         </p>
       );
     case 'disclosure':
-      // The house disclosure, SHUT (§5.4.1). Never the confirm block's home.
+      // The house disclosure, SHUT (§5.4.1). The confirm block's own Details is drawn in `case 'confirm'`.
       return (
         <details
           key={key}
@@ -823,34 +828,63 @@ function stepPiece(props: StepBodyProps, piece: StepPiece, key: string): React.J
         </details>
       );
     case 'confirm':
-      // TODAY'S BLOCK, BYTE FOR BYTE (his ruling 2, D18): every hashed line,
-      // both warnings, the standing right while Funnel still needs approving,
-      // and Allow. Nothing of it goes behind a disclosure. The honesty
-      // sentence is composed over what THIS Allow grants, the proposal's
-      // routes main answers (Phase 333.12's fix round), never only over the
-      // routes the door answers before it.
+      // THE FACE AND DETAILS (his ruling of 2026-10-15, build/p333121/SPEC.md D1 to D12): main's few lines
+      // (`confirmFace`, from the proposal the lines and the hash come from), Allow, and every hashed line with
+      // the warnings behind Details, shut at rest. With no rows only routes wait, and Allow sits on their line.
       return status === null ? null : (
-        <div key={key} className="phone-block" data-phone-confirm>
-          <Lines lines={status.confirmLines} />
-          <p className="set-config-warning">{POCKET_CONFIRM_WARNING}</p>
-          <p className="set-config-warning">{pocketDoorHonesty(status.routesOffered)}</p>
-          {status.funnel.asksApproval ? (
-            <p className="set-config-warning" data-phone-funnel-right>
-              {POCKET_FUNNEL_RIGHT_WARNING}
-            </p>
-          ) : null}
-          <div className="set-config-actions">
-            <button
-              type="button"
-              className="btn btn-primary"
-              // Never while a read is under way: the lines may be about to move.
-              disabled={busy || status.state === 'opening'}
-              data-phone-action="confirm-door"
-              onClick={props.onConfirmDoor}
-            >
-              {BTN_ALLOW}
-            </button>
+        <div
+          key={key}
+          className="phone-block phone-confirm"
+          data-phone-confirm
+          data-phone-confirm-face={status.confirmFace.rows.length > 0 ? 'whole' : 'new'}
+        >
+          <div className="phone-confirm-head">
+            <div className="phone-confirm-face">
+              {status.confirmFace.rows.length === 0 ? null : (
+                <dl className="phone-face" data-phone-face>
+                  {status.confirmFace.rows.map((row) => (
+                    <React.Fragment key={row.key}>
+                      <dt data-phone-face-label={row.key}>{row.label}</dt>
+                      <dd data-phone-face-value={row.key}>{row.value}</dd>
+                    </React.Fragment>
+                  ))}
+                </dl>
+              )}
+              {status.confirmFace.added.length === 0 ? null : (
+                <div className="phone-face-added" data-phone-face-added>
+                  {status.confirmFace.added.map((route) => (
+                    <div key={route.id} className="phone-face-new" data-phone-face-new={route.id}>
+                      <p className="phone-face-title">{route.title}</p>
+                      {route.sentence === null ? null : <p className="phone-face-sentence">{route.sentence}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="set-config-actions phone-confirm-actions">
+              <button
+                type="button"
+                className="btn btn-primary"
+                // Never while a read is under way: the lines may be about to move.
+                disabled={busy || status.state === 'opening'}
+                data-phone-action="confirm-door"
+                onClick={props.onConfirmDoor}
+              >
+                {BTN_ALLOW}
+              </button>
+            </div>
           </div>
+          <details className="set-disclosure phone-confirm-details" data-phone-confirm-details>
+            <summary>{DISCLOSE_DETAILS}</summary>
+            <Lines lines={status.confirmLines} />
+            <p className="set-config-warning">{POCKET_CONFIRM_WARNING}</p>
+            <p className="set-config-warning">{pocketDoorHonesty(status.routesOffered)}</p>
+            {status.funnel.asksApproval ? (
+              <p className="set-config-warning" data-phone-funnel-right>
+                {POCKET_FUNNEL_RIGHT_WARNING}
+              </p>
+            ) : null}
+          </details>
         </div>
       );
     case 'approval':

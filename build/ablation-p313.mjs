@@ -160,6 +160,26 @@
  * Four arms were re-anchored on `routesOffered`: `SU20`, `AR7a`, `SU6w` and
  * `AR11a`.
  *
+ * PHASE 333.12.1 ADDED FIFTEEN (build/p333121/SPEC.md §6.2), 548 entries in
+ * all, for the confirm block's face and Details under his ruling of
+ * 2026-10-15, which replaced ruling 2 ("Keep today's block"): `SU6a` to
+ * `SU6d` (Details open at rest, Allow moved behind it, the lines sliced, the
+ * Funnel right drawn whatever Funnel asks), `AF1a` to `AF1c` (the face
+ * composed over the fields, over the served set, or for a door never allowed),
+ * `AF2a` to `AF2d` (a waiting route with no name, a waiting route said twice,
+ * the phones out of id order, the program read as its basename), `AF3a` and
+ * `AF3b` (the sheet composing a row, a row drawn as a list item) and `AF4a`
+ * and `AF4b` (Details losing the program's line, and an alert address that
+ * moves the hash and no line, which only the driven F3 sees, so its rule is
+ * the `face` check itself). Two arms were RE-PURPOSED, each still on SU6:
+ * `SU19` and `SU20` no longer hide a warning behind a disclosure, they move
+ * the confirm warning and the honesty sentence OUT of Details, in front of the
+ * face. `AR11e` was re-anchored on the one const of `status()` the answer now
+ * carries by shorthand. One more driven check joined, `face`
+ * (`src/main/pocket/__tests__/p333121-face.test.ts`), this harness's own tag
+ * as `unit` is. Re-run, not edited, because their file moved: `SU21`, `SU6w`,
+ * `AR7a`, `AR7d`, `AR11a`, `AR11b`, `AR11d`, `AR12a` and `AR12b`.
+ *
  * An ablation that leaves the check green is a hole in the check. An ablation
  * that reddens only rules OTHER than its own is a finding about the check
  * rather than about the build, and it is printed as one.
@@ -214,6 +234,7 @@
  *   node build/ablation-p313.mjs
  *   P313_ONLY=L2,R2,S2 node build/ablation-p313.mjs        named entries only
  *   P313_ONLY=O2a,O2k,O2l,R4x node build/ablation-p313.mjs  the Phase 316.7 arms, for one
+ *   P313_ONLY=SU6a,SU6b,SU6c,SU6d,AF1a,AF2a,AF3a,AF4a,AF4b node build/ablation-p313.mjs  some of Phase 333.12.1's
  *   P313_ALLOW_RED_BASE=1 node build/ablation-p313.mjs
  */
 
@@ -324,7 +345,13 @@ const CHECKS = [
   // PHASE 333.12's FIX ROUND: the sheet's own driven owner, for the arm whose
   // clause only a drawn block shows (the honesty sentence composed over what
   // the Allow beside it grants). `[p313 phone]` is this harness's own tag.
-  ['phone', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/renderer/settings/__tests__/p316-phone-section.test.tsx'], { tag: 'phone', relative: true }]
+  ['phone', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/renderer/settings/__tests__/p316-phone-section.test.tsx'], { tag: 'phone', relative: true }],
+  // PHASE 333.12.1 (build/p333121/SPEC.md §6.2): the face's own driven owner,
+  // for the arms whose clause only a composed face or a moved hashed fact
+  // shows (the id fallback, a waiting route said twice, the phones' order,
+  // the program read as its basename, and a fact that moves the hash but no
+  // line of Details). `[p313 face]` is this harness's own tag, as `unit` is.
+  ['face', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/main/pocket/__tests__/p333121-face.test.ts'], { tag: 'face', relative: true }]
 ];
 
 /**
@@ -4986,26 +5013,30 @@ const ABLATIONS = [
     needs: ['gate']
   },
   {
+    // PHASE 333.12.1 RE-PURPOSED THIS ARM (build/p333121/SPEC.md §6.2): his
+    // ruling of 2026-10-15 put the warning behind Details, so the break is
+    // now the warning moved OUT of it, in front of the face.
     n: 'SU19',
     rule: 'SU6',
-    name: 'the confirm warning behind a disclosure',
-    why: 'his ruling 2: the confirm at Allow is today’s block, whole, at rest.',
+    alsoRed: ['steps'],
+    name: 'the confirm warning moved out of Details, in front of the face',
+    why: 'his ruling of 2026-10-15: the face says each fact once in a few short rows and both warnings sit behind Details, whole, so a warning on the face is the paragraph he asked to take off it (D10).',
     file: PHONE_SECTION,
-    from: '          <p className="set-config-warning">{POCKET_CONFIRM_WARNING}</p>',
-    to: '          <details className="set-disclosure">\n            <p className="set-config-warning">{POCKET_CONFIRM_WARNING}</p>\n          </details>',
-    needs: ['gate']
+    from: /(\n[ \t]*)(<div className="phone-confirm-head">)([\s\S]*?)\n[ \t]*<p className="set-config-warning">\{POCKET_CONFIRM_WARNING\}<\/p>/,
+    to: (_m, nl, head, mid) => `${nl}<p className="set-config-warning">{POCKET_CONFIRM_WARNING}</p>${nl}${head}${mid}`,
+    needs: ['gate', 'steps']
   },
   {
+    // PHASE 333.12.1 RE-PURPOSED THIS ARM, as SU19.
     n: 'SU20',
     rule: 'SU6',
-    name: 'the door’s honesty sentence behind a disclosure',
-    why: 'probe:p317 W1 and probe:p318 R0 read it inside the block, at rest (D18).',
+    alsoRed: ['steps'],
+    name: 'the door’s honesty sentence moved out of Details, in front of the face',
+    why: 'the honesty sentence is Details’ since his ruling of 2026-10-15, and probe:p317 W1, probe:p318 R0 and probe:p337 S0 read it in the block’s textContent; on the face it is the paragraph he asked to take off it (D10, D14).',
     file: PHONE_SECTION,
-    // PHASE 333.12: the sentence is the composer over what the Allow beside
-    // it grants (D13; the fix round moved it to routesOffered).
-    from: '          <p className="set-config-warning">{pocketDoorHonesty(status.routesOffered)}</p>',
-    to: '          <details className="set-disclosure">\n            <p className="set-config-warning">{pocketDoorHonesty(status.routesOffered)}</p>\n          </details>',
-    needs: ['gate']
+    from: /(\n[ \t]*)(<div className="phone-confirm-head">)([\s\S]*?)\n[ \t]*<p className="set-config-warning">\{pocketDoorHonesty\(status\.routesOffered\)\}<\/p>/,
+    to: (_m, nl, head, mid) => `${nl}<p className="set-config-warning">{pocketDoorHonesty(status.routesOffered)}</p>${nl}${head}${mid}`,
+    needs: ['gate', 'steps']
   },
   {
     n: 'SU21',
@@ -5776,8 +5807,11 @@ const ABLATIONS = [
     name: 'the routes the honesty sentence is composed over are the served set, not the proposal’s',
     why: 'the sentence beside Allow would leave out the route that Allow grants (D13; C3, C4).',
     file: IPC,
-    from: '      routesOffered: servedRoutesOf(proposal.routes, pocketRouteIds()),',
-    to: '      routesOffered: this.servedRoutes(),',
+    // PHASE 333.12.1 RE-ANCHORED THIS ARM (build/p333121/SPEC.md §6.2): the
+    // list is ONE const of status() since the face is composed over it, and
+    // the answer carries it by shorthand; AR11 reads the const's initializer.
+    from: '    const routesOffered = servedRoutesOf(proposal.routes, pocketRouteIds());',
+    to: '    const routesOffered = this.servedRoutes();',
     needs: ['gate', 'allowed']
   },
   {
@@ -5833,6 +5867,171 @@ const ABLATIONS = [
     from: ' || !deps.routeServed(verb)) return { status: 404, body: null };',
     to: ') return { status: 404, body: null };',
     needs: ['gate', 'served', 'hostile']
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 333.12.1, the confirm block's face and Details (build/p333121/SPEC.md
+  // §6.2): SU6 rewritten to his ruling of 2026-10-15, and AF1 to AF4.
+  // -------------------------------------------------------------------------
+  {
+    n: 'SU6a',
+    rule: 'SU6',
+    alsoRed: ['phone', 'steps'],
+    name: 'Details open at rest',
+    why: 'Details is shut at rest and every time the block mounts, and nothing remembers it: an open one is today’s whole block again, which pushed Pair below the fold (D9, §Attack A11).',
+    file: PHONE_SECTION,
+    from: 'data-phone-confirm-details>',
+    to: 'data-phone-confirm-details open>',
+    needs: ['gate', 'phone', 'steps']
+  },
+  {
+    n: 'SU6b',
+    rule: 'SU6',
+    alsoRed: ['steps'],
+    name: 'Allow moved behind Details',
+    why: 'Allow sits at rest beside the face; behind a shut disclosure it is a press nobody finds, and the one place in the markup is what SU6 counts (D11, §Attack A13).',
+    file: PHONE_SECTION,
+    from: /(\n[ \t]*<div className="set-config-actions phone-confirm-actions">[\s\S]*?\{BTN_ALLOW\}[\s\S]*?<\/div>)([\s\S]*?<summary>\{DISCLOSE_DETAILS\}<\/summary>)/,
+    to: (_m, actions, mid) => `${mid}${actions}`,
+    needs: ['gate', 'steps']
+  },
+  {
+    n: 'SU6c',
+    rule: 'SU6',
+    alsoRed: ['steps'],
+    name: 'Details handed some of the lines',
+    why: 'Allow records the whole proposal, so Details holds every hashed line, byte for byte; a sliced list is a fact agreed to that nobody could read (§4, refusal 8).',
+    file: PHONE_SECTION,
+    from: '<Lines lines={status.confirmLines} />',
+    to: '<Lines lines={status.confirmLines.slice(0, 3)} />',
+    needs: ['gate', 'steps']
+  },
+  {
+    n: 'SU6d',
+    rule: 'SU6',
+    alsoRed: ['steps'],
+    name: 'the Funnel right drawn whether or not Funnel asks approval',
+    why: 'the standing right is said only while it is true, beside the Allow that agrees under it (D10).',
+    file: PHONE_SECTION,
+    from: '{status.funnel.asksApproval ? (',
+    to: '{true ? (',
+    needs: ['gate', 'steps']
+  },
+  {
+    n: 'AF1a',
+    rule: 'AF1',
+    name: 'the face composed over the allowed fields rather than the proposal',
+    why: 'the face, the lines and the hash are one drawing: a face over this.fields() leaves out the route the Allow beside it grants while Details names it (D1).',
+    file: IPC,
+    from: 'pocketConfirmFace(proposal, routesOffered, routesWaiting, gate.state)',
+    to: 'pocketConfirmFace(fields, routesOffered, routesWaiting, gate.state)',
+    needs: ['gate']
+  },
+  {
+    n: 'AF1b',
+    rule: 'AF1',
+    name: 'the face’s routes the served set rather than what the Allow grants',
+    why: 'Your phone can says what the Allow beside it grants, the very list the honesty sentence in Details is composed over (D1, D5).',
+    file: IPC,
+    from: 'pocketConfirmFace(proposal, routesOffered, routesWaiting, gate.state)',
+    to: 'pocketConfirmFace(proposal, this.servedRoutes(), routesWaiting, gate.state)',
+    needs: ['gate']
+  },
+  {
+    n: 'AF1c',
+    rule: 'AF1',
+    alsoRed: ['allowed'],
+    name: 'the face composed for a door never allowed, whatever the gate says',
+    why: 'a published door with only a route waiting would draw the four rows of a first setup, each a fact the person already allowed, where the approved face is one New line (D6).',
+    file: IPC,
+    from: 'pocketConfirmFace(proposal, routesOffered, routesWaiting, gate.state)',
+    to: "pocketConfirmFace(proposal, routesOffered, routesWaiting, 'never')",
+    needs: ['gate', 'allowed']
+  },
+  {
+    n: 'AF2a',
+    rule: 'AF2',
+    alsoRed: ['face', 'allowed'],
+    name: 'a waiting route with no title row drawn with no name',
+    why: 'a person would allow a route the face never named; with no row it reads New: <its id>, never nothing (D7, §Attack A6).',
+    file: SHARED,
+    from: 'row?.title ?? id',
+    to: "row?.title ?? ''",
+    needs: ['gate', 'face', 'allowed']
+  },
+  {
+    n: 'AF2b',
+    rule: 'AF2',
+    alsoRed: ['face'],
+    name: 'Your phone can says a waiting route too',
+    why: 'on a door that changed with a route waiting the face would say that route twice, once as allowed and once as New (D5, §Attack A9).',
+    file: SHARED,
+    from: 'if (!offered.some((r) => r === id) || waiting.some((r) => r === id)) continue;',
+    to: 'if (!offered.some((r) => r === id)) continue;',
+    needs: ['gate', 'face']
+  },
+  {
+    n: 'AF2c',
+    rule: 'AF2',
+    alsoRed: ['face'],
+    name: 'the phones in the order they were handed rather than by id',
+    why: 'the lines and the hash order the phones by id; a face in another order moves when nothing hashed moved (D3).',
+    file: SHARED,
+    from: '[...facts.phones].sort((a, b) => (a.id < b.id ? -1 : 1))',
+    to: '[...facts.phones]',
+    needs: ['gate', 'face']
+  },
+  {
+    n: 'AF2d',
+    rule: 'AF2',
+    alsoRed: ['face'],
+    name: 'the program named by its basename, the draft read literally',
+    why: 'a move between /usr/local/bin/tailscale and /opt/homebrew/bin/tailscale is a different program starting, and read as a basename it moved the hash and Details and left the face as it was (D4, §Attack A2).',
+    file: SHARED,
+    from: 'return app === null ? path : (app[1] ?? path);',
+    to: "return path.slice(path.lastIndexOf('/') + 1);",
+    needs: ['gate', 'face']
+  },
+  {
+    n: 'AF3a',
+    rule: 'AF3',
+    name: 'the sheet composes a face row of its own',
+    why: 'the program’s path is not on the status and the sheet spells no predicate main owns; a row the sheet composes can disagree with the lines Allow records (D1, §Attack A1).',
+    file: PHONE_SECTION,
+    from: '<dd data-phone-face-value={row.key}>{row.value}</dd>',
+    to: "<dd data-phone-face-value={row.key}>{row.key === 'reach' ? status.publicName : row.value}</dd>",
+    needs: ['gate']
+  },
+  {
+    n: 'AF3b',
+    rule: 'AF3',
+    alsoRed: ['steps'],
+    name: 'a face row drawn as a list item',
+    why: 'every reader of the block’s li reads the hashed lines (probe:p33312 H4), so a face row in one is read as a hashed line (D12, §Attack A12).',
+    file: PHONE_SECTION,
+    from: '<dd data-phone-face-value={row.key}>{row.value}</dd>',
+    to: '<li data-phone-face-value={row.key}>{row.value}</li>',
+    needs: ['gate', 'steps']
+  },
+  {
+    n: 'AF4a',
+    rule: 'AF4',
+    alsoRed: ['face'],
+    name: 'Details no longer names the program that publishes the door',
+    why: 'the program is hashed (refusal 8: a different program at a different path is a different process starting), so a line that names it is what a person reads before Allow (§2.3, §4).',
+    file: PAIRING,
+    from: '  lines.push(`Publishes it with ${fields.funnelProgram}`);\n',
+    to: '',
+    needs: ['gate', 'face']
+  },
+  {
+    n: 'AF4b',
+    rule: 'face',
+    name: 'a moved alert address moves neither the face nor Details',
+    why: 'a phone’s alert address is hashed; with its digest gone from the alert line it moves the hash and no line a person can read, which only the driven F3 sees, because AF4’s text rule still finds phone.pushToken read (§2.3, §4).',
+    file: PAIRING,
+    from: /, device \$\{pushTokenDigest\(\s*phone\.pushToken\s*\)\.slice\(0, 8\)\}/,
+    to: '',
+    needs: ['gate', 'face']
   }
 ];
 

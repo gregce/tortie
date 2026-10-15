@@ -25,8 +25,10 @@
  *   own states and its five words, step 2 for the rest, including a START that
  *   refused with one of step 1's words over a read that answered.
  * - THE FACES, drawn: the switch's one caption on every state; the three
- *   headers always; TODAY'S CONFIRM BLOCK BYTE FOR BYTE and never inside a
- *   disclosure; What’s this? and What this allows shut; no `<a` on any face;
+ *   headers always; THE CONFIRM BLOCK as main's face, Allow, then a shut
+ *   Details holding today's lines and warnings byte for byte (Phase 333.12.1,
+ *   his ruling of 2026-10-15, replacing ruling 2), the block itself never
+ *   inside a disclosure; What’s this? and What this allows shut; no `<a` on any face;
  *   the setup buttons only when listed, the quiet Try again beside the one
  *   button; the publisher caption with and without a key; the code's two
  *   lines in words; the name check's wait note for exactly as long as the
@@ -73,6 +75,8 @@ import {
   POCKET_SIGN_IN_LINE,
   POCKET_TURN_ON,
   POCKET_TURN_ON_LINE,
+  pocketConfirmFace,
+  type PocketConfirmFace,
   type PocketFunnelRefusal,
   type PocketFunnelView,
   type PocketNameProgress,
@@ -89,6 +93,7 @@ import {
   BTN_OPEN_TAILSCALE,
   BTN_TRY_AGAIN,
   CODE_PRIVATE,
+  DISCLOSE_DETAILS,
   DOOR_LABEL,
   GET_PHONE_APP,
   PHONES_GROUP,
@@ -257,7 +262,7 @@ const LINES = [
  * nothing listed, nothing to agree to.
  */
 function st(over: Partial<PocketStatus> = {}, funnel: Partial<PocketFunnelView> = {}): PocketStatus {
-  return {
+  const answered: Omit<PocketStatus, 'confirmFace'> = {
     state: 'refused',
     publicName: NAME,
     publicPort: 8443,
@@ -290,6 +295,25 @@ function st(over: Partial<PocketStatus> = {}, funnel: Partial<PocketFunnelView> 
     pushSentence: null,
     ...over
   };
+  // PHASE 333.12.1: main's face, composed as `status()` composes it, unless
+  // the test hands its own.
+  return { ...answered, confirmFace: over.confirmFace ?? faceOf(answered) };
+}
+
+/** The face main would compose for a status: the shipping composer over its fields, LINES' program. */
+function faceOf(s: Omit<PocketStatus, 'confirmFace'>): PocketConfirmFace {
+  return pocketConfirmFace(
+    {
+      funnelProgram: '/Applications/Tailscale.app/Contents/MacOS/Tailscale',
+      publicName: s.publicName ?? '',
+      publicPort: s.publicPort,
+      phones: s.phones,
+      pushAlerts: s.pushAlerts
+    },
+    s.routesOffered,
+    s.routesWaiting,
+    s.confirmState
+  );
 }
 
 /**
@@ -634,7 +658,7 @@ describe('step 2, Publish this Mac (§5.4.3), its body only while the door is on
     expect(steps.doorNeedsConfirm(setUp({ routesWaiting: WAITING }))).toBe(false);
     // Drawn: ONE block, inside step 2, under Published, with main's proposal lines and Allow.
     const html = draw({ status: setUp({ routesWaiting: WAITING }) });
-    expect(html.match(/data-phone-confirm/g)).toHaveLength(1);
+    expect(html.match(/data-phone-confirm=/g)).toHaveLength(1);
     const two = stepHtml(html, 'publish');
     expect(two).toContain('data-phone-confirm');
     expect(two).toContain(`<span class="phone-step-state" title="Answering at https://${NAME}:8443">Published</span>`);
@@ -895,9 +919,11 @@ describe('the faces, drawn', () => {
     expect(key(st({ confirmState: 'confirmed', confirmable: true }, { refused: 'busy' }), 'publish')).toBe('');
   });
 
-  it('draws today’s confirm block byte for byte, and never inside a disclosure (his ruling 2, D18)', () => {
+  // PHASE 333.12.1 (his ruling of 2026-10-15, replacing ruling 2; build/p333121/SPEC.md D9 to D12, §9.2 F9):
+  // the block is main's face, Allow, then Details, SHUT at rest, holding today's lines and warnings byte for byte.
+  it('draws the face and Details: today’s lines and warnings byte for byte behind a shut Details, Allow outside it', () => {
     for (const [why, s, busy] of [
-      // Phase 333.12 (D23): a route waiting under a published door draws the same block.
+      // Phase 333.12 (D23): a route waiting under a published door draws the same Details.
       ['published, a route waiting', setUp({ routesWaiting: WAITING }), false],
       ['never agreed', st({ confirmable: true }), false],
       ['changed, Funnel asks approval', st({ confirmable: true, confirmState: 'changed' }, { asksApproval: true }), false],
@@ -905,19 +931,62 @@ describe('the faces, drawn', () => {
       ['a read under way', st({ confirmable: true, state: 'opening' }, { state: 'reading' }), false]
     ] as const) {
       const html = draw({ status: s, busy });
-      const block = elementWith(html, 'data-phone-confirm');
-      expect(block, why).toBe(renderToStaticMarkup(todaysConfirmBlock(s, busy)));
+      const block = elementWith(html, 'data-phone-confirm=');
+      expect(block, why).toMatch(/^<div class="phone-block phone-confirm" data-phone-confirm="true" data-phone-confirm-face="(whole|new)">/);
       // Not inside a <details>: no disclosure opens before the block that has not closed.
       const before = html.slice(0, html.indexOf(block));
       expect((before.match(/<details/g) ?? []).length, why).toBe((before.match(/<\/details>/g) ?? []).length);
-      expect(block, why).not.toContain('<details');
-      const page = text(block);
+      // ONE <details>, the block's last child, shut, its summary first, then today's markup less Allow.
+      expect(block.match(/<details/g), why).toHaveLength(1);
+      const details = elementWith(block, 'data-phone-confirm-details');
+      expect(details, why).toBe(
+        `<details class="set-disclosure phone-confirm-details" data-phone-confirm-details="true"><summary>${DISCLOSE_DETAILS}</summary>` +
+          `${renderToStaticMarkup(todaysConfirmDetails(s))}</details>`
+      );
+      expect(/^<details[^>]*>/.exec(details)?.[0], why).not.toMatch(/\sopen[=\s>]/);
+      expect(block.endsWith(`${details}</div>`), why).toBe(true);
+      const page = text(details);
       for (const l of LINES) expect(page, why).toContain(l);
       expect(page, why).toContain(POCKET_CONFIRM_WARNING);
       expect(page, why).toContain(POCKET_DOOR_HONESTY);
-      expect(block.includes(POCKET_FUNNEL_RIGHT_WARNING), why).toBe(s.funnel.asksApproval);
-      expect(block, why).toContain('data-phone-action="confirm-door"');
+      expect(details.includes(POCKET_FUNNEL_RIGHT_WARNING), why).toBe(s.funnel.asksApproval);
+      // Allow is in the block and outside Details, once, with today's attributes.
+      const head = block.slice(0, block.indexOf(details));
+      expect(details, why).not.toContain('data-phone-action');
+      expect(head.match(/data-phone-action="confirm-door"/g), why).toHaveLength(1);
+      expect(/<button[^>]*data-phone-action="confirm-door"[^>]*>/.exec(head)?.[0], why).toBe(
+        renderToStaticMarkup(allowButton(s, busy)).replace(/>[^<]*<\/button>$/, '>')
+      );
+      // The face is no hashed line and no warning: no list item and no warning class outside Details.
+      expect(head, why).not.toMatch(/<li\b|<ul\b|set-config-warning/);
+      expect(text(head), why).not.toContain(POCKET_CONFIRM_WARNING);
+      for (const l of LINES) expect(text(head), why).not.toContain(l);
+      // The face: main's rows as a <dl>, or, with none, only the waiting routes.
+      const rows = s.confirmFace.rows;
+      expect(block.includes(`data-phone-confirm-face="${rows.length > 0 ? 'whole' : 'new'}"`), why).toBe(true);
+      expect(head.includes('<dl'), why).toBe(rows.length > 0);
+      for (const row of rows) {
+        expect(head, why).toContain(`<dt data-phone-face-label="${row.key}">${row.label}</dt><dd data-phone-face-value="${row.key}">${row.value}</dd>`);
+      }
+      for (const route of s.confirmFace.added) expect(text(head), why).toContain(route.title);
     }
+  });
+
+  it('draws a published door with a route waiting as the New face: one line, Allow on it, and no rows', () => {
+    const s = setUp({ routesWaiting: WAITING });
+    expect(s.confirmFace).toEqual({ rows: [], added: [{ id: 'probe', title: 'New: probe', sentence: null }] });
+    const block = elementWith(draw({ status: s }), 'data-phone-confirm=');
+    expect(block).toContain('data-phone-confirm-face="new"');
+    expect(block).not.toContain('<dl');
+    expect(block).toContain('<div class="phone-face-new" data-phone-face-new="probe"><p class="phone-face-title">New: probe</p></div>');
+    expect(block).not.toContain('phone-face-sentence');
+    // A first setup draws the four rows, whole.
+    const first = elementWith(draw({ status: st({ confirmable: true }) }), 'data-phone-confirm=');
+    expect(first).toContain('data-phone-confirm-face="whole"');
+    expect(first.match(/<dt /g)).toHaveLength(4);
+    expect(text(first)).toContain(`Reachable at ${NAME}:8443, by Tailscale`);
+    expect(text(first)).toContain('Phones none yet');
+    expect(text(first)).toContain('Alerts off');
   });
 
   it('holds What’s this? and What this allows shut, the approval face’s without the confirm block’s hook', () => {
@@ -1122,10 +1191,13 @@ describe('the faces, drawn', () => {
   });
 });
 
-/** cb8d52a6:src/renderer/settings/PhoneSection.tsx:495-503 and :774-797, TODAY'S BLOCK, verbatim but for `props.`. */
-function todaysConfirmBlock(status: PocketStatus, busy: boolean): React.JSX.Element {
+/**
+ * cb8d52a6:src/renderer/settings/PhoneSection.tsx:495-503 and :774-797, TODAY'S BLOCK'S LINES AND WARNINGS, verbatim
+ * less Allow: what Details holds since Phase 333.12.1 (build/p333121/SPEC.md §9.2 F9).
+ */
+function todaysConfirmDetails(status: PocketStatus): React.JSX.Element {
   return (
-    <div className="phone-block" data-phone-confirm>
+    <>
       <ul className="set-config-lines">
         {status.confirmLines.map((line) => (
           <li key={line}>{line}</li>
@@ -1138,19 +1210,23 @@ function todaysConfirmBlock(status: PocketStatus, busy: boolean): React.JSX.Elem
           {POCKET_FUNNEL_RIGHT_WARNING}
         </p>
       ) : null}
-      <div className="set-config-actions">
-        <button
-          type="button"
-          className="btn btn-primary"
-          // Never while a read is under way: the lines may be about to move.
-          disabled={busy || status.state === 'opening'}
-          data-phone-action="confirm-door"
-          onClick={noop}
-        >
-          {BTN_ALLOW}
-        </button>
-      </div>
-    </div>
+    </>
+  );
+}
+
+/** cb8d52a6's Allow, verbatim but for `props.`: the press keeps today's attributes outside Details. */
+function allowButton(status: PocketStatus, busy: boolean): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      className="btn btn-primary"
+      // Never while a read is under way: the lines may be about to move.
+      disabled={busy || status.state === 'opening'}
+      data-phone-action="confirm-door"
+      onClick={noop}
+    >
+      {BTN_ALLOW}
+    </button>
   );
 }
 

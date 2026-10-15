@@ -133,8 +133,8 @@
   display: none;
 }
 
-/* Today's blocks keep their markup inside a step (the confirm block byte for
-   byte, his ruling 2); the step's own padding replaces theirs. */
+/* Today's blocks keep their markup inside a step (the confirm block's face and
+   Details, Phase 333.12.1); the step's own padding replaces theirs. */
 .phone-step-body > .phone-block {
   align-self: stretch;
   padding: 0;
@@ -154,6 +154,114 @@
    margin; inside a step the body's gap is the space above it. */
 .phone-step-body > .set-disclosure {
   margin-top: 0;
+}
+
+/* --------------------------------- the confirm block's face (Phase 333.12.1) */
+
+/* Main's face, Allow and Details (build/p333121/SPEC.md §3.5). In `whole` the
+   head is a column: the labelled rows, then Allow at the block's right edge.
+   In `new` (only routes wait) it is a row: the New lines on the left and Allow
+   on the right of the first one's line. Every override of a house rule is two
+   classes deep, so its order against settings.css does not decide it. */
+.phone-confirm-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-self: stretch;
+  min-width: 0;
+}
+
+.phone-confirm[data-phone-confirm-face='new'] .phone-confirm-head {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-5);
+}
+
+.phone-confirm-face {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The labels share one column as wide as the widest; the values wrap in the
+   rest, and a long word breaks rather than leaving the block. */
+.phone-face {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: var(--space-5);
+  row-gap: var(--space-2);
+  margin: 0;
+}
+
+.phone-face > dt,
+.phone-face > dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.phone-face > dt {
+  color: var(--text-secondary);
+}
+
+.phone-face > dd {
+  min-width: 0;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.phone-face-added {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.phone-face-new {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.phone-face-title,
+.phone-face-sentence {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  overflow-wrap: anywhere;
+}
+
+.phone-face-title {
+  color: var(--text-primary);
+}
+
+.phone-face-sentence {
+  color: var(--text-secondary);
+}
+
+.phone-confirm-head > .phone-confirm-actions {
+  margin-top: 0;
+}
+
+.phone-confirm[data-phone-confirm-face='whole'] .phone-confirm-head > .phone-confirm-actions {
+  align-self: stretch;
+  justify-content: flex-end;
+}
+
+.phone-confirm[data-phone-confirm-face='new'] .phone-confirm-head > .phone-confirm-actions {
+  flex: none;
+}
+
+/* Details sits under Allow: the block's gap is the space above it. */
+.phone-block > .phone-confirm-details {
+  margin-top: 0;
+  align-self: stretch;
+}
+
+.phone-confirm-details > .set-config-warning {
+  margin: var(--space-3) 0 0;
 }
 
 /* ------------------------------------------------------------ the code */

@@ -123,6 +123,7 @@ import {
   POCKET_NAME_SENTENCES,
   POCKET_ROUTE_IDS,
   POCKET_SETUP_ACTIONS,
+  pocketConfirmFace,
   pocketFunnelSentence,
   type PocketAllowInput,
   type PocketAllowResult,
@@ -944,6 +945,10 @@ export class PocketHost {
     // thing that Allow grants.
     const proposal = this.proposal(fields, gate.state);
     const offered = describePocketDoor(proposal);
+    // PHASE 333.12 (D6) and its fix round, named once since Phase 333.12.1, because the face is composed over the
+    // same two lists the answer carries.
+    const routesOffered = servedRoutesOf(proposal.routes, pocketRouteIds());
+    const routesWaiting = waitingRoutesOf(fields.routes, pocketRouteIds(), gate.state === 'confirmed' || gate.state === 'changed');
     const door = pocketDoorStatus();
     const store = this.readStore();
     const listening = door.listening && this.published();
@@ -990,6 +995,8 @@ export class PocketHost {
       confirmState: gate.state,
       confirmLines: offered.lines,
       confirmHash: offered.hash,
+      // THE FACE (Phase 333.12.1, D1): from the SAME proposal the lines and the hash come from.
+      confirmFace: pocketConfirmFace(proposal, routesOffered, routesWaiting, gate.state),
       confirmable,
       nameCheck: this.nameCheckNow(),
       pairable: this.pairable(),
@@ -1004,10 +1011,10 @@ export class PocketHost {
       routes: POCKET_ROUTE_IDS,
       // PHASE 333.12 (D6): main answers the lists; the sheet spells none.
       routesAllowed: this.servedRoutes(),
-      routesWaiting: waitingRoutesOf(fields.routes, pocketRouteIds(), gate.state === 'confirmed' || gate.state === 'changed'),
+      routesWaiting,
       // THE FIX ROUND: what the confirm block's Allow agrees to answer, so the
       // honesty sentence beside it says what it grants (lens 1's minor).
-      routesOffered: servedRoutesOf(proposal.routes, pocketRouteIds()),
+      routesOffered,
       pushAlerts: fields.pushAlerts,
       // THE PORT'S TWO READS, and nothing else of it (K3): an id that is
       // public and a sentence. Neither reads the key.

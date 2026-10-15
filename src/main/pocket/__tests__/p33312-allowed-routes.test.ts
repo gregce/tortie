@@ -46,6 +46,16 @@
  *       eleven that wrote no store. It reads `changed`, so no door opens and
  *       nothing reaches the served answer, and the Allow that reopens it names
  *       the route.
+ *
+ * And Phase 333.12.1's face (build/p333121/SPEC.md §9.2 rows F6 to F8), read
+ * from the SHIPPING `status()`, so it is the face main composes over the one
+ * proposal the lines and the hash come from:
+ *   F6  in C3 (a first setup): the four rows, the proposal's name and port and
+ *       `none yet`, and nothing added.
+ *   F7  in C4 (a route waits under a confirmed door): no rows, and the route
+ *       by its id, `New: probe`, with no sentence.
+ *   F8  a `changed` door with a route waiting: the four rows AND `New: probe`,
+ *       because one Allow agrees to both (D8).
  */
 
 import { EventEmitter } from 'node:events';
@@ -623,6 +633,13 @@ describe('C3: a first setup’s Allow agrees to every route this build has', () 
     expect(s.confirmState).toBe('never');
     expect(routesLine(s.confirmLines)).toContain('probe');
     expect(s.routesWaiting).toEqual([]);
+    // F6 (Phase 333.12.1): main's face over the proposal, the four rows and nothing waiting.
+    expect(s.confirmFace.rows.map((r) => r.key)).toEqual(['reach', 'can', 'phones', 'alerts']);
+    expect(s.confirmFace.rows.find((r) => r.key === 'reach')?.value).toBe(`${NAME}:${String(s.publicPort)}, by ${PROGRAM}`);
+    expect(s.publicPort).toBeGreaterThan(0);
+    expect(s.confirmFace.rows.find((r) => r.key === 'phones')?.value).toBe('none yet');
+    expect(s.confirmFace.rows.find((r) => r.key === 'alerts')?.value).toBe('off');
+    expect(s.confirmFace.added).toEqual([]);
     // The honesty sentence beside this Allow is composed over what it grants:
     // the whole table, the planted route in it (the fix round).
     expect(s.routesOffered).toEqual(pocketRouteIds());
@@ -659,6 +676,10 @@ describe('C4: an update that adds a route keeps the door, the phones and the ale
     expect(s.state).toBe('listening');
     expect(s.confirmState).toBe('confirmed');
     expect(s.routesWaiting).toEqual([PROBE]);
+    // F7 (Phase 333.12.1): the agreement on record holds every other fact, so
+    // only the waiting route is on the face, by its id, with no sentence.
+    expect(s.confirmFace.rows).toEqual([]);
+    expect(s.confirmFace.added).toEqual([{ id: PROBE, title: 'New: probe', sentence: null }]);
     expect(s.routesAllowed).toEqual(elevenServed());
     // What the Allow beside the block grants, which the honesty sentence is
     // composed over: the waiting route with the rest (the fix round).
@@ -927,5 +948,30 @@ describe('C11b: a store wider than its record, left by an older Mac’s Allow th
     // The only way back is an Allow whose lines name the route.
     expect(routesLine(back.status().confirmLines)).toContain(PROBE);
     expect(back.status().routesOffered).toContain(PROBE);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F8: a moved field and a waiting route, on one face (Phase 333.12.1)
+// ---------------------------------------------------------------------------
+
+describe('F8: a changed door with a route waiting draws the four rows and the New line (D8)', () => {
+  it('names the moved field on its row and the waiting route under them, both agreed to by one Allow', async () => {
+    const { one } = await updatedWithAWaitingRoute();
+    // The record on file names another port, as C9's second row makes it: the
+    // gate reads changed, and the route still waits for an Allow that names it.
+    const elsewhere = { ...one.fields(), publicPort: 10000 };
+    const shown = describePocketDoor(elsewhere);
+    confirmPocketDoor(elsewhere, { acknowledgement: POCKET_CONFIRM_ACKNOWLEDGEMENT, linesRead: shown.lines, hashRead: shown.hash });
+    const s = one.status();
+    expect(s.confirmState).toBe('changed');
+    expect(s.routesWaiting).toEqual([PROBE]);
+    expect(s.confirmFace.rows.map((r) => r.key)).toEqual(['reach', 'can', 'phones', 'alerts']);
+    expect(s.confirmFace.rows.find((r) => r.key === 'reach')?.value).toBe(`${NAME}:${String(s.publicPort)}, by ${PROGRAM}`);
+    expect(s.confirmFace.rows.find((r) => r.key === 'phones')?.value).toBe('Phone A');
+    expect(s.confirmFace.rows.find((r) => r.key === 'alerts')?.value).toBe('through Apple, never what an agent asks');
+    expect(s.confirmFace.added).toEqual([{ id: PROBE, title: 'New: probe', sentence: null }]);
+    // The lines the same Allow records name the route too.
+    expect(routesLine(s.confirmLines)).toContain('probe');
   });
 });

@@ -20,7 +20,11 @@
  *   allow it, or main's own refusal sentence.
  * - NOTHING STARTS BEFORE A PERSON READS. The lines main hashed, with main's
  *   warnings, the standing-right warning when Funnel still needs approving,
- *   and Allow — never while a read is under way.
+ *   and Allow — never while a read is under way. Since Phase 333.12.1 (his
+ *   ruling of 2026-10-15, build/p333121/SPEC.md D9 to D12) the lines and the
+ *   warnings are inside the block's own Details, shut at rest, and main's face
+ *   (`confirmFace`) is drawn above Allow; every status below carries one,
+ *   composed as main composes it unless a test hands its own.
  * - THE APPROVAL: Approve in Tailscale only for the page main will open; any
  *   other page as selectable text, never a link.
  * - THE PAIR CARD'S SIX FACES on step 3, and one Pair button whether the door
@@ -90,7 +94,9 @@ import {
   POCKET_SETUP_LINE,
   POCKET_TURN_ON,
   POCKET_TURN_ON_LINE,
+  pocketConfirmFace,
   pocketDoorHonesty,
+  type PocketConfirmFace,
   type PocketNameAnswer,
   type PocketNameCheck,
   type PocketNameProgress,
@@ -103,12 +109,14 @@ import { STATE_READ_ALLOW, STEP_PAIR, STEP_PUBLISH, STEP_TAILSCALE } from '../ph
 
 import {
   ALERTS_GROUP,
+  BTN_ALLOW,
   BTN_CHOOSE_KEY,
   BTN_FORGET_KEY,
   BTN_OPEN_TAILSCALE,
   CODE_EXPIRED,
   CODE_FIRST_NAME,
   CODE_PRIVATE,
+  DISCLOSE_DETAILS,
   DOOR_LABEL,
   DOOR_OPENING,
   GET_PHONE_APP,
@@ -178,7 +186,7 @@ const LINES = [
  */
 function status(over: Partial<PocketStatus> = {}): PocketStatus {
   const listening = (over.state ?? 'listening') === 'listening';
-  return {
+  const answered: Omit<PocketStatus, 'confirmFace'> = {
     state: 'listening',
     publicName: NAME,
     publicPort: 8443,
@@ -211,6 +219,27 @@ function status(over: Partial<PocketStatus> = {}): PocketStatus {
     pushSentence: null,
     ...over
   };
+  // PHASE 333.12.1: main's face, composed as `status()` composes it over the
+  // same lists the answer carries, unless the test hands one of its own.
+  return { ...answered, confirmFace: over.confirmFace ?? faceOf(answered) };
+}
+
+/** The program LINES names, which is the one the stand-in face says by its app's name. */
+const PROGRAM = '/Applications/Tailscale.app/Contents/MacOS/Tailscale';
+
+/** The face main would compose for a status: the shipping composer over its own fields. */
+function faceOf(s: Omit<PocketStatus, 'confirmFace'>): PocketConfirmFace {
+  return pocketConfirmFace(
+    { funnelProgram: PROGRAM, publicName: s.publicName ?? '', publicPort: s.publicPort, phones: s.phones, pushAlerts: s.pushAlerts },
+    s.routesOffered,
+    s.routesWaiting,
+    s.confirmState
+  );
+}
+
+/** The confirm block's own Details, whole, or ''. */
+function confirmDetails(html: string): string {
+  return /<details class="set-disclosure phone-confirm-details" data-phone-confirm-details="true">[\s\S]*?<\/details>/.exec(html)?.[0] ?? '';
 }
 
 function offer(expiresAt = NOW + 170_000): PocketPairingOffer {
@@ -291,14 +320,17 @@ describe('the order the SPEC gives', () => {
     for (const i of at) expect(i).toBeGreaterThanOrEqual(0);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
     expect(page).not.toMatch(/grant|narrow|autogroup|Keep the phone to this door/i);
-    // Phase 333.1: ONE disclosure at rest, step 1's What’s this?, shut; the
-    // confirm block is never inside one (his ruling 2).
+    // Phase 333.1: ONE disclosure at rest, step 1's What’s this?, shut. The
+    // confirm block is never inside one; since Phase 333.12.1 it holds its own
+    // Details, shut, with the hashed lines in it (his ruling of 2026-10-15).
     expect(html.match(/<details/g)).toHaveLength(1);
     const confirming = draw({ status: status({ state: 'refused', confirmState: 'never' }) });
     const block = confirming.indexOf('data-phone-confirm');
     expect(block).toBeGreaterThan(0);
     const before = confirming.slice(0, block);
     expect((before.match(/<details/g) ?? []).length).toBe((before.match(/<\/details>/g) ?? []).length);
+    expect(confirming.match(/<details/g)).toHaveLength(2);
+    expect(confirmDetails(confirming)).not.toBe('');
   });
 
   it('keeps how the phone reaches this Mac behind step 1’s shut What’s this?, no longer under the title', () => {
@@ -403,7 +435,8 @@ describe('nothing starts before a person reads', () => {
   it('draws main’s lines, in main’s order, with the warnings and Allow', () => {
     const html = draw({ status: unagreed });
     expect(html).toContain('data-phone-confirm');
-    const page = text(html);
+    // PHASE 333.12.1: the lines and both warnings are in the block's Details.
+    const page = text(confirmDetails(html));
     let from = 0;
     for (const line of LINES) {
       const at = page.indexOf(line, from);
@@ -439,11 +472,65 @@ describe('nothing starts before a person reads', () => {
     expect(page).not.toContain(POCKET_FUNNEL_RIGHT_WARNING);
     expect(html).toMatch(/<button[^>]*data-phone-action="confirm-door"[^>]*>/);
     expect(/<button[^>]*data-phone-action="confirm-door"[^>]*>/.exec(html)?.[0]).not.toContain('disabled');
+    // Allow is not behind Details.
+    expect(confirmDetails(html)).not.toContain('data-phone-action="confirm-door"');
   });
 
   it('draws the standing-right warning when the first start will ask Tailscale’s approval', () => {
     const asks = status({ state: 'refused', confirmState: 'never', funnel: { ...status().funnel, asksApproval: true } });
-    expect(text(draw({ status: asks }))).toContain(POCKET_FUNNEL_RIGHT_WARNING);
+    expect(text(confirmDetails(draw({ status: asks })))).toContain(POCKET_FUNNEL_RIGHT_WARNING);
+  });
+
+  // PHASE 333.12.1 (build/p333121/SPEC.md D9 to D12): the face, Allow, then
+  // Details, SHUT at rest, holding the lines and the warnings.
+  it('draws main’s face above Allow and the hashed lines in a shut Details after it', () => {
+    const html = draw({ status: unagreed });
+    const details = confirmDetails(html);
+    expect(details).toMatch(new RegExp(`^<details class="set-disclosure phone-confirm-details" data-phone-confirm-details="true"><summary>${DISCLOSE_DETAILS}</summary>`));
+    expect(DISCLOSE_DETAILS).toBe('Details');
+    // Shut at rest: no `open` on its tag.
+    expect(/^<details[^>]*>/.exec(details)?.[0]).not.toMatch(/\sopen[=\s>]/);
+    // Every line, each warning, in Details; none of them outside it.
+    const outside = html.replace(details, '');
+    for (const line of LINES) {
+      expect(details).toContain(`<li>${line.replace(/"/g, '&quot;')}</li>`);
+      expect(text(outside)).not.toContain(line);
+    }
+    expect(text(outside)).not.toContain(POCKET_CONFIRM_WARNING);
+    expect(text(outside)).not.toContain(POCKET_DOOR_HONESTY);
+    // The face: main's words, in its rows, the labels beside their values.
+    expect(html).toContain('data-phone-confirm-face="whole"');
+    for (const row of unagreed.confirmFace.rows) {
+      expect(html).toContain(`<dt data-phone-face-label="${row.key}">${row.label}</dt><dd data-phone-face-value="${row.key}">${row.value}</dd>`);
+    }
+    expect(text(outside)).toContain(`Reachable at ${NAME}:8443, by Tailscale`);
+    // The face comes before Allow, and Allow before Details.
+    const block = html.slice(html.indexOf('data-phone-confirm='));
+    expect(block.indexOf('data-phone-face=')).toBeLessThan(block.indexOf('data-phone-action="confirm-door"'));
+    expect(block.indexOf('data-phone-action="confirm-door"')).toBeLessThan(block.indexOf('data-phone-confirm-details'));
+    expect(/<button[^>]*data-phone-action="confirm-door"[^>]*>([^<]*)<\/button>/.exec(html)?.[1]).toBe(BTN_ALLOW);
+  });
+
+  it('draws whatever words main composed, and only routes waiting with Allow on their line', () => {
+    const own = {
+      rows: [{ key: 'reach' as const, label: 'L-reach', value: 'V-reach' }],
+      added: [
+        { id: 'probe' as never, title: 'T-probe', sentence: 'S-probe' },
+        { id: 'other' as never, title: 'T-other', sentence: null }
+      ]
+    };
+    const mine = draw({ status: status({ state: 'refused', confirmState: 'changed', confirmFace: own }) });
+    expect(mine).toContain('<dt data-phone-face-label="reach">L-reach</dt><dd data-phone-face-value="reach">V-reach</dd>');
+    expect(mine).toContain('<div class="phone-face-new" data-phone-face-new="probe"><p class="phone-face-title">T-probe</p><p class="phone-face-sentence">S-probe</p></div>');
+    expect(mine).toContain('<div class="phone-face-new" data-phone-face-new="other"><p class="phone-face-title">T-other</p></div>');
+    // No rows: the New face, no list of rows.
+    const waiting = status({ state: 'listening', confirmState: 'confirmed', confirmable: true, routesWaiting: ['probe' as never] });
+    expect(waiting.confirmFace).toEqual({ rows: [], added: [{ id: 'probe', title: 'New: probe', sentence: null }] });
+    const html = draw({ status: waiting });
+    expect(html).toContain('data-phone-confirm-face="new"');
+    expect(html).not.toContain('<dl');
+    expect(text(html.replace(confirmDetails(html), ''))).toContain('New: probe');
+    expect(confirmDetails(html)).not.toBe('');
   });
 
   it('never offers Allow while a read is under way', () => {
@@ -894,7 +981,7 @@ describe('the honesty line follows the routes a person allowed (Phase 333.12, D1
     expect(pocketDoorHonesty([...LEGACY_ALLOWED_ROUTES].reverse())).toBe(POCKET_DOOR_HONESTY);
     // No route outside the eleven has a clause yet, so nothing is added for any list.
     expect(pocketDoorHonesty([])).toBe(POCKET_DOOR_HONESTY);
-    const page = text(draw({ status: status({ state: 'refused', confirmState: 'changed' }) }));
+    const page = text(confirmDetails(draw({ status: status({ state: 'refused', confirmState: 'changed' }) })));
     expect(page).toContain(POCKET_DOOR_HONESTY);
     expect(page).not.toContain('It can also');
     // The block draws the composer's answer over main's list, never the bare constant.
