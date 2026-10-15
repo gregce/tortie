@@ -93,6 +93,7 @@
     "probe:p300": "npm run build && node build/harness-socket.mjs --fresh gmux-p300 'node build/p300/probe-p300.mjs'",
     "probe:p311": "node build/p311/probe-p311.mjs",
     "probe:p313": "node build/probe-p313.mjs",
+    "probe:p33312": "node build/harness-socket.mjs --fresh gmux-p33312 'node build/p33312/probe-p33312.mjs'",
     "probe:p314": "node build/probe-p314.mjs",
     "probe:p316": "node build/p316/probe-p316.mjs",
     "probe:p330": "node build/p330/probe-p330.mjs",

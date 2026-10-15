@@ -33,7 +33,14 @@
  *    the domain (`conformance:pocket` M1).
  * 5. **HTTP**, in an `http.Server` that never listens: refusals 1 to 5, which
  *    moved here from `../server.ts`. `/pair`'s outer JSON is parsed here,
- *    strictly, so main never runs `JSON.parse` on a stranger's bytes.
+ *    strictly, so main never runs `JSON.parse` on a stranger's bytes. Since
+ *    Phase 333.12 (build/p33312/SPEC.md §5.8, D7) refusal 3 has a second half:
+ *    a route of the table that is not in the SERVED SET main handed this
+ *    process (the routes a person allowed) is refused `route`, the 404 a Mac
+ *    without that route gives, in the statement after the unknown-route
+ *    refusal, before the window test and before a byte of body is read. The
+ *    set is replaced by an `update`, and no socket is cut when it moves: each
+ *    request is asked.
  * 6. **Forward** the typed request to main, and write main's answer through
  *    `./send.ts`, the one writer.
  *
@@ -90,6 +97,8 @@ import {
 } from 'node:http';
 import { createServer as createNetServer, type Server as NetServer, type Socket } from 'node:net';
 import { createServer as createTlsServer, type Server as TlsServer, type TLSSocket } from 'node:tls';
+
+import type { PocketRouteId } from '@shared/ipc/pocket';
 
 import {
   DOOR_TIMINGS,
@@ -288,6 +297,12 @@ export function createDoorListener(
   let windowOpen = false;
   /** spkiSha256 → phoneId. */
   let pins = new Map<string, string>();
+  /**
+   * The routes this door answers (Phase 333.12, D7): this build's routes a
+   * person allowed, from the start message and replaced by an update that
+   * carries them. Empty until the start, so nothing is served before it.
+   */
+  let served = new Set<PocketRouteId>();
 
   let netServer: NetServer | null = null;
   let tlsServer: TlsServer | null = null;
@@ -489,6 +504,7 @@ export function createDoorListener(
     const url = new URL(raw, `https://${host.name}`);
     const route = matchPocketRoute(req.method ?? '', url.pathname);
     if (route === null) return refuseRequest(res, 'route');
+    if (!served.has(route.id)) return refuseRequest(res, 'route');
     // A WRITE TAKES NO QUERY STRING (Phase 317): its target is its path,
     // exactly, and everything it says is in its signed body. `?` alone counts,
     // because `URL` reads `/v1/end?` as a path with an empty search.
@@ -732,12 +748,16 @@ export function createDoorListener(
         host = { name: message.host.name, port: message.host.port };
         windowOpen = message.windowOpen;
         pins = new Map(message.pins.map((p) => [p.spkiSha256, p.phoneId]));
+        served = new Set(message.routes);
         start(message.tls);
         return;
       }
       case 'update':
         if (message.pins !== undefined) applyPins(message.pins);
         if (message.windowOpen !== undefined) applyWindow(message.windowOpen);
+        // Phase 333.12 (D7): the served set replaced whole. No socket is cut;
+        // the next request on any of them is asked against the new set.
+        if (message.routes !== undefined) served = new Set(message.routes);
         return;
       case 'answer': {
         const entry = pending.get(message.id);

@@ -6,6 +6,8 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { POCKET_ROUTE_IDS } from '@shared/ipc/pocket';
+
 import { POCKET_WRITE_BODY_CAPS } from '../door/limits';
 import {
   DOOR_ANSWER_MAX_BYTES,
@@ -297,7 +299,8 @@ describe('what main tells the door', () => {
     tls: { key: 'k', cert: 'c' },
     pins: [{ phoneId: 'phone-a', spkiSha256: PIN }],
     host: { name: 'mac.tail00000.ts.net', port: 8443 },
-    windowOpen: false
+    windowOpen: false,
+    routes: [...POCKET_ROUTE_IDS]
   };
 
   it('accepts a start, and refuses one with generation 0, a bad pin, a duplicate key or no host', () => {

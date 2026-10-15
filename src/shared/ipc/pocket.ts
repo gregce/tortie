@@ -141,6 +141,35 @@ export const POCKET_WRITE_ROUTE_IDS = ['end', 'choose', 'say', 'keys'] as const 
 export type PocketWriteRouteId = (typeof POCKET_WRITE_ROUTE_IDS)[number];
 
 /**
+ * THE ELEVEN ROUTES EVERY MAC FROM 0.111.0 TO PHASE 333.12 ANSWERED (Phase
+ * 333.12, build/p33312/SPEC.md D3), sorted. They are the allowed set of every
+ * door store that never recorded one: a store written by a 0.111.x Mac has no
+ * `allowedRoutes`, so it reads as these, hashes byte for byte as it did there,
+ * and the update that brings this list switches no paired phone off.
+ *
+ * A LITERAL, AND IT NEVER GROWS. A route a later phase adds is not in it: it
+ * waits for the Allow whose lines name it. `gate:onlyadd` R7 and
+ * `conformance:pocket` AR3 hold it equal, as a set, to
+ * `ios/TortieTests/Fixtures/frozen/launch.wire.json`'s `routes`. It lives here
+ * rather than in main because the honesty composer below needs its type.
+ */
+export const LEGACY_ALLOWED_ROUTES = [
+  'blocked',
+  'choose',
+  'end',
+  'keys',
+  'pair',
+  'say',
+  'screen',
+  'scrollback',
+  'session',
+  'sessions',
+  'turns'
+] as const satisfies readonly PocketRouteId[];
+
+export type LegacyAllowedRouteId = (typeof LEGACY_ALLOWED_ROUTES)[number];
+
+/**
  * The public ports the door may be published on through Tailscale Funnel
  * (Phase 330), in the order they are tried: 8443, then 10000. NEVER 443, which
  * is the port a person's own Serve most often holds. A confirmed port that is
@@ -890,10 +919,15 @@ export interface PocketStatus {
   /** The confirm gate's own word for the door's current fields. */
   confirmState: 'confirmed' | 'never' | 'changed' | 'unknown';
   /**
-   * The lines a person reads before confirming the door AS IT STANDS NOW,
-   * exactly the hashed facts (Phase 316). The sheet draws them whenever
-   * {@link confirmState} is not `confirmed`, and hands them back, unedited,
-   * with {@link confirmHash} on `pocket:confirmDoor`.
+   * The lines a person reads before confirming the door, exactly the hashed
+   * facts (Phase 316). The sheet draws them whenever {@link confirmState} is
+   * not `confirmed`, or a route waits ({@link routesWaiting}), and hands them
+   * back, unedited, with {@link confirmHash} on `pocket:confirmDoor`.
+   *
+   * THEY ARE THE PROPOSAL'S (Phase 333.12, build/p33312/SPEC.md D5): the door
+   * as it stands with every waiting route in it, which are exactly the hashed
+   * facts `pocket:confirmDoor` records. With nothing waiting they are the door
+   * as it stands, byte for byte.
    */
   confirmLines: readonly string[];
   /** The hash {@link confirmLines} were drawn from. */
@@ -956,6 +990,19 @@ export interface PocketStatus {
   nameProgress: PocketNameProgress | null;
   /** The routes this build has, so the sheet can say what it answers. */
   routes: readonly PocketRouteId[];
+  /** This build's routes a person allowed, in the table's order: what the door answers (Phase 333.12). */
+  routesAllowed: readonly PocketRouteId[];
+  /** This build's routes a person has not allowed yet, while an agreement is on record; empty otherwise (Phase 333.12). */
+  routesWaiting: readonly PocketRouteId[];
+  /**
+   * This build's routes the confirm block's Allow agrees to answer: the
+   * PROPOSAL's ({@link confirmLines}), in the table's order (Phase 333.12's
+   * fix round). The honesty sentence beside Allow is composed over these, so
+   * it says what that Allow grants and never only what the door answers
+   * before it. With an agreement on record and nothing waiting, they are
+   * {@link routesAllowed}; with none on record, this build's whole table.
+   */
+  routesOffered: readonly PocketRouteId[];
   /**
    * Whether Tortie tells the paired phones through Apple when a session starts
    * waiting (Phase 314). A CONFIRMED field of the door's hash, off until a
@@ -1107,6 +1154,50 @@ export const POCKET_CONFIRM_WARNING =
 export const POCKET_DOOR_HONESTY =
   'A phone you allow can see what any session’s terminal shows and what it printed before, ' +
   'type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.';
+
+/**
+ * What each route a later phase adds lets a phone do, in the words the
+ * honesty sentence says it (Phase 333.12, build/p33312/SPEC.md D13). Keyed by
+ * every route that is NOT one of {@link LEGACY_ALLOWED_ROUTES}, so a phase that
+ * adds a route cannot compile until it writes its clause here, and the clause
+ * is said only once a person has allowed that route. Empty today: no route
+ * has been added since the eleven.
+ */
+const POCKET_HONESTY_ADDED: Readonly<Record<Exclude<PocketRouteId, LegacyAllowedRouteId>, string>> = Object.freeze({});
+
+/**
+ * The door's honesty sentence over a set of routes (Phase 333.12, D13):
+ * {@link POCKET_DOOR_HONESTY} byte for byte for the eleven, and, for a route in
+ * the set with a clause above, `It can also <clauses>.` after it, the clauses
+ * in the table's key order and joined as the Allow line joins its own (commas,
+ * and ` and ` before the last). {@link POCKET_DOOR_HONESTY} stays a literal,
+ * because the gates and probes read it as one. Pure.
+ *
+ * THE SHEET HANDS IT `routesOffered` (Phase 333.12's fix round): the routes
+ * the Allow beside the sentence agrees to, which are the routes a person has
+ * allowed once that Allow is pressed. Composed over the routes already
+ * allowed, the warning beside Allow would leave out the very route that Allow
+ * grants, at a first setup and while a route waits.
+ */
+export function pocketDoorHonesty(allowed: readonly string[]): string {
+  const added: Readonly<Record<string, string>> = POCKET_HONESTY_ADDED;
+  const clauses: string[] = [];
+  for (const id of Object.keys(added)) {
+    const clause = added[id];
+    if (clause !== undefined && allowed.includes(id)) clauses.push(clause);
+  }
+  const last = clauses[clauses.length - 1];
+  if (last === undefined) return POCKET_DOOR_HONESTY;
+  const list = clauses.length === 1 ? last : `${clauses.slice(0, -1).join(', ')} and ${last}`;
+  return `${POCKET_DOOR_HONESTY} It can also ${list}.`;
+}
+
+/**
+ * `pocket:confirmDoor`'s refusal when the agreement was recorded and the
+ * routes it allowed could not be saved (Phase 333.12, D9a). The door then
+ * reads as changed and closes, so it says so. Never drawn on a happy path.
+ */
+export const POCKET_ALLOWED_NOT_SAVED = 'Tortie could not save what you allowed, so the door will not answer until you allow it again.';
 
 /**
  * How the phone reaches this Mac (rewritten in Phase 330, research 132 Route

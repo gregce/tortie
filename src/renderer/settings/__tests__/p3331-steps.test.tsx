@@ -280,12 +280,24 @@ function st(over: Partial<PocketStatus> = {}, funnel: Partial<PocketFunnelView> 
     setupActions: [],
     nameProgress: null,
     routes: ['pair', 'blocked', 'session', 'turns', 'end'],
+    // Phase 333.12: the eleven allowed, in the table's order, and nothing waits.
+    routesAllowed: ['pair', 'blocked', 'session', 'turns', 'sessions', 'screen', 'scrollback', 'end', 'choose', 'say', 'keys'],
+    routesWaiting: [],
+    // Phase 333.12's fix round: what the confirm block's Allow agrees to.
+    routesOffered: ['pair', 'blocked', 'session', 'turns', 'sessions', 'screen', 'scrollback', 'end', 'choose', 'say', 'keys'],
     pushAlerts: false,
     pushKeyId: null,
     pushSentence: null,
     ...over
   };
 }
+
+/**
+ * A route of this build a person has not allowed yet (Phase 333.12): the
+ * planted `probe` the app run uses. No build has it, so it is cast: main may
+ * name any id of its own table here, and the sheet spells no list.
+ */
+const WAITING = ['probe'] as unknown as PocketStatus['routesWaiting'];
 
 /** His already-set-up Mac: ready, published, a phone paired. */
 function setUp(over: Partial<PocketStatus> = {}): PocketStatus {
@@ -590,6 +602,46 @@ describe('step 2, Publish this Mac (§5.4.3), its body only while the door is on
     expect(f.hover).toBe(`Answering at https://${NAME}:8443`);
   });
 
+  // PHASE 333.12 (build/p33312/SPEC.md D23, §9.2 C13): a route of this build
+  // that waits draws today's confirm block UNDER Published, while the door
+  // stays published; with nothing waiting, today's face exactly. Main's
+  // routesWaiting and confirmable, never worked out here.
+  it('Published with a route waiting draws the confirm block under it, and nothing else moves', () => {
+    const waits = face(setUp({ routesWaiting: WAITING }), 'publish');
+    expect([waits.done, waits.state, waits.stateKey, waits.body]).toEqual([true, STATE_PUBLISHED, 'published', [{ kind: 'confirm' }]]);
+    expect(waits.hover).toBe(doorListening(NAME, 8443));
+    expect(steps.routesWait(setUp({ routesWaiting: WAITING }))).toBe(true);
+    // Nothing waiting: today's face, byte for byte.
+    expect(face(setUp({ routesWaiting: [] }), 'publish')).toEqual(face(setUp(), 'publish'));
+    expect(steps.routesWait(setUp())).toBe(false);
+    // Lines main says may not be agreed to: no block, Published as today.
+    const unconfirmable = face(setUp({ routesWaiting: WAITING, confirmable: false }), 'publish');
+    expect([unconfirmable.state, unconfirmable.stateKey, unconfirmable.body]).toEqual([STATE_PUBLISHED, 'published', []]);
+    expect(steps.routesWait(setUp({ routesWaiting: WAITING, confirmable: false }))).toBe(false);
+    // Every face that is not published draws what it draws today, a waiting route or not.
+    for (const [why, s] of [
+      ['off', st({ state: 'off', confirmable: true, confirmState: 'confirmed' })],
+      ['refused, agreed to', st({ confirmable: true, confirmState: 'confirmed' })],
+      ['refused, changed', st({ confirmable: true, confirmState: 'changed' })],
+      ['opening', st({ state: 'opening', confirmState: 'confirmed' }, { state: 'starting' })],
+      ['restarting', st({ state: 'opening', confirmState: 'confirmed' }, { state: 'restarting' })],
+      ['not approved', st({ confirmable: true, confirmState: 'confirmed' }, { refused: 'not-approved' })]
+    ] as const) {
+      expect(face({ ...s, routesWaiting: WAITING }, 'publish'), why).toEqual(face(s, 'publish'));
+      expect(steps.routesWait({ ...s, routesWaiting: WAITING }), why).toBe(false);
+    }
+    // doorNeedsConfirm is unchanged: a confirmed door with a route waiting does not need it.
+    expect(steps.doorNeedsConfirm(setUp({ routesWaiting: WAITING }))).toBe(false);
+    // Drawn: ONE block, inside step 2, under Published, with main's proposal lines and Allow.
+    const html = draw({ status: setUp({ routesWaiting: WAITING }) });
+    expect(html.match(/data-phone-confirm/g)).toHaveLength(1);
+    const two = stepHtml(html, 'publish');
+    expect(two).toContain('data-phone-confirm');
+    expect(two).toContain(`<span class="phone-step-state" title="Answering at https://${NAME}:8443">Published</span>`);
+    expect(two).toContain('data-phone-action="confirm-door"');
+    expect(draw({ status: setUp() })).not.toContain('data-phone-confirm');
+  });
+
   it('the lines to agree to: Read, then allow, or Changed since you allowed it', () => {
     const never = face(st({ confirmable: true }), 'publish');
     expect([never.state, never.stateKey, never.body]).toEqual([STATE_READ_ALLOW, 'confirm', [{ kind: 'confirm' }]]);
@@ -845,6 +897,8 @@ describe('the faces, drawn', () => {
 
   it('draws today’s confirm block byte for byte, and never inside a disclosure (his ruling 2, D18)', () => {
     for (const [why, s, busy] of [
+      // Phase 333.12 (D23): a route waiting under a published door draws the same block.
+      ['published, a route waiting', setUp({ routesWaiting: WAITING }), false],
       ['never agreed', st({ confirmable: true }), false],
       ['changed, Funnel asks approval', st({ confirmable: true, confirmState: 'changed' }, { asksApproval: true }), false],
       ['a press under way', st({ confirmable: true }), true],
@@ -1234,6 +1288,31 @@ describe('the return (D16)', () => {
       expect(body, file).not.toMatch(/addEventListener\(\s*['"](focus|visibilitychange)['"]/);
       expect(body, file).not.toMatch(/(setInterval|setTimeout|requestAnimationFrame)\([^)]*recheck/);
     }
+  });
+});
+
+// PHASE 333.12 (build/p33312/SPEC.md D11, §9.2 C14): the alert switch's off
+// press reaches main and nothing else. Driven through the section's own press
+// over the exact answer that made the build before this phase confirm by
+// itself (a door that read confirmed before, changed after, still on, with
+// one line moved): main records that narrowing, so the sheet never calls
+// confirmDoor, and no press of this switch can agree to a waiting route.
+describe('the alert switch off, through the section’s own press (Phase 333.12)', () => {
+  it('reaches setPushAlerts and never confirmDoor, whatever main answers', async () => {
+    const before = setUp({ pushAlerts: true, pushKeyId: 'ABCDE12345', routesWaiting: WAITING });
+    const moved = [...LINES];
+    moved[2] = 'Answers only after you turn it on';
+    const after = setUp({ confirmState: 'changed', confirmLines: moved, routesWaiting: WAITING });
+    const m = mount({ focused: false, status: before });
+    const setPushAlerts = vi.fn(async () => after);
+    const confirmDoor = vi.fn(async () => ({ allowed: true, refusal: null, status: before }));
+    Object.assign(m.api, { setPushAlerts, confirmDoor });
+    m.props().onSetPushAlerts(false);
+    for (let i = 0; i < 8; i += 1) await Promise.resolve();
+    expect(setPushAlerts).toHaveBeenCalledTimes(1);
+    expect(setPushAlerts).toHaveBeenCalledWith({ on: false });
+    expect(confirmDoor).not.toHaveBeenCalled();
+    m.unmount();
   });
 });
 

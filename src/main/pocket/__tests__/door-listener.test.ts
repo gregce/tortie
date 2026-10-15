@@ -29,6 +29,8 @@ import { Duplex } from 'node:stream';
 import { connect as tlsConnect, type TLSSocket } from 'node:tls';
 import { afterEach, beforeAll, afterAll, describe, expect, it } from 'vitest';
 
+import { POCKET_ROUTE_IDS, type PocketRouteId } from '@shared/ipc/pocket';
+
 import { createDoorListener, type DoorListenerHandle } from '../door/listener';
 import { PER_SOURCE_MAX } from '../door/limits';
 import type { DoorPin, DoorRequest, FromDoor } from '../door/wire';
@@ -144,12 +146,15 @@ async function until(ready: () => boolean, ms = 3_000): Promise<void> {
 /**
  * Start a listener as main starts one. `answer` is what main answers a
  * forwarded request; the default answers every read `{"ok":true}` and every
- * presentation `{"state":"pending"}`.
+ * presentation `{"state":"pending"}`. `routes` is the served set (Phase
+ * 333.12); the default serves every route of this build, as a door whose
+ * person allowed the whole table does.
  */
 async function startDoor(
   options: {
     pins?: DoorPin[];
     windowOpen?: boolean;
+    routes?: readonly PocketRouteId[];
     answer?: (request: DoorRequest) => { status: 200 | 404; body: string | null } | null;
     timings?: Parameters<typeof createDoorListener>[1];
   } = {}
@@ -179,7 +184,8 @@ async function startDoor(
     tls: { key: doorKey, cert: doorCert },
     pins: options.pins ?? [{ phoneId: paired.id, spkiSha256: paired.pin }],
     host: { name: NAME, port: PUBLIC_PORT },
-    windowOpen: options.windowOpen ?? false
+    windowOpen: options.windowOpen ?? false,
+    routes: [...(options.routes ?? POCKET_ROUTE_IDS)]
   });
   await until(() => messages.some((m) => m.kind === 'listening'));
   const listening = messages.find((m) => m.kind === 'listening');
@@ -728,6 +734,29 @@ describe('HTTP refusals, each with its word', () => {
     expect(main.requests).toHaveLength(0);
   });
 
+  // PHASE 333.12 (build/p33312/SPEC.md D7): refusal 3's second half. A route of
+  // the table that is not in the served set is `route`, asked in the statement
+  // after the unknown-route refusal, so before the window test and the body.
+  it('a route the person has not allowed: `route`, before the window test and before the body', async () => {
+    const main = await startDoor({ routes: POCKET_ROUTE_IDS.filter((id) => id !== 'pair' && id !== 'blocked') });
+    // `/pair` outside its window, and not served: the word is `route`, not `window`.
+    expect((await exchange(await dial(main.port, { phone: paired }), post('/pair', PRESENTATION)))?.status).toBe(404);
+    // A body over the read cap on a read that is not served: `route`, not `oversized`.
+    const body = 'x'.repeat(1025);
+    const heavy = await exchange(
+      await dial(main.port, { phone: paired }),
+      `GET /v1/blocked HTTP/1.1\r\nHost: ${HOST}\r\nx-tortie-phone: phone-a\r\nx-tortie-timestamp: 1\r\nx-tortie-nonce: 0123456789abcdef\r\nx-tortie-signature: s\r\nContent-Length: 1025\r\nConnection: close\r\n\r\n${body}`
+    );
+    expect(heavy?.status).toBe(404);
+    expect(main.door.stats().refused.route).toBe(2);
+    expect(main.door.stats().refused.window).toBe(0);
+    expect(main.door.stats().refused.oversized).toBe(0);
+    expect(main.requests).toHaveLength(0);
+    // The routes it does serve answer as before.
+    expect((await exchange(await dial(main.port, { phone: paired }), get('/v1/turns?id=x')))?.status).toBe(200);
+    expect(main.requests.map((r) => r.route)).toEqual(['turns']);
+  });
+
   it('a signed read with a header missing or out of bounds', async () => {
     const main = await startDoor();
     const extras: Record<string, string>[] = [
@@ -809,7 +838,8 @@ describe('what main tells the door', () => {
     const main = await startDoor();
     main.door.receive({ kind: 'answer', id: 1, status: 404, body: 'a reason on the wire' });
     main.door.receive({ kind: 'update', pins: [{ phoneId: 'x', spkiSha256: 'short' }] });
-    main.door.receive({ kind: 'start', generation: 8, tls: { key: 'k', cert: 'c' }, pins: [], host: { name: NAME, port: 1 }, windowOpen: true });
+    // A second start that validates is still dropped: a door process starts once.
+    main.door.receive({ kind: 'start', generation: 8, tls: { key: 'k', cert: 'c' }, pins: [], host: { name: NAME, port: 1 }, windowOpen: true, routes: [] });
     main.door.receive('stop');
     expect(main.door.stats().droppedMessages).toBe(4);
     // The bad pin update did not empty the pins: the phone still reads.

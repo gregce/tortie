@@ -26,7 +26,8 @@
  *  - (Phase 318) the two reply verbs through the same path: their strict
  *    parses, the verb in the ledger key, one in flight per phone and per
  *    session ACROSS verbs, the `still` handed in built from the last check's
- *    three asks, and `replySettled`'s `REPLY_FAILED`.
+ *    asks (four since Phase 333.12: the verb's route still served), and
+ *    `replySettled`'s `REPLY_FAILED`.
  *  - (Phase 337) the keys write through the same path: `parseKeysBody`'s
  *    exact key set and item shapes, D17's rule that a named key other than
  *    `BSpace` is the write's ONLY item, the verb handed the items, the turn,
@@ -144,11 +145,18 @@ interface Rig {
   readonly says: { input: PocketSayInput; still: PocketStillAllowed }[];
   /** Every keys write the recording fake was asked for, with the `still` it was handed (Phase 337). */
   readonly keyed: { input: PocketKeysInput; still: PocketStillAllowed }[];
-  /** What was asked, in order: `shuttingDown`, `stillPaired`, `end`, `choose`, `say`. */
+  /**
+   * What was asked, in order: `shuttingDown`, `stillPaired`, `routeServed`
+   * (Phase 333.12), `end`, `choose`, `say`, `keys`.
+   */
   readonly asked: string[];
+  /** The write routes `routeServed` was asked about, in order (Phase 333.12). */
+  readonly routesAsked: string[];
   clock: number;
   paired: boolean;
   quitting: boolean;
+  /** The write routes a person allowed (Phase 333.12): all four unless a test says otherwise. */
+  served: Set<string>;
   /** What `end` answers next, or a function that answers it. */
   endWith: () => Promise<PocketEndOutcome>;
   /** What `choose` and `say` answer next. */
@@ -163,9 +171,11 @@ function rig(over: { writes?: false } = {}): Rig {
     says: [],
     keyed: [],
     asked: [],
+    routesAsked: [],
     clock: 1_000_000,
     paired: true,
     quitting: false,
+    served: new Set(['end', 'choose', 'say', 'keys']),
     endWith: async () => ({ outcome: 'done' }),
     replyWith: async () => ({ outcome: 'done' })
   };
@@ -177,6 +187,11 @@ function rig(over: { writes?: false } = {}): Rig {
     stillPaired: () => {
       self.asked.push('stillPaired');
       return self.paired;
+    },
+    routeServed: (id) => {
+      self.asked.push('routeServed');
+      self.routesAsked.push(id);
+      return self.served.has(id);
     },
     now: () => self.clock,
     ...(over.writes === false
@@ -334,7 +349,7 @@ describe('a host with no writes', () => {
 // ---------------------------------------------------------------------------
 
 describe('step 4, the last check, then the act with nothing between', () => {
-  it('asks the quit, the door and the phone, in that order, and the act is the next thing asked', async () => {
+  it('asks the quit, the door, the phone and (Phase 333.12) the route, in that order, and the act is the next thing asked', async () => {
     const r = rig();
     let stoppingAsked = false;
     const door: DoorAdmission = {
@@ -346,7 +361,8 @@ describe('step 4, the last check, then the act with nothing between', () => {
     };
     await r.handle(END, endBody('s1', wid(1)), 'phone-a', door);
     expect(stoppingAsked).toBe(true);
-    expect(r.asked).toEqual(['shuttingDown', 'stopping', 'stillPaired', 'end']);
+    expect(r.asked).toEqual(['shuttingDown', 'stopping', 'stillPaired', 'routeServed', 'end']);
+    expect(r.routesAsked).toEqual(['end']);
   });
 
   it('awaits nothing between the check and the act: a microtask queued by the check has not run when the act starts', async () => {
@@ -361,6 +377,7 @@ describe('step 4, the last check, then the act with nothing between', () => {
         });
         return true;
       },
+      routeServed: () => true,
       writes: {
         ...doneWrites,
         end: async () => {
@@ -753,7 +770,7 @@ describe('Phase 318, steps 4 to 6: the last check, `still`, the act and the outc
     expect(r.ends).toEqual([]);
   });
 
-  it('asks the quit, the door and the phone before a press, and the act is the next thing asked', async () => {
+  it('asks the quit, the door, the phone and the route before a press, and the act is the next thing asked', async () => {
     const r = rig();
     const door: DoorAdmission = {
       stopping: () => {
@@ -762,10 +779,12 @@ describe('Phase 318, steps 4 to 6: the last check, `still`, the act and the outc
       }
     };
     await r.handle(CHOOSE, chooseBody('s1', wid(1)), 'phone-a', door);
-    expect(r.asked).toEqual(['shuttingDown', 'stopping', 'stillPaired', 'choose']);
+    expect(r.asked).toEqual(['shuttingDown', 'stopping', 'stillPaired', 'routeServed', 'choose']);
     r.asked.length = 0;
     await r.handle(SAY, sayBody('s1', wid(2)), 'phone-a', door);
-    expect(r.asked).toEqual(['shuttingDown', 'stopping', 'stillPaired', 'say']);
+    expect(r.asked).toEqual(['shuttingDown', 'stopping', 'stillPaired', 'routeServed', 'say']);
+    // Each verb's route is asked about by its own id, never another's.
+    expect(r.routesAsked).toEqual(['choose', 'say']);
   });
 
   it('awaits nothing between the check and a press or a message: a microtask queued by the check has not run when the verb starts', async () => {
@@ -780,6 +799,7 @@ describe('Phase 318, steps 4 to 6: the last check, `still`, the act and the outc
           });
           return true;
         },
+        routeServed: () => true,
         writes: {
           ...doneWrites,
           choose: async () => {
@@ -798,7 +818,7 @@ describe('Phase 318, steps 4 to 6: the last check, `still`, the act and the outc
     }
   });
 
-  it('hands choose and say a `still` that asks the same three things as the last check, in its order, and asks nothing until the verb calls it', async () => {
+  it('hands choose and say a `still` that asks the same four things as the last check, in its order, and asks nothing until the verb calls it', async () => {
     const r = rig();
     let stopping = false;
     const door: DoorAdmission = {
@@ -813,11 +833,28 @@ describe('Phase 318, steps 4 to 6: the last check, `still`, the act and the outc
     const [said] = r.says;
     if (chose === undefined || said === undefined) throw new Error('the verbs were not called');
     // Building it asked nothing: the asks recorded are the last checks' and the verbs'.
-    expect(r.asked).toEqual(['shuttingDown', 'stopping', 'stillPaired', 'choose', 'shuttingDown', 'stopping', 'stillPaired', 'say']);
-    for (const still of [chose.still, said.still]) {
+    expect(r.asked).toEqual([
+      'shuttingDown',
+      'stopping',
+      'stillPaired',
+      'routeServed',
+      'choose',
+      'shuttingDown',
+      'stopping',
+      'stillPaired',
+      'routeServed',
+      'say'
+    ]);
+    for (const [still, verb] of [
+      [chose.still, 'choose'],
+      [said.still, 'say']
+    ] as const) {
       r.asked.length = 0;
+      r.routesAsked.length = 0;
       expect(still()).toBe(true);
-      expect(r.asked).toEqual(['shuttingDown', 'stopping', 'stillPaired']);
+      expect(r.asked).toEqual(['shuttingDown', 'stopping', 'stillPaired', 'routeServed']);
+      // `still` asks about its OWN verb's route.
+      expect(r.routesAsked).toEqual([verb]);
       r.quitting = true;
       expect(still()).toBe(false);
       r.quitting = false;
@@ -827,6 +864,10 @@ describe('Phase 318, steps 4 to 6: the last check, `still`, the act and the outc
       r.paired = false;
       expect(still()).toBe(false);
       r.paired = true;
+      // Phase 333.12: the route no longer served is what `still` sees too.
+      r.served.delete(verb);
+      expect(still()).toBe(false);
+      r.served.add(verb);
       expect(still()).toBe(true);
     }
   });
@@ -841,6 +882,7 @@ describe('Phase 318, steps 4 to 6: the last check, `still`, the act and the outc
         asked.push(phone);
         return paired.has(phone);
       },
+      routeServed: () => true,
       writes: {
         ...doneWrites,
         say: async (_input, still) => {
@@ -887,10 +929,14 @@ describe('Phase 318, steps 4 to 6: the last check, `still`, the act and the outc
       r.paired = true;
       r.quitting = true;
       expect(await r.handle(route, body, 'phone-a', OPEN), route.id).toEqual({ status: 404, body: null });
+      r.quitting = false;
+      // Phase 333.12: a route nobody allowed is refused at the same check.
+      r.served.delete(route.id);
+      expect(await r.handle(route, body, 'phone-a', OPEN), route.id).toEqual({ status: 404, body: null });
+      r.served.add(route.id);
       expect(r.chooses).toEqual([]);
       expect(r.says).toEqual([]);
       // Nothing was left in the ledger: the same id acts once the check passes.
-      r.quitting = false;
       expect(parsed(await r.handle(route, body, 'phone-a', OPEN)).outcome, route.id).toBe('done');
     }
   });
@@ -1193,16 +1239,19 @@ describe('Phase 337, steps 2 to 6: the keys write through the one path', () => {
     const answer = await r.handle(KEYS, keysBody('s9', wid(1), { keys, dialog: MARK }), 'phone-a', door);
     expect(parsed(answer)).toEqual({ verb: 'keys', write: wid(1), outcome: 'done', reason: null, sentence: null });
     expect(answer.acted).toBe(true);
-    expect(r.asked).toEqual(['shuttingDown', 'stopping', 'stillPaired', 'keys']);
+    expect(r.asked).toEqual(['shuttingDown', 'stopping', 'stillPaired', 'routeServed', 'keys']);
     const [call] = r.keyed;
     if (call === undefined) throw new Error('keys was not called');
     expect(call.input).toEqual({ sessionId: 's9', keys, turn: QID, dialog: MARK });
     expect(Object.keys(call.input).sort()).toEqual(['dialog', 'keys', 'sessionId', 'turn']);
-    // The same `still` as the reply's: the three asks, in order, asked only when called.
+    // The same `still` as the reply's: the four asks, in order, asked only when called.
     r.asked.length = 0;
     expect(call.still()).toBe(true);
-    expect(r.asked).toEqual(['shuttingDown', 'stopping', 'stillPaired']);
+    expect(r.asked).toEqual(['shuttingDown', 'stopping', 'stillPaired', 'routeServed']);
     stopping = true;
+    expect(call.still()).toBe(false);
+    stopping = false;
+    r.served.delete('keys');
     expect(call.still()).toBe(false);
   });
 

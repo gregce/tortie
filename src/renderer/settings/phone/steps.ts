@@ -113,6 +113,17 @@ export function doorNeedsConfirm(status: PocketStatus): boolean {
 }
 
 /**
+ * True when the door is published and a route of this build WAITS for the
+ * Allow whose lines name it (Phase 333.12, build/p33312/SPEC.md D23): main's
+ * `routesWaiting`, never worked out here, and only while the lines may be
+ * agreed to. The door stays published and every allowed route keeps
+ * answering meanwhile; step 2 draws today's confirm block under Published.
+ */
+export function routesWait(status: PocketStatus): boolean {
+  return status.state === 'listening' && status.confirmable && status.routesWaiting.length > 0;
+}
+
+/**
  * True when the door is on and not answering, and either it was agreed to (a
  * start that was refused) or there is nothing to agree to yet (Tailscale's own
  * refusal, or lines never read). Try again is the switch's own press again: it
@@ -350,11 +361,13 @@ function publishRow(status: PocketStatus, drawnAbove: boolean): Row {
     };
   }
   if (status.state === 'listening') {
+    // A route that waits draws today's confirm block under Published (Phase
+    // 333.12, D23); with nothing waiting, today's face exactly.
     return {
       state: STATE_PUBLISHED,
       stateKey: 'published',
       hover: doorListening(status.publicName ?? '', status.publicPort),
-      body: []
+      body: routesWait(status) ? [{ kind: 'confirm' }] : []
     };
   }
   if (doorNeedsConfirm(status)) {

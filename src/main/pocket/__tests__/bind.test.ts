@@ -22,6 +22,8 @@ import { connect as tlsConnect, type TLSSocket } from 'node:tls';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { POCKET_ROUTE_IDS } from '@shared/ipc/pocket';
+
 const logged: string[] = [];
 
 vi.mock('../../log', async (importOriginal) => {
@@ -185,12 +187,14 @@ async function read(port: number, phone: Phone, target = '/v1/blocked'): Promise
 
 const answered: DoorRequestHandler = async () => ({ status: 200, body: '"answered"' });
 
+/** A start that serves every route of this build (Phase 333.12): the route that waits is `p33312-served.test.ts`'s. */
 function startInput(over: Partial<DoorStartInput> = {}): DoorStartInput {
   return {
     handle: answered,
     publicHost: HOST,
     pins: [],
     windowOpen: false,
+    routes: POCKET_ROUTE_IDS,
     identity,
     identityPath: join(dir, 'pocket-identity.json'),
     spawn: inProcessDoor(),

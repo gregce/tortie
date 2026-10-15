@@ -72,7 +72,11 @@
  *       key null and not, a keys write with every key name), each signed as
  *       the frozen phone signs: its own seed, its canonical template and its
  *       body bytes, each proved first on the frozen requests (SPEC-1 §4.4).
- *       At most REPLAY_CEILING a set; past it is red, never sampled
+ *       At most REPLAY_CEILING a set; past it is red, never sampled. Since
+ *       Phase 333.12 the write path is handed the served set of a door set
+ *       up with the LAUNCH allowed set (the SHIPPING servedRoutesOf(
+ *       allowedRoutesFor(allowedRoutesOf(undefined)), pocketRouteIds())), so
+ *       a composition that stopped serving a frozen route is red here
  *   R3  the frozen presentations open under the SHIPPING opener, their proof
  *       holding over the shipping proof text
  *   R4  the Mac's request and connection limits are at least the frozen ones
@@ -89,9 +93,29 @@
  *       `routes`, and must reach routes.<id> once with every word of its
  *       query and be answered 200 with what it answered; every frozen /pair
  *       answer goes through server.ts's pair arm; and every frozen write is a
- *       write route
+ *       write route. Since Phase 333.12 server.ts is handed the same launch
+ *       served set as R2, so a frozen read a launch store does not serve is
+ *       answered 404 here, as it would be to the old phone
  *   R6  phoneIdOf, pairFingerprint, pairingBinding, clientKeyPinOf and
  *       spkiPinOf compute what the old phone computed
+ *   R7  a launch-shaped store keeps the eleven's hash (Phase 333.12,
+ *       build/p33312/SPEC.md §6.3): a store as a 0.111.x Mac writes it, with
+ *       no allowedRoutes, read through the SHIPPING allowedRoutesOf and
+ *       allowedRoutesFor, allows exactly the frozen set's routes; the
+ *       execution hash over a fixed field set with them equals the hash over
+ *       the frozen ids; LEGACY_ALLOWED_ROUTES is the launch set's ids; and the
+ *       served set for that store holds every frozen route. A set naming a
+ *       route no 0.111.x Mac answered was never paired with such a store, and
+ *       is a note
+ *   R8  the route ledger only adds (Phase 333.12): every frozen route is a
+ *       row of src/main/pocket/route-ledger.ts with its frozen method, path,
+ *       signing, window and reads; and against every committed copy of the
+ *       ledger (`git log` and `git show`, read only, F1's machinery), every
+ *       row of the copy is in today's ledger unchanged, by ONE pure function,
+ *       `ledgerLosses`. No committed copy (true until Phase 333.12 lands), no
+ *       git, or a tree that is not its repository's top is a note, never red
+ *       and never silent. `--ledger-copy <file>` compares one more copy, a
+ *       planted older one (`ablation:p33311` R8h)
  *   A1  today's vectors still hold an instance of every frozen route that had
  *       one, and reach every type the frozen ones reached through required keys
  *   A2  every instance in today's vectors conforms to the frozen phone: keys,
@@ -127,8 +151,9 @@
  * (F1 (b)'s two asks), prints every such row and writes nothing: that is a
  * retirement of the set by the operator's ruling, never a re-freeze (SPEC-1
  * D11). `--into <dir>` reads and writes the sets in `dir`; `--root <dir>`
- * judges another tree (the ablation's clone); `--json` ends with one
- * `GATE_ONLYADD:{…}` line.
+ * judges another tree (the ablation's clone); `--ledger-copy <file>`, under
+ * `--root`, adds a copy of the route ledger to R8's comparison (it can only
+ * add a finding); `--json` ends with one `GATE_ONLYADD:{…}` line.
  *
  * WHAT IT DOES NOT DO. It opens no socket, binds nothing, and starts nothing
  * but the pinned tsx once and `git` read only (`rev-parse`, `log`, `show`,
@@ -277,6 +302,8 @@ const CLAUSES = {
   R4: "the Mac's limits are at least the frozen ones and the phone's own, and every word the phone sends is still read",
   R5: 'main still answers every request the frozen phone can make on a read route',
   R6: 'the identities an old phone computes are the ones the Mac computes',
+  R7: "a store as a 0.111.x Mac writes it keeps the eleven's hash, and the launch routes are served",
+  R8: 'the route ledger holds every frozen route as it was frozen, and only adds against every committed copy',
   A1: "today's vectors still cover every frozen route and every required type",
   A2: "every answer in today's vectors conforms to the frozen phone",
   A3: "the Mac's types promise every frozen key and keep every closed word inside its set",
@@ -350,6 +377,28 @@ const writesMod = await load('src/main/pocket/writes.ts');
 const tableMod = await load('src/main/pocket/door/table.ts');
 const limitsMod = await load('src/main/pocket/door/limits.ts');
 const serverMod = await load('src/main/pocket/server.ts');
+// PHASE 333.12: the allowed and served sets, and the legacy list.
+const allowedMod = await load('src/main/pocket/allowed-routes.ts');
+const contractMod = await load('src/shared/ipc/pocket.ts');
+
+/**
+ * THE LAUNCH SERVED SET (Phase 333.12, build/p33312/SPEC.md §6.3): what a
+ * door set up from a store a 0.111.x Mac wrote serves, computed by the
+ * SHIPPING functions, never spelled here. R2 and R5 hand it to the write path
+ * and to server.ts, so a composition that stopped serving a frozen route
+ * answers the frozen phone 404 here. `{ error }` when it cannot be computed.
+ */
+function launchServed() {
+  const missing = [allowedMod, routesMod].map((m) => m.loadError).filter(Boolean);
+  if (missing.length > 0) return { error: `the shipping allowed set could not be loaded: ${missing.join('; ')}` };
+  try {
+    const served = allowedMod.servedRoutesOf(allowedMod.allowedRoutesFor(allowedMod.allowedRoutesOf(undefined)), routesMod.pocketRouteIds());
+    if (!Array.isArray(served)) return { error: 'servedRoutesOf answered no list' };
+    return { served };
+  } catch (err) {
+    return { error: `the shipping allowed set threw: ${String(err?.message ?? err)}` };
+  }
+}
 
 // ---------------------------------------------------------------------------
 // TypeScript: one Program, every other file parsed alone, constants folded
@@ -2150,6 +2199,12 @@ async function clauseR2(sets) {
       fail('R2', `the shipping door could not be loaded: ${[pairing, tableMod, routesMod, writesMod, limitsMod].map((m) => m.loadError).filter(Boolean).join('; ')}`);
       return;
     }
+    // PHASE 333.12: the door a launch store sets up serves this, and no more.
+    const launch = launchServed();
+    if (launch.error !== undefined) {
+      fail('R2', launch.error);
+      return;
+    }
     let parties;
     try {
       parties = frozenParties(v);
@@ -2215,7 +2270,7 @@ async function clauseR2(sets) {
           say: async (input) => (calls.push({ verb: 'say', input }), { outcome: 'done' }),
           keys: async (input) => (calls.push({ verb: 'keys', input }), { outcome: 'done' })
         };
-        const handler = writesMod.createPocketWriteHandler({ shuttingDown: () => false, stillPaired: () => true, writes, now: () => Number(r.timestamp) });
+        const handler = writesMod.createPocketWriteHandler({ shuttingDown: () => false, stillPaired: () => true, routeServed: (id) => launch.served.includes(id), writes, now: () => Number(r.timestamp) });
         const answer = await quietly(() => handler(route, Buffer.from(r.body ?? '', 'utf8'), parties.phone.id, { stopping: () => false }));
         let body = null;
         try {
@@ -2516,6 +2571,8 @@ async function clauseR5(sets) {
   }
   const writes = macConstant('src/shared/ipc/pocket.ts', 'POCKET_WRITE_ROUTE_IDS');
   const serverLoaded = serverMod.loadError === undefined && typeof serverMod.createPocketHandler === 'function';
+  // PHASE 333.12: main is handed the served set of a door a launch store sets up.
+  const launch = launchServed();
   const door = { stopping: () => false };
   for (const set of sets) {
     const w = set.wire;
@@ -2533,8 +2590,10 @@ async function clauseR5(sets) {
     /** One request through the SHIPPING server.ts handler, its `answer` the read switch over `routes`. */
     const throughDoor = async (request, deps) => {
       if (!serverLoaded) throw new Error(`src/main/pocket/server.ts could not be loaded${serverMod.loadError === undefined ? ' (it exports no createPocketHandler)' : `: ${serverMod.loadError}`}`);
+      if (launch.error !== undefined) throw new Error(launch.error);
       const handle = serverMod.createPocketHandler({
         shuttingDown: () => false,
+        routeServed: (id) => launch.served.includes(id),
         pairingWindowOpen: () => false,
         present: () => {
           throw new Error('a read is never a presentation');
@@ -2661,6 +2720,243 @@ async function clauseR5(sets) {
         }
       }
     }
+  }
+}
+
+/**
+ * R7, A LAUNCH-SHAPED STORE KEEPS THE ELEVEN'S HASH (Phase 333.12,
+ * build/p33312/SPEC.md §6.3). Every stranger's Mac holds a store a 0.111.x
+ * Mac wrote, which has no `allowedRoutes`. The update that brings Phase
+ * 333.12 must read that store as allowing exactly the routes the launch phone
+ * calls, hash it as 0.111.x hashed it, and serve every one of them, or every
+ * paired phone reads `changed` and goes dark: the outage this phase ends.
+ */
+const LAUNCH_STORE_KEYS = ['identity', 'phones', 'publicPort', 'tailnetFacts', 'bindAtLaunch', 'enabled', 'pushAlerts', 'deadPushTokens', 'nameConfirmed'];
+function clauseR7(sets) {
+  expects('R7');
+  const missing = [allowedMod, contractMod, pairing, routesMod].map((m) => m.loadError).filter(Boolean);
+  if (missing.length > 0) {
+    fail('R7', `the shipping allowed set, contract, pairing or routes could not be loaded: ${missing.join('; ')}`);
+    return;
+  }
+  const legacy = contractMod.LEGACY_ALLOWED_ROUTES;
+  checked('R7');
+  if (!Array.isArray(legacy)) {
+    fail('R7', 'src/shared/ipc/pocket.ts exports no LEGACY_ALLOWED_ROUTES list');
+    return;
+  }
+  const sorted = (xs) => JSON.stringify([...xs].sort());
+  const launchSet = sets.find((x) => x.wire?.label === 'launch');
+  checked('R7');
+  if (launchSet === undefined) fail('R7', 'no frozen set is labelled launch, so LEGACY_ALLOWED_ROUTES has nothing to be held to');
+  else if (sorted(legacy) !== sorted((launchSet.wire.routes ?? []).map((r) => r.id))) {
+    fail('R7', `LEGACY_ALLOWED_ROUTES is ${JSON.stringify(legacy)}, and the launch set's routes are ${sorted((launchSet.wire.routes ?? []).map((r) => r.id))}: the eleven every 0.111.x store allows are not the routes the launch phone calls`);
+  }
+  // A store as 0.111.x writes it: exactly these keys, and no allowedRoutes.
+  const store = {
+    identity: { signPrivate: 'p33312-sign', exchangePrivate: 'p33312-exchange' },
+    phones: [],
+    publicPort: 8443,
+    tailnetFacts: { funnelProgram: '/p33312/tailscale', tailnet: 'p33312.example', publicName: 'p33311-mac.tail00000.ts.net' },
+    bindAtLaunch: false,
+    enabled: true,
+    pushAlerts: false,
+    deadPushTokens: [],
+    nameConfirmed: null
+  };
+  checked('R7');
+  if (JSON.stringify(Object.keys(store)) !== JSON.stringify(LAUNCH_STORE_KEYS) || Object.hasOwn(store, 'allowedRoutes')) fail('R7', 'the launch-shaped store this clause builds is not shaped as 0.111.x writes it (the gate\'s own defect)');
+  let allowed;
+  try {
+    allowed = allowedMod.allowedRoutesFor(allowedMod.allowedRoutesOf(store.allowedRoutes));
+  } catch (err) {
+    fail('R7', `the shipping allowedRoutesOf and allowedRoutesFor threw over a launch-shaped store: ${String(err?.message ?? err)}`);
+    return;
+  }
+  const phone = { id: 'p33312-phone', label: 'a launch phone', signingKey: 'p33312-signing', exchangeKey: 'p33312-exchange', clientKey: 'p33312-client', pushToken: '', pushEnvironment: '' };
+  const fieldsWith = (routes) => ({ funnelProgram: store.tailnetFacts.funnelProgram, tailnet: store.tailnetFacts.tailnet, publicName: store.tailnetFacts.publicName, publicPort: store.publicPort, bindAtLaunch: store.bindAtLaunch, routes, phones: [phone], pushAlerts: store.pushAlerts });
+  for (const set of sets) {
+    const frozen = (set.wire?.routes ?? []).map((r) => r.id);
+    if (frozen.length === 0) continue;
+    const later = frozen.filter((id) => !legacy.includes(id));
+    if (later.length > 0) {
+      note('R7', `${set.name}: it calls ${later.join(', ')}, which no 0.111.x Mac answered, so no store a 0.111.x Mac wrote was ever paired with it; its store shape is not compared`);
+      continue;
+    }
+    checked('R7');
+    if (sorted(allowed) !== sorted(frozen)) {
+      fail('R7', `${set.name}: a store as a 0.111.x Mac writes it (no allowedRoutes) allows ${sorted(allowed)}, not the frozen ${sorted(frozen)}. After the update every phone that store paired reads changed and goes dark until Allow`);
+      continue;
+    }
+    checked('R7');
+    let mine;
+    let theirs;
+    try {
+      mine = pairing.pocketExecutionHash(fieldsWith(allowed));
+      theirs = pairing.pocketExecutionHash(fieldsWith(frozen));
+    } catch (err) {
+      fail('R7', `${set.name}: the shipping pocketExecutionHash threw: ${String(err?.message ?? err)}`);
+      continue;
+    }
+    if (mine !== theirs) fail('R7', `${set.name}: the hash over what a launch store allows is ${String(mine).slice(0, 12)}…, not the ${String(theirs).slice(0, 12)}… over the frozen routes: the record a stranger confirmed would read changed`);
+    let served = [];
+    try {
+      served = allowedMod.servedRoutesOf(allowed, routesMod.pocketRouteIds());
+    } catch (err) {
+      fail('R7', `${set.name}: the shipping servedRoutesOf threw: ${String(err?.message ?? err)}`);
+    }
+    for (const id of frozen) {
+      checked('R7');
+      if (!served.includes(id)) fail('R7', `${set.name}: ${id} is not served by the door a launch store sets up, so every old phone's request on it is refused route`);
+    }
+  }
+}
+
+/**
+ * R8, THE ROUTE LEDGER ONLY ADDS (Phase 333.12, build/p33312/SPEC.md §6.3,
+ * D12). An allowed id keeps its meaning for as long as a Tortie knows it, so
+ * a row of any committed ledger is a row of today's, unchanged; and the routes
+ * the launch phone was frozen calling are ledger rows with their frozen
+ * method, path, signing, window and reads.
+ */
+const LEDGER_REL = 'src/main/pocket/route-ledger.ts';
+/** `--ledger-copy <file>`: one more copy of the ledger to compare, under ROOT (the ablation's planted older copy). */
+const LEDGER_COPIES = argv.flatMap((a, i) => (a === '--ledger-copy' && argv[i + 1] !== undefined ? [argv[i + 1]] : []));
+
+/** The rows a copy of the ledger holds, read with the parser: `{ rows }`, or `{ error }`. Pure. */
+function ledgerRowsOf(text) {
+  const sf = ts.createSourceFile('route-ledger.ts', text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const decl = constDecl(sf, 'POCKET_ROUTE_LEDGER');
+  if (decl === null) return { error: 'it declares no POCKET_ROUTE_LEDGER' };
+  let init = decl.initializer ?? null;
+  const strip = (e) => {
+    let n = e;
+    while (n !== null && n !== undefined && (ts.isParenthesizedExpression(n) || ts.isAsExpression(n) || ts.isSatisfiesExpression?.(n))) n = n.expression;
+    return n ?? null;
+  };
+  init = strip(init);
+  if (init !== null && ts.isCallExpression(init) && init.expression.getText(sf) === 'Object.freeze') init = strip(init.arguments[0]);
+  if (init === null || !ts.isArrayLiteralExpression(init)) return { error: 'its POCKET_ROUTE_LEDGER is not a literal array' };
+  const rows = [];
+  for (const el of init.elements) {
+    if (!ts.isObjectLiteralExpression(el)) return { error: `a row is not an object literal (${el.getText(sf).slice(0, 60)})` };
+    const row = {};
+    for (const p of el.properties) {
+      if (!ts.isPropertyAssignment(p) || !(ts.isIdentifier(p.name) || ts.isStringLiteral(p.name))) return { error: `a row holds ${p.getText(sf).slice(0, 60)}, not a literal field` };
+      const v = p.initializer;
+      if (ts.isStringLiteralLike(v)) row[p.name.text] = v.text;
+      else if (ts.isNumericLiteral(v)) row[p.name.text] = Number(v.text.replace(/_/g, ''));
+      else if (v.kind === ts.SyntaxKind.TrueKeyword) row[p.name.text] = true;
+      else if (v.kind === ts.SyntaxKind.FalseKeyword) row[p.name.text] = false;
+      else if (v.kind === ts.SyntaxKind.NullKeyword) row[p.name.text] = null;
+      else return { error: `${String(row.id ?? 'a row')}'s ${p.name.text} is ${v.getText(sf).slice(0, 40)}, not a literal` };
+    }
+    rows.push(row);
+  }
+  return { rows };
+}
+
+/**
+ * THE ONE PURE COMPARISON (R8): what `next` lost of `previous`, as sentences.
+ * A row of the earlier ledger that is gone, or whose any field moved, or an id
+ * the later one names twice. An added row is not a loss.
+ */
+function ledgerLosses(previous, next) {
+  const out = [];
+  const seen = new Set();
+  for (const row of next) {
+    if (seen.has(row.id)) out.push(`${String(row.id)} is named twice`);
+    seen.add(row.id);
+  }
+  for (const row of previous) {
+    const now = next.find((r) => r.id === row.id);
+    if (now === undefined) {
+      out.push(`the row ${String(row.id)} is gone`);
+      continue;
+    }
+    for (const k of [...new Set([...Object.keys(row), ...Object.keys(now)])].sort()) {
+      if (reader.canonical(row[k]) !== reader.canonical(now[k])) out.push(`${String(row.id)}'s ${k} was ${JSON.stringify(row[k])} and is ${JSON.stringify(now[k])}`);
+    }
+  }
+  return out;
+}
+
+function clauseR8(sets) {
+  expects('R8');
+  const path = join(ROOT, LEDGER_REL);
+  checked('R8');
+  if (!existsSync(path)) {
+    fail('R8', `${LEDGER_REL} does not exist, so no route's meaning is written down`);
+    return;
+  }
+  const today = ledgerRowsOf(readFileSync(path, 'utf8'));
+  if (today.error !== undefined) {
+    fail('R8', `${LEDGER_REL}: ${today.error}`);
+    return;
+  }
+  checked('R8');
+  for (const loss of ledgerLosses([], today.rows)) fail('R8', `${LEDGER_REL}: ${loss}`);
+  // The frozen half: every route the frozen phone calls is a ledger row as it was frozen.
+  for (const set of sets) {
+    for (const fr of set.wire?.routes ?? []) {
+      checked('R8');
+      const row = today.rows.find((r) => r.id === fr.id);
+      if (row === undefined) {
+        fail('R8', `${set.name}: ${fr.id} (${fr.method} ${fr.path}) has no row in ${LEDGER_REL}, so what the launch phone allowed has no meaning written down`);
+        continue;
+      }
+      for (const k of ['method', 'path', 'signed', 'windowOnly', 'reads']) {
+        if (row[k] !== fr[k]) fail('R8', `${set.name}: ${fr.id}'s ${k} is ${JSON.stringify(row[k])} in the ledger and ${JSON.stringify(fr[k])} when frozen. An allowed id never changes meaning; a route that must change takes a new id`);
+      }
+    }
+  }
+  // A planted copy (--ledger-copy), compared exactly as a committed one.
+  for (const rel of LEDGER_COPIES) {
+    const at = resolve(ROOT, rel);
+    checked('R8');
+    if (!existsSync(at)) {
+      fail('R8', `--ledger-copy ${rel} does not exist`);
+      continue;
+    }
+    const copy = ledgerRowsOf(readFileSync(at, 'utf8'));
+    if (copy.error !== undefined) fail('R8', `--ledger-copy ${rel}: ${copy.error}`);
+    else for (const loss of ledgerLosses(copy.rows, today.rows)) fail('R8', `against the copy ${rel}: ${loss}. A ledger row is never edited or removed, only appended`);
+  }
+  // Every committed copy, read only, with F1's machinery.
+  const top = git(['rev-parse', '--show-prefix', '--is-shallow-repository']);
+  if (!top.ok) {
+    note('R8', `${top.why}: committed copies of the ledger not compared`);
+    return;
+  }
+  const [prefix = '', shallow = ''] = top.out.split('\n');
+  if (prefix.trim() !== '') {
+    note('R8', `the judged tree is ${prefix.trim()} inside its repository, not its top level: committed copies of the ledger not compared`);
+    return;
+  }
+  if (shallow.trim() === 'true') note('R8', 'a shallow clone: only the ledger copies after its graft');
+  const log = git(['log', '--format=%H', '--', LEDGER_REL]);
+  if (!log.ok) {
+    note('R8', `${log.why}: committed copies of the ledger not compared`);
+    return;
+  }
+  const commits = log.out.split('\n').map((l) => l.trim()).filter((l) => /^[0-9a-f]{40}([0-9a-f]{24})?$/.test(l));
+  if (commits.length === 0) {
+    note('R8', `no committed copy of ${LEDGER_REL} yet, so its history was not compared (true until Phase 333.12 lands)`);
+    return;
+  }
+  for (const c of commits) {
+    const shown = git(['show', `${c}:${LEDGER_REL}`]);
+    if (!shown.ok) {
+      note('R8', `its copy at ${c.slice(0, 8)} cannot be read (${shown.why}), so it was not compared`);
+      continue;
+    }
+    const copy = ledgerRowsOf(shown.out);
+    checked('R8');
+    if (copy.error !== undefined) {
+      fail('R8', `its copy committed at ${c.slice(0, 8)} cannot be read as a ledger (${copy.error}), so what an id meant then is not known`);
+      continue;
+    }
+    for (const loss of ledgerLosses(copy.rows, today.rows)) fail('R8', `against its copy committed at ${c.slice(0, 8)}: ${loss}. A ledger row is never edited or removed, only appended`);
   }
 }
 
@@ -3207,6 +3503,8 @@ await guarded('R3', () => clauseR3(usable));
 await guarded('R4', () => clauseR4(usable, today));
 await guarded('R5', () => clauseR5(usable));
 await guarded('R6', () => clauseR6(usable));
+await guarded('R7', () => clauseR7(usable));
+await guarded('R8', () => clauseR8(usable));
 const aStats = { instances: 0, routes: new Set(), fields: 0, formats: 0, bounds: 0 };
 if (todayVectors === null) {
   expects('A2');

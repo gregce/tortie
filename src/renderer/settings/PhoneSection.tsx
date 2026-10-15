@@ -14,12 +14,13 @@
  *      composes the faces from main's predicates and `phone/StepsCard.tsx`
  *      draws the frame; this file fills the bodies.
  *      - Step 2 draws, whenever the door's details are not the ones a person
- *        agreed to, TODAY'S CONFIRM BLOCK, whole and at rest (his ruling 2):
- *        the lines to read, both warnings, and Allow. Those lines name the
- *        internet, the tailnet, the public port and the program that publishes
- *        it, so nothing starts until a person has read them (CLAUDE.md refusal
- *        8). While Tailscale waits on its own approval page, Approve in
- *        Tailscale.
+ *        agreed to, or a route of this build waits for its Allow under a
+ *        published door (Phase 333.12), TODAY'S CONFIRM BLOCK, whole and at
+ *        rest (his ruling 2): the lines to read, both warnings, and Allow.
+ *        Those lines name the internet, the tailnet, the public port and the
+ *        program that publishes it, so nothing starts until a person has read
+ *        them (CLAUDE.md refusal 8). While Tailscale waits on its own approval
+ *        page, Approve in Tailscale.
  *      - Step 3 is the pair card: on a first setup the code shows by itself
  *        once the door answers and the name is live (D17); with a phone
  *        paired, ONE Pair button, which turns the door on when it is off. The
@@ -65,7 +66,7 @@ import {
   POCKET_NAME_SENTENCES,
   POCKET_NAME_WAIT_NOTE,
   POCKET_SETUP_LINE,
-  POCKET_DOOR_HONESTY,
+  pocketDoorHonesty,
   type PocketNameAnswer,
   type PocketNameProgress,
   type PocketPairingOffer,
@@ -89,6 +90,7 @@ import {
   doorListening,
   doorMayRetry,
   doorNeedsConfirm,
+  routesWait,
   type PairingStage,
   type StepFace,
   type StepPiece
@@ -98,7 +100,7 @@ import './phone-section.css';
 
 // Moved to phone/steps.ts with unchanged bodies (Phase 333.1, D19) and
 // re-exported here, so every reader of this module keeps working.
-export { DOOR_NOT_LISTENING, DOOR_OPENING, doorListening, doorMayRetry, doorNeedsConfirm, type PairingStage };
+export { DOOR_NOT_LISTENING, DOOR_OPENING, doorListening, doorMayRetry, doorNeedsConfirm, routesWait, type PairingStage };
 
 // ---------------------------------------------------------------------------
 // The words this surface owns. Every other sentence it draws is main's. A word
@@ -441,27 +443,6 @@ export function pushSwitchShown(status: PocketStatus): boolean {
  */
 export function alertsReachPhones(status: PocketStatus): boolean {
   return status.pushAlerts && status.confirmState === 'confirmed' && status.pushKeyId !== null;
-}
-
-/**
- * True when `next` differs from `prev` in exactly one line, in place.
- *
- * Turning the alerts OFF moves a hashed field, and Phase 314 ruled that the
- * sheet confirms that narrowing in the same press (build/p314/SPEC.md section
- * 1.1 row 2). The sheet does so ONLY when the door was agreed to before the
- * press and the switch's line is the one line that moved, so a press can never
- * carry an agreement to anything a person did not already agree to.
- */
-export function onlyOneLineMoved(
-  prev: readonly string[],
-  next: readonly string[]
-): boolean {
-  if (prev.length !== next.length) return false;
-  let moved = 0;
-  for (let i = 0; i < prev.length; i += 1) {
-    if (prev[i] !== next[i]) moved += 1;
-  }
-  return moved === 1;
 }
 
 // ---------------------------------------------------------------------------
@@ -844,12 +825,15 @@ function stepPiece(props: StepBodyProps, piece: StepPiece, key: string): React.J
     case 'confirm':
       // TODAY'S BLOCK, BYTE FOR BYTE (his ruling 2, D18): every hashed line,
       // both warnings, the standing right while Funnel still needs approving,
-      // and Allow. Nothing of it goes behind a disclosure.
+      // and Allow. Nothing of it goes behind a disclosure. The honesty
+      // sentence is composed over what THIS Allow grants, the proposal's
+      // routes main answers (Phase 333.12's fix round), never only over the
+      // routes the door answers before it.
       return status === null ? null : (
         <div key={key} className="phone-block" data-phone-confirm>
           <Lines lines={status.confirmLines} />
           <p className="set-config-warning">{POCKET_CONFIRM_WARNING}</p>
-          <p className="set-config-warning">{POCKET_DOOR_HONESTY}</p>
+          <p className="set-config-warning">{pocketDoorHonesty(status.routesOffered)}</p>
           {status.funnel.asksApproval ? (
             <p className="set-config-warning" data-phone-funnel-right>
               {POCKET_FUNNEL_RIGHT_WARNING}
@@ -1397,22 +1381,12 @@ export function PhoneSection(): React.JSX.Element {
         });
       }}
       onSetPushAlerts={(on) => {
-        const before = status;
+        // Off narrows where his words go, and MAIN records that narrowing in
+        // the same press (Phase 333.12, D11), so the sheet confirms nothing
+        // here: no press of this switch can carry an agreement to anything,
+        // and a route that waits still waits. On asks, as it always did.
         void run(() => api.setPushAlerts({ on })).then((after) => {
-          if (after === null) return;
-          adopt(after);
-          // Off narrows where his words go, and Phase 314 ruled the sheet
-          // confirms that in the same press. See `onlyOneLineMoved`.
-          if (
-            !on &&
-            before !== null &&
-            before.confirmState === 'confirmed' &&
-            after.confirmState !== 'confirmed' &&
-            after.state !== 'off' &&
-            onlyOneLineMoved(before.confirmLines, after.confirmLines)
-          ) {
-            void confirmDoor(after);
-          }
+          if (after !== null) adopt(after);
         });
       }}
       onChooseKey={() => {

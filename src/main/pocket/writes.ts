@@ -36,14 +36,15 @@
  *     acted is dropped there too, so a refusal at the last check leaves
  *     nothing behind.
  *  4. **The last check, then the act, with NOTHING between**: the quit, this
- *     door instance stopping, and the signing phone still paired. A 404 here
- *     is the door's refusal and nothing was done. For `choose` and `say`,
- *     which READ the session before they type, the same three asks are handed
- *     to the verb as `still` (Phase 318, D5), and the verb asks it AGAIN in its
- *     own final synchronous check immediately before the one keystroke or
- *     paste; a verb that finds it false answers `refused` `stopped`, 200, with
- *     nothing typed. Phase 337's `keys` reads before it types too, and is
- *     handed the same `still`.
+ *     door instance stopping, the signing phone still paired, and (Phase
+ *     333.12, build/p33312/SPEC.md §5.7, D8) the verb's route still one a
+ *     person allowed. A 404 here is the door's refusal and nothing was done.
+ *     For `choose` and `say`, which READ the session before they type, the
+ *     same four asks are handed to the verb as `still` (Phase 318, D5), and
+ *     the verb asks it AGAIN in its own final synchronous check immediately
+ *     before the one keystroke or paste; a verb that finds it false answers
+ *     `refused` `stopped`, 200, with nothing typed. Phase 337's `keys` reads
+ *     before it types too, and is handed the same `still`.
  *  5. **The act**, wrapped so it cannot throw past this point (`endSettled`,
  *     `replySettled`). From here every answer is a 200 marked `acted`, which
  *     `./bind.ts` never replaces.
@@ -146,6 +147,13 @@ export interface PocketWriteDeps {
   shuttingDown(): boolean;
   /** Is this phone still one the person allowed? Asked last, before the act. */
   stillPaired(phoneId: string): boolean;
+  /**
+   * Is this write's route one of this build's routes a person allowed (Phase
+   * 333.12, build/p33312/SPEC.md §5.7, D8)? The fourth ask of the last check
+   * and of `still`, after the other three. REQUIRED: a host that forgot it
+   * does not compile, rather than acting on a route nobody allowed.
+   */
+  routeServed(id: PocketWriteRouteId): boolean;
   /** Absent: every write is refused 404 `route` before anything (the push seam, tests). */
   writes?: PocketWrites;
   now?(): number;
@@ -576,16 +584,16 @@ export function createPocketWriteHandler(deps: PocketWriteDeps): PocketWriteHand
     const pending: LedgerEntry = { phone: verifiedPhone, state: 'pending', body: '', acted: false, at };
     ledger.set(key, pending);
     perPhone.set(verifiedPhone, (perPhone.get(verifiedPhone) ?? 0) + 1);
-    // PHASE 318 (D5): THE SAME THREE ASKS AS THE LAST CHECK BELOW, in its order,
+    // PHASE 318 (D5): THE SAME ASKS AS THE LAST CHECK BELOW, in its order,
     // handed to a verb that reads the session before it types, which asks them
     // AGAIN immediately before its one keystroke or paste. Building it asks
-    // nothing.
+    // nothing. Phase 333.12 (D8) adds the fourth: the verb's route still served.
     const still: PocketStillAllowed = (): boolean =>
-      !deps.shuttingDown() && !door.stopping() && deps.stillPaired(verifiedPhone);
+      !deps.shuttingDown() && !door.stopping() && deps.stillPaired(verifiedPhone) && deps.routeServed(verb);
     try {
       // STEP 4. The last check, and STEP 5, the act, started in the very next
       // statement: no await and no other statement sits between the two.
-      if (deps.shuttingDown() || door.stopping() || !deps.stillPaired(verifiedPhone)) return { status: 404, body: null };
+      if (deps.shuttingDown() || door.stopping() || !deps.stillPaired(verifiedPhone) || !deps.routeServed(verb)) return { status: 404, body: null };
       const acting = parsed.verb === 'end'
         ? endSettled(() => writes.end({ sessionId: parsed.session, batch: parsed.batch }))
         : parsed.verb === 'choose'

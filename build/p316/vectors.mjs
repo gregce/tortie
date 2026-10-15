@@ -198,7 +198,7 @@ if (process.env.P316_VECTORS_INNER !== '1') {
 const pairing = await import('../../src/main/pocket/pairing.ts');
 const tls = await import('../../src/main/pocket/tls.ts');
 const { createPocketHandler } = await import('../../src/main/pocket/server.ts');
-const { createPocketRoutes, readSessionsQuery, readScreenQuery, readScrollbackQuery, matchPocketRoute, screenLive, pocketWriteRouteIds } = await import('../../src/main/pocket/routes.ts');
+const { createPocketRoutes, readSessionsQuery, readScreenQuery, readScrollbackQuery, matchPocketRoute, screenLive, pocketWriteRouteIds, pocketRouteIds } = await import('../../src/main/pocket/routes.ts');
 const { parseKeysBody, createPocketWriteHandler } = await import('../../src/main/pocket/writes.ts');
 const { readPocketTurns, pocketTurnOf } = await import('../../src/main/pocket/facts.ts');
 const { statusVisual } = await import('../../src/shared/status-words.ts');
@@ -207,6 +207,13 @@ const { NOTHING_NEEDS_YOU } = await import('../../src/main/tray/attention.ts');
 const { composeAlert, composeBadge } = await import('../../src/main/push/alert.ts');
 // Phase 317: the End each row is offered, decided by the shipping pure verdict.
 const pocketWrites = await import('../../src/main/sessions/pocket-writes.ts').catch((err) => ({ loadError: String(err?.message ?? err) }));
+// PHASE 333.12 (build/p33312/SPEC.md §6.4): every handler below is handed the
+// served set of a door set up with the LAUNCH allowed set, computed by the
+// SHIPPING functions as gate:onlyadd's R2 and R5 compute it, so the vectors
+// are what such a door answers. They must not move a byte (D17).
+const { allowedRoutesFor, allowedRoutesOf, servedRoutesOf } = await import('../../src/main/pocket/allowed-routes.ts');
+const LAUNCH_SERVED = servedRoutesOf(allowedRoutesFor(allowedRoutesOf(undefined)), pocketRouteIds());
+const routeServed = (id) => LAUNCH_SERVED.includes(id);
 
 const problems = [];
 const fail = (what) => problems.push(what);
@@ -1018,6 +1025,7 @@ const qr = qrShapes.map((shape) => {
 const pairAnswerOf = async (present, presentation) => {
   const handle = createPocketHandler({
     shuttingDown: () => false,
+    routeServed,
     pairingWindowOpen: () => true,
     present,
     verify: () => ({ ok: false, reason: 'unpaired' }),
@@ -1362,6 +1370,7 @@ async function writeVector(name, path, body, outcome) {
   const handle = createPocketWriteHandler({
     shuttingDown: () => false,
     stillPaired: () => true,
+    routeServed,
     writes: { end: verb('end'), choose: verb('choose'), say: verb('say'), keys: verb('keys') },
     now: () => T
   });

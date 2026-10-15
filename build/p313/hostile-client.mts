@@ -127,6 +127,20 @@
  * wire. Its measured lines, counts and milliseconds only, start
  * `[p3371 hostile]`, and the runner prints them.
  *
+ * PHASE 333.12 SERVES ONLY WHAT A PERSON ALLOWED (build/p33312/SPEC.md
+ * §6.2). Every handler and every door start this client composes is handed
+ * ONE served set, `served`, built by the SHIPPING `servedRoutesOf(
+ * allowedRoutesFor(null), pocketRouteIds())`, so every arm above reads as it
+ * did and a composition that stopped serving a launch route fails here. The PR
+ * arms move it as main does, `served` for main's two handlers and an `update`
+ * for the door process's copy: a sessions read the door does not serve (PR1),
+ * the same with a 16 KiB body (PR2), main's handler alone while its answer says
+ * no (PR3), a write not served (PR4), a route withdrawn between main's first
+ * ask and the write path's last check (PR5, PR5b), and a read composed while
+ * its route is withdrawn (PR6), each on its word and on the door's counters,
+ * beside an honest read before (PR0) and after the whole set is posted again
+ * (PR7).
+ *
  * It prints one line, `P313_HOSTILE:{...}`, which the runner beside it reads.
  */
 
@@ -161,7 +175,7 @@ import type {
   PocketScrollbackAsk,
   PocketWrites
 } from '../../src/main/pocket/routes.js';
-import type { PocketScreenAnswer, PocketScrollbackAnswer } from '../../src/shared/ipc/pocket.js';
+import type { PocketRouteId, PocketScreenAnswer, PocketScrollbackAnswer } from '../../src/shared/ipc/pocket.js';
 import type { ScreenCore } from '../../src/main/screen/read.js';
 import type { PocketExecutionFields, PocketIdentity, PocketPhoneFields } from '../../src/main/pocket/pairing.js';
 import type { StoredTurn } from '../../src/main/overview/store/index.js';
@@ -202,7 +216,9 @@ const { createPocketHandler } = await import('../../src/main/pocket/server.js');
 const { createPocketWriteHandler } = await import('../../src/main/pocket/writes.js');
 const { POCKET_READ_BODY_CAP_BYTES } = await import('../../src/main/pocket/door/wire.js');
 const { POCKET_PAIR_BODY_CAP_BYTES } = await import('../../src/main/pocket/door/limits.js');
-const { POCKET_ROUTES, createPocketRoutes, readTurnRange } = await import('../../src/main/pocket/routes.js');
+const { POCKET_ROUTES, createPocketRoutes, pocketRouteIds, readTurnRange } = await import('../../src/main/pocket/routes.js');
+// PHASE 333.12: the SHIPPING allowed and served sets (build/p33312/SPEC.md §6.2).
+const { allowedRoutesFor, servedRoutesOf } = await import('../../src/main/pocket/allowed-routes.js');
 const { createPocketFacts, readPocketTurns } = await import('../../src/main/pocket/facts.js');
 const pairingModule = await import('../../src/main/pocket/pairing.js');
 const { POCKET_NO_REPLY, POCKET_OTHERS_MAX, POCKET_WRITE_SENTENCES } = await import('../../src/shared/ipc/pocket.js');
@@ -743,6 +759,15 @@ async function until(ready: () => boolean): Promise<void> {
 const HOSTILE_ANSWER_MS = 3_000;
 const doorSpawn = inProcessDoor({ timings: { answerMs: HOSTILE_ANSWER_MS } });
 let doorStarted = false;
+/**
+ * THE ONE SERVED SET (Phase 333.12, build/p33312/SPEC.md §6.2): the SHIPPING
+ * functions over a store that never recorded an allowed set, which is the
+ * eleven launch routes. Main's two handlers ask it through `routeServed` and
+ * every door start is handed it, so nothing here serves a route another way;
+ * the PR arms move it, and an `update` hands the door process its copy.
+ */
+let served: readonly PocketRouteId[] = servedRoutesOf(allowedRoutesFor(null), pocketRouteIds());
+const routeServed = (id: PocketRouteId): boolean => served.includes(id);
 
 try {
   const doorIdentity: PocketIdentity = newIdentity().identity;
@@ -1047,6 +1072,7 @@ try {
   const writeHandler = createPocketWriteHandler({
     shuttingDown: () => false,
     stillPaired: (id) => phones.some((p) => p.id === id),
+    routeServed,
     writes: recordingWrites
   });
   /**
@@ -1058,6 +1084,14 @@ try {
    */
   let stopAfterWrite: Promise<unknown> | null | 'arm' = null;
   let removeBeforeWrite: string | null = null;
+  /**
+   * PHASE 333.12 (PR5, PR6): a route taken out of `served` AFTER main's first
+   * ask, before the write path's last check, or after a read is composed and
+   * before refusal 7 asks again.
+   */
+  let unserveBeforeWrite: PocketRouteId | null = null;
+  let unserveAfterBlocked = false;
+  let blockedComposed = 0;
 
   // THE HOST'S OWN COMPOSITION (`ipc.ts`), spelled here because the host
   // needs a sealed store to be built; every owner it composes is shipping code.
@@ -1065,6 +1099,8 @@ try {
     // THE QUIT FLAG ALONE, as the host hands it. A door that is stopping is
     // known only to the admission of its generation, which is what 14c proves.
     shuttingDown: () => false,
+    // PHASE 333.12: the one served set, as the host hands its own.
+    routeServed,
     pairingWindowOpen: () => pairing.windowOpen(),
     // RESEARCH 136 (Phase 316.5): the host adds `alerts: true` to a pending
     // answer when the Mac can send. Here the arm decides it, as the host's
@@ -1086,8 +1122,16 @@ try {
     },
     answer: async (route: PocketRoute, query, closing) => {
       switch (route.id) {
-        case 'blocked':
-          return routes.blocked();
+        case 'blocked': {
+          const composed = routes.blocked();
+          blockedComposed += 1;
+          // PHASE 333.12 (PR6): withdrawn after the answer is composed.
+          if (unserveAfterBlocked) {
+            unserveAfterBlocked = false;
+            served = served.filter((r) => r !== 'blocked');
+          }
+          return composed;
+        }
         case 'session': {
           const id = query.get('id');
           return id === null ? null : await routes.session(id);
@@ -1130,6 +1174,13 @@ try {
         removeBeforeWrite = null;
         phones = phones.filter((p) => p.id !== gone);
       }
+      // PHASE 333.12 (PR5): main's handler asked the route already; the write
+      // path's last check is the next to ask.
+      if (unserveBeforeWrite !== null) {
+        const gone = unserveBeforeWrite;
+        unserveBeforeWrite = null;
+        served = served.filter((r) => r !== gone);
+      }
       const answer = await writeHandler(route, body, verifiedPhone, door);
       if (stopAfterWrite === 'arm') stopAfterWrite = bind.stopPocketDoor();
       return answer;
@@ -1149,6 +1200,8 @@ try {
     publicHost: { name: NAME, port: PUBLIC_PORT },
     pins: [],
     windowOpen: false,
+    // PHASE 333.12: the one served set (a start without it is dropped whole).
+    routes: served,
     identity: (options: Parameters<typeof tlsModule.ensureDoorIdentity>[0]) => tlsModule.ensureDoorIdentity({ ...options, seal: openSeal }),
     identityPath: join(scratch, 'identity.json'),
     spawn: doorSpawn
@@ -1168,7 +1221,7 @@ try {
   };
   /** Start the door again after an arm stopped it: the same key, a new process. */
   const restart = async (): Promise<void> => {
-    const again = await bind.startPocketDoor({ ...doorInput, pins: pinsOf(phones) });
+    const again = await bind.startPocketDoor({ ...doorInput, pins: pinsOf(phones), routes: served });
     if (!again.ok) throw new Error(`the door refused to start again: ${again.reason}`);
     doorStarted = true;
     localPort = again.localPort;
@@ -2816,6 +2869,137 @@ try {
       }
       pageReader = null;
       listed = listed.filter((s) => s.id !== 'ses_sb_flood' && s.id !== 'ses_sb_stop');
+    }
+
+    // -----------------------------------------------------------------------
+    // PHASE 333.12, A ROUTE THAT WAITS (build/p33312/SPEC.md §6.2). The one
+    // served set is moved here as main moves it: `served`, which main's two
+    // handlers read, and an `update` to the live door process, which holds a
+    // copy. Each refusal is graded on its word and, where it is before the
+    // body or before main, on the door's own counters and main's count of the
+    // requests it was handed. PR0 and PR7 are honest, beside them, so a door
+    // that refuses everything fails here too.
+    // -----------------------------------------------------------------------
+    {
+      const SESSIONS = '/v1/sessions?show=all&group=none&sort=recent';
+      const whole = served;
+      const without = (id: PocketRouteId): readonly PocketRouteId[] => whole.filter((r) => r !== id);
+      const serve = async (next: readonly PocketRouteId[]): Promise<void> => {
+        served = next;
+        bind.updatePocketDoor({ routes: served });
+        await new Promise((resolve) => setImmediate(resolve));
+      };
+      /** A sessions answer by what it lists, not by the clock it was composed at. */
+      const listing = (answer: Answer): string => {
+        const b = bodyOf(answer);
+        const rows = Array.isArray(b['rows']) ? (b['rows'] as Record<string, unknown>[]).map((r) => String(r['id'])) : null;
+        return JSON.stringify({ total: b['total'], omitted: b['omitted'], rows });
+      };
+
+      // PR0. The control: the honest read, every route served.
+      const honest = await signedAsk(good, SESSIONS);
+      record('PR0', 'the honest sessions read, the launch set served', 'ok-listed', `${verdict(honest)}-${(JSON.parse(listing(honest)) as { rows: unknown }).rows !== null ? 'listed' : 'UNLISTED'}`, 'the control: every PR arm below is a refusal, and a door that refused everything would pass them.');
+
+      // PR1. A route the door does not serve: refused at the door, main never asked.
+      await serve(without('sessions'));
+      {
+        const before = stats();
+        const mainBefore = mainRequests;
+        const answer = await signedAsk(good, SESSIONS);
+        const after = stats();
+        record('PR1', 'served without sessions: the honest phone’s signed GET /v1/sessions', 'refused-404-route-not-forwarded', `${verdict(answer)}-${after.refused.route > before.refused.route ? 'route' : 'other'}-${after.forwarded === before.forwarded && mainRequests === mainBefore ? 'not-forwarded' : 'FORWARDED'}`, 'D7: a route a person has not allowed is refused as a route this Mac does not have, the 404 an older Mac gives, and main is never asked.');
+      }
+      // PR2. The same with a 16 KiB body: refused before the body is read.
+      {
+        const before = stats();
+        const mainBefore = mainRequests;
+        const answer = await signedAsk(good, SESSIONS, { body: Buffer.alloc(16 * 1024, 0x41) });
+        const after = stats();
+        record('PR2', 'the same, with a 16 KiB body', 'refused-404-route-not-oversized-not-forwarded', `${verdict(answer)}-${after.refused.route > before.refused.route ? 'route' : 'other'}-${after.refused.oversized === before.refused.oversized ? 'not-oversized' : 'OVERSIZED'}-${after.forwarded === before.forwarded && mainRequests === mainBefore ? 'not-forwarded' : 'FORWARDED'}`, 'D7: the served set is asked in the statement after the unknown-route refusal, before a byte of body is read, so a waiting route reads nothing of what it was sent.');
+      }
+      // PR3. Main's handler alone, handed a well-formed sessions request the door would have forwarded.
+      {
+        let verified = 0;
+        const linesBefore = logged.length;
+        const alone = createPocketHandler({
+          shuttingDown: () => false,
+          routeServed,
+          pairingWindowOpen: () => false,
+          present: () => ({ state: 'refused' }),
+          verify: (input) => {
+            verified += 1;
+            const v = verifier.verify(input);
+            return v.ok ? { ok: true, phoneId: v.phone.id } : { ok: false, reason: v.reason };
+          },
+          stillPaired: (id) => phones.some((p) => p.id === id),
+          answer: async (route, query) => (route.id === 'sessions' ? routes.sessions(query) : null)
+        });
+        const timestamp = String(Date.now());
+        const nonce = randomBytes(12).toString('hex');
+        const answer = await alone(
+          {
+            route: 'sessions',
+            method: 'GET',
+            target: SESSIONS,
+            headers: {
+              'x-tortie-phone': good.fields.id,
+              'x-tortie-timestamp': timestamp,
+              'x-tortie-nonce': nonce,
+              'x-tortie-signature': signAsPhone(good.signPrivate, { method: 'GET', target: SESSIONS, bodySha256: createHash('sha256').update(Buffer.alloc(0)).digest('hex'), timestamp, nonce, binding: good.binding })
+            },
+            body: new Uint8Array(0),
+            channel: good.fields.id
+          },
+          { stopping: () => false }
+        );
+        const word = logged.slice(linesBefore).some((l) => l.includes('refused a request at the door: route')) ? 'route' : 'other';
+        record('PR3', 'main’s handler alone, a well-formed sessions request while routeServed says no', '404-route-verified-0', `${String(answer.status)}-${word}-verified-${String(verified)}`, 'D8: the door process’s copy of the served set can lag main’s, so main asks before the pair arm and before the signature: a waiting route spends no nonce and reads nothing.');
+      }
+      await serve(whole);
+
+      // PR4. A write route the door does not serve.
+      await serve(without('say'));
+      {
+        const before = stats();
+        const mainBefore = mainRequests;
+        const repliesBefore = replies.length;
+        const answer = await writeAs(wA, '/v1/say', Buffer.from(JSON.stringify({ session: 'ses_pr4', text: 'a waiting route', write: writeId() }), 'utf8'));
+        const after = stats();
+        record('PR4', 'served without say: an honest POST /v1/say', 'refused-404-route-not-forwarded-0', `${verdict(answer)}-${after.refused.route > before.refused.route ? 'route' : 'other'}-${after.forwarded === before.forwarded && mainRequests === mainBefore ? 'not-forwarded' : 'FORWARDED'}-${String(replies.length - repliesBefore)}`, 'D7: a write a person has not allowed is refused before its body, and the recording writes are never handed it.');
+      }
+      await serve(whole);
+
+      // PR5. The write path with routeServed answering no only at its last check.
+      {
+        const id = writeId();
+        const body = endBody('ses_pr5', id);
+        const actsBefore = acts.filter((a) => a.sessionId === 'ses_pr5').length;
+        unserveBeforeWrite = 'end';
+        const answer = await writeAs(wA, '/v1/end', body);
+        const refusedActs = acts.filter((a) => a.sessionId === 'ses_pr5').length - actsBefore;
+        await serve(whole);
+        record('PR5', 'the route stops being served after main’s first ask and before the write path’s last check', 'refused-404-0', `${verdict(answer)}-${String(refusedActs)}`, 'D8: the last check asks the route again, with nothing between it and the act, so a route withdrawn at that moment acts nothing.');
+        // The ledger kept nothing of it: the same write id, signed afresh, acts once.
+        const again = await writeAs(wA, '/v1/end', body);
+        record('PR5b', 'and the same write id afterwards acts once: the refused write left no ledger entry', '200:done-1', `${said(again)}-${String(acts.filter((a) => a.sessionId === 'ses_pr5').length - actsBefore)}`, 'a refusal at the last check drops its pending entry, so nothing of it answers a later write.');
+      }
+
+      // PR6. A read composed while the route stops being served: refused at refusal 7, no body.
+      {
+        const composedBefore = blockedComposed;
+        unserveAfterBlocked = true;
+        const answer = await signedAsk(good, '/v1/blocked');
+        unserveAfterBlocked = false;
+        await serve(whole);
+        record('PR6', 'a read whose answer is composed while the route stops being served', 'refused-404-composed-nobody', `${verdict(answer)}-${blockedComposed > composedBefore ? 'composed' : 'uncomposed'}-${answer.body === '' ? 'nobody' : 'BODY'}`, 'D8: refusal 7 asks the route again with nothing awaited before the return, so an answer composed for a route no longer served never leaves.');
+      }
+
+      // PR7. The whole set posted again: PR1's request answers as PR0's did.
+      {
+        const answer = await signedAsk(good, SESSIONS);
+        record('PR7', 'the launch set posted again: PR1’s request', 'ok-as-PR0', `${verdict(answer)}-${listing(answer) === listing(honest) ? 'as-PR0' : `OTHER ${listing(answer).slice(0, 60)}`}`, 'D7: no socket was cut and nothing restarted; the next request is asked against the set the door now holds.');
+      }
+      await serve(whole);
     }
 
     phones = phonesBefore;

@@ -90,9 +90,11 @@ const {
   describePocketDoor,
   forgetPocketDoor,
   isClientKeySpki,
+  isPocketSubtraction,
   nameConfirmedCounts,
   nameConfirmedOf,
   nameTargetOf,
+  narrowPocketDoor,
   newIdentity,
   openIdentity,
   pairFingerprint,
@@ -525,9 +527,11 @@ describe('the lines a person reads are exactly the hashed facts', () => {
     );
   });
 
-  // The route list is hashed, so the write moves the hash and the door asks
-  // again; the algorithm does not change.
-  it('moves the hash by the route list alone, under the same algorithm', () => {
+  // The route list is hashed, so a moved ALLOWED set moves the hash and the
+  // door asks again; the algorithm does not change. Since Phase 333.12 the
+  // field is the set a person allowed (build/p33312/SPEC.md D4), never this
+  // build's table, so it is the allowed set that is shown moving it here.
+  it('moves the hash by the allowed route list alone, under the same algorithm', () => {
     expect(POCKET_EXECUTION_HASH_ALGORITHM).toBe('sha256-pocket-exec-v3');
     const before = pocketExecutionHash({ ...BASE, routes: ['pair', 'blocked', 'session', 'turns'] });
     expect(pocketExecutionHash(BASE)).not.toBe(before);
@@ -548,9 +552,10 @@ describe('the lines a person reads are exactly the hashed facts', () => {
 
   // PHASE 318 (D28, refusal 8) and PHASE 316.7: Phase 317's door (five routes),
   // 318's alone (seven), 316.7's alone (six) and this one (eight) all hash
-  // differently, so a Mac updated from any of them asks Allow once more;
-  // nothing else about the fields moves the hash.
-  it('moves the hash from Phase 317’s five routes to the eleven, and only by the routes 318, 316.7, 337 and 337.1 add', () => {
+  // differently, so a record over any of them does not cover an ALLOWED set of
+  // the eleven (Phase 333.12: the field is the allowed set, and a store with
+  // none reads as the eleven); nothing else about the fields moves the hash.
+  it('moves the hash from Phase 317’s five allowed routes to the eleven, and only by the routes 318, 316.7, 337 and 337.1 add', () => {
     const p317 = pocketExecutionHash({ ...BASE, routes: ['pair', 'blocked', 'session', 'turns', 'end'] });
     expect(pocketExecutionHash(BASE)).not.toBe(p317);
     const eleven = ['pair', 'blocked', 'session', 'turns', 'end', 'choose', 'say', 'sessions', 'screen', 'keys', 'scrollback'] as const;
@@ -695,6 +700,94 @@ describe('a confirmation is written by a person and by nothing else', () => {
 });
 
 // ---------------------------------------------------------------------------
+// A narrowing needs no human, and can only take away (Phase 333.12, D11b)
+// ---------------------------------------------------------------------------
+
+describe('a narrowing is recorded only when it takes exactly one thing away', () => {
+  const a = phoneFields(makePhone('Phone A'));
+  const b = phoneFields(makePhone('Phone B'));
+  const two: PocketExecutionFields = { ...BASE, phones: [a, b], pushAlerts: true };
+
+  it('admits exactly one phone gone, or the alerts from on to off, and nothing else', () => {
+    // The two subtractions.
+    expect(isPocketSubtraction(two, { ...two, phones: [a] })).toBe(true);
+    expect(isPocketSubtraction(two, { ...two, phones: [b] })).toBe(true);
+    expect(isPocketSubtraction(two, { ...two, pushAlerts: false })).toBe(true);
+    // Nothing moved is no subtraction.
+    expect(isPocketSubtraction(two, two)).toBe(false);
+    // Two phones gone at once, both things at once, or a phone gone with any other field moved.
+    expect(isPocketSubtraction(two, { ...two, phones: [] })).toBe(false);
+    expect(isPocketSubtraction(two, { ...two, phones: [a], pushAlerts: false })).toBe(false);
+    expect(isPocketSubtraction(two, { ...two, phones: [a], publicPort: 10000 })).toBe(false);
+    expect(isPocketSubtraction(two, { ...two, phones: [a], publicName: 'other.tail00000.ts.net' })).toBe(false);
+    expect(isPocketSubtraction(two, { ...two, phones: [{ ...a, label: 'Renamed' }] })).toBe(false);
+    // Anything added: a phone, a route, the alerts turned on.
+    const c = phoneFields(makePhone('Phone C'));
+    expect(isPocketSubtraction(two, { ...two, phones: [a, b, c] })).toBe(false);
+    expect(isPocketSubtraction(two, { ...two, phones: [a, c] })).toBe(false);
+    expect(isPocketSubtraction(two, { ...two, routes: [...two.routes, 'probe'] })).toBe(false);
+    expect(isPocketSubtraction(two, { ...two, phones: [a], routes: [...two.routes, 'probe'] })).toBe(false);
+    expect(isPocketSubtraction(two, { ...two, pushAlerts: false, routes: [...two.routes, 'probe'] })).toBe(false);
+    expect(isPocketSubtraction({ ...two, pushAlerts: false }, two)).toBe(false);
+    // A route taken away is not one of the two subtractions either.
+    expect(isPocketSubtraction(two, { ...two, routes: two.routes.filter((id) => id !== 'keys') })).toBe(false);
+  });
+
+  it('records the narrower door over the record that was before’s, with the lines of after', () => {
+    confirmPocketDoor(two, consentFor(two));
+    const after: PocketExecutionFields = { ...two, phones: [a] };
+    expect(pocketConfirmStatus(after).state).toBe('changed');
+    const record = narrowPocketDoor(two, after);
+    expect(record).not.toBeNull();
+    expect(record?.hash).toBe(pocketExecutionHash(after));
+    expect(record?.lines).toEqual(describePocketDoor(after).lines);
+    expect(pocketConfirmStatus(after).state).toBe('confirmed');
+    // The door before is no longer what is on record: the agreement moved down, never up.
+    expect(pocketConfirmStatus(two).state).toBe('changed');
+    // And the alerts off, over the narrowed record.
+    const quiet: PocketExecutionFields = { ...after, pushAlerts: false };
+    expect(narrowPocketDoor(after, quiet)).not.toBeNull();
+    expect(pocketConfirmStatus(quiet).state).toBe('confirmed');
+  });
+
+  it('refuses, writing nothing, when the record is not before’s, there is none, or the seal is not known', () => {
+    const after: PocketExecutionFields = { ...two, phones: [a] };
+    // No record at all.
+    expect(narrowPocketDoor(two, after)).toBeNull();
+    expect(pocketConfirmStatus(after).state).toBe('never');
+    // A record over another door: a narrowing never turns a changed door into a confirmed one.
+    const other: PocketExecutionFields = { ...two, publicPort: 10000 };
+    confirmPocketDoor(other, consentFor(other));
+    const before = readFileSync(confirmPath(), 'utf8');
+    expect(narrowPocketDoor(two, after)).toBeNull();
+    expect(readFileSync(confirmPath(), 'utf8')).toBe(before);
+    expect(pocketConfirmStatus(after).state).toBe('changed');
+    // The seal not known.
+    confirmPocketDoor(two, consentFor(two));
+    keystore = false;
+    expect(narrowPocketDoor(two, after)).toBeNull();
+    keystore = true;
+    expect(pocketConfirmStatus(two).state).toBe('confirmed');
+  });
+
+  it('refuses anything that is not a subtraction, even over the right record', () => {
+    confirmPocketDoor(two, consentFor(two));
+    const before = readFileSync(confirmPath(), 'utf8');
+    for (const wider of [
+      { ...two, routes: [...two.routes, 'probe'] },
+      { ...two, phones: [a], routes: [...two.routes, 'probe'] },
+      { ...two, pushAlerts: false, routes: [...two.routes, 'probe'] },
+      { ...two, phones: [a, b, phoneFields(makePhone('Phone C'))] },
+      { ...two, publicName: 'other.tail00000.ts.net' }
+    ]) {
+      expect(narrowPocketDoor(two, wider)).toBeNull();
+    }
+    expect(readFileSync(confirmPath(), 'utf8')).toBe(before);
+    expect(pocketConfirmStatus(two).state).toBe('confirmed');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // The store (SPEC §4.4)
 // ---------------------------------------------------------------------------
 
@@ -728,12 +821,14 @@ describe('the sealed store', () => {
         enabled: true,
         pushAlerts: false,
         deadPushTokens: [],
-        nameConfirmed: null
+        nameConfirmed: null,
+        allowedRoutes: null
       })
     ).toBe(true);
     const read = readPocketStore();
     expect(read.sealKnown).toBe(true);
     expect(read.store?.publicPort).toBe(10000);
+    expect(read.store?.allowedRoutes).toBeNull();
     expect(read.store?.tailnetFacts).toEqual(facts);
     expect(read.droppedPhones).toBe(0);
     // The attack: the file is rewritten in the clear with a phone planted in it.
@@ -757,6 +852,27 @@ describe('the sealed store', () => {
     storeWith({ publicPort: 443 });
     expect(readPocketStore().store?.publicPort).toBe(0);
     storeWith({ publicPort: 8443 });
+    expect(readPocketStore().store?.publicPort).toBe(8443);
+  });
+
+  // PHASE 333.12 (D1, D2): the allowed set rides inside the seal, read back
+  // WHOLE or as null, sorted; a 0.111.x store, which has no such field, reads
+  // as null (the eleven).
+  it('reads the allowed routes back whole and sorted, or as null, inside the seal', () => {
+    const eleven = [...POCKET_ROUTE_IDS];
+    storeWith({});
+    expect(readPocketStore().store?.allowedRoutes).toBeNull();
+    storeWith({ allowedRoutes: [...eleven].reverse() });
+    expect(readPocketStore().store?.allowedRoutes).toEqual([...eleven].sort());
+    storeWith({ allowedRoutes: [...eleven, 'probe'] });
+    expect(readPocketStore().store?.allowedRoutes).toBeNull();
+    storeWith({ allowedRoutes: eleven.filter((id) => id !== 'keys') });
+    expect(readPocketStore().store?.allowedRoutes).toBeNull();
+    storeWith({ allowedRoutes: [] });
+    expect(readPocketStore().store?.allowedRoutes).toBeNull();
+    storeWith({ allowedRoutes: 'blocked' });
+    expect(readPocketStore().store?.allowedRoutes).toBeNull();
+    // The rest of the store is read as before: one bad field drops that field.
     expect(readPocketStore().store?.publicPort).toBe(8443);
   });
 

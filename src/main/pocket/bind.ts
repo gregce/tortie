@@ -17,9 +17,11 @@
  *     where a confirmed port that is taken refuses rather than moving.
  *  2. **Main hands the process what it needs and nothing more**: the TLS key
  *     and certificate (main unseals them, because `safeStorage` is main's),
- *     the paired phones' client-key pins, the public name and port, and
- *     whether a window is open. The process hands main a parsed, bounded
- *     request (`./door/wire.ts`) and never a raw byte stream.
+ *     the paired phones' client-key pins, the public name and port, whether a
+ *     window is open, and since Phase 333.12 (build/p33312/SPEC.md §5.8, D7)
+ *     the served set, the routes of this build a person allowed, on the start
+ *     and on every change. The process hands main a parsed, bounded request
+ *     (`./door/wire.ts`) and never a raw byte stream.
  *  3. **Refusal 7 by instance.** Every process has a generation, and main
  *     keeps the admission of each. A request is answered only if its
  *     generation's door has not begun to stop, asked with nothing awaited
@@ -48,6 +50,7 @@
 import { join } from 'node:path';
 import { utilityProcess } from 'electron';
 
+import type { PocketRouteId } from '@shared/ipc/pocket';
 import { getLog } from '../log';
 import type { DoorPin, DoorRequest, DoorSpawner, DoorChild, ToDoor } from './door/wire';
 import { fromDoorOf, toDoorOf } from './door/wire';
@@ -124,6 +127,12 @@ export interface DoorStartInput {
   readonly publicHost: { readonly name: string; readonly port: number };
   readonly pins: readonly DoorPin[];
   readonly windowOpen: boolean;
+  /**
+   * The routes the door answers (Phase 333.12, D7): this build's routes a
+   * person allowed. REQUIRED, and posted in the start message, which the door
+   * process drops whole without it.
+   */
+  readonly routes: readonly PocketRouteId[];
   /** Tests. Defaults to the real sealed identity. */
   readonly identity?: (options: IdentityOptions) => IdentityOutcome;
   /** Tests. Defaults to the identity file's own path. */
@@ -324,7 +333,8 @@ export class PocketDoor {
       tls: { key: identity.keyPem, cert: identity.certPem },
       pins: [...input.pins],
       host: { name: input.publicHost.name, port: input.publicHost.port },
-      windowOpen: input.windowOpen
+      windowOpen: input.windowOpen,
+      routes: [...input.routes]
     });
     let deadline: ReturnType<typeof setTimeout> | undefined;
     const late = new Promise<FirstWord>((resolve) => {
@@ -370,12 +380,17 @@ export class PocketDoor {
     };
   }
 
-  /** The pins or the window moved. A socket whose key is no longer pinned is cut. */
-  update(update: { pins?: readonly DoorPin[]; windowOpen?: boolean }): void {
+  /**
+   * The pins, the window or (Phase 333.12, D7) the served set moved. A socket
+   * whose key is no longer pinned is cut; a new served set cuts nothing, and
+   * every later request is asked against it.
+   */
+  update(update: { pins?: readonly DoorPin[]; windowOpen?: boolean; routes?: readonly PocketRouteId[] }): void {
     if (this.shuttingDown) return;
-    const message: { kind: 'update'; pins?: DoorPin[]; windowOpen?: boolean } = { kind: 'update' };
+    const message: { kind: 'update'; pins?: DoorPin[]; windowOpen?: boolean; routes?: PocketRouteId[] } = { kind: 'update' };
     if (update.pins !== undefined) message.pins = [...update.pins];
     if (update.windowOpen !== undefined) message.windowOpen = update.windowOpen;
+    if (update.routes !== undefined) message.routes = [...update.routes];
     this.post(message);
   }
 
@@ -600,8 +615,15 @@ export async function startPocketDoor(input: DoorStartInput): Promise<DoorStartR
   }
 }
 
-/** The pins or the window moved. Nothing happens when no door is open. */
-export function updatePocketDoor(update: { pins?: readonly DoorPin[]; windowOpen?: boolean }): void {
+/**
+ * The pins, the window or (Phase 333.12, D7) the served set moved. Nothing
+ * happens when no door is open.
+ */
+export function updatePocketDoor(update: {
+  pins?: readonly DoorPin[];
+  windowOpen?: boolean;
+  routes?: readonly PocketRouteId[];
+}): void {
   current?.update(update);
 }
 

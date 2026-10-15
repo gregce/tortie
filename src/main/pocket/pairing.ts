@@ -9,9 +9,12 @@
  * fields that decide what the door ANSWERS are hashed, a person confirms that
  * hash once by pressing a button in Tortie, and the confirmation is bound to
  * it. Move the program that publishes the door, the tailnet, the public name,
- * the public port, whether it comes up at launch, the route table or the set
- * of allowed phones (each with its client key), and the hash changes, so
- * Tortie asks again and the door refuses to start until it is answered.
+ * the public port, whether it comes up at launch, the routes a person allowed
+ * or the set of allowed phones (each with its client key), and the hash
+ * changes, so Tortie asks again and the door refuses to start until it is
+ * answered. (Since Phase 333.12 the routes are the ALLOWED ones, sealed in the
+ * store, so an update that adds a route moves no hash: the new route waits
+ * for the Allow whose lines name it, and everything else keeps answering.)
  *
  * PHASE 314 ADDED THREE HASHED FACTS, all about where a person's words go
  * rather than what the door answers: the push switch, and each phone's Apple
@@ -152,10 +155,10 @@ import {
   type PocketPairingState,
   type PocketPairingView,
   type PocketPhoneView,
-  type PocketRouteId,
   type PocketWriteRouteId
 } from '@shared/ipc/pocket';
 import { openSealedText, sealText } from '../config/seal';
+import { allowedRoutesOf } from './allowed-routes';
 import { isP256SpkiDer } from './tls';
 import { DOOR_PINS_MAX } from './door/wire';
 import {
@@ -255,10 +258,14 @@ export interface PocketExecutionFields {
   /** Whether the door comes up with the app. */
   readonly bindAtLaunch: boolean;
   /**
-   * The route ids this build answers. A phase that adds a route moves the
-   * hash, so a person reads the new list before anything answers on it.
+   * The routes a person ALLOWED (Phase 333.12, build/p33312/SPEC.md D4, D20):
+   * the hash agrees to them, and a build that answers more makes the rest
+   * wait. A phase that adds a route therefore moves no hash; the new route is
+   * not answered until a person reads lines that name it and allows them. An
+   * id this build no longer has may be here: it stays allowed and hashed, and
+   * is not served.
    */
-  readonly routes: readonly PocketRouteId[];
+  readonly routes: readonly string[];
   /** Every phone allowed to ask. */
   readonly phones: readonly PocketPhoneFields[];
   /**
@@ -406,8 +413,12 @@ export interface PocketDoorSummary {
  *
  * `keys` says what typing means plainly: a key can run a command in a shell,
  * exactly as it can at the desk (his ruling 3, "Every key, including Ctrl-C").
+ *
+ * EXPORTED SINCE PHASE 333.12 (build/p33312/SPEC.md §5.4) so the gate that
+ * holds the route ledger (`./route-ledger.ts`) to it can read it. An id's
+ * clause is part of its meaning: it is never edited, only a new id added.
  */
-const WRITE_CLAUSES: Readonly<Record<PocketWriteRouteId, string>> = Object.freeze({
+export const WRITE_CLAUSES: Readonly<Record<PocketWriteRouteId, string>> = Object.freeze({
   end: 'end a session',
   choose: 'answer a numbered question',
   say: 'send a session one message',
@@ -590,8 +601,9 @@ function fireConfirmationChanged(): void {
 }
 
 /**
- * Record that a person agreed to the door as these fields describe it. The only
- * way a pocket confirmation is ever written.
+ * Record that a person agreed to the door as these fields describe it: the
+ * only way one is written over lines a person read. {@link narrowPocketDoor}
+ * is the other (Phase 333.12), and it can only take away.
  *
  * Refuses when the acknowledgement is not exact, and when the fields moved
  * between the sheet being drawn and the person pressing the button. Returns
@@ -630,6 +642,67 @@ export function confirmPocketDoor(
     pocketLog.warn(
       'the OS keystore is unavailable, so the confirmation for the phone ' +
         'door could not be recorded. It was not written.'
+    );
+    return null;
+  }
+  fireConfirmationChanged();
+  return record;
+}
+
+/**
+ * Is `after` the door `before` with exactly one thing TAKEN AWAY, and nothing
+ * else moved? (Phase 333.12, build/p33312/SPEC.md D11b.) Exactly two shapes
+ * are a subtraction: one phone gone with every other field equal, or the
+ * alerts switched from on to off with every other field equal. Compared by
+ * the hashed text itself ({@link canonicalPocketText}), so a field that is
+ * hashed can never move under a narrowing unseen. A phone added, a route
+ * added, alerts turned on or any other field moved is not one.
+ */
+export function isPocketSubtraction(before: PocketExecutionFields, after: PocketExecutionFields): boolean {
+  const kept = new Set(after.phones.map((p) => p.id));
+  const gone = before.phones.filter((p) => !kept.has(p.id));
+  if (gone.length === 1 && after.phones.length === before.phones.length - 1) {
+    const goneId = gone[0]?.id;
+    const less: PocketExecutionFields = { ...before, phones: before.phones.filter((p) => p.id !== goneId) };
+    return canonicalPocketText(less) === canonicalPocketText(after);
+  }
+  if (before.pushAlerts && !after.pushAlerts) {
+    return canonicalPocketText({ ...before, pushAlerts: false }) === canonicalPocketText(after);
+  }
+  return false;
+}
+
+/**
+ * Record the door NARROWED, with no second press (Phase 333.12, D11b): the
+ * agreement on file was over `before`, and `after` is `before` with one phone
+ * gone or the alerts turned off ({@link isPocketSubtraction}). A subtraction
+ * needs no human, because everything it agrees to a person already agreed
+ * to; it can never widen what is answered, and it never names a route the
+ * record did not.
+ *
+ * Null, with nothing written, unless the seal is known AND the record on file
+ * is exactly `before`'s hash: a door that was not confirmed before the press is
+ * not confirmed after it. Its only callers are `PocketHost.removePhone` and
+ * `PocketHost.setPushAlerts` (`conformance:pocket` AR8).
+ */
+export function narrowPocketDoor(before: PocketExecutionFields, after: PocketExecutionFields): ConfirmRecord | null {
+  if (!isPocketSubtraction(before, after)) return null;
+  const state = readState();
+  if (!state.sealKnown) return null;
+  const row = state.rows[POCKET_CONFIRM_RECORD_KEY];
+  if (row === undefined || row.hash !== pocketExecutionHash(before)) return null;
+  const summary = describePocketDoor(after);
+  const record: ConfirmRecord = {
+    id: POCKET_CONFIRM_RECORD_KEY,
+    hash: summary.hash,
+    algorithm: summary.algorithm,
+    at: Date.now(),
+    lines: [...summary.lines]
+  };
+  if (!writeConfirmRecords({ ...state.rows, [POCKET_CONFIRM_RECORD_KEY]: record })) {
+    pocketLog.warn(
+      'the OS keystore is unavailable, so the narrowed confirmation for the ' +
+        'phone door could not be recorded. It was not written.'
     );
     return null;
   }
@@ -736,6 +809,17 @@ export interface PocketStore {
    * phase did.
    */
   readonly nameConfirmed: PocketNameConfirmed | null;
+  /**
+   * The routes a person ALLOWED (Phase 333.12, build/p33312/SPEC.md D1, D2),
+   * sorted, or null: absent, or not whole, which reads as the eleven every
+   * 0.111.x Mac answered (`LEGACY_ALLOWED_ROUTES`). Read back WHOLE OR NOT AT
+   * ALL through `allowedRoutesOf`, inside the seal, and written only by
+   * `PocketHost.confirmDoor`, after its record, to the routes the lines it
+   * recorded named. An older Mac drops it on its next write, because the
+   * reader rebuilds the store field by field, and then the eleven apply: never
+   * wider than what was confirmed.
+   */
+  readonly allowedRoutes: readonly string[] | null;
 }
 
 /** How many dropped device tokens are remembered. Oldest go first. */
@@ -851,7 +935,8 @@ export function readPocketStore(): {
         enabled: parsed.enabled === true,
         pushAlerts: parsed.pushAlerts === true,
         deadPushTokens: deadTokensOf((parsed as { deadPushTokens?: unknown }).deadPushTokens),
-        nameConfirmed: nameConfirmedOf((parsed as { nameConfirmed?: unknown }).nameConfirmed)
+        nameConfirmed: nameConfirmedOf((parsed as { nameConfirmed?: unknown }).nameConfirmed),
+        allowedRoutes: allowedRoutesOf((parsed as { allowedRoutes?: unknown }).allowedRoutes)
       },
       sealKnown: true,
       droppedPhones: rows.length - phones.length

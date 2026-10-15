@@ -12,6 +12,15 @@
  * never half-read, because half a message is a message somebody else chose
  * the shape of.
  *
+ * What crosses to the door: the TLS key and certificate, the paired phones'
+ * pins, the public name and port, whether a pairing window is open, and since
+ * Phase 333.12 (build/p33312/SPEC.md §5.8, D7) THE SERVED SET, the routes of
+ * this build's table a person allowed. A start without it is dropped whole, so
+ * a main that forgot it gets a door that never says `listening` rather than
+ * one that answers every route this build has; an update may carry a new one.
+ * Each id must be a route of the one table, named once, and there can be no
+ * more of them than the table has rows. Anything else drops the message whole.
+ *
  * What never crosses to main, by construction of the types below: a raw byte
  * from a stranger, the PROXY source address, a header value other than the
  * four `x-tortie-*`, and the `/pair` body as text (the door process parses its
@@ -92,8 +101,19 @@ export type ToDoor =
       readonly pins: readonly DoorPin[];
       readonly host: { readonly name: string; readonly port: number };
       readonly windowOpen: boolean;
+      /**
+       * The routes this door answers (Phase 333.12, D7): this build's routes a
+       * person allowed. REQUIRED: a start without them is dropped whole.
+       */
+      readonly routes: readonly PocketRouteId[];
     }
-  | { readonly kind: 'update'; readonly pins?: readonly DoorPin[]; readonly windowOpen?: boolean }
+  | {
+      readonly kind: 'update';
+      readonly pins?: readonly DoorPin[];
+      readonly windowOpen?: boolean;
+      /** A new served set (Phase 333.12, D7), replacing the one the door holds. */
+      readonly routes?: readonly PocketRouteId[];
+    }
   | { readonly kind: 'answer'; readonly id: number; readonly status: 200 | 404; readonly body: string | null }
   /** Admission closes, synchronously on arrival. */
   | { readonly kind: 'shutdown' }
@@ -244,6 +264,27 @@ function pinsOf(value: unknown): DoorPin[] | null {
   return out;
 }
 
+/**
+ * A served set (Phase 333.12, build/p33312/SPEC.md §5.8, D7), or null: an
+ * array of at most as many ids as the one table has rows, each the id of one
+ * of its rows, none named twice. A list with anything else in it is refused
+ * whole, never filtered, because a set with a stranger's id taken out is a
+ * set nobody sent.
+ */
+function routesOf(value: unknown): PocketRouteId[] | null {
+  if (!Array.isArray(value) || value.length > POCKET_ROUTES.length) return null;
+  const out: PocketRouteId[] = [];
+  const seen = new Set<string>();
+  for (const id of value as unknown[]) {
+    if (typeof id !== 'string' || seen.has(id)) return null;
+    const row = POCKET_ROUTES.find((r) => r.id === id);
+    if (row === undefined) return null;
+    seen.add(id);
+    out.push(row.id);
+  }
+  return out;
+}
+
 /** The four signature headers within their bounds, or null. */
 export function signatureHeadersOf(value: unknown): DoorSignatureHeaders | null {
   if (!isObject(value)) return null;
@@ -354,17 +395,21 @@ export function toDoorOf(value: unknown): ToDoor | null {
       if (typeof windowOpen !== 'boolean') return null;
       const pins = pinsOf(value['pins']);
       if (pins === null) return null;
+      // PHASE 333.12 (D7): no served set, no door. Never "every route".
+      const routes = routesOf(value['routes']);
+      if (routes === null) return null;
       return {
         kind: 'start',
         generation,
         tls: { key: tls['key'], cert: tls['cert'] },
         pins,
         host: { name: host['name'], port: host['port'] },
-        windowOpen
+        windowOpen,
+        routes
       };
     }
     case 'update': {
-      const out: { kind: 'update'; pins?: DoorPin[]; windowOpen?: boolean } = { kind: 'update' };
+      const out: { kind: 'update'; pins?: DoorPin[]; windowOpen?: boolean; routes?: PocketRouteId[] } = { kind: 'update' };
       if (value['pins'] !== undefined) {
         const pins = pinsOf(value['pins']);
         if (pins === null) return null;
@@ -373,6 +418,11 @@ export function toDoorOf(value: unknown): ToDoor | null {
       if (value['windowOpen'] !== undefined) {
         if (typeof value['windowOpen'] !== 'boolean') return null;
         out.windowOpen = value['windowOpen'];
+      }
+      if (value['routes'] !== undefined) {
+        const routes = routesOf(value['routes']);
+        if (routes === null) return null;
+        out.routes = routes;
       }
       return out;
     }

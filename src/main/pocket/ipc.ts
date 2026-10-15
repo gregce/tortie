@@ -45,12 +45,26 @@
  * Tailscale's approval page is open and an off press ends the child at once.
  *
  * AND THE DOOR IS PUBLISHED ONLY WHILE ITS CURRENT FIELDS ARE THE CONFIRMED
- * ONES. Every press here that moves a hashed field — removing a phone,
- * flipping the alerts — closes the door until the person confirms again. What
- * moves a field from OUTSIDE (a different tailnet, a new name, a different
- * program) is found by the read every start makes, and the door stays shut
- * with the gate's sentence; a restart after an unexpected exit never restarts
- * onto a moved field.
+ * ONES. Every press here that moves a hashed field closes the door until the
+ * person confirms again, except the two that only take away (Phase 333.12,
+ * build/p33312/SPEC.md D11): Remove of one phone while another remains, and
+ * the alerts turned off, each of which records the narrower door itself in
+ * main (`narrowPocketDoor`). What moves a field from OUTSIDE (a different
+ * tailnet, a new name, a different program) is found by the read every start
+ * makes, and the door stays shut with the gate's sentence; a restart after an
+ * unexpected exit never restarts onto a moved field.
+ *
+ * ## The routes a person allowed (Phase 333.12, build/p33312/SPEC.md §4)
+ *
+ * The hashed `routes` are the routes a person ALLOWED (`./allowed-routes.ts`),
+ * never this build's table, so the update that adds a route moves no hash and
+ * switches no paired phone off. The door serves the routes that are both
+ * allowed and in this build; a route of this build that is not allowed WAITS,
+ * answered `404 route` by the door process and by main, and the sheet draws the
+ * PROPOSAL's lines (the allowed set with the waiting routes in it) with Allow.
+ * Only that Allow allows a waiting route: {@link PocketHost.confirmDoor}
+ * records the proposal and then writes the allowed set, which nothing else
+ * writes.
  *
  * ## The switch handles ONE PRESS AT A TIME (Phase 316.1, his ruling of
  * ## 2026-09-23)
@@ -104,6 +118,7 @@ import { clipboard } from 'electron';
 
 import {
   EVT_POCKET_CHANGED,
+  POCKET_ALLOWED_NOT_SAVED,
   POCKET_FUNNEL_RESTARTING,
   POCKET_NAME_SENTENCES,
   POCKET_ROUTE_IDS,
@@ -118,6 +133,7 @@ import {
   type PocketPairingOffer,
   type PocketPairingView,
   type PocketPushKeyResult,
+  type PocketRouteId,
   type PocketSetupAction,
   type PocketStatus,
   type PocketSwitchInput,
@@ -138,6 +154,7 @@ import {
   stopPocketDoor,
   updatePocketDoor
 } from './bind';
+import { allowedRoutesFor, proposedRoutes, servedRoutesOf, waitingRoutesOf } from './allowed-routes';
 import type { DoorPin, DoorSpawner } from './door/wire';
 import {
   FUNNEL_PORTS,
@@ -170,7 +187,9 @@ import {
   assertPocketDoorMayBind,
   clientKeyPinOf,
   confirmPocketDoor,
+  describePocketDoor,
   forgetPocketDoor,
+  narrowPocketDoor,
   newIdentity,
   openIdentity,
   phoneView,
@@ -183,6 +202,7 @@ import {
   spkiPinOf,
   writePocketStore,
   POCKET_DEAD_TOKEN_MEMORY,
+  type PocketConfirmState,
   type PocketExecutionFields,
   type PocketIdentity,
   type PocketNameConfirmed,
@@ -578,10 +598,17 @@ export class PocketHost {
       shuttingDown: () => pocketShutdownStarted(),
       stillPaired: (phoneId) => this.stillPaired(phoneId),
       ...(deps.writes !== undefined ? { writes: deps.writes } : {}),
-      ...(deps.now !== undefined ? { now: deps.now } : {})
+      ...(deps.now !== undefined ? { now: deps.now } : {}),
+      // PHASE 333.12 (D8): the last check asks this too, because the door
+      // process's copy of the served set can lag main's.
+      routeServed: (id) => this.routeServed(id)
     });
     this.handler = createPocketHandler({
       shuttingDown: () => pocketShutdownStarted(),
+      // PHASE 333.12 (D8): a route a person has not allowed is refused
+      // `route` before anything of the request is read, and again before a
+      // read's answer leaves.
+      routeServed: (id) => this.routeServed(id),
       pairingWindowOpen: () => this.pairing.windowOpen(),
       // RESEARCH 136 (Phase 316.5): a `pending` answer says whether this Mac
       // can send an alert, so the phone asks iOS for alerts only when it can.
@@ -742,7 +769,8 @@ export class PocketHost {
       enabled: store?.enabled ?? false,
       pushAlerts: store?.pushAlerts ?? false,
       deadPushTokens: store?.deadPushTokens ?? [],
-      nameConfirmed: store?.nameConfirmed ?? null
+      nameConfirmed: store?.nameConfirmed ?? null,
+      allowedRoutes: store?.allowedRoutes ?? null
     };
     if (!writePocketStore(next)) {
       throw gmuxError(
@@ -788,6 +816,50 @@ export class PocketHost {
   }
 
   /**
+   * THE SERVED SET (Phase 333.12, D6, D8, D21): this build's routes that a
+   * person allowed, in the table's order. It reads the store's allowed set
+   * through {@link fields} and this build's table, and NO RECORD: it is asked
+   * on every request, the door runs only on a record the gate read
+   * `confirmed`, and the allowed set only grows after its record is written.
+   *
+   * ONE CROSS-VERSION CORNER, stated (the fix round, lens 1): a 0.111.x Mac
+   * whose Allow records its own eleven and writes no store leaves this build's
+   * wider set on disk, so back here this names a route that record does not
+   * cover. The gate reads `changed` over it, `mayOpen` opens no door and no
+   * request reaches this answer, and the Allow that reopens the door names the
+   * route (`p33312-allowed-routes.test.ts` C11b).
+   */
+  private servedRoutes(): readonly PocketRouteId[] {
+    return servedRoutesOf(this.fields().routes, pocketRouteIds());
+  }
+
+  /** Is this route one a person allowed? Main's one answer, asked three times (D8). */
+  private routeServed(id: PocketRouteId): boolean {
+    return this.servedRoutes().includes(id);
+  }
+
+  /**
+   * Hand the door process the served set as it stands now (D7, D22). No socket
+   * is cut when it moves: every request is asked. Nothing while the door is not
+   * listening; the start carries it.
+   */
+  private postRoutes(): void {
+    if (!pocketDoorStatus().listening) return;
+    updatePocketDoor({ routes: this.servedRoutes() });
+  }
+
+  /**
+   * THE PROPOSAL (Phase 333.12, D5): what the next door Allow agrees to. With
+   * no record, this build's whole table, so a first Allow allows every route;
+   * otherwise the allowed set with this build's routes added. With nothing
+   * waiting it is `fields` byte for byte. The sheet draws its lines, and
+   * {@link confirmDoor} records it; the pairing Allow never does.
+   */
+  private proposal(fields: PocketExecutionFields, state: PocketConfirmState): PocketExecutionFields {
+    return { ...fields, routes: proposedRoutes(fields.routes, pocketRouteIds(), state !== 'never') };
+  }
+
+  /**
    * The facts the hash is computed from: this run's read when there is one,
    * and otherwise the stored facts (SPEC §4.4).
    */
@@ -802,7 +874,14 @@ export class PocketHost {
     return this.readStore()?.tailnetFacts ?? null;
   }
 
-  /** The door's execution bearing fields, as they are right now. */
+  /**
+   * The door's execution bearing fields, as they are right now.
+   *
+   * ITS ROUTES ARE THE ALLOWED SET, ALWAYS (Phase 333.12, D4): the store's
+   * `allowedRoutes`, or the eleven every 0.111.x Mac answered, and never this
+   * build's table, record or no record. The table enters only the proposal,
+   * the served set and the waiting set.
+   */
   fields(): PocketExecutionFields {
     const store = this.readStore();
     const facts = this.facts();
@@ -812,7 +891,7 @@ export class PocketHost {
       publicName: facts?.publicName ?? EMPTY_POCKET_FIELDS.publicName,
       publicPort: store?.publicPort ?? EMPTY_POCKET_FIELDS.publicPort,
       bindAtLaunch: store?.bindAtLaunch ?? false,
-      routes: pocketRouteIds(),
+      routes: allowedRoutesFor(store?.allowedRoutes ?? null),
       phones: store?.phones ?? EMPTY_POCKET_FIELDS.phones,
       pushAlerts: store?.pushAlerts ?? EMPTY_POCKET_FIELDS.pushAlerts
     };
@@ -858,6 +937,13 @@ export class PocketHost {
     const resolution = this.funnel.resolve();
     const fields = this.fields();
     const gate = pocketConfirmStatus(fields);
+    // THE LINES ARE THE PROPOSAL'S (Phase 333.12, D5): the allowed set with
+    // every waiting route in it. With nothing waiting, `fields` byte for byte.
+    // ONE proposal for the lines, the hash and the routes the honesty sentence
+    // beside Allow is composed over (the fix round), so all three say the one
+    // thing that Allow grants.
+    const proposal = this.proposal(fields, gate.state);
+    const offered = describePocketDoor(proposal);
     const door = pocketDoorStatus();
     const store = this.readStore();
     const listening = door.listening && this.published();
@@ -902,8 +988,8 @@ export class PocketHost {
         refused: this.funnelRefused()
       },
       confirmState: gate.state,
-      confirmLines: gate.lines,
-      confirmHash: gate.hash,
+      confirmLines: offered.lines,
+      confirmHash: offered.hash,
       confirmable,
       nameCheck: this.nameCheckNow(),
       pairable: this.pairable(),
@@ -916,6 +1002,12 @@ export class PocketHost {
       setupActions: this.setupActionsNow(resolution),
       nameProgress: this.nameProgressNow(),
       routes: POCKET_ROUTE_IDS,
+      // PHASE 333.12 (D6): main answers the lists; the sheet spells none.
+      routesAllowed: this.servedRoutes(),
+      routesWaiting: waitingRoutesOf(fields.routes, pocketRouteIds(), gate.state === 'confirmed' || gate.state === 'changed'),
+      // THE FIX ROUND: what the confirm block's Allow agrees to answer, so the
+      // honesty sentence beside it says what it grants (lens 1's minor).
+      routesOffered: servedRoutesOf(proposal.routes, pocketRouteIds()),
       pushAlerts: fields.pushAlerts,
       // THE PORT'S TWO READS, and nothing else of it (K3): an id that is
       // public and a sentence. Neither reads the key.
@@ -1283,6 +1375,8 @@ export class PocketHost {
       publicHost: { name: fields.publicName, port: fields.publicPort },
       pins: this.pins(),
       windowOpen: this.pairing.windowOpen(),
+      // PHASE 333.12 (D7): the routes a person allowed, and no other.
+      routes: this.servedRoutes(),
       ...(this.deps.door !== undefined ? { spawn: this.deps.door } : {})
     });
     // 9.
@@ -1298,6 +1392,9 @@ export class PocketHost {
       this.setFunnel('idle');
       return door.reason === 'quitting' ? 'stopped' : 'retry';
     }
+    // PHASE 333.12 (D22): an Allow pressed between the fork and the listen
+    // posted nowhere, so the served set is handed over once more now.
+    this.postRoutes();
     // 10, 11. The approval wait lives here, raced against the press. Every
     // way out but a counted start stops the child (inside `startFunnel`) and
     // the door process (the `finally` below).
@@ -2146,8 +2243,17 @@ export class PocketHost {
   }
 
   /**
-   * Confirm the door's fields as they stand — the lines the person read — and
-   * queue the start. The second step of the order in this module's header.
+   * Confirm the door — the lines the person read, which are the PROPOSAL's
+   * (Phase 333.12, D5, D9) — and queue the start. The second step of the
+   * order in this module's header.
+   *
+   * THE ONE WRITER OF THE ALLOWED SET, AND IN THIS ORDER (D9): the record over
+   * the proposal first, then, when the proposal's routes are not the allowed
+   * set, the store's `allowedRoutes`, then the door process told what it now
+   * serves (no restart on a published door). Record first, store second, is
+   * the pairing path's order and its safe direction: a store write that fails
+   * after the record leaves the door reading `changed`, which closes it, and
+   * the press answers {@link POCKET_ALLOWED_NOT_SAVED}. Never wider.
    *
    * The record is written BEFORE anything is queued, so a caller that does not
    * wait reads `confirmed` straight after. THE ANSWER DOES NOT WAIT ON
@@ -2164,52 +2270,84 @@ export class PocketHost {
       this.changed();
       return { allowed: false, refusal: this.unconfirmableSentence(fields), status: this.status() };
     }
-    const record = confirmPocketDoor(fields, {
+    const gate = pocketConfirmStatus(fields);
+    const proposal = this.proposal(fields, gate.state);
+    const record = confirmPocketDoor(proposal, {
       acknowledgement: POCKET_CONFIRM_ACKNOWLEDGEMENT,
       linesRead: input.linesRead,
       hashRead: input.hashRead
     });
+    // The allowed set moves only when the lines just recorded named a route it
+    // does not hold (or no longer name one it does), and only after that record.
+    // THE GUARD NAMES THE RECORD (the fix round, lens 1's K18): a record that
+    // could not be sealed writes nothing here, so the store's set is never
+    // wider than the record's (D21). `conformance:pocket` AR4 and C6b hold it.
+    let saved = true;
+    if (
+      record !== null &&
+      (proposal.routes.length !== fields.routes.length || proposal.routes.some((id) => !fields.routes.includes(id)))
+    ) {
+      const store = this.readStore();
+      saved = store !== null && this.writeStore({ ...store, allowedRoutes: [...proposal.routes] });
+    }
     // An agreement recorded is a new start's to make (Phase 333.1, D8b, D6):
     // the next return is a new one, and the admin link belonged to the last.
     if (record !== null) {
       this.returnForked = false;
       this.adminLink = null;
     }
-    // `start` opens only a door the person has switched on.
-    if (record !== null && this.readStore()?.enabled === true && !this.published()) {
-      this.queueStart();
+    if (record !== null && saved) {
+      // A published door serves what was just allowed, with no restart (D9).
+      this.postRoutes();
+      // `start` opens only a door the person has switched on.
+      if (this.readStore()?.enabled === true && !this.published()) {
+        this.queueStart();
+      }
     }
+    // Recorded and not saved: the fields are not the record's, so a published
+    // door closes until the person allows it again (D9a).
+    if (record !== null && !saved) void this.closeUnlessConfirmed();
     this.changed();
     return {
-      allowed: record !== null,
+      allowed: record !== null && saved,
       refusal:
         record === null
           ? 'Tortie could not record what you agreed to, so it confirmed ' +
             'nothing. Nothing was changed.'
-          : null,
+          : saved
+            ? null
+            : POCKET_ALLOWED_NOT_SAVED,
       status: this.status()
     };
   }
 
   /**
-   * Drop one phone. The others stand.
+   * Drop one phone. THE OTHERS STAND, AND KEEP READING (Phase 333.12, D11c,
+   * his answer 9).
    *
-   * The phone leaves the store AND the confirmation is withdrawn with it, so
-   * the door asks again before it answers anything. The door process is handed
-   * the pins at once, so the removed phone's open sockets are cut before any
-   * queued close runs, and its next handshake is refused before a byte of
-   * HTTP. Its spent nonces are forgotten too.
+   * The phone leaves the store BEFORE the first await, and the door process
+   * is handed the pins at once, so the removed phone's open sockets are cut
+   * before any queued close runs, and its next handshake is refused before a
+   * byte of HTTP. Its spent nonces are forgotten too. Then, when the door was
+   * confirmed before the press and another phone remains, the narrower door
+   * is recorded in main (`narrowPocketDoor`, which only takes away), so the
+   * other phones and their alerts go on with no Allow. Otherwise, as before
+   * this phase, the agreement is withdrawn and the door asks again: removing
+   * the LAST phone stops the door until Allow.
    */
   async removePhone(phoneId: string): Promise<PocketStatus> {
     const store = this.readStore();
     if (store === null) return this.status();
     const kept = store.phones.filter((p) => p.id !== phoneId);
     if (kept.length === store.phones.length) return this.status();
+    const before = this.fields();
+    const wasConfirmed = pocketConfirmStatus(before).state === 'confirmed';
     if (!this.writeStore({ ...store, phones: kept })) return this.status();
     this.postPins();
     this.addedAt.delete(phoneId);
     this.verifier.forget(phoneId);
-    forgetPocketDoor();
+    const narrowed = wasConfirmed && kept.length > 0 && narrowPocketDoor(before, this.fields()) !== null;
+    if (!narrowed) forgetPocketDoor();
     await this.closeUnlessConfirmed();
     this.changed();
     return this.status();
@@ -2280,10 +2418,13 @@ export class PocketHost {
   /**
    * Turn the alerts through Apple on or off.
    *
-   * THE SWITCH IS A HASHED FIELD, so either direction moves the door's hash and
-   * the door asks again; the confirm that follows is the person's, through
-   * {@link confirmDoor}. Turning it OFF stops the push at once without waiting
-   * for that confirm, because {@link pushDestinations} reads the switch first.
+   * THE SWITCH IS A HASHED FIELD. Turning it ON moves the door's hash and the
+   * door asks again; the confirm that follows is the person's, through
+   * {@link confirmDoor}. Turning it OFF only takes away (Phase 333.12, D11):
+   * when the door was confirmed before the press, main records the door with
+   * the alerts off in the same press (`narrowPocketDoor`), so the door neither
+   * closes nor restarts and a waiting route still waits. It stops the push at
+   * once either way, because {@link pushDestinations} reads the switch first.
    */
   async setPushAlerts(on: boolean): Promise<PocketStatus> {
     let store: PocketStore | null;
@@ -2296,8 +2437,12 @@ export class PocketHost {
       store = null;
     }
     if (store === null || store.pushAlerts === on) return this.status();
+    const before = this.fields();
+    const wasConfirmed = pocketConfirmStatus(before).state === 'confirmed';
     if (!this.writeStore({ ...store, pushAlerts: on })) return this.status();
-    // A hashed field moved: a published door closes until the person confirms.
+    // Off narrows in main, still before the first await; on asks as before.
+    if (!on && wasConfirmed) narrowPocketDoor(before, this.fields());
+    // A hashed field moved: a published door closes unless it is confirmed.
     // The store is written BEFORE this first await.
     await this.closeUnlessConfirmed();
     this.changed();

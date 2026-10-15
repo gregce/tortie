@@ -127,6 +127,35 @@
  * O3: it reads no conversation. With Phase 318's Y1 to Y18, ninety-seven
  * rules in all.
  *
+ * PHASE 333.12 KEEPS THE DOOR OPEN ACROSS AN UPDATE (build/p33312/SPEC.md
+ * §6.1). The route list a record is checked against is the set a person
+ * ALLOWED, sealed in pocket.json as `allowedRoutes` and the eleven launch
+ * routes when absent, so an update that adds a route switches no phone off,
+ * and the new route WAITS for the Allow whose lines name it (his answer 10).
+ * Twelve rules joined, AR1 to AR12: the stored list read whole or not at all
+ * (AR1), fields() the allowed set and never this build's table (AR2), the
+ * legacy list the frozen launch list (AR3), one writer, confirmDoor after its
+ * record (AR4), the door process's and main's refusals before the body (AR5),
+ * one served set handed to the door process and asked by main three times
+ * (AR6), the honesty sentence composed over what the Allow beside it grants
+ * (AR7), the three confirm paths and the two narrowings (AR8), the table held to the route
+ * ledger (AR9), Remove of one of several phones keeping the others (AR10,
+ * his answer 9), the status's proposal, served and waiting lists (AR11) and
+ * the sheet drawing a waiting route on a published door (AR12). Five of them
+ * DRIVE a pure function in memory as well as reading it. SU6 now holds the
+ * honesty sentence as the composer's call, and Y2 and X9 the write path's
+ * fourth ask, the route still served. One hundred and forty-eight rules in
+ * all.
+ *
+ * ITS FIX ROUND widened three of them on the verify's findings, each after an
+ * ablation left every gate green: AR4 requires the allowed set's one write to
+ * sit under a guard naming the record it follows (a record that could not be
+ * sealed wrote the store, K18), AR8 pins what Remove and alerts off hand
+ * `narrowPocketDoor(` (the proposal in place of `this.fields()` restarted the
+ * door on alerts off, K16), and AR7, AR11 and SU6 move the honesty sentence
+ * onto `routesOffered`, what the Allow beside it grants, composed from the one
+ * proposal the lines and the hash come from.
+ *
  * HOW IT READS. The source, parsed with the TypeScript compiler's own parser,
  * so a comment, a string and a call are each read as what they are. A rule
  * that could be satisfied by a word in a comment is not a rule, and three of
@@ -226,13 +255,13 @@ const RULES = [
   ['X6', 'build/p317/SPEC.md §5.3.1, §5.4, research 135 §4.8; build/p318/SPEC.md D19, D20; build/p337/SPEC.md §5.4', 'THE ANSWER: PocketWriteAnswer is exactly verb, write, outcome, reason and sentence; every sentence the write path, pocket-writes.ts, src/main/reply or src/main/screen sets is a named constant from lifecycle-words.ts, src/shared/reply-copy.ts, src/shared/screen-copy.ts, endRefusal’s own, or POCKET_WRITE_SENTENCES; no .message is read; a caught error is told apart by isGmuxError(, by code, and nothing else'],
   ['X7', 'build/p317/SPEC.md D4, §5.3.2', 'NEVER 404 AFTER THE ACT: bind.ts posts nothing for an acted answer that fails validation; the listener’s late-answer timer cuts a write (writesCut) before it could answer 404; no refusal follows the forward, and every other 404 is a refusal before it or the read half of a choice that cuts a forwarded write'],
   ['X8', 'build/p317/SPEC.md D2, §5.3.1, §5.3.2', 'THE DOOR NEVER PARSES A WRITE: JSON.parse in the door process is presentationOfBody’s, reached by the pairing route alone; a write’s target is url.pathname, a write with a query is refused route, and doorRequestOf refuses a target that is not the write’s path; the cap is read from POCKET_WRITE_BODY_CAPS on both sides'],
-  ['X9', 'build/p317/SPEC.md "§Fix round"', 'A PHONE IS REMOVED BY REMOVE ALONE: the one store write that filters a phone out is in removePhone, before its first await; no write route reaches it (the write path’s deps are exactly shuttingDown, stillPaired, writes and now, and name nothing that drops a phone), and no answer carries a step to run after it (DoorAnswer has no after, and nothing in bind.ts, ipc.ts or writes.ts runs one)'],
+  ['X9', 'build/p317/SPEC.md "§Fix round"', 'A PHONE IS REMOVED BY REMOVE ALONE: the one store write that filters a phone out is in removePhone, before its first await; no write route reaches it (the write path’s deps are exactly shuttingDown, stillPaired, routeServed, writes and now, and name nothing that drops a phone), and no answer carries a step to run after it (DoorAnswer has no after, and nothing in bind.ts, ipc.ts or writes.ts runs one)'],
   ['X10', 'build/p317/SPEC.md §5.3.2, §14 finding 22', 'THE REVOKED SOCKET: applyPins marks it revoked and destroys it at once unless it is answering a write (writes === 0); a forwarded write is counted on its socket and the socket is cut when that answer finishes or closes; handleRequest refuses a revoked socket before anything else'],
   ['X11', 'build/p317/SPEC.md §5.3.4 step 7; build/p318/SPEC.md §5.1.4 step 7', 'ONE LOG LINE PER WRITE, whatever its verb: exactly one log call in the write path, after the act, interpolating the verb and the outcome word, with the session id as its one field, never the body, the write id, a header, a sentence, the question id, the mark, the marker or the text'],
   ['X12', 'build/p317/SPEC.md D19, §5.6; build/p318/SPEC.md §5.1.7, D28; build/p337/SPEC.md D35', 'THE LINES SAY IT: describePocketDoor derives “Lets an allowed phone …” from fields.routes through a compiled map keyed by PocketWriteRouteId, whose clauses are exactly end a session, answer a numbered question, send a session one message and type into any session as you would at this Mac, joined as a list; POCKET_DOOR_HONESTY names the screen, the keys and the three, and no longer says it can change nothing else; POCKET_READ_ONLY_HONESTY is named nowhere'],
   // PHASE 318, the reply (build/p318/SPEC.md §6.1).
   ['Y1', 'build/p318/SPEC.md D3, §Revision R18; build/p337/SPEC.md D17', 'THE CAPS: POCKET_WRITE_BODY_CAPS is frozen and exactly end 512, choose 512, say 32,768 and keys 16,384, keyed by the closed write list'],
-  ['Y2', 'build/p318/SPEC.md D5, §5.1.4 step 4', 'STILL: the write path builds still from exactly the three asks of its own last check and hands it to writes.choose( and writes.say( as their second argument; a message’s text reaches writes.say( and nothing else'],
+  ['Y2', 'build/p318/SPEC.md D5, §5.1.4 step 4; build/p33312/SPEC.md §6.1', 'STILL: the write path builds still from exactly the four asks of its own last check (the quit, the door stopping, the phone still paired and, since Phase 333.12, the route still served) and hands it to writes.choose( and writes.say( as their second argument; a message’s text reaches writes.say( and nothing else'],
   ['Y3', 'build/p318/SPEC.md D8, D9, §5.6, §Revision R19 b', 'THE ARGV, element for element: writer.ts and reader.ts compose only the press’s two control lines and its spawned list, load-buffer -b <name> -, the paste list, delete-buffer -b <name>, list-panes … -F PANE_FORMAT, display-message for the cursor and capture-pane -p [-e]; the press and the paste aim at the reading’s pane and never the session list-panes reads; -l only before -- and the marker; no Enter but the paste list’s'],
   ['Y4', 'build/p318/SPEC.md §5.6.2, research 135 §4.8', 'THE TEXT’S ONE SINK: no argv element is derived from a message’s text, which reaches textRefusal( and load-buffer’s stdin alone; the buffer is named tortie-say- and an id the writer mints (randomBytes(16)), never the phone’s write id; delete-buffer sits in a finally'],
   ['Y5', 'build/p318/SPEC.md D5, D8, §5.6.1 steps 4 and 5, §Revision R15, R19 a', 'THE FINAL CHECK, THEN THE ACT: in choose and say, still(, then the phone’s bump(, then onLastCheck?.(, then the act (the press’s Promise.allSettled([…]) of two sendCommand( lines or its spawned list; the say’s paste list), with no await between the first still( and the act; and readReply’s last awaited read is the capture'],
@@ -309,10 +338,24 @@ const RULES = [
   ['SU3', 'build/p3331/SPEC.md D11 to D13, §5.2.3; r2 §Attack F23', 'THE SETUP PRESSES: POCKET_SETUP_ACTIONS is exactly get-tailscale, open-tailscale and copy-admin-link; setupAction’s first statement after the parse returns false under isHarnessLaunch(process.env); each act once, after setupActionsNow(, the page TAILSCALE_DOWNLOAD_PAGE, the app TAILSCALE_APP_BUNDLE and the held link after approvalOpens(, written as funnel.ts’s one approvalCopyText( spells it (null unless approvalOpens(, else new URL(…).href beginning https://login.tailscale.com/, never the printed text; the 333.1 reverify); the press’s word reaches no act; shell.openExternal only in openApproval and electronSetupSeam, shell.openPath and clipboard only in electronSetupSeam, each read inside an arrow’s body; open-tailscale listed only for a pinned, non-override program at TAILSCALE_APP_PROGRAM; PocketHostDeps.setup handed by tests alone'],
   ['SU4', 'build/p3331/SPEC.md D2, D3', 'THE STAT: status() calls this.funnel.resolve() exactly once, reaches the program only through funnelProgramOf( and hands the same resolution to setupActionsNow(, and names no readTailnet(, readServe(, exec, spawn or sweepFunnelOrphan(; tailscale is this.tailscaleNow( called once, in status(), and its body names no tailnetFacts, readStore(, facts( or fields('],
   ['SU5', 'build/p3331/SPEC.md D4, D30', 'DRAWN AND NEVER HASHED: no account in PocketExecutionFields, NORMALIZE, PocketStore, facts.ts, routes.ts, door/**, any contract type but PocketStatus, or any log call’s arguments in the domain; POCKET_EXECUTION_HASH_ALGORITHM is sha256-pocket-exec-v3 and POCKET_ROUTE_IDS the eleven routes it was'],
-  ['SU6', 'build/p3331/SPEC.md D18; his ruling 2, “Keep today’s block”', 'THE CONFIRM UNCHANGED: the one element carrying data-phone-confirm holds the confirmLines, POCKET_CONFIRM_WARNING, POCKET_DOOR_HONESTY, POCKET_FUNNEL_RIGHT_WARNING under funnel.asksApproval and confirm-door, and none of it sits inside a <details>; confirmDoor hands linesRead: current.confirmLines and hashRead: current.confirmHash, unsliced and unmapped'],
+  ['SU6', 'build/p3331/SPEC.md D18; his ruling 2, “Keep today’s block”; build/p33312/SPEC.md §6.1', 'THE CONFIRM UNCHANGED, plus the waiting lines inside it, which are the proposal’s own lines: the one element carrying data-phone-confirm holds the confirmLines, POCKET_CONFIRM_WARNING, the honesty sentence as pocketDoorHonesty(status.routesOffered) (what this Allow grants, Phase 333.12’s fix round) and never the bare constant, POCKET_FUNNEL_RIGHT_WARNING under funnel.asksApproval and confirm-door, and none of it sits inside a <details>; confirmDoor hands linesRead: current.confirmLines and hashRead: current.confirmHash, unsliced and unmapped'],
   ['SU7', 'build/p3331/SPEC.md D17; r2 §Attack F11, F27', 'THE CODE ASKED FOR: setPairAfterAllow(\'pressed\') is called exactly twice outside onPair, in the live onSetDoor and the live onRetryDoor, each under a condition holding status !== null && status.phones.length === 0; pairAfterAllowNext reads .rechecks and names no nameProgress and no nameCheck'],
   ['SU8', 'build/p3331/SPEC.md D6; §Attack F9', 'THE ADMIN LINK: adminLink is assigned a URL exactly once, in the start’s not-approved arm, under approvalOpens(; no adminText exists; status() names no adminLink, which is read in setupActionsNow and in setupAction’s copy-admin-link arm alone; it is never cleared in readOnReturn or recheck, and sweepAndRead clears it only under !read.asksApproval; approvalText is composed from this.approvalUrl as today'],
-  ['SU9', 'build/p3331/SPEC.md D29; research 140 §10; his answer (3)', 'THE WORDS: no string literal, template text or JSX text in PhoneSection.tsx, phone/** or src/shared/ipc/pocket.ts, nor PUSH_PUBLISHER_ONLY’s value, says beta, TestFlight, remote desktop, mirror, stream or SSH, word-bounded and case-insensitive; comments are not read']
+  ['SU9', 'build/p3331/SPEC.md D29; research 140 §10; his answer (3)', 'THE WORDS: no string literal, template text or JSX text in PhoneSection.tsx, phone/** or src/shared/ipc/pocket.ts, nor PUSH_PUBLISHER_ONLY’s value, says beta, TestFlight, remote desktop, mirror, stream or SSH, word-bounded and case-insensitive; comments are not read'],
+  // PHASE 333.12, an update keeps the door open (build/p33312/SPEC.md §6.1):
+  // the routes a record is checked against are the routes a person ALLOWED.
+  ['AR1', 'build/p33312/SPEC.md D1, D2', 'THE ALLOWED SET IS SEALED AND READ WHOLE: PocketStore declares allowedRoutes: readonly string[] | null; readPocketStore sets it from allowedRoutesOf( alone; allowedRoutesOf is declared once, in src/main/pocket/allowed-routes.ts, and refuses (answers null, DRIVEN over a thirteen-id ledger so each refusal is the one thing wrong) a non-array, an empty array, more entries than POCKET_ROUTE_LEDGER, a non-string, a duplicate, an id outside POCKET_LEDGER_IDS and a list missing a LEGACY_ALLOWED_ROUTES id, each a branch the rule finds; no type in src/shared/ and no door answer carries allowedRoutes'],
+  ['AR2', 'build/p33312/SPEC.md D4', 'FIELDS ARE THE ALLOWED SET: PocketHost.fields() composes routes from allowedRoutesFor( over the store’s allowedRoutes and names no pocketRouteIds(, POCKET_ROUTES, POCKET_ROUTE_IDS or proposedRoutes(; allowedRoutesFor answers the stored list or LEGACY_ALLOWED_ROUTES and nothing else'],
+  ['AR3', 'build/p33312/SPEC.md D3', 'THE LEGACY LIST IS THE LAUNCH LIST: LEGACY_ALLOWED_ROUTES is declared once, in src/shared/ipc/pocket.ts, a literal sorted array of the eleven, equal as a set to ios/TortieTests/Fixtures/frozen/launch.wire.json’s routes; the sorted METHOD path lines of its ledger rows hash to ROUTE_PIN and to the frozen routeMembership'],
+  ['AR4', 'build/p33312/SPEC.md D9, D12', 'ONE WRITER OF THE ALLOWED SET: across src/main/**, the only object literal or assignment that gives allowedRoutes a value other than the store’s own (carried through, or store?.allowedRoutes ?? null) is in PocketHost.confirmDoor, AFTER its confirmPocketDoor( call, UNDER A GUARD THAT NAMES THAT RECORD (record !== null as a top-level conjunct, or an early return on record === null before it; the fix round, lens 1’s K18), and its value is the proposal’s routes'],
+  ['AR5', 'build/p33312/SPEC.md D7, D8', 'BOTH REFUSALS BEFORE THE BODY: in door/listener.ts the statement after the null-route refusal refuses route for a route not in the served set, before readCapped( and before the windowOnly test; toDoorOf drops a start without valid routes and an update with invalid ones (DRIVEN); in server.ts deps.routeServed( is asked after refusal 1 and before the pair arm and deps.verify(, and again in refusal 7 with nothing awaited between it and the return'],
+  ['AR6', 'build/p33312/SPEC.md D8, D22', 'ONE SERVED SET: PocketHost declares servedRoutes, routeServed and postRoutes once each; servedRoutes reads this.fields().routes and pocketRouteIds() through servedRoutesOf( and nothing else (no record read); both handlers are handed routeServed; startPocketDoor( is handed routes: this.servedRoutes(); updatePocketDoor({ routes is called only inside postRoutes, which returns while the door is not listening and is called in confirmDoor and in openNow after the door answered'],
+  ['AR7', 'build/p33312/SPEC.md D13', 'THE WORDS FOLLOW THE ALLOWED SET: pocketDoorHonesty is declared once, in src/shared/ipc/pocket.ts, and DRIVEN answers POCKET_DOOR_HONESTY byte for byte for LEGACY_ALLOWED_ROUTES and a planted clause only once allowed; POCKET_HONESTY_ADDED is typed Record<Exclude<PocketRouteId, LegacyAllowedRouteId>, string>; the sheet’s confirm block draws pocketDoorHonesty(status.routesOffered), what the Allow beside it grants (the fix round), and no file under src/renderer draws POCKET_DOOR_HONESTY itself; describePocketDoor’s route and clause lines read only fields.routes'],
+  ['AR8', 'build/p33312/SPEC.md D9, D10, D11, D11b; his answer 10', 'THE THREE CONFIRM PATHS AND THE TWO NARROWINGS: confirmDoor hands confirmPocketDoor( the result of this.proposal(, never this.fields(); PocketPairing is built with fieldsNow: () => this.fields() and allow hands confirmPocketDoor( this.fieldsWithPending() alone; the sheet calls its confirmDoor helper exactly once, inside onConfirmDoor, and onSetPushAlerts calls no confirmDoor; narrowPocketDoor( is called only in removePhone and setPushAlerts, each handing it exactly (<a const read from this.fields() before the store write>, this.fields()) after that write (the fix round, lens 1’s K16), and its body asks isPocketSubtraction( and compares the record with pocketExecutionHash(before) before writeConfirmRecords(; isPocketSubtraction (DRIVEN) admits exactly one phone gone or pushAlerts true to false, by canonicalPocketText('],
+  ['AR9', 'build/p33312/SPEC.md D12', 'THE TABLE IS HELD TO THE LEDGER: POCKET_ROUTE_LEDGER’s rows are literals and the ledger imports nothing; every POCKET_ROUTES row has a ledger row of the same id with the same method, path, reads, signed and windowOnly; its bodyCap is the door’s cap for that row and its clause WRITE_CLAUSES[id] for a write and null for a read; ledger ids are distinct; every LEGACY_ALLOWED_ROUTES id is a ledger id'],
+  ['AR10', 'build/p33312/SPEC.md D11c; his answer 9', 'REMOVE KEEPS THE OTHERS: removePhone reads this.fields() and pocketConfirmStatus( BEFORE its store write, which stays before the first await; narrowPocketDoor( is called only under the confirmed reading AND while another phone remains; forgetPocketDoor() is reached only when that did not record'],
+  ['AR11', 'build/p33312/SPEC.md D5, D6', 'THE STATUS: status() answers confirmLines and confirmHash from ONE describePocketDoor( call over this.proposal( (directly or through one const), routesOffered: servedRoutesOf(<that proposal>.routes, pocketRouteIds()) (the fix round), routesAllowed: this.servedRoutes(), and routesWaiting from waitingRoutesOf( over fields.routes with the on-record condition naming confirmed and changed; PocketStatus declares the three lists readonly PocketRouteId[]; the proposal is proposedRoutes(fields.routes, pocketRouteIds(), state !== never), and proposedRoutes answers the build alone when not on record (DRIVEN, with servedRoutesOf and waitingRoutesOf)'],
+  ['AR12', 'build/p33312/SPEC.md D23', 'THE SHEET DRAWS A WAITING ROUTE ON A PUBLISHED DOOR: steps.ts’s publishRow listening arm keeps STATE_PUBLISHED, published and doorListening( and draws [{ kind: confirm }] exactly under routesWait(status), which reads state === listening, confirmable and routesWaiting.length > 0 and nothing else; doorNeedsConfirm’s body is unchanged']
 ];
 
 if (process.argv.includes('--list')) {
@@ -6521,8 +6564,11 @@ function phoneRemovalRules() {
     const deps = interfaceOf(writes, 'PocketWriteDeps');
     const names = (deps?.members ?? []).map((m) => memberName(m)).filter((n) => n !== null).sort();
     checked('X9', 2);
-    if (deps === null || deps === undefined || names.join(',') !== 'now,shuttingDown,stillPaired,writes') {
-      fail('X9', `${rel(writes)}: PocketWriteDeps holds ${JSON.stringify(names)}; it holds exactly now, shuttingDown, stillPaired and writes, so no write route can reach anything that drops a phone`);
+    // PHASE 333.12 (build/p33312/SPEC.md §5.7, D8) added routeServed, the
+    // last check's fourth ask: a predicate over a route id, which names
+    // nothing that can drop a phone.
+    if (deps === null || deps === undefined || names.join(',') !== 'now,routeServed,shuttingDown,stillPaired,writes') {
+      fail('X9', `${rel(writes)}: PocketWriteDeps holds ${JSON.stringify(names)}; it holds exactly now, routeServed, shuttingDown, stillPaired and writes, so no write route can reach anything that drops a phone`);
     }
     for (const c of callsOf(writes)) {
       if (runsAfter(c) || /unpair|dropPhone|removePhone/i.test(calleeName(c) ?? '')) fail('X9', `${where(writes, c)}: the write path calls ${String(calleeName(c))}(; it ends a session through PocketWrites and does nothing else`);
@@ -6827,8 +6873,10 @@ function replyRules() {
       const asks = body === null ? [] : descendantsOf(body).filter((n) => ts.isCallExpression(n)).map((c) => c.expression.getText(astOf(writesFile)));
       const lastCheck = descendantsOf(handler).find((n) => ts.isIfStatement(n) && /stillPaired\(/.test(n.expression.getText()));
       const lastAsks = lastCheck === undefined ? [] : descendantsOf(lastCheck.expression).filter((n) => ts.isCallExpression(n)).map((c) => c.expression.getText(astOf(writesFile)));
-      const want = ['deps.shuttingDown', 'door.stopping', 'deps.stillPaired'];
-      if (J([...asks].sort()) !== J([...want].sort())) fail('Y2', `${where(writesFile, still)}: still asks ${J(asks)}; it asks exactly the quit, this door instance stopping and the signing phone still paired, the same three as the last check`);
+      // PHASE 333.12 (build/p33312/SPEC.md §6.1): the fourth ask, the verb's
+      // route still served, because the door process's copy can lag main's.
+      const want = ['deps.shuttingDown', 'door.stopping', 'deps.stillPaired', 'deps.routeServed'];
+      if (J([...asks].sort()) !== J([...want].sort())) fail('Y2', `${where(writesFile, still)}: still asks ${J(asks)}; it asks exactly the quit, this door instance stopping, the signing phone still paired and the verb's route still served, the same four as the last check`);
       if (J([...lastAsks].sort()) !== J([...asks].sort())) fail('Y2', `${where(writesFile, still)}: still asks ${J(asks)} and the last check ${J(lastAsks)}; they are one question asked twice, so a press can never type where the door would have refused it`);
       const handed = (verb) =>
         descendantsOf(handler).some((n) => ts.isCallExpression(n) && calleeName(n) === verb && /writes/.test(ts.isPropertyAccessExpression(n.expression) ? n.expression.expression.getText() : '') && n.arguments[1] !== undefined && bare(n.arguments[1]).getText() === 'still');
@@ -11470,12 +11518,19 @@ function confirmBlockRule() {
     for (const [what, ok] of [
       ['the confirmLines', has((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'confirmLines')],
       ['POCKET_CONFIRM_WARNING', has((n) => ts.isIdentifier(n) && n.text === 'POCKET_CONFIRM_WARNING')],
-      ['POCKET_DOOR_HONESTY', has((n) => ts.isIdentifier(n) && n.text === 'POCKET_DOOR_HONESTY')],
+      // PHASE 333.12 (build/p33312/SPEC.md §6.1, D13): the honesty sentence
+      // is the composer over what THIS Allow grants, main's routesOffered
+      // (the fix round; it read the served set, which left out the very
+      // route the Allow beside it grants), which answers today's sentence
+      // byte for byte for the eleven.
+      ['pocketDoorHonesty(status.routesOffered)', has((n) => ts.isCallExpression(n) && calleeName(n) === 'pocketDoorHonesty' && n.arguments.length === 1 && squash(codeOfNode(file, n.arguments[0])) === 'status.routesOffered')],
       ['confirm-door', has((n) => ts.isStringLiteralLike(n) && n.text === 'confirm-door')]
     ]) {
       checked('SU6');
-      if (!ok) fail('SU6', `${where(file, el)}: the confirm block holds no ${what}. The confirm at Allow is today's block, byte for byte (his ruling 2, "Keep today's block")`);
+      if (!ok) fail('SU6', `${where(file, el)}: the confirm block holds no ${what}. The confirm at Allow is today's block, byte for byte (his ruling 2, "Keep today's block"), with the waiting lines inside it`);
     }
+    checked('SU6');
+    if (has((n) => ts.isIdentifier(n) && n.text === 'POCKET_DOOR_HONESTY')) fail('SU6', `${where(file, el)}: the confirm block draws the bare POCKET_DOOR_HONESTY. It draws pocketDoorHonesty(status.routesOffered), which is that sentence for the eleven and says an added route's clause beside the Allow that grants it (build/p33312/SPEC.md D13, the fix round)`);
     const right = nodes.filter((n) => ts.isIdentifier(n) && n.text === 'POCKET_FUNNEL_RIGHT_WARNING');
     checked('SU6');
     if (right.length !== 1 || !guardsOf(file, right[0], el).some((g) => /funnel\.asksApproval$/.test(g) || /funnel\.asksApproval/.test(g))) {
@@ -11514,6 +11569,25 @@ function confirmBlockRule() {
 
 // ---- SU7, the code asked for -------------------------------------------------
 
+/**
+ * The JSX attributes named `name` in `file` whose value is a live function,
+ * never `() => undefined`: the handlers a sheet actually wires. Shared by SU7
+ * and AR8 (Phase 333.12's integrator extracted it rather than keep two copies).
+ */
+function liveJsxHandlers(file, name) {
+  const sf = astOf(file);
+  return nodesOf(file).filter(
+    (n) =>
+      ts.isJsxAttribute(n) &&
+      n.name.getText(sf) === name &&
+      n.initializer !== undefined &&
+      ts.isJsxExpression(n.initializer) &&
+      n.initializer.expression !== undefined &&
+      ts.isFunctionLike(n.initializer.expression) &&
+      !/^\(\)\s*=>\s*undefined$/.test(n.initializer.expression.getText(sf).trim())
+  );
+}
+
 function wishRule() {
   const phone = join(ROOT, 'src', 'renderer', 'settings', 'PhoneSection.tsx');
   checked('SU7');
@@ -11521,18 +11595,7 @@ function wishRule() {
     fail('SU7', 'src/renderer/settings/PhoneSection.tsx does not exist');
     return;
   }
-  const psf = astOf(phone);
-  const liveHandler = (name) =>
-    nodesOf(phone).filter(
-      (n) =>
-        ts.isJsxAttribute(n) &&
-        n.name.getText(psf) === name &&
-        n.initializer !== undefined &&
-        ts.isJsxExpression(n.initializer) &&
-        n.initializer.expression !== undefined &&
-        ts.isFunctionLike(n.initializer.expression) &&
-        !/^\(\)\s*=>\s*undefined$/.test(n.initializer.expression.getText(psf).trim())
-    );
+  const liveHandler = (name) => liveJsxHandlers(phone, name);
   const handlers = { onSetDoor: liveHandler('onSetDoor'), onRetryDoor: liveHandler('onRetryDoor'), onPair: liveHandler('onPair') };
   const inside = (n, list) => list.some((h) => n.pos >= h.pos && n.end <= h.end);
   const wishes = callsOf(phone).filter((c) => calleeName(c) === 'setPairAfterAllow' && c.arguments[0] !== undefined && ts.isStringLiteralLike(c.arguments[0]) && c.arguments[0].text === 'pressed');
@@ -11708,6 +11771,1332 @@ function setupRules() {
 }
 
 // ---------------------------------------------------------------------------
+// AR — PHASE 333.12: an update keeps the door open (build/p33312/SPEC.md §6.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * THE ROUTE LIST A RECORD IS CHECKED AGAINST IS THE SET A PERSON ALLOWED.
+ * Before this phase `fields().routes` was always this build's table, so the
+ * update that added any route moved the hash, the door read `changed`, and
+ * every paired phone and its alerts went dark until somebody pressed Allow
+ * (measured at the parent, build/p33312/SPEC.md §3: `mayOpen` false, 0 push
+ * destinations, Tailscale asked nothing). These twelve rules hold every clause
+ * that keeps that from coming back, and every clause that keeps refusal 8 true
+ * while it does: no route answers before a person confirmed lines naming it.
+ *
+ * Read with the parser as every other rule here; five of them also DRIVE a
+ * pure function in memory (`zLoad`), because a branch that reads right can
+ * still answer wrong: the reader's refusals (AR1), the allowed set (AR2), the
+ * wire's validator (AR5), the honesty composer (AR7) and the subtraction test
+ * (AR8). Nothing is spawned and nothing is written.
+ */
+const AR_CORE_OWNER = "Phase 333.12 builder core's";
+const AR_DOOR_OWNER = "Phase 333.12 builder door's";
+const AR_CONTRACT = join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts');
+const AR_PAIRING = join(DOMAIN, 'pairing.ts');
+const AR_IPC = join(DOMAIN, 'ipc.ts');
+const AR_ALLOWED = join(DOMAIN, 'allowed-routes.ts');
+const AR_LEDGER = join(DOMAIN, 'route-ledger.ts');
+const AR_LISTENER = join(DOMAIN, 'door', 'listener.ts');
+const AR_WIRE = join(DOMAIN, 'door', 'wire.ts');
+const AR_SERVER = join(DOMAIN, 'server.ts');
+const AR_STEPS = join(ROOT, 'src', 'renderer', 'settings', 'phone', 'steps.ts');
+const AR_PHONE = join(ROOT, 'src', 'renderer', 'settings', 'PhoneSection.tsx');
+const AR_LAUNCH = join(ROOT, 'ios', 'TortieTests', 'Fixtures', 'frozen', 'launch.wire.json');
+const AR_RULE_IDS = ['AR1', 'AR2', 'AR3', 'AR4', 'AR5', 'AR6', 'AR7', 'AR8', 'AR9', 'AR10', 'AR11', 'AR12'];
+
+/** A file an AR rule needs, or null with the rule failed by name and its owner. */
+function arFile(path, id, owner) {
+  if (existsSync(path)) return path;
+  fail(
+    id,
+    `${rel(path)} does not exist, so this rule read nothing. It is ${owner} (build/p33312/SPEC.md §8). ` +
+      'A gate that passed here would go green on the day the allowed set does not exist.'
+  );
+  return null;
+}
+
+/** Every production `.ts`/`.tsx` under a directory whose TEXT names a word, so a large tree is parsed only where it can matter. */
+const arTextCache = new Map();
+function arFilesNaming(dir, word) {
+  return sourcesUnder(dir).filter((f) => {
+    let text = arTextCache.get(f);
+    if (text === undefined) {
+      text = readFileSync(f, 'utf8');
+      arTextCache.set(f, text);
+    }
+    return text.includes(word);
+  });
+}
+
+/** The quiet logger and the keystore-free stand-ins a main module is loaded over in memory. */
+const AR_STUBS = {
+  electron: { app: { getPath: () => join(ROOT, '.p33312-nowhere'), isReady: () => false, isPackaged: false }, safeStorage: { isEncryptionAvailable: () => false } },
+  'main/log': { getLog: () => ({ info() {}, warn() {}, error() {}, debug() {} }) },
+  'main/config/seal': { openSealedText: () => null, sealText: () => null, sealAvailable: () => false },
+  'main/config/confirm-record': { readConfirmRecords: () => ({ rows: {}, sealKnown: false }), writeConfirmRecords: () => false },
+  'main/pocket/tls': { isP256SpkiDer: () => true }
+};
+
+/** A module loaded in memory, or null with the rule failed by name. */
+function arLoad(path, id, stubs = AR_STUBS) {
+  try {
+    return zLoad(path, stubs);
+  } catch (err) {
+    fail(id, `${rel(path)} could not be loaded in memory to be driven: ${err instanceof Error ? err.message : String(err)}`);
+    return null;
+  }
+}
+
+/**
+ * A module loaded in memory from TEXT this rule wrote (a variant of a shipping
+ * file with one value planted), its imports loaded as `zLoad` loads them.
+ */
+function arLoadText(path, text, stubs = AR_STUBS) {
+  const js = ts.transpileModule(text, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true }, fileName: path }).outputText;
+  const nodeRequire = createRequire(import.meta.url);
+  const module = { exports: {} };
+  const req = (spec) => {
+    if (spec === 'electron') return stubs['electron'] ?? {};
+    const base = spec.startsWith('@shared/') ? join(ROOT, 'src', 'shared', spec.slice('@shared/'.length)) : spec.startsWith('.') ? resolve(dirname(path), spec) : null;
+    if (base === null) return nodeRequire(spec);
+    for (const candidate of [`${base}.ts`, `${base}.tsx`, join(base, 'index.ts')]) if (existsSync(candidate)) return zLoad(candidate, stubs);
+    throw new Error(`${relative(ROOT, path)} imports ${spec}, which resolves to no .ts file`);
+  };
+  new Function('require', 'module', 'exports', js)(req, module, module.exports);
+  return module.exports;
+}
+
+/** The frozen launch set's route ids and membership, or null with the rule failed. */
+function arLaunch(id) {
+  try {
+    const wire = JSON.parse(readFileSync(AR_LAUNCH, 'utf8'));
+    const routes = Array.isArray(wire.routes) ? wire.routes : [];
+    if (routes.length === 0) throw new Error('it holds no routes');
+    return { routes, ids: routes.map((r) => r.id), membership: wire.routeMembership ?? null };
+  } catch (err) {
+    fail(id, `${rel(AR_LAUNCH)} could not be read (${err instanceof Error ? err.message : String(err)}), so the legacy list has nothing to be held to`);
+    return null;
+  }
+}
+
+/** A literal string array a const is initialized with (through `as const` and `satisfies`), or null. */
+function arLiteralStrings(decl) {
+  const init = bare(decl?.initializer);
+  if (init === undefined || !ts.isArrayLiteralExpression(init)) return null;
+  const out = [];
+  for (const el of init.elements) {
+    if (!ts.isStringLiteralLike(el)) return null;
+    out.push(el.text);
+  }
+  return out;
+}
+
+/** The squashed text of a node, comments blanked. */
+const arText = (file, node) => squash(codeOfNode(file, node));
+
+/** The identifiers a subtree names (references, declarations included). */
+const arNames = (root) => new Set(descendantsOf(root).filter((n) => ts.isIdentifier(n)).map((n) => n.text));
+
+/** The PocketHost method `name`, exactly one, or null with the rule failed. */
+function arHostMethod(ipc, name, id) {
+  const found = hostMembers(ipc, name);
+  checked(id);
+  if (found.length === 1 && ts.isMethodDeclaration(found[0]) && found[0].body !== undefined) return found[0];
+  fail(id, `${rel(ipc)}: PocketHost declares ${name} ${String(found.length)} time(s)${found.length === 1 ? ', not as a method with a body' : ''}; it is ONE method (build/p33312/SPEC.md §5.5). It is ${AR_CORE_OWNER}.`);
+  return null;
+}
+
+/** The variable a method declares from a call named `callee` (e.g. `const proposal = this.proposal(…)`), or null. */
+function arDeclFrom(method, callee) {
+  for (const n of descendantsOf(method)) {
+    if (!ts.isVariableDeclaration(n) || !ts.isIdentifier(n.name) || n.initializer === undefined) continue;
+    const init = bare(n.initializer);
+    if (init !== undefined && ts.isCallExpression(init) && calleeName(init) === callee) return n;
+  }
+  return null;
+}
+
+/** The object literal(s) a method returns, through `?:`. */
+const arReturned = (method) => ownReturnsOf(method).flatMap((r) => (r.expression === undefined ? [] : returnedObjects(r.expression)));
+
+// ---- AR1, the allowed set is sealed and read whole -------------------------
+
+function arStoreRule() {
+  const id = 'AR1';
+  const pairing = arFile(AR_PAIRING, id, AR_CORE_OWNER);
+  const allowed = arFile(AR_ALLOWED, id, AR_CORE_OWNER);
+  if (pairing !== null) {
+    const store = interfaceOf(pairing, 'PocketStore');
+    const member = store?.members.find((m) => memberName(m) === 'allowedRoutes');
+    checked(id);
+    if (member === undefined) {
+      fail(id, `${rel(pairing)}: PocketStore declares no allowedRoutes, so the routes a person allowed are kept nowhere sealed (D1)`);
+    } else if (member.type === undefined || squash(member.type.getText(astOf(pairing))) !== 'readonlystring[]|null' || member.questionToken !== undefined) {
+      fail(id, `${where(pairing, member)}: PocketStore's allowedRoutes is not the required \`readonly string[] | null\`; null means absent or not whole, read as the eleven (D1, D2)`);
+    }
+    const reader = oneFunction(pairing, 'readPocketStore');
+    checked(id);
+    if (reader === null) {
+      fail(id, `${rel(pairing)} declares no single readPocketStore, so how the stored list is read back cannot be read`);
+    } else {
+      const props = descendantsOf(reader).filter((n) => (ts.isPropertyAssignment(n) || ts.isShorthandPropertyAssignment(n)) && memberName(n) === 'allowedRoutes');
+      checked(id, props.length);
+      if (props.length !== 1) fail(id, `${where(pairing, reader)}: readPocketStore sets allowedRoutes ${String(props.length)} time(s); once, from allowedRoutesOf( alone, so the stored list is read back whole or not at all (D1)`);
+      for (const p of props) {
+        const init = ts.isPropertyAssignment(p) ? bare(p.initializer) : undefined;
+        if (init === undefined || !ts.isCallExpression(init) || calleeName(init) !== 'allowedRoutesOf') {
+          fail(id, `${where(pairing, p)}: readPocketStore sets allowedRoutes from ${init === undefined ? 'a shorthand' : J(codeOfNode(pairing, init).slice(0, 80))}, not allowedRoutesOf( alone. A list read partly is a set nobody confirmed (D2)`);
+        }
+      }
+    }
+  }
+  // Declared once, in allowed-routes.ts.
+  const decls = declarationsOf(arFilesNaming(join(ROOT, 'src'), 'allowedRoutesOf'), 'allowedRoutesOf');
+  checked(id);
+  if (decls.length !== 1 || (allowed !== null && decls[0].file !== allowed)) {
+    fail(id, `allowedRoutesOf is declared ${String(decls.length)} time(s) (${decls.map((d) => where(d.file, d.n)).join(', ') || 'nowhere'}); once, in src/main/pocket/allowed-routes.ts, so there is one answer to "does this list read back whole" (D2)`);
+  }
+  // Each refusal a branch the rule finds in the body...
+  const fn = allowed === null ? null : oneFunction(allowed, 'allowedRoutesOf');
+  if (allowed !== null) {
+    checked(id);
+    if (fn === null) fail(id, `${rel(allowed)} declares no single allowedRoutesOf`);
+  }
+  if (fn !== null) {
+    const body = codeOfNode(allowed, fn);
+    for (const [what, ok] of [
+      ['a non-array (Array.isArray()', /Array\.isArray\(/.test(body)],
+      ['an empty list (.length === 0)', /\.length\s*(?:===\s*0|<\s*1)/.test(body)],
+      ['more entries than POCKET_ROUTE_LEDGER', /POCKET_ROUTE_LEDGER\s*\.\s*length/.test(body)],
+      ['a non-string (typeof)', /typeof\s+\w+\s*!==\s*'string'/.test(body)],
+      ['a duplicate (a seen set)', /\.has\(/.test(body) && /new\s+Set/.test(body)],
+      ['an id outside the ledger (POCKET_LEDGER_IDS)', /POCKET_LEDGER_IDS\s*\.\s*has\(/.test(body)],
+      ['a legacy id missing (LEGACY_ALLOWED_ROUTES)', /LEGACY_ALLOWED_ROUTES/.test(body)]
+    ]) {
+      checked(id);
+      if (!ok) fail(id, `${where(allowed, fn)}: allowedRoutesOf has no branch that refuses ${what}; every one answers null, whole (D2)`);
+    }
+  }
+  // ...and DRIVEN, over a ledger of thirteen ids, so each refusal is the only
+  // thing wrong with its list: the real ledger holds exactly the eleven, which
+  // makes every longer list too long as well.
+  if (allowed !== null && fn !== null && existsSync(AR_LEDGER) && existsSync(AR_CONTRACT)) {
+    const ledgerMod = arLoad(AR_LEDGER, id);
+    const contract = arLoad(AR_CONTRACT, id);
+    const legacy = contract === null ? null : contract.LEGACY_ALLOWED_ROUTES;
+    if (ledgerMod !== null && Array.isArray(legacy) && Array.isArray(ledgerMod.POCKET_ROUTE_LEDGER)) {
+      const real = arLoad(allowed, id, { ...AR_STUBS });
+      const rows = [
+        ...ledgerMod.POCKET_ROUTE_LEDGER,
+        { id: 'probe', method: 'GET', path: '/v1/probe', reads: true, signed: true, windowOnly: false, bodyCap: 1024, clause: null },
+        { id: 'spare', method: 'GET', path: '/v1/spare', reads: true, signed: true, windowOnly: false, bodyCap: 1024, clause: null }
+      ];
+      const wide = arLoad(allowed, id, { ...AR_STUBS, 'main/pocket/route-ledger': { POCKET_ROUTE_LEDGER: Object.freeze(rows), POCKET_LEDGER_IDS: new Set(rows.map((r) => r.id)) } });
+      const eleven = [...legacy].sort();
+      const shuffled = [...eleven].reverse();
+      const refusals = [
+        ['absent', undefined],
+        ['null', null],
+        ['an object', {}],
+        ['a string', eleven.join(',')],
+        ['an empty array', []],
+        ['the eleven with a non-string', [...eleven, 7]],
+        ['the eleven with a duplicate', [...eleven, eleven[0]]],
+        ['the eleven with an id outside the ledger', [...eleven, 'nosuch']],
+        ['the eleven less keys, with a ledger id in its place', [...eleven.filter((x) => x !== 'keys'), 'probe']],
+        ['more entries than the ledger', [...eleven, 'probe', 'spare', 'probe']]
+      ];
+      for (const [what, raw] of refusals) {
+        checked(id);
+        let got;
+        try {
+          got = wide?.allowedRoutesOf(raw);
+        } catch (err) {
+          got = `threw ${err instanceof Error ? err.message : String(err)}`;
+        }
+        if (got !== null) fail(id, `allowedRoutesOf(${what}) answers ${J(got)?.slice(0, 120)}, not null. A stored list that is not whole is read as the eleven, never partly (D2, CLAUDE.md "an invalid row is dropped whole")`);
+      }
+      const keeps = [
+        ['the eleven in another order', wide, shuffled, eleven],
+        ['the eleven with a ledger id this build lacks', wide, [...shuffled, 'probe'], [...eleven, 'probe'].sort()],
+        ['the eleven, over the shipping ledger', real, shuffled, eleven]
+      ];
+      for (const [what, mod, raw, want] of keeps) {
+        checked(id);
+        let got;
+        try {
+          got = mod?.allowedRoutesOf(raw);
+        } catch (err) {
+          got = `threw ${err instanceof Error ? err.message : String(err)}`;
+        }
+        if (J(got) !== J(want)) fail(id, `allowedRoutesOf(${what}) answers ${J(got)?.slice(0, 160)}, not ${J(want)}: a whole list reads back sorted, and an id the ledger lists that this build lacks stays allowed (D2, research 141 §4.1 item 10)`);
+        else if (!Object.isFrozen(got)) fail(id, `allowedRoutesOf(${what}) answers a list that is not frozen`);
+      }
+    }
+  }
+  // No type in src/shared and no door answer carries allowedRoutes.
+  for (const file of arFilesNaming(join(ROOT, 'src', 'shared'), 'allowedRoutes')) {
+    for (const n of nodesOf(file)) {
+      if (!(ts.isPropertySignature(n) || ts.isPropertyAssignment(n) || ts.isShorthandPropertyAssignment(n) || ts.isPropertyDeclaration(n)) || memberName(n) !== 'allowedRoutes') continue;
+      checked(id);
+      fail(id, `${where(file, n)}: a shared type or value carries allowedRoutes. The allowed set lives in the sealed store and leaves main only as the served list, routesAllowed (D1, D6)`);
+    }
+  }
+  const doorSide = domainFiles.filter((f) => /\/pocket\/(?:facts|routes|server|writes|bind)\.ts$/.test(f) || f.includes(`${join('pocket', 'door')}/`) || f.endsWith(join('pocket', 'door-process.ts')));
+  checked(id, doorSide.length);
+  for (const file of doorSide) {
+    for (const n of nodesOf(file)) {
+      if ((ts.isIdentifier(n) || ts.isStringLiteralLike(n)) && n.text === 'allowedRoutes') fail(id, `${where(file, n)} names allowedRoutes. No door answer carries the allowed set: the door process is handed the served routes and nothing else (D1, D7)`);
+    }
+  }
+}
+
+// ---- AR2, fields are the allowed set ---------------------------------------
+
+function arFieldsRule() {
+  const id = 'AR2';
+  const ipc = arFile(AR_IPC, id, AR_CORE_OWNER);
+  if (ipc !== null) {
+    const fields = arHostMethod(ipc, 'fields', id);
+    if (fields !== null) {
+      const objs = arReturned(fields);
+      const routes = objs.map((o) => propOf(o, 'routes')).filter((r) => r !== undefined);
+      checked(id);
+      if (routes.length !== 1) {
+        fail(id, `${where(ipc, fields)}: fields() answers routes ${String(routes.length)} time(s); once, from allowedRoutesFor( over the store's allowedRoutes (D4)`);
+      }
+      for (const r of routes) {
+        const call = bare(r);
+        checked(id);
+        const ok = call !== undefined && ts.isCallExpression(call) && calleeName(call) === 'allowedRoutesFor' && call.arguments.length === 1 && /\ballowedRoutes\b/.test(arText(ipc, call.arguments[0]));
+        if (!ok) fail(id, `${where(ipc, r)}: fields().routes is ${J(codeOfNode(ipc, r).slice(0, 80))}, not allowedRoutesFor( over the store's allowedRoutes. The hash agrees to the routes a person ALLOWED, so an update that adds a route moves no hash (D4)`);
+      }
+      const names = arNames(fields);
+      for (const bad of ['pocketRouteIds', 'POCKET_ROUTES', 'POCKET_ROUTE_IDS', 'proposedRoutes']) {
+        checked(id);
+        if (names.has(bad)) fail(id, `${where(ipc, fields)}: fields() names ${bad}. Its routes are the allowed set ALWAYS, record or no record; this build's table enters only the proposal, the served set and the waiting set (D4, §Attack A2)`);
+      }
+    }
+  }
+  const allowed = arFile(AR_ALLOWED, id, AR_CORE_OWNER);
+  const fn = allowed === null ? null : oneFunction(allowed, 'allowedRoutesFor');
+  if (allowed !== null) {
+    checked(id);
+    if (fn === null) fail(id, `${rel(allowed)} declares no single allowedRoutesFor`);
+  }
+  if (fn !== null) {
+    const param = fn.parameters[0]?.name;
+    const pname = param !== undefined && ts.isIdentifier(param) ? param.text : null;
+    // Every name its answers read is its parameter or the legacy list.
+    const answered = ts.isBlock(fn.body) ? ownReturnsOf(fn).map((r) => r.expression).filter((e) => e !== undefined) : [fn.body];
+    checked(id);
+    if (answered.length === 0) fail(id, `${where(allowed, fn)}: allowedRoutesFor answers nothing`);
+    for (const e of answered) {
+      for (const n of descendantsOf(e).filter((x) => ts.isIdentifier(x))) {
+        if (n.text !== pname && n.text !== 'LEGACY_ALLOWED_ROUTES') fail(id, `${where(allowed, n)}: allowedRoutesFor's answer reads ${n.text}. It answers the stored list or LEGACY_ALLOWED_ROUTES and nothing else (D1)`);
+      }
+    }
+    const mod = arLoad(allowed, id);
+    const contract = existsSync(AR_CONTRACT) ? arLoad(AR_CONTRACT, id) : null;
+    if (mod !== null && contract !== null && typeof mod.allowedRoutesFor === 'function') {
+      const listed = ['blocked', 'pair', 'probe'];
+      for (const [what, input, want] of [
+        ['null', null, [...contract.LEGACY_ALLOWED_ROUTES]],
+        ['a stored list', listed, listed]
+      ]) {
+        checked(id);
+        let got;
+        try {
+          got = mod.allowedRoutesFor(input);
+        } catch (err) {
+          got = `threw ${err instanceof Error ? err.message : String(err)}`;
+        }
+        if (J(got) !== J(want)) fail(id, `allowedRoutesFor(${what}) answers ${J(got)?.slice(0, 160)}, not ${J(want)}: the allowed set is the stored list, or the eleven (D1)`);
+      }
+    }
+  }
+}
+
+// ---- AR3, the legacy list is the launch list -------------------------------
+
+function arLegacyRule() {
+  const id = 'AR3';
+  const contract = arFile(AR_CONTRACT, id, AR_CORE_OWNER);
+  const decls = declarationsOf(arFilesNaming(join(ROOT, 'src'), 'LEGACY_ALLOWED_ROUTES'), 'LEGACY_ALLOWED_ROUTES');
+  checked(id);
+  if (decls.length !== 1 || (contract !== null && decls[0].file !== contract)) {
+    fail(id, `LEGACY_ALLOWED_ROUTES is declared ${String(decls.length)} time(s) (${decls.map((d) => where(d.file, d.n)).join(', ') || 'nowhere'}); once, in src/shared/ipc/pocket.ts (D3)`);
+    return;
+  }
+  const decl = decls[0].n;
+  const ids = arLiteralStrings(decl);
+  checked(id);
+  if (ids === null) {
+    fail(id, `${where(decls[0].file, decl)}: LEGACY_ALLOWED_ROUTES is not a literal array of strings. It never grows and never reads the table (D3)`);
+    return;
+  }
+  checked(id);
+  if (J(ids) !== J([...ids].sort())) fail(id, `${where(decls[0].file, decl)}: LEGACY_ALLOWED_ROUTES is ${J(ids)}, not sorted (D3)`);
+  checked(id);
+  if (new Set(ids).size !== ids.length) fail(id, `${where(decls[0].file, decl)}: LEGACY_ALLOWED_ROUTES names an id twice`);
+  checked(id);
+  if (J([...ids].sort()) !== J([...ROUTES_BEFORE_3331].sort())) fail(id, `${where(decls[0].file, decl)}: LEGACY_ALLOWED_ROUTES is ${J(ids)}, not the eleven every 0.111.x Mac answered (${ROUTES_BEFORE_3331.join(', ')}). It is the allowed set of every store that never recorded one (D3)`);
+  const launch = arLaunch(id);
+  if (launch === null) return;
+  checked(id, launch.ids.length);
+  if (J([...launch.ids].sort()) !== J([...ids].sort())) {
+    fail(id, `LEGACY_ALLOWED_ROUTES is ${J(ids)}; ${rel(AR_LAUNCH)}'s routes are ${J([...launch.ids].sort())}. The legacy list is exactly the routes a stranger's launch phone was frozen calling (D3, gate:onlyadd R7)`);
+  }
+  // Their ledger rows' METHOD path lines hash to the pin and the frozen membership.
+  if (!existsSync(AR_LEDGER)) {
+    fail(id, `${rel(AR_LEDGER)} does not exist, so the legacy ids' meanings cannot be hashed. It is ${AR_CORE_OWNER}.`);
+    return;
+  }
+  const ledger = arLoad(AR_LEDGER, id);
+  const rows = Array.isArray(ledger?.POCKET_ROUTE_LEDGER) ? ledger.POCKET_ROUTE_LEDGER : null;
+  checked(id);
+  if (rows === null) {
+    fail(id, `${rel(AR_LEDGER)} exports no POCKET_ROUTE_LEDGER array`);
+    return;
+  }
+  const lines = [];
+  for (const legacyId of ids) {
+    const row = rows.find((r) => r.id === legacyId);
+    checked(id);
+    if (row === undefined) fail(id, `${rel(AR_LEDGER)}: no ledger row for the legacy id ${legacyId}`);
+    else lines.push(`${row.method} ${row.path}`);
+  }
+  const got = createHash('sha256').update(lines.sort().join('\n')).digest('hex');
+  checked(id, 2);
+  if (got !== ROUTE_PIN) fail(id, `the legacy ids' ledger rows hash to ${got}, not R4's pin ${ROUTE_PIN}: the eleven a stranger allowed are not the eleven the table answered at launch (D3)`);
+  if (launch.membership !== null && got !== launch.membership) fail(id, `the legacy ids' ledger rows hash to ${got}, not ${rel(AR_LAUNCH)}'s routeMembership ${String(launch.membership)} (D3)`);
+}
+
+// ---- AR4, one writer of the allowed set ------------------------------------
+
+/**
+ * The conjuncts of a squashed condition at paren depth 0, so `a&&(b||c)` is
+ * `['a', '(b||c)']` and a `record!==null` inside a parenthesised `||` is never
+ * read as a conjunct (the fix round's AR4).
+ */
+function arTopConjuncts(text) {
+  const out = [];
+  let depth = 0;
+  let from = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    const c = text[i];
+    if (c === '(' || c === '[' || c === '{') depth += 1;
+    else if (c === ')' || c === ']' || c === '}') depth -= 1;
+    else if (depth === 0 && c === '&' && text[i + 1] === '&') {
+      out.push(text.slice(from, i));
+      from = i + 2;
+      i += 1;
+    }
+  }
+  out.push(text.slice(from));
+  return out;
+}
+
+/**
+ * Is `site` reached only once `record` (the const confirmDoor holds
+ * confirmPocketDoor('s answer in) is not null? Either an enclosing guard has
+ * `record!==null` (or `null!==record`) as a top-level conjunct, or a statement
+ * of the method's own body before the one holding `site` returns when it is
+ * null. THE FIX ROUND (lens 1's K18): with the conjunct dropped every gate and
+ * every builder test stayed green while a record that could not be sealed
+ * still wrote the allowed set, the one state D21 says never happens.
+ */
+function arUnderRecord(file, site, method, record) {
+  const want = new Set([`${record}!==null`, `null!==${record}`, record]);
+  if (guardsOf(file, site, method).some((g) => arTopConjuncts(g).some((c) => want.has(c)))) return true;
+  const body = method.body;
+  if (body === undefined) return false;
+  const holder = body.statements.find((st) => inside(site, st));
+  for (const st of body.statements) {
+    if (st === holder) break;
+    const cond = earlyReturnCond(file, st);
+    if (cond !== null && [`${record}===null`, `null===${record}`, `!${record}`].includes(cond)) return true;
+  }
+  return false;
+}
+
+function arWriterRule() {
+  const id = 'AR4';
+  const ipc = existsSync(AR_IPC) ? AR_IPC : null;
+  const confirm = ipc === null ? null : methodOf(ipc, 'PocketHost', 'confirmDoor');
+  const recordCall = confirm === null ? undefined : callsIn(confirm, 'confirmPocketDoor')[0];
+  const recordDecl = recordCall === undefined ? undefined : recordCall.parent;
+  const recordName = recordDecl !== undefined && ts.isVariableDeclaration(recordDecl) && ts.isIdentifier(recordDecl.name) ? recordDecl.name.text : null;
+  const proposalDecl = confirm === null ? null : arDeclFrom(confirm, 'proposal');
+  const proposalName = proposalDecl !== null && ts.isIdentifier(proposalDecl.name) ? proposalDecl.name.text : null;
+  const files = arFilesNaming(join(ROOT, 'src', 'main'), 'allowedRoutes');
+  let writers = 0;
+  let seen = 0;
+  for (const file of files) {
+    for (const n of nodesOf(file)) {
+      let value = null;
+      let site = null;
+      if (ts.isPropertyAssignment(n) && memberName(n) === 'allowedRoutes' && ts.isObjectLiteralExpression(n.parent)) {
+        value = n.initializer;
+        site = n;
+      } else if (ts.isShorthandPropertyAssignment(n) && n.name.text === 'allowedRoutes') {
+        value = n.name;
+        site = n;
+      } else if (ts.isBinaryExpression(n) && ts.isAssignmentOperator(n.operatorToken.kind) && ((ts.isPropertyAccessExpression(n.left) && n.left.name.text === 'allowedRoutes') || (ts.isElementAccessExpression(n.left) && ts.isStringLiteralLike(n.left.argumentExpression) && n.left.argumentExpression.text === 'allowedRoutes'))) {
+        value = n.right;
+        site = n;
+      }
+      if (site === null) continue;
+      seen += 1;
+      checked(id);
+      const text = squash(codeOfNode(file, value));
+      // The reader, inside the seal.
+      if (file === AR_PAIRING && enclosingName(site) === 'readPocketStore' && ts.isCallExpression(bare(value)) && calleeName(bare(value)) === 'allowedRoutesOf') continue;
+      // The store's own, carried through: `store?.allowedRoutes ?? null`, or `store.allowedRoutes`.
+      if (/^store\??\.allowedRoutes(?:\?\?null)?$/.test(text)) continue;
+      // The one writer: confirmDoor, after its record, to the proposal's routes.
+      const inConfirm = confirm !== null && file === ipc && inside(site, confirm);
+      if (inConfirm && recordCall !== undefined && site.getStart() > recordCall.getEnd() && proposalName !== null && (text === `[...${proposalName}.routes]` || text === `${proposalName}.routes`)) {
+        writers += 1;
+        checked(id);
+        if (recordName === null || !arUnderRecord(file, site, confirm, recordName)) {
+          fail(
+            id,
+            `${where(file, site)}: confirmDoor writes the allowed set where it is reached ${recordName === null ? 'with confirmPocketDoor(\'s answer held in no const' : `without ${recordName} !== null as a guard (guards: ${J(guardsOf(file, site, confirm))})`}. ` +
+              'A record that could not be sealed would still write the store, so the door would serve a route no record covers: the store’s set is never wider than the record’s (D9, D21; the fix round, lens 1’s K18)'
+          );
+        }
+        continue;
+      }
+      fail(
+        id,
+        `${where(file, site)} gives allowedRoutes ${J(codeOfNode(file, value).slice(0, 80))}. ` +
+          (inConfirm
+            ? `Inside confirmDoor it is written only AFTER the confirmPocketDoor( call, to the proposal's own routes (${proposalName ?? 'no `const … = this.proposal(…)`'}.routes): record first, store second, never wider (D9)`
+            : 'Only PocketHost.confirmDoor writes the allowed set, after the record over the lines a person read. Anything else that gives it a value is a way to allow a route nobody allowed (D9, D12; his answer 10)')
+      );
+    }
+  }
+  checked(id);
+  if (seen === 0) fail(id, 'no file under src/main gives allowedRoutes a value, so the store never holds an allowed set (D1)');
+  checked(id);
+  if (writers !== 1) fail(id, `${ipc === null ? 'src/main/pocket/ipc.ts' : rel(ipc)}: confirmDoor writes the allowed set ${String(writers)} time(s); once, after its record, to the proposal it recorded (D9). With none, a waiting route can never be allowed`);
+}
+
+// ---- AR5, both refusals before the body ------------------------------------
+
+function arRefusalRule() {
+  const id = 'AR5';
+  const listener = arFile(AR_LISTENER, id, AR_DOOR_OWNER);
+  if (listener !== null) {
+    const handle = oneFunction(listener, 'handleRequest');
+    checked(id);
+    if (handle === null) {
+      fail(id, `${rel(listener)} declares no single handleRequest, so where the served set is asked cannot be read`);
+    } else {
+      const ifs = descendantsOf(handle).filter((n) => ts.isIfStatement(n));
+      const nullRoute = ifs.find((n) => squash(codeOfNode(listener, n.expression)) === 'route===null' && /refuseRequest\(res,'route'\)/.test(squash(codeOfNode(listener, n.thenStatement))));
+      checked(id);
+      if (nullRoute === undefined) {
+        fail(id, `${where(listener, handle)}: handleRequest has no \`if (route === null) return refuseRequest(res, 'route')\`, so where the unknown route is refused cannot be read`);
+      } else {
+        const block = nullRoute.parent;
+        const at = ts.isBlock(block) ? block.statements.indexOf(nullRoute) : -1;
+        const next = at === -1 ? undefined : block.statements[at + 1];
+        const cond = next !== undefined && ts.isIfStatement(next) ? squash(codeOfNode(listener, next.expression)) : '';
+        const refuses = next !== undefined && ts.isIfStatement(next) && /refuseRequest\(res,'route'\)/.test(squash(codeOfNode(listener, next.thenStatement)));
+        checked(id);
+        if (!/^!\w+\.has\(route\.id\)$/.test(cond) || !refuses) {
+          fail(id, `${where(listener, nullRoute)}: the statement after the unknown-route refusal is ${J(next === undefined ? '(nothing)' : codeOfNode(listener, next).slice(0, 90))}, not \`if (!<served>.has(route.id)) return refuseRequest(res, 'route')\`. A route a person has not allowed is refused as one this Mac does not have, before anything else of it (D7)`);
+        } else {
+          const servedName = /^!(\w+)\.has/.exec(cond)[1];
+          const read = callsIn(handle, 'readCapped')[0];
+          const windowTest = descendantsOf(handle).find((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'windowOnly');
+          checked(id, 2);
+          if (read === undefined || next.getStart() > read.getStart()) fail(id, `${where(listener, next)}: the served check is ${read === undefined ? 'in a handler with no readCapped(' : 'after readCapped('}. It is asked BEFORE the body is read, so a waiting route reads no byte of its body (D7, §6.2 PR2)`);
+          if (windowTest === undefined || next.getStart() > windowTest.getStart()) fail(id, `${where(listener, next)}: the served check is after the windowOnly test (or there is none). It is the statement after the unknown-route refusal, before the window, so a waiting /pair reads as a missing route (D7)`);
+          // The served set is a Set the listener holds, set from main's messages.
+          const decl = nodesOf(listener).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === servedName);
+          const sets = nodesOf(listener).filter((n) => ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isIdentifier(n.left) && n.left.text === servedName);
+          checked(id, 2);
+          if (decl === undefined || !/^newSet/.test(squash(codeOfNode(listener, decl.initializer ?? decl)))) fail(id, `${rel(listener)}: ${servedName} is not a \`new Set\` the listener declares, so what it holds cannot be read (D7)`);
+          if (sets.length === 0) fail(id, `${rel(listener)}: nothing ever assigns ${servedName}, so the door serves what it was declared with and never what main handed it (D7)`);
+        }
+      }
+    }
+  }
+  // The wire: a start without valid routes, and an update with invalid ones, dropped whole. DRIVEN.
+  const wire = arFile(AR_WIRE, id, AR_DOOR_OWNER);
+  if (wire !== null) {
+    const mod = arLoad(wire, id);
+    if (mod !== null) {
+      checked(id);
+      if (typeof mod.toDoorOf !== 'function') fail(id, `${rel(wire)} exports no toDoorOf`);
+      else {
+        const table = arLoad(join(DOMAIN, 'door', 'table.ts'), id);
+        const all = Array.isArray(table?.POCKET_ROUTES) ? table.POCKET_ROUTES.map((r) => r.id) : [];
+        const start = (routes) => ({ kind: 'start', generation: 1, tls: { key: 'k', cert: 'c' }, pins: [], host: { name: 'mac.tail00000.ts.net', port: 8443 }, windowOpen: false, ...(routes === undefined ? {} : { routes }) });
+        const drop = [
+          ['a start with no routes', start(undefined)],
+          ['a start whose routes are not a list', start('blocked')],
+          ['a start with an id the table does not have', start([...all.slice(1), 'nosuch'])],
+          ['a start naming an id twice', start([all[0], all[0]])],
+          ['a start with a non-string id', start([...all.slice(1), 7])],
+          ['a start with more ids than the table has rows', start([...all, all[0]])],
+          ['an update with an id the table does not have', { kind: 'update', routes: ['nosuch'] }],
+          ['an update whose routes are not a list', { kind: 'update', routes: 'blocked' }]
+        ];
+        const keep = [
+          ['a start with the whole table', start(all)],
+          ['a start with no route at all', start([])],
+          ['an update with a narrower set', { kind: 'update', routes: all.slice(1) }],
+          ['an update with no routes', { kind: 'update', windowOpen: true }]
+        ];
+        checked(id);
+        if (all.length === 0) fail(id, 'door/table.ts could not be read in memory, so the wire was driven over nothing');
+        for (const [what, message] of drop) {
+          checked(id);
+          let got;
+          try {
+            got = mod.toDoorOf(message);
+          } catch (err) {
+            got = `threw ${err instanceof Error ? err.message : String(err)}`;
+          }
+          if (got !== null) fail(id, `toDoorOf(${what}) answers ${J(got)?.slice(0, 100)}, not null. A start without a valid served set is dropped whole, so a main that forgot it gets a door that never listens, never one that answers every route (D7, §Attack A13)`);
+        }
+        for (const [what, message] of keep) {
+          checked(id);
+          let got;
+          try {
+            got = mod.toDoorOf(message);
+          } catch (err) {
+            got = null;
+          }
+          if (got === null || (message.routes !== undefined && J(got.routes) !== J(message.routes))) fail(id, `toDoorOf(${what}) answers ${J(got)?.slice(0, 100)}; a valid served set crosses whole`);
+        }
+      }
+    }
+  }
+  // Main: after refusal 1 and before the pair arm and verify, and again in refusal 7.
+  const server = arFile(AR_SERVER, id, AR_DOOR_OWNER);
+  if (server !== null) {
+    const factory = oneFunction(server, 'createPocketHandler');
+    const handler = factory === null ? null : ownReturnsOf(factory).map((r) => bare(r.expression)).find((e) => e !== undefined && (ts.isFunctionExpression(e) || ts.isArrowFunction(e))) ?? null;
+    checked(id);
+    if (handler === null) {
+      fail(id, `${rel(server)}: createPocketHandler returns no handler this rule can read`);
+    } else {
+      const asks = callsIn(handler, 'routeServed').filter((c) => ts.isPropertyAccessExpression(c.expression) && c.expression.expression.getText() === 'deps');
+      const refusal1 = descendantsOf(handler).find((n) => ts.isIfStatement(n) && squash(codeOfNode(server, n.expression)) === 'closing()');
+      const pairArm = descendantsOf(handler).find((n) => ts.isIfStatement(n) && /request\.route==='pair'/.test(squash(codeOfNode(server, n.expression))));
+      const verify = callsIn(handler, 'verify')[0];
+      const answer = callsIn(handler, 'answer')[0];
+      const refuseRoute = (c) => {
+        const st = statementOf(c)?.statement;
+        return st !== undefined && ts.isIfStatement(st) && /^!deps\.routeServed\(/.test(squash(codeOfNode(server, st.expression))) && /refuse\('route'\)/.test(squash(codeOfNode(server, st.thenStatement)));
+      };
+      const top = asks.filter((c) => refusal1 !== undefined && c.getStart() > refusal1.getEnd() && pairArm !== undefined && c.getStart() < pairArm.getStart() && verify !== undefined && c.getStart() < verify.getStart() && refuseRoute(c));
+      checked(id, 2);
+      if (top.length !== 1) fail(id, `${where(server, handler)}: main asks deps.routeServed( ${String(top.length)} time(s) after refusal 1 and before the pair arm and deps.verify(, refusing 'route'; once, so a waiting route reads nothing and spends no nonce (D8)`);
+      const late = asks.filter((c) => answer !== undefined && c.getStart() > answer.getEnd() && refuseRoute(c));
+      if (late.length !== 1) {
+        fail(id, `${where(server, handler)}: main asks deps.routeServed( ${String(late.length)} time(s) after the read's answer is composed; once, in refusal 7, so a route no longer served by the time its answer was composed sends nothing (D8)`);
+      } else {
+        const awaited = descendantsOf(handler).filter((n) => ts.isAwaitExpression(n) && n.getStart() > late[0].getStart());
+        checked(id);
+        if (awaited.length > 0) fail(id, `${where(server, awaited[0])}: an await sits between refusal 7's routeServed( and the return, so a route withdrawn in that await still answers (D8)`);
+      }
+    }
+  }
+}
+
+// ---- AR6, one served set ---------------------------------------------------
+
+function arServedRule() {
+  const id = 'AR6';
+  const ipc = arFile(AR_IPC, id, AR_CORE_OWNER);
+  if (ipc === null) return;
+  const served = arHostMethod(ipc, 'servedRoutes', id);
+  const asked = arHostMethod(ipc, 'routeServed', id);
+  const post = arHostMethod(ipc, 'postRoutes', id);
+  if (served !== null) {
+    const calls = descendantsOf(served).filter((n) => ts.isCallExpression(n));
+    const of = calls.filter((c) => calleeName(c) === 'servedRoutesOf');
+    checked(id);
+    if (of.length !== 1 || of[0].arguments.length !== 2 || arText(ipc, of[0].arguments[0]) !== 'this.fields().routes' || arText(ipc, of[0].arguments[1]) !== 'pocketRouteIds()') {
+      fail(id, `${where(ipc, served)}: servedRoutes is not servedRoutesOf(this.fields().routes, pocketRouteIds()). The served set is the allowed set read through fields() and this build's table (D8, D21)`);
+    }
+    const others = calls.map((c) => calleeName(c)).filter((n) => !['servedRoutesOf', 'fields', 'pocketRouteIds'].includes(n ?? ''));
+    checked(id);
+    if (others.length > 0) fail(id, `${where(ipc, served)}: servedRoutes also calls ${others.join(', ')}. It reads the store's allowed set and the table and NO RECORD: it is asked on every request, and the allowed set only grows after its record (D21, §Attack A5)`);
+  }
+  if (asked !== null) {
+    const calls = descendantsOf(asked).filter((n) => ts.isCallExpression(n)).map((c) => squash(c.expression.getText()));
+    checked(id);
+    if (!calls.includes('this.servedRoutes') || calls.some((c) => !['this.servedRoutes', 'this.servedRoutes().includes'].includes(c))) {
+      fail(id, `${where(ipc, asked)}: routeServed asks ${J(calls)}; it asks this.servedRoutes() and nothing else, so main answers the question one way (D8)`);
+    }
+  }
+  // Both handlers handed it.
+  for (const factory of ['createPocketHandler', 'createPocketWriteHandler']) {
+    const call = callsOf(ipc).filter((c) => calleeName(c) === factory);
+    const arg = call.length === 1 ? bare(call[0].arguments[0]) : undefined;
+    const prop = arg !== undefined && ts.isObjectLiteralExpression(arg) ? propOf(arg, 'routeServed') : undefined;
+    checked(id);
+    if (prop === undefined || !/this\.routeServed\(/.test(squash(codeOfNode(ipc, prop)))) {
+      fail(id, `${rel(ipc)}: ${factory}( ${call.length === 1 ? 'is' : `is called ${String(call.length)} time(s) and`} not handed routeServed delegating to this.routeServed(, so main's ${factory === 'createPocketHandler' ? 'reads' : 'last check'} would ask something other than the one served set (D8)`);
+    }
+  }
+  // The start carries the served set; every update of routes is postRoutes'.
+  const starts = callsOf(ipc).filter((c) => calleeName(c) === 'startPocketDoor');
+  checked(id);
+  if (starts.length !== 1) fail(id, `${rel(ipc)} calls startPocketDoor( ${String(starts.length)} time(s); once, in openNow`);
+  for (const s of starts) {
+    const arg = bare(s.arguments[0]);
+    const prop = arg !== undefined && ts.isObjectLiteralExpression(arg) ? propOf(arg, 'routes') : undefined;
+    checked(id);
+    if (prop === undefined || arText(ipc, prop) !== 'this.servedRoutes()') fail(id, `${where(ipc, s)}: startPocketDoor( is handed routes ${prop === undefined ? '(none)' : J(codeOfNode(ipc, prop))}, not this.servedRoutes(). The door process serves what a person allowed and nothing else (D7)`);
+  }
+  const updates = callsOf(ipc).filter((c) => {
+    if (calleeName(c) !== 'updatePocketDoor') return false;
+    const arg = bare(c.arguments[0]);
+    return arg !== undefined && ts.isObjectLiteralExpression(arg) && propOf(arg, 'routes') !== undefined;
+  });
+  checked(id);
+  if (updates.length !== 1) fail(id, `${rel(ipc)} hands updatePocketDoor( a routes ${String(updates.length)} time(s); once, inside postRoutes`);
+  for (const u of updates) {
+    checked(id);
+    if (post === null || !inside(u, post)) fail(id, `${where(ipc, u)}: updatePocketDoor({ routes }) outside postRoutes; the served set is handed over in one place (D7)`);
+    else if (arText(ipc, propOf(bare(u.arguments[0]), 'routes')) !== 'this.servedRoutes()') fail(id, `${where(ipc, u)}: postRoutes hands routes ${J(codeOfNode(ipc, propOf(bare(u.arguments[0]), 'routes')))}, not this.servedRoutes()`);
+  }
+  if (post !== null) {
+    const first = post.body.statements[0];
+    const update = callsIn(post, 'updatePocketDoor')[0];
+    checked(id);
+    if (first === undefined || !ts.isIfStatement(first) || !/^!pocketDoorStatus\(\)\.listening$/.test(arText(ipc, first.expression)) || !ts.isReturnStatement(ts.isBlock(first.thenStatement) ? first.thenStatement.statements[0] : first.thenStatement) || (update !== undefined && update.getStart() < first.getEnd())) {
+      fail(id, `${where(ipc, post)}: postRoutes does not return first while the door is not listening (\`if (!pocketDoorStatus().listening) return;\`); the start carries the set (D22)`);
+    }
+  }
+  // postRoutes called in confirmDoor and in openNow after the door answered.
+  const confirm = methodOf(ipc, 'PocketHost', 'confirmDoor');
+  const openNow = methodOf(ipc, 'PocketHost', 'openNow');
+  const posts = (m) => (m === null ? [] : descendantsOf(m).filter((n) => ts.isCallExpression(n) && squash(n.expression.getText()) === 'this.postRoutes'));
+  checked(id, 2);
+  if (confirm === null || posts(confirm).length === 0) fail(id, `${rel(ipc)}: confirmDoor never calls this.postRoutes(), so an Allow on a published door serves nothing new until the next restart (D9)`);
+  const fork = openNow === null ? undefined : callsIn(openNow, 'startPocketDoor')[0];
+  if (openNow === null || fork === undefined || !posts(openNow).some((p) => p.getStart() > fork.getEnd())) {
+    fail(id, `${openNow === null ? rel(ipc) : where(ipc, openNow)}: openNow never calls this.postRoutes() after startPocketDoor( answered, so an Allow pressed while the door was opening is posted nowhere (D22, §Attack A9)`);
+  }
+}
+
+// ---- AR7, the words follow the allowed set ---------------------------------
+
+function arHonestyRule() {
+  const id = 'AR7';
+  const contract = arFile(AR_CONTRACT, id, AR_CORE_OWNER);
+  const decls = declarationsOf(arFilesNaming(join(ROOT, 'src'), 'pocketDoorHonesty'), 'pocketDoorHonesty');
+  checked(id);
+  if (decls.length !== 1 || (contract !== null && decls[0].file !== contract)) {
+    fail(id, `pocketDoorHonesty is declared ${String(decls.length)} time(s) (${decls.map((d) => where(d.file, d.n)).join(', ') || 'nowhere'}); once, in src/shared/ipc/pocket.ts (D13)`);
+  }
+  if (contract !== null) {
+    const added = constNamed(contract, 'POCKET_HONESTY_ADDED');
+    checked(id);
+    if (added === null || added.type === undefined || squash(added.type.getText(astOf(contract))) !== 'Readonly<Record<Exclude<PocketRouteId,LegacyAllowedRouteId>,string>>') {
+      fail(id, `${added === null ? rel(contract) : where(contract, added)}: POCKET_HONESTY_ADDED is not typed Readonly<Record<Exclude<PocketRouteId, LegacyAllowedRouteId>, string>>, so a phase that adds a route could compile without saying what it lets a phone do (D13)`);
+    }
+    // DRIVEN: the eleven answer today's sentence byte for byte; a planted clause joins as the Allow line joins.
+    const mod = arLoad(contract, id);
+    if (mod !== null) {
+      const honesty = mod.POCKET_DOOR_HONESTY;
+      const legacy = mod.LEGACY_ALLOWED_ROUTES;
+      checked(id);
+      if (typeof mod.pocketDoorHonesty !== 'function' || typeof honesty !== 'string' || !Array.isArray(legacy)) {
+        fail(id, `${rel(contract)} exports no pocketDoorHonesty, POCKET_DOOR_HONESTY or LEGACY_ALLOWED_ROUTES to drive`);
+      } else {
+        for (const [what, input] of [
+          ['the eleven', [...legacy]],
+          ['the eleven with an id that has no clause', [...legacy, 'probe']],
+          ['nothing', []]
+        ]) {
+          checked(id);
+          const got = mod.pocketDoorHonesty(input);
+          if (got !== honesty) fail(id, `pocketDoorHonesty(${what}) answers ${J(got)?.slice(0, 160)}, not POCKET_DOOR_HONESTY byte for byte (D13)`);
+        }
+        if (added !== null) {
+          const text = readFileSync(contract, 'utf8');
+          const init = added.initializer;
+          const variant = `${text.slice(0, init.getStart(astOf(contract)))}Object.freeze({ probe: 'read a probe', spare: 'write a spare' }) as never${text.slice(init.getEnd())}`;
+          let planted = null;
+          try {
+            planted = arLoadText(contract, variant);
+          } catch (err) {
+            fail(id, `the honesty composer could not be driven over a planted clause: ${err instanceof Error ? err.message : String(err)}`);
+          }
+          if (planted !== null) {
+            for (const [input, want] of [
+              [[...legacy, 'probe'], `${honesty} It can also read a probe.`],
+              [[...legacy, 'spare', 'probe'], `${honesty} It can also read a probe and write a spare.`],
+              [[...legacy], honesty]
+            ]) {
+              checked(id);
+              const got = planted.pocketDoorHonesty(input);
+              if (got !== want) fail(id, `with clauses for probe and spare planted, pocketDoorHonesty(${J(input.slice(legacy.length))} allowed) answers ${J(got)?.slice(-80)}, not ${J(want.slice(-60))}: an added route's clause is said only once it is allowed, in the table's key order, joined as the Allow line joins its own (D13)`);
+            }
+          }
+        }
+      }
+    }
+  }
+  // The sheet draws the composer over what the Allow beside it grants (main's
+  // routesOffered, the fix round), and nothing in the renderer draws the
+  // constant itself. Over the served list it left out the very route that
+  // Allow grants, at a first setup and while a route waits (lens 1's minor).
+  const blocks = [];
+  for (const file of phoneSurfaceFiles()) {
+    for (const n of nodesOf(file)) {
+      if (!ts.isJsxAttribute(n) || n.name.getText(astOf(file)) !== 'data-phone-confirm') continue;
+      let el = n.parent;
+      while (el !== undefined && !ts.isJsxElement(el) && !ts.isJsxSelfClosingElement(el)) el = el.parent;
+      if (el !== undefined) blocks.push({ file, el });
+    }
+  }
+  checked(id);
+  if (blocks.length === 0) fail(id, 'the sheet holds no data-phone-confirm block, so where the honesty sentence is drawn cannot be read');
+  for (const { file, el } of blocks) {
+    const composed = callsIn(el, 'pocketDoorHonesty');
+    checked(id);
+    if (composed.length !== 1 || composed[0].arguments.length !== 1 || arText(file, composed[0].arguments[0]) !== 'status.routesOffered') {
+      fail(id, `${where(file, el)}: the confirm block draws ${composed.length === 0 ? 'no pocketDoorHonesty(' : J(codeOfNode(file, composed[0]))}, not pocketDoorHonesty(status.routesOffered). The sentence beside Allow says what THAT Allow grants, the proposal's routes main hands the sheet; over the routes already answered it leaves out the route being agreed to (D13, the fix round)`);
+    }
+  }
+  for (const file of arFilesNaming(join(ROOT, 'src', 'renderer'), 'POCKET_DOOR_HONESTY')) {
+    for (const n of referencesOf(file, 'POCKET_DOOR_HONESTY')) {
+      checked(id);
+      fail(id, `${where(file, n)}: the renderer draws POCKET_DOOR_HONESTY itself. It draws pocketDoorHonesty(status.routesOffered), so an added route's clause is said beside the Allow that grants it (D13, the fix round)`);
+    }
+  }
+  // describePocketDoor's route and clause lines read only fields.routes.
+  const pairing = arFile(AR_PAIRING, id, AR_CORE_OWNER);
+  const describe = pairing === null ? null : oneFunction(pairing, 'describePocketDoor');
+  if (pairing !== null) {
+    checked(id);
+    if (describe === null) fail(id, `${rel(pairing)} declares no single describePocketDoor`);
+  }
+  if (describe !== null) {
+    const names = arNames(describe);
+    for (const bad of ['pocketRouteIds', 'POCKET_ROUTE_IDS', 'POCKET_ROUTES', 'LEGACY_ALLOWED_ROUTES', 'allowedRoutes', 'routesAllowed', 'proposedRoutes', 'servedRoutesOf']) {
+      checked(id);
+      if (names.has(bad)) fail(id, `${where(pairing, describe)}: describePocketDoor names ${bad}. Its route line and its clause line read the routes it is HANDED and nothing else, so the lines are exactly the hashed facts (D13, X12)`);
+    }
+    const reads = descendantsOf(describe).filter((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'routes');
+    checked(id);
+    if (reads.length < 2 || reads.some((n) => n.expression.getText() !== 'fields')) fail(id, `${where(pairing, describe)}: describePocketDoor reads routes as ${J(reads.map((n) => n.getText()))}; its route line and its clause line each read fields.routes (D13)`);
+  }
+}
+
+// ---- AR8, the three confirm paths and the two narrowings -------------------
+
+function arPathsRule() {
+  const id = 'AR8';
+  const ipc = arFile(AR_IPC, id, AR_CORE_OWNER);
+  const pairing = arFile(AR_PAIRING, id, AR_CORE_OWNER);
+  // (a) confirmDoor records the proposal.
+  if (ipc !== null) {
+    const confirm = arHostMethod(ipc, 'confirmDoor', id);
+    if (confirm !== null) {
+      const records = callsIn(confirm, 'confirmPocketDoor');
+      checked(id);
+      if (records.length !== 1) fail(id, `${where(ipc, confirm)}: confirmDoor calls confirmPocketDoor( ${String(records.length)} time(s); once`);
+      for (const r of records) {
+        const arg = bare(r.arguments[0]);
+        const decl = arg !== undefined && ts.isIdentifier(arg) ? descendantsOf(confirm).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === arg.text) : undefined;
+        const from = arg === undefined ? undefined : ts.isCallExpression(arg) ? arg : decl?.initializer !== undefined ? bare(decl.initializer) : undefined;
+        checked(id);
+        if (from === undefined || !ts.isCallExpression(from) || squash(from.expression.getText()) !== 'this.proposal') {
+          fail(id, `${where(ipc, r)}: confirmDoor hands confirmPocketDoor( ${J(arg === undefined ? '(nothing)' : codeOfNode(ipc, arg))}, not the result of this.proposal(. It records the PROPOSAL its lines named, never this.fields() (D9; his answer 10)`);
+        }
+      }
+    }
+    // (b) the pairing owner sees the allowed set.
+    const owners = nodesOf(ipc).filter((n) => ts.isNewExpression(n) && n.expression.getText() === 'PocketPairing');
+    checked(id);
+    if (owners.length !== 1) fail(id, `${rel(ipc)} makes PocketPairing ${String(owners.length)} time(s); once`);
+    for (const o of owners) {
+      const arg = bare(o.arguments?.[0]);
+      const prop = arg !== undefined && ts.isObjectLiteralExpression(arg) ? propOf(arg, 'fieldsNow') : undefined;
+      checked(id);
+      if (prop === undefined || arText(ipc, prop) !== '()=>this.fields()') fail(id, `${where(ipc, o)}: PocketPairing's fieldsNow is ${prop === undefined ? '(absent)' : J(codeOfNode(ipc, prop))}, not () => this.fields(). The pairing card agrees to the ALLOWED set and the new phone, never the proposal (D10; his answer 10)`);
+    }
+  }
+  if (pairing !== null) {
+    const allow = methodOf(pairing, 'PocketPairing', 'allow');
+    checked(id);
+    if (allow === null) {
+      fail(id, `${rel(pairing)}: PocketPairing declares no allow()`);
+    } else {
+      const records = callsIn(allow, 'confirmPocketDoor');
+      checked(id);
+      if (records.length !== 1) fail(id, `${where(pairing, allow)}: allow calls confirmPocketDoor( ${String(records.length)} time(s); once`);
+      for (const r of records) {
+        const arg = bare(r.arguments[0]);
+        const decl = arg !== undefined && ts.isIdentifier(arg) ? descendantsOf(allow).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === arg.text) : undefined;
+        const from = arg === undefined ? undefined : ts.isCallExpression(arg) ? arg : decl?.initializer !== undefined ? bare(decl.initializer) : undefined;
+        checked(id);
+        if (from === undefined || !ts.isCallExpression(from) || squash(from.expression.getText()) !== 'this.fieldsWithPending' || from.arguments.length !== 0) {
+          fail(id, `${where(pairing, r)}: the pairing Allow hands confirmPocketDoor( ${J(arg === undefined ? '(nothing)' : codeOfNode(pairing, arg))}, not this.fieldsWithPending() alone. It records the allowed set and the new phone, and a waiting route still waits (D10; his answer 10)`);
+        }
+      }
+      for (const bad of ['proposal', 'proposedRoutes', 'pocketRouteIds', 'POCKET_ROUTE_IDS']) {
+        checked(id);
+        if (arNames(allow).has(bad)) fail(id, `${where(pairing, allow)}: the pairing Allow names ${bad}; it never agrees to a route the person was not shown on the card (his answer 10)`);
+      }
+    }
+  }
+  // (c) the sheet: confirmDoor from onConfirmDoor alone; no self-confirm on alerts off.
+  const phone = arFile(AR_PHONE, id, AR_CORE_OWNER);
+  if (phone !== null) {
+    const psf = astOf(phone);
+    const onConfirm = liveJsxHandlers(phone, 'onConfirmDoor');
+    const onAlerts = liveJsxHandlers(phone, 'onSetPushAlerts');
+    const helperCalls = callsOf(phone).filter((c) => ts.isIdentifier(c.expression) && c.expression.text === 'confirmDoor');
+    checked(id, 2);
+    if (helperCalls.length !== 1 || !onConfirm.some((h) => inside(helperCalls[0], h))) {
+      fail(id, `${rel(phone)} calls the confirmDoor helper ${String(helperCalls.length)} time(s) (${helperCalls.map((c) => where(phone, c)).join(', ') || 'nowhere'}); exactly once, inside onConfirmDoor: the Allow under lines a person read is the only press that confirms the door (D11, his answer 10)`);
+    }
+    if (onAlerts.length === 0) fail(id, `${rel(phone)} wires no live onSetPushAlerts, so the alerts-off path cannot be read`);
+    for (const h of onAlerts) {
+      for (const c of descendantsOf(h).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'confirmDoor')) {
+        checked(id);
+        fail(id, `${where(phone, c)}: onSetPushAlerts calls ${c.expression.getText(psf)}(. Alerts off is narrowed in main (narrowPocketDoor); the sheet's self-confirm would agree to the PROPOSAL, which allows a waiting route nobody pressed Allow for (D11, §Attack A1)`);
+      }
+    }
+    for (const file of phoneSurfaceFiles()) {
+      for (const d of functionsNamed(file, 'onlyOneLineMoved')) {
+        checked(id);
+        fail(id, `${where(file, d)}: onlyOneLineMoved is still declared. Its one use was the sheet's alerts-off self-confirm, which this phase deleted (D11)`);
+      }
+    }
+  }
+  // (d) the narrowing: two callers, its own checks before its write, and the subtraction driven.
+  const narrowCalls = [];
+  for (const file of arFilesNaming(join(ROOT, 'src', 'main'), 'narrowPocketDoor')) {
+    for (const c of callsOf(file)) if (calleeName(c) === 'narrowPocketDoor') narrowCalls.push({ file, c });
+  }
+  checked(id);
+  const callers = new Set(narrowCalls.map(({ file, c }) => (file === AR_IPC ? hostMethodOf(c) : null)));
+  if (narrowCalls.length === 0) fail(id, 'nothing under src/main calls narrowPocketDoor(, so Remove and alerts off still withdraw the agreement (D11b)');
+  for (const { file, c } of narrowCalls) {
+    const owner = file === AR_IPC ? hostMethodOf(c) : null;
+    checked(id);
+    if (owner !== 'removePhone' && owner !== 'setPushAlerts') fail(id, `${where(file, c)}: narrowPocketDoor( is called ${owner === null ? 'outside PocketHost' : `in ${owner}`}. Its only callers are removePhone and setPushAlerts, the two presses that only take away (D11b)`);
+  }
+  checked(id);
+  if (!callers.has('removePhone') || !callers.has('setPushAlerts')) fail(id, `narrowPocketDoor( is called from ${J([...callers])}; from removePhone AND setPushAlerts (D11b, D11c)`);
+  // WHAT EACH CALLER HANDS IT (the fix round, lens 1's K16): exactly
+  // (before, this.fields()), where `before` is a const of the same method read
+  // from this.fields() BEFORE its store write, and the call comes AFTER that
+  // write, so the after-fields are the store the press just wrote. Handed the
+  // proposal instead, every press while a route waits is a "widening", the
+  // narrowing refuses, and alerts off closes and restarts the door again with
+  // every gate green.
+  for (const { file, c } of narrowCalls) {
+    const owner = file === AR_IPC ? hostMethodOf(c) : null;
+    if (owner !== 'removePhone' && owner !== 'setPushAlerts') continue;
+    const method = methodOf(file, 'PocketHost', owner);
+    if (method === null) continue;
+    const write = descendantsOf(method).find((n) => ts.isCallExpression(n) && squash(n.expression.getText()) === 'this.writeStore');
+    const first = bare(c.arguments[0]);
+    const decl = first !== undefined && ts.isIdentifier(first) ? descendantsOf(method).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === first.text) : undefined;
+    const init = decl?.initializer === undefined ? undefined : bare(decl.initializer);
+    const isConst = decl !== undefined && ts.isVariableDeclarationList(decl.parent) && (decl.parent.flags & ts.NodeFlags.Const) !== 0;
+    checked(id, 3);
+    if (c.arguments.length !== 2 || decl === undefined || !isConst || init === undefined || arText(file, init) !== 'this.fields()') {
+      fail(id, `${where(file, c)}: ${owner} hands narrowPocketDoor( ${J(c.arguments.map((a) => codeOfNode(file, a)))}; its first argument is a const of ${owner} read from this.fields(), the door as it was confirmed before the press (D11b; the fix round, lens 1's K16)`);
+    } else if (write === undefined || decl.getStart() > write.getStart()) {
+      fail(id, `${where(file, decl)}: ${owner} reads ${decl.name.getText()} from this.fields() ${write === undefined ? 'with no store write to read it before' : 'AFTER its store write'}, so it is not the door confirmed before the press (D11b, D11c)`);
+    }
+    if (c.arguments.length !== 2 || arText(file, c.arguments[1]) !== 'this.fields()' || write === undefined || c.getStart() < write.getEnd()) {
+      fail(id, `${where(file, c)}: ${owner} hands narrowPocketDoor( a second argument of ${c.arguments[1] === undefined ? '(nothing)' : J(codeOfNode(file, c.arguments[1]))}${write !== undefined && c.getStart() < write.getEnd() ? ' before its store write' : ''}, not this.fields() after the store write. The after-fields are the door the press just wrote, never the proposal: handed the proposal, alerts off and Remove stop narrowing whenever a route waits, and the door closes and restarts as before this phase (D11, D11c; the fix round, lens 1's K16)`);
+    }
+  }
+  if (pairing !== null) {
+    const narrow = oneFunction(pairing, 'narrowPocketDoor');
+    checked(id);
+    if (narrow === null) {
+      fail(id, `${rel(pairing)} declares no single narrowPocketDoor`);
+    } else {
+      const param = narrow.parameters[0]?.name;
+      const before = param !== undefined && ts.isIdentifier(param) ? param.text : 'before';
+      const write = callsIn(narrow, 'writeConfirmRecords')[0];
+      const sub = callsIn(narrow, 'isPocketSubtraction')[0];
+      const hashCheck = descendantsOf(narrow).find(
+        (n) =>
+          ts.isBinaryExpression(n) &&
+          (n.operatorToken.kind === ts.SyntaxKind.ExclamationEqualsEqualsToken || n.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken) &&
+          [n.left, n.right].some((s) => ts.isCallExpression(s) && calleeName(s) === 'pocketExecutionHash' && s.arguments.length === 1 && s.arguments[0].getText() === before)
+      );
+      const sealCheck = descendantsOf(narrow).find((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'sealKnown');
+      checked(id, 4);
+      if (write === undefined) fail(id, `${where(pairing, narrow)}: narrowPocketDoor writes no record`);
+      if (sub === undefined || (write !== undefined && sub.getStart() > write.getStart())) fail(id, `${where(pairing, narrow)}: narrowPocketDoor does not ask isPocketSubtraction( before writeConfirmRecords(, so it could record a wider door with no person (D11b)`);
+      if (hashCheck === undefined || (write !== undefined && hashCheck.getStart() > write.getStart())) fail(id, `${where(pairing, narrow)}: narrowPocketDoor does not compare the record on file with pocketExecutionHash(${before}) before writeConfirmRecords(, so a door that was not confirmed before the press would be confirmed after it (D11b)`);
+      if (sealCheck === undefined || (write !== undefined && sealCheck.getStart() > write.getStart())) fail(id, `${where(pairing, narrow)}: narrowPocketDoor does not refuse under an unknown seal before it writes (D11b)`);
+    }
+    const subFn = oneFunction(pairing, 'isPocketSubtraction');
+    checked(id);
+    if (subFn === null) {
+      fail(id, `${rel(pairing)} declares no single isPocketSubtraction`);
+    } else {
+      checked(id);
+      if (callsIn(subFn, 'canonicalPocketText').length === 0) fail(id, `${where(pairing, subFn)}: isPocketSubtraction compares no canonicalPocketText(, so a hashed field could move under a narrowing unseen (D11b)`);
+      const mod = arLoad(pairing, id);
+      if (mod !== null && typeof mod.isPocketSubtraction === 'function') {
+        const phone = (n) => ({ id: `ph${String(n)}`, label: `phone ${String(n)}`, signingKey: `s${String(n)}`, exchangeKey: `x${String(n)}`, clientKey: `c${String(n)}`, pushToken: '', pushEnvironment: '' });
+        const base = { funnelProgram: '/p/tailscale', tailnet: 'tn.example', publicName: 'mac.tn.ts.net', publicPort: 8443, bindAtLaunch: false, routes: ['blocked', 'pair', 'session'], phones: [phone(1), phone(2), phone(3)], pushAlerts: true };
+        const cases = [
+          ['one phone gone', base, { ...base, phones: [phone(1), phone(3)] }, true],
+          ['alerts turned off', base, { ...base, pushAlerts: false }, true],
+          ['two phones gone', base, { ...base, phones: [phone(1)] }, false],
+          ['a phone added', base, { ...base, phones: [...base.phones, phone(4)] }, false],
+          ['a phone replaced by another', base, { ...base, phones: [phone(1), phone(2), phone(4)] }, false],
+          ['a phone relabelled', base, { ...base, phones: [phone(1), phone(2), { ...phone(3), label: 'renamed' }] }, false],
+          ['alerts turned on', { ...base, pushAlerts: false }, base, false],
+          ['a route added', base, { ...base, routes: [...base.routes, 'probe'] }, false],
+          ['a route added with a phone gone', base, { ...base, routes: [...base.routes, 'probe'], phones: [phone(1), phone(2)] }, false],
+          ['a route added with alerts off', base, { ...base, routes: [...base.routes, 'probe'], pushAlerts: false }, false],
+          ['a route taken away', base, { ...base, routes: ['blocked', 'pair'] }, false],
+          ['the public name moved with a phone gone', base, { ...base, publicName: 'other.tn.ts.net', phones: [phone(1), phone(2)] }, false],
+          ['a phone gone and alerts off at once', base, { ...base, phones: [phone(1), phone(2)], pushAlerts: false }, false],
+          ['nothing moved', base, { ...base }, false]
+        ];
+        for (const [what, b, a, want] of cases) {
+          checked(id);
+          let got;
+          try {
+            got = mod.isPocketSubtraction(b, a);
+          } catch (err) {
+            got = `threw ${err instanceof Error ? err.message : String(err)}`;
+          }
+          if (got !== want) fail(id, `isPocketSubtraction(${what}) answers ${J(got)}, not ${String(want)}. Exactly one phone gone, or alerts on to off, each with every other field equal, is a subtraction; anything else asks a person (D11b; his answer 10)`);
+        }
+      }
+    }
+  }
+}
+
+// ---- AR9, the table is held to the ledger ----------------------------------
+
+function arLedgerRule() {
+  const id = 'AR9';
+  const ledger = arFile(AR_LEDGER, id, AR_CORE_OWNER);
+  if (ledger === null) return;
+  const decl = constNamed(ledger, 'POCKET_ROUTE_LEDGER');
+  checked(id);
+  if (decl === null) {
+    fail(id, `${rel(ledger)} declares no POCKET_ROUTE_LEDGER`);
+    return;
+  }
+  // Literals, every row and every value: a row that read the live table would move with it.
+  let init = bare(decl.initializer);
+  if (init !== undefined && ts.isCallExpression(init) && calleeName(init) === 'freeze') init = bare(init.arguments[0]);
+  const literal = (v) => ts.isStringLiteralLike(v) || ts.isNumericLiteral(v) || v.kind === ts.SyntaxKind.TrueKeyword || v.kind === ts.SyntaxKind.FalseKeyword || v.kind === ts.SyntaxKind.NullKeyword;
+  checked(id);
+  if (init === undefined || !ts.isArrayLiteralExpression(init)) {
+    fail(id, `${where(ledger, decl)}: POCKET_ROUTE_LEDGER is not a literal array (Object.freeze([…]) of rows)`);
+    return;
+  }
+  for (const el of init.elements) {
+    checked(id);
+    if (!ts.isObjectLiteralExpression(el)) {
+      fail(id, `${where(ledger, el)}: a ledger row is not an object literal (${J(el.getText().slice(0, 60))}). Every row is written out, never computed or spread (D12)`);
+      continue;
+    }
+    for (const p of el.properties) {
+      if (!ts.isPropertyAssignment(p) || !literal(p.initializer)) fail(id, `${where(ledger, p)}: a ledger value is ${J(p.getText().slice(0, 60))}, not a literal. An id's row is its meaning, written once, and reads nothing (D12)`);
+    }
+  }
+  checked(id);
+  if (specifiersOf(ledger).length > 0) fail(id, `${rel(ledger)} imports ${specifiersOf(ledger).map((s) => s.text).join(', ')}; it imports nothing (D12)`);
+  const mod = arLoad(ledger, id);
+  const table = arLoad(join(DOMAIN, 'door', 'table.ts'), id);
+  const limits = arLoad(join(DOMAIN, 'door', 'limits.ts'), id);
+  const wire = arLoad(AR_WIRE, id);
+  const rows = Array.isArray(mod?.POCKET_ROUTE_LEDGER) ? mod.POCKET_ROUTE_LEDGER : null;
+  const routes = Array.isArray(table?.POCKET_ROUTES) ? table.POCKET_ROUTES : null;
+  checked(id);
+  if (rows === null || routes === null || limits === null || wire === null) {
+    fail(id, 'the ledger, the table or the door\'s caps could not be loaded, so nothing was held to the ledger');
+    return;
+  }
+  // WRITE_CLAUSES, read with the parser: its literal is the Allow line's words.
+  const clauses = {};
+  if (existsSync(AR_PAIRING)) {
+    const wc = constNamed(AR_PAIRING, 'WRITE_CLAUSES');
+    let wi = bare(wc?.initializer);
+    if (wi !== undefined && ts.isCallExpression(wi) && calleeName(wi) === 'freeze') wi = bare(wi.arguments[0]);
+    if (wi !== undefined && ts.isObjectLiteralExpression(wi)) {
+      for (const p of wi.properties) if (ts.isPropertyAssignment(p) && memberName(p) !== null && ts.isStringLiteralLike(p.initializer)) clauses[memberName(p)] = p.initializer.text;
+    }
+  }
+  checked(id);
+  if (Object.keys(clauses).length === 0) fail(id, 'src/main/pocket/pairing.ts\'s WRITE_CLAUSES could not be read as a literal, so no clause was held to the ledger');
+  const ids = rows.map((r) => r.id);
+  checked(id);
+  if (new Set(ids).size !== ids.length) fail(id, `${rel(ledger)}: the ledger names an id twice (${J(ids)}); one row per id ever shipped (D12)`);
+  for (const route of routes) {
+    const row = rows.find((r) => r.id === route.id);
+    checked(id);
+    if (row === undefined) {
+      fail(id, `${route.id} (${route.method} ${route.path}) is a row of POCKET_ROUTES with no ledger row. A route this build answers has a meaning written down once, in ${rel(ledger)} (D12)`);
+      continue;
+    }
+    for (const k of ['method', 'path', 'reads', 'signed', 'windowOnly']) {
+      checked(id);
+      if (row[k] !== route[k]) fail(id, `${route.id}: ${k} is ${J(route[k])} in POCKET_ROUTES and ${J(row[k])} in the ledger. An allowed id never changes meaning: a route whose ${k} must change takes a new id (D12)`);
+    }
+    const cap = !route.reads ? limits.POCKET_WRITE_BODY_CAPS?.[route.id] : route.signed ? wire.POCKET_READ_BODY_CAP_BYTES : limits.POCKET_PAIR_BODY_CAP_BYTES;
+    checked(id);
+    if (typeof cap !== 'number' || row.bodyCap !== cap) fail(id, `${route.id}: the ledger's bodyCap is ${J(row.bodyCap)} and the door's cap for the row is ${J(cap)} (D12)`);
+    const clause = route.reads ? null : (clauses[route.id] ?? undefined);
+    checked(id);
+    if (row.clause !== clause) fail(id, `${route.id}: the ledger's clause is ${J(row.clause)} and ${route.reads ? 'a read has none' : `WRITE_CLAUSES says ${J(clause)}`} (D12)`);
+  }
+  const contract = existsSync(AR_CONTRACT) ? arLoad(AR_CONTRACT, id) : null;
+  for (const legacy of contract?.LEGACY_ALLOWED_ROUTES ?? []) {
+    checked(id);
+    if (!ids.includes(legacy)) fail(id, `${legacy} is a LEGACY_ALLOWED_ROUTES id with no ledger row, so every 0.111.x store reads as not whole (D2, D12)`);
+  }
+  checked(id);
+  if (!Array.isArray(contract?.LEGACY_ALLOWED_ROUTES)) fail(id, 'LEGACY_ALLOWED_ROUTES could not be read, so the legacy ids were not held to the ledger');
+}
+
+// ---- AR10, Remove keeps the others -----------------------------------------
+
+function arRemoveRule() {
+  const id = 'AR10';
+  const ipc = arFile(AR_IPC, id, AR_CORE_OWNER);
+  if (ipc === null) return;
+  const remove = arHostMethod(ipc, 'removePhone', id);
+  if (remove === null) return;
+  const write = descendantsOf(remove).find((n) => ts.isCallExpression(n) && squash(n.expression.getText()) === 'this.writeStore');
+  const fieldsRead = descendantsOf(remove).find((n) => ts.isCallExpression(n) && squash(n.expression.getText()) === 'this.fields');
+  const gate = callsIn(remove, 'pocketConfirmStatus')[0];
+  const firstAwait = descendantsOf(remove).find((n) => ts.isAwaitExpression(n));
+  checked(id, 3);
+  if (write === undefined) {
+    fail(id, `${where(ipc, remove)}: removePhone writes no store`);
+    return;
+  }
+  if (fieldsRead === undefined || fieldsRead.getStart() > write.getStart() || gate === undefined || gate.getStart() > write.getStart()) {
+    fail(id, `${where(ipc, remove)}: removePhone does not read this.fields() AND pocketConfirmStatus( BEFORE its store write, so whether the door was confirmed before the press cannot be known after it (D11c)`);
+  }
+  if (firstAwait !== undefined && firstAwait.getStart() < write.getStart()) fail(id, `${where(ipc, firstAwait)}: removePhone awaits before its store write (X9)`);
+  // The kept list, by its filter of the store's phones.
+  const keptDecl = descendantsOf(remove).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer !== undefined && /\.phones\.filter\(/.test(squash(codeOfNode(ipc, n.initializer))));
+  const kept = keptDecl === undefined ? null : keptDecl.name.text;
+  const confirmedNames = descendantsOf(remove)
+    .filter((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer !== undefined && /pocketConfirmStatus\(/.test(codeOfNode(ipc, n.initializer)) && /===\s*'confirmed'/.test(codeOfNode(ipc, n.initializer)))
+    .map((n) => n.name.text);
+  const narrows = callsIn(remove, 'narrowPocketDoor');
+  checked(id);
+  if (narrows.length !== 1) fail(id, `${where(ipc, remove)}: removePhone calls narrowPocketDoor( ${String(narrows.length)} time(s); once, so the other phones keep reading (D11c; his answer 9)`);
+  for (const c of narrows) {
+    const guards = guardsOf(ipc, c, remove).join('&&');
+    const confirmed = confirmedNames.some((name) => new RegExp(`(?:^|&&|\\()${name}(?:&&|$|\\))`).test(guards)) || /pocketConfirmStatus\([^)]*\)\.state==='confirmed'/.test(guards);
+    const another = kept !== null && new RegExp(`${kept}\\.length(?:>0|!==0|>=1)`).test(guards);
+    checked(id, 2);
+    if (!confirmed) fail(id, `${where(ipc, c)}: narrowPocketDoor( is not reached only under the reading taken BEFORE the store write that the door was 'confirmed' (guards: ${J(guards)}). A door that was not confirmed before the press is not confirmed after it (D11c)`);
+    if (!another) fail(id, `${where(ipc, c)}: narrowPocketDoor( is not reached only while another phone remains (${kept === null ? 'no kept list found' : `${kept}.length > 0`}; guards: ${J(guards)}). Removing the LAST phone withdraws the agreement, as today and as probe:p313's L1 reads it (D11c, §13 Q1)`);
+  }
+  // forgetPocketDoor() only when the narrowing did not record.
+  const forgets = callsIn(remove, 'forgetPocketDoor');
+  checked(id);
+  if (forgets.length !== 1) fail(id, `${where(ipc, remove)}: removePhone calls forgetPocketDoor() ${String(forgets.length)} time(s); once, when the narrowing did not record`);
+  const narrowedName = descendantsOf(remove).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer !== undefined && callsIn(n.initializer, 'narrowPocketDoor').length > 0)?.name.text ?? null;
+  for (const f of forgets) {
+    const guards = guardsOf(ipc, f, remove);
+    checked(id);
+    const ok = (narrowedName !== null && guards.some((g) => g === `!${narrowedName}` || g === `!(${narrowedName})`)) || guards.some((g) => /narrowPocketDoor\(.*\)===null$/.test(g) || /^!\(.*narrowPocketDoor\(/.test(g));
+    if (!ok) fail(id, `${where(ipc, f)}: forgetPocketDoor() is reached ${guards.length === 0 ? 'on every Remove' : `under ${J(guards)}`}, not only when the narrowing did not record. Withdrawing the agreement on a Remove of one of several phones switches the others off, which is the outage his answer 9 ended (D11c)`);
+  }
+}
+
+// ---- AR11, the status ------------------------------------------------------
+
+function arStatusRule() {
+  const id = 'AR11';
+  const ipc = arFile(AR_IPC, id, AR_CORE_OWNER);
+  if (ipc !== null) {
+    const status = arHostMethod(ipc, 'status', id);
+    if (status !== null) {
+      const described = callsIn(status, 'describePocketDoor');
+      checked(id);
+      if (described.length !== 1) fail(id, `${where(ipc, status)}: status() calls describePocketDoor( ${String(described.length)} time(s); once, over this.proposal(, so the lines and the hash are one drawing (D5)`);
+      const d = described[0];
+      const arg = d === undefined ? undefined : bare(d.arguments[0]);
+      // Directly, or through ONE const of status() initialized from this.proposal(
+      // (the fix round: the routes the honesty sentence is composed over come
+      // from the same proposal as the lines and the hash).
+      const proposalDecl = arg !== undefined && ts.isIdentifier(arg) ? descendantsOf(status).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === arg.text) : undefined;
+      const from = arg === undefined ? undefined : ts.isCallExpression(arg) ? arg : proposalDecl?.initializer !== undefined ? bare(proposalDecl.initializer) : undefined;
+      const proposalName = proposalDecl !== undefined && from !== undefined && ts.isCallExpression(from) && squash(from.expression.getText()) === 'this.proposal' ? proposalDecl.name.text : null;
+      checked(id);
+      if (from === undefined || !ts.isCallExpression(from) || squash(from.expression.getText()) !== 'this.proposal') fail(id, `${d === undefined ? where(ipc, status) : where(ipc, d)}: status() describes ${arg === undefined ? 'nothing' : J(codeOfNode(ipc, arg))}, not this.proposal(…). The sheet's lines are the PROPOSAL's, exactly the facts confirmDoor records (D5)`);
+      const proposals = callsOf(ipc).filter((c) => inside(c, status) && squash(c.expression.getText()) === 'this.proposal');
+      checked(id);
+      if (proposals.length !== 1) fail(id, `${where(ipc, status)}: status() calls this.proposal( ${String(proposals.length)} time(s); once, so the lines, the hash and the offered routes are one proposal (D5, the fix round)`);
+      const holder = d === undefined ? null : (() => {
+        const st = d.parent;
+        return st !== undefined && ts.isVariableDeclaration(st) && ts.isIdentifier(st.name) ? st.name.text : null;
+      })();
+      const objs = arReturned(status);
+      const prop = (name) => objs.map((o) => propOf(o, name)).find((p) => p !== undefined);
+      for (const [name, want] of [
+        ['confirmLines', holder === null ? null : `${holder}.lines`],
+        ['confirmHash', holder === null ? null : `${holder}.hash`],
+        ['routesAllowed', 'this.servedRoutes()'],
+        // THE FIX ROUND (lens 1's minor): what the confirm block's Allow
+        // grants, which the honesty sentence beside it is composed over.
+        ['routesOffered', proposalName === null ? null : `servedRoutesOf(${proposalName}.routes,pocketRouteIds())`]
+      ]) {
+        const p = prop(name);
+        checked(id);
+        if (p === undefined || want === null || arText(ipc, p) !== want) fail(id, `${where(ipc, status)}: status() answers ${name} as ${p === undefined ? '(nothing)' : J(codeOfNode(ipc, p))}, not ${want ?? 'the one describePocketDoor(this.proposal(…)) result'} (D5, D6)`);
+      }
+      const waiting = prop('routesWaiting');
+      const w = waiting === undefined ? undefined : bare(waiting);
+      checked(id);
+      if (w === undefined || !ts.isCallExpression(w) || calleeName(w) !== 'waitingRoutesOf' || w.arguments.length !== 3 || arText(ipc, w.arguments[0]) !== 'fields.routes' || arText(ipc, w.arguments[1]) !== 'pocketRouteIds()' || !/'confirmed'/.test(arText(ipc, w.arguments[2])) || !/'changed'/.test(arText(ipc, w.arguments[2])) || /'never'|'unknown'/.test(arText(ipc, w.arguments[2]))) {
+        fail(id, `${where(ipc, status)}: status() answers routesWaiting as ${waiting === undefined ? '(nothing)' : J(codeOfNode(ipc, waiting))}, not waitingRoutesOf(fields.routes, pocketRouteIds(), <the state is 'confirmed' or 'changed'>). A route waits only while an agreement is on record (D6)`);
+      }
+    }
+    const proposal = arHostMethod(ipc, 'proposal', id);
+    if (proposal !== null) {
+      const calls = callsIn(proposal, 'proposedRoutes');
+      checked(id);
+      if (calls.length !== 1 || calls[0].arguments.length !== 3 || !/\.routes$/.test(arText(ipc, calls[0].arguments[0])) || arText(ipc, calls[0].arguments[1]) !== 'pocketRouteIds()' || !/!=='never'$/.test(arText(ipc, calls[0].arguments[2]))) {
+        fail(id, `${where(ipc, proposal)}: proposal does not compose its routes as proposedRoutes(fields.routes, pocketRouteIds(), state !== 'never') (D5)`);
+      }
+    }
+  }
+  const contract = arFile(AR_CONTRACT, id, AR_CORE_OWNER);
+  if (contract !== null) {
+    const status = interfaceOf(contract, 'PocketStatus');
+    for (const name of ['routesAllowed', 'routesWaiting', 'routesOffered']) {
+      const m = status?.members.find((x) => memberName(x) === name);
+      checked(id);
+      if (m === undefined || m.type === undefined || squash(m.type.getText(astOf(contract))) !== 'readonlyPocketRouteId[]' || m.questionToken !== undefined) fail(id, `${rel(contract)}: PocketStatus's ${name} is ${m === undefined ? 'absent' : J(m.getText())}, not a required readonly PocketRouteId[]; main answers both lists and the sheet spells neither (D6, §Attack A14)`);
+    }
+  }
+  // DRIVEN: the proposal, the served and the waiting sets.
+  const allowed = arFile(AR_ALLOWED, id, AR_CORE_OWNER);
+  const mod = allowed === null ? null : arLoad(allowed, id);
+  if (mod !== null) {
+    const build = ['pair', 'blocked', 'probe', 'session'];
+    const set = ['blocked', 'gone', 'pair', 'session'];
+    for (const [what, fn, args, want] of [
+      ['proposedRoutes, not on record', 'proposedRoutes', [set, build, false], [...build].sort()],
+      ['proposedRoutes, on record', 'proposedRoutes', [set, build, true], ['blocked', 'gone', 'pair', 'probe', 'session']],
+      ['servedRoutesOf', 'servedRoutesOf', [set, build], ['pair', 'blocked', 'session']],
+      ['waitingRoutesOf, on record', 'waitingRoutesOf', [set, build, true], ['probe']],
+      ['waitingRoutesOf, not on record', 'waitingRoutesOf', [set, build, false], []]
+    ]) {
+      checked(id);
+      let got;
+      try {
+        got = mod[fn](...args);
+      } catch (err) {
+        got = `threw ${err instanceof Error ? err.message : String(err)}`;
+      }
+      if (J(got) !== J(want)) fail(id, `${what} over the allowed ${J(set)} and the build ${J(build)} answers ${J(got)}, not ${J(want)}: with no record the proposal is the build alone (J39), otherwise allowed ∪ build; served is the build's allowed ids in the build's order, and a route waits only on record (D5, D6)`);
+    }
+  }
+}
+
+// ---- AR12, the sheet draws a waiting route on a published door -------------
+
+function arSheetRule() {
+  const id = 'AR12';
+  const steps = arFile(AR_STEPS, id, AR_CORE_OWNER);
+  if (steps === null) return;
+  const wait = functionsNamed(steps, 'routesWait');
+  checked(id);
+  if (wait.length !== 1) {
+    fail(id, `${rel(steps)} declares routesWait ${String(wait.length)} time(s); once (D23)`);
+  } else {
+    const fn = wait[0];
+    const param = fn.parameters[0]?.name;
+    const pname = param !== undefined && ts.isIdentifier(param) ? param.text : '';
+    const ret = ts.isBlock(fn.body) ? ownReturnsOf(fn)[0]?.expression : fn.body;
+    const parts = ret === undefined ? [] : squash(codeOfNode(steps, ret)).replace(/^\((.*)\)$/, '$1').split('&&').map((s) => s.replaceAll(`${pname}.`, 'status.'));
+    checked(id);
+    if (J([...parts].sort()) !== J(["status.confirmable", "status.routesWaiting.length>0", "status.state==='listening'"].sort()) || (ts.isBlock(fn.body) && ownReturnsOf(fn).length !== 1)) {
+      fail(id, `${where(steps, fn)}: routesWait answers ${J(parts.join(' && '))}, not state === 'listening' && confirmable && routesWaiting.length > 0 and nothing else. A waiting route is drawn only on a published door main says can be agreed to (D23)`);
+    }
+  }
+  const publish = oneFunction(steps, 'publishRow');
+  checked(id);
+  if (publish === null) {
+    fail(id, `${rel(steps)} declares no single publishRow`);
+    return;
+  }
+  const arm = descendantsOf(publish).find((n) => ts.isIfStatement(n) && squash(codeOfNode(steps, n.expression)) === "status.state==='listening'");
+  checked(id);
+  if (arm === undefined) {
+    fail(id, `${where(steps, publish)}: publishRow has no \`status.state === 'listening'\` arm`);
+  } else {
+    const obj = ownReturnsOf(arm.thenStatement).flatMap((r) => (r.expression === undefined ? [] : returnedObjects(r.expression)))[0];
+    const get = (name) => (obj === undefined ? '' : (() => {
+      const p = propOf(obj, name);
+      return p === undefined ? '' : arText(steps, p);
+    })());
+    for (const [name, ok, want] of [
+      ['state', get('state') === 'STATE_PUBLISHED', 'STATE_PUBLISHED'],
+      ['stateKey', get('stateKey') === "'published'", "'published'"],
+      ['hover', /^doorListening\(/.test(get('hover')), 'doorListening(…)'],
+      ['body', get('body') === "routesWait(status)?[{kind:'confirm'}]:[]", "routesWait(status) ? [{ kind: 'confirm' }] : []"]
+    ]) {
+      checked(id);
+      if (!ok) fail(id, `${where(steps, arm)}: the listening arm's ${name} is ${J(get(name))}, not ${want}. A published door keeps its face, and draws today's confirm block under it only while a route waits (D23, SU6)`);
+    }
+  }
+  const needs = oneFunction(steps, 'doorNeedsConfirm');
+  checked(id);
+  if (needs === null || squash(codeOfNode(steps, needs.body)) !== "{return(status.state!=='off'&&status.confirmable&&status.publicName!==null&&status.confirmState!=='confirmed');}") {
+    fail(id, `${needs === null ? rel(steps) : where(steps, needs)}: doorNeedsConfirm's body moved. It is unchanged by this phase: a refused, opening, off or changed door draws what it drew before (D23)`);
+  }
+}
+
+function allowedRouteRules() {
+  for (const [rid, run] of [
+    ['AR1', arStoreRule],
+    ['AR2', arFieldsRule],
+    ['AR3', arLegacyRule],
+    ['AR4', arWriterRule],
+    ['AR5', arRefusalRule],
+    ['AR6', arServedRule],
+    ['AR7', arHonestyRule],
+    ['AR8', arPathsRule],
+    ['AR9', arLedgerRule],
+    ['AR10', arRemoveRule],
+    ['AR11', arStatusRule],
+    ['AR12', arSheetRule]
+  ]) {
+    try {
+      run();
+    } catch (err) {
+      fail(rid, `could not be read: ${err instanceof Error ? err.stack ?? err.message : String(err)}`);
+    }
+  }
+  // A ZERO WHERE SOMETHING MUST BE IS RED: a rule that read nothing asserted nothing.
+  for (const rid of AR_RULE_IDS) {
+    if (checks.get(rid) === 0 && failures.get(rid).length === 0) fail(rid, 'checked nothing, so it asserts nothing');
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
 
@@ -11774,7 +13163,9 @@ const PHASES = [
   // rules drive two functions in-process, so this phase is awaited.
   ['the scrollback', scrollbackRules, 'Z23'],
   // PHASE 333.1, a stranger's first run (build/p3331/SPEC.md §6.1).
-  ['a stranger’s first run', setupRules, 'SU1']
+  ['a stranger’s first run', setupRules, 'SU1'],
+  // PHASE 333.12, an update keeps the door open (build/p33312/SPEC.md §6.1).
+  ['an update keeps the door open', allowedRouteRules, 'AR1']
 ];
 
 for (const [name, run, onError] of PHASES) {

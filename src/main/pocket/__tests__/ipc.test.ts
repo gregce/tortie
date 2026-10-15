@@ -137,8 +137,8 @@ const door = {
   stops: 0,
   localPort: 0,
   order: [] as string[],
-  updates: [] as { pins?: { phoneId: string; spkiSha256: string }[]; windowOpen?: boolean }[],
-  inputs: [] as { publicHost: { name: string; port: number }; pins: unknown[]; windowOpen: boolean }[],
+  updates: [] as { pins?: { phoneId: string; spkiSha256: string }[]; windowOpen?: boolean; routes?: readonly PocketRouteId[] }[],
+  inputs: [] as { publicHost: { name: string; port: number }; pins: unknown[]; windowOpen: boolean; routes?: readonly PocketRouteId[] }[],
   exitListeners: new Set<() => void>(),
   identity: null as null | { keyPem: string; certPem: string; certificateFingerprint: string; publicKeyFingerprint: string }
 };
@@ -160,7 +160,7 @@ vi.mock('../bind', async (importOriginal) => {
     pocketShutdownStarted: () => door.quitting,
     startPocketDoor: async (input: (typeof door.inputs)[number]) => {
       door.order.push('door-start');
-      door.inputs.push({ publicHost: input.publicHost, pins: [...input.pins], windowOpen: input.windowOpen });
+      door.inputs.push({ publicHost: input.publicHost, pins: [...input.pins], windowOpen: input.windowOpen, routes: input.routes });
       if (door.quitting) return { ok: false, reason: 'quitting', sentence: real.DOOR_SENTENCES.quitting };
       door.starts += 1;
       door.listening = true;
@@ -1371,32 +1371,43 @@ describe('the person is asked last, and main supplies the sentence', () => {
 // ---------------------------------------------------------------------------
 
 describe('removing a phone', () => {
-  it('cuts its sockets at once with the new pins, withdraws the agreement, and closes: child, then door', async () => {
+  // PHASE 333.12 (build/p33312/SPEC.md D11c, his answer 9): Remove of one of
+  // two phones cuts the removed phone's sockets with the new pins and records
+  // the narrower door in main, so the OTHER phone keeps reading with no Allow
+  // and nothing stops. Remove of the LAST phone withdraws, closes and asks
+  // again, as it always did.
+  it('cuts its sockets at once with the new pins and keeps the other phone’s door open; the last phone withdraws and closes: child, then door', async () => {
     const one = await listeningHost();
     const a = makePhone('A');
     const b = makePhone('B');
     const pa = await pairPhone(one, a);
-    await pairPhone(one, b);
+    const pb = await pairPhone(one, b);
     door.updates.length = 0;
     const pid = ts.children[0]?.pid;
     door.order.length = 0;
     ts.log.length = 0;
     const after = await one.removePhone(pa.id);
-    expect(door.updates[0]).toEqual({
-      pins: [{ phoneId: phoneIdOf(b.signPublic), spkiSha256: clientKeyPinOf(b.clientPublic) }]
-    });
+    expect(door.updates).toEqual([
+      { pins: [{ phoneId: phoneIdOf(b.signPublic), spkiSha256: clientKeyPinOf(b.clientPublic) }] }
+    ]);
     expect(after.phones.map((p) => p.label)).toEqual(['B']);
-    expect(after.confirmState).toBe('never');
+    expect(after.confirmState).toBe('confirmed');
+    expect(ts.log).toEqual([]);
+    expect(door.order).toEqual([]);
+    expect(after.state).toBe('listening');
+    // The last phone: the agreement goes, the door closes, child first.
+    const last = await one.removePhone(pb.id);
+    expect(last.phones).toEqual([]);
+    expect(last.confirmState).toBe('never');
     expect(ts.log).toEqual([`SIGINT ${String(pid)}`]);
     expect(door.order).toEqual(['door-stop']);
-    expect(after.state).toBe('refused');
-    // Allow again: the door restarts without the removed phone's pin.
-    await one.confirmDoor({ linesRead: after.confirmLines, hashRead: after.confirmHash });
+    expect(last.state).toBe('refused');
+    // Allow again: the door restarts with no phone's pin, serving the eleven.
+    await one.confirmDoor({ linesRead: last.confirmLines, hashRead: last.confirmHash });
     await settled(one);
     expect(one.status().state).toBe('listening');
-    expect(door.inputs.at(-1)?.pins).toEqual([
-      { phoneId: phoneIdOf(b.signPublic), spkiSha256: clientKeyPinOf(b.clientPublic) }
-    ]);
+    expect(door.inputs.at(-1)?.pins).toEqual([]);
+    expect([...(door.inputs.at(-1)?.routes ?? [])].sort()).toEqual([...POCKET_ROUTE_IDS].sort());
   });
 
   it('changes nothing for an id nobody has', async () => {
@@ -1866,16 +1877,22 @@ describe('the phone’s writes, through the host', () => {
     expect(one.status().phones).toHaveLength(2);
   });
 
-  it('runs Remove as it always did: the store, the cut, the withdrawal, then the close', async () => {
+  // PHASE 333.12 (D11c): with another phone left, the narrowing stands in for
+  // the withdrawal and nothing closes; the last phone still withdraws and closes.
+  it('runs Remove: the store, the cut, then the narrowing while a phone remains, and the withdrawal and the close for the last', async () => {
     const one = await listeningHost();
     const a = await writer(one, 'A');
-    await writer(one, 'B');
+    const b = await writer(one, 'B');
     door.updates.length = 0;
     door.order.length = 0;
     const after = await one.removePhone(a.id);
     expect(after.phones.map((p) => p.label)).toEqual(['B']);
-    expect(after.confirmState).toBe('never');
+    expect(after.confirmState).toBe('confirmed');
     expect(door.updates).toHaveLength(1);
+    expect(door.order).toEqual([]);
+    const last = await one.removePhone(b.id);
+    expect(last.confirmState).toBe('never');
+    expect(door.updates).toHaveLength(2);
     expect(door.order).toEqual(['door-stop']);
   });
 

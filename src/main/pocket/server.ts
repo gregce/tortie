@@ -28,12 +28,25 @@
  * 7. **The answer is admitted AGAIN before it leaves** (the Phase 316.1 fix
  *    round). Composing an answer awaits the refresh, and a person can press
  *    Remove, or switch the door off, inside that await. So after the answer is
- *    composed the handler asks three things once more, with nothing awaited
- *    between the asking and the return: has the quit begun, is the phone this
- *    request was VERIFIED for still paired (`unpaired` if not), and has the
- *    door instance that ACCEPTED the request begun to stop. The last is asked
- *    of the door `./bind.ts` hands the handler, by generation, never of the
- *    module's current door; `./bind.ts` asks it once more before the post.
+ *    composed the handler asks again, with nothing awaited between the asking
+ *    and the return: has the quit begun, is the phone this request was
+ *    VERIFIED for still paired (`unpaired` if not), is the route still one a
+ *    person allowed (Phase 333.12, `route` if not), and has the door instance
+ *    that ACCEPTED the request begun to stop. The last is asked of the door
+ *    `./bind.ts` hands the handler, by generation, never of the module's
+ *    current door; `./bind.ts` asks it once more before the post.
+ *
+ * ## The routes a person allowed (Phase 333.12, build/p33312/SPEC.md §5.6, D8)
+ *
+ * The door answers the routes that are BOTH in this build's table and in the
+ * set a person allowed. A route this build has that nobody allowed yet WAITS:
+ * it is refused `route`, the same 404 an older Mac gives a route it does not
+ * have, so a phone cannot tell a waiting route from a missing one. The door
+ * process refuses it before the body (`./door/listener.ts`), but its copy of
+ * the served set can lag main's, so main asks {@link PocketHandlerDeps.routeServed}
+ * itself: right after refusal 1, before the pairing arm and before the
+ * signature is verified (so a waiting route spends no nonce), and again in
+ * refusal 7. Main's answer is the one that holds.
  *
  * EVERY REFUSAL ANSWERS THE SAME THING: 404 and no body. The reason is a WORD
  * in a bounded log and never on the wire, because a door that explains why it
@@ -58,6 +71,7 @@
  * value, a query value, a body or a line of anybody's conversation.
  */
 
+import type { PocketRouteId } from '@shared/ipc/pocket';
 import { getLog } from '../log';
 import type { DoorAdmission, DoorAnswer, DoorRequestHandler } from './bind';
 import type { DoorPresentation, DoorSignatureHeaders } from './door/wire';
@@ -95,6 +109,14 @@ export interface PocketHandlerDeps {
    * flight refuses it `unpaired`.
    */
   stillPaired(phoneId: string): boolean;
+  /**
+   * Is this one of this build's routes a person allowed (Phase 333.12,
+   * build/p33312/SPEC.md §5.6, D8)? Asked before anything of a request is read
+   * (after refusal 1, before the pairing arm and before `verify`) and again
+   * before a read's answer leaves (refusal 7). REQUIRED: a host that forgot it
+   * does not compile, rather than serving every route this build has.
+   */
+  routeServed(id: PocketRouteId): boolean;
   /**
    * Answer one of the reads. Null means there is nothing to answer.
    *
@@ -162,6 +184,11 @@ export function createPocketHandler(deps: PocketHandlerDeps): DoorRequestHandler
     // REFUSAL 1, asked of the quit AND of the door that accepted this request.
     const closing = (): boolean => deps.shuttingDown() || door.stopping();
     if (closing()) return refuse('shutdown');
+    // PHASE 333.12 (D8): a route a person has not allowed is refused as a
+    // route this Mac does not have, before the pairing arm and before the
+    // signature is verified, so a waiting route reads nothing and spends no
+    // nonce. The door process asked the same; its copy may lag this one.
+    if (!deps.routeServed(request.route)) return refuse('route');
 
     if (request.route === 'pair') {
       // REFUSAL 4, again: main's window is the one a person opened.
@@ -209,9 +236,12 @@ export function createPocketHandler(deps: PocketHandlerDeps): DoorRequestHandler
     // REFUSAL 7. Nothing is awaited from here to the return, so the answer that
     // leaves is one the person had not withdrawn by the time it left. The phone
     // is asked before the door, so a Remove — which also stops the door — is
-    // refused for the reason that is true of it.
+    // refused for the reason that is true of it. Phase 333.12 (D8): the route
+    // is asked again too, so a route no longer served by the time its answer
+    // was composed sends nothing.
     if (deps.shuttingDown()) return refuse('shutdown');
     if (!deps.stillPaired(verifiedPhone)) return refuse('unpaired');
+    if (!deps.routeServed(route.id)) return refuse('route');
     if (closing()) return refuse('shutdown');
     if (body === null) return refuse('route');
     return { status: 200, body: JSON.stringify(body) };

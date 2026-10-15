@@ -828,6 +828,13 @@ export const CHECKS = [
   // appended and read back, the relaunch publishing with no press, and the
   // attack arms that need the real host. P313_PARENT_CHECKOUT reads a parent build.
   electron('probe:p313'),
+  // PHASE 333.12's app run: an update that adds a door route keeps every paired
+  // phone working. ONE profile relaunched across v0.111.1, v0.111.1 with a
+  // planted twelfth route, HEAD and HEAD planted, one Electron at a time, with
+  // the Tailscale, DNS and APNs stand-ins, so no vendor process runs and no
+  // token is spent. Env: P33312_PARENT_CHECKOUT, P33312_PARENT_PLANTED,
+  // P33312_HEAD_PLANTED, P33312_KEEP, P33312_ARMS.
+  electron('probe:p33312'),
   // PHASE 314's app run: the push driven inside the real app BY REAL AGENTS
   // (the operator's ruling of 2026-09-22). ONE Electron on a scratch profile
   // under a harness directory, a scratch HOME and the socket gmux-p314-<pid>,

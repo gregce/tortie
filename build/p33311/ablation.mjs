@@ -56,6 +56,21 @@
  * function once a committed copy holds a record), and M8, refusing a bound
  * re-ruled, raised, its least value lowered or a path unbounded.
  *
+ * PHASE 333.12 (build/p33312/SPEC.md §6.4) adds the attack on R7 and R8, the
+ * allowed set and the route ledger: R7a (`LEGACY_ALLOWED_ROUTES` without
+ * `keys`, red on R7 and on R2, whose launch served set then refuses every
+ * keys write), R7b (`allowedRoutesFor` answering `[]` for a store that never
+ * recorded a set, red on R7 and on R5, which then answers every frozen read
+ * 404), R8a (a ledger row's path moved against the frozen set), R8h (the
+ * history half driven through `ledgerLosses` with a PLANTED older copy whose
+ * row differs, handed to the gate by `--ledger-copy`) and R8g (a ledger row
+ * edited in the clone and read against the REAL committed copies through
+ * git; until a committed copy of the ledger exists it prints `not run: no
+ * committed copy of the ledger yet` and counts as neither a pass nor a fail),
+ * and one CONTROL, R8c, a twelfth ledger row appended, green: the ledger may
+ * only add. An arm's `args` are handed to the gate after `--json`, and a
+ * `create` may be a function of the clone's directory.
+ *
  * `git` IS REQUIRED. The clone is a `cp -Rc` of the tree, so its `.git` file
  * reaches the same history, and F1 compares the clone's frozen set with
  * every committed copy of it. With no `git` the gate only notes it, so G6 and
@@ -73,9 +88,9 @@
  * into the clone's `ios/TortieTests/Fixtures/frozen/` first (a builder's
  * scratch set before the integrator freezes); `--only` runs the named arms.
  * It prints one line per arm and `ABLATION_P33311: <red>/<arms> red,
- * <green>/<controls> controls green` (71 arms and 12 controls, and modes M1
- * to M8, since Phase 333.11.1's fix round); any arm that does not read as it
- * must exits 1.
+ * <green>/<controls> controls green` (76 arms and 13 controls since Phase
+ * 333.12, R8g among the arms once a committed ledger exists and `not run`
+ * before, and modes M1 to M8); any arm that does not read as it must exits 1.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -302,7 +317,16 @@ const ARMS = [
   { id: 'V6', control: true, what: 'the sessions arm refuses a query missing show, group or sort, which the phone always sends', edits: [{ file: 'src/main/pocket/ipc.ts', find: 'return routes.sessions(query);', to: "return query.get('show') === null || query.get('group') === null || query.get('sort') === null ? null : routes.sessions(query);" }] },
   { id: 'V7', control: true, what: 'the sessions arm refuses show=archived, which the phone never sends', edits: [{ file: 'src/main/pocket/ipc.ts', find: 'return routes.sessions(query);', to: "return query.get('show') === 'archived' ? null : routes.sessions(query);" }] },
   { id: 'V8', control: true, what: 'the scrollback arm refuses a query with no keep, which the phone always sends', edits: [{ file: 'src/main/pocket/ipc.ts', find: 'return routes.scrollback(query, closing);', to: "return query.get('keep') === null ? null : routes.scrollback(query, closing);" }] },
-  { id: 'G2', control: true, what: 'the Mac raises POCKET_WRITE_BODY_CAPS.say to 65_536', edits: [{ file: 'src/main/pocket/door/limits.ts', find: 'say: 32_768', to: 'say: 65_536' }] }
+  { id: 'G2', control: true, what: 'the Mac raises POCKET_WRITE_BODY_CAPS.say to 65_536', edits: [{ file: 'src/main/pocket/door/limits.ts', find: 'say: 32_768', to: 'say: 65_536' }] },
+  // PHASE 333.12 (build/p33312/SPEC.md §6.4): R7, a launch-shaped store keeps
+  // the eleven's hash and serves the launch routes; R8, the route ledger only
+  // adds. R8g needs a committed copy of the ledger and says `not run` before.
+  { id: 'R7a', clause: 'R7', alsoRed: ['R2'], what: 'LEGACY_ALLOWED_ROUTES without keys', edits: [{ file: 'src/shared/ipc/pocket.ts', find: "  'end',\n  'keys',\n  'pair',", to: "  'end',\n  'pair'," }] },
+  { id: 'R7b', clause: 'R7', alsoRed: ['R5'], what: 'allowedRoutesFor answers [] for a store that never recorded a set', edits: [{ file: 'src/main/pocket/allowed-routes.ts', find: '  return stored ?? LEGACY_ALLOWED_ROUTES;', to: '  return stored ?? [];' }] },
+  { id: 'R8a', clause: 'R8', what: "the ledger's turns row moved to /v1/turnz against the frozen set", edits: [{ file: 'src/main/pocket/route-ledger.ts', find: "path: '/v1/turns'", to: "path: '/v1/turnz'" }] },
+  { id: 'R8h', clause: 'R8', args: ['--ledger-copy', 'p33312-ledger-copy.ts'], what: 'a planted older copy of the ledger whose end row said another clause, through the pure ledgerLosses', edits: [{ file: 'p33312-ledger-copy.ts', create: (clone) => readFileSync(join(clone, 'src/main/pocket/route-ledger.ts'), 'utf8').replace("clause: 'end a session'", "clause: 'end any session'") }] },
+  { id: 'R8g', clause: 'R8', committedLedger: true, what: "a ledger row's clause edited in the clone, read against the REAL committed copies through git", edits: [{ file: 'src/main/pocket/route-ledger.ts', find: "clause: 'end a session'", to: "clause: 'end any session'" }] },
+  { id: 'R8c', control: true, what: 'a twelfth ledger row appended (the ledger only adds)', edits: [{ file: 'src/main/pocket/route-ledger.ts', find: "clause: 'type into any session as you would at this Mac' }\n]);", to: "clause: 'type into any session as you would at this Mac' },\n  { id: 'probe', method: 'GET', path: '/v1/probe', reads: true, signed: true, windowOnly: false, bodyCap: 1024, clause: null }\n]);" }] }
 ];
 
 /** Apply one arm's edits in the clone; answers the originals, or throws why it could not plant. */
@@ -318,7 +342,9 @@ function plant(arm) {
     }
     if (edit.create !== undefined) {
       if (originals.get(edit.file) !== null) throw new Error(`${edit.file} exists, so it cannot be created`);
-      writeFileSync(path, edit.create);
+      const made = typeof edit.create === 'function' ? edit.create(CLONE) : edit.create;
+      if (typeof made !== 'string' || made.length === 0) throw new Error(`${edit.file}: the planted text is empty`);
+      writeFileSync(path, made);
       continue;
     }
     if (!existsSync(path)) throw new Error(`${edit.file} does not exist`);
@@ -355,9 +381,9 @@ function restore(originals) {
 }
 
 /** The gate over the clone: this tree's gate, or (`own`) the clone's own, which imports the clone's reader. */
-function gate(own = false) {
+function gate(own = false, extra = []) {
   const script = own ? join(CLONE, 'build', 'assert-door-only-adds.mjs') : GATE;
-  const run = spawnSync(process.execPath, [script, '--root', CLONE, '--json'], { cwd: CLONE, encoding: 'utf8', timeout: 180_000, maxBuffer: 32 * 1024 * 1024 });
+  const run = spawnSync(process.execPath, [script, '--root', CLONE, '--json', ...extra], { cwd: CLONE, encoding: 'utf8', timeout: 180_000, maxBuffer: 32 * 1024 * 1024 });
   const line = (run.stdout ?? '').split('\n').find((l) => l.startsWith('GATE_ONLYADD:'));
   let verdict = null;
   try {
@@ -508,6 +534,18 @@ function replaceRefuses(dir, edit, names) {
   }
 }
 
+/**
+ * Is there a committed copy of the route ledger the clone's git can read
+ * (Phase 333.12, R8g)? Read only, with the gate's own git environment: no
+ * optional locks, no global or system configuration.
+ */
+function ledgerCommitted() {
+  const env = { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' };
+  for (const k of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_COMMON_DIR', 'GIT_OBJECT_DIRECTORY', 'GIT_ALTERNATE_OBJECT_DIRECTORIES']) delete env[k];
+  const run = spawnSync('git', ['-C', CLONE, 'log', '--format=%H', '--', 'src/main/pocket/route-ledger.ts'], { encoding: 'utf8', timeout: 10_000, env });
+  return run.status === 0 && /^[0-9a-f]{40}/m.test(String(run.stdout ?? ''));
+}
+
 function regenerate() {
   const run = spawnSync(process.execPath, [join(CLONE, 'build', 'p316', 'vectors.mjs')], { cwd: CLONE, encoding: 'utf8', timeout: 180_000, maxBuffer: 32 * 1024 * 1024 });
   if (run.status !== 0) throw new Error(`the clone's vectors.mjs refused to regenerate: ${`${run.stdout ?? ''}${run.stderr ?? ''}`.trim().split('\n').slice(-3).join(' | ')}`);
@@ -516,6 +554,7 @@ function regenerate() {
 const t0 = Date.now();
 let red = 0;
 let green = 0;
+let notRun = 0;
 const misses = [];
 const arms = ARMS.filter((a) => ONLY === null || ONLY.has(a.id));
 const armCount = arms.filter((a) => !a.control).length;
@@ -538,10 +577,18 @@ try {
     const started = Date.now();
     let originals = null;
     let line;
+    // PHASE 333.12 (R8g): an arm that reads the REAL committed copies of the
+    // route ledger has nothing to read until one is committed. It says so, and
+    // is neither a pass nor a fail.
+    if (arm.committedLedger === true && !ledgerCommitted()) {
+      notRun += 1;
+      process.stdout.write(`  not run ${arm.id}  ${arm.what}: no committed copy of the ledger yet\n`);
+      continue;
+    }
     try {
       originals = plant(arm);
       if (arm.regen) regenerate();
-      const r = gate(arm.reader === true);
+      const r = gate(arm.reader === true, arm.args ?? []);
       const reds = Object.entries(r.verdict?.clauses ?? {}).filter(([id, c]) => !c.ok && id !== 'P4').map(([id]) => id);
       if (arm.reader === true) {
         // Red before any clause: the reader's own fixtures refused it, and
@@ -604,7 +651,7 @@ try {
 } finally {
   rmSync(CLONE, { recursive: true, force: true });
 }
-process.stdout.write(`ABLATION_P33311: ${String(red)}/${String(armCount)} red, ${String(green)}/${String(controlCount)} controls green (${String(Math.round((Date.now() - t0) / 1000))} s)\n`);
+process.stdout.write(`ABLATION_P33311: ${String(red)}/${String(armCount - notRun)} red, ${String(green)}/${String(controlCount)} controls green${notRun > 0 ? `, ${String(notRun)} not run` : ''} (${String(Math.round((Date.now() - t0) / 1000))} s)\n`);
 if (misses.length > 0) {
   process.stdout.write(`${TAG} FAIL:\n`);
   for (const m of misses) process.stdout.write(`  - ${m}\n`);

@@ -10,6 +10,12 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 - Tortie for iPhone now has See a sample, on its first screen and in Settings: made-up Claude Code and Codex sessions you can open, scroll back, type into, answer and end before you pair a Mac, with every page marked Sample and nothing leaving the phone. What you type there only appears on the sample's own prompt, and Leave sample takes you back ([`ad317f86`](https://github.com/gregce/tortie/commit/ad317f86))
 
+### Fixed
+
+- A Tortie update that adds something your iPhone can do no longer switches the iPhone off: what you allowed keeps working, and only the new thing waits for Allow in Settings then Phone
+- Removing one phone in Settings then Phone no longer stops your other phones until you press Allow
+- Turning alerts off in Settings then Phone no longer stops your phones until you press Allow
+
 ## 0.111.2 (2026-10-13)
 
 This release fixes two things John Berryman reported. ⌘C no longer clears what you typed at an agent's prompt, and a file open in an ignored folder now updates while you watch it.

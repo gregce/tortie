@@ -128,6 +128,38 @@
  * program printed: each red on SU3 and on `setup` or `funnel`, which drive the
  * link as `approvalCopyText` spells it.
  *
+ * PHASE 333.12 ADDED FORTY-THREE (build/p33312/SPEC.md §6.4), 527 entries in
+ * all: `AR1a` to `AR12b`, at least one arm per AR rule and two or more for
+ * AR1, AR5, AR8 and AR9 (the stored list read partly or with an id outside
+ * the ledger, the door's served check moved after the body, main's two asks
+ * taken out, a start with no set serving the whole table, `confirmDoor`
+ * recording `this.fields()`, the pairing owner handed the proposal, the
+ * sheet's alerts-off self-confirm put back, `narrowPocketDoor` called from
+ * `confirmDoor`, `isPocketSubtraction` admitting a route added, a ledger cap,
+ * value, clause or path that is not the door's), `SU6w` the honesty sentence
+ * over the table rather than the served set, and `Y2d` and `Y2e` the write
+ * path's fourth ask taken out of `still` and of the last check. Three arms
+ * were re-anchored on what this phase moved under them, each still reddening
+ * the rule it owns: `A4b` (refusal 7's door ask now follows the route's),
+ * `Y2a` (`still` has a fourth ask after the phone's) and `SU20` (the honesty
+ * sentence is the composer's call). Two more driven checks joined, `allowed`
+ * (`src/main/pocket/__tests__/p33312-allowed-routes.test.ts`) and `served`
+ * (`src/main/pocket/__tests__/p33312-served.test.ts`), each this harness's own
+ * tag as `unit` is, for the clauses only an order or an interleaving shows:
+ * the record written before the store (`AR4c`), the narrowings, and the last
+ * check's fourth ask.
+ *
+ * ITS FIX ROUND ADDED SIX, 533 entries in all, one for each hole the verify's
+ * own ablations found with every gate green: `AR4d` (the allowed set written
+ * when the record could not be sealed, lens 1's K18), `AR8h` and `AR8i`
+ * (alerts off and Remove handing `narrowPocketDoor` the proposal, K16),
+ * `AR8j` (alerts off reading its before-fields after the write), and `AR7d`
+ * and `AR11e` (the honesty sentence beside Allow composed over the routes
+ * already answered rather than what that Allow grants). One more driven check
+ * joined, `phone` (`src/renderer/settings/__tests__/p316-phone-section.test.tsx`).
+ * Four arms were re-anchored on `routesOffered`: `SU20`, `AR7a`, `SU6w` and
+ * `AR11a`.
+ *
  * An ablation that leaves the check green is a hole in the check. An ablation
  * that reddens only rules OTHER than its own is a finding about the check
  * rather than about the build, and it is printed as one.
@@ -187,7 +219,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -255,6 +287,9 @@ const CONTROL_CLIENT = 'src/main/tmux/control-client.ts';
 const SCREEN_SCROLLBACK = 'src/main/screen/scrollback.ts';
 // PHASE 333.1: the sheet's step composer.
 const STEPS = 'src/renderer/settings/phone/steps.ts';
+// PHASE 333.12: the allowed set's pure module and the route ledger.
+const ALLOWED_ROUTES = 'src/main/pocket/allowed-routes.ts';
+const LEDGER = 'src/main/pocket/route-ledger.ts';
 
 /**
  * The checks this harness runs inside the clone, in order. Each prints its
@@ -278,7 +313,18 @@ const CHECKS = [
   // (`steps`). Each is this harness's own tag, as `unit` and `return` are.
   ['setup', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/main/pocket/__tests__/p3331-setup.test.ts'], { tag: 'setup', relative: true }],
   ['funnel', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/main/pocket/__tests__/funnel.test.ts'], { tag: 'funnel', relative: true }],
-  ['steps', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/renderer/settings/__tests__/p3331-steps.test.tsx'], { tag: 'steps', relative: true }]
+  ['steps', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/renderer/settings/__tests__/p3331-steps.test.tsx'], { tag: 'steps', relative: true }],
+  // PHASE 333.12 (build/p33312/SPEC.md §6.4): the allowed set's and the served
+  // set's own driven owners, for the arms whose clause only an interleaving or
+  // a recorded order shows (the record before the store, the narrowings, the
+  // last check's fourth ask). `[p313 allowed]` and `[p313 served]` are this
+  // harness's own tags, as `unit` is.
+  ['allowed', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/main/pocket/__tests__/p33312-allowed-routes.test.ts'], { tag: 'allowed', relative: true }],
+  ['served', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/main/pocket/__tests__/p33312-served.test.ts'], { tag: 'served', relative: true }],
+  // PHASE 333.12's FIX ROUND: the sheet's own driven owner, for the arm whose
+  // clause only a drawn block shows (the honesty sentence composed over what
+  // the Allow beside it grants). `[p313 phone]` is this harness's own tag.
+  ['phone', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/renderer/settings/__tests__/p316-phone-section.test.tsx'], { tag: 'phone', relative: true }]
 ];
 
 /**
@@ -929,8 +975,10 @@ const ABLATIONS = [
     name: 'the handler stops asking the door that accepted it after the answer is composed',
     why: 'the first of the two last asks; bind.ts’s generation check is the second, and each is one line a later round deletes.',
     file: SERVER,
-    from: "    if (!deps.stillPaired(verifiedPhone)) return refuse('unpaired');\n    if (closing()) return refuse('shutdown');",
-    to: "    if (!deps.stillPaired(verifiedPhone)) return refuse('unpaired');",
+    // PHASE 333.12 put the route's ask between the phone's and the door's;
+    // the arm still takes the door's ask out, re-anchored on its new neighbour.
+    from: "    if (!deps.routeServed(route.id)) return refuse('route');\n    if (closing()) return refuse('shutdown');",
+    to: "    if (!deps.routeServed(route.id)) return refuse('route');",
     needs: ['gate']
   },
   {
@@ -2675,8 +2723,10 @@ const ABLATIONS = [
     name: 'still forgets to ask whether the phone is still paired',
     why: 'a press reads the screen before it types; a phone Removed on the Mac during that read would type through a still that does not ask (D5).',
     file: WRITES,
-    from: /(\n\s*)!deps\.shuttingDown\(\) && !door\.stopping\(\) && deps\.stillPaired\(verifiedPhone\);/,
-    to: (m, sp) => `${sp}!deps.shuttingDown() && !door.stopping();`,
+    // PHASE 333.12 added a fourth ask after this one; the arm still takes the
+    // phone's ask out and leaves the other three.
+    from: /(\n\s*)!deps\.shuttingDown\(\) && !door\.stopping\(\) && deps\.stillPaired\(verifiedPhone\) && deps\.routeServed\(verb\);/,
+    to: (m, sp) => `${sp}!deps.shuttingDown() && !door.stopping() && deps.routeServed(verb);`,
     needs: ['gate']
   },
   {
@@ -4951,8 +5001,10 @@ const ABLATIONS = [
     name: 'the door’s honesty sentence behind a disclosure',
     why: 'probe:p317 W1 and probe:p318 R0 read it inside the block, at rest (D18).',
     file: PHONE_SECTION,
-    from: '          <p className="set-config-warning">{POCKET_DOOR_HONESTY}</p>',
-    to: '          <details className="set-disclosure">\n            <p className="set-config-warning">{POCKET_DOOR_HONESTY}</p>\n          </details>',
+    // PHASE 333.12: the sentence is the composer over what the Allow beside
+    // it grants (D13; the fix round moved it to routesOffered).
+    from: '          <p className="set-config-warning">{pocketDoorHonesty(status.routesOffered)}</p>',
+    to: '          <details className="set-disclosure">\n            <p className="set-config-warning">{pocketDoorHonesty(status.routesOffered)}</p>\n          </details>',
     needs: ['gate']
   },
   {
@@ -5257,6 +5309,530 @@ const ABLATIONS = [
     from: '  if (text === null || !approvalOpens(text)) return null;\n  const href = new URL(text).href;\n',
     to: '  if (text === null) return null;\n  const href = new URL(text).href;\n',
     needs: ['gate', 'funnel']
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 333.12, an update keeps the door open (build/p33312/SPEC.md §6.4):
+  // at least one arm per AR rule, two or more for AR1, AR5, AR8 and AR9, one
+  // for SU6's widened clause and one for Y2's fourth ask. The arms whose
+  // clause only a driven owner shows also redden `allowed` or `served`.
+  // -------------------------------------------------------------------------
+  {
+    n: 'AR1a',
+    rule: 'AR1',
+    alsoRed: ['allowed'],
+    name: 'allowedRoutesOf accepts an id outside the route ledger',
+    why: 'a stored id no build ever shipped is a route nobody can read the meaning of, and the list would hash to a set nobody confirmed (D2).',
+    file: ALLOWED_ROUTES,
+    from: '    if (!POCKET_LEDGER_IDS.has(id)) return null;\n',
+    to: '',
+    needs: ['gate', 'allowed']
+  },
+  {
+    n: 'AR1b',
+    rule: 'AR1',
+    name: 'readPocketStore reads the stored list as it is, not through allowedRoutesOf',
+    why: 'a list read partly, or a list an agent planted with an extra id, would be the routes the door hashes and serves (D1, D2; CLAUDE.md "an invalid row is dropped whole").',
+    file: PAIRING,
+    from: '        allowedRoutes: allowedRoutesOf((parsed as { allowedRoutes?: unknown }).allowedRoutes)',
+    to: '        allowedRoutes: (parsed as { allowedRoutes?: readonly string[] }).allowedRoutes ?? null',
+    needs: ['gate']
+  },
+  {
+    n: 'AR1c',
+    rule: 'AR1',
+    name: 'allowedRoutesOf no longer requires every legacy id',
+    why: 'a stored list without keys would read whole and quietly narrow, or with a different id swapped in widen, what a launch-era agreement allowed (D2).',
+    file: ALLOWED_ROUTES,
+    from: '  for (const id of LEGACY_ALLOWED_ROUTES) {\n    if (!seen.has(id)) return null;\n  }\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'AR1d',
+    rule: 'AR1',
+    name: 'a shared type carries allowedRoutes',
+    why: 'the allowed set leaves main only as the served list; a renderer that held it could spell a predicate main owns (D6, §Attack A14).',
+    file: SHARED,
+    from: 'routesWaiting: readonly PocketRouteId[];',
+    to: 'routesWaiting: readonly PocketRouteId[];\n  allowedRoutes: readonly string[];',
+    needs: ['gate']
+  },
+  {
+    n: 'AR2a',
+    rule: 'AR2',
+    alsoRed: ['allowed'],
+    name: 'fields() answers this build’s table again',
+    why: 'THE OUTAGE THIS PHASE ENDS: the update that adds a route moves the hash, the door reads changed, and every paired phone and its alerts go dark until Allow (§3).',
+    file: IPC,
+    from: '      routes: allowedRoutesFor(store?.allowedRoutes ?? null),',
+    to: '      routes: pocketRouteIds(),',
+    needs: ['gate', 'allowed']
+  },
+  {
+    n: 'AR2b',
+    rule: 'AR2',
+    name: 'allowedRoutesFor answers a route nobody allowed when nothing is stored',
+    why: 'every 0.111.x store would hash over twelve routes, read changed, and switch every phone off (D1).',
+    file: ALLOWED_ROUTES,
+    from: '  return stored ?? LEGACY_ALLOWED_ROUTES;',
+    to: "  return stored ?? [...LEGACY_ALLOWED_ROUTES, 'probe'];",
+    needs: ['gate']
+  },
+  {
+    n: 'AR3a',
+    rule: 'AR3',
+    name: 'LEGACY_ALLOWED_ROUTES without keys',
+    why: 'the eleven a stranger allowed would no longer be the eleven the launch phone calls: every launch-era store would read as ten routes (D3).',
+    file: SHARED,
+    from: "  'end',\n  'keys',\n  'pair',",
+    to: "  'end',\n  'pair',",
+    needs: ['gate']
+  },
+  {
+    n: 'AR4a',
+    rule: 'AR4',
+    name: 'a second writer of the allowed set, in the alerts switch',
+    why: 'HIS ANSWER 10: only the Allow whose lines name a route allows it. A switch that writes the table into the store allows every waiting route with no lines read.',
+    file: IPC,
+    from: '    if (!this.writeStore({ ...store, pushAlerts: on })) return this.status();',
+    to: '    if (!this.writeStore({ ...store, pushAlerts: on, allowedRoutes: [...pocketRouteIds()] })) return this.status();',
+    needs: ['gate']
+  },
+  {
+    n: 'AR4b',
+    rule: 'AR4',
+    name: 'confirmDoor writes the table rather than the proposal it recorded',
+    why: 'the store would allow what this build has rather than what the person read; the record and the store would disagree on the next update (D9).',
+    file: IPC,
+    from: '      saved = store !== null && this.writeStore({ ...store, allowedRoutes: [...proposal.routes] });',
+    to: '      saved = store !== null && this.writeStore({ ...store, allowedRoutes: [...pocketRouteIds()] });',
+    needs: ['gate']
+  },
+  {
+    n: 'AR4c',
+    rule: 'AR4',
+    alsoRed: ['allowed'],
+    name: 'the allowed set written BEFORE the record',
+    why: 'record first, store second is the safe direction: a record write that then fails would leave a store wider than any record (D9, §Attack A6).',
+    file: IPC,
+    from: '    const record = confirmPocketDoor(proposal, {',
+    to: '    const early = this.readStore();\n    if (early !== null) this.writeStore({ ...early, allowedRoutes: [...proposal.routes] });\n    const record = confirmPocketDoor(proposal, {',
+    needs: ['gate', 'allowed']
+  },
+  {
+    // THE FIX ROUND (lens 1's K18): with this one conjunct dropped every gate
+    // and every builder test stayed green.
+    n: 'AR4d',
+    rule: 'AR4',
+    alsoRed: ['allowed'],
+    name: 'the allowed set written even when the record could not be sealed',
+    why: 'a record that failed would leave the store holding a route no record covers: main would serve it while the gate reads changed, the one state D21 says never happens (D9, D21; C6b).',
+    file: IPC,
+    from: '    if (\n      record !== null &&\n      (proposal.routes.length',
+    to: '    if (\n      (proposal.routes.length',
+    needs: ['gate', 'allowed']
+  },
+  {
+    n: 'AR5a',
+    rule: 'AR5',
+    alsoRed: ['hostile', 'served'],
+    name: 'the door process asks the served set only AFTER it has read the body',
+    why: 'a waiting route would read up to its cap of a stranger’s bytes before it is refused, and answer oversized rather than as a route this Mac does not have (D7; hostile PR2).',
+    file: LISTENER,
+    from: /( {4}if \(!served\.has\(route\.id\)\) return refuseRequest\(res, 'route'\);\n)([\s\S]*?\n {4}if \(body === null\) return refuseRequest\(res, 'oversized'\);\n)/,
+    to: (m, check, rest) => `${rest}${check}`,
+    needs: ['gate', 'hostile', 'served']
+  },
+  {
+    n: 'AR5b',
+    rule: 'AR5',
+    alsoRed: ['hostile', 'served'],
+    name: 'main’s first ask of the served set removed',
+    why: 'the door process’s copy can lag main’s: a waiting route would be verified, spend a nonce and be read by main (D8; hostile PR3).',
+    file: SERVER,
+    from: "    if (!deps.routeServed(request.route)) return refuse('route');\n",
+    to: '',
+    needs: ['gate', 'hostile', 'served']
+  },
+  {
+    n: 'AR5c',
+    rule: 'AR5',
+    alsoRed: ['hostile', 'served'],
+    name: 'refusal 7 stops asking the served set',
+    why: 'an answer composed for a route no longer served would still leave (D8; hostile PR6).',
+    file: SERVER,
+    from: "    if (!deps.routeServed(route.id)) return refuse('route');\n",
+    to: '',
+    needs: ['gate', 'hostile', 'served']
+  },
+  {
+    n: 'AR5d',
+    rule: 'AR5',
+    alsoRed: ['served'],
+    name: 'a start with no served set serves the whole table',
+    why: 'THE ATTACK A13 SHAPE: an older or broken main that forgot the set would get a door that answers every route this build has, waiting ones too (D7).',
+    file: WIRE,
+    from: '  if (!Array.isArray(value) || value.length > POCKET_ROUTES.length) return null;',
+    to: '  if (!Array.isArray(value)) return POCKET_ROUTES.map((r) => r.id);\n  if (value.length > POCKET_ROUTES.length) return null;',
+    needs: ['gate', 'served']
+  },
+  {
+    n: 'AR6a',
+    rule: 'AR6',
+    name: 'the served set reads the confirm record on every request',
+    why: 'the record is sealed; reading it per request adds a keystore call to every read, and the allowed set only grows after its record, so the store’s set is never wider (D21, §Attack A5).',
+    file: IPC,
+    from: '    return servedRoutesOf(this.fields().routes, pocketRouteIds());',
+    to: "    return servedRoutesOf(pocketConfirmStatus(this.fields()).state === 'never' ? [] : this.fields().routes, pocketRouteIds());",
+    needs: ['gate']
+  },
+  {
+    n: 'AR6b',
+    rule: 'AR6',
+    name: 'the door process is started with this build’s whole table',
+    why: 'a route nobody allowed would answer from the door’s first request (D7).',
+    file: IPC,
+    from: '      routes: this.servedRoutes(),\n      ...(this.deps.door !== undefined ? { spawn: this.deps.door } : {})',
+    to: '      routes: pocketRouteIds(),\n      ...(this.deps.door !== undefined ? { spawn: this.deps.door } : {})',
+    needs: ['gate']
+  },
+  {
+    n: 'AR6c',
+    rule: 'AR6',
+    name: 'openNow no longer hands the served set over once the door answered',
+    why: 'an Allow pressed between the fork and the listen is posted nowhere, and the new route waits until the next restart (D22, §Attack A9).',
+    file: IPC,
+    from: '    // posted nowhere, so the served set is handed over once more now.\n    this.postRoutes();\n',
+    to: '    // posted nowhere, so the served set is handed over once more now.\n',
+    needs: ['gate']
+  },
+  {
+    n: 'AR7a',
+    rule: 'AR7',
+    alsoRed: ['SU6'],
+    name: 'the sheet draws the bare honesty constant',
+    why: 'the sentence would never say what an allowed added route lets a phone do (D13).',
+    file: PHONE_SECTION,
+    from: '{pocketDoorHonesty(status.routesOffered)}',
+    to: '{POCKET_DOOR_HONESTY}',
+    needs: ['gate']
+  },
+  {
+    n: 'AR7b',
+    rule: 'AR7',
+    name: 'the honesty sentence says a route’s clause whether or not it was allowed',
+    why: 'the sheet would tell a person the door lets a phone do something it does not answer, or that waits for an Allow (D13).',
+    file: SHARED,
+    from: '    if (clause !== undefined && allowed.includes(id)) clauses.push(clause);',
+    to: '    if (clause !== undefined) clauses.push(clause);',
+    needs: ['gate']
+  },
+  {
+    n: 'AR7c',
+    rule: 'AR7',
+    name: 'the added clauses are typed so a new route need not name one',
+    why: 'a phase that adds a route could compile without saying what it lets a phone do (D13).',
+    file: SHARED,
+    from: 'const POCKET_HONESTY_ADDED: Readonly<Record<Exclude<PocketRouteId, LegacyAllowedRouteId>, string>> = Object.freeze({});',
+    to: 'const POCKET_HONESTY_ADDED: Readonly<Record<string, string>> = Object.freeze({});',
+    needs: ['gate']
+  },
+  {
+    // THE FIX ROUND (lens 1's minor): the builders' composition.
+    n: 'AR7d',
+    rule: 'AR7',
+    alsoRed: ['SU6', 'phone'],
+    name: 'the honesty sentence beside Allow composed over the routes already answered',
+    why: 'the warning beside Allow would leave out the very route that Allow grants, at a first setup and while a route waits, and say it only once nobody can read it beside the press (D13; the fix round).',
+    file: PHONE_SECTION,
+    from: '{pocketDoorHonesty(status.routesOffered)}',
+    to: '{pocketDoorHonesty(status.routesAllowed)}',
+    needs: ['gate', 'phone']
+  },
+  {
+    n: 'AR8a',
+    rule: 'AR8',
+    alsoRed: ['allowed'],
+    name: 'confirmDoor records this.fields() rather than the proposal',
+    why: 'the lines a person read name the waiting route; recording the allowed set instead would answer allowed while the route still waits, or refuse every honest press (D9).',
+    file: IPC,
+    from: '    const record = confirmPocketDoor(proposal, {',
+    to: '    const record = confirmPocketDoor(fields, {',
+    needs: ['gate', 'allowed']
+  },
+  {
+    n: 'AR8b',
+    rule: 'AR8',
+    alsoRed: ['allowed'],
+    name: 'the pairing owner is handed the proposal',
+    why: 'HIS ANSWER 10, "never": a pairing Allow would allow every waiting route without its lines being the ones a person read for it.',
+    file: IPC,
+    from: '      fieldsNow: () => this.fields(),',
+    to: '      fieldsNow: () => this.proposal(this.fields(), pocketConfirmStatus(this.fields()).state),',
+    needs: ['gate', 'allowed']
+  },
+  {
+    n: 'AR8c',
+    rule: 'AR8',
+    name: 'the sheet’s alerts-off self-confirm put back',
+    why: 'it confirms status().confirmLines, the PROPOSAL, so turning alerts off would allow a waiting route nobody pressed Allow for (D11, §Attack A1).',
+    file: PHONE_SECTION,
+    from: '          if (after !== null) adopt(after);\n',
+    to: '          if (after !== null) adopt(after);\n          if (after !== null && !on) void confirmDoor(after);\n',
+    needs: ['gate']
+  },
+  {
+    n: 'AR8d',
+    rule: 'AR8',
+    name: 'narrowPocketDoor called from confirmDoor',
+    why: 'the narrowing needs no person because it can only take away; called anywhere but the two presses that take away, it records with no lines read (D11b).',
+    file: IPC,
+    from: '    const proposal = this.proposal(fields, gate.state);\n',
+    to: '    const proposal = this.proposal(fields, gate.state);\n    narrowPocketDoor(fields, proposal);\n',
+    needs: ['gate']
+  },
+  {
+    n: 'AR8e',
+    rule: 'AR8',
+    name: 'isPocketSubtraction admits a route added beside a phone gone',
+    why: 'a Remove whose after-fields also named a new route would allow it with no Allow: a widening dressed as a subtraction (D11b; his answer 10).',
+    file: PAIRING,
+    from: '    return canonicalPocketText(less) === canonicalPocketText(after);',
+    to: '    return canonicalPocketText({ ...less, routes: after.routes }) === canonicalPocketText(after);',
+    needs: ['gate']
+  },
+  {
+    n: 'AR8f',
+    rule: 'AR8',
+    name: 'narrowPocketDoor records whatever the record on file was over',
+    why: 'a door that was not confirmed before the press would be confirmed after it (D11b).',
+    file: PAIRING,
+    from: '  if (row === undefined || row.hash !== pocketExecutionHash(before)) return null;',
+    to: '  if (row === undefined) return null;',
+    needs: ['gate']
+  },
+  {
+    n: 'AR8g',
+    rule: 'AR8',
+    name: 'narrowPocketDoor stops asking whether the change is a subtraction',
+    why: 'it would record ANY change with no person: a new public name, a new program, a new route (D11b).',
+    file: PAIRING,
+    from: '  if (!isPocketSubtraction(before, after)) return null;\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    // THE FIX ROUND (lens 1's K16): this one went green on conformance:pocket.
+    n: 'AR8h',
+    rule: 'AR8',
+    alsoRed: ['allowed'],
+    name: 'alerts off hands narrowPocketDoor the proposal rather than this.fields()',
+    why: 'while a route waits the proposal is wider than the door, so the narrowing refuses and alerts off closes and restarts the door again, which is today’s restart (D11; C9).',
+    file: IPC,
+    from: '    if (!on && wasConfirmed) narrowPocketDoor(before, this.fields());',
+    to: "    if (!on && wasConfirmed) narrowPocketDoor(before, this.proposal(this.fields(), 'confirmed'));",
+    needs: ['gate', 'allowed']
+  },
+  {
+    n: 'AR8i',
+    rule: 'AR8',
+    alsoRed: ['allowed'],
+    name: 'Remove hands narrowPocketDoor the proposal rather than this.fields()',
+    why: 'HIS ANSWER 9: while a route waits, removing one phone would withdraw the agreement and switch the others off (D11c; C10).',
+    file: IPC,
+    from: '    const narrowed = wasConfirmed && kept.length > 0 && narrowPocketDoor(before, this.fields()) !== null;',
+    to: "    const narrowed = wasConfirmed && kept.length > 0 && narrowPocketDoor(before, this.proposal(this.fields(), 'confirmed')) !== null;",
+    needs: ['gate', 'allowed']
+  },
+  {
+    n: 'AR8j',
+    rule: 'AR8',
+    alsoRed: ['allowed'],
+    name: 'alerts off reads the door it narrows from AFTER its store write',
+    why: 'the before-fields would be the after-fields, the gate would read changed, nothing would narrow, and the door would close and restart as before this phase (D11; C9).',
+    file: IPC,
+    from: "    const before = this.fields();\n    const wasConfirmed = pocketConfirmStatus(before).state === 'confirmed';\n    if (!this.writeStore({ ...store, pushAlerts: on })) return this.status();\n",
+    to: "    if (!this.writeStore({ ...store, pushAlerts: on })) return this.status();\n    const before = this.fields();\n    const wasConfirmed = pocketConfirmStatus(before).state === 'confirmed';\n",
+    needs: ['gate', 'allowed']
+  },
+  {
+    n: 'AR9a',
+    rule: 'AR9',
+    name: 'a ledger cap that is not the door’s',
+    why: 'an id’s row is its meaning; a cap written down that the door does not hold is a meaning nobody checked (D12).',
+    file: LEDGER,
+    from: 'bodyCap: 32768',
+    to: 'bodyCap: 65536',
+    needs: ['gate']
+  },
+  {
+    n: 'AR9b',
+    rule: 'AR9',
+    name: 'a ledger value computed rather than written',
+    why: 'a row that is computed can move with what it is computed from, which is exactly what the ledger exists to stop (D12).',
+    file: LEDGER,
+    from: 'bodyCap: 4096',
+    to: 'bodyCap: 4 * 1024',
+    needs: ['gate']
+  },
+  {
+    n: 'AR9c',
+    rule: 'AR9',
+    name: 'a ledger clause that is not the Allow line’s',
+    why: 'what the Allow line says a write lets a phone do IS part of its meaning (D12).',
+    file: LEDGER,
+    from: "clause: 'end a session'",
+    to: "clause: 'end any session'",
+    needs: ['gate']
+  },
+  {
+    n: 'AR9d',
+    rule: 'AR9',
+    alsoRed: ['AR3'],
+    name: 'a ledger path that is not the table’s',
+    why: 'an allowed id would mean one path to the ledger and another to the door; a route that must change takes a new id (D12).',
+    file: LEDGER,
+    from: "path: '/v1/turns'",
+    to: "path: '/v1/turnz'",
+    needs: ['gate']
+  },
+  {
+    n: 'AR10a',
+    rule: 'AR10',
+    name: 'Remove of the LAST phone narrows too',
+    why: 'the door would stay published, confirmed, for nobody; today’s sheet and probe:p313 L1 read a Remove of the only phone as withdrawing the agreement (D11c, §13 Q1).',
+    file: IPC,
+    from: '    const narrowed = wasConfirmed && kept.length > 0 && narrowPocketDoor(before, this.fields()) !== null;',
+    to: '    const narrowed = wasConfirmed && narrowPocketDoor(before, this.fields()) !== null;',
+    needs: ['gate']
+  },
+  {
+    n: 'AR10b',
+    rule: 'AR10',
+    alsoRed: ['allowed'],
+    name: 'Remove withdraws the agreement whatever the narrowing did',
+    why: 'HIS ANSWER 9: removing one phone would still switch every other phone off until Allow.',
+    file: IPC,
+    from: '    if (!narrowed) forgetPocketDoor();',
+    to: '    forgetPocketDoor();',
+    needs: ['gate', 'allowed']
+  },
+  {
+    n: 'AR10c',
+    rule: 'AR10',
+    name: 'Remove narrows on any door on record, not only one confirmed before the press',
+    why: 'a door that read changed before the Remove would be confirmed after it, with no person (D11c).',
+    file: IPC,
+    from: '    const narrowed = wasConfirmed && kept.length > 0 && narrowPocketDoor(before, this.fields()) !== null;',
+    to: "    const narrowed = pocketConfirmStatus(before).state !== 'never' && kept.length > 0 && narrowPocketDoor(before, this.fields()) !== null;",
+    needs: ['gate']
+  },
+  {
+    n: 'AR11a',
+    rule: 'AR11',
+    alsoRed: ['allowed'],
+    name: 'the sheet’s lines are the allowed set’s, not the proposal’s',
+    why: 'Allow would record lines that do not name the waiting route, so no press could ever allow it (D5).',
+    file: IPC,
+    from: '    const offered = describePocketDoor(proposal);',
+    to: '    const offered = describePocketDoor(fields);',
+    needs: ['gate', 'allowed']
+  },
+  {
+    n: 'AR11b',
+    rule: 'AR11',
+    name: 'routes wait on a door with no agreement on record',
+    why: 'a first setup would draw a confirm block for routes that are simply part of the first Allow (D6, J39).',
+    file: IPC,
+    from: "gate.state === 'confirmed' || gate.state === 'changed'",
+    to: 'true',
+    needs: ['gate']
+  },
+  {
+    n: 'AR11c',
+    rule: 'AR11',
+    name: 'with no record the proposal is the allowed set and the build, not the build',
+    why: 'a first Allow would agree to a legacy id this build no longer has (J39, D5).',
+    file: ALLOWED_ROUTES,
+    from: '  if (!onRecord) return Object.freeze([...build].sort());\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'AR11d',
+    rule: 'AR11',
+    name: 'routesWaiting optional in the contract',
+    why: 'main answers both lists and the sheet spells neither; an optional list is one the sheet starts working out (D6, §Attack A14).',
+    file: SHARED,
+    from: 'routesWaiting: readonly PocketRouteId[];',
+    to: 'routesWaiting?: readonly PocketRouteId[];',
+    needs: ['gate']
+  },
+  {
+    // THE FIX ROUND (lens 1's minor).
+    n: 'AR11e',
+    rule: 'AR11',
+    alsoRed: ['allowed'],
+    name: 'the routes the honesty sentence is composed over are the served set, not the proposal’s',
+    why: 'the sentence beside Allow would leave out the route that Allow grants (D13; C3, C4).',
+    file: IPC,
+    from: '      routesOffered: servedRoutesOf(proposal.routes, pocketRouteIds()),',
+    to: '      routesOffered: this.servedRoutes(),',
+    needs: ['gate', 'allowed']
+  },
+  {
+    n: 'AR12a',
+    rule: 'AR12',
+    name: 'a waiting route is drawn when the lines cannot be agreed to',
+    why: 'confirmable is main’s answer that the lines name an address; a person is never asked to agree to lines that name nothing (D23).',
+    file: STEPS,
+    from: "  return status.state === 'listening' && status.confirmable && status.routesWaiting.length > 0;",
+    to: "  return status.state === 'listening' && status.routesWaiting.length > 0;",
+    needs: ['gate']
+  },
+  {
+    n: 'AR12b',
+    rule: 'AR12',
+    alsoRed: ['steps'],
+    name: 'a published door always draws the confirm block',
+    why: 'SU6, his ruling "Keep today’s block": with nothing waiting a published door is today’s face exactly (D23).',
+    file: STEPS,
+    from: "      body: routesWait(status) ? [{ kind: 'confirm' }] : []",
+    to: "      body: [{ kind: 'confirm' }]",
+    needs: ['gate', 'steps']
+  },
+  {
+    n: 'SU6w',
+    rule: 'SU6',
+    alsoRed: ['AR7'],
+    name: 'the honesty sentence composed over this build’s table rather than what the Allow grants',
+    why: 'the sentence would say what a route lets a phone do whether or not the Allow beside it grants it (build/p33312/SPEC.md D13, the fix round).',
+    file: PHONE_SECTION,
+    from: '{pocketDoorHonesty(status.routesOffered)}',
+    to: '{pocketDoorHonesty(status.routes)}',
+    needs: ['gate']
+  },
+  {
+    n: 'Y2d',
+    rule: 'Y2',
+    alsoRed: ['served'],
+    name: 'still forgets the fourth ask, the route still served',
+    why: 'a press reads the screen before it types; a route withdrawn during that read would type through a still that does not ask (build/p33312/SPEC.md D8).',
+    file: WRITES,
+    from: ' && deps.routeServed(verb);',
+    to: ';',
+    needs: ['gate', 'served']
+  },
+  {
+    n: 'Y2e',
+    rule: 'Y2',
+    alsoRed: ['served', 'hostile'],
+    name: 'the last check forgets the fourth ask',
+    why: 'the door process’s copy of the served set can lag main’s; a write on a withdrawn route would act (build/p33312/SPEC.md D8; hostile PR5).',
+    file: WRITES,
+    from: ' || !deps.routeServed(verb)) return { status: 404, body: null };',
+    to: ') return { status: 404, body: null };',
+    needs: ['gate', 'served', 'hostile']
   }
 ];
 
@@ -5281,6 +5857,13 @@ function buildClone() {
     writeFileSync(join(scratch, name), readFileSync(join(REPO, name)));
   }
   symlinkSync(join(REPO, 'node_modules'), join(scratch, 'node_modules'));
+  // PHASE 333.12: the frozen launch set, which conformance:pocket AR3 and the
+  // `allowed` check read (the legacy list is held to it), and nothing else of
+  // ios/. Cloned like src/ and build/, so the clone writes nothing of the tree.
+  const frozen = join('ios', 'TortieTests', 'Fixtures', 'frozen');
+  mkdirSync(dirname(join(scratch, frozen)), { recursive: true });
+  const r = spawnSync('cp', ['-Rc', join(REPO, frozen), join(scratch, frozen)], { encoding: 'utf8' });
+  if (r.status !== 0) throw new Error(`cp -Rc ${frozen} failed: ${r.stderr}`);
 }
 
 /**

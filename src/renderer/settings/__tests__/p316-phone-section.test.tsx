@@ -56,7 +56,25 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+/**
+ * A ROUTE A LATER PHASE ADDS SAYS ITS CLAUSE (Phase 333.12's fix round, lens
+ * 1's minor). No route has a clause yet (`POCKET_HONESTY_ADDED` is empty), so
+ * the composer is wrapped here to answer one for `probe`, the app run's own
+ * plant, and the shipping sentence for every other list. That is what lets the
+ * block below be read for WHICH routes it composes the sentence over: the
+ * ones its Allow grants (`routesOffered`), never only the ones the door
+ * answers before it. No other test in this file hands it `probe`.
+ */
+vi.mock('@shared/ipc/pocket', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@shared/ipc/pocket')>();
+  return {
+    ...real,
+    pocketDoorHonesty: (routes: readonly string[]): string =>
+      routes.includes('probe') ? `${real.pocketDoorHonesty(routes)} It can also read a probe.` : real.pocketDoorHonesty(routes)
+  };
+});
 import {
   POCKET_CONFIRM_WARNING,
   POCKET_FUNNEL_APPROVAL,
@@ -64,6 +82,7 @@ import {
   POCKET_FUNNEL_SENTENCES,
   POCKET_FUNNEL_RESTARTING,
   POCKET_FUNNEL_RIGHT_WARNING,
+  LEGACY_ALLOWED_ROUTES,
   POCKET_NAME_ROUND_RULE,
   POCKET_NAME_SENTENCES,
   POCKET_REACH_HONESTY,
@@ -71,6 +90,7 @@ import {
   POCKET_SETUP_LINE,
   POCKET_TURN_ON,
   POCKET_TURN_ON_LINE,
+  pocketDoorHonesty,
   type PocketNameAnswer,
   type PocketNameCheck,
   type PocketNameProgress,
@@ -119,7 +139,6 @@ import {
   doorNeedsConfirm,
   expiredNotice,
   noticeToDraw,
-  onlyOneLineMoved,
   pairAfterAllowNext,
   pairedWith,
   pairingStage,
@@ -182,6 +201,11 @@ function status(over: Partial<PocketStatus> = {}): PocketStatus {
     setupActions: [],
     nameProgress: null,
     routes: ['pair', 'blocked', 'session', 'turns', 'end', 'choose', 'say', 'sessions'],
+    // Phase 333.12: the eleven allowed, in the table's order, and nothing waits.
+    routesAllowed: ['pair', 'blocked', 'session', 'turns', 'sessions', 'screen', 'scrollback', 'end', 'choose', 'say', 'keys'],
+    routesWaiting: [],
+    // Phase 333.12's fix round: what the confirm block's Allow agrees to.
+    routesOffered: ['pair', 'blocked', 'session', 'turns', 'sessions', 'screen', 'scrollback', 'end', 'choose', 'say', 'keys'],
     pushAlerts: false,
     pushKeyId: null,
     pushSentence: null,
@@ -838,19 +862,75 @@ describe('the alert switch', () => {
   });
 });
 
-describe('turning the alerts off re-confirms only the one line it moved', () => {
-  const onLines = [
-    ...LINES.slice(0, 5),
-    'Tells your phone through Apple when a session starts waiting on you, never what it asks, and nothing while this Mac sleeps',
-    LINES[6] ?? ''
-  ];
+// PHASE 333.12 (build/p33312/SPEC.md D11, §9.2 C14): turning the alerts off
+// is recorded by MAIN in the same press (`narrowPocketDoor`), so the sheet's
+// own self-confirm is gone, and with it `onlyOneLineMoved`: no press of the
+// alert switch can carry an agreement to anything, a route that waits
+// included. The bridge's handlers are read as text, as the key row's are.
+describe('turning the alerts off confirms nothing in the sheet (Phase 333.12)', () => {
+  it('reaches main’s setPushAlerts and never confirmDoor', () => {
+    const source = sheetSource();
+    const alerts = /onSetPushAlerts=\{\(on\) => \{([\s\S]*?)\n      \}\}/.exec(source)?.[1] ?? '';
+    expect(alerts).toContain('api.setPushAlerts({ on })');
+    expect(alerts).not.toMatch(/confirmDoor/);
+    expect(alerts).not.toMatch(/confirmLines|confirmHash/);
+  });
 
-  it('when exactly the switch’s line moved, and never otherwise', () => {
-    expect(onlyOneLineMoved(onLines, LINES)).toBe(true);
-    const alsoPort = [...LINES];
-    alsoPort[0] = `Answers on the internet at https://${NAME}:10000, through Tailscale Funnel on example.github`;
-    expect(onlyOneLineMoved(onLines, alsoPort)).toBe(false);
-    expect(onlyOneLineMoved(LINES, LINES)).toBe(false);
+  it('calls its confirmDoor helper from Allow alone, and onlyOneLineMoved is gone', () => {
+    const source = sheetSource();
+    const calls = [...source.matchAll(/\bconfirmDoor\(/g)].length;
+    // The helper's declaration names `api.confirmDoor(` once, and Allow calls the helper once.
+    expect(calls).toBe(2);
+    const allow = /onConfirmDoor=\{\(\) => \{([\s\S]*?)\n      \}\}/.exec(source)?.[1] ?? '';
+    expect(allow).toContain('void confirmDoor(status)');
+    expect(source).not.toContain('onlyOneLineMoved');
+    expect('onlyOneLineMoved' in phoneSection).toBe(false);
+  });
+});
+
+describe('the honesty line follows the routes a person allowed (Phase 333.12, D13)', () => {
+  it('is today’s sentence byte for byte for the eleven, drawn through main’s routesOffered', () => {
+    expect(pocketDoorHonesty(LEGACY_ALLOWED_ROUTES)).toBe(POCKET_DOOR_HONESTY);
+    expect(pocketDoorHonesty([...LEGACY_ALLOWED_ROUTES].reverse())).toBe(POCKET_DOOR_HONESTY);
+    // No route outside the eleven has a clause yet, so nothing is added for any list.
+    expect(pocketDoorHonesty([])).toBe(POCKET_DOOR_HONESTY);
+    const page = text(draw({ status: status({ state: 'refused', confirmState: 'changed' }) }));
+    expect(page).toContain(POCKET_DOOR_HONESTY);
+    expect(page).not.toContain('It can also');
+    // The block draws the composer's answer over main's list, never the bare constant.
+    const source = sheetSource();
+    expect(source).toContain('{pocketDoorHonesty(status.routesOffered)}');
+    expect(source).not.toContain('{pocketDoorHonesty(status.routesAllowed)}');
+    expect(source).not.toContain('{POCKET_DOOR_HONESTY}');
+  });
+
+  // THE FIX ROUND (lens 1's minor): the sentence beside Allow says what THAT
+  // Allow grants. Over the routes already allowed it left out the waiting
+  // route at the one moment a person agrees to it.
+  const ELEVEN = ['pair', 'blocked', 'session', 'turns', 'sessions', 'screen', 'scrollback', 'end', 'choose', 'say', 'keys'] as const;
+  const withProbe = [...ELEVEN, 'probe'] as unknown as PocketStatus['routesOffered'];
+  const clause = `${POCKET_DOOR_HONESTY} It can also read a probe.`;
+
+  it('says a waiting route’s clause beside the Allow that grants it, on a published door', () => {
+    const page = text(
+      draw({ status: status({ state: 'listening', confirmState: 'confirmed', confirmable: true, routesWaiting: ['probe' as never], routesOffered: withProbe }) })
+    );
+    expect(page).toContain(clause);
+  });
+
+  it('says it at a first setup, whose Allow agrees to this build’s whole table', () => {
+    const page = text(draw({ status: status({ state: 'refused', confirmState: 'never', routesOffered: withProbe }) }));
+    expect(page).toContain(clause);
+  });
+
+  it('composes over what the Allow grants and never over what the door answers before it', () => {
+    // A list main never answers, made only to tell the two apart: the served
+    // set names the route, the offered set does not.
+    const page = text(
+      draw({ status: status({ state: 'refused', confirmState: 'changed', routesAllowed: withProbe, routesOffered: [...ELEVEN] }) })
+    );
+    expect(page).toContain(POCKET_DOOR_HONESTY);
+    expect(page).not.toContain('It can also');
   });
 });
 

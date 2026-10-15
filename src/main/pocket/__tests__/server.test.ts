@@ -93,7 +93,11 @@ const PRESENTATION = { iv: 'A'.repeat(16), ct: 'B'.repeat(40), tag: 'C'.repeat(2
 
 const open: DoorAdmission = { stopping: () => false };
 
-/** Deps that answer everything, each overridable. */
+/**
+ * Deps that answer everything, each overridable. Every route is served, as on
+ * a door whose allowed set is this build's whole table (Phase 333.12; the
+ * route that waits is `p33312-served.test.ts`'s).
+ */
 function deps(over: Partial<PocketHandlerDeps> = {}): PocketHandlerDeps {
   return {
     shuttingDown: () => false,
@@ -101,6 +105,7 @@ function deps(over: Partial<PocketHandlerDeps> = {}): PocketHandlerDeps {
     present: () => ({ state: 'pending' }),
     verify: () => ({ ok: true, phoneId: 'phone-a' }),
     stillPaired: () => true,
+    routeServed: () => true,
     answer: async () => ({ rows: [] }),
     ...over
   };
@@ -603,6 +608,7 @@ describe('end to end on the shipping pairing and verifier', () => {
         return v.ok ? { ok: true, phoneId: v.phone.id } : { ok: false, reason: v.reason };
       },
       stillPaired: (id) => phones.some((p) => p.id === id),
+      routeServed: () => true,
       answer: async (route) => ({ route: route.id })
     });
 
@@ -693,6 +699,7 @@ describe('end to end on the shipping pairing and verifier', () => {
         return v.ok ? { ok: true, phoneId: v.phone.id } : { ok: false, reason: v.reason };
       },
       stillPaired: (id) => phones.some((p) => p.id === id),
+      routeServed: () => true,
       answer: async () => null,
       write: async (route, bytes, phone) => {
         writes.push(`${route.id} ${phone} ${bytes.toString('utf8')}`);
