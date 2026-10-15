@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * probe-p347.mjs. THE PHASE 347 APP RUN, at the parent and at HEAD
- * (build/p347/SPEC.md §7 and §9; issues 41, 40 and 33).
+ * probe-p347.mjs. THE PHASE 347 AND 347.1 APP RUN, at the parent and at HEAD
+ * (build/p347/SPEC.md §7 and §9, build/p3471/SPEC.md §8; issues 41, 40 and
+ * 33).
  *
  * ## What it proves, and why it has to be a run
  *
@@ -12,12 +13,19 @@
  * Only a run reads what a real key event does to a real pane: the bytes are
  * read by `stand-in.sh prompt`, which logs every byte it receives.
  *
- * Issue 40 (Tier 2): a path drawn over several rows, in the agent's own break
- * shape and in the terminal's own wrap, is underlined on every row at HEAD
- * and a press opens the WHOLE file at its line, where the parent offered
- * nothing, or a fragment's own spelling when one exists (P3, the wrong-file
- * hazard). The rows are composed here at the pane's real width, read back
- * from tmux, and pressed where tmux says they are.
+ * Issue 40 (Tier 2 plus the attack, Phase 347.1; its P arms were held out of
+ * Phase 347 by his ruling of 2026-10-13 and are BACK): a path drawn over
+ * several rows, in the agent's own break shape and in the terminal's own
+ * wrap, is underlined on every row at HEAD and a press opens the WHOLE file
+ * at its line, where the parent offered nothing. AND NO LINK THAT OPENS AT
+ * THE PARENT MOVES (build/p3471/SPEC.md D2, the governing rule): a join is
+ * offered only when the door refuses every row span it would cover on every
+ * row it covers, so where one row's piece is a file of its own, that row
+ * opens it at both builds and the whole path is offered from no row (P3, D7),
+ * and a list item below a folder or a `-` piece that joins to a REAL file
+ * still opens the item's own file (P7 and P8, the third reverify's two live
+ * shapes on the files-only door). The rows are composed here at the pane's
+ * real width, read back from tmux, and pressed where tmux says they are.
  *
  * Issue 33 (Tier 3): a file in a folder the repository ignores, open in a
  * tab, shows an outside writer's bytes at HEAD without any look, in Source
@@ -32,7 +40,15 @@
  *
  * He reported all three, so THE PARENT MEASUREMENT IS MANDATORY: the same
  * script drives the parent build first and HEAD second, and every row is
- * graded at both. Nothing is added to the app for this phase: the probe uses
+ * graded at both. THE PARENT IS ONE OF TWO, told apart by what it holds:
+ * Phase 347's own parent (af2662e6) holds neither of PHASE_FILES nor a
+ * JOIN_MARKS line, and every arm grades against it; Phase 347.1's parent
+ * (5f5efba2, Phase 347's HEAD, 0.111.2) holds both PHASE_FILES and no
+ * JOIN_MARKS line, a default run against it asks the P arms alone, and a K or
+ * W arm named with it is refused, because issues 41 and 33 are fixed at both
+ * of its builds. The P arms grade the same against either: the path files
+ * are byte-identical at the two (build/p3471/SPEC.md §1). Nothing is added to
+ * the app for this phase: the probe uses
  * what the parent ships, being `window.__gmuxShotDrive`, `window.__gmuxP268`,
  * `window.gmux.openSettings`, the DOM, CDP input, main's inspector
  * (`--inspect=0`, for the clipboard recorder K2 reads instead of the person's
@@ -48,8 +64,10 @@
  *   P1  the agent's break over three or more rows: a pointer on every row and
  *       the whole file at line 134 at HEAD; nothing at the parent.
  *   P2  one line the terminal wrapped: the same.
- *   P3  P1 with a file planted at the last row's fragment: HEAD opens the
- *       whole file, the parent opens the planted fragment.
+ *   P3  P1 with a file planted at the last row's fragment: the SAME at both
+ *       builds (Phase 347.1 D7): the last row's press opens the planted
+ *       fragment at line 134, and no row above it draws a pointer, because
+ *       the join would take the cells of a link that opens at the parent.
  *   P4  a broken path whose join names no file: nothing at both.
  *   P5  `…/sub/` short of the last column above `README.md is …`: the
  *       project's README.md opens at both.
@@ -58,6 +76,17 @@
  *       with README.md.bak REALLY present. At both builds the path's own row
  *       opens README.md and `.bak` is no link: J7 refuses the join, so HEAD
  *       reads as the parent did, never README.md.bak.
+ *   P7  `• <proj>/p7k…/`, an absolute folder ending exactly one cell short
+ *       of the last column, above `• sub7/x7.md`, with BOTH
+ *       `<proj>/sub7/x7.md` and `<proj>/p7k…/sub7/x7.md` real files: at both
+ *       builds no pointer on the folder row, a pointer on the item, and its
+ *       press opens `<proj>/sub7/x7.md`, never the joined file. J1 to J8 all
+ *       pass on these rows (composeListBreak's arithmetic); the governing
+ *       rule alone refuses the join, and Phase 347's kept work, which had no
+ *       such rule, opened the joined file from the item.
+ *   P8  `• <proj>/n8k…-` one cell short above `• draft8.md`, with
+ *       `<proj>/draft8.md` and `<proj>/n8k…-draft8.md` real files: the same,
+ *       opening `<proj>/draft8.md`.
  *   W0  control: a tracked file updates by the bus at both.
  *   W1  notes/a.md in Source, five in-place writes: 5 of 5 within 1,500 ms at
  *       HEAD, 0 of 5 after 2,500 ms at the parent.
@@ -103,12 +132,19 @@
  *     provider's first statement (p347-path-links-join.test.ts, PL4).
  *   - The cap of 64 itself: W11 holds 30 tabs, which is under it; the cap and
  *     its descriptor count are the native test's (N6) and the unit test's (O7).
+ *   - Every layout and both doors. The P arms are eight shapes on the door
+ *     the product ships; that no link moves anywhere, per cell, over the
+ *     prose, capture and list corpora and beside a door that also accepts a
+ *     folder, is `measure:p3471`'s (build/p3471/), and each clause of the
+ *     governing rule is `conformance:pathdoors` rule 18's.
  *
  * ## What it refuses, exit 2 as UNREADABLE rather than pass what it never saw
  *
  * `P347_PARENT_CHECKOUT` absent, equal to this checkout, without
- * `out/main/index.js`, or already holding this phase's new files; this
- * checkout unbuilt, missing them, or built before its sources last changed; a
+ * `out/main/index.js`, already holding a JOIN_MARKS line, or holding one of
+ * PHASE_FILES without the other (neither parent); a K or W arm named with
+ * Phase 347.1's parent; this checkout unbuilt, missing PHASE_FILES or either
+ * JOIN_MARKS line, or built before its sources last changed; a
  * scratch project whose notes/ git does not ignore; a build whose own overlay
  * parser does not hide gemini, qwen, antigravity, grok and droid; an
  * `agents:list` read back from the app that resolves any of them (checked
@@ -134,6 +170,8 @@
  * put back), and nothing is handed to macOS (`GMUX_PATH_OPEN_RECORD`).
  *
  *   P347_PARENT_CHECKOUT=/path/to/built/parent npm run -s probe:p347
+ *                               a built 5f5efba2: P1 to P8 (Phase 347.1)
+ *                               a built af2662e6: every arm (Phase 347)
  *   P347_ARMS=K1,P3,W13 ...     named arms only (each sets its own preconditions)
  *   P347_KEEP=1 ...             keep the scratch projects, profiles and homes
  *   P347_REPORT=/tmp/x.json     the report's path, outside this checkout
@@ -177,11 +215,24 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /** The arms, in the order they run. RUN is graded once, after both launches. */
 export const ALL_ARMS = Object.freeze([
   'K1', 'K2', 'K3', 'K4',
-  'P1', 'P2', 'P3', 'P4', 'P5', 'P6',
+  'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8',
   'W0', 'W1', 'W2', 'W3', 'W4', 'W5', 'W6', 'W7', 'W8', 'W10', 'W13', 'W14', 'W15', 'W11', 'W9', 'W12'
 ]);
-/** Arms held for a later phase: left out of a default run, still runnable by name. */
-export const HELD_ARMS = Object.freeze(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']);
+/**
+ * Issue 40's arms (Phase 347.1, build/p3471/SPEC.md D9). The ONLY arms a run
+ * against Phase 347.1's parent asks: K and W grade issues 41 and 33, which are
+ * fixed at both of that parent's builds.
+ */
+export const JOIN_ARMS = Object.freeze(['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8']);
+/** The file whose lines tell Phase 347.1's work from its parent. */
+export const JOIN_MARKS_FILE = 'src/shared/path-spans.ts';
+/** The lines (each a line's start) Phase 347.1's HEAD holds in JOIN_MARKS_FILE, and no parent may. */
+export const JOIN_MARKS = Object.freeze(['export function joinedPathAt(', 'export function spansUnderJoin(']);
+/** The two parents, by what they hold (parentKind). */
+export const PARENT_P347 = 'p347';
+export const PARENT_BEFORE = 'before';
+/** Why a K or W arm is not run against Phase 347.1's parent (build/p3471/SPEC.md §8, verbatim). */
+export const KW_REFUSAL = "K and W arms are Phase 347's and grade against a parent before it (af2662e6)";
 /** How many writes each counting arm makes. */
 export const LOOKS = Object.freeze({ W1: 5, W2: 3, W3: 3, W14: 30, W15: 3 });
 /** W15's folder: the same name stored decomposed on disk and written composed in .gitignore (SPEC D11, the reverify's minor). */
@@ -231,6 +282,21 @@ export const P_LINE = 134;
 export const P6_REL = 'hw6/README.md';
 export const P6_BELOW = '.bak beside it, just in case.';
 export const P6_SHORT_BY = 2;
+/**
+ * P7 and P8 (Phase 347.1, the third reverify's two live shapes): a list's
+ * bullet, an absolute piece ending LIST_SHORT_BY cells short of the last
+ * column, and below it an item whose own spelling is a file. The piece's
+ * folder name is its marker followed by `k`s, as many as the pane's width
+ * asks for, and at least one.
+ */
+export const LIST_GUTTER = '• ';
+export const LIST_SHORT_BY = 1;
+export const LIST_SHAPES = Object.freeze({
+  /** P7: a folder's `/` above a relative path that names a folder of its own (so J5 does not refuse it). */
+  folder: Object.freeze({ arm: 'P7', name: 'p7', end: '/', item: 'sub7/x7.md' }),
+  /** P8: a name broken after its `-` above a bare file name. */
+  dash: Object.freeze({ arm: 'P8', name: 'n8', end: '-', item: 'draft8.md' })
+});
 /** How many rows of tabs W11 opens, per project, over three projects. */
 export const W11_PER_PROJECT = 10;
 export const W11_PROJECTS = Object.freeze(['proj3', 'proj4', 'proj5']);
@@ -316,6 +382,40 @@ export function composeWordWrap({ width, rel }) {
 }
 
 /**
+ * P7's and P8's rows (Phase 347.1, build/p3471/SPEC.md §8): `• <proj>/<name>k…<end>`
+ * ending exactly LIST_SHORT_BY cells short of the last column, above
+ * `• <item>`. `own` is the item's own file, `<proj>/<item>`, and `joined` the
+ * file the two pieces name together, `<piece><item>`; the arm writes both.
+ * Every character composed here is one cell (printable ASCII and the bullet,
+ * U+2022, which tmux and xterm draw narrow), so a row's cells are its code
+ * points; a project path that is not printable ASCII answers null rather than
+ * let a wide character move the edge. Null too when the pane is too narrow for
+ * one `k`. `pieceCol` and `itemCol` are the 0-based columns the two pieces
+ * start at.
+ */
+export function composeListBreak({ width, proj, kind }) {
+  const shape = LIST_SHAPES[kind];
+  if (shape === undefined) return null;
+  if (typeof proj !== 'string' || !/^\/[\x21-\x7e]+$/.test(proj) || !(Number.isInteger(width) && width > 0)) return null;
+  const lead = `${proj}/${shape.name}`;
+  const fill = width - LIST_SHORT_BY - [...LIST_GUTTER].length - lead.length - shape.end.length;
+  if (!(fill >= 1)) return null;
+  const piece = `${lead}${'k'.repeat(fill)}${shape.end}`;
+  const rows = [`${LIST_GUTTER}${piece}`, `${LIST_GUTTER}${shape.item}`];
+  if ([...rows[1]].length > width) return null;
+  return {
+    kind,
+    rows,
+    piece,
+    item: shape.item,
+    own: `${proj}/${shape.item}`,
+    joined: `${piece}${shape.item}`,
+    pieceCol: [...LIST_GUTTER].length,
+    itemCol: [...LIST_GUTTER].length
+  };
+}
+
+/**
  * Why a composed agent-break layout would not be the shape SPEC D7 joins, by
  * this file's own arithmetic over J3 and J5 (never the product's code), or []
  * when it is: three to eight rows, none wider than the pane, every next unit
@@ -389,7 +489,8 @@ export function composeAgentBreak({ root, second, leaf, width, marker }) {
     const done = [...rows.slice(0, -1), last];
     // Issue 40's own rows stop BEFORE the last column, and so do these: a
     // row that filled it would let the parent's refusal 8 refuse the
-    // fragment below it, and P3 could no longer show the parent's hazard.
+    // fragment below it, and P3's planted fragment would open at neither
+    // build, so the arm could not show it keeps opening (Phase 347.1 D7).
     if (done.slice(0, -1).some((r) => r.length >= width)) continue;
     if (layoutProblems(done, width).length === 0) return { prefix, path, rows: done };
   }
@@ -447,11 +548,24 @@ export function cellOf(rows, marker, span) {
   return null;
 }
 
-/** The first index at which `want` appears as consecutive rows of `rows`, compared at their ends trimmed; -1 when it does not. */
+/**
+ * A composed row as `capture-pane -p` prints it to a client tmux does not
+ * think speaks UTF-8: every character outside ASCII as `_` (P7's and P8's
+ * bullet is the only one this probe composes). The pane itself, and the app's
+ * own client, draw the character; only the probe's read of it can differ.
+ */
+export const asCapturedWithoutUtf8 = (text) => String(text).replace(/[^\x00-\x7f]/gu, '_');
+
+/**
+ * The first index at which `want` appears as consecutive rows of `rows`,
+ * compared at their ends trimmed, each row as composed or as a client
+ * without UTF-8 reads it; -1 when it does not.
+ */
 export function rowsAt(rows, want) {
   const t = (s) => String(s ?? '').trimEnd();
+  const same = (got, w) => t(got) === t(w) || t(got) === asCapturedWithoutUtf8(t(w));
   for (let i = 0; i + want.length <= rows.length; i += 1) {
-    if (want.every((w, j) => t(rows[i + j]) === t(w))) return i;
+    if (want.every((w, j) => same(rows[i + j], w))) return i;
   }
   return -1;
 }
@@ -651,12 +765,49 @@ export function gradeJoin(arm, build, r) {
   const read = `a pointer on ${String(on)} of ${String(n)} rows; the press opened ${opened}${typeof r.line === 'number' ? ` at line ${String(r.line)}` : ''}`;
   const whole = r.opened.length === 1 && r.opened[0] === r.whole && r.line === P_LINE;
   if (arm === 'P4') return { ok: on === 0 && r.opened.length === 0, said: `${read} (want no pointer and nothing)` };
-  if (build === 'head') {
-    if (arm === 'P3') return { ok: whole, said: `${read} (want the whole file at line ${String(P_LINE)}, never the fragment)` };
-    return { ok: on === n && whole, said: `${read} (want every row and the whole file at line ${String(P_LINE)})` };
+  // P3, THE SAME AT BOTH BUILDS (Phase 347.1 D7): the planted fragment opens
+  // from its own row at the parent, so under the governing rule it opens from
+  // it at HEAD too, and the join that would take its cells is offered from no
+  // row. The last row's own pointer is printed, not graded: the press reads it.
+  // The fragment's own token carries `:${P_LINE}`, so it opens AT THAT LINE at
+  // both builds: the same file at another line is another target, as
+  // `measure:p3471` counts it (the tooling review of 2026-10-14; without the
+  // line a HEAD that opened the fragment at line 1 read ok).
+  if (arm === 'P3') {
+    const above = r.pointers.slice(0, -1).filter((p) => p === true).length;
+    return {
+      ok: above === 0 && r.opened.length === 1 && r.opened[0] === r.planted && r.line === P_LINE,
+      said: `${read} (want no pointer above the last row and the planted fragment at line ${String(P_LINE)}, at both builds: a link that opens at the parent never moves)`
+    };
   }
-  if (arm === 'P3') return { ok: r.opened.length === 1 && r.opened[0] === r.planted, said: `${read} (want the planted fragment: the parent's wrong-file hazard)` };
+  if (build === 'head') return { ok: on === n && whole, said: `${read} (want every row and the whole file at line ${String(P_LINE)})` };
   return { ok: on === 0 && r.opened.length === 0, said: `${read} (want no pointer and nothing)` };
+}
+
+/**
+ * P7 and P8 (Phase 347.1): a list item below an absolute piece one cell short
+ * of the edge, both its own spelling and the joined one real files. The SAME
+ * at both builds: no pointer on the piece's row, a pointer on the item, and
+ * its press opens the item's own file and never the joined one.
+ */
+export function gradeListBreak(_build, r) {
+  const why = unreadableOf(r);
+  if (why !== null) return U(why);
+  if (r.found !== true) return U('the composed rows were not on the screen as drawn');
+  if (r.calibrated !== true) return U('the control row carried no link, so a missed cell could not be told from a refused path');
+  if (r.shortBy !== LIST_SHORT_BY) return U(`the piece's row stopped ${String(r.shortBy)} cells short of the last column (want ${String(LIST_SHORT_BY)})`);
+  if (r.ownExists !== true) return U("the item's own file was not planted, so its link could not have opened");
+  if (r.joinedExists !== true) return U('the joined file was not planted, so a join to it could not have opened');
+  if (typeof r.pointerTop !== 'boolean' || typeof r.pointerItem !== 'boolean') return U('the rows were not hovered');
+  if (!Array.isArray(r.opened)) return U('what the press opened could not be read');
+  const problems = [];
+  if (r.pointerTop !== false) problems.push("the piece's row drew a pointer");
+  if (r.pointerItem !== true) problems.push('no pointer on the item');
+  if (!(r.opened.length === 1 && r.opened[0] === r.own)) {
+    const joinedToo = r.opened.includes(r.joined) ? ', THE JOINED FILE' : '';
+    problems.push(`the press opened ${r.opened.length === 0 ? 'nothing' : r.opened.join(', ')}${joinedToo} (want ${String(r.own)})`);
+  }
+  return { ok: problems.length === 0, said: problems.join('; ') || `no pointer on the piece's row; the item opened ${String(r.own)}, never ${String(r.joined)}` };
 }
 
 /** P5: a folder above a bare name short of the last column opens the project's README.md at both. */
@@ -911,6 +1062,8 @@ const GRADERS = {
   P4: (b, r) => gradeJoin('P4', b, r),
   P5: gradeP5,
   P6: gradeP6,
+  P7: gradeListBreak,
+  P8: gradeListBreak,
   W0: gradeW0,
   W1: (b, r) => gradeLooks(b, r, LOOKS.W1),
   W2: (b, r) => gradeLooks(b, r, LOOKS.W2, redlineOutcomeOf),
@@ -955,34 +1108,73 @@ export function exitCodeOf(rows) {
 export const formatRow = (r) =>
   `${r.ok === true ? 'ok  ' : r.ok === false ? 'FAIL' : 'UNREADABLE'} ${r.arm} (${r.build}): ${r.said}`;
 
+/**
+ * Which parent a checkout is, by what it holds, or null when it is neither
+ * (build/p3471/SPEC.md §8). `holds(dir, file)` answers whether the file
+ * exists and `marks(dir, line)` whether JOIN_MARKS_FILE holds a line starting
+ * with `line`; both are injected, so this reads no disk of its own.
+ *
+ *   PARENT_P347    Phase 347's HEAD, so Phase 347.1's parent (5f5efba2):
+ *                  every one of PHASE_FILES, and no JOIN_MARKS line.
+ *   PARENT_BEFORE  Phase 347's own parent (af2662e6): none of either.
+ */
+export function parentKind(dir, { holds, marks }) {
+  const files = PHASE_FILES.filter((f) => holds(dir, f));
+  const lines = JOIN_MARKS.filter((m) => marks(dir, m));
+  if (lines.length > 0) return null;
+  if (files.length === PHASE_FILES.length) return PARENT_P347;
+  if (files.length === 0) return PARENT_BEFORE;
+  return null;
+}
+
 /** Why this run may not start with these two checkouts, or null. */
-export function parentRefusal({ parent, root, built, holds, same, fresh }) {
+export function parentRefusal({ parent, root, built, holds, marks, same, fresh }) {
   if (typeof parent !== 'string' || parent.trim() === '') {
-    return 'P347_PARENT_CHECKOUT names no checkout. Point it at a BUILT checkout of the phase parent (af2662e6); the parent measurement is mandatory.';
+    return "P347_PARENT_CHECKOUT names no checkout. Point it at a BUILT checkout of Phase 347.1's parent (5f5efba2) for the P arms, or of Phase 347's (af2662e6) for every arm; the parent measurement is mandatory.";
   }
   if (same(parent, root)) return 'P347_PARENT_CHECKOUT is this checkout. The parent must be a separate built checkout of the phase parent.';
   if (!built(parent)) return `the parent (${parent}) has no build at out/main/index.js. Run npm run build there first.`;
   if (!built(root)) return `this checkout (${root}) has no build at out/main/index.js. Run npm run build first.`;
-  const inParent = PHASE_FILES.filter((f) => holds(parent, f));
-  if (inParent.length > 0) return `the parent (${parent}) already holds ${inParent.join(' and ')}, so it is not this phase's parent.`;
+  if (parentKind(parent, { holds, marks }) === null) {
+    const lines = JOIN_MARKS.filter((m) => marks(parent, m));
+    if (lines.length > 0) {
+      return `the parent (${parent}) already holds ${lines.map((m) => J(m)).join(' and ')} in ${JOIN_MARKS_FILE}, so it is Phase 347.1's work and no parent of it.`;
+    }
+    const files = PHASE_FILES.filter((f) => holds(parent, f));
+    return `the parent (${parent}) holds ${files.join(' and ')} but not ${PHASE_FILES.filter((f) => !files.includes(f)).join(' and ')}, so it is neither Phase 347's parent (af2662e6, neither file) nor Phase 347.1's (5f5efba2, both).`;
+  }
   const missing = PHASE_FILES.filter((f) => !holds(root, f));
   if (missing.length > 0) return `this checkout lacks ${missing.join(' and ')}, so it is not this phase's HEAD.`;
+  const unmarked = JOIN_MARKS.filter((m) => !marks(root, m));
+  if (unmarked.length > 0) return `this checkout's ${JOIN_MARKS_FILE} holds no line ${unmarked.map((m) => J(m)).join(' and no line ')}, so it is not Phase 347.1's HEAD.`;
   const stale = fresh(root);
   if (stale !== null) return `this checkout's out/ is older than ${stale}. Run npm run build first.`;
   return null;
 }
 
-/** P347_ARMS read: the canonical names asked, or the refusal. */
-export function armsAsked(text) {
+/**
+ * P347_ARMS read against the parent's kind: the canonical names asked, the
+ * names that are no arm, and the refusal, or null.
+ *
+ * Against Phase 347's parent (PARENT_BEFORE) every arm runs by default, as it
+ * did in Phase 347. Against Phase 347.1's (PARENT_P347) a default run asks
+ * JOIN_ARMS alone, and naming a K or W arm is refused with KW_REFUSAL: both
+ * of that parent's builds hold issue 41's and issue 33's fixes, so a K or W
+ * row graded against it would read every HEAD expectation at the parent.
+ */
+export function armsAsked(text, kind) {
   const raw = String(text ?? '').trim();
-  // P1 to P6 (issue 40) are held for Phase 347.1 (his ruling of 2026-10-13
-  // took the wrapped-path join out of 347 after its second needs_work): a run
-  // with no P347_ARMS leaves them out, and naming one still runs it.
-  if (raw === '') return { arms: ALL_ARMS.filter((a) => !HELD_ARMS.includes(a)), bad: [] };
+  if (kind !== PARENT_P347 && kind !== PARENT_BEFORE) {
+    return { arms: [], bad: [], refused: `the parent's kind ${J(kind)} is neither ${J(PARENT_BEFORE)} nor ${J(PARENT_P347)}` };
+  }
+  const offered = kind === PARENT_P347 ? JOIN_ARMS : ALL_ARMS;
+  if (raw === '') return { arms: [...offered], bad: [], refused: null };
   const asked = raw.split(',').map((s) => s.trim()).filter(Boolean);
   const bad = asked.filter((a) => !ALL_ARMS.some((x) => x.toLowerCase() === a.toLowerCase()));
   const arms = ALL_ARMS.filter((x) => asked.some((a) => a.toLowerCase() === x.toLowerCase()));
-  return { arms, bad };
+  const outside = arms.filter((a) => !offered.includes(a));
+  const refused = outside.length > 0 ? `P347_ARMS names ${outside.join(', ')} with Phase 347.1's parent (5f5efba2): ${KW_REFUSAL}.` : null;
+  return { arms, bad, refused };
 }
 
 // ---------------------------------------------------------------------------
@@ -1127,7 +1319,54 @@ function selfTest() {
     }
   }
 
+  // P7's and P8's rows, by this file's own arithmetic, never the product's
+  // (build/p3471/SPEC.md §8): one cell short of the last column, the piece
+  // ending in `/` or `-` (J7), the item's first unit unable to fit on the
+  // piece's row (J3), the piece absolute (so J8 does not refuse it), and, for
+  // the folder, an item that names a folder of its own (so J5 does not). Every
+  // clause J1 to J8 passes, so only the governing rule stands between the
+  // join and a link that opens at the parent.
+  const LIST_WIDTHS = [93, 96, 100, 110, 120, 129, 144, 160, 187, 200, 233, 240, 300];
+  for (const kind of Object.keys(LIST_SHAPES)) {
+    const shape = LIST_SHAPES[kind];
+    const pieces = new Set();
+    for (const width of LIST_WIDTHS) {
+      const c = composeListBreak({ width, proj: ROOT_FIXTURE, kind });
+      const at = `${shape.arm} at ${String(width)}`;
+      if (c === null) {
+        bad.push(`${at}: no layout`);
+        continue;
+      }
+      const cells = (s) => [...s].length;
+      expect(`${at}: two rows`, c.rows.length, 2);
+      expect(`${at}: the piece's row ends ${String(LIST_SHORT_BY)} cell short of the last column`, cells(c.rows[0]), width - LIST_SHORT_BY);
+      expect(`${at}: the item's row fits`, cells(c.rows[1]) <= width, true);
+      expect(`${at}: the rows are the bullet, the piece and the item`, c.rows, [`${LIST_GUTTER}${c.piece}`, `${LIST_GUTTER}${shape.item}`]);
+      expect(`${at}: the piece ends in ${shape.end} (J7)`, /[/-]$/.test(c.piece) && c.piece.endsWith(shape.end), true);
+      expect(`${at}: the item's first unit could not have fitted (J3)`, cells(c.rows[0]) + cells(firstUnitOf(c.item)) > width, true);
+      expect(`${at}: the gutter is not the item's first unit`, firstUnitOf(c.item) === firstUnitOf(c.rows[1]), false);
+      expect(`${at}: the piece is absolute, under the project (J8 does not refuse it)`, c.piece.startsWith(`${ROOT_FIXTURE}/${shape.name}k`), true);
+      expect(`${at}: a folder's item names a folder (J5 does not refuse it)`, shape.end !== '/' || c.item.includes('/'), true);
+      expect(`${at}: the item's own file`, c.own, `${ROOT_FIXTURE}/${shape.item}`);
+      expect(`${at}: the joined file`, c.joined, `${c.piece}${shape.item}`);
+      expect(`${at}: the two files differ`, c.own === c.joined, false);
+      expect(`${at}: the columns`, [c.pieceCol, c.itemCol, c.rows[0].indexOf(c.piece), c.rows[1].indexOf(c.item)], [2, 2, 2, 2]);
+      expect(`${at}: the piece's row is printable ASCII past its bullet`, /^[\x21-\x7e]+$/.test(c.rows[0].slice(LIST_GUTTER.length)), true);
+      pieces.add(c.piece);
+    }
+    expect(`${shape.arm}: thirteen widths, thirteen pieces`, pieces.size, LIST_WIDTHS.length);
+    const narrowest = ROOT_FIXTURE.length + 1 + shape.name.length + 1 + shape.end.length + LIST_GUTTER.length + LIST_SHORT_BY;
+    expect(`${shape.arm}: one k at the narrowest width`, composeListBreak({ width: narrowest, proj: ROOT_FIXTURE, kind })?.piece.endsWith(`${shape.name}k${shape.end}`), true);
+    expect(`${shape.arm}: null one column narrower`, composeListBreak({ width: narrowest - 1, proj: ROOT_FIXTURE, kind }), null);
+    expect(`${shape.arm}: null for a project that is not printable ASCII`, composeListBreak({ width: 300, proj: '/s/café/proj', kind }), null);
+    expect(`${shape.arm}: null for a relative project`, composeListBreak({ width: 300, proj: 's/proj', kind }), null);
+  }
+  expect('list break: an unknown kind', composeListBreak({ width: 300, proj: ROOT_FIXTURE, kind: 'other' }), null);
+
   // The readers.
+  expect('rows at: a bullet tmux printed as _ to a client without UTF-8', rowsAt(['x', '_ /a/p7k/', '_ sub7/x7.md', ''], ['• /a/p7k/', '• sub7/x7.md']), 1);
+  expect('rows at: a bullet tmux printed', rowsAt(['• /a/p7k/', '• sub7/x7.md'], ['• /a/p7k/', '• sub7/x7.md']), 0);
+  expect('rows at: an _ is not any ASCII character', rowsAt(['- /a/p7k/', '- sub7/x7.md'], ['• /a/p7k/', '• sub7/x7.md']), -1);
   expect('log hex', logHexOf('70\n33\nzz\n03\n'), ['70', '33', '03']);
   expect('hex of', hexOf('p3'), ['70', '33']);
   expect('prompt row', promptRowOf(['x', '> abc  ', '']), '> abc');
@@ -1146,34 +1385,70 @@ function selfTest() {
   expect('app.log: an error naming the open-file watch', watcherErrorsOf('{"level":"error","scope":"git","msg":"open-file watch failed"}\n').length, 1);
   expect('app.log: an unrelated error', watcherErrorsOf('{"level":"error","scope":"pocket","msg":"nope"}\nnot json\n').length, 0);
 
-  // The parent refusals.
-  const fs = (builtSet, holdsSet, stale = null) => ({
+  // The parent refusals, by the parent's kind (Phase 347.1). `holdsSet` names
+  // `<dir>:<file>` and `marksSet` `<dir>:<line>`; HEAD holds both halves.
+  const fs = (builtSet, holdsSet, marksSet, stale = null) => ({
     built: (d) => builtSet.includes(d),
     holds: (d, f) => holdsSet.includes(`${d}:${f}`),
+    marks: (d, m) => marksSet.includes(`${d}:${m}`),
     same: (a, b) => a === b,
     fresh: () => stale
   });
   const heads = PHASE_FILES.map((f) => `/head:${f}`);
-  expect('refuse: absent', parentRefusal({ parent: '', root: '/head', ...fs(['/head'], heads) })?.startsWith('P347_PARENT_CHECKOUT names no checkout'), true);
-  expect('refuse: this checkout', parentRefusal({ parent: '/head', root: '/head', ...fs(['/head'], heads) })?.includes('is this checkout'), true);
-  expect('refuse: unbuilt parent', parentRefusal({ parent: '/p', root: '/head', ...fs(['/head'], heads) })?.includes('has no build'), true);
-  expect('refuse: unbuilt HEAD', parentRefusal({ parent: '/p', root: '/head', ...fs(['/p'], heads) })?.includes('this checkout'), true);
-  expect('refuse: a parent that is not one', parentRefusal({ parent: '/p', root: '/head', ...fs(['/p', '/head'], [...heads, `/p:${PHASE_FILES[0]}`]) })?.includes('not this phase'), true);
-  expect('refuse: a HEAD without the phase', parentRefusal({ parent: '/p', root: '/head', ...fs(['/p', '/head'], []) })?.includes("not this phase's HEAD"), true);
-  expect('refuse: a HEAD built before its sources', parentRefusal({ parent: '/p', root: '/head', ...fs(['/p', '/head'], heads, 'src/shared/keymap.ts') })?.includes('older than'), true);
-  expect('accept: a built parent and HEAD', parentRefusal({ parent: '/p', root: '/head', ...fs(['/p', '/head'], heads) }), null);
+  const headMarks = JOIN_MARKS.map((m) => `/head:${m}`);
+  const p347Files = PHASE_FILES.map((f) => `/p:${f}`);
+  const built2 = ['/p', '/head'];
+  expect('refuse: absent', parentRefusal({ parent: '', root: '/head', ...fs(['/head'], heads, headMarks) })?.startsWith('P347_PARENT_CHECKOUT names no checkout'), true);
+  expect('refuse: absent names both parents', /5f5efba2.*af2662e6/.test(parentRefusal({ parent: '', root: '/head', ...fs(['/head'], heads, headMarks) }) ?? ''), true);
+  expect('refuse: this checkout', parentRefusal({ parent: '/head', root: '/head', ...fs(['/head'], heads, headMarks) })?.includes('is this checkout'), true);
+  expect('refuse: unbuilt parent', parentRefusal({ parent: '/p', root: '/head', ...fs(['/head'], heads, headMarks) })?.includes('has no build'), true);
+  expect('refuse: unbuilt HEAD', parentRefusal({ parent: '/p', root: '/head', ...fs(['/p'], heads, headMarks) })?.includes('this checkout'), true);
+  expect('refuse: a parent holding one phase file of two', parentRefusal({ parent: '/p', root: '/head', ...fs(built2, [...heads, `/p:${PHASE_FILES[0]}`], headMarks) })?.includes('neither'), true);
+  for (const [i, m] of JOIN_MARKS.entries()) {
+    expect(`refuse: a 347.1 parent holding join mark ${String(i)}`, parentRefusal({ parent: '/p', root: '/head', ...fs(built2, [...heads, ...p347Files], [...headMarks, `/p:${m}`]) })?.includes("Phase 347.1's work"), true);
+    expect(`refuse: a 347 parent holding join mark ${String(i)}`, parentRefusal({ parent: '/p', root: '/head', ...fs(built2, heads, [...headMarks, `/p:${m}`]) })?.includes("Phase 347.1's work"), true);
+  }
+  expect('refuse: a HEAD without the phase files', parentRefusal({ parent: '/p', root: '/head', ...fs(built2, [], headMarks) })?.includes("not this phase's HEAD"), true);
+  expect('refuse: a HEAD with one phase file of two', parentRefusal({ parent: '/p', root: '/head', ...fs(built2, [heads[1]], headMarks) })?.includes("not this phase's HEAD"), true);
+  for (const [i, m] of JOIN_MARKS.entries()) {
+    const why = parentRefusal({ parent: '/p', root: '/head', ...fs(built2, [...heads, ...p347Files], headMarks.filter((x) => x !== `/head:${m}`)) });
+    expect(`refuse: a HEAD without join mark ${String(i)}`, why?.includes("not Phase 347.1's HEAD") && why.includes(J(m)), true);
+  }
+  expect('refuse: Phase 347 itself as HEAD (no join marks)', parentRefusal({ parent: '/p', root: '/head', ...fs(built2, heads, []) })?.includes("not Phase 347.1's HEAD"), true);
+  expect('refuse: a HEAD built before its sources', parentRefusal({ parent: '/p', root: '/head', ...fs(built2, heads, headMarks, 'src/shared/keymap.ts') })?.includes('older than'), true);
+  expect("accept: Phase 347's parent (af2662e6) and HEAD", parentRefusal({ parent: '/p', root: '/head', ...fs(built2, heads, headMarks) }), null);
+  expect("accept: Phase 347.1's parent (5f5efba2) and HEAD", parentRefusal({ parent: '/p', root: '/head', ...fs(built2, [...heads, ...p347Files], headMarks) }), null);
+  const kindOf = (holdsSet, marksSet) => parentKind('/p', fs([], holdsSet, marksSet));
+  expect('kind: neither file nor mark is Phase 347\'s parent', kindOf([], []), PARENT_BEFORE);
+  expect('kind: both files and no mark is Phase 347.1\'s parent', kindOf(p347Files, []), PARENT_P347);
+  expect('kind: one file of two is neither', kindOf([p347Files[0]], []), null);
+  expect('kind: both files and a mark is neither', kindOf(p347Files, [`/p:${JOIN_MARKS[1]}`]), null);
+  expect('kind: a mark alone is neither', kindOf([], [`/p:${JOIN_MARKS[0]}`]), null);
+  expect('kind: a file that names another dir is not this one', kindOf(PHASE_FILES.map((f) => `/q:${f}`), []), PARENT_BEFORE);
 
-  // The arm list.
-  expect('arms: all but the held ones by default', armsAsked('').arms, ALL_ARMS.filter((a) => !HELD_ARMS.includes(a)));
-  expect('arms: a held arm still runs by name', armsAsked('P3').arms, ['P3']);
-  expect('arms: case and order', armsAsked('w13, k1,P3').arms, ['K1', 'P3', 'W13']);
-  expect('arms: an unknown name is refused', armsAsked('K1,W99').bad, ['W99']);
+  // The arm list, by the parent's kind.
+  expect('arms: every arm by default against Phase 347\'s parent', armsAsked('', PARENT_BEFORE).arms, [...ALL_ARMS]);
+  expect('arms: P1 to P8 by default against Phase 347.1\'s parent', armsAsked('', PARENT_P347).arms, [...JOIN_ARMS]);
+  expect('arms: JOIN_ARMS are P1 to P8', [...JOIN_ARMS], ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8']);
+  expect('arms: every JOIN_ARM is an arm', JOIN_ARMS.every((a) => ALL_ARMS.includes(a)), true);
+  expect('arms: no default refusal', [armsAsked('', PARENT_BEFORE).refused, armsAsked('', PARENT_P347).refused], [null, null]);
+  expect('arms: a P arm by name against either parent', [armsAsked('P3', PARENT_BEFORE).arms, armsAsked('p7', PARENT_P347).arms], [['P3'], ['P7']]);
+  expect('arms: case and order', armsAsked('w13, k1,P3', PARENT_BEFORE).arms, ['K1', 'P3', 'W13']);
+  expect('arms: K and W by name against Phase 347\'s parent', armsAsked('w13, k1,P3', PARENT_BEFORE).refused, null);
+  const kw = armsAsked('w13, k1,P3', PARENT_P347);
+  expect("arms: K and W by name against Phase 347.1's parent are refused with the sentence", kw.refused?.includes(KW_REFUSAL), true);
+  expect('arms: the refusal names K1 and W13 and not P3', kw.refused?.startsWith("P347_ARMS names K1, W13 with Phase 347.1's parent"), true);
+  expect('arms: one K arm alone is refused', armsAsked('K4', PARENT_P347).refused?.includes(KW_REFUSAL), true);
+  expect('arms: one W arm alone is refused', armsAsked('W12', PARENT_P347).refused?.includes(KW_REFUSAL), true);
+  expect('arms: an unknown name is refused', armsAsked('K1,W99', PARENT_BEFORE).bad, ['W99']);
+  expect('arms: an unknown kind refuses', typeof armsAsked('', null).refused, 'string');
+  expect('arms: an unknown kind asks nothing', armsAsked('', undefined).arms, []);
 
   if (bad.length > 0) {
     process.stdout.write(`${TAG} --grader-self-test FAIL, ${String(bad.length)}:\n${bad.map((b) => `  - ${b}`).join('\n')}\n`);
     return false;
   }
-  say(`--grader-self-test PASS: a clean row at both builds, ${String(breaks.length)} breaks each turning exactly its own row, the composers at thirteen widths, the readers, the refusals and the arm list. Nothing was launched.`);
+  say(`--grader-self-test PASS: a clean row at both builds, ${String(breaks.length)} breaks each turning exactly its own row, the composers at thirteen widths (P7's and P8's list break among them), the readers, the refusals by the parent's kind and the arm list. Nothing was launched.`);
   return true;
 }
 
@@ -2216,6 +2491,50 @@ async function joinArm(k, w, { arm, kind, second, leaf, create, plant, press }) 
   return { ...base, found: true, calibrated: true, offset: s.offset, pointers, pressRow, onLinkAtPress: p.onLink, opened, line };
 }
 
+/**
+ * P7 and P8 (Phase 347.1): compose the list break at the pane's width, write
+ * BOTH the item's own file and the joined one, print, hover the piece's row and
+ * the item's, press the item, and read what opened.
+ */
+async function listArm(k, w, { arm, kind }) {
+  const width = await pathsReady(k);
+  const c = composeListBreak({ width, proj: w.proj, kind });
+  if (c === null) {
+    throw new Unreadable(`a pane ${String(width)} columns wide cannot hold ${arm}'s piece one cell short of its edge under ${w.proj} (${String(w.proj.length)} characters), or that path is not printable ASCII`);
+  }
+  mkdirSync(dirname(c.own), { recursive: true });
+  writeFileSync(c.own, LINES(`${arm} ${c.item}, the item's own file`, 20));
+  mkdirSync(dirname(c.joined), { recursive: true });
+  writeFileSync(c.joined, LINES(`${arm} the joined file, which no press may open`, 20));
+  const base = {
+    width,
+    rows: c.rows,
+    own: c.own,
+    joined: c.joined,
+    ownExists: existsSync(c.own),
+    joinedExists: existsSync(c.joined),
+    shortBy: width - [...c.rows[0]].length
+  };
+  const s = await stagePrint(k, w, arm, c.rows, c.rows);
+  if (!s.found || !s.calibrated) return { ...base, found: s.found, calibrated: s.calibrated ?? false, shown: s.shown };
+  const row = s.at + s.offset;
+  const pointerTop = await k.hover(s.geo, row, c.pieceCol + 1);
+  const pointerItem = await k.hover(s.geo, row + 1, c.itemCol + 1);
+  const before = await k.tabPaths();
+  const p = await k.press(s.geo, row + 1, c.itemCol + 1);
+  const after = await k.tabPaths();
+  return {
+    ...base,
+    found: true,
+    calibrated: true,
+    offset: s.offset,
+    pointerTop,
+    pointerItem,
+    onLinkAtPress: p.onLink,
+    opened: after.filter((x) => !before.includes(x))
+  };
+}
+
 const ARMS = {
   async K1(k) {
     const focused = await keysReady(k);
@@ -2380,6 +2699,9 @@ const ARMS = {
       openedBelow: afterBelow.filter((x) => !beforeBelow.includes(x))
     };
   },
+
+  P7: (k, w) => listArm(k, w, { arm: 'P7', kind: 'folder' }),
+  P8: (k, w) => listArm(k, w, { arm: 'P8', kind: 'dash' }),
 
   async W0(k, w) {
     await wSetup(k, w);
@@ -2854,18 +3176,27 @@ async function main() {
 
   const PARENT_RAW = (process.env['P347_PARENT_CHECKOUT'] ?? '').trim();
   const PARENT_DIR = PARENT_RAW === '' ? '' : realOr(PARENT_RAW);
+  const holds = (d, f) => existsSync(join(d, f));
+  /** Whether a checkout's JOIN_MARKS_FILE holds a line starting with `line`; a file that cannot be read holds none. */
+  const marks = (d, line) => {
+    const text = disk(join(d, JOIN_MARKS_FILE));
+    return text !== null && text.split('\n').some((l) => l.startsWith(line));
+  };
   const parentWhy = parentRefusal({
     parent: PARENT_DIR,
     root: realOr(ROOT),
     built: (d) => existsSync(join(d, 'out', 'main', 'index.js')),
-    holds: (d, f) => existsSync(join(d, f)),
+    holds,
+    marks,
     same: (a, b) => realOr(a) === realOr(b),
     fresh: staleBuild
   });
   if (parentWhy !== null) refuse(parentWhy);
+  const PARENT_KIND = parentKind(PARENT_DIR, { holds, marks });
 
-  const { arms: ASKED, bad: BAD_ARMS } = armsAsked(process.env['P347_ARMS']);
+  const { arms: ASKED, bad: BAD_ARMS, refused: ARMS_REFUSED } = armsAsked(process.env['P347_ARMS'], PARENT_KIND);
   if (BAD_ARMS.length > 0) refuse(`P347_ARMS names ${BAD_ARMS.join(', ')}, which is no arm (${ALL_ARMS.join(', ')}).`);
+  if (ARMS_REFUSED !== null) refuse(ARMS_REFUSED);
   const want = (arm) => ASKED.includes(arm);
   const KEEP = (process.env['P347_KEEP'] ?? '') === '1';
 
@@ -2909,6 +3240,7 @@ async function main() {
     started: new Date().toISOString(),
     root: ROOT,
     parent: PARENT_DIR,
+    parentKind: PARENT_KIND,
     parentSha: headOf(PARENT_DIR),
     headSha: headOf(ROOT),
     socket,
@@ -2923,7 +3255,7 @@ async function main() {
   let fatal = null;
   const runRows = [];
 
-  say(`parent ${PARENT_DIR} at ${String(report.parentSha)}, HEAD ${ROOT} at ${String(report.headSha)}; arms ${ASKED.join(',')}`);
+  say(`parent ${PARENT_DIR} at ${String(report.parentSha)} (${PARENT_KIND === PARENT_P347 ? "Phase 347.1's parent" : "Phase 347's parent"}), HEAD ${ROOT} at ${String(report.headSha)}; arms ${ASKED.join(',')}`);
   mkdirSync(SCRATCH, { recursive: true });
   // The scratch is removed in a finally, whatever an arm or a launch did (P347_KEEP=1 keeps it).
   try {

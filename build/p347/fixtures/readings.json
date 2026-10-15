@@ -158,6 +158,48 @@
    ],
    "openedBelow": []
   },
+  "P7": {
+   "width": 48,
+   "rows": [
+    "• /s/parent/proj/p7kkkkkkkkkkkkkkkkkkkkkkkkkkk/",
+    "• sub7/x7.md"
+   ],
+   "own": "/s/parent/proj/sub7/x7.md",
+   "joined": "/s/parent/proj/p7kkkkkkkkkkkkkkkkkkkkkkkkkkk/sub7/x7.md",
+   "ownExists": true,
+   "joinedExists": true,
+   "shortBy": 1,
+   "found": true,
+   "calibrated": true,
+   "offset": 0,
+   "pointerTop": false,
+   "pointerItem": true,
+   "onLinkAtPress": true,
+   "opened": [
+    "/s/parent/proj/sub7/x7.md"
+   ]
+  },
+  "P8": {
+   "width": 48,
+   "rows": [
+    "• /s/parent/proj/n8kkkkkkkkkkkkkkkkkkkkkkkkkkk-",
+    "• draft8.md"
+   ],
+   "own": "/s/parent/proj/draft8.md",
+   "joined": "/s/parent/proj/n8kkkkkkkkkkkkkkkkkkkkkkkkkkk-draft8.md",
+   "ownExists": true,
+   "joinedExists": true,
+   "shortBy": 1,
+   "found": true,
+   "calibrated": true,
+   "offset": 0,
+   "pointerTop": false,
+   "pointerItem": true,
+   "onLinkAtPress": true,
+   "opened": [
+    "/s/parent/proj/draft8.md"
+   ]
+  },
   "W0": {
    "doorFree": true,
    "previous": "p\n",
@@ -911,8 +953,8 @@
     "factory/.planning/brainstorming.md:134 end"
    ],
    "pointers": [
-    true,
-    true,
+    false,
+    false,
     true
    ],
    "pressRow": 2,
@@ -921,7 +963,7 @@
    "planted": "/s/head/proj/.planning/brainstorm-p3.md",
    "plantedExists": true,
    "opened": [
-    "/s/head/proj/arcturus-labs/rook/agent-workspace-01/software-factory/.planning/brainstorm-p3.md"
+    "/s/head/proj/.planning/brainstorm-p3.md"
    ],
    "line": 134
   },
@@ -973,6 +1015,48 @@
     "/s/head/proj/hw6/README.md"
    ],
    "openedBelow": []
+  },
+  "P7": {
+   "width": 48,
+   "rows": [
+    "• /s/head/proj/p7kkkkkkkkkkkkkkkkkkkkkkkkkkkkk/",
+    "• sub7/x7.md"
+   ],
+   "own": "/s/head/proj/sub7/x7.md",
+   "joined": "/s/head/proj/p7kkkkkkkkkkkkkkkkkkkkkkkkkkkkk/sub7/x7.md",
+   "ownExists": true,
+   "joinedExists": true,
+   "shortBy": 1,
+   "found": true,
+   "calibrated": true,
+   "offset": 0,
+   "pointerTop": false,
+   "pointerItem": true,
+   "onLinkAtPress": true,
+   "opened": [
+    "/s/head/proj/sub7/x7.md"
+   ]
+  },
+  "P8": {
+   "width": 48,
+   "rows": [
+    "• /s/head/proj/n8kkkkkkkkkkkkkkkkkkkkkkkkkkkkk-",
+    "• draft8.md"
+   ],
+   "own": "/s/head/proj/draft8.md",
+   "joined": "/s/head/proj/n8kkkkkkkkkkkkkkkkkkkkkkkkkkkkk-draft8.md",
+   "ownExists": true,
+   "joinedExists": true,
+   "shortBy": 1,
+   "found": true,
+   "calibrated": true,
+   "offset": 0,
+   "pointerTop": false,
+   "pointerItem": true,
+   "onLinkAtPress": true,
+   "opened": [
+    "/s/head/proj/draft8.md"
+   ]
   },
   "W0": {
    "doorFree": true,

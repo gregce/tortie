@@ -99,14 +99,57 @@
  * opens `underBase`, main's re-spelling of the same file under the base this
  * pane asked with, and falls back to `path` when there is none. Nothing about
  * the DECISION moved, and nothing here compares or folds two spellings.
+ *
+ * ## A path broken over rows (Phase 347, issue 40)
+ *
+ * Beside the hovered row's own spans, `provideLinks` asks `joinedPathAt`
+ * (`@shared/path-spans`, whose header holds the rule and its proof) for the
+ * ONE path the drawn rows around it may break, read from the same drawn
+ * rows, the same column maps and the same `Terminal.cols`, never from
+ * `isWrapped`. `linksFor` asks the door about the joined target in the same
+ * `Promise.all`, through the same `doorFor` and cache, and only when the door
+ * ACCEPTS it does the join become one link from its first cell to its last,
+ * so pointing at any of its rows underlines all of them and a click opens the
+ * whole path at its line. A row span sharing a cell with that link is not
+ * returned, because a fragment never opens in place of the whole path. When
+ * the door refuses the join, the row's spans are exactly what they were
+ * before the phase. A join is offered only when the joined path starts with
+ * `/` or `~/` (`@shared/path-spans`' J10, his ruling of 2026-10-14), so a
+ * relative path broken over rows stays plain from every row, as before.
+ *
+ * AND THE JOIN YIELDS TO ANY ROW SPAN THE DOOR ACCEPTS, ON ANY ROW IT COVERS
+ * (Phase 347.1, the governing rule; `@shared/path-spans`' header says why it
+ * is a construction rather than a shape). The ONE reader that hands
+ * `joinedPathAt` its drawn rows hands the same rows to `spansUnderJoin`,
+ * synchronously and before any await, and that answers every span each row
+ * of the join draws today that shares a cell with it. Their targets ride the
+ * join's own `Promise.all` through the same `doorFor` and cache, and the join
+ * is offered only when the door refuses every one of them: one accepted, or
+ * one missing answer, and every row reads exactly as it did, and a row of the
+ * join that cannot be read refuses it too. So the join only ever takes cells
+ * that had no link, and a link that opens today never moves. Where a row's
+ * own piece is a file Tortie opens, that row opens it and the whole path is
+ * offered from no row, as before the phase.
  */
 
 import type { ILink, ILinkProvider, Terminal } from '@xterm/xterm';
 import type { DropPreparedItem } from '@shared/types';
 import type { PathDoorAnswer } from '@shared/path-doors';
 import { couldBeAbsolute, couldBeAsked } from '@shared/path-doors';
-import type { PathSpan } from '@shared/path-spans';
-import { cellColumns, pathSpansInRow, spanColumns } from '@shared/path-spans';
+import type {
+  DrawnRow,
+  JoinedSpan,
+  PathSpan,
+  SpanUnderJoin
+} from '@shared/path-spans';
+import {
+  cellColumns,
+  joinedPathAt,
+  pathSpansInRow,
+  sharesCellWithJoin,
+  spanColumns,
+  spansUnderJoin
+} from '@shared/path-spans';
 import { gmuxBridge } from '../bridge';
 import { useApp } from '../state/store';
 
@@ -220,27 +263,84 @@ export class PathLinkProvider implements ILinkProvider {
           ? 0
           : (cellColumns(lineAbove)[above.length] ?? null)
     });
-    if (spans.length === 0) {
+    // PHASE 347 (issue 40) and 347.1. ONE reader of drawn rows for the join
+    // and for the governing rule: the same rows, their own column maps and
+    // the same width; `isWrapped` is never read.
+    const drawnRow = (i: number): DrawnRow | null => {
+      const drawn = buffer.getLine(i);
+      return drawn === undefined
+        ? null
+        : { text: drawn.translateToString(true), columns: cellColumns(drawn) };
+    };
+    const candidate = joinedPathAt(drawnRow, y, buffer.length - 1, this.term.cols);
+    // PHASE 347.1, THE GOVERNING RULE's facts, read now and before any await:
+    // every span a row the candidate covers draws today that shares a cell
+    // with it. A row that cannot be read refuses the join.
+    const under = candidate === null ? null : spansUnderJoin(drawnRow, candidate, this.term.cols);
+    const join = under === null ? null : candidate;
+    if (spans.length === 0 && join === null) {
       callback(undefined);
       return;
     }
-    void this.linksFor(spans, columns, bufferLineNumber).then(callback);
+    void this.linksFor(spans, columns, bufferLineNumber, join, under ?? []).then(callback);
   }
 
-  /** One `ILink` per span whose door is a door, and nothing for the rest. */
+  /**
+   * One `ILink` per span whose door is a door, and nothing for the rest.
+   *
+   * PHASE 347. `join`, when there is one, is asked about in the SAME
+   * `Promise.all` through the same `doorFor` and cache, after the row's own
+   * spans. Accepted, it is one link from its first cell on `top` to its last
+   * on `bottom`, and a row span sharing a cell with it is not returned.
+   * Refused, it changes nothing: the row's links are the ones it had before.
+   *
+   * PHASE 347.1. `under` is every span the join's rows draw today that shares
+   * a cell with it (`spansUnderJoin`), asked about in the same `Promise.all`
+   * after the join's target. The join is accepted only when the door refuses
+   * every one of them, so it never takes a cell from a link that opens today.
+   */
   private async linksFor(
     spans: PathSpan[],
     columns: number[],
-    y: number
+    y: number,
+    join: JoinedSpan | null,
+    under: SpanUnderJoin[]
   ): Promise<ILink[] | undefined> {
     // Read ONCE for the whole row and handed down, so every span on one row
     // is judged against one base even if the session's project changes under
     // the await — and the click below reads it again, freshly, for itself.
     const base = this.deps.repoPath();
+    const targets = spans.map((s) => s.target);
+    const joinAt = targets.length;
+    if (join !== null) targets.push(join.target);
+    const underAt = targets.length;
+    for (const u of under) targets.push(u.target);
     const answers = await Promise.all(
-      spans.map((s) => this.doorFor(s.target, base))
+      targets.map((target) => this.doorFor(target, base))
     );
+    // J4. The join is offered only when the door accepts the joined target.
+    const joinAnswer = join === null ? undefined : answers[joinAt];
+    // THE GOVERNING RULE (Phase 347.1). A join never takes a cell from a row
+    // span the door already accepts, on any row it covers; an answer that is
+    // missing counts as accepted.
+    const taken = under.some((_, k) => answers[underAt + k]?.door !== null);
+    const accepted =
+      join !== null && joinAnswer !== undefined && joinAnswer.door !== null && !taken
+        ? join
+        : null;
     const links: ILink[] = [];
+    if (accepted !== null) {
+      links.push({
+        range: {
+          start: { x: accepted.startColumn + 1, y: accepted.top + 1 },
+          end: { x: accepted.endColumn, y: accepted.bottom + 1 }
+        },
+        text: accepted.text,
+        activate: () => {
+          void this.open(accepted);
+        }
+      });
+    }
     for (const [at, span] of spans.entries()) {
       const answer = answers[at];
       if (answer === undefined || answer.door === null) continue;
@@ -248,6 +348,8 @@ export class PathLinkProvider implements ILinkProvider {
       // CELL COLUMNS. A span whose columns cannot be read is not drawn.
       const range = spanColumns(span, columns);
       if (range === null) continue;
+      // A fragment yields only to a join the door ACCEPTED (D8).
+      if (accepted !== null && sharesCellWithJoin(range, y - 1, accepted)) continue;
       links.push({
         range: {
           start: { x: range.start, y },
@@ -329,7 +431,7 @@ export class PathLinkProvider implements ILinkProvider {
    * So the fresh answer decides, and for the Mac door main asks a third time
    * inside the channel, because the channel is the thing that acts.
    */
-  private async open(span: PathSpan): Promise<void> {
+  private async open(span: Pick<PathSpan, 'target' | 'line'>): Promise<void> {
     if (!this.deps.isLocal()) return;
     const base = this.deps.repoPath();
     this.cache.delete(this.keyFor(span.target, base));

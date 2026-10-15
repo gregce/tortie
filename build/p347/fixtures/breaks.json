@@ -305,13 +305,14 @@
   "want": false
  },
  {
-  "label": "P3: HEAD opened the planted fragment",
+  "label": "P3: HEAD opened the whole file",
   "arm": "P3",
   "build": "head",
   "set": {
    "opened": [
-    "/s/head/proj/.planning/brainstorm-p3.md"
-   ]
+    "/s/head/proj/arcturus-labs/rook/agent-workspace-01/software-factory/.planning/brainstorm-p3.md"
+   ],
+   "line": 134
   },
   "want": false
  },
@@ -323,6 +324,52 @@
    "opened": [
     "/s/head/proj/arcturus-labs/rook/agent-workspace-01/software-factory/.planning/brainstorm-p3.md"
    ]
+  },
+  "want": false
+ },
+ {
+  "label": "P3: HEAD drew a pointer above the last row",
+  "arm": "P3",
+  "build": "head",
+  "set": {
+   "pointers.0": true
+  },
+  "want": false
+ },
+ {
+  "label": "P3: the parent drew a pointer above the last row",
+  "arm": "P3",
+  "build": "parent",
+  "set": {
+   "pointers.1": true
+  },
+  "want": false
+ },
+ {
+  "label": "P3: HEAD opened nothing",
+  "arm": "P3",
+  "build": "head",
+  "set": {
+   "opened": [],
+   "line": null
+  },
+  "want": false
+ },
+ {
+  "label": "P3: HEAD opened the planted fragment at another line",
+  "arm": "P3",
+  "build": "head",
+  "set": {
+   "line": 1
+  },
+  "want": false
+ },
+ {
+  "label": "P3: the parent opened the planted fragment at no line",
+  "arm": "P3",
+  "build": "parent",
+  "set": {
+   "line": null
   },
   "want": false
  },
@@ -449,6 +496,272 @@
   "set": {
    "shortBy": 0
   },
+  "want": null
+ },
+ {
+  "label": "P7: HEAD opened the joined file",
+  "arm": "P7",
+  "build": "head",
+  "set": {
+   "opened": [
+    "/s/head/proj/p7kkkkkkkkkkkkkkkkkkkkkkkkkkkkk/sub7/x7.md"
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "P7: the parent opened the joined file",
+  "arm": "P7",
+  "build": "parent",
+  "set": {
+   "opened": [
+    "/s/parent/proj/p7kkkkkkkkkkkkkkkkkkkkkkkkkkk/sub7/x7.md"
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "P7: HEAD drew a pointer on the folder row",
+  "arm": "P7",
+  "build": "head",
+  "set": {
+   "pointerTop": true
+  },
+  "want": false
+ },
+ {
+  "label": "P7: the parent drew a pointer on the folder row",
+  "arm": "P7",
+  "build": "parent",
+  "set": {
+   "pointerTop": true
+  },
+  "want": false
+ },
+ {
+  "label": "P7: HEAD opened nothing",
+  "arm": "P7",
+  "build": "head",
+  "set": {
+   "opened": []
+  },
+  "want": false
+ },
+ {
+  "label": "P7: the parent opened nothing",
+  "arm": "P7",
+  "build": "parent",
+  "set": {
+   "opened": []
+  },
+  "want": false
+ },
+ {
+  "label": "P7: HEAD drew no pointer on the item",
+  "arm": "P7",
+  "build": "head",
+  "set": {
+   "pointerItem": false
+  },
+  "want": false
+ },
+ {
+  "label": "P7: HEAD opened the item and the joined file",
+  "arm": "P7",
+  "build": "head",
+  "set": {
+   "opened": [
+    "/s/head/proj/sub7/x7.md",
+    "/s/head/proj/p7kkkkkkkkkkkkkkkkkkkkkkkkkkkkk/sub7/x7.md"
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "P7: the joined file not planted is unreadable",
+  "arm": "P7",
+  "build": "head",
+  "set": {
+   "joinedExists": false
+  },
+  "want": null
+ },
+ {
+  "label": "P7: the item's own file not planted is unreadable",
+  "arm": "P7",
+  "build": "parent",
+  "set": {
+   "ownExists": false
+  },
+  "want": null
+ },
+ {
+  "label": "P7: a piece's row two cells short is unreadable",
+  "arm": "P7",
+  "build": "head",
+  "set": {
+   "shortBy": 2
+  },
+  "want": null
+ },
+ {
+  "label": "P7: rows not on screen are unreadable",
+  "arm": "P7",
+  "build": "parent",
+  "set": {
+   "found": false
+  },
+  "want": null
+ },
+ {
+  "label": "P7: no calibration is unreadable",
+  "arm": "P7",
+  "build": "head",
+  "set": {
+   "calibrated": false
+  },
+  "want": null
+ },
+ {
+  "label": "P7: an unhovered item is unreadable",
+  "arm": "P7",
+  "build": "parent",
+  "del": [
+   "pointerItem"
+  ],
+  "want": null
+ },
+ {
+  "label": "P8: HEAD opened the joined file",
+  "arm": "P8",
+  "build": "head",
+  "set": {
+   "opened": [
+    "/s/head/proj/n8kkkkkkkkkkkkkkkkkkkkkkkkkkkkk-draft8.md"
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "P8: the parent opened the joined file",
+  "arm": "P8",
+  "build": "parent",
+  "set": {
+   "opened": [
+    "/s/parent/proj/n8kkkkkkkkkkkkkkkkkkkkkkkkkkk-draft8.md"
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "P8: HEAD drew a pointer on the `-` row",
+  "arm": "P8",
+  "build": "head",
+  "set": {
+   "pointerTop": true
+  },
+  "want": false
+ },
+ {
+  "label": "P8: the parent drew a pointer on the `-` row",
+  "arm": "P8",
+  "build": "parent",
+  "set": {
+   "pointerTop": true
+  },
+  "want": false
+ },
+ {
+  "label": "P8: HEAD opened nothing",
+  "arm": "P8",
+  "build": "head",
+  "set": {
+   "opened": []
+  },
+  "want": false
+ },
+ {
+  "label": "P8: the parent opened nothing",
+  "arm": "P8",
+  "build": "parent",
+  "set": {
+   "opened": []
+  },
+  "want": false
+ },
+ {
+  "label": "P8: HEAD drew no pointer on the item",
+  "arm": "P8",
+  "build": "head",
+  "set": {
+   "pointerItem": false
+  },
+  "want": false
+ },
+ {
+  "label": "P8: HEAD opened the item and the joined file",
+  "arm": "P8",
+  "build": "head",
+  "set": {
+   "opened": [
+    "/s/head/proj/draft8.md",
+    "/s/head/proj/n8kkkkkkkkkkkkkkkkkkkkkkkkkkkkk-draft8.md"
+   ]
+  },
+  "want": false
+ },
+ {
+  "label": "P8: the joined file not planted is unreadable",
+  "arm": "P8",
+  "build": "head",
+  "set": {
+   "joinedExists": false
+  },
+  "want": null
+ },
+ {
+  "label": "P8: the item's own file not planted is unreadable",
+  "arm": "P8",
+  "build": "parent",
+  "set": {
+   "ownExists": false
+  },
+  "want": null
+ },
+ {
+  "label": "P8: a piece's row two cells short is unreadable",
+  "arm": "P8",
+  "build": "head",
+  "set": {
+   "shortBy": 2
+  },
+  "want": null
+ },
+ {
+  "label": "P8: rows not on screen are unreadable",
+  "arm": "P8",
+  "build": "parent",
+  "set": {
+   "found": false
+  },
+  "want": null
+ },
+ {
+  "label": "P8: no calibration is unreadable",
+  "arm": "P8",
+  "build": "head",
+  "set": {
+   "calibrated": false
+  },
+  "want": null
+ },
+ {
+  "label": "P8: an unhovered item is unreadable",
+  "arm": "P8",
+  "build": "parent",
+  "del": [
+   "pointerItem"
+  ],
   "want": null
  },
  {

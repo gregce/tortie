@@ -35,13 +35,22 @@
  *   D. A CREDENTIAL BY NAME. The same gesture over the `.npmrc` Phase 247
  *      added to `NEVER_PREVIEW`. No tab, no record line.
  *   E. A PATH THAT RUNS OFF THE ROW. A file buried deep enough that its
- *      absolute path is longer than the pane is wide, so the row wraps. The
- *      same gesture over the fragment, and nothing happens — refusal 8, which
- *      this phase did NOT lift, live in the running app. It is the shape of
- *      the screenshot in issue 18, and the honest answer to that screenshot is
- *      that it stays unclickable: research 111 section 4.2 measured that a
- *      blind rejoin produces a path that really exists 57 times while tmux
- *      confirms 18 of them, so 39 of 57 are joins that never happened.
+ *      absolute path is longer than the pane is wide, so the terminal wraps
+ *      it. Until Phase 347 refusal 8 refused every piece of it, which was the
+ *      screenshot in issue 18 and the shape of issue 40. PHASE 347 JOINS IT
+ *      (build/p347/SPEC.md D7 and D8): the rows are read as DRAWN, every
+ *      boundary must be a forced break (J1 to J3, never `isWrapped`), and the
+ *      join is offered only when the DOOR accepts the joined target (J4). That
+ *      is why it is not research 111 section 4.2's blind rejoin, 39 of whose
+ *      57 joins never happened: a join no door accepts draws nothing, and the
+ *      rows keep their own spans exactly as before. So the arm presses the
+ *      head row's fragment and the tail row's fragment, each from an empty
+ *      strip, and both must open THE WHOLE FILE; then it presses the `end`
+ *      after the path on the tail row, a cell outside it, which must
+ *      underline and open nothing. The line carries a lead of `q`s chosen
+ *      from the pane's width (`eLeadFor`), so the path's last character is
+ *      never within four cells of its row's end, where a split ` end` or
+ *      SPEC L12 would decide it for the fixture's length.
  *   G. PHASE 250 LIFT ONE, and it is his own first screenshot: an absolute,
  *      existing path printed at the END of its row, in a pane far wider than
  *      the row. At the parent commit refusal 8 refused it for being the last
@@ -242,8 +251,99 @@ export function decoratedCellOf(rows, marker, path) {
   return null;
 }
 
+/**
+ * ARM E's ROWS, as `tmux capture-pane -p` prints a line the terminal wrapped:
+ * cut every `cols` cells, each row trimmed at its end. ASCII only, which arm
+ * E's line is.
+ */
+export function wrapRows(line, cols) {
+  const out = [];
+  for (let i = 0; i < line.length; i += cols) out.push(line.slice(i, i + cols).replace(/\s+$/, ''));
+  return out;
+}
+
+/**
+ * ARM E's FIXTURE (Phase 347's probe review): the words between `mkE ` and
+ * the wrapped path, so the path's last character lands at least five cells
+ * short of its row's last column and ` end` follows it on that same row.
+ *
+ * The path's length comes from the scratch directory, which comes from TMPDIR
+ * and the socket's tag, so without this the residue was whatever the machine
+ * gave. Re-derived over the SHIPPING `joinedPathAt` at five widths, 4
+ * residues of every width read wrong. With two or three cells left after the
+ * path on its row, ` end` split across rows, the arm found no tail and failed
+ * while the product opened the whole file. With none left (or one, before
+ * the fix round's J7 stopped a join below a row short of its edge), `end`
+ * started the next row, where SPEC L12 takes it into the joined token, the
+ * door refuses it and nothing opens. Both were a FAIL for the fixture's
+ * length, not for the product. A lead of `q`s (no path, no file shape) moves
+ * the path right until four cells are left.
+ */
+export function eLeadFor(markLength, pathLength, cols) {
+  if (!(cols > 0)) return '';
+  for (let n = 0; n <= 8; n += 1) {
+    const lead = n === 0 ? '' : `${'q'.repeat(n)} `;
+    const last = markLength + 1 + lead.length + pathLength - 1;
+    if (last % cols <= cols - 5) return lead;
+  }
+  return '';
+}
+
+/**
+ * Where arm E's path ends on screen, read from the line and the width alone:
+ * the row offset of its last character from the marked row, the column one
+ * past it, how many cells are left after it on that row, and where the `end`
+ * after it starts (row offset and column).
+ */
+export function eTailOf(pathStart, pathLength, cols) {
+  const last = pathStart + pathLength - 1;
+  const endWord = last + 2;
+  return {
+    row: Math.floor(last / cols),
+    end: (last % cols) + 1,
+    room: cols - 1 - (last % cols),
+    endRow: Math.floor(endWord / cols),
+    endCol: endWord % cols
+  };
+}
+
 function selfTest() {
   const fixtures = [
+    // PHASE 347's probe review: arm E's rows, its lead and its tail, by arithmetic.
+    ['E rows: cut at the width, a leading space kept', () => wrapRows('mkE /aaaa/bb end', 6), ['mkE /a', 'aaa/bb', ' end']],
+    ['E rows: a space at a row end is trimmed', () => wrapRows('mkE /a end', 7), ['mkE /a', 'end']],
+    ['E tail: the path ending mid-row', () => eTailOf(4, 10, 8), { row: 1, end: 6, room: 2, endRow: 1, endCol: 7 }],
+    [
+      'E lead: none needed when the path ends well short of the edge',
+      () => eLeadFor(3, 100, 144),
+      ''
+    ],
+    [
+      'E lead: every width and length lands five cells short with ` end` on the tail row',
+      () => {
+        const bad = [];
+        for (const cols of [60, 100, 120, 144, 160, 170, 233]) {
+          for (let p = cols; p < cols * 3; p += 1) {
+            const lead = eLeadFor(3, p, cols);
+            const line = `mkE ${lead}${'x'.repeat(p)} end`;
+            const t = eTailOf(4 + lead.length, p, cols);
+            const rows = wrapRows(line, cols);
+            if (t.room < 4 || t.endRow !== t.row || !rows[t.row]?.endsWith(' end')) bad.push(`${String(cols)}/${String(p)}`);
+          }
+        }
+        return bad;
+      },
+      []
+    ],
+    [
+      'E lead: with no lead the old fixture missed 4 residues a width',
+      () => {
+        let n = 0;
+        for (let p = 144; p < 288; p += 1) if (eTailOf(4, p, 144).room < 4) n += 1;
+        return n;
+      },
+      4
+    ],
     ['all agree', () => grade([['a', 1, 1]]).length, 0],
     ['one wrong', () => grade([['a', 2, 1]]).length, 1],
     ['arrays by value', () => grade([['a', ['p'], ['p']]]).length, 0],
@@ -470,6 +570,8 @@ const ARMS = [
  * row and this one is not there to find.
  */
 const WRAPPED_MARK = 'mkE';
+/** The words between `mkE ` and the path, set from the pane's width when the transcript is written (`eLeadFor`). */
+let E_LEAD = '';
 
 const recordLines = () => {
   if (!existsSync(record)) return [];
@@ -551,6 +653,8 @@ const capture = (pane) =>
 // the session strip wears the same role and the session this run creates is
 // one of them, so the wider selector would read a session as an open file.
 const TABS = `Array.from(document.querySelectorAll('.ed-tab .ed-tab-name')).map((t) => (t.textContent ?? '').trim())`;
+/** Every editor tab's path through the Phase 268 drive, or null when the drive is not on the page (arm E, Phase 347). */
+const TAB_PATHS = `(() => { const p = window.__gmuxP268; return p ? p.read().tabs.map((t) => t.path) : null; })()`;
 
 /**
  * The screen's own rectangle. The CELL size is not read here.
@@ -1098,8 +1202,14 @@ await withElectron(
       const pane = paneIdOf(SESSION);
       if (pane === null) throw new Error('the session this run created has no pane');
       say(`the pane is ${pane}: ${tmux('list-panes', '-a', '-F', '#{session_name} #{pane_id} #{pane_width}x#{pane_height} dead=#{pane_dead}')}`);
+      // ARM E's lead, read off the pane's width now (no tab is open yet; arm
+      // R says so below). See `eLeadFor`: without it the path's own length
+      // decided whether ` end` split or slid onto the next row.
+      const composeCols = Number.parseInt(paneSize(pane).split(' ')[1] ?? '', 10);
+      E_LEAD = eLeadFor(WRAPPED_MARK.length, WRAPPED.length, composeCols);
       const lines = [
-        ...[...ARMS, ['E', WRAPPED_MARK, WRAPPED]].map(([, marker, path]) => `${marker} ${path} end`),
+        ...ARMS.map(([, marker, path]) => `${marker} ${path} end`),
+        `${WRAPPED_MARK} ${E_LEAD}${WRAPPED} end`,
         // PHASE 250's rows. G and I END their rows on purpose, which is what
         // refusal 8 used to refuse and what lift one narrowed; H, I, J and K
         // are relative and are what lift two resolves.
@@ -1224,59 +1334,118 @@ await withElectron(
       }
 
       // ------------------------------------------------------------- ARM E
-      // REFUSAL 8, live. The row the path starts on runs off the right edge of
-      // the pane, so the span's end is not known and it is never offered. This
-      // is the shape of the screenshot in issue 18, and the honest answer to
-      // it is that it stays unclickable — no rejoin can be written that never
-      // lies (research 111 section 4.2).
+      // PHASE 347 (build/p347/SPEC.md D7, D8). The wrapped absolute path opens
+      // THE WHOLE FILE from either of its rows, and nothing opens from a cell
+      // outside it. Each press starts from an empty strip, because the tab the
+      // press before it opened narrows the pane and tmux reflows the rows.
       {
-        const stageE = await stage(
-          cdp,
-          pane,
-          fullCols,
-          (rs) => {
-            const row = rs.findIndex((r) => r.startsWith(`${WRAPPED_MARK} `));
-            return row === -1 ? null : { row, text: rs[row] ?? '' };
-          },
-          'a path that runs off its row'
-        );
-        const geoE = stageE.geo ?? null;
-        const at = stageE.cell?.row ?? -1;
-        const head = stageE.cell?.text ?? '';
-        const fragment = head.slice(WRAPPED_MARK.length + 1);
-        const wrapped = at !== -1 && !head.includes(' end') && fragment.length > 20;
-        const tabsBefore = await cdpEval(cdp, TABS, 10000);
-        const recordedBefore = recordLines();
-        let press = { onLink: false };
-        let onE = { offset: null };
-        if (stageE.cell === undefined) problems.push(`E ${stageE.why}`);
-        if (wrapped && geoE !== null && stageE.rows !== undefined) {
-          onE = await screenRowFor(cdp, geoE, stageE.rows, { row: at }, false);
-          if (onE.row === undefined) {
-            problems.push(`E ${onE.why}, so the fragment was not pressed`);
-          } else {
-            await parkPointer(cdp, geoE);
-            press = await pressCell(cdp, geoE, onE.row, WRAPPED_MARK.length + 1, fragment.length);
-          }
-        }
-        findings.E = {
-          cols: geoE?.cols ?? null,
-          row: onE.row ?? at,
-          rowOffset: onE.offset,
-          reallyWrapped: wrapped,
-          onLink: press.onLink,
-          openedTabs: (await cdpEval(cdp, TABS, 10000)).filter((t) => !tabsBefore.includes(t)),
-          newlyRecorded: recordLines().slice(recordedBefore.length)
+        const findE = (rs) => {
+          const row = rs.findIndex((r) => r.startsWith(`${WRAPPED_MARK} `));
+          return row === -1 ? null : { row, text: rs[row] ?? '', below: rs.slice(row + 1, row + 9) };
         };
+        findings.E = { presses: {} };
+        for (const [part, wantTabs, wantLink] of [
+          ['head', ['wrapped.md'], true],
+          ['tail', ['wrapped.md'], true],
+          ['outside', [], false]
+        ]) {
+          const stageE = await stage(cdp, pane, fullCols, findE, `the ${part} of a path that runs off its row`);
+          if (stageE.cell === undefined) {
+            problems.push(`E ${stageE.why}`);
+            continue;
+          }
+          const geoE = stageE.geo;
+          const at = stageE.cell.row;
+          // Where the path starts on the marked row: after `mkE ` and the lead
+          // the transcript was composed with (`eLeadFor`).
+          const lead = WRAPPED_MARK.length + 1 + E_LEAD.length;
+          const fragment = stageE.cell.text.slice(lead);
+          const want = wrapRows(`${WRAPPED_MARK} ${E_LEAD}${WRAPPED} end`, geoE.cols);
+          const drawnRows = [stageE.cell.text, ...stageE.cell.below].slice(0, want.length);
+          const t = eTailOf(lead, WRAPPED.length, geoE.cols);
+          findings.E.tail = { cols: geoE.cols, lead: E_LEAD.length, ...t };
+          // THE FIXTURE REALLY RAN OFF THE ROW, read by arithmetic rather than
+          // by searching for ` end` (Phase 347's probe review): the rows tmux
+          // printed from the marked one on ARE the line cut at the pane's
+          // width, and the path runs past its first row.
+          const wrapped = want.length >= 2 && t.row >= 1 && fragment.length > 20 && JSON.stringify(drawnRows) === JSON.stringify(want);
+          findings.E.reallyWrapped = wrapped;
+          if (!wrapped) {
+            problems.push(`E the fixture did not run off its row as a soft wrap of ${String(want.length)} rows at ${String(geoE.cols)} columns, so the ${part} was not pressed`);
+            continue;
+          }
+          // ...and its last character is at least four cells short of its
+          // row's end, with the `end` after it on that row. Otherwise SPEC L12
+          // (the word below taken into the join) or a split ` end`, and not
+          // the join, decides what opens, which is the fixture's length rather
+          // than the product. `eLeadFor` prevents it at the width the
+          // transcript was composed at; this says so if the width moved.
+          if (t.room < 4 || t.endRow !== t.row) {
+            problems.push(
+              `E the path ends ${String(t.room)} cell(s) short of its row's last column at ${String(geoE.cols)} columns, so the word after it is not on its row and the join's own limits would decide it (the transcript was composed at another width); the ${part} was not pressed`
+            );
+            continue;
+          }
+          // The head row's fragment is swept for its own link, and the tail row
+          // is placed below where the terminal draws the head, so a
+          // forward drift cannot press the head and call it the tail. The cell
+          // outside the path is placed by arm A's calibration (screenRowFor).
+          let row;
+          let col;
+          let width;
+          if (part === 'outside') {
+            const on = await screenRowFor(cdp, geoE, stageE.rows, { row: at + t.endRow }, false);
+            if (on.row === undefined) {
+              problems.push(`E ${on.why}, so the cell outside the path was not pressed`);
+              continue;
+            }
+            [row, col, width] = [on.row, t.endCol, 3];
+          } else {
+            const onHead = await screenRowFor(cdp, geoE, stageE.rows, { row: at, col: lead, width: fragment.length }, true);
+            if (onHead.row === undefined) {
+              problems.push(`E ${onHead.why}, so the ${part} was not pressed`);
+              findings.E.presses[part] = { pressed: false, why: onHead.why };
+              continue;
+            }
+            [row, col, width] = part === 'head' ? [onHead.row, lead, fragment.length] : [onHead.row + t.row, 0, t.end];
+          }
+          const tabsBefore = await cdpEval(cdp, TABS, 10000);
+          const pathsBefore = await cdpEval(cdp, TAB_PATHS, 10000);
+          const recordedBefore = recordLines();
+          await parkPointer(cdp, geoE);
+          const press = await pressCell(cdp, geoE, row, col, width);
+          const pathsAfter = await cdpEval(cdp, TAB_PATHS, 10000);
+          findings.E.presses[part] = {
+            cols: geoE.cols,
+            row,
+            col,
+            onLink: press.onLink,
+            openedTabs: (await cdpEval(cdp, TABS, 10000)).filter((t) => !tabsBefore.includes(t)),
+            openedPaths: Array.isArray(pathsAfter) && Array.isArray(pathsBefore) ? pathsAfter.filter((p) => !pathsBefore.includes(p)) : null,
+            newlyRecorded: recordLines().slice(recordedBefore.length)
+          };
+          const got = findings.E.presses[part];
+          problems.push(
+            ...grade(
+              part === 'outside'
+                ? [
+                    ['E the cell after the path is outside the drawn link', got.onLink, wantLink],
+                    ['E and a press there opens nothing', got.openedTabs, wantTabs],
+                    ['E and reaches the Mac not at all', got.newlyRecorded, []]
+                  ]
+                : [
+                    [`E the ${part} row of the wrapped path is inside the drawn link`, got.onLink, wantLink],
+                    [`E a press on the ${part} row opens the whole file`, got.openedTabs, wantTabs],
+                    // The path, when the Phase 268 drive is there to say it: the
+                    // whole file and never a fragment's own spelling.
+                    ...(got.openedPaths === null ? [] : [[`E and it is the whole path, not a fragment`, got.openedPaths, [WRAPPED]]]),
+                    ['E and reaches the Mac not at all', got.newlyRecorded, []]
+                  ]
+            )
+          );
+        }
         say(`E: ${JSON.stringify(findings.E)}`);
-        problems.push(
-          ...grade([
-            ['E the fixture really did run off the row', findings.E.reallyWrapped, true],
-            ['E nothing is underlined on a span whose end is unknown', findings.E.onLink, false],
-            ['E a span whose end is unknown opens nothing', findings.E.openedTabs, []],
-            ['E and reaches the Mac not at all', findings.E.newlyRecorded, []]
-          ])
-        );
+        problems.push(...grade([['E the fixture really did run off the row', findings.E.reallyWrapped, true]]));
       }
 
       // ------------------------------------------- ARMS G, H, I, J and K
