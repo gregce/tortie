@@ -628,8 +628,9 @@ export const CHECKS = [
   // (no NetworkExtension link, no TailscaleKit, no code coverage section, no
   // DEBUG seam's argument string since Phase 330, and the archive not
   // signed), then runs TortieTests on
-  // an iPhone 16 Pro it creates on iOS 26.3 (P316_RUNTIME=18.3 for the floor)
-  // through build/simulator-run.mjs, which shuts it down and deletes it in a
+  // an iPhone 16 Pro it creates on iOS 26.3 (P316_RUNTIME=18.3 for the floor),
+  // or the device P316_DEVICE names (Phase 333.4), through
+  // build/simulator-run.mjs, which shuts it down and deletes it in a
   // `finally` and on SIGINT, SIGTERM and SIGHUP. It opens no socket and starts
   // no Electron. Since Phase 330 it also stands up an in-process door on
   // loopback that asks for a client certificate, for P330TransportTests, and
@@ -645,6 +646,27 @@ export const CHECKS = [
   // Simulator keychain), and hands P3166_OUTLINE_DIR and P3166_OUTLINE_INPUT
   // to the tests for Method 2, each refused inside the repo or the home.
   xcode('test:ios'),
+  // PHASE 333.4's device drive, build/p3334/probe-p3334.mjs: the SAME UI test
+  // probe:p316 drives (P316DriveUITests), against the SAME door
+  // (build/p316/hostile-door.mjs's honest arm, its own process on loopback,
+  // one per paired drive, ended in a `finally`), on Simulators made one at a
+  // time by build/simulator-run.mjs's withSimulator, over the matrix of the
+  // devices App Review uses: the iPad Air 11-inch (M3), the iPhone SE (3rd
+  // generation) with Touch ID, and the iPhone 16 Pro with nothing enrolled and
+  // with Face ID (the controls), each on iOS 26.3 and 18.3. Three builds into
+  // scratch derived data (Debug and Release for testing, Release as it ships);
+  // per row the kind the helper read from the device type, the shipping app
+  // installed and read back, a paired drive with End behind Touch ID, Face ID
+  // or a typed passcode, the Terminal turned and back, and See a sample. The
+  // iOS 27 rows and iPhone Duo print UNMEASURED with their reasons. No
+  // Electron, no Tailscale, no DNS, no APNs, no photograph, nothing installed.
+  // About 70 to 90 minutes for the eight rows, one lock slot, a verifier's
+  // only. `--grader-self-test` grades the readings in build/p3334/fixtures/
+  // and starts nothing.
+  xcode(
+    'probe:p3334',
+    `${NEEDS.xcode}, the iOS 18.3 runtime, and the iPad Air 11-inch (M3) and iPhone SE (3rd generation) device types`
+  ),
   // PHASE 316.2's app run, re-pointed by Phase 330: ONE Electron through
   // build/electron-run.mjs's withElectron (scratch profile, scratch HOME, the
   // socket gmux-p316-<pid>), its door published through the STAND-IN

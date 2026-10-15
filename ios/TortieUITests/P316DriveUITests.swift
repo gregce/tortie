@@ -58,7 +58,11 @@ import XCTest
 /// `P316_ACKS`, named in the line it printed. Nothing here answers Face ID
 /// itself: there is no seam that skips the owner check. (The fix round took
 /// Unpair's Mac half out of the phase, and its steps `unpair-mac`,
-/// `unpair-mac-down` and `repair` with it.)
+/// `unpair-mac-down` and `repair` with it.) With nothing enrolled iOS asks
+/// for the device's passcode in place of Face ID or Touch ID, and a Simulator
+/// takes any passcode (Phase 333.4, build/p3334/SPEC.md section 3 F4).
+/// `end-passcode:<digits>` presses End as `end` does and types those digits
+/// where iOS draws its passcode field, then reads the screen as `end` does.
 ///
 /// THE REPLY (Phase 318, build/p318/SPEC.md section 7.7, the `reply` group).
 /// Steps that press an option the Mac offers (`reply-press:<n>`, n the
@@ -651,6 +655,14 @@ private final class Drive {
                 idle(seconds: TimeInterval(String(step.dropFirst("idle:".count))) ?? 20)
             } else if step == "end" {
                 end(step: "end", after: .reread)
+            } else if step.hasPrefix("end-passcode:") {
+                // Phase 333.4: four to six digits, the step's own, or the
+                // step is not one this drive knows.
+                if let digits = Self.passcodeDigits(String(step.dropFirst("end-passcode:".count))) {
+                    end(step: "end-passcode", after: .passcode(digits))
+                } else {
+                    lines.emit(["step": "unknown-step", "name": step])
+                }
             } else if step == "end-cancel" {
                 end(step: "end-cancel", after: .cancel)
             } else if step == "end-home" {
@@ -1470,6 +1482,16 @@ private final class Drive {
         case home
         /// The app ended at once, launched again and the session opened.
         case kill(String)
+        /// Phase 333.4: iOS's passcode field found where iOS draws it, the
+        /// prompt read once, these digits typed, then exactly `reread`.
+        case passcode(String)
+    }
+
+    /// The digits an `end-passcode:` step carries: four to six ASCII digits,
+    /// the lengths of a numeric passcode, or nil, and the step is unknown.
+    static func passcodeDigits(_ text: String) -> String? {
+        guard (4...6).contains(text.count), text.allSatisfy({ $0.isASCII && $0.isNumber }) else { return nil }
+        return text
     }
 
     /// The probe's file `name` in P316_ACKS, waited for up to `seconds`.
@@ -1678,6 +1700,23 @@ private final class Drive {
         return true
     }
 
+    /// Phase 333.4: what iOS's passcode prompt says, read from ONE snapshot
+    /// of the surface that draws it: every element's label in the tree's
+    /// order, the keyboard's keys left out, whitespace-only labels skipped,
+    /// at most 40. A snapshot that cannot be taken reads as no text.
+    static func promptTexts(_ root: XCUIApplication) -> [String] {
+        guard let snapshot = try? root.snapshot() else { return [] }
+        var texts: [String] = []
+        var stack: [XCUIElementSnapshot] = [snapshot]
+        while texts.count < 40, let node = stack.popLast() {
+            if node.elementType == .keyboard || node.elementType == .key { continue }
+            let label = node.label.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !label.isEmpty { texts.append(node.label) }
+            stack.append(contentsOf: node.children.reversed())
+        }
+        return texts
+    }
+
     /// iOS's first-use question asks to allow Face ID; the prompt that
     /// follows it does not ask to allow anything.
     static func isFaceIDQuestion(_ label: String) -> Bool {
@@ -1723,6 +1762,44 @@ private final class Drive {
         let answered = ack("auth-\(seq)")
         lines.emit(["step": "end-auth-answered", "for": step, "acked": answered])
         switch after {
+        case .passcode(let digits):
+            // Phase 333.4 (build/p3334/SPEC.md section 3 F4, section 5.5.1).
+            // With nothing enrolled iOS asks for the device's passcode. On
+            // iOS 18.3 CoreAuthUI draws the prompt in the foreground; on 26.3
+            // SpringBoard holds a secure field and CoreAuthUI does not run.
+            // The field is looked for in that order, for up to 10 s in all,
+            // by XCUITest's own wait on ONE query per surface. The prompt is
+            // read ONCE, through a snapshot: never element by element by
+            // index (that raced the prompt's own teardown in the spec step's
+            // first drive and failed the test), and never by a loop of
+            // snapshots (the spec step's 0.5 s loop is the shape that drew
+            // F3's crash inside XCUITest twice).
+            let coreAuth = XCUIApplication(bundleIdentifier: "com.apple.CoreAuthUI")
+            let deadline = Date().addingTimeInterval(10)
+            var surface: (name: String, root: XCUIApplication, field: XCUIElement)?
+            if coreAuth.state != .notRunning {
+                let field = coreAuth.secureTextFields.firstMatch
+                if field.waitForExistence(timeout: 10) { surface = ("coreAuth", coreAuth, field) }
+            }
+            if surface == nil {
+                let field = springboard.secureTextFields.firstMatch
+                if field.waitForExistence(timeout: max(0, deadline.timeIntervalSinceNow)) { surface = ("springboard", springboard, field) }
+            }
+            // What the prompt says, from the surface that holds the field, or
+            // (no field) CoreAuthUI's when it runs and SpringBoard's when not;
+            // `read` names which.
+            let readName = surface?.name ?? (coreAuth.state != .notRunning ? "coreAuth" : "springboard")
+            let readRoot = surface?.root ?? (readName == "coreAuth" ? coreAuth : springboard)
+            lines.emit([
+                "step": "passcode-prompt", "for": step, "in": surface.map { $0.name as Any } ?? NSNull(),
+                "read": readName, "texts": Self.promptTexts(readRoot), "field": surface != nil,
+            ])
+            if let surface {
+                // The digits and Return; the line says typeText came back.
+                surface.field.typeText(digits + "\n")
+                lines.emit(["step": "passcode-typed", "for": step, "in": surface.name])
+            }
+            fallthrough
         case .reread:
             // End's press gone (the session ended) or its line drawn: the
             // bar's own question before Phase 337 moved End to the top right,

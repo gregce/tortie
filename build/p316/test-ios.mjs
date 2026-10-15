@@ -129,8 +129,9 @@
  * 333.3, the four classes that hold See a sample.
  *
  * THE ORDER.
- *   1. The preflight: xcodebuild, simctl, the runtime and the iPhone 16 Pro
- *      device type. Missing any, it REFUSES with a sentence naming what is
+ *   1. The preflight: xcodebuild, simctl, the runtime and the device type
+ *      (the iPhone 16 Pro, or the one P316_DEVICE names, which that runtime
+ *      must list). Missing any, it REFUSES with a sentence naming what is
  *      absent and exits 2, before anything is created. It never passes
  *      quietly (build/verification-checks.mjs, "Xcode and Go harness").
  *   2. `vectors.mjs --check`, so a stale fixture fails here by name rather
@@ -200,8 +201,9 @@
  *      is signed: it must not be, because no agent run signs anything. The
  *      archive he makes in Xcode is read by the same `--read-app` before he
  *      uploads it (build/p316/CHECKLIST.md). It boots nothing either.
- *   6. `test-without-building -only-testing:TortieTests` on ONE iPhone 16 Pro
- *      from build/simulator-run.mjs's withSimulator, which shuts it down and
+ *   6. `test-without-building -only-testing:TortieTests` on ONE device (the
+ *      iPhone 16 Pro, or the one P316_DEVICE names) from
+ *      build/simulator-run.mjs's withSimulator, which shuts it down and
  *      deletes it in a `finally` and on SIGINT, SIGTERM and SIGHUP: the Debug
  *      build's tests, then the Release build's, on the same device, with the
  *      two doors above named in their environment and their counts read after
@@ -216,6 +218,12 @@
  *   node build/p316/test-ios.mjs --read-app <path to Tortie.app>         step 4 alone
  *   node build/p316/test-ios.mjs --read-app <path to Tortie.xcarchive>   the same, on the one app inside an archive
  *   P316_RUNTIME=18.3 npm run test:ios            the floor runtime
+ *   P316_DEVICE='iPad Air 11-inch (M3)' npm run test:ios
+ *                                                 another device type, by its exact Simulator name
+ *                                                 (Phase 333.4: App Review's iPad, in iPhone
+ *                                                 compatibility mode); unset, the iPhone 16 Pro
+ *   P316_DEVICE='iPhone SE (3rd generation)' P316_RUNTIME=18.3 npm run test:ios
+ *                                                 a Touch ID iPhone on the floor runtime
  *   P316_DERIVED_DATA=<dir> npm run test:ios      derived data somewhere of yours (never the repo, never home);
  *                                                 the Release build goes to <dir>-release beside it,
  *                                                 and the device archive's to <dir>-device
@@ -227,6 +235,12 @@
  *                                                 the tests as TEST_RUNNER_ environment, and
  *                                                 each is refused, exit 2, inside the repository
  *                                                 or the home, exactly as the scratch directory is
+ *
+ * THE DEVICE (Phase 333.4, build/p3334/SPEC.md §5.3, D6). The unit tests are
+ * device independent except where a test names a measured scale, and the one
+ * that does (`ScreenScrollerTests`' fitted row) holds a table of the scales
+ * measured (3x and 2x). The per-configuration line names the device the
+ * helper made; PASS_WORDS do not move.
  *
  * VERIFIERS ONLY run it: it boots a Simulator, so take the orchestrator's lock.
  * Its only sockets are the two doors, on 127.0.0.1; it starts no Electron,
@@ -243,6 +257,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  DEVICE_TYPE_IPAD,
+  DEVICE_TYPE_NAME,
+  DEVICE_TYPE_TOUCH_ID,
   RUNTIME_CURRENT,
   countDevicesNamed,
   refuseScratchReason,
@@ -1773,6 +1790,79 @@ export function sampleBookSelfTest() {
 }
 
 /**
+ * Phase 333.4 (build/p3334/SPEC.md §5.3, D6): the device type this run makes,
+ * from `P316_DEVICE`, an exact Simulator device type name such as
+ * {@link DEVICE_TYPE_IPAD}; unset or blank, the iPhone 16 Pro as before. The
+ * preflight and withSimulator both take it, so a name this Mac lacks, or that
+ * the runtime does not list, refuses by the helper's own sentence, exit 2,
+ * before anything is created.
+ *
+ * @param {Record<string, string|undefined>} env
+ * @returns {string}
+ */
+export function deviceTypeFrom(env) {
+  return String(env?.['P316_DEVICE'] ?? '').trim() || DEVICE_TYPE_NAME;
+}
+
+/**
+ * Phase 333.4: the per-configuration line, naming the device the helper made
+ * beside its runtime. Nothing parses it (no file under build/ or docs/ but
+ * this one names `TortieTests (`); PASS_WORDS are elsewhere and do not move.
+ *
+ * @param {{configuration: string, deviceType: string, runtime: string, code: number|null,
+ *          ms: number, executed: number|null, failures: number|null, skipped: number|null}} r
+ */
+export function unitLine(r) {
+  return (
+    `TortieTests (${r.configuration}) on ${r.deviceType}, iOS ${r.runtime}: xcodebuild exited ${String(r.code)} in ${String(r.ms)} ms; ` +
+    `${String(r.executed)} test(s) executed, ${String(r.failures)} failure(s), ${String(r.skipped)} skipped`
+  );
+}
+
+/**
+ * `--self-test`'s half for Phase 333.4: the device `P316_DEVICE` names, the
+ * line that names it, and main's wiring of both into the preflight, the device
+ * and the line, read from this file's own text, each clause red when removed.
+ */
+export function deviceSelfTest() {
+  const results = [];
+  const check = (what, ok, detail = '') => {
+    results.push(ok);
+    say(`${ok ? 'ok  ' : 'FAIL'} ${what}${ok || detail === '' ? '' : ` (${detail})`}`);
+  };
+  try {
+    check('no P316_DEVICE makes the iPhone 16 Pro', deviceTypeFrom({}) === DEVICE_TYPE_NAME, deviceTypeFrom({}));
+    check('a blank P316_DEVICE makes the iPhone 16 Pro', deviceTypeFrom({ P316_DEVICE: '   ' }) === DEVICE_TYPE_NAME);
+    check('P316_DEVICE names the iPad, trimmed', deviceTypeFrom({ P316_DEVICE: ` ${DEVICE_TYPE_IPAD} ` }) === DEVICE_TYPE_IPAD);
+    check('P316_DEVICE names the Touch ID iPhone', deviceTypeFrom({ P316_DEVICE: DEVICE_TYPE_TOUCH_ID }) === DEVICE_TYPE_TOUCH_ID);
+    check('P316_RUNTIME alone does not name a device', deviceTypeFrom({ P316_RUNTIME: '18.3' }) === DEVICE_TYPE_NAME);
+    const line = unitLine({ configuration: 'Release', deviceType: DEVICE_TYPE_TOUCH_ID, runtime: '18.3.1', code: 0, ms: 5, executed: 824, failures: 0, skipped: 0 });
+    check(
+      'the per-configuration line names the device and the runtime',
+      line === 'TortieTests (Release) on iPhone SE (3rd generation), iOS 18.3.1: xcodebuild exited 0 in 5 ms; 824 test(s) executed, 0 failure(s), 0 skipped',
+      line
+    );
+    const own = readFileSync(fileURLToPath(import.meta.url), 'utf8');
+    const main = own.slice(own.lastIndexOf('async function main() {'));
+    check('main reads the device from P316_DEVICE', /\bconst\s+deviceType\s*=\s*deviceTypeFrom\s*\(\s*process\.env\s*\)/.test(main));
+    check(
+      'the preflight asks for that device on that runtime',
+      /\bsimulatorHarnessMissing\s*\(\s*\{\s*runtimes\s*:\s*\[\s*runtime\s*\]\s*,\s*deviceType\s*\}\s*\)/.test(main)
+    );
+    check('the device is made from that device type', /\bwithSimulator\s*\(\s*\{[^}]*\bruntime\s*,[^}]*\bdeviceType\s*,[^}]*\}/.test(main));
+    check(
+      "the per-configuration line names the helper's device",
+      /\bunitLine\s*\(\s*\{[^}]*\bdeviceType\s*:\s*sim\.deviceType\b[^}]*\bruntime\s*:\s*sim\.runtime\b[^}]*\}\s*\)/.test(main)
+    );
+  } catch (err) {
+    check('the device self-test ran', false, String(err?.stack ?? err));
+  }
+  const failed = results.filter((ok) => !ok).length;
+  say(failed === 0 ? `device self-test PASS: ${String(results.length)} checks` : `device self-test FAIL: ${String(failed)} of ${String(results.length)}`);
+  return failed === 0;
+}
+
+/**
  * True when node was asked to run THIS file, false when another script imports
  * it for `builtAppProblems`, `appAt`, `signedProblem` or `summaryOf`. Everything
  * below the exports is `main`, because an import that ran it would build, boot
@@ -2199,13 +2289,17 @@ async function main() {
     const frozenHeld = await frozenGraderSelfTest();
     // Phase 333.3: See a sample's two reads, over files made here.
     const sampleHeld = sampleBookSelfTest();
-    process.exit(doorsHeld && frozenHeld && sampleHeld ? 0 : 1);
+    // Phase 333.4: the device P316_DEVICE names, and main's wiring of it.
+    const deviceHeld = deviceSelfTest();
+    process.exit(doorsHeld && frozenHeld && sampleHeld && deviceHeld ? 0 : 1);
   }
 
   const runtime = (process.env['P316_RUNTIME'] ?? '').trim() || RUNTIME_CURRENT;
+  // Phase 333.4: the device type, beside the runtime, by its exact Simulator name.
+  const deviceType = deviceTypeFrom(process.env);
 
   // 1. The preflight, synchronous, before anything exists.
-  const missing = simulatorHarnessMissing({ runtimes: [runtime] });
+  const missing = simulatorHarnessMissing({ runtimes: [runtime], deviceType });
   if (missing !== null) {
     process.stderr.write(`${TAG} ${missing}\n`);
     process.exit(2);
@@ -2378,7 +2472,7 @@ async function main() {
         // Phase 333.11: the sets whose refuse arms DoorFrozenTests asserts.
         testEnv['P33311_PROOF'] = frozenPre.proof.join(',');
         if (Object.keys(outline).length > 0) say(`the markdown outline: ${Object.entries(outline).map(([k, v]) => `${k}=${v}`).join(', ')}`);
-        await withSimulator({ label: 'test:ios', runtime, scratch: join(scratch, 'sim'), derivedDataPath, keep }, async (sim) => {
+        await withSimulator({ label: 'test:ios', runtime, deviceType, scratch: join(scratch, 'sim'), derivedDataPath, keep }, async (sim) => {
           let passed = 0;
           for (const c of CONFIGURATIONS) {
             doors.reset();
@@ -2405,8 +2499,16 @@ async function main() {
             const failing = `${run.stdout}${run.stderr}`.split('\n').filter((l) => /error: -\[|: error: .*XCT|Test Case .* failed/.test(l)).slice(0, 30);
             for (const l of failing) process.stdout.write(`  ${l.trim()}\n`);
             say(
-              `TortieTests (${c.name}) on iOS ${sim.runtime}: xcodebuild exited ${String(run.code)} in ${String(run.ms)} ms; ` +
-                `${String(s.executed)} test(s) executed, ${String(s.failures)} failure(s), ${String(s.skipped)} skipped`
+              unitLine({
+                configuration: c.name,
+                deviceType: sim.deviceType,
+                runtime: sim.runtime,
+                code: run.code,
+                ms: run.ms,
+                executed: s.executed,
+                failures: s.failures,
+                skipped: s.skipped
+              })
             );
             // Phase 317: every class it adds or changes must have run.
             const notRun = suitesNotRun(`${run.stdout}${run.stderr}`, [...new Set([...P317_SUITES, ...P318_SUITES, ...P337_SUITES, ...P3371_SUITES, ...P3373_SUITES, ...P33311_SUITES, ...P3333_SUITES])]);

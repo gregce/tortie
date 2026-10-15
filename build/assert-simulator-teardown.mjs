@@ -43,7 +43,7 @@
  *   5. THE HELPER'S TARGETS. The helper itself names no `all`, no `booted` and
  *      no `unavailable`: it ends the udid it created and nothing else.
  *   6. THE FIXTURES. Every scanner above is run over texts this gate holds
- *      itself, twenty-nine of them, sixteen of which must be caught, and the floor is
+ *      itself, thirty-three of them, eighteen of which must be caught, and the floor is
  *      driven one below itself and at itself. A checker nobody has seen fail is
  *      a checker nobody has seen work.
  *   7. THE HELPER'S PUSH (Phase 316.5). Delivering a notification is a verb
@@ -69,7 +69,19 @@
  *      exactly `enrol`, `unenrol`, `match` and `nomatch`, each naming
  *      BiometricKit; and neither verb is named anywhere else in the helper.
  *      Six one-clause ablations prove it, the first being the device check
- *      removed.
+ *      removed. PHASE 333.4 WIDENED IT for Touch ID (build/p3334/SPEC.md
+ *      §5.2): the loop iterates `notifies`, assigned exactly once as
+ *      `biometryKind === 'touchID' && Object.hasOwn(TOUCH_ID_ANSWERS, step) ?
+ *      TOUCH_ID_ANSWERS[step] : BIOMETRY_STEPS[step]`; the step check AND the
+ *      refusal of a device of neither kind both come before the first `run(`;
+ *      `BIOMETRY_STEPS`' `match` and `nomatch` post exactly Face ID's
+ *      `com.apple.BiometricKit_Sim.pearl.<step>`; and `TOUCH_ID_ANSWERS` is a
+ *      frozen table of exactly `match` and `nomatch`, each posting exactly
+ *      Touch ID's `com.apple.BiometricKit_Sim.fingerTouch.<step>` and nothing
+ *      else. Eight one-clause ablations prove the widening, the first being
+ *      the kind test dropped, which no drive can see: the Simulator answers
+ *      either name on either kind (SPEC D5), so this rule is the only proof
+ *      that a Touch ID device is answered by Touch ID's name.
  *   9. THE HELPER'S PASTEBOARD (Phase 337, build/p337/SPEC.md §6.5 and §7.8
  *      PS6). Reading a device's pasteboard is a verb only the helper names: in
  *      a file that names `simctl`, the strings `pbpaste`, `pbcopy` and
@@ -82,6 +94,35 @@
  *      pasteboard (`pbcopy`, `pbsync`) nor names `pbpaste` anywhere else in
  *      the helper. Five one-clause ablations prove it, the first being the
  *      device check removed.
+ *  10. A DEVICE'S BIOMETRY IS ITS DEVICE TYPE'S (Phase 333.4,
+ *      build/p3334/SPEC.md §5.2). In `withSimulator`, `biometryKind` is
+ *      assigned once in the whole helper (compound assignments counted), as
+ *      `biometryOf(<read>.code === 0 ? parseJson(<read>.stdout)?.capabilities
+ *      : null)` over `<read>`, the `plutil -convert json -o -` read of
+ *      `Contents/Resources/capabilities.plist` under the `bundlePath` of the
+ *      row `pickDeviceType` picked, and both the read and the assignment come
+ *      BEFORE the `'create'` run. So nothing a caller hands in decides it: the
+ *      caller's `options` cannot reach that shape. The handle exposes
+ *      `biometryKind` and `deviceType` as getters, read only. And
+ *      `biometryOf` is DRIVEN twice over eight capabilities (the SPEC's six,
+ *      then the two shapes every real device type has, which name both keys
+ *      with the other `false`): as the helper exports it, imported here, and
+ *      as its own text compiled, so an ablation of the text is driven rather
+ *      than read. Nine one-clause ablations prove it. Since the fix round the
+ *      read's ONE condition is the bundle path guard and its statement names
+ *      no `options`, so a caller cannot switch the read off either (which left
+ *      every caller naming no device type with a null kind and a refused
+ *      `biometry()`, probe:p316 among them, with this gate green); two more
+ *      ablations prove it, eleven in all.
+ *
+ * ## Phase 333.4, the devices App Review uses
+ *
+ * build/simulator-run.mjs gained the iPad Air 11-inch (M3) and the iPhone SE
+ * (3rd generation) as named device types, a kind read from each device type's
+ * own capabilities.plist, and Touch ID's own answers. Rules 8 and 10 hold them;
+ * the fixtures gained an iPad and a Touch ID answer through the helper (two
+ * controls) and both outside it (two caught); the floor rose to 3 for
+ * build/p3334/probe-p3334.mjs.
  *
  * ## What it does not assert
  *
@@ -92,7 +133,9 @@
  *
  * It spawns nothing, starts no Simulator and needs no Xcode. About 0.14 s over
  * the 473 scripts under build/ on 2026-09-23. It runs inside `npm run build`,
- * so nothing that builds can skip it.
+ * so nothing that builds can skip it. Since Phase 333.4 it imports the
+ * helper's pure `biometryOf`; the helper creates, spawns and installs nothing
+ * on import, so that changes neither.
  */
 
 import { readFileSync } from 'node:fs';
@@ -101,6 +144,9 @@ import { fileURLToPath } from 'node:url';
 
 import { buildScriptNames } from './build-scripts.mjs';
 import { blockAt, lineAt, stripComments } from './scan-source.mjs';
+// Phase 333.4: the one function rule 10 drives, imported from the helper. The
+// helper creates nothing on import, so this gate still spawns nothing.
+import { biometryOf } from './simulator-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const buildDir = join(repoRoot, 'build');
@@ -113,11 +159,13 @@ const SELF = 'assert-simulator-teardown.mjs';
  * PHASE 316.2 SET IT AT 2: build/p316/probe-p316.mjs (`probe:p316`, the app in
  * the Simulator against the door on loopback, with the iOS 18.3 floor arm and
  * the ATS arm) and build/p316/test-ios.mjs (`test:ios`, the XCTest unit
- * tests). RAISE IT WHEN YOU ADD ONE, in the same commit: adding a script
- * cannot turn this gate red, so a floor left where it was would let the new
- * one be deleted again in silence.
+ * tests). PHASE 333.4 RAISED IT TO 3 for build/p3334/probe-p3334.mjs
+ * (`probe:p3334`, the app driven on the devices App Review uses: the iPad, a
+ * Touch ID iPhone and an iPhone with nothing enrolled). RAISE IT WHEN YOU ADD
+ * ONE, in the same commit: adding a script cannot turn this gate red, so a
+ * floor left where it was would let the new one be deleted again in silence.
  */
-export const SIMULATOR_USER_FLOOR = 2;
+export const SIMULATOR_USER_FLOOR = 3;
 
 /** The verbs that make, boot or end a device. The helper's alone. */
 const DEVICE_VERBS = ['create', 'boot', 'clone', 'shutdown', 'delete', 'erase'];
@@ -289,7 +337,7 @@ function functionBody(code, name) {
   return open === -1 ? null : blockAt(code, open);
 }
 
-/** Rules 3, 4, 5, 7, 8 and 9 over the helper's source. Returns findings, empty when it holds. */
+/** Rules 3, 4, 5, 7, 8, 9 and 10 over the helper's source. Returns findings, empty when it holds. */
 export function helperShape(source) {
   const code = stripComments(source);
   const out = [];
@@ -336,6 +384,7 @@ export function helperShape(source) {
   out.push(...pushShape(code));
   out.push(...biometryShape(code));
   out.push(...pasteboardShape(code));
+  out.push(...deviceKindShape(code));
   return out;
 }
 
@@ -403,8 +452,48 @@ export function pushShape(code) {
 }
 
 /**
+ * The entries of a frozen table `<name> = Object.freeze({ key: Object.freeze([
+ * … ]), … })` in comment-stripped source, as a map from each key to the string
+ * literals its entry holds, in order; or null when no such frozen table is
+ * declared.
+ */
+function frozenTable(code, name) {
+  const table = new RegExp(`\\b${name}\\s*=\\s*Object\\.freeze\\(\\s*\\{`).exec(code);
+  if (table === null) return null;
+  const body = blockAt(code, code.indexOf('{', table.index)) ?? '';
+  const keys = [...body.matchAll(/(?:^|\n)\s*([A-Za-z]+)\s*:\s*Object\.freeze\(\s*\[/g)];
+  const entries = new Map();
+  keys.forEach((m, i) => {
+    const end = i + 1 < keys.length ? keys[i + 1].index : body.length;
+    entries.set(m[1], literals(body.slice(m.index, end)).map((l) => l.text));
+  });
+  return entries;
+}
+
+/**
+ * Every assignment to the identifier `name`, compound ones included (`??=`,
+ * `||=`, `+=` and the rest), and never a comparison (`===`, `!==`, `<=`, `>=`).
+ */
+function assignmentsTo(text, name) {
+  return (text.match(new RegExp(`\\b${name}\\s*(?:\\?\\?|\\|\\||&&|\\*\\*|<<|>>>?|[-+*/%&|^])?=(?!=)`, 'g')) ?? []).length;
+}
+
+/** BiometricKit's answer names: Face ID's `pearl` and Touch ID's `fingerTouch` (Phase 333.4). */
+const FACE_ID_ANSWER = 'com.apple.BiometricKit_Sim.pearl.';
+const TOUCH_ID_ANSWER = 'com.apple.BiometricKit_Sim.fingerTouch.';
+
+/**
+ * The one statement that chooses a step's arguments (Phase 333.4,
+ * build/p3334/SPEC.md §5.1.6): Touch ID's own answer on a Touch ID device, and
+ * the closed Face ID table for everything else.
+ */
+const NOTIFIES_RE =
+  /\bconst\s+notifies\s*=\s*biometryKind\s*===\s*['"]touchID['"]\s*&&\s*Object\.hasOwn\s*\(\s*TOUCH_ID_ANSWERS\s*,\s*step\s*\)\s*\?\s*TOUCH_ID_ANSWERS\s*\[\s*step\s*\]\s*:\s*BIOMETRY_STEPS\s*\[\s*step\s*\]\s*;/;
+
+/**
  * Rule 8 over the helper's comment-stripped source: the handle's `biometry`
- * (Phase 317). Returns findings, empty when it holds.
+ * (Phase 317, widened by Phase 333.4 for Touch ID). Returns findings, empty
+ * when it holds.
  */
 export function biometryShape(code) {
   const out = [];
@@ -420,16 +509,46 @@ export function biometryShape(code) {
   const runAt = bio.body.search(/\brun\s*\(/);
   const checkAt = bio.body.search(/\bObject\.hasOwn\s*\(\s*BIOMETRY_STEPS\s*,\s*step\s*\)/);
   if (checkAt === -1 || (runAt !== -1 && checkAt > runAt)) out.push('biometry() does not refuse a step that is not one of BIOMETRY_STEPS before it runs anything.');
-  if (!/\bof\s+BIOMETRY_STEPS\s*\[\s*step\s*\]/.test(bio.body)) out.push('biometry() does not take its notifyutil arguments from BIOMETRY_STEPS[step].');
+  // Phase 333.4: a device of neither kind is refused before anything runs.
+  const nullAt = bio.body.search(/\bif\s*\(\s*biometryKind\s*===\s*null\s*\)\s*\{\s*throw\s+new\s+Error\s*\(/);
+  if (nullAt === -1 || (runAt !== -1 && nullAt > runAt)) out.push('biometry() does not refuse a device that has neither Face ID nor Touch ID before it runs anything.');
+  // Phase 333.4: the loop iterates `notifies`, chosen once by the kind.
+  if (!/\bof\s+notifies\s*\)/.test(bio.body)) out.push('biometry() does not take its notifyutil arguments from notifies, the one choice of table.');
+  const chosen = assignmentsTo(bio.body, 'notifies');
+  if (chosen !== 1 || !NOTIFIES_RE.test(bio.body)) {
+    out.push(
+      "biometry() does not choose its arguments once, as biometryKind === 'touchID' && Object.hasOwn(TOUCH_ID_ANSWERS, step) ? " +
+        'TOUCH_ID_ANSWERS[step] : BIOMETRY_STEPS[step], so a Touch ID device could be answered by Face ID\'s name.'
+    );
+  }
   if (!/\brun\s*\([^;]*\bowner\s*:\s*entry\.children\b/.test(bio.body)) out.push("biometry() does not run its steps as the handle's owned children.");
-  const table = /\bBIOMETRY_STEPS\s*=\s*Object\.freeze\(\s*\{/.exec(code);
-  if (table === null) out.push('the helper declares no frozen BIOMETRY_STEPS table.');
+  const steps = frozenTable(code, 'BIOMETRY_STEPS');
+  if (steps === null) out.push('the helper declares no frozen BIOMETRY_STEPS table.');
   else {
-    const body = blockAt(code, code.indexOf('{', table.index)) ?? '';
-    const keys = [...body.matchAll(/(?:^|\n)\s*([A-Za-z]+)\s*:\s*Object\.freeze\(\s*\[/g)].map((m) => m[1]).sort();
+    const keys = [...steps.keys()].sort();
     if (keys.join(',') !== 'enrol,match,nomatch,unenrol') out.push(`BIOMETRY_STEPS holds the steps ${keys.join(', ') || 'none'}; the closed set is enrol, unenrol, match and nomatch.`);
-    for (const m of body.matchAll(/['"](com\.[^'"]*)['"]/g)) {
-      if (!m[1].startsWith('com.apple.BiometricKit')) out.push(`BIOMETRY_STEPS names ${m[1]}, which is not BiometricKit's.`);
+    for (const strings of steps.values()) {
+      for (const t of strings) {
+        if (t.startsWith('com.') && !t.startsWith('com.apple.BiometricKit')) out.push(`BIOMETRY_STEPS names ${t}, which is not BiometricKit's.`);
+      }
+    }
+    // Phase 333.4: its answers are Face ID's own, each for its own step.
+    for (const key of ['match', 'nomatch']) {
+      const got = steps.get(key);
+      if (got !== undefined && JSON.stringify(got) !== JSON.stringify(['-p', `${FACE_ID_ANSWER}${key}`])) {
+        out.push(`BIOMETRY_STEPS.${key} posts ${got.join(' ')}; Face ID's ${key} is -p ${FACE_ID_ANSWER}${key} and nothing else.`);
+      }
+    }
+  }
+  const touch = frozenTable(code, 'TOUCH_ID_ANSWERS');
+  if (touch === null) out.push('the helper declares no frozen TOUCH_ID_ANSWERS table, so a Touch ID device has no answer of its own.');
+  else {
+    const keys = [...touch.keys()].sort();
+    if (keys.join(',') !== 'match,nomatch') out.push(`TOUCH_ID_ANSWERS holds ${keys.join(', ') || 'nothing'}; it holds exactly match and nomatch, because enrolment is the one notification both kinds share.`);
+    for (const [key, got] of touch) {
+      if (JSON.stringify(got) !== JSON.stringify(['-p', `${TOUCH_ID_ANSWER}${key}`])) {
+        out.push(`TOUCH_ID_ANSWERS.${key} posts ${got.join(' ')}; Touch ID's ${key} is -p ${TOUCH_ID_ANSWER}${key} and nothing else.`);
+      }
     }
   }
   for (const verb of BIOMETRY_VERBS) {
@@ -438,6 +557,127 @@ export function biometryShape(code) {
     const inside = (bio.body.match(re) ?? []).length;
     if (everywhere !== inside) out.push(`the verb ${verb} is named ${String(everywhere - inside)} time(s) in the helper outside the handle's biometry().`);
   }
+  return out;
+}
+
+/**
+ * Rule 10's capabilities and what each must answer (Phase 333.4,
+ * build/p3334/SPEC.md §5.2): the six the SPEC names, then the two shapes every
+ * real device type has, which name BOTH keys with the other one `false`. The
+ * last two are why a reading that asked for the other key to be ABSENT would
+ * fail here: it answers the six and null on every device on this Mac.
+ */
+export const BIOMETRY_OF_FIXTURES = Object.freeze([
+  Object.freeze({ why: 'Face ID alone', capabilities: { 'pearl-id': true }, want: 'faceID' }),
+  Object.freeze({ why: 'Touch ID alone', capabilities: { 'touch-id': true }, want: 'touchID' }),
+  Object.freeze({ why: 'both', capabilities: { 'pearl-id': true, 'touch-id': true }, want: null }),
+  Object.freeze({ why: 'neither', capabilities: {}, want: null }),
+  Object.freeze({ why: 'no dictionary at all', capabilities: null, want: null }),
+  Object.freeze({ why: 'a number where the boolean belongs', capabilities: { 'pearl-id': 1 }, want: null }),
+  Object.freeze({ why: "the iPhone 16 Pro's own shape", capabilities: { 'pearl-id': true, 'touch-id': false }, want: 'faceID' }),
+  Object.freeze({ why: "the iPad Air 11-inch (M3)'s and the iPhone SE's own shape", capabilities: { 'pearl-id': false, 'touch-id': true }, want: 'touchID' })
+]);
+
+/** Rule 10's drive of one `biometryOf`, the helper's imported one or its text. Findings, empty when it holds. */
+export function biometryOfFindings(fn, where) {
+  const out = [];
+  for (const f of BIOMETRY_OF_FIXTURES) {
+    let got;
+    try {
+      got = fn(f.capabilities);
+    } catch (err) {
+      out.push(`${where} threw on ${f.why}: ${String(err?.message ?? err)}.`);
+      continue;
+    }
+    if (got !== f.want) out.push(`${where} answered ${JSON.stringify(got)} for ${f.why}, where the device type's own answer is ${JSON.stringify(f.want)}.`);
+  }
+  return out;
+}
+
+/**
+ * `biometryOf` compiled from the helper's own text, so an ablation of its text
+ * is driven rather than read. It is pure and self-contained by its own
+ * header's promise, which this compile also holds: a body naming anything
+ * outside itself throws when it runs and reads as a finding.
+ */
+function biometryOfFromText(code) {
+  const m = /\bexport\s+function\s+biometryOf\s*\(([^)]*)\)\s*\{/.exec(code);
+  if (m === null) return null;
+  const body = blockAt(code, m.index + m[0].length - 1);
+  if (body === null) return null;
+  try {
+    return new Function(m[1], body);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The read rule 10 asks for: plutil over capabilities.plist in the PICKED type's own bundle. Group 2 is
+ * everything between the `=` and the `await run(`, which rule 10 holds to the bundle path guard alone.
+ */
+const CAPABILITIES_READ_RE =
+  /\bconst\s+([A-Za-z_$][\w$]*)\s*=([^;]*?)\bawait\s+run\s*\(\s*['"]plutil['"]\s*,\s*\[\s*['"]-convert['"]\s*,\s*['"]json['"]\s*,\s*['"]-o['"]\s*,\s*['"]-['"]\s*,\s*join\s*\(\s*deviceType\.bundlePath\s*,\s*['"]Contents['"]\s*,\s*['"]Resources['"]\s*,\s*['"]capabilities\.plist['"]\s*\)\s*\]/;
+
+/** Rule 10's one admitted condition on the capabilities read: simctl named an absolute bundle path. */
+const CAPABILITIES_GUARD_RE =
+  /^\s*typeof\s+deviceType\.bundlePath\s*===\s*['"]string['"]\s*&&\s*deviceType\.bundlePath\.startsWith\s*\(\s*['"]\/['"]\s*\)\s*\?\s*$/;
+
+/**
+ * Rule 10 over the helper's comment-stripped source (Phase 333.4,
+ * build/p3334/SPEC.md §5.2): a device's biometry is its device type's. Returns
+ * findings, empty when it holds.
+ */
+export function deviceKindShape(code) {
+  const out = [];
+  const body = functionBody(code, 'withSimulator');
+  if (body === null) return ['withSimulator is not declared in the helper.'];
+  if (!/\bconst\s+deviceType\s*=\s*pickDeviceType\s*\(/.test(body)) {
+    out.push("withSimulator's deviceType is not the row pickDeviceType picked from simctl's own list, so nothing says whose capabilities.plist is read.");
+  }
+  const read = CAPABILITIES_READ_RE.exec(body);
+  if (read === null) {
+    out.push("withSimulator does not read Contents/Resources/capabilities.plist in the picked device type's own bundlePath with plutil -convert json, so the device's biometry is not its type's.");
+  } else {
+    // The fix round (Phase 333.4's attack lens): the read is made whatever the
+    // caller handed in. Its one condition is the bundle path guard, and the
+    // whole statement names no `options`, so no caller can switch the read off
+    // (and the kind to null) or stand in for it.
+    if (!CAPABILITIES_GUARD_RE.test(read[2])) {
+      out.push(`withSimulator makes its capabilities read on a condition other than the bundle path guard (${read[2].trim().slice(0, 120)}), so something besides the device type decides whether the kind is read at all.`);
+    }
+    const statementEnd = body.indexOf(';', read.index);
+    const statement = statementEnd === -1 ? body.slice(read.index) : body.slice(read.index, statementEnd);
+    if (/\boptions\b/.test(statement)) {
+      out.push("withSimulator's capabilities read names the caller's options, so a caller can reach the device's biometry.");
+    }
+  }
+  const kind =
+    read === null
+      ? null
+      : new RegExp(
+          `\\bconst\\s+biometryKind\\s*=\\s*biometryOf\\s*\\(\\s*${read[1]}\\.code\\s*===\\s*0\\s*\\?\\s*parseJson\\s*\\(\\s*${read[1]}\\.stdout\\s*\\)\\s*\\?\\.\\s*capabilities\\s*:\\s*null\\s*\\)\\s*;`
+        ).exec(body);
+  if (read !== null && kind === null) {
+    out.push('withSimulator does not take biometryKind from biometryOf over that read and nothing else, so something other than the device type decides it.');
+  }
+  const assigned = assignmentsTo(code, 'biometryKind');
+  if (assigned !== 1) out.push(`biometryKind is assigned ${String(assigned)} time(s) in the helper; it is assigned once, from the device type's own read.`);
+  const createAt = body.search(/['"]create['"]/);
+  if (createAt === -1) out.push('withSimulator runs no create, so rule 10 cannot say the kind is read before it.');
+  else {
+    if (read !== null && read.index > createAt) out.push('withSimulator reads the capabilities AFTER the create, so a device exists before its biometry is known.');
+    if (kind !== null && kind.index > createAt) out.push('withSimulator decides biometryKind AFTER the create.');
+  }
+  if (!/\bget\s+biometryKind\s*\(\s*\)\s*\{\s*return\s+biometryKind\s*;?\s*\}/.test(body)) {
+    out.push("the handle does not expose biometryKind read only, as a getter of the kind the device type's read decided.");
+  }
+  if (!/\bget\s+deviceType\s*\(\s*\)\s*\{\s*return\s+(?:String\s*\(\s*deviceType\.name\s*\)|deviceTypeName)\s*;?\s*\}/.test(body)) {
+    out.push('the handle does not expose deviceType read only, as a getter of the device type it was made from.');
+  }
+  const fromText = biometryOfFromText(code);
+  if (fromText === null) out.push('the helper declares no biometryOf(capabilities) this gate can drive.');
+  else out.push(...biometryOfFindings(fromText, "the helper's biometryOf"));
   return out;
 }
 
@@ -636,10 +876,36 @@ const FIXTURES = [
     name: "the Mac's own pasteboard in a file that never names the tool",
     caught: false,
     text: `import { execFileSync } from 'node:child_process';\nexecFileSync('${PBPASTE}', []);\n`
+  },
+  // Phase 333.4: another device type and Touch ID, through the helper and not.
+  {
+    name: 'an iPad made through the helper',
+    caught: false,
+    user: true,
+    text: `import { withSimulator } from './${HELPER}';\nawait withSimulator({ label: 'x', deviceType: 'iPad Air 11-inch (M3)' }, async (sim) => sim.udid);\n`
+  },
+  {
+    name: 'Touch ID answered through the helper handle',
+    caught: false,
+    user: true,
+    text: `import { DEVICE_TYPE_TOUCH_ID, withSimulator } from './${HELPER}';\nawait withSimulator({ label: 'x', deviceType: DEVICE_TYPE_TOUCH_ID }, (sim) => sim.biometry('match'));\n`
+  },
+  {
+    name: 'Touch ID answered in argv outside the helper',
+    caught: true,
+    text: `import { spawn } from 'node:child_process';\nspawn('xcrun', ['${SIM}', '${SPAWN}', udid, '${NOTIFY}', '-p', 'com.apple.BiometricKit_Sim.fingerTouch.match']);\n`
+  },
+  {
+    name: 'an iPad made in argv outside the helper',
+    caught: true,
+    text: `import { spawn } from 'node:child_process';\nspawn('xcrun', ['${SIM}', '${MAKE}', 'p316-x', 'com.apple.CoreSimulator.SimDeviceType.iPad-Air-11-inch-M3', rt]);\n`
   }
 ];
 
-/** Helper shapes that rules 3 to 5 and 7 must refuse, each a one-clause ablation. */
+/** The refusal of a device of neither kind, as `biometry()` spells it (Phase 333.4). */
+const NEITHER_REFUSAL = /\n {8}if \(biometryKind === null\) \{\n {10}throw [^\n]*\n {8}\}\n/;
+
+/** Helper shapes that rules 3 to 5 and 7 to 10 must refuse, each a one-clause ablation. */
 const HELPER_ABLATIONS = [
   {
     what: 'the teardown moved out of the finally',
@@ -739,7 +1005,88 @@ const HELPER_ABLATIONS = [
     edit: (src) => src.replace("['simctl', 'pbpaste', udid], { timeoutMs: 30_000, owner: entry.children }", "['simctl', 'pbpaste', udid], { timeoutMs: 30_000 }")
   },
   { what: 'the pasteboard written as well as read', edit: (src) => src.replace("['simctl', 'pbpaste', udid]", "['simctl', 'pbcopy', udid]") },
-  { what: 'the handle has no pasteboard()', edit: (src) => src.replace('async pasteboard() {', 'async clipboard() {') }
+  { what: 'the handle has no pasteboard()', edit: (src) => src.replace('async pasteboard() {', 'async clipboard() {') },
+  // Rule 8 widened (Phase 333.4): Touch ID answered by its own name. The
+  // first is the one that matters most, and the one no drive can see, because
+  // the Simulator answers either name on either kind (build/p3334/SPEC.md D5).
+  {
+    what: "the kind test dropped: Face ID's name posted on a Touch ID device",
+    edit: (src) =>
+      src.replace(
+        "const notifies = biometryKind === 'touchID' && Object.hasOwn(TOUCH_ID_ANSWERS, step) ? TOUCH_ID_ANSWERS[step] : BIOMETRY_STEPS[step];",
+        'const notifies = BIOMETRY_STEPS[step];'
+      )
+  },
+  { what: 'the biometry loop not iterating the chosen table', edit: (src) => src.replace('for (const notify of notifies) {', 'for (const notify of BIOMETRY_STEPS[step]) {') },
+  {
+    what: 'a third key in TOUCH_ID_ANSWERS',
+    edit: (src) =>
+      src.replace(
+        "  nomatch: Object.freeze([Object.freeze(['-p', 'com.apple.BiometricKit_Sim.fingerTouch.nomatch'])])\n});",
+        "  nomatch: Object.freeze([Object.freeze(['-p', 'com.apple.BiometricKit_Sim.fingerTouch.nomatch'])]),\n  enrol: Object.freeze([Object.freeze(['-p', 'com.apple.BiometricKit_Sim.fingerTouch.enrol'])])\n});"
+      )
+  },
+  {
+    what: "a Touch ID answer swapped for Face ID's name",
+    edit: (src) => src.replace("Object.freeze(['-p', 'com.apple.BiometricKit_Sim.fingerTouch.match'])", "Object.freeze(['-p', 'com.apple.BiometricKit_Sim.pearl.match'])")
+  },
+  {
+    what: "a Face ID answer swapped for Touch ID's name",
+    edit: (src) => src.replace("Object.freeze(['-p', 'com.apple.BiometricKit_Sim.pearl.nomatch'])", "Object.freeze(['-p', 'com.apple.BiometricKit_Sim.fingerTouch.nomatch'])")
+  },
+  { what: 'TOUCH_ID_ANSWERS not frozen', edit: (src) => src.replace('export const TOUCH_ID_ANSWERS = Object.freeze({', 'export const TOUCH_ID_ANSWERS = ({') },
+  { what: 'the refusal of a device of neither kind removed', edit: (src) => src.replace(NEITHER_REFUSAL, '\n') },
+  {
+    what: 'the refusal of a device of neither kind moved after the run',
+    edit: (src) => {
+      const m = NEITHER_REFUSAL.exec(src);
+      if (m === null) return src;
+      return src.replace(NEITHER_REFUSAL, '\n').replace('          if (last.code !== 0) return last;\n', `${m[0].slice(1).replace(/^ {8}/gm, '          ')}          if (last.code !== 0) return last;\n`);
+    }
+  },
+  // Rule 10 (Phase 333.4): a device's biometry is its device type's.
+  {
+    // The attack lens's own ablation: every caller that names no device type,
+    // probe:p316 among them, would get a null kind and a refused biometry().
+    what: "the capabilities read made only when the caller names a device type",
+    edit: (src) =>
+      src.replace(
+        "    typeof deviceType.bundlePath === 'string' && deviceType.bundlePath.startsWith('/')\n      ? await run('plutil'",
+        "    options?.deviceType !== undefined && typeof deviceType.bundlePath === 'string' && deviceType.bundlePath.startsWith('/')\n      ? await run('plutil'"
+      )
+  },
+  {
+    what: "the failed read's stand-in taken from the caller's options",
+    edit: (src) => src.replace("      : { code: 127, stdout: '', stderr: 'simctl names no bundle path for it'", "      : options?.capabilitiesRead ?? { code: 127, stdout: '', stderr: 'simctl names no bundle path for it'")
+  },
+  { what: "the biometry taken from the caller's options", edit: (src) => src.replace('const biometryKind = biometryOf(', 'const biometryKind = options?.biometry ?? biometryOf(') },
+  {
+    what: 'the capabilities read moved after the create',
+    edit: (src) => {
+      const from = src.indexOf('  const capabilitiesRead =');
+      const to = src.indexOf('  // Devices this run did NOT make');
+      if (from === -1 || to === -1 || to < from) return src;
+      const block = src.slice(from, to);
+      return `${src.slice(0, from)}${src.slice(to)}`.replace('    entry.udid = udid;\n', `    entry.udid = udid;\n${block}`);
+    }
+  },
+  {
+    what: 'the kind read from another file of the device type',
+    edit: (src) => src.replace("'capabilities.plist')], { timeoutMs: 30_000 })", "'profile.plist')], { timeoutMs: 30_000 })")
+  },
+  {
+    what: "the device type row taken from the caller's options",
+    edit: (src) =>
+      src.replace(
+        'const deviceType = pickDeviceType(parseJson(types.stdout), deviceTypeName);',
+        'const deviceType = options?.deviceTypeRow ?? pickDeviceType(parseJson(types.stdout), deviceTypeName);'
+      )
+  },
+  { what: 'the kind assigned a second time', edit: (src) => src.replace('  if (biometryKind === null) {\n    const why =', "  biometryKind ??= 'faceID';\n  if (biometryKind === null) {\n    const why =") },
+  { what: 'the handle without its biometryKind', edit: (src) => src.replace('      get biometryKind() {\n        return biometryKind;\n      },\n', '') },
+  { what: 'the handle without its deviceType', edit: (src) => src.replace('      get deviceType() {\n        return String(deviceType.name);\n      },\n', '') },
+  { what: 'biometryOf answering Face ID when both are true', edit: (src) => src.replace("  if (face && !touch) return 'faceID';", "  if (face) return 'faceID';") },
+  { what: 'biometryOf accepting 1 for true', edit: (src) => src.replace("const face = capabilities['pearl-id'] === true;", "const face = capabilities['pearl-id'] == true;") }
 ];
 
 // ---------------------------------------------------------------------------
@@ -772,9 +1119,13 @@ if (floorFinding(SIMULATOR_USER_FLOOR, SIMULATOR_USER_FLOOR) !== null) {
   fail('the floor refused a population that meets it', 'The floor is a minimum, so adding a script must never turn this red.');
 }
 
-// Rules 3 to 5 and 7 over the real helper, then over one-clause ablations of it.
+// Rules 3 to 5 and 7 to 10 over the real helper, then over one-clause ablations of it.
 const helperSource = readFileSync(join(buildDir, HELPER), 'utf8');
-for (const why of helperShape(helperSource)) fail(`build/${HELPER}: ${why}`, 'The device this helper makes could outlive the script that made it.');
+for (const why of helperShape(helperSource)) fail(`build/${HELPER}: ${why}`, 'The device this helper makes could outlive the script that made it, or be answered as another device.');
+// Rule 10's drive of the function itself, as every caller imports it (Phase 333.4).
+for (const why of biometryOfFindings(biometryOf, `build/${HELPER}'s exported biometryOf`)) {
+  fail(why, "A device would be answered by the wrong kind's name, or by none.");
+}
 let ablationsRed = 0;
 for (const a of HELPER_ABLATIONS) {
   const edited = a.edit(helperSource);
@@ -782,7 +1133,7 @@ for (const a of HELPER_ABLATIONS) {
     fail(`the helper ablation "${a.what}" found nothing to edit`, 'Its anchor is gone from the helper, so this gate no longer proves that clause. Re-point it.');
     continue;
   }
-  if (helperShape(edited).length === 0) fail(`the helper ablation "${a.what}" left rules 3 to 5 and 7 green`, 'That clause is not asserted by anything.');
+  if (helperShape(edited).length === 0) fail(`the helper ablation "${a.what}" left rules 3 to 5 and 7 to 10 green`, 'That clause is not asserted by anything.');
   else ablationsRed += 1;
 }
 
@@ -818,6 +1169,7 @@ process.stdout.write(
     `outside build/${HELPER}; ${String(users.length)} reach it against a floor of ${String(SIMULATOR_USER_FLOOR)}; ` +
     `its teardown is inside a finally and its net covers exit, SIGINT, SIGTERM and SIGHUP; ` +
     `its handle's push, biometry and pasteboard name only the device its call created; ` +
+    `a device's biometry is its device type's, ${String(BIOMETRY_OF_FIXTURES.length)} of ${String(BIOMETRY_OF_FIXTURES.length)} capabilities read as the type's own, and Touch ID is answered by Touch ID's name; ` +
     `${String(caughtFixtures)} of ${String(FIXTURES.filter((f) => f.caught).length)} bad fixtures caught, ` +
     `${String(FIXTURES.filter((f) => !f.caught).length)} controls left alone, ` +
     `${String(ablationsRed)} of ${String(HELPER_ABLATIONS.length)} helper ablations red.\n`

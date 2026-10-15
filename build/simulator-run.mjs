@@ -25,7 +25,8 @@
  * ## The exports
  *
  *   withSimulator(options, body)   Create ONE device named `p316-<run id>`
- *                                  from the iPhone 16 Pro device type, boot
+ *                                  from the iPhone 16 Pro device type, or
+ *                                  the one its caller names, boot
  *                                  it, wait for `bootstatus`, hand it to
  *                                  `body`, and shut it down AND delete it in a
  *                                  `finally` whatever `body` did.
@@ -40,6 +41,8 @@
  *                                  prefix, for the end-of-run count. Read only.
  *   pushPayloadRefusal(text)       Why a notification body may not be
  *                                  delivered, or null (Phase 316.5).
+ *   biometryOf(capabilities)       `faceID`, `touchID` or null, from a device
+ *                                  type's capabilities.plist (Phase 333.4).
  *
  * ## Delivering a notification (Phase 316.5)
  *
@@ -65,6 +68,34 @@
  * hands in, run as one of the handle's owned children. No step skips the
  * app's owner check: the app asks iOS, and iOS is answered from here, as a
  * person's face would answer it (SPEC D21).
+ *
+ * ## Touch ID and the device types (Phase 333.4)
+ *
+ * App Review runs an iPhone-only app on an iPad Air 11-inch (M3), and an
+ * iPhone without Face ID is still sold, so a run may name a device type other
+ * than the iPhone 16 Pro (build/p3334/SPEC.md §5.1). Callers spell the two this
+ * repository uses from here, {@link DEVICE_TYPE_IPAD} and
+ * {@link DEVICE_TYPE_TOUCH_ID}, both Touch ID devices.
+ *
+ * A device's biometry is its DEVICE TYPE'S and never its caller's.
+ * `withSimulator` reads `Contents/Resources/capabilities.plist` in the picked
+ * type's own bundle with `plutil -convert json`, before the create, and
+ * {@link biometryOf} answers `faceID` for `pearl-id`, `touchID` for `touch-id`
+ * and null for anything else. The handle carries it read only as
+ * `biometryKind`, beside `deviceType`. Measured over all 82 iPhone and iPad
+ * types on this Mac: 50 Face ID, 32 Touch ID, none with both or neither.
+ *
+ * On a Touch ID device `biometry('match')` and `('nomatch')` post
+ * {@link TOUCH_ID_ANSWERS}, BiometricKit's `fingerTouch` names; enrolment is
+ * the one notification both kinds share, so `enrol` and `unenrol` do not
+ * change. A device whose kind is null refuses every step before anything
+ * runs. MEASURED, and the reason the gate rather than a drive holds the name:
+ * the Simulator answered EITHER name on EITHER kind (Face ID's `pearl.match`
+ * ended a session behind Touch ID on the iPhone SE at iOS 26.3 and 18.3, and
+ * `fingerTouch.match` one behind Face ID on the iPhone 16 Pro at 26.3; SPEC
+ * D5). The device's own name is posted anyway, because it is what the
+ * Simulator's own Features menu posts, nothing documents the cross-answer,
+ * and a later runtime may drop it.
  *
  * ## What the teardown does, and why each step is there
  *
@@ -150,8 +181,22 @@ export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /** Every device this file creates is named with this prefix (SPEC §4.0). */
 export const DEVICE_PREFIX = 'p316-';
 
-/** The device type every run creates (SPEC §4.0). */
+/** The device type every run creates unless its caller names another (SPEC §4.0). */
 export const DEVICE_TYPE_NAME = 'iPhone 16 Pro';
+
+/**
+ * Phase 333.4 (build/p3334/SPEC.md D2): App Review's iPad. iPhone-only apps
+ * were rejected under 2.1 on this device type in February and March 2026
+ * (research 136 §7); the phone app runs on it in iPhone compatibility mode.
+ * Touch ID, by its own capabilities.plist.
+ */
+export const DEVICE_TYPE_IPAD = 'iPad Air 11-inch (M3)';
+
+/**
+ * Phase 333.4 (SPEC D2): a Touch ID iPhone, the Home-button line, for 317's
+ * End behind Touch ID rather than Face ID.
+ */
+export const DEVICE_TYPE_TOUCH_ID = 'iPhone SE (3rd generation)';
 
 /** The runtime the phone is built against, measured in SPEC §3.1. */
 export const RUNTIME_CURRENT = '26.3';
@@ -227,6 +272,43 @@ export const BIOMETRY_STEPS = Object.freeze({
   match: Object.freeze([Object.freeze(['-p', 'com.apple.BiometricKit_Sim.pearl.match'])]),
   nomatch: Object.freeze([Object.freeze(['-p', 'com.apple.BiometricKit_Sim.pearl.nomatch'])])
 });
+
+/**
+ * Phase 333.4 (build/p3334/SPEC.md §5.1.5, D5): the answers a Touch ID device
+ * posts in place of {@link BIOMETRY_STEPS}' Face ID ones, `fingerTouch` being
+ * Touch ID's name in BiometricKit, as `pearl` is Face ID's. Only the two
+ * answers differ: enrolment is the one notification both kinds share. The
+ * Simulator was measured answering either name on either kind, and the
+ * device's own name is posted anyway (the header says why).
+ */
+export const TOUCH_ID_ANSWERS = Object.freeze({
+  match: Object.freeze([Object.freeze(['-p', 'com.apple.BiometricKit_Sim.fingerTouch.match'])]),
+  nomatch: Object.freeze([Object.freeze(['-p', 'com.apple.BiometricKit_Sim.fingerTouch.nomatch'])])
+});
+
+/**
+ * Phase 333.4 (build/p3334/SPEC.md §5.1.2, D4): what a device type can answer,
+ * from the `capabilities` dictionary of its own capabilities.plist, where
+ * `pearl-id` is Face ID and `touch-id` is Touch ID. Measured over all 82
+ * iPhone and iPad types on this Mac: 50 Face ID, 32 Touch ID, none with both
+ * and none with neither, and every one names both keys, the other `false`. So
+ * a key counts only when it is the boolean `true`, and both, neither, any other
+ * value or anything that is not a dictionary answers null, never a guess.
+ *
+ * Pure and self-contained: `gate:simulator` drives it as imported AND as its
+ * own text, so it names nothing outside itself.
+ *
+ * @param {unknown} capabilities
+ * @returns {'faceID'|'touchID'|null}
+ */
+export function biometryOf(capabilities) {
+  if (capabilities === null || typeof capabilities !== 'object' || Array.isArray(capabilities)) return null;
+  const face = capabilities['pearl-id'] === true;
+  const touch = capabilities['touch-id'] === true;
+  if (face && !touch) return 'faceID';
+  if (touch && !face) return 'touchID';
+  return null;
+}
 
 /**
  * The simctl verbs a handle may run on its own device. Every one of them names
@@ -775,7 +857,10 @@ export async function xcodebuildRun(options) {
  * @property {string}  label            Printed on every line this file writes.
  * @property {string}  [runtime]        `26.3` (default) or `18.3`, matched on
  *                                      the runtime's version.
- * @property {string}  [deviceType]     Defaults to the iPhone 16 Pro.
+ * @property {string}  [deviceType]     An exact device type name; defaults
+ *                                      to the iPhone 16 Pro. Its biometry is
+ *                                      never an option: it is read from the
+ *                                      type itself (Phase 333.4).
  * @property {string}  [runId]          Makes the name `p316-<runId>`. Defaults
  *                                      to this pid and a counter, so two runs
  *                                      can never share a name.
@@ -793,6 +878,12 @@ export async function xcodebuildRun(options) {
  * @property {string} udid
  * @property {string} name
  * @property {string} runtime          The runtime's own version string.
+ * @property {string} deviceType       Phase 333.4, read only: the device type
+ *                                     this device was made from.
+ * @property {'faceID'|'touchID'|null} biometryKind
+ *                                     Phase 333.4, read only: the device
+ *                                     type's own biometry, read from its
+ *                                     capabilities.plist before the create.
  * @property {string} scratch
  * @property {string} derivedDataPath
  * @property {(args: string[], opts?: {onLine?: (line: string) => void,
@@ -818,7 +909,9 @@ export async function xcodebuildRun(options) {
  *            Phase 317: one Face ID step on THIS udid, from the closed set
  *            BIOMETRY_STEPS, each `simctl spawn <udid> notifyutil …` run as
  *            one of the handle's owned children. Any other step throws before
- *            anything runs.
+ *            anything runs. Since Phase 333.4 a device of neither kind throws
+ *            before anything runs too, and a Touch ID device's `match` and
+ *            `nomatch` post TOUCH_ID_ANSWERS' names.
  * @property {() => Promise<{code: number, stdout: string, stderr: string}>} pasteboard
  *            Phase 337: `simctl pbpaste` of THIS udid, read once, as the app's
  *            Copy left it. It names no other device and writes nothing.
@@ -861,6 +954,23 @@ export async function withSimulator(options, body) {
         `${runtime === null && deviceType === null ? ' and no ' : ''}` +
         `${deviceType === null ? `${deviceTypeName} device type` : ''}. Nothing was created.`
     );
+  }
+  // Phase 333.4 (build/p3334/SPEC.md §5.1.3, D4): what this device can answer
+  // is its DEVICE TYPE'S, read from the type's own capabilities.plist BEFORE
+  // anything is created, and never from anything a caller hands in. A read that
+  // fails leaves it null and says so in one line; it refuses nothing, because a
+  // run that asks no biometry still runs, and `biometry()` refuses a null kind.
+  const capabilitiesRead =
+    typeof deviceType.bundlePath === 'string' && deviceType.bundlePath.startsWith('/')
+      ? await run('plutil', ['-convert', 'json', '-o', '-', join(deviceType.bundlePath, 'Contents', 'Resources', 'capabilities.plist')], { timeoutMs: 30_000 })
+      : { code: 127, stdout: '', stderr: 'simctl names no bundle path for it', timedOut: false, why: null };
+  const biometryKind = biometryOf(capabilitiesRead.code === 0 ? parseJson(capabilitiesRead.stdout)?.capabilities : null);
+  if (biometryKind === null) {
+    const why =
+      capabilitiesRead.code === 0
+        ? 'names neither Face ID nor Touch ID'
+        : `could not be read (${(capabilitiesRead.stderr.trim() || `exit ${String(capabilitiesRead.code)}`).slice(0, 200)})`;
+    say(`${label}: the ${deviceTypeName} device type's capabilities.plist ${why}, so this device has no biometry to answer.`);
   }
   // Devices this run did NOT make, printed and never touched.
   const before = await run('xcrun', ['simctl', 'list', 'devices', '-j'], { timeoutMs: 60_000 });
@@ -915,7 +1025,10 @@ export async function withSimulator(options, body) {
     if (status.code !== 0) {
       throw new Error(`${TAG} ${label}: bootstatus answered ${String(status.code)}${status.timedOut ? ' (timed out)' : ''}`);
     }
-    say(`${label}: ${name} ${udid} on iOS ${String(runtime.version)} booted in ${String(Date.now() - bootStarted)} ms`);
+    say(
+      `${label}: ${name} ${udid}, ${deviceTypeName} (${biometryKind ?? 'no Face ID or Touch ID'}), ` +
+        `on iOS ${String(runtime.version)} booted in ${String(Date.now() - bootStarted)} ms`
+    );
 
     let results = 0;
     let pushes = 0;
@@ -923,6 +1036,16 @@ export async function withSimulator(options, body) {
       udid,
       name,
       runtime: String(runtime.version),
+      // Phase 333.4: the device type this device was made from, and its
+      // biometry as that type's own capabilities.plist says. Getters, so both
+      // are read only; `biometry()` reads the kind from this closure, never
+      // from the handle, so nothing a caller does to the handle moves it.
+      get deviceType() {
+        return String(deviceType.name);
+      },
+      get biometryKind() {
+        return biometryKind;
+      },
       scratch,
       derivedDataPath,
       async xcodebuild(args, opts = {}) {
@@ -983,8 +1106,16 @@ export async function withSimulator(options, body) {
         if (typeof step !== 'string' || !Object.hasOwn(BIOMETRY_STEPS, step)) {
           throw new Error(`${TAG} ${label}: "${String(step)}" is not a Face ID step; the steps are ${Object.keys(BIOMETRY_STEPS).join(', ')}.`);
         }
+        // Phase 333.4 (build/p3334/SPEC.md §5.1.6): a device whose type has
+        // neither is refused before anything runs, and a Touch ID device is
+        // answered by Touch ID's own names. The kind is the device type's,
+        // read before the create; the step is the caller's only word.
+        if (biometryKind === null) {
+          throw new Error(`${TAG} ${label}: ${deviceTypeName} has neither Face ID nor Touch ID, so there is nothing to ${step}.`);
+        }
+        const notifies = biometryKind === 'touchID' && Object.hasOwn(TOUCH_ID_ANSWERS, step) ? TOUCH_ID_ANSWERS[step] : BIOMETRY_STEPS[step];
         let last = { code: 0, stdout: '', stderr: '' };
-        for (const notify of BIOMETRY_STEPS[step]) {
+        for (const notify of notifies) {
           last = await run('xcrun', ['simctl', 'spawn', udid, 'notifyutil', ...notify], { timeoutMs: 30_000, owner: entry.children });
           if (last.code !== 0) return last;
         }

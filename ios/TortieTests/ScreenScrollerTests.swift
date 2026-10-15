@@ -22,9 +22,10 @@ import XCTest
 /// offset; an eviction moving nothing; a change of cell size keeping the top
 /// row and a pinch's focal row; and only a window drawn. All at the 337
 /// build's own measured geometry (a 40-row screen at 6.67 pt in a 758 pt
-/// view, build/p3371/SPEC.md section 14 M12). The view is mounted in the host
-/// app's own window; nothing reaches a network. Each test names the clause it
-/// holds and fails when that clause is taken out of
+/// view, build/p3371/SPEC.md section 14 M12), and 6.0 pt on a 2x screen
+/// (Phase 333.4, build/p3334/SPEC.md section 3 F1). The view is mounted in
+/// the host app's own window; nothing reaches a network. Each test names the
+/// clause it holds and fails when that clause is taken out of
 /// Screens/ScreenScroller.swift.
 @MainActor
 final class ScreenScrollerTests: XCTestCase {
@@ -44,6 +45,20 @@ final class ScreenScrollerTests: XCTestCase {
     private static let width: CGFloat = 402
     private static let height: CGFloat = 758
     private static let top: CGFloat = 116
+
+    /// The fitted row at a screen's scale, MEASURED on each device (Phase
+    /// 333.4, build/p3334/SPEC.md section 3 F1 and D12). A cell's height is
+    /// snapped UP to the screen's pixel grid (`ScreenCell.wide`), so the same
+    /// line is 20 px, 6.67 pt, at 3x (the iPhone 16 Pro) and 12 px, 6.0 pt, at
+    /// 2x (the iPad Air 11-inch (M3) and the iPhone SE (3rd generation)). A
+    /// scale nobody has measured fails by name, never by a guess.
+    static func fittedRow(scale: CGFloat) throws -> CGFloat {
+        switch scale {
+        case 3: return 20.0 / 3.0
+        case 2: return 6.0
+        default: throw UnmeasuredScale(scale: scale)
+        }
+    }
 
     // MARK: tmux's own numbered lines
 
@@ -162,7 +177,7 @@ final class ScreenScrollerTests: XCTestCase {
         let (view, history) = mounted(depth: 3_000)
         let row = view.cell.height
         XCTAssertEqual(history.mode, .following)
-        XCTAssertEqual(row, 6.67, accuracy: 0.34, "the fitted row")
+        XCTAssertEqual(row, try Self.fittedRow(scale: view.traitCollection.displayScale), accuracy: 0.01, "the fitted row")
         let fill = Int((Self.height / row).rounded(.up)) - 40
         XCTAssertGreaterThan(fill, 0)
         XCTAssertLessThanOrEqual(fill, ScrollbackLayout.pageRows, "one page fills this view")
@@ -174,6 +189,27 @@ final class ScreenScrollerTests: XCTestCase {
         XCTAssertTrue(view.pinned, "following at the bottom")
         XCTAssertTrue(history.layout.held.isEmpty, "the rows above are reserved until their page lands")
         print("P3373_SCROLLER|fill|cell \(row)|first \(history.layout.firstRow)|live0 \(view.onScreenY(ofIndex: 3_000) ?? -1)")
+    }
+
+    /// Clause (Phase 333.4, build/p3334/SPEC.md D12): the fitted row is held
+    /// to a table measured per scale, so the test above holds on every device
+    /// of the matrix. Each clause of the table fails here, on any device, when
+    /// it is taken out: the 3x row, the 2x row, and the refusal, naming the
+    /// scale, of a scale nobody measured. And each measured row is the app's
+    /// own snapping at that scale, whatever this device's own scale is, so a
+    /// change to the snapping reads red on a 3x device for a 2x screen too.
+    func testTheFittedRowIsMeasuredAtTwoScalesAndNoOther() throws {
+        XCTAssertEqual(try Self.fittedRow(scale: 3), 20.0 / 3.0, accuracy: 0.0001, "the fitted row at 3x")
+        XCTAssertEqual(try Self.fittedRow(scale: 2), 6.0, accuracy: 0.0001, "the fitted row at 2x")
+        for unmeasured: CGFloat in [1, 1.5, 2.5, 4] {
+            XCTAssertThrowsError(try Self.fittedRow(scale: unmeasured), "a fitted row at \(unmeasured)x that nobody measured") { error in
+                XCTAssertEqual(String(describing: error), "no measured fitted row at \(String(format: "%g", Double(unmeasured)))x")
+            }
+        }
+        let fitted = ScreenZoom.fitted(columns: Self.wrap, width: Self.width)
+        for scale: CGFloat in [2, 3] {
+            XCTAssertEqual(ScreenCell.wide(fitted, scale: scale).height, try Self.fittedRow(scale: scale), accuracy: 0.01, "the app's own snapping at \(scale)x")
+        }
     }
 
     /// Clause (D7, section 5.6): a session that has printed nothing yet
@@ -724,4 +760,12 @@ final class ScreenScrollerTests: XCTestCase {
         window = nil
         published = []
     }
+}
+
+/// A screen scale no device has been measured at (Phase 333.4): the fitted
+/// row's test fails naming it.
+private struct UnmeasuredScale: Error, CustomStringConvertible, LocalizedError {
+    let scale: CGFloat
+    var description: String { "no measured fitted row at \(String(format: "%g", Double(scale)))x" }
+    var errorDescription: String? { description }
 }

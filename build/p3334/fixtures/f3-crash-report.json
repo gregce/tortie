@@ -1,0 +1,249 @@
+{
+ "what": "SPEC F3 as macOS wrote it: the app ended inside XCUITest's own snapshot code (XCTAutomationSupport under os_log's quarantine), with Tortie's frames only its entry",
+ "from": "Tortie-2026-10-14-172906.ips, the devices lens's run on 2026-10-14 (a device it made, 4E80BB61-…), cut to the header's app and bundle, the process path, the exception type and the crashed thread's image names and symbols",
+ "header": {
+  "app_name": "Tortie",
+  "bundleID": "com.itavero.tortie.phone",
+  "bug_type": "309"
+ },
+ "body": {
+  "procPath": "/Users/USER/Library/Developer/CoreSimulator/Devices/4E80BB61-AA77-44D0-99A7-C05DE716F3A8/data/Containers/Bundle/Application/839B302B-E11B-4FCA-92E8-961E1B7C00C0/Tortie.app/Tortie",
+  "exception": {
+   "type": "EXC_BAD_ACCESS",
+   "signal": "SIGSEGV"
+  },
+  "faultingThread": 0,
+  "threads": [
+   {
+    "triggered": true,
+    "frames": [
+     {
+      "imageIndex": 0,
+      "symbol": "_platform_strcmp"
+     },
+     {
+      "imageIndex": 1,
+      "symbol": "runtime_issue_os_log_fault_callback"
+     },
+     {
+      "imageIndex": 2,
+      "symbol": "_os_log_invoke_callback"
+     },
+     {
+      "imageIndex": 2,
+      "symbol": "_os_log_impl_flatten_and_send"
+     },
+     {
+      "imageIndex": 2,
+      "symbol": "_os_log"
+     },
+     {
+      "imageIndex": 2,
+      "symbol": "_os_log_fault_impl"
+     },
+     {
+      "imageIndex": 2,
+      "symbol": "__LIBTRACE_CLIENT_QUARANTINED_DUE_TO_HIGH_LOGGING_VOLUME__"
+     },
+     {
+      "imageIndex": 3,
+      "symbol": "firehose_client_start_quarantine"
+     },
+     {
+      "imageIndex": 3,
+      "symbol": "firehose_buffer_stream_chunk_install"
+     },
+     {
+      "imageIndex": 3,
+      "symbol": "voucher_activity_trace_v_2"
+     },
+     {
+      "imageIndex": 2,
+      "symbol": "_os_log_impl_flatten_and_send"
+     },
+     {
+      "imageIndex": 2,
+      "symbol": "__os_signpost_emit_impl"
+     },
+     {
+      "imageIndex": 2,
+      "symbol": "_os_signpost_emit_with_name_impl"
+     },
+     {
+      "imageIndex": 4,
+      "symbol": "_copyMultipleAttributeValuesCallback"
+     },
+     {
+      "imageIndex": 5,
+      "symbol": "___AXXMIGCopyMultipleAttributeValues_block_invoke"
+     },
+     {
+      "imageIndex": 5,
+      "symbol": "_handleNonMainThreadCallback"
+     },
+     {
+      "imageIndex": 5,
+      "symbol": "_AXXMIGCopyMultipleAttributeValues"
+     },
+     {
+      "imageIndex": 5,
+      "symbol": "AXUIElementCopyMultipleAttributeValues"
+     },
+     {
+      "imageIndex": 1,
+      "symbol": "-[XCTAccessibilityFramework attributes:forElement:error:]"
+     },
+     {
+      "imageIndex": 1,
+      "symbol": "-[XCTAccessibilityFramework attributesForElement:attributes:error:]"
+     },
+     {
+      "imageIndex": 1,
+      "symbol": "-[XCTAutomationSession attributesForElement:attributes:error:]"
+     },
+     {
+      "imageIndex": 1,
+      "symbol": "-[XCElementSnapshot _fetchSimpleValueForKey:]"
+     },
+     {
+      "imageIndex": 1,
+      "symbol": "-[XCElementSnapshot children]"
+     },
+     {
+      "imageIndex": 1,
+      "symbol": "-[XCElementSnapshot childEnumerator]"
+     },
+     {
+      "imageIndex": 1,
+      "symbol": "-[XCTElementSnapshotDescendantsEnumerator nextObject]"
+     },
+     {
+      "imageIndex": 1,
+      "symbol": "-[XCTFilteringTransformerIterator nextMatch]"
+     },
+     {
+      "imageIndex": 1,
+      "symbol": "-[XCTElementQuery _firstMatchingSnapshotForInput:transformers:relatedElements:noMatchesMessage:error:]"
+     },
+     {
+      "imageIndex": 1,
+      "symbol": "-[XCTElementQuery _firstMatchingSnapshotForInput:transformersSubarrays:relatedElements:noMatchesMessage:error:]"
+     },
+     {
+      "imageIndex": 1,
+      "symbol": "__90-[XCTElementQuery matchingSnapshotsInSnapshotTree:relatedElements:noMatchesMessage:error:]_block_invoke_2"
+     },
+     {
+      "imageIndex": 1,
+      "symbol": "+[XCTRuntimeIssueContext captureIssuesWithContext:inScope:]"
+     },
+     {
+      "imageIndex": 1,
+      "symbol": "__90-[XCTElementQuery matchingSnapshotsInSnapshotTree:relatedElements:noMatchesMessage:error:]_block_invoke"
+     },
+     {
+      "imageIndex": 1,
+      "symbol": "__XCTPerformOnMainRunLoop_block_invoke"
+     },
+     {
+      "imageIndex": 6,
+      "symbol": "__CFRUNLOOP_IS_CALLING_OUT_TO_A_BLOCK__"
+     },
+     {
+      "imageIndex": 6,
+      "symbol": "__CFRunLoopDoBlocks"
+     },
+     {
+      "imageIndex": 6,
+      "symbol": "__CFRunLoopRun"
+     },
+     {
+      "imageIndex": 6,
+      "symbol": "CFRunLoopRunSpecific"
+     },
+     {
+      "imageIndex": 7,
+      "symbol": "GSEventRunModal"
+     },
+     {
+      "imageIndex": 8,
+      "symbol": "-[UIApplication _run]"
+     },
+     {
+      "imageIndex": 8,
+      "symbol": "UIApplicationMain"
+     },
+     {
+      "imageIndex": 9,
+      "symbol": "closure #1 in KitRendererCommon(_:)"
+     },
+     {
+      "imageIndex": 9,
+      "symbol": "runApp<A>(_:)"
+     },
+     {
+      "imageIndex": 9,
+      "symbol": "static App.main()"
+     },
+     {
+      "imageIndex": 10,
+      "symbol": "static TortieApp.$main()"
+     },
+     {
+      "imageIndex": 10,
+      "symbol": "main"
+     },
+     {
+      "imageIndex": 11,
+      "symbol": null
+     },
+     {
+      "imageIndex": 12,
+      "symbol": "start"
+     }
+    ]
+   }
+  ],
+  "usedImages": [
+   {
+    "name": "libsystem_platform.dylib"
+   },
+   {
+    "name": "XCTAutomationSupport"
+   },
+   {
+    "name": "libsystem_trace.dylib"
+   },
+   {
+    "name": "libdispatch.dylib"
+   },
+   {
+    "name": "UIAccessibility"
+   },
+   {
+    "name": "AXRuntime"
+   },
+   {
+    "name": "CoreFoundation"
+   },
+   {
+    "name": "GraphicsServices"
+   },
+   {
+    "name": "UIKitCore"
+   },
+   {
+    "name": "SwiftUI"
+   },
+   {
+    "name": "Tortie"
+   },
+   {
+    "name": null
+   },
+   {
+    "name": "dyld"
+   }
+  ]
+ }
+}
