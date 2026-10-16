@@ -42424,7 +42424,7 @@ Phone                                           Read, then allow
 
 ---
 
-## Phase 333.12.2 — a second Allow must never leave a door answering behind a refused face (found by 333.12's reverify, 2026-10-15; older than 333.12)
+## Phase 333.12.2 — a second Allow must never leave a door answering behind a refused face (found by 333.12's reverify, 2026-10-15; older than 333.12) ✅ LANDED `9a00b369`, 2026-10-15
 
 **Subject.** `fix(pocket): one Allow starts the door once, however many arrive`
 
@@ -43734,3 +43734,5 @@ cycle rather than only the evening it was written.
 - 2026-10-15, **PHASE 333.12.1 LANDED, `2aff4e4a` — the phone's Allow in one line per fact; unreleased.** Four labelled rows and one Allow (198 px where the block was 416 to 434), a waiting feature as one "New:" line (54 px), every hashed line word for word under a shut Details; one composer in main. Lighter checking, approved first time (a field mover of its own over 19 hashed-field moves at HEAD and the parent). Offered to him as a follow-up: a "Changed:" line naming a move the four rows do not show (the tailnet, start-with-Tortie, a phone's keys or alert address). Disclosed: the integrator started ablation-p313's whole harness by accident for 2.5 minutes in its own clone with the real HOME, ended it by pid; nothing moved. Battery green at `13253719`. The Mac side of the next release is ready (0.112.0: 347.1, 333.12, 333.12.1, 333.11.1, 333.11.2), awaiting his word.
 
 - 2026-10-15, **PHASE 333.12.2 STARTED — no door behind a refused face** (full Tier 3: the attack lens, and the random walk with one app run beside `69c3bd5a`), beside 345. 346 waits for 345; 333.4.1 (phone) waits for 345 too, because both edit the phone's app and UI tests.
+
+- 2026-10-15, **PHASE 333.12.2 LANDED, `9a00b369` — one Allow starts the door once, however many arrive; unreleased, no CHANGELOG item (a person's mouse cannot send the second Allow).** Seven statements in ipc.ts (D1 to D4, D13 to D17): a start counter, a hold while a run exists, a dead door process ended before a new start, an owed Allow re-queued; 25 one-start rows, a 60,000-press walk at 0 violations (9,493 at the parent), the reverify's 14,443-run injection sweep at 0 (6,596 at the parent). Stated: Q2 misses a counter write through an alias of `this` or Object.assign. 345 is in its ruled round (script fix and one phone re-check), then lands as build 11.
