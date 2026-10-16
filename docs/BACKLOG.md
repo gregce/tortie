@@ -41854,7 +41854,7 @@ lines that name it, and the hash stays over what decides what runs.
 - **No change to 318.1.** It is re-read once this lands.
 - **No release.** No menu changes, because no surface is added or removed.
 
-## Phase 345 — "am I able to have my phone paired to more than one mac at a time?" … "Yes, I do" — one iPhone, several Macs (operator, 2026-10-12; research 141 §4.2)
+## Phase 345 — "am I able to have my phone paired to more than one mac at a time?" … "Yes, I do" — one iPhone, several Macs (operator, 2026-10-12; research 141 §4.2) ✅ LANDED `80daa9fd`, 2026-10-16
 
 **Subject.** `feat(ios): pair one iPhone with several Macs`
 
@@ -42101,6 +42101,13 @@ for 333.12 (a new route must not switch phones off) and for 345 (a start names o
 - **The phone.** A `start` group in `probe:p316` on 26.3 and 18.3, Face ID answered from the host by `handle.biometry`,
   the no-answer case driven by a relay that holds the answer.
 
+### His rulings of 2026-10-16, added as it started
+
+- **The build number does not move in this phase.** Phase 345 took 11 and build 11 is not uploaded yet; the main session
+  sets the number once when it archives the next TestFlight build. conformance:ios rule (s) reads 11.
+- **It builds on Phase 345 as landed (`80daa9fd`).** Starting is offered per Mac space: the new-session screen belongs to the
+  Mac on screen and starts on that Mac only, as his answer 2 ("like they are completely separate") requires.
+
 ### What is NOT in this phase
 
 - **No Shell** (question 7), and no free command line.
@@ -42335,6 +42342,18 @@ and two are the probe's and the gate's.
 - `node build/p316/test-ios.mjs --read-app` on the new archive, and the build number 11 in both places conformance:ios
   rule (s) reads.
 
+### His rulings of 2026-10-16, added as it started
+
+- **Two small fixes from research 142 join this phase** (his answer: "Yes, all as recommended"). The Terminal's scroll
+  view sets `isDirectionalLockEnabled` (its init, `ios/Tortie/Screens/ScreenScroller.swift`), so a sideways pan stops
+  drifting up and down while a diagonal one still moves freely; and the fitted grid fills the width on @2x phones (an SE
+  at 200 columns draws 300 of 375 pt today, research 142 §2.1 and §4.3), keeping cells on whole pixels and leaving @3x
+  phones exactly as they are. Proof: the grid's frame against the window's width on the SE at 26.3 and 18.3 beside the
+  parent, and the iPhone 16 Pro's frames unmoved.
+- **The build number does not move in this phase.** Phase 345 took 11 and build 11 is not uploaded yet; the main session
+  sets the number once when it archives the next TestFlight build, after 345, 346, 333.4.1 and 337.5. conformance:ios
+  rule (s) reads 11.
+
 ### What is NOT in this phase
 
 - **No iPad layout.** `TARGETED_DEVICE_FAMILY` stays 1.
@@ -42465,6 +42484,74 @@ door process still up. HEAD and v0.111.1 give identical readings: it is not 333.
 
 - No change to the hash, the fields, the routes or what Allow allows.
 - No phone code. No release on its own.
+
+---
+
+## Phase 337.5 — "Yes, all as recommended" … "In the Terminal itself" — select text on the phone's Terminal the iPhone way (operator, 2026-10-16; research 142 §8)
+
+**Subject.** `feat(ios): select text on the Terminal with the iPhone's own handles`
+
+**First body line.** `Phase 337.5: native selection on the Terminal`
+
+**Semver.** Minor, unreleased, phone only. The build number does not move here (the main session sets it at the next
+archive). CHANGELOG item under `## Unreleased`: what a person can now do, in one sentence.
+
+**Tier 2.** A rendered surface with no new state and no new route: the selection stays on the phone and Copy writes the
+iPhone's clipboard exactly as today's Copy does. Two conditions hold it at Tier 2, and the spec must prove both: the edit
+menu offers Copy (and Select All if it is cheap) and NOTHING that sends his words anywhere, being no Share, Translate,
+Look Up or Search Web, read on iOS 26.3 and 18.3; and no `src/` file changes. If either cannot hold, the phase is Tier 3
+and the spec says so before any builder starts. Under his lighter-checking ruling of 2026-10-15, one verifier, then fix
+and reverify.
+
+**Charter.** Research 142 (`docs/research/142-text-that-wraps-to-the-phone.md`), his answers of 2026-10-16: no wrapping
+inside the Terminal (question 1); native selection queued (question 3); in the grid itself, one surface as in Safari, not a
+Read page (question 4); the Terminal keeps opening fitted (question 5); Catch Me Up stays under ⋯ (question 6); the two
+small fixes go to 333.4.1 (question 7); no `-F` probe now (question 8). He folded the research-first step into this phase's
+spec ("Fold it into the spec"), so the spec MEASURES before anything is built. The beta user's reply is not needed (his
+words: "it was just in a text so nowhere to send").
+
+### What was measured before this entry was written, so no round re-derives it
+
+- Today's selection is a custom 450 ms long press with no handles, no loupe and no edit menu
+  (`ios/Tortie/Screens/ScreenSelection.swift:4-7`, `:44-49`); Copy sets `UIPasteboard.general.string` in that file alone
+  (`:228`), which conformance:ios rule (al) holds. A point is an absolute row index (Phase 337.1 D31), and Copy is drawn only
+  while every selected row is drawn (§Attack B11).
+- The rows are custom-drawn in one UIKit scroll view (`ScreenScroller.swift`, `ScreenRows.swift`, `ScreenScrollback.swift`),
+  every row one cell tall; SwiftUI's `.textSelection` selects a range only from iOS 27, and a read-only `UITextView` would be
+  a second surface, which he declined. The cost of `UITextInteraction` (or `UITextSelectionDisplayInteraction` with
+  `UITextInput` over the grid) over custom-drawn rows is research 142 §7's first unsettled item.
+
+### The mechanism
+
+1. **The spec measures first**, in a scratch app on iOS 26.3 and 18.3 Simulators through `build/simulator-run.mjs`:
+   which UIKit interaction gives the system handles, loupe and edit menu over a custom-drawn grid in a `UIScrollView`;
+   what `UITextInput` methods it needs (positions as absolute row and column, `firstRect`, `caretRect`, `selectionRects`,
+   `closestPosition`); how the menu is narrowed to Copy; and whether the long press, the double tap to zoom, the pinch,
+   the pan and scrollback paging still behave. It writes the measured answer to build/p3375/SPEC.md before any builder.
+2. **The Terminal's own selection becomes the system's**: a long press on a word selects it with handles, a drag of either
+   handle extends it across rows (history included, by absolute index), the loupe shows, and the edit menu's Copy writes
+   the same text today's Copy writes. Today's custom long press and Copy button go, replaced rather than doubled.
+3. **Every rule today's selection keeps, it still keeps**: the held picture while a selection exists, a selection that
+   reaches rows not yet fetched waits rather than copying a blank, and the pasteboard written by Copy alone and never read.
+
+### The proof, run rather than read
+
+- `test:ios` on 26.3 and 18.3, with tests of the selection over committed screens (history included), and the copied text
+  equal to the rows' text by the absolute-index rule.
+- One app run (`probe:p316`'s screen group, or a probe of its own) beside the parent: select a word, drag a handle across
+  rows and into history, read the edit menu's items by their accessibility labels (Copy present; Share, Translate, Look Up
+  and Search Web absent), Copy, and read the pasteboard through the helper's `pasteboard()` of its own device; the pan,
+  the pinch, the double tap and scrollback unchanged against the parent.
+- `conformance:ios` with rules (al) and (aq) widened or rewritten on purpose for the new interaction, `ablation:p316` arms for
+  every changed clause, `conformance:phonecopy` if a word moves.
+
+### What is NOT in this phase
+
+- **No wrapping**, in the Terminal or on a Read page (his answers 1 and 4).
+- **No Mac change**, no route, no door field, no `src/` file.
+- **No change to how the Terminal opens or zooms**, and Catch Me Up stays where it is.
+- **No Share, Translate, Look Up or Search Web** in the edit menu.
+- **No screenshot**, no physical device, and no release.
 
 ---
 
@@ -43736,3 +43823,11 @@ cycle rather than only the evening it was written.
 - 2026-10-15, **PHASE 333.12.2 STARTED — no door behind a refused face** (full Tier 3: the attack lens, and the random walk with one app run beside `69c3bd5a`), beside 345. 346 waits for 345; 333.4.1 (phone) waits for 345 too, because both edit the phone's app and UI tests.
 
 - 2026-10-15, **PHASE 333.12.2 LANDED, `9a00b369` — one Allow starts the door once, however many arrive; unreleased, no CHANGELOG item (a person's mouse cannot send the second Allow).** Seven statements in ipc.ts (D1 to D4, D13 to D17): a start counter, a hold while a run exists, a dead door process ended before a new start, an owed Allow re-queued; 25 one-start rows, a 60,000-press walk at 0 violations (9,493 at the parent), the reverify's 14,443-run injection sweep at 0 (6,596 at the parent). Stated: Q2 misses a counter write through an alias of `this` or Object.assign. 345 is in its ruled round (script fix and one phone re-check), then lands as build 11.
+
+- 2026-10-16, **PHASE 345 LANDED, `80daa9fd` — one iPhone, up to four Macs, each its own space switched from a tab at the right of the bottom bar; unreleased, phone build 11.** Two needs_work, then his ruling "Fix script, re-check, land": the app's two findings (a dead Mac kept after pairing another on Pairing, D18a, now replaced as build 10 did; a replaced pairing's late refusal) fixed and measured against build 10; the probe's CAP race resumed from the twin door's own log, and its one re-check on iOS 26.3 passed every arm (1,202 s). Pending: 345.1 (alerts per Mac), mentioned, not queued.
+
+- 2026-10-16, **HE ANSWERED RESEARCH 142** ("Yes, all as recommended"; selection "In the Terminal itself"; the research folded into the spec, "Fold it into the spec"; the beta user's reply not needed). No wrapping inside the Terminal; the directional lock and the @2x width fill join 333.4.1; native selection queued as 337.5 (full section above). No phone phase moves the build number until the next archive. He wants 346, 333.4.1 and 337.5 done today.
+
+- 2026-10-16, **337.5 QUEUED — select text on the phone's Terminal the iPhone way** (Tier 2 under two conditions the spec proves, lighter checking).
+
+- 2026-10-16, **PHASES 346, 333.4.1 AND 337.5 STARTED** from `80daa9fd`'s follow-up, three workflows side by side (none photographs; Simulators share the three lock slots): 346 full Tier 3, 333.4.1 and 337.5 lighter checking.
