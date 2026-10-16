@@ -175,6 +175,29 @@
  * names every hashed fact, read off NORMALIZE itself. One hundred and
  * fifty-two rules in all.
  *
+ * PHASE 333.12.2 STARTS THE DOOR ONCE, HOWEVER MANY ALLOWS (build/p33122/
+ * SPEC.md §6.1). Phase 333.12's reverify found two `pocket:confirmDoor` calls
+ * before the first start published queueing two starts: the second read the
+ * door's own Funnel child as somebody else's port, refused `port-taken` and
+ * wrote the funnel `idle`, so main read `refused` while the door process
+ * listened and the child published (identical at v0.111.1). One rule joined,
+ * Q2, eleven clauses read with the parser: the start counter start() alone
+ * writes, before its first await and in the finally around the queue; the
+ * one-in-flight check as queueStart()'s first statement and its callers; the
+ * `held` outcome as openNow's first statement and the two funnel writes that
+ * leave a held door alone; the press that ends an adopted child, or a door
+ * process whose child died, before it reads Tailscale, as the restart does;
+ * a losing start ending its child before its door process; and, the
+ * integrator's two (SPEC §As built, D13 and D14), a start that ends a door
+ * process whose child died before it reads, and a start that adopts its child
+ * only while the door process it forked still listens. The fix round's (D16):
+ * a stop queued behind the start in flight, or over a published door, does
+ * not swallow the Allow after it (the stop counter, the stop's mark, and
+ * confirmDoor's guard), nor does a start that read the gate for the last time
+ * before it (D17, the owed mark), unpublish's own order (child first), and
+ * every write read through a cast of `this`. Q1 and L5 are unchanged. One hundred and
+ * fifty-three rules in all.
+ *
  * HOW IT READS. The source, parsed with the TypeScript compiler's own parser,
  * so a comment, a string and a call are each read as what they are. A rule
  * that could be satisfied by a word in a comment is not a rule, and three of
@@ -242,6 +265,9 @@ const RULES = [
   ['A4', 'build/p316/SPEC.md §4 S1 Method B; build/p330/SPEC.md §4.5.3; build/p317/SPEC.md §6.1', 'refusal 7 BY GENERATION: main keeps each door process’s admission by generation, refuses a request for a generation that is not the door’s or has begun to stop before a handler sees it, and asks again after the answer is composed with nothing awaited before the post, never replacing an answer marked acted; the handler asks the verified phone and the door instance again before it answers; a Remove writes the store before its first await'],
   ['H2', 'build/p316/SPEC.md §4 S1 mechanism 1, §2 rows 17 and 20', 'no `ssh` hand-off: the kind is gone from the contract, no module in the door composes an ssh link or a tmux attach, and the hand-off answers null for every session in 316'],
   ['Q1', 'his ruling, 2026-09-23 (“Yes, fix and land.”); build/p330/SPEC.md §4.3', 'THE SWITCH HANDLES ONE PRESS AT A TIME: every start and stop of the door AND of the Funnel child runs inside ONE serial queue on PocketHost that chains each job on one tail and never lets a failed job stop the next; both halves of setDoor count themselves before their first await; a superseded start stops waiting on the sessions'],
+  // PHASE 333.12.2 (build/p33122/SPEC.md §6.1): one Allow starts the door
+  // once, however many arrive, and no start runs over a door that has its child.
+  ['Q2', 'build/p33122/SPEC.md D1 to D6 and §As built D13 to D17; CLAUDE.md refusal 8', 'ONE START, HOWEVER MANY ALLOWS: PocketHost declares starts once, initialised to 0, and start() alone writes it, this.starts += 1 before its first await and this.starts -= 1 in the finally of the try that holds await this.serially(, and stops the same way in stop() alone; startAfterStop is declared once, initialised to false, and written only as start()’s = true and stop()’s = false, each before its method’s first await; queueStart()’s first statement is if (this.starts > 0 && this.startAfterStop) { this.startOwed = true; return; } and its only other statement is void this.start();; startOwed is declared once, initialised to false, set only there and cleared only as mayOpen()’s first statement, closeNowUnlessConfirmed()’s second and in start()’s finally, which then queues the owed start under confirmDoor’s condition; confirmDoor queues its start under this.readStore()?.enabled === true && (!this.published() || this.stops > 0); this.queueStart( is called only in confirmDoor and start() and this.start( only in queueStart and openAtLaunch; OpenOutcome names held; openNow’s first statement is if (this.run !== null) return \'held\';; its second is if (pocketDoorStatus().listening) await this.unpublish();; the funnel write after openNow in start() and in recheck()’s job names outcome !== \'held\' beside outcome !== \'published\'; setDoor’s on job awaits this.unpublish() under this.run !== null || pocketDoorStatus().listening as the statement right after this.cancelRestart() and right before its readAtPress(; recoverNow awaits this.unpublish() before its openNow(; and a losing start ends its child before its door process: startFunnel’s finally awaits run.stop() unless published, and the finally of openNow’s try around startFunnel( awaits stopPocketDoor() under outcome !== \'published\'; and the two statements before that try’s this.adopt(started.run); read the door process (const forked = pocketDoorStatus();) and, while it no longer listens on the port this start forked, await started.run.stop(); and return; and unpublish ends the Funnel child in its try and the door process in that try’s finally'],
   // PHASE 330, the door on the internet (build/p330/SPEC.md §6.1).
   ['U1', 'build/p330/SPEC.md §4.2.4; research 132 §9 condition 5', 'THE FUNNEL ARGV, EXACTLY: funnel --tcp=<publicPort> --proxy-protocol=2 tcp://<target>, status only with --json and --peers=false, serve only as serve status --json, and no --bg, reset, off, clear, --https, --http, --tls-terminated-tcp, --set-path, --yes or --service anywhere in src/'],
   ['U2', 'build/p330/SPEC.md §4.2.1', 'THE PROGRAM comes from resolveTailscale alone, no Tailscale path is a literal in the domain, and an override that is set but did not resolve REFUSES override-unusable rather than falling back to his real Tailscale'],
@@ -3244,6 +3270,641 @@ function switchQueueRule() {
   if (askAfter === -1 || stopAfter === -1 || stopAfter < askAfter || (refusalAfter !== -1 && stopAfter > refusalAfter)) {
     fail('Q1', `${where(ipc, openNow)}: after startPocketDoor, openNow() does not ask whether a later press arrived and stop what it forked before it says anything, so a door process that started under a superseded press is still answering when the next press runs`);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Q2 — PHASE 333.12.2: one Allow starts the door once (build/p33122/SPEC.md §6.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * ONE START, HOWEVER MANY ALLOWS. Phase 333.12's reverify found it with a
+ * 60,000-press walk and the spec step measured it at HEAD and at v0.111.1
+ * alike (build/p33122/SPEC.md §2): two `pocket:confirmDoor` calls before the
+ * first start published queued two starts, the second read the door's OWN
+ * Funnel child as a port somebody else holds, refused `port-taken` and wrote
+ * the funnel `idle`, so main read `refused` while the door process listened and
+ * the child published. Refusal 8 is the ground: nothing answers the internet
+ * unless main says the door is confirmed and listening. Each clause below is
+ * one line a later round can delete with every other rule green:
+ *
+ *   (a) the counter: `starts` declared once at 0, written by start() alone,
+ *       `+= 1` before its first await and `-= 1` in the finally of the try that
+ *       holds `await this.serially(`;
+ *   (b) the check: queueStart()'s first statement returns while a start is
+ *       queued or running, and its only other statement starts one;
+ *   (c) the callers: `this.queueStart` named in confirmDoor alone and
+ *       `this.start` in queueStart and openAtLaunch alone;
+ *   (d) the outcome: OpenOutcome names `'held'`;
+ *   (e) the held door: openNow's FIRST statement answers `'held'` while a
+ *       child is adopted, before it reads, forks, spawns or writes;
+ *   (f) nothing written: the funnel write after openNow in start() and in
+ *       recheck()'s job leaves a held door alone;
+ *   (g) the press after a restart: setDoor's on job ends an adopted child,
+ *       or a door process whose child died (D15), right after
+ *       cancelRestart() and right before its read;
+ *   (h) the restart: recoverNow unpublishes before its openNow;
+ *   (i) child first: a losing start ends its Funnel child (startFunnel's
+ *       finally) before its door process (openNow's finally);
+ *   (j) no door process without its child: openNow's SECOND statement ends a
+ *       door process still listening after its child died (D13);
+ *   (k) the door it forked: openNow adopts its child only while the door
+ *       process it forked still listens on that port, and otherwise ends the
+ *       child and returns (D14);
+ *   (a2), (l) the fix round's D16: stop() counts its stops as start() counts
+ *       its starts, the stop's mark is set by start() and cleared by stop(),
+ *       queueStart's check asks it, and confirmDoor starts a published door
+ *       again while a stop waits its turn, so Allow, forget and Allow, or a
+ *       published door forgotten and allowed in one tick, ends listening;
+ *   (m) unpublish's own order: the child in its try, the door process in its
+ *       finally (lens 1's M12);
+ *   (n) the owed confirm (D17): an Allow queueStart did not queue is marked
+ *       owed, every read of the gate inside a door job clears the mark, and a
+ *       start that ends with it set queues that Allow's start.
+ *
+ * The driven half is `src/main/pocket/__tests__/p33122-one-start.test.ts`,
+ * `ablation:p313`'s `onestart` check; `Q2a` to `Q2h` are the attack.
+ */
+const Q2_OWNER = "Phase 333.12.2 builder core's (src/main/pocket/ipc.ts)";
+const Q2_PERSON =
+  'two Allows that reach main before the first start publishes start the door twice, and the second start reads ' +
+  'the door’s own Funnel child as somebody else’s port and writes a published door down to a refused face while ' +
+  'the door process still listens and the child still publishes (refusal 8)';
+
+/** `this.<name>` and nothing else. */
+const isThisMember = (n, name) =>
+  n !== undefined && ts.isPropertyAccessExpression(n) && n.expression.kind === ts.SyntaxKind.ThisKeyword && n.name.text === name;
+
+/**
+ * Is `n` a write to `this.<prop>`: any assignment operator, `++` or `--`? The
+ * object is read through parentheses and casts (`bare`), so
+ * `(this as unknown as Record<string, number>)['starts'] = 0` is a write too
+ * (the fix round, lens 1's M16, which was green on every check before).
+ */
+function q2WritesTo(n, prop) {
+  const isThis = (e) => bare(e)?.kind === ts.SyntaxKind.ThisKeyword;
+  const target = (e) => {
+    const b = bare(e);
+    if (b === undefined) return false;
+    if (ts.isPropertyAccessExpression(b)) return isThis(b.expression) && b.name.text === prop;
+    return (
+      ts.isElementAccessExpression(b) &&
+      isThis(b.expression) &&
+      ts.isStringLiteralLike(bare(b.argumentExpression)) &&
+      bare(b.argumentExpression).text === prop
+    );
+  };
+  if (ts.isBinaryExpression(n)) {
+    const k = n.operatorToken.kind;
+    return k >= ts.SyntaxKind.FirstAssignment && k <= ts.SyntaxKind.LastAssignment && target(n.left);
+  }
+  if (ts.isPrefixUnaryExpression(n) || ts.isPostfixUnaryExpression(n)) {
+    return (n.operator === ts.SyntaxKind.PlusPlusToken || n.operator === ts.SyntaxKind.MinusMinusToken) && target(n.operand);
+  }
+  return false;
+}
+
+/** `this.<prop> <op>= 1`, where `op` is `+` or `-`. */
+const q2StepsBy = (n, kind) =>
+  ts.isBinaryExpression(n) && n.operatorToken.kind === kind && ts.isNumericLiteral(n.right) && n.right.text === '1';
+
+/** The statement right after `st` in its block, or null. */
+function q2StatementAfter(st) {
+  const list = st?.parent !== undefined && (ts.isBlock(st.parent) || ts.isSourceFile(st.parent)) ? st.parent.statements : null;
+  if (list === null) return null;
+  const at = list.indexOf(st);
+  return at === -1 || at + 1 >= list.length ? null : list[at + 1];
+}
+
+/** Is `e` (unwrapped) `outcome !== '<word>'`? */
+function q2OutcomeIsNot(e, word) {
+  const b = bare(e);
+  return (
+    b !== undefined &&
+    ts.isBinaryExpression(b) &&
+    b.operatorToken.kind === ts.SyntaxKind.ExclamationEqualsEqualsToken &&
+    ts.isIdentifier(bare(b.left)) &&
+    bare(b.left).text === 'outcome' &&
+    ts.isStringLiteralLike(bare(b.right)) &&
+    bare(b.right).text === word
+  );
+}
+
+/** Is this node `await this.serially(…)`? */
+const q2AwaitsSerially = (n) =>
+  ts.isAwaitExpression(n) && ts.isCallExpression(bare(n.expression)) && isThisMember(bare(n.expression).expression, 'serially');
+
+/** The ONE PocketHost method named `name`, or null with Q2 failed by name. */
+function q2Method(ipc, name) {
+  const found = hostMembers(ipc, name);
+  checked('Q2');
+  if (found.length === 1 && ts.isMethodDeclaration(found[0]) && found[0].body !== undefined) return found[0];
+  fail(
+    'Q2',
+    `PocketHost declares ${name} ${String(found.length)} time(s)${found.length === 1 ? ', not as a method with a body' : ''}, ` +
+      `so this rule cannot read it (build/p33122/SPEC.md §5). It is ${Q2_OWNER}.`
+  );
+  return null;
+}
+
+/**
+ * (a) for one counter field of PocketHost: declared once, an instance field
+ * initialised to 0, written only in `method` (as `+= 1` before its first await
+ * and `-= 1` in the finally of the try that holds `await this.serially(`), and
+ * nowhere else under src/main. `cost` is what a person meets without it.
+ */
+function q2Counter(ipc, sf, prop, method, tag, cost) {
+  const name = method === null ? '?' : memberName(method);
+  const decls = hostMembers(ipc, prop);
+  checked('Q2');
+  if (decls.length !== 1 || !ts.isPropertyDeclaration(decls[0])) {
+    fail('Q2', `${rel(ipc)}: PocketHost declares ${prop} ${String(decls.length)} time(s)${decls.length === 1 ? ', not as a field' : ''}; it is ONE field (${tag}). Without it ${cost}. It is ${Q2_OWNER}.`);
+  } else {
+    const d = decls[0];
+    const init = d.initializer === undefined ? undefined : bare(d.initializer);
+    if (init === undefined || !ts.isNumericLiteral(init) || init.text !== '0' || (d.modifiers ?? []).some((m) => m.kind === ts.SyntaxKind.StaticKeyword)) {
+      fail('Q2', `${where(ipc, d)}: PocketHost's ${prop} is not an instance field initialised to 0, so the first of a run is counted against one nobody queued, or one host's count holds another's back (${tag})`);
+    }
+  }
+  const writes = [];
+  for (const file of mainSources()) {
+    if (!readFileSync(file, 'utf8').includes(prop)) continue;
+    for (const n of nodesOf(file)) if (q2WritesTo(n, prop)) writes.push({ file, node: n });
+  }
+  checked('Q2', writes.length + 1);
+  const inOwner = (w) => w.file === ipc && method !== null && hostMethodOf(w.node) === name && inside(w.node, method);
+  for (const w of writes) {
+    if (!inOwner(w)) {
+      fail('Q2', `${where(w.file, w.node)}: this.${prop} is written outside PocketHost.${name}(). ${name}() alone counts them (${tag}); a second writer is a count that no longer says how many are queued or running, so ${cost}.`);
+    } else if (!q2StepsBy(w.node, ts.SyntaxKind.PlusEqualsToken) && !q2StepsBy(w.node, ts.SyntaxKind.MinusEqualsToken)) {
+      fail('Q2', `${where(w.file, w.node)}: ${name}() writes this.${prop} as something other than += 1 or -= 1 (${tag})`);
+    }
+  }
+  const ups = writes.filter((w) => inOwner(w) && q2StepsBy(w.node, ts.SyntaxKind.PlusEqualsToken));
+  const downs = writes.filter((w) => inOwner(w) && q2StepsBy(w.node, ts.SyntaxKind.MinusEqualsToken));
+  checked('Q2', 2);
+  if (method === null) return;
+  if (ups.length !== 1) {
+    fail('Q2', `${where(ipc, method)}: ${name}() raises this.${prop} ${String(ups.length)} time(s); it is ONCE, before its first await (${tag}). ${ups.length === 0 ? `With none, ${cost}.` : 'Raised twice, the count never returns to zero.'}`);
+  } else {
+    const up = ups[0].node;
+    const firstAwait = descendantsOf(method.body).filter((n) => ts.isAwaitExpression(n)).map((n) => n.getStart(sf));
+    const before = firstAwait.length === 0 || up.getStart(sf) < Math.min(...firstAwait);
+    if (!ts.isExpressionStatement(up.parent) || up.parent.parent !== method.body || !before) {
+      fail('Q2', `${where(ipc, up)}: this.${prop} += 1 is not a statement of ${name}()'s own body before its first await. A confirm that arrives in that gap reads a count that is not yet true, so ${cost}.`);
+    }
+  }
+  if (downs.length !== 1) {
+    fail('Q2', `${where(ipc, method)}: ${name}() lowers this.${prop} ${String(downs.length)} time(s); it is ONCE, in the finally of the try that holds await this.serially( (${tag})`);
+  } else {
+    const down = downs[0].node;
+    const fin = down.parent?.parent;
+    const tryStatement = fin?.parent;
+    const inFinally =
+      ts.isExpressionStatement(down.parent) &&
+      fin !== undefined &&
+      ts.isBlock(fin) &&
+      tryStatement !== undefined &&
+      ts.isTryStatement(tryStatement) &&
+      tryStatement.finallyBlock === fin &&
+      descendantsOf(tryStatement.tryBlock).some(q2AwaitsSerially);
+    if (!inFinally) {
+      fail('Q2', `${where(ipc, down)}: this.${prop} -= 1 is not a statement of the finally of the try that holds await this.serially(. A job that throws would leave the count above zero for the rest of the run (${tag}).`);
+    }
+  }
+}
+
+/**
+ * (a2) THE STOP'S MARK (the fix round, D16): `startAfterStop` declared once,
+ * an instance field initialised to false, and written exactly twice under
+ * src/main: `= true` in start() and `= false` in stop(), each a statement of
+ * that method's own body before its first await.
+ */
+function q2Mark(ipc, sf, start, stop) {
+  const prop = 'startAfterStop';
+  const decls = hostMembers(ipc, prop);
+  checked('Q2');
+  const d = decls.length === 1 && ts.isPropertyDeclaration(decls[0]) ? decls[0] : null;
+  const init = d?.initializer === undefined ? undefined : bare(d.initializer);
+  if (d === null || init === undefined || init.kind !== ts.SyntaxKind.FalseKeyword || (d.modifiers ?? []).some((m) => m.kind === ts.SyntaxKind.StaticKeyword)) {
+    fail('Q2', `${rel(ipc)}: PocketHost does not declare ${prop} once as an instance field initialised to false (it declares it ${String(decls.length)} time(s)). It says whether the newest start was queued after the newest stop (D16). It is ${Q2_OWNER}.`);
+  }
+  const writes = [];
+  for (const file of mainSources()) {
+    if (!readFileSync(file, 'utf8').includes(prop)) continue;
+    for (const n of nodesOf(file)) if (q2WritesTo(n, prop)) writes.push({ file, node: n });
+  }
+  checked('Q2', writes.length + 2);
+  const want = [
+    ['start', start, ts.SyntaxKind.TrueKeyword, 'true'],
+    ['stop', stop, ts.SyntaxKind.FalseKeyword, 'false']
+  ];
+  for (const w of writes) {
+    const owner = w.file === ipc ? hostMethodOf(w.node) : null;
+    const row = want.find(([name, method]) => owner === name && method !== null && inside(w.node, method));
+    const plain =
+      row !== undefined &&
+      ts.isBinaryExpression(w.node) &&
+      w.node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+      bare(w.node.right)?.kind === row[2];
+    if (!plain) {
+      fail('Q2', `${where(w.file, w.node)}: this.${prop} is written here, which is not start()'s = true nor stop()'s = false. A second writer can let the start in flight answer a confirm that a stop queued after it will undo, and the door the person has just allowed stays shut with nothing said (D16, rows O16, O17).`);
+    }
+  }
+  for (const [name, method, , word] of want) {
+    if (method === null) continue;
+    const mine = writes.filter((w) => w.file === ipc && hostMethodOf(w.node) === name && inside(w.node, method));
+    const firstAwait = descendantsOf(method.body).filter((n) => ts.isAwaitExpression(n)).map((n) => n.getStart(sf));
+    const ok =
+      mine.length === 1 &&
+      ts.isExpressionStatement(mine[0].node.parent) &&
+      mine[0].node.parent.parent === method.body &&
+      (firstAwait.length === 0 || mine[0].node.getStart(sf) < Math.min(...firstAwait));
+    if (!ok) {
+      fail('Q2', `${where(ipc, method)}: ${name}() does not set this.${prop} = ${word}; exactly once, as a statement of its own body before its first await (it writes it ${String(mine.length)} time(s)). ${name === 'stop' ? 'Without it, a stop queued behind the start in flight swallows the Allow made after it (D16, rows O16, O17).' : 'Without it, every confirm while a start is in flight queues one more start, and a refused first start is followed by every queued start reading Tailscale again (D1, row O2b).'}`);
+    }
+  }
+}
+
+/**
+ * (n) THE OWED CONFIRM (the fix round, D17). See the clause in oneStartRule.
+ */
+function q2Owed(ipc, start, queueStart) {
+  const prop = 'startOwed';
+  const decls = hostMembers(ipc, prop);
+  checked('Q2');
+  const d = decls.length === 1 && ts.isPropertyDeclaration(decls[0]) ? decls[0] : null;
+  const init = d?.initializer === undefined ? undefined : bare(d.initializer);
+  if (d === null || init === undefined || init.kind !== ts.SyntaxKind.FalseKeyword || (d.modifiers ?? []).some((m) => m.kind === ts.SyntaxKind.StaticKeyword)) {
+    fail('Q2', `${rel(ipc)}: PocketHost does not declare ${prop} once as an instance field initialised to false (it declares it ${String(decls.length)} time(s)). It says an Allow was made that the start in flight has not read (D17). It is ${Q2_OWNER}.`);
+  }
+  const mayOpen = q2Method(ipc, 'mayOpen');
+  const closeUnless = q2Method(ipc, 'closeNowUnlessConfirmed');
+  const writes = [];
+  for (const file of mainSources()) {
+    if (!readFileSync(file, 'utf8').includes(prop)) continue;
+    for (const n of nodesOf(file)) if (q2WritesTo(n, prop)) writes.push({ file, node: n });
+  }
+  checked('Q2', writes.length + 4);
+  const isSet = (n, word) =>
+    ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && bare(n.right)?.kind === (word ? ts.SyntaxKind.TrueKeyword : ts.SyntaxKind.FalseKeyword);
+  const stmt = (n) => (ts.isExpressionStatement(n.parent) ? n.parent : null);
+  // Where each write is allowed, as the statement that holds it.
+  const allowed = [];
+  const qsFirst = queueStart?.body.statements[0];
+  if (qsFirst !== undefined && ts.isIfStatement(qsFirst) && ts.isBlock(qsFirst.thenStatement)) allowed.push([qsFirst.thenStatement.statements[0], true, 'queueStart']);
+  if (mayOpen !== null) allowed.push([mayOpen.body.statements[0], false, 'mayOpen']);
+  if (closeUnless !== null) allowed.push([closeUnless.body.statements[1], false, 'closeNowUnlessConfirmed']);
+  // start()'s finally: the if after this.opening -= 1;, whose first statement clears the mark.
+  let finallyIf = null;
+  if (start !== null) {
+    const tries = start.body.statements.filter((st) => ts.isTryStatement(st) && st.finallyBlock !== undefined);
+    const fin = tries.length === 1 ? tries[0].finallyBlock.statements : [];
+    const at = fin.findIndex((st) => squash(codeOfNode(ipc, st)) === 'this.opening-=1;');
+    const next = at >= 0 ? fin[at + 1] : undefined;
+    if (next !== undefined && ts.isIfStatement(next) && squash(codeOfNode(ipc, next.expression)) === 'this.startOwed' && ts.isBlock(next.thenStatement)) {
+      finallyIf = next;
+      allowed.push([next.thenStatement.statements[0], false, 'start']);
+    }
+  }
+  for (const w of writes) {
+    const holder = stmt(w.node);
+    const ok = w.file === ipc && holder !== null && allowed.some(([st, word]) => st === holder && isSet(w.node, word));
+    if (!ok) {
+      fail('Q2', `${where(w.file, w.node)}: this.${prop} is written here, which is none of its four places (queueStart's drop sets it; mayOpen, closeNowUnlessConfirmed and start()'s finally clear it). A writer elsewhere either loses an Allow the start in flight never read, or starts the door again for one it did (D17, rows O20 and O2b).`);
+    }
+  }
+  for (const [st, word, name] of allowed) {
+    const here = writes.filter((w) => stmt(w.node) === st && isSet(w.node, word));
+    if (here.length !== 1) {
+      fail('Q2', `${where(ipc, st ?? ipc)}: ${name}() does not set this.${prop} = ${String(word)}; where D17 puts it (it does ${String(here.length)} time(s))`);
+    }
+  }
+  if (allowed.length !== 4) {
+    fail('Q2', `${rel(ipc)}: the four places of this.${prop} are not all there (found ${String(allowed.length)}): queueStart's drop, mayOpen's first statement, closeNowUnlessConfirmed's second, and the if after this.opening -= 1; in start()'s finally (D17)`);
+  }
+  if (finallyIf !== null) {
+    const body = finallyIf.thenStatement.statements.map((st) => squash(codeOfNode(ipc, st)));
+    if (body.length !== 2 || body[1] !== 'if(this.readStore()?.enabled===true&&(!this.published()||this.stops>0))this.queueStart();') {
+      fail('Q2', `${where(ipc, finallyIf)}: start()'s finally does not queue the owed confirm's start under confirmDoor's own condition (if (this.readStore()?.enabled === true && (!this.published() || this.stops > 0)) this.queueStart();). An Allow made after the start in flight last read the gate leaves the door shut with nothing said, where the build before this phase opened it (D17, row O20).`);
+    }
+  }
+}
+
+function oneStartRule() {
+  const ipc = moduleNamed('ipc', 'Q2', Q2_OWNER);
+  const funnel = moduleNamed('funnel', 'Q2', "Phase 330 builder owner's");
+  if (ipc === null) return;
+  const sf = astOf(ipc);
+  const start = q2Method(ipc, 'start');
+  const queueStart = q2Method(ipc, 'queueStart');
+  const openNow = q2Method(ipc, 'openNow');
+  const recheck = q2Method(ipc, 'recheck');
+  const setDoor = q2Method(ipc, 'setDoor');
+  const recoverNow = q2Method(ipc, 'recoverNow');
+  const stop = q2Method(ipc, 'stop');
+  const confirmDoor = q2Method(ipc, 'confirmDoor');
+  const unpublish = q2Method(ipc, 'unpublish');
+
+  // (a) THE COUNTER. Declared once on PocketHost, initialised to 0, and
+  // written by start() alone: `+= 1` before its first await, as a statement of
+  // its own, and `-= 1` as a statement of the finally of the try that holds
+  // `await this.serially(`. A count raised after an await lets a confirm in
+  // that gap queue a second start; a count lowered outside the finally stays
+  // above zero after a job that throws, and every later Allow starts nothing.
+  // The fix round's D16 counts its stops the same way, in stop() alone.
+  q2Counter(ipc, sf, 'starts', start, 'D1', `queueStart's check never sees a start in flight, so ${Q2_PERSON}`);
+  q2Counter(ipc, sf, 'stops', stop, 'D16', 'a confirm made while a stop waits its turn over a published door does not start it again, and the door the person has just allowed stays shut with nothing said');
+
+  // (a2) THE STOP'S MARK (the fix round, D16): startAfterStop is declared once,
+  // initialised to false, and written in exactly two places, each a statement
+  // of its method's own body before its first await: start() sets it true and
+  // stop() sets it false. A stop queued behind the start in flight closes
+  // whatever that start opens, so that start must not answer a confirm made
+  // after the stop.
+  q2Mark(ipc, sf, start, stop);
+
+  // (b) THE CHECK, inside queueStart, so every caller of queueStart is behind
+  // it by construction: its first statement, while a start is queued or
+  // running and no stop was queued after it, records the confirm as OWED and
+  // returns (the fix round, D17); its only other statement is the start.
+  if (queueStart !== null) {
+    const sts = queueStart.body.statements;
+    const first = sts[0];
+    const then = first !== undefined && ts.isIfStatement(first) && first.elseStatement === undefined ? first.thenStatement : undefined;
+    const block = then !== undefined && ts.isBlock(then) ? then.statements.map((st) => squash(codeOfNode(ipc, st))) : [];
+    checked('Q2', 2);
+    if (
+      first === undefined ||
+      !ts.isIfStatement(first) ||
+      squash(codeOfNode(ipc, first.expression)) !== 'this.starts>0&&this.startAfterStop' ||
+      block.length !== 2 ||
+      block[0] !== 'this.startOwed=true;' ||
+      block[1] !== 'return;'
+    ) {
+      fail('Q2', `${where(ipc, first ?? queueStart)}: queueStart()'s first statement is not if (this.starts > 0 && this.startAfterStop) { this.startOwed = true; return; }. Without the count, ${Q2_PERSON}; ten Allows read Tailscale 23 times (build/p33122/SPEC.md §2.2 row 4). Without the stop's mark, Allow, forget and Allow leave the door shut with nothing said, where the build before this phase opened it (D16, rows O16 and O17). Without the owed mark, an Allow made after the start in flight last read the gate is lost (D17, row O20).`);
+    }
+    if (sts.length !== 2 || squash(codeOfNode(ipc, sts[1])) !== 'voidthis.start();') {
+      fail('Q2', `${where(ipc, queueStart)}: queueStart() holds ${String(sts.length)} statement(s); it is exactly the one-in-flight check and void this.start(); (D1, D6), so nothing it does can go around the check`);
+    }
+  }
+
+  // (c) THE CALLERS. A confirm starts the door through queueStart and nothing
+  // else; start() is named only by queueStart and by the launch step, which
+  // awaits its own start to answer opened or refused (D6). A zero is red: a
+  // rule that read nothing asserted nothing.
+  const refs = (name) => nodesOf(ipc).filter((n) => isThisMember(n, name));
+  const isCall = (n) => n.parent !== undefined && ts.isCallExpression(n.parent) && n.parent.expression === n;
+  for (const [name, allowed] of [
+    ['queueStart', ['confirmDoor', 'start']],
+    ['start', ['queueStart', 'openAtLaunch']]
+  ]) {
+    const found = refs(name);
+    checked('Q2', found.length + 1);
+    if (found.filter(isCall).length === 0) {
+      fail('Q2', `${rel(ipc)}: nothing in ipc.ts calls this.${name}(, so this rule read no caller and asserted nothing (build/p33122/SPEC.md §6.1 (c))`);
+    }
+    for (const n of found) {
+      const by = enclosingName(n);
+      if (by === null || !allowed.includes(by)) {
+        fail('Q2', `${where(ipc, n)}: this.${name} is named in ${by === null ? 'module scope' : `${by}()`}; it is named only in ${allowed.map((a) => `${a}()`).join(' and ')} (D6). ${name === 'start' ? `A start that goes around queueStart goes around the one-in-flight check, so ${Q2_PERSON}.` : 'Every start a confirm makes passes the one check.'}`);
+      }
+    }
+  }
+
+  // (d) THE OUTCOME names held, beside the three it had.
+  const aliases = nodesOf(ipc).filter((n) => ts.isTypeAliasDeclaration(n) && n.name.text === 'OpenOutcome');
+  checked('Q2');
+  if (aliases.length !== 1) {
+    fail('Q2', `${rel(ipc)} declares OpenOutcome ${String(aliases.length)} time(s); it is ONE union (D2)`);
+  } else {
+    const t = aliases[0].type;
+    const words = (ts.isUnionTypeNode(t) ? t.types : [t]).filter((m) => ts.isLiteralTypeNode(m) && ts.isStringLiteralLike(m.literal)).map((m) => m.literal.text);
+    for (const want of ['published', 'stopped', 'retry', 'held']) {
+      checked('Q2');
+      if (!words.includes(want)) fail('Q2', `${where(ipc, aliases[0])}: OpenOutcome does not name '${want}' (it names ${JSON.stringify(words)}). 'held' is the start that found the door's child already adopted and did nothing (D2, D3).`);
+    }
+  }
+
+  // (e) THE HELD DOOR: openNow's FIRST statement, before the last-press
+  // check, the gate, the sessions, the orphan sweep and the read, so a held
+  // door writes nothing whatever the press.
+  if (openNow !== null) {
+    const first = openNow.body.statements[0];
+    checked('Q2');
+    if (first === undefined || squash(codeOfNode(ipc, first)).replace(/"/g, "'") !== "if(this.run!==null)return'held';") {
+      fail('Q2', `${where(ipc, first ?? openNow)}: openNow()'s first statement is not if (this.run !== null) return 'held';. A start queued behind a Try again, a return or the launch's own start then runs over a door that already has its child, so ${Q2_PERSON} (D2, §2.2 rows 1, 8, 11, 13).`);
+    }
+  }
+
+  // (f) NOTHING WRITTEN: the funnel write after openNow in start() and in
+  // recheck()'s queued job names outcome !== 'held' beside outcome !==
+  // 'published', each a conjunct of the one && chain. That idle written over
+  // a published door IS the defect: published() asks funnelState.
+  for (const [name, method] of [
+    ['start', start],
+    ['recheck', recheck]
+  ]) {
+    if (method === null) continue;
+    const opens = descendantsOf(method.body).filter((n) => {
+      if (!ts.isVariableDeclaration(n) || !ts.isIdentifier(n.name) || n.name.text !== 'outcome' || n.initializer === undefined) return false;
+      const init = bare(n.initializer);
+      return ts.isAwaitExpression(init) && ts.isCallExpression(bare(init.expression)) && isThisMember(bare(init.expression).expression, 'openNow');
+    });
+    checked('Q2', opens.length + 1);
+    if (opens.length === 0) {
+      fail('Q2', `${where(ipc, method)}: ${name}() holds no const outcome = await this.openNow(…), so this rule read no funnel write after it (build/p33122/SPEC.md §6.1 (f))`);
+    }
+    for (const decl of opens) {
+      const statement = decl.parent?.parent;
+      const next = statement !== undefined && ts.isVariableStatement(statement) ? q2StatementAfter(statement) : null;
+      const conjuncts = next !== null && ts.isIfStatement(next) ? zAnds(next.expression) : [];
+      if (!conjuncts.some((c) => q2OutcomeIsNot(c, 'published')) || !conjuncts.some((c) => q2OutcomeIsNot(c, 'held'))) {
+        fail('Q2', `${where(ipc, next ?? decl)}: the statement after ${name}()'s openNow does not ask outcome !== 'published' && outcome !== 'held' before it writes the funnel. A held start then writes idle over a published door, which is the defect itself: main reads refused while the door process listens and the child publishes (D3, refusal 8).`);
+      }
+    }
+  }
+
+  // (g) THE PRESS AFTER A RESTART. setDoor's queued on job ends an adopted
+  // child (and then the door process) as the statement right after
+  // cancelRestart() and right before its readAtPress(, so the read never
+  // counts the door's own child as somebody else's port and never moves the
+  // public port over it (D4, §2.2 row 10).
+  if (setDoor !== null) {
+    const off = setDoorOffBranch(ipc, setDoor);
+    const cancels = descendantsOf(setDoor.body).filter(
+      (n) => ts.isCallExpression(n) && isThisMember(n.expression, 'cancelRestart') && (off === undefined || !inside(n, off))
+    );
+    checked('Q2');
+    if (cancels.length !== 1) {
+      fail('Q2', `${where(ipc, setDoor)}: setDoor()'s on half calls this.cancelRestart() ${String(cancels.length)} time(s); the rule reads the ONE call in its queued job (D4)`);
+    } else {
+      const st = cancels[0].parent;
+      const tryStatement = st?.parent?.parent;
+      const inJob =
+        st !== undefined &&
+        ts.isExpressionStatement(st) &&
+        tryStatement !== undefined &&
+        ts.isTryStatement(tryStatement) &&
+        tryStatement.tryBlock === st.parent &&
+        nodesOf(ipc).some(
+          (n) =>
+            ts.isCallExpression(n) &&
+            isThisMember(n.expression, 'serially') &&
+            inside(n, setDoor) &&
+            n.arguments.some((a) => inside(st, a))
+        );
+      const next = inJob ? q2StatementAfter(st) : null;
+      const read = next === null ? null : q2StatementAfter(next);
+      checked('Q2', 2);
+      if (next === null || squash(codeOfNode(ipc, next)) !== 'if(this.run!==null||pocketDoorStatus().listening)awaitthis.unpublish();') {
+        fail('Q2', `${where(ipc, next ?? st ?? setDoor)}: the statement after setDoor()'s this.cancelRestart(); in its queued job is not if (this.run !== null || pocketDoorStatus().listening) await this.unpublish();. A switch-on press after the door process died under its child moves the public port over the door's own child and leaves that child publishing behind changed (D4, §2.2 row 10); one after the CHILD died, whose read then refuses, leaves the door process listening behind a refused face with the restart cancelled (D15).`);
+      }
+      if (read === null || !descendantsOf(read).some((n) => ts.isCallExpression(n) && isThisMember(n.expression, 'readAtPress'))) {
+        fail('Q2', `${where(ipc, read ?? next ?? setDoor)}: the statement after the press's unpublish is not the one holding this.readAtPress(, so something runs between ending the adopted child and the read that must not count it (D4)`);
+      }
+    }
+  }
+
+  // (h) THE RESTART unpublishes, as a statement of its own body, before its
+  // openNow(, which is the order (g) copies.
+  if (recoverNow !== null) {
+    const opens = descendantsOf(recoverNow.body).filter((n) => ts.isCallExpression(n) && isThisMember(n.expression, 'openNow'));
+    const unpublishes = recoverNow.body.statements.filter((s) => ts.isExpressionStatement(s) && ts.isAwaitExpression(s.expression) && ts.isCallExpression(bare(s.expression.expression)) && isThisMember(bare(s.expression.expression).expression, 'unpublish'));
+    checked('Q2');
+    if (opens.length === 0) {
+      fail('Q2', `${where(ipc, recoverNow)}: recoverNow() calls no this.openNow(, so this rule read no restart (build/p33122/SPEC.md §6.1 (h))`);
+    } else if (unpublishes.length === 0 || unpublishes[0].getStart(sf) > Math.min(...opens.map((o) => o.getStart(sf)))) {
+      fail('Q2', `${where(ipc, recoverNow)}: recoverNow() does not await this.unpublish() as a statement of its own body before its openNow(. The restart then reads the dead door's child as somebody else's port and starts a second child beside it.`);
+    }
+  }
+
+  // (i) CHILD FIRST: a losing start ends its Funnel child in startFunnel's
+  // own finally, then its door process in the finally of openNow's try around
+  // startFunnel(. The child is what carries the internet; a child alive while
+  // its door process is gone is published to nothing (D5, §Attack A8).
+  if (funnel !== null) {
+    const fns = functionsNamed(funnel, 'startFunnel');
+    checked('Q2');
+    if (fns.length !== 1) {
+      fail('Q2', `${rel(funnel)} declares startFunnel ${String(fns.length)} time(s); the rule reads ONE (D5)`);
+    } else {
+      const tries = descendantsOf(fns[0].body).filter((n) => ts.isTryStatement(n) && n.finallyBlock !== undefined);
+      const holds = tries.some((t) => t.finallyBlock.statements.some((s) => squash(codeOfNode(funnel, s)) === 'if(!published)awaitrun.stop();'));
+      if (!holds) {
+        fail('Q2', `${where(funnel, fns[0])}: startFunnel()'s finally does not hold if (!published) await run.stop();. A start superseded during Tailscale's approval wait would leave its child publishing after the switch is off (D5).`);
+      }
+    }
+  }
+  if (openNow !== null) {
+    const tries = descendantsOf(openNow.body).filter((n) => ts.isTryStatement(n) && callsIn(n.tryBlock, 'startFunnel').length > 0);
+    checked('Q2');
+    if (tries.length !== 1) {
+      fail('Q2', `${where(ipc, openNow)}: openNow() holds ${String(tries.length)} try statement(s) whose block calls startFunnel(; the rule reads ONE (D5)`);
+    } else {
+      const fin = tries[0].finallyBlock;
+      const stops = fin === undefined ? [] : callsIn(fin, 'stopPocketDoor').filter((c) => ts.isAwaitExpression(c.parent));
+      const guarded = stops.some((c) => guardsOf(ipc, c, fin).some((g) => g.replace(/"/g, "'") === "outcome!=='published'"));
+      if (!guarded) {
+        fail('Q2', `${where(ipc, tries[0])}: the finally of openNow()'s try around startFunnel( does not await stopPocketDoor() under outcome !== 'published'. A start that loses after its fork leaves its door process listening with nothing published (D5).`);
+      }
+    }
+  }
+
+  // (j) NO DOOR PROCESS WITHOUT ITS CHILD (the integrator's D13): openNow's
+  // SECOND statement, right after the held door, ends a door process that is
+  // still listening while no child is adopted. Its child died unasked and the
+  // restart that would end it is still waiting; a start whose read then
+  // refused left it listening on loopback behind a refused face.
+  if (openNow !== null) {
+    const second = openNow.body.statements[1];
+    checked('Q2');
+    if (second === undefined || squash(codeOfNode(ipc, second)) !== 'if(pocketDoorStatus().listening)awaitthis.unpublish();') {
+      fail('Q2', `${where(ipc, second ?? openNow)}: openNow()'s second statement is not if (pocketDoorStatus().listening) await this.unpublish();. An Allow after the door's child died unasked, whose read then refuses, leaves the door process listening behind a refused face (D13, row O13).`);
+    }
+  }
+
+  // (k) THE DOOR IT FORKED (the integrator's D14): in openNow's try around
+  // startFunnel(, the two statements before this.adopt(started.run); read the
+  // door process and, while it no longer listens on the port this start
+  // forked, end the started child and return. The door process's unasked exit
+  // is heard only once a child is adopted, so a child approved after its door
+  // process died was adopted publishing to a dead port, behind a refused face
+  // saying Tortie is trying again with nothing armed to.
+  if (openNow !== null) {
+    const tries = descendantsOf(openNow.body).filter((n) => ts.isTryStatement(n) && callsIn(n.tryBlock, 'startFunnel').length > 0);
+    const block = tries.length === 1 ? tries[0].tryBlock.statements : [];
+    const adopts = block.filter((st) => squash(codeOfNode(ipc, st)) === 'this.adopt(started.run);');
+    checked('Q2');
+    if (adopts.length !== 1) {
+      fail('Q2', `${where(ipc, tries[0] ?? openNow)}: openNow()'s try around startFunnel( holds this.adopt(started.run); ${String(adopts.length)} time(s) as a statement of its own; the rule reads ONE (D14)`);
+    } else {
+      const at = block.indexOf(adopts[0]);
+      const check = at >= 1 ? block[at - 1] : undefined;
+      const read = at >= 2 ? block[at - 2] : undefined;
+      const then = check !== undefined && ts.isIfStatement(check) ? check.thenStatement : undefined;
+      const firstThen = then !== undefined && ts.isBlock(then) ? then.statements[0] : undefined;
+      const ok =
+        read !== undefined &&
+        squash(codeOfNode(ipc, read)) === 'constforked=pocketDoorStatus();' &&
+        check !== undefined &&
+        ts.isIfStatement(check) &&
+        squash(codeOfNode(ipc, check.expression)) === '!forked.listening||forked.localPort!==door.localPort' &&
+        firstThen !== undefined &&
+        squash(codeOfNode(ipc, firstThen)) === 'awaitstarted.run.stop();' &&
+        descendantsOf(then).some((n) => ts.isReturnStatement(n));
+      if (!ok) {
+        fail('Q2', `${where(ipc, check ?? adopts[0])}: the two statements before openNow()'s this.adopt(started.run); are not const forked = pocketDoorStatus(); and if (!forked.listening || forked.localPort !== door.localPort) { await started.run.stop(); … return …; }. A door process that dies while Tailscale waits on approval then leaves its approved child adopted, publishing to a dead port, while main reads refused (D14, row O15; refusal 8).`);
+      }
+    }
+  }
+
+  // (l) A CONFIRM BEHIND A STOP (the fix round, D16): confirmDoor queues its
+  // start under the store's switch and, on a published door, only while a stop
+  // waits its turn, because that stop is about to close it. The build before
+  // this phase asked !this.published() alone, so a published door, then
+  // forget and Allow in one tick, was left shut with nothing said (row O19).
+  if (confirmDoor !== null) {
+    const calls = descendantsOf(confirmDoor.body).filter((n) => ts.isCallExpression(n) && isThisMember(n.expression, 'queueStart'));
+    checked('Q2', 2);
+    if (calls.length !== 1) {
+      fail('Q2', `${where(ipc, confirmDoor)}: confirmDoor() calls this.queueStart() ${String(calls.length)} time(s); the rule reads ONE (D16)`);
+    } else {
+      let guard = calls[0].parent;
+      while (guard !== undefined && !ts.isIfStatement(guard) && guard !== confirmDoor.body) guard = guard.parent;
+      const cond = guard !== undefined && ts.isIfStatement(guard) ? squash(codeOfNode(ipc, guard.expression)) : null;
+      if (cond !== 'this.readStore()?.enabled===true&&(!this.published()||this.stops>0)') {
+        fail('Q2', `${where(ipc, calls[0])}: confirmDoor()'s this.queueStart() is not guarded by if (this.readStore()?.enabled === true && (!this.published() || this.stops > 0)) (it reads ${cond ?? 'no if'}). A published door with a stop waiting its turn is about to close, and an Allow made then must start it again behind that stop, or the door the person has just allowed stays shut with nothing said (D16, row O19).`);
+      }
+    }
+  }
+
+  // (m) UNPUBLISH'S OWN ORDER (the fix round, lens 1's M12): the Funnel child
+  // first, in the try, and then the door process, in its finally. D4, D13,
+  // D15 and every stop end the door through it, and a child alive while its
+  // door process is gone is a published session forwarding to nothing.
+  if (unpublish !== null) {
+    const tries = unpublish.body.statements.filter((st) => ts.isTryStatement(st));
+    const t = tries.length === 1 ? tries[0] : null;
+    const tryStops = t === null ? [] : t.tryBlock.statements.map((st) => squash(codeOfNode(ipc, st)));
+    const finStops = t === null || t.finallyBlock === undefined ? [] : t.finallyBlock.statements.map((st) => squash(codeOfNode(ipc, st)));
+    const doorBefore = t === null ? [] : callsIn(t.tryBlock, 'stopPocketDoor').concat(unpublish.body.statements.slice(0, unpublish.body.statements.indexOf(t)).flatMap((st) => callsIn(st, 'stopPocketDoor')));
+    checked('Q2', 2);
+    if (t === null || !tryStops.includes('if(run!==null)awaitrun.stop();') || !finStops.includes('awaitstopPocketDoor();') || doorBefore.length > 0) {
+      fail('Q2', `${where(ipc, t ?? unpublish)}: unpublish() does not end the Funnel child in its try (if (run !== null) await run.stop();) and then the door process in that try's finally (await stopPocketDoor();) with no stopPocketDoor( before it. Swapped, the child outlives its door process on every off, alerts-on and wake, published to nothing (lens 1 measured 3 to 4 ms).`);
+    }
+  }
+
+  // (n) THE OWED CONFIRM (the fix round, D17): startOwed is declared once,
+  // initialised to false, set true only in queueStart's first statement, and
+  // set false only as mayOpen()'s first statement and as the statement of
+  // closeNowUnlessConfirmed() right after its early return (the two reads of
+  // the gate a door job makes), and inside start()'s finally, where the
+  // statement after this.opening -= 1; queues the owed confirm's start under
+  // confirmDoor's own condition.
+  q2Owed(ipc, start, queueStart);
+
+  // A ZERO WHERE SOMETHING MUST BE IS RED: a rule that read nothing asserted nothing.
+  if (checks.get('Q2') === 0 && failures.get('Q2').length === 0) fail('Q2', 'checked nothing, so it asserts nothing');
 }
 
 // ---------------------------------------------------------------------------
@@ -13736,6 +14397,8 @@ const PHASES = [
   ['the last ask before a send', answerReadmitRule, 'A4'],
   ['no ssh hand-off', handoffRule, 'H2'],
   ['one press at a time', switchQueueRule, 'Q1'],
+  // PHASE 333.12.2, one start however many Allows (build/p33122/SPEC.md §6.1).
+  ['one start, however many Allows', oneStartRule, 'Q2'],
   ['the Funnel argv', funnelArgvRule, 'U1'],
   ['the Funnel program', funnelProgramRule, 'U2'],
   ['the Funnel child’s death', funnelDeathRule, 'U3'],

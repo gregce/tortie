@@ -180,6 +180,34 @@
  * as `unit` is. Re-run, not edited, because their file moved: `SU21`, `SU6w`,
  * `AR7a`, `AR7d`, `AR11a`, `AR11b`, `AR11d`, `AR12a` and `AR12b`.
  *
+ * PHASE 333.12.2 ADDED TWENTY-ONE (build/p33122/SPEC.md §6.2 and §As built),
+ * 569 entries in all, one per clause of `Q2`, one start however many Allows:
+ * `Q2a` deletes the one-in-flight check from `queueStart`, `Q2b` the held
+ * door from `openNow`'s first statement, `Q2c` moves the count's `-= 1` out
+ * of the finally, `Q2d` deletes the press's end of an adopted child before
+ * its read, `Q2e` and `Q2f` let the funnel write after `openNow` in `start()`
+ * and in the return's job write `idle` over a held door, `Q2g` has
+ * `confirmDoor` start the door around `queueStart`, and `Q2h` takes the
+ * child's stop out of `startFunnel`'s finally. The integrator's three (D13 to
+ * D15): `Q2i` deletes `openNow`'s end of a door process whose child died,
+ * `Q2j` narrows the press's end back to an adopted child, and `Q2k` lets a
+ * start adopt a child whose door process died while Tailscale approved. One
+ * more driven check joined, `onestart`
+ * (`src/main/pocket/__tests__/p33122-one-start.test.ts`), this harness's own
+ * tag as `unit` is, for the clauses only an order of jobs shows: nine of the
+ * eleven (all but `Q2c` and `Q2f`) must redden it too. The fix round's six
+ * (D16): `Q2l` lets the start in flight answer an Allow made after a stop
+ * queued behind it, `Q2m` and `Q2n` take the stop's mark out of `stop()` and
+ * `start()`, `Q2o` lets a stop close a published door an Allow had just
+ * allowed, `Q2p` is lens 1's M16 (a writer of the count through a cast of
+ * `this`) and `Q2q` lens 1's M12 (unpublish ends the door process first);
+ * all but `Q2p` must redden `onestart` too. And the fix round's D17, the
+ * Allow the start in flight never read: `Q2r` and `Q2s` take the owed mark
+ * out of `queueStart` and `start()`'s finally, `Q2t` and `Q2u` stop `mayOpen`
+ * and `closeNowUnlessConfirmed` clearing it; all but `Q2u` must redden
+ * `onestart` too. `Q2a` moved its anchor with `queueStart`'s check. No other
+ * existing arm moved.
+ *
  * An ablation that leaves the check green is a hole in the check. An ablation
  * that reddens only rules OTHER than its own is a finding about the check
  * rather than about the build, and it is printed as one.
@@ -235,6 +263,7 @@
  *   P313_ONLY=L2,R2,S2 node build/ablation-p313.mjs        named entries only
  *   P313_ONLY=O2a,O2k,O2l,R4x node build/ablation-p313.mjs  the Phase 316.7 arms, for one
  *   P313_ONLY=SU6a,SU6b,SU6c,SU6d,AF1a,AF2a,AF3a,AF4a,AF4b node build/ablation-p313.mjs  some of Phase 333.12.1's
+ *   P313_ONLY=Q2a,Q2b,Q2c,Q2d,Q2e,Q2f,Q2g,Q2h,Q2i,Q2j,Q2k,Q2l,Q2m,Q2n,Q2o,Q2p,Q2q,Q2r,Q2s,Q2t,Q2u node build/ablation-p313.mjs  Phase 333.12.2's twenty-one
  *   P313_ALLOW_RED_BASE=1 node build/ablation-p313.mjs
  */
 
@@ -351,7 +380,10 @@ const CHECKS = [
   // shows (the id fallback, a waiting route said twice, the phones' order,
   // the program read as its basename, and a fact that moves the hash but no
   // line of Details). `[p313 face]` is this harness's own tag, as `unit` is.
-  ['face', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/main/pocket/__tests__/p333121-face.test.ts'], { tag: 'face', relative: true }]
+  ['face', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/main/pocket/__tests__/p333121-face.test.ts'], { tag: 'face', relative: true }],
+  // PHASE 333.12.2 (build/p33122/SPEC.md §6.2): the one-start rows, DRIVEN over
+  // the shipping owner, for the arms whose clause only an order of jobs shows.
+  ['onestart', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/main/pocket/__tests__/p33122-one-start.test.ts'], { tag: 'onestart', relative: true }]
 ];
 
 /**
@@ -6032,6 +6064,246 @@ const ABLATIONS = [
     from: /, device \$\{pushTokenDigest\(\s*phone\.pushToken\s*\)\.slice\(0, 8\)\}/,
     to: '',
     needs: ['gate', 'face']
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 333.12.2 (build/p33122/SPEC.md §6.2): one Allow starts the door
+  // once. Each arm breaks one clause of Q2, anchored on §5's exact text (Q2h on
+  // startFunnel's finally); five of them must also redden the driven
+  // `onestart` rows, whose clause only an order of jobs shows.
+  // -------------------------------------------------------------------------
+  {
+    n: 'Q2a',
+    rule: 'Q2',
+    alsoRed: ['onestart'],
+    name: 'queueStart’s one-in-flight check deleted',
+    why: 'a refused first start is followed by every queued start reading Tailscale and spawning again; ten Allows read Tailscale 23 times (build/p33122/SPEC.md §2.2 row 4).',
+    file: IPC,
+    from: '    if (this.starts > 0 && this.startAfterStop) {\n      this.startOwed = true;\n      return;\n    }\n',
+    to: '',
+    needs: ['gate', 'onestart']
+  },
+  {
+    n: 'Q2b',
+    rule: 'Q2',
+    alsoRed: ['onestart'],
+    name: 'openNow’s held door deleted',
+    why: 'a start queued behind a Try again or the launch reads its own child’s port as somebody else’s and turns a published door into a refused face over a live door process and Funnel child (refusal 8).',
+    file: IPC,
+    from: "    if (this.run !== null) return 'held';\n",
+    to: '',
+    needs: ['gate', 'onestart']
+  },
+  {
+    n: 'Q2c',
+    rule: 'Q2',
+    name: 'the start count lowered inside the try, after the await, rather than in the finally',
+    why: 'one start whose job throws would leave the count above zero for the rest of the run, and every later Allow would start nothing.',
+    file: IPC,
+    from: '    } finally {\n      this.starts -= 1;\n',
+    to: '      this.starts -= 1;\n    } finally {\n',
+    needs: ['gate']
+  },
+  {
+    n: 'Q2d',
+    rule: 'Q2',
+    alsoRed: ['onestart'],
+    name: 'setDoor’s on job no longer ends the adopted child before its read',
+    why: 'a switch-on press after the door process died moves the public port over the door’s own child and leaves that child publishing behind changed.',
+    file: IPC,
+    from: '        if (this.run !== null || pocketDoorStatus().listening) await this.unpublish();\n',
+    to: '',
+    needs: ['gate', 'onestart']
+  },
+  {
+    n: 'Q2e',
+    rule: 'Q2',
+    alsoRed: ['onestart'],
+    name: 'start()’s funnel write no longer leaves a held door alone',
+    why: 'a held start writes idle over a published door, which is the defect itself.',
+    file: IPC,
+    from: "        const outcome = await this.openNow(press);\n        if (outcome !== 'published' && outcome !== 'held' && this.funnelState !== 'restarting') this.funnelState = 'idle';\n",
+    to: "        const outcome = await this.openNow(press);\n        if (outcome !== 'published' && this.funnelState !== 'restarting') this.funnelState = 'idle';\n",
+    needs: ['gate', 'onestart']
+  },
+  {
+    n: 'Q2f',
+    rule: 'Q2',
+    name: 'the return’s funnel write no longer leaves a held door alone',
+    why: 'the same write, from a return.',
+    file: IPC,
+    from: "          const outcome = await this.openNow(press, 'start', { returned: true });\n          if (outcome !== 'published' && outcome !== 'held' && this.funnelState !== 'restarting') this.funnelState = 'idle';\n",
+    to: "          const outcome = await this.openNow(press, 'start', { returned: true });\n          if (outcome !== 'published' && this.funnelState !== 'restarting') this.funnelState = 'idle';\n",
+    needs: ['gate']
+  },
+  {
+    n: 'Q2g',
+    rule: 'Q2',
+    alsoRed: ['onestart'],
+    name: 'confirmDoor starts the door around queueStart',
+    why: 'a confirm that goes around the one-in-flight check is every confirm the entry names.',
+    file: IPC,
+    from: '        this.queueStart();\n',
+    to: '        void this.start();\n',
+    needs: ['gate', 'onestart']
+  },
+  {
+    n: 'Q2h',
+    rule: 'Q2',
+    alsoRed: ['onestart'],
+    name: 'startFunnel’s finally no longer stops a child that did not publish',
+    why: 'a start superseded during Tailscale’s approval wait would leave its child publishing after the switch is off.',
+    file: FUNNEL,
+    from: '  } finally {\n    if (!published) await run.stop();\n  }\n',
+    to: '  } finally {\n    // a child that did not publish is no longer stopped here\n  }\n',
+    needs: ['gate', 'onestart']
+  },
+  // The integrator's three (build/p33122/SPEC.md §As built, D13 to D15): the
+  // two classes the walk still found once D1 to D4 were in.
+  {
+    n: 'Q2i',
+    rule: 'Q2',
+    alsoRed: ['onestart'],
+    name: 'openNow no longer ends a door process whose child died',
+    why: 'an Allow after the door’s child died unasked, whose read then refuses, leaves the door process listening behind a refused face (row O13).',
+    file: IPC,
+    from: '    if (pocketDoorStatus().listening) await this.unpublish();\n',
+    to: '',
+    needs: ['gate', 'onestart']
+  },
+  {
+    n: 'Q2j',
+    rule: 'Q2',
+    alsoRed: ['onestart'],
+    name: 'setDoor’s on job ends an adopted child only, not a door process whose child died',
+    why: 'a switch-on press after the door’s child died, whose read then refuses, cancels the restart and leaves the door process listening behind a refused face until the next press (row O14).',
+    file: IPC,
+    from: '        if (this.run !== null || pocketDoorStatus().listening) await this.unpublish();\n',
+    to: '        if (this.run !== null) await this.unpublish();\n',
+    needs: ['gate', 'onestart']
+  },
+  {
+    n: 'Q2k',
+    rule: 'Q2',
+    alsoRed: ['onestart'],
+    name: 'openNow adopts a child whose door process died while Tailscale approved',
+    why: 'the door process’s unasked exit is heard only once a child is adopted, so the approved child publishes to a dead port while main reads refused and says Tortie is trying again with nothing armed to (row O15, refusal 8).',
+    file: IPC,
+    from: '      if (!forked.listening || forked.localPort !== door.localPort) {\n',
+    to: '      if (forked.listening && forked.localPort !== door.localPort) {\n',
+    needs: ['gate', 'onestart']
+  },
+  // The fix round's six (build/p33122/SPEC.md §As built, D16 and lens 1's two
+  // nits): a stop queued behind the start in flight, or over a published door,
+  // must not swallow the Allow after it; a writer of the count through a cast
+  // of `this`; and unpublish's own order.
+  {
+    n: 'Q2l',
+    rule: 'Q2',
+    alsoRed: ['onestart'],
+    name: 'queueStart’s check no longer asks whether a stop was queued after the start in flight',
+    why: 'Allow, forget and Allow in one tick leave the door shut with nothing said, where the build before this phase opened it (rows O16, O17).',
+    file: IPC,
+    from: '    if (this.starts > 0 && this.startAfterStop) {\n',
+    to: '    if (this.starts > 0) {\n',
+    needs: ['gate', 'onestart']
+  },
+  {
+    n: 'Q2m',
+    rule: 'Q2',
+    alsoRed: ['onestart'],
+    name: 'stop() no longer marks the start in flight as one it will undo',
+    why: 'the start in flight answers an Allow made after a stop queued behind it, the stop closes the door, and the door the person has just allowed stays shut (rows O16, O17).',
+    file: IPC,
+    from: '    this.startAfterStop = false;\n    this.stops += 1;\n',
+    to: '    this.stops += 1;\n',
+    needs: ['gate', 'onestart']
+  },
+  {
+    n: 'Q2n',
+    rule: 'Q2',
+    alsoRed: ['onestart'],
+    name: 'start() no longer marks itself as queued after the newest stop',
+    why: 'every Allow while a start is in flight queues one more start, and a refused first start is followed by every queued start reading Tailscale and spawning again (row O2b).',
+    file: IPC,
+    from: '    this.starts += 1;\n    this.startAfterStop = true;\n',
+    to: '    this.starts += 1;\n',
+    needs: ['gate', 'onestart']
+  },
+  {
+    n: 'Q2o',
+    rule: 'Q2',
+    alsoRed: ['onestart'],
+    name: 'confirmDoor no longer starts a published door that a waiting stop is about to close',
+    why: 'a published door, then forget and Allow in one tick: the stop closes it and nothing opens it again, so the door the person has just allowed stays shut with nothing said (row O19).',
+    file: IPC,
+    from: '      if (this.readStore()?.enabled === true && (!this.published() || this.stops > 0)) {\n        this.queueStart();\n',
+    to: '      if (this.readStore()?.enabled === true && !this.published()) {\n        this.queueStart();\n',
+    needs: ['gate', 'onestart']
+  },
+  {
+    n: 'Q2p',
+    rule: 'Q2',
+    name: 'a second writer of the start count, through a cast of this (lens 1’s M16)',
+    why: 'a reset of the count from outside start() can drive it to -1, and every queued start reads Tailscale and spawns again.',
+    file: IPC,
+    from: '  private async closeNow(): Promise<void> {\n    this.cancelRestart();\n',
+    to: "  private async closeNow(): Promise<void> {\n    (this as unknown as Record<string, number>)['starts'] = 0;\n    this.cancelRestart();\n",
+    needs: ['gate']
+  },
+  {
+    n: 'Q2q',
+    rule: 'Q2',
+    alsoRed: ['onestart'],
+    name: 'unpublish ends the door process before the Funnel child (lens 1’s M12)',
+    why: 'on every off, alerts-on and wake the child outlives its door process, a published session forwarding to nothing (row O18).',
+    file: IPC,
+    from: '    try {\n      if (run !== null) await run.stop();\n    } finally {\n      await stopPocketDoor();\n    }\n',
+    to: '    try {\n      await stopPocketDoor();\n    } finally {\n      if (run !== null) await run.stop();\n    }\n',
+    needs: ['gate', 'onestart']
+  },
+  // The fix round's D17: the Allow the start in flight never read.
+  {
+    n: 'Q2r',
+    rule: 'Q2',
+    alsoRed: ['onestart'],
+    name: 'queueStart no longer marks the Allow it does not queue as owed',
+    why: 'an Allow made after the start in flight last read the gate (while that start closes the door its end found changed) is lost, and the door the person has just allowed stays shut with nothing said (row O20).',
+    file: IPC,
+    from: '      this.startOwed = true;\n',
+    to: '',
+    needs: ['gate', 'onestart']
+  },
+  {
+    n: 'Q2s',
+    rule: 'Q2',
+    alsoRed: ['onestart'],
+    name: 'start()’s finally no longer queues the owed Allow’s start',
+    why: 'the same Allow is marked and then dropped, and the door stays shut with nothing said (row O20).',
+    file: IPC,
+    from: '        if (this.readStore()?.enabled === true && (!this.published() || this.stops > 0)) this.queueStart();\n',
+    to: '',
+    needs: ['gate', 'onestart']
+  },
+  {
+    n: 'Q2t',
+    rule: 'Q2',
+    alsoRed: ['onestart'],
+    name: 'mayOpen no longer clears the owed mark when it reads the gate',
+    why: 'an Allow the start in flight did read is started again when that start is refused, and a refused first start is followed by one more Tailscale read and spawn for every pair of Allows (row O2b).',
+    file: IPC,
+    from: '    // A READ OF THE GATE (the fix round, D17): every confirm so far is seen.\n    this.startOwed = false;\n',
+    to: '',
+    needs: ['gate', 'onestart']
+  },
+  {
+    n: 'Q2u',
+    rule: 'Q2',
+    name: 'closeNowUnlessConfirmed no longer clears the owed mark when it reads the gate',
+    why: 'an Allow the start in flight read at its end is started again after it, a start the held door then answers for nothing.',
+    file: IPC,
+    from: '    // below runs is owed a start of its own.\n    this.startOwed = false;\n',
+    to: '    // below runs is owed a start of its own.\n',
+    needs: ['gate']
   }
 ];
 

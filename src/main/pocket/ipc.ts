@@ -75,6 +75,28 @@
  * start that is superseded before it forks or spawns does not, and a start
  * that is superseded after closes what it opened before the next press runs.
  *
+ * ## One Allow starts the door once (Phase 333.12.2, build/p33122/SPEC.md)
+ *
+ * A confirm queues a start only while no start is queued or running, because
+ * the one in flight asks the gate after its read and again at its end (D1). A
+ * start that finds the door's Funnel child already adopted answers `held` and
+ * does nothing, and the two writes after it leave a held door's state alone
+ * (D2, D3). A switch-on press that replaces a restart ends the adopted child
+ * and then the door process before it reads Tailscale, as the restart does
+ * (D4). A start that loses ends what it made, the child first and the door
+ * process second, so nothing on the internet reaches a door that is going
+ * (D5). A person's mouse could not send two Allows (SPEC §3); two reached main
+ * only through the bridge or two scripted clicks in one task, and main is the
+ * one place that counts starts. And a door process is never left listening
+ * with no child behind a refused face (SPEC §As built, D13 to D15): a start or
+ * a switch-on press ends one whose child died before it reads, and a start
+ * whose door process died while Tailscale approved ends its child rather than
+ * adopt one that publishes to a dead port. A confirm made while a stop waits
+ * its turn queues a start behind that stop (the fix round, D16), because the
+ * stop closes whatever the door has or the start in flight opens; and a
+ * confirm made after the start in flight last read the gate is queued when
+ * that start ends (D17), because that start did not open for it.
+ *
  * ## What this module does not do
  *
  * It reads no credential and names neither `main/credentials/` nor
@@ -469,8 +491,12 @@ function pressNumbered(n: number): { press: SwitchPress; supersede: () => void }
   return { press: { n, superseded }, supersede };
 }
 
-/** What one start came to. `retry` is a refusal a restart may try again. */
-type OpenOutcome = 'published' | 'stopped' | 'retry';
+/**
+ * What one start came to. `retry` is a refusal a restart may try again.
+ * `held` (Phase 333.12.2, D2): the door already has its Funnel child, so this
+ * start did nothing and wrote nothing.
+ */
+type OpenOutcome = 'published' | 'stopped' | 'retry' | 'held';
 
 type GoodRead = Extract<TailnetRead, { ok: true }>;
 
@@ -496,6 +522,34 @@ export class PocketHost {
   private doorJobs: Promise<void> = Promise.resolve();
   /** Door jobs queued or running that may start the door. */
   private opening = 0;
+  /**
+   * STARTS queued or running (Phase 333.12.2, D1), counted by start() alone.
+   * Not `opening`: a return's job counts there too, and a return may decline.
+   */
+  private starts = 0;
+  /**
+   * Was the newest start queued AFTER the newest {@link stop}? (Phase
+   * 333.12.2's fix round, D16.) start() sets it and stop() clears it, each
+   * before its first await. A stop queued behind the start in flight closes
+   * whatever that start opens, so that start no longer answers a confirm
+   * made after the stop, and the confirm queues a start of its own.
+   */
+  private startAfterStop = false;
+  /**
+   * STOPS queued or running (the fix round, D16), counted by stop() alone. A
+   * published door with one waiting is about to close, so a confirm made now
+   * starts it again behind that stop rather than leave it shut.
+   */
+  private stops = 0;
+  /**
+   * A confirm {@link queueStart} did not queue, because a start was in flight
+   * to answer it, with no read of the gate inside a door job since (the fix
+   * round, D17). Every read of the gate a door job makes clears it. A start
+   * that ends with it set read the gate for the last time BEFORE that confirm
+   * (a refusal at the gate, or a close at its end, while the confirm arrived),
+   * so its finally queues that confirm's own start.
+   */
+  private startOwed = false;
 
   private readonly funnel: FunnelDeps;
   /** This run's last successful Tailscale read, or null before the first. */
@@ -1162,24 +1216,52 @@ export class PocketHost {
 
   /**
    * Open the door, or remember the sentence that says why not. It opens for
-   * the LAST press as it stands now, and waits its turn in the queue.
+   * the LAST press as it stands now, and waits its turn in the queue. A start
+   * asked for while another is queued or running is not queued at all
+   * ({@link queueStart}), unless a {@link stop} was queued after that one (the
+   * fix round, D16), and the launch's start, which calls this itself, is held
+   * by {@link openNow}'s first statement when a door is already up (Phase
+   * 333.12.2, D1, D2, D6).
    */
   async start(): Promise<void> {
     const press = this.lastPress.press;
     this.opening += 1;
+    this.starts += 1;
+    this.startAfterStop = true;
     try {
       await this.serially(async () => {
         const outcome = await this.openNow(press);
-        if (outcome !== 'published' && this.funnelState !== 'restarting') this.funnelState = 'idle';
+        if (outcome !== 'published' && outcome !== 'held' && this.funnelState !== 'restarting') this.funnelState = 'idle';
       });
     } finally {
+      this.starts -= 1;
       this.opening -= 1;
+      // THE CONFIRM THIS START NEVER READ (the fix round, D17): it arrived
+      // after this start's last read of the gate, so this start did not open
+      // for it, and it is queued now, under confirmDoor's own condition.
+      if (this.startOwed) {
+        this.startOwed = false;
+        if (this.readStore()?.enabled === true && (!this.published() || this.stops > 0)) this.queueStart();
+      }
       this.changed();
     }
   }
 
   /** The same start, queued and not awaited: the IPC answer never waits on it. */
   private queueStart(): void {
+    // ONE START IN FLIGHT (Phase 333.12.2, D1): the start already queued or
+    // running opens whatever the person has just allowed, because it asks the
+    // gate after its read and again at its end. A second start behind it read
+    // the door's own Funnel child as a port somebody else holds and left the
+    // door answering behind a refused face. UNLESS A STOP WAS QUEUED AFTER IT
+    // (the fix round, D16): that stop closes whatever the start opens, so a
+    // confirm made after the stop is a start of its own, queued behind it.
+    // And a confirm the start in flight never reads is OWED (D17): it is
+    // queued when that start ends.
+    if (this.starts > 0 && this.startAfterStop) {
+      this.startOwed = true;
+      return;
+    }
     void this.start();
   }
 
@@ -1208,7 +1290,7 @@ export class PocketHost {
         if (!this.returnMayRun(funnelProgramOf(this.funnel.resolve()))) return;
         if (pocketConfirmStatus(this.fields()).state === 'confirmed') {
           const outcome = await this.openNow(press, 'start', { returned: true });
-          if (outcome !== 'published' && this.funnelState !== 'restarting') this.funnelState = 'idle';
+          if (outcome !== 'published' && outcome !== 'held' && this.funnelState !== 'restarting') this.funnelState = 'idle';
         } else if (this.pressedOnThisRun) {
           await this.readOnReturn(press);
         }
@@ -1289,6 +1371,14 @@ export class PocketHost {
   /**
    * The start itself, run only inside a door job (SPEC §4.3).
    *
+   * A DOOR THAT ALREADY HAS ITS CHILD IS ASKED ABOUT BEFORE ANYTHING (Phase
+   * 333.12.2, D2): while a counted start's Funnel child is adopted, a start
+   * answers `held` before the press, the gate, the sessions, the sweep or the
+   * read, so a held door writes nothing whatever the press. A door process
+   * with no child is then ended, as the restart waiting to would (D13), and a
+   * start adopts its child only while the door process it forked still
+   * listens (D14).
+   *
    * THE GATE IS ASKED FIRST, before Tailscale is read at all, so a door nobody
    * confirmed never gets as far as a program. AND THE PRESS IS ASKED BESIDE
    * IT: a start whose press is no longer the last one forks and spawns
@@ -1305,6 +1395,18 @@ export class PocketHost {
     why: 'start' | 'restart' = 'start',
     options: { returned?: boolean } = {}
   ): Promise<OpenOutcome> {
+    // 0. A DOOR THAT ALREADY HAS ITS CHILD IS NOT STARTED AGAIN (Phase
+    // 333.12.2, D2): its read would count that child's port as somebody
+    // else's, refuse `port-taken` and turn a published door into a refused
+    // face over a door process and a child that still answer. `this.run` is
+    // set only by a counted start's adopt, inside this queue.
+    if (this.run !== null) return 'held';
+    // 0b. A DOOR PROCESS WITH NO CHILD IS ENDED BEFORE ANYTHING ELSE (Phase
+    // 333.12.2, the integrator's D13): its child died unasked and the restart
+    // that would end it is still waiting. A start that then refused at its
+    // read (Tailscale stopped) left it listening behind a refused face, and a
+    // start that forked joined it with the pins and routes it had then.
+    if (pocketDoorStatus().listening) await this.unpublish();
     // 1, 2.
     if (this.superseded(press)) return 'stopped';
     if (!this.mayOpen()) return 'stopped';
@@ -1459,6 +1561,20 @@ export class PocketHost {
         outcome = 'stopped';
         return outcome;
       }
+      // 11b. THE DOOR PROCESS THIS START FORKED STILL LISTENS (Phase 333.12.2,
+      // the integrator's D14). It can die while Tailscale waits on approval,
+      // and the exit is heard only once a child is adopted, so the child would
+      // publish to a dead port behind a refused face that says Tortie is
+      // trying again, with nothing armed to. The child is ended first.
+      const forked = pocketDoorStatus();
+      if (!forked.listening || forked.localPort !== door.localPort) {
+        await started.run.stop();
+        this.startRefusal = DOOR_SENTENCES['bind-failed'];
+        this.startRefusalWord = null;
+        pocketLog.warn('the phone door did not open: its door process stopped while Funnel started');
+        outcome = 'retry';
+        return outcome;
+      }
       // 12. THE COUNTED START. The restart's spacing starts again at its floor.
       this.adopt(started.run);
       this.startRefusal = null;
@@ -1602,6 +1718,8 @@ export class PocketHost {
    * as the sheet's sentence. Nothing here starts anything.
    */
   private mayOpen(): boolean {
+    // A READ OF THE GATE (the fix round, D17): every confirm so far is seen.
+    this.startOwed = false;
     if (this.readStore()?.enabled !== true) return false;
     try {
       assertPocketDoorMayBind(this.fields());
@@ -1636,7 +1754,16 @@ export class PocketHost {
    * turn in the queue, so it never lands inside a start.
    */
   async stop(): Promise<void> {
-    await this.serially(() => this.closeNow());
+    // THE START IN FLIGHT ANSWERS NO LATER CONFIRM (Phase 333.12.2's fix round,
+    // D16): this close is queued behind it and closes whatever it opens, and
+    // a door published now is about to close.
+    this.startAfterStop = false;
+    this.stops += 1;
+    try {
+      await this.serially(() => this.closeNow());
+    } finally {
+      this.stops -= 1;
+    }
   }
 
   /** The stop itself, run only inside a door job. */
@@ -1663,6 +1790,9 @@ export class PocketHost {
   /** The same question, run only inside a door job. */
   private async closeNowUnlessConfirmed(): Promise<void> {
     if (!pocketDoorStatus().listening && this.run === null) return;
+    // A READ OF THE GATE (the fix round, D17): a confirm made while the close
+    // below runs is owed a start of its own.
+    this.startOwed = false;
     if (pocketConfirmStatus(this.fields()).state === 'confirmed') return;
     await this.closeNow();
   }
@@ -2083,6 +2213,12 @@ export class PocketHost {
         if (this.published() && pocketConfirmStatus(this.fields()).state === 'confirmed') return;
         // A person's press replaces a restart that was waiting its turn.
         this.cancelRestart();
+        // ... AND ENDS WHAT THAT RESTART WOULD HAVE ENDED (Phase 333.12.2, D4):
+        // the door process died under a live child, so the child goes first and
+        // then the door process, as recoverNow does, before Tailscale is read.
+        // A door process whose CHILD died is ended too (the integrator's D15),
+        // or a read that refuses leaves it listening with the restart cancelled.
+        if (this.run !== null || pocketDoorStatus().listening) await this.unpublish();
         if (!(await this.readAtPress(press))) return;
         if (this.superseded(press)) return;
         if (pocketConfirmStatus(this.fields()).state === 'confirmed') {
@@ -2306,8 +2442,10 @@ export class PocketHost {
     if (record !== null && saved) {
       // A published door serves what was just allowed, with no restart (D9).
       this.postRoutes();
-      // `start` opens only a door the person has switched on.
-      if (this.readStore()?.enabled === true && !this.published()) {
+      // `start` opens only a door the person has switched on, and a published
+      // door only when a stop waiting its turn is about to close it (the fix
+      // round, D16): forgetting and allowing again must not leave it shut.
+      if (this.readStore()?.enabled === true && (!this.published() || this.stops > 0)) {
         this.queueStart();
       }
     }
