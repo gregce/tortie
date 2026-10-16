@@ -32,6 +32,13 @@
 // title and About alone: no paired Mac, no Alerts card, no Unpair (which would
 // forget a real pairing from inside a made-up one) and no See a sample. Leave
 // sample is in the strip above every page.
+//
+// SEVERAL MACS (Phase 345, build/p345/SPEC.md D15). Settings is the Mac on
+// screen's: its This Mac card (its name drawn as the Macs tab draws it, D21),
+// its Alerts card when IT said it could send, then Pair another Mac, which
+// opens the pairing screen as a sheet over the lists, then Unpair this iPhone,
+// which forgets the Mac on screen and no other. With one Mac kept the one new
+// thing is the Pair another Mac row.
 
 import SwiftUI
 import UIKit
@@ -43,6 +50,9 @@ import UIKit
 struct SettingsDrawing: Equatable {
     /// The paired Mac, or nil when no pairing is held.
     let facts: PairedFacts?
+    /// The Mac's name as the card draws it: its drawn name among the Macs
+    /// kept (Phase 345, D21), else the facts' own; nil with no facts.
+    let macName: String?
     /// `read 4:32 PM` from the list's last loaded answer, or nil.
     let readLine: String?
     /// `Paired · Sep 30, 2026`, or nil.
@@ -65,9 +75,11 @@ struct SettingsDrawing: Equatable {
         permission: PushAuthorization?,
         settingsLine: String?,
         info: [String: Any]?,
+        drawnName: String? = nil,
         date: (Double) -> String = PairedClock.date
     ) {
         self.facts = facts
+        macName = facts.map { drawnName ?? $0.name }
         if case .loaded(let drawing)? = list {
             readLine = drawing.readLine
         } else {
@@ -141,7 +153,8 @@ struct SettingsScreen: View {
             alertsLine: app.list?.alertsLine,
             permission: app.alertPermission,
             settingsLine: app.settingsLine,
-            info: Bundle.main.infoDictionary
+            info: Bundle.main.infoDictionary,
+            drawnName: app.chosen.map { app.drawnName($0) }
         )
     }
 
@@ -157,6 +170,9 @@ struct SettingsScreen: View {
                     alertsCard(state: state, line: drawing.alertsLine)
                 }
                 let rows = rows
+                if rows.pairAnother {
+                    pairAnotherRow
+                }
                 if rows.unpair {
                     unpairRow
                     if let line = drawing.unpairLine {
@@ -205,7 +221,7 @@ struct SettingsScreen: View {
     private func macCard(_ facts: PairedFacts, drawing: SettingsDrawing) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             RaisedLabel(Copy.thisMac)
-            Words(facts.name, .lead, Tokens.textPrimary)
+            Words(drawing.macName ?? facts.name, .lead, Tokens.textPrimary)
                 .lineBox(.lead)
                 .accessibilityIdentifier(ID.settingsMacName)
                 .padding(.top, 6)
@@ -311,6 +327,33 @@ struct SettingsScreen: View {
     /// Which of Settings' own rows are drawn where the app is now (D13, D18).
     var rows: SettingsRows {
         SettingsRows(root: app.root)
+    }
+
+    /// Pair another Mac (Phase 345, D15): See a sample's shape and chevron,
+    /// under the Mac's cards and above Unpair. It opens the pairing screen as
+    /// a sheet over the lists, and the Macs kept stay kept.
+    private var pairAnotherRow: some View {
+        Button(action: pairAnother) {
+            HStack(spacing: Frame.rowGap) {
+                Words(Copy.pairAnotherMac, .body, Tokens.textPrimary)
+                    .lineBox(.body)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Chevron()
+            }
+            .padding(.horizontal, Frame.cardPadding)
+            .frame(height: Frame.linkRowHeight)
+            .contentShape(Rectangle())
+            .card()
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(ID.settingsPairAnother)
+        .padding(.top, Frame.cardGap)
+        .padding(.horizontal, Frame.gutter)
+    }
+
+    /// Pair another Mac's press: the app opens its sheet (Phase 345).
+    func pairAnother() {
+        app.pairAnotherMac()
     }
 
     /// See a sample, for a paired phone: a card row in Unpair's shape, the
@@ -431,14 +474,17 @@ struct SettingsScreen: View {
 
 /// Which of Settings' own rows are drawn, by where the app is (Phase 333.3,
 /// D13, D18): Unpair everywhere but inside the sample, and See a sample only
-/// for a paired phone, never inside the sample itself.
+/// for a paired phone, never inside the sample itself; and Pair another Mac
+/// (Phase 345, D15) only for a paired phone, never inside the sample.
 struct SettingsRows: Equatable {
     let unpair: Bool
     let seeSample: Bool
+    let pairAnother: Bool
 
     init(root: AppModel.Root) {
         unpair = root != .sample
         seeSample = root == .reading
+        pairAnother = root == .reading
     }
 }
 

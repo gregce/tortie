@@ -126,7 +126,10 @@
  * request, and today's answers on a frozen route) must be printed exactly
  * once and read as sealed (`frozenRowProblems`), and `P33311_SUITES` must be
  * named in xcodebuild's own suite lines. So must `P3333_SUITES` since Phase
- * 333.3, the four classes that hold See a sample.
+ * 333.3, the four classes that hold See a sample, and `P345_SUITES` since Phase
+ * 345, the ten that hold one iPhone paired with several Macs, among them
+ * `MultiMacKeychainTests`, the matrix's corrupt-record row on the Simulator's
+ * own keychain.
  *
  * THE ORDER.
  *   1. The preflight: xcodebuild, simctl, the runtime and the device type
@@ -1365,6 +1368,29 @@ export const P33311_SUITES = Object.freeze(['DoorFrozenTests']);
  */
 export const P3333_SUITES = Object.freeze(['SampleBookTests', 'SampleReaderTests', 'SampleOwnerCheckTests', 'SampleAppTests']);
 
+/**
+ * The test classes Phase 345 adds or rewrites (build/p345/SPEC.md §4 item
+ * 11, §5.2): the per-Mac pairing store in memory and on the Simulator's own
+ * keychain (the matrix's "one corrupt record" row, on both runtimes), the Macs
+ * tab and its spaces, the per-Mac Unpair, the tabs, Settings' new row, the
+ * alert tap over several Macs and See a sample's return to the chosen Mac.
+ * Each must appear in xcodebuild's own suite lines, as 333.3's must, so a
+ * class that drops out of the bundle is not read as a pass. The DEBUG seam
+ * list does not move (D19).
+ */
+export const P345_SUITES = Object.freeze([
+  'PairingStoreTests',
+  'MultiMacKeychainTests',
+  'MacsTests',
+  'DoorKeychainTests',
+  'UnpairKeychainTests',
+  'UnpairTests',
+  'TabsTests',
+  'SettingsTests',
+  'AlertsTests',
+  'SampleAppTests'
+]);
+
 /** Where the frozen sets live, beside the vectors the phone's tests read. */
 export const FROZEN_DIR = join(ROOT, 'ios', 'TortieTests', 'Fixtures', 'frozen');
 
@@ -2241,6 +2267,11 @@ async function doorsSelfTest() {
     check('suitesNotRun reads a Phase 337.3 suite that ran', J(suitesNotRun(`${ran}\nTest Suite 'TerminalFillTests' passed at 2026-10-08 12:00:00.000.`, P3373_SUITES)) === J(['TerminalChromeTests', 'TerminalMenuTests']));
     check('suitesNotRun names every Phase 333.3 suite that never ran', J(suitesNotRun(ran, P3333_SUITES)) === J([...P3333_SUITES]));
     check('suitesNotRun reads the Phase 333.3 suites that ran', suitesNotRun(`${ran}\n${P3333_SUITES.map((n) => `Test Suite '${n}' passed at 2026-10-10 12:00:00.000.`).join('\n')}`, P3333_SUITES).length === 0);
+    // Phase 345 (build/p345/SPEC.md §4 item 11): the per-Mac store, the Macs tab and its spaces.
+    check('suitesNotRun names every Phase 345 suite that never ran', J(suitesNotRun('', P345_SUITES)) === J([...P345_SUITES]));
+    check('suitesNotRun reads the Phase 345 suites that ran, a failed one counted as run', suitesNotRun(P345_SUITES.map((n, k) => `Test Suite '${n}' ${k === 0 ? 'failed' : 'passed'} at 2026-10-15 12:00:00.000.`).join('\n'), P345_SUITES).length === 0);
+    check('suitesNotRun names MultiMacKeychainTests, the corrupt-record row, when only it never ran', J(suitesNotRun(P345_SUITES.filter((n) => n !== 'MultiMacKeychainTests').map((n) => `Test Suite '${n}' passed at 2026-10-15 12:00:00.000.`).join('\n'), P345_SUITES)) === J(['MultiMacKeychainTests']));
+    check('P345_SUITES names the ten classes build/p345/SPEC.md §4 item 11 lists, each once', P345_SUITES.length === 10 && new Set(P345_SUITES).size === 10 && P345_SUITES.includes('MacsTests') && P345_SUITES.includes('PairingStoreTests'));
   } catch (err) {
     check('the self-test ran', false, String(err?.stack ?? err));
   } finally {
@@ -2511,7 +2542,7 @@ async function main() {
               })
             );
             // Phase 317: every class it adds or changes must have run.
-            const notRun = suitesNotRun(`${run.stdout}${run.stderr}`, [...new Set([...P317_SUITES, ...P318_SUITES, ...P337_SUITES, ...P3371_SUITES, ...P3373_SUITES, ...P33311_SUITES, ...P3333_SUITES])]);
+            const notRun = suitesNotRun(`${run.stdout}${run.stderr}`, [...new Set([...P317_SUITES, ...P318_SUITES, ...P337_SUITES, ...P3371_SUITES, ...P3373_SUITES, ...P33311_SUITES, ...P3333_SUITES, ...P345_SUITES])]);
             if (notRun.length > 0) say(`${c.name}: xcodebuild names no run of ${notRun.join(', ')}, so those rows were not run`);
             // Phase 333.11: every frozen row, graded against the sealed sets.
             const frozen = frozenRowProblems(`${run.stdout}${run.stderr}`, frozenPre.sets, new Set(frozenPre.proof), frozenToday, c.name);

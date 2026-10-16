@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Macs — every paired Mac, one tap to switch</title>
+<style>
+html,body{background:#0E0F13}
+body { margin: 0; }
+.t { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+.num { font-variant-numeric: tabular-nums; }
+.card { background: #191B20; border: 1px solid #25282E; border-radius: 10px; }
+.row { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 16px; text-decoration: none; color: inherit; }
+.row + .row { border-top: 1px solid #25282E; }
+.tick { width: 20px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.dot-attention { background: #f5b84a; animation: pulse 1.6s cubic-bezier(0.2, 0, 0, 1) infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .dot-attention { animation: none; } }
+.tabbar { flex-shrink: 0; height: 83px; box-sizing: border-box; padding-top: 7px; background: #191B20; border-top: 1px solid #25282E; display: flex; }
+.tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; color: #838996; text-decoration: none; min-width: 0; }
+.tab.on { color: #4d9de8; }
+.tab .ico { position: relative; width: 28px; height: 26px; display: flex; align-items: center; justify-content: center; }
+.tab .lbl { font-size: 10px; line-height: 12px; font-weight: 500; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.badge { position: absolute; top: -4px; left: 17px; min-width: 18px; height: 18px; box-sizing: border-box; padding: 0 5px; border-radius: 9px; background: #f5b84a; color: #131417; font-size: 13px; line-height: 18px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<!-- Phase 345 (build/p345/SPEC.md D3, D6, D14, D21): two Macs kept. Each
+     paired Mac is its own space, "like they are completely separate" (his
+     answer of 2026-10-14), and the bottom bar is where he switches: with two
+     or more Macs a fourth item appears at the right, named after the Mac on
+     screen (its first label, or its whole public name when two kept Macs
+     share one) with a desktop computer symbol. It opens this screen: one row
+     per Mac, the first paired first, the one on screen ticked, each saying
+     Needs your input (n) when a session there waits on him. One tap on a row
+     switches Needs input, Sessions and Settings to that Mac, on its Needs
+     input, each Mac keeping where he was in it. The bell's badge is the Mac on
+     screen's own count, so it and the list under it never disagree; the Macs
+     item's badge counts what waits on the OTHER Macs, so nothing waiting is
+     hidden without a mark. With one Mac kept none of this is drawn and the
+     bar is the three tabs it always was. -->
+<div class="t" style="width: 390px; height: 844px; box-sizing: border-box; background: #0E0F13; color: #C9CACD; display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="height: 44px; flex-shrink: 0;"></div>
+
+  <div style="padding: 0 16px 8px 16px; flex-shrink: 0;">
+    <div style="font-size: 28px; line-height: 34px; font-weight: 600; color: #C9CACD;">Macs</div>
+  </div>
+
+  <div class="card" style="margin: 0 16px; flex-shrink: 0;">
+    <a class="row" href="NeedsInput.html">
+      <div class="tick">
+        <svg width="16" height="13" viewBox="0 0 16 13" fill="none" stroke="#4d9de8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 7 6 11.3 14.5 1.7"></path></svg>
+      </div>
+      <div style="flex: 1; min-width: 0;">
+        <div style="font-size: 17px; line-height: 22px; color: #C9CACD;">studio</div>
+        <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
+          <span class="dot dot-attention"></span>
+          <div class="num" style="font-size: 13px; line-height: 18px; color: #9CA1AB;">Needs your input (1)</div>
+        </div>
+      </div>
+    </a>
+    <a class="row" href="NeedsInput.html">
+      <div class="tick"></div>
+      <div style="flex: 1; min-width: 0;">
+        <div style="font-size: 17px; line-height: 22px; color: #C9CACD;">laptop</div>
+        <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
+          <span class="dot dot-attention"></span>
+          <div class="num" style="font-size: 13px; line-height: 18px; color: #9CA1AB;">Needs your input (2)</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div style="flex-grow: 1;"></div>
+
+  <div class="tabbar">
+    <a class="tab" href="NeedsInput.html">
+      <div class="ico">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 17v-6a6 6 0 0 1 12 0v6l1.5 2h-15z"></path><path d="M10 21.5h4"></path></svg>
+        <div class="badge">1</div>
+      </div>
+      <div class="lbl">Needs input</div>
+    </a>
+    <a class="tab" href="Main.html">
+      <div class="ico">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="5" cy="7" r="1.1" fill="currentColor"></circle><circle cx="5" cy="12" r="1.1" fill="currentColor"></circle><circle cx="5" cy="17" r="1.1" fill="currentColor"></circle><path d="M9 7h11M9 12h11M9 17h11"></path></svg>
+      </div>
+      <div class="lbl">Sessions</div>
+    </a>
+    <a class="tab" href="Settings.html">
+      <div class="ico">
+        <svg width="24" height="24" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.1"><circle cx="8" cy="8" r="2.4"></circle><path d="M8 1.6v1.8M8 12.6v1.8M1.6 8h1.8M12.6 8h1.8M3.5 3.5l1.3 1.3M11.2 11.2l1.3 1.3M12.5 3.5l-1.3 1.3M4.8 11.2l-1.3 1.3"></path></svg>
+      </div>
+      <div class="lbl">Settings</div>
+    </a>
+    <a class="tab on" href="Macs.html">
+      <div class="ico">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="12" rx="1.6"></rect><path d="M9 20h6M12 16v4"></path></svg>
+        <div class="badge">2</div>
+      </div>
+      <div class="lbl">studio</div>
+    </a>
+  </div>
+</div>
+</body>
+</html>

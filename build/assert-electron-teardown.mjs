@@ -488,12 +488,24 @@ const HELPER = 'electron-run.mjs';
  * agents renamed before it; every session a plain shell running
  * build/p347/stand-in.sh, and every other process it starts synchronous.
  *
+ * PHASE 345 RAISED IT BY ONE (175 TO 176 once rebased past 333.12 and 333.12.1), for build/p345/probe-p345.mjs
+ * (`probe:p345`), one iPhone and several Macs: TWO Electrons AT ONCE through
+ * the helper, the second launched inside the first's body so each is ended
+ * in its own `finally`, each on its own scratch profile, HOME (ZDOTDIR and
+ * HISTFILE=/dev/null) and socket gmux-p345a-<pid> and gmux-p345b-<pid>, the
+ * five hidden agents renamed before each launch, each door published through
+ * its own build/p330/tailscale-standin.mjs behind its preflight and sampler and
+ * named by its own build/p332/dns-standin.mjs, with build/p314/apns-stand-in.mjs
+ * and build/p345/sni-relay.mjs in the probe's own process and three node doors
+ * of build/p316/hostile-door.mjs ended in its `finally`, beside Simulators made
+ * one at a time by build/simulator-run.mjs.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 175;
+const HELPER_USER_FLOOR = 176;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

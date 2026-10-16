@@ -3,6 +3,16 @@ import Security
 import XCTest
 @testable import Tortie
 
+/// What the stores in memory did, in order, across the record store and the
+/// client keys, so a test can hold that a record went BEFORE a key (Phase
+/// 345): `remove <account>`, `write <account>`, `delete <tag>`.
+final class KeychainEvents: @unchecked Sendable {
+    private let lock = NSLock()
+    private var said: [String] = []
+    func append(_ event: String) { lock.withLock { said.append(event) } }
+    var all: [String] { lock.withLock { said } }
+}
+
 /// Client keys in memory, so no flow test makes a key in a keychain. Every
 /// key it mints is the vectors' test client key under a fresh tag, and every
 /// identity it adopts is `TestIdentity.vectors()`, which a pairing flow never
@@ -13,8 +23,11 @@ final class MemoryClientKeys: ClientKeyStore, @unchecked Sendable {
     private let spki: String
     private var live: [String] = []
     private var adopted: [String: Data] = [:]
+    private var gone: [String] = []
     private(set) var minted = 0
     var refuseMint = false
+    /// Where every delete is written, when a test reads the order (Phase 345).
+    var events: KeychainEvents?
 
     init(spki: String) {
         self.spki = spki
@@ -48,10 +61,15 @@ final class MemoryClientKeys: ClientKeyStore, @unchecked Sendable {
         lock.withLock {
             live.removeAll { $0 == tag }
             adopted[tag] = nil
+            gone.append(tag)
         }
+        events?.append("delete \(tag)")
     }
 
     func tags() -> [String] { held }
+
+    /// Every tag a delete was asked for, in order, held or not (Phase 345).
+    var deleted: [String] { lock.withLock { gone } }
 }
 
 /// A `SecIdentity` for the vectors' client key and the certificate the shipping

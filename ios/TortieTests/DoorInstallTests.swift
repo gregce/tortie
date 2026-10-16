@@ -2,10 +2,11 @@ import Foundation
 import XCTest
 @testable import Tortie
 
-/// A fresh install forgets the pairing an earlier install left in the
+/// A fresh install forgets every pairing an earlier install left in the
 /// Keychain, and every client key with it, because the Keychain outlives the
 /// app and a pairing a person deleted with the app must not come back with it
-/// (Phase 316.3; the client keys since Phase 330).
+/// (Phase 316.3; the client keys since Phase 330; every Mac's record since
+/// Phase 345).
 ///
 /// Each test names the clause it holds and fails when that clause is taken
 /// out of `ios/Tortie/Door/Keys.swift`. The secrets are in memory and the mark
@@ -28,11 +29,18 @@ final class DoorInstallTests: XCTestCase {
         InstallMark(url: scratch.appendingPathComponent(InstallMark.name, isDirectory: false))
     }
 
-    /// Clause: with no mark, the pairing is forgotten, and only then is the
-    /// mark put down, excluded from backup.
+    /// Clause: with no mark, every Mac's pairing is forgotten, the first
+    /// Mac's and the others' alike, then every client key, and only then is
+    /// the mark put down, excluded from backup. An account that is not the
+    /// store's is left alone.
     func testAFreshInstallForgetsThePairingFirst() throws {
         let secrets = MemorySecrets()
+        let others = ["pairing-v2-0123456789abcdef", "pairing-v2-fedcba9876543210"]
         try secrets.write(Data("an earlier install's pairing".utf8), account: PairingStore.account)
+        for account in others {
+            try secrets.write(Data("an earlier install's other Mac".utf8), account: account)
+        }
+        try secrets.write(Data("not the store's".utf8), account: "p345-foreign")
         let keys = MemoryClientKeys(spki: "k")
         _ = try keys.mint()
         _ = try keys.mint()
@@ -40,9 +48,28 @@ final class DoorInstallTests: XCTestCase {
 
         XCTAssertTrue(store.forgetOnFreshInstall(mark))
         XCTAssertNil(secrets.item(PairingStore.account))
+        for account in others {
+            XCTAssertNil(secrets.item(account), "an earlier install's other Mac outlived it")
+        }
+        XCTAssertEqual(secrets.held, ["p345-foreign"])
         XCTAssertEqual(keys.held, [], "an earlier install's client keys outlived it")
         XCTAssertTrue(mark.isPresent)
         XCTAssertEqual(mark.isExcludedFromBackup, true)
+    }
+
+    /// Clause (Phase 345): a list of the accounts that cannot be made leaves
+    /// every record, every key and no mark, so the next launch tries again
+    /// rather than keeping a pairing its person deleted.
+    func testAFreshInstallWhoseListFailsIsTriedAgain() throws {
+        let secrets = MemorySecrets()
+        try secrets.write(Data("an earlier install's other Mac".utf8), account: "pairing-v2-0123456789abcdef")
+        secrets.refuseList = true
+        let keys = MemoryClientKeys(spki: "k")
+        _ = try keys.mint()
+        XCTAssertTrue(PairingStore(secrets: secrets, clientKeys: keys).forgetOnFreshInstall(mark))
+        XCTAssertFalse(mark.isPresent)
+        XCTAssertNotNil(secrets.item("pairing-v2-0123456789abcdef"))
+        XCTAssertEqual(keys.held.count, 1, "a key went though the records could not be listed")
     }
 
     /// Clause: an install that has launched before keeps its pairing.
@@ -97,4 +124,7 @@ private final class StuckSecrets: SecretStore, @unchecked Sendable {
         lock.withLock { count += 1 }
         throw KeysFailure.keychain(-25308)
     }
+
+    /// It holds the first Mac's record, which it will not remove.
+    func accounts() throws -> [String] { [PairingStore.account] }
 }

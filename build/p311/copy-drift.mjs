@@ -31,7 +31,7 @@
  * THE CONTACT SHEET IS NOT A SCREEN. `index.html` draws every screen (twelve
  * since Phase 316.6, thirteen since Phase 317's End these, fifteen since Phase
  * 316.7's Sessions tab, its menu and its older-Mac face, twenty-two since
- * Phase 333.3's See a sample) through
+ * Phase 333.3's See a sample, twenty-three since Phase 345's Macs) through
  * `<iframe src="…">` and its own prose is
  * commentary about the mock. It
  * is exempt as a class, with that reason, and the exemption is paid for: the run
@@ -456,6 +456,32 @@ const LEDGER = [
     needle: 'static let leaveSample = "Leave sample"',
     draws: 'Leave sample',
     why: 'the Sample bar\'s press, back to where See a sample was pressed: Pairing, or the paired Mac\'s lists (D15)'
+  }),
+  // PHASE 345 (build/p345/SPEC.md §3.7, §4 item 12): one iPhone, several Macs.
+  // Macs.html draws the Macs screen over two Macs, and Settings.html the one
+  // row that moves with one Mac kept. Each word is the phone's own, declared
+  // /// Phone: in Copy.swift; the Mac lists machines, not Macs, and no Mac
+  // surface pairs a phone with a second Mac.
+  owned({
+    is: 'Macs',
+    module: PHONE_COPY,
+    needle: 'static let macs = "Macs"',
+    draws: 'Macs',
+    why: 'the title of the screen the fourth tab opens with two or more Macs kept, every paired Mac in order with the one on screen ticked (D14)'
+  }),
+  owned({
+    is: 'Pair another Mac',
+    module: PHONE_COPY,
+    needle: 'static let pairAnotherMac = "Pair another Mac"',
+    draws: 'Pair another Mac',
+    why: "Settings' row that pairs this iPhone with one more Mac and keeps the ones it has, opening the pairing screen as a sheet over the lists (D15, D16)"
+  }),
+  owned({
+    when: /^Needs your input \([12]\)$/,
+    module: PHONE_COPY,
+    needle: 'static let needsYourInputLead = "Needs your input ("',
+    draws: 'Needs your input (',
+    why: "each Mac's line on the Macs screen, Copy.needsYourInput(n), the same words ⌘J's header says, with that Mac's own waiting count (D14)"
   }),
   owned({
     is: 'This iPhone is not paired with a Mac.',
@@ -1127,7 +1153,11 @@ const LEDGER = [
   // several are single lowercase words that rule would otherwise take.
   data({
     is: 'studio',
-    why: "the Mac's name, the first label of its public name, which Tailscale composes"
+    why: "the Mac's name, the first label of its public name, which Tailscale composes; since Phase 345 also the Macs tab's label and a row on the Macs screen, the Mac on screen (D21)"
+  }),
+  data({
+    is: 'laptop',
+    why: "a second Mac's name on the Macs screen, the first label of its public name, which Tailscale composes, or its whole public name when two kept Macs share one (Phase 345, D21)"
   }),
   data({
     when: /^[a-z0-9-]+\.tail[0-9a-f]+\.ts\.net:\d+$/,
@@ -1354,7 +1384,13 @@ const OWED_ABSENCE_FLOOR = 16;
    See a sample, under Scan code on Pairing.html, and the Sample bar's Sample
    and Leave sample, which Sample.html draws over its Needs input tab, each
    the phone's own word in Copy.swift; build/p3333/SPEC.md §6.3. */
-const OWNED_RULE_FLOOR = 106;
+/* PHASE 345 RAISED IT BY THREE, FROM 106 TO 109, the count the run matches:
+   Macs, the Macs screen's title, and each Mac's Needs your input (n) line,
+   which Macs.html draws, and Pair another Mac, which Settings.html draws, each
+   the phone's own word in Copy.swift; build/p345/SPEC.md §3.7. The cap's
+   sentence and the refused Mac's line are drawn by no screen at rest, so
+   MACS_PHONE_WORDS holds them against Copy.swift instead. */
+const OWNED_RULE_FLOOR = 109;
 
 // ---------------------------------------------------------------------------
 // Judgement
@@ -1904,6 +1940,68 @@ const REPLY_MUTATIONS = [
   }
 ];
 
+// ---------------------------------------------------------------------------
+// Phase 345's words (build/p345/SPEC.md §3.7, §4 item 12)
+// ---------------------------------------------------------------------------
+
+/**
+ * ONE IPHONE, SEVERAL MACS: the four words the phase adds, judged against
+ * Copy.swift whether or not a screen draws them. Each must be one `static let`
+ * of exactly this name and literal, declared `/// Phone:` with a reason,
+ * because no Mac surface says them. Macs.html draws `macs` and Settings.html
+ * `pairAnotherMac` (the ledger owns those two as well); `macLimit` is said
+ * only when a fifth Mac's code is read, and `notPairedHere` only on a kept
+ * Mac that refused the phone and on the Pair another Mac sheet, so no screen
+ * at rest holds them and this is where a drift in them is caught.
+ */
+export const MACS_PHONE_WORDS = Object.freeze([
+  ['macs', 'Macs'],
+  ['pairAnotherMac', 'Pair another Mac'],
+  ['macLimit', 'This iPhone is paired with four Macs. Unpair one to pair another.'],
+  ['notPairedHere', 'This iPhone is not paired with this Mac.']
+]);
+
+/** Judge Phase 345's words, pure over Copy.swift's text. */
+function judgeMacsWords(swift) {
+  const findings = [];
+  const { entries } = copySwiftEntries(swift);
+  for (const [name, literal] of MACS_PHONE_WORDS) {
+    const e = entries.find((x) => x.name === name);
+    if (e === undefined) {
+      findings.push({ file: PHONE_COPY, text: `static let ${name} = "${literal}"`, why: `the several-Macs word ${name} is not declared, so the phone draws it from somewhere this gate cannot read (build/p345/SPEC.md §3.7)` });
+    } else if (e.literal !== literal) {
+      findings.push({ file: PHONE_COPY, text: e.literal, why: `${name} is ${JSON.stringify(e.literal)}; it is ${JSON.stringify(literal)}, the word build/p345/SPEC.md §3.7 pins` });
+    } else if (e.owner?.kind !== 'phone') {
+      findings.push({ file: PHONE_COPY, text: name, why: `${name} is not declared /// Phone: with a reason; no Mac surface says it, so its reason is the ledger entry` });
+    }
+  }
+  return findings;
+}
+
+/** The mutations that prove Phase 345's words are judged. */
+const MACS_MUTATIONS = [
+  {
+    what: "the cap's sentence drops its second half",
+    swift: (t) => t.replace('static let macLimit = "This iPhone is paired with four Macs. Unpair one to pair another."', 'static let macLimit = "This iPhone is paired with four Macs."'),
+    names: 'macLimit'
+  },
+  {
+    what: "the refused Mac's line says no Mac is paired",
+    swift: (t) => t.replace('static let notPairedHere = "This iPhone is not paired with this Mac."', 'static let notPairedHere = "This iPhone is not paired with a Mac."'),
+    names: 'notPairedHere'
+  },
+  {
+    what: 'the Macs title declared as the Mac\'s word rather than the phone\'s',
+    swift: (t) => t.replace(/\/\/\/ Phone: ([^\n]*)\n(\s*)static let macs = "Macs"/, '/// Mac: src/renderer/settings/MachinesSection.tsx ⟦Macs⟧\n$2static let macs = "Macs"'),
+    names: 'macs'
+  },
+  {
+    what: 'Pair another Mac taken out of Copy.swift',
+    swift: (t) => t.replace(/\n[^\n]*\/\/\/ Phone:[^\n]*\n\s*static let pairAnotherMac = "Pair another Mac"\n/, '\n'),
+    names: 'pairAnotherMac'
+  }
+];
+
 /** The mutations that prove the Copy.swift judgement can fail. */
 const PHONE_MUTATIONS = [
   {
@@ -2261,6 +2359,36 @@ const MUTATIONS = [
       return next;
     },
     names: 'Clear all filters'
+  },
+  {
+    // Phase 345: the Macs screen's title is the phone's own word.
+    what: 'the Macs title re-worded in Macs.html',
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('Macs.html', (next.get('Macs.html') ?? '').replace('>Macs<', '>Your Macs<'));
+      return next;
+    },
+    names: 'Your Macs'
+  },
+  {
+    // Phase 345: Settings' new row is the phone's own word.
+    what: 'Pair another Mac re-worded in Settings.html',
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('Settings.html', (next.get('Settings.html') ?? '').replace('>Pair another Mac<', '>Pair a second Mac<'));
+      return next;
+    },
+    names: 'Pair a second Mac'
+  },
+  {
+    // Phase 345: a Mac's line on the Macs screen is ⌘J's words, never a paraphrase.
+    what: "a Mac's line on the Macs screen paraphrased",
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('Macs.html', (next.get('Macs.html') ?? '').replace('>Needs your input (2)<', '>2 waiting<'));
+      return next;
+    },
+    names: '2 waiting'
   }
 ];
 
@@ -2547,6 +2675,9 @@ function main() {
   // Mac's unpressable sentence.
   const replyFindings = judgeReplyWords(phoneSwift, readModule);
   findings.push(...replyFindings);
+  // Phase 345's words: the four several-Macs words, as Copy.swift declares them.
+  const macsFindings = judgeMacsWords(phoneSwift);
+  findings.push(...macsFindings);
 
   // Mechanism 6. It rides this script rather than a second one because the
   // entry says so: "the phase adds a rule to the copy gate below".
@@ -2685,6 +2816,22 @@ function main() {
       if (!red) {
         failed = true;
         console.error(`phonecopy SELF-TEST FAIL: ${mutation.what} produced no finding naming ${mutation.names}, so Phase 318's words are not judged`);
+      } else if (!quiet) {
+        console.log(`  self-test: ${mutation.what} → red, as it must be`);
+      }
+    }
+    for (const mutation of MACS_MUTATIONS) {
+      const mutatedSwift = mutation.swift(phoneSwift);
+      if (mutatedSwift === phoneSwift) {
+        failed = true;
+        console.error(`phonecopy SELF-TEST FAIL: ${mutation.what} changed nothing, so it proves nothing (the word it breaks is not in the tree yet)`);
+        continue;
+      }
+      const mutated = judgeMacsWords(mutatedSwift);
+      const red = mutated.length > macsFindings.length && mutated.some((f) => `${f.text} ${f.why}`.includes(mutation.names));
+      if (!red) {
+        failed = true;
+        console.error(`phonecopy SELF-TEST FAIL: ${mutation.what} produced no finding naming ${mutation.names}, so Phase 345's words are not judged`);
       } else if (!quiet) {
         console.log(`  self-test: ${mutation.what} → red, as it must be`);
       }

@@ -72,12 +72,40 @@ final class DoorWordsTests: XCTestCase {
             (.couldNotSave, Copy.notPaired),
             (.notAvailable, Copy.notPaired),
             (.nameNotFound, Copy.pairNameNotFound),
-            (.cancelled, Copy.notPaired)
+            (.cancelled, Copy.notPaired),
+            // Phase 345 (D12): a fifth Mac's code says the cap.
+            (.macLimit, Copy.macLimit)
         ]
         for (failure, line) in lines {
             XCTAssertEqual(DoorWords.pairingSentence(for: failure), line, "\(failure)")
             XCTAssertFalse(DoorWords.pairingSentence(for: failure).isEmpty, "\(failure)")
         }
+    }
+
+    /// Clause (Phase 345, D16): beside a Mac this phone keeps (the Pair
+    /// another Mac sheet), every not-paired ending says `This iPhone is not
+    /// paired with this Mac.`, because `…with a Mac.` would be false there,
+    /// and every other ending says what it says on Pairing. Never empty.
+    func testBesideAKeptMacTheNotPairedLineNamesThisMac() {
+        let all: [PairingFailure] = [
+            .badCode, .codeFromNewerMac, .codeFromOlderMac, .codeExpired, .windowClosed, .macRefused, .strangeAnswer,
+            .wrongKey, .notAccepted, .unreachable, .nameNotFound, .couldNotSave, .notAvailable, .cancelled, .macLimit
+        ]
+        let notPaired: Set<PairingFailure> = [.couldNotSave, .notAvailable, .cancelled]
+        for failure in all {
+            let alone = DoorWords.pairingSentence(for: failure)
+            let beside = DoorWords.pairingSentence(for: failure, keepsOthers: true)
+            XCTAssertFalse(beside.isEmpty, "\(failure)")
+            if notPaired.contains(failure) {
+                XCTAssertEqual(alone, Copy.notPaired, "\(failure)")
+                XCTAssertEqual(beside, Copy.notPairedHere, "\(failure)")
+            } else {
+                XCTAssertEqual(beside, alone, "\(failure)")
+            }
+        }
+        XCTAssertEqual(DoorWords.notPairedLine(keepsOthers: false), Copy.notPaired)
+        XCTAssertEqual(DoorWords.notPairedLine(keepsOthers: true), Copy.notPairedHere)
+        XCTAssertNotEqual(Copy.notPaired, Copy.notPairedHere)
     }
 
     /// Clause (Phase 333.1, D23): the Allow line is drawn under

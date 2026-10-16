@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Settings — this Mac, alerts, unpair</title>
+<title>Settings — this Mac, alerts, pair another Mac, unpair</title>
 <style>
 html,body{background:#0E0F13}
 body { margin: 0; }
@@ -59,6 +59,16 @@ a { color: #4d9de8; }
       </div>
     </a>
   </div>
+
+  <!-- Phase 345 (build/p345/SPEC.md D15, D16): the one row that moves with one
+       Mac kept. Pair another Mac opens the pairing screen as a sheet over the
+       lists and keeps this Mac; every element under it moves down by the row
+       and its gap. With two or more Macs kept this screen is the Mac on
+       screen's, and Unpair forgets that Mac alone (Macs.html). -->
+  <a href="Pairing.html" style="margin: 12px 16px 0 16px; height: 54px; box-sizing: border-box; background: #191B20; border: 1px solid #25282E; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 17px; color: #C9CACD; text-decoration: none; flex-shrink: 0;">
+    <div>Pair another Mac</div>
+    <svg width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8"><path d="M1.5 1.5 7 7.5l-5.5 6"></path></svg>
+  </a>
 
   <a href="Unpair.html" style="margin: 12px 16px 0 16px; height: 54px; box-sizing: border-box; background: #191B20; border: 1px solid #25282E; border-radius: 10px; display: flex; align-items: center; padding: 0 16px; font-size: 17px; color: #e5655e; text-decoration: none; flex-shrink: 0;">Unpair this iPhone</a>
 

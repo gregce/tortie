@@ -191,6 +191,10 @@ enum PairingFailure: Error, Equatable, Sendable {
     case notAvailable
     /// The person left the pairing screen.
     case cancelled
+    /// This iPhone already keeps four Macs and this code is not one of them
+    /// (Phase 345, D12): refused when the code is read, before anything is
+    /// made or presented.
+    case macLimit
 }
 
 // MARK: - The sealed, signed presentation

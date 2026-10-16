@@ -554,8 +554,8 @@ final class ScreensModelTests: XCTestCase {
     func testALostPairingGoesBackToPairing() async throws {
         let reader = ScriptedReader(blocked: [.failure(.refused)])
         let app = AppModel(door: StandInPhone(kept: reader), label: "iPhone", alerts: StandInAlerts())
-        app.waitingPath = [.session(id: "w", name: "w")]
-        app.sessionsPath = [.session(id: "s", name: "s")]
+        app.waitingPath = [.session(mac: Answers.mac, id: "w", name: "w")]
+        app.sessionsPath = [.session(mac: Answers.mac, id: "s", name: "s")]
         app.tab = .settings
         let list = try XCTUnwrap(app.list)
         await list.load()
@@ -570,20 +570,22 @@ final class ScreensModelTests: XCTestCase {
     /// Clause: a refusal about one session pops THAT tab to its list.
     func testBackToListPops() {
         let app = AppModel(door: StandInPhone(kept: ScriptedReader()), label: "iPhone", alerts: StandInAlerts())
-        app.sessionsPath = [.session(id: "s", name: "s"), .catchUp(id: "s", honestLine: nil)]
-        app.routing(.sessions).backToList()
+        app.sessionsPath = [.session(mac: Answers.mac, id: "s", name: "s"), .catchUp(mac: Answers.mac, id: "s", honestLine: nil)]
+        app.routing(.sessions, mac: Answers.mac).backToList()
         XCTAssertTrue(app.sessionsPath.isEmpty)
         XCTAssertEqual(app.root, .reading)
     }
 
-    /// Clause: the code handed in at launch is read once, and only when the
-    /// app opens unpaired, so a pairing removed later draws the not-paired line
-    /// rather than presenting a spent code again.
+    /// Clause: the code handed in at launch is read ONCE, so a pairing
+    /// removed later draws the not-paired line rather than presenting a spent
+    /// code again. Since Phase 345 (D19) it is kept with a pairing kept too,
+    /// where the Pair another Mac sheet reads it (MacsTests drives that).
     func testTheLaunchCodeIsReadOnce() {
         let unpaired = AppModel(door: StandInPhone(), label: "iPhone", alerts: StandInAlerts(), launchCode: "code")
         XCTAssertEqual(unpaired.takeLaunchCode(), "code")
         XCTAssertNil(unpaired.takeLaunchCode())
         let paired = AppModel(door: StandInPhone(kept: ScriptedReader()), label: "iPhone", alerts: StandInAlerts(), launchCode: "code")
+        XCTAssertEqual(paired.takeLaunchCode(), "code", "a pairing kept dropped the launch code")
         XCTAssertNil(paired.takeLaunchCode())
     }
 
@@ -593,8 +595,8 @@ final class ScreensModelTests: XCTestCase {
         let app = AppModel(door: StandInPhone(kept: ScriptedReader()), label: "iPhone", alerts: StandInAlerts())
         XCTAssertTrue(app.isTop(nil, in: .needsInput))
         XCTAssertTrue(app.listIsTop(.needsInput))
-        app.waitingPath = [.session(id: "s", name: "s")]
-        XCTAssertTrue(app.isTop(.session(id: "s", name: "s"), in: .needsInput))
+        app.waitingPath = [.session(mac: Answers.mac, id: "s", name: "s")]
+        XCTAssertTrue(app.isTop(.session(mac: Answers.mac, id: "s", name: "s"), in: .needsInput))
         XCTAssertFalse(app.isTop(nil, in: .needsInput))
         XCTAssertFalse(app.listIsTop(.needsInput))
         app.cameToForeground()

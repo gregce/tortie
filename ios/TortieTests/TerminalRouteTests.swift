@@ -143,11 +143,11 @@ final class TerminalRouteTests: XCTestCase {
     /// tab it was pressed on, with the session's own line.
     func testTheMenuPushesCatchUpOnItsTab() {
         let app = AppModel(door: StandInPhone(kept: ScriptedReader()), label: "iPhone", alerts: StandInAlerts())
-        app.waitingPath = [.session(id: "w", name: "w")]
+        app.waitingPath = [.session(mac: Answers.mac, id: "w", name: "w")]
         app.openCatchUp("w", honestLine: "The agent is waiting for you.", in: .needsInput)
-        XCTAssertEqual(app.waitingPath, [.session(id: "w", name: "w"), .catchUp(id: "w", honestLine: "The agent is waiting for you.")])
+        XCTAssertEqual(app.waitingPath, [.session(mac: Answers.mac, id: "w", name: "w"), .catchUp(mac: Answers.mac, id: "w", honestLine: "The agent is waiting for you.")])
         XCTAssertEqual(app.sessionsPath, [])
-        XCTAssertTrue(app.isTop(.catchUp(id: "w", honestLine: "The agent is waiting for you."), in: .needsInput))
+        XCTAssertTrue(app.isTop(.catchUp(mac: Answers.mac, id: "w", honestLine: "The agent is waiting for you."), in: .needsInput))
     }
 
     /// Clause (§5.5.3, rule at): no `Route.screen`, no `openScreen`, no

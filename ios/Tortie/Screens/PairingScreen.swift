@@ -54,6 +54,13 @@
 // needs no press: the steps stay and the fingerprint card is drawn under them.
 // A code that already stopped is not tried again until `Pair again` or a
 // different code: the camera sees the same code many times a second.
+//
+// PAIR ANOTHER MAC (Phase 345, build/p345/SPEC.md D16). The same screen,
+// with a model of its own, is the sheet Settings opens over the lists to pair
+// one more Mac while the others stay kept: no See a sample, a Cancel in its
+// top bar that ends the attempt (`cancel`, whose ended attempt deletes its
+// client key, Door/Pairing.swift), and a not-paired line that names this Mac
+// (`keepsOthers`), because `…not paired with a Mac.` would be false there.
 
 @preconcurrency import AVFoundation
 import SwiftUI
@@ -90,17 +97,25 @@ final class PairingModel {
     /// The code that last stopped. The camera reports a code many times a
     /// second, so the same code is not presented again until he asks.
     private var spent: String?
+    /// True for the Pair another Mac sheet's model (Phase 345, D16): another
+    /// Mac is kept, so the not-paired line names this Mac.
+    let keepsOthers: Bool
+    /// The pairing under way, held so `cancel` can end it (Phase 345, D16).
+    @ObservationIgnored private var attempt: Task<PairResult, Never>?
 
     init(
         door: any PhoneDoor,
         label: String,
         alerts: any PushAddressing,
+        keepsOthers: Bool = false,
         paired: @escaping @MainActor (any DoorReading, PocketBlockedAnswer) -> Void
     ) {
         self.door = door
         self.label = label
         self.alerts = alerts
+        self.keepsOthers = keepsOthers
         self.paired = paired
+        line = DoorWords.notPairedLine(keepsOthers: keepsOthers)
     }
 
     /// A code, from the camera or the DEBUG launch argument.
@@ -120,11 +135,23 @@ final class PairingModel {
         line = DoorWords.stepSentence(for: .presenting)
         stopped = false
         // The fingerprint is drawn. The Mac is presented to, and iOS is asked
-        // for alerts only if the Mac says it can send them.
+        // for alerts only if the Mac says it can send them. The pairing runs
+        // in a task this model holds, so `cancel` can end it, and a caller
+        // that goes away (the screen's own task) still ends it too.
         let alerts = alerts
-        let result = await door.pair(pending, askForAlerts: { await alerts.askForPairing() }) { [weak self] step in
-            Task { @MainActor in self?.advance(step) }
+        let door = door
+        let attempt = Task { [weak self] in
+            await door.pair(pending, askForAlerts: { await alerts.askForPairing() }) { [weak self] step in
+                Task { @MainActor in self?.advance(step) }
+            }
         }
+        self.attempt = attempt
+        let result = await withTaskCancellationHandler {
+            await attempt.value
+        } onCancel: {
+            attempt.cancel()
+        }
+        self.attempt = nil
         switch result {
         case .paired(let reader, let first):
             step = nil
@@ -146,7 +173,14 @@ final class PairingModel {
         stopped = false
         fingerprint = nil
         step = nil
-        line = Copy.notPaired
+        line = DoorWords.notPairedLine(keepsOthers: keepsOthers)
+    }
+
+    /// Cancel, or the sheet swiped away (Phase 345, D16): the pairing under
+    /// way ends as one whose screen was left, and its client key with it
+    /// (`PairingFlow.run`'s failed ending). Nothing is kept.
+    func cancel() {
+        attempt?.cancel()
     }
 
     func camera(_ state: CameraState) {
@@ -162,7 +196,7 @@ final class PairingModel {
     private func stop(_ failure: PairingFailure, payload: String) {
         step = nil
         fingerprint = nil
-        line = DoorWords.pairingSentence(for: failure)
+        line = DoorWords.pairingSentence(for: failure, keepsOthers: keepsOthers)
         // He left the screen: the not-paired line, and nothing is spent.
         guard failure != .cancelled else { return }
         spent = payload
@@ -207,10 +241,11 @@ struct PairingScreen: View {
     let model: PairingModel
     /// Tortie's own site. The app hands `SiteOpener`; a test hands its own.
     let site: any SiteOpening
-    /// See a sample: the app opens it (Phase 333.3, D13).
-    let seeSample: () -> Void
+    /// See a sample: the app opens it (Phase 333.3, D13). Nil draws none,
+    /// which is the Pair another Mac sheet (Phase 345, D16).
+    let seeSample: (() -> Void)?
 
-    init(model: PairingModel, site: any SiteOpening = SiteOpener(), seeSample: @escaping () -> Void = {}) {
+    init(model: PairingModel, site: any SiteOpening = SiteOpener(), seeSample: (() -> Void)? = nil) {
         self.model = model
         self.site = site
         self.seeSample = seeSample
@@ -232,13 +267,13 @@ struct PairingScreen: View {
                         Words(Copy.pairStepScan, .secondary, Tokens.textSecondary, lines: nil)
                             .accessibilityIdentifier(ID.pairingPoint)
                             .padding(Frame.gutter)
-                        if !model.busy {
+                        if !model.busy, seeSample != nil {
                             seeSampleButton
                         }
                     } else {
                         steps
                         scanButton
-                        if !model.busy {
+                        if !model.busy, seeSample != nil {
                             seeSampleButton
                         }
                     }
@@ -276,7 +311,7 @@ struct PairingScreen: View {
 
     /// See a sample (Phase 333.3, D13): handed to the app, which opens it.
     func pressSeeSample() {
-        seeSample()
+        seeSample?()
     }
 
     /// `padding: 24px 16px 0`: the title.

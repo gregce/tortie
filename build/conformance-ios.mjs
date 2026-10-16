@@ -564,7 +564,8 @@
  *        `forResource:`; az5 outside Sample/ a SampleReader is made only in
  *        `AppModel.openSample()`, `SampleBar(` is drawn once, in RootView's
  *        `case .sample`, `openSample()` names no `door`, and `leaveSample()`
- *        names it once, as `door.pairedReader()` behind a test of `sampleFrom
+ *        names it once, as `door.pairedReaders()` (Phase 345; it was
+ *        `door.pairedReader()`, the one Mac) behind a test of `sampleFrom
  *        == .reading`, neither naming `forget(` or `unpair(`; az6
  *        `lostPairing()` and `openFromAlert(` leave the sample first, under a
  *        test of `root == .sample`; az7 `build/p3333/sample.mjs --check` exits
@@ -607,6 +608,59 @@
  *        AppModel hands is `endCheck(for:`, so a paired reader's End asks iOS
  *        exactly as it did.
  *   (s)  the build is 10 (`PHONE_BUILD`), and its "not uploaded" fixtures 11.
+ *
+ *   PHASE 345, ONE IPHONE, SEVERAL MACS (build/p345/SPEC.md §4). His answer of
+ *   2026-10-14, "you should be able to switch through via the bottom nav bar
+ *   like they are completely separate": each paired Mac is its own space, one
+ *   chosen at a time, up to four, one Keychain record each. Seven rules move
+ *   and one is new:
+ *
+ *   (b)  also: AT MOST one more `Tab(` after the three, the Macs tab, inside
+ *        an `if` that reads `showsMacs`, labelled by the Mac on screen's
+ *        drawn name (no literal and no Copy word) with `desktopcomputer`;
+ *        `Screens/MacsScreen.swift` is a tab root that may hide its own
+ *        navigation bar.
+ *   (n)  moved to one record per Mac: `.delete(tag:` outside its store only in
+ *        `PairingStore.forget()`, `forget(name:)`, `save` and `sweepOrphans`
+ *        and `PairingFlow.run`'s failed ending; `forget()` from
+ *        `forgetOnFreshInstall` and `LiveDoor.forget` alone, `forget(name:)`
+ *        from `LiveDoor.unpair` alone, so `loadAll` and `load` forget nothing
+ *        and delete no key; every record before any key in both forgets;
+ *        `LiveDoor.unpair` through `try store.forget(name:` and
+ *        `store.holdsRecord(name:`; and the sweep's read-error guard: nothing
+ *        `sweepOrphans` reaches reads the Keychain behind `try?`, and a catch
+ *        before its deletes returns.
+ *   (x)  also: the one `forgetAddress()` inside D23's condition (no Mac left,
+ *        or the unpaired Mac's own `alerts.presented`), never behind a Mac's
+ *        `macSends`; `readAlertPermission` behind the CHOSEN Mac's `macSends`.
+ *   (p)  KEY_NAMED gains `await app.anotherPairing?.read(code)`, the DEBUG
+ *        launch code read by the Pair another Mac sheet (D19).
+ *   (v)  `pairingSentence(for:keepsOthers:)`, `.macLimit` drawing
+ *        `Copy.macLimit`, a ternary of two sentences or a `DoorWords` helper
+ *        that is itself a String of sentences; the line still never cleared.
+ *   (t)  also: hostile-door.mjs names the `twin` arm, with `--name` and
+ *        `--alerts`, and takes `twin-mirror` and `twin-refuse` on its stdin.
+ *   (az) az5: `leaveSample()` names the door once, as `door.pairedReaders()`.
+ *        `APP_SHARED_STATE`'s PairingStore keeps one record per Mac.
+ *   (s)  the build is 11 (`PHONE_BUILD`), and its "not uploaded" fixtures 12.
+ *   (ba) NEW, EACH MAC IS ITS OWN SPACE: ba1 every Route case and every Route
+ *        built carries `mac:`; ba2 `destination` reads its reader through ONE
+ *        lookup, `space(route.mac)`, and no search over the spaces names a
+ *        session's row, list, route or tap; ba3 every NavigationStack in the
+ *        tabs carries `.id(` of the space; ba4 `pairedReader()` called only by
+ *        PhoneDoor's extension default; ba5 `macSends` read only by
+ *        `alertTarget`, `checkAlertAddress`, `readAlertPermission` and
+ *        Settings' drawing; ba6 the Macs tab's badge folded through
+ *        `DoorNumber.sum`, no `+`; ba7 `macLimit`'s 4 declared once; ba8 every
+ *        account written is `pairing-v2`, one the store listed, or
+ *        `pairing-v2-` and the phone's own random hex, where nothing a Mac
+ *        sent is named; ba9 `sweepOrphans()` once, in `AppModel.launch`,
+ *        after `forgetOnFreshInstall(` and before `LiveDoor(`; ba10 (the fix
+ *        round) a Mac forgotten only by `door.unpair(name:` in
+ *        `AppModel.unpair` and `AppModel.replaceRefused`, which `paired` alone
+ *        calls (D18a, never the sheet), `refusedOnPairing` given a Mac only in
+ *        `refused`, and every refusal and pop a routing hands back behind
+ *        `speaks(`, so a replaced pairing's late answer moves nothing.
  *
  * Every rule also proves its own scanner on texts it holds, before it reads a
  * file, so a scanner that stopped finding is never taken for a clean tree.
@@ -2390,6 +2444,14 @@ export const KEY_NAMED = [
     why: 'the launch code goes to PairingModel.read(_ payload:) in Screens/PairingScreen.swift, where `payload` is watched'
   },
   {
+    // Phase 345 (build/p345/SPEC.md D19, §4 item 4): with a Mac kept, the
+    // DEBUG launch code opens the Pair another Mac sheet and is read there.
+    file: 'App/TortieApp.swift',
+    line: 'await app.anotherPairing?.read(code)',
+    uses: 1,
+    why: "with a pairing kept, the launch code goes to the Pair another Mac sheet's PairingModel.read(_ payload:) in Screens/PairingScreen.swift, where `payload` is watched; the sheet's model is made by pairAnotherMac() on the line before, and holds the code nowhere"
+  },
+  {
     file: 'Screens/PairingScreen.swift',
     line: 'Task { await model.read(code) }',
     uses: 1,
@@ -2982,25 +3044,52 @@ export function enumCases(source, name) {
 }
 
 /**
+ * A sentence the pairing screen may draw, as an expression over bare text: a
+ * `Copy.` or `DoorWords.` word, or a ternary whose two arms are each one
+ * (Phase 345: `keepsOthers ? Copy.notPairedHere : Copy.notPaired`).
+ */
+function sentenceExpr(text) {
+  const t = text.trim().replace(/^return\s+/, '').replace(/;$/, '').trim();
+  const word = /^(?:Copy|DoorWords)\s*\.\s*[A-Za-z_]\w*(?:\s*\([^()]*(?:\([^()]*\)[^()]*)*\))?$/;
+  if (word.test(t)) return true;
+  const tern = /^[^?:]+?\s\?\s*(.+?)\s*:\s*(.+)$/.exec(t);
+  return tern !== null && word.test(tern[1].trim()) && word.test(tern[2].trim());
+}
+
+/**
  * Rule (v), pure over DoorWords.swift, PairingScreen.swift and Pairing.swift.
  * `pairingSentence` and `stepSentence` return a non-optional String for every
  * case of their enums, never nil or an empty string; PairingModel's `line` is a
  * non-optional String, and every assignment to it is a sentence.
+ *
+ * PHASE 345 (build/p345/SPEC.md D12, D16, §4 item 5): `pairingSentence` is
+ * `pairingSentence(for:keepsOthers:)`, and still answers a sentence for every
+ * case, `.macLimit` included, which draws `Copy.macLimit`; a case may draw a
+ * ternary of two sentences, or a `DoorWords.` helper that is itself a String
+ * whose every answer is one (`notPairedLine(keepsOthers:)`); and the model's
+ * line, `Copy.notPairedHere` on the Pair another Mac sheet, is still never
+ * cleared.
  */
 export function rulePairingSentence(words, screen, pairing) {
   const findings = [];
-  const said = { failures: 0, steps: 0, assignments: 0 };
+  const said = { failures: 0, steps: 0, assignments: 0, helpers: 0 };
   if (words === null || screen === null || pairing === null) return { findings: ['DoorWords.swift, PairingScreen.swift or Pairing.swift does not exist, so what the pairing screen draws cannot be read'], said };
   const w = lexSwift(words);
-  for (const [fn, enumName, key] of [['pairingSentence', 'PairingFailure', 'failures'], ['stepSentence', 'PairingStep', 'steps']]) {
-    const decl = new RegExp(`\\bstatic\\s+func\\s+${fn}\\s*\\(\\s*for\\s+\\w+\\s*:\\s*${enumName}\\s*\\)\\s*->\\s*([^{]+)\\{`).exec(w.bare);
+  const helpers = new Set();
+  const noteHelpers = (text) => {
+    for (const m of text.matchAll(/\bDoorWords\s*\.\s*([A-Za-z_]\w*)\s*\(/g)) if (m[1] !== 'pairingSentence' && m[1] !== 'stepSentence') helpers.add(m[1]);
+  };
+  for (const [fn, enumName, key, extra] of [['pairingSentence', 'PairingFailure', 'failures', 'keepsOthers'], ['stepSentence', 'PairingStep', 'steps', null]]) {
+    const decl = new RegExp(`\\bstatic\\s+func\\s+${fn}\\s*\\(\\s*for\\s+\\w+\\s*:\\s*${enumName}\\s*(,\\s*keepsOthers\\s*:\\s*Bool\\s*(?:=\\s*false\\s*)?)?\\)\\s*->\\s*([^{]+)\\{`).exec(w.bare);
     if (decl === null) {
-      findings.push(`Screens/DoorWords.swift declares no ${fn}(for: ${enumName})`);
+      findings.push(`Screens/DoorWords.swift declares no ${fn}(for: ${enumName}${extra === null ? '' : `, ${extra}: Bool`})`);
       continue;
     }
-    if (decl[1].trim() !== 'String') findings.push(`Screens/DoorWords.swift's ${fn} returns ${decl[1].trim()}; it returns String, so every case draws a sentence`);
+    if (extra !== null && decl[1] === undefined) findings.push(`Screens/DoorWords.swift's ${fn} takes no ${extra}: Bool, so the Pair another Mac sheet would say this iPhone is paired with no Mac while it keeps one (build/p345/SPEC.md D16)`);
+    if (decl[2].trim() !== 'String') findings.push(`Screens/DoorWords.swift's ${fn} returns ${decl[2].trim()}; it returns String, so every case draws a sentence`);
     const body = bodyAfter(w.bare, decl.index);
     const bodyStart = w.bare.indexOf(body, decl.index);
+    noteHelpers(body);
     for (const m of body.matchAll(/\breturn\s+nil\b/g)) findings.push(`Screens/DoorWords.swift:${String(lineOf(w.bare, bodyStart + m.index))} ${fn} returns nil`);
     for (const x of w.strings) {
       if (x.start > bodyStart && x.start < bodyStart + body.length && x.value.trim() === '') findings.push(`Screens/DoorWords.swift:${String(lineOf(w.bare, x.start))} ${fn} returns an empty string`);
@@ -3010,14 +3099,41 @@ export function rulePairingSentence(words, screen, pairing) {
     if (cases.length === 0) findings.push(`Door/Pairing.swift declares no enum ${enumName} this rule can read`);
     said[key] = cases.length;
     for (const cs of cases) {
-      if (!new RegExp(`\\bcase\\b[^:]*\\.${cs}\\b[^:]*:\\s*return\\s+(?:Copy|DoorWords)\\s*\\.`).test(body)) findings.push(`Screens/DoorWords.swift's ${fn} draws no Copy sentence for .${cs}`);
+      const arm = new RegExp(`\\bcase\\b[^:]*\\.${cs}\\b[^:]*:\\s*return\\s+([^\\n]+)`).exec(body);
+      if (arm === null || !sentenceExpr(arm[1])) findings.push(`Screens/DoorWords.swift's ${fn} draws no Copy sentence for .${cs}`);
+    }
+    if (fn === 'pairingSentence') {
+      if (!cases.includes('macLimit')) findings.push('Door/Pairing.swift\'s PairingFailure has no macLimit, so a fifth Mac\'s code has no sentence of its own (build/p345/SPEC.md D12)');
+      else if (!/\bcase\b[^:]*\.macLimit\b[^:]*:\s*return\s+Copy\s*\.\s*macLimit\b/.test(body)) findings.push("Screens/DoorWords.swift's pairingSentence does not draw Copy.macLimit for .macLimit, the cap's one sentence (build/p345/SPEC.md D12)");
     }
   }
   const sc = lexSwift(screen);
-  if (!/\bprivate\s*\(\s*set\s*\)\s*var\s+line\s*:\s*String\s*=\s*(?:Copy|DoorWords)\s*\./.test(sc.bare)) findings.push('Screens/PairingScreen.swift\'s line is not `private(set) var line: String` starting as a sentence; an optional line is how the phone once drew nothing');
+  if (!/\bprivate\s*\(\s*set\s*\)\s*var\s+line\s*:\s*String\s*(?:=\s*(?:Copy|DoorWords)\s*\.|\n|$)/.test(sc.bare)) findings.push('Screens/PairingScreen.swift\'s line is not `private(set) var line: String` starting as a sentence; an optional line is how the phone once drew nothing');
   for (const m of sc.bare.matchAll(/(?<![\w.])line\s*=(?!=)\s*([^\n]*)/g)) {
     said.assignments += 1;
-    if (!/^(?:Copy|DoorWords)\s*\./.test(m[1].trim())) findings.push(`Screens/PairingScreen.swift:${String(lineOf(sc.bare, m.index))} assigns line = ${m[1].trim().slice(0, 40)}; every line is a Copy sentence or DoorWords', never nil or empty`);
+    noteHelpers(m[1]);
+    if (!sentenceExpr(m[1])) findings.push(`Screens/PairingScreen.swift:${String(lineOf(sc.bare, m.index))} assigns line = ${m[1].trim().slice(0, 40)}; every line is a Copy sentence or DoorWords', never nil or empty`);
+  }
+  // Each DoorWords helper the line or a case draws through is itself a
+  // String whose every answer is a sentence (Phase 345's notPairedLine).
+  for (const h of helpers) {
+    said.helpers += 1;
+    const decl = new RegExp(`\\bstatic\\s+func\\s+${h}\\s*\\(([^)]*)\\)\\s*->\\s*([^{]+)\\{`).exec(w.bare);
+    if (decl === null) {
+      findings.push(`Screens/DoorWords.swift declares no static func ${h}, which the pairing screen's line draws through`);
+      continue;
+    }
+    if (decl[2].trim() !== 'String') findings.push(`Screens/DoorWords.swift's ${h} returns ${decl[2].trim()}; it returns String, so the line it draws is a sentence`);
+    const body = bodyAfter(w.bare, decl.index);
+    const bodyStart = w.bare.indexOf(body, decl.index);
+    const inner = body.slice(1, -1);
+    const returns = [...inner.matchAll(/\breturn\s+([^\n]+)/g)].map((m) => m[1]);
+    const answers = returns.length > 0 ? returns : [inner];
+    if (/\bnil\b/.test(inner)) findings.push(`Screens/DoorWords.swift's ${h} names nil`);
+    for (const x of w.strings) {
+      if (x.start > bodyStart && x.start < bodyStart + body.length && x.value.trim() === '') findings.push(`Screens/DoorWords.swift:${String(lineOf(w.bare, x.start))} ${h} answers an empty string`);
+    }
+    for (const a of answers) if (!sentenceExpr(a)) findings.push(`Screens/DoorWords.swift's ${h} answers ${a.trim().slice(0, 60)}; each answer is a Copy sentence`);
   }
   return { findings, said };
 }
@@ -3072,9 +3188,12 @@ export const PHONE_BUNDLE_ID = 'com.itavero.tortie.phone';
  * when it was rebased onto 333.1, the build he submitted to Beta App Review on
  * 2026-10-09. 1.0.0 (10) since Phase 333.3 (build/p3333/SPEC.md D23, §5.8), the
  * build that carries See a sample, and the "not uploaded" fixtures below are
- * 11.
+ * 11. 1.0.0 (11) since Phase 345 (build/p345/SPEC.md D27), the build that
+ * pairs one iPhone with several Macs, the next after 10, the public and App
+ * Store build; the "not uploaded" fixtures below are 12. If another phone
+ * phase lands first and takes 11, the committer moves all of it to the next.
  */
-export const PHONE_BUILD = '10';
+export const PHONE_BUILD = '11';
 
 /** The asset catalog, relative to the app folder, and the one set it holds. */
 const ICON_CATALOG = 'Assets.xcassets';
@@ -4050,7 +4169,79 @@ export const TABS = Object.freeze([
  */
 export const BARS_PAGE_FILE = 'Screens/Screen.swift';
 /** The tab roots that draw their own header and hide their navigation bar (Phase 316.6, 316.7). */
-export const NAV_BAR_ROOTS = Object.freeze(['Screens/ListScreen.swift', 'Screens/SessionsScreen.swift', 'Screens/SettingsScreen.swift']);
+export const NAV_BAR_ROOTS = Object.freeze(['Screens/ListScreen.swift', 'Screens/SessionsScreen.swift', 'Screens/SettingsScreen.swift', 'Screens/MacsScreen.swift']);
+
+/**
+ * THE MACS TAB (Phase 345, build/p345/SPEC.md D3, §4 item 1). His answer of
+ * 2026-10-14, "you should be able to switch through via the bottom nav bar
+ * like they are completely separate": with two or more Macs kept, ONE more
+ * tab after the three, at the right of the bar, labelled with the Mac on
+ * screen's drawn name (no literal and no Copy word, because it is data) and
+ * the symbol `desktopcomputer`, built inside an `if` that reads `showsMacs`,
+ * so with one Mac kept the bar is exactly today's three. A fifth tab, a Macs
+ * tab outside that `if`, or a literal or Copy label is red.
+ */
+export const MACS_TAB = Object.freeze({ image: 'desktopcomputer', gate: 'showsMacs' });
+
+/**
+ * The span of a `Tab(` call with its trailing closures (the content, then a
+ * `label:` closure when there is one), over bare text: `{ open, close, end,
+ * label }`, `label` the `label:` closure's `[open, close]` or null.
+ */
+function tabCallSpan(bare, at) {
+  const open = bare.indexOf('(', at);
+  const close = closeParen(bare, open);
+  if (close === -1) return { open, close: bare.length, end: bare.length, label: null };
+  let end = close;
+  let label = null;
+  let k = close + 1;
+  for (let round = 0; round < 3; round += 1) {
+    const rest = /^\s*(?:([A-Za-z_]\w*)\s*:\s*)?\{/.exec(bare.slice(k));
+    if (rest === null) break;
+    const brace = k + rest[0].length - 1;
+    const shut = matchForward(bare, brace);
+    if (shut === -1) break;
+    if (rest[1] === 'label') label = [brace, shut];
+    else if (rest[1] !== undefined && round > 0 && rest[1] !== 'content') break;
+    end = shut;
+    k = shut + 1;
+  }
+  return { open, close, end, label };
+}
+
+/**
+ * The Macs tab's own findings (Phase 345): built behind an `if` that reads
+ * `showsMacs`, labelled by data (no literal, no `Copy.` word) and drawn with
+ * `desktopcomputer`. `bare` and `strings` are the app file's, `at` the
+ * `Tab(`'s index.
+ */
+function macsTabFindings(bare, strings, at, where) {
+  const findings = [];
+  const span = tabCallSpan(bare, at);
+  const args = topLevelArgs(bare.slice(span.open + 1, span.close));
+  const positional = args.find((a) => !/^[A-Za-z_]\w*\s*:/.test(a)) ?? null;
+  let title = positional;
+  if (title === null && span.label !== null) {
+    const inner = bare.slice(span.label[0] + 1, span.label[1]);
+    const call = /(?<![\w.])(?:Label|Text)\s*\(/.exec(inner);
+    if (call !== null) {
+      const o = span.label[0] + 1 + call.index + call[0].length - 1;
+      const c = closeParen(bare, o);
+      title = topLevelArgs(bare.slice(o + 1, c === -1 ? span.label[1] : c)).find((a) => !/^[A-Za-z_]\w*\s*:/.test(a) || /^verbatim\s*:/.test(a)) ?? null;
+    }
+  }
+  const flat = (title ?? '').replace(/\s+/g, '');
+  if (title === null) findings.push(`${where}: the Macs tab draws no label this rule can read; it is the Mac on screen's drawn name (build/p345/SPEC.md D3, D21)`);
+  else if (flat === '' || /^(?:verbatim:)?"/.test(flat)) findings.push(`${where}: the Macs tab is labelled with a literal; it is the Mac on screen's drawn name, data (build/p345/SPEC.md D3, D21)`);
+  else if (/^(?:verbatim:)?Copy\./.test(flat)) findings.push(`${where}: the Macs tab is labelled ${flat}; it is the Mac on screen's drawn name, never a Copy word (build/p345/SPEC.md D3, D21)`);
+  const image = strings.find((x) => x.start > span.open && x.start < span.end && /\bsystemImage\s*:\s*$/.test(bare.slice(Math.max(span.open, x.start - 24), x.start)));
+  if (image?.value !== MACS_TAB.image) findings.push(`${where}: the Macs tab draws the symbol ${JSON.stringify(image?.value ?? null)}; it is ${JSON.stringify(MACS_TAB.image)} (build/p345/SPEC.md D3)`);
+  const decl = innermost(declSpans(bare), at);
+  const gated = decl !== null && conditionsAt(bare, decl.bodyOpen, at).some((c) => c.kind === 'if' && new RegExp(`\\b${MACS_TAB.gate}\\b`).test(c.cond));
+  if (!gated) findings.push(`${where}: the Macs tab is built outside an if that reads ${MACS_TAB.gate}, so one Mac kept would draw four tabs; with one Mac the bar is exactly today's three (build/p345/SPEC.md D3, §3.8)`);
+  return findings;
+}
+
 /** Every other way to hide a navigation bar or a tab bar, refused anywhere in the app. */
 const OTHER_BAR_HIDES = /\.\s*navigationBarHidden\s*\(|\bsetNavigationBarHidden\s*\(|\bisNavigationBarHidden\b|\btabBar\s*\??\s*\.\s*isHidden\b|\bhidesBottomBarWhenPushed\b|\bsetTabBarHidden\s*\(|\bisTabBarHidden\b/g;
 
@@ -4154,11 +4345,12 @@ function chromeReadsVerticalCompact(page) {
  * (above, `BARS_PAGE_FILE`): the Terminal sideways, through TerminalChrome, in
  * ScreenPage alone, with the three tab roots' own navigation bar as before.
  * The parent's tree, which hides no tab bar, passes; rule (ax) is what
- * requires the landscape hide.
+ * requires the landscape hide. Phase 345 allows ONE more `Tab(` after the
+ * three, the Macs tab (`MACS_TAB`, `macsTabFindings`), and nothing else.
  */
 export function ruleTabs(files) {
   const findings = [];
-  const said = { tabs: 0, landscapeHides: 0, rootHides: 0 };
+  const said = { tabs: 0, macsTabs: 0, landscapeHides: 0, rootHides: 0 };
   const app = files.find((f) => f.name === TAB_FILE);
   if (app === undefined) findings.push(`${TAB_FILE} does not exist, so there is no tab bar to read`);
   for (const f of files) {
@@ -4166,11 +4358,16 @@ export function ruleTabs(files) {
     const at = (i) => `${f.name}:${String(lineOf(bare, i))}`;
     const calls = [...bare.matchAll(/(?<![A-Za-z0-9_.])Tab\s*\(/g)];
     if (f.name !== TAB_FILE) {
-      for (const c of calls) findings.push(`${at(c.index)} builds a Tab; the three tabs are built in ${TAB_FILE}, and there is no fourth`);
+      for (const c of calls) findings.push(`${at(c.index)} builds a Tab; the tabs are built in ${TAB_FILE}, three and, with two or more Macs kept, the Macs tab, and no other`);
     } else {
       said.tabs = calls.length;
-      if (calls.length !== TABS.length) {
-        findings.push(`${TAB_FILE} builds ${String(calls.length)} Tab(s); the app has three, Needs input, Sessions and Settings, and no fourth (a fourth would be search, Past Sessions or machines, which Phase 316 refuses)`);
+      if (calls.length < TABS.length || calls.length > TABS.length + 1) {
+        findings.push(`${TAB_FILE} builds ${String(calls.length)} Tab(s); the app has three, Needs input, Sessions and Settings, and with two or more Macs kept ONE more, the Macs tab, and no fifth (a fifth would be search, Past Sessions or machines, which Phase 316 refuses; build/p345/SPEC.md D3)`);
+      }
+      // Phase 345: the one tab after the three is the Macs tab.
+      for (const c of calls.slice(TABS.length, TABS.length + 1)) {
+        said.macsTabs += 1;
+        findings.push(...macsTabFindings(bare, strings, c.index, at(c.index)));
       }
       calls.forEach((c, k) => {
         const want = TABS[k];
@@ -4228,20 +4425,32 @@ export function ruleTabs(files) {
  * Rule (n), the deleters (SPEC §5.4, §6.1 (n)), over the app's Swift named
  * relative to the app folder. `SecItemDelete(` only in `Door/Keys.swift`,
  * inside `KeychainSecretStore.remove` and `KeychainClientKeys.delete`;
- * `secrets.remove(` only inside `PairingStore`; `.delete(tag:` outside
- * `KeychainClientKeys` only in `PairingStore.forget` and `PairingFlow.run`'s
- * failed ending; the store's `forget()` called only by `PairingStore.load`,
- * `PairingStore.forgetOnFreshInstall`, `LiveDoor.forget` and
- * `LiveDoor.unpair`, and `door.forget()` only inside `#if DEBUG` in
- * `AppModel.launch` (the forget seam); in `PairingStore.forget` the record's
- * `try secrets.remove(Self.account)` comes before any `delete(tag:`, because
- * the record holds both private halves, so a failed removal has touched
- * nothing; and `LiveDoor.unpair` calls `try store.forget()` inside a `do`
- * whose `catch` answers `.kept`, never `try?`, then asks `store.holdsRecord`.
+ * `secrets.remove(` only inside `PairingStore`; `door.forget()` only inside
+ * `#if DEBUG` in `AppModel.launch` (the forget seam); and `LiveDoor.unpair`
+ * sees the store's error, never `try?`.
+ *
+ * PHASE 345 MOVED IT TO ONE RECORD PER MAC (build/p345/SPEC.md D8 to D11,
+ * §3.1, §4 item 2). `.delete(tag:` outside `KeychainClientKeys` only in
+ * `PairingStore.forget()`, `forget(name:)`, `save` and `sweepOrphans`, and in
+ * `PairingFlow.run`'s failed ending; the store's `forget()` (every Mac) only
+ * from `forgetOnFreshInstall` and `LiveDoor.forget`, and `forget(name:)` (one
+ * Mac) only from `LiveDoor.unpair`, so `loadAll` and `load`, which once called
+ * the global `forget()` on a record that did not decode and took every
+ * identity with it, call neither and delete no tag; in both forgets every
+ * record's `try secrets.remove(` comes BEFORE any `delete(tag:`, with `try`
+ * (only `pairing-v1`'s with `try?`), so a removal that fails has touched no
+ * key; `LiveDoor.unpair` calls `try store.forget(name:` in a `do` whose `catch`
+ * answers `.kept`, then asks `store.holdsRecord(name:`; and `sweepOrphans`
+ * deletes only after a read that threw nothing: nothing it reaches in
+ * `PairingStore` reads `accounts()` or `read(` behind `try?` or `try!`, it
+ * reads both with a plain `try`, and a `catch` its deletes come after
+ * returns, so a Keychain that could not be read never reads as "no record".
  */
 export function ruleDeleters(files) {
   const findings = [];
-  const said = { secItemDeletes: 0, recordRemoves: 0, keyDeletes: 0, storeForgets: 0, doorForgets: 0 };
+  const said = { secItemDeletes: 0, recordRemoves: 0, keyDeletes: 0, storeForgets: 0, nameForgets: 0, doorForgets: 0, sweepReach: 0 };
+  /** Where a client key may be deleted outside KeychainClientKeys (Phase 345). */
+  const KEY_DELETERS = ['forget', 'save', 'sweepOrphans'];
   for (const f of files) {
     const lx = lexSwift(f.source);
     const bare = lx.bare;
@@ -4264,58 +4473,132 @@ export function ruleDeleters(files) {
     for (const m of bare.matchAll(/\.\s*delete\s*\(\s*tag\s*:/g)) {
       said.keyDeletes += 1;
       const p = place(m.index);
-      const ok = p.type === 'KeychainClientKeys' || (p.type === 'PairingStore' && p.fn === 'forget') || (f.name === 'Door/Pairing.swift' && p.type === 'PairingFlow' && p.fn === 'run');
-      if (!ok) findings.push(`${at(m.index)} deletes a client key in ${said2(p)}; outside KeychainClientKeys only PairingStore.forget and PairingFlow.run's failed ending delete one`);
+      const ok = p.type === 'KeychainClientKeys' || (p.type === 'PairingStore' && KEY_DELETERS.includes(p.fn)) || (f.name === 'Door/Pairing.swift' && p.type === 'PairingFlow' && p.fn === 'run');
+      if (!ok) findings.push(`${at(m.index)} deletes a client key in ${said2(p)}; outside KeychainClientKeys only PairingStore.forget(), forget(name:), save and sweepOrphans and PairingFlow.run's failed ending delete one, so loading the pairings deletes none (build/p345/SPEC.md D11)`);
     }
     const debug = debugLines(lx.code);
-    for (const m of bare.matchAll(/(?<![\w$])(?:([A-Za-z_]\w*(?:\s*\??\s*\.\s*[A-Za-z_]\w*)*)\s*\??\s*\.\s*)?forget\s*\(\s*\)/g)) {
+    for (const m of bare.matchAll(/(?<![\w$])(?:([A-Za-z_]\w*(?:\s*\??\s*\.\s*[A-Za-z_]\w*)*)\s*\??\s*\.\s*)?forget\s*\(\s*(\)|name\s*:)/g)) {
       if (/\bfunc\s+$/.test(bare.slice(Math.max(0, m.index - 12), m.index))) continue;
       const receiver = (m[1] ?? '').replace(/[\s?]+/g, '');
+      const named = m[2] !== ')';
       const p = place(m.index);
-      if (receiver === 'door') {
+      if (receiver === 'door' && !named) {
         said.doorForgets += 1;
         const ok = f.name === 'App/TortieApp.swift' && p.type === 'AppModel' && p.fn === 'launch' && debug[lineOf(bare, m.index)] === true;
-        if (!ok) findings.push(`${at(m.index)} calls door.forget() in ${said2(p)}; the DEBUG forget seam is called only inside #if DEBUG in AppModel.launch, and Unpair is door.unpair()`);
+        if (!ok) findings.push(`${at(m.index)} calls door.forget() in ${said2(p)}; the DEBUG forget seam is called only inside #if DEBUG in AppModel.launch, and Unpair is door.unpair(name:)`);
+        continue;
+      }
+      if (named) {
+        said.nameForgets += 1;
+        const ok = p.type === 'LiveDoor' && p.fn === 'unpair' && receiver === 'store';
+        if (!ok) findings.push(`${at(m.index)} calls ${receiver === '' ? '' : `${receiver}.`}forget(name:) in ${said2(p)}; one Mac's record is forgotten only by LiveDoor.unpair, Unpair of the Mac on screen (build/p345/SPEC.md §3.3)`);
         continue;
       }
       said.storeForgets += 1;
       const ok =
-        (p.type === 'PairingStore' && (p.fn === 'load' || p.fn === 'forgetOnFreshInstall') && (receiver === '' || receiver === 'self')) ||
-        (p.type === 'LiveDoor' && (p.fn === 'forget' || p.fn === 'unpair') && receiver === 'store');
-      if (!ok) findings.push(`${at(m.index)} calls ${receiver === '' ? '' : `${receiver}.`}forget() in ${said2(p)}; the store's forget() is called only by PairingStore.load, PairingStore.forgetOnFreshInstall, LiveDoor.forget and LiveDoor.unpair`);
+        (p.type === 'PairingStore' && p.fn === 'forgetOnFreshInstall' && (receiver === '' || receiver === 'self')) ||
+        (p.type === 'LiveDoor' && p.fn === 'forget' && receiver === 'store');
+      if (!ok) findings.push(`${at(m.index)} calls ${receiver === '' ? '' : `${receiver}.`}forget() in ${said2(p)}; the store's forget(), which takes every Mac and every client key, is called only by PairingStore.forgetOnFreshInstall and LiveDoor.forget, never on a record that does not decode (build/p345/SPEC.md D11)`);
     }
   }
-  // The order inside PairingStore.forget.
   const keys = files.find((f) => f.name === 'Door/Keys.swift');
   if (keys === undefined) findings.push('Door/Keys.swift does not exist, so the order of deletion cannot be read');
   else {
     const bare = lexSwift(keys.source).bare;
     const store = typeSpans(bare).find((t) => t.name === 'PairingStore' && t.kind !== 'extension');
-    const forget = store === undefined ? undefined : funcSpans(bare).find((fn) => fn.name === 'forget' && fn.bodyOpen > store.open && fn.bodyClose <= store.close);
-    if (forget === undefined) findings.push('Door/Keys.swift declares no PairingStore.forget() with a body');
-    else {
-      const body = bare.slice(forget.bodyOpen, forget.bodyClose);
-      const record = /\btry\s+secrets\s*\.\s*remove\s*\(\s*Self\s*\.\s*account\s*\)/.exec(body);
+    const own = store === undefined ? [] : funcSpans(bare).filter((fn) => fn.bodyOpen !== -1 && fn.bodyOpen > store.open && fn.bodyClose <= store.close);
+    const at = (i) => `Door/Keys.swift:${String(lineOf(bare, i))}`;
+    // The order inside both forgets: every record before any key, with try.
+    const forgets = own.filter((fn) => fn.name === 'forget');
+    const whole = forgets.find((fn) => fn.params.trim() === '');
+    const one = forgets.find((fn) => /^\s*name\s*:/.test(fn.params));
+    if (whole === undefined) findings.push('Door/Keys.swift declares no PairingStore.forget() with a body, the forget of every Mac');
+    if (one === undefined) findings.push('Door/Keys.swift declares no PairingStore.forget(name:) with a body, the forget of one Mac (build/p345/SPEC.md §3.1 rule 4)');
+    for (const [fn, label] of [[whole, 'forget()'], [one, 'forget(name:)']]) {
+      if (fn === undefined) continue;
+      const body = bare.slice(fn.bodyOpen, fn.bodyClose);
+      const removes = [...body.matchAll(/(\btry\s*[?!]?\s*)?(?:self\s*\.\s*)?secrets\s*\.\s*remove\s*\(([^)]*)\)/g)];
       const firstKey = /\.\s*delete\s*\(\s*tag\s*:/.exec(body);
-      if (record === null) findings.push('PairingStore.forget does not remove the record with `try secrets.remove(Self.account)`, so a removal that fails is not seen and "Nothing was changed." could be false');
-      else if (firstKey !== null && firstKey.index < record.index) findings.push(`Door/Keys.swift:${String(lineOf(bare, forget.bodyOpen + firstKey.index))} deletes a client key before the record; the record goes FIRST, because it holds both private halves, so a failed removal has touched nothing (SPEC §5.4)`);
+      const plain = removes.filter((m) => /^try\s+$/.test(m[1] ?? '') || /^try$/.test((m[1] ?? '').trim()));
+      if (plain.length === 0) findings.push(`PairingStore.${label} removes no record with a plain \`try secrets.remove(\`, so a removal that fails is not seen and "Nothing was changed." could be false`);
+      for (const m of removes) {
+        const swallowed = /^try\s*[?!]/.test((m[1] ?? '').trim());
+        if (swallowed && !/\bformerAccount\b/.test(m[2])) findings.push(`${at(fn.bodyOpen + m.index)} PairingStore.${label} removes a record with ${(m[1] ?? '').trim()}, so a record that would not go reads as gone; only pairing-v1's leftover is removed with try?`);
+        if (firstKey !== null && m.index > firstKey.index) findings.push(`${at(fn.bodyOpen + firstKey.index)} PairingStore.${label} deletes a client key before a record; every record goes FIRST, because it holds both private halves, so a failed removal has touched no key (SPEC §5.4, build/p345/SPEC.md §3.1)`);
+      }
+    }
+    // loadAll and load call neither forget and delete no tag (the hazard D11 names).
+    for (const name of ['loadAll', 'load']) {
+      const fn = own.find((x) => x.name === name);
+      if (fn === undefined) {
+        if (name === 'loadAll') findings.push('Door/Keys.swift declares no PairingStore.loadAll(), every kept Mac in order (build/p345/SPEC.md §3.1)');
+        continue;
+      }
+      const body = bare.slice(fn.bodyOpen, fn.bodyClose);
+      for (const m of body.matchAll(/\bforget\s*\(|\.\s*delete\s*\(\s*tag\s*:/g)) findings.push(`${at(fn.bodyOpen + m.index)} PairingStore.${name} calls ${m[0].replace(/\s+/g, '')}…; reading the pairings forgets no Mac and deletes no client key, so a record that does not decode removes only itself (build/p345/SPEC.md D11)`);
+    }
+    // sweepOrphans: deletes only after a read that threw nothing.
+    const sweep = own.find((fn) => fn.name === 'sweepOrphans');
+    if (sweep === undefined) findings.push('Door/Keys.swift declares no PairingStore.sweepOrphans(), so a client key no record names is never deleted (build/p345/SPEC.md D11)');
+    else {
+      const reach = new Map([[sweep.name, sweep]]);
+      for (let grew = true; grew; ) {
+        grew = false;
+        for (const fn of [...reach.values()]) {
+          for (const g of own) {
+            if (reach.has(g.name) || g.name === 'delete') continue;
+            if (new RegExp(`(?<![\\w$])${g.name}\\s*\\(`).test(bare.slice(fn.bodyOpen + 1, fn.bodyClose))) {
+              reach.set(g.name, g);
+              grew = true;
+            }
+          }
+        }
+      }
+      said.sweepReach = reach.size;
+      let accountsRead = false;
+      let recordsRead = false;
+      for (const fn of reach.values()) {
+        const body = bare.slice(fn.bodyOpen, fn.bodyClose);
+        for (const m of body.matchAll(/\btry\s*[?!][^\n]*/g)) {
+          if (/(?<![\w$])accounts\s*\(|\.\s*read\s*\(/.test(m[0])) findings.push(`${at(fn.bodyOpen + m.index)} PairingStore.${fn.name}, which sweepOrphans reaches, reads the Keychain with ${m[0].slice(0, 4).trim()}, so a read that failed reads as "no record" and the sweep deletes that Mac's client key (build/p345/SPEC.md D11)`);
+        }
+        for (const m of body.matchAll(/\btry\s+(?![?!])[^\n]*/g)) {
+          if (/(?<![\w$])accounts\s*\(/.test(m[0])) accountsRead = true;
+          if (/\.\s*read\s*\(/.test(m[0])) recordsRead = true;
+        }
+      }
+      if (!accountsRead || !recordsRead) findings.push(`PairingStore.sweepOrphans reads ${!accountsRead ? 'no account list' : 'no record'} with a plain try, through itself or what it calls, so it cannot know every record was read before it deletes (build/p345/SPEC.md D11)`);
+      const body = bare.slice(sweep.bodyOpen, sweep.bodyClose + 1);
+      const deletes = [...body.matchAll(/\.\s*delete\s*\(\s*tag\s*:/g)];
+      const firstTry = /\btry\s+(?![?!])/.exec(body);
+      for (const d of deletes) {
+        if (firstTry === null || d.index < firstTry.index) findings.push(`${at(sweep.bodyOpen + d.index)} PairingStore.sweepOrphans deletes a client key before it has read every record (build/p345/SPEC.md D11)`);
+      }
+      for (const c of body.matchAll(/\bcatch\b[^{]*\{/g)) {
+        const open = c.index + c[0].length - 1;
+        const close = matchForward(body, open);
+        const inner = body.slice(open + 1, close === -1 ? body.length : close);
+        if (/\.\s*delete\s*\(\s*tag\s*:/.test(inner)) findings.push(`${at(sweep.bodyOpen + c.index)} PairingStore.sweepOrphans deletes a client key in a catch, after a read that failed (build/p345/SPEC.md D11)`);
+        const after = deletes.some((d) => close !== -1 && d.index > close);
+        if (after && !/\breturn\b/.test(inner)) findings.push(`${at(sweep.bodyOpen + c.index)} PairingStore.sweepOrphans's catch does not return, so a read that failed falls through to the deletes and every Mac's key reads as an orphan (build/p345/SPEC.md D11)`);
+      }
     }
   }
-  // LiveDoor.unpair: the store's error is seen, never swallowed.
+  // LiveDoor.unpair: one Mac's record, and the store's error is seen, never swallowed.
   const app = files.find((f) => f.name === 'App/TortieApp.swift');
   if (app === undefined) findings.push('App/TortieApp.swift does not exist, so LiveDoor.unpair cannot be read');
   else {
     const bare = lexSwift(app.source).bare;
     const live = typeSpans(bare).find((t) => t.name === 'LiveDoor' && t.kind !== 'extension');
     const unpair = live === undefined ? undefined : funcSpans(bare).find((fn) => fn.name === 'unpair' && fn.bodyOpen > live.open && fn.bodyClose <= live.close);
-    if (unpair === undefined) findings.push('App/TortieApp.swift declares no LiveDoor.unpair(), so Unpair has nothing that reports whether the record went');
+    if (unpair === undefined) findings.push('App/TortieApp.swift declares no LiveDoor.unpair(name:), so Unpair has nothing that reports whether the record went');
     else {
       const body = bare.slice(unpair.bodyOpen, unpair.bodyClose + 1);
-      if (/\btry\s*[?!]\s*(?:self\s*\.\s*)?store\s*\.\s*forget\s*\(/.test(body)) findings.push(`App/TortieApp.swift:${String(lineOf(bare, unpair.at))} LiveDoor.unpair swallows the store's error with try? or try!; it calls try store.forget() inside a do whose catch answers .kept`);
-      if (!/\bdo\s*\{[^{}]*\btry\s+(?:self\s*\.\s*)?store\s*\.\s*forget\s*\(\s*\)[^{}]*\}\s*catch\b[^{]*\{[^{}]*\.\s*kept\b/.test(body)) {
-        findings.push(`App/TortieApp.swift:${String(lineOf(bare, unpair.at))} LiveDoor.unpair does not call try store.forget() inside a do whose catch answers .kept, so a record that would not go could read as forgotten`);
+      if (/\btry\s*[?!]\s*(?:self\s*\.\s*)?store\s*\.\s*forget\s*\(/.test(body)) findings.push(`App/TortieApp.swift:${String(lineOf(bare, unpair.at))} LiveDoor.unpair swallows the store's error with try? or try!; it calls try store.forget(name:) inside a do whose catch answers .kept`);
+      if (!/\bdo\s*\{[^{}]*\btry\s+(?:self\s*\.\s*)?store\s*\.\s*forget\s*\(\s*name\s*:[^{}]*\}\s*catch\b[^{]*\{[^{}]*\.\s*kept\b/.test(body)) {
+        findings.push(`App/TortieApp.swift:${String(lineOf(bare, unpair.at))} LiveDoor.unpair does not call try store.forget(name:) inside a do whose catch answers .kept, so a record that would not go could read as forgotten, or Unpair would forget every Mac (build/p345/SPEC.md §3.3)`);
       }
-      if (!/\bstore\s*\.\s*holdsRecord\b/.test(body)) findings.push(`App/TortieApp.swift:${String(lineOf(bare, unpair.at))} LiveDoor.unpair never asks store.holdsRecord, so a forget that answered and left the record would read as forgotten`);
+      if (!/\bstore\s*\.\s*holdsRecord\s*\(\s*name\s*:/.test(body)) findings.push(`App/TortieApp.swift:${String(lineOf(bare, unpair.at))} LiveDoor.unpair never asks store.holdsRecord(name:), so a forget that answered and left that Mac's record would read as forgotten`);
     }
   }
   return { findings, said };
@@ -4332,10 +4615,18 @@ export function ruleDeleters(files) {
  * direction; `forgetAddress()` called exactly once, in `AppModel.unpair`'s
  * `.forgotten` arm, after `door.unpair()`, so only a pairing that really went
  * unregisters; and no test names `unregisterForRemoteNotifications`.
+ *
+ * PHASE 345 (build/p345/SPEC.md D23, §4 item 3): Unpair forgets ONE Mac, so
+ * the one `forgetAddress()` sits inside D23's condition, a test of no space
+ * left OR of the unpaired space's own `alerts.presented`, after
+ * `door.unpair(name:`; never behind another Mac's claim that it sends
+ * (`macSends`), which a stranger's Mac could hold open; and
+ * `readAlertPermission` asks iOS only behind the CHOSEN space's `macSends`,
+ * never any kept Mac's.
  */
 export function ruleForgetAddress(files, tests = []) {
   const findings = [];
-  const said = { unregisters: 0, forgets: 0 };
+  const said = { unregisters: 0, forgets: 0, guarded: 0, permissionGuards: 0 };
   const unregisters = [];
   for (const f of files) {
     const lx = lexSwift(f.source);
@@ -4368,18 +4659,459 @@ export function ruleForgetAddress(files, tests = []) {
       continue;
     }
     const before = c.bare.slice(fn.bodyOpen, c.index);
-    const door = /\bdoor\s*\.\s*unpair\s*\(\s*\)/.exec(before);
-    if (door === null) findings.push(`${where} calls forgetAddress() before door.unpair() has answered, so an Unpair that kept the record would still unregister`);
+    const door = /\bdoor\s*\.\s*unpair\s*\(/.exec(before);
+    if (door === null) findings.push(`${where} calls forgetAddress() before door.unpair(name:) has answered, so an Unpair that kept the record would still unregister`);
+    // Phase 345 (D23): no Mac left, or the Mac unpaired held this phone's
+    // address; never another Mac's word that it sends.
+    const body = c.bare.slice(fn.bodyOpen, fn.bodyClose + 1);
+    const conds = conditionsAt(c.bare, fn.bodyOpen, c.index).filter((x) => x.kind === 'if' || x.kind === 'guard-after' || x.kind === 'guard-head' || x.kind === 'ternary');
+    const read = conds.map((x) => expandLocals(body, x.cond.replace(/\b(let|var)\s+[A-Za-z_]\w*/g, '$1 _')));
+    const d23 = read.some((t) => /\bpresented\b/.test(t) && /\bisEmpty\b|\bcount\b/.test(t));
+    if (d23) said.guarded += 1;
+    else findings.push(`${where} calls forgetAddress() outside D23's condition, a test of no Mac left or of the unpaired Mac's own alerts.presented, so unpairing one Mac would stop the alerts another still sends, or a Mac that never held the address would decide (build/p345/SPEC.md D23)`);
+    for (const t of read) if (/\bmacSends\b/.test(t)) findings.push(`${where} calls forgetAddress() behind a test of macSends, a Mac's CLAIM that it sends, which a stranger's Mac can hold open; D23 reads the unpaired Mac's presented address (build/p345/SPEC.md D23)`);
     const arms = [...before.matchAll(/\bcase\s+\.\s*(\w+)\b|\bdefault\s*:/g)];
     const last = arms.at(-1);
     const compared = last === undefined && /==\s*\.\s*forgotten\b/.test(before);
     if (!compared && (last === undefined || last[1] !== 'forgotten')) findings.push(`${where} calls forgetAddress() outside the .forgotten arm of door.unpair()'s answer, so it runs whether or not the record went`);
+  }
+  // Phase 345 (§4 item 3): what iOS allows is asked behind the CHOSEN Mac's
+  // macSends, read through the chosen space and never searched across Macs.
+  const appFile = files.find((f) => f.name === 'App/TortieApp.swift');
+  if (appFile !== undefined) {
+    const bare = lexSwift(appFile.source).bare;
+    const model = typeSpans(bare).find((t) => t.name === 'AppModel' && t.kind === 'class');
+    const fn = model === undefined ? undefined : funcSpans(bare).find((x) => x.name === 'readAlertPermission' && x.bodyOpen > model.open && x.bodyClose <= model.close);
+    if (fn === undefined) findings.push('App/TortieApp.swift declares no AppModel.readAlertPermission, so what Settings says iOS allows cannot be read');
+    else {
+      const body = bare.slice(fn.bodyOpen, fn.bodyClose + 1);
+      const guards = [...body.matchAll(/\bguard\b([^{]*)\belse\b/g)].map((m) => expandLocals(body, m[1]));
+      const chosen = guards.filter((g) => /\bmacSends\b/.test(g));
+      said.permissionGuards = chosen.length;
+      if (chosen.length === 0) findings.push(`App/TortieApp.swift:${String(lineOf(bare, fn.at))} AppModel.readAlertPermission asks iOS with no guard on the chosen Mac's macSends`);
+      for (const g of chosen) {
+        if (/\bspaces\b|\bcontains\s*\(|\bfirst\s*\(\s*where|\ballSatisfy\b/.test(g) || !/\bchosen\b|\breader\b/.test(g)) findings.push(`App/TortieApp.swift:${String(lineOf(bare, fn.at))} AppModel.readAlertPermission reads macSends across the kept Macs (${g.trim().slice(0, 60)}); it reads the chosen Mac's alone (build/p345/SPEC.md D25)`);
+      }
+    }
   }
   for (const t of tests) {
     const { bare } = lexSwift(t.source);
     for (const m of bare.matchAll(/\bunregisterForRemoteNotifications\b/g)) {
       findings.push(`${t.name}:${String(lineOf(bare, m.index))} names unregisterForRemoteNotifications; a test runs in a Simulator, and in the Release test host it would speak to Apple`);
     }
+  }
+  return { findings, said };
+}
+
+// ---------------------------------------------------------------------------
+// Rule (ba): each Mac is its own space (Phase 345, build/p345/SPEC.md §4 item 10)
+// ---------------------------------------------------------------------------
+//
+// His answer of 2026-10-14: "you should be able to switch through via the
+// bottom nav bar like they are completely separate". So every paired Mac is a
+// SPACE (`MacSpace`): its own reader, lists and paths, ONE chosen at a time,
+// and nothing one Mac drew may read or write through another. The hazard the
+// rule exists for is a row drawn from one Mac whose read, write, key or alert
+// goes to another (the attack, §5.3 H, lists another Mac's session ids under
+// its own name). Each clause below is a shape a later round could break in a
+// hurry without any test noticing.
+
+/** The cap's one declaration (D20). */
+export const MAC_LIMIT = 4;
+/** Where `macSends` may be read in App/ (ba5): the alert tap, the address check and the permission read. */
+export const MAC_SENDS_READERS = Object.freeze(['alertTarget', 'checkAlertAddress', 'readAlertPermission']);
+/** The Screens/ files that may read `macSends` (ba5): Settings' drawing, and PairedFacts, which hands it to Settings. */
+export const MAC_SENDS_SCREENS = Object.freeze(['Screens/SettingsScreen.swift', 'Screens/DoorWords.swift']);
+/** A search over the spaces that names a session's own things resolves a row ACROSS Macs (ba2). */
+const ACROSS_MACS = /\.\s*(?:list|sessions|rows|waiting|everything|state|waitingPath|sessionsPath|drawing)\b|\broute\b|\btap\b|\bsessionId\b|\brow\b|\bsessionID\b/;
+/** The files that count Macs, where a count compared with 4 or 5 would be a second cap (ba7). */
+const MAC_COUNTERS = (name) => name.startsWith('App/') || ['Door/Keys.swift', 'Door/Pairing.swift', 'Screens/MacsScreen.swift', 'Screens/SettingsScreen.swift', 'Screens/PairingScreen.swift', 'Screens/DoorWords.swift'].includes(name);
+/** A random source the phone's own account names are made from (ba8). */
+const PHONE_RANDOM = /\bUInt8\s*\.\s*random\b|\bSystemRandomNumberGenerator\b|\bSecRandomCopyBytes\b|\.\s*random\s*\(/;
+/** What a Mac sent, which no account name may be built from (ba8). */
+const RECORD_FIELDS = /\bdoor\b|\brecord\b|\bendpoint\b|\.\s*name\b|\bname\b|\bfp\b|\bdk\b|\bdx\b|\blabel\b|\bpairedAt\b|\bclientTag\b|\btag\b|\bcertificate\b/;
+
+/** The modifiers chained after the expression that ends at `end` (over bare text): `[{ name, args }]`. */
+function chainAfter(bare, end) {
+  const out = [];
+  let k = end + 1;
+  for (;;) {
+    const m = /^\s*\.\s*([A-Za-z_]\w*)\s*(\(|\{)?/.exec(bare.slice(k));
+    if (m === null) break;
+    const name = m[1];
+    let at = k + m[0].length;
+    let args = '';
+    if (m[2] === '(') {
+      const close = closeParen(bare, at - 1);
+      if (close === -1) break;
+      args = bare.slice(at, close);
+      at = close + 1;
+      const trailing = /^\s*\{/.exec(bare.slice(at));
+      if (trailing !== null) {
+        const shut = matchForward(bare, at + trailing[0].length - 1);
+        if (shut === -1) break;
+        at = shut + 1;
+      }
+    } else if (m[2] === '{') {
+      const shut = matchForward(bare, at - 1);
+      if (shut === -1) break;
+      at = shut + 1;
+    }
+    out.push({ name, args });
+    k = at;
+  }
+  return out;
+}
+
+/**
+ * Rule (ba), over the app's Swift named relative to the app folder.
+ *
+ *   ba1 every `Route` case carries `mac:`, and every Route the app builds
+ *       names it, so a pushed screen always says which Mac drew its row.
+ *   ba2 RootView's `destination` reads its reader from the route's mac
+ *       through ONE lookup, `space(`, and from nothing else (no `reader`
+ *       parameter, no `spaces`, no `app.reader`, no `chosen`); and no search
+ *       over the spaces anywhere names a session's row, list, route or tap,
+ *       so nothing resolves a session id across Macs.
+ *   ba3 every `NavigationStack` in RootView's `tabs` carries `.id(` of the
+ *       space, so a switch never reuses a view built over another Mac.
+ *   ba4 `pairedReader()` (the one Mac's) is called only by PhoneDoor's own
+ *       extension default; the app uses `pairedReaders()`.
+ *   ba5 `macSends` is read in App/ only in AppModel's `alertTarget`,
+ *       `checkAlertAddress` and `readAlertPermission`, and in Screens/ only by
+ *       Settings' drawing and the PairedFacts that hands it there.
+ *   ba6 the Macs tab's badge is `otherMacsWaiting`, folded through
+ *       `DoorNumber.sum` with no `+`, so rule (k) gains no entry.
+ *   ba7 the cap's literal, 4, is declared once, `PairingStore.macLimit`, and
+ *       no count is compared with 4 or 5 anywhere else.
+ *   ba8 every account the store writes is `account`, an account it listed, or
+ *       `accountPrefix` and hex from the phone's own random source, built in a
+ *       function that names nothing a Mac sent.
+ *   ba9 `sweepOrphans()` is called once, in `AppModel.launch`, after
+ *       `forgetOnFreshInstall(` and before `LiveDoor(`, so no pairing in
+ *       progress can be swept.
+ *   ba10 (the fix round) a Mac's pairing is forgotten by the app only where
+ *       the person forgot it: `door.unpair(name:` in `AppModel.unpair` (Unpair
+ *       of the Mac on screen) and `AppModel.replaceRefused` (D18a, a pairing
+ *       made on the Pairing screen one Mac's refusal led to) alone;
+ *       `replaceRefused(` called once, by `AppModel.paired`, the Pairing
+ *       screen's own pairing and never the sheet's; `refusedOnPairing` given a
+ *       Mac in `AppModel.refused` alone; and every `refused(` and every pop
+ *       (`backToList(in:` or `saying:`) a routing hands back stands behind a
+ *       `speaks(` test in its own closure, inside `routing`, `listRouting` or
+ *       `alertedRouting`, so a REPLACED pairing's late answer moves nothing
+ *       on the pairing that took its place.
+ */
+export function ruleSpaces(files) {
+  const findings = [];
+  const said = { routeCases: 0, routesBuilt: 0, lookups: 0, searches: 0, stacks: 0, macSendsReads: 0, sweeps: 0, accountsWritten: 0, unpairs: 0, routedRefusals: 0 };
+  const push = (clause, text) => findings.push(`${clause}: ${text}`);
+  const lexed = files.filter((f) => f.name.endsWith('.swift')).map((f) => ({ ...f, ...lexSwift(f.source) })).map((f) => ({ ...f, types: typeSpans(f.bare), funcs: funcSpans(f.bare).filter((fn) => fn.bodyOpen !== -1) }));
+  const app = lexed.find((f) => f.name === 'App/TortieApp.swift') ?? null;
+  const keys = lexed.find((f) => f.name === 'Door/Keys.swift') ?? null;
+  const at = (f, i) => `${f.name}:${String(lineOf(f.bare, i))}`;
+  const where = (f, i) => ({ type: innermost(f.types, i)?.name ?? null, fn: innermost(f.funcs, i)?.name ?? null });
+  if (app === null) push('ba1', 'App/TortieApp.swift does not exist, so the spaces cannot be read');
+
+  // ba1: the Route carries its Mac, and every Route built names it.
+  if (app !== null) {
+    const route = app.types.find((t) => t.name === 'Route' && t.kind === 'enum');
+    if (route === undefined) push('ba1', 'App/TortieApp.swift declares no enum Route');
+    else {
+      const body = app.bare.slice(route.open + 1, route.close);
+      let depth = 0;
+      for (const line of body.split('\n')) {
+        if (depth === 0) {
+          const m = /^\s*case\s+([A-Za-z_]\w*)\s*(\(([^)]*)\))?/.exec(line);
+          if (m !== null) {
+            said.routeCases += 1;
+            if (m[3] === undefined || !/(?:^|,)\s*mac\s*:/.test(m[3])) push('ba1', `Route.${m[1]} carries no mac:, so a screen pushed from one Mac's row could be read over another's (build/p345/SPEC.md D13)`);
+          }
+        }
+        for (const ch of line) depth += ch === '{' ? 1 : ch === '}' ? -1 : 0;
+      }
+      if (said.routeCases === 0) push('ba1', 'enum Route has no case this rule can read');
+    }
+  }
+  for (const f of lexed) {
+    for (const m of f.bare.matchAll(/(?:(?<![\w)\]?!.$])\s*|\bRoute\s*)\.\s*(session|catchUp|alerted)\s*\(/g)) {
+      const open = m.index + m[0].length - 1;
+      const close = closeParen(f.bare, open);
+      const args = topLevelArgs(f.bare.slice(open + 1, close === -1 ? f.bare.length : close));
+      if (args.some((a) => /\b(?:let|var)\b/.test(a) || a === '_')) continue;
+      if (!args.some((a) => /^id\s*:/.test(a))) continue;
+      said.routesBuilt += 1;
+      if (!args.some((a) => /^mac\s*:/.test(a))) push('ba1', `${at(f, m.index)} builds Route.${m[1]} with no mac:, so its screen would read through whichever Mac is on screen (build/p345/SPEC.md D13)`);
+    }
+  }
+
+  // ba2: destination reads its reader through the one lookup, from the route's mac.
+  if (app !== null) {
+    const dest = app.funcs.find((fn) => fn.name === 'destination' && innermost(app.types, fn.at)?.name === 'RootView');
+    if (dest === undefined) push('ba2', 'RootView declares no destination(_:tab:), so where a pushed screen reads from cannot be read');
+    else {
+      const body = app.bare.slice(dest.bodyOpen, dest.bodyClose + 1);
+      if (/\breader\s*:/.test(dest.params)) push('ba2', `${at(app, dest.at)} RootView.destination takes a reader:, which is the Mac on screen's and not the route's (build/p345/SPEC.md D13)`);
+      const lookups = [...body.matchAll(/(?<![\w$])space\s*\(/g)];
+      said.lookups = lookups.length;
+      if (lookups.length !== 1) push('ba2', `${at(app, dest.at)} RootView.destination looks a space up ${String(lookups.length)} time(s); once, through app.space(route.mac) (build/p345/SPEC.md D13)`);
+      for (const l of lookups) {
+        const o = l.index + l[0].length - 1;
+        const arg = body.slice(o + 1, closeParen(body, o)).replace(/\s+/g, '');
+        if (!/^(?:route\.mac|mac)$/.test(arg)) push('ba2', `${at(app, dest.bodyOpen + l.index)} RootView.destination looks its space up by ${JSON.stringify(arg)}; it is the route's own mac (build/p345/SPEC.md D13)`);
+      }
+      for (const m of body.matchAll(/(?<![\w$.])spaces\b|\bapp\s*\.\s*reader\b|\bchosen\b|\bapp\s*\.\s*list\b/g)) push('ba2', `${at(app, dest.bodyOpen + m.index)} RootView.destination names ${m[0].replace(/\s+/g, '')}, so a pushed screen could read through a Mac other than its route's (build/p345/SPEC.md D13)`);
+    }
+  }
+  for (const f of lexed.filter((x) => x.name.startsWith('App/') || x.name.startsWith('Screens/'))) {
+    for (const m of f.bare.matchAll(/\bspaces\s*\.\s*(first|last|filter|contains|firstIndex|lastIndex|allSatisfy|removeAll|drop|prefix)\s*(\(|\{)/g)) {
+      said.searches += 1;
+      let open = m.index + m[0].length - 1;
+      if (m[2] === '(') {
+        const close = closeParen(f.bare, open);
+        const trailing = /^\s*\{/.exec(f.bare.slice(close + 1));
+        const text = f.bare.slice(open + 1, close) + (trailing === null ? '' : f.bare.slice(close + 1, matchForward(f.bare, close + trailing[0].length)));
+        if (ACROSS_MACS.test(text)) push('ba2', `${at(f, m.index)} searches the spaces by ${ACROSS_MACS.exec(text)[0].trim()}, a session's own, so a row from one Mac could resolve to another; a space is looked up by its Mac's public name alone (build/p345/SPEC.md D13, D24)`);
+        continue;
+      }
+      const close = matchForward(f.bare, open);
+      const text = f.bare.slice(open + 1, close === -1 ? f.bare.length : close);
+      if (ACROSS_MACS.test(text)) push('ba2', `${at(f, m.index)} searches the spaces by ${ACROSS_MACS.exec(text)[0].trim()}, a session's own, so a row from one Mac could resolve to another; a space is looked up by its Mac's public name alone (build/p345/SPEC.md D13, D24)`);
+      open = -1;
+    }
+    for (const m of f.bare.matchAll(/\bfor\s+[^{]*?\bin\s+(?:self\s*\.\s*)?spaces\b([^{]*)\{/g)) {
+      if (ACROSS_MACS.test(m[1])) push('ba2', `${at(f, m.index)} walks the spaces where ${m[1].trim().slice(0, 60)}, a session's own, so a row from one Mac could resolve to another (build/p345/SPEC.md D13)`);
+    }
+  }
+
+  // ba3: every NavigationStack in the tabs carries the space's .id(.
+  if (app !== null) {
+    const tabs = app.funcs.find((fn) => fn.name === 'tabs' && innermost(app.types, fn.at)?.name === 'RootView');
+    if (tabs === undefined) push('ba3', 'RootView declares no tabs(…), so the stacks cannot be read');
+    else {
+      const body = app.bare.slice(tabs.bodyOpen, tabs.bodyClose + 1);
+      for (const m of body.matchAll(/(?<![\w.$])NavigationStack\s*(\(|\{)/g)) {
+        said.stacks += 1;
+        const open = tabs.bodyOpen + m.index + m[0].length - 1;
+        let end = m[1] === '(' ? closeParen(app.bare, open) : matchForward(app.bare, open);
+        if (m[1] === '(' && end !== -1) {
+          const trailing = /^\s*\{/.exec(app.bare.slice(end + 1));
+          if (trailing !== null) end = matchForward(app.bare, end + trailing[0].length);
+        }
+        const chain = end === -1 ? [] : chainAfter(app.bare, end);
+        const id = chain.find((c) => c.name === 'id');
+        if (id === undefined) push('ba3', `${at(app, tabs.bodyOpen + m.index)} a NavigationStack in the tabs carries no .id(, so a switch could keep a view built over another Mac's reader (build/p345/SPEC.md D13)`);
+        else if (!/\bid\b|\bchosenId\b/.test(id.args) || /"/.test(id.args)) push('ba3', `${at(app, tabs.bodyOpen + m.index)} a NavigationStack in the tabs carries .id(${id.args.trim()}); it is the space's own id (build/p345/SPEC.md D13)`);
+      }
+      if (said.stacks < 3) push('ba3', `RootView.tabs builds ${String(said.stacks)} NavigationStack(s); each of the three tabs is its own stack`);
+    }
+  }
+
+  // ba4: pairedReader() is PhoneDoor's own default and the app's no more.
+  for (const f of lexed) {
+    for (const m of f.bare.matchAll(/(?<![\w$])pairedReader\s*\(/g)) {
+      if (isDecl(f.bare, m.index)) continue;
+      const ext = f.types.find((t) => t.kind === 'extension' && t.name === 'PhoneDoor' && m.index > t.open && m.index < t.close);
+      if (f.name !== 'Screens/DoorWords.swift' || ext === undefined) push('ba4', `${at(f, m.index)} calls pairedReader(), the one Mac's, in ${where(f, m.index).type ?? 'no type'}.${where(f, m.index).fn ?? 'no function'}; the app reads every kept Mac through pairedReaders(), and pairedReader() is called only by PhoneDoor's own extension default (build/p345/SPEC.md §3.3, D26)`);
+    }
+  }
+
+  // ba5: macSends is read where the alerts decide, and nowhere else.
+  for (const f of lexed.filter((x) => x.name.startsWith('App/') || x.name.startsWith('Screens/'))) {
+    for (const m of f.bare.matchAll(/\bmacSends\b/g)) {
+      said.macSendsReads += 1;
+      const p = where(f, m.index);
+      const ok = f.name.startsWith('App/') ? p.type === 'AppModel' && MAC_SENDS_READERS.includes(p.fn) : MAC_SENDS_SCREENS.includes(f.name);
+      if (!ok) push('ba5', `${at(f, m.index)} reads macSends in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; a Mac's claim that it sends decides only the alert tap (alertTarget), the address check and the permission read, and Settings' Alerts card, so a stranger's Mac cannot steer a list, a route or a switch with it (build/p345/SPEC.md D24, D25)`);
+    }
+  }
+
+  // ba6: the Macs tab's badge, folded through DoorNumber.sum.
+  if (app !== null) {
+    const model = app.types.find((t) => t.name === 'AppModel' && t.kind === 'class');
+    const decl = model === undefined ? null : new RegExp(`\\bvar\\s+otherMacsWaiting\\s*:\\s*Int\\s*\\{`, 'g').exec(app.bare.slice(model.open, model.close));
+    if (decl === null) push('ba6', 'AppModel declares no var otherMacsWaiting: Int, the Macs tab\'s badge (build/p345/SPEC.md D6)');
+    else {
+      const open = model.open + decl.index + decl[0].length - 1;
+      const close = matchForward(app.bare, open);
+      // The badge's body and every AppModel function it calls, to a fixpoint
+      // (the fold may be a helper, `Self.waitingSum(`, a test can drive).
+      const parts = [{ from: open + 1, text: app.bare.slice(open + 1, close === -1 ? app.bare.length : close) }];
+      const own = app.funcs.filter((fn) => fn.bodyOpen > model.open && fn.bodyClose <= model.close);
+      const seen = new Set();
+      for (let k = 0; k < parts.length; k += 1) {
+        for (const fn of own) {
+          if (seen.has(fn.name) || !new RegExp(`(?<![\\w$])${fn.name}\\s*\\(`).test(parts[k].text)) continue;
+          seen.add(fn.name);
+          parts.push({ from: fn.bodyOpen, text: app.bare.slice(fn.bodyOpen, fn.bodyClose + 1) });
+        }
+      }
+      if (!parts.some((x) => /\bDoorNumber\s*\.\s*sum\s*\(/.test(x.text))) push('ba6', 'AppModel.otherMacsWaiting does not fold through DoorNumber.sum, itself or in what it calls, so a count the door sent could trap or wrap (build/p345/SPEC.md D6)');
+      for (const x of parts) for (const m of x.text.matchAll(/&?\+=?|\breduce\s*\(/g)) push('ba6', `${at(app, x.from + m.index)} AppModel.otherMacsWaiting adds with ${m[0].trim()}, itself or in what it calls; the badge is folded through DoorNumber.sum alone, so rule (k) needs no entry for it (build/p345/SPEC.md D6)`);
+    }
+    const tabsFn = app.funcs.find((fn) => fn.name === 'tabs' && innermost(app.types, fn.at)?.name === 'RootView');
+    if (tabsFn !== undefined) {
+      const calls = [...app.bare.slice(tabsFn.bodyOpen, tabsFn.bodyClose).matchAll(/(?<![A-Za-z0-9_.])Tab\s*\(/g)];
+      const macs = calls[TABS.length];
+      if (macs !== undefined) {
+        const span = tabCallSpan(app.bare, tabsFn.bodyOpen + macs.index);
+        const badge = chainAfter(app.bare, span.end).find((c) => c.name === 'badge');
+        if (badge === undefined || !/\botherMacsWaiting\b/.test(badge.args)) push('ba6', `${at(app, tabsFn.bodyOpen + macs.index)} the Macs tab's badge is ${badge === undefined ? 'missing' : badge.args.trim()}; it is app.otherMacsWaiting, so a session waiting on a Mac not on screen is never hidden without a mark (build/p345/SPEC.md D6)`);
+      }
+    }
+  }
+
+  // ba7: four, declared once.
+  {
+    let decls = 0;
+    for (const f of lexed) {
+      for (const m of f.bare.matchAll(/\b(?:let|var)\s+macLimit\b\s*(?::\s*Int\s*)?=\s*([^\n;]+)/g)) {
+        // Copy.macLimit is the cap's SENTENCE, a String; the cap is the number.
+        if (/^"/.test(m[1].trim()) && f.name === 'Style/Copy.swift') continue;
+        decls += 1;
+        const p = where(f, m.index);
+        if (f.name !== 'Door/Keys.swift' || p.type !== 'PairingStore' || m[1].trim() !== String(MAC_LIMIT)) push('ba7', `${at(f, m.index)} declares macLimit = ${m[1].trim()} in ${p.type ?? 'no type'}; the cap is declared once, PairingStore.macLimit = ${String(MAC_LIMIT)} (build/p345/SPEC.md D20)`);
+      }
+      if (!MAC_COUNTERS(f.name)) continue;
+      for (const m of f.bare.matchAll(/\bcount\s*(?:<=?|>=?|==|!=)\s*[45]\b|\b[45]\s*(?:<=?|>=?|==|!=)\s*[\w.]*count\b/g)) push('ba7', `${at(f, m.index)} compares a count with ${/[45]/.exec(m[0])[0]}; the cap is PairingStore.macLimit, declared once (build/p345/SPEC.md D20)`);
+    }
+    if (decls !== 1) push('ba7', `macLimit is declared ${String(decls)} time(s) in the app; once, in PairingStore (build/p345/SPEC.md D20)`);
+    if (keys !== null) {
+      const store = keys.types.find((t) => t.name === 'PairingStore' && t.kind === 'class');
+      if (store !== undefined) {
+        const body = keys.bare.slice(store.open, store.close);
+        for (const m of body.matchAll(/(?<![\w.])4(?![\w.])/g)) {
+          if (/\bmacLimit\s*=\s*$/.test(body.slice(Math.max(0, m.index - 24), m.index))) continue;
+          push('ba7', `${at(keys, store.open + m.index)} PairingStore names the literal 4 outside macLimit's declaration (build/p345/SPEC.md D20)`);
+        }
+      }
+    }
+  }
+
+  // ba8: the accounts the store writes are its own, never a Mac's word.
+  if (keys === null) push('ba8', 'Door/Keys.swift does not exist, so the accounts the store writes cannot be read');
+  else {
+    const store = keys.types.find((t) => t.name === 'PairingStore' && t.kind === 'class');
+    if (store === undefined) push('ba8', 'Door/Keys.swift declares no class PairingStore');
+    else {
+      const own = keys.funcs.filter((fn) => fn.bodyOpen > store.open && fn.bodyClose <= store.close);
+      if (!/\bstatic\s+let\s+account\s*=\s*"\s*"/.test(keys.bare.slice(store.open, store.close)) || !/static let account = "pairing-v2"/.test(keys.code)) push('ba8', 'PairingStore declares no static let account = "pairing-v2", the first Mac\'s account that build 10 reads (build/p345/SPEC.md D8)');
+      if (!/static let accountPrefix = "pairing-v2-"/.test(keys.code)) push('ba8', 'PairingStore declares no static let accountPrefix = "pairing-v2-" (build/p345/SPEC.md D8)');
+      // Every string that joins the prefix to anything, in a function of the phone's own random bytes and nothing a Mac sent.
+      const makers = new Set();
+      for (const m of keys.code.matchAll(/\baccountPrefix\b/g)) {
+        const p = where(keys, m.index);
+        const line = keys.code.slice(keys.code.lastIndexOf('\n', m.index) + 1, keys.code.indexOf('\n', m.index));
+        if (/\bstatic\s+let\s+accountPrefix\b/.test(line)) continue;
+        if (!/\baccountPrefix\s*\+|\+\s*(?:Self\s*\.\s*)?accountPrefix\b|\\\(\s*(?:Self\s*\.\s*)?accountPrefix/.test(line)) continue;
+        const fn = innermost(keys.funcs, m.index);
+        const fnBody = fn === null ? line : keys.bare.slice(fn.bodyOpen, fn.bodyClose + 1);
+        const params = fn === null ? '' : fn.params;
+        if (!PHONE_RANDOM.test(fnBody)) push('ba8', `${at(keys, m.index)} builds an account from accountPrefix in ${p.type ?? 'no type'}.${p.fn ?? 'no function'} with no random bytes of the phone's own; the 16 hex digits are the phone's (build/p345/SPEC.md D8)`);
+        const field = RECORD_FIELDS.exec(`${fnBody}\n${params}`);
+        if (field !== null) push('ba8', `${at(keys, m.index)} builds an account from accountPrefix in a function that names ${field[0].trim()}, so a Mac's word could reach an account name (build/p345/SPEC.md D8)`);
+        if (fn !== null) makers.add(fn.name);
+      }
+      if (makers.size === 0) push('ba8', 'PairingStore never joins accountPrefix to the phone\'s random hex, so a second Mac has no account of its own (build/p345/SPEC.md D8)');
+      // Every write's account: the first Mac's, one the store listed, or a maker's.
+      for (const fn of own) {
+        const body = keys.bare.slice(fn.bodyOpen, fn.bodyClose + 1);
+        for (const m of body.matchAll(/\bsecrets\s*\.\s*write\s*\(/g)) {
+          said.accountsWritten += 1;
+          const o = m.index + m[0].length - 1;
+          const args = topLevelArgs(body.slice(o + 1, closeParen(body, o)));
+          const acct = (args.find((a) => /^account\s*:/.test(a)) ?? '').replace(/^account\s*:\s*/, '').trim();
+          const ok = (name) => {
+            if (/^(?:Self|PairingStore)\s*\.\s*account$/.test(name)) return true;
+            if (!/^[A-Za-z_]\w*$/.test(name)) return false;
+            const sets = [...body.matchAll(new RegExp(`(?:\\blet\\s+|\\bvar\\s+|(?<![\\w.])\\b)${name}\\s*(?::\\s*String\\s*)?=(?!=)\\s*([^\\n]+)`, 'g'))].map((x) => x[1].trim());
+            return sets.length > 0 && sets.every((r) => /^(?:Self|PairingStore)\s*\.\s*account$/.test(r) || /^[A-Za-z_]\w*\s*\.\s*account$/.test(r) || [...makers].some((mk) => new RegExp(`^(?:try\\s+)?(?:Self\\s*\\.\\s*)?${mk}\\s*\\(`).test(r)));
+          };
+          if (!ok(acct)) push('ba8', `${at(keys, fn.bodyOpen + m.index)} PairingStore.${fn.name} writes a record to the account ${JSON.stringify(acct)}, which is not pairing-v2, an account the store listed, or one it made from the phone's own random hex (build/p345/SPEC.md D8)`);
+        }
+      }
+      if (said.accountsWritten === 0) push('ba8', 'PairingStore writes no record, so the accounts it writes cannot be read');
+    }
+  }
+
+  // ba9: the sweep, once, at launch, before anything can pair.
+  {
+    const calls = [];
+    for (const f of lexed) for (const m of f.bare.matchAll(/(?<![\w$])sweepOrphans\s*\(/g)) if (!isDecl(f.bare, m.index)) calls.push({ f, index: m.index });
+    said.sweeps = calls.length;
+    if (calls.length !== 1) push('ba9', `sweepOrphans() is called ${String(calls.length)} time(s) in the app; once, in AppModel.launch, before LiveDoor( (build/p345/SPEC.md D11)`);
+    for (const c of calls) {
+      const p = where(c.f, c.index);
+      if (c.f.name !== 'App/TortieApp.swift' || p.type !== 'AppModel' || p.fn !== 'launch') {
+        push('ba9', `${at(c.f, c.index)} calls sweepOrphans() in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; only AppModel.launch does, before anything can start a pairing whose key it would sweep (build/p345/SPEC.md D11)`);
+        continue;
+      }
+      const fn = innermost(c.f.funcs, c.index);
+      const body = c.f.bare.slice(fn.bodyOpen, fn.bodyClose);
+      const rel = c.index - fn.bodyOpen;
+      const door = /\bLiveDoor\s*\(/.exec(body);
+      const fresh = /\bforgetOnFreshInstall\s*\(/.exec(body);
+      if (door === null || door.index < rel) push('ba9', `${at(c.f, c.index)} calls sweepOrphans() after LiveDoor( is made, so a pairing could start before the sweep and lose its key (build/p345/SPEC.md D11)`);
+      if (fresh === null || fresh.index > rel) push('ba9', `${at(c.f, c.index)} calls sweepOrphans() before forgetOnFreshInstall(, so a fresh install's keys are swept against records about to go (build/p345/SPEC.md D11)`);
+    }
+  }
+
+  // ba10 (the fix round): nothing a door answers forgets a Mac, and a
+  // replaced pairing's late answer moves nothing.
+  if (app !== null) {
+    const UNPAIRERS = ['unpair', 'replaceRefused'];
+    for (const f of lexed) {
+      for (const m of f.bare.matchAll(/(?<![\w$])(?:([A-Za-z_]\w*)\s*\.\s*)?unpair\s*\(\s*name\s*:/g)) {
+        const call = m.index + m[0].indexOf('unpair');
+        if (isDecl(f.bare, call)) continue;
+        said.unpairs += 1;
+        const p = where(f, call);
+        if (f !== app || p.type !== 'AppModel' || !UNPAIRERS.includes(p.fn) || m[1] !== 'door') {
+          push('ba10', `${at(f, call)} forgets a Mac with ${m[1] === undefined ? '' : `${m[1]}.`}unpair(name:) in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; the app forgets a Mac only through door.unpair(name:) in AppModel.unpair, his Unpair, and AppModel.replaceRefused, a pairing made on the Pairing screen one Mac's refusal led to (build/p345/SPEC.md D18a)`);
+        }
+      }
+    }
+    if (said.unpairs === 0) push('ba10', 'the app never calls door.unpair(name:), so Unpair forgets nothing');
+    const replaces = [];
+    for (const m of app.bare.matchAll(/(?<![\w$])replaceRefused\s*\(/g)) if (!isDecl(app.bare, m.index)) replaces.push(m.index);
+    if (replaces.length !== 1) push('ba10', `replaceRefused( is called ${String(replaces.length)} time(s); once, by AppModel.paired, the Pairing screen's own pairing (build/p345/SPEC.md D18a)`);
+    for (const i of replaces) {
+      const p = where(app, i);
+      if (p.type !== 'AppModel' || p.fn !== 'paired') push('ba10', `${at(app, i)} calls replaceRefused( in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; only AppModel.paired does, so the Pair another Mac sheet never forgets a Mac (build/p345/SPEC.md D18a)`);
+    }
+    for (const m of app.bare.matchAll(/(?<![\w$.])(?:self\s*\.\s*)?refusedOnPairing\s*=(?!=)\s*([^\n;]*)/g)) {
+      if (/^nil\b/.test(m[1].trim())) continue;
+      const p = where(app, m.index);
+      if (p.type !== 'AppModel' || p.fn !== 'refused') push('ba10', `${at(app, m.index)} gives refusedOnPairing a Mac in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; only AppModel.refused does, for the one Mac whose refusal leads to Pairing (build/p345/SPEC.md D18a)`);
+    }
+    // The innermost `{` block holding `i`, from its brace to `i`.
+    const blockBefore = (bare, i) => {
+      let depth = 0;
+      for (let k = i - 1; k >= 0; k -= 1) {
+        const c = bare[k];
+        if (c === '}') depth += 1;
+        else if (c === '{') {
+          if (depth === 0) return bare.slice(k, i);
+          depth -= 1;
+        }
+      }
+      return bare.slice(0, i);
+    };
+    const ROUTERS = ['routing', 'listRouting', 'alertedRouting'];
+    for (const m of app.bare.matchAll(/(?<![\w$])(?:self\s*\??\s*\.\s*)?(refused\s*\(\s*mac\s*:|backToList\s*\(\s*(?:in|saying)\s*:)/g)) {
+      const call = m.index + m[0].indexOf(m[1]);
+      if (isDecl(app.bare, call)) continue;
+      const p = where(app, call);
+      if (p.type !== 'AppModel') continue;
+      const what = m[1].startsWith('refused') ? 'refused(mac:)' : 'backToList(';
+      if (!ROUTERS.includes(p.fn)) {
+        if (what === 'refused(mac:)') push('ba10', `${at(app, call)} calls refused(mac:) in AppModel.${p.fn ?? 'no function'}; a refusal reaches it only through a routing (routing, listRouting, alertedRouting), each behind speaks( (the fix round)`);
+        continue;
+      }
+      said.routedRefusals += 1;
+      if (!/\bspeaks\s*\(/.test(blockBefore(app.bare, call))) push('ba10', `${at(app, call)} AppModel.${p.fn} hands back ${what} with no speaks( test in its closure, so a REPLACED pairing's late answer blanks, pops or sends to Pairing the pairing of the same Mac that took its place (the fix round)`);
+    }
+    if (said.routedRefusals === 0) push('ba10', 'no routing hands back a refusal, so a Mac that refuses this phone is never blanked');
   }
   return { findings, said };
 }
@@ -7372,17 +8104,34 @@ const expect = (what, ok) => {
   expect('(u) catches a scheme that archives Debug', uRun(adHocU, adHocU, [], [{ name: 'S.xcscheme', text: '<ArchiveAction buildConfiguration = "Debug" revealArchiveInOrganizer = "YES">' }]).length > 0);
 
   // (v) the phone always draws a sentence.
-  const pairingEnums = 'enum PairingFailure: Error {\n    case badCode\n    case cancelled\n}\nenum PairingStep: Equatable {\n    case presenting\n    case findingName\n}\n';
-  const wordsOk = 'enum DoorWords {\n    static func pairingSentence(for failure: PairingFailure) -> String {\n        switch failure {\n        case .badCode: return Copy.pairNotACode\n        case .cancelled: return Copy.notPaired\n        }\n    }\n    static func stepSentence(for step: PairingStep) -> String {\n        switch step {\n        case .presenting: return Copy.pairReaching\n        case .findingName: return Copy.pairNameNotYet\n        }\n    }\n}\n';
-  const screenOk = 'final class PairingModel {\n    private(set) var line: String = Copy.notPaired\n    func read() {\n        line = DoorWords.stepSentence(for: .presenting)\n    }\n    func stop(_ f: PairingFailure) {\n        line = DoorWords.pairingSentence(for: f)\n    }\n}\n';
+  // Phase 345 (build/p345/SPEC.md D12, D16, §4 item 5): the fixtures carry
+  // keepsOthers, the cap's .macLimit, and the not-paired line drawn through a
+  // DoorWords helper that is itself a String of two sentences.
+  const pairingEnums = 'enum PairingFailure: Error {\n    case badCode\n    case macLimit\n    case cancelled\n}\nenum PairingStep: Equatable {\n    case presenting\n    case findingName\n}\n';
+  const wordsOk = 'enum DoorWords {\n    static func pairingSentence(for failure: PairingFailure, keepsOthers: Bool = false) -> String {\n        switch failure {\n        case .badCode: return Copy.pairNotACode\n        case .macLimit: return Copy.macLimit\n        case .cancelled: return DoorWords.notPairedLine(keepsOthers: keepsOthers)\n        }\n    }\n    static func notPairedLine(keepsOthers: Bool) -> String {\n        keepsOthers ? Copy.notPairedHere : Copy.notPaired\n    }\n    static func stepSentence(for step: PairingStep) -> String {\n        switch step {\n        case .presenting: return Copy.pairReaching\n        case .findingName: return Copy.pairNameNotYet\n        }\n    }\n}\n';
+  const screenOk = 'final class PairingModel {\n    private(set) var line: String = Copy.notPaired\n    init(keepsOthers: Bool) {\n        line = DoorWords.notPairedLine(keepsOthers: keepsOthers)\n    }\n    func read() {\n        line = DoorWords.stepSentence(for: .presenting)\n    }\n    func stop(_ f: PairingFailure) {\n        line = DoorWords.pairingSentence(for: f, keepsOthers: keepsOthers)\n    }\n}\n';
   const vRun = (words = wordsOk, screen = screenOk, pairing = pairingEnums) => rulePairingSentence(words, screen, pairing).findings;
+  const vSwap = (text, from, to) => {
+    if (!text.includes(from)) selfFailures.push(`(v) fixture holds no ${JSON.stringify(from)}`);
+    return text.replace(from, to);
+  };
   expect('(v) passes a sentence for every failure and step', vRun().length === 0);
-  expect('(v) catches pairingSentence made optional again', vRun(wordsOk.replace('(for failure: PairingFailure) -> String {', '(for failure: PairingFailure) -> String? {').replace('case .cancelled: return Copy.notPaired', 'case .cancelled: return nil')).length > 0);
-  expect('(v) catches a failure with no sentence', vRun(wordsOk, screenOk, pairingEnums.replace('    case cancelled\n', '    case cancelled\n    case nameNotFound\n')).length > 0);
-  expect('(v) catches a step with no sentence', vRun(wordsOk.replace('        case .findingName: return Copy.pairNameNotYet\n', '        default: return Copy.pairReaching\n')).length > 0);
-  expect('(v) catches an empty sentence', vRun(wordsOk.replace('case .cancelled: return Copy.notPaired', 'case .cancelled: return ""')).length > 0);
-  expect('(v) catches line = nil', vRun(wordsOk, screenOk.replace('        line = DoorWords.stepSentence(for: .presenting)\n', '        line = nil\n')).length > 0);
-  expect('(v) catches line made optional', vRun(wordsOk, screenOk.replace('private(set) var line: String = Copy.notPaired', 'private(set) var line: String? = Copy.notPaired')).length > 0);
+  expect('(v) catches pairingSentence made optional again', vRun(vSwap(vSwap(wordsOk, 'keepsOthers: Bool = false) -> String {', 'keepsOthers: Bool = false) -> String? {'), 'case .badCode: return Copy.pairNotACode', 'case .badCode: return nil')).length > 0);
+  expect('(v) catches a failure with no sentence', vRun(wordsOk, screenOk, vSwap(pairingEnums, '    case cancelled\n', '    case cancelled\n    case nameNotFound\n')).length > 0);
+  expect('(v) catches a step with no sentence', vRun(vSwap(wordsOk, '        case .findingName: return Copy.pairNameNotYet\n', '        default: return Copy.pairReaching\n')).length > 0);
+  expect('(v) catches an empty sentence', vRun(vSwap(wordsOk, 'case .badCode: return Copy.pairNotACode', 'case .badCode: return ""')).length > 0);
+  expect('(v) catches line = nil', vRun(wordsOk, vSwap(screenOk, '        line = DoorWords.stepSentence(for: .presenting)\n', '        line = nil\n')).length > 0);
+  expect('(v) catches line made optional', vRun(wordsOk, vSwap(screenOk, 'private(set) var line: String = Copy.notPaired', 'private(set) var line: String? = Copy.notPaired')).length > 0);
+  expect('(v) passes the line declared with no starting value, set in init', vRun(wordsOk, vSwap(screenOk, 'private(set) var line: String = Copy.notPaired', 'private(set) var line: String')).length === 0);
+  expect('(v) passes a ternary of two sentences assigned to the line', vRun(wordsOk, vSwap(screenOk, 'line = DoorWords.notPairedLine(keepsOthers: keepsOthers)', 'line = keepsOthers ? Copy.notPairedHere : Copy.notPaired')).length === 0);
+  expect('(v) catches a ternary with an empty arm assigned to the line', vRun(wordsOk, vSwap(screenOk, 'line = DoorWords.notPairedLine(keepsOthers: keepsOthers)', 'line = keepsOthers ? "" : Copy.notPaired')).length > 0);
+  expect('(v) catches pairingSentence with no keepsOthers (Phase 345, D16)', vRun(vSwap(wordsOk, 'PairingFailure, keepsOthers: Bool = false)', 'PairingFailure)')).length > 0);
+  expect('(v) catches .macLimit drawing another sentence (Phase 345, D12)', vRun(vSwap(wordsOk, 'case .macLimit: return Copy.macLimit', 'case .macLimit: return Copy.notPaired')).length > 0);
+  expect('(v) catches no .macLimit case to draw (Phase 345, D12)', vRun(vSwap(wordsOk, '        case .macLimit: return Copy.macLimit\n', ''), screenOk, vSwap(pairingEnums, '    case macLimit\n', '')).length > 0);
+  expect('(v) catches the helper made optional (Phase 345)', vRun(vSwap(wordsOk, 'static func notPairedLine(keepsOthers: Bool) -> String {', 'static func notPairedLine(keepsOthers: Bool) -> String? {')).length > 0);
+  expect('(v) catches the helper answering an empty string (Phase 345)', vRun(vSwap(wordsOk, 'keepsOthers ? Copy.notPairedHere : Copy.notPaired', 'keepsOthers ? "" : Copy.notPaired')).length > 0);
+  expect('(v) catches the helper answering nil (Phase 345)', vRun(vSwap(wordsOk, 'keepsOthers ? Copy.notPairedHere : Copy.notPaired', 'keepsOthers ? nil : Copy.notPaired')).length > 0);
+  expect('(v) catches a helper the line draws through that is not declared (Phase 345)', vRun(wordsOk, vSwap(screenOk, 'line = DoorWords.notPairedLine(keepsOthers: keepsOthers)', 'line = DoorWords.restingLine(keepsOthers: keepsOthers)')).length > 0);
   expect('(v) reads an enum\'s cases one or several to a line', (enumCases('enum E {\n    case a, b\n    case c(Int)\n    func f() { switch self { case .a: break } }\n}\n', 'E') ?? []).join() === 'a,b,c');
 
   // (r) The icon. Two-pixel pictures written here with filter 0, so the rule
@@ -7483,8 +8232,8 @@ const expect = (what, ok) => {
   expect('(s) catches a team set by an xcconfig', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length > 0);
   expect('(s) leaves an xcconfig comment alone', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `// DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length === 0);
   expect('(s) catches another bundle id', sRun(pbxSign({ appRelease: his + identity.replace('com.itavero.tortie.phone;', 'com.itavero.tortie.phone2;') })).length > 0);
-  expect('(s) catches versions that disagree', sRun(pbxSign({ appRelease: his + identity.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 11;') })).length > 0);
-  const nextBuild = (text) => text.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 11;');
+  expect('(s) catches versions that disagree', sRun(pbxSign({ appRelease: his + identity.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 12;') })).length > 0);
+  const nextBuild = (text) => text.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 12;');
   expect('(s) catches the app at a build this round does not upload, even when Debug and Release agree', sRun(pbxSign({ appDebug: adHoc + nextBuild(identity), appRelease: his + nextBuild(identity) })).length > 0);
   expect('(s) catches a test bundle at another build', sRun(pbxSign({ testRelease: `${adHoc}        CURRENT_PROJECT_VERSION = 2;\n` })).length > 0);
   expect('(s) accepts a test bundle at this build', sRun(pbxSign({ testRelease: `${adHoc}        CURRENT_PROJECT_VERSION = ${PHONE_BUILD};\n` })).length === 0);
@@ -7690,6 +8439,39 @@ const expect = (what, ok) => {
   expect('(b) catches landscape read as a regular size class', bPage(bSwap('sizeClass == .compact', 'sizeClass == .regular')).length > 0);
   expect('(b) catches the tab bar hidden through UIKit', bPage(chromeOk, [{ name: 'Screens/SessionScreen.swift', source: 'func f(_ c: UITabBarController) { c.tabBar.isHidden = true }\n' }]).length > 0);
   expect('(b) leaves a toolbar call with a labelled first argument alone (no visibility in it)', bPage(chromeOk, [{ name: 'Screens/SessionScreen.swift', source: 'func f(_ v: some View) -> some View { v.toolbar(removing: .sidebarToggle) }\n' }]).length === 0);
+  // Phase 345 (build/p345/SPEC.md D3, §4 item 1): with two or more Macs kept,
+  // ONE more tab, the Macs tab, behind an if that reads showsMacs, labelled by
+  // the Mac on screen's drawn name with desktopcomputer.
+  const settingsTab = '            Tab(Copy.settings, systemImage: "gearshape", value: AppTab.settings) { NavigationStack { SettingsScreen(app: app) } }\n';
+  const macsTab = [
+    '            if app.showsMacs {',
+    '                Tab(value: AppTab.macs) {',
+    '                    NavigationStack { MacsScreen(app: app) }',
+    '                } label: {',
+    '                    Label(app.drawnName(chosen), systemImage: "desktopcomputer")',
+    '                }',
+    '                .badge(app.otherMacsWaiting)',
+    '            }',
+    ''
+  ].join('\n');
+  if (!tabsOk.includes(settingsTab)) selfFailures.push('(b) fixture holds no Settings tab to put the Macs tab after');
+  const tabsMacs = tabsOk.replace(settingsTab, `${settingsTab}${macsTab}`);
+  const bMacs = (from, to) => {
+    if (!tabsMacs.includes(from)) selfFailures.push(`(b) Macs fixture holds no ${JSON.stringify(from)}`);
+    return bTabs(tabsMacs.replace(from, to));
+  };
+  expect('(b) accepts the Macs tab after the three, behind if showsMacs, labelled by the drawn name with desktopcomputer', bTabs(tabsMacs).length === 0 && ruleTabs([{ name: TAB_FILE, source: tabsMacs }]).said.macsTabs === 1);
+  expect('(b) accepts the Macs tab written title first, Tab(name, systemImage:, value:)', bMacs('                Tab(value: AppTab.macs) {\n                    NavigationStack { MacsScreen(app: app) }\n                } label: {\n                    Label(app.drawnName(chosen), systemImage: "desktopcomputer")\n                }\n', '                Tab(app.drawnName(chosen), systemImage: "desktopcomputer", value: AppTab.macs) {\n                    NavigationStack { MacsScreen(app: app) }\n                }\n').length === 0);
+  expect('(b) still counts three tabs with one Mac kept, no Macs tab', ruleTabs([{ name: TAB_FILE, source: tabsOk }]).said.macsTabs === 0 && bTabs().length === 0);
+  expect('(b) catches a fifth tab after the Macs tab', bMacs('                .badge(app.otherMacsWaiting)\n            }\n', '                .badge(app.otherMacsWaiting)\n                Tab(value: AppTab.macs) { EmptyView() } label: { Label(app.drawnName(chosen), systemImage: "desktopcomputer") }\n            }\n').length > 0);
+  expect('(b) catches the Macs tab outside the if on showsMacs', bMacs('            if app.showsMacs {\n', '            do {\n').length > 0);
+  expect('(b) catches the Macs tab behind an if that reads something else', bMacs('            if app.showsMacs {\n', '            if app.spaces.count > 1 {\n').length > 0);
+  expect('(b) catches the Macs tab labelled with a literal', bMacs('Label(app.drawnName(chosen), systemImage:', 'Label("Macs", systemImage:').length > 0);
+  expect('(b) catches the Macs tab labelled with a Copy word', bMacs('Label(app.drawnName(chosen), systemImage:', 'Label(Copy.macs, systemImage:').length > 0);
+  expect('(b) catches the Macs tab drawn with another symbol', bMacs('"desktopcomputer"', '"laptopcomputer"').length > 0);
+  expect('(b) catches the Macs tab drawn with no symbol', bMacs('Label(app.drawnName(chosen), systemImage: "desktopcomputer")', 'Text(app.drawnName(chosen))').length > 0);
+  expect('(b) leaves the Macs screen, a tab root, hiding its own navigation bar', bTabs(tabsMacs, [{ name: 'Screens/MacsScreen.swift', source: 'struct MacsScreen: View {\n    var body: some View { List {}.toolbar(.hidden, for: .navigationBar) }\n}\n' }]).length === 0);
+  expect('(b) catches the Macs tab built in the Macs screen', bTabs(tabsOk, [{ name: 'Screens/MacsScreen.swift', source: 'let t = Tab(value: AppTab.macs) { EmptyView() } label: { Label(name, systemImage: "desktopcomputer") }\n' }]).length > 0);
 
   // (k), the one named scope.
   const kScope = (renderer, extra = []) => ruleDoorArithmetic([{ name: 'Door/Contract.swift', source: contractOk }, { name: 'Markdown/Blocks.swift', source: renderer }, ...extra], 'Door/Contract.swift', []).findings;
@@ -7700,7 +8482,10 @@ const expect = (what, ok) => {
   expect('(k) catches a scope that covers no operator', kScope('let x = 1\n').length > 0);
   expect('(k) still catches an unnamed operator outside the scope', kScope('func f(_ i: Int) -> Int { i + 1 }\n', [{ name: 'Screens/SettingsScreen.swift', source: 'func g(_ a: Int, _ b: Int) -> Int { a + b }\n' }]).length > 0);
 
-  // (n), widened: the deleters and their order.
+  // (n), widened: the deleters and their order. Phase 345 (build/p345/SPEC.md
+  // §3.1, §4 item 2): one record per Mac, forget(name:) for one, forget() for
+  // every Mac, a load that deletes nothing, and a sweep that deletes only
+  // after a read that threw nothing.
   const nKeys = [
     'struct KeychainClientKeys: ClientKeyStore {',
     '    func delete(tag: String) {',
@@ -7717,21 +8502,64 @@ const expect = (what, ok) => {
     '    }',
     '}',
     'final class PairingStore: Sendable {',
-    '    func load() -> PairedDoor? {',
+    '    func loadAll() -> [PairedDoor] {',
     '        if (try? secrets.read(Self.formerAccount)) != nil {',
     '            try? secrets.remove(Self.formerAccount)',
     '        }',
-    '        try? forget()',
-    '        return nil',
+    '        let listed = (try? secrets.accounts()) ?? [Self.account]',
+    '        for account in settle(listed).dropped {',
+    '            try? secrets.remove(account)',
+    '        }',
+    '        return []',
     '    }',
-    '    func forget() throws {',
-    '        try secrets.remove(Self.account)',
+    '    func load() -> PairedDoor? {',
+    '        loadAll().first',
+    '    }',
+    '    func save(_ door: PairedDoor) throws -> String {',
+    '        let found = try readEvery()',
+    '        try secrets.write(Self.encode(door), account: target)',
+    '        if let replaced { clientKeys.delete(tag: replaced.tag) }',
+    '        return target',
+    '    }',
+    '    func forget(name: String) throws {',
+    '        let found = try readEvery()',
+    '        for record in found {',
+    '            try secrets.remove(record.account)',
+    '        }',
     '        try? secrets.remove(Self.formerAccount)',
     '        for tag in clientKeys.tags() {',
     '            clientKeys.delete(tag: tag)',
     '        }',
     '    }',
+    '    func forget() throws {',
+    '        for account in try Self.pairingAccounts(secrets.accounts()) {',
+    '            try secrets.remove(account)',
+    '        }',
+    '        try? secrets.remove(Self.formerAccount)',
+    '        for tag in clientKeys.tags() {',
+    '            clientKeys.delete(tag: tag)',
+    '        }',
+    '    }',
+    '    func holdsRecord(name: String) -> Bool { true }',
     '    var holdsRecord: Bool { true }',
+    '    func sweepOrphans() {',
+    '        let named: Set<String>',
+    '        do {',
+    '            named = try Self.tagsNamed(by: readEvery())',
+    '        } catch {',
+    '            return',
+    '        }',
+    '        for tag in clientKeys.tags() where !named.contains(tag) {',
+    '            clientKeys.delete(tag: tag)',
+    '        }',
+    '    }',
+    '    private func readEvery() throws -> [Stored] {',
+    '        var found: [Stored] = []',
+    '        for account in try Self.pairingAccounts(secrets.accounts()) {',
+    '            if let data = try secrets.read(account) { found.append(Stored(account: account, data: data)) }',
+    '        }',
+    '        return found',
+    '    }',
     '    func forgetOnFreshInstall(_ mark: InstallMark) -> Bool {',
     '        do {',
     '            try forget()',
@@ -7758,9 +8586,9 @@ const expect = (what, ok) => {
     '    func forget() {',
     '        try? store.forget()',
     '    }',
-    '    func unpair() -> UnpairOutcome {',
-    '        do { try store.forget() } catch { return .kept }',
-    '        return store.holdsRecord ? .kept : .forgotten',
+    '    func unpair(name: String) -> UnpairOutcome {',
+    '        do { try store.forget(name: name) } catch { return .kept }',
+    '        return store.holdsRecord(name: name) ? .kept : .forgotten',
     '    }',
     '}',
     ''
@@ -7771,34 +8599,69 @@ const expect = (what, ok) => {
         .filter(([, v]) => v !== null)
         .map(([name, source]) => ({ name, source }))
     ).findings;
-  expect('(n) accepts the deleters where they are, the record first, and an unpair that sees its error', nDel().length === 0);
+  const nSwap = (text, from, to) => {
+    if (!text.includes(from)) selfFailures.push(`(n) fixture holds no ${JSON.stringify(from)}`);
+    return text.replace(from, to);
+  };
+  const nk = (from, to) => nDel({ 'Door/Keys.swift': nSwap(nKeys, from, to) });
+  const na = (from, to) => nDel({ 'App/TortieApp.swift': nSwap(nApp, from, to) });
+  expect('(n) accepts the deleters where they are, every record first, a load that deletes nothing, a sweep behind its reads, and an unpair of one Mac that sees its error', nDel().length === 0);
   expect('(n) catches SecItemDelete in a screen', nDel({ 'Screens/ListScreen.swift': 'func f(_ q: CFDictionary) { _ = SecItemDelete(q) }\n' }).length > 0);
-  expect('(n) catches SecItemDelete in another function of the store', nDel({ 'Door/Keys.swift': nKeys.replace('    var holdsRecord: Bool { true }', '    func wipe() { SecItemDelete(q as CFDictionary) }\n    var holdsRecord: Bool { true }') }).length > 0);
+  expect('(n) catches SecItemDelete in another function of the store', nk('    var holdsRecord: Bool { true }', '    func wipe() { SecItemDelete(q as CFDictionary) }\n    var holdsRecord: Bool { true }').length > 0);
   expect('(n) catches the record removed outside PairingStore', nDel({ 'App/TortieApp.swift': `${nApp}struct Wiper {\n    func wipe() { try? secrets.remove("pairing-v2") }\n}\n` }).length > 0);
   expect('(n) catches a client key deleted from a screen', nDel({ 'Screens/SettingsScreen.swift': 'func f() { store.clientKeys.delete(tag: t) }\n' }).length > 0);
-  expect('(n) catches the keys deleted before the record', nDel({ 'Door/Keys.swift': nKeys.replace('        try secrets.remove(Self.account)\n        try? secrets.remove(Self.formerAccount)\n        for tag in clientKeys.tags() {\n            clientKeys.delete(tag: tag)\n        }\n', '        for tag in clientKeys.tags() {\n            clientKeys.delete(tag: tag)\n        }\n        try secrets.remove(Self.account)\n        try? secrets.remove(Self.formerAccount)\n') }).length > 0);
-  expect('(n) catches the record removed with try?', nDel({ 'Door/Keys.swift': nKeys.replace('        try secrets.remove(Self.account)\n', '        try? secrets.remove(Self.account)\n') }).length > 0);
-  expect('(n) catches unpair through try? store.forget()', nDel({ 'App/TortieApp.swift': nApp.replace('do { try store.forget() } catch { return .kept }', 'try? store.forget()') }).length > 0);
-  expect('(n) catches an unpair that never forgets', nDel({ 'App/TortieApp.swift': nApp.replace('do { try store.forget() } catch { return .kept }', '_ = store') }).length > 0);
-  expect('(n) catches an unpair that never asks whether the record is still there', nDel({ 'App/TortieApp.swift': nApp.replace('return store.holdsRecord ? .kept : .forgotten', 'return .forgotten') }).length > 0);
-  expect('(n) catches no unpair at all', nDel({ 'App/TortieApp.swift': nApp.replace(/ {4}func unpair\(\)[\s\S]*?\n {4}\}\n/, '') }).length > 0);
+  expect('(n) catches the keys deleted before the records in forget()', nk('        for account in try Self.pairingAccounts(secrets.accounts()) {\n            try secrets.remove(account)\n        }\n        try? secrets.remove(Self.formerAccount)\n        for tag in clientKeys.tags() {\n            clientKeys.delete(tag: tag)\n        }\n', '        for tag in clientKeys.tags() {\n            clientKeys.delete(tag: tag)\n        }\n        for account in try Self.pairingAccounts(secrets.accounts()) {\n            try secrets.remove(account)\n        }\n').length > 0);
+  expect('(n) catches the records removed with try? in forget()', nk('            try secrets.remove(account)\n        }\n        try? secrets.remove(Self.formerAccount)\n        for tag in clientKeys.tags() {\n            clientKeys.delete(tag: tag)\n        }\n    }\n    func holdsRecord', '            try? secrets.remove(account)\n        }\n        try? secrets.remove(Self.formerAccount)\n        for tag in clientKeys.tags() {\n            clientKeys.delete(tag: tag)\n        }\n    }\n    func holdsRecord').length > 0);
+  expect('(n) catches the key deleted before the record in forget(name:) (Phase 345)', nk('        for record in found {\n            try secrets.remove(record.account)\n        }\n        try? secrets.remove(Self.formerAccount)\n        for tag in clientKeys.tags() {\n            clientKeys.delete(tag: tag)\n        }\n', '        for tag in clientKeys.tags() {\n            clientKeys.delete(tag: tag)\n        }\n        for record in found {\n            try secrets.remove(record.account)\n        }\n').length > 0);
+  expect('(n) catches one Mac\'s record removed with try? (Phase 345)', nk('            try secrets.remove(record.account)\n', '            try? secrets.remove(record.account)\n').length > 0);
+  expect('(n) catches a forget(name:) with no body (Phase 345)', nk(/ {4}func forget\(name: String\) throws \{[\s\S]*?\n {4}\}\n/.exec(nKeys)?.[0] ?? '\u0000', '').length > 0);
+  expect('(n) catches loadAll forgetting every Mac on a record that does not decode, as load() once did (Phase 345, D11)', nk('        return []\n    }\n    func load()', '        try? forget()\n        return []\n    }\n    func load()').length > 0);
+  expect('(n) catches loadAll deleting a client key (Phase 345, D11)', nk('            try? secrets.remove(account)\n        }\n        return []', '            try? secrets.remove(account)\n            clientKeys.delete(tag: account)\n        }\n        return []').length > 0);
+  expect('(n) catches load() forgetting (Phase 345, D11)', nk('        loadAll().first\n', '        try? forget(name: "x")\n        return loadAll().first\n').length > 0);
+  expect('(n) catches the sweep reading the account list behind try? (Phase 345, D11)', nk('        for account in try Self.pairingAccounts(secrets.accounts()) {\n            if let data', '        for account in Self.pairingAccounts((try? secrets.accounts()) ?? []) {\n            if let data').length > 0);
+  expect('(n) catches the sweep reading a record behind try? (Phase 345, D11)', nk('if let data = try secrets.read(account)', 'if let data = try? secrets.read(account)').length > 0);
+  expect('(n) catches the sweep running on after a read that failed (its catch falls through) (Phase 345, D11)', nk('        } catch {\n            return\n        }\n        for tag in clientKeys.tags() where', '        } catch {\n            named = []\n        }\n        for tag in clientKeys.tags() where').length > 0);
+  expect('(n) catches the sweep deleting inside its catch (Phase 345, D11)', nk('        } catch {\n            return\n        }\n        for tag in clientKeys.tags() where', '        } catch {\n            for tag in clientKeys.tags() { clientKeys.delete(tag: tag) }\n            return\n        }\n        for tag in clientKeys.tags() where').length > 0);
+  expect('(n) catches the sweep deleting before it reads (Phase 345, D11)', nk('        let named: Set<String>\n        do {', '        for tag in clientKeys.tags() { clientKeys.delete(tag: tag) }\n        let named: Set<String>\n        do {').length > 0);
+  expect('(n) catches no sweep at all (Phase 345, D11)', nk(/ {4}func sweepOrphans\(\) \{[\s\S]*?\n {4}\}\n/.exec(nKeys)?.[0] ?? '\u0000', '').length > 0);
+  expect('(n) catches unpair through try? store.forget(name:)', na('do { try store.forget(name: name) } catch { return .kept }', 'try? store.forget(name: name)').length > 0);
+  expect('(n) catches unpair forgetting every Mac, try store.forget() (Phase 345)', na('do { try store.forget(name: name) } catch { return .kept }', 'do { try store.forget() } catch { return .kept }').length > 0);
+  expect('(n) catches an unpair that never forgets', na('do { try store.forget(name: name) } catch { return .kept }', '_ = store').length > 0);
+  expect('(n) catches an unpair that never asks whether that Mac\'s record is still there', na('return store.holdsRecord(name: name) ? .kept : .forgotten', 'return .forgotten').length > 0);
+  expect('(n) catches an unpair that asks whether ANY record is there rather than this Mac\'s (Phase 345)', na('return store.holdsRecord(name: name) ? .kept : .forgotten', 'return store.holdsRecord ? .kept : .forgotten').length > 0);
+  expect('(n) catches no unpair at all', nDel({ 'App/TortieApp.swift': nApp.replace(/ {4}func unpair\(name: String\)[\s\S]*?\n {4}\}\n/, '') }).length > 0);
   expect('(n) catches door.forget() outside #if DEBUG', nDel({ 'App/TortieApp.swift': nApp.replace('        #if DEBUG\n', '').replace('        #endif\n', '') }).length > 0);
-  expect('(n) catches the store forgotten by the app model', nDel({ 'App/TortieApp.swift': nApp.replace('        return AppModel(door: door)', '        try? PairingStore.keychain.forget()\n        return AppModel(door: door)') }).length > 0);
-  expect('(n) leaves forgetOnFreshInstall( alone, a different name', nDel({ 'App/TortieApp.swift': nApp.replace('        let door = LiveDoor', '        PairingStore.keychain.forgetOnFreshInstall(mark)\n        let door = LiveDoor') }).length === 0);
+  expect('(n) catches the store forgotten by the app model', na('        return AppModel(door: door)', '        try? PairingStore.keychain.forget()\n        return AppModel(door: door)').length > 0);
+  expect('(n) catches one Mac forgotten by the app model rather than through LiveDoor.unpair (Phase 345)', na('        return AppModel(door: door)', '        try? PairingStore.keychain.forget(name: "studio")\n        return AppModel(door: door)').length > 0);
+  expect('(n) leaves forgetOnFreshInstall( and sweepOrphans( alone, different names', na('        let door = LiveDoor', '        PairingStore.keychain.forgetOnFreshInstall(mark)\n        PairingStore.keychain.sweepOrphans()\n        let door = LiveDoor').length === 0);
 
   // (x), widened: Unpair's unregister and its one caller.
   const fxSystem = 'final class SystemPushAddressing {\n  func forgetAddress() async {\n    #if DEBUG\n    #else\n    UIApplication.shared.unregisterForRemoteNotifications()\n    #endif\n  }\n}\n';
+  // Phase 345 (build/p345/SPEC.md D23, D25): Unpair forgets the Mac on
+  // screen; the one forgetAddress() is behind no Mac left or that Mac's own
+  // presented address, and Settings asks iOS behind the chosen Mac's word.
   const fxApp = [
     'final class AppModel {',
+    '    func readAlertPermission() async {',
+    '        guard root == .reading, let space = chosen, space.reader.alerts.macSends else {',
+    '            alertPermission = nil',
+    '            return',
+    '        }',
+    '        alertPermission = await alerts.authorization()',
+    '    }',
     '    func unpair() {',
-    '        guard root == .reading else { return }',
-    '        switch door.unpair() {',
+    '        guard root == .reading, let space = chosen else { return }',
+    '        let held = space.reader.alerts.presented != nil',
+    '        switch door.unpair(name: space.id) {',
     '        case .kept:',
-    '            settingsLine = Copy.unpairFailed',
+    '            space.settingsLine = Copy.unpairFailed',
     '        case .forgotten:',
-    '            settingsLine = nil',
-    '            forgetting = Task { await alerts.forgetAddress() }',
-    '            lostPairing()',
+    '            space.settingsLine = nil',
+    '            let last = spaces.count == 1',
+    '            if last || held {',
+    '                forgetting = Task { await alerts.forgetAddress() }',
+    '            }',
+    '            drop(space)',
     '        }',
     '    }',
     '}',
@@ -7809,15 +8672,26 @@ const expect = (what, ok) => {
       Object.entries({ 'Alerts/SystemAlerts.swift': fxSystem, 'App/TortieApp.swift': fxApp, 'Alerts/Alerts.swift': 'protocol PushAddressing {\n    func forgetAddress() async\n}\n', ...edits }).map(([name, source]) => ({ name, source })),
       tests
     ).findings;
-  expect('(x) accepts one unregister in the #else and one forgetAddress() in the .forgotten arm', xFa().length === 0);
+  const xSwap = (from, to) => {
+    if (!fxApp.includes(from)) selfFailures.push(`(x) Unpair fixture holds no ${JSON.stringify(from)}`);
+    return xFa({ 'App/TortieApp.swift': fxApp.replace(from, to) });
+  };
+  expect('(x) accepts one unregister in the #else and one forgetAddress() in the .forgotten arm, behind D23', xFa().length === 0);
   expect('(x) catches the unregister outside the #else', xFa({ 'Alerts/SystemAlerts.swift': fxSystem.replace('    #if DEBUG\n    #else\n', '').replace('    #endif\n', '') }).length > 0);
   expect('(x) catches the unregister in the #if DEBUG arm', xFa({ 'Alerts/SystemAlerts.swift': fxSystem.replace('    #if DEBUG\n    #else\n    UIApplication', '    #if DEBUG\n    UIApplication').replace('    #endif', '    #else\n    #endif') }).length > 0);
   expect('(x) catches a second unregister', xFa({ 'App/TortieApp.swift': `${fxApp}func again() { UIApplication.shared.unregisterForRemoteNotifications() }\n` }).length > 0);
-  expect('(x) catches forgetAddress() before door.unpair()', xFa({ 'App/TortieApp.swift': fxApp.replace('            forgetting = Task { await alerts.forgetAddress() }\n', '').replace('        switch door.unpair() {', '        forgetting = Task { await alerts.forgetAddress() }\n        switch door.unpair() {') }).length > 0);
-  expect('(x) catches forgetAddress() in the .kept arm', xFa({ 'App/TortieApp.swift': fxApp.replace('            forgetting = Task { await alerts.forgetAddress() }\n', '').replace('            settingsLine = Copy.unpairFailed\n', '            settingsLine = Copy.unpairFailed\n            forgetting = Task { await alerts.forgetAddress() }\n') }).length > 0);
-  expect('(x) catches forgetAddress() in a .forgotten arm that comes before door.unpair()', xFa({ 'App/TortieApp.swift': fxApp.replace('        switch door.unpair() {\n        case .kept:\n            settingsLine = Copy.unpairFailed\n        case .forgotten:\n            settingsLine = nil\n            forgetting = Task { await alerts.forgetAddress() }\n            lostPairing()\n        }\n', '        switch outcome {\n        case .kept:\n            break\n        case .forgotten:\n            forgetting = Task { await alerts.forgetAddress() }\n        }\n        _ = door.unpair()\n') }).length > 0);
-  expect('(x) catches forgetAddress() called twice', xFa({ 'App/TortieApp.swift': fxApp.replace('            lostPairing()\n', '            lostPairing()\n            forgetting = Task { await alerts.forgetAddress() }\n') }).length > 0);
+  expect('(x) catches forgetAddress() before door.unpair(name:)', xFa({ 'App/TortieApp.swift': fxApp.replace('                forgetting = Task { await alerts.forgetAddress() }\n', '').replace('        switch door.unpair(name: space.id) {', '        if spaces.isEmpty || held { forgetting = Task { await alerts.forgetAddress() } }\n        switch door.unpair(name: space.id) {') }).length > 0);
+  expect('(x) catches forgetAddress() in the .kept arm', xFa({ 'App/TortieApp.swift': fxApp.replace('            if last || held {\n                forgetting = Task { await alerts.forgetAddress() }\n            }\n', '').replace('            space.settingsLine = Copy.unpairFailed\n', '            space.settingsLine = Copy.unpairFailed\n            if spaces.count == 1 || held { forgetting = Task { await alerts.forgetAddress() } }\n') }).length > 0);
+  expect('(x) catches forgetAddress() in a .forgotten arm that comes before door.unpair(name:)', xFa({ 'App/TortieApp.swift': fxApp.replace(/ {8}switch door\.unpair\(name: space\.id\) \{[\s\S]*?\n {8}\}\n/, '        switch outcome {\n        case .kept:\n            break\n        case .forgotten:\n            if spaces.isEmpty || held { forgetting = Task { await alerts.forgetAddress() } }\n        }\n        _ = door.unpair(name: space.id)\n') }).length > 0);
+  expect('(x) catches forgetAddress() called twice', xSwap('            drop(space)\n', '            drop(space)\n            forgetting = Task { await alerts.forgetAddress() }\n').length > 0);
   expect('(x) catches a test naming the unregister', xFa({}, [{ name: 'TortieTests/T.swift', source: 'func f() { UIApplication.shared.unregisterForRemoteNotifications() }\n' }]).length > 0);
+  expect('(x) catches forgetAddress() on every Unpair, outside D23 (Phase 345)', xSwap('            if last || held {\n                forgetting = Task { await alerts.forgetAddress() }\n            }\n', '            forgetting = Task { await alerts.forgetAddress() }\n').length > 0);
+  expect("(x) catches forgetAddress() behind the entry's rule, no kept Mac that says it sends (Phase 345, D23)", xSwap('            if last || held {\n', '            if !spaces.contains(where: { $0.reader.alerts.macSends }) {\n').length > 0);
+  expect('(x) catches forgetAddress() behind the unpaired Mac\'s address alone, which today\'s one Mac never needed (Phase 345, D23)', xSwap('            if last || held {\n', '            if held {\n').length > 0);
+  expect('(x) catches forgetAddress() behind no Mac left alone (Phase 345, D23)', xSwap('            if last || held {\n', '            if last {\n').length > 0);
+  expect('(x) passes D23 written straight into the if, with no lets', xSwap('            if last || held {\n', '            if spaces.count == 1 || space.reader.alerts.presented != nil {\n').length === 0);
+  expect('(x) catches readAlertPermission asking iOS for any kept Mac that sends (Phase 345, D25)', xSwap('let space = chosen, space.reader.alerts.macSends else {', 'spaces.contains(where: { $0.reader.alerts.macSends }) else {').length > 0);
+  expect('(x) catches readAlertPermission with no guard on macSends (Phase 345)', xSwap('let space = chosen, space.reader.alerts.macSends else {', 'let space = chosen else {').length > 0);
   expect('(x) leaves registerForRemoteNotifications to its own clause', xFa({ 'Alerts/SystemAlerts.swift': `${fxSystem}// registerForRemoteNotifications\n` }).length === 0);
 
   // (y) and (z): a whole renderer that keeps every bound.
@@ -10742,6 +11616,38 @@ export function ruleSideLine(files) {
   return { findings, said };
 }
 
+// ---- (t) widened: the hostile door's twin, a second Mac that attacks the first (Phase 345) ----
+
+/**
+ * THE TWIN (build/p345/SPEC.md §5.3 H and HN, §4 item 9). probe:p345's attack
+ * pairs the phone with a hostile second door that claims it sends alerts,
+ * shares the honest Mac's first label, lists the honest Mac's session ids
+ * as its own (`twin-mirror`, on its stdin) and then refuses everything
+ * (`twin-refuse`). (t) requires build/p316/hostile-door.mjs to carry the arm
+ * by that name, with the two flags the probe hands it, so the arm the probe
+ * drives cannot be renamed or lose a flag while this gate stays green.
+ */
+export const HOSTILE_TWIN = Object.freeze({ arm: 'twin', flags: Object.freeze(['--name', '--alerts']), words: Object.freeze(['twin-mirror', 'twin-refuse']) });
+
+/** (t)'s Phase 345 half, over hostile-door.mjs's text (or null). */
+export function ruleHostileTwinArm(hostile) {
+  const findings = [];
+  const said = { arm: false, flags: [], words: [] };
+  if (hostile === null) return { findings: ['build/p316/hostile-door.mjs does not exist, so the twin probe:p345 attacks with is not served (build/p345/SPEC.md §5.3)'], said };
+  const row = new RegExp(`(?:^|\\n)\\s*(?:'${HOSTILE_TWIN.arm}'|${HOSTILE_TWIN.arm}):\\s*\\{([^\\n]*)\\}`).exec(hostile);
+  if (row === null) findings.push(`build/p316/hostile-door.mjs names no arm ${JSON.stringify(HOSTILE_TWIN.arm)} in its table, the second Mac probe:p345's attack pairs (build/p345/SPEC.md §5.3 H)`);
+  else said.arm = true;
+  for (const flag of HOSTILE_TWIN.flags) {
+    if (new RegExp(`(?<![\\w-])${flag}(?![\\w-])`).test(hostile)) said.flags.push(flag);
+    else findings.push(`build/p316/hostile-door.mjs reads no ${flag}, which probe:p345 hands the twin (build/p345/SPEC.md §5.3)`);
+  }
+  for (const word of HOSTILE_TWIN.words) {
+    if (new RegExp(`(?<![\\w-])${word}(?![\\w-])`).test(hostile)) said.words.push(word);
+    else findings.push(`build/p316/hostile-door.mjs takes no ${JSON.stringify(word)} on its stdin, the twin's ${word === 'twin-mirror' ? 'mirror of the honest Mac\'s session ids' : 'refusal of everything'} (build/p345/SPEC.md §5.3 H)`);
+  }
+  return { findings, said };
+}
+
 // ---- (t) widened: the hostile door's scrollback arms (SPEC §6.4, §7.8 PSH) ----
 
 /** The names (t) requires build/p316/hostile-door.mjs to carry, pinned by the spec so the two builders agree. */
@@ -12792,6 +13698,321 @@ export function ruleTerminalMenu(files) {
   expect('(t) catches a scrollback arm missing', tSb(hostileSb.replace("'scrollback-404'", "'scrollback-410'")) > 0);
   expect('(t) catches a lie that does not stop paging', tSb(hostileSb.replace(", stops: true },\n  'scrollback-space'", " },\n  'scrollback-space'")) > 0);
   expect('(t) catches an arm expecting a word Copy.swift lacks', tSb(hostileSb, 'static let other = "x"\n') > 0);
+  // (t) widened, Phase 345: the twin, probe:p345's hostile second Mac.
+  const hostileTwin = [
+    "  twin: { what: 'a second Mac that claims it sends, shares the first label, mirrors and refuses', ends: 'drawn' },",
+    "const name = argv.includes('--name') ? argv[argv.indexOf('--name') + 1] : null;",
+    "const alerts = argv.includes('--alerts');",
+    "if (line.startsWith('twin-mirror ')) mirror(line.slice(12));",
+    "if (line === 'twin-refuse') refuse = true;",
+    ''
+  ].join('\n');
+  const tTw = (h) => ruleHostileTwinArm(h).findings.length;
+  expect('(t) passes the twin with its two flags and two stdin words (Phase 345)', tTw(hostileTwin) === 0 && ruleHostileTwinArm(hostileTwin).said.arm === true);
+  expect('(t) catches the twin arm missing (Phase 345)', tTw(hostileTwin.replace('  twin: {', '  twins: {')) > 0);
+  expect('(t) catches the twin with no --name (Phase 345)', tTw(hostileTwin.replace(/--name/g, '--label')) > 0);
+  expect('(t) catches the twin with no --alerts (Phase 345)', tTw(hostileTwin.replace(/--alerts/g, '--sends')) > 0);
+  expect('(t) catches the twin with no mirror (Phase 345)', tTw(hostileTwin.replace(/twin-mirror/g, 'twin-copy')) > 0);
+  expect('(t) catches the twin with no refusal (Phase 345)', tTw(hostileTwin.replace(/twin-refuse/g, 'twin-stop')) > 0);
+  expect('(t) does not take --names for --name (Phase 345)', tTw(hostileTwin.replace(/'--name'/g, "'--names'")) > 0);
+  expect('(t) catches no hostile door at all (Phase 345)', tTw(null) > 0);
+}
+
+// The Phase 345 scanner, (ba), proved on texts this file holds
+// (build/p345/SPEC.md §4 item 10).
+{
+  const baApp = [
+    'enum Route: Hashable {',
+    '    case session(mac: String, id: String, name: String)',
+    '    case catchUp(mac: String, id: String, honestLine: String?)',
+    '    case alerted(mac: String, id: String)',
+    '}',
+    'final class AppModel {',
+    '    static func launch() -> AppModel {',
+    '        if let mark = try? InstallMark.standard() {',
+    '            PairingStore.keychain.forgetOnFreshInstall(mark)',
+    '        }',
+    '        PairingStore.keychain.sweepOrphans()',
+    '        let door = LiveDoor(store: .keychain, transport: t)',
+    '        return AppModel(door: door)',
+    '    }',
+    '    init(door: any PhoneDoor) {',
+    '        let kept = door.pairedReaders()',
+    '        spaces = kept.map { makeSpace($0) }',
+    '    }',
+    '    func space(_ mac: String) -> MacSpace? {',
+    '        spaces.first { $0.id == mac }',
+    '    }',
+    '    var otherMacsWaiting: Int {',
+    '        var waiting = 0',
+    '        for space in spaces where space.id != chosen?.id {',
+    '            guard case .loaded(let drawing) = space.list.state else { continue }',
+    '            guard let sum = DoorNumber.sum(waiting, drawing.waiting.count) else { return 0 }',
+    '            waiting = sum',
+    '        }',
+    '        return waiting',
+    '    }',
+    '    func open(_ row: RowDrawing, in tab: AppTab) {',
+    '        guard let space = chosen else { return }',
+    '        push(.session(mac: space.id, id: row.id, name: row.name), on: tab)',
+    '    }',
+    '    func openFromAlert(_ tap: AlertTap) {',
+    '        guard let target = alertTarget() else { return }',
+    '        switch tap {',
+    '        case .list:',
+    '            target.waitingPath = []',
+    '        case .session(let id):',
+    '            target.waitingPath = [.alerted(mac: target.id, id: id)]',
+    '        }',
+    '    }',
+    '    func alertTarget() -> MacSpace? {',
+    '        guard spaces.count > 1 else { return spaces.first }',
+    '        let senders = spaces.filter { $0.reader.alerts.macSends }',
+    '        return senders.count == 1 ? senders.first : nil',
+    '    }',
+    '    func checkAlertAddress() async {',
+    '        for space in spaces {',
+    '            guard space.reader.alerts.macSends else { continue }',
+    '        }',
+    '    }',
+    '    func readAlertPermission() async {',
+    '        guard let space = chosen, space.reader.alerts.macSends else { return }',
+    '    }',
+    '    func openCatchUp(_ id: String, honestLine: String?, in tab: AppTab) {',
+    '        guard let space = chosen else { return }',
+    '        push(.catchUp(mac: space.id, id: id, honestLine: honestLine), on: tab)',
+    '    }',
+    '    func refused(mac: String) {',
+    '        let refusing = space(mac)',
+    '        if let refusing, spaces.count > 1 {',
+    '            refusing.list.drawRefused(Copy.notPairedHere)',
+    '        } else if let refusing {',
+    '            refusedOnPairing = refusing.id',
+    '            lostPairing()',
+    '        } else if spaces.isEmpty {',
+    '            lostPairing()',
+    '        }',
+    '    }',
+    '    private func speaks(for mac: String, _ owner: MadeFor) -> Bool {',
+    '        guard let kept = space(mac) else { return true }',
+    '        return kept === owner.space',
+    '    }',
+    '    func routing(_ tab: AppTab, mac: String) -> ReadRouting {',
+    '        let owner = MadeFor(space(mac))',
+    '        return ReadRouting(',
+    '            backToList: { [weak self] in',
+    '                guard let self, self.speaks(for: mac, owner) else { return }',
+    '                self.backToList(in: tab, mac: mac)',
+    '            },',
+    '            pairAgain: { [weak self] in',
+    '                guard let self, self.speaks(for: mac, owner) else { return }',
+    '                self.refused(mac: mac)',
+    '            }',
+    '        )',
+    '    }',
+    '    private func listRouting(_ mac: String, owner: MadeFor) -> ReadRouting {',
+    '        ReadRouting(backToList: {}, pairAgain: { [weak self] in',
+    '            guard let self, self.speaks(for: mac, owner) else { return }',
+    '            self.refused(mac: mac)',
+    '        })',
+    '    }',
+    '    func alertedRouting(mac: String) -> ReadRouting {',
+    '        let owner = MadeFor(space(mac))',
+    '        return ReadRouting(',
+    '            backToList: { [weak self] in',
+    '                guard let self, self.speaks(for: mac, owner) else { return }',
+    '                self.backToList(saying: Copy.noSuchSession, mac: mac)',
+    '            },',
+    '            pairAgain: { [weak self] in',
+    '                guard let self, self.speaks(for: mac, owner) else { return }',
+    '                self.refused(mac: mac)',
+    '            }',
+    '        )',
+    '    }',
+    '    func paired(_ reader: any DoorReading, first: PocketBlockedAnswer) {',
+    '        replaceRefused(with: reader.facts.publicName)',
+    '        adopt(reader, first: first)',
+    '    }',
+    '    private func pairedAnother(_ reader: any DoorReading, first: PocketBlockedAnswer) {',
+    '        adopt(reader, first: first)',
+    '    }',
+    '    private func replaceRefused(with mac: String) {',
+    '        defer { refusedOnPairing = nil }',
+    '        guard let refused = refusedOnPairing, refused != mac else { return }',
+    '        _ = door.unpair(name: refused)',
+    '    }',
+    '    func unpair() {',
+    '        guard let space = chosen else { return }',
+    '        switch door.unpair(name: space.id) {',
+    '        case .kept:',
+    '            space.settingsLine = Copy.unpairFailed',
+    '        case .forgotten:',
+    '            refusedOnPairing = nil',
+    '        }',
+    '    }',
+    '}',
+    'struct RootView: View {',
+    '    private func tabs(_ space: MacSpace) -> some View {',
+    '        TabView(selection: $app.tab) {',
+    '            Tab(Copy.needsInput, systemImage: "bell", value: AppTab.needsInput) {',
+    '                NavigationStack(path: $app.waitingPath) {',
+    '                    listScreen(space)',
+    '                        .navigationDestination(for: Route.self) { route in destination(route, tab: .needsInput) }',
+    '                }',
+    '                .id(space.id)',
+    '            }',
+    '            .badge(app.waitingBadge)',
+    '            Tab(Copy.sessions, systemImage: "list.bullet", value: AppTab.sessions) {',
+    '                NavigationStack(path: $app.sessionsPath) { SessionsTab(model: space.sessions) }',
+    '                    .id(space.id)',
+    '            }',
+    '            Tab(Copy.settings, systemImage: "gearshape", value: AppTab.settings) {',
+    '                NavigationStack { SettingsScreen(app: app) }',
+    '                    .id(space.id)',
+    '            }',
+    '            if app.showsMacs {',
+    '                Tab(value: AppTab.macs) {',
+    '                    NavigationStack { MacsScreen(app: app) }',
+    '                        .id(space.id)',
+    '                } label: {',
+    '                    Label(app.drawnName(space), systemImage: "desktopcomputer")',
+    '                }',
+    '                .badge(app.otherMacsWaiting)',
+    '            }',
+    '        }',
+    '    }',
+    '    @ViewBuilder',
+    '    private func destination(_ route: Route, tab: AppTab) -> some View {',
+    '        if let reader = app.space(route.mac)?.reader {',
+    '            switch route {',
+    '            case .session(let mac, let id, let name):',
+    '                SessionRoute(id: id, name: name, reader: reader, routing: app.routing(tab, mac: mac))',
+    '            case .catchUp(let mac, let id, let honestLine):',
+    '                CatchUpRoute(id: id, honestLine: honestLine, reader: reader, routing: app.routing(tab, mac: mac))',
+    '            case .alerted(let mac, let id):',
+    '                SessionRoute(id: id, name: "", reader: reader, routing: app.alertedRouting(mac: mac))',
+    '            }',
+    '        }',
+    '    }',
+    '}',
+    'struct LiveDoor: PhoneDoor {',
+    '    func pairedReader() -> (any DoorReading)? {',
+    '        guard let door = store.load() else { return nil }',
+    '        return PairedReader(client: client, door: door)',
+    '    }',
+    '    func pairedReaders() -> [any DoorReading] {',
+    '        store.loadAll().map { PairedReader(client: client, door: $0) }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const baWords = 'protocol PhoneDoor {\n    func pairedReader() -> (any DoorReading)?\n    func pairedReaders() -> [any DoorReading]\n}\nextension PhoneDoor {\n    func pairedReaders() -> [any DoorReading] {\n        pairedReader().map { [$0] } ?? []\n    }\n}\nstruct PairedFacts {\n    let macSends: Bool\n    init(_ door: PairedDoor) {\n        macSends = door.alerts.macSends\n    }\n}\n';
+  const baSettings = 'struct SettingsScreen: View {\n    var body: some View {\n        let sends = facts?.macSends ?? false\n        if sends { AlertsCard() }\n    }\n}\n';
+  const baKeys = [
+    'final class PairingStore: Sendable {',
+    '    static let account = "pairing-v2"',
+    '    static let accountPrefix = "pairing-v2-"',
+    '    static let formerAccount = "pairing-v1"',
+    '    static let macLimit = 4',
+    '    func admits(_ name: String) -> Bool {',
+    '        let kept = loadAll()',
+    '        return kept.contains { $0.endpoint.name == name } || kept.count < Self.macLimit',
+    '    }',
+    '    func save(_ door: PairedDoor) throws -> String {',
+    '        let found = try readEvery()',
+    '        let target: String',
+    '        if let replaced {',
+    '            target = replaced.account',
+    '        } else if free {',
+    '            target = Self.account',
+    '        } else {',
+    '            target = try Self.newAccount(avoiding: taken)',
+    '        }',
+    '        try secrets.write(Self.encode(door), account: target)',
+    '        return target',
+    '    }',
+    '    private static func newAccount(avoiding taken: Set<String>) throws -> String {',
+    '        var generator = SystemRandomNumberGenerator()',
+    '        let account = accountPrefix + Hex.encode((0..<8).map { _ in UInt8.random(in: 0...255, using: &generator) })',
+    '        return account',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const baBase = { 'App/TortieApp.swift': baApp, 'Screens/DoorWords.swift': baWords, 'Screens/SettingsScreen.swift': baSettings, 'Door/Keys.swift': baKeys, 'Style/Copy.swift': 'enum Copy {\n    static let macLimit = "This iPhone is paired with four Macs. Unpair one to pair another."\n}\n' };
+  const baRun = (edits = {}) => ruleSpaces(Object.entries({ ...baBase, ...edits }).filter(([, v]) => v !== null).map(([name, source]) => ({ name, source }))).findings;
+  const baHas = (clause, file, from, to) => {
+    const text = baBase[file] ?? '';
+    if (!text.includes(from)) selfFailures.push(`(ba) ${clause} fixture: ${file} holds no ${JSON.stringify(from.slice(0, 70))}`);
+    const found = baRun({ [file]: text.replace(from, to) });
+    return found.some((f) => f.startsWith(`${clause}:`));
+  };
+  const A = 'App/TortieApp.swift';
+  const K = 'Door/Keys.swift';
+  const W = 'Screens/DoorWords.swift';
+  expect('(ba) passes the spaces in the shape build/p345/SPEC.md §3.4 names', baRun().length === 0);
+  // ba10 (the fix round)
+  expect('(ba) ba10 catches a refusal that forgets the Mac that refused', baHas('ba10', A, '        } else if let refusing {\n            refusedOnPairing = refusing.id', '        } else if let refusing {\n            _ = door.unpair(name: refusing.id)\n            refusedOnPairing = refusing.id'));
+  expect('(ba) ba10 catches a Mac forgotten through something other than the door', baHas('ba10', A, '        _ = door.unpair(name: refused)', '        _ = phone.unpair(name: refused)'));
+  expect('(ba) ba10 catches the Pair another Mac sheet replacing a Mac', baHas('ba10', A, '    private func pairedAnother(_ reader: any DoorReading, first: PocketBlockedAnswer) {\n        adopt(', '    private func pairedAnother(_ reader: any DoorReading, first: PocketBlockedAnswer) {\n        replaceRefused(with: reader.facts.publicName)\n        adopt('));
+  expect('(ba) ba10 catches the Pairing screen\'s pairing replacing nothing', baHas('ba10', A, '        replaceRefused(with: reader.facts.publicName)\n', ''));
+  expect('(ba) ba10 catches refusedOnPairing given a Mac outside refused(mac:)', baHas('ba10', A, '            target.waitingPath = [.alerted(mac: target.id, id: id)]', '            target.waitingPath = [.alerted(mac: target.id, id: id)]\n            refusedOnPairing = target.id'));
+  expect('(ba) ba10 leaves refusedOnPairing = nil wherever it is dropped', !baRun({ [A]: baApp.replace('            target.waitingPath = []', '            target.waitingPath = []\n            refusedOnPairing = nil') }).some((f) => f.startsWith('ba10:')));
+  expect('(ba) ba10 catches a list\'s refusal handed back with no speaks(', baHas('ba10', A, '        ReadRouting(backToList: {}, pairAgain: { [weak self] in\n            guard let self, self.speaks(for: mac, owner) else { return }\n            self.refused(mac: mac)', '        ReadRouting(backToList: {}, pairAgain: { [weak self] in\n            self?.refused(mac: mac)'));
+  expect('(ba) ba10 catches a session\'s pop handed back with no speaks(', baHas('ba10', A, '                guard let self, self.speaks(for: mac, owner) else { return }\n                self.backToList(in: tab, mac: mac)', '                self?.backToList(in: tab, mac: mac)'));
+  expect('(ba) ba10 catches an alerted session\'s pop handed back with no speaks(', baHas('ba10', A, '                guard let self, self.speaks(for: mac, owner) else { return }\n                self.backToList(saying: Copy.noSuchSession, mac: mac)', '                self?.backToList(saying: Copy.noSuchSession, mac: mac)'));
+  expect('(ba) ba10 catches a speaks( test in ANOTHER closure of the routing', baHas('ba10', A, '            pairAgain: { [weak self] in\n                guard let self, self.speaks(for: mac, owner) else { return }\n                self.refused(mac: mac)\n            }\n        )\n    }\n    private func listRouting', '            pairAgain: { [weak self] in\n                self?.refused(mac: mac)\n            }\n        )\n    }\n    private func listRouting'));
+  expect('(ba) ba10 catches refused(mac:) called outside a routing', baHas('ba10', A, '            target.waitingPath = [.alerted(mac: target.id, id: id)]', '            target.waitingPath = [.alerted(mac: target.id, id: id)]\n            refused(mac: target.id)'));
+  // ba1
+  expect('(ba) ba1 catches a Route case with no mac:', baHas('ba1', A, '    case alerted(mac: String, id: String)', '    case alerted(id: String)'));
+  expect('(ba) ba1 catches a Route built with no mac:', baHas('ba1', A, 'push(.session(mac: space.id, id: row.id, name: row.name), on: tab)', 'push(.session(id: row.id, name: row.name), on: tab)'));
+  expect('(ba) ba1 catches an alert\'s Route built with no mac:', baHas('ba1', A, '[.alerted(mac: target.id, id: id)]', '[.alerted(id: id)]'));
+  expect('(ba) ba1 catches Route.catchUp spelled out with no mac:', baHas('ba1', A, 'push(.catchUp(mac: space.id, id: id, honestLine: honestLine), on: tab)', 'push(Route.catchUp(id: id, honestLine: honestLine), on: tab)'));
+  expect('(ba) ba1 leaves the alert tap\'s own .session(id) pattern and a book\'s method alone', !baRun({ 'Sample/SampleWorld.swift': 'func f() { _ = book.session(id: id, variant: v) }\nfunc g() -> AlertTap { .session(id) }\n' }).some((f) => f.startsWith('ba1:')));
+  // ba2
+  expect('(ba) ba2 catches destination handed a reader', baHas('ba2', A, 'private func destination(_ route: Route, tab: AppTab) -> some View {\n        if let reader = app.space(route.mac)?.reader {', 'private func destination(_ route: Route, reader: any DoorReading, tab: AppTab) -> some View {\n        if let reader = Optional(reader) {'));
+  expect('(ba) ba2 catches destination reading the Mac on screen\'s reader', baHas('ba2', A, 'if let reader = app.space(route.mac)?.reader {', 'if let reader = app.reader {'));
+  expect('(ba) ba2 catches destination resolving its reader by the session id across Macs', baHas('ba2', A, 'if let reader = app.space(route.mac)?.reader {', 'if let reader = app.spaces.first(where: { $0.list.contains(route.id) })?.reader {'));
+  expect('(ba) ba2 catches destination looking its space up by something other than the route\'s mac', baHas('ba2', A, 'if let reader = app.space(route.mac)?.reader {', 'if let reader = app.space(app.chosenId)?.reader {'));
+  expect('(ba) ba2 catches an alert tap resolved by asking each Mac\'s list for the session', baHas('ba2', A, '        let senders = spaces.filter { $0.reader.alerts.macSends }', '        let senders = spaces.filter { $0.reader.alerts.macSends || $0.list.has(tap) }'));
+  expect('(ba) ba2 catches a walk over the spaces keyed on a session id', baHas('ba2', A, '        for space in spaces {\n            guard space.reader.alerts.macSends', '        for space in spaces where space.list.rows.contains(sessionId) {\n            guard space.reader.alerts.macSends'));
+  expect('(ba) ba2 leaves a space looked up by its id alone', !baRun().some((f) => f.startsWith('ba2:')));
+  // ba3
+  expect('(ba) ba3 catches a stack in the tabs with no .id(', baHas('ba3', A, '                NavigationStack(path: $app.sessionsPath) { SessionsTab(model: space.sessions) }\n                    .id(space.id)\n', '                NavigationStack(path: $app.sessionsPath) { SessionsTab(model: space.sessions) }\n'));
+  expect('(ba) ba3 catches the .id( given a literal', baHas('ba3', A, '                NavigationStack { SettingsScreen(app: app) }\n                    .id(space.id)', '                NavigationStack { SettingsScreen(app: app) }\n                    .id("settings")'));
+  expect('(ba) ba3 reads an .id( after other modifiers on the stack', !baRun({ [A]: baApp.replace('                NavigationStack { SettingsScreen(app: app) }\n                    .id(space.id)', '                NavigationStack { SettingsScreen(app: app) }\n                    .tint(Tokens.accent)\n                    .id(space.id)') }).some((f) => f.startsWith('ba3:')));
+  // ba4
+  expect('(ba) ba4 catches the app reading the one Mac\'s pairedReader()', baHas('ba4', A, '        let kept = door.pairedReaders()', '        let kept = door.pairedReader().map { [$0] } ?? []'));
+  expect('(ba) ba4 leaves LiveDoor\'s own declaration of pairedReader() alone', !baRun().some((f) => f.startsWith('ba4:')));
+  expect('(ba) ba4 catches pairedReader() called outside PhoneDoor\'s extension', baHas('ba4', W, 'struct PairedFacts {', 'func first(_ d: any PhoneDoor) -> (any DoorReading)? { d.pairedReader() }\nstruct PairedFacts {'));
+  // ba5
+  expect('(ba) ba5 catches macSends read to pick a route', baHas('ba5', A, '        guard let space = chosen else { return }\n        push(.session(', '        guard let space = spaces.first(where: { $0.reader.alerts.macSends }) else { return }\n        push(.session('));
+  expect('(ba) ba5 catches macSends read in the Macs screen', baRun({ 'Screens/MacsScreen.swift': 'struct MacsScreen: View {\n    var body: some View { Text(verbatim: app.chosen?.reader.alerts.macSends == true ? "a" : "b") }\n}\n' }).some((f) => f.startsWith('ba5:')));
+  // ba6
+  expect('(ba) ba6 catches the badge summed with +', baHas('ba6', A, '            guard let sum = DoorNumber.sum(waiting, drawing.waiting.count) else { return 0 }\n            waiting = sum', '            waiting = waiting + drawing.waiting.count'));
+  expect('(ba) ba6 catches the badge summed with reduce', baHas('ba6', A, '            guard let sum = DoorNumber.sum(waiting, drawing.waiting.count) else { return 0 }\n            waiting = sum', '            waiting = [waiting, drawing.waiting.count].reduce(0, +)'));
+  expect('(ba) ba6 catches the Macs tab badged with another count', baHas('ba6', A, '                .badge(app.otherMacsWaiting)', '                .badge(app.waitingBadge)'));
+  const baHelper = '    var otherMacsWaiting: Int {\n        Self.waitingSum(spaces.compactMap { $0.loadedWaiting })\n    }\n    nonisolated static func waitingSum(_ counts: [Int]) -> Int {\n        var waiting = 0\n        for count in counts {\n            guard let sum = DoorNumber.sum(waiting, count) else { return 0 }\n            waiting = sum\n        }\n        return waiting\n    }\n';
+  const baFold = /    var otherMacsWaiting: Int \{[\s\S]*?\n    \}\n(?=    func open)/;
+  expect('(ba) ba6 passes the fold written as a helper the badge calls', !baRun({ [A]: baApp.replace(baFold, baHelper) }).some((f) => f.startsWith('ba6:')) && baFold.test(baApp));
+  expect('(ba) ba6 catches a helper the badge calls that adds with +', baRun({ [A]: baApp.replace(baFold, baHelper.replace('guard let sum = DoorNumber.sum(waiting, count) else { return 0 }\n            waiting = sum', 'waiting += count')) }).some((f) => f.startsWith('ba6:')));
+  // ba7
+  expect('(ba) ba7 catches the cap declared again in the app', baHas('ba7', A, 'final class AppModel {', 'final class AppModel {\n    static let macLimit = 4'));
+  expect('(ba) ba7 catches the cap moved off four', baHas('ba7', K, '    static let macLimit = 4', '    static let macLimit = 5'));
+  expect('(ba) ba7 catches a second cap written as a literal in the store', baHas('ba7', K, 'kept.count < Self.macLimit', 'kept.count < 4'));
+  expect('(ba) ba7 catches the Macs counted against 4 in the app', baHas('ba7', A, '        guard spaces.count > 1 else { return spaces.first }', '        guard spaces.count > 1, spaces.count <= 4 else { return spaces.first }'));
+  expect('(ba) ba7 leaves Copy.macLimit, the cap\'s sentence, alone', !baRun().some((f) => f.startsWith('ba7:')));
+  // ba8
+  expect('(ba) ba8 catches an account built from the Mac\'s name', baHas('ba8', K, '        let account = accountPrefix + Hex.encode((0..<8).map { _ in UInt8.random(in: 0...255, using: &generator) })', '        let account = accountPrefix + taken.first!'.replace('taken.first!', 'door.endpoint.name')));
+  expect('(ba) ba8 catches an account made with no random bytes', baHas('ba8', K, '        var generator = SystemRandomNumberGenerator()\n        let account = accountPrefix + Hex.encode((0..<8).map { _ in UInt8.random(in: 0...255, using: &generator) })', '        let account = accountPrefix + String(taken.count)'));
+  expect('(ba) ba8 catches a record written to an account interpolated from its fields', baHas('ba8', K, 'try secrets.write(Self.encode(door), account: target)', 'try secrets.write(Self.encode(door), account: "\\(Self.accountPrefix)\\(door.endpoint.name)")'));
+  expect('(ba) ba8 catches the write\'s account set from the door\'s label', baHas('ba8', K, '            target = Self.account\n', '            target = door.label\n'));
+  expect('(ba) ba8 catches the first Mac\'s account renamed, which build 10 would not read', baHas('ba8', K, 'static let account = "pairing-v2"', 'static let account = "pairing-v3"'));
+  // ba9
+  expect('(ba) ba9 catches the sweep after LiveDoor(', baHas('ba9', A, '        PairingStore.keychain.sweepOrphans()\n        let door = LiveDoor(store: .keychain, transport: t)\n', '        let door = LiveDoor(store: .keychain, transport: t)\n        PairingStore.keychain.sweepOrphans()\n'));
+  expect('(ba) ba9 catches the sweep before the fresh install\'s forget', baHas('ba9', A, '        if let mark = try? InstallMark.standard() {\n            PairingStore.keychain.forgetOnFreshInstall(mark)\n        }\n        PairingStore.keychain.sweepOrphans()\n', '        PairingStore.keychain.sweepOrphans()\n        if let mark = try? InstallMark.standard() {\n            PairingStore.keychain.forgetOnFreshInstall(mark)\n        }\n'));
+  expect('(ba) ba9 catches a second sweep, on a return to the foreground', baHas('ba9', A, '    func readAlertPermission() async {', '    func cameToForeground() { PairingStore.keychain.sweepOrphans() }\n    func readAlertPermission() async {'));
+  expect('(ba) ba9 catches no sweep at all', baHas('ba9', A, '        PairingStore.keychain.sweepOrphans()\n', ''));
 }
 
 // The Phase 333.1 scanners, (av) and (v)'s Allow line, proved on texts this file holds.
@@ -13381,7 +14602,7 @@ export const APP_SHARED_STATE = Object.freeze([
   { file: 'Alerts/Alerts.swift', name: 'shared', kind: 'instance', why: 'AlertInbox, where a tapped alert lands (Phase 316.5)' },
   { file: 'Alerts/SystemAlerts.swift', name: 'shared', kind: 'instance', why: 'SystemPushAddressing, what the app asks iOS about alerts (Phase 316.5)' },
   { file: 'Screens/ScreenKeyField.swift', name: 'shared', kind: 'instance', why: 'ScreenDropRefusal, the Terminal key field\'s drop refusal (Phase 337)' },
-  { file: 'Door/Keys.swift', name: 'keychain', kind: 'instance', why: 'PairingStore, the Keychain\'s one pairing store (Phase 316)' }
+  { file: 'Door/Keys.swift', name: 'keychain', kind: 'instance', why: 'PairingStore, the Keychain\'s pairing store, one record per Mac (Phase 345)' }
 ]);
 
 /**
@@ -13670,10 +14891,13 @@ export function ruleSample(files, { book = false, check = null, pinned = false }
     if (leaveFn !== null) {
       const body = bodyText(app, leaveFn);
       const doors = [...body.matchAll(/\bdoor\b/g)];
-      if (doors.length !== 1) findings.push(`az5: AppModel.leaveSample() names the door ${String(doors.length)} time(s); once, as door.pairedReader(), for a sample opened from the paired lists (D15)`);
+      // Phase 345 (build/p345/SPEC.md D26, §4 item 6): every kept Mac's
+      // reader, read once, as door.pairedReaders(); the one Mac's
+      // door.pairedReader() is PhoneDoor's own default and the app's no more.
+      if (doors.length !== 1) findings.push(`az5: AppModel.leaveSample() names the door ${String(doors.length)} time(s); once, as door.pairedReaders(), for a sample opened from the paired lists (D15, build/p345/SPEC.md D26)`);
       for (const m of doors) {
         const at = leaveFn.bodyOpen + m.index;
-        if (!/^door\s*\.\s*pairedReader\s*\(\s*\)/.test(body.slice(m.index))) findings.push(`az5: ${atLine(app, at)} asks the door for more than its paired reader in leaveSample()`);
+        if (!/^door\s*\.\s*pairedReaders\s*\(\s*\)/.test(body.slice(m.index))) findings.push(`az5: ${atLine(app, at)} asks the door for more than its paired readers in leaveSample(); it is door.pairedReaders(), once (build/p345/SPEC.md D26)`);
         const behind = stoodBehind(conditionsAt(app.bare, leaveFn.bodyOpen, at), body, {
           yes: /\bsampleFrom\s*==\s*\.\s*reading\b|\.\s*reading\s*==\s*(?:self\s*\.\s*)?sampleFrom\b/,
           no: /\bsampleFrom\s*!=\s*\.\s*reading\b|\.\s*reading\s*!=\s*(?:self\s*\.\s*)?sampleFrom\b/,
@@ -14098,7 +15322,7 @@ function sampleOwnerFindings(all) {
     '        wentAway()',
     '        startOver()',
     '        reader = nil',
-    '        if sampleFrom == .reading, let paired = door.pairedReader() {',
+    '        if sampleFrom == .reading, let paired = door.pairedReaders().first {',
     '            reader = paired',
     '            makeLists(paired, store: choices)',
     '            root = .reading',
@@ -14255,15 +15479,17 @@ function sampleOwnerFindings(all) {
     expect('(az) az5 catches the door asked by openSample', azHas({ 'App/TortieApp.swift': swapIn('        sampleFrom = root\n', '        sampleFrom = root\n        door.forget()\n') }, 'az5'));
     // Each az5 clause alone: the door read (not forgotten) by openSample, the
     // paired reader asked twice behind the test, and two bars in case .sample.
-    expect('(az) az5 catches openSample reading the kept pairing, on its own', azHas({ 'App/TortieApp.swift': swapIn('        sampleFrom = root\n', '        sampleFrom = root\n        _ = door.pairedReader()\n') }, 'az5'));
-    expect('(az) az5 catches leaveSample asking the door twice behind its test, on its own', azHas({ 'App/TortieApp.swift': swapIn('        } else if sampleFrom == .reading {\n            pairing.pairAgain()\n', '        } else if sampleFrom == .reading {\n            _ = door.pairedReader()\n            pairing.pairAgain()\n') }, 'az5'));
+    expect('(az) az5 catches openSample reading the kept pairing, on its own', azHas({ 'App/TortieApp.swift': swapIn('        sampleFrom = root\n', '        sampleFrom = root\n        _ = door.pairedReaders()\n') }, 'az5'));
+    expect('(az) az5 catches leaveSample asking the door twice behind its test, on its own', azHas({ 'App/TortieApp.swift': swapIn('        } else if sampleFrom == .reading {\n            pairing.pairAgain()\n', '        } else if sampleFrom == .reading {\n            _ = door.pairedReaders()\n            pairing.pairAgain()\n') }, 'az5'));
     expect('(az) az5 catches two Sample bars in case .sample, on its own', azHas({ 'App/TortieApp.swift': swapIn('                SampleBar(leave: app.leaveSample)\n', '                SampleBar(leave: app.leaveSample)\n                SampleBar(leave: app.leaveSample)\n') }, 'az5'));
-    expect('(az) az5 catches leaveSample asking the door whatever the sample was opened from', azHas({ 'App/TortieApp.swift': swapIn('if sampleFrom == .reading, let paired = door.pairedReader() {', 'if let paired = door.pairedReader() {') }, 'az5'));
-    expect('(az) az5 catches the test after the door is asked', azHas({ 'App/TortieApp.swift': swapIn('if sampleFrom == .reading, let paired = door.pairedReader() {', 'if let paired = door.pairedReader(), sampleFrom == .reading {') }, 'az5'));
-    expect('(az) az5 catches leaveSample naming the door twice', azHas({ 'App/TortieApp.swift': swapIn('        sampleFrom = nil\n', '        _ = door.pairedReader()\n        sampleFrom = nil\n') }, 'az5'));
+    expect('(az) az5 catches leaveSample asking the door whatever the sample was opened from', azHas({ 'App/TortieApp.swift': swapIn('if sampleFrom == .reading, let paired = door.pairedReaders().first {', 'if let paired = door.pairedReaders().first {') }, 'az5'));
+    expect('(az) az5 catches the test after the door is asked', azHas({ 'App/TortieApp.swift': swapIn('if sampleFrom == .reading, let paired = door.pairedReaders().first {', 'if let paired = door.pairedReaders().first, sampleFrom == .reading {') }, 'az5'));
+    expect('(az) az5 catches leaveSample naming the door twice', azHas({ 'App/TortieApp.swift': swapIn('        sampleFrom = nil\n', '        _ = door.pairedReaders()\n        sampleFrom = nil\n') }, 'az5'));
+    // Phase 345 (build/p345/SPEC.md D26): the one Mac's reader is the app's no more.
+    expect('(az) az5 catches leaveSample asking for the one Mac\'s door.pairedReader() (Phase 345)', azHas({ 'App/TortieApp.swift': swapIn('let paired = door.pairedReaders().first {', 'let paired = door.pairedReader() {') }, 'az5'));
     expect('(az) az5 catches leaveSample forgetting a pairing', azHas({ 'App/TortieApp.swift': swapIn('            pairing.pairAgain()\n', '            pairing.forgetKept()\n') }, 'az5'));
-    expect('(az) az5 passes leaveSample\'s test written as an outer if', !azHas({ 'App/TortieApp.swift': swapIn('        if sampleFrom == .reading, let paired = door.pairedReader() {\n            reader = paired\n            makeLists(paired, store: choices)\n            root = .reading\n        } else if sampleFrom == .reading {\n            pairing.pairAgain()\n            root = .pairing\n        } else {', '        if sampleFrom == .reading {\n            if let paired = door.pairedReader() {\n                reader = paired\n                root = .reading\n            } else {\n                pairing.pairAgain()\n                root = .pairing\n            }\n        } else {') }, 'az5'));
-    expect('(az) az5 passes leaveSample\'s test written as a switch', !azHas({ 'App/TortieApp.swift': swapIn('        if sampleFrom == .reading, let paired = door.pairedReader() {\n            reader = paired\n            makeLists(paired, store: choices)\n            root = .reading\n        } else if sampleFrom == .reading {\n            pairing.pairAgain()\n            root = .pairing\n        } else {\n            root = .pairing\n        }', '        switch sampleFrom {\n        case .reading:\n            if let paired = door.pairedReader() { reader = paired }\n        default:\n            root = .pairing\n        }') }, 'az5'));
+    expect('(az) az5 passes leaveSample\'s test written as an outer if', !azHas({ 'App/TortieApp.swift': swapIn('        if sampleFrom == .reading, let paired = door.pairedReaders().first {\n            reader = paired\n            makeLists(paired, store: choices)\n            root = .reading\n        } else if sampleFrom == .reading {\n            pairing.pairAgain()\n            root = .pairing\n        } else {', '        if sampleFrom == .reading {\n            if let paired = door.pairedReaders().first {\n                reader = paired\n                root = .reading\n            } else {\n                pairing.pairAgain()\n                root = .pairing\n            }\n        } else {') }, 'az5'));
+    expect('(az) az5 passes leaveSample\'s test written as a switch', !azHas({ 'App/TortieApp.swift': swapIn('        if sampleFrom == .reading, let paired = door.pairedReaders().first {\n            reader = paired\n            makeLists(paired, store: choices)\n            root = .reading\n        } else if sampleFrom == .reading {\n            pairing.pairAgain()\n            root = .pairing\n        } else {\n            root = .pairing\n        }', '        switch sampleFrom {\n        case .reading:\n            if let paired = door.pairedReaders().first { reader = paired }\n        default:\n            root = .pairing\n        }') }, 'az5'));
     // az6
     expect('(az) az6 catches the leave taken out of openFromAlert(', azHas({ 'App/TortieApp.swift': swapIn('        if root == .sample { leaveSample() }\n', '') }, 'az6'));
     expect('(az) az6 catches lostPairing leaving the sample after it has started over', azHas({ 'App/TortieApp.swift': swapIn('    func lostPairing() {\n        if root == .sample {', '    func lostPairing() {\n        startOver()\n        if root == .sample {') }, 'az6'));
@@ -14428,7 +15654,7 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     // Phase 316.6: three tabs, the bar never hidden, no tab stored.
     const tabs = ruleTabs(appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) })));
     f.push(...tabs.findings);
-    record('b', 'no drawn string outside Copy.swift, and three tabs', f, `${String(files.length)} app files read; ${String(tabs.said.tabs)} Tab(s) in ${TAB_FILE}, Copy.needsInput, Copy.sessions and Copy.settings with bell, list.bullet and gearshape; nothing hides the tab bar, and no tab is stored`);
+    record('b', 'no drawn string outside Copy.swift, and three tabs and the Macs tab', f, `${String(files.length)} app files read; ${String(tabs.said.tabs)} Tab(s) in ${TAB_FILE}, Copy.needsInput, Copy.sessions and Copy.settings with bell, list.bullet and gearshape, and ${String(tabs.said.macsTabs)} Macs tab, behind if showsMacs, labelled by the Mac on screen's drawn name with desktopcomputer; nothing hides the tab bar, and no tab is stored`);
   }
   // (c)
   {
@@ -14613,7 +15839,7 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
       'n',
       'every Keychain item is ThisDeviceOnly and never synchronised, the client key is the enclave\'s where there is one, and only Unpair and a failed pairing delete one',
       [...r.findings, ...k.findings, ...d.findings],
-      `${String(r.said.adds)} SecItemAdd call(s); ${String(r.said.thisDevice)} ThisDeviceOnly accessibility value(s) named, and no other; ${String(k.said.makers)} file(s) make a client key, ThisDeviceOnly by construction on both paths (the enclave's access control with .privateKeyUsage, made only inside the if on SecureEnclave.isAvailable; the software key's own kSecAttrAccessible), in the Secure Enclave only when it is available; every attempt that ends unpaired deletes its key by its tag; SecItemDelete ${String(d.said.secItemDeletes)} time(s), in KeychainSecretStore.remove and KeychainClientKeys.delete alone; the record removed only by PairingStore (${String(d.said.recordRemoves)}), a client key deleted outside its store only by PairingStore.forget and PairingFlow.run (${String(d.said.keyDeletes)}); the store's forget() ${String(d.said.storeForgets)} time(s) from its four callers and the DEBUG seam ${String(d.said.doorForgets)}; the record goes before any key, and LiveDoor.unpair sees the store's error`
+      `${String(r.said.adds)} SecItemAdd call(s); ${String(r.said.thisDevice)} ThisDeviceOnly accessibility value(s) named, and no other; ${String(k.said.makers)} file(s) make a client key, ThisDeviceOnly by construction on both paths (the enclave's access control with .privateKeyUsage, made only inside the if on SecureEnclave.isAvailable; the software key's own kSecAttrAccessible), in the Secure Enclave only when it is available; every attempt that ends unpaired deletes its key by its tag; SecItemDelete ${String(d.said.secItemDeletes)} time(s), in KeychainSecretStore.remove and KeychainClientKeys.delete alone; a record removed only by PairingStore (${String(d.said.recordRemoves)}), a client key deleted outside its store only by PairingStore.forget(), forget(name:), save and sweepOrphans and PairingFlow.run (${String(d.said.keyDeletes)}); the store's forget() ${String(d.said.storeForgets)} time(s), from forgetOnFreshInstall and LiveDoor.forget, forget(name:) ${String(d.said.nameForgets)} time(s), from LiveDoor.unpair, and the DEBUG seam ${String(d.said.doorForgets)}; loadAll and load forget nothing and delete no key; every record goes before any key; sweepOrphans and the ${String(d.said.sweepReach - 1)} function(s) it reaches read the Keychain with a plain try and delete only after; and LiveDoor.unpair sees the store's error for the one Mac`
     );
   }
   // (o)
@@ -14754,11 +15980,13 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     const sh = ruleHostileScreenArms(existsSync(hostilePath) ? read(hostilePath) : null, existsSync(COPY_SWIFT) ? read(COPY_SWIFT) : null);
     // Phase 337.1: the scrollback arms, named as build/p3371/SPEC.md §6.4 pins them.
     const sb = ruleHostileScrollbackArms(existsSync(hostilePath) ? read(hostilePath) : null, existsSync(COPY_SWIFT) ? read(COPY_SWIFT) : null);
+    // Phase 345: the twin, probe:p345's hostile second Mac.
+    const tw = ruleHostileTwinArm(existsSync(hostilePath) ? read(hostilePath) : null);
     record(
       't',
       'the client is pinned mutual TLS 1.3 to a public name, and reads HTTP by hand, bounded',
-      [...r.findings, ...sh.findings, ...sb.findings],
-      `a local identity on every paired connection (${String(r.said.identityCalls)} exchange(s) with one, and POST /pair alone with none; ${String(r.said.connects)} connect( call(s) naming one, the writes' with the paired door's); the verify block completes with DoorPin's answer; TLS 1.3 the minimum and nothing older; a .ts.net name at 8443 or 10000, checked by the parse; one Content-Length required, Transfer-Encoding refused, Connection: close; hostile-door.mjs names ${String(r.said.arms.length)} HTTP arm(s) (${r.said.arms.join(', ')}), each ending in a Copy sentence, ${String(r.said.writeArms.length)} write arm(s), each ending where it names, in a Copy sentence or the door's own, ${String(r.said.replyArms.length)} reply arm(s), each with its verb and one POST, ending in the press line, the message line or Pairing, ${String(sh.said.arms.length)} Screen arm(s), each ending where it names, and ${String(sb.said.arms.length)} scrollback arm(s), each ending in the live terminal drawn or the moved line`
+      [...r.findings, ...sh.findings, ...sb.findings, ...tw.findings],
+      `a local identity on every paired connection (${String(r.said.identityCalls)} exchange(s) with one, and POST /pair alone with none; ${String(r.said.connects)} connect( call(s) naming one, the writes' with the paired door's); the verify block completes with DoorPin's answer; TLS 1.3 the minimum and nothing older; a .ts.net name at 8443 or 10000, checked by the parse; one Content-Length required, Transfer-Encoding refused, Connection: close; hostile-door.mjs names ${String(r.said.arms.length)} HTTP arm(s) (${r.said.arms.join(', ')}), each ending in a Copy sentence, ${String(r.said.writeArms.length)} write arm(s), each ending where it names, in a Copy sentence or the door's own, ${String(r.said.replyArms.length)} reply arm(s), each with its verb and one POST, ending in the press line, the message line or Pairing, ${String(sh.said.arms.length)} Screen arm(s), each ending where it names, ${String(sb.said.arms.length)} scrollback arm(s), each ending in the live terminal drawn or the moved line, and the twin (${tw.said.arm ? 'its arm' : 'no arm'}, ${tw.said.flags.join(' and ') || 'no flag'}, ${tw.said.words.join(' and ') || 'no stdin word'}), the second Mac probe:p345 attacks with`
     );
   }
   // (u)
@@ -14827,7 +16055,7 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
         `userInfo read ${String(r.said.userInfo)} time(s), inside AlertTap.parse or handed to it, and the keyboard's own ${String(r.said.keyboardReads)} time(s), by its keys inside ${KEYBOARD_FILE}'s keyboardOverlap; PushEnvironment.current .development under DEBUG and .production in its #else (${String(r.said.arms)} arms); apt and ape declared ${String(r.said.fields)} time(s), by Inner and Record; ` +
         `iOS asked only for a Mac that says it can send: askForAlerts() ${String(r.said.flowAsks)} time(s) in the pending arm behind its word, askForPairing() ${String(r.said.pairingAsks)} time(s) inside the closure the pairing asks through, ${String(r.said.launchReads)} launch read(s) behind a guard on macSends; ` +
         `no badge write, service extension, background delivery, print or log in ${String(files.length)} app files, and no test of ${String(tests.length)} names the registration; ` +
-        `unregisterForRemoteNotifications ${String(u.said.unregisters)} time(s), in the #else of #if DEBUG in ${ALERT_FILES.system}, and forgetAddress() ${String(u.said.forgets)} time(s), in AppModel.unpair's .forgotten arm after door.unpair()`
+        `unregisterForRemoteNotifications ${String(u.said.unregisters)} time(s), in the #else of #if DEBUG in ${ALERT_FILES.system}, and forgetAddress() ${String(u.said.forgets)} time(s), in AppModel.unpair's .forgotten arm after door.unpair(name:), ${String(u.said.guarded)} of them behind D23 (no Mac left, or the unpaired Mac's own presented address); readAlertPermission asks iOS behind the chosen Mac's macSends (${String(u.said.permissionGuards)} guard(s))`
     );
   }
   // Phase 316.6: (y) and (z), over the app named relative to its folder.
@@ -15054,10 +16282,20 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
 }
 // Phase 337.3's three, recorded beside the others when there is no app to read
 // (pushed here rather than spelled in RULE_IDS above, so 333.1's (av) merges
-// into that list with no conflict). Phase 333.3's (az) is pushed the same way.
-RULE_IDS.push('aw', 'ax', 'ay', 'az');
+// into that list with no conflict). Phase 333.3's (az) is pushed the same way,
+// and Phase 345's (ba).
+RULE_IDS.push('aw', 'ax', 'ay', 'az', 'ba');
 if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
-  for (const id of ['aw', 'ax', 'ay', 'az']) record(id, 'the app', [`${rel(IOS)} does not exist, so there is no app to read`], '');
+  for (const id of ['aw', 'ax', 'ay', 'az', 'ba']) record(id, 'the app', [`${rel(IOS)} does not exist, so there is no app to read`], '');
+} else {
+  // Phase 345: (ba), each Mac is its own space (build/p345/SPEC.md §4 item 10).
+  const r = ruleSpaces(appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) })));
+  record(
+    'ba',
+    'each Mac is its own space',
+    r.findings,
+    `ba1 Route's ${String(r.said.routeCases)} case(s) each carry mac:, and ${String(r.said.routesBuilt)} Route(s) the app builds each name it; ba2 RootView.destination reads its reader through ${String(r.said.lookups)} lookup, space(route.mac), and no reader, spaces, app.reader or chosen, and ${String(r.said.searches)} search(es) over the spaces name no session's row, list, route or tap; ba3 ${String(r.said.stacks)} NavigationStack(s) in the tabs, each carrying the space's .id(; ba4 pairedReader() called by PhoneDoor's extension default alone; ba5 macSends read ${String(r.said.macSendsReads)} time(s), in alertTarget, checkAlertAddress, readAlertPermission and Settings' drawing alone; ba6 the Macs tab's badge app.otherMacsWaiting, folded through DoorNumber.sum with no +; ba7 PairingStore.macLimit = ${String(MAC_LIMIT)}, declared once, and no Mac count compared with 4 or 5; ba8 ${String(r.said.accountsWritten)} record write(s), each to pairing-v2, an account the store listed, or pairing-v2- and the phone's own random hex, made where nothing a Mac sent is named; ba9 sweepOrphans() ${String(r.said.sweeps)} time(s), in AppModel.launch after forgetOnFreshInstall( and before LiveDoor(; ba10 door.unpair(name:) ${String(r.said.unpairs)} time(s), in AppModel.unpair and AppModel.replaceRefused alone, replaceRefused( by AppModel.paired alone, and ${String(r.said.routedRefusals)} refusal(s) and pop(s) a routing hands back, each behind speaks(`
+  );
 }
 
 // ---------------------------------------------------------------------------

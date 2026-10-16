@@ -7,22 +7,26 @@ import UIKit
 /// The tab bar (Phase 316.6, build/p3166/SPEC.md section 5.1): three tabs,
 /// each its own path, Needs input first and on screen every launch, its badge
 /// the count of the rows the door's last answer called waiting, an alert's tap
-/// on Needs input alone, and one read for one return to the foreground. The
-/// door is a script (ScreensFixtures.swift); nothing here reaches a network.
-/// Each test names the clause it holds, and each fails when that clause is
-/// taken out of App/TortieApp.swift or Style/Tokens.swift.
+/// on Needs input alone, and one read for one return to the foreground; and
+/// since Phase 345 (build/p345/SPEC.md D3) a fourth, the Macs tab, drawn only
+/// while two or more Macs are kept. The door is a script
+/// (ScreensFixtures.swift); nothing here reaches a network. Each test names
+/// the clause it holds, and each fails when that clause is taken out of
+/// App/TortieApp.swift or Style/Tokens.swift.
 @MainActor
 final class TabsTests: XCTestCase {
     private func app(_ reader: ScriptedReader = ScriptedReader()) -> AppModel {
         AppModel(door: StandInPhone(kept: reader), label: "iPhone", alerts: StandInAlerts())
     }
 
-    /// Every tab's label. A fourth case would not compile here.
-    private func label(_ tab: AppTab) -> String {
+    /// Every tab's label: the three Copy words, and the Macs tab's the Mac on
+    /// screen's drawn name. A fifth case would not compile here.
+    private func label(_ tab: AppTab, _ app: AppModel) -> String {
         switch tab {
         case .needsInput: Copy.needsInput
         case .sessions: Copy.sessions
         case .settings: Copy.settings
+        case .macs: app.chosen.map { app.drawnName($0) } ?? ""
         }
     }
 
@@ -36,7 +40,7 @@ final class TabsTests: XCTestCase {
         let first = Answers.blocked(rows: [Answers.row("w", dot: "attention")])
         let pairing = AppModel(door: StandInPhone(outcomes: [.paired(ScriptedReader(), first)]), label: "iPhone", alerts: StandInAlerts())
         pairing.tab = .settings
-        pairing.sessionsPath = [.session(id: "s", name: "s")]
+        pairing.sessionsPath = [.session(mac: Answers.mac, id: "s", name: "s")]
         await pairing.pairing.read("code")
         XCTAssertEqual(pairing.root, .reading)
         XCTAssertEqual(pairing.tab, .needsInput, "a pairing done did not land on Needs input")
@@ -44,17 +48,19 @@ final class TabsTests: XCTestCase {
 
         let lost = app(ScriptedReader(blocked: [.failure(.refused)]))
         lost.tab = .sessions
-        lost.waitingPath = [.session(id: "w", name: "w")]
+        lost.waitingPath = [.session(mac: Answers.mac, id: "w", name: "w")]
         await lost.list?.load()
         XCTAssertEqual(lost.root, .pairing)
         XCTAssertEqual(lost.tab, .needsInput, "a lost pairing kept its tab")
         XCTAssertEqual(lost.waitingPath, [])
     }
 
-    /// Clause: three tabs and no fourth, in the bar's order, each a Copy word
-    /// with its mark, read from the file that composes them (`conformance:ios`
-    /// rule b reads the same text).
-    func testThreeTabsInTheBarsOrder() throws {
+    /// Clause: the three tabs in the bar's order, each a Copy word with its
+    /// mark, then ONE more, the Macs tab (Phase 345, D3): labelled by no Copy
+    /// word and no literal but the Mac on screen's drawn name, with the
+    /// desktop computer, inside an `if` on `showsMacs`. Read from the file
+    /// that composes them (`conformance:ios` rule b reads the same text).
+    func testThreeTabsAndTheMacsTabInTheBarsOrder() throws {
         let source = try StyleSource.text("ios/Tortie/App/TortieApp.swift")
         var found: [String] = []
         var rest = Substring(source)
@@ -68,11 +74,26 @@ final class TabsTests: XCTestCase {
         let want = [
             "Tab(Copy.needsInput, systemImage: \"bell\", value: AppTab.needsInput) {",
             "Tab(Copy.sessions, systemImage: \"list.bullet\", value: AppTab.sessions) {",
-            "Tab(Copy.settings, systemImage: \"gearshape\", value: AppTab.settings) {"
+            "Tab(Copy.settings, systemImage: \"gearshape\", value: AppTab.settings) {",
+            "Tab(value: AppTab.macs) {"
         ]
         XCTAssertEqual(found, want)
-        XCTAssertEqual([AppTab.needsInput, .sessions, .settings].map(label), [Copy.needsInput, Copy.sessions, Copy.settings])
+        let shown = try XCTUnwrap(source.range(of: "if app.showsMacs {")).upperBound
+        let macs = try XCTUnwrap(source.range(of: "Tab(value: AppTab.macs) {")).lowerBound
+        XCTAssertLessThan(shown, macs)
+        XCTAssertFalse(source[shown..<macs].contains("}"), "the Macs tab is not inside the if on showsMacs")
+        let after = String(source[macs...].prefix(400))
+        XCTAssertTrue(after.contains("Label(app.drawnName(space), systemImage: \"desktopcomputer\")"), "the Macs tab is not the Mac on screen's name and the desktop computer")
+        XCTAssertTrue(after.contains(".badge(app.otherMacsWaiting)"), "the Macs tab's badge is not the other Macs' waiting count")
+        let app = app()
+        XCTAssertEqual([AppTab.needsInput, .sessions, .settings, .macs].map { label($0, app) }, [Copy.needsInput, Copy.sessions, Copy.settings, "studio"])
         XCTAssertFalse(source.contains("for: .tabBar"), "something hides the tab bar")
+        // Every stack in the bar is built again over the Mac on screen (D13).
+        let tabs = try XCTUnwrap(source.range(of: "private func tabs(_ space: MacSpace) -> some View {")).lowerBound
+        let tabsEnd = try XCTUnwrap(source.range(of: "private func listScreen(", range: tabs..<source.endIndex)).lowerBound
+        let body = String(source[tabs..<tabsEnd])
+        XCTAssertEqual(body.components(separatedBy: "NavigationStack").count, 5, "the bar holds other than four stacks")
+        XCTAssertEqual(body.components(separatedBy: ".id(space.id)").count, 5, "a stack in the bar is not built again over the Mac on screen")
     }
 
     /// Clause: the badge is the count of the rows the door's last LOADED
@@ -112,8 +133,8 @@ final class TabsTests: XCTestCase {
         app.openCatchUp("w", honestLine: nil, in: .needsInput)
         app.tab = .sessions
         app.open(RowDrawing(Answers.row("o"), waiting: false), in: .sessions)
-        let waiting: [Route] = [.session(id: "w", name: "w"), .catchUp(id: "w", honestLine: nil)]
-        let sessions: [Route] = [.session(id: "o", name: "o")]
+        let waiting: [Route] = [.session(mac: Answers.mac, id: "w", name: "w"), .catchUp(mac: Answers.mac, id: "w", honestLine: nil)]
+        let sessions: [Route] = [.session(mac: Answers.mac, id: "o", name: "o")]
         XCTAssertEqual(app.waitingPath, waiting)
         XCTAssertEqual(app.sessionsPath, sessions)
         for tab in [AppTab.needsInput, .settings, .sessions, .needsInput] {
@@ -132,12 +153,12 @@ final class TabsTests: XCTestCase {
     func testAnAlertTapIsNeedsInputsAlone() {
         let app = app()
         app.tab = .sessions
-        app.waitingPath = [.session(id: "w", name: "w")]
-        app.sessionsPath = [.session(id: "o", name: "o"), .catchUp(id: "o", honestLine: nil)]
+        app.waitingPath = [.session(mac: Answers.mac, id: "w", name: "w")]
+        app.sessionsPath = [.session(mac: Answers.mac, id: "o", name: "o"), .catchUp(mac: Answers.mac, id: "o", honestLine: nil)]
         app.openFromAlert(.session("s"))
         XCTAssertEqual(app.tab, .needsInput)
-        XCTAssertEqual(app.waitingPath, [.alerted(id: "s")])
-        XCTAssertEqual(app.sessionsPath, [.session(id: "o", name: "o"), .catchUp(id: "o", honestLine: nil)])
+        XCTAssertEqual(app.waitingPath, [.alerted(mac: Answers.mac, id: "s")])
+        XCTAssertEqual(app.sessionsPath, [.session(mac: Answers.mac, id: "o", name: "o"), .catchUp(mac: Answers.mac, id: "o", honestLine: nil)])
         app.tab = .settings
         app.openFromAlert(.list)
         XCTAssertEqual(app.tab, .needsInput)
@@ -149,23 +170,23 @@ final class TabsTests: XCTestCase {
     /// alerted session's pops Needs input; Settings pushes nothing to pop.
     func testARefusalPopsOnlyItsTab() {
         let app = app()
-        let w: [Route] = [.session(id: "w", name: "w")]
-        let o: [Route] = [.session(id: "o", name: "o"), .catchUp(id: "o", honestLine: nil)]
+        let w: [Route] = [.session(mac: Answers.mac, id: "w", name: "w")]
+        let o: [Route] = [.session(mac: Answers.mac, id: "o", name: "o"), .catchUp(mac: Answers.mac, id: "o", honestLine: nil)]
         app.waitingPath = w
         app.sessionsPath = o
-        app.routing(.sessions).backToList()
+        app.routing(.sessions, mac: Answers.mac).backToList()
         XCTAssertEqual(app.sessionsPath, [])
         XCTAssertEqual(app.waitingPath, w)
         app.sessionsPath = o
-        app.routing(.needsInput).backToList()
+        app.routing(.needsInput, mac: Answers.mac).backToList()
         XCTAssertEqual(app.waitingPath, [])
         XCTAssertEqual(app.sessionsPath, o)
-        app.waitingPath = [.alerted(id: "gone")]
-        app.alertedRouting.backToList()
+        app.waitingPath = [.alerted(mac: Answers.mac, id: "gone")]
+        app.alertedRouting(mac: Answers.mac).backToList()
         XCTAssertEqual(app.waitingPath, [])
         XCTAssertEqual(app.sessionsPath, o)
         app.waitingPath = w
-        app.routing(.settings).backToList()
+        app.routing(.settings, mac: Answers.mac).backToList()
         XCTAssertEqual(app.waitingPath, w)
         XCTAssertEqual(app.sessionsPath, o)
         XCTAssertEqual(app.root, .reading)
@@ -176,9 +197,9 @@ final class TabsTests: XCTestCase {
     /// on screen no list and no session reads.
     func testOneReturnIsOneRead() {
         let app = app()
-        let s: Route = .session(id: "s", name: "s")
-        let c: Route = .catchUp(id: "s", honestLine: nil)
-        let o: Route = .session(id: "o", name: "o")
+        let s: Route = .session(mac: Answers.mac, id: "s", name: "s")
+        let c: Route = .catchUp(mac: Answers.mac, id: "s", honestLine: nil)
+        let o: Route = .session(mac: Answers.mac, id: "o", name: "o")
         let cases: [(AppTab, [Route], [Route], String)] = [
             (.needsInput, [], [], "needs-list"),
             (.sessions, [], [], "sessions-list"),

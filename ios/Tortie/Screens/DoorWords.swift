@@ -64,6 +64,16 @@
 // door reads pages of the session's history (`scrollback`) and the status
 // line's session (`session()`), both on a third kept connection, one exchange
 // at a time; a page that is refused stops paging with `scrollbackSentence`.
+//
+// SEVERAL MACS (Phase 345, build/p345/SPEC.md section 3.3). The phone keeps
+// up to four pairings, one per Mac, and `pairedReaders()` answers every one
+// in the store's order. It is a REQUIREMENT, for the same reason as `writer`:
+// the app holds its door as `any PhoneDoor`, and a member that lived only in
+// an extension would be dispatched there and answer one Mac at most. The
+// extension's default is `pairedReader()`'s one, for a door that keeps one
+// (the tests' stand-ins). Unpair names the Mac it forgets (`unpair(name:)`),
+// and a pairing made beside another Mac says `This iPhone is not paired with
+// this Mac.` where one with no other says `…with a Mac.`
 
 import Foundation
 
@@ -159,9 +169,15 @@ enum PairResult: Sendable {
 
 /// Everything the app asks of Door/.
 protocol PhoneDoor: Sendable {
-    /// The kept pairing's reads, or nil when this phone is not paired or this
-    /// build has no way to reach a Mac.
+    /// The first kept pairing's reads, or nil when this phone is not paired or
+    /// this build has no way to reach a Mac. The app reads `pairedReaders()`;
+    /// this is what its default answers from (Phase 345).
     func pairedReader() -> (any DoorReading)?
+    /// Every kept pairing's reads, one per Mac, in the store's order: the
+    /// first Mac paired, then the rest by when each was paired (Phase 345,
+    /// D9). Empty when this phone is not paired. A requirement, so
+    /// `any PhoneDoor` reads the door's own.
+    func pairedReaders() -> [any DoorReading]
     /// Read a scanned code and make this phone's keys for it. The pending
     /// pairing carries the fingerprint both screens show.
     func begin(payload: String, label: String) throws -> PendingPairing
@@ -174,13 +190,22 @@ protocol PhoneDoor: Sendable {
         askForAlerts: @escaping @Sendable () async -> PushAddress?,
         progress: @escaping @Sendable (PairingStep) -> Void
     ) async -> PairResult
-    /// Forget the kept pairing (the DEBUG forget seam).
+    /// Forget every kept pairing (the DEBUG forget seam).
     func forget()
-    /// Unpair this iPhone (Phase 316.6): forget the pairing record, which
-    /// holds both private keys, FIRST, then every client key, and say whether
-    /// the record went. The Mac keeps its row until he presses Remove there
-    /// (its half is not built: Phase 317's fix round took it out).
-    func unpair() -> UnpairOutcome
+    /// Unpair this iPhone from the Mac whose whole public name is `name`
+    /// (Phase 316.6; one Mac of several since Phase 345): forget that Mac's
+    /// pairing record, which holds both private keys, FIRST, then its client
+    /// key, and say whether the record went. Every other Mac's pairing is
+    /// untouched. The Mac keeps its row until he presses Remove there (its
+    /// half is not built: Phase 317's fix round took it out).
+    func unpair(name: String) -> UnpairOutcome
+}
+
+extension PhoneDoor {
+    /// A door that keeps one pairing at most: its one, or none.
+    func pairedReaders() -> [any DoorReading] {
+        pairedReader().map { [$0] } ?? []
+    }
 }
 
 /// What Unpair did (build/p3166/SPEC.md section 5.4).
@@ -199,6 +224,9 @@ enum UnpairOutcome: Equatable, Sendable {
 struct PairedFacts: Equatable, Sendable {
     /// The Mac's public name up to its first `.`: `studio`.
     let name: String
+    /// The Mac's WHOLE public name, no port: `studio.tail0000.ts.net`. What
+    /// the phone dials, and so what keys a Mac among several (Phase 345, D2).
+    let publicName: String
     /// The whole public name and its port: `studio.tail0000.ts.net:8443`.
     let address: String
     /// The six groups both screens showed when this iPhone paired.
@@ -209,8 +237,9 @@ struct PairedFacts: Equatable, Sendable {
     /// alert (Phase 316.5's `sends`).
     let macSends: Bool
 
-    init(name: String, address: String, fingerprint: String, pairedAt: Double, macSends: Bool) {
+    init(name: String, address: String, fingerprint: String, pairedAt: Double, macSends: Bool, publicName: String = "") {
         self.name = name
+        self.publicName = publicName
         self.address = address
         self.fingerprint = fingerprint
         self.pairedAt = pairedAt
@@ -218,11 +247,27 @@ struct PairedFacts: Equatable, Sendable {
     }
 
     init(_ door: PairedDoor) {
-        name = String(door.endpoint.name.prefix { $0 != "." })
+        name = Self.firstLabel(door.endpoint.name)
+        publicName = door.endpoint.name
         address = door.endpoint.name + ":" + String(door.endpoint.port)
         fingerprint = door.fingerprint
         pairedAt = door.pairedAt
         macSends = door.alerts.macSends
+    }
+
+    /// A public name up to its first `.`: `studio`.
+    static func firstLabel(_ publicName: String) -> String {
+        String(publicName.prefix { $0 != "." })
+    }
+
+    /// How a Mac among `kept` is drawn (Phase 345, D21): its first label, or
+    /// its WHOLE public name when another kept Mac has the same first label,
+    /// because Tailscale keeps names unique within one tailnet only. With one
+    /// Mac it is the first label, as Settings has always drawn it.
+    static func drawnName(_ publicName: String, among kept: [String]) -> String {
+        let first = firstLabel(publicName)
+        let shared = kept.contains { $0 != publicName && firstLabel($0) == first }
+        return shared ? publicName : first
     }
 }
 
@@ -418,8 +463,11 @@ enum DoorWords {
     /// The pairing screen's line for how a pairing stopped. ALWAYS a sentence
     /// (his no-key finding: a pairing that stopped with nothing drawn left the
     /// phone saying nothing at all), and leaving the screen is the not-paired
-    /// line (conformance:ios rule v).
-    static func pairingSentence(for failure: PairingFailure) -> String {
+    /// line (conformance:ios rule v). `keepsOthers` is a pairing made beside
+    /// a Mac this phone keeps (Pair another Mac, Phase 345, D16), whose
+    /// not-paired line names this Mac, because `…not paired with a Mac.`
+    /// would be false; and a fifth Mac is the cap's own sentence (D12).
+    static func pairingSentence(for failure: PairingFailure, keepsOthers: Bool = false) -> String {
         switch failure {
         case .badCode: return Copy.pairNotACode
         case .codeFromNewerMac: return Copy.pairNewerMac
@@ -431,8 +479,16 @@ enum DoorWords {
         case .notAccepted: return Copy.pairFirstReadRefused
         case .unreachable: return Copy.cannotReachMac
         case .nameNotFound: return Copy.pairNameNotFound
-        case .couldNotSave, .notAvailable, .cancelled: return Copy.notPaired
+        case .macLimit: return Copy.macLimit
+        case .couldNotSave, .notAvailable, .cancelled: return DoorWords.notPairedLine(keepsOthers: keepsOthers)
         }
+    }
+
+    /// The not-paired line: `This iPhone is not paired with a Mac.`, or, for a
+    /// pairing made beside a Mac this phone keeps, `This iPhone is not paired
+    /// with this Mac.` (Phase 345, D16). Never empty (conformance:ios rule v).
+    static func notPairedLine(keepsOthers: Bool) -> String {
+        keepsOthers ? Copy.notPairedHere : Copy.notPaired
     }
 
     /// The pairing screen's line while a pairing is under way. Every step has

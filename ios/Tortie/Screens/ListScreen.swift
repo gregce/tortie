@@ -45,6 +45,12 @@
 // said over a phone the Mac no longer knows, and it goes when a row or another
 // alert is opened or he leaves the app (not when he comes back: the tap that
 // said it is what brings the app back).
+//
+// SEVERAL MACS (Phase 345, build/p345/SPEC.md D18). Each Mac this phone keeps
+// has a list of its own. A list a Mac refuses, while another Mac is kept,
+// draws `This iPhone is not paired with this Mac.` with Try again in place of
+// its rows (`drawRefused`), and nothing else moves; with one Mac kept a
+// refused list goes to Pairing, as it always has.
 
 import SwiftUI
 
@@ -225,6 +231,13 @@ final class ListModel: EndBatchList {
     func clearNotice() {
         notice = nil
         noticeAfterRead = nil
+    }
+
+    /// The Mac refused this phone while another Mac is kept (Phase 345, D18):
+    /// the one sentence in place of the rows, with Try again, which reads
+    /// again. Nothing is forgotten, as with any refusal.
+    func drawRefused(_ sentence: String) {
+        state = .failed(sentence)
     }
 
     func load() async {

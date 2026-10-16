@@ -8,6 +8,9 @@ import Foundation
 // door does; they sign nothing and reach nothing.
 
 enum Answers {
+    /// The stand-in Mac's whole public name, which keys its space (Phase 345).
+    static let mac = "studio.tail0000.ts.net"
+
     static func row(
         _ id: String,
         name: String? = nil,
@@ -118,9 +121,19 @@ enum Answers {
         address: String = "studio.tail0000.ts.net:8443",
         fingerprint: String = "7k4d 2a9e 0f13 b6c2 91de 4a07",
         pairedAt: Double = 1_759_190_400_000,
-        macSends: Bool = false
+        macSends: Bool = false,
+        publicName: String = Answers.mac
     ) -> PairedFacts {
-        PairedFacts(name: name, address: address, fingerprint: fingerprint, pairedAt: pairedAt, macSends: macSends)
+        PairedFacts(name: name, address: address, fingerprint: fingerprint, pairedAt: pairedAt, macSends: macSends, publicName: publicName)
+    }
+
+    /// The facts of the Mac whose whole public name is `publicName` (Phase
+    /// 345): its first label, its address at 8443.
+    static func facts(of publicName: String, macSends: Bool = false) -> PairedFacts {
+        facts(
+            name: PairedFacts.firstLabel(publicName), address: publicName + ":8443",
+            macSends: macSends, publicName: publicName
+        )
     }
 
     static func page(
@@ -159,10 +172,11 @@ actor ScriptedReader: DoorReading {
         session: [Result<PocketSessionAnswer, DoorFailure>] = [],
         turns: [Result<PocketTurnsAnswer, DoorFailure>] = [],
         alerts: AlertsKept = .nothing,
-        facts: PairedFacts? = nil
+        facts: PairedFacts? = nil,
+        mac: String? = nil
     ) {
         self.alerts = alerts
-        self.facts = facts ?? Answers.facts(macSends: alerts.macSends)
+        self.facts = facts ?? mac.map { Answers.facts(of: $0, macSends: alerts.macSends) } ?? Answers.facts(macSends: alerts.macSends)
         blockedAnswers = blocked
         sessionAnswers = session
         turnAnswers = turns
@@ -187,19 +201,27 @@ actor ScriptedReader: DoorReading {
     }
 }
 
-/// The app's door, scripted: a kept pairing or none, and how a pairing ends.
+/// The app's door, scripted: the kept pairings (one per Mac since Phase 345),
+/// or none, and how a pairing ends.
 final class StandInPhone: PhoneDoor, @unchecked Sendable {
     private let lock = NSLock()
-    private var kept: (any DoorReading)?
+    private var kept: [any DoorReading]
     private var beginFailure: PairingFailure?
     private var outcomes: [PairResult]
     private(set) var begun: [String] = []
     private(set) var pairs = 0
     private(set) var forgets = 0
     /// How many times Unpair asked, and what it answers: `.forgotten` also
-    /// drops the kept pairing, as the Keychain's would be gone.
+    /// drops that Mac's kept pairing, as the Keychain's would be gone.
     private(set) var unpairs = 0
     var unpairOutcome: UnpairOutcome = .forgotten
+    /// The Mac each Unpair named, in order (Phase 345).
+    private(set) var unpaired: [String] = []
+    /// How many times every kept pairing was read (Phase 345).
+    private(set) var readersAsked = 0
+    /// Whether a pairing that is done keeps its reader, replacing the kept
+    /// one of that Mac or added last, as the store keeps it (Phase 345).
+    var keepsWhatPairs = false
     /// Whether the Mac a pairing presents to says it can send an alert, in
     /// which case the pairing asks for the phone's address, once.
     var macSends = false
@@ -213,18 +235,35 @@ final class StandInPhone: PhoneDoor, @unchecked Sendable {
     /// The steps a pairing reports before it answers.
     var reports: [PairingStep] = [.waitingForMac]
 
-    init(kept: (any DoorReading)? = nil, beginFailure: PairingFailure? = nil, outcomes: [PairResult] = []) {
-        self.kept = kept
+    init(
+        kept: (any DoorReading)? = nil,
+        others: [any DoorReading] = [],
+        beginFailure: PairingFailure? = nil,
+        outcomes: [PairResult] = []
+    ) {
+        self.kept = (kept.map { [$0] } ?? []) + others
         self.beginFailure = beginFailure
         self.outcomes = outcomes
     }
 
     func keep(_ reader: (any DoorReading)?) {
-        lock.withLock { kept = reader }
+        lock.withLock { kept = reader.map { [$0] } ?? [] }
+    }
+
+    /// Keep these Macs' pairings, in this order (Phase 345).
+    func keepAll(_ readers: [any DoorReading]) {
+        lock.withLock { kept = readers }
     }
 
     func pairedReader() -> (any DoorReading)? {
-        lock.withLock { kept }
+        lock.withLock { kept.first }
+    }
+
+    func pairedReaders() -> [any DoorReading] {
+        lock.withLock {
+            readersAsked += 1
+            return kept
+        }
     }
 
     func begin(payload: String, label: String) throws -> PendingPairing {
@@ -261,23 +300,34 @@ final class StandInPhone: PhoneDoor, @unchecked Sendable {
             lock.withLock { answered.append(address) }
         }
         await duringPair?()
+        if Task.isCancelled { return .failed(.cancelled) }
         return lock.withLock {
             pairs += 1
-            return outcomes.isEmpty ? .failed(.unreachable) : outcomes.removeFirst()
+            let result = outcomes.isEmpty ? PairResult.failed(.unreachable) : outcomes.removeFirst()
+            if keepsWhatPairs, case .paired(let reader, _) = result {
+                let mac = reader.facts.publicName
+                if let at = kept.firstIndex(where: { $0.facts.publicName == mac }) {
+                    kept[at] = reader
+                } else {
+                    kept.append(reader)
+                }
+            }
+            return result
         }
     }
 
     func forget() {
         lock.withLock {
             forgets += 1
-            kept = nil
+            kept = []
         }
     }
 
-    func unpair() -> UnpairOutcome {
+    func unpair(name: String) -> UnpairOutcome {
         lock.withLock {
             unpairs += 1
-            if unpairOutcome == .forgotten { kept = nil }
+            unpaired.append(name)
+            if unpairOutcome == .forgotten { kept.removeAll { $0.facts.publicName == name } }
             return unpairOutcome
         }
     }

@@ -18,17 +18,23 @@ final class DoorKeychainTests: XCTestCase {
     private let clientKeys = KeychainClientKeys()
 
     override func setUpWithError() throws {
-        try store.remove(account)
-        try store.remove(PairingStore.account)
-        try store.remove(PairingStore.formerAccount)
-        for tag in clientKeys.tags() { clientKeys.delete(tag: tag) }
+        try clean()
     }
 
     override func tearDownWithError() throws {
+        try clean()
+    }
+
+    /// Every item under this test's service, every pairing account by name
+    /// too (so a list that misses one is caught by the test that reads it,
+    /// not hidden here), and every client key.
+    private func clean() throws {
         try store.remove(account)
         try store.remove(PairingStore.account)
         try store.remove(PairingStore.formerAccount)
+        for listed in try store.accounts() { try store.remove(listed) }
         for tag in clientKeys.tags() { clientKeys.delete(tag: tag) }
+        TestIdentity.removeFromKeychain()
     }
 
     /// Clause: written, read back, replaced and removed.
@@ -175,24 +181,60 @@ final class DoorKeychainTests: XCTestCase {
         clientKeys.delete(tag: minted.tag)
     }
 
-    /// Clause: the app's store keeps one pairing under its versioned account
-    /// in the Keychain, reads it back with its identity, and forgets it with
-    /// every client key.
-    func testThePairingStoreKeepsOnePairing() throws {
+    /// Clause: the list names every account under its own service and none
+    /// under another's, and an empty service is an empty list, never an error.
+    func testTheListNamesEveryAccountUnderItsService() throws {
+        XCTAssertEqual(try store.accounts(), [])
+        let neighbour = KeychainSecretStore(service: "com.itavero.tortie.phone.door.tests-neighbour")
+        defer { try? neighbour.remove("p345-neighbour") }
+        try neighbour.write(Data("n".utf8), account: "p345-neighbour")
+        try store.write(Data("one".utf8), account: account)
+        try store.write(Data("two".utf8), account: PairingStore.account)
+        try store.write(Data("three".utf8), account: "pairing-v2-0123456789abcdef")
+        XCTAssertEqual(Set(try store.accounts()), [account, PairingStore.account, "pairing-v2-0123456789abcdef"])
+        XCTAssertEqual(try store.accounts().count, 3)
+        XCTAssertEqual(try neighbour.accounts(), ["p345-neighbour"])
+    }
+
+    /// Clause (Phase 345, rewritten from the one-pairing promise): the app's
+    /// store keeps one pairing PER MAC in the Keychain, the first under
+    /// `pairing-v2` and the next under an account of its own, reads each back
+    /// with its identity in order, forgets one Mac with that Mac's client key
+    /// and nothing of the other's, and forgets every pairing with every
+    /// client key.
+    func testThePairingStoreKeepsOnePairingPerMac() throws {
         let v = try DoorVectorFile.load()
         let pairing = PairingStore(secrets: store, clientKeys: clientKeys)
         let certificate = try XCTUnwrap(Data(base64Encoded: v.client.certificateDer))
-        let door = try XCTUnwrap(PairedDoor(
-            endpoint: DoorEndpoint(name: "p330-mac.tail00000.ts.net", port: 8443, pin: Base64URL.encode(Data(count: 32))),
-            macSigningKey: v.keys.macSigningKey, macExchangeKey: v.keys.macExchangeKey, label: "x", pairedAt: 1,
-            keys: PhoneKeys.generate(), clientKey: ClientKey(tag: TestIdentity.tag, spki: v.keys.clientKey),
-            certificate: certificate, identity: try TestIdentity.vectors(), alerts: .nothing
-        ))
-        try pairing.save(door)
-        XCTAssertNotNil(try store.read(PairingStore.account))
-        XCTAssertEqual(pairing.load()?.phoneId, door.phoneId)
+        let door = { (name: String, key: ClientKey, pairedAt: Double) in
+            try XCTUnwrap(PairedDoor(
+                endpoint: DoorEndpoint(name: name, port: 8443, pin: Base64URL.encode(Data(count: 32))),
+                macSigningKey: v.keys.macSigningKey, macExchangeKey: v.keys.macExchangeKey, label: "x", pairedAt: pairedAt,
+                keys: PhoneKeys.generate(), clientKey: key, certificate: certificate,
+                identity: try TestIdentity.vectors(), alerts: .nothing
+            ))
+        }
+        let studio = try door("p330-mac.tail00000.ts.net", ClientKey(tag: TestIdentity.tag, spki: v.keys.clientKey), 1)
+        let other = try clientKeys.mint()
+        let laptop = try door("p345-laptop.tail00000.ts.net", other, 2)
+
+        XCTAssertEqual(try pairing.save(studio), PairingStore.account)
+        let second = try pairing.save(laptop)
+        XCTAssertTrue(second.hasPrefix(PairingStore.accountPrefix) && PairingStore.isPairingAccount(second), second)
+        XCTAssertEqual(Set(try store.accounts()), [PairingStore.account, second])
+        XCTAssertEqual(pairing.loadAll().map(\.phoneId), [studio.phoneId, laptop.phoneId])
+        XCTAssertEqual(pairing.load()?.phoneId, studio.phoneId)
+
+        try pairing.forget(name: laptop.endpoint.name)
+        XCTAssertNil(try store.read(second))
+        XCTAssertFalse(clientKeys.tags().contains(other.tag), "the forgotten Mac's client key outlived it")
+        XCTAssertTrue(clientKeys.tags().contains(TestIdentity.tag), "the other Mac's client key went with it")
+        XCTAssertNotNil(clientKeys.identity(tag: TestIdentity.tag, certificate: certificate))
+        XCTAssertEqual(pairing.loadAll().map(\.phoneId), [studio.phoneId])
+
+        try pairing.save(laptop)
         try pairing.forget()
-        XCTAssertNil(try store.read(PairingStore.account))
+        XCTAssertEqual(try store.accounts(), [])
         XCTAssertEqual(clientKeys.tags(), [])
     }
 }

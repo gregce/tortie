@@ -211,6 +211,33 @@ import XCTest
 /// no passcode. Every other reading is an existing step. The drive asserts
 /// nothing, and the sample's words are the probe's to read, from the
 /// committed sample.json and Copy.swift.
+///
+/// SEVERAL MACS (Phase 345, build/p345/SPEC.md section 5.3, `probe:p345`). Six
+/// steps, appended; every step above is unchanged. `pair-another:<b64url>`
+/// ends the app and launches it again with the carried seams and the code
+/// (base64url, because the step list is split on commas) and NO forget seam,
+/// so a phone that keeps a Mac opens the Pair another Mac sheet over its lists
+/// and reads the code there (D19): the sheet's fingerprint is printed as
+/// `pair` prints it, iOS's alert question is answered as `pair` answers it,
+/// and it waits for the sheet to close onto a list or for its Pair again; the
+/// line `pair-another` says which, with the tab bar read, and a dump
+/// `pair-another-end` follows. A sheet that stays (the cap, a key that does
+/// not match) is then cancelled by its own Cancel, so the next step can reach
+/// the bar. `pair-another-press` opens the sheet from Settings, dumps it and
+/// presses its Cancel. `macs:<b64url label>` presses the Macs tab, found by
+/// its label (the chosen Mac's drawn name; a tab has no identifier), and dumps
+/// the Macs screen; with no such tab it prints `found: false` and a dump
+/// `macs-absent`, and goes on, because no tab is a reading with one Mac kept.
+/// `choose-mac:<i>` presses `macs-row-<i>` and waits for Needs input,
+/// `macs-pull` pulls the Macs screen, and `unpair-one` answers Unpair's
+/// question as `unpair` does and waits for the Needs input it lands on with a
+/// Mac left. Every one of them prints the tab bar (`tabs`: the bar's buttons,
+/// and the buttons along the bottom edge, because iOS 26's glass bar is not
+/// always reported as a tab bar) and both badges (the Needs input tab's and
+/// the Macs tab's), read and printed, never judged. `P345_KEEP_PAIRING=1`
+/// makes the FIRST launch carry the seams and no forget seam and no code, so
+/// a drive starts on the pairings the Keychain kept; unset, the first launch
+/// is as it always was.
 final class P316DriveUITests: XCTestCase {
     @MainActor
     func testDrive() throws {
@@ -570,6 +597,8 @@ private final class Drive {
     /// `sample-left` line, so every dump in between says whether the Sample
     /// bar's label is in it.
     private var inSample = false
+    /// Phase 345: the first launch keeps what the Keychain holds (`P345_KEEP_PAIRING=1`).
+    private let keepPairing: Bool
 
     init(run: String, env: [String: String]) {
         lines = ProbeLines(run: run, file: env["P316_LINES"])
@@ -580,6 +609,7 @@ private final class Drive {
         pushToken = env["P316_PUSH_TOKEN"].flatMap { $0.isEmpty ? nil : $0 }
         allowNotifications = (env["P316_NOTIFICATIONS"] ?? "allow") != "deny"
         acks = env["P316_ACKS"].flatMap { $0.isEmpty ? nil : $0 }
+        keepPairing = (env["P345_KEEP_PAIRING"] ?? "") == "1"
     }
 
     /// The seams every launch carries: the still dot, the forwarder and the
@@ -602,7 +632,8 @@ private final class Drive {
         // Phase 333.1: with no code the seam is LEFT OUT, because an empty
         // one is read as a code that is not Tortie's and the resting face
         // would draw that sentence where it draws `notPaired`.
-        app.launchArguments = ["-TortieDebugForgetPairing"] + (payload.isEmpty ? [] : ["-TortieDebugPairingPayload", payload]) + carried
+        // Phase 345: a drive that keeps the pairings launches with the carried seams alone.
+        app.launchArguments = keepPairing ? carried : ["-TortieDebugForgetPairing"] + (payload.isEmpty ? [] : ["-TortieDebugPairingPayload", payload]) + carried
         app.launch()
         for step in steps where !stuck {
             if step == "pair" {
@@ -813,6 +844,18 @@ private final class Drive {
                 sampleLeave()
             } else if step.hasPrefix("sample-inventory:") {
                 sampleInventory(String(step.dropFirst("sample-inventory:".count)))
+            } else if step.hasPrefix("pair-another:") {
+                pairAnother(String(step.dropFirst("pair-another:".count)))
+            } else if step == "pair-another-press" {
+                pairAnotherPress()
+            } else if step.hasPrefix("macs:") {
+                macs(String(step.dropFirst("macs:".count)))
+            } else if step.hasPrefix("choose-mac:") {
+                chooseMac(Int(String(step.dropFirst("choose-mac:".count))) ?? -1)
+            } else if step == "macs-pull" {
+                macsPull()
+            } else if step == "unpair-one" {
+                unpairOne()
             } else {
                 lines.emit(["step": "unknown-step", "name": step])
             }
@@ -4299,5 +4342,251 @@ enum MarkdownLabels {
         return byScope.mapValues { parts in
             parts.sorted { $0.0 < $1.0 }.map(\.1).filter { !$0.isEmpty }.joined(separator: "\n")
         }
+    }
+}
+
+// MARK: - Several Macs (Phase 345, build/p345/SPEC.md section 5.3)
+
+/// The identifiers Phase 345 adds (ios/Tortie/Screens/Identifiers.swift's
+/// `settingsPairAnother`, `macsScreen`, `macsTitle`, `macsRow…`,
+/// `pairAnotherSheet` and `pairAnotherCancel`), spelled again because a UI
+/// test cannot import the app.
+private extension Seen {
+    static let settingsPairAnother = "settings-pair-another"
+    static let macsScreen = "screen-macs"
+    static let macsTitle = "macs-title"
+    static let macsRow = "macs-row-"
+    static let macsRowName = "macs-row-name-"
+    static let macsRowLine = "macs-row-line-"
+    static let macsRowChosen = "macs-row-chosen-"
+    static let pairAnotherSheet = "pair-another-sheet"
+    static let pairAnotherCancel = "pair-another-cancel"
+    /// How far above the window's bottom edge a tab's button sits, at most.
+    static let bottomBand: CGFloat = 120
+}
+
+extension Drive {
+    /// The tab bar from ONE snapshot: every button inside a tab bar, and every
+    /// labelled button along the bottom edge (iOS 26's glass bar is not always
+    /// reported as a tab bar), each with its label, value, frame and whether it
+    /// is selected. The probe counts and orders them; nothing here judges.
+    fileprivate func tabsReading() -> [String: Any] {
+        guard let root = try? app.snapshot() else { return ["read": false] }
+        let height = root.frame.height
+        var inBar: [[String: Any]] = []
+        var bottom: [[String: Any]] = []
+        var stack: [(XCUIElementSnapshot, Bool)] = [(root, false)]
+        while let (node, inTab) = stack.popLast() {
+            let isTab = node.elementType == .tabBar
+            if node.elementType == .button {
+                let item: [String: Any] = [
+                    "label": node.label,
+                    "value": (node.value as? String).map { $0 as Any } ?? NSNull(),
+                    "frame": frameOf(node.frame),
+                    "selected": node.isSelected
+                ]
+                if inTab { inBar.append(item) }
+                if !node.label.isEmpty, node.frame.height > 0, node.frame.midY >= height - Seen.bottomBand { bottom.append(item) }
+            }
+            for child in node.children.reversed() { stack.append((child, inTab || isTab)) }
+        }
+        return ["read": true, "inBar": inBar, "bottom": bottom, "window": [Double(root.frame.width), Double(root.frame.height)]]
+    }
+
+    /// One tab's badge as XCUITest reports it, as `badge` reads Needs input's:
+    /// the button's label and value, raw, every label inside it, and the system.
+    fileprivate func badgeOf(_ label: String) -> [String: Any] {
+        let system = UIDevice.current.systemVersion
+        guard let button = tabButton(label) else {
+            return ["tab": label, "label": NSNull(), "value": NSNull(), "inside": [String](), "system": system, "found": false]
+        }
+        let inside = button.descendants(matching: .any).allElementsBoundByIndex.map(\.label).filter { !$0.isEmpty }
+        return ["tab": label, "label": button.label, "value": (button.value as? String).map { $0 as Any } ?? NSNull(), "inside": inside, "system": system, "found": true]
+    }
+
+    /// The Macs screen's rows, settled: two snapshots half a second apart that
+    /// read the same, or the step's wait.
+    fileprivate func settleMacs() {
+        let signature = { () -> String in
+            self.tree().filter { $0.id.hasPrefix("macs-") }.map { "\($0.id)=\($0.label)" }.joined(separator: "|")
+        }
+        let deadline = Date().addingTimeInterval(wait)
+        var last = signature()
+        while Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.5)
+            let now = signature()
+            if now == last, now.contains(Seen.macsRow) { return }
+            last = now
+        }
+    }
+
+    /// `pair-another:<b64url>`: the app ended and launched again with the
+    /// carried seams and the code, no forget seam, so the Pair another Mac
+    /// sheet opens over the kept lists and reads it (D19).
+    fileprivate func pairAnother(_ b64url: String) {
+        guard let code = Drive.words(b64url) else { return missing("pair-another") }
+        app.terminate()
+        _ = app.wait(for: .notRunning, timeout: 10)
+        app.launchArguments = carried + ["-TortieDebugPairingPayload", code]
+        app.launch()
+        guard poll({ found in self.has(found, Seen.pairAnotherSheet) && (self.has(found, Seen.pairingFingerprint) || self.has(found, Seen.pairingAgain)) }) else {
+            return missing("pair-another")
+        }
+        let fingerprint = find(tree(), Seen.pairingFingerprint)
+        lines.emit(["step": "fingerprint", "for": "pair-another", "text": fingerprint.map { $0.label as Any } ?? NSNull()])
+        // As `pair`: iOS asks only when the Mac says it can send.
+        var answered = fingerprint != nil ? notifications(within: 10) : true
+        _ = poll { found in
+            if !answered, self.springboard.alerts.firstMatch.exists { answered = self.notifications(within: 0, late: true) }
+            return (!self.has(found, Seen.pairAnotherSheet) && self.settledList(found)) || self.has(found, Seen.pairingAgain)
+        }
+        Thread.sleep(forTimeInterval: 1.5)
+        let found = tree()
+        let stayed = has(found, Seen.pairAnotherSheet)
+        lines.emit([
+            "step": "pair-another",
+            "closed": !stayed,
+            "line": find(found, Seen.pairingLine).map { $0.label as Any } ?? NSNull(),
+            "again": has(found, Seen.pairingAgain),
+            "tabs": tabsReading()
+        ])
+        dump("pair-another-end")
+        guard stayed else { return }
+        // A sheet that stays is put away by its own Cancel, so the bar can be reached.
+        let cancel = element(Seen.pairAnotherCancel)
+        if cancel.waitForExistence(timeout: 5) { cancel.tap() }
+        let gone = poll { !self.has($0, Seen.pairAnotherSheet) }
+        lines.emit(["step": "pair-another-cancelled", "gone": gone])
+        if !gone { stuck = true }
+    }
+
+    /// `pair-another-press`: Settings, Pair another Mac, the sheet dumped,
+    /// its Cancel, and Settings dumped again.
+    fileprivate func pairAnotherPress() {
+        guard selectTab(Seen.tabSettings), poll({ self.has($0, Seen.settingsScreen) }) else { return missing("pair-another-press") }
+        let row = element(Seen.settingsPairAnother)
+        guard row.waitForExistence(timeout: 10) else { return missing("pair-another-press") }
+        var tries = 0
+        while !row.isHittable && tries < 6 {
+            element(Seen.settingsScreen).swipeUp()
+            tries += 1
+        }
+        row.tap()
+        guard poll({ self.has($0, Seen.pairAnotherSheet) }) else { return missing("pair-another-press") }
+        Thread.sleep(forTimeInterval: 1)
+        dump("pair-another-sheet")
+        let cancel = element(Seen.pairAnotherCancel)
+        let hadCancel = cancel.waitForExistence(timeout: 5)
+        if hadCancel { cancel.tap() }
+        let gone = poll { !self.has($0, Seen.pairAnotherSheet) && self.has($0, Seen.settingsScreen) }
+        lines.emit(["step": "pair-another-press", "cancel": hadCancel, "gone": gone])
+        guard gone else { return missing("pair-another-press") }
+        Thread.sleep(forTimeInterval: 1)
+        dump("pair-another-settings")
+    }
+
+    /// `macs:<b64url label>`: the Macs tab pressed by its label and the Macs
+    /// screen dumped. No such tab is a reading (`found: false`, a dump
+    /// `macs-absent`), and the drive goes on.
+    fileprivate func macs(_ b64url: String) {
+        guard let label = Drive.words(b64url) else { return missing("macs") }
+        guard let button = tabButton(label) else {
+            lines.emit(["step": "macs", "label": label, "found": false, "tabs": tabsReading()])
+            dump("macs-absent")
+            return
+        }
+        lines.emit(["step": "macs-before", "label": label])
+        button.tap()
+        guard poll({ self.has($0, Seen.macsScreen) }) else { return missing("macs") }
+        settleMacs()
+        lines.emit([
+            "step": "macs",
+            "label": label,
+            "found": true,
+            "tabs": tabsReading(),
+            "needsBadge": badgeOf(Seen.tabNeedsInput),
+            "macsBadge": badgeOf(label)
+        ])
+        dump("macs")
+    }
+
+    /// `choose-mac:<i>`: `macs-row-<i>` pressed; Needs input waited for and
+    /// read once its list has answered.
+    fileprivate func chooseMac(_ i: Int) {
+        guard i >= 0, has(tree(), Seen.macsScreen) else { return missing("choose-mac") }
+        let row = element(Seen.macsRow + String(i))
+        guard row.waitForExistence(timeout: 10) else { return missing("choose-mac") }
+        let name = find(tree(), Seen.macsRowName + String(i))?.label
+        lines.emit(["step": "choose-mac-before", "i": i, "name": name.map { $0 as Any } ?? NSNull()])
+        row.tap()
+        guard poll({ found in self.has(found, Seen.needsScreen) && !self.has(found, Seen.needsLoading) && !self.has(found, Seen.macsScreen) }) else {
+            return missing("choose-mac")
+        }
+        Thread.sleep(forTimeInterval: 1.5)
+        _ = poll { !self.has($0, Seen.needsLoading) }
+        // The chosen Mac's drawn name is the Macs tab's label now.
+        let label = name ?? ""
+        lines.emit([
+            "step": "choose-mac",
+            "i": i,
+            "name": name.map { $0 as Any } ?? NSNull(),
+            "tabs": tabsReading(),
+            "needsBadge": badgeOf(Seen.tabNeedsInput),
+            "macsBadge": label.isEmpty ? NSNull() as Any : badgeOf(label) as Any
+        ])
+        dump("choose-mac")
+    }
+
+    /// `macs-pull`: the Macs screen pulled (every Mac read, D7), then read.
+    fileprivate func macsPull() {
+        guard has(tree(), Seen.macsScreen) else { return missing("macs-pull") }
+        lines.emit(["step": "macs-pull-before"])
+        pull(Seen.macsScreen)
+        Thread.sleep(forTimeInterval: 3)
+        settleMacs()
+        lines.emit(["step": "macs-pull", "tabs": tabsReading()])
+        dump("macs-pull")
+    }
+
+    /// `unpair-one`: Unpair's question answered Unpair, as `unpair` answers it,
+    /// and the Needs input it lands on with a Mac left (Pairing, if it comes,
+    /// is read and dumped, never waited for).
+    fileprivate func unpairOne() {
+        let step = "unpair-one"
+        if !has(tree(), Seen.settingsScreen) { _ = selectTab(Seen.tabSettings) }
+        let button = element(Seen.settingsUnpair)
+        guard button.waitForExistence(timeout: 10) else { return missing(step) }
+        var tries = 0
+        while !button.isHittable && tries < 6 {
+            element(Seen.settingsScreen).swipeUp()
+            tries += 1
+        }
+        let name = find(tree(), Seen.settingsMacName)?.label
+        button.tap()
+        var via = "sheet"
+        var container: XCUIElement? = [app.sheets.firstMatch, app.alerts.firstMatch].first { $0.waitForExistence(timeout: 5) }
+        if container?.elementType == .alert { via = "alert" }
+        if container == nil, app.buttons[Seen.unpairPress].waitForExistence(timeout: 3) {
+            container = app
+            via = "app"
+        }
+        guard let sheet = container else { return missing(step) }
+        let texts = via == "app" ? [] : sheet.staticTexts.allElementsBoundByIndex.map(\.label)
+        let buttons = via == "app" ? [Seen.unpairPress, Seen.cancelPress].filter { app.buttons[$0].exists } : sheet.buttons.allElementsBoundByIndex.map(\.label)
+        lines.emit(["step": "unpair-sheet", "for": step, "via": via, "title": via == "app" ? NSNull() : sheet.label as Any, "texts": texts, "buttons": buttons, "mac": name.map { $0 as Any } ?? NSNull()])
+        guard sheet.buttons[Seen.unpairPress].exists else { return missing(step) }
+        lines.emit(["step": "unpair-pressed", "for": step, "at": Date().timeIntervalSince1970 * 1000])
+        sheet.buttons[Seen.unpairPress].tap()
+        guard poll({ found in (self.has(found, Seen.needsScreen) && !self.has(found, Seen.needsLoading)) || self.has(found, Seen.pairingScreen) }) else { return missing(step) }
+        Thread.sleep(forTimeInterval: 1.5)
+        let found = tree()
+        lines.emit([
+            "step": "unpair-landed",
+            "for": step,
+            "at": Date().timeIntervalSince1970 * 1000,
+            "where": has(found, Seen.pairingScreen) ? "pairing" : "needs-input",
+            "tabs": tabsReading()
+        ])
+        dump(step)
     }
 }

@@ -371,7 +371,8 @@ enum Copy {
     /// Mac: src/renderer/machines/machine-choice.ts ⟦THIS_MAC = 'This Mac'⟧
     /// The machine filter's word for the Mac itself (Phase 316.7), which is
     /// what the Mac's own machine choice calls it, and the Settings card for
-    /// the one Mac this iPhone is paired with (Phase 316.6), the same Mac.
+    /// the Mac on screen (Phase 316.6; one of several since Phase 345), the
+    /// same Mac.
     static let thisMac = "This Mac"
 
     /// Phone: before the date this iPhone was paired, `Paired · Sep 30, 2026`.
@@ -721,6 +722,20 @@ enum Copy {
 
     /// Phone: the same, for more than one line.
     static let moreLinesTail = " more lines"
+
+    // MARK: - Several Macs (Phase 345, build/p345/SPEC.md section 3.7)
+
+    /// Phone: the title of the screen that lists the Macs this iPhone is paired with and switches between them. The Mac lists machines, not Macs, and no Mac surface switches between Macs.
+    static let macs = "Macs"
+
+    /// Phone: the Settings row that pairs this iPhone with one more Mac and keeps the ones it has. No Mac surface pairs a second Mac with a phone.
+    static let pairAnotherMac = "Pair another Mac"
+
+    /// Phone: the cap on the Macs one iPhone keeps (D12), said when a fifth Mac's code is read. The Mac does not know what else the phone keeps.
+    static let macLimit = "This iPhone is paired with four Macs. Unpair one to pair another."
+
+    /// Phone: a Mac this iPhone keeps refused it while another Mac is kept (D18), and the Pair another Mac sheet's not-paired line (D16), where `…with a Mac.` would be false.
+    static let notPairedHere = "This iPhone is not paired with this Mac."
 
     // MARK: - See a sample (Phase 333.3)
 

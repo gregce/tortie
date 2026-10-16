@@ -161,11 +161,14 @@ const SELF = 'assert-simulator-teardown.mjs';
  * the ATS arm) and build/p316/test-ios.mjs (`test:ios`, the XCTest unit
  * tests). PHASE 333.4 RAISED IT TO 3 for build/p3334/probe-p3334.mjs
  * (`probe:p3334`, the app driven on the devices App Review uses: the iPad, a
- * Touch ID iPhone and an iPhone with nothing enrolled). RAISE IT WHEN YOU ADD
- * ONE, in the same commit: adding a script cannot turn this gate red, so a
+ * Touch ID iPhone and an iPhone with nothing enrolled). PHASE 345 RAISED IT
+ * TO 4 for build/p345/probe-p345.mjs (`probe:p345`, one iPhone and several
+ * Macs: the order device on iOS 26.3 and the floor device on 18.3, one at a
+ * time, the parent's app installed over HEAD's and back through the handle's
+ * own `install`). RAISE IT WHEN YOU ADD ONE, in the same commit: adding a script cannot turn this gate red, so a
  * floor left where it was would let the new one be deleted again in silence.
  */
-export const SIMULATOR_USER_FLOOR = 3;
+export const SIMULATOR_USER_FLOOR = 4;
 
 /** The verbs that make, boot or end a device. The helper's alone. */
 const DEVICE_VERBS = ['create', 'boot', 'clone', 'shutdown', 'delete', 'erase'];

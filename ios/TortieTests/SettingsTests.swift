@@ -5,8 +5,10 @@ import XCTest
 /// Settings (Phase 316.6, build/p3166/SPEC.md section 5.3): the paired Mac's
 /// PUBLIC facts and nothing else, the Alerts card only for a Mac that said it
 /// can send, what iOS allows in the phone's own words, iOS asked nothing for
-/// any other Mac, and the version from the app's own bundle. Each test names
-/// the clause it holds, and each fails when that clause is taken out of
+/// any other Mac, and the version from the app's own bundle; and since Phase
+/// 345 (build/p345/SPEC.md D15, D21) the Mac on screen's card, its name drawn
+/// as the Macs tab draws it, and Pair another Mac above Unpair. Each test
+/// names the clause it holds, and each fails when that clause is taken out of
 /// Screens/SettingsScreen.swift, Screens/DoorWords.swift or App/TortieApp.swift.
 final class SettingsTests: XCTestCase {
     private var v: DoorVectorFile!
@@ -35,8 +37,9 @@ final class SettingsTests: XCTestCase {
         ))
     }
 
-    /// Clause: the facts are the five public fields and nothing else: the
-    /// name is the public name's first label, the address the whole public
+    /// Clause: the facts are the six public fields and nothing else: the
+    /// name is the public name's first label, the public name whole (Phase
+    /// 345, which keys a Mac among several), the address the whole public
     /// name and its port, the fingerprint the six groups both screens showed;
     /// no key, pin, label, certificate or phone id is carried or repeated.
     func testTheFactsAreThePublicFieldsAlone() throws {
@@ -46,12 +49,13 @@ final class SettingsTests: XCTestCase {
         let first = try XCTUnwrap(host.split(separator: ".").first.map(String.init))
         XCTAssertEqual(facts.name, first)
         XCTAssertNotEqual(facts.name, host, "the name is the whole public name")
+        XCTAssertEqual(facts.publicName, host, "the public name is not the whole name the phone dials")
         XCTAssertEqual(facts.address, host + ":" + String(door.endpoint.port))
         XCTAssertEqual(facts.fingerprint, door.fingerprint)
         XCTAssertEqual(facts.pairedAt, door.pairedAt)
         XCTAssertTrue(facts.macSends)
         XCTAssertFalse(PairedFacts(try pairedDoor(sends: false)).macSends)
-        XCTAssertEqual(Mirror(reflecting: facts).children.compactMap(\.label), ["name", "address", "fingerprint", "pairedAt", "macSends"])
+        XCTAssertEqual(Mirror(reflecting: facts).children.compactMap(\.label), ["name", "publicName", "address", "fingerprint", "pairedAt", "macSends"])
         let said = everythingSaid(about: facts)
         let notCarried: [(String, String)] = [
             ("the pin", door.endpoint.pin),
@@ -127,6 +131,12 @@ final class SettingsTests: XCTestCase {
             XCTAssertNil(SettingsDrawing(facts: facts, list: state, alertsLine: nil, permission: nil, settingsLine: nil, info: nil).readLine, "\(state)")
         }
         XCTAssertNil(SettingsDrawing(facts: facts, list: nil, alertsLine: nil, permission: nil, settingsLine: nil, info: nil).readLine)
+        // The card's name: the facts' own first label, or the drawn name the
+        // app hands it (Phase 345, D21); none with no facts.
+        XCTAssertEqual(shown.macName, facts.name)
+        let named = SettingsDrawing(facts: facts, list: loaded, alertsLine: nil, permission: nil, settingsLine: nil, info: nil, drawnName: Answers.mac)
+        XCTAssertEqual(named.macName, Answers.mac)
+        XCTAssertNil(SettingsDrawing(facts: nil, list: loaded, alertsLine: nil, permission: nil, settingsLine: nil, info: nil, drawnName: Answers.mac).macName)
         let failed = SettingsDrawing(facts: facts, list: loaded, alertsLine: nil, permission: nil, settingsLine: Copy.unpairFailed, info: nil)
         XCTAssertEqual(failed.unpairLine, Copy.unpairFailed)
         // The day, in the phone's own format: epoch MILLISECONDS, mid-June 2025.
@@ -171,8 +181,9 @@ final class SettingsTests: XCTestCase {
 
     /// Clause: the version line is the bundle's own version and build, a dash
     /// for either it does not say; and the app this test is hosted in is
-    /// 1.0.0, build 10 (Phase 333.3's See a sample, build/p3333/SPEC.md D23;
-    /// build 9 was Phase 337.3's, set when it was rebased onto Phase 333.1,
+    /// 1.0.0, build 11 (Phase 345's several Macs, build/p345/SPEC.md D27;
+    /// build 10 was Phase 333.3's See a sample, build/p3333/SPEC.md D23, the
+    /// public and App Store build; build 9 was Phase 337.3's, set when it was rebased onto Phase 333.1,
     /// and the build submitted to Beta App Review on 2026-10-09; build 8 was
     /// 333.1's, build/p3331/SPEC.md D26; build 7 was Phase 337's, build 6
     /// Phase 318's).
@@ -183,7 +194,7 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(AppVersion.line(["CFBundleShortVersionString": "", "CFBundleVersion": 4]), Copy.dash + " (" + Copy.dash + ")")
         XCTAssertEqual(AppVersion.line(nil), Copy.dash + " (" + Copy.dash + ")")
         #if os(iOS)
-        XCTAssertEqual(AppVersion.line(Bundle.main.infoDictionary), "1.0.0 (10)", "the app these tests are hosted in is not 1.0.0 (10)")
+        XCTAssertEqual(AppVersion.line(Bundle.main.infoDictionary), "1.0.0 (11)", "the app these tests are hosted in is not 1.0.0 (11)")
         #endif
     }
 
@@ -231,10 +242,13 @@ final class SettingsTests: XCTestCase {
         let paired = SettingsRows(root: .reading)
         XCTAssertTrue(paired.unpair, "a paired phone draws no Unpair")
         XCTAssertTrue(paired.seeSample, "a paired phone draws no See a sample")
+        XCTAssertTrue(paired.pairAnother, "a paired phone draws no Pair another Mac")
         let sample = SettingsRows(root: .sample)
         XCTAssertFalse(sample.unpair, "the sample draws Unpair")
         XCTAssertFalse(sample.seeSample, "the sample draws See a sample")
+        XCTAssertFalse(sample.pairAnother, "the sample draws Pair another Mac")
         XCTAssertFalse(SettingsRows(root: .pairing).seeSample)
+        XCTAssertFalse(SettingsRows(root: .pairing).pairAnother)
     }
 
     /// Clause (Phase 333.3, D13, D18): the body draws Unpair and its line only
@@ -248,11 +262,15 @@ final class SettingsTests: XCTestCase {
         let start = try XCTUnwrap(source.range(of: "    var body: some View {")).lowerBound
         let end = try XCTUnwrap(source.range(of: "/// `Settings`, 28/34 semibold", range: start..<source.endIndex)).lowerBound
         let body = String(source[start..<end])
-        let order = ["if rows.unpair {", "unpairRow", "ID.settingsUnpairLine", "if rows.seeSample {", "seeSampleRow", "aboutCard(drawing.version)"]
+        let order = [
+            "macCard(facts, drawing: drawing)", "alertsCard(state: state, line: drawing.alertsLine)",
+            "if rows.pairAnother {", "pairAnotherRow",
+            "if rows.unpair {", "unpairRow", "ID.settingsUnpairLine", "if rows.seeSample {", "seeSampleRow", "aboutCard(drawing.version)"
+        ]
         let places = try order.map { needle in
             try XCTUnwrap(body.range(of: needle), "Settings' body does not draw \(needle)").lowerBound
         }
-        XCTAssertEqual(places, places.sorted(), "See a sample is not drawn under Unpair and above About, each under its own row's rule")
+        XCTAssertEqual(places, places.sorted(), "Pair another Mac is not between the Mac's cards and Unpair, or See a sample not under Unpair and above About, each under its own row's rule")
         XCTAssertTrue(source.contains("facts: app.inSample ? nil : app.reader?.facts,"), "Settings in the sample may draw a Mac")
         let row = try XCTUnwrap(source.range(of: "private var seeSampleRow: some View {")).lowerBound
         let drawn = String(source[row...].prefix(800))
@@ -262,5 +280,39 @@ final class SettingsTests: XCTestCase {
         let press = try XCTUnwrap(source.range(of: "    func openSample() {")).lowerBound
         XCTAssertTrue(String(source[press...].prefix(80)).contains("app.openSample()"), "See a sample's press does not open the app's sample")
         XCTAssertEqual(ID.settingsSeeSample, "settings-see-sample")
+    }
+
+    /// Clause (Phase 345, D15): Pair another Mac is a card row in See a
+    /// sample's shape, 54 tall with the chevron of a row that opens
+    /// something, identified `settings-pair-another`, whose press opens the
+    /// app's sheet: it moves everything under it down by exactly one row and
+    /// one gap (`Frame.linkRowHeight + Frame.cardGap`, 66 points). The card
+    /// draws the Mac on screen's drawn name. Read from the source, because
+    /// SwiftUI draws nothing in a unit test; the press is driven.
+    @MainActor
+    func testPairAnotherMacIsOneRowThatOpensTheSheet() throws {
+        let source = try StyleSource.text("ios/Tortie/Screens/SettingsScreen.swift")
+        let row = try XCTUnwrap(source.range(of: "private var pairAnotherRow: some View {")).lowerBound
+        let drawn = String(source[row...].prefix(800))
+        for needle in [
+            "Button(action: pairAnother)", "Copy.pairAnotherMac", "Chevron()", ".frame(height: Frame.linkRowHeight)", ".card()",
+            "ID.settingsPairAnother", ".padding(.top, Frame.cardGap)"
+        ] {
+            XCTAssertTrue(drawn.contains(needle), "Pair another Mac's row does not hold \(needle)")
+        }
+        XCTAssertEqual(Frame.linkRowHeight + Frame.cardGap, 66, "the row no longer moves what is under it by 66 points")
+        XCTAssertTrue(source.contains("Words(drawing.macName ?? facts.name, .lead, Tokens.textPrimary)"), "the card does not draw the Mac's drawn name")
+        XCTAssertTrue(source.contains("drawnName: app.chosen.map { app.drawnName($0) }"), "the card is not handed the Mac on screen's drawn name")
+        XCTAssertEqual(ID.settingsPairAnother, "settings-pair-another")
+
+        let app = AppModel(door: StandInPhone(kept: ScriptedReader()), label: "iPhone", alerts: StandInAlerts())
+        let settings = SettingsScreen(app: app)
+        XCTAssertTrue(settings.rows.pairAnother)
+        XCTAssertNil(app.anotherPairing)
+        settings.pairAnother()
+        let sheet = try XCTUnwrap(app.anotherPairing, "Pair another Mac opened no sheet")
+        XCTAssertTrue(sheet.keepsOthers)
+        XCTAssertEqual(sheet.line, Copy.notPairedHere)
+        XCTAssertEqual(settings.drawing.macName, "studio")
     }
 }

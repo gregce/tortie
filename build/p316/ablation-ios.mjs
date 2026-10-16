@@ -215,6 +215,28 @@
  * anywhere in the app, and two members added to types the sample may name, one
  * reading the kept pairing and one posting an alert tap (its closed reach).
  *
+ * PHASE 345, ONE IPHONE, SEVERAL MACS (build/p345/SPEC.md §4), each paired
+ * Mac its own space, switched at the bottom bar, up to four, one Keychain
+ * record each. Its arms, at the end of the list, are the ways one Mac could
+ * reach into another's, or a pairing be lost: (b) the Macs tab outside its if
+ * on showsMacs, behind a count, labelled by a Copy word, or another symbol;
+ * (n) loadAll forgetting every Mac or deleting a key on a record that does not
+ * decode, one Mac's key before its record, its record removed with try?, a
+ * record read behind try? on the sweep's path, the sweep's catch falling
+ * through to its deletes, Unpair forgetting every Mac or asking for any
+ * record; (x) forgetAddress() on every Unpair, behind the entry's macSends
+ * rule or behind the unpaired Mac's address alone, and Settings asking iOS for
+ * any Mac that sends; (p) the sheet's launch code kept; (v) the cap's case
+ * drawing another sentence, no keepsOthers, an empty line on the sheet; (t)
+ * the twin renamed or deaf to --alerts; az5
+ * through the one Mac's pairedReader(); and (ba) every clause of the new
+ * rule, ba1 to ba9, among them destination, and an alert's Mac, resolved by
+ * a session id across the Macs, the attack's own shape. Ten older arms moved
+ * with the shapes the phase changed (`v1`, `x9`, `n12`, `n13`, `x11`, `at1`,
+ * `az27`, and `s8`, `s11` and `s12` to build 11). The control beside every
+ * arm is the base: an arm passes only when its rule is GREEN there and red
+ * with its plant.
+ *
  * THE DELTA RULE. The base is run first. An arm passes only when its own rule
  * was GREEN at the base and is RED with the plant, so a rule that was already
  * red proves nothing and says so. An arm whose anchor is gone from the tree
@@ -1363,7 +1385,7 @@ const ARMS = [
     rule: 's',
     what: 'Release a build ahead of Debug',
     file: () => PBX,
-    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 10;/, '$1CURRENT_PROJECT_VERSION = 11;')
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 11;/, '$1CURRENT_PROJECT_VERSION = 12;')
   },
   {
     id: 's9',
@@ -1494,10 +1516,12 @@ const ARMS = [
     rule: 'v',
     what: 'pairingSentence optional again, leaving drawn as nothing',
     file: () => `${APP}/Screens/DoorWords.swift`,
+    // Phase 345: pairingSentence takes keepsOthers, so the signature is read
+    // by its shape and the nil planted on .badCode.
     edit: (src) =>
       src
-        .replace('static func pairingSentence(for failure: PairingFailure) -> String {', 'static func pairingSentence(for failure: PairingFailure) -> String? {')
-        .replace('case .couldNotSave, .notAvailable, .cancelled: return Copy.notPaired', 'case .couldNotSave, .notAvailable: return Copy.notPaired\n        case .cancelled: return nil')
+        .replace(/(static func pairingSentence\(for failure: PairingFailure[^)]*\) -> String) \{/, '$1? {')
+        .replace('case .badCode: return Copy.pairNotACode', 'case .badCode: return nil')
   },
   {
     id: 'v2',
@@ -1617,7 +1641,8 @@ const ARMS = [
     rule: 'x',
     what: 'the launch check asking iOS for a Mac that cannot send (research 136 §9)',
     file: () => `${APP}/App/TortieApp.swift`,
-    edit: (src) => src.replace(/\n\s*guard kept\.macSends else \{\n\s*list\.alertsLine = nil\n\s*return\n\s*\}\n/, '\n')
+    // Phase 345: the check runs per Mac, over the space's own list.
+    edit: (src) => src.replace(/\n\s*guard kept\.macSends else \{\n\s*(?:space\.)?list\.alertsLine = nil\n\s*return\n\s*\}\n/, '\n')
   },
   // Phase 316.6: the tab bar, Settings, Unpair and the rendered conversation
   // (build/p3166/SPEC.md §6). Thirty arms, each red on its own rule, the
@@ -1688,27 +1713,29 @@ const ARMS = [
   {
     id: 'n12',
     rule: 'n',
-    what: 'the client keys deleted before the record, so a failed removal leaves the record without its identity',
+    what: 'the client keys deleted before the records in forget(), so a failed removal leaves a record without its identity',
     file: () => `${APP}/Door/Keys.swift`,
+    // Phase 345: forget() removes every Mac's record in a loop, then the keys.
     edit: (src) =>
       src.replace(
-        /(\n[ \t]*func forget\(\) throws \{\n)([ \t]*try secrets\.remove\(Self\.account\)\n[ \t]*try\? secrets\.remove\(Self\.formerAccount\)\n)([ \t]*for tag in clientKeys\.tags\(\) \{\n[ \t]*clientKeys\.delete\(tag: tag\)\n[ \t]*\}\n)/,
+        /(\n[ \t]*func forget\(\) throws \{\n)([\s\S]*?)([ \t]*for tag in clientKeys\.tags\(\) \{\n[ \t]*clientKeys\.delete\(tag: tag\)\n[ \t]*\}\n)/,
         '$1$3$2'
       )
   },
   {
     id: 'n13',
     rule: 'n',
-    what: 'Unpair through try? store.forget(), which swallows the error',
+    what: 'Unpair through try? store.forget(name:), which swallows the error',
     file: () => `${APP}/App/TortieApp.swift`,
-    edit: (src) => src.replace(/do \{\s*try store\.forget\(\)\s*\} catch \{\s*return \.kept\s*\}/, 'try? store.forget()')
+    // Phase 345: Unpair forgets the Mac on screen, by its name.
+    edit: (src) => src.replace(/do \{\s*try store\.forget\(name: name\)\s*\} catch \{\s*return \.kept\s*\}/, 'try? store.forget(name: name)')
   },
   {
     id: 's11',
     rule: 's',
-    what: "the app's Release left at build 9, 337.3's, which App Store Connect refuses as a duplicate",
+    what: "the app's Release left at build 10, 333.3's and the public one, which App Store Connect refuses as a duplicate",
     file: () => PBX,
-    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 10;/, '$1CURRENT_PROJECT_VERSION = 9;')
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 11;/, '$1CURRENT_PROJECT_VERSION = 10;')
   },
   {
     id: 'x10',
@@ -1729,7 +1756,8 @@ const ARMS = [
       const call = /\n(?![ \t]*\/\/)[^\n]*\bforgetAddress\(\)[^\n]*/.exec(src);
       if (call === null) return src;
       const without = src.replace(call[0], '');
-      const at = without.search(/\n(?![ \t]*\/\/)[^\n]*\bdoor\.unpair\(\)/);
+      // Phase 345: door.unpair(name:), the Mac on screen.
+      const at = without.search(/\n(?![ \t]*\/\/)[^\n]*\bdoor\.unpair\(/);
       return at === -1 ? src : `${without.slice(0, at)}${call[0]}${without.slice(at)}`;
     }
   },
@@ -3204,7 +3232,8 @@ const ARMS = [
     rule: 'at',
     what: 'Route.screen put back',
     file: () => `${APP}/App/TortieApp.swift`,
-    edit: (src) => src.replace('    case catchUp(id: String, honestLine: String?)\n', '    case catchUp(id: String, honestLine: String?)\n    case screen(id: String)\n')
+    // Phase 345: every Route case carries its Mac.
+    edit: (src) => src.replace(/(\n([ \t]*)case catchUp\((?:mac: String, )?id: String, honestLine: String\?\)\n)/, '$1$2case screen(mac: String, id: String)\n')
   },
   {
     id: 'at2',
@@ -3575,9 +3604,9 @@ const ARMS = [
   {
     id: 's12',
     rule: 's',
-    what: 'the build left at 9 in one configuration (Debug), 337.3’s',
+    what: 'the build left at 10 in one configuration (Debug), 333.3’s and the public one',
     file: () => PBX,
-    edit: (src) => src.replace('CURRENT_PROJECT_VERSION = 10;', 'CURRENT_PROJECT_VERSION = 9;')
+    edit: (src) => src.replace('CURRENT_PROJECT_VERSION = 11;', 'CURRENT_PROJECT_VERSION = 10;')
   },
   {
     id: 'v32',
@@ -4394,7 +4423,8 @@ const ARMS = [
     rule: 'az',
     what: "a hook on the sample's reader set where every list is made (S5b)",
     file: () => TORTIE_APP,
-    edit: (src) => src.replace(/(\n([ \t]*)let\s+list\s*=\s*ListModel\s*\(\s*door\s*:\s*reader\s*,\s*routing\s*:\s*listRouting\s*\))/, '\n$2if !(reader is SampleReader) { SampleReader.relay = reader.writer }$1')
+    // Phase 345: a space's list routes its refusal to that Mac (listRouting(mac)).
+    edit: (src) => src.replace(/(\n([ \t]*)let\s+list\s*=\s*ListModel\s*\(\s*door\s*:\s*reader\s*,\s*routing\s*:\s*listRouting(?:\s*\([^)]*\))?\s*\))/, '\n$2if !(reader is SampleReader) { SampleReader.relay = reader.writer }$1')
   },
   {
     id: 'az28',
@@ -4439,6 +4469,297 @@ const ARMS = [
     what: 'a class found by its name outside the sample (NSClassFromString in the pieces)',
     file: () => `${APP}/Screens/Pieces.swift`,
     edit: append('enum P3333Lookup {\n    static func session() -> AnyClass? { NSClassFromString("NSURL" + "Session") }\n}\n')
+  },
+  // PHASE 345, ONE IPHONE, SEVERAL MACS (build/p345/SPEC.md §4): each moved
+  // clause of (b), (n), (x), (p), (v), (t) and az5, and every clause of the
+  // new (ba), planted the way a later round could write it in a hurry.
+  {
+    id: 'b20',
+    rule: 'b',
+    what: 'the Macs tab built outside its if on showsMacs, so one Mac kept draws four tabs',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/\bif app\.showsMacs \{(\s*\n\s*Tab\(value: AppTab\.macs\))/, 'do {$1')
+  },
+  {
+    id: 'b21',
+    rule: 'b',
+    what: 'the Macs tab labelled with a Copy word rather than the Mac on screen\'s name',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/Label\(app\.drawnName\(([^)]*)\), systemImage: "desktopcomputer"\)/, 'Label(Copy.macs, systemImage: "desktopcomputer")')
+  },
+  {
+    id: 'b22',
+    rule: 'b',
+    what: 'the Macs tab drawn with another symbol',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace('systemImage: "desktopcomputer"', 'systemImage: "laptopcomputer"')
+  },
+  {
+    id: 'b23',
+    rule: 'b',
+    what: 'the Macs tab behind an if that reads the count rather than showsMacs',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/\bif app\.showsMacs \{(\s*\n\s*Tab\(value: AppTab\.macs\))/, 'if app.spaces.count > 1 {$1')
+  },
+  {
+    id: 'n20',
+    rule: 'n',
+    what: 'loadAll forgetting every Mac and every client key, as load() once did on a record that did not decode (D11)',
+    file: () => `${APP}/Door/Keys.swift`,
+    edit: (src) => src.replace(/(\n([ \t]*)func loadAll\(\) -> \[PairedDoor\] \{\n)/, '$1$2    try? forget()\n')
+  },
+  {
+    id: 'n21',
+    rule: 'n',
+    what: 'loadAll deleting a client key (D11)',
+    file: () => `${APP}/Door/Keys.swift`,
+    edit: (src) => src.replace(/(\n([ \t]*)func loadAll\(\) -> \[PairedDoor\] \{\n)/, '$1$2    clientKeys.delete(tag: "p345")\n')
+  },
+  {
+    id: 'n22',
+    rule: 'n',
+    what: "one Mac's client key deleted before its record in forget(name:)",
+    file: () => `${APP}/Door/Keys.swift`,
+    edit: (src) => src.replace(/(\n([ \t]*)func forget\(name: String\) throws \{\n)/, '$1$2    for tag in clientKeys.tags() { clientKeys.delete(tag: tag) }\n')
+  },
+  {
+    id: 'n23',
+    rule: 'n',
+    what: "one Mac's record removed with try?, so a record that would not go reads as gone",
+    file: () => `${APP}/Door/Keys.swift`,
+    edit: (src) => src.replace(/(func forget\(name: String\) throws \{[\s\S]*?)\btry secrets\.remove\(/, '$1try? secrets.remove(')
+  },
+  {
+    id: 'n24',
+    rule: 'n',
+    what: 'a record read behind try? on the sweep\'s path, so a read that failed reads as "no record" and its key is swept',
+    file: () => `${APP}/Door/Keys.swift`,
+    edit: (src) => src.replace(/(func readEvery\(\) throws[\s\S]*?)\btry secrets\.read\(/, '$1try? secrets.read(')
+  },
+  {
+    id: 'n25',
+    rule: 'n',
+    what: "the sweep's catch falling through to the deletes, so a Keychain that could not be read takes every key",
+    file: () => `${APP}/Door/Keys.swift`,
+    edit: (src) => src.replace(/(func sweepOrphans\(\) \{[\s\S]*?\} catch \{\n)([ \t]*)return\n/, '$1$2named = []\n')
+  },
+  {
+    id: 'n26',
+    rule: 'n',
+    what: 'Unpair forgetting every Mac, try store.forget(), rather than the one on screen',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(func unpair\(name: String\) -> UnpairOutcome \{[\s\S]*?)try store\.forget\(name: name\)/, '$1try store.forget()')
+  },
+  {
+    id: 'n27',
+    rule: 'n',
+    what: "Unpair asking whether ANY record is kept rather than that Mac's",
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(func unpair\(name: String\) -> UnpairOutcome \{[\s\S]*?)store\.holdsRecord\(name: name\)/, '$1store.holdsRecord')
+  },
+  {
+    id: 'x40',
+    rule: 'x',
+    what: "forgetAddress() on every Unpair, outside D23's condition, so unpairing one Mac stops the other's alerts",
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(func unpair\(\) \{[\s\S]*?\n[ \t]*)if [^\n{]*\bpresented\b[^\n{]*\{(\n[ \t]*forgetting = Task)/, '$1if true {$2')
+  },
+  {
+    id: 'x41',
+    rule: 'x',
+    what: "forgetAddress() behind the entry's rule, no kept Mac that says it sends, which a stranger's Mac holds open (D23)",
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(func unpair\(\) \{[\s\S]*?\n[ \t]*)if [^\n{]*\bpresented\b[^\n{]*\{(\n[ \t]*forgetting = Task)/, '$1if !spaces.contains(where: { $0.id != chosenId && $0.reader.alerts.macSends }) {$2')
+  },
+  {
+    id: 'x42',
+    rule: 'x',
+    what: "readAlertPermission asking iOS for any kept Mac that sends, not the one on screen (D25)",
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(func readAlertPermission\(\) async \{\n[ \t]*guard root == \.reading, )let reader, reader\.alerts\.macSends else \{/, '$1spaces.contains(where: { $0.reader.alerts.macSends }) else {')
+  },
+  {
+    id: 'x43',
+    rule: 'x',
+    what: "forgetAddress() behind the unpaired Mac's address alone, so unpairing the one Mac that never presented one leaves Apple sending, unlike today (D23)",
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(func unpair\(\) \{[\s\S]*?\n[ \t]*)if [^\n{]*\bpresented\b[^\n{]*\{(\n[ \t]*forgetting = Task)/, '$1if space.reader.alerts.presented != nil {$2')
+  },
+  {
+    id: 'p40',
+    rule: 'p',
+    what: "the Pair another Mac sheet's launch code kept on the app model before it is read (D19)",
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/\n([ \t]*)await app\.anotherPairing\?\.read\(code\)/, '\n$1app.p345KeptCode = code\n$1await app.anotherPairing?.read(code)')
+  },
+  {
+    id: 'v40',
+    rule: 'v',
+    what: '.macLimit drawing the not-paired line rather than the cap\'s own sentence (D12)',
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) => src.replace('case .macLimit: return Copy.macLimit', 'case .macLimit: return Copy.notPaired')
+  },
+  {
+    id: 'v41',
+    rule: 'v',
+    what: 'pairingSentence with no keepsOthers, so the Pair another Mac sheet says no Mac is paired (D16)',
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) => src.replace(/(static func pairingSentence\(for failure: PairingFailure), keepsOthers: Bool(?: = false)?\)/, '$1)')
+  },
+  {
+    id: 'v42',
+    rule: 'v',
+    what: 'the not-paired line drawn empty on the Pair another Mac sheet',
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) => src.replace('keepsOthers ? Copy.notPairedHere : Copy.notPaired', 'keepsOthers ? "" : Copy.notPaired')
+  },
+  {
+    id: 't40',
+    rule: 't',
+    what: "the hostile door's twin renamed, so probe:p345's attack serves nothing",
+    file: () => 'build/p316/hostile-door.mjs',
+    edit: (src) => src.replace(/(\n[ \t]*)twin: \{/, '$1twins: {')
+  },
+  {
+    id: 't41',
+    rule: 't',
+    what: "the hostile door no longer reading --alerts, the twin's claim that it sends",
+    file: () => 'build/p316/hostile-door.mjs',
+    edit: (src) => src.split('--alerts').join('--sends')
+  },
+  {
+    id: 'az40',
+    rule: 'az',
+    what: "leaveSample() reading the one Mac's door.pairedReader() rather than every kept Mac's (D26)",
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(func leaveSample\(\) \{[\s\S]*?)door\.pairedReaders\(\)/, '$1door.pairedReader().map { [$0] } ?? []')
+  },
+  {
+    id: 'ba1',
+    rule: 'ba',
+    what: 'a Route case that carries no mac: (D13)',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace('case alerted(mac: String, id: String)', 'case alerted(id: String)')
+  },
+  {
+    id: 'ba1b',
+    rule: 'ba',
+    what: 'a session row pushed with no mac:, so its screen reads through the Mac on screen (D13)',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/push\(\.session\(mac: [^,]+, id: row\.id/, 'push(.session(id: row.id')
+  },
+  {
+    id: 'ba2',
+    rule: 'ba',
+    what: "destination reading the Mac on screen's reader rather than the route's (D13)",
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/if let reader = app\.space\(route\.mac\)\?\.reader \{/, 'if let reader = app.reader {')
+  },
+  {
+    id: 'ba2b',
+    rule: 'ba',
+    what: "destination resolving its reader by the session id across the kept Macs (§5.3 H's mirror)",
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/if let reader = app\.space\(route\.mac\)\?\.reader \{/, 'if let reader = app.spaces.first(where: { $0.list.state.holds(route.id) })?.reader {')
+  },
+  {
+    id: 'ba2c',
+    rule: 'ba',
+    what: "an alert's Mac resolved by asking each Mac's list for the session, the entry's dropped rule the attack answers yes to (D24)",
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(func alertTarget\(\) -> MacSpace\? \{[\s\S]*?)spaces\.filter \{ \$0\.reader\.alerts\.macSends \}/, '$1spaces.filter { $0.reader.alerts.macSends && $0.list.state.lists(sessionId) }')
+  },
+  {
+    id: 'ba3',
+    rule: 'ba',
+    what: "the Settings tab's stack with no .id(, so a switch keeps a view built over another Mac (D13)",
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(NavigationStack \{\s*\n\s*SettingsScreen\(app: app\)\s*\n\s*\}\n)[ \t]*\.id\([^)]*\)\n/, '$1')
+  },
+  {
+    id: 'ba4',
+    rule: 'ba',
+    what: "the app reading the one Mac's door.pairedReader() at launch",
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/let kept = door\.pairedReaders\(\)/, 'let kept = door.pairedReader().map { [$0] } ?? []')
+  },
+  {
+    id: 'ba5',
+    rule: 'ba',
+    what: "a Mac's claim that it sends read when a Mac is chosen (D24)",
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(func choose\(_ mac: String\) \{\n[^\n]*\n)/, '$1        _ = space.reader.alerts.macSends\n')
+  },
+  {
+    id: 'ba6',
+    rule: 'ba',
+    what: "the Macs tab's badge summed with +, which traps on a door's Int.max (D6)",
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/guard let sum = DoorNumber\.sum\(waiting, ([^)]*)\) else \{ return 0 \}\n([ \t]*)waiting = sum/, 'waiting += $1')
+  },
+  {
+    id: 'ba7',
+    rule: 'ba',
+    what: 'a second cap, the literal 4, in admits (D20)',
+    file: () => `${APP}/Door/Keys.swift`,
+    edit: (src) => src.replace(/(func admits\(_ name: String\) -> Bool \{[\s\S]*?)Self\.macLimit/, '$14')
+  },
+  {
+    id: 'ba8',
+    rule: 'ba',
+    what: "a new Mac's account made from its public name rather than the phone's random hex (D8)",
+    file: () => `${APP}/Door/Keys.swift`,
+    edit: (src) => src.replace(/(func save\(_ door: PairedDoor\) throws -> String \{[\s\S]*?)target = try Self\.newAccount\([^\n]*\)/, '$1target = Self.accountPrefix + door.endpoint.name')
+  },
+  {
+    id: 'ba9',
+    rule: 'ba',
+    what: 'the orphan sweep after LiveDoor( is made, so a pairing could start before it and lose its key (D11)',
+    file: () => TORTIE_APP,
+    edit: (src) => {
+      const sweep = /\n[ \t]*PairingStore\.keychain\.sweepOrphans\(\)[ \t]*(?=\n)/.exec(src);
+      if (sweep === null) return src;
+      const without = src.replace(sweep[0], '');
+      const door = /\n[ \t]*let door = LiveDoor\([^\n]*/.exec(without);
+      return door === null ? src : `${without.slice(0, door.index + door[0].length)}${sweep[0]}${without.slice(door.index + door[0].length)}`;
+    }
+  },
+  // The fix round: nothing a door answers forgets a Mac, and a replaced
+  // pairing's late answer moves nothing (ba10).
+  {
+    id: 'ba10',
+    rule: 'ba',
+    what: 'a one-Mac refusal that forgets the Mac that refused, a door\'s 404 forgetting a pairing (D18, D18a)',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(\} else if let refusing \{\n)([ \t]*)(refusedOnPairing = refusing\.id)/, '$1$2_ = door.unpair(name: refusing.id)\n$2$3')
+  },
+  {
+    id: 'ba10b',
+    rule: 'ba',
+    what: 'the Pair another Mac sheet replacing the Mac that refused, so a second Mac\'s pairing forgets a kept one (D18a)',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(private func pairedAnother\(_ reader: any DoorReading, first: PocketBlockedAnswer\) \{\n)([ \t]*)/, '$1$2replaceRefused(with: reader.facts.publicName)\n$2')
+  },
+  {
+    id: 'ba10c',
+    rule: 'ba',
+    what: 'a Mac named to be replaced by a tap on it in the Macs tab rather than by its own refusal (D18a)',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(func choose\(_ mac: String\) \{\n[^\n]*\n)([ \t]*)/, '$1$2refusedOnPairing = mac\n$2')
+  },
+  {
+    id: 'ba10d',
+    rule: 'ba',
+    what: "a list's refusal handed back with no speaks(, so a replaced pairing's late 404 blanks the pairing that took its place",
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(private func listRouting\(_ mac: String, owner: MadeFor\) -> ReadRouting \{\n[ \t]*ReadRouting\(backToList: \{\}, pairAgain: \{ \[weak self\] in\n)[ \t]*guard let self, self\.speaks\(for: mac, owner\) else \{ return \}\n([ \t]*)self\.refused\(mac: mac\)/, '$1$2self?.refused(mac: mac)')
+  },
+  {
+    id: 'ba10e',
+    rule: 'ba',
+    what: "an alerted session's pop handed back with no speaks(, so a replaced pairing's late answer reads the new list",
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/[ \t]*guard let self, self\.speaks\(for: mac, owner\) else \{ return \}\n([ \t]*)self\.backToList\(saying: Copy\.noSuchSession, mac: mac\)/, '$1self?.backToList(saying: Copy.noSuchSession, mac: mac)')
   }
 ];
 
@@ -4651,8 +4972,8 @@ if (only.length === 0) {
       say(`rule (${rule}) has no arm that turned it red, so nothing here proves it can fail`);
     }
   }
-  // Phase 337.1's rules, Phase 337.3's ((aw), (ax), (ay)) and Phase 333.3's (az); (av) is Phase 333.1's and joins here when it lands.
-  for (const rule of ['ar', 'as', 'at', 'au', 'aw', 'ax', 'ay', 'az']) {
+  // Phase 337.1's rules, Phase 337.3's ((aw), (ax), (ay)), Phase 333.3's (az) and Phase 345's (ba); (av) is Phase 333.1's and joins here when it lands.
+  for (const rule of ['ar', 'as', 'at', 'au', 'aw', 'ax', 'ay', 'az', 'ba']) {
     if (!rulesProved.has(rule)) {
       failed += 1;
       say(`rule (${rule}) has no arm that turned it red, so nothing here proves it can fail`);
@@ -4665,5 +4986,5 @@ if (failed > 0) {
 }
 say(
   `PASS: ${String(arms.length)} of ${String(arms.length)} arms red on the rule that owns them, ` +
-    `${only.length === 0 ? 'every rule (a) to (z) and (aa) to (az) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
+    `${only.length === 0 ? 'every rule (a) to (z) and (aa) to (ba) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
 );

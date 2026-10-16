@@ -49,11 +49,12 @@ final class DoorPairingTests: XCTestCase {
     private func run(
         presents: [Result<PairAnswer, DoorFailure>],
         reads: [Result<PocketBlockedAnswer, DoorFailure>] = [],
-        secrets: MemorySecrets = MemorySecrets()
+        secrets: MemorySecrets = MemorySecrets(),
+        keys given: MemoryClientKeys? = nil
     ) async throws -> Run {
         let door = StandInDoor(presents: presents, reads: reads)
         let clock = StepClock(openedAt)
-        let keys = MemoryClientKeys(spki: v.keys.clientKey)
+        let keys = given ?? MemoryClientKeys(spki: v.keys.clientKey)
         let pairing = PairingFlow(
             exchange: door,
             store: PairingStore(secrets: secrets, clientKeys: keys),
@@ -551,11 +552,12 @@ final class DoorPairingTests: XCTestCase {
 
     // MARK: Keeping it
 
-    private func paired(_ keys: MemoryClientKeys) throws -> PairedDoor {
+    private func paired(_ keys: MemoryClientKeys, name: String? = nil, pairedAt: Double = 1) throws -> PairedDoor {
         let key = try keys.mint()
+        let endpoint = name.map { DoorEndpoint(name: $0, port: offer.door.port, pin: offer.door.pin) } ?? offer.door
         return try XCTUnwrap(PairedDoor(
-            endpoint: offer.door, macSigningKey: offer.macSigningKey, macExchangeKey: offer.macExchangeKey,
-            label: "x", pairedAt: 1, keys: PhoneKeys.generate(), clientKey: key, certificate: certificate,
+            endpoint: endpoint, macSigningKey: offer.macSigningKey, macExchangeKey: offer.macExchangeKey,
+            label: "x", pairedAt: pairedAt, keys: PhoneKeys.generate(), clientKey: key, certificate: certificate,
             identity: try keys.adopt(certificate, for: key), alerts: .nothing
         ))
     }
@@ -584,12 +586,17 @@ final class DoorPairingTests: XCTestCase {
 
     /// Clause: a record that does not read back whole, or whose client key is
     /// gone, is removed and the phone is not paired, never partly paired.
+    /// Since Phase 345 it removes ONLY ITSELF: its client key is left to the
+    /// launch's sweep, which deletes it once no record names it, because a
+    /// read that cannot tell one Mac's broken record from the Keychain's
+    /// error must never take every Mac's identity with it.
     func testABrokenRecordIsRemoved() throws {
         for edit in [("name", "100.64.0.1"), ("port", "8823"), ("clientTag", "not-a-tag"), ("certificate", "AAAA")] {
             let secrets = MemorySecrets()
             let keys = MemoryClientKeys(spki: v.keys.clientKey)
             let store = PairingStore(secrets: secrets, clientKeys: keys)
-            try store.save(try paired(keys))
+            let door = try paired(keys)
+            try store.save(door)
             var record = try XCTUnwrap(JSONSerialization.jsonObject(with: try XCTUnwrap(secrets.item(PairingStore.account))) as? [String: Any])
             if edit.0 == "port" {
                 record["port"] = 8823
@@ -599,7 +606,10 @@ final class DoorPairingTests: XCTestCase {
             try secrets.write(try JSONSerialization.data(withJSONObject: record), account: PairingStore.account)
             XCTAssertNil(store.load(), edit.0)
             XCTAssertTrue(secrets.isEmpty, "the broken record was left behind (\(edit.0))")
-            XCTAssertEqual(keys.held, [], "the broken record's key was left behind (\(edit.0))")
+            XCTAssertEqual(keys.deleted, [], "loading a broken record deleted a client key (\(edit.0))")
+            store.sweepOrphans()
+            XCTAssertEqual(keys.held, [], "the broken record's key outlived the sweep (\(edit.0))")
+            XCTAssertEqual(keys.deleted, [door.clientKey.tag], edit.0)
         }
         let secrets = MemorySecrets()
         let keys = MemoryClientKeys(spki: v.keys.clientKey)
@@ -611,6 +621,68 @@ final class DoorPairingTests: XCTestCase {
         XCTAssertTrue(secrets.isEmpty)
     }
 
+    /// Clause (Phase 345): the flow keeps a second Mac beside the first, in a
+    /// fresh account of the store's own, and the first Mac's record is not
+    /// touched; both read back, the first Mac first.
+    func testTheFlowSavesASecondMacBesideTheFirst() async throws {
+        let secrets = MemorySecrets()
+        let keys = MemoryClientKeys(spki: v.keys.clientKey)
+        let store = PairingStore(secrets: secrets, clientKeys: keys)
+        let first = try paired(keys, name: "studio.tail00000.ts.net")
+        try store.save(first)
+        let kept = try XCTUnwrap(secrets.item(PairingStore.account))
+        let r = try await run(
+            presents: [.success(.allowed(certificate: certificate))], reads: [.success(try list())], secrets: secrets, keys: keys
+        )
+        guard case let .paired(paired, _) = r.outcome else { return XCTFail("\(r.outcome)") }
+        XCTAssertEqual(secrets.item(PairingStore.account), kept, "pairing a second Mac moved the first")
+        XCTAssertEqual(secrets.held.count, 2)
+        XCTAssertTrue(secrets.held.allSatisfy(PairingStore.isPairingAccount))
+        XCTAssertEqual(store.loadAll().map(\.phoneId), [first.phoneId, paired.phoneId])
+        XCTAssertEqual(Set(keys.held), [first.clientKey.tag, paired.clientKey.tag])
+    }
+
+    /// Clause (Phase 345): the flow re-pairing a kept Mac replaces its record
+    /// in its own account and deletes the old client key, and no other.
+    func testTheFlowRePairingAKeptMacReplacesIt() async throws {
+        let secrets = MemorySecrets()
+        let keys = MemoryClientKeys(spki: v.keys.clientKey)
+        let store = PairingStore(secrets: secrets, clientKeys: keys)
+        let first = try paired(keys, name: "studio.tail00000.ts.net")
+        let old = try paired(keys, pairedAt: 2)
+        try store.save(first)
+        let account = try store.save(old)
+        let r = try await run(
+            presents: [.success(.allowed(certificate: certificate))], reads: [.success(try list())], secrets: secrets, keys: keys
+        )
+        guard case let .paired(paired, _) = r.outcome else { return XCTFail("\(r.outcome)") }
+        XCTAssertEqual(Set(secrets.held), [PairingStore.account, account], "a re-pair took another account")
+        XCTAssertEqual(store.loadAll().map(\.phoneId), [first.phoneId, paired.phoneId])
+        XCTAssertEqual(Set(keys.held), [first.clientKey.tag, paired.clientKey.tag], "the old pairing's key outlived it, or another went")
+    }
+
+    /// Clause (Phase 345): with four other Macs kept the store refuses a
+    /// fifth, the flow ends `couldNotSave`, nothing is written and the
+    /// attempt's client key is deleted. (The app refuses it earlier, when the
+    /// code is read, `PairingFailure.macLimit`.)
+    func testTheFlowDoesNotKeepAFifthMac() async throws {
+        let secrets = MemorySecrets()
+        let keys = MemoryClientKeys(spki: v.keys.clientKey)
+        let store = PairingStore(secrets: secrets, clientKeys: keys)
+        for (i, label) in ["one", "two", "three", "four"].enumerated() {
+            try store.save(try paired(keys, name: "\(label).tail00000.ts.net", pairedAt: Double(i + 1)))
+        }
+        XCTAssertFalse(store.admits(offer.door.name))
+        let held = secrets.held
+        let r = try await run(
+            presents: [.success(.allowed(certificate: certificate))], reads: [.success(try list())], secrets: secrets, keys: keys
+        )
+        guard case .failed(.couldNotSave) = r.outcome else { return XCTFail("\(r.outcome)") }
+        XCTAssertEqual(secrets.held, held)
+        XCTAssertFalse(keys.held.contains(r.pending.clientKey.tag), "the refused attempt's key was left behind")
+        XCTAssertEqual(keys.held.count, 4)
+    }
+
     /// Clause: a leftover `pairing-v1`, the tailnet build's record, is removed
     /// and is no pairing.
     func testTheTailnetBuildsRecordIsRemoved() throws {
@@ -620,6 +692,7 @@ final class DoorPairingTests: XCTestCase {
         XCTAssertNil(store.load())
         XCTAssertNil(secrets.item(PairingStore.formerAccount))
         XCTAssertEqual(PairingStore.account, "pairing-v2")
+        XCTAssertFalse(PairingStore.isPairingAccount(PairingStore.formerAccount))
     }
 
     #if DEBUG
@@ -672,26 +745,63 @@ final class StandInDoor: DoorExchanging, @unchecked Sendable {
     }
 }
 
-/// Secrets in memory, so no test touches a keychain.
+/// Secrets in memory, so no test touches a keychain. Since Phase 345 it
+/// lists its accounts, can be told to refuse the list, a read or a removal
+/// of one account, and writes what it did to `events` when a test reads the
+/// order.
 final class MemorySecrets: SecretStore, @unchecked Sendable {
     private let lock = NSLock()
     private var items: [String: Data] = [:]
+    private var readLog: [String] = []
     var refuseWrites = false
+    /// The list throws, as a Keychain that cannot be read would.
+    var refuseList = false
+    /// A read of one of these accounts throws.
+    var refuseReads: Set<String> = []
+    /// A removal of one of these accounts throws and removes nothing.
+    var refuseRemoves: Set<String> = []
+    /// The list answers in reverse byte order, so no test passes because the
+    /// list happened to be in the order the store promises.
+    var listReversed = false
+    var events: KeychainEvents?
 
     var isEmpty: Bool { lock.withLock { items.isEmpty } }
     func item(_ account: String) -> Data? { lock.withLock { items[account] } }
+    /// Every account a read was asked for, in order.
+    var reads: [String] { lock.withLock { readLog } }
+    /// The accounts held now, in byte order.
+    var held: [String] { lock.withLock { items.keys.sorted() } }
 
-    func read(_ account: String) throws -> Data? { lock.withLock { items[account] } }
+    func read(_ account: String) throws -> Data? {
+        try lock.withLock {
+            readLog.append(account)
+            if refuseReads.contains(account) { throw KeysFailure.keychain(-25308) }
+            return items[account]
+        }
+    }
 
     func write(_ data: Data, account: String) throws {
         try lock.withLock {
             if refuseWrites { throw KeysFailure.keychain(-25308) }
             items[account] = data
         }
+        events?.append("write \(account)")
     }
 
     func remove(_ account: String) throws {
-        lock.withLock { _ = items.removeValue(forKey: account) }
+        try lock.withLock {
+            if refuseRemoves.contains(account) { throw KeysFailure.keychain(-25308) }
+            _ = items.removeValue(forKey: account)
+        }
+        events?.append("remove \(account)")
+    }
+
+    func accounts() throws -> [String] {
+        try lock.withLock {
+            if refuseList { throw KeysFailure.keychain(-25308) }
+            let sorted = items.keys.sorted()
+            return listReversed ? sorted.reversed() : sorted
+        }
     }
 }
 

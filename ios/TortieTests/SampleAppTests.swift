@@ -83,7 +83,7 @@ final class SampleAppTests: XCTestCase {
             lock.withLock { asked.append("forget") }
         }
 
-        func unpair() -> UnpairOutcome {
+        func unpair(name: String) -> UnpairOutcome {
             lock.withLock { asked.append("unpair") }
             return .kept
         }
@@ -501,7 +501,7 @@ final class SampleAppTests: XCTestCase {
         XCTAssertEqual(app.root, .reading)
         XCTAssertTrue((app.reader as? RecordingReader) === paired)
         XCTAssertEqual(app.tab, .needsInput)
-        XCTAssertEqual(app.waitingPath, [.alerted(id: "s1")])
+        XCTAssertEqual(app.waitingPath, [.alerted(mac: Answers.mac, id: "s1")])
         XCTAssertEqual(phone.count("pairedReader"), 2)
     }
 
@@ -659,11 +659,13 @@ final class SampleAppTests: XCTestCase {
             try XCTUnwrap(body.range(of: needle, range: after..<body.endIndex), "the body does not draw \(needle) where it should").lowerBound
         }
         let point = try place("ID.pairingPoint", after: body.startIndex)
-        let firstGuard = try place("if !model.busy {", after: point)
+        // Phase 345 (D16): and only where the app hands it a press, so the
+        // Pair another Mac sheet draws none.
+        let firstGuard = try place("if !model.busy, seeSample != nil {", after: point)
         let firstButton = try place("seeSampleButton", after: firstGuard)
         let rest = try place("} else {", after: firstButton)
         let scan = try place("scanButton", after: rest)
-        let secondGuard = try place("if !model.busy {", after: scan)
+        let secondGuard = try place("if !model.busy, seeSample != nil {", after: scan)
         _ = try place("seeSampleButton", after: secondGuard)
         XCTAssertEqual(body.components(separatedBy: "seeSampleButton").count, 3, "See a sample is drawn other than twice")
         let button = try XCTUnwrap(source.range(of: "private var seeSampleButton: some View {")).lowerBound
@@ -674,6 +676,50 @@ final class SampleAppTests: XCTestCase {
         XCTAssertEqual(ID.pairingSeeSample, "pairing-see-sample")
     }
 
+    /// Clause (Phase 345, D26): with two Macs kept, See a sample drops BOTH
+    /// spaces, as it dropped the one, and draws no Macs tab; Leave sample
+    /// reads every kept pairing once, through `pairedReaders()`, and chooses
+    /// again the Mac that was on screen, each Mac with a new list; and when
+    /// that Mac is no longer kept, the first.
+    func testLeaveSampleChoosesTheMacThatWasOnScreen() async throws {
+        let studio = ScriptedReader(mac: "studio.tail0000.ts.net")
+        let laptop = ScriptedReader(mac: "laptop.tail0000.ts.net")
+        let phone = StandInPhone(kept: studio, others: [laptop])
+        let app = AppModel(door: phone, label: "iPhone", alerts: StandInAlerts(), choices: MemoryWords(.standard))
+        XCTAssertTrue(app.showsMacs)
+        app.choose("laptop.tail0000.ts.net")
+        let laptopList = app.list
+        XCTAssertEqual(phone.readersAsked, 1, "the launch's read")
+
+        app.openSample()
+        XCTAssertEqual(app.root, .sample)
+        XCTAssertEqual(app.spaces.count, 1, "the sample kept a paired Mac's space")
+        XCTAssertTrue(app.reader is SampleReader)
+        XCTAssertFalse(app.showsMacs, "the sample draws the Macs tab")
+        XCTAssertEqual(phone.readersAsked, 1, "the door was asked something while the sample was open")
+
+        app.leaveSample()
+        XCTAssertEqual(phone.readersAsked, 2, "Leave sample did not read the pairings exactly once")
+        XCTAssertEqual(app.root, .reading)
+        XCTAssertEqual(app.spaces.map(\.id), ["studio.tail0000.ts.net", "laptop.tail0000.ts.net"])
+        XCTAssertEqual(app.chosen?.id, "laptop.tail0000.ts.net", "Leave sample did not choose the Mac that was on screen")
+        XCTAssertTrue((app.reader as? ScriptedReader) === laptop)
+        XCTAssertFalse(app.list === laptopList, "the Mac's list from before the sample was kept")
+
+        app.choose("laptop.tail0000.ts.net")
+        app.openSample()
+        phone.keepAll([studio])
+        app.leaveSample()
+        XCTAssertEqual(app.chosen?.id, "studio.tail0000.ts.net", "a Mac no longer kept was chosen again")
+        XCTAssertFalse(app.showsMacs)
+        let source = try StyleSource.text("ios/Tortie/App/TortieApp.swift")
+        let leave = try XCTUnwrap(source.range(of: "    func leaveSample() {")).lowerBound
+        let leaveEnd = try XCTUnwrap(source.range(of: "func endCheck(", range: leave..<source.endIndex)).lowerBound
+        let body = String(source[leave..<leaveEnd])
+        XCTAssertEqual(body.components(separatedBy: "door.").count, 2, "Leave sample names the door other than once")
+        XCTAssertTrue(body.contains("door.pairedReaders()"))
+    }
+
     /// Clause (D14, az5): the sample's root draws ONE strip above the three
     /// tabs, the app's only `SampleBar(`, whose Leave sample is the app's.
     func testTheSampleIsTheTabsUnderOneBar() throws {
@@ -682,7 +728,7 @@ final class SampleAppTests: XCTestCase {
         let sample = try XCTUnwrap(source.range(of: "            case .sample:")).lowerBound
         let branch = String(source[sample...].prefix(700))
         let bar = try XCTUnwrap(branch.range(of: "SampleBar(leave: { app.leaveSample() })")).lowerBound
-        let tabs = try XCTUnwrap(branch.range(of: "tabs(list: list, sessions: sessions, reader: reader)")).lowerBound
+        let tabs = try XCTUnwrap(branch.range(of: "tabs(space)")).lowerBound
         XCTAssertLessThan(bar, tabs, "the Sample bar is not above the tabs")
         XCTAssertTrue(branch.contains("VStack(spacing: 0)"))
         XCTAssertEqual(ID.sampleBar, "sample-bar")

@@ -113,6 +113,35 @@ final class CopyTests: XCTestCase {
         XCTAssertEqual(byName["leaveSample"], Copy.leaveSample)
         XCTAssertEqual(byName["sampleNothingRan"], Copy.sampleNothingRan)
         XCTAssertEqual(byName["sampleEndUnasked"], Copy.sampleEndUnasked)
+        // Phase 345: the four words of several Macs.
+        XCTAssertEqual(byName["macs"], Copy.macs)
+        XCTAssertEqual(byName["pairAnotherMac"], Copy.pairAnotherMac)
+        XCTAssertEqual(byName["macLimit"], Copy.macLimit)
+        XCTAssertEqual(byName["notPairedHere"], Copy.notPairedHere)
+    }
+
+    /// Clause (Phase 345, build/p345/SPEC.md section 3.7): the four words of
+    /// several Macs, each the phone's own (no Mac surface switches between
+    /// Macs, pairs a second Mac with a phone, or knows what the phone keeps),
+    /// each its pinned value; and `This Mac`'s note names the Mac on screen.
+    func testTheMacsWordsAreThePhonesOwn() throws {
+        let entries = try entries()
+        let byName = Dictionary(uniqueKeysWithValues: entries.map { ($0.name, $0) })
+        let pinned: [(String, String)] = [
+            ("macs", "Macs"),
+            ("pairAnotherMac", "Pair another Mac"),
+            ("macLimit", "This iPhone is paired with four Macs. Unpair one to pair another."),
+            ("notPairedHere", "This iPhone is not paired with this Mac.")
+        ]
+        for (name, value) in pinned {
+            let entry = try XCTUnwrap(byName[name], "Copy.\(name) is not declared")
+            XCTAssertEqual(entry.literal, value, name)
+            guard case .phone(let reason)? = entry.owner else { return XCTFail("Copy.\(name) is not the phone's own word") }
+            XCTAssertFalse(reason.isEmpty, name)
+        }
+        let source = try StyleSource.text("ios/Tortie/Style/Copy.swift")
+        let thisMac = try XCTUnwrap(source.range(of: "    static let thisMac = ")).lowerBound
+        XCTAssertTrue(String(source[..<thisMac].suffix(300)).contains("the Mac on screen"), "This Mac's note does not name the Mac on screen")
     }
 
     /// Clause (Phase 333.3, build/p3333/SPEC.md D21): See a sample's five
@@ -169,6 +198,9 @@ final class CopyTests: XCTestCase {
         // Phase 333.3 (build/p3333/SPEC.md section 5.7): the Needs input tab
         // inside the sample, under the Sample bar.
         let sampleMock = try StyleSource.text("docs/design/phone/Sample.html")
+        // Phase 345 (build/p345/SPEC.md section 3.7): two Macs, the bar's four
+        // items and the Macs screen; Pair another Mac is on Settings.html.
+        let macsMock = try StyleSource.text("docs/design/phone/Macs.html")
         let drawn: [(String, String)] = [
             (older, Copy.sessions),
             (older, Copy.needsYourInput(3)),
@@ -309,6 +341,15 @@ final class CopyTests: XCTestCase {
             (sampleMock, Copy.sample),
             (sampleMock, Copy.leaveSample),
             (sampleMock, Copy.needsInput),
+            // Phase 345: Pair another Mac on Settings, and the Macs screen
+            // with the other Mac's waiting count.
+            (settings, Copy.pairAnotherMac),
+            (macsMock, Copy.macs),
+            (macsMock, Copy.needsYourInput(2)),
+            (macsMock, Copy.needsYourInput(1)),
+            (macsMock, Copy.needsInput),
+            (macsMock, Copy.sessions),
+            (macsMock, Copy.settings),
         ]
         for (mock, line) in drawn {
             XCTAssertTrue(mock.contains(">" + line + "<"), "the mock does not draw \(line)")

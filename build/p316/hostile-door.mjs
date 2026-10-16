@@ -237,6 +237,28 @@
  * The ATS arm (a SOCKS5 stand-in dialling 100.64.0.1) left with TailscaleKit in
  * Phase 330: the phone has no tailnet and no ATS exception any more.
  *
+ * A SECOND MAC (Phase 345, build/p345/SPEC.md §5.3). `probe:p345` keeps this
+ * door beside two real Macs, so two flags and one arm of a table of its own:
+ *   --name <host>    the public name its code names and its key is issued
+ *                    for, refused unless it is a `.ts.net` name the phone
+ *                    accepts (lowercase labels, as DoorEndpoint.isPublicName);
+ *                    HOSTILE_NAME when absent
+ *   --alerts         its `pending` says `{"state":"pending","alerts":true}`,
+ *                    which is the Mac's word that it can send, so the phone
+ *                    asks iOS and presents its alert address here
+ *   twin             (SECOND_MAC_ARMS, never HOSTILE_ARMS, whose every row
+ *                    probe:p316 drives by default) the honest door, which on a
+ *                    line on its stdin LISTS ANOTHER MAC'S SESSION IDS under
+ *                    its own name (`twin-mirror <b64url>`, the base64url of a
+ *                    JSON array of ids or `{ "id", "name" }`, at most 64, each
+ *                    id 1 to 128 of [A-Za-z0-9._:-]), answering `/v1/blocked`,
+ *                    `/v1/sessions`, `/v1/session`, `/v1/screen` and the keys
+ *                    for every one of them, and REFUSES every signed read
+ *                    after `twin-refuse`, as a Mac that removed the phone.
+ * Every request event carries the session id it names (`sessionId`: the
+ * `id` of a read's query, the `session` of a write's body), beside the SNI
+ * and the client key pin it already carried.
+ *
  * HOW IT RUNS. As its OWN PROCESS under the pinned tsx: `probe:p316` starts it
  * with `spawn`, reads one `P316_DOOR:{…}` line (the port, the pin, the QR
  * payload the app is handed), reads `P316_DOOR_EVENT:{…}` lines as requests
@@ -255,6 +277,7 @@
  *   node build/p316/hostile-door.mjs --self-test
  *   node build/p316/hostile-door.mjs serve --arm honest      (under tsx; the probe does this)
  *   node build/p316/hostile-door.mjs serve --arm md-hostile --md3 127.0.0.1:<port>
+ *   node build/p316/hostile-door.mjs serve --arm twin --name p345-studio.tail99999.ts.net --alerts
  */
 
 import { spawnSync } from 'node:child_process';
@@ -274,6 +297,7 @@ import {
   clientKeyPinOf,
   doorFrom,
   fingerprintOf,
+  hostIsPublicName,
   makePhone,
   openPresentation,
   pageBack,
@@ -436,6 +460,59 @@ export const HOSTILE_ARMS = Object.freeze({
   // PHASE 337.3 (build/p3373/SPEC.md §7.3, D8): the fill's one page at open answered moved, every later page honest.
   'scrollback-fill-moved': { what: 'the first /v1/scrollback page answered moved with the Mac\'s sentence, every later one honest', ends: 'drawn', scrollback: 'first', at: 'screen-grid', expect: [], fillOnce: true }
 });
+
+/**
+ * PHASE 345's arm, in a table of its own: probe:p316 drives every row of
+ * HOSTILE_ARMS that is not a write or a reply by default, and this arm ends
+ * drawn with no sentence, which its generic grader would read as a failure.
+ * `twin` names it; `--name` and `--alerts` are flags any arm takes.
+ */
+export const SECOND_MAC_ARMS = Object.freeze({
+  twin: { what: 'a second Mac that claims alerts, may share a kept Mac\'s first label, lists another Mac\'s session ids under its own name on twin-mirror, and refuses every signed read after twin-refuse', ends: 'drawn', twin: true, alerts: true }
+});
+/** Every arm a door can be started as. */
+const ALL_ARMS = Object.freeze({ ...HOSTILE_ARMS, ...SECOND_MAC_ARMS });
+/** The most ids one `twin-mirror` may name, and the shape of one. */
+export const MIRROR_MAX = 64;
+const MIRROR_ID = /^[A-Za-z0-9._:-]{1,128}$/;
+
+/**
+ * A `twin-mirror` line's argument read: the base64url of a JSON array of ids,
+ * or of `{ id, name }`, at most MIRROR_MAX. Answers `[{ id, name }]` (a name
+ * null when none was given), or null when anything about it is not that.
+ */
+export function mirrorItemsOf(b64url) {
+  if (typeof b64url !== 'string' || !/^[A-Za-z0-9_-]+$/.test(b64url)) return null;
+  let list;
+  try {
+    list = JSON.parse(Buffer.from(b64url, 'base64url').toString('utf8'));
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(list) || list.length === 0 || list.length > MIRROR_MAX) return null;
+  const out = [];
+  for (const item of list) {
+    const id = typeof item === 'string' ? item : item?.id;
+    const name = typeof item === 'string' ? null : item?.name ?? null;
+    if (typeof id !== 'string' || !MIRROR_ID.test(id)) return null;
+    if (name !== null && (typeof name !== 'string' || name.length === 0 || name.length > 200)) return null;
+    if (out.some((o) => o.id === id)) return null;
+    out.push({ id, name });
+  }
+  return out;
+}
+
+/** The waiting rows a twin lists for mirrored items, each the template row under another id and name. */
+export function mirroredRows(template, items) {
+  return items.map((item) => ({ ...structuredClone(template), sessionId: item.id, name: item.name ?? template.name }));
+}
+
+/** The public name a door's code names: `--name`, checked as the phone checks one, or HOSTILE_NAME. */
+export function doorNameOf(name) {
+  if (name === undefined || name === null) return HOSTILE_NAME;
+  if (!hostIsPublicName(name)) throw new Error(`${TAG} --name ${J(name)} is not a .ts.net public name the phone accepts`);
+  return name;
+}
 
 /** The names of the Screen's arms (Phase 337). */
 export const SCREEN_ARMS = Object.freeze(Object.keys(HOSTILE_ARMS).filter((a) => HOSTILE_ARMS[a].screen === true));
@@ -1098,7 +1175,10 @@ export function rawAnswerOf(arm, body) {
  * receives one event per request and per handshake.
  */
 export async function startHostileDoor(arm, emit = () => undefined, options = {}) {
-  if (!Object.prototype.hasOwnProperty.call(HOSTILE_ARMS, arm)) throw new Error(`no arm named ${arm}; the arms are ${Object.keys(HOSTILE_ARMS).join(', ')}`);
+  if (!Object.prototype.hasOwnProperty.call(ALL_ARMS, arm)) throw new Error(`no arm named ${arm}; the arms are ${Object.keys(ALL_ARMS).join(', ')}`);
+  // Phase 345: the name its code names, refused before anything is made.
+  const doorName = doorNameOf(options.name);
+  const claimsAlerts = options.alerts === true;
   const scratch = mkdtempSync(join(tmpdir(), 'p316-hostile-'));
   const sockets = new Set();
   const servers = [];
@@ -1110,17 +1190,37 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
   };
   try {
     const tls = await tlsModule();
-    const world = HOSTILE_ARMS[arm].md === true ? markdownWorld(arm, options.md3 ?? MD3_UNSET) : honestWorld();
+    const world = ALL_ARMS[arm].md === true ? markdownWorld(arm, options.md3 ?? MD3_UNSET) : honestWorld();
     // Phase 317: a write arm's session offers End with the Mac's own words.
-    const words = HOSTILE_ARMS[arm].write === true ? await writeWords() : null;
+    const words = ALL_ARMS[arm].write === true ? await writeWords() : null;
     if (words !== null) offerEnd(world, arm, words);
     // Phase 318: a reply arm's session offers a press or a message.
-    const replyWordsNow = HOSTILE_ARMS[arm].reply === true || arm === 'honest' ? await replyWords() : null;
-    if (HOSTILE_ARMS[arm].reply === true) offerReply(world, arm);
+    const replyWordsNow = ALL_ARMS[arm].reply === true || arm === 'honest' ? await replyWords() : null;
+    if (ALL_ARMS[arm].reply === true) offerReply(world, arm);
     // Phase 337.3: the fill-moved arm answers its first page with the Mac's own sentence.
-    const screenWordsNow = HOSTILE_ARMS[arm].fillOnce === true ? await screenWords() : null;
+    const screenWordsNow = ALL_ARMS[arm].fillOnce === true ? await screenWords() : null;
     /** write-cut-reread-refused: every signed read after its write is refused. */
     let refuseReads = false;
+    /** Phase 345: the ids a twin lists under its own name, in the order it was told. */
+    let mirrored = [];
+    /** Phase 345: a twin lists another Mac's ids under its own name (`twin-mirror`). */
+    const mirror = (items) => {
+      if (ALL_ARMS[arm].twin !== true) throw new Error(`${arm} is not the twin arm; only the twin mirrors`);
+      const template = structuredClone(world.blocked.rows[0] ?? world.blocked.others[0]);
+      if (template === undefined) throw new Error('the honest world holds no row to model a mirrored one on');
+      template.statusLabel = 'needs input';
+      template.statusDot = 'attention';
+      mirrored = items.map((i) => ({ ...i }));
+      world.blocked.rows = mirroredRows(template, items);
+      world.blocked.others = [];
+      emit({ kind: 'twin-mirror', arm, at: Date.now(), ids: items.map((i) => i.id), names: items.map((i) => i.name) });
+    };
+    /** Phase 345: a twin refuses every signed read from now on, as a Mac that removed the phone (`twin-refuse`). */
+    const refuse = () => {
+      if (ALL_ARMS[arm].twin !== true) throw new Error(`${arm} is not the twin arm; only the twin refuses on a line`);
+      refuseReads = true;
+      emit({ kind: 'twin-refuse', arm, at: Date.now() });
+    };
     // PHASE 316.7: the sessions read, composed by the SHIPPING composer. A
     // sessions arm cannot run without it; any other arm answers 404 for
     // /v1/sessions then, which the phone reads as a Mac older than this phase,
@@ -1132,8 +1232,8 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
     } catch (err) {
       sessionsKitWhy = String(err?.message ?? err);
     }
-    if (typeof HOSTILE_ARMS[arm].sessions === 'string' && sessionsKit === null) throw new Error(`${arm} needs the shipping /v1/sessions composer: ${String(sessionsKitWhy)}`);
-    const cap = HOSTILE_ARMS[arm].sessions === 'cap'
+    if (typeof ALL_ARMS[arm].sessions === 'string' && sessionsKit === null) throw new Error(`${arm} needs the shipping /v1/sessions composer: ${String(sessionsKitWhy)}`);
+    const cap = ALL_ARMS[arm].sessions === 'cap'
       ? (() => {
           const w = sessionsKit.seed.worldOf('cap');
           return { world: w, facts: sessionsKit.seed.factsOf(w.sessions, { stamps: w.stamps, activity: w.activity }) };
@@ -1151,8 +1251,8 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
       sessionsReleased = true;
       emit({ kind: 'sessions-released', arm, at: Date.now(), sessionsReads });
     };
-    const pinned = await issueIdentity(HOSTILE_NAME, scratch, 'door');
-    const served = arm === 'wrong-key' ? await issueIdentity(HOSTILE_NAME, scratch, 'impostor') : pinned;
+    const pinned = await issueIdentity(doorName, scratch, 'door');
+    const served = arm === 'wrong-key' ? await issueIdentity(doorName, scratch, 'impostor') : pinned;
     const doorSign = generateKeyPairSync('ed25519');
     const doorX = generateKeyPairSync('x25519');
     const dk = b64u(doorSign.publicKey.export({ type: 'spki', format: 'der' }));
@@ -1222,7 +1322,8 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
         const body = Buffer.concat(chunks);
         const url = new URL(req.url ?? '/', 'https://door.invalid');
         const route = `${req.method} ${url.pathname}`;
-        const seen = seenOf(req);
+        // Phase 345: the session id a read names, beside the SNI and the pin.
+        const seen = { ...seenOf(req), sessionId: url.searchParams.get('id') };
         if (route === 'POST /pair') {
           const opened = openPresentation(ps, body);
           if (opened === null || !opened.proofOk) return send(res, 200, J({ state: 'refused' }), { route, ...seen, sealed: opened === null ? 'refused' : 'proof-refused' });
@@ -1235,7 +1336,8 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
             phone = opened;
             certificate = null;
           }
-          if (times === 1) return send(res, 200, J({ state: 'pending' }), { route, ...seen, sealed: 'opened', fingerprint: fingerprintOf(opened.signingKey, opened.exchangeKey, opened.clientKey) });
+          // Phase 345: `--alerts` is the Mac's word that it can send.
+          if (times === 1) return send(res, 200, J(claimsAlerts ? { state: 'pending', alerts: true } : { state: 'pending' }), { route, ...seen, sealed: 'opened', alerts: claimsAlerts, fingerprint: fingerprintOf(opened.signingKey, opened.exchangeKey, opened.clientKey) });
           certificate ??= b64u(tls.issueClientCertificate(pinned.key, opened.clientKey, Date.now()));
           return send(res, 200, J({ state: 'allowed', cert: certificate }), { route, ...seen, sealed: 'opened' });
         }
@@ -1247,7 +1349,14 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
           counts.writes += 1;
           const verifiedWrite = verifySigned({ method: 'POST', target: req.url ?? '', headers: req.headers, body, phone, doorExchangePrivate: doorX.privateKey, doorExchangeKey: dx });
           const channelWrite = phone !== null && seen.clientPin === clientKeyPinOf(phone.clientKey);
-          const event = { route, ...seen, verified: verifiedWrite, channelHeld: channelWrite, write: counts.writes, query: url.search !== '' };
+          let endSession = null;
+          try {
+            const parsedEnd = JSON.parse(body.toString('utf8'));
+            endSession = typeof parsedEnd?.session === 'string' ? parsedEnd.session : null;
+          } catch {
+            endSession = null;
+          }
+          const event = { route, ...seen, sessionId: endSession, verified: verifiedWrite, channelHeld: channelWrite, write: counts.writes, query: url.search !== '' };
           if (verifiedWrite !== 'ok' || url.search !== '') return send(res, 404, '', event);
           let id = '';
           try {
@@ -1303,7 +1412,7 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
           const id = typeof parsed?.write === 'string' && /^[0-9a-f]{32}$/.test(parsed.write) ? parsed.write : '';
           const keys = parsed === null || typeof parsed !== 'object' ? '' : Object.keys(parsed).sort().join(',');
           const items = Array.isArray(parsed?.keys) ? parsed.keys.length : -1;
-          const event = { route, ...seen, verified: verifiedWrite, channelHeld: channelWrite, write: counts.writes, verb: 'keys', keys, items, line: lineSerial(req.socket), query: url.search !== '' };
+          const event = { route, ...seen, sessionId: typeof parsed?.session === 'string' ? parsed.session : null, verified: verifiedWrite, channelHeld: channelWrite, write: counts.writes, verb: 'keys', keys, items, line: lineSerial(req.socket), query: url.search !== '' };
           if (verifiedWrite !== 'ok' || url.search !== '') return send(res, 404, '', event);
           if (arm === 'keys-404') return send(res, 404, '', event);
           if (arm === 'keys-other-id') return send(res, 200, J({ verb: 'keys', write: otherWriteId(id), outcome: 'done', reason: null, sentence: null }), event);
@@ -1320,7 +1429,7 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
           if (verifiedRead !== 'ok' || (params !== 'id' && params !== 'id,since')) return send(res, 404, '', ev);
           if (refuseReads) return send(res, 404, '', { ...ev, refusedAfterWrite: true });
           const honest = honestScreen(world, url.searchParams.get('id') ?? world.sessionId, screenSerial);
-          const spec = HOSTILE_ARMS[arm];
+          const spec = ALL_ARMS[arm];
           const since = url.searchParams.get('since');
           const first = n === 1;
           if (spec.screen === true && spec.keys !== true && spec.kept === undefined && !first) {
@@ -1385,7 +1494,7 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
           if (verifiedRead !== 'ok' || ask === null || ask.from >= HOSTILE_HISTORY_DEPTH) return send(res, 404, '', ev);
           if (refuseReads) return send(res, 404, '', { ...ev, refusedAfterWrite: true });
           const honest = honestPageOf(ask, historyLineOf);
-          const spec = HOSTILE_ARMS[arm];
+          const spec = ALL_ARMS[arm];
           const hostileNow = pageIsHostile(spec, n);
           if (!hostileNow) return send(res, 200, J(honest), ev);
           if (arm === 'scrollback-never') {
@@ -1414,7 +1523,7 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
           const keys = parsed === null || typeof parsed !== 'object' ? '' : Object.keys(parsed).sort().join(',');
           // What the phone echoed, by shape only: never the words a message carried.
           const echoed = verb === 'choose' ? parsed?.question === HOSTILE_QUESTION && parsed?.mark === HOSTILE_MARK : typeof parsed?.text === 'string';
-          const event = { route, ...seen, verified: verifiedWrite, channelHeld: channelWrite, write: counts.writes, verb, keys, echoed, query: url.search !== '' };
+          const event = { route, ...seen, sessionId: typeof parsed?.session === 'string' ? parsed.session : null, verified: verifiedWrite, channelHeld: channelWrite, write: counts.writes, verb, keys, echoed, query: url.search !== '' };
           if (verifiedWrite !== 'ok' || url.search !== '') return send(res, 404, '', event);
           const done = J({ verb, write: id, outcome: 'done', reason: null, sentence: null });
           switch (arm) {
@@ -1464,7 +1573,7 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
           // PHASE 316.7. The Sessions tab's read, answered the arm's way.
           sessionsReads += 1;
           const n = sessionsReads;
-          const spec = HOSTILE_ARMS[arm];
+          const spec = ALL_ARMS[arm];
           const at = Date.now();
           const ev = { ...event, sessionsRead: n, at };
           if (spec.sessions === 'missing' || (spec.sessions === 'missing-first' && !sessionsReleased)) return send(res, 404, '', { ...ev, olderMac: true });
@@ -1506,13 +1615,13 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
           const answer = structuredClone(world.blocked);
           // The first signed read is pairing's: a list arm answers it
           // honestly, so the app pairs and its LIST meets the body.
-          if (HOSTILE_ARMS[arm].list === true && blockedReads === 1) return send(res, 200, J(answer), { ...event, honestFirst: true });
+          if (ALL_ARMS[arm].list === true && blockedReads === 1) return send(res, 200, J(answer), { ...event, honestFirst: true });
           // A raw arm answers the LIST raw. The screen's raw arm
           // (screen-chunked) is the Screen's, so the list, pairing's first
           // read included, answers it honestly: answered raw, the phone
           // rightly refused to pair and never reached the Screen, and the arm
           // proved nothing about a chunked screen (the fix round of 2026-10-06).
-          if (HOSTILE_ARMS[arm].raw === true && HOSTILE_ARMS[arm].list === true) return sendRaw(req, rawAnswerOf(arm, J(answer)), event);
+          if (ALL_ARMS[arm].raw === true && ALL_ARMS[arm].list === true) return sendRaw(req, rawAnswerOf(arm, J(answer)), event);
           if (arm === 'huge-row') {
             const row = { ...answer.rows[0], question: 'q'.repeat(HUGE_BYTES) };
             return send(res, 200, J({ ...answer, rows: [row] }), event);
@@ -1595,11 +1704,16 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
     const port = door.address().port;
 
     const exp = Date.now() + 3 * 60_000;
-    const payload = J({ v: 3, host: HOSTILE_NAME, port: HOSTILE_PUBLIC_PORT, fp: pinned.pin, dk, dx, ps, exp });
+    const payload = J({ v: 3, host: doorName, port: HOSTILE_PUBLIC_PORT, fp: pinned.pin, dk, dx, ps, exp });
     return {
       arm,
       port,
-      name: HOSTILE_NAME,
+      name: doorName,
+      // Phase 345: whether its `pending` says it can send, and the twin's two lines.
+      alerts: claimsAlerts,
+      mirror,
+      refuse,
+      mirrored: () => mirrored.map((m) => ({ ...m })),
       publicPort: HOSTILE_PUBLIC_PORT,
       pin: pinned.pin,
       servedPin: served.pin,
@@ -1643,9 +1757,9 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
 // serve: one arm, for a parent that reads lines
 // ---------------------------------------------------------------------------
 
-async function serve(arm, md3) {
+async function serve(arm, md3, extra = {}) {
   const out = (line) => process.stdout.write(`${line}\n`);
-  const door = await startHostileDoor(arm, (event) => out(`P316_DOOR_EVENT:${J(event)}`), { md3 });
+  const door = await startHostileDoor(arm, (event) => out(`P316_DOOR_EVENT:${J(event)}`), { md3, ...extra });
   let ending = false;
   const end = async () => {
     if (ending) return;
@@ -1667,6 +1781,20 @@ async function serve(arm, md3) {
       if (said.slice(0, at).trim() === 'sessions-honest') door.releaseSessions();
       // Phase 337: the Mac drew something new on the Screen.
       if (said.slice(0, at).trim() === 'screen-next') door.nextScreen();
+      // Phase 345: the twin's two lines. A line the arm does not take is said, never acted on.
+      const line = said.slice(0, at).trim();
+      if (line === 'twin-refuse' || line.startsWith('twin-mirror ')) {
+        try {
+          if (line === 'twin-refuse') door.refuse();
+          else {
+            const items = mirrorItemsOf(line.slice('twin-mirror '.length).trim());
+            if (items === null) throw new Error('twin-mirror takes the base64url of a JSON array of ids or { id, name }');
+            door.mirror(items);
+          }
+        } catch (err) {
+          out(`P316_DOOR_EVENT:${J({ kind: 'twin-refused-line', arm, why: String(err?.message ?? err) })}`);
+        }
+      }
       said = said.slice(at + 1);
     }
   });
@@ -1676,6 +1804,7 @@ async function serve(arm, md3) {
       arm,
       port: door.port,
       name: door.name,
+      alerts: door.alerts,
       publicPort: door.publicPort,
       pin: door.pin,
       servedPin: door.servedPin,
@@ -2275,6 +2404,96 @@ async function selfTest() {
       await door?.close();
     }
   }
+  // PHASE 345: the second-Mac arm and the two flags, driven by the node phone.
+  {
+    const TWIN = 'p345-studio.tail99999.ts.net';
+    const events = [];
+    let door = null;
+    try {
+      door = await startHostileDoor('twin', (e) => events.push(e), { name: TWIN, alerts: true });
+      const qr = JSON.parse(door.payload);
+      const d = doorFrom(qr, door.port);
+      const phone = makePhone('p345 self-test phone', qr.dx);
+      const first = await present(d, sealPresentation(qr.ps, phone));
+      const firstWord = pairAnswerOf(first);
+      const paired = await pairThrough(d, qr, phone, { tries: 3, everyMs: 50 });
+      const sans = JSON.stringify(door.sans ?? []);
+      check('twin (--name, --alerts)', qr.host === TWIN && readOffer(door.payload).ok && sans.includes(TWIN) && firstWord.state === 'pending' && J(firstWord.keys) === J(['alerts', 'state']) && first.body === '{"state":"pending","alerts":true}' && paired.ok, `the code names ${J(qr.host)} and reads the phone's way: ${String(readOffer(door.payload).ok)}; the key names ${sans}; the first /pair answered ${first.body}; paired ${String(paired.ok)}`);
+      // Mirrored: another Mac's ids listed under this name, each answered for.
+      const ids = [{ id: 'a1b2c3d4-0000-4000-8000-000000000001', name: 'a-shell' }, { id: 'a1b2c3d4-0000-4000-8000-000000000002', name: 'a-ask' }];
+      const before = await signedGet(phone, d, '/v1/blocked');
+      door.mirror(ids);
+      const after = await signedGet(phone, d, '/v1/blocked');
+      const listed = after.status === 200 ? JSON.parse(after.body) : null;
+      const session = await signedGet(phone, d, `/v1/session?id=${encodeURIComponent(ids[1].id)}`);
+      const sessionBody = session.status === 200 ? JSON.parse(session.body) : null;
+      const sessions = await readSessions(phone, d, {});
+      const screen = await screenRead(phone, d, ids[0].id);
+      const named = events.filter((e) => e.kind === 'request' && e.route === 'GET /v1/session');
+      const logged = named.at(-1) ?? null;
+      check(
+        'twin-mirror',
+        before.status === 200 &&
+          J((listed?.rows ?? []).map((r) => r.sessionId)) === J(ids.map((i) => i.id)) &&
+          J((listed?.rows ?? []).map((r) => r.name)) === J(ids.map((i) => i.name)) &&
+          (listed?.others ?? []).length === 0 &&
+          sessionBody?.session?.sessionId === ids[1].id &&
+          sessionBody?.session?.name === 'a-ask' &&
+          ids.every((i) => (sessions.answer?.rows ?? []).some((r) => r.sessionId === i.id)) &&
+          screen.status === 200 &&
+          logged?.sessionId === ids[1].id &&
+          logged?.servername === TWIN &&
+          logged?.clientPin === clientKeyPinOf(phone.clientKey) &&
+          events.some((e) => e.kind === 'twin-mirror' && J(e.ids) === J(ids.map((i) => i.id))),
+        `/v1/blocked lists ${J((listed?.rows ?? []).map((r) => `${r.name}=${r.sessionId.slice(-4)}`))}; /v1/session answered ${String(session.status)} for ${J(sessionBody?.session?.name ?? null)}; /v1/sessions holds both: ${String(ids.every((i) => (sessions.answer?.rows ?? []).some((r) => r.sessionId === i.id)))}; /v1/screen ${String(screen.status)}; the event names ${J(logged?.sessionId ?? null)} on SNI ${J(logged?.servername ?? null)} with the phone's pin: ${String(logged?.clientPin === clientKeyPinOf(phone.clientKey))}`
+      );
+      // A keys write logs the session it names.
+      const keys = await sendKeys(phone, d, ids[0].id, [{ t: 'x' }], { turn: `${'0'.repeat(16)}-0`, dialog: null });
+      const keysEvent = events.filter((e) => e.kind === 'request' && e.route === 'POST /v1/keys').at(-1) ?? null;
+      check('twin logs a keys write\'s session', keys.status === 200 && keysEvent?.sessionId === ids[0].id, `the keys write answered ${String(keys.status)}, its event names ${J(keysEvent?.sessionId ?? null)}`);
+      // Refused: every signed read after twin-refuse.
+      door.refuse();
+      const refused = await Promise.all(['/v1/blocked', `/v1/session?id=${encodeURIComponent(ids[0].id)}`, '/v1/sessions?show=active&group=project&sort=recent'].map((t) => signedGet(phone, d, t)));
+      check('twin-refuse', refused.every((r) => r.status === 404) && events.some((e) => e.kind === 'twin-refuse'), `after twin-refuse the three reads answered ${J(refused.map((r) => r.status))}`);
+      // Bad lines refused whole.
+      const bad = [mirrorItemsOf('not json'), mirrorItemsOf(Buffer.from('[]').toString('base64url')), mirrorItemsOf(Buffer.from(J(['a b'])).toString('base64url')), mirrorItemsOf(Buffer.from(J(['x', 'x'])).toString('base64url')), mirrorItemsOf(Buffer.from(J(Array.from({ length: MIRROR_MAX + 1 }, (_, i) => `id${String(i)}`))).toString('base64url'))];
+      check('twin-mirror refuses a bad line', bad.every((b) => b === null) && J(mirrorItemsOf(Buffer.from(J(['x1', { id: 'x2', name: 'n' }])).toString('base64url'))) === J([{ id: 'x1', name: null }, { id: 'x2', name: 'n' }]), `bad lines read as ${J(bad)}; a good one as ${J(mirrorItemsOf(Buffer.from(J(['x1', { id: 'x2', name: 'n' }])).toString('base64url')))}`);
+    } catch (err) {
+      check('twin', false, `threw: ${String(err?.stack ?? err)}`);
+    } finally {
+      await door?.close();
+    }
+  }
+  {
+    // --name refused off ts.net and in capitals; an honest door's pending
+    // carries no `alerts`, and only the twin mirrors.
+    let refusedName = 0;
+    for (const name of ['p345-cmac.example.com', 'P345-CMAC.tail00002.ts.net', '-p345.tail00002.ts.net']) {
+      try {
+        await startHostileDoor('honest', () => undefined, { name });
+      } catch {
+        refusedName += 1;
+      }
+    }
+    let door = null;
+    try {
+      door = await startHostileDoor('honest', () => undefined, { name: 'p345-cmac.tail00002.ts.net' });
+      const qr = JSON.parse(door.payload);
+      const phone = makePhone('p345 self-test phone', qr.dx);
+      const first = await present(doorFrom(qr, door.port), sealPresentation(qr.ps, phone));
+      let mirrorRefused = false;
+      try {
+        door.mirror([{ id: 'x', name: null }]);
+      } catch {
+        mirrorRefused = true;
+      }
+      check('--name, and no alerts unasked', refusedName === 3 && qr.host === 'p345-cmac.tail00002.ts.net' && first.body === '{"state":"pending"}' && mirrorRefused, `${String(refusedName)} of 3 bad names refused; the code names ${J(qr.host)}; the first /pair answered ${first.body}; an honest door refuses to mirror: ${String(mirrorRefused)}`);
+    } catch (err) {
+      check('--name', false, `threw: ${String(err?.stack ?? err)}`);
+    } finally {
+      await door?.close();
+    }
+  }
   const failed = results.filter((r) => !r.ok).length;
   process.stdout.write(failed === 0 ? `${TAG} self-test PASS: ${String(results.length)} arms serve what they claim, on loopback, and every listener is closed.\n` : `${TAG} self-test FAIL: ${String(failed)} of ${String(results.length)} arm(s).\n`);
   return failed === 0;
@@ -2293,9 +2512,16 @@ if (isMain && process.env[INNER] === '1') {
       process.stderr.write(`${TAG} --md3 takes 127.0.0.1:<port> and nothing else\n`);
       process.exit(2);
     }
-    await serve(at === -1 ? 'honest' : String(args[at + 1]), md3);
+    // Phase 345: --name (a .ts.net name the phone accepts) and --alerts.
+    const nameAt = args.indexOf('--name');
+    const name = nameAt === -1 ? undefined : String(args[nameAt + 1] ?? '');
+    if (name !== undefined && !hostIsPublicName(name)) {
+      process.stderr.write(`${TAG} --name takes a .ts.net public name the phone accepts, and ${J(name)} is not one\n`);
+      process.exit(2);
+    }
+    await serve(at === -1 ? 'honest' : String(args[at + 1]), md3, { ...(name === undefined ? {} : { name }), alerts: args.includes('--alerts') });
   } else {
-    process.stderr.write(`${TAG} usage: --self-test | serve --arm <${Object.keys(HOSTILE_ARMS).join('|')}> [--md3 127.0.0.1:<port>]\n`);
+    process.stderr.write(`${TAG} usage: --self-test | serve --arm <${Object.keys(ALL_ARMS).join('|')}> [--md3 127.0.0.1:<port>] [--name <host>.ts.net] [--alerts]\n`);
     process.exit(2);
   }
 }

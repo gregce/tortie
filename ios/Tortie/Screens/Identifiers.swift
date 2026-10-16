@@ -126,6 +126,27 @@
 //   settings-mac-site-name       `tortie.sh`, on that row's right
 //   settings-privacy, settings-support
 //                                the privacy and support pages; buttons
+//   settings-pair-another        Pair another Mac, between the Mac's cards and
+//                                Unpair this iPhone; a button (Phase 345,
+//                                build/p345/SPEC.md D15)
+//
+// SEVERAL MACS (Phase 345, build/p345/SPEC.md D3, D14, D16). With two or more
+// Macs kept the bar has a fourth tab, named after the Mac on screen; like
+// every tab's button it has no identifier, and a test finds it by that name.
+// `<i>` counts the Macs from 0 in the phone's order (D9):
+//
+//   screen-macs                  the Macs screen, the fourth tab's root
+//   macs-title                   "Macs"
+//   macs-row-<i>                 one Mac; a container, and a button that
+//                                chooses it
+//   macs-row-name-<i>            its drawn name (D21)
+//   macs-row-line-<i>            its line: the sentence its last read said, or
+//                                `Needs your input (n)`; absent when neither
+//   macs-row-chosen-<i>          the tick on the Mac on screen; absent on the
+//                                others
+//   pair-another-sheet           the Pair another Mac sheet; a container
+//                                holding the pairing screen
+//   pair-another-cancel          its Cancel; a button
 //
 // SEE A SAMPLE (Phase 333.3, build/p3333/SPEC.md D14): made-up sessions inside
 // the app, under one strip at the top of every page:
@@ -405,6 +426,18 @@ enum ID {
     static let settingsUnpairLine = "settings-unpair-line"
     /// See a sample, under Unpair this iPhone on a paired phone (Phase 333.3, D13).
     static let settingsSeeSample = "settings-see-sample"
+    /// Pair another Mac, above Unpair this iPhone (Phase 345, D15).
+    static let settingsPairAnother = "settings-pair-another"
+
+    // Several Macs (Phase 345).
+    static let macsScreen = "screen-macs"
+    static let macsTitle = "macs-title"
+    static func macsRow(_ i: Int) -> String { "macs-row-" + String(i) }
+    static func macsRowName(_ i: Int) -> String { "macs-row-name-" + String(i) }
+    static func macsRowLine(_ i: Int) -> String { "macs-row-line-" + String(i) }
+    static func macsRowChosen(_ i: Int) -> String { "macs-row-chosen-" + String(i) }
+    static let pairAnotherSheet = "pair-another-sheet"
+    static let pairAnotherCancel = "pair-another-cancel"
 
     // End and End these (Phase 317; End in the top bar since Phase 337).
     static let sessionEnd = "session-end"

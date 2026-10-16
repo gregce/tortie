@@ -720,6 +720,32 @@ export const CHECKS = [
     'probe:p316',
     `${NEEDS.xcode}, and the iOS 18.3 runtime for the floor arm; beside it ${NEEDS.electron}`
   ),
+  // PHASE 345's app run, build/p345/probe-p345.mjs (build/p345/SPEC.md §5.3):
+  // one iPhone, several Macs. TWO Electrons AT ONCE through
+  // build/electron-run.mjs's withElectron, the second nested inside the
+  // first, each on its own scratch profile, HOME (ZDOTDIR and HISTFILE set)
+  // and socket gmux-p345a/b-<pid>, each published through its own STAND-IN
+  // Tailscale (preflighted by sha256, a real Tailscale in any process sample
+  // failing the run) and named by its own build/p332/dns-standin.mjs, the
+  // first with its alerts armed as probe:p316's N arms arm them (Phase 314's
+  // APNs stand-in in the probe's own process, a scratch P-256 key under its
+  // harness directory, deleted in the `finally`); three node doors of
+  // build/p316/hostile-door.mjs (`twin` with --name and --alerts, two honest
+  // ones with --name), each its own process on loopback ended in the
+  // `finally`; build/p345/sni-relay.mjs in the probe's own process, the ONE
+  // loopback port the app dials, reading each ClientHello's server name and
+  // counting each Mac's connections; and Simulators through
+  // build/simulator-run.mjs's withSimulator, one at a time, iOS 26.3 then the
+  // 18.3 floor, HEAD's app and, with P345_PARENT_CHECKOUT, build 10's, each
+  // driven by its own P316DriveUITests. No model turn, no vendor agent, no
+  // real Tailscale, DNS or APNs, no photograph. `--grader-self-test` grades
+  // every arm's fixtures and starts nothing; `--preflight`, which the npm
+  // script runs first, refuses by name when Xcode is absent before the
+  // harness socket is made.
+  xcode(
+    'probe:p345',
+    `${NEEDS.xcode}, and the iOS 18.3 runtime for the floor device; beside it ${NEEDS.electron}, twice at once`
+  ),
   // PHASE 330's app run: the door published through Tailscale Funnel, with
   // the Funnel driven through the STAND-IN build/p330/tailscale-standin.mjs
   // behind a /bin/sh wrapper in the scratch world, named by GMUX_TAILSCALE_BIN
