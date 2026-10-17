@@ -238,6 +238,24 @@ import XCTest
 /// makes the FIRST launch carry the seams and no forget seam and no code, so
 /// a drive starts on the pairings the Keychain kept; unset, the first launch
 /// is as it always was.
+///
+/// THE SMALL SCREENS (Phase 333.4.1, build/p33341/SPEC.md section 4.6,
+/// `probe:p3334`). One input and two steps, appended; every step above is
+/// unchanged. `P316_TEXT_SIZE`, when it names one of UIKit's own content size
+/// categories (`UICTContentSizeCategory…`, letters only), is handed to every
+/// launch as `-UIPreferredContentSizeCategoryName <value>`, so the K drive
+/// reads the app at the largest text size with nothing on the device changed;
+/// any other value prints `text-size-refused` once and is not used.
+/// `keys-read` taps the grid, waits up to 5 s for the keyboard, passes iOS's
+/// Slide to Type introduction, waits 1 s and prints ONE line: every key of
+/// the key bar (`keyBarKeys()`), the bar's frame, the window, the orientation
+/// and the text size it was launched with; then it presses the hide key.
+/// `pan-sideways` double-taps the grid to the reading size, reads the
+/// Terminal, makes ONE slow drag from 85 percent to 20 percent of the
+/// window's width with 30 points of downward travel along the grid's middle
+/// (above the key bar, if the double tap raised the keyboard), reads the
+/// Terminal again, prints both, and double-taps back to the fitted size.
+/// Each prints `<step>-missing` and stops when the grid is not there.
 final class P316DriveUITests: XCTestCase {
     @MainActor
     func testDrive() throws {
@@ -599,6 +617,11 @@ private final class Drive {
     private var inSample = false
     /// Phase 345: the first launch keeps what the Keychain holds (`P345_KEEP_PAIRING=1`).
     private let keepPairing: Bool
+    /// Phase 333.4.1: the content size category every launch carries, or nil.
+    private let textSize: String?
+    /// Phase 333.4.1: `P316_TEXT_SIZE` named something that is not a content
+    /// size category, so it is not used and the drive says so once.
+    private let textSizeRefused: Bool
 
     init(run: String, env: [String: String]) {
         lines = ProbeLines(run: run, file: env["P316_LINES"])
@@ -610,6 +633,10 @@ private final class Drive {
         allowNotifications = (env["P316_NOTIFICATIONS"] ?? "allow") != "deny"
         acks = env["P316_ACKS"].flatMap { $0.isEmpty ? nil : $0 }
         keepPairing = (env["P345_KEEP_PAIRING"] ?? "") == "1"
+        let size = env["P316_TEXT_SIZE"] ?? ""
+        let category = size.hasPrefix("UICTContentSizeCategory") && size.allSatisfy { $0.isASCII && $0.isLetter }
+        textSize = category ? size : nil
+        textSizeRefused = !size.isEmpty && !category
     }
 
     /// The seams every launch carries: the still dot, the forwarder and the
@@ -618,6 +645,8 @@ private final class Drive {
         var arguments = ["-TortieDebugStill"]
         if let endpoint { arguments += ["-TortieDebugDoorEndpoint", endpoint] }
         if let pushToken { arguments += ["-TortieDebugPushToken", pushToken] }
+        // Phase 333.4.1: UIKit's own argument for the text size, read by UIKit.
+        if let textSize { arguments += ["-UIPreferredContentSizeCategoryName", textSize] }
         return arguments
     }
 
@@ -633,6 +662,7 @@ private final class Drive {
         // one is read as a code that is not Tortie's and the resting face
         // would draw that sentence where it draws `notPaired`.
         // Phase 345: a drive that keeps the pairings launches with the carried seams alone.
+        if textSizeRefused { lines.emit(["step": "text-size-refused"]) }
         app.launchArguments = keepPairing ? carried : ["-TortieDebugForgetPairing"] + (payload.isEmpty ? [] : ["-TortieDebugPairingPayload", payload]) + carried
         app.launch()
         for step in steps where !stuck {
@@ -856,6 +886,10 @@ private final class Drive {
                 macsPull()
             } else if step == "unpair-one" {
                 unpairOne()
+            } else if step == "keys-read" {
+                keysRead()
+            } else if step == "pan-sideways" {
+                panSideways()
             } else {
                 lines.emit(["step": "unknown-step", "name": step])
             }
@@ -4080,6 +4114,73 @@ private final class Drive {
         let returned = poll { self.has($0, Seen.screenScreen) }
         let backAt = Date().timeIntervalSince1970 * 1000
         fillHold(seconds: seconds, step: "return-hold", extra: ["acked": acked, "left": left, "returned": returned, "backAt": backAt, "away": away])
+    }
+
+    /// `keys-read` (Phase 333.4.1, G12): the grid tapped, the keyboard waited
+    /// for, iOS's introduction passed, 1 s, then every key of the bar, the
+    /// bar, the window, the orientation and the text size in ONE line, and
+    /// the hide key pressed.
+    private func keysRead() {
+        let grid = element(Seen.screenGrid)
+        guard grid.waitForExistence(timeout: 10) else { return missing("keys-read") }
+        grid.tap()
+        let up = app.keyboards.firstMatch.waitForExistence(timeout: 5)
+        passKeyboardIntroduction()
+        Thread.sleep(forTimeInterval: 1)
+        let keys = keyBarKeys()
+        let found = tree()
+        let window = (try? app.snapshot())?.frame.size ?? .zero
+        lines.emit([
+            "step": "keys-read",
+            "keyboard": up,
+            "keys": keys,
+            "bar": find(found, Seen.screenKeyBar).map { frameOf($0.frame) as Any } ?? NSNull(),
+            "window": [Double(window.width), Double(window.height)],
+            "orientation": XCUIDevice.shared.orientation.rawValue,
+            "textSize": textSize.map { $0 as Any } ?? NSNull()
+        ])
+        let hide = element(Seen.screenKey + Seen.keyHide)
+        if hide.waitForExistence(timeout: 3) { hide.tap() }
+        Thread.sleep(forTimeInterval: 1)
+    }
+
+    /// `pan-sideways` (Phase 333.4.1, G14): the grid double-tapped to the
+    /// reading size, the Terminal read, ONE slow drag from 85 to 20 percent of
+    /// the window's width with 30 points of downward travel along the grid's
+    /// middle (pressed 0.05 s, moved at 300 points a second, held 0.1 s), the
+    /// Terminal read again, both printed, and a double tap back to the fitted
+    /// size.
+    private func panSideways() {
+        let grid = element(Seen.screenGrid)
+        guard grid.waitForExistence(timeout: 10) else { return missing("pan-sideways") }
+        grid.doubleTap()
+        Thread.sleep(forTimeInterval: 1.5)
+        let before = terminalReading()
+        let window = (try? app.snapshot())?.frame.size ?? .zero
+        // Along the grid's middle; if a key bar is up (the double tap's first
+        // tap raised the keyboard), above it, so the finger never ends on a key.
+        var y = grid.frame.midY
+        let bar = element(Seen.screenKeyBar)
+        let barTop: Double? = bar.exists ? Double(bar.frame.minY) : nil
+        if bar.exists, bar.frame.minY - 40 < y { y = max(grid.frame.minY + 10, bar.frame.minY - 40) }
+        let origin = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+        let from = CGVector(dx: window.width * 0.85, dy: y)
+        let to = CGVector(dx: window.width * 0.2, dy: y + 30)
+        origin.withOffset(from).press(forDuration: 0.05, thenDragTo: origin.withOffset(to), withVelocity: XCUIGestureVelocity(300), thenHoldForDuration: 0.1)
+        Thread.sleep(forTimeInterval: 1.5)
+        let after = terminalReading()
+        lines.emit([
+            "step": "pan-sideways",
+            "before": before,
+            "after": after,
+            "from": [Double(from.dx), Double(from.dy)],
+            "to": [Double(to.dx), Double(to.dy)],
+            "barTop": barTop.map { $0 as Any } ?? NSNull(),
+            "window": [Double(window.width), Double(window.height)],
+            "orientation": XCUIDevice.shared.orientation.rawValue
+        ])
+        grid.doubleTap()
+        Thread.sleep(forTimeInterval: 1)
     }
 
     /// Every key of the key bar: its identifier, label, frame and whether it

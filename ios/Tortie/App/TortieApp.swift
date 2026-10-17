@@ -1122,6 +1122,8 @@ struct RootView: View {
             }
         }
         .background(Tokens.bgSidebar.ignoresSafeArea())
+        // The status bar's inset after a turn, kept (App/StatusBarInset.swift).
+        .background { StatusBarInsetKeeper().frame(width: 0, height: 0).accessibilityHidden(true) }
         // Once a launch: is the alert address each Mac holds this phone's?
         // And, with two or more Macs kept, a read of the ones not on screen,
         // beside it, for the Macs tab's badge (Phase 345, D7).

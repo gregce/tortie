@@ -192,6 +192,7 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
         host = UIHostingController(rootView: ScreenWindow.empty)
         super.init(frame: .zero)
         contentInsetAdjustmentBehavior = .never
+        isDirectionalLockEnabled = true
         alwaysBounceVertical = true
         showsVerticalScrollIndicator = false
         showsHorizontalScrollIndicator = false
@@ -410,7 +411,16 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
         let wasPinned = pinned
         let fitted = ScreenZoom.fitted(columns: picture.columns, width: bounds.width)
         let top = ScreenZoom.top(columns: picture.columns, scale: displayScale, fitted: fitted)
-        let now = ScreenCell.wide(ScreenZoom.held(chosen ?? fitted, fitted: fitted, top: top), scale: displayScale)
+        // Fitted below 3x, the grid fills the view with every column edge on a
+        // whole pixel; zoomed, and at 3x, a cell snapped down as before
+        // (333.4.1 D4). A zoom that snaps down to no wider than the fitted
+        // width (a small pinch out) stays filled, so a pinch out never draws
+        // the grid narrower than it was (the integrator's round).
+        let wanted = ScreenZoom.held(chosen ?? fitted, fitted: fitted, top: top)
+        let snapped = ScreenCell.wide(wanted, scale: displayScale)
+        let now = displayScale < 3 && snapped.width <= CGFloat(fitted)
+            ? ScreenCell.filling(fitted, scale: displayScale)
+            : snapped
         // THE FILL (build/p3373/SPEC.md D2, D3): the rows this view holds at
         // this cell, less the live rows, never below 0, from its WHOLE height
         // (never less the keyboard, so a keyboard rising or going reserves
@@ -430,7 +440,7 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
         // this view's own bounds and the keyboard's overlap.
         let visible = max(0, CGFloat(bounds.height) - overlap)
         let pad = max(0, CGFloat(visible) - CGFloat(ScrollbackLayout.plus(layout.liveRow, picture.rowCount)) * now.height)
-        let size = CGSize(width: CGFloat(picture.columns) * now.width, height: CGFloat(CGFloat(rows) * now.height) + pad)
+        let size = CGSize(width: now.x(CGFloat(picture.columns)), height: CGFloat(CGFloat(rows) * now.height) + pad)
         let grew = size != contentSize
         // UIKit clamps an offset it is not tracking when the content size is
         // set: a pull past the top (-40, say) reads 0 the moment the rows a
@@ -631,7 +641,7 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
         host.rootView = windowView(picture: picture, layout: layout)
         host.view.frame = CGRect(
             x: 0, y: CGFloat(from) * cell.height,
-            width: CGFloat(picture.columns) * cell.width, height: CGFloat(rowWindow.count) * cell.height
+            width: cell.x(CGFloat(picture.columns)), height: CGFloat(rowWindow.count) * cell.height
         )
     }
 
@@ -655,11 +665,18 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
                 drawn.append(ScreenWindowRow(id: index, row: nil, styles: [], live: nil, spoken: false))
             }
         }
-        var cursor: CGPoint?
+        var cursor: CGRect?
         let caretPlace = ScrollbackLayout.plus(layout.liveRow, picture.caretRow)
         if picture.caretShown, rowWindow.contains(caretPlace) {
             let down = CGFloat(caretPlace) - CGFloat(rowWindow.lowerBound)
-            cursor = CGPoint(x: CGFloat(picture.caretColumn) * cell.width, y: CGFloat(down) * cell.height)
+            // From its column's edge to the next (333.4.1 D5); one cell wide,
+            // exactly as before, where every edge is `column × width`.
+            let left = cell.x(CGFloat(picture.caretColumn))
+            let right = cell.x(CGFloat(picture.caretColumn) + 1)
+            cursor = CGRect(
+                x: left, y: CGFloat(down) * cell.height,
+                width: cell.edgeScale > 0 ? CGFloat(right) - left : cell.width, height: cell.height
+            )
         }
         return ScreenWindow(
             rows: drawn, columns: picture.columns, cell: cell, ink: picture.ink, ground: picture.ground,

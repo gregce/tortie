@@ -22,8 +22,10 @@ import XCTest
 /// offset; an eviction moving nothing; a change of cell size keeping the top
 /// row and a pinch's focal row; and only a window drawn. All at the 337
 /// build's own measured geometry (a 40-row screen at 6.67 pt in a 758 pt
-/// view, build/p3371/SPEC.md section 14 M12), and 6.0 pt on a 2x screen
-/// (Phase 333.4, build/p3334/SPEC.md section 3 F1). The view is mounted in
+/// view, build/p3371/SPEC.md section 14 M12), and 6.5 pt on a 2x screen
+/// (Phase 333.4, build/p3334/SPEC.md section 3 F1; the filling cell since
+/// Phase 333.4.1, build/p33341/SPEC.md D4). And since 333.4.1 a drag that
+/// starts sideways stays on its rows (D6). The view is mounted in
 /// the host app's own window; nothing reaches a network. Each test names the
 /// clause it holds and fails when that clause is taken out of
 /// Screens/ScreenScroller.swift.
@@ -48,14 +50,18 @@ final class ScreenScrollerTests: XCTestCase {
 
     /// The fitted row at a screen's scale, MEASURED on each device (Phase
     /// 333.4, build/p3334/SPEC.md section 3 F1 and D12). A cell's height is
-    /// snapped UP to the screen's pixel grid (`ScreenCell.wide`), so the same
-    /// line is 20 px, 6.67 pt, at 3x (the iPhone 16 Pro) and 12 px, 6.0 pt, at
-    /// 2x (the iPad Air 11-inch (M3) and the iPhone SE (3rd generation)). A
+    /// snapped UP to the screen's pixel grid, so the same line is 20 px,
+    /// 6.67 pt, at 3x (the iPhone 16 Pro, `ScreenCell.wide`). At 2x (the iPad
+    /// Air 11-inch (M3) and the iPhone SE (3rd generation)) the fitted cell
+    /// keeps the fitted width itself since Phase 333.4.1 (`ScreenCell.filling`,
+    /// build/p33341/SPEC.md D4), a slightly larger font than `wide`'s snapped
+    /// width, so its line is 13 px, 6.5 pt, where it was 12 px, 6.0 pt
+    /// (measured on the SE at 26.3 with the fill in place, section 13 M9). A
     /// scale nobody has measured fails by name, never by a guess.
     static func fittedRow(scale: CGFloat) throws -> CGFloat {
         switch scale {
         case 3: return 20.0 / 3.0
-        case 2: return 6.0
+        case 2: return 6.5
         default: throw UnmeasuredScale(scale: scale)
         }
     }
@@ -196,20 +202,33 @@ final class ScreenScrollerTests: XCTestCase {
     /// of the matrix. Each clause of the table fails here, on any device, when
     /// it is taken out: the 3x row, the 2x row, and the refusal, naming the
     /// scale, of a scale nobody measured. And each measured row is the app's
-    /// own snapping at that scale, whatever this device's own scale is, so a
-    /// change to the snapping reads red on a 3x device for a 2x screen too.
+    /// own cell at that scale, whatever this device's own scale is, so a
+    /// change to the snapping reads red on a 3x device for a 2x screen too:
+    /// `wide` at 3x, and the filling cell at 2x (333.4.1 D4).
     func testTheFittedRowIsMeasuredAtTwoScalesAndNoOther() throws {
         XCTAssertEqual(try Self.fittedRow(scale: 3), 20.0 / 3.0, accuracy: 0.0001, "the fitted row at 3x")
-        XCTAssertEqual(try Self.fittedRow(scale: 2), 6.0, accuracy: 0.0001, "the fitted row at 2x")
+        XCTAssertEqual(try Self.fittedRow(scale: 2), 6.5, accuracy: 0.0001, "the fitted row at 2x")
         for unmeasured: CGFloat in [1, 1.5, 2.5, 4] {
             XCTAssertThrowsError(try Self.fittedRow(scale: unmeasured), "a fitted row at \(unmeasured)x that nobody measured") { error in
                 XCTAssertEqual(String(describing: error), "no measured fitted row at \(String(format: "%g", Double(unmeasured)))x")
             }
         }
         let fitted = ScreenZoom.fitted(columns: Self.wrap, width: Self.width)
-        for scale: CGFloat in [2, 3] {
-            XCTAssertEqual(ScreenCell.wide(fitted, scale: scale).height, try Self.fittedRow(scale: scale), accuracy: 0.01, "the app's own snapping at \(scale)x")
-        }
+        XCTAssertEqual(ScreenCell.wide(fitted, scale: 3).height, try Self.fittedRow(scale: 3), accuracy: 0.01, "the app's own snapping at 3x")
+        XCTAssertEqual(ScreenCell.filling(fitted, scale: 2).height, try Self.fittedRow(scale: 2), accuracy: 0.01, "the app's own filling cell at 2x")
+    }
+
+    // MARK: The directional lock (Phase 333.4.1, build/p33341/SPEC.md D6)
+
+    /// Clause (D6, his ruling of 2026-10-16, research 142 section 4.3): the
+    /// Terminal's scroll view locks a drag to the direction it starts in, so
+    /// a sideways pan stays on its rows instead of drifting up and down with
+    /// the finger (38 points on the SE at 18.3 without it, 0 with it), while
+    /// a diagonal one still moves freely. Red when the init's line goes.
+    func testASidewaysDragStaysOnItsRows() throws {
+        let (view, _) = mounted(depth: 3_000)
+        XCTAssertTrue(view.isDirectionalLockEnabled, "the Terminal's scroll view does not lock a drag to its direction")
+        XCTAssertEqual(view.contentInsetAdjustmentBehavior, .never, "the inset adjustment the lock sits beside")
     }
 
     /// Clause (D7, section 5.6): a session that has printed nothing yet

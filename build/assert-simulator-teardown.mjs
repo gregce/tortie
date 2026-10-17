@@ -113,7 +113,55 @@
  *      no `options`, so a caller cannot switch the read off either (which left
  *      every caller naming no device type with a null kind and a refused
  *      `biometry()`, probe:p316 among them, with this gate green); two more
- *      ablations prove it, eleven in all.
+ *      ablations prove it, eleven in all. PHASE 333.4.1 WIDENED IT
+ *      (build/p33341/SPEC.md §4.8), because the attack lens's two lines
+ *      (§2.6), each inserted just above the read, left this rule green while
+ *      the device's kind was the caller's: 10f, the pick is exactly `const
+ *      deviceType = pickDeviceType(parseJson(types.stdout),
+ *      deviceTypeName);`; 10g, between that statement and the read there is
+ *      no token `options` and every `deviceType` is a null test; 10h,
+ *      nowhere in `withSimulator` is the row written through (an assignment
+ *      to a member of it, compound ones and `++`/`--` included, a
+ *      `delete`, a destructuring target), handed on whole (an alias, a
+ *      spread, a call argument, the first argument of `Object.assign`,
+ *      `Object.defineProperty`, `Object.defineProperties`,
+ *      `Object.setPrototypeOf`, `Reflect.set`, `Reflect.defineProperty`
+ *      or `Reflect.deleteProperty` among them), or asked to run a method of
+ *      its own. Strings are read as code, the conservative reading, so a row
+ *      named inside an `eval` string is still named. Eight more ablations
+ *      prove it, the two dodges verbatim among them, nineteen in all; and
+ *      DEVICE_KIND_FIXTURES drive `deviceKindShape` over the helper edited
+ *      fifteen ways, eleven that must be red and name rule 10 (the two
+ *      dodges; a write or a hand-off of each kind placed AFTER the read, where
+ *      10g cannot see it and 10h alone can; and a member read placed BEFORE
+ *      it, which 10g alone refuses) and four controls that must stay green (a
+ *      comment and a `say` line between the pick and the read, a null test
+ *      there, and the same member read after it). ITS FIX ROUND ADDED 10i,
+ *      because the verify round found a third shape of the same kind: a
+ *      function declared inside `withSimulator` under the pick's own callee's
+ *      name (`function pickDeviceType(json, want) { return options?.typeRow ??
+ *      … }`, or the same for `parseJson`) is hoisted over the whole body, so
+ *      the pick kept 10f's exact text and returned the caller's row with
+ *      10f to 10h green. 10i: every name the pick, the read and the kind call
+ *      (`pickDeviceType`, `parseJson`, `run`, `join`, `biometryOf`) is the
+ *      module's own. Read over the whole helper with strings blanked, each is
+ *      only ever CALLED but for its one declaration (`function name(` outside
+ *      `withSimulator`, and for `join` the specifier of its import from
+ *      `node:path`), so nothing declares, binds or rebinds one anywhere; the
+ *      text as written assigns none of them, strings read as code; nothing
+ *      names `eval`; and no identifier is spelled with a `\u` escape. It is
+ *      conservative where it cannot tell: a catch binding, a nested
+ *      function's parameter, an object key or a value passed by name
+ *      (`.map(parseJson)`) under one of those names reads red although it
+ *      cannot reach the pick, so such a line is written under another name. Two more ablations prove it (the verify
+ *      round's two shadows verbatim), twenty-one in all, and thirteen more
+ *      fixtures (eleven red naming rule 10i: both shadows, a `let` at the top
+ *      of the body, a `var` in a nested block, `run` and `biometryOf`
+ *      declared, `join` destructured, the module's pick reassigned above the
+ *      pick and by a destructuring, a computed `eval`, a `\u`-escaped
+ *      declaration and a `for … of` head rebinding the pick outside
+ *      `withSimulator`; and two controls, a call of each name beside a member
+ *      `.join(`, and the five names as words of a message).
  *
  * ## Phase 333.4, the devices App Review uses
  *
@@ -129,7 +177,14 @@
  * It does not read package.json, and it does not follow a command line handed
  * to a shell or a tmux pane, the boundary gate:electron draws too. It does not
  * see a device made by a program that is not under build/, which is every
- * device a person makes in Xcode; those are his.
+ * device a person makes in Xcode; those are his. Rule 10 holds the picked row
+ * from the pick to the read and every write through it anywhere in
+ * `withSimulator`, and the functions those statements call to the module's
+ * own declarations; it does not read what those declarations do (that
+ * `pickDeviceType` finds the row by name is its own text, read by nobody
+ * here), and it does not pin the `types` list the pick reads, nor the create's
+ * argv to `deviceType.identifier` (Phase 333.4.1 left these as they were, by
+ * its SPEC §4.8's scope).
  *
  * It spawns nothing, starts no Simulator and needs no Xcode. About 0.14 s over
  * the 473 scripts under build/ on 2026-09-23. It runs inside `npm run build`,
@@ -143,7 +198,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { buildScriptNames } from './build-scripts.mjs';
-import { blockAt, lineAt, stripComments } from './scan-source.mjs';
+import { blockAt, closeOf, lineAt, stripComments } from './scan-source.mjs';
 // Phase 333.4: the one function rule 10 drives, imported from the helper. The
 // helper creates nothing on import, so this gate still spawns nothing.
 import { biometryOf } from './simulator-run.mjs';
@@ -627,16 +682,325 @@ const CAPABILITIES_GUARD_RE =
   /^\s*typeof\s+deviceType\.bundlePath\s*===\s*['"]string['"]\s*&&\s*deviceType\.bundlePath\.startsWith\s*\(\s*['"]\/['"]\s*\)\s*\?\s*$/;
 
 /**
+ * Rule 10f's pick, exactly (Phase 333.4.1, build/p33341/SPEC.md §4.8): the row
+ * simctl's own list holds for the type asked, and nothing else in the call.
+ */
+const DEVICE_TYPE_PICK_RE =
+  /\bconst\s+deviceType\s*=\s*pickDeviceType\s*\(\s*parseJson\s*\(\s*types\s*\.\s*stdout\s*\)\s*,\s*deviceTypeName\s*\)\s*;/;
+
+/** The picked row's name as a reference: never `deviceTypeName`, never `$deviceType`. */
+const ROW_NAME_RE = /(?<![\w$])deviceType(?![\w$])/g;
+
+/** A null test, the one use of the row rule 10g admits between the pick and the read. */
+const NULL_TEST_RE = /^\s*[!=]==\s*null\b/;
+
+/** An assignment (compound ones included) or a postfix `++`/`--` right after a member chain. */
+const WRITES_AFTER_RE = /^\s*(?:(?:\?\?|\|\||&&|\*\*|<<|>>>?|[-+*/%&|^])?=(?![=>])|\+\+|--)/;
+
+/** A prefix `++`/`--` or a `delete` right before the row. */
+const WRITES_BEFORE_RE = /(?:\+\+|--|\bdelete)\s*$/;
+
+/** The writers SPEC §4.8 names, each of which writes its first argument, called with the row first. */
+const FIRST_ARGUMENT_WRITERS_RE =
+  /(?:\bObject\s*\.\s*(?:assign|defineProperty|defineProperties|setPrototypeOf)|\bReflect\s*\.\s*(?:set|defineProperty|deleteProperty))\s*\(\s*$/;
+
+/**
+ * The member chain that starts at `from`: `.name`, `?.name`, `[…]` and
+ * `?.[…]` taken in turn, stopping before a call. Its end offset, and how many
+ * members it took.
+ */
+function memberChain(code, from) {
+  const member = /\s*\??\.\s*[A-Za-z_$][\w$]*/y;
+  const index = /\s*(?:\?\.\s*)?\[/y;
+  let at = from;
+  let members = 0;
+  for (;;) {
+    member.lastIndex = at;
+    if (member.test(code)) {
+      at = member.lastIndex;
+      members += 1;
+      continue;
+    }
+    index.lastIndex = at;
+    if (index.test(code)) {
+      const close = closeOf(code, index.lastIndex - 1);
+      if (close === -1) return { end: code.length, members: members + 1 };
+      at = close + 1;
+      members += 1;
+      continue;
+    }
+    return { end: at, members };
+  }
+}
+
+/**
+ * Every bracket pair whose close is followed by a plain `=`: the targets of a
+ * destructuring assignment. Quotes are tracked as closeOf tracks them, so a
+ * bracket inside a string is never counted.
+ */
+function assignedPatterns(code) {
+  const out = [];
+  const stack = [];
+  const assigns = /\s*=(?![=>])/y;
+  let quote = '';
+  for (let i = 0; i < code.length; i += 1) {
+    const c = code[i];
+    if (quote !== '') {
+      if (c === '\\') i += 1;
+      else if (c === quote) quote = '';
+      continue;
+    }
+    if (c === "'" || c === '"' || c === '`') quote = c;
+    else if (c === '[' || c === '{') stack.push(i);
+    else if (c === ']' || c === '}') {
+      const open = stack.pop();
+      assigns.lastIndex = i + 1;
+      if (open !== undefined && assigns.test(code)) out.push({ open, close: i });
+    }
+  }
+  return out;
+}
+
+/** A few words of source around a finding, on one line. */
+function sourceNear(code, from, to) {
+  return code.slice(Math.max(0, from), to).replace(/\s+/g, ' ').trim().slice(0, 120);
+}
+
+/**
+ * Rule 10g (Phase 333.4.1, build/p33341/SPEC.md §4.8): between the end of the
+ * pick and the start of the capabilities read, no token `options`, and every
+ * `deviceType` a null test. No alias, no call, no member. Read over the text
+ * as it is, strings included.
+ */
+function betweenPickAndRead(body, pickEnd, readAt) {
+  const out = [];
+  const span = body.slice(pickEnd, readAt);
+  if (/(?<![\w$])options(?![\w$])/.test(span)) {
+    out.push("rule 10g: withSimulator names the caller's options between the pick and the capabilities read, so a caller can reach the device type row before its capabilities are read.");
+  }
+  for (const m of span.matchAll(ROW_NAME_RE)) {
+    if (NULL_TEST_RE.test(span.slice(m.index + m[0].length, m.index + m[0].length + 40))) continue;
+    out.push(
+      `rule 10g: withSimulator uses deviceType other than as a null test between the pick and the capabilities read (${sourceNear(span, m.index - 40, m.index + 60)}), so something can change the row before its capabilities are read.`
+    );
+    break;
+  }
+  return out;
+}
+
+/**
+ * Rule 10h (Phase 333.4.1, build/p33341/SPEC.md §4.8): every place in
+ * `withSimulator` that writes through the picked row, hands it on whole so
+ * something else can, or runs a method of its own. `pickAt` is the offset of
+ * the declaration's own `deviceType`. Strings are read as code, the
+ * conservative reading.
+ */
+function rowWrites(body, pickAt) {
+  const out = [];
+  for (const m of body.matchAll(ROW_NAME_RE)) {
+    const at = m.index;
+    if (at === pickAt) continue;
+    const before = body.slice(Math.max(0, at - 200), at);
+    const after = at + m[0].length;
+    const spread = /\.\.\.\s*$/.test(before);
+    // A member of something else, `options?.deviceType` among them, is not the row.
+    if (!spread && /\.\s*$/.test(before)) continue;
+    // The handle's own getter, `get deviceType() {`, is a name, not a use.
+    if (/\bget\s+$/.test(before) && /^\s*\(/.test(body.slice(after, after + 40))) continue;
+    if (NULL_TEST_RE.test(body.slice(after, after + 40))) continue;
+    const chain = memberChain(body, after);
+    const near = sourceNear(body, at - 40, chain.end + 40);
+    if (chain.members === 0) {
+      out.push(
+        FIRST_ARGUMENT_WRITERS_RE.test(before)
+          ? `rule 10h: withSimulator hands the picked device type row to a writer as its first argument (${near}), so the row is no longer simctl's.`
+          : `rule 10h: withSimulator names deviceType other than as a null test or a member read (${near}), so the picked row is handed on whole and can be written through another name.`
+      );
+      continue;
+    }
+    if (WRITES_BEFORE_RE.test(before) || WRITES_AFTER_RE.test(body.slice(chain.end, chain.end + 200))) {
+      out.push(`rule 10h: withSimulator writes through the picked device type row (${near}), so the row is no longer simctl's.`);
+      continue;
+    }
+    if (chain.members === 1 && /^\s*(?:\?\.\s*)?\(/.test(body.slice(chain.end, chain.end + 40))) {
+      out.push(`rule 10h: withSimulator calls a method of the picked device type row itself (${near}), and the row's only methods are Object.prototype's, whose definers rewrite it.`);
+    }
+  }
+  for (const p of assignedPatterns(body)) {
+    if (!/(?<![\w$.])deviceType(?![\w$])/.test(body.slice(p.open + 1, p.close))) continue;
+    out.push(`rule 10h: withSimulator destructures a value into the picked device type row (${sourceNear(body, p.open - 20, p.close + 40)}), so the row is no longer simctl's.`);
+  }
+  return out;
+}
+
+/**
+ * The names rule 10's three statements call (Phase 333.4.1's fix round): the
+ * pick's `pickDeviceType` and `parseJson`, the read's `run` and `join`, and
+ * the kind's `biometryOf` and `parseJson`. Rule 10i holds each to the
+ * module's own, because a function declared inside `withSimulator` under one
+ * of these names is hoisted over the whole body, so the pick, the read and the
+ * kind keep 10f's exact text while calling the caller's code.
+ */
+const RULE_10_CALLEES = Object.freeze(['pickDeviceType', 'parseJson', 'run', 'join', 'biometryOf']);
+
+/**
+ * Comment-stripped code with every string's TEXT blanked, character for
+ * character, and the code of a template literal's `${…}` kept, so an
+ * identifier left in the result is one the program names and not a word of a
+ * message. The quotes themselves stay, so a bracket reader still pairs them.
+ * A string cannot bind a name in this module: the helper is strict, and a
+ * strict `eval` declares into a scope of its own, which is why rule 10i asks
+ * the bindings of this text and asks the assignments of the text as written.
+ */
+function codeOnly(code) {
+  const out = code.split('');
+  const holes = [];
+  let depth = 0;
+  let i = 0;
+  const blank = (at) => {
+    if (at < out.length && out[at] !== '\n') out[at] = ' ';
+  };
+  const template = () => {
+    while (i < code.length) {
+      const c = code[i];
+      if (c === '\\') {
+        blank(i);
+        blank(i + 1);
+        i += 2;
+        continue;
+      }
+      if (c === '`') {
+        i += 1;
+        return;
+      }
+      if (c === '$' && code[i + 1] === '{') {
+        holes.push(depth);
+        depth += 1;
+        i += 2;
+        return;
+      }
+      blank(i);
+      i += 1;
+    }
+  };
+  while (i < code.length) {
+    const c = code[i];
+    if (c === "'" || c === '"') {
+      i += 1;
+      while (i < code.length && code[i] !== c) {
+        if (code[i] === '\\') {
+          blank(i);
+          i += 1;
+        }
+        blank(i);
+        i += 1;
+      }
+      i += 1;
+      continue;
+    }
+    if (c === '`') {
+      i += 1;
+      template();
+      continue;
+    }
+    if (c === '{') depth += 1;
+    else if (c === '}') {
+      depth -= 1;
+      if (holes.length > 0 && holes[holes.length - 1] === depth) {
+        holes.pop();
+        i += 1;
+        template();
+        continue;
+      }
+    }
+    i += 1;
+  }
+  return out.join('');
+}
+
+/**
+ * Rule 10i (Phase 333.4.1's fix round): every name in {@link RULE_10_CALLEES}
+ * is the module's own. Read over the whole module with strings blanked, each
+ * is only ever CALLED, but for its ONE declaration (`function name(` outside
+ * `withSimulator`; for `join`, the specifier of the import from `node:path`):
+ * so no other binding of it is made anywhere (a function or class, a var, let
+ * or const, a destructuring, a parameter, a catch binding, a `for … of` head:
+ * each reads as a use that is not a call, or as a declaration's head), and
+ * nothing rebinds the module's. Assignments are asked of the text as written
+ * too, strings read as code. `eval` is named nowhere, the one way a string
+ * becomes code that can see this module's bindings, and no identifier is
+ * spelled with a `\u` escape, which could name one of them in a spelling this
+ * reading does not see. Findings begin `rule 10i`.
+ */
+function calleesOwn(code) {
+  const out = [];
+  const bare = codeOnly(code);
+  const body = functionBody(bare, 'withSimulator');
+  const bodyAt = body === null ? -1 : bare.indexOf(body);
+  const inBody = (at) => bodyAt !== -1 && at >= bodyAt && at < bodyAt + body.length;
+  const where = (at) => (inBody(at) ? 'withSimulator' : 'the helper');
+  // The import from node:path, read in the text as written (its specifier list holds no string).
+  const pathImport = /\bimport\s*\{([^}]*)\}\s*from\s*['"]node:path['"]/.exec(code);
+  const joinSpecifier =
+    pathImport === null || !pathImport[1].split(',').some((one) => one.trim() === 'join')
+      ? -1
+      : pathImport.index + pathImport[0].indexOf('{') + 1 + pathImport[1].search(/(?<![\w$])join(?![\w$])/);
+  for (const name of RULE_10_CALLEES) {
+    let own = 0;
+    for (const m of bare.matchAll(new RegExp(`(?<![\\w$])${name}(?![\\w$])`, 'g'))) {
+      const before = bare.slice(Math.max(0, m.index - 40), m.index);
+      // A member of something else (`list.join(`, `x?.run`) is not the name; a spread `...name` is.
+      if (/(?<!\.)\.\s*$/.test(before)) continue;
+      if (name === 'join' && m.index === joinSpecifier) {
+        own += 1;
+        continue;
+      }
+      const after = m.index + m[0].length;
+      const open = /^\s*\(/.exec(bare.slice(after));
+      const close = open === null ? -1 : closeOf(bare, after + open[0].length - 1);
+      const near = sourceNear(bare, m.index - 30, (close === -1 ? after : close) + 30);
+      const head = /\b(?:function|class)\s*\*?\s*$/.test(before) || (close !== -1 && /^\s*(?:\{|=>)/.test(bare.slice(close + 1, close + 40)));
+      if (head) {
+        if (name !== 'join' && /\bfunction\s*$/.test(before) && !inBody(m.index)) {
+          own += 1;
+          continue;
+        }
+        out.push(`rule 10i: ${where(m.index)} declares a ${name} of its own (${near}), so the pick, the read and the kind can keep their exact text and call the caller's code, a declaration in withSimulator being hoisted over its whole body.`);
+      } else if (open === null || close === -1) {
+        out.push(`rule 10i: ${where(m.index)} names ${name} other than in a call (${near}), so a binding of its own, or a rebinding of the module's, can stand for the function the pick, the read and the kind call.`);
+      }
+    }
+    if (own !== 1) {
+      out.push(
+        name === 'join'
+          ? `rule 10i: the helper's join is not the one specifier of its import from 'node:path' (${String(own)} found), so the read's bundle path is not node's own join.`
+          : `rule 10i: the helper declares ${String(own)} function(s) named ${name} outside withSimulator; the pick, the read and the kind call the module's ONE declaration.`
+      );
+    }
+    const assigned = assignmentsTo(code, name);
+    if (assigned > 0) out.push(`rule 10i: the helper's text assigns ${name} ${String(assigned)} time(s), strings read as code, so the function the pick, the read and the kind call need not be the module's own.`);
+  }
+  if (/(?<![\w$.])eval(?![\w$])/.test(bare)) out.push('rule 10i: the helper names eval, which can rebind a function rule 10 calls from a string this gate cannot read.');
+  if (bare.includes('\\u')) out.push('rule 10i: the helper spells an identifier with a \\u escape, which can name a function rule 10 calls in a spelling this gate does not read.');
+  return out;
+}
+
+/**
  * Rule 10 over the helper's comment-stripped source (Phase 333.4,
- * build/p3334/SPEC.md §5.2): a device's biometry is its device type's. Returns
- * findings, empty when it holds.
+ * build/p3334/SPEC.md §5.2, widened by Phase 333.4.1, build/p33341/SPEC.md
+ * §4.8): a device's biometry is its device type's. Returns findings, empty
+ * when it holds; every finding 10f to 10h adds begins `rule 10`.
  */
 export function deviceKindShape(code) {
   const out = [];
   const body = functionBody(code, 'withSimulator');
   if (body === null) return ['withSimulator is not declared in the helper.'];
-  if (!/\bconst\s+deviceType\s*=\s*pickDeviceType\s*\(/.test(body)) {
-    out.push("withSimulator's deviceType is not the row pickDeviceType picked from simctl's own list, so nothing says whose capabilities.plist is read.");
+  // Rule 10f (Phase 333.4.1): the pick, exactly.
+  const pick = DEVICE_TYPE_PICK_RE.exec(body);
+  if (pick === null) {
+    out.push(
+      "rule 10f: withSimulator's deviceType is not exactly `const deviceType = pickDeviceType(parseJson(types.stdout), deviceTypeName);`, so the row whose capabilities.plist is read is not simctl's own row for the type asked."
+    );
   }
   const read = CAPABILITIES_READ_RE.exec(body);
   if (read === null) {
@@ -655,6 +1019,17 @@ export function deviceKindShape(code) {
       out.push("withSimulator's capabilities read names the caller's options, so a caller can reach the device's biometry.");
     }
   }
+  // Rule 10g (Phase 333.4.1): nothing between the pick and the read reaches
+  // the row or the caller's options.
+  if (pick !== null && read !== null) out.push(...betweenPickAndRead(body, pick.index + pick[0].length, read.index));
+  // Rule 10h (Phase 333.4.1): nothing anywhere in withSimulator writes through
+  // the row. With no exact pick (10f's finding), the declaration it has stands
+  // in, so the rest of the body is still read.
+  const declared = pick ?? /\bconst\s+deviceType(?![\w$])/.exec(body);
+  out.push(...rowWrites(body, declared === null ? -1 : declared.index + declared[0].indexOf('deviceType')));
+  // Rule 10i (Phase 333.4.1's fix round): the names the pick, the read and
+  // the kind call are the module's own, declared nowhere inside withSimulator.
+  out.push(...calleesOwn(code));
   const kind =
     read === null
       ? null
@@ -905,6 +1280,101 @@ const FIXTURES = [
   }
 ];
 
+/**
+ * Where rule 10g looks, just above the capabilities read and after the pick,
+ * and past its reach, after the kind is decided and before the create (Phase
+ * 333.4.1, build/p33341/SPEC.md §4.8). Each places its lines above the anchor.
+ */
+const ABOVE_THE_READ = '  const capabilitiesRead =';
+const AFTER_THE_KIND = '  if (biometryKind === null) {\n    const why =';
+const aboveTheRead = (lines) => (src) => src.replace(ABOVE_THE_READ, () => `${lines}\n${ABOVE_THE_READ}`);
+const afterTheKind = (lines) => (src) => src.replace(AFTER_THE_KIND, () => `${lines}\n${AFTER_THE_KIND}`);
+
+/** The attack lens's two dodges, verbatim (build/p33341/SPEC.md §2.6), each of which left rule 10 green before. */
+const DODGE_CAPABILITIES_FROM = "  if (typeof options?.capabilitiesFrom === 'string') deviceType.bundlePath = options.capabilitiesFrom;";
+const DODGE_TYPE_OVERRIDES = '  Object.assign(deviceType, options?.typeOverrides ?? {});';
+
+/** The pick as the helper spells it, the anchor of the ablation that changes it. */
+const PICK_TEXT = 'const deviceType = pickDeviceType(parseJson(types.stdout), deviceTypeName);';
+
+/**
+ * Rule 10i's place above the pick (Phase 333.4.1's fix round): the list read
+ * the pick parses, so a line placed here runs before the pick does.
+ */
+const ABOVE_THE_LIST = "  const types = await run('xcrun', ['simctl', 'list', 'devicetypes', '-j']";
+const aboveTheList = (lines) => (src) => src.replace(ABOVE_THE_LIST, () => `${lines}\n${ABOVE_THE_LIST}`);
+
+/**
+ * The verify round's two shadows (Phase 333.4.1's fix round), each a function
+ * declared inside withSimulator under the name the pick calls. A declaration is
+ * hoisted over the whole body, so placed anywhere in it, here after the kind,
+ * the pick keeps 10f's exact text and returns the caller's row. Both left rules
+ * 10f to 10h green.
+ */
+const SHADOW_PICK = '  function pickDeviceType(json, want) { return options?.typeRow ?? (json?.devicetypes ?? []).find((t) => t?.name === want) ?? null; }';
+const SHADOW_PARSE = '  function parseJson(text) { try { return options?.typeList ?? JSON.parse(text); } catch { return null; } }';
+
+/**
+ * Rule 10's fixtures (Phase 333.4.1, build/p33341/SPEC.md §4.8): the shipping
+ * helper edited, driven through `deviceKindShape`. A caught one must be red
+ * with a finding that names rule 10; a control must read no finding at all.
+ * Past the two dodges, each caught one but the last is a write or a hand-off
+ * placed AFTER the read, where rule 10g cannot see it, so it is rule 10h's
+ * alone; the last is a member read placed BEFORE it, which is rule 10g's alone.
+ */
+export const DEVICE_KIND_FIXTURES = Object.freeze([
+  Object.freeze({ name: "dodge 1, the row's bundle path taken from the caller's options", caught: true, edit: aboveTheRead(DODGE_CAPABILITIES_FROM) }),
+  Object.freeze({ name: "dodge 2, the caller's overrides assigned onto the row", caught: true, edit: aboveTheRead(DODGE_TYPE_OVERRIDES) }),
+  Object.freeze({ name: 'a compound write through the row after the read', caught: true, edit: afterTheKind('  deviceType.name += String(options?.label);') }),
+  Object.freeze({ name: 'a postfix ++ through the row after the read', caught: true, edit: afterTheKind('  deviceType.revision++;') }),
+  Object.freeze({ name: 'a delete through the row after the read', caught: true, edit: afterTheKind('  delete deviceType.bundlePath;') }),
+  Object.freeze({
+    name: 'the row handed to Object.defineProperty after the read',
+    caught: true,
+    edit: afterTheKind("  Object.defineProperty(deviceType, 'identifier', { value: options?.typeId });")
+  }),
+  Object.freeze({ name: 'the row aliased after the read and written through the alias', caught: true, edit: afterTheKind('  const row = deviceType;\n  row.identifier = options?.typeId;') }),
+  Object.freeze({ name: 'a destructuring assignment into the row after the read', caught: true, edit: afterTheKind('  [deviceType.identifier] = [options?.typeId];') }),
+  Object.freeze({ name: 'a method of the row itself called after the read', caught: true, edit: afterTheKind("  deviceType.__defineGetter__('identifier', () => options?.typeId);") }),
+  Object.freeze({ name: 'the row spread into another object after the read', caught: true, edit: afterTheKind('  const copy = { ...deviceType };') }),
+  // Rule 10g's own: a member READ between the pick and the read, which 10h
+  // admits anywhere else (the last control below is the same line after it).
+  Object.freeze({ name: 'a member read of the row between the pick and the read', caught: true, edit: aboveTheRead("  say(`${label}: ${String(deviceType.identifier)}`);") }),
+  // Rule 10i's own (Phase 333.4.1's fix round): the names the pick, the read
+  // and the kind call, bound inside withSimulator or rebound in the module.
+  Object.freeze({ name: 'pickDeviceType declared inside withSimulator, hoisted over the pick (the verify round\'s shadow)', caught: true, edit: afterTheKind(SHADOW_PICK) }),
+  Object.freeze({ name: 'parseJson declared inside withSimulator, hoisted over the pick (the verify round\'s second shadow)', caught: true, edit: afterTheKind(SHADOW_PARSE) }),
+  Object.freeze({
+    name: 'parseJson bound by a var in a nested block, which hoists to the whole body',
+    caught: true,
+    edit: afterTheKind("  if (options?.typeList !== undefined) {\n    var parseJson = () => options.typeList;\n  }")
+  }),
+  Object.freeze({ name: 'run declared inside withSimulator, so the capabilities read is the caller\'s', caught: true, edit: afterTheKind("  function run() { return Promise.resolve(options?.capabilitiesRead ?? { code: 1, stdout: '', stderr: '', timedOut: false, why: null }); }") }),
+  Object.freeze({ name: 'biometryOf declared inside withSimulator, so the kind is the caller\'s', caught: true, edit: afterTheKind('  function biometryOf() { return options?.biometry ?? null; }') }),
+  Object.freeze({ name: 'join bound by a destructured const inside withSimulator', caught: true, edit: afterTheKind('  const { join } = options?.paths ?? { join: (...p) => p.join("/") };') }),
+  Object.freeze({ name: 'the module\'s pickDeviceType reassigned above the pick', caught: true, edit: aboveTheList('  pickDeviceType = (json, want) => options?.typeRow ?? null;') }),
+  Object.freeze({ name: 'the module\'s parseJson reassigned by a destructuring above the pick', caught: true, edit: aboveTheList('  [parseJson] = [() => options?.typeList ?? null];') }),
+  Object.freeze({ name: 'a computed string evaluated above the pick, rebinding the pick\'s callee', caught: true, edit: aboveTheList("  eval('pick' + 'DeviceType = () => options?.typeRow');") }),
+  Object.freeze({ name: 'pickDeviceType declared with a \\u escape inside withSimulator', caught: true, edit: afterTheKind('  function pick\\u0044eviceType() { return options?.typeRow ?? null; }') }),
+  Object.freeze({ name: 'the module\'s pickDeviceType rebound by a for-of head outside withSimulator', caught: true, edit: (src) => src.replace('export async function withSimulator(', () => 'for (pickDeviceType of [() => null]);\nexport async function withSimulator(') }),
+  Object.freeze({ name: 'a comment between the pick and the read', caught: false, edit: aboveTheRead("  // the read below is the type's own") }),
+  Object.freeze({ name: 'a say line between the pick and the read', caught: false, edit: aboveTheRead("  say(`${label}: reading the device type's capabilities`);") }),
+  Object.freeze({ name: 'a null test of the row between the pick and the read', caught: false, edit: aboveTheRead("  if (deviceType === null) say(`${label}: no row`);") }),
+  Object.freeze({ name: 'a member read of the row after the read', caught: false, edit: afterTheKind("  say(`${label}: ${String(deviceType.identifier)}`);") }),
+  // Rule 10i's controls: a call of each name and a member named like one are
+  // the module's own, and a name inside a message is a word.
+  Object.freeze({
+    name: 'parseJson called again and an array joined after the read',
+    caught: false,
+    edit: afterTheKind("  const listed = (parseJson(types.stdout)?.devicetypes ?? []).map((t) => String(t?.name)).join(', ');\n  say(`${label}: ${listed}`);")
+  }),
+  Object.freeze({
+    name: 'the five names as words of a message after the read',
+    caught: false,
+    edit: afterTheKind("  say(`${label}: this run's pickDeviceType, parseJson, join, run and biometryOf are the module's (${runId})`);")
+  })
+]);
+
 /** The refusal of a device of neither kind, as `biometry()` spells it (Phase 333.4). */
 const NEITHER_REFUSAL = /\n {8}if \(biometryKind === null\) \{\n {10}throw [^\n]*\n {8}\}\n/;
 
@@ -1089,7 +1559,26 @@ const HELPER_ABLATIONS = [
   { what: 'the handle without its biometryKind', edit: (src) => src.replace('      get biometryKind() {\n        return biometryKind;\n      },\n', '') },
   { what: 'the handle without its deviceType', edit: (src) => src.replace('      get deviceType() {\n        return String(deviceType.name);\n      },\n', '') },
   { what: 'biometryOf answering Face ID when both are true', edit: (src) => src.replace("  if (face && !touch) return 'faceID';", "  if (face) return 'faceID';") },
-  { what: 'biometryOf accepting 1 for true', edit: (src) => src.replace("const face = capabilities['pearl-id'] === true;", "const face = capabilities['pearl-id'] == true;") }
+  { what: 'biometryOf accepting 1 for true', edit: (src) => src.replace("const face = capabilities['pearl-id'] === true;", "const face = capabilities['pearl-id'] == true;") },
+  // Rule 10 widened (Phase 333.4.1, build/p33341/SPEC.md §4.8): 10f the pick
+  // exactly, 10g nothing between the pick and the read but a null test, 10h no
+  // write through the row anywhere. The first two are the attack lens's dodges
+  // verbatim (§2.6), each of which left rule 10 green before.
+  { what: "dodge 1: the row's bundle path taken from the caller's options above the read", edit: aboveTheRead(DODGE_CAPABILITIES_FROM) },
+  { what: "dodge 2: the caller's overrides assigned onto the row above the read", edit: aboveTheRead(DODGE_TYPE_OVERRIDES) },
+  { what: 'a bracket write through the row above the read', edit: aboveTheRead("  deviceType['bundlePath'] = '/x';") },
+  { what: 'the row aliased above the read and written through the alias', edit: aboveTheRead("  const row = deviceType;\n  row.bundlePath = '/x';") },
+  { what: 'Reflect.set on the row above the read', edit: aboveTheRead("  Reflect.set(deviceType, 'bundlePath', '/x');") },
+  { what: "the caller's options read above the read", edit: aboveTheRead('  const extra = options?.extra;') },
+  { what: 'a write through the row after the read', edit: afterTheKind('  deviceType.name = String(options?.label);') },
+  {
+    what: "the pick taking the caller's list",
+    edit: (src) => src.replace(PICK_TEXT, () => 'const deviceType = pickDeviceType(options?.types ?? parseJson(types.stdout), deviceTypeName);')
+  },
+  // Rule 10i (Phase 333.4.1's fix round): the verify round's two shadows,
+  // each of which left rules 10f to 10h green.
+  { what: 'pickDeviceType declared inside withSimulator after the kind', edit: afterTheKind(SHADOW_PICK) },
+  { what: 'parseJson declared inside withSimulator after the kind', edit: afterTheKind(SHADOW_PARSE) }
 ];
 
 // ---------------------------------------------------------------------------
@@ -1139,6 +1628,28 @@ for (const a of HELPER_ABLATIONS) {
   if (helperShape(edited).length === 0) fail(`the helper ablation "${a.what}" left rules 3 to 5 and 7 to 10 green`, 'That clause is not asserted by anything.');
   else ablationsRed += 1;
 }
+// Rule 10's fixtures (Phase 333.4.1): the dodges and the writes rule 10h alone
+// can see, each red and naming rule 10, beside controls that must stay green.
+let kindCaught = 0;
+for (const f of DEVICE_KIND_FIXTURES) {
+  const edited = f.edit(helperSource);
+  if (edited === helperSource) {
+    fail(`the device kind fixture "${f.name}" found nothing to edit`, 'Its anchor is gone from the helper, so this gate no longer proves that shape. Re-point it.');
+    continue;
+  }
+  const findings = deviceKindShape(stripComments(edited));
+  if (f.caught) {
+    if (findings.some((w) => /^rule 10[fghi]: /.test(w))) kindCaught += 1;
+    else {
+      fail(
+        `the device kind fixture "${f.name}" was not caught by rule 10`,
+        findings.length === 0 ? "Rule 10 left it green, so the device's kind could be the caller's that way." : `It read only: ${findings.join('; ')}`
+      );
+    }
+  } else if (findings.length > 0) {
+    fail(`the device kind control "${f.name}" was reported`, `${findings.join('; ')}. A false alarm makes every pass worthless.`);
+  }
+}
 
 // Rule 1 and rule 2 over the tree.
 const names = buildScriptNames(buildDir);
@@ -1173,6 +1684,9 @@ process.stdout.write(
     `its teardown is inside a finally and its net covers exit, SIGINT, SIGTERM and SIGHUP; ` +
     `its handle's push, biometry and pasteboard name only the device its call created; ` +
     `a device's biometry is its device type's, ${String(BIOMETRY_OF_FIXTURES.length)} of ${String(BIOMETRY_OF_FIXTURES.length)} capabilities read as the type's own, and Touch ID is answered by Touch ID's name; ` +
+    `its device type row is simctl's own pick, read before anything touches it and written through nowhere, by functions that are the module's own, ` +
+    `${String(kindCaught)} of ${String(DEVICE_KIND_FIXTURES.filter((f) => f.caught).length)} device kind fixtures caught naming rule 10 and ` +
+    `its ${String(DEVICE_KIND_FIXTURES.filter((f) => !f.caught).length)} controls left alone; ` +
     `${String(caughtFixtures)} of ${String(FIXTURES.filter((f) => f.caught).length)} bad fixtures caught, ` +
     `${String(FIXTURES.filter((f) => !f.caught).length)} controls left alone, ` +
     `${String(ablationsRed)} of ${String(HELPER_ABLATIONS.length)} helper ablations red.\n`

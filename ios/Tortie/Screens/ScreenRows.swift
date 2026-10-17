@@ -244,11 +244,40 @@ enum ScreenFont {
 }
 
 /// One cell's measure at one zoom: the font size and the cell's width and
-/// height in points, both on the display's pixel grid.
+/// height in points, both on the display's pixel grid; or, for the fitted cell
+/// below 3x, the fitted width itself with every column EDGE on the grid
+/// (Phase 333.4.1, build/p33341/SPEC.md D4, D5).
 struct ScreenCell: Equatable, Sendable {
     let fontSize: CGFloat
     let width: CGFloat
     let height: CGFloat
+    /// The scale every column edge is rounded to, or 0 when the width is
+    /// itself whole pixels and an edge is `column × width` (every zoomed cell,
+    /// and every cell at 3x, exactly as before 333.4.1).
+    var edgeScale: CGFloat = 0
+
+    /// Column `column`'s left edge, in points, on the pixel grid: the ONE
+    /// place a column becomes a point for the grid's frames, grounds, boxes,
+    /// shapes and the cursor (D5).
+    func x(_ column: CGFloat) -> CGFloat {
+        guard edgeScale > 0 else { return CGFloat(column) * width }
+        return Self.snapped(CGFloat(column) * width, scale: edgeScale, rule: .toNearestOrAwayFromZero)
+    }
+
+    /// The fitted cell below 3x (D4, his ruling of 2026-10-16): the fitted
+    /// width itself, so the grid is exactly the view's width, with every
+    /// column edge rounded to the nearest pixel instead of every cell snapped
+    /// down to one, so cells differ by at most one pixel. `wide` snapped an SE
+    /// at 200 columns to 300 of its 375 points.
+    static func filling(_ fitted: CGFloat, scale: CGFloat) -> ScreenCell {
+        let pixel = CGFloat(1.0) / max(scale, 1)
+        let width = max(pixel, fitted)
+        let fontSize = CGFloat(width) / max(ScreenFont.advancePerPoint, 0.01)
+        let line = UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular).lineHeight
+        return ScreenCell(
+            fontSize: fontSize, width: width, height: max(pixel, snapped(line, scale: scale, rule: .up)), edgeScale: max(scale, 1)
+        )
+    }
 
     /// The cell whose width is `wanted`, snapped down to the display's pixel,
     /// with the font size chosen so its advance is exactly that width, and

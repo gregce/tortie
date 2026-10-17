@@ -121,8 +121,9 @@ struct ScreenWindow: View {
     let ground: Color
     let caret: Color
     let light: CGFloat
-    /// Where the cursor's block is, in the window's points, or nil.
-    let cursor: CGPoint?
+    /// The cursor's block, in the window's points, or nil: from its column's
+    /// edge to the next column's (`ScreenCell.x`, Phase 333.4.1 D5).
+    let cursor: CGRect?
     /// One rectangle per selected row, in the window's points.
     let highlights: [CGRect]
 
@@ -138,7 +139,7 @@ struct ScreenWindow: View {
                 drawn(item)
             }
         }
-        .frame(width: CGFloat(columns) * cell.width, alignment: .topLeading)
+        .frame(width: cell.x(CGFloat(columns)), alignment: .topLeading)
         .background(ground)
         .overlay(alignment: .topLeading) { caretBlock }
         .overlay(alignment: .topLeading) { highlight }
@@ -150,7 +151,7 @@ struct ScreenWindow: View {
         if let row = item.row {
             ScreenRowView(row: row, styles: item.styles, ink: ink, cell: cell, light: light)
                 .equatable()
-                .frame(width: CGFloat(columns) * cell.width, height: cell.height, alignment: .topLeading)
+                .frame(width: cell.x(CGFloat(columns)), height: cell.height, alignment: .topLeading)
                 // A row out of view is no element at all (the fix round): an
                 // empty container with no name, no label and no child is not
                 // one, where a hidden element still was to the test framework.
@@ -160,7 +161,7 @@ struct ScreenWindow: View {
                 .accessibilityHidden(!item.spoken)
         } else {
             Spacer(minLength: 0)
-                .frame(width: CGFloat(columns) * cell.width, height: cell.height)
+                .frame(width: cell.x(CGFloat(columns)), height: cell.height)
                 .accessibilityHidden(true)
         }
     }
@@ -171,8 +172,8 @@ struct ScreenWindow: View {
         if let cursor {
             Rectangle()
                 .fill(caret.opacity(0.45))
-                .frame(width: cell.width, height: cell.height)
-                .offset(x: cursor.x, y: cursor.y)
+                .frame(width: cursor.width, height: cursor.height)
+                .offset(x: cursor.minX, y: cursor.minY)
                 .allowsHitTesting(false)
                 .accessibilityElement()
                 .accessibilityIdentifier(ID.screenCursor)
@@ -230,9 +231,16 @@ struct ScreenRowPainter {
         styles.indices.contains(index) ? styles[index] : ScreenStyle(ink: ink)
     }
 
-    /// A box's rectangle: exactly its columns, the cell's height.
+    /// A box's rectangle: exactly its columns, the cell's height. Below 3x,
+    /// fitted, from its column's edge to the edge after its last column, each
+    /// on a whole pixel (`ScreenCell.x`, Phase 333.4.1 D5); otherwise
+    /// `column × width`, as before.
     func rect(column: CGFloat, span: CGFloat) -> CGRect {
-        CGRect(x: CGFloat(column) * cell.width, y: 0, width: CGFloat(span) * cell.width, height: cell.height)
+        guard cell.edgeScale > 0 else {
+            return CGRect(x: CGFloat(column) * cell.width, y: 0, width: CGFloat(span) * cell.width, height: cell.height)
+        }
+        let left = cell.x(column)
+        return CGRect(x: left, y: 0, width: CGFloat(cell.x(CGFloat(column) + span)) - left, height: cell.height)
     }
 
     func paint(in context: inout GraphicsContext) {
@@ -270,7 +278,9 @@ struct ScreenRowPainter {
         switch box.kind {
         case .text:
             guard box.text.contains(where: { $0 != " " }) || drawn.underline || drawn.strike else { return }
-            boxed.draw(boxed.resolve(text(box.text, drawn)), at: CGPoint(x: area.minX, y: area.midY), anchor: .leading)
+            // From `column × width`, never the rounded edge, and clipped to
+            // the box: a run of text is never compressed (333.4.1 D5).
+            boxed.draw(boxed.resolve(text(box.text, drawn)), at: CGPoint(x: CGFloat(box.column) * cell.width, y: area.midY), anchor: .leading)
         case .alone:
             // Measured as drawn, centred, and scaled DOWN to its box, never up.
             let resolved = boxed.resolve(text(box.text, drawn))
@@ -284,7 +294,9 @@ struct ScreenRowPainter {
             let width = cell.width
             // One shape per column: a shape box holds one character a column.
             for (place, _) in box.text.enumerated() {
-                let one = CGRect(x: CGFloat(area.minX) + CGFloat(place) * width, y: 0, width: width, height: cell.height)
+                let one = cell.edgeScale > 0
+                    ? rect(column: CGFloat(box.column) + CGFloat(place), span: 1)
+                    : CGRect(x: CGFloat(area.minX) + CGFloat(place) * width, y: 0, width: width, height: cell.height)
                 let paint = glyph.paint(in: one, light: light)
                 var shaded = boxed
                 shaded.opacity = Double(boxed.opacity) * paint.opacity

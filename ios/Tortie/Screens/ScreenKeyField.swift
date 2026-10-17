@@ -422,6 +422,16 @@ struct ScreenKeyField: UIViewRepresentable {
 
 /// The key bar above the keyboard (D28): esc, tab, ⇧tab, the arrows, ctrl,
 /// return, and the button that puts the keyboard away.
+///
+/// NO KEY IS SQUEEZED (Phase 333.4.1, build/p33341/SPEC.md D7): every word at
+/// its own width costs about 387 points, which a 402-point window holds and an
+/// iPhone SE's 375 does not, where `return` was squeezed to 41.5 of its 60. So
+/// the bar is the row of words when it fits, and otherwise the same row with
+/// `return` drawn as its glyph at an arrow key's size, under the same name and
+/// identifier. And it stays at the default text size whatever his, as the
+/// iPhone's own keyboard does: the words are a fixed 15 points already, and
+/// only the arrows grew, to 36 to 42 × 44 at the accessibility sizes, which
+/// squeezed ⇧tab, ctrl and return to 34 on the SE and the iPhone 16 Pro.
 struct ScreenKeyBar: View {
     static let height: CGFloat = 44
 
@@ -431,6 +441,15 @@ struct ScreenKeyBar: View {
     let hide: () -> Void
 
     var body: some View {
+        ViewThatFits(in: .horizontal) {
+            keys(returnWord: true)
+            keys(returnWord: false)
+        }
+        .dynamicTypeSize(...DynamicTypeSize.large)
+    }
+
+    /// One row of the bar: `return` as its word, or as its glyph.
+    func keys(returnWord: Bool) -> some View {
         HStack(spacing: 2) {
             word(Copy.keyEsc, label: Copy.keyEscapeLabel, id: Short.esc, key: .escape)
             word(Copy.keyTab, label: Copy.keyTabLabel, id: Short.tab, key: .tab)
@@ -440,7 +459,11 @@ struct ScreenKeyBar: View {
             arrow(Symbol.down, label: Copy.keyDownLabel, id: Short.down, key: .down)
             arrow(Symbol.right, label: Copy.keyRightLabel, id: Short.right, key: .right)
             control
-            word(Copy.keyReturn, label: Copy.keyReturnLabel, id: Short.enter, key: .enter)
+            if returnWord {
+                word(Copy.keyReturn, label: Copy.keyReturnLabel, id: Short.enter, key: .enter)
+            } else {
+                arrow(Symbol.enter, label: Copy.keyReturnLabel, id: Short.enter, key: .enter)
+            }
             Button(action: hide) {
                 Image(systemName: Symbol.hide)
                     .foregroundStyle(Tokens.textSecondary)
@@ -529,6 +552,7 @@ struct ScreenKeyBar: View {
         static let up = "arrow.up"
         static let down = "arrow.down"
         static let right = "arrow.right"
+        static let enter = "return"
         static let hide = "keyboard.chevron.compact.down"
     }
 }

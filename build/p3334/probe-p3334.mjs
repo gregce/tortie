@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
  * probe:p3334 — the phone app driven on the devices App Review uses (Phase
- * 333.4, build/p3334/SPEC.md §5.4; research 136 §7, the charter).
+ * 333.4, build/p3334/SPEC.md §5.4; research 136 §7, the charter; widened by
+ * Phase 333.4.1, build/p33341/SPEC.md §4.7: G1 reads every drive's crash
+ * reports, `touch-26` passes G7, and G11 to G14 and the K drive are new).
  *
  * WHAT IT DRIVES
  *   The SAME UI test `probe:p316` drives, `TortieUITests/P316DriveUITests/
@@ -61,7 +63,15 @@
  *       drive the same steps on the same device right after, and both
  *       readings are printed side by side.
  *   S   See a sample (Debug, no code): the walk of SPEC §5.4 S, its End
- *       included, then Leave.
+ *       included, then Leave. Since 333.4.1 it also turns the sample's live
+ *       Codex Terminal sideways and back between two inventories
+ *       (`sample-inventory:turn-before`, `landscape`, `portrait`,
+ *       `sample-inventory:turn-after`), reads the key bar (`keys-read`) and
+ *       pans the Terminal sideways at the reading size (`pan-sideways`).
+ *   K   the largest text size (Debug, no code, 333.4.1): `P316_TEXT_SIZE=
+ *       UICTContentSizeCategoryAccessibilityXXXL`, which the UI test hands to
+ *       every launch as UIKit's own argument, and `setup-read, sample-see,
+ *       terminal-open:<T>, keys-read`.
  *   <E> is `end` on an enrolled row and `end-passcode:1234` on a row with
  *   nothing enrolled (the UI test types the digits where iOS draws its
  *   passcode field; a Simulator takes any passcode, SPEC D9).
@@ -83,10 +93,17 @@
  *   G1  run: every drive printed lines, a `done`, `alive` 4, no
  *       `<step>-missing` dump and no `unknown-step`, and xcodebuild exited 0
  *       (a whole drive that exited otherwise is UNREADABLE, its log's first
- *       `error:` named). A drive whose app is not running at its end has its
- *       crash report read: XCUITest's own (SPEC F3: XCTAutomationSupport's
- *       snapshot code under os_log's quarantine, on iOS 18.3, at any load) is
- *       driven AGAIN on the same device, up to three drives in all; a death
+ *       `error:` named). EVERY drive has its crash reports read, alive or not
+ *       (333.4.1, D8): a report is the drive's when it is this app's, its
+ *       process path names the row's device, its `procLaunch` is at or after
+ *       the drive's start less CRASH_SKEW_MS and its `captureTime` before the
+ *       drive's end plus CRASH_WAIT_MS, and its pid and capture time were not
+ *       claimed by an earlier drive of the row. A drive whose app is gone, or
+ *       that ended with the app running but has a report (XCUITest's crash
+ *       the app came back from), DIED: XCUITest's own report (SPEC F3:
+ *       XCTAutomationSupport's snapshot code under os_log's quarantine, on
+ *       iOS 18.3, at any load) is driven AGAIN on the same device, up to three
+ *       drives in all, and its readings are never graded as the app's; a death
  *       that left no report, once; a report that is the app's own is a FAIL
  *       and is never driven again. A last death is UNREADABLE, never a PASS.
  *   G2  the window: every dump at the row's measured window upright, the
@@ -114,15 +131,46 @@
  *       keep their number, their row and their height inside the tab bar (iOS
  *       26.3 widens them after a turn at both builds, now and then, so their x
  *       and width are not compared: the fix round); an iPad keeps its window
- *       and every frame (SPEC F6). `touch-26` is STATED: it passes
- *       as STATED only when every reading after the turn equals the parent's
- *       (SPEC F2, the bars 10 points high), PASS when it reads back exactly
- *       (and the line says F2 no longer reproduces), and FAIL otherwise.
+ *       and every frame (SPEC F6). Since 333.4.1 no row is STATED:
+ *       `touch-26` (SPEC F2, the bars 10 points high at the parent) passes
+ *       only when it reads back exactly, and its line prints the parent's
+ *       reading beside HEAD's (live with P3334_PARENT_IOS, else recorded). A
+ *       row a later round marks `stated: 'G7'` passes as STATED only when
+ *       every reading after the turn equals the parent's.
  *   G8  Release: install 0, appinfo 0 with the project's build, and the
  *       Release drive's G1, G3, G4 and G6.
  *   G9  the sample: `sample-label` in every dump inside it, left onto
  *       Pairing, and G3 to G5 for the sample's End.
  *   G10 the kind: the helper's `biometryKind` is the row's.
+ *   G11 the sample's turn (333.4.1, F2 inside See a sample): in
+ *       `sample-inventory:turn-after` the Sample bar, its label, Leave sample,
+ *       the navigation bar's `BackButton` and the Terminal's grid each equal
+ *       `sample-inventory:turn-before` within 0.5 pt, with the device turned
+ *       sideways and back between them (an iPad's window does not turn, F6,
+ *       so it reads equal). iOS 18.3 names no `BackButton`; where neither
+ *       reading holds one the grid holds the bar's place. At the parent
+ *       `touch-26` reads the bar 20 high.
+ *   G12 the key bar (333.4.1, D7): in S's `keys-read` (the default size) and
+ *       K's (the largest), all ten keys, each inside the window and the bar;
+ *       esc and tab at least 33.5 wide, ⇧tab and ctrl at least 41 (their
+ *       words' own widths, read sideways where nothing is squeezed); return
+ *       at least 59 (its word) or within 0.5 of every arrow's width (its
+ *       glyph); and every key's frame at the largest size equal to the
+ *       default's within 0.5 (the cap). That the size took is read from K's
+ *       own ⋯ menu, whose rows grow with it (Catch Me Up 42 tall at the
+ *       default, 118 and more at the largest): a K drive whose rows did not
+ *       grow is UNREADABLE, never a pass of the cap.
+ *   G13 the fill (333.4.1, D4): every live row of every P and T reading
+ *       (the honest door's columns, the vectors' `screen-sample`) is as wide
+ *       as the grid on a 2x row (`touch-*`, `ipad-*`), and on a 3x row
+ *       (`face-*`, `none-*`) `columns × floor(grid × 3 ÷ columns) ÷ 3` (400
+ *       of 402 upright at 120 columns, the parent's); upright the grid is the
+ *       window's width. At the parent the SE reads 360.
+ *   G14 the lock (333.4.1, D6): in S's `pan-sideways` every live row read
+ *       before and after keeps its y within 0.5 pt, and the first of them
+ *       moved left by at least 100 pt, or by all the room it had when that is
+ *       less (the pan happened). At the parent the rows move down with the
+ *       finger (38 pt on the SE).
  * Exit 0 when every measurable row's every arm is PASS or STATED, 1 when one
  * FAILED, 2 when one is UNREADABLE or no row is measurable.
  *
@@ -141,25 +189,34 @@
  *                               P3334_KEEP=1.
  *   P3334_PARENT_IOS=<dir>      a directory holding the parent's `ios/`
  *                               (`git archive 5f5efba2 ios | tar -x -C <dir>`):
- *                               T is driven over it too, and G7's STATED row
- *                               is compared with that live reading rather than
- *                               the recorded one.
+ *                               T is driven over it too, and its reading is
+ *                               printed beside HEAD's (and a STATED row, if a
+ *                               later round marks one, is compared with it
+ *                               rather than the recorded one).
  *   P3334_KEEP=1                keep the run directory: every drive's lines,
  *                               the door's routes and the derived data.
  *
  *   node build/p3334/probe-p3334.mjs --grader-self-test
  *       every grader over the readings in build/p3334/fixtures/, cut from the
  *       spec step's own drives of the parent, each grade red on one broken
- *       reading and green on the honest one; it starts nothing.
+ *       reading and green on the honest one; and since 333.4.1's fix round the
+ *       retry loop itself, driveWithRetry, DRIVEN over attempts cut from those
+ *       readings with a reader of its own that asks the shipping deathReports
+ *       over the committed crash report (an attempt alive at its end has its
+ *       reports read, unwaited, into the row's claims). It starts nothing.
  *
  * Its cost, from the spec step's runs: three builds (about 20, 60 and 20 s
  * unloaded), then per row a boot (16 to 47 s) and four or five drives (45 to
  * 150 s each), about 8 to 12 minutes a row and 70 to 90 minutes for rows 1 to
  * 8. Measured by the verify round on 2026-10-14: 4,614 s (77 minutes) for rows
  * 1 to 8 with P3334_PARENT_IOS, four builds included. One lock slot, and no
- * other Simulator run beside it (SPEC §13 concern 1). A verifier's, never the
- * battery's. It runs only as the entry: importing it for its graders starts
- * nothing.
+ * other Simulator run beside it (SPEC §13 concern 1). Phase 333.4.1 added a
+ * K drive to every row and six steps to S, and its verifier measured it on
+ * 2026-10-16: 2,377 s (40 minutes) for touch-26, touch-18 and face-26 with
+ * P3334_PARENT_IOS, the four builds 150 s of it (21, 75, 28 and 26 s), so
+ * about 11 to 13 minutes a row; face-26 alone with warm derived data, 717 s.
+ * A verifier's, never the battery's. It runs only as the entry: importing it
+ * for its graders starts nothing.
  */
 
 import { spawn } from 'node:child_process';
@@ -214,9 +271,11 @@ const IOS_27_WHY =
  * measured it at the parent, and `sideways` the Terminal's grid sideways,
  * measured likewise (337.3's [62, 0, 750, 382] and [62, 0, 750, 381] on the
  * iPhone 16 Pro, the whole window on the SE); null where nothing was measured.
- * `stated` names the grade a row passes as STATED (SPEC F2). A row with a
- * `unmeasured` reason is measured only when this Mac has its runtime and its
- * device type; row 11 has no measured name, so it never is until a later round
+ * `stated` names the grade a row passes as STATED; since 333.4.1 none does
+ * (F2 is kept by the app's root). `scale` is the device's pixels per point,
+ * which decides G13's fill (2x fills the grid, 3x keeps today's whole-pixel
+ * cells). A row with a `unmeasured` reason is measured only when this Mac has
+ * its runtime and its device type; row 11 has no measured name, so it never is until a later round
  * writes the name here.
  */
 export const MATRIX = Object.freeze(
@@ -229,11 +288,12 @@ export const MATRIX = Object.freeze(
       enrolled: true,
       release: true,
       ipad: true,
+      scale: 2,
       window: [375, 667],
       sideways: null,
       why: 'App Review\'s iPad (forums 815079, 820096); the app runs in iPhone compatibility mode'
     },
-    { id: 'ipad-18', deviceType: DEVICE_TYPE_IPAD, runtime: '18.3', kind: 'touchID', enrolled: true, release: true, ipad: true, window: [375, 667], sideways: null, why: 'the same on the floor runtime' },
+    { id: 'ipad-18', deviceType: DEVICE_TYPE_IPAD, runtime: '18.3', kind: 'touchID', enrolled: true, release: true, ipad: true, scale: 2, window: [375, 667], sideways: null, why: 'the same on the floor runtime' },
     {
       id: 'touch-26',
       deviceType: DEVICE_TYPE_TOUCH_ID,
@@ -242,18 +302,18 @@ export const MATRIX = Object.freeze(
       enrolled: true,
       release: true,
       ipad: false,
+      scale: 2,
       window: [375, 667],
       sideways: [0, 0, 667, 375],
-      stated: 'G7',
       why: '317\'s End on a Touch ID iPhone; F2\'s row'
     },
-    { id: 'touch-18', deviceType: DEVICE_TYPE_TOUCH_ID, runtime: '18.3', kind: 'touchID', enrolled: true, release: true, ipad: false, window: [375, 667], sideways: [0, 0, 667, 375], why: 'the same on his phone\'s line (18.x)' },
-    { id: 'none-26', deviceType: DEVICE_TYPE_NAME, runtime: '26.3', kind: 'faceID', enrolled: false, release: false, ipad: false, window: [402, 874], sideways: [62, 0, 750, 382], why: 'nothing enrolled: the passcode path (SPEC D9)' },
-    { id: 'none-18', deviceType: DEVICE_TYPE_NAME, runtime: '18.3', kind: 'faceID', enrolled: false, release: false, ipad: false, window: [402, 874], sideways: [62, 0, 750, 381], why: 'the same on the floor' },
-    { id: 'face-26', deviceType: DEVICE_TYPE_NAME, runtime: '26.3', kind: 'faceID', enrolled: true, release: true, ipad: false, window: [402, 874], sideways: [62, 0, 750, 382], why: 'the control: the row that passes today' },
-    { id: 'face-18', deviceType: DEVICE_TYPE_NAME, runtime: '18.3', kind: 'faceID', enrolled: true, release: false, ipad: false, window: [402, 874], sideways: [62, 0, 750, 381], why: 'the control on the floor' },
-    { id: 'ipad-27', deviceType: DEVICE_TYPE_IPAD, runtime: '27', kind: 'touchID', enrolled: true, release: true, ipad: true, window: null, sideways: null, why: 'App Review\'s iPad on iOS 27', unmeasured: IOS_27_WHY },
-    { id: 'face-27', deviceType: 'iPhone 17 Pro', runtime: '27', kind: 'faceID', enrolled: true, release: true, ipad: false, window: null, sideways: null, why: 'the newest iPhone on iOS 27', unmeasured: IOS_27_WHY },
+    { id: 'touch-18', deviceType: DEVICE_TYPE_TOUCH_ID, runtime: '18.3', kind: 'touchID', enrolled: true, release: true, ipad: false, scale: 2, window: [375, 667], sideways: [0, 0, 667, 375], why: 'the same on his phone\'s line (18.x)' },
+    { id: 'none-26', deviceType: DEVICE_TYPE_NAME, runtime: '26.3', kind: 'faceID', enrolled: false, release: false, ipad: false, scale: 3, window: [402, 874], sideways: [62, 0, 750, 382], why: 'nothing enrolled: the passcode path (SPEC D9)' },
+    { id: 'none-18', deviceType: DEVICE_TYPE_NAME, runtime: '18.3', kind: 'faceID', enrolled: false, release: false, ipad: false, scale: 3, window: [402, 874], sideways: [62, 0, 750, 381], why: 'the same on the floor' },
+    { id: 'face-26', deviceType: DEVICE_TYPE_NAME, runtime: '26.3', kind: 'faceID', enrolled: true, release: true, ipad: false, scale: 3, window: [402, 874], sideways: [62, 0, 750, 382], why: 'the control: the row that passes today' },
+    { id: 'face-18', deviceType: DEVICE_TYPE_NAME, runtime: '18.3', kind: 'faceID', enrolled: true, release: false, ipad: false, scale: 3, window: [402, 874], sideways: [62, 0, 750, 381], why: 'the control on the floor' },
+    { id: 'ipad-27', deviceType: DEVICE_TYPE_IPAD, runtime: '27', kind: 'touchID', enrolled: true, release: true, ipad: true, scale: 2, window: null, sideways: null, why: 'App Review\'s iPad on iOS 27', unmeasured: IOS_27_WHY },
+    { id: 'face-27', deviceType: 'iPhone 17 Pro', runtime: '27', kind: 'faceID', enrolled: true, release: true, ipad: false, scale: 3, window: null, sideways: null, why: 'the newest iPhone on iOS 27', unmeasured: IOS_27_WHY },
     {
       id: 'duo-27.1',
       deviceType: null,
@@ -262,6 +322,7 @@ export const MATRIX = Object.freeze(
       enrolled: true,
       release: true,
       ipad: false,
+      scale: null,
       window: null,
       sideways: null,
       why: 'iPhone Duo, which ships on iOS 27.1',
@@ -335,9 +396,12 @@ export const endFor = (row) => (row.enrolled ? 'end' : 'end-passcode');
 /** How the reactor answers `end-auth-up` on this row: the device's own match, or nothing (the drive types). */
 export const answerFor = (row) => (row.enrolled ? 'match' : 'none');
 
+/** The largest text size (Phase 333.4.1, G12): UIKit's own name, handed to the K drive as P316_TEXT_SIZE. */
+export const LARGEST_TEXT = 'UICTContentSizeCategoryAccessibilityXXXL';
+
 const b64u = (text) => Buffer.from(text, 'utf8').toString('base64url');
 
-/** One drive's steps. `sid` is the honest door's session; `cast` the sample's waiting Claude Code (A), live Claude Code (R) and live Codex (T). */
+/** One drive's steps. `sid` is the honest door's session; `cast` the sample's waiting Claude Code (A), live Claude Code (R) and live Codex (T). K is S's key bar again at {@link LARGEST_TEXT}. */
 export function stepsFor(kind, row, { sid = null, cast = null } = {}) {
   const E = endStep(row);
   switch (kind) {
@@ -359,6 +423,13 @@ export function stepsFor(kind, row, { sid = null, cast = null } = {}) {
         'reply-press:0',
         'tab:needs',
         `terminal-open:${cast.T}`,
+        // Phase 333.4.1: G11 (the sample's turn), G12 (the key bar) and G14 (the lock).
+        'sample-inventory:turn-before',
+        'landscape',
+        'portrait',
+        'sample-inventory:turn-after',
+        'keys-read',
+        'pan-sideways',
         `screen-type:${b64u('ls -la')}`,
         'screen-ctrl:c',
         'screen-key:return',
@@ -373,6 +444,9 @@ export function stepsFor(kind, row, { sid = null, cast = null } = {}) {
         'sample-inventory:settings',
         'sample-leave'
       ];
+    case 'K':
+      // Phase 333.4.1 (G12): the key bar at the largest text size, which the drive's env names.
+      return ['setup-read', 'sample-see', `terminal-open:${cast.T}`, 'keys-read'];
     default:
       throw new Error(`${TAG} no drive is named ${String(kind)}`);
   }
@@ -416,10 +490,24 @@ export function copyWord(name) {
   return m === null ? null : m[1];
 }
 
+/** Every CURRENT_PROJECT_VERSION the project writes, in order. */
+export function projectVersions(pbxproj) {
+  return [...String(pbxproj).matchAll(/CURRENT_PROJECT_VERSION = ([^;\n]+);/g)].map((m) => m[1].trim());
+}
+
 /** The project's build number: every CURRENT_PROJECT_VERSION, which must agree, or null. */
 export function projectVersion(pbxproj) {
-  const all = [...String(pbxproj).matchAll(/CURRENT_PROJECT_VERSION = ([^;\n]+);/g)].map((m) => m[1].trim());
+  const all = projectVersions(pbxproj);
   return all.length > 0 && all.every((v) => v === all[0]) ? all[0] : null;
+}
+
+/**
+ * The build number conformance:ios rule (s) pins, `PHONE_BUILD`, read from
+ * build/conformance-ios.mjs AS TEXT (Phase 333.4.1, D10: a literal here went
+ * stale when Phase 345 moved the build), or null.
+ */
+export function pinnedPhoneBuild(text = readFileSync(join(ROOT, 'build', 'conformance-ios.mjs'), 'utf8')) {
+  return /export const PHONE_BUILD = '([^']+)'/.exec(String(text))?.[1] ?? null;
 }
 
 /** CFBundleVersion as `appinfo` printed it, or null. */
@@ -485,14 +573,32 @@ const CRASH_DIRS = Object.freeze([join(homedir(), 'Library', 'Logs', 'Diagnostic
 /** A report is the app's `Tortie-<date>-<time>.ips`. */
 const CRASH_NAME = /^Tortie-[^/]*\.ips$/;
 /** How long a death waits for its report to appear (macOS writes it a moment after the process ends). */
-const CRASH_WAIT_MS = 10_000;
+export const CRASH_WAIT_MS = 10_000;
 /** A report written up to this long before the drive's own start is not this drive's. */
-const CRASH_SKEW_MS = 2_000;
+export const CRASH_SKEW_MS = 2_000;
+
+/**
+ * A crash report's time as the report writes it, `YYYY-MM-DD HH:MM:SS.ffff
+ * ±hhmm` (`procLaunch`, `captureTime`), in milliseconds since the epoch, or
+ * null when it is not that shape. Pure.
+ */
+export function ipsTime(text) {
+  const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))? ([+-])(\d{2})(\d{2})$/.exec(String(text ?? ''));
+  if (m === null) return null;
+  const [, y, mo, d, h, mi, sec, frac, sign, oh, om] = m;
+  const fraction = frac === undefined ? 0 : Number(`0.${frac}`) * 1000;
+  const offset = (Number(oh) * 60 + Number(om)) * 60_000 * (sign === '-' ? -1 : 1);
+  const at = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(sec)) + fraction - offset;
+  return Number.isFinite(at) ? at : null;
+}
 
 /**
  * One crash report's text (an `.ips`: a JSON header line, then a JSON body)
  * read as the death of THIS app on the device `udid`, or null when it is
- * another app's, another device's, or not a report at all. Pure.
+ * another app's, another device's, or not a report at all. The body comes
+ * back with its pid and its two times read (Phase 333.4.1, D8): `launchedAt`
+ * from `procLaunch` and `capturedAt` from `captureTime`, null when unread.
+ * Pure.
  */
 export function crashOn(text, udid) {
   if (typeof text !== 'string' || typeof udid !== 'string' || udid.length === 0) return null;
@@ -508,8 +614,11 @@ export function crashOn(text, udid) {
   }
   if (head?.bundleID !== BUNDLE_ID) return null;
   if (typeof body?.procPath !== 'string' || !body.procPath.includes(`/Devices/${udid}/`)) return null;
-  return body;
+  return { ...body, pid: typeof body.pid === 'number' ? body.pid : null, launchedAt: ipsTime(body.procLaunch), capturedAt: ipsTime(body.captureTime) };
 }
+
+/** The key a report is claimed by, once per row: its pid and its capture time as written, or its file's name when it writes neither. */
+export const crashKey = (body, name = '') => (typeof body?.pid === 'number' && typeof body?.captureTime === 'string' ? `${String(body.pid)}@${body.captureTime}` : `file:${String(name)}`);
 
 /**
  * Whose crash a report is, read from its crashed thread alone (SPEC F3):
@@ -533,15 +642,28 @@ export function crashClass(body) {
 }
 
 /**
- * The reports of this app's deaths on the device `udid` since `sinceMs`, from
- * directory entries `{ name, mtimeMs, text }`, each with its class. Pure.
+ * The reports of this app's deaths on the device `udid` inside one drive's
+ * window, from directory entries `{ name, mtimeMs, text }`, each with its
+ * class, its pid and its claim key (Phase 333.4.1, D8). A report is the
+ * drive's when its process LAUNCHED at or after `sinceMs` less
+ * {@link CRASH_SKEW_MS} and it was CAPTURED before `untilMs` plus
+ * {@link CRASH_WAIT_MS}, read from the report's own `procLaunch` and
+ * `captureTime` (the file's time stands in for a time the report does not
+ * write), and its key is not in `claimed`, so no report counts for two drives
+ * of a row. The file's time is a first sieve only: a report older than the
+ * drive is never opened. Pure.
  */
-export function deathReports(entries, udid, sinceMs) {
+export function deathReports(entries, udid, sinceMs, untilMs = Infinity, claimed = new Set()) {
   return (entries ?? [])
     .filter((e) => CRASH_NAME.test(String(e?.name)) && typeof e?.mtimeMs === 'number' && e.mtimeMs >= sinceMs - CRASH_SKEW_MS)
-    .map((e) => ({ name: e.name, body: crashOn(e.text, udid) }))
+    .map((e) => ({ name: e.name, mtimeMs: e.mtimeMs, body: crashOn(e.text, udid) }))
     .filter((e) => e.body !== null)
-    .map((e) => ({ name: e.name, class: crashClass(e.body) }));
+    .filter((e) => {
+      const launched = e.body.launchedAt ?? e.mtimeMs;
+      const captured = e.body.capturedAt ?? e.mtimeMs;
+      return launched >= sinceMs - CRASH_SKEW_MS && captured < untilMs + CRASH_WAIT_MS && !claimed.has(crashKey(e.body, e.name));
+    })
+    .map((e) => ({ name: e.name, class: crashClass(e.body), pid: e.body.pid, key: crashKey(e.body, e.name) }));
 }
 
 /** One death's class: `app` when any report is the app's, `xcuitest` when there are reports and all are XCUITest's, null when none was found. */
@@ -556,19 +678,44 @@ function deathWords(death) {
   const reports = death?.reports ?? [];
   if (death === undefined || death === null) return 'no crash report was read';
   if (reports.length === 0) return 'no crash report was found for it';
-  const names = reports.map((r) => r.name).join(', ');
-  return deathClass(death) === 'app' ? `${names}, the app's own crash` : `${names}, XCUITest's own crash (SPEC F3)`;
+  const names = reports.map((r) => `${r.name}${r.pid === null || r.pid === undefined ? '' : ` (pid ${String(r.pid)})`}`).join(', ');
+  const came = death.alive === true ? ', and the app came back (alive 4), so its readings are not the app\'s' : '';
+  return deathClass(death) === 'app' ? `${names}, the app's own crash` : `${names}, XCUITest's own crash (SPEC F3)${came}`;
+}
+
+/**
+ * Whether an attempt DIED (Phase 333.4.1, D8): its app is not running at its
+ * end, or it is and a crash report of the app on the row's device falls inside
+ * the drive, which is XCUITest's crash the app came back from (the 333.4
+ * reverify's R1 `ipad-18`, Tortie-2026-10-15-002047.ips). Pure.
+ */
+export const diedIn = (attempt) => needsAgain(attempt?.events ?? []) || (attempt?.death?.reports?.length ?? 0) > 0;
+
+/** A drive whose LAST attempt ended with the app running after a crash report inside it (D8): its readings are not the app's. Pure. */
+export const cameBack = (drive) => drive?.attempts?.at(-1)?.death?.alive === true;
+
+/**
+ * What one attempt's death reads, from its events and the reports
+ * {@link deathReports} attributed to it, or undefined when it ran whole with
+ * none. Pure.
+ */
+export function attemptDeath(events, reports) {
+  const alive = !needsAgain(events ?? []);
+  const found = reports ?? [];
+  if (alive && found.length === 0) return undefined;
+  return { during: diedDuring(events ?? [], { alive }), alive, reports: found };
 }
 
 /**
  * Whether the drive is driven again after its last attempt: only when that
- * attempt's app died, fewer than {@link DRIVES_AT_MOST} drives were made, and
+ * attempt died ({@link diedIn}: its app gone, or back after a crash report
+ * inside the drive), fewer than {@link DRIVES_AT_MOST} drives were made, and
  * the death is not the app's own; a death that left no report is driven again
  * only after the first drive. Pure.
  */
 export function driveAgain(attempts) {
   const last = attempts?.at(-1);
-  if (last === undefined || !needsAgain(last.events)) return false;
+  if (last === undefined || !diedIn(last)) return false;
   if (attempts.length >= DRIVES_AT_MOST) return false;
   const whose = deathClass(last.death);
   if (whose === 'app') return false;
@@ -576,9 +723,16 @@ export function driveAgain(attempts) {
   return true;
 }
 
-/** The crash reports macOS wrote for this app on `udid` since `sinceMs`, waited for up to {@link CRASH_WAIT_MS}. Reads only `Tortie-*.ips` newer than the drive, and keeps only those naming that device. */
-async function readDeath(udid, sinceMs) {
-  const deadline = Date.now() + CRASH_WAIT_MS;
+/**
+ * The crash reports macOS wrote for this app on `udid` inside the drive
+ * `sinceMs` to `untilMs` ({@link deathReports}), waited for up to `wait` ms
+ * (CRASH_WAIT_MS when the app is gone, 0 when it is running: a crash it came
+ * back from was written long before the drive ended). Reads only `Tortie-*.ips`
+ * newer than the drive, keeps only those naming that device, and CLAIMS each
+ * one it returns in `claimed`, the row's, so no later drive counts it.
+ */
+async function readDeath(udid, sinceMs, untilMs, { wait = CRASH_WAIT_MS, claimed = new Set() } = {}) {
+  const deadline = Date.now() + wait;
   for (;;) {
     const entries = [];
     for (const dir of CRASH_DIRS) {
@@ -599,20 +753,28 @@ async function readDeath(udid, sinceMs) {
         }
       }
     }
-    const found = deathReports(entries, udid, sinceMs);
-    if (found.length > 0 || Date.now() >= deadline) return found;
+    const found = deathReports(entries, udid, sinceMs, untilMs, claimed);
+    if (found.length > 0 || Date.now() >= deadline) {
+      for (const r of found) claimed.add(r.key);
+      return found;
+    }
     await sleep(1_000);
   }
 }
 
 const deadWindow = (w) => Array.isArray(w) && w.length === 2 && w[0] === 0 && w[1] === 0;
 
-/** The step during which the app ended: the first line read with no window, else the first `-missing` dump, else the last line. */
-export function diedDuring(events) {
+/**
+ * The step during which the app ended: the first line read with no window,
+ * else the first `-missing` dump, else the last line; for a drive whose app
+ * came back (`alive`), a step its lines do not show when neither is there.
+ */
+export function diedDuring(events, { alive = false } = {}) {
   const gone = events.find((e) => deadWindow(e?.window) && e?.step !== 'screen');
   if (gone !== undefined) return `${gone.step}${gone.key ? `:${gone.key}` : gone.letter ? `:${gone.letter}` : ''}`;
   const missing = events.find((e) => e?.step === 'screen' && /-missing$/.test(String(e.name)));
   if (missing !== undefined) return String(missing.name).replace(/-missing$/, '');
+  if (alive) return 'a step its lines do not show';
   const last = events.at(-1);
   if (last === undefined) return 'the launch';
   return `the step after its last line (${String(last.step)}${last.name ? ` ${String(last.name)}` : ''}${last.for ? ` for ${String(last.for)}` : ''})`;
@@ -637,6 +799,16 @@ export function gradeRun(drive, { udid = null } = {}) {
     }
     return verdict(UNREADABLE, `the app ended during ${during} (${deathWords(finalOf(drive)?.death)}) and the drive was not driven again`);
   }
+  // Phase 333.4.1 (D8): the app was running at the end, but a crash report of
+  // its own falls inside the drive, so XCUITest's crash ended it and a later
+  // step launched it again: nothing the drive read after is the app's.
+  if (diedIn(finalOf(drive))) {
+    const during = diedDuring(events, { alive: true });
+    if (attempts.length >= 2) {
+      return verdict(UNREADABLE, `the app came back after a crash on all ${String(attempts.length)} drives on ${device}, the last during ${during}: ${attempts.map((a, i) => `drive ${String(i + 1)} ${deathWords(a.death)}`).join('; ')}`);
+    }
+    return verdict(UNREADABLE, `the app came back (alive ${String(RUNNING_FOREGROUND)}) after a crash during ${during} (${deathWords(finalOf(drive)?.death)}) and the drive was not driven again`);
+  }
   const problems = [];
   if (!events.some((e) => e?.step === 'done')) problems.push('no `done` line');
   const missing = events.filter((e) => e?.step === 'screen' && /-missing$/.test(String(e.name))).map((e) => e.name);
@@ -651,7 +823,7 @@ export function gradeRun(drive, { udid = null } = {}) {
     const first = finalOf(drive)?.firstError;
     return verdict(UNREADABLE, `the drive ran whole but xcodebuild exited ${String(code)}${typeof first === 'string' && first.length > 0 ? `, first saying: ${first}` : ', and its log names no error'}`);
   }
-  const earlier = attempts.slice(0, -1).map((a, i) => `drive ${String(i + 1)}'s app ended during ${diedDuring(a.events ?? [])} (${deathWords(a.death)})`);
+  const earlier = attempts.slice(0, -1).map((a, i) => `drive ${String(i + 1)}'s app ${a?.death?.alive === true ? 'came back after a crash' : 'ended'} during ${a?.death?.during ?? diedDuring(a.events ?? [])} (${deathWords(a.death)})`);
   const again = earlier.length > 0 ? `; ${earlier.join('; ')}, and drive ${String(attempts.length)} ran whole` : '';
   return verdict(PASS, `${String(events.length)} lines, done, alive ${String(RUNNING_FOREGROUND)}${again}`);
 }
@@ -1071,12 +1243,16 @@ export function turnLine(t) {
   return `before ${one(t.before)}${t.side ? ` | sideways ${J(t.side.window)} grid ${fr(t.side.grid)} navs ${String(t.side.navs)} tabBars ${String(t.side.tabBars)}` : ''} | after ${t.afters.map(one).join(' ; ')}`;
 }
 
-/** G7, the turn drive, against the parent's readings for a STATED row. */
-export function gradeTurn(row, drive, { parent = null } = {}) {
+/**
+ * G7, the turn drive, against the parent's readings for a STATED row.
+ * `afterReadings` is T's {@link AFTER_READINGS}; only the self-test names
+ * fewer, for a kept drive that read fewer (the spec step's `headP`).
+ */
+export function gradeTurn(row, drive, { parent = null, afterReadings = AFTER_READINGS } = {}) {
   const t = turnReadings(eventsOf(drive));
   if (t === null) return verdict(UNREADABLE, 'no reading before the turn, or no sideways reading');
   if (![3, 4].includes(t.side.orientation)) return verdict(UNREADABLE, `the device was not turned (orientation ${String(t.side.orientation)})`);
-  if (t.afters.length < AFTER_READINGS) return verdict(UNREADABLE, `${String(t.afters.length)} readings after the turn, not ${String(AFTER_READINGS)}`);
+  if (t.afters.length < afterReadings) return verdict(UNREADABLE, `${String(t.afters.length)} readings after the turn, not ${String(afterReadings)}`);
   const sideProblems = [];
   if (row.ipad) {
     // SPEC F6: an iPad keeps the iPhone window upright; nothing moves.
@@ -1121,6 +1297,8 @@ export function gradeRelease(row, { install, version, drive, confirm, runtime, n
     parts.push({ label: 'install', v: p.length > 0 ? verdict(FAIL, p.join('; ')) : verdict(PASS, `install 0, appinfo 0, CFBundleVersion ${String(install.version)}`) });
   }
   parts.push({ label: 'R G1', v: gradeRun(drive) });
+  // Phase 333.4.1 (D8): a drive whose app came back after XCUITest's crash is read by its G1 alone.
+  if (cameBack(drive)) return worst(parts);
   parts.push({ label: 'R G3', v: gradeEndMark(row, drive) });
   parts.push({ label: 'R G4', v: row.enrolled ? gradeOwnerCheck(row, drive, { confirm, withDoor: false, inSample: true }) : gradePasscode(row, drive, { confirm, withDoor: false, inSample: true, runtime, notConfirmed }) });
   parts.push({ label: 'R G6', v: gradeTurns([{ label: 'R', drive }]) });
@@ -1172,29 +1350,271 @@ export function gradeKind(row, kind) {
   return verdict(PASS, String(kind));
 }
 
+// ---------------------------------------------------------------------------
+// G11 to G14 (Phase 333.4.1, build/p33341/SPEC.md §4.7)
+// ---------------------------------------------------------------------------
+
+/**
+ * The elements G11 holds across the sample's turn: the Sample bar, its label,
+ * Leave sample, the navigation bar's back button and, below the bar, the
+ * Terminal's grid. iOS 18.3 gives the back button no `BackButton` identifier
+ * (the spec step's 18.3 readings name none; 26.3 names it), so where neither
+ * reading holds it the grid, which moves with the bar (158 to 138 at the
+ * parent on the SE), holds the bar's place, and the sentence says so.
+ */
+export const SAMPLE_TURN_IDS = Object.freeze(['sample-bar', 'sample-label', 'sample-leave', 'BackButton', 'screen-grid']);
+const UNNAMED_ON_SOME_IOS = new Set(['BackButton']);
+
+/** The first element of an inventory carrying `id`, its frame, or null. */
+const inventoryFrame = (inv, id) => {
+  const f = (inv?.elements ?? []).find((x) => x?.id === id)?.frame;
+  return isFrame(f) ? f : null;
+};
+
+/** G11, the sample's turn: S's two inventories either side of a turn sideways and back. */
+export function gradeSampleTurn(row, drive) {
+  const events = eventsOf(drive);
+  const inv = (tag) => events.filter((e) => e?.step === 'sample-inventory' && e.for === tag && e.read === true).at(-1);
+  const before = inv('turn-before');
+  const after = inv('turn-after');
+  if (before === undefined || after === undefined) return verdict(UNREADABLE, 'no sample-inventory:turn-before or turn-after line');
+  const side = events.find((e) => e?.step === 'landscape' && e.seq > before.seq && e.seq < after.seq);
+  const back = events.find((e) => e?.step === 'portrait' && e.seq > before.seq && e.seq < after.seq);
+  if (side === undefined || ![3, 4].includes(side.chrome?.orientation)) return verdict(UNREADABLE, `the device was not turned sideways between the two readings (orientation ${String(side?.chrome?.orientation ?? null)})`);
+  if (back === undefined || back.chrome?.orientation !== 1) return verdict(UNREADABLE, `the device was not turned back upright before the second reading (orientation ${String(back?.chrome?.orientation ?? null)})`);
+  const problems = [];
+  const unread = [];
+  if (!sameSize(before.window, after.window)) problems.push(`the window ${J(before.window)} then ${J(after.window)}`);
+  const unnamed = [];
+  for (const id of SAMPLE_TURN_IDS) {
+    const b = inventoryFrame(before, id);
+    const a = inventoryFrame(after, id);
+    if (b === null && a === null && UNNAMED_ON_SOME_IOS.has(id)) unnamed.push(id);
+    else if (b === null) unread.push(`${id} was not read before the turn`);
+    else if (a === null) problems.push(`${id} ${fr(b)} before the turn and gone after`);
+    else if (!sameFrame(a, b)) problems.push(`${id} ${fr(b)} then ${fr(a)}`);
+  }
+  if (problems.length > 0) return verdict(FAIL, `after the turn ${problems.join('; ')}`);
+  if (unread.length > 0) return verdict(UNREADABLE, unread.join('; '));
+  const held = SAMPLE_TURN_IDS.filter((id) => !unnamed.includes(id));
+  const note = unnamed.length > 0 ? `; no element is named ${unnamed.join(', ')} on this iOS, so the grid below the bar holds its place` : '';
+  return verdict(PASS, `${held.map((id) => `${id} ${fr(inventoryFrame(before, id))}`).join(', ')}, each read back after the turn${row.ipad ? ' (the iPad\'s window does not turn, F6)' : ''}${note}`);
+}
+
+/** The key bar's ten keys by their short names (Identifiers.swift's `screen-key-<short>`). */
+export const KEY_SHORTS = Object.freeze(['esc', 'tab', 'btab', 'left', 'up', 'down', 'right', 'ctrl', 'return', 'hide']);
+const ARROWS = Object.freeze(['left', 'up', 'down', 'right']);
+/** The narrowest each key's word is drawn where nothing squeezes it (build/p33341/SPEC.md §2.4, read sideways): esc and tab 34, ⇧tab and ctrl 41.5 (41.3 at 3x), return 60 (59.7). */
+export const KEY_FLOORS = Object.freeze({ esc: 33.5, tab: 33.5, btab: 41, ctrl: 41 });
+export const RETURN_WORD_FLOOR = 59;
+/** How much taller the ⋯ menu's Catch Me Up row must read in K than in S for the largest text size to have taken (42 against 118 and 191.5 measured). */
+const SIZE_TOOK_POINTS = 20;
+
+/** A keys-read line's keys by short name. */
+const keysByShort = (reading) => Object.fromEntries((reading?.keys ?? []).filter((k) => typeof k?.id === 'string' && k.id.startsWith('screen-key-')).map((k) => [k.id.slice('screen-key-'.length), k]));
+
+/** Everything wrong with one keys-read reading (SPEC §4.7 G12). */
+export function keyBarProblems(reading) {
+  const keys = keysByShort(reading);
+  const problems = [];
+  const absent = KEY_SHORTS.filter((k) => !isFrame(keys[k]?.frame));
+  if (absent.length > 0) problems.push(`no ${absent.join(', ')} key`);
+  const w = Array.isArray(reading?.window) && reading.window.length === 2 ? reading.window : null;
+  const bar = isFrame(reading?.bar) ? reading.bar : null;
+  if (w === null) problems.push('the window was not read');
+  if (bar === null) problems.push('the bar was not read');
+  const inside = (f, box) => f[0] >= box[0] - TOLERANCE && f[1] >= box[1] - TOLERANCE && f[0] + f[2] <= box[0] + box[2] + TOLERANCE && f[1] + f[3] <= box[1] + box[3] + TOLERANCE;
+  for (const k of KEY_SHORTS) {
+    const f = keys[k]?.frame;
+    if (!isFrame(f)) continue;
+    if (w !== null && !inside(f, [0, 0, w[0], w[1]])) problems.push(`${k} ${fr(f)} outside the window ${J(w)}`);
+    if (bar !== null && !inside(f, bar)) problems.push(`${k} ${fr(f)} outside the bar ${fr(bar)}`);
+  }
+  for (const [k, floor] of Object.entries(KEY_FLOORS)) {
+    const f = keys[k]?.frame;
+    if (isFrame(f) && f[2] < floor) problems.push(`${k} squeezed to ${fr(f)}, under its word's ${String(floor)}`);
+  }
+  const ret = keys.return?.frame;
+  const arrows = ARROWS.map((k) => keys[k]?.frame).filter(isFrame);
+  if (isFrame(ret) && arrows.length === ARROWS.length) {
+    const word = ret[2] >= RETURN_WORD_FLOOR;
+    const glyph = arrows.every((a) => Math.abs(a[2] - ret[2]) <= TOLERANCE);
+    if (!word && !glyph) problems.push(`return ${fr(ret)}: neither its word (at least ${String(RETURN_WORD_FLOOR)}) nor its glyph at an arrow's width (${arrows.map((a) => String(Math.round(a[2] * 100) / 100)).join(', ')})`);
+  }
+  return problems;
+}
+
+/** How return is drawn in a reading: `word`, `glyph`, or null. */
+const returnDrawn = (reading) => {
+  const f = keysByShort(reading).return?.frame;
+  if (!isFrame(f)) return null;
+  return f[2] >= RETURN_WORD_FLOOR ? 'word' : 'glyph';
+};
+
+/** The height of Catch Me Up's row in the drive's first opened ⋯ menu, or null. */
+const menuRowHeight = (events) => {
+  const m = events.find((e) => e?.step === 'terminal-menu' && e.opened === true && isFrame(e.catchUp?.frame));
+  return m === undefined ? null : m.catchUp.frame[3];
+};
+
+/** G12, the key bar: S's `keys-read` at the default text size, K's at {@link LARGEST_TEXT}. */
+export function gradeKeys(row, { S, K }) {
+  const parts = [];
+  const readOf = (drive) => eventsOf(drive).filter((e) => e?.step === 'keys-read').at(-1);
+  const sRead = S ? readOf(S) : undefined;
+  const kRead = K ? readOf(K) : undefined;
+  const one = (label, reading, size) => {
+    if (reading === undefined) return { label, v: verdict(UNREADABLE, 'no keys-read line') };
+    if (reading.keyboard === false && (reading.keys ?? []).length === 0) return { label, v: verdict(UNREADABLE, 'the keyboard did not rise, so no key was read') };
+    if ((reading.textSize ?? null) !== size) return { label, v: verdict(UNREADABLE, `the drive carried the text size ${J(reading.textSize ?? null)}, not ${J(size)}`) };
+    const p = keyBarProblems(reading);
+    return { label, v: p.length > 0 ? verdict(FAIL, p.join('; ')) : verdict(PASS, `every word at its own width, return as its ${String(returnDrawn(reading))}`) };
+  };
+  parts.push(one('default', sRead, null));
+  parts.push(one('largest', kRead, LARGEST_TEXT));
+  if (sRead !== undefined && kRead !== undefined) {
+    const sh = menuRowHeight(eventsOf(S));
+    const kh = menuRowHeight(eventsOf(K));
+    if (sh === null || kh === null) parts.push({ label: 'took', v: verdict(UNREADABLE, 'the ⋯ menu was not read in both drives, so whether the largest text size took is unknown') });
+    else if (kh < sh + SIZE_TOOK_POINTS) parts.push({ label: 'took', v: verdict(UNREADABLE, `Catch Me Up's row reads ${String(Math.round(kh * 100) / 100)} tall at the largest size and ${String(Math.round(sh * 100) / 100)} at the default: the size did not take, so the cap was not tested`) });
+    else {
+      parts.push({ label: 'took', v: verdict(PASS, `Catch Me Up's row ${String(Math.round(kh * 100) / 100)} tall against ${String(Math.round(sh * 100) / 100)}`) });
+      const sk = keysByShort(sRead);
+      const kk = keysByShort(kRead);
+      const moved = KEY_SHORTS.filter((k) => isFrame(sk[k]?.frame) && isFrame(kk[k]?.frame) && !sameFrame(sk[k].frame, kk[k].frame)).map((k) => `${k} ${fr(sk[k].frame)} then ${fr(kk[k].frame)}`);
+      parts.push({ label: 'cap', v: moved.length > 0 ? verdict(FAIL, `the bar moved at the largest text size: ${moved.join('; ')}`) : verdict(PASS, 'every key\'s frame at the largest size is the default\'s') });
+    }
+  }
+  return worst(parts);
+}
+
+/** The honest door's columns: the vectors' `screen-sample`, which the door serves to P and T. */
+export function doorColumns() {
+  const vectors = readJson(join(ROOT, 'ios', 'TortieTests', 'Fixtures', 'vectors.json'));
+  return JSON.parse(vectors.answers['screen-sample'].json).screen?.cols ?? null;
+}
+
+/**
+ * The width a fitted row must read in a grid `width` points wide (SPEC D4):
+ * below 3x the grid's own width, every column edge on a pixel; at 3x today's
+ * cell, its width snapped down to a pixel, `columns × floor(width × 3 ÷
+ * columns) ÷ 3`.
+ */
+export function fittedRowWidth(scale, width, columns) {
+  if (typeof width !== 'number' || typeof columns !== 'number' || columns <= 0) return null;
+  if (scale === 2) return width;
+  if (scale === 3) return (columns * Math.floor((width * 3) / columns + 1e-9)) / 3;
+  return null;
+}
+
+/** G13, the fill: every live row of every P and T reading against {@link fittedRowWidth}. `drives` is [{ label, drive }]. */
+export function gradeFill(row, drives, { columns }) {
+  if (row.scale !== 2 && row.scale !== 3) return verdict(UNREADABLE, `the row names no scale (${J(row.scale ?? null)})`);
+  if (typeof columns !== 'number') return verdict(UNREADABLE, 'the honest door\'s columns were not read');
+  const problems = [];
+  const wants = new Set();
+  let read = 0;
+  for (const { label, drive } of drives) {
+    for (const e of eventsOf(drive)) {
+      if (!['chrome', 'landscape', 'portrait'].includes(e?.step) || !e.chrome) continue;
+      const live = (e.reading?.live ?? []).filter((r) => isFrame(r?.frame));
+      if (live.length === 0) continue;
+      const grid = isFrame(e.chrome.grid?.frame) ? e.chrome.grid.frame : isFrame(e.reading?.grid) ? e.reading.grid : null;
+      if (grid === null) continue;
+      read += 1;
+      const upright = ![3, 4].includes(e.chrome.orientation);
+      const w = e.chrome.window;
+      if (upright && Array.isArray(w) && Math.abs(grid[2] - w[0]) > TOLERANCE) problems.push(`${label} ${e.step} ${String(e.seq)}: the grid ${fr(grid)} is not the window's ${String(w[0])} wide`);
+      const want = fittedRowWidth(row.scale, grid[2], columns);
+      wants.add(`${String(Math.round(want * 100) / 100)} in ${String(Math.round(grid[2] * 100) / 100)}`);
+      const off = [...new Set(live.filter((r) => Math.abs(r.frame[2] - want) > TOLERANCE).map((r) => Math.round(r.frame[2] * 100) / 100))];
+      if (off.length > 0) problems.push(`${label} ${e.step} ${String(e.seq)}: rows ${off.join(', ')} wide in a ${String(Math.round(grid[2] * 100) / 100)}-point grid, not ${String(Math.round(want * 100) / 100)}`);
+    }
+  }
+  if (read === 0) return verdict(UNREADABLE, 'no reading drew a live row');
+  if (problems.length > 0) return verdict(FAIL, `${String(row.scale)}x at ${String(columns)} columns: ${problems.join('; ')}`);
+  return verdict(PASS, `${String(read)} readings at ${String(columns)} columns, ${String(row.scale)}x: every live row ${[...wants].join(', ')}`);
+}
+
+/** How far left the first live row must move for the pan to count (SPEC §4.7 G14), or all the room it had when that is less. */
+export const PAN_LEFT_AT_LEAST = 100;
+/** Less room than this and a sideways pan cannot be told from none. */
+const PAN_ROOM_AT_LEAST = 20;
+
+/** G14, the lock: S's `pan-sideways`, the rows before and after one slow drag 30 points down along its way. */
+export function gradeLock(row, drive) {
+  const pan = eventsOf(drive).filter((e) => e?.step === 'pan-sideways').at(-1);
+  if (pan === undefined) return verdict(UNREADABLE, 'no pan-sideways line');
+  if (pan.before?.face !== 'terminal' || pan.after?.face !== 'terminal') return verdict(UNREADABLE, `the pan was not read on the Terminal (${J(pan.before?.face ?? null)}, ${J(pan.after?.face ?? null)})`);
+  const byN = (reading) => new Map((reading?.live ?? []).filter((r) => typeof r?.n === 'number' && isFrame(r.frame)).map((r) => [r.n, r.frame]));
+  const b = byN(pan.before);
+  const a = byN(pan.after);
+  const common = [...b.keys()].filter((n) => a.has(n)).sort((x, y) => x - y);
+  if (common.length === 0) return verdict(UNREADABLE, 'no live row was read both before and after the pan');
+  const grid = isFrame(pan.before.grid) ? pan.before.grid : null;
+  const first = common[0];
+  const fb = b.get(first);
+  const fa = a.get(first);
+  const room = grid === null ? null : fb[0] + fb[2] - (grid[0] + grid[2]);
+  if (room === null) return verdict(UNREADABLE, 'the grid was not read before the pan');
+  if (room < PAN_ROOM_AT_LEAST) return verdict(UNREADABLE, `the first live row ${fr(fb)} had ${String(Math.round(room * 100) / 100)} points to move left in the grid ${fr(grid)}, too little to tell a pan from none`);
+  const need = Math.min(PAN_LEFT_AT_LEAST, room);
+  const left = fb[0] - fa[0];
+  const problems = [];
+  const drifted = common.filter((n) => Math.abs(a.get(n)[1] - b.get(n)[1]) > TOLERANCE);
+  if (drifted.length > 0) {
+    const n = drifted[0];
+    problems.push(`${String(drifted.length)} of ${String(common.length)} rows moved up or down with the finger, row ${String(n)} from y ${String(b.get(n)[1])} to ${String(a.get(n)[1])}`);
+  }
+  if (left < need - TOLERANCE) problems.push(`the first live row moved ${String(Math.round(left * 100) / 100)} points left, not at least ${String(Math.round(need * 100) / 100)}: the Terminal did not pan sideways`);
+  if (problems.length > 0) return verdict(FAIL, problems.join('; '));
+  return verdict(PASS, `the first live row ${fr(fb)} then ${fr(fa)}: ${String(Math.round(left * 100) / 100)} points left, and all ${String(common.length)} rows read both times kept their y`);
+}
+
 /**
  * Every arm of one row, from what its drives read. `r` holds the drives
- * (P, T, S, R, TP), the install, the kind and the words.
+ * (P, T, S, K, R, TP), the install, the kind, the words and, since 333.4.1,
+ * the honest door's columns (`columns`, read from the vectors when absent).
  */
 export function gradeRow(row, r) {
   const arms = {};
   const drives = [
     { label: 'P', drive: r.P },
     { label: 'T', drive: r.T },
-    { label: 'S', drive: r.S }
+    { label: 'S', drive: r.S },
+    { label: 'K', drive: r.K }
   ].filter((x) => x.drive !== undefined && x.drive !== null);
   arms.G1 = worst(drives.map(({ label, drive }) => ({ label, v: gradeRun(drive, { udid: r.udid ?? null }) })));
-  arms.G2 = gradeWindow(row, [...drives, ...(r.R ? [{ label: 'R', drive: r.R }] : [])]);
-  arms.G3 = r.P ? gradeEndMark(row, r.P) : verdict(UNREADABLE, 'no paired drive');
-  if (row.enrolled) arms.G4 = r.P ? gradeOwnerCheck(row, r.P, { confirm: r.talkConfirm, withDoor: true, inSample: false }) : verdict(UNREADABLE, 'no paired drive');
-  else arms.G5 = r.P ? gradePasscode(row, r.P, { confirm: r.talkConfirm, withDoor: true, inSample: false, runtime: r.runtime, notConfirmed: r.notConfirmed }) : verdict(UNREADABLE, 'no paired drive');
-  arms.G6 = gradeTurns([r.P ? { label: 'P', drive: r.P } : null, r.S ? { label: 'S', drive: r.S } : null].filter(Boolean));
+  // Phase 333.4.1 (D8): a drive whose app came back after XCUITest's crash is
+  // read by G1 (and G8's own G1) alone; every other arm grades without it and
+  // says so, so nothing it read after the crash is graded as the app's.
+  const use = (k) => (cameBack(r[k]) ? null : r[k] ?? null);
+  const back = (keys, v) => {
+    const gone = keys.filter((k) => cameBack(r[k]));
+    if (gone.length === 0) return v;
+    return worst([{ label: 'read', v }, ...gone.map((k) => ({ label: k, v: verdict(UNREADABLE, `the ${k} drive's app came back after XCUITest's crash on its last drive, so none of its readings is the app's`) }))]);
+  };
+  const P = use('P');
+  const T = use('T');
+  const S = use('S');
+  const K = use('K');
+  const graded = [{ label: 'P', drive: P }, { label: 'T', drive: T }, { label: 'S', drive: S }, { label: 'K', drive: K }].filter((x) => x.drive !== null);
+  arms.G2 = back(['P', 'T', 'S', 'K', 'R'], gradeWindow(row, [...graded, ...(use('R') ? [{ label: 'R', drive: use('R') }] : [])]));
+  arms.G3 = back(['P'], P ? gradeEndMark(row, P) : verdict(UNREADABLE, 'no paired drive'));
+  if (row.enrolled) arms.G4 = back(['P'], P ? gradeOwnerCheck(row, P, { confirm: r.talkConfirm, withDoor: true, inSample: false }) : verdict(UNREADABLE, 'no paired drive'));
+  else arms.G5 = back(['P'], P ? gradePasscode(row, P, { confirm: r.talkConfirm, withDoor: true, inSample: false, runtime: r.runtime, notConfirmed: r.notConfirmed }) : verdict(UNREADABLE, 'no paired drive'));
+  arms.G6 = back(['P', 'S'], gradeTurns([P ? { label: 'P', drive: P } : null, S ? { label: 'S', drive: S } : null].filter(Boolean)));
   const parent = row.stated === 'G7' ? parentTurn(row.id, r.TP ?? null) : null;
   const tp = r.TP ? gradeRun(r.TP, { udid: r.udid ?? null }) : null;
-  arms.G7 = r.T ? gradeTurn(row, r.T, { parent: tp !== null && tp.grade !== PASS && row.stated === 'G7' ? null : parent }) : verdict(UNREADABLE, 'no turn drive');
+  arms.G7 = back(['T'], T ? gradeTurn(row, T, { parent: tp !== null && tp.grade !== PASS && row.stated === 'G7' ? null : parent }) : verdict(UNREADABLE, 'no turn drive'));
   if (row.release) arms.G8 = gradeRelease(row, { install: r.install ?? null, version: r.version ?? null, drive: r.R ?? null, confirm: r.sampleConfirm, runtime: r.runtime, notConfirmed: r.notConfirmed });
-  arms.G9 = r.S ? gradeSample(row, r.S, { confirm: r.sampleConfirm, runtime: r.runtime, notConfirmed: r.notConfirmed }) : verdict(UNREADABLE, 'no sample drive');
+  arms.G9 = back(['S'], S ? gradeSample(row, S, { confirm: r.sampleConfirm, runtime: r.runtime, notConfirmed: r.notConfirmed }) : verdict(UNREADABLE, 'no sample drive'));
   arms.G10 = gradeKind(row, r.kind);
+  arms.G11 = back(['S'], S ? gradeSampleTurn(row, S) : verdict(UNREADABLE, 'no sample drive'));
+  arms.G12 = back(['S', 'K'], S || K ? gradeKeys(row, { S, K }) : verdict(UNREADABLE, 'no sample drive and no K drive'));
+  const fill = [P ? { label: 'P', drive: P } : null, T ? { label: 'T', drive: T } : null].filter(Boolean);
+  arms.G13 = back(['P', 'T'], fill.length > 0 ? gradeFill(row, fill, { columns: r.columns === undefined ? doorColumns() : r.columns }) : verdict(UNREADABLE, 'no paired drive and no turn drive'));
+  arms.G14 = back(['S'], S ? gradeLock(row, S) : verdict(UNREADABLE, 'no sample drive'));
   return arms;
 }
 
@@ -1217,7 +1637,7 @@ const replaceEvent = (events, pred, change) => {
   change(e);
 };
 
-function selfTest() {
+async function selfTest() {
   const cases = [];
   const add = (what, got, want) => cases.push({ what, got, want });
   const g = (v) => v.grade;
@@ -1230,7 +1650,11 @@ function selfTest() {
   add('the talk row\'s confirmation is the vectors\' own', talk?.title, "End 'talk'?");
   add('the sample End\'s confirmation is the live Claude Code\'s', sample?.title, "End 'add-rate-limits'?");
   add('the sample cast is A sample-1, R sample-3, T sample-4', J(sampleCast(sampleBook())), J({ A: 'sample-1', R: 'sample-3', T: 'sample-4' }));
-  add('the project\'s build number reads 10 and agrees six times', projectVersion(readFileSync(join(PROJECT, 'project.pbxproj'), 'utf8')), '10');
+  const pbx = readFileSync(join(PROJECT, 'project.pbxproj'), 'utf8');
+  const pinned = pinnedPhoneBuild();
+  add('PHONE_BUILD is read from build/conformance-ios.mjs as text', typeof pinned === 'string' && /^\d+$/.test(pinned), true);
+  add('the project\'s build number agrees six times with PHONE_BUILD', `${String(projectVersions(pbx).length)} x ${String(projectVersion(pbx))}`, `6 x ${String(pinned)}`);
+  add('a PHONE_BUILD line that is not there reads null', pinnedPhoneBuild('export const PHONE_BUILD = 11;'), null);
   add('a project whose builds disagree reads null', projectVersion('CURRENT_PROJECT_VERSION = 10;\nCURRENT_PROJECT_VERSION = 11;\n'), null);
   add('appinfo\'s CFBundleVersion is read', appinfoVersion('    CFBundleVersion = 10;\n'), '10');
   add('a quoted CFBundleVersion is read', appinfoVersion('CFBundleVersion = "10.1";'), '10.1');
@@ -1244,7 +1668,8 @@ function selfTest() {
   add('the Touch ID iPhone rows name the helper\'s SE', MATRIX.filter((r) => r.id.startsWith('touch-')).every((r) => r.deviceType === DEVICE_TYPE_TOUCH_ID), true);
   add('the none and face rows name the helper\'s iPhone 16 Pro', MATRIX.filter((r) => /^(none|face)-(26|18)$/.test(r.id)).every((r) => r.deviceType === DEVICE_TYPE_NAME), true);
   add('Release is driven on rows 1 to 4 and 7 of the measured eight', MATRIX.filter((r) => r.unmeasured === undefined && r.release).map((r) => r.id).join(','), 'ipad-26,ipad-18,touch-26,touch-18,face-26');
-  add('only touch-26 is STATED', MATRIX.filter((r) => r.stated).map((r) => `${r.id}:${r.stated}`).join(','), 'touch-26:G7');
+  add('no row is STATED since 333.4.1 (F2 kept by the root)', MATRIX.filter((r) => r.stated).map((r) => `${r.id}:${r.stated}`).join(','), '');
+  add('the 2x rows are the Touch ID iPhone\'s and the iPad\'s, the 3x the iPhone 16 Pro\'s', ['touch', 'ipad', 'face', 'none'].map((k) => `${k}:${[...new Set(MATRIX.filter((r) => r.id.startsWith(`${k}-`)).map((r) => r.scale))].join('/')}`).join(','), 'touch:2,ipad:2,face:3,none:3');
   const here = (row) => (row.unmeasured === undefined ? null : `this Mac has no iOS ${row.runtime} runtime`);
   const plan = (env) => planRows(env, here);
   add('by default the eight measured rows run', plan({}).run.map((r) => r.id).join(','), 'ipad-26,ipad-18,touch-26,touch-18,none-26,none-18,face-26,face-18');
@@ -1271,6 +1696,17 @@ function selfTest() {
   add('T turns and reads five times after', stepsFor('T', rowOf('face-26'), { sid: 's' }).filter((s) => s === 'chrome' || s === 'portrait').length, AFTER_READINGS + 1);
   add('S types ls -la into the live Codex and Ends the live Claude Code', ['terminal-open:sample-4', 'screen-type:bHMgLWxh', 'terminal-open:sample-3', 'end'].every((s) => stepsFor('S', rowOf('ipad-26'), { cast }).includes(s)), true);
   add('R walks the sample to End and leaves', stepsFor('R', rowOf('touch-18'), { cast }).slice(-5).join(','), 'terminal-open:sample-3,end,tab:settings,sample-inventory:settings,sample-leave');
+  const sSteps = stepsFor('S', rowOf('touch-26'), { cast });
+  const atT = sSteps.indexOf(`terminal-open:${cast.T}`);
+  add('S turns the live Codex, reads its key bar and pans it, right after opening it', sSteps.slice(atT, atT + 7).join(','), 'terminal-open:sample-4,sample-inventory:turn-before,landscape,portrait,sample-inventory:turn-after,keys-read,pan-sideways');
+  add('K reads the live Codex\'s key bar and nothing else', stepsFor('K', rowOf('ipad-26'), { cast }).join(','), 'setup-read,sample-see,terminal-open:sample-4,keys-read');
+  add('K asks UIKit\'s largest text size by its own name', LARGEST_TEXT, 'UICTContentSizeCategoryAccessibilityXXXL');
+  // The UI test is the probe's hands: every step the probe names is one it dispatches.
+  const uiTest = readFileSync(join(ROOT, 'ios', 'TortieUITests', 'P316DriveUITests.swift'), 'utf8');
+  const named = [...new Set(['R', 'P', 'T', 'S', 'K'].flatMap((k) => stepsFor(k, rowOf('touch-26'), { sid: 's', cast })))];
+  const unknownToUi = named.filter((st) => (st.includes(':') ? !uiTest.includes(`step.hasPrefix("${st.slice(0, st.indexOf(':') + 1)}")`) : !uiTest.includes(`step == "${st}"`)));
+  add('the UI test dispatches every step the probe names', unknownToUi.join(','), '');
+  add('the UI test hands P316_TEXT_SIZE to UIKit by its own argument', /env\["P316_TEXT_SIZE"\]/.test(uiTest) && uiTest.includes('"-UIPreferredContentSizeCategoryName"'), true);
 
   // G1.
   const ipadP = fixture('ipad-26-paired');
@@ -1313,7 +1749,7 @@ function selfTest() {
     { name: 'Other-2026-10-14-172906.ips', mtimeMs: since + 60_000, text: f3Text },
     { name: 'Tortie-2026-10-14-172907.ips', mtimeMs: since + 61_000, text: f3Text.replace(f3Udid, '00000000-0000-0000-0000-000000000000') }
   ];
-  add('deathReports keeps this device\'s Tortie report newer than the drive, and nothing else', J(deathReports(entries, f3Udid, since)), J([{ name: 'Tortie-2026-10-14-172906.ips', class: 'xcuitest' }]));
+  add('deathReports keeps this device\'s Tortie report newer than the drive, and nothing else', J(deathReports(entries, f3Udid, since)), J([{ name: 'Tortie-2026-10-14-172906.ips', class: 'xcuitest', pid: null, key: 'file:Tortie-2026-10-14-172906.ips' }]));
   const died = (d) => ({ ...clone(death.attempts[0]), death: d });
   const f3Death = { during: 'screen-key:return', reports: [{ name: 'Tortie-x.ips', class: 'xcuitest' }] };
   const appDeath = { during: 'screen-key:return', reports: [{ name: 'Tortie-y.ips', class: 'app' }] };
@@ -1331,6 +1767,94 @@ function selfTest() {
   add('G1 the app\'s crash, even with a later whole drive: FAIL', g(gradeRun({ attempts: [died(appDeath), clone(death.attempts[1])] })), FAIL);
   add('G1 a whole drive that xcodebuild failed: UNREADABLE, never PASS', g(gradeRun({ attempts: [{ ...clone(ipadP.attempts.at(-1)), code: 65, firstError: 'P316DriveUITests.swift:1: error: -[P316DriveUITests testDrive] : failed' }] })), UNREADABLE);
   add('G1 the same with the stall that failed it: FAIL', g(gradeRun(edited({ ...ipadP, attempts: [{ ...clone(ipadP.attempts.at(-1)), code: 65 }] }, (ev) => ev.splice(-2, 0, { seq: 900, step: 'screen', name: 'first-missing', window: [375, 667] })))), FAIL);
+  // Phase 333.4.1 (D8): every drive's reports read, alive or not, by device, time and pid.
+  const aliveReport = fixture('g1-alive-crash-report');
+  const aliveUdid = /\/Devices\/([0-9A-F-]{36})\//.exec(aliveReport.body.procPath)[1];
+  const aliveText = `${J(aliveReport.header)}\n${J(aliveReport.body)}`;
+  const launched = ipsTime(aliveReport.body.procLaunch);
+  const captured = ipsTime(aliveReport.body.captureTime);
+  add('a report\'s time is read as it writes it, its zone applied', launched, Date.UTC(2026, 9, 15, 4, 18, 44) + 73.7);
+  add('the alive report\'s capture time', captured, Date.UTC(2026, 9, 15, 4, 20, 30) + 222);
+  add('a time in another shape is not read', ipsTime('2026-10-15T00:18:44Z'), null);
+  add('the alive report is this app\'s on its device, pid 21356', crashOn(aliveText, aliveUdid)?.pid, 21356);
+  add('the alive report is XCUITest\'s (SPEC F3)', crashClass(aliveReport.body), 'xcuitest');
+  const aliveEntry = { name: 'Tortie-2026-10-15-002047.ips', mtimeMs: captured + 500, text: aliveText };
+  const aliveSince = launched - 30_000;
+  const aliveUntil = captured + 5_000;
+  const inWindow = deathReports([aliveEntry], aliveUdid, aliveSince, aliveUntil);
+  add('a report inside the drive is the drive\'s', J(inWindow.map((r) => [r.name, r.class, r.pid])), J([['Tortie-2026-10-15-002047.ips', 'xcuitest', 21356]]));
+  add('a report whose app launched before the drive is not the drive\'s', deathReports([aliveEntry], aliveUdid, launched + CRASH_SKEW_MS + 1, aliveUntil).length, 0);
+  add('a report captured after the drive and its wait is not the drive\'s', deathReports([aliveEntry], aliveUdid, aliveSince, captured - CRASH_WAIT_MS - 1).length, 0);
+  add('a report on another device is not the drive\'s', deathReports([aliveEntry], '00000000-0000-0000-0000-000000000000', aliveSince, aliveUntil).length, 0);
+  add('a report is claimed by its pid and its capture time', inWindow[0].key, '21356@2026-10-15 00:20:30.2220 -0400');
+  add('a report an earlier drive of the row claimed is not counted again', deathReports([aliveEntry], aliveUdid, aliveSince, aliveUntil, new Set([inWindow[0].key])).length, 0);
+  const whole = clone(ipadP.attempts.at(-1));
+  const withReports = (reports) => ({ ...clone(whole), death: attemptDeath(whole.events, reports) });
+  const backAgain = withReports(inWindow);
+  add('an alive drive with XCUITest\'s report inside it DIED', diedIn(backAgain) && backAgain.death.alive === true, true);
+  add('an alive drive with XCUITest\'s report inside it is driven again', driveAgain([backAgain]), true);
+  const outside = withReports(deathReports([aliveEntry], aliveUdid, launched + CRASH_SKEW_MS + 1, aliveUntil));
+  add('an alive drive whose report fell outside it ran whole and is not driven again', outside.death === undefined && driveAgain([outside]) === false, true);
+  add('G1 an alive drive with no report inside it: PASS', g(gradeRun({ attempts: [outside] })), PASS);
+  const elsewhere = withReports(deathReports([aliveEntry], '00000000-0000-0000-0000-000000000000', aliveSince, aliveUntil));
+  add('an alive drive with a report on another device is not driven again', driveAgain([elsewhere]), false);
+  const appBody = clone(aliveReport.body);
+  appBody.usedImages.push({ name: 'Tortie' });
+  appBody.threads[0].frames.unshift({ imageIndex: appBody.usedImages.length - 1, symbol: 'ScreenCell.x(_:)' });
+  const appAlive = withReports(deathReports([{ ...aliveEntry, text: `${J(aliveReport.header)}\n${J(appBody)}` }], aliveUdid, aliveSince, aliveUntil));
+  add('an alive drive with the app\'s own report is never driven again', driveAgain([appAlive]), false);
+  add('G1 an alive drive with the app\'s own report: FAIL', g(gradeRun({ attempts: [appAlive] })), FAIL);
+  add('G1 an alive XCUITest death not driven again: UNREADABLE, never PASS', g(gradeRun({ attempts: [backAgain] })), UNREADABLE);
+  add('G1 an alive XCUITest death, then a whole drive: PASS', g(gradeRun({ attempts: [backAgain, clone(whole)] })), PASS);
+  add('G1 three alive XCUITest deaths: UNREADABLE, never PASS', g(gradeRun({ attempts: [backAgain, backAgain, backAgain] })), UNREADABLE);
+  add('G1 says the app came back after a crash', /came back after a crash/.test(gradeRun({ attempts: [backAgain, backAgain, backAgain] }).why), true);
+  add('never a fourth drive after three alive deaths', driveAgain([backAgain, backAgain, backAgain]), false);
+  add('a drive whose last attempt came back is read as such', cameBack({ attempts: [backAgain] }) && !cameBack({ attempts: [backAgain, clone(whole)] }), true);
+  const backS = { attempts: [backAgain, backAgain, backAgain].map((a) => ({ ...clone(fixture('touch-26-parent-sample-turn').attempts[0]), death: a.death })) };
+  add('the sample read after the crash would FAIL G11 as the app\'s', g(gradeSampleTurn(rowOf('touch-26'), { attempts: [backS.attempts.at(-1)] })), FAIL);
+  const backRow = gradeRow(rowOf('touch-26'), { S: backS, kind: 'touchID', talkConfirm: talkConfirm(), sampleConfirm: sampleConfirm(), notConfirmed: copyWord('endNotConfirmed'), runtime: '26.3.1' });
+  add('a sample drive that came back after XCUITest\'s crash: G11 UNREADABLE, never graded as the app\'s', backRow.G11.grade, UNREADABLE);
+  add('...and says why', /came back after XCUITest's crash/.test(backRow.G11.why), true);
+  add('...and its G1 is UNREADABLE', backRow.G1.grade, UNREADABLE);
+  // The run's own loop, DRIVEN (Phase 333.4.1's fix round): driveWithRetry
+  // over attempts cut from the fixtures and a reader of its own that asks the
+  // shipping deathReports over the committed report, the directory left out.
+  // Reports are read after EVERY attempt, alive or not, waited for only when
+  // the app is gone, into the row's own claims, before the loop may end.
+  const retryOf = async (attempts, window) => {
+    const rowClaims = new Set();
+    const reads = [];
+    const told = [];
+    const read = async (u, since, until, opts) => {
+      reads.push({ u, wait: opts?.wait, rowClaims: opts?.claimed === rowClaims });
+      const found = deathReports(window.entries, u, since, until, opts?.claimed ?? new Set());
+      for (const r of found) opts?.claimed?.add(r.key);
+      return found;
+    };
+    const attempt = async (n) => ({ ...clone(attempts[Math.min(n, attempts.length) - 1]), startedAt: window.since, endedAt: window.until });
+    const drive = await driveWithRetry('self-test', attempt, window.udid, rowClaims, { read, tell: (line) => told.push(line) });
+    return { drive, reads, told };
+  };
+  const alongside = { entries: [aliveEntry], udid: aliveUdid, since: aliveSince, until: aliveUntil };
+  const aliveBack = await retryOf([whole, whole], alongside);
+  add('an alive drive with XCUITest\'s report inside it has its reports read and is driven again', aliveBack.drive.attempts.length, 2);
+  add('...its first attempt came back after that one report, the second ran whole', aliveBack.drive.attempts.length === 2 && aliveBack.drive.attempts[0].death?.alive === true && aliveBack.drive.attempts[0].death.reports.length === 1 && aliveBack.drive.attempts[1].death === undefined, true);
+  add('...every read of a running app waited 0 ms', J(aliveBack.reads.map((r) => r.wait)), J([0, 0]));
+  add('...and says the app was running after a crash, driven again', aliveBack.told.some((l) => /running at the end, after a crash inside the drive.*driven again, alone/.test(l)), true);
+  add('...G1 PASS on the second drive', g(gradeRun(aliveBack.drive)), PASS);
+  const deadBack = await retryOf([death.attempts[0], whole], alongside);
+  add('a dead drive\'s reports are waited for CRASH_WAIT_MS and the whole drive after it\'s are not', J(deadBack.reads.map((r) => r.wait)), J([CRASH_WAIT_MS, 0]));
+  add('...two attempts, G1 PASS', `${String(deadBack.drive.attempts.length)} ${g(gradeRun(deadBack.drive))}`, `2 ${PASS}`);
+  const aliveClean = await retryOf([whole], { ...alongside, since: launched + CRASH_SKEW_MS + 1 });
+  add('an alive drive with no report in its window: one read, unwaited, one attempt that ran whole', J([aliveClean.reads.map((r) => r.wait), aliveClean.drive.attempts.length, aliveClean.drive.attempts[0].death ?? null]), J([[0], 1, null]));
+  const appOwn = await retryOf([whole, whole], { ...alongside, entries: [{ ...aliveEntry, text: `${J(aliveReport.header)}\n${J(appBody)}` }] });
+  add('an alive drive with the app\'s own report: read once, never driven again, G1 FAIL', `${String(appOwn.reads.length)} ${String(appOwn.drive.attempts.length)} ${g(gradeRun(appOwn.drive))}`, `1 1 ${FAIL}`);
+  add('every read is handed the row\'s own claims and the row\'s device', [aliveBack, deadBack, aliveClean, appOwn].every((r) => r.reads.every((one) => one.rowClaims && one.u === aliveUdid)), true);
+  const retrySource = driveWithRetry.toString();
+  add('the run reads with readDeath and says with say unless a self-test hands its own', /\{\s*read = readDeath,\s*tell = say\s*\}\s*=\s*\{\}/.test(retrySource), true);
+  const mainSource = main.toString();
+  add('every row runs the K drive at the largest text size, after S, with the row\'s claims', /kind: 'K'[^)]*textSize: LARGEST_TEXT[^)]*\), sim\.udid, ctx\.claimed\)/.test(mainSource) && mainSource.indexOf("kind: 'S'") < mainSource.indexOf("kind: 'K'"), true);
+  add('every drive of a row shares the row\'s claims', (mainSource.match(/sim\.udid, ctx\.claimed\)/g) ?? []).length, 6);
 
   // G2.
   const ipad = rowOf('ipad-26');
@@ -1426,16 +1950,27 @@ function selfTest() {
   const shape = (r) => [r.face, r.window, r.nav, r.menu, r.status, r.grid, r.tabBar, r.tabButtons];
   add('G7 the recorded parent readings after the turn are the kept ones', J(recorded.afters.map(shape)), J(turnReadings(eventsOf(t26)).afters.map(shape)));
   add('G7 the recorded parent reading before the turn is the kept one', J(shape(recorded.before)), J(shape(turnReadings(eventsOf(t26)).before)));
-  add('G7 touch-26 at the parent: STATED (F2)', g(gradeTurn(touch26, t26, { parent: recorded })), STATED);
-  add('G7 touch-26 with the bars 12 points high', g(gradeTurn(touch26, edited(t26, (ev) => replaceEvent(ev, (e) => e.seq === 11, (e) => { e.chrome.nav = [0, 12, 375, 54]; })), { parent: recorded })), FAIL);
+  // Phase 333.4.1: touch-26 is no longer STATED; the STATED mechanism stays, held on a row a later round may mark.
+  const stated26 = { ...touch26, stated: 'G7' };
+  add('G7 touch-26 at the parent: FAIL, F2 is no longer stated', g(gradeTurn(touch26, t26, { parent: recorded })), FAIL);
+  add('G7 touch-26 at the parent with no parent reading: FAIL', g(gradeTurn(touch26, t26)), FAIL);
+  const headTurn = fixture('touch-26-head-turn');
+  add('G7 touch-26 at HEAD: every frame read back after the turn: PASS', g(gradeTurn(touch26, headTurn, { afterReadings: 3 })), PASS);
+  add('G7 the HEAD drive asked for T\'s five readings: UNREADABLE, it kept three', g(gradeTurn(touch26, headTurn)), UNREADABLE);
+  add('G7 touch-26 at HEAD with the bar 10 high after the turn: FAIL', g(gradeTurn(touch26, edited(headTurn, (ev) => replaceEvent(ev, (e) => e.seq === 11, (e) => { e.chrome.nav = [0, 10, 375, 54]; })), { afterReadings: 3 })), FAIL);
+  add('G7 the parent\'s paired turn read live: FAIL (F2)', g(gradeTurn(touch26, fixture('touch-26-parent-paired'), { afterReadings: 2 })), FAIL);
+  add('G7 face-26 at HEAD: every frame as before the turn: PASS', g(gradeTurn(rowOf('face-26'), fixture('face-26-head-turn'), { afterReadings: 3 })), PASS);
+  add('G7 a STATED row at the parent: STATED (F2)', g(gradeTurn(stated26, t26, { parent: recorded })), STATED);
+  add('G7 a STATED row with the bars 12 points high', g(gradeTurn(stated26, edited(t26, (ev) => replaceEvent(ev, (e) => e.seq === 11, (e) => { e.chrome.nav = [0, 12, 375, 54]; })), { parent: recorded })), FAIL);
   const healed = edited(t26, (ev) => {
     const before = ev.find((e) => e.seq === 8);
     for (const e of ev) if (e.seq > 9 && e.chrome) e.chrome = { ...clone(before.chrome), orientation: 1, menu: e.chrome.menu ? clone(before.chrome.menu) : null, status: e.chrome.status ? clone(before.chrome.status) : null, grid: e.chrome.grid ? clone(before.chrome.grid) : null };
   });
   add('G7 touch-26 reading back exactly: PASS, F2 gone', g(gradeTurn(touch26, healed, { parent: recorded })), PASS);
-  add('G7 touch-26 against a live parent that read the same', g(gradeTurn(touch26, t26, { parent: parentTurn('touch-26', t26) })), STATED);
-  add('G7 touch-26 against a live parent that read back exactly', g(gradeTurn(touch26, t26, { parent: parentTurn('touch-26', healed) })), FAIL);
-  add('G7 touch-26 shifted with no parent reading', g(gradeTurn(touch26, t26, { parent: null })), UNREADABLE);
+  add('G7 a STATED row reading back exactly: PASS, F2 gone', g(gradeTurn(stated26, healed, { parent: recorded })), PASS);
+  add('G7 a STATED row against a live parent that read the same', g(gradeTurn(stated26, t26, { parent: parentTurn('touch-26', t26) })), STATED);
+  add('G7 a STATED row against a live parent that read back exactly', g(gradeTurn(stated26, t26, { parent: parentTurn('touch-26', healed) })), FAIL);
+  add('G7 a STATED row shifted with no parent reading', g(gradeTurn(stated26, t26, { parent: null })), UNREADABLE);
   const t18 = fixture('touch-18-turn');
   add('G7 touch-18: every frame back', g(gradeTurn(rowOf('touch-18'), t18)), PASS);
   add('G7 touch-18 one point off', g(gradeTurn(rowOf('touch-18'), edited(t18, (ev) => replaceEvent(ev, (e) => e.seq === 29, (e) => { e.chrome.grid.frame = [0, 95, 375, 524]; })))), FAIL);
@@ -1466,11 +2001,12 @@ function selfTest() {
   add('G7 the settled touch-26 drive reads 100-point buttons after the turn', widthsAfter(settled), '100,100,100');
   add('G7 the recorded parent reads 108.5-point buttons after the turn', recorded.afters[0].tabButtons.map((b) => b[2]).join(','), '108.5,108.5,108.5');
   add('G7 the widened face-26 drive reads 108.33-point buttons after the turn', widthsAfter(widened).split(',').map((w) => w.slice(0, 6)).join(','), '108.33,108.33,108.33');
-  add('G7 touch-26, buttons not widened, against the recorded parent: STATED', g(gradeTurn(touch26, settled, { parent: recorded })), STATED);
-  add('G7 touch-26, buttons not widened, against a live parent that caught the widening: STATED', g(gradeTurn(touch26, settled, { parent: parentTurn('touch-26', t26) })), STATED);
-  add('G7 touch-26, buttons widened, against a live parent that did not: STATED', g(gradeTurn(touch26, t26, { parent: parentTurn('touch-26', settled) })), STATED);
-  add('G7 touch-26, buttons not widened, with the bars 12 points high', g(gradeTurn(touch26, edited(settled, (ev) => replaceEvent(ev, (e) => e.seq === 11, (e) => { e.chrome.nav = [0, 12, 375, 54]; })), { parent: recorded })), FAIL);
-  add('G7 touch-26, buttons not widened, with the grid moved', g(gradeTurn(touch26, edited(settled, (ev) => replaceEvent(ev, (e) => e.seq === 20, (e) => { e.chrome.grid.frame = [0, 96, 375, 488]; })), { parent: recorded })), FAIL);
+  add('G7 touch-26, 333.4\'s drive with the bars 10 high, buttons not widened: FAIL now', g(gradeTurn(touch26, settled, { parent: recorded })), FAIL);
+  add('G7 a STATED row, buttons not widened, against the recorded parent: STATED', g(gradeTurn(stated26, settled, { parent: recorded })), STATED);
+  add('G7 a STATED row, buttons not widened, against a live parent that caught the widening: STATED', g(gradeTurn(stated26, settled, { parent: parentTurn('touch-26', t26) })), STATED);
+  add('G7 a STATED row, buttons widened, against a live parent that did not: STATED', g(gradeTurn(stated26, t26, { parent: parentTurn('touch-26', settled) })), STATED);
+  add('G7 a STATED row, buttons not widened, with the bars 12 points high', g(gradeTurn(stated26, edited(settled, (ev) => replaceEvent(ev, (e) => e.seq === 11, (e) => { e.chrome.nav = [0, 12, 375, 54]; })), { parent: recorded })), FAIL);
+  add('G7 a STATED row, buttons not widened, with the grid moved', g(gradeTurn(stated26, edited(settled, (ev) => replaceEvent(ev, (e) => e.seq === 20, (e) => { e.chrome.grid.frame = [0, 96, 375, 488]; })), { parent: recorded })), FAIL);
   add('G7 face-26 with the buttons widened after the turn: PASS', g(gradeTurn(rowOf('face-26'), widened)), PASS);
   add('G7 face-26 widened and the bar moved', g(gradeTurn(rowOf('face-26'), edited(widened, (ev) => replaceEvent(ev, (e) => e.seq === 11, (e) => { e.chrome.nav = [0, 52, 402, 54]; })))), FAIL);
   add('G7 face-26 widened and the tab bar moved', g(gradeTurn(rowOf('face-26'), edited(widened, (ev) => replaceEvent(ev, (e) => e.seq === 10, (e) => { e.chrome.tabBar = [0, 780, 402, 94]; })))), FAIL);
@@ -1487,6 +2023,10 @@ function selfTest() {
   add('G8 the Release End still offered after', g(rel(edited(ipadR, (ev) => replaceEvent(ev, (e) => e.step === 'terminal-menu' && e.for === 'end-after', (e) => { e.end = { enabled: true, label: 'End session…' }; })))), FAIL);
   add('G8 the Release drive short of turn 0', g(rel(edited(ipadR, (ev) => replaceEvent(ev, (e) => e.step === 'turns', (e) => { e.indexes = [3]; })))), FAIL);
   add('G8 the project\'s build unread', g(rel(ipadR, { version: null })), UNREADABLE);
+  // Phase 333.4.1 (D8): a Release drive that came back after XCUITest's crash is read by its G1 alone.
+  const rOffered = edited(ipadR, (ev) => replaceEvent(ev, (e) => e.step === 'terminal-menu' && e.for === 'end-after', (e) => { e.end = { enabled: true, label: 'End session…' }; }));
+  const rBack = { ...rOffered, attempts: [{ ...rOffered.attempts.at(-1), death: { during: 'a step its lines do not show', alive: true, reports: [{ name: 'Tortie-x.ips', class: 'xcuitest', pid: 1, key: '1@x' }] } }] };
+  add('G8 a Release drive that came back: UNREADABLE, its End never graded as the app\'s', g(rel(rBack)), UNREADABLE);
 
   // G9.
   const samp = (row, d) => gradeSample(row, d, { confirm: sample, runtime: d.runtime, notConfirmed });
@@ -1505,10 +2045,100 @@ function selfTest() {
   add('G10 says the handle carries none', /carries no biometryKind/.test(gradeKind(ipad, undefined).why), true);
   add('G10 a capabilities.plist that was not read', g(gradeKind(ipad, null)), UNREADABLE);
 
+  // G11, the sample's turn (Phase 333.4.1).
+  const sHead = fixture('touch-26-head-sample-turn');
+  const afterEl = (id, change) => (ev) => replaceEvent(ev, (e) => e.step === 'sample-inventory' && e.for === 'turn-after', (e) => {
+    const el = e.elements.find((x) => x.id === id);
+    if (el === undefined) throw new Error(`the self-test edits ${id}, which the fixture does not hold`);
+    change(el, e);
+  });
+  add('G11 touch-26 at HEAD: every element read back after the turn', g(gradeSampleTurn(touch26, sHead)), PASS);
+  add('G11 touch-26 at the parent: the Sample bar 44 tall after the turn (F2)', g(gradeSampleTurn(touch26, fixture('touch-26-parent-sample-turn'))), FAIL);
+  add('G11 says the parent\'s bar went from 64 to 44', /sample-bar \[0, 0, 375, 64\] then \[0, 0, 375, 44\]/.test(gradeSampleTurn(touch26, fixture('touch-26-parent-sample-turn')).why), true);
+  add('G11 face-26 at HEAD', g(gradeSampleTurn(rowOf('face-26'), fixture('face-26-head-sample-turn'))), PASS);
+  const s18 = gradeSampleTurn(rowOf('touch-18'), fixture('touch-18-parent-sample-turn'));
+  add('G11 touch-18 at the parent: no F2 on iOS 18.3', s18.grade, PASS);
+  add('G11 on iOS 18.3, which names no BackButton, the grid holds the bar\'s place', /no element is named BackButton/.test(s18.why), true);
+  add('G11 ipad-26 at the parent: the window does not turn (F6)', g(gradeSampleTurn(rowOf('ipad-26'), fixture('ipad-26-parent-sample-turn'))), PASS);
+  add('G11 a HEAD reading with the Sample bar 44 tall after the turn', g(gradeSampleTurn(touch26, edited(sHead, afterEl('sample-bar', (el) => { el.frame = [0, 0, 375, 44]; })))), FAIL);
+  add('G11 Leave sample 20 points up after the turn', g(gradeSampleTurn(touch26, edited(sHead, afterEl('sample-leave', (el) => { el.frame = [276.5, 0, 82.5, 44]; })))), FAIL);
+  add('G11 the back button gone after the turn', g(gradeSampleTurn(touch26, edited(sHead, afterEl('BackButton', (el, e) => { e.elements = e.elements.filter((x) => x !== el); })))), FAIL);
+  add('G11 the grid 20 points up after the turn', g(gradeSampleTurn(touch26, edited(sHead, afterEl('screen-grid', (el) => { el.frame = [0, 138, 375, 446]; })))), FAIL);
+  add('G11 the Sample bar not read before the turn', g(gradeSampleTurn(touch26, edited(sHead, (ev) => replaceEvent(ev, (e) => e.step === 'sample-inventory' && e.for === 'turn-before', (e) => { e.elements = e.elements.filter((x) => x.id !== 'sample-bar'); })))), UNREADABLE);
+  add('G11 the Sample bar read in neither reading: UNREADABLE, only the back button may go unnamed', g(gradeSampleTurn(touch26, edited(sHead, (ev) => { for (const e of ev) if (e.step === 'sample-inventory') e.elements = e.elements.filter((x) => x.id !== 'sample-bar'); }))), UNREADABLE);
+  add('G11 the device never turned sideways', g(gradeSampleTurn(touch26, edited(sHead, (ev) => replaceEvent(ev, (e) => e.step === 'landscape', (e) => { e.chrome.orientation = 1; })))), UNREADABLE);
+  add('G11 no reading after the turn', g(gradeSampleTurn(touch26, edited(sHead, (ev) => ev.splice(ev.findIndex((e) => e.step === 'sample-inventory' && e.for === 'turn-after'), 1)))), UNREADABLE);
+
+  // G12, the key bar (Phase 333.4.1).
+  const kSE = fixture('keys-touch-26').drives;
+  const kPro = fixture('keys-face-26').drives;
+  const keysOf = (d) => eventsOf(d).find((e) => e.step === 'keys-read');
+  const keyEdit = (d, short, change) => edited(d, (ev) => replaceEvent(ev, (e) => e.step === 'keys-read', (e) => change(e.keys.find((k) => k.id === `screen-key-${short}`), e)));
+  add('G12 touch-26 at HEAD: return its glyph, every word at its width, the bar the same at the largest size', g(gradeKeys(touch26, { S: kSE.headS, K: kSE.headK })), PASS);
+  add('G12 touch-26 at the parent: return 41.5, and 34 at the largest size', g(gradeKeys(touch26, { S: kSE.parentS, K: kSE.parentK })), FAIL);
+  add('G12 return 41.5 is neither its word nor its glyph', keyBarProblems(keysOf(kSE.parentS)).map((x) => x.split(' ')[0]).join(','), 'return');
+  add('G12 at the parent\'s largest size ⇧tab, ctrl and return are squeezed', keyBarProblems(keysOf(kSE.parentK)).map((x) => x.split(' ')[0]).join(','), 'btab,ctrl,return');
+  add('G12 face-26 at HEAD: return keeps its word at both sizes', g(gradeKeys(rowOf('face-26'), { S: kPro.headS, K: kPro.headK })), PASS);
+  add('G12 face-26 at HEAD reads return as its word', /return as its word/.test(gradeKeys(rowOf('face-26'), { S: kPro.headS, K: kPro.headK }).why), true);
+  add('G12 face-26 at the parent\'s default size: every word at its width', keyBarProblems(keysOf(kPro.parentS)).length, 0);
+  add('G12 face-26 at the parent: squeezed at the largest size', g(gradeKeys(rowOf('face-26'), { S: kPro.parentS, K: kPro.parentK })), FAIL);
+  add('G12 return 41.5 at the default size', g(gradeKeys(touch26, { S: keyEdit(kSE.headS, 'return', (k) => { k.frame = [300, 394, 41.5, 36]; }), K: kSE.headK })), FAIL);
+  add('G12 return its glyph but ctrl squeezed to 34', g(gradeKeys(touch26, { S: keyEdit(kSE.headS, 'ctrl', (k) => { k.frame = [256.5, 394, 34, 36]; }), K: kSE.headK })), FAIL);
+  add('G12 a key missing', g(gradeKeys(touch26, { S: keyEdit(kSE.headS, 'hide', (k, e) => { e.keys = e.keys.filter((x) => x !== k); }), K: kSE.headK })), FAIL);
+  add('G12 a key outside the bar', g(gradeKeys(touch26, { S: keyEdit(kSE.headS, 'esc', (k) => { k.frame = [13, 380, 34, 36]; }), K: kSE.headK })), FAIL);
+  add('G12 a key outside the window', g(gradeKeys(touch26, { S: keyEdit(kSE.headS, 'hide', (k) => { k.frame = [360, 394, 30, 36]; }), K: kSE.headK })), FAIL);
+  const lowered = edited(kSE.headK, (ev) => replaceEvent(ev, (e) => e.step === 'keys-read', (e) => { e.bar[1] += 4; for (const k of e.keys) k.frame[1] += 4; }));
+  add('G12 the bar 4 points lower at the largest size, every word still at its width', keyBarProblems(keysOf(lowered)).length, 0);
+  add('G12 the bar 4 points lower at the largest size: the cap', g(gradeKeys(touch26, { S: kSE.headS, K: lowered })), FAIL);
+  add('G12 a K drive whose ⋯ rows did not grow: the size did not take', g(gradeKeys(touch26, { S: kSE.headS, K: edited(kSE.headK, (ev) => replaceEvent(ev, (e) => e.step === 'terminal-menu', (e) => { e.catchUp.frame = [116, 77.5, 250, 42]; })) })), UNREADABLE);
+  add('G12 a K drive that carried no text size', g(gradeKeys(touch26, { S: kSE.headS, K: edited(kSE.headK, (ev) => replaceEvent(ev, (e) => e.step === 'keys-read', (e) => { e.textSize = null; })) })), UNREADABLE);
+  add('G12 no K drive', g(gradeKeys(touch26, { S: kSE.headS, K: null })), UNREADABLE);
+  add('G12 a keyboard that did not rise', g(gradeKeys(touch26, { S: edited(kSE.headS, (ev) => replaceEvent(ev, (e) => e.step === 'keys-read', (e) => { e.keyboard = false; e.keys = []; })), K: kSE.headK })), UNREADABLE);
+
+  // G13, the fill (Phase 333.4.1).
+  const cols = doorColumns();
+  add('the honest door draws the vectors\' 120 columns', cols, 120);
+  add('the 3x row at 402 points: 400 at 80, 120 and 200 columns, 378.67 at 142 (§2.2)', [80, 120, 142, 200].map((c) => Math.round(fittedRowWidth(3, 402, c) * 100) / 100).join(','), '400,400,378.67,400');
+  add('the 3x row in the 750-point grid sideways: 720', fittedRowWidth(3, 750, 120), 720);
+  add('the 2x row is the grid\'s width', fittedRowWidth(2, 375, 120), 375);
+  const parentPaired = fixture('touch-26-parent-paired');
+  add('G13 touch-26 at HEAD: 375 upright, 667 sideways', g(gradeFill(touch26, [{ label: 'P', drive: headTurn }], { columns: cols })), PASS);
+  add('G13 touch-26 at the parent: 360 upright, 660 sideways', g(gradeFill(touch26, [{ label: 'P', drive: parentPaired }], { columns: cols })), FAIL);
+  add('G13 the parent reads 360 in the 375-point grid', /rows 360 wide in a 375-point grid/.test(gradeFill(touch26, [{ label: 'P', drive: parentPaired }], { columns: cols }).why), true);
+  const proTurn = fixture('face-26-head-turn');
+  add('G13 face-26 at HEAD: 400 upright, 720 sideways, the parent\'s', g(gradeFill(rowOf('face-26'), [{ label: 'P', drive: proTurn }], { columns: cols })), PASS);
+  const allRows = (f, seq, width) => edited(f, (ev) => replaceEvent(ev, (e) => e.seq === seq, (e) => { for (const r of e.reading.live) r.frame[2] = width; }));
+  add('G13 an SE row 360 wide', g(gradeFill(touch26, [{ label: 'P', drive: allRows(headTurn, 8, 360) }], { columns: cols })), FAIL);
+  add('G13 an iPhone 16 Pro row 402 wide: the 3x path must not fill', g(gradeFill(rowOf('face-26'), [{ label: 'P', drive: allRows(proTurn, 8, 402) }], { columns: cols })), FAIL);
+  add('G13 one row of forty a pixel short', g(gradeFill(touch26, [{ label: 'P', drive: edited(headTurn, (ev) => replaceEvent(ev, (e) => e.seq === 11, (e) => { e.reading.live[7].frame[2] = 374; })) }], { columns: cols })), FAIL);
+  add('G13 an upright grid narrower than the window', g(gradeFill(touch26, [{ label: 'P', drive: edited(headTurn, (ev) => replaceEvent(ev, (e) => e.seq === 8, (e) => { e.chrome.grid.frame = [0, 104, 360, 480]; for (const r of e.reading.live) r.frame[2] = 360; })) }], { columns: cols })), FAIL);
+  add('G13 a row that names no scale', g(gradeFill({ ...touch26, scale: undefined }, [{ label: 'P', drive: headTurn }], { columns: cols })), UNREADABLE);
+  add('G13 no reading drew a live row', g(gradeFill(touch26, [{ label: 'T', drive: t26 }], { columns: cols })), UNREADABLE);
+
+  // G14, the lock (Phase 333.4.1).
+  const pans = { 'touch-26': fixture('pan-touch-26').drives, 'touch-18': fixture('pan-touch-18').drives, 'ipad-26': fixture('pan-ipad-26').drives };
+  for (const [id, d] of Object.entries(pans)) {
+    add(`G14 ${id} at HEAD: the rows keep their y`, g(gradeLock(rowOf(id), d.head)), PASS);
+    add(`G14 ${id} at the parent: the rows move down with the finger`, g(gradeLock(rowOf(id), d.parent)), FAIL);
+  }
+  add('G14 the SE at 26.3 reads 164 left and 38 down at the parent', /moved up or down with the finger, row 0 from y 377 to 415/.test(gradeLock(touch26, pans['touch-26'].parent).why), true);
+  const panEdit = (d, change) => edited(d, (ev) => replaceEvent(ev, (e) => e.step === 'pan-sideways', change));
+  add('G14 a pan that did not move sideways', g(gradeLock(touch26, panEdit(pans['touch-26'].head, (e) => { e.after = clone(e.before); }))), FAIL);
+  add('G14 one row half a point and more down', g(gradeLock(touch26, panEdit(pans['touch-26'].head, (e) => { e.after.live[3].frame[1] += 0.75; }))), FAIL);
+  add('G14 a pan of 80 points with 164 of room', g(gradeLock(touch26, panEdit(pans['touch-26'].head, (e) => { for (const r of e.after.live) r.frame[0] = -101; }))), FAIL);
+  add('G14 a pan to the end of a smaller room counts', g(gradeLock(touch26, panEdit(pans['touch-26'].head, (e) => { for (const r of e.before.live) r.frame[0] = -125; for (const r of e.after.live) r.frame[0] = -185; }))), PASS);
+  add('G14 no room to pan', g(gradeLock(touch26, panEdit(pans['touch-26'].head, (e) => { for (const r of e.before.live) r.frame[0] = -180; }))), UNREADABLE);
+  add('G14 the pan read on Catch Me Up', g(gradeLock(touch26, panEdit(pans['touch-26'].head, (e) => { e.after.face = 'catch-up'; }))), UNREADABLE);
+  add('G14 no pan-sideways line', g(gradeLock(touch26, { attempts: [{ events: [] }] })), UNREADABLE);
+
   // The row's arms together.
   const together = gradeRow(touch26, { T: t26, kind: 'touchID', talkConfirm: talk, sampleConfirm: sample, notConfirmed, runtime: '26.3.1' });
-  add('a touch-26 row reads G7 STATED from the recorded parent', together.G7.grade, STATED);
-  add('a parent turn drive that died leaves G7 UNREADABLE', gradeRow(touch26, { T: t26, TP: { attempts: [{ events: [] }] }, kind: 'touchID', talkConfirm: talk, sampleConfirm: sample, notConfirmed, runtime: '26.3.1' }).G7.grade, UNREADABLE);
+  add('a touch-26 row whose turn reads as the parent\'s: G7 FAIL', together.G7.grade, FAIL);
+  add('a STATED row reads G7 STATED from the recorded parent', gradeRow(stated26, { T: t26, kind: 'touchID', talkConfirm: talk, sampleConfirm: sample, notConfirmed, runtime: '26.3.1' }).G7.grade, STATED);
+  add('a parent turn drive that died leaves a STATED row\'s G7 UNREADABLE', gradeRow(stated26, { T: t26, TP: { attempts: [{ events: [] }] }, kind: 'touchID', talkConfirm: talk, sampleConfirm: sample, notConfirmed, runtime: '26.3.1' }).G7.grade, UNREADABLE);
+  add('a row with no sample drive and no K drive reads G11, G12 and G14 UNREADABLE', [together.G11.grade, together.G12.grade, together.G14.grade].join(','), [UNREADABLE, UNREADABLE, UNREADABLE].join(','));
+  const fullRow = gradeRow(touch26, { P: headTurn, S: fixture('touch-26-head-sample-turn'), kind: 'touchID', talkConfirm: talk, sampleConfirm: sample, notConfirmed, runtime: '26.3.1', columns: doorColumns() });
+  add('a touch-26 row at HEAD reads G11 and G13 PASS', [fullRow.G11.grade, fullRow.G13.grade].join(','), [PASS, PASS].join(','));
   add('worst: FAIL outranks UNREADABLE', worst([{ label: 'a', v: verdict(UNREADABLE, 'x') }, { label: 'b', v: verdict(FAIL, 'y') }]).grade, FAIL);
   add('worst: UNREADABLE outranks STATED', worst([{ label: 'a', v: verdict(STATED, 'x') }, { label: 'b', v: verdict(UNREADABLE, 'y') }]).grade, UNREADABLE);
   add('worst: STATED outranks PASS', worst([{ label: 'a', v: verdict(PASS, 'x') }, { label: 'b', v: verdict(STATED, 'y') }]).grade, STATED);
@@ -1730,9 +2360,10 @@ async function driveOnce(sim, ctx, { label, configuration, derivedDataPath, proj
     tailing = false;
     await tail;
   }
+  const endedAt = Date.now();
   await Promise.all(reactions);
   events.sort((a, b) => Number(a?.seq ?? 0) - Number(b?.seq ?? 0));
-  return { code: r.code, ms: r.ms, timedOut: r.timedOut === true, startedAt, firstError: r.code === 0 ? null : firstErrorIn(r.logFile), events, marks, reactionErrors, door: null, why: r.why ?? null };
+  return { code: r.code, ms: r.ms, timedOut: r.timedOut === true, startedAt, endedAt, firstError: r.code === 0 ? null : firstErrorIn(r.logFile), events, marks, reactionErrors, door: null, why: r.why ?? null };
 }
 
 /** The first line of a drive's own xcodebuild log that says `error:`, clipped, or null. */
@@ -1747,21 +2378,31 @@ function firstErrorIn(logFile) {
 }
 
 /**
- * One drive, driven again when its app is not running at its end (SPEC G1,
- * F3, as the fix round reads it): each death's crash report is read from
- * macOS's own DiagnosticReports for the device `udid`, and {@link driveAgain}
- * decides. `attempt(n)` makes one attempt and returns it.
+ * One drive, driven again when it DIED (SPEC G1, F3; Phase 333.4.1, D8): after
+ * EVERY attempt, alive or not, the crash reports macOS wrote for the device
+ * `udid` inside that attempt are read from its own DiagnosticReports (waited
+ * for only when the app is gone) and claimed in the row's `claimed`, and
+ * {@link driveAgain} decides. `attempt(n)` makes one attempt and returns it.
+ * `read` and `tell` are the run's {@link readDeath} and `say`; since the fix
+ * round the self-test hands it its own, over the committed crash report, and
+ * DRIVES it, because a read of its text left D8's rule, a report read after
+ * an attempt the app was alive at the end of, undoable with the self-test
+ * green (the verify round put `!alive && ` back in front of the read and 299
+ * cases still passed).
  */
-async function driveWithRetry(label, attempt, udid) {
+async function driveWithRetry(label, attempt, udid, claimed = new Set(), { read = readDeath, tell = say } = {}) {
   const attempts = [];
   for (;;) {
     const a = await attempt(attempts.length + 1);
     attempts.push(a);
-    say(`  ${label}${attempts.length > 1 ? ` (drive ${String(attempts.length)})` : ''}: exited ${String(a.code)} in ${String(Math.round((a.ms ?? 0) / 1000))} s, ${String(a.events.length)} lines, alive ${String(aliveOf(a.events))}`);
-    if (!needsAgain(a.events)) break;
-    a.death = { during: diedDuring(a.events), reports: typeof a.startedAt === 'number' ? await readDeath(udid, a.startedAt) : [] };
+    tell(`  ${label}${attempts.length > 1 ? ` (drive ${String(attempts.length)})` : ''}: exited ${String(a.code)} in ${String(Math.round((a.ms ?? 0) / 1000))} s, ${String(a.events.length)} lines, alive ${String(aliveOf(a.events))}`);
+    const alive = !needsAgain(a.events);
+    const reports = typeof a.startedAt === 'number' ? await read(udid, a.startedAt, a.endedAt ?? Date.now(), { wait: alive ? 0 : CRASH_WAIT_MS, claimed }) : [];
+    a.death = attemptDeath(a.events, reports);
+    if (a.death === undefined) break;
     const again = driveAgain(attempts);
-    say(`  ${label}: the app was not running at the end (during ${a.death.during}; ${deathWords(a.death)})${again ? '; driven again, alone' : '; not driven again'}`);
+    const what = alive ? `the app was running at the end, after a crash inside the drive (during ${a.death.during}; ${deathWords(a.death)})` : `the app was not running at the end (during ${a.death.during}; ${deathWords(a.death)})`;
+    tell(`  ${label}: ${what}${again ? '; driven again, alone' : '; not driven again'}`);
     if (!again) break;
   }
   return { label, attempts };
@@ -1795,12 +2436,13 @@ function pairedAttempt(sim, ctx, { label, kind, configuration, derivedDataPath, 
   };
 }
 
-/** A drive with no Mac (R and S): See a sample, no code. */
-function sampleAttempt(sim, ctx, { label, kind, configuration, derivedDataPath }) {
+/** A drive with no Mac (R, S and K): See a sample, no code; K at the text size it names. */
+function sampleAttempt(sim, ctx, { label, kind, configuration, derivedDataPath, textSize = null }) {
   return async (n) => {
     await sim.simctl('keychain', 'reset');
     const steps = stepsFor(kind, ctx.row, { cast: ctx.cast });
-    const out = await driveOnce(sim, ctx, { label: `${label}${n > 1 ? '-again' : ''}`, configuration, derivedDataPath, project: PROJECT, steps, env: { P316_PAYLOAD: '', P316_STEPS: steps.join(',') } });
+    const env = { P316_PAYLOAD: '', P316_STEPS: steps.join(','), ...(textSize === null ? {} : { P316_TEXT_SIZE: textSize }) };
+    const out = await driveOnce(sim, ctx, { label: `${label}${n > 1 ? '-again' : ''}`, configuration, derivedDataPath, project: PROJECT, steps, env });
     out.steps = steps;
     return out;
   };
@@ -1897,12 +2539,13 @@ async function main() {
     const shippingApp = join(DD.shipping, 'Build', 'Products', 'Release-iphonesimulator', 'Tortie.app');
     const book = sampleBook();
     const cast = sampleCast(book);
-    const words = { talk: talkConfirm(), sample: sampleConfirm(book), notConfirmed: copyWord('endNotConfirmed') };
+    const words = { talk: talkConfirm(), sample: sampleConfirm(book), notConfirmed: copyWord('endNotConfirmed'), columns: doorColumns() };
 
     for (const row of plan.run) {
       const started = Date.now();
-      const r = { kind: undefined, udid: null, runtime: null, install: null, version, talkConfirm: words.talk, sampleConfirm: words.sample, notConfirmed: words.notConfirmed };
-      const ctx = { row, runDir, cast, doorConfirm: null };
+      const r = { kind: undefined, udid: null, runtime: null, install: null, version, talkConfirm: words.talk, sampleConfirm: words.sample, notConfirmed: words.notConfirmed, columns: words.columns };
+      // Phase 333.4.1 (D8): the crash reports this row's drives have claimed, so none counts twice.
+      const ctx = { row, runDir, cast, doorConfirm: null, claimed: new Set() };
       say(`${row.id}: ${row.deviceType} on iOS ${row.runtime} (${row.why})`);
       try {
         await withSimulator({ label: `p3334-${row.id}`, deviceType: row.deviceType, runtime: row.runtime, scratch: join(runDir, `sim-${row.id}`), derivedDataPath: DD.debug, keep: KEEP }, async (sim) => {
@@ -1928,21 +2571,23 @@ async function main() {
             r.install = { code: inst.code, appinfoCode: info.code, version: appinfoVersion(info.stdout), why: inst.code === 0 ? null : inst.stderr.trim().slice(0, 300) };
             say(`  R: install exited ${String(inst.code)}, appinfo ${String(info.code)}, CFBundleVersion ${String(r.install.version)}`);
             await sim.simctl('uninstall', BUNDLE_ID);
-            r.R = await driveWithRetry('R', sampleAttempt(sim, ctx, { label: `${row.id}-R`, kind: 'R', configuration: 'Release', derivedDataPath: DD.release }), sim.udid);
+            r.R = await driveWithRetry('R', sampleAttempt(sim, ctx, { label: `${row.id}-R`, kind: 'R', configuration: 'Release', derivedDataPath: DD.release }), sim.udid, ctx.claimed);
             await sim.simctl('uninstall', BUNDLE_ID);
           }
           // P, paired.
-          r.P = await driveWithRetry('P', pairedAttempt(sim, ctx, { label: `${row.id}-P`, kind: 'P', configuration: 'Debug', derivedDataPath: DD.debug, project: PROJECT }), sim.udid);
+          r.P = await driveWithRetry('P', pairedAttempt(sim, ctx, { label: `${row.id}-P`, kind: 'P', configuration: 'Debug', derivedDataPath: DD.debug, project: PROJECT }), sim.udid, ctx.claimed);
           if (ctx.doorConfirm !== null) r.talkConfirm = ctx.doorConfirm;
           // T, the turn.
-          r.T = await driveWithRetry('T', pairedAttempt(sim, ctx, { label: `${row.id}-T`, kind: 'T', configuration: 'Debug', derivedDataPath: DD.debug, project: PROJECT }), sim.udid);
+          r.T = await driveWithRetry('T', pairedAttempt(sim, ctx, { label: `${row.id}-T`, kind: 'T', configuration: 'Debug', derivedDataPath: DD.debug, project: PROJECT }), sim.udid, ctx.claimed);
           if (parentProject !== null) {
             await sim.simctl('uninstall', BUNDLE_ID);
-            r.TP = await driveWithRetry('T at the parent', pairedAttempt(sim, ctx, { label: `${row.id}-TP`, kind: 'T', configuration: 'Debug', derivedDataPath: DD.parent, project: parentProject }), sim.udid);
+            r.TP = await driveWithRetry('T at the parent', pairedAttempt(sim, ctx, { label: `${row.id}-TP`, kind: 'T', configuration: 'Debug', derivedDataPath: DD.parent, project: parentProject }), sim.udid, ctx.claimed);
             await sim.simctl('uninstall', BUNDLE_ID);
           }
           // S, See a sample.
-          r.S = await driveWithRetry('S', sampleAttempt(sim, ctx, { label: `${row.id}-S`, kind: 'S', configuration: 'Debug', derivedDataPath: DD.debug }), sim.udid);
+          r.S = await driveWithRetry('S', sampleAttempt(sim, ctx, { label: `${row.id}-S`, kind: 'S', configuration: 'Debug', derivedDataPath: DD.debug }), sim.udid, ctx.claimed);
+          // K, the key bar at the largest text size (Phase 333.4.1, G12).
+          r.K = await driveWithRetry('K', sampleAttempt(sim, ctx, { label: `${row.id}-K`, kind: 'K', configuration: 'Debug', derivedDataPath: DD.debug, textSize: LARGEST_TEXT }), sim.udid, ctx.claimed);
         });
       } catch (err) {
         say(`${row.id}: the device could not be made or driven: ${String(err?.message ?? err)}`);
@@ -1965,7 +2610,7 @@ async function main() {
         const tp = gradeRun(r.TP, { udid: r.udid });
         say(`  T at parent: ${turnLine(turnReadings(eventsOf(r.TP)))} (its drive: ${tp.grade}, ${tp.why})`);
       }
-      else if (row.stated === 'G7') say(`  T recorded:  ${turnLine(parentTurn(row.id))}`);
+      else if (PARENT_TURNS[row.id] !== undefined) say(`  T recorded:  ${turnLine(parentTurn(row.id))} (the parent, ${PARENT_TURNS[row.id].source})`);
       report.rows.push({
         row: row.id,
         deviceType: row.deviceType,
@@ -1976,7 +2621,7 @@ async function main() {
         install: r.install,
         ms: Date.now() - started,
         drives: Object.fromEntries(
-          ['R', 'P', 'T', 'TP', 'S']
+          ['R', 'P', 'T', 'TP', 'S', 'K']
             .filter((k) => r[k])
             .map((k) => [k, r[k].attempts.map((a) => ({ code: a.code, ms: a.ms, lines: a.events.length, alive: aliveOf(a.events), steps: a.steps ?? null, writes: endWrites(a.door).map((w) => ({ status: w.status, at: w.at })), marks: a.marks, reactionErrors: a.reactionErrors, firstError: a.firstError ?? null, death: a.death ?? null, why: a.why ?? null }))])
         ),
@@ -2024,6 +2669,6 @@ function invokedDirectly() {
 }
 
 if (invokedDirectly()) {
-  if (process.argv.includes('--grader-self-test')) process.exitCode = selfTest();
+  if (process.argv.includes('--grader-self-test')) process.exitCode = await selfTest();
   else await main();
 }
