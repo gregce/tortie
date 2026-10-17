@@ -42284,7 +42284,7 @@ written here in full, because the scratch that held them is removed when 333.11.
 
 ---
 
-## Phase 333.4.1 — "Land it, queue the gaps": the iPhone SE's top bar after a turn, the return key on a 375-point window, and the device probe's two gaps (operator, 2026-10-15)
+## Phase 333.4.1 — "Land it, queue the gaps": the iPhone SE's top bar after a turn, the return key on a 375-point window, and the device probe's two gaps (operator, 2026-10-15) ✅ LANDED `61b4708f`, 2026-10-16
 
 **Subject.** `fix(ios): keep the Terminal's top bar in place after a turn on iOS 26, and give the return key its word`
 
@@ -43831,3 +43831,5 @@ cycle rather than only the evening it was written.
 - 2026-10-16, **337.5 QUEUED — select text on the phone's Terminal the iPhone way** (Tier 2 under two conditions the spec proves, lighter checking).
 
 - 2026-10-16, **PHASES 346, 333.4.1 AND 337.5 STARTED** from `80daa9fd`'s follow-up, three workflows side by side (none photographs; Simulators share the three lock slots): 346 full Tier 3, 333.4.1 and 337.5 lighter checking.
+
+- 2026-10-16, **PHASE 333.4.1 LANDED, `61b4708f` — the small screens App Review uses; unreleased, phone build 11.** The SE's top bar after a turn is iOS 26.3's own (a Home-button iPhone's window loses its status-bar inset; measured in five bare hierarchies), made up by the root's additional inset at each turn's completion; the @2x Terminal fills the width (375 of 375 pt where it drew 300 to 360), the directional lock (38 pt of drift to 0), the key bar capped at the standard size with return as its symbol on the SE; the probe reads crash reports after every drive, and rule 10 refuses a shadow of its five names. One verifier, one fix round on two tooling minors, reverify approved. Stated: rule 10i reads with the shared lexer. 337.5 is landing next; 346 is in its ruled round; on his word, 0.112.0 goes out once 346 lands, then build 11.
