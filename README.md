@@ -149,12 +149,14 @@ Need another CLI? [Add it with one JSON file](https://github.com/gregce/tortie/b
 Your sessions keep running on your Mac. The iPhone app lets you check on them and answer them when you are away from it.
 
 - **See what needs you.** Every session on your Mac, with the ones waiting on you first, grouped by project.
-- **Open a session's terminal.** Scroll back through what it printed and type into it, with keys for Esc, Tab, the arrows, Control and Return. Turn the phone sideways to see the terminal alone.
+- **Open a session's terminal.** Scroll back through what it printed and type into it, with keys for Esc, Tab, the arrows, Control and Return. Touch and hold a word to select text with the iPhone's own handles, then copy it. Turn the phone sideways to see the terminal alone.
 - **Answer with a tap.** A numbered question from Claude Code or Codex gets one button per answer, and you can send an idle session a message as if you had typed it at your Mac.
+- **Start a session.** Tap + on the Sessions tab, then pick a project open in Tortie, even one on another machine, and a built-in agent installed there. Starting needs no Face ID, and your Mac asks you to allow it once, in Settings, then Phone.
 - **Catch up, then end it.** Read what a session said and where it stands, and end one or several sessions behind Face ID, Touch ID or your passcode.
-- **No account and no server of ours.** You pair once by scanning a code in Tortie on your Mac. The app then talks only to that Mac, through Tailscale on it, encrypted from your phone to your Mac. It collects nothing ([privacy](https://tortie.sh/privacy)).
+- **Pair up to four Macs.** A tab at the right of the bottom bar, named after the Mac on screen, switches between them.
+- **No account and no server of ours.** You pair each Mac once by scanning the code Tortie shows on it. The app then talks only to the Macs you paired, through Tailscale on each, encrypted from your phone to the Mac. It collects nothing ([privacy](https://tortie.sh/privacy)).
 
-You need an Apple silicon Mac running Tortie 0.111.1 or later, awake with Tortie open, with [Tailscale](https://tailscale.com) signed in, and an iPhone on iOS 18.1 or later. [Join the beta on TestFlight →](https://tortie.sh/iphone)
+You need an Apple silicon Mac running Tortie 0.111.1 or later, awake with Tortie open, with [Tailscale](https://tailscale.com) signed in, and an iPhone on iOS 18.1 or later. Starting a session needs Tortie 0.112.0 or later. [Join the beta on TestFlight →](https://tortie.sh/iphone)
 
 ## Other features
 
@@ -197,6 +199,7 @@ own copy of tmux, so a fresh Mac needs no Homebrew and no command line setup.
 1. [Join the beta on TestFlight](https://tortie.sh/iphone) and install Tortie for iPhone.
 2. In Tortie on your Mac, open **Settings**, then **Phone**, and follow the three steps: get Tailscale, publish this Mac, and pair your phone. The first code can take a few minutes while your Mac's name reaches the internet.
 3. Scan the code with the app, check that the six groups match on both screens, and press **Allow** on your Mac.
+4. To pair another Mac, tap **Pair another Mac** in the app's Settings, then follow steps 2 and 3 for that Mac.
 
 ## Built with
 

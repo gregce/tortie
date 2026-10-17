@@ -7,8 +7,8 @@ Everything happens at appstoreconnect.apple.com: Apps, then Tortie, then the **D
 ## Submit only when these are true
 
 1. **The public beta has run for a while** with no report of the phone app breaking.
-2. **The build has See a sample (Phase 333.3), which build 10 carries.** It lets a reviewer use the app with made-up sessions and no Mac, which answers Apple's most likely rejection (guideline 2.1, "we could not use the app"). Text 4 below holds the paragraph that tells the reviewer how to open it.
-3. **The build has passed the iPad and iOS 27 check (Phase 333.4).** Apple reviewers have rejected iPhone-only apps this year after trying them on an iPad. That phase also gives you the line listing the devices tested, for the notes.
+2. **The build is build 11, which carries See a sample (Phase 333.3).** It lets a reviewer use the app with made-up sessions and no Mac, which answers Apple's most likely rejection (guideline 2.1, "we could not use the app"). Text 4 below holds the paragraph that tells the reviewer how to open it.
+3. **The build has passed the iPad check (Phases 333.4 and 333.4.1).** Apple reviewers have rejected iPhone-only apps this year after trying them on an iPad. Text 4 already holds the line listing the devices tested. iOS 27 is not checked yet, because it needs macOS Tahoe and Xcode 27.
 4. **Your use video shows the newest iOS.** Your videos were made on iOS 26.7. If a newer iOS is out by then, record the use video again from launch, the same way as before, and send it to me so I replace the copy on tortie.sh before you submit.
 5. **If you stay Individual, you have a written licence from Ita Vero, LLC for the name.** The copyright line and tortie.sh both name Ita Vero, LLC, while the app is sold under your own name. If you do not have one, stop and tell me.
 
@@ -19,7 +19,7 @@ Everything happens at appstoreconnect.apple.com: Apps, then Tortie, then the **D
 
 ## Screenshots
 
-Apple requires at least one screenshot at the 6.3-inch size (1206 by 2622 pixels) and accepts up to 10 at the 6.9-inch size (1320 by 2868 pixels). Your screen recording was 1320 by 2868, so your iPhone takes the 6.9-inch size, and I make the 6.3-inch copies. Apple also says screenshots must show made-up data, not a real person's, so take them in See a sample, which build 10 carries (on your paired phone it is in Settings, under Unpair this iPhone), or in the demo folder from the videos with nothing private on screen.
+Apple requires at least one screenshot at the 6.3-inch size (1206 by 2622 pixels) and accepts up to 10 at the 6.9-inch size (1320 by 2868 pixels). Your screen recording was 1320 by 2868, so your iPhone takes the 6.9-inch size, and I make the 6.3-inch copies. Apple also says screenshots must show made-up data, not a real person's, so take them in See a sample, which build 11 carries (on your paired phone it is in Settings, under Unpair this iPhone), or in the demo folder from the videos with nothing private on screen.
 
 1. Take 5 screenshots by pressing the side button and volume up together:
    - the Needs input tab with a session waiting
@@ -75,11 +75,11 @@ In the sidebar under **iOS App**, click **1.0 Prepare for Submission**.
 6. **Marketing URL:** `https://tortie.sh`
 7. **Version:** `1.0.0`, so it matches the build. Click **Save** before you add the build.
 8. **Copyright:** `2026 Ita Vero, LLC` (Apple adds the © itself).
-9. **Build:** click **+** (or Add Build), choose the build with See a sample, and click **Done**. Answer export compliance as before if it asks.
+9. **Build:** click **+** (or Add Build), choose build 11, and click **Done**. Answer export compliance as before if it asks.
 10. **App Review Information:**
     - Sign-in required: leave it off. The app has no account.
     - Contact: your first name, last name, phone starting with + and the country code, and `support@tortie.sh`.
-    - Notes: paste text 4 as I give it to you, with your phone number and the devices line filled in.
+    - Notes: paste text 4, with your phone number filled in.
     - Attachment: attach `pairing_mac.mp4` from Downloads (the converted copy, 14 MB).
 11. **App Store Version Release:** choose **Manually release this version**, so the store page goes live on the day the site and README change.
 12. Click **Save** at the top right.
@@ -98,13 +98,13 @@ The version then reads **Waiting for Review**. Apple says it typically reviews a
 
 ## The texts
 
-### 1. Promotional Text (156 of 170 characters)
+### 1. Promotional Text (150 of 170 characters)
 
 ```text
-See which coding-agent sessions on your Mac are waiting on you, open their terminals and answer them from anywhere. Needs Tortie for Mac, free at tortie.sh.
+See which coding-agent sessions on your Mac are waiting on you, answer them, or start new ones from anywhere. Needs Tortie for Mac, free at tortie.sh.
 ```
 
-### 2. Description (1,712 of 4,000 characters)
+### 2. Description (1,994 of 4,000 characters)
 
 It says "computer" rather than "Mac" where it can, because repeating Apple's product names cost a similar app a rejection under guideline 5.2.5.
 
@@ -114,18 +114,21 @@ Tortie for iPhone works with Tortie for Mac, the free, open-source app from tort
 With this app you can:
 • see every session, with the ones waiting on you first
 • open a session's terminal, scroll back through what it printed, and type into it, with keys for Esc, Tab, the arrows, Control and Return
+• select text in the terminal with the iPhone's own handles, and copy it
 • turn your phone sideways to see the terminal alone
 • answer a numbered question with one tap, for supported agents on the paired computer, or type your answer in any session's terminal
 • send a message to a supported agent on the paired computer waiting at its prompt, as if you had typed it there
+• start a new session on the paired computer, in a project open there, with a supported agent installed there
 • catch up on what a session said and where it stands
 • end a session, or several at once, after Face ID, Touch ID or your passcode
+• pair with up to four computers, each kept separate, and switch between them from the bottom bar
 
 Setting up takes a few minutes, once. In Tortie on your computer, open Settings, then Phone, and follow the three steps there, then scan the code with this app and allow this phone on your computer. Nothing is paired until you do.
 
-Your sessions stay on your own computers. The app talks only to the computer you paired, over the internet through Tailscale on that computer, encrypted from your phone to that computer. There is no account, no sign-in and nothing else to install on the phone. We collect no data.
+Your sessions stay on your own computers. The app talks only to the computers you paired, over the internet through Tailscale on each computer, encrypted from your phone to that computer. There is no account, no sign-in and nothing else to install on the phone. We collect no data.
 
 You need:
-• an Apple silicon Mac running Tortie for Mac 0.111 or later, awake with Tortie open
+• an Apple silicon Mac running Tortie for Mac 0.112 or later, awake with Tortie open
 • Tailscale signed in on that computer, with Funnel approved once
 • iOS 18.1 or later
 
@@ -138,24 +141,26 @@ Tortie works with the coding agents you already run. Tortie is an independent pr
 coding agent,agent sessions,terminal,developer,ai coding,session status,workflow,shell,pairing
 ```
 
-### 4. Review notes (3,119 of 4,000 bytes before your phone number and the devices line are filled in)
+### 4. Review notes (3,884 of 4,000 bytes before your phone number is filled in)
 
-This is the version for build 10, which carries See a sample: its paragraph beginning "Without a Mac" tells the reviewer how to use it. Phase 333.4 fills in the devices line, so ask me for the final notes before you paste them.
+This is the version for build 11. Its paragraph beginning "Without a Mac" tells the reviewer how to use See a sample.
 
 ```text
-WHAT THIS APP IS. Tortie for iPhone is the companion to Tortie for Mac, a free, open-source (Apache-2.0) desktop app at https://tortie.sh. Both are one open-source project by its author, Gregory Ceccarelli, who is the seller of this app; the source of both is public at https://github.com/gregce/tortie. Tortie belongs to Ita Vero, LLC, his company. Tortie for Mac keeps a developer's terminal sessions, coding agents and plain shells, running on their own Mac through quits and crashes, and brings them back after a restart. The iPhone app is for that developer away from the Mac. It lists their sessions with the ones waiting on them first. Tapping one opens its terminal, to read, scroll back and type into. It answers a numbered question from Claude Code or Codex with one tap, shows what the session said (Catch Me Up), and ends a session after Face ID, Touch ID or the passcode.
+WHAT THIS APP IS. Tortie for iPhone is the companion to Tortie for Mac, a free, open-source (Apache-2.0) desktop app at https://tortie.sh. Both are one open-source project by its author, Gregory Ceccarelli, who is the seller of this app; the source of both is public at https://github.com/gregce/tortie. Tortie belongs to Ita Vero, LLC, his company. Tortie for Mac keeps a developer's terminal sessions, coding agents and plain shells, running on their own Mac through quits and crashes, and brings them back after a restart. The iPhone app is for that developer away from the Mac. It lists their sessions with the ones waiting on them first. Tapping one opens its terminal, to read, scroll back, select and copy text, and type into. It answers a numbered question from Claude Code or Codex with one tap, shows what the session said (Catch Me Up), starts a new session on the Mac, and ends a session after Face ID, Touch ID or the passcode. One phone can pair with up to four Macs, each its own space.
 
 HOW TO REVIEW IT. The app needs the developer's own Mac. Two videos show it working on a physical iPhone: a camera video of pairing, with the code scanned and Allow pressed on the Mac, at https://tortie.sh/videos/pairing_mac.mp4, and a screen recording of use from launch, at https://tortie.sh/videos/using_tortie.mp4. The pairing video is also attached to this submission.
 
-Without a Mac, tap See a sample on the first screen. Made-up sessions load from a file inside the app; every page says Sample at the top, and nothing leaves the phone. Tap a session under Needs input; it opens on its terminal. Pinch, scroll up, turn the phone sideways, and tap the terminal to type: keys appear on the sample's prompt, and Return shows that nothing ran. Tap an option under a waiting session, then the More button at the top right for Catch Me Up and End session, which asks for Face ID, Touch ID or the passcode and ends only the sample's copy. Tap Leave sample to return.
+Without a Mac, tap See a sample on the first screen. Made-up sessions load from a file inside the app; every page says Sample at the top, and nothing leaves the phone. Tap a session under Needs input; it opens on its terminal. Pinch, scroll up, turn the phone sideways, long-press a word to select it and Copy, and tap the terminal to type: keys appear on the sample's prompt, and Return shows that nothing ran. Tap an option under a waiting session, then the More button at the top right for Catch Me Up and End session, which asks for Face ID, Touch ID or the passcode and ends only the sample's copy. On Sessions, tap + for New session; Create there says "This is a sample, so nothing ran." Tap Leave sample to return.
 
-CODE EXECUTION (2.5.2). Nothing is downloaded or run on the phone. The terminal is text the Mac sends. Keys go through the person's own Mac to that session, and every command runs on the person's own computers, never on the phone.
+CODE EXECUTION (2.5.2). Nothing is downloaded or run on the phone. The terminal is text the Mac sends. Keys go through the person's own Mac to that session. A new session is started by the Mac, with an agent the person installed on that Mac, in a project already open there. Every command runs on the person's own computers, never on the phone.
+
+AGENT MARKS. New session draws the marks of the agents installed there, such as Claude Code and Codex, only to tell apart agents the person already installed. Tortie is not affiliated with their makers.
 
 HOW IT CONNECTS. No account and no sign-in in this app, and no server of ours. The person scans a code Tortie for Mac shows and allows the phone on the Mac. The phone then talks only to that Mac, over the internet through Tailscale Funnel, which the person runs on their own Mac under their own Tailscale account, with TLS 1.3 from phone to Mac. The app uses Apple's frameworks only and no third-party code. The app collects nothing.
 
 OUTSIDE SERVICES. Tailscale Funnel, on the person's Mac. Tortie uses no AI service itself; sessions may run coding agents the person installed, which talk to their makers under those makers' terms.
 
-DEVICES AND VERSIONS TESTED. <the devices line from Phase 333.4>
+DEVICES AND VERSIONS TESTED. The Release build on iPhone 16 Pro (Face ID, and with nothing enrolled), iPhone SE (3rd generation, Touch ID) and iPad Air 11-inch (M3) in its iPhone window, each on iOS 26.3 and 18.3 in Simulator, and on a physical iPhone 16 Pro Max.
 
 PERMISSIONS. Camera: only to read the pairing code. Face ID or Touch ID: only before ending a session. Notifications: asked only when the paired Mac can send alerts; the app works fully without them.
 
@@ -164,11 +169,19 @@ REGIONS. The same in every region. A developer tool, not a regulated field.
 CONTACT. Gregory Ceccarelli, support@tortie.sh, <phone>.
 ```
 
+### 5. What to Test, for TestFlight (523 of 4,000 characters)
+
+Paste it in TestFlight, under build 11's Test Information, before you add the build to the Public group.
+
+```text
+Build 11 adds three things. Pair a second Mac (Settings, then Pair another Mac): each Mac gets its own space, and a tab at the right of the bottom bar switches between them. Start a session from the phone: on Sessions, tap +, pick a project and an agent, and tap Create (needs Tortie for Mac 0.112, and one Allow in its Settings, then Phone). Long-press text in a terminal to select it with the iPhone's handles and Copy. Also fixed: the top bar on an iPhone SE after turning the phone, and the key bar at large text sizes.
+```
+
 ---
 
 ## Where each step was checked (for the agents)
 
-Apple's pages were read on 9 October 2026, signed out; the screenshot and age rating pages were read raw. The tree is `gregce/tortie` at `d7f9a03e`.
+Apple's pages were read on 9 October 2026, signed out; the screenshot and age rating pages were read raw. The tree is `gregce/tortie` at `d7f9a03e`. The rows for build 11 at the end were read on 17 October 2026 at `4dd64c4f`, the 0.112.0 release.
 
 | Step | Checked against |
 | --- | --- |
@@ -202,3 +215,9 @@ Apple's pages were read on 9 October 2026, signed out; the screenshot and age ra
 | No refused word in the store fields (remote desktop, mirror, stream, SSH, beta, TestFlight) and no other app or company in the name, subtitle or keywords | Counted by script on 9 October |
 | Fewer Apple product names (5.2.5) | Research 140 sections 8 and 10.5 |
 | See a sample and the iPad pass before the store | Research 136 section 13; research 140 section 5; the 333.3 and 333.4 entries in docs/BACKLOG.md |
+| Build 11: start a session in a project open in Tortie, with a built-in agent installed there | `src/main/sessions/pocket-start.ts:308`, `:313`, the compiled `LAUNCHABLE_AGENT_IDS` and never a configured agent; the phone's one start, `ios/Tortie/Screens/Start.swift:91` |
+| Build 11: starting asks for no Face ID, and End and End these still do | `ios/Tortie/Screens/EndBar.swift:254`, `EndBatch.swift:172`; `conformance:ios` rule (bb2) holds the Start files free of any owner check |
+| Build 11: up to four Macs | `ios/Tortie/Door/Keys.swift:541`; `ios/Tortie/Style/Copy.swift:735` |
+| Build 11: select text, with Copy the menu's only item | `ios/Tortie/Screens/ScreenTextInput.swift:641` |
+| Build 11: starting needs Tortie 0.112.0 or later, and an older Mac draws no + | `ios/Tortie/Screens/SessionsScreen.swift:760`; `package.json:4` |
+| Build 11: the agents' marks are the Mac's own | `build/p346/agent-marks.mjs` and `ios/Tortie/AgentMarks.xcassets`, 13 marks regenerated byte for byte by `--check` |
