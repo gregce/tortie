@@ -42487,7 +42487,7 @@ door process still up. HEAD and v0.111.1 give identical readings: it is not 333.
 
 ---
 
-## Phase 337.5 — "Yes, all as recommended" … "In the Terminal itself" — select text on the phone's Terminal the iPhone way (operator, 2026-10-16; research 142 §8)
+## Phase 337.5 — "Yes, all as recommended" … "In the Terminal itself" — select text on the phone's Terminal the iPhone way (operator, 2026-10-16; research 142 §8) ✅ LANDED `3b327475`, 2026-10-16
 
 **Subject.** `feat(ios): select text on the Terminal with the iPhone's own handles`
 
@@ -43833,3 +43833,5 @@ cycle rather than only the evening it was written.
 - 2026-10-16, **PHASES 346, 333.4.1 AND 337.5 STARTED** from `80daa9fd`'s follow-up, three workflows side by side (none photographs; Simulators share the three lock slots): 346 full Tier 3, 333.4.1 and 337.5 lighter checking.
 
 - 2026-10-16, **PHASE 333.4.1 LANDED, `61b4708f` — the small screens App Review uses; unreleased, phone build 11.** The SE's top bar after a turn is iOS 26.3's own (a Home-button iPhone's window loses its status-bar inset; measured in five bare hierarchies), made up by the root's additional inset at each turn's completion; the @2x Terminal fills the width (375 of 375 pt where it drew 300 to 360), the directional lock (38 pt of drift to 0), the key bar capped at the standard size with return as its symbol on the SE; the probe reads crash reports after every drive, and rule 10 refuses a shadow of its five names. One verifier, one fix round on two tooling minors, reverify approved. Stated: rule 10i reads with the shared lexer. 337.5 is landing next; 346 is in its ruled round; on his word, 0.112.0 goes out once 346 lands, then build 11.
+
+- 2026-10-16, **PHASE 337.5 LANDED, `3b327475` — select text on the phone's Terminal with the iPhone's own handles, loupe and a Copy-only menu; unreleased, phone build 11.** The spec measured first and refused UITextInteraction (it needs first responder, hides the keyboard and turns the zoom's double tap into a word select); shipped UITextInput content with UITextSelectionDisplayInteraction, a loupe session and an edit menu of one action, read as exactly ["Copy"] on 26.3 and 18.3. One verifier found two majors (the rows hidden from VoiceOver behind one text view; a held handle starting a new word), fixed once and reverified with an accessibility census beside the parent. Stated: two D13 page rules held by no test, as at the parent. Rebased onto 333.4.1 by hand (ScreenGrid's cursor, one test call). 346's ruled round is in its re-check; then 0.112.0, then build 11.
