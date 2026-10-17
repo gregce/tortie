@@ -240,6 +240,7 @@ import { pickRendererTarget } from './cdp-target.mjs';
 import { startApnsStandIn } from './p314/apns-stand-in.mjs';
 import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, watchForRealTailscale } from './p330/tailscale-standin.mjs';
 import { NAME_SERVERS_VAR, QUIET_AGENT_IDS, loopbackOnlyServers, makeDnsStandin, nameQuestionsSelfTest, nameQuestionsVerdict, quietAgentsHeld, writeQuietAgents } from './p332/dns-standin.mjs';
+import { plantedResolve, scratchShellEnv } from './scratch-login.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /** The checkout whose APP is launched. The helper and the stand-in are always this tree's. */
@@ -547,7 +548,24 @@ try {
   );
   // tmux's execvp reads the LOGIN shell's PATH, so the scratch bin goes on it.
   writeFileSync(join(HOME, '.zprofile'), `export PATH="${BIN}:$PATH"\n`, 'utf8');
-  writeFileSync(join(HOME, '.zshrc'), `export PATH="${BIN}:$PATH"\n`, 'utf8');
+  writeFileSync(join(HOME, '.zshrc'), `export PATH="${BIN}:$PATH"\nexport HISTFILE=/dev/null\n`, 'utf8');
+  // THE PRECONDITION (Phase 346's ruled round): this probe runs REAL agents by the operator's ruling of 2026-09-22,
+  // but only through its own wrappers, which hide the scratch tmux server, turn the updater off and choose the
+  // home. The login shell the app will ask, with the environment it will be given, must resolve every wrapper
+  // this run wrote to that wrapper, or nothing is launched (exit 2): on 2026-10-16 a ZDOTDIR probe:p313 did not set
+  // put no stand-in on the captured PATH, and an inherited one here would start the bare programs instead.
+  {
+    const planted = Object.entries(agents).filter(([, a]) => a.path !== null).map(([name]) => name);
+    if (planted.length > 0) {
+      const asked = plantedResolve({ home: HOME, bin: BIN, names: planted, env: INHERITED_CLAUDE });
+      if (!asked.ok) {
+        console.error(`${TAG} REFUSED. ${asked.said}, so a session would start a program without its wrapper. Nothing is launched.`);
+        rmSync(RUN, { recursive: true, force: true });
+        process.exit(2);
+      }
+      console.log(`${TAG} ${asked.said}`);
+    }
+  }
   const git = (args) => spawnSync('git', args, { cwd: PROJECT, encoding: 'utf8', env: { ...process.env, HOME } });
   git(['init', '-q']);
   writeFileSync(join(PROJECT, 'note.txt'), 'hello\n');
@@ -1318,6 +1336,8 @@ try {
         // has none (his login shell sets none either).
         ...INHERITED_CLAUDE,
         HOME,
+        // Phase 346's ruled round: zsh reads $ZDOTDIR/.zprofile, so the scratch HOME's or the wrappers are on no PATH.
+        ...scratchShellEnv(HOME),
         GMUX_TMUX_SOCKET: SOCKET,
         GMUX_PROBES: '1',
         GMUX_LOG_FILE: '1',

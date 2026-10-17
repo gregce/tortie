@@ -476,6 +476,73 @@
  *   RP  with P318_PARENT_IOS (c1a5fd38's ios/): the parent's app and its OWN
  *       UI test over the same sessions: no press and no strip in its dumps
  *
+ * PHASE 346, THE `start` GROUP (build/p346/SPEC.md §6.2, `P316_ARMS=start`):
+ * a session started from the phone's New session, with no Face ID (his
+ * answer 5). This Mac's door allows start (its first setup's Allow allowed
+ * every route); every agent a start launches is this file's own `claude` (a
+ * /bin/sh that waits) or build/p318/stand-in.mjs as Codex, and the drive
+ * presses no other mark, so no vendor process runs and no turn is spent. Two
+ * scratch projects are opened beside the work project, each to be closed on
+ * the Mac at the moment its Create is pressed. Before every Create the UI test
+ * prints `start-ready` and waits for this file's `start-<seq>`. The steps are
+ * P316DriveUITests.swift's `start-open`, `start-pick:<project id>`,
+ * `start-agent:<id>`, `start-create`, `start-read`, `start-close` and
+ * `start-home`. The arms:
+ *   NP1 26.3 and 18.3: the "+" at the trailing end of the Sessions title,
+ *       named New session; the sheet's projects the offer's in its order, the
+ *       chosen one selected, a project at a place not ready dimmed (read over
+ *       the hostile door's honest offer, which has one); the marks exactly the
+ *       chosen place's agents, each labelled its name
+ *   NP2 26.3, over the hostile door's honest offer: the default agent chosen;
+ *       a project whose place lacks it moves the choice to that place's first
+ *       agent; back on a place listing the agent now chosen, it stays (D11)
+ *   NP3 26.3 and 18.3: Create: Creating…, the sheet gone, the Terminal of the
+ *       ONE session main created on top, and no owner check at any moment.
+ *       Since Phase 346's fix round the start's connection is forwarded 2.5 s
+ *       late (`delayNextBy`, as P3 and P9 hold Sending…), because a start
+ *       answers in 23 to 228 ms, under the UI test's own sample, and
+ *       Creating… was never caught. Since the ruled round the UI test reads
+ *       on until the sheet is gone once Creating… was drawn and reads
+ *       `sheetGone` at its final read (it stopped on the label and read a
+ *       correct dismissal as the sheet staying), and no label after Creating…
+ *       may be one that can be pressed (the build before drew Create again
+ *       while the sheet closed, and a press there sent a fresh write id)
+ *   NP4 26.3 (Phase 346's fix round): Create on the project on a READY
+ *       machine, over the hostile door's `start-remote`: the machine's label
+ *       in the menu, its one agent's mark pressed, ONE POST naming that
+ *       project and that agent (the door's event, ids it offered), the sheet
+ *       gone onto the made session's Terminal, no owner check. This file runs
+ *       no machine, so the Mac half of that start (the far server holding it)
+ *       is probe:p346's S3, through the same door and write
+ *   NP12 26.3 (the ruled round): before any start, `start-reach` reads the
+ *       Sessions title row and taps outside the "+"'s glyph along each edge
+ *       and at the corners of a 44 × 44 pt square around it: the press is at
+ *       least 44 × 44 pt, and every frame on the row (the title, the menu,
+ *       Select, the "+" and the Show control) equals the build before's
+ *       (`START_TITLE_ROW_BEFORE`) within 0.01 pt, before and after the taps
+ *   NP5 26.3 and 18.3: the project closed on the Mac at `start-ready`, then
+ *       Create: the sheet stays with the Mac's START_PROJECT_GONE, nothing made
+ *   NP6 26.3: the relay CUTS the answer once main logged the act: the
+ *       no-answer line and Try again; Try again sends the same id (one start
+ *       logged for two presses, ONE session) and opens its Terminal
+ *   NP7 26.3: Create then Home with the relay holding the handshake: on return
+ *       `Your Mac did not take it. Nothing was started.`, no act, no session
+ *   NP8 26.3: a Mac whose start waits for its Allow (the hostile door's
+ *       `start-key-waiting`, the key main sends then): Sessions drawn, no "+"
+ *   NP9 26.3: See a sample: the "+" and the sheet over the sample's projects,
+ *       Create says nothing ran, and the relay counts no connection
+ *   NP10 26.3: two Macs kept (this Mac, and the hostile door's `start-honest`
+ *       as a twin under another name, both through build/p345/sni-relay.mjs):
+ *       the "+" of the Mac on screen starts on that Mac and on no other
+ *   NP11 with P346_PARENT_IOS (0b87d0af's ios/): the parent's app and its OWN
+ *       UI test over this Mac: no "+" in any screen
+ *   NPH 26.3: every start arm of build/p316/hostile-door.mjs (START_ARMS): a
+ *       broken key draws Sessions and no "+", an answer the phone must refuse
+ *       ends in `Copy.startNoAnswer` (`startNotTaken` for the 404), an open
+ *       reason word in the door's own sentence, and `start-hold`'s Try again
+ *       sends the first body again byte for byte; the hostile group's own loop
+ *       leaves them to NPH
+ *
  * PHASE 337, THE `screen` GROUP (build/p337/SPEC.md §7.8, `P316_ARMS=screen`):
  * a session's own screen read and typed into from the phone, with every key
  * and no Face ID (his rulings 1 and 3), and End at the top right. The sessions
@@ -913,7 +980,9 @@
  * (exit 2) when the checkout has no build.
  *
  *   npm run -s probe:p316
- *   P316_ARMS=order,floor,deny,hostile,end,reply,screen,sessions,setup,sample    which arms (default all; `order` holds N11 and N0 to N8; `end` is Phase 317's, `reply` Phase 318's, `screen` Phase 337's, `sessions` Phase 316.7's, `setup` Phase 333.1's, `sample` Phase 333.3's)
+ *   P316_ARMS=order,floor,deny,hostile,end,reply,screen,sessions,setup,sample,start    which arms (default all; `order` holds N11 and N0 to N8; `end` is Phase 317's, `reply` Phase 318's, `screen` Phase 337's, `sessions` Phase 316.7's, `setup` Phase 333.1's, `sample` Phase 333.3's, `start` Phase 346's)
+ *   P346_PARENT_IOS=<dir>                 Phase 346's NP11: the directory holding 0b87d0af's ios/
+ *                                         (`git archive 0b87d0af ios | tar -x` into scratch, build 11)
  *   P316_HOSTILE=honest,wrong-key         which hostile arms (default all)
  *   P316_HOSTILE_FLOOR=all|<arm,…>        which hostile sessions arms also run on iOS 18.3 (default those marked `floor`)
  *   P316_DERIVED_DATA=<dir>               derived data (never the repo, never home; kept)
@@ -984,7 +1053,10 @@ import {
 import { startApnsStandIn } from '../p314/apns-stand-in.mjs';
 import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, watchForRealTailscale } from '../p330/tailscale-standin.mjs';
 import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin, nameQuestionsSelfTest, nameQuestionsVerdict, quietAgentsHeld, writeQuietAgents } from '../p332/dns-standin.mjs';
-import { HOSTILE_ARMS, HOSTILE_NAME, HOSTILE_PUBLIC_PORT, REPLY_ARMS, SCREEN_ARMS, SCROLLBACK_ARMS, UNKNOWN_STATUS_TITLE, hostileDoorArgv, markdownFixtures } from './hostile-door.mjs';
+import { plantedResolve } from '../scratch-login.mjs';
+import { HOSTILE_ARMS, HOSTILE_NAME, HOSTILE_PUBLIC_PORT, REPLY_ARMS, SCREEN_ARMS, SCROLLBACK_ARMS, START_ARMS, START_FAR, START_UNKNOWN_SENTENCE, UNKNOWN_STATUS_TITLE, hostileDoorArgv, markdownFixtures } from './hostile-door.mjs';
+// Phase 346: NP10's one loopback port for two Macs, by each connection's server name.
+import { startSniRelay } from '../p345/sni-relay.mjs';
 import { hellos as p318Hellos, readLog as p318ReadLog, readState as p318ReadState, sendOps as p318SendOps, writeWrappers as p318WriteWrappers } from '../p318/stand-in.mjs';
 import { fingerprintDigits, makePhone, pageBack, pairThrough, readOffer, readSessions, shaHex, signedGet } from './node-phone.mjs';
 import { readRecorderLog } from '../p337/key-recorder.mjs';
@@ -1019,7 +1091,8 @@ const PROJECT = join(ROOT, 'ios', 'Tortie.xcodeproj');
 // `sessions` is Phase 316.7's (build/p3167/SPEC.md §9.4): SL1 to SL8 on a fresh Simulator of its own, and SL1, SL6 and SL8 on the floor.
 // `setup` is Phase 333.1's (build/p3331/SPEC.md §7.7): SE1 to SE7 on a fresh Simulator, SE8 on the floor, SEP with P3331_PARENT_IOS.
 // `sample` is Phase 333.3's (build/p3333/SPEC.md §7.4): SA1 to SA13, SAX and SD fresh on 26.3, SB on the floor, SC1 to SC3 paired, SP with P3333_PARENT_IOS.
-const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,deny,hostile,end,reply,screen,sessions,setup,sample').split(',').map((s) => s.trim()));
+// `start` is Phase 346's (build/p346/SPEC.md §6.2): NP1 to NP11 and NPH, NP1, NP3 and NP5 on the floor too.
+const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,deny,hostile,end,reply,screen,sessions,setup,sample,start').split(',').map((s) => s.trim()));
 if (ARMS.has('ats')) {
   // The ATS arm left with TailscaleKit (Phase 330): the phone has no tailnet
   // and no ATS exception, so there is nothing for it to prove.
@@ -1031,7 +1104,7 @@ if (ARMS.has('ats')) {
 // Phase 333.1: the setup group's SE8 is the floor's.
 // Phase 333.3: the sample group's SB is the floor's.
 const runtimes =
-  ARMS.has('floor') || ARMS.has('end') || ARMS.has('reply') || ARMS.has('screen') || ARMS.has('sessions') || ARMS.has('hostile') || ARMS.has('setup') || ARMS.has('sample')
+  ARMS.has('floor') || ARMS.has('end') || ARMS.has('reply') || ARMS.has('screen') || ARMS.has('sessions') || ARMS.has('hostile') || ARMS.has('setup') || ARMS.has('sample') || ARMS.has('start')
     ? [RUNTIME_CURRENT, RUNTIME_FLOOR]
     : [RUNTIME_CURRENT];
 
@@ -1096,6 +1169,14 @@ const PARENT_IOS_317 = (process.env['P317_PARENT_IOS'] ?? '').trim();
  * its OWN UI test, which knows no reply step, so RP reads its session dumps.
  */
 const PARENT_IOS_318 = (process.env['P318_PARENT_IOS'] ?? '').trim();
+/**
+ * Phase 346's NP11 (build/p346/SPEC.md §6.2): the directory holding
+ * `0b87d0af`'s ios/ (`git archive 0b87d0af ios | tar -x` into scratch, build
+ * 11, which draws no "+"), built and driven by its OWN UI test, which knows no
+ * start step, so NP11 reads its screens. Its own variable, as every phase's
+ * parent has had since 317.
+ */
+const PARENT_IOS_346 = (process.env['P346_PARENT_IOS'] ?? '').trim();
 /** Phase 337's PSP: a checkout of `aebb4ce9` whose ios/ is the parent's app, or empty. */
 const PARENT_IOS_337 = (process.env['P337_PARENT_IOS'] ?? '').trim();
 /**
@@ -5094,10 +5175,11 @@ function sessionsSelfTest() {
 // ---------------------------------------------------------------------------
 
 /** Start one arm's door as a child under tsx; resolves with its first line and a live event list. */
-function startDoorChild(armName) {
+function startDoorChild(armName, extraArgs = []) {
   return new Promise((done) => {
     // Phase 316.6: the markdown arms fill {{MD3}} with the probe's listener.
-    const child = spawn(process.execPath, hostileDoorArgv(['serve', '--arm', armName, '--md3', md.md3 ?? '127.0.0.1:9']), {
+    // Phase 346: NP10's twin takes `--name` (`extraArgs`), as probe:p345's does.
+    const child = spawn(process.execPath, hostileDoorArgv(['serve', '--arm', armName, '--md3', md.md3 ?? '127.0.0.1:9', ...extraArgs]), {
       cwd: ROOT,
       env: { ...process.env, P316_HOSTILE_INNER: '1' },
       stdio: ['pipe', 'pipe', 'pipe']
@@ -5371,6 +5453,645 @@ function gradeRp(r) {
   if (r.waiting.presses.length > 0) problems.push('the parent draws a pressable option');
   if (r.idle.strip === true || r.waiting.strip === true) problems.push('the parent draws a message box');
   return decide(problems, [], 'no press and no message box in the parent\'s app');
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 346, THE `start` GROUP (build/p346/SPEC.md §6.2): the graders, pure
+// over readings, each proved both ways by startSelfTest below.
+// ---------------------------------------------------------------------------
+
+/** The phone's words the sheet draws, from Copy.swift (never typed here twice). */
+const START_WORDS = {
+  newSession: copyOf('newSession'),
+  creating: copyOf('creating'),
+  tryAgain: copyOf('tryAgain'),
+  noAnswer: copyOf('startNoAnswer'),
+  notTaken: copyOf('startNotTaken'),
+  sample: copyOf('startSample')
+};
+/** The Mac's own start sentences, from src/shared/start-copy.ts. */
+const START_MAC = {
+  projectGone: macWord('src/shared/start-copy.ts', 'START_PROJECT_GONE'),
+  agentGone: macWord('src/shared/start-copy.ts', 'START_AGENT_GONE')
+};
+
+/** The sheet's projects as the menu drew them, top to bottom. */
+const startItems = (items) => [...(items ?? [])].sort((a, b) => (a.frame?.[1] ?? 0) - (b.frame?.[1] ?? 0));
+/** The marks as drawn, left to right. */
+/**
+ * The marks in drawn order: by row, then along it (Phase 346's fix round). The
+ * row of 44 pt marks WRAPS (eight wrap 7 + 1 on a 402 pt phone), and sorting by
+ * x alone put the second row's first mark second, which read NP1 red on both
+ * runtimes over a sheet drawn in the offer's order exactly. Two marks are in one
+ * row when their tops are within half a mark (22 pt) of each other.
+ */
+export const startMarks = (reading) =>
+  [...(reading?.agents ?? [])].sort((a, b) => {
+    const dy = (a.frame?.[1] ?? 0) - (b.frame?.[1] ?? 0);
+    return Math.abs(dy) > 22 ? dy : (a.frame?.[0] ?? 0) - (b.frame?.[0] ?? 0);
+  });
+/** The place a project of the offer lives at. */
+const offerPlaceOf = (offer, projectId) => {
+  const p = (offer?.projects ?? []).find((x) => x.id === projectId) ?? null;
+  return p === null ? null : (offer.places ?? []).find((x) => x.id === p.place) ?? null;
+};
+/** D11: the agent the sheet chooses at a place, the default when it is listed, else the place's first. */
+const startDefaultAt = (offer, place) => (place === null ? null : place.agents.includes(offer?.defaultAgent) ? offer.defaultAgent : (place.agents[0] ?? null));
+
+/**
+ * NP1: the "+" at the trailing end of the Sessions title, named New session;
+ * the sheet's projects the offer's, in its order, the chosen one selected,
+ * a project whose place is not ready drawn and not choosable; the marks the
+ * chosen place's agents and nothing else, each labelled its name.
+ */
+export function gradeNp1(r) {
+  const problems = [];
+  const unread = [];
+  if (r.offer === null || r.offer?.state !== 'offered') return verdict(null, `the Mac's /v1/sessions carried no offer when the "+" was read (${J(r.offer?.state ?? null)})`);
+  const o = r.open;
+  if (o === null || o === undefined) return verdict(null, 'the UI test printed no start-open line');
+  if (o.found !== true) return decide(['no "+" on the Sessions title of a Mac that offers a start'], [], '');
+  if (o.label !== START_WORDS.newSession) problems.push(`the "+" is named ${J(o.label)}, not ${J(START_WORDS.newSession)}`);
+  const plus = o.frame;
+  // THE PROBE REVIEW (rule 9): with no window read, the trailing-half test read [0, 0] and always held, and with no
+  // title read the row test was skipped; either is a reading missing, never a "+" in its place.
+  const window = Array.isArray(o.window) && o.window[0] > 0 ? o.window : null;
+  if (window === null) unread.push('the window\'s size was not read, so which half the "+" sits in was not');
+  if (!Array.isArray(o.title)) unread.push('the Sessions title was not read, so whether the "+" is on its row was not');
+  if (!Array.isArray(plus)) problems.push('the "+" has no frame');
+  else {
+    if (window !== null && !(plus[0] + plus[2] / 2 > window[0] / 2)) problems.push(`the "+" ${J(plus)} is not in the title's trailing half`);
+    for (const c of o.controls ?? []) if (Array.isArray(c.frame) && c.frame[0] + c.frame[2] > plus[0] + 1) problems.push(`${c.id} ends at ${String(c.frame[0] + c.frame[2])}, right of the "+" at ${String(plus[0])}`);
+    if (Array.isArray(o.title) && !(plus[1] < o.title[1] + o.title[3] && plus[1] + plus[3] > o.title[1])) problems.push(`the "+" ${J(plus)} is not on the title's row ${J(o.title)}`);
+  }
+  if (o.sheet !== true) return decide([...problems, 'the "+" opened no sheet'], unread, '');
+  const items = startItems(o.projects);
+  if (items.length === 0) unread.push('the Project menu was not read');
+  else {
+    const want = r.offer.projects.map((p) => p.id);
+    if (J(items.map((i) => i.id)) !== J(want)) problems.push(`the menu lists ${J(items.map((i) => i.id))}, the offer ${J(want)}`);
+    const selected = items.filter((i) => i.selected === true).map((i) => i.id);
+    if (J(selected) !== J([r.offer.chosen])) problems.push(`the menu marks ${J(selected)} chosen, the offer ${J(r.offer.chosen)}`);
+    for (const i of items) {
+      const ready = offerPlaceOf(r.offer, i.id)?.ready === true;
+      if (ready !== (i.enabled === true)) problems.push(`${i.id} is drawn ${i.enabled ? 'choosable' : 'dimmed'} at a place that is ${ready ? 'ready' : 'not ready'}`);
+    }
+  }
+  const place = offerPlaceOf(r.offer, r.offer.chosen);
+  const marks = startMarks(o.reading);
+  const wantMarks = place?.agents ?? [];
+  if (J(marks.map((m) => m.id)) !== J(wantMarks)) problems.push(`the marks are ${J(marks.map((m) => m.id))}, the chosen place's agents ${J(wantMarks)}`);
+  for (const m of marks) {
+    const name = (r.offer.agents ?? []).find((a) => a.id === m.id)?.name ?? null;
+    if (m.label !== name) problems.push(`the ${m.id} mark is labelled ${J(m.label)}, not ${J(name)}`);
+  }
+  return decide(problems, unread, `the "+" at the title's trailing end, named ${J(o.label)}; ${String(items.length)} project(s) in the offer's order, the chosen one selected, a place not ready dimmed; ${String(marks.length)} mark(s), exactly the chosen place's`);
+}
+
+/**
+ * NP2 (D11): the default agent chosen where its place lists it; a project
+ * whose place lacks it moves the choice to that place's first agent; back on
+ * a place that lists the agent now chosen, it stays.
+ */
+export function gradeNp2(r) {
+  const problems = [];
+  const unread = [];
+  if (r.offer === null || r.open?.sheet !== true) return verdict(null, 'the sheet was not opened over an offer');
+  const chosenOf = (reading) => startMarks(reading).filter((m) => m.selected === true).map((m) => m.id);
+  const firstPlace = offerPlaceOf(r.offer, r.offer.chosen);
+  const want0 = startDefaultAt(r.offer, firstPlace);
+  if (J(chosenOf(r.open.reading)) !== J([want0])) problems.push(`opened, the chosen mark is ${J(chosenOf(r.open.reading))}, not ${J(want0)}`);
+  if (r.away === null || r.away === undefined) return verdict(null, 'no project whose place lacks the default was picked');
+  const awayPlace = offerPlaceOf(r.offer, r.away.id);
+  if (awayPlace === null || awayPlace.agents.includes(want0)) return verdict(null, `the project picked (${J(r.away.id)}) is at a place that lists ${J(want0)}, so nothing could move`);
+  const want1 = awayPlace.agents[0] ?? null;
+  if (J(chosenOf(r.away.reading)) !== J([want1])) problems.push(`on ${r.away.id}, whose place lacks ${want0}, the chosen mark is ${J(chosenOf(r.away.reading))}, not ${J(want1)}`);
+  if (J(startMarks(r.away.reading).map((m) => m.id)) !== J(awayPlace.agents)) problems.push(`on ${r.away.id} the marks are ${J(startMarks(r.away.reading).map((m) => m.id))}, its place's ${J(awayPlace.agents)}`);
+  if (r.back !== null && r.back !== undefined) {
+    const backPlace = offerPlaceOf(r.offer, r.back.id);
+    const want2 = backPlace?.agents.includes(want1) ? want1 : startDefaultAt(r.offer, backPlace);
+    if (J(chosenOf(r.back.reading)) !== J([want2])) problems.push(`back on ${r.back.id} the chosen mark is ${J(chosenOf(r.back.reading))}, not ${J(want2)}`);
+  } else unread.push('no project was picked back, so whether the choice stays where its place lists it was not read'); // THE PROBE REVIEW (rule 9): its pass said it was
+  return decide(problems, unread, `opened on ${J(want0)}; a place without it moved the choice to ${J(want1)}; back, it stayed where its place lists it`);
+}
+
+/**
+ * NP3 (and NP4's shape): Create on a project: Creating… then the sheet gone,
+ * the Terminal of the ONE session main created on top, and no owner check at
+ * any moment.
+ */
+export function gradeNp3(r) {
+  const problems = [];
+  const unread = [];
+  const c = r.created;
+  if (c === null || c === undefined || c.missing === true) return verdict(null, 'the UI test pressed no Create');
+  if (c.faceId === true || r.openFaceId === true) problems.push('an owner check (Face ID, Touch ID or the passcode) was asked ("no face id to start a session")');
+  // THE PROBE REVIEW (rule 9): a press with no owner-check reading is not a press with none.
+  else if (typeof c.faceId !== 'boolean') unread.push('whether an owner check was asked was not read');
+  if (!(c.labels ?? []).includes(START_WORDS.creating)) unread.push('Creating… was not caught (the start may have been quicker than the 100 ms sample)');
+  if (c.sheetGone !== true) problems.push(`the sheet stayed, drawing ${J((c.lines ?? []).at(-1) ?? null)}`);
+  // THE RULED ROUND: a done start's sheet keeps Create off until it is gone, so no label after Creating… may be
+  // one that can be pressed (the build before drew [Create, Creating…, Create] while the sheet closed, and a
+  // press there would have sent a fresh write id and started a second session).
+  {
+    const labels = c.labels ?? [];
+    const from = labels.indexOf(START_WORDS.creating);
+    const after = from === -1 ? [] : labels.slice(from + 1).filter((l) => l !== START_WORDS.creating);
+    if (after.length > 0) problems.push(`after Creating… the sheet, still up, drew ${J(after)}, which can be pressed while it closes`);
+  }
+  if (r.made.length !== 1) problems.push(`main lists ${String(r.made.length)} new session(s), not one`);
+  else {
+    const s = r.made[0];
+    if (s.agent !== r.agent) problems.push(`the new session runs ${J(s.agent)}, not ${J(r.agent)}`);
+    if (r.projectPath !== null && s.projectPath !== r.projectPath) problems.push(`the new session is in ${J(s.projectPath)}, not the project picked`);
+    if (c.terminal !== true) problems.push('no Terminal on top after Create');
+    else {
+      const words = [c.status, ...(c.nav ?? [])].filter((w) => typeof w === 'string');
+      if (words.length === 0) unread.push('the Terminal\'s status and title were not read');
+      else if (!words.some((w) => w.includes(s.name))) problems.push(`the Terminal on top names ${J(words)}, not the new session ${J(s.name)}`);
+    }
+  }
+  return decide(problems, unread, `Creating…, the sheet gone, the Terminal of ${J(r.made[0]?.name ?? null)} on top, no owner check`);
+}
+
+/**
+ * NP4 (Phase 346's fix round): Create on the offer's project on a READY
+ * machine. The pick drew that machine's marks and chose its one agent; ONE
+ * verified POST reached the door naming exactly that project and that agent
+ * (the door's own event: ids it offered, and the place it put the project in);
+ * the sheet closed onto the Terminal, with no owner check.
+ */
+export function gradeNp4(r) {
+  const problems = [];
+  const unread = [];
+  if (r.offer?.state !== 'offered') return verdict(null, 'the door\'s offer was not read');
+  if (typeof r.far !== 'string') return verdict(null, 'the offer names no project on a ready machine, so none was picked');
+  const place = (r.offer.places ?? []).find((p) => p.id === (r.offer.projects ?? []).find((x) => x.id === r.far)?.place) ?? null;
+  if (place === null || place.ready !== true) return verdict(null, 'the picked project\'s place is not a ready machine');
+  const c = r.created;
+  if (c === null || c === undefined || c.missing === true) return verdict(null, 'the UI test pressed no Create');
+  if (r.pick === null || r.pick === undefined) unread.push('the pick of the machine\'s project was not read');
+  else {
+    const marks = startMarks(r.pick.reading).map((m) => m.id);
+    if (J(marks) !== J(place.agents)) problems.push(`on the machine's project the marks are ${J(marks)}, its place's ${J(place.agents)}`);
+  }
+  const posts = r.posts ?? [];
+  if (posts.length !== 1) problems.push(`${String(posts.length)} POST(s) reached the door, not one`);
+  else {
+    const e = posts[0];
+    if (e.verified !== 'ok' || e.keys !== 'agent,project,write') problems.push(`the POST was ${J(e.verified)} with keys ${J(e.keys)}`);
+    if (e.startProject !== r.far) problems.push(`the body named ${J(e.startProject)}, not the machine's project`);
+    if (e.startPlace !== place.id) problems.push(`the body's project is at ${J(e.startPlace)}, not ${J(place.id)}`);
+    if (e.startAgent !== place.agents[0]) problems.push(`the body named the agent ${J(e.startAgent)}, not ${J(place.agents[0])}, the machine's one`);
+  }
+  if (c.faceId === true) problems.push('an owner check was asked ("no face id to start a session")');
+  else if (typeof c.faceId !== 'boolean') unread.push('whether an owner check was asked was not read');
+  if (c.sheetGone !== true || c.terminal !== true) problems.push('the start on the machine did not close the sheet onto the Terminal');
+  return decide(problems, unread, `the machine's project picked, its ${J(place.agents)} drawn, one POST naming that project and ${J(place.agents[0])}, the Terminal opened, no owner check`);
+}
+
+/**
+ * The Sessions title row of the build BEFORE the ruled round, as XCUITest read
+ * it (probe:p316's start group, the Phase 346 reverify's run 25704, drives 1, 2
+ * and 19 on an iPhone 16 Pro, iOS 26.3 and the 18.3 floor, every reading equal):
+ * each frame in points, `[x, y, width, height]`. NP12 holds the row to it.
+ */
+export const START_TITLE_ROW_BEFORE = Object.freeze({
+  'list-title': [16, 62.16666666666667, 115, 33.66666666666666],
+  'list-menu': [268.3333333333333, 73.33333333333333, 19.666666666666686, 19],
+  'list-select': [304, 70.66666666666667, 48, 24.33333333333333],
+  'start-open': [368, 75, 18, 16],
+  'list-show': [16, 104, 370, 32]
+});
+
+/**
+ * NP12 (the ruled round): the "+"'s press is at least 44 × 44 pt and nothing
+ * drawn on the Sessions title row moved. `r.reach` is the UI test's
+ * `start-reach`: the row's frames before and after its taps, the glyph's
+ * frame, and every tap (`side`, `by` past that edge, `opened`, `closed`).
+ * Each side's reach is the largest distance whose tap opened New session with
+ * every nearer one on that side opening too; the press measured is the glyph
+ * plus the reach on both sides, and the four corners of a 44 × 44 pt square
+ * around the glyph must each open it. The corners are what decide: iOS's touch
+ * radius alone opened the sheet along each axis 17.5 pt from the bare glyph on
+ * the ruled round's first run, and at no corner of the square. Every frame on the row, read before and
+ * after the taps, equals `START_TITLE_ROW_BEFORE` within 0.01 pt.
+ */
+export function gradeNp12(r) {
+  const problems = [];
+  const e = r.reach;
+  if (e === null || e === undefined) return verdict(null, 'the UI test printed no start-reach line');
+  if (e.found !== true) return verdict(null, 'no "+" on the Sessions title to measure');
+  const before = r.before ?? START_TITLE_ROW_BEFORE;
+  const near = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === 4 && b.length === 4 && a.every((v, i) => Math.abs(v - b[i]) <= 0.01);
+  const holds = (outer, inner) => Array.isArray(outer) && Array.isArray(inner) && outer[0] <= inner[0] + 0.01 && outer[1] <= inner[1] + 0.01 && outer[0] + outer[2] >= inner[0] + inner[2] - 0.01 && outer[1] + outer[3] >= inner[1] + inner[3] - 0.01;
+  if (e.given !== true || !near(e.glyph, before['start-open'])) return verdict(null, `the taps were not placed around where the build before drew the glyph (${J(e.glyph)}, given ${J(e.given)})`);
+  // Every frame on the row is the build before's. The "+"'s own element is the glyph's frame, or (the operator's
+  // "a larger frame around the same glyph") a press around it; either way its glyph's slot is pinned by Select,
+  // which ends where it did, and the row's trailing edge.
+  let plusShape = 'the glyph\'s own frame';
+  for (const [when, row] of [['before its taps', e.row], ['after its taps', e.rowAfter]]) {
+    for (const [id, want] of Object.entries(before)) {
+      const got = row?.[id] ?? null;
+      if (id === 'start-open' && !near(got, want) && holds(got, want)) {
+        plusShape = `a press ${J(got)} around the glyph`;
+        continue;
+      }
+      if (!near(got, want)) problems.push(`${id} is drawn at ${J(got)} ${when}, the build before drew it at ${J(want)}`);
+    }
+  }
+  const taps = Array.isArray(e.taps) ? e.taps : [];
+  if (taps.length === 0) return verdict(null, 'no tap was read');
+  const unclosed = taps.filter((t) => t.opened === true && t.closed !== true);
+  if (unclosed.length > 0) return verdict(null, `${String(unclosed.length)} tap(s) opened New session and Cancel did not close it, so the next taps are not readings`);
+  const reachOf = (side) => {
+    let best = 0;
+    for (const t of taps.filter((x) => x.side === side).sort((a, b) => a.by - b.by)) {
+      if (t.opened !== true) break;
+      best = t.by;
+    }
+    return best;
+  };
+  const reach = { up: reachOf('up'), down: reachOf('down'), left: reachOf('left'), right: reachOf('right') };
+  const g = e.glyph;
+  if (!Array.isArray(g) || g.length !== 4) return verdict(null, 'the glyph\'s frame was not read');
+  const width = g[2] + reach.left + reach.right;
+  const height = g[3] + reach.up + reach.down;
+  if (!(width >= 44)) problems.push(`the press is at least ${String(width)} pt wide (the glyph ${String(g[2])}, ${String(reach.left)} left and ${String(reach.right)} right), under 44`);
+  if (!(height >= 44)) problems.push(`the press is at least ${String(height)} pt tall (the glyph ${String(g[3])}, ${String(reach.up)} up and ${String(reach.down)} down), under 44`);
+  for (const side of ['corner-top-left', 'corner-top-right', 'corner-bottom-left', 'corner-bottom-right', 'centre']) {
+    const t = taps.find((x) => x.side === side);
+    if (t === undefined) problems.push(`no tap at the ${side}`);
+    else if (t.opened !== true) problems.push(`a tap at the ${side} ${J(t.at)} opened nothing`);
+  }
+  if (e.faceId === true) problems.push('an owner check was asked');
+  return decide(problems, [], `the press reaches ${J(reach)} past the ${String(g[2])} × ${String(g[3])} pt glyph, at least ${String(width)} × ${String(height)} pt, the four corners of a 44 × 44 pt square open New session, and every frame on the title row is where the build before drew it (the "+" element: ${plusShape})`);
+}
+
+/** NP5: the project closed on the Mac while the sheet is open, then Create: the sheet stays with the Mac's START_PROJECT_GONE, nothing started. */
+export function gradeNp5(r) {
+  const problems = [];
+  if (r.removed !== true) return verdict(null, 'the project was not closed on the Mac at the moment Create was pressed');
+  const c = r.created;
+  if (c === null || c === undefined || c.missing === true) return verdict(null, 'the UI test pressed no Create');
+  if (c.sheetGone === true) problems.push('the sheet closed on a project the Mac had closed');
+  const line = (c.lines ?? []).at(-1) ?? c.reading?.line ?? null;
+  if (line !== START_MAC.projectGone) problems.push(`the line reads ${J(line)}, not the Mac's ${J(START_MAC.projectGone)}`);
+  if (r.made !== 0) problems.push(`main lists ${String(r.made)} new session(s)`);
+  if (c.faceId === true) problems.push('an owner check was asked');
+  return decide(problems, [], `the sheet stayed with ${J(line)}; nothing started`);
+}
+
+/**
+ * NP6: the relay cut the answer once main had logged the act: the no-answer
+ * line and Try again; Try again sent the SAME id (one act logged for the two
+ * presses, ONE session) and opened its Terminal.
+ */
+export function gradeNp6(r) {
+  const problems = [];
+  if (r.cut !== true) return verdict(null, 'the relay never cut an answer after main logged the act');
+  const first = r.first;
+  const second = r.second;
+  if (first === null || first === undefined || first.missing === true) return verdict(null, 'the first Create was not pressed');
+  if ((first.lines ?? []).at(-1) !== START_WORDS.noAnswer) problems.push(`after the cut the line reads ${J((first.lines ?? []).at(-1) ?? null)}, not ${J(START_WORDS.noAnswer)}`);
+  if ((first.labels ?? []).at(-1) !== START_WORDS.tryAgain) problems.push(`after the cut Create reads ${J((first.labels ?? []).at(-1) ?? null)}, not ${J(START_WORDS.tryAgain)}`);
+  if (second === null || second === undefined || second.missing === true) return decide([...problems, 'Try again was not pressed'], [], '');
+  if (second.pressed !== START_WORDS.tryAgain) problems.push(`the second press was ${J(second.pressed)}, not Try again`);
+  if (second.sheetGone !== true || second.terminal !== true) problems.push('Try again did not close the sheet onto the Terminal');
+  if (r.acts !== 1) problems.push(`main logged ${String(r.acts)} start(s) for the two presses; the second carries the kept id and the ledger answers it`);
+  if (r.made !== 1) problems.push(`main lists ${String(r.made)} new session(s) for the two presses, not one`);
+  return decide(problems, [], 'cut: the no-answer line and Try again; Try again: the same id, one act, one session, its Terminal');
+}
+
+/** NP7: Create then Home with the relay holding the handshake: no session on the Mac, the not-taken line on return. */
+export function gradeNp7(r) {
+  const problems = [];
+  const unread = [];
+  if (r.read === null || r.read === undefined) return verdict(null, 'the app was not read on its return');
+  if (!(r.held >= 1)) unread.push('the relay held no connection, so the start was not caught before its bytes were handed');
+  if (r.read.line !== START_WORDS.notTaken) problems.push(`on return the line reads ${J(r.read.line)}, not ${J(START_WORDS.notTaken)}`);
+  if (r.made !== 0) problems.push(`main lists ${String(r.made)} new session(s)`);
+  if (r.acts !== 0) problems.push(`main logged ${String(r.acts)} start(s)`);
+  if (!(r.waitedMs >= 20_000)) unread.push(`only ${String(r.waitedMs)} ms were watched after Home`);
+  return decide(problems, unread, `withheld: ${J(r.read.line)}, no act, no session in 20 s`);
+}
+
+/** NP8 and a key arm: a Mac whose start key the phone reads as absent: the Sessions list drawn, no "+". */
+export function gradeNp8(r) {
+  const o = r.open;
+  if (o === null || o === undefined) return verdict(null, 'the UI test printed no start-open line');
+  const problems = [];
+  if (o.list !== true) problems.push('the Sessions list was not drawn');
+  if (o.found === true) problems.push('a "+" is drawn');
+  if (r.alive !== undefined && r.alive !== RUNNING_FOREGROUND) problems.push(`the app's state is ${J(r.alive)}, not running in the foreground`);
+  return decide(problems, [], 'the Sessions list drawn, no "+"');
+}
+
+/** NP9: See a sample: "+" and the sheet over the sample's projects; Create says nothing ran; no connection at all. */
+export function gradeNp9(r) {
+  const problems = [];
+  if (r.open === null || r.open === undefined) return verdict(null, 'the UI test printed no start-open line inside the sample');
+  if (r.open.found !== true || r.open.sheet !== true) problems.push('no "+" or no sheet inside the sample');
+  if (r.created === null || r.created === undefined || r.created.missing === true) problems.push('Create was not pressed inside the sample');
+  else {
+    const line = (r.created.lines ?? []).at(-1) ?? r.created.reading?.line ?? null;
+    if (line !== START_WORDS.sample) problems.push(`Create says ${J(line)}, not ${J(START_WORDS.sample)}`);
+    if (r.created.sheetGone === true) problems.push('the sample closed the sheet as if something ran');
+  }
+  if (r.connections !== 0) problems.push(`${String(r.connections)} connection(s) left the phone inside the sample`);
+  return decide(problems, [], `the sheet over the sample's projects; ${J(START_WORDS.sample)}; nothing left the phone`);
+}
+
+/** NP10: two Macs kept, the "+" of the Mac on screen starts on that Mac and on no other. */
+export function gradeNp10(r) {
+  const problems = [];
+  if (r.paired !== true) return verdict(null, 'the phone did not keep both Macs');
+  if (r.onScreen === null) return verdict(null, 'which Mac was on screen was not read');
+  if (r.open?.found !== true || r.created === null || r.created === undefined || r.created.missing === true) return verdict(null, `no start was pressed on the Mac on screen (${String(r.onScreen)})`);
+  if (r.onScreen === 'mac') {
+    if (r.macMade !== 1) problems.push(`the Mac on screen started ${String(r.macMade)} session(s)`);
+    if (r.twinPosts !== 0) problems.push(`the Mac not on screen read ${String(r.twinPosts)} start(s)`);
+  } else {
+    if (r.twinPosts !== 1) problems.push(`the Mac on screen read ${String(r.twinPosts)} start(s)`);
+    if (r.macMade !== 0) problems.push(`the Mac not on screen started ${String(r.macMade)} session(s)`);
+  }
+  return decide(problems, [], `the start went to the Mac on screen (${r.onScreen}) alone`);
+}
+
+/** NP11: the parent's app (P346_PARENT_IOS) draws no "+" anywhere. */
+export function gradeNp11(r) {
+  if ((r.dumps ?? []).length === 0) return verdict(null, 'the parent\'s app printed no screen');
+  // THE PROBE REVIEW (rule 9): the "+" sits on the Sessions title, so a parent that never drew that title (a pairing
+  // that did not finish, say) proves nothing by drawing no "+".
+  if (!r.dumps.some((d) => (d.elements ?? []).some((e) => e.id === 'list-title'))) return verdict(null, 'no screen of the parent\'s app drew the Sessions title the "+" would sit on');
+  const hits = r.dumps.filter((d) => (d.elements ?? []).some((e) => e.id === 'start-open' || e.id === 'start-sheet'));
+  return decide(hits.map((d) => `the parent's ${d.name} screen draws the start's "+" or its sheet`), [], `${String(r.dumps.length)} screen(s) of the parent's app, no "+" in any`);
+}
+
+/** NPH: one hostile start arm, ending where its row says, after its POSTs. */
+export function gradeNph(r) {
+  const problems = [];
+  const spec = r.spec;
+  if (r.alive !== RUNNING_FOREGROUND) problems.push(`the app's state is ${J(r.alive)}, not running in the foreground`);
+  if (spec.ends === 'no-plus') {
+    if (r.open?.list !== true) problems.push('the Sessions list was not drawn');
+    if (r.open?.found === true) problems.push('a "+" is drawn over a key the phone must read as absent');
+    if (r.posts !== 0) problems.push(`${String(r.posts)} start(s) reached the door`);
+    return decide(problems, [], 'the Sessions list drawn, no "+", nothing sent');
+  }
+  if (r.open?.found !== true || r.open?.sheet !== true) return verdict(null, 'no "+" or no sheet over the honest offer, so nothing was pressed');
+  if (r.posts !== spec.posts) problems.push(`${String(r.posts)} POST(s) reached the door, not ${String(spec.posts)}`);
+  if (spec.ends === 'opened') {
+    if (r.last?.sheetGone !== true || r.last?.terminal !== true) problems.push('the honest start did not close the sheet onto the Terminal');
+    return decide(problems, [], 'done: the sheet gone, the Terminal of the made session on top');
+  }
+  const line = (r.first?.lines ?? []).at(-1) ?? r.first?.reading?.line ?? null;
+  const ok = spec.doorSentence === true ? line === START_UNKNOWN_SENTENCE : (spec.expect ?? []).map((w) => COPY_WORDS[w]).includes(line);
+  if (!ok) problems.push(`the line reads ${J(line)}, none of the words its row names`);
+  if (r.first?.sheetGone === true) problems.push('the sheet closed on an answer that was not a done');
+  if (spec.again === true) {
+    if ((r.first?.labels ?? []).at(-1) !== START_WORDS.tryAgain) problems.push(`after no answer Create reads ${J((r.first?.labels ?? []).at(-1) ?? null)}, not Try again`);
+    if (r.last?.pressed !== START_WORDS.tryAgain || r.last?.sheetGone !== true) problems.push('Try again was not pressed, or did not close the sheet');
+    if (r.sameBody !== true) problems.push('Try again\'s body is not the first one\'s, byte for byte (another write id)');
+  }
+  return decide(problems, [], `ended in ${J(line)} after ${String(r.posts)} POST(s)${spec.again === true ? '; Try again sent the same bytes and opened the session' : ''}`);
+}
+
+/** Every start grader both ways, on readings written here. Launches nothing. */
+function startSelfTest() {
+  const cases = [];
+  const add = (what, grader, input, want) => cases.push({ what, got: () => grader(input).ok, want });
+  const edit = (base, fn) => {
+    const copy = structuredClone(base);
+    fn(copy);
+    return copy;
+  };
+  const offer = {
+    state: 'offered',
+    projects: [
+      { id: 'p-a', label: 'tortie', machine: null, folder: null, place: 'local' },
+      { id: 'p-b', label: 'far', machine: 'Studio', folder: null, place: 'm1' },
+      { id: 'p-c', label: 'away', machine: 'Laptop', folder: null, place: 'm2' }
+    ],
+    places: [
+      { id: 'local', ready: true, read: true, agents: ['claude', 'codex'] },
+      { id: 'm1', ready: true, read: true, agents: ['codex'] },
+      { id: 'm2', ready: false, read: false, agents: [] }
+    ],
+    agents: [{ id: 'claude', name: 'Claude Code', icon: 'claude', danger: null }, { id: 'codex', name: 'Codex CLI', icon: 'codex', danger: null }],
+    chosen: 'p-a',
+    defaultAgent: 'claude'
+  };
+  const mark = (id, label, x, selected) => ({ id, label, frame: [x, 600, 44, 44], selected });
+  const open = {
+    found: true,
+    label: START_WORDS.newSession,
+    frame: [350, 100, 30, 30],
+    window: [402, 874],
+    title: [16, 96, 120, 40],
+    controls: [{ id: 'list-menu', frame: [280, 100, 30, 30] }, { id: 'list-select', frame: [310, 100, 36, 30] }],
+    list: true,
+    sheet: true,
+    reading: { sheet: true, agents: [mark('claude', 'Claude Code', 20, true), mark('codex', 'Codex CLI', 70, false)], line: null, create: { label: START_WORDS.creating === null ? 'Create' : 'Create', enabled: true } },
+    projects: [
+      { id: 'p-a', label: 'tortie', enabled: true, selected: true, frame: [0, 200, 300, 44] },
+      { id: 'p-b', label: 'far', enabled: true, selected: false, frame: [0, 244, 300, 44] },
+      { id: 'p-c', label: 'away', enabled: false, selected: false, frame: [0, 288, 300, 44] }
+    ]
+  };
+  const np1 = { offer, open };
+  add('NP1 passes its honest reading', gradeNp1, np1, true);
+  add('NP1 is red on no "+"', gradeNp1, edit(np1, (r) => void (r.open.found = false)), false);
+  add('NP1 is red on another name', gradeNp1, edit(np1, (r) => void (r.open.label = 'Add')), false);
+  add('NP1 is red on a "+" left of the menu', gradeNp1, edit(np1, (r) => void (r.open.frame = [240, 100, 30, 30])), false);
+  add('NP1 is red on a "+" off the title\'s row', gradeNp1, edit(np1, (r) => void (r.open.frame = [350, 400, 30, 30])), false);
+  add('NP1 is red on the projects out of the offer\'s order', gradeNp1, edit(np1, (r) => void (r.open.projects[0].frame[1] = 400)), false);
+  add('NP1 is red on another project chosen', gradeNp1, edit(np1, (r) => Object.assign(r.open.projects[1], { selected: true })), false);
+  add('NP1 is red on a project not connected that can be chosen', gradeNp1, edit(np1, (r) => void (r.open.projects[2].enabled = true)), false);
+  add('NP1 is red on a mark the place does not list', gradeNp1, edit(np1, (r) => void r.open.reading.agents.push(mark('pi', 'Pi', 120, false))), false);
+  add('NP1 is red on a mark short', gradeNp1, edit(np1, (r) => void r.open.reading.agents.pop()), false);
+  add('NP1 is red on a mark labelled otherwise', gradeNp1, edit(np1, (r) => void (r.open.reading.agents[0].label = 'claude')), false);
+  add('NP1 is red on no sheet', gradeNp1, edit(np1, (r) => void (r.open.sheet = false)), false);
+  add('NP1 is UNREADABLE with no offer', gradeNp1, edit(np1, (r) => void (r.offer = null)), null);
+  add('NP1 is UNREADABLE when the menu was not read', gradeNp1, edit(np1, (r) => void (r.open.projects = [])), null);
+  // THE FIX ROUND: eight 44 pt marks wrap 7 + 1 on a 402 pt phone (the frames the Phase 346 verifier read on 26.3).
+  {
+    const eight = ['claude', 'cursor', 'codex', 'deepseek', 'muse', 'pi', 'omp', 'opencode'];
+    const wrapped = edit(np1, (r) => {
+      r.offer.places[0].agents = [...eight];
+      r.offer.agents = eight.map((id) => ({ id, name: `Mark ${id}`, icon: id, danger: null }));
+      r.open.reading.agents = eight.map((id, i) => ({ id, label: `Mark ${id}`, frame: [16 + (i % 7) * 52, i < 7 ? 261 : 313, 44, 44], selected: id === 'claude' }));
+    });
+    add('NP1 passes eight marks wrapped 7 + 1, read by row and then along it', gradeNp1, wrapped, true);
+    add('NP1 is red on wrapped marks out of the offer\'s order', gradeNp1, edit(wrapped, (r) => {
+      const a = r.open.reading.agents;
+      [a[1].frame, a[7].frame] = [a[7].frame, a[1].frame];
+    }), false);
+  }
+  const np2 = { offer, open, away: { id: 'p-b', reading: { agents: [mark('codex', 'Codex CLI', 20, true)] } }, back: { id: 'p-a', reading: { agents: [mark('claude', 'Claude Code', 20, false), mark('codex', 'Codex CLI', 70, true)] } } };
+  add('NP2 passes its honest reading', gradeNp2, np2, true);
+  add('NP2 is red on another default', gradeNp2, edit(np2, (r) => void (r.open.reading.agents = [mark('claude', 'Claude Code', 20, false), mark('codex', 'Codex CLI', 70, true)])), false);
+  add('NP2 is red on a choice that did not move', gradeNp2, edit(np2, (r) => void (r.away.reading.agents[0].selected = false)), false);
+  add('NP2 is red on the default put back where the choice is listed', gradeNp2, edit(np2, (r) => void (r.back.reading.agents = [mark('claude', 'Claude Code', 20, true), mark('codex', 'Codex CLI', 70, false)])), false);
+  add('NP2 is UNREADABLE with nothing picked away', gradeNp2, edit(np2, (r) => void (r.away = null)), null);
+  add('NP2 is UNREADABLE over a place that lists the default', gradeNp2, edit(np2, (r) => void (r.away.id = 'p-a')), null);
+  const made = { id: 's9', name: 'claude-1', agent: 'claude', projectPath: '/p' };
+  const np3 = { agent: 'claude', projectPath: '/p', made: [made], openFaceId: false, created: { pressed: 'Create', labels: ['Create', START_WORDS.creating], lines: [], sheetGone: true, faceId: false, terminal: true, status: 'claude-1 · working', nav: [] } };
+  add('NP3 passes its honest reading', gradeNp3, np3, true);
+  add('NP3 is red on Face ID', gradeNp3, edit(np3, (r) => void (r.created.faceId = true)), false);
+  add('NP3 is red on the sheet staying', gradeNp3, edit(np3, (r) => void (r.created.sheetGone = false)), false);
+  add('NP3 is red on two sessions', gradeNp3, edit(np3, (r) => void r.made.push({ ...made, id: 's10' })), false);
+  add('NP3 is red on another agent', gradeNp3, edit(np3, (r) => void (r.made[0].agent = 'codex')), false);
+  add('NP3 is red on no Terminal', gradeNp3, edit(np3, (r) => void (r.created.terminal = false)), false);
+  add('NP3 is red on another session\'s Terminal', gradeNp3, edit(np3, (r) => void (r.created.status = 'codex-4 · idle')), false);
+  add('NP3 is UNREADABLE when Creating… was not caught', gradeNp3, edit(np3, (r) => void (r.created.labels = ['Create'])), null);
+  // THE RULED ROUND: the build before drew Create again inside the closing sheet, which a press could take.
+  add('NP3 is red on Create drawn again while the sheet closes', gradeNp3, edit(np3, (r) => void (r.created.labels = ['Create', START_WORDS.creating, 'Create'])), false);
+  add('NP3 is red on Try again drawn while the sheet closes', gradeNp3, edit(np3, (r) => void (r.created.labels = ['Create', START_WORDS.creating, START_WORDS.tryAgain])), false);
+  // NP12, the "+"'s press: the design's reach (17 up, 13 down, 14 each side), sampled the UI test's way.
+  {
+    const g = START_TITLE_ROW_BEFORE['start-open'];
+    const design = { up: 17, down: 13, left: 14, right: 14 };
+    const sweep = { up: [11.5, 12.5, 13.5, 14.5, 15.5, 16.5, 17.5], down: [9.5, 10.5, 11.5, 12.5], left: [11.5, 12.5, 13.5], right: [11.5, 12.5, 13.5, 14.5] };
+    const taps = [];
+    for (const [side, list] of Object.entries(sweep)) for (const by of list) taps.push({ side, by, at: [0, 0], opened: by < design[side], closed: true });
+    for (const side of ['corner-top-left', 'corner-top-right', 'corner-bottom-left', 'corner-bottom-right', 'centre']) taps.push({ side, by: 0, at: [0, 0], opened: true, closed: true });
+    const row = structuredClone(START_TITLE_ROW_BEFORE);
+    const np12 = { reach: { found: true, glyph: [...g], given: true, element: [...g], row, rowAfter: structuredClone(row), taps, faceId: false } };
+    add('NP12 passes its honest reading', gradeNp12, np12, true);
+    add('NP12 is red on the glyph alone (the build before: no tap off the glyph opens)', gradeNp12, edit(np12, (r) => r.reach.taps.forEach((t) => void (t.opened = t.side === 'centre'))), false);
+    add('NP12 is red on a press under 44 pt tall', gradeNp12, edit(np12, (r) => r.reach.taps.forEach((t) => void (t.side === 'up' && t.by > 12 && (t.opened = false)))), false);
+    add('NP12 is red on a corner that opens nothing', gradeNp12, edit(np12, (r) => void (r.reach.taps.find((t) => t.side === 'corner-top-right').opened = false)), false);
+    add('NP12 is red on Select moved', gradeNp12, edit(np12, (r) => void (r.reach.row['list-select'][0] = 290)), false);
+    add('NP12 passes a "+" element that is the press around the same glyph', gradeNp12, edit(np12, (r) => Object.assign(r.reach.row, { 'start-open': [354, 58, 46, 46] }) && Object.assign(r.reach.rowAfter, { 'start-open': [354, 58, 46, 46] })), true);
+    add('NP12 is red on the "+" moved off its glyph', gradeNp12, edit(np12, (r) => void (r.reach.rowAfter['start-open'] = [360, 75, 18, 16])), false);
+    add('NP12 is red on Select toggled by a tap (the second run: Select gone, the menu moved)', gradeNp12, edit(np12, (r) => Object.assign(r.reach.rowAfter, { 'list-select': null, 'list-menu': [332.3333333333333, 73.33333333333333, 19.666666666666686, 19] })), false);
+    add('NP12 is UNREADABLE when the taps were placed around the element\'s frame', gradeNp12, edit(np12, (r) => Object.assign(r.reach, { given: false, glyph: [354, 58, 46, 46] })), null);
+    add('NP12 is red on the Show control pushed down', gradeNp12, edit(np12, (r) => void (r.reach.row['list-show'][1] = 110)), false);
+    // The ruled round's FIRST run (26.3, 2026-10-16), the glyph's own label padded and given back: iOS's touch radius
+    // opened the sheet along each axis (up to 17.5 up, 14.5 and 15.5 across) and at no corner of the square.
+    add('NP12 is red on the first build\'s reading: the axes reached by the touch radius, no corner', gradeNp12, edit(np12, (r) => r.reach.taps.forEach((t) => void (t.opened = t.side === 'up' || t.side === 'left' || t.side === 'right' || t.side === 'centre'))), false);
+    add('NP12 is UNREADABLE with no reading', gradeNp12, { reach: null }, null);
+    add('NP12 is UNREADABLE when a sheet it opened did not close', gradeNp12, edit(np12, (r) => void (r.reach.taps[0].closed = false)), null);
+  }
+  // THE FIX ROUND: NP4, the start on a project on a ready machine, over the hostile door's start-remote.
+  const np4 = {
+    offer,
+    far: 'p-b',
+    pick: { id: 'p-b', reading: { agents: [mark('codex', 'Codex CLI', 20, true)] } },
+    posts: [{ verified: 'ok', keys: 'agent,project,write', startProject: 'p-b', startAgent: 'codex', startPlace: 'm1' }],
+    created: { pressed: 'Create', labels: ['Create', START_WORDS.creating], lines: [], sheetGone: true, faceId: false, terminal: true }
+  };
+  add('NP4 passes its honest reading', gradeNp4, np4, true);
+  add('NP4 is red on the body naming this Mac\'s project', gradeNp4, edit(np4, (r) => Object.assign(r.posts[0], { startProject: 'p-a', startPlace: 'local' })), false);
+  add('NP4 is red on the body naming another agent', gradeNp4, edit(np4, (r) => void (r.posts[0].startAgent = 'claude')), false);
+  add('NP4 is red on two POSTs', gradeNp4, edit(np4, (r) => void r.posts.push({ ...r.posts[0] })), false);
+  add('NP4 is red on a mark the machine does not list', gradeNp4, edit(np4, (r) => void r.pick.reading.agents.push(mark('claude', 'Claude Code', 70, false))), false);
+  add('NP4 is red on Face ID', gradeNp4, edit(np4, (r) => void (r.created.faceId = true)), false);
+  add('NP4 is red on no Terminal', gradeNp4, edit(np4, (r) => void (r.created.terminal = false)), false);
+  add('NP4 is UNREADABLE with no project on a ready machine', gradeNp4, edit(np4, (r) => void (r.far = null)), null);
+  add('NP4 is UNREADABLE when the picked project is on a machine not ready', gradeNp4, edit(np4, (r) => void (r.far = 'p-c')), null);
+  add('NP4 is UNREADABLE with no Create', gradeNp4, edit(np4, (r) => void (r.created = null)), null);
+  const np5 = { removed: true, made: 0, created: { labels: ['Create', START_WORDS.creating, 'Create'], lines: [START_MAC.projectGone], sheetGone: false, faceId: false } };
+  add('NP5 passes its honest reading', gradeNp5, np5, true);
+  add('NP5 is red on the sheet closing', gradeNp5, edit(np5, (r) => void (r.created.sheetGone = true)), false);
+  add('NP5 is red on another line', gradeNp5, edit(np5, (r) => void (r.created.lines = ['That agent is not installed there. Nothing was started.'])), false);
+  add('NP5 is red on a session made', gradeNp5, edit(np5, (r) => void (r.made = 1)), false);
+  add('NP5 is UNREADABLE when the project was not closed', gradeNp5, edit(np5, (r) => void (r.removed = false)), null);
+  const np6 = { cut: true, acts: 1, made: 1, first: { labels: ['Create', START_WORDS.creating, START_WORDS.tryAgain], lines: [START_WORDS.noAnswer], sheetGone: false }, second: { pressed: START_WORDS.tryAgain, sheetGone: true, terminal: true } };
+  add('NP6 passes its honest reading', gradeNp6, np6, true);
+  add('NP6 is red on another line after the cut', gradeNp6, edit(np6, (r) => void (r.first.lines = [START_WORDS.notTaken])), false);
+  add('NP6 is red on no Try again', gradeNp6, edit(np6, (r) => void (r.first.labels = ['Create'])), false);
+  add('NP6 is red on two acts (a fresh id)', gradeNp6, edit(np6, (r) => void (r.acts = 2)), false);
+  add('NP6 is red on two sessions', gradeNp6, edit(np6, (r) => void (r.made = 2)), false);
+  add('NP6 is red on Try again not opening the session', gradeNp6, edit(np6, (r) => void (r.second.terminal = false)), false);
+  add('NP6 is UNREADABLE with no cut', gradeNp6, edit(np6, (r) => void (r.cut = false)), null);
+  const np7 = { read: { line: START_WORDS.notTaken }, held: 1, made: 0, acts: 0, waitedMs: 20_400 };
+  add('NP7 passes its honest reading', gradeNp7, np7, true);
+  add('NP7 is red on a session made', gradeNp7, edit(np7, (r) => void (r.made = 1)), false);
+  add('NP7 is red on another line', gradeNp7, edit(np7, (r) => void (r.read.line = START_WORDS.noAnswer)), false);
+  add('NP7 is UNREADABLE when the relay held nothing', gradeNp7, edit(np7, (r) => void (r.held = 0)), null);
+  const np8 = { open: { found: false, list: true }, alive: RUNNING_FOREGROUND };
+  add('NP8 passes its honest reading', gradeNp8, np8, true);
+  add('NP8 is red on a "+"', gradeNp8, edit(np8, (r) => void (r.open.found = true)), false);
+  add('NP8 is red on no list', gradeNp8, edit(np8, (r) => void (r.open.list = false)), false);
+  const np9 = { open: { found: true, sheet: true }, created: { lines: [START_WORDS.sample], sheetGone: false }, connections: 0 };
+  add('NP9 passes its honest reading', gradeNp9, np9, true);
+  add('NP9 is red on a connection', gradeNp9, edit(np9, (r) => void (r.connections = 1)), false);
+  add('NP9 is red on another line', gradeNp9, edit(np9, (r) => void (r.created.lines = [START_WORDS.notTaken])), false);
+  add('NP9 is red on no "+"', gradeNp9, edit(np9, (r) => void (r.open.found = false)), false);
+  const np10 = { paired: true, onScreen: 'mac', open: { found: true }, created: { sheetGone: true }, macMade: 1, twinPosts: 0 };
+  add('NP10 passes the Mac on screen', gradeNp10, np10, true);
+  add('NP10 passes the twin on screen', gradeNp10, edit(np10, (r) => Object.assign(r, { onScreen: 'twin', macMade: 0, twinPosts: 1 })), true);
+  add('NP10 is red on a start at the Mac not on screen', gradeNp10, edit(np10, (r) => void (r.twinPosts = 1)), false);
+  add('NP10 is red on the twin on screen and the Mac starting', gradeNp10, edit(np10, (r) => Object.assign(r, { onScreen: 'twin', macMade: 1, twinPosts: 0 })), false);
+  add('NP10 is UNREADABLE when the Mac on screen was not read', gradeNp10, edit(np10, (r) => void (r.onScreen = null)), null);
+  const np11 = { dumps: [{ name: 'list', elements: [{ id: 'list-title' }] }] };
+  add('NP11 passes a parent with no "+"', gradeNp11, np11, true);
+  add('NP11 is red on a parent drawing the "+"', gradeNp11, edit(np11, (r) => void r.dumps[0].elements.push({ id: 'start-open' })), false);
+  add('NP11 is UNREADABLE with no screen', gradeNp11, edit(np11, (r) => void (r.dumps = [])), null);
+  const nph = { spec: { ends: 'sentence', posts: 1, expect: ['startNoAnswer'] }, alive: RUNNING_FOREGROUND, posts: 1, open: { found: true, sheet: true, list: true }, first: { lines: [START_WORDS.noAnswer], labels: ['Create', START_WORDS.creating, START_WORDS.tryAgain], sheetGone: false }, last: null, sameBody: null };
+  add('NPH passes a sentence arm', gradeNph, nph, true);
+  add('NPH is red on another line', gradeNph, edit(nph, (r) => void (r.first.lines = [START_WORDS.notTaken])), false);
+  add('NPH is red on two POSTs', gradeNph, edit(nph, (r) => void (r.posts = 2)), false);
+  add('NPH is red on the sheet closing', gradeNph, edit(nph, (r) => void (r.first.sheetGone = true)), false);
+  add('NPH passes the door\'s own sentence on an open reason word', gradeNph, edit(nph, (r) => Object.assign(r, { spec: { ends: 'sentence', posts: 1, expect: [], doorSentence: true }, first: { lines: [START_UNKNOWN_SENTENCE], sheetGone: false } })), true);
+  add('NPH passes a key arm', gradeNph, { spec: { ends: 'no-plus', posts: 0 }, alive: RUNNING_FOREGROUND, posts: 0, open: { found: false, list: true } }, true);
+  add('NPH is red on a "+" over a broken key', gradeNph, { spec: { ends: 'no-plus', posts: 0 }, alive: RUNNING_FOREGROUND, posts: 0, open: { found: true, list: true } }, false);
+  const hold = { ...nph, spec: { ends: 'sentence', posts: 2, expect: ['startNoAnswer'], again: true }, posts: 2, last: { pressed: START_WORDS.tryAgain, sheetGone: true, terminal: true }, sameBody: true };
+  add('NPH passes the hold arm', gradeNph, hold, true);
+  add('NPH is red on Try again sending other bytes', gradeNph, edit(hold, (r) => void (r.sameBody = false)), false);
+  add('NPH passes the honest control', gradeNph, { spec: { ends: 'opened', posts: 1 }, alive: RUNNING_FOREGROUND, posts: 1, open: { found: true, sheet: true }, last: { sheetGone: true, terminal: true } }, true);
+  add('NPH is red on a dead app', gradeNph, edit(nph, (r) => void (r.alive = 1)), false);
+  // The words this group reads, from the trees.
+  cases.push({ what: 'the phone\'s start words are in Copy.swift', got: () => Object.values(START_WORDS).every((w) => typeof w === 'string' && w !== ''), want: true });
+  cases.push({ what: 'the Mac\'s start sentences are in src/shared/start-copy.ts', got: () => Object.values(START_MAC).every((w) => typeof w === 'string' && w !== ''), want: true });
+  cases.push({ what: 'the hostile door names a start arm per row of SPEC §5.4, and the two this group adds', got: () => ['start-key-malformed', 'start-key-unknown-state', 'start-key-huge', 'start-answer-wrong-verb', 'start-answer-no-echo', 'start-answer-done-no-session', 'start-answer-refused-no-reason', 'start-answer-unknown-reason', 'start-answer-2mib', 'start-answer-chunked', 'start-404', 'start-hold', 'start-key-waiting', 'start-honest', 'start-remote'].every((a) => START_ARMS.includes(a)), want: true });
+  // THE PROBE REVIEW'S OWN RECORDED READINGS (docs/method/HOW-WE-BUILT-THIS.md
+  // rule 9), in build/p346/fixtures/reviewer/p316-start.json: every line in the
+  // shape the UI test prints it, an honest reading per grader, and broken ones,
+  // each the honest one with ONE thing wrong; UNREADABLE (null) where a reading
+  // is missing, which four of these graders passed before the review.
+  {
+    const graders = { gradeNp1, gradeNp2, gradeNp3, gradeNp4, gradeNp5, gradeNp6, gradeNp7, gradeNp8, gradeNp9, gradeNp10, gradeNp11, gradeNph };
+    let review = null;
+    try {
+      review = JSON.parse(readFileSync(join(ROOT, 'build', 'p346', 'fixtures', 'reviewer', 'p316-start.json'), 'utf8'));
+    } catch (err) {
+      cases.push({ what: `the review's start readings load (${String(err?.message ?? err)})`, got: () => false, want: true });
+    }
+    if (review !== null) {
+      const at = (obj, path) => {
+        const keys = path.split('.');
+        let o = obj;
+        for (const k of keys.slice(0, -1)) o = o[/^\d+$/.test(k) ? Number(k) : k];
+        return { o, k: /^\d+$/.test(keys.at(-1)) ? Number(keys.at(-1)) : keys.at(-1) };
+      };
+      const apply = (reading, ops) => {
+        for (const op of ops) {
+          if (op.set !== undefined) {
+            const { o, k } = at(reading, op.set);
+            o[k] = structuredClone(op.value);
+          } else if (op.push !== undefined) {
+            const { o, k } = at(reading, op.push);
+            o[k].push(structuredClone(op.value));
+          } else if (op.delete !== undefined) {
+            const { o, k } = at(reading, op.delete);
+            delete o[k];
+          } else throw new Error(`an op this reader does not know: ${J(op)}`);
+        }
+        return reading;
+      };
+      const reached = new Set();
+      for (const c of review.cases) {
+        const grader = graders[c.grader];
+        cases.push({ what: `the review's ${c.grader} ${c.want === true ? 'PASSES' : c.want === false ? 'is red on' : 'is UNREADABLE on'} ${c.name}`, got: () => grader(apply(structuredClone(review.base[c.grader]), c.ops)).ok, want: c.want });
+        if (c.want !== true) reached.add(c.grader);
+      }
+      cases.push({ what: `the review's broken readings reach every start grader (${J(Object.keys(graders).filter((g) => !reached.has(g)))} missing)`, got: () => Object.keys(graders).every((g) => reached.has(g)), want: true });
+    }
+  }
+  return runSelfTestCases(cases);
 }
 
 // ---------------------------------------------------------------------------
@@ -10559,6 +11280,13 @@ function selfTest() {
       ? `${TAG} reply self-test PASS: ${String(replies.total)} cases (P1 to P10, RH and RP) graded as they must be.`
       : `${TAG} reply self-test FAIL: ${String(replies.bad)} of ${String(replies.total)} case(s) graded wrongly.`
   );
+  // Phase 346: New session (NP1 to NP11 and NPH).
+  const starts = startSelfTest();
+  console.log(
+    starts.bad === 0
+      ? `${TAG} start self-test PASS: ${String(starts.total)} cases (NP1 to NP11 and NPH) graded as they must be.`
+      : `${TAG} start self-test FAIL: ${String(starts.bad)} of ${String(starts.total)} case(s) graded wrongly.`
+  );
   // Phase 337: the Screen (PS1 to PS9, PSH and PSP), and Phase 337.1's Terminal (PS10 to PS16, PSH's scrollback arms and PSP).
   const screens = screenSelfTest();
   console.log(
@@ -10601,7 +11329,7 @@ function selfTest() {
       ? `${TAG} fill self-test PASS: ${String(fill.total)} cases (PF1 to PF9 and PF1 (pages), PL1 to PL5, PM1, PP1 to PP3, PSH scrollback-fill-moved, the run's readers and the stand-in's two tails) graded as they must be.`
       : `${TAG} fill self-test FAIL: ${String(fill.bad)} of ${String(fill.total)} case(s) graded wrongly.`
   );
-  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 && ends.bad === 0 && replies.bad === 0 && screens.bad === 0 && sessionsCases.bad === 0 && setupCases.bad === 0 && sampleCases.bad === 0 && recordedCases.bad === 0 && fill.bad === 0 ? 0 : 1);
+  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 && ends.bad === 0 && replies.bad === 0 && starts.bad === 0 && screens.bad === 0 && sessionsCases.bad === 0 && setupCases.bad === 0 && sampleCases.bad === 0 && recordedCases.bad === 0 && fill.bad === 0 ? 0 : 1);
 }
 // NOT `--self-test`: build/cdp-target.mjs, imported above, runs ITS fixtures
 // and exits when argv holds that exact word.
@@ -10823,7 +11551,19 @@ exit 0
   writeFileSync(join(BIN, 'codex'), `#!/bin/sh\n# probe:p316. Not Codex: build/p318/stand-in.mjs.\nexec '${P318_BIN}/codex' "$@"\n`, 'utf8');
   chmodSync(join(BIN, 'codex'), 0o755);
   writeFileSync(join(HOME, '.zprofile'), `export PATH="${BIN}:$PATH"\n`, 'utf8');
-  writeFileSync(join(HOME, '.zshrc'), `export PATH="${BIN}:$PATH"\n`, 'utf8');
+  writeFileSync(join(HOME, '.zshrc'), `export PATH="${BIN}:$PATH"\nexport HISTFILE=/dev/null\n`, 'utf8');
+  // THE PRECONDITION (Phase 346's ruled round): the login shell the app will ask, with the environment it will be
+  // given, resolves `claude` and `codex` to this file's stand-ins, or nothing is launched (UNREADABLE, exit 2). On
+  // 2026-10-16 a ZDOTDIR probe:p313 did not set started his real Claude Code in both of its claude sessions.
+  {
+    const asked = plantedResolve({ home: HOME, bin: BIN, names: ['claude', 'codex'], env: INHERITED_CLAUDE });
+    report.readings.resolves = asked.resolved;
+    if (!asked.ok) {
+      arm('the run', null, `REFUSED: ${asked.said}, so a session would start a real agent. Nothing is launched.`);
+      throw new Error('a planted agent does not resolve to its stand-in');
+    }
+    say(asked.said);
+  }
   const git = (args) => spawnSync('git', args, { cwd: WORK, encoding: 'utf8', env: { ...process.env, HOME } });
   git(['init', '-q']);
   writeFileSync(join(WORK, 'note.txt'), 'hello\n');
@@ -10861,6 +11601,13 @@ exit 0
       env: withoutDevRenderer({
         ...INHERITED_CLAUDE,
         HOME,
+        // PHASE 346's FIX ROUND: every shell a pane of this run starts keeps its
+        // history in the scratch HOME or nowhere, whatever the environment of
+        // whoever ran the probe says (a ZDOTDIR or a Terminal session id
+        // inherited from his own shell would otherwise reach the panes).
+        ZDOTDIR: HOME,
+        HISTFILE: '/dev/null',
+        TERM_SESSION_ID: undefined,
         GMUX_TMUX_SOCKET: SOCKET,
         GMUX_PROBES: '1',
         GMUX_LOG_FILE: '1',
@@ -14534,7 +15281,8 @@ exit 0
           const wanted = ((process.env['P316_HOSTILE'] ?? '').trim() || Object.keys(HOSTILE_ARMS).join(','))
             .split(',')
             .map((s) => s.trim())
-            .filter((name) => HOSTILE_ARMS[name]?.write !== true && HOSTILE_ARMS[name]?.reply !== true);
+            // Phase 346: the start arms are the start group's (NPH), as the write arms are EH's.
+            .filter((name) => HOSTILE_ARMS[name]?.write !== true && HOSTILE_ARMS[name]?.reply !== true && typeof HOSTILE_ARMS[name]?.start !== 'string');
           /** One hostile arm on `sim`: its door started, the app driven, graded, the door ended in a `finally`. */
           const hostileArm = async (sim, name, where) => {
             const spec = HOSTILE_ARMS[name];
@@ -14689,6 +15437,403 @@ exit 0
             await withSimulator({ label: 'p316-hostile-floor', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-hostile-floor'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
               for (const name of onFloor) await hostileArm(sim, name, ` (iOS ${sim.runtime})`);
             });
+          }
+        }
+
+        // ==================================================================
+        // Phase 346: THE START GROUP (build/p346/SPEC.md §6.2). New session
+        // pressed on the phone, against this Mac (whose first setup's Allow
+        // allowed every route, start included) and against hostile doors.
+        // Every agent a start launches here is this file's own `claude` (a
+        // /bin/sh that waits) or build/p318/stand-in.mjs as Codex; the drive
+        // presses no other mark. Before every Create the UI test prints
+        // `start-ready` and waits for this file's `start-<seq>`, so a project
+        // is closed on the Mac, or the relay held or cut, AT that moment. This
+        // file runs no machine, so NP4 (Create on a project on a machine) is
+        // UNREADABLE here, said so; probe:p346's S3 starts on the machine.
+        // ==================================================================
+        if (ARMS.has('start')) {
+          const startAcks = (label) => {
+            const dir = join(RUN, `start-acks-${label}`);
+            mkdirSync(dir, { recursive: true });
+            return { dir, ack: (seq) => writeFileSync(join(dir, `start-${String(seq)}`), 'ok\n') };
+          };
+          const untilStart = async (test, ms, every = 250) => {
+            const by = Date.now() + ms;
+            for (;;) {
+              const v = await test();
+              if (v !== null && v !== undefined && v !== false) return v;
+              if (Date.now() > by) return null;
+              await sleep(every);
+            }
+          };
+          const projectsNow = async () => JSON.parse(await cdpEval(cdp, 'window.gmux.projects.list().then((l) => JSON.stringify(l))'));
+          const sessionsAll = async () => JSON.parse(await cdpEval(cdp, 'window.gmux.sessions.list().then((s) => JSON.stringify(s.map((x) => ({ id: x.id, name: x.name, status: x.status, agent: x.agent, projectPath: x.projectPath }))))'));
+          const startActs = async () => (await appLogText()).split('\n').filter((l) => l.includes("the phone's start:")).length;
+          const projectAt = async (path) => (await projectsNow()).find((p) => p.path === path && (p.machineId === undefined || p.machineId === 'local'))?.id ?? null;
+          const addProjectAt = async (path) => {
+            mkdirSync(path, { recursive: true });
+            writeFileSync(join(path, 'README.md'), '# p346 start\n');
+            await cdpEval(cdp, `window.gmux.projects.add(${J(path)}).then(() => true).catch(() => false)`);
+            return projectAt(path);
+          };
+          const removeProject = async (id) => (await cdpEval(cdp, `window.gmux.projects.remove(${J(id)}).then(() => true).catch(() => false)`)) === true;
+          const offerNow = async () => (await readSessionsAs({}))?.start ?? null;
+          /** Each start's moment: the sessions and the start lines main held when the UI test said it was about to press. */
+          const takeMark = async () => ({ ids: new Set((await sessionsAll()).map((s) => s.id)), acts: await startActs(), at: Date.now() });
+          /** The created (or read on return) line of each start, by the tag its `start-ready` was given. */
+          const byTagOf = (events, tags) => {
+            const out = {};
+            let k = 0;
+            let cur = null;
+            for (const e of events) {
+              if (e.step === 'start-ready') cur = tags[k++] ?? null;
+              if ((e.step === 'start-created' || e.step === 'start-home-read') && cur !== null) {
+                out[cur] = e;
+                cur = null;
+              }
+            }
+            return out;
+          };
+          const workId = await projectAt(WORK);
+          const closeA = await addProjectAt(join(RUN, 'start-close-a'));
+          const closeB = await addProjectAt(join(RUN, 'start-close-b'));
+          if (workId === null || closeA === null || closeB === null) {
+            arm('NP the start group\'s projects', null, `a project was not open on the Mac: ${J({ workId, closeA, closeB })}`);
+          } else {
+            await confirmListening(cdp);
+            const ready = await untilStart(async () => {
+              const k = await offerNow();
+              return k?.state === 'offered' && (k.projects ?? []).some((p) => p.id === closeA) && (k.projects ?? []).some((p) => p.id === closeB) ? k : null;
+            }, 30_000, 500);
+            report.readings.startOffer = ready === null ? { state: (await offerNow())?.state ?? null } : { projects: ready.projects.length, places: ready.places.map((p) => ({ id: p.id, ready: p.ready, agents: p.agents })), chosen: ready.chosen, defaultAgent: ready.defaultAgent };
+            if (ready === null) arm('NP the Mac offers a start', null, `the Mac's /v1/sessions never carried an offer naming the scratch projects (${J(report.readings.startOffer)})`);
+            else {
+              // ---- 26.3: NP1, NP5, NP3, NP6 and NP7, one drive -------------
+              const plan = ['np5', 'np3', 'np6a', 'np6b', 'np7'];
+              const tags = [];
+              const at = {};
+              const S = { openOffer: null, removed: false, cut: false, cutsBefore: 0, heldBefore: 0, held: 0, homeAt: null };
+              const acks = startAcks('main');
+              let cutPoll = null;
+              let cutLogged = false;
+              const react = async (event) => {
+                if (event.step === 'start-open' && S.openOffer === null) S.openOffer = await offerNow();
+                if (event.step === 'start-ready') {
+                  const tag = plan.shift() ?? 'extra';
+                  tags.push(tag);
+                  at[tag] = await takeMark();
+                  if (tag === 'np5') S.removed = await removeProject(closeA);
+                  // THE FIX ROUND: a start answers in 23 to 228 ms, under the UI test's own sample, so Creating… was
+                  // never caught (NP3 UNREADABLE on both runtimes). The start's connection is forwarded 2.5 s late,
+                  // its bytes kept and nothing changed, as P3 and P9 hold Sending…, so Creating… is drawn long enough.
+                  if (tag === 'np3') relay.delayNextBy(2_500);
+                  if (tag === 'np6a') {
+                    const before = at.np6a.acts;
+                    cutLogged = false;
+                    cutPoll = setInterval(() => {
+                      void startActs().then((n) => {
+                        if (n > before) cutLogged = true;
+                      });
+                    }, 20);
+                    S.cutsBefore = relay.cuts();
+                    relay.cutNextAfter(() => cutLogged);
+                  }
+                  if (tag === 'np7') {
+                    S.heldBefore = relay.held();
+                    relay.pause();
+                  }
+                  acks.ack(event.seq);
+                }
+                if (event.step === 'start-created' && tags.at(-1) === 'np6a' && cutPoll !== null) {
+                  clearInterval(cutPoll);
+                  cutPoll = null;
+                  S.cut = relay.cuts() > S.cutsBefore && cutLogged;
+                }
+                if (event.step === 'start-home-pressed') {
+                  S.homeAt = Date.now();
+                  await sleep(3_000);
+                  S.held = relay.held() - S.heldBefore;
+                  relay.resume();
+                }
+              };
+              const steps = [
+                'pair',
+                'list',
+                // THE RULED ROUND: the "+"'s press measured around where the build before drew its glyph, and the title
+                // row read, before any start (NP12).
+                // Underscores, because the drive's steps are joined by commas.
+                `start-reach:${START_TITLE_ROW_BEFORE['start-open'].join('_')}`,
+                'start-open',
+                `start-pick:${closeA}`,
+                'start-create',
+                'start-close',
+                'start-open',
+                `start-pick:${workId}`,
+                'start-agent:claude',
+                'start-create',
+                'back',
+                'start-open',
+                `start-pick:${workId}`,
+                'start-agent:codex',
+                'start-create',
+                'start-create',
+                'back',
+                'start-open',
+                `start-pick:${workId}`,
+                'start-agent:claude',
+                'start-home',
+                'idle:20',
+                'start-close'
+              ];
+              try {
+                await withSimulator({ label: 'p316-start', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-start'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                  const run = await pairAndRead(sim, steps, 'start', { env: { P316_ACKS: acks.dir }, react });
+                  const ev = run.ok ? run.result.events : [];
+                  if (!run.ok || ev.length === 0) {
+                    arm('NP1 the "+" and New session over this Mac\'s offer', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
+                    return;
+                  }
+                  const endMark = await takeMark();
+                  const listNow = await sessionsAll();
+                  const byTag = byTagOf(ev, tags);
+                  const opens = ev.filter((e) => e.step === 'start-open');
+                  const made = (from, to) => [...to.ids].filter((id) => !from.ids.has(id)).map((id) => listNow.find((s) => s.id === id) ?? { id, name: null, agent: null, projectPath: null });
+                  // NP1
+                  {
+                    const v = gradeNp1({ offer: S.openOffer, open: opens[0] ?? null });
+                    arm('NP1 26.3: the "+" at the title\'s trailing end, named New session; the sheet\'s projects and marks this Mac\'s offer\'s', v.ok, v.said);
+                  }
+                  // NP12 (the ruled round)
+                  {
+                    const v = gradeNp12({ reach: ev.find((e) => e.step === 'start-reach') ?? null });
+                    arm('NP12 26.3: the "+"\'s press is at least 44 × 44 pt and nothing drawn on the Sessions title row moved', v.ok, v.said);
+                  }
+                  // NP5
+                  {
+                    const v = at.np5 === undefined ? verdict(null, 'the UI test never said it was about to press Create on the project to be closed') : gradeNp5({ removed: S.removed, created: byTag.np5 ?? null, made: made(at.np5, at.np3 ?? endMark).length });
+                    arm('NP5 26.3: a project closed on the Mac while the sheet is open, then Create: the sheet stays with the Mac\'s sentence', v.ok, v.said);
+                  }
+                  // NP3
+                  {
+                    const v = at.np3 === undefined ? verdict(null, 'the UI test never pressed Create on this Mac\'s project') : gradeNp3({ agent: 'claude', projectPath: WORK, made: made(at.np3, at.np6a ?? endMark), openFaceId: opens.some((o) => o.faceId === true), created: byTag.np3 ?? null });
+                    arm('NP3 26.3: Create: Creating…, the sheet gone, the Terminal of the session main created, no owner check', v.ok, v.said);
+                  }
+                  // NP6
+                  {
+                    const v = at.np6a === undefined ? verdict(null, 'the UI test never pressed the start the relay was to cut') : gradeNp6({ cut: S.cut, first: byTag.np6a ?? null, second: byTag.np6b ?? null, acts: (at.np7 ?? endMark).acts - at.np6a.acts, made: made(at.np6a, at.np7 ?? endMark).length });
+                    arm('NP6 26.3: no answer: the line and Try again; Try again sends the same id and opens the one session', v.ok, v.said);
+                  }
+                  // NP7
+                  {
+                    const v = at.np7 === undefined ? verdict(null, 'the UI test never pressed the start Home was to withhold') : gradeNp7({ read: byTag.np7 ?? null, held: S.held, made: made(at.np7, endMark).length, acts: endMark.acts - at.np7.acts, waitedMs: S.homeAt === null ? 0 : endMark.at - S.homeAt });
+                    arm('NP7 26.3: Create then Home with the relay holding the handshake: nothing started, the not-taken line on return', v.ok, v.said);
+                  }
+                  report.readings.start = { tags, cut: S.cut, held: S.held, removed: S.removed };
+                });
+              } finally {
+                if (cutPoll !== null) clearInterval(cutPoll);
+                relay.resume();
+              }
+
+              // ---- 18.3, the floor: NP1, NP5 and NP3 ----------------------------
+              await confirmListening(cdp);
+              {
+                const fplan = ['np5', 'np3'];
+                const ftags = [];
+                const fat = {};
+                const F = { openOffer: null, removed: false };
+                const facks = startAcks('floor');
+                const freact = async (event) => {
+                  if (event.step === 'start-open' && F.openOffer === null) F.openOffer = await offerNow();
+                  if (event.step === 'start-ready') {
+                    const tag = fplan.shift() ?? 'extra';
+                    ftags.push(tag);
+                    fat[tag] = await takeMark();
+                    if (tag === 'np5') F.removed = await removeProject(closeB);
+                    if (tag === 'np3') relay.delayNextBy(2_500);
+                    facks.ack(event.seq);
+                  }
+                };
+                await withSimulator({ label: 'p316-start-floor', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-start-floor'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                  const run = await pairAndRead(sim, ['pair', 'list', 'start-open', `start-pick:${closeB}`, 'start-create', 'start-close', 'start-open', `start-pick:${workId}`, 'start-agent:claude', 'start-create'], 'start-floor', { env: { P316_ACKS: facks.dir }, react: freact });
+                  const ev = run.ok ? run.result.events : [];
+                  if (!run.ok || ev.length === 0) {
+                    arm('NP1 18.3, the floor', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
+                    return;
+                  }
+                  const endMark = await takeMark();
+                  const listNow = await sessionsAll();
+                  const made = (from, to) => [...to.ids].filter((id) => !from.ids.has(id)).map((id) => listNow.find((s) => s.id === id) ?? { id, name: null, agent: null, projectPath: null });
+                  const byTag = byTagOf(ev, ftags);
+                  const opens = ev.filter((e) => e.step === 'start-open');
+                  const v1 = gradeNp1({ offer: F.openOffer, open: opens[0] ?? null });
+                  arm('NP1 18.3, the floor: the "+" and New session over this Mac\'s offer', v1.ok, v1.said);
+                  const v5 = fat.np5 === undefined ? verdict(null, 'no Create on the project to be closed') : gradeNp5({ removed: F.removed, created: byTag.np5 ?? null, made: made(fat.np5, fat.np3 ?? endMark).length });
+                  arm('NP5 18.3, the floor: a project closed while the sheet is open', v5.ok, v5.said);
+                  const v3 = fat.np3 === undefined ? verdict(null, 'no Create on this Mac\'s project') : gradeNp3({ agent: 'claude', projectPath: WORK, made: made(fat.np3, endMark), openFaceId: opens.some((o) => o.faceId === true), created: byTag.np3 ?? null });
+                  arm('NP3 18.3, the floor: Create opens the Terminal of the session main created, no owner check', v3.ok, v3.said);
+                });
+              }
+
+              // ---- NPH, NP2 and NP8: the hostile door's start arms, 26.3 --------------
+              await withSimulator({ label: 'p316-start-hostile', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-start-hostile'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                for (const name of START_ARMS) {
+                  const spec = HOSTILE_ARMS[name];
+                  await sim.simctl('keychain', 'reset');
+                  const door = await startDoorChild(name);
+                  doorChildren.add(door.child);
+                  try {
+                    if (door.facts === null) {
+                      arm(`NPH ${name}`, null, door.why ?? 'the hostile door did not start');
+                      continue;
+                    }
+                    const offer = door.facts.startOffer ?? null;
+                    const home = offer?.chosen ?? null;
+                    const far = (offer?.projects ?? []).find((p) => p.place === START_FAR.id)?.id ?? null;
+                    const steps =
+                      spec.ends === 'no-plus'
+                        ? ['pair', 'start-open']
+                        : spec.remote === true
+                          ? ['pair', 'start-open', ...(far === null ? [] : [`start-pick:${far}`, `start-agent:${(offer?.places ?? []).find((p) => p.id === START_FAR.id)?.agents?.[0] ?? 'codex'}`]), 'start-create']
+                        : name === 'start-honest'
+                          ? ['pair', 'start-open', ...(far === null || home === null ? [] : [`start-pick:${far}`, `start-pick:${home}`]), 'start-create']
+                          : spec.again === true
+                            ? ['pair', 'start-open', 'start-create', 'start-create']
+                            : ['pair', 'start-open', 'start-create'];
+                    const hacks = startAcks(`hostile-${name}`);
+                    const r = await drive(sim, {
+                      test: { id: UI_TEST },
+                      label: `start-hostile-${name}`,
+                      env: { P316_PAYLOAD: door.facts.payload, P316_STEPS: steps.join(','), P316_WAIT_S: '60', P316_ACKS: hacks.dir, P330_DOOR_ENDPOINT: `127.0.0.1:${String(door.facts.port)}` },
+                      onEvent: async (event) => {
+                        if (event.step === 'start-ready') hacks.ack(event.seq);
+                      }
+                    });
+                    if (r.events.length === 0) {
+                      arm(`NPH ${name}: ${spec.what}`, null, `the UI test printed no P316 line (xcodebuild exited ${String(r.code)})`);
+                      continue;
+                    }
+                    const open = r.events.find((e) => e.step === 'start-open') ?? null;
+                    const created = r.events.filter((e) => e.step === 'start-created');
+                    const posts = door.events.filter((e) => e.kind === 'request' && e.route === 'POST /v1/start');
+                    const sameBody = posts.length === 2 ? posts[0].bodySha === posts[1].bodySha && posts[0].startWrite !== '' && posts[0].startWrite === posts[1].startWrite : null;
+                    const v = gradeNph({ spec, alive: aliveOf(r.events), posts: posts.length, open, first: created[0] ?? null, last: created.at(-1) ?? null, sameBody });
+                    arm(`NPH ${name}: ${spec.what}`, v.ok, v.said);
+                    if (name === 'start-honest') {
+                      const picks = r.events.filter((e) => e.step === 'start-pick');
+                      const v1 = gradeNp1({ offer, open });
+                      arm('NP1 26.3, the hostile door\'s honest offer: a project on a machine, and one on a machine not connected, dimmed', v1.ok, v1.said);
+                      const v2 = gradeNp2({ offer, open, away: picks[0] === undefined ? null : { id: picks[0].id, reading: picks[0].reading }, back: picks[1] === undefined ? null : { id: picks[1].id, reading: picks[1].reading } });
+                      arm('NP2 26.3: the default agent chosen; a project whose place lacks it moves the choice (D11)', v2.ok, v2.said);
+                    }
+                    if (spec.remote === true) {
+                      const pick = r.events.find((e) => e.step === 'start-pick') ?? null;
+                      const v4 = gradeNp4({ offer, far, pick, posts, created: created[0] ?? null });
+                      arm('NP4 26.3: Create on a project on a ready machine: the body names that project and its machine\'s agent, and the made session\'s Terminal opens', v4.ok, v4.said);
+                    }
+                    if (name === 'start-key-waiting') {
+                      const v8 = gradeNp8({ open, alive: aliveOf(r.events) });
+                      arm('NP8 26.3: a Mac whose start waits for its Allow (D9): Sessions drawn, no "+"', v8.ok, v8.said);
+                    }
+                  } finally {
+                    await endDoorChild(door.child);
+                    doorChildren.delete(door.child);
+                  }
+                }
+              });
+
+              // ---- NP9: See a sample, 26.3, unpaired --------------------------------
+              await withSimulator({ label: 'p316-start-sample', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-start-sample'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                const sacks = startAcks('sample');
+                const before = relay.connections();
+                const r = await drive(sim, {
+                  test: { id: UI_TEST },
+                  label: 'start-sample',
+                  env: { P316_STEPS: 'sample-see,start-open,start-create', P316_WAIT_S: '60', P316_ACKS: sacks.dir, P330_DOOR_ENDPOINT: `127.0.0.1:${String(relay.port)}` },
+                  onEvent: async (event) => {
+                    if (event.step === 'start-ready') sacks.ack(event.seq);
+                    // 333.3's own marks wait for `sample-<seq>` when P316_ACKS is named.
+                    if (event.step === 'sample-open' || event.step === 'sample-leaving') writeFileSync(join(sacks.dir, `sample-${String(event.seq)}`), 'ok\n');
+                  }
+                });
+                const connections = relay.connections() - before;
+                if (r.events.length === 0) {
+                  arm('NP9 See a sample: New session, and Create says nothing ran', null, `the UI test printed no P316 line (xcodebuild exited ${String(r.code)})`);
+                  return;
+                }
+                const v = gradeNp9({ open: r.events.find((e) => e.step === 'start-open') ?? null, created: r.events.find((e) => e.step === 'start-created') ?? null, connections });
+                arm('NP9 See a sample: the "+" and the sheet over the sample\'s projects; Create says nothing ran; nothing left the phone', v.ok, v.said);
+              });
+
+              // ---- NP10: two Macs kept, the Mac on screen starts alone ------------------
+              {
+                const TWIN = 'p346-twin.tail00346.ts.net';
+                const firstLabelOf = (name) => String(name).split('.')[0];
+                const twin = await startDoorChild('start-honest', ['--name', TWIN]);
+                doorChildren.add(twin.child);
+                let sni = null;
+                try {
+                  if (twin.facts === null) arm('NP10 two Macs kept: the "+" of the Mac on screen starts on that Mac only', null, twin.why ?? 'the twin door did not start');
+                  else {
+                    sni = await startSniRelay({ routes: { [PUBLIC_NAME]: () => forwarderPort(), [TWIN]: () => twin.facts.port } });
+                    const tacks = startAcks('two');
+                    const T = { before: null };
+                    await confirmListening(cdp);
+                    await withSimulator({ label: 'p316-start-two', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-start-two'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                      const run = await pairAndRead(sim, ['pair', 'list', `pair-another:${b64uText(twin.facts.payload)}`, 'start-open', 'start-create'], 'start-two', {
+                        env: { P316_ACKS: tacks.dir, P330_DOOR_ENDPOINT: `127.0.0.1:${String(sni.port)}` },
+                        react: async (event) => {
+                          if (event.step === 'start-ready') {
+                            T.before = await takeMark();
+                            tacks.ack(event.seq);
+                          }
+                        }
+                      });
+                      const ev = run.ok ? run.result.events : [];
+                      const another = ev.find((e) => e.step === 'pair-another') ?? null;
+                      const open = ev.find((e) => e.step === 'start-open') ?? null;
+                      const labels = [...(open?.tabs?.inBar ?? []), ...(open?.tabs?.bottom ?? [])].map((b) => String(b.label ?? ''));
+                      const onScreen = labels.includes(firstLabelOf(TWIN)) ? 'twin' : labels.includes(firstLabelOf(PUBLIC_NAME)) ? 'mac' : null;
+                      const after = await takeMark();
+                      const v = gradeNp10({
+                        paired: run.ok && another?.closed === true,
+                        onScreen,
+                        open,
+                        created: ev.find((e) => e.step === 'start-created') ?? null,
+                        macMade: T.before === null ? 0 : [...after.ids].filter((id) => !T.before.ids.has(id)).length,
+                        twinPosts: twin.events.filter((e) => e.kind === 'request' && e.route === 'POST /v1/start').length
+                      });
+                      arm('NP10 two Macs kept: the "+" of the Mac on screen starts on that Mac only', v.ok, v.said);
+                    });
+                  }
+                } finally {
+                  await sni?.close?.();
+                  await endDoorChild(twin.child);
+                  doorChildren.delete(twin.child);
+                }
+              }
+
+              // ---- NP11: the parent's app, P346_PARENT_IOS ----------------------------
+              if (PARENT_IOS_346 !== '') {
+                const parentProject = join(resolve(PARENT_IOS_346), 'ios', 'Tortie.xcodeproj');
+                const parentDd = join(XCODE, 'dd-parent-346');
+                const built = existsSync(parentProject)
+                  ? await xcodebuildRun({ label: 'parent-start', scratch: XCODE, derivedDataPath: parentDd, args: ['build-for-testing', '-project', parentProject, '-scheme', SCHEME, '-configuration', 'Debug', '-destination', 'generic/platform=iOS Simulator'] })
+                  : { code: -1 };
+                if (built.code !== 0) arm('NP11 the parent\'s app: no "+" anywhere', null, `the parent's project did not build (${String(built.code)})`);
+                else {
+                  await confirmListening(cdp);
+                  await withSimulator({ label: 'p316-start-parent', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-start-parent'), derivedDataPath: parentDd, keep: KEEP }, async (sim) => {
+                    // Its OWN UI test, which knows no start step: its screens are read.
+                    const run = await pairAndRead(sim, ['pair', 'list', 'tab:sessions', 'tab:needs', 'tab:sessions'], 'start-parent', { project: parentProject, derivedDataPath: parentDd });
+                    const ev = run.ok ? run.result.events : [];
+                    const v = gradeNp11({ dumps: ev.filter((e) => e.step === 'screen') });
+                    arm('NP11 the parent\'s app (P346_PARENT_IOS): no "+" anywhere', v.ok, v.said);
+                  });
+                }
+              } else report.readings.startParent = 'not run: P346_PARENT_IOS is not set';
+            }
           }
         }
 

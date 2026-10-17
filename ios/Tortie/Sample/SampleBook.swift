@@ -14,6 +14,12 @@
 // THE ONE FIELD IT SETS is `at`, the phone's own clock at the answer (D4);
 // every age in the book is the composer's, at the world's fixed clock.
 //
+// NEW SESSION (Phase 346, D28). The book's `constants.start` is the offer the
+// Mac's own `composeStartOffer` composed over the made-up world, and every
+// sessions answer assembled here carries it, as a Mac that allowed Start
+// sends it on every one. A book written before that phase holds none, and
+// its answers carry none: no "+".
+//
 // WHAT IT TOUCHES: the app's own bundle, read once, and nothing else. It opens
 // no connection, keeps nothing on the phone and writes no file
 // (conformance:ios rule az).
@@ -107,7 +113,8 @@ struct SampleBook: @unchecked Sendable {
     }
 
     /// `/v1/sessions` for one state and one question; a question the book
-    /// holds no answer to is refused, as the door refuses a word it does not know.
+    /// holds no answer to is refused, as the door refuses a word it does not
+    /// know. The book's start offer rides on every one (Phase 346).
     func sessions(state: String, query: SessionsQuery, at: Double) throws -> PocketSessionsAnswer {
         guard query.machine == nil,
               let all = lists(state)?["sessions"] as? [String: Any],
@@ -126,7 +133,7 @@ struct SampleBook: @unchecked Sendable {
         let drawnGroups = try pick(groups, from: "groups")
         let agentChoices = try pick(agents, from: "choices")
         let machineChoices = try pick(machines, from: "choices")
-        let object: [String: Any] = [
+        var object: [String: Any] = [
             "asked": asked,
             "rows": drawnRows,
             "groups": drawnGroups,
@@ -137,6 +144,9 @@ struct SampleBook: @unchecked Sendable {
             "at": at,
             "ageNote": constant("sessionsAgeNote")
         ]
+        if let start = member("constants")?["start"] {
+            object["start"] = start
+        }
         return try Self.decoded(PocketSessionsAnswer.self, object)
     }
 

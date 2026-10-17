@@ -1,10 +1,21 @@
 /**
  * THE ONE WRITE PATH (Phase 317, build/p317/SPEC.md §5.3.4; widened by Phase
- * 318, build/p318/SPEC.md §5.1.4, and by Phase 337, build/p337/SPEC.md §5.5):
- * what main does with a signed `POST /v1/end`, `/v1/choose`, `/v1/say` or
- * `/v1/keys` once `./server.ts` has made refusals 1 and 6 (the quit, the door
- * stopping, and the signature over `POST`, the path and these exact body
- * bytes). Four verbs, ONE path, ONE ledger: there is no second gate.
+ * 318, build/p318/SPEC.md §5.1.4, by Phase 337, build/p337/SPEC.md §5.5, and
+ * by Phase 346, build/p346/SPEC.md §3.3): what main does with a signed
+ * `POST /v1/end`, `/v1/choose`, `/v1/say`, `/v1/keys` or `/v1/start` once
+ * `./server.ts` has made refusals 1 and 6 (the quit, the door stopping, and
+ * the signature over `POST`, the path and these exact body bytes). Five verbs,
+ * ONE path, ONE ledger: there is no second gate.
+ *
+ * `start` (Phase 346) names no session, so it takes the seven steps in a
+ * branch of its own ({@link writeStart} inside the handler's factory) that
+ * shares the ledger map, the per-phone count, the phone's claim and the one
+ * log line, and differs in exactly three places: its parse
+ * ({@link parseStartBody}), its claims (one start in flight on this Mac across
+ * every phone, `startInFlight`, never a key inside the sessions' set; and
+ * {@link START_RATE_MAX} starts per phone per {@link START_RATE_WINDOW_MS},
+ * counted at the claim), and its answer ({@link startAnswer}, the six fields of
+ * `PocketStartAnswer`).
  *
  * ## The order, held as code (research 135 §4.11, D3)
  *
@@ -62,10 +73,12 @@
  * ## What this module never does
  *
  * It names no verb (`conformance:pocket` R3): `end`, `choose`, `say` and
- * `keys` reach main's own End, the reply's verbs and the Screen's keys verb
- * through the {@link PocketWrites} it is handed. It sets no status, types
- * nothing, reads no file and writes none: the ledger is memory, and a write is
- * never queued for later. (A fourth write,
+ * `keys` reach main's own End, the reply's verbs and the Screen's keys verb,
+ * and (Phase 346) `start` reaches the Mac's own one guarded create, all
+ * through the {@link PocketWrites} it is handed; this module never spells the
+ * create. It sets no status, starts nothing itself, types nothing, reads no
+ * file and writes none: the ledger is memory, and a write is never queued for
+ * later. (A fourth write,
  * `unpair`, was removed by Phase 317's fix round: the phone waited on it before
  * it could forget a Mac that did not answer, which made Unpair slower than
  * today. build/p317/SPEC.md "§Fix round".)
@@ -78,6 +91,10 @@ import {
   POCKET_WRITE_SENTENCES,
   type PocketKeyItem,
   type PocketRouteId,
+  type PocketSessionWriteId,
+  type PocketStartAnswer,
+  type PocketStartReason,
+  type PocketStartSession,
   type PocketWriteAnswer,
   type PocketWriteOutcome,
   type PocketWriteReason,
@@ -85,11 +102,21 @@ import {
 } from '@shared/ipc/pocket';
 import { END_FAILED } from '@shared/lifecycle-words';
 import { REPLY_FAILED } from '@shared/reply-copy';
+import { START_BUSY, START_FAILED, START_OFTEN, START_STILL } from '@shared/start-copy';
+import type { LaunchableAgentId } from '@shared/types';
+import { LAUNCHABLE_AGENT_IDS } from '../agents/registry';
 import { getLog } from '../log';
 import type { DoorAdmission, DoorAnswer } from './bind';
+import { POCKET_WRITE_BODY_CAPS } from './door/limits';
 import type { PocketRoute } from './door/table';
 import { POCKET_CLOCK_SKEW_MS } from './pairing';
-import type { PocketEndOutcome, PocketReplyOutcome, PocketStillAllowed, PocketWrites } from './routes';
+import type {
+  PocketEndOutcome,
+  PocketReplyOutcome,
+  PocketStartOutcome,
+  PocketStillAllowed,
+  PocketWrites
+} from './routes';
 
 const pocketLog = getLog('pocket');
 
@@ -141,6 +168,26 @@ const QUESTION_COUNT_MAX_DIGITS = 16;
 /** A mark: `hashScreen`'s 12 lowercase hex. */
 const MARK_CHARS = 12;
 
+/** The start body's keys, sorted and joined (Phase 346, build/p346/SPEC.md D6). */
+const START_KEYS = 'agent,project,write';
+/**
+ * A project id: 1 to 64 of `[A-Za-z0-9-]` (D6). Every project id is a
+ * `randomUUID()`, 36 characters; the bound leaves room and no more.
+ */
+const PROJECT_ID_MAX = 64;
+
+/**
+ * THE MOST STARTS ONE PHONE MAY MAKE IN {@link START_RATE_WINDOW_MS} (Phase
+ * 346, build/p346/SPEC.md D16), counted at the claim. A person at the sheet
+ * takes several seconds a start (pick, Create, the Terminal opens), so six is
+ * above any human pace, and a stolen key is held to six agent processes a
+ * minute. There is no ceiling on live sessions: it would refuse his own.
+ * Declared once, read once.
+ */
+export const START_RATE_MAX = 6;
+/** The window {@link START_RATE_MAX} is counted over (D16). Declared once, read once. */
+export const START_RATE_WINDOW_MS = 60_000;
+
 /** What the write path asks of everything around it. */
 export interface PocketWriteDeps {
   /** True from the first line of the quit's admission close. */
@@ -190,8 +237,17 @@ export type PocketKeysBody =
   | { ok: true; verb: 'keys'; write: string; session: string; keys: PocketKeyItem[]; turn: string; dialog: string | null }
   | PocketMalformedBody;
 
-/** Any parsed write body. */
+/** Any parsed body of a write that acts on one named session. */
 export type PocketWriteBody = PocketEndBody | PocketChooseBody | PocketSayBody | PocketKeysBody;
+
+/**
+ * A parsed start body (Phase 346, D6), or what a malformed one still let the
+ * answer echo. Two ids and a write id, and nothing a phone could name a path,
+ * a flag, a name or a login with.
+ */
+export type PocketStartBody =
+  | { ok: true; verb: 'start'; write: string; project: string; agent: LaunchableAgentId }
+  | PocketMalformedBody;
 
 /** Exactly `chars` lowercase hex, read one character at a time. */
 function isLowerHex(value: string, chars: number): boolean {
@@ -237,6 +293,51 @@ function isMark(value: unknown): value is string {
 /** A marker: exactly one character, `1` to `9`, the agent's own option number. */
 function isMarker(value: unknown): value is string {
   return typeof value === 'string' && value.length === 1 && value >= '1' && value <= '9';
+}
+
+/**
+ * A project id (Phase 346, D6): 1 to {@link PROJECT_ID_MAX} of
+ * `[A-Za-z0-9-]`, read one character at a time. No `.`, `/` or `%`: an id is
+ * never a path.
+ */
+function isProjectId(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length < 1 || value.length > PROJECT_ID_MAX) return false;
+  for (const ch of value) {
+    const letter = (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
+    const digit = ch >= '0' && ch <= '9';
+    if (!letter && !digit && ch !== '-') return false;
+  }
+  return true;
+}
+
+/**
+ * The compiled launchable agent a body names, compared with `===` against
+ * each of `LAUNCHABLE_AGENT_IDS` and nothing else (Phase 346, D6; his answer
+ * 7): never `shell`, never a row only `agents.json` holds, never a cased or
+ * padded spelling. Null for anything else.
+ */
+function launchableAgentOf(value: unknown): LaunchableAgentId | null {
+  for (const id of LAUNCHABLE_AGENT_IDS) {
+    if (id === value) return id;
+  }
+  return null;
+}
+
+/**
+ * Whether a body is its object's own minimal encoding give or take JSON's
+ * whitespace (Phase 346, D6): the body's bytes that are not a space, a tab or
+ * a line break number exactly the bytes of the object written back. So a key
+ * given twice (JSON.parse keeps the last and says nothing) and a value written
+ * with an escape are refused, and nothing a reader of the bytes could see
+ * differs from what this path acts on. Every legal value is ASCII that needs
+ * no escape, which is what makes the count exact.
+ */
+function onlyItsOwnBytes(value: Record<string, unknown>, body: Buffer): boolean {
+  let significant = 0;
+  for (const byte of body) {
+    if (byte !== 0x20 && byte !== 0x09 && byte !== 0x0a && byte !== 0x0d) significant += 1;
+  }
+  return significant === Buffer.byteLength(JSON.stringify(value), 'utf8');
 }
 
 /** 1 to 128 of `[A-Za-z0-9._:-]`, read one character at a time. */
@@ -379,6 +480,25 @@ export function parseKeysBody(body: Buffer): PocketKeysBody {
   return { ok: true, verb: 'keys', write, session, keys, turn, dialog };
 }
 
+/**
+ * `{ agent, project, write }` exactly, or malformed (Phase 346,
+ * build/p346/SPEC.md D6), read as End's is: the one `JSON.parse` through
+ * {@link objectOf}, the keys compared exactly, the write id and the project id
+ * read one character at a time, and the agent compared with `===` against the
+ * compiled launchable ids. A body over its own cap (the door already drops
+ * one), a key given twice and an escaped value are malformed too.
+ */
+export function parseStartBody(body: Buffer): PocketStartBody {
+  const value = objectOf(body);
+  const write = echoOf(value);
+  if (value === null || Object.keys(value).sort().join(',') !== START_KEYS) return { ok: false, write };
+  const project = value['project'];
+  const agent = launchableAgentOf(value['agent']);
+  if (write === '' || !isProjectId(project) || agent === null) return { ok: false, write };
+  if (body.byteLength > POCKET_WRITE_BODY_CAPS.start || !onlyItsOwnBytes(value, body)) return { ok: false, write };
+  return { ok: true, verb: 'start', write, project, agent };
+}
+
 /** Whether a route id is one of the closed write list (Phase 318, §5.1.4 step 1). */
 function isWriteRoute(id: PocketRouteId): id is PocketWriteRouteId {
   return (POCKET_WRITE_ROUTE_IDS as readonly PocketRouteId[]).includes(id);
@@ -386,7 +506,7 @@ function isWriteRoute(id: PocketRouteId): id is PocketWriteRouteId {
 
 /** The answer, composed field by field, so nothing else can ever leave. */
 function writeAnswer(
-  verb: PocketWriteRouteId,
+  verb: PocketSessionWriteId,
   write: string,
   outcome: PocketWriteOutcome,
   reason: PocketWriteReason | null,
@@ -457,6 +577,73 @@ function replySettled(start: () => Promise<PocketReplyOutcome>): Promise<ActOutc
   }
 }
 
+/**
+ * A start's answer, composed field by field (Phase 346, build/p346/SPEC.md
+ * D5), so nothing but `PocketStartAnswer`'s six fields can ever leave: the
+ * verb, the echoed write id, the outcome, the reason (non-null exactly when
+ * refused), the sentence (null exactly when done) and the new session's id and
+ * name (non-null exactly when done). Exported for the vectors and the tests.
+ */
+export function startAnswer(
+  write: string,
+  outcome: PocketWriteOutcome,
+  reason: PocketStartReason | null,
+  sentence: string | null,
+  session: PocketStartSession | null
+): string {
+  const answer: PocketStartAnswer = { verb: 'start', write, outcome, reason, sentence, session };
+  return JSON.stringify({
+    verb: answer.verb,
+    write: answer.write,
+    outcome: answer.outcome,
+    reason: answer.reason,
+    sentence: answer.sentence,
+    session: answer.session === null ? null : { id: answer.session.id, name: answer.session.name }
+  });
+}
+
+/** What a start's act came to, before it is answered (Phase 346). */
+interface StartActOutcome {
+  readonly outcome: PocketWriteOutcome;
+  readonly reason: PocketStartReason | null;
+  readonly sentence: string | null;
+  readonly session: PocketStartSession | null;
+}
+
+const START_ACT_FAILED: StartActOutcome = { outcome: 'failed', reason: null, sentence: START_FAILED, session: null };
+
+/**
+ * A start's outcome as the answer says it. Only the three shapes; nothing else
+ * passes, and a `done` whose session a phone could not read (an id that is not
+ * a session id, an empty name) is `failed` with {@link START_FAILED}, whose
+ * words are true of it: if anything started, it is in Sessions.
+ */
+function startActOf(result: PocketStartOutcome): StartActOutcome {
+  if (result.outcome === 'done') {
+    const { id, name } = result.session;
+    if (!isSessionId(id) || typeof name !== 'string' || name.length === 0) return START_ACT_FAILED;
+    return { outcome: 'done', reason: null, sentence: null, session: { id, name } };
+  }
+  if (result.outcome === 'refused') {
+    return { outcome: 'refused', reason: result.reason, sentence: result.sentence, session: null };
+  }
+  if (result.outcome === 'failed') return { outcome: 'failed', reason: null, sentence: result.sentence, session: null };
+  return START_ACT_FAILED;
+}
+
+/**
+ * Start `start` NOW and never let it throw past here (Phase 346, §3.3 step
+ * 5): the same wrapper as {@link endSettled}, a rejection or a throw before
+ * the promise exists reading `failed` with {@link START_FAILED}.
+ */
+function startSettled(start: () => Promise<PocketStartOutcome>): Promise<StartActOutcome> {
+  try {
+    return start().then(startActOf, () => START_ACT_FAILED);
+  } catch {
+    return Promise.resolve(START_ACT_FAILED);
+  }
+}
+
 /** One write id the ledger holds. */
 interface LedgerEntry {
   readonly phone: string;
@@ -487,6 +674,19 @@ export function createPocketWriteHandler(deps: PocketWriteDeps): PocketWriteHand
    * quiet window.
    */
   const keysLoggedAt = new Map<string, number>();
+  /**
+   * PHASE 346 (D16): ONE START IN FLIGHT ON THIS MAC, across every phone. A
+   * claim of its own, never a key inside {@link sessionsInFlight}: a start
+   * names no session, and two starts at once would each read a project's
+   * sessions before either had made one, and name two sessions alike.
+   */
+  let startInFlight = false;
+  /**
+   * PHASE 346 (D16): phone → when its starts were claimed, oldest first, kept
+   * only while inside {@link START_RATE_WINDOW_MS}. Bounded by the paired
+   * phones and {@link START_RATE_MAX} stamps each.
+   */
+  const startsAt = new Map<string, number[]>();
 
   // PHASE 318 (D4, 317's fix-round nit): the verb is in the key, so the same
   // write id under another verb is its own write and never another's answer.
@@ -510,16 +710,15 @@ export function createPocketWriteHandler(deps: PocketWriteDeps): PocketWriteHand
   };
 
   /**
-   * Whether this outcome takes step 7's one log line (D43). Every outcome of
-   * every verb does, but a `keys` write answered `done` on a session whose last
-   * `done` keys line is younger than {@link KEYS_LOG_QUIET_MS}.
+   * This phone's starts still inside the window, oldest first, and the map
+   * left holding exactly those (Phase 346, D16). The ONE place the window is
+   * read.
    */
-  const logs = (verb: PocketWriteRouteId, outcome: PocketWriteOutcome, session: string, at: number): boolean => {
-    if (verb !== 'keys' || outcome !== 'done') return true;
-    const last = keysLoggedAt.get(session);
-    if (last !== undefined && at - last < KEYS_LOG_QUIET_MS) return false;
-    keysLoggedAt.set(session, at);
-    return true;
+  const recentStarts = (phone: string, at: number): number[] => {
+    const recent = (startsAt.get(phone) ?? []).filter((when) => at - when < START_RATE_WINDOW_MS);
+    if (recent.length === 0) startsAt.delete(phone);
+    else startsAt.set(phone, recent);
+    return recent;
   };
 
   return async function write(route, body, verifiedPhone, door): Promise<DoorAnswer> {
@@ -531,6 +730,10 @@ export function createPocketWriteHandler(deps: PocketWriteDeps): PocketWriteHand
       return { status: 404, body: null };
     }
     const verb: PocketWriteRouteId = route.id;
+    // PHASE 346: a start names no session, so it takes its own branch of the
+    // same seven steps, sharing the ledger, the per-phone count, the phone's
+    // claim and the log line.
+    if (verb === 'start') return writeStart(writes, body, verifiedPhone, door);
 
     // STEP 1. The strict parse.
     // By the verb (Phase 318; Phase 337's keys): each verb's own key set,
@@ -622,7 +825,7 @@ export function createPocketWriteHandler(deps: PocketWriteDeps): PocketWriteHand
       pending.at = now();
       // STEP 7. One log line: the verb and the outcome word, and the session id.
       // Phase 337 (D43): a `done` keys write only once per session per quiet minute.
-      if (logs(verb, done.outcome, session, pending.at)) pocketLog.info(`the phone's ${verb}: ${done.outcome}`, { session });
+      logWrite(verb, done.outcome, session, pending.at, keysLoggedAt);
       return { status: 200, body: answer, acted: true };
     } finally {
       phonesInFlight.delete(verifiedPhone);
@@ -631,4 +834,143 @@ export function createPocketWriteHandler(deps: PocketWriteDeps): PocketWriteHand
       if (pending.state === 'pending' && ledger.get(key) === pending) forget(key, pending);
     }
   };
+
+  /**
+   * THE START BRANCH (Phase 346, build/p346/SPEC.md §3.3): the seven steps for
+   * `start`, sharing the ledger, the per-phone count, the phone's claim and
+   * the one log line with every other verb, in this order and no other:
+   *
+   *  1. the strict parse ({@link parseStartBody});
+   *  2. the ledger, keyed on the phone, `start` and the write id: a recorded
+   *     answer again with its own `acted`, a pending one `busy` marked `acted`
+   *     with {@link START_STILL}, a full ledger `busy`;
+   *  3. the claims, each asked before any is made: this phone's write in
+   *     flight (any verb), then a start in flight on this Mac, then the rate,
+   *     which is refused `often` and NOT recorded, so the same write id can act
+   *     once the window allows; then the claim itself, the rate stamp and the
+   *     pending entry;
+   *  4. the last check, and the act in the very next statement;
+   *  5. the act, {@link startSettled}, which cannot throw past it;
+   *  6. the outcome, recorded and answered with {@link startAnswer};
+   *  7. one log line: the verb, the outcome word and the new session's id.
+   *
+   * DECLARED AFTER THE HANDLER, and hoisted, so the session verbs' path reads
+   * first in this file and the start's branch after it.
+   */
+  async function writeStart(
+    writes: PocketWrites,
+    body: Buffer,
+    verifiedPhone: string,
+    door: DoorAdmission
+  ): Promise<DoorAnswer> {
+    // STEP 1. The strict parse.
+    const parsed = parseStartBody(body);
+    if (!parsed.ok) {
+      return {
+        status: 200,
+        body: startAnswer(parsed.write, 'refused', 'malformed', POCKET_WRITE_SENTENCES.unreadable, null)
+      };
+    }
+
+    // STEP 2. The ledger.
+    const at = now();
+    prune(at);
+    const key = keyOf(verifiedPhone, 'start', parsed.write);
+    const known = ledger.get(key);
+    if (known !== undefined && known.state === 'recorded') {
+      // Answered again, starting nothing, and carrying what it recorded.
+      return known.acted ? { status: 200, body: known.body, acted: true } : { status: 200, body: known.body };
+    }
+    if (known !== undefined) {
+      // The start it duplicates may be starting the session right now.
+      return { status: 200, body: startAnswer(parsed.write, 'busy', null, START_STILL, null), acted: true };
+    }
+    if ((perPhone.get(verifiedPhone) ?? 0) >= POCKET_WRITE_LEDGER_PER_PHONE || ledger.size >= POCKET_WRITE_LEDGER_MAX) {
+      return { status: 200, body: startAnswer(parsed.write, 'busy', null, POCKET_WRITE_SENTENCES.busy, null) };
+    }
+
+    // STEP 3. The claims: this phone's write in flight, a start in flight on
+    // this Mac, the rate; then the claim, the rate's stamp and the pending entry.
+    if (phonesInFlight.has(verifiedPhone)) {
+      return { status: 200, body: startAnswer(parsed.write, 'busy', null, POCKET_WRITE_SENTENCES.busy, null) };
+    }
+    if (startInFlight) {
+      return { status: 200, body: startAnswer(parsed.write, 'busy', null, START_BUSY, null) };
+    }
+    const recent = recentStarts(verifiedPhone, at);
+    if (recent.length >= START_RATE_MAX) {
+      return { status: 200, body: startAnswer(parsed.write, 'refused', 'often', START_OFTEN, null) };
+    }
+    phonesInFlight.add(verifiedPhone);
+    startInFlight = true;
+    startsAt.set(verifiedPhone, [...recent, at]);
+    const pending: LedgerEntry = { phone: verifiedPhone, state: 'pending', body: '', acted: false, at };
+    ledger.set(key, pending);
+    perPhone.set(verifiedPhone, (perPhone.get(verifiedPhone) ?? 0) + 1);
+    // THE SAME FOUR ASKS AS THE LAST CHECK BELOW, handed to the act, which asks
+    // them once more after its reads and immediately before the create.
+    const still: PocketStillAllowed = (): boolean =>
+      !deps.shuttingDown() && !door.stopping() && deps.stillPaired(verifiedPhone) && deps.routeServed('start');
+    try {
+      // STEP 4. The last check, and STEP 5, the act, in the very next statement.
+      if (deps.shuttingDown() || door.stopping() || !deps.stillPaired(verifiedPhone) || !deps.routeServed('start')) return { status: 404, body: null };
+      const acting = startSettled(() => writes.start({ project: parsed.project, agent: parsed.agent }, still));
+      // The act, awaited. It cannot throw past here, and from here every
+      // answer is a 200 marked `acted`.
+      const done = await acting;
+      // STEP 6. The outcome, recorded and answered.
+      const answer = startAnswer(parsed.write, done.outcome, done.reason, done.sentence, done.session);
+      pending.state = 'recorded';
+      pending.body = answer;
+      pending.acted = true;
+      pending.at = now();
+      // STEP 7. One log line: the verb, the outcome word and the new session's id.
+      logWrite('start', done.outcome, done.session?.id ?? '', pending.at, keysLoggedAt);
+      return { status: 200, body: answer, acted: true };
+    } finally {
+      phonesInFlight.delete(verifiedPhone);
+      startInFlight = false;
+      // A pending entry that never acted leaves nothing behind.
+      if (pending.state === 'pending' && ledger.get(key) === pending) forget(key, pending);
+    }
+  }
+}
+
+/**
+ * STEP 7'S ONE LOG LINE, for every verb (Phase 317; one place since Phase
+ * 346, so a start's line cannot drift from the others): the verb and the
+ * outcome word, and the session id as its one field (a start's, the session it
+ * made, or `''`). Never the body, the write id, a header, a sentence, the
+ * question id, the mark, the marker, the text, a key, a project or an agent.
+ * Written only when {@link logs} says so (Phase 337, D43).
+ */
+function logWrite(
+  verb: PocketWriteRouteId,
+  outcome: PocketWriteOutcome,
+  session: string,
+  at: number,
+  keysLoggedAt: Map<string, number>
+): void {
+  if (logs(verb, outcome, session, at, keysLoggedAt)) pocketLog.info(`the phone's ${verb}: ${outcome}`, { session });
+}
+
+/**
+ * Whether this outcome takes step 7's one log line (Phase 337, D43). Every
+ * outcome of every verb does, but a `keys` write answered `done` on a session
+ * whose last `done` keys line is younger than {@link KEYS_LOG_QUIET_MS}. It
+ * records the line it allows in `keysLoggedAt`, the write path's own map,
+ * which the ledger's pruning bounds.
+ */
+function logs(
+  verb: PocketWriteRouteId,
+  outcome: PocketWriteOutcome,
+  session: string,
+  at: number,
+  keysLoggedAt: Map<string, number>
+): boolean {
+  if (verb !== 'keys' || outcome !== 'done') return true;
+  const last = keysLoggedAt.get(session);
+  if (last !== undefined && at - last < KEYS_LOG_QUIET_MS) return false;
+  keysLoggedAt.set(session, at);
+  return true;
 }

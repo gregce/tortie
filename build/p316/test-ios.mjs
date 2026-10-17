@@ -131,6 +131,20 @@
  * `MultiMacKeychainTests`, the matrix's corrupt-record row on the Simulator's
  * own keychain.
  *
+ * PHASE 346 (build/p346/SPEC.md §6.3) adds THE START DOOR, a fifth listener
+ * under door A's key and admission, handed to the tests as
+ * `TEST_RUNNER_P346_START_PORT`: it takes `POST /v1/start` verified as the
+ * vectors' phone, records every body it read byte for byte (read back with
+ * the identity on `GET /p346/starts`), holds a start naming the project
+ * `p346-hold` (read, recorded, its connection ended with NO answer) and
+ * answers every other one `done` with its id echoed (`startAnswerFor`), so
+ * `P346StartTransportTests` drives the SHIPPING `DoorClient.start`: the vector
+ * body byte for byte, the kept id sending the same bytes after an answer that
+ * did not come, and a withheld start reaching the handshake-holding door with
+ * no request. After each configuration `startProblems` reads the door's counts
+ * and every `P346_TRANSPORT|<row>|<reading>` line, and `P346_SUITES` must be
+ * named in xcodebuild's own suite lines.
+ *
  * THE ORDER.
  *   1. The preflight: xcodebuild, simctl, the runtime and the device type
  *      (the iPhone 16 Pro, or the one P316_DEVICE names, which that runtime
@@ -855,7 +869,11 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
     // Phase 337. The screen door's own: every handshake (the counts request's
     // included), every connection the PHONE ended first, every screen read and
     // keys write it read, and every signature that did not hold.
-    screen: { handshakes: 0, phoneCloses: 0, screenReads: 0, keysPosts: 0, refused: [], scrollbackReads: 0, sessionReads: 0, scrollbackRefused: 0 }
+    screen: { handshakes: 0, phoneCloses: 0, screenReads: 0, keysPosts: 0, refused: [], scrollbackReads: 0, sessionReads: 0, scrollbackRefused: 0 },
+    // Phase 346. The start door's own: every POST /v1/start it read, every
+    // signature that held or did not, every one it ended with no answer (the
+    // hold mode) or answered, and every body it read, as text, in order.
+    start: { posts: 0, verified: 0, refused: [], held: 0, answered: 0, bodies: [] }
   });
   let counts = fresh();
   // Every key door A ever issued over, which a `reset` between configurations
@@ -1131,7 +1149,55 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
     screenHttp.emit('connection', socket);
   });
   screenDoor.on('tlsClientError', () => undefined);
-  const servers = [doorA, doorB, holdTls, holdAnswer, screenDoor];
+  // PHASE 346: the start door, under door A's key and admission, answering
+  // `POST /v1/start` verified as the vectors' phone and recording every body
+  // it read, byte for byte; `p346-hold` as the project is read, recorded and
+  // its connection ended with NO answer (the hold mode); every other start is
+  // answered by `startAnswerFor`. `GET /p346/starts` answers the record.
+  const startHttp = createHttp({ maxHeaderSize: 8192 }, (req, res) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', (c) => {
+      size += c.length;
+      if (size <= WRITE_READ_CAP) chunks.push(c);
+    });
+    req.on('end', () => {
+      const body = Buffer.concat(chunks);
+      if (req.method === 'GET' && req.url === '/p346/starts') return answer(res, 200, JSON.stringify({ bodies: counts.start.bodies }));
+      if (req.method !== 'POST' || req.url !== '/v1/start' || size > WRITE_READ_CAP) return answer(res, 404, null);
+      counts.start.posts += 1;
+      const verdict = verifySigned({ method: req.method, target: req.url, headers: req.headers, body, ...writeSigner });
+      if (verdict !== 'ok') {
+        counts.start.refused.push(verdict);
+        return answer(res, 404, null);
+      }
+      counts.start.verified += 1;
+      counts.start.bodies.push(body.toString('utf8'));
+      const reply = startAnswerFor(body, POCKET_WRITE_SENTENCES.unreadable);
+      if (reply === null) {
+        counts.start.held += 1;
+        req.socket.destroy();
+        return;
+      }
+      counts.start.answered += 1;
+      return answer(res, 200, JSON.stringify(reply));
+    });
+  });
+  const startDoor = createTls(tlsOptions);
+  startDoor.on('secureConnection', (socket) => {
+    const peer = socket.getPeerX509Certificate();
+    const pin = peer === undefined ? null : pinOfSpki(peer.publicKey.export({ type: 'spki', format: 'der' }));
+    if (pin === null || !admitted.has(pin)) {
+      counts.a.refused += 1;
+      socket.destroy();
+      return;
+    }
+    socket.p330Pin = pin;
+    socket.on('error', () => undefined);
+    startHttp.emit('connection', socket);
+  });
+  startDoor.on('tlsClientError', () => undefined);
+  const servers = [doorA, doorB, holdTls, holdAnswer, screenDoor, startDoor];
   const listening = [];
   const close = async () => {
     for (const raw of held) raw.destroy();
@@ -1147,6 +1213,7 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
     );
     http.closeAllConnections?.();
     screenHttp.closeAllConnections?.();
+    startHttp.closeAllConnections?.();
   };
   try {
     for (const server of servers) {
@@ -1167,6 +1234,7 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
     portHoldTls: holdTls.address().port,
     portHoldAnswer: holdAnswer.address().port,
     portScreen: screenDoor.address().port,
+    portStart: startDoor.address().port,
     holdMs,
     pinA: A.pin,
     counts: () => counts,
@@ -1227,6 +1295,92 @@ export function replyProblems(counts, configuration) {
 
 /** The test classes Phase 318 adds or changes (build/p318/SPEC.md §7.2, §10). */
 export const P318_SUITES = Object.freeze(['ReplyTests', 'ReplyClientTests', 'P318ReplyTransportTests', 'CopyTests', 'DoorVectorTests', 'WriterTests']);
+
+// ---------------------------------------------------------------------------
+// Phase 346: the start door (build/p346/SPEC.md §6.3)
+// ---------------------------------------------------------------------------
+
+/** The project a start names to be held: read, recorded, its connection ended with no answer. */
+export const P346_HOLD_PROJECT = 'p346-hold';
+/** The session id every start the door answers names. */
+export const P346_MADE_SESSION = 'p346-made';
+
+/**
+ * The start door's answer to one verified body (Phase 346, SPEC D5, D6), or
+ * null for the hold mode. A body that is not exactly `{ agent, project, write }`
+ * with a 32-lowercase-hex write id gets the Mac's own answer for it, `refused`
+ * `malformed` with `""` echoed and the shipping `unreadable` sentence; the
+ * project `p346-hold` is held; every other start is `done`, its write id
+ * echoed and a session `{ id: 'p346-made', name: '<agent>-1' }`, in the six
+ * fields' own order.
+ */
+export function startAnswerFor(body, unreadable) {
+  let parsed = null;
+  try {
+    parsed = JSON.parse(Buffer.from(body).toString('utf8'));
+  } catch {
+    parsed = null;
+  }
+  const whole = parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed) && Object.keys(parsed).sort().join(',') === 'agent,project,write' && typeof parsed.write === 'string' && /^[0-9a-f]{32}$/.test(parsed.write) && typeof parsed.agent === 'string' && parsed.agent !== '' && typeof parsed.project === 'string' && parsed.project !== '';
+  if (!whole) return { verb: 'start', write: '', outcome: 'refused', reason: 'malformed', sentence: unreadable, session: null };
+  if (parsed.project === P346_HOLD_PROJECT) return null;
+  return { verb: 'start', write: parsed.write, outcome: 'done', reason: null, sentence: null, session: { id: P346_MADE_SESSION, name: `${parsed.agent}-1` } };
+}
+
+/**
+ * What each row of P346StartTransportTests must print as
+ * `P346_TRANSPORT|<row>|<reading>` (build/p346/SPEC.md §6.3): the vector body
+ * answered done and read on the wire byte for byte, the kept id's two bodies
+ * the same, and the reader's own starter answered done. The withheld row's
+ * reading is the result Swift prints, which must name the cancel.
+ */
+export const P346_TRANSPORT_ROWS = Object.freeze({ vector: 'done,same', kept: 'same', reader: 'done' });
+
+/**
+ * What one configuration's start rows left (Phase 346, SPEC §6.3): the start
+ * door read the vector start, the two held ones and the reader's, every
+ * signature held, at least two were held with no answer; and, given
+ * xcodebuild's output, every `P346_TRANSPORT|<row>|<reading>` row read what
+ * `P346_TRANSPORT_ROWS` says and the withheld row named the cancel (the door
+ * that holds the handshake reading no request is `writeProblems`' own rule).
+ * Returns the problems (sentences).
+ */
+export function startProblems(counts, configuration, text = null) {
+  const problems = [];
+  const s = counts.start;
+  if (s === undefined) return [`${configuration}: the doors carry no start door, so P346StartTransportTests had nothing to dial`];
+  if (s.posts < 4) problems.push(`${configuration}: the start door read ${String(s.posts)} POST /v1/start, not the four P346StartTransportTests sends (the vector, the held start twice, the reader's)`);
+  if (s.refused.length > 0) problems.push(`${configuration}: the start door refused ${String(s.refused.length)} signature(s) (${[...new Set(s.refused)].join(', ')}); every start the shipping client signs with the vectors' key holds`);
+  if (s.held < 2) problems.push(`${configuration}: the start door held ${String(s.held)} start(s) with no answer, not the two the kept-id row sends`);
+  // THE PROBE REVIEW (rule 9): the door's OWN record, never only the Swift test's reading of it (`kept|same`): the
+  // kept id's held bodies, byte for byte one body.
+  const heldBodies = (s.bodies ?? []).filter((b) => {
+    try {
+      return JSON.parse(b)?.project === P346_HOLD_PROJECT;
+    } catch {
+      return false;
+    }
+  });
+  if (heldBodies.length < 2) problems.push(`${configuration}: the start door recorded ${String(heldBodies.length)} body(ies) naming ${P346_HOLD_PROJECT}, not the kept id's two`);
+  else if (new Set(heldBodies).size !== 1) problems.push(`${configuration}: the kept id's ${String(heldBodies.length)} bodies differ on the door's own record, so the second send was not the first's bytes`);
+  if (text !== null) {
+    const rows = new Map([...String(text).matchAll(/P346_TRANSPORT\|([a-z-]+)\|([^\s|]+)/g)].map((m) => [m[1], m[2]]));
+    for (const [row, want] of Object.entries(P346_TRANSPORT_ROWS)) {
+      if (!rows.has(row)) problems.push(`${configuration}: no P346_TRANSPORT|${row} line, so that row did not run to its end`);
+      else if (rows.get(row) !== want) problems.push(`${configuration}: P346_TRANSPORT|${row} read ${String(rows.get(row))}, not ${want}`);
+    }
+    if (!rows.has('withheld')) problems.push(`${configuration}: no P346_TRANSPORT|withheld line, so the withheld start did not run to its end`);
+    else if (!/cancelled/.test(rows.get('withheld'))) problems.push(`${configuration}: P346_TRANSPORT|withheld read ${String(rows.get('withheld'))}, which names no cancel`);
+  }
+  return problems;
+}
+
+/**
+ * The test classes Phase 346 adds or changes (build/p346/SPEC.md §6.3), each
+ * of which must appear in xcodebuild's own suite lines, so a class that drops
+ * out of the bundle is not read as a pass.
+ */
+export const P346_SUITES = Object.freeze(['StartTests', 'StartClientTests', 'StartContractTests', 'AgentMarkTests', 'P346StartTransportTests', 'DoorVectorTests', 'SampleReaderTests']);
 
 /**
  * What one configuration's Screen rows left (Phase 337, build/p337/SPEC.md
@@ -2002,6 +2156,58 @@ async function doorsSelfTest() {
     check('replyProblems refuses a run that sent no message', replyProblems({ ...clean, writes: { ...clean.writes, say: 0 } }, 'self-test').length > 0);
     doors.reset();
 
+    // Phase 346: the start door. An honest start verified and answered done
+    // under its own verb with its id echoed and the made session; a held start
+    // read, recorded and cut with no answer; the same kept body read twice,
+    // byte for byte; the record read back only with the identity; a forged
+    // body refused 404; a body with no write id refused malformed with "".
+    {
+      const startId = randomBytes(16).toString('hex');
+      const startBody = JSON.stringify({ agent: 'codex', project: 'p346-project', write: startId });
+      const started = await post(doors.portStart, '/v1/start', signed('/v1/start', startBody));
+      const startRead = phoneMod.startAnswerOf(started, startId);
+      check('an honest start is verified and answered done with its id and the made session', startRead.ok && startRead.answer.outcome === 'done' && startRead.answer.session?.id === P346_MADE_SESSION && startRead.answer.session?.name === 'codex-1', `${String(started.status)} ${started.body} (${startRead.why})`);
+      const heldId = randomBytes(16).toString('hex');
+      const heldBody = JSON.stringify({ agent: 'claude', project: P346_HOLD_PROJECT, write: heldId });
+      const held1 = await post(doors.portStart, '/v1/start', signed('/v1/start', heldBody));
+      const held2 = await post(doors.portStart, '/v1/start', signed('/v1/start', heldBody));
+      check('a held start is read and cut with no answer, twice', held1.status === 0 && held2.status === 0, `${String(held1.status)} ${String(held2.status)}`);
+      const forged = await post(doors.portStart, '/v1/start', signed('/v1/start', startBody, startBody.replace('codex', 'cursor')));
+      check('a start whose body changed after signing is answered 404', forged.status === 404, String(forged.status));
+      const noWrite = await post(doors.portStart, '/v1/start', signed('/v1/start', '{"agent":"claude","project":"p"}'));
+      const noWriteRead = phoneMod.startAnswerOf(noWrite, '');
+      check('a body with no write id gets refused malformed with "" echoed', noWriteRead.ok && noWriteRead.answer.reason === 'malformed' && noWriteRead.answer.write === '', `${noWrite.body} (${noWriteRead.why})`);
+      const record = await phoneMod.request({ door: door(doors.portStart), method: 'GET', target: '/p346/starts', identity });
+      const bodies = (() => { try { return JSON.parse(record.body).bodies; } catch { return null; } })();
+      check('the record holds every body read, in order, the held one twice byte for byte', Array.isArray(bodies) && bodies.length === 4 && bodies[0] === startBody && bodies[1] === heldBody && bodies[2] === heldBody, J(bodies));
+      const bare = await phoneMod.request({ door: door(doors.portStart), method: 'GET', target: '/p346/starts' });
+      check('the record is read only with the identity', bare.status === 0, String(bare.status));
+      const st = doors.counts();
+      check('the start door counted its starts', st.start.posts === 5 && st.start.verified === 4 && st.start.held === 2 && st.start.answered === 2 && J(st.start.refused) === J(['signature']), J({ ...st.start, bodies: st.start.bodies.length }));
+      const rowsText = `${Object.entries(P346_TRANSPORT_ROWS).map(([row, want]) => `P346_TRANSPORT|${row}|${want}`).join('\n')}\nP346_TRANSPORT|withheld|notSent(Tortie.DoorFailure.cancelled)\n`;
+      const cleanStart = structuredClone(st);
+      cleanStart.start.refused = [];
+      check('startProblems passes a run that read every start and printed every row', startProblems(cleanStart, 'self-test', rowsText).length === 0, J(startProblems(cleanStart, 'self-test', rowsText)));
+      check('startProblems refuses the forged start it saw', startProblems(st, 'self-test', rowsText).length === 1);
+      check('startProblems refuses a row that read wrong', startProblems(cleanStart, 'self-test', rowsText.replace('P346_TRANSPORT|kept|same', 'P346_TRANSPORT|kept|differs')).length === 1);
+      check('startProblems refuses a row that never printed', startProblems(cleanStart, 'self-test', rowsText.replace('P346_TRANSPORT|reader|done\n', '')).length === 1);
+      check('startProblems refuses a withheld row that names no cancel', startProblems(cleanStart, 'self-test', rowsText.replace('notSent(Tortie.DoorFailure.cancelled)', 'answered')).length === 1);
+      check('startProblems refuses a run that held nothing', startProblems({ ...cleanStart, start: { ...cleanStart.start, held: 0 } }, 'self-test', rowsText).length === 1);
+      check('startProblems refuses doors with no start door', startProblems({ ...cleanStart, start: undefined }, 'self-test', rowsText).length === 1);
+      // THE PROBE REVIEW (rule 9): the door's own record of the kept id's bodies, read beside the Swift row.
+      {
+        const changed = structuredClone(cleanStart);
+        changed.start.bodies[2] = JSON.stringify({ agent: 'claude', project: P346_HOLD_PROJECT, write: randomBytes(16).toString('hex') });
+        check('startProblems refuses a kept id whose second body differs on the door\'s record, whatever the Swift row printed', startProblems(changed, 'self-test', rowsText).length === 1, J(startProblems(changed, 'self-test', rowsText)));
+        const one = structuredClone(cleanStart);
+        one.start.bodies = one.start.bodies.filter((b, i) => i !== 2);
+        check('startProblems refuses a record holding one held body', startProblems(one, 'self-test', rowsText).length === 1, J(startProblems(one, 'self-test', rowsText)));
+      }
+      check('startAnswerFor reads the hold, a whole body and a body with a fourth key', startAnswerFor(Buffer.from(heldBody), 'u') === null && startAnswerFor(Buffer.from(startBody), 'u')?.outcome === 'done' && startAnswerFor(Buffer.from(JSON.stringify({ agent: 'a', extra: 1, project: 'p', write: startId })), 'u')?.reason === 'malformed');
+      check('suitesNotRun names every Phase 346 suite that never ran', J(suitesNotRun('', P346_SUITES)) === J([...P346_SUITES]) && P346_SUITES.includes('P346StartTransportTests'));
+    }
+    doors.reset();
+
     // (ad)'s first hold: closed while held, nothing read.
     const early = tlsConnect({ host: '127.0.0.1', port: doors.portHoldTls, servername: doors.name, minVersion: 'TLSv1.3', rejectUnauthorized: false, cert: identity.certPem, key: identity.clientPrivatePem });
     early.on('error', () => undefined);
@@ -2484,6 +2690,7 @@ async function main() {
         say(`door A on 127.0.0.1:${String(doors.portA)} (pin ${doors.pinA}), the wrong door on 127.0.0.1:${String(doors.portB)}`);
         say(`(ad)'s doors: the handshake held ${String(doors.holdMs)} ms on 127.0.0.1:${String(doors.portHoldTls)}, the answer held ${String(doors.holdMs)} ms on 127.0.0.1:${String(doors.portHoldAnswer)}`);
         say(`the screen door, keeping its connections ${String(SCREEN_DOOR_KEEP_MS)} ms, on 127.0.0.1:${String(doors.portScreen)}`);
+        say(`the start door, holding ${P346_HOLD_PROJECT} with no answer, on 127.0.0.1:${String(doors.portStart)}`);
         const testEnv = {
           P330_DOOR_NAME: doors.name,
           P330_DOOR_PORT: String(doors.portA),
@@ -2495,6 +2702,8 @@ async function main() {
           P317_HOLD_MS: String(doors.holdMs),
           // Phase 337: the screen door, under door A's key and name.
           P337_SCREEN_PORT: String(doors.portScreen),
+          // Phase 346: the start door, under door A's key and name.
+          P346_START_PORT: String(doors.portStart),
           // Phase 337.1: the screen door's history, which P3371ScrollbackTransportTests pages.
           P3371_DEPTH: String(SCROLLBACK_DOOR_DEPTH),
           P3371_SPACE: SCROLLBACK_DOOR_SPACE,
@@ -2512,8 +2721,9 @@ async function main() {
               { label: `unit-${c.name}`, derivedDataPath: c.derivedDataPath, timeoutMs: 900_000, testEnv }
             );
             const counted = doors.counts();
-            const transport = [...transportProblems(counted, c.name), ...writeProblems(counted, c.name), ...replyProblems(counted, c.name), ...screenProblems(counted, c.name, `${run.stdout}${run.stderr}`), ...scrollbackProblems(counted, c.name, `${run.stdout}${run.stderr}`)];
-            for (const l of `${run.stdout}${run.stderr}`.split('\n').filter((x) => /^P3371?_(?:TRANSPORT|GRID)\|/.test(x.trim()))) process.stdout.write(`  ${l.trim()}\n`);
+            const transport = [...transportProblems(counted, c.name), ...writeProblems(counted, c.name), ...replyProblems(counted, c.name), ...screenProblems(counted, c.name, `${run.stdout}${run.stderr}`), ...scrollbackProblems(counted, c.name, `${run.stdout}${run.stderr}`), ...startProblems(counted, c.name, `${run.stdout}${run.stderr}`)];
+            for (const l of `${run.stdout}${run.stderr}`.split('\n').filter((x) => /^P3371?_(?:TRANSPORT|GRID)\|/.test(x.trim()) || /^P346_TRANSPORT\|/.test(x.trim()))) process.stdout.write(`  ${l.trim()}\n`);
+            say(`the start door after ${c.name}: ${String(counted.start.posts)} start(s) read, ${String(counted.start.verified)} verified, ${String(counted.start.refused.length)} refused, ${String(counted.start.held)} held with no answer, ${String(counted.start.answered)} answered`);
             for (const p of transport) process.stdout.write(`  ${p}\n`);
             say(
               `the write doors after ${c.name}: door A read ${String(counted.writes.end)} end write(s), ${String(counted.writes.choose)} press(es) and ${String(counted.writes.say)} message(s), ` +
@@ -2542,7 +2752,7 @@ async function main() {
               })
             );
             // Phase 317: every class it adds or changes must have run.
-            const notRun = suitesNotRun(`${run.stdout}${run.stderr}`, [...new Set([...P317_SUITES, ...P318_SUITES, ...P337_SUITES, ...P3371_SUITES, ...P3373_SUITES, ...P33311_SUITES, ...P3333_SUITES, ...P345_SUITES])]);
+            const notRun = suitesNotRun(`${run.stdout}${run.stderr}`, [...new Set([...P317_SUITES, ...P318_SUITES, ...P337_SUITES, ...P3371_SUITES, ...P3373_SUITES, ...P33311_SUITES, ...P3333_SUITES, ...P345_SUITES, ...P346_SUITES])]);
             if (notRun.length > 0) say(`${c.name}: xcodebuild names no run of ${notRun.join(', ')}, so those rows were not run`);
             // Phase 333.11: every frozen row, graded against the sealed sets.
             const frozen = frozenRowProblems(`${run.stdout}${run.stderr}`, frozenPre.sets, new Set(frozenPre.proof), frozenToday, c.name);

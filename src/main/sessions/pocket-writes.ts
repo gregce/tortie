@@ -27,6 +27,12 @@
  * the Screen's keys verb (`createScreenKeys` in `src/main/screen/keys.ts`),
  * handed in by `../capabilities.ts`.
  *
+ * PHASE 346 (build/p346/SPEC.md §4.7): `start` is delegated the same way, to
+ * the phone's start (`createPocketStart` in `./pocket-start.ts`), handed in by
+ * `../capabilities.ts`, which re-reads what the phone named and starts the
+ * session through the Mac's own one guarded create. This module only passes
+ * the call through, and names nothing that starts a process.
+ *
  * Neither alone is enough (D7), and `conformance:manager` G2 holds the place
  * where they disagree. The batch adds the Mac batch's ONE narrowing (D14,
  * `batchEligibility` in src/renderer/session-manager/batch-end.ts): a session
@@ -58,7 +64,7 @@ import type { Session } from '@shared/types';
 import { isGmuxError } from '../errors';
 import { machineRow } from '../machines/store';
 import type { ManifestSessionRecord } from '../manifest';
-import type { PocketEndOutcome, PocketReplyOutcome, PocketWrites } from '../pocket/routes';
+import type { PocketEndOutcome, PocketReplyOutcome, PocketStartOutcome, PocketWrites } from '../pocket/routes';
 import { endRefusal } from './lifecycle-gate';
 
 /** Why the phone's End was refused, as the door's answer words it. */
@@ -181,6 +187,12 @@ export function createPocketWrites(deps: {
    * this module only passes the call through.
    */
   keys: Pick<PocketWrites, 'keys'>;
+  /**
+   * The start (Phase 346): the phone's start, `createPocketStart`'s `start`,
+   * handed in by `../capabilities.ts`. It answers an outcome and never throws;
+   * this module only passes the call through.
+   */
+  start: Pick<PocketWrites, 'start'>;
 }): PocketWrites & { endOffer(session: Session): PocketEndOffer } {
   const machineKnown = deps.machineKnown ?? machineKnownNow;
 
@@ -220,6 +232,8 @@ export function createPocketWrites(deps: {
     choose: (input, still): Promise<PocketReplyOutcome> => deps.reply.choose(input, still),
     say: (input, still): Promise<PocketReplyOutcome> => deps.reply.say(input, still),
     // PHASE 337. Passed through to the Screen's keys verb, and nothing else.
-    keys: (input, still): Promise<PocketReplyOutcome> => deps.keys.keys(input, still)
+    keys: (input, still): Promise<PocketReplyOutcome> => deps.keys.keys(input, still),
+    // PHASE 346. Passed through to the phone's start, and nothing else.
+    start: (input, still): Promise<PocketStartOutcome> => deps.start.start(input, still)
   };
 }

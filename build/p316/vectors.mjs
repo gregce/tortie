@@ -47,6 +47,16 @@
  *             JSON.parse, the Mac's own reader, to the same fields.
  *   replyTampered  (Phase 318) the say write's signature presented over its
  *             body with one byte changed: refused `signature`.
+ *             Phase 346 adds the START (build/p346/SPEC.md D6, §4.17): `POST
+ *             /v1/start` with `{agent, project, write}` as Swift writes it,
+ *             keys sorted, accepted by the shipping verifier over the phone's
+ *             channel, at most the route's shipping cap, and read back by the
+ *             shipping `parseStartBody` to the very ids written; and four
+ *             start answers (`start-done`, `start-refused-project`,
+ *             `start-busy`, `start-malformed`), each the shipping write path's
+ *             `startAnswer` over that body (or the body cut short) with a door
+ *             whose served set holds `start`, the busy one a second phone's
+ *             while the first start is still acting.
  *   pins      two door certificates issued by the shipping `tls.ts` for the
  *             public name, with the `publicKeyFingerprint` it reports and the
  *             QR pin `spkiPinOf` makes of it.
@@ -357,6 +367,10 @@ const WRITE_CHOOSE = sha256hex('tortie-p318-vector write choose').slice(0, 32);
 const WRITE_SAY = sha256hex('tortie-p318-vector write say').slice(0, 32);
 const QUESTION_ID = `${sha256hex('tortie-p318-vector question').slice(0, 16)}-41`;
 const REPLY_MARK = sha256hex('tortie-p318-vector mark').slice(0, 12);
+/** Phase 346: the start's write id, a project id of the shape every project id has (a uuid), and the session a done start made. */
+const WRITE_START = sha256hex('tortie-p346-vector write start').slice(0, 32);
+const START_PROJECT = '7c1e9a40-2b5d-4f6e-9a3c-0d8e1f2a3b4c';
+const START_SESSION = { id: '9e2d4c6b-1a3f-4e5d-8c7b-6a5f4e3d2c1b', name: 'claude-3' };
 /** The message: `/`, `"`, a line break and an emoji, the emoji from its code point. */
 const SAY_TEXT = `run "ls /tmp" now\nthen /exit ${String.fromCodePoint(0x1f44d)}`;
 /**
@@ -455,7 +469,10 @@ const requestShapes = [
     body: '',
     id: SESSION_TALK,
     page: { id: SESSION_TALK, ...SCROLLBACK_ASKED }
-  }
+  },
+  // PHASE 346: the start, its body as Swift writes it (build/p346/SPEC.md D6).
+  // Appended, so every earlier request keeps its clock.
+  { name: 'start', method: 'POST', target: '/v1/start', body: swiftJson({ agent: 'claude', project: START_PROJECT, write: WRITE_START }), id: null }
 ];
 
 const requests = requestShapes.map((shape, i) => {
@@ -641,6 +658,17 @@ for (const r of requests.filter((x) => x.method === 'POST' && x.target !== '/pai
   if (missing.length > 0 || named.size === 0) fail(`write keys: the vectors carry no write for the key name(s) ${JSON.stringify(missing)}`);
   if (!texts.includes('"') || !texts.includes('\\') || !texts.includes('/') || ![...texts].some((c) => (c.codePointAt(0) ?? 0) > 0xffff)) fail('write keys: the vectors\' text does not hold a quote, a backslash, a slash and an emoji');
   if (!keysWrites.some((r) => r.body.includes('\\/'))) fail('write keys: no keys body holds a slash written as Swift writes it');
+}
+// PHASE 346: the start body is one the SHIPPING parse takes, as the Mac reads
+// it, back to the very ids written, and its keys are exactly the three.
+{
+  const { parseStartBody } = await import('../../src/main/pocket/writes.ts');
+  const r = requests.find((x) => x.name === 'start');
+  const parsed = typeof parseStartBody === 'function' ? parseStartBody(Buffer.from(r?.body ?? '', 'utf8')) : null;
+  if (parsed === null) fail('write start: the shipping writes.ts exports no parseStartBody to read it');
+  else if (!parsed.ok) fail('write start: the shipping parseStartBody refused the Swift bytes as malformed');
+  else if (parsed.project !== START_PROJECT || parsed.agent !== 'claude' || parsed.write !== WRITE_START) fail('write start: the shipping parse reads other ids than were written');
+  if (Object.keys(JSON.parse(r?.body ?? '{}')).join() !== 'agent,project,write') fail('write start: its body is not exactly agent, project and write');
 }
 // PHASE 318: the Mac's own reader (JSON.parse) reads the Swift bytes back to
 // the very fields the phone wrote, the slash escapes included, and the text
@@ -1393,6 +1421,81 @@ async function writeVector(name, path, body, outcome) {
   if (JSON.stringify(parsed) !== answer.body) fail(`answer ${name}: the door's bytes are not what JSON.stringify writes of them`);
   return parsed;
 }
+/**
+ * PHASE 346: one start answer from a FRESH shipping write path whose served
+ * set holds `start` (a door that allowed it), over the body its request vector
+ * holds. `acts` is what the recording `writes.start` answers, in order; a
+ * function there is held until the run releases it. `second`, when given, is
+ * a second phone's start sent while the first is still acting: its answer is
+ * the vector, and the first is then released and answered.
+ */
+async function startVector(name, body, acts, second = null) {
+  if (typeof createPocketWriteHandler !== 'function' || typeof matchPocketRoute !== 'function') {
+    fail(`answer ${name}: the shipping writes.ts or routes.ts exports no createPocketWriteHandler or matchPocketRoute`);
+    return null;
+  }
+  const route = matchPocketRoute('POST', '/v1/start');
+  if (route === null) {
+    fail(`answer ${name}: the shipping route table matches no POST /v1/start`);
+    return null;
+  }
+  const handed = [];
+  let release = () => undefined;
+  const start = async (input, still) => {
+    handed.push({ verb: 'start', input, still: typeof still === 'function' ? still() : null });
+    // An act this vector did not plan answers a failure, so the check below
+    // names it (the handed list) rather than the run dying on it.
+    const act = acts.length > 0 ? acts.shift() : { outcome: 'failed', sentence: 'acted more often than this vector planned' };
+    if (typeof act === 'function') {
+      await new Promise((resolve) => {
+        release = resolve;
+      });
+      return act();
+    }
+    return act;
+  };
+  const verb = () => async () => ({ outcome: 'failed', sentence: 'not this verb' });
+  const handle = createPocketWriteHandler({
+    shuttingDown: () => false,
+    stillPaired: () => true,
+    routeServed: (id) => id === 'start' || routeServed(id),
+    writes: { end: verb(), choose: verb(), say: verb(), keys: verb(), start },
+    now: () => T
+  });
+  const consoleLog = console.log;
+  console.log = () => {};
+  let answer;
+  try {
+    if (second === null) {
+      answer = await handle(route, Buffer.from(body, 'utf8'), identityVectors.phoneId, { stopping: () => false });
+    } else {
+      const first = handle(route, Buffer.from(second.firstBody, 'utf8'), identityVectors.phoneId, { stopping: () => false });
+      // The first start is acting: its act was handed and is held.
+      for (let i = 0; i < 50 && handed.length === 0; i += 1) await new Promise((resolve) => setImmediate(resolve));
+      answer = await handle(route, Buffer.from(body, 'utf8'), second.phone, { stopping: () => false });
+      release();
+      await first;
+    }
+  } finally {
+    console.log = consoleLog;
+  }
+  writesSeen.set(name, { status: answer.status, acted: answer.acted ?? false, handed });
+  if (answer.status !== 200 || typeof answer.body !== 'string') {
+    fail(`answer ${name}: the shipping write path answered ${String(answer.status)} with no body`);
+    return null;
+  }
+  const parsed = JSON.parse(answer.body);
+  if (JSON.stringify(parsed) !== answer.body) fail(`answer ${name}: the door's bytes are not what JSON.stringify writes of them`);
+  return parsed;
+}
+const { START_PROJECT_GONE, START_BUSY } = await import('../../src/shared/start-copy.ts');
+const STARTED = { outcome: 'done', session: START_SESSION };
+const START_GONE = { outcome: 'refused', reason: 'project', sentence: START_PROJECT_GONE };
+/** The start body with its closing brace cut off: a body that is not JSON. */
+const START_NOT_JSON = () => bodyOf('start').slice(0, -1);
+/** The first start's body in the busy vector: another write id, so the second is its own. */
+const START_FIRST = () => swiftJson({ agent: 'codex', project: START_PROJECT, write: sha256hex('tortie-p346-vector write start first').slice(0, 32) });
+
 const WROTE = { outcome: 'done' };
 const QUESTION_MOVED = { outcome: 'refused', reason: 'changed', sentence: LIFECYCLE_SESSION_CHANGED };
 const COULD_NOT_TYPE = { outcome: 'failed', sentence: REPLY_FAILED };
@@ -1426,7 +1529,13 @@ const answerShapes = [
   ['choose-changed', () => writeVector('choose-changed', '/v1/choose', bodyOf('choose'), QUESTION_MOVED)],
   ['say-failed', () => writeVector('say-failed', '/v1/say', bodyOf('say'), COULD_NOT_TYPE)],
   ['keys-done', () => writeVector('keys-done', '/v1/keys', bodyOf('keys-text'), WROTE)],
-  ['end-malformed', () => writeVector('end-malformed', '/v1/end', END_NOT_JSON, WROTE)]
+  ['end-malformed', () => writeVector('end-malformed', '/v1/end', END_NOT_JSON, WROTE)],
+  // PHASE 346: the start's answers, each from a fresh shipping write path
+  // whose door allowed `start`.
+  ['start-done', () => startVector('start-done', bodyOf('start'), [STARTED])],
+  ['start-refused-project', () => startVector('start-refused-project', bodyOf('start'), [START_GONE])],
+  ['start-busy', () => startVector('start-busy', bodyOf('start'), [() => STARTED], { firstBody: START_FIRST(), phone: 'p346-vector-second-phone' })],
+  ['start-malformed', () => startVector('start-malformed', START_NOT_JSON(), [STARTED])]
 ];
 const answers = {};
 for (const [name, compose] of answerShapes) {
@@ -1583,6 +1692,34 @@ for (const [name, compose] of answerShapes) {
     const seen = writesSeen.get(name);
     if (!same(seen?.handed, handed)) fail(`answer ${name}: the recording verbs were handed ${JSON.stringify(seen?.handed)}, not ${JSON.stringify(handed)}`);
     if (seen?.acted !== (handed.length > 0)) fail(`answer ${name}: the shipping write path says it ${seen?.acted ? 'acted' : 'did not act'}`);
+  }
+
+  // PHASE 346: THE STARTS. Each answer is the shipping write path's, its six
+  // fields in their order; the act was handed exactly the two ids the body
+  // says, with every ask of the last check holding; the busy answer is a
+  // second phone's while the first acted, and acted on nothing; and the body
+  // that is not JSON reached no act and echoes no write id.
+  try {
+    JSON.parse(START_NOT_JSON());
+    fail('answer start-malformed: its body is JSON, so it proves nothing about a body the door cannot read');
+  } catch {
+    // Not JSON, as it must be.
+  }
+  const startInput = { project: START_PROJECT, agent: 'claude' };
+  const wantStarts = [
+    ['start-done', { verb: 'start', write: WRITE_START, outcome: 'done', reason: null, sentence: null, session: START_SESSION }, [{ verb: 'start', input: startInput, still: true }], true],
+    ['start-refused-project', { verb: 'start', write: WRITE_START, outcome: 'refused', reason: 'project', sentence: START_PROJECT_GONE, session: null }, [{ verb: 'start', input: startInput, still: true }], true],
+    ['start-busy', { verb: 'start', write: WRITE_START, outcome: 'busy', reason: null, sentence: START_BUSY, session: null }, [{ verb: 'start', input: { project: START_PROJECT, agent: 'codex' }, still: true }], false],
+    ['start-malformed', { verb: 'start', write: '', outcome: 'refused', reason: 'malformed', sentence: POCKET_WRITE_SENTENCES?.unreadable, session: null }, [], false]
+  ];
+  for (const [name, want, handed, acted] of wantStarts) {
+    if (writeRows !== null && !writeRows.includes(routeOfAnswer(name))) fail(`answer ${name}: ${routeOfAnswer(name)} is not one of the shipping table's write rows`);
+    const got = read(name);
+    if (!same(got, want)) fail(`answer ${name}: the shipping write path answered ${brief(got)}, not ${brief(want)}`);
+    if (got !== null && Object.keys(got).join() !== 'verb,write,outcome,reason,sentence,session') fail(`answer ${name}: its fields are ${Object.keys(got).join()}, not the six in their order`);
+    const seen = writesSeen.get(name);
+    if (!same(seen?.handed, handed)) fail(`answer ${name}: the recording start was handed ${JSON.stringify(seen?.handed)}, not ${JSON.stringify(handed)}`);
+    if ((seen?.acted ?? false) !== acted) fail(`answer ${name}: the shipping write path says it ${seen?.acted ? 'acted' : 'did not act'}`);
   }
 }
 

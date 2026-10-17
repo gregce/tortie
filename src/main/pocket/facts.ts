@@ -46,7 +46,12 @@
  *     same way: the page reader (`../screen/scrollback.ts`), which reads and
  *     composes one page of a session's history and is never held. This module
  *     never imports it. Absent, `/v1/scrollback` is a route this door does not
- *     have (404).
+ *     have (404);
+ *   - `start` (Phase 346, build/p346/SPEC.md §4.10) is handed in the same
+ *     way: the phone's start (`../sessions/pocket-start.ts`), whose
+ *     `sessionsKey` answers whether the route waits for its Allow or what a
+ *     phone may start, composed STARTING NOTHING. This module never imports
+ *     it. Absent, the Sessions answer carries no `start` key.
  *
  * ## What this module never does
  *
@@ -65,6 +70,7 @@ import type {
   PocketReplyOffer,
   PocketScreenAnswer,
   PocketScrollbackAnswer,
+  PocketSessionsStart,
   PocketTurn
 } from '@shared/ipc/pocket';
 import type {
@@ -138,6 +144,12 @@ export interface PocketFactsDeps {
    * 404.
    */
   scrollback?(session: Session, ask: PocketScrollbackAsk, closing: () => boolean): Promise<PocketScrollbackAnswer>;
+  /**
+   * The Sessions answer's `start` key (Phase 346, build/p346/SPEC.md §4.10):
+   * the phone's start's `sessionsKey`, handed in by `../capabilities.ts` over
+   * whether the route is served. A READ that starts nothing. Absent, no key.
+   */
+  start?: () => PocketSessionsStart | undefined;
   now?(): number;
 }
 
@@ -359,6 +371,7 @@ export function createPocketFacts(deps: PocketFactsDeps): PocketFacts & {
     ...(deps.replyOffer !== undefined ? { replyOffer: deps.replyOffer } : {}),
     ...(deps.screen !== undefined ? { screen: deps.screen } : {}),
     ...(deps.scrollback !== undefined ? { scrollback: deps.scrollback } : {}),
+    ...(deps.start !== undefined ? { start: deps.start } : {}),
     now
   };
 }

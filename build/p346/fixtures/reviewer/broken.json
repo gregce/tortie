@@ -1,0 +1,862 @@
+[
+ {
+  "arm": "S0P",
+  "name": "the parent serves the route: the head waited for a body and the whole request was answered 200",
+  "ops": [
+   {
+    "set": "headOnly",
+    "value": 0
+   },
+   {
+    "set": "full",
+    "value": 200
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "/v1/start answers 404 before its body and to a whole request"
+  ]
+ },
+ {
+  "arm": "S0P",
+  "name": "the parent's sessions read failed, so whether it carries start was not read",
+  "ops": [
+   {
+    "set": "sessionsStatus",
+    "value": 0
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "its sessions answer carries no start"
+  ]
+ },
+ {
+  "arm": "S0",
+  "name": "the clause said only by the Allow line, the honesty sentence left as the eleven routes say it",
+  "ops": [
+   {
+    "set": "honesty",
+    "value": [
+     "This lets a phone you allow ask this Mac what your sessions are doing, over the internet. It reads your session names, your project names and what your agents are saying.",
+     "A phone you allow can see what any session’s terminal shows and what it printed before, type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.",
+     "Lets an allowed phone end a session and start a session in a project open in Tortie, on this Mac or another machine"
+    ]
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "Settings then Phone's honesty sentence says the phone could start a session"
+  ]
+ },
+ {
+  "arm": "S0",
+  "name": "the control's connection closed with nothing (-1), not a door waiting for a body",
+  "ops": [
+   {
+    "set": "control",
+    "value": -1
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "the next read carries the offer, and the door now waits for a start's body"
+  ]
+ },
+ {
+  "arm": "S0",
+  "name": "the pairing Allow allowed start too",
+  "ops": [
+   {
+    "set": "before.routesWaiting",
+    "value": []
+   },
+   {
+    "push": "before.routesAllowed",
+    "value": "start"
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "an agreement is on record and start alone waits"
+  ]
+ },
+ {
+  "arm": "S0",
+  "name": "a start main was handed while it waited (a line and a session)",
+  "ops": [
+   {
+    "set": "lines",
+    "value": 1
+   },
+   {
+    "set": "sessionsDelta",
+    "value": 1
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "/v1/start answers 404 before its body, and nothing reaches main"
+  ]
+ },
+ {
+  "arm": "S0",
+  "name": "the door's status was never read",
+  "ops": [
+   {
+    "set": "statusRead",
+    "value": false
+   }
+  ],
+  "expect": "unreadable",
+  "mustFail": []
+ },
+ {
+  "arm": "S1",
+  "name": "Gemini offered here: the hidden five leaked into the offer",
+  "ops": [
+   {
+    "set": "offer.places.0.agents",
+    "value": [
+     "claude",
+     "cursor",
+     "codex",
+     "gemini",
+     "deepseek",
+     "muse",
+     "pi",
+     "omp",
+     "opencode"
+    ]
+   },
+   {
+    "set": "offer.agents",
+    "value": [
+     {
+      "id": "claude",
+      "name": "Claude Code",
+      "icon": "claude",
+      "danger": null
+     },
+     {
+      "id": "cursor",
+      "name": "Cursor CLI",
+      "icon": "cursor",
+      "danger": null
+     },
+     {
+      "id": "codex",
+      "name": "Codex CLI",
+      "icon": "codex",
+      "danger": null
+     },
+     {
+      "id": "gemini",
+      "name": "Gemini CLI",
+      "icon": "gemini",
+      "danger": null
+     },
+     {
+      "id": "deepseek",
+      "name": "CodeWhale",
+      "icon": "deepseek",
+      "danger": null
+     },
+     {
+      "id": "muse",
+      "name": "Muse Code",
+      "icon": "muse",
+      "danger": null
+     },
+     {
+      "id": "pi",
+      "name": "Pi",
+      "icon": "pi",
+      "danger": null
+     },
+     {
+      "id": "omp",
+      "name": "Oh My Pi",
+      "icon": "omp",
+      "danger": null
+     },
+     {
+      "id": "opencode",
+      "name": "opencode",
+      "icon": "opencode",
+      "danger": null
+     }
+    ]
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "each place is ready and read as main says, listing exactly the agents installed there",
+   "this Mac lists exactly the eight stand-ins, and no place a hidden agent",
+   "its agent rows are every listed agent once, in registry order, with the registry's name and mark"
+  ]
+ },
+ {
+  "arm": "S1",
+  "name": "chosen did not follow the matrix: still the first project after eight starts in another",
+  "ops": [
+   {
+    "set": "chosenReads.1.got",
+    "value": "0c6f0d6e-3b51-4d1f-9a3e-2f6b0c3f5a10"
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "chosen is the project of the latest session, else the first (D10)"
+  ]
+ },
+ {
+  "arm": "S1",
+  "name": "a twin drawn with no folder",
+  "ops": [
+   {
+    "set": "offer.projects.2.folder",
+    "value": null
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "its projects are main's open projects in main's order, with their labels, machines and folders"
+  ]
+ },
+ {
+  "arm": "S1",
+  "name": "the machine offered while main says it is not ready",
+  "ops": [
+   {
+    "set": "offer.places.1.ready",
+    "value": false
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "each place is ready and read as main says, listing exactly the agents installed there"
+  ]
+ },
+ {
+  "arm": "S1",
+  "name": "main's agent scan was not read through the bridge",
+  "ops": [
+   {
+    "set": "expectRead.scan",
+    "value": false
+   }
+  ],
+  "expect": "unreadable",
+  "mustFail": []
+ },
+ {
+  "arm": "S1D",
+  "name": "the unsealed Codex default said on the offer",
+  "ops": [
+   {
+    "set": "unsealed.got",
+    "value": "Bypass approvals + sandbox"
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "an unsealed safeguard-off default written to the file is dropped, and no line is said for it"
+  ]
+ },
+ {
+  "arm": "S1D",
+  "name": "the sealed default never reached the Claude Code start",
+  "ops": [
+   {
+    "set": "claudeArgv",
+    "value": [
+     "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/home/.local/bin/claude",
+     "--settings",
+     "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/profile/gmux/hooks/claude-claude.json"
+    ]
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "the sealed default reached the next Claude Code start's argv"
+  ]
+ },
+ {
+  "arm": "S1D",
+  "name": "S2 did not run, so no Claude Code start was read after the seal",
+  "ops": [
+   {
+    "set": "claudeArgv",
+    "value": null
+   }
+  ],
+  "expect": "unreadable",
+  "mustFail": []
+ },
+ {
+  "arm": "S1D",
+  "name": "Codex has no verified safeguard-off preset to write unsealed",
+  "ops": [
+   {
+    "set": "unsealed.flag",
+    "value": null
+   }
+  ],
+  "expect": "unreadable",
+  "mustFail": []
+ },
+ {
+  "arm": "S2",
+  "name": "the Mac jumped to a new session after row 4 was read, seen from row 5 on and at the end",
+  "ops": [
+   {
+    "set": "rows.4.macBefore",
+    "value": {
+     "project": "3d1f8a52-7c90-4e4b-8d0d-0a9b6f3e2c71",
+     "session": "a3000013-4c1e-4f7a-9b2d-000000000013"
+    }
+   },
+   {
+    "set": "rows.4.macAfter",
+    "value": {
+     "project": "3d1f8a52-7c90-4e4b-8d0d-0a9b6f3e2c71",
+     "session": "a3000013-4c1e-4f7a-9b2d-000000000013"
+    }
+   },
+   {
+    "set": "rows.5.macBefore",
+    "value": {
+     "project": "3d1f8a52-7c90-4e4b-8d0d-0a9b6f3e2c71",
+     "session": "a3000013-4c1e-4f7a-9b2d-000000000013"
+    }
+   },
+   {
+    "set": "rows.5.macAfter",
+    "value": {
+     "project": "3d1f8a52-7c90-4e4b-8d0d-0a9b6f3e2c71",
+     "session": "a3000013-4c1e-4f7a-9b2d-000000000013"
+    }
+   },
+   {
+    "set": "rows.6.macBefore",
+    "value": {
+     "project": "3d1f8a52-7c90-4e4b-8d0d-0a9b6f3e2c71",
+     "session": "a3000013-4c1e-4f7a-9b2d-000000000013"
+    }
+   },
+   {
+    "set": "rows.6.macAfter",
+    "value": {
+     "project": "3d1f8a52-7c90-4e4b-8d0d-0a9b6f3e2c71",
+     "session": "a3000013-4c1e-4f7a-9b2d-000000000013"
+    }
+   },
+   {
+    "set": "rows.7.macBefore",
+    "value": {
+     "project": "3d1f8a52-7c90-4e4b-8d0d-0a9b6f3e2c71",
+     "session": "a3000013-4c1e-4f7a-9b2d-000000000013"
+    }
+   },
+   {
+    "set": "rows.7.macAfter",
+    "value": {
+     "project": "3d1f8a52-7c90-4e4b-8d0d-0a9b6f3e2c71",
+     "session": "a3000013-4c1e-4f7a-9b2d-000000000013"
+    }
+   },
+   {
+    "set": "macEnd",
+    "value": {
+     "project": "3d1f8a52-7c90-4e4b-8d0d-0a9b6f3e2c71",
+     "session": "a3000013-4c1e-4f7a-9b2d-000000000013"
+    }
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "the Mac's active project and session never moved"
+  ]
+ },
+ {
+  "arm": "S2",
+  "name": "a real Claude Code ran: the manifest's argv[0] is not the stand-in",
+  "ops": [
+   {
+    "set": "rows.0.argv.0",
+    "value": "/Users/someone/.local/bin/claude"
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "each manifest argv is what the started process saw, by the stand-in's own path"
+  ]
+ },
+ {
+  "arm": "S2",
+  "name": "named claude-2 where the project held no claude session",
+  "ops": [
+   {
+    "set": "rows.0.answer.session.name",
+    "value": "claude-2"
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "each is named <agent>-<n> by the shared rule"
+  ]
+ },
+ {
+  "arm": "S3",
+  "name": "a start against the paused machine timed out and failed, where it must be refused machine",
+  "ops": [
+   {
+    "set": "paused.answer",
+    "value": {
+     "status": 200,
+     "ok": true,
+     "outcome": "failed",
+     "reason": null,
+     "sentence": "Your Mac could not start that session. If anything started, it is in Sessions.",
+     "session": null,
+     "echoed": true
+    }
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "with its sshd paused the offer says not ready and a start is refused machine"
+  ]
+ },
+ {
+  "arm": "S3",
+  "name": "Codex listed remote and never on the far server",
+  "ops": [
+   {
+    "set": "rows.1.far",
+    "value": false
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "main lists each on the machine, and the far server holds it"
+  ]
+ },
+ {
+  "arm": "S4",
+  "name": "the hidden agent refused as malformed, never asked whether it is installed",
+  "ops": [
+   {
+    "set": "hidden",
+    "value": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "refused",
+     "reason": "malformed",
+     "sentence": "Your Mac could not read that request. Nothing was done.",
+     "session": null,
+     "echoed": true,
+     "write": "0052e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+     "ms": 210,
+     "body": null
+    }
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "a hidden agent's id is refused agent"
+  ]
+ },
+ {
+  "arm": "S4",
+  "name": "a refusal that launched something anyway",
+  "ops": [
+   {
+    "set": "launches",
+    "value": 1
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "none of them started anything"
+  ]
+ },
+ {
+  "arm": "S5",
+  "name": "the variable already in a start made before the seal",
+  "ops": [
+   {
+    "set": "envControl",
+    "value": true
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "the sealed shell variable name reached each of the five, and no start before the seal"
+  ]
+ },
+ {
+  "arm": "S5",
+  "name": "warm p95 at 3.1 s",
+  "ops": [
+   {
+    "set": "warm.19",
+    "value": 3100
+   },
+   {
+    "set": "warm.18",
+    "value": 3050
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "warm local p95 under 3 s"
+  ]
+ },
+ {
+  "arm": "S5",
+  "name": "the shell variable name never sealed",
+  "ops": [
+   {
+    "set": "sealedEnv",
+    "value": false
+   }
+  ],
+  "expect": "unreadable",
+  "mustFail": []
+ },
+ {
+  "arm": "S5",
+  "name": "no cold start (S2 did not run)",
+  "ops": [
+   {
+    "set": "cold",
+    "value": null
+   }
+  ],
+  "expect": "unreadable",
+  "mustFail": []
+ },
+ {
+  "arm": "S6",
+  "name": "HONEST, the other order: the duplicate reached main first, so it is the done and the first is the busy",
+  "ops": [
+   {
+    "swap": [
+     "still.first",
+     "still.during"
+    ]
+   }
+  ],
+  "expect": "pass",
+  "mustFail": []
+ },
+ {
+  "arm": "S6",
+  "name": "HONEST, the other order: phone B reached main first",
+  "ops": [
+   {
+    "swap": [
+     "two.first",
+     "two.second"
+    ]
+   }
+  ],
+  "expect": "pass",
+  "mustFail": []
+ },
+ {
+  "arm": "S6",
+  "name": "both phones started a session",
+  "ops": [
+   {
+    "set": "two.second",
+    "value": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "done",
+     "reason": null,
+     "sentence": null,
+     "session": {
+      "id": "a3000053-4c1e-4f7a-9b2d-000000000053",
+      "name": "pi-2"
+     },
+     "echoed": true,
+     "write": "0054e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+     "ms": 640,
+     "body": null
+    }
+   },
+   {
+    "set": "two.sessionsMade",
+    "value": 2
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "two phones at once: one done, one busy, one session"
+  ]
+ },
+ {
+  "arm": "S6",
+  "name": "the re-signed id after the act answered another session",
+  "ops": [
+   {
+    "set": "still.after.session.id",
+    "value": "a3999999-4c1e-4f7a-9b2d-999999999999"
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "the same write id fresh-signed: busy while it runs, the recorded done after, one session"
+  ]
+ },
+ {
+  "arm": "S6",
+  "name": "the seven took 61 s, past the window",
+  "ops": [
+   {
+    "set": "seven.withinMs",
+    "value": 61000
+   }
+  ],
+  "expect": "unreadable",
+  "mustFail": []
+ },
+ {
+  "arm": "S7",
+  "name": "a start line naming the project id",
+  "ops": [
+   {
+    "push": "lineHits",
+    "value": {
+     "line": 12,
+     "names": [
+      "a project id"
+     ]
+    }
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "no start line names a project, a path, an agent, an argument, a write id or a sentence"
+  ]
+ },
+ {
+  "arm": "S7",
+  "name": "one acted start with no line",
+  "ops": [
+   {
+    "set": "lines",
+    "value": 53
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "one line per start that acted"
+  ]
+ },
+ {
+  "arm": "S7",
+  "name": "app.log was not there to read",
+  "ops": [
+   {
+    "set": "appLogRead",
+    "value": false
+   }
+  ],
+  "expect": "unreadable",
+  "mustFail": []
+ },
+ {
+  "arm": "S8",
+  "name": "HEAD grew a menu row for the phone's start",
+  "ops": [
+   {
+    "push": "head",
+    "value": "Session > Start From Phone…"
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "the native application menu is the parent's"
+  ]
+ },
+ {
+  "arm": "S8",
+  "name": "HEAD's menu was not read",
+  "ops": [
+   {
+    "set": "head",
+    "value": null
+   }
+  ],
+  "expect": "unreadable",
+  "mustFail": []
+ },
+ {
+  "arm": "S9",
+  "name": "one started session read needs_input",
+  "ops": [
+   {
+    "push": "waiting",
+    "value": "a3000002-4c1e-4f7a-9b2d-000000000002"
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "none read needs_input from the start itself"
+  ]
+ },
+ {
+  "arm": "S9",
+  "name": "S2 started three sessions, not eight",
+  "ops": [
+   {
+    "set": "sessions",
+    "value": 3
+   },
+   {
+    "set": "samples",
+    "value": 30
+   }
+  ],
+  "expect": "unreadable",
+  "mustFail": []
+ },
+ {
+  "arm": "S10",
+  "name": "two sessions left on this Mac's server after their Remove",
+  "ops": [
+   {
+    "set": "localLeft",
+    "value": 2
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "neither this Mac's server nor the far one holds any of them"
+  ]
+ },
+ {
+  "arm": "S10",
+  "name": "nothing was started",
+  "ops": [
+   {
+    "set": "started",
+    "value": 0
+   },
+   {
+    "set": "ended",
+    "value": 0
+   },
+   {
+    "set": "removed",
+    "value": 0
+   }
+  ],
+  "expect": "unreadable",
+  "mustFail": []
+ },
+ {
+  "arm": "RUN",
+  "name": "his shell history moved during the run",
+  "ops": [
+   {
+    "set": "history.after",
+    "value": "738702 1792179001|23166 1790702242"
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "his shell history did not move across the run"
+  ]
+ },
+ {
+  "arm": "RUN",
+  "name": "a stand-in still alive at the end",
+  "ops": [
+   {
+    "set": "agentsLeft",
+    "value": 1
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "every stand-in ended and nothing of this run is left"
+  ]
+ },
+ {
+  "arm": "RUN",
+  "name": "the installs fence refused, or was never asked (the fix round)",
+  "ops": [
+   {
+    "set": "installs",
+    "value": false
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "the installs fence held: every program a create could reach is this run's"
+  ]
+ },
+ {
+  "arm": "RUN",
+  "name": "a session the manifest holds ran his real DeepSeek CLI (2026-10-16's deepseek-2)",
+  "ops": [
+   {
+    "set": "manifest.outside",
+    "value": [
+     {
+      "id": "a3000099-4c1e-4f7a-9b2d-000000000099",
+      "name": "deepseek-2",
+      "argv0": "/Users/someone/.npm-global/bin/deepseek"
+     }
+    ]
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "every session the manifest holds ran a program of this run"
+  ]
+ },
+ {
+  "arm": "RUN",
+  "name": "the manifest could not be read after the app was gone (the ruled round: UNREADABLE, never a failure)",
+  "ops": [
+   {
+    "set": "manifest.read",
+    "value": false
+   }
+  ],
+  "expect": "unreadable"
+ },
+ {
+  "arm": "RUN",
+  "name": "his .bash_history could not be stat'ed, so whether his history moved is unknown (the ruled round)",
+  "ops": [
+   {
+    "set": "history.after",
+    "value": "738630 1792177511|none"
+   }
+  ],
+  "expect": "unreadable"
+ },
+ {
+  "arm": "S6",
+  "name": "the relay counted no cut: the door closed its side while the answer was held, uncounted (2026-10-16)",
+  "ops": [
+   {
+    "set": "cut.cuts",
+    "value": 0
+   }
+  ],
+  "expect": "fail",
+  "mustFail": [
+   "an answer cut after the act, then the same id: the recorded done, one session"
+  ]
+ }
+]

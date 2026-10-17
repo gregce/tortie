@@ -7,8 +7,9 @@
  * purpose by the `end` row below, Phase 318 by its `choose` and `say` rows, and
  * Phase 316.7 by the read row `sessions` (build/p3167/SPEC.md §3 row 1),
  * Phase 337 by the read row `screen` and the write row `keys`
- * (build/p337/SPEC.md §5.1, D1), and Phase 337.1 by the read row
- * `scrollback` (build/p3371/SPEC.md §5.1, D1).
+ * (build/p337/SPEC.md §5.1, D1), Phase 337.1 by the read row
+ * `scrollback` (build/p3371/SPEC.md §5.1, D1), and Phase 346 by the write
+ * row `start` (build/p346/SPEC.md D1).
  *
  * ## Closed means closed
  *
@@ -35,8 +36,9 @@ export interface PocketRoute {
    *
    * A ROW WITH `reads: false` IS A WRITE, AND THE SET OF WRITES IS CLOSED
    * (Phase 317, build/p317/SPEC.md §5.3.1; Phase 318, build/p318/SPEC.md
-   * §5.1.1; Phase 337, build/p337/SPEC.md §5.1): exactly `end`, `choose`,
-   * `say` and `keys`, each a `POST` that is signed,
+   * §5.1.1; Phase 337, build/p337/SPEC.md §5.1; Phase 346, build/p346/SPEC.md
+   * D1): exactly `end`, `choose`, `say`, `keys` and `start`, each a `POST`
+   * that is signed,
    * alive outside any window, takes no query string and has its own body cap
    * (`./limits.ts`). `build/conformance-pocket.mjs` R2 and X1 read it. The field is what makes adding a write a visible edit to this
    * table rather than a quiet change inside a handler, and a write's body is
@@ -95,6 +97,15 @@ export interface PocketRoute {
  * watcher, slot or floor; and its own id, so the Allow line names the new
  * read and the person who allows the phone sees that it can now read what a
  * session printed before. It changes nothing on this Mac and sizes nothing.
+ *
+ * `start` is the phone's one way to make a session (Phase 346,
+ * build/p346/SPEC.md D1, D6, D12): a signed `POST` alive outside any window,
+ * through the same one write path (`../writes.ts`) and ledger. Its body names a
+ * project main offered and an agent installed where it lives, and nothing
+ * else: no path, flag, name or login. The session is made by the Mac's own one
+ * guarded create, outside this domain. The offer rides `/v1/sessions` as an
+ * optional key rather than a second read, so the "+" and the sheet can never
+ * disagree. It waits for the Allow whose lines name it (Phase 333.12).
  */
 export const POCKET_ROUTES: readonly PocketRoute[] = Object.freeze([
   { id: 'pair', method: 'POST', path: '/pair', reads: true, windowOnly: true, signed: false },
@@ -107,7 +118,8 @@ export const POCKET_ROUTES: readonly PocketRoute[] = Object.freeze([
   { id: 'end', method: 'POST', path: '/v1/end', reads: false, windowOnly: false, signed: true },
   { id: 'choose', method: 'POST', path: '/v1/choose', reads: false, windowOnly: false, signed: true },
   { id: 'say', method: 'POST', path: '/v1/say', reads: false, windowOnly: false, signed: true },
-  { id: 'keys', method: 'POST', path: '/v1/keys', reads: false, windowOnly: false, signed: true }
+  { id: 'keys', method: 'POST', path: '/v1/keys', reads: false, windowOnly: false, signed: true },
+  { id: 'start', method: 'POST', path: '/v1/start', reads: false, windowOnly: false, signed: true }
 ]);
 
 /**

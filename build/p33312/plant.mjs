@@ -10,7 +10,9 @@
  * phase's head are each measured twice, once as they are and once with a
  * twelfth route planted, which is the shape Phase 346's update will have. The
  * planted copy is built with the bundler alone, because its gates refuse a
- * planted route, which is the point of them.
+ * planted route, which is the point of them. Since Phase 346 landed its real
+ * twelfth route, `start`, a checkout at or after it gets the plant's route as
+ * its thirteenth, and the route list's anchor has a spelling for each.
  *
  * THE EDITS, every one an exact string that must match EXACTLY ONCE, or
  * NOTHING is written (exit 1, naming the anchor):
@@ -88,8 +90,10 @@ export const EDITS = Object.freeze([
   Object.freeze({
     name: "POCKET_ROUTE_IDS gains 'probe'",
     file: 'src/shared/ipc/pocket.ts',
-    from: "  'scrollback'\n] as const;",
-    to: "  'scrollback',\n  'probe'\n] as const;"
+    // Two spellings, exactly one of which a checkout holds: since Phase 346 the
+    // list ends at its twelfth route, 'start', and before it at 'scrollback'.
+    from: Object.freeze(["  'start'\n] as const;", "  'scrollback'\n] as const;"]),
+    to: Object.freeze(["  'start',\n  'probe'\n] as const;", "  'scrollback',\n  'probe'\n] as const;"])
   }),
   Object.freeze({
     name: 'the door table gains the probe row',
@@ -131,6 +135,20 @@ const ALREADY = [/'probe'/, /\/v1\/probe/];
 const sha256 = (text) => createHash('sha256').update(text).digest('hex');
 const countOf = (text, needle) => text.split(needle).length - 1;
 
+/**
+ * An edit's one spelling in `text`: every `from` it carries is counted, and
+ * exactly one of them may occur, exactly once. Answers `{ from, to }`, or
+ * `{ problem }` naming each count.
+ */
+function spellingIn(edit, text) {
+  const froms = Array.isArray(edit.from) ? edit.from : [edit.from];
+  const tos = Array.isArray(edit.to) ? edit.to : [edit.to];
+  const counts = froms.map((from) => countOf(text, from));
+  const hits = counts.flatMap((n, i) => (n > 0 ? [i] : []));
+  if (hits.length !== 1 || counts[hits[0]] !== 1) return { problem: `the anchor for "${edit.name}" in ${edit.file} matched ${counts.join(' + ')} time(s), not once` };
+  return { from: froms[hits[0]], to: tos[hits[0]] };
+}
+
 /** The edits of one shape, in order. */
 export function editsFor(shape) {
   return shape === 'head' ? [...EDITS, LEDGER_EDIT] : [...EDITS];
@@ -162,14 +180,15 @@ export function planPlant(texts) {
   for (const edit of edits) {
     const text = read(edit.file);
     if (typeof text !== 'string') continue;
-    const n = countOf(text, edit.from);
-    if (n !== 1) problems.push(`the anchor for "${edit.name}" in ${edit.file} matched ${String(n)} time(s), not once`);
+    const spelling = spellingIn(edit, text);
+    if (spelling.problem !== undefined) problems.push(spelling.problem);
   }
   if (problems.length > 0) return { ok: false, shape, edits, out: new Map(), problems };
   const out = new Map();
   for (const edit of edits) {
     const text = out.get(edit.file) ?? read(edit.file);
-    out.set(edit.file, text.replace(edit.from, () => edit.to));
+    const { from, to } = spellingIn(edit, read(edit.file));
+    out.set(edit.file, text.replace(from, () => to));
   }
   return { ok: true, shape, edits, out, problems };
 }

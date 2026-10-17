@@ -28,6 +28,19 @@
  * `displayName`, Catch Me Up the shipping `buildProjectLine`, and the turns the
  * shipping `readPocketTurns`.
  *
+ * AND SINCE PHASE 346 (build/p346/SPEC.md D28, §4.17), New session's offer:
+ * composed ONCE by the shipping `composeStartOffer`
+ * (src/main/sessions/pocket-start.ts) over the world's two projects, its five
+ * sessions, one place (this Mac, ready, its agents read and installed, being
+ * the agents the world's sessions run), the registry's launchable rows and
+ * the shipping default settings and flag catalogs; handed to every state's
+ * facts as `start`, so every sessions answer the shipping composer makes
+ * carries it as the door does (re-composed by its own `pocketStartOf`); and
+ * kept once, as the book's `constants.start`, which the phone attaches to
+ * every sessions answer it assembles. Clause (2) holds the assembled answers
+ * equal to the composer's with it, and that it is the offer the world was
+ * chosen to make.
+ *
  * THE FILE (§5.1.3) is ASCII (every character past U+007F written `\uXXXX`),
  * deterministic, with one newline at the end. The lists are SKELETONS of
  * indexes into shared PIECES, because 1,980 answers whole are about 2 MB and
@@ -116,7 +129,10 @@ const { readingRevisionOf, screenRevisionOf } = await import('../../src/main/scr
 const { endOfferOf } = await import('../../src/main/sessions/pocket-writes.ts');
 const { buildProjectLine } = await import('../../src/shared/overview-line.ts');
 const { statusVisual } = await import('../../src/shared/status-words.ts');
-const { getRegistryEntry } = await import('../../src/main/agents/registry.ts');
+const { getRegistryEntry, LAUNCHABLE_AGENT_IDS } = await import('../../src/main/agents/registry.ts');
+const { composeStartOffer } = await import('../../src/main/sessions/pocket-start.ts');
+const { getFlagCatalogViews } = await import('../../src/main/settings/ipc.ts');
+const { defaultGmuxSettings } = await import('../../src/shared/settings.ts');
 const { NOTHING_NEEDS_YOU } = await import('../../src/main/tray/attention.ts');
 const { toTurnView } = await import('../../src/main/overview/turn-view.ts');
 const { detectDialogRows, normalizeCapture } = await import('../../src/main/activity/screen.ts');
@@ -304,6 +320,24 @@ for (const session of SESSIONS) {
 /** The registry's drawn name. */
 const agentLabelOf = (agent) => getRegistryEntry(agent).displayName;
 
+/**
+ * PHASE 346 (D28): New session's offer over the made-up world, composed ONCE
+ * by the shipping `composeStartOffer`: the world's projects and sessions, this
+ * Mac ready with its agents read and installed (the agents the world's
+ * sessions run), the registry's launchable rows in its order, and the
+ * shipping defaults, so the default agent and every danger line are main's.
+ */
+const WORLD_AGENTS = [...new Set(SESSIONS.map((s) => s.agent))];
+const START_OFFER = composeStartOffer({
+  projects: PROJECTS,
+  sessions: SESSIONS.map((s) => world.sessionRowOf(s, s.variants[0])),
+  places: new Map([['local', { ready: true, read: true, agents: WORLD_AGENTS }]]),
+  machineLabel: () => null,
+  agentRows: LAUNCHABLE_AGENT_IDS.map((id) => ({ id, name: getRegistryEntry(id).displayName, icon: getRegistryEntry(id).iconKey })),
+  settings: defaultGmuxSettings(),
+  catalogs: getFlagCatalogViews()
+});
+
 /** A page's absence as the page reader answers it; the door fills the sentence. */
 const pageAbsent = (sessionId, why) => ({
   sessionId,
@@ -397,6 +431,8 @@ function factsFor(variants, pages = 'page') {
     // As facts.ts:351-355.
     turns: async (id, range) => readPocketTurns(store, id, range, statusNow(id)),
     handoff: () => null,
+    // PHASE 346: a Mac that allowed Start offers it on every sessions answer.
+    start: () => START_OFFER,
     endOffer: (session) => endOfferOf(session, { status: session.status }, () => true),
     replyOffer: async (session) => {
       const question = QUESTIONS[session.id];
@@ -509,6 +545,8 @@ for (const variants of STATES) {
     }
     answers.sessions.set(question.key, answer);
     constants.sessionsAgeNote ??= answer.ageNote;
+    // PHASE 346: the offer as the door sends it, re-composed by its own key reader.
+    if (!('start' in constants) && answer.start !== undefined) constants.start = answer.start;
     if (agentsOrder === null && question.key === 'all.project.recent.*') agentsOrder = answer.agents.map((a) => a.id);
     entry.sessions[question.key] = {
       rows: answer.rows.map((row) => sessionsRows.add(row)),
@@ -703,7 +741,9 @@ function assemblyClause(parsed, composed) {
         machines: (skeleton.machines ?? []).map((i) => pieceAt(p.choices ?? [], i)),
         total: skeleton.total,
         omitted: skeleton.omitted,
-        ageNote: k.sessionsAgeNote
+        ageNote: k.sessionsAgeNote,
+        // PHASE 346: the book's one offer, on every sessions answer.
+        ...(k.start === undefined ? {} : { start: k.start })
       };
       if (!deepEqual(assembled, withoutAt(want))) problems.push(`(2) state ${state}, ${question.key}: the assembled answer is not the shipping composer's`);
     }
@@ -723,6 +763,25 @@ function readBackClause(parsed) {
   const k = parsed.constants ?? {};
   if (k.blockedAgeNote !== POCKET_AGE_HONESTY || k.sessionsAgeNote !== POCKET_AGE_HONESTY || k.emptyLine !== NOTHING_NEEDS_YOU) {
     problems.push("(2) the constants are not main's own words: the door's age note and the tray's empty line");
+  }
+  // PHASE 346 (D28): the offer is the one the world was chosen to make: its two
+  // projects on this Mac in main's order, this Mac ready with exactly the
+  // world's agents installed and read, each drawn by the registry's name and
+  // mark, the project of the latest session chosen, and main's default agent.
+  {
+    const offer = k.start;
+    const latest = [...SESSIONS].sort((a, b) => b.createdAt - a.createdAt || (b.id > a.id ? 1 : -1))[0];
+    const wantChosen = PROJECTS.find((p) => p.name === latest?.project)?.id ?? null;
+    const wantAgents = LAUNCHABLE_AGENT_IDS.filter((id) => WORLD_AGENTS.includes(id));
+    const ok =
+      offer !== undefined &&
+      offer?.state === 'offered' &&
+      deepEqual(offer.projects?.map((p) => [p.id, p.label, p.machine, p.folder, p.place]), PROJECTS.map((p) => [p.id, p.name, null, null, 'local'])) &&
+      deepEqual(offer.places, [{ id: 'local', ready: true, read: true, agents: wantAgents }]) &&
+      deepEqual(offer.agents?.map((a) => [a.id, a.name, a.icon, a.danger]), wantAgents.map((id) => [id, agentLabelOf(id), getRegistryEntry(id).iconKey, null])) &&
+      offer.chosen === wantChosen &&
+      offer.defaultAgent === defaultGmuxSettings().defaultAgent;
+    if (!ok) problems.push("(2) the book's start offer is not the one the world was chosen to make");
   }
   for (const session of SESSIONS) {
     for (const variant of session.variants) {
@@ -1093,6 +1152,10 @@ function proofs() {
   red('the empty line changed', 2, judge((b) => { b.constants.emptyLine += '.'; }), "the assembled answer is not the shipping composer's");
   red('the age note changed', 2, judge((b) => { b.constants.sessionsAgeNote += '.'; }), "the assembled answer is not the shipping composer's");
   red('a constant that is not main\'s word', 2, judge((b) => { b.constants.emptyLine += '.'; }), "the constants are not main's own words");
+  // PHASE 346: the offer moved, and the offer gone.
+  red('the start offer\'s chosen project moved', 2, judge((b) => { b.constants.start.chosen = b.constants.start.projects[1].id; }), "the assembled answer is not the shipping composer's");
+  red('the start offer gone', 2, judge((b) => { delete b.constants.start; }), "the book's start offer is not the one the world was chosen to make");
+  red('an agent the world does not run offered', 2, judge((b) => { b.constants.start.places[0].agents.push('gemini'); }), "the book's start offer is not the one the world was chosen to make");
   red('a reply missing an option', 2, judge((b) => { b.session['sample-1'].waiting.session.reply.pressable.pop(); }), 'is not the offer the world chose');
   red('a press on an answered session', 2, judge((b) => { b.session['sample-1'].answered.session.reply = b.session['sample-1'].waiting.session.reply; }), 'is not the offer the world chose');
   red('an End on an ended session', 2, judge((b) => { b.session['sample-5'].ended.session.end = { state: 'offered', batch: true }; }), 'End is offered');

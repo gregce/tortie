@@ -208,8 +208,13 @@ export const MACHINE_ID = 'p318far';
  * line unmoved (build/p3371/SPEC.md D1, D35, §Attack B7). The parent's lines
  * below stay 318's own parent.
  */
-export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, scrollback, session, sessions, turns';
-export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question, send a session one message and type into any session as you would at this Mac';
+/**
+ * HEAD's route and write lines, every route allowed. Phase 346 added `start`; its ruled round moved these two
+ * literals, which its build left at 337.1's (this file's own self-test read ROUTE_LINE red against the tree's
+ * route ids, and a run at HEAD would have read the door's lines red over a door that said them right).
+ */
+export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, scrollback, session, sessions, start, turns';
+export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question, send a session one message, type into any session as you would at this Mac and start a session in a project open in Tortie, on this Mac or another machine';
 /** The parent's own lines: one write. */
 export const PARENT_WRITE_LINE = 'Lets an allowed phone end a session';
 export const LIVE = Object.freeze(['running', 'idle', 'needs_input']);
@@ -834,7 +839,7 @@ function graderSelfTest() {
   say(constWord(readFileSync(join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts'), 'utf8'), 'POCKET_DOOR_HONESTY') === WORDS.honesty, "the fixtures' honesty sentence is the tree's POCKET_DOOR_HONESTY, byte for byte");
   // The pure readers.
   say(constWord("export const A = 'one';\nexport const B: string =\n  'two, ' +\n  \"three.\";\n", 'B') === 'two, three.', 'constWord reads a concatenation over a line break');
-  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'choose', 'end', 'keys', 'pair', 'say', 'screen', 'scrollback', 'session', 'sessions', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
+  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'choose', 'end', 'keys', 'pair', 'say', 'screen', 'scrollback', 'session', 'sessions', 'start', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
   say(frameHexOf('a\nb') === Buffer.from('\u001b[200~a\rb\u001b[201~\r', 'latin1').toString('hex'), 'frameHexOf writes LF as CR inside the paste marks and ends with one CR');
   say(quantile([1, 2, 3, 4], 0.5) === 2 && quantile([], 0.5) === null, 'quantile reads the nearest rank');
   say(actedOf({ status: 200, body: '{"outcome":"refused","reason":"character"}' }) === 'yes', 'actedOf counts a refusal the verb made (logged after step 5)');

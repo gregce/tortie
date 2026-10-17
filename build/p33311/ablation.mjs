@@ -344,6 +344,10 @@ const ARMS = [
   { id: 'A5a', clause: 'A5', what: "DoorAnswer's status: 200 | 404 | 204", edits: [{ file: 'src/main/pocket/bind.ts', find: '  readonly status: 200 | 404;', to: '  readonly status: 200 | 404 | 204;' }] },
   { id: 'A5b', clause: 'A5', what: 'sendPocket(res, 400, null) in listener.ts', edits: [{ file: 'src/main/pocket/door/listener.ts', find: 'else sendPocket(res, 404, null);', to: 'else sendPocket(res, 400, null);' }] },
   // P: the phone, read as text
+  // Phase 346 (build/p346/SPEC.md D26): the one lenient read is `try?` on
+  // decodeIfPresent alone; the same `try?` on a plain decode takes a refusal
+  // away from a key, and the reader leaves it unread.
+  { id: 'P0e', clause: 'P0', what: "the sessions answer's lenient start read widened to try? on a plain decode", edits: [{ file: 'ios/Tortie/Door/Contract.swift', find: 'start = (try? c.decodeIfPresent(PocketSessionsStart.self, forKey: .start)) ?? nil', to: 'start = try? c.decode(PocketSessionsStart.self, forKey: .start)' }] },
   { id: 'P0', clause: 'P0', what: 'an idiom the reader does not know in a reachable decoder', edits: [{ file: 'ios/Tortie/Door/Contract.swift', find: '        emptyLine = try c.decode(String.self, forKey: .emptyLine)\n        ageNote = try c.decode(String.self, forKey: .ageNote)', to: '        emptyLine = try c.decode(String.self, forKey: .emptyLine)\n        ageNote = try c.decode(String.self, forKey: .ageNote)\n        x = try c.decodeIfPresentOrDefault(String.self, forKey: .x)' }] },
   { id: 'P0b', clause: 'P0', what: 'one read called through a renamed signedGet, so the reader no longer sees that route', edits: [{ file: 'ios/Tortie/Door/DoorClient.swift', find: 'try await signedGet(PocketBlockedAnswer.self, target: Self.blockedTarget, door: door)', to: 'try await signedRead(PocketBlockedAnswer.self, target: Self.blockedTarget, door: door)' }] },
   { id: 'P1', clause: 'P1', what: "PocketSessionDetail's screen read with decode, not decodeIfPresent", edits: [{ file: 'ios/Tortie/Door/Contract.swift', find: 'screen = try c.decodeIfPresent(Bool.self, forKey: .screen)', to: 'screen = try c.decode(Bool.self, forKey: .screen)' }] },
@@ -532,7 +536,8 @@ const ARMS = [
   ] },
   { id: 'C2', control: true, what: 'the Mac adds a GET row /v1/probe with a new id', edits: [
     { file: 'src/main/pocket/door/table.ts', find: "  { id: 'scrollback', method: 'GET', path: '/v1/scrollback', reads: true, windowOnly: false, signed: true },\n", to: "  { id: 'scrollback', method: 'GET', path: '/v1/scrollback', reads: true, windowOnly: false, signed: true },\n  { id: 'probe', method: 'GET', path: '/v1/probe', reads: true, windowOnly: false, signed: true },\n" },
-    { file: 'src/shared/ipc/pocket.ts', find: "  'scrollback'\n] as const;", to: "  'scrollback',\n  'probe'\n] as const;" }
+    // Phase 346 moved its anchor: the route id list ends on start (build/p346/SPEC.md D4).
+    { file: 'src/shared/ipc/pocket.ts', find: "  'start'\n] as const;", to: "  'start',\n  'probe'\n] as const;" }
   ] },
   { id: 'C3', control: true, what: 'the phone reads a new key with decodeIfPresent in PocketBlockedAnswer', edits: [
     { file: 'ios/Tortie/Door/Contract.swift', find: 'enum CodingKeys: String, CodingKey { case rows, others, othersOmitted, at, emptyLine, ageNote }', to: 'enum CodingKeys: String, CodingKey { case rows, others, othersOmitted, at, emptyLine, ageNote, macVersion }' },
@@ -564,7 +569,8 @@ const ARMS = [
   { id: 'R8h', clause: 'R8', args: ['--ledger-copy', 'p33312-ledger-copy.ts'], what: 'a planted older copy of the ledger whose end row said another clause, through the pure ledgerLosses', edits: [{ file: 'p33312-ledger-copy.ts', create: (clone) => readFileSync(join(clone, 'src/main/pocket/route-ledger.ts'), 'utf8').replace("clause: 'end a session'", "clause: 'end any session'") }] },
   { id: 'R8g', clause: 'R8', committedLedger: true, what: "a ledger row's clause edited in the clone, read against its committed copy through git", edits: [LEDGER_END_CLAUSE] },
   { id: 'R8gh', clause: 'R8', committedLedger: true, what: "a ledger row's clause edited and COMMITTED, so only the base commit's copy holds it", commit: [LEDGER_END_CLAUSE], edits: [] },
-  { id: 'R8c', control: true, what: 'a twelfth ledger row appended (the ledger only adds)', edits: [{ file: 'src/main/pocket/route-ledger.ts', find: "clause: 'type into any session as you would at this Mac' }\n]);", to: "clause: 'type into any session as you would at this Mac' },\n  { id: 'probe', method: 'GET', path: '/v1/probe', reads: true, signed: true, windowOnly: false, bodyCap: 1024, clause: null }\n]);" }] },
+  // Phase 346 moved its anchor: the ledger's last row is start's now (build/p346/SPEC.md §4.12).
+  { id: 'R8c', control: true, what: 'a thirteenth ledger row appended (the ledger only adds)', edits: [{ file: 'src/main/pocket/route-ledger.ts', find: "clause: 'start a session in a project open in Tortie, on this Mac or another machine' }\n]);", to: "clause: 'start a session in a project open in Tortie, on this Mac or another machine' },\n  { id: 'probe', method: 'GET', path: '/v1/probe', reads: true, signed: true, windowOnly: false, bodyCap: 1024, clause: null }\n]);" }] },
   // Phase 333.11.2: a retirement done right reads green. A second set and
   // the floor at 2 committed; then its file removed, its label named in the
   // clone gate's RETIRED_SETS and the floor back at 1, judged by that gate.
@@ -685,6 +691,24 @@ function freeze(args) {
  * same bytes, and `--replace --why` over a phone change keeps the reason and
  * the replaced seal in `history` and prints the lines that moved.
  */
+/**
+ * PHASE 346: THE LABEL THE FREEZE MODES FREEZE (M3 to M10), beside a copy of
+ * the committed `launch` set. They froze `launch` itself into an empty
+ * directory while today's routes were the launch phone's eleven; once the
+ * door adds a route (Phase 346's start), a `launch` set frozen from today
+ * fails R7 by design (LEGACY_ALLOWED_ROUTES is held to the LAUNCH phone's
+ * routes), so the modes freeze a later set next to the launch one, which is
+ * the freeze a release takes. M1 and M2 still ask about `launch` itself.
+ */
+const MODE = 'mode';
+
+/** Seed `<dir>` with the committed frozen sets, then freeze {@link MODE} into it. */
+function freezeFresh(dir) {
+  mkdirSync(dir, { recursive: true });
+  for (const name of readdirSync(join(CLONE, FROZEN)).filter((n) => n.endsWith('.json'))) cpSync(join(CLONE, FROZEN, name), join(dir, name));
+  return freeze(['--freeze', MODE, '--into', dir]);
+}
+
 function modes() {
   const out = [];
   const a = join(CLONE, 'p33311-freeze-a');
@@ -693,19 +717,19 @@ function modes() {
   out.push(['M1', 'a freeze over a label that exists refuses', m1.status === 1 && /exists/.test(m1.out) && !/froze launch/.test(m1.out)]);
   const m2 = freeze(['--freeze', 'launch', '--replace']);
   out.push(['M2', '--replace with no --why refuses', m2.status === 1 && /--why/.test(m2.out)]);
-  const first = freeze(['--freeze', 'launch', '--into', a]);
-  const second = freeze(['--freeze', 'launch', '--into', b]);
+  const first = freezeFresh(a);
+  const second = freezeFresh(b);
   const same =
     first.status === 0 && second.status === 0 &&
-    ['launch.wire.json', 'launch.vectors.json'].every((f) => existsSync(join(a, f)) && sha256(readFileSync(join(a, f))) === sha256(readFileSync(join(b, f))));
+    [`${MODE}.wire.json`, `${MODE}.vectors.json`].every((f) => existsSync(join(a, f)) && sha256(readFileSync(join(a, f))) === sha256(readFileSync(join(b, f))));
   out.push(['M3', 'two freezes of an unchanged tree write the same bytes', same]);
   let m4 = false;
   let originals = null;
   try {
     originals = plant(ARMS.find((x) => x.id === 'C3'));
-    const before = existsSync(join(a, 'launch.wire.json')) ? JSON.parse(readFileSync(join(a, 'launch.wire.json'), 'utf8')) : null;
-    const replaced = freeze(['--freeze', 'launch', '--into', a, '--replace', '--why', 'ablation: the phone reads macVersion']);
-    const after = JSON.parse(readFileSync(join(a, 'launch.wire.json'), 'utf8'));
+    const before = existsSync(join(a, `${MODE}.wire.json`)) ? JSON.parse(readFileSync(join(a, `${MODE}.wire.json`), 'utf8')) : null;
+    const replaced = freeze(['--freeze', MODE, '--into', a, '--replace', '--why', 'ablation: the phone reads macVersion']);
+    const after = JSON.parse(readFileSync(join(a, `${MODE}.wire.json`), 'utf8'));
     const last = after.history?.[after.history.length - 1];
     m4 =
       replaced.status === 0 && before !== null &&
@@ -726,14 +750,14 @@ function modes() {
   let m5 = false;
   let lowered = null;
   try {
-    const fresh = freeze(['--freeze', 'launch', '--into', c]);
-    const before = fresh.status === 0 ? sha256(readFileSync(join(c, 'launch.wire.json'))) : null;
+    const fresh = freezeFresh(c);
+    const before = fresh.status === 0 ? sha256(readFileSync(join(c, `${MODE}.wire.json`))) : null;
     lowered = plant({ edits: [{ file: 'src/main/pocket/door/limits.ts', find: 'say: 32_768', to: 'say: 16_384' }] });
-    const refused = freeze(['--freeze', 'launch', '--into', c, '--replace', '--why', 'ablation: lower']);
+    const refused = freeze(['--freeze', MODE, '--into', c, '--replace', '--why', 'ablation: lower']);
     m5 =
       before !== null && refused.status === 1 &&
       refused.out.includes('POCKET_WRITE_BODY_CAPS.say') && refused.out.includes('nothing was written') &&
-      sha256(readFileSync(join(c, 'launch.wire.json'))) === before;
+      sha256(readFileSync(join(c, `${MODE}.wire.json`))) === before;
   } catch {
     m5 = false;
   } finally {
@@ -745,15 +769,15 @@ function modes() {
   const d = join(CLONE, 'p33311-freeze-d');
   let m6 = false;
   try {
-    const fresh = freeze(['--freeze', 'launch', '--into', d]);
+    const fresh = freezeFresh(d);
     if (fresh.status === 0) {
-      const wire = JSON.parse(readFileSync(join(d, 'launch.wire.json'), 'utf8'));
+      const wire = JSON.parse(readFileSync(join(d, `${MODE}.wire.json`), 'utf8'));
       wire.macLimits.push({ mac: 'P33311_ONLY_THEN', file: 'src/main/pocket/door/limits.ts', value: 1, rule: 'now>=frozen' });
       wire.bounds.find((b) => b.phone === 'PocketScreen.widest').mac.push('P33311_TOO');
-      writeFileSync(join(d, 'launch.wire.json'), `${JSON.stringify(reseal(wire), null, 2)}\n`);
-      const before = ['launch.wire.json', 'launch.vectors.json'].map((f) => sha256(readFileSync(join(d, f))));
-      const refused = freeze(['--freeze', 'launch', '--into', d, '--replace', '--why', 'ablation: missing']);
-      const after = ['launch.wire.json', 'launch.vectors.json'].map((f) => sha256(readFileSync(join(d, f))));
+      writeFileSync(join(d, `${MODE}.wire.json`), `${JSON.stringify(reseal(wire), null, 2)}\n`);
+      const before = [`${MODE}.wire.json`, `${MODE}.vectors.json`].map((f) => sha256(readFileSync(join(d, f))));
+      const refused = freeze(['--freeze', MODE, '--into', d, '--replace', '--why', 'ablation: missing']);
+      const after = [`${MODE}.wire.json`, `${MODE}.vectors.json`].map((f) => sha256(readFileSync(join(d, f))));
       m6 =
         refused.status === 1 &&
         refused.out.includes('P33311_ONLY_THEN') && refused.out.includes('P33311_TOO') && refused.out.includes('nothing was written') &&
@@ -798,7 +822,8 @@ function modes() {
 }
 
 /**
- * Freeze `launch` into a fresh `<dir>` in the clone, edit that set as the
+ * Freeze {@link MODE} beside the committed `launch` set into a fresh `<dir>`
+ * in the clone ({@link freezeFresh}), edit that set as the
  * one being replaced (resealed, so it is a set `--replace` reads), then
  * `--replace` it from the unchanged tree: it must exit 1, print every
  * `names` and `nothing was written`, and leave both files at their sha256.
@@ -808,19 +833,19 @@ function modes() {
 function replaceRefuses(dir, edit, names, editVectors = null, repin = true) {
   const at = join(CLONE, dir);
   try {
-    const fresh = freeze(['--freeze', 'launch', '--into', at]);
+    const fresh = freezeFresh(at);
     if (fresh.status !== 0) return false;
-    const wire = JSON.parse(readFileSync(join(at, 'launch.wire.json'), 'utf8'));
+    const wire = JSON.parse(readFileSync(join(at, `${MODE}.wire.json`), 'utf8'));
     if (editVectors !== null) {
-      const path = join(at, 'launch.vectors.json');
+      const path = join(at, `${MODE}.vectors.json`);
       writeFileSync(path, `${JSON.stringify(editVectors(JSON.parse(readFileSync(path, 'utf8'))), null, 2)}\n`);
       if (repin) wire.vectors.sha256 = sha256(readFileSync(path));
     }
     edit(wire);
-    writeFileSync(join(at, 'launch.wire.json'), `${JSON.stringify(reseal(wire), null, 2)}\n`);
-    const before = ['launch.wire.json', 'launch.vectors.json'].map((f) => sha256(readFileSync(join(at, f))));
-    const refused = freeze(['--freeze', 'launch', '--into', at, '--replace', '--why', `ablation: ${dir}`]);
-    const after = ['launch.wire.json', 'launch.vectors.json'].map((f) => sha256(readFileSync(join(at, f))));
+    writeFileSync(join(at, `${MODE}.wire.json`), `${JSON.stringify(reseal(wire), null, 2)}\n`);
+    const before = [`${MODE}.wire.json`, `${MODE}.vectors.json`].map((f) => sha256(readFileSync(join(at, f))));
+    const refused = freeze(['--freeze', MODE, '--into', at, '--replace', '--why', `ablation: ${dir}`]);
+    const after = [`${MODE}.wire.json`, `${MODE}.vectors.json`].map((f) => sha256(readFileSync(join(at, f))));
     const unnamed = names.filter((n) => !refused.out.includes(n));
     if (unnamed.length > 0) process.stdout.write(`${TAG} ${dir}: the refusal did not name ${unnamed.join(', ')}\n`);
     return refused.status === 1 && unnamed.length === 0 && refused.out.includes('nothing was written') && canonical(before) === canonical(after);

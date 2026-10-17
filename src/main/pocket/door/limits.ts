@@ -42,7 +42,8 @@ export const POCKET_PAIR_BODY_CAP_BYTES = 4 * 1024;
 
 /**
  * A write's body, per route (Phase 317, build/p317/SPEC.md §5.3.3; Phase 318,
- * build/p318/SPEC.md §5.1.3, D3; Phase 337, build/p337/SPEC.md §5.1, D17). The door process checks the size and drops a
+ * build/p318/SPEC.md §5.1.3, D3; Phase 337, build/p337/SPEC.md §5.1, D17;
+ * Phase 346, build/p346/SPEC.md D6). The door process checks the size and drops a
  * body over it whole (404 `oversized`); main parses.
  *
  * Computed from the worst legal body, not guessed, and a vitest
@@ -70,11 +71,16 @@ export const POCKET_PAIR_BODY_CAP_BYTES = 4 * 1024;
  *     surrogate pairs, 4,287; 64 names, 1,221). It must reach main to be
  *     answered `refused character` in words rather than be dropped here, so
  *     the cap is 16,384, more than twice the worst.
+ *   - `start` (Phase 346, build/p346/SPEC.md D6): `{"agent":"<id>","project":
+ *     "<64 of [A-Za-z0-9-]>","write":"<32 hex>"}`. The longest compiled agent
+ *     id is 11 characters (`antigravity`), so the worst legal body is 143
+ *     bytes, and no field can hold a character either encoder escapes. Cap
+ *     512.
  *
  * Keyed by the route id, so the listener reads the cap of the row it matched
  * and a write route with no cap here is a type error.
  */
-export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768, keys: 16_384 } as const);
+export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512 } as const);
 
 /** The timings a test may shorten. Production passes none of these. */
 export interface DoorTimings {

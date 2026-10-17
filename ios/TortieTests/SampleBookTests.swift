@@ -132,6 +132,42 @@ final class SampleBookTests: XCTestCase {
         XCTAssertThrowsError(try crooked.screen(id: "s-idle", variant: "live", at: 1)) { XCTAssertEqual($0 as? DoorFailure, .malformed) }
     }
 
+    /// Phase 346 (D28): the book's start offer rides on every sessions
+    /// answer, read through the contract's own lenient key; a book with none
+    /// carries none, and one the contract cannot read is no offer and no
+    /// refusal.
+    func testTheStartOfferRidesOnEverySessionsAnswer() throws {
+        let book = SampleBookFixture.book()
+        XCTAssertNil(try book.sessions(state: "waiting.live.ended", query: .standard, at: 1).start, "a book with no offer offers none")
+        let projects: [[String: Any]] = [["id": "sample-project-alpha", "label": "alpha", "machine": NSNull(), "folder": NSNull(), "place": "local"]]
+        let places: [[String: Any]] = [["id": "local", "ready": true, "read": true, "agents": ["claude", "codex"]]]
+        let agents: [[String: Any]] = [
+            ["id": "claude", "name": "Claude Code", "icon": "claude", "danger": NSNull()],
+            ["id": "codex", "name": "Codex CLI", "icon": "codex", "danger": NSNull()]
+        ]
+        let offer: [String: Any] = [
+            "state": "offered", "projects": projects, "places": places, "agents": agents,
+            "chosen": "sample-project-alpha", "defaultAgent": "claude"
+        ]
+        let offering = try XCTUnwrap(SampleBook(data: SampleBookFixture.data { book in
+            book[path: ["constants", "start"]] = offer
+        }))
+        for state in ["waiting.live.ended", "answered.ended.ended"] {
+            for query in [SessionsQuery.standard, SessionsQuery(show: .all, group: .none, sort: .name, agent: "claude", machine: nil)] {
+                guard let answer = try? offering.sessions(state: state, query: query, at: 1) else { continue }
+                let read = try XCTUnwrap(answer.start?.offer, "\(state) \(query)")
+                XCTAssertEqual(read.projects.map(\.id), ["sample-project-alpha"])
+                XCTAssertEqual(read.places.first?.agents, ["claude", "codex"])
+            }
+        }
+        let crooked = try XCTUnwrap(SampleBook(data: SampleBookFixture.data { book in
+            book[path: ["constants", "start"]] = ["state": "later"]
+        }))
+        let answer = try crooked.sessions(state: "waiting.live.ended", query: .standard, at: 1)
+        XCTAssertNil(answer.start, "an offer the contract cannot read is no offer")
+        XCTAssertEqual(answer.rows.map(\.sessionId), ["s-wait", "s-idle", "s-done"], "and the answer under it is read as ever")
+    }
+
     /// Only a book of this build's shape is read.
     func testABookOfAnotherShapeIsNotRead() {
         XCTAssertNotNil(SampleBook(data: SampleBookFixture.data()))

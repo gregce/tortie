@@ -145,6 +145,7 @@ import {
   signedHeaders
 } from '../p316/node-phone.mjs';
 import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, processRows, watchForRealTailscale } from '../p330/tailscale-standin.mjs';
+import { plantedResolve, scratchShellEnv } from '../scratch-login.mjs';
 import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin, quietAgentsHeld, writeQuietAgents } from '../p332/dns-standin.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -163,7 +164,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * build/p3371/SPEC.md D1, §Attack B7). The parent's line below stays this
  * phase's own parent.
  */
-export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, scrollback, session, sessions, turns';
+export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, scrollback, session, sessions, start, turns';
 /** The parent's line: main before this phase, seven routes and no `sessions`. */
 export const PARENT_ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, pair, say, session, turns';
 export const ROUTE_PREFIX = 'Answers these and nothing else:';
@@ -1027,6 +1028,8 @@ async function run() {
       env: withoutDevRenderer({
         ...INHERITED_CLAUDE,
         HOME,
+        // Phase 346's ruled round: zsh reads $ZDOTDIR/.zprofile, so the scratch HOME's or the stand-in is on no PATH.
+        ...scratchShellEnv(HOME),
         GMUX_TMUX_SOCKET: SOCKET,
         GMUX_PROBES: '1',
         GMUX_LOG_FILE: '1',
@@ -1133,6 +1136,12 @@ async function run() {
     writeFileSync(join(HOME, '.zprofile'), `export PATH="${BIN}:$PATH"\n`, 'utf8');
     writeFileSync(join(HOME, '.zshrc'), `export PATH="${BIN}:$PATH"\nPS1='p3167 %# '\nHISTFILE=/dev/null\n`, 'utf8');
     writeFileSync(join(HOME, '.hushlogin'), '');
+    // THE PRECONDITION (Phase 346's ruled round): the login shell the app will ask, with the environment it will be given, resolves every agent this run plants to its stand-in, or nothing is launched (exit 2). On 2026-10-16 a ZDOTDIR probe:p313 did not set started his real Claude Code in both of its claude sessions.
+    {
+      const asked = plantedResolve({ home: HOME, bin: BIN, names: ['claude'], env: INHERITED_CLAUDE });
+      if (!asked.ok) refuse(`${asked.said}, so a session would start a real agent. Nothing is launched.`);
+      say(asked.said);
+    }
     writeMachines();
     {
       const known = join(PROFILE, 'gmux', 'machines', 'known-machines');

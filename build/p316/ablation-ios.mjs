@@ -263,6 +263,19 @@
  * held") and `ax4` (a Copy button back in the page's toolbar, there being no
  * toolbar Copy to draw sideways). `aq8` and `as6` stand as they were.
  *
+ * PHASE 346, START A SESSION FROM THE PHONE (build/p346/SPEC.md §5.3), a "+"
+ * on the Sessions title, New session, and Create sending two ids and a write
+ * id with no Face ID. Its arms, at the end of the list, are the ways the start
+ * could go out twice, ask a check his answer 5 refused, carry more than two
+ * ids, reach the app from outside, draw a mark that is not the Mac's, open on
+ * the wrong Mac or tab, or run from the sample: (bb) bb1a to bb10a, one or
+ * more per clause; (ab) the start body built outside signedPost and signedPost
+ * called twice by start; (v) startSentence silent for no answer; (t) the
+ * hostile door's start-hold dropped; (az) a second `starter` member, and the
+ * sample's reader named in startSetup, a sixth site az9 refuses; (ba) a done
+ * start opened on the Mac on screen; (ac) the owner check named in New
+ * session.
+ *
  * THE DELTA RULE. The base is run first. An arm passes only when its own rule
  * was GREEN at the base and is RED with the plant, so a rule that was already
  * red proves nothing and says so. An arm whose anchor is gone from the tree
@@ -291,6 +304,7 @@
  *
  *   node build/p316/ablation-ios.mjs
  *   P316_ONLY=a1,h node build/p316/ablation-ios.mjs     named arms only
+ *   P316_ONLY=bb1a,bb2a,bb3a,bb4a,bb5a,bb6a,bb7a,bb8a,bb9a,bb10a node build/p316/ablation-ios.mjs   some of Phase 346's
  */
 
 import { spawnSync } from 'node:child_process';
@@ -485,6 +499,15 @@ function afterFirstLine(re, line) {
 }
 /** The edit menu's delegate method, by its head (build/p3375/SPEC.md D8). */
 const MENU_FOR = /func editMenuInteraction\([^)]*\bmenuFor\b[^)]*\)[^{]*\{/;
+
+/** Phase 346's files (build/p346/SPEC.md §4.15). */
+const START_SWIFT = `${APP}/Screens/Start.swift`;
+const START_SHEET = `${APP}/Screens/StartSheet.swift`;
+const AGENT_MARK = `${APP}/Screens/AgentMark.swift`;
+const DOOR_CLIENT_SWIFT = `${APP}/Door/DoorClient.swift`;
+const CONTRACT_SWIFT = `${APP}/Door/Contract.swift`;
+const DOOR_WORDS_SWIFT = `${APP}/Screens/DoorWords.swift`;
+const MARKS = `${APP}/AgentMarks.xcassets`;
 
 const PBX = 'ios/Tortie.xcodeproj/project.pbxproj';
 const INFO = `${APP}/Info.plist`;
@@ -5019,6 +5042,248 @@ const ARMS = [
     file: () => TEXT_INPUT,
     edit: (src) => src.replace(/\bvar\s+markedTextStyle\s*:\s*\[\s*NSAttributedString\.Key\s*:\s*Any\s*\]\?/, 'var markedTextStyle: [NSAttributedString.Key: Any]?\n    var p3375Style: [NSAttributedString.Key: Any] = [:]'),
     also: ['z']
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 346 (build/p346/SPEC.md §5.3): start a session from the phone. One
+  // or more arms per clause of (bb), and one per rule the phase widened.
+  // -------------------------------------------------------------------------
+  {
+    id: 'bb1a',
+    rule: 'bb',
+    what: 'a second call of the starter, outside StartRunner.run (D17)',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace('    func openStarted(mac: String, id: String, name: String) {', '    func startAgain(_ s: any DoorStarting) async { _ = await s.start(project: "p", agent: "a", write: nil) }\n    func openStarted(mac: String, id: String, name: String) {')
+  },
+  {
+    id: 'bb1b',
+    rule: 'bb',
+    what: 'a fourth key, cwd, in the start body (D6, D15)',
+    file: () => DOOR_CLIENT_SWIFT,
+    edit: (src) => src.replace('struct StartBody: Encodable, Sendable {\n    let agent: String', 'struct StartBody: Encodable, Sendable {\n    let agent: String\n    let cwd: String')
+  },
+  {
+    id: 'bb1c',
+    rule: 'bb',
+    what: 'a start answer taken without asking that it names the start (D5)',
+    file: () => DOOR_CLIENT_SWIFT,
+    edit: (src) => src.replace(/\n[ \t]*answer\.verb == "start",/, '')
+  },
+  {
+    id: 'bb1d',
+    rule: 'bb',
+    what: 'a start sent again while it has no answer (D17: never retried)',
+    file: () => START_SWIFT,
+    edit: (src) => src.replace('        return await starter.start(project: project, agent: agent, write: write)', '        var sent = await starter.start(project: project, agent: agent, write: write)\n        while sent.result == .noAnswer { sent = await starter.start(project: project, agent: agent, write: write) }\n        return sent')
+  },
+  {
+    id: 'bb2a',
+    rule: 'bb',
+    what: 'Face ID asked by Create (his answer 5)',
+    file: () => START_SWIFT,
+    edit: (src) => src.replace(/\n([ \t]*)let at = clock\(\)\n([ \t]*)let reusing = kept\(at: at\)/, '\n$1let context = LAContext()\n$1let at = clock()\n$2let reusing = kept(at: at)')
+  },
+  {
+    id: 'bb2b',
+    rule: 'bb',
+    what: 'New session handed the End check by startSetup (D20)',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(func startSetup\(_ reader: any DoorReading\) -> StartSetup\? \{\n)/, '$1        _ = endCheck(for: reader)\n')
+  },
+  {
+    id: 'bb3a',
+    rule: 'bb',
+    what: 'a start runner registered after its task starts (D17)',
+    file: () => START_SWIFT,
+    edit: (src) => {
+      const reg = /\n([ \t]*)registry\.registerStart\(runner\)\n/.exec(src);
+      const task = /\n([ \t]*)runner\.task = task\n/.exec(src);
+      if (reg === null || task === null) return src;
+      const without = src.replace(reg[0], '\n');
+      return without.replace(/\n([ \t]*)runner\.task = task\n/, `\n$1runner.task = task\n$1registry.registerStart(runner)\n`);
+    }
+  },
+  {
+    id: 'bb3b',
+    rule: 'bb',
+    what: 'the app leaving stops no start (D17)',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/\n[ \t]*for runner in liveStarts \{\n[ \t]*runner\.stop\(\)\n[ \t]*\}/, '')
+  },
+  {
+    id: 'bb3c',
+    rule: 'bb',
+    what: 'a start kept after the Mac said it was not taken (D17)',
+    file: () => START_SWIFT,
+    edit: (src) => src.replace(/(case \.notTaken:\n[ \t]*keeper\.keptStart = )nil/, '$1reusing')
+  },
+  {
+    id: 'bb3d',
+    rule: 'bb',
+    what: 'a kept start sent again for ten minutes, past the Mac ledger (D17)',
+    file: () => START_SWIFT,
+    edit: (src) => src.replace('static let window: TimeInterval = 60', 'static let window: TimeInterval = 600')
+  },
+  {
+    id: 'bb3e',
+    rule: 'bb',
+    what: 'a kept start written to UserDefaults (D17: memory only)',
+    file: () => START_SWIFT,
+    edit: (src) => src.replace(/\n([ \t]*)let at = clock\(\)\n/, '\n$1UserDefaults.standard.set(project, forKey: "tortie.start")\n$1let at = clock()\n')
+  },
+  {
+    id: 'bb4a',
+    rule: 'bb',
+    what: 'DoorClient.start taking a path (D15)',
+    file: () => DOOR_CLIENT_SWIFT,
+    edit: (src) => src.replace('func start(project: String, agent: String, write: String?, door: PairedDoor)', 'func start(project: String, agent: String, path: String, write: String?, door: PairedDoor)')
+  },
+  {
+    id: 'bb4b',
+    rule: 'bb',
+    what: 'the starter requirement taking a folder (D15)',
+    file: () => DOOR_WORDS_SWIFT,
+    edit: (src) => src.replace('func start(project: String, agent: String, write: String?) async -> SentStart\n}', 'func start(project: String, agent: String, folder: String, write: String?) async -> SentStart\n}')
+  },
+  {
+    id: 'bb5a',
+    rule: 'bb',
+    what: 'the sessions answer’s start decoded strictly, so a bad offer fails Sessions (D26)',
+    file: () => CONTRACT_SWIFT,
+    edit: (src) => src.replace('start = (try? c.decodeIfPresent(PocketSessionsStart.self, forKey: .start)) ?? nil', 'start = try c.decodeIfPresent(PocketSessionsStart.self, forKey: .start)')
+  },
+  {
+    id: 'bb6a',
+    rule: 'bb',
+    what: 'the "+" drawn on a Mac that offers no start (D9, D21)',
+    file: () => SESSIONS_SCREEN,
+    edit: (src) => src.replace('if let start, model.startOffer != nil {', 'if let start {')
+  },
+  {
+    id: 'bb6b',
+    rule: 'bb',
+    what: 'the "+" left on while End these takes taps (D21)',
+    file: () => SESSIONS_SCREEN,
+    edit: (src) => src.replace(/(StartTitleControl\(open: start\)\n)[ \t]*\.disabled\([^\n]*\)\n/, '$1')
+  },
+  {
+    id: 'bb7a',
+    rule: 'bb',
+    what: 'an App Intent beside New session (D29)',
+    file: () => START_SWIFT,
+    edit: (src) => src.replace('import Foundation\n', 'import Foundation\nimport AppIntents\n')
+  },
+  {
+    id: 'bb7b',
+    rule: 'bb',
+    what: 'a URL scheme in the app’s property list (D29)',
+    file: () => INFO,
+    edit: (src) => src.replace('<dict>\n', '<dict>\n\t<key>CFBundleURLTypes</key>\n\t<array/>\n')
+  },
+  {
+    id: 'bb8a',
+    rule: 'bb',
+    what: 'one agent’s mark taken out of the catalog (D23)',
+    file: () => `${MARKS}/agent-pi.imageset/Contents.json`,
+    remove: true
+  },
+  {
+    id: 'bb8b',
+    rule: 'bb',
+    what: 'a mark drawn as it is, not a template a token tints (D23)',
+    file: () => `${MARKS}/agent-claude.imageset/Contents.json`,
+    edit: (src) => src.replace('"template-rendering-intent" : "template"', '"template-rendering-intent" : "original"').replace('"template-rendering-intent": "template"', '"template-rendering-intent": "original"')
+  },
+  {
+    id: 'bb8c',
+    rule: 'bb',
+    what: 'a mark named outside AgentMark.swift (D23)',
+    file: () => START_SHEET,
+    edit: (src) => src.replace('struct StartTitleControl: View {', 'struct P346Mark: View {\n    var body: some View { Image("agent-claude") }\n}\n\nstruct StartTitleControl: View {')
+  },
+  {
+    id: 'bb8d',
+    rule: 'bb',
+    what: 'a compiled agent left out of the marks table (D23)',
+    file: () => AGENT_MARK,
+    edit: (src) => src.replace(/\n[ \t]*"pi": "agent-pi",/, '')
+  },
+  {
+    id: 'bb9a',
+    rule: 'bb',
+    what: 'a done start opened on Needs input (D24)',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace('push(.session(mac: mac, id: id, name: name), on: .sessions)', 'push(.session(mac: mac, id: id, name: name), on: .needsInput)')
+  },
+  {
+    id: 'bb9b',
+    rule: 'bb',
+    what: 'a session opened when the Mac said not taken (D24)',
+    file: () => START_SWIFT,
+    edit: (src) => src.replace(/(case \.notTaken:\n([ \t]*)keeper\.keptStart = nil\n)/, '$1$2opened("x", "y")\n')
+  },
+  {
+    id: 'bb10a',
+    rule: 'bb',
+    what: 'the sample’s Create answering no answer, as if something might have started (D28)',
+    file: () => SAMPLE_READER,
+    edit: (src) => src.replace('SentStart(result: .notTaken, write: nil)', 'SentStart(result: .noAnswer, write: nil)')
+  },
+  // The rules Phase 346 widened.
+  {
+    id: 'ab30',
+    rule: 'ab',
+    what: 'a start body built in DoorClient.start rather than in signedPost',
+    file: () => DOOR_CLIENT_SWIFT,
+    edit: (src) => src.replace(/(func start\(project: String, agent: String, write: String\?, door: PairedDoor\) async -> SentStart \{\n)/, '$1        _ = StartBody(agent: agent, project: project, write: "")\n')
+  },
+  {
+    id: 'ab31',
+    rule: 'ab',
+    what: 'signedPost called twice by DoorClient.start',
+    file: () => DOOR_CLIENT_SWIFT,
+    edit: (src) => src.replace(/(func start\(project: String, agent: String, write: String\?, door: PairedDoor\) async -> SentStart \{\n)/, '$1        _ = await signedPost(route: .start(project: project, agent: agent), door: door, limits: limits, write: nil)\n')
+  },
+  {
+    id: 'v43',
+    rule: 'v',
+    what: 'startSentence drawing nothing for a start with no answer',
+    file: () => DOOR_WORDS_SWIFT,
+    edit: (src) => src.replace(/\n[ \t]*case \.noAnswer:\n[ \t]*return Copy\.startNoAnswer/, '')
+  },
+  {
+    id: 't42',
+    rule: 't',
+    what: 'the hostile door’s start-hold arm dropped (build/p346/SPEC.md §5.4)',
+    file: () => 'build/p316/hostile-door.mjs',
+    edit: (src) => src.replace(/\n[ \t]*'start-hold':[^\n]*/, '')
+  },
+  {
+    id: 'az34',
+    rule: 'az',
+    what: 'a second starter member declared outside the sample, an overload it could reach',
+    file: () => DOOR_WORDS_SWIFT,
+    edit: append('extension PairedFacts {\n    var starter: Int { 0 }\n}\n')
+  },
+  {
+    id: 'az35',
+    rule: 'az',
+    what: 'the sample\'s reader named in startSetup, a sixth site outside the sample (az9)',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace(/(func startSetup\(_ reader: any DoorReading\) -> StartSetup\? \{\n)/, '$1        _ = reader is SampleReader\n')
+  },
+  {
+    id: 'ba11',
+    rule: 'ba',
+    what: 'a done start opened on the Mac on screen rather than the one that started it (D27)',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace('push(.session(mac: mac, id: id, name: name), on: .sessions)', 'push(.session(mac: chosen?.id ?? mac, id: id, name: name), on: .sessions)')
+  },
+  {
+    id: 'ac40',
+    rule: 'ac',
+    what: 'the owner check named in New session (OWNER_CHECK_ABSENT, D20)',
+    file: () => START_SHEET,
+    edit: (src) => src.replace('struct StartTitleControl: View {', 'struct P346Check {\n    let check: any OwnerCheck\n}\n\nstruct StartTitleControl: View {')
   }
 ];
 
@@ -5232,7 +5497,7 @@ if (only.length === 0) {
     }
   }
   // Phase 337.1's rules, Phase 337.3's ((aw), (ax), (ay)), Phase 333.3's (az) and Phase 345's (ba); (av) is Phase 333.1's and joins here when it lands.
-  for (const rule of ['ar', 'as', 'at', 'au', 'aw', 'ax', 'ay', 'az', 'ba']) {
+  for (const rule of ['ar', 'as', 'at', 'au', 'aw', 'ax', 'ay', 'az', 'ba', 'bb']) {
     if (!rulesProved.has(rule)) {
       failed += 1;
       say(`rule (${rule}) has no arm that turned it red, so nothing here proves it can fail`);
@@ -5245,5 +5510,5 @@ if (failed > 0) {
 }
 say(
   `PASS: ${String(arms.length)} of ${String(arms.length)} arms red on the rule that owns them, ` +
-    `${only.length === 0 ? 'every rule (a) to (z) and (aa) to (ba) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
+    `${only.length === 0 ? 'every rule (a) to (z) and (aa) to (bb) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
 );

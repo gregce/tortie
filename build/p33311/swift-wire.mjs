@@ -24,7 +24,11 @@
  *      `doorNumber`, `nullableDoorNumber`, `decodeIfPresent`, `screenColor`
  *      (each preceded by a plain `try`), and `contains` as an `if` condition
  *      (the key optional in its branch) or `guard !c.contains(.k)` (the key
- *      absent in its case); `try X(from: decoder)` is a flatten;
+ *      absent in its case); `try X(from: decoder)` is a flatten; and, since
+ *      Phase 346 (build/p346/SPEC.md D26), the ONE lenient read, `try?` on
+ *      `decodeIfPresent(T.self, forKey: .k)`, which decodes as nil whatever
+ *      the Mac sends under `.k`, so the phone requires nothing of it and T is
+ *      not followed;
  *   4. one discriminant, a `String` read switched on inline or bound first,
  *      its case labels literals or `Word.x` constants, `if w == "x"` narrowing
  *      inside a case, a `default:` that throws (closed) or assigns (open);
@@ -39,7 +43,7 @@
  * ANYTHING ELSE inside a reachable decoder is an UNREAD STATEMENT, reported
  * with its file and line, and P0 turns the gate red on it: a reader that
  * silently skipped a new idiom would freeze a phone that requires more than
- * the file says. `try?`/`try!` on a container read, a loop, a `do`, a call on
+ * the file says. `try?`/`try!` on any other container read, a loop, a `do`, a call on
  * the container this reader does not know, a key not in `CodingKeys`, the
  * decoder or the container handed anywhere else: all unread.
  *
@@ -1009,6 +1013,27 @@ function readDecoder(mod, qual, init, unread) {
           continue;
         }
         const before = toks[p];
+        // PHASE 346 (build/p346/SPEC.md D26): THE ONE LENIENT READ. A key read
+        // `try? c.decodeIfPresent(T.self, forKey: .k)` decodes as nil whatever
+        // the Mac sends under it, or nothing, so the answer it rides on never
+        // refuses over it: the phone REQUIRES NOTHING of `.k`, and the reader
+        // records no requirement for it and follows nothing into T (whose own
+        // refusals refuse only the key). Only `decodeIfPresent`, with a type
+        // and a key: a `try?` on any other read takes a refusal away from a
+        // required key, and that stays unread.
+        if (isId(before, 'try?') && method === 'decodeIfPresent') {
+          const keyArg = args[args.length - 1];
+          const keyName = args.length === 2 && keyArg !== undefined && keyArg.length === 4 && isId(keyArg[0], 'forKey') && isOp(keyArg[1], ':') && isOp(keyArg[2], '.') && isId(keyArg[3]) ? keyArg[3].v : null;
+          const typeArg = args.length === 2 ? args[0] : null;
+          const typed = typeArg !== null && typeArg.length >= 3 && isOp(typeArg[typeArg.length - 2], '.') && isId(typeArg[typeArg.length - 1], 'self');
+          if (keyName === null || !typed) {
+            miss(line, `\`try? ${t.v}.decodeIfPresent\` without a type and a \`forKey: .name\``);
+            continue;
+          }
+          const key = wireKey(keyName, line);
+          if (key !== null) out.push({ method: 'lenient', key });
+          continue;
+        }
         if (!isId(before, 'try')) {
           miss(line, isId(before) && (before.v === 'try?' || before.v === 'try!') ? `\`${before.v}\` takes a refusal away from a read` : `\`${t.v}.${method}\` without a plain try`);
           continue;
@@ -1080,6 +1105,8 @@ function readDecoder(mod, qual, init, unread) {
         continue;
       }
       if (c.method === 'contains') continue;
+      // PHASE 346 (D26): a lenient read requires nothing, under any condition.
+      if (c.method === 'lenient') continue;
       if (ctx.noReads) {
         miss(line, `a read of .${c.key} under a condition this reader does not know`);
         continue;
@@ -1559,8 +1586,15 @@ function readRoutes(mod, problems, builders = new Map()) {
       if (!(isId(ts[i], 'case') && isOp(ts[i + 1], '.') && isId(ts[i + 2]) && isOp(ts[i + 3], ':') && isId(ts[i + 4], owner) && isOp(ts[i + 5], '.') && isId(ts[i + 6]))) continue;
       const path = targetPath(mod, owner, ts[i + 6].v, problems);
       used.add(ts[i + 6].v);
+      // PHASE 346 (build/p346/SPEC.md D5): a write whose answer is not the
+      // session writes' is classified by a `<Verb>Result.of` of its own, and
+      // its route answers the type THAT decodes (`StartResult.of` decodes
+      // `PocketStartAnswer`). Every other case answers `WriteResult.of`'s.
+      const verb = ts[i + 2].v;
+      const ownName = `${verb.charAt(0).toUpperCase()}${verb.slice(1)}Result`;
+      const ownType = decodedIn(funcOf(mod, ownName, 'of'), false);
       if (path !== null) {
-        routes.push({ method: postMethod, path, signed: true, answer: mod.resolve(writeType, 'WriteResult'), via: 'signedPost' });
+        routes.push({ method: postMethod, path, signed: true, answer: ownType === null ? mod.resolve(writeType, 'WriteResult') : mod.resolve(ownType, ownName), via: 'signedPost' });
         builders.set(`${String(postMethod)} ${path}`, { name: ts[i + 6].v, verb: ts[i + 2].v });
       }
     }

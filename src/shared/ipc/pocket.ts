@@ -44,10 +44,11 @@
  * outbound hand-off, and the answer was to remove the thing rather than to
  * guard it. Pairing establishes keys each way and every request is signed.
  *
- * FOUR WRITE ROUTES, AND WHAT THEY CAN DO IS ALL THEY CAN DO (Phase 317,
+ * FIVE WRITE ROUTES, AND WHAT THEY CAN DO IS ALL THEY CAN DO (Phase 317,
  * build/p317/SPEC.md §5.3; Phase 318, build/p318/SPEC.md §5.1; Phase 337,
- * build/p337/SPEC.md §5.1). {@link POCKET_WRITE_ROUTE_IDS} is exactly `end`,
- * `choose`, `say` and `keys`:
+ * build/p337/SPEC.md §5.1; Phase 346, build/p346/SPEC.md D1, D4).
+ * {@link POCKET_WRITE_ROUTE_IDS} is exactly `end`, `choose`, `say`, `keys`
+ * and `start`:
  *
  *   - `end` asks main to end ONE session by id, through both gates the Mac's
  *     own End asks, and main's verb does the ending;
@@ -62,7 +63,11 @@
  *     this Mac or on another machine, as a person types at the desk: text as
  *     its exact bytes and every other key by tmux's own name from
  *     {@link POCKET_SCREEN_KEY_NAMES}, refused with nothing typed when the
- *     numbered question the phone was looking at has moved since.
+ *     numbered question the phone was looking at has moved since;
+ *   - `start` (Phase 346) asks main to start ONE session through the Mac's
+ *     own one-press create, naming a project main offered and an installed
+ *     agent; it carries no path, flag, name or login. It is not a session
+ *     write: it names no session, and its answer is {@link PocketStartAnswer}.
  *
  * Nothing here can set a status, start a process by itself, or restore,
  * remove, restart, resize or rename a session. (A key typed into a shell runs
@@ -123,22 +128,44 @@ export const POCKET_ROUTE_IDS = [
   /** `POST /v1/keys` — keys typed into one running session, as at the desk (Phase 337). */
   'keys',
   /** `GET /v1/scrollback` — one page of what a session's terminal printed before, never held (Phase 337.1). */
-  'scrollback'
+  'scrollback',
+  /**
+   * `POST /v1/start` — start one session in a project open on this Mac or one
+   * of its machines, with an agent installed there (Phase 346).
+   */
+  'start'
 ] as const;
 
 export type PocketRouteId = (typeof POCKET_ROUTE_IDS)[number];
 
 /**
- * The write routes, and there are exactly these (Phase 317; Phase 318 added
- * `choose` and `say` to the same door, the same write path and the same
- * ledger, and no second gate; Phase 337 added `keys` in the same way). A
- * `reads: false` row of the door's table is one of these, and
- * `conformance:pocket` R2 holds the table and this list to each other. The
- * ORDER is the order the confirm line names them in.
+ * The write routes, and there are exactly these FIVE (Phase 317; Phase 318
+ * added `choose` and `say` to the same door, the same write path and the same
+ * ledger, and no second gate; Phase 337 added `keys` in the same way; Phase
+ * 346 added `start`, build/p346/SPEC.md D4). A `reads: false` row of the
+ * door's table is one of these, and `conformance:pocket` R2 holds the table
+ * and this list to each other. The ORDER is the order the confirm line names
+ * them in, so start's clause is said last.
+ *
+ * `start` is a write but NOT A SESSION WRITE: it names no session (a session
+ * is what it makes), its body is a project and an agent, and its answer is
+ * {@link PocketStartAnswer}, never {@link PocketWriteAnswer}. The four that act
+ * on one named session are {@link POCKET_SESSION_WRITE_IDS}.
  */
-export const POCKET_WRITE_ROUTE_IDS = ['end', 'choose', 'say', 'keys'] as const satisfies readonly PocketRouteId[];
+export const POCKET_WRITE_ROUTE_IDS = ['end', 'choose', 'say', 'keys', 'start'] as const satisfies readonly PocketRouteId[];
 
 export type PocketWriteRouteId = (typeof POCKET_WRITE_ROUTE_IDS)[number];
+
+/**
+ * THE FOUR WRITES THAT ACT ON ONE NAMED SESSION (Phase 346,
+ * build/p346/SPEC.md D4): exactly the phone's frozen
+ * `PocketWriteAnswer.Verb`, which is why {@link PocketWriteAnswer.verb} is
+ * typed by it. A word outside it in that field is a word the frozen phone
+ * refuses (`gate:onlyadd` A3), and `start` answers with its own shape.
+ */
+export const POCKET_SESSION_WRITE_IDS = ['end', 'choose', 'say', 'keys'] as const satisfies readonly PocketWriteRouteId[];
+
+export type PocketSessionWriteId = (typeof POCKET_SESSION_WRITE_IDS)[number];
 
 /**
  * THE ELEVEN ROUTES EVERY MAC FROM 0.111.0 TO PHASE 333.12 ANSWERED (Phase
@@ -656,6 +683,24 @@ export interface PocketSessionsAnswer {
   at: number;
   /** {@link POCKET_AGE_HONESTY}, handed over rather than spelled by a client. */
   ageNote: string;
+  /**
+   * WHETHER A PHONE MAY START A SESSION HERE, AND WHAT IT MAY START (Phase 346,
+   * build/p346/SPEC.md D1, D9). OPTIONAL, so a phone that never heard of it
+   * reads this answer exactly as before (`gate:onlyadd`).
+   *
+   *   - ABSENT: a Mac older than this phase, or a composer that carries no
+   *     start (the push seam, the tests). A client draws no "+".
+   *   - `{ state: 'waiting' }`: this Mac has the route and a person has not
+   *     allowed it yet (Phase 333.12). A client draws no "+"; the Mac's own
+   *     Settings then Phone says `New: start sessions from your phone`.
+   *   - an {@link PocketStartOffer}: the route is allowed, and these are the
+   *     projects and the installed agents a start may name.
+   *
+   * The offer is composed STARTING NOTHING: no login shell, no version probe,
+   * no ssh and no scan (D8). A client decodes it leniently: a malformed key
+   * reads as absent and never fails the rest of this answer (D26).
+   */
+  start?: PocketSessionsStart;
 }
 
 /** The answer to `GET /v1/session`. */
@@ -726,7 +771,10 @@ export type PocketWriteReason =
 /**
  * The answer to `POST /v1/end`, `/v1/choose`, `/v1/say` and (Phase 337)
  * `/v1/keys`, composed field by field in main, and these five fields are all
- * of it.
+ * of it. `POST /v1/start` (Phase 346) is answered by {@link
+ * PocketStartAnswer} instead, which is why {@link verb} is a
+ * {@link PocketSessionWriteId}: the frozen phone reads exactly those four
+ * words here (build/p346/SPEC.md D4).
  *
  * EVERY OUTCOME A WRITE'S VERB DECIDES IS A 200 WITH THIS BODY. A 404 with no
  * body is the door's own refusal and means nothing was done: the quit, the door
@@ -734,7 +782,7 @@ export type PocketWriteReason =
  * nothing replaces this answer.
  */
 export interface PocketWriteAnswer {
-  verb: PocketWriteRouteId;
+  verb: PocketSessionWriteId;
   /**
    * The request's write id, echoed: 32 lowercase hex. `""` ONLY when the body
    * yielded no well-formed id, which is the one `refused` `malformed` answer
@@ -762,6 +810,120 @@ export const POCKET_WRITE_SENTENCES = {
   unreadable: 'Your Mac could not read that request. Nothing was done.',
   stopped: 'Your Mac stopped answering this phone. Nothing was done.'
 } as const;
+
+// ---------------------------------------------------------------------------
+// Starting a session from the phone (Phase 346, build/p346/SPEC.md §3.2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Why a start was refused. A word; the sentence beside it is what a person
+ * reads (D5). `malformed`: the door could not read the body. `project`: the
+ * project is not open on this Mac any more, or its folder is gone. `agent`:
+ * that agent is not installed where the project is. `machine`: Tortie is not
+ * connected to the project's machine. `interpreter`: the agent needs a program
+ * the Mac cannot find (Start it anyway stays on the Mac). `often`: this phone
+ * started several sessions in the last minute. `stopped`: the door's last
+ * check failed while the start read.
+ *
+ * A PHONE READS THIS AS AN OPEN WORD and draws the sentence, so a later Mac
+ * may add a reason without a frozen phone refusing the whole answer.
+ */
+export type PocketStartReason = 'malformed' | 'project' | 'agent' | 'machine' | 'interpreter' | 'often' | 'stopped';
+
+/** The session a start made: its id and its name, both main's. */
+export interface PocketStartSession {
+  id: string;
+  name: string;
+}
+
+/**
+ * The answer to `POST /v1/start` (Phase 346, D5), composed field by field in
+ * main, and these six fields are all of it. Every outcome the start decides is
+ * a 200 with this body; a 404 with no body is the door's own refusal and means
+ * nothing was started.
+ */
+export interface PocketStartAnswer {
+  verb: 'start';
+  /**
+   * The request's write id, echoed: 32 lowercase hex. `""` ONLY on the one
+   * `refused` `malformed` answer whose body yielded no well-formed id.
+   */
+  write: string;
+  outcome: PocketWriteOutcome;
+  /** Non-null exactly when {@link outcome} is `refused`. */
+  reason: PocketStartReason | null;
+  /** The Mac's words. Null exactly when {@link outcome} is `done`. */
+  sentence: string | null;
+  /** The new session. Non-null exactly when {@link outcome} is `done`. */
+  session: PocketStartSession | null;
+}
+
+/** The most projects one offer names (D7). */
+export const POCKET_START_PROJECTS_MAX = 200;
+/** The most agents one offer names (D7). */
+export const POCKET_START_AGENTS_MAX = 64;
+
+/** One project a start may name, as a client draws it (D7). */
+export interface PocketStartProject {
+  /** The project's id, sent back verbatim in a start's body. */
+  id: string;
+  /** The open tab's name, clipped. */
+  label: string;
+  /** The machine's label, clipped; null on this Mac. */
+  machine: PocketMachineLabel;
+  /**
+   * Home-relative, clipped, ONLY when another listed project shares the label
+   * and the machine label; null otherwise.
+   */
+  folder: string | null;
+  /** `local` or the machine's id: an index into the offer's places by id. */
+  place: string;
+}
+
+/** One place a listed project lives: this Mac, or one machine (D7, D8). */
+export interface PocketStartPlace {
+  /** `local` or a machine id. */
+  id: string;
+  /** `local` always; a machine, when its row is confirmed and Tortie is signed in to it now. */
+  ready: boolean;
+  /** False when Tortie has not read which agents are there yet. */
+  read: boolean;
+  /** The compiled launchable ids installed there, in registry order. */
+  agents: string[];
+}
+
+/** One agent a place lists (D7). */
+export interface PocketStartAgent {
+  /** The registry id. */
+  id: string;
+  /** The agent's drawn name, e.g. `Claude Code`. */
+  name: string;
+  /** The mark's key, the registry's `iconKey`. */
+  icon: string;
+  /**
+   * The labels of its sealed safeguard-off launch defaults that would apply,
+   * joined by `, ` and clipped; null when none would.
+   */
+  danger: string | null;
+}
+
+/** What a phone may start here (D7, D10, D11). */
+export interface PocketStartOffer {
+  state: 'offered';
+  /** The projects open in Tortie here, this Mac's first, at most {@link POCKET_START_PROJECTS_MAX}. */
+  projects: PocketStartProject[];
+  /** One per place a listed project names, `local` first, then each machine in first appearance. */
+  places: PocketStartPlace[];
+  /** Every agent any place lists, once, in registry order, at most {@link POCKET_START_AGENTS_MAX}. */
+  agents: PocketStartAgent[];
+  /** The project preselected (D10), a listed id, or null with no project. */
+  chosen: string | null;
+  /** The Mac's default agent (D11), a listed agent's id, or null. */
+  defaultAgent: string | null;
+}
+
+/** The sessions answer's `start` key (D9): waiting for an Allow, or the offer. */
+export type PocketSessionsStart = { state: 'waiting' } | PocketStartOffer;
 
 // ---------------------------------------------------------------------------
 // The sheet in Settings then Phone
@@ -1167,10 +1329,15 @@ export const POCKET_DOOR_HONESTY =
  * honesty sentence says it (Phase 333.12, build/p33312/SPEC.md D13). Keyed by
  * every route that is NOT one of {@link LEGACY_ALLOWED_ROUTES}, so a phase that
  * adds a route cannot compile until it writes its clause here, and the clause
- * is said only once a person has allowed that route. Empty today: no route
- * has been added since the eleven.
+ * is said only once a person has allowed that route.
+ *
+ * PHASE 346 (build/p346/SPEC.md D3): `start`, in the words its Allow line
+ * says it (`WRITE_CLAUSES.start` in src/main/pocket/pairing.ts and the route
+ * ledger's row). No word names Face ID: the Mac cannot verify it.
  */
-const POCKET_HONESTY_ADDED: Readonly<Record<Exclude<PocketRouteId, LegacyAllowedRouteId>, string>> = Object.freeze({});
+const POCKET_HONESTY_ADDED: Readonly<Record<Exclude<PocketRouteId, LegacyAllowedRouteId>, string>> = Object.freeze({
+  start: 'start a session in a project open in Tortie, on this Mac or another machine'
+});
 
 /**
  * The door's honesty sentence over a set of routes (Phase 333.12, D13):
@@ -1312,17 +1479,28 @@ export const POCKET_FACE_CLAUSES: Readonly<Record<PocketRouteId, string | null>>
   choose: 'answer questions',
   say: 'send a message',
   end: 'end a session',
-  pair: null
+  pair: null,
+  // PHASE 346 (build/p346/SPEC.md D3): the face's short words for Start.
+  start: 'start sessions'
 });
 
 /**
  * A WAITING ROUTE'S TITLE AND SENTENCE (D7). ADD-ONLY: a row is never edited
  * or removed, only added, and only for a route that can wait (the type holds
- * it to the routes that are not one of {@link LEGACY_ALLOWED_ROUTES}). EMPTY
- * today, because no route of this build can wait; Phase 346 adds Start's row.
- * A waiting route with no row is drawn `New: <its id>`, never left off.
+ * it to the routes that are not one of {@link LEGACY_ALLOWED_ROUTES}). A
+ * waiting route with no row is drawn `New: <its id>`, never left off.
+ *
+ * PHASE 346 (build/p346/SPEC.md D3) adds Start's row. 333.12.1 D7 had drafted
+ * `Your phone could start Claude Code or Codex in a project here.`; his
+ * answers 6 and 8 (any installed agent, remote projects too) made that false,
+ * so the sentence says what is true.
  */
-export const POCKET_NEW_ROUTE_WORDS: PocketNewRouteTable = Object.freeze({});
+export const POCKET_NEW_ROUTE_WORDS: PocketNewRouteTable = Object.freeze({
+  start: {
+    title: 'start sessions from your phone',
+    sentence: 'An agent installed where the project is, with your launch defaults.'
+  }
+});
 
 /** The program as the face names it (D4): the app's name under /Applications, else the whole path. */
 export function pocketFaceProgram(path: string): string {

@@ -702,7 +702,13 @@ describe('the status the sheet draws', () => {
     await settled(one);
     const status = one.status();
     expect(status.confirmState).toBe('never');
-    expect(status.confirmHash).toBe(pocketConfirmStatus(one.fields()).hash);
+    // PHASE 346 (build/p346/SPEC.md D2, D31): a first setup's lines are the
+    // PROPOSAL, every route this build has (`start` among them), which is no
+    // longer `fields()`'s eleven: a store that never allowed a route reads as
+    // the eleven every Mac from 0.111.0 answered.
+    expect(status.confirmHash).toBe(pocketConfirmStatus({ ...one.fields(), routes: POCKET_ROUTE_IDS }).hash);
+    expect(status.confirmHash).not.toBe(pocketConfirmStatus(one.fields()).hash);
+    expect(status.routesOffered).toContain('start');
     expect(status.confirmLines[0]).toBe(
       `Answers on the internet at https://${NAME}:8443, through Tailscale Funnel on example.github`
     );
@@ -1641,6 +1647,8 @@ describe('the Screen and its keys, through the host (Phase 337)', () => {
     const asked: unknown[] = [];
     const one = host({
       writes: {
+        // Phase 346's start, which this test never reaches.
+        start: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
         end: async () => ({ outcome: 'done' }),
         choose: async () => ({ outcome: 'done' }),
         say: async () => ({ outcome: 'done' }),
@@ -1827,6 +1835,8 @@ describe('the phone’s writes, through the host', () => {
     const asked: unknown[] = [];
     const one = host({
       writes: {
+        // Phase 346's start, which this test never reaches.
+        start: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
         end: async (input) => {
           asked.push(input);
           return { outcome: 'done' };
@@ -1862,6 +1872,8 @@ describe('the phone’s writes, through the host', () => {
   it('refuses the removed unpair path and removes nobody, whatever the body says', async () => {
     const one = host({
       writes: {
+        // Phase 346's start, which this test never reaches.
+        start: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
         end: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
         choose: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
         say: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
@@ -2058,8 +2070,8 @@ describe('the window’s deadline', () => {
     expect(POCKET_PAIRING_WINDOW_MS).toBe(3 * 60_000);
     // Phase 317 added the write after the reads, Phase 318 the two after it,
     // Phase 316.7 the Sessions tab's read after those, Phase 337 the
-    // Screen's read and write, and Phase 337.1 its history's read last; the
-    // window did not move.
+    // Screen's read and write, Phase 337.1 its history's read, and Phase 346
+    // the phone's start last; the window did not move.
     expect(POCKET_ROUTE_IDS).toEqual([
       'pair',
       'blocked',
@@ -2071,7 +2083,8 @@ describe('the window’s deadline', () => {
       'sessions',
       'screen',
       'keys',
-      'scrollback'
+      'scrollback',
+      'start'
     ]);
   });
 });

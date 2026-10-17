@@ -718,12 +718,51 @@
  *   SCREEN_FILES and OWNER_CHECK_ABSENT gain Screens/ScreenTextInput.swift.
  *   The build stays 11.
  *
+ *   PHASE 346, START A SESSION FROM THE PHONE (build/p346/SPEC.md §5.3), his
+ *   request of 2026-10-12 and his answers of 2026-10-14: a "+" on the
+ *   Sessions title of the Mac on screen opens New session, which sends two
+ *   ids and a write id and asks NO Face ID (his answer 5). One rule is new and
+ *   seven widen:
+ *
+ *   (bb) NEW, THE START: bb1 the starter's start( once, in StartRunner.run,
+ *        StartBody exactly agent, project, write in signedPost alone, and
+ *        StartResult.of read by handed and the echo; bb2 no owner check in
+ *        Start.swift, StartSheet.swift, AgentMark.swift or startSetup; bb3
+ *        every runner registered before its task, stopped by wentAway, and
+ *        ONE kept id (KeptStart.write), set from a start's own noAnswer or a
+ *        busy on a kept id, compared by the Mac, the project and the agent,
+ *        bounded by one 60 s constant, nothing persisted; bb4 two ids and a
+ *        write id leave the phone; bb5 the sessions answer's start decoded
+ *        once, inside try? with decodeIfPresent; bb6 the "+" once, in the
+ *        Sessions title, behind the offer, off while End these takes taps,
+ *        identified start-open; bb7 no URL scheme, App Intent, Shortcut,
+ *        widget or notification action; bb8 AgentMarks.xcassets one template
+ *        vector set per compiled agent and `build/p346/agent-marks.mjs
+ *        --check` exiting 0; bb9 a done start pushes `.session(mac:` on the
+ *        Sessions tab of the Mac that started it, from the done arm alone;
+ *        bb10 the sample's start answers not taken.
+ *   (ab) signedPost called by end, choose, say, keys and start alone, once
+ *        each; StartBody built in signedPost with exactly its keys; a route's
+ *        enum case written `WriteRoute.end(` is never read as the writer.
+ *   (t)  hostile-door.mjs names the twelve Start arms (§5.4).
+ *   (v)  startSentence(for:sample:) a String for every StartResult case, and
+ *        StartModel's line nil or a sentence, never empty.
+ *   (az) SAMPLE_MAY_NAME gains DoorStarting and SentStart (SentStart also in
+ *        SAMPLE_DOOR_ALLOWED), SAMPLE_MAY_CALL starter, and SAMPLE_REACH
+ *        StartResult (D28: the sample is its own starter, answering not
+ *        taken); az9's five sites do not move, so startSetup may not name the
+ *        sample's reader.
+ *   (ba) ba1 also: openStarted pushes a route naming the Mac it was handed.
+ *   (ac) OWNER_CHECK_ABSENT gains the three Start files.
+ *   (s)  NOT moved: the build stays 11 (his ruling of 2026-10-16).
+ *
  * Every rule also proves its own scanner on texts it holds, before it reads a
  * file, so a scanner that stopped finding is never taken for a clean tree.
  *
  * WHAT IT REFUSES TO DO. It spawns only the pinned tsx, through
- * build/p316/vectors.mjs, for (j), and through build/p3333/sample.mjs, for
- * (az7), and /usr/bin/plutil, which every Mac has,
+ * build/p316/vectors.mjs, for (j), through build/p3333/sample.mjs, for
+ * (az7), and through build/p346/agent-marks.mjs --check, for (bb8), the third
+ * tsx it starts, and /usr/bin/plutil, which every Mac has,
  * to read a property list (e, o, s). It decodes the icon and the master in
  * node (r). It needs no Xcode, starts no Simulator, opens no socket and reads
  * nothing under the person's home.
@@ -4900,6 +4939,20 @@ export function ruleSpaces(files) {
       if (!args.some((a) => /^mac\s*:/.test(a))) push('ba1', `${at(f, m.index)} builds Route.${m[1]} with no mac:, so its screen would read through whichever Mac is on screen (build/p345/SPEC.md D13)`);
     }
   }
+  // PHASE 346 (build/p346/SPEC.md D24, D27): a done start opens on the Mac
+  // that started it, so the route openStarted pushes names the mac it was
+  // HANDED, never the Mac on screen read again.
+  if (app !== null) {
+    for (const fn of app.funcs.filter((x) => x.name === 'openStarted' && innermost(app.types, x.at)?.name === 'AppModel')) {
+      const body = app.bare.slice(fn.bodyOpen, fn.bodyClose + 1);
+      for (const m of body.matchAll(/\.\s*session\s*\(/g)) {
+        const open = fn.bodyOpen + m.index + m[0].length - 1;
+        const close = closeParen(app.bare, open);
+        const args = topLevelArgs(app.bare.slice(open + 1, close === -1 ? app.bare.length : close));
+        if (!args.some((a) => /^mac\s*:\s*mac$/.test(a))) push('ba1', `${at(app, fn.bodyOpen + m.index)}: openStarted pushes Route.session with ${args.find((a) => /^mac\s*:/.test(a)) ?? 'no mac:'}; it names the Mac it was handed, the one that started the session (build/p346/SPEC.md D27)`);
+      }
+    }
+  }
 
   // ba2: destination reads its reader through the one lookup, from the route's mac.
   if (app !== null) {
@@ -5779,7 +5832,12 @@ export const OWNER_CHECK_ABSENT = Object.freeze([
   'Screens/SessionScreen.swift',
   // Phase 337.5 (build/p3375/SPEC.md §6.1): the Terminal's text input, the
   // iPhone's own selection over it and its one-item edit menu.
-  'Screens/ScreenTextInput.swift'
+  'Screens/ScreenTextInput.swift',
+  // Phase 346 (build/p346/SPEC.md D20, his answer 5, "no face id to start a
+  // session"): New session and its marks ask no owner check (bb2).
+  'Screens/Start.swift',
+  'Screens/StartSheet.swift',
+  'Screens/AgentMark.swift'
 ]);
 /** What persists anything; none of it may sit in End's files or the write path. */
 const PERSISTS = /\bUserDefaults\b|@AppStorage\b|@SceneStorage\b|\bSecItemAdd\b|\bSecItemUpdate\b|\bFileManager\b|\.\s*write\s*\(\s*to\s*:|\bNSKeyedArchiver\b|\bcreateFile\b|\bNSUbiquitousKeyValueStore\b/g;
@@ -5827,8 +5885,11 @@ function writerEndCalls(lexedFiles) {
   for (const file of lexedFiles) {
     for (const m of file.bare.matchAll(/\.\s*end\s*\(/g)) {
       // A member call has an expression before its dot; `.end(session:batch:)`
-      // after a `(` or a `,` is the route's enum case, not a call of the writer.
+      // after a `(` or a `,` is the route's enum case, not a call of the writer,
+      // and so is `WriteRoute.end(session:batch:)` (Phase 346, when every verb
+      // bound its route to a local before signedPost).
       if (!/[\w)\]?!]\s*$/.test(file.bare.slice(Math.max(0, m.index - 40), m.index))) continue;
+      if (/\bWriteRoute\s*$/.test(file.bare.slice(Math.max(0, m.index - 40), m.index))) continue;
       const open = m.index + m[0].length - 1;
       const close = closeParen(file.bare, open);
       const args = file.bare.slice(open + 1, close === -1 ? file.bare.length : close);
@@ -5858,17 +5919,18 @@ export function ruleWrite(files) {
     }
   }
   // (ab2) signedPost( called by end(, choose( and say( alone, once each
-  // (Phase 318 added the two reply writes).
+  // (Phase 318 added the two reply writes; Phase 337 keys; Phase 346 start,
+  // build/p346/SPEC.md §5.3).
   const signedPost = fnOf('signedPost');
   if (signedPost === null) findings.push('Door/DoorClient.swift declares no signedPost(route:door:limits:) with a body, so the write has no one path');
-  const callers = { end: 0, choose: 0, say: 0, keys: 0 };
+  const callers = { end: 0, choose: 0, say: 0, keys: 0, start: 0 };
   for (const file of all) {
     for (const m of file.bare.matchAll(/\bsignedPost\s*\(/g)) {
       if (isDecl(file.bare, m.index)) continue;
       said.signedPosts += 1;
       const p = placeOf(file, m.index);
       if (file.name === 'Door/DoorClient.swift' && p.type === 'DoorClient' && Object.hasOwn(callers, p.fn)) callers[p.fn] += 1;
-      else findings.push(`${atLine(file, m.index)} calls signedPost in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; only DoorClient.end, choose, say and keys call it`);
+      else findings.push(`${atLine(file, m.index)} calls signedPost in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; only DoorClient.end, choose, say, keys and start call it`);
     }
   }
   for (const [name, n] of Object.entries(callers)) if (n !== 1) findings.push(`DoorClient.${name} calls signedPost ${String(n)} time(s); each write is one call of the one path`);
@@ -5901,7 +5963,7 @@ export function ruleWrite(files) {
   }
   // (ab4) The body, encoded in signedPost alone, with exactly its keys, sorted.
   for (const file of all) {
-    for (const m of file.bare.matchAll(/\b(EndBody|ChooseBody|SayBody|KeysBody)\s*\(/g)) {
+    for (const m of file.bare.matchAll(/\b(EndBody|ChooseBody|SayBody|KeysBody|StartBody)\s*\(/g)) {
       if (/\b(?:struct|class|enum)\s+$/.test(file.bare.slice(Math.max(0, m.index - 10), m.index))) continue;
       const p = placeOf(file, m.index);
       if (file.name !== 'Door/DoorClient.swift' || p.fn !== 'signedPost') findings.push(`${atLine(file, m.index)} builds a ${m[1]} in ${p.fn ?? 'no function'}; a write's body is made in signedPost alone`);
@@ -5910,10 +5972,10 @@ export function ruleWrite(files) {
   if (signedPost !== null) {
     const body = bodyText(client, signedPost);
     if (!/\.\s*sortedKeys\b/.test(body)) findings.push('signedPost does not encode the body with .sortedKeys, so its bytes would not be the ones the Mac and the vectors expect');
-    for (const name of ['EndBody', 'ChooseBody', 'SayBody', 'KeysBody']) if (!new RegExp(`\\b${name}\\s*\\(`).test(body)) findings.push(`signedPost does not build a ${name}, so that write is encoded somewhere else`);
+    for (const name of ['EndBody', 'ChooseBody', 'SayBody', 'KeysBody', 'StartBody']) if (!new RegExp(`\\b${name}\\s*\\(`).test(body)) findings.push(`signedPost does not build a ${name}, so that write is encoded somewhere else`);
     if (/\b(?:while|repeat)\b/.test(body)) findings.push('signedPost holds a while or repeat; a write is sent once and never retried');
   }
-  for (const [name, want] of [['EndBody', 'batch,session,write'], ['ChooseBody', 'mark,marker,question,session,write'], ['SayBody', 'session,text,write'], ['KeysBody', 'dialog,keys,session,turn,write']]) {
+  for (const [name, want] of [['EndBody', 'batch,session,write'], ['ChooseBody', 'mark,marker,question,session,write'], ['SayBody', 'session,text,write'], ['KeysBody', 'dialog,keys,session,turn,write'], ['StartBody', 'agent,project,write']]) {
     const t = client.types.find((x) => x.name === name && x.kind === 'struct');
     if (t === undefined) {
       findings.push(`Door/DoorClient.swift declares no struct ${name}`);
@@ -5922,7 +5984,7 @@ export function ruleWrite(files) {
     const fields = storedFields(client.bare, t).sort().join(',');
     if (fields !== want) findings.push(`Door/DoorClient.swift's ${name} holds ${fields || 'nothing'}; the Mac reads exactly ${want} and refuses any other key`);
   }
-  for (const name of ['end', 'choose', 'say', 'keys']) {
+  for (const name of ['end', 'choose', 'say', 'keys', 'start']) {
     const fn = fnOf(name, 'DoorClient');
     if (fn !== null && /\b(?:while|repeat|for)\b/.test(bodyText(client, fn))) findings.push(`DoorClient.${name} loops; a write is one call and never retried`);
   }
@@ -9214,6 +9276,10 @@ const selectSwap = (label, text, from, to) => {
     '        let route = WriteRoute.keys(session: sessionId, keys: keys, turn: turn, dialog: dialog)',
     '        return await signedPost(route: route, door: door, limits: limits, write: nil)',
     '    }',
+    // Phase 346: the start, through the same one path.
+    '    func start(project: String, agent: String, write: String?, door: PairedDoor) async -> SentStart {',
+    '        await signedPost(route: .start(project: project, agent: agent), door: door, limits: limits, write: write).asStart',
+    '    }',
     '    func present(_ p: Data, door: DoorEndpoint) async throws -> DoorReply {',
     '        try await exchange(method: "POST", target: "/pair", headers: [], body: p, door: door, identity: nil)',
     '    }',
@@ -9238,6 +9304,8 @@ const selectSwap = (label, text, from, to) => {
     '                body = try encoder.encode(SayBody(session: session, text: text, write: id))',
     '            case .keys(let session, let keys, let turn, let dialog):',
     '                body = try encoder.encode(KeysBody(dialog: dialog, keys: keys, session: session, turn: turn, write: id))',
+    '            case .start(let project, let agent):',
+    '                body = try encoder.encode(StartBody(agent: agent, project: project, write: id))',
     '            }',
     '        } catch {',
     '            return .notSent(.notPaired)',
@@ -9268,6 +9336,11 @@ const selectSwap = (label, text, from, to) => {
     'struct EndBody: Encodable {',
     '    let batch: Bool',
     '    let session: String',
+    '    let write: String',
+    '}',
+    'struct StartBody: Encodable {',
+    '    let agent: String',
+    '    let project: String',
     '    let write: String',
     '}',
     'enum WriteId {',
@@ -9499,6 +9572,14 @@ const selectSwap = (label, text, from, to) => {
   expect('(ab) catches a cancel that withholds bytes already handed', abRun(swap(C, '            guard !handed else { return }\n', '')).length > 0);
   expect('(ab) catches a result not classified by handed', abRun(swap(C, '            guard end.handed else { return .notSent(error as? DoorFailure ?? .notPaired) }\n', '')).length > 0);
   expect('(ab) catches an answer taken without its echo', abRun(swap(C, 'answer.write == sent || answer.echoesNoId', 'answer.echoesNoId')).length > 0);
+  // Phase 346 (build/p346/SPEC.md §5.3): start is the fifth caller, its body
+  // made in signedPost with exactly its keys, and a route bound to a local as
+  // `WriteRoute.end(` is the route, never the writer.
+  expect('(ab) Phase 346: a route written WriteRoute.end( is not read as the writer', abRun(swap(C, '        await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits, write: nil)', '        let route = WriteRoute.end(session: sessionId, batch: batch)\n        return await signedPost(route: route, door: door, limits: limits, write: nil)')).length === 0);
+  expect('(ab) Phase 346: catches start calling signedPost twice', abRun(swap(C, '.asStart\n    }', '.asStart\n    }\n    func startAgain(door: PairedDoor) async { _ = await signedPost(route: .start(project: "p", agent: "a"), door: door, limits: limits, write: nil) }')).length > 0);
+  expect('(ab) Phase 346: catches a fourth key in the start body', abRun(swap(C, 'struct StartBody: Encodable {\n    let agent: String', 'struct StartBody: Encodable {\n    let cwd: String\n    let agent: String')).length > 0);
+  expect('(ab) Phase 346: catches the start body built outside signedPost', abRun(swap(C, '    func present(', '    func body() -> StartBody { StartBody(agent: "a", project: "p", write: "w") }\n    func present(')).length > 0);
+  expect('(ab) Phase 346: catches a start that never reaches signedPost', abRun(swap(C, '        await signedPost(route: .start(project: project, agent: agent), door: door, limits: limits, write: write).asStart', '        SentStart(result: .notTaken, write: nil)')).length > 0);
   expect('(ab) catches an empty echo taken with any outcome (F14)', abRun(swap(C, 'write.isEmpty && outcome == .refused && reason == .malformed', 'write.isEmpty')).length > 0);
   // (ac)
   expect('(ac) catches LocalAuthentication imported outside OwnerCheck.swift', acRun(swap('Screens/SettingsScreen.swift', 'struct SettingsScreen', 'import LocalAuthentication\nstruct SettingsScreen')).length > 0);
@@ -14967,8 +15048,12 @@ export const SAMPLE_DIR = 'Sample/';
 export const SAMPLE_SWIFT_FLOOR = 5;
 /** The file the sample is made from (SPEC §5.1.3), relative to the app folder. */
 export const SAMPLE_BOOK = 'Sample/sample.json';
-/** The Door/ names the sample may use beyond Contract.swift's decoders: the write results its writer answers (az2, SPEC §5.2). */
-export const SAMPLE_DOOR_ALLOWED = Object.freeze(['DoorFailure', 'WriteResult', 'SentWrite']);
+/**
+ * The Door/ names the sample may use beyond Contract.swift's decoders: the
+ * write results its writer answers (az2, SPEC §5.2), and since Phase 346 the
+ * start's, `SentStart`, which its own starter answers not taken (D28).
+ */
+export const SAMPLE_DOOR_ALLOWED = Object.freeze(['DoorFailure', 'WriteResult', 'SentWrite', 'SentStart']);
 /** The paired reader's own types, declared outside Door/, which the sample never names (az2). */
 export const SAMPLE_PAIRED_NAMES = Object.freeze(['PairedReader', 'PairedScreenDoor', 'LiveDoor', 'PhoneDoor']);
 /**
@@ -15218,6 +15303,10 @@ export const SAMPLE_MAY_NAME = Object.freeze({
   DoorFailure: 'its reads refuse with the door\'s own failures',
   WriteResult: 'its writes answer as the door\'s do',
   SentWrite: 'its message answers not taken',
+  // Phase 346 (build/p346/SPEC.md D28): the sample is its own starter, whose
+  // start answers not taken, so Create says nothing ran.
+  DoorStarting: 'it is its own starter (Phase 346, D28)',
+  SentStart: 'its start answers not taken (Phase 346, D28)',
   DoorReading: 'it is a reader',
   DoorWriting: 'it is its own writer',
   ScreenDoor: 'each session\'s Terminal',
@@ -15243,7 +15332,7 @@ export const SAMPLE_MAY_NAME = Object.freeze({
  * may call these, each declared outside Sample/ no more often than this: a
  * second declaration of an allowed name is an overload the sample could reach.
  */
-export const SAMPLE_MAY_CALL = Object.freeze({ lineBox: 1, writer: 1, screenDoor: 1, sessions: 1, holdsTogether: 2, indexSpaceHolds: 1 });
+export const SAMPLE_MAY_CALL = Object.freeze({ lineBox: 1, writer: 1, screenDoor: 1, sessions: 1, holdsTogether: 2, indexSpaceHolds: 1, starter: 1 });
 /**
  * az11 (the fix round): THE SAMPLE'S REACH IS CLOSED. The types the sample may
  * name (the contract's decoders and SAMPLE_MAY_NAME) are followed through
@@ -15262,6 +15351,7 @@ export const SAMPLE_REACH = Object.freeze({
   Base64URL: 'the pairing answer\'s decoder reads base64url; a pure codec',
   Hex: 'an alert address is hex; a pure codec',
   ExchangeEnd: 'how an exchange ended, which WriteResult reads; a value',
+  StartResult: 'what a start came to, which SentStart carries (Phase 346, D28); a value',
   DoorReply: 'the status and body an exchange ended with; a value',
   PushAddress: 'the alert address AlertsKept holds; a value',
   PushEnvironment: 'which of Apple\'s two hosts an address is for; a value',
@@ -16291,6 +16381,952 @@ function sampleOwnerFindings(all) {
 }
 
 // ---------------------------------------------------------------------------
+// Rule (bb): start a session from the phone (Phase 346, build/p346/SPEC.md §5.3)
+// ---------------------------------------------------------------------------
+//
+// His request of 2026-10-12 ("the phone being able to start new sessions") and
+// his answers of 2026-10-14 make New session the first thing on the phone that
+// starts a process on his Mac: a "+" on the Sessions title of the Mac on
+// screen, a sheet offering the projects open in Tortie on that Mac and the
+// marks of ONLY the agents installed there, and Create, which sends two ids
+// and a write id and asks NO Face ID (his answer 5). Each clause below is one
+// line of Swift a later round could change with every test still passing:
+//
+//   bb1  THE START WRITE: the starter's `start(` called ONCE in the app, in
+//        `StartRunner.run`, never in a loop; `StartBody` exactly `agent,
+//        project, write`, built in `signedPost` alone with `.sortedKeys`;
+//        `StartResult.of` classifies by `handed`; an answer is accepted only
+//        with `verb == "start"` and the sent id echoed, or `""` with `refused`
+//        and `malformed`.
+//   bb2  NO OWNER CHECK ON START (D20): `Start.swift`, `StartSheet.swift` and
+//        `AgentMark.swift` are in OWNER_CHECK_ABSENT and name no OwnerCheck,
+//        LAContext, evaluatePolicy or LocalAuthentication, and
+//        `AppModel.startSetup` hands the sheet no owner check.
+//   bb3  SENT ONCE OR NOT AT ALL (D17): every `StartRunner(` bound to a `let`
+//        and registered before its task starts; `AppModel.wentAway()` stops
+//        every start runner, and a runner's stop sets `stopRequested` and
+//        cancels its task, which `run` reads before it sends; the ONE kept id
+//        is `KeptStart.write`, set (non-nil) only from a start's own
+//        `noAnswer` or from a `busy` on a kept id, compared by the Mac, the
+//        project and the agent, bounded by ONE 60 s constant; nothing
+//        persists a start, a kept id or an offer.
+//   bb4  TWO IDS AND A WRITE ID LEAVE THE PHONE (D15): `DoorClient.start` takes
+//        exactly `project`, `agent`, `write`, `door`, `DoorStarting.start`
+//        exactly `project`, `agent`, `write`; no starter call hands anything
+//        else; no Start file holds a text field or names a path, a folder to
+//        create, arguments, a name field, a login or Start it anyway.
+//   bb5  THE KEY NEVER FAILS SESSIONS (D26): `PocketSessionsAnswer`'s `start`
+//        is decoded ONCE, inside `try?` and with `decodeIfPresent`.
+//   bb6  THE "+" (D21): `StartTitleControl(` made once, in SessionsScreen's
+//        `title`, behind a test of the offered start, its chain `.disabled(`
+//        reading End these' `takesTaps` and identified `ID.startOpen`.
+//   bb7  NOTHING ELSE REACHES START (D29): no `CFBundleURLTypes`, no
+//        `import AppIntents`, no `AppShortcutsProvider`, no `WidgetKit`, no
+//        `UNNotificationAction`/`UNNotificationCategory` anywhere under ios/,
+//        and no `NSUserActivity`, `onContinueUserActivity` or `onOpenURL` in a
+//        file that names the start.
+//   bb8  THE MARKS (D23): `ios/Tortie/AgentMarks.xcassets` holds `Contents.json`
+//        and exactly one `agent-<icon>.imageset` per compiled launchable
+//        `iconKey` (thirteen), each its `Contents.json` and ONE `.svg`, with
+//        `preserves-vector-representation` and `template-rendering-intent:
+//        template`, no appearance and no colour set; `build/p346/
+//        agent-marks.mjs --check` exits 0 (run as (j) runs vectors.mjs); and a
+//        string naming an `agent-` image appears only in AgentMark.swift's
+//        one table, drawn as a template.
+//   bb9  DONE OPENS THE TERMINAL ON THE MAC THAT STARTED IT (D24, D27):
+//        `openStarted(mac:` pushes `.session(mac:` (ba1) on `.sessions` and
+//        nothing else, is called from `AppModel.startSetup` alone, and
+//        `StartModel` calls `opened(` only from the `done` arm.
+//   bb10 THE SAMPLE STARTS NOTHING (D28): `SampleReader.start` answers
+//        `.notTaken` and names no DoorClient, PairedReader or network type
+//        (az2 and az3 keep holding over the new members).
+//
+// What the Swift DOES is test:ios's (StartTests, StartClientTests,
+// StartContractTests, AgentMarkTests, P346StartTransportTests) and
+// probe:p316's `start` group.
+
+/** The Start files (SPEC §4.15), relative to the app folder. */
+export const START_FILE = 'Screens/Start.swift';
+export const START_SHEET_FILE = 'Screens/StartSheet.swift';
+export const AGENT_MARK_FILE = 'Screens/AgentMark.swift';
+export const START_FILES = Object.freeze([START_FILE, START_SHEET_FILE, AGENT_MARK_FILE]);
+/** The thirteen compiled launchable agents' mark keys (SPEC §12 M1: each iconKey is its id). */
+export const AGENT_MARK_KEYS = Object.freeze(['antigravity', 'claude', 'codex', 'cursor', 'deepseek', 'droid', 'gemini', 'grok', 'muse', 'omp', 'opencode', 'pi', 'qwen']);
+/** The catalog the marks live in (D23), relative to the app folder. */
+export const AGENT_MARKS_CATALOG = 'AgentMarks.xcassets';
+/** What a start may never carry or ask for (D15). */
+const START_NEVER = /\b(?:cwd|projectPath|extraArgs|launchArgs|arguments|signIn|startAnyway|login|firstPrompt|folderCreate|worktree|TextField|TextEditor|SecureField)\b/;
+/** What reaches an app from outside it (D29). */
+const START_OUTSIDE = /\bCFBundleURLTypes\b|\bimport\s+AppIntents\b|\bAppShortcutsProvider\b|\bAppIntent\b|\bWidgetKit\b|\bUNNotificationAction\b|\bUNNotificationCategory\b/;
+const START_ACTIVITY = /\bNSUserActivity\b|\bonContinueUserActivity\b|\bonOpenURL\b/;
+const NAMES_START = /\bStartModel\b|\bStartRunner\b|\bDoorStarting\b|\bstarter\b|\bStartSetup\b/;
+
+/** A parameter list's labels (`project: String, agent: String` → project, agent), the external one where two are written. */
+function paramLabels(params) {
+  const out = [];
+  let depth = 0;
+  let from = 0;
+  const parts = [];
+  for (let k = 0; k <= params.length; k += 1) {
+    const c = params[k];
+    if (c === '(' || c === '[' || c === '<') depth += 1;
+    else if (c === ')' || c === ']' || c === '>') depth -= 1;
+    else if ((c === ',' && depth === 0) || k === params.length) {
+      parts.push(params.slice(from, k));
+      from = k + 1;
+    }
+  }
+  for (const part of parts) {
+    const m = /^\s*([A-Za-z_]\w*)(?:\s+[A-Za-z_]\w*)?\s*:/.exec(part);
+    if (m !== null) out.push(m[1]);
+  }
+  return out;
+}
+
+/** The starter's `start(` calls: a member call naming `project:` and `agent:` and no `door:`, never a route's case. */
+function starterCalls(lexed) {
+  const out = [];
+  for (const file of lexed) {
+    for (const m of file.bare.matchAll(/\.\s*start\s*\(/g)) {
+      const pre = file.bare.slice(Math.max(0, m.index - 40), m.index);
+      if (!/[\w)\]?!]\s*$/.test(pre) || /\bWriteRoute\s*$/.test(pre)) continue;
+      const open = m.index + m[0].length - 1;
+      const close = closeParen(file.bare, open);
+      const args = file.bare.slice(open + 1, close === -1 ? file.bare.length : close);
+      if (!/\bproject\s*:/.test(args) || !/\bagent\s*:/.test(args) || /\bdoor\s*:/.test(args)) continue;
+      out.push({ file, at: m.index, args });
+    }
+  }
+  return out;
+}
+
+/** The body text of the computed property `var NAME: some View {` in a lexed file, with where it opens, or null. */
+function computedBody(file, name) {
+  const m = new RegExp(`\\bvar\\s+${name}\\s*:\\s*some\\s+View\\s*\\{`).exec(file.bare);
+  if (m === null) return null;
+  const open = m.index + m[0].length - 1;
+  const close = matchForward(file.bare, open);
+  return { open, close: close === -1 ? file.bare.length : close };
+}
+
+/**
+ * Rule (bb), over the app's Swift named relative to the app folder and what
+ * the run section reads around it: `catalog` (the marks' catalog as
+ * `{ root: bool, sets: { name: { files: [], contents } }, colorsets: [] }`, or
+ * null when absent), `marksCheck` (`build/p346/agent-marks.mjs --check`'s
+ * `{ status, line }`, or null when not run) and `others` (every non-Swift
+ * text under ios/ as `{ name, text }`).
+ */
+export function ruleStart(files, { catalog = null, marksCheck = null, others = [] } = {}) {
+  const findings = [];
+  const said = { starterCalls: 0, runners: 0, keptSets: 0, plus: 0, marks: 0, outside: 0, openers: 0 };
+  const push = (clause, text) => findings.push(`${clause}: ${text}`);
+  const lexed = files.filter((f) => f.name.endsWith('.swift')).map((f) => lexedFile(files, f.name));
+  const named = (name) => lexed.find((f) => f.name === name) ?? null;
+  const client = named('Door/DoorClient.swift');
+  const start = named(START_FILE);
+  const sheet = named(START_SHEET_FILE);
+  const mark = named(AGENT_MARK_FILE);
+  const app = named('App/TortieApp.swift');
+  const words = named('Screens/DoorWords.swift');
+  const sessions = named('Screens/SessionsScreen.swift');
+  const contract = named('Door/Contract.swift');
+  const sampleReader = named('Sample/SampleReader.swift');
+  for (const [file, name] of [[client, 'Door/DoorClient.swift'], [start, START_FILE], [sheet, START_SHEET_FILE], [mark, AGENT_MARK_FILE], [app, 'App/TortieApp.swift'], [sessions, 'Screens/SessionsScreen.swift'], [contract, 'Door/Contract.swift']]) {
+    if (file === null) push('bb1', `${name} does not exist, so New session cannot be read (build/p346/SPEC.md §4.15)`);
+  }
+
+  // bb1: the start write.
+  const calls = starterCalls(lexed);
+  said.starterCalls = calls.length;
+  for (const c of calls) {
+    const p = placeOf(c.file, c.at);
+    if (p.type !== 'StartRunner' || p.fn !== 'run') push('bb1', `${atLine(c.file, c.at)} calls the starter's start( in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; the app's one call of it is StartRunner.run`);
+  }
+  if (calls.length !== 1) push('bb1', `the starter's start( is called ${String(calls.length)} time(s) in the app; exactly once, in StartRunner.run, so every Create is one runner`);
+  if (start !== null) {
+    const run = funcsNamed(start, 'run', 'StartRunner')[0] ?? null;
+    if (run === null) push('bb1', `${START_FILE} declares no StartRunner.run`);
+    else if (/\b(?:while|repeat|for)\b/.test(bodyText(start, run))) push('bb1', `${START_FILE}'s StartRunner.run loops; a start is sent once and never retried`);
+  }
+  if (client !== null) {
+    const body = client.types.find((t) => t.name === 'StartBody' && t.kind === 'struct');
+    if (body === undefined) push('bb1', 'Door/DoorClient.swift declares no struct StartBody');
+    else if (storedFields(client.bare, body).sort().join(',') !== 'agent,project,write') push('bb1', `Door/DoorClient.swift's StartBody holds ${storedFields(client.bare, body).sort().join(',') || 'nothing'}; it holds exactly agent, project and write (D6)`);
+    for (const file of lexed) {
+      for (const m of file.bare.matchAll(/\bStartBody\s*\(/g)) {
+        if (/\b(?:struct|class|enum)\s+$/.test(file.bare.slice(Math.max(0, m.index - 10), m.index))) continue;
+        const p = placeOf(file, m.index);
+        if (file.name !== 'Door/DoorClient.swift' || p.fn !== 'signedPost') push('bb1', `${atLine(file, m.index)} builds a StartBody in ${p.fn ?? 'no function'}; a start's body is made in signedPost alone`);
+      }
+    }
+    const signed = funcsNamed(client, 'signedPost')[0] ?? null;
+    if (signed !== null && (!/\bStartBody\s*\(/.test(bodyText(client, signed)) || !/\.\s*sortedKeys\b/.test(bodyText(client, signed)))) push('bb1', 'signedPost does not build the StartBody with .sortedKeys, so a start is encoded somewhere else or in an order the Mac does not read');
+  }
+  {
+    const resultFile = lexed.find((f) => f.types.some((t) => t.name === 'StartResult' && t.kind === 'enum')) ?? null;
+    if (resultFile === null) push('bb1', 'no app file declares enum StartResult, what is true of a start');
+    else {
+      const t = resultFile.types.find((x) => x.name === 'StartResult' && x.kind === 'enum');
+      const of = resultFile.funcs.find((fn) => fn.name === 'of' && fn.at > t.open && fn.at < t.close);
+      if (of === undefined) push('bb1', `${resultFile.name}'s StartResult has no static func of`);
+      else {
+        const body = bodyText(resultFile, of);
+        const code = resultFile.code.slice(of.bodyOpen, of.bodyClose + 1);
+        if (!/\.\s*handed\b/.test(body) || !/\.\s*notSent\b/.test(body) || !/\.\s*noAnswer\b/.test(body)) push('bb1', `${resultFile.name}'s StartResult.of does not classify by handed into .notSent and .noAnswer`);
+        if (!/\bverb\s*==\s*(?:"start"|PocketStartAnswer\s*\.\s*verbWord)/.test(code)) push('bb1', `${resultFile.name}'s StartResult.of takes an answer without asking verb == "start"`);
+        if (!/\bwrite\s*==\s*sent\b/.test(body)) push('bb1', `${resultFile.name}'s StartResult.of never compares the answer's write with the id it sent`);
+        // The empty echo, through the Bool members the body reads on the answer.
+        let echo = code;
+        for (const m of body.matchAll(/\banswer\s*\.\s*([A-Za-z_]\w*)\b/g)) {
+          for (const file of lexed) {
+            for (const d of file.bare.matchAll(new RegExp(`\\bvar\\s+${m[1]}\\s*:\\s*Bool\\s*\\{`, 'g'))) {
+              const open = d.index + d[0].length - 1;
+              echo += file.code.slice(open, matchForward(file.bare, open) + 1);
+            }
+          }
+        }
+        if (!/\bisEmpty\b|==\s*""/.test(echo) || !/\.\s*refused\b/.test(echo) || !/"malformed"|\.\s*malformed\b/.test(echo)) push('bb1', `${resultFile.name}'s StartResult.of does not take the empty echo only with refused and malformed`);
+      }
+    }
+  }
+
+  // bb2: no owner check on Start.
+  for (const name of START_FILES) {
+    if (!OWNER_CHECK_ABSENT.includes(name)) push('bb2', `${name} is not in OWNER_CHECK_ABSENT, so rule (ac) does not hold it to naming no owner check (D20)`);
+    const f = named(name);
+    if (f === null) continue;
+    for (const m of f.bare.matchAll(/\bOwnerCheck\b|\bLAContext\b|\bevaluatePolicy\b|\bLocalAuthentication\b|\bendCheck\b|\bownerCheck\b/g)) push('bb2', `${atLine(f, m.index)} names ${m[0]}; New session asks no Face ID, Touch ID or passcode (his answer 5)`);
+  }
+  if (app !== null) {
+    const setup = funcsNamed(app, 'startSetup', 'AppModel')[0] ?? null;
+    if (setup === null) push('bb2', 'App/TortieApp.swift declares no AppModel.startSetup, so what New session is handed cannot be read');
+    else if (/\bOwnerCheck\b|\bendCheck\b|\bownerCheck\b|\bLAContext\b/.test(bodyText(app, setup))) push('bb2', `${atLine(app, setup.at)}: AppModel.startSetup hands New session an owner check; Start asks none (his answer 5)`);
+  }
+
+  // bb3: sent once or not at all.
+  for (const file of lexed) {
+    for (const m of file.bare.matchAll(/\bStartRunner\s*\(/g)) {
+      if (/\b(?:class|struct|init)\s+$/.test(file.bare.slice(Math.max(0, m.index - 10), m.index))) continue;
+      said.runners += 1;
+      const bound = /\blet\s+([A-Za-z_]\w*)\s*=\s*$/.exec(file.bare.slice(Math.max(0, m.index - 60), m.index));
+      if (bound === null) {
+        push('bb3', `${atLine(file, m.index)} makes a StartRunner it does not bind to a let, so it cannot be registered before its task starts`);
+        continue;
+      }
+      const fn = innermost(file.funcs, m.index);
+      const rest = fn === null ? file.bare.slice(m.index) : file.bare.slice(m.index, fn.bodyClose);
+      const reg = new RegExp(`\\bregisterStart\\s*\\(\\s*${bound[1]}\\s*\\)`).exec(rest);
+      const task = /\bTask\s*(?:\{|\()/.exec(rest);
+      if (reg === null) push('bb3', `${atLine(file, m.index)}: the StartRunner ${bound[1]} is never registered, so a trip to the background cannot stop it`);
+      else if (task !== null && task.index < reg.index) push('bb3', `${atLine(file, m.index)}: the StartRunner ${bound[1]} is registered after its task starts, so the app can leave before it can be stopped`);
+    }
+  }
+  if (said.runners === 0) push('bb3', 'no StartRunner( is made anywhere, so Create sends nothing this rule can read');
+  if (app !== null) {
+    const went = funcsNamed(app, 'wentAway', 'AppModel')[0] ?? null;
+    const body = went === null ? '' : bodyText(app, went);
+    if (!/\bfor\s+(\w+)\s+in\s+liveStarts\b[^{]*\{[^}]*\b\1\s*\.\s*stop\s*\(\s*\)/.test(body) && !/\bliveStarts\s*\.\s*forEach\s*\{[^}]*\$0\s*\.\s*stop\s*\(\s*\)/.test(body)) push('bb3', 'AppModel.wentAway() stops no start runner (liveStarts), so a start whose bytes were not handed is sent after the app left');
+  }
+  if (start !== null) {
+    const stop = funcsNamed(start, 'stop', 'StartRunner')[0] ?? null;
+    const stopBody = stop === null ? '' : bodyText(start, stop);
+    if (!/\bstopRequested\s*=\s*true\b/.test(stopBody) || !/\btask\s*\??\s*\.\s*cancel\s*\(\s*\)/.test(stopBody)) push('bb3', `${START_FILE}'s StartRunner.stop() does not set stopRequested and cancel its task`);
+    if (/(?<!\bvar\s{1,8})\bstopRequested\s*=\s*false\b/.test(start.bare)) push('bb3', `${START_FILE} sets stopRequested back to false; a stopped runner stays stopped`);
+    const run = funcsNamed(start, 'run', 'StartRunner')[0] ?? null;
+    const runBody = run === null ? '' : bodyText(start, run);
+    const ask = runBody.search(/\bstopRequested\b/);
+    const send = runBody.search(/\.\s*start\s*\(/);
+    if (ask === -1 || send === -1 || ask > send) push('bb3', `${START_FILE}'s StartRunner.run does not read stopRequested before it sends`);
+    // The one kept id.
+    const kept = lexed.flatMap((f) => f.types.filter((t) => t.name === 'KeptStart' && t.kind === 'struct').map((t) => ({ f, t })));
+    if (kept.length !== 1) push('bb3', `KeptStart is declared ${String(kept.length)} time(s); once (D17)`);
+    else {
+      const { f, t } = kept[0];
+      const body = f.bare.slice(t.open, t.close + 1);
+      if (!storedFields(f.bare, t).includes('write')) push('bb3', `${f.name}'s KeptStart keeps no write, the one id a start sends again`);
+      if (!/\bstatic\s+let\s+window\s*:\s*TimeInterval\s*=\s*60\s*\n/.test(body)) push('bb3', `${f.name}'s KeptStart has no static let window: TimeInterval = 60, the ONE bound on a kept start (D17)`);
+      const holds = f.funcs.find((fn) => fn.name === 'holds' && fn.at > t.open && fn.at < t.close);
+      const h = holds === undefined ? '' : bodyText(f, holds);
+      if (!/\bmac\b[^\n]*==[^\n]*\bmac\b/.test(h) || !/\bproject\b[^\n]*==[^\n]*\bproject\b/.test(h) || !/\bagent\b[^\n]*==[^\n]*\bagent\b/.test(h) || !/\bSelf\s*\.\s*window\b/.test(h) || !/\btimeIntervalSince\b/.test(h)) push('bb3', `${f.name}'s KeptStart.holds does not compare the Mac, the project and the agent and bound the age by Self.window through timeIntervalSince`);
+    }
+    for (const file of lexed) {
+      for (const m of file.bare.matchAll(/\b60(?:\.0)?\b/g)) {
+        if (!START_FILES.includes(file.name)) continue;
+        const line = file.bare.slice(file.bare.lastIndexOf('\n', m.index) + 1, file.bare.indexOf('\n', m.index));
+        if (!/\bstatic\s+let\s+window\s*:\s*TimeInterval\s*=\s*60\b/.test(line)) push('bb3', `${atLine(file, m.index)} spells 60 outside KeptStart.window; the kept start's bound is one constant`);
+      }
+    }
+  }
+  for (const file of lexed) {
+    for (const m of file.bare.matchAll(/(?<![\w.])(?:self\s*\??\s*\.\s*|keeper\s*\.\s*|space\s*\.\s*|\w+\s*\.\s*)?keptStart\s*=(?!=)\s*([^\n;]*)/g)) {
+      said.keptSets += 1;
+      const rhs = m[1].trim().replace(/\s*\}+\s*$/, '').trim();
+      if (rhs === 'nil') continue;
+      const fn = innermost(file.funcs, m.index);
+      const conds = fn === null ? [] : conditionsAt(file.bare, fn.bodyOpen, m.index);
+      const inNoAnswer = conds.some((c) => c.kind === 'case' && /\.\s*noAnswer\b/.test(c.label));
+      const busyKeeps = /\.\s*busy\s*\?\s*reusing\s*:\s*nil$/.test(rhs);
+      if (file.name !== START_FILE || !(inNoAnswer || busyKeeps)) push('bb3', `${atLine(file, m.index)} keeps a start (keptStart = ${rhs.slice(0, 50)}) outside a start's own noAnswer and a busy on a kept id (D17)`);
+    }
+  }
+  for (const name of START_FILES) {
+    const f = named(name);
+    if (f === null) continue;
+    for (const m of f.bare.matchAll(PERSISTS)) push('bb3', `${atLine(f, m.index)} names ${m[0]}; nothing persists a start, a kept id or an offer`);
+    for (const m of f.bare.matchAll(/\bSecItem\w*\b|\bKeychain\w*\b/g)) push('bb3', `${atLine(f, m.index)} names ${m[0]}; nothing persists a start, a kept id or an offer`);
+  }
+
+  // bb4: two ids and a write id.
+  if (client !== null) {
+    const fn = funcsNamed(client, 'start', 'DoorClient')[0] ?? null;
+    if (fn === null) push('bb4', 'Door/DoorClient.swift declares no DoorClient.start');
+    else if (paramLabels(fn.params).join(',') !== 'project,agent,write,door') push('bb4', `DoorClient.start takes ${paramLabels(fn.params).join(', ') || 'nothing'}; it takes exactly project, agent, write and door (D15)`);
+  }
+  {
+    const protoFile = lexed.find((f) => f.types.some((t) => t.name === 'DoorStarting' && t.kind === 'protocol')) ?? null;
+    if (protoFile === null) push('bb4', 'no app file declares protocol DoorStarting');
+    else {
+      const t = protoFile.types.find((x) => x.name === 'DoorStarting' && x.kind === 'protocol');
+      const req = funcSpans(protoFile.bare).filter((fn) => fn.name === 'start' && fn.at > t.open && fn.at < t.close);
+      if (req.length !== 1 || paramLabels(req[0].params).join(',') !== 'project,agent,write') push('bb4', `DoorStarting's start requirement takes ${req.map((r) => paramLabels(r.params).join(', ')).join(' / ') || 'nothing'}; it takes exactly project, agent and write (D15)`);
+    }
+  }
+  for (const c of calls) {
+    const labels = paramLabels(c.args);
+    if (labels.some((l) => !['project', 'agent', 'write'].includes(l))) push('bb4', `${atLine(c.file, c.at)} hands the starter ${labels.join(', ')}; two ids and a write id leave the phone, nothing else (D15)`);
+  }
+  for (const name of START_FILES) {
+    const f = named(name);
+    if (f === null) continue;
+    for (const m of f.bare.matchAll(new RegExp(START_NEVER.source, 'g'))) push('bb4', `${atLine(f, m.index)} names ${m[0]}; nothing on the phone chooses a path, a flag, a name, a login or takes text for a start (D15)`);
+  }
+
+  // bb5: the key never fails Sessions.
+  if (contract !== null) {
+    const reads = [...contract.bare.matchAll(/\bdecode\w*\s*\(\s*[^)]*forKey\s*:\s*\.\s*start\b/g)];
+    if (reads.length !== 1) push('bb5', `Door/Contract.swift decodes the sessions answer's start ${String(reads.length)} time(s); ONCE, leniently (D26)`);
+    for (const m of reads) {
+      const from = contract.bare.lastIndexOf('\n', m.index) + 1;
+      const line = contract.bare.slice(from, contract.bare.indexOf('\n', m.index));
+      const p = placeOf(contract, m.index);
+      if (!/\btry\s*\?/.test(line) || !/\bdecodeIfPresent\s*\(/.test(line) || !/\bPocketSessionsStart\s*\.\s*self\b/.test(line)) push('bb5', `${atLine(contract, m.index)} decodes start as ${JSON.stringify(line.trim().slice(0, 90))}; inside try? and with decodeIfPresent, so an offer this build cannot read is no offer and never fails Sessions (D26)`);
+      if (p.type !== 'PocketSessionsAnswer') push('bb5', `${atLine(contract, m.index)} decodes start in ${p.type ?? 'no type'}; the sessions answer's own decoder is the one read of it`);
+    }
+  }
+
+  // bb6: the "+".
+  {
+    const made = [];
+    for (const file of lexed) {
+      for (const m of file.bare.matchAll(/\bStartTitleControl\s*\(/g)) {
+        if (/\b(?:struct|class)\s+$/.test(file.bare.slice(Math.max(0, m.index - 10), m.index))) continue;
+        made.push({ file, at: m.index, open: m.index + m[0].length - 1 });
+      }
+    }
+    said.plus = made.length;
+    if (made.length !== 1) push('bb6', `StartTitleControl( is made ${String(made.length)} time(s); ONCE, in the Sessions title (D21)`);
+    for (const m of made) {
+      if (m.file.name !== 'Screens/SessionsScreen.swift') {
+        push('bb6', `${atLine(m.file, m.at)} makes the "+" outside Screens/SessionsScreen.swift`);
+        continue;
+      }
+      const title = computedBody(m.file, 'title');
+      if (title === null || m.at < title.open || m.at > title.close) push('bb6', `${atLine(m.file, m.at)}: the "+" is not in SessionsScreen's title`);
+      const conds = title === null ? [] : conditionsAt(m.file.bare, title.open, m.at);
+      if (!conds.some((c) => c.kind === 'if' && /\bstartOffer\b|\.\s*offer\b/.test(c.cond))) push('bb6', `${atLine(m.file, m.at)}: the "+" is drawn behind no test of an offered start, so a Mac that has not allowed Start draws one (D9)`);
+      const close = closeParen(m.file.bare, m.open);
+      const chain = close === -1 ? [] : chainAfter(m.file.bare, close);
+      if (!chain.some((c) => c.name === 'disabled' && /\btakesTaps\b/.test(c.args))) push('bb6', `${atLine(m.file, m.at)}: the "+"'s chain holds no .disabled( reading End these' takesTaps`);
+      if (!chain.some((c) => c.name === 'accessibilityIdentifier' && /\bID\s*\.\s*startOpen\b/.test(c.args))) push('bb6', `${atLine(m.file, m.at)}: the "+" is not identified ID.startOpen`);
+    }
+  }
+
+  // bb7: nothing else reaches start.
+  for (const f of lexed) {
+    for (const m of f.bare.matchAll(new RegExp(START_OUTSIDE.source, 'g'))) {
+      said.outside += 1;
+      push('bb7', `${atLine(f, m.index)} names ${m[0]}; nothing but the "+" reaches Start (D29)`);
+    }
+    if (NAMES_START.test(f.bare)) for (const m of f.bare.matchAll(new RegExp(START_ACTIVITY.source, 'g'))) push('bb7', `${atLine(f, m.index)} names ${m[0]} beside the start; nothing but the "+" reaches Start (D29)`);
+  }
+  for (const o of others) {
+    for (const m of o.text.matchAll(new RegExp(START_OUTSIDE.source, 'g'))) push('bb7', `${o.name} names ${m[0]}; nothing but the "+" reaches Start (D29)`);
+  }
+
+  // bb8: the marks.
+  if (catalog === null) push('bb8', `ios/Tortie/${AGENT_MARKS_CATALOG} does not exist, so the phone draws no agent's mark (D23)`);
+  else {
+    if (!catalog.root) push('bb8', `ios/Tortie/${AGENT_MARKS_CATALOG} has no Contents.json`);
+    const want = AGENT_MARK_KEYS.map((k) => `agent-${k}.imageset`).sort();
+    const got = Object.keys(catalog.sets).sort();
+    if (JSON.stringify(got) !== JSON.stringify(want)) push('bb8', `ios/Tortie/${AGENT_MARKS_CATALOG} holds ${got.join(', ') || 'no set'}; exactly one agent-<icon>.imageset for each of the ${String(AGENT_MARK_KEYS.length)} compiled launchable agents (D23)`);
+    for (const c of catalog.colorsets ?? []) push('bb8', `ios/Tortie/${AGENT_MARKS_CATALOG} holds ${c}; every mark is one ink a token tints, and the catalog holds no colour`);
+    for (const [name, set] of Object.entries(catalog.sets)) {
+      said.marks += 1;
+      const svgs = set.files.filter((x) => x.endsWith('.svg'));
+      const otherFiles = set.files.filter((x) => x !== 'Contents.json' && !x.endsWith('.svg'));
+      if (!set.files.includes('Contents.json') || svgs.length !== 1 || otherFiles.length > 0) push('bb8', `${name} holds ${set.files.join(', ') || 'nothing'}; its Contents.json and ONE .svg`);
+      const props = set.contents?.properties ?? {};
+      if (props['preserves-vector-representation'] !== true || props['template-rendering-intent'] !== 'template') push('bb8', `${name}'s Contents.json is not a template vector image (preserves-vector-representation true, template-rendering-intent template)`);
+      const images = Array.isArray(set.contents?.images) ? set.contents.images : [];
+      if (images.length !== 1 || images.some((i) => i.appearances !== undefined || i.filename !== svgs[0])) push('bb8', `${name}'s Contents.json names ${images.length} image(s)${images.some((i) => i.appearances !== undefined) ? ' with an appearance' : ''}; one, its own .svg, and no other appearance`);
+    }
+  }
+  if (marksCheck === null) push('bb8', 'build/p346/agent-marks.mjs --check was not run, so the marks were not compared with the Mac\'s');
+  else if (marksCheck.status !== 0) push('bb8', `build/p346/agent-marks.mjs --check exited ${String(marksCheck.status)}: ${marksCheck.line || 'with no words'}; the phone's marks are the Mac's, regenerated byte for byte (D23)`);
+  for (const f of lexed) {
+    for (const s of f.strings) {
+      if (!/^agent-/.test(s.value)) continue;
+      if (f.name !== AGENT_MARK_FILE) push('bb8', `${atLine(f, s.start)} names the image ${JSON.stringify(s.value)} outside ${AGENT_MARK_FILE}; its table is the one place a mark is named`);
+    }
+  }
+  if (mark !== null) {
+    const table = [...mark.code.matchAll(/"([a-z0-9]+)"\s*:\s*"agent-([a-z0-9]+)"/g)].map((m) => [m[1], m[2]]);
+    const keys = table.map(([k]) => k).sort();
+    if (JSON.stringify(keys) !== JSON.stringify([...AGENT_MARK_KEYS].sort()) || table.some(([k, v]) => k !== v)) push('bb8', `${AGENT_MARK_FILE}'s table maps ${keys.join(', ') || 'nothing'}; it maps each of the ${String(AGENT_MARK_KEYS.length)} mark keys to agent-<the key>`);
+    if (!/\.\s*renderingMode\s*\(\s*\.\s*template\s*\)/.test(mark.bare)) push('bb8', `${AGENT_MARK_FILE} draws its mark without .renderingMode(.template), so a token cannot tint it`);
+    if (!mark.strings.some((s) => s.value === 'terminal')) push('bb8', `${AGENT_MARK_FILE} has no "terminal" SF Symbol for a key the phone does not carry`);
+  }
+
+  // bb9: done opens the Terminal on the Mac that started it.
+  if (app !== null) {
+    const opens = funcsNamed(app, 'openStarted', 'AppModel');
+    if (opens.length !== 1) push('bb9', `AppModel declares openStarted ${String(opens.length)} time(s); once (D24)`);
+    for (const fn of opens) {
+      const body = bodyText(app, fn);
+      const pushes = [...body.matchAll(/\bpush\s*\(/g)];
+      if (!/^\s*mac\s*:/.test(fn.params)) push('bb9', `${atLine(app, fn.at)}: openStarted's first label is not mac:`);
+      if (pushes.length !== 1 || !/\bpush\s*\(\s*\.\s*session\s*\(\s*mac\s*:\s*mac\b[^)]*\)\s*,\s*on\s*:\s*\.\s*sessions\s*\)/.test(body)) push('bb9', `${atLine(app, fn.at)}: openStarted pushes ${String(pushes.length)} route(s); ONE, .session(mac: the Mac that started it) on .sessions (D24, ba1)`);
+      if (/\bopen\s*\(|\.\s*needsInput\b|\.\s*settings\b|\.\s*macs\b/.test(body)) push('bb9', `${atLine(app, fn.at)}: openStarted does more than open the session on the Sessions tab`);
+    }
+    for (const file of lexed) {
+      for (const m of file.bare.matchAll(/\bopenStarted\s*\(/g)) {
+        if (isDecl(file.bare, m.index)) continue;
+        said.openers += 1;
+        const p = placeOf(file, m.index);
+        if (file.name !== 'App/TortieApp.swift' || p.type !== 'AppModel' || p.fn !== 'startSetup') push('bb9', `${atLine(file, m.index)} calls openStarted( in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; a done start opens through AppModel.startSetup's opened alone`);
+      }
+    }
+  }
+  if (start !== null) {
+    const model = start.types.find((t) => t.name === 'StartModel' && t.kind === 'class');
+    if (model === undefined) push('bb9', `${START_FILE} declares no class StartModel`);
+    else {
+      let seen = 0;
+      for (const m of start.bare.slice(model.open, model.close).matchAll(/(?<![\w.])opened\s*\(/g)) {
+        const at = model.open + m.index;
+        const fn = innermost(start.funcs, at);
+        if (fn === null || isDecl(start.bare, at)) continue;
+        seen += 1;
+        const conds = conditionsAt(start.bare, fn.bodyOpen, at);
+        if (!conds.some((c) => c.kind === 'case' && /\.\s*done\b/.test(c.label))) push('bb9', `${atLine(start, at)}: StartModel calls opened( outside the done arm; only a done start opens a session (D24)`);
+      }
+      if (seen === 0) push('bb9', `${START_FILE}'s StartModel never calls opened(, so a done start opens nothing`);
+    }
+  }
+
+  // bb10: the sample starts nothing.
+  if (sampleReader === null) push('bb10', 'Sample/SampleReader.swift does not exist');
+  else {
+    const fns = funcsNamed(sampleReader, 'start', 'SampleReader');
+    if (fns.length !== 1) push('bb10', `SampleReader declares start ${String(fns.length)} time(s); once, answering not taken (D28)`);
+    for (const fn of fns) {
+      const body = bodyText(sampleReader, fn);
+      if (!/\.\s*notTaken\b/.test(body)) push('bb10', `${atLine(sampleReader, fn.at)}: SampleReader.start does not answer .notTaken; the sample's start is never asked over a network (D28)`);
+      for (const m of body.matchAll(/\bDoorClient\b|\bPairedReader\b|\bNWConnection\b|\bURLSession\b|\bsignedPost\b|\bclient\b|\.\s*start\s*\(/g)) push('bb10', `${atLine(sampleReader, fn.at)}: SampleReader.start names ${m[0]}; the sample starts nothing (D28)`);
+    }
+  }
+  return { findings, said };
+}
+
+/** The Start group's hostile arms (SPEC §5.4), as (t) requires build/p316/hostile-door.mjs to name them. */
+export const HOSTILE_START_ARMS = Object.freeze([
+  'start-key-malformed',
+  'start-key-unknown-state',
+  'start-key-huge',
+  'start-answer-wrong-verb',
+  'start-answer-no-echo',
+  'start-answer-done-no-session',
+  'start-answer-refused-no-reason',
+  'start-answer-unknown-reason',
+  'start-answer-2mib',
+  'start-answer-chunked',
+  'start-404',
+  'start-hold'
+]);
+/** The Start arms that are a key on the sessions answer, and so never a write. */
+const HOSTILE_START_KEYS = new Set(['start-key-malformed', 'start-key-unknown-state', 'start-key-huge']);
+
+/**
+ * (t)'s Phase 346 half: the hostile door names the twelve Start arms, each
+ * row on one line. A Create arm is a write (`write: true`, or `start:
+ * 'answer'` / `start: 'hold'` as the door's own word for one), counts the
+ * POSTs it lets a Create send (at least one, two for start-hold, whose Try
+ * again sends the same id once more) and ends in a sentence; a key arm is a
+ * read of the sessions answer (`start: 'key'`), sends no POST and ends with
+ * no "+" (`no-plus`). Every Copy word an arm expects is Copy.swift's.
+ */
+export function ruleHostileStartArms(hostile, copy) {
+  const findings = [];
+  const said = { arms: [] };
+  if (hostile === null) return { findings: ['build/p316/hostile-door.mjs does not exist, so no hostile answer to a start is served'], said };
+  const copyWords = new Set(copy === null ? [] : [...copy.matchAll(/\bstatic\s+let\s+([A-Za-z0-9_]+)\s*=\s*"/g)].map((m) => m[1]));
+  for (const arm of HOSTILE_START_ARMS) {
+    const row = new RegExp(`(?:^|\\n)\\s*'${arm}':\\s*\\{([^\\n]*)\\}`).exec(hostile);
+    if (row === null) {
+      findings.push(`build/p316/hostile-door.mjs names no Start arm ${JSON.stringify(arm)} (build/p346/SPEC.md §5.4)`);
+      continue;
+    }
+    said.arms.push(arm);
+    const write = /\bwrite:\s*true\b/.test(row[1]) || /\bstart:\s*'(?:answer|hold)'/.test(row[1]);
+    const posts = /\bposts:\s*(\d+)\b/.exec(row[1]);
+    const ends = /\bends:\s*'([^']*)'/.exec(row[1])?.[1] ?? null;
+    if (HOSTILE_START_KEYS.has(arm)) {
+      if (write) findings.push(`hostile-door.mjs's ${arm} is marked a write; a broken start key is a read of the sessions answer, and the phone draws no "+" for it`);
+      if (posts !== null && posts[1] !== '0') findings.push(`hostile-door.mjs's ${arm} counts ${posts[1]} POST(s); a key arm sends none`);
+      if (ends !== 'no-plus' && ends !== 'drawn') findings.push(`hostile-door.mjs's ${arm} ends in ${JSON.stringify(ends)}, not with no "+" (no-plus)`);
+    } else {
+      if (!write) findings.push(`hostile-door.mjs's ${arm} is not marked a write (write: true, or start: 'answer' or 'hold'); a Create is a write`);
+      const least = arm === 'start-hold' ? 2 : 1;
+      if (posts === null || Number(posts[1]) < least) findings.push(`hostile-door.mjs's ${arm} counts ${posts === null ? 'no' : posts[1]} POST(s); it counts the ${String(least)} a Create${arm === 'start-hold' ? ' and its Try again' : ''} sends`);
+      if (ends !== 'sentence') findings.push(`hostile-door.mjs's ${arm} ends in ${JSON.stringify(ends)}, not the start's line (sentence)`);
+    }
+    const words = [...(/\bexpect:\s*\[([^\]]*)\]/.exec(row[1])?.[1] ?? '').matchAll(/'([A-Za-z0-9_]+)'/g)].map((m) => m[1]);
+    for (const w of words) if (!copyWords.has(w)) findings.push(`hostile-door.mjs's ${arm} expects Copy.${w}, which Copy.swift does not hold`);
+  }
+  return { findings, said };
+}
+
+/** (v)'s Phase 346 half: startSentence draws a sentence for every StartResult, and New session's line is nil or a sentence. */
+export function ruleStartSentence(words, files) {
+  const findings = [];
+  const said = { cases: 0, assignments: 0 };
+  if (words === null) return { findings: ['Screens/DoorWords.swift does not exist, so what a start\'s line says cannot be read'], said };
+  const w = lexSwift(words);
+  const decl = /\bstatic\s+func\s+startSentence\s*\(\s*for\s+\w+\s*:\s*StartResult\s*,\s*sample\s*:\s*Bool\s*\)\s*->\s*([^{]+)\{/.exec(w.bare);
+  if (decl === null) findings.push('Screens/DoorWords.swift declares no startSentence(for: StartResult, sample: Bool)');
+  else {
+    if (decl[1].trim() !== 'String') findings.push(`Screens/DoorWords.swift's startSentence returns ${decl[1].trim()}; it returns String, so every start's result draws a sentence`);
+    const body = bodyAfter(w.bare, decl.index);
+    const bodyStart = w.bare.indexOf(body, decl.index);
+    for (const m of body.matchAll(/\breturn\s+nil\b/g)) findings.push(`Screens/DoorWords.swift:${String(lineOf(w.bare, bodyStart + m.index))} startSentence returns nil`);
+    for (const x of w.strings) if (x.start > bodyStart && x.start < bodyStart + body.length && x.value.trim() === '') findings.push(`Screens/DoorWords.swift:${String(lineOf(w.bare, x.start))} startSentence returns an empty string`);
+    if (/\bdefault\s*:/.test(body)) findings.push("Screens/DoorWords.swift's startSentence has a default, so a new StartResult case would draw a line nobody chose");
+    const client = files.find((f) => f.name === 'Door/DoorClient.swift');
+    const cases = client === undefined ? [] : enumCases(client.source, 'StartResult') ?? [];
+    said.cases = cases.length;
+    if (cases.length === 0) findings.push('Door/DoorClient.swift declares no StartResult cases for startSentence to draw');
+    for (const cs of cases) if (!new RegExp(`\\bcase\\s+\\.${cs}\\b`).test(body)) findings.push(`Screens/DoorWords.swift's startSentence draws nothing for .${cs}`);
+  }
+  for (const f of files) {
+    if (!f.name.endsWith('.swift')) continue;
+    const lx = lexSwift(f.source);
+    for (const t of typeSpans(lx.bare).filter((x) => x.name === 'StartModel' && x.kind === 'class')) {
+      const text = lx.bare.slice(t.open, t.close + 1);
+      for (const m of text.matchAll(/(?:^|[^\w.?])(?:self\s*\??\s*\.\s*)?(line)\s*=(?!=)\s*([^\n;]*)/g)) {
+        said.assignments += 1;
+        const rhs = m[2].trim();
+        const at = `${f.name}:${String(lineOf(lx.bare, t.open + m.index + 1))}`;
+        const strings = lx.strings.filter((x) => x.start > t.open + m.index && x.start < t.open + m.index + m[0].length);
+        const ok = rhs === 'nil' || /^(?:Copy|DoorWords)\s*\./.test(rhs);
+        if (strings.some((x) => x.value === '') || !ok) findings.push(`${at} assigns StartModel.line = ${rhs.slice(0, 60)}; its line is nil or a Copy or DoorWords sentence, never empty`);
+      }
+    }
+  }
+  return { findings, said };
+}
+
+// Phase 346: (bb), (v)'s start half and (t)'s Start arms, proved on texts this
+// file holds (build/p346/SPEC.md §5.3): a base New session that passes, and
+// one plant per clause that each must catch.
+{
+  const BB_CLIENT = [
+    'final class DoorClient {',
+    '    func start(project: String, agent: String, write: String?, door: PairedDoor) async -> SentStart {',
+    '        await signedPost(route: .start(project: project, agent: agent), door: door, limits: limits, write: write).asStart',
+    '    }',
+    '    private func signedPost(route: WriteRoute, door: PairedDoor, limits: DoorLimits, write kept: String?) async -> PostEnd {',
+    '        let encoder = JSONEncoder()',
+    '        encoder.outputFormatting = [.sortedKeys]',
+    '        switch route {',
+    '        case .start(let project, let agent):',
+    '            body = try encoder.encode(StartBody(agent: agent, project: project, write: id))',
+    '        }',
+    '        return .ended(ended, write: id)',
+    '    }',
+    '}',
+    'struct StartBody: Encodable, Sendable {',
+    '    let agent: String',
+    '    let project: String',
+    '    let write: String',
+    '}',
+    'enum StartResult: Equatable, Sendable {',
+    '    case answered(PocketStartAnswer)',
+    '    case notTaken',
+    '    case noAnswer',
+    '    case notSent(DoorFailure)',
+    '    static func of(_ end: ExchangeEnd, sent: String) -> StartResult {',
+    '        switch end.result {',
+    '        case .failure(let error):',
+    '            guard end.handed else { return .notSent(error as? DoorFailure ?? .notPaired) }',
+    '            return .noAnswer',
+    '        case .success(let reply):',
+    '            switch reply.status {',
+    '            case 200:',
+    '                guard let answer = try? JSONDecoder().decode(PocketStartAnswer.self, from: reply.body),',
+    '                      answer.verb == "start",',
+    '                      answer.write == sent || answer.echoesNoId else { return .noAnswer }',
+    '                return .answered(answer)',
+    '            case 404:',
+    '                return .notTaken',
+    '            default:',
+    '                return .noAnswer',
+    '            }',
+    '        }',
+    '    }',
+    '}',
+    'struct SentStart: Equatable, Sendable {',
+    '    let result: StartResult',
+    '    let write: String?',
+    '}',
+    ''
+  ].join('\n');
+  const BB_CONTRACT = [
+    'struct PocketStartAnswer: Equatable, Sendable {',
+    '    let verb: String',
+    '    let write: String',
+    '    let outcome: PocketWriteAnswer.Outcome',
+    '    let reason: String?',
+    '    var echoesNoId: Bool {',
+    '        write.isEmpty && outcome == .refused && reason == "malformed"',
+    '    }',
+    '}',
+    'struct PocketSessionsAnswer: Equatable, Sendable {',
+    '    var start: PocketSessionsStart? = nil',
+    '}',
+    'extension PocketSessionsAnswer: Codable {',
+    '    init(from decoder: Decoder) throws {',
+    '        let c = try decoder.container(keyedBy: CodingKeys.self)',
+    '        ageNote = try c.decode(String.self, forKey: .ageNote)',
+    '        start = (try? c.decodeIfPresent(PocketSessionsStart.self, forKey: .start)) ?? nil',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const BB_WORDS = [
+    'protocol DoorStarting: Sendable {',
+    '    func start(project: String, agent: String, write: String?) async -> SentStart',
+    '}',
+    'enum DoorWords {',
+    '    static func startSentence(for result: StartResult, sample: Bool) -> String {',
+    '        guard !sample else { return Copy.startSample }',
+    '        switch result {',
+    '        case .answered(let answer):',
+    '            guard answer.outcome != .done else { return Copy.newSession }',
+    '            return answer.sentence ?? Copy.answerUnreadable',
+    '        case .notTaken:',
+    '            return Copy.startNotTaken',
+    '        case .noAnswer:',
+    '            return Copy.startNoAnswer',
+    '        case .notSent(let failure):',
+    '            return failure == .cancelled ? Copy.startNotTaken : sentence(for: failure)',
+    '        }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const BB_START = [
+    'import Foundation',
+    '@MainActor',
+    'protocol StartRunnerRegistry: AnyObject {',
+    '    func registerStart(_ runner: StartRunner)',
+    '    func releaseStart(_ runner: StartRunner)',
+    '}',
+    '@MainActor',
+    'final class StartRunner {',
+    '    let project: String',
+    '    let agent: String',
+    '    let write: String?',
+    '    private let starter: any DoorStarting',
+    '    private(set) var stopRequested = false',
+    '    var task: Task<Void, Never>?',
+    '    init(project: String, agent: String, write: String?, starter: any DoorStarting) {',
+    '        self.project = project',
+    '        self.agent = agent',
+    '        self.write = write',
+    '        self.starter = starter',
+    '    }',
+    '    func stop() {',
+    '        stopRequested = true',
+    '        task?.cancel()',
+    '    }',
+    '    func run() async -> SentStart {',
+    '        guard !stopRequested else { return SentStart(result: .notSent(.cancelled), write: nil) }',
+    '        return await starter.start(project: project, agent: agent, write: write)',
+    '    }',
+    '}',
+    'struct KeptStart: Equatable, Sendable {',
+    '    static let window: TimeInterval = 60',
+    '    let mac: String',
+    '    let project: String',
+    '    let agent: String',
+    '    let write: String',
+    '    let at: Date',
+    '    func holds(mac: String, project: String, agent: String, at now: Date) -> Bool {',
+    '        guard self.mac == mac, self.project == project, self.agent == agent else { return false }',
+    '        let age = now.timeIntervalSince(at)',
+    '        return age >= 0 && age < Self.window',
+    '    }',
+    '}',
+    '@MainActor',
+    '@Observable',
+    'final class StartModel: Identifiable {',
+    '    private(set) var line: String?',
+    '    func create(reread: @escaping @MainActor () async -> Void, opened: @escaping @MainActor (_ id: String, _ name: String) -> Void) {',
+    '        let at = clock()',
+    '        let reusing = kept(at: at)',
+    '        if reusing == nil { keeper.keptStart = nil }',
+    '        let runner = StartRunner(project: project, agent: agent, write: reusing?.write, starter: starter)',
+    '        registry.registerStart(runner)',
+    '        line = nil',
+    '        let task = Task { [weak self] in',
+    '            let sent = await runner.run()',
+    '            await self?.afterStart(sent, project: project, agent: agent, at: at, reusing: reusing, reread: reread, opened: opened)',
+    '        }',
+    '        runner.task = task',
+    '    }',
+    '    private func afterStart(_ sent: SentStart, project: String, agent: String, at: Date, reusing: KeptStart?, reread: @MainActor () async -> Void, opened: @MainActor (_ id: String, _ name: String) -> Void) async {',
+    '        switch sent.result {',
+    '        case .answered(let answer) where answer.outcome == .done:',
+    '            keeper.keptStart = nil',
+    '            line = nil',
+    '            if let session = answer.session { opened(session.id, session.name) }',
+    '            await reread()',
+    '        case .answered(let answer):',
+    '            keeper.keptStart = answer.outcome == .busy ? reusing : nil',
+    '            line = DoorWords.startSentence(for: sent.result, sample: sample)',
+    '            await reread()',
+    '        case .noAnswer:',
+    '            keeper.keptStart = reusing ?? sent.write.map { KeptStart(mac: mac, project: project, agent: agent, write: $0, at: at) }',
+    '            await reread()',
+    '            line = DoorWords.startSentence(for: sent.result, sample: sample)',
+    '        case .notTaken:',
+    '            keeper.keptStart = nil',
+    '            line = DoorWords.startSentence(for: sent.result, sample: sample)',
+    '            await reread()',
+    '        case .notSent:',
+    '            line = DoorWords.startSentence(for: sent.result, sample: sample)',
+    '            await reread()',
+    '        }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const BB_SHEET = [
+    'import SwiftUI',
+    'struct StartTitleControl: View {',
+    '    let open: () -> Void',
+    '    var body: some View {',
+    '        Button(action: open) { Image(systemName: "plus") }',
+    '            .accessibilityLabel(Text(verbatim: Copy.newSession))',
+    '    }',
+    '}',
+    'struct StartSheet: View {',
+    '    let model: StartModel',
+    '    var body: some View {',
+    '        AgentMark(icon: "claude", color: Tokens.textPrimary, size: 24)',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const BB_MARK = [
+    'import SwiftUI',
+    'struct AgentMark: View {',
+    '    let icon: String',
+    '    static let assets: [String: String] = [',
+    ...AGENT_MARK_KEYS.map((k, i) => `        "${k}": "agent-${k}"${i === AGENT_MARK_KEYS.length - 1 ? '' : ','}`),
+    '    ]',
+    '    static let fallback = "terminal"',
+    '    var body: some View {',
+    '        if let asset = Self.assets[icon] {',
+    '            Image(asset).renderingMode(.template).resizable()',
+    '        } else {',
+    '            Image(systemName: Self.fallback)',
+    '        }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const BB_SESSIONS = [
+    'struct SessionsScreen: View {',
+    '    var start: (() -> Void)? = nil',
+    '    private var title: some View {',
+    '        HStack(alignment: .firstTextBaseline, spacing: Frame.rowGap) {',
+    '            Words(Copy.sessions, .title, Tokens.textPrimary)',
+    '            HStack(spacing: SessionsFrame.controlGap) {',
+    '                menu',
+    '                EndBatchTitleControl()',
+    '                if let start, model.startOffer != nil {',
+    '                    StartTitleControl(open: start)',
+    '                        .disabled(batch?.takesTaps ?? false)',
+    '                        .accessibilityIdentifier(ID.startOpen)',
+    '                }',
+    '            }',
+    '        }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const BB_APP = [
+    'final class MacSpace: Identifiable {',
+    '    var keptStart: KeptStart?',
+    '}',
+    'final class AppModel {',
+    '    private(set) var liveStarts: [StartRunner] = []',
+    '    func wentAway() {',
+    '        for space in spaces {',
+    '            space.keptStart = nil',
+    '        }',
+    '        for runner in liveStarts {',
+    '            runner.stop()',
+    '        }',
+    '    }',
+    '    func startSetup(_ reader: any DoorReading) -> StartSetup? {',
+    '        let mac = reader.facts.publicName',
+    '        guard let starter = reader.starter, let space = space(mac) else { return nil }',
+    '        return StartSetup(mac: mac, starter: starter, registry: self, keeper: space, sample: reader is SampleReader, opened: { [weak self] id, name in',
+    '            self?.openStarted(mac: mac, id: id, name: name)',
+    '        })',
+    '    }',
+    '    func openStarted(mac: String, id: String, name: String) {',
+    '        guard chosen?.id == mac else { return }',
+    '        tab = .sessions',
+    '        push(.session(mac: mac, id: id, name: name), on: .sessions)',
+    '    }',
+    '}',
+    'extension AppModel: StartRunnerRegistry {',
+    '    func registerStart(_ runner: StartRunner) {',
+    '        liveStarts.append(runner)',
+    '    }',
+    '    func releaseStart(_ runner: StartRunner) {',
+    '        liveStarts.removeAll { $0 === runner }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const BB_SAMPLE = [
+    'struct SampleReader: DoorReading, DoorStarting {',
+    '    var starter: (any DoorStarting)? { self }',
+    '    func start(project: String, agent: String, write: String?) async -> SentStart {',
+    '        SentStart(result: .notTaken, write: nil)',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const bbBase = {
+    'Door/DoorClient.swift': BB_CLIENT,
+    'Door/Contract.swift': BB_CONTRACT,
+    'Screens/DoorWords.swift': BB_WORDS,
+    [START_FILE]: BB_START,
+    [START_SHEET_FILE]: BB_SHEET,
+    [AGENT_MARK_FILE]: BB_MARK,
+    'Screens/SessionsScreen.swift': BB_SESSIONS,
+    'App/TortieApp.swift': BB_APP,
+    'Sample/SampleReader.swift': BB_SAMPLE
+  };
+  const bbSet = (k) => ({ files: ['Contents.json', `agent-${k}.svg`], contents: { images: [{ filename: `agent-${k}.svg`, idiom: 'universal' }], info: { author: 'xcode', version: 1 }, properties: { 'preserves-vector-representation': true, 'template-rendering-intent': 'template' } } });
+  const bbCatalog = () => ({ root: true, sets: Object.fromEntries(AGENT_MARK_KEYS.map((k) => [`agent-${k}.imageset`, bbSet(k)])), colorsets: [] });
+  const bbRun = (edits = {}, opts = {}) =>
+    ruleStart(
+      Object.entries({ ...bbBase, ...edits }).filter(([, v]) => v !== null).map(([name, source]) => ({ name, source })),
+      { catalog: bbCatalog(), marksCheck: { status: 0, line: 'PASS' }, others: [], ...opts }
+    ).findings;
+  const bbSwap = (file, from, to) => {
+    const text = bbBase[file];
+    if (!text.includes(from)) selfFailures.push(`(bb) fixture: ${file} holds no ${JSON.stringify(from.slice(0, 70))}`);
+    return { [file]: text.replace(from, to) };
+  };
+  const bbHas = (edits, clause, opts = {}) => bbRun(edits, opts).some((f) => f.startsWith(`${clause}:`));
+  const base = bbRun();
+  expect(`(bb) passes New session in the shape build/p346/SPEC.md §4.15 names${base.length === 0 ? '' : `: ${base.slice(0, 2).join(' // ')}`}`, base.length === 0);
+  // bb1
+  expect('(bb) bb1 catches a second call of the starter outside StartRunner.run', bbHas(bbSwap('App/TortieApp.swift', '    func wentAway() {', '    func again(_ starter: any DoorStarting) async {\n        _ = await starter.start(project: "p", agent: "a", write: nil)\n    }\n    func wentAway() {'), 'bb1'));
+  expect('(bb) bb1 catches a retry loop around the start', bbHas(bbSwap(START_FILE, '        return await starter.start(project: project, agent: agent, write: write)', '        var sent = await starter.start(project: project, agent: agent, write: write)\n        while sent.result == .noAnswer { sent = await starter.start(project: project, agent: agent, write: write) }\n        return sent'), 'bb1'));
+  expect('(bb) bb1 catches a fourth key in StartBody', bbHas(bbSwap('Door/DoorClient.swift', '    let agent: String\n    let project: String', '    let agent: String\n    let cwd: String\n    let project: String'), 'bb1'));
+  expect('(bb) bb1 catches an answer taken without asking verb == "start"', bbHas(bbSwap('Door/DoorClient.swift', '                      answer.verb == "start",\n', ''), 'bb1'));
+  expect('(bb) bb1 catches an answer taken without its echo', bbHas(bbSwap('Door/DoorClient.swift', 'answer.write == sent || answer.echoesNoId', 'answer.echoesNoId'), 'bb1'));
+  expect('(bb) bb1 catches the empty echo taken with any outcome', bbHas(bbSwap('Door/Contract.swift', 'write.isEmpty && outcome == .refused && reason == "malformed"', 'write.isEmpty'), 'bb1'));
+  expect('(bb) bb1 catches a result not classified by handed', bbHas(bbSwap('Door/DoorClient.swift', '            guard end.handed else { return .notSent(error as? DoorFailure ?? .notPaired) }\n', ''), 'bb1'));
+  // bb2
+  expect('(bb) bb2 catches the owner check asked in New session', bbHas(bbSwap(START_FILE, '        let at = clock()', '        let context = LAContext()\n        let at = clock()'), 'bb2'));
+  expect('(bb) bb2 catches startSetup handing an owner check', bbHas(bbSwap('App/TortieApp.swift', 'registry: self, keeper: space,', 'registry: self, check: endCheck(for: reader), keeper: space,'), 'bb2'));
+  // bb3
+  expect('(bb) bb3 catches a runner registered after its task starts', bbHas({ [START_FILE]: BB_START.replace('        registry.registerStart(runner)\n', '').replace('        runner.task = task\n', '        runner.task = task\n        registry.registerStart(runner)\n') }, 'bb3'));
+  expect('(bb) bb3 catches a runner never registered', bbHas(bbSwap(START_FILE, '        registry.registerStart(runner)\n', ''), 'bb3'));
+  expect('(bb) bb3 catches wentAway stopping no start runner', bbHas(bbSwap('App/TortieApp.swift', '        for runner in liveStarts {\n            runner.stop()\n        }\n', ''), 'bb3'));
+  expect('(bb) bb3 catches a stop that cancels nothing', bbHas(bbSwap(START_FILE, '        task?.cancel()\n', ''), 'bb3'));
+  expect('(bb) bb3 catches a stopped runner set going again', bbHas(bbSwap(START_FILE, '    func stop() {', '    func resume() {\n        stopRequested = false\n    }\n    func stop() {'), 'bb3'));
+  expect('(bb) bb3 catches a start kept on a refusal', bbHas(bbSwap(START_FILE, '        case .notTaken:\n            keeper.keptStart = nil', '        case .notTaken:\n            keeper.keptStart = reusing'), 'bb3'));
+  expect('(bb) bb3 catches the kept window past the Mac ledger', bbHas(bbSwap(START_FILE, 'static let window: TimeInterval = 60', 'static let window: TimeInterval = 600'), 'bb3'));
+  expect('(bb) bb3 catches a kept id not compared by its Mac', bbHas(bbSwap(START_FILE, 'guard self.mac == mac, self.project', 'guard self.project'), 'bb3'));
+  expect('(bb) bb3 catches a start persisted', bbHas(bbSwap(START_FILE, '        let at = clock()', '        UserDefaults.standard.set(project, forKey: "start")\n        let at = clock()'), 'bb3'));
+  // bb4
+  expect('(bb) bb4 catches DoorClient.start taking a path', bbHas(bbSwap('Door/DoorClient.swift', 'func start(project: String, agent: String, write: String?, door: PairedDoor)', 'func start(project: String, agent: String, path: String, write: String?, door: PairedDoor)'), 'bb4'));
+  expect('(bb) bb4 catches the starter handed arguments', bbHas(bbSwap(START_FILE, 'starter.start(project: project, agent: agent, write: write)', 'starter.start(project: project, agent: agent, write: write, arguments: [])'), 'bb4'));
+  expect('(bb) bb4 catches a text field in New session', bbHas(bbSwap(START_SHEET_FILE, '        AgentMark(icon:', '        TextField(Copy.newSession, text: $name)\n        AgentMark(icon:'), 'bb4'));
+  expect('(bb) bb4 catches DoorStarting taking a folder', bbHas(bbSwap('Screens/DoorWords.swift', 'func start(project: String, agent: String, write: String?) async -> SentStart', 'func start(project: String, agent: String, folder: String, write: String?) async -> SentStart'), 'bb4'));
+  // bb5
+  expect('(bb) bb5 catches the start key decoded strictly', bbHas(bbSwap('Door/Contract.swift', 'start = (try? c.decodeIfPresent(PocketSessionsStart.self, forKey: .start)) ?? nil', 'start = try c.decodeIfPresent(PocketSessionsStart.self, forKey: .start)'), 'bb5'));
+  expect('(bb) bb5 catches the start key decoded twice', bbHas(bbSwap('Door/Contract.swift', '        ageNote = try c.decode(String.self, forKey: .ageNote)\n', '        ageNote = try c.decode(String.self, forKey: .ageNote)\n        _ = try c.decode(PocketSessionsStart.self, forKey: .start)\n'), 'bb5'));
+  // bb6
+  expect('(bb) bb6 catches the "+" drawn without an offer', bbHas(bbSwap('Screens/SessionsScreen.swift', 'if let start, model.startOffer != nil {', 'if let start {'), 'bb6'));
+  expect('(bb) bb6 catches the "+" on while End these takes taps', bbHas(bbSwap('Screens/SessionsScreen.swift', '                        .disabled(batch?.takesTaps ?? false)\n', ''), 'bb6'));
+  expect('(bb) bb6 catches the "+" not identified', bbHas(bbSwap('Screens/SessionsScreen.swift', '.accessibilityIdentifier(ID.startOpen)', '.accessibilityIdentifier(ID.startSheet)'), 'bb6'));
+  expect('(bb) bb6 catches a second "+"', bbHas(bbSwap(START_SHEET_FILE, '        AgentMark(icon:', '        StartTitleControl(open: {})\n        AgentMark(icon:'), 'bb6'));
+  // bb7
+  expect('(bb) bb7 catches an App Intent', bbHas(bbSwap(START_FILE, 'import Foundation\n', 'import Foundation\nimport AppIntents\n'), 'bb7'));
+  expect('(bb) bb7 catches a URL scheme in a property list', bbHas({}, 'bb7', { others: [{ name: 'ios/Tortie/Info.plist', text: '<key>CFBundleURLTypes</key><array/>' }] }));
+  expect('(bb) bb7 catches a URL handler beside the starter', bbHas(bbSwap('App/TortieApp.swift', '    func wentAway() {', '    func url() { _ = EmptyView().onOpenURL { _ in } }\n    func wentAway() {'), 'bb7'));
+  // bb8
+  expect('(bb) bb8 catches a mark missing from the catalog', bbHas({}, 'bb8', { catalog: (() => { const c = bbCatalog(); delete c.sets['agent-pi.imageset']; return c; })() }));
+  expect('(bb) bb8 catches a colour set in the catalog', bbHas({}, 'bb8', { catalog: { ...bbCatalog(), colorsets: ['ink.colorset'] } }));
+  expect('(bb) bb8 catches a mark that is not a template', bbHas({}, 'bb8', { catalog: (() => { const c = bbCatalog(); c.sets['agent-claude.imageset'].contents.properties['template-rendering-intent'] = 'original'; return c; })() }));
+  expect('(bb) bb8 catches a second picture in a set', bbHas({}, 'bb8', { catalog: (() => { const c = bbCatalog(); c.sets['agent-claude.imageset'].files.push('agent-claude-dark.svg'); return c; })() }));
+  expect('(bb) bb8 catches agent-marks.mjs --check failing', bbHas({}, 'bb8', { marksCheck: { status: 1, line: 'FAIL' } }));
+  expect('(bb) bb8 catches no catalog', bbHas({}, 'bb8', { catalog: null }));
+  expect('(bb) bb8 catches a mark named outside AgentMark.swift', bbHas(bbSwap(START_SHEET_FILE, 'AgentMark(icon: "claude"', 'Image("agent-claude"); AgentMark(icon: "claude"'), 'bb8'));
+  expect('(bb) bb8 catches a mark the table leaves out', bbHas(bbSwap(AGENT_MARK_FILE, '        "pi": "agent-pi",\n', ''), 'bb8'));
+  expect('(bb) bb8 catches a mark drawn as it is, untinted', bbHas(bbSwap(AGENT_MARK_FILE, '.renderingMode(.template)', '.renderingMode(.original)'), 'bb8'));
+  // bb9
+  expect('(bb) bb9 catches a done start opened on another tab', bbHas(bbSwap('App/TortieApp.swift', 'on: .sessions)', 'on: .needsInput)'), 'bb9'));
+  expect('(bb) bb9 catches a session opened on a refusal', bbHas(bbSwap(START_FILE, '        case .notTaken:\n            keeper.keptStart = nil\n', '        case .notTaken:\n            keeper.keptStart = nil\n            opened("x", "y")\n'), 'bb9'));
+  expect('(bb) bb9 catches openStarted called from elsewhere', bbHas(bbSwap('App/TortieApp.swift', '    func wentAway() {', '    func other() { openStarted(mac: "m", id: "i", name: "n") }\n    func wentAway() {'), 'bb9'));
+  // bb10
+  expect('(bb) bb10 catches the sample starting through the door', bbHas(bbSwap('Sample/SampleReader.swift', '        SentStart(result: .notTaken, write: nil)', '        await client.start(project: project, agent: agent, write: write, door: door)'), 'bb10'));
+  expect('(bb) bb10 catches the sample answering done', bbHas(bbSwap('Sample/SampleReader.swift', 'SentStart(result: .notTaken, write: nil)', 'SentStart(result: .noAnswer, write: nil)'), 'bb10'));
+  // (v), the start half.
+  const ssRun = (words = BB_WORDS, edits = {}) => ruleStartSentence(words, Object.entries({ ...bbBase, ...edits }).map(([name, source]) => ({ name, source }))).findings;
+  expect('(v) passes startSentence and New session\'s line in the shape SPEC §5.3 names', ssRun().length === 0);
+  expect('(v) catches startSentence answering String?', ssRun(BB_WORDS.replace('sample: Bool) -> String {', 'sample: Bool) -> String? {').replace('            return Copy.startNoAnswer', '            return nil')).length > 0);
+  expect('(v) catches startSentence drawing nothing for a result', ssRun(BB_WORDS.replace('        case .noAnswer:\n            return Copy.startNoAnswer\n', '')).length > 0);
+  expect('(v) catches startSentence with a default', ssRun(BB_WORDS.replace('        case .noAnswer:\n            return Copy.startNoAnswer\n', '        default:\n            return Copy.startNoAnswer\n')).length > 0);
+  expect('(v) catches New session\'s line emptied', ssRun(BB_WORDS, bbSwap(START_FILE, '        case .notTaken:\n            keeper.keptStart = nil\n            line = DoorWords.startSentence(for: sent.result, sample: sample)', '        case .notTaken:\n            keeper.keptStart = nil\n            line = ""')).length > 0);
+  // (t), the Start arms.
+  const HS_ROW = (arm) => (/^start-key-/.test(arm) ? `  '${arm}': { ends: 'no-plus', start: 'key', posts: 0, at: 'screen-list', expect: [] },` : `  '${arm}': { ends: 'sentence', start: '${arm === 'start-hold' ? 'hold' : 'answer'}', posts: ${arm === 'start-hold' ? 2 : 1}, at: 'start-line', expect: ['startNoAnswer'] },`);
+  const HS = `const ARMS = {\n${HOSTILE_START_ARMS.map(HS_ROW).join('\n')}\n};\n`;
+  const HS_COPY = '    static let startNoAnswer = "Your Mac did not answer."\n';
+  expect('(t) passes the Start arms in the shape SPEC §5.4 names', ruleHostileStartArms(HS, HS_COPY).findings.length === 0);
+  expect('(t) catches a Start arm dropped', ruleHostileStartArms(HS.replace(/\n {2}'start-hold'[^\n]*/, ''), HS_COPY).findings.length > 0);
+  expect('(t) catches a Create arm that is not a write', ruleHostileStartArms(HS.replace("'start-404': { ends: 'sentence', start: 'answer',", "'start-404': { ends: 'sentence', start: 'key',"), HS_COPY).findings.length > 0);
+  expect('(t) catches a Create arm counting no POST', ruleHostileStartArms(HS.replace("'start-404': { ends: 'sentence', start: 'answer', posts: 1,", "'start-404': { ends: 'sentence', start: 'answer', posts: 0,"), HS_COPY).findings.length > 0);
+  expect('(t) catches start-hold counting one POST, so its Try again is not counted', ruleHostileStartArms(HS.replace("start: 'hold', posts: 2,", "start: 'hold', posts: 1,"), HS_COPY).findings.length > 0);
+  expect('(t) catches a key arm marked a write', ruleHostileStartArms(HS.replace("'start-key-huge': { ends: 'no-plus', start: 'key',", "'start-key-huge': { ends: 'no-plus', start: 'key', write: true,"), HS_COPY).findings.length > 0);
+  expect('(t) catches a key arm that sends a POST', ruleHostileStartArms(HS.replace("'start-key-huge': { ends: 'no-plus', start: 'key', posts: 0,", "'start-key-huge': { ends: 'no-plus', start: 'key', posts: 1,"), HS_COPY).findings.length > 0);
+  expect('(t) catches a Start arm expecting a word Copy does not hold', ruleHostileStartArms(HS, '').findings.length > 0);
+}
+
+// ---------------------------------------------------------------------------
 // Run the rules over the tree
 // ---------------------------------------------------------------------------
 
@@ -16673,11 +17709,13 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     const sb = ruleHostileScrollbackArms(existsSync(hostilePath) ? read(hostilePath) : null, existsSync(COPY_SWIFT) ? read(COPY_SWIFT) : null);
     // Phase 345: the twin, probe:p345's hostile second Mac.
     const tw = ruleHostileTwinArm(existsSync(hostilePath) ? read(hostilePath) : null);
+    // Phase 346: the Start group's twelve arms (build/p346/SPEC.md §5.4).
+    const st = ruleHostileStartArms(existsSync(hostilePath) ? read(hostilePath) : null, existsSync(COPY_SWIFT) ? read(COPY_SWIFT) : null);
     record(
       't',
       'the client is pinned mutual TLS 1.3 to a public name, and reads HTTP by hand, bounded',
-      [...r.findings, ...sh.findings, ...sb.findings, ...tw.findings],
-      `a local identity on every paired connection (${String(r.said.identityCalls)} exchange(s) with one, and POST /pair alone with none; ${String(r.said.connects)} connect( call(s) naming one, the writes' with the paired door's); the verify block completes with DoorPin's answer; TLS 1.3 the minimum and nothing older; a .ts.net name at 8443 or 10000, checked by the parse; one Content-Length required, Transfer-Encoding refused, Connection: close; hostile-door.mjs names ${String(r.said.arms.length)} HTTP arm(s) (${r.said.arms.join(', ')}), each ending in a Copy sentence, ${String(r.said.writeArms.length)} write arm(s), each ending where it names, in a Copy sentence or the door's own, ${String(r.said.replyArms.length)} reply arm(s), each with its verb and one POST, ending in the press line, the message line or Pairing, ${String(sh.said.arms.length)} Screen arm(s), each ending where it names, ${String(sb.said.arms.length)} scrollback arm(s), each ending in the live terminal drawn or the moved line, and the twin (${tw.said.arm ? 'its arm' : 'no arm'}, ${tw.said.flags.join(' and ') || 'no flag'}, ${tw.said.words.join(' and ') || 'no stdin word'}), the second Mac probe:p345 attacks with`
+      [...r.findings, ...sh.findings, ...sb.findings, ...tw.findings, ...st.findings],
+      `a local identity on every paired connection (${String(r.said.identityCalls)} exchange(s) with one, and POST /pair alone with none; ${String(r.said.connects)} connect( call(s) naming one, the writes' with the paired door's); the verify block completes with DoorPin's answer; TLS 1.3 the minimum and nothing older; a .ts.net name at 8443 or 10000, checked by the parse; one Content-Length required, Transfer-Encoding refused, Connection: close; hostile-door.mjs names ${String(r.said.arms.length)} HTTP arm(s) (${r.said.arms.join(', ')}), each ending in a Copy sentence, ${String(r.said.writeArms.length)} write arm(s), each ending where it names, in a Copy sentence or the door's own, ${String(r.said.replyArms.length)} reply arm(s), each with its verb and one POST, ending in the press line, the message line or Pairing, ${String(sh.said.arms.length)} Screen arm(s), each ending where it names, ${String(sb.said.arms.length)} scrollback arm(s), each ending in the live terminal drawn or the moved line, and the twin (${tw.said.arm ? 'its arm' : 'no arm'}, ${tw.said.flags.join(' and ') || 'no flag'}, ${tw.said.words.join(' and ') || 'no stdin word'}), the second Mac probe:p345 attacks with; and ${String(st.said.arms.length)} Start arm(s) (Phase 346), each a write with its POSTs counted where it is one`
     );
   }
   // (u)
@@ -16697,11 +17735,13 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     const sc = ruleScreenSentences(existsSync(DOOR_WORDS) ? read(DOOR_WORDS) : null, appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) })));
     // Phase 333.1 (D23): the Allow line is optional, and the Allow line or nothing.
     const rn = ruleReachNote(existsSync(DOOR_WORDS) ? read(DOOR_WORDS) : null);
+    // Phase 346: New session's line too (build/p346/SPEC.md §5.3).
+    const ss = ruleStartSentence(existsSync(DOOR_WORDS) ? read(DOOR_WORDS) : null, appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) })));
     record(
       'v',
       'the phone always draws a sentence',
-      [...r.findings, ...e.findings, ...rs.findings, ...sc.findings, ...rn],
-      `pairingSentence draws a Copy sentence for each of ${String(r.said.failures)} PairingFailure case(s) and stepSentence for each of ${String(r.said.steps)} PairingStep case(s), never nil or empty; PairingModel's line is a non-optional String, assigned a sentence ${String(r.said.assignments)} time(s); endSentence draws a sentence for each of ${String(e.said.cases)} WriteResult case(s), and End's two lines are assigned nil or a sentence ${String(e.said.assignments)} time(s), never empty; replySentence draws a sentence for each of ${String(rs.said.cases)} WriteResult case(s), and a reply's two lines are assigned nil or a sentence ${String(rs.said.assignments)} time(s), never empty; reachNote is String? and answers Copy.reachAllowAgain or nil`
+      [...r.findings, ...e.findings, ...rs.findings, ...sc.findings, ...rn, ...ss.findings],
+      `pairingSentence draws a Copy sentence for each of ${String(r.said.failures)} PairingFailure case(s) and stepSentence for each of ${String(r.said.steps)} PairingStep case(s), never nil or empty; PairingModel's line is a non-optional String, assigned a sentence ${String(r.said.assignments)} time(s); endSentence draws a sentence for each of ${String(e.said.cases)} WriteResult case(s), and End's two lines are assigned nil or a sentence ${String(e.said.assignments)} time(s), never empty; replySentence draws a sentence for each of ${String(rs.said.cases)} WriteResult case(s), and a reply's two lines are assigned nil or a sentence ${String(rs.said.assignments)} time(s), never empty; reachNote is String? and answers Copy.reachAllowAgain or nil; startSentence draws a sentence for each of ${String(ss.said.cases)} StartResult case(s), and New session's line is assigned nil or a sentence ${String(ss.said.assignments)} time(s), never empty`
     );
   }
   // (w)
@@ -16801,7 +17841,7 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
       'ab',
       'the write: one signed path, one id per write, handed only once withheld is asked, and never retried',
       r.findings,
-      `"POST" ${String(r.said.posts)} time(s), in present and signedPost alone; signedPost called ${String(r.said.signedPosts)} time(s), by DoorClient.end, choose and say alone, once each; WriteId.fresh() ${String(r.said.freshIds)} time(s), 16 random bytes bound to a local; the body encoded with sorted keys and exactly its keys in signedPost alone; the writer's end( ${String(r.said.writerEnds)} time(s), in EndRunner.run, never in a while; handed set ${String(r.said.handed)} time(s), in send() just before connection.send and after withheld is asked; withheld set ${String(r.said.withheld)} time(s), only while handed is false; the result classified by handed, and an answer taken only with its id echoed or "" with refused and malformed`
+      `"POST" ${String(r.said.posts)} time(s), in present and signedPost alone; signedPost called ${String(r.said.signedPosts)} time(s), by DoorClient.end, choose, say, keys and start alone, once each; WriteId.fresh() ${String(r.said.freshIds)} time(s), 16 random bytes bound to a local; the body encoded with sorted keys and exactly its keys in signedPost alone; the writer's end( ${String(r.said.writerEnds)} time(s), in EndRunner.run, never in a while; handed set ${String(r.said.handed)} time(s), in send() just before connection.send and after withheld is asked; withheld set ${String(r.said.withheld)} time(s), only while handed is false; the result classified by handed, and an answer taken only with its id echoed or "" with refused and malformed`
     );
   }
   // (ac)
@@ -16997,6 +18037,59 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     'each Mac is its own space',
     r.findings,
     `ba1 Route's ${String(r.said.routeCases)} case(s) each carry mac:, and ${String(r.said.routesBuilt)} Route(s) the app builds each name it; ba2 RootView.destination reads its reader through ${String(r.said.lookups)} lookup, space(route.mac), and no reader, spaces, app.reader or chosen, and ${String(r.said.searches)} search(es) over the spaces name no session's row, list, route or tap; ba3 ${String(r.said.stacks)} NavigationStack(s) in the tabs, each carrying the space's .id(; ba4 pairedReader() called by PhoneDoor's extension default alone; ba5 macSends read ${String(r.said.macSendsReads)} time(s), in alertTarget, checkAlertAddress, readAlertPermission and Settings' drawing alone; ba6 the Macs tab's badge app.otherMacsWaiting, folded through DoorNumber.sum with no +; ba7 PairingStore.macLimit = ${String(MAC_LIMIT)}, declared once, and no Mac count compared with 4 or 5; ba8 ${String(r.said.accountsWritten)} record write(s), each to pairing-v2, an account the store listed, or pairing-v2- and the phone's own random hex, made where nothing a Mac sent is named; ba9 sweepOrphans() ${String(r.said.sweeps)} time(s), in AppModel.launch after forgetOnFreshInstall( and before LiveDoor(; ba10 door.unpair(name:) ${String(r.said.unpairs)} time(s), in AppModel.unpair and AppModel.replaceRefused alone, replaceRefused( by AppModel.paired alone, and ${String(r.said.routedRefusals)} refusal(s) and pop(s) a routing hands back, each behind speaks(`
+  );
+}
+
+// Phase 346: (bb), start a session from the phone (build/p346/SPEC.md §5.3),
+// pushed as (ba) is, so 337.5's edits to RULE_IDS merge with no conflict.
+RULE_IDS.push('bb');
+if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
+  record('bb', 'the app', [`${rel(IOS)} does not exist, so there is no app to read`], '');
+} else {
+  // bb8: the ROOT's own marks writer over the ROOT's own sources, spawned as
+  // (j) spawns vectors.mjs, so a clone the ablation made is judged against
+  // itself and never against this tree.
+  const writer = join(ROOT, 'build', 'p346', 'agent-marks.mjs');
+  const w = existsSync(writer)
+    ? spawnSync(process.execPath, [writer, '--check'], { cwd: ROOT, encoding: 'utf8', timeout: 120_000 })
+    : { status: 1, stdout: '', stderr: `${rel(writer)} does not exist` };
+  const out = `${w.stdout ?? ''}${w.stderr ?? ''}`.trim().split('\n').filter((l) => l.trim() !== '');
+  const marksCheck = { status: w.status ?? 1, line: w.status === 0 ? (out[out.length - 1] ?? '') : out.slice(-3).join(' ') || `agent-marks.mjs ended by ${String(w.signal ?? 'nothing')}` };
+  const dir = join(APP, AGENT_MARKS_CATALOG);
+  let catalog = null;
+  if (existsSync(dir) && statSync(dir).isDirectory()) {
+    catalog = { root: existsSync(join(dir, 'Contents.json')), sets: {}, colorsets: [] };
+    const colours = (d, at) => {
+      for (const e of readdirSync(d)) {
+        const q = join(d, e);
+        if (e.endsWith('.colorset')) catalog.colorsets.push(`${at}${e}`);
+        if (statSync(q).isDirectory()) colours(q, `${at}${e}/`);
+      }
+    };
+    colours(dir, '');
+    for (const e of readdirSync(dir)) {
+      if (e === 'Contents.json' || e.endsWith('.colorset')) continue;
+      const q = join(dir, e);
+      if (!statSync(q).isDirectory()) {
+        catalog.sets[e] = { files: [], contents: null };
+        continue;
+      }
+      let contents = null;
+      try {
+        contents = JSON.parse(read(join(q, 'Contents.json')));
+      } catch {
+        contents = null;
+      }
+      catalog.sets[e] = { files: readdirSync(q).sort(), contents };
+    }
+  }
+  const others = allText.filter((q) => !q.endsWith('.swift')).map((q) => ({ name: rel(q), text: read(q) }));
+  const r = ruleStart(appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) })), { catalog, marksCheck, others });
+  record(
+    'bb',
+    'New session starts one session on the Mac on screen, asks no Face ID, and sends two ids and a write id',
+    r.findings,
+    `bb1 the starter's start( ${String(r.said.starterCalls)} time(s), in StartRunner.run, never in a loop; StartBody agent, project, write, built in signedPost with sorted keys; StartResult.of by handed, verb start and the echo; bb2 no owner check in ${START_FILES.join(', ')} or startSetup; bb3 ${String(r.said.runners)} StartRunner( made, each registered before its task, stopped by wentAway; keptStart set ${String(r.said.keptSets)} time(s), non-nil only from a start's own noAnswer or a busy on a kept id, held by KeptStart.window (60 s) over the Mac, the project and the agent; nothing persisted; bb4 two ids and a write id; bb5 the sessions answer's start decoded once, inside try? with decodeIfPresent; bb6 the "+" made ${String(r.said.plus)} time(s), in SessionsScreen's title, behind the offer, off while End these takes taps, identified start-open; bb7 no URL scheme, App Intent, Shortcut, widget or notification action; bb8 ${String(r.said.marks)} mark set(s) in ${AGENT_MARKS_CATALOG}, each one template vector, ${marksCheck.status === 0 ? `agent-marks.mjs --check passed (${marksCheck.line})` : 'agent-marks.mjs --check did not pass'}; bb9 openStarted called ${String(r.said.openers)} time(s), from startSetup, pushing .session(mac: on .sessions from the done arm alone; bb10 the sample's start answers not taken`
   );
 }
 

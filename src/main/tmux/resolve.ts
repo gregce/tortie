@@ -743,6 +743,13 @@ export function loginShellEnvNames(): Promise<CaptureEnvNamesResult> {
 
 let userPathPromise: Promise<string> | null = null;
 let userPathGeneration = 0;
+/**
+ * The PATH the current capture SETTLED to, or null while none has (Phase 346,
+ * build/p346/SPEC.md §4.5, D8). Written only when the capture this slot's
+ * promise holds resolves, so a `resetUserPathCache()` that replaced or dropped
+ * that promise clears it and a capture it left behind can never write it.
+ */
+let settledUserPath: string | null = null;
 
 /**
  * How the last {@link captureLoginShellPath} settled, and which program it
@@ -774,9 +781,30 @@ export function userPathShell(): string | null {
 export function getUserPath(): Promise<string> {
   if (userPathPromise === null) {
     userPathGeneration += 1;
-    userPathPromise = captureLoginShellPath();
+    const capture = captureLoginShellPath();
+    userPathPromise = capture;
+    // PHASE 346: remember the answer for `userPathNow`, only while this capture
+    // is still the one the slot holds. The promise handed out is unchanged.
+    void capture.then(
+      (path) => {
+        if (userPathPromise === capture) settledUserPath = path;
+      },
+      () => undefined
+    );
   }
   return userPathPromise;
+}
+
+/**
+ * The captured login-shell PATH once a capture has SETTLED, and null before
+ * (Phase 346, build/p346/SPEC.md §4.5, D8). SYNCHRONOUS AND IT STARTS NOTHING:
+ * it never begins a capture and never waits on one, which is what
+ * {@link getUserPath}'s first call would do. Read by the phone's offer alone,
+ * which must say what is installed without starting a login shell; boot starts
+ * the capture in `ensureServer`, so it answers within a second of launch.
+ */
+export function userPathNow(): string | null {
+  return settledUserPath;
 }
 
 /**
@@ -795,6 +823,7 @@ export function userPathEpoch(): number {
 export function resetUserPathCache(): void {
   userPathPromise = null;
   lastCapture = null;
+  settledUserPath = null;
 }
 
 // ---------------------------------------------------------------------------

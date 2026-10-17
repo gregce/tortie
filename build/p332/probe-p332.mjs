@@ -120,6 +120,7 @@ import { gradeFixtures } from '../probe-graders.mjs';
 import { doorFrom, makePhone, pairThrough, readOffer, signedGet } from '../p316/node-phone.mjs';
 import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, processRows, watchForRealTailscale } from '../p330/tailscale-standin.mjs';
 import { NAME_SERVERS_VAR, STANDIN_ADDRESS, loopbackOnlyServers, makeDnsStandin, makeResolverModel, nameQuestionProblems, quietAgentsHeld, writeQuietAgents } from './dns-standin.mjs';
+import { scratchShellEnv } from '../scratch-login.mjs';
 
 const HERE = fileURLToPath(import.meta.url);
 const ROOT = resolve(dirname(HERE), '..', '..');
@@ -830,6 +831,10 @@ function launchOptions(label) {
     env: withoutDevRenderer({
       ...INHERITED_CLAUDE,
       HOME,
+      // Phase 346's ruled round: the login shell the app asks is the scratch HOME's (zsh reads
+      // $ZDOTDIR/.zprofile), with no history and no Terminal session. This probe plants no agent and starts
+      // no session, so it has no stand-in to resolve.
+      ...scratchShellEnv(HOME),
       GMUX_TMUX_SOCKET: SOCKET,
       GMUX_PROBES: '1',
       GMUX_LOG_FILE: '1',

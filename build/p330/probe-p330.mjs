@@ -151,6 +151,7 @@ import { gradeFixtures } from '../probe-graders.mjs';
 import { adoptCertificate, doorFrom, fingerprintDigits, makePhone, pageBack, pairThrough, readOffer, signedGet } from '../p316/node-phone.mjs';
 import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, processRows, realTailscaleIn, watchForRealTailscale } from './tailscale-standin.mjs';
 import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin, nameQuestionsSelfTest, nameQuestionsVerdict, quietAgentsHeld, writeQuietAgents } from '../p332/dns-standin.mjs';
+import { plantedResolve, scratchShellEnv } from '../scratch-login.mjs';
 
 const HERE = fileURLToPath(import.meta.url);
 const ROOT = resolve(dirname(HERE), '..', '..');
@@ -1188,6 +1189,8 @@ function launchOptions(label) {
     env: withoutDevRenderer({
       ...INHERITED_CLAUDE,
       HOME,
+      // Phase 346's ruled round: zsh reads $ZDOTDIR/.zprofile, so the scratch HOME's or the stand-in is on no PATH.
+      ...scratchShellEnv(HOME),
       GMUX_TMUX_SOCKET: SOCKET,
       GMUX_PROBES: '1',
       GMUX_LOG_FILE: '1',
@@ -1288,7 +1291,19 @@ exit 0
   );
   chmodSync(join(BIN, 'claude'), 0o755);
   writeFileSync(join(HOME, '.zprofile'), `export PATH="${BIN}:$PATH"\n`, 'utf8');
-  writeFileSync(join(HOME, '.zshrc'), `export PATH="${BIN}:$PATH"\n`, 'utf8');
+  writeFileSync(join(HOME, '.zshrc'), `export PATH="${BIN}:$PATH"\nexport HISTFILE=/dev/null\n`, 'utf8');
+  // THE PRECONDITION (Phase 346's ruled round): the login shell the app will ask, with the environment it will be given, resolves every agent this run plants to its stand-in, or nothing is launched (exit 2). On 2026-10-16 a ZDOTDIR probe:p313 did not set started his real Claude Code in both of its claude sessions.
+  {
+    const asked = plantedResolve({ home: HOME, bin: BIN, names: ['claude'], env: INHERITED_CLAUDE });
+    if (!asked.ok) {
+      watch?.stop();
+      await dns?.close();
+      console.error(`${TAG} REFUSED. ${asked.said}, so a session would start a real agent. Nothing is launched.`);
+      rmSync(RUN, { recursive: true, force: true });
+      process.exit(2);
+    }
+    say(asked.said);
+  }
   const git = (args) => spawnSync('git', args, { cwd: PROJECT, encoding: 'utf8', env: { ...process.env, HOME } });
   git(['init', '-q']);
   writeFileSync(join(PROJECT, 'note.txt'), 'hello\n');

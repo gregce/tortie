@@ -586,6 +586,18 @@
       "nonce": "83370f05f628a57e9d365b0db18e628c",
       "canonical": "tortie-pocket-req-v1\nGET\n/v1/scrollback?id=4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02&from=2861&count=108&depth=2969&wrap=120&keep=bottom\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n1790000045000\n83370f05f628a57e9d365b0db18e628c\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
       "signature": "B0fyaqgOMjt_4Mt9evVHdmrxB6WCXHihzkjaUqb8vaSX59TyGu9baL0b87kF1ujgTDqeeRWrxb8PNAcLkHoJBg"
+    },
+    {
+      "name": "start",
+      "method": "POST",
+      "target": "/v1/start",
+      "id": null,
+      "body": "{\"agent\":\"claude\",\"project\":\"7c1e9a40-2b5d-4f6e-9a3c-0d8e1f2a3b4c\",\"write\":\"69e4c12c2b6e6c1f0df8489493e344dc\"}",
+      "bodySha256": "59e39e7458ce2fa460a8f8e85a62389824f0ea16482b21c75a87657e558dc886",
+      "timestamp": "1790000046000",
+      "nonce": "16c8475b49218341b61d5a7fe7df9c42",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/start\n59e39e7458ce2fa460a8f8e85a62389824f0ea16482b21c75a87657e558dc886\n1790000046000\n16c8475b49218341b61d5a7fe7df9c42\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "PAoTrjo3MuO4wImWzM-qSbabBI-crqT_3i6ybGJzxseQ2PiqpyoHpeyphxpYQN2lOG9oVlRN1BLv4D0KWpr7AA"
     }
   ],
   "tampered": {
@@ -770,6 +782,22 @@
     "end-malformed": {
       "json": "{\"verb\":\"end\",\"write\":\"\",\"outcome\":\"refused\",\"reason\":\"malformed\",\"sentence\":\"Your Mac could not read that request. Nothing was done.\"}",
       "withUnknown": "{\"verb\":\"end\",\"write\":\"\",\"outcome\":\"refused\",\"reason\":\"malformed\",\"sentence\":\"Your Mac could not read that request. Nothing was done.\",\"futureField\":{\"nested\":[1,2,3],\"note\":\"a newer Mac\"}}"
+    },
+    "start-done": {
+      "json": "{\"verb\":\"start\",\"write\":\"69e4c12c2b6e6c1f0df8489493e344dc\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null,\"session\":{\"id\":\"9e2d4c6b-1a3f-4e5d-8c7b-6a5f4e3d2c1b\",\"name\":\"claude-3\"}}",
+      "withUnknown": "{\"verb\":\"start\",\"write\":\"69e4c12c2b6e6c1f0df8489493e344dc\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null,\"session\":{\"id\":\"9e2d4c6b-1a3f-4e5d-8c7b-6a5f4e3d2c1b\",\"name\":\"claude-3\",\"futureRowField\":\"ignored\"},\"futureField\":{\"nested\":[1,2,3],\"note\":\"a newer Mac\"}}"
+    },
+    "start-refused-project": {
+      "json": "{\"verb\":\"start\",\"write\":\"69e4c12c2b6e6c1f0df8489493e344dc\",\"outcome\":\"refused\",\"reason\":\"project\",\"sentence\":\"That project is not open on your Mac any more. Nothing was started.\",\"session\":null}",
+      "withUnknown": "{\"verb\":\"start\",\"write\":\"69e4c12c2b6e6c1f0df8489493e344dc\",\"outcome\":\"refused\",\"reason\":\"project\",\"sentence\":\"That project is not open on your Mac any more. Nothing was started.\",\"session\":null,\"futureField\":{\"nested\":[1,2,3],\"note\":\"a newer Mac\"}}"
+    },
+    "start-busy": {
+      "json": "{\"verb\":\"start\",\"write\":\"69e4c12c2b6e6c1f0df8489493e344dc\",\"outcome\":\"busy\",\"reason\":null,\"sentence\":\"Your Mac is starting another session. Nothing was started.\",\"session\":null}",
+      "withUnknown": "{\"verb\":\"start\",\"write\":\"69e4c12c2b6e6c1f0df8489493e344dc\",\"outcome\":\"busy\",\"reason\":null,\"sentence\":\"Your Mac is starting another session. Nothing was started.\",\"session\":null,\"futureField\":{\"nested\":[1,2,3],\"note\":\"a newer Mac\"}}"
+    },
+    "start-malformed": {
+      "json": "{\"verb\":\"start\",\"write\":\"\",\"outcome\":\"refused\",\"reason\":\"malformed\",\"sentence\":\"Your Mac could not read that request. Nothing was done.\",\"session\":null}",
+      "withUnknown": "{\"verb\":\"start\",\"write\":\"\",\"outcome\":\"refused\",\"reason\":\"malformed\",\"sentence\":\"Your Mac could not read that request. Nothing was done.\",\"session\":null,\"futureField\":{\"nested\":[1,2,3],\"note\":\"a newer Mac\"}}"
     }
   },
   "alerts": [

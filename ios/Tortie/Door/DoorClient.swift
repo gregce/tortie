@@ -76,6 +76,16 @@
 //   WITHHELD because the app left the screen before its bytes were handed:
 //   nothing keeps the app running to finish one, conformance:ios rule l).
 //
+//   AND SINCE PHASE 346 A FIFTH, `POST /v1/start` (build/p346/SPEC.md D1, D5,
+//   D6, D17): ask the Mac to start ONE session, naming a project it offered
+//   and an agent installed where that project lives, through the same one
+//   `signedPost`. Its body is exactly `{agent, project, write}`: nothing on the
+//   phone chooses a path, a flag, a name, a login or a machine. Its answer is
+//   `PocketStartAnswer`, read by `StartResult` exactly as `WriteResult` reads
+//   a session write's, by whether the bytes were handed. A start whose answer
+//   did not come is the one other write ever sent again under its own id
+//   (`KeptStart`, Screens/Start.swift), and only on his own press.
+//
 // It never logs: not a header, not a key, not a signature, not a line of the
 // conversation. Its failures are `DoorFailure` cases with no words in them;
 // the screens draw each one with a sentence from Copy.swift.
@@ -264,7 +274,7 @@ final class DoorClient: DoorExchanging {
     /// End gates over its own row and ends it with its own verb; `batch` asks
     /// for End these' one narrowing (build/p317/SPEC.md D14). Never retried.
     func end(_ sessionId: String, batch: Bool, door: PairedDoor) async -> WriteResult {
-        await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits, write: nil).result
+        await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits, write: nil).asWrite(verb: .end).result
     }
 
     // MARK: The reply writes (Phase 318), signed, over the identity
@@ -277,7 +287,7 @@ final class DoorClient: DoorExchanging {
     /// already refuses a second act.
     func choose(_ sessionId: String, question: String, mark: String, marker: String, door: PairedDoor) async -> WriteResult {
         let route = WriteRoute.choose(session: sessionId, question: question, mark: mark, marker: marker)
-        return await signedPost(route: route, door: door, limits: limits, write: nil).result
+        return await signedPost(route: route, door: door, limits: limits, write: nil).asWrite(verb: route.verb).result
     }
 
     /// `POST /v1/say`: ONE message, exactly the words given. `write` is nil
@@ -287,7 +297,7 @@ final class DoorClient: DoorExchanging {
     /// twice (Revision R13). A kept id that is not well formed is not used.
     /// The result carries the id the write went with, for the model to keep.
     func say(_ sessionId: String, text: String, write: String?, door: PairedDoor) async -> SentWrite {
-        await signedPost(route: .say(session: sessionId, text: text), door: door, limits: limits, write: write)
+        await signedPost(route: .say(session: sessionId, text: text), door: door, limits: limits, write: write).asWrite(verb: .say)
     }
 
     // MARK: The Screen (Phase 337), on its two kept lines
@@ -310,7 +320,20 @@ final class DoorClient: DoorExchanging {
     /// fresh write id, never retried and never a kept id.
     func keys(_ sessionId: String, keys: [KeyItem], turn: String, dialog: String?, line: DoorLine, door: PairedDoor) async -> WriteResult {
         let route = WriteRoute.keys(session: sessionId, keys: keys, turn: turn, dialog: dialog)
-        return await signedPost(route: route, door: door, limits: limits, write: nil, line: line).result
+        return await signedPost(route: route, door: door, limits: limits, write: nil, line: line).asWrite(verb: route.verb).result
+    }
+
+    // MARK: The start (Phase 346), signed, over the identity
+
+    /// `POST /v1/start`: ask the Mac to start ONE session in `project` with
+    /// `agent`, each an id the Mac offered, sent back verbatim; the Mac re-reads
+    /// both and builds everything else itself (build/p346/SPEC.md D12, D13).
+    /// `write` is nil for a new start, which `signedPost` gives a fresh id; it
+    /// is the id a start whose answer did not come carried (`KeptStart`), so
+    /// the Mac answers what it recorded instead of starting a second session
+    /// (D17). A kept id that is not well formed is not used. Never retried.
+    func start(project: String, agent: String, write: String?, door: PairedDoor) async -> SentStart {
+        await signedPost(route: .start(project: project, agent: agent), door: door, limits: limits, write: write).asStart
     }
 
     // MARK: The Terminal's history (Phase 337.1), on its side line
@@ -361,6 +384,8 @@ final class DoorClient: DoorExchanging {
     static let chooseTarget = "/v1/choose"
     static let sayTarget = "/v1/say"
     static let keysTarget = "/v1/keys"
+    /// Phase 346: start one session.
+    static let startTarget = "/v1/start"
 
     static func sessionTarget(_ sessionId: String) -> String {
         "/v1/session?id=\(queryValue(sessionId))"
@@ -468,23 +493,25 @@ final class DoorClient: DoorExchanging {
     /// build/p318/SPEC.md section 5.7.1 and build/p337/SPEC.md section 5.8.2):
     /// a write id, the body with sorted keys, the signature over `POST`, the
     /// path and the body, and the phone's identity presented. Called by `end`,
-    /// `choose`, `say` and `keys` alone, once per press, and never in a loop:
-    /// nothing retries a write. A keys write goes on the Screen's kept `line`,
+    /// `choose`, `say`, `keys` and, since Phase 346, `start` alone, once per
+    /// press, and never in a loop: nothing retries a write. It answers how the
+    /// exchange ended (`PostEnd`), which each verb reads as its own result. A keys write goes on the Screen's kept `line`,
     /// which carries it only while idle under 4 s (`DoorLine`), and is never
     /// sent again on another.
     ///
-    /// THE ID. `end`, `choose` and `keys` always pass nil, and so does a new
-    /// message: `WriteId.fresh()` makes one here. The one id that is ever
-    /// handed in is a message's whose answer did not come (Revision R13), used
-    /// as it is when it is well formed; anything else gets a fresh one.
-    private func signedPost(route: WriteRoute, door: PairedDoor, limits: DoorLimits, write kept: String?, line: DoorLine? = nil) async -> SentWrite {
+    /// THE ID. `end`, `choose` and `keys` always pass nil, and so do a new
+    /// message and a new start: `WriteId.fresh()` makes one here. The ids that
+    /// are ever handed in are a message's or a start's whose answer did not
+    /// come (Revision R13, build/p346/SPEC.md D17), used as they are when well
+    /// formed; anything else gets a fresh one.
+    private func signedPost(route: WriteRoute, door: PairedDoor, limits: DoorLimits, write kept: String?, line: DoorLine? = nil) async -> PostEnd {
         // Not one id per phone or per session: one per call, kept only by a
         // say whose answer did not come.
         let id: String
         if let kept, WriteId.isWellFormed(kept) {
             id = kept
         } else {
-            guard let minted = WriteId.fresh() else { return SentWrite(result: .notSent(.notPaired), write: nil) }
+            guard let minted = WriteId.fresh() else { return .notSent(.notPaired, write: nil) }
             id = minted
         }
         let body: Data
@@ -501,6 +528,8 @@ final class DoorClient: DoorExchanging {
                 body = try encoder.encode(SayBody(session: session, text: text, write: id))
             case .keys(let session, let keys, let turn, let dialog):
                 body = try encoder.encode(KeysBody(dialog: dialog, keys: keys, session: session, turn: turn, write: id))
+            case .start(let project, let agent):
+                body = try encoder.encode(StartBody(agent: agent, project: project, write: id))
             }
             headers = try door.signer.headers(
                 method: "POST",
@@ -510,7 +539,7 @@ final class DoorClient: DoorExchanging {
                 nonce: DoorSignature.freshNonce()
             )
         } catch {
-            return SentWrite(result: .notSent(.notPaired), write: id)
+            return .notSent(.notPaired, write: id)
         }
         // A write presents the phone's identity too (conformance:ios t).
         let ended: ExchangeEnd
@@ -521,9 +550,9 @@ final class DoorClient: DoorExchanging {
             )
         } catch {
             // Nothing was dialled, so nothing was handed.
-            return SentWrite(result: .notSent(error as? DoorFailure ?? .notPaired), write: id)
+            return .notSent(error as? DoorFailure ?? .notPaired, write: id)
         }
-        return SentWrite(result: WriteResult.of(ended, verb: route.verb, sent: id), write: id)
+        return .ended(ended, write: id)
     }
 
     /// One request over one new connection, one answer under the caps, or a
@@ -662,6 +691,9 @@ enum WriteRoute: Equatable, Sendable {
     /// Phase 337: one batch of keys, with the question id and the window's
     /// mark of the picture they were typed against.
     case keys(session: String, keys: [KeyItem], turn: String, dialog: String?)
+    /// Phase 346: one session, in a project the Mac offered, with an agent
+    /// installed there. Two ids, and nothing else.
+    case start(project: String, agent: String)
 
     var target: String {
         switch self {
@@ -669,16 +701,20 @@ enum WriteRoute: Equatable, Sendable {
         case .choose: DoorClient.chooseTarget
         case .say: DoorClient.sayTarget
         case .keys: DoorClient.keysTarget
+        case .start: DoorClient.startTarget
         }
     }
 
-    /// The verb the Mac's answer must name.
-    var verb: PocketWriteAnswer.Verb {
+    /// The verb a session write's answer must name. Nil for a start, whose
+    /// answer is `PocketStartAnswer` and whose classifier (`StartResult.of`)
+    /// reads its own verb and never this one.
+    var verb: PocketWriteAnswer.Verb? {
         switch self {
         case .end: .end
         case .choose: .choose
         case .say: .say
         case .keys: .keys
+        case .start: nil
         }
     }
 }
@@ -742,6 +778,19 @@ struct KeysBody: Encodable, Sendable {
     }
 }
 
+/// `POST /v1/start`'s body (Phase 346, D6): exactly these three keys
+/// (`agent,project,write`), read strictly by the Mac, which refuses any other
+/// key, an agent that is not one of its compiled launchable ids and a project
+/// id that is not 1 to 64 of `[A-Za-z0-9-]`, all before its ledger. `project`
+/// and `agent` are the ids the offer carried, sent back verbatim. No path,
+/// flag, name, login or machine: nothing on the phone chooses one. Encoded
+/// with sorted keys.
+struct StartBody: Encodable, Sendable {
+    let agent: String
+    let project: String
+    let write: String
+}
+
 /// A write's id: 128 bits from the system's random source, as 32 lowercase
 /// hex. One per call and never reused for another write, so a press is a new
 /// id and the Mac's ledger answers a repeat of an id with its first answer.
@@ -795,7 +844,7 @@ enum WriteResult: Equatable, Sendable {
     /// a failure before the bytes were handed is `notSent`, after it
     /// `noAnswer`. A 200 is an answer only when its verb is this write's and
     /// it echoes the id this write carried.
-    static func of(_ end: ExchangeEnd, verb: PocketWriteAnswer.Verb, sent: String) -> WriteResult {
+    static func of(_ end: ExchangeEnd, verb: PocketWriteAnswer.Verb?, sent: String) -> WriteResult {
         switch end.result {
         case .failure(let error):
             guard end.handed else { return .notSent(error as? DoorFailure ?? .notPaired) }
@@ -831,6 +880,93 @@ extension PocketWriteAnswer {
 /// `write` is nil only when no id could be made, so nothing was sent.
 struct SentWrite: Equatable, Sendable {
     let result: WriteResult
+    let write: String?
+}
+
+/// How the one write path ended, before a verb reads it (Phase 346): it
+/// failed before its bytes could be handed, so nothing was sent, or a
+/// connection ran and its end says whether they were. Each verb reads it as
+/// its own result: a session write as `WriteResult`, a start as
+/// `StartResult`. `write` is the id it went with, nil only when none could
+/// be made.
+enum PostEnd: Sendable {
+    case notSent(DoorFailure, write: String?)
+    case ended(ExchangeEnd, write: String)
+
+    /// A session write's result (Phase 317's `WriteResult.of`), read
+    /// against the verb its route names.
+    func asWrite(verb: PocketWriteAnswer.Verb?) -> SentWrite {
+        switch self {
+        case .notSent(let failure, let write):
+            SentWrite(result: .notSent(failure), write: write)
+        case .ended(let end, let write):
+            SentWrite(result: WriteResult.of(end, verb: verb, sent: write), write: write)
+        }
+    }
+
+    /// A start's result (Phase 346's `StartResult.of`).
+    var asStart: SentStart {
+        switch self {
+        case .notSent(let failure, let write):
+            SentStart(result: .notSent(failure), write: write)
+        case .ended(let end, let write):
+            SentStart(result: StartResult.of(end, sent: write), write: write)
+        }
+    }
+}
+
+/// What is TRUE of one start once it ended (Phase 346, D25), classified
+/// exactly as `WriteResult` is. Never retried, whatever it is.
+enum StartResult: Equatable, Sendable {
+    /// 200, and the answer named the start and echoed the id this start
+    /// carried (or `""` with `refused` `malformed`): what the Mac decided, in
+    /// its own words, and on `done` the session it made.
+    case answered(PocketStartAnswer)
+    /// 404: the door's own refusal, made before anything was started.
+    case notTaken
+    /// The bytes were handed to the connection and no answer this build can
+    /// read came back: the Mac may have started the session, once.
+    case noAnswer
+    /// It failed BEFORE its bytes were handed, so the Mac saw none of it.
+    /// `.cancelled` is a start WITHHELD because the app left.
+    case notSent(DoorFailure)
+
+    /// The start was withheld when the app left: never sent.
+    var withheld: Bool {
+        self == .notSent(.cancelled)
+    }
+
+    /// One exchange's end, read as a start's result. Classified by `handed`:
+    /// a failure before the bytes were handed is `notSent`, after it
+    /// `noAnswer`. A 200 is an answer only when it names the start and echoes
+    /// the id this start carried.
+    static func of(_ end: ExchangeEnd, sent: String) -> StartResult {
+        switch end.result {
+        case .failure(let error):
+            guard end.handed else { return .notSent(error as? DoorFailure ?? .notPaired) }
+            return .noAnswer
+        case .success(let reply):
+            switch reply.status {
+            case 200:
+                guard let answer = try? JSONDecoder().decode(PocketStartAnswer.self, from: reply.body),
+                      answer.verb == "start",
+                      answer.write == sent || answer.echoesNoId else { return .noAnswer }
+                return .answered(answer)
+            case 404:
+                return .notTaken
+            default:
+                return .noAnswer
+            }
+        }
+    }
+}
+
+/// What one start came to, and the id it went with (Phase 346, D17): a start
+/// whose answer did not come is sent again under the SAME id on his next
+/// press of Try again, so the Mac answers what it recorded and starts nothing
+/// twice. `write` is nil only when no id could be made, so nothing was sent.
+struct SentStart: Equatable, Sendable {
+    let result: StartResult
     let write: String?
 }
 

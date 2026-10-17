@@ -118,7 +118,6 @@ import { resolveFunnelProgram } from '../pocket/funnel';
 import { PocketHost } from '../pocket/ipc';
 import { nameServersFrom } from '../pocket/public-name';
 import {
-  pocketConfirmStatus,
   readPocketStore,
   sealPresentationAsPhone,
   type PocketSealedPresentation
@@ -639,11 +638,19 @@ function presentationOf(body: Buffer): PocketSealedPresentation | null {
  * record is written before `confirmDoor`'s first await, so the state read
  * straight after is the new one; the rest of that call opens only a door that
  * is switched on, and this seam's door is off whenever this is called.
+ *
+ * PHASE 346 (build/p346/SPEC.md D31; Phase 333.12 D16 named it): it agrees to
+ * the PROPOSAL the sheet draws, `status().confirmLines` and `confirmHash`,
+ * never `fields()`'s own. From Phase 346 a first setup proposes every route
+ * this build has, `start` among them, and that is not `fields()` (which holds
+ * the eleven a store with no record reads as), so the hash `fields()` gives is
+ * not the proposal's and `confirmDoor` refuses it. A door whose agreement is on
+ * record reads `confirmed` and is left as it is, with `start` waiting.
  */
 function confirmNow(host: PocketHost): string {
-  const gate = pocketConfirmStatus(host.fields());
-  if (gate.state !== 'confirmed') {
-    void host.confirmDoor({ linesRead: gate.lines, hashRead: gate.hash });
+  const status = host.status();
+  if (status.confirmState !== 'confirmed') {
+    void host.confirmDoor({ linesRead: status.confirmLines, hashRead: status.confirmHash }).catch(() => undefined);
   }
   return host.status().confirmState;
 }
@@ -709,9 +716,10 @@ export async function openDoorForPairing(
   }
   await host.setDoor({ on: true });
   await host.idle();
-  const gate = pocketConfirmStatus(host.fields());
-  if (gate.state !== 'confirmed') {
-    await host.confirmDoor({ linesRead: gate.lines, hashRead: gate.hash });
+  // PHASE 346 (D31): the proposal the sheet draws, as `confirmNow` agrees to it.
+  const status = host.status();
+  if (status.confirmState !== 'confirmed') {
+    await host.confirmDoor({ linesRead: status.confirmLines, hashRead: status.confirmHash });
     await host.idle();
   }
   const state = host.status().state;

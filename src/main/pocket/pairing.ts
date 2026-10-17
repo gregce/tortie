@@ -417,12 +417,18 @@ export interface PocketDoorSummary {
  * EXPORTED SINCE PHASE 333.12 (build/p33312/SPEC.md §5.4) so the gate that
  * holds the route ledger (`./route-ledger.ts`) to it can read it. An id's
  * clause is part of its meaning: it is never edited, only a new id added.
+ *
+ * `start` (Phase 346, build/p346/SPEC.md D3) names the reach to other
+ * machines, because a start may run on one. It is said last, after `keys`,
+ * and only once a person allowed it: the lines name only the allowed routes,
+ * so a store that never allowed it reads and hashes as it did before.
  */
 export const WRITE_CLAUSES: Readonly<Record<PocketWriteRouteId, string>> = Object.freeze({
   end: 'end a session',
   choose: 'answer a numbered question',
   say: 'send a session one message',
-  keys: 'type into any session as you would at this Mac'
+  keys: 'type into any session as you would at this Mac',
+  start: 'start a session in a project open in Tortie, on this Mac or another machine'
 });
 
 /**

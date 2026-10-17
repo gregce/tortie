@@ -220,7 +220,8 @@ describe('a write the door forwards', () => {
   });
 
   it('holds the write to its OWN route’s cap, and lets a body exactly at the cap through', () => {
-    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768, keys: 16_384 });
+    // Phase 346 added `start`, 512 (build/p346/SPEC.md D6).
+    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512 });
     expect(Object.isFrozen(POCKET_WRITE_BODY_CAPS)).toBe(true);
     expect(doorRequestOf(write({ body: new Uint8Array(512) }))).not.toBeNull();
     expect(doorRequestOf(write({ body: new Uint8Array(513) }))).toBeNull();

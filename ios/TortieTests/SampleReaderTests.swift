@@ -95,6 +95,40 @@ final class SampleReaderTests: XCTestCase {
         XCTAssertEqual(sessions.rows.map(\.sessionId), ["s-wait", "s-idle", "s-done"])
     }
 
+    /// Phase 346 (D28, his answer 11): the sample is its own starter, through
+    /// `any DoorReading` as the app holds it, and its start is not taken, with
+    /// no write id: nothing leaves the phone.
+    func testTheSamplesStartIsNotTakenAndCarriesNoWriteId() async throws {
+        let reading: any DoorReading = reader()
+        let starter = try XCTUnwrap(reading.starter, "the sample draws no New session")
+        XCTAssertTrue(starter is SampleReader)
+        let sent = await starter.start(project: "sample-project-lighthouse", agent: "claude", write: nil)
+        XCTAssertEqual(sent, SentStart(result: .notTaken, write: nil))
+        let again = await starter.start(project: "sample-project-lighthouse", agent: "claude", write: "kept")
+        XCTAssertEqual(again, SentStart(result: .notTaken, write: nil))
+        XCTAssertEqual(DoorWords.startSentence(for: sent.result, sample: true), Copy.startSample)
+    }
+
+    /// Phase 346 (D28): the bundled book offers New session over the made-up
+    /// world, composed by the Mac's own `composeStartOffer`: its two projects
+    /// on this Mac, the world's two agents installed there, and the project
+    /// of the latest session chosen.
+    func testTheBundledBookOffersNewSession() async throws {
+        let sample = try XCTUnwrap(SampleReader.bundled())
+        let answer = try await sample.sessions(.standard)
+        let offer = try XCTUnwrap(answer.start?.offer, "the bundled book carries no start offer: run node build/p3333/sample.mjs")
+        XCTAssertEqual(offer.projects.map(\.label), ["lighthouse", "orchard"])
+        XCTAssertEqual(offer.places.map(\.id), ["local"])
+        XCTAssertEqual(offer.places.first?.ready, true)
+        XCTAssertEqual(offer.places.first?.agents, ["claude", "codex"])
+        XCTAssertEqual(offer.agents.map(\.icon), ["claude", "codex"])
+        XCTAssertEqual(offer.chosen, offer.projects.first { $0.label == "lighthouse" }?.id)
+        XCTAssertEqual(offer.defaultAgent, "claude")
+        for agent in offer.agents {
+            XCTAssertNotNil(AgentMark.assets[agent.icon], "\(agent.icon) draws no mark")
+        }
+    }
+
     /// D10: no sample session offers a message, and `say` is not taken, with
     /// no write id.
     func testSayIsNotTakenAndCarriesNoWriteId() async {

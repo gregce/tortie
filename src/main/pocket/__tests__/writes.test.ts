@@ -75,6 +75,7 @@ const { REPLY_FAILED } = await import('@shared/reply-copy');
 type PocketWriteDeps = import('../writes').PocketWriteDeps;
 type PocketEndOutcome = import('../routes').PocketEndOutcome;
 type PocketReplyOutcome = import('../routes').PocketReplyOutcome;
+type PocketStartOutcome = import('../routes').PocketStartOutcome;
 type PocketChooseInput = import('../routes').PocketChooseInput;
 type PocketSayInput = import('../routes').PocketSayInput;
 type PocketKeysInput = import('../routes').PocketKeysInput;
@@ -217,6 +218,11 @@ function rig(over: { writes?: false } = {}): Rig {
               self.asked.push('keys');
               self.keyed.push({ input, still });
               return self.replyWith(still);
+            },
+            // Phase 346's start, which these session-verb arms never reach.
+            start: async (): Promise<PocketStartOutcome> => {
+              self.asked.push('start');
+              return { outcome: 'failed', sentence: 'not in this test' };
             }
           }
         })
@@ -230,7 +236,9 @@ const doneWrites = {
   end: async (): Promise<PocketEndOutcome> => ({ outcome: 'done' }),
   choose: async (): Promise<PocketReplyOutcome> => ({ outcome: 'done' }),
   say: async (): Promise<PocketReplyOutcome> => ({ outcome: 'done' }),
-  keys: async (): Promise<PocketReplyOutcome> => ({ outcome: 'done' })
+  keys: async (): Promise<PocketReplyOutcome> => ({ outcome: 'done' }),
+  // Phase 346's start, which these session-verb arms never reach.
+  start: async (): Promise<PocketStartOutcome> => ({ outcome: 'failed', sentence: 'not in this test' })
 };
 
 // ---------------------------------------------------------------------------
@@ -247,7 +255,8 @@ describe('the body caps, computed from the worst legal body (§5.3.3, §14 findi
   });
 
   it('holds it under its cap, each write route has its own cap, and the worst legal body parses', () => {
-    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768, keys: 16_384 });
+    // Phase 346 added `start`, 512 (build/p346/SPEC.md D6).
+    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512 });
     expect(endBody(longest, wid(1)).byteLength).toBeLessThanOrEqual(POCKET_WRITE_BODY_CAPS.end);
     // The whole alphabet at the longest length.
     const every = 'aZ09._:-'.repeat(16);

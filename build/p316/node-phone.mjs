@@ -446,6 +446,67 @@ export async function sendKeys(phone, door, sessionId, keys, { turn, dialog = nu
   return { ...answer, write };
 }
 
+/**
+ * `POST /v1/start` (Phase 346, build/p346/SPEC.md §3.2, D6): start ONE session
+ * in a project the Mac offered, with an agent installed there. The body is
+ * exactly `{ agent, project, write }`, its keys sorted, as Swift's
+ * `JSONEncoder` with `.sortedKeys` writes it; no field can hold a `/`, so the
+ * bytes are the phone's. `write` re-sends a kept id (D17) and is otherwise
+ * fresh. Nothing here decides whether a start is allowed or which agent is
+ * installed; the Mac does, by id. Answers `request`'s reading with the write
+ * id it sent.
+ */
+export async function startSession(phone, door, { project, agent, write = freshWriteId(), ...options } = {}) {
+  const answer = await signedPost(phone, door, '/v1/start', { agent, project, write }, options);
+  return { ...answer, write };
+}
+
+/** The outcomes a start answer may carry (D5). Its `reason` is read as an OPEN word. */
+export const START_OUTCOMES = Object.freeze(['done', 'refused', 'failed', 'busy']);
+/** The characters of a session id, as the Mac's write path reads one (`isSessionId`: 1 to 128 of `[A-Za-z0-9._:-]`, D5). */
+const START_SESSION_ID = /^[A-Za-z0-9._:-]{1,128}$/;
+
+/**
+ * A start's answer, read the way the phone must (SPEC D5): exactly the six
+ * fields `verb, write, outcome, reason, sentence, session` in that order,
+ * `verb` `start`, a closed outcome, a `reason` that is a non-empty string
+ * exactly when `refused` (an OPEN word: a later Mac may add one), a sentence
+ * exactly when not `done`, and a session `{ id, name }` exactly when `done`,
+ * its id 1 to 128 session-id characters and its name non-empty; the echo
+ * equal to the id sent, or `""` with `refused` and `malformed`, the one
+ * answer that cannot echo. Anything else is `{ ok: false }` with a reason,
+ * which the phone reads as no answer.
+ */
+export function startAnswerOf(answer, sentWrite) {
+  if (answer?.status !== 200) return { ok: false, why: `status ${String(answer?.status)}${answer?.error ? ` (${answer.error})` : ''}` };
+  let body;
+  try {
+    body = JSON.parse(answer.body);
+  } catch {
+    return { ok: false, why: 'the body is not JSON' };
+  }
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) return { ok: false, why: 'the body is not an object' };
+  const keys = J(Object.keys(body));
+  if (keys !== J(['verb', 'write', 'outcome', 'reason', 'sentence', 'session'])) return { ok: false, why: `the keys are ${keys}` };
+  if (body.verb !== 'start') return { ok: false, why: `verb ${J(body.verb)}` };
+  if (typeof body.write !== 'string') return { ok: false, why: 'the write id is not a string' };
+  if (!START_OUTCOMES.includes(body.outcome)) return { ok: false, why: `outcome ${J(body.outcome)}` };
+  if (body.reason !== null && (typeof body.reason !== 'string' || body.reason === '')) return { ok: false, why: `reason ${J(body.reason)}` };
+  if ((body.outcome === 'refused') !== (body.reason !== null)) return { ok: false, why: 'a reason without a refusal, or a refusal without a reason' };
+  if (body.sentence !== null && (typeof body.sentence !== 'string' || body.sentence === '')) return { ok: false, why: `sentence ${J(body.sentence)}` };
+  if ((body.outcome === 'done') !== (body.sentence === null)) return { ok: false, why: 'a sentence on done, or none on anything else' };
+  if ((body.outcome === 'done') !== (body.session !== null)) return { ok: false, why: 'a session on an answer that is not done, or none on done' };
+  if (body.session !== null) {
+    const s = body.session;
+    if (s === null || typeof s !== 'object' || Array.isArray(s) || J(Object.keys(s).sort()) !== J(['id', 'name'])) return { ok: false, why: `the session is ${J(s)}` };
+    if (typeof s.id !== 'string' || !START_SESSION_ID.test(s.id)) return { ok: false, why: `the session id ${J(s.id)}` };
+    if (typeof s.name !== 'string' || s.name === '') return { ok: false, why: 'the session has no name' };
+  }
+  const echoed = body.write === sentWrite || (body.write === '' && body.outcome === 'refused' && body.reason === 'malformed');
+  if (!echoed) return { ok: false, why: 'the echo is not the write id sent' };
+  return { ok: true, why: '', answer: body };
+}
+
 /** The verbs a write answer may name (Phase 317's `end`, Phase 318's `choose` and `say`, Phase 337's `keys`). */
 export const WRITE_VERBS = Object.freeze(['end', 'choose', 'say', 'keys']);
 

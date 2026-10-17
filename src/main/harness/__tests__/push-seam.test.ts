@@ -728,11 +728,29 @@ describe('openDoorForPairing refuses before it publishes, and waits for main\'s 
     rmSync(scratch, { recursive: true, force: true });
   });
 
-  type Seen = { state: string; pairable: boolean; nameCheck: string };
+  /**
+   * What the fake's `status()` answers. PHASE 346 (build/p346/SPEC.md D31):
+   * the seam reads the confirm state, the lines and the hash off `status()`,
+   * the proposal the sheet draws, so each step carries them too.
+   */
+  type Seen = {
+    state: string;
+    pairable: boolean;
+    nameCheck: string;
+    confirmState: string;
+    confirmLines: readonly string[];
+    confirmHash: string;
+    routesWaiting?: readonly string[];
+  };
 
   /** A host that counts every call and answers `seen` in turn, the last one for ever. */
-  function fakeHost(seen: Seen[]): { host: Parameters<typeof openDoorForPairing>[0]; calls: string[] } {
+  function fakeHost(seen: Seen[]): {
+    host: Parameters<typeof openDoorForPairing>[0];
+    calls: string[];
+    confirmed: unknown[];
+  } {
     const calls: string[] = [];
+    const confirmed: unknown[] = [];
     let i = 0;
     const host = {
       setDoor: async (input: unknown) => {
@@ -742,9 +760,14 @@ describe('openDoorForPairing refuses before it publishes, and waits for main\'s 
       idle: async () => {
         calls.push('idle');
       },
-      fields: () => ({}),
-      confirmDoor: async () => {
+      fields: () => {
+        // Phase 346: the seam never agrees to `fields()`'s own hash any more.
+        calls.push('fields');
+        return {};
+      },
+      confirmDoor: async (input: unknown) => {
         calls.push('confirmDoor');
+        confirmed.push(input);
         return {};
       },
       beginPairing: async () => {
@@ -758,10 +781,17 @@ describe('openDoorForPairing refuses before it publishes, and waits for main\'s 
         return s;
       }
     };
-    return { host: host as unknown as Parameters<typeof openDoorForPairing>[0], calls };
+    return { host: host as unknown as Parameters<typeof openDoorForPairing>[0], calls, confirmed };
   }
 
-  const listening = (pairable: boolean): Seen => ({ state: 'listening', pairable, nameCheck: pairable ? 'confirmed' : 'checking' });
+  const listening = (pairable: boolean): Seen => ({
+    state: 'listening',
+    pairable,
+    nameCheck: pairable ? 'confirmed' : 'checking',
+    confirmState: 'confirmed',
+    confirmLines: [],
+    confirmHash: ''
+  });
 
   for (const value of [undefined, '', '10.0.0.1:53', '127.0.0.1:0']) {
     it(`refuses with GMUX_POCKET_NAME_SERVERS ${JSON.stringify(value ?? null)}, before the switch is touched`, async () => {
@@ -777,7 +807,16 @@ describe('openDoorForPairing refuses before it publishes, and waits for main\'s 
   it('with both stand-ins, waits until main says pairable, and presses nothing itself', async () => {
     setNameServers('127.0.0.1:5353');
     vi.useFakeTimers();
-    const { host, calls } = fakeHost([listening(false), listening(false), listening(false), listening(false), listening(true)]);
+    // Phase 346: the first answer is the confirm read (D31), then the four
+    // waits the parent drew.
+    const { host, calls } = fakeHost([
+      listening(false),
+      listening(false),
+      listening(false),
+      listening(false),
+      listening(false),
+      listening(true)
+    ]);
     const lines: string[] = [];
     let answered: boolean | null = null;
     void openDoorForPairing(host, (line) => lines.push(line)).then((v) => {
@@ -788,8 +827,49 @@ describe('openDoorForPairing refuses before it publishes, and waits for main\'s 
     await vi.advanceTimersByTimeAsync(500);
     expect(answered).toBe(true);
     expect(calls.filter((c) => c.startsWith('setDoor'))).toEqual(['setDoor {"on":true}']);
-    expect(calls.filter((c) => c === 'status')).toHaveLength(5);
+    expect(calls.filter((c) => c === 'status')).toHaveLength(6);
     expect(calls).not.toContain('beginPairing');
+    // An agreement on record is left as it is.
+    expect(calls).not.toContain('confirmDoor');
+    expect(lines).toEqual([]);
+  });
+
+  // PHASE 346 (build/p346/SPEC.md D31; Phase 333.12 D16): the seam agrees to
+  // the PROPOSAL `status()` draws, never to `fields()`'s own hash, because a
+  // first setup now proposes twelve routes and `fields()` holds the eleven.
+  it('confirms a first setup with the proposal status() draws, never fields(), and then publishes', async () => {
+    setNameServers('127.0.0.1:5353');
+    vi.useFakeTimers();
+    const proposal = ['Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, scrollback, session, sessions, start, turns'];
+    const never: Seen = { ...listening(true), confirmState: 'never', confirmLines: proposal, confirmHash: 'twelve' };
+    const { host, calls, confirmed } = fakeHost([never, listening(true)]);
+    const lines: string[] = [];
+    let answered: boolean | null = null;
+    void openDoorForPairing(host, (line) => lines.push(line)).then((v) => {
+      answered = v;
+    });
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(answered).toBe(true);
+    expect(confirmed).toEqual([{ linesRead: proposal, hashRead: 'twelve' }]);
+    expect(calls).not.toContain('fields');
+    expect(lines).toEqual([]);
+  });
+
+  it('publishes and pairs a door whose agreement is on record with start waiting, agreeing to nothing', async () => {
+    setNameServers('127.0.0.1:5353');
+    vi.useFakeTimers();
+    const waiting: Seen = { ...listening(true), routesWaiting: ['start'] };
+    const { host, calls, confirmed } = fakeHost([waiting]);
+    const lines: string[] = [];
+    let answered: boolean | null = null;
+    void openDoorForPairing(host, (line) => lines.push(line)).then((v) => {
+      answered = v;
+    });
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(answered).toBe(true);
+    expect(confirmed).toEqual([]);
+    expect(calls).not.toContain('confirmDoor');
+    expect(calls).not.toContain('fields');
     expect(lines).toEqual([]);
   });
 

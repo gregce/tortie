@@ -186,9 +186,14 @@ const msBetween = (from, to) => Number(BigInt(to) - BigInt(from)) / 1e6;
 export const SNAPSHOT = 'e3837139';
 export const MACHINE_ID = 'p337far';
 /** D35: HEAD's route line and write line, by value. */
-export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, scrollback, session, sessions, turns';
-export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question, send a session one message and type into any session as you would at this Mac';
-export const ROUTE_IDS = Object.freeze(['blocked', 'choose', 'end', 'keys', 'pair', 'say', 'screen', 'scrollback', 'session', 'sessions', 'turns']);
+/**
+ * HEAD's route and write lines, every route allowed. Phase 346 added `start`; its ruled round moved these two
+ * literals, which its build left at 337.1's (this file's own self-test read ROUTE_LINE red against the tree's
+ * route ids, and a run at HEAD would have read the door's lines red over a door that said them right).
+ */
+export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, scrollback, session, sessions, start, turns';
+export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question, send a session one message, type into any session as you would at this Mac and start a session in a project open in Tortie, on this Mac or another machine';
+export const ROUTE_IDS = Object.freeze(['blocked', 'choose', 'end', 'keys', 'pair', 'say', 'screen', 'scrollback', 'session', 'sessions', 'start', 'turns']);
 /** The parent's (337's) route line: ten routes and no `scrollback`. */
 export const PARENT_ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, session, sessions, turns';
 export const LIVE = Object.freeze(['running', 'idle', 'needs_input']);
@@ -1200,7 +1205,7 @@ function graderSelfTest() {
   // ROUTE_LINE against the tree's own POCKET_ROUTE_IDS (Phase 337.1 added scrollback), and the parent's line one route short of it.
   const treeIds = [...(/POCKET_ROUTE_IDS = \[([\s\S]*?)\] as const/.exec(contract)?.[1] ?? '').replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/'([a-z]+)'/g)].map((m) => m[1]).sort();
   say(treeIds.length > 0 && J(routeIdsOf([ROUTE_LINE])) === J(treeIds), `ROUTE_LINE names exactly the tree's POCKET_ROUTE_IDS (${treeIds.join(', ')})`);
-  say(J(routeIdsOf([PARENT_ROUTE_LINE])) === J(ROUTE_IDS.filter((id) => id !== 'scrollback')), "PARENT_ROUTE_LINE is HEAD's less scrollback");
+  say(J(routeIdsOf([PARENT_ROUTE_LINE])) === J(ROUTE_IDS.filter((id) => id !== 'scrollback' && id !== 'start')), "PARENT_ROUTE_LINE is HEAD's less scrollback and Phase 346's start");
   // The reader's bounds by value against the tree's own (src/main/screen/scrollback.ts, watch.ts, door/limits.ts).
   {
     const src = (rel) => {

@@ -256,6 +256,31 @@ import XCTest
 /// (above the key bar, if the double tap raised the keyboard), reads the
 /// Terminal again, prints both, and double-taps back to the fitted size.
 /// Each prints `<step>-missing` and stops when the grid is not there.
+///
+/// NEW SESSION (Phase 346, build/p346/SPEC.md section 6.2, `P316_ARMS=start`).
+/// Eight steps, appended (`start-reach`, the ruled round's, measures the
+/// "+"'s press by taps and reads the title row's frames; see its own note); every step above is unchanged, and SPEC section
+/// 4.16's identifiers are spelled again in `Seen`. `start-open` selects the
+/// Sessions tab and waits for its list, reads the "+" (`start-open`: whether
+/// it is drawn, its label, frame and state, beside the title's other controls
+/// `list-menu` and `list-select`), presses it when it can be pressed, and
+/// reads the sheet: its marks, the agent's name, the danger line, the state
+/// line and Create (`reading`), and the Project menu opened, every item's id,
+/// label, state and whether it is the chosen one (`projects`), shut again by
+/// pressing the chosen item; with no "+" it prints `found: false` and goes on.
+/// `start-pick:<project id>` opens the menu and presses that project,
+/// `start-agent:<id>` presses that agent's mark, `start-read` reads the sheet
+/// again, and `start-close` presses Cancel. `start-create` prints
+/// `start-ready` and waits for the probe's file `start-<seq>` in P316_ACKS (so
+/// the probe holds or cuts the relay, closes a project or reads the Mac at
+/// THAT moment), presses Create (or Try again), and prints `start-created`:
+/// every label Create drew and every line the sheet drew until the sheet went
+/// or a line stayed, whether iOS or End's own mark asked for an owner check at
+/// any moment (`faceId`), and what is on top (the Terminal, its status line and
+/// the navigation bar's words). `start-home` is the same press followed by
+/// Home at once, 10 s away, back, and the sheet read (`start-home-read`). A
+/// start step that finds no sheet prints `missing: true` and the drive goes
+/// on, because a Mac with no "+" is a reading.
 final class P316DriveUITests: XCTestCase {
     @MainActor
     func testDrive() throws {
@@ -884,6 +909,22 @@ private final class Drive {
                 chooseMac(Int(String(step.dropFirst("choose-mac:".count))) ?? -1)
             } else if step == "macs-pull" {
                 macsPull()
+            } else if step == "start-open" {
+                startOpen()
+            } else if step == "start-reach" || step.hasPrefix("start-reach:") {
+                startReach(step.hasPrefix("start-reach:") ? String(step.dropFirst("start-reach:".count)) : nil)
+            } else if step.hasPrefix("start-pick:") {
+                startPick(String(step.dropFirst("start-pick:".count)))
+            } else if step.hasPrefix("start-agent:") {
+                startAgent(String(step.dropFirst("start-agent:".count)))
+            } else if step == "start-create" {
+                startCreate(home: false)
+            } else if step == "start-home" {
+                startCreate(home: true)
+            } else if step == "start-read" {
+                startRead()
+            } else if step == "start-close" {
+                startClose()
             } else if step == "unpair-one" {
                 unpairOne()
             } else if step == "keys-read" {
@@ -4689,5 +4730,357 @@ extension Drive {
             "tabs": tabsReading()
         ])
         dump(step)
+    }
+}
+
+// MARK: - Phase 346: New session (build/p346/SPEC.md section 6.2)
+
+/// SPEC section 4.16's identifiers, spelled again here, so the drive is held
+/// to the app's own and a renamed one reads as missing, never as passed over.
+extension Seen {
+    static let startOpen = "start-open"
+    static let startSheet = "start-sheet"
+    static let startProject = "start-project"
+    static let startProjectPrefix = "start-project-"
+    static let startAgentPrefix = "start-agent-"
+    static let startAgentName = "start-agent-name"
+    static let startDanger = "start-danger"
+    static let startCreate = "start-create"
+    static let startLine = "start-line"
+    static let startClose = "start-close"
+    /// Copy.swift's `creating`, which Create reads while a start runs.
+    static let creatingWords = "Creating…"
+}
+
+extension Drive {
+    /// The window's size in points, from one snapshot.
+    fileprivate func windowSize() -> [Double] {
+        let size = (try? app.snapshot())?.frame.size ?? .zero
+        return [Double(size.width), Double(size.height)]
+    }
+
+    /// The Terminal, or a session's page, is what is on top.
+    fileprivate func onTerminal(_ found: [Found]) -> Bool {
+        has(found, Seen.screenGrid) || has(found, Seen.screenScreen) || has(found, Seen.terminalMenu)
+    }
+
+    /// A start step that found no sheet: said, dumped, and the drive goes on.
+    fileprivate func startMissing(_ step: String) {
+        lines.emit(["step": step, "missing": true])
+        dump(step + "-missing")
+    }
+
+    /// The sheet as drawn, from ONE snapshot: the Project menu's label, every
+    /// mark once (its id, label, frame and whether it is the chosen one), the
+    /// agent's name, the danger line, the state line and Create.
+    fileprivate func startReading() -> [String: Any] {
+        let found = tree()
+        var agents: [[String: Any]] = []
+        var seen = Set<String>()
+        for item in found where item.id.hasPrefix(Seen.startAgentPrefix) && item.id != Seen.startAgentName && !seen.contains(item.id) {
+            seen.insert(item.id)
+            let mark = element(item.id)
+            agents.append([
+                "id": String(item.id.dropFirst(Seen.startAgentPrefix.count)),
+                "label": item.label,
+                "frame": frameOf(item.frame),
+                "selected": mark.exists && mark.isSelected
+            ])
+        }
+        let create = element(Seen.startCreate)
+        return [
+            "sheet": has(found, Seen.startSheet),
+            "project": find(found, Seen.startProject).map { $0.label as Any } ?? NSNull(),
+            "agents": agents,
+            "agentName": find(found, Seen.startAgentName).map { $0.label as Any } ?? NSNull(),
+            "danger": find(found, Seen.startDanger).map { $0.label as Any } ?? NSNull(),
+            "line": find(found, Seen.startLine).map { $0.label as Any } ?? NSNull(),
+            "create": create.exists ? ["label": create.label, "enabled": create.isEnabled] as [String: Any] : NSNull()
+        ]
+    }
+
+    /// The Project menu opened and read: every item once, its id, label,
+    /// whether it can be chosen and whether it is the chosen one; then `pick`
+    /// pressed, or with none the chosen item pressed again, so the menu shuts
+    /// and nothing moves. An item that cannot be pressed shuts the menu by a
+    /// tap above it.
+    fileprivate func startMenu(pick: String?) -> (items: [[String: Any]], picked: Bool) {
+        let menu = element(Seen.startProject)
+        guard menu.waitForExistence(timeout: 10), menu.isHittable else { return ([], false) }
+        menu.tap()
+        Thread.sleep(forTimeInterval: 1)
+        var items: [[String: Any]] = []
+        var seen = Set<String>()
+        var chosen: String?
+        for item in tree() where item.id.hasPrefix(Seen.startProjectPrefix) && !seen.contains(item.id) {
+            seen.insert(item.id)
+            let row = element(item.id)
+            let id = String(item.id.dropFirst(Seen.startProjectPrefix.count))
+            let selected = row.isSelected
+            if selected { chosen = id }
+            items.append(["id": id, "label": item.label, "enabled": row.isEnabled, "selected": selected, "frame": frameOf(item.frame)])
+        }
+        var picked = false
+        if let target = pick ?? chosen {
+            let row = element(Seen.startProjectPrefix + target)
+            if row.exists, row.isEnabled, row.isHittable {
+                row.tap()
+                picked = true
+            }
+        }
+        if !picked { app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.06)).tap() }
+        Thread.sleep(forTimeInterval: 0.8)
+        return (items, picked)
+    }
+
+    /// `start-open`: the Sessions tab, its "+" read and pressed, the sheet read.
+    fileprivate func startOpen() {
+        let before = tree()
+        if !has(before, Seen.listScreen) || onSessionPage(before) || onTerminal(before) { _ = selectTab(Seen.tabSessions) }
+        _ = poll { found in self.has(found, Seen.listScreen) && !self.has(found, Seen.listLoading) }
+        Thread.sleep(forTimeInterval: 1)
+        let plus = element(Seen.startOpen)
+        let present = plus.waitForExistence(timeout: min(wait, 15))
+        let found = tree()
+        var object: [String: Any] = [
+            "step": "start-open",
+            "found": present,
+            "label": present ? plus.label as Any : NSNull(),
+            "frame": present ? frameOf(plus.frame) as Any : NSNull(),
+            "enabled": present ? plus.isEnabled as Any : NSNull(),
+            "hittable": present ? plus.isHittable as Any : NSNull(),
+            "title": find(found, Seen.listTitle).map { frameOf($0.frame) as Any } ?? NSNull(),
+            "controls": [Seen.listMenu, Seen.listSelect].compactMap { id in find(found, id).map { ["id": id, "frame": frameOf($0.frame)] as [String: Any] } },
+            "list": has(found, Seen.listScreen),
+            "window": windowSize(),
+            "tabs": tabsReading(),
+            "faceId": ownerCheckUp()
+        ]
+        var opened = false
+        if present, plus.isEnabled, plus.isHittable {
+            plus.tap()
+            opened = element(Seen.startSheet).waitForExistence(timeout: 10)
+            if opened {
+                Thread.sleep(forTimeInterval: 1)
+                object["reading"] = startReading()
+                object["projects"] = startMenu(pick: nil).items
+                object["after"] = startReading()
+            }
+        }
+        object["sheet"] = opened
+        lines.emit(object)
+        dump("start-open")
+    }
+
+    /// `start-reach` (the ruled round, probe:p316's NP12): the Sessions title
+    /// row read from ONE snapshot (the title, the menu, Select, the "+" and
+    /// the Show control, each frame), then the "+"'s PRESS measured by taps
+    /// at points outside its glyph: along each of its four edges at growing
+    /// distances, and at the four corners of a 44 × 44 pt square around it.
+    /// A tap that opens New session is answered by Cancel and the sheet's
+    /// going before the next. The distances stop short of Select (left) and
+    /// of the Show control's buttons (down), so no tap can press either. The
+    /// row is read again after the last tap. `glyph` (`x_y_width_height`, the
+    /// probe's) is where the build before drew the glyph, and the taps are
+    /// placed around it, never around the "+"'s element frame now: the second
+    /// run of this step placed them around a frame that had grown to the press
+    /// square, and its taps pressed Select and the Show control's Ended.
+    fileprivate func startReach(_ given: String?) {
+        let before = tree()
+        if !has(before, Seen.listScreen) || onSessionPage(before) || onTerminal(before) { _ = selectTab(Seen.tabSessions) }
+        _ = poll { found in self.has(found, Seen.listScreen) && !self.has(found, Seen.listLoading) }
+        Thread.sleep(forTimeInterval: 1)
+        let plus = element(Seen.startOpen)
+        guard plus.waitForExistence(timeout: min(wait, 15)) else {
+            lines.emit(["step": "start-reach", "found": false])
+            return
+        }
+        let rowIds = [Seen.listTitle, Seen.listMenu, Seen.listSelect, Seen.startOpen, Seen.listShow]
+        let rowOf = { (found: [Found]) -> [String: Any] in
+            var out: [String: Any] = [:]
+            for id in rowIds { out[id] = self.find(found, id).map { self.frameOf($0.frame) as Any } ?? NSNull() }
+            return out
+        }
+        let first = tree()
+        let plusFrame = find(first, Seen.startOpen)?.frame ?? plus.frame
+        // `x_y_width_height`: the drive's steps are joined by commas, so the
+        // argument names its four numbers with underscores.
+        let parts = (given ?? "").split(separator: "_").compactMap { Double($0) }
+        let glyph = parts.count == 4 ? CGRect(x: parts[0], y: parts[1], width: parts[2], height: parts[3]) : plusFrame
+        // (side, distance past that edge): x and y in points.
+        var points: [(side: String, by: Double, x: Double, y: Double)] = []
+        for by in [11.5, 12.5, 13.5, 14.5, 15.5, 16.5, 17.5] { points.append(("up", by, Double(glyph.midX), Double(glyph.minY) - by)) }
+        // Down stops 0.5 pt above the Show control's capsule and left 1.5 pt clear of Select: the first run of
+        // this step tapped 104.5, 1.5 pt above the Ended button, and iOS's touch radius pressed Ended.
+        for by in [9.5, 10.5, 11.5, 12.5] { points.append(("down", by, Double(glyph.midX), Double(glyph.maxY) + by)) }
+        for by in [11.5, 12.5, 13.5] { points.append(("left", by, Double(glyph.minX) - by, Double(glyph.midY))) }
+        for by in [11.5, 12.5, 13.5, 14.5] { points.append(("right", by, Double(glyph.maxX) + by, Double(glyph.midY))) }
+        // A 44 × 44 pt square: 13 past each side (18 + 26), 16 above and 12 below (16 + 28).
+        let left = Double(glyph.minX) - 13
+        let right = Double(glyph.maxX) + 13
+        let top = Double(glyph.minY) - 16
+        let bottom = Double(glyph.maxY) + 12
+        for (side, x, y) in [("corner-top-left", left, top), ("corner-top-right", right, top), ("corner-bottom-left", left, bottom), ("corner-bottom-right", right, bottom), ("centre", Double(glyph.midX), Double(glyph.midY))] {
+            points.append((side, 0, x, y))
+        }
+        let origin = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+        var taps: [[String: Any]] = []
+        for p in points {
+            origin.withOffset(CGVector(dx: p.x, dy: p.y)).tap()
+            let opened = element(Seen.startSheet).waitForExistence(timeout: 2.5)
+            var closed = true
+            if opened {
+                let close = element(Seen.startClose)
+                if close.waitForExistence(timeout: 5), close.isHittable { close.tap() }
+                closed = poll { !self.has($0, Seen.startSheet) }
+                Thread.sleep(forTimeInterval: 0.6)
+            } else {
+                Thread.sleep(forTimeInterval: 0.3)
+            }
+            taps.append(["side": p.side, "by": p.by, "at": [p.x, p.y], "opened": opened, "closed": closed])
+        }
+        lines.emit([
+            "step": "start-reach",
+            "found": true,
+            "glyph": frameOf(glyph),
+            "given": parts.count == 4,
+            "element": frameOf(plusFrame),
+            "row": rowOf(first),
+            "rowAfter": rowOf(tree()),
+            "window": windowSize(),
+            "taps": taps,
+            "faceId": ownerCheckUp()
+        ])
+    }
+
+    /// `start-pick:<project id>`: the menu opened and that project pressed.
+    fileprivate func startPick(_ id: String) {
+        guard element(Seen.startSheet).waitForExistence(timeout: 10) else { return startMissing("start-pick") }
+        let menu = startMenu(pick: id)
+        lines.emit(["step": "start-pick", "id": id, "picked": menu.picked, "items": menu.items, "reading": startReading()])
+    }
+
+    /// `start-agent:<id>`: that agent's mark pressed.
+    fileprivate func startAgent(_ id: String) {
+        let mark = element(Seen.startAgentPrefix + id)
+        guard element(Seen.startSheet).waitForExistence(timeout: 10), mark.waitForExistence(timeout: 10) else { return startMissing("start-agent") }
+        let pressed = mark.isHittable
+        if pressed { mark.tap() }
+        Thread.sleep(forTimeInterval: 0.6)
+        lines.emit(["step": "start-agent", "id": id, "pressed": pressed, "reading": startReading()])
+    }
+
+    /// `start-read`: the sheet and its menu read again.
+    fileprivate func startRead() {
+        guard element(Seen.startSheet).waitForExistence(timeout: 10) else { return startMissing("start-read") }
+        let reading = startReading()
+        lines.emit(["step": "start-read", "reading": reading, "projects": startMenu(pick: nil).items, "after": startReading()])
+    }
+
+    /// `start-close`: Cancel pressed and the sheet gone.
+    fileprivate func startClose() {
+        let close = element(Seen.startClose)
+        guard close.waitForExistence(timeout: 5), close.isHittable else {
+            lines.emit(["step": "start-close", "found": false, "closed": !has(tree(), Seen.startSheet)])
+            return
+        }
+        close.tap()
+        let gone = poll { !self.has($0, Seen.startSheet) }
+        lines.emit(["step": "start-close", "found": true, "closed": gone])
+    }
+
+    /// `start-create` and `start-home`: `start-ready` printed and the probe's
+    /// `start-<seq>` waited for; Create (or Try again) pressed; then, for
+    /// Create, every label it drew and every line the sheet drew until the
+    /// sheet went or a new line stayed, and what is on top; for Home, the app
+    /// sent away at once, 10 s, back, and the sheet read.
+    fileprivate func startCreate(home: Bool) {
+        let step = home ? "start-home" : "start-create"
+        guard element(Seen.startSheet).waitForExistence(timeout: 10) else { return startMissing(step) }
+        let create = element(Seen.startCreate)
+        guard create.waitForExistence(timeout: 10) else { return startMissing(step) }
+        let lineBefore = find(tree(), Seen.startLine)?.label
+        let ready = lines.emit(["step": "start-ready", "for": step, "reading": startReading()])
+        let acked = ack("start-\(ready)", within: 120)
+        lines.emit(["step": "start-ready-acked", "for": step, "acked": acked])
+        guard create.isEnabled, create.isHittable else { return startMissing(step) }
+        let pressed = create.label
+        create.tap()
+        if home {
+            self.home()
+            lines.emit(["step": "start-home-pressed", "state": Int(app.state.rawValue)])
+            Thread.sleep(forTimeInterval: 10)
+            app.activate()
+            _ = app.wait(for: .runningForeground, timeout: 30)
+            Thread.sleep(forTimeInterval: 3)
+            let found = tree()
+            lines.emit([
+                "step": "start-home-read",
+                "pressed": pressed,
+                "sheet": has(found, Seen.startSheet),
+                "line": find(found, Seen.startLine).map { $0.label as Any } ?? NSNull(),
+                "reading": startReading(),
+                "terminal": onTerminal(found),
+                "faceId": ownerCheckUp()
+            ])
+            dump("start-home")
+            return
+        }
+        var labels: [String] = [pressed]
+        var drawn: [String] = []
+        var faceID = false
+        var gone = false
+        var sawCreating = false
+        // THE RULED ROUND: Creating… left with no new line is a done start's
+        // sheet closing, so the loop reads on until the sheet is gone (3 s at
+        // most) rather than stopping on the label, which read a correct app's
+        // dismissal as "the sheet stayed" (NP3 FAIL on 26.3).
+        var settleBy: Date?
+        let deadline = Date().addingTimeInterval(wait)
+        while Date() < deadline {
+            if ownerCheckUp() { faceID = true }
+            let found = tree()
+            if !has(found, Seen.startSheet) {
+                gone = true
+                break
+            }
+            let button = element(Seen.startCreate)
+            let label = button.exists ? button.label : ""
+            if !label.isEmpty, labels.last != label { labels.append(label) }
+            if label == Seen.creatingWords { sawCreating = true }
+            let line = find(found, Seen.startLine)?.label
+            if let line, !line.isEmpty, drawn.last != line { drawn.append(line) }
+            let newLine = line != nil && line != lineBefore
+            if !label.isEmpty, label != Seen.creatingWords, newLine { break }
+            if !label.isEmpty, label != Seen.creatingWords, sawCreating {
+                let by = settleBy ?? Date().addingTimeInterval(3)
+                settleBy = by
+                if Date() > by { break }
+            }
+            Thread.sleep(forTimeInterval: 0.1)
+        }
+        Thread.sleep(forTimeInterval: 2)
+        if ownerCheckUp() { faceID = true }
+        let found = tree()
+        let bar = app.navigationBars.firstMatch
+        let nav: [String] = bar.exists ? [bar.identifier] + bar.staticTexts.allElementsBoundByIndex.prefix(6).map { $0.label } : []
+        lines.emit([
+            "step": "start-created",
+            "pressed": pressed,
+            "labels": labels,
+            "lines": drawn,
+            "lineBefore": lineBefore.map { $0 as Any } ?? NSNull(),
+            // Read at the FINAL read (the ruled round), beside whether the
+            // loop saw it go.
+            "sheetGone": !has(found, Seen.startSheet),
+            "goneInLoop": gone,
+            "faceId": faceID,
+            "terminal": onTerminal(found),
+            "status": find(found, Seen.terminalStatus).map { $0.label as Any } ?? NSNull(),
+            "nav": nav,
+            "reading": has(found, Seen.startSheet) ? startReading() as Any : NSNull(),
+            "tabs": tabsReading()
+        ])
+        dump("start-create")
     }
 }

@@ -352,6 +352,132 @@ extension PocketWriteAnswer: Codable {
     }
 }
 
+// MARK: - Start (Phase 346)
+
+/// `PocketStartAnswer`: what `POST /v1/start` answers with a 200
+/// (build/p346/SPEC.md D5). Six fields, and these are all of it:
+///
+///   - `verb` is `start`, and an answer naming anything else refuses whole;
+///   - `write` is the write id the request carried, echoed, or `""` only on
+///     the one `refused` `malformed` answer the Mac makes when it could read
+///     no id at all;
+///   - `outcome` is one of the four every write answers with;
+///   - `reason` is non-null EXACTLY when `refused`, and is read as an OPEN
+///     word: a later Mac may add a reason, and the phone draws the Mac's
+///     sentence and never the word, so a reason this build does not know never
+///     refuses the whole answer (the lesson of `PocketWriteAnswer.Reason`'s
+///     closed twelve);
+///   - `sentence` is null exactly when `done`, and a non-empty sentence
+///     otherwise;
+///   - `session` is the new session's id and name, non-null exactly when
+///     `done`: an id of 1 to 128 of the Mac's session-id characters
+///     (`[A-Za-z0-9._:-]`) and a name that is not empty.
+///
+/// The client turns any refusal of this shape into "no answer"
+/// (Door/DoorClient.swift `StartResult`), because the bytes reached the Mac
+/// and what it did is not known.
+struct PocketStartAnswer: Equatable, Sendable {
+    /// The one verb this answer names.
+    static let verbWord = "start"
+    /// A session id's longest spelling: the Mac's `SESSION_ID_MAX`.
+    static let sessionIdMost = 128
+
+    let verb: String
+    let write: String
+    let outcome: PocketWriteAnswer.Outcome
+    /// The Mac's word for why; drawn never, read only as present or not.
+    let reason: String?
+    /// The Mac's words; nil exactly when `done`.
+    let sentence: String?
+    /// The session the start made; nil exactly when not `done`.
+    let session: PocketStartSession?
+
+    /// The one answer that may carry an empty echo: the Mac could read no
+    /// write id in the body, refused it `malformed`, and did nothing.
+    var echoesNoId: Bool {
+        write.isEmpty && outcome == .refused && reason == "malformed"
+    }
+
+    /// 1 to 128 of `[A-Za-z0-9._:-]`, read one character at a time.
+    static func isSessionId(_ text: String) -> Bool {
+        let bytes = Array(text.utf8)
+        guard !bytes.isEmpty, bytes.count <= sessionIdMost else { return false }
+        return bytes.allSatisfy { byte in
+            switch byte {
+            case UInt8(ascii: "A")...UInt8(ascii: "Z"), UInt8(ascii: "a")...UInt8(ascii: "z"),
+                 UInt8(ascii: "0")...UInt8(ascii: "9"),
+                 UInt8(ascii: "."), UInt8(ascii: "_"), UInt8(ascii: ":"), UInt8(ascii: "-"):
+                true
+            default:
+                false
+            }
+        }
+    }
+}
+
+/// `PocketStartSession`: the session a start made, as the Mac named it.
+struct PocketStartSession: Equatable, Sendable {
+    let id: String
+    let name: String
+}
+
+extension PocketStartSession: Codable {
+    enum CodingKeys: String, CodingKey { case id, name }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        guard PocketStartAnswer.isSessionId(id) else {
+            throw DecodingError.dataCorruptedError(forKey: .id, in: c, debugDescription: "not a session id the Mac makes")
+        }
+        guard !name.isEmpty else {
+            throw DecodingError.dataCorruptedError(forKey: .name, in: c, debugDescription: "a session has a name")
+        }
+    }
+}
+
+extension PocketStartAnswer: Codable {
+    enum CodingKeys: String, CodingKey { case verb, write, outcome, reason, sentence, session }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        verb = try c.decode(String.self, forKey: .verb)
+        write = try c.decode(String.self, forKey: .write)
+        outcome = try c.decode(PocketWriteAnswer.Outcome.self, forKey: .outcome)
+        reason = try c.nullable(String.self, forKey: .reason)
+        sentence = try c.nullable(String.self, forKey: .sentence)
+        session = try c.nullable(PocketStartSession.self, forKey: .session)
+        guard verb == "start" else {
+            throw DecodingError.dataCorruptedError(forKey: .verb, in: c, debugDescription: "a start's answer names the start")
+        }
+        // A reason, and a non-empty one, exactly when refused.
+        let reasoned = reason.map { !$0.isEmpty } ?? false
+        guard reasoned == (outcome == .refused), reason == nil || reasoned else {
+            throw DecodingError.dataCorruptedError(forKey: .reason, in: c, debugDescription: "a reason comes with refused, and only with it")
+        }
+        // A sentence, and a non-empty one, exactly when not done.
+        let said = sentence.map { !$0.isEmpty } ?? false
+        guard said == (outcome != .done), sentence == nil || said else {
+            throw DecodingError.dataCorruptedError(forKey: .sentence, in: c, debugDescription: "a sentence comes with every outcome but done")
+        }
+        // The new session exactly when done.
+        guard (session != nil) == (outcome == .done) else {
+            throw DecodingError.dataCorruptedError(forKey: .session, in: c, debugDescription: "a session comes with done, and only with it")
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(verb, forKey: .verb)
+        try c.encode(write, forKey: .write)
+        try c.encode(outcome, forKey: .outcome)
+        try c.encode(reason, forKey: .reason)
+        try c.encode(sentence, forKey: .sentence)
+        try c.encode(session, forKey: .session)
+    }
+}
+
 // MARK: - Reply (Phase 318)
 
 /// `PocketReplyOffer`: what the phone may do with one session's question or
@@ -855,6 +981,241 @@ extension PocketSessionsChoice: Codable {
     }
 }
 
+// MARK: - The start offer (Phase 346)
+//
+// `PocketSessionsAnswer.start`, build/p346/SPEC.md section 3.2 and D7: what
+// New session may offer on THIS Mac, composed in main starting nothing, or
+// `waiting` while the Mac has not allowed the route. The phone draws it and
+// decides nothing: which projects, in what order, which agents are installed
+// where, which project and agent come chosen and what a sealed launch default
+// says are all main's.
+//
+// DECODED STRICTLY HERE, AND LENIENTLY ABOVE IT (D26). Every type below
+// refuses a value it cannot square (an unknown state, a project naming a
+// place that is not listed, a place naming an agent that is not listed, a
+// chosen project or default agent that is not listed, an id listed twice, or a
+// list over the Mac's own caps), and the sessions answer decodes the whole
+// key inside `try?`, so a refused offer reads as ABSENT: no "+", and the
+// Sessions tab draws exactly as it did. An offer never fails Sessions.
+
+/// The phone's bounds, each the Mac's constant (`POCKET_START_PROJECTS_MAX`,
+/// `POCKET_START_AGENTS_MAX`), and one place per project and this Mac's.
+enum PocketStartBounds {
+    static let projects = 200
+    static let agents = 64
+    static let places = 201
+}
+
+/// `PocketStartProject`: one project open in Tortie on that Mac.
+struct PocketStartProject: Equatable, Sendable, Identifiable {
+    /// The project's id, sent back verbatim and never shown.
+    let id: String
+    /// The open tab's name, clipped in main.
+    let label: String
+    /// The machine's label; nil on this Mac.
+    let machine: String?
+    /// The folder, only when another listed project shares the label and
+    /// the machine.
+    let folder: String?
+    /// `local` or the machine's id: an index into the offer's places by id.
+    let place: String
+}
+
+extension PocketStartProject: Codable {
+    enum CodingKeys: String, CodingKey { case id, label, machine, folder, place }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        label = try c.decode(String.self, forKey: .label)
+        machine = try c.nullable(String.self, forKey: .machine)
+        folder = try c.nullable(String.self, forKey: .folder)
+        place = try c.decode(String.self, forKey: .place)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(label, forKey: .label)
+        try c.encode(machine, forKey: .machine)
+        try c.encode(folder, forKey: .folder)
+        try c.encode(place, forKey: .place)
+    }
+}
+
+/// `PocketStartPlace`: where a listed project lives, `local` or a machine.
+struct PocketStartPlace: Equatable, Sendable, Identifiable {
+    let id: String
+    /// This Mac always; a machine only while Tortie is connected to it.
+    let ready: Bool
+    /// False: Tortie has not read which agents are there yet.
+    let read: Bool
+    /// The agents installed there, registry ids, in the registry's order.
+    let agents: [String]
+}
+
+extension PocketStartPlace: Codable {
+    enum CodingKeys: String, CodingKey { case id, ready, read, agents }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        ready = try c.decode(Bool.self, forKey: .ready)
+        read = try c.decode(Bool.self, forKey: .read)
+        agents = try c.decode([String].self, forKey: .agents)
+    }
+}
+
+/// `PocketStartAgent`: one agent any place lists, as the Mac draws it.
+struct PocketStartAgent: Equatable, Sendable, Identifiable {
+    /// The registry id, sent back verbatim.
+    let id: String
+    /// Its drawn name (`Claude Code`).
+    let name: String
+    /// Its mark's key (Screens/AgentMark.swift).
+    let icon: String
+    /// Its sealed safeguard-off launch defaults' labels, joined, or nil.
+    let danger: String?
+}
+
+extension PocketStartAgent: Codable {
+    enum CodingKeys: String, CodingKey { case id, name, icon, danger }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        icon = try c.decode(String.self, forKey: .icon)
+        danger = try c.nullable(String.self, forKey: .danger)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(name, forKey: .name)
+        try c.encode(icon, forKey: .icon)
+        try c.encode(danger, forKey: .danger)
+    }
+}
+
+/// `PocketStartOffer`: what New session may start, on the Mac that sent it.
+struct PocketStartOffer: Equatable, Sendable {
+    /// In main's order: this Mac's alphabetically, then each machine's.
+    let projects: [PocketStartProject]
+    /// One per place a listed project names.
+    let places: [PocketStartPlace]
+    /// Every agent any place lists, once, in the registry's order.
+    let agents: [PocketStartAgent]
+    /// The project main chose (D10), or nil with none.
+    let chosen: String?
+    /// The Mac's default agent when it is a launchable one (D11), or nil.
+    let defaultAgent: String?
+
+    /// The place `project` lives in, or nil.
+    func place(of project: PocketStartProject) -> PocketStartPlace? {
+        places.first { $0.id == project.place }
+    }
+
+    /// The agent `id` names, or nil.
+    func agent(_ id: String) -> PocketStartAgent? {
+        agents.first { $0.id == id }
+    }
+
+    /// Whether an offer holds together: within the bounds, every id once,
+    /// every project's place listed, every place's agents listed, and the
+    /// chosen project and the default agent each listed or nil.
+    static func holdsTogether(
+        projects: [PocketStartProject], places: [PocketStartPlace], agents: [PocketStartAgent],
+        chosen: String?, defaultAgent: String?
+    ) -> Bool {
+        guard projects.count <= PocketStartBounds.projects,
+              agents.count <= PocketStartBounds.agents,
+              places.count <= PocketStartBounds.places else { return false }
+        let projectIds = Set(projects.map(\.id))
+        let placeIds = Set(places.map(\.id))
+        let agentIds = Set(agents.map(\.id))
+        guard projectIds.count == projects.count, placeIds.count == places.count, agentIds.count == agents.count,
+              !projectIds.contains(""), !agentIds.contains("") else { return false }
+        guard projects.allSatisfy({ placeIds.contains($0.place) }),
+              places.allSatisfy({ place in Set(place.agents).count == place.agents.count && place.agents.allSatisfy(agentIds.contains) })
+        else { return false }
+        if let chosen, !projectIds.contains(chosen) { return false }
+        if let defaultAgent, !agentIds.contains(defaultAgent) { return false }
+        return true
+    }
+}
+
+extension PocketStartOffer: Codable {
+    enum CodingKeys: String, CodingKey { case state, projects, places, agents, chosen, defaultAgent }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        projects = try c.decode([PocketStartProject].self, forKey: .projects)
+        places = try c.decode([PocketStartPlace].self, forKey: .places)
+        agents = try c.decode([PocketStartAgent].self, forKey: .agents)
+        chosen = try c.nullable(String.self, forKey: .chosen)
+        defaultAgent = try c.nullable(String.self, forKey: .defaultAgent)
+        guard Self.holdsTogether(projects: projects, places: places, agents: agents, chosen: chosen, defaultAgent: defaultAgent) else {
+            throw DecodingError.dataCorruptedError(forKey: .projects, in: c, debugDescription: "an offer that does not hold together")
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(PocketSessionsStart.Word.offered, forKey: .state)
+        try c.encode(projects, forKey: .projects)
+        try c.encode(places, forKey: .places)
+        try c.encode(agents, forKey: .agents)
+        try c.encode(chosen, forKey: .chosen)
+        try c.encode(defaultAgent, forKey: .defaultAgent)
+    }
+}
+
+/// `PocketSessionsStart`: the sessions answer's `start` key. `waiting` while
+/// the Mac has not allowed the route (D9: the phone draws nothing for it),
+/// or the offer.
+enum PocketSessionsStart: Equatable, Sendable {
+    case waiting
+    case offered(PocketStartOffer)
+
+    enum Word {
+        static let waiting = "waiting"
+        static let offered = "offered"
+    }
+
+    /// The offer, when there is one.
+    var offer: PocketStartOffer? {
+        if case .offered(let offer) = self { return offer }
+        return nil
+    }
+}
+
+extension PocketSessionsStart: Codable {
+    enum CodingKeys: String, CodingKey { case state }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        switch try c.decode(String.self, forKey: .state) {
+        case Word.waiting:
+            self = .waiting
+        case Word.offered:
+            self = .offered(try PocketStartOffer(from: decoder))
+        default:
+            throw DecodingError.dataCorruptedError(forKey: .state, in: c, debugDescription: "not one of waiting, offered")
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        switch self {
+        case .waiting:
+            var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(Word.waiting, forKey: .state)
+        case .offered(let offer):
+            try offer.encode(to: encoder)
+        }
+    }
+}
+
 /// `PocketSessionsAnswer`: what `GET /v1/sessions` answers.
 struct PocketSessionsAnswer: Equatable, Sendable {
     let asked: PocketSessionsAsked
@@ -873,11 +1234,18 @@ struct PocketSessionsAnswer: Equatable, Sendable {
     let omittedRows: Int
     let at: Double
     let ageNote: String
+    /// What New session may start on this Mac (Phase 346, D9, D26): absent on
+    /// a Mac older than that phase, `waiting` while the Mac has not allowed
+    /// the route, else the offer. DECODED LENIENTLY: anything this build
+    /// cannot read here is nil, and never refuses the answer it rides on. A
+    /// `var` with a default so every answer built field by field elsewhere
+    /// keeps its shape.
+    var start: PocketSessionsStart? = nil
 }
 
 extension PocketSessionsAnswer: Codable {
     enum CodingKeys: String, CodingKey {
-        case asked, rows, groups, agents, machines, at, ageNote
+        case asked, rows, groups, agents, machines, at, ageNote, start
         case totalSessions = "total"
         case omittedRows = "omitted"
     }
@@ -893,6 +1261,10 @@ extension PocketSessionsAnswer: Codable {
         omittedRows = try c.doorNumber(forKey: .omittedRows)
         at = try c.decode(Double.self, forKey: .at)
         ageNote = try c.decode(String.self, forKey: .ageNote)
+        // The one lenient read in this file (D26): an offer this build
+        // cannot square, a state it does not know, or a list past the Mac's
+        // caps is no offer, and the rest of the answer is drawn as ever.
+        start = (try? c.decodeIfPresent(PocketSessionsStart.self, forKey: .start)) ?? nil
     }
 }
 

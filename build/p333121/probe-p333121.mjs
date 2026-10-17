@@ -1189,7 +1189,8 @@ function graderSelfTest() {
   const clausesTree = faceClausesOf(contract);
   const legacy = ['blocked', 'choose', 'end', 'keys', 'pair', 'say', 'screen', 'scrollback', 'session', 'sessions', 'turns'];
   const canTree = clausesTree === null ? null : [...new Set(clausesTree.filter(([id, c]) => c !== null && legacy.includes(id)).map(([, c]) => c))].join(', ');
-  say(canTree === CAN_ELEVEN && clausesTree.length === legacy.length && legacy.every((id) => clausesTree.some(([k]) => k === id)), `CAN_ELEVEN is POCKET_FACE_CLAUSES over the eleven, each clause once in key order (${canTree === null ? 'no table in the tree yet' : J(canTree)})`);
+  // Since Phase 346 the table holds a twelfth row, 'start'; the eleven are read out of it.
+  say(canTree === CAN_ELEVEN && legacy.every((id) => clausesTree.filter(([k]) => k === id).length === 1), `CAN_ELEVEN is POCKET_FACE_CLAUSES over the eleven, each clause once in key order (${canTree === null ? 'no table in the tree yet' : J(canTree)})`);
   say(pairing.includes(`lines.push(\`${ROUTE_PREFIX} \${`) && pairing.includes(`lines.push(\`${WRITE_PREFIX}\${`), 'ROUTE_PREFIX and WRITE_PREFIX lead describePocketDoor’s two lines');
   say(PUBLIC_NAME === DEFAULT_SCENARIO.dnsName.replace(/\.$/, '') && MOVED_NAME.endsWith('.ts.net') && MOVED_NAME !== PUBLIC_NAME, 'the stand-in’s name and the moved one are probe:p33312’s two made-up names');
   say(readTree('src/main/settings/window.ts').includes(`remembered?.width ?? ${String(OWN_WIDTH)}`) && readTree('src/main/settings/window.ts').includes('minWidth: 640'), 'OWN_WIDTH is the Settings window’s own width, and 640 its narrowest');

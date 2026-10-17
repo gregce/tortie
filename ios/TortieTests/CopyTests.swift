@@ -120,6 +120,43 @@ final class CopyTests: XCTestCase {
         XCTAssertEqual(byName["notPairedHere"], Copy.notPairedHere)
     }
 
+    /// Clause (Phase 346, build/p346/SPEC.md section 4.15): New session's
+    /// words, each pinned to its value and its owner: the title and Create's
+    /// two words the Mac's own ⌘T sheet's, the rest the phone's own; the
+    /// sheet's labels are the words already declared once (`groupProject`,
+    /// `agent`), and none names a biometry (his answer 5).
+    func testNewSessionsWordsArePinned() throws {
+        let entries = try entries()
+        let byName = Dictionary(uniqueKeysWithValues: entries.map { ($0.name, $0) })
+        let macWords: [(String, String)] = [("newSession", "New session"), ("create", "Create"), ("creating", "Creating…")]
+        for (name, value) in macWords {
+            let entry = try XCTUnwrap(byName[name], "Copy.\(name) is not declared")
+            XCTAssertEqual(entry.literal, value, name)
+            guard case let .mac(path, _)? = entry.owner else { return XCTFail("\(name) is not the Mac's word") }
+            XCTAssertEqual(path, "src/renderer/app/CreateSessionModal.tsx", name)
+        }
+        let phoneWords: [(String, String)] = [
+            ("startsWith", "Starts with"),
+            ("startNoAnswer", "Your Mac did not answer. If it started the session, it is in Sessions."),
+            ("startNotTaken", "Your Mac did not take it. Nothing was started."),
+            ("startSample", "This is a sample, so nothing ran."),
+            ("startNoProject", "Open a project in Tortie on your Mac first."),
+            ("startNoAgent", "No agent is installed there."),
+            ("startNotRead", "Your Mac has not looked for agents there yet."),
+            ("startNotConnected", "Not connected")
+        ]
+        for (name, value) in phoneWords {
+            let entry = try XCTUnwrap(byName[name], "Copy.\(name) is not declared")
+            XCTAssertEqual(entry.literal, value, name)
+            guard case .phone? = entry.owner else { return XCTFail("\(name) is not the phone's word") }
+        }
+        XCTAssertEqual(Copy.groupProject, "Project")
+        XCTAssertEqual(Copy.agent, "Agent")
+        XCTAssertEqual(Copy.startsWithLabels("Skip permissions"), "Starts with Skip permissions")
+        XCTAssertNil(byName["startProject"], "the sheet's Project label is Copy.groupProject, declared once")
+        XCTAssertNil(byName["startAgent"], "the sheet's Agent label is Copy.agent, declared once")
+    }
+
     /// Clause (Phase 345, build/p345/SPEC.md section 3.7): the four words of
     /// several Macs, each the phone's own (no Mac surface switches between
     /// Macs, pairs a second Mac with a phone, or knows what the phone keeps),

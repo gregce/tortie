@@ -500,12 +500,22 @@ const HELPER = 'electron-run.mjs';
  * of build/p316/hostile-door.mjs ended in its `finally`, beside Simulators made
  * one at a time by build/simulator-run.mjs.
  *
+ * PHASE 346 RAISED IT FROM 176 TO 177, by one for build/p346/probe-p346.mjs
+ * (`probe:p346`), a session started from the phone: ONE Electron at HEAD
+ * through the helper and, with P346_PARENT_CHECKOUT, the parent's first on the
+ * same profile, one after the other and never at once, on a scratch profile,
+ * HOME and ZDOTDIR with HISTFILE=/dev/null and the socket gmux-p346…, inside
+ * build/with-scratch-machine.mjs's loopback machine, the five hidden agents
+ * renamed before every launch, every agent a stand-in behind its bare name,
+ * and every stand-in pid and paused sshd pid ended or resumed in its
+ * `finally`.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 176;
+const HELPER_USER_FLOOR = 177;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

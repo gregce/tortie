@@ -150,6 +150,7 @@ import { keyscanText } from '../ssh-run.mjs';
 import { endSession, freshWriteId, makePhone, pairThrough, readOffer, signedGet, signedPost } from '../p316/node-phone.mjs';
 import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, processRows, watchForRealTailscale } from '../p330/tailscale-standin.mjs';
 import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin, quietAgentsHeld, writeQuietAgents } from '../p332/dns-standin.mjs';
+import { plantedResolve, scratchShellEnv } from '../scratch-login.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const J = JSON.stringify;
@@ -171,8 +172,13 @@ export const MACHINE_ID = 'p317far';
  * Phase 337.1's `scrollback` read joined the route line alone, eleven routes,
  * no write clause moving (build/p3371/SPEC.md D1, D35, §Attack B7).
  */
-export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, scrollback, session, sessions, turns';
-export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question, send a session one message and type into any session as you would at this Mac';
+export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, scrollback, session, sessions, start, turns';
+/**
+ * HEAD's write line, every write allowed (Phase 346 added `start`, and its ruled round this literal and `start` in
+ * ROUTE_LINE, which Phase 346's build left at 337.1's: this file's own self-test read ROUTE_LINE red against the
+ * tree's route ids, and a run at HEAD would have read W1's write line red over a door that said it right).
+ */
+export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question, send a session one message, type into any session as you would at this Mac and start a session in a project open in Tortie, on this Mac or another machine';
 /** HEAD's door honesty sentence, by value for the fixtures (build/p3371/SPEC.md D35: the terminal and what it printed before); the run reads the tree's own. */
 export const HONESTY_LINE = 'A phone you allow can see what any session’s terminal shows and what it printed before, type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.';
 export const LIVE = Object.freeze(['running', 'idle', 'needs_input']);
@@ -649,7 +655,7 @@ function graderSelfTest() {
   // The word reader and the route reader.
   const src = "export const A = 'one';\nexport const B: string =\n  'two, ' +\n  \"three.\";\n";
   say(constWord(src, 'A') === 'one' && constWord(src, 'B') === 'two, three.' && constWord(src, 'C') === null, 'constWord reads a literal and a concatenation over a line break');
-  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'choose', 'end', 'keys', 'pair', 'say', 'screen', 'scrollback', 'session', 'sessions', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
+  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'choose', 'end', 'keys', 'pair', 'say', 'screen', 'scrollback', 'session', 'sessions', 'start', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
   say(answerOf({ status: 200, body: '{"outcome":"done"}' })?.outcome === 'done' && answerOf({ status: 404, body: '' }) === null && answerOf({ status: 200, body: 'x' }) === null, 'answerOf reads a 200 answer and nothing else');
   say(deepEqual(descendantsOf(new Map([[1, [2, 3]], [3, [4]]]), 1), [2, 4, 3]), 'descendantsOf walks a tree deepest first');
   // The tests round: W6b's listener, both ways.
@@ -1081,6 +1087,8 @@ function launchOptions(label, checkout) {
     env: withoutDevRenderer({
       ...INHERITED_CLAUDE,
       HOME,
+      // Phase 346's ruled round: zsh reads $ZDOTDIR/.zprofile, so the scratch HOME's or the stand-in is on no PATH.
+      ...scratchShellEnv(HOME),
       GMUX_TMUX_SOCKET: SOCKET,
       GMUX_PROBES: '1',
       GMUX_LOG_FILE: '1',
@@ -1189,8 +1197,14 @@ exit 0
   );
   chmodSync(join(BIN, 'claude'), 0o755);
   writeFileSync(join(HOME, '.zprofile'), `export PATH="${BIN}:$PATH"\n`, 'utf8');
-  writeFileSync(join(HOME, '.zshrc'), `export PATH="${BIN}:$PATH"\nPS1='p317 %# '\n`, 'utf8');
+  writeFileSync(join(HOME, '.zshrc'), `export PATH="${BIN}:$PATH"\nexport HISTFILE=/dev/null\nPS1='p317 %# '\n`, 'utf8');
   writeFileSync(join(HOME, '.hushlogin'), '');
+  // THE PRECONDITION (Phase 346's ruled round): the login shell the app will ask, with the environment it will be given, resolves every agent this run plants to its stand-in, or nothing is launched (exit 2). On 2026-10-16 a ZDOTDIR probe:p313 did not set started his real Claude Code in both of its claude sessions.
+  {
+    const asked = plantedResolve({ home: HOME, bin: BIN, names: ['claude'], env: INHERITED_CLAUDE });
+    if (!asked.ok) refuse(`${asked.said}, so a session would start a real agent. Nothing is launched.`);
+    say(asked.said);
+  }
   writeMachines(true);
   {
     const known = join(PROFILE, 'gmux', 'machines', 'known-machines');

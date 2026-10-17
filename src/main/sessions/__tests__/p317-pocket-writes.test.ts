@@ -80,6 +80,13 @@ const UNUSED_KEYS = {
   }
 };
 
+// Phase 346's start, which no End, press, message or keys write reaches.
+const UNUSED_START = {
+  start: (): never => {
+    throw new Error('an End must never reach the start');
+  }
+};
+
 function row(id: string, status: SessionStatus, machine?: { id: string; answering?: boolean }): Session {
   return {
     id,
@@ -261,7 +268,7 @@ function fakeCore(rows: Session[]): FakeCore {
 describe('end, over a fake core', () => {
   it('calls the Mac’s own End once on ok, and answers done', async () => {
     const core = fakeCore([row('s1', 'running')]);
-    const writes = createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS });
+    const writes = createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS, start: UNUSED_START });
     expect(await writes.end({ sessionId: 's1', batch: false })).toEqual({ outcome: 'done' });
     expect(core.kills).toEqual(['s1']);
   });
@@ -275,7 +282,7 @@ describe('end, over a fake core', () => {
     ]);
     core.records.set('rm', { status: 'discarded' });
     core.records.set('vanished', { status: 'running' });
-    const writes = createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS });
+    const writes = createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS, start: UNUSED_START });
     expect(await writes.end({ sessionId: 'ex', batch: false })).toEqual({ outcome: 'refused', reason: 'ended', sentence: LIFECYCLE_SESSION_CHANGED });
     expect(await writes.end({ sessionId: 'rs', batch: true })).toEqual({ outcome: 'refused', reason: 'ended', sentence: LIFECYCLE_SESSION_CHANGED });
     expect(await writes.end({ sessionId: 'un', batch: false })).toEqual({ outcome: 'refused', reason: 'unreachable', sentence: END_UNREACHABLE_TITLE });
@@ -303,20 +310,20 @@ describe('end, over a fake core', () => {
     core.killWith = async () => {
       seen = flipped;
     };
-    await createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS }).end({ sessionId: 's1', batch: false });
+    await createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS, start: UNUSED_START }).end({ sessionId: 's1', batch: false });
     expect(seen).toBe(false);
   });
 
   it('re-reads the row by id at the press, not at a time before it', async () => {
     const core = fakeCore([row('s1', 'running')]);
-    const writes = createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS });
+    const writes = createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS, start: UNUSED_START });
     core.rows = [row('s1', 'exited')];
     expect(await writes.end({ sessionId: 's1', batch: false })).toMatchObject({ outcome: 'refused', reason: 'ended' });
     expect(core.kills).toEqual([]);
   });
 
   it('answers failed with END_FAILED while the core has not booted', async () => {
-    const writes = createPocketWrites({ core: () => null, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS });
+    const writes = createPocketWrites({ core: () => null, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS, start: UNUSED_START });
     expect(await writes.end({ sessionId: 's1', batch: false })).toEqual({ outcome: 'failed', sentence: END_FAILED });
   });
 
@@ -328,7 +335,7 @@ describe('end, over a fake core', () => {
       core.killWith = async () => {
         throw gmuxError('SESSION_NOT_FOUND', CANARY, CANARY);
       };
-      const out = await createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS }).end({ sessionId: 's1', batch: false });
+      const out = await createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS, start: UNUSED_START }).end({ sessionId: 's1', batch: false });
       expect(out).toEqual({ outcome: 'refused', reason: 'gone', sentence: SESSION_NOT_FOUND });
       expect(JSON.stringify(out)).not.toContain('CANARY');
     });
@@ -340,7 +347,7 @@ describe('end, over a fake core', () => {
         core.records.set('s1', { status: 'discarded' });
         throw gmuxError('INVALID_INPUT', CANARY, 's1');
       };
-      const out = await createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS }).end({ sessionId: 's1', batch: false });
+      const out = await createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS, start: UNUSED_START }).end({ sessionId: 's1', batch: false });
       expect(out).toEqual({ outcome: 'refused', reason: 'removed', sentence: REMOVED_SENTENCE });
     });
 
@@ -349,7 +356,7 @@ describe('end, over a fake core', () => {
       core.killWith = async () => {
         throw gmuxError('INVALID_INPUT', CANARY, 's1');
       };
-      const out = await createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS }).end({ sessionId: 's1', batch: false });
+      const out = await createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS, start: UNUSED_START }).end({ sessionId: 's1', batch: false });
       expect(out).toEqual({ outcome: 'failed', sentence: END_FAILED });
     });
 
@@ -359,7 +366,7 @@ describe('end, over a fake core', () => {
         core.killWith = async () => {
           throw thrown;
         };
-        const out = await createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS }).end({ sessionId: 's1', batch: false });
+        const out = await createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS, start: UNUSED_START }).end({ sessionId: 's1', batch: false });
         expect(out).toEqual({ outcome: 'failed', sentence: END_FAILED });
       }
     });
@@ -370,7 +377,7 @@ describe('end, over a fake core', () => {
       core.killWith = async () => {
         throw new Error(CANARY);
       };
-      const out = await createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS }).end({ sessionId: 's1', batch: false });
+      const out = await createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS, start: UNUSED_START }).end({ sessionId: 's1', batch: false });
       expect(JSON.stringify(out)).not.toContain('CANARY');
       expect(logged.join('\n')).not.toContain('CANARY');
     });
@@ -380,7 +387,7 @@ describe('end, over a fake core', () => {
       core.listSessions = () => {
         throw new Error(CANARY);
       };
-      const out = await createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS }).end({ sessionId: 's1', batch: false });
+      const out = await createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS, start: UNUSED_START }).end({ sessionId: 's1', batch: false });
       expect(out).toEqual({ outcome: 'failed', sentence: END_FAILED });
       expect(core.kills).toEqual([]);
     });
@@ -393,7 +400,7 @@ describe('the production machine question', () => {
     machineRowAsked.length = 0;
     machineRows.set('m1', { id: 'm1' });
     const core = fakeCore([row('a', 'running', { id: 'm1' }), row('b', 'running', { id: 'm2' })]);
-    const writes = createPocketWrites({ core: () => core, reply: UNUSED_REPLY, keys: UNUSED_KEYS });
+    const writes = createPocketWrites({ core: () => core, reply: UNUSED_REPLY, keys: UNUSED_KEYS, start: UNUSED_START });
     expect(await writes.end({ sessionId: 'a', batch: true })).toEqual({ outcome: 'done' });
     expect(await writes.end({ sessionId: 'b', batch: true })).toMatchObject({ outcome: 'refused', reason: 'unreachable' });
     expect(machineRowAsked).toEqual(['m1', 'm2']);
@@ -404,8 +411,8 @@ describe('the production machine question', () => {
   it('reads the record from the core for the offer, so a removed row offers nothing', () => {
     const core = fakeCore([row('a', 'running')]);
     core.records.set('a', { status: 'discarded' });
-    expect(createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS }).endOffer(core.rows[0] as Session)).toEqual({ state: 'none' });
-    expect(createPocketWrites({ core: () => null, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS }).endOffer(row('a', 'running'))).toEqual({
+    expect(createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS, start: UNUSED_START }).endOffer(core.rows[0] as Session)).toEqual({ state: 'none' });
+    expect(createPocketWrites({ core: () => null, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS, start: UNUSED_START }).endOffer(row('a', 'running'))).toEqual({
       state: 'offered',
       batch: true
     });
@@ -435,7 +442,8 @@ describe('the press and the message, passed through (Phase 318, build/p318/SPEC.
           return sayAnswer;
         }
       },
-      keys: UNUSED_KEYS
+      keys: UNUSED_KEYS,
+      start: UNUSED_START
     });
     const chooseInput = { sessionId: 's1', question: '0123456789abcdef-4', mark: 'a1b2c3d4e5f6', marker: '2' };
     const sayInput = { sessionId: 's2', text: '/exit' };
@@ -464,7 +472,8 @@ describe('the press and the message, passed through (Phase 318, build/p318/SPEC.
         choose: async () => ({ outcome: 'done' }),
         say: async () => ({ outcome: 'done' })
       },
-      keys: { keys: async () => ({ outcome: 'done' }) }
+      keys: { keys: async () => ({ outcome: 'done' }) },
+      start: UNUSED_START
     });
     expect(await writes.choose({ sessionId: 's', question: '0123456789abcdef-1', mark: 'a1b2c3d4e5f6', marker: '1' }, () => true)).toEqual({ outcome: 'done' });
     expect(await writes.say({ sessionId: 's', text: 'hi' }, () => true)).toEqual({ outcome: 'done' });
@@ -473,10 +482,11 @@ describe('the press and the message, passed through (Phase 318, build/p318/SPEC.
 
   it('leaves end and endOffer as they were: the reply verbs are never asked by either', async () => {
     const core = fakeCore([row('s1', 'running')]);
-    const writes = createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS });
+    const writes = createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS, start: UNUSED_START });
     expect(writes.endOffer(core.rows[0] as Session)).toEqual({ state: 'offered', batch: true });
     expect(await writes.end({ sessionId: 's1', batch: false })).toEqual({ outcome: 'done' });
-    expect(Object.keys(writes).sort()).toEqual(['choose', 'end', 'endOffer', 'keys', 'say']);
+    // Phase 346 adds the start's pass-through.
+    expect(Object.keys(writes).sort()).toEqual(['choose', 'end', 'endOffer', 'keys', 'say', 'start']);
   });
 });
 
@@ -498,7 +508,8 @@ describe('the keys, passed through (Phase 337, build/p337/SPEC.md §5.4)', () =>
           asked.push([input, handed]);
           return answer;
         }
-      }
+      },
+      start: UNUSED_START
     });
     const input = { sessionId: 's1', keys: [{ k: 'C-c' as const }], turn: '0123456789abcdef-3', dialog: null };
     expect(await writes.keys(input, still)).toBe(answer);
@@ -518,7 +529,8 @@ describe('the keys, passed through (Phase 337, build/p337/SPEC.md §5.4)', () =>
       },
       machineKnown: known,
       reply: UNUSED_REPLY,
-      keys: { keys: async () => ({ outcome: 'done' }) }
+      keys: { keys: async () => ({ outcome: 'done' }) },
+      start: UNUSED_START
     });
     expect(await writes.keys({ sessionId: 's', keys: [{ t: 'a' }], turn: '0123456789abcdef-1', dialog: null }, () => true)).toEqual({
       outcome: 'done'

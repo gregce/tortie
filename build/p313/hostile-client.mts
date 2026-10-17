@@ -141,6 +141,24 @@
  * beside an honest read before (PR0) and after the whole set is posted again
  * (PR7).
  *
+ * PHASE 346 STARTS A SESSION FROM THE PHONE (build/p346/SPEC.md §5.2): the
+ * door's fifth write, `POST /v1/start`, through the SHIPPING write path's
+ * start branch, over a RECORDING `PocketWrites.start` that records its input,
+ * asks the `still` it was handed after any hold, and answers a new session.
+ * The NSH arms grade each on its answer AND on the recorder's count of acts:
+ * a door whose served set lacks start (404 route before the body, nothing
+ * forwarded, NSH13, run first because a store that never allowed start
+ * serves the eleven); an honest start acting once with exactly its project
+ * and agent (NSH1); the same bytes (NSH2); the same write id fresh-signed
+ * while the act is held and after (NSH3); a second phone's start while one
+ * runs (NSH4); seven starts in a minute on the write path's own clock, the
+ * seventh refused often, unrecorded, and acting once the window passed
+ * (NSH5); a body over 512 bytes (NSH6); a query (NSH7); NS3's hostile corpus
+ * (NSH8); a GET signature (NSH9); another phone's connection (NSH10); a phone
+ * removed before and during the act (NSH11); the door stopping during it
+ * (NSH12); and one log line per start naming no project, agent or write id
+ * (NSH14).
+ *
  * It prints one line, `P313_HOSTILE:{...}`, which the runner beside it reads.
  */
 
@@ -173,6 +191,8 @@ import type {
   PocketRoute,
   PocketSayInput,
   PocketScrollbackAsk,
+  PocketStartInput,
+  PocketStartOutcome,
   PocketWrites
 } from '../../src/main/pocket/routes.js';
 import type { PocketRouteId, PocketScreenAnswer, PocketScrollbackAnswer } from '../../src/shared/ipc/pocket.js';
@@ -231,6 +251,10 @@ const { createScreenScrollback, SCROLLBACK_MIN_GAP_MS, SCROLLBACK_QUEUE_MAX } = 
 const { SCREEN_TICK_MS } = await import('../../src/main/screen/watch.js');
 const { DOOR_STOP_JOIN_MS } = await import('../../src/main/pocket/door/limits.js');
 const { SCROLLBACK_BUSY, SCROLLBACK_MOVED } = await import('../../src/shared/screen-copy.js');
+// PHASE 346: the start's own sentences and the rate, read from the SHIPPING
+// modules so the arms grade the words and the numbers the Mac says.
+const { START_BUSY, START_OFTEN, START_STILL } = await import('../../src/shared/start-copy.js');
+const { START_RATE_MAX, START_RATE_WINDOW_MS } = await import('../../src/main/pocket/writes.js');
 
 const {
   PocketPairing,
@@ -1049,6 +1073,21 @@ try {
    */
   const keyed: { sessionId: string; input: PocketKeysInput; still: boolean }[] = [];
   let keysAnswer: PocketReplyOutcome | null = null;
+  /**
+   * PHASE 346. Every start the write path handed the fake, the input exactly as
+   * it was handed (so a third key it carried would be seen), and what the
+   * `still` it was handed answered AFTER any hold, as the phone's start asks it
+   * last before the create.
+   */
+  const starts: { input: PocketStartInput; still: boolean }[] = [];
+  let startsReached = 0;
+  let startMade = 0;
+  /**
+   * The write path's own clock (Phase 346, NSH5): the rate and the ledger read
+   * it; signatures do not, so moving it moves the start's window and nothing
+   * a phone signs.
+   */
+  let writeSkew = 0;
   const recordingWrites: PocketWrites = {
     end: async (input): Promise<PocketEndOutcome> => {
       acts.push(input);
@@ -1067,13 +1106,25 @@ try {
       const told = keysAnswer;
       keysAnswer = null;
       return told ?? { outcome: 'done' };
+    },
+    start: async (input, still): Promise<PocketStartOutcome> => {
+      startsReached += 1;
+      actsReached += 1;
+      if (holdAct !== null) await holdAct;
+      const allowed = still();
+      starts.push({ input, still: allowed });
+      if (!allowed) return { outcome: 'refused', reason: 'stopped', sentence: POCKET_WRITE_SENTENCES.stopped };
+      startMade += 1;
+      return { outcome: 'done', session: { id: `ses_started_${String(startMade)}`, name: `${input.agent}-${String(startMade)}` } };
     }
   };
   const writeHandler = createPocketWriteHandler({
     shuttingDown: () => false,
     stillPaired: (id) => phones.some((p) => p.id === id),
     routeServed,
-    writes: recordingWrites
+    writes: recordingWrites,
+    // PHASE 346 (NSH5): the write path's clock, moved by one arm alone.
+    now: () => Date.now() + writeSkew
   });
   /**
    * Arms that need the door to BEGIN TO STOP while a write's answer is in
@@ -1165,6 +1216,7 @@ try {
         case 'choose':
         case 'say':
         case 'keys':
+        case 'start':
           return null;
       }
     },
@@ -3000,6 +3052,268 @@ try {
         record('PR7', 'the launch set posted again: PR1’s request', 'ok-as-PR0', `${verdict(answer)}-${listing(answer) === listing(honest) ? 'as-PR0' : `OTHER ${listing(answer).slice(0, 60)}`}`, 'D7: no socket was cut and nothing restarted; the next request is asked against the set the door now holds.');
       }
       await serve(whole);
+    }
+
+    // -----------------------------------------------------------------------
+    // PHASE 346 (build/p346/SPEC.md §5.2): THE PHONE'S START, through the
+    // SHIPPING write path's start branch over the recording fake. Each arm on
+    // its answer and on the fake's count of acts.
+    // -----------------------------------------------------------------------
+    {
+      const PROJECT = '0f8a5d2e-4b1c-4e7a-9c3d-2a6b8e1f0c94';
+      /** A start body as Swift's JSONEncoder writes it: sorted keys. */
+      const startBody = (write: string, over: Record<string, unknown> = {}): Buffer =>
+        Buffer.from(JSON.stringify({ agent: 'claude', project: PROJECT, write, ...over }), 'utf8');
+      const launchSet = served;
+      const serveNow = async (next: readonly PocketRouteId[]): Promise<void> => {
+        served = next;
+        bind.updatePocketDoor({ routes: served });
+        await new Promise((resolve) => setImmediate(resolve));
+      };
+      const sentenceOf = (answer: Answer): string => String(bodyOf(answer)['sentence']);
+      const startLines = (): string[] => logged.filter((l) => l.includes("the phone's start:"));
+      const linesBefore = startLines().length;
+      const logFrom = logged.length;
+      const startsBefore = starts.length;
+      const sentIds: string[] = [];
+      const startId = (): string => {
+        const id = writeId();
+        sentIds.push(id);
+        return id;
+      };
+
+      // NSH13 (first: a store that never allowed start serves the eleven). A
+      // door whose served set lacks start: 404 route before the body, main never asked.
+      {
+        const before = stats();
+        const mainBefore = mainRequests;
+        const answer = await writeAs(wA, '/v1/start', startBody(startId()));
+        const big = await writeAs(wA, '/v1/start', Buffer.alloc(16 * 1024, 0x41));
+        const after = stats();
+        record('NSH13', 'served without start (an agreement that never allowed it): an honest start, and one with a 16 KiB body', 'refused-404/refused-404-route-not-oversized-not-forwarded-0', `${verdict(answer)}/${verdict(big)}-${after.refused.route >= before.refused.route + 2 ? 'route' : 'other'}-${after.refused.oversized === before.refused.oversized ? 'not-oversized' : 'OVERSIZED'}-${after.forwarded === before.forwarded && mainRequests === mainBefore ? 'not-forwarded' : 'FORWARDED'}-${String(starts.length - startsBefore)}`, 'D2: start WAITS for the Allow whose lines name it; until then the door answers it as a route it does not have, before a byte of body, and main is never asked.');
+      }
+      await serveNow([...launchSet, 'start']);
+
+      // NSH1. An honest start: done, one act, exactly its project and agent.
+      const honestId = startId();
+      const honestBody = startBody(honestId);
+      const honestHeaders = writeHeaders(wA, '/v1/start', honestBody);
+      const honest = await ask('POST', '/v1/start', honestHeaders, honestBody, { as: wA });
+      const handed = starts[starts.length - 1];
+      record('NSH1', 'an honest start over the phone’s own connection', '200:done-1-exact', `${said(honest)}-${String(starts.length - startsBefore)}-${handed !== undefined && JSON.stringify(Object.keys(handed.input).sort()) === JSON.stringify(['agent', 'project']) && handed.input.project === PROJECT && handed.input.agent === 'claude' ? 'exact' : `other ${JSON.stringify(handed?.input ?? null).slice(0, 80)}`}`, 'D6, D15: the phone names a project main offered and an agent, and nothing else reaches the act.');
+      {
+        const b = bodyOf(honest);
+        const session = b['session'] as { id?: unknown; name?: unknown } | null;
+        record('NSH1b', 'its answer is the six fields, echoing the write id and naming the new session', `start-${honestId}-6-ses_started_1-claude-1-null-null`, `${String(b['verb'])}-${String(b['write'])}-${String(Object.keys(b).length)}-${String(session?.id)}-${String(session?.name)}-${String(b['reason'])}-${String(b['sentence'])}`, 'D5: verb, write, outcome, reason, sentence and session, the session non-null exactly when done.');
+      }
+
+      // NSH2. The same bytes again: the nonce is spent, nothing starts.
+      {
+        const before = starts.length;
+        const again = await ask('POST', '/v1/start', honestHeaders, honestBody, { as: wA });
+        record('NSH2', 'the same start, the same bytes again', 'refused-404:replay-0', `${verdict(again)}:${lastVerify}-${String(starts.length - before)}`, 'a signed request is spent once, whatever it carries.');
+      }
+
+      // NSH3. The same write id fresh-signed while the act is held, and after.
+      {
+        const release = holding();
+        const reachedBefore = startsReached;
+        const id = startId();
+        const body = startBody(id);
+        const first = writeAs(wA, '/v1/start', body);
+        await until(() => startsReached > reachedBefore);
+        const dup = await writeAs(wA, '/v1/start', body);
+        release();
+        const firstAnswer = await first;
+        const after = await writeAs(wA, '/v1/start', body);
+        record('NSH3', 'the same write id, signed afresh, while its start is held and after', '200:busy-still/200:done/recorded-1', `${said(dup)}-${sentenceOf(dup) === START_STILL ? 'still' : `OTHER ${sentenceOf(dup)}`}/${said(firstAnswer)}/${after.status === 200 && after.body === firstAnswer.body ? 'recorded' : `other(${said(after)})`}-${String(startsReached - reachedBefore)}`, 'D17: a duplicate of a start in flight is busy with START_STILL, and once it is answered the same id reads what it came to, starting nothing again.');
+      }
+
+      // NSH4. A second phone's start while one runs: busy, START_BUSY, no second act.
+      {
+        const release = holding();
+        const reachedBefore = startsReached;
+        const first = writeAs(wA, '/v1/start', startBody(startId()));
+        await until(() => startsReached > reachedBefore);
+        const second = await writeAs(wB, '/v1/start', startBody(startId(), { agent: 'codex' }));
+        release();
+        const firstAnswer = await first;
+        record('NSH4', 'a second phone’s start while one runs on this Mac', `200:busy-busy-on-mac/200:done-1`, `${said(second)}-${sentenceOf(second) === START_BUSY ? 'busy-on-mac' : `OTHER ${sentenceOf(second)}`}/${said(firstAnswer)}-${String(startsReached - reachedBefore)}`, 'D16, D18: ONE start in flight on this Mac across every phone, and the refusal says so in the Mac’s words.');
+      }
+
+      // NSH5. Seven starts from one phone inside a minute, on the write path's
+      // own clock: six act, the seventh is refused often, unrecorded, and acts
+      // once the window has passed.
+      {
+        // D16's numbers, spelled HERE: a client that took them from the module
+        // it attacks would follow a rate raised to sixty and stay green.
+        const RATE = 6;
+        const WINDOW_MS = 60_000;
+        const wS = await allowAnother('a phone that starts');
+        const reachedBefore = startsReached;
+        const outcomes: string[] = [];
+        for (let i = 0; i < RATE; i += 1) outcomes.push(said(await writeAs(wS, '/v1/start', startBody(startId()))));
+        const seventhId = startId();
+        const seventhBody = startBody(seventhId);
+        const seventh = await writeAs(wS, '/v1/start', seventhBody);
+        const actedInWindow = startsReached - reachedBefore;
+        writeSkew += WINDOW_MS + 1_000;
+        const later = await writeAs(wS, '/v1/start', seventhBody);
+        record('NSH5', `${String(RATE + 1)} starts from one phone inside a minute, then the seventh’s id once the window passed`, `${Array.from({ length: RATE }, () => '200:done').join(',')}/200:refused:often-often-${String(RATE)}/200:done-${String(RATE + 1)}`, `${outcomes.join(',')}/${said(seventh)}-${sentenceOf(seventh) === START_OFTEN ? 'often' : `OTHER ${sentenceOf(seventh)}`}-${String(actedInWindow)}/${said(later)}-${String(startsReached - reachedBefore)}`, 'D16, D19: six a minute is above any human pace and holds a stolen key to six agent processes; a refusal for the rate is not recorded, so the same id acts once the window allows.');
+        record('NSH5b', 'the shipping rate is D16’s six a minute', `${String(RATE)}/${String(WINDOW_MS)}`, `${String(START_RATE_MAX)}/${String(START_RATE_WINDOW_MS)}`, 'D16: START_RATE_MAX and START_RATE_WINDOW_MS, declared once in writes.ts.');
+      }
+
+      // NSH6. A body over 512 bytes: dropped at the door, main never asked.
+      {
+        const before = stats();
+        const mainBefore = mainRequests;
+        const startsAt = starts.length;
+        const big = startBody(startId(), { project: 'p'.repeat(560) });
+        const answer = await writeAs(wA, '/v1/start', big);
+        const after = stats();
+        record('NSH6', `a start body over its cap (${String(big.length)} bytes)`, 'refused-404-oversized-not-forwarded-0', `${verdict(answer)}-${after.refused.oversized > before.refused.oversized ? 'oversized' : 'other'}-${after.forwarded === before.forwarded && mainRequests === mainBefore ? 'not-forwarded' : 'FORWARDED'}-${String(starts.length - startsAt)}`, 'D6: start’s cap is 512, about three and a half times its worst legal body.');
+      }
+
+      // NSH7. A query on /v1/start: refused at the door, never forwarded.
+      {
+        const before = stats();
+        const startsAt = starts.length;
+        const answer = await writeAs(wA, `/v1/start?project=${PROJECT}`, startBody(startId()));
+        const after = stats();
+        record('NSH7', 'a query on /v1/start', 'refused-404-route-not-forwarded-0', `${verdict(answer)}-${after.refused.route > before.refused.route ? 'route' : 'other'}-${after.forwarded === before.forwarded ? 'not-forwarded' : 'FORWARDED'}-${String(starts.length - startsAt)}`, 'a write takes no query: the project and the agent are in its signed body.');
+      }
+
+      // NSH8. NS3's hostile corpus, each refused malformed with its id echoed, nothing started.
+      {
+        const write = 'b'.repeat(32);
+        const ok = { agent: 'claude', project: PROJECT, write };
+        const j = (o: unknown): string => JSON.stringify(o);
+        const corpus: [string, string][] = [
+          ['the agent missing', j({ project: PROJECT, write })],
+          ['the project missing', j({ agent: 'claude', write })],
+          ['the write id missing', j({ agent: 'claude', project: PROJECT })],
+          ['a fourth key, cwd', j({ ...ok, cwd: '/tmp' })],
+          ['a fourth key, args', j({ ...ok, args: ['--yolo'] })],
+          ['a fourth key, name', j({ ...ok, name: 'mine' })],
+          ['the agent shell', j({ ...ok, agent: 'shell' })],
+          ['the agent SHELL', j({ ...ok, agent: 'SHELL' })],
+          ['the agent Claude, cased', j({ ...ok, agent: 'Claude' })],
+          ['the agent with a leading space', j({ ...ok, agent: ' claude' })],
+          ['the agent with a trailing space', j({ ...ok, agent: 'claude ' })],
+          ['the agent with a NUL', j({ ...ok, agent: 'claude\u0000' })],
+          ['an id only an agents.json overlay could hold', j({ ...ok, agent: 'my-agent' })],
+          ['the IDE capture-only id', j({ ...ok, agent: 'vscode' })],
+          ['the agent an empty string', j({ ...ok, agent: '' })],
+          ['the agent a number', j({ ...ok, agent: 7 })],
+          ['a 65-character project', j({ ...ok, project: 'a'.repeat(65) })],
+          ['a project holding /', j({ ...ok, project: '../etc/passwd' })],
+          ['a project holding .', j({ ...ok, project: 'a.b' })],
+          ['a project holding %', j({ ...ok, project: 'a%2Fb' })],
+          ['a project holding a space', j({ ...ok, project: 'a b' })],
+          ['an empty project', j({ ...ok, project: '' })],
+          ['a project that is a number', j({ ...ok, project: 12 })],
+          ['a 31-hex write id', j({ ...ok, write: 'a'.repeat(31) })],
+          ['a 33-hex write id', j({ ...ok, write: 'a'.repeat(33) })],
+          ['an uppercase write id', j({ ...ok, write: 'A'.repeat(32) })],
+          ['an array', j([ok])],
+          ['a string', j('start')],
+          ['null', 'null'],
+          ['the agent a nested object', j({ ...ok, agent: { id: 'claude' } })],
+          ['the project a nested object', j({ ...ok, project: { id: PROJECT } })],
+          ['the agent an array', j({ ...ok, agent: ['claude'] })],
+          ['duplicate keys, the last agent shell', `{"agent":"claude","agent":"shell","project":"${PROJECT}","write":"${write}"}`],
+          ['duplicate keys, the last project a path', `{"agent":"claude","project":"${PROJECT}","project":"/Users/x","write":"${write}"}`],
+          // Phase 346's fix round, as NS3: one JSON.parse reads each of these
+          // as the honest object, so only the byte count can refuse it.
+          ['duplicate keys, the FIRST agent shell and the last legal', `{"agent":"shell","agent":"claude","project":"${PROJECT}","write":"${write}"}`],
+          ['duplicate keys, the FIRST project a path and the last legal', `{"agent":"claude","project":"/etc","project":"${PROJECT}","write":"${write}"}`],
+          ['duplicate keys, the FIRST write id another and the last legal', `{"agent":"claude","project":"${PROJECT}","write":"${'c'.repeat(32)}","write":"${write}"}`],
+          ['a legal agent written with a \\u escape', `{"agent":"\\u0063laude","project":"${PROJECT}","write":"${write}"}`],
+          ['not JSON', '{agent:claude}'],
+          ['an empty body', ''],
+          ['a session id beside the project', j({ ...ok, session: 'ses_1' })]
+        ];
+        const startsAt = starts.length;
+        const wrong: string[] = [];
+        for (const [what, text] of corpus) {
+          const answer = await writeAs(wA, '/v1/start', Buffer.from(text, 'utf8'));
+          const b = answer.status === 200 ? bodyOf(answer) : {};
+          let echo = '';
+          try {
+            const v = JSON.parse(text) as Record<string, unknown> | null;
+            if (v !== null && typeof v === 'object' && !Array.isArray(v) && typeof v['write'] === 'string' && /^[0-9a-f]{32}$/.test(v['write'])) echo = v['write'];
+          } catch {
+            /* not JSON: nothing to echo */
+          }
+          if (said(answer) !== '200:refused:malformed' || b['verb'] !== 'start' || b['write'] !== echo || b['session'] !== null) wrong.push(`${what}: ${said(answer)} ${JSON.stringify(b).slice(0, 80)}`);
+        }
+        record('NSH8', `NS3’s hostile corpus over the door (${String(corpus.length)} bodies)`, `all-malformed-echoed-0`, `${wrong.length === 0 ? 'all-malformed-echoed' : `WRONG ${wrong.slice(0, 3).join(' // ')}`}-${String(starts.length - startsAt)}`, 'D6, D15, his answer 7: no Shell, no overlay id, no path, no fourth key; a refused body still echoes its well-formed write id.');
+      }
+
+      // NSH9. A GET signature on the POST.
+      {
+        const startsAt = starts.length;
+        record('NSH9', 'a GET signature on POST /v1/start', 'refused-404:signature-0', `${verdict(await writeAs(wA, '/v1/start', startBody(startId()), { signAs: 'GET' }))}:${lastVerify}-${String(starts.length - startsAt)}`, 'the method is in the signed bytes.');
+      }
+
+      // NSH10. A valid signature over another phone's connection.
+      {
+        const startsAt = starts.length;
+        record('NSH10', 'a start signed by one phone, sent over the other’s connection', 'refused-404:channel-0', `${verdict(await writeAs(wA, '/v1/start', startBody(startId()), { over: wB }))}:${lastVerify}-${String(starts.length - startsAt)}`, 'a write needs the phone’s own key at the handshake.');
+      }
+
+      // NSH11. A phone removed BEFORE the act (404, nothing started) and AFTER
+      // it began (200 or a cut, never a 404).
+      {
+        const startsAt = starts.length;
+        removeBeforeWrite = wB.fields.id;
+        const before = await writeAs(wB, '/v1/start', startBody(startId()));
+        record('NSH11a', 'a phone removed after its signature held and before the start', 'refused-404-0', `${verdict(before)}-${String(starts.length - startsAt)}`, 'the last check before the act asks again whether the phone is paired.');
+        phones = [...phones, wB.fields];
+        bind.updatePocketDoor({ pins: pinsOf(phones) });
+        await new Promise((resolve) => setImmediate(resolve));
+        const release = holding();
+        const reachedBefore = startsReached;
+        const inFlight = writeAs(wB, '/v1/start', startBody(startId()));
+        await until(() => startsReached > reachedBefore);
+        phones = phones.filter((p) => p.id !== wB.fields.id);
+        bind.updatePocketDoor({ pins: pinsOf(phones) });
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        release();
+        const during = await inFlight;
+        const asked = starts[starts.length - 1];
+        record('NSH11b', 'a phone removed while its start runs: answered, or cut, and never 404', 'not-404-still-false', `${during.status === 404 ? 'A-404' : 'not-404'}-still-${String(asked?.still)}`, 'D12: the write path hands the act its four asks as still, and the act asks them last before the create; after the act began, nothing says it did not.');
+        phones = [...phones, wB.fields];
+        bind.updatePocketDoor({ pins: pinsOf(phones) });
+      }
+
+      // NSH12. The door stopping while the start runs: the answer or a cut, never 404.
+      {
+        const release = holding();
+        const reachedBefore = startsReached;
+        const inFlight = writeAs(wA, '/v1/start', startBody(startId()));
+        await until(() => startsReached > reachedBefore);
+        const stopping = bind.stopPocketDoor();
+        release();
+        const answer = await inFlight;
+        await stopping;
+        doorStarted = false;
+        const asked = starts[starts.length - 1];
+        record('NSH12', 'the door switched off while a start runs', 'not-404-still-false', `${answer.status === 404 ? 'A-404' : 'not-404'}-still-${String(asked?.still)}`, 'D12, 317 D4: the stopping door is in still, so the act creates nothing, and after the act began nothing replaces the answer with a 404.');
+        await restart();
+        record('NSH12b', 'and the door that starts again reads', 'ok', verdict(await signedAsk(good, '/v1/blocked')), 'the control: the stop happened and the door answers again.');
+      }
+
+      // NSH14. One log line per start that reached its act, and none naming a
+      // project, an agent or a write id.
+      {
+        const acted = starts.length - startsBefore;
+        const lines = startLines().length - linesBefore;
+        const since = logged.slice(logFrom);
+        const leaked = since.filter((l) => l.includes(PROJECT) || /\bclaude\b|\bcodex\b/.test(l) || sentIds.some((id) => l.includes(id)));
+        record('NSH14', 'the log: one line per start that reached its act, naming no project, agent or write id', `lines-${String(acted)}-clean`, `lines-${String(lines)}-${leaked.length === 0 ? 'clean' : `LEAKED ${String(leaked.length)}: ${leaked[0]?.slice(0, 80) ?? ''}`}`, 'D32: the phone’s start: <outcome>, and the new session’s id as its one field.');
+      }
+      await serveNow(launchSet);
     }
 
     phones = phonesBefore;

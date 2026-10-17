@@ -114,6 +114,16 @@
 // pairing made on the Pairing screen that one Mac's refusal put him on takes
 // that Mac's place rather than standing beside it (the fix round, D18a).
 //
+// AND SINCE PHASE 346, NEW SESSION (build/p346/SPEC.md; his answers of
+// 2026-10-14). The Sessions tab of the Mac on screen draws a "+" while that
+// Mac offers a start, and New session starts ONE session there, in a project
+// open in Tortie on that Mac or one of its machines, with one of the agents
+// installed there; a done start opens its Terminal on that Mac's Sessions tab
+// (`openStarted`). No Face ID (his answer 5). The app keeps every live start's
+// runner and stops each one on the way to the background, and each Mac keeps
+// at most one start whose answer did not come, in memory, forgotten when the
+// app leaves (`MacSpace.keptStart`).
+//
 // THIS FILE COMPOSES and draws nothing of its own: Door/ holds the keys, the
 // signature and the one network user, Screens/ draws, and `LiveDoor` below is
 // the seam between them (`PhoneDoor`, Screens/DoorWords.swift). Since Phase
@@ -206,6 +216,10 @@ final class MacSpace: Identifiable {
     /// The sentence under Unpair this iPhone when the phone could not forget
     /// this Mac.
     var settingsLine: String?
+    /// The one start on this Mac whose answer did not come (Phase 346, D17,
+    /// D27), so Try again sends its id and nothing starts twice; in memory
+    /// only, and forgotten when the app leaves.
+    var keptStart: KeptStart?
 
     init(id: String, reader: any DoorReading, list: ListModel, sessions: SessionsModel) {
         self.id = id
@@ -214,6 +228,9 @@ final class MacSpace: Identifiable {
         self.sessions = sessions
     }
 }
+
+/// A Mac keeps its own kept start (Phase 346, D27).
+extension MacSpace: StartKeeping {}
 
 /// The space a routing was made for, held weakly (the Phase 345 fix round).
 /// A pairing made again takes its Mac's place with a NEW space under the
@@ -289,6 +306,9 @@ final class AppModel {
     /// Every Screen's key sender (Phase 337): registered as its Screen
     /// appears, and stopped with the Ends.
     @ObservationIgnored private(set) var liveKeys: [ScreenKeySender] = []
+    /// Every start under way (Phase 346): registered at Create, before its
+    /// write starts, and stopped with the Ends.
+    @ObservationIgnored private(set) var liveStarts: [StartRunner] = []
 
     private let door: any PhoneDoor
     /// What the Mac shows beside the fingerprint: this iPhone's name.
@@ -736,9 +756,15 @@ final class AppModel {
     /// And every Terminal's keys (Phase 337, D30): the keys waiting are
     /// dropped, a write whose bytes were not handed is withheld, and the
     /// Terminal's kept connections close.
+    ///
+    /// And every start (Phase 346, D17): a start whose bytes were not handed
+    /// is withheld, never sent on the way back in, and never retried; and
+    /// every Mac forgets its kept start, so Try again after a trip away is a
+    /// new start.
     func wentAway() {
         for space in spaces {
             space.list.clearNotice()
+            space.keptStart = nil
         }
         for runner in liveRunners {
             runner.stopRequested = true
@@ -749,6 +775,9 @@ final class AppModel {
         }
         for sender in liveKeys {
             sender.stop()
+        }
+        for runner in liveStarts {
+            runner.stop()
         }
     }
 
@@ -1030,6 +1059,47 @@ final class AppModel {
         let check = endCheck(for: reader)
         return reader.writer.map { EndBatchSetup(writer: $0, ownerCheck: check, registry: self) }
     }
+
+    /// New session, for the Sessions tab of a pairing that starts (Phase 346,
+    /// D27): that Mac's starter, this app's registry, that Mac's space as the
+    /// keeper of its one kept start, and a done start opened on that Mac.
+    /// The sample's says nothing ran (D28). No owner check (his answer 5).
+    func startSetup(_ reader: any DoorReading) -> StartSetup? {
+        let mac = reader.facts.publicName
+        guard let starter = reader.starter, let space = space(mac) else { return nil }
+        return StartSetup(
+            mac: mac,
+            starter: starter,
+            registry: self,
+            keeper: space,
+            sample: inSample,
+            opened: { [weak self] id, name in
+                self?.openStarted(mac: mac, id: id, name: name)
+            }
+        )
+    }
+
+    /// A start on `mac` was done (D24): its session opens on that Mac's
+    /// Sessions tab, its Terminal at its first answer. The Mac that started it
+    /// is the one on screen, because its sheet is that Mac's; a start that
+    /// answers after another Mac was chosen opens nothing.
+    func openStarted(mac: String, id: String, name: String) {
+        guard chosen?.id == mac else { return }
+        tab = .sessions
+        push(.session(mac: mac, id: id, name: name), on: .sessions)
+    }
+}
+
+/// The app keeps every live start's runner until it ends, so `wentAway` can
+/// stop each one (Phase 346).
+extension AppModel: StartRunnerRegistry {
+    func registerStart(_ runner: StartRunner) {
+        liveStarts.append(runner)
+    }
+
+    func releaseStart(_ runner: StartRunner) {
+        liveStarts.removeAll { $0 === runner }
+    }
 }
 
 /// The app keeps every live End's runner until it ends, so `wentAway` can
@@ -1212,7 +1282,8 @@ struct RootView: View {
                         isTop: app.listIsTop(.sessions),
                         foregroundTick: app.foregroundTick,
                         open: { app.open($0, in: .sessions) },
-                        ends: app.reader.flatMap { app.endBatchSetup($0) }
+                        ends: app.reader.flatMap { app.endBatchSetup($0) },
+                        starts: app.reader.flatMap { app.startSetup($0) }
                     )
                     .navigationDestination(for: Route.self) { route in
                         destination(route, tab: .sessions)
@@ -1553,12 +1624,18 @@ private struct CatchUpRoute: View {
 /// three writes (End, and Phase 318's press and message), through the one
 /// network user, and since Phase 337 each session's Screen door. It is its
 /// own writer, answered through `DoorReading`'s requirement, so the app's
-/// `any DoorReading` reads it.
-struct PairedReader: DoorReading, DoorWriting {
+/// `any DoorReading` reads it; and since Phase 346 its own starter, the same
+/// way.
+struct PairedReader: DoorReading, DoorWriting, DoorStarting {
     let client: DoorClient
     let door: PairedDoor
 
     var writer: (any DoorWriting)? {
+        self
+    }
+
+    /// Phase 346: this pairing starts sessions on its Mac.
+    var starter: (any DoorStarting)? {
         self
     }
 
@@ -1608,6 +1685,12 @@ struct PairedReader: DoorReading, DoorWriting {
     /// a kept connection of its own.
     func screenDoor(_ sessionId: String) -> (any ScreenDoor)? {
         PairedScreenDoor(client: client, door: door, sessionId: sessionId)
+    }
+
+    /// `POST /v1/start`, once (Phase 346), under a kept start's id when
+    /// `write` names one.
+    func start(project: String, agent: String, write: String?) async -> SentStart {
+        await client.start(project: project, agent: agent, write: write, door: door)
     }
 }
 

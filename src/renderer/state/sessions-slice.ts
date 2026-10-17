@@ -38,6 +38,7 @@ import type { SessionChoiceInfo } from '@shared/ipc/sessions';
 // PHASE 203. A finished sign in says it finished. Nothing about how a session
 // lives or dies changes; one sentence is posted when the sign in session ends.
 import { loginProviderForAgent } from '@shared/logins';
+import { dedupedName, nextOrdinal } from '@shared/session-names';
 import { settleSignIns, watchSignIn } from './sign-in-watch';
 import { setLoginSwitchedListener, setLoginTooLargeListener } from './logins';
 import { offerRestartNow, sayLoginTooLarge } from './login-switch';
@@ -460,16 +461,10 @@ export interface SessionsSlice {
   attentionCountFor(projectPath: string, machineId?: string): number;
 }
 
-/** Next free `<base>-<n>` ordinal within a session list (S6 name prefill). */
-export function nextOrdinal(sessions: Session[], base: string): number {
-  let max = 0;
-  const re = new RegExp(`^${base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(\\d+)$`);
-  for (const s of sessions) {
-    const m = re.exec(s.name);
-    if (m && m[1] !== undefined) max = Math.max(max, parseInt(m[1], 10));
-  }
-  return max + 1;
-}
+// PHASE 346 (build/p346/SPEC.md D14): one rule for names, moved to
+// @shared/session-names so the phone's start names a session as quickCreate
+// does. Re-exported, so every importer keeps its import.
+export { nextOrdinal } from '@shared/session-names';
 
 /**
  * WHEN a session started needing input — ⌘J sorts by it and shows it as a
@@ -1166,10 +1161,7 @@ export const createSessionsSlice: StateCreator<
           .projectSessions()
           .map((x) => x.name)
       );
-      let finalName = name;
-      for (let n = 2; existing.has(finalName); n++) {
-        finalName = `${name}-${n}`;
-      }
+      const finalName = dedupedName(name, existing);
       const session = await gmux.sessions.create({
         name: finalName,
         projectPath: project.path,

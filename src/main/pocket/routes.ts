@@ -61,12 +61,18 @@
  *     again, whatever the reader said.
  *
  * The writes (Phase 317, build/p317/SPEC.md §5.4; Phase 318,
- * build/p318/SPEC.md §5.1.5; Phase 337, build/p337/SPEC.md §5.4) are DECLARED
- * here, as {@link PocketWrites}, a hand-written interface with four members,
- * and done outside this domain (`src/main/sessions/pocket-writes.ts`, which
- * hands the reply's two to the verbs in `src/main/reply/` and the keys to the
- * verb in `src/main/screen/`), which is handed in. Nothing in this module can
- * name the verb a write reaches.
+ * build/p318/SPEC.md §5.1.5; Phase 337, build/p337/SPEC.md §5.4; Phase 346,
+ * build/p346/SPEC.md §4.8) are DECLARED here, as {@link PocketWrites}, a
+ * hand-written interface with five members, and done outside this domain
+ * (`src/main/sessions/pocket-writes.ts`, which hands the reply's two to the
+ * verbs in `src/main/reply/`, the keys to the verb in `src/main/screen/` and
+ * the start to `src/main/sessions/pocket-start.ts`), which is handed in.
+ * Nothing in this module can name the verb a write reaches.
+ *
+ * (Phase 346) Whether a phone may start a session, and what it may start, is
+ * composed outside this domain too ({@link PocketFacts.start}), starting
+ * nothing, and re-composed here FIELD BY FIELD ({@link pocketStartOf}) onto
+ * the Sessions answer as its optional last key.
  *
  * ## Fresh before read (Phase 316)
  *
@@ -147,6 +153,8 @@ import {
   POCKET_SESSIONS_MAX,
   POCKET_SESSIONS_SHOW,
   POCKET_SESSIONS_SORT,
+  POCKET_START_AGENTS_MAX,
+  POCKET_START_PROJECTS_MAX,
   POCKET_WRITE_ROUTE_IDS,
   type PocketBlockedAnswer,
   type PocketBlockedRow,
@@ -172,6 +180,12 @@ import {
   type PocketSessionsChoice,
   type PocketSessionsGroup,
   type PocketSessionsRow,
+  type PocketSessionsStart,
+  type PocketStartAgent,
+  type PocketStartPlace,
+  type PocketStartProject,
+  type PocketStartReason,
+  type PocketStartSession,
   type PocketTurn,
   type PocketTurnsAnswer,
   type PocketWriteRouteId
@@ -207,8 +221,8 @@ function isWriteRouteId(id: PocketRouteId): id is PocketWriteRouteId {
 
 /**
  * The write rows' ids, read from the table (Phase 317; Phase 318 added two;
- * Phase 337 one). Exactly `end`, `choose`, `say` and `keys`, and
- * `routes.test.ts` holds it to that list. It replaces
+ * Phase 337 one; Phase 346 one). Exactly `end`, `choose`, `say`, `keys` and
+ * `start`, five, and `routes.test.ts` holds it to that list. It replaces
  * `pocketTableIsReadOnly()`, which Phase 317 made false.
  */
 export function pocketWriteRouteIds(): readonly PocketWriteRouteId[] {
@@ -353,6 +367,15 @@ export interface PocketFacts {
    * own facts.
    */
   scrollback?(session: Session, ask: PocketScrollbackAsk, closing: () => boolean): Promise<PocketScrollbackAnswer>;
+  /**
+   * The Sessions answer's `start` key (Phase 346, build/p346/SPEC.md D1, D9):
+   * `{ state: 'waiting' }` while the route waits for its Allow, else the offer,
+   * composed outside this domain (`src/main/sessions/pocket-start.ts`)
+   * STARTING NOTHING. A READ, synchronous like the answer that asks it.
+   * OPTIONAL, AND ABSENT (or answering undefined) IS NO KEY: the push seam and
+   * the tests build their own facts, and a phone draws no "+".
+   */
+  start?(): PocketSessionsStart | undefined;
   now?(): number;
 }
 
@@ -428,13 +451,13 @@ export type PocketStillAllowed = () => boolean;
 
 /**
  * THE PHONE'S WRITES (Phase 317, build/p317/SPEC.md §5.4; Phase 318,
- * build/p318/SPEC.md §5.1.5; Phase 337, build/p337/SPEC.md §5.4),
- * implemented ONCE, OUTSIDE this domain (`src/main/sessions/pocket-writes.ts`),
- * and handed in. Nothing here can name the verb it reaches
- * (`conformance:pocket` R3).
+ * build/p318/SPEC.md §5.1.5; Phase 337, build/p337/SPEC.md §5.4; Phase 346,
+ * build/p346/SPEC.md §4.8), implemented ONCE, OUTSIDE this domain
+ * (`src/main/sessions/pocket-writes.ts`), and handed in. Nothing here can name
+ * the verb it reaches (`conformance:pocket` R3).
  *
- * Hand written and narrow, like {@link PocketFacts}, with FOUR members and no
- * fifth; no member may set a status.
+ * Hand written and narrow, like {@link PocketFacts}, with FIVE members and no
+ * sixth; no member may set a status.
  */
 export interface PocketWrites {
   /**
@@ -452,7 +475,31 @@ export interface PocketWrites {
    * 337). Answers an outcome and never throws.
    */
   keys(input: PocketKeysInput, still: PocketStillAllowed): Promise<PocketReplyOutcome>;
+  /**
+   * Start ONE session (Phase 346, build/p346/SPEC.md D12): the project and the
+   * agent the phone named, each re-read and asked again, through the Mac's own
+   * one guarded create, after `still` is asked once more. The two ids are all
+   * a phone may name: a path, a flag, a name or a login never reaches here.
+   * Answers an outcome and never throws.
+   */
+  start(input: PocketStartInput, still: PocketStillAllowed): Promise<PocketStartOutcome>;
 }
+
+/** What a start names (Phase 346, D6): a project main offered and an agent, each an id. */
+export interface PocketStartInput {
+  project: string;
+  agent: string;
+}
+
+/**
+ * What one start came to, as the write path answers it (Phase 346, D5, D12).
+ * `malformed` and `often` are the door's own words, decided before the act,
+ * so the act never answers them.
+ */
+export type PocketStartOutcome =
+  | { outcome: 'done'; session: PocketStartSession }
+  | { outcome: 'refused'; reason: Exclude<PocketStartReason, 'malformed' | 'often'>; sentence: string }
+  | { outcome: 'failed'; sentence: string };
 
 /** What one End came to, as the write path answers it. */
 export type PocketEndOutcome =
@@ -812,6 +859,137 @@ export function clipSessionText(text: string): string {
   const last = text.charCodeAt(keep - 1);
   if (last >= 0xd800 && last <= 0xdbff) keep -= 1;
   return `${text.slice(0, keep)}…`;
+}
+
+// ---------------------------------------------------------------------------
+// The Sessions answer's start key (Phase 346, build/p346/SPEC.md §4.8, D9)
+// ---------------------------------------------------------------------------
+
+/** A plain JSON-shaped object, or null. */
+function recordOf(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
+/**
+ * An id the phone sends back verbatim: a non-empty string the one clip leaves
+ * whole. An id is never clipped, because a clipped id names nothing; one the
+ * clip would cut is refused instead.
+ */
+function startIdOf(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 && clipSessionText(value) === value ? value : null;
+}
+
+/** A drawn string, clipped; null when it is not a string. */
+function startTextOf(value: unknown): string | null {
+  return typeof value === 'string' ? clipSessionText(value) : null;
+}
+
+/** One agent of an offer, re-composed field by field, or null. */
+function startAgentOf(value: unknown): PocketStartAgent | null {
+  const agent = recordOf(value);
+  if (agent === null) return null;
+  const id = startIdOf(agent['id']);
+  const name = startTextOf(agent['name']);
+  const icon = startIdOf(agent['icon']);
+  const dangerIn = agent['danger'];
+  const danger = dangerIn === null ? null : startTextOf(dangerIn);
+  if (id === null || name === null || icon === null || (dangerIn !== null && danger === null)) return null;
+  return { id, name, icon, danger };
+}
+
+/** One place of an offer, re-composed field by field, naming only listed agents once each, or null. */
+function startPlaceOf(value: unknown, agentIds: ReadonlySet<string>): PocketStartPlace | null {
+  const place = recordOf(value);
+  if (place === null) return null;
+  const id = startIdOf(place['id']);
+  const ready = place['ready'];
+  const read = place['read'];
+  const listed = place['agents'];
+  if (id === null || typeof ready !== 'boolean' || typeof read !== 'boolean' || !Array.isArray(listed)) return null;
+  const agents: string[] = [];
+  for (const one of listed as unknown[]) {
+    if (typeof one !== 'string' || !agentIds.has(one) || agents.includes(one)) return null;
+    agents.push(one);
+  }
+  return { id, ready, read, agents };
+}
+
+/** One project of an offer, re-composed field by field, naming a listed place, or null. */
+function startProjectOf(value: unknown, placeIds: ReadonlySet<string>): PocketStartProject | null {
+  const project = recordOf(value);
+  if (project === null) return null;
+  const id = startIdOf(project['id']);
+  const label = startTextOf(project['label']);
+  const machineIn = project['machine'];
+  const machine = machineIn === null ? null : startTextOf(machineIn);
+  const folderIn = project['folder'];
+  const folder = folderIn === null ? null : startTextOf(folderIn);
+  const place = startIdOf(project['place']);
+  if (id === null || label === null || place === null || !placeIds.has(place)) return null;
+  if ((machineIn !== null && machine === null) || (folderIn !== null && folder === null)) return null;
+  return { id, label, machine, folder, place };
+}
+
+/**
+ * THE SESSIONS ANSWER'S `start` KEY, RE-COMPOSED FIELD BY FIELD (Phase 346,
+ * build/p346/SPEC.md §4.8, D9, D26), whatever the composer outside this domain
+ * said, so nothing but the contract's own fields can leave. Pure.
+ *
+ *   - `{ state: 'waiting' }` is answered as itself.
+ *   - An offer is answered only WHOLE: every list at or under its cap (the
+ *     projects {@link POCKET_START_PROJECTS_MAX}, the places one more, being
+ *     this Mac and one per project's machine, the agents
+ *     {@link POCKET_START_AGENTS_MAX}), every id a whole string named once,
+ *     every drawn string clipped by {@link clipSessionText}, every place's
+ *     agents and every project's place naming a listed id, `chosen` a listed
+ *     project or null, and `defaultAgent` a listed agent or null.
+ *   - Anything else answers undefined, which is no key at all: an offer is
+ *     never half read, because a phone that is offered half a list is offered
+ *     something nobody composed.
+ */
+export function pocketStartOf(value: unknown): PocketSessionsStart | undefined {
+  const start = recordOf(value);
+  if (start === null) return undefined;
+  if (start['state'] === 'waiting') return { state: 'waiting' };
+  if (start['state'] !== 'offered') return undefined;
+  const projectsIn = start['projects'];
+  const placesIn = start['places'];
+  const agentsIn = start['agents'];
+  if (!Array.isArray(projectsIn) || projectsIn.length > POCKET_START_PROJECTS_MAX) return undefined;
+  if (!Array.isArray(placesIn) || placesIn.length > POCKET_START_PROJECTS_MAX + 1) return undefined;
+  if (!Array.isArray(agentsIn) || agentsIn.length > POCKET_START_AGENTS_MAX) return undefined;
+
+  const agents: PocketStartAgent[] = [];
+  const agentIds = new Set<string>();
+  for (const one of agentsIn as unknown[]) {
+    const agent = startAgentOf(one);
+    if (agent === null || agentIds.has(agent.id)) return undefined;
+    agentIds.add(agent.id);
+    agents.push(agent);
+  }
+  const places: PocketStartPlace[] = [];
+  const placeIds = new Set<string>();
+  for (const one of placesIn as unknown[]) {
+    const place = startPlaceOf(one, agentIds);
+    if (place === null || placeIds.has(place.id)) return undefined;
+    placeIds.add(place.id);
+    places.push(place);
+  }
+  const projects: PocketStartProject[] = [];
+  const projectIds = new Set<string>();
+  for (const one of projectsIn as unknown[]) {
+    const project = startProjectOf(one, placeIds);
+    if (project === null || projectIds.has(project.id)) return undefined;
+    projectIds.add(project.id);
+    projects.push(project);
+  }
+  const chosenIn = start['chosen'];
+  const defaultIn = start['defaultAgent'];
+  const chosen = chosenIn === null ? null : startIdOf(chosenIn);
+  const defaultAgent = defaultIn === null ? null : startIdOf(defaultIn);
+  if (chosenIn !== null && (chosen === null || !projectIds.has(chosen))) return undefined;
+  if (defaultIn !== null && (defaultAgent === null || !agentIds.has(defaultAgent))) return undefined;
+  return { state: 'offered', projects, places, agents, chosen, defaultAgent };
 }
 
 /**
@@ -1539,6 +1717,9 @@ export function createPocketRoutes(facts: PocketFacts): {
       const sessions = facts.sessions();
       const projects = facts.projects();
       const stamps = facts.blockedSince();
+      // PHASE 346 (build/p346/SPEC.md D1, D9): the start key, read ONCE and
+      // re-composed field by field. Absent from a host with no start.
+      const start = pocketStartOf(facts.start?.());
 
       // 4. THE GROUPS, OVER EVERY LISTED SESSION (D7), by the session
       //    manager's own collection, label and order, so a group reads the
@@ -1791,7 +1972,8 @@ export function createPocketRoutes(facts: PocketFacts): {
         total: sessions.length,
         omitted: kept.length - rows.length,
         at,
-        ageNote: POCKET_AGE_HONESTY
+        ageNote: POCKET_AGE_HONESTY,
+        ...(start !== undefined ? { start } : {})
       };
     },
 

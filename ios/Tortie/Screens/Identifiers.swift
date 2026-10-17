@@ -276,6 +276,27 @@
 //   list-sessions-left-out       `n more not shown.` above the foot, when the
 //                                caps left any session out
 //
+// NEW SESSION (Phase 346, build/p346/SPEC.md section 4.16):
+//
+//   start-open                   the "+" at the trailing end of the Sessions
+//                                title, drawn only for an offered start; a
+//                                button, off while End these takes taps
+//   start-sheet                  New session; a container
+//   start-project                its Project menu; a button
+//   start-project-<id>           one project in the menu, `<id>` the Mac's
+//                                project id; off when its machine is not
+//                                connected
+//   start-agent-<id>             one agent's mark, `<id>` its registry id; a
+//                                button whose label is the agent's name; the
+//                                chosen one carries the selected trait
+//   start-agent-name             the chosen agent's name, under the marks
+//   start-danger                 `Starts with …`, when the chosen agent has a
+//                                sealed safeguard-off launch default
+//   start-create                 Create, Creating… or Try again; a button
+//   start-line                   the one line for the state: a refusal, no
+//                                answer, no project or no agent
+//   start-close                  Cancel, which closes the sheet
+//
 // THE ANSWER DRAWN AS MARKDOWN (Phase 316.6, Screens/MarkdownView.swift).
 // `<scope>` is the turn's index in the conversation, or `last` for the
 // now card's last answer (Catch Me Up with no turns, Phase 337.1); `<n>` a block's PRE-ORDER ordinal from 0 over
@@ -530,6 +551,18 @@ enum ID {
     static let listClearFilters = "list-clear-filters"
     static let listNoSessions = "list-no-sessions"
     static let listSessionsLeftOut = "list-sessions-left-out"
+
+    // New session (Phase 346).
+    static let startOpen = "start-open"
+    static let startSheet = "start-sheet"
+    static let startProject = "start-project"
+    static func startProjectChoice(_ id: String) -> String { "start-project-" + id }
+    static func startAgent(_ id: String) -> String { "start-agent-" + id }
+    static let startAgentName = "start-agent-name"
+    static let startDanger = "start-danger"
+    static let startCreate = "start-create"
+    static let startLine = "start-line"
+    static let startClose = "start-close"
 
     // The answer drawn as markdown (Phase 316.6).
     /// The now card's scope; a conversation's is the turn's index.

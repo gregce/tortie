@@ -9,13 +9,19 @@
 // about one, and its facts are empty, which Settings never draws in the sample
 // (D18). A message is never offered, and `say` answers not taken (D10).
 //
+// NEW SESSION (Phase 346, build/p346/SPEC.md D28, his answer 11). The book's
+// sessions answers carry an offer composed by the Mac's own composer, so the
+// "+" and New session draw over the sample's made-up projects; and the
+// sample's `start` answers not taken, with nothing sent anywhere, so Create
+// says `This is a sample, so nothing ran.`
+//
 // THE SAMPLE KEEPS NOTHING (D17): Show, Group by and Sort by live in
 // `SampleChoices`, made fresh each time the sample opens, so the paired tab's
 // three words are never touched.
 
 import Foundation
 
-struct SampleReader: DoorReading, DoorWriting {
+struct SampleReader: DoorReading, DoorWriting, DoorStarting {
     let world: SampleWorld
 
     init(book: SampleBook, now: @escaping @Sendable () -> Double = SampleWorld.phoneClock) {
@@ -29,6 +35,11 @@ struct SampleReader: DoorReading, DoorWriting {
 
     /// The sample writes, to its own copy.
     var writer: (any DoorWriting)? {
+        self
+    }
+
+    /// The sample's New session, which starts nothing (D28).
+    var starter: (any DoorStarting)? {
         self
     }
 
@@ -77,6 +88,11 @@ struct SampleReader: DoorReading, DoorWriting {
     /// No sample session offers a message, so none is taken (D10).
     func say(_ sessionId: String, text: String, write: String?) async -> SentWrite {
         SentWrite(result: .notTaken, write: nil)
+    }
+
+    /// Nothing leaves the phone, so no start is taken and nothing ran (D28).
+    func start(project: String, agent: String, write: String?) async -> SentStart {
+        SentStart(result: .notTaken, write: nil)
     }
 }
 

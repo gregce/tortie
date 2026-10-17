@@ -1,0 +1,1642 @@
+{
+ "derivedBy": "Written by the probe review (docs/method/HOW-WE-BUILT-THIS.md rule 9) from the source, not from the probe's own fixtures: the words are src/shared/start-copy.ts and src/shared/ipc/pocket.ts as they stand at the review; the agents, names and marks are src/main/agents/registry.ts's launchable rows less the hidden five, in registry order; the projects are the five this run opens in listProjects()'s order (this Mac's by name, then the machine's) with the twins given their folders (D7); the counts are what each arm's code makes (S7: 54 acts and the one cut; S10: 51 sessions). Phase 346's fix round added RUN's installs fence and the manifest's argv[0] read (51 rows, every one a program of the run).",
+ "readings": {
+  "S0P": {
+   "headOnly": 404,
+   "full": 404,
+   "lines": 0,
+   "sessionsDelta": 0,
+   "sessionsStatus": 200,
+   "hasStart": false
+  },
+  "S0": {
+   "words": {
+    "START_PROJECT_GONE": "That project is not open on your Mac any more. Nothing was started.",
+    "START_FOLDER_GONE": "That project’s folder is not there. Nothing was started.",
+    "START_AGENT_GONE": "That agent is not installed there. Nothing was started.",
+    "START_MACHINE_AWAY": "Tortie is not connected to that project’s machine. Nothing was started.",
+    "START_INTERPRETER": "That agent needs a program your Mac cannot find. Start it on your Mac to see why. Nothing was started.",
+    "START_OFTEN": "Your phone started several sessions just now. Wait a minute, then try again. Nothing was started.",
+    "START_BUSY": "Your Mac is starting another session. Nothing was started.",
+    "START_STILL": "Your Mac is still starting this session.",
+    "START_FAILED": "Your Mac could not start that session. If anything started, it is in Sessions.",
+    "unreadable": "Your Mac could not read that request. Nothing was done.",
+    "busy": "Tortie is still doing the last thing you asked from this phone. Nothing was done.",
+    "stopped": "Your Mac stopped answering this phone. Nothing was done.",
+    "newTitle": "start sessions from your phone",
+    "newSentence": "An agent installed where the project is, with your launch defaults.",
+    "clause": "start a session in a project open in Tortie, on this Mac or another machine",
+    "doorHonesty": "A phone you allow can see what any session’s terminal shows and what it printed before, type into it as you would at this Mac, answer a numbered question, send a session one message and end a session."
+   },
+   "statusRead": true,
+   "before": {
+    "confirmState": "confirmed",
+    "routesWaiting": [
+     "start"
+    ],
+    "routesAllowed": [
+     "pair",
+     "blocked",
+     "session",
+     "turns",
+     "end",
+     "choose",
+     "say",
+     "sessions",
+     "screen",
+     "keys",
+     "scrollback"
+    ]
+   },
+   "key": {
+    "state": "waiting"
+   },
+   "headOnly": 404,
+   "full": 404,
+   "lines": 0,
+   "sessionsDelta": 0,
+   "face": [
+    {
+     "id": "start",
+     "title": "New: start sessions from your phone",
+     "sentence": "An agent installed where the project is, with your launch defaults."
+    }
+   ],
+   "drawn": "New: start sessions from your phoneAn agent installed where the project is, with your launch defaults.",
+   "after": {
+    "confirmState": "confirmed",
+    "routesWaiting": [],
+    "routesAllowed": [
+     "pair",
+     "blocked",
+     "session",
+     "turns",
+     "end",
+     "choose",
+     "say",
+     "sessions",
+     "screen",
+     "keys",
+     "scrollback",
+     "start"
+    ]
+   },
+   "keyAfter": {
+    "state": "offered",
+    "projects": [
+     {
+      "id": "0c6f0d6e-3b51-4d1f-9a3e-2f6b0c3f5a10",
+      "label": "ledger",
+      "machine": null,
+      "folder": null,
+      "place": "local"
+     },
+     {
+      "id": "3d1f8a52-7c90-4e4b-8d0d-0a9b6f3e2c71",
+      "label": "matrix",
+      "machine": null,
+      "folder": null,
+      "place": "local"
+     },
+     {
+      "id": "5a7b9c1d-2e3f-4a5b-8c6d-7e8f9a0b1c2d",
+      "label": "same",
+      "machine": null,
+      "folder": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/a/same",
+      "place": "local"
+     },
+     {
+      "id": "6b8c0d2e-3f4a-4b6c-9d7e-8f9a0b1c2d3e",
+      "label": "same",
+      "machine": null,
+      "folder": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/b/same",
+      "place": "local"
+     },
+     {
+      "id": "8e0f2a4b-5c6d-4e8f-a091-b2c3d4e5f607",
+      "label": "timing",
+      "machine": null,
+      "folder": null,
+      "place": "local"
+     },
+     {
+      "id": "b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e",
+      "label": "far",
+      "machine": "p346 loopback",
+      "folder": null,
+      "place": "p346far"
+     }
+    ],
+    "places": [
+     {
+      "id": "local",
+      "ready": true,
+      "read": true,
+      "agents": [
+       "claude",
+       "cursor",
+       "codex",
+       "deepseek",
+       "muse",
+       "pi",
+       "omp",
+       "opencode"
+      ]
+     },
+     {
+      "id": "p346far",
+      "ready": true,
+      "read": true,
+      "agents": [
+       "claude",
+       "codex"
+      ]
+     }
+    ],
+    "agents": [
+     {
+      "id": "claude",
+      "name": "Claude Code",
+      "icon": "claude",
+      "danger": null
+     },
+     {
+      "id": "cursor",
+      "name": "Cursor CLI",
+      "icon": "cursor",
+      "danger": null
+     },
+     {
+      "id": "codex",
+      "name": "Codex CLI",
+      "icon": "codex",
+      "danger": null
+     },
+     {
+      "id": "deepseek",
+      "name": "CodeWhale",
+      "icon": "deepseek",
+      "danger": null
+     },
+     {
+      "id": "muse",
+      "name": "Muse Code",
+      "icon": "muse",
+      "danger": null
+     },
+     {
+      "id": "pi",
+      "name": "Pi",
+      "icon": "pi",
+      "danger": null
+     },
+     {
+      "id": "omp",
+      "name": "Oh My Pi",
+      "icon": "omp",
+      "danger": null
+     },
+     {
+      "id": "opencode",
+      "name": "opencode",
+      "icon": "opencode",
+      "danger": null
+     }
+    ],
+    "chosen": "0c6f0d6e-3b51-4d1f-9a3e-2f6b0c3f5a10",
+    "defaultAgent": "claude"
+   },
+   "control": 0,
+   "honesty": [
+    "This lets a phone you allow ask this Mac what your sessions are doing, over the internet. It reads your session names, your project names and what your agents are saying.",
+    "A phone you allow can see what any session’s terminal shows and what it printed before, type into it as you would at this Mac, answer a numbered question, send a session one message and end a session. It can also start a session in a project open in Tortie, on this Mac or another machine."
+   ]
+  },
+  "S1": {
+   "offer": {
+    "state": "offered",
+    "projects": [
+     {
+      "id": "0c6f0d6e-3b51-4d1f-9a3e-2f6b0c3f5a10",
+      "label": "ledger",
+      "machine": null,
+      "folder": null,
+      "place": "local"
+     },
+     {
+      "id": "3d1f8a52-7c90-4e4b-8d0d-0a9b6f3e2c71",
+      "label": "matrix",
+      "machine": null,
+      "folder": null,
+      "place": "local"
+     },
+     {
+      "id": "5a7b9c1d-2e3f-4a5b-8c6d-7e8f9a0b1c2d",
+      "label": "same",
+      "machine": null,
+      "folder": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/a/same",
+      "place": "local"
+     },
+     {
+      "id": "6b8c0d2e-3f4a-4b6c-9d7e-8f9a0b1c2d3e",
+      "label": "same",
+      "machine": null,
+      "folder": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/b/same",
+      "place": "local"
+     },
+     {
+      "id": "8e0f2a4b-5c6d-4e8f-a091-b2c3d4e5f607",
+      "label": "timing",
+      "machine": null,
+      "folder": null,
+      "place": "local"
+     },
+     {
+      "id": "b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e",
+      "label": "far",
+      "machine": "p346 loopback",
+      "folder": null,
+      "place": "p346far"
+     }
+    ],
+    "places": [
+     {
+      "id": "local",
+      "ready": true,
+      "read": true,
+      "agents": [
+       "claude",
+       "cursor",
+       "codex",
+       "deepseek",
+       "muse",
+       "pi",
+       "omp",
+       "opencode"
+      ]
+     },
+     {
+      "id": "p346far",
+      "ready": true,
+      "read": true,
+      "agents": [
+       "claude",
+       "codex"
+      ]
+     }
+    ],
+    "agents": [
+     {
+      "id": "claude",
+      "name": "Claude Code",
+      "icon": "claude",
+      "danger": null
+     },
+     {
+      "id": "cursor",
+      "name": "Cursor CLI",
+      "icon": "cursor",
+      "danger": null
+     },
+     {
+      "id": "codex",
+      "name": "Codex CLI",
+      "icon": "codex",
+      "danger": null
+     },
+     {
+      "id": "deepseek",
+      "name": "CodeWhale",
+      "icon": "deepseek",
+      "danger": null
+     },
+     {
+      "id": "muse",
+      "name": "Muse Code",
+      "icon": "muse",
+      "danger": null
+     },
+     {
+      "id": "pi",
+      "name": "Pi",
+      "icon": "pi",
+      "danger": null
+     },
+     {
+      "id": "omp",
+      "name": "Oh My Pi",
+      "icon": "omp",
+      "danger": null
+     },
+     {
+      "id": "opencode",
+      "name": "opencode",
+      "icon": "opencode",
+      "danger": null
+     }
+    ],
+    "chosen": "0c6f0d6e-3b51-4d1f-9a3e-2f6b0c3f5a10",
+    "defaultAgent": "claude"
+   },
+   "expect": {
+    "projects": [
+     {
+      "id": "0c6f0d6e-3b51-4d1f-9a3e-2f6b0c3f5a10",
+      "label": "ledger",
+      "machine": null,
+      "place": "local"
+     },
+     {
+      "id": "3d1f8a52-7c90-4e4b-8d0d-0a9b6f3e2c71",
+      "label": "matrix",
+      "machine": null,
+      "place": "local"
+     },
+     {
+      "id": "5a7b9c1d-2e3f-4a5b-8c6d-7e8f9a0b1c2d",
+      "label": "same",
+      "machine": null,
+      "place": "local"
+     },
+     {
+      "id": "6b8c0d2e-3f4a-4b6c-9d7e-8f9a0b1c2d3e",
+      "label": "same",
+      "machine": null,
+      "place": "local"
+     },
+     {
+      "id": "8e0f2a4b-5c6d-4e8f-a091-b2c3d4e5f607",
+      "label": "timing",
+      "machine": null,
+      "place": "local"
+     },
+     {
+      "id": "b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e",
+      "label": "far",
+      "machine": "p346 loopback",
+      "place": "p346far"
+     }
+    ],
+    "places": [
+     {
+      "id": "local",
+      "ready": true,
+      "read": true,
+      "agents": [
+       "claude",
+       "cursor",
+       "codex",
+       "deepseek",
+       "muse",
+       "pi",
+       "omp",
+       "opencode"
+      ]
+     },
+     {
+      "id": "p346far",
+      "ready": true,
+      "read": true,
+      "agents": [
+       "claude",
+       "codex"
+      ]
+     }
+    ],
+    "agents": [
+     {
+      "id": "claude",
+      "name": "Claude Code",
+      "icon": "claude"
+     },
+     {
+      "id": "cursor",
+      "name": "Cursor CLI",
+      "icon": "cursor"
+     },
+     {
+      "id": "codex",
+      "name": "Codex CLI",
+      "icon": "codex"
+     },
+     {
+      "id": "deepseek",
+      "name": "CodeWhale",
+      "icon": "deepseek"
+     },
+     {
+      "id": "muse",
+      "name": "Muse Code",
+      "icon": "muse"
+     },
+     {
+      "id": "pi",
+      "name": "Pi",
+      "icon": "pi"
+     },
+     {
+      "id": "omp",
+      "name": "Oh My Pi",
+      "icon": "omp"
+     },
+     {
+      "id": "opencode",
+      "name": "opencode",
+      "icon": "opencode"
+     }
+    ]
+   },
+   "expectRead": {
+    "scan": true,
+    "machine": true
+   },
+   "chosenReads": [
+    {
+     "got": "0c6f0d6e-3b51-4d1f-9a3e-2f6b0c3f5a10",
+     "want": "0c6f0d6e-3b51-4d1f-9a3e-2f6b0c3f5a10"
+    },
+    {
+     "got": "3d1f8a52-7c90-4e4b-8d0d-0a9b6f3e2c71",
+     "want": "3d1f8a52-7c90-4e4b-8d0d-0a9b6f3e2c71"
+    }
+   ],
+   "settingsDefault": "claude"
+  },
+  "S1D": {
+   "sealed": {
+    "agent": "claude",
+    "flag": "--dangerously-skip-permissions",
+    "label": "Skip all permissions",
+    "readBack": true,
+    "got": "Skip all permissions"
+   },
+   "unsealed": {
+    "agent": "codex",
+    "flag": "--dangerously-bypass-approvals-and-sandbox",
+    "readBackEmpty": true,
+    "got": null
+   },
+   "claudeArgv": [
+    "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/home/.local/bin/claude",
+    "--settings",
+    "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/profile/gmux/hooks/claude-claude.json",
+    "--dangerously-skip-permissions"
+   ],
+   "flagTokens": [
+    "--dangerously-skip-permissions"
+   ]
+  },
+  "S2": {
+   "project": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+   "rows": [
+    {
+     "agent": "claude",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "session": {
+       "id": "a3000001-4c1e-4f7a-9b2d-000000000001",
+       "name": "claude-1"
+      },
+      "echoed": true,
+      "write": "0002e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+      "ms": 600,
+      "body": null
+     },
+     "wantName": "claude-1",
+     "listed": {
+      "agent": "claude",
+      "projectPath": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+      "machine": null
+     },
+     "argv": [
+      "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/home/.local/bin/claude",
+      "--settings",
+      "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/profile/gmux/hooks/claude-claude.json",
+      "--dangerously-skip-permissions"
+     ],
+     "binPath": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/home/.local/bin/claude",
+     "logged": {
+      "args": [
+       "--settings",
+       "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/profile/gmux/hooks/claude-claude.json",
+       "--dangerously-skip-permissions"
+      ],
+      "cwd": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+      "env": [
+       "GMUX_MANAGED",
+       "GMUX_SESSION_ID",
+       "HOME",
+       "PATH",
+       "TERM"
+      ],
+      "pid": 61000
+     },
+     "cwd": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+     "screen": 200,
+     "macBefore": {
+      "project": "6b8c0d2e-3f4a-4b6c-9d7e-8f9a0b1c2d3e",
+      "session": null
+     },
+     "macAfter": {
+      "project": "6b8c0d2e-3f4a-4b6c-9d7e-8f9a0b1c2d3e",
+      "session": null
+     }
+    },
+    {
+     "agent": "cursor",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "session": {
+       "id": "a3000003-4c1e-4f7a-9b2d-000000000003",
+       "name": "cursor-1"
+      },
+      "echoed": true,
+      "write": "0004e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+      "ms": 631,
+      "body": null
+     },
+     "wantName": "cursor-1",
+     "listed": {
+      "agent": "cursor",
+      "projectPath": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+      "machine": null
+     },
+     "argv": [
+      "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/home/.local/bin/cursor-agent"
+     ],
+     "binPath": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/home/.local/bin/cursor-agent",
+     "logged": {
+      "args": [],
+      "cwd": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+      "env": [
+       "GMUX_MANAGED",
+       "GMUX_SESSION_ID",
+       "HOME",
+       "PATH",
+       "TERM"
+      ],
+      "pid": 61001
+     },
+     "cwd": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+     "screen": 200,
+     "macBefore": {
+      "project": "6b8c0d2e-3f4a-4b6c-9d7e-8f9a0b1c2d3e",
+      "session": null
+     },
+     "macAfter": {
+      "project": "6b8c0d2e-3f4a-4b6c-9d7e-8f9a0b1c2d3e",
+      "session": null
+     }
+    },
+    {
+     "agent": "codex",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "session": {
+       "id": "a3000005-4c1e-4f7a-9b2d-000000000005",
+       "name": "codex-1"
+      },
+      "echoed": true,
+      "write": "0006e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+      "ms": 662,
+      "body": null
+     },
+     "wantName": "codex-1",
+     "listed": {
+      "agent": "codex",
+      "projectPath": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+      "machine": null
+     },
+     "argv": [
+      "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/home/.local/bin/codex",
+      "-c",
+      "tui.alternate_screen=never"
+     ],
+     "binPath": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/home/.local/bin/codex",
+     "logged": {
+      "args": [
+       "-c",
+       "tui.alternate_screen=never"
+      ],
+      "cwd": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+      "env": [
+       "GMUX_MANAGED",
+       "GMUX_SESSION_ID",
+       "HOME",
+       "PATH",
+       "TERM"
+      ],
+      "pid": 61002
+     },
+     "cwd": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+     "screen": 200,
+     "macBefore": {
+      "project": "6b8c0d2e-3f4a-4b6c-9d7e-8f9a0b1c2d3e",
+      "session": null
+     },
+     "macAfter": {
+      "project": "6b8c0d2e-3f4a-4b6c-9d7e-8f9a0b1c2d3e",
+      "session": null
+     }
+    },
+    {
+     "agent": "deepseek",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "session": {
+       "id": "a3000007-4c1e-4f7a-9b2d-000000000007",
+       "name": "deepseek-1"
+      },
+      "echoed": true,
+      "write": "0008e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+      "ms": 693,
+      "body": null
+     },
+     "wantName": "deepseek-1",
+     "listed": {
+      "agent": "deepseek",
+      "projectPath": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+      "machine": null
+     },
+     "argv": [
+      "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/home/.local/bin/codewhale"
+     ],
+     "binPath": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/home/.local/bin/codewhale",
+     "logged": {
+      "args": [],
+      "cwd": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+      "env": [
+       "GMUX_MANAGED",
+       "GMUX_SESSION_ID",
+       "HOME",
+       "PATH",
+       "TERM"
+      ],
+      "pid": 61003
+     },
+     "cwd": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+     "screen": 200,
+     "macBefore": {
+      "project": "6b8c0d2e-3f4a-4b6c-9d7e-8f9a0b1c2d3e",
+      "session": null
+     },
+     "macAfter": {
+      "project": "6b8c0d2e-3f4a-4b6c-9d7e-8f9a0b1c2d3e",
+      "session": null
+     }
+    },
+    {
+     "agent": "muse",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "session": {
+       "id": "a3000009-4c1e-4f7a-9b2d-000000000009",
+       "name": "muse-1"
+      },
+      "echoed": true,
+      "write": "0010e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+      "ms": 724,
+      "body": null
+     },
+     "wantName": "muse-1",
+     "listed": {
+      "agent": "muse",
+      "projectPath": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+      "machine": null
+     },
+     "argv": [
+      "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/home/.local/bin/muse"
+     ],
+     "binPath": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/home/.local/bin/muse",
+     "logged": {
+      "args": [],
+      "cwd": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+      "env": [
+       "GMUX_MANAGED",
+       "GMUX_SESSION_ID",
+       "HOME",
+       "PATH",
+       "TERM"
+      ],
+      "pid": 61004
+     },
+     "cwd": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+     "screen": 200,
+     "macBefore": {
+      "project": "6b8c0d2e-3f4a-4b6c-9d7e-8f9a0b1c2d3e",
+      "session": null
+     },
+     "macAfter": {
+      "project": "6b8c0d2e-3f4a-4b6c-9d7e-8f9a0b1c2d3e",
+      "session": null
+     }
+    },
+    {
+     "agent": "pi",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "session": {
+       "id": "a3000011-4c1e-4f7a-9b2d-000000000011",
+       "name": "pi-1"
+      },
+      "echoed": true,
+      "write": "0012e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+      "ms": 755,
+      "body": null
+     },
+     "wantName": "pi-1",
+     "listed": {
+      "agent": "pi",
+      "projectPath": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+      "machine": null
+     },
+     "argv": [
+      "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/home/.local/bin/pi"
+     ],
+     "binPath": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/home/.local/bin/pi",
+     "logged": {
+      "args": [],
+      "cwd": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+      "env": [
+       "GMUX_MANAGED",
+       "GMUX_SESSION_ID",
+       "HOME",
+       "PATH",
+       "TERM"
+      ],
+      "pid": 61005
+     },
+     "cwd": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+     "screen": 200,
+     "macBefore": {
+      "project": "6b8c0d2e-3f4a-4b6c-9d7e-8f9a0b1c2d3e",
+      "session": null
+     },
+     "macAfter": {
+      "project": "6b8c0d2e-3f4a-4b6c-9d7e-8f9a0b1c2d3e",
+      "session": null
+     }
+    },
+    {
+     "agent": "omp",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "session": {
+       "id": "a3000013-4c1e-4f7a-9b2d-000000000013",
+       "name": "omp-1"
+      },
+      "echoed": true,
+      "write": "0014e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+      "ms": 786,
+      "body": null
+     },
+     "wantName": "omp-1",
+     "listed": {
+      "agent": "omp",
+      "projectPath": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+      "machine": null
+     },
+     "argv": [
+      "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/home/.local/bin/omp"
+     ],
+     "binPath": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/home/.local/bin/omp",
+     "logged": {
+      "args": [],
+      "cwd": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+      "env": [
+       "GMUX_MANAGED",
+       "GMUX_SESSION_ID",
+       "HOME",
+       "PATH",
+       "TERM"
+      ],
+      "pid": 61006
+     },
+     "cwd": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+     "screen": 200,
+     "macBefore": {
+      "project": "6b8c0d2e-3f4a-4b6c-9d7e-8f9a0b1c2d3e",
+      "session": null
+     },
+     "macAfter": {
+      "project": "6b8c0d2e-3f4a-4b6c-9d7e-8f9a0b1c2d3e",
+      "session": null
+     }
+    },
+    {
+     "agent": "opencode",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "session": {
+       "id": "a3000015-4c1e-4f7a-9b2d-000000000015",
+       "name": "opencode-1"
+      },
+      "echoed": true,
+      "write": "0016e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+      "ms": 817,
+      "body": null
+     },
+     "wantName": "opencode-1",
+     "listed": {
+      "agent": "opencode",
+      "projectPath": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+      "machine": null
+     },
+     "argv": [
+      "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/home/.local/bin/opencode"
+     ],
+     "binPath": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/home/.local/bin/opencode",
+     "logged": {
+      "args": [],
+      "cwd": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+      "env": [
+       "GMUX_MANAGED",
+       "GMUX_SESSION_ID",
+       "HOME",
+       "PATH",
+       "TERM"
+      ],
+      "pid": 61007
+     },
+     "cwd": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/projects/matrix",
+     "screen": 200,
+     "macBefore": {
+      "project": "6b8c0d2e-3f4a-4b6c-9d7e-8f9a0b1c2d3e",
+      "session": null
+     },
+     "macAfter": {
+      "project": "6b8c0d2e-3f4a-4b6c-9d7e-8f9a0b1c2d3e",
+      "session": null
+     }
+    }
+   ],
+   "macEnd": {
+    "project": "6b8c0d2e-3f4a-4b6c-9d7e-8f9a0b1c2d3e",
+    "session": null
+   }
+  },
+  "S3": {
+   "words": {
+    "START_PROJECT_GONE": "That project is not open on your Mac any more. Nothing was started.",
+    "START_FOLDER_GONE": "That project’s folder is not there. Nothing was started.",
+    "START_AGENT_GONE": "That agent is not installed there. Nothing was started.",
+    "START_MACHINE_AWAY": "Tortie is not connected to that project’s machine. Nothing was started.",
+    "START_INTERPRETER": "That agent needs a program your Mac cannot find. Start it on your Mac to see why. Nothing was started.",
+    "START_OFTEN": "Your phone started several sessions just now. Wait a minute, then try again. Nothing was started.",
+    "START_BUSY": "Your Mac is starting another session. Nothing was started.",
+    "START_STILL": "Your Mac is still starting this session.",
+    "START_FAILED": "Your Mac could not start that session. If anything started, it is in Sessions.",
+    "unreadable": "Your Mac could not read that request. Nothing was done.",
+    "busy": "Tortie is still doing the last thing you asked from this phone. Nothing was done.",
+    "stopped": "Your Mac stopped answering this phone. Nothing was done.",
+    "newTitle": "start sessions from your phone",
+    "newSentence": "An agent installed where the project is, with your launch defaults.",
+    "clause": "start a session in a project open in Tortie, on this Mac or another machine",
+    "doorHonesty": "A phone you allow can see what any session’s terminal shows and what it printed before, type into it as you would at this Mac, answer a numbered question, send a session one message and end a session."
+   },
+   "project": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/far",
+   "rows": [
+    {
+     "agent": "claude",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "session": {
+       "id": "a3000017-4c1e-4f7a-9b2d-000000000017",
+       "name": "claude-1"
+      },
+      "echoed": true,
+      "write": "0018e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+      "ms": 640,
+      "body": null
+     },
+     "remote": true,
+     "far": true,
+     "argv": [
+      "/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/home/.local/bin/claude",
+      "--settings",
+      "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/profile/gmux/hooks/claude-claude.json",
+      "--dangerously-skip-permissions"
+     ],
+     "binPath": "/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/home/.local/bin/claude",
+     "logged": {
+      "args": [
+       "--settings",
+       "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/profile/gmux/hooks/claude-claude.json",
+       "--dangerously-skip-permissions"
+      ],
+      "cwd": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/far",
+      "env": [
+       "HOME",
+       "PATH"
+      ],
+      "pid": 62010
+     }
+    },
+    {
+     "agent": "codex",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "session": {
+       "id": "a3000019-4c1e-4f7a-9b2d-000000000019",
+       "name": "codex-1"
+      },
+      "echoed": true,
+      "write": "0020e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+      "ms": 640,
+      "body": null
+     },
+     "remote": true,
+     "far": true,
+     "argv": [
+      "/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/home/.local/bin/codex",
+      "-c",
+      "tui.alternate_screen=never"
+     ],
+     "binPath": "/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/home/.local/bin/codex",
+     "logged": {
+      "args": [
+       "-c",
+       "tui.alternate_screen=never"
+      ],
+      "cwd": "/private/var/folders/x8/7q2c4p1n0b5f3d6s9k8h2w4m0000gn/T/gmux-p346-wt-p346-48211/p346/far",
+      "env": [
+       "HOME",
+       "PATH"
+      ],
+      "pid": 62010
+     }
+    }
+   ],
+   "paused": {
+    "count": 4,
+    "resumed": 4,
+    "notReady": true,
+    "answer": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "refused",
+     "reason": "machine",
+     "sentence": "Tortie is not connected to that project’s machine. Nothing was started.",
+     "session": null,
+     "echoed": true,
+     "write": "0021e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+     "ms": 210,
+     "body": null
+    },
+    "sessionsDelta": 0,
+    "farDelta": 0
+   }
+  },
+  "S4": {
+   "words": {
+    "START_PROJECT_GONE": "That project is not open on your Mac any more. Nothing was started.",
+    "START_FOLDER_GONE": "That project’s folder is not there. Nothing was started.",
+    "START_AGENT_GONE": "That agent is not installed there. Nothing was started.",
+    "START_MACHINE_AWAY": "Tortie is not connected to that project’s machine. Nothing was started.",
+    "START_INTERPRETER": "That agent needs a program your Mac cannot find. Start it on your Mac to see why. Nothing was started.",
+    "START_OFTEN": "Your phone started several sessions just now. Wait a minute, then try again. Nothing was started.",
+    "START_BUSY": "Your Mac is starting another session. Nothing was started.",
+    "START_STILL": "Your Mac is still starting this session.",
+    "START_FAILED": "Your Mac could not start that session. If anything started, it is in Sessions.",
+    "unreadable": "Your Mac could not read that request. Nothing was done.",
+    "busy": "Tortie is still doing the last thing you asked from this phone. Nothing was done.",
+    "stopped": "Your Mac stopped answering this phone. Nothing was done.",
+    "newTitle": "start sessions from your phone",
+    "newSentence": "An agent installed where the project is, with your launch defaults.",
+    "clause": "start a session in a project open in Tortie, on this Mac or another machine",
+    "doorHonesty": "A phone you allow can see what any session’s terminal shows and what it printed before, type into it as you would at this Mac, answer a numbered question, send a session one message and end a session."
+   },
+   "closed": {
+    "status": 200,
+    "ok": true,
+    "why": "",
+    "outcome": "refused",
+    "reason": "project",
+    "sentence": "That project is not open on your Mac any more. Nothing was started.",
+    "session": null,
+    "echoed": true,
+    "write": "0022e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+    "ms": 210,
+    "body": null
+   },
+   "hidden": {
+    "status": 200,
+    "ok": true,
+    "why": "",
+    "outcome": "refused",
+    "reason": "agent",
+    "sentence": "That agent is not installed there. Nothing was started.",
+    "session": null,
+    "echoed": true,
+    "write": "0023e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+    "ms": 210,
+    "body": null
+   },
+   "shell": {
+    "status": 200,
+    "ok": true,
+    "why": "",
+    "outcome": "refused",
+    "reason": "malformed",
+    "sentence": "Your Mac could not read that request. Nothing was done.",
+    "session": null,
+    "echoed": true,
+    "write": "0024e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+    "ms": 210,
+    "body": null
+   },
+   "overlay": {
+    "status": 200,
+    "ok": true,
+    "why": "",
+    "outcome": "refused",
+    "reason": "malformed",
+    "sentence": "Your Mac could not read that request. Nothing was done.",
+    "session": null,
+    "echoed": true,
+    "write": "0025e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+    "ms": 210,
+    "body": null
+   },
+   "removedWasOffered": true,
+   "removed": {
+    "status": 200,
+    "ok": true,
+    "why": "",
+    "outcome": "refused",
+    "reason": "agent",
+    "sentence": "That agent is not installed there. Nothing was started.",
+    "session": null,
+    "echoed": true,
+    "write": "0026e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+    "ms": 210,
+    "body": null
+   },
+   "sessionsDelta": 0,
+   "launches": 0
+  },
+  "S5": {
+   "cold": 1180,
+   "warm": [
+    412,
+    455,
+    480,
+    501,
+    377,
+    438,
+    490,
+    520,
+    610,
+    433,
+    471,
+    458,
+    499,
+    512,
+    640,
+    455,
+    470,
+    488,
+    530,
+    702
+   ],
+   "env": [
+    1320,
+    1290,
+    1410,
+    1350,
+    1302
+   ],
+   "remote": [
+    2410,
+    2650,
+    2380,
+    2702,
+    2590
+   ],
+   "answers": [
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    },
+    {
+     "status": 200,
+     "outcome": "done"
+    }
+   ],
+   "envReached": 5,
+   "envControl": false,
+   "sealedEnv": true
+  },
+  "S6": {
+   "words": {
+    "START_PROJECT_GONE": "That project is not open on your Mac any more. Nothing was started.",
+    "START_FOLDER_GONE": "That project’s folder is not there. Nothing was started.",
+    "START_AGENT_GONE": "That agent is not installed there. Nothing was started.",
+    "START_MACHINE_AWAY": "Tortie is not connected to that project’s machine. Nothing was started.",
+    "START_INTERPRETER": "That agent needs a program your Mac cannot find. Start it on your Mac to see why. Nothing was started.",
+    "START_OFTEN": "Your phone started several sessions just now. Wait a minute, then try again. Nothing was started.",
+    "START_BUSY": "Your Mac is starting another session. Nothing was started.",
+    "START_STILL": "Your Mac is still starting this session.",
+    "START_FAILED": "Your Mac could not start that session. If anything started, it is in Sessions.",
+    "unreadable": "Your Mac could not read that request. Nothing was done.",
+    "busy": "Tortie is still doing the last thing you asked from this phone. Nothing was done.",
+    "stopped": "Your Mac stopped answering this phone. Nothing was done.",
+    "newTitle": "start sessions from your phone",
+    "newSentence": "An agent installed where the project is, with your launch defaults.",
+    "clause": "start a session in a project open in Tortie, on this Mac or another machine",
+    "doorHonesty": "A phone you allow can see what any session’s terminal shows and what it printed before, type into it as you would at this Mac, answer a numbered question, send a session one message and end a session."
+   },
+   "replay": {
+    "first": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "done",
+     "reason": null,
+     "sentence": null,
+     "session": {
+      "id": "a3000027-4c1e-4f7a-9b2d-000000000027",
+      "name": "opencode-1"
+     },
+     "echoed": true,
+     "write": "0028e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+     "ms": 640,
+     "body": null
+    },
+    "again": 404,
+    "sessionsMade": 1
+   },
+   "still": {
+    "first": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "done",
+     "reason": null,
+     "sentence": null,
+     "session": {
+      "id": "a3000029-4c1e-4f7a-9b2d-000000000029",
+      "name": "claude-2"
+     },
+     "echoed": true,
+     "write": "0030e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+     "ms": 640,
+     "body": null
+    },
+    "during": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "busy",
+     "reason": null,
+     "sentence": "Your Mac is still starting this session.",
+     "session": null,
+     "echoed": true,
+     "write": "0033e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+     "ms": 90,
+     "body": null
+    },
+    "after": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "done",
+     "reason": null,
+     "sentence": null,
+     "session": {
+      "id": "a3000029-4c1e-4f7a-9b2d-000000000029",
+      "name": "claude-2"
+     },
+     "echoed": true,
+     "write": "0030e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+     "ms": 640,
+     "body": null
+    },
+    "sessionsMade": 1
+   },
+   "cut": {
+    "cutStatus": 0,
+    "loggedBeforeCut": true,
+    "resent": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "done",
+     "reason": null,
+     "sentence": null,
+     "session": {
+      "id": "a3000034-4c1e-4f7a-9b2d-000000000034",
+      "name": "omp-1"
+     },
+     "echoed": true,
+     "write": "0035e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+     "ms": 640,
+     "body": null
+    },
+    "sessionsMade": 1,
+    "cuts": 1
+   },
+   "two": {
+    "first": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "done",
+     "reason": null,
+     "sentence": null,
+     "session": {
+      "id": "a3000031-4c1e-4f7a-9b2d-000000000031",
+      "name": "codex-2"
+     },
+     "echoed": true,
+     "write": "0032e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+     "ms": 640,
+     "body": null
+    },
+    "second": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "busy",
+     "reason": null,
+     "sentence": "Your Mac is starting another session. Nothing was started.",
+     "session": null,
+     "echoed": true,
+     "write": "0036e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+     "ms": 90,
+     "body": null
+    },
+    "sessionsMade": 1
+   },
+   "seven": {
+    "answers": [
+     {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "session": {
+       "id": "a3000037-4c1e-4f7a-9b2d-000000000037",
+       "name": "cursor-1"
+      },
+      "echoed": true,
+      "write": "0038e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+      "ms": 640,
+      "body": null
+     },
+     {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "session": {
+       "id": "a3000039-4c1e-4f7a-9b2d-000000000039",
+       "name": "cursor-2"
+      },
+      "echoed": true,
+      "write": "0040e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+      "ms": 640,
+      "body": null
+     },
+     {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "session": {
+       "id": "a3000041-4c1e-4f7a-9b2d-000000000041",
+       "name": "cursor-3"
+      },
+      "echoed": true,
+      "write": "0042e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+      "ms": 640,
+      "body": null
+     },
+     {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "session": {
+       "id": "a3000043-4c1e-4f7a-9b2d-000000000043",
+       "name": "cursor-4"
+      },
+      "echoed": true,
+      "write": "0044e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+      "ms": 640,
+      "body": null
+     },
+     {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "session": {
+       "id": "a3000045-4c1e-4f7a-9b2d-000000000045",
+       "name": "cursor-5"
+      },
+      "echoed": true,
+      "write": "0046e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+      "ms": 640,
+      "body": null
+     },
+     {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "session": {
+       "id": "a3000047-4c1e-4f7a-9b2d-000000000047",
+       "name": "cursor-6"
+      },
+      "echoed": true,
+      "write": "0048e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+      "ms": 640,
+      "body": null
+     },
+     {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "often",
+      "sentence": "Your phone started several sessions just now. Wait a minute, then try again. Nothing was started.",
+      "session": null,
+      "echoed": true,
+      "write": "0049e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+      "ms": 210,
+      "body": null
+     }
+    ],
+    "withinMs": 7340,
+    "later": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "done",
+     "reason": null,
+     "sentence": null,
+     "session": {
+      "id": "a3000050-4c1e-4f7a-9b2d-000000000050",
+      "name": "cursor-7"
+     },
+     "echoed": true,
+     "write": "0051e1c0b7a94f2d8e6c5b3a1f0d9e8c",
+     "ms": 640,
+     "body": null
+    }
+   }
+  },
+  "S7": {
+   "appLogRead": true,
+   "lines": 55,
+   "acted": 54,
+   "unknown": 1,
+   "lineHits": [],
+   "filesScanned": 412,
+   "writeIdHits": []
+  },
+  "S8": {
+   "parent": [
+    "Tortie",
+    "Tortie > About Tortie",
+    "Tortie > Settings…",
+    "File",
+    "File > Open Folder…",
+    "Session",
+    "Session > New Session",
+    "Window",
+    "Help"
+   ],
+   "head": [
+    "Tortie",
+    "Tortie > About Tortie",
+    "Tortie > Settings…",
+    "File",
+    "File > Open Folder…",
+    "Session",
+    "Session > New Session",
+    "Window",
+    "Help"
+   ]
+  },
+  "S9": {
+   "sessions": 8,
+   "samples": 80,
+   "waiting": []
+  },
+  "S10": {
+   "started": 51,
+   "ended": 51,
+   "removed": 51,
+   "leftListed": 0,
+   "farLeft": 0,
+   "localLeft": 0
+  },
+  "RUN": {
+   "tailscalePreflight": true,
+   "dnsPreflights": [
+    true,
+    true
+   ],
+   "agentsHeld": [
+    true,
+    true
+   ],
+   "resolved": true,
+   "hiddenUnresolved": true,
+   "installs": true,
+   "manifest": {
+    "read": true,
+    "rows": 51,
+    "outside": []
+   },
+   "realTailscale": 0,
+   "samples": 1260,
+   "forbidden": 0,
+   "standinLeft": 0,
+   "agentsLeft": 0,
+   "runLeft": 0,
+   "history": {
+    "before": "738630 1792177511|23166 1790702242",
+    "after": "738630 1792177511|23166 1790702242"
+   },
+   "resumedAtEnd": 0
+  }
+ }
+}

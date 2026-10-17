@@ -1449,6 +1449,26 @@ export const CHECKS = [
   // stand-in, recorder and sampler pid is ended by pid in its `finally`.
   // `--grader-self-test` grades recorded fixtures and starts nothing.
   remote('probe:p337'),
+  // PHASE 346's app run, the Mac side of a session started from the phone
+  // (build/p346/SPEC.md §6.1): the door's new write, POST /v1/start, and the
+  // offer on GET /v1/sessions. ONE Electron at HEAD through
+  // build/electron-run.mjs's withElectron, and with P346_PARENT_CHECKOUT the
+  // parent's FIRST on the same profile, one after the other and never at
+  // once, on a scratch profile, a scratch HOME and the socket gmux-p346…,
+  // inside build/with-scratch-machine.mjs's loopback machine with the quiet
+  // shell, its own far HOME and none of his keys (arm S3 starts sessions
+  // there), which is why this is `remote` and not `electron`. Tailscale is
+  // build/p330/tailscale-standin.mjs behind its preflight and sampler, the
+  // name check asks build/p332/dns-standin.mjs in the probe's own process,
+  // the phones are build/p316/node-phone.mjs, and every agent the app may
+  // start is build/p318/stand-in.mjs or build/p346/argv-stand-in.mjs behind
+  // its bare name on a scratch login PATH holding nothing of his, which the
+  // probe refuses to start without; build/hidden-agents.mjs renames five
+  // agents' binaries before each launch. It runs no vendor process, spends
+  // no token, pauses the scratch sshd by its own pids (resumed in a
+  // `finally`) and ends every stand-in pid by pid in its `finally`.
+  // `--grader-self-test` grades recorded fixtures and starts nothing.
+  remote('probe:p346'),
   // PHASE 342's measurement (build/p342/SPEC.md §7.4): the re-derivation
   // outside Electron. Through build/docker-run.mjs, one throwaway container per
   // distribution in his Docker, each the distribution's own image with its own

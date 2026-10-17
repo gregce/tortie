@@ -129,6 +129,10 @@ import { PocketHost, registerPocketIpc } from './pocket/ipc';
 // PHASE 317: the phone's End, implemented once outside the door's domain and
 // handed to it, beside the facts the rows carry its offer from.
 import { createPocketWrites } from './sessions/pocket-writes';
+// PHASE 346: the phone's start (the offer the Sessions answer carries and the
+// start itself), built once here and handed to the door's facts and writes;
+// the door's domain names neither.
+import { createPocketStart } from './sessions/pocket-start';
 // PHASE 318: the reply's verbs (a press and a message) and the one process-wide
 // question id, built once here and handed to the door's writes and facts; the
 // door's domain imports neither.
@@ -412,6 +416,12 @@ export function installMainCapabilities(
     noteUserInput: (sessionId) => pocketCore?.activity.noteUserInput(sessionId),
     typeRemote: (sessionId, keys) => typePhoneKeys(sessionId, keys)
   });
+  // PHASE 346 (build/p346/SPEC.md §4.13): the phone's start, built ONCE over
+  // the same core. Its `start` goes to the door's writes below, and its
+  // `sessionsKey` to the facts as `start`, asked with whether a person allowed
+  // the route, so the Sessions answer says `waiting` until the Allow that names
+  // it. Each handed as an arrow.
+  const pocketStart = createPocketStart({ core: () => pocketCore });
   // PHASE 317: the phone's End. ONE implementation, over the same core the
   // facts read, asking both gates the Mac's End asks; it reaches the verb only
   // through the `PocketWrites` the door is handed, and the rows carry its offer
@@ -422,7 +432,8 @@ export function installMainCapabilities(
       choose: (input, still) => reply.choose(input, still),
       say: (input, still) => reply.say(input, still)
     },
-    keys: { keys: (input, still) => screenKeys.keys(input, still) }
+    keys: { keys: (input, still) => screenKeys.keys(input, still) },
+    start: { start: (input, still) => pocketStart.start(input, still) }
   });
   const facts = createPocketFacts({
     core: () => pocketCore,
@@ -435,7 +446,9 @@ export function installMainCapabilities(
     endOffer: (session) => pocketWrites.endOffer(session),
     replyOffer: (session, drawn) => reply.offer(session, drawn),
     screen: (session, since, closing) => screenWatch.answer(session, since, closing),
-    scrollback: (session, ask, closing) => screenScrollback.page(session, ask, closing)
+    scrollback: (session, ask, closing) => screenScrollback.page(session, ask, closing),
+    // The host is assigned below, before the door can answer anything.
+    start: () => pocketStart.sessionsKey(pocketHost?.startAllowed() === true)
   });
   // PHASE 316.5: the phone alerts. The engine's rows are the door's own
   // `/v1/blocked` rows from the same stateless composer over the same facts,

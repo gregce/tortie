@@ -779,6 +779,59 @@ enum Copy {
     /// Phone: the answer was not JSON, or not the shape this build reads.
     static let answerUnreadable = "Tortie could not read your Mac’s answer."
 
+    // MARK: - New session (Phase 346, build/p346/SPEC.md section 4.15)
+    //
+    // The sheet's two labels are the words already declared once above,
+    // `groupProject` (`Project`) and `agent` (`Agent`), and its close is
+    // `cancel`: a word is declared once (CopyTests), so the sheet reuses them.
+
+    /// Mac: src/renderer/app/CreateSessionModal.tsx ⟦<h2 className="modal-title">New session</h2>⟧
+    /// The sheet's title, as the Mac titles its own ⌘T sheet; and the "+"'s
+    /// spoken name.
+    static let newSession = "New session"
+
+    /// Mac: src/renderer/app/CreateSessionModal.tsx ⟦'Create'}⟧
+    static let create = "Create"
+
+    /// Mac: src/renderer/app/CreateSessionModal.tsx ⟦{creating ? 'Creating…' : 'Create'}⟧
+    static let creating = "Creating…"
+
+    /// Phone: the lead of the one line under the marks naming the chosen
+    /// agent's sealed safeguard-off launch defaults, which the Mac applies to
+    /// a start from the phone (his answer 6). The ⌘T sheet shows each default
+    /// as a switch, which the phone does not draw.
+    static let startsWith = "Starts with"
+
+    /// Phone: a start whose answer did not come (D25). It may have started,
+    /// and Sessions, read again, says so; Try again sends the same id.
+    static let startNoAnswer = "Your Mac did not answer. If it started the session, it is in Sessions."
+
+    /// Phone: the door refused the start before anything was started (a 404,
+    /// D25), or the app left before its bytes were handed. Both are true of
+    /// each: nothing was started.
+    static let startNotTaken = "Your Mac did not take it. Nothing was started."
+
+    /// Phone: See a sample's Create (D28, his answer 11). Nothing leaves the
+    /// phone, so nothing ran.
+    static let startSample = "This is a sample, so nothing ran."
+
+    /// Phone: the Mac offered no project, because none is open in Tortie
+    /// there. The ⌘T sheet is reached from an open project, so no Mac surface
+    /// says it.
+    static let startNoProject = "Open a project in Tortie on your Mac first."
+
+    /// Phone: the chosen project's place lists no installed agent (his answer
+    /// 6: only the installed ones are drawn).
+    static let startNoAgent = "No agent is installed there."
+
+    /// Phone: Tortie has not yet read which agents are installed where the
+    /// chosen project lives (D8: the offer starts nothing to find out).
+    static let startNotRead = "Your Mac has not looked for agents there yet."
+
+    /// Phone: a project on a machine Tortie is not connected to, listed dimmed
+    /// in the sheet's Project menu (D22). It cannot be chosen.
+    static let startNotConnected = "Not connected"
+
     // MARK: - Composed lines. No literal below this point.
 
     /// `Needs your input (3)`, as ⌘J draws it.
@@ -895,6 +948,12 @@ enum Copy {
     /// `2 of 2 sessions ended`.
     static func batchDoneHeading(_ endedCount: Int, _ count: Int) -> String {
         String(endedCount) + doneMid + String(count) + space + sessionWord(count) + doneTail
+    }
+
+    /// `Starts with Skip permissions`: the chosen agent's sealed
+    /// safeguard-off launch defaults, as the Mac labels them (Phase 346, D22).
+    static func startsWithLabels(_ labels: String) -> String {
+        startsWith + space + labels
     }
 
     /// `Not ended. <the reason, in its owner's words>`.

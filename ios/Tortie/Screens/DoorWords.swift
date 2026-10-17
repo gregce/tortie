@@ -74,6 +74,16 @@
 // (the tests' stand-ins). Unpair names the Mac it forgets (`unpair(name:)`),
 // and a pairing made beside another Mac says `This iPhone is not paired with
 // this Mac.` where one with no other says `…with a Mac.`
+//
+// THE START (Phase 346, build/p346/SPEC.md section 4.15). A paired reader
+// also answers `starter`, which starts ONE session on its Mac through
+// `POST /v1/start`. `starter` is a REQUIREMENT of `DoorReading`, for the same
+// reason as `writer`, and its extension default is nil, so a reader that
+// starts nothing (every test fake before this phase) draws no "+". Its one
+// caller is `StartRunner.run`. It asks NO Face ID, Touch ID or passcode (his
+// answer 5, "no face id to start a session"). See a sample answers one that
+// sends nothing (Sample/SampleReader.swift). A start's result becomes a
+// sentence in `startSentence`.
 
 import Foundation
 
@@ -101,11 +111,17 @@ protocol DoorReading: Sendable {
     /// One session's Screen door (Phase 337), or nil when this reader has
     /// none. A requirement, so `any DoorReading` reads the reader's own.
     func screenDoor(_ sessionId: String) -> (any ScreenDoor)?
+    /// The start this pairing can make (Phase 346), or nil when it makes
+    /// none. A requirement, so `any DoorReading` reads the reader's own.
+    var starter: (any DoorStarting)? { get }
 }
 
 extension DoorReading {
     /// A reader that writes nothing: no End and no Select.
     var writer: (any DoorWriting)? { nil }
+
+    /// A reader that starts nothing: no "+" (Phase 346).
+    var starter: (any DoorStarting)? { nil }
 
     /// A reader with no Screen: none is drawn.
     func screenDoor(_ sessionId: String) -> (any ScreenDoor)? { nil }
@@ -132,6 +148,16 @@ protocol DoorWriting: Sendable {
     /// the same words carried when its answer did not come (Revision R13).
     /// The ONE caller in the app is `ReplyRunner.run`.
     func say(_ sessionId: String, text: String, write: String?) async -> SentWrite
+}
+
+/// The start (Phase 346): ONE session on the reader's Mac, in a project it
+/// offered and with an agent installed there, sent at most once and never
+/// retried, asking no owner check (his answer 5).
+protocol DoorStarting: Sendable {
+    /// `POST /v1/start`. `write` is nil, or the id a start with the same Mac,
+    /// project and agent carried when its answer did not come (D17). The ONE
+    /// caller in the app is `StartRunner.run`.
+    func start(project: String, agent: String, write: String?) async -> SentStart
 }
 
 /// One session's Terminal, through the door (Phase 337): the long poll and
@@ -457,6 +483,33 @@ enum DoorWords {
             return Copy.endNoAnswer
         case .notSent(let failure):
             return failure == .cancelled ? Copy.replyNotTaken : sentence(for: failure)
+        }
+    }
+
+    /// New session's line for a start's result (Phase 346, D25): ALWAYS a
+    /// sentence, never empty (conformance:ios rule v). A `done` start draws
+    /// nothing (the sheet closes and the session opens); its word here is the
+    /// sheet's own title, `New session`, which is what it made. An answered
+    /// refusal, failure or busy is the Mac's
+    /// own sentence. A 404 and a start withheld because the app left are both
+    /// `Your Mac did not take it. Nothing was started.`, which is true of each,
+    /// as End's and a reply's not-taken line is of theirs; no answer says
+    /// Sessions holds what started; anything else not sent says why. Inside
+    /// See a sample every start says nothing ran (D28).
+    static func startSentence(for result: StartResult, sample: Bool) -> String {
+        guard !sample else { return Copy.startSample }
+        switch result {
+        case .answered(let answer):
+            guard answer.outcome != .done else { return Copy.newSession }
+            // The decoder refuses a non-done answer with no sentence or an
+            // empty one, so this is the Mac's own sentence.
+            return answer.sentence ?? Copy.answerUnreadable
+        case .notTaken:
+            return Copy.startNotTaken
+        case .noAnswer:
+            return Copy.startNoAnswer
+        case .notSent(let failure):
+            return failure == .cancelled ? Copy.startNotTaken : sentence(for: failure)
         }
     }
 

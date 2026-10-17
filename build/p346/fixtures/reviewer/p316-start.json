@@ -1,0 +1,2131 @@
+{
+ "derivedBy": "Written by the probe review (docs/method/HOW-WE-BUILT-THIS.md rule 9): every line in the shape P316DriveUITests.swift prints it (startOpen, startCreate, startReading, dump) on an iPhone 16 Pro, the words Copy.swift and src/shared/start-copy.ts say, and the offer main composes (D7, D11). Phase 346's fix round added gradeNp4's reading: the hostile door's start-remote, the far project picked, its one agent's mark pressed, the door's POST event (the ids it offered and the place it put the project in) and the UI test's start-created line.",
+ "base": {
+  "gradeNp1": {
+   "offer": {
+    "state": "offered",
+    "projects": [
+     {
+      "id": "9f6c1b2a-77d1-4c0e-8a41-3b5d2e9f0c11",
+      "label": "tortie",
+      "machine": null,
+      "folder": null,
+      "place": "local"
+     },
+     {
+      "id": "2a8e4c6b-1d3f-4e5a-9b7c-6d8e0f1a2b3c",
+      "label": "far",
+      "machine": "Studio",
+      "folder": null,
+      "place": "p346far"
+     },
+     {
+      "id": "7c1d3e5f-2a4b-4c6d-8e0f-1a2b3c4d5e6f",
+      "label": "away",
+      "machine": "Laptop",
+      "folder": null,
+      "place": "p346away"
+     }
+    ],
+    "places": [
+     {
+      "id": "local",
+      "ready": true,
+      "read": true,
+      "agents": [
+       "claude",
+       "codex"
+      ]
+     },
+     {
+      "id": "p346far",
+      "ready": true,
+      "read": true,
+      "agents": [
+       "codex"
+      ]
+     },
+     {
+      "id": "p346away",
+      "ready": false,
+      "read": false,
+      "agents": []
+     }
+    ],
+    "agents": [
+     {
+      "id": "claude",
+      "name": "Claude Code",
+      "icon": "claude",
+      "danger": null
+     },
+     {
+      "id": "codex",
+      "name": "Codex CLI",
+      "icon": "codex",
+      "danger": null
+     }
+    ],
+    "chosen": "9f6c1b2a-77d1-4c0e-8a41-3b5d2e9f0c11",
+    "defaultAgent": "claude"
+   },
+   "open": {
+    "step": "start-open",
+    "seq": 7,
+    "found": true,
+    "label": "New session",
+    "frame": [
+     354,
+     109,
+     32,
+     32
+    ],
+    "enabled": true,
+    "hittable": true,
+    "title": [
+     16,
+     103,
+     132,
+     41
+    ],
+    "controls": [
+     {
+      "id": "list-menu",
+      "frame": [
+       266,
+       109,
+       36,
+       32
+      ]
+     },
+     {
+      "id": "list-select",
+      "frame": [
+       306,
+       109,
+       44,
+       32
+      ]
+     }
+    ],
+    "list": true,
+    "window": [
+     402,
+     874
+    ],
+    "tabs": {
+     "inBar": [
+      {
+       "label": "Needs input",
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "selected": false
+      }
+     ],
+     "bottom": []
+    },
+    "faceId": false,
+    "reading": {
+     "sheet": true,
+     "project": "tortie",
+     "agents": [
+      {
+       "id": "claude",
+       "label": "Claude Code",
+       "frame": [
+        20,
+        512,
+        52,
+        52
+       ],
+       "selected": true
+      },
+      {
+       "id": "codex",
+       "label": "Codex CLI",
+       "frame": [
+        84,
+        512,
+        52,
+        52
+       ],
+       "selected": false
+      }
+     ],
+     "agentName": "Claude Code",
+     "danger": null,
+     "line": null,
+     "create": {
+      "label": "Create",
+      "enabled": true
+     }
+    },
+    "projects": [
+     {
+      "id": "9f6c1b2a-77d1-4c0e-8a41-3b5d2e9f0c11",
+      "label": "tortie",
+      "enabled": true,
+      "selected": true,
+      "frame": [
+       24,
+       300,
+       250,
+       44
+      ]
+     },
+     {
+      "id": "2a8e4c6b-1d3f-4e5a-9b7c-6d8e0f1a2b3c",
+      "label": "far · Studio",
+      "enabled": true,
+      "selected": false,
+      "frame": [
+       24,
+       344,
+       250,
+       44
+      ]
+     },
+     {
+      "id": "7c1d3e5f-2a4b-4c6d-8e0f-1a2b3c4d5e6f",
+      "label": "away · Laptop",
+      "enabled": false,
+      "selected": false,
+      "frame": [
+       24,
+       388,
+       250,
+       44
+      ]
+     }
+    ],
+    "after": {
+     "sheet": true,
+     "project": "tortie",
+     "agents": [
+      {
+       "id": "claude",
+       "label": "Claude Code",
+       "frame": [
+        20,
+        512,
+        52,
+        52
+       ],
+       "selected": true
+      },
+      {
+       "id": "codex",
+       "label": "Codex CLI",
+       "frame": [
+        84,
+        512,
+        52,
+        52
+       ],
+       "selected": false
+      }
+     ],
+     "agentName": "Claude Code",
+     "danger": null,
+     "line": null,
+     "create": {
+      "label": "Create",
+      "enabled": true
+     }
+    },
+    "sheet": true
+   }
+  },
+  "gradeNp2": {
+   "offer": {
+    "state": "offered",
+    "projects": [
+     {
+      "id": "9f6c1b2a-77d1-4c0e-8a41-3b5d2e9f0c11",
+      "label": "tortie",
+      "machine": null,
+      "folder": null,
+      "place": "local"
+     },
+     {
+      "id": "2a8e4c6b-1d3f-4e5a-9b7c-6d8e0f1a2b3c",
+      "label": "far",
+      "machine": "Studio",
+      "folder": null,
+      "place": "p346far"
+     },
+     {
+      "id": "7c1d3e5f-2a4b-4c6d-8e0f-1a2b3c4d5e6f",
+      "label": "away",
+      "machine": "Laptop",
+      "folder": null,
+      "place": "p346away"
+     }
+    ],
+    "places": [
+     {
+      "id": "local",
+      "ready": true,
+      "read": true,
+      "agents": [
+       "claude",
+       "codex"
+      ]
+     },
+     {
+      "id": "p346far",
+      "ready": true,
+      "read": true,
+      "agents": [
+       "codex"
+      ]
+     },
+     {
+      "id": "p346away",
+      "ready": false,
+      "read": false,
+      "agents": []
+     }
+    ],
+    "agents": [
+     {
+      "id": "claude",
+      "name": "Claude Code",
+      "icon": "claude",
+      "danger": null
+     },
+     {
+      "id": "codex",
+      "name": "Codex CLI",
+      "icon": "codex",
+      "danger": null
+     }
+    ],
+    "chosen": "9f6c1b2a-77d1-4c0e-8a41-3b5d2e9f0c11",
+    "defaultAgent": "claude"
+   },
+   "open": {
+    "step": "start-open",
+    "seq": 7,
+    "found": true,
+    "label": "New session",
+    "frame": [
+     354,
+     109,
+     32,
+     32
+    ],
+    "enabled": true,
+    "hittable": true,
+    "title": [
+     16,
+     103,
+     132,
+     41
+    ],
+    "controls": [
+     {
+      "id": "list-menu",
+      "frame": [
+       266,
+       109,
+       36,
+       32
+      ]
+     },
+     {
+      "id": "list-select",
+      "frame": [
+       306,
+       109,
+       44,
+       32
+      ]
+     }
+    ],
+    "list": true,
+    "window": [
+     402,
+     874
+    ],
+    "tabs": {
+     "inBar": [
+      {
+       "label": "Needs input",
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "selected": false
+      }
+     ],
+     "bottom": []
+    },
+    "faceId": false,
+    "reading": {
+     "sheet": true,
+     "project": "tortie",
+     "agents": [
+      {
+       "id": "claude",
+       "label": "Claude Code",
+       "frame": [
+        20,
+        512,
+        52,
+        52
+       ],
+       "selected": true
+      },
+      {
+       "id": "codex",
+       "label": "Codex CLI",
+       "frame": [
+        84,
+        512,
+        52,
+        52
+       ],
+       "selected": false
+      }
+     ],
+     "agentName": "Claude Code",
+     "danger": null,
+     "line": null,
+     "create": {
+      "label": "Create",
+      "enabled": true
+     }
+    },
+    "projects": [
+     {
+      "id": "9f6c1b2a-77d1-4c0e-8a41-3b5d2e9f0c11",
+      "label": "tortie",
+      "enabled": true,
+      "selected": true,
+      "frame": [
+       24,
+       300,
+       250,
+       44
+      ]
+     },
+     {
+      "id": "2a8e4c6b-1d3f-4e5a-9b7c-6d8e0f1a2b3c",
+      "label": "far · Studio",
+      "enabled": true,
+      "selected": false,
+      "frame": [
+       24,
+       344,
+       250,
+       44
+      ]
+     },
+     {
+      "id": "7c1d3e5f-2a4b-4c6d-8e0f-1a2b3c4d5e6f",
+      "label": "away · Laptop",
+      "enabled": false,
+      "selected": false,
+      "frame": [
+       24,
+       388,
+       250,
+       44
+      ]
+     }
+    ],
+    "after": {
+     "sheet": true,
+     "project": "tortie",
+     "agents": [
+      {
+       "id": "claude",
+       "label": "Claude Code",
+       "frame": [
+        20,
+        512,
+        52,
+        52
+       ],
+       "selected": true
+      },
+      {
+       "id": "codex",
+       "label": "Codex CLI",
+       "frame": [
+        84,
+        512,
+        52,
+        52
+       ],
+       "selected": false
+      }
+     ],
+     "agentName": "Claude Code",
+     "danger": null,
+     "line": null,
+     "create": {
+      "label": "Create",
+      "enabled": true
+     }
+    },
+    "sheet": true
+   },
+   "away": {
+    "id": "2a8e4c6b-1d3f-4e5a-9b7c-6d8e0f1a2b3c",
+    "reading": {
+     "sheet": true,
+     "project": "far",
+     "agents": [
+      {
+       "id": "codex",
+       "label": "Codex CLI",
+       "frame": [
+        20,
+        512,
+        52,
+        52
+       ],
+       "selected": true
+      }
+     ],
+     "agentName": "Codex CLI",
+     "danger": null,
+     "line": null,
+     "create": {
+      "label": "Create",
+      "enabled": true
+     }
+    }
+   },
+   "back": {
+    "id": "9f6c1b2a-77d1-4c0e-8a41-3b5d2e9f0c11",
+    "reading": {
+     "sheet": true,
+     "project": "tortie",
+     "agents": [
+      {
+       "id": "claude",
+       "label": "Claude Code",
+       "frame": [
+        20,
+        512,
+        52,
+        52
+       ],
+       "selected": false
+      },
+      {
+       "id": "codex",
+       "label": "Codex CLI",
+       "frame": [
+        84,
+        512,
+        52,
+        52
+       ],
+       "selected": true
+      }
+     ],
+     "agentName": "Codex CLI",
+     "danger": null,
+     "line": null,
+     "create": {
+      "label": "Create",
+      "enabled": true
+     }
+    }
+   }
+  },
+  "gradeNp3": {
+   "agent": "claude",
+   "projectPath": "/private/var/folders/x8/T/gmux-p316-wt-p346-5521/p316/work",
+   "made": [
+    {
+     "id": "1e2d3c4b-5a69-4788-97a6-b5c4d3e2f100",
+     "name": "claude-3",
+     "status": "running",
+     "agent": "claude",
+     "projectPath": "/private/var/folders/x8/T/gmux-p316-wt-p346-5521/p316/work"
+    }
+   ],
+   "openFaceId": false,
+   "created": {
+    "step": "start-created",
+    "seq": 12,
+    "pressed": "Create",
+    "labels": [
+     "Create",
+     "Creating…"
+    ],
+    "lines": [],
+    "lineBefore": null,
+    "sheetGone": true,
+    "faceId": false,
+    "terminal": true,
+    "status": "claude-3 · working",
+    "nav": [
+     "screen-nav",
+     "claude-3"
+    ],
+    "reading": null,
+    "tabs": {
+     "inBar": [
+      {
+       "label": "Needs input",
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "selected": false
+      }
+     ],
+     "bottom": []
+    }
+   }
+  },
+  "gradeNp5": {
+   "removed": true,
+   "made": 0,
+   "created": {
+    "step": "start-created",
+    "seq": 12,
+    "pressed": "Create",
+    "labels": [
+     "Create",
+     "Creating…",
+     "Create"
+    ],
+    "lines": [
+     "That project is not open on your Mac any more. Nothing was started."
+    ],
+    "lineBefore": null,
+    "sheetGone": false,
+    "faceId": false,
+    "terminal": false,
+    "status": null,
+    "nav": [],
+    "reading": {
+     "sheet": true,
+     "project": "p316-close-a",
+     "agents": [
+      {
+       "id": "claude",
+       "label": "Claude Code",
+       "frame": [
+        20,
+        512,
+        52,
+        52
+       ],
+       "selected": true
+      },
+      {
+       "id": "codex",
+       "label": "Codex CLI",
+       "frame": [
+        84,
+        512,
+        52,
+        52
+       ],
+       "selected": false
+      }
+     ],
+     "agentName": "Claude Code",
+     "danger": null,
+     "line": "That project is not open on your Mac any more. Nothing was started.",
+     "create": {
+      "label": "Create",
+      "enabled": true
+     }
+    },
+    "tabs": {
+     "inBar": [
+      {
+       "label": "Needs input",
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "selected": false
+      }
+     ],
+     "bottom": []
+    }
+   }
+  },
+  "gradeNp6": {
+   "cut": true,
+   "acts": 1,
+   "made": 1,
+   "first": {
+    "step": "start-created",
+    "seq": 12,
+    "pressed": "Create",
+    "labels": [
+     "Create",
+     "Creating…",
+     "Try again"
+    ],
+    "lines": [
+     "Your Mac did not answer. If it started the session, it is in Sessions."
+    ],
+    "lineBefore": null,
+    "sheetGone": false,
+    "faceId": false,
+    "terminal": false,
+    "status": null,
+    "nav": [],
+    "reading": null,
+    "tabs": {
+     "inBar": [
+      {
+       "label": "Needs input",
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "selected": false
+      }
+     ],
+     "bottom": []
+    }
+   },
+   "second": {
+    "step": "start-created",
+    "seq": 12,
+    "pressed": "Try again",
+    "labels": [
+     "Try again",
+     "Creating…"
+    ],
+    "lines": [],
+    "lineBefore": null,
+    "sheetGone": true,
+    "faceId": false,
+    "terminal": true,
+    "status": "claude-3 · working",
+    "nav": [
+     "screen-nav",
+     "claude-3"
+    ],
+    "reading": null,
+    "tabs": {
+     "inBar": [
+      {
+       "label": "Needs input",
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "selected": false
+      }
+     ],
+     "bottom": []
+    }
+   }
+  },
+  "gradeNp7": {
+   "read": {
+    "step": "start-home-read",
+    "pressed": "Create",
+    "sheet": true,
+    "line": "Your Mac did not take it. Nothing was started.",
+    "terminal": false,
+    "faceId": false
+   },
+   "held": 1,
+   "made": 0,
+   "acts": 0,
+   "waitedMs": 23180
+  },
+  "gradeNp8": {
+   "open": {
+    "step": "start-open",
+    "seq": 7,
+    "found": false,
+    "label": null,
+    "frame": null,
+    "enabled": null,
+    "hittable": null,
+    "title": [
+     16,
+     103,
+     132,
+     41
+    ],
+    "controls": [
+     {
+      "id": "list-menu",
+      "frame": [
+       266,
+       109,
+       36,
+       32
+      ]
+     },
+     {
+      "id": "list-select",
+      "frame": [
+       306,
+       109,
+       44,
+       32
+      ]
+     }
+    ],
+    "list": true,
+    "window": [
+     402,
+     874
+    ],
+    "tabs": {
+     "inBar": [
+      {
+       "label": "Needs input",
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "selected": false
+      }
+     ],
+     "bottom": []
+    },
+    "faceId": false,
+    "sheet": false
+   },
+   "alive": 4
+  },
+  "gradeNp9": {
+   "open": {
+    "step": "start-open",
+    "seq": 7,
+    "found": true,
+    "label": "New session",
+    "frame": [
+     354,
+     109,
+     32,
+     32
+    ],
+    "enabled": true,
+    "hittable": true,
+    "title": [
+     16,
+     103,
+     132,
+     41
+    ],
+    "controls": [
+     {
+      "id": "list-menu",
+      "frame": [
+       266,
+       109,
+       36,
+       32
+      ]
+     },
+     {
+      "id": "list-select",
+      "frame": [
+       306,
+       109,
+       44,
+       32
+      ]
+     }
+    ],
+    "list": true,
+    "window": [
+     402,
+     874
+    ],
+    "tabs": {
+     "inBar": [
+      {
+       "label": "Needs input",
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "selected": false
+      }
+     ],
+     "bottom": []
+    },
+    "faceId": false,
+    "reading": {
+     "sheet": true,
+     "project": "tortie",
+     "agents": [
+      {
+       "id": "claude",
+       "label": "Claude Code",
+       "frame": [
+        20,
+        512,
+        52,
+        52
+       ],
+       "selected": true
+      },
+      {
+       "id": "codex",
+       "label": "Codex CLI",
+       "frame": [
+        84,
+        512,
+        52,
+        52
+       ],
+       "selected": false
+      }
+     ],
+     "agentName": "Claude Code",
+     "danger": null,
+     "line": null,
+     "create": {
+      "label": "Create",
+      "enabled": true
+     }
+    },
+    "after": {
+     "sheet": true,
+     "project": "tortie",
+     "agents": [
+      {
+       "id": "claude",
+       "label": "Claude Code",
+       "frame": [
+        20,
+        512,
+        52,
+        52
+       ],
+       "selected": true
+      },
+      {
+       "id": "codex",
+       "label": "Codex CLI",
+       "frame": [
+        84,
+        512,
+        52,
+        52
+       ],
+       "selected": false
+      }
+     ],
+     "agentName": "Claude Code",
+     "danger": null,
+     "line": null,
+     "create": {
+      "label": "Create",
+      "enabled": true
+     }
+    },
+    "sheet": true
+   },
+   "created": {
+    "step": "start-created",
+    "seq": 12,
+    "pressed": "Create",
+    "labels": [
+     "Create",
+     "Creating…",
+     "Create"
+    ],
+    "lines": [
+     "This is a sample, so nothing ran."
+    ],
+    "lineBefore": null,
+    "sheetGone": false,
+    "faceId": false,
+    "terminal": false,
+    "status": "claude-3 · working",
+    "nav": [
+     "screen-nav",
+     "claude-3"
+    ],
+    "reading": null,
+    "tabs": {
+     "inBar": [
+      {
+       "label": "Needs input",
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "selected": false
+      }
+     ],
+     "bottom": []
+    }
+   },
+   "connections": 0
+  },
+  "gradeNp10": {
+   "paired": true,
+   "onScreen": "mac",
+   "open": {
+    "step": "start-open",
+    "seq": 7,
+    "found": true,
+    "label": "New session",
+    "frame": [
+     354,
+     109,
+     32,
+     32
+    ],
+    "enabled": true,
+    "hittable": true,
+    "title": [
+     16,
+     103,
+     132,
+     41
+    ],
+    "controls": [
+     {
+      "id": "list-menu",
+      "frame": [
+       266,
+       109,
+       36,
+       32
+      ]
+     },
+     {
+      "id": "list-select",
+      "frame": [
+       306,
+       109,
+       44,
+       32
+      ]
+     }
+    ],
+    "list": true,
+    "window": [
+     402,
+     874
+    ],
+    "tabs": {
+     "inBar": [
+      {
+       "label": "Needs input",
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "selected": false
+      }
+     ],
+     "bottom": []
+    },
+    "faceId": false,
+    "reading": {
+     "sheet": true,
+     "project": "tortie",
+     "agents": [
+      {
+       "id": "claude",
+       "label": "Claude Code",
+       "frame": [
+        20,
+        512,
+        52,
+        52
+       ],
+       "selected": true
+      },
+      {
+       "id": "codex",
+       "label": "Codex CLI",
+       "frame": [
+        84,
+        512,
+        52,
+        52
+       ],
+       "selected": false
+      }
+     ],
+     "agentName": "Claude Code",
+     "danger": null,
+     "line": null,
+     "create": {
+      "label": "Create",
+      "enabled": true
+     }
+    },
+    "projects": [
+     {
+      "id": "9f6c1b2a-77d1-4c0e-8a41-3b5d2e9f0c11",
+      "label": "tortie",
+      "enabled": true,
+      "selected": true,
+      "frame": [
+       24,
+       300,
+       250,
+       44
+      ]
+     },
+     {
+      "id": "2a8e4c6b-1d3f-4e5a-9b7c-6d8e0f1a2b3c",
+      "label": "far · Studio",
+      "enabled": true,
+      "selected": false,
+      "frame": [
+       24,
+       344,
+       250,
+       44
+      ]
+     },
+     {
+      "id": "7c1d3e5f-2a4b-4c6d-8e0f-1a2b3c4d5e6f",
+      "label": "away · Laptop",
+      "enabled": false,
+      "selected": false,
+      "frame": [
+       24,
+       388,
+       250,
+       44
+      ]
+     }
+    ],
+    "after": {
+     "sheet": true,
+     "project": "tortie",
+     "agents": [
+      {
+       "id": "claude",
+       "label": "Claude Code",
+       "frame": [
+        20,
+        512,
+        52,
+        52
+       ],
+       "selected": true
+      },
+      {
+       "id": "codex",
+       "label": "Codex CLI",
+       "frame": [
+        84,
+        512,
+        52,
+        52
+       ],
+       "selected": false
+      }
+     ],
+     "agentName": "Claude Code",
+     "danger": null,
+     "line": null,
+     "create": {
+      "label": "Create",
+      "enabled": true
+     }
+    },
+    "sheet": true
+   },
+   "created": {
+    "step": "start-created",
+    "seq": 12,
+    "pressed": "Create",
+    "labels": [
+     "Create",
+     "Creating…"
+    ],
+    "lines": [],
+    "lineBefore": null,
+    "sheetGone": true,
+    "faceId": false,
+    "terminal": true,
+    "status": "claude-3 · working",
+    "nav": [
+     "screen-nav",
+     "claude-3"
+    ],
+    "reading": null,
+    "tabs": {
+     "inBar": [
+      {
+       "label": "Needs input",
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "selected": false
+      }
+     ],
+     "bottom": []
+    }
+   },
+   "macMade": 1,
+   "twinPosts": 0
+  },
+  "gradeNp11": {
+   "dumps": [
+    {
+     "step": "screen",
+     "name": "pair-end",
+     "elements": [
+      {
+       "id": "screen-pairing",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        402,
+        874
+       ]
+      }
+     ]
+    },
+    {
+     "step": "screen",
+     "name": "list",
+     "elements": [
+      {
+       "id": "screen-list",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        402,
+        874
+       ]
+      },
+      {
+       "id": "list-title",
+       "label": "Sessions",
+       "frame": [
+        16,
+        103,
+        132,
+        41
+       ]
+      },
+      {
+       "id": "list-menu",
+       "label": "More",
+       "frame": [
+        306,
+        109,
+        36,
+        32
+       ]
+      },
+      {
+       "id": "list-select",
+       "label": "Select",
+       "frame": [
+        346,
+        109,
+        44,
+        32
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "gradeNph": {
+   "spec": {
+    "ends": "sentence",
+    "posts": 2,
+    "expect": [
+     "startNoAnswer"
+    ],
+    "again": true
+   },
+   "alive": 4,
+   "posts": 2,
+   "open": {
+    "step": "start-open",
+    "seq": 7,
+    "found": true,
+    "label": "New session",
+    "frame": [
+     354,
+     109,
+     32,
+     32
+    ],
+    "enabled": true,
+    "hittable": true,
+    "title": [
+     16,
+     103,
+     132,
+     41
+    ],
+    "controls": [
+     {
+      "id": "list-menu",
+      "frame": [
+       266,
+       109,
+       36,
+       32
+      ]
+     },
+     {
+      "id": "list-select",
+      "frame": [
+       306,
+       109,
+       44,
+       32
+      ]
+     }
+    ],
+    "list": true,
+    "window": [
+     402,
+     874
+    ],
+    "tabs": {
+     "inBar": [
+      {
+       "label": "Needs input",
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "selected": false
+      }
+     ],
+     "bottom": []
+    },
+    "faceId": false,
+    "reading": {
+     "sheet": true,
+     "project": "tortie",
+     "agents": [
+      {
+       "id": "claude",
+       "label": "Claude Code",
+       "frame": [
+        20,
+        512,
+        52,
+        52
+       ],
+       "selected": true
+      },
+      {
+       "id": "codex",
+       "label": "Codex CLI",
+       "frame": [
+        84,
+        512,
+        52,
+        52
+       ],
+       "selected": false
+      }
+     ],
+     "agentName": "Claude Code",
+     "danger": null,
+     "line": null,
+     "create": {
+      "label": "Create",
+      "enabled": true
+     }
+    },
+    "projects": [
+     {
+      "id": "9f6c1b2a-77d1-4c0e-8a41-3b5d2e9f0c11",
+      "label": "tortie",
+      "enabled": true,
+      "selected": true,
+      "frame": [
+       24,
+       300,
+       250,
+       44
+      ]
+     },
+     {
+      "id": "2a8e4c6b-1d3f-4e5a-9b7c-6d8e0f1a2b3c",
+      "label": "far · Studio",
+      "enabled": true,
+      "selected": false,
+      "frame": [
+       24,
+       344,
+       250,
+       44
+      ]
+     },
+     {
+      "id": "7c1d3e5f-2a4b-4c6d-8e0f-1a2b3c4d5e6f",
+      "label": "away · Laptop",
+      "enabled": false,
+      "selected": false,
+      "frame": [
+       24,
+       388,
+       250,
+       44
+      ]
+     }
+    ],
+    "after": {
+     "sheet": true,
+     "project": "tortie",
+     "agents": [
+      {
+       "id": "claude",
+       "label": "Claude Code",
+       "frame": [
+        20,
+        512,
+        52,
+        52
+       ],
+       "selected": true
+      },
+      {
+       "id": "codex",
+       "label": "Codex CLI",
+       "frame": [
+        84,
+        512,
+        52,
+        52
+       ],
+       "selected": false
+      }
+     ],
+     "agentName": "Claude Code",
+     "danger": null,
+     "line": null,
+     "create": {
+      "label": "Create",
+      "enabled": true
+     }
+    },
+    "sheet": true
+   },
+   "first": {
+    "step": "start-created",
+    "seq": 12,
+    "pressed": "Create",
+    "labels": [
+     "Create",
+     "Creating…",
+     "Try again"
+    ],
+    "lines": [
+     "Your Mac did not answer. If it started the session, it is in Sessions."
+    ],
+    "lineBefore": null,
+    "sheetGone": false,
+    "faceId": false,
+    "terminal": false,
+    "status": "claude-3 · working",
+    "nav": [
+     "screen-nav",
+     "claude-3"
+    ],
+    "reading": null,
+    "tabs": {
+     "inBar": [
+      {
+       "label": "Needs input",
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "selected": false
+      }
+     ],
+     "bottom": []
+    }
+   },
+   "last": {
+    "step": "start-created",
+    "seq": 12,
+    "pressed": "Try again",
+    "labels": [
+     "Create",
+     "Creating…"
+    ],
+    "lines": [],
+    "lineBefore": null,
+    "sheetGone": true,
+    "faceId": false,
+    "terminal": true,
+    "status": "claude-3 · working",
+    "nav": [
+     "screen-nav",
+     "claude-3"
+    ],
+    "reading": null,
+    "tabs": {
+     "inBar": [
+      {
+       "label": "Needs input",
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "selected": false
+      }
+     ],
+     "bottom": []
+    }
+   },
+   "sameBody": true
+  },
+  "gradeNp4": {
+   "offer": {
+    "state": "offered",
+    "projects": [
+     {
+      "id": "9f6c1b2a-77d1-4c0e-8a41-3b5d2e9f0c11",
+      "label": "tortie",
+      "machine": null,
+      "folder": null,
+      "place": "local"
+     },
+     {
+      "id": "2a8e4c6b-1d3f-4e5a-9b7c-6d8e0f1a2b3c",
+      "label": "far",
+      "machine": "Studio",
+      "folder": null,
+      "place": "p346far"
+     },
+     {
+      "id": "7c1d3e5f-2a4b-4c6d-8e0f-1a2b3c4d5e6f",
+      "label": "away",
+      "machine": "Laptop",
+      "folder": null,
+      "place": "p346away"
+     }
+    ],
+    "places": [
+     {
+      "id": "local",
+      "ready": true,
+      "read": true,
+      "agents": [
+       "claude",
+       "codex"
+      ]
+     },
+     {
+      "id": "p346far",
+      "ready": true,
+      "read": true,
+      "agents": [
+       "codex"
+      ]
+     },
+     {
+      "id": "p346away",
+      "ready": false,
+      "read": false,
+      "agents": []
+     }
+    ],
+    "agents": [
+     {
+      "id": "claude",
+      "name": "Claude Code",
+      "icon": "claude",
+      "danger": null
+     },
+     {
+      "id": "codex",
+      "name": "Codex CLI",
+      "icon": "codex",
+      "danger": null
+     }
+    ],
+    "chosen": "9f6c1b2a-77d1-4c0e-8a41-3b5d2e9f0c11",
+    "defaultAgent": "claude"
+   },
+   "far": "2a8e4c6b-1d3f-4e5a-9b7c-6d8e0f1a2b3c",
+   "pick": {
+    "step": "start-pick",
+    "id": "2a8e4c6b-1d3f-4e5a-9b7c-6d8e0f1a2b3c",
+    "reading": {
+     "sheet": true,
+     "project": "far",
+     "agents": [
+      {
+       "id": "codex",
+       "label": "Codex CLI",
+       "frame": [
+        20,
+        512,
+        52,
+        52
+       ],
+       "selected": true
+      }
+     ],
+     "agentName": "Codex CLI",
+     "danger": null,
+     "line": null,
+     "create": {
+      "label": "Create",
+      "enabled": true
+     }
+    }
+   },
+   "posts": [
+    {
+     "kind": "request",
+     "route": "POST /v1/start",
+     "verified": "ok",
+     "channelHeld": true,
+     "keys": "agent,project,write",
+     "startProject": "2a8e4c6b-1d3f-4e5a-9b7c-6d8e0f1a2b3c",
+     "startAgent": "codex",
+     "startPlace": "p346far",
+     "startPost": 1,
+     "status": 200
+    }
+   ],
+   "created": {
+    "step": "start-created",
+    "seq": 5,
+    "pressed": "Create",
+    "labels": [
+     "Create",
+     "Creating…"
+    ],
+    "lines": [],
+    "lineBefore": null,
+    "sheetGone": true,
+    "faceId": false,
+    "terminal": true,
+    "status": "p316 · working",
+    "nav": [
+     "screen-nav",
+     "p316"
+    ],
+    "reading": null
+   }
+  }
+ },
+ "cases": [
+  {
+   "grader": "gradeNp1",
+   "name": "the honest reading",
+   "ops": [],
+   "want": true
+  },
+  {
+   "grader": "gradeNp2",
+   "name": "the honest reading",
+   "ops": [],
+   "want": true
+  },
+  {
+   "grader": "gradeNp3",
+   "name": "the honest reading",
+   "ops": [],
+   "want": true
+  },
+  {
+   "grader": "gradeNp5",
+   "name": "the honest reading",
+   "ops": [],
+   "want": true
+  },
+  {
+   "grader": "gradeNp6",
+   "name": "the honest reading",
+   "ops": [],
+   "want": true
+  },
+  {
+   "grader": "gradeNp7",
+   "name": "the honest reading",
+   "ops": [],
+   "want": true
+  },
+  {
+   "grader": "gradeNp8",
+   "name": "the honest reading",
+   "ops": [],
+   "want": true
+  },
+  {
+   "grader": "gradeNp9",
+   "name": "the honest reading",
+   "ops": [],
+   "want": true
+  },
+  {
+   "grader": "gradeNp10",
+   "name": "the honest reading",
+   "ops": [],
+   "want": true
+  },
+  {
+   "grader": "gradeNp11",
+   "name": "the honest reading",
+   "ops": [],
+   "want": true
+  },
+  {
+   "grader": "gradeNph",
+   "name": "the honest reading",
+   "ops": [],
+   "want": true
+  },
+  {
+   "grader": "gradeNp1",
+   "name": "the \"+\" drawn at the LEADING end of the title",
+   "ops": [
+    {
+     "set": "open.frame",
+     "value": [
+      16,
+      160,
+      32,
+      32
+     ]
+    }
+   ],
+   "want": false
+  },
+  {
+   "grader": "gradeNp1",
+   "name": "no window size read (the snapshot failed and it printed 0 x 0)",
+   "ops": [
+    {
+     "set": "open.window",
+     "value": [
+      0,
+      0
+     ]
+    }
+   ],
+   "want": null
+  },
+  {
+   "grader": "gradeNp1",
+   "name": "no Sessions title read",
+   "ops": [
+    {
+     "set": "open.title",
+     "value": null
+    }
+   ],
+   "want": null
+  },
+  {
+   "grader": "gradeNp1",
+   "name": "a hidden agent's mark drawn on the sheet",
+   "ops": [
+    {
+     "push": "open.reading.agents",
+     "value": {
+      "id": "gemini",
+      "label": "Gemini CLI",
+      "frame": [
+       148,
+       512,
+       52,
+       52
+      ],
+      "selected": false
+     }
+    }
+   ],
+   "want": false
+  },
+  {
+   "grader": "gradeNp1",
+   "name": "the machine not read drawn choosable",
+   "ops": [
+    {
+     "set": "open.projects.2.enabled",
+     "value": true
+    }
+   ],
+   "want": false
+  },
+  {
+   "grader": "gradeNp2",
+   "name": "back on this Mac's project the choice went back to Claude Code",
+   "ops": [
+    {
+     "set": "back.reading",
+     "value": {
+      "sheet": true,
+      "project": "tortie",
+      "agents": [
+       {
+        "id": "claude",
+        "label": "Claude Code",
+        "frame": [
+         20,
+         512,
+         52,
+         52
+        ],
+        "selected": true
+       },
+       {
+        "id": "codex",
+        "label": "Codex CLI",
+        "frame": [
+         84,
+         512,
+         52,
+         52
+        ],
+        "selected": false
+       }
+      ],
+      "agentName": "Claude Code",
+      "danger": null,
+      "line": null,
+      "create": {
+       "label": "Create",
+       "enabled": true
+      }
+     }
+    }
+   ],
+   "want": false
+  },
+  {
+   "grader": "gradeNp2",
+   "name": "the back pick was not read",
+   "ops": [
+    {
+     "set": "back",
+     "value": null
+    }
+   ],
+   "want": null
+  },
+  {
+   "grader": "gradeNp3",
+   "name": "a passcode prompt during Create",
+   "ops": [
+    {
+     "set": "created.faceId",
+     "value": true
+    }
+   ],
+   "want": false
+  },
+  {
+   "grader": "gradeNp3",
+   "name": "the owner check not read at all",
+   "ops": [
+    {
+     "delete": "created.faceId"
+    }
+   ],
+   "want": null
+  },
+  {
+   "grader": "gradeNp3",
+   "name": "the Terminal on top is another session's",
+   "ops": [
+    {
+     "set": "created.status",
+     "value": "codex-1 · idle"
+    },
+    {
+     "set": "created.nav",
+     "value": [
+      "screen-nav",
+      "codex-1"
+     ]
+    }
+   ],
+   "want": false
+  },
+  {
+   "grader": "gradeNp4",
+   "name": "the honest reading",
+   "ops": [],
+   "want": true
+  },
+  {
+   "grader": "gradeNp4",
+   "name": "the body named this Mac's project (the machine's pick lost)",
+   "ops": [
+    {
+     "set": "posts.0.startProject",
+     "value": "9f6c1b2a-77d1-4c0e-8a41-3b5d2e9f0c11"
+    },
+    {
+     "set": "posts.0.startPlace",
+     "value": "local"
+    }
+   ],
+   "want": false
+  },
+  {
+   "grader": "gradeNp4",
+   "name": "the body named Claude Code, which the machine does not list",
+   "ops": [
+    {
+     "set": "posts.0.startAgent",
+     "value": "claude"
+    }
+   ],
+   "want": false
+  },
+  {
+   "grader": "gradeNp4",
+   "name": "the owner check not read at all",
+   "ops": [
+    {
+     "delete": "created.faceId"
+    }
+   ],
+   "want": null
+  },
+  {
+   "grader": "gradeNp4",
+   "name": "the machine not ready in the offer",
+   "ops": [
+    {
+     "set": "offer.places.1.ready",
+     "value": false
+    }
+   ],
+   "want": null
+  },
+  {
+   "grader": "gradeNp5",
+   "name": "the sheet said the agent is gone where the project was closed",
+   "ops": [
+    {
+     "set": "created.lines",
+     "value": [
+      "That agent is not installed there. Nothing was started."
+     ]
+    }
+   ],
+   "want": false
+  },
+  {
+   "grader": "gradeNp6",
+   "name": "Try again sent a fresh id: two acts, two sessions",
+   "ops": [
+    {
+     "set": "acts",
+     "value": 2
+    },
+    {
+     "set": "made",
+     "value": 2
+    }
+   ],
+   "want": false
+  },
+  {
+   "grader": "gradeNp7",
+   "name": "Home pressed after the bytes left: the start acted",
+   "ops": [
+    {
+     "set": "acts",
+     "value": 1
+    },
+    {
+     "set": "made",
+     "value": 1
+    }
+   ],
+   "want": false
+  },
+  {
+   "grader": "gradeNp7",
+   "name": "watched only 8 s after Home",
+   "ops": [
+    {
+     "set": "waitedMs",
+     "value": 8000
+    }
+   ],
+   "want": null
+  },
+  {
+   "grader": "gradeNp8",
+   "name": "a \"+\" over a Mac that waits for its Allow",
+   "ops": [
+    {
+     "set": "open.found",
+     "value": true
+    }
+   ],
+   "want": false
+  },
+  {
+   "grader": "gradeNp9",
+   "name": "a connection left the phone inside the sample",
+   "ops": [
+    {
+     "set": "connections",
+     "value": 1
+    }
+   ],
+   "want": false
+  },
+  {
+   "grader": "gradeNp10",
+   "name": "the twin on screen and this Mac made the session",
+   "ops": [
+    {
+     "set": "onScreen",
+     "value": "twin"
+    }
+   ],
+   "want": false
+  },
+  {
+   "grader": "gradeNp11",
+   "name": "the parent never got past pairing, so no screen drew the Sessions title",
+   "ops": [
+    {
+     "set": "dumps",
+     "value": [
+      {
+       "step": "screen",
+       "name": "pair-end",
+       "elements": [
+        {
+         "id": "screen-pairing",
+         "label": "",
+         "frame": [
+          0,
+          0,
+          402,
+          874
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "want": null
+  },
+  {
+   "grader": "gradeNp11",
+   "name": "the parent drew a \"+\" on Sessions",
+   "ops": [
+    {
+     "push": "dumps.1.elements",
+     "value": {
+      "id": "start-open",
+      "label": "New session",
+      "frame": [
+       354,
+       109,
+       32,
+       32
+      ]
+     }
+    }
+   ],
+   "want": false
+  },
+  {
+   "grader": "gradeNph",
+   "name": "Try again sent other bytes (a fresh write id)",
+   "ops": [
+    {
+     "set": "sameBody",
+     "value": false
+    }
+   ],
+   "want": false
+  },
+  {
+   "grader": "gradeNph",
+   "name": "the phone sent the start a third time on its own",
+   "ops": [
+    {
+     "set": "posts",
+     "value": 3
+    }
+   ],
+   "want": false
+  }
+ ]
+}

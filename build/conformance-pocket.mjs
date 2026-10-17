@@ -198,6 +198,32 @@
  * every write read through a cast of `this`. Q1 and L5 are unchanged. One hundred and
  * fifty-three rules in all.
  *
+ * PHASE 346 STARTS A SESSION FROM THE PHONE (build/p346/SPEC.md §5.1), his
+ * request of 2026-10-12 and his answers of 2026-10-14 (no Face ID, only the
+ * installed agents, no Shell, remote projects too). The door's fifth write,
+ * `POST /v1/start`, carries a project main offered, an agent installed where
+ * it lives and a write id, and nothing else; its act lives OUTSIDE the door,
+ * in `src/main/sessions/pocket-start.ts`, and builds exactly the input the
+ * Mac's own one-press create builds. Twelve rules joined, NS1 to NS12: the
+ * route and its words (NS1), the answers and the nine sentences (NS2), the
+ * body, DRIVEN over a hostile corpus (NS3), nothing from the phone but two
+ * ids (NS4), an offer that starts nothing (NS5), the act's order (NS6), the
+ * limits declared once (NS7), the start branch's order (NS8), the sessions
+ * answer's key, DRIVEN (NS9), the waiting state (NS10), the pass-through
+ * (NS11) and the push seam confirming the proposal (NS12). Widened on
+ * purpose, each naming its D-number: R2 (five writes, start's own cap), R3
+ * (the start module by name, createSession's reason reworded), R4 (the
+ * table's pin to twelve routes, `1b92ce21…`, the eleven's `ea5930e0…` kept
+ * as LEGACY_ROUTE_PIN for AR3), X1 (the start handed to its own branch
+ * before the strict parse), X2 (parseStartBody a parse function), X3 and X4
+ * (the start branch's ledger key and its claims), X5 (PocketWrites gains
+ * start), X6 (start-copy.ts's sentences), X12 (start's clause), AR9 (the
+ * ledger's start row), Z1 (WRITE_ROUTES gains start), O2a (the key held
+ * synchronous), SU5 (the eleven and then start), and, because start's 512 and
+ * the face's twelfth clause are in the tree, Y1 and Z2 (the caps object holds
+ * start's 512) and AF2 (its drives pass the eleven, and two drives the
+ * twelve). One hundred and sixty-five rules in all.
+ *
  * HOW IT READS. The source, parsed with the TypeScript compiler's own parser,
  * so a comment, a string and a call are each read as what they are. A rule
  * that could be satisfied by a word in a comment is not a rule, and three of
@@ -240,10 +266,10 @@ const RULES = [
   ['L3', 'build/p330/SPEC.md §6.1, §4.2.4', 'the Funnel target’s host is the literal 127.0.0.1 and its port is the listener’s REPORTED localPort, spelled once, and never a stored field or a setting'],
   ['L4', 'build/p330/SPEC.md §6.1, §3 row 8', 'the local port is ephemeral, listen(0) and nothing else, and a confirmed public port that is taken refuses port-taken: 443 is never named'],
   ['R1', 'SPEC §2', 'the route table is CLOSED: frozen, every path an exact string, no pattern, no wildcard, no default arm (read in door/table.ts, where Phase 330 moved it, and in routes.ts, which re-exports it)'],
-  ['R2', 'SPEC §2, entry mechanism 4; build/p317/SPEC.md §6.1; build/p318/SPEC.md §6.1; build/p337/SPEC.md §6.1', 'every row is a read (reads: true, a GET or the one pairing row, window-only and unsigned) or a write (reads: false, POST, signed: true, windowOnly: false); the writes are EXACTLY end, choose, say and keys, the contract’s POCKET_WRITE_ROUTE_IDS says the same, and each has its own cap in POCKET_WRITE_BODY_CAPS'],
-  ['R4', 'the fix round, 2026-09-22; build/p337/SPEC.md D1; build/p3371/SPEC.md D1', 'the table’s MEMBERSHIP is pinned: the exact set of method-and-path pairs, by sha256, so a fourth route is a visible edit rather than a green build'],
+  ['R2', 'SPEC §2, entry mechanism 4; build/p317/SPEC.md §6.1; build/p318/SPEC.md §6.1; build/p337/SPEC.md §6.1; build/p346/SPEC.md D1, D4, D6', 'every row is a read (reads: true, a GET or the one pairing row, window-only and unsigned) or a write (reads: false, POST, signed: true, windowOnly: false); the writes are EXACTLY end, choose, say and keys, the contract’s POCKET_WRITE_ROUTE_IDS says the same, and each has its own cap in POCKET_WRITE_BODY_CAPS'],
+  ['R4', 'the fix round, 2026-09-22; build/p337/SPEC.md D1; build/p3371/SPEC.md D1; build/p346/SPEC.md D1, §12 M3', 'the table’s MEMBERSHIP is pinned: the exact set of method-and-path pairs, by sha256, so a fourth route is a visible edit rather than a green build'],
   ['R5', 'entry, mechanism 4', 'the turn limit is clamped AT THE DOOR against the overview store’s own MAX_TURN_LIMIT, which is imported and never re-spelled'],
-  ['R3', 'entry, mechanism 4; build/p330/SPEC.md §6.1; build/p318/SPEC.md §6.1; build/p337/SPEC.md §6.1; build/p3331/SPEC.md §6.1', 'the domain names no write verb, no status setter, no credential read and nothing of the reply writer (main/reply/) or of the Screen (main/screen/), and starts NO process but funnel.ts’s spawn of the resolved program, its execFile of that program and of /bin/ps, and bind.ts’s one utilityProcess.fork, and two LaunchServices opens a person’s press makes, Tailscale’s download page and the Tailscale app (SU3)'],
+  ['R3', 'entry, mechanism 4; build/p330/SPEC.md §6.1; build/p318/SPEC.md §6.1; build/p337/SPEC.md §6.1; build/p3331/SPEC.md §6.1; build/p346/SPEC.md §5.1', 'the domain names no write verb, no status setter, no credential read and nothing of the reply writer (main/reply/) or of the Screen (main/screen/), and starts NO process but funnel.ts’s spawn of the resolved program, its execFile of that program and of /bin/ps, and bind.ts’s one utilityProcess.fork, and two LaunchServices opens a person’s press makes, Tailscale’s download page and the Tailscale app (SU3)'],
   ['A1', 'entry, mechanism 5', 'no Authorization header and no cookie is read or written anywhere in the domain'],
   ['A2', 'entry, mechanism 5, research 127 §7', 'no secret is in a path or a query: no route path interpolates and no 32-hex token is matched out of one'],
   ['A3', 'entry, mechanism 3', '/pair is dead outside its window, and the window is checked before anything is read off the request'],
@@ -261,7 +287,7 @@ const RULES = [
   ['O1', 'build/p316/SPEC.md §4 S1 mechanism 4; his ruling of 2026-09-22', '`others` is exactly the listed sessions that are not blocked: composed from the same session list and the same blocked set as `rows`, capped at POCKET_OTHERS_MAX imported from the contract and never re-spelled, with the omitted count said'],
   ['F2', 'build/p330/SPEC.md §4.8.1 (F1 became F2)', 'the QR is v:3 and holds EXACTLY the eight keys v, host, port, fp, dk, dx, ps and exp, in that order, with no tk and no address; fp pins the LISTENING door’s public key and no window opens while there is nothing to pin'],
   ['T2', 'build/p316/SPEC.md §4 S1 mechanisms 2 and 3', 'every turn the door reads is preceded by the refresh through the one read path (`sessionActivity`), and every turn it answers passes through `toTurnView` once and is built nowhere else'],
-  ['L5', 'build/p330/SPEC.md §6.1; CLAUDE.md refusal 8', 'the one fork of the door process and the one spawn of the Funnel child are reached only from openNow or recoverNow, behind the gate, each with the last-press check as the statement IMMEDIATELY before it; the launch step asks for enabled AND bindAtLaunch; a switch-off counts itself before its first await'],
+  ['L5', 'build/p330/SPEC.md §6.1; CLAUDE.md refusal 8; build/p346/SPEC.md §4.13', 'the one fork of the door process and the one spawn of the Funnel child are reached only from openNow or recoverNow, behind the gate, each with the last-press check as the statement IMMEDIATELY before it; the launch step asks for enabled AND bindAtLaunch; a switch-off counts itself before its first await'],
   ['A4', 'build/p316/SPEC.md §4 S1 Method B; build/p330/SPEC.md §4.5.3; build/p317/SPEC.md §6.1', 'refusal 7 BY GENERATION: main keeps each door process’s admission by generation, refuses a request for a generation that is not the door’s or has begun to stop before a handler sees it, and asks again after the answer is composed with nothing awaited before the post, never replacing an answer marked acted; the handler asks the verified phone and the door instance again before it answers; a Remove writes the store before its first await'],
   ['H2', 'build/p316/SPEC.md §4 S1 mechanism 1, §2 rows 17 and 20', 'no `ssh` hand-off: the kind is gone from the contract, no module in the door composes an ssh link or a tmux attach, and the hand-off answers null for every session in 316'],
   ['Q1', 'his ruling, 2026-09-23 (“Yes, fix and land.”); build/p330/SPEC.md §4.3', 'THE SWITCH HANDLES ONE PRESS AT A TIME: every start and stop of the door AND of the Funnel child runs inside ONE serial queue on PocketHost that chains each job on one tail and never lets a failed job stop the next; both halves of setDoor count themselves before their first await; a superseded start stops waiting on the sessions'],
@@ -292,12 +318,12 @@ const RULES = [
   ['D7', 'build/p332/SPEC.md §4.8', 'GMUX_POCKET_NAME_SERVERS is read in nameServersFrom alone, which answers the search for a packaged build before it looks, matches every entry against a pattern anchored on ^127\\.0\\.0\\.1:, answers refused for anything else and never the search; and askNameRound returns override-unusable for a refused source before it names findZoneServers'],
   ['D8', 'build/p332/SPEC.md §4.3 step 1', 'the shipping transport answers an error for a server that is not 127.0.0.1 unless process.versions.electron is a string, BEFORE it creates a socket: no test and no script reaches a real DNS server through it'],
   ['D9', 'build/p332/SPEC.md §4.13; after his ruling, 2026-09-30', 'THE PUSH SEAM PAIRS NOTHING WITHOUT THE NAME STAND-IN: nameStandInOnly answers nameServersFrom(…).kind === \'fixed\' alone, openDoorForPairing returns false on it before it first calls its host, waits a bounded time for host.status().pairable after the switch and before every return true, with the wait’s answer deciding a return false, and the seam presses beginPairing only on openDoorForPairing’s true'],
-  ['X1', 'build/p317/SPEC.md §5.3.4, D3, D4; build/p318/SPEC.md §5.1.4; build/p337/SPEC.md §5.5', 'THE WRITE ORDER, over all four verbs: the parse, the ledger, the in-flight claim, the last check, the act and the outcome appear in that order; nothing sits between the last check and the act, whose ONE statement starts end, choose, say or keys through a settle function that calls it at once; every 404 precedes the act; after it every return is marked acted: true; before it only the ledger’s returns are marked, a recorded hit with its own acted and the busy for a pending entry of the same write id'],
-  ['X2', 'build/p317/SPEC.md §5.3.4 step 1, D2; build/p318/SPEC.md §5.1.2; build/p337/SPEC.md §5.5', 'THE STRICT PARSE, four of them: one JSON.parse in the write path, inside a try, reached by the parse functions alone; each key set compared exactly (batch,session,write; mark,marker,question,session,write; session,text,write; dialog,keys,session,turn,write); the write id, the session id, the question id, the mark and the marker read one character at a time, and no pattern'],
-  ['X3', 'build/p317/SPEC.md D5, §3 row 18; build/p318/SPEC.md D4; build/p337/SPEC.md D24', 'THE LEDGER: keyed on the verified phone, THE VERB and the write id, joined by a newline no part can hold; each entry stores its acted; its lifetime is 2 * POCKET_CLOCK_SKEW_MS imported from ./pairing; caps of 2,048 and 8,192 compared against; no entry evicted but by its lifetime or, pending and never acted, in the finally; the pending entry made at the in-flight claim; no node:fs'],
-  ['X4', 'build/p317/SPEC.md §5.3.4 step 3; build/p318/SPEC.md D4', 'ONE IN FLIGHT, ACROSS VERBS: a claim per phone and per session, each asked first and never under a branch on the verb, claimed before the act and released in the finally of the try that holds the act, so an End and a message can never overlap on one session'],
-  ['X5', 'build/p317/SPEC.md §5.4, D7, D14; build/p318/SPEC.md §5.1.5; build/p337/SPEC.md §5.4', 'POCKETWRITES: declared once, in routes.ts, with exactly end, choose, say and keys; implemented once, in src/main/sessions/pocket-writes.ts, whose choose and say pass through to deps.reply and keys to deps.keys, and nothing else; built in src/main/capabilities.ts alone; end asks endRefusal( and .canEnd of sessionActionGates( with DOOR_GATE_ENV before its first await, which is killSession(; the batch arm calls the injected machineKnown( and nothing reads .answering; the production machineKnown is machineRow( from src/main/machines/store.ts; no other lifecycle verb and no status setter; PocketFacts.endOffer is optional'],
-  ['X6', 'build/p317/SPEC.md §5.3.1, §5.4, research 135 §4.8; build/p318/SPEC.md D19, D20; build/p337/SPEC.md §5.4', 'THE ANSWER: PocketWriteAnswer is exactly verb, write, outcome, reason and sentence; every sentence the write path, pocket-writes.ts, src/main/reply or src/main/screen sets is a named constant from lifecycle-words.ts, src/shared/reply-copy.ts, src/shared/screen-copy.ts, endRefusal’s own, or POCKET_WRITE_SENTENCES; no .message is read; a caught error is told apart by isGmuxError(, by code, and nothing else'],
+  ['X1', 'build/p317/SPEC.md §5.3.4, D3, D4; build/p318/SPEC.md §5.1.4; build/p337/SPEC.md §5.5; build/p346/SPEC.md §3.3', 'THE WRITE ORDER, over all four session verbs (and since Phase 346 a start handed to its own branch, ONE test, before the strict parse, whose order NS8 holds): the parse, the ledger, the in-flight claim, the last check, the act and the outcome appear in that order; nothing sits between the last check and the act, whose ONE statement starts end, choose, say or keys through a settle function that calls it at once; every 404 precedes the act; after it every return is marked acted: true; before it only the ledger’s returns are marked, a recorded hit with its own acted and the busy for a pending entry of the same write id'],
+  ['X2', 'build/p317/SPEC.md §5.3.4 step 1, D2; build/p318/SPEC.md §5.1.2; build/p337/SPEC.md §5.5; build/p346/SPEC.md D6', 'THE STRICT PARSE, five of them (Phase 346 adds parseStartBody): one JSON.parse in the write path, inside a try, reached by the parse functions alone; each key set compared exactly (batch,session,write; mark,marker,question,session,write; session,text,write; dialog,keys,session,turn,write); the write id, the session id, the question id, the mark and the marker read one character at a time, and no pattern'],
+  ['X3', 'build/p317/SPEC.md D5, §3 row 18; build/p318/SPEC.md D4; build/p337/SPEC.md D24; build/p346/SPEC.md D17', 'THE LEDGER (and since Phase 346 the start branch’s, keyed keyOf(phone, start, write id), its pending entry storing acted): keyed on the verified phone, THE VERB and the write id, joined by a newline no part can hold; each entry stores its acted; its lifetime is 2 * POCKET_CLOCK_SKEW_MS imported from ./pairing; caps of 2,048 and 8,192 compared against; no entry evicted but by its lifetime or, pending and never acted, in the finally; the pending entry made at the in-flight claim; no node:fs'],
+  ['X4', 'build/p317/SPEC.md §5.3.4 step 3; build/p318/SPEC.md D4; build/p346/SPEC.md D16', 'ONE IN FLIGHT, ACROSS VERBS (since Phase 346 the start branch asks and claims the same phonesInFlight, releases it in its finally and never reads sessionsInFlight): a claim per phone and per session, each asked first and never under a branch on the verb, claimed before the act and released in the finally of the try that holds the act, so an End and a message can never overlap on one session'],
+  ['X5', 'build/p317/SPEC.md §5.4, D7, D14; build/p318/SPEC.md §5.1.5; build/p337/SPEC.md §5.4; build/p346/SPEC.md §4.7, §4.8', 'POCKETWRITES: declared once, in routes.ts, with exactly end, choose, say, keys and (Phase 346) start, which passes through to deps.start.start(; implemented once, in src/main/sessions/pocket-writes.ts, whose choose and say pass through to deps.reply and keys to deps.keys, and nothing else; built in src/main/capabilities.ts alone; end asks endRefusal( and .canEnd of sessionActionGates( with DOOR_GATE_ENV before its first await, which is killSession(; the batch arm calls the injected machineKnown( and nothing reads .answering; the production machineKnown is machineRow( from src/main/machines/store.ts; no other lifecycle verb and no status setter; PocketFacts.endOffer is optional'],
+  ['X6', 'build/p317/SPEC.md §5.3.1, §5.4, research 135 §4.8; build/p318/SPEC.md D19, D20; build/p337/SPEC.md §5.4; build/p346/SPEC.md §4.2', 'THE ANSWER (and since Phase 346 every start sentence too, from src/shared/start-copy.ts, over writes.ts and pocket-start.ts): PocketWriteAnswer is exactly verb, write, outcome, reason and sentence; every sentence the write path, pocket-writes.ts, src/main/reply or src/main/screen sets is a named constant from lifecycle-words.ts, src/shared/reply-copy.ts, src/shared/screen-copy.ts, endRefusal’s own, or POCKET_WRITE_SENTENCES; no .message is read; a caught error is told apart by isGmuxError(, by code, and nothing else'],
   ['X7', 'build/p317/SPEC.md D4, §5.3.2', 'NEVER 404 AFTER THE ACT: bind.ts posts nothing for an acted answer that fails validation; the listener’s late-answer timer cuts a write (writesCut) before it could answer 404; no refusal follows the forward, and every other 404 is a refusal before it or the read half of a choice that cuts a forwarded write'],
   ['X8', 'build/p317/SPEC.md D2, §5.3.1, §5.3.2', 'THE DOOR NEVER PARSES A WRITE: JSON.parse in the door process is presentationOfBody’s, reached by the pairing route alone; a write’s target is url.pathname, a write with a query is refused route, and doorRequestOf refuses a target that is not the write’s path; the cap is read from POCKET_WRITE_BODY_CAPS on both sides'],
   ['X9', 'build/p317/SPEC.md "§Fix round"', 'A PHONE IS REMOVED BY REMOVE ALONE: the one store write that filters a phone out is in removePhone, before its first await; no write route reaches it (the write path’s deps are exactly shuttingDown, stillPaired, routeServed, writes and now, and name nothing that drops a phone), and no answer carries a step to run after it (DoorAnswer has no after, and nothing in bind.ts, ipc.ts or writes.ts runs one)'],
@@ -325,7 +351,7 @@ const RULES = [
   ['Y18', 'build/p318/SPEC.md D14, §Revision R15; his ruling of 2026-10-02', 'ONLY WHEN IDLE AT ITS PROMPT: no working or busy literal in gate.ts, reader.ts or writer.ts, and the reply compares the native reading’s .state with idle'],
   // PHASE 316.7, the phone's Sessions tab (build/p3167/SPEC.md §8.1): one
   // read, composed in main for the words the phone asks with, and bounded.
-  ['O2a', 'build/p3167/SPEC.md §6.2 step 3, D1', 'THE SESSIONS ANSWER IS MAIN’S AND SYNCHRONOUS: createPocketRoutes’s sessions member is not async, and neither it nor any routes.ts function it reaches holds an await'],
+  ['O2a', 'build/p3167/SPEC.md §6.2 step 3, D1; build/p346/SPEC.md §4.8', 'THE SESSIONS ANSWER IS MAIN’S AND SYNCHRONOUS: createPocketRoutes’s sessions member is not async, and neither it nor any routes.ts function it reaches holds an await; since Phase 346 it reaches the ONE pocketStartOf that re-composes its start key, so the key is held synchronous with it'],
   ['O2b', 'build/p3167/SPEC.md §6.2 step 3.2', 'sessions reads facts.sessions() exactly ONCE, so every row, group, count and total is cut from one list'],
   ['O2c', 'build/p3167/SPEC.md D4, D5', 'POCKET_SESSIONS_MAX, POCKET_SESSIONS_BUDGET_BYTES, POCKET_SESSIONS_CLIP_CHARS and POCKET_SESSIONS_CHOICES_MAX are imported from the contract, each read ONCE in routes.ts, and none is re-spelled as a number'],
   ['O2d', 'build/p3167/SPEC.md D5', 'ONE clipSessionText, reading the clip once and comparing a unit with 0xD800 and 0xDBFF, clips a row’s name and machine, a group’s label, folder and machine, and every agent and machine choice’s label'],
@@ -382,7 +408,7 @@ const RULES = [
   ['SU2', 'build/p3331/SPEC.md D10, D16', 'NO TIMER AND NO READ AT OPEN: the sheet’s surface calls recheck( exactly twice, once in an onWindowLooked( callback and once under document.hasFocus(), in ONE effect that hands back the unsubscribe; onWindowLooked is imported from machines/remote-writes and is the only listener (no focus or visibilitychange listener of the surface’s own); no setInterval, setTimeout or requestAnimationFrame callback names it; rechecks()’s first statement asks the switch and recheck’s first statement asks rechecks()'],
   ['SU3', 'build/p3331/SPEC.md D11 to D13, §5.2.3; r2 §Attack F23', 'THE SETUP PRESSES: POCKET_SETUP_ACTIONS is exactly get-tailscale, open-tailscale and copy-admin-link; setupAction’s first statement after the parse returns false under isHarnessLaunch(process.env); each act once, after setupActionsNow(, the page TAILSCALE_DOWNLOAD_PAGE, the app TAILSCALE_APP_BUNDLE and the held link after approvalOpens(, written as funnel.ts’s one approvalCopyText( spells it (null unless approvalOpens(, else new URL(…).href beginning https://login.tailscale.com/, never the printed text; the 333.1 reverify); the press’s word reaches no act; shell.openExternal only in openApproval and electronSetupSeam, shell.openPath and clipboard only in electronSetupSeam, each read inside an arrow’s body; open-tailscale listed only for a pinned, non-override program at TAILSCALE_APP_PROGRAM; PocketHostDeps.setup handed by tests alone'],
   ['SU4', 'build/p3331/SPEC.md D2, D3', 'THE STAT: status() calls this.funnel.resolve() exactly once, reaches the program only through funnelProgramOf( and hands the same resolution to setupActionsNow(, and names no readTailnet(, readServe(, exec, spawn or sweepFunnelOrphan(; tailscale is this.tailscaleNow( called once, in status(), and its body names no tailnetFacts, readStore(, facts( or fields('],
-  ['SU5', 'build/p3331/SPEC.md D4, D30', 'DRAWN AND NEVER HASHED: no account in PocketExecutionFields, NORMALIZE, PocketStore, facts.ts, routes.ts, door/**, any contract type but PocketStatus, or any log call’s arguments in the domain; POCKET_EXECUTION_HASH_ALGORITHM is sha256-pocket-exec-v3 and POCKET_ROUTE_IDS the eleven routes it was'],
+  ['SU5', 'build/p3331/SPEC.md D4, D30', 'DRAWN AND NEVER HASHED: no account in PocketExecutionFields, NORMALIZE, PocketStore, facts.ts, routes.ts, door/**, any contract type but PocketStatus, or any log call’s arguments in the domain; POCKET_EXECUTION_HASH_ALGORITHM is sha256-pocket-exec-v3 and POCKET_ROUTE_IDS the eleven routes it was and, since Phase 346, start last'],
   // PHASE 333.12.1 (build/p333121/SPEC.md §6.1): his ruling of 2026-10-15,
   // "ok i like your proposed design, ship it", REPLACES ruling 2: the hashed
   // lines and both warnings move behind ONE shut Details, byte for byte, and
@@ -395,13 +421,13 @@ const RULES = [
   // the routes a record is checked against are the routes a person ALLOWED.
   ['AR1', 'build/p33312/SPEC.md D1, D2', 'THE ALLOWED SET IS SEALED AND READ WHOLE: PocketStore declares allowedRoutes: readonly string[] | null; readPocketStore sets it from allowedRoutesOf( alone; allowedRoutesOf is declared once, in src/main/pocket/allowed-routes.ts, and refuses (answers null, DRIVEN over a thirteen-id ledger so each refusal is the one thing wrong) a non-array, an empty array, more entries than POCKET_ROUTE_LEDGER, a non-string, a duplicate, an id outside POCKET_LEDGER_IDS and a list missing a LEGACY_ALLOWED_ROUTES id, each a branch the rule finds; no type in src/shared/ and no door answer carries allowedRoutes'],
   ['AR2', 'build/p33312/SPEC.md D4', 'FIELDS ARE THE ALLOWED SET: PocketHost.fields() composes routes from allowedRoutesFor( over the store’s allowedRoutes and names no pocketRouteIds(, POCKET_ROUTES, POCKET_ROUTE_IDS or proposedRoutes(; allowedRoutesFor answers the stored list or LEGACY_ALLOWED_ROUTES and nothing else'],
-  ['AR3', 'build/p33312/SPEC.md D3', 'THE LEGACY LIST IS THE LAUNCH LIST: LEGACY_ALLOWED_ROUTES is declared once, in src/shared/ipc/pocket.ts, a literal sorted array of the eleven, equal as a set to ios/TortieTests/Fixtures/frozen/launch.wire.json’s routes; the sorted METHOD path lines of its ledger rows hash to ROUTE_PIN and to the frozen routeMembership'],
+  ['AR3', 'build/p33312/SPEC.md D3', 'THE LEGACY LIST IS THE LAUNCH LIST: LEGACY_ALLOWED_ROUTES is declared once, in src/shared/ipc/pocket.ts, a literal sorted array of the eleven, equal as a set to ios/TortieTests/Fixtures/frozen/launch.wire.json’s routes; the sorted METHOD path lines of its ledger rows hash to LEGACY_ROUTE_PIN (R4’s pin until Phase 346 moved R4 to twelve routes) and to the frozen routeMembership'],
   ['AR4', 'build/p33312/SPEC.md D9, D12', 'ONE WRITER OF THE ALLOWED SET: across src/main/**, the only object literal or assignment that gives allowedRoutes a value other than the store’s own (carried through, or store?.allowedRoutes ?? null) is in PocketHost.confirmDoor, AFTER its confirmPocketDoor( call, UNDER A GUARD THAT NAMES THAT RECORD (record !== null as a top-level conjunct, or an early return on record === null before it; the fix round, lens 1’s K18), and its value is the proposal’s routes'],
   ['AR5', 'build/p33312/SPEC.md D7, D8', 'BOTH REFUSALS BEFORE THE BODY: in door/listener.ts the statement after the null-route refusal refuses route for a route not in the served set, before readCapped( and before the windowOnly test; toDoorOf drops a start without valid routes and an update with invalid ones (DRIVEN); in server.ts deps.routeServed( is asked after refusal 1 and before the pair arm and deps.verify(, and again in refusal 7 with nothing awaited between it and the return'],
   ['AR6', 'build/p33312/SPEC.md D8, D22', 'ONE SERVED SET: PocketHost declares servedRoutes, routeServed and postRoutes once each; servedRoutes reads this.fields().routes and pocketRouteIds() through servedRoutesOf( and nothing else (no record read); both handlers are handed routeServed; startPocketDoor( is handed routes: this.servedRoutes(); updatePocketDoor({ routes is called only inside postRoutes, which returns while the door is not listening and is called in confirmDoor and in openNow after the door answered'],
   ['AR7', 'build/p33312/SPEC.md D13', 'THE WORDS FOLLOW THE ALLOWED SET: pocketDoorHonesty is declared once, in src/shared/ipc/pocket.ts, and DRIVEN answers POCKET_DOOR_HONESTY byte for byte for LEGACY_ALLOWED_ROUTES and a planted clause only once allowed; POCKET_HONESTY_ADDED is typed Record<Exclude<PocketRouteId, LegacyAllowedRouteId>, string>; the sheet’s confirm block draws pocketDoorHonesty(status.routesOffered), what the Allow beside it grants (the fix round), and no file under src/renderer draws POCKET_DOOR_HONESTY itself; describePocketDoor’s route and clause lines read only fields.routes'],
   ['AR8', 'build/p33312/SPEC.md D9, D10, D11, D11b; his answer 10', 'THE THREE CONFIRM PATHS AND THE TWO NARROWINGS: confirmDoor hands confirmPocketDoor( the result of this.proposal(, never this.fields(); PocketPairing is built with fieldsNow: () => this.fields() and allow hands confirmPocketDoor( this.fieldsWithPending() alone; the sheet calls its confirmDoor helper exactly once, inside onConfirmDoor, and onSetPushAlerts calls no confirmDoor; narrowPocketDoor( is called only in removePhone and setPushAlerts, each handing it exactly (<a const read from this.fields() before the store write>, this.fields()) after that write (the fix round, lens 1’s K16), and its body asks isPocketSubtraction( and compares the record with pocketExecutionHash(before) before writeConfirmRecords(; isPocketSubtraction (DRIVEN) admits exactly one phone gone or pushAlerts true to false, by canonicalPocketText('],
-  ['AR9', 'build/p33312/SPEC.md D12', 'THE TABLE IS HELD TO THE LEDGER: POCKET_ROUTE_LEDGER’s rows are literals and the ledger imports nothing; every POCKET_ROUTES row has a ledger row of the same id with the same method, path, reads, signed and windowOnly; its bodyCap is the door’s cap for that row and its clause WRITE_CLAUSES[id] for a write and null for a read; ledger ids are distinct; every LEGACY_ALLOWED_ROUTES id is a ledger id'],
+  ['AR9', 'build/p33312/SPEC.md D12', 'THE TABLE IS HELD TO THE LEDGER: POCKET_ROUTE_LEDGER’s rows are literals and the ledger imports nothing; every POCKET_ROUTES row has a ledger row of the same id with the same method, path, reads, signed and windowOnly; its bodyCap is the door’s cap for that row and its clause WRITE_CLAUSES[id] for a write and null for a read; ledger ids are distinct; every LEGACY_ALLOWED_ROUTES id is a ledger id; and (Phase 346) the start row is exactly POST /v1/start, signed, reads false, not window-only, bodyCap 512, its clause D3’s'],
   ['AR10', 'build/p33312/SPEC.md D11c; his answer 9', 'REMOVE KEEPS THE OTHERS: removePhone reads this.fields() and pocketConfirmStatus( BEFORE its store write, which stays before the first await; narrowPocketDoor( is called only under the confirmed reading AND while another phone remains; forgetPocketDoor() is reached only when that did not record'],
   ['AR11', 'build/p33312/SPEC.md D5, D6', 'THE STATUS: status() answers confirmLines and confirmHash from ONE describePocketDoor( call over this.proposal( (directly or through one const), routesOffered: servedRoutesOf(<that proposal>.routes, pocketRouteIds()) (the fix round), routesAllowed: this.servedRoutes(), and routesWaiting from waitingRoutesOf( over fields.routes with the on-record condition naming confirmed and changed; PocketStatus declares the three lists readonly PocketRouteId[]; the proposal is proposedRoutes(fields.routes, pocketRouteIds(), state !== never), and proposedRoutes answers the build alone when not on record (DRIVEN, with servedRoutesOf and waitingRoutesOf)'],
   ['AR12', 'build/p33312/SPEC.md D23', 'THE SHEET DRAWS A WAITING ROUTE ON A PUBLISHED DOOR: steps.ts’s publishRow listening arm keeps STATE_PUBLISHED, published and doorListening( and draws [{ kind: confirm }] exactly under routesWait(status), which reads state === listening, confirmable and routesWaiting.length > 0 and nothing else; doorNeedsConfirm’s body is unchanged'],
@@ -412,7 +438,22 @@ const RULES = [
   ['AF1', 'build/p333121/SPEC.md D1, D2', 'THE FACE IS MAIN’S, FROM THE PROPOSAL: pocketConfirmFace is declared once, in src/shared/ipc/pocket.ts; its first parameter is typed PocketFaceFacts, which declares exactly funnelProgram, publicName, publicPort, phones (whose element type declares exactly id and label) and pushAlerts; PocketStatus declares confirmFace: PocketConfirmFace, required; under src/main/** (tests excepted) it is called exactly once, inside status(), with exactly four arguments: the identifier describePocketDoor( is handed there, which is the one const initialised from this.proposal(, then routesOffered, routesWaiting and gate.state, where those two are consts of status() initialised to servedRoutesOf(<that proposal>.routes, pocketRouteIds()) and waitingRoutesOf(fields.routes, pocketRouteIds(), …); the answer carries confirmFace from that call'],
   ['AF2', 'build/p333121/SPEC.md D3 to D8', 'THE FACE SAYS EACH FACT ONCE, DRIVEN: transpiled in memory, pocketConfirmFace answers for never, changed and unknown the rows reach, can, phones, alerts in that order labelled Reachable at, Your phone can, Phones, Alerts; reach is <name>:<port>, by Tailscale for the app’s path, by the whole path otherwise and no by for an empty one; can over the eleven is exactly “see your sessions, type into them, answer questions, send a message, end a session”, says each clause once and leaves out a route not offered or waiting; phones the labels in id order joined by “, ” or “none yet”; alerts “through Apple, never what an agent asks” or “off”; confirmed gives no rows; a waiting route with a row in the table handed in reads New: <title> and its sentence, with none New: <id> and null, in the order handed in; POCKET_FACE_CLAUSES is typed Readonly<Record<PocketRouteId, string | null>> with a key for every route, POCKET_NEW_ROUTE_WORDS is PocketNewRouteTable, frozen, and PocketNewRouteTable is Readonly<Partial<Record<Exclude<PocketRouteId, LegacyAllowedRouteId>, PocketNewRouteWords>>>; the composer and pocketFaceProgram name no imported identifier, no Date, no process and no toLocale'],
   ['AF3', 'build/p333121/SPEC.md D1, D12', 'THE SHEET DRAWS THE FACE AND COMPOSES NONE: outside its <details> the confirm block draws text only through row.label and row.value of status.confirmFace.rows.map(, the title and sentence of status.confirmFace.added.map( and BTN_ALLOW, draws each of the five, and no JSX text and no string literal is drawn as a child; it holds no <li>, <ul> or set-config-warning outside the <details>; its layout, data-phone-confirm-face, is chosen from status.confirmFace.rows.length and no other field; no file under src/renderer that is not a test names pocketConfirmFace, pocketFaceProgram, POCKET_FACE_CLAUSES, POCKET_NEW_ROUTE_WORDS or any POCKET_FACE_ constant'],
-  ['AF4', 'build/p333121/SPEC.md §2.3, §4', 'DETAILS NAMES EVERY HASHED FACT: describePocketDoor reads fields.<key> for every key of NORMALIZE, and <phone>.<member> over fields.phones for every member NORMALIZE’s phones emits but id (which is phoneIdOf(signingKey)); a key added to NORMALIZE without a read here is red. Its DRIVEN half is p333121-face.test.ts F3, ablation:p313’s face check']
+  ['AF4', 'build/p333121/SPEC.md §2.3, §4', 'DETAILS NAMES EVERY HASHED FACT: describePocketDoor reads fields.<key> for every key of NORMALIZE, and <phone>.<member> over fields.phones for every member NORMALIZE’s phones emits but id (which is phoneIdOf(signingKey)); a key added to NORMALIZE without a read here is red. Its DRIVEN half is p333121-face.test.ts F3, ablation:p313’s face check'],
+  // PHASE 346, start a session from the phone (build/p346/SPEC.md §5.1): the
+  // door's fifth write, POST /v1/start, whose act lives outside the door in
+  // src/main/sessions/pocket-start.ts and builds exactly quickCreate's input.
+  ['NS1', 'build/p346/SPEC.md D1, D2, D3, D4', 'THE ROUTE: exactly one start row, POST /v1/start, signed, reads: false, not window-only; start in POCKET_ROUTE_IDS (last) and POCKET_WRITE_ROUTE_IDS (end, choose, say, keys, start), NOT in LEGACY_ALLOWED_ROUTES; WRITE_ROUTES and DoorWriteRoute in door/wire.ts gain it; WRITE_CLAUSES.start, the ledger row’s clause, POCKET_HONESTY_ADDED, POCKET_FACE_CLAUSES and POCKET_NEW_ROUTE_WORDS each hold D3’s exact words, none naming Face ID'],
+  ['NS2', 'build/p346/SPEC.md D4, D5, §4.2', 'THE ANSWERS: PocketWriteAnswer.verb is PocketSessionWriteId, from POCKET_SESSION_WRITE_IDS, exactly the four; PocketStartAnswer is exactly verb, write, outcome, reason, sentence, session, its verb the literal start; PocketStartReason the seven; startAnswer composes the six one by one; src/shared/start-copy.ts holds the nine sentences byte for byte and imports nothing; every sentence handed to startAnswer or set in pocket-start.ts is a named constant of start-copy.ts or POCKET_WRITE_SENTENCES'],
+  ['NS3', 'build/p346/SPEC.md D6; his answer 7', 'THE BODY: parseStartBody compares the sorted keys with exactly agent,project,write, reaches the one JSON.parse, compares the agent with === against LAUNCHABLE_AGENT_IDS (imported, no agent id spelled in the write path), reads the project and the write id one character at a time; and DRIVEN over a hostile corpus of at least 30 bodies (shell, SHELL, a padded or NUL id, an overlay-only id, a 65-character project, a project holding /, . or %, a 31- and 33-hex write id, arrays, strings, null, nested objects, duplicate keys with the bad value last AND first, a legal value written with a \\u escape, a 600-byte body), every one malformed, a refused body echoing its well-formed write id, beside the honest body accepted'],
+  ['NS4', 'build/p346/SPEC.md D13, D15', 'NOTHING FROM THE PHONE BUT TWO IDS: in pocket-start.ts the phone’s project is read only in an === against a listed project’s id and its agent only in an === or includes( against installed ids or as composeStartInput’s agent, and the input is never read whole; composeStartInput sets exactly name (ordinalName), projectPath (the row), agent and, conditionally, projectMachineId and machineId (the row), BOTH, each once in a spread falling back to {} under ONE condition that reads the row’s machine, extraArgs (defaultLaunchArgs) and capture (captureDefaultFor); no cwd, startAnyway, login or signIn key anywhere in the module'],
+  ['NS5', 'build/p346/SPEC.md D8; his answer 6', 'THE OFFER STARTS NOTHING: pocket-start.ts names no listDetectedAgents, rescanAgents, getUserPath, installUserPath, resolveBinary, scanMachineAgents, spawn, exec, fork, child_process or setActiveSession; sessionsKey, composeStartOffer, localInstalledAgents and every function they reach are neither async nor awaiting; userPathNow is declared once, in src/main/tmux/resolve.ts, synchronous, and reads its slot and nothing else'],
+  ['NS6', 'build/p346/SPEC.md D12; CLAUDE.md refusal 5', 'THE ACT: start re-reads the project by id, asks a machine’s readiness (in production the row confirmed, readyRemoteContext and machineFeedAnswering, every return false but the last, which is exactly return machineFeedAnswering(<its parameter>), so a machine that stopped answering is refused machine; and the offer’s place ready: <place> === LOCAL_MACHINE_ID ? true : machineReady(<place>), once) and the installed agents, composes the input and asks still( last, and only then calls createSession(, once in the module, with no await before it; a thrown create is told apart by isGmuxError( and its code ONLY (no .message, no text); no status setter, no focus, no other lifecycle verb and no log call in the module'],
+  ['NS7', 'build/p346/SPEC.md D6, D7, D16, D18, D19', 'THE LIMITS, DECLARED ONCE: START_RATE_MAX = 6 and START_RATE_WINDOW_MS = 60_000 declared once, in writes.ts, read once each; startInFlight a claim of its own, never a key inside sessionsInFlight; POCKET_WRITE_BODY_CAPS.start === 512; POCKET_START_PROJECTS_MAX (200) and POCKET_START_AGENTS_MAX (64) declared once, in the contract, read by pocketStartOf and never re-spelled there'],
+  ['NS8', 'build/p346/SPEC.md §3.3; X1 widened', 'THE START BRANCH’S ORDER: parse, ledger, this phone’s write in flight, the start in flight, the rate, the phone’s claim, the start’s claim, the pending entry, the last check (ONE, asking routeServed for start, refusing with one 404), the act through startSettled( in the very next statement (which calls the act before any await and catches its rejection), the outcome and the one log line (the outcome word and the session alone), in that order; both claims released in the finally of the try that holds the act'],
+  ['NS9', 'build/p346/SPEC.md D9, D26, §4.8', 'THE KEY: sessions reads facts.start?.() once, through pocketStartOf(, and spreads it last; pocketStartOf answers undefined for anything that is not { state: waiting } or a whole offer, DRIVEN over 16 hostile values (an unknown state, a project naming an unlisted place, 201 projects, a 300-character label, a chosen or defaultAgent not listed, a number where a string is, 65 agents, …) beside waiting and a whole offer answered'],
+  ['NS10', 'build/p346/SPEC.md D2, D9, §4.11, §4.13', 'THE WAITING STATE: capabilities.ts hands the facts start as () => pocketStart.sessionsKey(pocketHost?.startAllowed() === true); startAllowed is ONE public PocketHost method whose body is return this.routeServed(\'start\') alone, and nothing in the door’s domain asks it'],
+  ['NS11', 'build/p346/SPEC.md §4.7, §4.13; X5 widened', 'THE PASS-THROUGH: PocketWrites holds exactly end, choose, say, keys and start; createPocketWrites’s start passes to deps.start.start( and does nothing else, and pocket-writes.ts calls no createSession(; capabilities.ts alone builds createPocketStart(, once'],
+  ['NS12', 'build/p346/SPEC.md D31; 333.12 D16', 'THE SEAM CONFIRMS THE PROPOSAL: push-seam.ts hands every confirmDoor( host.status().confirmLines and host.status().confirmHash (directly or through one status const), and names no pocketConfirmStatus(host.fields())'],
 ];
 
 if (process.argv.includes('--list')) {
@@ -911,9 +952,10 @@ function routeRules() {
   // build/p317/SPEC.md §6.1, its fix round having taken `unpair` out; Phase
   // 318, build/p318/SPEC.md §6.1, adding the press and the message; Phase 337,
   // build/p337/SPEC.md D1, adding the keys on his ruling of 2026-10-05,
-  // "Every key, including Ctrl-C"). Sorted, because both sides are compared
-  // sorted.
-  const WRITE_IDS = ['choose', 'end', 'keys', 'say'];
+  // "Every key, including Ctrl-C"; Phase 346, build/p346/SPEC.md D1 and D4,
+  // adding start, his request of 2026-10-12, the one write that names no
+  // session). Sorted, because both sides are compared sorted.
+  const WRITE_IDS = ['choose', 'end', 'keys', 'say', 'start'];
   const tableWrites = writeRows.map((w) => w.id ?? '(no literal id)').sort();
   checked('R2', 3);
   if (tableWrites.join(',') !== WRITE_IDS.join(',')) {
@@ -959,6 +1001,10 @@ function routeRules() {
     for (const k of keys) {
       if (!(typeof caps[k] === 'number' && caps[k] > 0)) fail('R2', `${rel(limits)}: POCKET_WRITE_BODY_CAPS.${k} is not a positive number literal`);
     }
+    // PHASE 346 (D6): start's own cap, 512, about three and a half times its
+    // worst legal body; never the session writes' caps, which Y1 and Z2 pin.
+    checked('R2');
+    if (caps['start'] !== 512) fail('R2', `${rel(limits)}: POCKET_WRITE_BODY_CAPS.start is ${J(caps['start'] ?? null)}; start has its own cap, 512 (build/p346/SPEC.md D6)`);
   }
 
   // No pattern dispatch anywhere in the table's module, or in the module that
@@ -1047,8 +1093,29 @@ function routeRules() {
  * `printf '<eleven lines>' | LC_ALL=C sort | shasum -a 256` with the final
  * newline taken off, both `ea5930e0…`, the value the spec step measured (§14
  * M13) and the adversary re-derived (BM3).
+ *
+ * PHASE 346 MOVED IT ON PURPOSE, from Phase 337.1's
+ * `ea5930e0f87bba2da4912971431d254526f39480b1bb8c326045938391b39a14` (eleven
+ * lines) to the value below, by its one write row `POST /v1/start`
+ * (build/p346/SPEC.md D1, his request of 2026-10-12, "the phone being able to
+ * start new sessions"): twelve sorted lines, the value the spec step measured
+ * (§12 M3) with node's `createHash('sha256')` over the twelve lines sorted and
+ * joined by a newline (`--write-route-pin`'s method), and re-derived by the
+ * gates builder the same way before the table held the row. The eleven's pin
+ * is not gone: it is {@link LEGACY_ROUTE_PIN}, which AR3 holds the legacy
+ * ledger rows to, because the routes every 0.111.x Mac answered never move.
  */
-const ROUTE_PIN = 'ea5930e0f87bba2da4912971431d254526f39480b1bb8c326045938391b39a14';
+const ROUTE_PIN = '1b92ce21d601f9202eee2f196f32a1d8a3f275c1dd46c558779516ed77fcf57f';
+
+/**
+ * THE ELEVEN, PINNED FOR GOOD (Phase 346, build/p346/SPEC.md §5.1): the
+ * membership pin of the routes every 0.111.x Mac answered, which is R4's pin
+ * from Phase 337.1 until Phase 346 moved R4 on. AR3 hashes the
+ * LEGACY_ALLOWED_ROUTES ids' ledger rows to it, and so does the frozen launch
+ * set's routeMembership; it never moves, because a store that never recorded
+ * an allowed set allows exactly these eleven.
+ */
+const LEGACY_ROUTE_PIN = 'ea5930e0f87bba2da4912971431d254526f39480b1bb8c326045938391b39a14';
 
 /** The `METHOD path` line of every row of POCKET_ROUTES, sorted. */
 function routeLines(file) {
@@ -1376,7 +1443,7 @@ const FORBIDDEN = [
   ['removeSession', 'a write verb'],
   ['restartSession', 'a write verb'],
   ['resumeInPlace', 'a write verb'],
-  ['createSession', 'a write verb, and refusal 8: nothing may start a process'],
+  ['createSession', 'a write verb the door never names: the phone’s start reaches it only through PocketWrites.start, implemented outside the door (Phase 346, his request of 2026-10-12; refusal 8 is about configuration, and a start is his press)'],
   ['renameSession', 'a write verb'],
   ['restoreSession', 'a write verb'],
   ['noteHookEvent', 'a status setter, and CLAUDE.md refusal 5'],
@@ -1397,6 +1464,13 @@ const FORBIDDEN = [
   // hands it, and names nothing of the module that reads a screen and types.
   ['main/screen/', 'the Screen’s read and its keys, the second module outside the door that types into a session (Phase 337)'],
   ['../screen/', 'the Screen’s read and its keys, written the way a sibling import is (Phase 337)'],
+  // PHASE 346 (build/p346/SPEC.md §5.1). The door reaches the phone's start
+  // only through PocketWrites.start and PocketFacts.start, which
+  // src/main/capabilities.ts hands it, and names nothing of the module that
+  // starts a session.
+  ['pocket-start', 'the phone’s start, the one module outside the door that starts a process (Phase 346)'],
+  ['../sessions/pocket-start', 'the phone’s start, the one module outside the door that starts a process (Phase 346)'],
+  ['createPocketStart', 'the phone’s start, the one module outside the door that starts a process (Phase 346)'],
   // BOTH SPELLINGS. `build/assert-import-boundaries.mjs`'s wall row matches on
   // the src-relative path, so it catches either; a text rule that named only
   // the absolute-looking form would miss `../credentials/vault`, which is how
@@ -2843,7 +2917,13 @@ function launchRule() {
     if (!/\.openAtLaunch\(/.test(text)) {
       fail('L5', 'src/main/capabilities.ts never calls openAtLaunch(), so the door never comes up with the app however a person set it');
     }
-    if (/\bstartPocketDoor\s*\(/.test(text) || /\b\w*(?:pocket|host)\w*\.start\(/i.test(text)) {
+    // PHASE 346 (build/p346/SPEC.md §4.13): `pocketStart.start(` is the
+    // phone's start of a SESSION, the one const capabilities.ts builds from
+    // createPocketStart( (NS11), and never the door; any other receiver named
+    // for the pocket or the host that calls .start( still starts the door.
+    const phoneStart = /\bconst\s+pocketStart\s*=\s*createPocketStart\s*\(/.test(text);
+    const doorStarts = [...text.matchAll(/\b(\w*(?:pocket|host)\w*)\.start\(/gi)].filter((m) => !(phoneStart && m[1] === 'pocketStart'));
+    if (/\bstartPocketDoor\s*\(/.test(text) || doorStarts.length > 0) {
       fail('L5', 'src/main/capabilities.ts starts the door directly rather than through openAtLaunch(), which is the one launch path that asks for a confirmed hash');
     }
   }
@@ -6487,6 +6567,28 @@ function writePathRules() {
         }
       }
     }
+    // PHASE 346 (build/p346/SPEC.md §3.3, X1 widened): a start names no
+    // session, so the handler hands it to its own branch BEFORE the four
+    // verbs' strict parse, and the branch is a function that parses it with
+    // parseStartBody (NS8 holds that branch's order). A start that fell
+    // through to the session path would be parsed as a session write.
+    {
+      const handoffs = descendantsOf(handler).filter((n) => ts.isIfStatement(n) && /'start'/.test(n.expression.getText()));
+      checked('X1', 2);
+      if (handoffs.length !== 1) {
+        fail('X1', `${where(writes, handler)}: the write path tests for start ${String(handoffs.length)} time(s); ONCE, handing it to its own branch before the strict parse (build/p346/SPEC.md §3.3)`);
+      } else {
+        const h = handoffs[0];
+        const then = h.thenStatement;
+        const ret = ts.isReturnStatement(then) ? then : ts.isBlock(then) && then.statements.length === 1 && ts.isReturnStatement(then.statements[0]) ? then.statements[0] : null;
+        const call = ret === null ? undefined : bare(ret.expression);
+        const branch = call !== undefined && ts.isCallExpression(call) && ts.isIdentifier(call.expression) ? oneFunction(writes, call.expression.text) : null;
+        const parsesStart = branch !== null && nsReach(writes, branch).some((f) => descendantsOf(f).some((m) => ts.isCallExpression(m) && calleeName(m) === 'parseStartBody'));
+        if (!parsesStart) fail('X1', `${where(writes, h)}: the start test does not return its own branch's answer, a function that parses the body with parseStartBody (build/p346/SPEC.md §3.3)`);
+        if (h.elseStatement !== undefined) fail('X1', `${where(writes, h)}: the start test has an else arm; the four verbs' path follows it, unbranched`);
+        if (a.parse !== undefined && h.getStart() > a.parse.getStart()) fail('X1', `${where(writes, h)}: the start is handed to its branch AFTER the four verbs' strict parse; it is handed before, so a start body is never read as a session write (build/p346/SPEC.md §3.3)`);
+      }
+    }
     // Every 404 before the act; after it, every return marked acted; before
     // it, only the ledger's returns marked.
     const returns = ownReturnsOf(handler);
@@ -6618,6 +6720,51 @@ function writePathRules() {
       if (!released) fail('X4', `${where(writes, handler)}: ${name}’s claim is not released in the finally of the try that holds the act, so a refusal or a throw holds it forever`);
     }
 
+    // PHASE 346 (build/p346/SPEC.md §3.3, X3 and X4 widened): the start
+    // branch shares the ledger and the phone's claim. Its ledger key is the
+    // phone, the verb start and the write id through the one keyOf, and its
+    // pending entry stores acted; it asks the SAME phonesInFlight the four
+    // verbs claim, so one write is in flight per phone across every verb, start
+    // included, and releases it in the finally that holds its act.
+    {
+      const s = nsStartScope(writes);
+      checked('X3');
+      checked('X4');
+      if (s.scope === null || s.shared) {
+        fail('X3', `${rel(writes)}: no start branch of its own was found (parseStartBody( is called ${String(s.calls.length)} time(s)), so its ledger key cannot be read (build/p346/SPEC.md §3.3)`);
+        fail('X4', `${rel(writes)}: no start branch of its own was found, so its claims cannot be read (build/p346/SPEC.md §3.3)`);
+      } else {
+        const sn = descendantsOf(s.scope);
+        const local = (name) => sn.find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === name && n.initializer !== undefined);
+        const ledgerCalls = sn.filter((n) => ts.isCallExpression(n) && /^(?:get|set)$/.test(calleeName(n) ?? '') && ts.isPropertyAccessExpression(n.expression) && /ledger/i.test(n.expression.expression.getText()));
+        checked('X3');
+        if (!ledgerCalls.some((c) => calleeName(c) === 'get') || !ledgerCalls.some((c) => calleeName(c) === 'set')) fail('X3', `${where(writes, s.scope)}: the start branch does not both read the ledger and record a pending entry in it`);
+        for (const c of ledgerCalls) {
+          let key = c.arguments[0];
+          if (key !== undefined && ts.isIdentifier(key)) key = local(key.text)?.initializer ?? key;
+          const k = key === undefined ? undefined : bare(key);
+          checked('X3');
+          const ok = k !== undefined && ts.isCallExpression(k) && calleeName(k) === 'keyOf' && k.arguments.length === 3 && ts.isStringLiteralLike(k.arguments[1]) && k.arguments[1].text === 'start' && /\.write$/.test(k.arguments[2].getText());
+          if (!ok) fail('X3', `${where(writes, c)}: the start's ledger key is ${J(key?.getText().slice(0, 70) ?? '(none)')}; it is keyOf(<the verified phone>, 'start', <the write id>), so a start's write id is its own (build/p346/SPEC.md D17)`);
+          if (calleeName(c) === 'set') {
+            let entry = c.arguments[1];
+            if (entry !== undefined && ts.isIdentifier(entry)) entry = local(entry.text)?.initializer ?? entry;
+            if (entry === undefined || !ts.isObjectLiteralExpression(bare(entry)) || propOf(bare(entry), 'acted') === undefined) fail('X3', `${where(writes, c)}: the start's pending entry does not store acted, so a recorded hit cannot say whether its start acted`);
+          }
+        }
+        const has = sn.filter((n) => ts.isCallExpression(n) && calleeName(n) === 'has' && ts.isPropertyAccessExpression(n.expression) && n.expression.expression.getText() === 'phonesInFlight');
+        const add = sn.filter((n) => ts.isCallExpression(n) && calleeName(n) === 'add' && ts.isPropertyAccessExpression(n.expression) && n.expression.expression.getText() === 'phonesInFlight');
+        const act = sn.find((n) => ts.isCallExpression(n) && calleeName(n) === 'startSettled');
+        let tryOf = null;
+        for (let n = act; n !== undefined && n !== s.scope; n = n.parent) if (ts.isTryStatement(n.parent) && n.parent.tryBlock === n) tryOf = n.parent;
+        const released = tryOf?.finallyBlock !== undefined && /phonesInFlight\.delete\(/.test(codeOfNode(writes, tryOf.finallyBlock));
+        checked('X4', 3);
+        if (has.length !== 1 || add.length !== 1 || has[0].getStart() > add[0].getStart()) fail('X4', `${where(writes, s.scope)}: the start branch asks phonesInFlight ${String(has.length)} time(s) and claims it ${String(add.length)} time(s); it asks once and then claims once, the same set the four verbs claim, so one write is in flight per phone ACROSS every verb, start included (build/p346/SPEC.md D16)`);
+        if (!released) fail('X4', `${where(writes, s.scope)}: the start branch's phone claim is not released in the finally of the try that holds its act`);
+        if (sn.some((n) => ts.isPropertyAccessExpression(n) && n.expression.getText() === 'sessionsInFlight')) fail('X4', `${where(writes, s.scope)}: the start branch reads sessionsInFlight; a start names no session, and its Mac-wide claim is startInFlight (build/p346/SPEC.md D16)`);
+      }
+    }
+
     // X11, ONE log line, the verb and the outcome word, the session its one field.
     const logs = callsOf(writes).filter((c) => /^(?:debug|info|warn|error|log)$/.test(calleeName(c) ?? '') && /log/i.test(ts.isPropertyAccessExpression(c.expression) ? c.expression.expression.getText() : ''));
     checked('X11', 3);
@@ -6646,7 +6793,10 @@ function writePathRules() {
 
   // X2, THE STRICT PARSE.
   const parses = callsOf(writes).filter((c) => c.expression.getText() === 'JSON.parse');
-  const parseFns = ['parseEndBody', 'parseChooseBody', 'parseSayBody', 'parseKeysBody'].map((name) => [name, oneFunction(writes, name)]);
+  // PHASE 346 (build/p346/SPEC.md D6, X2 widened with NS3): the start's parse
+  // reads its body through the same one JSON.parse, so it is a parse function
+  // here too, with its own key set and its two values read by hand.
+  const parseFns = ['parseEndBody', 'parseChooseBody', 'parseSayBody', 'parseKeysBody', 'parseStartBody'].map((name) => [name, oneFunction(writes, name)]);
   checked('X2', 3);
   for (const [name, fn] of parseFns) if (fn === null) fail('X2', `${rel(writes)} declares no single ${name}`);
   if (parses.length !== 1) {
@@ -6669,7 +6819,7 @@ function writePathRules() {
       fail('X2', `${where(writes, call)}: JSON.parse sits in ${String(ownerName)}, which something other than the parse function calls`);
     }
   }
-  const KEY_SETS = { parseEndBody: 'batch,session,write', parseChooseBody: 'mark,marker,question,session,write', parseSayBody: 'session,text,write', parseKeysBody: 'dialog,keys,session,turn,write' };
+  const KEY_SETS = { parseEndBody: 'batch,session,write', parseChooseBody: 'mark,marker,question,session,write', parseSayBody: 'session,text,write', parseKeysBody: 'dialog,keys,session,turn,write', parseStartBody: 'agent,project,write' };
   for (const [name, fn] of parseFns) {
     if (fn === null) continue;
     checked('X2');
@@ -6713,7 +6863,7 @@ function writePathRules() {
   // id and the question id's count beside the hex its mark shares), say two.
   // PHASE 337: keys reads the write id, the session id and the question id
   // (its turn) the same way, and its dialog by the one mark reader.
-  const READS = { parseEndBody: [2, 'the write id and the session id'], parseChooseBody: [3, 'the write id, the session id and the question id'], parseSayBody: [2, 'the write id and the session id'], parseKeysBody: [3, 'the write id, the session id and the question id'] };
+  const READS = { parseEndBody: [2, 'the write id and the session id'], parseChooseBody: [3, 'the write id, the session id and the question id'], parseSayBody: [2, 'the write id and the session id'], parseKeysBody: [3, 'the write id, the session id and the question id'], parseStartBody: [2, 'the write id and the project id'] };
   for (const [name, fn] of parseFns) {
     if (fn === null) continue;
     const [want, what] = READS[name];
@@ -6801,7 +6951,8 @@ function pocketWritesRules() {
       fail('X5', `${rel(routes)} declares no interface PocketWrites`);
     } else {
       const members = iface.members.map(memberName);
-      if ([...members].sort().join(',') !== 'choose,end,keys,say') fail('X5', `${where(routes, iface)}: PocketWrites holds ${JSON.stringify(members)}; it holds exactly end, choose, say and keys (build/p318/SPEC.md §5.1.5; build/p337/SPEC.md §5.4), and a fifth member is a verb the door can reach`);
+      // PHASE 346 (build/p346/SPEC.md §4.8): and start, the fifth.
+      if ([...members].sort().join(',') !== 'choose,end,keys,say,start') fail('X5', `${where(routes, iface)}: PocketWrites holds ${JSON.stringify(members)}; it holds exactly end, choose, say, keys and start (build/p318/SPEC.md §5.1.5; build/p337/SPEC.md §5.4; build/p346/SPEC.md §4.8), and a sixth member is a verb the door can reach`);
     }
     const facts = interfaceOf(routes, 'PocketFacts');
     const endOffer = facts?.members.find((m) => memberName(m) === 'endOffer');
@@ -6902,7 +7053,9 @@ function pocketWritesRules() {
     // module names nothing that types.
     // PHASE 337: and keys passes through to the screen's keys verb it is
     // handed, deps.keys.keys(, the same way (build/p337/SPEC.md §5.4).
-    for (const [verb, callee] of [['choose', 'deps.reply.choose'], ['say', 'deps.reply.say'], ['keys', 'deps.keys.keys']]) {
+    // PHASE 346: and start passes through to the phone's start it is handed,
+    // deps.start.start(, the same way (build/p346/SPEC.md §4.7).
+    for (const [verb, callee] of [['choose', 'deps.reply.choose'], ['say', 'deps.reply.say'], ['keys', 'deps.keys.keys'], ['start', 'deps.start.start']]) {
       const member = factory === null ? undefined : descendantsOf(factory).find((n) => (ts.isPropertyAssignment(n) && memberName(n) === verb && (ts.isArrowFunction(n.initializer) || ts.isFunctionExpression(n.initializer))) || (ts.isMethodDeclaration(n) && memberName(n) === verb));
       checked('X5');
       const fn = member === undefined ? null : ts.isPropertyAssignment(member) ? member.initializer : member;
@@ -6935,10 +7088,12 @@ function pocketWritesRules() {
   // PHASE 318: the reply's verbs say sentences too, and theirs are held the same way.
   // PHASE 337: and the Screen's keys verb, whose sentences are
   // src/shared/screen-copy.ts's (build/p337/SPEC.md §5.4).
-  for (const file of [writes, impl, ...sourcesUnder(join(ROOT, 'src', 'main', 'reply')), ...sourcesUnder(join(ROOT, 'src', 'main', 'screen'))].filter((f) => f !== null)) {
+  // PHASE 346: and the phone's start, whose sentences are
+  // src/shared/start-copy.ts's (build/p346/SPEC.md §4.2, NS2).
+  for (const file of [writes, impl, ...sourcesUnder(join(ROOT, 'src', 'main', 'reply')), ...sourcesUnder(join(ROOT, 'src', 'main', 'screen')), ...(existsSync(NS_START) ? [NS_START] : [])].filter((f) => f !== null)) {
     const fromWords = new Set();
     for (const n of nodesOf(file)) {
-      if (ts.isImportDeclaration(n) && ts.isStringLiteral(n.moduleSpecifier) && /^@shared\/(?:lifecycle-words|reply-copy|screen-copy)$/.test(n.moduleSpecifier.text) && n.importClause?.namedBindings !== undefined && ts.isNamedImports(n.importClause.namedBindings)) {
+      if (ts.isImportDeclaration(n) && ts.isStringLiteral(n.moduleSpecifier) && /^@shared\/(?:lifecycle-words|reply-copy|screen-copy|start-copy)$/.test(n.moduleSpecifier.text) && n.importClause?.namedBindings !== undefined && ts.isNamedImports(n.importClause.namedBindings)) {
         for (const el of n.importClause.namedBindings.elements) fromWords.add(el.name.text);
       }
     }
@@ -7340,7 +7495,8 @@ function writeLinesRule() {
     if (init !== undefined && ts.isObjectLiteralExpression(init)) for (const p of init.properties) if (ts.isPropertyAssignment(p) && ts.isStringLiteralLike(p.initializer)) got[memberName(p)] = p.initializer.text;
     // PHASE 337 (D35): and keys, in the plainest true words for a write that
     // can run a command in a shell.
-    const want = { end: 'end a session', choose: 'answer a numbered question', say: 'send a session one message', keys: 'type into any session as you would at this Mac' };
+    // PHASE 346 (build/p346/SPEC.md D3): and start, in the words D3 gives it.
+    const want = { end: 'end a session', choose: 'answer a numbered question', say: 'send a session one message', keys: 'type into any session as you would at this Mac', start: 'start a session in a project open in Tortie, on this Mac or another machine' };
     checked('X12', 2);
     if (JSON.stringify(Object.keys(got).sort().map((k) => [k, got[k]])) !== JSON.stringify(Object.keys(want).sort().map((k) => [k, want[k]]))) {
       fail('X12', `${rel(pairing)}: the write clauses are ${JSON.stringify(got)}; they are exactly ${JSON.stringify(want)}, so the line reads "Lets an allowed phone end a session, answer a numbered question, send a session one message and type into any session as you would at this Mac" (build/p318/SPEC.md §5.1.7; build/p337/SPEC.md D35)`);
@@ -7536,10 +7692,12 @@ function replyRules() {
           if (ts.isPropertyAssignment(p) && memberName(p) !== null) got[memberName(p)] = ts.isNumericLiteral(p.initializer) ? Number(p.initializer.text.replace(/_/g, '')) : null;
         }
       }
-      // PHASE 337 widened it (Z2 holds the keys cap's arithmetic).
-      const want = { choose: 512, end: 512, keys: 16_384, say: 32_768 };
+      // PHASE 337 widened it (Z2 holds the keys cap's arithmetic). PHASE 346
+      // (build/p346/SPEC.md D6) adds start's 512, which R2 and NS7 hold; the
+      // four caps above it do not move.
+      const want = { choose: 512, end: 512, keys: 16_384, say: 32_768, start: 512 };
       if (J(Object.keys(got).sort().map((k) => [k, got[k]])) !== J(Object.keys(want).sort().map((k) => [k, want[k]]))) {
-        fail('Y1', `${where(limits, caps)}: POCKET_WRITE_BODY_CAPS is ${J(got)}; it is exactly end 512, choose 512, say 32,768 and keys 16,384. The say cap holds a 4,096-byte text of C0 controls escaped \\u00XX (24,771 bytes), so the Mac answers it refused character rather than the door dropping it oversized (D3, §Revision R10, R18; build/p337/SPEC.md D17)`);
+        fail('Y1', `${where(limits, caps)}: POCKET_WRITE_BODY_CAPS is ${J(got)}; it is exactly end 512, choose 512, say 32,768, keys 16,384 and (Phase 346, D6) start 512. The say cap holds a 4,096-byte text of C0 controls escaped \\u00XX (24,771 bytes), so the Mac answers it refused character rather than the door dropping it oversized (D3, §Revision R10, R18; build/p337/SPEC.md D17)`);
       }
       if (!(caps.initializer !== undefined && ts.isCallExpression(bare(caps.initializer)) && calleeName(bare(caps.initializer)) === 'freeze')) {
         fail('Y1', `${where(limits, caps)}: POCKET_WRITE_BODY_CAPS is not Object.freeze(...)`);
@@ -8675,6 +8833,15 @@ function sessionsAnswerRules() {
       break;
     }
   }
+  // PHASE 346 (build/p346/SPEC.md §4.8): the answer now carries the start
+  // key, re-composed by pocketStartOf, which the member reaches and so is
+  // held synchronous by the loop above; a start key composed by anything the
+  // member does not reach would escape it.
+  {
+    const startOf = functionsNamed(routes, 'pocketStartOf');
+    checked('O2a');
+    if (startOf.length !== 1 || !answer.roots.includes(startOf[0])) fail('O2a', `${where(routes, answer.member)}: the sessions answer does not reach ONE pocketStartOf, so its start key is composed somewhere this rule does not hold synchronous (build/p346/SPEC.md §4.8)`);
+  }
 
   // (b) One read of the list.
   const listReads = answer.nodes.filter(
@@ -9291,13 +9458,13 @@ function screenRules() {
     }
     const wire = zFile('src/main/pocket/door/wire.ts', 'Z1', Z_OWNER.door);
     if (wire !== null) {
-      for (const [name, want] of [['SIGNED_ROUTES', ['blocked', 'screen', 'scrollback', 'session', 'sessions', 'turns']], ['WRITE_ROUTES', ['choose', 'end', 'keys', 'say']]]) {
+      for (const [name, want] of [['SIGNED_ROUTES', ['blocked', 'screen', 'scrollback', 'session', 'sessions', 'turns']], ['WRITE_ROUTES', ['choose', 'end', 'keys', 'say', 'start']]]) {
         checked('Z1');
         const decl = constNamed(wire, name);
         const init = decl === null ? undefined : bare(decl.initializer);
         const got = init !== undefined && ts.isArrayLiteralExpression(init) ? init.elements.map((e) => (ts.isStringLiteral(e) ? e.text : '?')).sort() : null;
         if (got === null || J(got) !== J(want)) {
-          fail('Z1', `${rel(wire)}: ${name} is ${J(got)}; it is exactly ${J(want)} (build/p337/SPEC.md §5.1; build/p3371/SPEC.md §5.1 adds scrollback to the signed reads and nothing to the writes). The door hands main a signed read or a write only for an id on its own list.`);
+          fail('Z1', `${rel(wire)}: ${name} is ${J(got)}; it is exactly ${J(want)} (build/p337/SPEC.md §5.1; build/p3371/SPEC.md §5.1 adds scrollback to the signed reads and nothing to the writes; build/p346/SPEC.md §4.12 adds start to the writes). The door hands main a signed read or a write only for an id on its own list.`);
         }
       }
     }
@@ -9316,9 +9483,10 @@ function screenRules() {
     if (init !== undefined && ts.isObjectLiteralExpression(init)) {
       for (const p of init.properties) if (ts.isPropertyAssignment(p) && memberName(p) !== null) got[memberName(p)] = ts.isNumericLiteral(bare(p.initializer)) ? Number(bare(p.initializer).text.replace(/_/g, '')) : null;
     }
-    const want = { choose: 512, end: 512, keys: 16_384, say: 32_768 };
+    // PHASE 346 (build/p346/SPEC.md D6): and start's 512, which R2 and NS7 hold.
+    const want = { choose: 512, end: 512, keys: 16_384, say: 32_768, start: 512 };
     if (J(Object.keys(got).sort().map((k) => [k, got[k]])) !== J(Object.keys(want).sort().map((k) => [k, want[k]]))) {
-      fail('Z2', `${limits === null ? 'src/main/pocket/door/limits.ts' : rel(limits)}: POCKET_WRITE_BODY_CAPS is ${J(got)}; it is exactly end 512, choose 512, say 32,768 and keys 16,384 (build/p337/SPEC.md D17, Y1 widened)`);
+      fail('Z2', `${limits === null ? 'src/main/pocket/door/limits.ts' : rel(limits)}: POCKET_WRITE_BODY_CAPS is ${J(got)}; it is exactly end 512, choose 512, say 32,768, keys 16,384 and (Phase 346, D6) start 512 (build/p337/SPEC.md D17, Y1 widened)`);
     }
     // The worst legal-shape keys body, composed HERE by this gate rather than
     // read from the spec: the longest session id the parse takes (128), a
@@ -12157,7 +12325,11 @@ function accountRule() {
   while (rinit !== undefined && (ts.isAsExpression(rinit) || ts.isParenthesizedExpression(rinit))) rinit = rinit.expression;
   const ids = rinit !== undefined && ts.isArrayLiteralExpression(rinit) ? rinit.elements.map((e) => (ts.isStringLiteralLike(e) ? e.text : null)) : null;
   checked('SU5');
-  if (JSON.stringify(ids) !== JSON.stringify(ROUTES_BEFORE_3331)) fail('SU5', `src/shared/ipc/pocket.ts's POCKET_ROUTE_IDS is ${JSON.stringify(ids)}, not the eleven it was (${ROUTES_BEFORE_3331.join(', ')}): this phase adds no door route (D30; 318.1 waits for 333.12)`);
+  // PHASE 346 RETIRES "THE ELEVEN IT WAS" ON PURPOSE (build/p346/SPEC.md §5.1):
+  // Phase 333.1 added no route and held the list there; Phase 346 adds start,
+  // last, and nothing else, so the list is the eleven and then start.
+  const SU5_ROUTES = [...ROUTES_BEFORE_3331, 'start'];
+  if (JSON.stringify(ids) !== JSON.stringify(SU5_ROUTES)) fail('SU5', `src/shared/ipc/pocket.ts's POCKET_ROUTE_IDS is ${JSON.stringify(ids)}, not the eleven it was (${ROUTES_BEFORE_3331.join(', ')}) and Phase 346's start, last: 333.1 added no door route (D30), and Phase 346 adds start alone (build/p346/SPEC.md D1)`);
   // The contract: account is a member of PocketStatus and of no other type.
   for (const n of nodesOf(contract)) {
     if (!(ts.isPropertySignature(n) || ts.isPropertyDeclaration(n)) || memberName(n) !== 'account') continue;
@@ -12960,7 +13132,9 @@ function arLegacyRule() {
   }
   const got = createHash('sha256').update(lines.sort().join('\n')).digest('hex');
   checked(id, 2);
-  if (got !== ROUTE_PIN) fail(id, `the legacy ids' ledger rows hash to ${got}, not R4's pin ${ROUTE_PIN}: the eleven a stranger allowed are not the eleven the table answered at launch (D3)`);
+  // PHASE 346 (build/p346/SPEC.md §5.1): R4's pin moved to twelve lines; the
+  // legacy ids' rows stay the eleven, held to their own constant.
+  if (got !== LEGACY_ROUTE_PIN) fail(id, `the legacy ids' ledger rows hash to ${got}, not the eleven's pin ${LEGACY_ROUTE_PIN} (LEGACY_ROUTE_PIN, R4's until Phase 346): the eleven a stranger allowed are not the eleven the table answered at launch (D3)`);
   if (launch.membership !== null && got !== launch.membership) fail(id, `the legacy ids' ledger rows hash to ${got}, not ${rel(AR_LAUNCH)}'s routeMembership ${String(launch.membership)} (D3)`);
 }
 
@@ -13654,6 +13828,15 @@ function arLedgerRule() {
     checked(id);
     if (row.clause !== clause) fail(id, `${route.id}: the ledger's clause is ${J(row.clause)} and ${route.reads ? 'a read has none' : `WRITE_CLAUSES says ${J(clause)}`} (D12)`);
   }
+  // PHASE 346 (build/p346/SPEC.md D1, D3, D6, §4.12): the ledger's start row,
+  // written out exactly: a signed POST write alive outside any window, its
+  // own cap and the Allow line's clause.
+  {
+    const want = { id: 'start', method: 'POST', path: '/v1/start', reads: false, signed: true, windowOnly: false, bodyCap: 512, clause: 'start a session in a project open in Tortie, on this Mac or another machine' };
+    const row = rows.find((r) => r.id === 'start');
+    checked(id);
+    if (row === undefined || nsSorted(row) !== nsSorted(want)) fail(id, `${rel(ledger)}: the start row is ${J(row ?? null)}; it is exactly ${J(want)} (build/p346/SPEC.md D1, D3, D6)`);
+  }
   const contract = existsSync(AR_CONTRACT) ? arLoad(AR_CONTRACT, id) : null;
   for (const legacy of contract?.LEGACY_ALLOWED_ROUTES ?? []) {
     checked(id);
@@ -14134,9 +14317,13 @@ function afDrivenRule() {
     fail(id, `${rel(contract)} exports no pocketConfirmFace, POCKET_ROUTE_IDS, POCKET_FACE_CLAUSES or POCKET_NEW_ROUTE_WORDS to drive`);
     return;
   }
-  const routes = [...mod.POCKET_ROUTE_IDS];
+  // PHASE 346 (build/p346/SPEC.md §5.1): the drives below are the eleven's
+  // (start left out, as the spec step read them); one drive after them passes
+  // this build's twelve and reads start's own clause last.
+  const twelve = [...mod.POCKET_ROUTE_IDS];
+  const routes = twelve.filter((r) => r !== 'start');
   checked(id, 2);
-  if (J(Object.keys(mod.POCKET_FACE_CLAUSES).sort()) !== J([...routes].sort())) fail(id, `POCKET_FACE_CLAUSES has the keys ${J(Object.keys(mod.POCKET_FACE_CLAUSES).sort())}, not one per route of POCKET_ROUTE_IDS (D5)`);
+  if (J(Object.keys(mod.POCKET_FACE_CLAUSES).sort()) !== J([...twelve].sort())) fail(id, `POCKET_FACE_CLAUSES has the keys ${J(Object.keys(mod.POCKET_FACE_CLAUSES).sort())}, not one per route of POCKET_ROUTE_IDS (D5)`);
   if (!Object.isFrozen(mod.POCKET_FACE_CLAUSES) || !Object.isFrozen(mod.POCKET_NEW_ROUTE_WORDS)) fail(id, 'POCKET_FACE_CLAUSES or POCKET_NEW_ROUTE_WORDS is not frozen, so a renderer or a test could write the face\'s words at run time (§5.1)');
   const name = 'mac.tail0000.ts.net';
   const reach = (program) => `${name}:8443${program === '' ? '' : `, by ${program}`}`;
@@ -14169,6 +14356,11 @@ function afDrivenRule() {
   drive('three reads offered', [facts(), ['pair', 'blocked', 'session'], [], 'never'], { rows: rowsOf([reach('Tailscale'), 'see your sessions', AF_NO_PHONE, AF_ALERTS_OFF]), added: [] }, 'Each clause once, and only for a route offered (D5)');
   drive('the agreement on record holds', [facts({ pushAlerts: true }), routes, ['probe', 'spare'], 'confirmed'], { rows: [], added: [['probe', 'New: probe', null], ['spare', 'New: spare', null]] }, 'A confirmed door draws no rows, and a waiting route with no words reads New: <its id> in the order handed in, never nothing (D6, D7, §Attack A6)');
   drive('a title table handed in', [facts(), routes, ['spare', 'probe'], 'confirmed', { probe: { title: 'read a probe', sentence: 'Your phone could read a probe.' } }], { rows: [], added: [['spare', 'New: spare', null], ['probe', 'New: read a probe', 'Your phone could read a probe.']] }, 'A waiting route with a row reads New: <title> and its sentence (D7)');
+  // PHASE 346 (build/p346/SPEC.md D3): a first setup on this build offers the
+  // twelve, and the can row says start's clause last; on a Mac whose start
+  // waits, it is said once, as New, with its own words.
+  drive('a first setup on this build, the twelve', [facts(), twelve, [], 'never'], { rows: rowsOf([reach('Tailscale'), `${AF_CAN_ELEVEN}, start sessions`, AF_NO_PHONE, AF_ALERTS_OFF]), added: [] }, 'Start is said once, last, as "start sessions" (build/p346/SPEC.md D3)');
+  drive('start waiting on an agreement on record', [facts(), routes, ['start'], 'confirmed', mod.POCKET_NEW_ROUTE_WORDS], { rows: [], added: [['start', 'New: start sessions from your phone', 'An agent installed where the project is, with your launch defaults.']] }, 'A Mac that updated draws one New line for start, with D3\'s title and sentence (build/p346/SPEC.md D2, D3)');
 }
 
 // ---- AF3, the sheet draws the face and composes none ---------------------------
@@ -14370,6 +14562,1357 @@ function confirmFaceRules() {
 }
 
 // ---------------------------------------------------------------------------
+// NS — PHASE 346: start a session from the phone (build/p346/SPEC.md §5.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * THE FIRST THING A PHONE CAN ASK THAT STARTS A PROCESS. His request of
+ * 2026-10-12 ("the phone being able to start new sessions") and his answers
+ * of 2026-10-14 make the door's fifth write `POST /v1/start`: a project main
+ * offered, an agent installed where it lives, and a write id, and nothing
+ * else. The act lives OUTSIDE the door (`src/main/sessions/pocket-start.ts`),
+ * reached through `PocketWrites.start`, and it builds exactly the input the
+ * Mac's own one-press create builds. Every clause below is one line a later
+ * round could delete with the phone still starting sessions, so each is a
+ * rule: the route and its words (NS1), the answers (NS2), the body (NS3,
+ * driven over a hostile corpus), nothing from the phone but two ids (NS4), an
+ * offer that starts nothing (NS5), the act's order (NS6), the limits declared
+ * once (NS7), the start branch's order (NS8), the sessions answer's key (NS9,
+ * driven), the waiting state (NS10), the pass-through (NS11) and the push
+ * seam confirming the proposal (NS12).
+ *
+ * Read with the parser as every rule here is, comments blanked where text is
+ * read; NS3 and NS9 also DRIVE the shipping function in memory (`zLoad`),
+ * because a parse that reads right can still accept a body it should refuse.
+ * A rule that checked nothing is red: a zero where something must be counted
+ * is a gate that stopped reading.
+ */
+const NS_RULE_IDS = ['NS1', 'NS2', 'NS3', 'NS4', 'NS5', 'NS6', 'NS7', 'NS8', 'NS9', 'NS10', 'NS11', 'NS12'];
+const NS_OWNER = "Phase 346 builder mac's";
+const NS_START = join(ROOT, 'src', 'main', 'sessions', 'pocket-start.ts');
+const NS_COPY = join(ROOT, 'src', 'shared', 'start-copy.ts');
+const NS_RESOLVE = join(ROOT, 'src', 'main', 'tmux', 'resolve.ts');
+const NS_CAPABILITIES = join(ROOT, 'src', 'main', 'capabilities.ts');
+const NS_SEAM = join(ROOT, 'src', 'main', 'harness', 'push-seam.ts');
+const NS_WRITES = join(DOMAIN, 'writes.ts');
+const NS_ROUTES = join(DOMAIN, 'routes.ts');
+const NS_TABLE = join(DOMAIN, 'door', 'table.ts');
+const NS_LIMITS = join(DOMAIN, 'door', 'limits.ts');
+/** D3: the Allow line's clause, the honesty sentence's addition and the ledger row's clause, one string. */
+const NS_CLAUSE = 'start a session in a project open in Tortie, on this Mac or another machine';
+/** D3: the face's `Your phone can` row. */
+const NS_FACE_CLAUSE = 'start sessions';
+/** D3: Settings then Phone's `New:` line for the waiting route. */
+const NS_NEW_WORDS = { title: 'start sessions from your phone', sentence: 'An agent installed where the project is, with your launch defaults.' };
+/** D4: the four writes that act on one named session, and the five writes. */
+const NS_SESSION_WRITES = ['end', 'choose', 'say', 'keys'];
+const NS_WRITE_IDS = ['end', 'choose', 'say', 'keys', 'start'];
+/** D5. */
+const NS_REASONS = ['agent', 'interpreter', 'machine', 'malformed', 'often', 'project', 'stopped'];
+const NS_ANSWER_FIELDS = ['outcome', 'reason', 'sentence', 'session', 'verb', 'write'];
+/** D6. */
+const NS_START_KEYS = 'agent,project,write';
+/** D6, M1: the thirteen compiled launchable ids at 0b87d0af; none may be re-spelled in the write path. */
+const NS_LAUNCHABLE = ['claude', 'cursor', 'codex', 'gemini', 'droid', 'deepseek', 'antigravity', 'muse', 'qwen', 'pi', 'omp', 'grok', 'opencode'];
+/** §4.2: the Mac's start sentences, each a named constant, byte for byte. */
+const NS_COPY_WORDS = {
+  START_PROJECT_GONE: 'That project is not open on your Mac any more. Nothing was started.',
+  START_FOLDER_GONE: 'That project’s folder is not there. Nothing was started.',
+  START_AGENT_GONE: 'That agent is not installed there. Nothing was started.',
+  START_MACHINE_AWAY: 'Tortie is not connected to that project’s machine. Nothing was started.',
+  START_INTERPRETER: 'That agent needs a program your Mac cannot find. Start it on your Mac to see why. Nothing was started.',
+  START_OFTEN: 'Your phone started several sessions just now. Wait a minute, then try again. Nothing was started.',
+  START_BUSY: 'Your Mac is starting another session. Nothing was started.',
+  START_STILL: 'Your Mac is still starting this session.',
+  START_FAILED: 'Your Mac could not start that session. If anything started, it is in Sessions.'
+};
+/** D8, NS5: what the offer and the act may never name: each starts or scans something. */
+const NS_STARTS_SOMETHING = ['listDetectedAgents', 'rescanAgents', 'getUserPath', 'installUserPath', 'resolveBinary', 'scanMachineAgents', 'spawn', 'spawnSync', 'exec', 'execSync', 'execFile', 'execFileSync', 'fork', 'setActiveSession'];
+/** NS6: a status setter or another lifecycle verb (X5's NOT_THE_DOORS, createSession excepted: it is the act). */
+const NS_NOT_THE_ACT = /^(?:killSession|restoreSession|restorePastSession|discardSession|removeSession|restartSession|renameSession|resumeInPlace|discard|restore|restart|rename|noteHookEvent|noteUserInput|applyDetectedStatus|setStatus|setSessionStatus|updateStatus|writeStatus|markStatus|setActiveSession)$/;
+
+/** A file an NS rule needs, or null with the rule failed by name and its owner. */
+function nsFile(path, id) {
+  if (existsSync(path)) return path;
+  fail(
+    id,
+    `${rel(path)} does not exist, so this rule read nothing. It is ${NS_OWNER} (build/p346/SPEC.md §7). ` +
+      'A gate that passed here would go green on the day the phone’s start does not exist.'
+  );
+  return null;
+}
+
+/** A plain object's own keys sorted, as JSON, so two rows compare whatever order they were written in. */
+const nsSorted = (o) => J(Object.fromEntries(Object.entries(o ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))));
+
+/** Every literal row of a table file: `{ id, method, path, … }` for each object literal holding an id and a path. */
+function nsTableRows(table) {
+  const rows = [];
+  for (const n of nodesOf(table)) {
+    if (!ts.isObjectLiteralExpression(n)) continue;
+    const row = {};
+    for (const p of n.properties) {
+      if (!ts.isPropertyAssignment(p) || memberName(p) === null) continue;
+      const v = bare(p.initializer);
+      row[memberName(p)] = ts.isStringLiteral(v) ? v.text : v.kind === ts.SyntaxKind.TrueKeyword ? true : v.kind === ts.SyntaxKind.FalseKeyword ? false : ts.isNumericLiteral(v) ? Number(v.text.replace(/_/g, '')) : null;
+    }
+    if (typeof row['id'] === 'string' && typeof row['path'] === 'string') rows.push({ node: n, row });
+  }
+  return rows;
+}
+
+/** A frozen or plain object literal a const is initialized with, as `{ name: initializer }`, or null. */
+function nsObjectOf(decl) {
+  let init = bare(decl?.initializer);
+  if (init !== undefined && ts.isCallExpression(init) && calleeName(init) === 'freeze') init = bare(init.arguments[0]);
+  if (init === undefined || !ts.isObjectLiteralExpression(init)) return null;
+  const out = {};
+  for (const p of init.properties) {
+    if (ts.isPropertyAssignment(p) && memberName(p) !== null) out[memberName(p)] = bare(p.initializer);
+    else if (ts.isShorthandPropertyAssignment(p)) out[p.name.text] = p.name;
+    else out['…'] = p;
+  }
+  return out;
+}
+
+/** The member `name` of the object a factory returns (a method, or a property holding a function), or null. */
+function nsMember(file, factory, name) {
+  const fn = oneFunction(file, factory);
+  if (fn === null) return null;
+  for (const n of descendantsOf(fn)) {
+    if (ts.isMethodDeclaration(n) && memberName(n) === name && n.body !== undefined) return n;
+    if (ts.isPropertyAssignment(n) && memberName(n) === name) {
+      const init = bare(n.initializer);
+      if (init !== undefined && (ts.isArrowFunction(init) || ts.isFunctionExpression(init))) return init;
+    }
+  }
+  return null;
+}
+
+/** Does `fn` compare `Object.keys(…).sort().join(…)` with exactly `keys` (a literal, or a const naming one)? */
+function nsComparesKeys(file, fn, keys) {
+  return descendantsOf(fn).some((n) => {
+    if (!ts.isBinaryExpression(n)) return false;
+    const op = n.operatorToken.kind;
+    if (op !== ts.SyntaxKind.EqualsEqualsEqualsToken && op !== ts.SyntaxKind.ExclamationEqualsEqualsToken) return false;
+    const sides = [n.left, n.right];
+    const k = sides.find((s) => /Object\.keys\(/.test(s.getText()) && /\.sort\(\)/.test(s.getText()) && /\.join\(/.test(s.getText()));
+    const other = sides.find((s) => s !== k);
+    if (k === undefined || other === undefined) return false;
+    let lit = bare(other);
+    if (ts.isIdentifier(lit)) lit = bare(constNamed(file, lit.text)?.initializer);
+    return lit !== undefined && ts.isStringLiteralLike(lit) && lit.text === keys;
+  });
+}
+
+/** How many functions reached from `fn` (through the file's own functions) read a value one character at a time. */
+function nsCharLoops(file, fn) {
+  const seen = new Set();
+  let loops = 0;
+  const walk = (f) => {
+    if (seen.has(f)) return;
+    seen.add(f);
+    if (descendantsOf(f).some((n) => n !== f && (ts.isForOfStatement(n) || ts.isForStatement(n) || ts.isWhileStatement(n)))) loops += 1;
+    for (const c of descendantsOf(f).filter((n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression))) {
+      const g = oneFunction(file, c.expression.text);
+      if (g !== null) walk(g);
+    }
+  };
+  walk(fn);
+  return loops;
+}
+
+/** Every function of the file reached from `fn` by a call through its own name, `fn` included. */
+function nsReach(file, fn) {
+  const seen = new Set();
+  const walk = (f) => {
+    if (seen.has(f)) return;
+    seen.add(f);
+    for (const c of descendantsOf(f).filter((n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression))) {
+      const g = oneFunction(file, c.expression.text);
+      if (g !== null) walk(g);
+    }
+  };
+  walk(fn);
+  return [...seen];
+}
+
+/**
+ * THE START BRANCH of the write path: where `parseStartBody(` is called, and
+ * the scope that holds the rest of the start's steps. When the call sits in an
+ * `if` on the route being start (inline), the scope is that `if`'s block; when
+ * it sits in a function of its own, that function. `shared` is true when the
+ * start shares the four verbs' one path (the call is in the handler itself).
+ */
+function nsStartScope(writes) {
+  const calls = callsOf(writes).filter((c) => calleeName(c) === 'parseStartBody');
+  const handler = writeHandlerOf(writes);
+  if (calls.length !== 1) return { calls, scope: null, handler, shared: false };
+  const call = calls[0];
+  for (let n = call.parent; n !== undefined; n = n.parent) {
+    if (ts.isIfStatement(n.parent) && n.parent.thenStatement === n && /'start'/.test(n.parent.expression.getText())) return { calls, scope: n, handler, shared: false };
+    if (ts.isFunctionLike(n)) {
+      if (handler !== null && n === handler) return { calls, scope: handler, handler, shared: true };
+      return { calls, scope: n, handler, shared: false };
+    }
+  }
+  return { calls, scope: null, handler, shared: false };
+}
+
+/** Is `node` inside the start branch (when the branch is not the shared path itself)? */
+function nsInStart(writes, node) {
+  const s = nsStartScope(writes);
+  return s.scope !== null && !s.shared && inside(node, s.scope);
+}
+
+// ---- NS1, the route ---------------------------------------------------------
+
+function nsRouteRule() {
+  const id = 'NS1';
+  const table = nsFile(NS_TABLE, id);
+  if (table !== null) {
+    const rows = nsTableRows(table);
+    const starts = rows.filter((r) => r.row.id === 'start');
+    const paths = rows.filter((r) => r.row.path === '/v1/start');
+    const want = { id: 'start', method: 'POST', path: '/v1/start', reads: false, windowOnly: false, signed: true };
+    checked(id, 2);
+    if (starts.length !== 1 || paths.length !== 1 || nsSorted(starts[0].row) !== nsSorted(want)) {
+      fail(id, `${rel(table)}: the start row is ${J(starts.map((s) => s.row))} (and ${String(paths.length)} row(s) name /v1/start); it is exactly ONE row ${J(want)}: a signed POST write through the one write path, alive outside any window (D1)`);
+    }
+  }
+  const contract = nsFile(AR_CONTRACT, id);
+  if (contract !== null) {
+    const routeIds = arLiteralStrings(constNamed(contract, 'POCKET_ROUTE_IDS'));
+    checked(id);
+    if (routeIds === null || routeIds.filter((r) => r === 'start').length !== 1 || routeIds[routeIds.length - 1] !== 'start') {
+      fail(id, `src/shared/ipc/pocket.ts: POCKET_ROUTE_IDS is ${J(routeIds)}; it gains 'start' once, last (D4, §4.1 item 1)`);
+    }
+    const writeIds = arLiteralStrings(constNamed(contract, 'POCKET_WRITE_ROUTE_IDS'));
+    checked(id);
+    if (J(writeIds) !== J(NS_WRITE_IDS)) fail(id, `src/shared/ipc/pocket.ts: POCKET_WRITE_ROUTE_IDS is ${J(writeIds)}; it is ${J(NS_WRITE_IDS)} in that order, so describePocketDoor names start's clause last (D4)`);
+    const legacy = arLiteralStrings(constNamed(contract, 'LEGACY_ALLOWED_ROUTES'));
+    checked(id);
+    if (legacy === null || legacy.includes('start')) fail(id, `src/shared/ipc/pocket.ts: LEGACY_ALLOWED_ROUTES is ${J(legacy)}; it never grows, and start is not in it, so a store that never allowed start serves the eleven and start WAITS for the Allow whose lines name it (D2, his answer 10)`);
+  }
+  const wire = nsFile(AR_WIRE, id);
+  if (wire !== null) {
+    const decl = constNamed(wire, 'WRITE_ROUTES');
+    const init = decl === null ? undefined : bare(decl.initializer);
+    const got = init !== undefined && ts.isArrayLiteralExpression(init) ? init.elements.map((e) => (ts.isStringLiteral(e) ? e.text : '?')) : null;
+    checked(id, 2);
+    if (got === null || got.filter((r) => r === 'start').length !== 1) fail(id, `${rel(wire)}: WRITE_ROUTES is ${J(got)}; it gains exactly 'start', so the door hands main a start only for its own id (§4.12)`);
+    const alias = declaredType(wire, 'DoorWriteRoute');
+    if (alias === null || !/'start'/.test(alias.getText())) fail(id, `${rel(wire)}: DoorWriteRoute ${alias === null ? 'is not declared' : `is ${J(squash(alias.getText()).slice(0, 120))}`}; it names 'start' (§4.12)`);
+  }
+  // The words, each in its one owner, each D3's.
+  const pairing = nsFile(AR_PAIRING, id);
+  if (pairing !== null) {
+    const clauses = nsObjectOf(constNamed(pairing, 'WRITE_CLAUSES'));
+    const start = clauses?.['start'];
+    checked(id);
+    if (start === undefined || !ts.isStringLiteralLike(start) || start.text !== NS_CLAUSE) {
+      fail(id, `${rel(pairing)}: WRITE_CLAUSES.start is ${start === undefined ? 'absent' : J(start.getText().slice(0, 100))}; it is ${J(NS_CLAUSE)}, the Allow line's words (D3)`);
+    }
+  }
+  if (existsSync(AR_LEDGER)) {
+    const ledger = arLoad(AR_LEDGER, id);
+    const rows = Array.isArray(ledger?.POCKET_ROUTE_LEDGER) ? ledger.POCKET_ROUTE_LEDGER : [];
+    const row = rows.find((r) => r.id === 'start');
+    checked(id);
+    if (row === undefined || row.clause !== NS_CLAUSE) fail(id, `${rel(AR_LEDGER)}: the start row's clause is ${J(row?.clause ?? null)}; it is WRITE_CLAUSES.start, ${J(NS_CLAUSE)} (D3, 333.12 D12)`);
+  } else {
+    fail(id, `${rel(AR_LEDGER)} does not exist, so the start row's clause was not read`);
+  }
+  if (contract !== null) {
+    const mod = arLoad(contract, id);
+    // POCKET_HONESTY_ADDED is the module's own (unexported), so it is read
+    // with the parser; the face's two tables are driven as loaded.
+    const added = nsObjectOf(constNamed(contract, 'POCKET_HONESTY_ADDED'));
+    const addedWords = added === null ? null : Object.fromEntries(Object.entries(added).map(([k, v]) => [k, v !== undefined && ts.isStringLiteralLike(v) ? v.text : null]));
+    const words = [
+      ['POCKET_HONESTY_ADDED', addedWords, { start: NS_CLAUSE }],
+      ['POCKET_NEW_ROUTE_WORDS', mod?.POCKET_NEW_ROUTE_WORDS, { start: NS_NEW_WORDS }]
+    ];
+    for (const [name, got, want] of words) {
+      checked(id);
+      if (J(got) !== J(want)) fail(id, `src/shared/ipc/pocket.ts: ${name} is ${J(got)}; it is exactly ${J(want)} (D3, §4.1 item 6)`);
+    }
+    checked(id);
+    if (mod?.POCKET_FACE_CLAUSES?.['start'] !== NS_FACE_CLAUSE) fail(id, `src/shared/ipc/pocket.ts: POCKET_FACE_CLAUSES.start is ${J(mod?.POCKET_FACE_CLAUSES?.['start'] ?? null)}; it is ${J(NS_FACE_CLAUSE)}, the face's Your phone can row (D3)`);
+    const keys = Object.keys(mod?.POCKET_FACE_CLAUSES ?? {});
+    checked(id);
+    if (keys[keys.length - 1] !== 'start') fail(id, `src/shared/ipc/pocket.ts: POCKET_FACE_CLAUSES's keys are ${J(keys)}; start is its last key (§4.1 item 6)`);
+    // No word of start's names Face ID: the Mac cannot verify it (317 D13, his answer 5).
+    for (const said of [NS_CLAUSE, NS_FACE_CLAUSE, NS_NEW_WORDS.title, NS_NEW_WORDS.sentence, addedWords?.['start'], mod?.POCKET_NEW_ROUTE_WORDS?.['start']?.sentence]) {
+      checked(id);
+      if (typeof said === 'string' && /face\s*id|touch\s*id|passcode|biometr/i.test(said)) fail(id, `a start word says ${J(said)}; no word names Face ID, which Start never asks (D20, his answer 5)`);
+    }
+  }
+}
+
+// ---- NS2, the answers --------------------------------------------------------
+
+function nsAnswerRule() {
+  const id = 'NS2';
+  const contract = nsFile(AR_CONTRACT, id);
+  if (contract !== null) {
+    const sessionWrites = arLiteralStrings(constNamed(contract, 'POCKET_SESSION_WRITE_IDS'));
+    checked(id);
+    if (J(sessionWrites) !== J(NS_SESSION_WRITES)) fail(id, `src/shared/ipc/pocket.ts: POCKET_SESSION_WRITE_IDS is ${J(sessionWrites)}; it is exactly ${J(NS_SESSION_WRITES)}, the writes that act on one named session (D4)`);
+    const alias = declaredType(contract, 'PocketSessionWriteId');
+    checked(id);
+    if (alias === null || !/POCKET_SESSION_WRITE_IDS/.test(alias.getText())) fail(id, 'src/shared/ipc/pocket.ts: PocketSessionWriteId is not declared from POCKET_SESSION_WRITE_IDS (D4)');
+    const answer = interfaceOf(contract, 'PocketWriteAnswer');
+    const verb = answer?.members.find((m) => memberName(m) === 'verb');
+    checked(id);
+    if (verb?.type === undefined || squash(verb.type.getText()) !== 'PocketSessionWriteId') {
+      fail(id, `src/shared/ipc/pocket.ts: PocketWriteAnswer.verb is ${J(verb?.type?.getText() ?? null)}; it is PocketSessionWriteId, so a frozen phone's closed Verb never meets 'start' (D4, gate:onlyadd A3)`);
+    }
+    const start = interfaceOf(contract, 'PocketStartAnswer');
+    checked(id, 2);
+    if (start === null) fail(id, 'src/shared/ipc/pocket.ts declares no interface PocketStartAnswer (D5)');
+    else {
+      const fields = start.members.map(memberName).sort();
+      if (J(fields) !== J(NS_ANSWER_FIELDS)) fail(id, `${where(contract, start)}: PocketStartAnswer holds ${J(fields)}; it holds exactly verb, write, outcome, reason, sentence and session, and nothing that could claim Face ID happened (D5)`);
+      const v = start.members.find((m) => memberName(m) === 'verb');
+      if (v?.type === undefined || squash(v.type.getText()) !== "'start'") fail(id, `${where(contract, start)}: PocketStartAnswer.verb is ${J(v?.type?.getText() ?? null)}; it is the literal 'start' (D5)`);
+    }
+    const reason = declaredType(contract, 'PocketStartReason');
+    const literals = reason !== null && ts.isTypeAliasDeclaration(reason) && ts.isUnionTypeNode(reason.type) ? reason.type.types.map((t) => (ts.isLiteralTypeNode(t) && ts.isStringLiteral(t.literal) ? t.literal.text : '?')).sort() : null;
+    checked(id);
+    if (J(literals) !== J(NS_REASONS)) fail(id, `src/shared/ipc/pocket.ts: PocketStartReason is ${J(literals)}; it is exactly ${J(NS_REASONS)} (D5)`);
+  }
+  // start-copy.ts: the nine sentences, byte for byte, importing nothing.
+  const copy = nsFile(NS_COPY, id);
+  if (copy !== null) {
+    checked(id);
+    if (specifiersOf(copy).length > 0) fail(id, `${rel(copy)} imports ${specifiersOf(copy).map((s) => s.text).join(', ')}; it imports nothing (§4.2)`);
+    for (const [name, want] of Object.entries(NS_COPY_WORDS)) {
+      const decl = constNamed(copy, name);
+      const init = bare(decl?.initializer);
+      const exported = decl !== null && (decl.parent?.parent?.modifiers ?? []).some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
+      checked(id);
+      if (!exported || init === undefined || !ts.isStringLiteralLike(init) || init.text !== want) {
+        fail(id, `${rel(copy)}: ${name} is ${decl === null ? 'not declared' : J(init?.getText().slice(0, 110) ?? null)}${exported ? '' : ', not exported'}; it is ${J(want)} (§4.2)`);
+      }
+    }
+  }
+  // startAnswer composes the six fields one by one.
+  const writes = nsFile(NS_WRITES, id);
+  if (writes !== null) {
+    const fn = oneFunction(writes, 'startAnswer');
+    checked(id);
+    if (fn === null) fail(id, `${rel(writes)} declares no single startAnswer; Start's answer is composed field by field in one function (D5, §4.9)`);
+    else {
+      // Every object it builds that names a verb holds exactly the six fields,
+      // each set on its own and none spread; what it hands JSON.stringify is
+      // one of them; and its verb is the literal start, directly or through a
+      // typed local that says so.
+      const objects = descendantsOf(fn).filter((n) => ts.isObjectLiteralExpression(n) && n.properties.some((p) => memberName(p) === 'verb'));
+      const stringified = descendantsOf(fn).filter((n) => ts.isCallExpression(n) && n.expression.getText() === 'JSON.stringify').map((c) => bare(c.arguments[0]));
+      checked(id, 3);
+      if (objects.length === 0) fail(id, `${where(writes, fn)}: startAnswer builds no object naming verb, so the six fields cannot be read`);
+      for (const o of objects) {
+        const names = o.properties.map((p) => (ts.isSpreadAssignment(p) ? '…' : memberName(p) ?? '?')).sort();
+        if (J(names) !== J(NS_ANSWER_FIELDS)) fail(id, `${where(writes, o)}: startAnswer's answer holds ${J(names)}; it holds exactly the six fields, each set on its own and none spread (D5)`);
+      }
+      if (stringified.length !== 1 || !objects.includes(stringified[0])) fail(id, `${where(writes, fn)}: startAnswer hands JSON.stringify ${J(stringified.map((s) => s?.getText().slice(0, 50) ?? null))}; it hands it ONE object literal of the six fields, composed field by field (D5)`);
+      const literalVerb = objects.some((o) => {
+        const v = bare(propOf(o, 'verb'));
+        return v !== undefined && ts.isStringLiteralLike(v) && v.text === 'start';
+      });
+      if (!literalVerb) fail(id, `${where(writes, fn)}: startAnswer never sets verb to the literal 'start' (D5)`);
+      for (const o of objects) {
+        const v = bare(propOf(o, 'verb'));
+        if (v === undefined || (ts.isStringLiteralLike(v) ? v.text !== 'start' : !(ts.isPropertyAccessExpression(v) && v.name.text === 'verb' && objects.some((x) => x !== o && ts.isStringLiteralLike(bare(propOf(x, 'verb'))))))) fail(id, `${where(writes, o)}: startAnswer's verb is ${J(v?.getText() ?? null)}; it is the literal 'start', or read back from the typed answer that sets it (D5)`);
+      }
+    }
+    // Every sentence handed to startAnswer is a named constant.
+    const fromCopy = nsImportedFrom(writes, /^@shared\/start-copy$/);
+    for (const call of callsOf(writes).filter((c) => calleeName(c) === 'startAnswer')) {
+      const arg = bare(call.arguments[3]);
+      checked(id);
+      if (!nsNamedSentence(arg, fromCopy)) fail(id, `${where(writes, call)}: startAnswer( is handed the sentence ${J(arg?.getText().slice(0, 70) ?? '(none)')}; every sentence the phone is told is a named constant of src/shared/start-copy.ts or POCKET_WRITE_SENTENCES, or the act's own (D3, §4.2)`);
+    }
+  }
+  const start = nsFile(NS_START, id);
+  if (start !== null) {
+    const fromCopy = nsImportedFrom(start, /^@shared\/start-copy$/);
+    /** A local function relaying a parameter named sentence is held at its callers, every one of which hands it a named sentence. */
+    const relayOk = (value) => {
+      if (!ts.isIdentifier(value) || value.text !== 'sentence') return false;
+      const r = resolveName(value);
+      if (r === null || r.kind !== 'param') return false;
+      const fn = r.param.parent;
+      const name = enclosingName(value);
+      const index = fn.parameters.indexOf(r.param);
+      if (name === null || index === -1) return false;
+      const calls = callsOf(start).filter((c) => ts.isIdentifier(c.expression) && c.expression.text === name);
+      for (const c of calls) {
+        checked(id);
+        if (!nsNamedSentence(c.arguments[index], fromCopy, true)) fail(id, `${where(start, c)}: ${name}( is handed the sentence ${J(c.arguments[index]?.getText().slice(0, 70) ?? '(none)')}; every start sentence is a named constant of src/shared/start-copy.ts or POCKET_WRITE_SENTENCES (§4.2)`);
+      }
+      return calls.length > 0;
+    };
+    for (const n of nodesOf(start)) {
+      let value;
+      if (ts.isPropertyAssignment(n) && memberName(n) === 'sentence') value = bare(n.initializer);
+      else if (ts.isShorthandPropertyAssignment(n) && n.name.text === 'sentence') value = n.name;
+      if (value === undefined) continue;
+      checked(id);
+      if (!nsNamedSentence(value, fromCopy, true) && !relayOk(value)) fail(id, `${where(start, n)}: a start sentence set as ${J(value.getText().slice(0, 70))}; it is a named constant of src/shared/start-copy.ts or POCKET_WRITE_SENTENCES (§4.2)`);
+    }
+  }
+}
+
+/** The names a file imports from a module whose specifier matches `re`. */
+function nsImportedFrom(file, re) {
+  const out = new Set();
+  for (const n of nodesOf(file)) {
+    if (!ts.isImportDeclaration(n) || !ts.isStringLiteral(n.moduleSpecifier) || !re.test(n.moduleSpecifier.text)) continue;
+    const b = n.importClause?.namedBindings;
+    if (b !== undefined && ts.isNamedImports(b)) for (const el of b.elements) out.add(el.name.text);
+  }
+  return out;
+}
+
+/** A named sentence: one start-copy imports, a POCKET_WRITE_SENTENCES member, null, or (relayed) an outcome's own `.sentence`. */
+function nsNamedSentence(expr, fromCopy, strict = false) {
+  const e = bare(expr);
+  if (e === undefined) return false;
+  if (e.kind === ts.SyntaxKind.NullKeyword) return true;
+  if (ts.isIdentifier(e)) return fromCopy.has(e.text) || (!strict && e.text === 'sentence');
+  if (ts.isPropertyAccessExpression(e)) return e.expression.getText() === 'POCKET_WRITE_SENTENCES' || (!strict && e.name.text === 'sentence');
+  if (ts.isConditionalExpression(e)) return nsNamedSentence(e.whenTrue, fromCopy, strict) && nsNamedSentence(e.whenFalse, fromCopy, strict);
+  return false;
+}
+
+// ---- NS3, the body -----------------------------------------------------------
+
+/** The hostile corpus of NS3 (D6, §5.1): every one is malformed. */
+function nsHostileBodies() {
+  const project = '0f8a5d2e-4b1c-4e7a-9c3d-2a6b8e1f0c94';
+  const write = 'a'.repeat(32);
+  const ok = { agent: 'claude', project, write };
+  const j = (o) => JSON.stringify(o);
+  const bodies = [
+    ['the agent missing', j({ project, write })],
+    ['the project missing', j({ agent: 'claude', write })],
+    ['the write id missing', j({ agent: 'claude', project })],
+    ['a fourth key, cwd', j({ ...ok, cwd: '/tmp' })],
+    ['a fourth key, args', j({ ...ok, args: ['--yolo'] })],
+    ['a fourth key, name', j({ ...ok, name: 'mine' })],
+    ['the agent shell (his answer 7)', j({ ...ok, agent: 'shell' })],
+    ['the agent SHELL', j({ ...ok, agent: 'SHELL' })],
+    ['the agent Claude, cased', j({ ...ok, agent: 'Claude' })],
+    ['the agent with a leading space', j({ ...ok, agent: ' claude' })],
+    ['the agent with a trailing space', j({ ...ok, agent: 'claude ' })],
+    ['the agent with a NUL', j({ ...ok, agent: 'claude\u0000' })],
+    ['an id only an agents.json overlay could hold', j({ ...ok, agent: 'my-agent' })],
+    ['the IDE capture-only id', j({ ...ok, agent: 'vscode' })],
+    ['the agent an empty string', j({ ...ok, agent: '' })],
+    ['the agent a number', j({ ...ok, agent: 7 })],
+    ['a 65-character project', j({ ...ok, project: 'a'.repeat(65) })],
+    ['a project holding /', j({ ...ok, project: '../etc/passwd' })],
+    ['a project holding .', j({ ...ok, project: 'a.b' })],
+    ['a project holding %', j({ ...ok, project: 'a%2Fb' })],
+    ['a project holding a space', j({ ...ok, project: 'a b' })],
+    ['an empty project', j({ ...ok, project: '' })],
+    ['a project that is a number', j({ ...ok, project: 12 })],
+    ['a 31-hex write id', j({ ...ok, write: 'a'.repeat(31) })],
+    ['a 33-hex write id', j({ ...ok, write: 'a'.repeat(33) })],
+    ['an uppercase write id', j({ ...ok, write: 'A'.repeat(32) })],
+    ['a write id that is not hex', j({ ...ok, write: 'g'.repeat(32) })],
+    ['an array', j([ok])],
+    ['a string', j('start')],
+    ['null', 'null'],
+    ['a number', '42'],
+    ['the agent a nested object', j({ ...ok, agent: { id: 'claude' } })],
+    ['the project a nested object', j({ ...ok, project: { id: project } })],
+    ['the write id a nested object', j({ ...ok, write: { id: write } })],
+    ['the agent an array', j({ ...ok, agent: ['claude'] })],
+    ['duplicate keys, the last agent shell', `{"agent":"claude","agent":"shell","project":"${project}","write":"${write}"}`],
+    ['duplicate keys, the last project a path', `{"agent":"claude","project":"${project}","project":"/Users/x","write":"${write}"}`],
+    // Phase 346's fix round: the two above put the bad value LAST, so the
+    // agent or project check refuses them anyway and taking onlyItsOwnBytes
+    // out left this rule green. Each body below is one JSON.parse reads as
+    // the honest object, so ONLY the byte count can refuse it.
+    ['duplicate keys, the FIRST agent shell and the last legal', `{"agent":"shell","agent":"claude","project":"${project}","write":"${write}"}`],
+    ['duplicate keys, the FIRST project a path and the last legal', `{"agent":"claude","project":"/etc","project":"${project}","write":"${write}"}`],
+    ['duplicate keys, the FIRST write id another and the last legal', `{"agent":"claude","project":"${project}","write":"${'b'.repeat(32)}","write":"${write}"}`],
+    ['a legal agent written with a \\u escape', `{"agent":"\\u0063laude","project":"${project}","write":"${write}"}`],
+    ['a legal project written with a \\u escape', `{"agent":"claude","project":"\\u0030${project.slice(1)}","write":"${write}"}`],
+    ['a 600-byte body, its project 560 characters', j({ ...ok, project: 'b'.repeat(560) })],
+    ['not JSON', '{agent:claude}'],
+    ['an empty body', ''],
+    ['a session id beside the project', j({ ...ok, session: 'ses_1' })]
+  ];
+  return { bodies, honest: ok };
+}
+
+function nsBodyRule() {
+  const id = 'NS3';
+  const writes = nsFile(NS_WRITES, id);
+  if (writes === null) return;
+  const fn = oneFunction(writes, 'parseStartBody');
+  checked(id);
+  if (fn === null) {
+    fail(id, `${rel(writes)} declares no single parseStartBody (D6, §4.9)`);
+    return;
+  }
+  checked(id);
+  if (!nsComparesKeys(writes, fn, NS_START_KEYS)) fail(id, `${where(writes, fn)}: parseStartBody does not compare the body's sorted keys with exactly ${J(NS_START_KEYS)}, so a fourth key (a path, a flag, a name) could ride along (D6, D15)`);
+  // ONE JSON.parse in the file, reached by parseStartBody through the one holder.
+  const parses = callsOf(writes).filter((c) => c.expression.getText() === 'JSON.parse');
+  checked(id);
+  if (parses.length !== 1) fail(id, `${rel(writes)} holds ${String(parses.length)} JSON.parse call(s); a write body is parsed ONCE, in objectOf (D6)`);
+  else {
+    const holder = enclosingName(parses[0]);
+    const reach = nsReach(writes, fn);
+    if (!reach.some((f) => inside(parses[0], f))) fail(id, `${where(writes, fn)}: parseStartBody does not reach the one JSON.parse (${String(holder)}), so it parses its body some other way (D6)`);
+  }
+  // The agent: compared with === against LAUNCHABLE_AGENT_IDS, imported and never re-spelled.
+  const imported = nodesOf(writes).some((n) => ts.isImportDeclaration(n) && ts.isStringLiteral(n.moduleSpecifier) && /agents\/registry$/.test(n.moduleSpecifier.text) && /\bLAUNCHABLE_AGENT_IDS\b/.test(n.getText()));
+  checked(id);
+  if (!imported) fail(id, `${rel(writes)} does not import LAUNCHABLE_AGENT_IDS from the agent registry; the agent is compared with the compiled launchable ids and nothing else (D6, his answer 7)`);
+  const reach = nsReach(writes, fn);
+  const comparesAgent = reach.some((f) => descendantsOf(f).some((n) => ts.isIdentifier(n) && n.text === 'LAUNCHABLE_AGENT_IDS') && descendantsOf(f).some((n) => ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken));
+  checked(id);
+  if (!comparesAgent) fail(id, `${where(writes, fn)}: nothing parseStartBody reaches compares the agent with === against LAUNCHABLE_AGENT_IDS (D6)`);
+  for (const s of codeStringsOf(writes)) {
+    checked(id);
+    if ([...NS_LAUNCHABLE, 'shell'].includes(s.text)) fail(id, `${where(writes, s.node)}: the write path spells the agent id ${J(s.text)}; the list is LAUNCHABLE_AGENT_IDS, imported, and no other (D6)`);
+  }
+  // The project and the write id, read one character at a time (no pattern: X2).
+  checked(id);
+  if (nsCharLoops(writes, fn) < 2) fail(id, `${where(writes, fn)}: parseStartBody reaches ${String(nsCharLoops(writes, fn))} function(s) reading a value one character at a time; it reads the write id and the project that way (D6, R1)`);
+  // DRIVEN: the shipping parse over the hostile corpus.
+  const mod = arLoad(writes, id);
+  const parse = mod?.parseStartBody;
+  checked(id);
+  if (typeof parse !== 'function') {
+    fail(id, `${rel(writes)} exports no parseStartBody to drive (§4.9: exported for the hostile client, the vectors and the tests)`);
+    return;
+  }
+  const { bodies, honest } = nsHostileBodies();
+  const accepted = (r, want) => r !== null && typeof r === 'object' && r.ok !== false && r.agent === want.agent && r.project === want.project && r.write === want.write;
+  const run = (text) => {
+    try {
+      return { r: parse(Buffer.from(text, 'utf8')) };
+    } catch (err) {
+      return { threw: err instanceof Error ? err.message : String(err) };
+    }
+  };
+  const honestRun = run(JSON.stringify(honest));
+  checked(id);
+  if (honestRun.threw !== undefined || !accepted(honestRun.r, honest)) fail(id, `parseStartBody refused the honest body ${J(honest)} (answered ${J(honestRun.r ?? honestRun.threw)}), so the corpus below proves a parse that refuses everything`);
+  // Swift's JSONEncoder escapes `/`, which no field can hold; the sorted body Swift writes is the honest one.
+  checked(id);
+  if (bodies.length < 30) fail(id, `the hostile corpus holds ${String(bodies.length)} bodies; it holds at least 30 (§5.1 NS3)`);
+  for (const [what, text] of bodies) {
+    checked(id);
+    const got = run(text);
+    if (got.threw !== undefined) {
+      fail(id, `parseStartBody threw on ${what} (${got.threw}); a body it cannot read answers malformed and never throws past the parse`);
+      continue;
+    }
+    const r = got.r;
+    const isAccepted = r !== null && typeof r === 'object' && r.ok !== false && typeof r.agent === 'string' && typeof r.project === 'string';
+    if (isAccepted) fail(id, `parseStartBody ACCEPTED ${what} as ${J(r).slice(0, 160)}; it is malformed (D6, D15, his answer 7)`);
+    // A malformed body still echoes a well-formed write id (§3.3 step 1).
+    let echo = null;
+    try {
+      const v = JSON.parse(text);
+      if (v !== null && typeof v === 'object' && !Array.isArray(v) && typeof v.write === 'string' && /^[0-9a-f]{32}$/.test(v.write)) echo = v.write;
+    } catch {
+      /* not JSON: nothing to echo */
+    }
+    if (!isAccepted && r !== null && typeof r === 'object' && 'write' in r && echo !== null && r.write !== echo) {
+      fail(id, `parseStartBody refused ${what} with write ${J(r.write)}; a refused body echoes its well-formed write id ${echo} (§3.3 step 1)`);
+    }
+  }
+}
+
+// ---- NS4, nothing from the phone but two ids -----------------------------------
+
+function nsInputRule() {
+  const id = 'NS4';
+  const file = nsFile(NS_START, id);
+  if (file === null) return;
+  const start = nsMember(file, 'createPocketStart', 'start');
+  checked(id);
+  if (start === null) {
+    fail(id, `${rel(file)}: createPocketStart answers no start member, so where the phone's two ids go cannot be read (D12)`);
+  } else {
+    const param = start.parameters[0];
+    const reads = { project: [], agent: [] };
+    const whole = [];
+    if (param !== undefined && ts.isIdentifier(param.name)) {
+      const pname = param.name.text;
+      for (const n of descendantsOf(start)) {
+        if (!ts.isIdentifier(n) || n.text !== pname || n === param.name || !isReference(n)) continue;
+        const p = n.parent;
+        if (ts.isPropertyAccessExpression(p) && p.expression === n && (p.name.text === 'project' || p.name.text === 'agent')) reads[p.name.text].push(p);
+        else whole.push(n);
+      }
+    } else if (param !== undefined && ts.isObjectBindingPattern(param.name)) {
+      for (const el of param.name.elements) {
+        const key = el.propertyName !== undefined ? el.propertyName.getText() : el.name.getText();
+        const local = el.name.getText();
+        if (key !== 'project' && key !== 'agent') whole.push(el);
+        for (const n of descendantsOf(start.body ?? start)) if (ts.isIdentifier(n) && n.text === local && isReference(n)) reads[key]?.push(n);
+      }
+    } else {
+      whole.push(start);
+    }
+    checked(id, 2);
+    for (const w of whole) fail(id, `${where(file, w)}: the phone's input is read as ${J(w.parent?.getText().slice(0, 60) ?? w.getText().slice(0, 60))}; only its project and its agent are read, each as an id (D15)`);
+    if (reads.project.length === 0) fail(id, `${where(file, start)}: start never reads the phone's project, so this rule read nothing`);
+    for (const r of reads.project) {
+      checked(id);
+      const p = r.parent;
+      const ok = ts.isBinaryExpression(p) && p.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken && /\.id$/.test((p.left === r ? p.right : p.left).getText());
+      if (!ok) fail(id, `${where(file, r)}: the phone's project is read as ${J(p.getText().slice(0, 80))}; it is read only as one side of an === against a listed project's id, so nothing it says reaches a path (D15)`);
+    }
+    for (const r of reads.agent) {
+      checked(id);
+      const p = r.parent;
+      const isEq = ts.isBinaryExpression(p) && p.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken;
+      const isIncludes = ts.isCallExpression(p) && calleeName(p) === 'includes' && p.arguments.length === 1 && p.arguments[0] === r;
+      const asInput = ts.isPropertyAssignment(p) && memberName(p) === 'agent' && ts.isObjectLiteralExpression(p.parent) && ts.isCallExpression(p.parent.parent) && calleeName(p.parent.parent) === 'composeStartInput';
+      if (!isEq && !isIncludes && !asInput) fail(id, `${where(file, r)}: the phone's agent is read as ${J(p.getText().slice(0, 80))}; it is read only in an === or includes( against the installed ids and as composeStartInput's agent (D15)`);
+    }
+  }
+  // composeStartInput: exactly quickCreate's keys, each from its one source.
+  const compose = oneFunction(file, 'composeStartInput');
+  checked(id);
+  if (compose === null) fail(id, `${rel(file)} declares no single composeStartInput (D13)`);
+  else {
+    const objects = descendantsOf(compose).filter((n) => ts.isObjectLiteralExpression(n) && n.properties.some((p) => ['name', 'projectPath', 'extraArgs', 'capture', 'projectMachineId', 'machineId'].includes(memberName(p) ?? '')));
+    const seen = new Set();
+    const resolveSource = (expr, depth = 0) => {
+      const e = bare(expr);
+      if (e === undefined || depth > 4) return e;
+      if (ts.isIdentifier(e)) {
+        // A name bound out of a destructuring is its own source (the field it
+        // names), so it is never followed back to the object it came from.
+        const r = resolveName(e);
+        if (r !== null && r.kind === 'var' && r.init !== null && ts.isIdentifier(r.decl.name)) return resolveSource(r.init, depth + 1);
+      }
+      return e;
+    };
+    /** Does the source read the project row's machine, directly or through ONE function of this file that does? */
+    const readsMachine = (e) => {
+      if (/\bmachineId\b/.test(e.getText())) return true;
+      if (ts.isCallExpression(e) && ts.isIdentifier(e.expression)) {
+        const fn = oneFunction(file, e.expression.text);
+        return fn !== null && /\.machineId\b/.test(codeOfNode(file, fn));
+      }
+      return false;
+    };
+    const SOURCES = {
+      name: (e) => descendantsOf(e).some((n) => ts.isCallExpression(n) && calleeName(n) === 'ordinalName'),
+      projectPath: (e) => /\.path$/.test(e.getText()),
+      projectMachineId: (e) => readsMachine(e),
+      machineId: (e) => readsMachine(e),
+      agent: (e) => /^(?:input\.)?agent$/.test(e.getText()),
+      extraArgs: (e) => descendantsOf(e).some((n) => ts.isCallExpression(n) && calleeName(n) === 'defaultLaunchArgs'),
+      capture: (e) => (e.kind === ts.SyntaxKind.TrueKeyword ? /captureDefaultFor\(/.test(codeOfNode(file, compose)) : descendantsOf(e).some((n) => ts.isCallExpression(n) && calleeName(n) === 'captureDefaultFor'))
+    };
+    for (const o of objects) {
+      for (const p of o.properties) {
+        checked(id);
+        if (ts.isSpreadAssignment(p)) {
+          const inner = descendantsOf(p.expression).filter((n) => ts.isObjectLiteralExpression(n));
+          if (inner.length === 0 && !ts.isConditionalExpression(bare(p.expression))) fail(id, `${where(file, p)}: composeStartInput spreads ${J(p.expression.getText().slice(0, 60))}; every key is written out (D13)`);
+          continue;
+        }
+        const name = memberName(p) ?? (ts.isShorthandPropertyAssignment(p) ? p.name.text : '?');
+        seen.add(name);
+        const value = ts.isShorthandPropertyAssignment(p) ? p.name : ts.isPropertyAssignment(p) ? p.initializer : null;
+        const test = SOURCES[name];
+        if (test === undefined) {
+          fail(id, `${where(file, p)}: composeStartInput sets ${name}; the input holds exactly name, projectPath, agent and, when they apply, projectMachineId, machineId, extraArgs and capture (D13)`);
+          continue;
+        }
+        const src = value === null ? undefined : resolveSource(value);
+        if (src === undefined || !test(src, p)) fail(id, `${where(file, p)}: composeStartInput's ${name} comes from ${J(src?.getText().slice(0, 70) ?? null)}; it comes from ${name === 'name' ? 'ordinalName(' : name === 'extraArgs' ? 'defaultLaunchArgs(' : name === 'capture' ? 'captureDefaultFor(' : name === 'agent' ? 'the agent the act chose' : 'the project row'} (D13)`);
+      }
+    }
+    checked(id);
+    for (const want of ['name', 'projectPath', 'agent']) if (!seen.has(want)) fail(id, `${where(file, compose)}: composeStartInput sets no ${want}; quickCreate's input always has it (D13)`);
+    // BOTH machine keys, each in a conditional spread under ONE remote
+    // condition that reads the project row's machine (the tab rule,
+    // sessions-slice.ts quickCreate's createSession). Phase 346's fix round:
+    // deleting the machineId spread left this rule green, and without it a
+    // remote project's start asks THIS Mac for a folder only the machine has.
+    const machineSpreads = { projectMachineId: [], machineId: [] };
+    for (const n of descendantsOf(compose)) {
+      if (!ts.isSpreadAssignment(n)) continue;
+      const cond = bare(n.expression);
+      if (cond === undefined || !ts.isConditionalExpression(cond)) continue;
+      const whenTrue = bare(cond.whenTrue);
+      const whenFalse = bare(cond.whenFalse);
+      if (whenTrue === undefined || !ts.isObjectLiteralExpression(whenTrue)) continue;
+      for (const p of whenTrue.properties) {
+        const key = memberName(p) ?? (ts.isShorthandPropertyAssignment(p) ? p.name.text : null);
+        if (key !== 'projectMachineId' && key !== 'machineId') continue;
+        const emptyElse = whenFalse !== undefined && ts.isObjectLiteralExpression(whenFalse) && whenFalse.properties.length === 0;
+        machineSpreads[key].push({ spread: n, cond: bare(cond.condition), emptyElse });
+      }
+    }
+    for (const key of ['projectMachineId', 'machineId']) {
+      checked(id);
+      if (machineSpreads[key].length !== 1) fail(id, `${where(file, compose)}: composeStartInput sets ${key} in ${String(machineSpreads[key].length)} conditional spread(s); quickCreate sets it once, for a project on a machine, and a remote start without it asks this Mac for a folder only the machine has (D13, the tab rule)`);
+      else if (!machineSpreads[key][0].emptyElse) fail(id, `${where(file, machineSpreads[key][0].spread)}: composeStartInput's ${key} spread does not fall back to {}; on this Mac the input carries no machine key at all (D13)`);
+    }
+    if (machineSpreads.projectMachineId.length === 1 && machineSpreads.machineId.length === 1) {
+      const a = machineSpreads.projectMachineId[0].cond;
+      const b = machineSpreads.machineId[0].cond;
+      checked(id);
+      if (a === undefined || b === undefined || a.getText() !== b.getText()) fail(id, `${where(file, machineSpreads.machineId[0].spread)}: projectMachineId is set under ${J(a?.getText() ?? null)} and machineId under ${J(b?.getText() ?? null)}; both are set under ONE remote condition, or a start names a machine for the project and not for the session (D13)`);
+      else {
+        // The condition reads the row's machine: directly, or through the const it names.
+        let readsRow = /\bmachineId\b|placeOfProject\(/.test(a.getText());
+        for (const n of [a, ...descendantsOf(a)]) {
+          if (readsRow || !ts.isIdentifier(n)) continue;
+          const r = resolveName(n);
+          if (r !== null && r.kind === 'var' && r.init !== null) {
+            const init = bare(r.init);
+            if (/\bmachineId\b|placeOfProject\(/.test(init.getText())) readsRow = true;
+            for (const m of [init, ...descendantsOf(init)]) {
+              if (readsRow || !ts.isIdentifier(m)) continue;
+              const r2 = resolveName(m);
+              if (r2 !== null && r2.kind === 'var' && r2.init !== null && /\bmachineId\b|placeOfProject\(/.test(r2.init.getText())) readsRow = true;
+            }
+          }
+        }
+        checked(id);
+        if (!readsRow) fail(id, `${where(file, machineSpreads.machineId[0].spread)}: the machine keys are set under ${J(a.getText())}, which reads nothing of the project row's machine; they are set exactly when the project is on a machine (D13)`);
+      }
+    }
+  }
+  // No key that could carry what the phone may never choose, anywhere in the module.
+  for (const n of nodesOf(file)) {
+    const key = (ts.isPropertyAssignment(n) || ts.isShorthandPropertyAssignment(n) || ts.isPropertySignature(n) || ts.isBindingElement(n)) && n.name !== undefined ? (n.propertyName ?? n.name).getText() : null;
+    if (key === null) continue;
+    checked(id);
+    if (['cwd', 'startAnyway', 'login', 'signIn'].includes(key)) fail(id, `${where(file, n)}: the start module names the key ${key}; the phone's start never sets a working folder, Start it anyway, a login or a sign-in (D13, D15)`);
+  }
+}
+
+// ---- NS5, the offer starts nothing ---------------------------------------------
+
+function nsOfferRule() {
+  const id = 'NS5';
+  const file = nsFile(NS_START, id);
+  if (file !== null) {
+    for (const n of nodesOf(file)) {
+      if (!ts.isIdentifier(n) || !NS_STARTS_SOMETHING.includes(n.text)) continue;
+      checked(id);
+      fail(id, `${where(file, n)}: the start module names ${n.text}; the offer and the act read what main already holds and start, scan or focus nothing (D8, D12)`);
+    }
+    for (const s of specifiersOf(file)) {
+      checked(id);
+      if (/child_process/.test(s.text)) fail(id, `${where(file, s.node)}: the start module imports ${s.text}; it starts no process of its own (D8)`);
+    }
+    const roots = [nsMember(file, 'createPocketStart', 'sessionsKey'), oneFunction(file, 'composeStartOffer'), oneFunction(file, 'localInstalledAgents')];
+    const names = ['sessionsKey', 'composeStartOffer', 'localInstalledAgents'];
+    roots.forEach((root, i) => {
+      checked(id);
+      if (root === null) {
+        fail(id, `${rel(file)}: ${names[i]} is not declared once, so whether it waits on anything cannot be read (D8)`);
+        return;
+      }
+      for (const fn of reachedFrom(root)) {
+        checked(id);
+        const isAsync = (fn.modifiers ?? []).some((m) => m.kind === ts.SyntaxKind.AsyncKeyword);
+        const awaits = descendantsOf(fn).filter((n) => ts.isAwaitExpression(n));
+        if (isAsync || awaits.length > 0) fail(id, `${where(file, fn)}: ${names[i]} reaches a function that is async or awaits; the offer is composed synchronously from what main already holds (D8)`);
+      }
+    });
+  }
+  // userPathNow: declared once, in resolve.ts, synchronous, writing nothing.
+  const decls = declarationsOf(sourcesUnder(join(ROOT, 'src')).filter((f) => readFileSync(f, 'utf8').includes('userPathNow')), 'userPathNow');
+  checked(id);
+  if (decls.length !== 1 || decls[0].file !== NS_RESOLVE) {
+    fail(id, `userPathNow is declared ${String(decls.length)} time(s) (${decls.map((d) => where(d.file, d.n)).join(', ') || 'nowhere'}); once, in src/main/tmux/resolve.ts (D8, §4.5)`);
+  } else {
+    const d = decls[0].n;
+    const fn = ts.isFunctionDeclaration(d) ? d : bare(d.initializer);
+    const isAsync = fn !== undefined && (fn.modifiers ?? []).some((m) => m.kind === ts.SyntaxKind.AsyncKeyword);
+    const writesSomething = fn !== undefined && descendantsOf(fn).some((n) => (ts.isBinaryExpression(n) && n.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && n.operatorToken.kind <= ts.SyntaxKind.LastAssignment) || ts.isPrefixUnaryExpression(n) || ts.isPostfixUnaryExpression(n) || ts.isAwaitExpression(n) || ts.isCallExpression(n));
+    checked(id);
+    if (fn === undefined || isAsync || writesSomething) fail(id, `${where(decls[0].file, d)}: userPathNow is ${fn === undefined ? 'not a function' : isAsync ? 'async' : 'more than a read of its slot'}; it answers the captured PATH and starts, awaits and writes nothing (D8, §4.5)`);
+  }
+}
+
+// ---- NS6, the act -------------------------------------------------------------------
+
+function nsActRule() {
+  const id = 'NS6';
+  const file = nsFile(NS_START, id);
+  if (file === null) return;
+  const start = nsMember(file, 'createPocketStart', 'start');
+  checked(id);
+  if (start === null) {
+    fail(id, `${rel(file)}: createPocketStart answers no start member (D12)`);
+    return;
+  }
+  const creates = callsOf(file).filter((c) => calleeName(c) === 'createSession');
+  checked(id);
+  if (creates.length !== 1 || !inside(creates[0], start)) {
+    fail(id, `${rel(file)} calls createSession( ${String(creates.length)} time(s)${creates.length === 1 ? ', outside start' : ''}; ONCE, in start, the one guarded create (D12)`);
+  }
+  const create = creates.find((c) => inside(c, start));
+  if (create !== undefined) {
+    // The order, through every function start reaches in this file.
+    const reach = reachedFrom(start);
+    const reachedCalls = (name) => reach.some((f) => descendantsOf(f).some((n) => ts.isCallExpression(n) && calleeName(n) === name && (f !== start || n.getStart() < create.getStart())));
+    for (const [what, names] of [
+      ['re-reads the project by id', ['listProjects']],
+      ['asks a machine’s readiness', ['machineReady']],
+      ['asks the agents installed there', ['localAgents', 'machineAgents', 'localInstalledAgents', 'machineAgentsView']],
+      ['composes quickCreate’s input', ['composeStartInput']],
+      ['reads the project’s sessions', ['listSessions']]
+    ]) {
+      checked(id);
+      if (!names.some(reachedCalls)) fail(id, `${where(file, start)}: start never ${what} (${names.join(' or ')}) before createSession(; the act re-reads all of it (D12)`);
+    }
+    // THE PRODUCTION READINESS (Phase 346's fix round): the function
+    // `machineReady` falls back to asks the row's confirmation, the signed-in
+    // context AND the machine's session feed, so a machine whose ssh stalled
+    // with its connection up is refused `machine` rather than started into.
+    const fallbacks = nodesOf(file).filter((n) => ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken && n.left.getText() === 'deps.machineReady');
+    checked(id);
+    const readyFn = fallbacks.length === 1 && ts.isIdentifier(bare(fallbacks[0].right)) ? oneFunction(file, bare(fallbacks[0].right).text) : null;
+    if (readyFn === null) fail(id, `${rel(file)}: machineReady does not fall back to ONE function of this module (deps.machineReady ?? <it>), so what production asks of a machine cannot be read (D7, D12)`);
+    else {
+      const asked = new Set(descendantsOf(readyFn).filter((n) => ts.isCallExpression(n)).map((n) => calleeName(n)));
+      for (const [want, why] of [
+        ['machineRowStatus', 'the row confirmed, the usable the ⌘T sheet reads'],
+        ['readyRemoteContext', 'signed in, with its program list read for this connection'],
+        ['machineFeedAnswering', 'the machine answering by the session verbs’ rule (the link answers and the last list completed), or a machine whose ssh stalled reads ready for as long as its connection stays up']
+      ]) {
+        checked(id);
+        if (!asked.has(want)) fail(id, `${where(file, readyFn)}: the production readiness never calls ${want}(; a machine is ready only with ${why} (D7, §3.1, the fix round)`);
+      }
+      // THE RULED ROUND: the feed's VALUE is the answer. Naming the call was not enough: the reverify's plants
+      // `machineFeedAnswering(id) || true`, the feed called and its answer dropped, and the offer composed
+      // without readiness each left this rule green. Every return of the readiness is `false` but ONE, the
+      // body's last statement, which is exactly `return machineFeedAnswering(<its parameter>)`.
+      const param = readyFn.parameters[0] !== undefined && ts.isIdentifier(readyFn.parameters[0].name) ? readyFn.parameters[0].name.text : null;
+      const returns = descendantsOf(readyFn).filter((n) => ts.isReturnStatement(n) && !insideNested(n, readyFn));
+      const body = readyFn.body !== undefined && ts.isBlock(readyFn.body) ? readyFn.body.statements : [];
+      const last = body.at(-1);
+      const isFeed = (e) => {
+        const c = bare(e);
+        return c !== undefined && ts.isCallExpression(c) && calleeName(c) === 'machineFeedAnswering' && c.arguments.length === 1 && param !== null && ts.isIdentifier(bare(c.arguments[0])) && bare(c.arguments[0]).text === param;
+      };
+      checked(id);
+      if (last === undefined || !ts.isReturnStatement(last) || last.expression === undefined || !isFeed(last.expression)) {
+        fail(id, `${where(file, readyFn)}: the production readiness does not END with return machineFeedAnswering(${param ?? '<its parameter>'}), so the feed's answer is not what it answers: a machine that stopped answering would read ready (§3.1, the ruled round)`);
+      }
+      for (const r of returns) {
+        if (r === last) continue;
+        checked(id);
+        const e = r.expression === undefined ? undefined : bare(r.expression);
+        if (e === undefined || e.kind !== ts.SyntaxKind.FalseKeyword) fail(id, `${where(file, r)}: the production readiness returns ${J(r.expression?.getText() ?? 'nothing')}; every return but its last is false, so nothing but the feed's answer can read ready (§3.1, the ruled round)`);
+      }
+    }
+    // THE RULED ROUND: the OFFER asks the same readiness. A machine place's `ready` in sessionsKey is
+    // `<place> === LOCAL_MACHINE_ID ? true : machineReady(<place>)`, so an offer cannot draw a stalled machine's
+    // projects as choosable while the act refuses them.
+    const key = nsMember(file, 'createPocketStart', 'sessionsKey');
+    checked(id);
+    if (key === null) fail(id, `${rel(file)}: createPocketStart answers no sessionsKey member, so how the offer reads a machine's readiness cannot be read (D7)`);
+    else {
+      const readies = descendantsOf(key).filter((n) => ts.isPropertyAssignment(n) && memberName(n) === 'ready');
+      const shaped = (init) => {
+        const c = bare(init);
+        if (c === undefined || !ts.isConditionalExpression(c)) return false;
+        const cond = bare(c.condition);
+        if (!ts.isBinaryExpression(cond) || cond.operatorToken.kind !== ts.SyntaxKind.EqualsEqualsEqualsToken || !ts.isIdentifier(bare(cond.left)) || bare(cond.right).getText() !== 'LOCAL_MACHINE_ID') return false;
+        const placeName = bare(cond.left).text;
+        const yes = bare(c.whenTrue);
+        const no = bare(c.whenFalse);
+        return yes.kind === ts.SyntaxKind.TrueKeyword && ts.isCallExpression(no) && calleeName(no) === 'machineReady' && no.arguments.length === 1 && ts.isIdentifier(bare(no.arguments[0])) && bare(no.arguments[0]).text === placeName;
+      };
+      checked(id);
+      if (readies.length !== 1 || !shaped(readies[0].initializer)) {
+        fail(id, `${where(file, key)}: the offer's place is ${readies.length === 1 ? `ready: ${J(readies[0].initializer.getText().slice(0, 80))}` : `given ready ${String(readies.length)} time(s)`}; it is ready: <place> === LOCAL_MACHINE_ID ? true : machineReady(<place>), once, so the offer asks what the act asks (D7, §3.1, the ruled round)`);
+      }
+    }
+    const stills = descendantsOf(start).filter((n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === 'still');
+    checked(id);
+    if (stills.length === 0 || !stills.some((s) => s.getStart() < create.getStart())) fail(id, `${where(file, start)}: start never asks still( before createSession(; the door's four asks are asked once more right before the act (D12)`);
+    const lastStill = stills.filter((s) => s.getStart() < create.getStart()).pop();
+    const composeCall = descendantsOf(start).find((n) => ts.isCallExpression(n) && calleeName(n) === 'composeStartInput');
+    if (lastStill !== undefined && composeCall !== undefined && composeCall.getStart() > lastStill.getStart()) fail(id, `${where(file, composeCall)}: composeStartInput( is called after the last still(; still( is the last ask before the act (D12)`);
+    // No await between the first read and the create.
+    for (const a of descendantsOf(start).filter((n) => ts.isAwaitExpression(n))) {
+      checked(id);
+      if (a.getStart() < create.getStart() && !inside(create, a)) fail(id, `${where(file, a)}: start awaits ${J(a.getText().slice(0, 60))} before createSession(; NOTHING is awaited from the first read to the create, so nothing it read can move under it (D12)`);
+    }
+  }
+  // Errors by code alone.
+  for (const n of nodesOf(file)) {
+    if (ts.isPropertyAccessExpression(n) && n.name.text === 'message') {
+      checked(id);
+      fail(id, `${where(file, n)} reads .message; a thrown create is told apart by isGmuxError( and its code ONLY (D12)`);
+    }
+  }
+  for (const clause of nodesOf(file).filter((n) => ts.isCatchClause(n) && n.variableDeclaration !== undefined && ts.isIdentifier(n.variableDeclaration.name))) {
+    const name = clause.variableDeclaration.name.text;
+    /** Every use of `id` in `scope` is isGmuxError's first argument or a `.code` read. */
+    const byCode = (scope, ident, skip) =>
+      descendantsOf(scope)
+        .filter((n) => ts.isIdentifier(n) && n.text === ident && n !== skip)
+        .every((u) => (ts.isCallExpression(u.parent) && calleeName(u.parent) === 'isGmuxError' && u.parent.arguments[0] === u) || (ts.isPropertyAccessExpression(u.parent) && u.parent.expression === u && u.parent.name.text === 'code'));
+    for (const use of descendantsOf(clause.block).filter((n) => ts.isIdentifier(n) && n.text === name)) {
+      checked(id);
+      const p = use.parent;
+      let ok = (ts.isCallExpression(p) && calleeName(p) === 'isGmuxError' && p.arguments[0] === use) || (ts.isPropertyAccessExpression(p) && p.expression === use && p.name.text === 'code');
+      // Handed to ONE function of this module whose parameter is read by code alone.
+      if (!ok && ts.isCallExpression(p) && ts.isIdentifier(p.expression) && p.arguments.includes(use)) {
+        const helper = oneFunction(file, p.expression.text);
+        const param = helper?.parameters[p.arguments.indexOf(use)];
+        if (param !== undefined && ts.isIdentifier(param.name)) ok = byCode(helper, param.name.text, param.name);
+      }
+      if (!ok) fail(id, `${where(file, use)}: the caught ${name} is read as ${J(p.getText().slice(0, 60))}; it is told apart by isGmuxError( and its code ONLY, never its text (D12)`);
+    }
+  }
+  checked(id);
+  if (!callsOf(file).some((c) => calleeName(c) === 'isGmuxError')) fail(id, `${rel(file)} never asks isGmuxError(, so a thrown create is told apart some other way or not at all (D12)`);
+  // No status setter, no other lifecycle verb, no log.
+  for (const c of callsOf(file)) {
+    const name = calleeName(c);
+    checked(id);
+    if (name !== null && NS_NOT_THE_ACT.test(name)) fail(id, `${where(file, c)} calls ${name}(; the phone's start creates and does nothing else: no status setter (refusal 5), no focus, no other lifecycle verb (D12)`);
+    const receiver = ts.isPropertyAccessExpression(c.expression) ? c.expression.expression.getText() : '';
+    if (/^(?:debug|info|warn|error|log)$/.test(name ?? '') && /log|console/i.test(receiver)) fail(id, `${where(file, c)}: the start module logs; it logs nothing, and the write path writes the one line (D12, D32)`);
+  }
+  for (const s of specifiersOf(file)) {
+    checked(id);
+    if (/(?:^|\/)log$/.test(s.text)) fail(id, `${where(file, s.node)}: the start module imports ${s.text}; it logs nothing (D12)`);
+  }
+}
+
+// ---- NS7, the limits, declared once ---------------------------------------------
+
+function nsLimitsRule() {
+  const id = 'NS7';
+  const writes = nsFile(NS_WRITES, id);
+  const all = sourcesUnder(join(ROOT, 'src'));
+  for (const [name, want] of [['START_RATE_MAX', 6], ['START_RATE_WINDOW_MS', 60_000]]) {
+    const decls = declarationsOf(all.filter((f) => readFileSync(f, 'utf8').includes(name)), name);
+    checked(id, 2);
+    if (decls.length !== 1 || decls[0].file !== NS_WRITES) {
+      fail(id, `${name} is declared ${String(decls.length)} time(s) (${decls.map((d) => where(d.file, d.n)).join(', ') || 'nowhere'}); once, in src/main/pocket/writes.ts (D16)`);
+      continue;
+    }
+    const init = bare(decls[0].n.initializer);
+    if (init === undefined || !ts.isNumericLiteral(init) || Number(init.text.replace(/_/g, '')) !== want) fail(id, `${where(NS_WRITES, decls[0].n)}: ${name} is ${J(init?.getText() ?? null)}; it is ${String(want)} (D16)`);
+    const reads = referencesOf(NS_WRITES, name);
+    checked(id);
+    if (reads.length !== 1) fail(id, `${rel(NS_WRITES)} reads ${name} ${String(reads.length)} time(s); once, at the rate's one test (D16)`);
+  }
+  if (writes !== null) {
+    const decls = declarationsOf([writes], 'startInFlight');
+    checked(id);
+    if (decls.length !== 1) fail(id, `${rel(writes)} declares startInFlight ${String(decls.length)} time(s); ONE start in flight per Mac is a claim of its own (D16)`);
+    for (const c of callsOf(writes)) {
+      if (!ts.isPropertyAccessExpression(c.expression) || c.expression.expression.getText() !== 'sessionsInFlight') continue;
+      checked(id);
+      const arg = c.arguments[0];
+      if (nsInStart(writes, c) || (arg !== undefined && (ts.isStringLiteralLike(arg) || /start/i.test(arg.getText())))) fail(id, `${where(writes, c)}: the start's claim is made through sessionsInFlight (${J(c.getText().slice(0, 60))}); startInFlight is a separate claim and never a key inside the session set (D16)`);
+    }
+  }
+  const limits = existsSync(NS_LIMITS) ? arLoad(NS_LIMITS, id) : null;
+  checked(id);
+  if (limits?.POCKET_WRITE_BODY_CAPS?.start !== 512) fail(id, `${rel(NS_LIMITS)}: POCKET_WRITE_BODY_CAPS.start is ${J(limits?.POCKET_WRITE_BODY_CAPS?.start ?? null)}; it is 512, about three and a half times the worst legal body (D6)`);
+  for (const [name, want] of [['POCKET_START_PROJECTS_MAX', 200], ['POCKET_START_AGENTS_MAX', 64]]) {
+    const decls = declarationsOf(all.filter((f) => readFileSync(f, 'utf8').includes(name)), name);
+    checked(id, 2);
+    if (decls.length !== 1 || decls[0].file !== AR_CONTRACT) {
+      fail(id, `${name} is declared ${String(decls.length)} time(s) (${decls.map((d) => where(d.file, d.n)).join(', ') || 'nowhere'}); once, in src/shared/ipc/pocket.ts (D7)`);
+      continue;
+    }
+    const init = bare(decls[0].n.initializer);
+    if (init === undefined || !ts.isNumericLiteral(init) || Number(init.text) !== want) fail(id, `${where(AR_CONTRACT, decls[0].n)}: ${name} is ${J(init?.getText() ?? null)}; it is ${String(want)} (D7)`);
+    const of = existsSync(NS_ROUTES) ? oneFunction(NS_ROUTES, 'pocketStartOf') : null;
+    checked(id);
+    if (of === null || !reachedFrom(of).some((f) => descendantsOf(f).some((n) => ts.isIdentifier(n) && n.text === name && isReference(n)))) fail(id, `${rel(NS_ROUTES)}: pocketStartOf does not read ${name}; the key's bound is the contract's constant, read and never re-spelled (D7, D26)`);
+    else if (descendantsOf(of).some((n) => ts.isNumericLiteral(n) && Number(n.text) === want)) fail(id, `${where(NS_ROUTES, of)}: pocketStartOf spells ${String(want)}; it reads ${name} (D7)`);
+  }
+}
+
+// ---- NS8, the start branch's order -------------------------------------------------
+
+function nsOrderRule() {
+  const id = 'NS8';
+  const writes = nsFile(NS_WRITES, id);
+  if (writes === null) return;
+  const s = nsStartScope(writes);
+  checked(id);
+  if (s.scope === null) {
+    fail(id, `${rel(writes)}: parseStartBody( is called ${String(s.calls.length)} time(s)${s.calls.length === 1 ? ' in no scope this rule can read' : ''}; ONCE, in the write path's start branch (§3.3)`);
+    return;
+  }
+  const scope = s.scope;
+  const nodes = descendantsOf(scope);
+  const callsNamed = (name, recv = null) => nodes.filter((n) => ts.isCallExpression(n) && calleeName(n) === name && (recv === null || (ts.isPropertyAccessExpression(n.expression) && recv.test(n.expression.expression.getText()))));
+  const ifNaming = (re) => nodes.filter((n) => ts.isIfStatement(n) && re.test(codeOfNode(writes, n.expression)));
+  const startClaim = nodes.find((n) => ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && /(?:^|\.)startInFlight$/.test(n.left.getText()) && n.right.kind === ts.SyntaxKind.TrueKeyword);
+  const lastChecks = ifNaming(/\bstillPaired\(/);
+  const lastCheck = lastChecks.length === 1 ? lastChecks[0] : undefined;
+  const act = callsNamed('startSettled')[0];
+  const outcome = nodes.find((n) => ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isPropertyAccessExpression(n.left) && n.left.name.text === 'acted' && n.right.kind === ts.SyntaxKind.TrueKeyword);
+  // The one log line: a log call in the branch, or a call of the file's ONE
+  // function that holds the write path's log call (shared with every verb).
+  const isLog = (n) => ts.isCallExpression(n) && /^(?:debug|info|warn|error|log)$/.test(calleeName(n) ?? '') && ts.isPropertyAccessExpression(n.expression) && /log/i.test(n.expression.expression.getText());
+  let innerLog;
+  const logCall = nodes.find((n) => {
+    if (isLog(n)) {
+      innerLog = n;
+      return true;
+    }
+    if (!ts.isCallExpression(n) || !ts.isIdentifier(n.expression)) return false;
+    const helper = oneFunction(writes, n.expression.text);
+    const held = helper === null ? undefined : descendantsOf(helper).find(isLog);
+    if (held === undefined) return false;
+    innerLog = held;
+    return true;
+  });
+  const rateTest = nodes.find((n) => ts.isIdentifier(n) && n.text === 'START_RATE_MAX' && isReference(n));
+  const order = [
+    ['the strict parse (parseStartBody)', s.calls[0]],
+    ['the ledger’s read (ledger.get)', callsNamed('get', /ledger/i)[0]],
+    ['this phone’s write in flight (phonesInFlight.has)', callsNamed('has', /phonesInFlight/)[0]],
+    ['the start in flight on this Mac (startInFlight)', ifNaming(/\bstartInFlight\b/)[0]],
+    ['the rate (START_RATE_MAX)', rateTest],
+    ['the phone’s claim (phonesInFlight.add)', callsNamed('add', /phonesInFlight/)[0]],
+    ['the start’s claim (startInFlight = true)', startClaim],
+    ['the pending entry (ledger.set)', callsNamed('set', /ledger/i)[0]],
+    ['the last check (stillPaired)', lastCheck],
+    ['the act (startSettled)', act],
+    ['the outcome recorded (.acted = true)', outcome],
+    ['the one log line', logCall]
+  ];
+  checked(id, order.length);
+  for (const [what, node] of order) if (node === undefined) fail(id, `${where(writes, scope)}: the start branch names no ${what} (§3.3)`);
+  if (lastChecks.length !== 1) fail(id, `${where(writes, scope)}: the start branch makes ${String(lastChecks.length)} checks that ask stillPaired(; it makes ONE, the last before the act (§3.3 step 4)`);
+  const present = order.filter(([, n]) => n !== undefined);
+  for (let i = 1; i < present.length; i += 1) {
+    if (present[i - 1][1].getStart() >= present[i][1].getStart()) fail(id, `${where(writes, present[i][1])}: ${present[i][0]} comes before ${present[i - 1][0]}; the order is parse, ledger, phone claim, start claim, rate, pending entry, last check, act, outcome, log (§3.3)`);
+  }
+  if (lastCheck !== undefined) {
+    checked(id, 3);
+    if (!/routeServed\(\s*'start'\s*\)|routeServed\(\s*verb\s*\)/.test(codeOfNode(writes, lastCheck.expression))) fail(id, `${where(writes, lastCheck)}: the start's last check does not ask routeServed for start; a start a person has not allowed is never acted (D2)`);
+    const then = lastCheck.thenStatement;
+    const ret = ts.isReturnStatement(then) ? then : ts.isBlock(then) && then.statements.length === 1 && ts.isReturnStatement(then.statements[0]) ? then.statements[0] : null;
+    const objs = ret === null ? [] : returnedObjects(ret.expression);
+    if (objs.length !== 1 || bare(propOf(objs[0], 'status'))?.getText() !== '404') fail(id, `${where(writes, lastCheck)}: the start's last check refuses with something other than one return of status 404; nothing was done (§3.3 step 4)`);
+    const list = ts.isBlock(lastCheck.parent) ? lastCheck.parent.statements : null;
+    const next = list === null ? undefined : list[list.indexOf(lastCheck) + 1];
+    if (act === undefined || next === undefined || !inside(act, next)) fail(id, `${where(writes, lastCheck)}: the statement right after the start's last check does not start the act (startSettled); nothing sits between the two (§3.3 step 4)`);
+    else if (descendantsOf(next).some((n) => ts.isAwaitExpression(n) && n.getStart() < act.getStart())) fail(id, `${where(writes, next)}: something is awaited inside the act's statement before startSettled( is called`);
+  }
+  // startSettled calls the act it is handed before anything is awaited.
+  const settle = oneFunction(writes, 'startSettled');
+  checked(id);
+  if (settle === null) fail(id, `${rel(writes)} declares no single startSettled; the act is handed to it and a rejection is failed START_FAILED (§3.3 step 5)`);
+  else {
+    const pname = settle.parameters[0] !== undefined && ts.isIdentifier(settle.parameters[0].name) ? settle.parameters[0].name.text : null;
+    const call = pname === null ? undefined : descendantsOf(settle).find((m) => ts.isCallExpression(m) && ts.isIdentifier(m.expression) && m.expression.text === pname);
+    if (call === undefined || descendantsOf(settle).some((m) => ts.isAwaitExpression(m) && m.getStart() < call.getStart())) fail(id, `${where(writes, settle)}: startSettled( does not call the act it is handed before anything is awaited (§3.3 step 5)`);
+    if (!descendantsOf(settle).some((m) => ts.isCatchClause(m) || (ts.isCallExpression(m) && calleeName(m) === 'catch'))) fail(id, `${where(writes, settle)}: startSettled( catches nothing, so a rejected act throws past the write path (§3.3 step 5)`);
+  }
+  // Every claim released in the finally of the try that holds the act.
+  const tryOfAct = (() => {
+    for (let n = act; n !== undefined && n !== scope; n = n.parent) if (ts.isTryStatement(n.parent) && n.parent.tryBlock === n) return n.parent;
+    return null;
+  })();
+  checked(id, 2);
+  const fin = tryOfAct?.finallyBlock === undefined ? '' : codeOfNode(writes, tryOfAct.finallyBlock);
+  if (!/phonesInFlight\.delete\(/.test(fin)) fail(id, `${where(writes, scope)}: the phone's claim is not released in the finally of the try that holds the start's act (§3.3 step 7)`);
+  if (!/\bstartInFlight\s*=\s*false\b/.test(fin)) fail(id, `${where(writes, scope)}: the start's claim is not released (startInFlight = false) in the finally of the try that holds the act (§3.3 step 7)`);
+  // The log line: the outcome, and the session its one field; never the project, the agent or the write id.
+  if (logCall !== undefined && logCall !== innerLog) {
+    // Through the shared helper: what the branch hands it names the verb, the
+    // outcome and the new session's id, and never the project, the agent, the
+    // write id, a sentence or the body.
+    checked(id, 2);
+    for (const arg of logCall.arguments) {
+      const text = arg.getText();
+      if (/\bproject\b|\bagent\b|\.write\b|\bsentence\b|\bbody\b|\bparsed\b(?!\.)/.test(text) && !/session/.test(text)) fail(id, `${where(writes, logCall)}: the start's line is handed ${J(text.slice(0, 60))}; it is handed the verb, the outcome word and the new session's id, never the project, the agent, the write id or a sentence (D32)`);
+    }
+    const first = bare(logCall.arguments[0]);
+    if (first === undefined || !ts.isStringLiteralLike(first) || first.text !== 'start') fail(id, `${where(writes, logCall)}: the start's line names the verb ${J(logCall.arguments[0]?.getText() ?? null)}; it says start (D32)`);
+  }
+  if (innerLog !== undefined) {
+    checked(id, 2);
+    const [message, field, ...rest] = innerLog.arguments;
+    const spans = message !== undefined && ts.isTemplateExpression(message) ? message.templateSpans.map((x) => x.expression.getText()) : [];
+    const head = message !== undefined && ts.isTemplateExpression(message) ? message.head.text : message !== undefined && ts.isStringLiteralLike(message) ? message.text : '';
+    if (!/^the phone's /.test(head) || spans.some((x) => !/\b(?:outcome|verb)$/.test(x))) fail(id, `${where(writes, innerLog)}: the start's line interpolates ${J(spans)}; it says "the phone's start: <outcome>" and nothing else (D32)`);
+    const fields = field === undefined ? [] : returnedObjects(field);
+    if (rest.length > 0 || fields.length !== 1 || fields[0].properties.length !== 1 || propOf(fields[0], 'session') === undefined) fail(id, `${where(writes, innerLog)}: the start's line carries ${J(field?.getText().slice(0, 60) ?? '(none)')}; its one field is the new session's id (D32)`);
+  }
+}
+
+// ---- NS9, the key -------------------------------------------------------------------
+
+/** The hostile values of NS9 (D9, D26): every one answers undefined. */
+function nsHostileKeys() {
+  const place = { id: 'local', ready: true, read: true, agents: ['claude'] };
+  const agent = { id: 'claude', name: 'Claude Code', icon: 'claude', danger: null };
+  const project = { id: 'p1', label: 'app', machine: null, folder: null, place: 'local' };
+  const offer = { state: 'offered', projects: [project], places: [place], agents: [agent], chosen: 'p1', defaultAgent: 'claude' };
+  const many = Array.from({ length: 201 }, (_, i) => ({ ...project, id: `p${String(i)}` }));
+  return {
+    offer,
+    hostile: [
+      ['an unknown state', { state: 'maybe' }],
+      ['a project naming an unlisted place', { ...offer, projects: [{ ...project, place: 'mac-pro' }] }],
+      ['201 projects', { ...offer, projects: many, chosen: 'p0' }],
+      ['a chosen project not listed', { ...offer, chosen: 'p9' }],
+      ['a defaultAgent not listed', { ...offer, defaultAgent: 'codex' }],
+      ['a number where a string is (a project id)', { ...offer, projects: [{ ...project, id: 7 }], chosen: null }],
+      ['a number where a string is (an agent name)', { ...offer, agents: [{ ...agent, name: 7 }] }],
+      ['a place naming an agent with no row', { ...offer, places: [{ ...place, agents: ['claude', 'codex'] }] }],
+      ['65 agents', { ...offer, agents: Array.from({ length: 65 }, (_, i) => ({ ...agent, id: `a${String(i)}` })), places: [{ ...place, agents: [] }], defaultAgent: null }],
+      ['ready not a boolean', { ...offer, places: [{ ...place, ready: 'yes' }] }],
+      ['the projects not a list', { ...offer, projects: { p1: project } }],
+      ['null', null],
+      ['a string', 'offered'],
+      ['an array', [offer]],
+      ['two projects with one id', { ...offer, projects: [project, { ...project }] }],
+      ['an offer with no places list', { ...offer, places: undefined }]
+    ],
+    // RE-COMPOSED, never passed through (§4.8: "every string clipped"): the
+    // answer is undefined or the same offer with the hostile part gone.
+    recomposed: [
+      ['waiting with an extra key', { state: 'waiting', projects: [] }, (r) => J(r) === J({ state: 'waiting' })],
+      ['a 300-character label', { ...offer, projects: [{ ...project, label: 'x'.repeat(300) }] }, (r) => typeof r?.projects?.[0]?.label === 'string' && [...r.projects[0].label].length <= 200],
+      ['a 300-character agent name', { ...offer, agents: [{ ...agent, name: 'y'.repeat(300) }] }, (r) => typeof r?.agents?.[0]?.name === 'string' && [...r.agents[0].name].length <= 200],
+      ['an offer carrying a path', { ...offer, path: '/Users/x' }, (r) => r?.path === undefined],
+      ['a project carrying its path', { ...offer, projects: [{ ...project, path: '/Users/x/app' }] }, (r) => r?.projects?.[0]?.path === undefined]
+    ]
+  };
+}
+
+/** NS9: the invariants every answer pocketStartOf gives must hold (D7, D26). */
+function nsOfferInvariant(r) {
+  if (r === undefined) return null;
+  if (r === null || typeof r !== 'object' || Array.isArray(r)) return 'not an object';
+  if (r.state === 'waiting') return J(Object.keys(r)) === J(['state']) ? null : `waiting carries ${J(Object.keys(r))}`;
+  if (r.state !== 'offered') return `state ${J(r.state)}`;
+  if (J(Object.keys(r).sort()) !== J(['agents', 'chosen', 'defaultAgent', 'places', 'projects', 'state'])) return `keys ${J(Object.keys(r).sort())}`;
+  if (!Array.isArray(r.projects) || r.projects.length > 200 || !Array.isArray(r.agents) || r.agents.length > 64 || !Array.isArray(r.places) || r.places.length > 201) return 'a list missing or over its bound';
+  const placeIds = new Set(r.places.map((x) => x?.id));
+  const agentIds = new Set(r.agents.map((x) => x?.id));
+  const projectIds = new Set(r.projects.map((x) => x?.id));
+  const str = (s) => typeof s === 'string' && [...s].length <= 200;
+  for (const x of r.projects) if (!str(x?.id) || !str(x?.label) || !(x.machine === null || str(x.machine)) || !(x.folder === null || str(x.folder)) || !placeIds.has(x.place) || J(Object.keys(x).sort()) !== J(['folder', 'id', 'label', 'machine', 'place'])) return `project ${J(x).slice(0, 80)}`;
+  for (const x of r.places) if (!str(x?.id) || typeof x.ready !== 'boolean' || typeof x.read !== 'boolean' || !Array.isArray(x.agents) || x.agents.some((a) => !agentIds.has(a)) || J(Object.keys(x).sort()) !== J(['agents', 'id', 'read', 'ready'])) return `place ${J(x).slice(0, 80)}`;
+  for (const x of r.agents) if (!str(x?.id) || !str(x?.name) || !str(x?.icon) || !(x.danger === null || str(x.danger)) || J(Object.keys(x).sort()) !== J(['danger', 'icon', 'id', 'name'])) return `agent ${J(x).slice(0, 80)}`;
+  if (!(r.chosen === null || projectIds.has(r.chosen))) return `chosen ${J(r.chosen)}`;
+  if (!(r.defaultAgent === null || agentIds.has(r.defaultAgent))) return `defaultAgent ${J(r.defaultAgent)}`;
+  return null;
+}
+
+function nsKeyRule() {
+  const id = 'NS9';
+  const routes = nsFile(NS_ROUTES, id);
+  if (routes === null) return;
+  const of = oneFunction(routes, 'pocketStartOf');
+  checked(id);
+  if (of === null) {
+    fail(id, `${rel(routes)} declares no single pocketStartOf; the key is re-composed field by field before it is answered (D26, §4.8)`);
+    return;
+  }
+  const member = returnedMethod(routes, 'createPocketRoutes', 'sessions');
+  checked(id);
+  if (member === null) fail(id, `${rel(routes)}: createPocketRoutes answers no sessions member (§4.8)`);
+  else {
+    const startReads = descendantsOf(member).filter((n) => ts.isCallExpression(n) && /^facts\.start\?\.\(\)$/.test(squash(n.getText())));
+    const ofCalls = descendantsOf(member).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'pocketStartOf');
+    checked(id, 2);
+    if (startReads.length !== 1 || ofCalls.length !== 1 || !inside(startReads[0], ofCalls[0])) fail(id, `${where(routes, member)}: sessions reads facts.start?.() ${String(startReads.length)} time(s) and calls pocketStartOf( ${String(ofCalls.length)} time(s); ONCE, the read handed to pocketStartOf( (D26, §4.8)`);
+    const objs = ownReturnsOf(member).flatMap((r) => (r.expression === undefined ? [] : returnedObjects(r.expression)));
+    for (const o of objs) {
+      checked(id);
+      const last = o.properties[o.properties.length - 1];
+      if (last === undefined || !ts.isSpreadAssignment(last) || !/\bstart\b/.test(last.getText())) fail(id, `${where(routes, o)}: the sessions answer's last key is ${J(last?.getText().slice(0, 60) ?? null)}; the start key is spread last, and only when the facts answered one (§4.8)`);
+    }
+    if (objs.length === 0) fail(id, `${where(routes, member)}: sessions returns no object literal this rule can read`);
+  }
+  // DRIVEN: the shipping pocketStartOf over the honest key and the hostile ones.
+  const mod = arLoad(routes, id);
+  const fn = mod?.pocketStartOf;
+  checked(id);
+  if (typeof fn !== 'function') {
+    fail(id, `${rel(routes)} exports no pocketStartOf to drive (§4.8)`);
+    return;
+  }
+  const { offer, hostile, recomposed } = nsHostileKeys();
+  const call = (v) => {
+    try {
+      return { r: fn(v) };
+    } catch (err) {
+      return { threw: err instanceof Error ? err.message : String(err) };
+    }
+  };
+  checked(id, 2);
+  const waiting = call({ state: 'waiting' });
+  if (waiting.threw !== undefined || J(waiting.r) !== J({ state: 'waiting' })) fail(id, `pocketStartOf({ state: 'waiting' }) answered ${J(waiting.r ?? waiting.threw)}; it answers { state: 'waiting' } (D9)`);
+  const whole = call(offer);
+  if (whole.threw !== undefined || whole.r?.state !== 'offered' || J(whole.r?.projects?.map((p) => p.id)) !== J(['p1']) || whole.r?.chosen !== 'p1' || whole.r?.defaultAgent !== 'claude') fail(id, `pocketStartOf refused or reshaped a whole offer (${J(whole.r ?? whole.threw).slice(0, 160)}); the hostile values below would prove a function that answers nothing (D26)`);
+  checked(id);
+  if (call(undefined).r !== undefined) fail(id, 'pocketStartOf(undefined) answered something; a facts with no start answers no key (D9)');
+  checked(id);
+  const bad = nsOfferInvariant(whole.r);
+  if (bad !== null) fail(id, `pocketStartOf's answer to a whole offer breaks the offer's shape (${bad}) (D7)`);
+  checked(id);
+  if (hostile.length + recomposed.length < 15) fail(id, `NS9's hostile values number ${String(hostile.length + recomposed.length)}; at least 15 (§5.1)`);
+  for (const [what, value] of hostile) {
+    checked(id);
+    const got = call(value);
+    if (got.threw !== undefined) fail(id, `pocketStartOf threw on ${what} (${got.threw}); it answers undefined, and the sessions answer never fails over its key (D26)`);
+    else if (got.r !== undefined) fail(id, `pocketStartOf answered ${what} with ${J(got.r).slice(0, 140)}; it answers undefined, so a malformed offer reads as absent (D26)`);
+  }
+  for (const [what, value, gone] of recomposed) {
+    checked(id);
+    const got = call(value);
+    if (got.threw !== undefined) fail(id, `pocketStartOf threw on ${what} (${got.threw}); it answers undefined or re-composes, and never throws (D26)`);
+    else if (got.r !== undefined && (!gone(got.r) || nsOfferInvariant(got.r) !== null)) fail(id, `pocketStartOf answered ${what} with ${J(got.r).slice(0, 160)}; it re-composes the key field by field, every string clipped and nothing it does not name carried, or answers undefined (§4.8, D26)`);
+  }
+}
+
+// ---- NS10, the waiting state ----------------------------------------------------------
+
+function nsWaitingRule() {
+  const id = 'NS10';
+  const caps = nsFile(NS_CAPABILITIES, id);
+  if (caps !== null) {
+    const factCalls = callsOf(caps).filter((c) => calleeName(c) === 'createPocketFacts');
+    const handed = factCalls.map((c) => bare(c.arguments[0])).filter((a) => a !== undefined && ts.isObjectLiteralExpression(a)).map((a) => propOf(a, 'start')).filter((v) => v !== undefined);
+    checked(id, 2);
+    if (handed.length !== 1) fail(id, `${rel(caps)}: createPocketFacts is handed start ${String(handed.length)} time(s); once (§4.13)`);
+    for (const v of handed) {
+      const fn = bare(v);
+      const body = fn !== undefined && (ts.isArrowFunction(fn) || ts.isFunctionExpression(fn)) ? squash(codeOfNode(caps, fn.body)) : null;
+      if (body !== 'pocketStart.sessionsKey(pocketHost?.startAllowed()===true)') fail(id, `${where(caps, v)}: the facts' start is ${J(v.getText().slice(0, 100))}; it is () => pocketStart.sessionsKey(pocketHost?.startAllowed() === true), so the key says waiting until Start is served (D2, D9, §4.13)`);
+    }
+  }
+  const ipc = nsFile(AR_IPC, id);
+  if (ipc !== null) {
+    const found = hostMembers(ipc, 'startAllowed');
+    checked(id);
+    if (found.length !== 1 || !ts.isMethodDeclaration(found[0]) || found[0].body === undefined) fail(id, `${rel(ipc)}: PocketHost declares startAllowed ${String(found.length)} time(s); ONE public read (§4.11)`);
+    else {
+      const m = found[0];
+      const stmts = m.body.statements;
+      const ok = stmts.length === 1 && ts.isReturnStatement(stmts[0]) && squash(codeOfNode(ipc, stmts[0].expression ?? stmts[0])) === "this.routeServed('start')";
+      const priv = (m.modifiers ?? []).some((x) => x.kind === ts.SyntaxKind.PrivateKeyword || x.kind === ts.SyntaxKind.ProtectedKeyword);
+      if (!ok || priv) fail(id, `${where(ipc, m)}: startAllowed is ${J(squash(codeOfNode(ipc, m)).slice(0, 100))}; it is a public method whose body is return this.routeServed('start') alone (§4.11)`);
+    }
+    // And nothing else in the domain asks startAllowed: a write asks routeServed itself.
+    for (const file of domainFiles) {
+      for (const c of callsOf(file).filter((x) => calleeName(x) === 'startAllowed')) {
+        checked(id);
+        fail(id, `${where(file, c)} asks startAllowed(; it is what the sessions answer's key asks, through capabilities.ts, and never a write's check (§4.11)`);
+      }
+    }
+  }
+}
+
+// ---- NS11, the pass-through -----------------------------------------------------------
+
+function nsPassRule() {
+  const id = 'NS11';
+  const routes = nsFile(NS_ROUTES, id);
+  if (routes !== null) {
+    const iface = interfaceOf(routes, 'PocketWrites');
+    const members = iface === null ? null : iface.members.map(memberName).sort();
+    checked(id);
+    if (J(members) !== J([...NS_WRITE_IDS].sort())) fail(id, `${rel(routes)}: PocketWrites holds ${J(members)}; it holds exactly end, choose, say, keys and start (§4.8)`);
+  }
+  const impl = nsFile(POCKET_WRITES_FILE, id);
+  if (impl !== null) {
+    const factory = oneFunction(impl, 'createPocketWrites');
+    const member = factory === null ? undefined : descendantsOf(factory).find((n) => (ts.isPropertyAssignment(n) && memberName(n) === 'start' && (ts.isArrowFunction(bare(n.initializer)) || ts.isFunctionExpression(bare(n.initializer)))) || (ts.isMethodDeclaration(n) && memberName(n) === 'start'));
+    const fn = member === undefined ? null : ts.isPropertyAssignment(member) ? bare(member.initializer) : member;
+    const calls = fn === null ? [] : descendantsOf(fn).filter((n) => ts.isCallExpression(n));
+    checked(id);
+    if (calls.length !== 1 || squash(calls[0].expression.getText()) !== 'deps.start.start') fail(id, `${rel(impl)}: createPocketWrites's start is ${member === undefined ? 'absent' : J(member.getText().slice(0, 90))}; it passes the call to deps.start.start( and does nothing else (§4.7)`);
+    for (const c of callsOf(impl)) {
+      checked(id);
+      if (calleeName(c) === 'createSession') fail(id, `${where(impl, c)}: pocket-writes.ts calls createSession(; the start's act is pocket-start.ts's (§4.7)`);
+    }
+  }
+  const builders = [];
+  for (const file of productionSources()) {
+    if (!readFileSync(file, 'utf8').includes('createPocketStart')) continue;
+    for (const c of callsOf(file)) if (calleeName(c) === 'createPocketStart') builders.push({ file, c });
+  }
+  checked(id);
+  if (builders.length !== 1 || builders[0].file !== NS_CAPABILITIES) fail(id, `createPocketStart( is called at ${builders.map((b) => where(b.file, b.c)).join(', ') || 'nowhere'}; production builds it ONCE, in src/main/capabilities.ts (§4.13)`);
+}
+
+// ---- NS12, the seam confirms the proposal ------------------------------------------------
+
+function nsSeamRule() {
+  const id = 'NS12';
+  const seam = nsFile(NS_SEAM, id);
+  if (seam === null) return;
+  for (const c of callsOf(seam).filter((x) => calleeName(x) === 'pocketConfirmStatus')) {
+    checked(id);
+    if (/\.fields\(\)/.test(c.getText())) fail(id, `${where(seam, c)}: the push seam confirms pocketConfirmStatus(host.fields()); from this phase a first setup's proposal is not fields(), and confirmPocketDoor refuses a hash that is not the proposal's (D31)`);
+  }
+  const confirms = callsOf(seam).filter((c) => calleeName(c) === 'confirmDoor');
+  checked(id);
+  if (confirms.length < 2) fail(id, `${rel(seam)} calls confirmDoor( ${String(confirms.length)} time(s); confirmNow and openDoorForPairing each confirm (D31)`);
+  for (const c of confirms) {
+    const arg = bare(c.arguments[0]);
+    checked(id, 2);
+    if (arg === undefined || !ts.isObjectLiteralExpression(arg)) {
+      fail(id, `${where(seam, c)}: confirmDoor( is handed ${J(c.arguments[0]?.getText().slice(0, 60) ?? null)}, not the lines and the hash read`);
+      continue;
+    }
+    for (const [key, field] of [['linesRead', 'confirmLines'], ['hashRead', 'confirmHash']]) {
+      let v = bare(propOf(arg, key));
+      if (v !== undefined && ts.isIdentifier(v)) {
+        const r = resolveName(v);
+        if (r !== null && r.kind === 'var' && r.init !== null) v = bare(r.init);
+      }
+      let text = v === undefined ? '' : squash(v.getText());
+      // Through a status const: `const status = host.status()`.
+      const m = /^([A-Za-z_]\w*)\.(\w+)$/.exec(text);
+      if (m !== null) {
+        const r = resolveName(ts.isPropertyAccessExpression(v) && ts.isIdentifier(v.expression) ? v.expression : v);
+        if (r !== null && r.kind === 'var' && r.init !== null) text = `${squash(bare(r.init).getText())}.${m[2]}`;
+      }
+      if (!new RegExp(`\\.status\\(\\)\\.${field}$`).test(text)) fail(id, `${where(seam, c)}: confirmDoor( is handed ${key}: ${J(propOf(arg, key)?.getText() ?? null)}; it is host.status().${field}, the proposal's own (D31, 333.12 D16)`);
+    }
+  }
+}
+
+/** NS1 to NS12, then a red for any rule that checked nothing. */
+function startRules() {
+  for (const run of [nsRouteRule, nsAnswerRule, nsBodyRule, nsInputRule, nsOfferRule, nsActRule, nsLimitsRule, nsOrderRule, nsKeyRule, nsWaitingRule, nsPassRule, nsSeamRule]) {
+    try {
+      run();
+    } catch (err) {
+      const id = NS_RULE_IDS[[nsRouteRule, nsAnswerRule, nsBodyRule, nsInputRule, nsOfferRule, nsActRule, nsLimitsRule, nsOrderRule, nsKeyRule, nsWaitingRule, nsPassRule, nsSeamRule].indexOf(run)];
+      fail(id, `the rule could not be read: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  for (const id of NS_RULE_IDS) if (checks.get(id) === 0 && failures.get(id).length === 0) fail(id, 'the rule checked nothing, so it proves nothing (build/p346/SPEC.md §5)');
+}
+
+// ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
 
@@ -14442,7 +15985,9 @@ const PHASES = [
   // PHASE 333.12, an update keeps the door open (build/p33312/SPEC.md §6.1).
   ['an update keeps the door open', allowedRouteRules, 'AR1'],
   // PHASE 333.12.1, the confirm block's face (build/p333121/SPEC.md §6.1).
-  ['the confirm block’s face', confirmFaceRules, 'AF1']
+  ['the confirm block’s face', confirmFaceRules, 'AF1'],
+  // PHASE 346, start a session from the phone (build/p346/SPEC.md §5.1).
+  ['start a session from the phone', startRules, 'NS1']
 ];
 
 for (const [name, run, onError] of PHASES) {

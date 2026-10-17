@@ -673,6 +673,8 @@ describe('S6: the last check refuses a route that stopped being served, before t
         return served;
       },
       writes: {
+        // Phase 346's start, which this test never reaches.
+        start: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
         end: async () => ({ outcome: 'done' }),
         choose: async () => ({ outcome: 'done' }),
         say: async (input) => {
@@ -709,6 +711,8 @@ describe('S6: the last check refuses a route that stopped being served, before t
       stillPaired: () => true,
       routeServed,
       writes: {
+        // Phase 346's start, which this test never reaches.
+        start: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
         end: async () => ({ outcome: 'done' }),
         choose: async () => ({ outcome: 'done' }),
         say: async (input) => {
@@ -749,6 +753,8 @@ describe('S7: `still` sees a route stop being served after the claim', () => {
       stillPaired: () => true,
       routeServed: () => served,
       writes: {
+        // Phase 346's start, which this test never reaches.
+        start: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
         end: async () => ({ outcome: 'done' }),
         choose: async () => ({ outcome: 'done' }),
         say: async (input, still): Promise<PocketReplyOutcome> => {

@@ -2,13 +2,20 @@
  * The routes a person ALLOWED (Phase 333.12, build/p33312/SPEC.md §4, §5.1 to
  * §5.5, §9.2 rows C1 to C11), driven through the SHIPPING `PocketHost`.
  *
- * WHAT A WAITING ROUTE IS, HERE. No build has a route outside the eleven yet,
- * so this file makes one: `../door/table` is mocked to hold a MUTABLE copy of
- * the real table, to which {@link plant} appends the read route `probe`
+ * WHAT A WAITING ROUTE IS, HERE. When this file was written no build had a
+ * route outside the eleven, so this file makes one: `../door/table` is mocked
+ * to hold a MUTABLE copy of the real table, to which {@link plant} appends the
+ * read route `probe`
  * (`GET /v1/probe`, the app run's own plant, build/p33312/SPEC.md §7.2), and
  * `../route-ledger` is mocked to list `probe` as an id some build shipped.
  * Everything else is the shipping code: the host, the pairing owner, the
  * store, the confirm record, the gate, the push's destinations.
+ *
+ * PHASE 346 (build/p346/SPEC.md D2) added the first real route outside the
+ * eleven, `start`. The mocked copy LEAVES IT OUT, so the unplanted table is
+ * the eleven every row below was written over and `probe` stays the one route
+ * that waits here; `start`'s own wait, over the real table, is driven in
+ * `./p346-start-key.test.ts`, by these same shipping functions.
  *
  * THE MOCKS ARE `./ipc.test.ts`'s, cut down: `electron` with a reversible
  * seal that RECORDS which seal each write went under (so the record-then-store
@@ -127,7 +134,8 @@ const hoisted = vi.hoisted(() => ({ routes: [] as unknown[] }));
 
 vi.mock('../door/table', async (importOriginal) => {
   const real = await importOriginal<typeof import('../door/table')>();
-  hoisted.routes.splice(0, hoisted.routes.length, ...real.POCKET_ROUTES);
+  // Phase 346: the real table less `start`, the eleven these rows were written over.
+  hoisted.routes.splice(0, hoisted.routes.length, ...real.POCKET_ROUTES.filter((r) => r.id !== 'start'));
   const routes = hoisted.routes as PocketRoute[];
   return {
     ...real,
@@ -661,7 +669,8 @@ describe('C3: a first setup’s Allow agrees to every route this build has', () 
     expect((await allow(one)).allowed).toBe(true);
     expect(readPocketStore().store?.allowedRoutes).toBeNull();
     expect(one.status()).toMatchObject({ state: 'listening', confirmState: 'confirmed', routesWaiting: [] });
-    expect([...(door.inputs.at(-1)?.routes ?? [])].sort()).toEqual([...POCKET_ROUTE_IDS].sort());
+    // The table here is the eleven (Phase 346's `start` left out of the mock).
+    expect([...(door.inputs.at(-1)?.routes ?? [])].sort()).toEqual([...LEGACY_ALLOWED_ROUTES]);
   });
 });
 

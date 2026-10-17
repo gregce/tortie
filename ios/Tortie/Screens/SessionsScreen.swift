@@ -45,6 +45,14 @@
 // goes to Pairing by its own routing and this model routes nowhere. Every read
 // of that face is this model's, which asks `/v1/sessions` first, so the first
 // answer from an updated Mac brings this tab back with no relaunch.
+//
+// NEW SESSION (Phase 346, build/p346/SPEC.md D21, D27). The title's trailing
+// "+" opens New session (Screens/StartSheet.swift) over the offer this Mac's
+// latest answer carries (`PocketSessionsStart`), and is drawn only while it
+// carries one and the tab was handed a start: a Mac older than that phase, or
+// one that has not allowed Start yet, draws none. It is off while End these
+// takes taps, as the menu is. The sheet belongs to this tab of the Mac on
+// screen, and a start it makes opens on this tab of that Mac.
 
 import SwiftUI
 
@@ -155,6 +163,9 @@ struct SessionsDrawing: Equatable, Sendable {
     let ageNote: String
     /// `read 4:32 PM`, the moment main composed the answer.
     let readLine: String
+    /// What New session may start on this Mac (Phase 346), as the answer
+    /// carried it: nil when it carried none, or one this build could not read.
+    let start: PocketSessionsStart?
 
     /// Whether the rows are drawn under their projects.
     var grouped: Bool { asked.group == .project }
@@ -224,6 +235,7 @@ struct SessionsDrawing: Equatable, Sendable {
         machines = try Self.choices(answer.machines, unnamed: PocketSessionsChoice.thisMacId)
         ageNote = answer.ageNote
         readLine = Copy.readAt(clock(answer.at))
+        start = answer.start
     }
 
     /// The menu's choices, each with its label. Only `unnamed` may come with
@@ -506,6 +518,13 @@ final class SessionsModel: EndBatchList {
         opened[group.id] = !isOpen(group)
     }
 
+    /// What New session may start now (Phase 346): the offer the drawing on
+    /// screen carries, or nil while there is none to draw a "+" for.
+    var startOffer: PocketStartOffer? {
+        guard case .loaded(let drawing) = state else { return nil }
+        return drawing.start?.offer
+    }
+
     /// `EndBatchList`'s: the rows drawn, a closed project's left out; on the
     /// older Mac's face, the list's own rows; otherwise none.
     var batchRows: [RowDrawing] {
@@ -585,11 +604,45 @@ struct SessionsTab: View {
     let open: (RowDrawing) -> Void
     /// End these, for a pairing that writes; nil draws no `Select`.
     var ends: EndBatchSetup?
+    /// New session, for a pairing that starts (Phase 346); nil draws no "+".
+    var starts: StartSetup?
+    /// New session while it is up, over the offer it opened on.
+    @State private var starting: StartModel?
+    /// The session a done start made, opened once the sheet has gone.
+    @State private var startedSession: StartedSession?
 
     var body: some View {
         face
             // End these, ONCE, over both faces (F6).
             .endBatch(ends, list: model)
+            .sheet(item: $starting, onDismiss: openStarted) { start in
+                StartSheet(
+                    model: start,
+                    reread: { await model.load() },
+                    opened: { id, name in
+                        startedSession = StartedSession(id: id, name: name)
+                        starting = nil
+                    },
+                    close: { starting = nil }
+                )
+            }
+            .onChange(of: model.startOffer) { _, offer in
+                if let offer { starting?.refresh(offer) }
+            }
+    }
+
+    /// The "+": New session over the offer on screen, for the Mac on screen.
+    private func openStart() {
+        guard let starts, starting == nil, let offer = model.startOffer else { return }
+        startedSession = nil
+        starting = StartModel(offer: offer, setup: starts)
+    }
+
+    /// Once the sheet has gone: the session a done start made, on this tab.
+    private func openStarted() {
+        guard let started = startedSession, let starts else { return }
+        startedSession = nil
+        starts.opened(started.id, started.name)
     }
 
     @ViewBuilder
@@ -605,9 +658,18 @@ struct SessionsTab: View {
                 reload: { await model.load() }
             )
         } else {
-            SessionsScreen(model: model, isTop: isTop, foregroundTick: foregroundTick, open: open)
+            SessionsScreen(
+                model: model, isTop: isTop, foregroundTick: foregroundTick, open: open,
+                start: starts == nil ? nil : { openStart() }
+            )
         }
     }
+}
+
+/// A session a done start made, held while the sheet closes.
+private struct StartedSession: Equatable {
+    let id: String
+    let name: String
 }
 
 // MARK: - The screen
@@ -617,6 +679,8 @@ struct SessionsScreen: View {
     let isTop: Bool
     let foregroundTick: Int
     let open: (RowDrawing) -> Void
+    /// The "+", for a tab handed a start (Phase 346); nil draws none.
+    var start: (() -> Void)? = nil
     /// End these, where `SessionsTab` attached it. While it takes taps the
     /// Show control, the menu and every header are off, so nothing drawn
     /// changes under a selection.
@@ -681,7 +745,8 @@ struct SessionsScreen: View {
     }
 
     /// `Sessions`, 28/34 semibold, with the menu and End these' `Select` at
-    /// its trailing edge (Main.html).
+    /// its trailing edge (Main.html), and since Phase 346 the "+" after them,
+    /// only while this Mac offers a start.
     private var title: some View {
         HStack(alignment: .firstTextBaseline, spacing: Frame.rowGap) {
             Words(Copy.sessions, .title, Tokens.textPrimary)
@@ -692,6 +757,11 @@ struct SessionsScreen: View {
             HStack(spacing: SessionsFrame.controlGap) {
                 menu
                 EndBatchTitleControl()
+                if let start, model.startOffer != nil {
+                    StartTitleControl(open: start)
+                        .disabled(batch?.takesTaps ?? false)
+                        .accessibilityIdentifier(ID.startOpen)
+                }
             }
         }
         .padding(.horizontal, Frame.gutter)

@@ -738,9 +738,10 @@ export class PocketHost {
           case 'choose':
           case 'say':
           case 'keys':
+          case 'start':
             // The writes (Phase 317's end, Phase 318's choose and say, Phase
-            // 337's keys) go to the one write path in `./server.ts` and never
-            // reach this composer of reads.
+            // 337's keys, Phase 346's start) go to the one write path in
+            // `./server.ts` and never reach this composer of reads.
             return null;
         }
       }
@@ -891,6 +892,17 @@ export class PocketHost {
   /** Is this route one a person allowed? Main's one answer, asked three times (D8). */
   private routeServed(id: PocketRouteId): boolean {
     return this.servedRoutes().includes(id);
+  }
+
+  /**
+   * Whether a person allowed the phone to start sessions (Phase 346,
+   * build/p346/SPEC.md §4.11, D2, D9): what the Sessions answer's `start` key
+   * asks, to say `waiting` or carry the offer. NEVER A WRITE'S CHECK: the
+   * write path asks {@link routeServed} itself, at its own last check and in
+   * the `still` it hands the act.
+   */
+  startAllowed(): boolean {
+    return this.routeServed('start');
   }
 
   /**

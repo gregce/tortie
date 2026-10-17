@@ -234,6 +234,50 @@
  * Every `/v1/sessions` request event carries `at` and, for the sessions arms,
  * the answer's ids and groups, so the probe grades what this door SENT.
  *
+ * THE START ARMS (Phase 346, build/p346/SPEC.md §5.4, named in §6.4 (t)).
+ * A start arm answers the pairing and every read honestly, and its
+ * `/v1/sessions` carries a `start` key, last, as main spreads it: a key arm's
+ * own broken key, which the phone must read as absent (D26: Sessions drawn,
+ * no "+"), or the honest offer this file composes in the wire's shape
+ * (`honestStartOffer`: the honest world's projects, all on this Mac, Claude
+ * Code and Codex installed, the first project chosen, Claude Code the
+ * default), whose ONE `POST /v1/start` a Create sends is counted, verified
+ * over its body (its digest and write id in the event, never the body) and
+ * answered the arm's way. Every other arm carries NO start key and answers
+ * `/v1/start` 404, a Mac older than this phase, so no earlier arm moves:
+ *   start-honest            the control: the honest offer (with a project on a
+ *                           ready machine holding Codex alone and one on a
+ *                           machine not ready) and a `done` answer naming the
+ *                           door's own session, whose Terminal then opens
+ *   start-key-waiting       the key says `{ state: 'waiting' }` (D9): no "+"
+ *   start-key-malformed     the key's `projects` is not a list
+ *   start-key-unknown-state the key's state is a word the Mac never says
+ *   start-key-huge          10,000 projects, fifty times the phone's 200
+ *   start-answer-wrong-verb a 200 whose verb is `end`
+ *   start-answer-no-echo    a 200 whose write id is not the one sent
+ *   start-answer-done-no-session  a 200 `done` with no session
+ *   start-answer-refused-no-reason  a 200 `refused` with no reason
+ *   start-answer-unknown-reason  a 200 `refused` with a reason word the Mac
+ *                           never says and START_UNKNOWN_SENTENCE: drawn as
+ *                           said (the phone reads `reason` as an OPEN word)
+ *   start-answer-2mib       a 200 of 3 MiB, over the phone's 2 MiB, as bytes
+ *   start-answer-chunked    a 200 with Transfer-Encoding: chunked, as bytes
+ *   start-404               a 404 with no body: `Copy.startNotTaken`
+ *   start-hold              the first start never answered, past the phone's
+ *                           15 s (`Copy.startNoAnswer`, and `Try again`); the
+ *                           second answered `done`, and its body must be the
+ *                           first's byte for byte, the same write id
+ *   start-remote            (Phase 346's fix round, NP4) the honest offer, its
+ *                           project on the READY machine picked and that
+ *                           machine's one agent pressed: the body must name
+ *                           that project and that agent (its event says which,
+ *                           and which place the offer put the project in), and
+ *                           the `done` opens the made session's Terminal. The
+ *                           Mac half of a start on a machine is probe:p346's S3
+ * Each names where it ends (`at`), the Copy.swift words it may end in
+ * (`expect`), how many POSTs it may read (`posts`) and, for `doorSentence`,
+ * that its line is this door's own sentence.
+ *
  * The ATS arm (a SOCKS5 stand-in dialling 100.64.0.1) left with TailscaleKit in
  * Phase 330: the phone has no tailnet and no ATS exception any more.
  *
@@ -331,7 +375,9 @@ import {
   scrollbackRead,
   scrollbackTarget,
   sendKeys,
-  signedHeadersFor
+  signedHeadersFor,
+  startAnswerOf,
+  startSession
 } from './node-phone.mjs';
 
 const HERE = fileURLToPath(import.meta.url);
@@ -458,8 +504,151 @@ export const HOSTILE_ARMS = Object.freeze({
   'scrollback-never': { what: 'a /v1/scrollback page never answered, past the phone\'s 15 s', ends: 'drawn', scrollback: 'every', at: 'screen-grid', expect: [], retried: true, live: true },
   'scrollback-404': { what: 'a 404 with no body to a page', ends: 'drawn', scrollback: 'every', at: 'screen-grid', expect: [] },
   // PHASE 337.3 (build/p3373/SPEC.md §7.3, D8): the fill's one page at open answered moved, every later page honest.
-  'scrollback-fill-moved': { what: 'the first /v1/scrollback page answered moved with the Mac\'s sentence, every later one honest', ends: 'drawn', scrollback: 'first', at: 'screen-grid', expect: [], fillOnce: true }
+  'scrollback-fill-moved': { what: 'the first /v1/scrollback page answered moved with the Mac\'s sentence, every later one honest', ends: 'drawn', scrollback: 'first', at: 'screen-grid', expect: [], fillOnce: true },
+  // THE START ARMS (Phase 346, build/p346/SPEC.md §5.4, named in §6.4 (t)).
+  // Each answers the pairing and every read honestly, and its /v1/sessions
+  // carries a `start` key: a key arm's own broken key, which the phone must
+  // read as absent (no "+", Sessions drawn: `ends: 'no-plus'`, D26), or the
+  // honest offer (`honestStartOffer`), whose ONE `POST /v1/start` a Create
+  // sends is answered the arm's way, counted and verified over its body like
+  // End's. `rawAnswer` names the HTTP shape an answer is written as; a
+  // `doorSentence` arm draws this door's own sentence as the Mac's.
+  'start-honest': { what: 'the control: an honest offer and a done answer, the made session\'s Terminal opened', ends: 'opened', start: 'answer', posts: 1, at: 'screen-grid', expect: [] },
+  'start-key-waiting': { what: 'a /v1/sessions start key that says waiting, as a Mac that has not allowed start yet (D9)', ends: 'no-plus', start: 'key', posts: 0, at: 'screen-list', expect: [] },
+  'start-key-malformed': { what: 'a /v1/sessions start key whose projects is not a list', ends: 'no-plus', start: 'key', posts: 0, at: 'screen-list', expect: [] },
+  'start-key-unknown-state': { what: 'a /v1/sessions start key with a state word the Mac never says', ends: 'no-plus', start: 'key', posts: 0, at: 'screen-list', expect: [] },
+  'start-key-huge': { what: 'a start offer of 10,000 projects, over the phone\'s 200', ends: 'no-plus', start: 'key', posts: 0, at: 'screen-list', expect: [] },
+  'start-answer-wrong-verb': { what: 'a 200 to a start whose verb is end', ends: 'sentence', start: 'answer', posts: 1, at: 'start-line', expect: ['startNoAnswer'] },
+  'start-answer-no-echo': { what: 'a 200 to a start whose write id is not the one sent', ends: 'sentence', start: 'answer', posts: 1, at: 'start-line', expect: ['startNoAnswer'] },
+  'start-answer-done-no-session': { what: 'a 200 done to a start with no session', ends: 'sentence', start: 'answer', posts: 1, at: 'start-line', expect: ['startNoAnswer'] },
+  'start-answer-refused-no-reason': { what: 'a 200 refused to a start with no reason', ends: 'sentence', start: 'answer', posts: 1, at: 'start-line', expect: ['startNoAnswer'] },
+  'start-answer-unknown-reason': { what: 'a 200 refused to a start with a reason word the Mac never says, drawn as its sentence', ends: 'sentence', start: 'answer', posts: 1, at: 'start-line', expect: [], doorSentence: true },
+  'start-answer-2mib': { what: 'a 200 to a start of 3 MiB, over the phone\'s 2 MiB', ends: 'sentence', start: 'answer', posts: 1, at: 'start-line', expect: ['startNoAnswer'], rawAnswer: 'over-cap' },
+  'start-answer-chunked': { what: 'a 200 to a start with Transfer-Encoding: chunked', ends: 'sentence', start: 'answer', posts: 1, at: 'start-line', expect: ['startNoAnswer'], rawAnswer: 'chunked' },
+  'start-404': { what: 'a 404 with no body to a start, the door\'s own refusal', ends: 'sentence', start: 'answer', posts: 1, at: 'start-line', expect: ['startNotTaken'] },
+  'start-hold': { what: 'no answer to a start past the phone\'s 15 s, then Try again sends the SAME write id and is answered done', ends: 'sentence', start: 'hold', posts: 2, at: 'start-line', expect: ['startNoAnswer'], again: true },
+  'start-remote': { what: 'Create on the project on a ready machine with that machine\'s one agent: the body names them, and the made session\'s Terminal opens', ends: 'opened', start: 'answer', posts: 1, at: 'screen-grid', expect: [], remote: true }
 });
+
+/** The start arms, in the table's order (Phase 346). The hostile group's own loop leaves them to probe:p316's `start` group. */
+export const START_ARMS = Object.freeze(Object.keys(HOSTILE_ARMS).filter((a) => typeof HOSTILE_ARMS[a].start === 'string'));
+/** The sentence `start-answer-refused-no-reason` and `start-answer-unknown-reason` carry: this door's words, never the Mac's. */
+export const START_UNKNOWN_SENTENCE = 'Your Mac said no for a reason this phone does not know. Nothing was started.';
+/** The phone's bounds on an offer (SPEC D26), which equal the Mac's constants. */
+export const START_BOUNDS = Object.freeze({ projects: 200, agents: 64, places: 201 });
+/** The number of projects `start-key-huge` offers, fifty times the phone's bound. */
+export const START_HUGE_PROJECTS = 10_000;
+
+/** A project id the door offers, from a label: the shape of a `randomUUID()`, so the phone's body reader takes it. */
+const startProjectIdOf = (label) => {
+  const h = createHash('sha256').update(`p346 hostile project ${label}`).digest('hex');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
+};
+
+/** The two machines the honest offer names: one ready with Codex alone (D11's move), one not ready (D22's dimmed row). */
+export const START_FAR = Object.freeze({ id: 'p346far', label: 'Studio' });
+export const START_AWAY = Object.freeze({ id: 'p346away', label: 'Laptop' });
+
+/**
+ * The honest offer a start arm's /v1/sessions carries (SPEC §3.2, D7): one
+ * project per project the honest world's rows name, in their first order,
+ * every one on this Mac, then one on a machine that is ready with Codex alone
+ * and one on a machine that is not ready; the places `local` (Claude Code and
+ * Codex installed), START_FAR and START_AWAY; the two agents' rows; the first
+ * project chosen and Claude Code the default. Composed here field by field in
+ * the wire's shape.
+ */
+export function honestStartOffer(world) {
+  const labels = [];
+  for (const r of [...(world.blocked.rows ?? []), ...(world.blocked.others ?? [])]) {
+    const label = String(r.project ?? 'p316');
+    if (!labels.includes(label)) labels.push(label);
+  }
+  const projects = [
+    ...labels.map((label) => ({ id: startProjectIdOf(label), label, machine: null, folder: null, place: 'local' })),
+    { id: startProjectIdOf('far'), label: 'far', machine: START_FAR.label, folder: null, place: START_FAR.id },
+    { id: startProjectIdOf('away'), label: 'away', machine: START_AWAY.label, folder: null, place: START_AWAY.id }
+  ];
+  return {
+    state: 'offered',
+    projects,
+    places: [
+      { id: 'local', ready: true, read: true, agents: ['claude', 'codex'] },
+      { id: START_FAR.id, ready: true, read: true, agents: ['codex'] },
+      { id: START_AWAY.id, ready: false, read: false, agents: [] }
+    ],
+    agents: [
+      { id: 'claude', name: 'Claude Code', icon: 'claude', danger: null },
+      { id: 'codex', name: 'Codex CLI', icon: 'codex', danger: null }
+    ],
+    chosen: projects[0]?.id ?? null,
+    defaultAgent: 'claude'
+  };
+}
+
+/** A key arm's own broken key, made from the honest offer (Phase 346, D26). */
+export function hostileStartKey(arm, honest) {
+  switch (arm) {
+    case 'start-key-waiting':
+      return { state: 'waiting' };
+    case 'start-key-malformed':
+      return { ...structuredClone(honest), projects: 'not a list' };
+    case 'start-key-unknown-state':
+      return { ...structuredClone(honest), state: 'opening' };
+    case 'start-key-huge': {
+      const projects = Array.from({ length: START_HUGE_PROJECTS }, (_, k) => ({ id: startProjectIdOf(`huge-${String(k)}`), label: `p${String(k)}`, machine: null, folder: null, place: 'local' }));
+      return { ...structuredClone(honest), projects, chosen: projects[0].id };
+    }
+    default:
+      throw new Error(`${arm} is not a start key arm`);
+  }
+}
+
+/**
+ * The phone's reading of a sessions answer's `start` key, re-derived here
+ * (SPEC D26): `{ state: 'waiting' }`, or a whole offer within the bounds with
+ * every place, agent, `chosen` and `defaultAgent` naming something it lists.
+ * Answers the reasons it reads as ABSENT; an empty list is a key the phone
+ * draws ("+" for an offer, nothing for waiting). Absent itself is one reason.
+ */
+export function startKeyProblems(key) {
+  if (key === undefined || key === null) return ['absent'];
+  if (typeof key !== 'object' || Array.isArray(key)) return ['not an object'];
+  if (key.state === 'waiting') return Object.keys(key).length === 1 ? [] : ['waiting with more than its state'];
+  if (key.state !== 'offered') return [`a state word ${JSON.stringify(key.state)}`];
+  const problems = [];
+  const str = (v) => typeof v === 'string';
+  if (!Array.isArray(key.projects)) return ['projects is not a list'];
+  if (!Array.isArray(key.places)) return ['places is not a list'];
+  if (!Array.isArray(key.agents)) return ['agents is not a list'];
+  if (key.projects.length > START_BOUNDS.projects) problems.push(`${String(key.projects.length)} projects, over ${String(START_BOUNDS.projects)}`);
+  if (key.agents.length > START_BOUNDS.agents) problems.push(`${String(key.agents.length)} agents, over ${String(START_BOUNDS.agents)}`);
+  if (key.places.length > START_BOUNDS.places) problems.push(`${String(key.places.length)} places, over ${String(START_BOUNDS.places)}`);
+  const agentIds = new Set();
+  for (const a of key.agents) {
+    if (!(a && str(a.id) && str(a.name) && str(a.icon) && (a.danger === null || str(a.danger)))) problems.push('an agent row is not whole');
+    else agentIds.add(a.id);
+  }
+  const placeIds = new Set();
+  for (const p of key.places) {
+    if (!(p && str(p.id) && typeof p.ready === 'boolean' && typeof p.read === 'boolean' && Array.isArray(p.agents))) problems.push('a place is not whole');
+    else {
+      placeIds.add(p.id);
+      for (const a of p.agents) if (!agentIds.has(a)) problems.push(`a place lists ${JSON.stringify(a)}, which no agent row is`);
+    }
+  }
+  const projectIds = new Set();
+  for (const p of key.projects) {
+    if (!(p && str(p.id) && /^[A-Za-z0-9-]{1,64}$/.test(p.id) && str(p.label) && (p.machine === null || str(p.machine)) && (p.folder === null || str(p.folder)) && str(p.place))) problems.push('a project is not whole');
+    else {
+      projectIds.add(p.id);
+      if (!placeIds.has(p.place)) problems.push(`a project names the place ${JSON.stringify(p.place)}, which is not listed`);
+    }
+  }
+  if (!(key.chosen === null || projectIds.has(key.chosen))) problems.push('chosen names no listed project');
+  if (!(key.defaultAgent === null || agentIds.has(key.defaultAgent))) problems.push('defaultAgent names no listed agent');
+  return problems;
+}
 
 /**
  * PHASE 345's arm, in a table of its own: probe:p316 drives every row of
@@ -1201,6 +1390,9 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
     const screenWordsNow = ALL_ARMS[arm].fillOnce === true ? await screenWords() : null;
     /** write-cut-reread-refused: every signed read after its write is refused. */
     let refuseReads = false;
+    // Phase 346: a start arm's honest offer, and the starts it has read.
+    const startOffer = typeof ALL_ARMS[arm].start === 'string' ? honestStartOffer(world) : null;
+    let startPosts = 0;
     /** Phase 345: the ids a twin lists under its own name, in the order it was told. */
     let mirrored = [];
     /** Phase 345: a twin lists another Mac's ids under its own name (`twin-mirror`). */
@@ -1553,6 +1745,59 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
               return send(res, 200, done, event);
           }
         }
+        if (req.method === 'POST' && url.pathname === '/v1/start' && startOffer !== null) {
+          // PHASE 346's write: counted, verified over the body, and answered
+          // the arm's way. Its event carries the body's digest and write id,
+          // so the probe compares a kept id's two bodies byte for byte.
+          counts.writes += 1;
+          startPosts += 1;
+          const verifiedWrite = verifySigned({ method: 'POST', target: req.url ?? '', headers: req.headers, body, phone, doorExchangePrivate: doorX.privateKey, doorExchangeKey: dx });
+          const channelWrite = phone !== null && seen.clientPin === clientKeyPinOf(phone.clientKey);
+          let parsed = null;
+          try {
+            parsed = JSON.parse(body.toString('utf8'));
+          } catch {
+            parsed = null;
+          }
+          const id = typeof parsed?.write === 'string' && /^[0-9a-f]{32}$/.test(parsed.write) ? parsed.write : '';
+          const keys = parsed === null || typeof parsed !== 'object' ? '' : Object.keys(parsed).sort().join(',');
+          const offered = startOffer.projects.some((p) => p.id === parsed?.project) && startOffer.places[0].agents.includes(parsed?.agent);
+          // THE FIX ROUND (NP4): the ids the body named, and the place the offer put that project in. Ids the door
+          // itself offered, never a word the person typed.
+          const startProject = typeof parsed?.project === 'string' && startOffer.projects.some((p) => p.id === parsed.project) ? parsed.project : null;
+          const startAgent = typeof parsed?.agent === 'string' && startOffer.agents.some((a) => a.id === parsed.agent) ? parsed.agent : null;
+          const startPlace = startOffer.projects.find((p) => p.id === startProject)?.place ?? null;
+          const event = { route, ...seen, verified: verifiedWrite, channelHeld: channelWrite, write: counts.writes, verb: 'start', keys, startWrite: id, bodySha: createHash('sha256').update(body).digest('hex'), offered, startProject, startAgent, startPlace, startPost: startPosts, query: url.search !== '' };
+          if (verifiedWrite !== 'ok' || url.search !== '') return send(res, 404, '', event);
+          const made = { id: world.sessionId, name: String(world.session?.session?.name ?? 'p316') };
+          const done = { verb: 'start', write: id, outcome: 'done', reason: null, sentence: null, session: made };
+          switch (arm) {
+            case 'start-answer-wrong-verb':
+              return send(res, 200, J({ ...done, verb: 'end' }), event);
+            case 'start-answer-no-echo':
+              return send(res, 200, J({ ...done, write: otherWriteId(id) }), event);
+            case 'start-answer-done-no-session':
+              return send(res, 200, J({ ...done, session: null }), event);
+            case 'start-answer-refused-no-reason':
+              return send(res, 200, J({ verb: 'start', write: id, outcome: 'refused', reason: null, sentence: START_UNKNOWN_SENTENCE, session: null }), event);
+            case 'start-answer-unknown-reason':
+              return send(res, 200, J({ verb: 'start', write: id, outcome: 'refused', reason: 'sideways', sentence: START_UNKNOWN_SENTENCE, session: null }), event);
+            case 'start-answer-2mib':
+            case 'start-answer-chunked':
+              return sendRaw(req, rawAnswerOf(ALL_ARMS[arm].rawAnswer, J(done)), event);
+            case 'start-404':
+              return send(res, 404, '', event);
+            case 'start-hold':
+              if (startPosts === 1) {
+                // Held: never answered; the phone gives up after its 15 s.
+                emit({ kind: 'request', arm, ...event, status: 200, bytes: 0, held: true });
+                return;
+              }
+              return send(res, 200, J(done), event);
+            default:
+              return send(res, 200, J(done), event);
+          }
+        }
         if (req.method !== 'GET' || !['/v1/blocked', '/v1/session', '/v1/turns', '/v1/sessions'].includes(url.pathname)) {
           return send(res, 404, '', { route, ...seen });
         }
@@ -1606,6 +1851,11 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
             }
           }
           if (spec.sessions === 'malformed') return send(res, 200, malformedSessions(arm, answer), { ...ev, malformed: arm });
+          // Phase 346: a start arm's key, last, as main spreads it.
+          if (startOffer !== null) {
+            answer.start = spec.start === 'key' ? hostileStartKey(arm, startOffer) : startOffer;
+            return send(res, 200, J(answer), { ...ev, sessions: summary, start: spec.start === 'key' ? arm : 'offered' });
+          }
           if (arm === 'unknown-status') for (const r of answer.rows) r.statusTitle = UNKNOWN_STATUS_TITLE;
           if (arm === 'unknown-dot') for (const r of answer.rows) r.statusDot = 'plaid';
           return send(res, 200, J(answer), { ...ev, sessions: summary });
@@ -1732,6 +1982,8 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
       writeSentences: words === null ? null : { ...words.POCKET_WRITE_SENTENCES },
       // Phase 318: the reply offer the session carries, and the Mac's words a reply arm's `mac` names.
       replyOffer: world.replyOffer ?? null,
+      // Phase 346: a start arm's honest offer.
+      startOffer,
       replyWords: replyWordsNow,
       counts,
       // Phase 316.7: whether this door can compose /v1/sessions, and the cap world's own facts.
@@ -1821,6 +2073,8 @@ async function serve(arm, md3, extra = {}) {
       // Phase 318: the reply arms' offer and the Mac's words they draw.
       replyOffer: door.replyOffer,
       replyWords: door.replyWords,
+      // Phase 346: a start arm's honest offer, for the probe to hold the sheet to.
+      startOffer: door.startOffer,
       // Phase 316.7: the sessions read.
       sessionsComposer: door.sessionsComposer,
       sessionsComposerWhy: door.sessionsComposerWhy,
@@ -2081,6 +2335,75 @@ async function selfTest() {
         }
         const shaped = arm !== 'scrollback-extra-rows' || (p1.answer !== null && p1.answer.rows.length === ask1.count + 10 && p1.answer.from + p1.answer.rows.length <= p1.answer.depth);
         check(arm, screenOk && p1.status === 200 && prob1.length > 0 && shaped, `the Screen drew with a history of ${String(H)}; the page${arm === 'scrollback-extra-rows' ? ` holds ${String(p1.answer?.rows?.length)} rows for ${String(ask1.count)} asked, inside its depth: ${String(shaped)}, and` : ''} is refused for ${J(prob1.slice(0, 2))}`);
+        continue;
+      }
+      // PHASE 346: THE START ARMS, read with the node phone's own reading of a
+      // start's answer (`startAnswerOf`) and this file's re-derivation of the
+      // phone's reading of the key (`startKeyProblems`).
+      if (typeof HOSTILE_ARMS[arm].start === 'string') {
+        const spec = HOSTILE_ARMS[arm];
+        const sessions = await readSessions(phone, d, {});
+        const asked = askedOf({});
+        const { start: key, ...rest } = sessions.answer ?? {};
+        const restProblems = sessions.answer === null ? ['no answer'] : sessionsAnswerProblems(rest, asked);
+        const keyProblems = startKeyProblems(key);
+        if (spec.start === 'key') {
+          // The waiting key is a key the phone reads (D9: it draws nothing for it); every other key arm's is read as absent.
+          const keyOk = arm === 'start-key-waiting' ? keyProblems.length === 0 && J(key) === J({ state: 'waiting' }) : keyProblems.length > 0 && keyProblems[0] !== 'absent';
+          const noStart = await startSession(phone, d, { project: 'p346-project', agent: 'claude' });
+          check(arm, sessions.status === 200 && restProblems.length === 0 && keyOk && noStart.status === 200, `/v1/sessions answered ${String(sessions.status)}, the rest drawn (refused for ${J(restProblems)}), the start key ${arm === 'start-key-waiting' ? `reads ${J(key)}` : `read as absent for ${J(keyProblems.slice(0, 2))}`}; a start sent anyway answered ${String(noStart.status)}`);
+          continue;
+        }
+        const offer = key;
+        const project = offer?.chosen ?? '';
+        const startPosts = () => events.filter((e) => e.kind === 'request' && e.route === 'POST /v1/start');
+        if (spec.start === 'hold') {
+          const write = randomBytes(16).toString('hex');
+          const first = await startSession(phone, d, { project, agent: 'claude', write, timeoutMs: 1_500 });
+          const again = await startSession(phone, d, { project, agent: 'claude', write });
+          const read = startAnswerOf(again, write);
+          const posts = startPosts();
+          const same = posts.length === 2 && posts[0].bodySha === posts[1].bodySha && posts[0].startWrite === write && posts[1].startWrite === write && posts.every((e) => e.verified === 'ok' && e.channelHeld === true && e.offered === true);
+          check(arm, keyProblems.length === 0 && first.status === 0 && read.ok && read.answer.outcome === 'done' && read.answer.session?.id === door.sessionToOpen && same, `the offer drawn (${J(keyProblems)}); the first start answered ${first.status === 0 ? `nothing (${String(first.error)})` : String(first.status)}; the same id again ${read.ok ? read.answer.outcome : read.why}; ${String(posts.length)} POST(s), their bodies ${same ? 'the same bytes' : 'NOT the same bytes'}`);
+          continue;
+        }
+        if (spec.rawAnswer !== undefined) {
+          const write = randomBytes(16).toString('hex');
+          const body = writeBodyOf({ agent: 'claude', project, write });
+          const h = signedHeadersFor(phone, 'POST', '/v1/start', body);
+          const request = Buffer.concat([Buffer.from([`POST /v1/start HTTP/1.1`, `Host: ${HOSTILE_NAME}:${String(HOSTILE_PUBLIC_PORT)}`, ...Object.entries(h).map(([k, v]) => `${k}: ${v}`), 'content-type: application/json', `content-length: ${String(body.length)}`, 'Connection: close', '', ''].join('\r\n'), 'utf8'), body]);
+          const raw = await rawExchange({ door: d, bytes: request, identity: phone, capBytes: 8 * 1024 * 1024 });
+          const r = rawSays(spec.rawAnswer, raw.bytes);
+          check(arm, keyProblems.length === 0 && raw.handshook && r.says === true && startPosts().length === 1, `the offer drawn (${J(keyProblems)}); the start answered as raw bytes ${J(r.status)} in the ${spec.rawAnswer} shape: ${String(r.says)}`);
+          continue;
+        }
+        if (spec.remote === true) {
+          // THE FIX ROUND (NP4): the project on the ready machine, with that machine's one agent.
+          const farPlace = (offer?.places ?? []).find((p) => p.id === START_FAR.id) ?? null;
+          const far = (offer?.projects ?? []).find((p) => p.place === START_FAR.id)?.id ?? '';
+          const agent = farPlace?.agents?.[0] ?? '';
+          const write = randomBytes(16).toString('hex');
+          const got = await startSession(phone, d, { project: far, agent, write });
+          const read = startAnswerOf(got, write);
+          const posts = startPosts();
+          const named = posts.length === 1 && posts[0].verified === 'ok' && posts[0].channelHeld === true && posts[0].keys === 'agent,project,write' && posts[0].startProject === far && posts[0].startAgent === agent && posts[0].startPlace === START_FAR.id;
+          check(arm, keyProblems.length === 0 && farPlace?.ready === true && agent === 'codex' && read.ok && read.answer.outcome === 'done' && read.answer.session?.id === door.sessionToOpen && named, `the offer drawn (${J(keyProblems)}); a start of ${J(agent)} in the project on ${START_FAR.id} answered ${read.ok ? read.answer.outcome : read.why}; ${String(posts.length)} POST(s), naming ${J(posts.map((e) => [e.startProject === far ? 'that project' : e.startProject, e.startAgent, e.startPlace]))}`);
+          continue;
+        }
+        const write = randomBytes(16).toString('hex');
+        const got = await startSession(phone, d, { project, agent: 'claude', write });
+        const read = startAnswerOf(got, write);
+        const shape = {
+          'start-answer-wrong-verb': !read.ok && /^verb/.test(read.why),
+          'start-answer-no-echo': !read.ok && /echo/.test(read.why),
+          'start-answer-done-no-session': !read.ok && /session/.test(read.why),
+          'start-answer-refused-no-reason': !read.ok && /reason/.test(read.why),
+          'start-answer-unknown-reason': read.ok && read.answer.outcome === 'refused' && read.answer.reason === 'sideways' && read.answer.sentence === START_UNKNOWN_SENTENCE,
+          'start-honest': read.ok && read.answer.outcome === 'done' && read.answer.session?.id === door.sessionToOpen,
+          'start-404': got.status === 404 && got.body === ''
+        }[arm];
+        const posts = startPosts();
+        check(arm, keyProblems.length === 0 && offer?.state === 'offered' && shape === true && posts.length === 1 && posts[0].verified === 'ok' && posts[0].channelHeld === true && posts[0].offered === true && posts[0].keys === 'agent,project,write', `the offer drawn (${J(keyProblems)}); the one POST answered ${String(got.status)} ${got.body.slice(0, 140)} (read: ${read.ok ? 'whole' : read.why}); ${String(posts.length)} POST(s), verified over its body with the client identity`);
         continue;
       }
       // PHASE 316.7: THE SESSIONS ARMS, read with the node phone's own
@@ -2364,6 +2687,11 @@ async function selfTest() {
           const known = new Set([...(body?.rows ?? []), ...(body?.others ?? [])].map((r) => r.sessionId));
           const sessionsProblems = sessionsRead.answer === null ? ['no answer'] : sessionsAnswerProblems(sessionsRead.answer, askedOf({}));
           const sessionsHold = sessionsRead.status === 200 && sessionsProblems.length === 0 && sessionsRead.answer.rows.length > 0 && sessionsRead.answer.rows.every((r) => known.has(r.sessionId)) && sessionsRead.answer.rows.some((r) => r.sessionId === door.sessionToOpen);
+          // Phase 346: an arm that is not a start arm carries no start key and takes no start.
+          {
+            const noStart = await startSession(phone, d, { project: 'p346-project', agent: 'claude' });
+            check('honest (no start)', sessionsRead.answer !== null && !Object.hasOwn(sessionsRead.answer, 'start') && noStart.status === 404, `the honest /v1/sessions ${Object.hasOwn(sessionsRead.answer ?? {}, 'start') ? 'CARRIES' : 'carries no'} start key; POST /v1/start answered ${String(noStart.status)}`);
+          }
           // Phase 337.1: the honest Screen offers the door's history, and an honest page of it is one the phone joins.
           {
             const screen = await screenRead(phone, d, door.sessionToOpen);

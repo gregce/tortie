@@ -681,6 +681,53 @@ final class DoorVectorTests: XCTestCase {
         }
     }
 
+    /// Clause (Phase 346, build/p346/SPEC.md D6): the start's request is the
+    /// one the shipping verifier accepted and the shipping `parseStartBody`
+    /// read back: POST, the client's own target, and the body Swift's encoder
+    /// writes from `StartBody` with sorted keys, byte for byte, exactly its
+    /// three keys (the signature loops above sign and verify it with the rest).
+    func testTheStartWriteIsTheDoorsByteForByte() throws {
+        let start = try XCTUnwrap(v.requests.first { $0.name == "start" }, "vectors.json carries no start write; run build/p316/vectors.mjs")
+        XCTAssertEqual(start.method, "POST")
+        XCTAssertEqual(start.target, DoorClient.startTarget)
+        let fields = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(start.body.utf8)) as? [String: String])
+        XCTAssertEqual(Array(fields.keys).sorted(), ["agent", "project", "write"])
+        let body = StartBody(
+            agent: try XCTUnwrap(fields["agent"]), project: try XCTUnwrap(fields["project"]), write: try XCTUnwrap(fields["write"])
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        XCTAssertEqual(String(decoding: try encoder.encode(body), as: UTF8.self), start.body)
+        XCTAssertTrue(WriteId.isWellFormed(body.write))
+    }
+
+    /// Clause (Phase 346, D5): the four start answers the SHIPPING write path
+    /// composed read back as the door wrote them, unknown fields ignored, each
+    /// by its own rules; and the client takes each as a start's answer to the
+    /// vector's request (its id echoed, or `""` with `refused` `malformed`).
+    func testTheStartAnswersReadBackAsTheDoorWroteThem() throws {
+        let done = try assertRoundTrip(PocketStartAnswer.self, "start-done")
+        XCTAssertEqual(done.outcome, .done)
+        XCTAssertNotNil(done.session)
+        XCTAssertNil(done.sentence)
+        let refused = try assertRoundTrip(PocketStartAnswer.self, "start-refused-project")
+        XCTAssertEqual(refused.reason, "project")
+        XCTAssertNotNil(refused.sentence)
+        XCTAssertNil(refused.session)
+        let busy = try assertRoundTrip(PocketStartAnswer.self, "start-busy")
+        XCTAssertEqual(busy.outcome, .busy)
+        XCTAssertNil(busy.reason)
+        let malformed = try assertRoundTrip(PocketStartAnswer.self, "start-malformed")
+        XCTAssertTrue(malformed.echoesNoId)
+        let start = try XCTUnwrap(v.requests.first { $0.name == "start" })
+        let sent = try XCTUnwrap((try JSONSerialization.jsonObject(with: Data(start.body.utf8)) as? [String: String])?["write"])
+        for name in ["start-done", "start-refused-project", "start-busy", "start-malformed"] {
+            let end = ExchangeEnd(result: .success(DoorReply(status: 200, body: Data(try answer(name).json.utf8))), handed: true)
+            guard case .answered(let read) = StartResult.of(end, sent: sent) else { return XCTFail("\(name) is not read as the start's answer") }
+            XCTAssertFalse(DoorWords.startSentence(for: .answered(read), sample: false).isEmpty, name)
+        }
+    }
+
     /// Clause: the ask arrives exactly as he typed it, markdown characters and
     /// all, and so does the answer; the phone decodes and never rewrites.
     func testTheAskAndTheAnswerArriveVerbatim() throws {

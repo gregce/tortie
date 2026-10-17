@@ -11,6 +11,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 - Tortie for iPhone now has See a sample, on its first screen and in Settings: made-up Claude Code and Codex sessions you can open, scroll back, type into, answer and end before you pair a Mac, with every page marked Sample and nothing leaving the phone. What you type there only appears on the sample's own prompt, and Leave sample takes you back ([`ad317f86`](https://github.com/gregce/tortie/commit/ad317f86))
 - Your iPhone can now pair with up to four Macs, from Pair another Mac in Settings, and each Mac is its own space with its own Needs input, Sessions and Settings: a tab at the right of the bottom bar, named after the Mac you are on, switches between them and is marked when a session waits on another one. Unpair forgets only the Mac on screen, and alerts still come from the one Mac that sends them ([`80daa9fd`](https://github.com/gregce/tortie/commit/80daa9fd))
 - On the iPhone you can now select text in a session's terminal the iPhone way: press on a word, drag the handles across rows and into earlier output, and Copy from the menu above it ([`3b327475`](https://github.com/gregce/tortie/commit/3b327475))
+- Your iPhone can now start a session: tap + on the Sessions tab, pick a project open in Tortie on that Mac or on one of its machines and a built-in agent installed there, and its terminal opens, with your Mac's launch defaults and no Face ID. Your Mac asks you to allow it once, in Settings then Phone
 
 ### Changed
 

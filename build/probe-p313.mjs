@@ -101,6 +101,28 @@
  * Antigravity, Grok and Droid binaries and `agents:list` is read back, so no
  * agent's `--version` ever runs.
  *
+ * PHASE 346's RULED ROUND: NO REAL AGENT, PROVED BEFORE AND AFTER. On
+ * 2026-10-16 a verifier ran this probe with the scratch `ZDOTDIR` its brief
+ * required; zsh read that folder's `.zprofile` rather than this HOME's, the
+ * captured login PATH held his own `~/.local/bin` and no stand-in, and both
+ * `claude` sessions started his REAL Claude Code, six times over three runs,
+ * while B1 and S1 read UNREADABLE and nothing else said so. Now the app is
+ * given `ZDOTDIR` this HOME, `HISTFILE=/dev/null`, no `TERM_SESSION_ID`, no
+ * `$NVM_BIN`, and a PATH of the stand-in, one `node` link and the system
+ * folders (build/scratch-login.mjs), and its `.zprofile` names that PATH and
+ * inherits nothing. Before anything starts, the login shell the app will ask,
+ * with that environment, must resolve `claude` to the stand-in, or the probe
+ * REFUSES (exit 2) with nothing launched. Every launchable row but `claude`
+ * is renamed in agents.json before each launch (read from the registry
+ * through the pinned tsx) and read back absent, so no other agent's
+ * `--version` runs. After the last launch, RUN's agents clause reads every
+ * session row of the manifest (a copy beside its WAL): each agent row's
+ * program must be under this run's folder and each shell row a system shell,
+ * and a manifest that cannot be read is UNREADABLE. C0's write routes are the
+ * table's five (`end`, `choose`, `say`, Phase 337's `keys` and Phase 346's
+ * `start`); the literal had stayed at 318's three and read FAIL at HEAD and
+ * at the parent alike.
+ *
  * NOT DRIVEN HERE, and why. A REMOTE row's turns need a second machine;
  * `conformance:pocket:hostile` drives the SHIPPING composer's remote arm.
  * `blockedSince` for a row first seen at a wake is Phase 314's.
@@ -138,7 +160,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { X509Certificate, createHash, randomBytes } from 'node:crypto';
-import { appendFileSync, chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { connect as netConnect } from 'node:net';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -147,6 +169,7 @@ import { wsConnect, cdpEval } from './cdp-client.mjs';
 import { pickRendererTarget } from './cdp-target.mjs';
 import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, watchForRealTailscale } from './p330/tailscale-standin.mjs';
 import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin, nameQuestionsSelfTest, nameQuestionsVerdict, quietAgentsHeld, writeQuietAgents } from './p332/dns-standin.mjs';
+import { launchableAgentIds, manifestSessions, plantedResolve, scratchShellEnv, within } from './scratch-login.mjs';
 import {
   adoptCertificate,
   b64u,
@@ -171,10 +194,55 @@ const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 const J = JSON.stringify;
 const sha = (data) => createHash('sha256').update(data).digest('hex');
 
-// Phase 332's clause, graded on its own cases with nothing launched.
+/** The shells a `shell` session may run: the system's, and the login shell this probe was given. */
+const SYSTEM_SHELLS = new Set(['/bin/zsh', '/bin/bash', '/bin/sh', (process.env['SHELL'] ?? '').trim()].filter((x) => x !== ''));
+
+/**
+ * THE AGENTS' RUN CLAUSE (Phase 346's ruled round), pure. `manifest` is
+ * `manifestSessions`' answer. A row that is not a shell is an agent session,
+ * and its program must be under the run's folder: a claude row whose argv[0]
+ * is outside it is a real agent that STARTED (2026-10-16:
+ * /Users/gdc/.local/bin/claude, six times over three runs). A shell row runs a
+ * system shell. A manifest that was not read is UNREADABLE (`ok` null), never
+ * a pass and never a failure; no agent row at all, or the precondition not
+ * passed, is a failure. `{ ok, said, reading }`.
+ */
+export function manifestAgentsVerdict({ manifest, run, shells, planted }) {
+  if (manifest?.read !== true) return { ok: null, said: `the manifest could not be read after the app was gone (${String(manifest?.why ?? 'no reading')})`, reading: { read: false, why: manifest?.why ?? null } };
+  const agentRows = manifest.rows.filter((r) => r.agent !== 'shell');
+  const outside = agentRows.filter((r) => !within(run, r.argv0));
+  const oddShells = manifest.rows.filter((r) => r.agent === 'shell' && !shells.has(r.argv0));
+  const ok = planted === true && agentRows.length > 0 && outside.length === 0 && oddShells.length === 0;
+  const said =
+    `${String(manifest.rows.length)} session row(s): ${String(agentRows.length)} agent row(s) (${agentRows.length === 0 ? 'none' : agentRows.map((r) => `${String(r.name)} ${String(r.argv0)}`).join(', ')}), ` +
+    `${outside.length === 0 ? 'every one this run\'s stand-in' : `${String(outside.length)} ran a program OUTSIDE the run: ${J(outside)}`}; ` +
+    `${String(manifest.rows.length - agentRows.length)} shell row(s)${oddShells.length === 0 ? '' : `, ${String(oddShells.length)} not a system shell: ${J(oddShells)}`}; the precondition ${planted === true ? 'passed' : 'did NOT pass'}`;
+  return { ok, said, reading: { read: true, rows: manifest.rows.length, agents: agentRows.map((r) => ({ name: r.name, agent: r.agent, argv0: r.argv0 })), outside, oddShells } };
+}
+
+// Phase 332's clause, and since Phase 346's ruled round the agents' RUN clause, graded on their own cases with
+// nothing launched.
 if (process.argv.includes('--grader-self-test')) {
-  const ok = nameQuestionsSelfTest(DEFAULT_SCENARIO.dnsName.replace(/\.$/, ''));
-  console.log(`[p313] grader self-test ${ok ? 'PASS' : 'FAIL'}: the name-question clause (N1).`);
+  let ok = nameQuestionsSelfTest(DEFAULT_SCENARIO.dnsName.replace(/\.$/, ''));
+  const run = '/private/tmp/p313-probe-1';
+  const shells = new Set(['/bin/zsh']);
+  const honest = { read: true, rows: [{ id: 'a', name: 'p313-shell', agent: 'shell', argv0: '/bin/zsh' }, { id: 'b', name: 'p313-ask', agent: 'claude', argv0: `${run}/home/.local/bin/claude` }], why: null };
+  const cases = [
+    ['an honest manifest: the stand-in and a shell', { manifest: honest, run, shells, planted: true }, true],
+    ['a claude row on his real Claude Code (2026-10-16)', { manifest: { ...honest, rows: [...honest.rows, { id: 'c', name: 'p313-talk', agent: 'claude', argv0: '/Users/gdc/.local/bin/claude' }] }, run, shells, planted: true }, false],
+    ['a claude row in a folder that only starts like the run', { manifest: { ...honest, rows: [{ id: 'd', name: 'x', agent: 'claude', argv0: `${run}-other/claude` }] }, run, shells, planted: true }, false],
+    ['a shell row that is not a system shell', { manifest: { ...honest, rows: [...honest.rows, { id: 'e', name: 'y', agent: 'shell', argv0: '/Users/gdc/bin/fish' }] }, run, shells, planted: true }, false],
+    ['no agent row at all', { manifest: { ...honest, rows: [honest.rows[0]] }, run, shells, planted: true }, false],
+    ['the precondition not passed', { manifest: honest, run, shells, planted: false }, false],
+    ['a manifest that was not read', { manifest: { read: false, rows: [], why: 'unable to open database file (14)' }, run, shells, planted: true }, null]
+  ];
+  for (const [what, input, want] of cases) {
+    const got = manifestAgentsVerdict(input).ok;
+    const right = got === want;
+    if (!right) ok = false;
+    console.log(`${right ? 'ok  ' : 'FAIL'} the agents' RUN clause reads ${what} as ${got === null ? 'UNREADABLE' : got ? 'green' : 'red'}`);
+  }
+  console.log(`[p313] grader self-test ${ok ? 'PASS' : 'FAIL'}: the name-question clause (N1) and the agents' RUN clause.`);
   process.exit(ok ? 0 : 1);
 }
 
@@ -222,10 +290,14 @@ const WRITE_ROUTES = WRITE_ROWS.length;
  * outside any window, as conformance:pocket R2 holds them. Until Phase 317
  * this arm read "no write route", which that phase made false on purpose, and
  * until Phase 318's fix round it read 317's one write, which 318 made false on
- * purpose (the run lens found C0 red at HEAD on 2026-10-04).
+ * purpose (the run lens found C0 red at HEAD on 2026-10-04). Phase 337 added
+ * `keys` and Phase 346 `start`, each a signed POST alive outside any window,
+ * and this literal stayed at 318's three, so C0 read FAIL at HEAD and at the
+ * parent alike (the Phase 346 reverify, 2026-10-16); since the ruled round it
+ * is the table's five.
  */
-const WRITE_IDS = Object.freeze(['end', 'choose', 'say']);
-const WRITES_ARE_318S = WRITE_ROWS.length === WRITE_IDS.length && WRITE_ROWS.every((r, i) => r.id === WRITE_IDS[i] && r.method === 'POST' && r.path === `/v1/${r.id}` && r.reads === false && r.signed === true && r.windowOnly === false);
+const WRITE_IDS = Object.freeze(['end', 'choose', 'say', 'keys', 'start']);
+const WRITES_ARE_THE_TABLES = WRITE_ROWS.length === WRITE_IDS.length && WRITE_ROWS.every((r, i) => r.id === WRITE_IDS[i] && r.method === 'POST' && r.path === `/v1/${r.id}` && r.reads === false && r.signed === true && r.windowOnly === false);
 
 // ---------------------------------------------------------------------------
 // The scratch world. Outside the repository and outside the person's home.
@@ -243,6 +315,27 @@ const PROJECT = join(RUN, 'project');
 const BIN = join(HOME, '.local', 'bin');
 /** OUTSIDE the profile, so the helper's profile sweep never takes the stand-in's children for the app's. */
 const STANDIN_DIR = join(RUN, 'standin');
+const MANIFEST = join(PROFILE, 'gmux', 'manifest.db');
+/**
+ * THE LOGIN PATH AND THE APP'S OWN PATH (Phase 346's ruled round, after
+ * probe:p346's fix round). The stand-in first and the system folders, and
+ * NOTHING of whoever ran the probe: Tortie's create merges the app's own PATH
+ * into its search, so an inherited one put his install folders on it. `node`
+ * is one link to the node running this file, for the Electron shim's
+ * `#!/usr/bin/env node`, and never the folder it lives in.
+ */
+const NODE_BIN = join(RUN, 'nodebin');
+const LOGIN_PATH = `${BIN}:/usr/bin:/bin:/usr/sbin:/sbin`;
+const APP_PATH = `${BIN}:${NODE_BIN}:/usr/bin:/bin:/usr/sbin:/sbin`;
+/** The one agent this probe plants. Every other launchable row is renamed to a program that exists nowhere. */
+const PLANTED = Object.freeze(['claude']);
+const LAUNCHABLE = launchableAgentIds(ROOT);
+if (LAUNCHABLE === null || !PLANTED.every((id) => LAUNCHABLE.includes(id))) {
+  console.error(`${TAG} the registry's launchable agents could not be read through the pinned tsx (${J(LAUNCHABLE)}), so which rows to rename is unknown. Nothing is launched.`);
+  process.exit(2);
+}
+/** Every launchable row but the planted one: renamed in agents.json before each launch, read back absent. */
+const QUIET_HERE = Object.freeze(LAUNCHABLE.filter((id) => !PLANTED.includes(id)));
 const SOCKET = `gmux-p313-${String(process.pid)}`;
 const KEEP = (process.env['P313_KEEP'] ?? '') === '1';
 
@@ -409,6 +502,8 @@ async function leafThroughForwarder() {
 // ---------------------------------------------------------------------------
 
 const INHERITED_CLAUDE = Object.fromEntries(Object.keys(process.env).filter((name) => /^(?:CLAUDECODE|CLAUDE_)/.test(name)).map((name) => [name, undefined]));
+/** The registry's one `$VAR` install folder (Codex's `$NVM_BIN`), removed so it expands to nothing of his. */
+const ROW_DIR_VARS = Object.freeze({ NVM_BIN: undefined });
 
 async function attach(timeoutMs) {
   const started = Date.now();
@@ -435,7 +530,7 @@ async function armed(cdp) {
     const ready = await cdpEval(cdp, 'window.gmux !== undefined && window.__gmuxP93 !== undefined && window.__gmuxP202 !== undefined');
     if (ready === true) {
       // NO AGENT STARTS (Phase 332): the renamed rows must read not installed.
-      const held = quietAgentsHeld(JSON.parse(await cdpEval(cdp, 'window.gmux.agentsList().then((r) => JSON.stringify(r))')));
+      const held = quietAgentsHeld(JSON.parse(await cdpEval(cdp, 'window.gmux.agentsList().then((r) => JSON.stringify(r))')), QUIET_HERE);
       agentsHeld.push(held.ok);
       if (!held.ok) throw new Error(`agents:list says the renamed agents are not all absent: ${held.problems.join('; ')}`);
       return true;
@@ -553,6 +648,8 @@ let lastShim = 0;
 let lastApp = 0;
 let ran = false;
 let preflightOk = false;
+/** The precondition passed: every planted name resolves to its stand-in on the scratch login shell. */
+let plantedOk = false;
 let watch = null;
 /** The name check's zone servers (Phase 332), in this process on 127.0.0.1. */
 let dns = null;
@@ -567,7 +664,13 @@ const launchOptions = (label) => ({
   args: ['--remote-debugging-port=0', '--use-mock-keychain'],
   env: withoutDevRenderer({
     ...INHERITED_CLAUDE,
+    ...ROW_DIR_VARS,
     HOME,
+    // THE SCRATCH LOGIN SHELL (Phase 346's ruled round): zsh reads
+    // $ZDOTDIR/.zprofile, so ZDOTDIR is the scratch HOME or the stand-in is on
+    // no PATH the app captures; no history, no Terminal session id.
+    ...scratchShellEnv(HOME),
+    PATH: APP_PATH,
     GMUX_TMUX_SOCKET: SOCKET,
     GMUX_PROBES: '1',
     GMUX_LOG_FILE: '1',
@@ -600,7 +703,7 @@ async function launch(label, body) {
   const dnsPre = await dns.preflight(value);
   dnsPreflights.push(dnsPre.ok && loopbackOnlyServers(value));
   if (!dnsPre.ok) throw new Error(`the DNS preflight refused the launch: ${dnsPre.problems.join('; ')}`);
-  writeQuietAgents(PROFILE);
+  writeQuietAgents(PROFILE, QUIET_HERE);
   await withElectron(launchOptions(label), async (handle) => {
     const rec = { shim: handle.pid, app: 0 };
     launches.push(rec);
@@ -629,7 +732,8 @@ let sessionsSeen = [];
 try {
   // ---- the world ----------------------------------------------------------
   rmSync(RUN, { recursive: true, force: true });
-  for (const dir of [HOME, HARNESS, PROFILE, PROJECT, BIN, join(HOME, '.claude')]) mkdirSync(dir, { recursive: true });
+  for (const dir of [HOME, HARNESS, PROFILE, PROJECT, BIN, NODE_BIN, join(HOME, '.claude')]) mkdirSync(dir, { recursive: true });
+  symlinkSync(process.execPath, join(NODE_BIN, 'node'));
   standin = makeStandin({ dir: STANDIN_DIR, scenario: { ...DEFAULT_SCENARIO } });
   const pre = preflightStandin(standin, standin.binPath);
   preflightOk = pre.ok;
@@ -675,8 +779,23 @@ exit 0
     'utf8'
   );
   chmodSync(join(BIN, 'claude'), 0o755);
-  writeFileSync(join(HOME, '.zprofile'), `export PATH="${BIN}:$PATH"\n`, 'utf8');
-  writeFileSync(join(HOME, '.zshrc'), `export PATH="${BIN}:$PATH"\n`, 'utf8');
+  writeFileSync(join(HOME, '.zprofile'), `export PATH="${LOGIN_PATH}"\n`, 'utf8');
+  writeFileSync(join(HOME, '.zshrc'), `export PATH="${LOGIN_PATH}"\nexport HISTFILE=/dev/null\n`, 'utf8');
+  writeFileSync(join(HOME, '.hushlogin'), '');
+  // THE PRECONDITION (Phase 346's ruled round): the login shell the app will ask, with the environment it will
+  // be given, resolves every agent this run plants to its stand-in, or NOTHING is launched (exit 2). On
+  // 2026-10-16 a ZDOTDIR the probe did not set started his real Claude Code in both claude sessions.
+  {
+    const asked = plantedResolve({ home: HOME, bin: BIN, names: [...PLANTED], env: { ...INHERITED_CLAUDE, ...ROW_DIR_VARS, PATH: APP_PATH } });
+    report.readings.resolves = asked.resolved;
+    if (!asked.ok) {
+      console.error(`${TAG} REFUSED. ${asked.said}, so a session would start a real agent. Nothing is launched.`);
+      rmSync(RUN, { recursive: true, force: true });
+      process.exit(2);
+    }
+    plantedOk = true;
+    say(asked.said);
+  }
   const git = (args) => spawnSync('git', args, { cwd: PROJECT, encoding: 'utf8', env: { ...process.env, HOME } });
   git(['init', '-q']);
   writeFileSync(join(PROJECT, 'note.txt'), 'hello\n');
@@ -741,8 +860,8 @@ exit 0
       }
       arm(
         'C0 every pocket channel answers from main',
-        hasPocket === true && CONTRACT_CHANNELS.length > 0 && registered === CONTRACT_CHANNELS.length && WRITES_ARE_318S,
-        `${String(registered)} of ${String(CONTRACT_CHANNELS.length)} contract channels registered (${J(census)}); the write routes are ${J(WRITE_ROWS.map((r) => `${r.method} ${r.path}${r.signed ? ' signed' : ''}`))}, exactly POST /v1/end, /v1/choose and /v1/say, each signed`
+        hasPocket === true && CONTRACT_CHANNELS.length > 0 && registered === CONTRACT_CHANNELS.length && WRITES_ARE_THE_TABLES,
+        `${String(registered)} of ${String(CONTRACT_CHANNELS.length)} contract channels registered (${J(census)}); the write routes are ${J(WRITE_ROWS.map((r) => `${r.method} ${r.path}${r.signed ? ' signed' : ''}`))}, exactly POST ${WRITE_IDS.map((id) => `/v1/${id}`).join(', ')}, each signed`
       );
       if (hasPocket !== true) return;
 
@@ -1161,6 +1280,13 @@ exit 0
       preflightOk && findings.length === 0 && (watch?.samples() ?? 0) > 0 && report.readings.run.forbidden === 0 && report.readings.run.refused === 0 && ended.left.length === 0,
       `preflight ${preflightOk ? 'passed' : 'REFUSED'}; ${String(watch?.samples() ?? 0)} sample(s), ${String(findings.length)} real Tailscale process(es) seen; ${String(report.readings.run.forbidden)} forbidden and ${String(report.readings.run.refused)} refused argv at the stand-in; ${String(ended.ended.length)} stand-in pid(s) ended here, ${String(ended.left.length)} left`
     );
+  }
+  // ---- RUN, the agents (Phase 346's ruled round): every session the manifest holds ran this run's stand-in ----
+  // Read after the last launch is gone, from a copy beside its WAL.
+  if (launches.length > 0) {
+    const v = manifestAgentsVerdict({ manifest: manifestSessions(MANIFEST), run: RUN, shells: SYSTEM_SHELLS, planted: plantedOk });
+    report.readings.manifest = v.reading;
+    arm('RUN every agent session the manifest holds ran this run\'s stand-in, and the precondition held', v.ok, v.said);
   }
   // ---- N1 (Phase 332): the name check asked the loopback stand-in, and rightly --
   if (dns !== null) {

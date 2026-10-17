@@ -92,6 +92,8 @@ const TAILNET = 'example.github';
 const PROBE = 'probe' as PocketRouteId;
 /** Every clause over the eleven, in the table's key order, as his approved drawing says it. */
 const CAN_ELEVEN = 'see your sessions, type into them, answer questions, send a message, end a session';
+/** Every clause over this build's twelve (Phase 346 adds Start's, last: build/p346/SPEC.md D3). */
+const CAN_TWELVE = `${CAN_ELEVEN}, start sessions`;
 
 /** A phone as main stores one: its id derived from its signing key, as `phoneIdOf` derives it. */
 function phoneOf(seed: string, label: string, alerts = true): PocketPhoneFields {
@@ -172,7 +174,10 @@ describe('F1: the four rows over the eleven, labelled once, in order', () => {
         'Alerts'
       ]);
       expect(value(face, 'reach')).toBe(`${NAME}:8443, by Tailscale`);
-      expect(value(face, 'can')).toBe(CAN_ELEVEN);
+      // Over this build's table (Phase 346: twelve), and over the eleven a
+      // store that never allowed Start reads as, byte for byte the parent's.
+      expect(value(face, 'can')).toBe(CAN_TWELVE);
+      expect(value(pocketConfirmFace(fieldsOf({ funnelProgram: APP }), LEGACY_ALLOWED_ROUTES, [], state), 'can')).toBe(CAN_ELEVEN);
       expect(value(face, 'phones')).toBe('Greg’s iPhone');
       expect(value(face, 'alerts')).toBe('through Apple, never what an agent asks');
       expect(face.added).toEqual([]);
@@ -181,7 +186,7 @@ describe('F1: the four rows over the eleven, labelled once, in order', () => {
 
   it('says the clauses in the table’s order whatever order the routes are offered in', () => {
     const reversed = [...POCKET_ROUTE_IDS].reverse();
-    expect(value(pocketConfirmFace(fieldsOf(), reversed, [], 'never'), 'can')).toBe(CAN_ELEVEN);
+    expect(value(pocketConfirmFace(fieldsOf(), reversed, [], 'never'), 'can')).toBe(CAN_TWELVE);
     // `pair` alone says nothing a phone can do; no clause at all says so.
     expect(value(pocketConfirmFace(fieldsOf(), ['pair'], [], 'never'), 'can')).toBe(POCKET_FACE_CAN_NOTHING);
     expect(POCKET_FACE_CAN_NOTHING).toBe('do nothing');
@@ -264,7 +269,7 @@ describe('F2: confirmed draws only the waiting routes, by their words or their i
     } as unknown as PocketNewRouteTable;
     const face = pocketConfirmFace(fieldsOf(), [...POCKET_ROUTE_IDS, PROBE], [PROBE], 'confirmed', words);
     expect(face.added).toEqual([{ id: PROBE, title: 'New: read a probe from your phone', sentence: 'Your phone could read a probe here.' }]);
-    // The shipping table, which is empty: the id, and no sentence.
+    // The shipping table, which has no row for it (Phase 346's only row is Start's): the id, and no sentence.
     expect(pocketConfirmFace(fieldsOf(), [...POCKET_ROUTE_IDS, PROBE], [PROBE], 'confirmed').added).toEqual([
       { id: PROBE, title: 'New: probe', sentence: null }
     ]);
@@ -275,11 +280,11 @@ describe('F2: confirmed draws only the waiting routes, by their words or their i
     const words = { keys: { title: 'type from your phone', sentence: 'Your phone could type into a session.' } } as unknown as PocketNewRouteTable;
     const face = pocketConfirmFace(fieldsOf(), POCKET_ROUTE_IDS, ['keys'], 'changed', words);
     expect(face.rows).toHaveLength(4);
-    expect(value(face, 'can')).toBe('see your sessions, answer questions, send a message, end a session');
+    expect(value(face, 'can')).toBe('see your sessions, answer questions, send a message, end a session, start sessions');
     expect(value(face, 'can')).not.toContain('type into them');
     expect(face.added).toEqual([{ id: 'keys', title: 'New: type from your phone', sentence: 'Your phone could type into a session.' }]);
     // Never on the face twice: what a phone can do with the route in it is said only once it is allowed.
-    expect(value(pocketConfirmFace(fieldsOf(), POCKET_ROUTE_IDS, [], 'changed', words), 'can')).toBe(CAN_ELEVEN);
+    expect(value(pocketConfirmFace(fieldsOf(), POCKET_ROUTE_IDS, [], 'changed', words), 'can')).toBe(CAN_TWELVE);
   });
 });
 
@@ -359,7 +364,12 @@ describe('F3: every hashed fact moves the hash and the lines, and the face for e
 
   it('names the waiting route on the face as New and in the lines’ route line', () => {
     const after = drawn(base, 'changed', [...POCKET_ROUTE_IDS, PROBE]);
-    expect(after.face.added).toEqual([{ id: PROBE, title: 'New: probe', sentence: null }]);
+    // Phase 346: `base` allows the eleven, so this build's Start waits beside
+    // the plant, by its own words, in the table's order.
+    expect(after.face.added).toEqual([
+      { id: 'start', title: 'New: start sessions from your phone', sentence: 'An agent installed where the project is, with your launch defaults.' },
+      { id: PROBE, title: 'New: probe', sentence: null }
+    ]);
     expect(after.face.rows).toHaveLength(4);
     expect(after.lines.find((l) => l.startsWith('Answers these and nothing else:'))).toContain('probe');
   });
@@ -412,14 +422,23 @@ describe('F5: the face’s tables', () => {
       'choose',
       'say',
       'end',
-      'pair'
+      'pair',
+      'start'
     ]);
     expect(POCKET_FACE_CLAUSES.pair).toBeNull();
+    // Phase 346 (build/p346/SPEC.md D3).
+    expect(POCKET_FACE_CLAUSES.start).toBe('start sessions');
     expect(Object.isFrozen(POCKET_FACE_CLAUSES)).toBe(true);
   });
 
-  it('holds the waiting routes’ table empty and frozen until a phase adds a route that can wait', () => {
-    expect(Object.keys(POCKET_NEW_ROUTE_WORDS)).toEqual([]);
+  // PHASE 346 (build/p346/SPEC.md D3) added the first row, Start's, in his
+  // answers' words rather than 333.12.1 D7's draft.
+  it('holds exactly Start’s row in the waiting routes’ table, frozen', () => {
+    expect(Object.keys(POCKET_NEW_ROUTE_WORDS)).toEqual(['start']);
+    expect(POCKET_NEW_ROUTE_WORDS.start).toEqual({
+      title: 'start sessions from your phone',
+      sentence: 'An agent installed where the project is, with your launch defaults.'
+    });
     expect(Object.isFrozen(POCKET_NEW_ROUTE_WORDS)).toBe(true);
   });
 });

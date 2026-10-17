@@ -208,6 +208,25 @@
  * `onestart` too. `Q2a` moved its anchor with `queueStart`'s check. No other
  * existing arm moved.
  *
+ * PHASE 346 ADDED FIFTY (build/p346/SPEC.md §5.1), at the end of the table,
+ * for start a session from the phone: `NS1a` to `NS12a`, at least one per NS
+ * rule (the start row window-only, the five writes reordered, every one of
+ * D3's words moved, the session write's verb widened back, a seventh answer
+ * field, a reworded sentence and a literal one, a fourth body key, shell, a
+ * project id holding a path, a working folder set, the project matched by
+ * path, the input read whole, a detection scan, an async offer, a PATH read
+ * that writes, an await before the create, still dropped, an error read by
+ * its text, a status set, sixty starts a minute (which the hostile client's
+ * NSH5 must see too, so it runs both checks), the Mac-wide claim through the
+ * session set, a bound re-spelled, the last check's served ask dropped, the
+ * claim never released, the project in the log line, the key read twice, an
+ * unlisted chosen project passed, startAllowed answering yes, the offer
+ * composed whatever was allowed, a pass-through that does more, a second
+ * start, and the seam confirming the fields), and one per clause the phase
+ * widened: `R2j`, `R3i`, `R4s`, `X1j`, `X3q`, `X4q`, `X5q`, `X6q`, `X12h`,
+ * `AR9s`, `Z1s`, `O2n`, `SU5b` and `L5s` (L5's exemption is the phone's
+ * `pocketStart.start(` alone, so a door start beside it still reds).
+ *
  * An ablation that leaves the check green is a hole in the check. An ablation
  * that reddens only rules OTHER than its own is a finding about the check
  * rather than about the build, and it is printed as one.
@@ -264,6 +283,8 @@
  *   P313_ONLY=O2a,O2k,O2l,R4x node build/ablation-p313.mjs  the Phase 316.7 arms, for one
  *   P313_ONLY=SU6a,SU6b,SU6c,SU6d,AF1a,AF2a,AF3a,AF4a,AF4b node build/ablation-p313.mjs  some of Phase 333.12.1's
  *   P313_ONLY=Q2a,Q2b,Q2c,Q2d,Q2e,Q2f,Q2g,Q2h,Q2i,Q2j,Q2k,Q2l,Q2m,Q2n,Q2o,Q2p,Q2q,Q2r,Q2s,Q2t,Q2u node build/ablation-p313.mjs  Phase 333.12.2's twenty-one
+ *   P313_ONLY=NS1a,NS2a,NS3a,NS4a,NS5a,NS6a,NS7a,NS8a,NS9a,NS10a,NS11a,NS12a node build/ablation-p313.mjs  some of Phase 346's
+ *   P313_ONLY=NS6e,NS6f,NS6g,NS6h node build/ablation-p313.mjs  the readiness, the ruled round's three plants and the fix round's
  *   P313_ALLOW_RED_BASE=1 node build/ablation-p313.mjs
  */
 
@@ -340,6 +361,11 @@ const STEPS = 'src/renderer/settings/phone/steps.ts';
 // PHASE 333.12: the allowed set's pure module and the route ledger.
 const ALLOWED_ROUTES = 'src/main/pocket/allowed-routes.ts';
 const LEDGER = 'src/main/pocket/route-ledger.ts';
+// PHASE 346: the phone's start, outside the door like the reply and the
+// Screen; its sentences; and the login-shell PATH's synchronous read.
+const POCKET_START = 'src/main/sessions/pocket-start.ts';
+const START_COPY = 'src/shared/start-copy.ts';
+const RESOLVE = 'src/main/tmux/resolve.ts';
 
 /**
  * The checks this harness runs inside the clone, in order. Each prints its
@@ -1990,9 +2016,10 @@ const ABLATIONS = [
     name: 'a write with no body cap of its own',
     why: 'the door process checks a write’s size before main reads a byte of it; a write with no cap of its own is one the door bounds by somebody else’s number.',
     file: LIMITS,
-    // Phase 337 put keys on this line (D17); the write it drops is still say.
-    from: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768, keys: 16_384 } as const);',
-    to: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, keys: 16_384 } as const);',
+    // Phase 337 put keys on this line (D17) and Phase 346 start (D6); the
+    // write it drops is still say.
+    from: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512 } as const);',
+    to: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, keys: 16_384, start: 512 } as const);',
     needs: ['gate']
   },
   {
@@ -2221,8 +2248,9 @@ const ABLATIONS = [
     name: 'PocketWrites grows a second member',
     why: 'Restore and Remove stay on the Mac (research 127 §5); a member on the interface is a verb the door can reach.',
     file: ROUTES,
-    from: '  keys(input: PocketKeysInput, still: PocketStillAllowed): Promise<PocketReplyOutcome>;\n}',
-    to: '  keys(input: PocketKeysInput, still: PocketStillAllowed): Promise<PocketReplyOutcome>;\n  restore(input: { sessionId: string }): Promise<PocketEndOutcome>;\n}',
+    // Phase 346 made start the interface's last member (D12).
+    from: '  start(input: PocketStartInput, still: PocketStillAllowed): Promise<PocketStartOutcome>;\n}',
+    to: '  start(input: PocketStartInput, still: PocketStillAllowed): Promise<PocketStartOutcome>;\n  restore(input: { sessionId: string }): Promise<PocketEndOutcome>;\n}',
     needs: ['gate']
   },
   {
@@ -2531,8 +2559,9 @@ const ABLATIONS = [
     name: 'the line names the write id',
     why: 'the line says the verb and the outcome word, never the body, the write id, a header or a sentence.',
     file: WRITES,
-    from: "pocketLog.info(`the phone's ${verb}: ${done.outcome}`,",
-    to: "pocketLog.info(`the phone's ${verb}: ${done.outcome} (${parsed.write})`,",
+    // Phase 346 moved the one line into logWrite, whose outcome is a parameter.
+    from: "pocketLog.info(`the phone's ${verb}: ${outcome}`,",
+    to: "pocketLog.info(`the phone's ${verb}: ${outcome} (${parsed.write})`,",
     needs: ['gate']
   },
   {
@@ -2541,8 +2570,8 @@ const ABLATIONS = [
     name: 'the line carries a second field',
     why: 'the session id is its one field.',
     file: WRITES,
-    from: "pocketLog.info(`the phone's ${verb}: ${done.outcome}`, { session });",
-    to: "pocketLog.info(`the phone's ${verb}: ${done.outcome}`, { session, phone: verifiedPhone });",
+    from: "pocketLog.info(`the phone's ${verb}: ${outcome}`, { session });",
+    to: "pocketLog.info(`the phone's ${verb}: ${outcome}`, { session, phone: verifiedPhone });",
     needs: ['gate']
   },
   {
@@ -2772,8 +2801,9 @@ const ABLATIONS = [
     name: 'the caps not frozen',
     why: 'a cap anything can raise at run time is not a cap.',
     file: LIMITS,
-    from: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768, keys: 16_384 } as const);',
-    to: 'export const POCKET_WRITE_BODY_CAPS = { end: 512, choose: 512, say: 32_768, keys: 16_384 } as const;',
+    // Phase 346 put start on this line (D6).
+    from: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512 } as const);',
+    to: 'export const POCKET_WRITE_BODY_CAPS = { end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512 } as const;',
     needs: ['gate']
   },
   {
@@ -3973,7 +4003,8 @@ const ABLATIONS = [
     name: 'every keys write logged',
     why: 'one line a write at ten a second rotates the diagnosis log out in about twenty minutes of typing (D43, §Attack A11).',
     file: WRITES,
-    from: 'if (logs(verb, done.outcome, session, pending.at)) pocketLog.info(',
+    // Phase 346 moved the guarded line into logWrite (one place for every verb).
+    from: 'if (logs(verb, outcome, session, at, keysLoggedAt)) pocketLog.info(',
     to: 'pocketLog.info(',
     needs: ['gate']
   },
@@ -5596,8 +5627,9 @@ const ABLATIONS = [
     name: 'the added clauses are typed so a new route need not name one',
     why: 'a phase that adds a route could compile without saying what it lets a phone do (D13).',
     file: SHARED,
-    from: 'const POCKET_HONESTY_ADDED: Readonly<Record<Exclude<PocketRouteId, LegacyAllowedRouteId>, string>> = Object.freeze({});',
-    to: 'const POCKET_HONESTY_ADDED: Readonly<Record<string, string>> = Object.freeze({});',
+    // Phase 346 gave the record its first row (D3); the type is what is broken.
+    from: 'const POCKET_HONESTY_ADDED: Readonly<Record<Exclude<PocketRouteId, LegacyAllowedRouteId>, string>> = Object.freeze({',
+    to: 'const POCKET_HONESTY_ADDED: Readonly<Record<string, string>> = Object.freeze({',
     needs: ['gate']
   },
   {
@@ -6303,6 +6335,585 @@ const ABLATIONS = [
     file: IPC,
     from: '    // below runs is owed a start of its own.\n    this.startOwed = false;\n',
     to: '    // below runs is owed a start of its own.\n',
+    needs: ['gate']
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 346 (build/p346/SPEC.md §5.1): start a session from the phone. One
+  // or more arms per NS rule, and one per clause the phase widened, each red
+  // on the rule that owns it. They run the read gate alone (`needs`), but the
+  // rate's, which the hostile client's NSH5 must see too.
+  // -------------------------------------------------------------------------
+  {
+    n: 'NS1a',
+    rule: 'NS1',
+    name: 'the start row made window-only',
+    why: 'D1: a start is a write alive outside any pairing window; a window-only start is a write a stranger could reach while the code shows.',
+    file: TABLE,
+    from: "{ id: 'start', method: 'POST', path: '/v1/start', reads: false, windowOnly: false, signed: true }",
+    to: "{ id: 'start', method: 'POST', path: '/v1/start', reads: false, windowOnly: true, signed: true }",
+    needs: ['gate']
+  },
+  {
+    n: 'NS1b',
+    rule: 'NS1',
+    name: 'the five writes listed with start first',
+    why: 'D4: describePocketDoor names the clauses in this order, so start is said last on the Allow line; R2 compares the set sorted and cannot see this.',
+    file: SHARED,
+    from: "export const POCKET_WRITE_ROUTE_IDS = ['end', 'choose', 'say', 'keys', 'start'] as const",
+    to: "export const POCKET_WRITE_ROUTE_IDS = ['start', 'end', 'choose', 'say', 'keys'] as const",
+    needs: ['gate']
+  },
+  {
+    n: 'NS1c',
+    rule: 'NS1',
+    name: 'the Allow line’s start clause reworded in WRITE_CLAUSES',
+    why: 'D3: the clause is his answers 6 and 8 in words: any installed agent, remote projects too. A narrower clause is a false Allow line.',
+    file: PAIRING,
+    from: "  start: 'start a session in a project open in Tortie, on this Mac or another machine'",
+    to: "  start: 'start Claude Code or Codex in a project here'",
+    needs: ['gate']
+  },
+  {
+    n: 'NS1d',
+    rule: 'NS1',
+    name: 'the New: sentence put back to 333.12.1’s draft',
+    why: 'D3: "Your phone could start Claude Code or Codex in a project here" is false under his answers 6 and 8.',
+    file: SHARED,
+    from: "'An agent installed where the project is, with your launch defaults.'",
+    to: "'Your phone could start Claude Code or Codex in a project here.'",
+    needs: ['gate']
+  },
+  {
+    n: 'NS1e',
+    rule: 'NS1',
+    name: 'the honesty sentence’s start clause claiming Face ID',
+    why: 'D20, 317 D13: Start asks no Face ID and the Mac cannot verify one, so no word may say it does.',
+    file: SHARED,
+    from: "  start: 'start a session in a project open in Tortie, on this Mac or another machine'\n});",
+    to: "  start: 'start a session after Face ID in a project open in Tortie, on this Mac or another machine'\n});",
+    needs: ['gate']
+  },
+  {
+    n: 'NS2a',
+    rule: 'NS2',
+    name: 'PocketWriteAnswer.verb widened back to every write id',
+    why: 'D4: the frozen phone’s closed Verb refuses a word it does not know, so a session write’s answer may never be able to say start.',
+    file: SHARED,
+    from: '  verb: PocketSessionWriteId;',
+    to: '  verb: PocketWriteRouteId;',
+    needs: ['gate']
+  },
+  {
+    n: 'NS2b',
+    rule: 'NS2',
+    name: 'a seventh field on the start’s answer',
+    why: 'D5: the six fields are all of it, and nothing that could claim Face ID happened.',
+    file: WRITES,
+    from: '    session: answer.session === null ? null : { id: answer.session.id, name: answer.session.name }\n  });',
+    to: '    face: true,\n    session: answer.session === null ? null : { id: answer.session.id, name: answer.session.name }\n  });',
+    needs: ['gate']
+  },
+  {
+    n: 'NS2c',
+    rule: 'NS2',
+    name: 'START_BUSY reworded',
+    why: '§4.2: every start sentence is the spec’s, byte for byte; a sentence that loses "Nothing was started." tells him less than the truth.',
+    file: START_COPY,
+    from: "export const START_BUSY = 'Your Mac is starting another session. Nothing was started.';",
+    to: "export const START_BUSY = 'Busy.';",
+    needs: ['gate']
+  },
+  {
+    n: 'NS2d',
+    rule: 'NS2',
+    name: 'a literal sentence handed to the start’s refusal',
+    why: '§4.2: a sentence typed into the act is a sentence nobody reviewed and no gate holds.',
+    file: POCKET_START,
+    from: "return refused('project', START_PROJECT_GONE);",
+    to: "return refused('project', 'That project is gone.');",
+    needs: ['gate']
+  },
+  {
+    n: 'NS3a',
+    rule: 'NS3',
+    name: 'a fourth key, cwd, let into the start body',
+    why: 'D6, D15: a path from the phone is exactly what the body’s three keys exist to refuse.',
+    file: WRITES,
+    from: "const START_KEYS = 'agent,project,write';",
+    to: "const START_KEYS = 'agent,cwd,project,write';",
+    needs: ['gate']
+  },
+  {
+    n: 'NS3b',
+    rule: 'NS3',
+    name: 'shell let in beside the compiled launchable ids',
+    why: 'his answer 7: no Shell. The agent is one of LAUNCHABLE_AGENT_IDS, imported, and no other list.',
+    file: WRITES,
+    from: '  for (const id of LAUNCHABLE_AGENT_IDS) {',
+    to: "  for (const id of [...LAUNCHABLE_AGENT_IDS, 'shell'] as LaunchableAgentId[]) {",
+    needs: ['gate']
+  },
+  {
+    n: 'NS3c',
+    rule: 'NS3',
+    name: 'a project id allowed to hold / and .',
+    why: 'D6: a project id is never a path; ../etc/passwd must read as malformed before the ledger.',
+    file: WRITES,
+    from: "    if (!letter && !digit && ch !== '-') return false;\n  }\n  return true;\n}\n\n/**\n * The compiled launchable agent",
+    to: "    if (!letter && !digit && ch !== '-' && ch !== '/' && ch !== '.') return false;\n  }\n  return true;\n}\n\n/**\n * The compiled launchable agent",
+    needs: ['gate']
+  },
+  {
+    n: 'NS3d',
+    rule: 'NS3',
+    name: 'onlyItsOwnBytes taken out of the start parse',
+    why: 'D6: JSON.parse keeps the LAST of a key given twice and reads an escape as its letter, so a body whose first agent is shell or whose project is written with \\u escapes would act on bytes a reader of the body never saw. Phase 346’s fix round: NS3’s duplicate-key bodies had the bad value last, and this arm read green.',
+    file: WRITES,
+    from: '  if (body.byteLength > POCKET_WRITE_BODY_CAPS.start || !onlyItsOwnBytes(value, body)) return { ok: false, write };',
+    to: '  if (body.byteLength > POCKET_WRITE_BODY_CAPS.start) return { ok: false, write };',
+    needs: ['gate']
+  },
+  {
+    n: 'NS4a',
+    rule: 'NS4',
+    name: 'a working folder set on the start’s input',
+    why: 'D13, D15: quickCreate sends no cwd, and a phone may not choose one.',
+    file: POCKET_START,
+    from: '    projectPath: project.path,\n',
+    to: '    projectPath: project.path,\n    cwd: project.path,\n',
+    needs: ['gate']
+  },
+  {
+    n: 'NS4b',
+    rule: 'NS4',
+    name: 'the phone’s project matched against a path',
+    why: 'D15: the phone names a project by the id main offered; a project found by its path is a path from the phone.',
+    file: POCKET_START,
+    from: 'find((p) => p.id === input.project)',
+    to: 'find((p) => p.path === input.project)',
+    needs: ['gate']
+  },
+  {
+    n: 'NS4c',
+    rule: 'NS4',
+    name: 'the phone’s input read whole',
+    why: 'D15: two ids are read from it and nothing else; an input handed on whole carries whatever a later body grows.',
+    file: POCKET_START,
+    from: "      if (core === null) return { outcome: 'failed', sentence: START_FAILED };\n      try {",
+    to: "      if (core === null) return { outcome: 'failed', sentence: START_FAILED };\n      void input;\n      try {",
+    needs: ['gate']
+  },
+  {
+    n: 'NS4d',
+    rule: 'NS4',
+    name: 'machineId dropped from the start’s input',
+    why: 'D13, the tab rule: a project on a machine is started ON that machine; without machineId a remote start asks this Mac for a folder only the machine has. Phase 346’s fix round: this arm read green.',
+    file: POCKET_START,
+    from: '    ...(capture ? { capture: true } : {}),\n    ...(remote ? { machineId: place } : {})\n',
+    to: '    ...(capture ? { capture: true } : {})\n',
+    needs: ['gate']
+  },
+  {
+    n: 'NS4e',
+    rule: 'NS4',
+    name: 'projectMachineId dropped from the start’s input',
+    why: 'D13: the session’s tab is the project on that machine; without projectMachineId the new session’s tab names a project on this Mac.',
+    file: POCKET_START,
+    from: '    ...(remote ? { projectMachineId: place } : {}),\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'NS4f',
+    rule: 'NS4',
+    name: 'machineId set under another condition than projectMachineId',
+    why: 'D13: both machine keys are set exactly when the project is on a machine; under the capture condition a remote start without capture runs on this Mac.',
+    file: POCKET_START,
+    from: '    ...(remote ? { machineId: place } : {})\n',
+    to: '    ...(capture ? { machineId: place } : {})\n',
+    needs: ['gate']
+  },
+  {
+    n: 'NS5a',
+    rule: 'NS5',
+    name: 'the offer asks for a detection scan',
+    why: 'D8, his answer 6: the offer reads what main already holds and starts nothing, or every Sessions read runs thirteen version probes.',
+    file: POCKET_START,
+    from: '    place === LOCAL_MACHINE_ID ? localAgents() : machineAgents(place);',
+    to: '    place === LOCAL_MACHINE_ID ? (void listDetectedAgents, localAgents()) : machineAgents(place);',
+    needs: ['gate']
+  },
+  {
+    n: 'NS5b',
+    rule: 'NS5',
+    name: 'the offer’s sessionsKey made async',
+    why: 'D8: a key composed asynchronously holds the sessions answer, which O2a holds synchronous.',
+    file: POCKET_START,
+    from: '    sessionsKey(served: boolean): PocketSessionsStart {',
+    to: '    async sessionsKey(served: boolean): PocketSessionsStart {',
+    needs: ['gate']
+  },
+  {
+    n: 'NS5c',
+    rule: 'NS5',
+    name: 'userPathNow writes its slot',
+    why: 'D8: the accessor answers the captured PATH and moves nothing; a read that writes is a cache nobody reviewed.',
+    file: RESOLVE,
+    from: 'export function userPathNow(): string | null {\n  return settledUserPath;\n}',
+    to: 'export function userPathNow(): string | null {\n  settledUserPath = settledUserPath ?? null;\n  return settledUserPath;\n}',
+    needs: ['gate']
+  },
+  {
+    n: 'NS6a',
+    rule: 'NS6',
+    name: 'an await between the reads and the create',
+    why: 'D12: nothing is awaited from the first read to the create, so nothing it read can move under it.',
+    file: POCKET_START,
+    from: "        if (!still()) return refused('stopped', POCKET_WRITE_SENTENCES.stopped);",
+    to: "        await Promise.resolve();\n        if (!still()) return refused('stopped', POCKET_WRITE_SENTENCES.stopped);",
+    needs: ['gate']
+  },
+  {
+    n: 'NS6b',
+    rule: 'NS6',
+    name: 'the create no longer asks still first',
+    why: 'D12: the door’s four asks are asked once more immediately before the create, so a Remove or a stop while the act reads starts nothing.',
+    file: POCKET_START,
+    from: "        if (!still()) return refused('stopped', POCKET_WRITE_SENTENCES.stopped);\n",
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'NS6c',
+    rule: 'NS6',
+    name: 'a thrown create told apart by its text',
+    why: 'D12: an error’s text can carry its argv; a failure is told apart by its code alone.',
+    file: POCKET_START,
+    from: "function thrownStart(err: unknown): PocketStartOutcome {\n",
+    to: "function thrownStart(err: unknown): PocketStartOutcome {\n  if (String(err).includes('folder')) return refused('project', START_FOLDER_GONE);\n",
+    needs: ['gate']
+  },
+  {
+    n: 'NS6d',
+    rule: 'NS6',
+    name: 'the start sets a status',
+    why: 'CLAUDE.md refusal 5, D12: the start creates and does nothing else, and a status is the session’s own behaviour.',
+    file: POCKET_START,
+    from: '        const session = await core.createSession(create);\n',
+    to: '        const session = await core.createSession(create);\n        noteUserInput(session.id);\n',
+    needs: ['gate']
+  },
+  {
+    n: 'NS6e',
+    rule: 'NS6',
+    name: 'the production readiness no longer asks the session feed',
+    why: '§3.1, the fix round: with the loopback machine’s sshd paused for 150 s the offer never dimmed it and a start there would hold the Mac’s one start in flight; a machine is ready only while it answers.',
+    file: POCKET_START,
+    from: '  return machineFeedAnswering(machineId);\n',
+    to: '  return true;\n',
+    needs: ['gate']
+  },
+  // THE RULED ROUND: the reverify's three plants on the readiness, each of which left NS6 green.
+  {
+    n: 'NS6f',
+    rule: 'NS6',
+    name: 'the production readiness answers ready whatever the feed says',
+    why: '§3.1, the ruled round: `machineFeedAnswering(id) || true` names the feed and drops its answer, so a stalled machine reads ready.',
+    file: POCKET_START,
+    from: '  return machineFeedAnswering(machineId);\n',
+    to: '  return machineFeedAnswering(machineId) || true;\n',
+    needs: ['gate']
+  },
+  {
+    n: 'NS6g',
+    rule: 'NS6',
+    name: 'the feed asked and its answer unused',
+    why: '§3.1, the ruled round: a readiness that calls the feed and returns true reads a stalled machine as ready.',
+    file: POCKET_START,
+    from: '  return machineFeedAnswering(machineId);\n',
+    to: '  machineFeedAnswering(machineId);\n  return true;\n',
+    needs: ['gate']
+  },
+  {
+    n: 'NS6h',
+    rule: 'NS6',
+    name: 'the offer skips the readiness',
+    why: 'D7, §3.1, the ruled round: an offer that draws every machine place ready lets the phone choose a project the act would refuse.',
+    file: POCKET_START,
+    from: '          ready: place === LOCAL_MACHINE_ID ? true : machineReady(place),\n',
+    to: '          ready: true,\n',
+    needs: ['gate']
+  },
+  {
+    n: 'NS7a',
+    rule: 'NS7',
+    alsoRed: ['hostile'],
+    name: 'sixty starts a minute',
+    why: 'D16: six a minute holds a stolen key to six agent processes a minute; the hostile client’s NSH5 drives the seventh.',
+    file: WRITES,
+    from: 'export const START_RATE_MAX = 6;',
+    to: 'export const START_RATE_MAX = 60;',
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'NS7b',
+    rule: 'NS7',
+    name: 'the Mac-wide start claim asked through the session set',
+    why: 'D16: a start names no session, and a key inside sessionsInFlight could collide with a session id.',
+    file: WRITES,
+    from: '    if (startInFlight) {',
+    to: "    if (startInFlight || sessionsInFlight.has('start')) {",
+    needs: ['gate']
+  },
+  {
+    n: 'NS7c',
+    rule: 'NS7',
+    name: 'the offer’s project bound re-spelled in pocketStartOf',
+    why: 'D7: the bound is the contract’s constant, the phone’s own equal; a number spelled twice drifts.',
+    file: ROUTES,
+    from: 'projectsIn.length > POCKET_START_PROJECTS_MAX)',
+    to: 'projectsIn.length > 200)',
+    needs: ['gate']
+  },
+  {
+    n: 'NS8a',
+    rule: 'NS8',
+    name: 'the start’s last check no longer asks whether start is served',
+    why: 'D2, his answer 10: a start a person has not allowed is never acted, however it reached the write path.',
+    file: WRITES,
+    from: "!deps.stillPaired(verifiedPhone) || !deps.routeServed('start')) return { status: 404, body: null };",
+    to: '!deps.stillPaired(verifiedPhone)) return { status: 404, body: null };',
+    needs: ['gate']
+  },
+  {
+    n: 'NS8b',
+    rule: 'NS8',
+    name: 'the Mac-wide start claim never released',
+    why: '§3.3 step 7: a start that threw would hold every later start busy until the app quits.',
+    file: WRITES,
+    from: '      startInFlight = false;\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'NS8c',
+    rule: 'NS8',
+    name: 'the start’s log line carrying the project',
+    why: 'D32: one line, the outcome and the new session’s id; never the project, the agent or the write id.',
+    file: WRITES,
+    from: "logWrite('start', done.outcome, done.session?.id ?? '', pending.at, keysLoggedAt);",
+    to: "logWrite('start', done.outcome, parsed.project, pending.at, keysLoggedAt);",
+    needs: ['gate']
+  },
+  {
+    n: 'NS9a',
+    rule: 'NS9',
+    name: 'the sessions answer reads the start key twice',
+    why: 'D26: one read, re-composed once; two reads can disagree, and the "+" and the sheet would.',
+    file: ROUTES,
+    from: 'const start = pocketStartOf(facts.start?.());',
+    to: 'const start = pocketStartOf(facts.start?.() ?? facts.start?.());',
+    needs: ['gate']
+  },
+  {
+    n: 'NS9b',
+    rule: 'NS9',
+    name: 'pocketStartOf passes a chosen project it does not list',
+    why: 'D26: an offer that does not hold together reads as absent; a chosen id nobody lists preselects nothing the sheet can draw.',
+    file: ROUTES,
+    from: '  if (chosenIn !== null && (chosen === null || !projectIds.has(chosen))) return undefined;\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'NS10a',
+    rule: 'NS10',
+    name: 'startAllowed answering yes',
+    why: 'D2, D9: the key says waiting until the Allow whose lines name start; an offer on a Mac that never allowed it draws a "+" whose Create is refused.',
+    file: IPC,
+    from: "    return this.routeServed('start');",
+    to: '    return true;',
+    needs: ['gate']
+  },
+  {
+    n: 'NS10b',
+    rule: 'NS10',
+    name: 'the facts’ start key handed the offer whatever was allowed',
+    why: 'D9: the offer is composed only while start is served.',
+    file: CAPABILITIES,
+    from: 'start: () => pocketStart.sessionsKey(pocketHost?.startAllowed() === true)',
+    to: 'start: () => pocketStart.sessionsKey(true)',
+    needs: ['gate']
+  },
+  {
+    n: 'NS11a',
+    rule: 'NS11',
+    name: 'the writes’ start does something before it passes the call on',
+    why: '§4.7: PocketWrites is implemented once and start is a pass-through; anything it does on the way is a second implementation.',
+    file: POCKET_WRITES,
+    from: 'start: (input, still): Promise<PocketStartOutcome> => deps.start.start(input, still)',
+    to: 'start: (input, still): Promise<PocketStartOutcome> => (void still(), deps.start.start(input, still))',
+    needs: ['gate']
+  },
+  {
+    n: 'NS11b',
+    rule: 'NS11',
+    name: 'a second start built in the push seam',
+    why: '§4.13: capabilities.ts alone builds the phone’s start; a second one is a start the door’s writes were never handed.',
+    file: SEAM,
+    from: 'export function standInOnly(): boolean {\n',
+    to: 'export const p346Start = createPocketStart({ core: () => null });\nexport function standInOnly(): boolean {\n',
+    needs: ['gate']
+  },
+  {
+    n: 'NS12a',
+    rule: 'NS12',
+    name: 'the push seam confirms the fields again',
+    why: 'D31: a first setup’s proposal is twelve routes and fields() eleven, so confirmPocketDoor refuses the hash and the seam pairs nothing.',
+    file: SEAM,
+    from: 'void host.confirmDoor({ linesRead: status.confirmLines, hashRead: status.confirmHash })',
+    to: 'void host.confirmDoor({ linesRead: pocketConfirmStatus(host.fields()).lines, hashRead: status.confirmHash })',
+    needs: ['gate']
+  },
+  // The clauses Phase 346 widened, one arm each.
+  {
+    n: 'R2j',
+    rule: 'R2',
+    name: 'start’s body cap doubled',
+    why: 'D6: start has its own cap, 512, about three and a half times its worst legal body.',
+    file: LIMITS,
+    from: 'keys: 16_384, start: 512 }',
+    to: 'keys: 16_384, start: 1024 }',
+    needs: ['gate']
+  },
+  {
+    n: 'R3i',
+    rule: 'R3',
+    name: 'the door names the start module',
+    why: '§5.1 R3: the door reaches the start only through PocketWrites.start and PocketFacts.start, and names nothing of the module that starts a session.',
+    file: ROUTES,
+    from: 'export function pocketStartOf(value: unknown): PocketSessionsStart | undefined {\n',
+    to: "export const P346_START_MODULE = '../sessions/pocket-start';\nexport function pocketStartOf(value: unknown): PocketSessionsStart | undefined {\n",
+    needs: ['gate']
+  },
+  {
+    n: 'R4s',
+    rule: 'R4',
+    name: 'a thirteenth route beside /v1/start',
+    why: '§5.1 R4: the table’s membership is pinned at twelve, 1b92ce21…; a route added is a visible edit to the pin.',
+    file: TABLE,
+    from: "  { id: 'start', method: 'POST', path: '/v1/start', reads: false, windowOnly: false, signed: true }",
+    to: "  { id: 'start', method: 'POST', path: '/v1/start', reads: false, windowOnly: false, signed: true },\n  { id: 'start', method: 'POST', path: '/v1/start-many', reads: false, windowOnly: false, signed: true }",
+    needs: ['gate']
+  },
+  {
+    n: 'X1j',
+    rule: 'X1',
+    name: 'the start no longer handed to its own branch',
+    why: '§3.3: a start names no session; through the four verbs’ path its body would be parsed as a session write.',
+    file: WRITES,
+    from: "    if (verb === 'start') return writeStart(writes, body, verifiedPhone, door);\n",
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'X3q',
+    rule: 'X3',
+    name: 'the start’s ledger key names another verb',
+    why: 'D17, 318 D4: a start’s write id is its own; keyed as an End, an End’s recorded answer stands in for a start.',
+    file: WRITES,
+    from: "const key = keyOf(verifiedPhone, 'start', parsed.write);",
+    to: "const key = keyOf(verifiedPhone, 'end', parsed.write);",
+    needs: ['gate']
+  },
+  {
+    n: 'X4q',
+    rule: 'X4',
+    name: 'the start branch no longer asks whether this phone has a write in flight',
+    why: 'D16: one write in flight per phone across every verb, start included.',
+    file: WRITES,
+    from: "    if (phonesInFlight.has(verifiedPhone)) {\n      return { status: 200, body: startAnswer(parsed.write, 'busy', null, POCKET_WRITE_SENTENCES.busy, null) };\n    }\n",
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'X5q',
+    rule: 'X5',
+    name: 'a sixth member of PocketWrites',
+    why: '§4.8: PocketWrites is exactly end, choose, say, keys and start; a sixth is a verb the door can reach.',
+    file: ROUTES,
+    from: '  start(input: PocketStartInput, still: PocketStillAllowed): Promise<PocketStartOutcome>;\n',
+    to: '  start(input: PocketStartInput, still: PocketStillAllowed): Promise<PocketStartOutcome>;\n  restart(input: PocketStartInput): Promise<PocketStartOutcome>;\n',
+    needs: ['gate']
+  },
+  {
+    n: 'X6q',
+    rule: 'X6',
+    name: 'a literal sentence relayed through the start’s refusal',
+    why: '§4.2: X6 holds every sentence the write path and its acts say, held at a relay’s callers.',
+    file: POCKET_START,
+    from: "return refused('machine', START_MACHINE_AWAY);",
+    to: "return refused('machine', 'Not connected.');",
+    needs: ['gate']
+  },
+  {
+    n: 'X12h',
+    rule: 'X12',
+    name: 'the start clause narrowed on the Allow line',
+    why: 'D3: the line names what each write lets a phone do, in the words D3 gives start.',
+    file: PAIRING,
+    from: "  start: 'start a session in a project open in Tortie, on this Mac or another machine'",
+    to: "  start: 'start sessions'",
+    needs: ['gate']
+  },
+  {
+    n: 'AR9s',
+    rule: 'AR9',
+    name: 'the ledger’s start row given another cap',
+    why: '333.12 D12, Phase 346 D6: an allowed id’s meaning is written once, and its cap is the door’s.',
+    file: LEDGER,
+    from: "{ id: 'start', method: 'POST', path: '/v1/start', reads: false, signed: true, windowOnly: false, bodyCap: 512,",
+    to: "{ id: 'start', method: 'POST', path: '/v1/start', reads: false, signed: true, windowOnly: false, bodyCap: 1024,",
+    needs: ['gate']
+  },
+  {
+    n: 'Z1s',
+    rule: 'Z1',
+    name: 'start taken off the door’s write list',
+    why: '§4.12: the door hands main a write only for an id on its own list.',
+    file: WIRE,
+    from: "const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say', 'keys', 'start'];",
+    to: "const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say', 'keys'];",
+    needs: ['gate']
+  },
+  {
+    n: 'O2n',
+    rule: 'O2a',
+    name: 'the sessions answer’s start key composed without pocketStartOf',
+    why: '§4.8: the key is re-composed field by field by the one function the answer reaches, held synchronous with it.',
+    file: ROUTES,
+    from: 'const start = pocketStartOf(facts.start?.());',
+    to: 'const start = facts.start?.();',
+    needs: ['gate']
+  },
+  {
+    n: 'SU5b',
+    rule: 'SU5',
+    name: 'a route after start',
+    why: 'Phase 346 adds start, last, and nothing else.',
+    file: SHARED,
+    from: /'start'\n\] as const;/,
+    to: () => "'start',\n  'restart'\n] as const;",
+    needs: ['gate']
+  },
+  {
+    n: 'L5s',
+    rule: 'L5',
+    name: 'a door start beside the phone’s start',
+    why: 'build/p330/SPEC.md §6.1: the door comes up through openAtLaunch alone; Phase 346 exempts pocketStart.start( (a session) and nothing else.',
+    file: CAPABILITIES,
+    from: '  const pocketStart = createPocketStart({ core: () => pocketCore });\n',
+    to: '  const pocketStart = createPocketStart({ core: () => pocketCore });\n  void pocketHost.start();\n',
     needs: ['gate']
   }
 ];

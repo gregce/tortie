@@ -7,7 +7,8 @@
   "constants": {
     "blockedAgeNote": "Waits first seen after your Mac wakes or Tortie restarts are timed from then.",
     "sessionsAgeNote": "Waits first seen after your Mac wakes or Tortie restarts are timed from then.",
-    "emptyLine": "Nothing needs you"
+    "emptyLine": "Nothing needs you",
+    "start": {"state":"offered","projects":[{"id":"sample-project-lighthouse","label":"lighthouse","machine":null,"folder":null,"place":"local"},{"id":"sample-project-orchard","label":"orchard","machine":null,"folder":null,"place":"local"}],"places":[{"id":"local","ready":true,"read":true,"agents":["claude","codex"]}],"agents":[{"id":"claude","name":"Claude Code","icon":"claude","danger":null},{"id":"codex","name":"Codex CLI","icon":"codex","danger":null}],"chosen":"sample-project-lighthouse","defaultAgent":"claude"}
   },
   "pieces": {
     "blockedRows": [

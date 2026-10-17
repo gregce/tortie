@@ -1212,7 +1212,9 @@ function tsChecks(wire, findings, counts) {
       file = PAIRING_TS;
       name = 'PocketPairAnswer';
     } else if (route.reads === false) {
-      name = 'PocketWriteAnswer';
+      // PHASE 346 (build/p346/SPEC.md D5): start names no session and is
+      // answered by its own six fields; the four session writes share one.
+      name = route.id === 'start' ? 'PocketStartAnswer' : 'PocketWriteAnswer';
     } else {
       name = members.get(route.id);
       if (name === undefined || name === null) {
@@ -2510,6 +2512,23 @@ async function clauseR2(sets) {
       fail('R2', launch.error);
       return;
     }
+    // PHASE 346: a LATER set (any label but launch) whose phone calls a route
+    // the launch door does not serve (R7's note: no 0.111.x Mac answered it)
+    // was paired with a Mac whose Allow named that route, so it replays
+    // through the door a store allowing every route it calls sets up. The
+    // launch set is replayed through the launch door, always, so a launch
+    // route that door stopped serving is still red here (ablation R7a).
+    let served = launch.served;
+    const setRoutes = (w.routes ?? []).map((x) => x.id);
+    if (w.label !== 'launch' && setRoutes.some((id) => !launch.served.includes(id))) {
+      const legacy = contractMod.loadError === undefined && Array.isArray(contractMod.LEGACY_ALLOWED_ROUTES) ? contractMod.LEGACY_ALLOWED_ROUTES : [];
+      const allowed = allowedMod.allowedRoutesOf([...new Set([...legacy, ...setRoutes])]);
+      if (allowed === null) {
+        fail('R2', `${set.name}: the shipping allowedRoutesOf reads no whole store from the routes this set calls (${setRoutes.join(', ')})`);
+        continue;
+      }
+      served = allowedMod.servedRoutesOf(allowedMod.allowedRoutesFor(allowed), routesMod.pocketRouteIds());
+    }
     let parties;
     try {
       parties = frozenParties(v);
@@ -2573,9 +2592,11 @@ async function clauseR2(sets) {
           end: async (input) => (calls.push({ verb: 'end', input }), { outcome: 'done' }),
           choose: async (input) => (calls.push({ verb: 'choose', input }), { outcome: 'done' }),
           say: async (input) => (calls.push({ verb: 'say', input }), { outcome: 'done' }),
-          keys: async (input) => (calls.push({ verb: 'keys', input }), { outcome: 'done' })
+          keys: async (input) => (calls.push({ verb: 'keys', input }), { outcome: 'done' }),
+          // PHASE 346 (build/p346/SPEC.md D5, D12): a start answers the session it made.
+          start: async (input) => (calls.push({ verb: 'start', input }), { outcome: 'done', session: { id: 'p33311-replayed', name: 'claude-1' } })
         };
-        const handler = writesMod.createPocketWriteHandler({ shuttingDown: () => false, stillPaired: () => true, routeServed: (id) => launch.served.includes(id), writes, now: () => Number(r.timestamp) });
+        const handler = writesMod.createPocketWriteHandler({ shuttingDown: () => false, stillPaired: () => true, routeServed: (id) => served.includes(id), writes, now: () => Number(r.timestamp) });
         const answer = await quietly(() => handler(route, Buffer.from(r.body ?? '', 'utf8'), parties.phone.id, { stopping: () => false }));
         let body = null;
         try {
@@ -2587,7 +2608,8 @@ async function clauseR2(sets) {
           end: { sessionId: body.session, batch: body.batch },
           choose: { sessionId: body.session, question: body.question, mark: body.mark, marker: body.marker },
           say: { sessionId: body.session, text: body.text },
-          keys: { sessionId: body.session, keys: body.keys, turn: body.turn, dialog: body.dialog }
+          keys: { sessionId: body.session, keys: body.keys, turn: body.turn, dialog: body.dialog },
+          start: { project: body.project, agent: body.agent }
         }[fr.id];
         if (answer?.status !== 200) fail('R2', `${where}: the shipping write path answers ${String(answer?.status)}`);
         if (calls.length !== 1 || calls[0].verb !== fr.id) fail('R2', `${where}: the shipping write path reached ${calls.map((c) => c.verb).join(', ') || 'no verb'}, not exactly ${fr.id}`);
