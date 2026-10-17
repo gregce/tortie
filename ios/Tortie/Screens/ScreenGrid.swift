@@ -110,9 +110,12 @@ struct ScreenWindowRow: Identifiable, Equatable {
 }
 
 /// The rows the Terminal's scroll view draws: the window in view and one
-/// screen above and below, from its first row, with the cursor and the
-/// selection over them, in the window's own points. Hosted by one
-/// `UIHostingController` that takes no touch (Screens/ScreenScroller.swift).
+/// screen above and below, from its first row, with the cursor over them, in
+/// the window's own points. Hosted by one `UIHostingController` that takes no
+/// touch (Screens/ScreenScroller.swift). The selection is not drawn here
+/// since Phase 337.5 (build/p3375/SPEC.md D15): UIKit's highlight is, above
+/// these rows, by the content view (Screens/ScreenTextInput.swift), so it is
+/// never drawn twice.
 struct ScreenWindow: View {
     let rows: [ScreenWindowRow]
     let columns: Int
@@ -124,13 +127,11 @@ struct ScreenWindow: View {
     /// The cursor's block, in the window's points, or nil: from its column's
     /// edge to the next column's (`ScreenCell.x`, Phase 333.4.1 D5).
     let cursor: CGRect?
-    /// One rectangle per selected row, in the window's points.
-    let highlights: [CGRect]
 
     /// Nothing to draw yet.
     static let empty = ScreenWindow(
         rows: [], columns: 0, cell: ScreenCell(fontSize: 1, width: 1, height: 1),
-        ink: Tokens.textPrimary, ground: Tokens.bgCanvas, caret: Tokens.textPrimary, light: 1, cursor: nil, highlights: []
+        ink: Tokens.textPrimary, ground: Tokens.bgCanvas, caret: Tokens.textPrimary, light: 1, cursor: nil
     )
 
     var body: some View {
@@ -142,7 +143,6 @@ struct ScreenWindow: View {
         .frame(width: cell.x(CGFloat(columns)), alignment: .topLeading)
         .background(ground)
         .overlay(alignment: .topLeading) { caretBlock }
-        .overlay(alignment: .topLeading) { highlight }
     }
 
     /// A held or live row in its `Canvas`; a reserved row as the ground.
@@ -177,24 +177,6 @@ struct ScreenWindow: View {
                 .allowsHitTesting(false)
                 .accessibilityElement()
                 .accessibilityIdentifier(ID.screenCursor)
-        }
-    }
-
-    /// The selection, one rectangle per row, in the accent.
-    @ViewBuilder
-    private var highlight: some View {
-        if !highlights.isEmpty {
-            ZStack(alignment: .topLeading) {
-                ForEach(Array(highlights.enumerated()), id: \.offset) { _, rect in
-                    Rectangle()
-                        .fill(Tokens.accent.opacity(0.3))
-                        .frame(width: rect.width, height: rect.height)
-                        .offset(x: rect.minX, y: rect.minY)
-                }
-            }
-            .allowsHitTesting(false)
-            .accessibilityElement()
-            .accessibilityIdentifier(ID.screenSelection)
         }
     }
 }

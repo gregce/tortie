@@ -220,10 +220,13 @@ const SELF = 'assert-simulator-teardown.mjs';
  * TO 4 for build/p345/probe-p345.mjs (`probe:p345`, one iPhone and several
  * Macs: the order device on iOS 26.3 and the floor device on 18.3, one at a
  * time, the parent's app installed over HEAD's and back through the handle's
- * own `install`). RAISE IT WHEN YOU ADD ONE, in the same commit: adding a script cannot turn this gate red, so a
+ * own `install`). PHASE 337.5 RAISED IT TO 5 for build/p3375/probe-p3375.mjs
+ * (`probe:p3375`, selecting text on the Terminal over See a sample: HEAD's app
+ * and the parent's on iOS 26.3 then 18.3, one device at a time, the
+ * pasteboard read through the handle's own `pasteboard()`). RAISE IT WHEN YOU ADD ONE, in the same commit: adding a script cannot turn this gate red, so a
  * floor left where it was would let the new one be deleted again in silence.
  */
-export const SIMULATOR_USER_FLOOR = 4;
+export const SIMULATOR_USER_FLOOR = 5;
 
 /** The verbs that make, boot or end a device. The helper's alone. */
 const DEVICE_VERBS = ['create', 'boot', 'clone', 'shutdown', 'delete', 'erase'];

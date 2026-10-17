@@ -237,6 +237,32 @@
  * arm is the base: an arm passes only when its rule is GREEN there and red
  * with its plant.
  *
+ * PHASE 337.5, THE IPHONE'S OWN SELECTION ON THE TERMINAL (build/p3375/SPEC.md
+ * §6.2): a long press selects a word with UIKit's handles, loupe and edit
+ * menu, and Copy is that menu's one item. The phase is Tier 2 only while the
+ * menu offers Copy and nothing that sends his words anywhere, so its arms, at
+ * the end of the list, are the ways that could stop being true: (al) a Share
+ * item beside Copy, the suggested actions handed back, Copy offered with its
+ * drawn test removed, UIKit's text interaction added, Writing Tools left
+ * `.default`, the content allowed to become first responder, the pasteboard
+ * named in the text input, the menu made with no delegate, insertText doing
+ * something, a drag interaction and a ShareLink on the page; (aq) the pan no
+ * longer waiting for the handle drag, the handle drag added to the content
+ * view, beginning anywhere, and an interaction added from the scroll view;
+ * (as) laidOut() no longer asking setNeedsSelectionUpdate() and the geometry
+ * no longer handed; (ax) toolbarCopy back in TerminalChrome, Copy's
+ * identifier back on the page, and the menu's Copy identified by
+ * UIAction.identifier alone, which XCUITest reads empty (SPEC §14 M8); and
+ * (z) and (ap), which take one exception for UITextInput's required
+ * markedTextStyle, an attributed string made beside it and its key type
+ * declared for something else in the same file. The fix round adds three
+ * (al) arms for D20: the content an accessibility element again, its value
+ * read back from UIKit and its traits answer taken out, any of which hides
+ * the rows under one text view. Two older arms moved with
+ * the text the phase took out: `as7` (copyDrawn's body is "a selection is
+ * held") and `ax4` (a Copy button back in the page's toolbar, there being no
+ * toolbar Copy to draw sideways). `aq8` and `as6` stand as they were.
+ *
  * THE DELTA RULE. The base is run first. An arm passes only when its own rule
  * was GREEN at the base and is RED with the plant, so a rule that was already
  * red proves nothing and says so. An arm whose anchor is gone from the tree
@@ -428,6 +454,37 @@ const SAMPLE_WORLD = `${APP}/Sample/SampleWorld.swift`;
 const SAMPLE_BOOK_SWIFT = `${APP}/Sample/SampleBook.swift`;
 const SAMPLE_OWNER = `${APP}/Sample/SampleOwnerCheck.swift`;
 const SAMPLE_BAR = `${APP}/Sample/SampleBar.swift`;
+/** Phase 337.5's files (build/p3375/SPEC.md §5.2 to §5.4). */
+const TEXT_INPUT = `${APP}/Screens/ScreenTextInput.swift`;
+const SCROLLER = `${APP}/Screens/ScreenScroller.swift`;
+const SCREEN_PAGE = `${APP}/Screens/Screen.swift`;
+
+/**
+ * The `{…}` body of the first declaration whose head matches `head` (a
+ * pattern ending at the body's `{`), handed to `edit` with its braces and put
+ * back; the text unmoved when the head is not found, so the arm fails by name.
+ */
+const inBody = (head, edit) => (src) => {
+  const m = head.exec(src);
+  if (m === null) return src;
+  const open = m.index + m[0].length - 1;
+  if (src[open] !== '{') return src;
+  const close = closeOf(src, open);
+  if (close === -1) return src;
+  return `${src.slice(0, open)}${edit(src.slice(open, close + 1))}${src.slice(close + 1)}`;
+};
+/** A line written after the FIRST line matching `re`, at that line's indent. */
+function afterFirstLine(re, line) {
+  return (src) => {
+    const lines = src.split('\n');
+    const k = lines.findIndex((l) => re.test(l));
+    if (k === -1) return src;
+    lines.splice(k + 1, 0, line(/^[ \t]*/.exec(lines[k])[0]));
+    return lines.join('\n');
+  };
+}
+/** The edit menu's delegate method, by its head (build/p3375/SPEC.md D8). */
+const MENU_FOR = /func editMenuInteraction\([^)]*\bmenuFor\b[^)]*\)[^{]*\{/;
 
 const PBX = 'ios/Tortie.xcodeproj/project.pbxproj';
 const INFO = `${APP}/Info.plist`;
@@ -3176,7 +3233,9 @@ const ARMS = [
     rule: 'as',
     what: 'Copy drawn over rows not yet fetched (§Attack B11)',
     file: () => `${APP}/Screens/Screen.swift`,
-    edit: (src) => src.replace('!selection.isEmpty && scrollback.drawn(selection.range, picture: model.picture)', '!selection.isEmpty')
+    // Re-pointed by Phase 337.5: the selection is an optional range now, so
+    // copyDrawn's whole body becomes "a selection is held".
+    edit: inBody(/var\s+copyDrawn\s*:\s*Bool\s*\{/, () => '{\n        selection != nil\n    }')
   },
   {
     id: 'as8',
@@ -4089,9 +4148,12 @@ const ARMS = [
   {
     id: 'ax4',
     rule: 'ax',
-    what: "the toolbar's Copy drawn sideways too (two screen-copy)",
-    file: () => `${APP}/Screens/Screen.swift`,
-    edit: (src) => src.replace('                if chrome.toolbarCopy(copyDrawn) {\n', '                if copyDrawn {\n')
+    // Replaced by Phase 337.5 (build/p3375/SPEC.md D16): there is no toolbar
+    // Copy to draw sideways; the attack is a Copy button put back beside the
+    // edit menu, 337.3's shape without its identifier.
+    what: 'a Copy Button back in the page\'s toolbar, beside the edit menu',
+    file: () => SCREEN_PAGE,
+    edit: (src) => src.replace(/(\.toolbar\s*\{[\s\S]*?\n)([ \t]*)trailing\n/, (all, head, ind) => `${head}${ind}ToolbarItem(placement: .topBarTrailing) {\n${ind}    if copyDrawn {\n${ind}        Button { copySelection() } label: {\n${ind}            Words(Copy.copy, .body, Tokens.accent)\n${ind}        }\n${ind}        .buttonStyle(.plain)\n${ind}    }\n${ind}}\n${ind}trailing\n`)
   },
   {
     id: 'ax5',
@@ -4760,6 +4822,203 @@ const ARMS = [
     what: "an alerted session's pop handed back with no speaks(, so a replaced pairing's late answer reads the new list",
     file: () => TORTIE_APP,
     edit: (src) => src.replace(/[ \t]*guard let self, self\.speaks\(for: mac, owner\) else \{ return \}\n([ \t]*)self\.backToList\(saying: Copy\.noSuchSession, mac: mac\)/, '$1self?.backToList(saying: Copy.noSuchSession, mac: mac)')
+  },
+  // PHASE 337.5, THE IPHONE'S OWN SELECTION (build/p3375/SPEC.md §6.2). The
+  // phase is Tier 2 only while the Terminal's edit menu offers Copy and
+  // nothing that sends his words anywhere, so most of these are the ways a
+  // later round could offer more: (al) a second item, the suggested actions,
+  // Copy over rows not yet fetched, UIKit's text interaction, Writing Tools,
+  // the content made a responder, the pasteboard written beside the page's,
+  // the menu made with no delegate, a mutator that does something, a drag
+  // and a ShareLink; (aq) the pan not waiting for the handle drag, the handle
+  // drag on the content view or beginning anywhere, an interaction added from
+  // the scroll view; (as) the handles not told where their rows went; (ax) a
+  // Copy button, a chrome member or the Copy identifier back on the page.
+  {
+    id: 'al3',
+    rule: 'al',
+    what: 'a Share item beside Copy in the edit menu',
+    file: () => TEXT_INPUT,
+    edit: (src) => src.replace(/return UIMenu\(children: \[(\s*[A-Za-z_]\w*\s*)\]\)/, 'return UIMenu(children: [$1, UIAction(title: "Share…", image: UIImage(systemName: "square.and.arrow.up")) { _ in }])')
+  },
+  {
+    id: 'al4',
+    rule: 'al',
+    what: "the edit menu's suggested actions handed back (Share, Translate, Look Up, Speak)",
+    file: () => TEXT_INPUT,
+    edit: (src) => src.replace('return UIMenu(children: [])', 'return UIMenu(children: suggestedActions)')
+  },
+  {
+    id: 'al5',
+    rule: 'al',
+    what: 'Copy offered with the drawn test removed, over rows not yet fetched (D10)',
+    file: () => TEXT_INPUT,
+    edit: inBody(MENU_FOR, (body) => body.replace(/(?:self\s*\.\s*)?drawn\s*\??\s*\(\s*\w+\s*\)/, 'true'))
+  },
+  {
+    id: 'al6',
+    rule: 'al',
+    what: "UIKit's text interaction added to the content view (D1)",
+    file: () => TEXT_INPUT,
+    edit: afterLastLine(/^\s*addInteraction\(/, (indent) => `${indent}addInteraction(UITextInteraction(for: .nonEditable))`)
+  },
+  {
+    id: 'al7',
+    rule: 'al',
+    what: 'Writing Tools left .default on the content view',
+    file: () => TEXT_INPUT,
+    edit: (src) => src.replace(/(var\s+writingToolsBehavior\s*:\s*UIWritingToolsBehavior\s*\{[\s\S]*?get\s*\{\s*)\.none/, '$1.default')
+  },
+  {
+    id: 'al8',
+    rule: 'al',
+    what: 'the content view allowed to become first responder (D9, D17)',
+    file: () => TEXT_INPUT,
+    edit: (src) => src.replace(/(override\s+var\s+canBecomeFirstResponder\s*:\s*Bool\s*\{\s*(?:return\s+)?)false/, '$1true')
+  },
+  {
+    id: 'al9',
+    rule: 'al',
+    what: 'UIPasteboard named in ScreenTextInput.swift, the menu writing the clipboard itself',
+    file: () => TEXT_INPUT,
+    edit: append('extension ScreenTextContent {\n    func p3375Copy(_ text: String) {\n        UIPasteboard.general.string = text\n    }\n}\n')
+  },
+  {
+    id: 'al10',
+    rule: 'al',
+    what: 'the edit menu made with no delegate, so UIKit builds its own menu (Share, Translate)',
+    file: () => TEXT_INPUT,
+    edit: (src) => src.replace(/UIEditMenuInteraction\(\s*delegate\s*:\s*[^)]+\)/, 'UIEditMenuInteraction(delegate: nil)')
+  },
+  {
+    id: 'al11',
+    rule: 'al',
+    what: 'insertText doing something with the Terminal\'s text',
+    file: () => TEXT_INPUT,
+    edit: (src) => src.replace(/(func\s+insertText\s*\(\s*_\s+\w+\s*:\s*String\s*\)\s*\{)\s*\}/, '$1\n        events.copy()\n    }')
+  },
+  {
+    id: 'al12',
+    rule: 'al',
+    what: 'a drag interaction that carries the text into another app',
+    file: () => TEXT_INPUT,
+    edit: afterLastLine(/^\s*addInteraction\(/, (indent) => `${indent}addInteraction(UIDragInteraction(delegate: P3375Drag()))`)
+  },
+  {
+    id: 'al13',
+    rule: 'al',
+    what: 'a ShareLink on the Terminal\'s page',
+    file: () => SCREEN_PAGE,
+    edit: append('struct P3375Share: View {\n    let text: String\n    var body: some View { ShareLink(item: text) }\n}\n')
+  },
+  {
+    id: 'al14',
+    rule: 'al',
+    what: 'the content an accessibility element again, by asking UIKit, so iOS reads the Terminal as one text view and no row is found (D20, the fix round)',
+    file: () => TEXT_INPUT,
+    edit: (src) => src.replace(/(override\s+var\s+isAccessibilityElement\s*:\s*Bool\s*\{\s*get\s*\{\s*)(?:return\s+)?false(\s*\})/, '$1super.isAccessibilityElement$2')
+  },
+  {
+    id: 'al15',
+    rule: 'al',
+    what: "the content's value read back from UIKit, which is every row laid out (D20, the fix round)",
+    file: () => TEXT_INPUT,
+    edit: (src) => src.replace(/(override\s+var\s+accessibilityValue\s*:\s*String\?\s*\{\s*get\s*\{\s*)(?:return\s+)?nil(\s*\})/, '$1super.accessibilityValue$2')
+  },
+  {
+    id: 'al16',
+    rule: 'al',
+    what: "the content's traits answer taken out, so UIKit's text-area trait comes back (D20, the fix round)",
+    file: () => TEXT_INPUT,
+    edit: (src) => src.replace(/\n[ \t]*override\s+var\s+accessibilityTraits\s*:\s*UIAccessibilityTraits\s*\{[^{}]*\{[^{}]*\}[^{}]*\{[^{}]*\}[^{}]*\}/, '')
+  },
+  {
+    id: 'aq16',
+    rule: 'aq',
+    what: "the scroll view's pan no longer waiting for the handle drag (D5)",
+    file: () => SCROLLER,
+    edit: (src) => src.replace(/\n[ \t]*(?:self\.)?panGestureRecognizer\.require\(toFail: \w+\)[ \t]*(?=\n)/, '')
+  },
+  {
+    id: 'aq17',
+    rule: 'aq',
+    what: 'the handle drag added to the content view rather than the scroll view',
+    file: () => SCROLLER,
+    edit: (src) => {
+      const h = /\blet\s+(\w+)\s*=\s*UIPanGestureRecognizer\(/.exec(src)?.[1];
+      if (h === undefined) return src;
+      const unlisted = src.replace(new RegExp(`(\\bfor\\s+\\w+\\s+in\\s+\\[[^\\]]*?)(?:,\\s*${h}\\b|\\b${h}\\s*,\\s*)`), '$1');
+      const moved = unlisted.replace(new RegExp(`(^|[^.\\w])addGestureRecognizer\\(\\s*${h}\\s*\\)`, 'm'), `$1contentView.addGestureRecognizer(${h})`);
+      if (moved !== unlisted) return moved;
+      return afterFirstLine(new RegExp(`\\blet\\s+${h}\\s*=\\s*UIPanGestureRecognizer\\(`), (indent) => `${indent}contentView.addGestureRecognizer(${h})`)(unlisted);
+    }
+  },
+  {
+    id: 'aq18',
+    rule: 'aq',
+    what: 'the handle drag beginning anywhere, so it takes every drag from the pan',
+    file: () => SCROLLER,
+    edit: inBody(/func gestureRecognizerShouldBegin\([^)]*\)[^{]*\{/, () => '{\n        true\n    }')
+  },
+  {
+    id: 'aq19',
+    rule: 'aq',
+    what: 'an interaction added to the content view from the scroll view',
+    file: () => SCROLLER,
+    edit: afterFirstLine(/\blet\s+\w+\s*=\s*UIPanGestureRecognizer\(/, (indent) => `${indent}contentView.addInteraction(UIPointerInteraction(delegate: nil))`)
+  },
+  {
+    id: 'as18',
+    rule: 'as',
+    what: 'laidOut() no longer asking setNeedsSelectionUpdate(), so the handles stay where evicted rows were (D12)',
+    file: () => TEXT_INPUT,
+    edit: inBody(/func laidOut\(\)\s*\{/, (body) => body.replace(/\n[ \t]*[^\n]*\.setNeedsSelectionUpdate\(\)[ \t]*(?=\n)/g, ''))
+  },
+  {
+    id: 'as19',
+    rule: 'as',
+    what: "the content's geometry no longer handed by the layout pass (D12)",
+    file: () => SCROLLER,
+    edit: (src) => src.replace(/\n[ \t]*contentView\.geometry\s*=[^\n]*(?=\n)/, '')
+  },
+  {
+    id: 'ax7',
+    rule: 'ax',
+    what: 'toolbarCopy back in TerminalChrome (D16)',
+    file: () => SCREEN_PAGE,
+    edit: (src) => src.replace('    var statusBarHidden: Bool { landscape }\n', '    var statusBarHidden: Bool { landscape }\n\n    func toolbarCopy(_ drawn: Bool) -> Bool { drawn && !landscape }\n')
+  },
+  {
+    id: 'ax8',
+    rule: 'ax',
+    what: "Copy's identifier back on a view of the page (D18)",
+    file: () => SCREEN_PAGE,
+    edit: append('struct P3375CopyMark: View {\n    var body: some View { EmptyView().accessibilityIdentifier(ID.screenCopy) }\n}\n')
+  },
+  {
+    id: 'ax9',
+    rule: 'ax',
+    what: "the menu's Copy identified by UIAction.identifier alone, which XCUITest reads empty (§14 M8)",
+    file: () => TEXT_INPUT,
+    edit: inBody(MENU_FOR, (body) => body.replace(/\n[ \t]*[A-Za-z_]\w*\.accessibilityIdentifier\s*=\s*ID\.screenCopy[ \t]*(?=\n)/, ''))
+  },
+  // (z) and (ap) take one exception, markedTextStyle's key type; these prove
+  // it hides nothing else in the one file it is granted in.
+  {
+    id: 'z7',
+    rule: 'z',
+    what: 'an attributed string made in ScreenTextInput.swift beside markedTextStyle\'s key type',
+    file: () => TEXT_INPUT,
+    edit: append('extension ScreenTextContent {\n    func p3375Styled(_ text: String) -> Any { NSAttributedString(string: text) }\n}\n'),
+    also: ['ap']
+  },
+  {
+    id: 'ap4',
+    rule: 'ap',
+    what: 'markedTextStyle\'s key type declared for something else in ScreenTextInput.swift',
+    file: () => TEXT_INPUT,
+    edit: (src) => src.replace(/\bvar\s+markedTextStyle\s*:\s*\[\s*NSAttributedString\.Key\s*:\s*Any\s*\]\?/, 'var markedTextStyle: [NSAttributedString.Key: Any]?\n    var p3375Style: [NSAttributedString.Key: Any] = [:]'),
+    also: ['z']
   }
 ];
 

@@ -49,9 +49,14 @@
 // menu"). While the vertical size class is compact, which on an iPhone is
 // exactly landscape, the page hides the navigation bar and the tab bar with
 // SwiftUI's own `toolbarVisibility`, and the status bar, and draws no header
-// and no tray, inside the window's safe area; Copy for a selection moves to
-// the terminal's bottom right. Upright every one of them is drawn as before.
-// Every decision is one member of `TerminalChrome`.
+// and no tray, inside the window's safe area. Upright every one of them is
+// drawn as before. Every decision is one member of `TerminalChrome`.
+//
+// COPY IS THE EDIT MENU'S, upright and sideways (Phase 337.5,
+// build/p3375/SPEC.md D8, D16): a long press selects a word with the iPhone's
+// own handles and magnifier, and the iPhone's edit menu over the selection
+// holds one item, Copy (Screens/ScreenTextInput.swift). The page holds the
+// selection and the picture it began on, and writes the clipboard.
 
 import SwiftUI
 
@@ -230,14 +235,8 @@ struct TerminalChrome {
     /// The status bar: hidden sideways, where the system allows it.
     var statusBarHidden: Bool { landscape }
 
-    /// Copy in the top bar, while a selection is held and every selected row
-    /// is drawn (`drawn`): upright only.
-    func toolbarCopy(_ drawn: Bool) -> Bool { drawn && !landscape }
-
-    /// Copy over the terminal's bottom right: sideways only, where the bar
-    /// that holds it upright is hidden (D17). The complement of
-    /// `toolbarCopy`, so one Copy is drawn at a time.
-    func overlayCopy(_ drawn: Bool) -> Bool { drawn && landscape }
+    // Copy is no member since Phase 337.5 (D16): it is the edit menu's one
+    // item over the selection, in both orientations, never a button here.
 }
 
 // MARK: - The screen
@@ -250,17 +249,16 @@ struct TerminalChrome {
 /// top bar (the Terminal's ⋯). Upright it draws the header, the terminal, its
 /// lines (D23's words, or the scrollback edge's) over the terminal's TOP, the
 /// back-to-live button over its bottom right, the tray while the keyboard is
-/// down, and its toolbar: the principal title, Copy while a selection is held
-/// and every selected row is drawn, then the trailing items. Sideways
-/// (`TerminalChrome`) it draws the terminal alone: no navigation bar, no tab
-/// bar, no status bar, no header and no tray, and Copy over the terminal's
-/// bottom right, above the back-to-live button.
+/// down, and its toolbar: the principal title, then the trailing items.
+/// Sideways (`TerminalChrome`) it draws the terminal alone: no navigation
+/// bar, no tab bar, no status bar, no header and no tray. Copy is the edit
+/// menu's, over the selection, in both (Phase 337.5, D8, D16).
 ///
 /// THE KEYBOARD (D24, §Attack B4): the page's ROOT opts out of the keyboard's
 /// safe area, ONCE, and nothing inside it does, so the terminal's frame never
 /// follows the keyboard; the terminal's own scroll view reads the keyboard's
-/// overlap and publishes it here, and the back-to-live button (and Copy
-/// sideways) is placed just above it. The lines sit at the terminal's top
+/// overlap and publishes it here, and the back-to-live button is placed just
+/// above it. The lines sit at the terminal's top
 /// since Phase 337.3 (D13): with the terminal filled, the live rows and the
 /// prompt he types into sit just above the keyboard, where a line would cover
 /// them.
@@ -280,7 +278,8 @@ struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {
     @Environment(\.verticalSizeClass) private var sizeClass
     /// The keyboard is wanted.
     @State private var typing = false
-    @State private var selection = ScreenSelectionModel()
+    /// The selection, by absolute index (Phase 337.5, D2), or none.
+    @State private var selection: ScreenSelectionRange?
     @State private var bar = ScreenKeyBarModel()
     /// What the Terminal holds of the session's history (D25 to D28).
     @State private var scrollback: ScrollbackModel
@@ -356,17 +355,6 @@ struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {
                 Words(name, .navTitle, Tokens.textPrimary)
                     .accessibilityAddTraits(.isHeader)
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                // Upright only: sideways the bar is hidden and Copy is drawn
-                // over the terminal's bottom right instead (D17).
-                if chrome.toolbarCopy(copyDrawn) {
-                    Button { copySelection() } label: {
-                        Words(Copy.copy, .body, Tokens.accent)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier(ID.screenCopy)
-                }
-            }
             trailing
         }
         // Sideways the terminal alone (D15, D16): the navigation bar and the
@@ -412,10 +400,8 @@ struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {
         .onChange(of: scrollback.mode) { _, mode in
             // Back to live: a selection over rows of history that are no
             // longer held is let go, never copied half blank (D31).
-            if mode == .following, !selection.isEmpty, !scrollback.drawn(selection.range, picture: model.picture) {
-                selection.clear()
-                scrollback.selecting = false
-                model.letGo()
+            if mode == .following, selection != nil, !scrollback.drawn(selection, picture: model.picture) {
+                selected(nil)
             }
         }
     }
@@ -439,10 +425,11 @@ struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {
             ScreenScroller(
                 picture: picture,
                 scrollback: scrollback,
-                selection: selection.range,
+                selection: selection,
                 actions: ScreenScrollerActions(
                     tap: { point in tapped(point, picture: picture) },
-                    select: { point, first in selected(point, first: first) },
+                    select: { selected($0) },
+                    copy: { copySelection() },
                     overlap: { overlap = $0 }
                 )
             )
@@ -470,25 +457,12 @@ struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {
         }
     }
 
-    /// Copy sideways (D17), then the back-to-live button while scrolled
-    /// back, at the terminal's bottom right, just above the keyboard's
-    /// overlap (D24, D27 of 337.1).
+    /// The back-to-live button while scrolled back, at the terminal's bottom
+    /// right, just above the keyboard's overlap (D24, D27 of 337.1). Copy is
+    /// no button here since Phase 337.5 (D16): it is the edit menu's.
     @ViewBuilder
     private var bottom: some View {
         VStack(alignment: .trailing, spacing: 8) {
-            // Sideways the bar that holds Copy is hidden: Copy is here, the
-            // same press, and the bar's is not drawn (D17).
-            if chrome.overlayCopy(copyDrawn) {
-                Button { copySelection() } label: {
-                    Words(Copy.copy, .body, Tokens.accent)
-                        .padding(.horizontal, Frame.gutter)
-                        .frame(minHeight: 44)
-                        .background(Capsule().fill(Tokens.bgRaised))
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier(ID.screenCopy)
-                .padding(.trailing, Frame.gutter)
-            }
             if scrollback.mode == .scrolled {
                 Button { scrollback.follow() } label: {
                     Image(systemName: "arrow.down.to.line")
@@ -529,45 +503,35 @@ struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {
         return nil
     }
 
-    /// Copy is drawn while a selection is held and every row of it is drawn
-    /// (D31): a selection that reaches rows not yet fetched waits for them.
+    /// Copy may be pressed while a selection is held and every row of it is
+    /// drawn (D31): a selection that reaches rows not yet fetched waits for
+    /// them, and the edit menu offers no Copy until they land (337.5 D10).
     private var copyDrawn: Bool {
-        !selection.isEmpty && scrollback.drawn(selection.range, picture: model.picture)
+        selection.map { scrollback.drawn($0, picture: model.picture) } ?? false
     }
 
-    /// A tap: clear a selection, or raise the keyboard (Paseo's release
-    /// table), or say that keys cannot reach the session.
+    /// A tap with no selection: raise the keyboard, or say that keys cannot
+    /// reach the session. A tap with a selection is the scroll view's
+    /// (Phase 337.5, D11): on it the menu, elsewhere a clear.
     private func tapped(_ point: ScreenPoint?, picture: ScreenPicture) {
-        let action = ScreenGesture.release(
-            selection.isEmpty ? .pressing : .selecting,
-            startedWithSelection: !selection.isEmpty,
-            didScroll: false,
-            movedBeyondTapTolerance: false,
-            pressed: .zero
-        )
-        switch action {
-        case .clear:
-            selection.clear()
-            scrollback.selecting = false
-            model.letGo()
-        case .focus:
-            // Not typable: the keyboard is not raised, and the line says so.
-            typing = keys != nil && picture.typable
-        case .select, .none:
-            break
-        }
+        // Not typable: the keyboard is not raised, and the line says so.
+        typing = keys != nil && picture.typable
     }
 
-    /// A long press began a selection, or a drag grew it. Its points are
-    /// absolute indices (D31); while it is held the picture is held and no
-    /// row of history is evicted.
-    private func selected(_ point: ScreenPoint, first: Bool) {
-        if first {
-            selection.begin(at: point)
+    /// A selection made, grown or moved, or cleared (nil). Its points are
+    /// absolute indices (D31); a selection beginning holds the picture it
+    /// began on and evicts no row of history while it is held, and a clear
+    /// lets both go (337.5 D13).
+    private func selected(_ range: ScreenSelectionRange?) {
+        guard range != selection else { return }
+        let began = range != nil && selection == nil
+        selection = range
+        if began {
             model.hold()
             scrollback.selecting = true
-        } else {
-            selection.update(to: point)
+        } else if range == nil {
+            scrollback.selecting = false
+            model.letGo()
         }
     }
 
@@ -577,9 +541,7 @@ struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {
     private func copySelection() {
         guard let picture = model.picture, copyDrawn else { return }
         let held = scrollback
-        ScreenSelecting.copy(ScreenSelecting.text(selection.range, columns: picture.columns) { held.row(at: $0, picture: picture) })
-        selection.clear()
-        scrollback.selecting = false
-        model.letGo()
+        ScreenSelecting.copy(ScreenSelecting.text(selection, columns: picture.columns) { held.row(at: $0, picture: picture) })
+        selected(nil)
     }
 }

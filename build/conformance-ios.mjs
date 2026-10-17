@@ -662,6 +662,62 @@
  *        `refused`, and every refusal and pop a routing hands back behind
  *        `speaks(`, so a replaced pairing's late answer moves nothing.
  *
+ *   PHASE 337.5, THE IPHONE'S OWN SELECTION ON THE TERMINAL (build/p3375/SPEC.md
+ *   §6.1; his answers of 2026-10-16, "Yes, all as recommended" and "In the
+ *   Terminal itself"). A long press selects a word with UIKit's handles, loupe
+ *   and edit menu (UITextSelectionDisplayInteraction and UIEditMenuInteraction
+ *   over a UITextInput the content view adopts, ScreenTextContent in
+ *   Screens/ScreenTextInput.swift), and Copy is that menu's ONE item. The
+ *   phase is Tier 2 only while the menu offers Copy and nothing that sends his
+ *   words anywhere, so that is read as text here. No rule letter is new;
+ *   three widen, one moves and two take one exception:
+ *
+ *   (al) also THE EDIT MENU: `UIEditMenuInteraction(` made once in the app,
+ *        in ScreenTextInput.swift, with a delegate that is not nil;
+ *        `editMenuInteraction(_:menuFor:suggestedActions:)` declared once,
+ *        there, its body naming the suggested actions nowhere and returning
+ *        only `UIMenu(children: [])` or `UIMenu(children: [<one name>])`,
+ *        that one a `UIAction(title: Copy.copy, …, identifier:
+ *        UIAction.Identifier(ID.screenCopy))` made in the body, the Copy
+ *        return behind a `drawn(` test (D8, D10); no UITextInteraction,
+ *        UIMenuController, drag, Share, Look Up or Translate in any Screen
+ *        file but ScreenKeyField.swift's drop refusal, and no Writing Tools
+ *        but `.none` (D9); ScreenTextContent never first responder, its
+ *        writingToolsBehavior `.none`, and its insertText, deleteBackward,
+ *        replace(_:withText:) and setMarkedText empty (D9, D17). Since
+ *        the fix round (al8, D20): ScreenTextContent answers
+ *        isAccessibilityElement false, accessibilityTraits .none and
+ *        accessibilityValue nil by getters that never ask UIKit's, each once,
+ *        each with a setter that keeps nothing, because iOS reads a
+ *        UITextInput view as ONE text view over every row it holds whatever
+ *        isAccessibilityElement was SET to (measured by XCUITest on iOS 26.3
+ *        and 18.3), and no screen-row-<n> was found under it.
+ *   (aq) also: exactly one UIPanGestureRecognizer in the Screen files, the
+ *        handle drag, made in ScreenScrollView, added to the scroll view
+ *        itself, its delegate the gesture rules whose
+ *        gestureRecognizerShouldBegin asks `grabs(at:`, and
+ *        `panGestureRecognizer.require(toFail:` it (D5); the content view
+ *        `ScreenTextContent()`; every `addInteraction(` inside
+ *        ScreenTextContent, on itself, adding the display interaction and the
+ *        edit menu interaction once each and nothing else (D1, D15).
+ *   (as) also: layoutSubviews hands `contentView.geometry` (its first index
+ *        the layout's firstRow) and calls `contentView.laidOut()`, and
+ *        `laidOut()` asks `setNeedsSelectionUpdate()` (D12); as8 stands.
+ *   (ax) moved: TerminalChrome loses toolbarCopy and overlayCopy (D16);
+ *        `ID.screenCopy` and "screen-copy" are named only by Identifiers.swift
+ *        and the edit menu's action in ScreenTextInput.swift, which sets the
+ *        action's own accessibilityIdentifier (UIAction.identifier alone reads
+ *        empty to XCUITest, §14 M8), and no Button in Screen.swift draws
+ *        Copy.copy (D16, D18).
+ *   (z) and (ap) take ONE exception, `isMarkedTextStyleKey`: the key type of
+ *        UITextInput's REQUIRED `var markedTextStyle: [NSAttributedString.Key:
+ *        Any]?`, on that one line of ScreenTextInput.swift. Swift requires
+ *        the member and the type has no other spelling; the view marks no
+ *        text and builds no attributed string, and every other naming of
+ *        NSAttributedString, there or anywhere, is still refused.
+ *   SCREEN_FILES and OWNER_CHECK_ABSENT gain Screens/ScreenTextInput.swift.
+ *   The build stays 11.
+ *
  * Every rule also proves its own scanner on texts it holds, before it reads a
  * file, so a scanner that stopped finding is never taken for a clean tree.
  *
@@ -5508,6 +5564,25 @@ const WAYS_OUT = /\bSFSafariViewController\b|\bSafariServices\b|\bASWebAuthentic
 const OPENS = /\bUIApplication\s*\.\s*shared\s*\.\s*open\s*\(/g;
 const CONTROL_HEAD = /\b(?:if|guard|else|for|while|switch|do|repeat|catch|defer)\b[^{};]*$/;
 
+/**
+ * The one NSAttributedString the app may name (Phase 337.5, build/p3375/SPEC.md
+ * §5.2): `NSAttributedString.Key`, the key type of UITextInput's REQUIRED
+ * `markedTextStyle`, declared once on the Terminal's content view in
+ * Screens/ScreenTextInput.swift. That view marks no text and builds no
+ * attributed string; the declaration exists because Swift requires every
+ * member of the protocol, and the type has no other spelling. Anything else
+ * that names NSAttributedString, in that file or any other, is still (z1)'s
+ * and (ap)'s. The file name is spelled here rather than read from
+ * TEXT_INPUT_FILE: (z)'s own fixtures run above that constant's line.
+ */
+export function isMarkedTextStyleKey(name, bare, at) {
+  if (name !== 'Screens/ScreenTextInput.swift' || !/^NSAttributedString\s*\.\s*Key\b/.test(bare.slice(at))) return false;
+  const lineStart = bare.lastIndexOf('\n', at - 1) + 1;
+  const lineEnd = bare.indexOf('\n', at);
+  const line = bare.slice(lineStart, lineEnd === -1 ? bare.length : lineEnd);
+  return /^\s*var\s+markedTextStyle\s*:\s*\[\s*NSAttributedString\s*\.\s*Key\s*:\s*Any\s*\]\s*\?\s*(?:\{\s*get\s*\{\s*nil\s*\}\s*set\s*\{\s*\}\s*\})?\s*$/.test(line);
+}
+
 /** Where the closure or function holding `index` begins: the nearest `{` outward that is not an if, guard, loop or switch block. */
 function closureStart(bare, index) {
   let k = innermostOpener(bare, index);
@@ -5543,7 +5618,13 @@ export function ruleOneWayOut(files) {
   for (const f of lexedFiles) {
     const bare = f.lx.bare;
     const debug = debugLines(f.lx.code);
-    for (const [re, why] of FETCHERS) for (const m of bare.matchAll(re)) findings.push(`${at(f, m.index)} names ${m[0]}, which ${why}; nothing an answer names is fetched (z1)`);
+    for (const [re, why] of FETCHERS) {
+      for (const m of bare.matchAll(re)) {
+        // Phase 337.5: UITextInput's required markedTextStyle, its key type alone.
+        if (isMarkedTextStyleKey(f.name, bare, m.index)) continue;
+        findings.push(`${at(f, m.index)} names ${m[0]}, which ${why}; nothing an answer names is fetched (z1)`);
+      }
+    }
     for (const m of bare.matchAll(/(?:\b[A-Z]\w*(?:\s*\.\s*[A-Z]\w*)*\s*(?:\.\s*init\s*)?|\.\s*init\s*)\(\s*contentsOf\s*:/g)) {
       if (debug[lineOf(bare, m.index)] === true) continue;
       findings.push(`${at(f, m.index)} builds a value with contentsOf:, which can load an address; outside a DEBUG arm nothing is (z1)`);
@@ -5695,7 +5776,10 @@ export const OWNER_CHECK_ABSENT = Object.freeze([
   // its tray live here, and the menu's End reaches the owner check only
   // through EndModel.press, so this file names none (the gates builder's
   // decision 4, arm ac25).
-  'Screens/SessionScreen.swift'
+  'Screens/SessionScreen.swift',
+  // Phase 337.5 (build/p3375/SPEC.md §6.1): the Terminal's text input, the
+  // iPhone's own selection over it and its one-item edit menu.
+  'Screens/ScreenTextInput.swift'
 ]);
 /** What persists anything; none of it may sit in End's files or the write path. */
 const PERSISTS = /\bUserDefaults\b|@AppStorage\b|@SceneStorage\b|\bSecItemAdd\b|\bSecItemUpdate\b|\bFileManager\b|\.\s*write\s*\(\s*to\s*:|\bNSKeyedArchiver\b|\bcreateFile\b|\bNSUbiquitousKeyValueStore\b/g;
@@ -7557,6 +7641,116 @@ const selfFailures = [];
 const expect = (what, ok) => {
   if (!ok) selfFailures.push(what);
 };
+
+// Phase 337.5 (build/p3375/SPEC.md §6.1): the honest shape of the Terminal's
+// text input and of the scroll view that drives it, read by (al), (aq), (as)
+// and (ax) below. Each break the rules must catch is one edit of these.
+const SELECT_INPUT_OK = [
+  'import UIKit',
+  'final class ScreenTextPosition: UITextPosition {',
+  '    let caret: ScreenCaret',
+  '    init(_ caret: ScreenCaret) { self.caret = caret }',
+  '}',
+  '@MainActor',
+  'final class ScreenTextContent: UIView, UITextInput {',
+  '    var geometry = ScreenTextGeometry.none',
+  '    var selection: ScreenSelectionRange?',
+  '    var drawn: (ScreenSelectionRange) -> Bool = { _ in false }',
+  '    var events = ScreenTextEvents(select: { _ in }, copy: {})',
+  '    private var display: UITextSelectionDisplayInteraction?',
+  '    private lazy var menu = UIEditMenuInteraction(delegate: self)',
+  '    private var owed = false',
+  '    override init(frame: CGRect) {',
+  '        super.init(frame: frame)',
+  '        isAccessibilityElement = false',
+  '        tintColor = UIColor(Tokens.accent)',
+  '        let shown = UITextSelectionDisplayInteraction(textInput: self, delegate: self)',
+  '        display = shown',
+  '        addInteraction(shown)',
+  '        addInteraction(menu)',
+  '    }',
+  '    override var canBecomeFirstResponder: Bool { false }',
+  '    var writingToolsBehavior: UIWritingToolsBehavior { get { .none } set {} }',
+  '    override var isAccessibilityElement: Bool {',
+  '        get { false }',
+  '        set {}',
+  '    }',
+  '    override var accessibilityTraits: UIAccessibilityTraits { get { .none } set {} }',
+  '    override var accessibilityValue: String? { get { nil } set {} }',
+  '    var hasText: Bool { true }',
+  '    func insertText(_ text: String) {}',
+  '    func deleteBackward() {}',
+  '    func replace(_ range: UITextRange, withText text: String) {}',
+  '    func setMarkedText(_ markedText: String?, selectedRange: NSRange) {}',
+  '    func unmarkText() {}',
+  '    func showMenu(at point: CGPoint) {',
+  '        menu.presentEditMenu(with: UIEditMenuConfiguration(identifier: nil, sourcePoint: point))',
+  '    }',
+  '    func laidOut() {',
+  '        display?.setNeedsSelectionUpdate()',
+  '        menu.updateVisibleMenuPosition(animated: false)',
+  '        if owed, let selection, drawn(selection) { owed = false }',
+  '    }',
+  '}',
+  'extension ScreenTextContent: @preconcurrency UIEditMenuInteractionDelegate {',
+  '    func editMenuInteraction(_ interaction: UIEditMenuInteraction, menuFor configuration: UIEditMenuConfiguration, suggestedActions: [UIMenuElement]) -> UIMenu? {',
+  '        guard let selection, drawn(selection) else { return UIMenu(children: []) }',
+  '        let copy = UIAction(title: Copy.copy, image: UIImage(systemName: "doc.on.doc"), identifier: UIAction.Identifier(ID.screenCopy)) { [weak self] _ in',
+  '            guard let self else { return }',
+  '            self.events.copy()',
+  '        }',
+  '        copy.accessibilityIdentifier = ID.screenCopy',
+  '        return UIMenu(children: [copy])',
+  '    }',
+  '}',
+  ''
+].join('\n');
+const SELECT_SCROLLER_OK = [
+  'final class ScreenGestureRules: NSObject, UIGestureRecognizerDelegate {',
+  '    weak var content: ScreenTextContent?',
+  '    func gestureRecognizerShouldBegin(_ gesture: UIGestureRecognizer) -> Bool {',
+  '        guard gesture is UIPanGestureRecognizer, let content else { return true }',
+  '        return content.grabs(at: gesture.location(in: content))',
+  '    }',
+  '}',
+  'final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {',
+  '    let contentView = ScreenTextContent()',
+  '    private let rules = ScreenGestureRules()',
+  '    private func addGestures() {',
+  '        let press = UILongPressGestureRecognizer(target: self, action: #selector(pressed(_:)))',
+  '        press.minimumPressDuration = ScreenGesture.longPressSeconds',
+  '        let handle = UIPanGestureRecognizer(target: self, action: #selector(dragged(_:)))',
+  '        handle.delegate = rules',
+  '        rules.content = contentView',
+  '        panGestureRecognizer.require(toFail: handle)',
+  '        let pinch = UIPinchGestureRecognizer(target: self, action: #selector(pinched(_:)))',
+  '        for gesture in [press, handle, pinch] as [UIGestureRecognizer] {',
+  '            addGestureRecognizer(gesture)',
+  '        }',
+  '    }',
+  '    @objc private func dragged(_ drag: UIPanGestureRecognizer) {',
+  '        contentView.drag(drag.state, at: drag.location(in: contentView), hit: point(at: drag.location(in: contentView)))',
+  '    }',
+  '    override func layoutSubviews() {',
+  '        super.layoutSubviews()',
+  '        let layout = scrollback.layout',
+  '        let rows = ScrollbackLayout.plus(layout.liveRow, picture.rowCount)',
+  '        cell = now',
+  '        contentView.geometry = ScreenTextGeometry(cell: now, first: layout.firstRow, columns: picture.columns, rows: rows)',
+  '        let redraw = dirty',
+  '        if redraw {',
+  '            report()',
+  '            contentView.laidOut()',
+  '        }',
+  '    }',
+  '}',
+  ''
+].join('\n');
+/** One replacement in a Phase 337.5 fixture, recorded as a self-test failure when its anchor is gone. */
+const selectSwap = (label, text, from, to) => {
+  if (!text.includes(from)) selfFailures.push(`${label} fixture holds no ${JSON.stringify(from.slice(0, 70))}`);
+  return text.replace(from, to);
+};
 {
   const lx = lexSwift('let a = "x // not a comment" // a comment with a "quote"\n/* outer /* inner */ still */ let b = #"raw \\(no) "quote""#\nlet c = "a\\(f("in")) b"\n');
   expect('the lexer reads a // inside a string as the string', lx.strings[0]?.value === 'x // not a comment');
@@ -8966,6 +9160,13 @@ const expect = (what, ok) => {
   expect('(z1) catches AsyncImage', zRun({ 'Screens/MarkdownView.swift': `${viewOk}func image(_ u: URL) -> some View { AsyncImage(url: u) }\n` }).length > 0);
   expect('(z1) catches an HTML import', zRun({ 'Screens/X.swift': 'let s = try? NSAttributedString(data: d, options: [.documentType: NSAttributedString.DocumentType.html], documentAttributes: nil)\n' }).length > 0);
   expect('(z1) catches contentsOf: outside DEBUG', zRun({ 'Screens/X.swift': 'let d = try? Data(contentsOf: u)\n' }).length > 0);
+  // Phase 337.5: UITextInput's required markedTextStyle is the one NSAttributedString named, by its key type, in its one file.
+  const marked = 'final class ScreenTextContent: UIView, UITextInput {\n    var markedTextStyle: [NSAttributedString.Key: Any]?\n}\n';
+  expect('(z1) passes markedTextStyle\'s key type in ScreenTextInput.swift (Phase 337.5)', zRun({ 'Screens/ScreenTextInput.swift': marked }).length === 0);
+  expect('(z1) catches markedTextStyle\'s key type in any other file (Phase 337.5)', zRun({ 'Screens/Screen.swift': marked }).length > 0);
+  expect('(z1) catches an attributed string made beside markedTextStyle (Phase 337.5)', zRun({ 'Screens/ScreenTextInput.swift': `${marked}let p3375 = NSAttributedString(string: "x")\n` }).length > 0);
+  expect('(z1) catches the key type used for anything but markedTextStyle (Phase 337.5)', zRun({ 'Screens/ScreenTextInput.swift': marked.replace('var markedTextStyle', 'var p3375Style') }).length > 0);
+  expect('(z1) catches markedTextStyle holding an attributed string\'s document type (Phase 337.5)', zRun({ 'Screens/ScreenTextInput.swift': marked.replace('[NSAttributedString.Key: Any]?', '[NSAttributedString.Key: Any]? = [.font: NSAttributedString.DocumentType.html]') }).length > 0);
   expect('(z1) leaves append(contentsOf:) alone', zRun({ 'Screens/X.swift': 'func f() { var a: [Int] = []; a.append(contentsOf: [1]) }\n' }).length === 0);
   expect('(z2) catches SFSafariViewController', zRun({ 'Markdown/Links.swift': `${linksOk}func s(_ u: URL) -> Any { SFSafariViewController(url: u) }\n` }).length > 0);
   expect('(z2) catches a SwiftUI Link', zRun({ 'Screens/MarkdownView.swift': `${viewOk}func l(_ u: URL) -> some View { Link(Copy.open, destination: u) }\n` }).length > 0);
@@ -10242,7 +10443,9 @@ export const SCREEN_FILES = Object.freeze([
   'Screens/ScreenKeys.swift',
   // Phase 337.1 (§Attack B15): the scroll view and the history.
   'Screens/ScreenScroller.swift',
-  'Screens/ScreenScrollback.swift'
+  'Screens/ScreenScrollback.swift',
+  // Phase 337.5 (build/p3375/SPEC.md §6.1): the selection's text input.
+  'Screens/ScreenTextInput.swift'
 ]);
 const isScreenFile = (name) => /^Screens\/Screen[A-Z]?\w*\.swift$/.test(name) && name !== 'Screens/ScreenCover.swift';
 
@@ -10662,6 +10865,235 @@ export function isCopyWrite(name, bare, at) {
   return name === 'Screens/ScreenSelection.swift' && /^UIPasteboard\s*\.\s*general\s*\.\s*string\s*=(?!=)/.test(bare.slice(at)) && /(?:^|[\n;{])\s*$/.test(bare.slice(0, at));
 }
 
+// ---- (al) WIDENED BY PHASE 337.5: THE EDIT MENU OFFERS COPY AND NOTHING ELSE --
+//      (build/p3375/SPEC.md D1, D8 to D10, D17, §6.1)
+//
+// The phase is Tier 2 only while nothing on the Terminal can send his words
+// anywhere but the clipboard. UIKit's DEFAULT edit menu over the same text,
+// measured through UITextInteraction on iOS 26.3, offers Copy, Translate and
+// Share…, and its suggested list holds Look Up, Speak and Writing Tools
+// besides (build/p3375/SPEC.md §14 M3). The Terminal's menu is built from
+// nothing in its own delegate, so every clause below is one line a later
+// round could change with the menu still drawing Copy: the suggested actions
+// handed back, a second item, Copy offered over rows not yet fetched, the
+// interaction made with no delegate (UIKit then builds its own menu),
+// UIKit's text interaction put back, the content made a responder that the
+// system's edit commands reach, or Writing Tools let in.
+
+/** The Terminal's text input: ScreenTextContent, its display interaction and its edit menu (Phase 337.5, SPEC §5.2). */
+export const TEXT_INPUT_FILE = 'Screens/ScreenTextInput.swift';
+/** The content view that adopts UITextInput (SPEC §5.2, D1). */
+export const TEXT_CONTENT_TYPE = 'ScreenTextContent';
+/**
+ * What could carry the Terminal's text out of the app or put the system's
+ * menu over it (D1, D9), never named in a Screen file: each with what it is.
+ */
+export const SELECTION_REFUSED = Object.freeze([
+  [/\bUITextInteraction\b/g, "UIKit's text interaction, which needs first responder, takes the Terminal's taps and offers the system's own menu (D1)"],
+  [/\bUIMenuController\b/g, 'the old edit menu, whose items come from the responder chain'],
+  [/\bUIDragInteraction\b|\btextDragDelegate\b|\bUITextDragDelegate\b|\btextDragInteraction\b/g, 'a drag, which carries the text into another app'],
+  [/\bUIActivityViewController\b|\bShareLink\b|\bUIActivityItemsConfiguration\b|\bactivityItemsConfiguration\b|\bUIDocumentInteractionController\b/g, 'Share'],
+  [/\bUIReferenceLibraryViewController\b/g, 'Look Up'],
+  [/\btranslationPresentation\b|\bTranslationSession\b|\bimport\s+Translation\b/g, 'Translate']
+]);
+/** The text mutators of UITextInput that must do nothing on the Terminal (D9). */
+const TEXT_MUTATORS = Object.freeze([
+  ['insertText', null],
+  ['deleteBackward', null],
+  ['replace', /\bwithText\b/],
+  ['setMarkedText', null]
+]);
+
+/** The three accessibility answers ScreenTextContent gives by a getter that never asks UIKit's (D20, the fix round): name, type, the one answer as a pattern, and as said. */
+export const TEXT_SPOKEN_ANSWERS = Object.freeze([
+  ['isAccessibilityElement', 'Bool', 'false', 'false'],
+  ['accessibilityTraits', 'UIAccessibilityTraits', '(?:\\.none|\\[\\])', '.none'],
+  ['accessibilityValue', 'String?', 'nil', 'nil']
+]);
+
+/** The menuFor delegate method of a lexed file: `{ fn, inner }`, `inner` the suggested actions' own parameter name. */
+function menuForOf(file) {
+  const fn = file.funcs.find((f) => f.name === 'editMenuInteraction' && /\bmenuFor\b/.test(f.params) && /\bsuggestedActions\b/.test(f.params));
+  if (fn === undefined) return null;
+  const named = /\bsuggestedActions\s+([A-Za-z_]\w*)\s*:/.exec(fn.params);
+  return { fn, inner: named === null ? 'suggestedActions' : named[1] };
+}
+
+/** The `return` statements of a body (`{ at, expr }`), past those inside the closures named by `skip` ({ open, close } spans). */
+function returnsIn(bare, open, close, skip = []) {
+  const out = [];
+  for (const m of bare.slice(open, close).matchAll(/(?<![\w.$])return\b/g)) {
+    const at = open + m.index;
+    if (skip.some((s) => at > s.open && at < s.close)) continue;
+    const from = at + m[0].length;
+    let k = from;
+    while (k < close && /[ \t]/.test(bare[k])) k += 1;
+    // The expression: to the end of its line, then on through every bracket it opens.
+    let depth = 0;
+    let end = k;
+    for (; end < close; end += 1) {
+      const c = bare[end];
+      if (c === '(' || c === '[' || c === '{') depth += 1;
+      else if (c === ')' || c === ']' || c === '}') {
+        if (depth === 0) break;
+        depth -= 1;
+      } else if ((c === '\n' || c === ';') && depth === 0) break;
+    }
+    out.push({ at, expr: bare.slice(k, end).trim() });
+  }
+  return out;
+}
+
+/** Is the condition list `cond` (a guard's or an if's) a test that `drawn(…)` holds: one of its own `,`/`&&` terms is that call, unnegated, and no `||` joins it. */
+function testsDrawn(cond) {
+  if (/\|\|/.test(cond)) return false;
+  return topLevelArgs(cond.replace(/&&/g, ',')).some((term) => /^(?:self\s*\.\s*)?drawn\s*\??\s*\([^]*\)(?:\s*==\s*true)?$/.test(term.trim()));
+}
+
+/** Is `cond` the opposite: one of its terms is `!drawn(…)` (or `drawn(…) == false`), with no `||`. */
+function testsNotDrawn(cond) {
+  if (/\|\|/.test(cond)) return false;
+  return topLevelArgs(cond.replace(/&&/g, ',')).some((term) => /^!\s*(?:self\s*\.\s*)?drawn\s*\??\s*\([^]*\)$|^(?:self\s*\.\s*)?drawn\s*\??\s*\([^]*\)\s*==\s*false$/.test(term.trim()));
+}
+
+/**
+ * Rule (al)'s Phase 337.5 half, pure over the app's Swift files: the edit
+ * menu offers Copy alone and only over drawn rows, and nothing in the
+ * Terminal's files can send its text anywhere else (D8, D9).
+ */
+export function ruleEditMenu(files) {
+  const findings = [];
+  const said = { menus: 0, menuFor: 0, returns: [], copyBehindDrawn: false, mutators: 0, spoken: 0 };
+  const all = files.map((f) => lexedFile(files, f.name)).filter((f) => f !== null);
+  // (al3) UIEditMenuInteraction( made exactly once in the app, in ScreenTextInput.swift, with a delegate.
+  const made = all.flatMap((f) => [...f.bare.matchAll(/\bUIEditMenuInteraction\s*\(/g)].map((m) => ({ f, at: m.index, open: m.index + m[0].length - 1 })));
+  said.menus = made.length;
+  for (const m of made) if (m.f.name !== TEXT_INPUT_FILE) findings.push(`${atLine(m.f, m.at)} makes a UIEditMenuInteraction outside ${TEXT_INPUT_FILE}; the Terminal's one edit menu is ScreenTextContent's, built by its own delegate (build/p3375/SPEC.md D8)`);
+  if (made.length !== 1) findings.push(`UIEditMenuInteraction( is made ${String(made.length)} time(s) in the app; exactly once, in ${TEXT_INPUT_FILE} (build/p3375/SPEC.md D8)`);
+  for (const m of made) {
+    const close = closeParen(m.f.bare, m.open);
+    const args = m.f.bare.slice(m.open + 1, close === -1 ? m.f.bare.length : close);
+    const delegate = /\bdelegate\s*:\s*([^,)]+)/.exec(args)?.[1].trim() ?? null;
+    if (delegate === null || delegate === 'nil') findings.push(`${atLine(m.f, m.at)} makes the edit menu with delegate ${JSON.stringify(delegate)}; with no delegate UIKit builds the menu from its own suggested actions, Share and Translate among them (build/p3375/SPEC.md §14 M3)`);
+  }
+  const input = lexedFile(files, TEXT_INPUT_FILE);
+  if (input === null) return { findings: [...findings, `${TEXT_INPUT_FILE} does not exist, so the Terminal's edit menu cannot be read (build/p3375/SPEC.md §5.2)`], said };
+  // (al4) menuFor declared once in the app, there, naming the suggested actions nowhere.
+  const decls = all.flatMap((f) => f.funcs.filter((fn) => fn.name === 'editMenuInteraction' && /\bmenuFor\b/.test(fn.params)).map((fn) => ({ f, fn })));
+  said.menuFor = decls.length;
+  if (decls.length !== 1 || decls[0].f.name !== TEXT_INPUT_FILE) findings.push(`editMenuInteraction(_:menuFor:suggestedActions:) is declared ${String(decls.length)} time(s)${decls.length > 0 ? ` (${decls.map((d) => d.f.name).join(', ')})` : ''}; once, in ${TEXT_INPUT_FILE}, the one place the Terminal's menu is built (build/p3375/SPEC.md D8)`);
+  if (!/\bUIEditMenuInteractionDelegate\b/.test(input.bare)) findings.push(`${TEXT_INPUT_FILE} conforms nothing to UIEditMenuInteractionDelegate, so its menuFor is never asked and UIKit offers its own menu`);
+  const menuFor = menuForOf(input);
+  if (menuFor === null) return { findings: [...findings, `${TEXT_INPUT_FILE} declares no editMenuInteraction(_:menuFor:suggestedActions:), so UIKit's suggested menu (Share, Translate, Look Up) is the Terminal's (build/p3375/SPEC.md D8)`], said };
+  const { fn, inner } = menuFor;
+  const body = bodyText(input, fn);
+  for (const name of new Set([inner, 'suggestedActions'])) {
+    if (name === '_') continue;
+    for (const m of body.matchAll(new RegExp(`(?<![.\\w])${name}\\b`, 'g'))) findings.push(`${atLine(input, fn.bodyOpen + m.index)} reads the suggested actions (${name}) in menuFor; the menu is built from nothing, never from what UIKit suggests, which holds Share, Translate, Look Up, Speak and Writing Tools (build/p3375/SPEC.md D8, §14 M3)`);
+  }
+  for (const m of body.matchAll(/\b(?:UICommand|UIKeyCommand|UIDeferredMenuElement)\b/g)) findings.push(`${atLine(input, fn.bodyOpen + m.index)} makes a ${m[0]} in menuFor; the menu's one item is Copy (build/p3375/SPEC.md D8)`);
+  // The UIActions made in the body, by the name each is bound to.
+  const actions = new Map();
+  const actionClosures = [];
+  for (const m of body.matchAll(/\bUIAction\s*\(/g)) {
+    const at = fn.bodyOpen + m.index;
+    const call = parseCall(input.bare, at);
+    if (call === null) continue;
+    actionClosures.push(...call.closures);
+    const bound = /\blet\s+([A-Za-z_]\w*)\s*(?::\s*UIAction\s*)?=\s*$/.exec(input.bare.slice(Math.max(fn.bodyOpen, at - 80), at));
+    actions.set(bound === null ? `@${String(at)}` : bound[1], { at, args: call.args });
+  }
+  const isCopy = (args) => /(?:^|,)\s*title\s*:\s*Copy\s*\.\s*copy\s*(?:,|$)/.test(args) && /\bidentifier\s*:\s*UIAction\s*\.\s*Identifier\s*\(\s*(?:rawValue\s*:\s*)?ID\s*\.\s*screenCopy\s*\)/.test(args);
+  if (actions.size !== 1) findings.push(`menuFor makes ${String(actions.size)} UIAction(s); exactly one, Copy (build/p3375/SPEC.md D8)`);
+  // (al5) Every return: the empty menu, or the one Copy, behind a drawn( test.
+  const returns = returnsIn(input.bare, fn.bodyOpen + 1, fn.bodyClose, actionClosures);
+  if (returns.length === 0) findings.push('menuFor returns nothing this rule can read (no return statement); it returns UIMenu(children: []) or UIMenu(children: [copy]), each written out (build/p3375/SPEC.md D8)');
+  let copies = 0;
+  for (const r of returns) {
+    said.returns.push(r.expr.replace(/\s+/g, ' '));
+    const shape = /^UIMenu\s*\(\s*children\s*:\s*\[([^]*)\]\s*\)$/.exec(r.expr);
+    if (shape === null) {
+      findings.push(`${atLine(input, r.at)} menuFor returns ${JSON.stringify(r.expr.replace(/\s+/g, ' ').slice(0, 80))}; only UIMenu(children: []) (no menu) or UIMenu(children: [copy]); nil and any other menu let UIKit or a later round offer more than Copy (build/p3375/SPEC.md D8, D9)`);
+      continue;
+    }
+    const items = topLevelArgs(shape[1]);
+    if (items.length === 0) continue;
+    if (items.length !== 1) {
+      findings.push(`${atLine(input, r.at)} menuFor returns ${String(items.length)} items (${items.join(', ')}); the Terminal's menu holds Copy alone, no Share, Translate, Look Up, Speak, Writing Tools or Select All (build/p3375/SPEC.md D8, D19)`);
+      continue;
+    }
+    const item = items[0];
+    const action = /^[A-Za-z_]\w*$/.test(item) ? actions.get(item) : /^UIAction\s*\(/.test(item) ? { args: parseCall(item, 0)?.args ?? '' } : undefined;
+    if (action === undefined || !isCopy(action.args)) {
+      findings.push(`${atLine(input, r.at)} menuFor's one item is ${JSON.stringify(item.slice(0, 60))}, not a UIAction made in its body titled Copy.copy and identified UIAction.Identifier(ID.screenCopy) (build/p3375/SPEC.md D8, D18)`);
+      continue;
+    }
+    copies += 1;
+    const conditions = conditionsAt(input.bare, fn.bodyOpen, r.at);
+    if (stoodBehind(conditions, body, { yes: testsDrawn, no: testsNotDrawn })) said.copyBehindDrawn = true;
+    else findings.push(`${atLine(input, r.at)} menuFor offers Copy behind no drawn( test; while any selected row is still being fetched the menu is empty, so Copy never puts a blank line where a line of his was (build/p3375/SPEC.md D10, build/p3371/SPEC.md §Attack B11)`);
+  }
+  if (copies === 0) findings.push('menuFor never returns the Copy action, so the Terminal offers no Copy (build/p3375/SPEC.md D8)');
+  // (al6) Nothing in a Screen file sends the text anywhere: the refused names, and Writing Tools only off.
+  for (const file of all.filter((f) => isScreenFile(f.name))) {
+    const drop = file.name === 'Screens/ScreenKeyField.swift' ? file.types.find((t) => t.name === 'ScreenDropRefusal') : undefined;
+    for (const [re, what] of SELECTION_REFUSED) {
+      for (const m of file.bare.matchAll(new RegExp(re.source, 'g'))) {
+        if (drop !== undefined && m.index > drop.open && m.index < drop.close) continue;
+        findings.push(`${atLine(file, m.index)} names ${m[0].replace(/\s+/g, ' ')}, ${what}; nothing on the Terminal sends his words anywhere but the clipboard (build/p3375/SPEC.md D9)`);
+      }
+    }
+    for (const m of file.bare.matchAll(/\bwritingToolsBehavior\s*=(?!=)\s*([^\n;]*)/g)) {
+      if (m[1].trim() !== '.none') findings.push(`${atLine(file, m.index)} sets writingToolsBehavior to ${JSON.stringify(m[1].trim())}; Writing Tools is off on the Terminal (.none), because it sends the text it is given away (build/p3375/SPEC.md D9)`);
+    }
+  }
+  // (al7) ScreenTextContent: never first responder, Writing Tools off, its mutators empty.
+  const contentSpans = input.types.filter((t) => t.name === TEXT_CONTENT_TYPE);
+  const content = contentSpans.find((t) => t.kind === 'class');
+  if (content === undefined || !new RegExp(`\\bclass\\s+${TEXT_CONTENT_TYPE}\\s*:\\s*UIView\\s*,[^{]*\\bUITextInput\\b`).test(input.bare)) {
+    findings.push(`${TEXT_INPUT_FILE} declares no final class ${TEXT_CONTENT_TYPE}: UIView, UITextInput, the content view the iPhone's selection is drawn over (build/p3375/SPEC.md D1)`);
+    return { findings, said };
+  }
+  const inContent = (i) => contentSpans.some((t) => i > t.open && i < t.close);
+  const answers = [...input.bare.matchAll(/\boverride\s+var\s+canBecomeFirstResponder\s*:\s*Bool\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}/g)].filter((m) => inContent(m.index));
+  if (answers.length !== 1 || !/^\s*(?:get\s*\{\s*)?(?:return\s+)?false\s*\}?\s*$/.test(answers[0][1])) findings.push(`${TEXT_CONTENT_TYPE} does not answer canBecomeFirstResponder with false, once; were it a responder, the system's edit commands, Look Up, Share and Translate would reach the Terminal's text, and a long press would put the keyboard away (build/p3375/SPEC.md D9, D17, §14 M2)`);
+  for (const m of input.bare.matchAll(/(?<![\w.])(?:self\s*\.\s*)?becomeFirstResponder\s*\(\s*\)/g)) {
+    if (!isDecl(input.bare, m.index)) findings.push(`${atLine(input, m.index)} asks becomeFirstResponder() in ${TEXT_INPUT_FILE}; the keyboard's hidden field keeps first responder, and the selection changes none (build/p3375/SPEC.md D17)`);
+  }
+  const writing = [...input.bare.matchAll(/\bvar\s+writingToolsBehavior\s*:\s*UIWritingToolsBehavior\s*\{/g)].filter((m) => inContent(m.index));
+  const writingBody = writing.length === 1 ? input.bare.slice(writing[0].index + writing[0][0].length - 1, matchForward(input.bare, writing[0].index + writing[0][0].length - 1) + 1) : '';
+  // A get-only var only "nearly matches" UITextInputTraits' optional
+  // requirement and is not taken (SPEC §14 Builds, measured), so UIKit would
+  // answer its own default: the setter is part of the answer.
+  const getsNone = /^\{\s*get\s*\{\s*(?:return\s+)?\.none\s*\}\s*set\s*(?:\(\s*\w+\s*\))?\s*\{\s*\}\s*\}$/.test(writingBody.trim());
+  if (writing.length !== 1 || !getsNone) findings.push(`${TEXT_CONTENT_TYPE} does not answer writingToolsBehavior { get { .none } set {} }, once; a get-only answer is not taken by UIKit, and Writing Tools sends the text it is given away to be rewritten (build/p3375/SPEC.md D9, §14 Builds)`);
+  for (const [name, params] of TEXT_MUTATORS) {
+    const fns = input.funcs.filter((f) => f.name === name && inContent(f.at) && (params === null || params.test(f.params)));
+    if (fns.length !== 1) {
+      findings.push(`${TEXT_CONTENT_TYPE} declares ${name} ${String(fns.length)} time(s); once, doing nothing (build/p3375/SPEC.md D9)`);
+      continue;
+    }
+    const text = bodyText(input, fns[0]).replace(/^\{|\}$/g, '').trim();
+    if (text !== '') findings.push(`${atLine(input, fns[0].at)} ${TEXT_CONTENT_TYPE}.${name} does something (${JSON.stringify(text.replace(/\s+/g, ' ').slice(0, 60))}); the Terminal's text is never edited, so its mutators are empty (build/p3375/SPEC.md D9)`);
+    else said.mutators += 1;
+  }
+  // (al8) The rows are what is spoken (D20, the 337.5 fix round, measured
+  // with XCUITest on iOS 26.3 and 18.3): iOS's accessibility reads a view
+  // that adopts UITextInput as ONE text view whose value is all of its text,
+  // whatever isAccessibilityElement was SET to, which hid every row under
+  // it. So the content answers by getters that never ask UIKit's: no
+  // element, no trait, no value, each once, each with a setter that keeps
+  // nothing.
+  for (const [name, type, answer, shown] of TEXT_SPOKEN_ANSWERS) {
+    const decls = [...input.bare.matchAll(new RegExp(`\\boverride\\s+var\\s+${name}\\s*:\\s*${type.replace(/[?]/g, '\\?')}\\s*\\{`, 'g'))].filter((m) => inContent(m.index));
+    const body = decls.length === 1 ? input.bare.slice(decls[0].index + decls[0][0].length - 1, matchForward(input.bare, decls[0].index + decls[0][0].length - 1) + 1) : '';
+    const answers = new RegExp(`^\\{\\s*get\\s*\\{\\s*(?:return\\s+)?${answer}\\s*\\}\\s*set\\s*(?:\\(\\s*\\w+\\s*\\))?\\s*\\{\\s*\\}\\s*\\}$`).test(body.trim());
+    if (decls.length !== 1 || !answers) findings.push(`${TEXT_CONTENT_TYPE} does not answer ${name} { get { ${shown} } set {} }, once; iOS's accessibility reads a UITextInput view as one text view over every row it holds, so screen-row-<n> and screen-history-<i> are found by no one and VoiceOver would speak every row laid out, not the rows in view (build/p3375/SPEC.md D20, the fix round)`);
+    else said.spoken += 1;
+  }
+  return { findings, said };
+}
+
 // ---- (am) A COLOUR THE DOOR NAMES (D12) ------------------------------------
 
 /** Rule (am), pure over the app's Swift files. */
@@ -10782,7 +11214,11 @@ export function ruleScreenShapes(files) {
   }
   for (const f of files) {
     const lx = lexSwift(f.source);
-    for (const m of lx.bare.matchAll(/\bNSAttributedString\b|\bNSTextStorage\b|\bNSLayoutManager\b|\bNSTextLayoutManager\b/g)) findings.push(`${f.name}:${String(lineOf(lx.bare, m.index))} names ${m[0]}; the Screen draws with Canvas and no TextKit (rule z1 stands)`);
+    for (const m of lx.bare.matchAll(/\bNSAttributedString\b|\bNSTextStorage\b|\bNSLayoutManager\b|\bNSTextLayoutManager\b/g)) {
+      // Phase 337.5: UITextInput's required markedTextStyle, its key type alone.
+      if (isMarkedTextStyleKey(f.name, lx.bare, m.index)) continue;
+      findings.push(`${f.name}:${String(lineOf(lx.bare, m.index))} names ${m[0]}; the Screen draws with Canvas and no TextKit (rule z1 stands)`);
+    }
   }
   return { findings, said };
 }
@@ -11096,6 +11532,110 @@ export function ruleScreenPans(files) {
   return { findings, said };
 }
 
+// ---- (aq) WIDENED BY PHASE 337.5: THE HANDLE DRAG AND THE TWO INTERACTIONS --
+//      (build/p3375/SPEC.md D1, D5, D15, §6.1)
+//
+// The iPhone's selection is UIKit's display interaction and edit menu over
+// the content view, driven by the scroll view's own long press and ONE handle
+// drag. Measured (§14 M1, M2): UIKit's text interaction instead put its own
+// tap, double tap and range recognisers on the content view, which swallowed
+// the Terminal's keyboard tap and zoom, and with first responder put the
+// keyboard away on every press. So the content view gets interactions and no
+// recogniser, the handle drag is the scroll view's own, it begins only near a
+// handle, and the pan waits for it, or a drag on a handle would scroll.
+
+/** The `[a, b, …]` names a `for X in [ … ]` loop in `body` hands to an unqualified addGestureRecognizer(X). */
+function loopedGestures(body) {
+  const out = [];
+  for (const m of body.matchAll(/\bfor\s+([A-Za-z_]\w*)\s+in\s+\[([^\]]*)\][^{]*\{/g)) {
+    const open = m.index + m[0].length - 1;
+    const close = matchForward(body, open);
+    const block = body.slice(open, close === -1 ? body.length : close + 1);
+    if (new RegExp(`(?:^|[^.\\w])addGestureRecognizer\\s*\\(\\s*${m[1]}\\s*\\)`).test(block)) out.push(...topLevelArgs(m[2]));
+  }
+  return out;
+}
+
+/** Rule (aq)'s Phase 337.5 half, pure over the app's Swift files. */
+export function ruleSelectionGestures(files) {
+  const findings = [];
+  const said = { handle: null, waits: false, begins: false, content: false, interactions: [] };
+  const all = files.map((f) => lexedFile(files, f.name)).filter((f) => f !== null);
+  const scroller = lexedFile(files, SCROLLER_FILE);
+  if (scroller === null) return { findings: [`${SCROLLER_FILE} does not exist, so the handle drag cannot be read`], said };
+  const view = scroller.types.find((t) => t.name === 'ScreenScrollView' && t.kind === 'class');
+  if (view === undefined) return { findings: [`${SCROLLER_FILE} declares no ScreenScrollView`], said };
+  const body = scroller.bare.slice(view.open, view.close + 1);
+  // (aq12) The content view is ScreenTextContent.
+  if (/\blet\s+contentView\s*(?::\s*ScreenTextContent\s*)?=\s*ScreenTextContent\s*\(\s*\)/.test(body)) said.content = true;
+  else findings.push(`ScreenScrollView's content view is not ScreenTextContent(); the iPhone's selection is drawn over the content view, which adopts UITextInput (build/p3375/SPEC.md D1, §5.3)`);
+  // (aq13) Exactly one UIPanGestureRecognizer in the Screen files, the handle drag, made in ScreenScrollView.
+  const pans = all.filter((f) => isScreenFile(f.name)).flatMap((f) => [...f.bare.matchAll(/\bUIPanGestureRecognizer\s*\(/g)].map((m) => ({ f, at: m.index })));
+  if (pans.length !== 1) findings.push(`UIPanGestureRecognizer( is made ${String(pans.length)} time(s) in the Screen files; exactly once, the handle drag, made by ScreenScrollView; the scroll view's own pan does the rest (build/p3375/SPEC.md D5)`);
+  const made = /\blet\s+([A-Za-z_]\w*)\s*=\s*UIPanGestureRecognizer\s*\(/.exec(body);
+  for (const p of pans) {
+    if (p.f.name !== SCROLLER_FILE || p.at < view.open || p.at > view.close) findings.push(`${atLine(p.f, p.at)} makes a UIPanGestureRecognizer outside ScreenScrollView; the handle drag is the scroll view's own, beside its long press (build/p3375/SPEC.md D5)`);
+  }
+  if (made === null) return { findings: [...findings, 'ScreenScrollView makes no handle drag (let … = UIPanGestureRecognizer(…)), so the iPhone\'s handles cannot be dragged (build/p3375/SPEC.md D5)'], said };
+  const handle = made[1];
+  said.handle = handle;
+  // (aq14) Added to the scroll view itself, never the content view.
+  const direct = new RegExp(`(?:^|[^.\\w])(?:self\\s*\\.\\s*)?addGestureRecognizer\\s*\\(\\s*${handle}\\s*\\)`).test(body);
+  if (!direct && !loopedGestures(body).includes(handle)) findings.push(`ScreenScrollView never adds its handle drag ${handle} to itself (addGestureRecognizer(${handle}), or in the loop that adds its gestures); on the content view it would be a recogniser UIKit's selection does not own, and the pan could not be told to wait for it (build/p3375/SPEC.md D5, §5.3)`);
+  // (aq15) The pan waits for it.
+  if (new RegExp(`(?:^|[^.\\w])(?:self\\s*\\.\\s*)?panGestureRecognizer\\s*\\.\\s*require\\s*\\(\\s*toFail\\s*:\\s*${handle}\\s*\\)`).test(body)) said.waits = true;
+  else findings.push(`ScreenScrollView's pan does not require(toFail: ${handle}); a drag that starts on a handle would scroll the Terminal under the selection instead of moving it (build/p3375/SPEC.md D5)`);
+  // (aq16) It begins only near a handle: its delegate is the gesture rules, which ask grabs(at:.
+  const delegate = new RegExp(`\\b${handle}\\s*\\.\\s*delegate\\s*=\\s*(?:self\\s*\\.\\s*)?([A-Za-z_]\\w*)`).exec(body)?.[1] ?? null;
+  const rulesMade = delegate === null ? false : new RegExp(`\\b(?:let|var)\\s+${delegate}\\s*(?::\\s*ScreenGestureRules\\s*)?=\\s*ScreenGestureRules\\s*\\(`).test(body);
+  const begin = funcsNamed(scroller, 'gestureRecognizerShouldBegin', 'ScreenGestureRules')[0];
+  if (delegate === null || !rulesMade) findings.push(`ScreenScrollView's handle drag ${handle} is not delegated to its ScreenGestureRules, so nothing decides it begins only near a handle (build/p3375/SPEC.md D5, §5.3)`);
+  else if (begin === undefined || !/\bgrabs\s*\(\s*at\s*:/.test(bodyText(scroller, begin))) findings.push('ScreenGestureRules.gestureRecognizerShouldBegin does not ask the content grabs(at:); the handle drag would begin on every drag and take it from the pan, so the Terminal would not scroll (build/p3375/SPEC.md D5)');
+  else said.begins = true;
+  // (aq17) Every addInteraction( in a Screen file is ScreenTextContent's own,
+  // on itself, adding the display interaction or the edit menu interaction.
+  const input = lexedFile(files, TEXT_INPUT_FILE);
+  const contentSpans = input === null ? [] : input.types.filter((t) => t.name === TEXT_CONTENT_TYPE);
+  const kinds = { display: 0, menu: 0 };
+  const kindOf = (file, arg) => {
+    const a = arg.trim().replace(/^self\s*\.\s*/, '');
+    if (/^UITextSelectionDisplayInteraction\s*\(/.test(a)) return 'display';
+    if (/^UIEditMenuInteraction\s*\(/.test(a)) return 'menu';
+    if (!/^[A-Za-z_]\w*$/.test(a)) return null;
+    const decl = new RegExp(`\\b(?:let|var)\\s+${a}\\s*(?::\\s*(UITextSelectionDisplayInteraction|UIEditMenuInteraction)\\b[^=\\n]*)?(?:=\\s*(UITextSelectionDisplayInteraction|UIEditMenuInteraction)\\s*\\()?`, 'g');
+    for (const m of file.bare.matchAll(decl)) {
+      const t = m[1] ?? m[2];
+      if (t !== undefined && contentSpans.some((s) => m.index > s.open && m.index < s.close)) return t === 'UIEditMenuInteraction' ? 'menu' : 'display';
+    }
+    const assigned = new RegExp(`(?:^|[^.\\w])(?:self\\s*\\.\\s*)?${a}\\s*=\\s*(UITextSelectionDisplayInteraction|UIEditMenuInteraction)\\s*\\(`).exec(file.bare);
+    if (assigned !== null && contentSpans.some((s) => assigned.index > s.open && assigned.index < s.close)) return assigned[1] === 'UIEditMenuInteraction' ? 'menu' : 'display';
+    return null;
+  };
+  for (const file of all.filter((f) => isScreenFile(f.name))) {
+    for (const m of file.bare.matchAll(/([\w.)\]?!]*\s*\.\s*|(?<![\w.]))addInteraction\s*\(/g)) {
+      const at = m.index + m[0].indexOf('addInteraction');
+      const receiver = m[1].replace(/\s+/g, '');
+      const open = m.index + m[0].length - 1;
+      const close = closeParen(file.bare, open);
+      const arg = file.bare.slice(open + 1, close === -1 ? file.bare.length : close);
+      const inside = file.name === TEXT_INPUT_FILE && contentSpans.some((s) => at > s.open && at < s.close);
+      if (!inside || (receiver !== '' && receiver !== 'self.')) {
+        findings.push(`${atLine(file, at)} adds an interaction to ${receiver === '' || receiver === 'self.' ? 'a view' : receiver.replace(/\.$/, '')} outside ${TEXT_CONTENT_TYPE}; the content view adds its own two, the selection's display and its edit menu, and nothing else is added to any Terminal view (build/p3375/SPEC.md D1, D15)`);
+        continue;
+      }
+      const kind = kindOf(file, arg);
+      if (kind === null) findings.push(`${atLine(file, at)} ${TEXT_CONTENT_TYPE} adds ${JSON.stringify(arg.trim().slice(0, 60))}; only its UITextSelectionDisplayInteraction and its UIEditMenuInteraction (build/p3375/SPEC.md D1)`);
+      else {
+        kinds[kind] += 1;
+        said.interactions.push(kind);
+      }
+    }
+  }
+  if (input === null) findings.push(`${TEXT_INPUT_FILE} does not exist, so the selection's interactions cannot be read`);
+  else if (kinds.display !== 1 || kinds.menu !== 1) findings.push(`${TEXT_CONTENT_TYPE} adds the display interaction ${String(kinds.display)} time(s) and the edit menu interaction ${String(kinds.menu)}; once each, the iPhone's handles and highlight and its one-item menu (build/p3375/SPEC.md D1, D8, D15)`);
+  return { findings, said };
+}
+
 // ---- (ar) THE KEYBOARD NEVER MOVES THE TERMINAL'S FRAME (D24, §Attack B4) --
 
 /** Is index `i` at the top level of the braces opened at `open` (depth 1), outside any nested ( { [? */
@@ -11396,6 +11936,41 @@ export function ruleScrollbackClient(files) {
   const followFn = funcsNamed(sb, 'follow', 'ScrollbackLayout')[0];
   const followText = followFn === undefined ? '' : bodyText(sb, followFn);
   if (!/\bhi\s*==\s*live\b|\blive\s*==\s*hi\b/.test(followText) || !/!\s*pagingStopped\b|\bpagingStopped\s*==\s*false\b/.test(followText)) findings.push('ScrollbackLayout.follow() does not keep what is held exactly when the held rows reach the live top (hi == live) and paging has not stopped, so every trip back to live blanks the history and fetches it again (build/p3373/SPEC.md D10)');
+  return { findings, said };
+}
+
+// ---- (as) WIDENED BY PHASE 337.5: THE SELECTION IS TOLD WHERE ITS ROWS ARE --
+//      (build/p3375/SPEC.md D2, D12, §6.1)
+//
+// A caret is an absolute row index and a column, and UIKit asks the content
+// for the selection's rectangles whenever it chooses. A layout pass can move
+// the layout's first index without changing the content's size (an
+// eviction), and UIKit re-asks only when the size changes, so every pass
+// hands the content its geometry and tells the display interaction to ask
+// again; without it the handles and the highlight sit on rows the selection
+// no longer names.
+
+/** Rule (as)'s Phase 337.5 half, pure over the app's Swift files. */
+export function ruleSelectionLayout(files) {
+  const findings = [];
+  const said = { geometry: false, laidOut: false, update: false };
+  const scroller = lexedFile(files, SCROLLER_FILE);
+  const layout = scroller === null ? undefined : funcsNamed(scroller, 'layoutSubviews', 'ScreenScrollView')[0];
+  if (layout === undefined) findings.push(`${SCROLLER_FILE} has no ScreenScrollView.layoutSubviews, so the selection is never told where its rows are (build/p3375/SPEC.md D12)`);
+  else {
+    const l = bodyText(scroller, layout);
+    const given = /(?:^|[^.\w])(?:self\s*\.\s*)?contentView\s*\.\s*geometry\s*=(?!=)\s*([^\n]+)/.exec(l);
+    if (given === null) findings.push('ScreenScrollView.layoutSubviews never hands contentView.geometry, so the selection\'s rectangles are read against a layout that has moved (build/p3375/SPEC.md D12)');
+    else if (!/\bfirstRow\b/.test(expandLocals(l, given[1], 6))) findings.push(`ScreenScrollView.layoutSubviews hands the content geometry ${JSON.stringify(given[1].trim().slice(0, 80))}, whose first index is not the layout's firstRow; a caret is an absolute index, placed from the layout's first (build/p3375/SPEC.md D2, D12)`);
+    else said.geometry = true;
+    if (/(?:^|[^.\w])(?:self\s*\.\s*)?contentView\s*\.\s*laidOut\s*\(\s*\)/.test(l)) said.laidOut = true;
+    else findings.push('ScreenScrollView.layoutSubviews never calls contentView.laidOut(), so a pass that moves the rows under a selection (an eviction, a page reserved above) leaves its handles where the rows were (build/p3375/SPEC.md D12)');
+  }
+  const input = lexedFile(files, TEXT_INPUT_FILE);
+  const laid = input === null ? undefined : funcsNamed(input, 'laidOut', TEXT_CONTENT_TYPE)[0];
+  if (laid === undefined) findings.push(`${TEXT_CONTENT_TYPE} declares no laidOut() (build/p3375/SPEC.md D12)`);
+  else if (/\.\s*setNeedsSelectionUpdate\s*\(\s*\)/.test(bodyText(input, laid))) said.update = true;
+  else findings.push(`${TEXT_CONTENT_TYPE}.laidOut() does not ask the display interaction to setNeedsSelectionUpdate(); UIKit re-reads the selection's rectangles only when the content's size changes, and an eviction changes the first index alone (build/p3375/SPEC.md D12)`);
   return { findings, said };
 }
 
@@ -12473,15 +13048,18 @@ export function ruleReachNote(words) {
 
 // ---- (ax) LANDSCAPE IS THE TERMINAL ALONE (D15 to D19) ---------------------
 
-/** TerminalChrome's members, exactly (build/p3373/SPEC.md §5.3); a stored size class beside them is allowed. */
-export const CHROME_MEMBERS = Object.freeze(['landscape', 'header', 'tray', 'bars', 'statusBarHidden', 'toolbarCopy', 'overlayCopy']);
+/**
+ * TerminalChrome's members, exactly (build/p3373/SPEC.md §5.3); a stored size
+ * class beside them is allowed. Phase 337.5 (build/p3375/SPEC.md D16) took
+ * toolbarCopy and overlayCopy out: Copy is the edit menu's one item, in
+ * either orientation, and the page draws no Copy of its own.
+ */
+export const CHROME_MEMBERS = Object.freeze(['landscape', 'header', 'tray', 'bars', 'statusBarHidden']);
 /** What each Bool member answers, as its `&&` terms in any order; `<p>` is the member's own parameter. */
 const CHROME_ANSWERS = Object.freeze({
   header: ['!landscape'],
   statusBarHidden: ['landscape'],
-  tray: ['!landscape', 'overlap == 0', '!typing'],
-  toolbarCopy: ['<p>', '!landscape'],
-  overlayCopy: ['<p>', 'landscape']
+  tray: ['!landscape', 'overlap == 0', '!typing']
 });
 
 /**
@@ -12489,21 +13067,21 @@ const CHROME_ANSWERS = Object.freeze({
  * Terminal is the terminal alone. TerminalChrome is declared once, in
  * Screens/Screen.swift, with exactly §5.3's members, each answering what it
  * says (the header and the tray upright only, the bars hidden and the status
- * bar hidden sideways, Copy in the bar upright and over the terminal
- * sideways, the two complements of one landscape), over a COMPACT VERTICAL
- * size class; ScreenPage draws its header only behind chrome.header and its
- * tray only behind chrome.tray(, applies .toolbarVisibility(chrome.bars, for:
- * .navigationBar, .tabBar) and .statusBarHidden(chrome.statusBarHidden) once
- * each, and draws ID.screenCopy once behind chrome.toolbarCopy( in its toolbar
- * and once behind chrome.overlayCopy( in its bottom view, so at most one Copy
- * is drawn at a time; and OrientationGate.screenOnTop is set in Screen.swift
+ * bar hidden sideways), over a COMPACT VERTICAL size class; ScreenPage draws
+ * its header only behind chrome.header and its tray only behind chrome.tray(,
+ * applies .toolbarVisibility(chrome.bars, for: .navigationBar, .tabBar) and
+ * .statusBarHidden(chrome.statusBarHidden) once each; Copy is drawn by no
+ * page at all since Phase 337.5 (build/p3375/SPEC.md D16, D18): ID.screenCopy
+ * and "screen-copy" are named by Identifiers.swift and the edit menu's one
+ * action in Screens/ScreenTextInput.swift alone, and no Button in Screen.swift
+ * draws Copy.copy; and OrientationGate.screenOnTop is set in Screen.swift
  * alone ((an) stands). (aq1) still refuses every SwiftUI gesture in a Screen
  * file, so nothing brings the bars back on a swipe or a tap: turning upright
  * is the way back (D19).
  */
 export function ruleLandscapeAlone(files) {
   const findings = [];
-  const said = { members: [], hides: 0, statusBars: 0, toolbarCopy: 0, overlayCopy: 0 };
+  const said = { members: [], hides: 0, statusBars: 0, menuCopy: 0 };
   const all = files.map((f) => lexedFile(files, f.name)).filter((f) => f !== null);
   const page = lexedFile(files, BARS_PAGE_FILE);
   if (page === null) return { findings: [`${BARS_PAGE_FILE} does not exist, so the Terminal sideways cannot be read`], said };
@@ -12549,22 +13127,31 @@ export function ruleLandscapeAlone(files) {
     }
   }
   if (said.statusBars !== 1) findings.push(`ScreenPage applies .statusBarHidden(chrome.statusBarHidden) ${String(said.statusBars)} time(s); exactly once (build/p3373/SPEC.md D15)`);
-  // (ax4) Copy: in the bar upright and over the terminal sideways, never both.
-  const bottom = varSpan(page, 'bottom', 'ScreenPage');
+  // (ax4) MOVED BY PHASE 337.5 (build/p3375/SPEC.md D16, D18): Copy is the
+  // edit menu's one item in both orientations. Its identifier is named by
+  // Identifiers.swift and the menu's action alone, and no Button in the page
+  // draws its word, so a Copy button can never come back beside the menu.
+  const input = lexedFile(files, TEXT_INPUT_FILE);
+  const menuFor = input === null ? null : menuForOf(input);
   for (const file of all) {
     for (const m of file.bare.matchAll(/\bID\s*\.\s*screenCopy\b/g)) {
-      if (file.name !== BARS_PAGE_FILE) {
-        findings.push(`${atLine(file, m.index)} draws Copy outside ${BARS_PAGE_FILE}; Copy is the Terminal page's own, in its bar upright and over the terminal sideways (build/p3373/SPEC.md D17)`);
-        continue;
-      }
-      const inBar = insideBlock(page.bare, m.index, /\bif\s+chrome\s*\.\s*toolbarCopy\s*\(\s*copyDrawn\s*\)\s*$/) && m.index > pageBody.open && m.index < pageBody.close;
-      const over = insideBlock(page.bare, m.index, /\bif\s+chrome\s*\.\s*overlayCopy\s*\(\s*copyDrawn\s*\)\s*$/) && bottom !== null && m.index > bottom.open && m.index < bottom.close;
-      if (inBar) said.toolbarCopy += 1;
-      else if (over) said.overlayCopy += 1;
-      else findings.push(`${atLine(page, m.index)} draws Copy behind neither chrome.toolbarCopy(copyDrawn) in the page's toolbar nor chrome.overlayCopy(copyDrawn) in its bottom view, so two could be drawn at once, or one sideways in a bar that is hidden (build/p3373/SPEC.md D17)`);
+      const inMenu = file.name === TEXT_INPUT_FILE && menuFor !== null && m.index > menuFor.fn.bodyOpen && m.index < menuFor.fn.bodyClose;
+      if (inMenu) said.menuCopy += 1;
+      else findings.push(`${atLine(file, m.index)} names ID.screenCopy outside the edit menu's action in ${TEXT_INPUT_FILE}; Copy is the menu's one item in both orientations, and the page draws no Copy of its own (build/p3375/SPEC.md D16, D18)`);
+    }
+    for (const str of file.strings) {
+      if (str.value === 'screen-copy' && file.name !== 'Screens/Identifiers.swift') findings.push(`${atLine(file, str.start)} spells "screen-copy" outside Screens/Identifiers.swift; the identifier is ID.screenCopy, named by the edit menu's action alone (build/p3375/SPEC.md D18)`);
     }
   }
-  if (said.toolbarCopy !== 1 || said.overlayCopy !== 1) findings.push(`ScreenPage draws Copy ${String(said.toolbarCopy)} time(s) in its toolbar and ${String(said.overlayCopy)} over the terminal; once each, the two complements of one landscape (build/p3373/SPEC.md D17)`);
+  if (said.menuCopy === 0) findings.push(`the edit menu's Copy is not identified ID.screenCopy inside menuFor in ${TEXT_INPUT_FILE}, so the drives that press Copy by screen-copy find nothing (build/p3375/SPEC.md D8, §14 M8)`);
+  // Measured (§14 M8): UIAction.identifier alone reads EMPTY to XCUITest; the
+  // action's own accessibilityIdentifier is what the drives find Copy by.
+  else if (menuFor !== null && !/(?:^|[^.\w])[A-Za-z_]\w*\s*\.\s*accessibilityIdentifier\s*=\s*ID\s*\.\s*screenCopy\b/.test(bodyText(input, menuFor.fn))) findings.push(`the edit menu's Copy is given no accessibilityIdentifier = ID.screenCopy in menuFor; UIAction.identifier alone reads empty to XCUITest, so every drive that presses Copy by screen-copy would find nothing (build/p3375/SPEC.md D8, §14 M8)`);
+  for (const m of page.bare.matchAll(/(?<![\w.])Button\b/g)) {
+    const call = parseCall(page.bare, m.index);
+    const span = call === null ? page.bare.slice(m.index, m.index + 200) : page.bare.slice(m.index, call.end);
+    if (/\bCopy\s*\.\s*copy\b/.test(span)) findings.push(`${atLine(page, m.index)} draws a Button with Copy.copy in ${BARS_PAGE_FILE}; the edit menu over the selection is Copy, upright and sideways, and a button beside it would be a second Copy (build/p3375/SPEC.md D16)`);
+  }
   // (ax5) The gate that turns the page sideways is the Terminal's alone ((an)).
   for (const file of all) {
     for (const m of file.bare.matchAll(/\bscreenOnTop\s*=(?!=)/g)) {
@@ -13007,8 +13594,6 @@ export function ruleTerminalMenu(files) {
     '    }',
     '    var bars: Visibility { landscape ? .hidden : .automatic }',
     '    var statusBarHidden: Bool { landscape }',
-    '    func toolbarCopy(_ drawn: Bool) -> Bool { drawn && !landscape }',
-    '    func overlayCopy(_ drawn: Bool) -> Bool { drawn && landscape }',
     '}',
     'struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {',
     '    @Environment(\\.verticalSizeClass) private var sizeClass',
@@ -13027,11 +13612,8 @@ export function ruleTerminalMenu(files) {
     '            }',
     '        }',
     '        .toolbar {',
-    '            ToolbarItem(placement: .topBarTrailing) {',
-    '                if chrome.toolbarCopy(copyDrawn) {',
-    '                    Button { copySelection() } label: { Words(Copy.copy, .body, Tokens.accent) }',
-    '                        .accessibilityIdentifier(ID.screenCopy)',
-    '                }',
+    '            ToolbarItem(placement: .principal) {',
+    '                Words(name, .navTitle, Tokens.textPrimary)',
     '            }',
     '            trailing',
     '        }',
@@ -13042,9 +13624,9 @@ export function ruleTerminalMenu(files) {
     '    }',
     '    private var bottom: some View {',
     '        VStack {',
-    '            if chrome.overlayCopy(copyDrawn) {',
-    '                Button { copySelection() } label: { Words(Copy.copy, .body, Tokens.accent) }',
-    '                    .accessibilityIdentifier(ID.screenCopy)',
+    '            if scrollback.mode == .scrolled {',
+    '                Button { scrollback.follow() } label: { Image(systemName: "arrow.down.to.line") }',
+    '                    .accessibilityIdentifier(ID.screenToLive)',
     '            }',
     '        }',
     '        .padding(.bottom, overlap)',
@@ -13080,7 +13662,8 @@ export function ruleTerminalMenu(files) {
     '}',
     ''
   ].join('\n');
-  const ax = (page, more = []) => ruleLandscapeAlone([{ name: BARS_PAGE_FILE, source: page }, ...more]).findings.length;
+  // Phase 337.5: the edit menu's Copy is ScreenTextInput.swift's, read beside the page.
+  const ax = (page, more = [], input = SELECT_INPUT_OK) => ruleLandscapeAlone([{ name: BARS_PAGE_FILE, source: page }, ...(input === null ? [] : [{ name: TEXT_INPUT_FILE, source: input }]), ...more]).findings.length;
   const xq = (from, to) => swapIn('(ax)', chromePageOk, from, to);
   expect('(ax) passes the terminal alone sideways, through TerminalChrome', ax(chromePageOk) === 0);
   expect('(ax) catches the parent\'s page, which draws its bars, header and tray sideways (his item 2)', ax(chromeParent) > 0);
@@ -13088,13 +13671,23 @@ export function ruleTerminalMenu(files) {
   expect('(ax) catches the tray drawn sideways', ax(xq('if chrome.tray(overlap: overlap, typing: typing) {', 'if overlap == 0, !typing {')) > 0);
   expect('(ax) catches the status bar left drawn sideways', ax(xq('        .statusBarHidden(chrome.statusBarHidden)\n', '')) > 0);
   expect('(ax) catches the bars left drawn sideways', ax(xq('        .toolbarVisibility(chrome.bars, for: .navigationBar, .tabBar)\n', '')) > 0);
-  expect('(ax) catches the toolbar\'s Copy drawn sideways too (two screen-copy)', ax(xq('if chrome.toolbarCopy(copyDrawn) {', 'if copyDrawn {')) > 0);
-  expect('(ax) catches Copy never drawn over the terminal sideways', ax(xq('if chrome.overlayCopy(copyDrawn) {', 'if chrome.toolbarCopy(copyDrawn) {')) > 0);
+  // Phase 337.5 (build/p3375/SPEC.md D16, D18): Copy is the edit menu's alone.
+  const copyButton = "            ToolbarItem(placement: .topBarTrailing) {\n                if copyDrawn {\n                    Button { copySelection() } label: { Words(Copy.copy, .body, Tokens.accent) }\n                }\n            }\n            trailing\n";
+  expect('(ax) catches a Copy button back in the toolbar, with no identifier', ax(xq('            trailing\n', copyButton)) > 0);
+  expect('(ax) catches the 337.3 shape: Copy in the bar upright, identified screen-copy', ax(xq('            trailing\n', copyButton.replace('Tokens.accent) }\n', 'Tokens.accent) }\n                        .accessibilityIdentifier(ID.screenCopy)\n'))) > 0);
+  expect('(ax) catches a Copy button back over the terminal sideways', ax(xq('            if scrollback.mode == .scrolled {\n', '            if copyDrawn {\n                Button(Copy.copy) { copySelection() }\n            }\n            if scrollback.mode == .scrolled {\n')) > 0);
+  expect('(ax) catches ID.screenCopy on a view of the page', ax(xq('                    .accessibilityIdentifier(ID.screenToLive)', '                    .accessibilityIdentifier(ID.screenCopy)')) > 0);
+  expect('(ax) catches "screen-copy" spelled in the page', ax(xq('                    .accessibilityIdentifier(ID.screenToLive)', '                    .accessibilityIdentifier("screen-copy")')) > 0);
+  expect('(ax) catches toolbarCopy back in TerminalChrome', ax(xq('    var statusBarHidden: Bool { landscape }\n', '    var statusBarHidden: Bool { landscape }\n    func toolbarCopy(_ drawn: Bool) -> Bool { drawn && !landscape }\n')) > 0);
+  expect('(ax) catches the menu\'s Copy not identified screen-copy', ax(chromePageOk, [], selectSwap('(ax)', SELECT_INPUT_OK, '        copy.accessibilityIdentifier = ID.screenCopy\n', '').replace('identifier: UIAction.Identifier(ID.screenCopy)', 'identifier: nil')) > 0);
+  expect('(ax) catches Copy identified by UIAction.identifier alone, which XCUITest reads empty (§14 M8)', ax(chromePageOk, [], selectSwap('(ax)', SELECT_INPUT_OK, '        copy.accessibilityIdentifier = ID.screenCopy\n', '')) > 0);
+  expect('(ax) catches ID.screenCopy in ScreenTextInput.swift outside menuFor', ax(chromePageOk, [], selectSwap('(ax)', SELECT_INPUT_OK, '    func laidOut() {\n', '    var copyId: String { ID.screenCopy }\n    func laidOut() {\n')) > 0);
+  expect('(ax) catches no text input at all (no menu, no Copy)', ax(chromePageOk, [], null) > 0);
+  expect('(ax) passes a Button in the page that draws another word', ax(xq('            trailing\n', '            ToolbarItem(placement: .topBarTrailing) {\n                Button { scrollback.follow() } label: { Words(Copy.backToLive, .body, Tokens.accent) }\n            }\n            trailing\n')) === 0);
   expect('(ax) catches OrientationGate set in SessionScreen.swift', ax(chromePageOk, [{ name: SESSION_SCREEN_FILE, source: 'struct TerminalPage: View {\n    var body: some View { ScreenPage().onAppear { OrientationGate.screenOnTop = true } }\n}\n' }]) > 0);
   expect('(ax) catches a member TerminalChrome was not given', ax(xq('    var statusBarHidden: Bool { landscape }\n', '    var statusBarHidden: Bool { landscape }\n    var back: Bool { !landscape }\n')) > 0);
   expect('(ax) catches the header answering the other way', ax(xq('var header: Bool { !landscape }', 'var header: Bool { landscape }')) > 0);
   expect('(ax) catches the tray drawn under the keyboard sideways', ax(xq('!landscape && overlap == 0 && !typing', '!landscape && !typing')) > 0);
-  expect('(ax) catches the overlay Copy upright', ax(xq('func overlayCopy(_ drawn: Bool) -> Bool { drawn && landscape }', 'func overlayCopy(_ drawn: Bool) -> Bool { drawn }')) > 0);
   expect('(ax) catches TerminalChrome declared a second time', ax(chromePageOk, [{ name: SESSION_SCREEN_FILE, source: 'struct TerminalChrome {\n    let landscape: Bool\n}\n' }]) > 0);
   expect('(ax) catches the status bar hidden in another file', ax(chromePageOk, [{ name: SESSION_SCREEN_FILE, source: 'func f(_ v: some View) -> some View { v.statusBarHidden(true) }\n' }]) > 0);
   expect('(ax) catches the horizontal size class', ax(xq('@Environment(\\.verticalSizeClass)', '@Environment(\\.horizontalSizeClass)')) > 0);
@@ -13248,6 +13841,12 @@ export function ruleTerminalMenu(files) {
   expect('(ap) catches a box character written as a literal', ruleScreenShapes([{ name: 'Screens/ScreenGlyphs.swift', source: `${glyphOk}let dashed = "${String.fromCodePoint(0x254c)}"\n` }, { name: 'Screens/ScreenRows.swift', source: 'func f() { _ = CTFontGetGlyphsForCharacters(a, b, &c, 1); _ = min(1, x / y) }\n' }]).findings.length > 0);
   expect('(ap) catches a block character spelled as an escape', ruleScreenShapes([{ name: 'Screens/ScreenGlyphs.swift', source: `${glyphOk}let shade = "\\u{2591}"\n` }, { name: 'Screens/ScreenRows.swift', source: 'func f() { _ = CTFontGetGlyphsForCharacters(a, b, &c, 1); _ = min(1, x / y) }\n' }]).findings.length > 0);
   expect('(ap) catches a layout that never asks the font', ruleScreenShapes([{ name: 'Screens/ScreenGlyphs.swift', source: glyphOk }, { name: 'Screens/ScreenRows.swift', source: 'func f() { _ = min(1, x / y) }\n' }]).findings.length > 0);
+  // Phase 337.5: markedTextStyle's key type is no TextKit; an attributed string beside it still is.
+  const apRows = { name: 'Screens/ScreenRows.swift', source: 'func f() { _ = CTFontGetGlyphsForCharacters(a, b, &c, 1); _ = min(1, x / y) }\n' };
+  const apMarked = 'final class ScreenTextContent: UIView, UITextInput {\n    var markedTextStyle: [NSAttributedString.Key: Any]?\n}\n';
+  expect('(ap) passes markedTextStyle\'s key type in ScreenTextInput.swift (Phase 337.5)', ruleScreenShapes([{ name: 'Screens/ScreenGlyphs.swift', source: glyphOk }, apRows, { name: 'Screens/ScreenTextInput.swift', source: apMarked }]).findings.length === 0);
+  expect('(ap) catches NSTextStorage beside it (Phase 337.5)', ruleScreenShapes([{ name: 'Screens/ScreenGlyphs.swift', source: glyphOk }, apRows, { name: 'Screens/ScreenTextInput.swift', source: `${apMarked}let p3375 = NSTextStorage()\n` }]).findings.length > 0);
+  expect('(ap) catches the key type in a Screen file of its own (Phase 337.5)', ruleScreenShapes([{ name: 'Screens/ScreenGlyphs.swift', source: glyphOk }, apRows, { name: 'Screens/ScreenGrid.swift', source: apMarked }]).findings.length > 0);
   const coverOk = '@Environment(\\.scenePhase) private var scenePhase\nstruct ScreenCover: View {\n    static func drawn(for phase: ScenePhase) -> Bool {\n        phase != .active\n    }\n    var body: some View { Rectangle().fill(Tokens.bgCanvas) }\n}\nfunc page() { if ScreenCover.drawn(for: scenePhase) { ScreenCover() } }\n';
   expect('(ao) passes a plate in bgCanvas', ruleScreenCover([{ name: 'Screens/Screen.swift', source: coverOk }]).findings.length === 0);
   expect('(ao) catches a cover holding text', ruleScreenCover([{ name: 'Screens/Screen.swift', source: coverOk.replace('Rectangle().fill(Tokens.bgCanvas)', 'Text(Copy.screen).background(Tokens.bgCanvas)') }]).findings.length > 0);
@@ -13716,6 +14315,98 @@ export function ruleTerminalMenu(files) {
   expect('(t) catches the twin with no refusal (Phase 345)', tTw(hostileTwin.replace(/twin-refuse/g, 'twin-stop')) > 0);
   expect('(t) does not take --names for --name (Phase 345)', tTw(hostileTwin.replace(/'--name'/g, "'--names'")) > 0);
   expect('(t) catches no hostile door at all (Phase 345)', tTw(null) > 0);
+}
+
+// The Phase 337.5 halves of (al), (aq) and (as), proved on texts this file
+// holds (build/p3375/SPEC.md §6.1): the honest shape passes, and each break
+// the phase's Tier 2 condition rests on is caught. (ax)'s move is proved with
+// the (ax) fixtures above.
+{
+  const files = (input = SELECT_INPUT_OK, scroller = SELECT_SCROLLER_OK, more = {}) => Object.entries({ [TEXT_INPUT_FILE]: input, [SCROLLER_FILE]: scroller, ...more }).filter(([, v]) => v !== null).map(([name, source]) => ({ name, source }));
+  const iq = (from, to) => selectSwap('(al)', SELECT_INPUT_OK, from, to);
+  const sq = (from, to) => selectSwap('(aq)', SELECT_SCROLLER_OK, from, to);
+  // (al)
+  const al = (input = SELECT_INPUT_OK, more = {}) => ruleEditMenu(files(input, SELECT_SCROLLER_OK, more)).findings.length;
+  expect('(al) passes the menu built from nothing, Copy alone behind drawn(', al() === 0);
+  expect('(al) catches no text input at all', al(null) > 0);
+  expect('(al) catches the edit menu made with no delegate (UIKit then offers its own menu)', al(iq('UIEditMenuInteraction(delegate: self)', 'UIEditMenuInteraction(delegate: nil)')) > 0);
+  expect('(al) catches a second edit menu, in the scroll view', al(SELECT_INPUT_OK, { [SCROLLER_FILE]: `${SELECT_SCROLLER_OK}let p3375Menu = UIEditMenuInteraction(delegate: P3375Menu())\n` }) > 0);
+  expect('(al) catches the suggested actions returned', al(iq('else { return UIMenu(children: []) }', 'else { return UIMenu(children: suggestedActions) }')) > 0);
+  expect('(al) catches the suggested actions appended to Copy', al(iq('return UIMenu(children: [copy])', 'return UIMenu(children: [copy] + suggestedActions)')) > 0);
+  expect('(al) catches the suggested actions read under another name', al(iq('suggestedActions: [UIMenuElement]', 'suggestedActions offered: [UIMenuElement]').replace('else { return UIMenu(children: []) }', 'else { return UIMenu(children: offered) }')) > 0);
+  expect('(al) catches a Share item beside Copy', al(iq('        return UIMenu(children: [copy])\n', '        let share = UIAction(title: Copy.copy, image: UIImage(systemName: "square.and.arrow.up")) { _ in }\n        return UIMenu(children: [copy, share])\n')) > 0);
+  expect('(al) catches a menu nested in the one item', al(iq('return UIMenu(children: [copy])', 'return UIMenu(children: [UIMenu(children: [copy])])')) > 0);
+  expect('(al) catches nil returned (no menu of its own)', al(iq('else { return UIMenu(children: []) }', 'else { return nil }')) > 0);
+  expect('(al) catches a deferred element in the menu', al(iq('        return UIMenu(children: [copy])\n', '        _ = UIDeferredMenuElement { _ in }\n        return UIMenu(children: [copy])\n')) > 0);
+  expect('(al) catches Copy offered with the drawn test removed', al(iq('guard let selection, drawn(selection) else', 'guard let selection else')) > 0);
+  expect('(al) catches Copy behind a negated drawn test', al(iq('guard let selection, drawn(selection) else', 'guard let selection, !drawn(selection) else')) > 0);
+  expect('(al) catches the drawn test joined by ||', al(iq('guard let selection, drawn(selection) else', 'guard let selection, drawn(selection) || true else')) > 0);
+  expect('(al) passes Copy inside an if that tests drawn(', al(iq('        guard let selection, drawn(selection) else { return UIMenu(children: []) }\n', '        if let selection, !drawn(selection) { return UIMenu(children: []) }\n        guard let selection, drawn(selection) else { return UIMenu(children: []) }\n')) === 0);
+  expect('(al) catches Copy titled another word', al(iq('UIAction(title: Copy.copy, image', 'UIAction(title: Copy.share, image')) > 0);
+  expect('(al) catches Copy identified another way', al(iq('identifier: UIAction.Identifier(ID.screenCopy)', 'identifier: .copy')) > 0);
+  expect('(al) catches menuFor declared a second time', al(SELECT_INPUT_OK, { 'Screens/Screen.swift': 'final class P3375Menu: NSObject, UIEditMenuInteractionDelegate {\n    func editMenuInteraction(_ i: UIEditMenuInteraction, menuFor c: UIEditMenuConfiguration, suggestedActions: [UIMenuElement]) -> UIMenu? { UIMenu(children: suggestedActions) }\n}\n' }) > 0);
+  expect('(al) catches no menuFor at all', al(iq('    func editMenuInteraction(_ interaction: UIEditMenuInteraction, menuFor', '    func editMenu(_ interaction: UIEditMenuInteraction, menuFor')) > 0);
+  expect('(al) catches UITextInteraction on the content view', al(SELECT_INPUT_OK, { [SCROLLER_FILE]: sq('        rules.content = contentView\n', '        rules.content = contentView\n        contentView.addInteraction(UITextInteraction(for: .nonEditable))\n') }) > 0);
+  expect('(al) catches UIMenuController in a Screen file', al(SELECT_INPUT_OK, { 'Screens/Screen.swift': 'func p3375() { UIMenuController.shared.showMenu(from: v, rect: .zero) }\n' }) > 0);
+  expect('(al) catches a ShareLink in a Screen file', al(SELECT_INPUT_OK, { 'Screens/Screen.swift': 'struct P: View { var body: some View { ShareLink(item: text) } }\n' }) > 0);
+  expect('(al) catches UIActivityViewController in a Screen file', al(iq('            self.events.copy()\n', '            self.events.copy()\n            _ = UIActivityViewController(activityItems: [], applicationActivities: nil)\n')) > 0);
+  expect('(al) catches activityItemsConfiguration on the content view', al(iq('        isAccessibilityElement = false\n', '        isAccessibilityElement = false\n        activityItemsConfiguration = UIActivityItemsConfiguration(objects: [])\n')) > 0);
+  expect('(al) catches Look Up', al(SELECT_INPUT_OK, { 'Screens/ScreenGrid.swift': 'let p3375 = UIReferenceLibraryViewController(term: word)\n' }) > 0);
+  expect('(al) catches Translate', al(SELECT_INPUT_OK, { 'Screens/Screen.swift': 'import Translation\nstruct P: View { var body: some View { Text(verbatim: "").translationPresentation(isPresented: $shown, text: word) } }\n' }) > 0);
+  expect('(al) catches a drag out of the Terminal', al(iq('        addInteraction(menu)\n', '        addInteraction(menu)\n        addInteraction(UIDragInteraction(delegate: self))\n')) > 0);
+  expect('(al) passes the key field\'s drop refusal and its Writing Tools off', al(SELECT_INPUT_OK, { 'Screens/ScreenKeyField.swift': 'final class ScreenTextView: UITextView {\n    func setUp() {\n        writingToolsBehavior = .none\n        textDropDelegate = ScreenDropRefusal.shared\n    }\n}\nfinal class ScreenDropRefusal: NSObject, UITextDropDelegate {\n    static let shared = ScreenDropRefusal()\n}\n' }) === 0);
+  expect('(al) catches Writing Tools on in the key field', al(SELECT_INPUT_OK, { 'Screens/ScreenKeyField.swift': 'final class ScreenTextView: UITextView {\n    func setUp() { writingToolsBehavior = .complete }\n}\n' }) > 0);
+  expect('(al) leaves a file outside the Screen family alone', al(SELECT_INPUT_OK, { 'Markdown/Links.swift': 'let p3375 = ShareLink(item: url)\n' }) === 0);
+  expect('(al) catches the content allowed to become first responder', al(iq('override var canBecomeFirstResponder: Bool { false }', 'override var canBecomeFirstResponder: Bool { true }')) > 0);
+  expect('(al) catches no first-responder answer at all', al(iq('    override var canBecomeFirstResponder: Bool { false }\n', '')) > 0);
+  expect('(al) passes canBecomeFirstResponder answered through a getter', al(iq('override var canBecomeFirstResponder: Bool { false }', 'override var canBecomeFirstResponder: Bool { get { return false } }')) === 0);
+  expect('(al) catches the content asking to become first responder', al(iq('    func laidOut() {\n', '    func take() { _ = becomeFirstResponder() }\n    func laidOut() {\n')) > 0);
+  expect('(al) catches Writing Tools .default on the content', al(iq('get { .none } set {}', 'get { .default } set {}')) > 0);
+  expect('(al) catches a get-only Writing Tools answer, which UIKit does not take', al(iq('{ get { .none } set {} }', '{ .none }')) > 0);
+  expect('(al) catches insertText doing something', al(iq('func insertText(_ text: String) {}', 'func insertText(_ text: String) { events.copy() }')) > 0);
+  expect('(al) catches deleteBackward doing something', al(iq('func deleteBackward() {}', 'func deleteBackward() { selection = nil }')) > 0);
+  expect('(al) catches replace(_:withText:) doing something', al(iq('func replace(_ range: UITextRange, withText text: String) {}', 'func replace(_ range: UITextRange, withText text: String) { events.select(nil) }')) > 0);
+  expect('(al) catches setMarkedText doing something', al(iq('func setMarkedText(_ markedText: String?, selectedRange: NSRange) {}', 'func setMarkedText(_ markedText: String?, selectedRange: NSRange) { owed = true }')) > 0);
+  expect('(al) catches a mutator missing', al(iq('    func deleteBackward() {}\n', '')) > 0);
+  expect('(al) catches the content that is no UITextInput', al(iq('final class ScreenTextContent: UIView, UITextInput {', 'final class ScreenTextContent: UIView {')) > 0);
+  // (al8) The rows are what is spoken (D20, the fix round).
+  expect('(al) catches the content an accessibility element again', al(iq('        get { false }\n        set {}', '        get { super.isAccessibilityElement }\n        set {}')) > 0);
+  expect('(al) catches the element answer that keeps what is set', al(iq('        get { false }\n        set {}', '        get { false }\n        set { super.isAccessibilityElement = newValue }')) > 0);
+  expect('(al) catches no element answer at all', al(iq('    override var isAccessibilityElement: Bool {\n        get { false }\n        set {}\n    }\n', '')) > 0);
+  expect('(al) catches the text-area trait read back from UIKit', al(iq('UIAccessibilityTraits { get { .none } set {} }', 'UIAccessibilityTraits { get { super.accessibilityTraits } set {} }')) > 0);
+  expect('(al) catches no traits answer at all', al(iq('    override var accessibilityTraits: UIAccessibilityTraits { get { .none } set {} }\n', '')) > 0);
+  expect('(al) catches the value read back from UIKit, which is every row laid out', al(iq('String? { get { nil } set {} }', 'String? { get { super.accessibilityValue } set {} }')) > 0);
+  expect('(al) catches no value answer at all', al(iq('    override var accessibilityValue: String? { get { nil } set {} }\n', '')) > 0);
+  expect('(al) catches a second element answer', al(iq('    var hasText: Bool { true }\n', '    var hasText: Bool { true }\n    override var isAccessibilityElement: Bool { get { false } set {} }\n')) > 0);
+  expect('(al) passes the three answers by return and by an empty option set', al(iq('        get { false }\n        set {}', '        get { return false }\n        set {}').replace('UIAccessibilityTraits { get { .none } set {} }', 'UIAccessibilityTraits { get { [] } set {} }').replace('String? { get { nil } set {} }', 'String? { get { return nil } set { } }')) === 0);
+  expect('(al) the honest fixture names its three answers', ruleEditMenu(files(SELECT_INPUT_OK, SELECT_SCROLLER_OK, {})).said.spoken === 3);
+  // (aq)
+  const aq = (input = SELECT_INPUT_OK, scroller = SELECT_SCROLLER_OK, more = {}) => ruleSelectionGestures(files(input, scroller, more)).findings.length;
+  expect('(aq) passes the handle drag on the scroll view and the content\'s two interactions', aq() === 0);
+  expect('(aq) catches the content view a plain UIView', aq(SELECT_INPUT_OK, sq('let contentView = ScreenTextContent()', 'let contentView = UIView()')) > 0);
+  expect('(aq) catches no handle drag', aq(SELECT_INPUT_OK, sq('let handle = UIPanGestureRecognizer(', 'let handle = UISwipeGestureRecognizer(')) > 0);
+  expect('(aq) catches a second pan, on the content', aq(iq('        isAccessibilityElement = false\n', '        isAccessibilityElement = false\n        let pan = UIPanGestureRecognizer(target: self, action: #selector(moved(_:)))\n')) > 0);
+  expect('(aq) catches the handle drag added to the content view', aq(SELECT_INPUT_OK, sq('        for gesture in [press, handle, pinch] as [UIGestureRecognizer] {\n', '        contentView.addGestureRecognizer(handle)\n        for gesture in [press, pinch] as [UIGestureRecognizer] {\n')) > 0);
+  expect('(aq) catches the handle drag never added', aq(SELECT_INPUT_OK, sq('[press, handle, pinch]', '[press, pinch]')) > 0);
+  expect('(aq) passes the handle drag added to the scroll view by itself', aq(SELECT_INPUT_OK, sq('[press, handle, pinch]', '[press, pinch]').replace('        panGestureRecognizer.require(toFail: handle)\n', '        panGestureRecognizer.require(toFail: handle)\n        addGestureRecognizer(handle)\n')) === 0);
+  expect('(aq) catches the pan no longer waiting for the handle drag', aq(SELECT_INPUT_OK, sq('        panGestureRecognizer.require(toFail: handle)\n', '')) > 0);
+  expect('(aq) catches the handle drag waiting for the pan instead', aq(SELECT_INPUT_OK, sq('panGestureRecognizer.require(toFail: handle)', 'handle.require(toFail: panGestureRecognizer)')) > 0);
+  expect('(aq) catches the handle drag with no delegate', aq(SELECT_INPUT_OK, sq('        handle.delegate = rules\n', '')) > 0);
+  expect('(aq) catches a handle drag that begins anywhere', aq(SELECT_INPUT_OK, sq('        return content.grabs(at: gesture.location(in: content))\n', '        return true\n')) > 0);
+  expect('(aq) catches UITextInteraction added to the content', aq(iq('        addInteraction(menu)\n', '        addInteraction(menu)\n        addInteraction(UITextInteraction(for: .nonEditable))\n')) > 0);
+  expect('(aq) catches an interaction added to the content from the scroll view', aq(SELECT_INPUT_OK, sq('        rules.content = contentView\n', '        rules.content = contentView\n        contentView.addInteraction(P3375Hover())\n')) > 0);
+  expect('(aq) catches the display interaction never added', aq(iq('        addInteraction(shown)\n', '')) > 0);
+  expect('(aq) catches the edit menu added twice', aq(iq('        addInteraction(menu)\n', '        addInteraction(menu)\n        addInteraction(menu)\n')) > 0);
+  expect('(aq) passes the two interactions held as stored properties', aq(iq('    private var display: UITextSelectionDisplayInteraction?\n', '    private lazy var display = UITextSelectionDisplayInteraction(textInput: self, delegate: self)\n').replace('        let shown = UITextSelectionDisplayInteraction(textInput: self, delegate: self)\n        display = shown\n        addInteraction(shown)\n', '        addInteraction(display)\n').replace('display?.setNeedsSelectionUpdate()', 'display.setNeedsSelectionUpdate()')) === 0);
+  // (as)
+  const as = (input = SELECT_INPUT_OK, scroller = SELECT_SCROLLER_OK) => ruleSelectionLayout(files(input, scroller)).findings.length;
+  expect('(as) passes every pass handing the geometry and calling laidOut()', as() === 0);
+  expect('(as) catches the geometry never handed', as(SELECT_INPUT_OK, sq('        contentView.geometry = ScreenTextGeometry(cell: now, first: layout.firstRow, columns: picture.columns, rows: rows)\n', '')) > 0);
+  expect('(as) catches the geometry\'s first index not the layout\'s firstRow', as(SELECT_INPUT_OK, sq('first: layout.firstRow', 'first: layout.live')) > 0);
+  expect('(as) passes the geometry made in a local first', as(SELECT_INPUT_OK, sq('        contentView.geometry = ScreenTextGeometry(cell: now, first: layout.firstRow, columns: picture.columns, rows: rows)\n', '        let shape = ScreenTextGeometry(cell: now, first: layout.firstRow, columns: picture.columns, rows: rows)\n        contentView.geometry = shape\n')) === 0);
+  expect('(as) catches laidOut() never called', as(SELECT_INPUT_OK, sq('            contentView.laidOut()\n', '')) > 0);
+  expect('(as) catches laidOut() without setNeedsSelectionUpdate()', as(iq('        display?.setNeedsSelectionUpdate()\n', '')) > 0);
+  expect('(as) catches no laidOut() declared', as(iq('    func laidOut() {', '    func relaid() {')) > 0);
 }
 
 // The Phase 345 scanner, (ba), proved on texts this file holds
@@ -16077,7 +16768,7 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
       'z',
       'nothing fetched, and one way out',
       r.findings,
-      `no AsyncImage, NSAttributedString, document type or contentsOf: outside DEBUG; no in-app browser, sign-in sheet, preview, canOpenURL or Link; ${String(r.said.actions)} OpenURLAction in ${LINKS_FILE}, asking LinkPolicy.opens before it stages, and ${String(r.said.opens)} open(s) there asking it again; ${String(r.said.settingsOpens)} open(s) in ${SETTINGS_FILE}, of iOS's own notification settings; LinkPolicy.opens names https, the user part, the password, the port, xn-- and MarkdownCaps.linkBytes`
+      `no AsyncImage, NSAttributedString (but the key type of UITextInput's required markedTextStyle, in ${TEXT_INPUT_FILE}), document type or contentsOf: outside DEBUG; no in-app browser, sign-in sheet, preview, canOpenURL or Link; ${String(r.said.actions)} OpenURLAction in ${LINKS_FILE}, asking LinkPolicy.opens before it stages, and ${String(r.said.opens)} open(s) there asking it again; ${String(r.said.settingsOpens)} open(s) in ${SETTINGS_FILE}, of iOS's own notification settings; LinkPolicy.opens names https, the user part, the password, the port, xn-- and MarkdownCaps.linkBytes`
     );
   }
   // Phase 316.7: (aa), over the app named relative to its folder and its own
@@ -16190,7 +16881,14 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
   }
   {
     const r = rulePasteboard(appNamed);
-    record('al', 'the pasteboard is written and never read', r.findings, `UIPasteboard named in ${SELECTION_FILE} alone, written ${String(r.said.writes)} time(s) as UIPasteboard.general.string = …, and read nowhere`);
+    // Phase 337.5 (build/p3375/SPEC.md §6.1): the edit menu offers Copy and nothing else.
+    const e = ruleEditMenu(appNamed);
+    record(
+      'al',
+      'the pasteboard is written and never read, and the edit menu offers Copy alone',
+      [...r.findings, ...e.findings],
+      `UIPasteboard named in ${SELECTION_FILE} alone, written ${String(r.said.writes)} time(s) as UIPasteboard.general.string = …, and read nowhere; UIEditMenuInteraction( made ${String(e.said.menus)} time(s), in ${TEXT_INPUT_FILE}, with a delegate; menuFor declared ${String(e.said.menuFor)} time(s), never reading the suggested actions, returning ${[...new Set(e.said.returns)].join(' or ') || 'nothing'}, its Copy ${e.said.copyBehindDrawn ? 'behind a drawn( test' : 'unread'}; no UITextInteraction, UIMenuController, drag, Share, Look Up or Translate in a Screen file and Writing Tools only .none; ${TEXT_CONTENT_TYPE} never first responder, its writingToolsBehavior .none and ${String(e.said.mutators)} of its four mutators empty; ${String(e.said.spoken)} of its three accessibility answers (no element, no trait, no value) its own, so the rows inside it are what is spoken`
+    );
   }
   {
     const r = ruleDrawnColour(appNamed);
@@ -16216,7 +16914,9 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
   }
   {
     const r = ruleScreenPans(appNamed);
-    record('aq', 'the Terminal pans, a page never moves it, and a long press selects', r.findings, `no SwiftUI ScrollView, LongPressGesture, DragGesture, MagnifyGesture or GeometryReader in the Screen's files; ScreenScrollView a UIScrollView with contentInsetAdjustmentBehavior = .never; its long press ${r.said.press ? 'waits ScreenGesture.longPressSeconds' : 'unread'}, its pinch and its two taps UIKit's, each on the scroll view and read in the content view, the single tap ${r.said.waits ? 'waiting for the double' : 'unread'}; one hosting view ${r.said.hostOff ? 'taking no touch' : 'unread'}; apply(above:) ${r.said.delta ? 'adds its delta to the current offset without animation, from layoutSubviews alone' : 'unread'}, and the offset written by ${[...new Set(r.said.writers)].join(', ') || 'nothing'} alone; the content the rows ${r.said.pad ? 'and D25\'s pad, from the view\'s own bounds and the overlap' : 'unread'}`);
+    // Phase 337.5 (build/p3375/SPEC.md §6.1): the handle drag and the selection's two interactions.
+    const g = ruleSelectionGestures(appNamed);
+    record('aq', 'the Terminal pans, a page never moves it, and a long press selects', [...r.findings, ...g.findings], `the content view ${g.said.content ? 'ScreenTextContent()' : 'unread'}; one handle drag (${g.said.handle ?? 'none'}) on the scroll view itself, ${g.said.begins ? 'beginning only near a handle' : 'unread'}, the pan ${g.said.waits ? 'waiting for it' : 'unread'}; ${TEXT_CONTENT_TYPE} adding ${g.said.interactions.join(' and ') || 'no'} interaction(s) and nothing else; no SwiftUI ScrollView, LongPressGesture, DragGesture, MagnifyGesture or GeometryReader in the Screen's files; ScreenScrollView a UIScrollView with contentInsetAdjustmentBehavior = .never; its long press ${r.said.press ? 'waits ScreenGesture.longPressSeconds' : 'unread'}, its pinch and its two taps UIKit's, each on the scroll view and read in the content view, the single tap ${r.said.waits ? 'waiting for the double' : 'unread'}; one hosting view ${r.said.hostOff ? 'taking no touch' : 'unread'}; apply(above:) ${r.said.delta ? 'adds its delta to the current offset without animation, from layoutSubviews alone' : 'unread'}, and the offset written by ${[...new Set(r.said.writers)].join(', ') || 'nothing'} alone; the content the rows ${r.said.pad ? 'and D25\'s pad, from the view\'s own bounds and the overlap' : 'unread'}`);
   }
   // Phase 337.1: (ar) to (au) (build/p3371/SPEC.md §6.4).
   {
@@ -16225,7 +16925,9 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
   }
   {
     const r = ruleScrollbackClient(appNamed);
-    record('as', 'the scrollback client', r.findings, `DoorClient.scrollbackTarget writes ${r.said.params.join(', ') || 'nothing'}, the one builder of /v1/scrollback; ${String(r.said.pageRows)} rows a page, ${String(r.said.overlapRows)} overlap rows and at most ${String(r.said.mostHeld)} held, each declared once in ${SCROLLBACK_FILE}; one page in flight, ScrollbackModel.minGap ${String(r.said.minGap)} s; accept( compares the space, the wrap, the depth and the overlap rows' text before it fills a row and moves no layout; reserve( the one place top moves; a live picture raises depthSeen; a point an absolute index and Copy only over drawn rows; a key returns to the live rows; nothing of the history persisted`);
+    // Phase 337.5 (build/p3375/SPEC.md D12): every pass tells the selection where its rows are.
+    const sl = ruleSelectionLayout(appNamed);
+    record('as', 'the scrollback client', [...r.findings, ...sl.findings], `layoutSubviews ${sl.said.geometry ? 'hands the content its geometry from the layout\'s firstRow' : 'unread'} and ${sl.said.laidOut ? 'calls contentView.laidOut()' : 'unread'}, which ${sl.said.update ? 'asks setNeedsSelectionUpdate()' : 'unread'}; DoorClient.scrollbackTarget writes ${r.said.params.join(', ') || 'nothing'}, the one builder of /v1/scrollback; ${String(r.said.pageRows)} rows a page, ${String(r.said.overlapRows)} overlap rows and at most ${String(r.said.mostHeld)} held, each declared once in ${SCROLLBACK_FILE}; one page in flight, ScrollbackModel.minGap ${String(r.said.minGap)} s; accept( compares the space, the wrap, the depth and the overlap rows' text before it fills a row and moves no layout; reserve( the one place top moves; a live picture raises depthSeen; a point an absolute index and Copy only over drawn rows; a key returns to the live rows; nothing of the history persisted`);
   }
   {
     const r = ruleTerminalFirst(appNamed);
@@ -16254,7 +16956,7 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
   }
   {
     const r = ruleLandscapeAlone(appNamed);
-    record('ax', 'landscape is the terminal alone', r.findings, `TerminalChrome declared once, in ${BARS_PAGE_FILE}, with ${r.said.members.join(', ') || 'no members'}, over the page's compact VERTICAL size class; ScreenPage draws its header and tray behind it, hides the navigation and tab bars ${String(r.said.hides)} time(s) and the status bar ${String(r.said.statusBars)} time(s) through it, and draws Copy ${String(r.said.toolbarCopy)} time(s) in its bar upright and ${String(r.said.overlayCopy)} over the terminal sideways; screenOnTop set in ${BARS_PAGE_FILE} alone`);
+    record('ax', 'landscape is the terminal alone', r.findings, `TerminalChrome declared once, in ${BARS_PAGE_FILE}, with ${r.said.members.join(', ') || 'no members'}, over the page's compact VERTICAL size class; ScreenPage draws its header and tray behind it, hides the navigation and tab bars ${String(r.said.hides)} time(s) and the status bar ${String(r.said.statusBars)} time(s) through it, and draws no Copy of its own, ID.screenCopy named ${String(r.said.menuCopy)} time(s), by the edit menu's action in ${TEXT_INPUT_FILE}; screenOnTop set in ${BARS_PAGE_FILE} alone`);
   }
   {
     const r = ruleTerminalMenu(appNamed);

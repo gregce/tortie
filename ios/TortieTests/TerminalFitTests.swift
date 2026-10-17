@@ -72,7 +72,7 @@ final class TerminalFitTests: XCTestCase {
         let view = ScreenScrollView(scrollback: history)
         view.traitOverrides.displayScale = scale
         view.frame = CGRect(x: 0, y: 116, width: width, height: 600)
-        view.actions = ScreenScrollerActions(tap: { _ in }, select: { _, _ in }, overlap: { _ in })
+        view.actions = ScreenScrollerActions(tap: { _ in }, select: { _ in }, copy: {}, overlap: { _ in })
         host.view.addSubview(view)
         view.updateTraitsIfNeeded()
         XCTAssertEqual(view.traitCollection.displayScale, scale, "the scale this test lays the Terminal out at")

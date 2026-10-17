@@ -126,6 +126,7 @@
     "probe:p343": "node build/harness-socket.mjs --fresh gmux-p343 'export GMUX_CONFIG_ROOT=\"$GMUX_HARNESS_DIR\"; export SCRATCH_MACHINE_QUIET_SHELL=1; export SCRATCH_MACHINE_SCRATCH_HOME=1; node build/with-scratch-machine.mjs -- node build/p343/probe-p343.mjs'",
     "probe:p347": "npm run build && node build/harness-socket.mjs --fresh gmux-p347 'node build/p347/probe-p347.mjs'",
     "probe:p345": "node build/p345/probe-p345.mjs --preflight && node build/harness-socket.mjs --fresh gmux-p345 'node build/p345/probe-p345.mjs'",
+    "probe:p3375": "node build/p3375/probe-p3375.mjs",
     "probe:p337": "node build/harness-socket.mjs --fresh gmux-p337 'export GMUX_CONFIG_ROOT=\"$GMUX_HARNESS_DIR\"; export SCRATCH_MACHINE_QUIET_SHELL=1; export SCRATCH_MACHINE_NO_OWN_KEYS=1; node build/with-scratch-machine.mjs -- node build/p337/probe-p337.mjs'",
     "measure:p337": "node build/p337/measure-screen.mjs",
     "measure:p342": "node build/p342/measure-p342.mjs",

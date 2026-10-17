@@ -125,7 +125,9 @@ final class ScreenScrollerTests: XCTestCase {
         let history = ScrollbackModel(door: ScriptedScreenDoor(), holds: { _ in true })
         let view = ScreenScrollView(scrollback: history)
         view.frame = CGRect(x: 0, y: Self.top, width: Self.width, height: height)
-        view.actions = ScreenScrollerActions(tap: { _ in }, select: { _, _ in }, overlap: { [weak self] in self?.published.append($0) })
+        view.actions = ScreenScrollerActions(
+            tap: { _ in }, select: { [weak view] in view?.selection = $0 }, copy: {}, overlap: { [weak self] in self?.published.append($0) }
+        )
         host.view.addSubview(view)
         history.picture(picture)
         view.picture = picture
@@ -768,6 +770,46 @@ final class ScreenScrollerTests: XCTestCase {
         XCTAssertGreaterThan(history.layout.liveRow, 500)
         let seen = Int((view.bounds.height / view.cell.height).rounded(.up))
         XCTAssertLessThanOrEqual(view.rowWindow.count, seen * 3 + 4, "the window is a view and a screen either side")
+    }
+
+    // MARK: The handle drag (Phase 337.5, build/p3375/SPEC.md D5)
+
+    /// Clause (D5, rule aq): the selection's handle drag is ONE more pan, on
+    /// the scroll view itself, whose delegate lets it begin only within reach
+    /// of a handle, and the scroll view's own pan waits for it to fail; so a
+    /// drag that does not begin near a handle (none held, or one 40 points
+    /// from either end) fails it and scrolls, as before, while one on the end
+    /// caret takes it. The pinch and the taps begin as before.
+    func testThePanWaitsForTheHandleDragAndADragOffAHandleScrolls() throws {
+        let (view, history) = mounted(depth: 3_000)
+        let pans = (view.gestureRecognizers ?? []).compactMap { $0 as? UIPanGestureRecognizer }.filter { $0 !== view.panGestureRecognizer }
+        XCTAssertEqual(pans.count, 1, "one handle drag")
+        let handle = try XCTUnwrap(pans.first)
+        let rules = try XCTUnwrap(handle.delegate as? ScreenGestureRules, "the handle drag's delegate is the scroll view's rules")
+        XCTAssertTrue(rules.handle === handle)
+        XCTAssertTrue(rules.contentView === view.contentView)
+        XCTAssertFalse(view.contentView.gestureRecognizers?.contains { $0 is UIPanGestureRecognizer } ?? false, "a drag on the content view")
+        XCTAssertFalse(rules.gestureRecognizerShouldBegin(handle), "with no selection the handle drag begins, and the pan never scrolls")
+        for other in (view.gestureRecognizers ?? []) where other !== handle && other.delegate === rules {
+            XCTAssertTrue(rules.gestureRecognizerShouldBegin(other), "\(type(of: other)) no longer begins")
+        }
+        // A selection on live row 5: its end caret takes the drag, a point
+        // 40 points away does not.
+        let row = 3_005
+        view.selection = ScreenSelectionRange(start: ScreenPoint(row: row, column: 10), end: ScreenPoint(row: row, column: 20))
+        view.layoutIfNeeded()
+        let cell = view.cell
+        let band = (CGFloat(row - history.layout.firstRow) + 0.5) * cell.height
+        XCTAssertTrue(view.contentView.grabs(at: CGPoint(x: 21 * cell.width, y: band)), "the end caret")
+        XCTAssertTrue(view.contentView.grabs(at: CGPoint(x: 10 * cell.width, y: band)), "the start caret")
+        XCTAssertTrue(view.contentView.grabs(at: CGPoint(x: 21 * cell.width, y: band + 20)), "inside the reach")
+        XCTAssertFalse(view.contentView.grabs(at: CGPoint(x: 21 * cell.width, y: band + 40)), "40 points below the end")
+        XCTAssertFalse(view.contentView.grabs(at: CGPoint(x: 60 * cell.width, y: band)), "the middle of the row past the end")
+        // The scroll view's pan waits for the handle drag (UIKit gives no
+        // reading of a failure requirement, so the line is read).
+        let source = try StyleSource.text("ios/Tortie/Screens/ScreenScroller.swift")
+        XCTAssertTrue(source.contains("panGestureRecognizer.require(toFail: handle)"), "the pan does not wait for the handle drag")
+        XCTAssertTrue(source.contains("handle.delegate = rules"))
     }
 
     // MARK: Helpers

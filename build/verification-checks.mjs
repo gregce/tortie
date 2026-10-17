@@ -746,6 +746,22 @@ export const CHECKS = [
     'probe:p345',
     `${NEEDS.xcode}, and the iOS 18.3 runtime for the floor device; beside it ${NEEDS.electron}, twice at once`
   ),
+  // PHASE 337.5's app run, build/p3375/probe-p3375.mjs (build/p3375/SPEC.md
+  // §7.3): selecting text on the phone's Terminal the iPhone way, over See a
+  // sample. The phone ALONE: no door, no Mac, no Electron, no tmux, no
+  // Tailscale, DNS or APNs, no model turn, no photograph. HEAD's DEBUG app
+  // and, with P3375_PARENT_IOS, the parent's ios/ copied into the run
+  // directory with HEAD's P3375SelectUITests.swift added, each built for
+  // testing by build/simulator-run.mjs's xcodebuildRun into scratch derived
+  // data; Simulators through its withSimulator, ONE AT A TIME, iOS 26.3 then
+  // the 18.3 floor, HEAD's arms then the parent's on each. One XCTest method
+  // per arm (N1 to N7 at HEAD, G1 to G5 at HEAD and the parent), the device's
+  // pasteboard read inside each by the helper handle's `pasteboard()` behind a
+  // file the UI test waits for, every expected text re-derived from
+  // ios/Tortie/Sample/sample.json, never read from the app. His shell history
+  // is stat'd before and after. `--grader-self-test` grades readings written
+  // in the file and boots nothing; `--preflight` boots nothing either.
+  xcode('probe:p3375', `${NEEDS.xcode}, and the iOS 18.3 runtime for the floor device`),
   // PHASE 330's app run: the door published through Tailscale Funnel, with
   // the Funnel driven through the STAND-IN build/p330/tailscale-standin.mjs
   // behind a /bin/sh wrapper in the scratch world, named by GMUX_TAILSCALE_BIN

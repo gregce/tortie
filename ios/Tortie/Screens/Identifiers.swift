@@ -237,8 +237,8 @@
 //   screen-key-bar               the key bar above the keyboard; a container
 //   screen-key-<name>            one of its keys: esc, tab, btab, left, up,
 //                                down, right, ctrl, return, hide
-//   screen-copy                  `Copy`, while a selection is held; a button
-//   screen-selection             the selection's highlight
+//   screen-copy                  `Copy`, the edit menu's one item over a
+//                                selection; a menu item (Phase 337.5)
 //   screen-cover                 the plate over the grid while the app is not
 //                                active, so iOS keeps no picture of it
 //
@@ -501,8 +501,8 @@ enum ID {
     static let screenKeyBar = "screen-key-bar"
     /// One key of the bar, by its short name (`esc`, `ctrl`, `hide`, …).
     static func screenKey(_ name: String) -> String { "screen-key-" + name }
+    /// The edit menu's Copy over a selection (Phase 337.5): a menu item.
     static let screenCopy = "screen-copy"
-    static let screenSelection = "screen-selection"
     static let screenCover = "screen-cover"
 
     // The Sessions tab (Phase 316.7).

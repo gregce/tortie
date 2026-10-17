@@ -69,6 +69,16 @@
 // fail), every point read with `location(in: contentView)` and turned into a
 // row and a column by arithmetic.
 //
+// THE SELECTION IS THE IPHONE'S OWN (Phase 337.5, build/p3375/SPEC.md D1 to
+// D12). The content view is `ScreenTextContent` (Screens/ScreenTextInput.swift),
+// the text UIKit's selection reads: the long press hands it the word under the
+// finger and grows it, ONE more pan, the handle drag, moves an end and begins
+// only within reach of a handle, so the scroll view's own pan waits for it to
+// fail and every other drag scrolls as before; a tap on the selection shows
+// its edit menu, a tap elsewhere clears it (`ScreenSelecting.tap`). Every
+// layout pass hands the content its geometry and, when it redraws the rows,
+// tells it so (`laidOut()`).
+//
 // THE DESIGN IS PASEO'S (packages/app/src/terminal/native-renderer/
 // headless-terminal-state.ts and terminal-scrollback.test.ts at
 // getpaseo/paseo 2f0cb2f54be5742d6fc7e9b85ba39808ac22ad93, Apache-2.0, by the
@@ -84,10 +94,14 @@ import UIKit
 
 /// What the Terminal's scroll view tells the page that holds it.
 struct ScreenScrollerActions {
-    /// A single tap on a cell, or nil outside the rows.
+    /// A single tap with no selection, on a cell or nil outside the rows: the
+    /// keyboard (Phase 337.5, D11).
     let tap: @MainActor (ScreenPoint?) -> Void
-    /// A long press began on a cell (true), or the drag after it reached one.
-    let select: @MainActor (ScreenPoint, Bool) -> Void
+    /// The selection a long press or a handle made or moved, or nil when a
+    /// tap cleared it (D3, D5, D11).
+    let select: @MainActor (ScreenSelectionRange?) -> Void
+    /// The edit menu's Copy was pressed (D8, D14).
+    let copy: @MainActor () -> Void
     /// The keyboard's overlap of the Terminal, in points, once per change.
     let overlap: @MainActor (CGFloat) -> Void
 }
@@ -119,10 +133,24 @@ struct ScreenScroller: UIViewRepresentable {
     }
 }
 
-/// Lets the pinch be recognised together with the scroll view's pan (D32).
+/// Lets the pinch be recognised together with the scroll view's pan (D32),
+/// and the handle drag begin only on a handle (Phase 337.5, D5).
 final class ScreenGestureRules: NSObject, UIGestureRecognizerDelegate {
+    /// The content view, which knows where the handles are.
+    weak var contentView: ScreenTextContent?
+    /// The handle drag.
+    weak var handle: UIGestureRecognizer?
+
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
         gestureRecognizer is UIPinchGestureRecognizer || other is UIPinchGestureRecognizer
+    }
+
+    /// The handle drag begins only within reach of a handle, so a drag that
+    /// does not start on one fails it and scrolls; every other recogniser
+    /// begins as before.
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard gestureRecognizer === handle else { return true }
+        return contentView?.grabs(at: gestureRecognizer.location(in: contentView)) ?? false
     }
 }
 
@@ -139,15 +167,21 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
         let cell: ScreenCell
     }
 
-    /// The content: every row laid out, and the pad (D25).
-    let contentView = UIView()
+    /// The content: every row laid out, and the pad (D25); since Phase 337.5
+    /// the text UIKit's selection reads (Screens/ScreenTextInput.swift).
+    let contentView = ScreenTextContent()
     let scrollback: ScrollbackModel
     var actions: ScreenScrollerActions?
     var picture: ScreenPicture? {
         didSet { if oldValue != picture { changed() } }
     }
     var selection: ScreenSelectionRange? {
-        didSet { if oldValue != selection { changed() } }
+        didSet {
+            guard oldValue != selection else { return }
+            contentView.selection = selection
+            contentView.selectionChanged()
+            changed()
+        }
     }
 
     /// The keyboard's overlap of this view, in points (D24).
@@ -172,7 +206,6 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
     /// view: the pinch's centre, the double tap, or the view's top.
     private var anchor: (content: CGPoint, inView: CGPoint)?
     private var pinchFocal = CGPoint.zero
-    private var pressing = false
     private var laying = false
     /// Something the window draws changed: the layout, the picture, the
     /// selection or the cell.
@@ -236,15 +269,37 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
     private func addGestures() {
         let press = UILongPressGestureRecognizer(target: self, action: #selector(pressed(_:)))
         press.minimumPressDuration = ScreenGesture.longPressSeconds
+        // The handle drag (Phase 337.5, D5): it begins only within reach of a
+        // handle, and the scroll view's own pan waits for it to fail.
+        let handle = UIPanGestureRecognizer(target: self, action: #selector(dragged(_:)))
+        handle.delegate = rules
+        rules.handle = handle
+        rules.contentView = contentView
+        panGestureRecognizer.require(toFail: handle)
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(pinched(_:)))
         pinch.delegate = rules
         let double = UITapGestureRecognizer(target: self, action: #selector(doubleTapped(_:)))
         double.numberOfTapsRequired = 2
         let single = UITapGestureRecognizer(target: self, action: #selector(tapped(_:)))
         single.require(toFail: double)
-        for gesture in [press, pinch, double, single] as [UIGestureRecognizer] {
+        for gesture in [press, handle, pinch, double, single] as [UIGestureRecognizer] {
             addGestureRecognizer(gesture)
         }
+        // What the selection reads and tells (D10, D14): a row's cells and
+        // whether a selection is drawn, by absolute index, from the history
+        // and the picture drawn now; a range made and Copy pressed, to the page.
+        contentView.cells = { [weak self] index in
+            guard let self else { return nil }
+            return self.scrollback.row(at: index, picture: self.picture)?.cells
+        }
+        contentView.drawn = { [weak self] range in
+            guard let self else { return false }
+            return self.scrollback.drawn(range, picture: self.picture)
+        }
+        contentView.events = ScreenTextEvents(
+            select: { [weak self] range in self?.actions?.select(range) },
+            copy: { [weak self] in self?.actions?.copy() }
+        )
     }
 
     /// The cell under a point of the content, by arithmetic: the row is the
@@ -256,21 +311,28 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
         return ScreenSelecting.hit(location, cell: cell, columns: picture.columns, first: layout.firstRow, rows: rows)
     }
 
+    /// The long press, to the selection (Phase 337.5, D3).
     @objc private func pressed(_ press: UILongPressGestureRecognizer) {
-        switch press.state {
-        case .began, .changed:
-            guard let point = point(at: press.location(in: contentView)) else { return }
-            actions?.select(point, !pressing)
-            pressing = true
-        case .ended, .cancelled, .failed:
-            pressing = false
-        default:
-            break
-        }
+        contentView.press(press.state, at: press.location(in: contentView), hit: point(at: press.location(in: contentView)))
     }
 
+    /// The handle drag, to the selection (D5).
+    @objc private func dragged(_ handle: UIPanGestureRecognizer) {
+        contentView.drag(handle.state, at: handle.location(in: contentView), hit: point(at: handle.location(in: contentView)))
+    }
+
+    /// A tap (D11): with no selection the keyboard, on the selection its menu,
+    /// anywhere else it clears the selection.
     @objc private func tapped(_ tap: UITapGestureRecognizer) {
-        actions?.tap(point(at: tap.location(in: contentView)))
+        let p = point(at: tap.location(in: contentView))
+        switch ScreenSelecting.tap(selection: selection, at: p) {
+        case .menu:
+            contentView.showMenu(at: tap.location(in: contentView))
+        case .clear:
+            actions?.select(nil)
+        case .focus:
+            actions?.tap(p)
+        }
     }
 
     @objc private func doubleTapped(_ tap: UITapGestureRecognizer) {
@@ -460,6 +522,7 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
         laid = Laid(mode: layout.mode, first: layout.firstRow, liveRow: layout.liveRow, cell: now)
         if previous != laid { dirty = true }
         cell = now
+        contentView.geometry = ScreenTextGeometry(cell: now, first: layout.firstRow, columns: picture.columns, rows: rows)
         // A pinch or a double tap keeps its focal row where it was (D32), and
         // the pin below leaves it there.
         var keptFocal = false
@@ -501,7 +564,10 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
         dirty = false
         drawWindow(force: redraw)
         laying = false
-        if redraw { report() }
+        if redraw {
+            report()
+            contentView.laidOut()
+        }
     }
 
     /// The rows added above what he reads since the last pass, in rows (D26
@@ -647,9 +713,9 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
 
     /// The window's rows by absolute index: live rows from the live top,
     /// held rows of history above it, and reserved rows as the ground; the
-    /// cursor on the live rows only; the selection by absolute index.
+    /// cursor on the live rows only. The selection is UIKit's, drawn over the
+    /// window by the content view (Phase 337.5, D15).
     private func windowView(picture: ScreenPicture, layout: ScrollbackLayout) -> ScreenWindow {
-        let first = ScrollbackLayout.plus(layout.firstRow, rowWindow.lowerBound)
         var drawn: [ScreenWindowRow] = []
         drawn.reserveCapacity(rowWindow.count)
         for place in rowWindow {
@@ -680,8 +746,7 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
         }
         return ScreenWindow(
             rows: drawn, columns: picture.columns, cell: cell, ink: picture.ink, ground: picture.ground,
-            caret: picture.caret, light: ScreenZoom.lightLine(cell, scale: displayScale), cursor: cursor,
-            highlights: ScreenSelecting.rects(selection, cell: cell, columns: picture.columns, first: first)
+            caret: picture.caret, light: ScreenZoom.lightLine(cell, scale: displayScale), cursor: cursor
         )
     }
 
