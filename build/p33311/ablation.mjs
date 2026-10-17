@@ -187,6 +187,17 @@ const VECTORS = 'ios/TortieTests/Fixtures/vectors.json';
 const DECOY = 'p33311-decoy.ts';
 /** The clone gate's own copy, which `own` arms plant into (F1x, F1m, F1r). */
 const OWN_GATE = 'build/assert-door-only-adds.mjs';
+/**
+ * The gate's FROZEN_SETS_FLOOR as committed, which F1r raises by one and puts
+ * back: the floor moves with every set a release freezes (2 since 0.112.0's
+ * build-11), so the control reads it rather than spelling it.
+ */
+const FLOOR_LINE = (n) => `const FROZEN_SETS_FLOOR = ${String(n)};`;
+const FLOOR_NOW = (() => {
+  const m = /^const FROZEN_SETS_FLOOR = (\d+);$/m.exec(readFileSync(GATE, 'utf8'));
+  if (m === null) throw new Error(`${GATE} holds no FROZEN_SETS_FLOOR line`);
+  return Number(m[1]);
+})();
 const APP = 'ios/Tortie/App/TortieApp.swift';
 /** PairedScreenDoor's third kept line, and the line a K arm adds after it. */
 const SIDE = '    private let side = DoorLine(keeps: true)\n';
@@ -571,16 +582,17 @@ const ARMS = [
   { id: 'R8gh', clause: 'R8', committedLedger: true, what: "a ledger row's clause edited and COMMITTED, so only the base commit's copy holds it", commit: [LEDGER_END_CLAUSE], edits: [] },
   // Phase 346 moved its anchor: the ledger's last row is start's now (build/p346/SPEC.md §4.12).
   { id: 'R8c', control: true, what: 'a thirteenth ledger row appended (the ledger only adds)', edits: [{ file: 'src/main/pocket/route-ledger.ts', find: "clause: 'start a session in a project open in Tortie, on this Mac or another machine' }\n]);", to: "clause: 'start a session in a project open in Tortie, on this Mac or another machine' },\n  { id: 'probe', method: 'GET', path: '/v1/probe', reads: true, signed: true, windowOnly: false, bodyCap: 1024, clause: null }\n]);" }] },
-  // Phase 333.11.2: a retirement done right reads green. A second set and
-  // the floor at 2 committed; then its file removed, its label named in the
-  // clone gate's RETIRED_SETS and the floor back at 1, judged by that gate.
-  { id: 'F1r', control: true, own: true, what: 'a ruled retirement: second.wire.json and FROZEN_SETS_FLOOR = 2 committed, then the file removed, second named in RETIRED_SETS and the floor at 1', commit: [
+  // Phase 333.11.2: a retirement done right reads green. A further set and
+  // the floor one higher committed; then its file removed, its label named in
+  // the clone gate's RETIRED_SETS and the floor back where it was, judged by
+  // that gate.
+  { id: 'F1r', control: true, own: true, what: `a ruled retirement: second.wire.json and FROZEN_SETS_FLOOR = ${String(FLOOR_NOW + 1)} committed, then the file removed, second named in RETIRED_SETS and the floor at ${String(FLOOR_NOW)}`, commit: [
     { file: `${FROZEN}/second.wire.json`, from: WIRE, json: (w) => reseal({ ...w, label: 'second' }) },
-    { file: OWN_GATE, find: 'const FROZEN_SETS_FLOOR = 1;', to: 'const FROZEN_SETS_FLOOR = 2;' }
+    { file: OWN_GATE, find: FLOOR_LINE(FLOOR_NOW), to: FLOOR_LINE(FLOOR_NOW + 1) }
   ], edits: [
     { file: `${FROZEN}/second.wire.json`, remove: true },
     { file: OWN_GATE, find: 'const RETIRED_SETS = Object.freeze({});', to: "const RETIRED_SETS = Object.freeze({ second: '2026-10-15: ablation, a ruled retirement' });" },
-    { file: OWN_GATE, find: 'const FROZEN_SETS_FLOOR = 2;', to: 'const FROZEN_SETS_FLOOR = 1;' }
+    { file: OWN_GATE, find: FLOOR_LINE(FLOOR_NOW + 1), to: FLOOR_LINE(FLOOR_NOW) }
   ] }
 ];
 

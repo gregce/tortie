@@ -249,7 +249,7 @@ const reader = await import('./p33311/swift-wire.mjs');
  * a retirement that removes a set's files without lowering the floor is red,
  * and so is one that lowers the floor without naming the label here.
  */
-const FROZEN_SETS_FLOOR = 1;
+const FROZEN_SETS_FLOOR = 2;
 /**
  * Every frozen set retired by his ruling, label → '<date>: <his words>'. A
  * label any committed copy holds and no working set holds must be named

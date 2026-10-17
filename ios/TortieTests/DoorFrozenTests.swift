@@ -403,6 +403,7 @@ enum FrozenRoute {
         case "screen": return try decoder.decode(PocketScreenAnswer.self, from: data)
         case "scrollback": return try decoder.decode(PocketScrollbackAnswer.self, from: data)
         case "end", "choose", "say", "keys": return try decoder.decode(PocketWriteAnswer.self, from: data)
+        case "start": return try decoder.decode(PocketStartAnswer.self, from: data)
         case "qr": return try PairingOffer.parse(String(decoding: data, as: UTF8.self))
         default: throw NoRoute(route: route)
         }
@@ -448,6 +449,8 @@ enum FrozenRoute {
             if answer.session.replyOffer != expectedReply(session["reply"]) { return "lost:reply" }
             if answer.session.drawsScreen != ((session["screen"] as? Bool) ?? false) { return "lost:screen" }
         case let answer as PocketWriteAnswer:
+            if (json?["write"] as? String) == "", !answer.echoesNoId { return "lost:echoesNoId" }
+        case let answer as PocketStartAnswer:
             if (json?["write"] as? String) == "", !answer.echoesNoId { return "lost:echoesNoId" }
         default:
             break
@@ -800,7 +803,7 @@ enum FrozenRequest {
     /// request is a canonical-text vector and not a phone's own.
     private static func methodOf(_ path: String) -> String? {
         switch path {
-        case DoorClient.endTarget, DoorClient.chooseTarget, DoorClient.sayTarget, DoorClient.keysTarget: return "POST"
+        case DoorClient.endTarget, DoorClient.chooseTarget, DoorClient.sayTarget, DoorClient.keysTarget, DoorClient.startTarget: return "POST"
         case DoorClient.pairTarget: return nil
         default: return "GET"
         }
@@ -824,7 +827,7 @@ enum FrozenRequest {
         }
         let number = { (name: String) -> Int? in values[name].flatMap { Int($0) } }
         switch path {
-        case DoorClient.blockedTarget, DoorClient.pairTarget, DoorClient.endTarget, DoorClient.chooseTarget, DoorClient.sayTarget, DoorClient.keysTarget:
+        case DoorClient.blockedTarget, DoorClient.pairTarget, DoorClient.endTarget, DoorClient.chooseTarget, DoorClient.sayTarget, DoorClient.keysTarget, DoorClient.startTarget:
             return parts.count == 1 ? (path, nil) : nil
         case "/v1/session":
             guard names == ["id"], let id = values["id"] else { return nil }
@@ -892,6 +895,10 @@ enum FrozenRequest {
                 }
             }
             return encoded(KeysBody(dialog: f["dialog"] as? String, keys: read, session: session, turn: turn, write: write))
+        case DoorClient.startTarget:
+            guard named == ["agent", "project", "write"], let f = fields, let agent = f["agent"] as? String,
+                  let project = f["project"] as? String, let write = f["write"] as? String else { return "unreadable" }
+            return encoded(StartBody(agent: agent, project: project, write: write))
         default:
             return ""
         }
