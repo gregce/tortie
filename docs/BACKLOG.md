@@ -42555,6 +42555,701 @@ words: "it was just in a text so nowhere to send").
 
 ---
 
+## Phase 348 — "when the phone first pairs we should have it selected to Sessions", "the ability to remove it", "redesign the settings screen", "really weird and confusing", "MUCH nicer like a real iphone" and "the ability to paste copied content" — the phone, polished: six items in one phase, verified once at the end (operator, 2026-10-18)
+
+**Subject.** `feat(pocket): remove and paste from the iPhone, with Settings and the top bars redrawn`
+
+**First body line.** `Phase 348: the phone, polished`
+
+**Semver.** Minor, unreleased, Mac and phone. The Mac half (the `remove` and `paste` routes, the wrap marks Copy joins
+by, and the empty age note) ships as Tortie 0.113.0, and the phone half is build 12; each needs his word at the time.
+The phase moves conformance:ios rule (s) from 11 to 12 (`build/conformance-ios.mjs:645`, `:757`;
+`CURRENT_PROJECT_VERSION` in `ios/Tortie.xcodeproj/project.pbxproj`), because build 12 is the one archive cut from this
+phase's tree (his rule that the number moves once, at the next archive, `docs/BACKLOG.md:44524`). CHANGELOG items go
+under `## Unreleased`, one per item, drafted here and finished by the phase:
+
+- "After you pair your iPhone with a Mac, it opens on that Mac's Sessions. Each launch after that still opens on Needs
+  input."
+- "Remove a session you ended from your iPhone, with the question your Mac asks, and it moves to Past Sessions on your
+  Mac, where you can restore it. Your Mac asks you to allow this once, in Settings then Phone."
+- "Settings on your iPhone is grouped like the iPhone's own Settings, with the same rows in the same order."
+- "The iPhone's lists end with the time they were read, and no longer with a note about how waits are timed."
+- "The iPhone's tabs have the iPhone's own title bar, and New session is a "+" on its own at the top right, away from
+  Select."
+- "Paste into a session's terminal on your iPhone with iOS's own Paste, a keyboard's Command-V or a pinch open with
+  three fingers. A line the terminal wrapped copies back as one line, and your Mac asks you to allow pasting once, in
+  Settings then Phone." If M3 finds no safe road to another machine, the item adds that a paste reaches sessions on
+  your Mac only.
+
+**Tier 3 for items 2 and 6, Tier 2 for items 1, 3, 4 and 5**, verified once at the end and per item at its own tier
+(CLAUDE.md, "Mixed rounds verify per item at its own tier").
+
+- **Item 2, Remove: Tier 3.** It adds a route the Mac answers from the internet, which is refusal 8's ground. It is
+  session lifecycle: a Remove deletes the session's saved scrollback and hook file at once
+  (`src/main/sessions/core.ts:3699-3713`). It claims to work on this Mac and on other machines.
+- **Item 6, paste: Tier 3.** It adds a route that types his clipboard into running sessions from the internet, and a
+  wrong paste runs commands in a shell. Its Copy half claims to work across agents and machines (research 142 §4.1).
+- **Items 1, 3, 4 and 5: Tier 2.** Each is a drawn surface, or one constant's value, with no new state. He reported
+  each, so the parent is measured whatever the tier.
+- Items 2 and 6 get the gates, real data or a per-row matrix, and two independent methods, one of them an attack. His
+  lighter-checking ruling covers Tier 1 and Tier 2 only, and kept full checking for rounds that add what the Mac answers
+  from the internet (`docs/BACKLOG.md:44498`).
+
+**Charter.** His words of 2026-10-18: (1) "when the phone first pairs we should have it selected to Sessions and not
+Needs Input"; (2) "when you end a session from the phone you should also have the ability to remove it"; (3) "i'd like
+to redesign the settings screen on the phone to make it look better"; (4) "the text on the needds input screen and the
+bottom of the sessions screens 'waits first seen after your mac wakes up or Tortie are timed from there' is really weird
+and confusing"; (5) "the new session button is not as prominent as it could be and too close to select. The top bar for
+filter, select, new session should look MUCH nicer like a real iphone", and later "the top bar can have nicer looking
+buttons etc if possible"; (6) "also on the phone work, we should add in the ability to paste copied content if that
+isn't possible". His rulings that day: for Remove, "No Face ID, just confirm"; offered a preview box or a one-line key
+for paste, "i'd like to be able to paste natively as pasting will always be into a terminal of a session, just like how
+the clipboard normally works on a phone or on a computer"; and for the phase, "ideally this would be done as one large
+integrated phase since its all about the phone and then verified after the build and work is complete". The research is
+the 2026-10-18 read-only investigation of the six items and the adversary's attack on each (items 1 to 5 in one
+workflow, item 6 in a second). Where the attack corrected a finding, this entry carries the correction. There is no
+`docs/research/` document for it, so the spec step writes what it measures into `build/p348/SPEC.md` before any builder
+starts. His requests supersede Phase 317's "No Restore, Remove, …" for Remove alone (`docs/BACKLOG.md:34025-34026`), and
+for paste Phase 337's refusal (`build/p337/SPEC.md:1278-1279`, §Attack A9 at `:1414`), 337.1's "No paste"
+(`docs/BACKLOG.md:40591`; `build/p3371/SPEC.md:44`) and 337.5's Copy-only menu (`build/p3375/SPEC.md:417`, arm N1). The
+phase records that his requests are what changed them, as Phase 346 did for `createSession`. His standing rules bind: no
+regression against today, so a press target smaller than build 11's is a regression; a new route waits for its own Allow
+(Phase 333.12; his answer 10, `docs/BACKLOG.md:44496`); a release, a tag or a version bump needs his word; one
+TestFlight build after this phase, build 12; just enough words.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **Item 1.** `AppModel.tab` starts `.needsInput` and is never stored (`ios/Tortie/App/TortieApp.swift:270`;
+  conformance:ios rule (b), `build/conformance-ios.mjs:4500-4501`). `paired(_:first:)` calls `startOver()`, which sets
+  `.needsInput`, then sets `root = .reading` (`TortieApp.swift:599-603`, `:701-709`). The sheet's `pairedAnother` sets
+  `.needsInput` (`:631`). `openStarted` already selects Sessions in memory (`:1086-1090`). Needs input draws the
+  pairing's own first answer with no second read (`ios/Tortie/Screens/ListScreen.swift:206-222`). Sessions starts
+  `.loading` and reads `/v1/sessions` and `/v1/blocked` on appear (`ios/Tortie/Screens/SessionsScreen.swift:26-32`,
+  `:345`). The door holds four open connections per PROXY source address, not per phone, and every device behind one
+  address shares them (`src/main/pocket/door/limits.ts:23`).
+- **Item 2.** The shared gate offers Remove on an ended row and enables it only with `canDiscard`
+  (`src/shared/session-gates.ts:312-313`). `DOOR_GATE_ENV` has `canDiscard: false`, and its contract is that the door
+  asks `canEnd` and nothing else (`:317-327`). Main's Remove is `core.removeSession`
+  (`src/main/sessions/core.ts:3628-3690`): a tombstone, the conversation claim released, and the saved scrollback and
+  the hook settings file deleted at once (`:3699-3713`). Its remote branch asks no gate and sends nothing to any machine
+  (`:3653-3667`; ruling R11, `src/main/sessions/lifecycle-gate.ts:43-48`), so for a session on another machine the
+  shared gate is the only lock. Its local branch asks `removeRefusal` (`lifecycle-gate.ts:95-117`) and does not
+  broadcast. `sessions:discard` broadcasts after it (`src/main/restore/ipc.ts:58-64`), and the Mac's open Past tab
+  refetches on any change to the list (`src/renderer/session-manager/use-sheet-refresh.ts:23-25`). A removed row is kept
+  90 days (`src/main/manifest/sessions-repository.ts:51`). The Mac's words are `removeSessionConfirm`
+  (`src/shared/lifecycle-words.ts:138-144`). `end` is one of `LEGACY_ALLOWED_ROUTES`
+  (`src/shared/ipc/pocket.ts:183-195`), and a route whose clause must change takes a new id
+  (`src/main/pocket/route-ledger.ts:18-20`). One Allow agrees to every waiting route, because its proposal is the
+  allowed set with this build's routes added (`src/main/pocket/allowed-routes.ts:60-68`). The frozen phones read
+  `PocketWriteAnswer`'s verb and twelve reasons as closed sets, and Start's answer, learning from that, reads its reason
+  as an open word (`ios/Tortie/Door/Contract.swift:355-379`).
+- **Item 3.** Settings is a scroll view of house cards under its own title, with the bar hidden, chosen as "not a system
+  `List`" (`build/p3166/SPEC.md:343-345`; `ios/Tortie/Screens/SettingsScreen.swift:204-205`). Pair another Mac, Unpair
+  this iPhone and See a sample are 54 pt presses (`SettingsScreen.swift:317`, `:344`, `:371`;
+  `ios/Tortie/Screens/Pieces.swift:56`). Notifications and About's rows are 44 pt (`SettingsScreen.swift:283`, `:400`,
+  `:446`, `:494`). `Paired · <date>` is one joined line (`:88`). Colour is spent on state alone, and the accent never on
+  icons at rest (`DESIGN.md:7`, `:95`). TokensTests holds the mocks to the fifteen token hexes
+  (`ios/TortieTests/TokensTests.swift:32-50`).
+- **Item 4.** The sentence is `POCKET_AGE_HONESTY` (`src/shared/ipc/pocket.ts:1719-1720`). It is sent as the required
+  `ageNote` of `/v1/blocked` and `/v1/sessions` (`src/main/pocket/routes.ts:1587`, `:1975`) and drawn above
+  `read <time>` on both lists (`ListScreen.swift:492-503`, `SessionsScreen.swift:931-941`). No approved mock draws it
+  (`docs/design/phone/NeedsInput.html:70`, `Main.html:159`). ⌘J draws the same ages with no note
+  (`src/renderer/app/AttentionOverlay.tsx:347-349`). He never asked for it. The launch phone and build 11 require the
+  key, and any string fits it (gate:onlyadd A3). `build/probe-p313.mjs:270` reads the constant by a single-quote
+  pattern, and `build/p3333/sample.mjs:764` ties both sample notes to it.
+- **Item 5.** The Sessions root hides the bar and draws its own title row (`SessionsScreen.swift:743-769`). At the
+  parent the menu is 19.67 × 19 pt, Select 48 × 24.33 pt and the "+" glyph 18 × 16 pt
+  (`build/p316/probe-p316.mjs:5659-5665`). Phase 346's ruled round made the "+" press 46 × 46 pt around that glyph,
+  stopping 2 pt short of Select (`ios/Tortie/Screens/StartSheet.swift:49-58`; `build/p346/SPEC.md:1033`, `:1116`). Needs
+  input, Settings and Macs hide their bars too (`ListScreen.swift:412-413`, `SettingsScreen.swift:204-205`,
+  `ios/Tortie/Screens/MacsScreen.swift:93-94`; `NAV_BAR_ROOTS`, `build/conformance-ios.mjs:4267`). A pushed page's bar
+  title is a `.principal` item drawn in `Tokens.textPrimary` (`TortieApp.swift:1519-1528`), and a large title cannot be
+  one.
+- **Item 6.** The Terminal takes no paste today. The hidden field refuses the four paste commands and every drop
+  (`ios/Tortie/Screens/ScreenKeyField.swift:214-215`, `:237-250`). The long-press menu holds Copy alone and is built
+  from nothing (`ios/Tortie/Screens/ScreenTextInput.swift:638-652`), and every long press selects at least one cell, so
+  the menu always shows (`build/p3375/SPEC.md:121`, D4). Nothing in the app reads the pasteboard
+  (`ios/Tortie/Screens/ScreenSelection.swift:41-44`, `:287`). An armed Ctrl turns typed text's first letter into a
+  control key (`ScreenKeyField.swift:139-153`). The keys verb refuses a line feed (`src/main/screen/keys.ts:193`). Say's
+  paste loads the words from standard input before its read, then runs `copy-mode -q`, `paste-buffer -p -d` and
+  `send-keys Enter` in one list, with `delete-buffer` in a `finally` (`src/main/reply/writer.ts:306-349`).
+  `paste-buffer -p` brackets only where the program asked for bracketed paste and sends a line feed as CR, the same on
+  3.6a and 3.7b (`docs/research/135-the-reply-door.md:326-334`), which is how the desk's own paste lands
+  (`docs/research/16-image-drop.md:57-87`). 3.6a passes a pasted ESC raw
+  (`docs/research/135-the-reply-door.md:342-345`), which is why 318's text rule refuses ESC
+  (`src/main/reply/text-rules.ts:29-46`). The exec plane refuses standard input for a session on another machine
+  (conformance:pocket Y10), and far machines run tmux from 3.2a (`src/main/tmux/version.ts:214`). Copy ends every row
+  with a line break (`ScreenSelection.swift:255-265`, `:280`), so a long command comes back in pieces. tmux marks a
+  soft-wrapped row only through `capture-pane -F`, which 3.7b has and 3.6a does not, or through a two-capture fallback,
+  and a command zsh is still editing carries no mark at all
+  (`docs/research/142-text-that-wraps-to-the-phone.md:166-254`; §4.1 at `:398-412`). The tested pair runs a 3.6a server
+  under a 3.7b client (`build/tmux-release.json:5`).
+
+### The mechanism
+
+**Item 1. A pairing lands on Sessions (Tier 2, phone only).**
+
+1. `AppModel.paired(_:first:)` sets `tab = .sessions` after `startOver()` and before `root = .reading`
+   (`TortieApp.swift:602-603`). This one statement covers every pairing made on the Pairing screen: the first, one after
+   Unpair of the last Mac, one after a Mac's refusal (Phase 345's D18a) and one after Leave sample.
+2. `pairedAnother` sets `.sessions` where it sets `.needsInput` today (`:631`).
+3. Nothing else moves. `var tab` stays `.needsInput` (`:270`), so every launch opens on Needs input with the first Mac.
+   `startOver()` keeps `.needsInput` for a lost pairing and for the sample. `choose` (`:444`) and an alert's tap stay on
+   Needs input. Nothing is stored. The comments that state the rule change with it (`:18-19`, `:269`, `:595`,
+   `:626-627`).
+4. Sessions' first open makes its own two reads under its own spinner, as every first open of Sessions does today (D3).
+
+**Item 2. Remove an ended session (Tier 3).**
+
+1. **The route.** `remove`: `POST /v1/remove`, signed, a write, alive outside any pairing window, its body cap 512. It
+   is appended to `POCKET_ROUTES` (`src/main/pocket/door/table.ts:110-123`), `POCKET_ROUTE_IDS`,
+   `POCKET_WRITE_ROUTE_IDS` and the route ledger (D26), with its words in `WRITE_CLAUSES`
+   (`src/main/pocket/pairing.ts:426-432`), `POCKET_HONESTY_ADDED`, `POCKET_FACE_CLAUSES` and `POCKET_NEW_ROUTE_WORDS`
+   (`src/shared/ipc/pocket.ts:1338-1340`, `:1471-1485`, `:1498-1503`; D32). It stays out of `LEGACY_ALLOWED_ROUTES` and
+   `POCKET_SESSION_WRITE_IDS`. Until he presses Allow on a Mac it answers `404 route` before the body, and nothing
+   offers Remove.
+2. **The body** is exactly `{session, write}` (D28), read by the one strict parse. It takes the session verbs' path in
+   `src/main/pocket/writes.ts`: the ledger keyed on phone, verb and write id; one write in flight per phone and per
+   session across every verb (`writes.ts:782-786`), so an End and a Remove never overlap on one session;
+   `routeServed('remove')` in the last check; one log line.
+3. **The act** is a sixth member, `remove`, on `PocketWrites` (`src/main/pocket/routes.ts:459-462`), implemented beside
+   `end` in `src/main/sessions/pocket-writes.ts`. A pure `removeVerdict` asks main's `removeRefusal` over the record,
+   and the shared gate's `canRemove` over the listed row with a SECOND named environment whose `canDiscard` is true
+   (D6). A missing row reads as gone, an unknown one as unreachable and one no longer ended as changed, each with its
+   sentence. Then `core.removeSession(id)` and `core.broadcastSessions()`, as `sessions:discard` does, with nothing
+   awaited between the verdict and the verb. Errors are told apart by code alone, and a new `REMOVE_FAILED` joins
+   `src/shared/lifecycle-words.ts`. It sets no status, kills nothing and sends nothing to any machine.
+4. **The offer.** `/v1/session`'s detail gains an optional `removeConfirm`: the Mac's `removeSessionConfirm` copied
+   field by field, as `endConfirmOf` copies End's words (`routes.ts:541-544`, `:1642`). It is present only when the
+   route is served (a `removeAllowed()` beside `startAllowed()`, `src/main/pocket/ipc.ts:904-906`) and both gates pass
+   now. It is wired in `src/main/capabilities.ts:429-452`. `/v1/blocked` and `/v1/sessions` do not change.
+5. **The answer** is `PocketRemoveAnswer`, a shape of its own modelled on `PocketStartAnswer` (`pocket.ts:845`), never a
+   `PocketWriteAnswer` (D27).
+6. **The phone's door.** `DoorClient.remove` goes through `signedPost` with a `RemoveBody`, and its `RemoveResult` is
+   classified as `StartResult` is. `removeConfirm` is read with `decodeIfPresent`, as `endConfirm` is
+   (`Contract.swift:732`), so a 0.112.0 Mac reads as no Remove. No write id is kept: a repeat answers gone.
+7. **The phone's face.** Once End's offer is none and `removeConfirm` is present, Remove is drawn exactly where End was:
+   at Catch Me Up's top right, and in the Terminal's ⋯ in End session…'s place. A page keeps the face it opened on
+   (`ios/Tortie/Screens/SessionScreen.swift:16-19`), so a Terminal whose session has just ended offers Remove in its ⋯.
+   Its press shows the Mac's words in one confirmation, makes a one-target runner registered before the write and
+   stopped by `AppModel.wentAway`, and asks no owner check (D7, D33). Done goes back to the list, so the alerted route
+   never says Tortie has no record of a session that sits in Past Sessions (`TortieApp.swift:545-557`).
+8. **See a sample** offers Remove on its own copy once its End is done (`ios/Tortie/Sample/SampleWorld.swift:177`),
+   with the same question and no owner check, and drops the made-up session from its lists. Nothing leaves the phone.
+9. **The words that said the phone removes nothing** are rewritten: `src/shared/ipc/pocket.ts:72-73`,
+   `TortieApp.swift:94` and the mock caption `docs/design/phone/index.html:106`.
+
+**Item 3. Settings, grouped (Tier 2, phone only).**
+
+1. `SettingsScreen.swift` is redrawn as an inset grouped page from the house pieces (`card()`, `Hairline`,
+   `RaisedLabel`, `Chevron` and `Words`, in `Pieces.swift`), never SwiftUI's `List`. Each group is one card, with an
+   optional header above it (today's raised label) and an optional footer under it, and rows separated by a hairline
+   that starts at the text column.
+2. The order is today's exactly: This Mac; Alerts, only for a Mac that sends; Pair another Mac; Unpair this iPhone, in
+   its own group; See a sample; About.
+3. SF Symbols `desktopcomputer` on the Mac's row, `bell.badge` on Notifications, `plus.circle` on Pair another Mac and
+   `eye` on See a sample, in `Tokens.textSecondary`, hidden from VoiceOver, with no coloured tile. Paired becomes a
+   labelled row, `Paired` on the left and the date on the right, as Version is. `Pair again to get alerts.` and the
+   could-not-forget line become their groups' footers.
+4. Every pressable row keeps at least today's height: 54 pt where it is 54 today, and 44 pt where it is 44. No new word,
+   token or identifier. Every length is one literal in `SettingsFrame` (rule (k)).
+5. Everything stays in `ios/Tortie/Screens/SettingsScreen.swift`, because rules (z), (av), (ba) and (ac) name that file.
+   The three site presses and the notification open keep their exact text and indentation (ablation arms av9b and av9c;
+   `SiteLinkTests`). The Notifications row stays an element that contains its state, so S6 still reads that state.
+6. The title is the system's large title (D15), so `settings-title` leaves the face.
+7. `docs/design/phone/Settings.html` and `Unpair.html` are redrawn inside the phase. Every word they draw stays an owned
+   one, the text `>Pair another Mac<` is kept (`build/p311/copy-drift.mjs:2373-2382`), and they spell the fifteen token
+   hexes only. No mock goes to him first (D13).
+
+**Item 4. The age note goes (Tier 2, one Mac constant).**
+
+1. **Mac.** `POCKET_AGE_HONESTY`'s value becomes `''`. Its name and its single quotes stay, for `probe-p313.mjs:270` and
+   `sample.mjs:764`, and its comment says the key stays only because the launch phone and build 11 require it. The stale
+   comments at `pocket.ts:262`, which says a client draws "since your Mac woke", and at
+   `src/main/tray/attention.ts:98-100` are corrected: only the push alert reads `seenAtWake`. So is the field's line at
+   `pocket.ts:525`, which says the sentence is drawn under the ages. `pocket.ts:526-528` and `Contract.swift:818` and
+   `:826-827` stay byte for byte, because ablation:p33311's arms A3b, C1, P0 and C3 anchor there.
+2. **Phone.** Both feet draw `read <time>` alone, right aligned, as the approved mocks draw it. `ListDrawing.ageNote`,
+   `SessionsDrawing.ageNote`, `ListNames.ageNote` and the identifiers `list-age-note` and `needs-list-age-note` go. The
+   phone keeps decoding `ageNote` strictly, read and never drawn, as it already reads `seenAtWake`.
+3. **Installed phones.** The launch build and build 11 stop drawing the sentence once their Mac updates. What build 11
+   draws for an empty note is measured, never assumed (M6).
+
+**Item 5. The tab roots take the iPhone's own bar (Tier 2, phone only).**
+
+1. The four tab roots stop hiding the navigation bar: Needs input, Sessions with its older-Mac face, Settings, and Macs.
+   Each takes `.navigationBarTitleDisplayMode(.large)` with its `.navigationTitle`, the large title in the system's own
+   colour (D15), and the pushed pages' bar colours, `.toolbarBackground(Tokens.bgSidebar, …)` and
+   `.toolbarColorScheme(.dark, …)`, without `.toolbarBackground(.visible, …)` (`TortieApp.swift:1519-1523`). Each house
+   title row goes.
+2. **Sessions' bar** is one `SessionsBar: ToolbarContent`, declared inside `SessionsScreen` so that it sees End these'
+   environment. Select (`EndBatchTitleControl`, unchanged) and then the filter `Menu` sit at `.topBarLeading`. The "+"
+   sits alone at `.topBarTrailing`, built behind the offer's `if` so no empty slot is drawn. On iOS 26 the "+" is `plus`
+   with `.buttonStyle(.glassProminent)` tinted `Tokens.accent`; on iOS 18 it is `plus.circle.fill` in `Tokens.accent`.
+   The filter is `line.3.horizontal.decrease` on iOS 26, where the bar draws the glass, and
+   `line.3.horizontal.decrease.circle` on 18, filled while a filter is set. The filter and the "+" are drawn off while
+   End these takes taps, as today. The older-Mac face's bar holds Select alone.
+3. `StartFrame.plusReach` and `plusGiveBack` go (`StartSheet.swift:54`, `:58`); the line
+   `struct StartTitleControl: View {` stays byte for byte, because ablation arms anchor on it. The Show control stays
+   the house capsule, the list's first line under the large title. The menu's content does not change, and no search
+   item is taken.
+4. Every press is at least today's: the "+" at least the parent's measured 46 × 46 pt, and Select and the filter at
+   least 44 pt each (D17).
+5. `docs/design/phone/Main.html`, `SessionsMenu.html`, `NeedsInput.html`, `Macs.html`, `SessionsOlderMac.html` and
+   `Sample.html` are redrawn with the bar. They keep phonecopy's self-test anchors `>Ended<` and `>Clear filters<`
+   (`build/p311/copy-drift.mjs:2230`, `:2358`) and draw the large title in `--text-primary` (D37).
+
+**Item 6. Paste into a session, natively (Tier 3).**
+
+Phone:
+
+1. **The three ways in.** The Terminal's long-press menu offers iOS's own Paste beside Copy: the system's paste command,
+   so iOS shows no Allow Paste alert. The hidden key field takes Command-V on a hardware keyboard and the three-finger
+   paste: `canPerformAction` admits `paste(_:)` while the Mac takes a paste, and `paste(_:)` reads the text on his
+   press. `pasteAndMatchStyle`, `pasteAndGo`, `pasteAndSearch` and every drop stay refused (D35), and a typed
+   replacement holding a line break is still swallowed (`ScreenKeyField.swift:83-106`). A paste lands at the session's
+   cursor and never over the selection. The key bar does not change. Which road gives the system's Paste with no alert
+   is measured first (M1, D36).
+2. **One pure rule** takes the pasted text and refuses on the phone, with a sentence and nothing sent: an empty text;
+   more than D29's cap, 16,384 bytes of UTF-8; ESC, CR or any other control character but LF and TAB, DEL, a C1 control or
+   half of a surrogate pair; and a text that reads as a Tortie pairing code, by the marker `Door/Pairing.swift` already
+   reads (`:110-115`, `:127-133`), asked through one function there so the rule is never spelled twice (rule (p)). An
+   armed Ctrl is never applied to a paste.
+3. **One write.** A paste is one write, never split and never merged with typed keys. The Terminal's one key sender
+   carries it in order with his typing (`ios/Tortie/Screens/ScreenKeys.swift:9-27`, D31), with the turn and dialog of
+   the picture drawn at his press. The sender stamps typed keys when it sends them (`:207-209`). A paste stamped that
+   way, while it waits behind a write, would go against a question drawn after his press, and the Mac would take it.
+   Stamped at the press, the Mac answers `changed` and types nothing. No Return is added.
+4. **Offered only where the Mac takes it.** Paste is offered only where the screen answer's optional `paste` flag says
+   so (D30). A 0.112.0 Mac, a Mac whose Allow waits, an ended session, and a session on another machine the spec could
+   not make safe all draw Copy alone, as today.
+5. **See a sample** echoes a paste on the sample's own prompt, as it echoes typed keys (`SampleWorld.swift:198-225`),
+   and nothing leaves the phone (D34).
+
+Mac:
+
+6. **The route.** `paste`: `POST /v1/paste`, signed, a write, alive outside any pairing window, its body cap D29's, 131,072
+   (D29), appended after `remove` in every list `remove` joins (D26), with its own words (D32). Its Allow rides the same
+   press as Remove's.
+7. **The body** is exactly `{dialog, session, text, turn, write}` (D28), read by the one strict parse, and it takes the
+   session verbs' path.
+8. **The verb** is `src/main/screen/paste.ts`, built once in `src/main/capabilities.ts` beside the keys verb and passed
+   through `createPocketWrites` as keys is, a seventh member of `PocketWrites` (D31). It keeps the keys verb's order
+   (`keys.ts:11-33`), with say's buffer step before the read:
+   - the text rule, then the gate: the row by id, typable, and on this Mac a live `$`-id;
+   - the same 50 ms floor per session as keys, with one last-act time for both verbs (`SCREEN_KEYS_GAP_MS`,
+     `keys.ts:107`);
+   - the words loaded from standard input into a buffer the verb names itself, then ONE fresh read;
+   - the final check, with nothing awaited. It holds the keys verb's one refusal: while the screen asks, or the picture
+     the paste was sent against did, the question id and the window mark must be the ones the phone echoed, or the
+     answer is `changed` and nothing is typed;
+   - the bump, then ONE statement, `copy-mode -q -t <pane> ; paste-buffer -p -d -b <name> -t <pane>`, with NO Enter;
+   - `noteUserInput` once. Nothing is logged, no error's text is read, and the buffer is deleted in a `finally` on every
+     path the paste did not take it.
+9. **The text rule**, `pasteRefusal`, sits beside `textRefusal` in `src/main/reply/text-rules.ts`: 318's rule, which
+   already lets LF in, with TAB let in too, at most D29's 16,384 bytes, and ESC refused because 3.6a passes it raw. The
+   buffer steps leave `writer.ts` for ONE helper that `say` and `paste` both call, so no second copy of the one
+   standard-input sink exists (conformance:pocket Y3, Y4).
+10. **Another machine.** The spec measures a far road (M3). Standard input is refused for a far context (Y10), far
+    servers run from 3.2a, and no element of an argv may carry his text. If no road is safe in this phase, a far paste
+    is refused with a sentence and the offer flag stays false there (D22).
+11. **The answer** is `PocketPasteAnswer`, a shape of its own like Start's (D27).
+
+Copy's companion, required because the research measured the round trip breaking:
+
+12. **Copy joins the rows tmux marked wrapped**, so a long line copied from the Terminal pastes back as one line.
+    `ScreenSelection.text` joins a marked row to the next with no line break. The marks are built as research 142 §4.1
+    banks them:
+    - the screen answer and each scrollback page carry an optional per-row mark, and the answer's revision hashes the
+      marks;
+    - a mark comes from `capture-pane -F` on a running server that has it, its version asked with `readServerVersion` on
+      this Mac (`src/main/tmux/version.ts:665`) and `farServerVersion` on another machine
+      (`src/main/machines/far-tmux.ts:168-170`). 3.7b has it and 3.6a does not, and which of 3.7, 3.7a and 3.7b added it
+      is not settled (`docs/research/142-text-that-wraps-to-the-phone.md:174-176`), so the spec sets that line by
+      measurement;
+    - on an older server it comes from the two-capture fallback (`-p -T -N` against `-p -J`), with no mark wherever the
+      two reads disagree;
+    - marks are read on the main screen only, behind the last-column-ink guard, with the trailing blanks a trimmed
+      capture drops restored, so the join is exact;
+    - a server that answers neither way gives no marks, and Copy is today's.
+13. **Its stated limits**, said and never claimed fixed: agents break their own lines, and 0 of 408 agent rows were
+    soft-wrapped (`docs/research/142-text-that-wraps-to-the-phone.md:390`); a command zsh is still editing carries no
+    mark (`:250-254`); and a full-width overwrite with no erase leaves a stale mark (G2 in §2.4).
+
+### The decisions
+
+Taken before this entry was written, on his words and rulings of 2026-10-18 and his standing rules:
+
+- **D1.** Every pairing that finishes, on the Pairing screen or on Settings' Pair another Mac sheet, lands on that Mac's
+  Sessions.
+- **D2.** Every launch still opens on Needs input with the first Mac, and nothing is stored. Choosing a Mac from the
+  Macs tab stays on Needs input, and See a sample keeps Needs input.
+- **D3.** On that first open Sessions shows its own spinner and makes its usual reads: a stated trade, measured beside
+  the parent.
+- **D4.** Remove is two presses, the Mac's own flip: once End is done, Remove takes End's place at the top right.
+- **D5.** Remove draws the Mac's `removeSessionConfirm` words byte for byte.
+- **D6.** Remove is offered on every ended session the Mac's own gates offer it on, on this Mac or another machine. The
+  shared gate is the only lock for a remote row, asked with a second named environment and never by an edit of
+  `DOOR_GATE_ENV`.
+- **D7.** Remove asks no Face ID, Touch ID or passcode, only the Mac's own confirmation ("No Face ID, just confirm").
+  The Face ID purpose string (`ios/Tortie/Info.plist:27-28`) does not move.
+- **D8.** Remove is not in End these.
+- **D9.** Remove is a new route and never rides `end`. `end` is in `LEGACY_ALLOWED_ROUTES`, so riding it would hand
+  Remove with no Allow to every door confirmed since 0.111.0, which is refusal 8. It waits for its own Allow, with the
+  New line `New: remove sessions from your phone`.
+- **D10.** The act broadcasts, so the Mac's windows and its open Past tab update.
+- **D11.** See a sample offers Remove on its own copy, and nothing leaves the phone.
+- **D12.** Settings is an inset grouped page of the house pieces, not SwiftUI's `List`, in today's order with Unpair
+  this iPhone in its own group: four symbols in `Tokens.textSecondary` with no tiles, Paired as a labelled row, the two
+  lines as footers, every pressable row at least today's height, and no new word or token.
+- **D13.** No mock goes to him before building: one phase, verified at the end. The mocks are redrawn inside the phase,
+  so phonecopy and TokensTests hold.
+- **D14.** The sentence goes from both lists, and each foot reads `read <time>` alone. The Mac sends
+  `POCKET_AGE_HONESTY` as `''`, name and quoting kept, so installed phones stop drawing it once their Mac updates, and
+  build 11's foot with an empty note is measured. The phone keeps decoding `ageNote` strictly.
+- **D15.** The four tab roots take the system navigation bar with a large title in the system's own colour. This settles
+  the research's conflict between items 3 and 5.
+- **D16.** On Sessions, Select and then the filter sit at the leading edge and the "+" alone at the trailing edge,
+  styled per runtime as item 5's step 2 says, and drawn off while End these takes taps. The Show control stays the house
+  capsule under the large title.
+- **D17.** The "+" press is at least today's measured 46 × 46 pt, and Select and the filter at least 44 pt.
+- **D18.** The Mac's native menus do not change.
+- **D19.** Paste is native: iOS's own Paste beside Copy in the Terminal's long-press menu, Command-V and the
+  three-finger paste, with no permission prompt and no preview box. It lands as a paste at the desk does
+  (`paste-buffer -p`: bracketed where the program asked, otherwise as a desk terminal pastes), and no Return is added.
+- **D20.** An armed Ctrl never applies to a paste. A paste that reads as a Tortie pairing code is refused with nothing
+  sent. A paste is one write and never split.
+- **D21.** Paste is a new route with its own Allow, riding the same press as Remove's, with its own cap, its own text
+  rule (318's, which already lets LF in, with TAB let in too) and one buffer helper shared with say. Its act is
+  `copy-mode -q` then `paste-buffer -p -d` with no Enter, under the keys verb's question lock, with `noteUserInput`
+  once and nothing logged.
+- **D22.** On another machine the spec measures a far road. If it cannot be made safe in this phase, a far paste is
+  refused with a sentence, and that is stated.
+- **D23.** Copy joins the rows the terminal wrapped, and the app run proves it with a wrapped command.
+- **D24.** Before building, the spec measures iOS's system Paste on the real Terminal, on 26.3 and 18.3, with content
+  from another app and after a trip to another app, and that no alert appears, with an ablation that proves the arm can
+  go red.
+- **D25.** The Mac half ships in 0.113.0 beside build 12, each on his word. At that release build 12's wire is frozen
+  beside launch and build-11 (`FROZEN_SETS_FLOOR` 3), and the store's review notes and claims table gain Remove and
+  Paste while still saying Face ID is asked only before ending a session, which stays true.
+
+This entry's own choices, each with its reason. The spec confirms them against what it measures:
+
+- **D26. The route order.** `remove` and then `paste` go after `start` in the table, both id lists and the ledger. The
+  ledger only grows at its end and keeps the table's order (`route-ledger.ts:62`), and the confirm line then says the
+  new clauses last. NS1's "start last" becomes "start, remove, paste".
+- **D27. Answers of their own.** `PocketRemoveAnswer` and `PocketPasteAnswer`, each shaped like `PocketStartAnswer`,
+  with the reason read as an open word on the phone; neither verb joins `POCKET_SESSION_WRITE_IDS`. The frozen phones
+  read `PocketWriteAnswer`'s verb and reasons as closed sets, so a new word there is a narrowing that gate:onlyadd
+  refuses (A3).
+- **D28. The bodies.** Remove's is `{session, write}` with no batch, because no Mac batch removes (conformance:manager
+  T8). Paste's is `{dialog, session, text, turn, write}`, because the question lock needs the picture's turn and dialog,
+  which the keys body already carries.
+- **D29. The caps.** Remove's body cap is 512, as `end`'s is. A paste holds at most 16,384 bytes of text, enough for a
+  pasted error or log, because his ruling is a paste that works as at a computer, where a few dozen lines is ordinary. It
+  is refused whole above that and never split. Its body cap is derived as say's is: the worst legal body (16,384 C0
+  bytes escaped, about 99 KB) must reach main to be refused in words (`src/main/pocket/door/limits.ts:58-65`), so the
+  cap is 131,072. The spec measures first that the door, the phone's line and both tmux versions take a body that size
+  in one write; if any cannot, the cap falls back to 4,096 bytes of text and a body cap of 32,768, stated in the commit
+  body, because a cap is part of what an allowed route means and cannot be raised later without a new route. Z2's rule
+  that a cap is twice the worst is the keys cap's alone.
+- **D30. Paste is offered only where the Mac says so.** An optional `paste` flag on the screen answer is true only while
+  the route is served and the row takes a paste, and an absent flag reads as false through `decodeIfPresent`, as 316.5's
+  `alerts` does (`Contract.swift:1349`). A phone must not offer a write its Mac answers 404, as Start's offer key and
+  Remove's `removeConfirm` already ensure.
+- **D31. Where the paste lives.** On the Mac, in `src/main/screen/paste.ts` beside `keys.ts`, because a paste is the
+  Terminal's input as keys are; `keys.ts` already reads reply's text rule (`keys.ts:90`). On the phone, in the one key
+  sender, so typing and a paste land in the order he made them.
+- **D32. The Allow words.** Remove: write clause and honesty clause "remove a session that has ended", face clause
+  "remove ended sessions", and the New line `remove sessions from your phone` with "An ended session moves to Past
+  Sessions on this Mac, where you can restore it." Paste: write clause and honesty clause "paste text into any session
+  as you would at this Mac", face clause "paste into a session", and the New line `paste into sessions from your phone`
+  with "It lands as a paste at this Mac does, with no Return added." Each new route must say what it lets a phone do
+  before Allow. The words are his to change.
+- **D33. Remove's face.** It is drawn as the Mac's own word, `Remove`, in the error colour in End's place, with no
+  owner-check glyph because none is asked. Its press lives in a file of its own listed in `OWNER_CHECK_ABSENT`
+  (`build/conformance-ios.mjs:5809`), so rule (ac) proves it asks none.
+- **D34. The sample's paste** stays on the phone, echoed on the sample's prompt. App Review reads the sample, so every
+  write should appear there (his answer 11 for Start).
+- **D35. No drop.** A text drop into the field stays refused. His ruling names Paste, Command-V and the three-finger
+  paste, and a drop also carries files and images, which are out.
+- **D36. A stop if the measurement fails.** If M1 finds no road that gives iOS's own Paste without the alert on both
+  runtimes, the spec stops and puts it to him before any builder starts. A road that prompts is not what he ruled.
+- **D37. The mocks' title colour.** The redrawn mocks draw the large title in `--text-primary`, because TokensTests
+  holds them to the fifteen token hexes. The app draws the system's colour he ruled.
+- **D38. Who owns what.** Builders hold disjoint files, as the spec assigns them. At least: the Mac door and contract
+  (`src/shared/ipc/pocket.ts`, `src/main/pocket/**`); the Mac verbs and reads (`src/main/sessions/pocket-writes.ts`,
+  `src/shared/session-gates.ts`, `src/shared/lifecycle-words.ts`, `src/main/screen/**`, `src/main/reply/**`,
+  `src/main/machines/remote-screen.ts`); the phone's door and Terminal (`ios/Tortie/Door/**`, `EndBar.swift`,
+  `SessionScreen.swift`, the `Screen*.swift` files, `ios/Tortie/Sample/**`); and the phone's faces
+  (`SettingsScreen.swift`, `SessionsScreen.swift`, `ListScreen.swift`, `MacsScreen.swift`, `StartSheet.swift`,
+  `docs/design/phone/**`). The integrator owns the files several items edit: `TortieApp.swift`, `Identifiers.swift`,
+  `Copy.swift`, `ios/TortieUITests/P316DriveUITests.swift`, `build/p316/probe-p316.mjs`, `build/p345/probe-p345.mjs`,
+  `build/conformance-ios.mjs`, `build/p316/ablation-ios.mjs` and `CHANGELOG.md`. It regenerates
+  `ios/TortieTests/Fixtures/vectors.json` (rule (j)) and `ios/Tortie/Sample/sample.json` (az7) once, after every Mac
+  change has landed.
+
+### What moves on purpose
+
+- **Item 1.** TabsTests' `testTheAppOpensOnNeedsInput` (`ios/TortieTests/TabsTests.swift:36-56`) splits in two: launch
+  and a lost pairing land on Needs input, and a finished pairing lands on Sessions whatever tab was set before.
+  MacsTests' sheet test lands on `.sessions` (`ios/TortieTests/MacsTests.swift:512-524`). A relaunch clause, a model
+  made again over the same store, opens on Needs input. probe:p316 T2a (`build/p316/probe-p316.mjs:2735-2742`) and U1's
+  second pairing (`:2995`) invert, with their self-test fixtures and the header prose (`:189`, `:210-213`). The hostile
+  `sessions-cap` arm's first-row clause (`:4649`, its steps at `:15301`) is timed from the landing, or reaches Sessions
+  through Needs input and back, because the landing now draws Sessions inside `pair`. probe:p345 T1
+  (`build/p345/probe-p345.mjs:624`), RP, their rows in `build/p345/fixtures/graders.json` and the HEAD kept check
+  (`:2082`) read Sessions first, then that Mac's Needs input through an explicit tab press. Kept as they are: rule (b)'s
+  no stored tab, (aa)(2), ba10, bb9, N8 and N11 on Needs input, and MacsTests' choose clause (`:80`).
+- **Item 2.** conformance:pocket R2; R3, its reason for `removeSession` reworded with his request named, as Phase 346
+  did for `createSession`; R4's pin; X1 to X12 widened to the new verbs; X5's canEnd-only clause
+  (`build/conformance-pocket.mjs:7030-7038`) and its list of verbs `pocket-writes.ts` may not call, which names
+  `removeSession` (`:7067`); NS1, NS2, NS11, Y1, Z2 and AR9; and a new remove family. The caps vitests
+  (`src/main/pocket/__tests__/door-wire.test.ts:224`, `p318-body-caps.test.ts:80-82`, `writes.test.ts:259`).
+  `DOOR_GATE_ENV`'s contract comment (`src/shared/session-gates.ts:317-321`), with its test
+  (`src/shared/__tests__/p317-session-gates.test.ts:255`) kept and a sibling written for the second environment.
+  conformance:manager T25 (`build/p293/conformance-manager.mjs:138`) reads `removeVerdict` too, and G2 gains a driven
+  Remove partition. conformance:ios (ab)'s bodies and routes (`build/conformance-ios.mjs:5975`, `:5978`, `:5987`); (ac)
+  with Remove's file in `OWNER_CHECK_ABSENT`; (ad); (ay), and (at) wherever `TerminalMenu`'s call changes
+  (`:14307-14308`); (t); (v); (az) with `sample.mjs`'s ended-variant clause (`build/p3333/sample.mjs:807-808`); and (s).
+  TerminalMenuTests (`ios/TortieTests/TerminalMenuTests.swift:158-176`, `:250-256`). `TerminalMenu.html` keeps Catch Me
+  Up then End session…, which conformance:phonecopy's `checkTerminalFaces` (`build/p311/copy-drift.mjs:1592-1612`) and
+  its CopyTests twin (`ios/TortieTests/CopyTests.swift:418-421`) hold, and Remove is drawn in a new mock frame with its
+  own iframe in `index.html` (`copy-drift.mjs:31-39`) and words owned by rules. Both checks widen on purpose to read
+  that frame as Catch Me Up, then Remove. The literals that end at `start`: `build/ablation-p313.mjs:2021`, `:2805`,
+  `:6362`, `:6785`, `:6885` and `:6906`; `build/p33311/ablation.mjs:551`; `build/p33312/plant.mjs:95-96`; and
+  `build/probe-p313.mjs:299`. The probes' route and write lines, which name twelve routes:
+  `build/p317/probe-p317.mjs:175`, `:181`; `build/p318/probe-p318.mjs:216-217`; `build/p337/probe-p337.mjs:194-195`;
+  `build/p3167/probe-p3167.mjs:167`. The tests that spell the twelve, among them
+  `src/main/pocket/__tests__/pairing.test.ts:486`, `routes.test.ts:224` and
+  `src/main/harness/__tests__/push-seam.test.ts:843`, found by searching for the list rather than from memory. Phase 346
+  had to fix the same kind of stale literal (`build/p346/SPEC.md:1035`).
+- **Item 3.** SettingsTests' three text tests (`ios/TortieTests/SettingsTests.swift:208`, `:260`, `:293`) and the Paired
+  line's assertion (`:128`). probe:p345 P1's Settings half (`build/p345/probe-p345.mjs:544-556`), superseded and named.
+  The `settings-title` readers among probe:p316's graders and fixtures (`build/p316/probe-p316.mjs:10448`, `:10779`,
+  `:11023`). `Identifiers.swift`'s comment table. Kept as they are: TokensTests, because the redrawn mocks spell the
+  fifteen hexes only; SiteLinkTests, SampleAppTests, UnpairTests, MacsTests, TabsTests' push clause; S6, U1, SE4, SA12
+  and SC1; and ablation:p316's k7, z3, z5, ac7, av3c, av9b, av9c and ba3, none reading "the edit changed nothing".
+- **Item 4.** probe:p316 L1 (`:2090-2091`) and the sessions arm (`:4775-4776`) require that no note is drawn, and their
+  self-test fixtures plant one and must read red (`:5129`, `:5155`). ScreensDrawingTests' foot test
+  (`ios/TortieTests/ScreensDrawingTests.swift:109`). probe:p345 P1 names `needs-list-age-note` and `list-age-note` as
+  stated differences. `Copy.swift`'s header (`ios/Tortie/Style/Copy.swift:4-7`) drops "the age note". `vectors.json` and
+  `sample.json` are regenerated (D38).
+- **Item 5.** conformance:ios (bb6) is re-pointed at `SessionsBar` (`build/conformance-ios.mjs:16718-16743`), with its
+  fixture and self-tests. (b)'s `NAV_BAR_ROOTS` (`:4267`) empties, and its prose (`:532-534`) moves. A new rule (bc),
+  modelled on (ay), holds the four roots' bars: the large title, no hidden bar, each item's placement and order, no
+  padding, frame or content shape on a bar control, no title row left in a list, and the "+" behind `#available(iOS 26`
+  with `.tint(Tokens.accent)`. ablation:p316's bb6a and bb6b (`build/p316/ablation-ios.mjs:5155`, `:5162`) are
+  re-pointed, with an arm for each new clause, and the anchors at `:5201` and `:5286` are kept. probe:p316 NP1
+  (`build/p316/probe-p316.mjs:5507`); NP12 (`:5680`), with `START_TITLE_ROW_BEFORE` (`:5659-5665`) retired on purpose,
+  naming item 5; SL7 (`:4587`) with the "+" added; and NP11 kept on its pre-346 parent (`:5822`). The UI drive's
+  `scrollToTop` (`ios/TortieUITests/P316DriveUITests.swift:2419`), `reveal` (`:2450`), `controlsEnabled` (`:2481`),
+  `dismissMenu` (`:2534`), `startOpen` (`:4837`) and `startReach` (`:4888`). The title readers (`probe-p316.mjs:10266`,
+  `:10777`). probe:p345 P1 names the bar's ids as stated differences.
+- **Item 6.** conformance:ios (aj) (`build/conformance-ios.mjs:10748`) and ScreenInputTests take the paste command on
+  purpose. A paste rule in `ScreenKeyField.swift` keeps (aj)'s one spelling of a line feed and its scalar-by-scalar
+  line-break test (`:10805-10815`), because `\r\n` is one Character. (al) (`:10910`) and its 337.5 half (`:10949`) now
+  say that the app reads the pasteboard only inside the system's paste command, and that the menu offers Copy and Paste
+  and nothing else, so the Terminal's words still go nowhere but the clipboard. ScreenSelectionTests'
+  `testThePasteboardIsWrittenAndNeverRead` (`ios/TortieTests/ScreenSelectionTests.swift:232`) and
+  `ScreenSelection.swift:41-44` move with (al). Rule (p) moves on purpose: `UIPasteboard` is one of its `CODE_SOURCES`
+  (`:2629`), so the paste's read is bound to a name it watches, and each hand-off, the pairing-code refusal first, is a
+  NAMED line in `KEY_NAMED` (`:2520`) that says where the text goes. ScreenKeysTests hold that a paste waiting behind a
+  write carries the picture of its press. (ai), (ab) and (v) widen. probe:p316's N1 (`build/p3375/SPEC.md:417`) is
+  narrowed to let the system's Paste in. CopyTests' refusal of `Paste` and `paste`
+  (`ios/TortieTests/CopyTests.swift:459-479`) is lifted if a sentence needs the word. The rulings at
+  `ios/Tortie/Screens/Screen.swift:12-13` and "pastes nothing" at `TortieApp.swift:93` are rewritten. conformance:pocket
+  Y3 and Y4 cover the shared helper, Y13 the paste's one bump, Z4, Z7, Z8 and Z20 the second verb, and Z11 and Z25 the
+  new optional fields. Z9 and conformance:machines 124 and 140 move if the reads gain the marks. A new paste family
+  carries vitest rows of its own for `pasteRefusal`, because Z3 and Y15 do not hold the text refusals and vitest does.
+  gate:simulator does not move: the measurement writes the device's pasteboard from the UI test runner, never with
+  `pbcopy` from the host (`build/assert-simulator-teardown.mjs:87-94`).
+- **What does not move.** The Mac's native menus. gate:contract, because no IPC channel is added. gate:onlyadd stays
+  green with both frozen sets untouched, because a route and an optional key are adds; its P0 to P4 are re-run over the
+  integrated tree, because `SessionsScreen.swift` is in build 11's read record.
+
+### The proof, run rather than read
+
+**The spec measures first** and writes each answer to `build/p348/SPEC.md` before any builder starts:
+
+- **M1, native paste.** On iOS 26.3 and the 18.3 floor, through `build/simulator-run.mjs`: which road gives iOS's own
+  Paste in the Terminal's long-press menu, and Command-V and the three-finger paste in the hidden field, over text the
+  UI test runner wrote to the device's pasteboard (another app's content), and again after a trip to another app; that
+  no Allow Paste alert appears; and an ablation that reads the pasteboard on appear, without his press, which must raise
+  the alert, so the arm can go red.
+- **M2, the bytes.** The shipping verb against scratch servers of the vendored 3.7b and Homebrew's 3.6a, into
+  `build/p337/key-recorder.mjs` with and without its paste mode (`:22`, `:53`): bracketed where the program asked,
+  `a CR b` with no brackets where it did not, nothing after the last byte, copy mode left first, ESC refused, and the
+  buffer list empty after every path.
+- **M3, the far road.** Whether a paste can reach a session on another machine as a paste, with nothing of his text in
+  an argv; if not, the far refusal and its sentence.
+- **M4, the marks.** Research 142 §4.1's first step asks for live Claude Code and Codex panes. No vendor process runs
+  in this phase, so the committed captures in `build/fixtures/screen/` and `build/fixtures/reply/` stand in, beside a
+  shell, drawn on scratch 3.7b and 3.6a servers before and after a narrowing. The captures carry no mark until the
+  narrowing reflows them (research 142 §2.5). It reads marked rows, stale rows, the exact join, and the read's cost in
+  bytes and time beside the parent.
+- **M5, the bar.** On 26.3 and 18.3: whether iOS 26 puts Select and the filter in one glass capsule, whether an absent
+  item leaves a slot, and each press's extent.
+- **M6, an empty note on build 11.** Build 11's app against a Mac that sends `''`: where `read` sits against the last
+  row, the gap read from frames, expected at most the 6 pt stack spacing (`Pieces.swift:32`).
+- **M7, the first open after a pairing.** On each build, the time from the Mac's Allow to the first drawn row, and the
+  requests per source address in the first 5 s, the pairing's own included, with never more than four connections open
+  at once (`limits.ts:23`).
+
+**The gates.** `npm run typecheck && npm run build`, which runs conformance:ios, gate:simulator, gate:contract and the
+other build gates; then the full battery (test, smoke, smoke:t3, package); the gates CLAUDE.md's table names for these
+paths, being `conformance:pocket`, `conformance:pocket:hostile`, `conformance:machines` and `measure:p337 -- --check`
+for `src/main/pocket/**`, `src/main/reply/**` and `src/main/screen/**`, `conformance:manager` for `pocket-writes.ts` and
+`session-gates.ts`, `conformance:push` for the comment in `blockedAge` (`src/main/tray/attention.ts`), and
+`conformance:phonecopy` for `docs/design/phone/**`; `measure:p318`, once, because say's buffer steps move into the
+shared helper; `gate:onlyadd`; `test:ios` on 26.3 and 18.3, in Debug and Release; and `ablation:p313`, `ablation:p316`
+and `ablation:p33311`, with every new clause red when broken and every kept anchor still finding its text.
+`HELPER_USER_FLOOR` is raised in the same commit if a new probe reaches `build/electron-run.mjs`.
+
+**The Mac's app run, `probe:p348`.** One Electron at HEAD, with the parent built at `d2bb05ee` first on the same
+profile, one after the other, on the loopback machine (`build/with-scratch-machine.mjs`); two
+`build/p316/node-phone.mjs` phones; the stand-in Tailscale and DNS; five agents' binaries renamed;
+`build/p318/stand-in.mjs` behind `claude` and `codex`; and the key recorder for bytes. No vendor process runs and no
+token is spent.
+
+- **Allow.** A 0.112.0-shaped store with twelve routes allowed. `remove` and `paste` answer `404 route` before the body,
+  `/v1/session` carries no `removeConfirm`, and the screen answer carries no `paste` flag. Settings then Phone draws two
+  New lines, and one Allow serves both.
+- **Remove.** End then Remove a local shell, then read it from main: discarded with `removed_at` set, its snapshot and
+  hook file gone, listed by `sessions:listRemoved`, shown in the Mac's open Past tab, and brought back with its
+  conversation by Restore from Past. A remote ended row is removed, with the far command log showing no command sent.
+- **Refusals,** each graded on its reason and on the row unchanged: a live local row; an unknown row; a LIVE REMOTE row,
+  the attack on main's missing remote gate; a discarded id; a replay; End and Remove on one session from two phones
+  (`busy`); a phone removed mid-write; and the door stopping.
+- **Paste.** One bracketed paste into each stand-in, with LF as CR inside it and nothing after it; `a CR b` into the
+  recorder with no brackets and nothing added; ESC and CR refused; 16,384 bytes taken and 16,385 refused; a paste against
+  a question that moved since the picture refused `changed` with zero bytes read; a far session as M3 found; and a
+  replay that types nothing twice.
+- **Nothing kept.** No byte of any paste in any file, log or argv, and one log line per write.
+- **The parent.** `remove` and `paste` answer `404 route` with nothing forwarded, and `/v1/end` answers the same signed
+  requests byte for byte as HEAD does.
+
+**The attack, the second method for items 2 and 6.** `conformance:pocket:hostile` (`build/p313/hostile-client.mjs`) and
+`build/p316/hostile-door.mjs` send malformed bodies, an extra `batch` on a remove, an extra key on a paste, bad ids, a
+re-signed write id, bodies over their caps, a paste holding ESC, CR or another control character, a paste aimed at a far
+row, a flood against every limit, and answers the phone must refuse. Every refusal is graded on its reason word and on
+zero bytes typed. A paste also goes, just after a Return, to a program that turns bracketed paste off as it starts a
+canonical read, and what that program read is printed: the stated window, measured. The verifier also drives the Remove
+partition itself: `removeRefusal` against `canRemove` over every status, on this Mac and on another machine. They must
+agree everywhere except on a remote running, idle, `needs_input` or unknown row and on a discarded row anywhere, where
+main passes and the gate refuses. A reader that asserts plain equality would pass while reading nothing.
+
+**The phone's app run.** `probe:p316`'s groups on 26.3 and the 18.3 floor, beside build 11's app (`ios/` at `d2bb05ee`,
+through `P316_PARENT_IOS`) and, for NP11, the pre-346 parent:
+
+- **Item 1.** T2a and U1 land on Sessions, with the Sessions tab read as selected where XCUITest reads that trait, and
+  UNREADABLE, never a pass, where it does not. N8 and N11 relaunch onto Needs input. M7's numbers are printed beside the
+  parent's.
+- **Item 2.** Remove appears in End's place after End, with no owner check asked: the relay counts one POST and
+  `handle.biometry` is never needed. Leaving the app during the confirmation withholds the write. Done returns to the
+  list, and the session is absent under All. Build 11 against the new Mac draws no Remove and its End is unchanged. The
+  new app against a 0.112.0 Mac draws no Remove.
+- **Item 3.** S6 in its three alerts states, U1, SE4, SA12, SC1 and SC3. Every `settings-*` id the parent draws, HEAD
+  draws with the same label and kind, and every pressable row is at least the parent's height. On an iPhone 16 Pro and
+  an iPhone SE, with the hostile door's `twin` arm and both footers on screen.
+- **Item 4.** No age-note element on any list or in the sample. Build 11 against the HEAD Mac draws no sentence (M6).
+  HEAD's app against the parent Mac draws none.
+- **Item 5.** NP1 and the rewritten NP12 on both runtimes, on an iPhone 16 Pro and an iPhone SE. A new arm NB: the large
+  title at rest, inline after one swipe, and the Show control under it. SL1 to SL8, with SL7 reading the "+" off while
+  selecting; E4; NP8 to NP10; and the hostile `sessions-cap` arm PASS rather than UNREADABLE. The rows wholly visible at
+  rest and scrolled are printed beside the parent's.
+- **Item 6.** Paste beside Copy in the menu, Command-V and the three-finger paste, from another app's text after a trip
+  away, with no alert. An armed Ctrl not applied. A pairing code refused with nothing sent. A wrapped command copied
+  from the Terminal pastes back as one line. A command zsh is still editing copies as the parent copies it, which is
+  stated. The sample's paste stays on the phone.
+
+**The independent methods, named per item.** Item 1: the parent's own landing, read by screen id. Item 2: the driven
+partition and the attack; and the confirm words re-derived from the row and compared with the door's `removeConfirm`,
+the phone's drawn text and the Mac sheet's. Item 3: the layout re-derived from frames (group order, row heights, one
+text column per group, nothing under the tab bar) and checked against the parent's ids. Item 4: the hostile door answers
+a 2 KB note with line breaks and an empty one; HEAD draws neither and build 11 draws the long one. Item 5: a tap grid
+every 4 pt across the whole bar at three heights, on both runtimes and over the parent's title row, re-deriving each
+press's extent and the gap between Select and the "+" from the taps alone. Item 6: the bytes re-derived from the
+recorder's own log, the attack, and M1's alert ablation.
+
+**At the end, once.** Electrons counted; `xcrun simctl list devices | grep -c p316-` reads 0 with nothing booted; his
+`~/.zsh_history` size and time unchanged; his `-L gmux` count only.
+
+### The lane
+
+One build lane, as his request asks: spec (M1 to M7, `build/p348/SPEC.md`), builders on disjoint files (D38), integrate,
+verify once at the end with each item at its own tier, fix once, an independent reverify that re-runs the failed items
+live and anything the fix touched, then commit. A second needs_work goes to him (CLAUDE.md, "How every remaining phase
+gets built").
+
+### Stated trades
+
+- **Item 1.** After a pairing, a spinner and two more reads, where Needs input drew the pairing's own answer at once.
+  Under Show Active with nothing running, the first face is "No matching sessions".
+- **Item 2.** With no owner check, a lost unlocked phone can remove every ended session, and each one's saved scrollback
+  and hook file go at once. Restore stays on the Mac for 90 days, and it brings back the conversation, not the screen.
+  Remove appears where End was a moment before, so a second tap there asks the Remove question, and only his
+  confirmation removes.
+- **Item 4.** No hint that a wait's age starts again when Tortie restarts, as on ⌘J today.
+- **Item 5.** The collapsed bar stays on screen while the list scrolls, as on any iPhone, so fewer rows show; the probe
+  prints how many beside the parent. The large title follows Dynamic Type while the list's own text does not, and its
+  colour is the system's, not a token.
+- **Item 6.** A paste into a program that never asked for bracketed paste runs its lines, as a paste at the desk does.
+  This reverses Phase 337's refusal on purpose, by his ruling. A clipboard that ends in a line break runs its last line
+  there too, and one holding a CR is refused. Whatever is on the clipboard, a secret from his Mac included, lands where
+  he pastes it and shows on the Terminal. The window between the final check and the act (`keys.ts:48-59`), and tmux's
+  record of the bracket mode trailing the program, are the desk's own class: stated, not closed. A paste reaches a
+  dialog Tortie does not read as a question, as his typing does, and what a bracketed paste does there is not
+  measured. Copy's join does not reach agents' own line breaks or a command zsh is still editing. A far paste may be
+  refused (D22).
+
+### The menus
+
+The Mac's native menus do not change: no Mac surface is added, renamed or removed, and the two New lines are drawn by
+the Allow that Settings then Phone already holds. On the phone, the Terminal's ⋯ holds Catch Me Up, then End session…
+or, once the session has ended, Remove. Its long-press menu holds Copy and Paste. The Sessions filter menu moves to the
+bar's leading edge with its content unchanged.
+
+### Release obligations
+
+- 0.113.0 carries `remove`, `paste`, the wrap marks and the empty age note beside build 12, each on his word. The phone
+  build that calls the routes ships with the Mac release that serves them.
+- At that release build 12's wire is frozen beside launch and build-11, and `FROZEN_SETS_FLOOR` goes from 2 to 3
+  (`build/assert-door-only-adds.mjs:252`).
+- The store's review notes (`build/p333/STORE-CHECKLIST.md:144`, 3,884 of 4,000 bytes before his phone number is filled
+  in) and its claims table gain Remove and Paste, still within 4,000 bytes, and still say Face ID is asked only before
+  ending a session (`:165`, `:202`). The claims row that cites `SessionsScreen.swift:760` (`:222`) is re-pointed at the
+  bar, and the row that names Copy as the menu's only item (`:221`) names Copy and Paste. Its five screenshots
+  (`:24-29`) show build 11's bars and Settings, so the checklist asks him to take them again from build 12.
+- Build 12 is archived from the landed tree and goes to TestFlight on his word.
+- The phase writes `build/p348/CHECKLIST.md` for his seat. It says that a pairing lands on Sessions and that the foot
+  reads `read <time>` alone, because the landed checklists say otherwise (`build/p3166/CHECKLIST.md:135`,
+  `build/p316/CHECKLIST.md:141-145`).
+
+### What is NOT in this phase
+
+- **No Face ID on Remove** (his ruling), and no change to Face ID's scope: End and End these still ask, and nothing else
+  does.
+- **No Remove these**, no End and remove in one press, and no change to End these.
+- **No Remove of a live or unknown session.** End comes first, as on the Mac.
+- **No hard delete, no Restore and no Past Sessions on the phone.**
+- **No change to `/v1/end`.** Its body, answer, ledger row, clause and behaviour stay byte for byte.
+- **No preview box for paste and no Paste key.** The key bar does not change, and no message box joins the Terminal.
+- **No paste of images or files, and no drop.**
+- **No Return added after a paste**, no clipboard history, and nothing pasted kept, logged, queued or retried.
+- **No paste into a session on another machine** unless the spec measures a far road safe (M3).
+- **No stored tab.** A relaunch opens on Needs input, and choosing a Mac and See a sample keep Needs input.
+- **No SwiftUI `List` in Settings**, no new word, token, switch, sub-page or symbol tile, and no change to what Settings
+  does.
+- **No change to the Show control or to the filter menu's content**, and no search.
+- **No per-row wake mark**, and no change to `blockedAge`, `WAKE_WINDOW_MS` or the push alert's "Seen when your Mac
+  woke".
+- **No change to the Mac's own Remove**, its session manager, its native menus or the IPC contract.
+- **No release, tag, Mac version bump or upload inside the phase.** 0.113.0 is set at the release, on his word. No
+  screenshot or screen recording.
+
+---
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -43841,3 +44536,7 @@ cycle rather than only the evening it was written.
 - 2026-10-17, **0.112.0 PUBLISHED as Latest, `4dd64c4f` (tag `v0.112.0`) — the iPhone release.** On the phone side, phone build 11: 346's start, 345's several Macs, 337.5's selection, 333.3's See a sample and 333.4.1's small screens. On the Mac: 333.12's update that keeps the phone working, with 333.12.1 and 333.12.2, and 347.1's broken-path link (#40). The release run (39016956552) was green on its first try; `releases/latest` and `latest-mac.yml` read 0.112.0. #40 was told it shipped; the six open issues are not this release's. tortie.sh pushed (`e3c83f0`) with its changelog refreshed; the README and store checklist pushed (`3057f2ee`); the App Store guide republished with the review notes naming the agents' marks. Phone build 11 was archived from the tag and passed `--read-app`; xcodebuild's upload refused ("Failed to Use Accounts": no account with App Store Connect access for the team from the command line), so the archive is in his Organizer for Distribute App, as build 10 was. In flight: build 11's wire frozen beside launch, which exposed DoorFrozenTests' missing start cases (fixing, test code only).
 
 - 2026-10-17, **PHONE BUILD 11's WIRE FROZEN beside launch, `03853e2d`** (346's release obligation, build/p346/SPEC.md §11): `build-11.wire.json` and `.vectors.json` (12 routes, 37 types, 529 arms) and `FROZEN_SETS_FLOOR` 2, so every later Mac release must keep serving what build 11 sends and reads. The second set exposed that DoorFrozenTests had no case for start (40 phone tests red on iOS 26.3); its decode, verdict and request rebuild now read a start as the app does (test code only, so build 11's app is unchanged), and ablation:p33311's control F1r reads the floor instead of spelling 1. test:ios green on 26.3 and 18.3, build-11 656 of 656 rows with its arms asserted. tortie.sh's changelog shows 0.112.0: Vercel never built the refresh commit `8b49d6b`, so the site's weekly line-count refresh was run a day early and its commit deployed it. WAITING ON HIM: build 11's upload from the Organizer (Distribute App, App Store Connect, Upload), then build 11 in his TestFlight group with What to Test, his Mac on 0.112.0, and Allow for "New: start sessions from your phone".
+
+- 2026-10-18, **PHONE BUILD 11 UPLOADED** by him from the Organizer (16:42 UTC, Distribute App), and going to the public TestFlight group with its What to Test text (Beta App Review first). An internal Slack post about 0.112.0 and build 11 was drafted and checked against the tree; it waits until the public group serves 1.0.0 (11).
+
+- 2026-10-18, **348 QUEUED — the phone, polished: Sessions after a pairing, Remove after End with no Face ID, Settings grouped, the age note gone, the iPhone's own title bars with the "+" alone, and native paste with Copy joining wrapped rows** (full section above; one integrated phase, verified once at the end, items 2 and 6 at Tier 3 and the rest at Tier 2; two new routes, `remove` and `paste`, wait for one Allow; the Mac half in 0.113.0 beside phone build 12, both on his word).
