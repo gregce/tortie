@@ -43250,6 +43250,428 @@ bar's leading edge with its content unchanged.
 
 ---
 
+## Phase 349 — "making it possible to rename sessions from the phone that it can access (and name sessions initially that are created via the phone)" — rename a session from the iPhone, and name one in New session (operator, 2026-10-19)
+
+**Subject.** `feat(pocket): rename a session from the iPhone, and name one in New session`
+
+**First body line.** `Phase 349: rename sessions from the phone`
+
+**Semver.** Minor, unreleased, Mac and phone, each half on his word (D13). Rule (s) moves to 13 only if build 12 was
+archived before this lands (his rule, `docs/BACKLOG.md:44946`). CHANGELOG items under `## Unreleased`, `### Added`:
+
+- "Rename a session from your iPhone, from the Terminal's ⋯ or by holding the session in a list. A session on another
+  machine can be renamed while it runs, and your Mac asks you to allow renaming once, in Settings then Phone."
+- "New session on your iPhone takes a name. Left empty, your Mac names the session as before."
+- "On your Mac, renaming a session to a name that starts with a slash, a dot or a dash now works, and a name with # in
+  it, or one ending in ;, keeps exactly what you typed."
+
+**Tier 3.** It adds a route the Mac answers from the internet (refusal 8's ground, Phase 333.12) that writes the
+manifest and renames tmux sessions on this Mac and other machines, which is session lifecycle, and it claims to work
+across agents and machines, so its evidence is a per-row matrix. His lighter checking covers Tier 1 and Tier 2 only
+(`docs/BACKLOG.md:44920`). Two independent methods, one an attack; fix once, reverify once.
+
+**Charter.** His words of 2026-10-19, in the heading. The research is that day's read-only investigation of the Mac's
+door and of the phone, and the adversary's attack on both; this entry carries the attack's corrections, and D2 settles
+the one question the two findings answered differently. There is no `docs/research/` document, so the spec writes what
+it measures into `build/p349/SPEC.md` before any builder starts. His request supersedes research 127's "Writes not in
+v1: … Rename" (`docs/research/127-the-phone.md:790`), Phase 317's "No … Rename … from the phone"
+(`docs/BACKLOG.md:34025`) and, for the name alone, Phase 346's "no name chosen on the phone" (`docs/BACKLOG.md:42115`).
+The phase records that, and rewords `conformance:pocket` R3's reason for `renameSession`
+(`build/conformance-pocket.mjs:1447`), as 346 and 348 did for their verbs. His standing rules bind: a new route waits
+for its own Allow (his answer 10, `docs/BACKLOG.md:44918`); Face ID only for End (`:44680`; his answer 5; "No Face ID,
+just confirm", `:42605`); no regression against today; just enough words; nothing released without his word. **It starts
+once 348 lands, on 348's landed tree**: 348 edits every file this phase edits, and two of its questions to him are open
+(348: `build/p348/SPEC.md:1500-1515`). Line numbers are origin/main's (`1eb477bf`), and this file's own are as it reads
+with this entry in it; one marked "348" is 348's integrated tree, re-read by the spec on 348's landed tip.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **The Mac's one rename.** `core.renameSession` (`src/main/sessions/core.ts:3301-3352`) refuses only a blank name
+  (`:3310-3312`) and stores what it is handed; only the renderer trims
+  (`src/renderer/state/sessions-slice.ts:1296-1302`). In `core.ts`, a live session on this Mac is renamed in tmux by
+  `$`-id, then in the manifest (`:3324-3341`); an ended one in the manifest (`:3342-3349`); a remote one through
+  `remoteRename` (`:3316-3320`). Each path broadcasts (`:3318`, `:3350`), and no agent sees the name. Main's lifecycle
+  gate has no rename refusal (`src/main/sessions/lifecycle-gate.ts:59-117`); the shared gate offers Rename on every row
+  neither unknown nor removed (`src/shared/session-gates.ts:278`, `:295`).
+- **An ended remote session is renamed two ways.** Ended in this run, it sits in its machine's `gone` map and is refused
+  `TARGET_UNBOUND` (`src/main/machines/remote-sessions.ts:2254-2264`). Ended before, it is a record `isRemoteSessionId`
+  cannot see (`:1190-1198`), so it takes the local branch: the manifest alone, no far command, no stamp, and this Mac's
+  rule, which keeps `$` (`core.ts:3342-3349`).
+- **tmux expands a session name as a format**, and has since 2.7 (`CHANGES:1814` in the 3.7b source that
+  `build/build-tmux.mjs` unpacks, the untracked `build/vendor/tmux/work/tmux-3.7b/`): `rename-session` its new name
+  (`cmd-rename-session.c:54`), `new-session -s` its name (`cmd-new-session.c:113`). `#(…)` starts a shell job on the
+  server's host (`format.c:5693`, `:417`), sent SIGTERM when its client goes (`job.c:280`); `clean_name` defuses `#(`
+  only in untrusted text, and both commands pass the name as trusted (`tmux.c:285-299`; `cmd-rename-session.c:60`); `#H`
+  and `#S` are one-letter formats (`format.c:200-257`). Research 130 saw a `#(…)` sent over a control connection run
+  (`docs/research/130-remote-scrollback.md:309-312`). Neither Tortie name rule touches `#`
+  (`src/main/tmux/names.ts:43-51`; `remote-sessions.ts:1082-1084`), so today a Mac rename to `fix #H` puts the host's
+  name in tmux, and the echo handler copies it into the display name (`core.ts:1765-1774`).
+- **Three more misreadings.** An argument ending in `;` ends the command and loses the `;` (`cmd-parse.y:1098-1103`): a
+  live rename to `x;` leaves tmux at `x` and the manifest at `x;`, and `new-session … -s 'x;' -c …` splits in two
+  (`src/main/tmux/sessions.ts:169-174`, `:219-226`). A leading `-`, which a leading `.`, `:` or `/` becomes
+  (`names.ts:17`, `:48`), is read as flags by `rename-session` (`sessions.ts:224`; `arguments.c:209-213`, `:228`), on
+  every far version too (`remote-sessions.ts:1073-1078`), so the Mac's own F2 to `/review` fails today, while
+  `new-session` takes `-s -x` whole (`arguments.c:161-184`). A leading `$` reads as a tmux id on this Mac
+  (`sessions.ts:260-268`; `names.ts:75-77`), and Clear and capture are handed the tmux name
+  (`src/renderer/terminal/terminal-menu.ts:238`; `src/main/capture/service.ts:153`, `:206`). And `gmux-control`, the
+  control client's own session, opened with `new-session -A` (`src/main/tmux/control-client.ts:116`, `:144-150`), is
+  deduped against only while it exists (`sessions.ts:215-217`).
+- **Seven places call the tmux-name rule**: `sessions.ts:170`, `:220`; `core.ts:3338`, `:3347`;
+  `src/main/sessions/launch-plan.ts:439`; `src/main/manifest/reconstruct.ts:927`; and `farTmuxName`
+  (`remote-sessions.ts:1083`), for a far create and rename (`:1777`, `:2296`).
+- **The door.** The writes are exactly `end`, `choose`, `say`, `keys` and `start`
+  (`src/main/pocket/door/table.ts:110-123`); 348 appends `remove` and `paste`. One write path of seven steps
+  (`src/main/pocket/writes.ts:1-80`): the ledger keyed on phone, verb and write id (`:693`), one write in flight per
+  phone and per session across verbs (`:780-786`). The door names no verb (R3,
+  `build/conformance-pocket.mjs:1441-1449`). An allowed id never changes meaning
+  (`src/main/pocket/route-ledger.ts:18-20`), and one Allow agrees to every waiting route
+  (`src/main/pocket/allowed-routes.ts:60-83`).
+- **`/v1/start` cannot carry a name.** Its body is exactly `{agent, project, write}`, cap 512, read by an own-bytes rule
+  that refuses a space or an escape inside a value (`writes.ts:172`, `:326-341`, `:491-500`), and build 11's frozen
+  request sends those three, always (`ios/TortieTests/Fixtures/frozen/build-11.wire.json:685-697`). Its done answer
+  carries the new session's id and name (`src/main/sessions/pocket-start.ts:502`), already bound to its `$`-id
+  (`src/main/sessions/create-local.ts:695-696`).
+- **Rows carry End's offer** through the facts (`src/main/pocket/routes.ts:658`, `:1917`), inside the sessions budget
+  (`src/shared/ipc/pocket.ts:557`); the phone reads an absent offer as none (`ios/Tortie/Door/Contract.swift:197`), and
+  the detail decodes the row (`:721-722`). The list clips a name at 200 (`routes.ts:1909`); a blocked row and the detail
+  carry it whole (`:636`).
+- **Words and fields.** The Mac says `Rename` (`src/renderer/app/session-actions.tsx:930`) and `Save name`
+  (`src/renderer/session-manager/copy.ts:633`), caps its sheet's field at 120 with no spell check
+  (`src/renderer/session-manager/InlinePanel.tsx:336-337`), and labels ⌘T's field `Name`
+  (`src/renderer/app/CreateSessionModal.tsx:1377-1380`), a word the phone already declares once, as `Copy.sortName`
+  (`ios/Tortie/Style/Copy.swift:121`; `ios/TortieTests/CopyTests.swift:16-27`). A SwiftUI field cannot turn smart
+  punctuation off (`ios/Tortie/Screens/MessageStrip.swift:125-143`). The lists are not a `List`, so they offer no swipe
+  (`ios/Tortie/Screens/SessionsScreen.swift:690-691`), and an ended session opens on Catch Me Up
+  (`ios/Tortie/Screens/SessionScreen.swift:16-19`). A real pairing code is 289 or 290 characters (the `qr` payloads in
+  `ios/TortieTests/Fixtures/vectors.json`).
+
+### The mechanism
+
+**The Mac.**
+
+1. **The route.** `rename`, `POST /v1/rename`: signed, a write, alive outside any pairing window, cap 2,048 (D6). It is
+   appended after 348's `paste` wherever 348 appends: `POCKET_ROUTES` (`door/table.ts:110-123`), `POCKET_ROUTE_IDS`
+   and `POCKET_WRITE_ROUTE_IDS` (`src/shared/ipc/pocket.ts:106-155`), `DoorWriteRoute` and `WRITE_ROUTES`
+   (`src/main/pocket/door/wire.ts:136`, `:324`), `POCKET_WRITE_BODY_CAPS` (`src/main/pocket/door/limits.ts:43-83`), the
+   ledger, and D10's words in `WRITE_CLAUSES` (`src/main/pocket/pairing.ts:426-432`), `POCKET_HONESTY_ADDED`,
+   `POCKET_FACE_CLAUSES` and `POCKET_NEW_ROUTE_WORDS` (`pocket.ts:1338`, `:1471`, `:1498`). Never in
+   `LEGACY_ALLOWED_ROUTES` or `POCKET_SESSION_WRITE_IDS`. Until a person presses Allow it answers `404 route` before
+   the body, and nothing offers it.
+2. **The body** is exactly `{name, session, write}`, through the one strict parse: the ids read one character at a time,
+   the name any string, as say's text is (`writes.ts:413-421`). It takes the session verbs' path: the ledger on phone,
+   `rename` and write id; one write in flight per phone and per session; `routeServed('rename')` last; one log line,
+   never holding the name.
+3. **The answer**, `PocketRenameAnswer`: Start's six fields with `name` in `session`'s place, the name main stored,
+   non-null exactly when `done`; a `busy` or a `malformed` takes the same shape, through 348's `doorAnswer` (348:
+   `src/main/pocket/writes.ts:782`). Never a `PocketWriteAnswer`, whose verb and reasons the frozen phones read as
+   closed sets (348 D27, `docs/BACKLOG.md:42941`). Its reasons, `malformed`, `gone`, `unreachable`, `changed` and
+   `name`, are read on the phone as an open word.
+4. **The act**, a new `PocketWrites` member (`src/main/pocket/routes.ts:462`) in `src/main/sessions/pocket-writes.ts`,
+   beside `end` and 348's `remove`. A pure `renameVerdict` answers, in order: no listed row, `gone`; unknown,
+   `unreachable`; a row `canRename` refuses (D4), or a remote row that is not live (D3), `changed`; a name the rule
+   refuses, `name`. Then `await core.renameSession({ sessionId, name })` with the trimmed name, the first await; the
+   verb broadcasts itself. A throw is told apart by code alone: `SESSION_NOT_FOUND` gone, `INVALID_INPUT` changed
+   (`TARGET_UNBOUND`), anything else failed, with a new `RENAME_FAILED` in `src/shared/lifecycle-words.ts`. No status,
+   no `noteUserInput`, no log.
+5. **One name rule**, `sessionNameRefusal` in `src/shared/session-names.ts` (D5), its sentences declared there. On the
+   Mac the door's verb alone reads it; the phone's copy is held to it by the shared vectors (rule (j)). Its limit and
+   the rename cap join gate:onlyadd's `MAC_LIMITS`, with an `ASK_ROWS` row tying the phone field's cap to the limit
+   (`build/assert-door-only-adds.mjs:297-308`; `build/p33311/swift-wire.mjs:157-163`), so no later Mac lowers either
+   under a frozen phone.
+6. **The tmux name stops carrying tmux syntax** (D7). `sanitizeSessionName` (`src/main/tmux/names.ts:43-51`) maps to `_`
+   what tmux reads in a name, on every version M1 measures: a `#` before `{`, `(`, `#`, `,`, `}`, a one-letter format
+   (in 3.7b `D F H I P S T W h`, `format.c:200-257`) or the name's end (`format.c:5659-5780`), a trailing `;`, and a
+   leading `-` or `$`. A name tmux takes whole today, such as `PR #12` or `a;b`, stays whole unless it starts with `-`
+   or `$`. `dedupeSessionName` (`names.ts:59-68`) treats `gmux-control` as taken; `farTmuxName` still maps every `$`.
+   The far `@gmux-name` stamp keeps the display name whole, a trailing `;` sent as `\;` (`cmd-parse.y:1098-1101`;
+   `src/main/machines/remote-stamps.ts:47`), and its failure warning logs the error's code, not its text, which can
+   carry the command and so the name (`remote-sessions.ts:2304-2308`; `src/main/machines/exec-plane.ts:868-871`;
+   `src/main/tmux/errors.ts:67`). The display name is never mapped, and a running session keeps its tmux name until it
+   is renamed or restored.
+7. **The offers** (D14). An optional `rename?: boolean` on `PocketBlockedRow`, and so the detail, and on
+   `PocketSessionsRow` (`pocket.ts:221`, `:405`, `:575`), from a `renameOffer` fact beside `endOffer`: true while
+   `rename` is served (`renameAllowed()` beside `startAllowed()`, `src/main/pocket/ipc.ts:904-906`) and the verdict, the
+   name aside, passes. An optional `renames?: boolean` on the `/v1/sessions` answer, outside `start` (`pocket.ts:703`),
+   true while `rename` is served, so a fault in it never hides the "+" (NS9; bb5). Both wired in
+   `src/main/capabilities.ts:429-451`.
+8. **The words that say a phone names or renames nothing** are rewritten: `pocket.ts:47-73` (the rename at `:72-73`),
+   `door/table.ts:101-109`, `ios/Tortie/Screens/Start.swift:5-11`, `StartSheet.swift:19-20` and
+   `ios/Tortie/Door/DoorClient.swift:79-86`; and the app's list of what it never does
+   (`ios/Tortie/App/TortieApp.swift:89-100`) gains the rename.
+
+**The phone.**
+
+9. **The door.** `DoorClient.rename` goes through the one `signedPost`, its `RenameBody` exactly `name`, `session` and
+   `write`, sorted, with a fresh write id at every press (D9); `RenameResult` is classified as `StartResult` is
+   (`DoorClient.swift:920-966`). A row's `rename` is read strictly with `decodeIfPresent`, as a blocked row's `end` is
+   (`Contract.swift:197`), and `renames` leniently, beside `start`'s read and never inside it (`:1267`); each absent
+   reads as false.
+10. **One field**, a new `ios/Tortie/Screens/NameField.swift`: a `UITextField` with smart quotes, smart dashes, smart
+    insert, autocorrection, capitalisation and spell checking off (D11), at most 120 units, its first focus selecting
+    the text, and beside it the Swift copy of the rule. Its own file, because (aa3) and bb4 keep text fields out of
+    `SessionsScreen.swift` and the Start files (`build/conformance-ios.mjs:6954`, `:16458`).
+11. **Rename**, a new `ios/Tortie/Screens/SessionName.swift`, since (au) is already "THE RENAME", of Catch Me Up
+    (`build/conformance-ios.mjs:451`). A sheet in New session's family: the title `Rename`, Cancel and `Save name`, the
+    whole name prefilled and selected, and one line under it. Save is off while the rule refuses, the name is unchanged
+    or a write runs, and Return saves whenever Save would. A `RenameRunner` is made at the press, registered before its
+    task, stopped by `AppModel.wentAway` and never retried; its `run` is the app's one `rename(`. Done closes the sheet
+    and reads the session again. A refusal keeps the sheet, his text and the Mac's sentence; a 404 or a withheld write
+    says `Your Mac did not rename it. Nothing was changed.`; no answer draws `Copy.endNoAnswer`, only over a read that
+    came back, as 348's Remove does. No owner check (`OWNER_CHECK_ABSENT`, `build/conformance-ios.mjs:5809`).
+12. **Where it is drawn** (D1). `Rename`, with the Mac's pencil, is second in the Terminal's ⋯, before End session… or
+    Remove (348: `ios/Tortie/Screens/SessionScreen.swift:459-588`), its sheet outside the menu's items as the
+    confirmations are. Every row of Needs input and Sessions takes a native long-press menu of Rename alone, reached
+    through an environment value as End these is (`ios/Tortie/Screens/ListScreen.swift:543`), so (k)'s pinned line stays
+    (`build/conformance-ios.mjs:1745`). Each is drawn only where the row's `rename` is true, and nothing is offered
+    while End these takes taps. A row's sheet reads `/v1/session` as it opens, for the whole name and a fresh offer. A
+    rename goes to the Mac whose space drew it (ba1, ba2).
+13. **New session's Name** (D2, D12): one row under Agent, `Name` over the shared field, empty, drawn only where
+    `renames` says. Empty, Create sends today's start byte for byte. Named, Create reads `Creating…` through the start
+    and then ONE rename, sent from the start's done arm to the id its answer carried, by a `RenameRunner` registered
+    before its task with the name fixed at the press; the session opens under the name the Mac answered. A rename not
+    taken opens it under the Mac's name, the sentence on that page's one line (where End's and Remove's are drawn), and
+    nothing is retried. The kept start never holds the name (`ios/Tortie/Screens/Start.swift:102-123`).
+14. **See a sample** draws Rename and the Name on its own sessions, its Save name and Create saying
+    `This is a sample, so nothing ran.` Nothing leaves the phone, and its names never change, because its book holds the
+    Mac's own order (`ios/Tortie/Sample/SampleBook.swift:4-14`). `vectors.json` and `sample.json` are regenerated once,
+    after every Mac change ((j), az7).
+
+### The decisions
+
+Where his words leave a choice, the main session's defaults are taken: rename wherever the Mac's own gates allow, with
+its rules and words and no Face ID; a new route with its own Allow; the road at creation that keeps the frozen phones
+and 333.12 whole; one Allow beside 348's if 0.113.0 is unreleased; 348's landed tree; Tier 3, verified once at the
+end. The entry's own choices follow, each with its reason. He may overrule any before the first commit; D6 and D10
+cannot change after it, because no ledger row is ever edited (`route-ledger.ts:18-20`) and gate:onlyadd R8 reads every
+committed copy.
+
+- **D1. Where Rename lives.** Second in the Terminal's ⋯, and alone in a long-press menu on every row of Needs input and
+  Sessions; not on Catch Me Up's bar (End's, then Remove's) or the Terminal's long press (it selects, 337.5), and no
+  swipe. His "sessions … that it can access" includes ended ones, which open on Catch Me Up, so only the rows reach
+  every session, and a long press is the iPhone's own place for a row's actions.
+- **D2. A named start is a start, then a rename by id.** `/v1/start` and build 11's frozen start stay whole, and one
+  route serves both asks. A `name` key on start would change an allowed route (`route-ledger.ts:18-20`) that every
+  0.112.x Mac answers malformed (`writes.ts:494`). A named start route keeps 333.12 whole too, but doubles NS1 to NS12
+  and bb1 to bb10, must share start's one in flight and its rate (`writes.ts:683`, `:187-189`), puts the name in the
+  kept start, so a name corrected after a lost answer starts a second agent, and still needs `rename`. He may choose it
+  instead.
+- **D3. Which sessions.** On this Mac every session the gate offers Rename on, live or ended; on another machine only
+  while it runs, because the Mac's own verb refuses an ended one or renames it here alone. The Mac's F2 keeps both of
+  today's behaviours.
+- **D4. A third gate environment**, `DOOR_RENAME_GATE_ENV`, asked `canRename` and nothing else, with a test that
+  `canRename` reads none of it, so 348's two keep "nothing else of either" (348: `src/shared/session-gates.ts:317-347`).
+- **D5. The name rule.** Trimmed as the Mac trims, then refused, each case with its sentence, when empty (the Mac's
+  `Session name cannot be empty.`, `core.ts:3311`), over the Mac sheet's 120 UTF-16 units, or holding a C0 control (TAB,
+  LF and CR included), DEL, a C1 control, half a surrogate pair, a bidi embedding, override or isolate (U+202A to
+  U+202E, U+2066 to U+2069), or U+2028 or U+2029, which could reorder the status beside a name in an alert's title
+  (`src/main/push/alert.ts:100`). Anything else passes, a duplicate included, as on the Mac. A pairing code is 289 or
+  290 units, and in both vectors its one-shot secret `ps` (`ios/Tortie/Door/Pairing.swift:45`) starts past the 200th
+  character, so the cap refuses a code and no cut of one under it holds the secret; no second code test is written.
+- **D6. No lock, and the cap.** The body names no expected old name: the last rename wins, as between two Mac windows.
+  The cap of 2,048 holds the worst legal body (120 units each escaped `\u00XX`, about 915 bytes) and a longer name
+  later. A key given twice keeps its last value, as say's text does, and the answer's `name` shows what landed.
+- **D7. The tmux name holds tmux syntax back, not the door.** That closes the Mac's own rename and create too, where a
+  door refusal would refuse names ⌘T makes (`/review`, `.env fix`, `#123 fix`). A tmux name is drawn only where
+  tmux's echo reaches a display name (`core.ts:1765-1774`), on a far Mac's own Tortie and for a moment here, and where
+  a far stamp did not stick (`remote-sessions.ts:3336-3339`), so only what tmux reads is mapped: mapping every `#`
+  would draw `PR #12` there as `PR _12`, worse than today. A leading `-` is mapped rather than put behind `--`,
+  because only 3.7b's source was read to honour `--` (`arguments.c:212`) and far machines run tmux from 3.2a
+  (`src/main/tmux/version.ts:216`).
+- **D8. No Face ID** ("Only for End"; his answer 5; "No Face ID, just confirm"). A rename destroys nothing.
+- **D9. No kept write id.** With no format left in a tmux name, the same name twice holds one name
+  (`src/main/machines/exec-plane.ts:349-354`), so a press after a lost answer is a fresh write, as Remove's is.
+- **D10. The Allow words.** The write and honesty clause `rename a session`; the face clause `rename sessions`; the New
+  line `rename sessions from your phone`, with `Name a session as you start it, or rename one later.`
+- **D11. A sheet, its words, its field.** A sheet, because an alert closes on every button and a refusal would lose his
+  text. The Mac's `Rename` and `Save name` and the phone's `Cancel`, never `Rename '<name>'`, which the phone's word
+  reader cannot own (`ios/TortieTests/StyleSource.swift:195-220`). Smart punctuation off, so `fix--auth` arrives as
+  typed, and autocorrection and spell checking off, as on the Mac.
+- **D12. New session's Name starts empty**, labelled with the phone's one `Name`: the phone cannot know the `<n>` the
+  Mac picks as it creates, and a stale guess would be deduped to `claude-3-2`.
+- **D13. The release.** If 349 lands before 0.113.0 is released, 0.113.0 carries `rename` beside 348's routes, the phone
+  build cut from 349's tree calls all three, and its New line sits beside 348's under one Allow; otherwise the next Mac
+  release and phone build, with an Allow of its own.
+- **D14. The offer rides every row**, as End's does, and not the detail alone, as 348's Remove does
+  (`docs/BACKLOG.md:42722-42725`), because Rename is drawn on rows; its bytes count inside the sessions budget, as End's
+  do.
+
+### The proof, run rather than read
+
+**The spec measures first**, into `build/p349/SPEC.md`:
+
+- **M1, how tmux reads a name.** On scratch servers of the vendored 3.7b, Homebrew's 3.6a and the versions
+  `build/build-tmux-version.mjs` builds, each with a scratch `HOME` and `SHELL=/bin/sh`, never `-L gmux`: what
+  `rename-session` and `new-session -s` make of `#{session_id}`, `#H`, `#(touch <scratch file>)`, `fix #`, `PR #12`,
+  `a;b`, `x;`, `-x`, `/review`, `$0` and `gmux-control` under the old rule and the new, read by `$`-id and by the
+  scratch file's absence, and which `#` sequences each version reads; and whether the stamp's `\;` reads back as `;`.
+- **M2, the far round trip.** A rename on the loopback machine, from the door's forward to its answer, against the
+  door's 15 s (`src/main/pocket/door/limits.ts:35`), with the far list it waits for (`remote-sessions.ts:2331`).
+- **M3, the phone**, on 26.3 and the 18.3 floor through `build/simulator-run.mjs`, on an iPhone 16 Pro and an iPhone SE:
+  the UIKit field against a SwiftUI one for `'`, `"` and `--`; the row menu (a tap still opens, End these still toggles,
+  an empty menu draws nothing, its item reaches XCUITest by identifier or by its words); the ⋯ with three items under
+  iOS 26's glass; the sheet with the keyboard up on the SE.
+
+**The gates.** `npm run typecheck && npm run build`, which runs conformance:ios, gate:onlyadd and gate:contract, then
+the full battery; for these paths `conformance:pocket`, `conformance:pocket:hostile`, `conformance:manager`,
+`conformance:machines`, `conformance:remoteclose`, `conformance:farattach` and `conformance:phonecopy`; `test:ios` on
+26.3 and 18.3, Debug and Release; `ablation:p313` and `ablation:p316`, one arm per new clause, each red when broken,
+every kept anchor still found; and, once at HEAD, the app runs CLAUDE.md names for these paths, `probe:p313`,
+`probe:p3167` and `probe:p317`. `HELPER_USER_FLOOR` rises in the commit that adds `probe:p349`.
+
+**Method 1, re-derived against the typed name.** The phone's rename and the Mac's own reach one verb, so comparing them
+proves nothing about it. Every arm is graded against the trimmed name it typed: the manifest through its own reader,
+tmux's `#{session_name}` by `$`-id on the scratch socket (mapped, never expanded), the far `@gmux-name` from the
+loopback machine's far command log, and the list each Mac window was sent. The corpus: `#{session_id}`, `#H`,
+`#(touch …)`, `fix #`, `PR #12`, `a;b`, `x;`, `/review`, `.env fix`, `-x`, `$0`, `gmux-control`, `fix--auth`, `it's`, a
+family emoji joined by ZWJ, Arabic, 120 and 121 units, and each refused character. Phone against Mac stays a regression
+check only.
+
+**Method 2, the attack.** `conformance:pocket:hostile` (`build/p313/hostile-client.mts`) sends malformed bodies (a key
+missing, an extra key, `batch`, start's keys, a number for the name, `name` twice with the bad value first and last),
+every refused name, a body over the cap (`404 oversized`), unknown, removed and unknown-status ids, an ended remote
+session of each kind, a replay and a re-signed write id (renamed once), a rename and an End on one session from two
+phones (`busy`), a phone removed mid-write, the door stopping, and `rename` before its Allow (`404 route`, nothing
+forwarded), each graded on its reason word and on main's row unchanged. `build/p316/hostile-door.mjs` answers the
+phone's rename wrong in every way rule (t) names for Start; sends a `renames` that is not a boolean, so no Name is drawn
+and the "+" stays; and sends a row whose `rename` is not one, which the list reads as unreadable, as it reads a row
+missing a field (the `missing-fields` arm). The verifier drives the partition: `renameVerdict` against `canRename` over
+every status and record shape, on this Mac and another machine, agreeing everywhere but the remote row that is not live,
+because a reader that asserts plain equality passes while reading nothing. And `#(touch …)` goes through the Mac's own
+`sessions:rename` at the parent and through both paths at HEAD: the file appears at the parent where M1 says it will,
+and never at HEAD.
+
+**The parent**, at 348's landed tip: `/v1/rename` answers `404 route` with nothing forwarded; no row or answer carries
+`rename` or `renames`; New session has no Name; and the Mac's own rename over the corpus, beside HEAD's, leaves no name
+worse at HEAD.
+
+**`probe:p349`** (new, `build/p349/probe-p349.mjs`), the Mac's app run. One Electron at HEAD, after the parent on the
+same profile, inside `build/with-scratch-machine.mjs`'s loopback machine with its quiet shell, a scratch far home and
+none of his keys; two `build/p316/node-phone.mjs` phones; the stand-in Tailscale and DNS; `build/p318/stand-in.mjs`
+behind `claude` and `codex`; five agents' binaries renamed (`build/hidden-agents.mjs`). Its arms: one New line, and one
+Allow beside any 348 route still waiting; Method 1's matrix over a local shell, each stand-in, a local ended session and
+a live remote one; the remote session the parent's launch ended, refused at HEAD; a start then a rename, printing how
+long the default name lived; M2; a Mac window mid-rename; and no name in any log line, every store the name does reach
+named (the manifest, the snapshot capsules, the far stamp, an alert's title). No vendor process runs, no token is spent,
+and `--grader-self-test` starts nothing.
+
+**The phone's app run**, a `rename` group in `probe:p316` on 26.3 and the 18.3 floor, beside 348's landed app
+(`P316_PARENT_IOS`) and build 11's (`d2bb05ee`). Rename is where D1 puts it, prefilled whole (a planted 300-character
+name proves the `/v1/session` read). Save sends ONE POST by the relay's count, asks no Face ID (`handle.biometry` is
+never needed), and the title takes the Mac's name. A refusal keeps the sheet, his text and the sentence; empty,
+unchanged and over-cap names keep Save off; Home before the handshake withholds the write; End these draws no row menu.
+New session's Name shows only where `renames` says: empty, it sends today's start byte for byte at the relay, and named,
+the start then one rename, opening under his name. See a sample sends nothing. Either older app against the new Mac
+draws no Rename and no Name, and the new app against a 348 Mac draws neither. The group reads tmux by `$`-id only, and
+the probe's existing `=name` reads (`build/p316/probe-p316.mjs:12655`, `:13577-13579` and others) stay on sessions it
+never renames.
+
+**At the end, once.** Electrons counted with CLAUDE.md's line; `xcrun simctl list devices | grep -c p316-` reads 0 with
+nothing booted; `~/.zsh_history`'s size and time unchanged; his `-L gmux` sessions counted only.
+
+### What moves on purpose
+
+- **conformance:pocket.** R2, R4's membership pin, X1 to X6, X11, X12, Y1, NS1 (`start, remove, paste, rename`), NS11
+  and AR9 widen; R3's reason for `renameSession` names his request, and the door still never names the verb; X5's
+  forbidden list loses `renameSession` (`build/conformance-pocket.mjs:7067`), while `NS_NOT_THE_ACT` keeps it out of
+  `pocket-start.ts` (`:14632`); G1 counts the name among what no log call may reach; and a new rename family holds the
+  verdict's order, the first await, codes only, no status setter and the one rule. The vitests, ablations and probes
+  that spell the routes or caps are found by searching for the list, as 348 did.
+- **conformance:manager.** T25 (`build/p293/conformance-manager.mjs:138`) reads `renameVerdict`, and G2 gains a driven
+  Rename partition.
+- **conformance:machines, conformance:remoteclose and conformance:farattach** run for `remote-sessions.ts`, and
+  `src/main/tmux/__tests__/names.test.ts` gains the mapping.
+- **conformance:ios.** (ab) gains `RenameBody` (`name,session,write`), (ac) the two new files, (ad) the rename runner,
+  the one made in the done arm stated, (az)'s lists `DoorRenaming`, `RenameResult` and `renamer`, and (ba) the rename's
+  Mac; (ay) reads the ⋯ as Catch Me Up, Rename, then End's or Remove's item (348: `build/conformance-ios.mjs:13952`);
+  (t) and (v) widen. bb4 is rewritten on purpose: two ids and a write id still reach the start, and the sheet may hold
+  the one field, a `UITextField`, which the `\bTextField\b` of `START_NEVER` and `SESSIONS_TEXT_IN` never matched
+  (`build/conformance-ios.mjs:16458`, `:6954`); bb9 opens the session after the rename's answer. A new rule (bd), A
+  SESSION'S NAME, holds the field to its one file, its smart types and its cap, the Swift rule to the vectors, and no
+  row menu under End these. (aa3) and (k)'s pinned line do not move.
+- **The phone's tests and probe.** `TerminalMenuTests.testOneMenuOfTwoItemsInOrder`
+  (`ios/TortieTests/TerminalMenuTests.swift:162`) reads three items; CopyTests pins the new words; StartTests keeps
+  `testOnlyTheTwoIdsAndAWriteIdLeaveThePhone` and gains the two writes; probe:p316's `gradeE1`, `gradePs10Menu` and
+  `gradePm1` (`build/p316/probe-p316.mjs:3829`, `:6512`, `:7396`) and 348's RV arms read Catch Me Up, Rename, then End
+  session… or Remove.
+- **conformance:phonecopy.** `TerminalMenu.html` and 348's `TerminalMenuRemove.html` draw Rename second,
+  `checkTerminalFaces` widening with them; the sheet gets a frame with its own iframe in `index.html`; `PHONE_MAC_FLOOR`
+  rises past 348's 90.
+- **gate:onlyadd.** `MAC_LIMITS` and `ASK_ROWS` gain the limit and the cap (D5). The frozen sets launch and build-11 do
+  not move, because a route and optional keys are adds; P0 to P4 are re-run, because `Contract.swift`,
+  `DoorClient.swift` and `SessionsScreen.swift` are in build 11's read record (`build-11.wire.json:9-17`).
+- **What does not move:** `/v1/start`, with NS3, NS4 and NS7; gate:contract, because no IPC channel is added; the Mac's
+  native menus.
+
+### Stated trades
+
+- **A named start is two writes.** The Mac's `<agent>-<n>` shows for about one round trip, longer on another machine
+  (M2); an alert sent in that time carries it; and a rename not taken leaves it, said on one line. The second write
+  comes from the done arm of his Create press, not from a press of its own.
+- **No lock, no Face ID.** A sheet opened before another rename overwrites it, as two Mac windows do, and a lock would
+  need a new route id. A lost, unlocked phone can rename every session it lists; nothing is destroyed.
+- **Busy.** A phone has one write in flight (`writes.ts:782`). A rename sent while another of its writes runs, the
+  Terminal's keys included, answers `busy` and keeps his name in the field; and while a rename runs, a far one for as
+  long as M2 measures, its other writes answer `busy`.
+- **The far wait.** A far rename waits for one more list; past the door's 15 s, the phone reads the session again and
+  draws `Your Mac did not answer…` over what it reads.
+- **Other machines.** An ended session there cannot be renamed from the phone. Where the far machine is a Mac running
+  its own Tortie, its windows show the far tmux name that `farTmuxName` gives (`remote-sessions.ts:1082-1084`), not the
+  name typed, as after the Mac's F2 today, because its echo handler copies tmux's name (`core.ts:1765-1774`); D7 changes
+  that name only where tmux changed or refused it before.
+- **The Mac's own rename changes too.** Names that failed or were rewritten land as typed (D7); a running session keeps
+  its tmux name until it is renamed or restored; and tmux's echo can still show the tmux name as the display name for a
+  moment (`core.ts:1765-1774`, `:3326-3331`).
+- **A Mac window mid-rename** loses its draft when the phone's name lands
+  (`src/renderer/app/session-actions.tsx:1183-1188`).
+- **Two renames at once.** `core.renameSession` admits without serializing (`core.ts:3301-3305`), so a phone rename and
+  the Mac's F2 on one session in the same moment can leave the manifest's tmux name behind tmux's (`:3324-3341`), which
+  Clear and capture read; attach goes by `$`-id (`src/main/attach/attach-plan.ts:98-104`), and the next rename mends it.
+
+### The menus
+
+The Mac's native menus do not change: no Mac surface is added, renamed or removed, `Rename Session` stays on F2
+(`src/main/menu.ts:902`), and the New line is drawn by the Allow that Settings then Phone already holds. On the phone,
+the Terminal's ⋯ holds Catch Me Up, Rename, then End session… or Remove, and a session row's long press holds Rename.
+
+### Release obligations
+
+- D13's release, each half on his word; the phone build that calls `rename` ships with the Mac release that serves it.
+- At that release the calling build's wire is frozen beside the others and `FROZEN_SETS_FLOOR` raised
+  (`build/assert-door-only-adds.mjs:252`).
+- The store's review notes and claims table gain Rename and the Name, within 4,000 bytes, and still say Face ID is asked
+  only before ending a session (`build/p333/STORE-CHECKLIST.md:149`, `:165`).
+- `build/p349/CHECKLIST.md` for his seat: after one Allow, on his own phone, rename a session on his Mac and one on his
+  Mac Pro, and name one in New session.
+
+### The lane
+
+One build lane, verified once at the end: spec (M1 to M3), builders on disjoint files (the Mac's door; the Mac's verb
+and both name rules; the phone's door and sheet; the phone's faces), integrate (the integrator owns `TortieApp.swift`,
+`Identifiers.swift`, `Copy.swift`, `probe-p316.mjs`, `P316DriveUITests.swift`, `conformance-ios.mjs`, `ablation-ios.mjs`
+and `CHANGELOG.md`), verify, fix once, an independent reverify that re-runs the failed items live, commit. A second
+needs_work goes to him.
+
+### What is NOT in this phase
+
+- **No change to `/v1/start`.** Its body, cap, clause, answer and parse stay byte for byte, and there is no second start
+  route.
+- **No rename of a session that ended on another machine.**
+- **No Face ID, Touch ID or passcode** on a rename or a named start.
+- **No Rename these** or batch rename, and no change to End these.
+- **No dedupe on a rename**, and no change to ⌘T's silent `-2`.
+- **No change to the Mac's own Rename**, `sessions:rename`, `core.renameSession`'s rules, its native menus or the IPC
+  contract, beyond the shared tmux name (D7).
+- **No renaming a project, tab, machine or phone**, and nothing of an agent's own title or conversation.
+- **No Rename on Catch Me Up's bar, on 348's Sessions bar or on the Terminal's long press**, no swipe action and no
+  editable title.
+- **No prefilled Name**, no other New session field, and no "New session here" in the ⋯ (346).
+- **No kept rename id**, and nothing queued, retried, stored or sent in the background.
+- **No change to End, Remove, paste, keys, the reply, the "+" or the Sessions bar.**
+- **No URL scheme, App Intent, widget or notification action** that reaches rename.
+- **No mock sent to him first**, and no release, tag, version bump, upload or screenshot inside the phase.
+
+---
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -44540,3 +44962,5 @@ cycle rather than only the evening it was written.
 - 2026-10-18, **PHONE BUILD 11 UPLOADED** by him from the Organizer (16:42 UTC, Distribute App), and going to the public TestFlight group with its What to Test text (Beta App Review first). An internal Slack post about 0.112.0 and build 11 was drafted and checked against the tree; it waits until the public group serves 1.0.0 (11).
 
 - 2026-10-18, **348 QUEUED — the phone, polished: Sessions after a pairing, Remove after End with no Face ID, Settings grouped, the age note gone, the iPhone's own title bars with the "+" alone, and native paste with Copy joining wrapped rows** (full section above; one integrated phase, verified once at the end, items 2 and 6 at Tier 3 and the rest at Tier 2; two new routes, `remove` and `paste`, wait for one Allow; the Mac half in 0.113.0 beside phone build 12, both on his word).
+
+- 2026-10-19, **349 QUEUED — rename sessions from the phone, and name them at New session** (full section above; Tier 3, verified once at the end; one new route, `rename`, waits for its own Allow, which shares 348's press if it lands before 0.113.0 is released; a name typed in New session is a start then a rename by id, so `/v1/start` and the frozen phones do not move; the tmux name stops carrying what tmux reads in it, a format, a trailing `;` or a leading `-` or `$`, which fixes the Mac's own rename too; it starts once 348 lands).
