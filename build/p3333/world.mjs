@@ -35,6 +35,12 @@
  * space. `sample.mjs --check` clause 4 reads the composed row back and fails by
  * name if it ever covers anything but `column` cells.
  *
+ * REMOVED (Phase 348, build/p348/SPEC.md D11, §4.2 step 9). Every session's
+ * last variant is `removed`, after `ended`: the sample's Remove moves an ended
+ * session there, and the composer lists no removed session (main's own
+ * listing drops a removed record), so it leaves every list. A removed session
+ * has no row, no answer of its own and no screen: nothing here describes it.
+ *
  * PURE. It reads no clock, no file and no environment, and starts nothing. Its
  * one import is node's sha256, for the question ids.
  */
@@ -60,8 +66,11 @@ export const PROJECTS = Object.freeze([
   Object.freeze({ id: 'sample-project-orchard', path: '/sample/orchard', name: 'orchard' })
 ]);
 
-/** What each variant's status is; `live` keeps the session's own start. */
+/** What each variant's status is; `live` keeps the session's own start. A `removed` session has none: it is listed nowhere. */
 export const VARIANT_STATUS = Object.freeze({ waiting: 'needs_input', answered: 'running', ended: 'exited' });
+
+/** Phase 348: the variant after `ended`, which the sample's Remove moves a session to. */
+export const REMOVED = 'removed';
 
 /**
  * The five sessions (§5.1.1), in the order the state keys name them. `start` is
@@ -75,7 +84,7 @@ export const SESSIONS = Object.freeze([
     agent: 'claude',
     project: 'lighthouse',
     start: 'needs_input',
-    variants: Object.freeze(['waiting', 'answered', 'ended']),
+    variants: Object.freeze(['waiting', 'answered', 'ended', 'removed']),
     createdAt: T - 3 * HOUR,
     lastOutputAt: T - 4 * MINUTE,
     waitingSince: T - 4 * MINUTE,
@@ -87,7 +96,7 @@ export const SESSIONS = Object.freeze([
     agent: 'codex',
     project: 'orchard',
     start: 'needs_input',
-    variants: Object.freeze(['waiting', 'answered', 'ended']),
+    variants: Object.freeze(['waiting', 'answered', 'ended', 'removed']),
     createdAt: T - 2 * HOUR,
     lastOutputAt: T - 9 * MINUTE,
     waitingSince: T - 9 * MINUTE,
@@ -99,7 +108,7 @@ export const SESSIONS = Object.freeze([
     agent: 'claude',
     project: 'lighthouse',
     start: 'running',
-    variants: Object.freeze(['live', 'ended']),
+    variants: Object.freeze(['live', 'ended', 'removed']),
     createdAt: T - 50 * MINUTE,
     lastOutputAt: T - 5 * SECOND,
     waitingSince: null,
@@ -111,7 +120,7 @@ export const SESSIONS = Object.freeze([
     agent: 'codex',
     project: 'orchard',
     start: 'idle',
-    variants: Object.freeze(['live', 'ended']),
+    variants: Object.freeze(['live', 'ended', 'removed']),
     createdAt: T - DAY,
     lastOutputAt: T - 40 * MINUTE,
     waitingSince: null,
@@ -123,7 +132,7 @@ export const SESSIONS = Object.freeze([
     agent: 'claude',
     project: 'lighthouse',
     start: 'exited',
-    variants: Object.freeze(['ended']),
+    variants: Object.freeze(['ended', 'removed']),
     createdAt: T - 3 * DAY,
     lastOutputAt: T - 2 * DAY,
     waitingSince: null,

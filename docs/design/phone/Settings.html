@@ -9,9 +9,28 @@ body { margin: 0; }
 .t { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
 .num { font-variant-numeric: tabular-nums; }
 .mono { font-family: ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
-.card { background: #191B20; border: 1px solid #25282E; border-radius: 10px; padding: 16px; }
+/* Phase 348 (build/p348/SPEC.md §4.3, D12, D37): an inset grouped page of the
+   house pieces under the iPhone's own large title, in --text-primary here (the
+   app draws the system's own colour). Each group is one card with its raised
+   header above it and its footer under it; rows inside a card are parted by a
+   hairline that starts at the group's text column. */
+.navbar { height: 52px; flex-shrink: 0; }
+.large { padding: 2px 16px 10px 16px; font-size: 34px; line-height: 41px; font-weight: 700; color: #C9CACD; flex-shrink: 0; }
+.scroll { flex: 1 1 auto; min-height: 0; overflow: hidden; padding: 8px 16px 16px 16px; }
+.grp + .grp { margin-top: 24px; }
+.ghdr { padding: 0 16px 6px 16px; font-size: 13px; line-height: 16px; letter-spacing: 0.04em; text-transform: uppercase; color: #9CA1AB; }
+.gfoot { padding: 6px 16px 0 16px; font-size: 15px; line-height: 20px; color: #9CA1AB; }
+.card { background: #191B20; border: 1px solid #25282E; border-radius: 10px; }
 .cellhdr { font-size: 13px; line-height: 16px; letter-spacing: 0.04em; text-transform: uppercase; color: #9CA1AB; }
-.line { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
+.lines { display: flex; align-items: flex-start; padding: 12px 16px; }
+.line { display: flex; align-items: center; min-height: 44px; padding: 0 16px; text-decoration: none; }
+.press { display: flex; align-items: center; height: 54px; padding: 0 16px; text-decoration: none; }
+.sym { width: 28px; margin-right: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.grow { flex: 1; min-width: 0; font-size: 17px; line-height: 22px; color: #C9CACD; }
+.value { margin-left: 8px; font-size: 17px; line-height: 22px; color: #9CA1AB; }
+.chev { margin-left: 8px; flex-shrink: 0; }
+.rule { height: 1px; background: #25282E; margin-left: 16px; }
+.rule.past { margin-left: 56px; }
 a { color: #4d9de8; }
 .tabbar { flex-shrink: 0; height: 83px; box-sizing: border-box; padding-top: 7px; background: #191B20; border-top: 1px solid #25282E; display: flex; }
 .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; color: #838996; text-decoration: none; }
@@ -19,86 +38,132 @@ a { color: #4d9de8; }
 .tab .ico { position: relative; width: 28px; height: 26px; display: flex; align-items: center; justify-content: center; }
 .tab .lbl { font-size: 10px; line-height: 12px; font-weight: 500; }
 .badge { position: absolute; top: -4px; left: 17px; min-width: 18px; height: 18px; box-sizing: border-box; padding: 0 5px; border-radius: 9px; background: #f5b84a; color: #131417; font-size: 13px; line-height: 18px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
-.dim { position: absolute; inset: 0; background: rgba(9, 10, 12, 0.55); }
 </style>
 </head>
 <body>
 <!-- Phase 316.6: the third tab. House cards, not a system list, so the frames
      are this file's. It makes no read of the door: everything here is the
      pairing the phone keeps, the list's last answer and the app's own bundle.
-     The Alerts card is drawn only for a Mac that said it can send (Phase 316.5's
-     `sends`): it says what iOS allows, never that alerts are "on", because the
-     phone cannot see the Mac's switch, and the row opens iOS Settings. Unpair is
-     the one destructive press, in the error colour, and it asks first
-     (Unpair.html). -->
+     The Alerts group is drawn only for a Mac that said it can send (Phase
+     316.5's `sends`): it says what iOS allows, never that alerts are "on",
+     because the phone cannot see the Mac's switch, and the row opens iOS
+     Settings. Unpair is the one destructive press, in the error colour, and it
+     asks first (Unpair.html).
+
+     Phase 348 (D12, his words "redesign the settings screen on the phone to
+     make it look better"): grouped like the iPhone's own Settings, today's rows
+     in today's order. Four rows start with an SF Symbol in the secondary
+     colour and no tile (the Mac's name, Notifications, Pair another Mac, See a
+     sample), Paired is a labelled row as Version is, and `Pair again to get
+     alerts.` and the sentence under Unpair, drawn only when they are said,
+     are their groups' footers. Every row that presses is as tall as before, or
+     taller, the whole card row pressing: 54 for Pair another Mac, Unpair this
+     iPhone and See a sample, 44 for Notifications and About's three. The page
+     scrolls; at rest About sits under the fold. -->
 <div class="t" style="width: 390px; height: 844px; box-sizing: border-box; background: #0E0F13; color: #C9CACD; display: flex; flex-direction: column; overflow: hidden;">
 
   <div style="height: 44px; flex-shrink: 0;"></div>
 
-  <div style="padding: 0 16px 8px 16px; flex-shrink: 0;">
-    <div style="font-size: 28px; line-height: 34px; font-weight: 600; color: #C9CACD;">Settings</div>
-  </div>
+  <div class="navbar"></div>
+  <div class="large">Settings</div>
 
-  <div class="card" style="margin: 0 16px; flex-shrink: 0;">
-    <div class="cellhdr">This Mac</div>
-    <div style="font-size: 20px; line-height: 25px; color: #C9CACD; margin-top: 6px;">studio</div>
-    <div class="mono" style="font-size: 15px; line-height: 20px; color: #9CA1AB; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">studio.tail0000.ts.net:8443</div>
-    <div class="num" style="font-size: 13px; line-height: 16px; color: #838996; margin-top: 2px;">read 4:32 PM</div>
-    <div class="cellhdr" style="margin-top: 16px;">Check this matches your Mac</div>
-    <div class="mono" style="font-size: 20px; line-height: 25px; color: #C9CACD; margin-top: 6px;">7c4d 2a9e 0f13 b6c2 91de 4a07</div>
-    <div style="font-size: 13px; line-height: 18px; color: #838996; margin-top: 8px;">Paired · Sep 30, 2026</div>
-  </div>
+  <div class="scroll">
 
-  <div class="card" style="margin: 12px 16px 0 16px; padding-top: 12px; padding-bottom: 4px; flex-shrink: 0;">
-    <div class="cellhdr">Alerts</div>
-    <a class="line" href="#ios-settings" style="text-decoration: none;">
-      <div style="font-size: 17px; line-height: 22px; color: #C9CACD;">Notifications</div>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <div style="font-size: 17px; line-height: 22px; color: #9CA1AB;">Allowed</div>
-        <svg width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8"><path d="M1.5 1.5 7 7.5l-5.5 6"></path></svg>
+    <div class="grp">
+      <div class="ghdr">This Mac</div>
+      <div class="card">
+        <div class="lines">
+          <div class="sym" style="height: 25px;"><svg width="22" height="18" viewBox="0 0 22 18" fill="none" stroke="#9CA1AB" stroke-width="1.4"><rect x="1" y="1" width="20" height="12" rx="1.5"></rect><path d="M8 17h6M11 13v4"></path></svg></div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 20px; line-height: 25px; color: #C9CACD;">studio</div>
+            <div class="mono" style="font-size: 15px; line-height: 20px; color: #9CA1AB; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">studio.tail0000.ts.net:8443</div>
+            <div class="num" style="font-size: 13px; line-height: 16px; color: #838996; margin-top: 2px;">read 4:32 PM</div>
+          </div>
+        </div>
+        <div class="rule past"></div>
+        <div class="lines">
+          <div class="sym"></div>
+          <div style="flex: 1; min-width: 0;">
+            <div class="cellhdr">Check this matches your Mac</div>
+            <div class="mono" style="font-size: 20px; line-height: 25px; color: #C9CACD; margin-top: 6px;">7c4d 2a9e 0f13 b6c2 91de 4a07</div>
+          </div>
+        </div>
+        <div class="rule past"></div>
+        <div class="line">
+          <div class="sym"></div>
+          <div class="grow">Paired</div>
+          <div class="value">Sep 30, 2026</div>
+        </div>
       </div>
-    </a>
-  </div>
-
-  <!-- Phase 345 (build/p345/SPEC.md D15, D16): the one row that moves with one
-       Mac kept. Pair another Mac opens the pairing screen as a sheet over the
-       lists and keeps this Mac; every element under it moves down by the row
-       and its gap. With two or more Macs kept this screen is the Mac on
-       screen's, and Unpair forgets that Mac alone (Macs.html). -->
-  <a href="Pairing.html" style="margin: 12px 16px 0 16px; height: 54px; box-sizing: border-box; background: #191B20; border: 1px solid #25282E; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 17px; color: #C9CACD; text-decoration: none; flex-shrink: 0;">
-    <div>Pair another Mac</div>
-    <svg width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8"><path d="M1.5 1.5 7 7.5l-5.5 6"></path></svg>
-  </a>
-
-  <a href="Unpair.html" style="margin: 12px 16px 0 16px; height: 54px; box-sizing: border-box; background: #191B20; border: 1px solid #25282E; border-radius: 10px; display: flex; align-items: center; padding: 0 16px; font-size: 17px; color: #e5655e; text-decoration: none; flex-shrink: 0;">Unpair this iPhone</a>
-
-  <div class="card" style="margin: 12px 16px 0 16px; padding-top: 12px; padding-bottom: 4px; flex-shrink: 0;">
-    <div class="cellhdr">About</div>
-    <div class="line">
-      <div style="font-size: 17px; line-height: 22px; color: #C9CACD;">Version</div>
-      <div class="num" style="font-size: 17px; line-height: 22px; color: #9CA1AB;">1.0.0 (4)</div>
     </div>
-    <!-- Phase 333.1 (build/p3331/SPEC.md §5.5.4, D22): the three pages of
-         Tortie's own site, each a row that opens it in Safari; the Mac app's
-         row says where it is, in words. -->
-    <a class="line" href="#tortie-sh" style="text-decoration: none;">
-      <div style="font-size: 17px; line-height: 22px; color: #C9CACD;">Tortie for Mac</div>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <div style="font-size: 17px; line-height: 22px; color: #9CA1AB;">tortie.sh</div>
-        <svg width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8"><path d="M1.5 1.5 7 7.5l-5.5 6"></path></svg>
-      </div>
-    </a>
-    <a class="line" href="#privacy" style="text-decoration: none;">
-      <div style="font-size: 17px; line-height: 22px; color: #C9CACD;">Privacy</div>
-      <svg width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8"><path d="M1.5 1.5 7 7.5l-5.5 6"></path></svg>
-    </a>
-    <a class="line" href="#support" style="text-decoration: none;">
-      <div style="font-size: 17px; line-height: 22px; color: #C9CACD;">Support</div>
-      <svg width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8"><path d="M1.5 1.5 7 7.5l-5.5 6"></path></svg>
-    </a>
-  </div>
 
-  <div style="flex-grow: 1;"></div>
+    <div class="grp">
+      <div class="ghdr">Alerts</div>
+      <div class="card">
+        <a class="line" href="#ios-settings">
+          <div class="sym"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#9CA1AB" stroke-width="1.4"><path d="M5 14V9.5a5 5 0 0 1 10 0V14l1.3 1.5H3.7z"></path><path d="M8.5 18h3"></path><circle cx="15.5" cy="4.5" r="2.5" fill="#9CA1AB" stroke="none"></circle></svg></div>
+          <div class="grow">Notifications</div>
+          <div class="value">Allowed</div>
+          <svg class="chev" width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8"><path d="M1.5 1.5 7 7.5l-5.5 6"></path></svg>
+        </a>
+      </div>
+    </div>
+
+    <!-- Phase 345 (build/p345/SPEC.md D15, D16): the one group that moves with
+         one Mac kept. Pair another Mac opens the pairing screen as a sheet over
+         the lists and keeps this Mac; every group under it moves down by the
+         row and its gap. With two or more Macs kept this screen is the Mac on
+         screen's, and Unpair forgets that Mac alone (Macs.html). -->
+    <div class="grp">
+      <a class="card press" href="Pairing.html">
+        <div class="sym"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#9CA1AB" stroke-width="1.4"><circle cx="10" cy="10" r="8.5"></circle><path d="M10 6v8M6 10h8"></path></svg></div>
+        <div class="grow">Pair another Mac</div>
+        <svg class="chev" width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8"><path d="M1.5 1.5 7 7.5l-5.5 6"></path></svg>
+      </a>
+    </div>
+
+    <div class="grp">
+      <a class="card press" href="Unpair.html" style="font-size: 17px; color: #e5655e;">Unpair this iPhone</a>
+    </div>
+
+    <div class="grp">
+      <a class="card press" href="Sample.html">
+        <div class="sym"><svg width="22" height="16" viewBox="0 0 22 16" fill="none" stroke="#9CA1AB" stroke-width="1.4"><path d="M1 8s3.5-6.5 10-6.5S21 8 21 8s-3.5 6.5-10 6.5S1 8 1 8z"></path><circle cx="11" cy="8" r="3"></circle></svg></div>
+        <div class="grow">See a sample</div>
+        <svg class="chev" width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8"><path d="M1.5 1.5 7 7.5l-5.5 6"></path></svg>
+      </a>
+    </div>
+
+    <div class="grp">
+      <div class="ghdr">About</div>
+      <div class="card">
+        <div class="line">
+          <div class="grow">Version</div>
+          <div class="value num">1.0.0 (4)</div>
+        </div>
+        <!-- Phase 333.1 (build/p3331/SPEC.md §5.5.4, D22): the three pages of
+             Tortie's own site, each a row that opens it in Safari; the Mac
+             app's row says where it is, in words. -->
+        <div class="rule"></div>
+        <a class="line" href="#tortie-sh">
+          <div class="grow">Tortie for Mac</div>
+          <div class="value">tortie.sh</div>
+          <svg class="chev" width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8"><path d="M1.5 1.5 7 7.5l-5.5 6"></path></svg>
+        </a>
+        <div class="rule"></div>
+        <a class="line" href="#privacy">
+          <div class="grow">Privacy</div>
+          <svg class="chev" width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8"><path d="M1.5 1.5 7 7.5l-5.5 6"></path></svg>
+        </a>
+        <div class="rule"></div>
+        <a class="line" href="#support">
+          <div class="grow">Support</div>
+          <svg class="chev" width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8"><path d="M1.5 1.5 7 7.5l-5.5 6"></path></svg>
+        </a>
+      </div>
+    </div>
+
+  </div>
 
   <div class="tabbar">
     <a class="tab" href="NeedsInput.html">

@@ -419,16 +419,23 @@ export interface PocketDoorSummary {
  * clause is part of its meaning: it is never edited, only a new id added.
  *
  * `start` (Phase 346, build/p346/SPEC.md D3) names the reach to other
- * machines, because a start may run on one. It is said last, after `keys`,
- * and only once a person allowed it: the lines name only the allowed routes,
- * so a store that never allowed it reads and hashes as it did before.
+ * machines, because a start may run on one. It is said after `keys`, and only
+ * once a person allowed it: the lines name only the allowed routes, so a
+ * store that never allowed it reads and hashes as it did before.
+ *
+ * `remove` and `paste` (Phase 348, build/p348/SPEC.md D32) are said after
+ * `start`, in that order, the same way. `paste` says "on this Mac" because a
+ * paste reaches sessions on this Mac only in this phase (D22): a clause never
+ * widens under its id, so a later far paste takes a route of its own.
  */
 export const WRITE_CLAUSES: Readonly<Record<PocketWriteRouteId, string>> = Object.freeze({
   end: 'end a session',
   choose: 'answer a numbered question',
   say: 'send a session one message',
   keys: 'type into any session as you would at this Mac',
-  start: 'start a session in a project open in Tortie, on this Mac or another machine'
+  start: 'start a session in a project open in Tortie, on this Mac or another machine',
+  remove: 'remove a session that has ended',
+  paste: 'paste text into a session on this Mac'
 });
 
 /**

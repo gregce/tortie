@@ -39,7 +39,9 @@ final class EndTopTests: XCTestCase {
     /// toolbar (D20); and since Phase 337.3 the Terminal's trailing items are
     /// exactly the ⋯ (`TerminalMenu`), handed End, the session's re-read and
     /// Catch Me Up with the session's own line, with no End of its own in the
-    /// bar and no Catch Me Up icon (D21).
+    /// bar and no Catch Me Up icon (D21); since Phase 348 the ⋯ is handed the
+    /// Mac's Remove words too, and Catch Me Up's page adds Remove's own item,
+    /// in End's place, behind its drawing (D33, RemoveTests).
     func testEndIsTheTopBarsTrailingItemOnBothFaces() throws {
         let bar = try StyleSource.text("ios/Tortie/Screens/EndBar.swift")
         XCTAssertTrue(bar.contains("ToolbarItem(placement: .topBarTrailing)"))
@@ -51,7 +53,7 @@ final class EndTopTests: XCTestCase {
         let close = try XCTUnwrap(session.range(of: "\n        }\n", range: trailing.upperBound..<session.endIndex))
         let items = String(session[trailing.upperBound..<close.lowerBound])
         XCTAssertTrue(
-            items.contains("TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }"),
+            items.contains("TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, removeConfirm: drawing.removeConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }"),
             "the Terminal's trailing item is not the ⋯ holding End and Catch Me Up"
         )
         XCTAssertEqual(items.components(separatedBy: "TerminalMenu(").count, 2)

@@ -75,9 +75,11 @@ describe('the write body caps (Phase 318, §5.1.3)', () => {
   // Phase 337 (build/p337/SPEC.md D17, §Attack A25) added `keys`, 16,384; its
   // worst bodies are held in `./p337-body-caps.test.ts`. Phase 346
   // (build/p346/SPEC.md D6) added `start`, 512; its worst body is held in
-  // `./p346-start-write.test.ts`.
-  it('are exactly end 512, choose 512, say 32,768, keys 16,384 and start 512, frozen, keyed by the closed write list', () => {
-    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512 });
+  // `./p346-start-write.test.ts`. Phase 348 (build/p348/SPEC.md D29) added
+  // `remove`, 512, and `paste`, 131,072; their worst bodies are held in
+  // `./p348-remove-write.test.ts` and `./p348-paste-write.test.ts`.
+  it('are exactly end 512, choose 512, say 32,768, keys 16,384, start 512, remove 512 and paste 131,072, frozen, keyed by the closed write list', () => {
+    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512, remove: 512, paste: 131_072 });
     expect(Object.isFrozen(POCKET_WRITE_BODY_CAPS)).toBe(true);
     expect(Object.keys(POCKET_WRITE_BODY_CAPS).sort()).toEqual([...POCKET_WRITE_ROUTE_IDS].sort());
     // Every write row of the table has a cap, and no read row does.

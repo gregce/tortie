@@ -78,6 +78,19 @@
  * given. `screenAnswerProblems` reads the live answer's `depth` and `space`
  * too: absent or null together (a Mac older than this phase sends neither),
  * or a whole number to 100,000 beside 12 lowercase hex.
+ *
+ * PHASE 348 (build/p348/SPEC.md §4.2, §4.6, §9.3): the two new writes.
+ * `removeSession` is `POST /v1/remove`, the body `{ session, write }`, and
+ * `pasteText` is `POST /v1/paste`, the body `{ dialog, session, text, turn,
+ * write }`, each sorted, each through the same `signedPost` with a fresh write
+ * id unless the caller hands one; `removeAnswerOf` and `pasteAnswerOf` read an
+ * answer the phone's way (D27: five fields, the route's own verb, the reason
+ * an OPEN word). The picture's two new keys are read as the phone reads them:
+ * `screenAnswerProblems` refuses a `paste` that is neither absent, null nor a
+ * Bool (decodeIfPresent), `screenPasteOf` is the flag, and `wrapsOf`,
+ * `screenWrapsOf` and `scrollbackWrapsOf` read a list of marks, any list that
+ * is not ascending in range reading as no marks rather than as a refusal
+ * (D43).
  */
 
 import {
@@ -554,6 +567,83 @@ export function writeAnswerOf(answer, sentWrite, verb = 'end') {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 348's two writes (build/p348/SPEC.md §4.2, §4.6, §9.3)
+// ---------------------------------------------------------------------------
+
+/**
+ * `POST /v1/remove` (Phase 348, D28): remove ONE session that has ended. The
+ * body is exactly `{ session, write }`, its keys sorted, as Swift's
+ * `JSONEncoder` with `.sortedKeys` writes it; the session id alphabet has no
+ * character JSON escapes, so these are the phone's bytes. A fresh write id
+ * every press, unless the caller hands one (the phone keeps none: a repeat
+ * answers gone, D55). Nothing here decides whether a Remove is allowed; the
+ * Mac does, by id. Answers `request`'s reading with the write id it sent.
+ */
+export async function removeSession(phone, door, { session, write = freshWriteId(), ...options } = {}) {
+  const answer = await signedPost(phone, door, '/v1/remove', { session, write }, options);
+  return { ...answer, write };
+}
+
+/**
+ * `POST /v1/paste` (Phase 348, D28, D31, D54): ONE paste, exactly the text
+ * given, never trimmed, normalized or split here, against the `turn` and
+ * `dialog` of the picture it was sent against (the keys body's question lock
+ * fields). The body is exactly `{ dialog, session, text, turn, write }`, its
+ * keys sorted; `swiftSlashes: true` writes `/` as `\/`, as the phone's encoder
+ * does (build/p318/SPEC.md §5.1.3). Nothing here decides whether the text is
+ * one the Mac takes, so an arm can send one the Mac must refuse. Answers
+ * `request`'s reading with the write id it sent.
+ */
+export async function pasteText(phone, door, { session, text, turn, dialog = null, write = freshWriteId(), swiftSlashes = false, ...options } = {}) {
+  const fields = { dialog, session, text, turn, write };
+  const body = options.body ?? writeBodyOf(fields, { swiftSlashes });
+  const answer = await signedPost(phone, door, '/v1/paste', fields, { ...options, body });
+  return { ...answer, write };
+}
+
+/** The outcomes a Remove or a paste answer may carry (D27). Its `reason` is read as an OPEN word. */
+export const REMOVE_OUTCOMES = Object.freeze(['done', 'refused', 'failed', 'busy']);
+export const PASTE_OUTCOMES = REMOVE_OUTCOMES;
+
+/**
+ * A Remove's or a paste's answer, read the way the phone must (SPEC D27):
+ * exactly the five fields `verb, write, outcome, reason, sentence` in that
+ * order, `verb` the route's own literal, a closed outcome, a `reason` that is
+ * a non-empty string exactly when `refused` (an OPEN word: a later Mac may add
+ * one, as Start's), a sentence exactly when not `done`, and the echo equal to
+ * the id sent, or `""` with `refused` and `malformed`, the one answer that
+ * cannot echo. Anything else is `{ ok: false }` with a reason, which the phone
+ * reads as no answer.
+ */
+function ownWriteAnswerOf(answer, sentWrite, verb) {
+  if (answer?.status !== 200) return { ok: false, why: `status ${String(answer?.status)}${answer?.error ? ` (${answer.error})` : ''}` };
+  let body;
+  try {
+    body = JSON.parse(answer.body);
+  } catch {
+    return { ok: false, why: 'the body is not JSON' };
+  }
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) return { ok: false, why: 'the body is not an object' };
+  const keys = J(Object.keys(body));
+  if (keys !== J(['verb', 'write', 'outcome', 'reason', 'sentence'])) return { ok: false, why: `the keys are ${keys}` };
+  if (body.verb !== verb) return { ok: false, why: `verb ${J(body.verb)}` };
+  if (typeof body.write !== 'string') return { ok: false, why: 'the write id is not a string' };
+  if (!REMOVE_OUTCOMES.includes(body.outcome)) return { ok: false, why: `outcome ${J(body.outcome)}` };
+  if (body.reason !== null && (typeof body.reason !== 'string' || body.reason === '')) return { ok: false, why: `reason ${J(body.reason)}` };
+  if ((body.outcome === 'refused') !== (body.reason !== null)) return { ok: false, why: 'a reason without a refusal, or a refusal without a reason' };
+  if (body.sentence !== null && (typeof body.sentence !== 'string' || body.sentence === '')) return { ok: false, why: `sentence ${J(body.sentence)}` };
+  if ((body.outcome === 'done') !== (body.sentence === null)) return { ok: false, why: 'a sentence on done, or none on anything else' };
+  const echoed = body.write === sentWrite || (body.write === '' && body.outcome === 'refused' && body.reason === 'malformed');
+  if (!echoed) return { ok: false, why: 'the echo is not the write id sent' };
+  return { ok: true, why: '', answer: body };
+}
+
+/** A Remove's answer (`PocketRemoveAnswer`), read the phone's way. */
+export const removeAnswerOf = (answer, sentWrite) => ownWriteAnswerOf(answer, sentWrite, 'remove');
+/** A paste's answer (`PocketPasteAnswer`), read the phone's way. */
+export const pasteAnswerOf = (answer, sentWrite) => ownWriteAnswerOf(answer, sentWrite, 'paste');
+
+// ---------------------------------------------------------------------------
 // The wire. 127.0.0.1 and nothing else, ever.
 // ---------------------------------------------------------------------------
 
@@ -818,6 +908,11 @@ export function screenAnswerProblems(answer) {
     if (!isWhole(s.depth, 0, SCROLLBACK_MAX_INDEX)) say(`depth ${J(s.depth)} is outside 0 to ${String(SCROLLBACK_MAX_INDEX)}`);
     if (typeof s.space !== 'string' || !HEX12.test(s.space)) say(`space ${J(s.space)} is not 12 lowercase hex`);
   }
+  // PHASE 348 (D30): `paste` is read with decodeIfPresent(Bool.self), so an
+  // absent or null flag reads false and any other type refuses the answer
+  // whole; `wraps` is never a refusal (a bad list reads as no marks, D43),
+  // and screenWrapsOf below reads it.
+  if (s.paste !== undefined && s.paste !== null && typeof s.paste !== 'boolean') say(`paste ${J(s.paste)} is not a Bool`);
   if (!Array.isArray(s.styles) || s.styles.length > SCREEN_MAX_STYLES) say('styles is not a list of at most 1,024');
   const styles = Array.isArray(s.styles) ? s.styles : [];
   styles.forEach((st, i) => {
@@ -843,6 +938,33 @@ export function screenAnswerProblems(answer) {
 
 /** A screen's row as the phone's accessibility label reads it: the runs' text joined, trailing blanks dropped. */
 export const screenRowText = (line) => (Array.isArray(line) ? line.map((run) => run.text).join('').replace(/ +$/, '') : '');
+
+/** PHASE 348 (D30): whether a picture offers a paste, the phone's way: `paste` true; absent, null or false read as no. */
+export const screenPasteOf = (screen) => screen !== null && typeof screen === 'object' && screen.paste === true;
+
+/**
+ * PHASE 348 (D43): a list of marks read the phone's way. Absent or null is no
+ * marks; anything but ascending whole numbers, each `0 <= r < last`, is also
+ * no marks, with the reason (never a failed answer). `last` is the live
+ * screen's `rows - 1`, or a page's row count less one (its last row is never
+ * listed). Answers `{ present, marks, problem }`.
+ */
+export function wrapsOf(list, last) {
+  if (list === undefined || list === null) return { present: false, marks: [], problem: null };
+  if (!Array.isArray(list)) return { present: true, marks: [], problem: `wraps ${J(list)} is not a list` };
+  let prev = -1;
+  for (const r of list) {
+    if (!Number.isSafeInteger(r) || r < 0) return { present: true, marks: [], problem: `wraps holds ${J(r)}, which is not a whole number` };
+    if (r >= last) return { present: true, marks: [], problem: `wraps holds ${String(r)}, past the last row that may be marked (${String(last - 1)})` };
+    if (r <= prev) return { present: true, marks: [], problem: `wraps is not ascending at ${String(r)}` };
+    prev = r;
+  }
+  return { present: true, marks: [...list], problem: null };
+}
+/** A live picture's marks (`PocketScreen.wraps`), the phone's way. */
+export const screenWrapsOf = (screen) => wrapsOf(screen?.wraps, Number.isSafeInteger(screen?.rows) ? screen.rows - 1 : 0);
+/** A page's marks (`PocketScrollbackAnswer.wraps`), the phone's way: indices into its rows, its last row never listed. */
+export const scrollbackWrapsOf = (page) => wrapsOf(page?.wraps, Array.isArray(page?.rows) ? page.rows.length - 1 : 0);
 
 // ---------------------------------------------------------------------------
 // The Screen's history (Phase 337.1, build/p3371/SPEC.md §5.2, §5.5.2)

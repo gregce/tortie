@@ -38,10 +38,24 @@
 // one highlight rectangle per row; and the selected text, each row's cells
 // joined, trailing blanks dropped, rows joined by a line break.
 //
-// THE PASTEBOARD IS WRITTEN AND NEVER READ (conformance:ios rule al). This
-// file is the one that names `UIPasteboard`, and only to set its string on
-// Copy. Nothing in the app reads the pasteboard, and the key field refuses
-// paste (Screens/ScreenKeyField.swift).
+// A LINE THE TERMINAL WRAPPED COPIES BACK AS ONE LINE (Phase 348,
+// build/p348/SPEC.md D43 to D46): a row the Mac marked (tmux marked it
+// wrapped, its last column holds ink, and it is on the main screen) is joined
+// to the next row with no line break, its selected cells taken to its last
+// column untrimmed, which is ink, so nothing is lost; every other row keeps
+// today's trim and line break. STATED, never claimed fixed: a line tmux
+// wrapped exactly at a written space keeps its break (tmux cannot tell a
+// written space from a cell a clear left behind), a full-width overwrite with
+// no erase keeps a stale mark and is joined, agents break their own lines,
+// and a command zsh is still editing carries no mark.
+//
+// THE PASTEBOARD (conformance:ios rule al). This file writes it, once, on
+// Copy, in one statement. Since Phase 348 (his ruling of 2026-10-18, "i'd
+// like to be able to paste natively") the app READS it in exactly two places,
+// the system's own paste command in the Terminal's two `paste(_:)` overrides
+// (Screens/ScreenTextInput.swift and Screens/ScreenKeyField.swift), and asks
+// `hasStrings` only inside their two `canPerformAction`s; nothing else names
+// it.
 
 import SwiftUI
 import UIKit
@@ -243,26 +257,50 @@ enum ScreenSelecting {
     /// The selected text: each row's selected cells joined, trailing blanks
     /// dropped, rows joined by a line break, every row read by its absolute
     /// index through `rows` (the held history and the live rows, D31). A wide
-    /// cell's character is taken once.
+    /// cell's character is taken once. Since Phase 348 a row the Mac marked
+    /// wrapped is joined to the next with no line break (D46).
     static func text(_ range: ScreenSelectionRange?, columns: Int, rows: (Int) -> ScreenRowModel?) -> String {
-        text(range, columns: columns, cells: { rows($0)?.cells })
+        text(range, columns: columns, cells: { rows($0)?.cells }, wrapped: { rows($0)?.wrapped ?? false })
     }
 
-    /// The same text, every row read as its cells by absolute index (the
-    /// Terminal's text input reads rows this way, Screens/ScreenTextInput.swift).
-    static func text(_ range: ScreenSelectionRange?, columns: Int, cells: (Int) -> [String]?) -> String {
+    /// The same text, every row read as its cells and its mark by absolute
+    /// index (the Terminal's text input reads rows this way,
+    /// Screens/ScreenTextInput.swift). THE JOIN (D46): a MARKED row whose next
+    /// row is selected and drawn takes its selected cells to its last column
+    /// UNTRIMMED and is followed by that row with no line break; the last
+    /// column of a marked row is ink (the Mac's guard, D45), so the untrimmed
+    /// cells lose nothing and add no blank. Every other row keeps today's
+    /// trim and is followed by a line break. With no marks this is today's
+    /// text exactly.
+    static func text(
+        _ range: ScreenSelectionRange?, columns: Int, cells: (Int) -> [String]?, wrapped: (Int) -> Bool = { _ in false }
+    ) -> String {
         guard let range else { return "" }
-        var lines: [String] = []
+        var read: [(row: Int, taken: String)] = []
         for row in range.start.row...range.end.row {
             guard let cells = cells(row) else { continue }
             guard let selected = range.columns(on: row, of: columns) else {
-                lines.append("")
+                read.append((row, ""))
                 continue
             }
-            let taken = selected.filter { cells.indices.contains($0) }.map { cells[$0] }.joined()
-            lines.append(String(taken.reversed().drop(while: { $0 == " " }).reversed()))
+            read.append((row, selected.filter { cells.indices.contains($0) }.map { cells[$0] }.joined()))
         }
-        return lines.joined(separator: lineBreak)
+        // Each row beside the one after it: no arithmetic on a row, only
+        // `DoorNumber`'s checked sum (rule k).
+        var pieces: [String] = []
+        for (line, next) in zip(read, read.dropFirst()) {
+            let joins = wrapped(line.row) && next.row == DoorNumber.sum(line.row, 1)
+            pieces.append(joins ? line.taken : trimmed(line.taken))
+            if !joins { pieces.append(lineBreak) }
+        }
+        if let last = read.last { pieces.append(trimmed(last.taken)) }
+        return pieces.joined()
+    }
+
+    /// A row's text with its trailing blanks dropped, as Copy has always taken
+    /// an unmarked row.
+    static func trimmed(_ taken: String) -> String {
+        String(taken.reversed().drop(while: { $0 == " " }).reversed())
     }
 
     /// The selected text of one picture alone, its rows from index 0.

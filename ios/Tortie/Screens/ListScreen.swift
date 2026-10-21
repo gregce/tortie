@@ -5,7 +5,7 @@
 // name, the machine badge only when the session is elsewhere, `ageText`, and a
 // second line"). `Select` is Phase 317's End these, on the Sessions tab only:
 // ONE line below attaches it (`.endBatch`, Screens/EndBatch.swift), and the
-// title and the rows carry its hooks, which draw nothing where it is not
+// bar and the rows carry its hooks, which draw nothing where it is not
 // attached.
 //
 // TWO TABS, ONE READ (Phase 316.6, build/p3166/SPEC.md section 5.2). The
@@ -51,6 +51,12 @@
 // draws `This iPhone is not paired with this Mac.` with Try again in place of
 // its rows (`drawRefused`), and nothing else moves; with one Mac kept a
 // refused list goes to Pairing, as it always has.
+//
+// THE IPHONE'S OWN BAR (Phase 348, build/p348/SPEC.md §4.5, D15, D16). The
+// title is the system's large title over the navigation bar, no longer a row
+// of the list, so the bar is never hidden here. The older-Mac face's bar holds
+// Select alone, at its leading edge; Needs input's holds nothing. The foot is
+// `read 4:32 PM` alone (§4.4, D14): main's age note is read and never drawn.
 
 import SwiftUI
 
@@ -113,9 +119,9 @@ struct ListDrawing: Equatable, Sendable {
     let others: [RowDrawing]
     /// `n more not shown.` when the door capped `others`.
     let othersOmitted: String?
-    /// Main's `ageNote`, under the ages.
-    let ageNote: String
-    /// `read 4:32 PM`, the moment main composed the answer.
+    /// `read 4:32 PM`, the moment main composed the answer: the foot's one
+    /// line. Main's `ageNote` is decoded strictly and never drawn (Phase 348,
+    /// D14).
     let readLine: String
 
     /// A session that is in both lists, or twice in one, is not an answer the
@@ -144,7 +150,6 @@ struct ListDrawing: Equatable, Sendable {
         }
         othersHeader = otherCount == 0 ? nil : Copy.everythingElse(otherCount)
         othersOmitted = answer.othersOmitted > 0 ? Copy.othersOmitted(answer.othersOmitted) : nil
-        ageNote = answer.ageNote
         readLine = Copy.readAt(clock(answer.at))
     }
 }
@@ -300,16 +305,15 @@ enum ListKind: Equatable, Sendable {
 
 /// The identifiers one list tab draws (Screens/Identifiers.swift): the
 /// Sessions tab keeps every one Phase 316.2 gave the list, and the Needs input
-/// tab's carry `needs-`.
+/// tab's carry `needs-`. Since Phase 348 neither draws a title row (the bar
+/// draws the title) nor the age note.
 struct ListNames: Sendable {
     let screen: String
-    let title: String
     let alertsLine: String
     let notice: String
     let loading: String
     let failure: String
     let empty: String
-    let ageNote: String
     let read: String
     let row: @Sendable (String) -> String
     let rowDot: @Sendable (String) -> String
@@ -319,15 +323,15 @@ struct ListNames: Sendable {
     let rowLine: @Sendable (String) -> String
 
     static let sessions = ListNames(
-        screen: ID.listScreen, title: ID.listTitle, alertsLine: ID.listAlertsLine, notice: ID.listNotice,
-        loading: ID.listLoading, failure: ID.listFailure, empty: ID.listEmpty, ageNote: ID.listAgeNote, read: ID.listRead,
+        screen: ID.listScreen, alertsLine: ID.listAlertsLine, notice: ID.listNotice,
+        loading: ID.listLoading, failure: ID.listFailure, empty: ID.listEmpty, read: ID.listRead,
         row: { ID.row($0) }, rowDot: { ID.rowDot($0) }, rowName: { ID.rowName($0) },
         rowMachine: { ID.rowMachine($0) }, rowAge: { ID.rowAge($0) }, rowLine: { ID.rowLine($0) }
     )
 
     static let needsInput = ListNames(
-        screen: ID.needsInputScreen, title: ID.needsInputTitle, alertsLine: ID.needsListAlertsLine, notice: ID.needsListNotice,
-        loading: ID.needsListLoading, failure: ID.needsListFailure, empty: ID.needsListEmpty, ageNote: ID.needsListAgeNote,
+        screen: ID.needsInputScreen, alertsLine: ID.needsListAlertsLine, notice: ID.needsListNotice,
+        loading: ID.needsListLoading, failure: ID.needsListFailure, empty: ID.needsListEmpty,
         read: ID.needsListRead,
         row: { ID.needsRow($0) }, rowDot: { ID.needsRowDot($0) }, rowName: { ID.needsRowName($0) },
         rowMachine: { ID.needsRowMachine($0) }, rowAge: { ID.needsRowAge($0) }, rowLine: { ID.needsRowLine($0) }
@@ -359,7 +363,6 @@ struct ListScreen: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                title
                 if let line = model.alertsLine {
                     Words(line, .secondary, Tokens.textSecondary, lines: nil)
                         .accessibilityIdentifier(names.alertsLine)
@@ -372,8 +375,8 @@ struct ListScreen: View {
                         .padding(.horizontal, Frame.gutter)
                         .padding(.bottom, 8)
                 }
-                // NeedsInput.html: a hairline under the title, where Main.html
-                // draws its first section's header.
+                // NeedsInput.html: a hairline under the large title, where
+                // Main.html draws its first section's header.
                 if kind == .needsInput { Hairline() }
                 switch model.state {
                 case .loading:
@@ -410,7 +413,18 @@ struct ListScreen: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(names.screen)
         .navigationTitle(kind.title)
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationBarTitleDisplayMode(.large)
+        .toolbarBackground(Tokens.bgSidebar, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar {
+            // The older-Mac face's bar holds Select alone, where the Sessions
+            // bar holds it (Phase 348, D16); Needs input's holds nothing.
+            if kind == .sessions {
+                ToolbarItem(placement: .topBarLeading) {
+                    EndBatchTitleControl()
+                }
+            }
+        }
     }
 
     /// A pull, the foreground and Try again: `reload` when it is set, else
@@ -421,21 +435,6 @@ struct ListScreen: View {
         } else {
             await model.load()
         }
-    }
-
-    /// `Sessions` or `Needs input`, 28/34 semibold, `padding: 0 16px 8px`
-    /// under the status bar, and End these' `Select` at its trailing edge.
-    private var title: some View {
-        HStack(alignment: .firstTextBaseline, spacing: Frame.rowGap) {
-            Words(kind.title, .title, Tokens.textPrimary)
-                .lineBox(.title)
-                .accessibilityAddTraits(.isHeader)
-                .accessibilityIdentifier(names.title)
-            Spacer(minLength: 0)
-            EndBatchTitleControl()
-        }
-        .padding(.horizontal, Frame.gutter)
-        .padding(.bottom, 8)
     }
 
     /// The Needs input tab: the waiting rows in the door's order, the last
@@ -489,17 +488,13 @@ struct ListScreen: View {
         }
     }
 
-    /// The age note, then `read 4:32 PM` right aligned, both 13 pt muted
-    /// (Main.html's foot: `text-align: right; padding: 16px`).
+    /// `read 4:32 PM` alone, right aligned, 13 pt muted (Main.html's foot:
+    /// `text-align: right; padding: 16px`; Phase 348, D14).
     private func foot(_ drawing: ListDrawing) -> some View {
-        VStack(alignment: .leading, spacing: Frame.rowVertical) {
-            Words(drawing.ageNote, .small, Tokens.textMuted, lines: nil)
-                .accessibilityIdentifier(names.ageNote)
-            Words(drawing.readLine, .age, Tokens.textMuted)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .accessibilityIdentifier(names.read)
-        }
-        .padding(Frame.gutter)
+        Words(drawing.readLine, .age, Tokens.textMuted)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .accessibilityIdentifier(names.read)
+            .padding(Frame.gutter)
     }
 }
 

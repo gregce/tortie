@@ -43,8 +43,9 @@ export const POCKET_PAIR_BODY_CAP_BYTES = 4 * 1024;
 /**
  * A write's body, per route (Phase 317, build/p317/SPEC.md §5.3.3; Phase 318,
  * build/p318/SPEC.md §5.1.3, D3; Phase 337, build/p337/SPEC.md §5.1, D17;
- * Phase 346, build/p346/SPEC.md D6). The door process checks the size and drops a
- * body over it whole (404 `oversized`); main parses.
+ * Phase 346, build/p346/SPEC.md D6; Phase 348, build/p348/SPEC.md D29). The
+ * door process checks the size and drops a body over it whole (404
+ * `oversized`); main parses.
  *
  * Computed from the worst legal body, not guessed, and a vitest
  * (`../__tests__/p318-body-caps.test.ts`) encodes each and holds it under its
@@ -76,11 +77,25 @@ export const POCKET_PAIR_BODY_CAP_BYTES = 4 * 1024;
  *     id is 11 characters (`antigravity`), so the worst legal body is 143
  *     bytes, and no field can hold a character either encoder escapes. Cap
  *     512.
+ *   - `remove` (Phase 348, build/p348/SPEC.md D28, D29):
+ *     `{"session":"<128 chars>","write":"<32 hex>"}`, 185 bytes, and no field
+ *     can hold a character either encoder escapes. Cap 512, as `end`'s.
+ *   - `paste` (Phase 348, D29): `{"dialog":"<12 hex>","session":"<128>",
+ *     "text":"…","turn":"<16 hex>-<16 digits>","write":"<32 hex>"}` with at
+ *     most `POCKET_PASTE_MAX_TEXT_BYTES` (16,384) bytes of UTF-8 text. The
+ *     worst legal body is 16,384 C0 bytes, each escaped `\u00XX`: 98,566
+ *     bytes, MEASURED by the spec step through Node's HTTP parser under the
+ *     door's own options in one TLS 1.3 write (§2.2; 16,384 `"` is 33,030,
+ *     4,096 astral characters escaped as surrogate pairs 49,414, plain text
+ *     16,646). It must reach main to be answered `refused character` in
+ *     words rather than be dropped here, so the cap is 131,072, which held
+ *     131,072 bytes and dropped 131,073 whole. Twice the worst is the keys
+ *     cap's rule alone (`conformance:pocket` Z2).
  *
  * Keyed by the route id, so the listener reads the cap of the row it matched
  * and a write route with no cap here is a type error.
  */
-export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512 } as const);
+export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512, remove: 512, paste: 131_072 } as const);
 
 /** The timings a test may shorten. Production passes none of these. */
 export interface DoorTimings {

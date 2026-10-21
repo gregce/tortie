@@ -12,16 +12,20 @@
 // nothing, filters nothing and counts nothing of its own (conformance:ios rule
 // aa).
 //
-// WHAT IT DRAWS. The title with the menu and Select at its trailing edge; Show
+// WHAT IT DRAWS. The iPhone's own bar (Phase 348, build/p348/SPEC.md §4.5,
+// D16, D56): the large title, Select then the menu at its leading edge, and
+// the "+" alone at its trailing edge (`SessionsBar`). Under the title, Show
 // (All · Active · Ended, the session manager's lifecycle segment, opening on
-// Active); then, under Project, each project's header (a chevron that opens
-// and closes it, its label, how many sessions it has under the words, the
-// needs-input dot when one of them waits, open or closed, its machine's badge,
-// and its folder only when two projects share a name), its rows, and its own
-// `n more not shown.` when the caps left some out; under None, one list whose
-// rows read as 316.6's did. Then main's foot. A project he closed keeps its
-// dot, so no tap of his hides a waiting session without a mark. The Needs
-// input tab and its badge are the list's own read, which no choice here moves.
+// Active) as the list's first line; then, under Project, each project's
+// header (a chevron that opens and closes it, its label, how many sessions it
+// has under the words, the needs-input dot when one of them waits, open or
+// closed, its machine's badge, and its folder only when two projects share a
+// name), its rows, and its own `n more not shown.` when the caps left some
+// out; under None, one list whose rows read as 316.6's did. Then
+// `read 4:32 PM` alone: main's age note is read and never drawn (Phase 348,
+// D14). A project he closed keeps its dot, so no tap of his hides a waiting
+// session without a mark. The Needs input tab and its badge are the list's
+// own read, which no choice here moves.
 //
 // THE READS (D16). Appear, pull, the foreground and Done read `/v1/sessions`
 // AND the list's `/v1/blocked` together, so the badge and the Needs input tab
@@ -46,13 +50,14 @@
 // of that face is this model's, which asks `/v1/sessions` first, so the first
 // answer from an updated Mac brings this tab back with no relaunch.
 //
-// NEW SESSION (Phase 346, build/p346/SPEC.md D21, D27). The title's trailing
+// NEW SESSION (Phase 346, build/p346/SPEC.md D21, D27). The bar's trailing
 // "+" opens New session (Screens/StartSheet.swift) over the offer this Mac's
 // latest answer carries (`PocketSessionsStart`), and is drawn only while it
 // carries one and the tab was handed a start: a Mac older than that phase, or
-// one that has not allowed Start yet, draws none. It is off while End these
-// takes taps, as the menu is. The sheet belongs to this tab of the Mac on
-// screen, and a start it makes opens on this tab of that Mac.
+// one that has not allowed Start yet, draws none, and no empty slot either.
+// It is off while End these takes taps, as the menu is. The sheet belongs to
+// this tab of the Mac on screen, and a start it makes opens on this tab of
+// that Mac.
 
 import SwiftUI
 
@@ -159,9 +164,9 @@ struct SessionsDrawing: Equatable, Sendable {
     let leftOut: String?
     let agents: [ChoiceDrawing]
     let machines: [ChoiceDrawing]
-    /// Main's `ageNote`, under the ages.
-    let ageNote: String
-    /// `read 4:32 PM`, the moment main composed the answer.
+    /// `read 4:32 PM`, the moment main composed the answer: the foot's one
+    /// line. Main's `ageNote` is decoded strictly and never drawn (Phase 348,
+    /// D14).
     let readLine: String
     /// What New session may start on this Mac (Phase 346), as the answer
     /// carried it: nil when it carried none, or one this build could not read.
@@ -233,7 +238,6 @@ struct SessionsDrawing: Equatable, Sendable {
         leftOut = answer.omittedRows > 0 ? Copy.othersOmitted(answer.omittedRows) : nil
         agents = try Self.choices(answer.agents, unnamed: nil)
         machines = try Self.choices(answer.machines, unnamed: PocketSessionsChoice.thisMacId)
-        ageNote = answer.ageNote
         readLine = Copy.readAt(clock(answer.at))
         start = answer.start
     }
@@ -569,7 +573,7 @@ extension SessionsSortBy {
 
 // MARK: - The numbers this screen's mock spells
 
-/// Main.html's `.seg`, `.grp` and the title's controls, in points.
+/// Main.html's `.seg` and `.grp`, and the bar's presses, in points.
 enum SessionsFrame {
     /// `.seg { padding: 2px; border-radius: 9px }`.
     static let showInset: CGFloat = 2
@@ -582,8 +586,15 @@ enum SessionsFrame {
     static let groupBottom: CGFloat = 6
     /// `.grp-folder { padding-left: 17px }`: under the label, past the chevron.
     static let folderInset: CGFloat = 17
-    /// The menu button and Select, `gap: 16px`.
-    static let controlGap: CGFloat = 16
+    /// The "+"'s label in the bar, 46 × 46 (Phase 348, D56): the parent's
+    /// "+" frame. The iPhone's own bar holds no item taller than 36 on iOS
+    /// 26.3, where it presses 50 × 36, and grows one to 44 on 18.3, where it
+    /// presses 54 × 44 (build/p348/SPEC.md §2.5.1).
+    static let plusPress: CGFloat = 46
+    /// The filter's and Select's labels in the bar, at least 44 × 44, iOS's
+    /// smallest target (D56): Select presses 62 × 36 and the filter 58 × 36
+    /// on iOS 26.3, and 56 × 44 and 60 × 44 on 18.3.
+    static let barPress: CGFloat = 44
 }
 
 private extension Face {
@@ -689,7 +700,6 @@ struct SessionsScreen: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
-                title
                 showControl
                 if let line = model.list.alertsLine {
                     Words(line, .secondary, Tokens.textSecondary, lines: nil)
@@ -741,31 +751,12 @@ struct SessionsScreen: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(ID.listScreen)
         .navigationTitle(Copy.sessions)
-        .toolbar(.hidden, for: .navigationBar)
-    }
-
-    /// `Sessions`, 28/34 semibold, with the menu and End these' `Select` at
-    /// its trailing edge (Main.html), and since Phase 346 the "+" after them,
-    /// only while this Mac offers a start.
-    private var title: some View {
-        HStack(alignment: .firstTextBaseline, spacing: Frame.rowGap) {
-            Words(Copy.sessions, .title, Tokens.textPrimary)
-                .lineBox(.title)
-                .accessibilityAddTraits(.isHeader)
-                .accessibilityIdentifier(ID.listTitle)
-            Spacer(minLength: 0)
-            HStack(spacing: SessionsFrame.controlGap) {
-                menu
-                EndBatchTitleControl()
-                if let start, model.startOffer != nil {
-                    StartTitleControl(open: start)
-                        .disabled(batch?.takesTaps ?? false)
-                        .accessibilityIdentifier(ID.startOpen)
-                }
-            }
+        .navigationBarTitleDisplayMode(.large)
+        .toolbarBackground(Tokens.bgSidebar, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar {
+            SessionsBar(model: model, start: start)
         }
-        .padding(.horizontal, Frame.gutter)
-        .padding(.bottom, 8)
     }
 
     /// All · Active · Ended: three house buttons in one capsule, drawn with
@@ -808,74 +799,6 @@ struct SessionsScreen: View {
         .accessibilityIdentifier(ID.listShow)
         .padding(.horizontal, Frame.gutter)
         .padding(.bottom, 8)
-    }
-
-    /// The one menu: Group by and Sort by, Agent and Machine only when the
-    /// answer names more than one, and Clear filters while Show is not All or
-    /// a filter is set. Its button is filled while a filter is set.
-    private var menu: some View {
-        Menu {
-            Picker(Copy.groupBy, selection: groupChoice) {
-                ForEach(SessionsGroupBy.allCases, id: \.self) { group in
-                    Text(verbatim: group.word).tag(group)
-                }
-            }
-            .pickerStyle(.menu)
-            Picker(Copy.sortBy, selection: sortChoice) {
-                ForEach(SessionsSortBy.allCases, id: \.self) { sort in
-                    Text(verbatim: sort.word).tag(sort)
-                }
-            }
-            .pickerStyle(.menu)
-            if case .loaded(let drawing) = model.state {
-                if drawing.agents.count > 1 {
-                    Picker(Copy.agent, selection: agentChoice) {
-                        Text(verbatim: Copy.allAgents).tag(String?.none)
-                        ForEach(drawing.agents) { agent in
-                            Text(verbatim: agent.label).tag(Optional(agent.id))
-                        }
-                    }
-                    .pickerStyle(.menu)
-                }
-                if drawing.machines.count > 1 {
-                    Picker(Copy.machine, selection: machineChoice) {
-                        Text(verbatim: Copy.allMachines).tag(String?.none)
-                        ForEach(drawing.machines) { machine in
-                            Text(verbatim: machine.label).tag(Optional(machine.id))
-                        }
-                    }
-                    .pickerStyle(.menu)
-                }
-            }
-            if model.offersClear {
-                Divider()
-                Button(Copy.clearFilters) {
-                    Task { await model.clearFilters() }
-                }
-            }
-        } label: {
-            Image(systemName: model.filtered ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
-                .foregroundStyle(Tokens.accent)
-        }
-        .disabled(batch?.takesTaps ?? false)
-        .accessibilityLabel(Text(verbatim: Copy.sessionsOptions))
-        .accessibilityIdentifier(ID.listMenu)
-    }
-
-    private var groupChoice: Binding<SessionsGroupBy> {
-        Binding(get: { model.words.group }, set: { group in Task { await model.choose(group: group) } })
-    }
-
-    private var sortChoice: Binding<SessionsSortBy> {
-        Binding(get: { model.words.sort }, set: { sort in Task { await model.choose(sort: sort) } })
-    }
-
-    private var agentChoice: Binding<String?> {
-        Binding(get: { model.agent }, set: { agent in Task { await model.choose(agent: agent) } })
-    }
-
-    private var machineChoice: Binding<String?> {
-        Binding(get: { model.machine }, set: { machine in Task { await model.choose(machine: machine) } })
     }
 
     @ViewBuilder
@@ -928,16 +851,134 @@ struct SessionsScreen: View {
         }
     }
 
-    /// The age note, then `read 4:32 PM` right aligned, both 13 pt muted.
+    /// `read 4:32 PM` alone, right aligned, 13 pt muted (Phase 348, D14).
     private func foot(_ drawing: SessionsDrawing) -> some View {
-        VStack(alignment: .leading, spacing: Frame.rowVertical) {
-            Words(drawing.ageNote, .small, Tokens.textMuted, lines: nil)
-                .accessibilityIdentifier(ID.listAgeNote)
-            Words(drawing.readLine, .age, Tokens.textMuted)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .accessibilityIdentifier(ID.listRead)
+        Words(drawing.readLine, .age, Tokens.textMuted)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .accessibilityIdentifier(ID.listRead)
+            .padding(Frame.gutter)
+    }
+}
+
+// MARK: - The bar (Phase 348, build/p348/SPEC.md §4.5, D16, D56)
+
+/// The Sessions tab's bar, the iPhone's own, his words "MUCH nicer like a real
+/// iphone": End these' Select, then the one menu, at the leading edge, and the
+/// "+" alone at the trailing edge, 250 points from Select where it was 2. The
+/// "+" is built only while this Mac offers a start, so a Mac that has not
+/// allowed Start draws no "+" and no empty slot (measured, SPEC §2.5). It is
+/// declared in this file because the screen here applies it, so its items see
+/// End these where `SessionsTab` attached it: Select draws from it, and the
+/// menu and the "+" are off while it takes taps, as they always were.
+///
+/// THE PRESSES ARE THE LABELS' FRAMES (D56). The bar presses exactly a
+/// control's own frame and nothing past it, and on iOS 26.3 it holds no item
+/// taller than 36 points whatever the label asks; so each label is framed
+/// once, with a rectangle for its shape, its lengths `SessionsFrame`'s
+/// literals, and no control in the bar is padded: the "+" `plusPress` square
+/// (`StartTitleControl`), the menu's glyph and Select's words (EndBatch.swift)
+/// at least `barPress` each way.
+struct SessionsBar: ToolbarContent {
+    let model: SessionsModel
+    /// The "+", for a tab handed a start (Phase 346); nil draws none.
+    let start: (() -> Void)?
+    /// End these, where `SessionsTab` attached it.
+    @Environment(\.endBatch) private var batch
+
+    var body: some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarLeading) {
+            EndBatchTitleControl()
+            menu
         }
-        .padding(Frame.gutter)
+        if let start, model.startOffer != nil {
+            ToolbarItem(placement: .topBarTrailing) {
+                StartTitleControl(open: start)
+                    .disabled(batch?.takesTaps ?? false)
+                    .accessibilityIdentifier(ID.startOpen)
+            }
+        }
+    }
+
+    /// The one menu: Group by and Sort by, Agent and Machine only when the
+    /// answer names more than one, and Clear filters while Show is not All or
+    /// a filter is set. Its content is the parent's; only where it sits moved.
+    private var menu: some View {
+        Menu {
+            Picker(Copy.groupBy, selection: groupChoice) {
+                ForEach(SessionsGroupBy.allCases, id: \.self) { group in
+                    Text(verbatim: group.word).tag(group)
+                }
+            }
+            .pickerStyle(.menu)
+            Picker(Copy.sortBy, selection: sortChoice) {
+                ForEach(SessionsSortBy.allCases, id: \.self) { sort in
+                    Text(verbatim: sort.word).tag(sort)
+                }
+            }
+            .pickerStyle(.menu)
+            if case .loaded(let drawing) = model.state {
+                if drawing.agents.count > 1 {
+                    Picker(Copy.agent, selection: agentChoice) {
+                        Text(verbatim: Copy.allAgents).tag(String?.none)
+                        ForEach(drawing.agents) { agent in
+                            Text(verbatim: agent.label).tag(Optional(agent.id))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+                if drawing.machines.count > 1 {
+                    Picker(Copy.machine, selection: machineChoice) {
+                        Text(verbatim: Copy.allMachines).tag(String?.none)
+                        ForEach(drawing.machines) { machine in
+                            Text(verbatim: machine.label).tag(Optional(machine.id))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+            }
+            if model.offersClear {
+                Divider()
+                Button(Copy.clearFilters) {
+                    Task { await model.clearFilters() }
+                }
+            }
+        } label: {
+            filterGlyph
+                .frame(minWidth: SessionsFrame.barPress, minHeight: SessionsFrame.barPress)
+                .contentShape(Rectangle())
+        }
+        .disabled(batch?.takesTaps ?? false)
+        .accessibilityLabel(Text(verbatim: Copy.sessionsOptions))
+        .accessibilityIdentifier(ID.listMenu)
+    }
+
+    /// The menu's glyph: on iOS 26, where the bar draws its own glass around
+    /// an item, the bare `line.3.horizontal.decrease`; before it, the circle,
+    /// filled while a filter is set, in the accent, as the parent drew it.
+    @ViewBuilder
+    private var filterGlyph: some View {
+        if #available(iOS 26, *) {
+            Image(systemName: "line.3.horizontal.decrease")
+        } else {
+            Image(systemName: model.filtered ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                .foregroundStyle(Tokens.accent)
+        }
+    }
+
+    private var groupChoice: Binding<SessionsGroupBy> {
+        Binding(get: { model.words.group }, set: { group in Task { await model.choose(group: group) } })
+    }
+
+    private var sortChoice: Binding<SessionsSortBy> {
+        Binding(get: { model.words.sort }, set: { sort in Task { await model.choose(sort: sort) } })
+    }
+
+    private var agentChoice: Binding<String?> {
+        Binding(get: { model.agent }, set: { agent in Task { await model.choose(agent: agent) } })
+    }
+
+    private var machineChoice: Binding<String?> {
+        Binding(get: { model.machine }, set: { machine in Task { await model.choose(machine: machine) } })
     }
 }
 

@@ -1,0 +1,6762 @@
+{
+ "derivedBy": "Written by the probe review (docs/method/HOW-WE-BUILT-THIS.md rule 9), never from build/p345/fixtures/graders.json: T1 and RP in the shape runDevice assembles them (the pair-another-end dump, the tab-needs dump with the doors read beside it), P1 with build 10's title rows and HEAD's bar from build/p348/SPEC.md §2.5 and §2.8 on a 16 Pro, the words read as text from ios/Tortie/Style/Copy.swift. THE REVIEW's readings are the ones that passed before it.",
+ "graders": [
+  {
+   "grader": "T1",
+   "name": "honest (26.3, no badges): B's Sessions, then its Needs input by the tab press",
+   "want": "pass",
+   "reading": {
+    "drawn": "9c1d 7e2a 4b3f 8a6c 2d5e 0f19",
+    "macFingerprint": "9c1d 7e2a 4b3f 8a6c 2d5e 0f19",
+    "allowed": true,
+    "line": {
+     "closed": true,
+     "line": null,
+     "again": false
+    },
+    "landed": {
+     "step": "screen",
+     "name": "pair-another-end",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-list",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        402,
+        874
+       ]
+      },
+      {
+       "id": "list-show",
+       "label": "",
+       "frame": [
+        16,
+        223,
+        370,
+        32
+       ]
+      },
+      {
+       "id": "row-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "",
+       "frame": [
+        0,
+        300,
+        402,
+        57
+       ]
+      },
+      {
+       "id": "row-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "",
+       "frame": [
+        0,
+        357,
+        402,
+        57
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "end": {
+     "step": "screen",
+     "name": "tab-needs",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-needs-input",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        402,
+        874
+       ]
+      },
+      {
+       "id": "needs-row-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "",
+       "frame": [
+        0,
+        230,
+        402,
+        64
+       ]
+      },
+      {
+       "id": "needs-row-name-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "s-0",
+       "frame": [
+        52,
+        238,
+        200,
+        22
+       ]
+      },
+      {
+       "id": "needs-row-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "",
+       "frame": [
+        0,
+        294,
+        402,
+        64
+       ]
+      },
+      {
+       "id": "needs-row-name-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "s-1",
+       "frame": [
+        52,
+        302,
+        200,
+        22
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "doorRows": [
+     "b1b1b1b1-1111-4111-8111-1111111111b1",
+     "b2b2b2b2-2222-4222-8222-2222222222b2"
+    ],
+    "tabs": {
+     "read": true,
+     "inBar": [],
+     "bottom": [
+      {
+       "label": "Needs input",
+       "value": null,
+       "frame": [
+        8,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "value": null,
+       "frame": [
+        106,
+        800,
+        90,
+        50
+       ],
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "value": null,
+       "frame": [
+        204,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "p345-laptop",
+       "value": null,
+       "frame": [
+        302,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      }
+     ],
+     "window": [
+      402,
+      874
+     ]
+    },
+    "label": "p345-laptop",
+    "readBadges": false,
+    "needsBadge": null,
+    "macsBadge": null,
+    "expectNeeds": 2,
+    "expectMacs": 1
+   }
+  },
+  {
+   "grader": "T1",
+   "name": "the sheet closed onto Needs input, build 10's landing",
+   "want": "fail",
+   "reading": {
+    "drawn": "9c1d 7e2a 4b3f 8a6c 2d5e 0f19",
+    "macFingerprint": "9c1d 7e2a 4b3f 8a6c 2d5e 0f19",
+    "allowed": true,
+    "line": {
+     "closed": true,
+     "line": null,
+     "again": false
+    },
+    "landed": {
+     "step": "screen",
+     "name": "pair-another-end",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-needs-input",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        402,
+        874
+       ]
+      },
+      {
+       "id": "needs-row-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "",
+       "frame": [
+        0,
+        230,
+        402,
+        64
+       ]
+      },
+      {
+       "id": "needs-row-name-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "s-0",
+       "frame": [
+        52,
+        238,
+        200,
+        22
+       ]
+      },
+      {
+       "id": "needs-row-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "",
+       "frame": [
+        0,
+        294,
+        402,
+        64
+       ]
+      },
+      {
+       "id": "needs-row-name-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "s-1",
+       "frame": [
+        52,
+        302,
+        200,
+        22
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "end": {
+     "step": "screen",
+     "name": "tab-needs",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-needs-input",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        402,
+        874
+       ]
+      },
+      {
+       "id": "needs-row-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "",
+       "frame": [
+        0,
+        230,
+        402,
+        64
+       ]
+      },
+      {
+       "id": "needs-row-name-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "s-0",
+       "frame": [
+        52,
+        238,
+        200,
+        22
+       ]
+      },
+      {
+       "id": "needs-row-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "",
+       "frame": [
+        0,
+        294,
+        402,
+        64
+       ]
+      },
+      {
+       "id": "needs-row-name-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "s-1",
+       "frame": [
+        52,
+        302,
+        200,
+        22
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "doorRows": [
+     "b1b1b1b1-1111-4111-8111-1111111111b1",
+     "b2b2b2b2-2222-4222-8222-2222222222b2"
+    ],
+    "tabs": {
+     "read": true,
+     "inBar": [],
+     "bottom": [
+      {
+       "label": "Needs input",
+       "value": null,
+       "frame": [
+        8,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "value": null,
+       "frame": [
+        106,
+        800,
+        90,
+        50
+       ],
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "value": null,
+       "frame": [
+        204,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "p345-laptop",
+       "value": null,
+       "frame": [
+        302,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      }
+     ],
+     "window": [
+      402,
+      874
+     ]
+    },
+    "label": "p345-laptop",
+    "readBadges": false,
+    "needsBadge": null,
+    "macsBadge": null,
+    "expectNeeds": 2,
+    "expectMacs": 1
+   }
+  },
+  {
+   "grader": "T1",
+   "name": "the sheet closed onto A's Sessions, so the tab press drew A's Needs input",
+   "want": "fail",
+   "reading": {
+    "drawn": "9c1d 7e2a 4b3f 8a6c 2d5e 0f19",
+    "macFingerprint": "9c1d 7e2a 4b3f 8a6c 2d5e 0f19",
+    "allowed": true,
+    "line": {
+     "closed": true,
+     "line": null,
+     "again": false
+    },
+    "landed": {
+     "step": "screen",
+     "name": "pair-another-end",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-list",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        402,
+        874
+       ]
+      },
+      {
+       "id": "list-show",
+       "label": "",
+       "frame": [
+        16,
+        223,
+        370,
+        32
+       ]
+      },
+      {
+       "id": "row-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "",
+       "frame": [
+        0,
+        300,
+        402,
+        57
+       ]
+      },
+      {
+       "id": "row-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "",
+       "frame": [
+        0,
+        357,
+        402,
+        57
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "end": {
+     "step": "screen",
+     "name": "tab-needs",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-needs-input",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        402,
+        874
+       ]
+      },
+      {
+       "id": "needs-row-a1a1a1a1-1111-4111-8111-1111111111a1",
+       "label": "",
+       "frame": [
+        0,
+        230,
+        402,
+        64
+       ]
+      },
+      {
+       "id": "needs-row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+       "label": "s-0",
+       "frame": [
+        52,
+        238,
+        200,
+        22
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "doorRows": [
+     "b1b1b1b1-1111-4111-8111-1111111111b1",
+     "b2b2b2b2-2222-4222-8222-2222222222b2"
+    ],
+    "tabs": {
+     "read": true,
+     "inBar": [],
+     "bottom": [
+      {
+       "label": "Needs input",
+       "value": null,
+       "frame": [
+        8,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "value": null,
+       "frame": [
+        106,
+        800,
+        90,
+        50
+       ],
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "value": null,
+       "frame": [
+        204,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "p345-laptop",
+       "value": null,
+       "frame": [
+        302,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      }
+     ],
+     "window": [
+      402,
+      874
+     ]
+    },
+    "label": "p345-laptop",
+    "readBadges": false,
+    "needsBadge": null,
+    "macsBadge": null,
+    "expectNeeds": 2,
+    "expectMacs": 1
+   }
+  },
+  {
+   "grader": "T1",
+   "name": "the tab press drew the Sessions list again",
+   "want": "fail",
+   "reading": {
+    "drawn": "9c1d 7e2a 4b3f 8a6c 2d5e 0f19",
+    "macFingerprint": "9c1d 7e2a 4b3f 8a6c 2d5e 0f19",
+    "allowed": true,
+    "line": {
+     "closed": true,
+     "line": null,
+     "again": false
+    },
+    "landed": {
+     "step": "screen",
+     "name": "pair-another-end",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-list",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        402,
+        874
+       ]
+      },
+      {
+       "id": "list-show",
+       "label": "",
+       "frame": [
+        16,
+        223,
+        370,
+        32
+       ]
+      },
+      {
+       "id": "row-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "",
+       "frame": [
+        0,
+        300,
+        402,
+        57
+       ]
+      },
+      {
+       "id": "row-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "",
+       "frame": [
+        0,
+        357,
+        402,
+        57
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "end": {
+     "step": "screen",
+     "name": "tab-needs",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-list",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "doorRows": [
+     "b1b1b1b1-1111-4111-8111-1111111111b1",
+     "b2b2b2b2-2222-4222-8222-2222222222b2"
+    ],
+    "tabs": {
+     "read": true,
+     "inBar": [],
+     "bottom": [
+      {
+       "label": "Needs input",
+       "value": null,
+       "frame": [
+        8,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "value": null,
+       "frame": [
+        106,
+        800,
+        90,
+        50
+       ],
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "value": null,
+       "frame": [
+        204,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "p345-laptop",
+       "value": null,
+       "frame": [
+        302,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      }
+     ],
+     "window": [
+      402,
+      874
+     ]
+    },
+    "label": "p345-laptop",
+    "readBadges": false,
+    "needsBadge": null,
+    "macsBadge": null,
+    "expectNeeds": 2,
+    "expectMacs": 1
+   }
+  },
+  {
+   "grader": "T1",
+   "name": "no tab-needs dump (the tab press never ran)",
+   "want": "unreadable",
+   "reading": {
+    "drawn": "9c1d 7e2a 4b3f 8a6c 2d5e 0f19",
+    "macFingerprint": "9c1d 7e2a 4b3f 8a6c 2d5e 0f19",
+    "allowed": true,
+    "line": {
+     "closed": true,
+     "line": null,
+     "again": false
+    },
+    "landed": {
+     "step": "screen",
+     "name": "pair-another-end",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-list",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        402,
+        874
+       ]
+      },
+      {
+       "id": "list-show",
+       "label": "",
+       "frame": [
+        16,
+        223,
+        370,
+        32
+       ]
+      },
+      {
+       "id": "row-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "",
+       "frame": [
+        0,
+        300,
+        402,
+        57
+       ]
+      },
+      {
+       "id": "row-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "",
+       "frame": [
+        0,
+        357,
+        402,
+        57
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "end": null,
+    "doorRows": [
+     "b1b1b1b1-1111-4111-8111-1111111111b1",
+     "b2b2b2b2-2222-4222-8222-2222222222b2"
+    ],
+    "tabs": {
+     "read": true,
+     "inBar": [],
+     "bottom": [
+      {
+       "label": "Needs input",
+       "value": null,
+       "frame": [
+        8,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "value": null,
+       "frame": [
+        106,
+        800,
+        90,
+        50
+       ],
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "value": null,
+       "frame": [
+        204,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "p345-laptop",
+       "value": null,
+       "frame": [
+        302,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      }
+     ],
+     "window": [
+      402,
+      874
+     ]
+    },
+    "label": "p345-laptop",
+    "readBadges": false,
+    "needsBadge": null,
+    "macsBadge": null,
+    "expectNeeds": 2,
+    "expectMacs": 1
+   }
+  },
+  {
+   "grader": "T1",
+   "name": "the second Mac's door was not read beside the tab press",
+   "want": "unreadable",
+   "reading": {
+    "drawn": "9c1d 7e2a 4b3f 8a6c 2d5e 0f19",
+    "macFingerprint": "9c1d 7e2a 4b3f 8a6c 2d5e 0f19",
+    "allowed": true,
+    "line": {
+     "closed": true,
+     "line": null,
+     "again": false
+    },
+    "landed": {
+     "step": "screen",
+     "name": "pair-another-end",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-list",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        402,
+        874
+       ]
+      },
+      {
+       "id": "list-show",
+       "label": "",
+       "frame": [
+        16,
+        223,
+        370,
+        32
+       ]
+      },
+      {
+       "id": "row-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "",
+       "frame": [
+        0,
+        300,
+        402,
+        57
+       ]
+      },
+      {
+       "id": "row-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "",
+       "frame": [
+        0,
+        357,
+        402,
+        57
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "end": {
+     "step": "screen",
+     "name": "tab-needs",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-needs-input",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        402,
+        874
+       ]
+      },
+      {
+       "id": "needs-row-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "",
+       "frame": [
+        0,
+        230,
+        402,
+        64
+       ]
+      },
+      {
+       "id": "needs-row-name-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "s-0",
+       "frame": [
+        52,
+        238,
+        200,
+        22
+       ]
+      },
+      {
+       "id": "needs-row-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "",
+       "frame": [
+        0,
+        294,
+        402,
+        64
+       ]
+      },
+      {
+       "id": "needs-row-name-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "s-1",
+       "frame": [
+        52,
+        302,
+        200,
+        22
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "doorRows": null,
+    "tabs": {
+     "read": true,
+     "inBar": [],
+     "bottom": [
+      {
+       "label": "Needs input",
+       "value": null,
+       "frame": [
+        8,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "value": null,
+       "frame": [
+        106,
+        800,
+        90,
+        50
+       ],
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "value": null,
+       "frame": [
+        204,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "p345-laptop",
+       "value": null,
+       "frame": [
+        302,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      }
+     ],
+     "window": [
+      402,
+      874
+     ]
+    },
+    "label": "p345-laptop",
+    "readBadges": false,
+    "needsBadge": null,
+    "macsBadge": null,
+    "expectNeeds": 2,
+    "expectMacs": 1
+   }
+  },
+  {
+   "grader": "T1",
+   "name": "the sheet stayed up with its line",
+   "want": "fail",
+   "reading": {
+    "drawn": "9c1d 7e2a 4b3f 8a6c 2d5e 0f19",
+    "macFingerprint": "9c1d 7e2a 4b3f 8a6c 2d5e 0f19",
+    "allowed": true,
+    "line": {
+     "closed": false,
+     "line": "Your Mac did not answer."
+    },
+    "landed": {
+     "step": "screen",
+     "name": "pair-another-end",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-list",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        402,
+        874
+       ]
+      },
+      {
+       "id": "list-show",
+       "label": "",
+       "frame": [
+        16,
+        223,
+        370,
+        32
+       ]
+      },
+      {
+       "id": "row-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "",
+       "frame": [
+        0,
+        300,
+        402,
+        57
+       ]
+      },
+      {
+       "id": "row-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "",
+       "frame": [
+        0,
+        357,
+        402,
+        57
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "end": {
+     "step": "screen",
+     "name": "tab-needs",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-needs-input",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        402,
+        874
+       ]
+      },
+      {
+       "id": "needs-row-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "",
+       "frame": [
+        0,
+        230,
+        402,
+        64
+       ]
+      },
+      {
+       "id": "needs-row-name-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "s-0",
+       "frame": [
+        52,
+        238,
+        200,
+        22
+       ]
+      },
+      {
+       "id": "needs-row-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "",
+       "frame": [
+        0,
+        294,
+        402,
+        64
+       ]
+      },
+      {
+       "id": "needs-row-name-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "s-1",
+       "frame": [
+        52,
+        302,
+        200,
+        22
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "doorRows": [
+     "b1b1b1b1-1111-4111-8111-1111111111b1",
+     "b2b2b2b2-2222-4222-8222-2222222222b2"
+    ],
+    "tabs": {
+     "read": true,
+     "inBar": [],
+     "bottom": [
+      {
+       "label": "Needs input",
+       "value": null,
+       "frame": [
+        8,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "value": null,
+       "frame": [
+        106,
+        800,
+        90,
+        50
+       ],
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "value": null,
+       "frame": [
+        204,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "p345-laptop",
+       "value": null,
+       "frame": [
+        302,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      }
+     ],
+     "window": [
+      402,
+      874
+     ]
+    },
+    "label": "p345-laptop",
+    "readBadges": false,
+    "needsBadge": null,
+    "macsBadge": null,
+    "expectNeeds": 2,
+    "expectMacs": 1
+   }
+  },
+  {
+   "grader": "RP",
+   "name": "honest: the re-pair lands on B's Sessions, its Needs input by the tab press, B last of three",
+   "want": "pass",
+   "reading": {
+    "line": {
+     "closed": true
+    },
+    "landed": {
+     "step": "screen",
+     "name": "pair-another-end",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-list",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "row-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "end": {
+     "step": "screen",
+     "name": "tab-needs",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-needs-input",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        402,
+        874
+       ]
+      },
+      {
+       "id": "needs-row-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "",
+       "frame": [
+        0,
+        230,
+        402,
+        64
+       ]
+      },
+      {
+       "id": "needs-row-name-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "s-0",
+       "frame": [
+        52,
+        238,
+        200,
+        22
+       ]
+      },
+      {
+       "id": "needs-row-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "",
+       "frame": [
+        0,
+        294,
+        402,
+        64
+       ]
+      },
+      {
+       "id": "needs-row-name-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "s-1",
+       "frame": [
+        52,
+        302,
+        200,
+        22
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "doorRows": [
+     "b1b1b1b1-1111-4111-8111-1111111111b1",
+     "b2b2b2b2-2222-4222-8222-2222222222b2"
+    ],
+    "macs": {
+     "step": "screen",
+     "name": "macs",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "macs-row-0",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-name-0",
+       "label": "p345-studio",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-1",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-name-1",
+       "label": "p345-cmac",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-2",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-name-2",
+       "label": "p345-laptop",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      }
+     ]
+    },
+    "lastName": "p345-laptop",
+    "expectCount": 3
+   }
+  },
+  {
+   "grader": "RP",
+   "name": "the re-pair landed on Needs input, build 10's landing",
+   "want": "fail",
+   "reading": {
+    "line": {
+     "closed": true
+    },
+    "landed": {
+     "step": "screen",
+     "name": "pair-another-end",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-needs-input",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        402,
+        874
+       ]
+      },
+      {
+       "id": "needs-row-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "",
+       "frame": [
+        0,
+        230,
+        402,
+        64
+       ]
+      },
+      {
+       "id": "needs-row-name-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "s-0",
+       "frame": [
+        52,
+        238,
+        200,
+        22
+       ]
+      },
+      {
+       "id": "needs-row-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "",
+       "frame": [
+        0,
+        294,
+        402,
+        64
+       ]
+      },
+      {
+       "id": "needs-row-name-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "s-1",
+       "frame": [
+        52,
+        302,
+        200,
+        22
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "end": {
+     "step": "screen",
+     "name": "tab-needs",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-needs-input",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        402,
+        874
+       ]
+      },
+      {
+       "id": "needs-row-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "",
+       "frame": [
+        0,
+        230,
+        402,
+        64
+       ]
+      },
+      {
+       "id": "needs-row-name-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "s-0",
+       "frame": [
+        52,
+        238,
+        200,
+        22
+       ]
+      },
+      {
+       "id": "needs-row-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "",
+       "frame": [
+        0,
+        294,
+        402,
+        64
+       ]
+      },
+      {
+       "id": "needs-row-name-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "s-1",
+       "frame": [
+        52,
+        302,
+        200,
+        22
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "doorRows": [
+     "b1b1b1b1-1111-4111-8111-1111111111b1",
+     "b2b2b2b2-2222-4222-8222-2222222222b2"
+    ],
+    "macs": {
+     "step": "screen",
+     "name": "macs",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "macs-row-0",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-name-0",
+       "label": "p345-studio",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-1",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-name-1",
+       "label": "p345-cmac",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-2",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-name-2",
+       "label": "p345-laptop",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      }
+     ]
+    },
+    "lastName": "p345-laptop",
+    "expectCount": 3
+   }
+  },
+  {
+   "grader": "RP",
+   "name": "THE REVIEW: the tab press drew the Sessions list, and B's door has no waiting row",
+   "want": "fail",
+   "reading": {
+    "line": {
+     "closed": true
+    },
+    "landed": {
+     "step": "screen",
+     "name": "pair-another-end",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-list",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "row-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "end": {
+     "step": "screen",
+     "name": "tab-needs",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-list",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "doorRows": [],
+    "macs": {
+     "step": "screen",
+     "name": "macs",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "macs-row-0",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-name-0",
+       "label": "p345-studio",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-1",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-name-1",
+       "label": "p345-cmac",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-2",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-name-2",
+       "label": "p345-laptop",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      }
+     ]
+    },
+    "lastName": "p345-laptop",
+    "expectCount": 3
+   }
+  },
+  {
+   "grader": "RP",
+   "name": "the re-paired Mac is not last",
+   "want": "fail",
+   "reading": {
+    "line": {
+     "closed": true
+    },
+    "landed": {
+     "step": "screen",
+     "name": "pair-another-end",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-list",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "row-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "end": {
+     "step": "screen",
+     "name": "tab-needs",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-needs-input",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        402,
+        874
+       ]
+      },
+      {
+       "id": "needs-row-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "",
+       "frame": [
+        0,
+        230,
+        402,
+        64
+       ]
+      },
+      {
+       "id": "needs-row-name-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "s-0",
+       "frame": [
+        52,
+        238,
+        200,
+        22
+       ]
+      },
+      {
+       "id": "needs-row-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "",
+       "frame": [
+        0,
+        294,
+        402,
+        64
+       ]
+      },
+      {
+       "id": "needs-row-name-b2b2b2b2-2222-4222-8222-2222222222b2",
+       "label": "s-1",
+       "frame": [
+        52,
+        302,
+        200,
+        22
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "doorRows": [
+     "b1b1b1b1-1111-4111-8111-1111111111b1",
+     "b2b2b2b2-2222-4222-8222-2222222222b2"
+    ],
+    "macs": {
+     "step": "screen",
+     "name": "macs",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "macs-row-0",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-name-0",
+       "label": "p345-studio",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-1",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-name-1",
+       "label": "p345-cmac",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-2",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-name-2",
+       "label": "p345-laptop",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      }
+     ]
+    },
+    "lastName": "p345-cmac",
+    "expectCount": 3
+   }
+  },
+  {
+   "grader": "RP",
+   "name": "no tab-needs dump",
+   "want": "unreadable",
+   "reading": {
+    "line": {
+     "closed": true
+    },
+    "landed": {
+     "step": "screen",
+     "name": "pair-another-end",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "screen-list",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "row-b1b1b1b1-1111-4111-8111-1111111111b1",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      }
+     ],
+     "doors": {
+      "A": {
+       "blocked": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ],
+       "sessions": [
+        "a1a1a1a1-1111-4111-8111-1111111111a1"
+       ]
+      },
+      "B": {
+       "blocked": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ],
+       "sessions": [
+        "b1b1b1b1-1111-4111-8111-1111111111b1",
+        "b2b2b2b2-2222-4222-8222-2222222222b2"
+       ]
+      }
+     }
+    },
+    "end": null,
+    "doorRows": [
+     "b1b1b1b1-1111-4111-8111-1111111111b1",
+     "b2b2b2b2-2222-4222-8222-2222222222b2"
+    ],
+    "macs": {
+     "step": "screen",
+     "name": "macs",
+     "window": [
+      402,
+      874
+     ],
+     "elements": [
+      {
+       "id": "macs-row-0",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-name-0",
+       "label": "p345-studio",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-1",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-name-1",
+       "label": "p345-cmac",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-2",
+       "label": "",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      },
+      {
+       "id": "macs-row-name-2",
+       "label": "p345-laptop",
+       "frame": [
+        0,
+        0,
+        10,
+        10
+       ]
+      }
+     ]
+    },
+    "lastName": "p345-laptop",
+    "expectCount": 3
+   }
+  },
+  {
+   "grader": "P1",
+   "name": "honest: Needs input and Sessions under the bar, one shift each, what Phase 348 moved stated",
+   "want": "pass",
+   "reading": {
+    "before": {
+     "needs": {
+      "step": "screen",
+      "name": "needs-input",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-needs-input",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "needs-input-title",
+        "label": "Needs input",
+        "frame": [
+         16,
+         106,
+         370,
+         34
+        ]
+       },
+       {
+        "id": "needs-row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         160,
+         402,
+         64
+        ]
+       },
+       {
+        "id": "needs-row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         168,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "needs-list-age-note",
+        "label": "Waits first seen…",
+        "frame": [
+         16,
+         240,
+         357,
+         33.67
+        ]
+       },
+       {
+        "id": "needs-list-read",
+        "label": "Read 9:41",
+        "frame": [
+         305.33,
+         280,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "sessions": {
+      "step": "screen",
+      "name": "list",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-list",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "list-title",
+        "label": "Sessions",
+        "frame": [
+         16,
+         106.17,
+         115,
+         33.67
+        ]
+       },
+       {
+        "id": "list-menu",
+        "label": "",
+        "frame": [
+         268.33,
+         117.33,
+         19.67,
+         19
+        ]
+       },
+       {
+        "id": "list-select",
+        "label": "Select",
+        "frame": [
+         304,
+         114.67,
+         48,
+         24.33
+        ]
+       },
+       {
+        "id": "list-show",
+        "label": "",
+        "frame": [
+         16,
+         148,
+         370,
+         32
+        ]
+       },
+       {
+        "id": "row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         223,
+         402,
+         57
+        ]
+       },
+       {
+        "id": "row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         229,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "list-age-note",
+        "label": "Waits first seen…",
+        "frame": [
+         16,
+         501,
+         357,
+         33.67
+        ]
+       },
+       {
+        "id": "list-read",
+        "label": "Read 9:41",
+        "frame": [
+         305.33,
+         540.67,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "terminal": {
+      "step": "screen",
+      "name": "screen",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-screen",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "screen-row-0",
+        "label": "$ ",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "catchUp": {
+      "step": "screen",
+      "name": "catch-up",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-catch-up",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "settings": {
+      "step": "screen",
+      "name": "settings",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-settings",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     }
+    },
+    "after": {
+     "needs": {
+      "step": "screen",
+      "name": "needs-input",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-needs-input",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "needs-row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         234.67,
+         402,
+         64
+        ]
+       },
+       {
+        "id": "needs-row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         242.67,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "needs-list-read",
+        "label": "Read 9:42",
+        "frame": [
+         305.33,
+         315,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "sessions": {
+      "step": "screen",
+      "name": "list",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-list",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "list-menu",
+        "label": "",
+        "frame": [
+         98,
+         120,
+         58,
+         36
+        ]
+       },
+       {
+        "id": "list-select",
+        "label": "Select",
+        "frame": [
+         20,
+         120,
+         62,
+         36
+        ]
+       },
+       {
+        "id": "start-open",
+        "label": "New session",
+        "frame": [
+         332,
+         120,
+         50,
+         36
+        ]
+       },
+       {
+        "id": "list-show",
+        "label": "",
+        "frame": [
+         16,
+         223,
+         370,
+         32
+        ]
+       },
+       {
+        "id": "row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         298,
+         402,
+         57
+        ]
+       },
+       {
+        "id": "row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         304,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "list-read",
+        "label": "Read 9:42",
+        "frame": [
+         305.33,
+         596,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "terminal": {
+      "step": "screen",
+      "name": "screen",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-screen",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "screen-row-0",
+        "label": "$ ls",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "catchUp": {
+      "step": "screen",
+      "name": "catch-up",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-catch-up",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "settings": {
+      "step": "screen",
+      "name": "settings",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-settings",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     }
+    },
+    "tabs": {
+     "read": true,
+     "inBar": [],
+     "bottom": [
+      {
+       "label": "Needs input",
+       "value": null,
+       "frame": [
+        8,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "value": null,
+       "frame": [
+        106,
+        800,
+        90,
+        50
+       ],
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "value": null,
+       "frame": [
+        204,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      }
+     ],
+     "window": [
+      402,
+      874
+     ]
+    },
+    "macsDrawn": false,
+    "otherNames": 0
+   }
+  },
+  {
+   "grader": "P1",
+   "name": "a row on Sessions moved 2 pt more than the shift",
+   "want": "fail",
+   "reading": {
+    "before": {
+     "needs": {
+      "step": "screen",
+      "name": "needs-input",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-needs-input",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "needs-input-title",
+        "label": "Needs input",
+        "frame": [
+         16,
+         106,
+         370,
+         34
+        ]
+       },
+       {
+        "id": "needs-row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         160,
+         402,
+         64
+        ]
+       },
+       {
+        "id": "needs-row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         168,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "needs-list-age-note",
+        "label": "Waits first seen…",
+        "frame": [
+         16,
+         240,
+         357,
+         33.67
+        ]
+       },
+       {
+        "id": "needs-list-read",
+        "label": "Read 9:41",
+        "frame": [
+         305.33,
+         280,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "sessions": {
+      "step": "screen",
+      "name": "list",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-list",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "list-title",
+        "label": "Sessions",
+        "frame": [
+         16,
+         106.17,
+         115,
+         33.67
+        ]
+       },
+       {
+        "id": "list-menu",
+        "label": "",
+        "frame": [
+         268.33,
+         117.33,
+         19.67,
+         19
+        ]
+       },
+       {
+        "id": "list-select",
+        "label": "Select",
+        "frame": [
+         304,
+         114.67,
+         48,
+         24.33
+        ]
+       },
+       {
+        "id": "list-show",
+        "label": "",
+        "frame": [
+         16,
+         148,
+         370,
+         32
+        ]
+       },
+       {
+        "id": "row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         223,
+         402,
+         57
+        ]
+       },
+       {
+        "id": "row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         229,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "list-age-note",
+        "label": "Waits first seen…",
+        "frame": [
+         16,
+         501,
+         357,
+         33.67
+        ]
+       },
+       {
+        "id": "list-read",
+        "label": "Read 9:41",
+        "frame": [
+         305.33,
+         540.67,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "terminal": {
+      "step": "screen",
+      "name": "screen",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-screen",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "screen-row-0",
+        "label": "$ ",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "catchUp": {
+      "step": "screen",
+      "name": "catch-up",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-catch-up",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "settings": {
+      "step": "screen",
+      "name": "settings",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-settings",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     }
+    },
+    "after": {
+     "needs": {
+      "step": "screen",
+      "name": "needs-input",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-needs-input",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "needs-row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         234.67,
+         402,
+         64
+        ]
+       },
+       {
+        "id": "needs-row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         242.67,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "needs-list-read",
+        "label": "Read 9:42",
+        "frame": [
+         305.33,
+         315,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "sessions": {
+      "step": "screen",
+      "name": "list",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-list",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "list-menu",
+        "label": "",
+        "frame": [
+         98,
+         120,
+         58,
+         36
+        ]
+       },
+       {
+        "id": "list-select",
+        "label": "Select",
+        "frame": [
+         20,
+         120,
+         62,
+         36
+        ]
+       },
+       {
+        "id": "start-open",
+        "label": "New session",
+        "frame": [
+         332,
+         120,
+         50,
+         36
+        ]
+       },
+       {
+        "id": "list-show",
+        "label": "",
+        "frame": [
+         16,
+         223,
+         370,
+         32
+        ]
+       },
+       {
+        "id": "row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         300,
+         402,
+         57
+        ]
+       },
+       {
+        "id": "row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         304,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "list-read",
+        "label": "Read 9:42",
+        "frame": [
+         305.33,
+         596,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "terminal": {
+      "step": "screen",
+      "name": "screen",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-screen",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "screen-row-0",
+        "label": "$ ls",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "catchUp": {
+      "step": "screen",
+      "name": "catch-up",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-catch-up",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "settings": {
+      "step": "screen",
+      "name": "settings",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-settings",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     }
+    },
+    "tabs": {
+     "read": true,
+     "inBar": [],
+     "bottom": [
+      {
+       "label": "Needs input",
+       "value": null,
+       "frame": [
+        8,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "value": null,
+       "frame": [
+        106,
+        800,
+        90,
+        50
+       ],
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "value": null,
+       "frame": [
+        204,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      }
+     ],
+     "window": [
+      402,
+      874
+     ]
+    },
+    "macsDrawn": false,
+    "otherNames": 0
+   }
+  },
+  {
+   "grader": "P1",
+   "name": "HEAD drew a Needs input row build 10 did not",
+   "want": "fail",
+   "reading": {
+    "before": {
+     "needs": {
+      "step": "screen",
+      "name": "needs-input",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-needs-input",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "needs-input-title",
+        "label": "Needs input",
+        "frame": [
+         16,
+         106,
+         370,
+         34
+        ]
+       },
+       {
+        "id": "needs-row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         160,
+         402,
+         64
+        ]
+       },
+       {
+        "id": "needs-row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         168,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "needs-list-age-note",
+        "label": "Waits first seen…",
+        "frame": [
+         16,
+         240,
+         357,
+         33.67
+        ]
+       },
+       {
+        "id": "needs-list-read",
+        "label": "Read 9:41",
+        "frame": [
+         305.33,
+         280,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "sessions": {
+      "step": "screen",
+      "name": "list",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-list",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "list-title",
+        "label": "Sessions",
+        "frame": [
+         16,
+         106.17,
+         115,
+         33.67
+        ]
+       },
+       {
+        "id": "list-menu",
+        "label": "",
+        "frame": [
+         268.33,
+         117.33,
+         19.67,
+         19
+        ]
+       },
+       {
+        "id": "list-select",
+        "label": "Select",
+        "frame": [
+         304,
+         114.67,
+         48,
+         24.33
+        ]
+       },
+       {
+        "id": "list-show",
+        "label": "",
+        "frame": [
+         16,
+         148,
+         370,
+         32
+        ]
+       },
+       {
+        "id": "row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         223,
+         402,
+         57
+        ]
+       },
+       {
+        "id": "row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         229,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "list-age-note",
+        "label": "Waits first seen…",
+        "frame": [
+         16,
+         501,
+         357,
+         33.67
+        ]
+       },
+       {
+        "id": "list-read",
+        "label": "Read 9:41",
+        "frame": [
+         305.33,
+         540.67,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "terminal": {
+      "step": "screen",
+      "name": "screen",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-screen",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "screen-row-0",
+        "label": "$ ",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "catchUp": {
+      "step": "screen",
+      "name": "catch-up",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-catch-up",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "settings": {
+      "step": "screen",
+      "name": "settings",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-settings",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     }
+    },
+    "after": {
+     "needs": {
+      "step": "screen",
+      "name": "needs-input",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-needs-input",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "needs-row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         234.67,
+         402,
+         64
+        ]
+       },
+       {
+        "id": "needs-row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         242.67,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "needs-list-read",
+        "label": "Read 9:42",
+        "frame": [
+         305.33,
+         315,
+         80.67,
+         15.67
+        ]
+       },
+       {
+        "id": "needs-row-stranger",
+        "label": "",
+        "frame": [
+         0,
+         300,
+         402,
+         64
+        ]
+       }
+      ]
+     },
+     "sessions": {
+      "step": "screen",
+      "name": "list",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-list",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "list-menu",
+        "label": "",
+        "frame": [
+         98,
+         120,
+         58,
+         36
+        ]
+       },
+       {
+        "id": "list-select",
+        "label": "Select",
+        "frame": [
+         20,
+         120,
+         62,
+         36
+        ]
+       },
+       {
+        "id": "start-open",
+        "label": "New session",
+        "frame": [
+         332,
+         120,
+         50,
+         36
+        ]
+       },
+       {
+        "id": "list-show",
+        "label": "",
+        "frame": [
+         16,
+         223,
+         370,
+         32
+        ]
+       },
+       {
+        "id": "row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         298,
+         402,
+         57
+        ]
+       },
+       {
+        "id": "row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         304,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "list-read",
+        "label": "Read 9:42",
+        "frame": [
+         305.33,
+         596,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "terminal": {
+      "step": "screen",
+      "name": "screen",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-screen",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "screen-row-0",
+        "label": "$ ls",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "catchUp": {
+      "step": "screen",
+      "name": "catch-up",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-catch-up",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "settings": {
+      "step": "screen",
+      "name": "settings",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-settings",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     }
+    },
+    "tabs": {
+     "read": true,
+     "inBar": [],
+     "bottom": [
+      {
+       "label": "Needs input",
+       "value": null,
+       "frame": [
+        8,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "value": null,
+       "frame": [
+        106,
+        800,
+        90,
+        50
+       ],
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "value": null,
+       "frame": [
+        204,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      }
+     ],
+     "window": [
+      402,
+      874
+     ]
+    },
+    "macsDrawn": false,
+    "otherNames": 0
+   }
+  },
+  {
+   "grader": "P1",
+   "name": "THE REVIEW: everything under the bar pushed 300 pt down, accepted as the shift before the review",
+   "want": "fail",
+   "reading": {
+    "before": {
+     "needs": {
+      "step": "screen",
+      "name": "needs-input",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-needs-input",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "needs-input-title",
+        "label": "Needs input",
+        "frame": [
+         16,
+         106,
+         370,
+         34
+        ]
+       },
+       {
+        "id": "needs-row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         160,
+         402,
+         64
+        ]
+       },
+       {
+        "id": "needs-row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         168,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "needs-list-age-note",
+        "label": "Waits first seen…",
+        "frame": [
+         16,
+         240,
+         357,
+         33.67
+        ]
+       },
+       {
+        "id": "needs-list-read",
+        "label": "Read 9:41",
+        "frame": [
+         305.33,
+         280,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "sessions": {
+      "step": "screen",
+      "name": "list",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-list",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "list-title",
+        "label": "Sessions",
+        "frame": [
+         16,
+         106.17,
+         115,
+         33.67
+        ]
+       },
+       {
+        "id": "list-menu",
+        "label": "",
+        "frame": [
+         268.33,
+         117.33,
+         19.67,
+         19
+        ]
+       },
+       {
+        "id": "list-select",
+        "label": "Select",
+        "frame": [
+         304,
+         114.67,
+         48,
+         24.33
+        ]
+       },
+       {
+        "id": "list-show",
+        "label": "",
+        "frame": [
+         16,
+         148,
+         370,
+         32
+        ]
+       },
+       {
+        "id": "row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         223,
+         402,
+         57
+        ]
+       },
+       {
+        "id": "row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         229,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "list-age-note",
+        "label": "Waits first seen…",
+        "frame": [
+         16,
+         501,
+         357,
+         33.67
+        ]
+       },
+       {
+        "id": "list-read",
+        "label": "Read 9:41",
+        "frame": [
+         305.33,
+         540.67,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "terminal": {
+      "step": "screen",
+      "name": "screen",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-screen",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "screen-row-0",
+        "label": "$ ",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "catchUp": {
+      "step": "screen",
+      "name": "catch-up",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-catch-up",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "settings": {
+      "step": "screen",
+      "name": "settings",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-settings",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     }
+    },
+    "after": {
+     "needs": {
+      "step": "screen",
+      "name": "needs-input",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-needs-input",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "needs-row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         234.67,
+         402,
+         64
+        ]
+       },
+       {
+        "id": "needs-row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         242.67,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "needs-list-read",
+        "label": "Read 9:42",
+        "frame": [
+         305.33,
+         315,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "sessions": {
+      "step": "screen",
+      "name": "list",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-list",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "list-menu",
+        "label": "",
+        "frame": [
+         98,
+         120,
+         58,
+         36
+        ]
+       },
+       {
+        "id": "list-select",
+        "label": "Select",
+        "frame": [
+         20,
+         120,
+         62,
+         36
+        ]
+       },
+       {
+        "id": "start-open",
+        "label": "New session",
+        "frame": [
+         332,
+         120,
+         50,
+         36
+        ]
+       },
+       {
+        "id": "list-show",
+        "label": "",
+        "frame": [
+         16,
+         448,
+         370,
+         32
+        ]
+       },
+       {
+        "id": "row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         523,
+         402,
+         57
+        ]
+       },
+       {
+        "id": "row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         529,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "list-read",
+        "label": "Read 9:42",
+        "frame": [
+         305.33,
+         596,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "terminal": {
+      "step": "screen",
+      "name": "screen",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-screen",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "screen-row-0",
+        "label": "$ ls",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "catchUp": {
+      "step": "screen",
+      "name": "catch-up",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-catch-up",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "settings": {
+      "step": "screen",
+      "name": "settings",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-settings",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     }
+    },
+    "tabs": {
+     "read": true,
+     "inBar": [],
+     "bottom": [
+      {
+       "label": "Needs input",
+       "value": null,
+       "frame": [
+        8,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "value": null,
+       "frame": [
+        106,
+        800,
+        90,
+        50
+       ],
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "value": null,
+       "frame": [
+        204,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      }
+     ],
+     "window": [
+      402,
+      874
+     ]
+    },
+    "macsDrawn": false,
+    "otherNames": 0
+   }
+  },
+  {
+   "grader": "P1",
+   "name": "THE REVIEW: everything under the bar drawn 40 pt UP, under the bar",
+   "want": "fail",
+   "reading": {
+    "before": {
+     "needs": {
+      "step": "screen",
+      "name": "needs-input",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-needs-input",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "needs-input-title",
+        "label": "Needs input",
+        "frame": [
+         16,
+         106,
+         370,
+         34
+        ]
+       },
+       {
+        "id": "needs-row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         160,
+         402,
+         64
+        ]
+       },
+       {
+        "id": "needs-row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         168,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "needs-list-age-note",
+        "label": "Waits first seen…",
+        "frame": [
+         16,
+         240,
+         357,
+         33.67
+        ]
+       },
+       {
+        "id": "needs-list-read",
+        "label": "Read 9:41",
+        "frame": [
+         305.33,
+         280,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "sessions": {
+      "step": "screen",
+      "name": "list",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-list",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "list-title",
+        "label": "Sessions",
+        "frame": [
+         16,
+         106.17,
+         115,
+         33.67
+        ]
+       },
+       {
+        "id": "list-menu",
+        "label": "",
+        "frame": [
+         268.33,
+         117.33,
+         19.67,
+         19
+        ]
+       },
+       {
+        "id": "list-select",
+        "label": "Select",
+        "frame": [
+         304,
+         114.67,
+         48,
+         24.33
+        ]
+       },
+       {
+        "id": "list-show",
+        "label": "",
+        "frame": [
+         16,
+         148,
+         370,
+         32
+        ]
+       },
+       {
+        "id": "row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         223,
+         402,
+         57
+        ]
+       },
+       {
+        "id": "row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         229,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "list-age-note",
+        "label": "Waits first seen…",
+        "frame": [
+         16,
+         501,
+         357,
+         33.67
+        ]
+       },
+       {
+        "id": "list-read",
+        "label": "Read 9:41",
+        "frame": [
+         305.33,
+         540.67,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "terminal": {
+      "step": "screen",
+      "name": "screen",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-screen",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "screen-row-0",
+        "label": "$ ",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "catchUp": {
+      "step": "screen",
+      "name": "catch-up",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-catch-up",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "settings": {
+      "step": "screen",
+      "name": "settings",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-settings",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     }
+    },
+    "after": {
+     "needs": {
+      "step": "screen",
+      "name": "needs-input",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-needs-input",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "needs-row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         119.99999999999999,
+         402,
+         64
+        ]
+       },
+       {
+        "id": "needs-row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         127.99999999999999,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "needs-list-read",
+        "label": "Read 9:42",
+        "frame": [
+         305.33,
+         315,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "sessions": {
+      "step": "screen",
+      "name": "list",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-list",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "list-menu",
+        "label": "",
+        "frame": [
+         98,
+         120,
+         58,
+         36
+        ]
+       },
+       {
+        "id": "list-select",
+        "label": "Select",
+        "frame": [
+         20,
+         120,
+         62,
+         36
+        ]
+       },
+       {
+        "id": "start-open",
+        "label": "New session",
+        "frame": [
+         332,
+         120,
+         50,
+         36
+        ]
+       },
+       {
+        "id": "list-show",
+        "label": "",
+        "frame": [
+         16,
+         223,
+         370,
+         32
+        ]
+       },
+       {
+        "id": "row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         298,
+         402,
+         57
+        ]
+       },
+       {
+        "id": "row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         304,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "list-read",
+        "label": "Read 9:42",
+        "frame": [
+         305.33,
+         596,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "terminal": {
+      "step": "screen",
+      "name": "screen",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-screen",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "screen-row-0",
+        "label": "$ ls",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "catchUp": {
+      "step": "screen",
+      "name": "catch-up",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-catch-up",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "settings": {
+      "step": "screen",
+      "name": "settings",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-settings",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     }
+    },
+    "tabs": {
+     "read": true,
+     "inBar": [],
+     "bottom": [
+      {
+       "label": "Needs input",
+       "value": null,
+       "frame": [
+        8,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "value": null,
+       "frame": [
+        106,
+        800,
+        90,
+        50
+       ],
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "value": null,
+       "frame": [
+        204,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      }
+     ],
+     "window": [
+      402,
+      874
+     ]
+    },
+    "macsDrawn": false,
+    "otherNames": 0
+   }
+  },
+  {
+   "grader": "P1",
+   "name": "the terminal drawn otherwise than build 10's",
+   "want": "fail",
+   "reading": {
+    "before": {
+     "needs": {
+      "step": "screen",
+      "name": "needs-input",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-needs-input",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "needs-input-title",
+        "label": "Needs input",
+        "frame": [
+         16,
+         106,
+         370,
+         34
+        ]
+       },
+       {
+        "id": "needs-row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         160,
+         402,
+         64
+        ]
+       },
+       {
+        "id": "needs-row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         168,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "needs-list-age-note",
+        "label": "Waits first seen…",
+        "frame": [
+         16,
+         240,
+         357,
+         33.67
+        ]
+       },
+       {
+        "id": "needs-list-read",
+        "label": "Read 9:41",
+        "frame": [
+         305.33,
+         280,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "sessions": {
+      "step": "screen",
+      "name": "list",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-list",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "list-title",
+        "label": "Sessions",
+        "frame": [
+         16,
+         106.17,
+         115,
+         33.67
+        ]
+       },
+       {
+        "id": "list-menu",
+        "label": "",
+        "frame": [
+         268.33,
+         117.33,
+         19.67,
+         19
+        ]
+       },
+       {
+        "id": "list-select",
+        "label": "Select",
+        "frame": [
+         304,
+         114.67,
+         48,
+         24.33
+        ]
+       },
+       {
+        "id": "list-show",
+        "label": "",
+        "frame": [
+         16,
+         148,
+         370,
+         32
+        ]
+       },
+       {
+        "id": "row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         223,
+         402,
+         57
+        ]
+       },
+       {
+        "id": "row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         229,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "list-age-note",
+        "label": "Waits first seen…",
+        "frame": [
+         16,
+         501,
+         357,
+         33.67
+        ]
+       },
+       {
+        "id": "list-read",
+        "label": "Read 9:41",
+        "frame": [
+         305.33,
+         540.67,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "terminal": {
+      "step": "screen",
+      "name": "screen",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-screen",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "screen-row-0",
+        "label": "$ ",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "catchUp": {
+      "step": "screen",
+      "name": "catch-up",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-catch-up",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "settings": {
+      "step": "screen",
+      "name": "settings",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-settings",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     }
+    },
+    "after": {
+     "needs": {
+      "step": "screen",
+      "name": "needs-input",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-needs-input",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "needs-row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         234.67,
+         402,
+         64
+        ]
+       },
+       {
+        "id": "needs-row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         242.67,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "needs-list-read",
+        "label": "Read 9:42",
+        "frame": [
+         305.33,
+         315,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "sessions": {
+      "step": "screen",
+      "name": "list",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-list",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "list-menu",
+        "label": "",
+        "frame": [
+         98,
+         120,
+         58,
+         36
+        ]
+       },
+       {
+        "id": "list-select",
+        "label": "Select",
+        "frame": [
+         20,
+         120,
+         62,
+         36
+        ]
+       },
+       {
+        "id": "start-open",
+        "label": "New session",
+        "frame": [
+         332,
+         120,
+         50,
+         36
+        ]
+       },
+       {
+        "id": "list-show",
+        "label": "",
+        "frame": [
+         16,
+         223,
+         370,
+         32
+        ]
+       },
+       {
+        "id": "row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         298,
+         402,
+         57
+        ]
+       },
+       {
+        "id": "row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         304,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "list-read",
+        "label": "Read 9:42",
+        "frame": [
+         305.33,
+         596,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "terminal": {
+      "step": "screen",
+      "name": "screen",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-screen",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "screen-row-0",
+        "label": "$ ls",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "screen-stranger",
+        "label": "x",
+        "frame": [
+         0,
+         400,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "catchUp": {
+      "step": "screen",
+      "name": "catch-up",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-catch-up",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "settings": {
+      "step": "screen",
+      "name": "settings",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-settings",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     }
+    },
+    "tabs": {
+     "read": true,
+     "inBar": [],
+     "bottom": [
+      {
+       "label": "Needs input",
+       "value": null,
+       "frame": [
+        8,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "value": null,
+       "frame": [
+        106,
+        800,
+        90,
+        50
+       ],
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "value": null,
+       "frame": [
+        204,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      }
+     ],
+     "window": [
+      402,
+      874
+     ]
+    },
+    "macsDrawn": false,
+    "otherNames": 0
+   }
+  },
+  {
+   "grader": "P1",
+   "name": "a door that is not A was dialled",
+   "want": "fail",
+   "reading": {
+    "before": {
+     "needs": {
+      "step": "screen",
+      "name": "needs-input",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-needs-input",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "needs-input-title",
+        "label": "Needs input",
+        "frame": [
+         16,
+         106,
+         370,
+         34
+        ]
+       },
+       {
+        "id": "needs-row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         160,
+         402,
+         64
+        ]
+       },
+       {
+        "id": "needs-row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         168,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "needs-list-age-note",
+        "label": "Waits first seen…",
+        "frame": [
+         16,
+         240,
+         357,
+         33.67
+        ]
+       },
+       {
+        "id": "needs-list-read",
+        "label": "Read 9:41",
+        "frame": [
+         305.33,
+         280,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "sessions": {
+      "step": "screen",
+      "name": "list",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-list",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "list-title",
+        "label": "Sessions",
+        "frame": [
+         16,
+         106.17,
+         115,
+         33.67
+        ]
+       },
+       {
+        "id": "list-menu",
+        "label": "",
+        "frame": [
+         268.33,
+         117.33,
+         19.67,
+         19
+        ]
+       },
+       {
+        "id": "list-select",
+        "label": "Select",
+        "frame": [
+         304,
+         114.67,
+         48,
+         24.33
+        ]
+       },
+       {
+        "id": "list-show",
+        "label": "",
+        "frame": [
+         16,
+         148,
+         370,
+         32
+        ]
+       },
+       {
+        "id": "row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         223,
+         402,
+         57
+        ]
+       },
+       {
+        "id": "row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         229,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "list-age-note",
+        "label": "Waits first seen…",
+        "frame": [
+         16,
+         501,
+         357,
+         33.67
+        ]
+       },
+       {
+        "id": "list-read",
+        "label": "Read 9:41",
+        "frame": [
+         305.33,
+         540.67,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "terminal": {
+      "step": "screen",
+      "name": "screen",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-screen",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "screen-row-0",
+        "label": "$ ",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "catchUp": {
+      "step": "screen",
+      "name": "catch-up",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-catch-up",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "settings": {
+      "step": "screen",
+      "name": "settings",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-settings",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     }
+    },
+    "after": {
+     "needs": {
+      "step": "screen",
+      "name": "needs-input",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-needs-input",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "needs-row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         234.67,
+         402,
+         64
+        ]
+       },
+       {
+        "id": "needs-row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         242.67,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "needs-list-read",
+        "label": "Read 9:42",
+        "frame": [
+         305.33,
+         315,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "sessions": {
+      "step": "screen",
+      "name": "list",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-list",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "list-menu",
+        "label": "",
+        "frame": [
+         98,
+         120,
+         58,
+         36
+        ]
+       },
+       {
+        "id": "list-select",
+        "label": "Select",
+        "frame": [
+         20,
+         120,
+         62,
+         36
+        ]
+       },
+       {
+        "id": "start-open",
+        "label": "New session",
+        "frame": [
+         332,
+         120,
+         50,
+         36
+        ]
+       },
+       {
+        "id": "list-show",
+        "label": "",
+        "frame": [
+         16,
+         223,
+         370,
+         32
+        ]
+       },
+       {
+        "id": "row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         298,
+         402,
+         57
+        ]
+       },
+       {
+        "id": "row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         304,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "list-read",
+        "label": "Read 9:42",
+        "frame": [
+         305.33,
+         596,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "terminal": {
+      "step": "screen",
+      "name": "screen",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-screen",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "screen-row-0",
+        "label": "$ ls",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "catchUp": {
+      "step": "screen",
+      "name": "catch-up",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-catch-up",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "settings": {
+      "step": "screen",
+      "name": "settings",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-settings",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     }
+    },
+    "tabs": {
+     "read": true,
+     "inBar": [],
+     "bottom": [
+      {
+       "label": "Needs input",
+       "value": null,
+       "frame": [
+        8,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "value": null,
+       "frame": [
+        106,
+        800,
+        90,
+        50
+       ],
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "value": null,
+       "frame": [
+        204,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      }
+     ],
+     "window": [
+      402,
+      874
+     ]
+    },
+    "macsDrawn": false,
+    "otherNames": 1
+   }
+  },
+  {
+   "grader": "P1",
+   "name": "HEAD's Sessions not read",
+   "want": "unreadable",
+   "reading": {
+    "before": {
+     "needs": {
+      "step": "screen",
+      "name": "needs-input",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-needs-input",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "needs-input-title",
+        "label": "Needs input",
+        "frame": [
+         16,
+         106,
+         370,
+         34
+        ]
+       },
+       {
+        "id": "needs-row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         160,
+         402,
+         64
+        ]
+       },
+       {
+        "id": "needs-row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         168,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "needs-list-age-note",
+        "label": "Waits first seen…",
+        "frame": [
+         16,
+         240,
+         357,
+         33.67
+        ]
+       },
+       {
+        "id": "needs-list-read",
+        "label": "Read 9:41",
+        "frame": [
+         305.33,
+         280,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "sessions": {
+      "step": "screen",
+      "name": "list",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-list",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "list-title",
+        "label": "Sessions",
+        "frame": [
+         16,
+         106.17,
+         115,
+         33.67
+        ]
+       },
+       {
+        "id": "list-menu",
+        "label": "",
+        "frame": [
+         268.33,
+         117.33,
+         19.67,
+         19
+        ]
+       },
+       {
+        "id": "list-select",
+        "label": "Select",
+        "frame": [
+         304,
+         114.67,
+         48,
+         24.33
+        ]
+       },
+       {
+        "id": "list-show",
+        "label": "",
+        "frame": [
+         16,
+         148,
+         370,
+         32
+        ]
+       },
+       {
+        "id": "row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         223,
+         402,
+         57
+        ]
+       },
+       {
+        "id": "row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         229,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "list-age-note",
+        "label": "Waits first seen…",
+        "frame": [
+         16,
+         501,
+         357,
+         33.67
+        ]
+       },
+       {
+        "id": "list-read",
+        "label": "Read 9:41",
+        "frame": [
+         305.33,
+         540.67,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "terminal": {
+      "step": "screen",
+      "name": "screen",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-screen",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "screen-row-0",
+        "label": "$ ",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "catchUp": {
+      "step": "screen",
+      "name": "catch-up",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-catch-up",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "settings": {
+      "step": "screen",
+      "name": "settings",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-settings",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     }
+    },
+    "after": {
+     "needs": {
+      "step": "screen",
+      "name": "needs-input",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-needs-input",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         402,
+         874
+        ]
+       },
+       {
+        "id": "needs-row-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "",
+        "frame": [
+         0,
+         234.67,
+         402,
+         64
+        ]
+       },
+       {
+        "id": "needs-row-name-a1a1a1a1-1111-4111-8111-1111111111a1",
+        "label": "a-ask",
+        "frame": [
+         52,
+         242.67,
+         200,
+         22
+        ]
+       },
+       {
+        "id": "needs-list-read",
+        "label": "Read 9:42",
+        "frame": [
+         305.33,
+         315,
+         80.67,
+         15.67
+        ]
+       }
+      ]
+     },
+     "sessions": null,
+     "terminal": {
+      "step": "screen",
+      "name": "screen",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-screen",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "screen-row-0",
+        "label": "$ ls",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "catchUp": {
+      "step": "screen",
+      "name": "catch-up",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-catch-up",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       },
+       {
+        "id": "x-1",
+        "label": "a",
+        "frame": [
+         0,
+         10,
+         10,
+         10
+        ]
+       }
+      ]
+     },
+     "settings": {
+      "step": "screen",
+      "name": "settings",
+      "window": [
+       402,
+       874
+      ],
+      "elements": [
+       {
+        "id": "screen-settings",
+        "label": "",
+        "frame": [
+         0,
+         0,
+         10,
+         10
+        ]
+       }
+      ]
+     }
+    },
+    "tabs": {
+     "read": true,
+     "inBar": [],
+     "bottom": [
+      {
+       "label": "Needs input",
+       "value": null,
+       "frame": [
+        8,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      },
+      {
+       "label": "Sessions",
+       "value": null,
+       "frame": [
+        106,
+        800,
+        90,
+        50
+       ],
+       "selected": true
+      },
+      {
+       "label": "Settings",
+       "value": null,
+       "frame": [
+        204,
+        800,
+        90,
+        50
+       ],
+       "selected": false
+      }
+     ],
+     "window": [
+      402,
+      874
+     ]
+    },
+    "macsDrawn": false,
+    "otherNames": 0
+   }
+  }
+ ]
+}

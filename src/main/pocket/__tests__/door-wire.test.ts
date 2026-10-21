@@ -220,8 +220,9 @@ describe('a write the door forwards', () => {
   });
 
   it('holds the write to its OWN route’s cap, and lets a body exactly at the cap through', () => {
-    // Phase 346 added `start`, 512 (build/p346/SPEC.md D6).
-    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512 });
+    // Phase 346 added `start`, 512 (build/p346/SPEC.md D6); Phase 348 `remove`, 512,
+    // and `paste`, 131,072 (build/p348/SPEC.md D29).
+    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512, remove: 512, paste: 131_072 });
     expect(Object.isFrozen(POCKET_WRITE_BODY_CAPS)).toBe(true);
     expect(doorRequestOf(write({ body: new Uint8Array(512) }))).not.toBeNull();
     expect(doorRequestOf(write({ body: new Uint8Array(513) }))).toBeNull();
@@ -275,8 +276,10 @@ describe('a write the door forwards', () => {
     expect(doorRequestOf(write({ body: new Uint8Array(7_359) }))).toBeNull();
   });
 
-  it('refuses a route that is neither a read nor one of the four writes', () => {
-    for (const route of ['unpair', 'reply', 'type', 'interrupt', 'resize', 'paste']) {
+  it('refuses a route that is neither a read nor one of the writes', () => {
+    // PHASE 348 made `paste` a write (build/p348/SPEC.md D26); `clipboard` and
+    // `restore`, which no phone may name, stand where it stood.
+    for (const route of ['unpair', 'reply', 'type', 'interrupt', 'resize', 'clipboard', 'restore']) {
       expect(doorRequestOf(write({ route, target: `/v1/${route}` })), route).toBeNull();
     }
   });

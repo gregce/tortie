@@ -1,0 +1,1096 @@
+{
+ "derivedBy": "Written by the probe review (docs/method/HOW-WE-BUILT-THIS.md rule 9) from the source, never from build/p348/fixtures/graders.json: the Mac's words read as text from src/shared/ipc/pocket.ts, src/shared/lifecycle-words.ts, src/main/sessions/lifecycle-gate.ts and src/shared/screen-copy.ts as they stand at the review; the honesty sentence composed as pocketDoorHonesty composes it over the routes the Allow offers; every byte a paste lands as composed from what `paste-buffer -p` must send (a line feed as a carriage return, the brackets exactly when the program asked, nothing after); the marks re-derived from the drawings (200 characters at 80 columns are two full rows and a third, G1b's row 0 cleared to its end, the alternate screen marked by nobody, a 150-character line two rows). Each broken reading is the honest one with ONE thing wrong and answers exactly what it names; THE REVIEW's readings are the missing readings that passed before it.",
+ "readings": {
+  "PARENT": {
+   "removeHead": 404,
+   "removeFull": 404,
+   "pasteHead": 404,
+   "pasteFull": 404,
+   "lines": 0,
+   "bytes": "",
+   "row": {
+    "before": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    },
+    "after": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    }
+   },
+   "ends": [
+    {
+     "label": "an id that names nothing",
+     "parent": {
+      "status": 200,
+      "body": "{\"verb\":\"end\",\"write\":\"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"outcome\":\"refused\",\"reason\":\"gone\",\"sentence\":\"Session not found.\"}"
+     },
+     "head": {
+      "status": 200,
+      "body": "{\"verb\":\"end\",\"write\":\"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"outcome\":\"refused\",\"reason\":\"gone\",\"sentence\":\"Session not found.\"}"
+     }
+    },
+    {
+     "label": "a body with an extra key",
+     "parent": {
+      "status": 200,
+      "body": "{\"verb\":\"end\",\"write\":\"\",\"outcome\":\"refused\",\"reason\":\"malformed\",\"sentence\":\"m\"}"
+     },
+     "head": {
+      "status": 200,
+      "body": "{\"verb\":\"end\",\"write\":\"\",\"outcome\":\"refused\",\"reason\":\"malformed\",\"sentence\":\"m\"}"
+     }
+    },
+    {
+     "label": "a batch End of an id that names nothing",
+     "parent": {
+      "status": 200,
+      "body": "{\"verb\":\"end\",\"write\":\"ffffffffffffffffffffffffffffffff\",\"outcome\":\"refused\",\"reason\":\"gone\",\"sentence\":\"Session not found.\"}"
+     },
+     "head": {
+      "status": 200,
+      "body": "{\"verb\":\"end\",\"write\":\"ffffffffffffffffffffffffffffffff\",\"outcome\":\"refused\",\"reason\":\"gone\",\"sentence\":\"Session not found.\"}"
+     }
+    }
+   ]
+  },
+  "A0": {
+   "words": {
+    "removeTitle": "remove sessions from your phone",
+    "removeSentence": "An ended session moves to Past Sessions on this Mac, where you can restore it.",
+    "pasteTitle": "paste into sessions from your phone",
+    "pasteSentence": "It lands as a paste at this Mac does, with no Return added.",
+    "removeClause": "remove a session that has ended",
+    "pasteClause": "paste text into a session on this Mac",
+    "doorHonesty": "A phone you allow can see what any session’s terminal shows and what it printed before, type into it as you would at this Mac, answer a numbered question, send a session one message and end a session."
+   },
+   "statusRead": true,
+   "before": {
+    "confirmState": "confirmed",
+    "routesWaiting": [
+     "remove",
+     "paste"
+    ],
+    "routesAllowed": [
+     "pair",
+     "blocked",
+     "session",
+     "turns",
+     "end",
+     "choose",
+     "say",
+     "sessions",
+     "screen",
+     "keys",
+     "scrollback",
+     "start"
+    ]
+   },
+   "removeHead": 404,
+   "removeFull": 404,
+   "pasteHead": 404,
+   "pasteFull": 404,
+   "linesBefore": 0,
+   "bytesBefore": "",
+   "row": {
+    "before": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    },
+    "after": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    }
+   },
+   "detailBefore": true,
+   "pictureBefore": 200,
+   "removeConfirmBefore": false,
+   "pasteFlagBefore": false,
+   "face": [
+    {
+     "id": "remove",
+     "title": "New: remove sessions from your phone",
+     "sentence": "An ended session moves to Past Sessions on this Mac, where you can restore it."
+    },
+    {
+     "id": "paste",
+     "title": "New: paste into sessions from your phone",
+     "sentence": "It lands as a paste at this Mac does, with no Return added."
+    }
+   ],
+   "drawn": {
+    "remove": "New: remove sessions from your phoneAn ended session moves to Past Sessions on this Mac, where you can restore it.",
+    "paste": "New: paste into sessions from your phoneIt lands as a paste at this Mac does, with no Return added."
+   },
+   "honesty": [
+    "A phone you allow can see what any session’s terminal shows and what it printed before, type into it as you would at this Mac, answer a numbered question, send a session one message and end a session. It can also start a session in a project open in Tortie, on this Mac or another machine, remove a session that has ended and paste text into a session on this Mac."
+   ],
+   "allowPresses": 1,
+   "after": {
+    "confirmState": "confirmed",
+    "routesWaiting": [],
+    "routesAllowed": [
+     "pair",
+     "blocked",
+     "session",
+     "turns",
+     "end",
+     "choose",
+     "say",
+     "sessions",
+     "screen",
+     "keys",
+     "scrollback",
+     "start",
+     "remove",
+     "paste"
+    ]
+   },
+   "removeControl": 0,
+   "pasteControl": 0,
+   "removeConfirmAfter": true,
+   "pasteFlagAfter": true
+  },
+  "R1": {
+   "rows": [
+    {
+     "kind": "shell",
+     "end": {
+      "status": 200,
+      "ok": true,
+      "outcome": "done",
+      "reason": null,
+      "sentence": null
+     },
+     "statusAfterEnd": "exited",
+     "confirm": {
+      "got": {
+       "title": "Remove 'p348-r1-shell'?",
+       "body": "It moves to Past Sessions and you can restore it from there.",
+       "confirmLabel": "Remove"
+      },
+      "want": {
+       "title": "Remove 'p348-r1-shell'?",
+       "body": "It moves to Past Sessions and you can restore it from there.",
+       "confirmLabel": "Remove"
+      }
+     },
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "body": "{\"verb\":\"remove\",\"write\":\"11111111111111111111111111111111\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+      "write": "11111111111111111111111111111111"
+     },
+     "listedAfter": false,
+     "removed": {
+      "listed": true,
+      "status": "discarded",
+      "removedAt": 1792200000000
+     },
+     "files": {
+      "snapshotBefore": 1,
+      "snapshotAfter": 0,
+      "hookBefore": false,
+      "hookAfter": false
+     },
+     "pastTab": true,
+     "restore": {
+      "pressed": true,
+      "listedAgain": true,
+      "status": "idle",
+      "idBefore": null,
+      "idAfter": null
+     }
+    },
+    {
+     "kind": "claude",
+     "end": {
+      "status": 200,
+      "ok": true,
+      "outcome": "done",
+      "reason": null,
+      "sentence": null
+     },
+     "statusAfterEnd": "restorable",
+     "confirm": {
+      "got": {
+       "title": "Remove 'p348-r1-claude'?",
+       "body": "It moves to Past Sessions and you can restore it from there.",
+       "confirmLabel": "Remove"
+      },
+      "want": {
+       "title": "Remove 'p348-r1-claude'?",
+       "body": "It moves to Past Sessions and you can restore it from there.",
+       "confirmLabel": "Remove"
+      }
+     },
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "body": "{\"verb\":\"remove\",\"write\":\"22222222222222222222222222222222\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+      "write": "22222222222222222222222222222222"
+     },
+     "listedAfter": false,
+     "removed": {
+      "listed": true,
+      "status": "discarded",
+      "removedAt": 1792200000000
+     },
+     "files": {
+      "snapshotBefore": 1,
+      "snapshotAfter": 0,
+      "hookBefore": true,
+      "hookAfter": false
+     },
+     "pastTab": true,
+     "restore": {
+      "pressed": true,
+      "listedAgain": true,
+      "status": "idle",
+      "idBefore": "0b5f3c1e-4d2a-4f6b-9c8d-7e6f5a4b3c2d",
+      "idAfter": "0b5f3c1e-4d2a-4f6b-9c8d-7e6f5a4b3c2d"
+     }
+    }
+   ],
+   "pastTab": {
+    "open": true
+   }
+  },
+  "R2": {
+   "end": {
+    "status": 200,
+    "ok": true,
+    "outcome": "done",
+    "reason": null,
+    "sentence": null
+   },
+   "statusAfterEnd": "exited",
+   "confirm": {
+    "got": {
+     "title": "Remove 'p348-r2'?",
+     "body": "It moves to Past Sessions and you can restore it from there.",
+     "confirmLabel": "Remove"
+    },
+    "want": {
+     "title": "Remove 'p348-r2'?",
+     "body": "It moves to Past Sessions and you can restore it from there.",
+     "confirmLabel": "Remove"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "ok": true,
+    "why": "",
+    "outcome": "done",
+    "reason": null,
+    "sentence": null,
+    "body": "{\"verb\":\"remove\",\"write\":\"33333333333333333333333333333333\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+    "write": "33333333333333333333333333333333"
+   },
+   "listedAfter": false,
+   "removed": {
+    "listed": true,
+    "status": "discarded",
+    "removedAt": 1792200000000
+   },
+   "far": {
+    "read": true,
+    "all": 3,
+    "naming": [],
+    "verbs": [],
+    "canary": 0
+   },
+   "farBefore": [
+    "p348-other"
+   ],
+   "farAfter": [
+    "p348-other"
+   ]
+  },
+  "R3": {
+   "words": {
+    "REMOVE_REFUSED_LIVE": "This session is still running, so it was not removed. End it first.",
+    "LIFECYCLE_SESSION_CHANGED": "This session changed. Nothing was done.",
+    "SESSION_NOT_FOUND": "Session not found."
+   },
+   "live": {
+    "answer": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "refused",
+     "reason": "changed",
+     "sentence": "This session is still running, so it was not removed. End it first.",
+     "body": "{\"verb\":\"remove\",\"write\":\"44444444444444444444444444444444\",\"outcome\":\"refused\",\"reason\":\"changed\",\"sentence\":\"This session is still running, so it was not removed. End it first.\"}",
+     "write": "44444444444444444444444444444444"
+    },
+    "before": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    },
+    "after": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    }
+   },
+   "farLive": {
+    "answer": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "refused",
+     "reason": "changed",
+     "sentence": "This session changed. Nothing was done.",
+     "body": "{\"verb\":\"remove\",\"write\":\"55555555555555555555555555555555\",\"outcome\":\"refused\",\"reason\":\"changed\",\"sentence\":\"This session changed. Nothing was done.\"}",
+     "write": "55555555555555555555555555555555"
+    },
+    "before": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    },
+    "after": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    },
+    "farHolds": true
+   },
+   "discarded": {
+    "answer": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "refused",
+     "reason": "gone",
+     "sentence": "This session changed. Nothing was done.",
+     "body": "{\"verb\":\"remove\",\"write\":\"66666666666666666666666666666666\",\"outcome\":\"refused\",\"reason\":\"gone\",\"sentence\":\"This session changed. Nothing was done.\"}",
+     "write": "66666666666666666666666666666666"
+    },
+    "before": {
+     "listed": false,
+     "status": null,
+     "removed": true
+    },
+    "after": {
+     "listed": false,
+     "status": null,
+     "removed": true
+    }
+   },
+   "nothing": {
+    "answer": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "refused",
+     "reason": "gone",
+     "sentence": "Session not found.",
+     "body": "{\"verb\":\"remove\",\"write\":\"77777777777777777777777777777777\",\"outcome\":\"refused\",\"reason\":\"gone\",\"sentence\":\"Session not found.\"}",
+     "write": "77777777777777777777777777777777"
+    }
+   },
+   "replay": {
+    "first": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "done",
+     "reason": null,
+     "sentence": null,
+     "body": "{\"verb\":\"remove\",\"write\":\"22222222222222222222222222222222\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+     "write": "22222222222222222222222222222222"
+    },
+    "again": 404,
+    "resent": {
+     "status": 200,
+     "body": "{\"verb\":\"remove\",\"write\":\"22222222222222222222222222222222\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}"
+    },
+    "acts": 1
+   },
+   "removedPhone": {
+    "status": 0,
+    "control": 200,
+    "wasPaired": true,
+    "before": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    },
+    "after": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    }
+   },
+   "doorStopped": {
+    "status": 0,
+    "before": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    },
+    "after": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    }
+   }
+  },
+  "R3u": {
+   "words": {
+    "END_UNREACHABLE_TITLE": "Tortie cannot see whether this session is running, so it cannot end it."
+   },
+   "statusAtSend": "unknown",
+   "answer": {
+    "status": 200,
+    "ok": true,
+    "why": "",
+    "outcome": "refused",
+    "reason": "unreachable",
+    "sentence": "Tortie cannot see whether this session is running, so it cannot end it.",
+    "body": "{\"verb\":\"remove\",\"write\":\"88888888888888888888888888888888\",\"outcome\":\"refused\",\"reason\":\"unreachable\",\"sentence\":\"Tortie cannot see whether this session is running, so it cannot end it.\"}",
+    "write": "88888888888888888888888888888888"
+   },
+   "removedAfter": false,
+   "listedAfter": true
+  },
+  "R3b": {
+   "words": {
+    "busy": "Tortie is still doing the last thing you asked from this phone. Nothing was done."
+   },
+   "answers": [
+    {
+     "status": 200,
+     "ok": true,
+     "outcome": "done",
+     "sentence": null
+    },
+    {
+     "status": 200,
+     "ok": true,
+     "outcome": "busy",
+     "sentence": "Tortie is still doing the last thing you asked from this phone. Nothing was done."
+    }
+   ]
+  },
+  "P1": {
+   "targets": [
+    {
+     "name": "claude",
+     "text": "line one\nline two",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "body": "{\"verb\":\"paste\",\"write\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+      "write": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     },
+     "readHex": "1b5b3230307e6c696e65206f6e650d6c696e652074776f1b5b3230317e",
+     "focusReports": 1
+    },
+    {
+     "name": "codex",
+     "text": "line one\nline two",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "body": "{\"verb\":\"paste\",\"write\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+      "write": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+     },
+     "readHex": "1b5b3230307e6c696e65206f6e650d6c696e652074776f1b5b3230317e",
+     "focusReports": 0
+    },
+    {
+     "name": "recorder",
+     "text": "line one\nline two",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "body": "{\"verb\":\"paste\",\"write\":\"cccccccccccccccccccccccccccccccc\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+      "write": "cccccccccccccccccccccccccccccccc"
+     },
+     "readHex": "1b5b3230307e6c696e65206f6e650d6c696e652074776f1b5b3230317e",
+     "focusReports": 0
+    }
+   ]
+  },
+  "P2": {
+   "text": "a\nb",
+   "answer": {
+    "status": 200,
+    "ok": true,
+    "why": "",
+    "outcome": "done",
+    "reason": null,
+    "sentence": null,
+    "body": "{\"verb\":\"paste\",\"write\":\"99999999999999999999999999999999\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+    "write": "99999999999999999999999999999999"
+   },
+   "readHex": "610d62"
+  },
+  "P3": {
+   "words": {
+    "PASTE_CHARACTER": "That holds a character Tortie does not paste. Nothing was pasted."
+   },
+   "cases": [
+    {
+     "label": "ESC",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "character",
+      "sentence": "That holds a character Tortie does not paste. Nothing was pasted.",
+      "body": "{\"verb\":\"paste\",\"write\":\"00000000000000000000000000000000\",\"outcome\":\"refused\",\"reason\":\"character\",\"sentence\":\"That holds a character Tortie does not paste. Nothing was pasted.\"}",
+      "write": "00000000000000000000000000000000"
+     },
+     "readHex": ""
+    },
+    {
+     "label": "CR",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "character",
+      "sentence": "That holds a character Tortie does not paste. Nothing was pasted.",
+      "body": "{\"verb\":\"paste\",\"write\":\"11111111111111111111111111111111\",\"outcome\":\"refused\",\"reason\":\"character\",\"sentence\":\"That holds a character Tortie does not paste. Nothing was pasted.\"}",
+      "write": "11111111111111111111111111111111"
+     },
+     "readHex": ""
+    },
+    {
+     "label": "CR LF",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "character",
+      "sentence": "That holds a character Tortie does not paste. Nothing was pasted.",
+      "body": "{\"verb\":\"paste\",\"write\":\"22222222222222222222222222222222\",\"outcome\":\"refused\",\"reason\":\"character\",\"sentence\":\"That holds a character Tortie does not paste. Nothing was pasted.\"}",
+      "write": "22222222222222222222222222222222"
+     },
+     "readHex": ""
+    },
+    {
+     "label": "DEL",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "character",
+      "sentence": "That holds a character Tortie does not paste. Nothing was pasted.",
+      "body": "{\"verb\":\"paste\",\"write\":\"33333333333333333333333333333333\",\"outcome\":\"refused\",\"reason\":\"character\",\"sentence\":\"That holds a character Tortie does not paste. Nothing was pasted.\"}",
+      "write": "33333333333333333333333333333333"
+     },
+     "readHex": ""
+    },
+    {
+     "label": "NUL",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "character",
+      "sentence": "That holds a character Tortie does not paste. Nothing was pasted.",
+      "body": "{\"verb\":\"paste\",\"write\":\"44444444444444444444444444444444\",\"outcome\":\"refused\",\"reason\":\"character\",\"sentence\":\"That holds a character Tortie does not paste. Nothing was pasted.\"}",
+      "write": "44444444444444444444444444444444"
+     },
+     "readHex": ""
+    },
+    {
+     "label": "U+0085",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "character",
+      "sentence": "That holds a character Tortie does not paste. Nothing was pasted.",
+      "body": "{\"verb\":\"paste\",\"write\":\"55555555555555555555555555555555\",\"outcome\":\"refused\",\"reason\":\"character\",\"sentence\":\"That holds a character Tortie does not paste. Nothing was pasted.\"}",
+      "write": "55555555555555555555555555555555"
+     },
+     "readHex": ""
+    },
+    {
+     "label": "half a surrogate",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "character",
+      "sentence": "That holds a character Tortie does not paste. Nothing was pasted.",
+      "body": "{\"verb\":\"paste\",\"write\":\"66666666666666666666666666666666\",\"outcome\":\"refused\",\"reason\":\"character\",\"sentence\":\"That holds a character Tortie does not paste. Nothing was pasted.\"}",
+      "write": "66666666666666666666666666666666"
+     },
+     "readHex": ""
+    }
+   ],
+   "control": {
+    "text": "p3 control",
+    "outcome": "done",
+    "readHex": "703320636f6e74726f6c",
+    "landed": true
+   }
+  },
+  "P4": {
+   "words": {
+    "PASTE_TOO_LONG": "That is too long to paste. Nothing was pasted."
+   },
+   "atCap": {
+    "text": "p348c0a0b0c0d0e0f\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a ",
+    "textBytes": 16384,
+    "answer": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "done",
+     "reason": null,
+     "sentence": null,
+     "body": "{\"verb\":\"paste\",\"write\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+     "write": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "readHex": "70333438633061306230633064306530660d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d70333438206120"
+   },
+   "overCap": {
+    "textBytes": 16385,
+    "answer": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "refused",
+     "reason": "long",
+     "sentence": "That is too long to paste. Nothing was pasted.",
+     "body": "{\"verb\":\"paste\",\"write\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"outcome\":\"refused\",\"reason\":\"long\",\"sentence\":\"That is too long to paste. Nothing was pasted.\"}",
+     "write": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "readHex": ""
+   }
+  },
+  "P5": {
+   "words": {
+    "SCREEN_QUESTION_MOVED": "The question on this session changed since your terminal was drawn. Nothing was typed."
+   },
+   "first": {
+    "turn": "00000000000000a1-3",
+    "dialog": "aaaabbbbcccc",
+    "asking": true
+   },
+   "moved": {
+    "turn": "00000000000000a1-4",
+    "dialog": "ddddeeeeffff"
+   },
+   "answer": {
+    "status": 200,
+    "ok": true,
+    "why": "",
+    "outcome": "refused",
+    "reason": "changed",
+    "sentence": "The question on this session changed since your terminal was drawn. Nothing was typed.",
+    "body": "{\"verb\":\"paste\",\"write\":\"cccccccccccccccccccccccccccccccc\",\"outcome\":\"refused\",\"reason\":\"changed\",\"sentence\":\"The question on this session changed since your terminal was drawn. Nothing was typed.\"}",
+    "write": "cccccccccccccccccccccccccccccccc"
+   },
+   "readHex": "",
+   "focusReports": 0,
+   "control": {
+    "text": "p5 control",
+    "outcome": "done",
+    "readHex": "1b5b3230307e703520636f6e74726f6c1b5b3230317e",
+    "landed": true,
+    "why": null
+   }
+  },
+  "P6": {
+   "words": {
+    "PASTE_THIS_MAC_ONLY": "Tortie pastes only into sessions on this Mac. Nothing was pasted."
+   },
+   "picture": 200,
+   "pasteFlag": false,
+   "pasteKey": false,
+   "answer": {
+    "status": 200,
+    "ok": true,
+    "why": "",
+    "outcome": "refused",
+    "reason": "machine",
+    "sentence": "Tortie pastes only into sessions on this Mac. Nothing was pasted.",
+    "body": "{\"verb\":\"paste\",\"write\":\"dddddddddddddddddddddddddddddddd\",\"outcome\":\"refused\",\"reason\":\"machine\",\"sentence\":\"Tortie pastes only into sessions on this Mac. Nothing was pasted.\"}",
+    "write": "dddddddddddddddddddddddddddddddd"
+   },
+   "far": {
+    "read": true,
+    "all": 2,
+    "naming": [
+     "'-L' 'gmux-p348-1' 'capture-pane' '-p' '-t' '=p348-p6:'"
+    ],
+    "verbs": [],
+    "canary": 0
+   }
+  },
+  "P7": {
+   "text": "p348c112233445566 replay",
+   "first": {
+    "status": 200,
+    "ok": true,
+    "outcome": "done",
+    "body": "{\"verb\":\"paste\",\"write\":\"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}"
+   },
+   "again": 404,
+   "resent": {
+    "status": 200,
+    "body": "{\"verb\":\"paste\",\"write\":\"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}"
+   },
+   "firstHex": "7033343863313132323333343435353636207265706c6179",
+   "moreHex": ""
+  },
+  "K": {
+   "canaries": 12,
+   "filesScanned": 4210,
+   "fileHits": [],
+   "appLogRead": true,
+   "appLogHits": 0,
+   "lines": {
+    "paste": 18,
+    "remove": 9
+   },
+   "acted": {
+    "remove": 9,
+    "paste": 18
+   },
+   "unknown": {
+    "remove": 0,
+    "paste": 0
+   },
+   "argvSamples": 1200,
+   "argvHits": 0,
+   "buffersRead": true,
+   "buffers": [
+    "buffer0"
+   ]
+  },
+  "W": {
+   "local": [
+    {
+     "name": "long",
+     "pictured": true,
+     "pictureAlternate": false,
+     "wraps": [
+      0,
+      1
+     ],
+     "problem": null,
+     "mine": [
+      0,
+      1
+     ],
+     "flagged": [
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ],
+     "alternate": false,
+     "road": "flags"
+    },
+    {
+     "name": "g1b",
+     "pictured": true,
+     "pictureAlternate": false,
+     "wraps": [
+      1
+     ],
+     "problem": null,
+     "mine": [
+      1
+     ],
+     "flagged": [
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ],
+     "alternate": false,
+     "road": "flags"
+    },
+    {
+     "name": "alt",
+     "pictured": true,
+     "pictureAlternate": true,
+     "wraps": [],
+     "problem": null,
+     "mine": [],
+     "flagged": [
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ],
+     "alternate": true,
+     "road": "flags"
+    }
+   ],
+   "page": {
+    "status": 200,
+    "why": null,
+    "wraps": [
+     0,
+     2,
+     4,
+     6,
+     8,
+     10,
+     12,
+     14,
+     16,
+     18,
+     20,
+     22,
+     24,
+     26,
+     28,
+     30,
+     32,
+     34,
+     36,
+     38,
+     40,
+     42,
+     44,
+     46,
+     48,
+     50,
+     52,
+     54,
+     56,
+     58,
+     60,
+     62,
+     64,
+     66,
+     68,
+     70,
+     72,
+     74,
+     76,
+     78,
+     80,
+     82,
+     84,
+     86,
+     88,
+     90,
+     92,
+     94,
+     96,
+     98
+    ],
+    "problem": null,
+    "mine": [
+     0,
+     2,
+     4,
+     6,
+     8,
+     10,
+     12,
+     14,
+     16,
+     18,
+     20,
+     22,
+     24,
+     26,
+     28,
+     30,
+     32,
+     34,
+     36,
+     38,
+     40,
+     42,
+     44,
+     46,
+     48,
+     50,
+     52,
+     54,
+     56,
+     58,
+     60,
+     62,
+     64,
+     66,
+     68,
+     70,
+     72,
+     74,
+     76,
+     78,
+     80,
+     82,
+     84,
+     86,
+     88,
+     90,
+     92,
+     94,
+     96,
+     98
+    ],
+    "rows": 100,
+    "read": 100,
+    "road": "flags"
+   },
+   "pageWhy": null,
+   "far": {
+    "version": "3.6a",
+    "road": "fallback",
+    "mineRoad": "fallback",
+    "pictured": true,
+    "wraps": [
+     0,
+     1
+    ],
+    "problem": null,
+    "mine": [
+     0,
+     1
+    ]
+   },
+   "localTmux": {
+    "bin": "build/vendor/tmux/bin/tmux",
+    "version": "3.7b",
+    "road": "flags"
+   },
+   "farTmux": "/opt/homebrew/bin/tmux"
+  },
+  "RUN": {
+   "tailscalePreflight": true,
+   "dnsPreflights": [
+    true,
+    true
+   ],
+   "agentsHeld": [
+    true,
+    true
+   ],
+   "resolved": true,
+   "hiddenUnresolved": true,
+   "manifest": {
+    "read": true,
+    "rows": 21,
+    "outside": [],
+    "why": null
+   },
+   "realTailscale": 0,
+   "samples": 1500,
+   "forbidden": 0,
+   "standinLeft": 0,
+   "agentsLeft": 0,
+   "runLeft": 0,
+   "electronsLeft": 0,
+   "history": {
+    "before": "738915 1792205954|23166 1790702242",
+    "after": "738915 1792205954|23166 1790702242"
+   },
+   "ends": {
+    "made": 21,
+    "ended": 21,
+    "removed": 21,
+    "leftListed": 0
+   }
+  }
+ }
+}

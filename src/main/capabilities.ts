@@ -141,11 +141,20 @@ import { createReplyVerbs } from './reply/writer';
 // PHASE 337: the Screen (a session's own screen, composed here, and the keys a
 // phone types into it), built once here beside the reply's verbs and handed to
 // the door's facts and writes; the door's domain imports neither.
-import { createScreenWatch } from './screen/watch';
-import { createScreenKeys } from './screen/keys';
+import { createScreenMarksRoads, createScreenWatch } from './screen/watch';
+import { createScreenKeys, createScreenLastActs } from './screen/keys';
+// PHASE 348: the paste (one text pasted into a session's terminal as at the
+// desk), built once here beside the keys verb over the same last-act store and
+// handed to the door's writes; the door's domain imports neither.
+import { createScreenPaste } from './screen/paste';
 // PHASE 337.1: the page reader of the Screen's history, built once beside the
 // watcher and handed to the door's facts; the door's domain imports neither.
 import { createScreenScrollback } from './screen/scrollback';
+// PHASE 348 (build/p348/SPEC.md D44): the wrap marks' owner reads this Mac's
+// server version through the app's own runner, named here alone, so no script
+// or test that builds a watcher or a page reader of its own reaches the app's
+// tmux server by default.
+import { execTmux, readServerVersion } from './tmux';
 import { typePhoneKeys } from './machines/scroll-order';
 // Phase 314's wake record, composed here in Phase 316 over Electron's own
 // powerMonitor so the door can say which waits were first seen at a wake.
@@ -400,12 +409,20 @@ export function installMainCapabilities(
   // the act's window mark (`nudge(id, before)`, D4), the desk's own status
   // funnel (`noteUserInput`, D23) and the carriage's one phone writer for a
   // session on another machine (`typePhoneKeys`, D20). Each handed as an arrow.
-  const screenWatch = createScreenWatch({ core: () => pocketCore, turns: replyTurns });
+  // PHASE 348 (build/p348/SPEC.md D44): ONE owner of which captures carry the
+  // wrap marks on each server, so this Mac's version is read once (and again
+  // at each reconnect) for the watcher and the page reader alike.
+  const screenMarks = createScreenMarksRoads({ readVersion: () => readServerVersion(execTmux) });
+  const screenWatch = createScreenWatch({ core: () => pocketCore, turns: replyTurns, marks: screenMarks });
   // PHASE 337.1 (build/p3371/SPEC.md §5.3.5): the Screen's page reader, built
   // ONCE over the same core, beside the watcher and sharing none of its poll,
   // slot or floor. Its `page` goes to the facts as `scrollback`, which
   // `/v1/scrollback` alone asks; it reads, writes nothing and types nothing.
-  const screenScrollback = createScreenScrollback({ core: () => pocketCore });
+  const screenScrollback = createScreenScrollback({ core: () => pocketCore, marks: screenMarks });
+  // PHASE 348 (build/p348/SPEC.md D57): ONE last-act store for the keys and
+  // the paste, so two acts on one session, whichever verb came first, are at
+  // least SCREEN_KEYS_GAP_MS apart.
+  const screenLastActs = createScreenLastActs();
   const screenKeys = createScreenKeys({
     core: () => pocketCore,
     turns: replyTurns,
@@ -414,7 +431,22 @@ export function installMainCapabilities(
       nudge: (sessionId, before) => screenWatch.nudge(sessionId, before)
     },
     noteUserInput: (sessionId) => pocketCore?.activity.noteUserInput(sessionId),
-    typeRemote: (sessionId, keys) => typePhoneKeys(sessionId, keys)
+    typeRemote: (sessionId, keys) => typePhoneKeys(sessionId, keys),
+    lastActs: screenLastActs
+  });
+  // PHASE 348 (build/p348/SPEC.md §4.6 step 10, D50): the paste, built ONCE
+  // over the same core, question id, watcher and last-act store as the keys
+  // verb. Its `paste` goes to the door's writes below. It pastes into sessions
+  // on this Mac alone (D22), so it is handed no machine writer.
+  const screenPaste = createScreenPaste({
+    core: () => pocketCore,
+    turns: replyTurns,
+    watch: {
+      readFresh: (session) => screenWatch.readFresh(session),
+      nudge: (sessionId, before) => screenWatch.nudge(sessionId, before)
+    },
+    noteUserInput: (sessionId) => pocketCore?.activity.noteUserInput(sessionId),
+    lastActs: screenLastActs
   });
   // PHASE 346 (build/p346/SPEC.md §4.13): the phone's start, built ONCE over
   // the same core. Its `start` goes to the door's writes below, and its
@@ -433,7 +465,9 @@ export function installMainCapabilities(
       say: (input, still) => reply.say(input, still)
     },
     keys: { keys: (input, still) => screenKeys.keys(input, still) },
-    start: { start: (input, still) => pocketStart.start(input, still) }
+    start: { start: (input, still) => pocketStart.start(input, still) },
+    // PHASE 348: the paste, passed through; Remove is the one implementation's own.
+    paste: { paste: (input, still) => screenPaste.paste(input, still) }
   });
   const facts = createPocketFacts({
     core: () => pocketCore,
@@ -448,7 +482,13 @@ export function installMainCapabilities(
     screen: (session, since, closing) => screenWatch.answer(session, since, closing),
     scrollback: (session, ask, closing) => screenScrollback.page(session, ask, closing),
     // The host is assigned below, before the door can answer anything.
-    start: () => pocketStart.sessionsKey(pocketHost?.startAllowed() === true)
+    start: () => pocketStart.sessionsKey(pocketHost?.startAllowed() === true),
+    // PHASE 348 (build/p348/SPEC.md §4.2 step 5, D49): the Remove words for one
+    // session, asked of the one implementation ONLY while a person allowed
+    // `remove`, so a Mac whose Allow waits offers no Remove.
+    removeConfirmOf: (session) => (pocketHost?.removeAllowed() === true ? pocketWrites.removeOffer(session) : null),
+    // PHASE 348 (D30): whether the screen answer's `paste` flag may leave.
+    pasteAllowed: () => pocketHost?.pasteAllowed() === true
   });
   // PHASE 316.5: the phone alerts. The engine's rows are the door's own
   // `/v1/blocked` rows from the same stateless composer over the same facts,

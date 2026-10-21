@@ -1,0 +1,2113 @@
+[
+ {
+  "arm": "PARENT",
+  "name": "the parent serves remove (its head waited for a body)",
+  "expect": "fail",
+  "mustFail": [
+   "remove and paste answer 404 before their bodies and to whole requests"
+  ],
+  "ops": [
+   {
+    "set": "removeHead",
+    "value": 0
+   }
+  ]
+ },
+ {
+  "arm": "PARENT",
+  "name": "a paste reached the parent's recorder",
+  "expect": "fail",
+  "mustFail": [
+   "nothing reached the parent's main"
+  ],
+  "ops": [
+   {
+    "set": "bytes",
+    "value": "70"
+   }
+  ]
+ },
+ {
+  "arm": "PARENT",
+  "name": "the parent logged a write line",
+  "expect": "fail",
+  "mustFail": [
+   "nothing reached the parent's main"
+  ],
+  "ops": [
+   {
+    "set": "lines",
+    "value": 1
+   }
+  ]
+ },
+ {
+  "arm": "PARENT",
+  "name": "the parent's row moved",
+  "expect": "fail",
+  "mustFail": [
+   "nothing reached the parent's main"
+  ],
+  "ops": [
+   {
+    "set": "row.after.status",
+    "value": "exited"
+   }
+  ]
+ },
+ {
+  "arm": "PARENT",
+  "name": "HEAD answers the extra-key End in other words",
+  "expect": "fail",
+  "mustFail": [
+   "/v1/end answers the same three bodies byte for byte at both builds"
+  ],
+  "ops": [
+   {
+    "set": "ends.1.head.body",
+    "value": "{\"verb\":\"end\",\"write\":\"\",\"outcome\":\"refused\",\"reason\":\"malformed\",\"sentence\":\"other\"}"
+   }
+  ]
+ },
+ {
+  "arm": "PARENT",
+  "name": "only two End bodies were compared",
+  "expect": "fail",
+  "mustFail": [
+   "/v1/end answers the same three bodies byte for byte at both builds"
+  ],
+  "ops": [
+   {
+    "delete": "ends.2"
+   }
+  ]
+ },
+ {
+  "arm": "PARENT",
+  "name": "HEAD never answered the End bodies",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "ends.0.head",
+    "value": null
+   }
+  ]
+ },
+ {
+  "arm": "PARENT",
+  "name": "the parent's recorder log could not be read (null, not zero)",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "bytes",
+    "value": null
+   }
+  ]
+ },
+ {
+  "arm": "A0",
+  "name": "remove was allowed by the parent's agreement already (refusal 8)",
+  "expect": "fail",
+  "mustFail": [
+   "an agreement is on record and exactly remove and paste wait"
+  ],
+  "ops": [
+   {
+    "set": "before.routesWaiting",
+    "value": [
+     "paste"
+    ]
+   },
+   {
+    "push": "before.routesAllowed",
+    "value": "remove"
+   }
+  ]
+ },
+ {
+  "arm": "A0",
+  "name": "the waiting paste route answered a whole request",
+  "expect": "fail",
+  "mustFail": [
+   "remove and paste answer 404 before their bodies, and nothing reaches main"
+  ],
+  "ops": [
+   {
+    "set": "pasteFull",
+    "value": 200
+   }
+  ]
+ },
+ {
+  "arm": "A0",
+  "name": "a Remove reached main while it waited (a write line)",
+  "expect": "fail",
+  "mustFail": [
+   "remove and paste answer 404 before their bodies, and nothing reaches main"
+  ],
+  "ops": [
+   {
+    "set": "linesBefore",
+    "value": 1
+   }
+  ]
+ },
+ {
+  "arm": "A0",
+  "name": "removeConfirm offered before the Allow",
+  "expect": "fail",
+  "mustFail": [
+   "no removeConfirm and no paste flag while they wait"
+  ],
+  "ops": [
+   {
+    "set": "removeConfirmBefore",
+    "value": true
+   }
+  ]
+ },
+ {
+  "arm": "A0",
+  "name": "the picture offered paste before the Allow",
+  "expect": "fail",
+  "mustFail": [
+   "no removeConfirm and no paste flag while they wait"
+  ],
+  "ops": [
+   {
+    "set": "pasteFlagBefore",
+    "value": true
+   }
+  ]
+ },
+ {
+  "arm": "A0",
+  "name": "Settings drew one New: line",
+  "expect": "fail",
+  "mustFail": [
+   "the face says both New: lines and their sentences above Allow"
+  ],
+  "ops": [
+   {
+    "delete": "face.1"
+   }
+  ]
+ },
+ {
+  "arm": "A0",
+  "name": "the drawn Remove line lacks its sentence",
+  "expect": "fail",
+  "mustFail": [
+   "the face says both New: lines and their sentences above Allow"
+  ],
+  "ops": [
+   {
+    "set": "drawn.remove",
+    "value": "New: remove sessions from your phone"
+   }
+  ]
+ },
+ {
+  "arm": "A0",
+  "name": "the honesty sentence names remove only",
+  "expect": "fail",
+  "mustFail": [
+   "the honesty sentence names both new clauses"
+  ],
+  "ops": [
+   {
+    "set": "honesty",
+    "value": [
+     "A phone you allow can see what any session’s terminal shows and what it printed before, type into it as you would at this Mac, answer a numbered question, send a session one message and end a session. It can also start a session in a project open in Tortie, on this Mac or another machine and remove a session that has ended."
+    ]
+   }
+  ]
+ },
+ {
+  "arm": "A0",
+  "name": "Allow was pressed twice",
+  "expect": "fail",
+  "mustFail": [
+   "one Allow serves both, and nothing waits"
+  ],
+  "ops": [
+   {
+    "set": "allowPresses",
+    "value": 2
+   }
+  ]
+ },
+ {
+  "arm": "A0",
+  "name": "paste still waits after the Allow",
+  "expect": "fail",
+  "mustFail": [
+   "one Allow serves both, and nothing waits"
+  ],
+  "ops": [
+   {
+    "set": "after.routesWaiting",
+    "value": [
+     "paste"
+    ]
+   }
+  ]
+ },
+ {
+  "arm": "A0",
+  "name": "after the Allow the remove route still answers 404 before its body",
+  "expect": "fail",
+  "mustFail": [
+   "after Allow each waits for a body, Remove is offered and the picture takes a paste"
+  ],
+  "ops": [
+   {
+    "set": "removeControl",
+    "value": 404
+   }
+  ]
+ },
+ {
+  "arm": "A0",
+  "name": "after the Allow no picture takes a paste",
+  "expect": "fail",
+  "mustFail": [
+   "after Allow each waits for a body, Remove is offered and the picture takes a paste"
+  ],
+  "ops": [
+   {
+    "set": "pasteFlagAfter",
+    "value": false
+   }
+  ]
+ },
+ {
+  "arm": "A0",
+  "name": "the door's status was never read at HEAD",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "statusRead",
+    "value": false
+   }
+  ]
+ },
+ {
+  "arm": "A0",
+  "name": "the recorder's log was not read while the routes waited",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "bytesBefore",
+    "value": null
+   }
+  ]
+ },
+ {
+  "arm": "R1",
+  "name": "the shell never read ended after End",
+  "expect": "fail",
+  "mustFail": [
+   "End from phone A ended both rows"
+  ],
+  "ops": [
+   {
+    "set": "rows.0.statusAfterEnd",
+    "value": "running"
+   }
+  ]
+ },
+ {
+  "arm": "R1",
+  "name": "the Claude row offers Remove in words that are not the Mac's",
+  "expect": "fail",
+  "mustFail": [
+   "/v1/session offers Remove in the Mac's own words, re-derived from each row"
+  ],
+  "ops": [
+   {
+    "set": "rows.1.confirm.got.body",
+    "value": "Gone for good."
+   }
+  ]
+ },
+ {
+  "arm": "R1",
+  "name": "no removeConfirm offered on the shell",
+  "expect": "fail",
+  "mustFail": [
+   "/v1/session offers Remove in the Mac's own words, re-derived from each row"
+  ],
+  "ops": [
+   {
+    "set": "rows.0.confirm.got",
+    "value": null
+   }
+  ]
+ },
+ {
+  "arm": "R1",
+  "name": "the Claude Remove refused",
+  "expect": "fail",
+  "mustFail": [
+   "each Remove answered done"
+  ],
+  "ops": [
+   {
+    "set": "rows.1.answer",
+    "value": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "refused",
+     "reason": "changed",
+     "sentence": "This session changed. Nothing was done.",
+     "body": "{\"verb\":\"remove\",\"write\":\"22222222222222222222222222222222\",\"outcome\":\"refused\",\"reason\":\"changed\",\"sentence\":\"This session changed. Nothing was done.\"}",
+     "write": "22222222222222222222222222222222"
+    }
+   }
+  ]
+ },
+ {
+  "arm": "R1",
+  "name": "the removed shell is still listed among main's own",
+  "expect": "fail",
+  "mustFail": [
+   "main reads each discarded with removedAt, in Past Sessions and out of the list"
+  ],
+  "ops": [
+   {
+    "set": "rows.0.listedAfter",
+    "value": true
+   }
+  ]
+ },
+ {
+  "arm": "R1",
+  "name": "the removed row has no removedAt",
+  "expect": "fail",
+  "mustFail": [
+   "main reads each discarded with removedAt, in Past Sessions and out of the list"
+  ],
+  "ops": [
+   {
+    "set": "rows.1.removed.removedAt",
+    "value": null
+   }
+  ]
+ },
+ {
+  "arm": "R1",
+  "name": "the shell's saved scrollback survived",
+  "expect": "fail",
+  "mustFail": [
+   "its saved scrollback and hook file are gone"
+  ],
+  "ops": [
+   {
+    "set": "rows.0.files.snapshotAfter",
+    "value": 1
+   }
+  ]
+ },
+ {
+  "arm": "R1",
+  "name": "the Claude hook file survived",
+  "expect": "fail",
+  "mustFail": [
+   "its saved scrollback and hook file are gone"
+  ],
+  "ops": [
+   {
+    "set": "rows.1.files.hookAfter",
+    "value": true
+   }
+  ]
+ },
+ {
+  "arm": "R1",
+  "name": "THE REVIEW: only the hook file was there before, so the scrollback's deletion was never seen",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "rows.0.files.snapshotBefore",
+    "value": 0
+   },
+   {
+    "set": "rows.1.files.snapshotBefore",
+    "value": 0
+   }
+  ]
+ },
+ {
+  "arm": "R1",
+  "name": "THE REVIEW: no row had a hook file before",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "rows.1.files.hookBefore",
+    "value": false
+   }
+  ]
+ },
+ {
+  "arm": "R1",
+  "name": "the open Past tab never showed the Claude row",
+  "expect": "fail",
+  "mustFail": [
+   "the Mac's open Past tab shows each"
+  ],
+  "ops": [
+   {
+    "set": "rows.1.pastTab",
+    "value": false
+   }
+  ]
+ },
+ {
+  "arm": "R1",
+  "name": "the Past tab was never opened",
+  "expect": "fail",
+  "mustFail": [
+   "the Mac's open Past tab shows each"
+  ],
+  "ops": [
+   {
+    "set": "pastTab.open",
+    "value": false
+   }
+  ]
+ },
+ {
+  "arm": "R1",
+  "name": "Restore brought the Claude row back with another conversation",
+  "expect": "fail",
+  "mustFail": [
+   "Restore from Past brings each back, the conversation id with it"
+  ],
+  "ops": [
+   {
+    "set": "rows.1.restore.idAfter",
+    "value": "another-conversation"
+   }
+  ]
+ },
+ {
+  "arm": "R1",
+  "name": "Restore did not bring the shell back",
+  "expect": "fail",
+  "mustFail": [
+   "Restore from Past brings each back, the conversation id with it"
+  ],
+  "ops": [
+   {
+    "set": "rows.0.restore.listedAgain",
+    "value": false
+   }
+  ]
+ },
+ {
+  "arm": "R1",
+  "name": "only one local row was ended and read",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "delete": "rows.1"
+   }
+  ]
+ },
+ {
+  "arm": "R2",
+  "name": "the far row never read ended",
+  "expect": "fail",
+  "mustFail": [
+   "End from phone A ended the row on the machine"
+  ],
+  "ops": [
+   {
+    "set": "statusAfterEnd",
+    "value": "unknown"
+   }
+  ]
+ },
+ {
+  "arm": "R2",
+  "name": "the far row offers no Remove",
+  "expect": "fail",
+  "mustFail": [
+   "/v1/session offers Remove in the Mac's own words"
+  ],
+  "ops": [
+   {
+    "set": "confirm.got",
+    "value": null
+   }
+  ]
+ },
+ {
+  "arm": "R2",
+  "name": "the far Remove refused unreachable",
+  "expect": "fail",
+  "mustFail": [
+   "the Remove answered done"
+  ],
+  "ops": [
+   {
+    "set": "answer",
+    "value": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "refused",
+     "reason": "unreachable",
+     "sentence": "Tortie cannot see whether this session is running, so it cannot end it.",
+     "body": "{\"verb\":\"remove\",\"write\":\"33333333333333333333333333333333\",\"outcome\":\"refused\",\"reason\":\"unreachable\",\"sentence\":\"Tortie cannot see whether this session is running, so it cannot end it.\"}",
+     "write": "33333333333333333333333333333333"
+    }
+   }
+  ]
+ },
+ {
+  "arm": "R2",
+  "name": "the far row is not in Past Sessions",
+  "expect": "fail",
+  "mustFail": [
+   "main reads it discarded with removedAt, in Past Sessions and out of the list"
+  ],
+  "ops": [
+   {
+    "set": "removed.listed",
+    "value": false
+   }
+  ]
+ },
+ {
+  "arm": "R2",
+  "name": "a send-keys reached the machine in the window",
+  "expect": "fail",
+  "mustFail": [
+   "no tmux command was run on the machine for the Remove (the far log, which a control connection's commands do not reach)"
+  ],
+  "ops": [
+   {
+    "set": "far.verbs",
+    "value": [
+     "'-L' 'gmux-p348-1' 'send-keys' '-t' '$9' 'exit' 'Enter'"
+    ]
+   }
+  ]
+ },
+ {
+  "arm": "R2",
+  "name": "a far command named the removed row",
+  "expect": "fail",
+  "mustFail": [
+   "no tmux command was run on the machine for the Remove (the far log, which a control connection's commands do not reach)"
+  ],
+  "ops": [
+   {
+    "set": "far.naming",
+    "value": [
+     "'-L' 'gmux-p348-1' 'has-session' '-t' '=p348-r2'"
+    ]
+   }
+  ]
+ },
+ {
+  "arm": "R2",
+  "name": "the far server lost a session across the Remove",
+  "expect": "fail",
+  "mustFail": [
+   "no tmux command was run on the machine for the Remove (the far log, which a control connection's commands do not reach)"
+  ],
+  "ops": [
+   {
+    "set": "farAfter",
+    "value": []
+   }
+  ]
+ },
+ {
+  "arm": "R2",
+  "name": "the far log was not read",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "far.read",
+    "value": false
+   }
+  ]
+ },
+ {
+  "arm": "R2",
+  "name": "the far row never read ended",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "statusAfterEnd",
+    "value": null
+   }
+  ]
+ },
+ {
+  "arm": "R3",
+  "name": "the live local row was refused in the press rule's words, not main's",
+  "expect": "fail",
+  "mustFail": [
+   "a live local row is refused changed in main's own words, unchanged"
+  ],
+  "ops": [
+   {
+    "set": "live.answer",
+    "value": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "refused",
+     "reason": "changed",
+     "sentence": "This session changed. Nothing was done.",
+     "body": "{\"verb\":\"remove\",\"write\":\"44444444444444444444444444444444\",\"outcome\":\"refused\",\"reason\":\"changed\",\"sentence\":\"This session changed. Nothing was done.\"}",
+     "write": "44444444444444444444444444444444"
+    }
+   }
+  ]
+ },
+ {
+  "arm": "R3",
+  "name": "THE ATTACK LANDED: a live local row was removed",
+  "expect": "fail",
+  "mustFail": [
+   "a live local row is refused changed in main's own words, unchanged"
+  ],
+  "ops": [
+   {
+    "set": "live.answer",
+    "value": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "done",
+     "reason": null,
+     "sentence": null,
+     "body": "{\"verb\":\"remove\",\"write\":\"44444444444444444444444444444444\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+     "write": "44444444444444444444444444444444"
+    }
+   },
+   {
+    "set": "live.after",
+    "value": {
+     "listed": false,
+     "status": null,
+     "removed": true
+    }
+   }
+  ]
+ },
+ {
+  "arm": "R3",
+  "name": "THE ATTACK LANDED: a live remote row was removed (main's missing remote gate)",
+  "expect": "fail",
+  "mustFail": [
+   "a LIVE REMOTE row is refused changed and left running on its machine"
+  ],
+  "ops": [
+   {
+    "set": "farLive.answer",
+    "value": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "done",
+     "reason": null,
+     "sentence": null,
+     "body": "{\"verb\":\"remove\",\"write\":\"55555555555555555555555555555555\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+     "write": "55555555555555555555555555555555"
+    }
+   },
+   {
+    "set": "farLive.after",
+    "value": {
+     "listed": false,
+     "status": null,
+     "removed": true
+    }
+   }
+  ]
+ },
+ {
+  "arm": "R3",
+  "name": "the live remote row's far session was ended",
+  "expect": "fail",
+  "mustFail": [
+   "a LIVE REMOTE row is refused changed and left running on its machine"
+  ],
+  "ops": [
+   {
+    "set": "farLive.farHolds",
+    "value": false
+   }
+  ]
+ },
+ {
+  "arm": "R3",
+  "name": "a removed row answered done again",
+  "expect": "fail",
+  "mustFail": [
+   "a removed row and an id naming nothing are gone"
+  ],
+  "ops": [
+   {
+    "set": "discarded.answer",
+    "value": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "done",
+     "reason": null,
+     "sentence": null,
+     "body": "{\"verb\":\"remove\",\"write\":\"66666666666666666666666666666666\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+     "write": "66666666666666666666666666666666"
+    }
+   }
+  ]
+ },
+ {
+  "arm": "R3",
+  "name": "an id naming nothing refused in the press rule's words",
+  "expect": "fail",
+  "mustFail": [
+   "a removed row and an id naming nothing are gone"
+  ],
+  "ops": [
+   {
+    "set": "nothing.answer",
+    "value": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "refused",
+     "reason": "gone",
+     "sentence": "This session changed. Nothing was done.",
+     "body": "{\"verb\":\"remove\",\"write\":\"77777777777777777777777777777777\",\"outcome\":\"refused\",\"reason\":\"gone\",\"sentence\":\"This session changed. Nothing was done.\"}",
+     "write": "77777777777777777777777777777777"
+    }
+   }
+  ]
+ },
+ {
+  "arm": "R3",
+  "name": "the same bytes again were answered 200",
+  "expect": "fail",
+  "mustFail": [
+   "the same bytes again are 404, and the same write id fresh-signed is the recorded answer, acting once"
+  ],
+  "ops": [
+   {
+    "set": "replay.again",
+    "value": 200
+   }
+  ]
+ },
+ {
+  "arm": "R3",
+  "name": "the fresh-signed same write id acted again",
+  "expect": "fail",
+  "mustFail": [
+   "the same bytes again are 404, and the same write id fresh-signed is the recorded answer, acting once"
+  ],
+  "ops": [
+   {
+    "set": "replay.acts",
+    "value": 2
+   }
+  ]
+ },
+ {
+  "arm": "R3",
+  "name": "the fresh-signed same write id answered other bytes",
+  "expect": "fail",
+  "mustFail": [
+   "the same bytes again are 404, and the same write id fresh-signed is the recorded answer, acting once"
+  ],
+  "ops": [
+   {
+    "set": "replay.resent.body",
+    "value": "{\"verb\":\"remove\",\"write\":\"22222222222222222222222222222222\",\"outcome\":\"refused\",\"reason\":\"gone\",\"sentence\":\"This session changed. Nothing was done.\"}"
+   }
+  ]
+ },
+ {
+  "arm": "R3",
+  "name": "a removed phone was answered 200",
+  "expect": "fail",
+  "mustFail": [
+   "a removed phone and a stopped door remove nothing and never answer 200"
+  ],
+  "ops": [
+   {
+    "set": "removedPhone.status",
+    "value": 200
+   }
+  ]
+ },
+ {
+  "arm": "R3",
+  "name": "a stopped door removed the row",
+  "expect": "fail",
+  "mustFail": [
+   "a removed phone and a stopped door remove nothing and never answer 200"
+  ],
+  "ops": [
+   {
+    "set": "doorStopped.after",
+    "value": {
+     "listed": false,
+     "status": null,
+     "removed": true
+    }
+   }
+  ]
+ },
+ {
+  "arm": "R3",
+  "name": "phone A could not read after phone C was removed (the control)",
+  "expect": "fail",
+  "mustFail": [
+   "a removed phone and a stopped door remove nothing and never answer 200"
+  ],
+  "ops": [
+   {
+    "set": "removedPhone.control",
+    "value": 404
+   }
+  ]
+ },
+ {
+  "arm": "R3",
+  "name": "there is no doorStopped reading",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "delete": "doorStopped"
+   }
+  ]
+ },
+ {
+  "arm": "R3",
+  "name": "phone C never paired",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "removedPhone.wasPaired",
+    "value": false
+   }
+  ]
+ },
+ {
+  "arm": "R3u",
+  "name": "an unknown row refused changed",
+  "expect": "fail",
+  "mustFail": [
+   "the Remove of the unknown row is refused unreachable in the Mac's words"
+  ],
+  "ops": [
+   {
+    "set": "answer",
+    "value": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "refused",
+     "reason": "changed",
+     "sentence": "This session changed. Nothing was done.",
+     "body": "{\"verb\":\"remove\",\"write\":\"88888888888888888888888888888888\",\"outcome\":\"refused\",\"reason\":\"changed\",\"sentence\":\"This session changed. Nothing was done.\"}",
+     "write": "88888888888888888888888888888888"
+    }
+   }
+  ]
+ },
+ {
+  "arm": "R3u",
+  "name": "THE ROW WAS REMOVED though Tortie could not see it",
+  "expect": "fail",
+  "mustFail": [
+   "the row was not removed"
+  ],
+  "ops": [
+   {
+    "set": "removedAfter",
+    "value": true
+   },
+   {
+    "set": "listedAfter",
+    "value": false
+   }
+  ]
+ },
+ {
+  "arm": "R3u",
+  "name": "the row read running when the Remove was sent",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "statusAtSend",
+    "value": "running"
+   }
+  ]
+ },
+ {
+  "arm": "R3b",
+  "name": "both answered busy, so neither acted",
+  "expect": "fail",
+  "mustFail": [
+   "one of the two answered busy in the door's words, and the other acted once"
+  ],
+  "ops": [
+   {
+    "set": "answers.0",
+    "value": {
+     "status": 200,
+     "ok": true,
+     "outcome": "busy",
+     "sentence": "Tortie is still doing the last thing you asked from this phone. Nothing was done."
+    }
+   }
+  ]
+ },
+ {
+  "arm": "R3b",
+  "name": "busy in words that are not the door's",
+  "expect": "fail",
+  "mustFail": [
+   "one of the two answered busy in the door's words, and the other acted once"
+  ],
+  "ops": [
+   {
+    "set": "answers.1.sentence",
+    "value": "Busy."
+   }
+  ]
+ },
+ {
+  "arm": "R3b",
+  "name": "the two writes never overlapped",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "answers.1",
+    "value": {
+     "status": 200,
+     "ok": true,
+     "outcome": "done",
+     "sentence": null
+    }
+   }
+  ]
+ },
+ {
+  "arm": "P1",
+  "name": "Codex's paste failed",
+  "expect": "fail",
+  "mustFail": [
+   "each paste answered done"
+  ],
+  "ops": [
+   {
+    "set": "targets.1.answer",
+    "value": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "failed",
+     "reason": null,
+     "sentence": "Tortie could not paste that.",
+     "body": "{\"verb\":\"paste\",\"write\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"outcome\":\"failed\",\"reason\":null,\"sentence\":\"Tortie could not paste that.\"}",
+     "write": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+   }
+  ]
+ },
+ {
+  "arm": "P1",
+  "name": "the recorder read the paste with no brackets though it asked",
+  "expect": "fail",
+  "mustFail": [
+   "each program read ESC[200~, the text with LF as CR, ESC[201~, and nothing after"
+  ],
+  "ops": [
+   {
+    "set": "targets.2.readHex",
+    "value": "6c696e65206f6e650d6c696e652074776f"
+   }
+  ]
+ },
+ {
+  "arm": "P1",
+  "name": "a Return was added after the paste",
+  "expect": "fail",
+  "mustFail": [
+   "each program read ESC[200~, the text with LF as CR, ESC[201~, and nothing after"
+  ],
+  "ops": [
+   {
+    "set": "targets.0.readHex",
+    "value": "1b5b3230307e6c696e65206f6e650d6c696e652074776f1b5b3230317e0d"
+   }
+  ]
+ },
+ {
+  "arm": "P1",
+  "name": "the line feed reached the program as a line feed",
+  "expect": "fail",
+  "mustFail": [
+   "each program read ESC[200~, the text with LF as CR, ESC[201~, and nothing after"
+  ],
+  "ops": [
+   {
+    "set": "targets.1.readHex",
+    "value": "1b5b3230307e6c696e65206f6e650a6c696e652074776f1b5b3230317e"
+   }
+  ]
+ },
+ {
+  "arm": "P1",
+  "name": "only two programs were read",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "delete": "targets.2"
+   }
+  ]
+ },
+ {
+  "arm": "P1",
+  "name": "a stand-in said no hello, so its log was not read",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "targets.0.readHex",
+    "value": null
+   }
+  ]
+ },
+ {
+  "arm": "P2",
+  "name": "a raw program got brackets",
+  "expect": "fail",
+  "mustFail": [
+   "the recorder read 61 0d 62 and nothing after"
+  ],
+  "ops": [
+   {
+    "set": "readHex",
+    "value": "1b5b3230307e610d621b5b3230317e"
+   }
+  ]
+ },
+ {
+  "arm": "P2",
+  "name": "the paste was refused",
+  "expect": "fail",
+  "mustFail": [
+   "the paste answered done"
+  ],
+  "ops": [
+   {
+    "set": "answer",
+    "value": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "refused",
+     "reason": "character",
+     "sentence": "That holds a character Tortie does not paste. Nothing was pasted.",
+     "body": "{\"verb\":\"paste\",\"write\":\"99999999999999999999999999999999\",\"outcome\":\"refused\",\"reason\":\"character\",\"sentence\":\"That holds a character Tortie does not paste. Nothing was pasted.\"}",
+     "write": "99999999999999999999999999999999"
+    }
+   }
+  ]
+ },
+ {
+  "arm": "P2",
+  "name": "the recorder's log was not read",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "readHex",
+    "value": null
+   }
+  ]
+ },
+ {
+  "arm": "P3",
+  "name": "CR LF was pasted as one line break",
+  "expect": "fail",
+  "mustFail": [
+   "each is refused character in the Mac's words",
+   "the recorder read ZERO bytes"
+  ],
+  "ops": [
+   {
+    "set": "cases.2.answer",
+    "value": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "done",
+     "reason": null,
+     "sentence": null,
+     "body": "{\"verb\":\"paste\",\"write\":\"22222222222222222222222222222222\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+     "write": "22222222222222222222222222222222"
+    }
+   },
+   {
+    "set": "cases.2.readHex",
+    "value": "610d62"
+   }
+  ]
+ },
+ {
+  "arm": "P3",
+  "name": "NUL refused in other words",
+  "expect": "fail",
+  "mustFail": [
+   "each is refused character in the Mac's words"
+  ],
+  "ops": [
+   {
+    "set": "cases.4.answer.sentence",
+    "value": "No."
+   }
+  ]
+ },
+ {
+  "arm": "P3",
+  "name": "U+0085 typed bytes though refused",
+  "expect": "fail",
+  "mustFail": [
+   "the recorder read ZERO bytes"
+  ],
+  "ops": [
+   {
+    "set": "cases.5.readHex",
+    "value": "61c28562"
+   }
+  ]
+ },
+ {
+  "arm": "P3",
+  "name": "THE REVIEW: the control after the refusals never reached the recorder",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "control.landed",
+    "value": false
+   },
+   {
+    "set": "control.readHex",
+    "value": ""
+   }
+  ]
+ },
+ {
+  "arm": "P3",
+  "name": "THE REVIEW: no control was sent",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "delete": "control"
+   }
+  ]
+ },
+ {
+  "arm": "P3",
+  "name": "THE REVIEW: one case's log could not be read",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "cases.3.readHex",
+    "value": null
+   }
+  ]
+ },
+ {
+  "arm": "P4",
+  "name": "16,384 bytes refused long",
+  "expect": "fail",
+  "mustFail": [
+   "16,384 bytes answered done and landed exact"
+  ],
+  "ops": [
+   {
+    "set": "atCap.answer",
+    "value": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "refused",
+     "reason": "long",
+     "sentence": "That is too long to paste. Nothing was pasted.",
+     "body": "{\"verb\":\"paste\",\"write\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"outcome\":\"refused\",\"reason\":\"long\",\"sentence\":\"That is too long to paste. Nothing was pasted.\"}",
+     "write": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+   },
+   {
+    "set": "atCap.readHex",
+    "value": ""
+   }
+  ]
+ },
+ {
+  "arm": "P4",
+  "name": "16,384 bytes landed short (split)",
+  "expect": "fail",
+  "mustFail": [
+   "16,384 bytes answered done and landed exact"
+  ],
+  "ops": [
+   {
+    "set": "atCap.readHex",
+    "value": "70333438633061306230633064306530660d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f6620"
+   }
+  ]
+ },
+ {
+  "arm": "P4",
+  "name": "16,385 bytes landed",
+  "expect": "fail",
+  "mustFail": [
+   "16,385 bytes refused long in the Mac's words, ZERO bytes"
+  ],
+  "ops": [
+   {
+    "set": "overCap.answer",
+    "value": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "done",
+     "reason": null,
+     "sentence": null,
+     "body": "{\"verb\":\"paste\",\"write\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+     "write": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+   },
+   {
+    "set": "overCap.readHex",
+    "value": "aa"
+   }
+  ]
+ },
+ {
+  "arm": "P4",
+  "name": "the recorder's log was not read at the cap",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "atCap.readHex",
+    "value": null
+   }
+  ]
+ },
+ {
+  "arm": "P5",
+  "name": "THE LOCK DID NOT HOLD: the paste landed on the new question",
+  "expect": "fail",
+  "mustFail": [
+   "the paste is refused changed in the Mac's words",
+   "the stand-in read ZERO bytes"
+  ],
+  "ops": [
+   {
+    "set": "answer",
+    "value": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "done",
+     "reason": null,
+     "sentence": null,
+     "body": "{\"verb\":\"paste\",\"write\":\"cccccccccccccccccccccccccccccccc\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+     "write": "cccccccccccccccccccccccccccccccc"
+    }
+   },
+   {
+    "set": "readHex",
+    "value": "1b5b3230307e703520781b5b3230317e"
+   }
+  ]
+ },
+ {
+  "arm": "P5",
+  "name": "the question never moved",
+  "expect": "fail",
+  "mustFail": [
+   "the question moved between the phone's read and its write"
+  ],
+  "ops": [
+   {
+    "set": "moved.turn",
+    "value": "00000000000000a1-3"
+   },
+   {
+    "set": "moved.dialog",
+    "value": "aaaabbbbcccc"
+   }
+  ]
+ },
+ {
+  "arm": "P5",
+  "name": "THE REVIEW: the control after the refusal never reached the stand-in",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "control.landed",
+    "value": false
+   },
+   {
+    "set": "control.readHex",
+    "value": ""
+   }
+  ]
+ },
+ {
+  "arm": "P5",
+  "name": "THE REVIEW: no stand-in said hello (no log)",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "readHex",
+    "value": null
+   }
+  ]
+ },
+ {
+  "arm": "P5",
+  "name": "the stand-in never drew a question",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "first.asking",
+    "value": false
+   }
+  ]
+ },
+ {
+  "arm": "P6",
+  "name": "the far picture says paste: false (D30 writes no key there)",
+  "expect": "fail",
+  "mustFail": [
+   "the far picture carries no paste key"
+  ],
+  "ops": [
+   {
+    "set": "pasteKey",
+    "value": true
+   }
+  ]
+ },
+ {
+  "arm": "P6",
+  "name": "a far paste answered done",
+  "expect": "fail",
+  "mustFail": [
+   "the paste is refused machine in the Mac's words"
+  ],
+  "ops": [
+   {
+    "set": "answer",
+    "value": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "done",
+     "reason": null,
+     "sentence": null,
+     "body": "{\"verb\":\"paste\",\"write\":\"dddddddddddddddddddddddddddddddd\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+     "write": "dddddddddddddddddddddddddddddddd"
+    }
+   }
+  ]
+ },
+ {
+  "arm": "P6",
+  "name": "a paste-buffer reached the machine",
+  "expect": "fail",
+  "mustFail": [
+   "nothing of the paste reached the machine as a tmux command (the far log, which a control connection's commands do not reach)"
+  ],
+  "ops": [
+   {
+    "set": "far.verbs",
+    "value": [
+     "'-L' 'gmux-p348-1' 'paste-buffer' '-p' '-d' '-b' 'tortie-paste-1' '-t' '%3'"
+    ]
+   }
+  ]
+ },
+ {
+  "arm": "P6",
+  "name": "THE REVIEW: the far log could not be read",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "far.read",
+    "value": false
+   }
+  ]
+ },
+ {
+  "arm": "P7",
+  "name": "the replay of the same bytes was answered",
+  "expect": "fail",
+  "mustFail": [
+   "the same bytes again are 404"
+  ],
+  "ops": [
+   {
+    "set": "again",
+    "value": 200
+   }
+  ]
+ },
+ {
+  "arm": "P7",
+  "name": "the fresh-signed write id typed again",
+  "expect": "fail",
+  "mustFail": [
+   "the recorder read nothing more"
+  ],
+  "ops": [
+   {
+    "set": "moreHex",
+    "value": "7033343863313132323333343435353636207265706c6179"
+   }
+  ]
+ },
+ {
+  "arm": "P7",
+  "name": "the fresh-signed write id answered other bytes",
+  "expect": "fail",
+  "mustFail": [
+   "the same write id fresh-signed is the recorded answer, byte for byte"
+  ],
+  "ops": [
+   {
+    "set": "resent.body",
+    "value": "{\"verb\":\"paste\",\"write\":\"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"outcome\":\"busy\",\"reason\":null,\"sentence\":\"Tortie is still doing the last thing you asked from this phone. Nothing was done.\"}"
+   }
+  ]
+ },
+ {
+  "arm": "P7",
+  "name": "the first paste was refused",
+  "expect": "fail",
+  "mustFail": [
+   "the first paste answered done"
+  ],
+  "ops": [
+   {
+    "set": "first.outcome",
+    "value": "refused"
+   }
+  ]
+ },
+ {
+  "arm": "P7",
+  "name": "the recorder's log was not read after the replays",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "moreHex",
+    "value": null
+   }
+  ]
+ },
+ {
+  "arm": "K",
+  "name": "a canary in a file under the profile",
+  "expect": "fail",
+  "mustFail": [
+   "no canary in any file under the profile, HOME or the harness folder"
+  ],
+  "ops": [
+   {
+    "push": "fileHits",
+    "value": {
+     "file": "p348/profile/gmux/snapshots/x.txt.000001"
+    }
+   }
+  ]
+ },
+ {
+  "arm": "K",
+  "name": "no file was scanned",
+  "expect": "fail",
+  "mustFail": [
+   "no canary in any file under the profile, HOME or the harness folder"
+  ],
+  "ops": [
+   {
+    "set": "filesScanned",
+    "value": 0
+   }
+  ]
+ },
+ {
+  "arm": "K",
+  "name": "a canary in app.log",
+  "expect": "fail",
+  "mustFail": [
+   "no canary in app.log, and one log line per write that acted"
+  ],
+  "ops": [
+   {
+    "set": "appLogHits",
+    "value": 1
+   }
+  ]
+ },
+ {
+  "arm": "K",
+  "name": "two log lines for one paste",
+  "expect": "fail",
+  "mustFail": [
+   "no canary in app.log, and one log line per write that acted"
+  ],
+  "ops": [
+   {
+    "set": "lines.paste",
+    "value": 19
+   }
+  ]
+ },
+ {
+  "arm": "K",
+  "name": "a remove that acted logged no line",
+  "expect": "fail",
+  "mustFail": [
+   "no canary in app.log, and one log line per write that acted"
+  ],
+  "ops": [
+   {
+    "set": "lines.remove",
+    "value": 8
+   }
+  ]
+ },
+ {
+  "arm": "K",
+  "name": "a canary in an argv",
+  "expect": "fail",
+  "mustFail": [
+   "no canary in any argv the sampler saw"
+  ],
+  "ops": [
+   {
+    "set": "argvHits",
+    "value": 1
+   }
+  ]
+ },
+ {
+  "arm": "K",
+  "name": "the sampler never sampled",
+  "expect": "fail",
+  "mustFail": [
+   "no canary in any argv the sampler saw"
+  ],
+  "ops": [
+   {
+    "set": "argvSamples",
+    "value": 0
+   }
+  ]
+ },
+ {
+  "arm": "K",
+  "name": "a tortie-paste buffer was left",
+  "expect": "fail",
+  "mustFail": [
+   "no tortie-paste buffer on either server"
+  ],
+  "ops": [
+   {
+    "push": "buffers",
+    "value": "tortie-paste-77"
+   }
+  ]
+ },
+ {
+  "arm": "K",
+  "name": "app.log could not be read",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "appLogRead",
+    "value": false
+   }
+  ]
+ },
+ {
+  "arm": "W",
+  "name": "the long picture missed row 1's mark",
+  "expect": "fail",
+  "mustFail": [
+   "each live picture's wraps equal this run's reading"
+  ],
+  "ops": [
+   {
+    "set": "local.0.wraps",
+    "value": [
+     0
+    ]
+   }
+  ]
+ },
+ {
+  "arm": "W",
+  "name": "THE WIDTH RULE: G1b's cleared row 0 joined",
+  "expect": "fail",
+  "mustFail": [
+   "each live picture's wraps equal this run's reading",
+   "G1b's rewritten row is flagged and NOT marked"
+  ],
+  "ops": [
+   {
+    "set": "local.1.wraps",
+    "value": [
+     0,
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "arm": "W",
+  "name": "the page marked every row",
+  "expect": "fail",
+  "mustFail": [
+   "the page's wraps equal this run's reading of the same range"
+  ],
+  "ops": [
+   {
+    "set": "page.wraps",
+    "value": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15,
+     16,
+     17,
+     18,
+     19,
+     20,
+     21,
+     22,
+     23,
+     24,
+     25,
+     26,
+     27,
+     28,
+     29,
+     30,
+     31,
+     32,
+     33,
+     34,
+     35,
+     36,
+     37,
+     38,
+     39,
+     40,
+     41,
+     42,
+     43,
+     44,
+     45,
+     46,
+     47,
+     48,
+     49,
+     50,
+     51,
+     52,
+     53,
+     54,
+     55,
+     56,
+     57,
+     58,
+     59,
+     60,
+     61,
+     62,
+     63,
+     64,
+     65,
+     66,
+     67,
+     68,
+     69,
+     70,
+     71,
+     72,
+     73,
+     74,
+     75,
+     76,
+     77,
+     78,
+     79,
+     80,
+     81,
+     82,
+     83,
+     84,
+     85,
+     86,
+     87,
+     88,
+     89,
+     90,
+     91,
+     92,
+     93,
+     94,
+     95,
+     96,
+     97,
+     98
+    ]
+   }
+  ]
+ },
+ {
+  "arm": "W",
+  "name": "the page held no mark (and this run read none)",
+  "expect": "fail",
+  "mustFail": [
+   "the page's wraps equal this run's reading of the same range"
+  ],
+  "ops": [
+   {
+    "set": "page.wraps",
+    "value": []
+   },
+   {
+    "set": "page.mine",
+    "value": []
+   }
+  ]
+ },
+ {
+  "arm": "W",
+  "name": "the alternate screen's picture carried marks",
+  "expect": "fail",
+  "mustFail": [
+   "each live picture's wraps equal this run's reading",
+   "the alternate screen carries no mark"
+  ],
+  "ops": [
+   {
+    "set": "local.2.wraps",
+    "value": [
+     0,
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "arm": "W",
+  "name": "THE REVIEW: the picture for the alternate screen says the main screen",
+  "expect": "fail",
+  "mustFail": [
+   "the alternate screen carries no mark"
+  ],
+  "ops": [
+   {
+    "set": "local.2.pictureAlternate",
+    "value": false
+   }
+  ]
+ },
+ {
+  "arm": "W",
+  "name": "the far picture marked nothing (and this run read nothing)",
+  "expect": "fail",
+  "mustFail": [
+   "the far picture, read through the fallback, equals this run's reading"
+  ],
+  "ops": [
+   {
+    "set": "far.wraps",
+    "value": []
+   },
+   {
+    "set": "far.mine",
+    "value": []
+   }
+  ]
+ },
+ {
+  "arm": "W",
+  "name": "the far road read through -F",
+  "expect": "fail",
+  "mustFail": [
+   "the far picture, read through the fallback, equals this run's reading"
+  ],
+  "ops": [
+   {
+    "set": "far.road",
+    "value": "flags"
+   }
+  ]
+ },
+ {
+  "arm": "W",
+  "name": "THE REVIEW: the phone never read the alternate screen's picture",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "local.2.pictured",
+    "value": false
+   },
+   {
+    "set": "local.2.pictureAlternate",
+    "value": null
+   }
+  ]
+ },
+ {
+  "arm": "W",
+  "name": "THE REVIEW: the phone never read the long output's picture",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "local.0.pictured",
+    "value": false
+   }
+  ]
+ },
+ {
+  "arm": "W",
+  "name": "THE REVIEW: the phone never read the far picture",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "far.pictured",
+    "value": false
+   }
+  ]
+ },
+ {
+  "arm": "W",
+  "name": "the machine's tmux is 3.7b",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "far.version",
+    "value": "3.7b"
+   }
+  ]
+ },
+ {
+  "arm": "W",
+  "name": "a flagged row this run cannot place",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "local.0.mine",
+    "value": null
+   }
+  ]
+ },
+ {
+  "arm": "RUN",
+  "name": "the Tailscale preflight failed",
+  "expect": "fail",
+  "mustFail": [
+   "the Tailscale preflight passed"
+  ],
+  "ops": [
+   {
+    "set": "tailscalePreflight",
+    "value": false
+   }
+  ]
+ },
+ {
+  "arm": "RUN",
+  "name": "a DNS preflight failed at one launch",
+  "expect": "fail",
+  "mustFail": [
+   "the DNS preflight passed at every launch"
+  ],
+  "ops": [
+   {
+    "set": "dnsPreflights.1",
+    "value": false
+   }
+  ]
+ },
+ {
+  "arm": "RUN",
+  "name": "a hidden agent resolved at one launch",
+  "expect": "fail",
+  "mustFail": [
+   "the hidden agents held at every launch"
+  ],
+  "ops": [
+   {
+    "set": "agentsHeld.0",
+    "value": false
+   }
+  ]
+ },
+ {
+  "arm": "RUN",
+  "name": "claude did not resolve to the stand-in",
+  "expect": "fail",
+  "mustFail": [
+   "claude and codex resolved to the stand-ins and no hidden one resolved"
+  ],
+  "ops": [
+   {
+    "set": "resolved",
+    "value": false
+   }
+  ]
+ },
+ {
+  "arm": "RUN",
+  "name": "a session ran a program from outside the run",
+  "expect": "fail",
+  "mustFail": [
+   "every session the manifest holds ran a program of this run"
+  ],
+  "ops": [
+   {
+    "push": "manifest.outside",
+    "value": {
+     "id": "x",
+     "name": "p348-claude",
+     "agent": "claude",
+     "argv0": "/Users/gdc/.local/bin/claude"
+    }
+   }
+  ]
+ },
+ {
+  "arm": "RUN",
+  "name": "a real Tailscale was seen",
+  "expect": "fail",
+  "mustFail": [
+   "no real Tailscale in any sample, and nothing forbidden at the stand-in"
+  ],
+  "ops": [
+   {
+    "set": "realTailscale",
+    "value": 1
+   }
+  ]
+ },
+ {
+  "arm": "RUN",
+  "name": "an Electron was left",
+  "expect": "fail",
+  "mustFail": [
+   "every stand-in and Electron ended, and nothing of this run is left"
+  ],
+  "ops": [
+   {
+    "set": "electronsLeft",
+    "value": 1
+   }
+  ]
+ },
+ {
+  "arm": "RUN",
+  "name": "his history moved",
+  "expect": "fail",
+  "mustFail": [
+   "his shell history did not move across the run"
+  ],
+  "ops": [
+   {
+    "set": "history.after",
+    "value": "739000 1792209999|23166 1790702242"
+   }
+  ]
+ },
+ {
+  "arm": "RUN",
+  "name": "the manifest could not be read",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "manifest",
+    "value": {
+     "read": false,
+     "rows": 0,
+     "outside": [],
+     "why": "locked"
+    }
+   }
+  ]
+ },
+ {
+  "arm": "RUN",
+  "name": "his history could not be read",
+  "expect": "unreadable",
+  "ops": [
+   {
+    "set": "history",
+    "value": {
+     "before": "none|none",
+     "after": "none|none"
+    }
+   }
+  ]
+ },
+ {
+  "arm": "R1",
+  "name": "the Claude row ended and removed first",
+  "expect": "pass",
+  "ops": [
+   {
+    "swap": [
+     "rows.0",
+     "rows.1"
+    ]
+   }
+  ]
+ },
+ {
+  "arm": "R3b",
+  "name": "the busy one came first",
+  "expect": "pass",
+  "ops": [
+   {
+    "swap": [
+     "answers.0",
+     "answers.1"
+    ]
+   }
+  ]
+ }
+]

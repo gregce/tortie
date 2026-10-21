@@ -294,9 +294,11 @@ const WRITE_ROUTES = WRITE_ROWS.length;
  * `keys` and Phase 346 `start`, each a signed POST alive outside any window,
  * and this literal stayed at 318's three, so C0 read FAIL at HEAD and at the
  * parent alike (the Phase 346 reverify, 2026-10-16); since the ruled round it
- * is the table's five.
+ * is the table's five. Phase 348 (build/p348/SPEC.md §6) appends `remove` and
+ * `paste` after `start`, in the table's order (D26), each a signed POST alive
+ * outside any window, so it is the table's seven.
  */
-const WRITE_IDS = Object.freeze(['end', 'choose', 'say', 'keys', 'start']);
+const WRITE_IDS = Object.freeze(['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste']);
 const WRITES_ARE_THE_TABLES = WRITE_ROWS.length === WRITE_IDS.length && WRITE_ROWS.every((r, i) => r.id === WRITE_IDS[i] && r.method === 'POST' && r.path === `/v1/${r.id}` && r.reads === false && r.signed === true && r.windowOnly === false);
 
 // ---------------------------------------------------------------------------

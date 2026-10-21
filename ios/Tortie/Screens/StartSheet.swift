@@ -1,11 +1,13 @@
-// New session, drawn (Phase 346, build/p346/SPEC.md D21 and D22): the "+" on
-// the Sessions title, and the sheet it opens.
+// New session, drawn (Phase 346, build/p346/SPEC.md D21 and D22): the "+" in
+// the Sessions bar, and the sheet it opens.
 //
-// THE "+" sits at the trailing end of the Sessions title row of the Mac on
-// screen, after the menu and Select, drawn ONLY while that Mac's latest
-// sessions answer carries an offered start (a Mac that has not allowed Start
-// yet draws nothing, D9) and off while End these takes taps. Not on a project
-// header: Show opens on Active, so a project with nothing running has none.
+// THE "+" sits alone at the trailing edge of the Sessions tab's bar of the
+// Mac on screen (Phase 348, build/p348/SPEC.md D16, D56; `SessionsBar`), away
+// from Select and the menu at the leading edge, drawn ONLY while that Mac's
+// latest sessions answer carries an offered start (a Mac that has not allowed
+// Start yet draws nothing, D9) and off while End these takes taps. Not on a
+// project header: Show opens on Active, so a project with nothing running has
+// none.
 //
 // THE SHEET, laid out as his answers say, with just enough words: Project, a
 // menu of the projects open in Tortie on that Mac and its machines (a project
@@ -46,51 +48,48 @@ enum StartFrame {
     static let createHeight: CGFloat = 50
     /// The Project menu's press.
     static let menuHeight: CGFloat = 50
-    /// How far the "+"'s PRESS reaches past its 18 × 16 pt glyph (the ruled
-    /// round): 46 × 46 pt in all, over iOS's 44 pt smallest target. It
-    /// reaches up 17 and down 13, because the Show control's capsule starts
-    /// 13 pt under the glyph (y 104 under a glyph at 75 to 91 on an iPhone 16
-    /// Pro), and 14 each side, which stops 2 pt short of Select's end.
-    static let plusReach = EdgeInsets(top: 17, leading: 14, bottom: 13, trailing: 14)
-    /// The same lengths given back to the layout OUTSIDE the Button, so the
-    /// title row lays out exactly as it did with the bare glyph. Literals, so
-    /// no arithmetic is done on them (rule (k)).
-    static let plusGiveBack = EdgeInsets(top: -17, leading: -14, bottom: -13, trailing: -14)
 }
 
 // MARK: - The "+"
 
-/// The "+" on the Sessions title (D21): an SF Symbol `plus`, spoken
-/// `New session`. Where it is drawn, and when it is off, is the title's.
+/// The "+" in the Sessions bar (D21; Phase 348, D16, D56), spoken
+/// `New session`. Where it is drawn, and when it is off, is the bar's
+/// (`SessionsBar`, Screens/SessionsScreen.swift).
 ///
-/// ITS PRESS IS 46 × 46 pt AROUND THE SAME GLYPH, ITS LAYOUT THE GLYPH'S (the
-/// ruled round): the glyph alone was an 18 × 16 pt target. The Button's label
-/// is the glyph padded out by `StartFrame.plusReach` with that whole rectangle
-/// as its content shape, so the Button itself, its press and its element are
-/// 46 × 46 pt with the glyph where it always was inside them; OUTSIDE the
-/// Button the same lengths are given back (`plusGiveBack`), so the title row,
-/// the menu, Select and the glyph lay out and draw where they always did. It
-/// is one real Button, so `.disabled(` at the call site sets its own
-/// not-enabled trait (rule (aa)(6)'s lesson) and VoiceOver reads it New
-/// session. THREE EARLIER SHAPES FAILED, measured by probe:p316's NP12 on
-/// 2026-10-16: the padding given back INSIDE the label pressed nothing past the
-/// glyph (a Button's shape is its label's frame); a square as the Button's
-/// background, and a square and the Button as two overlays of a hidden glyph,
-/// each made the call site's identifier name a container with no label and
-/// the square's frame. NP12 taps the square's corners around where the build
-/// before drew the glyph, and reads every frame on the row against that build.
+/// THE IPHONE'S OWN "+" ON EACH RUNTIME. On iOS 26 it is `plus` in the bar's
+/// own prominent glass, tinted the accent; before it, `plus.circle.fill` in
+/// the accent. ITS PRESS IS ITS LABEL'S FRAME: the label is framed once,
+/// `SessionsFrame.plusPress` square, with that rectangle as its content shape,
+/// and nothing is padded, because the bar presses exactly an item's own frame
+/// and nothing past it. The bar holds no item taller than 36 pt on iOS 26.3,
+/// so it presses 50 × 36 there, and 54 × 44 on 18.3 (build/p348/SPEC.md
+/// §2.5.1). It is one real Button, so `.disabled(` at the call site sets its
+/// own not-enabled trait (rule (aa)(6)'s lesson) and VoiceOver reads it New
+/// session. Phase 346's ruled round padded a bare glyph out to 46 × 46 in the
+/// title row and gave the same lengths back outside the Button; the bar draws
+/// no title row, so both lengths went with it.
 struct StartTitleControl: View {
     let open: () -> Void
 
     var body: some View {
-        Button(action: open) {
-            Image(systemName: "plus")
-                .foregroundStyle(Tokens.accent)
-                .padding(StartFrame.plusReach)
-                .contentShape(Rectangle())
+        if #available(iOS 26, *) {
+            Button(action: open) {
+                Image(systemName: "plus")
+                    .frame(width: SessionsFrame.plusPress, height: SessionsFrame.plusPress)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.glassProminent)
+            .tint(Tokens.accent)
+            .accessibilityLabel(Text(verbatim: Copy.newSession))
+        } else {
+            Button(action: open) {
+                Image(systemName: "plus.circle.fill")
+                    .foregroundStyle(Tokens.accent)
+                    .frame(width: SessionsFrame.plusPress, height: SessionsFrame.plusPress)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel(Text(verbatim: Copy.newSession))
         }
-        .accessibilityLabel(Text(verbatim: Copy.newSession))
-        .padding(StartFrame.plusGiveBack)
     }
 }
 

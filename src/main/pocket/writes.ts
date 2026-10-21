@@ -1,11 +1,20 @@
 /**
  * THE ONE WRITE PATH (Phase 317, build/p317/SPEC.md §5.3.4; widened by Phase
- * 318, build/p318/SPEC.md §5.1.4, by Phase 337, build/p337/SPEC.md §5.5, and
- * by Phase 346, build/p346/SPEC.md §3.3): what main does with a signed
- * `POST /v1/end`, `/v1/choose`, `/v1/say`, `/v1/keys` or `/v1/start` once
- * `./server.ts` has made refusals 1 and 6 (the quit, the door stopping, and
- * the signature over `POST`, the path and these exact body bytes). Five verbs,
- * ONE path, ONE ledger: there is no second gate.
+ * 318, build/p318/SPEC.md §5.1.4, by Phase 337, build/p337/SPEC.md §5.5, by
+ * Phase 346, build/p346/SPEC.md §3.3, and by Phase 348, build/p348/SPEC.md
+ * §4.2 step 3, §4.6 step 8): what main does with a signed `POST /v1/end`,
+ * `/v1/choose`, `/v1/say`, `/v1/keys`, `/v1/start`, `/v1/remove` or
+ * `/v1/paste` once `./server.ts` has made refusals 1 and 6 (the quit, the door
+ * stopping, and the signature over `POST`, the path and these exact body
+ * bytes). Seven verbs, ONE path, ONE ledger: there is no second gate.
+ *
+ * `remove` and `paste` (Phase 348) each name one session, so they take the
+ * session verbs' path below, its claims among them (one write in flight per
+ * phone and per session ACROSS every verb, so an End and a Remove, or keys and
+ * a paste, never overlap on one session), and differ in one place: each is
+ * answered by a shape of its own ({@link removeAnswer}, {@link pasteAnswer},
+ * D27), its busy, its malformed and its recorded answer included, because the
+ * frozen phones read `PocketWriteAnswer`'s verb and reasons as closed sets.
  *
  * `start` (Phase 346) names no session, so it takes the seven steps in a
  * branch of its own ({@link writeStart} inside the handler's factory) that
@@ -22,8 +31,9 @@
  * Every step is named below by its number, in this order and no other:
  *
  *  1. **The strict parse**, by the route's verb (`parseEndBody`,
- *     `parseChooseBody`, `parseSayBody`, and since Phase 337
- *     `parseKeysBody`). The one place a write body is read.
+ *     `parseChooseBody`, `parseSayBody`, since Phase 337 `parseKeysBody`, and
+ *     since Phase 348 `parseRemoveBody` and `parsePasteBody`). The one place a
+ *     write body is read.
  *     One `JSON.parse` inside a `try`; the keys compared exactly; the write id,
  *     the session id, the question id, the mark and the marker read one
  *     character at a time (`conformance:pocket` R1 refuses a pattern in this
@@ -57,7 +67,8 @@
  *     `refused` `stopped`, 200, with nothing typed. Phase 337's `keys` reads
  *     before it types too, and is handed the same `still`.
  *  5. **The act**, wrapped so it cannot throw past this point (`endSettled`,
- *     `replySettled`). From here every answer is a 200 marked `acted`, which
+ *     `replySettled`, and since Phase 348 `removeSettled` and
+ *     `pasteSettled`). From here every answer is a 200 marked `acted`, which
  *     `./bind.ts` never replaces.
  *  6. **The outcome**, recorded in the ledger and answered.
  *  7. **One log line**: the verb and the outcome word, and the session id.
@@ -74,9 +85,11 @@
  *
  * It names no verb (`conformance:pocket` R3): `end`, `choose`, `say` and
  * `keys` reach main's own End, the reply's verbs and the Screen's keys verb,
- * and (Phase 346) `start` reaches the Mac's own one guarded create, all
- * through the {@link PocketWrites} it is handed; this module never spells the
- * create. It sets no status, starts nothing itself, types nothing, reads no
+ * (Phase 346) `start` reaches the Mac's own one guarded create, and (Phase
+ * 348) `remove` reaches the Mac's own Remove and `paste` the Screen's paste
+ * verb, all through the {@link PocketWrites} it is handed; this module never
+ * spells the create or the Remove. It sets no status, starts nothing itself,
+ * types nothing, reads no
  * file and writes none: the ledger is memory, and a write is never queued for
  * later. (A fourth write,
  * `unpair`, was removed by Phase 317's fix round: the phone waited on it before
@@ -90,6 +103,10 @@ import {
   POCKET_WRITE_ROUTE_IDS,
   POCKET_WRITE_SENTENCES,
   type PocketKeyItem,
+  type PocketPasteAnswer,
+  type PocketPasteReason,
+  type PocketRemoveAnswer,
+  type PocketRemoveReason,
   type PocketRouteId,
   type PocketSessionWriteId,
   type PocketStartAnswer,
@@ -100,8 +117,9 @@ import {
   type PocketWriteReason,
   type PocketWriteRouteId
 } from '@shared/ipc/pocket';
-import { END_FAILED } from '@shared/lifecycle-words';
+import { END_FAILED, REMOVE_FAILED } from '@shared/lifecycle-words';
 import { REPLY_FAILED } from '@shared/reply-copy';
+import { PASTE_FAILED } from '@shared/screen-copy';
 import { START_BUSY, START_FAILED, START_OFTEN, START_STILL } from '@shared/start-copy';
 import type { LaunchableAgentId } from '@shared/types';
 import { LAUNCHABLE_AGENT_IDS } from '../agents/registry';
@@ -112,6 +130,8 @@ import type { PocketRoute } from './door/table';
 import { POCKET_CLOCK_SKEW_MS } from './pairing';
 import type {
   PocketEndOutcome,
+  PocketPasteOutcome,
+  PocketRemoveOutcome,
   PocketReplyOutcome,
   PocketStartOutcome,
   PocketStillAllowed,
@@ -160,6 +180,10 @@ const CHOOSE_KEYS = 'mark,marker,question,session,write';
 const SAY_KEYS = 'session,text,write';
 /** The keys body's keys, sorted and joined (Phase 337, build/p337/SPEC.md D17, §5.5). */
 const KEYS_KEYS = 'dialog,keys,session,turn,write';
+/** The remove body's keys, sorted and joined (Phase 348, build/p348/SPEC.md D28). No batch: no Mac batch removes. */
+const REMOVE_KEYS = 'session,write';
+/** The paste body's keys, sorted and joined (Phase 348, D28): the keys body's lock, and the text. */
+const PASTE_KEYS = 'dialog,session,text,turn,write';
 
 /** A question id's random prefix: 16 lowercase hex (`src/main/reply/question-id.ts`). */
 const QUESTION_PREFIX_CHARS = 16;
@@ -237,8 +261,25 @@ export type PocketKeysBody =
   | { ok: true; verb: 'keys'; write: string; session: string; keys: PocketKeyItem[]; turn: string; dialog: string | null }
   | PocketMalformedBody;
 
-/** Any parsed body of a write that acts on one named session. */
+/** Any parsed body of a write that acts on one named session and answers `PocketWriteAnswer`. */
 export type PocketWriteBody = PocketEndBody | PocketChooseBody | PocketSayBody | PocketKeysBody;
+
+/** A parsed remove body (Phase 348, D28), or what a malformed one still let the answer echo. */
+export type PocketRemoveBody = { ok: true; verb: 'remove'; write: string; session: string } | PocketMalformedBody;
+
+/**
+ * A parsed paste body (Phase 348, D28), or what a malformed one still let the
+ * answer echo. The text is exactly the string the body held.
+ */
+export type PocketPasteBody =
+  | { ok: true; verb: 'paste'; write: string; session: string; text: string; turn: string; dialog: string | null }
+  | PocketMalformedBody;
+
+/** Any parsed body of a write that acts on one named session (Phase 348: six verbs). */
+export type PocketSessionBody = PocketWriteBody | PocketRemoveBody | PocketPasteBody;
+
+/** The writes that act on one named session (Phase 348): every write but `start`, which takes its own branch. */
+export type PocketSessionVerb = Exclude<PocketWriteRouteId, 'start'>;
 
 /**
  * A parsed start body (Phase 346, D6), or what a malformed one still let the
@@ -481,6 +522,51 @@ export function parseKeysBody(body: Buffer): PocketKeysBody {
 }
 
 /**
+ * `{ session, write }` exactly, or malformed (Phase 348, build/p348/SPEC.md
+ * D28), read as End's is: the one `JSON.parse` through {@link objectOf}, the
+ * keys compared exactly, the session id and the write id read one character at
+ * a time; and, as the start's parse, a body over its own cap, a key given
+ * twice and an escaped value are malformed too ({@link onlyItsOwnBytes}): every
+ * legal value is ASCII that needs no escape. There is no batch: no Mac batch
+ * removes (`conformance:manager` T8).
+ */
+export function parseRemoveBody(body: Buffer): PocketRemoveBody {
+  const value = objectOf(body);
+  const write = echoOf(value);
+  if (value === null || Object.keys(value).sort().join(',') !== REMOVE_KEYS) return { ok: false, write };
+  const session = value['session'];
+  if (write === '' || !isSessionId(session)) return { ok: false, write };
+  if (body.byteLength > POCKET_WRITE_BODY_CAPS.remove || !onlyItsOwnBytes(value, body)) return { ok: false, write };
+  return { ok: true, verb: 'remove', write, session };
+}
+
+/**
+ * `{ dialog, session, text, turn, write }` exactly, or malformed (Phase 348,
+ * D28, §4.6 step 8): the one `JSON.parse` through {@link objectOf}, the keys
+ * compared exactly, `dialog` null or a mark's shape, `session` a session id,
+ * `turn` a question id's shape and `write` a write id, each read one character
+ * at a time. The text is ANY string, the empty one included, TAKEN AS IT IS:
+ * nothing here trims, replaces or normalizes it, and its rules (empty, too
+ * long, a character Tortie does not paste) are the verb's, each with its own
+ * sentence, so a text the phone could send is answered in words. A body over
+ * its own cap (the door already drops one) is malformed too.
+ */
+export function parsePasteBody(body: Buffer): PocketPasteBody {
+  const value = objectOf(body);
+  const write = echoOf(value);
+  if (value === null || Object.keys(value).sort().join(',') !== PASTE_KEYS) return { ok: false, write };
+  const session = value['session'];
+  const text = value['text'];
+  const turn = value['turn'];
+  const dialog = value['dialog'];
+  if (write === '' || !isSessionId(session) || typeof text !== 'string' || !isQuestionId(turn) || !(dialog === null || isMark(dialog))) {
+    return { ok: false, write };
+  }
+  if (body.byteLength > POCKET_WRITE_BODY_CAPS.paste) return { ok: false, write };
+  return { ok: true, verb: 'paste', write, session, text, turn, dialog };
+}
+
+/**
  * `{ agent, project, write }` exactly, or malformed (Phase 346,
  * build/p346/SPEC.md D6), read as End's is: the one `JSON.parse` through
  * {@link objectOf}, the keys compared exactly, the write id and the project id
@@ -644,6 +730,139 @@ function startSettled(start: () => Promise<PocketStartOutcome>): Promise<StartAc
   }
 }
 
+/**
+ * A Remove's answer, composed field by field (Phase 348, build/p348/SPEC.md
+ * D27), so nothing but `PocketRemoveAnswer`'s five fields can ever leave: the
+ * verb, the echoed write id, the outcome, the reason (non-null exactly when
+ * refused) and the sentence (null exactly when done). Exported for the vectors
+ * and the tests.
+ */
+export function removeAnswer(
+  write: string,
+  outcome: PocketWriteOutcome,
+  reason: PocketRemoveReason | null,
+  sentence: string | null
+): string {
+  const answer: PocketRemoveAnswer = { verb: 'remove', write, outcome, reason, sentence };
+  return JSON.stringify({
+    verb: answer.verb,
+    write: answer.write,
+    outcome: answer.outcome,
+    reason: answer.reason,
+    sentence: answer.sentence
+  });
+}
+
+/**
+ * A paste's answer, composed field by field (Phase 348, D27), so nothing but
+ * `PocketPasteAnswer`'s five fields can ever leave, with the same invariants
+ * as {@link removeAnswer}. Exported for the vectors and the tests.
+ */
+export function pasteAnswer(
+  write: string,
+  outcome: PocketWriteOutcome,
+  reason: PocketPasteReason | null,
+  sentence: string | null
+): string {
+  const answer: PocketPasteAnswer = { verb: 'paste', write, outcome, reason, sentence };
+  return JSON.stringify({
+    verb: answer.verb,
+    write: answer.write,
+    outcome: answer.outcome,
+    reason: answer.reason,
+    sentence: answer.sentence
+  });
+}
+
+/**
+ * THE DOOR'S OWN ANSWERS FOR A SESSION VERB, in that verb's own shape (Phase
+ * 348, D27): a `refused` `malformed` and a `busy`. `remove` and `paste` are
+ * answered by their own composers, the four others by `PocketWriteAnswer`'s.
+ */
+function doorAnswer(
+  verb: PocketSessionVerb,
+  write: string,
+  outcome: 'refused' | 'busy',
+  reason: 'malformed' | null,
+  sentence: string
+): string {
+  if (verb === 'remove') return removeAnswer(write, outcome, reason, sentence);
+  if (verb === 'paste') return pasteAnswer(write, outcome, reason, sentence);
+  return writeAnswer(verb, write, outcome, reason, sentence);
+}
+
+/**
+ * What a session verb's act came to, its answer already composed in that
+ * verb's own shape (Phase 348), so the outcome is recorded and logged by one
+ * step whatever the verb.
+ */
+interface Acted {
+  readonly outcome: PocketWriteOutcome;
+  readonly answer: string;
+}
+
+/** A `PocketWriteAnswer` verb's settled act, answered (the four that answer that shape). */
+function answeredAs(verb: PocketSessionWriteId, write: string): (done: ActOutcome) => Acted {
+  return (done) => ({ outcome: done.outcome, answer: writeAnswer(verb, write, done.outcome, done.reason, done.sentence) });
+}
+
+const REMOVE_ACT_FAILED: PocketRemoveOutcome = Object.freeze({ outcome: 'failed', sentence: REMOVE_FAILED });
+
+/** A Remove's outcome as its answer says it (Phase 348). Only the three shapes; nothing else passes. */
+function removeActedOf(result: PocketRemoveOutcome, write: string): Acted {
+  if (result.outcome === 'done') return { outcome: 'done', answer: removeAnswer(write, 'done', null, null) };
+  if (result.outcome === 'refused') {
+    return { outcome: 'refused', answer: removeAnswer(write, 'refused', result.reason, result.sentence) };
+  }
+  if (result.outcome === 'failed') return { outcome: 'failed', answer: removeAnswer(write, 'failed', null, result.sentence) };
+  return { outcome: 'failed', answer: removeAnswer(write, 'failed', null, REMOVE_FAILED) };
+}
+
+/**
+ * Start `remove` NOW and never let it throw past here (Phase 348): the same
+ * wrapper as {@link endSettled}, a rejection or a throw before the promise
+ * exists reading `failed` with `REMOVE_FAILED`, answered in Remove's own shape.
+ */
+function removeSettled(start: () => Promise<PocketRemoveOutcome>, write: string): Promise<Acted> {
+  try {
+    return start().then(
+      (result) => removeActedOf(result, write),
+      () => removeActedOf(REMOVE_ACT_FAILED, write)
+    );
+  } catch {
+    return Promise.resolve(removeActedOf(REMOVE_ACT_FAILED, write));
+  }
+}
+
+const PASTE_ACT_FAILED: PocketPasteOutcome = Object.freeze({ outcome: 'failed', sentence: PASTE_FAILED });
+
+/** A paste's outcome as its answer says it (Phase 348). Only the three shapes; nothing else passes. */
+function pasteActedOf(result: PocketPasteOutcome, write: string): Acted {
+  if (result.outcome === 'done') return { outcome: 'done', answer: pasteAnswer(write, 'done', null, null) };
+  if (result.outcome === 'refused') {
+    return { outcome: 'refused', answer: pasteAnswer(write, 'refused', result.reason, result.sentence) };
+  }
+  if (result.outcome === 'failed') return { outcome: 'failed', answer: pasteAnswer(write, 'failed', null, result.sentence) };
+  return { outcome: 'failed', answer: pasteAnswer(write, 'failed', null, PASTE_FAILED) };
+}
+
+/**
+ * Start `paste` NOW and never let it throw past here (Phase 348): the same
+ * wrapper as {@link endSettled}, a rejection or a throw before the promise
+ * exists reading `failed` with `PASTE_FAILED`, answered in the paste's own
+ * shape.
+ */
+function pasteSettled(start: () => Promise<PocketPasteOutcome>, write: string): Promise<Acted> {
+  try {
+    return start().then(
+      (result) => pasteActedOf(result, write),
+      () => pasteActedOf(PASTE_ACT_FAILED, write)
+    );
+  } catch {
+    return Promise.resolve(pasteActedOf(PASTE_ACT_FAILED, write));
+  }
+}
+
 /** One write id the ledger holds. */
 interface LedgerEntry {
   readonly phone: string;
@@ -736,20 +955,25 @@ export function createPocketWriteHandler(deps: PocketWriteDeps): PocketWriteHand
     if (verb === 'start') return writeStart(writes, body, verifiedPhone, door);
 
     // STEP 1. The strict parse.
-    // By the verb (Phase 318; Phase 337's keys): each verb's own key set,
-    // through the one JSON.parse.
-    const parsed: PocketWriteBody =
+    // By the verb (Phase 318; Phase 337's keys; Phase 348's remove and paste):
+    // each verb's own key set, through the one JSON.parse. A malformed body is
+    // answered in its verb's own shape (D27).
+    const parsed: PocketSessionBody =
       verb === 'end'
         ? parseEndBody(body)
         : verb === 'choose'
           ? parseChooseBody(body)
           : verb === 'say'
             ? parseSayBody(body)
-            : parseKeysBody(body);
+            : verb === 'keys'
+              ? parseKeysBody(body)
+              : verb === 'remove'
+                ? parseRemoveBody(body)
+                : parsePasteBody(body);
     if (!parsed.ok) {
       return {
         status: 200,
-        body: writeAnswer(verb, parsed.write, 'refused', 'malformed', POCKET_WRITE_SENTENCES.unreadable)
+        body: doorAnswer(verb, parsed.write, 'refused', 'malformed', POCKET_WRITE_SENTENCES.unreadable)
       };
     }
     const session = parsed.session;
@@ -768,19 +992,20 @@ export function createPocketWriteHandler(deps: PocketWriteDeps): PocketWriteHand
       // that may happen, and a 404 in its place would say it did not.
       return {
         status: 200,
-        body: writeAnswer(verb, parsed.write, 'busy', null, POCKET_WRITE_SENTENCES.busy),
+        body: doorAnswer(verb, parsed.write, 'busy', null, POCKET_WRITE_SENTENCES.busy),
         acted: true
       };
     }
     if ((perPhone.get(verifiedPhone) ?? 0) >= POCKET_WRITE_LEDGER_PER_PHONE || ledger.size >= POCKET_WRITE_LEDGER_MAX) {
       // Full: a live entry is never evicted to make room, and this write never acted.
-      return { status: 200, body: writeAnswer(verb, parsed.write, 'busy', null, POCKET_WRITE_SENTENCES.busy) };
+      return { status: 200, body: doorAnswer(verb, parsed.write, 'busy', null, POCKET_WRITE_SENTENCES.busy) };
     }
 
-    // STEP 3. One in flight, per phone and per session, ACROSS verbs, and the
-    // pending entry.
+    // STEP 3. One in flight, per phone and per session, ACROSS verbs (Phase
+    // 348: an End and a Remove, or keys and a paste, never overlap on one
+    // session), and the pending entry.
     if (phonesInFlight.has(verifiedPhone) || sessionsInFlight.has(session)) {
-      return { status: 200, body: writeAnswer(verb, parsed.write, 'busy', null, POCKET_WRITE_SENTENCES.busy) };
+      return { status: 200, body: doorAnswer(verb, parsed.write, 'busy', null, POCKET_WRITE_SENTENCES.busy) };
     }
     phonesInFlight.add(verifiedPhone);
     sessionsInFlight.add(session);
@@ -797,28 +1022,41 @@ export function createPocketWriteHandler(deps: PocketWriteDeps): PocketWriteHand
       // STEP 4. The last check, and STEP 5, the act, started in the very next
       // statement: no await and no other statement sits between the two.
       if (deps.shuttingDown() || door.stopping() || !deps.stillPaired(verifiedPhone) || !deps.routeServed(verb)) return { status: 404, body: null };
-      const acting = parsed.verb === 'end'
-        ? endSettled(() => writes.end({ sessionId: parsed.session, batch: parsed.batch }))
+      const acting: Promise<Acted> = parsed.verb === 'end'
+        ? endSettled(() => writes.end({ sessionId: parsed.session, batch: parsed.batch })).then(answeredAs('end', parsed.write))
         : parsed.verb === 'choose'
           ? replySettled(() =>
               writes.choose(
                 { sessionId: parsed.session, question: parsed.question, mark: parsed.mark, marker: parsed.marker },
                 still
               )
-            )
+            ).then(answeredAs('choose', parsed.write))
           : parsed.verb === 'say'
-            ? replySettled(() => writes.say({ sessionId: parsed.session, text: parsed.text }, still))
-            : replySettled(() =>
-                writes.keys(
-                  { sessionId: parsed.session, keys: parsed.keys, turn: parsed.turn, dialog: parsed.dialog },
-                  still
-                )
-              );
+            ? replySettled(() => writes.say({ sessionId: parsed.session, text: parsed.text }, still)).then(
+                answeredAs('say', parsed.write)
+              )
+            : parsed.verb === 'keys'
+              ? replySettled(() =>
+                  writes.keys(
+                    { sessionId: parsed.session, keys: parsed.keys, turn: parsed.turn, dialog: parsed.dialog },
+                    still
+                  )
+                ).then(answeredAs('keys', parsed.write))
+              : parsed.verb === 'remove'
+                ? removeSettled(() => writes.remove({ sessionId: parsed.session }), parsed.write)
+                : pasteSettled(
+                    () =>
+                      writes.paste(
+                        { sessionId: parsed.session, text: parsed.text, turn: parsed.turn, dialog: parsed.dialog },
+                        still
+                      ),
+                    parsed.write
+                  );
       // The act, awaited. It cannot throw past here, and from here every
       // answer is a 200 marked `acted`.
       const done = await acting;
-      // STEP 6. The outcome, recorded and answered.
-      const answer = writeAnswer(verb, parsed.write, done.outcome, done.reason, done.sentence);
+      // STEP 6. The outcome, recorded and answered, in the verb's own shape.
+      const answer = done.answer;
       pending.state = 'recorded';
       pending.body = answer;
       pending.acted = true;

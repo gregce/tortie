@@ -145,6 +145,25 @@
  * and every `P346_TRANSPORT|<row>|<reading>` line, and `P346_SUITES` must be
  * named in xcodebuild's own suite lines.
  *
+ * PHASE 348 (build/p348/SPEC.md §8.3) adds THE PASTE AND REMOVE DOOR, a sixth
+ * listener under door A's key and admission, handed to the tests as
+ * `TEST_RUNNER_P348_DOOR_PORT`: it takes `POST /v1/remove` and `POST
+ * /v1/paste` verified as the vectors' phone over the method, the path and the
+ * BODY, records every body it verified byte for byte with the length its head
+ * declared (read back with the identity on `GET /p348/bodies`; `GET
+ * /p348/counts` answers the counts), reads a paste body up to the door's own
+ * cap, 131,072 bytes, and a Remove's up to 512, dropping a body past its cap
+ * whole with a 404, and answers each verified write `done` with its id echoed
+ * under its own verb (`removeAnswerFor`, `pasteAnswerFor`), so
+ * `P348PasteTransportTests` drives the SHIPPING `DoorClient`: a paste of
+ * 16,384 bytes of C0-free text and one whose escaped body is near 131,072
+ * bytes, each answered over ONE exchange, a Remove, and a write cancelled at
+ * 0.5 s while the handshake is held reaching the door that holds the handshake
+ * with no request (`writeProblems`' rule). After each configuration
+ * `pasteProblems` reads the door's own record and every `P348_TRANSPORT|…`
+ * row printed, and `P348_SUITES` must be named in xcodebuild's own suite
+ * lines.
+ *
  * THE ORDER.
  *   1. The preflight: xcodebuild, simctl, the runtime and the device type
  *      (the iPhone 16 Pro, or the one P316_DEVICE names, which that runtime
@@ -873,7 +892,12 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
     // Phase 346. The start door's own: every POST /v1/start it read, every
     // signature that held or did not, every one it ended with no answer (the
     // hold mode) or answered, and every body it read, as text, in order.
-    start: { posts: 0, verified: 0, refused: [], held: 0, answered: 0, bodies: [] }
+    start: { posts: 0, verified: 0, refused: [], held: 0, answered: 0, bodies: [] },
+    // Phase 348. The paste and remove door's own: every POST it read by route,
+    // every signature that held or did not, every body past its route's cap
+    // (dropped whole, as the door drops one), every answer, and every body it
+    // verified, as text, in order, with the length its head declared.
+    p348: { posts: 0, remove: 0, paste: 0, verified: 0, refused: [], oversized: 0, answered: 0, bodies: [] }
   });
   let counts = fresh();
   // Every key door A ever issued over, which a `reset` between configurations
@@ -1197,7 +1221,66 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
     startHttp.emit('connection', socket);
   });
   startDoor.on('tlsClientError', () => undefined);
-  const servers = [doorA, doorB, holdTls, holdAnswer, screenDoor, startDoor];
+  // PHASE 348: the paste and remove door, under door A's key and admission,
+  // answering `POST /v1/remove` and `POST /v1/paste` verified as the vectors'
+  // phone over the method, the path and the BODY, and recording every body it
+  // verified, byte for byte, with the length its head declared, so a body is
+  // known to have arrived whole in ONE exchange. A body past its route's cap
+  // (`P348_BODY_CAPS`, the door's own) is read to its end, counted and
+  // answered 404 with no body, as the door drops one whole. Each verified
+  // write is answered by `removeAnswerFor` or `pasteAnswerFor`: `done` with its
+  // id echoed under the route's own verb. `GET /p348/bodies` answers the
+  // record and `GET /p348/counts` the counts, each only to the identity.
+  const p348Http = createHttp({ maxHeaderSize: 8192 }, (req, res) => {
+    const route = req.method === 'POST' ? P348_ROUTES[req.url ?? ''] : undefined;
+    const cap = route === undefined ? WRITE_READ_CAP : P348_BODY_CAPS[route];
+    const chunks = [];
+    let size = 0;
+    req.on('data', (c) => {
+      size += c.length;
+      if (size <= cap) chunks.push(c);
+    });
+    req.on('end', () => {
+      const body = Buffer.concat(chunks);
+      if (req.method === 'GET' && req.url === '/p348/bodies') return answer(res, 200, JSON.stringify({ bodies: counts.p348.bodies.map((b) => b.text) }));
+      if (req.method === 'GET' && req.url === '/p348/counts') {
+        const c = counts.p348;
+        return answer(res, 200, JSON.stringify({ ...c, refused: c.refused.length, bodies: c.bodies.map((b) => ({ route: b.route, bytes: b.bytes, declared: b.declared, textBytes: b.textBytes })) }));
+      }
+      if (route === undefined) return answer(res, 404, null);
+      counts.p348.posts += 1;
+      counts.p348[route] += 1;
+      if (size > cap) {
+        counts.p348.oversized += 1;
+        return answer(res, 404, null);
+      }
+      const verdict = verifySigned({ method: req.method, target: req.url, headers: req.headers, body, ...writeSigner });
+      if (verdict !== 'ok') {
+        counts.p348.refused.push(verdict);
+        return answer(res, 404, null);
+      }
+      counts.p348.verified += 1;
+      counts.p348.bodies.push({ route, text: body.toString('utf8'), bytes: body.length, declared: Number(req.headers['content-length'] ?? -1), textBytes: p348TextBytesOf(route, body) });
+      const reply = route === 'remove' ? removeAnswerFor(body, POCKET_WRITE_SENTENCES.unreadable) : pasteAnswerFor(body, POCKET_WRITE_SENTENCES.unreadable);
+      counts.p348.answered += 1;
+      return answer(res, 200, JSON.stringify(reply));
+    });
+  });
+  const p348Door = createTls(tlsOptions);
+  p348Door.on('secureConnection', (socket) => {
+    const peer = socket.getPeerX509Certificate();
+    const pin = peer === undefined ? null : pinOfSpki(peer.publicKey.export({ type: 'spki', format: 'der' }));
+    if (pin === null || !admitted.has(pin)) {
+      counts.a.refused += 1;
+      socket.destroy();
+      return;
+    }
+    socket.p330Pin = pin;
+    socket.on('error', () => undefined);
+    p348Http.emit('connection', socket);
+  });
+  p348Door.on('tlsClientError', () => undefined);
+  const servers = [doorA, doorB, holdTls, holdAnswer, screenDoor, startDoor, p348Door];
   const listening = [];
   const close = async () => {
     for (const raw of held) raw.destroy();
@@ -1214,6 +1297,7 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
     http.closeAllConnections?.();
     screenHttp.closeAllConnections?.();
     startHttp.closeAllConnections?.();
+    p348Http.closeAllConnections?.();
   };
   try {
     for (const server of servers) {
@@ -1235,6 +1319,7 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
     portHoldAnswer: holdAnswer.address().port,
     portScreen: screenDoor.address().port,
     portStart: startDoor.address().port,
+    portP348: p348Door.address().port,
     holdMs,
     pinA: A.pin,
     counts: () => counts,
@@ -1381,6 +1466,140 @@ export function startProblems(counts, configuration, text = null) {
  * out of the bundle is not read as a pass.
  */
 export const P346_SUITES = Object.freeze(['StartTests', 'StartClientTests', 'StartContractTests', 'AgentMarkTests', 'P346StartTransportTests', 'DoorVectorTests', 'SampleReaderTests']);
+
+// ---------------------------------------------------------------------------
+// Phase 348: the paste and remove door (build/p348/SPEC.md §8.3, D29)
+// ---------------------------------------------------------------------------
+
+/** The two writes the door takes, by path. */
+export const P348_ROUTES = Object.freeze({ '/v1/remove': 'remove', '/v1/paste': 'paste' });
+/**
+ * Each route's body cap, the shipping door's (`POCKET_WRITE_BODY_CAPS`,
+ * src/main/pocket/door/limits.ts, D29): a Remove 512, a paste 131,072, the
+ * worst legal paste body (16,384 C0 bytes each escaped `\u00XX`) being 98,566
+ * bytes. A body past its cap is dropped whole.
+ */
+export const P348_BODY_CAPS = Object.freeze({ remove: 512, paste: 131_072 });
+/** The most UTF-8 one paste's text may carry (`POCKET_PASTE_MAX_TEXT_BYTES`, D29). */
+export const P348_PASTE_TEXT_BYTES = 16_384;
+/**
+ * The least a near-cap paste body is (SPEC §8.3: "one whose escaped body is
+ * near 131,072 bytes"): above 90,000, which no paste of the phone's own legal
+ * text can reach (its worst is about 32 KB, every byte a `"`, `\\` or `/`), so
+ * only a body of escaped controls handed to the shipping DoorClient reaches it,
+ * as the 98,566-byte worst legal body does.
+ */
+export const P348_NEAR_CAP_BODY = 90_000;
+const P348_KEYS = Object.freeze({ remove: 'session,write', paste: 'dialog,session,text,turn,write' });
+const P348_WRITE_ID = /^[0-9a-f]{32}$/;
+
+/** A verified body's keys and write id, or null when it is not one of its route's whole bodies. */
+function p348BodyOf(route, body) {
+  let parsed = null;
+  try {
+    parsed = JSON.parse(Buffer.from(body).toString('utf8'));
+  } catch {
+    return null;
+  }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  if (Object.keys(parsed).sort().join(',') !== P348_KEYS[route]) return null;
+  if (typeof parsed.write !== 'string' || !P348_WRITE_ID.test(parsed.write)) return null;
+  if (typeof parsed.session !== 'string' || parsed.session === '') return null;
+  if (route === 'paste' && (typeof parsed.text !== 'string' || typeof parsed.turn !== 'string' || !(parsed.dialog === null || typeof parsed.dialog === 'string'))) return null;
+  return parsed;
+}
+
+/** The UTF-8 bytes of a verified paste body's text, or null (a Remove carries none). */
+export function p348TextBytesOf(route, body) {
+  if (route !== 'paste') return null;
+  const parsed = p348BodyOf(route, body);
+  return parsed === null ? null : Buffer.byteLength(parsed.text, 'utf8');
+}
+
+/**
+ * The door's answer to one verified Remove (Phase 348, D27): `done`, its write
+ * id echoed under the verb `remove`, in the five fields' own order; a body
+ * that is not exactly `{ session, write }` with a 32-lowercase-hex write id
+ * gets the Mac's own answer for it, `refused` `malformed` with `""` echoed and
+ * the shipping `unreadable` sentence.
+ */
+export function removeAnswerFor(body, unreadable) {
+  const parsed = p348BodyOf('remove', body);
+  if (parsed === null) return { verb: 'remove', write: '', outcome: 'refused', reason: 'malformed', sentence: unreadable };
+  return { verb: 'remove', write: parsed.write, outcome: 'done', reason: null, sentence: null };
+}
+
+/** The door's answer to one verified paste (Phase 348, D27), as `removeAnswerFor` but over `{ dialog, session, text, turn, write }`. */
+export function pasteAnswerFor(body, unreadable) {
+  const parsed = p348BodyOf('paste', body);
+  if (parsed === null) return { verb: 'paste', write: '', outcome: 'refused', reason: 'malformed', sentence: unreadable };
+  return { verb: 'paste', write: parsed.write, outcome: 'done', reason: null, sentence: null };
+}
+
+/**
+ * What each row of P348PasteTransportTests says as
+ * `P348_TRANSPORT|<row>|<reading>` WHEN IT PRINTS ONE (build/p348/SPEC.md
+ * §8.3, §9.3): the 16,384-byte paste, the near-cap paste and the Remove each
+ * answered `done`; the Remove and the paste through the paired reader as the
+ * app holds it (`any DoorReading`'s remover, `any ScreenDoor`'s paste) both
+ * `done`, as `done,done`; and each withheld write's result (`withheld`, the
+ * paste, and `withheld-remove`) naming the cancel. The door's own counts are
+ * the proof (`pasteProblems`); a row that is printed must read what it says
+ * here.
+ */
+export const P348_TRANSPORT_ROWS = Object.freeze({ paste: 'done', 'near-cap': 'done', remove: 'done', reader: 'done,done' });
+/** The rows that print a withheld write's result, each of which must name the cancel. */
+export const P348_WITHHELD_ROWS = Object.freeze(['withheld', 'withheld-remove']);
+
+/**
+ * What one configuration's paste and remove rows left (Phase 348, SPEC §8.3),
+ * read off the DOOR'S OWN RECORD: at least one Remove verified and answered,
+ * one paste whose text is exactly 16,384 bytes of UTF-8 verified and answered,
+ * one paste whose body is above P348_NEAR_CAP_BODY and within the cap verified
+ * and answered, every verified body as long as its head declared (it came in
+ * ONE exchange), and no signature refused (every write the shipping client
+ * signs with the vectors' key holds). The withheld write reaching the
+ * handshake-holding door with no request is `writeProblems`' own rule. Given
+ * xcodebuild's output, every `P348_TRANSPORT|<row>|<reading>` row printed must
+ * read what `P348_TRANSPORT_ROWS` says, and a withheld row must name the
+ * cancel. Returns the problems (sentences).
+ */
+export function pasteProblems(counts, configuration, text = null) {
+  const problems = [];
+  const c = counts.p348;
+  if (c === undefined) return [`${configuration}: the doors carry no paste and remove door, so P348PasteTransportTests had nothing to dial`];
+  const bodies = c.bodies ?? [];
+  const removes = bodies.filter((b) => b.route === 'remove');
+  const pastes = bodies.filter((b) => b.route === 'paste');
+  if (removes.length === 0) problems.push(`${configuration}: the paste and remove door verified no POST /v1/remove, so P348PasteTransportTests' Remove never reached it`);
+  if (!pastes.some((b) => b.textBytes === P348_PASTE_TEXT_BYTES)) problems.push(`${configuration}: the door verified no paste whose text is ${String(P348_PASTE_TEXT_BYTES)} bytes (it read ${JSON.stringify(pastes.map((b) => b.textBytes))})`);
+  if (!pastes.some((b) => b.bytes > P348_NEAR_CAP_BODY && b.bytes <= P348_BODY_CAPS.paste)) problems.push(`${configuration}: the door verified no paste body above ${String(P348_NEAR_CAP_BODY)} bytes and within ${String(P348_BODY_CAPS.paste)}, so the near-cap body was never sent whole (it read ${JSON.stringify(pastes.map((b) => b.bytes))})`);
+  const cut = bodies.filter((b) => b.bytes !== b.declared);
+  if (cut.length > 0) problems.push(`${configuration}: ${String(cut.length)} verified body(ies) were not as long as their head declared (${JSON.stringify(cut.map((b) => [b.bytes, b.declared]))}), so a write was not read in one exchange`);
+  if ((c.refused ?? []).length > 0) problems.push(`${configuration}: the paste and remove door refused ${String(c.refused.length)} signature(s) (${[...new Set(c.refused)].join(', ')}); every write the shipping client signs with the vectors' key holds`);
+  if (c.answered < c.verified) problems.push(`${configuration}: the door verified ${String(c.verified)} write(s) and answered ${String(c.answered)}`);
+  if (text !== null) {
+    const rows = new Map([...String(text).matchAll(/P348_TRANSPORT\|([a-z-]+)\|([^\s|]+)/g)].map((m) => [m[1], m[2]]));
+    // THE PROBE REVIEW (Phase 348, rule 9): a row the run never printed is no reading of that row, as Phase 346's
+    // startProblems already holds; before the review a missing row passed, and so did a withheld write never run.
+    for (const [row, want] of Object.entries(P348_TRANSPORT_ROWS)) {
+      if (!rows.has(row)) problems.push(`${configuration}: no P348_TRANSPORT|${row} line, so that row did not run to its end`);
+      else if (rows.get(row) !== want) problems.push(`${configuration}: P348_TRANSPORT|${row} read ${String(rows.get(row))}, not ${want}`);
+    }
+    for (const row of P348_WITHHELD_ROWS) {
+      if (!rows.has(row)) problems.push(`${configuration}: no P348_TRANSPORT|${row} line, so that withheld write did not run to its end`);
+      else if (!/cancelled/.test(rows.get(row))) problems.push(`${configuration}: P348_TRANSPORT|${row} read ${String(rows.get(row))}, which names no cancel`);
+    }
+  }
+  return problems;
+}
+
+/**
+ * The test classes Phase 348 adds (build/p348/SPEC.md §8.3, §9.1), each of
+ * which must appear in xcodebuild's own suite lines, so a class that drops out
+ * of the bundle is not read as a pass.
+ */
+export const P348_SUITES = Object.freeze(['RemoveTests', 'PasteTests', 'WrapJoinTests', 'P348PasteTransportTests']);
 
 /**
  * What one configuration's Screen rows left (Phase 337, build/p337/SPEC.md
@@ -2208,6 +2427,75 @@ async function doorsSelfTest() {
     }
     doors.reset();
 
+    // Phase 348: the paste and remove door. A Remove and a paste of 16,384
+    // bytes verified and answered done under their own verbs with their ids
+    // echoed; a near-cap paste body (16,384 controls, each escaped) read whole
+    // in one exchange; a body past the cap dropped whole with a 404; a body
+    // changed after signing refused 404; a body with another key refused
+    // malformed with ""; the record read back only with the identity; and
+    // pasteProblems both ways over the door's own record.
+    {
+      const removeId = randomBytes(16).toString('hex');
+      const removeBody = JSON.stringify({ session: 'p348-ended', write: removeId });
+      const removed = await post(doors.portP348, '/v1/remove', signed('/v1/remove', removeBody));
+      const removeRead = phoneMod.removeAnswerOf(removed, removeId);
+      check('an honest Remove is verified and answered done under remove with its id echoed', removeRead.ok && removeRead.answer.outcome === 'done', `${String(removed.status)} ${removed.body} (${removeRead.why})`);
+      const text = `${'p348 paste line, '.repeat(963)}${'x'.repeat(16_384 - 17 * 963)}`;
+      const pasteId = randomBytes(16).toString('hex');
+      const pasteBody = phoneMod.writeBodyOf({ dialog: null, session: 'p348-live', text, turn: '0123456789abcdef-3', write: pasteId }).toString('utf8');
+      const pasted = await post(doors.portP348, '/v1/paste', signed('/v1/paste', pasteBody));
+      const pasteRead = phoneMod.pasteAnswerOf(pasted, pasteId);
+      check('an honest paste of 16,384 bytes is verified and answered done under paste with its id echoed', Buffer.byteLength(text) === P348_PASTE_TEXT_BYTES && pasteRead.ok && pasteRead.answer.outcome === 'done', `${String(pasted.status)} ${pasted.body} (${pasteRead.why})`);
+      const nearId = randomBytes(16).toString('hex');
+      const nearBody = phoneMod.writeBodyOf({ dialog: 'a1b2c3d4e5f6', session: 'p348-live', text: '\u0001'.repeat(P348_PASTE_TEXT_BYTES), turn: '0123456789abcdef-3', write: nearId }).toString('utf8');
+      const near = await post(doors.portP348, '/v1/paste', signed('/v1/paste', nearBody));
+      const nearRead = phoneMod.pasteAnswerOf(near, nearId);
+      check('a near-cap paste body is read whole, verified and answered done', Buffer.byteLength(nearBody) > P348_NEAR_CAP_BODY && Buffer.byteLength(nearBody) <= P348_BODY_CAPS.paste && nearRead.ok && nearRead.answer.outcome === 'done', `${String(Buffer.byteLength(nearBody))} bytes: ${String(near.status)} (${nearRead.why})`);
+      const overBody = `{"dialog":null,"session":"s","text":"${'y'.repeat(P348_BODY_CAPS.paste)}","turn":"0123456789abcdef-3","write":"${randomBytes(16).toString('hex')}"}`;
+      const over = await post(doors.portP348, '/v1/paste', signed('/v1/paste', overBody));
+      check('a paste body past 131,072 bytes is dropped whole: 404 with no body', over.status === 404 && over.body === '' && doors.counts().p348.oversized === 1, `${String(Buffer.byteLength(overBody))} bytes: ${String(over.status)}`);
+      const forged = await post(doors.portP348, '/v1/paste', signed('/v1/paste', pasteBody, pasteBody.replace('p348 paste', 'p348 PASTE')));
+      check('a paste whose body changed after signing is answered 404', forged.status === 404, String(forged.status));
+      const extraBody = JSON.stringify({ batch: false, session: 'p348-ended', write: randomBytes(16).toString('hex') });
+      const extra = await post(doors.portP348, '/v1/remove', signed('/v1/remove', extraBody));
+      const extraRead = phoneMod.removeAnswerOf(extra, '');
+      check('a Remove body with an extra key gets refused malformed with "" echoed', extraRead.ok && extraRead.answer.reason === 'malformed' && extraRead.answer.write === '', `${extra.body} (${extraRead.why})`);
+      const record = await phoneMod.request({ door: door(doors.portP348), method: 'GET', target: '/p348/bodies', identity, capBytes: 4 * 1024 * 1024 });
+      const bodies = (() => { try { return JSON.parse(record.body).bodies; } catch { return null; } })();
+      check('the record holds every verified body, in order, byte for byte', Array.isArray(bodies) && bodies.length === 4 && bodies[0] === removeBody && bodies[1] === pasteBody && bodies[2] === nearBody && bodies[3] === extraBody, J((bodies ?? []).map((b) => b.length)));
+      const bare = await phoneMod.request({ door: door(doors.portP348), method: 'GET', target: '/p348/counts' });
+      check('the record is read only with the identity', bare.status === 0, String(bare.status));
+      const pc = doors.counts();
+      check('the door counted its writes by route', pc.p348.posts === 6 && pc.p348.remove === 2 && pc.p348.paste === 4 && pc.p348.verified === 4 && pc.p348.oversized === 1 && J(pc.p348.refused) === J(['signature']) && pc.p348.answered === 4, J({ ...pc.p348, bodies: pc.p348.bodies.length }));
+      const clean = structuredClone(pc);
+      clean.p348.refused = [];
+      check('pasteProblems passes a run that verified a Remove, a 16,384-byte paste and a near-cap one', pasteProblems(clean, 'self-test').length === 0, J(pasteProblems(clean, 'self-test')));
+      check('pasteProblems refuses the forged paste it saw', pasteProblems(pc, 'self-test').length === 1, J(pasteProblems(pc, 'self-test')));
+      const without = (edit) => {
+        const c = structuredClone(clean);
+        edit(c.p348);
+        return pasteProblems(c, 'self-test').length > 0;
+      };
+      check('pasteProblems refuses a run with no Remove', without((c) => void (c.bodies = c.bodies.filter((b) => b.route !== 'remove'))));
+      check('pasteProblems refuses a run whose paste was a byte short of 16,384', without((c) => void (c.bodies = c.bodies.map((b) => (b.textBytes === P348_PASTE_TEXT_BYTES ? { ...b, textBytes: P348_PASTE_TEXT_BYTES - 1 } : b)))));
+      check('pasteProblems refuses a run with no near-cap body', without((c) => void (c.bodies = c.bodies.filter((b) => !(b.route === 'paste' && b.bytes > P348_NEAR_CAP_BODY)))));
+      check('pasteProblems refuses a body shorter than its head declared', without((c) => void (c.bodies[1].declared += 1)));
+      check('pasteProblems refuses a write verified and never answered', without((c) => void (c.answered -= 1)));
+      check('pasteProblems refuses doors with no paste and remove door', pasteProblems({ ...clean, p348: undefined }, 'self-test').length === 1);
+      // THE PROBE REVIEW (Phase 348, rule 9): every row printed right, and each broken one with ONE row moved.
+      const rightRows = `${Object.entries(P348_TRANSPORT_ROWS).map(([row, want]) => `P348_TRANSPORT|${row}|${want}`).join('\n')}\nP348_TRANSPORT|withheld|notSent(Tortie.DoorFailure.cancelled)\nP348_TRANSPORT|withheld-remove|notSent(Tortie.DoorFailure.cancelled)\n`;
+      const oneRow = (row, value) => rightRows.split('\n').map((l) => (l.startsWith(`P348_TRANSPORT|${row}|`) ? (value === null ? '' : `P348_TRANSPORT|${row}|${value}`) : l)).join('\n');
+      check('pasteProblems refuses a printed row that read wrong, and a withheld row with no cancel', pasteProblems(clean, 'self-test', oneRow('near-cap', 'noAnswer')).length === 1 && pasteProblems(clean, 'self-test', oneRow('withheld', 'answered')).length === 1);
+      check('pasteProblems refuses the reader row with one write not done, and a withheld Remove with no cancel', pasteProblems(clean, 'self-test', oneRow('reader', 'done,refused')).length === 1 && pasteProblems(clean, 'self-test', oneRow('withheld-remove', 'answered(done)')).length === 1);
+      check('pasteProblems passes printed rows that read right', pasteProblems(clean, 'self-test', rightRows).length === 0);
+      check('pasteProblems (the review) refuses a run that never printed the paste row', pasteProblems(clean, 'self-test', oneRow('paste', null)).length === 1, J(pasteProblems(clean, 'self-test', oneRow('paste', null))));
+      check('pasteProblems (the review) refuses a run that never printed the withheld write', pasteProblems(clean, 'self-test', oneRow('withheld', null)).length === 1, J(pasteProblems(clean, 'self-test', oneRow('withheld', null))));
+      check('pasteProblems (the review) refuses output that printed no P348 row at all', pasteProblems(clean, 'self-test', 'no rows here\n').length === Object.keys(P348_TRANSPORT_ROWS).length + P348_WITHHELD_ROWS.length);
+      check('removeAnswerFor and pasteAnswerFor read a whole body, and one with a key missing', removeAnswerFor(Buffer.from(removeBody), 'u').outcome === 'done' && pasteAnswerFor(Buffer.from(pasteBody), 'u').outcome === 'done' && pasteAnswerFor(Buffer.from(JSON.stringify({ session: 's', text: 't', turn: 'x', write: pasteId })), 'u').reason === 'malformed');
+      check('suitesNotRun names every Phase 348 suite that never ran', J(suitesNotRun('', P348_SUITES)) === J([...P348_SUITES]) && P348_SUITES.includes('P348PasteTransportTests'));
+    }
+    doors.reset();
+
     // (ad)'s first hold: closed while held, nothing read.
     const early = tlsConnect({ host: '127.0.0.1', port: doors.portHoldTls, servername: doors.name, minVersion: 'TLSv1.3', rejectUnauthorized: false, cert: identity.certPem, key: identity.clientPrivatePem });
     early.on('error', () => undefined);
@@ -2691,6 +2979,7 @@ async function main() {
         say(`(ad)'s doors: the handshake held ${String(doors.holdMs)} ms on 127.0.0.1:${String(doors.portHoldTls)}, the answer held ${String(doors.holdMs)} ms on 127.0.0.1:${String(doors.portHoldAnswer)}`);
         say(`the screen door, keeping its connections ${String(SCREEN_DOOR_KEEP_MS)} ms, on 127.0.0.1:${String(doors.portScreen)}`);
         say(`the start door, holding ${P346_HOLD_PROJECT} with no answer, on 127.0.0.1:${String(doors.portStart)}`);
+        say(`the paste and remove door, reading a paste body up to ${String(P348_BODY_CAPS.paste)} bytes, on 127.0.0.1:${String(doors.portP348)}`);
         const testEnv = {
           P330_DOOR_NAME: doors.name,
           P330_DOOR_PORT: String(doors.portA),
@@ -2704,6 +2993,8 @@ async function main() {
           P337_SCREEN_PORT: String(doors.portScreen),
           // Phase 346: the start door, under door A's key and name.
           P346_START_PORT: String(doors.portStart),
+          // Phase 348: the paste and remove door, under door A's key and name.
+          P348_DOOR_PORT: String(doors.portP348),
           // Phase 337.1: the screen door's history, which P3371ScrollbackTransportTests pages.
           P3371_DEPTH: String(SCROLLBACK_DOOR_DEPTH),
           P3371_SPACE: SCROLLBACK_DOOR_SPACE,
@@ -2721,9 +3012,10 @@ async function main() {
               { label: `unit-${c.name}`, derivedDataPath: c.derivedDataPath, timeoutMs: 900_000, testEnv }
             );
             const counted = doors.counts();
-            const transport = [...transportProblems(counted, c.name), ...writeProblems(counted, c.name), ...replyProblems(counted, c.name), ...screenProblems(counted, c.name, `${run.stdout}${run.stderr}`), ...scrollbackProblems(counted, c.name, `${run.stdout}${run.stderr}`), ...startProblems(counted, c.name, `${run.stdout}${run.stderr}`)];
-            for (const l of `${run.stdout}${run.stderr}`.split('\n').filter((x) => /^P3371?_(?:TRANSPORT|GRID)\|/.test(x.trim()) || /^P346_TRANSPORT\|/.test(x.trim()))) process.stdout.write(`  ${l.trim()}\n`);
+            const transport = [...transportProblems(counted, c.name), ...writeProblems(counted, c.name), ...replyProblems(counted, c.name), ...screenProblems(counted, c.name, `${run.stdout}${run.stderr}`), ...scrollbackProblems(counted, c.name, `${run.stdout}${run.stderr}`), ...startProblems(counted, c.name, `${run.stdout}${run.stderr}`), ...pasteProblems(counted, c.name, `${run.stdout}${run.stderr}`)];
+            for (const l of `${run.stdout}${run.stderr}`.split('\n').filter((x) => /^P3371?_(?:TRANSPORT|GRID)\|/.test(x.trim()) || /^P34[68]_TRANSPORT\|/.test(x.trim()))) process.stdout.write(`  ${l.trim()}\n`);
             say(`the start door after ${c.name}: ${String(counted.start.posts)} start(s) read, ${String(counted.start.verified)} verified, ${String(counted.start.refused.length)} refused, ${String(counted.start.held)} held with no answer, ${String(counted.start.answered)} answered`);
+            say(`the paste and remove door after ${c.name}: ${String(counted.p348.remove)} Remove(s) and ${String(counted.p348.paste)} paste(s) read, ${String(counted.p348.verified)} verified, ${String(counted.p348.refused.length)} refused, ${String(counted.p348.oversized)} past their cap, ${String(counted.p348.answered)} answered; paste bodies of ${JSON.stringify(counted.p348.bodies.filter((b) => b.route === 'paste').map((b) => b.bytes))} bytes`);
             for (const p of transport) process.stdout.write(`  ${p}\n`);
             say(
               `the write doors after ${c.name}: door A read ${String(counted.writes.end)} end write(s), ${String(counted.writes.choose)} press(es) and ${String(counted.writes.say)} message(s), ` +
@@ -2752,7 +3044,7 @@ async function main() {
               })
             );
             // Phase 317: every class it adds or changes must have run.
-            const notRun = suitesNotRun(`${run.stdout}${run.stderr}`, [...new Set([...P317_SUITES, ...P318_SUITES, ...P337_SUITES, ...P3371_SUITES, ...P3373_SUITES, ...P33311_SUITES, ...P3333_SUITES, ...P345_SUITES, ...P346_SUITES])]);
+            const notRun = suitesNotRun(`${run.stdout}${run.stderr}`, [...new Set([...P317_SUITES, ...P318_SUITES, ...P337_SUITES, ...P3371_SUITES, ...P3373_SUITES, ...P33311_SUITES, ...P3333_SUITES, ...P345_SUITES, ...P346_SUITES, ...P348_SUITES])]);
             if (notRun.length > 0) say(`${c.name}: xcodebuild names no run of ${notRun.join(', ')}, so those rows were not run`);
             // Phase 333.11: every frozen row, graded against the sealed sets.
             const frozen = frozenRowProblems(`${run.stdout}${run.stderr}`, frozenPre.sets, new Set(frozenPre.proof), frozenToday, c.name);

@@ -278,6 +278,55 @@
  * (`expect`), how many POSTs it may read (`posts`) and, for `doorSentence`,
  * that its line is this door's own sentence.
  *
+ * THE PHASE 348 ARMS (build/p348/SPEC.md §4.2, §4.6, §7.2, named for
+ * conformance:ios (t)), in a table of their own, P348_ARMS, so probe:p316's
+ * hostile group, which drives every HOSTILE_ARMS row that is not a write, a
+ * reply or a start by default, never grades one as a read:
+ *   remove-*                a session ENDED (the sample's words, End offering
+ *                           nothing, no Screen) whose /v1/session carries the
+ *                           SHIPPING `removeSessionConfirm` over it as
+ *                           `removeConfirm`; the ONE `POST /v1/remove` its
+ *                           press sends counted, verified over its body and
+ *                           answered the arm's way: `remove-honest` done (the
+ *                           session then leaves every list and its own read
+ *                           answers 404), `remove-other-id`, `-wrong-verb`,
+ *                           `-refused-no-reason`, `-unknown-reason` (drawn as
+ *                           its sentence, an OPEN word), `-refused-changed`
+ *                           (the Mac's LIFECYCLE_SESSION_CHANGED), `-404`,
+ *                           `-cut`, `-late` and `-chunked`; and two offers
+ *                           that draw no Remove: `remove-confirm-malformed`
+ *                           (no confirmLabel: the answer refused whole) and
+ *                           `remove-offer-absent` (a Mac older than 348, or
+ *                           one whose Allow waits)
+ *   paste-*                 the Terminal's picture carries `paste: true` and
+ *                           is typable; the ONE `POST /v1/paste` a paste sends
+ *                           is counted, verified over its body (the event
+ *                           names its text's byte count, never the text) and
+ *                           answered the arm's way: `paste-honest` done,
+ *                           `-404`, `-other-id`, `-wrong-verb`,
+ *                           `-unknown-reason`, `-refused-character` and
+ *                           `-refused-machine` (the Mac's own words), `-cut`,
+ *                           `-late` and `-chunked`
+ *   screen-paste-flag-*     the picture says the Mac takes no paste, each its
+ *                           own way (`-absent`, `-false`, `-not-typable`), so
+ *                           the menu is Copy alone and no POST may arrive; or
+ *                           a flag of another type (`-string`), which refuses
+ *                           the picture on the phone's second read
+ *   wraps-*                 every picture (`-out-of-range`, `-descending`,
+ *                           `-not-list`, `-negative`, `-huge`) or page
+ *                           (`-page-last-row`, `-page-not-list`) carries marks
+ *                           the phone must read as NONE, never as a failed
+ *                           answer: the Terminal stays drawn
+ *   age-note-*              every list answer (`/v1/blocked`, `/v1/sessions`)
+ *                           carries an age note no foot may draw (item 4,
+ *                           §10.2's method): `-long`, 2,048 bytes with line
+ *                           breaks, which build 11 draws and this phase's app
+ *                           does not; `-empty`, the `''` a Mac of this phase
+ *                           sends, under which build 11 keeps its empty 14 pt
+ *                           band (§2.6). Both draw the list
+ * Every other arm answers `/v1/remove` and `/v1/paste` 404 and offers no
+ * Remove, a Mac older than this phase.
+ *
  * The ATS arm (a SOCKS5 stand-in dialling 100.64.0.1) left with TailscaleKit in
  * Phase 330: the phone has no tailnet and no ATS exception any more.
  *
@@ -377,7 +426,15 @@ import {
   sendKeys,
   signedHeadersFor,
   startAnswerOf,
-  startSession
+  startSession,
+  // Phase 348: the two writes and the picture's two keys, read the phone's way.
+  removeSession,
+  pasteText,
+  removeAnswerOf,
+  pasteAnswerOf,
+  screenPasteOf,
+  screenWrapsOf,
+  scrollbackWrapsOf
 } from './node-phone.mjs';
 
 const HERE = fileURLToPath(import.meta.url);
@@ -545,6 +602,117 @@ const startProjectIdOf = (label) => {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
 };
 
+/**
+ * PHASE 348'S ARMS, in a table of their own (build/p348/SPEC.md §4.2, §4.6,
+ * §7.2, §9.3), for the reason SECOND_MAC_ARMS has one: probe:p316's hostile
+ * group drives every row of HOSTILE_ARMS that is not a write, a reply or a
+ * start by default and grades it as a read, and these rows are a Remove, a
+ * paste, the picture's paste flag and its marks, which that group's grader
+ * cannot read. probe:p316's `remove` and `paste` groups take them by name
+ * (REMOVE_ARMS, PASTE_ARMS, PASTE_FLAG_ARMS, WRAPS_ARMS below), and
+ * conformance:ios (t) reads each row on its one line, wherever it stands.
+ */
+export const P348_ARMS = Object.freeze({
+  // THE REMOVE ARMS (Phase 348, build/p348/SPEC.md §4.2, §7.2, §9.3; named for
+  // conformance:ios (t)). Each answers the pairing and every read honestly,
+  // the session it opens ENDED (the sample's own words for one, End offering
+  // nothing) and its /v1/session carrying `removeConfirm`, the SHIPPING
+  // `removeSessionConfirm` over that row (`remove: 'answer'`), or a broken one
+  // or none (`remove: 'offer'`). The ONE `POST /v1/remove` a confirmed press
+  // sends is counted, verified over its body (its digest and write id in the
+  // event, never the body) and answered the arm's way; every other arm answers
+  // /v1/remove 404, a Mac older than this phase. A Remove's line is drawn
+  // where End's was (`session-end-line`, D33).
+  'remove-honest': { what: 'the control: the Mac\'s Remove words and a done answer; the session leaves every list after it', ends: 'list', remove: 'answer', posts: 1, at: 'screen-list', expect: [] },
+  'remove-other-id': { what: 'a 200 to a Remove whose write id is not the one sent', ends: 'sentence', remove: 'answer', posts: 1, at: 'session-end-line', expect: ['endNoAnswer'] },
+  'remove-wrong-verb': { what: 'a 200 to a Remove whose verb is end', ends: 'sentence', remove: 'answer', posts: 1, at: 'session-end-line', expect: ['endNoAnswer'] },
+  'remove-refused-no-reason': { what: 'a 200 refused to a Remove with no reason', ends: 'sentence', remove: 'answer', posts: 1, at: 'session-end-line', expect: ['endNoAnswer'] },
+  'remove-unknown-reason': { what: 'a 200 refused to a Remove with a reason word the Mac never says, drawn as its sentence', ends: 'sentence', remove: 'answer', posts: 1, at: 'session-end-line', expect: [], doorSentence: true },
+  'remove-refused-changed': { what: 'a 200 refused changed to a Remove, with the Mac\'s own LIFECYCLE_SESSION_CHANGED', ends: 'sentence', remove: 'answer', posts: 1, at: 'session-end-line', expect: [], mac: ['LIFECYCLE_SESSION_CHANGED'] },
+  'remove-404': { what: 'a 404 with no body to a Remove, the door\'s own refusal', ends: 'sentence', remove: 'answer', posts: 1, at: 'session-end-line', expect: ['removeNotTaken'] },
+  'remove-cut': { what: 'a Remove\'s connection cut after its request was read', ends: 'sentence', remove: 'answer', posts: 1, at: 'session-end-line', expect: ['endNoAnswer'] },
+  'remove-late': { what: 'no answer to a Remove for longer than the phone\'s 15 s', ends: 'sentence', remove: 'answer', posts: 1, at: 'session-end-line', expect: ['endNoAnswer'] },
+  'remove-chunked': { what: 'a 200 to a Remove with Transfer-Encoding: chunked', ends: 'sentence', remove: 'answer', posts: 1, at: 'session-end-line', expect: ['endNoAnswer'], rawAnswer: 'chunked' },
+  'remove-confirm-malformed': { what: 'an ended session whose removeConfirm has no confirmLabel: the session answer refused whole, no Remove drawn', ends: 'sentence', remove: 'offer', posts: 0, at: 'session-failure', expect: ['answerUnreadable'] },
+  'remove-offer-absent': { what: 'an ended session with no removeConfirm, a Mac older than this phase or one whose Allow waits: no Remove drawn', ends: 'no-remove', remove: 'offer', posts: 0, at: 'screen-session', expect: [] },
+  // THE PASTE ARMS (Phase 348, build/p348/SPEC.md §4.6, §7.2, §9.3). Each
+  // answers the pairing and every read honestly, its Terminal's picture
+  // carrying `paste: true` and typable, so the long-press menu offers Paste
+  // beside Copy; the ONE `POST /v1/paste` a paste sends is counted, verified
+  // over its body (digest and write id in the event, never the text) and
+  // answered the arm's way, its line drawn on the Terminal's one line. Every
+  // other arm answers /v1/paste 404.
+  'paste-honest': { what: 'the control: a picture that takes a paste and a done answer; the Terminal stays drawn', ends: 'drawn', paste: 'answer', posts: 1, at: 'screen-grid', expect: [] },
+  'paste-404': { what: 'a 404 with no body to a paste, the door\'s own refusal', ends: 'sentence', paste: 'answer', posts: 1, at: 'screen-line', expect: ['pasteNotTaken'] },
+  'paste-other-id': { what: 'a 200 to a paste whose write id is not the one sent', ends: 'sentence', paste: 'answer', posts: 1, at: 'screen-line', expect: ['endNoAnswer'] },
+  'paste-wrong-verb': { what: 'a 200 to a paste whose verb is keys', ends: 'sentence', paste: 'answer', posts: 1, at: 'screen-line', expect: ['endNoAnswer'] },
+  'paste-unknown-reason': { what: 'a 200 refused to a paste with a reason word the Mac never says, drawn as its sentence', ends: 'sentence', paste: 'answer', posts: 1, at: 'screen-line', expect: [], doorSentence: true },
+  'paste-refused-character': { what: 'a 200 refused character to a paste, with the Mac\'s own PASTE_CHARACTER', ends: 'sentence', paste: 'answer', posts: 1, at: 'screen-line', expect: [], mac: ['PASTE_CHARACTER'] },
+  'paste-refused-machine': { what: 'a 200 refused machine to a paste, with the Mac\'s own PASTE_THIS_MAC_ONLY', ends: 'sentence', paste: 'answer', posts: 1, at: 'screen-line', expect: [], mac: ['PASTE_THIS_MAC_ONLY'] },
+  'paste-cut': { what: 'a paste\'s connection cut after its request was read', ends: 'sentence', paste: 'answer', posts: 1, at: 'screen-line', expect: ['endNoAnswer'] },
+  'paste-late': { what: 'no answer to a paste for longer than the phone\'s 15 s', ends: 'sentence', paste: 'answer', posts: 1, at: 'screen-line', expect: ['endNoAnswer'] },
+  'paste-chunked': { what: 'a 200 to a paste with Transfer-Encoding: chunked', ends: 'sentence', paste: 'answer', posts: 1, at: 'screen-line', expect: ['endNoAnswer'], rawAnswer: 'chunked' },
+  // THE PASTE FLAG ARMS (Phase 348, D30). The Terminal's picture says the Mac
+  // takes no paste, each its own way, so the menu offers Copy alone and no
+  // POST /v1/paste may arrive; a flag of another type refuses the picture
+  // (decodeIfPresent), on the phone's second read as every Screen arm's.
+  'screen-paste-flag-absent': { what: 'a picture with no paste key, a Mac older than this phase: Copy alone', ends: 'drawn', pasteFlag: 'absent', posts: 0, at: 'screen-grid', expect: [], menu: ['copy'] },
+  'screen-paste-flag-false': { what: 'a picture whose paste is false: Copy alone', ends: 'drawn', pasteFlag: false, posts: 0, at: 'screen-grid', expect: [], menu: ['copy'] },
+  'screen-paste-flag-not-typable': { what: 'a picture whose paste is true and typable false: Copy alone', ends: 'drawn', pasteFlag: 'untypable', posts: 0, at: 'screen-grid', expect: [], menu: ['copy'] },
+  'screen-paste-flag-string': { what: 'a picture whose paste is the string "true": the picture refused on the second read, its line read and Paste never pressed (the phone keeps the last good picture, which still offers Paste, as typed keys go over it, and the Mac\'s last check decides; so its `posts: 0` is the drive\'s, not a refusal, the fix round)', ends: 'sentence', pasteFlag: 'string', posts: 0, at: 'screen-line', expect: ['screenNotAnswering'] },
+  // THE WRAPS ARMS (Phase 348, D43, §4.6 step 17). Every picture (or page)
+  // carries marks the phone must read as NO marks, never as a failed answer:
+  // the Terminal stays drawn and Copy breaks every row, as today.
+  'wraps-out-of-range': { what: 'a picture whose wraps names its last row and past it', ends: 'drawn', wraps: 'screen', at: 'screen-grid', expect: [] },
+  'wraps-descending': { what: 'a picture whose wraps is not ascending', ends: 'drawn', wraps: 'screen', at: 'screen-grid', expect: [] },
+  'wraps-not-list': { what: 'a picture whose wraps is a string', ends: 'drawn', wraps: 'screen', at: 'screen-grid', expect: [] },
+  'wraps-negative': { what: 'a picture whose wraps holds -1', ends: 'drawn', wraps: 'screen', at: 'screen-grid', expect: [] },
+  'wraps-huge': { what: 'a picture whose wraps holds 100,000 numbers', ends: 'drawn', wraps: 'screen', at: 'screen-grid', expect: [] },
+  'wraps-page-last-row': { what: 'every page whose wraps names its own last row', ends: 'drawn', wraps: 'page', at: 'screen-grid', expect: [] },
+  'wraps-page-not-list': { what: 'every page whose wraps is an object', ends: 'drawn', wraps: 'page', at: 'screen-grid', expect: [] },
+  // THE AGE NOTE ARMS (Phase 348 item 4, build/p348/SPEC.md §4.4, §2.6, §10.2).
+  // Every list answer carries a note the phone must not draw: a long one with
+  // line breaks, which build 11 draws and this phase's app does not, and the
+  // empty one a Mac of this phase sends, under which build 11 keeps an empty
+  // 14 pt band above `read`. Every other field is the honest door's.
+  'age-note-long': { what: 'every list answer carries a 2,048-byte age note with line breaks: no foot of this phase draws it, build 11 draws it whole', ends: 'drawn', ageNote: 'long', at: 'screen-list', expect: [] },
+  'age-note-empty': { what: 'every list answer carries the empty age note a Mac of this phase sends: no foot draws a note, build 11 an empty band', ends: 'drawn', ageNote: 'empty', at: 'screen-list', expect: [] }
+});
+/** The Remove arms (Phase 348), in the table's order. */
+export const REMOVE_ARMS = Object.freeze(Object.keys(P348_ARMS).filter((a) => typeof P348_ARMS[a].remove === 'string'));
+/** The paste arms (Phase 348), in the table's order. */
+export const PASTE_ARMS = Object.freeze(Object.keys(P348_ARMS).filter((a) => typeof P348_ARMS[a].paste === 'string'));
+/** The picture's paste flag arms (Phase 348, D30), in the table's order. */
+export const PASTE_FLAG_ARMS = Object.freeze(Object.keys(P348_ARMS).filter((a) => Object.hasOwn(P348_ARMS[a], 'pasteFlag')));
+/** The marks arms (Phase 348, D43), in the table's order. */
+export const WRAPS_ARMS = Object.freeze(Object.keys(P348_ARMS).filter((a) => typeof P348_ARMS[a].wraps === 'string'));
+/** The age note arms (Phase 348 item 4), in the table's order. */
+export const AGE_NOTE_ARMS = Object.freeze(Object.keys(P348_ARMS).filter((a) => typeof P348_ARMS[a].ageNote === 'string'));
+/** How long `age-note-long`'s note is, in bytes of UTF-8 (§10.2: "a 2 KB note with line breaks"). */
+export const AGE_NOTE_LONG_BYTES = 2_048;
+/**
+ * `age-note-long`'s note: printable ASCII lines, each ending in a line break,
+ * cut at exactly 2,048 bytes. No Mac sends it; it is the shape a foot that
+ * still drew the note would have to draw.
+ */
+export const AGE_NOTE_LONG = (() => {
+  let note = '';
+  for (let n = 1; Buffer.byteLength(note, 'utf8') < AGE_NOTE_LONG_BYTES; n += 1) note += `Line ${String(n)} of a note no Mac of Phase 348 sends: a wait is timed from when Tortie first saw it.\n`;
+  return note.slice(0, AGE_NOTE_LONG_BYTES);
+})();
+/** A list answer with an age note arm's note in it (Phase 348 item 4); any other arm's answer as it was. */
+export function p348AgeNote(arm, answer) {
+  const kind = P348_ARMS[arm]?.ageNote;
+  if (kind === undefined || answer === null || typeof answer !== 'object') return answer;
+  answer.ageNote = kind === 'long' ? AGE_NOTE_LONG : '';
+  return answer;
+}
+/** The sentence a Remove or paste arm's unknown reason carries: this door's words, never the Mac's. */
+export const REMOVE_UNKNOWN_SENTENCE = 'Your Mac said no for a reason this phone does not know. Nothing was changed.';
+export const PASTE_UNKNOWN_SENTENCE = 'Your Mac said no for a reason this phone does not know. Nothing was pasted.';
+/** How many numbers `wraps-huge` carries: far more than any picture has rows. */
+export const WRAPS_HUGE_COUNT = 100_000;
+
 /** The two machines the honest offer names: one ready with Codex alone (D11's move), one not ready (D22's dimmed row). */
 export const START_FAR = Object.freeze({ id: 'p346far', label: 'Studio' });
 export const START_AWAY = Object.freeze({ id: 'p346away', label: 'Laptop' });
@@ -660,7 +828,7 @@ export const SECOND_MAC_ARMS = Object.freeze({
   twin: { what: 'a second Mac that claims alerts, may share a kept Mac\'s first label, lists another Mac\'s session ids under its own name on twin-mirror, and refuses every signed read after twin-refuse', ends: 'drawn', twin: true, alerts: true }
 });
 /** Every arm a door can be started as. */
-const ALL_ARMS = Object.freeze({ ...HOSTILE_ARMS, ...SECOND_MAC_ARMS });
+const ALL_ARMS = Object.freeze({ ...HOSTILE_ARMS, ...SECOND_MAC_ARMS, ...P348_ARMS });
 /** The most ids one `twin-mirror` may name, and the shape of one. */
 export const MIRROR_MAX = 64;
 const MIRROR_ID = /^[A-Za-z0-9._:-]{1,128}$/;
@@ -1158,6 +1326,111 @@ export function offerReply(world, arm) {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 348's world: an ended session offering Remove, and a picture that
+// takes a paste or carries marks (build/p348/SPEC.md §4.2, §4.6)
+// ---------------------------------------------------------------------------
+
+/** The Mac's own words a Phase 348 arm draws from, from the SHIPPING tree under tsx. */
+async function p348Words() {
+  const lifecycle = await import(pathToFileURL(join(ROOT, 'src', 'shared', 'lifecycle-words.ts')).href);
+  const copy = await import(pathToFileURL(join(ROOT, 'src', 'shared', 'screen-copy.ts')).href);
+  const pocket = await import(pathToFileURL(join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts')).href);
+  const words = {
+    removeSessionConfirm: lifecycle.removeSessionConfirm,
+    LIFECYCLE_SESSION_CHANGED: lifecycle.LIFECYCLE_SESSION_CHANGED,
+    PASTE_CHARACTER: copy.PASTE_CHARACTER,
+    PASTE_THIS_MAC_ONLY: copy.PASTE_THIS_MAC_ONLY,
+    POCKET_WRITE_SENTENCES: pocket.POCKET_WRITE_SENTENCES
+  };
+  for (const [name, value] of Object.entries(words)) {
+    if (value === undefined) throw new Error(`the shipping tree has no ${name}, which a Phase 348 arm draws its words from`);
+  }
+  return words;
+}
+
+/** The sample's own words for an ended row (ios/Tortie/Sample/sample.json), End offering nothing. */
+export const ENDED_WORDS = Object.freeze({ statusLabel: 'ended', statusTitle: 'Ended', statusDot: 'ended' });
+
+/**
+ * The session a Remove arm opens, ENDED, End offering nothing, no Screen, no
+ * reply, and on its own answer the Mac's Remove words: the SHIPPING
+ * `removeSessionConfirm` over an exited session of the row's name and agent,
+ * field by field (`remove: 'answer'` and remove-honest), one with no
+ * `confirmLabel` (remove-confirm-malformed) or none (remove-offer-absent).
+ * Every list row naming it is ended the same way. Answers the world.
+ */
+export function offerRemove(world, arm, words) {
+  const s = world.session.session;
+  Object.assign(s, ENDED_WORDS, { end: { state: 'none' }, endConfirm: null, screen: false, reply: { question: null, mark: null, pressable: [], command: null, canSay: false } });
+  const composed = words.removeSessionConfirm({ id: s.sessionId, name: s.name, tmuxName: s.name, agent: s.agent, status: 'exited', projectPath: '/Users/p316/tortie', cwd: '/Users/p316/tortie', createdAt: 0, resumeArgv: [] });
+  const confirm = { title: composed.title, body: composed.body, confirmLabel: composed.confirmLabel };
+  if (arm === 'remove-offer-absent') delete s.removeConfirm;
+  else if (arm === 'remove-confirm-malformed') s.removeConfirm = { title: confirm.title, body: confirm.body };
+  else s.removeConfirm = confirm;
+  for (const r of [...world.blocked.rows, ...world.blocked.others]) {
+    if (r.sessionId === s.sessionId) Object.assign(r, ENDED_WORDS, { end: { state: 'none' } });
+  }
+  world.blocked.rows = world.blocked.rows.filter((r) => r.sessionId !== s.sessionId);
+  if (!world.blocked.others.some((r) => r.sessionId === s.sessionId)) world.blocked.others.push({ ...structuredClone(world.blocked.others[0] ?? {}), sessionId: s.sessionId, name: s.name, ...ENDED_WORDS, end: { state: 'none' } });
+  world.removeConfirm = s.removeConfirm ?? null;
+  return world;
+}
+
+/** A session a done Remove took: it leaves every list, and its own answer reads as gone. */
+export function forgetRemoved(world, sessionId) {
+  world.blocked.rows = world.blocked.rows.filter((r) => r.sessionId !== sessionId);
+  world.blocked.others = world.blocked.others.filter((r) => r.sessionId !== sessionId);
+  return world;
+}
+
+/**
+ * A Phase 348 arm's picture over an honest one (D30, D43), for the phone's
+ * `n`th read. A paste arm's picture takes a paste (`paste` true, typable); a
+ * flag arm's says the Mac takes none, its own way, `string` from the phone's
+ * second read; a marks arm's every picture carries marks the phone must read
+ * as none. Any other arm's picture is the honest one.
+ */
+export function p348Screen(arm, honest, n) {
+  const spec = P348_ARMS[arm];
+  const a = structuredClone(honest);
+  const sc = a.screen;
+  if (spec === undefined || sc === null || typeof sc !== 'object') return a;
+  if (typeof spec.paste === 'string') {
+    sc.paste = true;
+    sc.typable = true;
+  } else if (Object.hasOwn(spec, 'pasteFlag')) {
+    if (spec.pasteFlag === 'absent') delete sc.paste;
+    else if (spec.pasteFlag === false) sc.paste = false;
+    else if (spec.pasteFlag === 'untypable') {
+      sc.paste = true;
+      sc.typable = false;
+    } else if (spec.pasteFlag === 'string') {
+      if (n === 1) sc.paste = true;
+      else sc.paste = 'true';
+    }
+  } else if (spec.wraps === 'screen') {
+    const rows = Number(sc.rows);
+    sc.wraps = {
+      'wraps-out-of-range': [rows - 1, rows + 5],
+      'wraps-descending': [5, 3],
+      'wraps-not-list': '1,2',
+      'wraps-negative': [-1],
+      'wraps-huge': Array.from({ length: WRAPS_HUGE_COUNT }, (_, k) => k)
+    }[arm];
+  }
+  return a;
+}
+
+/** A marks arm's page over an honest one: marks the phone must read as none (D43). */
+export function p348Page(arm, honest) {
+  const spec = P348_ARMS[arm];
+  if (spec?.wraps !== 'page') return honest;
+  const a = structuredClone(honest);
+  a.wraps = arm === 'wraps-page-last-row' ? [Math.max(0, a.rows.length - 1)] : { r: 1 };
+  return a;
+}
+
+// ---------------------------------------------------------------------------
 // The sessions read (Phase 316.7)
 // ---------------------------------------------------------------------------
 
@@ -1388,6 +1661,15 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
     if (ALL_ARMS[arm].reply === true) offerReply(world, arm);
     // Phase 337.3: the fill-moved arm answers its first page with the Mac's own sentence.
     const screenWordsNow = ALL_ARMS[arm].fillOnce === true ? await screenWords() : null;
+    // Phase 348: a Remove arm's session ENDED, offering the Mac's own Remove
+    // words (or a broken offer, or none); the Mac's words a paste arm answers with.
+    const p348Spec = P348_ARMS[arm];
+    const p348WordsNow = p348Spec !== undefined && (typeof p348Spec.remove === 'string' || typeof p348Spec.paste === 'string') ? await p348Words() : null;
+    if (typeof p348Spec?.remove === 'string') offerRemove(world, arm, p348WordsNow);
+    /** The Phase 348 writes read, and the sessions a done Remove took. */
+    let removePosts = 0;
+    let pastePosts = 0;
+    const removed = new Set();
     /** write-cut-reread-refused: every signed read after its write is refused. */
     let refuseReads = false;
     // Phase 346: a start arm's honest offer, and the starts it has read.
@@ -1620,10 +1902,13 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
           const ev = { route, ...seen, verified: verifiedRead, channelHeld: channelRead, screenRead: n, params, line: lineSerial(req.socket), at: Date.now() };
           if (verifiedRead !== 'ok' || (params !== 'id' && params !== 'id,since')) return send(res, 404, '', ev);
           if (refuseReads) return send(res, 404, '', { ...ev, refusedAfterWrite: true });
-          const honest = honestScreen(world, url.searchParams.get('id') ?? world.sessionId, screenSerial);
+          // PHASE 348: the arm's own picture (a paste offered, a flag, marks), first read and after.
+          const honest = p348Screen(arm, honestScreen(world, url.searchParams.get('id') ?? world.sessionId, screenSerial), n);
           const spec = ALL_ARMS[arm];
           const since = url.searchParams.get('since');
           const first = n === 1;
+          // PHASE 348: the string flag meets the phone's second read at once, as a Screen arm's hostile answer does.
+          if (p348Spec?.pasteFlag === 'string' && !first) return send(res, 200, J(honest), { ...ev, hostile: arm });
           if (spec.screen === true && spec.keys !== true && spec.kept === undefined && !first) {
             if (arm === 'screen-never-answers') {
               emit({ kind: 'request', arm, ...ev, status: 200, bytes: 0, held: true });
@@ -1687,6 +1972,8 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
           if (refuseReads) return send(res, 404, '', { ...ev, refusedAfterWrite: true });
           const honest = honestPageOf(ask, historyLineOf);
           const spec = ALL_ARMS[arm];
+          // PHASE 348: a page arm's every page carries marks the phone reads as none.
+          if (p348Spec?.wraps === 'page') return send(res, 200, J(p348Page(arm, honest)), { ...ev, hostile: arm });
           const hostileNow = pageIsHostile(spec, n);
           if (!hostileNow) return send(res, 200, J(honest), ev);
           if (arm === 'scrollback-never') {
@@ -1743,6 +2030,93 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
               return send(res, 404, '', event);
             default:
               return send(res, 200, done, event);
+          }
+        }
+        if (req.method === 'POST' && ((url.pathname === '/v1/remove' && typeof p348Spec?.remove === 'string') || (url.pathname === '/v1/paste' && typeof p348Spec?.paste === 'string'))) {
+          // PHASE 348's two writes: counted, verified over the body, and
+          // answered the arm's way. The event carries the body's digest, its
+          // write id and, for a paste, its text's byte count: never the text.
+          counts.writes += 1;
+          const verb = url.pathname === '/v1/remove' ? 'remove' : 'paste';
+          if (verb === 'remove') removePosts += 1;
+          else pastePosts += 1;
+          const verifiedWrite = verifySigned({ method: 'POST', target: req.url ?? '', headers: req.headers, body, phone, doorExchangePrivate: doorX.privateKey, doorExchangeKey: dx });
+          const channelWrite = phone !== null && seen.clientPin === clientKeyPinOf(phone.clientKey);
+          let parsed = null;
+          try {
+            parsed = JSON.parse(body.toString('utf8'));
+          } catch {
+            parsed = null;
+          }
+          const id = typeof parsed?.write === 'string' && /^[0-9a-f]{32}$/.test(parsed.write) ? parsed.write : '';
+          const keys = parsed === null || typeof parsed !== 'object' ? '' : Object.keys(parsed).sort().join(',');
+          const event = {
+            route,
+            ...seen,
+            sessionId: typeof parsed?.session === 'string' ? parsed.session : null,
+            verified: verifiedWrite,
+            channelHeld: channelWrite,
+            write: counts.writes,
+            verb,
+            keys,
+            p348Write: id,
+            bodySha: createHash('sha256').update(body).digest('hex'),
+            bodyBytes: body.length,
+            ...(verb === 'paste' ? { textBytes: typeof parsed?.text === 'string' ? Buffer.byteLength(parsed.text, 'utf8') : null, turn: typeof parsed?.turn === 'string' ? parsed.turn : null, dialog: parsed?.dialog ?? null } : {}),
+            post: verb === 'remove' ? removePosts : pastePosts,
+            query: url.search !== ''
+          };
+          if (verifiedWrite !== 'ok' || url.search !== '') return send(res, 404, '', event);
+          const done = { verb, write: id, outcome: 'done', reason: null, sentence: null };
+          const said = (outcome, reason, sentence) => J({ verb, write: id, outcome, reason, sentence });
+          switch (arm) {
+            case 'remove-honest':
+              if (typeof parsed?.session === 'string') {
+                removed.add(parsed.session);
+                forgetRemoved(world, parsed.session);
+              }
+              return send(res, 200, J(done), event);
+            case 'remove-other-id':
+            case 'paste-other-id':
+              return send(res, 200, J({ ...done, write: otherWriteId(id) }), event);
+            case 'remove-wrong-verb':
+              return send(res, 200, J({ ...done, verb: 'end' }), event);
+            case 'paste-wrong-verb':
+              return send(res, 200, J({ ...done, verb: 'keys' }), event);
+            case 'remove-refused-no-reason':
+              return send(res, 200, said('refused', null, REMOVE_UNKNOWN_SENTENCE), event);
+            case 'remove-unknown-reason':
+              return send(res, 200, said('refused', 'sideways', REMOVE_UNKNOWN_SENTENCE), event);
+            case 'paste-unknown-reason':
+              return send(res, 200, said('refused', 'sideways', PASTE_UNKNOWN_SENTENCE), event);
+            case 'remove-refused-changed':
+              return send(res, 200, said('refused', 'changed', p348WordsNow.LIFECYCLE_SESSION_CHANGED), event);
+            case 'paste-refused-character':
+              return send(res, 200, said('refused', 'character', p348WordsNow.PASTE_CHARACTER), event);
+            case 'paste-refused-machine':
+              return send(res, 200, said('refused', 'machine', p348WordsNow.PASTE_THIS_MAC_ONLY), event);
+            case 'remove-404':
+            case 'paste-404':
+              return send(res, 404, '', event);
+            case 'remove-cut':
+            case 'paste-cut':
+              emit({ kind: 'request', arm, ...event, status: 'cut', bytes: 0 });
+              req.socket.destroy();
+              return;
+            case 'remove-late':
+            case 'paste-late': {
+              emit({ kind: 'request', arm, ...event, status: 200, bytes: 0, held: true });
+              const timer = setTimeout(() => {
+                if (!req.socket.destroyed) send(res, 200, J(done), { ...event, late: true });
+              }, WRITE_LATE_MS);
+              timer.unref?.();
+              return;
+            }
+            case 'remove-chunked':
+            case 'paste-chunked':
+              return sendRaw(req, rawAnswerOf('chunked', J(done)), event);
+            default:
+              return send(res, 200, J(done), event);
           }
         }
         if (req.method === 'POST' && url.pathname === '/v1/start' && startOffer !== null) {
@@ -1824,6 +2198,8 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
           if (spec.sessions === 'missing' || (spec.sessions === 'missing-first' && !sessionsReleased)) return send(res, 404, '', { ...ev, olderMac: true });
           const answer = composeSessions(url.searchParams);
           if (answer === null || answer === undefined) return send(res, 404, '', { ...ev, refused: sessionsKit === null ? `no composer: ${String(sessionsKitWhy)}` : 'the composer refused the words' });
+          // PHASE 348: an age note arm's note, on every Sessions answer.
+          p348AgeNote(arm, answer);
           const summary = sessionsSummary(answer, typeof spec.sessions === 'string');
           if (cap !== null) {
             const bidi = answer.rows.find((r) => r.sessionId === cap.world.bidiId) ?? null;
@@ -1862,7 +2238,8 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
         }
         if (url.pathname === '/v1/blocked') {
           blockedReads += 1;
-          const answer = structuredClone(world.blocked);
+          // PHASE 348: an age note arm's note, on every Needs input answer, the pairing's first among them.
+          const answer = p348AgeNote(arm, structuredClone(world.blocked));
           // The first signed read is pairing's: a list arm answers it
           // honestly, so the app pairs and its LIST meets the body.
           if (ALL_ARMS[arm].list === true && blockedReads === 1) return send(res, 200, J(answer), { ...event, honestFirst: true });
@@ -1897,6 +2274,8 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
           return send(res, 200, J(answer), event);
         }
         if (url.pathname === '/v1/session') {
+          // PHASE 348: a session a done Remove took is no listed session any more.
+          if (removed.has(url.searchParams.get('id') ?? '')) return send(res, 404, '', { ...event, removed: true });
           if (url.searchParams.get('id') !== world.sessionId) {
             const other = [...world.blocked.rows, ...world.blocked.others].find((r) => r.sessionId === url.searchParams.get('id'));
             if (other === undefined) return send(res, 404, '', event);
@@ -1985,6 +2364,10 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
       // Phase 346: a start arm's honest offer.
       startOffer,
       replyWords: replyWordsNow,
+      // Phase 348: a Remove arm's offer, the Mac's words a Phase 348 arm draws, and the sessions a done Remove took.
+      removeConfirm: world.removeConfirm ?? null,
+      p348Words: p348WordsNow === null ? null : { LIFECYCLE_SESSION_CHANGED: p348WordsNow.LIFECYCLE_SESSION_CHANGED, PASTE_CHARACTER: p348WordsNow.PASTE_CHARACTER, PASTE_THIS_MAC_ONLY: p348WordsNow.PASTE_THIS_MAC_ONLY },
+      removedIds: () => [...removed],
       counts,
       // Phase 316.7: whether this door can compose /v1/sessions, and the cap world's own facts.
       sessionsComposer: sessionsKit !== null,
@@ -2075,6 +2458,9 @@ async function serve(arm, md3, extra = {}) {
       replyWords: door.replyWords,
       // Phase 346: a start arm's honest offer, for the probe to hold the sheet to.
       startOffer: door.startOffer,
+      // Phase 348: a Remove arm's offer and the Mac's words a Phase 348 arm draws, for the probe to hold the phone to.
+      removeConfirm: door.removeConfirm,
+      p348Words: door.p348Words,
       // Phase 316.7: the sessions read.
       sessionsComposer: door.sessionsComposer,
       sessionsComposerWhy: door.sessionsComposerWhy,
@@ -2820,6 +3206,240 @@ async function selfTest() {
       check('--name', false, `threw: ${String(err?.stack ?? err)}`);
     } finally {
       await door?.close();
+    }
+  }
+  // PHASE 348'S ARMS (build/p348/SPEC.md §7.2, §9.3), each driven by the node
+  // phone and read with its own readers: the session's Remove offer and the
+  // ONE Remove's answer (`removeAnswerOf`), the picture's paste flag
+  // (`screenPasteOf`, `screenAnswerProblems`) and the ONE paste's answer
+  // (`pasteAnswerOf`), and the marks the phone must read as none
+  // (`screenWrapsOf`, `scrollbackWrapsOf`). Every write is counted, verified
+  // over its body with the client identity, and logged by shape only.
+  {
+    let p348Lifecycle = null;
+    try {
+      p348Lifecycle = await import(pathToFileURL(join(ROOT, 'src', 'shared', 'lifecycle-words.ts')).href);
+    } catch {
+      p348Lifecycle = null;
+    }
+    for (const arm of Object.keys(P348_ARMS)) {
+      const spec = P348_ARMS[arm];
+      const events = [];
+      let door = null;
+      try {
+        door = await startHostileDoor(arm, (e) => events.push(e), { md3: SELF_TEST_MD3 });
+        const qr = JSON.parse(door.payload);
+        const d = doorFrom(qr, door.port);
+        const phone = makePhone('p348 self-test phone', qr.dx);
+        const paired = await pairThrough(d, qr, phone, { tries: 3, everyMs: 50 });
+        if (!paired.ok) {
+          check(arm, false, `pairing answered ${J(paired.words)} (${paired.why})`);
+          continue;
+        }
+        const sid = door.sessionToOpen;
+        /** The writes this door took as writes (an arm that is not one answers its POST 404 with no verb in the event). */
+        const posts = (verb) => events.filter((e) => e.kind === 'request' && e.route === `POST /v1/${verb}` && e.verb === verb);
+        const shaped = (e, keys) => e.verified === 'ok' && e.channelHeld === true && e.keys === keys && typeof e.bodySha === 'string';
+        if (typeof spec.remove === 'string') {
+          const session = await signedGet(phone, d, `/v1/session?id=${encodeURIComponent(sid)}`);
+          let detail = null;
+          try {
+            detail = JSON.parse(session.body).session;
+          } catch {
+            detail = null;
+          }
+          const ended = detail !== null && detail.statusLabel === 'ended' && detail.end?.state === 'none' && detail.endConfirm === null && detail.screen === false;
+          const want = p348Lifecycle?.removeSessionConfirm?.({ id: sid, name: detail?.name, tmuxName: detail?.name, agent: detail?.agent, status: 'exited', projectPath: '/x', cwd: '/x', createdAt: 0, resumeArgv: [] }) ?? null;
+          if (arm === 'remove-offer-absent') {
+            check(arm, ended && !Object.hasOwn(detail, 'removeConfirm') && posts('remove').length === 0, `the session reads ended (${String(ended)}) with no removeConfirm: ${String(detail !== null && !Object.hasOwn(detail, 'removeConfirm'))}`);
+            continue;
+          }
+          if (arm === 'remove-confirm-malformed') {
+            const rc = detail?.removeConfirm;
+            const broken = rc !== null && typeof rc === 'object' && typeof rc.title === 'string' && typeof rc.body === 'string' && !Object.hasOwn(rc, 'confirmLabel');
+            check(arm, ended && broken && posts('remove').length === 0, `the session reads ended (${String(ended)}); its removeConfirm ${J(rc ?? null)} lacks confirmLabel, which the phone's decodeIfPresent refuses whole`);
+            continue;
+          }
+          const words = want !== null && J(detail?.removeConfirm) === J({ title: want.title, body: want.body, confirmLabel: want.confirmLabel });
+          const write = randomBytes(16).toString('hex');
+          let got;
+          let read;
+          if (spec.rawAnswer !== undefined) {
+            const body = writeBodyOf({ session: sid, write });
+            const h = signedHeadersFor(phone, 'POST', '/v1/remove', body);
+            const request = Buffer.concat([Buffer.from([`POST /v1/remove HTTP/1.1`, `Host: ${HOSTILE_NAME}:${String(HOSTILE_PUBLIC_PORT)}`, ...Object.entries(h).map(([k, v]) => `${k}: ${v}`), 'content-type: application/json', `content-length: ${String(body.length)}`, 'Connection: close', '', ''].join('\r\n'), 'utf8'), body]);
+            const raw = await rawExchange({ door: d, bytes: request, identity: phone, capBytes: 8 * 1024 * 1024 });
+            const r = rawSays(spec.rawAnswer, raw.bytes);
+            check(arm, ended && words && raw.handshook && r.says === true && posts('remove').length === 1 && shaped(posts('remove')[0], 'session,write'), `the ended session offers the Mac's words: ${String(words)}; the Remove answered as raw bytes ${J(r.status)} in the ${spec.rawAnswer} shape: ${String(r.says)}`);
+            continue;
+          }
+          got = await removeSession(phone, d, { session: sid, write, ...(arm === 'remove-late' ? { timeoutMs: 1_500 } : {}) });
+          read = removeAnswerOf(got, write);
+          const ok = {
+            'remove-honest': read.ok && read.answer.outcome === 'done',
+            'remove-other-id': !read.ok && /echo/.test(read.why),
+            'remove-wrong-verb': !read.ok && /^verb/.test(read.why),
+            'remove-refused-no-reason': !read.ok && /reason/.test(read.why),
+            'remove-unknown-reason': read.ok && read.answer.outcome === 'refused' && read.answer.reason === 'sideways' && read.answer.sentence === REMOVE_UNKNOWN_SENTENCE,
+            'remove-refused-changed': read.ok && read.answer.outcome === 'refused' && read.answer.reason === 'changed' && read.answer.sentence === p348Lifecycle?.LIFECYCLE_SESSION_CHANGED,
+            'remove-404': got.status === 404 && got.body === '',
+            'remove-cut': got.status === 0,
+            'remove-late': got.status === 0
+          }[arm];
+          let gone = true;
+          if (arm === 'remove-honest') {
+            const after = await signedGet(phone, d, `/v1/session?id=${encodeURIComponent(sid)}`);
+            const listed = await signedGet(phone, d, '/v1/blocked');
+            let rows = [];
+            try {
+              const b = JSON.parse(listed.body);
+              rows = [...b.rows, ...b.others].map((r) => r.sessionId);
+            } catch {
+              rows = ['unreadable'];
+            }
+            gone = after.status === 404 && !rows.includes(sid) && J(door.removedIds()) === J([sid]);
+          }
+          const one = posts('remove');
+          check(arm, ended && words && ok === true && gone && one.length === 1 && shaped(one[0], 'session,write') && one[0].p348Write === write, `the ended session offers the Mac's words: ${String(words)}; the one Remove answered ${String(got.status)} ${String(got.body).slice(0, 120)} (read: ${read.ok ? 'whole' : read.why})${arm === 'remove-honest' ? `; after it the session is gone from every read: ${String(gone)}` : ''}; ${String(one.length)} POST(s)`);
+          continue;
+        }
+        if (typeof spec.paste === 'string') {
+          const pic = await screenRead(phone, d, sid);
+          const sc = pic.answer?.screen ?? null;
+          const offered = pic.status === 200 && pic.answer !== null && screenAnswerProblems(pic.answer).length === 0 && screenPasteOf(sc) && sc.typable === true;
+          const write = randomBytes(16).toString('hex');
+          const text = 'p348 hostile self-test paste\nsecond line';
+          if (spec.rawAnswer !== undefined) {
+            const body = writeBodyOf({ dialog: sc?.dialog ?? null, session: sid, text, turn: sc?.turn ?? `${'0'.repeat(16)}-0`, write });
+            const h = signedHeadersFor(phone, 'POST', '/v1/paste', body);
+            const request = Buffer.concat([Buffer.from([`POST /v1/paste HTTP/1.1`, `Host: ${HOSTILE_NAME}:${String(HOSTILE_PUBLIC_PORT)}`, ...Object.entries(h).map(([k, v]) => `${k}: ${v}`), 'content-type: application/json', `content-length: ${String(body.length)}`, 'Connection: close', '', ''].join('\r\n'), 'utf8'), body]);
+            const raw = await rawExchange({ door: d, bytes: request, identity: phone, capBytes: 8 * 1024 * 1024 });
+            const r = rawSays(spec.rawAnswer, raw.bytes);
+            check(arm, offered && raw.handshook && r.says === true && posts('paste').length === 1 && shaped(posts('paste')[0], 'dialog,session,text,turn,write'), `the picture takes a paste: ${String(offered)}; the paste answered as raw bytes ${J(r.status)} in the ${spec.rawAnswer} shape: ${String(r.says)}`);
+            continue;
+          }
+          const got = await pasteText(phone, d, { session: sid, text, turn: sc?.turn ?? `${'0'.repeat(16)}-0`, dialog: sc?.dialog ?? null, write, ...(arm === 'paste-late' ? { timeoutMs: 1_500 } : {}) });
+          const read = pasteAnswerOf(got, write);
+          const words = door.p348Words ?? {};
+          const ok = {
+            'paste-honest': read.ok && read.answer.outcome === 'done',
+            'paste-404': got.status === 404 && got.body === '',
+            'paste-other-id': !read.ok && /echo/.test(read.why),
+            'paste-wrong-verb': !read.ok && /^verb/.test(read.why),
+            'paste-unknown-reason': read.ok && read.answer.outcome === 'refused' && read.answer.reason === 'sideways' && read.answer.sentence === PASTE_UNKNOWN_SENTENCE,
+            'paste-refused-character': read.ok && read.answer.outcome === 'refused' && read.answer.reason === 'character' && read.answer.sentence === words.PASTE_CHARACTER,
+            'paste-refused-machine': read.ok && read.answer.outcome === 'refused' && read.answer.reason === 'machine' && read.answer.sentence === words.PASTE_THIS_MAC_ONLY,
+            'paste-cut': got.status === 0,
+            'paste-late': got.status === 0
+          }[arm];
+          const one = posts('paste');
+          check(arm, offered && ok === true && one.length === 1 && shaped(one[0], 'dialog,session,text,turn,write') && one[0].p348Write === write && one[0].textBytes === Buffer.byteLength(text, 'utf8') && !J(one[0]).includes('hostile self-test'), `the picture takes a paste: ${String(offered)}; the one paste answered ${String(got.status)} ${String(got.body).slice(0, 120)} (read: ${read.ok ? 'whole' : read.why}); ${String(one.length)} POST(s), its event naming the text's bytes and never the text`);
+          continue;
+        }
+        if (Object.hasOwn(spec, 'pasteFlag')) {
+          const first = await screenRead(phone, d, sid);
+          const sc = first.answer?.screen ?? null;
+          const firstProblems = first.answer === null ? ['no answer'] : screenAnswerProblems(first.answer);
+          const refusedPaste = await pasteText(phone, d, { session: sid, text: 'x', turn: sc?.turn ?? `${'0'.repeat(16)}-0`, dialog: null });
+          if (spec.pasteFlag === 'string') {
+            const second = await screenRead(phone, d, sid, { since: first.answer?.revision ?? null });
+            const problems = second.answer === null ? ['no answer'] : screenAnswerProblems(second.answer);
+            check(arm, first.status === 200 && firstProblems.length === 0 && second.status === 200 && problems.some((x) => /paste/.test(x)) && refusedPaste.status === 404, `the first picture drew (${J(firstProblems)}); the second is refused for ${J(problems.slice(0, 2))}; a paste sent anyway answered ${String(refusedPaste.status)}`);
+            continue;
+          }
+          const flag = spec.pasteFlag === 'absent' ? !Object.hasOwn(sc ?? {}, 'paste') : spec.pasteFlag === false ? sc?.paste === false : sc?.paste === true && sc?.typable === false;
+          const offeredByPhone = screenPasteOf(sc) && sc?.typable === true;
+          check(arm, first.status === 200 && firstProblems.length === 0 && flag && !offeredByPhone && refusedPaste.status === 404 && posts('paste').length === 0, `the picture draws (${J(firstProblems)}) with paste ${J(sc?.paste)} and typable ${J(sc?.typable)}, so the phone offers no paste; a paste sent anyway answered ${String(refusedPaste.status)}`);
+          continue;
+        }
+        if (spec.wraps === 'screen') {
+          const pic = await screenRead(phone, d, sid);
+          const problems = pic.answer === null ? ['no answer'] : screenAnswerProblems(pic.answer);
+          const w = screenWrapsOf(pic.answer?.screen);
+          check(arm, pic.status === 200 && problems.length === 0 && w.present && w.marks.length === 0 && typeof w.problem === 'string', `the picture draws (${J(problems)}); its marks read as none: ${String(w.problem)}`);
+          continue;
+        }
+        if (spec.wraps === 'page') {
+          const pic = await screenRead(phone, d, sid);
+          const sc = pic.answer?.screen ?? null;
+          const H = typeof sc?.depth === 'number' ? sc.depth : HOSTILE_HISTORY_DEPTH;
+          const ask = { from: H - 100, count: 100, depth: H, wrap: typeof sc?.cols === 'number' ? sc.cols : 120, keep: 'bottom' };
+          const page = await scrollbackRead(phone, d, sid, ask);
+          const problems = page.answer === null ? ['no answer'] : scrollbackAnswerProblems(page.answer, ask);
+          const w = scrollbackWrapsOf(page.answer);
+          check(arm, pic.status === 200 && page.status === 200 && problems.length === 0 && w.present && w.marks.length === 0 && typeof w.problem === 'string', `the page draws (${J(problems)}); its marks read as none: ${String(w.problem)}`);
+          continue;
+        }
+        if (typeof spec.ageNote === 'string') {
+          // Item 4: every list answer carries the arm's note, and the phone still reads each answer whole (the note is
+          // a required string, so neither is a refusal).
+          const want = spec.ageNote === 'long' ? AGE_NOTE_LONG : '';
+          const blocked = await signedGet(phone, d, '/v1/blocked');
+          let b = null;
+          try {
+            b = JSON.parse(blocked.body);
+          } catch {
+            b = null;
+          }
+          const sessions = await readSessions(phone, d, {});
+          const sessionsProblems = sessions.answer === null ? ['no answer'] : sessionsAnswerProblems(sessions.answer, askedOf({}));
+          const shape = spec.ageNote === 'long' ? Buffer.byteLength(want, 'utf8') === AGE_NOTE_LONG_BYTES && want.split('\n').length > 10 : want === '';
+          check(arm, shape && blocked.status === 200 && b?.ageNote === want && Array.isArray(b?.rows) && sessions.status === 200 && sessions.answer?.ageNote === want && sessionsProblems.length === 0, `/v1/blocked answered ${String(blocked.status)} with a note of ${String(Buffer.byteLength(String(b?.ageNote ?? ''), 'utf8'))} byte(s), /v1/sessions ${String(sessions.status)} with ${String(Buffer.byteLength(String(sessions.answer?.ageNote ?? ''), 'utf8'))} (refused for ${J(sessionsProblems.slice(0, 2))}); the note is the arm's: ${String(b?.ageNote === want && sessions.answer?.ageNote === want)}`);
+          continue;
+        }
+        check(arm, false, 'a Phase 348 arm with no self-test of its own');
+      } catch (err) {
+        check(arm, false, `threw: ${String(err?.stack ?? err)}`);
+      } finally {
+        await door?.close();
+      }
+    }
+    // Every other arm answers both writes 404, a Mac older than this phase, and offers no Remove.
+    let door = null;
+    try {
+      door = await startHostileDoor('honest', () => undefined);
+      const qr = JSON.parse(door.payload);
+      const d = doorFrom(qr, door.port);
+      const phone = makePhone('p348 self-test honest phone', qr.dx);
+      const paired = await pairThrough(d, qr, phone, { tries: 3, everyMs: 50 });
+      const r = await removeSession(phone, d, { session: door.sessionToOpen });
+      const pz = await pasteText(phone, d, { session: door.sessionToOpen, text: 'x', turn: `${'0'.repeat(16)}-0` });
+      const session = await signedGet(phone, d, `/v1/session?id=${encodeURIComponent(door.sessionToOpen)}`);
+      let offers = true;
+      try {
+        offers = Object.hasOwn(JSON.parse(session.body).session, 'removeConfirm');
+      } catch {
+        offers = true;
+      }
+      check('p348 honest', paired.ok && r.status === 404 && pz.status === 404 && session.status === 200 && !offers, `an honest door answers a Remove ${String(r.status)} and a paste ${String(pz.status)}, and its session carries removeConfirm: ${String(offers)}`);
+    } catch (err) {
+      check('p348 honest', false, `threw: ${String(err?.stack ?? err)}`);
+    } finally {
+      await door?.close();
+    }
+    check('p348 names', REMOVE_ARMS.length === 12 && PASTE_ARMS.length === 10 && PASTE_FLAG_ARMS.length === 4 && WRAPS_ARMS.length === 7 && AGE_NOTE_ARMS.length === 2 && Object.keys(P348_ARMS).every((a) => !Object.hasOwn(HOSTILE_ARMS, a)), `${String(REMOVE_ARMS.length)} Remove, ${String(PASTE_ARMS.length)} paste, ${String(PASTE_FLAG_ARMS.length)} flag, ${String(WRAPS_ARMS.length)} marks and ${String(AGE_NOTE_ARMS.length)} age note arm(s), none in HOSTILE_ARMS, which probe:p316's hostile group drives by default`);
+    // The age note arms' ablation: an honest door's list answers carry the shipping composer's note, never the arms'.
+    {
+      let honestDoor = null;
+      try {
+        honestDoor = await startHostileDoor('honest', () => undefined);
+        const qr = JSON.parse(honestDoor.payload);
+        const d = doorFrom(qr, honestDoor.port);
+        const phone = makePhone('p348 self-test note phone', qr.dx);
+        const paired = await pairThrough(d, qr, phone, { tries: 3, everyMs: 50 });
+        const blocked = await signedGet(phone, d, '/v1/blocked');
+        let note = null;
+        try {
+          note = JSON.parse(blocked.body).ageNote;
+        } catch {
+          note = null;
+        }
+        check('p348 note control', paired.ok && typeof note === 'string' && note !== AGE_NOTE_LONG && p348AgeNote('honest', { ageNote: 'x' }).ageNote === 'x' && p348AgeNote('age-note-empty', { ageNote: 'x' }).ageNote === '' && p348AgeNote('age-note-long', { ageNote: 'x' }).ageNote === AGE_NOTE_LONG, `an honest door's /v1/blocked carries its own note (${String(Buffer.byteLength(String(note ?? ''), 'utf8'))} byte(s)), never the long arm's; p348AgeNote leaves another arm's answer as it was`);
+      } catch (err) {
+        check('p348 note control', false, `threw: ${String(err?.stack ?? err)}`);
+      } finally {
+        await honestDoor?.close();
+      }
     }
   }
   const failed = results.filter((r) => !r.ok).length;

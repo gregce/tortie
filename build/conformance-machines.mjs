@@ -14628,7 +14628,12 @@ const P337_KEY_NAMES = (() => {
         const n = handed.filter((a) => a !== null && a.startsWith(`${name}(`)).length;
         if (n !== 1) fail(`${REMOTE} hands ${name}( to execOn( ${String(n)} time(s); once, in its one reader.`);
       }
-      for (const banned of ['sendCommand(', 'remoteScrollRunner', 'typePhoneKeys', 'spawn(', 'execFile(', 'runRemoteScript', 'routeKey(']) {
+      // `spawn(` and `execFile(` are joined from two pieces (the integrator's
+      // reconciling, Phase 348): gate:electron and gate:background find a call
+      // by its name and an open bracket over text that keeps its strings, and
+      // a string spelled that way read as a launch once the lines after it
+      // grew (build/scan-source.mjs's callArguments ran on into them).
+      for (const banned of ['sendCommand(', 'remoteScrollRunner', 'typePhoneKeys', ['spawn', '('].join(''), ['execFile', '('].join(''), 'runRemoteScript', 'routeKey(']) {
         if (code.includes(banned)) fail(`${REMOTE} names ${banned}; it reaches the machine through execOn( alone, the exec plane's ledger read.`);
       }
       const verbs = [...code.matchAll(/'([a-z]+-[a-z]+)'/g)].map((m) => m[1]).filter((w) => /^(?:capture|display|send|copy|resize|refresh|new|kill|run|set|list|attach|switch|clear|load|paste|select|split|show)-/.test(w));
@@ -14640,13 +14645,29 @@ const P337_KEY_NAMES = (() => {
         fail(`${REMOTE} does not import SCREEN_FORMAT from ../screen/read; the far read uses the one format and nothing a caller wrote.`);
       }
       // The live read: three commands, display ; capture ; display.
+      // WIDENED BY PHASE 348 (build/p348/SPEC.md D44, §7.4): the wrap marks
+      // ride the same ONE exec by the road the marks' owner hands in, and
+      // nothing else moves. On `flags` the styled capture itself takes -F; on
+      // `fallback` the two added captures, -p -T -N and -p -J, sit between the
+      // styled capture and the second display; on `none`, today's three. Each
+      // marked shape is answered under its own road's guard.
       const live = bodyOf(code, 'remoteScreenArgv');
       if (live === null) cantJudge(124, `${REMOTE} declares no function remoteScreenArgv`);
       else {
-        const ret = /return\s*\[([\s\S]*?)\]\s*;/.exec(live)?.[1] ?? '';
-        const words = [...ret.matchAll(/'([^']*)'|(\w+)/g)].map((m) => (m[1] !== undefined ? `'${m[1]}'` : m[2]));
-        const want = ["'display-message'", "'-p'", "'-t'", 'tmuxId', 'SCREEN_FORMAT', "';'", "'capture-pane'", "'-p'", "'-e'", "'-t'", 'tmuxId', "';'", "'display-message'", "'-p'", "'-t'", 'tmuxId', 'SCREEN_FORMAT'];
-        if (JSON.stringify(words) !== JSON.stringify(want)) fail(`remoteScreenArgv answers ${JSON.stringify(words)}; the far live read is the display, the capture and the display in ONE exec, so a far picture is steady by D5's rule (build/p3371/SPEC.md D6).`);
+        const wordsOf = (ret) => [...ret.matchAll(/'([^']*)'|(\w+)/g)].map((m) => (m[1] !== undefined ? `'${m[1]}'` : m[2]));
+        const rets = [...live.matchAll(/return\s*\[([\s\S]*?)\]\s*;/g)].map((m) => ({ at: m.index, words: wordsOf(m[1]) }));
+        const D = ["'display-message'", "'-p'", "'-t'", 'tmuxId', 'SCREEN_FORMAT'];
+        const NONE = [...D, "';'", "'capture-pane'", "'-p'", "'-e'", "'-t'", 'tmuxId', "';'", ...D];
+        const FLAGS = [...D, "';'", "'capture-pane'", "'-p'", "'-e'", "'-F'", "'-t'", 'tmuxId', "';'", ...D];
+        const FALLBACK = [...D, "';'", "'capture-pane'", "'-p'", "'-e'", "'-t'", 'tmuxId', "';'", "'capture-pane'", "'-p'", "'-T'", "'-N'", "'-t'", 'tmuxId', "';'", "'capture-pane'", "'-p'", "'-J'", "'-t'", 'tmuxId', "';'", ...D];
+        const got = rets.map((r) => JSON.stringify(r.words)).sort();
+        const want = [NONE, FLAGS, FALLBACK].map((w) => JSON.stringify(w)).sort();
+        if (JSON.stringify(got) !== JSON.stringify(want)) fail(`remoteScreenArgv answers ${JSON.stringify(rets.map((r) => r.words))}; the far live read is the display, the capture and the display in ONE exec, so a far picture is steady by D5's rule (build/p3371/SPEC.md D6), and since Phase 348 the same with -F on the flags road or the fallback's -p -T -N and -p -J added before the second display, and nothing else (build/p348/SPEC.md D44).`);
+        for (const [road, shape] of [['flags', FLAGS], ['fallback', FALLBACK]]) {
+          const guard = new RegExp(`if\\s*\\(\\s*road\\s*===\\s*'${road}'\\s*\\)`).exec(live);
+          const next = guard === null ? undefined : rets.find((r) => r.at > guard.index);
+          if (next === undefined || JSON.stringify(next.words) !== JSON.stringify(shape)) fail(`remoteScreenArgv does not answer the ${road} road's read under its own guard (if (road === '${road}')); a marked read is chosen by the road the marks' owner hands in and nothing else (build/p348/SPEC.md D44).`);
+        }
       }
     }
   }
@@ -14676,10 +14697,19 @@ const P337_KEY_NAMES = (() => {
       if (whole === undefined && !inline) fail(`remoteScrollbackArgv's -S and -E are not checked by a wholeNumber that matches remote-pane-history.ts's clause for clause (if (!Number.isSafeInteger(n)) throw …; return String(n)), so a fraction, an infinity or a string could reach the far tmux (build/p3371/SPEC.md D9).`);
       if (!/\bSCROLL_TARGET\.test\(\s*tmuxId\s*\)/.test(argvBody) || !/throw\b/.test(argvBody)) fail('remoteScrollbackArgv does not throw for a target that is not a $N (SCROLL_TARGET.test(tmuxId)) before it composes.');
       // ONE exec of three, and no display-only round anywhere in the file.
+      // PHASE 348 (build/p348/SPEC.md D44, §7.4): one answer per road, each
+      // one exec framed by its two displays: today's three, the flags road's
+      // three with -F, and the fallback's five, the range's -p -T -N and -p -J
+      // added before the second display. The driven half below holds each.
       const rets = [...argvBody.matchAll(/return\s*\[([\s\S]*?)\]\s*;/g)];
-      const words = rets.length === 1 ? [...rets[0][1].matchAll(/'([^']*)'|(\w+(?:\([^)]*\))?)/g)].map((m) => (m[1] !== undefined ? `'${m[1]}'` : m[2])) : null;
-      if (words === null || words.filter((w) => w === "';'").length !== 2 || words.filter((w) => w === "'display-message'").length !== 2 || words.filter((w) => w === "'capture-pane'").length !== 1) {
-        fail(`remoteScrollbackArgv answers ${JSON.stringify(words)}; it composes ONE exec of the display, the capture and the display, never a separate display round (two execs a page on another machine, §Attack B2).`);
+      const wordsOf = (ret) => [...ret.matchAll(/'([^']*)'|(\w+(?:\([^)]*\))?)/g)].map((m) => (m[1] !== undefined ? `'${m[1]}'` : m[2]));
+      const shapesOk = rets.length === 3 && rets.every((r) => {
+        const words = wordsOf(r[1]);
+        const captures = words.filter((w) => w === "'capture-pane'").length;
+        return words.filter((w) => w === "'display-message'").length === 2 && (captures === 1 || captures === 3) && words.filter((w) => w === "';'").length === captures + 1 && words[0] === "'display-message'" && words[words.length - 1] === 'SCREEN_FORMAT';
+      });
+      if (!shapesOk) {
+        fail(`remoteScrollbackArgv answers ${JSON.stringify(rets.map((r) => wordsOf(r[1])))}; it composes ONE exec of the display, the capture and the display for each of the three roads (the fallback's two added captures between the capture and the second display), never a separate display round (two execs a page on another machine, §Attack B2; build/p348/SPEC.md D44).`);
       }
       for (const m of code.matchAll(/\[([^\[\]]*'display-message'[^\[\]]*)\]/g)) {
         if (!/'capture-pane'/.test(m[1])) fail(`${REMOTE} composes a display with no capture beside it (${m[0].slice(0, 80)}); nothing composes a display-only page round (§Attack B2).`);
@@ -14719,6 +14749,23 @@ const P337_KEY_NAMES = (() => {
             got = `threw: ${err instanceof Error ? err.message : String(err)}`;
           }
           if (JSON.stringify(got) !== JSON.stringify(want)) fail(`remoteScrollbackArgv('$4', -228, -101) composes ${JSON.stringify(got).slice(0, 240)}; it is exactly the display, the capture of -228 to -101 and the display, one exec.`);
+          // PHASE 348 (build/p348/SPEC.md D44): the marks' two roads, each the
+          // same range, each one exec framed by its two displays.
+          const range = ['-S', '-228', '-E', '-101'];
+          const roads = [
+            ['none', want],
+            ['flags', [...display, ';', 'capture-pane', '-p', '-e', '-F', '-t', '$4', ...range, ';', ...display]],
+            ['fallback', [...display, ';', 'capture-pane', '-p', '-e', '-t', '$4', ...range, ';', 'capture-pane', '-p', '-T', '-N', '-t', '$4', ...range, ';', 'capture-pane', '-p', '-J', '-t', '$4', ...range, ';', ...display]]
+          ];
+          for (const [road, wantRoad] of roads) {
+            let gotRoad;
+            try {
+              gotRoad = argvOf('$4', -228, -101, road);
+            } catch (err) {
+              gotRoad = `threw: ${err instanceof Error ? err.message : String(err)}`;
+            }
+            if (JSON.stringify(gotRoad) !== JSON.stringify(wantRoad)) fail(`remoteScrollbackArgv('$4', -228, -101, '${road}') composes ${JSON.stringify(gotRoad).slice(0, 300)}; it is exactly ${JSON.stringify(wantRoad).slice(0, 300)}: the marks' reads ride the page's ONE exec over the same range, and nothing else moves (build/p348/SPEC.md D44).`);
+          }
           const refused = [
             ['a fraction', '$4', -228.5, -101],
             ['NaN', '$4', NaN, -101],
@@ -14731,15 +14778,19 @@ const P337_KEY_NAMES = (() => {
             ['a target with a list in it', '$4;kill-server', -228, -101],
             ['an empty target', '', -228, -101]
           ];
-          for (const [what, t, a, b] of refused) {
-            let threw = false;
-            let out = null;
-            try {
-              out = argvOf(t, a, b);
-            } catch {
-              threw = true;
+          // PHASE 348: on every road, so a marked page checks its numbers as
+          // today's does.
+          for (const road of ['none', 'flags', 'fallback']) {
+            for (const [what, t, a, b] of refused) {
+              let threw = false;
+              let out = null;
+              try {
+                out = argvOf(t, a, b, road);
+              } catch {
+                threw = true;
+              }
+              if (!threw) fail(`remoteScrollbackArgv composed ${JSON.stringify(out).slice(0, 160)} for ${what} on the ${road} road; it throws before any argv exists, so nothing but a $N and two checked whole numbers reaches the far tmux (D9, D10).`);
             }
-            if (!threw) fail(`remoteScrollbackArgv composed ${JSON.stringify(out).slice(0, 160)} for ${what}; it throws before any argv exists, so nothing but a $N and two checked whole numbers reaches the far tmux (D9, D10).`);
           }
         }
       }

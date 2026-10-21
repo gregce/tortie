@@ -84,6 +84,23 @@
 // answer 5, "no face id to start a session"). See a sample answers one that
 // sends nothing (Sample/SampleReader.swift). A start's result becomes a
 // sentence in `startSentence`.
+//
+// REMOVE (Phase 348, build/p348/SPEC.md D4 to D11, D55). A paired reader also
+// answers `remover`, which removes ONE session that has ended through
+// `POST /v1/remove`. `remover` is a REQUIREMENT of `DoorReading`, for the same
+// reason as `writer`, and its extension default is nil, so a reader that
+// removes nothing (every test fake before this phase) draws no Remove. Its one
+// caller is `RemoveRunner.run` (Screens/Remove.swift). It asks NO Face ID,
+// Touch ID or passcode, only the Mac's own confirmation (his ruling of
+// 2026-10-18, "No Face ID, just confirm"). See a sample answers one that sends
+// nothing. A Remove's result becomes a sentence in `removeSentence`.
+//
+// PASTE (Phase 348, D19 to D22, D30, D54). A Screen door also takes ONE paste
+// of his clipboard's text (`paste`), on its kept typing line beside the keys,
+// and says whether it can (`pastes`). Both are REQUIREMENTS of `ScreenDoor`
+// with defaults that paste nothing (`.notSent(.notPaired)` and `false`), so a
+// test fake compiles untouched and offers no Paste. A paste asks no Face ID,
+// as no key does; its result becomes a sentence in `pasteSentence`.
 
 import Foundation
 
@@ -114,6 +131,9 @@ protocol DoorReading: Sendable {
     /// The start this pairing can make (Phase 346), or nil when it makes
     /// none. A requirement, so `any DoorReading` reads the reader's own.
     var starter: (any DoorStarting)? { get }
+    /// The Remove this pairing can make (Phase 348, D55), or nil when it
+    /// makes none. A requirement, so `any DoorReading` reads the reader's own.
+    var remover: (any DoorRemoving)? { get }
 }
 
 extension DoorReading {
@@ -122,6 +142,9 @@ extension DoorReading {
 
     /// A reader that starts nothing: no "+" (Phase 346).
     var starter: (any DoorStarting)? { nil }
+
+    /// A reader that removes nothing: no Remove (Phase 348).
+    var remover: (any DoorRemoving)? { nil }
 
     /// A reader with no Screen: none is drawn.
     func screenDoor(_ sessionId: String) -> (any ScreenDoor)? { nil }
@@ -160,6 +183,14 @@ protocol DoorStarting: Sendable {
     func start(project: String, agent: String, write: String?) async -> SentStart
 }
 
+/// Remove (Phase 348, D55): ONE session that has ended, on the reader's Mac,
+/// sent at most once and never retried, with a fresh write id every press and
+/// none kept, asking no owner check (his ruling, "No Face ID, just confirm").
+protocol DoorRemoving: Sendable {
+    /// `POST /v1/remove`. The ONE caller in the app is `RemoveRunner.run`.
+    func remove(_ sessionId: String) async -> RemoveResult
+}
+
 /// One session's Terminal, through the door (Phase 337): the long poll and
 /// the keys, each on a connection of its own that it keeps between requests;
 /// and since Phase 337.1 (build/p3371/SPEC.md D30) a third kept connection,
@@ -181,8 +212,25 @@ protocol ScreenDoor: AnyObject, Sendable {
     func session() async throws -> PocketSessionAnswer
     /// Whether this door takes keys at all (a pairing that writes).
     var writes: Bool { get }
+    /// `POST /v1/paste` (Phase 348, D54): ONE paste of his clipboard's text,
+    /// echoing the question id and the window's mark of the picture he pasted
+    /// against, on the keys' kept line. Never retried and never split. The
+    /// ONE caller in the app is `ScreenKeySender`.
+    func paste(_ text: String, turn: String, dialog: String?) async -> PasteResult
+    /// Whether this door takes a paste at all (a pairing that writes).
+    var pastes: Bool { get }
     /// Close every kept connection now (the Terminal went away, or the app).
     func close()
+}
+
+extension ScreenDoor {
+    /// A door with no paste: nothing is sent, and nothing was.
+    func paste(_ text: String, turn: String, dialog: String?) async -> PasteResult {
+        .notSent(.notPaired)
+    }
+
+    /// A door with no paste offers none.
+    var pastes: Bool { false }
 }
 
 /// How a pairing ended, for the screen.
@@ -510,6 +558,56 @@ enum DoorWords {
             return Copy.startNoAnswer
         case .notSent(let failure):
             return failure == .cancelled ? Copy.startNotTaken : sentence(for: failure)
+        }
+    }
+
+    /// A Remove's line for its result (Phase 348, D55): ALWAYS a sentence,
+    /// never empty (conformance:ios rule v). A `done` Remove draws nothing
+    /// (the screen goes back to the list, where the session is gone); its word
+    /// here is the Mac's own `Remove`, which is what it did. An answered
+    /// refusal, failure or busy is the Mac's own sentence. A 404 and a Remove
+    /// withheld because the app left are both `Your Mac did not remove it.
+    /// Nothing was changed.`, which is true of each; no answer is End's own
+    /// line, whose words are true of any write; anything else not sent says
+    /// why.
+    static func removeSentence(for result: RemoveResult) -> String {
+        switch result {
+        case .answered(let answer):
+            guard answer.outcome != .done else { return Copy.remove }
+            // The decoder refuses a non-done answer with no sentence or an
+            // empty one, so this is the Mac's own sentence.
+            return answer.sentence ?? Copy.answerUnreadable
+        case .notTaken:
+            return Copy.removeNotTaken
+        case .noAnswer:
+            return Copy.endNoAnswer
+        case .notSent(let failure):
+            return failure == .cancelled ? Copy.removeNotTaken : sentence(for: failure)
+        }
+    }
+
+    /// A paste's line on the Terminal for its result (Phase 348, D54): ALWAYS
+    /// a sentence, never empty (conformance:ios rule v). A `done` paste draws
+    /// nothing (the next picture is the echo), and its word here is a
+    /// message's `Sent`, as a keys write's is. An answered refusal is the
+    /// Mac's own sentence (`Tortie pastes only into sessions on this Mac.…`,
+    /// the question lock's `The question on this session changed…`); a 404
+    /// and a paste withheld because the app left are both `Your Mac did not
+    /// take it. Nothing was pasted.`, which is true of each; no answer is
+    /// End's own line, whose words are true of any write.
+    static func pasteSentence(for result: PasteResult) -> String {
+        switch result {
+        case .answered(let answer):
+            guard answer.outcome != .done else { return Copy.replySent }
+            // The decoder refuses a non-done answer with no sentence or an
+            // empty one, so this is the Mac's own sentence.
+            return answer.sentence ?? Copy.answerUnreadable
+        case .notTaken:
+            return Copy.pasteNotTaken
+        case .noAnswer:
+            return Copy.endNoAnswer
+        case .notSent(let failure):
+            return failure == .cancelled ? Copy.pasteNotTaken : sentence(for: failure)
         }
     }
 

@@ -11,7 +11,7 @@ body { margin: 0; }
 .seg { display: flex; margin: 0 16px 8px 16px; padding: 2px; background: #191B20; border: 1px solid #25282E; border-radius: 9px; flex-shrink: 0; }
 .seg button { flex: 1; height: 28px; border: 0; border-radius: 7px; background: none; font: inherit; font-size: 13px; font-weight: 500; color: #9CA1AB; cursor: pointer; }
 .seg button.on { background: #202329; color: #C9CACD; }
-.menu { position: absolute; top: 88px; right: 16px; width: 250px; background: #202329; border: 1px solid #353943; border-radius: 12px; overflow: hidden; }
+.menu { position: absolute; top: 96px; left: 16px; width: 250px; background: #202329; border: 1px solid #353943; border-radius: 12px; overflow: hidden; }
 .item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #353943; }
 .item:last-child { border-bottom: 0; }
 .item-name { font-size: 17px; line-height: 22px; color: #C9CACD; }
@@ -20,6 +20,14 @@ body { margin: 0; }
 .gap { height: 8px; background: #191B20; border-bottom: 1px solid #353943; }
 .dim { position: absolute; inset: 0; background: rgba(9, 10, 12, 0.55); }
 a { color: #4d9de8; }
+/* Phase 348 (build/p348/SPEC.md §4.5, D16, D37): the iPhone's own bar, as on
+   Main.html; the large title in --text-primary here, the system's own colour
+   in the app. */
+.navbar { height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; flex-shrink: 0; }
+.glass { display: flex; align-items: center; gap: 16px; height: 36px; box-sizing: border-box; padding: 0 12px; background: #191B20; border: 1px solid #25282E; border-radius: 18px; }
+.glass button { display: flex; align-items: center; justify-content: center; min-width: 44px; height: 34px; background: none; border: 0; padding: 0; font: inherit; font-size: 17px; color: #4d9de8; cursor: pointer; }
+.plus { display: flex; align-items: center; justify-content: center; width: 50px; height: 36px; box-sizing: border-box; border: 0; border-radius: 18px; background: #4d9de8; cursor: pointer; }
+.large { padding: 2px 16px 10px 16px; font-size: 34px; line-height: 41px; font-weight: 700; color: #C9CACD; flex-shrink: 0; }
 .tabbar { flex-shrink: 0; height: 83px; box-sizing: border-box; padding-top: 7px; background: #191B20; border-top: 1px solid #25282E; display: flex; }
 .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; color: #838996; text-decoration: none; }
 .tab.on { color: #4d9de8; }
@@ -36,19 +44,24 @@ a { color: #4d9de8; }
      clears both filters. The menu is iOS's own, so its material and metrics are
      the system's; its words are the phone's. Under it, the face the list draws
      when the words keep nothing: "No matching sessions" and the same Clear
-     filters. The menu button is filled while a filter is set. Show, Group by and
-     Sort by are remembered across launches; a filter lasts until the app quits.
-     There is no search. -->
+     filters. Show, Group by and Sort by are remembered across launches; a
+     filter lasts until the app quits. There is no search. Since Phase 348 the
+     menu's button sits at the bar's leading edge, after Select when Select is
+     drawn (it is not here: no row is left to end), and the "+" alone at the
+     trailing edge; on iOS 26 the bar draws its own glass round the bare glyph,
+     and on iOS 18 the glyph's circle is filled while a filter is set, as it was
+     before. -->
 <div class="t" style="width: 390px; height: 844px; box-sizing: border-box; background: #0E0F13; color: #C9CACD; display: flex; flex-direction: column; overflow: hidden; position: relative;">
 
   <div style="height: 44px; flex-shrink: 0;"></div>
 
-  <div style="display: flex; align-items: flex-end; justify-content: space-between; padding: 0 16px 8px 16px; flex-shrink: 0;">
-    <div style="font-size: 28px; line-height: 34px; font-weight: 600; color: #C9CACD;">Sessions</div>
-    <div style="display: flex; align-items: center; gap: 16px; padding-bottom: 4px;">
-      <button type="button" aria-label="Group, sort and filter" style="background: none; border: 0; padding: 0; width: 22px; height: 22px; cursor: pointer;"><svg width="22" height="22" viewBox="0 0 22 22"><circle cx="11" cy="11" r="10.5" fill="#4d9de8"></circle><path d="M6 8h10M8 11h6M10 14h2" stroke="#0E0F13" stroke-width="1.5"></path></svg></button>
+  <div class="navbar">
+    <div class="glass">
+      <button type="button" aria-label="Group, sort and filter"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#4d9de8" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h16M6 11h10M9 16h4"></path></svg></button>
     </div>
+    <button type="button" class="plus" aria-label="New session"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#0E0F13" stroke-width="2.2" stroke-linecap="round"><path d="M9 3v12M3 9h12"></path></svg></button>
   </div>
+  <div class="large">Sessions</div>
 
   <div class="seg">
     <button type="button">All</button>

@@ -12,10 +12,12 @@
  * store, the confirm record, the gate, the push's destinations.
  *
  * PHASE 346 (build/p346/SPEC.md D2) added the first real route outside the
- * eleven, `start`. The mocked copy LEAVES IT OUT, so the unplanted table is
- * the eleven every row below was written over and `probe` stays the one route
- * that waits here; `start`'s own wait, over the real table, is driven in
- * `./p346-start-key.test.ts`, by these same shipping functions.
+ * eleven, `start`, and PHASE 348 (build/p348/SPEC.md D26) two more, `remove`
+ * and `paste`. The mocked copy LEAVES OUT every route outside the eleven, so
+ * the unplanted table is the eleven every row below was written over and
+ * `probe` stays the one route that waits here; `start`'s own wait, over the
+ * real table, is driven in `./p346-start-key.test.ts`, and Remove's and
+ * paste's in `./p348-remove-write.test.ts`, by these same shipping functions.
  *
  * THE MOCKS ARE `./ipc.test.ts`'s, cut down: `electron` with a reversible
  * seal that RECORDS which seal each write went under (so the record-then-store
@@ -134,8 +136,12 @@ const hoisted = vi.hoisted(() => ({ routes: [] as unknown[] }));
 
 vi.mock('../door/table', async (importOriginal) => {
   const real = await importOriginal<typeof import('../door/table')>();
-  // Phase 346: the real table less `start`, the eleven these rows were written over.
-  hoisted.routes.splice(0, hoisted.routes.length, ...real.POCKET_ROUTES.filter((r) => r.id !== 'start'));
+  // Phase 346: the real table less `start`; Phase 348: less every route
+  // outside the eleven (`start`, `remove`, `paste`), the eleven these rows
+  // were written over.
+  const { LEGACY_ALLOWED_ROUTES } = await import('@shared/ipc/pocket');
+  const eleven: readonly string[] = LEGACY_ALLOWED_ROUTES;
+  hoisted.routes.splice(0, hoisted.routes.length, ...real.POCKET_ROUTES.filter((r) => eleven.includes(r.id)));
   const routes = hoisted.routes as PocketRoute[];
   return {
     ...real,

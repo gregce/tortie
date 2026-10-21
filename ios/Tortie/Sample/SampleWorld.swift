@@ -8,10 +8,16 @@
 // composed by the Mac's own code and is read out of the book; this actor only
 // moves the variants, the way the door's writes move a real session:
 //
-//   endSession    any variant to `ended`; an ended one stays ended (D11)
+//   endSession    any variant to `ended`; an ended one stays ended (D11),
+//                 and a removed one is not taken
 //   pressOption   a `waiting` session whose offer lists the marker to
 //                 `answered`; anything else is not taken (D10)
 //   typeKeys      the echo below, on the sample's own prompt (D7)
+//   removeEnded   (Phase 348, D11) an `ended` session to `removed`, which the
+//                 book's lists do not hold, so the made-up session leaves
+//                 them; anything else is not taken
+//   pasteText     (Phase 348, D34) the echo below, the paste's text as typed
+//                 text is echoed, a line feed as its Return
 //
 // Its members are named so that no conformance:ios rule reads them as the
 // writer's own calls (rules ab and ae count those, one each, in the app).
@@ -100,6 +106,9 @@ actor SampleWorld {
         static let answered = "answered"
         static let live = "live"
         static let ended = "ended"
+        /// Phase 348: removed, after it ended. The book holds no session,
+        /// turns or screen answer for it, and no list holds its row.
+        static let removed = "removed"
     }
 
     /// How long a read of the picture already drawn is held, as the door holds
@@ -173,9 +182,10 @@ actor SampleWorld {
 
     // MARK: - The writes
 
-    /// End: any variant to `ended`.
+    /// End: any variant to `ended`; a removed session is gone, so not taken.
     func endSession(_ id: String) -> WriteResult {
-        guard var session = held[id], book.variants[id]?.contains(Variant.ended) == true else { return .notTaken }
+        guard var session = held[id], session.variant != Variant.removed,
+              book.variants[id]?.contains(Variant.ended) == true else { return .notTaken }
         if session.variant != Variant.ended {
             Self.move(&session, to: Variant.ended)
             held[id] = session
@@ -192,6 +202,40 @@ actor SampleWorld {
         Self.move(&session, to: Variant.answered)
         held[id] = session
         return Self.done(.choose, id)
+    }
+
+    /// Remove (Phase 348, D11): an ended session to `removed`, so it leaves
+    /// the lists, which the book composed without it. Anything else is not
+    /// taken. Nothing leaves the phone.
+    func removeEnded(_ id: String) -> RemoveResult {
+        guard var session = held[id], session.variant == Variant.ended,
+              book.variants[id]?.contains(Variant.removed) == true else { return .notTaken }
+        Self.move(&session, to: Variant.removed)
+        held[id] = session
+        return .answered(PocketRemoveAnswer(verb: PocketRemoveAnswer.verbWord, write: id, outcome: .done, reason: nil, sentence: nil))
+    }
+
+    /// One paste (Phase 348, D34), echoed on the sample's own prompt exactly
+    /// as typed text is, its line feed as its Return. Nothing leaves the
+    /// phone.
+    func pasteText(_ id: String, _ text: String) -> PasteResult {
+        guard var session = held[id], let screen = try? bookScreen(id, session.variant),
+              let drawn = screen.answer.screen else { return .notTaken }
+        if let rows = screen.rows {
+            let room = DoorNumber.difference(drawn.screenColumns, rows.prompt.column) ?? 0
+            for scalar in text.unicodeScalars {
+                if scalar.value == Self.lineFeed {
+                    session.echo.pressReturn()
+                } else if Self.echoes(scalar) {
+                    session.echo.add(String(scalar), room: room)
+                }
+            }
+        }
+        session.echo.moved()
+        session.writes = DoorNumber.sum(session.writes, 1) ?? session.writes
+        session.changes = DoorNumber.sum(session.changes, 1) ?? session.changes
+        held[id] = session
+        return .answered(PocketPasteAnswer(verb: PocketPasteAnswer.verbWord, write: id, outcome: .done, reason: nil, sentence: nil))
     }
 
     /// One keys write, echoed on the sample's own prompt.
@@ -253,6 +297,8 @@ actor SampleWorld {
     /// not hold together.
     func page(_ id: String, from: Int, count: Int, depth: Int, wrap: Int) throws -> PocketScrollbackAnswer {
         let variant = try variant(of: id)
+        // A removed session has no history to page (Phase 348).
+        guard variant != Variant.removed else { throw DoorFailure.refused }
         let at = now()
         if variant == Variant.ended {
             return try book.pageEnded(id: id, at: at)
@@ -346,7 +392,8 @@ actor SampleWorld {
             screenColumns: screen.screenColumns, screenRows: screen.screenRows, cursor: cursor,
             alternate: screen.alternate, ground: screen.ground, ink: screen.ink, caret: screen.caret,
             styles: screen.styles, lines: lines, turn: turn, asking: screen.asking, dialog: screen.dialog,
-            typable: screen.typable, historyDepth: screen.historyDepth, space: screen.space
+            typable: screen.typable, historyDepth: screen.historyDepth, space: screen.space,
+            paste: screen.paste, wraps: screen.wraps
         )
     }
 
@@ -371,6 +418,11 @@ actor SampleWorld {
         let pad = String(repeating: "0", count: DoorNumber.difference(revisionLength, hex.utf8.count) ?? 0)
         return String("\(pad)\(hex)".suffix(revisionLength))
     }
+
+    /// LF's code point: a paste's line break, which the prompt echoes as its
+    /// Return (Phase 348, D34). A number, so the sample holds no instance
+    /// past itself (rule az8).
+    static let lineFeed: UInt32 = 0x0a
 
     /// U+0020 to U+007E: a character the prompt echoes as one cell.
     static func echoes(_ scalar: Unicode.Scalar) -> Bool {

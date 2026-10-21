@@ -112,7 +112,8 @@ function rig(): Rig {
     clock: 5_000_000,
     paired: new Set(['phone-a', 'phone-b']),
     quitting: false,
-    served: new Set(['end', 'choose', 'say', 'keys', 'start']),
+    // Every write route this build serves (Phase 348 appended remove and paste after start).
+    served: new Set(['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste']),
     startWith: async () => DONE,
     endWith: async () => ({ outcome: 'done' })
   };
@@ -131,6 +132,15 @@ function rig(): Rig {
     },
     keys: async () => {
       self.others.push('keys');
+      return { outcome: 'done' };
+    },
+    // Phase 348's Remove and paste, recorded like the other session verbs.
+    remove: async () => {
+      self.others.push('remove');
+      return { outcome: 'done' };
+    },
+    paste: async () => {
+      self.others.push('paste');
       return { outcome: 'done' };
     },
     start: (input, still) => {

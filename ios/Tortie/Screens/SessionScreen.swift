@@ -35,6 +35,11 @@
 // press shows the Mac's own confirmation, from one modifier, and asks Face ID,
 // Touch ID or the passcode before anything is sent.
 //
+// REMOVE (Phase 348, Screens/Remove.swift): once End is done and the Mac
+// offers Remove, Remove takes End's place in the ⋯ and at Catch Me Up's top
+// right, shows the Mac's own confirmation, and asks NO Face ID (his ruling,
+// "No Face ID, just confirm"); done, the page goes back to the list.
+//
 // REPLY (Phase 318, Screens/Reply.swift, Screens/MessageStrip.swift): pressing
 // an option the Mac offers, on the Terminal's tray or on the now card, and one
 // message from a box at the foot of Catch Me Up while the session waits at its
@@ -74,6 +79,10 @@ struct SessionDrawing: Equatable, Sendable {
     /// for it (Phase 317): `.none` and nil from a Mac older than 317.
     let end: PocketEndOffer
     let endConfirm: PocketEndConfirm?
+    /// The Mac's own Remove confirmation (Phase 348, D49): present exactly
+    /// when the Mac serves `remove` and offers Remove on this session now,
+    /// which is once it has ended; nil from a Mac older than 348.
+    let removeConfirm: PocketEndConfirm?
     /// What may be pressed or sent (Phase 318): the empty offer from a Mac
     /// older than 318, and from one whose offer did not agree with itself.
     let reply: PocketReplyOffer
@@ -101,6 +110,7 @@ struct SessionDrawing: Equatable, Sendable {
         lastAnswerRendered = detail.lastAnswer.map(RenderedAnswer.init)
         end = detail.end
         endConfirm = detail.endConfirm
+        removeConfirm = detail.removeConfirm
         reply = detail.replyOffer
         screen = detail.drawsScreen
     }
@@ -425,8 +435,9 @@ struct TerminalPage: View {
             // itself past that: a CGFloat times a floating literal.
             ChoiceTray(drawing: drawing, reply: reply, cap: pageHeight * 0.4) { await session.load() }
         } trailing: {
-            // One ⋯: Catch Me Up, then End session… (Phase 337.3, D21).
-            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }
+            // One ⋯: Catch Me Up, then End session…, or Remove once End is
+            // done (Phase 337.3, D21; Phase 348, D33).
+            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, removeConfirm: drawing.removeConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { pageHeight = $0 }
         .onAppear { follow.appeared() }
@@ -452,14 +463,17 @@ struct TerminalMenu: ToolbarContent {
     let end: EndModel?
     let offer: PocketEndOffer
     let confirm: PocketEndConfirm?
-    /// Read the session again, after End.
+    /// The Mac's Remove confirmation (Phase 348), or nil: Remove is drawn in
+    /// End session…'s place only with it.
+    let removeConfirm: PocketEndConfirm?
+    /// Read the session again, after End or Remove.
     let reread: @MainActor () async -> Bool
     /// Push Catch Me Up.
     let openCatchUp: () -> Void
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
-            TerminalMenuControl(end: end, offer: offer, confirm: confirm, reread: reread, openCatchUp: openCatchUp)
+            TerminalMenuControl(end: end, offer: offer, confirm: confirm, removeConfirm: removeConfirm, reread: reread, openCatchUp: openCatchUp)
         }
     }
 }
@@ -477,14 +491,23 @@ struct TerminalMenu: ToolbarContent {
 /// anything is sent: nothing here names the owner check. While End is under
 /// way a progress mark sits left of the ⋯, so the bar never looks idle while
 /// a session is ending.
+///
+/// ONCE END IS DONE (Phase 348, D33): where the menu draws no End and the Mac
+/// offers Remove, Remove is its second item, in End session…'s place, behind
+/// the Mac's own Remove confirmation (Screens/Remove.swift), which asks no
+/// owner check; `remove-writing` sits left of the ⋯ while its write runs.
 struct TerminalMenuControl: View {
     let end: EndModel?
     let offer: PocketEndOffer
     let confirm: PocketEndConfirm?
+    /// The Mac's Remove confirmation (Phase 348), or nil.
+    var removeConfirm: PocketEndConfirm? = nil
     let reread: @MainActor () async -> Bool
     let openCatchUp: () -> Void
     /// The Mac's confirmation is up.
     @State private var asking = false
+    /// The Mac's Remove confirmation is up (Phase 348).
+    @State private var removeAsked = false
 
     /// SF Symbols' `ellipsis` on iOS 26 and later, where the bar draws its own
     /// glass circle around an item, and `ellipsis.circle` before it.
@@ -508,6 +531,20 @@ struct TerminalMenuControl: View {
         return nil
     }
 
+    /// The progress mark's identifier while a Remove's write runs (Phase 348,
+    /// D33): `remove-writing`, or nil. Asked only after End's own mark, which
+    /// comes first; the two never run at once, because Remove is drawn only
+    /// where the Mac offers no End.
+    nonisolated static func removeMark(_ removal: RemoveDrawing?) -> String? {
+        removal?.writing == true ? ID.removeWriting : nil
+    }
+
+    /// Remove as the menu draws it (Phase 348, D33): exactly where the menu
+    /// draws no End row and `RemoveDrawing` draws one, or nil.
+    static func removeDrawing(_ end: EndModel?, offer: PocketEndOffer, removeConfirm: PocketEndConfirm?) -> RemoveDrawing? {
+        RemoveDrawing.of(end?.remove, offer: offer, confirm: removeConfirm)
+    }
+
     /// End as drawn now, read from its model exactly as `EndTopControl` reads
     /// it, or nil for a pairing that writes nothing.
     static func drawing(_ end: EndModel?, offer: PocketEndOffer, confirm: PocketEndConfirm?) -> EndBarDrawing? {
@@ -516,8 +553,9 @@ struct TerminalMenuControl: View {
 
     var body: some View {
         let drawing = TerminalMenuControl.drawing(end, offer: offer, confirm: confirm)
+        let removal = TerminalMenuControl.removeDrawing(end, offer: offer, removeConfirm: removeConfirm)
         HStack(spacing: 4) {
-            if let mark = TerminalMenuControl.progressMark(drawing) {
+            if let mark = TerminalMenuControl.progressMark(drawing) ?? TerminalMenuControl.removeMark(removal) {
                 ProgressView()
                     .tint(Tokens.textMuted)
                     .accessibilityIdentifier(mark)
@@ -532,6 +570,11 @@ struct TerminalMenuControl: View {
                         guard drawing.confirm != nil else { return }
                         asking = true
                     }
+                } else if let removal {
+                    RemoveMenuItem(drawing: removal) {
+                        guard removal.confirm != nil else { return }
+                        removeAsked = true
+                    }
                 }
             } label: {
                 Image(systemName: TerminalMenuControl.symbol)
@@ -541,6 +584,7 @@ struct TerminalMenuControl: View {
             .accessibilityIdentifier(ID.terminalMenu)
             .endConfirmation(model: end, offer: offer, confirm: confirm, drawing: drawing, isPresented: $asking, reread: reread)
         }
+        .removeConfirmation(model: end?.remove, drawing: removal, isPresented: $removeAsked, reread: reread)
     }
 }
 
@@ -670,6 +714,11 @@ struct CatchUpPage: View {
             model: conversation, honestLine: honestLine, session: session, end: end, reply: reply,
             name: name, isTop: isTop, foregroundTick: foregroundTick
         )
+        .toolbar {
+            // Remove, in End's place at the top right once End is done
+            // (Phase 348, D33); End's own item draws nothing then.
+            RemoveTopItem(model: end?.remove, offer: session.latest?.end ?? PocketEndOffer.none, confirm: session.latest?.removeConfirm) { await session.load() }
+        }
     }
 }
 

@@ -77,7 +77,9 @@
 // fail and every other drag scrolls as before; a tap on the selection shows
 // its edit menu, a tap elsewhere clears it (`ScreenSelecting.tap`). Every
 // layout pass hands the content its geometry and, when it redraws the rows,
-// tells it so (`laidOut()`).
+// tells it so (`laidOut()`). Since Phase 348 (build/p348/SPEC.md D39 to D42)
+// it also tells the content whether the page offers Paste, hands the menu's
+// Paste to the page, and reads each row's mark for the text UIKit reads.
 //
 // THE DESIGN IS PASEO'S (packages/app/src/terminal/native-renderer/
 // headless-terminal-state.ts and terminal-scrollback.test.ts at
@@ -104,6 +106,12 @@ struct ScreenScrollerActions {
     let copy: @MainActor () -> Void
     /// The keyboard's overlap of the Terminal, in points, once per change.
     let overlap: @MainActor (CGFloat) -> Void
+    /// Whether the edit menu offers Paste now (Phase 348, D30): false unless
+    /// the page says the Mac takes a paste.
+    var pasteOffered: @MainActor () -> Bool = { false }
+    /// The edit menu's Paste was pressed, with the clipboard's text (Phase
+    /// 348, D40): the page's one paste.
+    var paste: @MainActor (String) -> Void = { _ in }
 }
 
 /// The Terminal's scroll view, for SwiftUI.
@@ -298,8 +306,16 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
         }
         contentView.events = ScreenTextEvents(
             select: { [weak self] range in self?.actions?.select(range) },
-            copy: { [weak self] in self?.actions?.copy() }
+            copy: { [weak self] in self?.actions?.copy() },
+            pasteOffered: { [weak self] in self?.actions?.pasteOffered() ?? false },
+            paste: { [weak self] payload in self?.actions?.paste(payload) }
         )
+        // Each row's mark by absolute index (Phase 348, D46), from the same
+        // rows the cells come from.
+        contentView.wrapped = { [weak self] index in
+            guard let self else { return false }
+            return self.scrollback.row(at: index, picture: self.picture)?.wrapped ?? false
+        }
     }
 
     /// The cell under a point of the content, by arithmetic: the row is the

@@ -387,6 +387,70 @@ final class ScreenTextInputTests: XCTestCase {
         XCTAssertFalse(content.menuShown, "the old menu kept under a new press")
     }
 
+    // MARK: Paste and the marks, through the scroll view (Phase 348)
+
+    /// Clause (Phase 348, build/p348/SPEC.md D30, D39, D40, D42, D46): the
+    /// scroll view hands its content the page's own word on paste, the page's
+    /// one paste and each row's mark by absolute index. While the page says
+    /// the Mac takes a paste, the menu over drawn rows is Copy then iOS's own
+    /// paste command, the content takes the command only while the clipboard
+    /// holds text, and the clipboard's text goes to the page's paste, once;
+    /// once the page says it takes none, and with the actions' own defaults
+    /// (a page that says nothing of paste), the menu is Copy alone and the
+    /// command is not taken; and a row the Mac marked reads as marked through
+    /// the content, its neighbours not.
+    func testTheScrollViewHandsTheContentThePagesPasteAndEachRowsMark() throws {
+        let (view, history) = try mounted()
+        let content = view.contentView
+        var offered = true
+        var pasted: [String] = []
+        view.actions = ScreenScrollerActions(
+            tap: { _ in },
+            select: { [weak view] range in view?.selection = range },
+            copy: {},
+            overlap: { _ in },
+            pasteOffered: { offered },
+            paste: { pasted.append($0) }
+        )
+        let live = history.layout.live
+        press(view, row: live + 2, column: 20)
+        let shown = try menu(content)
+        XCTAssertEqual(shown.children.count, 2, "the menu holds \(shown.children.map(\.title))")
+        XCTAssertEqual((shown.children.first as? UIAction)?.title, Copy.copy)
+        let command = try XCTUnwrap(shown.children.last as? UICommand, "the menu's Paste is not iOS's own command")
+        XCTAssertFalse(shown.children.last is UIAction, "the menu's Paste is a UIAction, which raises iOS's Allow Paste alert")
+        XCTAssertEqual(command.action, #selector(UIResponderStandardEditActions.paste(_:)))
+        XCTAssertEqual(command.accessibilityIdentifier, ID.screenPaste)
+        let paste = #selector(UIResponderStandardEditActions.paste(_:))
+        UIPasteboard.general.string = "p348 scroller"
+        XCTAssertTrue(content.canPerformAction(paste, withSender: nil), "the command is not taken while the page says the Mac takes a paste")
+        content.paste(nil)
+        XCTAssertEqual(pasted, ["p348 scroller"], "the command's read did not reach the page's one paste, once")
+        offered = false
+        XCTAssertEqual(try menu(content).children.count, 1, "Paste offered where the page says the Mac takes none")
+        XCTAssertFalse(content.canPerformAction(paste, withSender: nil))
+        view.actions = ScreenScrollerActions(tap: { _ in }, select: { [weak view] range in view?.selection = range }, copy: {}, overlap: { _ in })
+        XCTAssertEqual(try menu(content).children.count, 1, "Paste offered by a page that says nothing of paste")
+        XCTAssertFalse(content.canPerformAction(paste, withSender: nil))
+        UIPasteboard.general.items = []
+        content.paste(nil)
+        XCTAssertEqual(pasted.count, 1, "a paste went to the page over an empty clipboard, or from a page that takes none")
+        // Each row's mark, by absolute index, from the rows the cells come from.
+        XCTAssertFalse(content.wrapped(live + 3), "a row of a picture the Mac marked nothing on reads as marked")
+        var answer = try Self.committedAnswer()
+        var screen = try XCTUnwrap(answer["screen"] as? [String: Any])
+        screen["wraps"] = [3]
+        answer["screen"] = screen
+        let decoded = try ScreenSample.decode(answer)
+        let marked = ScreenPicture(try XCTUnwrap(decoded.screen), revision: decoded.revision)
+        history.picture(marked)
+        view.picture = marked
+        view.layoutIfNeeded()
+        XCTAssertTrue(content.wrapped(live + 3), "the content does not read the row the Mac marked")
+        XCTAssertFalse(content.wrapped(live + 2))
+        XCTAssertFalse(content.wrapped(live + 4))
+    }
+
     // MARK: The handles (D5)
 
     /// Clause (D5): a drag that starts on the end caret moves the end cell by

@@ -40,14 +40,28 @@
  * (`splitScrollbackRead`); ../screen/scrollback.ts decides everything else.
  *
  * NOTHING SIZES ANYTHING (D7), it logs nothing and it reads no error's text.
+ *
+ * THE WRAP MARKS (Phase 348, build/p348/SPEC.md §4.6 step 15, D44) ride the
+ * same ONE exec, by the road the marks' owner hands in from the version this
+ * run noted for the machine (`farServerVersion`, ./far-tmux.ts): on `flags`
+ * the styled capture takes `-F` and nothing else moves; on `fallback` the
+ * range's `capture-pane -p -T -N` and `capture-pane -p -J` sit between the
+ * styled capture and the second display, and the answer is SPLIT BY COUNT
+ * FROM BOTH ENDS. Every one is still a `capture-pane -p` read on the exec
+ * plane's ledger. A marked exec that fails, or whose answer is not split, is
+ * taken once more without marks, and when that one answers the owner is told,
+ * so a wrong version costs the marks and never the Terminal.
  */
 
 import {
   agree,
   parseScreenDisplay,
   SCREEN_FORMAT,
+  splitScrollbackMarkedRead,
   splitScrollbackRead,
+  type MarksRoad,
   type PageRound,
+  type ScreenMarks,
   type ScreenReading
 } from '../screen/read';
 import { execOn } from './exec-plane';
@@ -60,8 +74,17 @@ import { SCROLL_TARGET } from './scroll-shapes';
  * and the display once more, aimed at a `$N` (D6). Throws for any other
  * target, which is a programming error and never a person's input.
  */
-export function remoteScreenArgv(tmuxId: string): string[] {
+export function remoteScreenArgv(tmuxId: string, road: MarksRoad = 'none'): string[] {
   if (!SCROLL_TARGET.test(tmuxId)) throw new Error('a remote screen read is aimed at a $N session id');
+  if (road === 'flags') {
+    return ['display-message', '-p', '-t', tmuxId, SCREEN_FORMAT, ';', 'capture-pane', '-p', '-e', '-F', '-t', tmuxId, ';',
+      'display-message', '-p', '-t', tmuxId, SCREEN_FORMAT];
+  }
+  if (road === 'fallback') {
+    return ['display-message', '-p', '-t', tmuxId, SCREEN_FORMAT, ';', 'capture-pane', '-p', '-e', '-t', tmuxId, ';',
+      'capture-pane', '-p', '-T', '-N', '-t', tmuxId, ';', 'capture-pane', '-p', '-J', '-t', tmuxId, ';',
+      'display-message', '-p', '-t', tmuxId, SCREEN_FORMAT];
+  }
   return ['display-message', '-p', '-t', tmuxId, SCREEN_FORMAT, ';', 'capture-pane', '-p', '-e', '-t', tmuxId, ';',
     'display-message', '-p', '-t', tmuxId, SCREEN_FORMAT];
 }
@@ -86,13 +109,31 @@ function wholeNumber(n: number): string {
  * here again; anything else, or another target, throws before an argv exists.
  * Nothing composes a display-only round (§Attack B2).
  */
-export function remoteScrollbackArgv(tmuxId: string, a: number, b: number): string[] {
+export function remoteScrollbackArgv(tmuxId: string, a: number, b: number, road: MarksRoad = 'none'): string[] {
   if (!SCROLL_TARGET.test(tmuxId)) throw new Error('a remote page read is aimed at a $N session id');
   const start = wholeNumber(a);
   const end = wholeNumber(b);
+  if (road === 'flags') {
+    return ['display-message', '-p', '-t', tmuxId, SCREEN_FORMAT, ';',
+      'capture-pane', '-p', '-e', '-F', '-t', tmuxId, '-S', start, '-E', end, ';',
+      'display-message', '-p', '-t', tmuxId, SCREEN_FORMAT];
+  }
+  if (road === 'fallback') {
+    return ['display-message', '-p', '-t', tmuxId, SCREEN_FORMAT, ';',
+      'capture-pane', '-p', '-e', '-t', tmuxId, '-S', start, '-E', end, ';',
+      'capture-pane', '-p', '-T', '-N', '-t', tmuxId, '-S', start, '-E', end, ';',
+      'capture-pane', '-p', '-J', '-t', tmuxId, '-S', start, '-E', end, ';',
+      'display-message', '-p', '-t', tmuxId, SCREEN_FORMAT];
+  }
   return ['display-message', '-p', '-t', tmuxId, SCREEN_FORMAT, ';',
     'capture-pane', '-p', '-e', '-t', tmuxId, '-S', start, '-E', end, ';',
     'display-message', '-p', '-t', tmuxId, SCREEN_FORMAT];
+}
+
+/** The marks' owner as a far read asks it (Phase 348, D44): a machine's road now, and a refusal noted. */
+export interface FarMarksRoads {
+  road(machineId: string): MarksRoad;
+  refused(machineId: string): void;
 }
 
 /**
@@ -101,9 +142,52 @@ export function remoteScrollbackArgv(tmuxId: string, a: number, b: number): stri
  * the display, the rest the capture, the first display line left out when it
  * is one) with `steady: false`. Null when no last line is a display. An
  * unsteady reading's `displayLine` holds both display lines, as this Mac's
- * does (../screen/read.ts `ScreenReading`).
+ * does (../screen/read.ts `ScreenReading`). PHASE 348 (D44): on the `flags`
+ * road the same split, the reading saying its lines carry the letters; on
+ * `fallback` the split by count from both ends, and null when it does not hold.
  */
-export function splitRemoteRead(stdout: string): ScreenReading | null {
+export function splitRemoteRead(stdout: string, road: MarksRoad = 'none'): ScreenReading | null {
+  if (road === 'fallback') return splitRemoteMarkedRead(stdout);
+  const reading = splitRemoteReadPlain(stdout);
+  // On the `flags` road the capture's own lines carry the letters (D44).
+  return reading === null || road !== 'flags' ? reading : { ...reading, marks: { road: 'flags' } };
+}
+
+/**
+ * The fallback road's exec (Phase 348, D44), SPLIT BY COUNT FROM BOTH ENDS:
+ * the first display, exactly its `rows` lines of the styled capture, exactly
+ * as many `-T -N` rows, then the `-J` lines, whatever is left before the LAST
+ * line, which must be the second display. Null when it is not: the read is
+ * then taken without marks, which today's lenient split answers.
+ */
+function splitRemoteMarkedRead(stdout: string): ScreenReading | null {
+  const lines = stdout.split('\n');
+  if (lines[lines.length - 1] === '') lines.pop();
+  const firstLine = lines[0];
+  const first = firstLine === undefined ? null : parseScreenDisplay(firstLine);
+  if (first === null || firstLine === undefined) return null;
+  const rows = first.rows;
+  if (lines.length < 2 * rows + 2) return null;
+  const lastLine = lines[lines.length - 1] ?? '';
+  const last = parseScreenDisplay(lastLine);
+  if (last === null) return null;
+  const steady = agree(first, last);
+  const marks: ScreenMarks = {
+    road: 'fallback',
+    rows: lines.slice(rows + 1, 2 * rows + 1),
+    joined: lines.slice(2 * rows + 1, lines.length - 1)
+  };
+  return {
+    styled: lines.slice(1, rows + 1).join('\n'),
+    display: last,
+    displayLine: steady ? lastLine : `${firstLine}\n${lastLine}`,
+    steady,
+    marks
+  };
+}
+
+/** Today's split of a read with no added capture (D6): by count, else lenient. */
+function splitRemoteReadPlain(stdout: string): ScreenReading | null {
   const lines = stdout.split('\n');
   if (lines[lines.length - 1] === '') lines.pop();
   const firstLine = lines[0];
@@ -142,17 +226,35 @@ export function splitRemoteRead(stdout: string): ScreenReading | null {
  * session has no live address, the machine has no ready connection, the exec
  * fails, or its answer is not a reading.
  */
-export async function readScreenRemote(sessionId: string, timeoutMs: number): Promise<ScreenReading | 'unreachable'> {
+export async function readScreenRemote(
+  sessionId: string,
+  timeoutMs: number,
+  marks?: FarMarksRoads
+): Promise<ScreenReading | 'unreachable'> {
   const address = remoteScrollAddress(sessionId);
   if (address.kind !== 'live') return 'unreachable';
-  let stdout: string;
-  try {
-    const ctx = readyRemoteContext(address.machineId);
-    stdout = await execOn(ctx, remoteScreenArgv(address.tmuxId), { timeoutMs });
-  } catch {
-    return 'unreachable';
-  }
-  return splitRemoteRead(stdout) ?? 'unreachable';
+  const machineId = address.machineId;
+  const tmuxId = address.tmuxId;
+  /** ONE exec on a road: its reading, or null when it failed or did not split. */
+  const readOn = async (road: MarksRoad): Promise<ScreenReading | null> => {
+    let stdout: string;
+    try {
+      const ctx = readyRemoteContext(machineId);
+      stdout = await execOn(ctx, remoteScreenArgv(tmuxId, road), { timeoutMs });
+    } catch {
+      return null;
+    }
+    return splitRemoteRead(stdout, road);
+  };
+  const road = marks?.road(machineId) ?? 'none';
+  const marked = await readOn(road);
+  if (marked !== null) return marked;
+  if (road === 'none') return 'unreachable';
+  // A marked exec that failed is taken once more without marks (D44).
+  const plain = await readOn('none');
+  if (plain === null) return 'unreachable';
+  marks?.refused(machineId);
+  return plain;
 }
 
 /**
@@ -167,16 +269,32 @@ export async function readScrollbackRemote(
   sessionId: string,
   a: number,
   b: number,
-  timeoutMs: number
+  timeoutMs: number,
+  marks?: FarMarksRoads
 ): Promise<PageRound | 'unreachable' | null> {
   const address = remoteScrollAddress(sessionId);
   if (address.kind !== 'live') return 'unreachable';
-  let stdout: string;
-  try {
-    const ctx = readyRemoteContext(address.machineId);
-    stdout = await execOn(ctx, remoteScrollbackArgv(address.tmuxId, a, b), { timeoutMs });
-  } catch {
-    return 'unreachable';
-  }
-  return splitScrollbackRead(stdout, a, b);
+  const machineId = address.machineId;
+  const tmuxId = address.tmuxId;
+  /** ONE exec on a road: its answer, `unreachable` when it failed, or null when it did not split. */
+  const readOn = async (road: MarksRoad): Promise<PageRound | 'unreachable' | null> => {
+    let stdout: string;
+    try {
+      const ctx = readyRemoteContext(machineId);
+      stdout = await execOn(ctx, remoteScrollbackArgv(tmuxId, a, b, road), { timeoutMs });
+    } catch {
+      return 'unreachable';
+    }
+    if (road === 'fallback') return splitScrollbackMarkedRead(stdout, a, b);
+    const round = splitScrollbackRead(stdout, a, b);
+    return round === null || road !== 'flags' ? round : { ...round, marks: { road: 'flags' } };
+  };
+  const road = marks?.road(machineId) ?? 'none';
+  const marked = await readOn(road);
+  if (road === 'none' || (marked !== null && marked !== 'unreachable')) return marked;
+  // A marked round that failed or did not split is taken once more without
+  // marks (D44); when that one answers, the marks were the trouble.
+  const plain = await readOn('none');
+  if (plain !== null && plain !== 'unreachable') marks?.refused(machineId);
+  return plain;
 }

@@ -168,3 +168,10 @@ export const END_UNREACHABLE_TITLE =
 export const SESSION_NOT_FOUND = 'Session not found.';
 /** The End that was asked for and threw something that is not one of the sentences above. */
 export const END_FAILED = 'Tortie could not end this session.';
+/**
+ * The phone's Remove that was asked for and threw something that is not one
+ * of the sentences above or main's own (Phase 348, build/p348/SPEC.md §5.1,
+ * D48). True whether or not the Mac's verb got part way: it says only that the
+ * phone cannot say the session was removed.
+ */
+export const REMOVE_FAILED = 'Tortie could not remove this session.';

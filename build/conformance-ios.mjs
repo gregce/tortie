@@ -756,6 +756,83 @@
  *   (ac) OWNER_CHECK_ABSENT gains the three Start files.
  *   (s)  NOT moved: the build stays 11 (his ruling of 2026-10-16).
  *
+ *   PHASE 348, THE PHONE POLISHED (build/p348/SPEC.md §7.3; his words and
+ *   rulings of 2026-10-18: "No Face ID, just confirm", "i'd like to be able to
+ *   paste natively", "MUCH nicer like a real iphone"). Twelve rules move and
+ *   one is new:
+ *
+ *   (s)  the build is 12 (`PHONE_BUILD`), and its "not uploaded" fixtures 13.
+ *   (b)  NAV_BAR_ROOTS is EMPTY: no tab root hides its navigation bar, so
+ *        ScreenPage's one landscape hide is the only hide of either bar.
+ *   (bc) NEW, THE TAB ROOTS' BARS: bc1 each of the four roots names
+ *        `.navigationTitle(`, `.navigationBarTitleDisplayMode(.large)`,
+ *        `.toolbarBackground(Tokens.bgSidebar, for: .navigationBar)` and
+ *        `.toolbarColorScheme(.dark, for: .navigationBar)`, and none hides its
+ *        bar or forces its background visible; bc2 no house title row is left
+ *        and the six identifiers that went with it and the age note are gone;
+ *        bc3 `SessionsBar` is the one ToolbarContent of SessionsScreen.swift,
+ *        Select then the menu in ONE `.topBarLeading` group and the "+" alone
+ *        in ONE `.topBarTrailing` item behind the offer (his ruling of
+ *        2026-10-20, "Top bar (Recommended)": the "+" in the iPhone's own bar,
+ *        well apart from Select, pressing 50 × 36 on iOS 26 where build 11's
+ *        pressed 50 × 52, his stated trade); bc4 the "+" is iOS 26's
+ *        `.glassProminent` tinted `Tokens.accent`, and `plus.circle.fill`
+ *        before it, with the line `struct StartTitleControl: View {` kept;
+ *        bc5 every bar label framed EXACTLY as D56 says with a rectangular
+ *        content shape and no padding, the "+" a `plusPress` square, every
+ *        length one literal in SessionsFrame, and no StartFrame reach; bc6
+ *        (the same ruling) the Show control keeps build 11's full width:
+ *        `showControl` named once, alone as the LazyVStack's first line with
+ *        nothing chained at the call, no width, maximum width but infinity,
+ *        ideal width, fixed size or relative frame of its own, its segments
+ *        `.frame(maxWidth: .infinity)` once, its one side inset
+ *        `.padding(.horizontal, Frame.gutter)`, and `showInset` 2 and
+ *        `showButtonHeight` 28, the mock's.
+ *   (bb6) the "+" made once, in SessionsBar's trailing item behind the
+ *        offer, never in SessionsScreen (the list's first line, where Show
+ *        keeps its whole width), and never hidden from VoiceOver.
+ *   (ab) signedPost called by end, choose, say, keys, start, remove and
+ *        paste, once each, building RemoveBody (`session,write`) and
+ *        PasteBody (`dialog,session,text,turn,write`) itself.
+ *   (ac) OWNER_CHECK_ABSENT gains Screens/Remove.swift: Remove asks no Face ID.
+ *   (ad) also: ONE RemoveRunner per press, one `let target`, made in
+ *        `RemoveModel.press` alone, registered before its task, stopped by
+ *        wentAway (`liveRemoves`), its remover's `remove(` once, in its run,
+ *        after stopRequested, and nothing in Remove.swift persisted.
+ *   (ah) ScreenDoor gains `paste(_:turn:dialog:)`, and nothing that sizes.
+ *   (ai) also: the Screen door's `paste(` once, in ScreenKeySender.flush,
+ *        sending the queued item's own turn and dialog; the item made once,
+ *        in ScreenKeySender.paste, after the paste rule, stamped from the
+ *        picture of his press; takeBatch takes keys alone; no Ctrl applied.
+ *   (aj) paste(_:) is no longer refused: the field refuses pasteAndMatchStyle,
+ *        pasteAndGo and pasteAndSearch in its one refused set, and its
+ *        paste(_:) hands the clipboard's text to onPaste, never into the field.
+ *   (al) THE PASTEBOARD IS READ ONLY BY iOS's OWN PASTE: UIPasteboard named
+ *        outside Copy's one write only as `.general.string` read in the two
+ *        roads' `override func paste(_:)` and `.general.hasStrings` asked in
+ *        their `canPerformAction` beside `pasteOffered()`; the menu Copy THEN
+ *        iOS's own Paste, ONE `UICommand` titled Copy.paste with
+ *        `#selector(UIResponderStandardEditActions.paste(_:))`, identified
+ *        screen-paste, behind `pasteOffered()`, never a UIAction titled
+ *        Paste, the suggested actions unread.
+ *   (av) av8 also reads the marker through ONE private `markerOf` that
+ *        `parse` and the paste's `readsAsCode` share (D53).
+ *   (ay) the ⋯ holds Catch Me Up, End session…, then Remove in End's place
+ *        behind Remove's own drawing, the Mac's word, destructive and with no
+ *        glyph, its one confirmation outside the items, `remove-writing` only
+ *        while its write runs; TERMINAL_MENU_IDS gains the two ids.
+ *   (az) SAMPLE_MAY_NAME gains DoorRemoving, RemoveResult and PasteResult,
+ *        SAMPLE_DOOR_ALLOWED the two results, SAMPLE_MAY_CALL remover, paste
+ *        and pastes: the sample is its own remover, and its Terminal echoes a
+ *        paste on its own prompt; nothing leaves the phone.
+ *   (p)  KEY_NAMES_IN watches `payload` in the five files a paste travels
+ *        through, KEY_NAMED names each hand-off (the pairing-code refusal
+ *        first), and `isPasteAsk` leaves the Bool `hasStrings` ask alone.
+ *   (t)  also: hostile-door.mjs names Phase 348's thirty-five arms
+ *        (HOSTILE_P348_ARMS), each write counting its one POST.
+ *   (v)  removeSentence(for:) and pasteSentence(for:) each a String for every
+ *        case of their result, with no default.
+ *
  * Every rule also proves its own scanner on texts it holds, before it reads a
  * file, so a scanner that stopped finding is never taken for a clean tree.
  *
@@ -2562,7 +2639,7 @@ export const KEY_NAMED = [
     file: 'Door/Pairing.swift',
     line: 'guard !payload.isEmpty, payload.utf8.count <= maxPayloadBytes,',
     uses: 2,
-    why: 'the parse measures the code before it decodes it: a Bool and a count, nothing kept'
+    why: 'the marker test (markerOf, since Phase 348 the one function parse and readsAsCode share) measures the code before it decodes it: a Bool and a count, nothing kept'
   },
   {
     // Phase 333.1 (build/p3331/SPEC.md D24; r2 §Attack F24): THE TORTIE MARKER,
@@ -2592,6 +2669,102 @@ export const KEY_NAMED = [
     line: 'inputKeyMaterial: SymmetricKey(data: secret),',
     uses: 2,
     why: "the secret's two readers, HKDF-SHA256 for the seal key and for the window's challenge; each derived value lives in the call and is never kept"
+  },
+  // PHASE 348 (build/p348/SPEC.md D41, D42, D53, §6 item 6): the PASTE. His
+  // clipboard may hold a pairing code, so the text iOS's own paste command
+  // reads enters as `payload`, watched in every file it travels through, and
+  // each hand-off is named here, THE PAIRING-CODE REFUSAL first: a code is
+  // refused on the phone with nothing sent, and only a text that is not one
+  // is queued as the Terminal's one paste write.
+  {
+    file: 'Door/Pairing.swift',
+    line: 'guard let marker = markerOf(payload) else {',
+    uses: 1,
+    why: 'the parse asks the one marker test, markerOf in this file, where `payload` is watched (D53: the marker spelled once)'
+  },
+  {
+    file: 'Door/Pairing.swift',
+    line: 'markerOf(payload) != nil || markerOf(payload.trimmingCharacters(in: .whitespacesAndNewlines)) != nil',
+    uses: 2,
+    why: "readsAsCode, the paste's pairing-code test: markerOf in this file, where `payload` is watched, over the text and over the text with its ends trimmed for this test alone; a Bool, nothing kept"
+  },
+  {
+    file: 'Screens/ScreenKeyField.swift',
+    line: 'onPaste?(payload)',
+    uses: 1,
+    why: "Command-V and the three-finger paste hand what iOS's own paste read to onPaste, the closure KeyFieldView sets in this file (`{ … payload in coordinator?.parent.onPaste(payload) }`, below), whose `payload` is watched; the field's own text never holds it"
+  },
+  {
+    file: 'Screens/ScreenKeyField.swift',
+    line: 'field.onPaste = { [weak coordinator = context.coordinator] payload in coordinator?.parent.onPaste(payload) }',
+    uses: 1,
+    why: "the field's paste goes to the page's onPaste, Screen.swift's `{ payload in pasted(payload) }`, where `payload` is watched"
+  },
+  {
+    file: 'Screens/ScreenKeyField.swift',
+    line: 'if payload.isEmpty { return .empty }',
+    uses: 1,
+    why: 'the paste rule measures the text: a Bool, nothing kept'
+  },
+  {
+    file: 'Screens/ScreenKeyField.swift',
+    line: 'if payload.utf8.count > mostBytes { return .long }',
+    uses: 1,
+    why: 'the paste rule measures the text: a count, nothing kept'
+  },
+  {
+    file: 'Screens/ScreenKeyField.swift',
+    line: 'if payload.unicodeScalars.contains(where: refuses) { return .character }',
+    uses: 1,
+    why: 'the paste rule reads the text scalar by scalar: a Bool, nothing kept'
+  },
+  {
+    file: 'Screens/ScreenKeyField.swift',
+    line: 'if PairingOffer.readsAsCode(payload) { return .code }',
+    uses: 1,
+    why: "THE PAIRING-CODE REFUSAL: the marker test, PairingOffer.readsAsCode in Door/Pairing.swift, where `payload` is watched; a code is refused with its sentence and nothing is sent"
+  },
+  {
+    file: 'Screens/ScreenTextInput.swift',
+    line: 'events.paste(payload)',
+    uses: 1,
+    why: "the menu's Paste hands what iOS's own paste read to the page's one paste (ScreenTextEvents.paste), set in Screens/ScreenScroller.swift (`{ [weak self] payload in self?.actions?.paste(payload) }`), where `payload` is watched"
+  },
+  {
+    file: 'Screens/ScreenScroller.swift',
+    line: 'paste: { [weak self] payload in self?.actions?.paste(payload) }',
+    uses: 1,
+    why: "the content view's paste goes to the page's actions, Screen.swift's `paste: { payload in pasted(payload) }`, where `payload` is watched"
+  },
+  {
+    file: 'Screens/Screen.swift',
+    line: 'onPaste: { payload in pasted(payload) }',
+    uses: 1,
+    why: "the key field's paste goes to the page's one pasted(_ payload:) in this file, where `payload` is watched"
+  },
+  {
+    file: 'Screens/Screen.swift',
+    line: 'paste: { payload in pasted(payload) }',
+    uses: 1,
+    why: "the menu's paste goes to the page's one pasted(_ payload:) in this file, where `payload` is watched"
+  },
+  {
+    file: 'Screens/Screen.swift',
+    line: 'keys?.paste(payload)',
+    uses: 1,
+    why: 'the page hands the paste to the key sender, ScreenKeySender.paste(_ payload:) in Screens/ScreenKeys.swift, where `payload` is watched and the paste rule is asked first'
+  },
+  {
+    file: 'Screens/ScreenKeys.swift',
+    line: 'if let sentence = ScreenPasteRule.refusal(payload)?.sentence {',
+    uses: 1,
+    why: 'the phone\'s paste rule first, ScreenPasteRule.refusal(_ payload:) in Screens/ScreenKeyField.swift, where `payload` is watched: empty, too long, a refused character or a pairing code, each its sentence on the Terminal\'s line and nothing sent'
+  },
+  {
+    file: 'Screens/ScreenKeys.swift',
+    line: 'pending.append(.paste(ScreenPasteItem(text: payload, turn: drawn.turn, dialog: drawn.dialog, revision: drawn.revision)))',
+    uses: 1,
+    why: 'only after the paste rule above passed, so never a pairing code: ONE paste item, stamped with the picture of his press, which flush hands to the door as one write (D31, D54) and stop() drops; nothing keeps it'
   }
 ];
 
@@ -2612,8 +2785,27 @@ export const KEY_NAMES_IN = {
   'Door/Pairing.swift': ['payload'],
   'Screens/DoorWords.swift': ['payload'],
   'Screens/PairingScreen.swift': ['payload', 'spent', 'code'],
-  'App/TortieApp.swift': ['payload', 'launchCode', 'code']
+  'App/TortieApp.swift': ['payload', 'launchCode', 'code'],
+  // Phase 348 (D41, D42): a paste of his clipboard, which may hold a code,
+  // travels as `payload` through these five until the pairing-code refusal.
+  'Screens/ScreenKeyField.swift': ['payload'],
+  'Screens/ScreenTextInput.swift': ['payload'],
+  'Screens/ScreenScroller.swift': ['payload'],
+  'Screens/Screen.swift': ['payload'],
+  'Screens/ScreenKeys.swift': ['payload']
 };
+
+/**
+ * Rule (p)'s second exception (Phase 348, D40, D41): iOS's own paste asks
+ * `UIPasteboard.general.hasStrings`, a Bool that raises no alert and reads no
+ * text, in the two paste roads' canPerformAction (rule al holds that it is
+ * asked there alone), so no code enters there. Spelled with literals for the
+ * reason isCopyWrite's comment gives. Every READ of the pasteboard stays a
+ * code source, bound to a watched name.
+ */
+export function isPasteAsk(name, bare, at) {
+  return (name === 'Screens/ScreenKeyField.swift' || name === 'Screens/ScreenTextInput.swift') && /^UIPasteboard\s*\.\s*general\s*\.\s*hasStrings\b/.test(bare.slice(at));
+}
 
 /**
  * Where a raw pairing code enters the app: the camera's reading of a machine
@@ -2755,6 +2947,7 @@ export function ruleSecretKept(files, named = KEY_NAMED, namesIn = KEY_NAMES_IN)
       // Screens/ScreenSelection.swift, is a code leaving and never entering;
       // every other mention anywhere stays a code source.
       if (m[0] === 'UIPasteboard' && isCopyWrite(f.name, bare, m.index)) continue;
+      if (m[0] === 'UIPasteboard' && isPasteAsk(f.name, bare, m.index)) continue;
       said.sources += 1;
       const lines = bare.slice(0, m.index).split('\n');
       let k = lines.length - 1;
@@ -3287,8 +3480,11 @@ export const PHONE_BUNDLE_ID = 'com.itavero.tortie.phone';
  * pairs one iPhone with several Macs, the next after 10, the public and App
  * Store build; the "not uploaded" fixtures below are 12. If another phone
  * phase lands first and takes 11, the committer moves all of it to the next.
+ * 1.0.0 (12) since Phase 348 (build/p348/SPEC.md §0 rule 12, §7.3), the one
+ * archive cut from that phase's tree: Remove and paste, Settings grouped and
+ * the iPhone's own bars; the "not uploaded" fixtures below are 13.
  */
-export const PHONE_BUILD = '11';
+export const PHONE_BUILD = '12';
 
 /** The asset catalog, relative to the app folder, and the one set it holds. */
 const ICON_CATALOG = 'Assets.xcassets';
@@ -4261,10 +4457,15 @@ export const TABS = Object.freeze([
  * upright). The three tab roots that draw their own header keep hiding their
  * own navigation bar, unconditionally, as they have since Phase 316.6; nothing
  * else hides either bar, by any modifier.
+ *
+ * PHASE 348 (build/p348/SPEC.md D15, §7.3): no tab root hides its navigation
+ * bar any more. The four take the iPhone's own bar with its large title (rule
+ * bc), so NAV_BAR_ROOTS is empty and ScreenPage's one landscape hide is the
+ * only hide of either bar left; the no-stored-tab clause is unchanged.
  */
 export const BARS_PAGE_FILE = 'Screens/Screen.swift';
-/** The tab roots that draw their own header and hide their navigation bar (Phase 316.6, 316.7). */
-export const NAV_BAR_ROOTS = Object.freeze(['Screens/ListScreen.swift', 'Screens/SessionsScreen.swift', 'Screens/SettingsScreen.swift', 'Screens/MacsScreen.swift']);
+/** The tab roots that hide their navigation bar: none since Phase 348 (D15), which took them onto the iPhone's own bar (rule bc). */
+export const NAV_BAR_ROOTS = Object.freeze([]);
 
 /**
  * THE MACS TAB (Phase 345, build/p345/SPEC.md D3, §4 item 1). His answer of
@@ -4493,7 +4694,7 @@ export function ruleTabs(files) {
         continue;
       }
       if (h.tab) findings.push(`${at(h.at)} hides the tab bar (.${h.name}(${h.visibility}, for: ${h.bars.join(', ')})); it stays on every page but the Terminal sideways, where ScreenPage hides it once, with toolbarVisibility(chrome.bars, for: .navigationBar, .tabBar), so a session upright is one tap from Needs input (SPEC §5.1.1, build/p3373/SPEC.md D15)`);
-      else findings.push(`${at(h.at)} hides the navigation bar (.${h.name}(${h.visibility}, for: ${h.bars.join(', ')})); ScreenPage hides it sideways through TerminalChrome and the three tab roots (${NAV_BAR_ROOTS.join(', ')}) draw their own header, and nothing else hides it (build/p3373/SPEC.md §6.1 (b))`);
+      else findings.push(`${at(h.at)} hides the navigation bar (.${h.name}(${h.visibility}, for: ${h.bars.join(', ')})); ScreenPage hides it sideways through TerminalChrome, and nothing else hides it: since Phase 348 the four tab roots take the iPhone's own bar (build/p3373/SPEC.md §6.1 (b); build/p348/SPEC.md D15)`);
     }
     for (const m of bare.matchAll(OTHER_BAR_HIDES)) findings.push(`${at(m.index)} names ${m[0].replace(/\s+/g, '')}; a bar is hidden by ScreenPage's one toolbarVisibility(chrome.bars, for: .navigationBar, .tabBar) and by no other modifier (build/p3373/SPEC.md §6.1 (b))`);
     if (f.name === TAB_FILE) {
@@ -5837,7 +6038,10 @@ export const OWNER_CHECK_ABSENT = Object.freeze([
   // session"): New session and its marks ask no owner check (bb2).
   'Screens/Start.swift',
   'Screens/StartSheet.swift',
-  'Screens/AgentMark.swift'
+  'Screens/AgentMark.swift',
+  // Phase 348 (build/p348/SPEC.md D7, D33, his ruling "No Face ID, just
+  // confirm"): Remove's press, its runner and its confirmation ask none.
+  'Screens/Remove.swift'
 ]);
 /** What persists anything; none of it may sit in End's files or the write path. */
 const PERSISTS = /\bUserDefaults\b|@AppStorage\b|@SceneStorage\b|\bSecItemAdd\b|\bSecItemUpdate\b|\bFileManager\b|\.\s*write\s*\(\s*to\s*:|\bNSKeyedArchiver\b|\bcreateFile\b|\bNSUbiquitousKeyValueStore\b/g;
@@ -5920,17 +6124,18 @@ export function ruleWrite(files) {
   }
   // (ab2) signedPost( called by end(, choose( and say( alone, once each
   // (Phase 318 added the two reply writes; Phase 337 keys; Phase 346 start,
-  // build/p346/SPEC.md §5.3).
+  // build/p346/SPEC.md §5.3; Phase 348 remove and paste, build/p348/SPEC.md
+  // §7.3, D54, D55).
   const signedPost = fnOf('signedPost');
   if (signedPost === null) findings.push('Door/DoorClient.swift declares no signedPost(route:door:limits:) with a body, so the write has no one path');
-  const callers = { end: 0, choose: 0, say: 0, keys: 0, start: 0 };
+  const callers = { end: 0, choose: 0, say: 0, keys: 0, start: 0, remove: 0, paste: 0 };
   for (const file of all) {
     for (const m of file.bare.matchAll(/\bsignedPost\s*\(/g)) {
       if (isDecl(file.bare, m.index)) continue;
       said.signedPosts += 1;
       const p = placeOf(file, m.index);
       if (file.name === 'Door/DoorClient.swift' && p.type === 'DoorClient' && Object.hasOwn(callers, p.fn)) callers[p.fn] += 1;
-      else findings.push(`${atLine(file, m.index)} calls signedPost in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; only DoorClient.end, choose, say, keys and start call it`);
+      else findings.push(`${atLine(file, m.index)} calls signedPost in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; only DoorClient.end, choose, say, keys, start, remove and paste call it`);
     }
   }
   for (const [name, n] of Object.entries(callers)) if (n !== 1) findings.push(`DoorClient.${name} calls signedPost ${String(n)} time(s); each write is one call of the one path`);
@@ -5963,7 +6168,7 @@ export function ruleWrite(files) {
   }
   // (ab4) The body, encoded in signedPost alone, with exactly its keys, sorted.
   for (const file of all) {
-    for (const m of file.bare.matchAll(/\b(EndBody|ChooseBody|SayBody|KeysBody|StartBody)\s*\(/g)) {
+    for (const m of file.bare.matchAll(/\b(EndBody|ChooseBody|SayBody|KeysBody|StartBody|RemoveBody|PasteBody)\s*\(/g)) {
       if (/\b(?:struct|class|enum)\s+$/.test(file.bare.slice(Math.max(0, m.index - 10), m.index))) continue;
       const p = placeOf(file, m.index);
       if (file.name !== 'Door/DoorClient.swift' || p.fn !== 'signedPost') findings.push(`${atLine(file, m.index)} builds a ${m[1]} in ${p.fn ?? 'no function'}; a write's body is made in signedPost alone`);
@@ -5972,10 +6177,10 @@ export function ruleWrite(files) {
   if (signedPost !== null) {
     const body = bodyText(client, signedPost);
     if (!/\.\s*sortedKeys\b/.test(body)) findings.push('signedPost does not encode the body with .sortedKeys, so its bytes would not be the ones the Mac and the vectors expect');
-    for (const name of ['EndBody', 'ChooseBody', 'SayBody', 'KeysBody', 'StartBody']) if (!new RegExp(`\\b${name}\\s*\\(`).test(body)) findings.push(`signedPost does not build a ${name}, so that write is encoded somewhere else`);
+    for (const name of ['EndBody', 'ChooseBody', 'SayBody', 'KeysBody', 'StartBody', 'RemoveBody', 'PasteBody']) if (!new RegExp(`\\b${name}\\s*\\(`).test(body)) findings.push(`signedPost does not build a ${name}, so that write is encoded somewhere else`);
     if (/\b(?:while|repeat)\b/.test(body)) findings.push('signedPost holds a while or repeat; a write is sent once and never retried');
   }
-  for (const [name, want] of [['EndBody', 'batch,session,write'], ['ChooseBody', 'mark,marker,question,session,write'], ['SayBody', 'session,text,write'], ['KeysBody', 'dialog,keys,session,turn,write'], ['StartBody', 'agent,project,write']]) {
+  for (const [name, want] of [['EndBody', 'batch,session,write'], ['ChooseBody', 'mark,marker,question,session,write'], ['SayBody', 'session,text,write'], ['KeysBody', 'dialog,keys,session,turn,write'], ['StartBody', 'agent,project,write'], ['RemoveBody', 'session,write'], ['PasteBody', 'dialog,session,text,turn,write']]) {
     const t = client.types.find((x) => x.name === name && x.kind === 'struct');
     if (t === undefined) {
       findings.push(`Door/DoorClient.swift declares no struct ${name}`);
@@ -5984,7 +6189,7 @@ export function ruleWrite(files) {
     const fields = storedFields(client.bare, t).sort().join(',');
     if (fields !== want) findings.push(`Door/DoorClient.swift's ${name} holds ${fields || 'nothing'}; the Mac reads exactly ${want} and refuses any other key`);
   }
-  for (const name of ['end', 'choose', 'say', 'keys', 'start']) {
+  for (const name of ['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste']) {
     const fn = fnOf(name, 'DoorClient');
     if (fn !== null && /\b(?:while|repeat|for)\b/.test(bodyText(client, fn))) findings.push(`DoorClient.${name} loops; a write is one call and never retried`);
   }
@@ -6047,6 +6252,97 @@ export function ruleWrite(files) {
       if (!/\bisEmpty\b|==\s*""/.test(echo) || !/\.\s*refused\b/.test(echo) || !/\.\s*malformed\b/.test(echo)) findings.push(`${resultFile.name}'s WriteResult.of does not accept the empty echo only with refused and malformed (F14)`);
     }
   }
+  return { findings, said };
+}
+
+/**
+ * Rule (ad)'s Phase 348 half (build/p348/SPEC.md D55, §7.3): A REMOVE IS SENT
+ * ONCE OR NOT AT ALL, AND NOTHING AFTER THE APP LEFT. `RemoveRunner` holds ONE
+ * target, a `let`; it is made in `RemoveModel.press` alone, the confirmation's
+ * destructive press, bound to a let and registered with the app
+ * (`registerRemove(`) BEFORE its task starts; its `run` reads `stopRequested`
+ * before its one `remove(` and is the app's only call of the remover's;
+ * `stop()` sets `stopRequested` and cancels the task, and nothing sets it
+ * back; `AppModel.wentAway()` stops every runner `registerRemove` keeps
+ * (`liveRemoves`); and nothing in Screens/Remove.swift persists anything.
+ */
+export function ruleRemoveRunner(files) {
+  const findings = [];
+  const said = { runners: 0, removes: 0 };
+  const all = files.filter((f) => f.name.endsWith('.swift')).map((f) => lexedFile(files, f.name));
+  const remove = all.find((f) => f.name === 'Screens/Remove.swift') ?? null;
+  if (remove === null) return { findings: ['Screens/Remove.swift does not exist, so Remove\'s runner cannot be read (D55)'], said };
+  const runnerType = remove.types.find((t) => t.name === 'RemoveRunner' && t.kind === 'class');
+  if (runnerType === undefined) findings.push('Screens/Remove.swift declares no final class RemoveRunner (D55)');
+  else {
+    const body = remove.bare.slice(runnerType.open, runnerType.close + 1);
+    if (!/\blet\s+target\s*:\s*String\b/.test(body)) findings.push('RemoveRunner holds no `let target: String`; a Remove is ONE session, fixed when it is made (D55, D8)');
+    if (/\b(?:var|let)\s+targets\b|\[\s*String\s*\]/.test(body)) findings.push('RemoveRunner holds a list; Remove is not in End these, one session per press (D8)');
+    const stop = funcsNamed(remove, 'stop', 'RemoveRunner')[0] ?? null;
+    const stopBody = stop === null ? '' : bodyText(remove, stop);
+    if (!/\bstopRequested\s*=\s*true\b/.test(stopBody) || !/\btask\s*\??\s*\.\s*cancel\s*\(\s*\)/.test(stopBody)) findings.push('RemoveRunner.stop() does not set stopRequested and cancel its task, so a Remove whose bytes were not handed is not withheld');
+    if (/(?<!\bvar\s{1,8})\bstopRequested\s*=\s*false\b/.test(remove.bare)) findings.push('Screens/Remove.swift sets stopRequested back to false; a stopped runner stays stopped');
+    const run = funcsNamed(remove, 'run', 'RemoveRunner')[0] ?? null;
+    const runBody = run === null ? '' : bodyText(remove, run);
+    const ask = runBody.search(/\bstopRequested\b/);
+    const send = runBody.search(/\.\s*remove\s*\(/);
+    if (ask === -1 || send === -1 || ask > send) findings.push('RemoveRunner.run does not read stopRequested before it sends');
+    if (/\b(?:while|repeat|for)\b/.test(runBody)) findings.push('RemoveRunner.run loops; a Remove is one write and never retried (D55)');
+  }
+  // The remover's remove( once, in RemoveRunner.run.
+  for (const file of all) {
+    for (const m of file.bare.matchAll(/\.\s*remove\s*\(/g)) {
+      if (isDecl(file.bare, m.index)) continue;
+      const open = file.bare.indexOf('(', m.index);
+      const close = closeParen(file.bare, open);
+      const args = file.bare.slice(open + 1, close === -1 ? open + 120 : close);
+      // The client's remove(_:door:) takes the door, and a Keychain remove a
+      // store's account: neither is the remover's call.
+      if (/\bdoor\s*:/.test(args) || file.name.startsWith('Door/')) continue;
+      const p = placeOf(file, m.index);
+      if (file.name === 'Sample/SampleWorld.swift' || file.name === 'Sample/SampleReader.swift') continue;
+      const inRun = p.type === 'RemoveRunner' && p.fn === 'run';
+      // A remover reached by name anywhere else is a second call of it.
+      if (!inRun && /\bremover\s*[?!]?\s*$/.test(file.bare.slice(Math.max(0, m.index - 40), m.index))) findings.push(`${atLine(file, m.index)} calls the remover's remove( in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; the app's one call of it is RemoveRunner.run (D55)`);
+      if (!inRun) continue;
+      said.removes += 1;
+    }
+  }
+  if (said.removes !== 1) findings.push(`the remover's remove( is called ${String(said.removes)} time(s) in RemoveRunner.run; exactly once there, the app's one call of it (D55)`);
+  // Made at the confirmation's destructive press, registered before its task.
+  for (const file of all) {
+    for (const m of file.bare.matchAll(/\bRemoveRunner\s*\(/g)) {
+      if (/\b(?:class|struct|init)\s+$/.test(file.bare.slice(Math.max(0, m.index - 10), m.index))) continue;
+      said.runners += 1;
+      const p = placeOf(file, m.index);
+      if (file.name !== 'Screens/Remove.swift' || p.type !== 'RemoveModel' || p.fn !== 'press') findings.push(`${atLine(file, m.index)} makes a RemoveRunner in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; only RemoveModel.press, the confirmation's destructive press, makes one (D55)`);
+      const bound = /\blet\s+([A-Za-z_]\w*)\s*=\s*$/.exec(file.bare.slice(Math.max(0, m.index - 60), m.index));
+      if (bound === null) {
+        findings.push(`${atLine(file, m.index)} makes a RemoveRunner it does not bind to a let, so it cannot be registered before its task starts`);
+        continue;
+      }
+      const fn = innermost(file.funcs, m.index);
+      const rest = fn === null ? file.bare.slice(m.index) : file.bare.slice(m.index, fn.bodyClose);
+      const reg = new RegExp(`\\bregisterRemove\\s*\\(\\s*${bound[1]}\\s*\\)`).exec(rest);
+      const task = /\bTask\s*(?:\{|\()/.exec(rest);
+      if (reg === null) findings.push(`${atLine(file, m.index)}: the RemoveRunner ${bound[1]} is never registered, so a trip to the background cannot stop it (D55)`);
+      else if (task !== null && task.index < reg.index) findings.push(`${atLine(file, m.index)}: the RemoveRunner ${bound[1]} is registered after its task starts, so the app can leave before it can be stopped (D55)`);
+    }
+  }
+  if (said.runners === 0) findings.push('no RemoveRunner( is made anywhere, so Remove sends nothing this rule can read (D55)');
+  // AppModel keeps every live Remove and wentAway stops each one.
+  const app = all.find((f) => f.name === 'App/TortieApp.swift') ?? null;
+  if (app === null) findings.push('App/TortieApp.swift does not exist, so nothing stops a Remove when the app leaves');
+  else {
+    const reg = funcsNamed(app, 'registerRemove')[0] ?? null;
+    const kept = reg === null ? null : /\b([A-Za-z_]\w*)\s*\.\s*append\s*\(\s*runner\s*\)/.exec(bodyText(app, reg))?.[1] ?? null;
+    if (kept === null) findings.push('AppModel has no registerRemove(_:) keeping the runner in a list, so a Remove made at the press is not stopped when the app leaves (D55)');
+    const went = funcsNamed(app, 'wentAway', 'AppModel')[0] ?? null;
+    const body = went === null ? '' : bodyText(app, went);
+    const listName = kept ?? 'liveRemoves';
+    if (!new RegExp(`\\bfor\\s+(\\w+)\\s+in\\s+${listName}\\b[^{]*\\{[^}]*\\b\\1\\s*\\.\\s*stop\\s*\\(\\s*\\)`).test(body) && !new RegExp(`\\b${listName}\\s*\\.\\s*forEach\\s*\\{[^}]*\\$0\\s*\\.\\s*stop\\s*\\(\\s*\\)`).test(body)) findings.push(`AppModel.wentAway() stops no Remove runner (${listName}), so a Remove whose bytes were not handed is sent after the app left (D55)`);
+  }
+  for (const m of remove.bare.matchAll(PERSISTS)) findings.push(`${atLine(remove, m.index)} names ${m[0]} in Screens/Remove.swift; nothing persists a Remove or its target`);
   return { findings, said };
 }
 
@@ -7718,7 +8014,7 @@ const SELECT_INPUT_OK = [
   '    var geometry = ScreenTextGeometry.none',
   '    var selection: ScreenSelectionRange?',
   '    var drawn: (ScreenSelectionRange) -> Bool = { _ in false }',
-  '    var events = ScreenTextEvents(select: { _ in }, copy: {})',
+  '    var events = ScreenTextEvents(select: { _ in }, copy: {}, pasteOffered: { false }, paste: { _ in })',
   '    private var display: UITextSelectionDisplayInteraction?',
   '    private lazy var menu = UIEditMenuInteraction(delegate: self)',
   '    private var owed = false',
@@ -7762,6 +8058,10 @@ const SELECT_INPUT_OK = [
   '            self.events.copy()',
   '        }',
   '        copy.accessibilityIdentifier = ID.screenCopy',
+  // Phase 348 (D39): iOS's own Paste after Copy, behind the page's word.
+  '        let paste = UICommand(title: Copy.paste, image: UIImage(systemName: "doc.on.clipboard"), action: #selector(UIResponderStandardEditActions.paste(_:)))',
+  '        paste.accessibilityIdentifier = ID.screenPaste',
+  '        if events.pasteOffered() { return UIMenu(children: [copy, paste]) }',
   '        return UIMenu(children: [copy])',
   '    }',
   '}',
@@ -8488,8 +8788,8 @@ const selectSwap = (label, text, from, to) => {
   expect('(s) catches a team set by an xcconfig', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length > 0);
   expect('(s) leaves an xcconfig comment alone', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `// DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length === 0);
   expect('(s) catches another bundle id', sRun(pbxSign({ appRelease: his + identity.replace('com.itavero.tortie.phone;', 'com.itavero.tortie.phone2;') })).length > 0);
-  expect('(s) catches versions that disagree', sRun(pbxSign({ appRelease: his + identity.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 12;') })).length > 0);
-  const nextBuild = (text) => text.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 12;');
+  expect('(s) catches versions that disagree', sRun(pbxSign({ appRelease: his + identity.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 13;') })).length > 0);
+  const nextBuild = (text) => text.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 13;');
   expect('(s) catches the app at a build this round does not upload, even when Debug and Release agree', sRun(pbxSign({ appDebug: adHoc + nextBuild(identity), appRelease: his + nextBuild(identity) })).length > 0);
   expect('(s) catches a test bundle at another build', sRun(pbxSign({ testRelease: `${adHoc}        CURRENT_PROJECT_VERSION = 2;\n` })).length > 0);
   expect('(s) accepts a test bundle at this build', sRun(pbxSign({ testRelease: `${adHoc}        CURRENT_PROJECT_VERSION = ${PHONE_BUILD};\n` })).length === 0);
@@ -8648,7 +8948,9 @@ const selectSwap = (label, text, from, to) => {
   expect('(b) catches a tab built outside the app file', bTabs(tabsOk, [{ name: 'Screens/ListScreen.swift', source: 'let t = Tab(Copy.sessions, systemImage: "x", value: 1) { EmptyView() }\n' }]).length > 0);
   expect('(b) catches the bar hidden on a pushed screen', bTabs(tabsOk, [{ name: 'Screens/SessionScreen.swift', source: 'func f(_ v: some View) -> some View { v.toolbar(.hidden, for: .tabBar) }\n' }]).length > 0);
   expect('(b) catches the bar hidden by toolbarVisibility', bTabs(tabsOk, [{ name: 'Screens/SessionScreen.swift', source: 'func f(_ v: some View) -> some View { v.toolbarVisibility(.hidden, for: .navigationBar, .tabBar) }\n' }]).length > 0);
-  expect('(b) leaves a tab root\'s own navigation bar hidden alone', bTabs(tabsOk, [{ name: 'Screens/ListScreen.swift', source: 'func f(_ v: some View) -> some View { v.toolbar(.hidden, for: .navigationBar) }\n' }]).length === 0);
+  // Phase 348 (D15): no tab root hides its own navigation bar any more.
+  expect('(b) Phase 348: catches a tab root hiding its own navigation bar again', bTabs(tabsOk, [{ name: 'Screens/ListScreen.swift', source: 'func f(_ v: some View) -> some View { v.toolbar(.hidden, for: .navigationBar) }\n' }]).length > 0);
+  expect('(b) Phase 348: NAV_BAR_ROOTS is empty', NAV_BAR_ROOTS.length === 0);
   expect('(b) catches the tab kept in @AppStorage', bTabs(`${tabsOk}struct Kept { @AppStorage("tab") var tab = 0 }\n`).length > 0);
   expect('(b) catches the tab kept in UserDefaults', bTabs(`${tabsOk}func keep() { UserDefaults.standard.set(1, forKey: "tab") }\n`).length > 0);
   // Phase 337.3 (build/p3373/SPEC.md §6.1 (b), D15): the one landscape hide,
@@ -8726,7 +9028,8 @@ const selectSwap = (label, text, from, to) => {
   expect('(b) catches the Macs tab labelled with a Copy word', bMacs('Label(app.drawnName(chosen), systemImage:', 'Label(Copy.macs, systemImage:').length > 0);
   expect('(b) catches the Macs tab drawn with another symbol', bMacs('"desktopcomputer"', '"laptopcomputer"').length > 0);
   expect('(b) catches the Macs tab drawn with no symbol', bMacs('Label(app.drawnName(chosen), systemImage: "desktopcomputer")', 'Text(app.drawnName(chosen))').length > 0);
-  expect('(b) leaves the Macs screen, a tab root, hiding its own navigation bar', bTabs(tabsMacs, [{ name: 'Screens/MacsScreen.swift', source: 'struct MacsScreen: View {\n    var body: some View { List {}.toolbar(.hidden, for: .navigationBar) }\n}\n' }]).length === 0);
+  // Phase 348 (D15): the Macs screen takes the iPhone's own bar too.
+  expect('(b) Phase 348: catches the Macs screen hiding its own navigation bar again', bTabs(tabsMacs, [{ name: 'Screens/MacsScreen.swift', source: 'struct MacsScreen: View {\n    var body: some View { List {}.toolbar(.hidden, for: .navigationBar) }\n}\n' }]).length > 0);
   expect('(b) catches the Macs tab built in the Macs screen', bTabs(tabsOk, [{ name: 'Screens/MacsScreen.swift', source: 'let t = Tab(value: AppTab.macs) { EmptyView() } label: { Label(name, systemImage: "desktopcomputer") }\n' }]).length > 0);
 
   // (k), the one named scope.
@@ -9280,6 +9583,14 @@ const selectSwap = (label, text, from, to) => {
     '    func start(project: String, agent: String, write: String?, door: PairedDoor) async -> SentStart {',
     '        await signedPost(route: .start(project: project, agent: agent), door: door, limits: limits, write: write).asStart',
     '    }',
+    // Phase 348: remove and paste, through the same one path.
+    '    func remove(_ sessionId: String, door: PairedDoor) async -> RemoveResult {',
+    '        await signedPost(route: .remove(session: sessionId), door: door, limits: limits, write: nil).asRemove',
+    '    }',
+    '    func paste(_ sessionId: String, text: String, turn: String, dialog: String?, line: DoorLine, door: PairedDoor) async -> PasteResult {',
+    '        let route = WriteRoute.paste(session: sessionId, text: text, turn: turn, dialog: dialog)',
+    '        return await signedPost(route: route, door: door, limits: limits, write: nil, line: line).asPaste',
+    '    }',
     '    func present(_ p: Data, door: DoorEndpoint) async throws -> DoorReply {',
     '        try await exchange(method: "POST", target: "/pair", headers: [], body: p, door: door, identity: nil)',
     '    }',
@@ -9306,6 +9617,10 @@ const selectSwap = (label, text, from, to) => {
     '                body = try encoder.encode(KeysBody(dialog: dialog, keys: keys, session: session, turn: turn, write: id))',
     '            case .start(let project, let agent):',
     '                body = try encoder.encode(StartBody(agent: agent, project: project, write: id))',
+    '            case .remove(let session):',
+    '                body = try encoder.encode(RemoveBody(session: session, write: id))',
+    '            case .paste(let session, let text, let turn, let dialog):',
+    '                body = try encoder.encode(PasteBody(dialog: dialog, session: session, text: text, turn: turn, write: id))',
     '            }',
     '        } catch {',
     '            return .notSent(.notPaired)',
@@ -9337,6 +9652,18 @@ const selectSwap = (label, text, from, to) => {
     '    let batch: Bool',
     '    let session: String',
     '    let write: String',
+    '}',
+    'struct RemoveBody: Encodable, Sendable {',
+    '    let session: String',
+    '    let write: String',
+    '}',
+    'struct PasteBody: Encodable, Sendable {',
+    '    let dialog: String?',
+    '    let session: String',
+    '    let text: String',
+    '    let turn: String',
+    '    let write: String',
+    '    enum CodingKeys: String, CodingKey { case dialog, session, text, turn, write }',
     '}',
     'struct StartBody: Encodable {',
     '    let agent: String',
@@ -9581,6 +9908,15 @@ const selectSwap = (label, text, from, to) => {
   expect('(ab) Phase 346: catches the start body built outside signedPost', abRun(swap(C, '    func present(', '    func body() -> StartBody { StartBody(agent: "a", project: "p", write: "w") }\n    func present(')).length > 0);
   expect('(ab) Phase 346: catches a start that never reaches signedPost', abRun(swap(C, '        await signedPost(route: .start(project: project, agent: agent), door: door, limits: limits, write: write).asStart', '        SentStart(result: .notTaken, write: nil)')).length > 0);
   expect('(ab) catches an empty echo taken with any outcome (F14)', abRun(swap(C, 'write.isEmpty && outcome == .refused && reason == .malformed', 'write.isEmpty')).length > 0);
+  // Phase 348 (build/p348/SPEC.md §7.3): remove and paste, each one call of the one path.
+  expect('(ab) Phase 348: catches remove calling signedPost twice', abRun(swap(C, '.asRemove\n    }', '.asRemove\n    }\n    func removeAgain(door: PairedDoor) async { _ = await signedPost(route: .remove(session: "s"), door: door, limits: limits, write: nil) }')).length > 0);
+  expect('(ab) Phase 348: catches a batch key on the remove body', abRun(swap(C, 'struct RemoveBody: Encodable, Sendable {\n    let session: String', 'struct RemoveBody: Encodable, Sendable {\n    let batch: Bool\n    let session: String')).length > 0);
+  expect('(ab) Phase 348: catches a sixth key on the paste body', abRun(swap(C, 'struct PasteBody: Encodable, Sendable {\n    let dialog: String?', 'struct PasteBody: Encodable, Sendable {\n    let cols: Int\n    let dialog: String?')).length > 0);
+  expect('(ab) Phase 348: catches the paste body without its turn', abRun(swap(C, '    let text: String\n    let turn: String\n    let write: String\n    enum CodingKeys', '    let text: String\n    let write: String\n    enum CodingKeys')).length > 0);
+  expect('(ab) Phase 348: catches the paste body built outside signedPost', abRun(swap(C, '    func present(', '    func peekPaste() { _ = PasteBody(dialog: nil, session: "", text: "", turn: "", write: "") }\n    func present(')).length > 0);
+  expect('(ab) Phase 348: catches a remove that never reaches signedPost', abRun(swap(C, '        await signedPost(route: .remove(session: sessionId), door: door, limits: limits, write: nil).asRemove', '        .notTaken')).length > 0);
+  expect('(ab) Phase 348: catches a paste retried in a loop', abRun(swap(C, "        return await signedPost(route: route, door: door, limits: limits, write: nil, line: line).asPaste", "        for _ in 0..<2 { _ = route }\n        return await signedPost(route: route, door: door, limits: limits, write: nil, line: line).asPaste")).length > 0);
+  expect('(ab) Phase 348: catches signedPost no longer building a RemoveBody', abRun(swap(C, '                body = try encoder.encode(RemoveBody(session: session, write: id))', '                body = Data(session.utf8)')).length > 0);
   // (ac)
   expect('(ac) catches LocalAuthentication imported outside OwnerCheck.swift', acRun(swap('Screens/SettingsScreen.swift', 'struct SettingsScreen', 'import LocalAuthentication\nstruct SettingsScreen')).length > 0);
   expect('(ac) catches the biometrics-only policy', acRun(swap(OWNER_CHECK_FILE, 'context.evaluatePolicy(.deviceOwnerAuthentication,', 'context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics,')).length > 0);
@@ -9596,6 +9932,74 @@ const selectSwap = (label, text, from, to) => {
   expect('(ac) catches the sample\'s check confirming for every phone (Phase 333.3)', acRun(swap('Sample/SampleOwnerCheck.swift', '        guard inner.kind() != .none else { return .confirmed }\n        return await inner.confirm(reason: reason)\n', '        .confirmed\n')).length > 0);
   expect('(ac) catches a run outside the confirmed case', acRun(swap(END_BAR_FILE, '        runner.task = task\n', '        Task { await runner.run { _, _ in } }\n        runner.task = task\n')).length > 0);
   expect('(ac) catches the owner check named in Settings', acRun(swap('Screens/SettingsScreen.swift', 'var body', 'let ownerCheck: any OwnerCheck\n    var body')).length > 0);
+  // Phase 348 (D7, D33): Remove asks no owner check, held as Settings is.
+  const acRemove = (source) => ruleOwnerCheck([...wFiles(), { name: 'Screens/Remove.swift', source }], wPlist).findings.length;
+  expect('(ac) Phase 348: passes Remove\'s file naming no owner check', acRemove('final class RemoveModel {\n    func press() { runner.task = Task { await runner.run() } }\n}\n') === 0);
+  expect('(ac) Phase 348: catches Remove asking the owner check', acRemove('final class RemoveModel {\n    let ownerCheck: any OwnerCheck\n    func press() async { _ = await ownerCheck.confirm(reason: "x") }\n}\n') > 0);
+  // Phase 348 (D55): (ad)'s Remove half.
+  {
+    const removeOk = [
+      'final class RemoveRunner {',
+      '    let target: String',
+      '    private let remover: any DoorRemoving',
+      '    private(set) var stopRequested = false',
+      '    var task: Task<Void, Never>?',
+      '    func stop() {',
+      '        stopRequested = true',
+      '        task?.cancel()',
+      '    }',
+      '    func run() async -> RemoveResult? {',
+      '        guard !stopRequested else { return nil }',
+      '        return await remover.remove(target)',
+      '    }',
+      '}',
+      'final class RemoveModel {',
+      '    func press(reread: @escaping () async -> Bool) {',
+      '        let runner = RemoveRunner(target: sessionId, remover: remover)',
+      '        registry?.registerRemove(runner)',
+      '        let task = Task { _ = await runner.run() }',
+      '        runner.task = task',
+      '    }',
+      '}',
+      ''
+    ].join('\n');
+    const appOk = [
+      'final class AppModel {',
+      '    private(set) var liveRemoves: [RemoveRunner] = []',
+      '    func wentAway() {',
+      '        for runner in liveRemoves {',
+      '            runner.stop()',
+      '        }',
+      '    }',
+      '}',
+      'extension AppModel: RemoveRegistry {',
+      '    func registerRemove(_ runner: RemoveRunner) {',
+      '        liveRemoves.append(runner)',
+      '    }',
+      '}',
+      ''
+    ].join('\n');
+    const rmRun = (remove = removeOk, app = appOk) => ruleRemoveRunner([{ name: 'Screens/Remove.swift', source: remove }, { name: 'App/TortieApp.swift', source: app }]).findings.length;
+    const rs = (from, to) => {
+      if (!removeOk.includes(from)) selfFailures.push(`(ad) Remove fixture holds no ${JSON.stringify(from)}`);
+      return removeOk.replace(from, to);
+    };
+    const as = (from, to) => {
+      if (!appOk.includes(from)) selfFailures.push(`(ad) Remove app fixture holds no ${JSON.stringify(from)}`);
+      return appOk.replace(from, to);
+    };
+    expect('(ad) Phase 348: passes one Remove runner made at the press, registered before its task, stopped by wentAway', rmRun() === 0);
+    expect('(ad) Phase 348: catches the runner registered after its task starts', rmRun(rs('        registry?.registerRemove(runner)\n        let task = Task { _ = await runner.run() }\n', '        let task = Task { _ = await runner.run() }\n        registry?.registerRemove(runner)\n')) > 0);
+    expect('(ad) Phase 348: catches the runner never registered', rmRun(rs('        registry?.registerRemove(runner)\n', '')) > 0);
+    expect('(ad) Phase 348: catches wentAway stopping no Remove', rmRun(removeOk, as('        for runner in liveRemoves {\n            runner.stop()\n        }\n', '')) > 0);
+    expect('(ad) Phase 348: catches the stop that sets stopRequested back', rmRun(rs('        task?.cancel()\n    }\n', '        task?.cancel()\n        stopRequested = false\n    }\n')) > 0);
+    expect('(ad) Phase 348: catches run sending before it reads stopRequested', rmRun(rs('        guard !stopRequested else { return nil }\n        return await remover.remove(target)\n', '        let sent = await remover.remove(target)\n        guard !stopRequested else { return nil }\n        return sent\n')) > 0);
+    expect('(ad) Phase 348: catches a Remove retried in a loop', rmRun(rs('        return await remover.remove(target)\n', '        for _ in 0..<2 { _ = await remover.remove(target) }\n        return nil\n')) > 0);
+    expect('(ad) Phase 348: catches a runner holding a list of targets', rmRun(rs('    let target: String\n', '    let target: String\n    let targets: [String]\n')) > 0);
+    expect('(ad) Phase 348: catches a runner made outside the press', rmRun(rs('final class RemoveModel {', 'func again() { let r = RemoveRunner(target: "s", remover: x); registry?.registerRemove(r) }\nfinal class RemoveModel {')) > 0);
+    expect('(ad) Phase 348: catches a Remove kept in UserDefaults', rmRun(rs('    func press(reread', '    func keep() { UserDefaults.standard.set(sessionId, forKey: "r") }\n    func press(reread')) > 0);
+    expect('(ad) Phase 348: catches a second call of the remover outside the runner', rmRun(rs('    func press(reread', '    func again() async { _ = await remover.remove(sessionId) }\n    func press(reread')) > 0);
+  }
   expect('(ac) catches the owner check asked by Unpair', acRun(swap('App/TortieApp.swift', '        switch door.unpair() {', '        Task { _ = await ownerCheck.confirm(reason: "x") }\n        switch door.unpair() {')).length > 0);
   expect('(ac) catches a stored Face ID switch', acRun(swap('App/TortieApp.swift', '    func wentAway() {', '    let key = "faceIDOnEnd"\n    func wentAway() {')).length > 0);
   expect('(ac) catches the purpose string missing', acRun({}, { NSCameraUsageDescription: 'x' }).length > 0);
@@ -10627,8 +11031,12 @@ export function ruleScreenSizesNothing(files) {
     const reread = /\bfunc\s+session\s*\(([^)]*)\)/.exec(body);
     if (page === null || labels(page[1]).join(',') !== 'from,count,depth,wrap,keep') findings.push(`ScreenDoor.scrollback takes ${JSON.stringify(page === null ? null : labels(page[1]))}; it takes from, count, depth, wrap and keep, and nothing that sizes (D7)`);
     if (reread === null || labels(reread[1]).length !== 0) findings.push(`ScreenDoor.session takes ${JSON.stringify(reread === null ? null : labels(reread[1]))}; it takes nothing (D17)`);
+    // Phase 348 (build/p348/SPEC.md D54, §9.3): ONE paste, the text, the turn
+    // and the dialog of the picture at his press, and nothing that sizes.
+    const paste = /\bfunc\s+paste\s*\(([^)]*)\)/.exec(body);
+    if (paste === null || labels(paste[1]).join(',') !== '_,turn,dialog') findings.push(`ScreenDoor.paste takes ${JSON.stringify(paste === null ? null : labels(paste[1]))}; it takes the text, turn and dialog, and nothing else (D54)`);
     const funcs = [...body.matchAll(/\bfunc\s+([A-Za-z_]\w*)/g)].map((m) => m[1]).sort().join(',');
-    if (funcs !== 'close,keys,read,scrollback,session') findings.push(`ScreenDoor declares ${funcs}; exactly read, keys, scrollback, session and close`);
+    if (funcs !== 'close,keys,paste,read,scrollback,session') findings.push(`ScreenDoor declares ${funcs}; exactly read, keys, paste, scrollback, session and close`);
   }
   return { findings, said };
 }
@@ -10742,6 +11150,57 @@ export function ruleScreenKeys(files, contractNames) {
     else said.owners.push(file.name);
     for (const m of file.bare.matchAll(/\b(?:LAContext|evaluatePolicy|OwnerCheck|DeviceOwnerCheck|LocalAuthentication)\b/g)) findings.push(`${atLine(file, m.index)} names ${m[0]}; no key asks Face ID (his ruling 3)`);
   }
+  // (ai10) Phase 348 (build/p348/SPEC.md D20, D31, D54): ONE PASTE, ALONE IN
+  // ITS WRITE, STAMPED AT HIS PRESS. The Screen door's paste( (`turn:` and no
+  // `line:`) once, in ScreenKeySender.flush, sending the queued item's own
+  // turn and dialog, never the picture drawn at the flush; the client's paste(
+  // (with `line:`) once, outside every Screen file; the item made once, in
+  // ScreenKeySender.paste, after the phone's paste rule, from the picture that
+  // function read at his press; and takeBatch takes keys alone, never a paste.
+  said.pasteCalls = 0;
+  said.pasteClientCalls = 0;
+  for (const file of all) {
+    for (const m of file.bare.matchAll(/\.\s*paste\s*\(/g)) {
+      if (isDecl(file.bare, m.index)) continue;
+      // A member call has an expression before its dot; `.paste(` after a `(`
+      // is the queue's own case (`pending.append(.paste(…))`).
+      if (!/[\w)\]?!]\s*$/.test(file.bare.slice(Math.max(0, m.index - 40), m.index))) continue;
+      if (/\bWriteRoute\s*$/.test(file.bare.slice(Math.max(0, m.index - 40), m.index))) continue;
+      const open = file.bare.indexOf('(', m.index);
+      const close = closeParen(file.bare, open);
+      const args = file.bare.slice(open, close === -1 ? open + 200 : close + 1);
+      if (!/\bturn\s*:/.test(args) || /\bsession\s*:/.test(args)) continue;
+      const p = placeOf(file, m.index);
+      if (/\bline\s*:/.test(args)) {
+        said.pasteClientCalls += 1;
+        if (file.name === SENDER_FILE || isScreenFile(file.name)) findings.push(`${atLine(file, m.index)} calls the door client's paste( from a Screen file; the Screen reaches the client only through its ScreenDoor (Phase 348)`);
+        continue;
+      }
+      said.pasteCalls += 1;
+      if (file.name !== SENDER_FILE || p.type !== 'ScreenKeySender' || p.fn !== 'flush') findings.push(`${atLine(file, m.index)} calls the Screen door's paste( in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; ScreenKeySender.flush is its one caller, so a paste and his typing land in the order he made them (Phase 348, D31)`);
+      else if (!/^\(\s*item\s*\.\s*text\s*,\s*turn\s*:\s*item\s*\.\s*turn\s*,\s*dialog\s*:\s*item\s*\.\s*dialog\s*\)$/.test(args.replace(/\s+/g, ' '))) findings.push(`${atLine(file, m.index)} sends the paste with ${JSON.stringify(args.replace(/\s+/g, ' ').slice(0, 80))}; it sends the queued item's own text, turn and dialog, the picture of his press, never the picture drawn at the flush (Phase 348, D31, D54)`);
+    }
+  }
+  if (said.pasteCalls !== 1) findings.push(`the Screen door's paste( is called ${String(said.pasteCalls)} time(s); once, in ScreenKeySender.flush (Phase 348, D54)`);
+  if (said.pasteClientCalls !== 1) findings.push(`the door client's paste( is called ${String(said.pasteClientCalls)} time(s) in the app; once, by the Screen door that owns the keys line (Phase 348, D54)`);
+  for (const file of all) {
+    for (const m of file.bare.matchAll(/\bScreenPasteItem\s*\(/g)) {
+      if (/\b(?:struct|class|enum)\s+$/.test(file.bare.slice(Math.max(0, m.index - 10), m.index))) continue;
+      const p = placeOf(file, m.index);
+      if (file.name !== SENDER_FILE || p.type !== 'ScreenKeySender' || p.fn !== 'paste') findings.push(`${atLine(file, m.index)} makes a paste item in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; ScreenKeySender.paste, his press, is the one maker (Phase 348, D31)`);
+    }
+  }
+  {
+    const press = fnText(sender, 'paste', 'ScreenKeySender');
+    const rule = press.search(/\bScreenPasteRule\s*\.\s*refusal\s*\(/);
+    const drawnAt = press.search(/\blet\s+drawn\s*=\s*picture\s*\(\s*\)/);
+    const made = press.search(/\bScreenPasteItem\s*\(/);
+    if (made === -1 || rule === -1 || rule > made) findings.push('ScreenKeySender.paste queues a paste before it asks ScreenPasteRule.refusal(, so an empty, too long, controlling or pairing-code text could be sent (Phase 348, D20, D53)');
+    if (made === -1 || drawnAt === -1 || drawnAt > made) findings.push('ScreenKeySender.paste does not stamp its item from the picture it read at his press (let drawn = picture()), so a paste waiting behind a write would go against a question drawn after it (Phase 348, D31)');
+    else if (!/\bScreenPasteItem\s*\(\s*text\s*:\s*payload\s*,\s*turn\s*:\s*drawn\s*\.\s*turn\s*,\s*dialog\s*:\s*drawn\s*\.\s*dialog\s*,\s*revision\s*:\s*drawn\s*\.\s*revision\s*\)/.test(press)) findings.push('ScreenKeySender.paste\'s item is not ScreenPasteItem(text: payload, turn: drawn.turn, dialog: drawn.dialog, revision: drawn.revision), the text as it was read and the picture of his press (Phase 348, D31, D54)');
+    if (/\btyped\s*\(|\bctrl\b|\bcontrol\b/i.test(press.replace(/\bScreenPasteRule\b|\bscreenCannotType\b/g, ''))) findings.push('ScreenKeySender.paste names typed( or the Control key; an armed Ctrl never applies to a paste (Phase 348, D20)');
+  }
+  if (!/\bguard\s+case\s+\.\s*key\s*\(\s*let\s+first\s*\)\s*\?\s*=\s*pending\s*\.\s*first\b/.test(batch) || !/\bwhile\s+case\s+\.\s*key\s*\(\s*let\s+next\s*\)\s*\?\s*=\s*pending\s*\.\s*first\b/.test(batch)) findings.push('ScreenKeySender.takeBatch does not take keys alone (guard case .key(let first)? and while case .key(let next)? over pending), so a paste could be merged with keys (Phase 348, D54)');
   return { findings, said };
 }
 
@@ -10773,20 +11232,38 @@ export function ruleScreenField(files) {
   for (const [name, value] of FIELD_SETTINGS) {
     const set = new RegExp(`(?:^|[^.\\w])(?:self\\s*\\.\\s*)?${name}\\s*=\\s*${value.replace('.', '\\.')}\\b`).test(body);
     if (set) said.settings += 1;
-    else findings.push(`ScreenTextView does not set ${name} = ${value}; ${name === 'pasteConfiguration' ? 'the field takes no paste' : 'nothing rewrites what he types'} (D28)`);
+    else findings.push(`ScreenTextView does not set ${name} = ${value}; ${name === 'pasteConfiguration' ? 'the field takes no pasted or dropped item, and a paste reaches paste(_:) alone (D28; Phase 348, D41)' : 'nothing rewrites what he types'} (D28)`);
   }
   if (!/\btextDropDelegate\s*=\s*\w/.test(body)) findings.push('ScreenTextView sets no textDropDelegate, so a drop could put a block of lines in the field (D28, §Attack A9)');
   for (const file of files.map((f) => lexedFile(files, f.name))) {
     for (const m of file.bare.matchAll(/\bkeyboardType\s*=\s*\.\s*asciiCapable\w*/g)) findings.push(`${atLine(file, m.index)} sets an ASCII-capable keyboard, which drops the globe key and every other keyboard (D28)`);
   }
-  // Paste refused, every spelling.
+  // Paste refused, every spelling but iOS's own paste (Phase 348, his ruling
+  // of 2026-10-18, D35, D41): pasteAndMatchStyle, pasteAndGo and
+  // pasteAndSearch stay refused, in the field's one refused set; paste(_:) is
+  // admitted only behind the page's word and the clipboard's hasStrings (rule
+  // al holds the ask), and its paste(_:) hands the text on and never puts it
+  // in the field, so nothing of it is typed, autocorrected or composed.
   const can = /\boverride\s+func\s+canPerformAction\s*\(/.exec(body);
-  if (can === null) findings.push('ScreenTextView does not override canPerformAction(_:withSender:), so the system offers Paste');
+  if (can === null) findings.push('ScreenTextView does not override canPerformAction(_:withSender:), so the system offers every paste action');
+  const refusedSet = /\bstatic\s+let\s+refused\s*:\s*Set\s*<\s*Selector\s*>\s*=\s*\[([^\]]*)\]/.exec(body);
+  const refusedText = refusedSet === null ? '' : refusedSet[1];
   for (const action of PASTE_ACTIONS) {
-    if (new RegExp(`#selector\\s*\\(\\s*(?:UIResponderStandardEditActions\\s*\\.\\s*)?${action}\\s*\\(\\s*_\\s*:\\s*\\)\\s*\\)`).test(body)) said.refused.push(action);
-    else findings.push(`ScreenTextView does not refuse ${action}(_:) in canPerformAction (D28, §Attack A9)`);
+    const named = new RegExp(`#selector\\s*\\(\\s*(?:UIResponderStandardEditActions\\s*\\.\\s*)?${action}\\s*\\(\\s*_\\s*:\\s*\\)\\s*\\)`).test(refusedText);
+    if (action === 'paste') {
+      if (named) findings.push('ScreenTextView refuses paste(_:), so Command-V and the three-finger paste take nothing (Phase 348, D19, D41)');
+      continue;
+    }
+    if (named) said.refused.push(action);
+    else findings.push(`ScreenTextView does not refuse ${action}(_:) in its refused set, read by canPerformAction (D28, §Attack A9; Phase 348, D35)`);
   }
-  if (can !== null && !/\breturn\s+false\b/.test(bodyAfter(field.bare, view.open + can.index))) findings.push('ScreenTextView.canPerformAction never answers false');
+  if (can !== null && !/\bif\s+Self\s*\.\s*refused\s*\.\s*contains\s*\(\s*action\s*\)\s*\{\s*return\s+false\s*\}/.test(bodyAfter(field.bare, view.open + can.index))) findings.push('ScreenTextView.canPerformAction does not answer false for every action in its refused set');
+  {
+    const paste = funcsNamed(field, 'paste', 'ScreenTextView')[0] ?? null;
+    const pasteBody = paste === null ? '' : bodyText(field, paste).replace(/^\{|\}$/g, '').trim().replace(/\s+/g, ' ');
+    if (paste === null) findings.push('ScreenTextView does not override paste(_:), so Command-V and the three-finger paste take nothing (Phase 348, D41)');
+    else if (pasteBody !== 'guard let payload = UIPasteboard.general.string else { return } onPaste?(payload)') findings.push(`ScreenTextView.paste(_:) does ${JSON.stringify(pasteBody.slice(0, 90))}; it reads the clipboard's string once and hands it to onPaste, never into the field's text (Phase 348, D41, D42)`);
+  }
   // deleteBackward: BSpace, even on an empty field.
   if (!/\boverride\s+func\s+deleteBackward\s*\(\s*\)/.test(body) || !/\bbackspace\s*\(/.test(fnText(field, 'deleteBackward', 'ScreenTextView'))) findings.push('ScreenTextView does not override deleteBackward() to send Backspace, so Backspace on an empty field would send nothing');
   if (!/\.\s*key\s*\(\s*\.\s*backspace\s*\)/.test(fnText(field, 'backspace', 'ScreenInputState'))) findings.push('ScreenInputState.backspace does not answer .key(.backspace)');
@@ -10908,29 +11385,104 @@ export function ruleKeptLines(files) {
 }
 
 // ---- (al) THE PASTEBOARD IS WRITTEN AND NEVER READ (D34) -------------------
+//
+// PHASE 348 (build/p348/SPEC.md D19, D39 to D42, §7.3), his ruling of
+// 2026-10-18, "i'd like to be able to paste natively": the pasteboard is now
+// READ, and only in two places, each iOS's own paste command on his press:
+// `UIPasteboard.general.string` inside the two `override func paste(_:)`s
+// (the hidden key field's, which Command-V and the three-finger paste reach,
+// and the content view's, which the long-press menu's Paste reaches), and
+// `UIPasteboard.general.hasStrings`, which raises no alert, inside the two
+// `canPerformAction`s, each joined to the page's `pasteOffered()` behind a
+// test of the paste selector. Nothing else in the app names UIPasteboard but
+// Copy's one write, so the Terminal's words still go nowhere but the
+// clipboard, and nothing reads the clipboard but his press.
 
 const SELECTION_FILE = 'Screens/ScreenSelection.swift';
+/** The two places iOS's own paste command reads the clipboard (Phase 348, D40, D41): the file and its one type. */
+export const PASTE_ROADS = Object.freeze([
+  ['Screens/ScreenKeyField.swift', 'ScreenTextView'],
+  ['Screens/ScreenTextInput.swift', 'ScreenTextContent']
+]);
 const PASTEBOARD_READS = /\bUIPasteboard\b[\s\S]{0,60}?\.\s*(?:string|strings|items|url|urls|image|images|color|colors|data)\b(?!\s*=(?!=))|\.\s*(?:hasStrings|hasURLs|hasImages|hasColors|detectPatterns|detectValues|changeCount|itemProviders|numberOfItems|value\s*\(\s*forPasteboardType)\b/g;
+
+/**
+ * Is the pasteboard named at `at` one of the two shapes a paste road may
+ * hold (Phase 348): `UIPasteboard.general.string` read (never assigned) inside
+ * the road type's own `override func paste(_ sender: Any?)`, or
+ * `UIPasteboard.general.hasStrings` inside its own `override func
+ * canPerformAction(_:withSender:)`. Answers `'read'`, `'ask'` or null.
+ */
+function pasteRoadUse(file, at) {
+  const road = PASTE_ROADS.find(([name]) => name === file.name);
+  if (road === undefined) return null;
+  const p = placeOf(file, at);
+  if (p.type !== road[1]) return null;
+  const fn = innermost(file.funcs, at);
+  if (fn === null) return null;
+  const head = file.bare.slice(Math.max(0, fn.at - 40), fn.bodyOpen);
+  const tail = file.bare.slice(at);
+  if (p.fn === 'paste' && /\boverride\s+func\s+paste\s*\(\s*_\s+\w+\s*:\s*Any\s*\?\s*\)\s*$/.test(head.trimEnd()) && /^UIPasteboard\s*\.\s*general\s*\.\s*string\b(?!\s*=(?!=))/.test(tail)) return 'read';
+  if (p.fn === 'canPerformAction' && /\boverride\s+func\s+canPerformAction\s*\(/.test(head) && /^UIPasteboard\s*\.\s*general\s*\.\s*hasStrings\b/.test(tail)) return 'ask';
+  return null;
+}
 
 /** Rule (al), pure over the app's Swift files. */
 export function rulePasteboard(files) {
   const findings = [];
-  const said = { writes: 0 };
+  const said = { writes: 0, reads: 0, asks: 0 };
+  const byRoad = new Map(PASTE_ROADS.map(([name]) => [name, { reads: 0, asks: 0, present: false }]));
   for (const file of files.map((f) => lexedFile(files, f.name))) {
+    if (byRoad.has(file.name)) byRoad.get(file.name).present = true;
+    const allowed = new Set();
     for (const m of file.bare.matchAll(/\bUIPasteboard\b/g)) {
-      if (file.name !== SELECTION_FILE) {
-        findings.push(`${atLine(file, m.index)} names UIPasteboard outside ${SELECTION_FILE}; Copy is the one thing that touches it`);
+      if (file.name === SELECTION_FILE) {
+        if (/^UIPasteboard\s*\.\s*general\s*\.\s*string\s*=(?!=)/.test(file.bare.slice(m.index)) && /(?:^|[\n;{])\s*$/.test(file.bare.slice(0, m.index))) said.writes += 1;
+        else findings.push(`${atLine(file, m.index)} names UIPasteboard other than as UIPasteboard.general.string = …; the app writes its string and nothing else`);
         continue;
       }
-      if (/^UIPasteboard\s*\.\s*general\s*\.\s*string\s*=(?!=)/.test(file.bare.slice(m.index)) && /(?:^|[\n;{])\s*$/.test(file.bare.slice(0, m.index))) said.writes += 1;
-      else findings.push(`${atLine(file, m.index)} names UIPasteboard other than as UIPasteboard.general.string = …; the app writes its string and nothing else`);
+      const use = pasteRoadUse(file, m.index);
+      if (use === null) {
+        const p = placeOf(file, m.index);
+        findings.push(`${atLine(file, m.index)} names UIPasteboard in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; outside ${SELECTION_FILE}'s Copy only iOS's own paste command reads it, as UIPasteboard.general.string in ${PASTE_ROADS.map(([f, t]) => `${t}.paste(_:) (${f})`).join(' and ')}, and asks it, as .hasStrings in those types' canPerformAction (Phase 348, D40 to D42)`);
+        continue;
+      }
+      const road = byRoad.get(file.name);
+      if (use === 'read') {
+        road.reads += 1;
+        said.reads += 1;
+        allowed.add(m.index);
+      } else {
+        road.asks += 1;
+        said.asks += 1;
+        const dot = file.bare.indexOf('.hasStrings', m.index);
+        const spaced = /\.\s*hasStrings/.exec(file.bare.slice(m.index));
+        allowed.add(spaced === null ? dot : m.index + spaced.index);
+      }
     }
     for (const m of file.bare.matchAll(PASTEBOARD_READS)) {
       if (!/UIPasteboard|pasteboard/i.test(m[0]) && !/hasStrings|detectPatterns|changeCount|hasURLs|hasImages|hasColors|detectValues|itemProviders|numberOfItems/.test(m[0])) continue;
-      findings.push(`${atLine(file, m.index)} reads the pasteboard (${m[0].replace(/\s+/g, ' ').slice(0, 50)}); nothing in the app ever reads it (D34)`);
+      if (allowed.has(m.index) && /^(?:UIPasteboard\s*\.\s*general\s*\.\s*string|\.\s*hasStrings)$/.test(m[0])) continue;
+      findings.push(`${atLine(file, m.index)} reads the pasteboard (${m[0].replace(/\s+/g, ' ').slice(0, 50)}); nothing in the app reads it but iOS's own paste command on his press (D34; Phase 348, D42)`);
+    }
+    // The ask is the paste selector's own answer, joined to the page's word.
+    if (byRoad.has(file.name)) {
+      const road = PASTE_ROADS.find(([name]) => name === file.name);
+      for (const fn of file.funcs.filter((f) => f.name === 'canPerformAction' && placeOf(file, f.at).type === road[1])) {
+        const body = bodyText(file, fn);
+        if (!/\bUIPasteboard\b/.test(body)) continue;
+        if (!/\bif\s+action\s*==\s*#selector\s*\(\s*UIResponderStandardEditActions\s*\.\s*paste\s*\(\s*_\s*:\s*\)\s*\)\s*\{\s*return\s+(?:events\s*\.\s*)?pasteOffered\s*\(\s*\)\s*&&\s*UIPasteboard\s*\.\s*general\s*\.\s*hasStrings\s*\}/.test(body)) {
+          findings.push(`${atLine(file, fn.at)} ${road[1]}.canPerformAction does not answer the paste selector with pasteOffered() && UIPasteboard.general.hasStrings, so Paste could be offered where the Mac takes none or over an empty clipboard (Phase 348, D30, D40, D41)`);
+        }
+      }
     }
   }
   if (said.writes !== 1) findings.push(`UIPasteboard.general.string is written ${String(said.writes)} time(s); once, by Copy in ${SELECTION_FILE}`);
+  for (const [name, road] of byRoad) {
+    if (!road.present) continue;
+    if (road.reads !== 1) findings.push(`${name} reads UIPasteboard.general.string ${String(road.reads)} time(s); once, in its paste(_:), on his press (Phase 348, D42)`);
+    if (road.asks !== 1) findings.push(`${name} asks UIPasteboard.general.hasStrings ${String(road.asks)} time(s); once, in its canPerformAction, beside the page's pasteOffered() (Phase 348, D40, D41)`);
+  }
   return { findings, said };
 }
 
@@ -11072,7 +11624,26 @@ export function ruleEditMenu(files) {
     if (name === '_') continue;
     for (const m of body.matchAll(new RegExp(`(?<![.\\w])${name}\\b`, 'g'))) findings.push(`${atLine(input, fn.bodyOpen + m.index)} reads the suggested actions (${name}) in menuFor; the menu is built from nothing, never from what UIKit suggests, which holds Share, Translate, Look Up, Speak and Writing Tools (build/p3375/SPEC.md D8, §14 M3)`);
   }
-  for (const m of body.matchAll(/\b(?:UICommand|UIKeyCommand|UIDeferredMenuElement)\b/g)) findings.push(`${atLine(input, fn.bodyOpen + m.index)} makes a ${m[0]} in menuFor; the menu's one item is Copy (build/p3375/SPEC.md D8)`);
+  for (const m of body.matchAll(/\b(?:UIKeyCommand|UIDeferredMenuElement)\b/g)) findings.push(`${atLine(input, fn.bodyOpen + m.index)} makes a ${m[0]} in menuFor; the menu holds Copy and iOS's own Paste and nothing else (build/p3375/SPEC.md D8; build/p348/SPEC.md D39)`);
+  // Phase 348 (D39): ONE UICommand, iOS's own paste command, titled Copy.paste
+  // with the standard selector, bound to a let and identified screen-paste.
+  // Never a UIAction that reads the pasteboard: measured (§2.1 arm y), that
+  // raises iOS's Allow Paste alert and blocks its read about 61 s.
+  const commands = new Map();
+  for (const m of body.matchAll(/\bUICommand\s*\(/g)) {
+    const at = fn.bodyOpen + m.index;
+    const call = parseCall(input.bare, at);
+    const bound = /\blet\s+([A-Za-z_]\w*)\s*(?::\s*UICommand\s*)?=\s*$/.exec(input.bare.slice(Math.max(fn.bodyOpen, at - 80), at));
+    commands.set(bound === null ? `@${String(at)}` : bound[1], { at, args: call === null ? '' : call.args });
+  }
+  const isPaste = (name, args) =>
+    /(?:^|,)\s*title\s*:\s*Copy\s*\.\s*paste\s*(?:,|$)/.test(args) &&
+    /(?:^|,)\s*action\s*:\s*#selector\s*\(\s*UIResponderStandardEditActions\s*\.\s*paste\s*\(\s*_\s*:\s*\)\s*\)\s*(?:,|$)/.test(args) &&
+    new RegExp(`(?<![.\\w])${name}\\s*\\.\\s*accessibilityIdentifier\\s*=\\s*ID\\s*\\.\\s*screenPaste\\b`).test(body);
+  if (commands.size !== 1) findings.push(`menuFor makes ${String(commands.size)} UICommand(s); exactly one, iOS's own Paste (build/p348/SPEC.md D39)`);
+  for (const [name, c] of commands) {
+    if (name.startsWith('@') || !isPaste(name, c.args)) findings.push(`${atLine(input, c.at)} menuFor's UICommand is not iOS's own Paste: a let titled Copy.paste with action #selector(UIResponderStandardEditActions.paste(_:)) and accessibilityIdentifier ID.screenPaste (build/p348/SPEC.md D39)`);
+  }
   // The UIActions made in the body, by the name each is bound to.
   const actions = new Map();
   const actionClosures = [];
@@ -11090,17 +11661,26 @@ export function ruleEditMenu(files) {
   const returns = returnsIn(input.bare, fn.bodyOpen + 1, fn.bodyClose, actionClosures);
   if (returns.length === 0) findings.push('menuFor returns nothing this rule can read (no return statement); it returns UIMenu(children: []) or UIMenu(children: [copy]), each written out (build/p3375/SPEC.md D8)');
   let copies = 0;
+  let pastes = 0;
   for (const r of returns) {
     said.returns.push(r.expr.replace(/\s+/g, ' '));
     const shape = /^UIMenu\s*\(\s*children\s*:\s*\[([^]*)\]\s*\)$/.exec(r.expr);
     if (shape === null) {
-      findings.push(`${atLine(input, r.at)} menuFor returns ${JSON.stringify(r.expr.replace(/\s+/g, ' ').slice(0, 80))}; only UIMenu(children: []) (no menu) or UIMenu(children: [copy]); nil and any other menu let UIKit or a later round offer more than Copy (build/p3375/SPEC.md D8, D9)`);
+      findings.push(`${atLine(input, r.at)} menuFor returns ${JSON.stringify(r.expr.replace(/\s+/g, ' ').slice(0, 80))}; only UIMenu(children: []) (no menu), UIMenu(children: [copy]) or, since Phase 348, UIMenu(children: [copy, paste]); nil and any other menu let UIKit or a later round offer more than Copy and Paste (build/p3375/SPEC.md D8, D9; build/p348/SPEC.md D39)`);
       continue;
     }
     const items = topLevelArgs(shape[1]);
     if (items.length === 0) continue;
+    // Phase 348 (D39): Copy THEN iOS's own Paste, the bound UICommand, and
+    // only behind the page's pasteOffered() test.
+    if (items.length === 2 && commands.has(items[1]) && !items[1].startsWith('@')) {
+      const conditions = conditionsAt(input.bare, fn.bodyOpen, r.at);
+      if (stoodBehind(conditions, body, { yes: (c) => /\bpasteOffered\s*\(\s*\)/.test(c) && !/!\s*(?:events\s*\.\s*)?pasteOffered\b/.test(c) && !/\|\|/.test(c), no: (c) => /!\s*(?:events\s*\.\s*)?pasteOffered\s*\(\s*\)/.test(c) || (/\bpasteOffered\s*\(\s*\)/.test(c) && !/\|\|/.test(c)) })) pastes += 1;
+      else findings.push(`${atLine(input, r.at)} menuFor offers Paste behind no pasteOffered() test; Paste is offered only where the Mac says it takes a paste (build/p348/SPEC.md D30, D39)`);
+      items.pop();
+    }
     if (items.length !== 1) {
-      findings.push(`${atLine(input, r.at)} menuFor returns ${String(items.length)} items (${items.join(', ')}); the Terminal's menu holds Copy alone, no Share, Translate, Look Up, Speak, Writing Tools or Select All (build/p3375/SPEC.md D8, D19)`);
+      findings.push(`${atLine(input, r.at)} menuFor returns ${String(items.length)} items (${items.join(', ')}); the Terminal's menu holds Copy, then iOS's own Paste, and no Share, Translate, Look Up, Speak, Writing Tools or Select All (build/p3375/SPEC.md D8, D19; build/p348/SPEC.md D39)`);
       continue;
     }
     const item = items[0];
@@ -11115,6 +11695,8 @@ export function ruleEditMenu(files) {
     else findings.push(`${atLine(input, r.at)} menuFor offers Copy behind no drawn( test; while any selected row is still being fetched the menu is empty, so Copy never puts a blank line where a line of his was (build/p3375/SPEC.md D10, build/p3371/SPEC.md §Attack B11)`);
   }
   if (copies === 0) findings.push('menuFor never returns the Copy action, so the Terminal offers no Copy (build/p3375/SPEC.md D8)');
+  if (pastes === 0) findings.push('menuFor never returns iOS\'s own Paste after Copy behind pasteOffered(), so the Terminal offers no native paste (build/p348/SPEC.md D19, D39)');
+  said.pastes = pastes;
   // (al6) Nothing in a Screen file sends the text anywhere: the refused names, and Writing Tools only off.
   for (const file of all.filter((f) => isScreenFile(f.name))) {
     const drop = file.name === 'Screens/ScreenKeyField.swift' ? file.types.find((t) => t.name === 'ScreenDropRefusal') : undefined;
@@ -11347,8 +11929,9 @@ export function ruleScreenSentences(words, files) {
   const said = { cases: 0 };
   if (words === null) return { findings: ['Screens/DoorWords.swift does not exist'], said };
   const w = lexSwift(words);
-  // Phase 337.1: a refused page's line too (scrollbackSentence).
-  for (const [name, arg] of [['screenSentence', 'DoorFailure'], ['keysSentence', 'WriteResult'], ['scrollbackSentence', 'DoorFailure']]) {
+  // Phase 337.1: a refused page's line too (scrollbackSentence). Phase 348
+  // (build/p348/SPEC.md §7.3): a Remove's line and a paste's.
+  for (const [name, arg] of [['screenSentence', 'DoorFailure'], ['keysSentence', 'WriteResult'], ['scrollbackSentence', 'DoorFailure'], ['removeSentence', 'RemoveResult'], ['pasteSentence', 'PasteResult']]) {
     const decl = new RegExp(`\\bstatic\\s+func\\s+${name}\\s*\\(\\s*for\\s+\\w+\\s*:\\s*${arg}\\s*\\)\\s*->\\s*([^{]+)\\{`).exec(w.bare);
     if (decl === null) {
       findings.push(`Screens/DoorWords.swift declares no ${name}(for: ${arg})`);
@@ -11364,6 +11947,15 @@ export function ruleScreenSentences(words, files) {
       const cases = client === undefined ? [] : enumCases(client.source, 'WriteResult') ?? [];
       said.cases = cases.length;
       if (!/\bdefault\s*:/.test(body)) for (const cs of cases) if (!new RegExp(`\\bcase\\s+\\.${cs}\\b`).test(body)) findings.push(`Screens/DoorWords.swift's keysSentence draws nothing for .${cs}`);
+    }
+    // Phase 348: every case of the result drawn, with no default, so a new
+    // case is a line somebody chose.
+    if (name === 'removeSentence' || name === 'pasteSentence') {
+      const client = files.find((f) => f.name === 'Door/DoorClient.swift');
+      const cases = client === undefined ? [] : enumCases(client.source, arg) ?? [];
+      if (cases.length === 0) findings.push(`Door/DoorClient.swift declares no ${arg} cases for ${name} to draw`);
+      if (/\bdefault\s*:/.test(body)) findings.push(`Screens/DoorWords.swift's ${name} has a default, so a new ${arg} case would draw a line nobody chose`);
+      for (const cs of cases) if (!new RegExp(`\\bcase\\s+\\.${cs}\\b`).test(body)) findings.push(`Screens/DoorWords.swift's ${name} draws nothing for .${cs}`);
     }
   }
   for (const f of files.filter((x) => isScreenFile(x.name))) {
@@ -12986,8 +13578,36 @@ export function ruleSite(files) {
   }
   if (said.notes === 0) findings.push('nothing asks DoorWords.reachNote(for:), so the Allow line is drawn nowhere (av7)');
 
-  // av8: THE TORTIE MARKER before the version (r2 §Attack F24).
+  // av8: THE TORTIE MARKER before the version (r2 §Attack F24). Since Phase
+  // 348 (build/p348/SPEC.md D53, rule p) the marker may be asked through ONE
+  // private function of PairingOffer, `markerOf`, which `parse` and the
+  // paste's `readsAsCode` both call, so the marker is spelled once: then the
+  // guard naming fp, dk and dx and asking Base64URL.decode( of fp is that
+  // function's, and parse's own guard is `guard let marker = markerOf(…)`.
   const pairing = lexed.find((f) => f.name === 'Door/Pairing.swift');
+  const markerHeld = (g) => /\bfp\b/.test(g) && /\bdk\b/.test(g) && /\bdx\b/.test(g) && /\bBase64URL\s*\.\s*decode\s*\([^)]*\bfp\b/.test(g);
+  let markerFn = null;
+  if (pairing !== undefined) {
+    const pp = { ...pairing.lx, types: typeSpans(pairing.lx.bare), funcs: funcSpans(pairing.lx.bare).filter((fn) => fn.bodyOpen !== -1) };
+    const decls = pp.funcs.filter((fn) => fn.name === 'markerOf');
+    for (const fn of decls) {
+      if (placeOf(pp, fn.at).type !== 'PairingOffer' || !/\bprivate\s+static\s+func\s+markerOf\s*\(\s*_\s+\w+\s*:\s*String\s*\)\s*->\s*Marker\s*\?/.test(pairing.lx.bare.slice(Math.max(0, fn.at - 20), fn.bodyOpen))) findings.push(`${at(pairing, fn.at)} declares markerOf outside PairingOffer, or not as private static func markerOf(_:) -> Marker?; the marker is asked in one private place both its callers share (av8, Phase 348 D53)`);
+    }
+    if (decls.length > 1) findings.push(`Door/Pairing.swift declares markerOf ${String(decls.length)} time(s); once, so the marker is spelled once (av8, Phase 348 D53)`);
+    if (decls.length === 1) {
+      markerFn = decls[0];
+      const body = pairing.lx.bare.slice(markerFn.bodyOpen, markerFn.bodyClose);
+      if (![...body.matchAll(/\bguard\b([\s\S]*?)\belse\s*\{/g)].some((g) => markerHeld(g[1]))) findings.push(`${at(pairing, markerFn.at)} markerOf holds no guard naming fp, dk and dx and asking Base64URL.decode( of fp, so it answers a marker for somebody else's code (av8, r2 §Attack F24)`);
+      for (const f of lexed) {
+        for (const m of f.lx.bare.matchAll(/\bmarkerOf\s*\(/g)) {
+          if (isDecl(f.lx.bare, m.index)) continue;
+          const pf = { ...f.lx, types: typeSpans(f.lx.bare), funcs: funcSpans(f.lx.bare).filter((fn) => fn.bodyOpen !== -1) };
+          const p = placeOf(pf, m.index);
+          if (f !== pairing || p.type !== 'PairingOffer' || (p.fn !== 'parse' && p.fn !== 'readsAsCode')) findings.push(`${at(f, m.index)} asks markerOf in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; only PairingOffer.parse and PairingOffer.readsAsCode ask it (av8, Phase 348 D53)`);
+        }
+      }
+    }
+  }
   for (const f of lexed) {
     for (const m of f.lx.bare.matchAll(/\bthrow\s+(?:PairingFailure)?\s*\.\s*(codeFromNewerMac|codeFromOlderMac)\b/g)) {
       const pf = { ...f.lx, types: typeSpans(f.lx.bare), funcs: funcSpans(f.lx.bare).filter((fn) => fn.bodyOpen !== -1) };
@@ -13001,7 +13621,7 @@ export function ruleSite(files) {
       const parse = pf.funcs.find((fn) => fn.name === 'parse' && m.index > fn.bodyOpen && m.index < fn.bodyClose);
       const before = f.lx.bare.slice(parse.bodyOpen, m.index);
       const guards = [...before.matchAll(/\bguard\b([\s\S]*?)\belse\s*\{/g)].map((g) => g[1]);
-      const marker = guards.some((g) => /\bfp\b/.test(g) && /\bdk\b/.test(g) && /\bdx\b/.test(g) && /\bBase64URL\s*\.\s*decode\s*\([^)]*\bfp\b/.test(g));
+      const marker = guards.some(markerHeld) || (markerFn !== null && guards.some((g) => /\blet\s+marker\s*=\s*markerOf\s*\(\s*payload\s*\)/.test(g)));
       if (!marker) findings.push(`${at(f, m.index)} throws ${m[1]} with no guard before it naming fp, dk and dx and asking Base64URL.decode( of fp, so somebody else's code with an integer v says to update Tortie (av8, r2 §Attack F24)`);
       const lineStart = f.lx.bare.lastIndexOf('\n', m.index) + 1;
       const cond = /\bif\b([^{]*)\{\s*$/.exec(f.lx.bare.slice(lineStart, m.index));
@@ -13250,8 +13870,13 @@ export const TERMINAL_MENU_IDS = Object.freeze([
   ['terminalMenu', 'terminal-menu'],
   ['terminalMenuCatchUp', 'terminal-menu-catch-up'],
   ['terminalMenuEnd', 'terminal-menu-end'],
-  ['endWriting', 'end-writing']
+  ['endWriting', 'end-writing'],
+  // Phase 348 (build/p348/SPEC.md §5.3): Remove in End session…'s place, and its mark.
+  ['terminalMenuRemove', 'terminal-menu-remove'],
+  ['removeWriting', 'remove-writing']
 ]);
+/** Remove's press, its runner and its confirmation (Phase 348, D33, D55). */
+export const REMOVE_FILE = 'Screens/Remove.swift';
 
 /**
  * Rule (ay), pure over the app's Swift files. His item 3: one ⋯ at the
@@ -13334,7 +13959,15 @@ export function ruleTerminalMenu(files) {
         if (ok) entries.push({ name: m[1], at, heads });
       }
       said.entries = entries.map((e) => e.name);
-      if (said.entries.join(',') !== 'Button,EndMenuItem') findings.push(`TerminalMenuControl's menu holds ${JSON.stringify(said.entries)}; exactly a Button for Catch Me Up, then EndMenuItem, in that order (build/p3373/SPEC.md D22)`);
+      // Phase 348 (D4, D33): Remove in End session…'s place, the third entry,
+      // drawn only behind Remove's own drawing.
+      if (said.entries.join(',') !== 'Button,EndMenuItem,RemoveMenuItem') findings.push(`TerminalMenuControl's menu holds ${JSON.stringify(said.entries)}; exactly a Button for Catch Me Up, then EndMenuItem, then RemoveMenuItem in End's place once End is done, in that order (build/p3373/SPEC.md D22; build/p348/SPEC.md D33)`);
+      const removeItem = entries.find((e) => e.name === 'RemoveMenuItem');
+      if (removeItem !== undefined && !removeItem.heads.some((h) => /\bremoval\b/.test(h))) findings.push('the menu draws RemoveMenuItem without asking for Remove\'s drawing (RemoveDrawing, nil while the Mac offers End or sends no removeConfirm), so Remove is drawn where the Mac offers none (build/p348/SPEC.md D30, D49)');
+      // Remove's one confirmation, outside the menu's items, as End's is.
+      const removeDialogs = [...cb.matchAll(/\.\s*removeConfirmation\s*\(/g)].map((m) => control.open + m.index);
+      if (removeDialogs.length !== 1) findings.push(`TerminalMenuControl applies .removeConfirmation( ${String(removeDialogs.length)} time(s); once, outside the menu's items, so the Mac's question presents once the menu has closed (build/p348/SPEC.md D5, D33)`);
+      for (const at of removeDialogs) if (at > content.open && at < content.close) findings.push(`${atLine(screen, at)} attaches Remove's confirmation inside the menu's items; it is applied outside its content, or it is dismissed with the menu (build/p348/SPEC.md D33)`);
       const catchUp = entries.find((e) => e.name === 'Button');
       if (catchUp !== undefined) {
         const b = parseCall(screen.bare, catchUp.at);
@@ -13363,6 +13996,28 @@ export function ruleTerminalMenu(files) {
     }
   }
   if (!/\bProgressView\s*\(/.test(cb)) findings.push('TerminalMenuControl draws no ProgressView beside the ⋯ while End is under way (build/p3373/SPEC.md D24)');
+  // Phase 348: Remove's mark, `remove-writing`, only while its write runs.
+  {
+    const sites = [...cb.matchAll(/\bID\s*\.\s*removeWriting\b/g)].map((m) => control.open + m.index);
+    if (sites.length === 0) findings.push('TerminalMenuControl draws no progress mark identified ID.removeWriting while a Remove\'s write runs (build/p348/SPEC.md §5.3)');
+    for (const at of sites) {
+      const line = screen.bare.slice(screen.bare.lastIndexOf('\n', at) + 1, at);
+      const guarded = insideBlock(screen.bare, at, /\bif\b[^{]*\bwriting\b/) || /\bif\b[^{]*\bwriting\b[^{]*\{[^}]*$/.test(line) || /\bwriting\b[^?\n]*\?\s*$/.test(line);
+      if (!guarded) findings.push(`${atLine(screen, at)} identifies Remove's mark ID.removeWriting outside a test of its writing; the mark says what Remove is doing (build/p348/SPEC.md §5.3)`);
+    }
+  }
+  // Phase 348 (D33): RemoveMenuItem is the Mac's own word, destructive, with no glyph.
+  {
+    const removeFile = lexedFile(files, REMOVE_FILE);
+    const removeType = removeFile === null ? undefined : removeFile.types.find((t) => t.name === 'RemoveMenuItem' && t.kind === 'struct');
+    if (removeType === undefined) findings.push(`${REMOVE_FILE} declares no struct RemoveMenuItem, the menu's Remove (build/p348/SPEC.md D33)`);
+    else {
+      const rb = removeFile.bare.slice(removeType.open, removeType.close + 1);
+      if (!/\bButton\s*\(\s*Copy\s*\.\s*remove\s*,\s*role\s*:\s*\.\s*destructive\s*\)/.test(rb)) findings.push('RemoveMenuItem is not Button(Copy.remove, role: .destructive), the Mac\'s own word in the error colour (build/p348/SPEC.md D5, D33)');
+      if (/\bsystemImage\b|\bImage\s*\(/.test(rb)) findings.push('RemoveMenuItem draws a glyph; Remove asks no owner check, so it carries none (build/p348/SPEC.md D33)');
+      if (!/\.\s*accessibilityIdentifier\s*\(\s*ID\s*\.\s*terminalMenuRemove\s*\)/.test(rb)) findings.push('RemoveMenuItem is not identified ID.terminalMenuRemove (build/p348/SPEC.md §5.3)');
+    }
+  }
   // (ay7) EndMenuItem's label, and (ay8) its words.
   const item = bar.types.find((t) => t.name === 'EndMenuItem');
   if (item === undefined) findings.push(`${END_BAR_FILE} declares no EndMenuItem, the menu's End (build/p3373/SPEC.md §5.4)`);
@@ -13803,9 +14458,13 @@ export function ruleTerminalMenu(files) {
     '        if drawing.writing { return ID.endWriting }',
     '        return nil',
     '    }',
+    '    nonisolated static func removeMark(_ removal: RemoveDrawing?) -> String? {',
+    '        removal?.writing == true ? ID.removeWriting : nil',
+    '    }',
     '    var body: some View {',
+    '        let removal = TerminalMenuControl.removeDrawing(end, offer: offer, removeConfirm: removeConfirm)',
     '        HStack(spacing: 4) {',
-    '            if let mark = TerminalMenuControl.progressMark(drawing) {',
+    '            if let mark = TerminalMenuControl.progressMark(drawing) ?? TerminalMenuControl.removeMark(removal) {',
     '                ProgressView().accessibilityIdentifier(mark)',
     '            }',
     '            Menu {',
@@ -13815,6 +14474,8 @@ export function ruleTerminalMenu(files) {
     '                .accessibilityIdentifier(ID.terminalMenuCatchUp)',
     '                if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {',
     '                    EndMenuItem(row: row, drawing: drawing) { asking = true }',
+    '                } else if let removal {',
+    '                    RemoveMenuItem(drawing: removal) { removeAsked = true }',
     '                }',
     '            } label: {',
     '                Image(systemName: TerminalMenuControl.symbol)',
@@ -13824,6 +14485,21 @@ export function ruleTerminalMenu(files) {
     '            .accessibilityIdentifier(ID.terminalMenu)',
     '            .endConfirmation(model: end, offer: offer, confirm: confirm, drawing: drawing, isPresented: $asking, reread: reread)',
     '        }',
+    '        .removeConfirmation(model: end?.remove, drawing: removal, isPresented: $removeAsked, reread: reread)',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const menuRemoveOk = [
+    'struct RemoveMenuItem: View {',
+    '    let drawing: RemoveDrawing',
+    '    let ask: () -> Void',
+    '    var body: some View {',
+    '        Button(Copy.remove, role: .destructive) {',
+    '            ask()',
+    '        }',
+    '        .disabled(drawing.row == .off)',
+    '        .accessibilityIdentifier(ID.terminalMenuRemove)',
     '    }',
     '}',
     ''
@@ -13852,7 +14528,7 @@ export function ruleTerminalMenu(files) {
     ''
   ].join('\n');
   const menuCopyOk = '    /// Phone: the spoken name of the Terminal\'s ⋯ (Phase 337.3), iOS\'s own name for an ellipsis button.\n    static let more = "More"\n';
-  const menuIdsOk = 'enum ID {\n    static let endWriting = "end-writing"\n    static let terminalMenu = "terminal-menu"\n    static let terminalMenuCatchUp = "terminal-menu-catch-up"\n    static let terminalMenuEnd = "terminal-menu-end"\n}\n';
+  const menuIdsOk = 'enum ID {\n    static let endWriting = "end-writing"\n    static let terminalMenu = "terminal-menu"\n    static let terminalMenuCatchUp = "terminal-menu-catch-up"\n    static let terminalMenuEnd = "terminal-menu-end"\n    static let terminalMenuRemove = "terminal-menu-remove"\n    static let removeWriting = "remove-writing"\n}\n';
   // The parent's Terminal (dfa878b5): the Catch Me Up icon, then End, in the bar.
   const menuParent = [
     'struct TerminalPage: View {',
@@ -13878,13 +14554,14 @@ export function ruleTerminalMenu(files) {
     '}',
     ''
   ].join('\n');
-  const ay = (edits = {}) => ruleTerminalMenu(Object.entries({ [SESSION_SCREEN_FILE]: menuSessionOk, [END_BAR_FILE]: menuBarOk, 'Style/Copy.swift': menuCopyOk, 'Screens/Identifiers.swift': menuIdsOk, ...edits }).filter(([, v]) => v !== null).map(([name, source]) => ({ name, source }))).findings.length;
+  const ay = (edits = {}) => ruleTerminalMenu(Object.entries({ [SESSION_SCREEN_FILE]: menuSessionOk, [END_BAR_FILE]: menuBarOk, [REMOVE_FILE]: menuRemoveOk, 'Style/Copy.swift': menuCopyOk, 'Screens/Identifiers.swift': menuIdsOk, ...edits }).filter(([, v]) => v !== null).map(([name, source]) => ({ name, source }))).findings.length;
+  const yr = (from, to) => ({ [REMOVE_FILE]: swapIn('(ay)', menuRemoveOk, from, to) });
   const yq = (from, to) => ({ [SESSION_SCREEN_FILE]: swapIn('(ay)', menuSessionOk, from, to) });
   const yb = (from, to) => ({ [END_BAR_FILE]: swapIn('(ay)', menuBarOk, from, to) });
   expect('(ay) passes the one ⋯, Catch Me Up then End session…', ay() === 0);
   expect('(ay) catches the parent\'s top right, the icon then End (his item 3)', ay({ [SESSION_SCREEN_FILE]: menuParent }) > 0);
   expect('(ay) catches a third menu item', ay(yq('                .accessibilityIdentifier(ID.terminalMenuCatchUp)\n', '                .accessibilityIdentifier(ID.terminalMenuCatchUp)\n                Button(action: openCatchUp) { Label(Copy.terminal, systemImage: "terminal") }\n')) > 0);
-  expect('(ay) catches the two items swapped', ay(yq('                Button(action: openCatchUp) {\n                    Label(Copy.catchMeUp, systemImage: "text.bubble")\n                }\n                .accessibilityIdentifier(ID.terminalMenuCatchUp)\n                if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {\n                    EndMenuItem(row: row, drawing: drawing) { asking = true }\n                }\n', '                if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {\n                    EndMenuItem(row: row, drawing: drawing) { asking = true }\n                }\n                Button(action: openCatchUp) {\n                    Label(Copy.catchMeUp, systemImage: "text.bubble")\n                }\n                .accessibilityIdentifier(ID.terminalMenuCatchUp)\n')) > 0);
+  expect('(ay) catches the two items swapped', ay(yq('                Button(action: openCatchUp) {\n                    Label(Copy.catchMeUp, systemImage: "text.bubble")\n                }\n                .accessibilityIdentifier(ID.terminalMenuCatchUp)\n                if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {\n                    EndMenuItem(row: row, drawing: drawing) { asking = true }\n                } else if let removal {\n                    RemoveMenuItem(drawing: removal) { removeAsked = true }\n                }\n', '                if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {\n                    EndMenuItem(row: row, drawing: drawing) { asking = true }\n                } else if let removal {\n                    RemoveMenuItem(drawing: removal) { removeAsked = true }\n                }\n                Button(action: openCatchUp) {\n                    Label(Copy.catchMeUp, systemImage: "text.bubble")\n                }\n                .accessibilityIdentifier(ID.terminalMenuCatchUp)\n')) > 0);
   expect('(ay) catches the dialog attached inside the menu\'s content', ay({ [SESSION_SCREEN_FILE]: swapIn('(ay)', swapIn('(ay)', menuSessionOk, '            .endConfirmation(model: end, offer: offer, confirm: confirm, drawing: drawing, isPresented: $asking, reread: reread)\n', ''), '                    EndMenuItem(row: row, drawing: drawing) { asking = true }\n', '                    EndMenuItem(row: row, drawing: drawing) { asking = true }\n                        .endConfirmation(model: end, offer: offer, confirm: confirm, drawing: drawing, isPresented: $asking, reread: reread)\n') }) > 0);
   expect('(ay) catches a second confirmationDialog( for End copied into SessionScreen.swift', ay(yq('            .endConfirmation(model: end, offer: offer, confirm: confirm, drawing: drawing, isPresented: $asking, reread: reread)\n', '            .confirmationDialog(confirm?.title ?? Copy.endSessionMenu, isPresented: $asking) { Button(Copy.cancel, role: .cancel) {} }\n')) > 0);
   expect('(ay) catches Copy.more spelled "More…"', ay({ 'Style/Copy.swift': menuCopyOk.replace('"More"', '"More…"') }) > 0);
@@ -13895,7 +14572,19 @@ export function ruleTerminalMenu(files) {
   expect('(ay) catches Catch Me Up with no identifier', ay(yq('                .accessibilityIdentifier(ID.terminalMenuCatchUp)\n', '')) > 0);
   expect('(ay) catches the ⋯ not spoken More', ay(yq('            .accessibilityLabel(Text(verbatim: Copy.more))\n', '')) > 0);
   expect('(ay) catches the ⋯ labelled by a word', ay(yq('                Image(systemName: TerminalMenuControl.symbol)', '                Words(Copy.more, .body, Tokens.accent)')) > 0);
-  expect('(ay) catches End drawn where End is absent today', ay(yq('                if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {\n                    EndMenuItem(row: row, drawing: drawing) { asking = true }\n                }\n', '                EndMenuItem(row: .on, drawing: drawing) { asking = true }\n')) > 0);
+  expect('(ay) catches End drawn where End is absent today', ay(yq('                if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {\n                    EndMenuItem(row: row, drawing: drawing) { asking = true }\n                } else if let removal {\n', '                EndMenuItem(row: .on, drawing: drawing) { asking = true }\n                if let removal {\n')) > 0);
+  // Phase 348 (D4, D33): Remove in End session…'s place.
+  expect('(ay) Phase 348: catches the menu with no Remove (the parent\'s ⋯)', ay(yq('                } else if let removal {\n                    RemoveMenuItem(drawing: removal) { removeAsked = true }\n                }\n', '                }\n')) > 0);
+  expect('(ay) Phase 348: catches Remove drawn behind no drawing of its own', ay(yq('                } else if let removal {\n                    RemoveMenuItem(drawing: removal) { removeAsked = true }\n                }\n', '                }\n                RemoveMenuItem(drawing: .on) { removeAsked = true }\n')) > 0);
+  expect('(ay) Phase 348: catches Remove before End', ay(yq('                if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {\n                    EndMenuItem(row: row, drawing: drawing) { asking = true }\n                } else if let removal {\n                    RemoveMenuItem(drawing: removal) { removeAsked = true }\n                }\n', '                if let removal {\n                    RemoveMenuItem(drawing: removal) { removeAsked = true }\n                } else if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {\n                    EndMenuItem(row: row, drawing: drawing) { asking = true }\n                }\n')) > 0);
+  expect('(ay) Phase 348: catches Remove\'s confirmation inside the menu\'s items', ay({ [SESSION_SCREEN_FILE]: swapIn('(ay)', swapIn('(ay)', menuSessionOk, '        .removeConfirmation(model: end?.remove, drawing: removal, isPresented: $removeAsked, reread: reread)\n', ''), '                    RemoveMenuItem(drawing: removal) { removeAsked = true }\n', '                    RemoveMenuItem(drawing: removal) { removeAsked = true }\n                        .removeConfirmation(model: end?.remove, drawing: removal, isPresented: $removeAsked, reread: reread)\n') }) > 0);
+  expect('(ay) Phase 348: catches no confirmation for Remove', ay(yq('        .removeConfirmation(model: end?.remove, drawing: removal, isPresented: $removeAsked, reread: reread)\n', '')) > 0);
+  expect('(ay) Phase 348: catches Remove\'s mark drawn while nothing is under way', ay(yq("        removal?.writing == true ? ID.removeWriting : nil", "        removal == nil ? nil : ID.removeWriting")) > 0);
+  expect('(ay) Phase 348: catches Remove not destructive', ay(yr('Button(Copy.remove, role: .destructive)', 'Button(Copy.remove)')) > 0);
+  expect('(ay) Phase 348: catches Remove drawn with an owner check\'s glyph', ay(yr('        Button(Copy.remove, role: .destructive) {\n            ask()\n        }\n', '        Button(role: .destructive) { ask() } label: { Label(Copy.remove, systemImage: "faceid") }\n')) > 0);
+  expect('(ay) Phase 348: catches Remove in another word', ay(yr('Button(Copy.remove, role: .destructive)', 'Button(Copy.endTop, role: .destructive)')) > 0);
+  expect('(ay) Phase 348: catches Remove with no identifier', ay(yr('        .accessibilityIdentifier(ID.terminalMenuRemove)\n', '')) > 0);
+  expect('(ay) Phase 348: catches Remove\'s identifier missing', ay({ 'Screens/Identifiers.swift': menuIdsOk.replace('    static let terminalMenuRemove = "terminal-menu-remove"\n', '') }) > 0);
   expect('(ay) catches the menu\'s End in the bar\'s word', ay(yb('menuLabel = phase == .writing ? Copy.ending : Copy.endSessionMenu', 'menuLabel = phase == .writing ? Copy.ending : Copy.endTop')) > 0);
   expect('(ay) catches the progress mark drawn while nothing is under way', ay(yq('        if drawing.writing { return ID.endWriting }\n', '        return ID.endWriting\n')) > 0);
   expect('(ay) catches two ToolbarItems in TerminalMenu', ay(yq('            TerminalMenuControl(end: end, offer: offer, confirm: confirm, reread: reread, openCatchUp: openCatchUp)\n        }\n', '            TerminalMenuControl(end: end, offer: offer, confirm: confirm, reread: reread, openCatchUp: openCatchUp)\n        }\n        ToolbarItem(placement: .topBarTrailing) { EmptyView() }\n')) > 0);
@@ -13910,9 +14599,73 @@ export function ruleTerminalMenu(files) {
   expect('(p) passes the Copy write in ScreenSelection.swift', pRun(SELECTION_FILE, 'func copy(text: String) {\n    UIPasteboard.general.string = text\n}\n') === 0);
   expect('(p) catches a read of the pasteboard in ScreenSelection.swift', pRun(SELECTION_FILE, 'func peek() -> String? {\n    let got = UIPasteboard.general.string\n    return got\n}\n') > 0);
   expect('(p) catches the same write in any other file', pRun('Screens/Screen.swift', 'func copy(text: String) {\n    UIPasteboard.general.string = text\n}\n') > 0);
+  // Phase 348 (D41, D42): the paste's read binds a watched name; its ask is a Bool.
+  expect('(p) Phase 348: leaves the paste\'s hasStrings ask alone', pRun('Screens/ScreenKeyField.swift', 'func canPerformAction() -> Bool {\n    return pasteOffered() && UIPasteboard.general.hasStrings\n}\n') === 0);
+  expect('(p) Phase 348: passes the paste\'s read bound to the watched payload', pRun('Screens/ScreenKeyField.swift', 'func paste() {\n    guard let payload = UIPasteboard.general.string else { return }\n}\n') === 0);
+  expect('(p) Phase 348: catches the paste\'s read bound to another name', pRun('Screens/ScreenKeyField.swift', 'func paste() {\n    guard let pasted = UIPasteboard.general.string else { return }\n}\n') > 0);
+  expect('(p) Phase 348: catches a hasStrings ask in a file that is no paste road', pRun('Screens/Screen.swift', 'func f() -> Bool {\n    return UIPasteboard.general.hasStrings\n}\n') > 0);
+  expect('(p) Phase 348: catches the paste handed on by a line nobody named', ruleSecretKept([{ name: 'Screens/ScreenKeys.swift', source: 'func paste(_ payload: String) {\n    kept = payload\n}\n' }]).findings.length > 0);
   expect('(al) passes the one write', rulePasteboard(sel('func copy(text: String) {\n    UIPasteboard.general.string = text\n}\n')).findings.length === 0);
   expect('(al) catches a read in the selection file', rulePasteboard(sel('func copy(text: String) {\n    UIPasteboard.general.string = text\n    if UIPasteboard.general.hasStrings { }\n}\n')).findings.length > 0);
   expect('(al) catches the pasteboard named elsewhere', rulePasteboard([...sel('func copy(text: String) {\n    UIPasteboard.general.string = text\n}\n'), { name: 'Screens/Screen.swift', source: 'let p = UIPasteboard.general\n' }]).findings.length > 0);
+  // Phase 348 (D40 to D42): the two paste roads, each iOS's own command.
+  {
+    const field = [
+      'final class ScreenTextView: UITextView {',
+      '    var pasteOffered: () -> Bool = { false }',
+      '    var onPaste: ((String) -> Void)?',
+      '    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {',
+      '        if action == #selector(UIResponderStandardEditActions.paste(_:)) {',
+      '            return pasteOffered() && UIPasteboard.general.hasStrings',
+      '        }',
+      '        if Self.refused.contains(action) { return false }',
+      '        return super.canPerformAction(action, withSender: sender)',
+      '    }',
+      '    override func paste(_ sender: Any?) {',
+      '        guard let payload = UIPasteboard.general.string else { return }',
+      '        onPaste?(payload)',
+      '    }',
+      '}',
+      ''
+    ].join('\n');
+    const content = [
+      'final class ScreenTextContent: UIView, UITextInput {',
+      '    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {',
+      '        if action == #selector(UIResponderStandardEditActions.paste(_:)) {',
+      '            return events.pasteOffered() && UIPasteboard.general.hasStrings',
+      '        }',
+      '        return super.canPerformAction(action, withSender: sender)',
+      '    }',
+      '    override func paste(_ sender: Any?) {',
+      '        guard let payload = UIPasteboard.general.string else { return }',
+      '        events.paste(payload)',
+      '    }',
+      '}',
+      ''
+    ].join('\n');
+    const roads = (f = field, c = content, more = []) => [...sel('func copy(text: String) {\n    UIPasteboard.general.string = text\n}\n'), { name: 'Screens/ScreenKeyField.swift', source: f }, { name: 'Screens/ScreenTextInput.swift', source: c }, ...more];
+    const pb = (...a) => rulePasteboard(roads(...a)).findings.length;
+    const fs = (from, to) => {
+      if (!field.includes(from)) selfFailures.push(`(al) Phase 348 field fixture holds no ${JSON.stringify(from)}`);
+      return field.replace(from, to);
+    };
+    const cs = (from, to) => {
+      if (!content.includes(from)) selfFailures.push(`(al) Phase 348 content fixture holds no ${JSON.stringify(from)}`);
+      return content.replace(from, to);
+    };
+    expect('(al) Phase 348: passes the two paste roads, each read in paste(_:) and asked in canPerformAction', pb() === 0);
+    expect('(al) Phase 348: the honest roads count two reads and two asks', rulePasteboard(roads()).said.reads === 2 && rulePasteboard(roads()).said.asks === 2);
+    expect('(al) Phase 348: catches a read of the clipboard unasked, on appear', pb(field, cs('    override func paste(_ sender: Any?) {', '    func appeared() { _ = UIPasteboard.general.string }\n    override func paste(_ sender: Any?) {')) > 0);
+    expect('(al) Phase 348: catches hasStrings asked outside canPerformAction', pb(fs('    override func paste(_ sender: Any?) {', '    func peek() -> Bool { UIPasteboard.general.hasStrings }\n    override func paste(_ sender: Any?) {')) > 0);
+    expect('(al) Phase 348: catches the clipboard read in a third file', pb(field, content, [{ name: 'Screens/Screen.swift', source: 'func f() { _ = UIPasteboard.general.string }\n' }]) > 0);
+    expect('(al) Phase 348: catches every string on the clipboard read', pb(fs('UIPasteboard.general.string else', 'UIPasteboard.general.strings?.first else')) > 0);
+    expect('(al) Phase 348: catches the clipboard\'s change count read', pb(fs('        onPaste?(payload)\n', '        onPaste?(payload)\n        _ = UIPasteboard.general.changeCount\n')) > 0);
+    expect('(al) Phase 348: catches a paste(_:) that is no override (a selector iOS does not send)', pb(fs('    override func paste(_ sender: Any?) {', '    func paste(_ sender: Any?) {')) > 0);
+    expect('(al) Phase 348: catches Paste offered with no page word, wherever the clipboard holds text', pb(cs('return events.pasteOffered() && UIPasteboard.general.hasStrings', 'return UIPasteboard.general.hasStrings')) > 0);
+    expect('(al) Phase 348: catches the ask answered for every selector', pb(fs('        if action == #selector(UIResponderStandardEditActions.paste(_:)) {\n            return pasteOffered() && UIPasteboard.general.hasStrings\n        }\n', '        if pasteOffered() && UIPasteboard.general.hasStrings { return true }\n')) > 0);
+    expect('(al) Phase 348: catches a road with no read at all', pb(fs('        guard let payload = UIPasteboard.general.string else { return }\n        onPaste?(payload)\n', '')) > 0);
+    expect('(al) Phase 348: catches the clipboard read in another type of a road file', pb(fs('final class ScreenTextView: UITextView {', 'final class ScreenSpy {\n    override func paste(_ sender: Any?) { _ = UIPasteboard.general.string }\n}\nfinal class ScreenTextView: UITextView {')) > 0);
+  }
   expect('(an) passes the three orientations', ruleLandscape([], { UISupportedInterfaceOrientations: [...SCREEN_ORIENTATIONS] }).findings.filter((x) => /Info\.plist/.test(x)).length === 0);
   expect('(an) catches portrait alone', ruleLandscape([], { UISupportedInterfaceOrientations: ['UIInterfaceOrientationPortrait'] }).findings.some((x) => /Info\.plist lists/.test(x)));
   expect('(an) catches upside down', ruleLandscape([], { UISupportedInterfaceOrientations: [...SCREEN_ORIENTATIONS, 'UIInterfaceOrientationPortraitUpsideDown'] }).findings.some((x) => /Info\.plist lists/.test(x)));
@@ -14419,6 +15172,17 @@ export function ruleTerminalMenu(files) {
   expect('(al) catches a menu nested in the one item', al(iq('return UIMenu(children: [copy])', 'return UIMenu(children: [UIMenu(children: [copy])])')) > 0);
   expect('(al) catches nil returned (no menu of its own)', al(iq('else { return UIMenu(children: []) }', 'else { return nil }')) > 0);
   expect('(al) catches a deferred element in the menu', al(iq('        return UIMenu(children: [copy])\n', '        _ = UIDeferredMenuElement { _ in }\n        return UIMenu(children: [copy])\n')) > 0);
+  // Phase 348 (D39): Copy, then iOS's own Paste, behind the page's word.
+  expect('(al) Phase 348: the honest menu offers Paste once', ruleEditMenu(files(SELECT_INPUT_OK, SELECT_SCROLLER_OK, {})).said.pastes === 1);
+  expect('(al) Phase 348: catches Paste offered with no pasteOffered test', al(iq('        if events.pasteOffered() { return UIMenu(children: [copy, paste]) }\n', '        return UIMenu(children: [copy, paste])\n')) > 0);
+  expect('(al) Phase 348: catches Paste behind a negated pasteOffered test', al(iq('if events.pasteOffered() {', 'if !events.pasteOffered() {')) > 0);
+  expect('(al) Phase 348: catches Paste before Copy', al(iq('UIMenu(children: [copy, paste])', 'UIMenu(children: [paste, copy])')) > 0);
+  expect('(al) Phase 348: catches a UIAction titled Paste that reads the clipboard (the alert, §2.1 arm y)', al(iq('        let paste = UICommand(title: Copy.paste, image: UIImage(systemName: "doc.on.clipboard"), action: #selector(UIResponderStandardEditActions.paste(_:)))\n', '        let paste = UIAction(title: Copy.paste, image: UIImage(systemName: "doc.on.clipboard")) { [weak self] _ in self?.events.paste("") }\n')) > 0);
+  expect('(al) Phase 348: catches a command with another selector', al(iq('#selector(UIResponderStandardEditActions.paste(_:))', '#selector(UIResponderStandardEditActions.pasteAndMatchStyle(_:))')) > 0);
+  expect('(al) Phase 348: catches Paste titled another word', al(iq('UICommand(title: Copy.paste,', 'UICommand(title: Copy.copy,')) > 0);
+  expect('(al) Phase 348: catches Paste not identified screen-paste', al(iq('        paste.accessibilityIdentifier = ID.screenPaste\n', '')) > 0);
+  expect('(al) Phase 348: catches a second command', al(iq('        paste.accessibilityIdentifier = ID.screenPaste\n', '        paste.accessibilityIdentifier = ID.screenPaste\n        let more = UICommand(title: Copy.paste, image: nil, action: #selector(UIResponderStandardEditActions.paste(_:)))\n        more.accessibilityIdentifier = ID.screenPaste\n')) > 0);
+  expect('(al) Phase 348: catches the menu never offering Paste', al(iq('        if events.pasteOffered() { return UIMenu(children: [copy, paste]) }\n', '')) > 0);
   expect('(al) catches Copy offered with the drawn test removed', al(iq('guard let selection, drawn(selection) else', 'guard let selection else')) > 0);
   expect('(al) catches Copy behind a negated drawn test', al(iq('guard let selection, drawn(selection) else', 'guard let selection, !drawn(selection) else')) > 0);
   expect('(al) catches the drawn test joined by ||', al(iq('guard let selection, drawn(selection) else', 'guard let selection, drawn(selection) || true else')) > 0);
@@ -14960,6 +15724,39 @@ export function ruleTerminalMenu(files) {
   expect('(av7) catches the Allow line under another sentence', av({ 'Screens/DoorWords.swift': wordsAv.replace('if sentence == Copy.cannotReachMac {', 'if sentence == Copy.cannotReachMac || sentence == Copy.macDidNotAnswer {') }) > 0);
   expect('(av7) catches reachNote asked in a list screen', av({ 'Screens/ListScreen.swift': 'let n = DoorWords.reachNote(for: Copy.cannotReachMac)\n' }) > 0);
   expect('(av8) catches the marker guard removed', av(pA('              let fp = marker.fp, let pin = Base64URL.decode(fp), pin.count == 32,\n              marker.dk != nil, marker.dx != nil else {', '              true else {')) > 0);
+  // Phase 348 (D53): the marker asked through one private markerOf, shared with readsAsCode.
+  {
+    const shared = fixSwap('(av8)', pairingAv, [
+      '    static func parse(_ payload: String) throws -> PairingOffer {',
+      '        guard !payload.isEmpty,',
+      '              let marker = try? JSONDecoder().decode(Marker.self, from: Data(payload.utf8)),',
+      '              let fp = marker.fp, let pin = Base64URL.decode(fp), pin.count == 32,',
+      '              marker.dk != nil, marker.dx != nil else {',
+      '            throw PairingFailure.badCode',
+      '        }'
+    ].join('\n'), [
+      '    private static func markerOf(_ payload: String) -> Marker? {',
+      '        guard !payload.isEmpty,',
+      '              let marker = try? JSONDecoder().decode(Marker.self, from: Data(payload.utf8)),',
+      '              let fp = marker.fp, let pin = Base64URL.decode(fp), pin.count == 32,',
+      '              marker.dk != nil, marker.dx != nil else { return nil }',
+      '        return marker',
+      '    }',
+      '    static func readsAsCode(_ payload: String) -> Bool {',
+      '        markerOf(payload) != nil || markerOf(payload.trimmingCharacters(in: .whitespacesAndNewlines)) != nil',
+      '    }',
+      '    static func parse(_ payload: String) throws -> PairingOffer {',
+      '        guard let marker = markerOf(payload) else {',
+      '            throw PairingFailure.badCode',
+      '        }'
+    ].join('\n'));
+    const sh = (from, to) => ({ 'Door/Pairing.swift': fixSwap('(av8)', shared, from, to) });
+    expect('(av8) Phase 348: passes the marker asked through one private markerOf that parse and readsAsCode share', av({ 'Door/Pairing.swift': shared }) === 0);
+    expect('(av8) Phase 348: catches markerOf whose guard no longer names the marker', av(sh('              let fp = marker.fp, let pin = Base64URL.decode(fp), pin.count == 32,\n              marker.dk != nil, marker.dx != nil else { return nil }', '              true else { return nil }')) > 0);
+    expect('(av8) Phase 348: catches parse asking another function for the marker', av(sh('        guard let marker = markerOf(payload) else {', '        guard let marker = loose(payload) else {')) > 0);
+    expect('(av8) Phase 348: catches markerOf asked from a third place', av(sh('    static func parse(_ payload: String) throws -> PairingOffer {', '    static func peek(_ payload: String) -> Bool { markerOf(payload) != nil }\n    static func parse(_ payload: String) throws -> PairingOffer {')) > 0);
+    expect('(av8) Phase 348: catches markerOf made public', av(sh('    private static func markerOf(', '    static func markerOf(')) > 0);
+  }
   expect('(av8) catches a version arm written as v == 4', av(pA('if marker.v > version && marker.v <= 99 {', 'if marker.v == 4 {')) > 0);
   expect('(av8) catches codeFromOlderMac thrown outside parse', av({ 'Screens/PairingScreen.swift': `${screenAv}func p() throws { throw PairingFailure.codeFromOlderMac }\n` }) > 0);
   // (av9), the fix round: each site press drawn by its own words and identifier.
@@ -15053,7 +15850,7 @@ export const SAMPLE_BOOK = 'Sample/sample.json';
  * write results its writer answers (az2, SPEC §5.2), and since Phase 346 the
  * start's, `SentStart`, which its own starter answers not taken (D28).
  */
-export const SAMPLE_DOOR_ALLOWED = Object.freeze(['DoorFailure', 'WriteResult', 'SentWrite', 'SentStart']);
+export const SAMPLE_DOOR_ALLOWED = Object.freeze(['DoorFailure', 'WriteResult', 'SentWrite', 'SentStart', 'RemoveResult', 'PasteResult']);
 /** The paired reader's own types, declared outside Door/, which the sample never names (az2). */
 export const SAMPLE_PAIRED_NAMES = Object.freeze(['PairedReader', 'PairedScreenDoor', 'LiveDoor', 'PhoneDoor']);
 /**
@@ -15307,6 +16104,12 @@ export const SAMPLE_MAY_NAME = Object.freeze({
   // start answers not taken, so Create says nothing ran.
   DoorStarting: 'it is its own starter (Phase 346, D28)',
   SentStart: 'its start answers not taken (Phase 346, D28)',
+  // Phase 348 (build/p348/SPEC.md D11, D34): the sample is its own remover,
+  // whose Remove drops the made-up session from its own copy, and its
+  // Terminal echoes a paste on its own prompt; nothing leaves the phone.
+  DoorRemoving: 'it is its own remover (Phase 348, D11)',
+  RemoveResult: 'its Remove answers as the door\'s does, over its own copy (Phase 348, D11)',
+  PasteResult: 'its Terminal\'s paste answers as the door\'s does, echoed on its own prompt (Phase 348, D34)',
   DoorReading: 'it is a reader',
   DoorWriting: 'it is its own writer',
   ScreenDoor: 'each session\'s Terminal',
@@ -15332,7 +16135,7 @@ export const SAMPLE_MAY_NAME = Object.freeze({
  * may call these, each declared outside Sample/ no more often than this: a
  * second declaration of an allowed name is an overload the sample could reach.
  */
-export const SAMPLE_MAY_CALL = Object.freeze({ lineBox: 1, writer: 1, screenDoor: 1, sessions: 1, holdsTogether: 2, indexSpaceHolds: 1, starter: 1 });
+export const SAMPLE_MAY_CALL = Object.freeze({ lineBox: 1, writer: 1, screenDoor: 1, sessions: 1, holdsTogether: 2, indexSpaceHolds: 1, starter: 1, remover: 1, paste: 1, pastes: 1 });
 /**
  * az11 (the fix round): THE SAMPLE'S REACH IS CLOSED. The types the sample may
  * name (the contract's decoders and SAMPLE_MAY_NAME) are followed through
@@ -16419,7 +17222,15 @@ function sampleOwnerFindings(all) {
 //        is decoded ONCE, inside `try?` and with `decodeIfPresent`.
 //   bb6  THE "+" (D21): `StartTitleControl(` made once, in SessionsScreen's
 //        `title`, behind a test of the offered start, its chain `.disabled(`
-//        reading End these' `takesTaps` and identified `ID.startOpen`.
+//        reading End these' `takesTaps` and identified `ID.startOpen`. Since
+//        Phase 348 (build/p348/SPEC.md D16, §6 item 5) the title is the
+//        iPhone's own bar, so the "+" is made in `SessionsBar`'s body, alone
+//        in a `ToolbarItem(placement: .topBarTrailing)`, behind the same test.
+//        His ruling of 2026-10-20 ("Top bar (Recommended)") keeps it there:
+//        never inside `SessionsScreen`, whose first line is Show's alone, and
+//        never hidden from VoiceOver (no `.accessibilityHidden(` in its chain,
+//        in `StartTitleControl` or anywhere in `SessionsBar`), two plants the
+//        fix round's reverify found no clause catching.
 //   bb7  NOTHING ELSE REACHES START (D29): no `CFBundleURLTypes`, no
 //        `import AppIntents`, no `AppShortcutsProvider`, no `WidgetKit`, no
 //        `UNNotificationAction`/`UNNotificationCategory` anywhere under ios/,
@@ -16501,6 +17312,18 @@ function starterCalls(lexed) {
 }
 
 /** The body text of the computed property `var NAME: some View {` in a lexed file, with where it opens, or null. */
+/** SessionsBar's `var body: some ToolbarContent { … }` span in a lexed file, or null (Phase 348, D16). */
+function sessionsBarBody(file) {
+  const type = file.types.find((t) => t.name === 'SessionsBar' && t.kind === 'struct');
+  if (type === undefined) return null;
+  const inner = file.bare.slice(type.open, type.close + 1);
+  const m = /\bvar\s+body\s*:\s*some\s+ToolbarContent\s*\{/.exec(inner);
+  if (m === null) return null;
+  const open = type.open + m.index + m[0].length - 1;
+  const close = matchForward(file.bare, open);
+  return { open, close: close === -1 ? file.bare.length : close };
+}
+
 function computedBody(file, name) {
   const m = new RegExp(`\\bvar\\s+${name}\\s*:\\s*some\\s+View\\s*\\{`).exec(file.bare);
   if (m === null) return null;
@@ -16731,14 +17554,32 @@ export function ruleStart(files, { catalog = null, marksCheck = null, others = [
         push('bb6', `${atLine(m.file, m.at)} makes the "+" outside Screens/SessionsScreen.swift`);
         continue;
       }
-      const title = computedBody(m.file, 'title');
-      if (title === null || m.at < title.open || m.at > title.close) push('bb6', `${atLine(m.file, m.at)}: the "+" is not in SessionsScreen's title`);
+      // Phase 348 (D16; his ruling of 2026-10-20, "Top bar (Recommended)"):
+      // the bar's trailing item, in SessionsBar's body, and never the screen
+      // itself, whose first line is the Show control's alone.
+      const screen = m.file.types.find((t) => t.name === 'SessionsScreen' && t.kind === 'struct');
+      if (screen !== undefined && m.at >= screen.open && m.at <= screen.close) push('bb6', `${atLine(m.file, m.at)}: the "+" is drawn in SessionsScreen, on the list's first line beside Show, which then draws each of All, Active and Ended narrower than build 11's; it is the bar's trailing item (his ruling of 2026-10-20)`);
+      const title = sessionsBarBody(m.file);
+      if (title === null || m.at < title.open || m.at > title.close) push('bb6', `${atLine(m.file, m.at)}: the "+" is not in SessionsBar's body, the iPhone's own bar on Sessions (Phase 348, D16)`);
+      else {
+        const holder = innermostOpener(m.file.bare, m.at);
+        const head = holder === -1 ? '' : m.file.bare.slice(m.file.bare.lastIndexOf('\n', holder) + 1, holder);
+        if (!/\bToolbarItem\s*\(\s*placement\s*:\s*\.\s*topBarTrailing\s*\)\s*$/.test(head)) push('bb6', `${atLine(m.file, m.at)}: the "+" is not alone in a ToolbarItem(placement: .topBarTrailing), the bar's trailing edge away from Select (Phase 348, D16)`);
+      }
       const conds = title === null ? [] : conditionsAt(m.file.bare, title.open, m.at);
       if (!conds.some((c) => c.kind === 'if' && /\bstartOffer\b|\.\s*offer\b/.test(c.cond))) push('bb6', `${atLine(m.file, m.at)}: the "+" is drawn behind no test of an offered start, so a Mac that has not allowed Start draws one (D9)`);
       const close = closeParen(m.file.bare, m.open);
       const chain = close === -1 ? [] : chainAfter(m.file.bare, close);
       if (!chain.some((c) => c.name === 'disabled' && /\btakesTaps\b/.test(c.args))) push('bb6', `${atLine(m.file, m.at)}: the "+"'s chain holds no .disabled( reading End these' takesTaps`);
       if (!chain.some((c) => c.name === 'accessibilityIdentifier' && /\bID\s*\.\s*startOpen\b/.test(c.args))) push('bb6', `${atLine(m.file, m.at)}: the "+" is not identified ID.startOpen`);
+      // His ruling of 2026-10-20: a real button in the bar, so VoiceOver finds New session.
+      if (chain.some((c) => c.name === 'accessibilityHidden' || (c.name === 'accessibility' && /\bhidden\s*:/.test(c.args)))) push('bb6', `${atLine(m.file, m.at)}: the "+"'s chain hides it from VoiceOver (.accessibilityHidden( or .accessibility(hidden:), so New session cannot be found by ear`);
+    }
+    // ...and nothing hides it from VoiceOver inside itself or around it in the bar.
+    for (const file of lexed) {
+      for (const t of file.types.filter((x) => (x.name === 'StartTitleControl' || x.name === 'SessionsBar') && x.kind === 'struct')) {
+        for (const h of file.bare.slice(t.open, t.close + 1).matchAll(/\.\s*(?:accessibilityHidden\s*\(|accessibility\s*\(\s*hidden\s*:)/g)) push('bb6', `${atLine(file, t.open + h.index)} hides a control from VoiceOver in ${t.name} (${h[0].replace(/\s+/g, '')}); the "+" and the bar's controls stay where VoiceOver reads them (his ruling of 2026-10-20)`);
+      }
     }
   }
 
@@ -16898,6 +17739,73 @@ export function ruleHostileStartArms(hostile, copy) {
   return { findings, said };
 }
 
+/**
+ * Phase 348's hostile arms (build/p348/SPEC.md §7.3 (t), §9.3, §10.2), as (t)
+ * requires build/p316/hostile-door.mjs to name them: twelve Remove arms, ten
+ * paste arms, four arms of the picture's paste flag, seven of its marks and
+ * two of the age note.
+ */
+export const HOSTILE_P348_ARMS = Object.freeze({
+  remove: Object.freeze(['remove-honest', 'remove-other-id', 'remove-wrong-verb', 'remove-refused-no-reason', 'remove-unknown-reason', 'remove-refused-changed', 'remove-404', 'remove-cut', 'remove-late', 'remove-chunked', 'remove-confirm-malformed', 'remove-offer-absent']),
+  paste: Object.freeze(['paste-honest', 'paste-404', 'paste-other-id', 'paste-wrong-verb', 'paste-unknown-reason', 'paste-refused-character', 'paste-refused-machine', 'paste-cut', 'paste-late', 'paste-chunked']),
+  pasteFlag: Object.freeze(['screen-paste-flag-absent', 'screen-paste-flag-false', 'screen-paste-flag-not-typable', 'screen-paste-flag-string']),
+  wraps: Object.freeze(['wraps-out-of-range', 'wraps-descending', 'wraps-not-list', 'wraps-negative', 'wraps-huge', 'wraps-page-last-row', 'wraps-page-not-list']),
+  ageNote: Object.freeze(['age-note-long', 'age-note-empty'])
+});
+
+/**
+ * (t)'s Phase 348 half: the hostile door names every arm above, each row on
+ * one line. A Remove arm that answers a write (`remove: 'answer'`) counts the
+ * ONE POST a confirmed press sends and ends in the list (its honest control)
+ * or a sentence; an offer arm (`remove: 'offer'`) sends none and ends in a
+ * sentence or with no Remove drawn. A paste arm (`paste: 'answer'`) counts
+ * one POST and ends drawn (its control) or in a sentence. A flag arm sends no
+ * POST and draws Copy alone or ends in a sentence; a marks arm and an age
+ * note arm end drawn, never failed. Every Copy word an arm expects is
+ * Copy.swift's.
+ */
+export function ruleHostileP348Arms(hostile, copy) {
+  const findings = [];
+  const said = { arms: [] };
+  if (hostile === null) return { findings: ['build/p316/hostile-door.mjs does not exist, so no hostile answer to a Remove or a paste is served'], said };
+  const copyWords = new Set(copy === null ? [] : [...copy.matchAll(/\bstatic\s+let\s+([A-Za-z0-9_]+)\s*=\s*"/g)].map((m) => m[1]));
+  for (const [group, arms] of Object.entries(HOSTILE_P348_ARMS)) {
+    for (const arm of arms) {
+      const row = new RegExp(`(?:^|\\n)\\s*'${arm}':\\s*\\{([^\\n]*)\\}`).exec(hostile);
+      if (row === null) {
+        findings.push(`build/p316/hostile-door.mjs names no Phase 348 arm ${JSON.stringify(arm)} (build/p348/SPEC.md §7.3)`);
+        continue;
+      }
+      said.arms.push(arm);
+      const text = row[1];
+      const posts = /\bposts:\s*(\d+)\b/.exec(text);
+      const ends = /\bends:\s*'([^']*)'/.exec(text)?.[1] ?? null;
+      if (group === 'remove') {
+        const kind = /\bremove:\s*'([^']*)'/.exec(text)?.[1] ?? null;
+        if (kind === 'answer') {
+          if (posts === null || posts[1] !== '1') findings.push(`hostile-door.mjs's ${arm} counts ${posts === null ? 'no' : posts[1]} POST(s); a confirmed Remove sends ONE (D55)`);
+          if (ends !== (arm === 'remove-honest' ? 'list' : 'sentence')) findings.push(`hostile-door.mjs's ${arm} ends in ${JSON.stringify(ends)}; ${arm === 'remove-honest' ? 'the honest Remove goes back to the list' : 'a refused or unanswered Remove draws its line'} (D55)`);
+        } else if (kind === 'offer') {
+          if (posts === null || posts[1] !== '0') findings.push(`hostile-door.mjs's ${arm} counts ${posts === null ? 'no' : posts[1]} POST(s); a broken or absent offer draws no Remove and sends none (D49)`);
+          if (ends !== 'sentence' && ends !== 'no-remove') findings.push(`hostile-door.mjs's ${arm} ends in ${JSON.stringify(ends)}; an offer arm ends in a sentence or with no Remove drawn (no-remove)`);
+        } else findings.push(`hostile-door.mjs's ${arm} is neither remove: 'answer' nor remove: 'offer'`);
+      } else if (group === 'paste') {
+        if (!/\bpaste:\s*'answer'/.test(text)) findings.push(`hostile-door.mjs's ${arm} is not paste: 'answer'; a paste arm answers the one paste a picture that takes one lets the phone send`);
+        if (posts === null || posts[1] !== '1') findings.push(`hostile-door.mjs's ${arm} counts ${posts === null ? 'no' : posts[1]} POST(s); a paste is ONE write, never split (D29, D54)`);
+        if (ends !== (arm === 'paste-honest' ? 'drawn' : 'sentence')) findings.push(`hostile-door.mjs's ${arm} ends in ${JSON.stringify(ends)}; ${arm === 'paste-honest' ? 'the honest paste leaves the Terminal drawn' : "a refused or unanswered paste draws the Terminal's line"} (D54)`);
+      } else if (group === 'pasteFlag') {
+        if (!/\bpasteFlag:/.test(text)) findings.push(`hostile-door.mjs's ${arm} sets no pasteFlag`);
+        if (posts === null || posts[1] !== '0') findings.push(`hostile-door.mjs's ${arm} counts ${posts === null ? 'no' : posts[1]} POST(s); a picture that takes no paste lets none be sent (D30)`);
+        if (ends === 'drawn' && !/\bmenu:\s*\[\s*'copy'\s*\]/.test(text)) findings.push(`hostile-door.mjs's ${arm} ends drawn with no menu: ['copy']; a picture that takes no paste draws Copy alone (D30)`);
+        if (ends !== 'drawn' && ends !== 'sentence') findings.push(`hostile-door.mjs's ${arm} ends in ${JSON.stringify(ends)}; drawn with Copy alone, or the picture refused in a sentence`);
+      } else if (ends !== 'drawn') findings.push(`hostile-door.mjs's ${arm} ends in ${JSON.stringify(ends)}; a broken mark or an age note is read as none and the page stays drawn, never failed (D43; item 4)`);
+      const expect = /\bexpect:\s*\[([^\]]*)\]/.exec(text);
+      for (const w of expect === null ? [] : [...expect[1].matchAll(/'([A-Za-z0-9_]+)'/g)].map((m) => m[1])) if (!copyWords.has(w)) findings.push(`hostile-door.mjs's ${arm} expects Copy.${w}, which Copy.swift does not declare`);
+    }
+  }
+  return { findings, said };
+}
+
 /** (v)'s Phase 346 half: startSentence draws a sentence for every StartResult, and New session's line is nil or a sentence. */
 export function ruleStartSentence(words, files) {
   const findings = [];
@@ -16933,6 +17841,240 @@ export function ruleStartSentence(words, files) {
         if (strings.some((x) => x.value === '') || !ok) findings.push(`${at} assigns StartModel.line = ${rhs.slice(0, 60)}; its line is nil or a Copy or DoorWords sentence, never empty`);
       }
     }
+  }
+  return { findings, said };
+}
+
+// ---- (bc) THE TAB ROOTS' BARS (Phase 348, build/p348/SPEC.md D15 to D17, D56, §7.3) ----
+//
+// His words of 2026-10-18: "the new session button is not as prominent as it
+// could be and too close to select. The top bar for filter, select, new
+// session should look MUCH nicer like a real iphone". The four tab roots stop
+// hiding the navigation bar and take the iPhone's own, with its large title
+// over Tokens.bgSidebar in the dark scheme, never forced visible; Sessions'
+// bar is ONE ToolbarContent, Select then the filter in one leading group and
+// the "+" alone at the trailing edge behind the offer; the "+" is iOS 26's
+// prominent glass in the accent, and plus.circle.fill before it; and every
+// bar control presses its own label's frame, D56's, the one place a frame or
+// a content shape appears on a bar control, each length one literal in
+// SessionsFrame and no padding. Modelled on (ay).
+
+/** The four tab roots and the type in each that takes the bar (D15). */
+export const TAB_ROOT_BARS = Object.freeze([
+  ['Screens/ListScreen.swift', 'ListScreen'],
+  ['Screens/SessionsScreen.swift', 'SessionsScreen'],
+  ['Screens/SettingsScreen.swift', 'SettingsScreen'],
+  ['Screens/MacsScreen.swift', 'MacsScreen']
+]);
+/** The identifiers that left with the house title rows and the age note (§5.3). */
+export const TAB_ROOT_GONE_IDS = Object.freeze(['listTitle', 'needsInputTitle', 'settingsTitle', 'macsTitle', 'listAgeNote', 'needsListAgeNote']);
+/**
+ * D56's two lengths, in SessionsFrame and nowhere else: the "+"'s label 46
+ * square, the parent's "+" frame, which the bar clamps to a 50 × 36 press on
+ * iOS 26.3 and 54 × 44 on 18.3 (build/p348/SPEC.md §2.5.1; his ruling of
+ * 2026-10-20 accepts the "+" pressing shorter than build 11's 50 × 52 there),
+ * and the bar's two at least 44.
+ */
+export const BAR_PRESS = Object.freeze({ plusPress: 46, barPress: 44 });
+/**
+ * The Show control's own lengths (his ruling of 2026-10-20: Show keeps build
+ * 11's full width, each of All, Active and Ended 122 × 28 on an iPhone 16 Pro
+ * and 113 × 28 on an SE): the capsule's inset and a segment's height, the
+ * mock's `.seg { padding: 2px }` and `.seg button { height: 28px }`.
+ */
+export const SHOW_LENGTHS = Object.freeze({ showInset: 2, showButtonHeight: 28 });
+
+/** A function's or computed var's body inside a type, by name: `{ open, close }` over bare, or null. */
+function memberBody(file, type, re) {
+  const inner = file.bare.slice(type.open, type.close + 1);
+  const m = re.exec(inner);
+  if (m === null) return null;
+  const open = type.open + m.index + m[0].length - 1;
+  const close = matchForward(file.bare, open);
+  return { open, close: close === -1 ? file.bare.length : close };
+}
+
+/** Rule (bc), pure over the app's Swift files (`{ name, source }`). */
+export function ruleTabRootBars(files) {
+  const findings = [];
+  const said = { roots: [], leading: '', trailing: 0, frames: 0, show: false };
+  const push = (clause, text) => findings.push(`${clause}: ${text}`);
+  const want = [
+    [/\.\s*navigationTitle\s*\(/, '.navigationTitle('],
+    [/\.\s*navigationBarTitleDisplayMode\s*\(\s*\.\s*large\s*\)/, '.navigationBarTitleDisplayMode(.large)'],
+    [/\.\s*toolbarBackground\s*\(\s*Tokens\s*\.\s*bgSidebar\s*,\s*for\s*:\s*\.\s*navigationBar\s*\)/, '.toolbarBackground(Tokens.bgSidebar, for: .navigationBar)'],
+    [/\.\s*toolbarColorScheme\s*\(\s*\.\s*dark\s*,\s*for\s*:\s*\.\s*navigationBar\s*\)/, '.toolbarColorScheme(.dark, for: .navigationBar)']
+  ];
+  // bc1: each root takes the iPhone's own bar, its large title, and hides nothing.
+  for (const [name, typeName] of TAB_ROOT_BARS) {
+    const f = lexedFile(files, name);
+    if (f === null) {
+      push('bc1', `${name} does not exist, so its bar cannot be read`);
+      continue;
+    }
+    const t = f.types.find((x) => x.name === typeName && x.kind === 'struct');
+    if (t === undefined) {
+      push('bc1', `${name} declares no struct ${typeName}`);
+      continue;
+    }
+    const body = f.bare.slice(t.open, t.close + 1);
+    const missing = want.filter(([re]) => !re.test(body)).map(([, w]) => w);
+    if (missing.length > 0) push('bc1', `${name}'s ${typeName} names no ${missing.join(', ')}; each tab root takes the iPhone's own bar with its large title (D15)`);
+    else said.roots.push(typeName);
+    for (const m of f.bare.matchAll(/\.\s*toolbar\s*\(\s*\.\s*hidden\b|\.\s*toolbarBackground\s*\(\s*\.\s*visible\b|\.\s*navigationBarHidden\s*\(|\.\s*toolbarVisibility\s*\(\s*\.\s*hidden\b/g)) push('bc1', `${atLine(f, m.index)} names ${m[0].replace(/\s+/g, '')}; a tab root never hides its bar nor forces its background visible: the bar draws its own colour over Tokens.bgSidebar (D15)`);
+    for (const m of f.bare.matchAll(/\.\s*navigationBarTitleDisplayMode\s*\(\s*\.\s*(inline|automatic)\s*\)/g)) push('bc1', `${atLine(f, m.index)} sets the title .${m[1]}; a tab root's title is the large title (D15)`);
+    // bc2: no house title row left in a list.
+    for (const m of f.bare.matchAll(/\bWords\s*\([^)\n]*,\s*\.\s*title\s*,/g)) push('bc2', `${atLine(f, m.index)} draws a house title row (Words(…, .title, …)); the large title is the bar's own (D15)`);
+  }
+  // bc2: the names that left, from the identifiers and from every file.
+  const ids = files.find((f) => f.name === 'Screens/Identifiers.swift');
+  const idCode = ids === undefined ? '' : lexSwift(ids.source).code;
+  for (const name of TAB_ROOT_GONE_IDS) {
+    if (new RegExp(`\\bstatic\\s+let\\s+${name}\\b`).test(idCode)) push('bc2', `Screens/Identifiers.swift still declares ID.${name}; the large title is the bar's own and the age note is gone, so the name leaves (§5.3)`);
+    for (const f of files.filter((x) => x.name.endsWith('.swift') && x.name !== 'Screens/Identifiers.swift')) {
+      const lx = lexSwift(f.source);
+      for (const m of lx.bare.matchAll(new RegExp(`\\bID\\s*\\.\\s*${name}\\b`, 'g'))) push('bc2', `${f.name}:${String(lineOf(lx.bare, m.index))} names ID.${name}, the house title row's or the age note's (§5.3)`);
+    }
+  }
+  // bc3: SessionsBar, the one ToolbarContent of SessionsScreen.swift.
+  const sessions = lexedFile(files, 'Screens/SessionsScreen.swift');
+  if (sessions === null) push('bc3', 'Screens/SessionsScreen.swift does not exist, so Sessions\' bar cannot be read');
+  else {
+    const contents = [...sessions.bare.matchAll(/\bstruct\s+([A-Za-z_]\w*)\s*:\s*ToolbarContent\b/g)].map((m) => m[1]);
+    if (contents.join(',') !== 'SessionsBar') push('bc3', `Screens/SessionsScreen.swift declares the ToolbarContent(s) ${JSON.stringify(contents)}; exactly one, SessionsBar (D16)`);
+    const span = sessionsBarBody(sessions);
+    if (span === null) push('bc3', 'SessionsBar has no var body: some ToolbarContent');
+    else {
+      const body = sessions.bare.slice(span.open, span.close + 1);
+      const groups = [...body.matchAll(/\bToolbarItemGroup\s*\(\s*placement\s*:\s*\.\s*(\w+)\s*\)\s*\{/g)];
+      const items = [...body.matchAll(/\bToolbarItem\s*\(\s*placement\s*:\s*\.\s*(\w+)\s*\)\s*\{/g)];
+      if (groups.length !== 1 || groups[0][1] !== 'topBarLeading') push('bc3', `SessionsBar holds ${String(groups.length)} ToolbarItemGroup(s)${groups.length === 1 ? ` at .${groups[0][1]}` : ''}; exactly one, at .topBarLeading, Select then the filter (D16)`);
+      else {
+        const open = span.open + groups[0].index + groups[0][0].length - 1;
+        const close = matchForward(sessions.bare, open);
+        said.leading = sessions.bare.slice(open + 1, close).replace(/\s+/g, ' ').trim();
+        if (said.leading !== 'EndBatchTitleControl() menu') push('bc3', `SessionsBar's leading group holds ${JSON.stringify(said.leading.slice(0, 80))}; exactly EndBatchTitleControl() then menu, Select then the filter (D16)`);
+      }
+      if (items.length !== 1 || items[0][1] !== 'topBarTrailing') push('bc3', `SessionsBar holds ${String(items.length)} ToolbarItem(s)${items.length === 1 ? ` at .${items[0][1]}` : ''}; exactly one, at .topBarTrailing, the "+" alone (D16; his ruling of 2026-10-20)`);
+      else {
+        said.trailing = 1;
+        const at = span.open + items[0].index;
+        const open = at + items[0][0].length - 1;
+        const close = matchForward(sessions.bare, open);
+        if (!/^\s*StartTitleControl\s*\(/.test(sessions.bare.slice(open + 1, close))) push('bc3', 'SessionsBar\'s trailing item holds something before the "+"; the "+" alone (D16)');
+        const conds = conditionsAt(sessions.bare, span.open, at);
+        if (!conds.some((c) => c.kind === 'if' && /\bstartOffer\b/.test(c.cond))) push('bc3', 'SessionsBar\'s trailing item is built behind no test of the offered start, so the bar draws an empty slot or a "+" the Mac has not allowed (D9, D16)');
+      }
+      for (const m of body.matchAll(/\.\s*padding\s*\(/g)) push('bc5', `${atLine(sessions, span.open + m.index)} pads a bar control in SessionsBar; a press is its label's frame (D56)`);
+    }
+    // bc5: the filter's label, in SessionsBar's menu.
+    const bar = sessions.types.find((t) => t.name === 'SessionsBar' && t.kind === 'struct');
+    const menu = bar === undefined ? null : memberBody(sessions, bar, /\bvar\s+menu\s*:\s*some\s+View\s*\{/);
+    if (menu === null) push('bc5', 'SessionsBar declares no var menu: some View, the filter, so its press cannot be read (D56)');
+    else {
+      const text = sessions.bare.slice(menu.open, menu.close + 1);
+      const label = /\}\s*label\s*:\s*\{/.exec(text);
+      const labelText = label === null ? '' : sessions.bare.slice(menu.open + label.index + label[0].length - 1, matchForward(sessions.bare, menu.open + label.index + label[0].length - 1) + 1);
+      if (!/\.\s*frame\s*\(\s*minWidth\s*:\s*SessionsFrame\s*\.\s*barPress\s*,\s*minHeight\s*:\s*SessionsFrame\s*\.\s*barPress\s*\)\s*\.\s*contentShape\s*\(\s*Rectangle\s*\(\s*\)\s*\)/.test(labelText)) push('bc5', 'the filter\'s label is not framed .frame(minWidth: SessionsFrame.barPress, minHeight: SessionsFrame.barPress) then .contentShape(Rectangle()), at least 44 × 44 and every point of it pressing (D56)');
+      else said.frames += 1;
+      if ((labelText.match(/\.\s*frame\s*\(/g) ?? []).length !== 1 || /\.\s*padding\s*\(/.test(labelText)) push('bc5', 'the filter\'s label holds another frame or a padding; its press is D56\'s one frame (D56)');
+    }
+    // bc5: the two lengths, one literal each, in SessionsFrame.
+    const frameEnum = sessions.types.find((t) => t.name === 'SessionsFrame');
+    const enumBody = frameEnum === undefined ? '' : sessions.code.slice(frameEnum.open, frameEnum.close + 1);
+    for (const [name, value] of Object.entries(BAR_PRESS)) {
+      const decl = new RegExp(`\\bstatic\\s+let\\s+${name}\\s*:\\s*CGFloat\\s*=\\s*([0-9.]+)`).exec(enumBody);
+      if (decl === null || Number(decl[1]) !== value) push('bc5', `SessionsFrame.${name} is ${decl === null ? 'not declared' : decl[1]}; it is ${String(value)}, D56's one literal (§2.5.1)`);
+    }
+    for (const f of files.filter((x) => x.name.endsWith('.swift'))) {
+      const lx = lexSwift(f.source);
+      for (const m of lx.bare.matchAll(/\bstatic\s+let\s+(plusPress|barPress)\b/g)) {
+        if (f.name !== 'Screens/SessionsScreen.swift' || frameEnum === undefined || m.index < frameEnum.open || m.index > frameEnum.close) push('bc5', `${f.name}:${String(lineOf(lx.bare, m.index))} declares ${m[1]} outside SessionsFrame; each length is one literal there (D56)`);
+      }
+      for (const m of lx.bare.matchAll(/\bStartFrame\s*\.\s*(plusReach|plusGiveBack)\b/g)) push('bc5', `${f.name}:${String(lineOf(lx.bare, m.index))} names StartFrame.${m[1]}, the title row's reach, which went with the row (§4.5 step 3)`);
+    }
+    // bc6 (his ruling of 2026-10-20, "Top bar (Recommended)"): the Show control keeps build 11's full width, each of
+    // All, Active and Ended 122 × 28 on an iPhone 16 Pro: it is the list's first line ALONE, nothing chained at its
+    // call, and nothing in it gives it a width of its own or narrows its segments.
+    for (const [name, value] of Object.entries(SHOW_LENGTHS)) {
+      const decl = new RegExp(`\\bstatic\\s+let\\s+${name}\\s*:\\s*CGFloat\\s*=\\s*([0-9.]+)`).exec(enumBody);
+      if (decl === null || Number(decl[1]) !== value) push('bc6', `SessionsFrame.${name} is ${decl === null ? 'not declared' : decl[1]}; it is ${String(value)}, the mock's, so a segment draws as build 11's does`);
+    }
+    const screenType = sessions.types.find((t) => t.name === 'SessionsScreen' && t.kind === 'struct');
+    const show = screenType === undefined ? null : memberBody(sessions, screenType, /\bvar\s+showControl\s*:\s*some\s+View\s*\{/);
+    if (show === null) push('bc6', 'SessionsScreen declares no var showControl: some View, so the Show control\'s width cannot be read');
+    else {
+      said.show = true;
+      const text = sessions.bare.slice(show.open, show.close + 1);
+      for (const m of text.matchAll(/\.\s*frame\s*\(([^)]*)\)/g)) {
+        const args = m[1];
+        if (/\b(?:width|minWidth|idealWidth)\s*:/.test(args) || (/\bmaxWidth\s*:/.test(args) && !/\bmaxWidth\s*:\s*\.\s*infinity\b/.test(args))) push('bc6', `${atLine(sessions, show.open + m.index)} gives the Show control a width of its own (${m[0].replace(/\s+/g, ' ')}); it takes the line's whole width, as build 11's does (his ruling of 2026-10-20)`);
+      }
+      for (const m of text.matchAll(/\.\s*(fixedSize|containerRelativeFrame|layoutPriority|scaleEffect)\s*\(/g)) push('bc6', `${atLine(sessions, show.open + m.index)} names .${m[1]}( on the Show control, which can draw it narrower than build 11's (his ruling of 2026-10-20)`);
+      const segments = (text.match(/\.\s*frame\s*\(\s*maxWidth\s*:\s*\.\s*infinity\s*\)/g) ?? []).length;
+      if (segments !== 1) push('bc6', `the Show control frames its segments .frame(maxWidth: .infinity) ${String(segments)} time(s); once, inside its ForEach, so All, Active and Ended share the whole line`);
+      const insets = [...text.matchAll(/\.\s*padding\s*\(([^)]*)\)/g)].map((m) => m[1].replace(/\s+/g, ' ').trim());
+      const sides = insets.filter((a) => a !== 'SessionsFrame.showInset' && !/^\.\s*(?:top|bottom)\b/.test(a));
+      if (sides.join(' | ') !== '.horizontal, Frame.gutter') push('bc6', `the Show control's side insets read ${JSON.stringify(sides)}; exactly .padding(.horizontal, Frame.gutter), the gutter build 11 draws it at`);
+    }
+    if (screenType !== undefined) {
+      const uses = [...sessions.bare.slice(screenType.open, screenType.close + 1).matchAll(/\bshowControl\b/g)]
+        .map((m) => screenType.open + m.index)
+        .filter((at) => !/\bvar\s+$/.test(sessions.bare.slice(Math.max(0, at - 16), at)));
+      if (uses.length !== 1) push('bc6', `SessionsScreen draws showControl ${String(uses.length)} time(s); once, as the list's first line`);
+      for (const at of uses) {
+        const holder = innermostOpener(sessions.bare, at);
+        const head = holder === -1 ? '' : sessions.bare.slice(sessions.bare.lastIndexOf('\n', holder) + 1, holder);
+        if (!/\bLazyVStack\s*\([^)]*\)\s*$/.test(head)) push('bc6', `${atLine(sessions, at)}: showControl is drawn inside ${JSON.stringify(head.trim().slice(0, 70))}, not alone as the LazyVStack's first line, so something shares its line and narrows it (his ruling of 2026-10-20)`);
+        const chained = chainAfter(sessions.bare, at + 'showControl'.length - 1);
+        if (chained.length > 0) push('bc6', `${atLine(sessions, at)}: the Show control carries ${chained.map((c) => `.${c.name}(`).join('')} at its call; nothing is chained there, so nothing narrows it`);
+      }
+    }
+  }
+  // bc4 and bc5: the "+".
+  const sheet = lexedFile(files, 'Screens/StartSheet.swift');
+  if (sheet === null) push('bc4', 'Screens/StartSheet.swift does not exist, so the "+" cannot be read');
+  else {
+    if (!sheet.source.includes('struct StartTitleControl: View {')) push('bc4', 'Screens/StartSheet.swift holds no line `struct StartTitleControl: View {`, which stays byte for byte (§4.5 step 3)');
+    const t = sheet.types.find((x) => x.name === 'StartTitleControl' && x.kind === 'struct');
+    const body = t === undefined ? null : memberBody(sheet, t, /\bvar\s+body\s*:\s*some\s+View\s*\{/);
+    if (body === null) push('bc4', 'StartTitleControl has no var body: some View');
+    else {
+      const bare = sheet.bare.slice(body.open, body.close + 1);
+      const code = sheet.code.slice(body.open, body.close + 1);
+      const avail = /\bif\s+#available\s*\(\s*iOS\s+26(?:\.0)?\s*,\s*\*\s*\)\s*\{/.exec(bare);
+      if (avail === null) push('bc4', 'StartTitleControl\'s body has no if #available(iOS 26, *) arm, so the "+" is the same on both runtimes (D16)');
+      else {
+        const open = avail.index + avail[0].length - 1;
+        const close = matchForward(bare, open);
+        const yes = code.slice(open, close + 1);
+        const rest = bare.slice(close + 1);
+        const elseAt = /^\s*else\s*\{/.exec(rest);
+        const no = elseAt === null ? '' : code.slice(close + 1 + elseAt.index + elseAt[0].length - 1, close + 1 + matchForward(rest, elseAt.index + elseAt[0].length - 1) + 1);
+        if (!/\bImage\s*\(\s*systemName\s*:\s*"plus"\s*\)/.test(yes) || !/\.\s*buttonStyle\s*\(\s*\.\s*glassProminent\s*\)/.test(yes) || !/\.\s*tint\s*\(\s*Tokens\s*\.\s*accent\s*\)/.test(yes)) push('bc4', 'the "+" on iOS 26 is not Image(systemName: "plus") in a Button with .buttonStyle(.glassProminent) and .tint(Tokens.accent), iOS\'s own prominent glass in the accent (D16)');
+        if (elseAt === null || !/\bImage\s*\(\s*systemName\s*:\s*"plus\.circle\.fill"\s*\)/.test(no) || /\bglassProminent\b/.test(no)) push('bc4', 'the "+" before iOS 26 is not Image(systemName: "plus.circle.fill"), with no glass (D16)');
+        for (const arm of [yes, no]) {
+          if (arm === '') continue;
+          if (!/\.\s*frame\s*\(\s*width\s*:\s*SessionsFrame\s*\.\s*plusPress\s*,\s*height\s*:\s*SessionsFrame\s*\.\s*plusPress\s*\)\s*\.\s*contentShape\s*\(\s*Rectangle\s*\(\s*\)\s*\)/.test(arm)) push('bc5', 'a "+" arm\'s label is not framed .frame(width: SessionsFrame.plusPress, height: SessionsFrame.plusPress) then .contentShape(Rectangle()), the parent\'s 46 × 46 frame, every point of it pressing (D56)');
+          else said.frames += 1;
+          if ((arm.match(/\.\s*frame\s*\(/g) ?? []).length !== 1) push('bc5', 'a "+" arm holds another frame; its press is D56\'s one frame (D56)');
+        }
+      }
+      if (/\.\s*padding\s*\(/.test(bare)) push('bc5', 'StartTitleControl pads the "+"; its press is its label\'s frame (D56)');
+    }
+  }
+  // bc5: Select's label, in EndBatchTitleControl.
+  const batch = lexedFile(files, END_BATCH_FILE);
+  const control = batch === null ? undefined : batch.types.find((t) => t.name === 'EndBatchTitleControl' && t.kind === 'struct');
+  if (control === undefined) push('bc5', `${END_BATCH_FILE} declares no EndBatchTitleControl, Select, so its press cannot be read (D56)`);
+  else {
+    const text = batch.bare.slice(control.open, control.close + 1);
+    const frames = [...text.matchAll(/\.\s*frame\s*\(/g)];
+    const framed = [...text.matchAll(/\.\s*frame\s*\(\s*minWidth\s*:\s*SessionsFrame\s*\.\s*barPress\s*,\s*minHeight\s*:\s*SessionsFrame\s*\.\s*barPress\s*\)\s*\.\s*contentShape\s*\(\s*Rectangle\s*\(\s*\)\s*\)/g)];
+    const buttons = [...text.matchAll(/\bButton\s*\{/g)];
+    if (buttons.length === 0 || framed.length !== buttons.length || frames.length !== framed.length) push('bc5', `EndBatchTitleControl frames ${String(framed.length)} of its ${String(buttons.length)} label(s) .frame(minWidth: SessionsFrame.barPress, minHeight: SessionsFrame.barPress) then .contentShape(Rectangle()), and holds ${String(frames.length)} frame(s); every label is framed so, at least 44 × 44, and nothing else (D56)`);
+    else said.frames += framed.length;
+    if (/\.\s*padding\s*\(/.test(text)) push('bc5', 'EndBatchTitleControl pads Select; its press is its label\'s frame (D56)');
   }
   return { findings, said };
 }
@@ -17158,21 +18300,63 @@ export function ruleStartSentence(words, files) {
     '}',
     ''
   ].join('\n');
+  // Phase 348 (D16; his ruling of 2026-10-20, "Top bar (Recommended)"): the
+  // iPhone's own bar, Select then the filter at the leading edge and the "+"
+  // alone at the trailing edge.
   const BB_SESSIONS = [
     'struct SessionsScreen: View {',
     '    var start: (() -> Void)? = nil',
-    '    private var title: some View {',
-    '        HStack(alignment: .firstTextBaseline, spacing: Frame.rowGap) {',
-    '            Words(Copy.sessions, .title, Tokens.textPrimary)',
-    '            HStack(spacing: SessionsFrame.controlGap) {',
-    '                menu',
-    '                EndBatchTitleControl()',
-    '                if let start, model.startOffer != nil {',
-    '                    StartTitleControl(open: start)',
+    '    var body: some View {',
+    '        list.toolbar { SessionsBar(model: model, start: start) }',
+    '    }',
+    '}',
+    'struct SessionsBar: ToolbarContent {',
+    '    let model: SessionsModel',
+    '    let start: (() -> Void)?',
+    '    @Environment(\\.endBatch) private var batch',
+    '    var body: some ToolbarContent {',
+    '        ToolbarItemGroup(placement: .topBarLeading) {',
+    '            EndBatchTitleControl()',
+    '            menu',
+    '        }',
+    '        if let start, model.startOffer != nil {',
+    '            ToolbarItem(placement: .topBarTrailing) {',
+    '                StartTitleControl(open: start)',
     '                        .disabled(batch?.takesTaps ?? false)',
-    '                        .accessibilityIdentifier(ID.startOpen)',
-    '                }',
+    '                    .accessibilityIdentifier(ID.startOpen)',
     '            }',
+    '        }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  // The fix round's construction, which his ruling of 2026-10-20 reversed: the "+" on the list's first line beside
+  // Show and nothing at the bar's trailing edge. Kept as a plant bb6 must read red.
+  const BB_SESSIONS_FIRST_LINE = [
+    'struct SessionsScreen: View {',
+    '    var start: (() -> Void)? = nil',
+    '    @Environment(\\.endBatch) private var batch',
+    '    var body: some View {',
+    '        list.toolbar { SessionsBar(model: model) }',
+    '    }',
+    '    private var firstLine: some View {',
+    '        HStack(alignment: .center, spacing: 12) {',
+    '            showControl',
+    '            if let start, model.startOffer != nil {',
+    '                StartTitleControl(open: start)',
+    '                        .disabled(batch?.takesTaps ?? false)',
+    '                    .accessibilityIdentifier(ID.startOpen)',
+    '            }',
+    '        }',
+    '    }',
+    '}',
+    'struct SessionsBar: ToolbarContent {',
+    '    let model: SessionsModel',
+    '    @Environment(\\.endBatch) private var batch',
+    '    var body: some ToolbarContent {',
+    '        ToolbarItemGroup(placement: .topBarLeading) {',
+    '            EndBatchTitleControl()',
+    '            menu',
     '        }',
     '    }',
     '}',
@@ -17284,6 +18468,17 @@ export function ruleStartSentence(words, files) {
   expect('(bb) bb6 catches the "+" on while End these takes taps', bbHas(bbSwap('Screens/SessionsScreen.swift', '                        .disabled(batch?.takesTaps ?? false)\n', ''), 'bb6'));
   expect('(bb) bb6 catches the "+" not identified', bbHas(bbSwap('Screens/SessionsScreen.swift', '.accessibilityIdentifier(ID.startOpen)', '.accessibilityIdentifier(ID.startSheet)'), 'bb6'));
   expect('(bb) bb6 catches a second "+"', bbHas(bbSwap(START_SHEET_FILE, '        AgentMark(icon:', '        StartTitleControl(open: {})\n        AgentMark(icon:'), 'bb6'));
+  // Phase 348 (D16): the "+" alone at the bar's trailing edge.
+  expect('(bb) bb6 Phase 348: catches the "+" back beside Select in the leading group', bbHas(bbSwap('Screens/SessionsScreen.swift', '            EndBatchTitleControl()\n            menu\n        }\n        if let start, model.startOffer != nil {\n            ToolbarItem(placement: .topBarTrailing) {\n', '            EndBatchTitleControl()\n            menu\n        if let start, model.startOffer != nil {\n            Group {\n'), 'bb6'));
+  expect('(bb) bb6 Phase 348: catches the "+" at the leading edge', bbHas(bbSwap('Screens/SessionsScreen.swift', 'ToolbarItem(placement: .topBarTrailing) {', 'ToolbarItem(placement: .topBarLeading) {'), 'bb6'));
+  expect('(bb) bb6 Phase 348: catches the "+" made outside the bar', bbHas(bbSwap('Screens/SessionsScreen.swift', '        list.toolbar { SessionsBar(model: model, start: start) }\n', '        list.toolbar { SessionsBar(model: model, start: nil) }\n        StartTitleControl(open: {}).accessibilityIdentifier(ID.startOpen)\n'), 'bb6'));
+  // His ruling of 2026-10-20 ("Top bar (Recommended)"), the reverify's plants no clause caught: the "+" on the
+  // list's first line beside Show (the fix round's construction), and the "+" hidden from VoiceOver.
+  expect('(bb) bb6 his ruling: catches the "+" on the list\'s first line beside Show, the fix round\'s construction', bbHas({ 'Screens/SessionsScreen.swift': BB_SESSIONS_FIRST_LINE }, 'bb6'));
+  expect('(bb) bb6 his ruling: catches the "+" hidden from VoiceOver in its chain', bbHas(bbSwap('Screens/SessionsScreen.swift', '                    .accessibilityIdentifier(ID.startOpen)\n', '                    .accessibilityIdentifier(ID.startOpen)\n                    .accessibilityHidden(true)\n'), 'bb6'));
+  expect('(bb) bb6 his ruling: catches StartTitleControl hidden from VoiceOver', bbHas(bbSwap(START_SHEET_FILE, '            .accessibilityLabel(Text(verbatim: Copy.newSession))\n', '            .accessibilityLabel(Text(verbatim: Copy.newSession))\n            .accessibilityHidden(true)\n'), 'bb6'));
+  expect('(bb) bb6 his ruling: catches a bar control hidden from VoiceOver', bbHas(bbSwap('Screens/SessionsScreen.swift', '            EndBatchTitleControl()\n            menu\n', '            EndBatchTitleControl()\n            menu.accessibilityHidden(true)\n'), 'bb6'));
+  expect('(bb) bb6 his ruling: catches the "+" hidden by the older .accessibility(hidden:) spelling', bbHas(bbSwap('Screens/SessionsScreen.swift', '                    .accessibilityIdentifier(ID.startOpen)\n', '                    .accessibilityIdentifier(ID.startOpen)\n                    .accessibility(hidden: true)\n'), 'bb6'));
   // bb7
   expect('(bb) bb7 catches an App Intent', bbHas(bbSwap(START_FILE, 'import Foundation\n', 'import Foundation\nimport AppIntents\n'), 'bb7'));
   expect('(bb) bb7 catches a URL scheme in a property list', bbHas({}, 'bb7', { others: [{ name: 'ios/Tortie/Info.plist', text: '<key>CFBundleURLTypes</key><array/>' }] }));
@@ -17711,11 +18906,13 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     const tw = ruleHostileTwinArm(existsSync(hostilePath) ? read(hostilePath) : null);
     // Phase 346: the Start group's twelve arms (build/p346/SPEC.md §5.4).
     const st = ruleHostileStartArms(existsSync(hostilePath) ? read(hostilePath) : null, existsSync(COPY_SWIFT) ? read(COPY_SWIFT) : null);
+    // Phase 348: the Remove, paste, flag, marks and age note arms (build/p348/SPEC.md §7.3).
+    const p348 = ruleHostileP348Arms(existsSync(hostilePath) ? read(hostilePath) : null, existsSync(COPY_SWIFT) ? read(COPY_SWIFT) : null);
     record(
       't',
       'the client is pinned mutual TLS 1.3 to a public name, and reads HTTP by hand, bounded',
-      [...r.findings, ...sh.findings, ...sb.findings, ...tw.findings, ...st.findings],
-      `a local identity on every paired connection (${String(r.said.identityCalls)} exchange(s) with one, and POST /pair alone with none; ${String(r.said.connects)} connect( call(s) naming one, the writes' with the paired door's); the verify block completes with DoorPin's answer; TLS 1.3 the minimum and nothing older; a .ts.net name at 8443 or 10000, checked by the parse; one Content-Length required, Transfer-Encoding refused, Connection: close; hostile-door.mjs names ${String(r.said.arms.length)} HTTP arm(s) (${r.said.arms.join(', ')}), each ending in a Copy sentence, ${String(r.said.writeArms.length)} write arm(s), each ending where it names, in a Copy sentence or the door's own, ${String(r.said.replyArms.length)} reply arm(s), each with its verb and one POST, ending in the press line, the message line or Pairing, ${String(sh.said.arms.length)} Screen arm(s), each ending where it names, ${String(sb.said.arms.length)} scrollback arm(s), each ending in the live terminal drawn or the moved line, and the twin (${tw.said.arm ? 'its arm' : 'no arm'}, ${tw.said.flags.join(' and ') || 'no flag'}, ${tw.said.words.join(' and ') || 'no stdin word'}), the second Mac probe:p345 attacks with; and ${String(st.said.arms.length)} Start arm(s) (Phase 346), each a write with its POSTs counted where it is one`
+      [...r.findings, ...sh.findings, ...sb.findings, ...tw.findings, ...st.findings, ...p348.findings],
+      `a local identity on every paired connection (${String(r.said.identityCalls)} exchange(s) with one, and POST /pair alone with none; ${String(r.said.connects)} connect( call(s) naming one, the writes' with the paired door's); the verify block completes with DoorPin's answer; TLS 1.3 the minimum and nothing older; a .ts.net name at 8443 or 10000, checked by the parse; one Content-Length required, Transfer-Encoding refused, Connection: close; hostile-door.mjs names ${String(r.said.arms.length)} HTTP arm(s) (${r.said.arms.join(', ')}), each ending in a Copy sentence, ${String(r.said.writeArms.length)} write arm(s), each ending where it names, in a Copy sentence or the door's own, ${String(r.said.replyArms.length)} reply arm(s), each with its verb and one POST, ending in the press line, the message line or Pairing, ${String(sh.said.arms.length)} Screen arm(s), each ending where it names, ${String(sb.said.arms.length)} scrollback arm(s), each ending in the live terminal drawn or the moved line, and the twin (${tw.said.arm ? 'its arm' : 'no arm'}, ${tw.said.flags.join(' and ') || 'no flag'}, ${tw.said.words.join(' and ') || 'no stdin word'}), the second Mac probe:p345 attacks with; and ${String(st.said.arms.length)} Start arm(s) (Phase 346), each a write with its POSTs counted where it is one; and ${String(p348.said.arms.length)} Phase 348 arm(s), the Remove and paste writes each counting their one POST, the paste flag's sending none and drawing Copy alone, the marks and the age note drawn`
     );
   }
   // (u)
@@ -17841,7 +19038,7 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
       'ab',
       'the write: one signed path, one id per write, handed only once withheld is asked, and never retried',
       r.findings,
-      `"POST" ${String(r.said.posts)} time(s), in present and signedPost alone; signedPost called ${String(r.said.signedPosts)} time(s), by DoorClient.end, choose, say, keys and start alone, once each; WriteId.fresh() ${String(r.said.freshIds)} time(s), 16 random bytes bound to a local; the body encoded with sorted keys and exactly its keys in signedPost alone; the writer's end( ${String(r.said.writerEnds)} time(s), in EndRunner.run, never in a while; handed set ${String(r.said.handed)} time(s), in send() just before connection.send and after withheld is asked; withheld set ${String(r.said.withheld)} time(s), only while handed is false; the result classified by handed, and an answer taken only with its id echoed or "" with refused and malformed`
+      `"POST" ${String(r.said.posts)} time(s), in present and signedPost alone; signedPost called ${String(r.said.signedPosts)} time(s), by DoorClient.end, choose, say, keys, start, remove and paste alone, once each; WriteId.fresh() ${String(r.said.freshIds)} time(s), 16 random bytes bound to a local; the body encoded with sorted keys and exactly its keys in signedPost alone; the writer's end( ${String(r.said.writerEnds)} time(s), in EndRunner.run, never in a while; handed set ${String(r.said.handed)} time(s), in send() just before connection.send and after withheld is asked; withheld set ${String(r.said.withheld)} time(s), only while handed is false; the result classified by handed, and an answer taken only with its id echoed or "" with refused and malformed`
     );
   }
   // (ac)
@@ -17867,11 +19064,12 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
   // (ad)
   {
     const r = ruleShrinks(appNamed);
+    const rm = ruleRemoveRunner(appNamed);
     record(
       'ad',
       'the list only shrinks, and nothing is sent after the app left',
-      r.findings,
-      `EndRunner.targets a let, never grown; ${String(r.said.loops)} loop over it with one awaited write per turn and stopRequested read before each, the first included, and never set false; ${String(r.said.runners)} runner(s) made at the press, ${String(r.said.registered)} registered before the owner check is asked; AppModel.wentAway stops every registered runner (stopRequested set and its task cancelled); nothing in ${END_BAR_FILE}, ${END_BATCH_FILE} or the write path persists a write or a target`
+      [...r.findings, ...rm.findings],
+      `EndRunner.targets a let, never grown; ${String(r.said.loops)} loop over it with one awaited write per turn and stopRequested read before each, the first included, and never set false; ${String(r.said.runners)} runner(s) made at the press, ${String(r.said.registered)} registered before the owner check is asked; AppModel.wentAway stops every registered runner (stopRequested set and its task cancelled); nothing in ${END_BAR_FILE}, ${END_BATCH_FILE} or the write path persists a write or a target; and since Phase 348, ${String(rm.said.runners)} RemoveRunner( made, in RemoveModel.press alone, ONE target each, registered before its task and stopped by wentAway, its remover's remove( called ${String(rm.said.removes)} time(s), in RemoveRunner.run after stopRequested, and nothing in Screens/Remove.swift persisted`
     );
   }
   // Phase 318: (ae), (af) and (ag), over the app named relative to its folder.
@@ -17903,7 +19101,7 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
   // Phase 337: (ah) to (ap), the Screen (build/p337/SPEC.md §6.4).
   {
     const r = ruleScreenSizesNothing(appNamed);
-    record('ah', 'the Screen never sizes the Mac', r.findings, `DoorClient.screenTarget writes ${r.said.params.join(' and ') || 'nothing'}, the only builder of /v1/screen (${String(r.said.builders)} spelling); KeysBody holds ${r.said.keysFields || 'nothing'}; no request builder or Screen file names a size, and ScreenDoor takes since, and the items, turn and dialog, alone; its page takes from, count, depth, wrap and keep and its re-read nothing`);
+    record('ah', 'the Screen never sizes the Mac', r.findings, `DoorClient.screenTarget writes ${r.said.params.join(' and ') || 'nothing'}, the only builder of /v1/screen (${String(r.said.builders)} spelling); KeysBody holds ${r.said.keysFields || 'nothing'}; no request builder or Screen file names a size, and ScreenDoor takes since, and the items, turn and dialog, alone; its paste the text, turn and dialog (Phase 348); its page takes from, count, depth, wrap and keep and its re-read nothing`);
   }
   {
     const r = ruleScreenKeys(appNamed, pocketKeyNames(existsSync(POCKET_TS) ? read(POCKET_TS) : null));
@@ -17911,7 +19109,7 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
   }
   {
     const r = ruleScreenField(appNamed);
-    record('aj', 'the input field: nothing rewritten, nothing pasted, nothing sent while composing or dictating', r.findings, `ScreenTextView sets ${String(r.said.settings)} of ${String(FIELD_SETTINGS.length)} settings and a drop delegate; refuses ${r.said.refused.join(', ')}; Backspace on an empty field is BSpace; a replacement of exactly a line feed is Enter and any other line break is swallowed whole, in ScreenInputState alone`);
+    record('aj', "the input field: nothing rewritten, nothing pasted into it (iOS's own paste handed on), nothing sent while composing or dictating", r.findings, `ScreenTextView sets ${String(r.said.settings)} of ${String(FIELD_SETTINGS.length)} settings and a drop delegate; refuses ${r.said.refused.join(', ')}, and takes iOS's own paste(_:) only to hand the clipboard's text to onPaste, never into the field (Phase 348); Backspace on an empty field is BSpace; a replacement of exactly a line feed is Enter and any other line break is swallowed whole, in ScreenInputState alone`);
   }
   {
     const r = ruleKeptLines(appNamed);
@@ -17925,9 +19123,9 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     const e = ruleEditMenu(appNamed);
     record(
       'al',
-      'the pasteboard is written and never read, and the edit menu offers Copy alone',
+      "the pasteboard is written by Copy and read only by iOS's own paste on his press, and the edit menu offers Copy and Paste alone",
       [...r.findings, ...e.findings],
-      `UIPasteboard named in ${SELECTION_FILE} alone, written ${String(r.said.writes)} time(s) as UIPasteboard.general.string = …, and read nowhere; UIEditMenuInteraction( made ${String(e.said.menus)} time(s), in ${TEXT_INPUT_FILE}, with a delegate; menuFor declared ${String(e.said.menuFor)} time(s), never reading the suggested actions, returning ${[...new Set(e.said.returns)].join(' or ') || 'nothing'}, its Copy ${e.said.copyBehindDrawn ? 'behind a drawn( test' : 'unread'}; no UITextInteraction, UIMenuController, drag, Share, Look Up or Translate in a Screen file and Writing Tools only .none; ${TEXT_CONTENT_TYPE} never first responder, its writingToolsBehavior .none and ${String(e.said.mutators)} of its four mutators empty; ${String(e.said.spoken)} of its three accessibility answers (no element, no trait, no value) its own, so the rows inside it are what is spoken`
+      `UIPasteboard written ${String(r.said.writes)} time(s) as UIPasteboard.general.string = …, in ${SELECTION_FILE}; read ${String(r.said.reads)} time(s), as UIPasteboard.general.string inside ${PASTE_ROADS.map(([, t]) => `${t}.paste(_:)`).join(' and ')}, and asked ${String(r.said.asks)} time(s), as .hasStrings inside their canPerformAction beside pasteOffered() (Phase 348), and named nowhere else; UIEditMenuInteraction( made ${String(e.said.menus)} time(s), in ${TEXT_INPUT_FILE}, with a delegate; menuFor declared ${String(e.said.menuFor)} time(s), never reading the suggested actions, returning ${[...new Set(e.said.returns)].join(' or ') || 'nothing'}, its Copy ${e.said.copyBehindDrawn ? 'behind a drawn( test' : 'unread'} and its Paste iOS's own UICommand behind pasteOffered() (${String(e.said.pastes ?? 0)}); no UITextInteraction, UIMenuController, drag, Share, Look Up or Translate in a Screen file and Writing Tools only .none; ${TEXT_CONTENT_TYPE} never first responder, its writingToolsBehavior .none and ${String(e.said.mutators)} of its four mutators empty; ${String(e.said.spoken)} of its three accessibility answers (no element, no trait, no value) its own, so the rows inside it are what is spoken`
     );
   }
   {
@@ -18000,7 +19198,7 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
   }
   {
     const r = ruleTerminalMenu(appNamed);
-    record('ay', 'the ⋯ menu', r.findings, `TerminalPage's trailing items ${r.said.trailing.join(' then ') || 'none'}, one ToolbarItem at the top right; one Menu labelled TerminalMenuControl.symbol (${JSON.stringify(r.said.symbol)}), its chain ${r.said.chain.join(', ') || 'unread'}, holding ${r.said.entries.join(' then ') || 'nothing'}; End where End is drawn today, its label the Mac's words with the owner check's glyph; the single End's confirmationDialog written ${String(r.said.dialogs)} time(s), in EndConfirmation; the progress mark behind confirming and the write; Copy.more "More", the phone's; the four identifiers; no owner check named by the menu`);
+    record('ay', 'the ⋯ menu', r.findings, `TerminalPage's trailing items ${r.said.trailing.join(' then ') || 'none'}, one ToolbarItem at the top right; one Menu labelled TerminalMenuControl.symbol (${JSON.stringify(r.said.symbol)}), its chain ${r.said.chain.join(', ') || 'unread'}, holding ${r.said.entries.join(' then ') || 'nothing'}; End where End is drawn today, its label the Mac's words with the owner check's glyph, and Remove in its place behind Remove's drawing, the Mac's word, destructive, no glyph, its one confirmation outside the items (Phase 348); the single End's confirmationDialog written ${String(r.said.dialogs)} time(s), in EndConfirmation; the progress marks behind confirming and the writes; Copy.more "More", the phone's; the six identifiers; no owner check named by the menu`);
   }
   // Phase 333.3: (az), See a sample (build/p3333/SPEC.md §6.1).
   {
@@ -18038,6 +19236,222 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     r.findings,
     `ba1 Route's ${String(r.said.routeCases)} case(s) each carry mac:, and ${String(r.said.routesBuilt)} Route(s) the app builds each name it; ba2 RootView.destination reads its reader through ${String(r.said.lookups)} lookup, space(route.mac), and no reader, spaces, app.reader or chosen, and ${String(r.said.searches)} search(es) over the spaces name no session's row, list, route or tap; ba3 ${String(r.said.stacks)} NavigationStack(s) in the tabs, each carrying the space's .id(; ba4 pairedReader() called by PhoneDoor's extension default alone; ba5 macSends read ${String(r.said.macSendsReads)} time(s), in alertTarget, checkAlertAddress, readAlertPermission and Settings' drawing alone; ba6 the Macs tab's badge app.otherMacsWaiting, folded through DoorNumber.sum with no +; ba7 PairingStore.macLimit = ${String(MAC_LIMIT)}, declared once, and no Mac count compared with 4 or 5; ba8 ${String(r.said.accountsWritten)} record write(s), each to pairing-v2, an account the store listed, or pairing-v2- and the phone's own random hex, made where nothing a Mac sent is named; ba9 sweepOrphans() ${String(r.said.sweeps)} time(s), in AppModel.launch after forgetOnFreshInstall( and before LiveDoor(; ba10 door.unpair(name:) ${String(r.said.unpairs)} time(s), in AppModel.unpair and AppModel.replaceRefused alone, replaceRefused( by AppModel.paired alone, and ${String(r.said.routedRefusals)} refusal(s) and pop(s) a routing hands back, each behind speaks(`
   );
+}
+
+// Phase 348: (t)'s Phase 348 half, proved on a table this file writes.
+{
+  const row = (arm, body) => `  '${arm}': { ${body} },`;
+  const rows = [
+    ...HOSTILE_P348_ARMS.remove.map((a) => row(a, a === 'remove-honest' ? "ends: 'list', remove: 'answer', posts: 1, expect: []" : a === 'remove-confirm-malformed' ? "ends: 'sentence', remove: 'offer', posts: 0, expect: ['answerUnreadable']" : a === 'remove-offer-absent' ? "ends: 'no-remove', remove: 'offer', posts: 0, expect: []" : "ends: 'sentence', remove: 'answer', posts: 1, expect: ['removeNotTaken']")),
+    ...HOSTILE_P348_ARMS.paste.map((a) => row(a, a === 'paste-honest' ? "ends: 'drawn', paste: 'answer', posts: 1, expect: []" : "ends: 'sentence', paste: 'answer', posts: 1, expect: ['pasteNotTaken']")),
+    ...HOSTILE_P348_ARMS.pasteFlag.map((a) => row(a, a === 'screen-paste-flag-string' ? "ends: 'sentence', pasteFlag: 'string', posts: 0, expect: ['screenNotAnswering']" : "ends: 'drawn', pasteFlag: false, posts: 0, expect: [], menu: ['copy']")),
+    ...HOSTILE_P348_ARMS.wraps.map((a) => row(a, "ends: 'drawn', wraps: 'screen', expect: []")),
+    ...HOSTILE_P348_ARMS.ageNote.map((a) => row(a, "ends: 'drawn', ageNote: 'long', expect: []"))
+  ];
+  const T48 = `export const P348_ARMS = Object.freeze({\n${rows.join('\n')}\n});\n`;
+  const T48_COPY = ['answerUnreadable', 'removeNotTaken', 'pasteNotTaken', 'screenNotAnswering'].map((w) => `    static let ${w} = "x"\n`).join('');
+  const t48 = (h, c = T48_COPY) => ruleHostileP348Arms(h, c).findings.length;
+  const t48s = (from, to) => {
+    if (!T48.includes(from)) selfFailures.push(`(t) Phase 348 fixture holds no ${JSON.stringify(from)}`);
+    return T48.replace(from, to);
+  };
+  expect('(t) Phase 348: passes the thirty-five arms', t48(T48) === 0 && ruleHostileP348Arms(T48, T48_COPY).said.arms.length === 35);
+  expect('(t) Phase 348: catches a Remove arm dropped', t48(T48.replace(/\n {2}'remove-late'[^\n]*/, '')) > 0);
+  expect('(t) Phase 348: catches a Remove write counting two POSTs', t48(t48s("'remove-404': { ends: 'sentence', remove: 'answer', posts: 1,", "'remove-404': { ends: 'sentence', remove: 'answer', posts: 2,")) > 0);
+  expect('(t) Phase 348: catches an offer arm that sends a POST', t48(t48s("'remove-offer-absent': { ends: 'no-remove', remove: 'offer', posts: 0,", "'remove-offer-absent': { ends: 'no-remove', remove: 'offer', posts: 1,")) > 0);
+  expect('(t) Phase 348: catches a paste split into two POSTs', t48(t48s("'paste-cut': { ends: 'sentence', paste: 'answer', posts: 1,", "'paste-cut': { ends: 'sentence', paste: 'answer', posts: 2,")) > 0);
+  expect('(t) Phase 348: catches a flag arm drawing more than Copy', t48(t48s("'screen-paste-flag-false': { ends: 'drawn', pasteFlag: false, posts: 0, expect: [], menu: ['copy'] }", "'screen-paste-flag-false': { ends: 'drawn', pasteFlag: false, posts: 0, expect: [], menu: ['copy', 'paste'] }")) > 0);
+  expect('(t) Phase 348: catches a marks arm that fails the page', t48(t48s("'wraps-huge': { ends: 'drawn',", "'wraps-huge': { ends: 'sentence',")) > 0);
+  expect('(t) Phase 348: catches an arm expecting a word Copy does not hold', t48(T48, '') > 0);
+}
+
+// Phase 348: (bc), the tab roots' bars, proved on texts this file holds: the
+// honest four roots, Sessions' bar, the "+" and Select pass, and one plant per
+// clause each must catch.
+{
+  const root = (type, title) => `struct ${type}: View {\n    var body: some View {\n        ScrollView { content }\n        .navigationTitle(${title})\n        .navigationBarTitleDisplayMode(.large)\n        .toolbarBackground(Tokens.bgSidebar, for: .navigationBar)\n        .toolbarColorScheme(.dark, for: .navigationBar)\n    }\n}\n`;
+  const sessionsOk = [
+    'struct SessionsScreen: View {',
+    '    var body: some View {',
+    '        ScrollView { content }',
+    '        .navigationTitle(Copy.sessions)',
+    '        .navigationBarTitleDisplayMode(.large)',
+    '        .toolbarBackground(Tokens.bgSidebar, for: .navigationBar)',
+    '        .toolbarColorScheme(.dark, for: .navigationBar)',
+    '        .toolbar { SessionsBar(model: model, start: start) }',
+    '    }',
+    '    private var listBody: some View {',
+    '        ScrollView {',
+    '            LazyVStack(alignment: .leading, spacing: 0) {',
+    '                showControl',
+    '                if let line = model.list.alertsLine {',
+    '                    Words(line, .secondary, Tokens.textSecondary, lines: nil)',
+    '                }',
+    '            }',
+    '        }',
+    '    }',
+    '    private var showControl: some View {',
+    '        HStack(spacing: 0) {',
+    '            ForEach(SessionsShow.allCases, id: \\.self) { show in',
+    '                Button { pick(show) } label: {',
+    '                    Words(show.word, .showWord, Tokens.textPrimary)',
+    '                        .frame(maxWidth: .infinity)',
+    '                        .frame(height: SessionsFrame.showButtonHeight)',
+    '                        .contentShape(Rectangle())',
+    '                }',
+    '                .buttonStyle(.plain)',
+    '            }',
+    '        }',
+    '        .padding(SessionsFrame.showInset)',
+    '        .accessibilityIdentifier(ID.listShow)',
+    '        .padding(.horizontal, Frame.gutter)',
+    '        .padding(.bottom, 8)',
+    '    }',
+    '}',
+    'enum SessionsFrame {',
+    '    static let showInset: CGFloat = 2',
+    '    static let showButtonHeight: CGFloat = 28',
+    '    static let plusPress: CGFloat = 46',
+    '    static let barPress: CGFloat = 44',
+    '}',
+    'struct SessionsBar: ToolbarContent {',
+    '    let model: SessionsModel',
+    '    let start: (() -> Void)?',
+    '    var body: some ToolbarContent {',
+    '        ToolbarItemGroup(placement: .topBarLeading) {',
+    '            EndBatchTitleControl()',
+    '            menu',
+    '        }',
+    '        if let start, model.startOffer != nil {',
+    '            ToolbarItem(placement: .topBarTrailing) {',
+    '                StartTitleControl(open: start)',
+    '                    .disabled(batch?.takesTaps ?? false)',
+    '                    .accessibilityIdentifier(ID.startOpen)',
+    '            }',
+    '        }',
+    '    }',
+    '    private var menu: some View {',
+    '        Menu {',
+    '            Picker(Copy.groupBy, selection: groupChoice) { EmptyView() }',
+    '        } label: {',
+    '            filterGlyph',
+    '                .frame(minWidth: SessionsFrame.barPress, minHeight: SessionsFrame.barPress)',
+    '                .contentShape(Rectangle())',
+    '        }',
+    '        .accessibilityIdentifier(ID.listMenu)',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const sheetOk = [
+    'struct StartTitleControl: View {',
+    '    let open: () -> Void',
+    '    var body: some View {',
+    '        if #available(iOS 26, *) {',
+    '            Button(action: open) {',
+    '                Image(systemName: "plus")',
+    '                    .frame(width: SessionsFrame.plusPress, height: SessionsFrame.plusPress)',
+    '                    .contentShape(Rectangle())',
+    '            }',
+    '            .buttonStyle(.glassProminent)',
+    '            .tint(Tokens.accent)',
+    '        } else {',
+    '            Button(action: open) {',
+    '                Image(systemName: "plus.circle.fill")',
+    '                    .foregroundStyle(Tokens.accent)',
+    '                    .frame(width: SessionsFrame.plusPress, height: SessionsFrame.plusPress)',
+    '                    .contentShape(Rectangle())',
+    '            }',
+    '        }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const batchOk = [
+    'struct EndBatchTitleControl: View {',
+    '    var body: some View {',
+    '        if let batch {',
+    '            switch batch.phase {',
+    '            case .off:',
+    '                Button { batch.select() } label: {',
+    '                    Text(verbatim: Copy.select)',
+    '                        .frame(minWidth: SessionsFrame.barPress, minHeight: SessionsFrame.barPress)',
+    '                        .contentShape(Rectangle())',
+    '                }',
+    '            case .selecting:',
+    '                Button { batch.cancel() } label: {',
+    '                    Text(verbatim: Copy.cancel)',
+    '                        .frame(minWidth: SessionsFrame.barPress, minHeight: SessionsFrame.barPress)',
+    '                        .contentShape(Rectangle())',
+    '                }',
+    '            default:',
+    '                EmptyView()',
+    '            }',
+    '        }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const idsOk = 'enum ID {\n    static let listShow = "list-show"\n    static let startOpen = "start-open"\n}\n';
+  const base = {
+    'Screens/ListScreen.swift': root('ListScreen', 'kind.title'),
+    'Screens/SessionsScreen.swift': sessionsOk,
+    'Screens/SettingsScreen.swift': root('SettingsScreen', 'Copy.settings'),
+    'Screens/MacsScreen.swift': root('MacsScreen', 'Copy.macs'),
+    'Screens/StartSheet.swift': sheetOk,
+    [END_BATCH_FILE]: batchOk,
+    'Screens/Identifiers.swift': idsOk
+  };
+  const bc = (edits = {}) => ruleTabRootBars(Object.entries({ ...base, ...edits }).filter(([, v]) => v !== null).map(([name, source]) => ({ name, source }))).findings;
+  const bcHas = (edits, clause) => bc(edits).some((f) => f.startsWith(`${clause}:`));
+  const sw = (file, from, to) => {
+    if (!base[file].includes(from)) selfFailures.push(`(bc) fixture: ${file} holds no ${JSON.stringify(from.slice(0, 70))}`);
+    return { [file]: base[file].replace(from, to) };
+  };
+  expect('(bc) passes the four roots on the iPhone\'s own bar, Sessions\' bar, the "+" and Select', bc().length === 0);
+  expect('(bc) the honest fixture reads its five frames', ruleTabRootBars(Object.entries(base).map(([name, source]) => ({ name, source }))).said.frames === 5);
+  expect('(bc) bc1 catches a root that hides its bar again (the parent)', bcHas(sw('Screens/SettingsScreen.swift', '        .navigationBarTitleDisplayMode(.large)\n', '        .toolbar(.hidden, for: .navigationBar)\n'), 'bc1'));
+  expect('(bc) bc1 catches an inline title', bcHas(sw('Screens/MacsScreen.swift', '.navigationBarTitleDisplayMode(.large)', '.navigationBarTitleDisplayMode(.inline)'), 'bc1'));
+  expect('(bc) bc1 catches the bar\'s background forced visible', bcHas(sw('Screens/ListScreen.swift', '        .toolbarColorScheme(.dark, for: .navigationBar)\n', '        .toolbarColorScheme(.dark, for: .navigationBar)\n        .toolbarBackground(.visible, for: .navigationBar)\n'), 'bc1'));
+  expect('(bc) bc1 catches a root with no navigation title', bcHas(sw('Screens/ListScreen.swift', '        .navigationTitle(kind.title)\n', ''), 'bc1'));
+  expect('(bc) bc1 catches the bar\'s colour scheme left light', bcHas(sw('Screens/SettingsScreen.swift', '.toolbarColorScheme(.dark, for: .navigationBar)', '.toolbarColorScheme(.light, for: .navigationBar)'), 'bc1'));
+  expect('(bc) bc2 catches a house title row left in a list', bcHas(sw('Screens/MacsScreen.swift', '        ScrollView { content }\n', '        Words(Copy.macs, .title, Tokens.textPrimary)\n        ScrollView { content }\n'), 'bc2'));
+  expect('(bc) bc2 catches a gone identifier still declared', bcHas({ 'Screens/Identifiers.swift': idsOk.replace('enum ID {\n', 'enum ID {\n    static let listTitle = "list-title"\n') }, 'bc2'));
+  expect('(bc) bc2 catches the age note\'s identifier named', bcHas(sw('Screens/ListScreen.swift', '        ScrollView { content }\n', '        ScrollView { content }.accessibilityIdentifier(ID.needsListAgeNote)\n'), 'bc2'));
+  expect('(bc) bc3 catches a second ToolbarContent', bcHas(sw('Screens/SessionsScreen.swift', 'struct SessionsBar: ToolbarContent {', 'struct Other: ToolbarContent { var body: some ToolbarContent { ToolbarItem(placement: .principal) { EmptyView() } } }\nstruct SessionsBar: ToolbarContent {'), 'bc3'));
+  expect('(bc) bc3 catches the filter before Select', bcHas(sw('Screens/SessionsScreen.swift', '            EndBatchTitleControl()\n            menu\n', '            menu\n            EndBatchTitleControl()\n'), 'bc3'));
+  expect('(bc) bc3 catches the "+" back in the leading group', bcHas(sw('Screens/SessionsScreen.swift', '            EndBatchTitleControl()\n            menu\n', '            EndBatchTitleControl()\n            menu\n            StartTitleControl(open: {})\n'), 'bc3'));
+  expect('(bc) bc3 catches the "+" built behind no offer', bcHas(sw('Screens/SessionsScreen.swift', 'if let start, model.startOffer != nil {', 'if let start {'), 'bc3'));
+  expect('(bc) bc3 catches a second trailing item', bcHas(sw('Screens/SessionsScreen.swift', '                    .accessibilityIdentifier(ID.startOpen)\n            }\n', '                    .accessibilityIdentifier(ID.startOpen)\n            }\n            ToolbarItem(placement: .topBarTrailing) { EmptyView() }\n'), 'bc3'));
+  // His ruling of 2026-10-20 ("Top bar (Recommended)"): the "+" stays the bar's; its trailing item gone reads red.
+  expect('(bc) bc3 his ruling: catches the bar with no trailing item (the fix round\'s construction)', bcHas(sw('Screens/SessionsScreen.swift', '        if let start, model.startOffer != nil {\n            ToolbarItem(placement: .topBarTrailing) {\n                StartTitleControl(open: start)\n                    .disabled(batch?.takesTaps ?? false)\n                    .accessibilityIdentifier(ID.startOpen)\n            }\n        }\n', ''), 'bc3'));
+  expect('(bc) bc4 catches the "+" with no glass on iOS 26', bcHas(sw('Screens/StartSheet.swift', '            .buttonStyle(.glassProminent)\n', ''), 'bc4'));
+  expect('(bc) bc4 catches the "+" tinted another colour', bcHas(sw('Screens/StartSheet.swift', '.tint(Tokens.accent)', '.tint(Tokens.error)'), 'bc4'));
+  expect('(bc) bc4 catches the "+" the same on both runtimes', bcHas(sw('Screens/StartSheet.swift', 'if #available(iOS 26, *) {', 'if true {'), 'bc4'));
+  expect('(bc) bc4 catches the iOS 18 "+" another symbol', bcHas(sw('Screens/StartSheet.swift', '"plus.circle.fill"', '"plus.circle"'), 'bc4'));
+  expect('(bc) bc4 catches the line struct StartTitleControl: View { moved', bcHas(sw('Screens/StartSheet.swift', 'struct StartTitleControl: View {', 'struct StartTitleControl : View {'), 'bc4'));
+  expect('(bc) bc5 catches the "+" framed smaller than the parent\'s', bcHas(sw('Screens/StartSheet.swift', '                Image(systemName: "plus")\n                    .frame(width: SessionsFrame.plusPress, height: SessionsFrame.plusPress)\n', '                Image(systemName: "plus")\n                    .frame(width: SessionsFrame.barPress, height: SessionsFrame.barPress)\n'), 'bc5'));
+  expect('(bc) bc5 catches SessionsFrame.plusPress under the parent\'s 46', bcHas(sw('Screens/SessionsScreen.swift', 'static let plusPress: CGFloat = 46', 'static let plusPress: CGFloat = 40'), 'bc5'));
+  expect('(bc) bc5 catches the "+" with no content shape (its corners would not press)', bcHas(sw('Screens/StartSheet.swift', '                    .foregroundStyle(Tokens.accent)\n                    .frame(width: SessionsFrame.plusPress, height: SessionsFrame.plusPress)\n                    .contentShape(Rectangle())\n', '                    .foregroundStyle(Tokens.accent)\n                    .frame(width: SessionsFrame.plusPress, height: SessionsFrame.plusPress)\n'), 'bc5'));
+  expect('(bc) bc5 catches a padded "+"', bcHas(sw('Screens/StartSheet.swift', '            .tint(Tokens.accent)\n', '            .tint(Tokens.accent)\n            .padding(4)\n'), 'bc5'));
+  expect('(bc) bc5 catches Select\'s label unframed', bcHas(sw(END_BATCH_FILE, '                    Text(verbatim: Copy.select)\n                        .frame(minWidth: SessionsFrame.barPress, minHeight: SessionsFrame.barPress)\n                        .contentShape(Rectangle())\n', '                    Text(verbatim: Copy.select)\n'), 'bc5'));
+  expect('(bc) bc5 catches the filter\'s label unframed', bcHas(sw('Screens/SessionsScreen.swift', '                .frame(minWidth: SessionsFrame.barPress, minHeight: SessionsFrame.barPress)\n                .contentShape(Rectangle())\n', ''), 'bc5'));
+  expect('(bc) bc5 catches a length that is not D56\'s', bcHas(sw('Screens/SessionsScreen.swift', 'static let barPress: CGFloat = 44', 'static let barPress: CGFloat = 36'), 'bc5'));
+  expect('(bc) bc5 catches a length declared outside SessionsFrame', bcHas(sw('Screens/StartSheet.swift', 'struct StartTitleControl: View {', 'enum StartFrame {\n    static let plusPress: CGFloat = 46\n}\nstruct StartTitleControl: View {'), 'bc5'));
+  expect('(bc) bc5 catches the title row\'s reach named again', bcHas(sw('Screens/StartSheet.swift', '            .tint(Tokens.accent)\n', '            .tint(Tokens.accent)\n            .frame(width: StartFrame.plusReach)\n'), 'bc5'));
+  expect('(bc) bc5 catches a padded bar control in SessionsBar', bcHas(sw('Screens/SessionsScreen.swift', '                StartTitleControl(open: start)\n', '                StartTitleControl(open: start)\n                    .padding(.leading, 8)\n'), 'bc5'));
+  // bc6 (his ruling of 2026-10-20): the Show control keeps build 11's full width.
+  expect('(bc) the honest fixture reads the Show control', ruleTabRootBars(Object.entries(base).map(([name, source]) => ({ name, source }))).said.show === true);
+  expect('(bc) bc6 catches the Show control held at a fixed width (the reverify\'s plant)', bcHas(sw('Screens/SessionsScreen.swift', "        .padding(SessionsFrame.showInset)\n", "        .padding(SessionsFrame.showInset)\n        .frame(width: 240)\n"), 'bc6'));
+  expect('(bc) bc6 catches the Show control given a maximum width', bcHas(sw('Screens/SessionsScreen.swift', "        .padding(SessionsFrame.showInset)\n", "        .padding(SessionsFrame.showInset)\n        .frame(maxWidth: 306)\n"), 'bc6'));
+  expect('(bc) bc6 catches the Show control at its ideal size', bcHas(sw('Screens/SessionsScreen.swift', "        .padding(SessionsFrame.showInset)\n", "        .padding(SessionsFrame.showInset)\n        .fixedSize()\n"), 'bc6'));
+  expect('(bc) bc6 catches a segment no longer sharing the line', bcHas(sw('Screens/SessionsScreen.swift', "                        .frame(maxWidth: .infinity)\n", ''), 'bc6'));
+  expect('(bc) bc6 catches a wider side inset', bcHas(sw('Screens/SessionsScreen.swift', "        .padding(.horizontal, Frame.gutter)\n", "        .padding(.horizontal, Frame.gutter)\n        .padding(.trailing, 64)\n"), 'bc6'));
+  expect('(bc) bc6 catches the capsule\'s inset widened', bcHas(sw('Screens/SessionsScreen.swift', 'static let showInset: CGFloat = 2', 'static let showInset: CGFloat = 12'), 'bc6'));
+  expect('(bc) bc6 catches a shorter segment', bcHas(sw('Screens/SessionsScreen.swift', 'static let showButtonHeight: CGFloat = 28', 'static let showButtonHeight: CGFloat = 24'), 'bc6'));
+  expect('(bc) bc6 catches the Show control beside the "+" on one line (the fix round\'s construction)', bcHas(sw('Screens/SessionsScreen.swift', "                showControl\n", "                HStack(spacing: 12) {\n                    showControl\n                    StartTitleControl(open: {})\n                }\n"), 'bc6'));
+  expect('(bc) bc6 catches a width chained at the Show control\'s call', bcHas(sw('Screens/SessionsScreen.swift', "                showControl\n", "                showControl.frame(width: 240)\n"), 'bc6'));
+  expect('(bc) bc6 catches the Show control drawn twice', bcHas(sw('Screens/SessionsScreen.swift', "                showControl\n", "                showControl\n                showControl\n"), 'bc6'));
 }
 
 // Phase 346: (bb), start a session from the phone (build/p346/SPEC.md §5.3),
@@ -18089,7 +19503,22 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     'bb',
     'New session starts one session on the Mac on screen, asks no Face ID, and sends two ids and a write id',
     r.findings,
-    `bb1 the starter's start( ${String(r.said.starterCalls)} time(s), in StartRunner.run, never in a loop; StartBody agent, project, write, built in signedPost with sorted keys; StartResult.of by handed, verb start and the echo; bb2 no owner check in ${START_FILES.join(', ')} or startSetup; bb3 ${String(r.said.runners)} StartRunner( made, each registered before its task, stopped by wentAway; keptStart set ${String(r.said.keptSets)} time(s), non-nil only from a start's own noAnswer or a busy on a kept id, held by KeptStart.window (60 s) over the Mac, the project and the agent; nothing persisted; bb4 two ids and a write id; bb5 the sessions answer's start decoded once, inside try? with decodeIfPresent; bb6 the "+" made ${String(r.said.plus)} time(s), in SessionsScreen's title, behind the offer, off while End these takes taps, identified start-open; bb7 no URL scheme, App Intent, Shortcut, widget or notification action; bb8 ${String(r.said.marks)} mark set(s) in ${AGENT_MARKS_CATALOG}, each one template vector, ${marksCheck.status === 0 ? `agent-marks.mjs --check passed (${marksCheck.line})` : 'agent-marks.mjs --check did not pass'}; bb9 openStarted called ${String(r.said.openers)} time(s), from startSetup, pushing .session(mac: on .sessions from the done arm alone; bb10 the sample's start answers not taken`
+    `bb1 the starter's start( ${String(r.said.starterCalls)} time(s), in StartRunner.run, never in a loop; StartBody agent, project, write, built in signedPost with sorted keys; StartResult.of by handed, verb start and the echo; bb2 no owner check in ${START_FILES.join(', ')} or startSetup; bb3 ${String(r.said.runners)} StartRunner( made, each registered before its task, stopped by wentAway; keptStart set ${String(r.said.keptSets)} time(s), non-nil only from a start's own noAnswer or a busy on a kept id, held by KeptStart.window (60 s) over the Mac, the project and the agent; nothing persisted; bb4 two ids and a write id; bb5 the sessions answer's start decoded once, inside try? with decodeIfPresent; bb6 the "+" made ${String(r.said.plus)} time(s), alone in SessionsBar's trailing item and never in SessionsScreen (his ruling of 2026-10-20), behind the offer, off while End these takes taps, identified start-open, hidden from VoiceOver nowhere; bb7 no URL scheme, App Intent, Shortcut, widget or notification action; bb8 ${String(r.said.marks)} mark set(s) in ${AGENT_MARKS_CATALOG}, each one template vector, ${marksCheck.status === 0 ? `agent-marks.mjs --check passed (${marksCheck.line})` : 'agent-marks.mjs --check did not pass'}; bb9 openStarted called ${String(r.said.openers)} time(s), from startSetup, pushing .session(mac: on .sessions from the done arm alone; bb10 the sample's start answers not taken`
+  );
+}
+
+// Phase 348: (bc), the tab roots' bars (build/p348/SPEC.md §7.3), pushed as
+// (bb) is.
+RULE_IDS.push('bc');
+if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
+  record('bc', 'the app', [`${rel(IOS)} does not exist, so there is no app to read`], '');
+} else {
+  const r = ruleTabRootBars(appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) })));
+  record(
+    'bc',
+    "the tab roots take the iPhone's own bar, and Sessions' presses are D56's",
+    r.findings,
+    `bc1 ${String(r.said.roots.length)} root(s) (${r.said.roots.join(', ') || 'none'}) each name .navigationTitle(, .navigationBarTitleDisplayMode(.large), .toolbarBackground(Tokens.bgSidebar, for: .navigationBar) and .toolbarColorScheme(.dark, for: .navigationBar), and none hides its bar or forces its background visible; bc2 no house title row, and ${TAB_ROOT_GONE_IDS.join(', ')} gone; bc3 SessionsBar the one ToolbarContent, its leading group ${JSON.stringify(r.said.leading)}, its trailing item the "+" alone behind the offer (${String(r.said.trailing)}), his ruling of 2026-10-20; bc4 the "+" iOS 26's .glassProminent in Tokens.accent and plus.circle.fill before it, the line struct StartTitleControl: View { kept; bc5 ${String(r.said.frames)} bar label(s) framed as D56 says with a rectangular content shape and no padding, SessionsFrame.plusPress ${String(BAR_PRESS.plusPress)} and barPress ${String(BAR_PRESS.barPress)}, and no StartFrame.plusReach or plusGiveBack; bc6 the Show control ${r.said.show ? 'read' : 'NOT read'}: alone as the list's first line, nothing chained at its call, no width of its own, its segments sharing the line, its side inset the gutter, showInset ${String(SHOW_LENGTHS.showInset)} and showButtonHeight ${String(SHOW_LENGTHS.showButtonHeight)}`
   );
 }
 

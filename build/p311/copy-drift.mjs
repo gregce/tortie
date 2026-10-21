@@ -31,7 +31,9 @@
  * THE CONTACT SHEET IS NOT A SCREEN. `index.html` draws every screen (twelve
  * since Phase 316.6, thirteen since Phase 317's End these, fifteen since Phase
  * 316.7's Sessions tab, its menu and its older-Mac face, twenty-two since
- * Phase 333.3's See a sample, twenty-three since Phase 345's Macs) through
+ * Phase 333.3's See a sample, twenty-three since Phase 345's Macs,
+ * twenty-four since Phase 348's TerminalMenuRemove, the ⋯ of a session that
+ * has ended) through
  * `<iframe src="…">` and its own prose is
  * commentary about the mock. It
  * is exempt as a class, with that reason, and the exemption is paid for: the run
@@ -343,6 +345,25 @@ const LEDGER = [
     needle: "export const END_SESSION = 'End session…';",
     draws: 'End session…',
     why: "the ⋯ menu's End item, the Mac's own session menu word; it draws the Mac's confirmation (End.html) and only Face ID, Touch ID or the passcode sends it"
+  }),
+  // PHASE 348 (build/p348/SPEC.md D4, D5, D7, D33): once End is done, Remove
+  // takes End session…'s place in the ⋯ of an ended session, the Mac's own
+  // session menu word, drawn by TerminalMenuRemove.html; and the "+" of
+  // Sessions' own bar is spoken New session, the Mac's ⌘T sheet title, which
+  // Copy.swift's newSession is pinned to.
+  owned({
+    is: 'Remove',
+    module: 'src/renderer/app/session-actions.tsx',
+    needle: "label: 'Remove',",
+    draws: 'Remove',
+    why: "the ⋯ menu's item on a session that has ended, in End session…'s place, the Mac's own session menu word; it draws the Mac's removeSessionConfirm and asks no Face ID, Touch ID or passcode (his ruling, “No Face ID, just confirm”)"
+  }),
+  owned({
+    is: 'New session',
+    module: 'src/renderer/app/CreateSessionModal.tsx',
+    needle: '<h2 className="modal-title">New session</h2>',
+    draws: 'New session',
+    why: "the spoken name of the \"+\" alone at the trailing edge of Sessions' own bar (build/p348/SPEC.md D16), the Mac's own ⌘T sheet title, which Copy.swift's newSession is pinned to"
   }),
   owned({
     is: 'Sessions',
@@ -1587,6 +1608,8 @@ const TERMINAL_FACES = Object.freeze({
   catchMeUp: 'Catch Me Up',
   endTop: 'End',
   endSessionMenu: 'End session…',
+  // PHASE 348 (build/p348/SPEC.md D4, D33): the ⋯ of a session that has ended.
+  remove: 'Remove',
   tabs: ['Needs input', 'Sessions', 'Settings']
 });
 function checkTerminalFaces(screens) {
@@ -1607,6 +1630,22 @@ function checkTerminalFaces(screens) {
   const catchUpAt = menu.indexOf(`>${TERMINAL_FACES.catchMeUp}<`);
   const endAt = menu.indexOf(`>${TERMINAL_FACES.endSessionMenu}<`);
   if (catchUpAt === -1 || endAt === -1 || catchUpAt > endAt) findings.push({ file: 'TerminalMenu.html', text: `${TERMINAL_FACES.catchMeUp} then ${TERMINAL_FACES.endSessionMenu}`, why: 'the menu holds Catch Me Up and then End session…, in that order (build/p3373/SPEC.md D22)' });
+  // PHASE 348 (build/p348/SPEC.md §6, D4, D33): the ⋯ of a session that has
+  // ended reads Catch Me Up and then Remove, in End session…'s place, and
+  // offers no End at all; TerminalMenu.html above keeps Catch Me Up then End
+  // session… for a session that runs.
+  if (!screens.has('TerminalMenuRemove.html')) {
+    findings.push({ file: 'TerminalMenuRemove.html', text: 'TerminalMenuRemove.html', why: 'Remove in the ⋯ of an ended session has no mock frame (build/p348/SPEC.md §6)' });
+  } else {
+    const removeMenu = page('TerminalMenuRemove.html');
+    if (!namesControl(removeMenu, TERMINAL_FACES.more)) findings.push({ file: 'TerminalMenuRemove.html', text: TERMINAL_FACES.more, why: 'the ⋯ is not spoken More (build/p3373/SPEC.md D21)' });
+    const catchAt = removeMenu.indexOf(`>${TERMINAL_FACES.catchMeUp}<`);
+    const removeAt = removeMenu.indexOf(`>${TERMINAL_FACES.remove}<`);
+    if (catchAt === -1 || removeAt === -1 || catchAt > removeAt) findings.push({ file: 'TerminalMenuRemove.html', text: `${TERMINAL_FACES.catchMeUp} then ${TERMINAL_FACES.remove}`, why: 'the ⋯ of a session that has ended holds Catch Me Up and then Remove, in that order, Remove where End session… was (build/p348/SPEC.md D4, D33)' });
+    for (const word of [TERMINAL_FACES.endSessionMenu, TERMINAL_FACES.endTop]) {
+      if (drawsWord(removeMenu, word)) findings.push({ file: 'TerminalMenuRemove.html', text: word, why: 'a session that has ended offers no End; Remove took its place (build/p348/SPEC.md D4)' });
+    }
+  }
   const landscape = page('Landscape.html');
   for (const word of [...TERMINAL_FACES.tabs, TERMINAL_FACES.catchMeUp, TERMINAL_FACES.endTop, TERMINAL_FACES.endSessionMenu]) {
     if (drawsWord(landscape, word)) findings.push({ file: 'Landscape.html', text: word, why: 'sideways the Terminal is the terminal alone, with no bar above or below (build/p3373/SPEC.md D15)' });
@@ -1713,8 +1752,14 @@ function checkSampleFace(screens, rows = sampleStartRows()) {
  * above, and CopyTests.testEveryWordIsDeclaredOnceWithItsOwner).
  */
 /* PHASE 337 RAISED IT FROM 79 TO 80, the count the run matches: the Screen's
-   Copy, the Mac terminal menu's own word (src/renderer/terminal/terminal-menu.ts). */
-const PHONE_MAC_FLOOR = 80;
+   Copy, the Mac terminal menu's own word (src/renderer/terminal/terminal-menu.ts).
+   PHASE 348 RAISED IT FROM 80 TO 90 (build/p348/SPEC.md §5.2), the count the
+   run matches once the phase's words are in Copy.swift: 85 at its parent
+   (Phases 345 and 346 added five and left the floor at 80), and five more,
+   Paste, the Mac terminal menu's own word, Remove, the Mac session menu's, and
+   the paste's three refusals, src/shared/screen-copy.ts's own sentences. Its
+   three other words are the phone's own, with a reason. */
+const PHONE_MAC_FLOOR = 90;
 /* PHASE 333.1 RAISED PHONE_NAMES_FLOOR FROM 7 TO 9, the count the run matches:
    the second step names Settings and Phone, and the Allow line under "could
    not reach" names Allow, Settings and Phone (build/p3331/SPEC.md §5.6.1). */
@@ -1999,6 +2044,86 @@ const MACS_MUTATIONS = [
     what: 'Pair another Mac taken out of Copy.swift',
     swift: (t) => t.replace(/\n[^\n]*\/\/\/ Phone:[^\n]*\n\s*static let pairAnotherMac = "Pair another Mac"\n/, '\n'),
     names: 'pairAnotherMac'
+  }
+];
+
+// ---------------------------------------------------------------------------
+// Phase 348's words (build/p348/SPEC.md §5.2)
+// ---------------------------------------------------------------------------
+
+/**
+ * REMOVE AND PASTE, THE EIGHT WORDS THE PHASE ADDS, judged against Copy.swift
+ * whether or not a screen draws them, each with the owner line §5.2 spells for
+ * it: five are the Mac's own words, each pinned `/// Mac:` to the file and the
+ * needle §5.2 names (the generic judgement above holds the needle to the
+ * module); three are the phone's own, `/// Phone:` with a reason, because no
+ * Mac surface says them. Only Remove is drawn at rest (TerminalMenuRemove.html);
+ * the paste's words are said only after a press, so this is where a drift in
+ * them is caught.
+ */
+export const P348_PHONE_WORDS = Object.freeze([
+  ['paste', 'Paste', ['src/renderer/terminal/terminal-menu.ts', "label: 'Paste',"]],
+  ['remove', 'Remove', ['src/renderer/app/session-actions.tsx', "label: 'Remove',"]],
+  ['pasteEmpty', 'There is nothing to paste.', ['src/shared/screen-copy.ts', "PASTE_EMPTY = 'There is nothing to paste.'"]],
+  ['pasteTooLong', 'That is too long to paste. Nothing was pasted.', ['src/shared/screen-copy.ts', "PASTE_TOO_LONG = 'That is too long to paste. Nothing was pasted.'"]],
+  ['pasteCharacter', 'That holds a character Tortie does not paste. Nothing was pasted.', ['src/shared/screen-copy.ts', "PASTE_CHARACTER = 'That holds a character Tortie does not paste. Nothing was pasted.'"]],
+  ['pasteCode', 'That looks like a Tortie pairing code, so it was not pasted.', null],
+  ['pasteNotTaken', 'Your Mac did not take it. Nothing was pasted.', null],
+  ['removeNotTaken', 'Your Mac did not remove it. Nothing was changed.', null]
+]);
+
+/** Judge Phase 348's words, pure over Copy.swift's text and a module reader. */
+function judgeP348Words(swift, readModule) {
+  const findings = [];
+  const { entries } = copySwiftEntries(swift);
+  for (const [name, literal, mac] of P348_PHONE_WORDS) {
+    const e = entries.find((x) => x.name === name);
+    if (e === undefined) {
+      findings.push({ file: PHONE_COPY, text: `static let ${name} = "${literal}"`, why: `the remove-and-paste word ${name} is not declared, so the phone draws it from somewhere this gate cannot read (build/p348/SPEC.md §5.2)` });
+    } else if (e.literal !== literal) {
+      findings.push({ file: PHONE_COPY, text: e.literal, why: `${name} is ${JSON.stringify(e.literal)}; it is ${JSON.stringify(literal)}, the word build/p348/SPEC.md §5.2 pins` });
+    } else if (mac === null && e.owner?.kind !== 'phone') {
+      findings.push({ file: PHONE_COPY, text: name, why: `${name} is not declared /// Phone: with a reason; no Mac surface says it, so its reason is the ledger entry (build/p348/SPEC.md §5.2)` });
+    } else if (mac !== null && (e.owner?.kind !== 'mac' || e.owner.path !== mac[0] || e.owner.needle !== mac[1])) {
+      findings.push({ file: PHONE_COPY, text: name, why: `${name}'s owner line is ${JSON.stringify(e.owner)}; it is /// Mac: ${mac[0]} ⟦${mac[1]}⟧, the Mac's own word byte for byte (build/p348/SPEC.md §5.2)` });
+    } else if (mac !== null && !(readModule(mac[0]) ?? '').includes(mac[1])) {
+      findings.push({ file: mac[0], text: mac[1], why: `${PHONE_COPY}'s ${name} quotes this, and the Mac module no longer says it (build/p348/SPEC.md §5.2)` });
+    }
+  }
+  return findings;
+}
+
+/** The mutations that prove Phase 348's words are judged. */
+const P348_MUTATIONS = [
+  {
+    what: 'Paste re-worded on the phone',
+    swift: (t) => t.replace('static let paste = "Paste"', 'static let paste = "Paste text"'),
+    module: null,
+    names: 'paste'
+  },
+  {
+    what: "the pairing code's refusal re-worded",
+    swift: (t) => t.replace('static let pasteCode = "That looks like a Tortie pairing code, so it was not pasted."', 'static let pasteCode = "That looks like a pairing code."'),
+    module: null,
+    names: 'pasteCode'
+  },
+  {
+    what: 'Remove declared the phone\'s own word rather than the Mac\'s',
+    swift: (t) => t.replace(/\/\/\/ Mac: src\/renderer\/app\/session-actions\.tsx ⟦label: 'Remove',⟧\n(\s*)static let remove = "Remove"/, '/// Phone: the press after End\n$1static let remove = "Remove"'),
+    module: null,
+    names: 'remove'
+  },
+  {
+    what: 'the Remove not taken line taken out of Copy.swift',
+    swift: (t) => t.replace(/\n[^\n]*\/\/\/ Phone:[^\n]*\n\s*static let removeNotTaken = "Your Mac did not remove it\. Nothing was changed\."\n/, '\n'),
+    module: null,
+    names: 'removeNotTaken'
+  },
+  {
+    what: 'the Mac re-words the paste refusal the phone copied',
+    swift: (t) => t,
+    module: ['src/shared/screen-copy.ts', (t) => t.replace("PASTE_EMPTY = 'There is nothing to paste.'", "PASTE_EMPTY = 'Nothing to paste.'")],
+    names: 'PASTE_EMPTY'
   }
 ];
 
@@ -2389,6 +2514,37 @@ const MUTATIONS = [
       return next;
     },
     names: '2 waiting'
+  },
+  {
+    // Phase 348 (D4, D33): the ended session's ⋯ with its two items swapped.
+    what: "the ended session's ⋯ items swapped",
+    apply(screens) {
+      const next = new Map(screens);
+      const menu = next.get('TerminalMenuRemove.html') ?? '';
+      next.set('TerminalMenuRemove.html', menu.replace('>Catch Me Up<', '>\u0000<').replace('>Remove<', '>Catch Me Up<').replace('>\u0000<', '>Remove<'));
+      return next;
+    },
+    names: 'Catch Me Up then Remove'
+  },
+  {
+    // Phase 348: Remove re-worded in the mock must go red against the Mac's word.
+    what: 'Remove re-worded in TerminalMenuRemove.html',
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('TerminalMenuRemove.html', (next.get('TerminalMenuRemove.html') ?? '').replace('>Remove<', '>Delete<'));
+      return next;
+    },
+    names: 'Delete'
+  },
+  {
+    // Phase 348 (D4): End offered again on a session that has ended.
+    what: "End session… drawn in the ended session's ⋯",
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('TerminalMenuRemove.html', (next.get('TerminalMenuRemove.html') ?? '').replace('<span>Remove</span>', '<span>Remove</span></a><a class="item"><span>End session…</span>'));
+      return next;
+    },
+    names: 'End session…'
   }
 ];
 
@@ -2678,6 +2834,9 @@ function main() {
   // Phase 345's words: the four several-Macs words, as Copy.swift declares them.
   const macsFindings = judgeMacsWords(phoneSwift);
   findings.push(...macsFindings);
+  // Phase 348's words: Remove's and the paste's eight, as §5.2 spells them.
+  const p348Findings = judgeP348Words(phoneSwift, readModule);
+  findings.push(...p348Findings);
 
   // Mechanism 6. It rides this script rather than a second one because the
   // entry says so: "the phase adds a rule to the copy gate below".
@@ -2832,6 +2991,26 @@ function main() {
       if (!red) {
         failed = true;
         console.error(`phonecopy SELF-TEST FAIL: ${mutation.what} produced no finding naming ${mutation.names}, so Phase 345's words are not judged`);
+      } else if (!quiet) {
+        console.log(`  self-test: ${mutation.what} → red, as it must be`);
+      }
+    }
+    for (const mutation of P348_MUTATIONS) {
+      const mutatedSwift = mutation.swift(phoneSwift);
+      const reader = mutation.module === null
+        ? readModule
+        : (path) => (path === mutation.module[0] ? mutation.module[1](readModule(path) ?? '') : readModule(path));
+      const moved = mutatedSwift !== phoneSwift || (mutation.module !== null && reader(mutation.module[0]) !== (readModule(mutation.module[0]) ?? ''));
+      if (!moved) {
+        failed = true;
+        console.error(`phonecopy SELF-TEST FAIL: ${mutation.what} changed nothing, so it proves nothing (the word it breaks is not in the tree yet)`);
+        continue;
+      }
+      const mutated = judgeP348Words(mutatedSwift, reader);
+      const red = mutated.length > p348Findings.length && mutated.some((f) => `${f.text} ${f.why}`.includes(mutation.names));
+      if (!red) {
+        failed = true;
+        console.error(`phonecopy SELF-TEST FAIL: ${mutation.what} produced no finding naming ${mutation.names}, so Phase 348's words are not judged`);
       } else if (!quiet) {
         console.log(`  self-test: ${mutation.what} → red, as it must be`);
       }

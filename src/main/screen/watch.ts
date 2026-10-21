@@ -49,7 +49,22 @@
  * THE REVISION (D14) is 12 lowercase hex of sha256 over the session's id, the
  * raw styled capture, the second display line, the question id, whether the
  * session waits on him (`needs_input`, which with the capture decides
- * `asking`) and whether it takes keys. An absence's revision is its word's.
+ * `asking`) and whether it takes keys, and (Phase 348, D43) the wrap marks the
+ * read carried, so a change to the marks alone moves it; a read with no marks
+ * hashes exactly as before. An absence's revision is its word's.
+ *
+ * THE MARKS' OWNER (Phase 348, D44): {@link createScreenMarksRoads} keeps
+ * which captures carry the wrap marks, per server: this Mac's from
+ * `readServerVersion`, read once and again whenever the control client
+ * reconnects, and each machine's from the version this run noted for it. The
+ * watcher and the page reader are handed ONE keeper in production. Since the
+ * fix round NOTHING TRANSIENT TURNS THE MARKS OFF FOR GOOD: a version read
+ * that answers nothing is asked again {@link SCREEN_MARKS_RETRY_MS} later,
+ * and a refusal holds a server at no marks for that long, then its road is
+ * tried again (in the fixer's live run, at a load average near 600, the app
+ * read no marks for the rest of the run while a fresh owner over the same
+ * server read them, which Copy's join lost; build/p348/SPEC.md §As built,
+ * the fix round).
  *
  * It logs nothing, reads no error's text, holds nothing on disk and sets no
  * status.
@@ -59,11 +74,12 @@ import { createHash } from 'node:crypto';
 import type { PocketScreen, PocketScreenAbsence, PocketScreenAnswer } from '@shared/ipc/pocket';
 import { SCREEN_ENDED, SCREEN_TOO_LARGE, SCREEN_UNREACHABLE } from '@shared/screen-copy';
 import type { Session } from '@shared/types';
+import { farServerVersion } from '../machines/far-tmux';
 import { readScreenRemote } from '../machines/remote-screen';
 import { screenLive } from '../pocket/routes';
 import type { QuestionIds } from '../reply/question-id';
-import { composeScreen } from './compose';
-import { readScreenLocal, type ScreenCore, type ScreenReading } from './read';
+import { composeScreen, marksKeyOf, marksRoadOf } from './compose';
+import { readScreenLocal, type MarksRoad, type ScreenCore, type ScreenReading } from './read';
 
 export type { ScreenCore, ScreenReading } from './read';
 
@@ -86,11 +102,153 @@ export const SCREEN_REMOTE_READ_DEADLINE_MS = 2_000;
 /** The duty cycle (D15): after a read that composed, the next is not before this many composes have passed. */
 export const SCREEN_DUTY_FACTOR = 4;
 
-/** What the watcher is built with. Production passes `core` and `turns` alone. */
+/**
+ * THE MARKS' OWNER (Phase 348, build/p348/SPEC.md D44): which captures carry
+ * the wrap marks on each server the reads reach. In memory; nothing on disk.
+ */
+export interface ScreenMarksRoads {
+  /**
+   * This Mac's road now. The first ask, and the first after the control client
+   * reconnects, starts ONE version read (`readServerVersion`) and answers
+   * `none` until it lands: an unknown version reads no marks, today's read,
+   * and a read that named no version is asked again
+   * {@link SCREEN_MARKS_RETRY_MS} later (the fix round).
+   */
+  local(core: ScreenCore): MarksRoad;
+  /**
+   * A marked capture failed on this Mac and the plain read answered: none
+   * until the version is read again or {@link SCREEN_MARKS_RETRY_MS} have
+   * passed, whichever is first (the fix round: a timeout under load is no
+   * proof the server refuses the flag).
+   */
+  localRefused(): void;
+  /** A machine's road now, from the version this run last noted for it (`farServerVersion`). */
+  far(machineId: string): MarksRoad;
+  /**
+   * A marked exec failed on that machine and the plain one answered: none
+   * while it reports that version, for {@link SCREEN_MARKS_RETRY_MS} (the fix
+   * round), then its road is tried again.
+   */
+  farRefused(machineId: string): void;
+}
+
+/** What the marks' owner reads. */
+export interface ScreenMarksRoadsDeps {
+  /**
+   * This Mac's server version, REQUIRED: production hands `readServerVersion`
+   * over the app's own runner (src/main/capabilities.ts), and nothing else
+   * names that runner here, so no script or test that builds a watcher or a
+   * page reader of its own can reach the app's tmux server by default.
+   */
+  readVersion: () => Promise<string | null>;
+  /** The version the machines layer last noted for a machine. Production: `farServerVersion`. Tests inject. */
+  farVersion?: (machineId: string) => string | null;
+  /** A monotonic clock in ms (the fix round's holds). Production: `performance.now()`. Tests inject. */
+  now?: () => number;
+}
+
+/**
+ * How long a refused road is held at no marks, and how long a version read
+ * that named nothing waits to be asked again (Phase 348's fix round): long
+ * enough that a server which truly refuses the flag costs one failed marked
+ * read in this many milliseconds, short enough that a read which failed only
+ * because the Mac was busy costs Copy's join for no longer than this.
+ */
+export const SCREEN_MARKS_RETRY_MS = 30_000;
+
+/**
+ * THE OWNER A WATCHER OR A PAGE READER BUILT WITH NONE TAKES (Phase 348): no
+ * marks on any server, so every read is today's, and nothing is read for a
+ * version. Frozen.
+ */
+export const NO_MARKS_ROADS: ScreenMarksRoads = Object.freeze({
+  local: (): MarksRoad => 'none',
+  localRefused: (): void => undefined,
+  far: (): MarksRoad => 'none',
+  farRefused: (): void => undefined
+});
+
+/** The marks' owner (D44): one per process in production, built by src/main/capabilities.ts. */
+export function createScreenMarksRoads(deps: ScreenMarksRoadsDeps): ScreenMarksRoads {
+  const readVersion = deps.readVersion;
+  const farVersion = deps.farVersion ?? farServerVersion;
+  const now = deps.now ?? ((): number => performance.now());
+  /**
+   * This Mac's server version: not read yet, being read, or read (null when it
+   * named none, `at` the moment it landed, so a null is asked again).
+   */
+  let local:
+    | { readonly state: 'unread' }
+    | { readonly state: 'reading' }
+    | { readonly state: 'read'; readonly version: string | null; readonly at: number } = {
+    state: 'unread'
+  };
+  /** When this Mac's road was refused, or null: none is held for SCREEN_MARKS_RETRY_MS from it. */
+  let localRefusedAt: number | null = null;
+  /** Moves at every reconnect, so a read that started before it lands on nothing. */
+  let generation = 0;
+  /** The control clients whose `connected` this owner listens to: one listener each. */
+  const watched = new WeakSet<object>();
+  /** A machine whose marked read failed: the version it reported then, and when. */
+  const farRefusedAt = new Map<string, { readonly version: string | null; readonly at: number }>();
+
+  const forgetLocal = (): void => {
+    generation += 1;
+    local = { state: 'unread' };
+    localRefusedAt = null;
+  };
+
+  return {
+    local(core: ScreenCore): MarksRoad {
+      const control = core.control;
+      if (control.on !== undefined && !watched.has(control)) {
+        watched.add(control);
+        control.on('connected', forgetLocal);
+      }
+      // A version read that named nothing is asked again once the hold is over.
+      if (local.state === 'read' && local.version === null && now() - local.at >= SCREEN_MARKS_RETRY_MS) local = { state: 'unread' };
+      if (local.state === 'unread') {
+        local = { state: 'reading' };
+        const asked = generation;
+        void readVersion()
+          .catch(() => null)
+          .then((version) => {
+            if (asked === generation) local = { state: 'read', version, at: now() };
+          });
+      }
+      if (localRefusedAt !== null && now() - localRefusedAt >= SCREEN_MARKS_RETRY_MS) localRefusedAt = null;
+      if (localRefusedAt !== null || local.state !== 'read') return 'none';
+      return marksRoadOf(local.version);
+    },
+    localRefused(): void {
+      localRefusedAt = now();
+    },
+    far(machineId: string): MarksRoad {
+      const version = farVersion(machineId);
+      const refused = farRefusedAt.get(machineId);
+      if (refused !== undefined) {
+        if (refused.version === version && now() - refused.at < SCREEN_MARKS_RETRY_MS) return 'none';
+        farRefusedAt.delete(machineId);
+      }
+      return marksRoadOf(version);
+    },
+    farRefused(machineId: string): void {
+      farRefusedAt.set(machineId, { version: farVersion(machineId), at: now() });
+    }
+  };
+}
+
+/** What the watcher is built with. Production passes `core`, `turns` and the one marks' owner. */
 export interface ScreenWatchDeps {
   core(): ScreenCore | null;
   /** The one question id counter (`replyTurns`). */
   turns: QuestionIds;
+  /**
+   * THE MARKS' OWNER (Phase 348, D44): production hands the one
+   * src/main/capabilities.ts builds. Absent, {@link NO_MARKS_ROADS}: no marks
+   * and no version read. An injected reader is handed no road.
+   */
+  marks?: ScreenMarksRoads;
   /** Tests inject. Production: `readScreenLocal`. */
   readLocal?: (core: ScreenCore, tmuxId: string) => Promise<ScreenReading | null>;
   /** Tests inject. Production: `readScreenRemote` under `SCREEN_REMOTE_READ_DEADLINE_MS`. */
@@ -193,6 +351,9 @@ export function readingRevisionOf(
   waitsOnHim: boolean,
   typable: boolean
 ): string {
+  // PHASE 348 (D43): the marks the read carried, by row, when it carried any;
+  // with none, the parts are today's exactly.
+  const marks = marksKeyOf(reading);
   return screenRevisionOf([
     sessionId,
     'screen',
@@ -200,7 +361,8 @@ export function readingRevisionOf(
     reading.displayLine,
     turn,
     waitsOnHim ? '1' : '0',
-    typable ? '1' : '0'
+    typable ? '1' : '0',
+    ...(marks === '' ? [] : ['marks', marks])
   ]);
 }
 
@@ -224,9 +386,20 @@ function absence(sessionId: string, why: PocketScreenAbsence, revision?: string)
 
 export function createScreenWatch(deps: ScreenWatchDeps): ScreenWatch {
   const now = deps.now ?? ((): number => performance.now());
-  const readLocal = deps.readLocal ?? ((core: ScreenCore, tmuxId: string) => readScreenLocal(core, tmuxId));
+  // PHASE 348 (D44): the reads take the road the marks' owner says, and tell
+  // it when a marked read was refused.
+  const marks = deps.marks ?? NO_MARKS_ROADS;
+  const readLocal =
+    deps.readLocal ??
+    ((core: ScreenCore, tmuxId: string) =>
+      readScreenLocal(core, tmuxId, { road: marks.local(core), onRoadRefused: () => marks.localRefused() }));
   const readRemote =
-    deps.readRemote ?? ((sessionId: string) => readScreenRemote(sessionId, SCREEN_REMOTE_READ_DEADLINE_MS));
+    deps.readRemote ??
+    ((sessionId: string) =>
+      readScreenRemote(sessionId, SCREEN_REMOTE_READ_DEADLINE_MS, {
+        road: (machineId) => marks.far(machineId),
+        refused: (machineId) => marks.farRefused(machineId)
+      }));
 
   const entries = new Map<string, Entry>();
   /** ONE read in flight per session, held from its start until it settles, whatever its deadline said. */
@@ -375,7 +548,8 @@ export function createScreenWatch(deps: ScreenWatchDeps): ScreenWatch {
       state = pace.last;
     } else {
       const t0 = now();
-      const composed = composeScreen(outcome, { turn, status: row.status, typable });
+      // PHASE 348 (D30): the composer offers a paste on a session on this Mac.
+      const composed = composeScreen(outcome, { turn, status: row.status, typable, local: !remoteRow(row) });
       const ms = Math.max(0, now() - t0);
       pace.lastComposeMs = ms;
       pace.nextReadAt = Math.max(pace.nextReadAt, startedAt + Math.max(tickOf(core, row), SCREEN_DUTY_FACTOR * ms));

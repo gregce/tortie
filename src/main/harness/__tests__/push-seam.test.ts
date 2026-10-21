@@ -836,12 +836,13 @@ describe('openDoorForPairing refuses before it publishes, and waits for main\'s 
 
   // PHASE 346 (build/p346/SPEC.md D31; Phase 333.12 D16): the seam agrees to
   // the PROPOSAL `status()` draws, never to `fields()`'s own hash, because a
-  // first setup now proposes twelve routes and `fields()` holds the eleven.
+  // first setup now proposes every route this build has (Phase 348: fourteen,
+  // Remove and paste after start) and `fields()` holds the eleven.
   it('confirms a first setup with the proposal status() draws, never fields(), and then publishes', async () => {
     setNameServers('127.0.0.1:5353');
     vi.useFakeTimers();
-    const proposal = ['Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, scrollback, session, sessions, start, turns'];
-    const never: Seen = { ...listening(true), confirmState: 'never', confirmLines: proposal, confirmHash: 'twelve' };
+    const proposal = ['Answers these and nothing else: blocked, choose, end, keys, pair, paste, remove, say, screen, scrollback, session, sessions, start, turns'];
+    const never: Seen = { ...listening(true), confirmState: 'never', confirmLines: proposal, confirmHash: 'fourteen' };
     const { host, calls, confirmed } = fakeHost([never, listening(true)]);
     const lines: string[] = [];
     let answered: boolean | null = null;
@@ -850,7 +851,7 @@ describe('openDoorForPairing refuses before it publishes, and waits for main\'s 
     });
     await vi.advanceTimersByTimeAsync(1_000);
     expect(answered).toBe(true);
-    expect(confirmed).toEqual([{ linesRead: proposal, hashRead: 'twelve' }]);
+    expect(confirmed).toEqual([{ linesRead: proposal, hashRead: 'fourteen' }]);
     expect(calls).not.toContain('fields');
     expect(lines).toEqual([]);
   });

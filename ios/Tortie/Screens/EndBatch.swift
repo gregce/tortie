@@ -431,8 +431,11 @@ private struct EndBatchPiece: ViewModifier {
 
 // MARK: - The hooks the list draws, nothing where the piece is absent
 
-/// `Select`, or `Cancel` while selecting, at the title's trailing edge. Drawn
-/// only when the Mac offers End on at least one row.
+/// `Select`, or `Cancel` while selecting, at the leading edge of the Sessions
+/// tab's bar (Phase 348, D16). Drawn only when the Mac offers End on at least
+/// one row. Its press is its label's frame, at least
+/// `SessionsFrame.barPress` each way with a rectangle for its shape (D56),
+/// because the bar presses exactly an item's own frame.
 struct EndBatchTitleControl: View {
     @Environment(\.endBatch) private var batch
     @Environment(\.endBatchRows) private var rows
@@ -441,11 +444,19 @@ struct EndBatchTitleControl: View {
         if let batch {
             switch batch.phase {
             case .off where rows.contains(where: { $0.end.isOffered }):
-                Button(Copy.select) { batch.select() }
-                    .accessibilityIdentifier(ID.listSelect)
+                Button { batch.select() } label: {
+                    Text(verbatim: Copy.select)
+                        .frame(minWidth: SessionsFrame.barPress, minHeight: SessionsFrame.barPress)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityIdentifier(ID.listSelect)
             case .selecting:
-                Button(Copy.cancel) { batch.cancel() }
-                    .accessibilityIdentifier(ID.listSelect)
+                Button { batch.cancel() } label: {
+                    Text(verbatim: Copy.cancel)
+                        .frame(minWidth: SessionsFrame.barPress, minHeight: SessionsFrame.barPress)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityIdentifier(ID.listSelect)
             default:
                 EmptyView()
             }

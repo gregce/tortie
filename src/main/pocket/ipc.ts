@@ -739,9 +739,12 @@ export class PocketHost {
           case 'say':
           case 'keys':
           case 'start':
+          case 'remove':
+          case 'paste':
             // The writes (Phase 317's end, Phase 318's choose and say, Phase
-            // 337's keys, Phase 346's start) go to the one write path in
-            // `./server.ts` and never reach this composer of reads.
+            // 337's keys, Phase 346's start, Phase 348's remove and paste) go
+            // to the one write path in `./server.ts` and never reach this
+            // composer of reads.
             return null;
         }
       }
@@ -903,6 +906,26 @@ export class PocketHost {
    */
   startAllowed(): boolean {
     return this.routeServed('start');
+  }
+
+  /**
+   * Whether a person allowed the phone to remove ended sessions (Phase 348,
+   * build/p348/SPEC.md §4.2 step 5, D49): what `/v1/session`'s `removeConfirm`
+   * asks before it offers Remove. NEVER A WRITE'S CHECK: the write path asks
+   * {@link routeServed} itself, at its own last check.
+   */
+  removeAllowed(): boolean {
+    return this.routeServed('remove');
+  }
+
+  /**
+   * Whether a person allowed the phone to paste (Phase 348, D30): what the
+   * screen answer asks before its `paste` flag may leave. NEVER A WRITE'S
+   * CHECK: the write path asks {@link routeServed} itself, at its own last
+   * check and in the `still` it hands the paste.
+   */
+  pasteAllowed(): boolean {
+    return this.routeServed('paste');
   }
 
   /**

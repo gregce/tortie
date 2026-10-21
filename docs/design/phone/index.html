@@ -35,12 +35,13 @@
 <body>
 <header>
   <h1>Tortie for iPhone</h1>
-  <p class="sub">A remote control for the Tortie client on your Mac. Twenty-three screens. Since Phase 337.1 a session opens on its own
+  <p class="sub">A remote control for the Tortie client on your Mac. Twenty-four screens. Since Phase 337.1 a session opens on its own
   terminal, as the Mac draws it now, which scrolls back through what the session printed and types into it, and since
   Phase 337.3 it opens full, with what the session printed before filling the screen above its live rows, shows the
   terminal alone when the phone is sideways, and keeps Catch Me Up, the conversation and where things stand, and End
   session in one ⋯ at the top right. Since Phase 345 one iPhone pairs with up to four Macs, each its own space,
-  switched at the bottom of the screen.
+  switched at the bottom of the screen. Since Phase 348 every tab has the iPhone's own title bar, Settings is grouped
+  like the iPhone's own, and a session you ended can be removed from the phone.
   Every word on them is a string Tortie already says, taken from the module that owns it, or a word of the
   phone's own, declared once with its reason. Colour is spent on state and nothing else: the amber dot is the loudest
   object on every screen and the only thing that pulses.</p>
@@ -51,7 +52,7 @@
       <div class="phone"><iframe src="NeedsInput.html" title="1 · What needs me now" loading="eager"></iframe></div>
     </figure>
     <figure>
-      <figcaption><span class="n">2 · Every session</span><span class="d">The Sessions tab: active sessions under their projects, each with its count, and All or Ended one tap away. A project waiting on you carries the amber dot, open or closed. Tap the first row to walk the flow.</span></figcaption>
+      <figcaption><span class="n">2 · Every session</span><span class="d">The Sessions tab: active sessions under their projects, each with its count, and All or Ended one tap away. A project waiting on you carries the amber dot, open or closed. Select and the menu sit at the top left; New session is the + alone at the top right. Tap the first row to walk the flow.</span></figcaption>
       <div class="phone"><iframe src="Main.html" title="2 · Every session" loading="eager"></iframe></div>
     </figure>
     <figure>
@@ -69,6 +70,10 @@
     <figure>
       <figcaption><span class="n">3a · The ⋯</span><span class="d">One menu at the top right, iOS's own: Catch Me Up, then End session…, which asks for Face ID, Touch ID or the passcode exactly as End does. Two taps to either, by design.</span></figcaption>
       <div class="phone"><iframe src="TerminalMenu.html" title="3a · The ⋯" loading="eager"></iframe></div>
+    </figure>
+    <figure>
+      <figcaption><span class="n">3a2 · Once it has ended</span><span class="d">After End, Remove takes End session…'s place in the ⋯, with your Mac's own question and no Face ID. The session moves to Past Sessions on your Mac, where you can restore it.</span></figcaption>
+      <div class="phone"><iframe src="TerminalMenuRemove.html" title="3a2 · Once it has ended" loading="eager"></iframe></div>
     </figure>
     <figure>
       <figcaption><span class="n">3b · At its prompt</span><span class="d">A Claude Code or Codex session idle at its own empty prompt: the message box at rest above the End bar, Send not a press until it holds words.</span></figcaption>
@@ -103,7 +108,7 @@
       <div class="phone"><iframe src="Link.html" title="6 · Open a link" loading="eager"></iframe></div>
     </figure>
     <figure>
-      <figcaption><span class="n">7 · End, behind Face ID</span><span class="d">End is in a session's ⋯ menu, and at the top right of Catch Me Up. The confirmation is the Mac's own, word for word, and only Face ID, Touch ID or the passcode sends it. Restore and Remove stay on the Mac.</span></figcaption>
+      <figcaption><span class="n">7 · End, behind Face ID</span><span class="d">End is in a session's ⋯ menu, and at the top right of Catch Me Up. The confirmation is the Mac's own, word for word, and only Face ID, Touch ID or the passcode sends it. Once it has ended, Remove takes its place and asks only the Mac's own question (screen 3a2); Restore stays on the Mac.</span></figcaption>
       <div class="phone"><iframe src="End.html" title="7 · End, behind Face ID" loading="eager"></iframe></div>
     </figure>
     <figure>
@@ -111,7 +116,7 @@
       <div class="phone"><iframe src="EndThese.html" title="7b · End these" loading="eager"></iframe></div>
     </figure>
     <figure>
-      <figcaption><span class="n">8 · Settings</span><span class="d">The paired Mac and its fingerprint, what iOS allows for alerts, Pair another Mac, the version, and Unpair.</span></figcaption>
+      <figcaption><span class="n">8 · Settings</span><span class="d">Grouped like the iPhone's own Settings: the paired Mac and its fingerprint, what iOS allows for alerts, Pair another Mac, Unpair, See a sample, and the version.</span></figcaption>
       <div class="phone"><iframe src="Settings.html" title="8 · Settings" loading="eager"></iframe></div>
     </figure>
     <figure>
@@ -140,7 +145,7 @@
     </figure>
 </main>
 <footer>
-  Scroll sideways for all twenty-three. Tap the first row of screen 1 or 2 to walk list → session → composer, and the tab bar to move between the three tabs; screen 4b's
+  Scroll sideways for all twenty-four. Tap the first row of screen 1 or 2 to walk list → session → composer, and the tab bar to move between the three tabs; screen 4b's
   hand-off goes back to the session. Grounds are Tortie's own surround <code>#0E0F13</code> with cards at
   <code>#191B20</code> — never the work's <code>#131417</code>, because the phone is the frame around the
   Mac's work rather than the work itself.

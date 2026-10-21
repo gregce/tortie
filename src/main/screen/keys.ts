@@ -106,16 +106,46 @@ import type { ScreenWatch } from './watch';
  */
 export const SCREEN_KEYS_GAP_MS = 50;
 
-/** The statuses that take no key (D23, the desk's `paneRefusesInput` for `unknown`). */
-const NOT_TYPABLE: readonly SessionStatus[] = Object.freeze([
+/**
+ * ONE LAST-ACT STORE FOR THE KEYS AND THE PASTE (Phase 348, build/p348/SPEC.md
+ * D57): per session, when its last act was handed to tmux, so two acts on one
+ * session, a keys write and a paste in either order, are at least
+ * {@link SCREEN_KEYS_GAP_MS} apart whichever verb came first. Memory only.
+ * src/main/capabilities.ts builds ONE and hands it to `createScreenKeys` and
+ * `createScreenPaste` (./paste.ts); a verb built with none makes its own.
+ */
+export interface ScreenLastActs {
+  /** When this session's last act was handed to tmux, on the verbs' own clock, or undefined. */
+  get(sessionId: string): number | undefined;
+  /** Record this session's act, handed to tmux at `at`. */
+  set(sessionId: string, at: number): void;
+}
+
+/** A last-act store in memory: a map, and nothing else. */
+export function createScreenLastActs(): ScreenLastActs {
+  const lastAct = new Map<string, number>();
+  return {
+    get: (sessionId) => lastAct.get(sessionId),
+    set: (sessionId, at) => {
+      lastAct.set(sessionId, at);
+    }
+  };
+}
+
+/**
+ * The statuses that take no key (D23, the desk's `paneRefusesInput` for
+ * `unknown`). Since Phase 348 the paste (./paste.ts) reads this one list too,
+ * so a session that takes no key takes no paste.
+ */
+export const NOT_TYPABLE: readonly SessionStatus[] = Object.freeze([
   'unknown',
   'exited',
   'restorable',
   'discarded'
 ] satisfies SessionStatus[]);
 
-/** A pane on this Mac's server, as `SCREEN_FORMAT`'s first field names it. */
-const PANE_ID = /^%(0|[1-9][0-9]{0,8})$/;
+/** A pane on this Mac's server, as `SCREEN_FORMAT`'s first field names it. The paste aims at one so too. */
+export const PANE_ID = /^%(0|[1-9][0-9]{0,8})$/;
 
 /** What the keys verb reads from and types through, and nothing more. */
 export interface ScreenKeysDeps {
@@ -133,6 +163,12 @@ export interface ScreenKeysDeps {
   /** The clock 2a reads and sleeps on. Production: `performance.now` and a timer. */
   now?(): number;
   sleep?(ms: number): Promise<void>;
+  /**
+   * THE ONE LAST-ACT STORE (Phase 348, D57), shared with the paste so 2a's gap
+   * holds across both verbs. Production: the one `createScreenLastActs()`
+   * src/main/capabilities.ts builds. Absent, the verb makes its own.
+   */
+  lastActs?: ScreenLastActs;
 }
 
 const DONE: PocketReplyOutcome = Object.freeze({ outcome: 'done' });
@@ -237,8 +273,8 @@ export function createScreenKeys(deps: ScreenKeysDeps): {
   const run = deps.run ?? ((args: readonly string[]): Promise<string> => execTmux(args));
   const now = deps.now ?? ((): number => performance.now());
   const sleep = deps.sleep ?? wait;
-  /** Per session, when its last keys act was handed to tmux (2a). Memory only. */
-  const lastAct = new Map<string, number>();
+  /** Per session, when its last act, keys or (Phase 348) a paste, was handed to tmux (2a, D57). Memory only. */
+  const lastAct: ScreenLastActs = deps.lastActs ?? createScreenLastActs();
 
   /** The row as every surface draws it, re-read by id. */
   const rowOf = (core: ScreenCore, sessionId: string): Session | undefined =>

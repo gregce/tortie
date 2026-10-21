@@ -1,0 +1,3525 @@
+{
+ "about": "The recorded readings build/p348/probe-p348.mjs --grader-self-test holds every grader to (docs/method/HOW-WE-BUILT-THIS.md rule 9). No run of probe:p348 existed when they were written, so each honest reading is composed in the exact shape the arm builds from main's reads, the recorders' and stand-ins' logs and this run's own capture-pane, with the Mac's words typed by hand from the tree (the self-test holds them to the probe's own readers of the tree, byte for byte). Each broken reading is the honest one with `ops` applied (set, push, delete), and answers exactly what it names: `fail` on exactly `mustFail`, or `unreadable`. Paste texts carry canaries of the run's own shape (p348c and 12 hex), which name nothing of his. THE PROBE REVIEW (2026-10-19, rule 9) added P3's and P5's control pastes, W's `pictured` and `pictureAlternate`, and renamed R2's and P6's far-log clauses to what the far log reaches; its own honest and broken readings are in fixtures/reviewer/. THE FIX ROUND (2026-10-19) added R1's Restore pressed after the Past tab was opened again (`reopened`) and P5's control made against the CURRENT picture of the question still drawn, with three broken readings of its own.",
+ "honest": {
+  "PARENT": {
+   "removeHead": 404,
+   "removeFull": 404,
+   "pasteHead": 404,
+   "pasteFull": 404,
+   "lines": 0,
+   "bytes": "",
+   "row": {
+    "before": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    },
+    "after": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    }
+   },
+   "ends": [
+    {
+     "label": "an id that names nothing",
+     "parent": {
+      "status": 200,
+      "body": "{\"verb\":\"end\",\"write\":\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\"outcome\":\"refused\",\"reason\":\"gone\",\"sentence\":\"Session not found.\"}"
+     },
+     "head": {
+      "status": 200,
+      "body": "{\"verb\":\"end\",\"write\":\"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1\",\"outcome\":\"refused\",\"reason\":\"gone\",\"sentence\":\"Session not found.\"}"
+     }
+    },
+    {
+     "label": "a body with an extra key",
+     "parent": {
+      "status": 200,
+      "body": "{\"verb\":\"end\",\"write\":\"\",\"outcome\":\"refused\",\"reason\":\"malformed\",\"sentence\":\"Your Mac could not read that request. Nothing was done.\"}"
+     },
+     "head": {
+      "status": 200,
+      "body": "{\"verb\":\"end\",\"write\":\"\",\"outcome\":\"refused\",\"reason\":\"malformed\",\"sentence\":\"Your Mac could not read that request. Nothing was done.\"}"
+     }
+    },
+    {
+     "label": "a batch End of an id that names nothing",
+     "parent": {
+      "status": 200,
+      "body": "{\"verb\":\"end\",\"write\":\"a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3\",\"outcome\":\"refused\",\"reason\":\"gone\",\"sentence\":\"Session not found.\"}"
+     },
+     "head": {
+      "status": 200,
+      "body": "{\"verb\":\"end\",\"write\":\"a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3\",\"outcome\":\"refused\",\"reason\":\"gone\",\"sentence\":\"Session not found.\"}"
+     }
+    }
+   ]
+  },
+  "A0": {
+   "words": {
+    "removeTitle": "remove sessions from your phone",
+    "removeSentence": "An ended session moves to Past Sessions on this Mac, where you can restore it.",
+    "pasteTitle": "paste into sessions from your phone",
+    "pasteSentence": "It lands as a paste at this Mac does, with no Return added.",
+    "removeClause": "remove a session that has ended",
+    "pasteClause": "paste text into a session on this Mac",
+    "doorHonesty": "A phone you allow can see what any session’s terminal shows and what it printed before, type into it as you would at this Mac, answer a numbered question, send a session one message and end a session."
+   },
+   "statusRead": true,
+   "before": {
+    "confirmState": "confirmed",
+    "routesWaiting": [
+     "remove",
+     "paste"
+    ],
+    "routesAllowed": [
+     "pair",
+     "blocked",
+     "session",
+     "turns",
+     "end",
+     "choose",
+     "say",
+     "sessions",
+     "screen",
+     "keys",
+     "scrollback",
+     "start"
+    ]
+   },
+   "removeHead": 404,
+   "removeFull": 404,
+   "pasteHead": 404,
+   "pasteFull": 404,
+   "linesBefore": 0,
+   "bytesBefore": "",
+   "row": {
+    "before": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    },
+    "after": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    }
+   },
+   "detailBefore": true,
+   "pictureBefore": 200,
+   "removeConfirmBefore": false,
+   "pasteFlagBefore": false,
+   "face": [
+    {
+     "id": "remove",
+     "title": "New: remove sessions from your phone",
+     "sentence": "An ended session moves to Past Sessions on this Mac, where you can restore it."
+    },
+    {
+     "id": "paste",
+     "title": "New: paste into sessions from your phone",
+     "sentence": "It lands as a paste at this Mac does, with no Return added."
+    }
+   ],
+   "drawn": {
+    "remove": "New: remove sessions from your phoneAn ended session moves to Past Sessions on this Mac, where you can restore it.",
+    "paste": "New: paste into sessions from your phoneIt lands as a paste at this Mac does, with no Return added."
+   },
+   "honesty": [
+    "This lets a phone you allow ask this Mac what your sessions are doing, over the internet. It reads your session names, your project names and what your agents are saying.",
+    "A phone you allow can see what any session’s terminal shows and what it printed before, type into it as you would at this Mac, answer a numbered question, send a session one message and end a session. It can also start a session in a project open in Tortie, on this Mac or another machine, remove a session that has ended and paste text into a session on this Mac."
+   ],
+   "allowPresses": 1,
+   "after": {
+    "confirmState": "confirmed",
+    "routesWaiting": [],
+    "routesAllowed": [
+     "pair",
+     "blocked",
+     "session",
+     "turns",
+     "end",
+     "choose",
+     "say",
+     "sessions",
+     "screen",
+     "keys",
+     "scrollback",
+     "start",
+     "remove",
+     "paste"
+    ]
+   },
+   "removeControl": 0,
+   "pasteControl": 0,
+   "removeConfirmAfter": true,
+   "pasteFlagAfter": true
+  },
+  "R1": {
+   "rows": [
+    {
+     "kind": "shell",
+     "end": {
+      "status": 200,
+      "ok": true,
+      "outcome": "done",
+      "reason": null,
+      "sentence": null
+     },
+     "statusAfterEnd": "exited",
+     "confirm": {
+      "got": {
+       "title": "Remove 'p348-r1-shell'?",
+       "body": "It moves to Past Sessions and you can restore it from there.",
+       "confirmLabel": "Remove"
+      },
+      "want": {
+       "title": "Remove 'p348-r1-shell'?",
+       "body": "It moves to Past Sessions and you can restore it from there.",
+       "confirmLabel": "Remove"
+      }
+     },
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "body": "{\"verb\":\"remove\",\"write\":\"11111111111111111111111111111111\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+      "write": "11111111111111111111111111111111"
+     },
+     "listedAfter": false,
+     "removed": {
+      "listed": true,
+      "status": "discarded",
+      "removedAt": 1792420000000
+     },
+     "files": {
+      "snapshotBefore": 1,
+      "snapshotAfter": 0,
+      "hookBefore": false,
+      "hookAfter": false
+     },
+     "pastTab": true,
+     "restore": {
+      "pressed": true,
+      "listedAgain": true,
+      "status": "running",
+      "idBefore": null,
+      "idAfter": null
+     }
+    },
+    {
+     "kind": "claude",
+     "end": {
+      "status": 200,
+      "ok": true,
+      "outcome": "done",
+      "reason": null,
+      "sentence": null
+     },
+     "statusAfterEnd": "restorable",
+     "confirm": {
+      "got": {
+       "title": "Remove 'p348-r1-claude'?",
+       "body": "It moves to Past Sessions and you can restore it from there.",
+       "confirmLabel": "Remove"
+      },
+      "want": {
+       "title": "Remove 'p348-r1-claude'?",
+       "body": "It moves to Past Sessions and you can restore it from there.",
+       "confirmLabel": "Remove"
+      }
+     },
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "body": "{\"verb\":\"remove\",\"write\":\"12121212121212121212121212121212\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+      "write": "12121212121212121212121212121212"
+     },
+     "listedAfter": false,
+     "removed": {
+      "listed": true,
+      "status": "discarded",
+      "removedAt": 1792420001000
+     },
+     "files": {
+      "snapshotBefore": 1,
+      "snapshotAfter": 0,
+      "hookBefore": true,
+      "hookAfter": false
+     },
+     "pastTab": true,
+     "restore": {
+      "pressed": true,
+      "listedAgain": true,
+      "status": "idle",
+      "idBefore": "7d1e4c2a-9b3f-4e8d-a6c5-2f0b9e1d3a47",
+      "idAfter": "7d1e4c2a-9b3f-4e8d-a6c5-2f0b9e1d3a47"
+     }
+    }
+   ],
+   "pastTab": {
+    "open": true
+   }
+  },
+  "R2": {
+   "end": {
+    "status": 200,
+    "ok": true,
+    "outcome": "done",
+    "reason": null,
+    "sentence": null
+   },
+   "statusAfterEnd": "exited",
+   "confirm": {
+    "got": {
+     "title": "Remove 'p348-r2'?",
+     "body": "It moves to Past Sessions and you can restore it from there.",
+     "confirmLabel": "Remove"
+    },
+    "want": {
+     "title": "Remove 'p348-r2'?",
+     "body": "It moves to Past Sessions and you can restore it from there.",
+     "confirmLabel": "Remove"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "ok": true,
+    "why": "",
+    "outcome": "done",
+    "reason": null,
+    "sentence": null,
+    "body": "{\"verb\":\"remove\",\"write\":\"21212121212121212121212121212121\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+    "write": "21212121212121212121212121212121"
+   },
+   "listedAfter": false,
+   "removed": {
+    "listed": true,
+    "status": "discarded",
+    "removedAt": 1792420010000
+   },
+   "far": {
+    "read": true,
+    "all": 3,
+    "naming": [],
+    "verbs": [],
+    "canary": 0
+   },
+   "farBefore": [],
+   "farAfter": []
+  },
+  "R3": {
+   "words": {
+    "REMOVE_REFUSED_LIVE": "This session is still running, so it was not removed. End it first.",
+    "LIFECYCLE_SESSION_CHANGED": "This session changed. Nothing was done.",
+    "SESSION_NOT_FOUND": "Session not found."
+   },
+   "live": {
+    "answer": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "refused",
+     "reason": "changed",
+     "sentence": "This session is still running, so it was not removed. End it first.",
+     "body": "{\"verb\":\"remove\",\"write\":\"31313131313131313131313131313131\",\"outcome\":\"refused\",\"reason\":\"changed\",\"sentence\":\"This session is still running, so it was not removed. End it first.\"}",
+     "write": "31313131313131313131313131313131"
+    },
+    "before": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    },
+    "after": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    }
+   },
+   "farLive": {
+    "answer": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "refused",
+     "reason": "changed",
+     "sentence": "This session changed. Nothing was done.",
+     "body": "{\"verb\":\"remove\",\"write\":\"32323232323232323232323232323232\",\"outcome\":\"refused\",\"reason\":\"changed\",\"sentence\":\"This session changed. Nothing was done.\"}",
+     "write": "32323232323232323232323232323232"
+    },
+    "before": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    },
+    "after": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    },
+    "farHolds": true
+   },
+   "discarded": {
+    "answer": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "refused",
+     "reason": "gone",
+     "sentence": "This session changed. Nothing was done.",
+     "body": "{\"verb\":\"remove\",\"write\":\"33333333333333333333333333333333\",\"outcome\":\"refused\",\"reason\":\"gone\",\"sentence\":\"This session changed. Nothing was done.\"}",
+     "write": "33333333333333333333333333333333"
+    },
+    "before": {
+     "listed": false,
+     "status": null,
+     "removed": true
+    },
+    "after": {
+     "listed": false,
+     "status": null,
+     "removed": true
+    }
+   },
+   "nothing": {
+    "answer": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "refused",
+     "reason": "gone",
+     "sentence": "Session not found.",
+     "body": "{\"verb\":\"remove\",\"write\":\"34343434343434343434343434343434\",\"outcome\":\"refused\",\"reason\":\"gone\",\"sentence\":\"Session not found.\"}",
+     "write": "34343434343434343434343434343434"
+    }
+   },
+   "replay": {
+    "first": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "done",
+     "reason": null,
+     "sentence": null,
+     "body": "{\"verb\":\"remove\",\"write\":\"12121212121212121212121212121212\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+     "write": "12121212121212121212121212121212"
+    },
+    "again": 404,
+    "resent": {
+     "status": 200,
+     "body": "{\"verb\":\"remove\",\"write\":\"12121212121212121212121212121212\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}"
+    },
+    "acts": 1
+   },
+   "removedPhone": {
+    "status": 404,
+    "control": 200,
+    "wasPaired": true,
+    "before": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    },
+    "after": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    }
+   },
+   "doorStopped": {
+    "status": 0,
+    "before": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    },
+    "after": {
+     "listed": true,
+     "status": "live",
+     "removed": false
+    }
+   }
+  },
+  "R3u": {
+   "words": {
+    "END_UNREACHABLE_TITLE": "Tortie cannot see whether this session is running, so it cannot end it."
+   },
+   "statusAtSend": "unknown",
+   "answer": {
+    "status": 200,
+    "ok": true,
+    "why": "",
+    "outcome": "refused",
+    "reason": "unreachable",
+    "sentence": "Tortie cannot see whether this session is running, so it cannot end it.",
+    "body": "{\"verb\":\"remove\",\"write\":\"35353535353535353535353535353535\",\"outcome\":\"refused\",\"reason\":\"unreachable\",\"sentence\":\"Tortie cannot see whether this session is running, so it cannot end it.\"}",
+    "write": "35353535353535353535353535353535"
+   },
+   "removedAfter": false,
+   "listedAfter": true
+  },
+  "R3b": {
+   "words": {
+    "busy": "Tortie is still doing the last thing you asked from this phone. Nothing was done."
+   },
+   "answers": [
+    {
+     "status": 200,
+     "ok": true,
+     "outcome": "done",
+     "sentence": null
+    },
+    {
+     "status": 200,
+     "ok": true,
+     "outcome": "busy",
+     "sentence": "Tortie is still doing the last thing you asked from this phone. Nothing was done."
+    }
+   ]
+  },
+  "P1": {
+   "targets": [
+    {
+     "name": "claude",
+     "text": "line one\nline two",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "body": "{\"verb\":\"paste\",\"write\":\"41414141414141414141414141414141\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+      "write": "41414141414141414141414141414141"
+     },
+     "readHex": "1b5b3230307e6c696e65206f6e650d6c696e652074776f1b5b3230317e",
+     "focusReports": 0
+    },
+    {
+     "name": "codex",
+     "text": "line one\nline two",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "body": "{\"verb\":\"paste\",\"write\":\"42424242424242424242424242424242\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+      "write": "42424242424242424242424242424242"
+     },
+     "readHex": "1b5b3230307e6c696e65206f6e650d6c696e652074776f1b5b3230317e",
+     "focusReports": 0
+    },
+    {
+     "name": "recorder",
+     "text": "line one\nline two",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "body": "{\"verb\":\"paste\",\"write\":\"43434343434343434343434343434343\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+      "write": "43434343434343434343434343434343"
+     },
+     "readHex": "1b5b3230307e6c696e65206f6e650d6c696e652074776f1b5b3230317e",
+     "focusReports": 0
+    }
+   ]
+  },
+  "P2": {
+   "text": "a\nb",
+   "answer": {
+    "status": 200,
+    "ok": true,
+    "why": "",
+    "outcome": "done",
+    "reason": null,
+    "sentence": null,
+    "body": "{\"verb\":\"paste\",\"write\":\"44444444444444444444444444444444\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+    "write": "44444444444444444444444444444444"
+   },
+   "readHex": "610d62"
+  },
+  "P3": {
+   "words": {
+    "PASTE_CHARACTER": "That holds a character Tortie does not paste. Nothing was pasted."
+   },
+   "cases": [
+    {
+     "label": "ESC",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "character",
+      "sentence": "That holds a character Tortie does not paste. Nothing was pasted.",
+      "body": "{\"verb\":\"paste\",\"write\":\"51515151515151515151515151515151\",\"outcome\":\"refused\",\"reason\":\"character\",\"sentence\":\"That holds a character Tortie does not paste. Nothing was pasted.\"}",
+      "write": "51515151515151515151515151515151"
+     },
+     "readHex": ""
+    },
+    {
+     "label": "CR",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "character",
+      "sentence": "That holds a character Tortie does not paste. Nothing was pasted.",
+      "body": "{\"verb\":\"paste\",\"write\":\"52525252525252525252525252525252\",\"outcome\":\"refused\",\"reason\":\"character\",\"sentence\":\"That holds a character Tortie does not paste. Nothing was pasted.\"}",
+      "write": "52525252525252525252525252525252"
+     },
+     "readHex": ""
+    },
+    {
+     "label": "CR LF",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "character",
+      "sentence": "That holds a character Tortie does not paste. Nothing was pasted.",
+      "body": "{\"verb\":\"paste\",\"write\":\"53535353535353535353535353535353\",\"outcome\":\"refused\",\"reason\":\"character\",\"sentence\":\"That holds a character Tortie does not paste. Nothing was pasted.\"}",
+      "write": "53535353535353535353535353535353"
+     },
+     "readHex": ""
+    },
+    {
+     "label": "DEL",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "character",
+      "sentence": "That holds a character Tortie does not paste. Nothing was pasted.",
+      "body": "{\"verb\":\"paste\",\"write\":\"54545454545454545454545454545454\",\"outcome\":\"refused\",\"reason\":\"character\",\"sentence\":\"That holds a character Tortie does not paste. Nothing was pasted.\"}",
+      "write": "54545454545454545454545454545454"
+     },
+     "readHex": ""
+    },
+    {
+     "label": "NUL",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "character",
+      "sentence": "That holds a character Tortie does not paste. Nothing was pasted.",
+      "body": "{\"verb\":\"paste\",\"write\":\"55555555555555555555555555555555\",\"outcome\":\"refused\",\"reason\":\"character\",\"sentence\":\"That holds a character Tortie does not paste. Nothing was pasted.\"}",
+      "write": "55555555555555555555555555555555"
+     },
+     "readHex": ""
+    },
+    {
+     "label": "U+0085",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "character",
+      "sentence": "That holds a character Tortie does not paste. Nothing was pasted.",
+      "body": "{\"verb\":\"paste\",\"write\":\"56565656565656565656565656565656\",\"outcome\":\"refused\",\"reason\":\"character\",\"sentence\":\"That holds a character Tortie does not paste. Nothing was pasted.\"}",
+      "write": "56565656565656565656565656565656"
+     },
+     "readHex": ""
+    },
+    {
+     "label": "half a surrogate",
+     "answer": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "character",
+      "sentence": "That holds a character Tortie does not paste. Nothing was pasted.",
+      "body": "{\"verb\":\"paste\",\"write\":\"57575757575757575757575757575757\",\"outcome\":\"refused\",\"reason\":\"character\",\"sentence\":\"That holds a character Tortie does not paste. Nothing was pasted.\"}",
+      "write": "57575757575757575757575757575757"
+     },
+     "readHex": ""
+    }
+   ],
+   "control": {
+    "text": "p3 control",
+    "outcome": "done",
+    "readHex": "703320636f6e74726f6c",
+    "landed": true
+   }
+  },
+  "P4": {
+   "words": {
+    "PASTE_TOO_LONG": "That is too long to paste. Nothing was pasted."
+   },
+   "atCap": {
+    "text": "p348c000000000401\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a line of printable text at the cap\np348 a ",
+    "textBytes": 16384,
+    "answer": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "done",
+     "reason": null,
+     "sentence": null,
+     "body": "{\"verb\":\"paste\",\"write\":\"61616161616161616161616161616161\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+     "write": "61616161616161616161616161616161"
+    },
+    "readHex": "70333438633030303030303030303430310d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d703334382061206c696e65206f66207072696e7461626c65207465787420617420746865206361700d70333438206120"
+   },
+   "overCap": {
+    "textBytes": 16385,
+    "answer": {
+     "status": 200,
+     "ok": true,
+     "why": "",
+     "outcome": "refused",
+     "reason": "long",
+     "sentence": "That is too long to paste. Nothing was pasted.",
+     "body": "{\"verb\":\"paste\",\"write\":\"62626262626262626262626262626262\",\"outcome\":\"refused\",\"reason\":\"long\",\"sentence\":\"That is too long to paste. Nothing was pasted.\"}",
+     "write": "62626262626262626262626262626262"
+    },
+    "readHex": ""
+   }
+  },
+  "P5": {
+   "words": {
+    "SCREEN_QUESTION_MOVED": "The question on this session changed since your terminal was drawn. Nothing was typed."
+   },
+   "first": {
+    "turn": "3c0f8a91d2b47e65-4",
+    "dialog": "9f8e7d6c5b4a",
+    "asking": true
+   },
+   "moved": {
+    "turn": "3c0f8a91d2b47e65-5",
+    "dialog": "1a2b3c4d5e6f"
+   },
+   "answer": {
+    "status": 200,
+    "ok": true,
+    "why": "",
+    "outcome": "refused",
+    "reason": "changed",
+    "sentence": "The question on this session changed since your terminal was drawn. Nothing was typed.",
+    "body": "{\"verb\":\"paste\",\"write\":\"63636363636363636363636363636363\",\"outcome\":\"refused\",\"reason\":\"changed\",\"sentence\":\"The question on this session changed since your terminal was drawn. Nothing was typed.\"}",
+    "write": "63636363636363636363636363636363"
+   },
+   "readHex": "",
+   "focusReports": 0,
+   "control": {
+    "text": "p5 control",
+    "outcome": "done",
+    "readHex": "1b5b3230307e703520636f6e74726f6c1b5b3230317e",
+    "landed": true,
+    "why": null
+   }
+  },
+  "P6": {
+   "words": {
+    "PASTE_THIS_MAC_ONLY": "Tortie pastes only into sessions on this Mac. Nothing was pasted."
+   },
+   "picture": 200,
+   "pasteFlag": false,
+   "pasteKey": false,
+   "answer": {
+    "status": 200,
+    "ok": true,
+    "why": "",
+    "outcome": "refused",
+    "reason": "machine",
+    "sentence": "Tortie pastes only into sessions on this Mac. Nothing was pasted.",
+    "body": "{\"verb\":\"paste\",\"write\":\"64646464646464646464646464646464\",\"outcome\":\"refused\",\"reason\":\"machine\",\"sentence\":\"Tortie pastes only into sessions on this Mac. Nothing was pasted.\"}",
+    "write": "64646464646464646464646464646464"
+   },
+   "far": {
+    "read": true,
+    "all": 4,
+    "naming": [
+     "'-L' 'gmux-p348-4242' 'capture-pane' '-p' '-e' '-t' '$7'"
+    ],
+    "verbs": [],
+    "canary": 0
+   }
+  },
+  "P7": {
+   "text": "p348c000000000701 replay",
+   "first": {
+    "status": 200,
+    "ok": true,
+    "outcome": "done",
+    "body": "{\"verb\":\"paste\",\"write\":\"71717171717171717171717171717171\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}"
+   },
+   "again": 404,
+   "resent": {
+    "status": 200,
+    "body": "{\"verb\":\"paste\",\"write\":\"71717171717171717171717171717171\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}"
+   },
+   "firstHex": "7033343863303030303030303030373031207265706c6179",
+   "moreHex": ""
+  },
+  "K": {
+   "canaries": 14,
+   "filesScanned": 1342,
+   "fileHits": [],
+   "appLogRead": true,
+   "appLogHits": 0,
+   "lines": {
+    "paste": 17,
+    "remove": 9
+   },
+   "acted": {
+    "paste": 17,
+    "remove": 9
+   },
+   "unknown": {
+    "paste": 0,
+    "remove": 0
+   },
+   "argvSamples": 2210,
+   "argvHits": 0,
+   "buffersRead": true,
+   "buffers": []
+  },
+  "W": {
+   "local": [
+    {
+     "name": "long",
+     "wraps": [
+      0,
+      1
+     ],
+     "problem": null,
+     "mine": [
+      0,
+      1
+     ],
+     "flagged": [
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ],
+     "alternate": false,
+     "road": "flags",
+     "pictured": true,
+     "pictureAlternate": false
+    },
+    {
+     "name": "g1b",
+     "wraps": [
+      1
+     ],
+     "problem": null,
+     "mine": [
+      1
+     ],
+     "flagged": [
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ],
+     "alternate": false,
+     "road": "flags",
+     "pictured": true,
+     "pictureAlternate": false
+    },
+    {
+     "name": "alt",
+     "wraps": [],
+     "problem": null,
+     "mine": [],
+     "flagged": [
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ],
+     "alternate": true,
+     "road": "flags",
+     "pictured": true,
+     "pictureAlternate": true
+    }
+   ],
+   "page": {
+    "status": 200,
+    "why": null,
+    "wraps": [
+     0,
+     2,
+     4,
+     6,
+     8,
+     10,
+     12,
+     14,
+     16,
+     18,
+     20,
+     22,
+     24,
+     26,
+     28,
+     30,
+     32,
+     34,
+     36,
+     38,
+     40,
+     42,
+     44,
+     46,
+     48,
+     50,
+     52,
+     54,
+     56,
+     58,
+     60,
+     62,
+     64,
+     66,
+     68,
+     70,
+     72,
+     74,
+     76,
+     78,
+     80,
+     82,
+     84,
+     86,
+     88,
+     90,
+     92,
+     94,
+     96,
+     98
+    ],
+    "problem": null,
+    "mine": [
+     0,
+     2,
+     4,
+     6,
+     8,
+     10,
+     12,
+     14,
+     16,
+     18,
+     20,
+     22,
+     24,
+     26,
+     28,
+     30,
+     32,
+     34,
+     36,
+     38,
+     40,
+     42,
+     44,
+     46,
+     48,
+     50,
+     52,
+     54,
+     56,
+     58,
+     60,
+     62,
+     64,
+     66,
+     68,
+     70,
+     72,
+     74,
+     76,
+     78,
+     80,
+     82,
+     84,
+     86,
+     88,
+     90,
+     92,
+     94,
+     96,
+     98
+    ],
+    "rows": 100,
+    "read": 100,
+    "road": "flags"
+   },
+   "pageWhy": null,
+   "far": {
+    "version": "3.6a",
+    "road": "fallback",
+    "mineRoad": "fallback",
+    "wraps": [
+     0,
+     1
+    ],
+    "problem": null,
+    "mine": [
+     0,
+     1
+    ],
+    "pictured": true
+   },
+   "localTmux": {
+    "bin": "build/vendor/tmux/bin/tmux",
+    "version": "3.7b",
+    "road": "flags"
+   },
+   "farTmux": "/opt/homebrew/bin/tmux"
+  },
+  "RUN": {
+   "tailscalePreflight": true,
+   "dnsPreflights": [
+    true,
+    true
+   ],
+   "agentsHeld": [
+    true,
+    true
+   ],
+   "resolved": true,
+   "hiddenUnresolved": true,
+   "manifest": {
+    "read": true,
+    "rows": 23,
+    "outside": [],
+    "why": null
+   },
+   "realTailscale": 0,
+   "samples": 961,
+   "forbidden": 0,
+   "standinLeft": 0,
+   "agentsLeft": 0,
+   "runLeft": 0,
+   "electronsLeft": 0,
+   "history": {
+    "before": "1000 1700000000|2000 1700000100",
+    "after": "1000 1700000000|2000 1700000100"
+   },
+   "ends": {
+    "made": 23,
+    "ended": 23,
+    "removed": 23,
+    "leftListed": 0
+   }
+  }
+ },
+ "broken": [
+  {
+   "arm": "PARENT",
+   "name": "the parent waited for a Remove body: it serves the route",
+   "expect": "fail",
+   "mustFail": [
+    "remove and paste answer 404 before their bodies and to whole requests"
+   ],
+   "ops": [
+    {
+     "set": "removeHead",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "arm": "PARENT",
+   "name": "a paste reached the parent as a whole request",
+   "expect": "fail",
+   "mustFail": [
+    "remove and paste answer 404 before their bodies and to whole requests"
+   ],
+   "ops": [
+    {
+     "set": "pasteFull",
+     "value": 200
+    }
+   ]
+  },
+  {
+   "arm": "PARENT",
+   "name": "a write line in the parent's log",
+   "expect": "fail",
+   "mustFail": [
+    "nothing reached the parent's main"
+   ],
+   "ops": [
+    {
+     "set": "lines",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "PARENT",
+   "name": "the recorder at the parent read the paste's bytes",
+   "expect": "fail",
+   "mustFail": [
+    "nothing reached the parent's main"
+   ],
+   "ops": [
+    {
+     "set": "bytes",
+     "value": "7061"
+    }
+   ]
+  },
+  {
+   "arm": "PARENT",
+   "name": "the row the parent was asked to remove left the list",
+   "expect": "fail",
+   "mustFail": [
+    "nothing reached the parent's main"
+   ],
+   "ops": [
+    {
+     "set": "row.after",
+     "value": {
+      "listed": false,
+      "status": null,
+      "removed": true
+     }
+    }
+   ]
+  },
+  {
+   "arm": "PARENT",
+   "name": "HEAD answers the extra-key End otherwise than the parent",
+   "expect": "fail",
+   "mustFail": [
+    "/v1/end answers the same three bodies byte for byte at both builds"
+   ],
+   "ops": [
+    {
+     "set": "ends.1.head.body",
+     "value": "{\"verb\":\"end\",\"write\":\"\",\"outcome\":\"refused\",\"reason\":\"malformed\",\"sentence\":\"Something else.\"}"
+    }
+   ]
+  },
+  {
+   "arm": "PARENT",
+   "name": "only two End bodies were read at both builds",
+   "expect": "fail",
+   "mustFail": [
+    "/v1/end answers the same three bodies byte for byte at both builds"
+   ],
+   "ops": [
+    {
+     "delete": "ends.2"
+    }
+   ]
+  },
+  {
+   "arm": "PARENT",
+   "name": "HEAD's answer to an End body was never read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "ends.0.head",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "A0",
+   "name": "only paste waits: Remove rode an agreement it was never shown",
+   "expect": "fail",
+   "mustFail": [
+    "an agreement is on record and exactly remove and paste wait"
+   ],
+   "ops": [
+    {
+     "set": "before.routesWaiting",
+     "value": [
+      "paste"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "A0",
+   "name": "remove is already allowed before the Allow",
+   "expect": "fail",
+   "mustFail": [
+    "an agreement is on record and exactly remove and paste wait"
+   ],
+   "ops": [
+    {
+     "set": "before.routesAllowed",
+     "value": [
+      "pair",
+      "blocked",
+      "session",
+      "turns",
+      "end",
+      "choose",
+      "say",
+      "sessions",
+      "screen",
+      "keys",
+      "scrollback",
+      "start",
+      "remove"
+     ]
+    },
+    {
+     "set": "before.routesWaiting",
+     "value": [
+      "remove",
+      "paste"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "A0",
+   "name": "the door waited for a Remove body while the route waits",
+   "expect": "fail",
+   "mustFail": [
+    "remove and paste answer 404 before their bodies, and nothing reaches main"
+   ],
+   "ops": [
+    {
+     "set": "removeHead",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "arm": "A0",
+   "name": "a waiting paste reached the recorder",
+   "expect": "fail",
+   "mustFail": [
+    "remove and paste answer 404 before their bodies, and nothing reaches main"
+   ],
+   "ops": [
+    {
+     "set": "bytesBefore",
+     "value": "6130"
+    }
+   ]
+  },
+  {
+   "arm": "A0",
+   "name": "removeConfirm offered while Remove waits",
+   "expect": "fail",
+   "mustFail": [
+    "no removeConfirm and no paste flag while they wait"
+   ],
+   "ops": [
+    {
+     "set": "removeConfirmBefore",
+     "value": true
+    }
+   ]
+  },
+  {
+   "arm": "A0",
+   "name": "the picture carries paste while paste waits",
+   "expect": "fail",
+   "mustFail": [
+    "no removeConfirm and no paste flag while they wait"
+   ],
+   "ops": [
+    {
+     "set": "pasteFlagBefore",
+     "value": true
+    }
+   ]
+  },
+  {
+   "arm": "A0",
+   "name": "the face's paste line has no sentence",
+   "expect": "fail",
+   "mustFail": [
+    "the face says both New: lines and their sentences above Allow"
+   ],
+   "ops": [
+    {
+     "set": "face.1.sentence",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "A0",
+   "name": "Settings draws only the Remove line",
+   "expect": "fail",
+   "mustFail": [
+    "the face says both New: lines and their sentences above Allow"
+   ],
+   "ops": [
+    {
+     "set": "drawn.paste",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "A0",
+   "name": "the face names a route by its id, not its words",
+   "expect": "fail",
+   "mustFail": [
+    "the face says both New: lines and their sentences above Allow"
+   ],
+   "ops": [
+    {
+     "set": "face.0.title",
+     "value": "New: remove"
+    }
+   ]
+  },
+  {
+   "arm": "A0",
+   "name": "the honesty sentence leaves paste out",
+   "expect": "fail",
+   "mustFail": [
+    "the honesty sentence names both new clauses"
+   ],
+   "ops": [
+    {
+     "set": "honesty",
+     "value": [
+      "This lets a phone you allow ask this Mac what your sessions are doing, over the internet. It reads your session names, your project names and what your agents are saying.",
+      "A phone you allow can see what any session’s terminal shows and what it printed before, type into it as you would at this Mac, answer a numbered question, send a session one message and end a session. It can also start a session in a project open in Tortie, on this Mac or another machine and remove a session that has ended."
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "A0",
+   "name": "two Allows were pressed",
+   "expect": "fail",
+   "mustFail": [
+    "one Allow serves both, and nothing waits"
+   ],
+   "ops": [
+    {
+     "set": "allowPresses",
+     "value": 2
+    }
+   ]
+  },
+  {
+   "arm": "A0",
+   "name": "paste still waits after the Allow",
+   "expect": "fail",
+   "mustFail": [
+    "one Allow serves both, and nothing waits"
+   ],
+   "ops": [
+    {
+     "set": "after.routesWaiting",
+     "value": [
+      "paste"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "A0",
+   "name": "no paste flag after the Allow",
+   "expect": "fail",
+   "mustFail": [
+    "after Allow each waits for a body, Remove is offered and the picture takes a paste"
+   ],
+   "ops": [
+    {
+     "set": "pasteFlagAfter",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "A0",
+   "name": "Remove still answers 404 after the Allow",
+   "expect": "fail",
+   "mustFail": [
+    "after Allow each waits for a body, Remove is offered and the picture takes a paste"
+   ],
+   "ops": [
+    {
+     "set": "removeControl",
+     "value": 404
+    }
+   ]
+  },
+  {
+   "arm": "A0",
+   "name": "the door's status was never read at HEAD",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "statusRead",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "R1",
+   "name": "the shell never read ended after its End",
+   "expect": "fail",
+   "mustFail": [
+    "End from phone A ended both rows"
+   ],
+   "ops": [
+    {
+     "set": "rows.0.statusAfterEnd",
+     "value": "running"
+    }
+   ]
+  },
+  {
+   "arm": "R1",
+   "name": "removeConfirm is not the Mac's words over the row",
+   "expect": "fail",
+   "mustFail": [
+    "/v1/session offers Remove in the Mac's own words, re-derived from each row"
+   ],
+   "ops": [
+    {
+     "set": "rows.0.confirm.got",
+     "value": {
+      "title": "Remove 'p348-r1-shell'?",
+      "body": "It is gone for good.",
+      "confirmLabel": "Remove"
+     }
+    }
+   ]
+  },
+  {
+   "arm": "R1",
+   "name": "no removeConfirm on the ended Claude Code row",
+   "expect": "fail",
+   "mustFail": [
+    "/v1/session offers Remove in the Mac's own words, re-derived from each row"
+   ],
+   "ops": [
+    {
+     "set": "rows.1.confirm.got",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "R1",
+   "name": "a Remove refused",
+   "expect": "fail",
+   "mustFail": [
+    "each Remove answered done"
+   ],
+   "ops": [
+    {
+     "set": "rows.1.answer",
+     "value": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "changed",
+      "sentence": "This session changed. Nothing was done.",
+      "body": "{\"verb\":\"remove\",\"write\":\"12121212121212121212121212121212\",\"outcome\":\"refused\",\"reason\":\"changed\",\"sentence\":\"This session changed. Nothing was done.\"}",
+      "write": "12121212121212121212121212121212"
+     }
+    }
+   ]
+  },
+  {
+   "arm": "R1",
+   "name": "the shell reads exited, not discarded, in Past Sessions",
+   "expect": "fail",
+   "mustFail": [
+    "main reads each discarded with removedAt, in Past Sessions and out of the list"
+   ],
+   "ops": [
+    {
+     "set": "rows.0.removed.status",
+     "value": "exited"
+    }
+   ]
+  },
+  {
+   "arm": "R1",
+   "name": "the removed row is still listed",
+   "expect": "fail",
+   "mustFail": [
+    "main reads each discarded with removedAt, in Past Sessions and out of the list"
+   ],
+   "ops": [
+    {
+     "set": "rows.1.listedAfter",
+     "value": true
+    }
+   ]
+  },
+  {
+   "arm": "R1",
+   "name": "the Claude Code row's hook file survived the Remove",
+   "expect": "fail",
+   "mustFail": [
+    "its saved scrollback and hook file are gone"
+   ],
+   "ops": [
+    {
+     "set": "rows.1.files.hookAfter",
+     "value": true
+    }
+   ]
+  },
+  {
+   "arm": "R1",
+   "name": "a saved scrollback survived the Remove",
+   "expect": "fail",
+   "mustFail": [
+    "its saved scrollback and hook file are gone"
+   ],
+   "ops": [
+    {
+     "set": "rows.0.files.snapshotAfter",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "R1",
+   "name": "the Mac's open Past tab never showed the Claude Code row",
+   "expect": "fail",
+   "mustFail": [
+    "the Mac's open Past tab shows each"
+   ],
+   "ops": [
+    {
+     "set": "rows.1.pastTab",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "R1",
+   "name": "the Past tab never opened",
+   "expect": "fail",
+   "mustFail": [
+    "the Mac's open Past tab shows each"
+   ],
+   "ops": [
+    {
+     "set": "pastTab.open",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "R1",
+   "name": "Restore brought the Claude Code row back with another conversation",
+   "expect": "fail",
+   "mustFail": [
+    "Restore from Past brings each back, the conversation id with it"
+   ],
+   "ops": [
+    {
+     "set": "rows.1.restore.idAfter",
+     "value": "00000000-0000-4000-8000-000000000000"
+    }
+   ]
+  },
+  {
+   "arm": "R1",
+   "name": "Restore did not bring the shell back",
+   "expect": "fail",
+   "mustFail": [
+    "Restore from Past brings each back, the conversation id with it"
+   ],
+   "ops": [
+    {
+     "set": "rows.0.restore.listedAgain",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "R1",
+   "name": "only one local row was ended and read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "delete": "rows.1"
+    }
+   ]
+  },
+  {
+   "arm": "R2",
+   "name": "the row on the machine never read ended",
+   "expect": "fail",
+   "mustFail": [
+    "End from phone A ended the row on the machine"
+   ],
+   "ops": [
+    {
+     "set": "statusAfterEnd",
+     "value": "running"
+    }
+   ]
+  },
+  {
+   "arm": "R2",
+   "name": "the machine's row offers Remove in other words",
+   "expect": "fail",
+   "mustFail": [
+    "/v1/session offers Remove in the Mac's own words"
+   ],
+   "ops": [
+    {
+     "set": "confirm.got",
+     "value": {
+      "title": "Remove 'p348-other'?",
+      "body": "It moves to Past Sessions and you can restore it from there.",
+      "confirmLabel": "Remove"
+     }
+    }
+   ]
+  },
+  {
+   "arm": "R2",
+   "name": "the Remove failed",
+   "expect": "fail",
+   "mustFail": [
+    "the Remove answered done"
+   ],
+   "ops": [
+    {
+     "set": "answer",
+     "value": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "failed",
+      "reason": null,
+      "sentence": "Tortie could not remove this session.",
+      "body": "{\"verb\":\"remove\",\"write\":\"21212121212121212121212121212121\",\"outcome\":\"failed\",\"reason\":null,\"sentence\":\"Tortie could not remove this session.\"}",
+      "write": "21212121212121212121212121212121"
+     }
+    }
+   ]
+  },
+  {
+   "arm": "R2",
+   "name": "the removed far row is still listed",
+   "expect": "fail",
+   "mustFail": [
+    "main reads it discarded with removedAt, in Past Sessions and out of the list"
+   ],
+   "ops": [
+    {
+     "set": "listedAfter",
+     "value": true
+    }
+   ]
+  },
+  {
+   "arm": "R2",
+   "name": "a kill-session reached the machine during the Remove",
+   "expect": "fail",
+   "mustFail": [
+    "no tmux command was run on the machine for the Remove (the far log, which a control connection's commands do not reach)"
+   ],
+   "ops": [
+    {
+     "set": "far.verbs",
+     "value": [
+      "'-L' 'gmux-p348-4242' 'kill-session' '-t' '$3'"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "R2",
+   "name": "a far command named the removed session",
+   "expect": "fail",
+   "mustFail": [
+    "no tmux command was run on the machine for the Remove (the far log, which a control connection's commands do not reach)"
+   ],
+   "ops": [
+    {
+     "set": "far.naming",
+     "value": [
+      "'-L' 'gmux-p348-4242' 'set-option' '-t' '=p348-r2' '@gmux-x' '1'"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "R2",
+   "name": "the far server's sessions moved across the Remove",
+   "expect": "fail",
+   "mustFail": [
+    "no tmux command was run on the machine for the Remove (the far log, which a control connection's commands do not reach)"
+   ],
+   "ops": [
+    {
+     "set": "farAfter",
+     "value": [
+      "p348-r2"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "R2",
+   "name": "the row on the machine never read ended after its End",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "statusAfterEnd",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "R2",
+   "name": "the far log could not be read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "far",
+     "value": {
+      "read": false,
+      "all": 0,
+      "naming": [],
+      "verbs": [],
+      "canary": 0
+     }
+    }
+   ]
+  },
+  {
+   "arm": "R3",
+   "name": "the live local row was ended by the Remove",
+   "expect": "fail",
+   "mustFail": [
+    "a live local row is refused changed in main's own words, unchanged"
+   ],
+   "ops": [
+    {
+     "set": "live.after",
+     "value": {
+      "listed": true,
+      "status": "exited",
+      "removed": false
+     }
+    }
+   ]
+  },
+  {
+   "arm": "R3",
+   "name": "the live local row is refused in the door's words, not main's",
+   "expect": "fail",
+   "mustFail": [
+    "a live local row is refused changed in main's own words, unchanged"
+   ],
+   "ops": [
+    {
+     "set": "live.answer",
+     "value": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "changed",
+      "sentence": "This session changed. Nothing was done.",
+      "body": "{\"verb\":\"remove\",\"write\":\"31313131313131313131313131313131\",\"outcome\":\"refused\",\"reason\":\"changed\",\"sentence\":\"This session changed. Nothing was done.\"}",
+      "write": "31313131313131313131313131313131"
+     }
+    }
+   ]
+  },
+  {
+   "arm": "R3",
+   "name": "THE ATTACK LANDED: the live remote row was removed",
+   "expect": "fail",
+   "mustFail": [
+    "a LIVE REMOTE row is refused changed and left running on its machine"
+   ],
+   "ops": [
+    {
+     "set": "farLive.answer",
+     "value": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "body": "{\"verb\":\"remove\",\"write\":\"32323232323232323232323232323232\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+      "write": "32323232323232323232323232323232"
+     }
+    },
+    {
+     "set": "farLive.after",
+     "value": {
+      "listed": false,
+      "status": null,
+      "removed": true
+     }
+    }
+   ]
+  },
+  {
+   "arm": "R3",
+   "name": "the live remote row is gone from its machine",
+   "expect": "fail",
+   "mustFail": [
+    "a LIVE REMOTE row is refused changed and left running on its machine"
+   ],
+   "ops": [
+    {
+     "set": "farLive.farHolds",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "R3",
+   "name": "an id naming nothing answered in other words",
+   "expect": "fail",
+   "mustFail": [
+    "a removed row and an id naming nothing are gone"
+   ],
+   "ops": [
+    {
+     "set": "nothing.answer.sentence",
+     "value": "This session changed. Nothing was done."
+    }
+   ]
+  },
+  {
+   "arm": "R3",
+   "name": "a removed row removed again answered done",
+   "expect": "fail",
+   "mustFail": [
+    "a removed row and an id naming nothing are gone"
+   ],
+   "ops": [
+    {
+     "set": "discarded.answer",
+     "value": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "body": "{\"verb\":\"remove\",\"write\":\"33333333333333333333333333333333\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+      "write": "33333333333333333333333333333333"
+     }
+    }
+   ]
+  },
+  {
+   "arm": "R3",
+   "name": "the same write id fresh-signed acted twice",
+   "expect": "fail",
+   "mustFail": [
+    "the same bytes again are 404, and the same write id fresh-signed is the recorded answer, acting once"
+   ],
+   "ops": [
+    {
+     "set": "replay.acts",
+     "value": 2
+    }
+   ]
+  },
+  {
+   "arm": "R3",
+   "name": "the same bytes again were answered",
+   "expect": "fail",
+   "mustFail": [
+    "the same bytes again are 404, and the same write id fresh-signed is the recorded answer, acting once"
+   ],
+   "ops": [
+    {
+     "set": "replay.again",
+     "value": 200
+    }
+   ]
+  },
+  {
+   "arm": "R3",
+   "name": "the re-signed write id got another answer than the recorded one",
+   "expect": "fail",
+   "mustFail": [
+    "the same bytes again are 404, and the same write id fresh-signed is the recorded answer, acting once"
+   ],
+   "ops": [
+    {
+     "set": "replay.resent.body",
+     "value": "{\"verb\":\"remove\",\"write\":\"12121212121212121212121212121212\",\"outcome\":\"refused\",\"reason\":\"gone\",\"sentence\":\"This session changed. Nothing was done.\"}"
+    }
+   ]
+  },
+  {
+   "arm": "R3",
+   "name": "a stopped door answered a Remove",
+   "expect": "fail",
+   "mustFail": [
+    "a removed phone and a stopped door remove nothing and never answer 200"
+   ],
+   "ops": [
+    {
+     "set": "doorStopped.status",
+     "value": 200
+    }
+   ]
+  },
+  {
+   "arm": "R3",
+   "name": "a removed phone removed the live row",
+   "expect": "fail",
+   "mustFail": [
+    "a removed phone and a stopped door remove nothing and never answer 200"
+   ],
+   "ops": [
+    {
+     "set": "removedPhone.after",
+     "value": {
+      "listed": false,
+      "status": null,
+      "removed": true
+     }
+    }
+   ]
+  },
+  {
+   "arm": "R3",
+   "name": "phone A could not read after phone C was removed",
+   "expect": "fail",
+   "mustFail": [
+    "a removed phone and a stopped door remove nothing and never answer 200"
+   ],
+   "ops": [
+    {
+     "set": "removedPhone.control",
+     "value": 404
+    }
+   ]
+  },
+  {
+   "arm": "R3",
+   "name": "the machine was not usable, so no far row was read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "delete": "farLive"
+    }
+   ]
+  },
+  {
+   "arm": "R3",
+   "name": "phone C never paired",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "removedPhone.wasPaired",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "R3u",
+   "name": "an unknown row refused in the wrong words",
+   "expect": "fail",
+   "mustFail": [
+    "the Remove of the unknown row is refused unreachable in the Mac's words"
+   ],
+   "ops": [
+    {
+     "set": "answer",
+     "value": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "changed",
+      "sentence": "This session changed. Nothing was done.",
+      "body": "{\"verb\":\"remove\",\"write\":\"35353535353535353535353535353535\",\"outcome\":\"refused\",\"reason\":\"changed\",\"sentence\":\"This session changed. Nothing was done.\"}",
+      "write": "35353535353535353535353535353535"
+     }
+    }
+   ]
+  },
+  {
+   "arm": "R3u",
+   "name": "an unknown row was removed",
+   "expect": "fail",
+   "mustFail": [
+    "the row was not removed"
+   ],
+   "ops": [
+    {
+     "set": "removedAfter",
+     "value": true
+    }
+   ]
+  },
+  {
+   "arm": "R3u",
+   "name": "the row never came back to the list once its create landed",
+   "expect": "fail",
+   "mustFail": [
+    "the row was not removed"
+   ],
+   "ops": [
+    {
+     "set": "listedAfter",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "R3u",
+   "name": "main read the row running when the Remove was sent",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "statusAtSend",
+     "value": "running"
+    }
+   ]
+  },
+  {
+   "arm": "R3b",
+   "name": "the busy answer carries other words than the door's",
+   "expect": "fail",
+   "mustFail": [
+    "one of the two answered busy in the door's words, and the other acted once"
+   ],
+   "ops": [
+    {
+     "set": "answers.1.sentence",
+     "value": "Busy."
+    }
+   ]
+  },
+  {
+   "arm": "R3b",
+   "name": "both writes answered busy",
+   "expect": "fail",
+   "mustFail": [
+    "one of the two answered busy in the door's words, and the other acted once"
+   ],
+   "ops": [
+    {
+     "set": "answers.0",
+     "value": {
+      "status": 200,
+      "ok": true,
+      "outcome": "busy",
+      "sentence": "Tortie is still doing the last thing you asked from this phone. Nothing was done."
+     }
+    }
+   ]
+  },
+  {
+   "arm": "R3b",
+   "name": "the write that was not busy got no answer",
+   "expect": "fail",
+   "mustFail": [
+    "one of the two answered busy in the door's words, and the other acted once"
+   ],
+   "ops": [
+    {
+     "set": "answers.0",
+     "value": {
+      "status": 0,
+      "ok": false,
+      "outcome": null,
+      "sentence": null
+     }
+    }
+   ]
+  },
+  {
+   "arm": "R3b",
+   "name": "the two writes never overlapped on the Mac",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "answers.1",
+     "value": {
+      "status": 200,
+      "ok": true,
+      "outcome": "done",
+      "sentence": null
+     }
+    }
+   ]
+  },
+  {
+   "arm": "P1",
+   "name": "a paste into Codex's stand-in was refused",
+   "expect": "fail",
+   "mustFail": [
+    "each paste answered done"
+   ],
+   "ops": [
+    {
+     "set": "targets.1.answer",
+     "value": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "unreachable",
+      "sentence": "This session is not taking keys now.",
+      "body": "{\"verb\":\"paste\",\"write\":\"42424242424242424242424242424242\",\"outcome\":\"refused\",\"reason\":\"unreachable\",\"sentence\":\"This session is not taking keys now.\"}",
+      "write": "42424242424242424242424242424242"
+     }
+    }
+   ]
+  },
+  {
+   "arm": "P1",
+   "name": "the recorder in paste mode read the paste unbracketed",
+   "expect": "fail",
+   "mustFail": [
+    "each program read ESC[200~, the text with LF as CR, ESC[201~, and nothing after"
+   ],
+   "ops": [
+    {
+     "set": "targets.2.readHex",
+     "value": "6c696e65206f6e650d6c696e652074776f"
+    }
+   ]
+  },
+  {
+   "arm": "P1",
+   "name": "a Return was added after the paste",
+   "expect": "fail",
+   "mustFail": [
+    "each program read ESC[200~, the text with LF as CR, ESC[201~, and nothing after"
+   ],
+   "ops": [
+    {
+     "set": "targets.0.readHex",
+     "value": "1b5b3230307e6c696e65206f6e650d6c696e652074776f1b5b3230317e0d"
+    }
+   ]
+  },
+  {
+   "arm": "P1",
+   "name": "the line feed reached the program as a line feed",
+   "expect": "fail",
+   "mustFail": [
+    "each program read ESC[200~, the text with LF as CR, ESC[201~, and nothing after"
+   ],
+   "ops": [
+    {
+     "set": "targets.1.readHex",
+     "value": "1b5b3230307e6c696e65206f6e650a6c696e652074776f1b5b3230317e"
+    }
+   ]
+  },
+  {
+   "arm": "P1",
+   "name": "only two of the three programs were read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "delete": "targets.2"
+    }
+   ]
+  },
+  {
+   "arm": "P2",
+   "name": "the paste failed",
+   "expect": "fail",
+   "mustFail": [
+    "the paste answered done"
+   ],
+   "ops": [
+    {
+     "set": "answer",
+     "value": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "failed",
+      "reason": null,
+      "sentence": "Tortie could not paste into this session.",
+      "body": "{\"verb\":\"paste\",\"write\":\"44444444444444444444444444444444\",\"outcome\":\"failed\",\"reason\":null,\"sentence\":\"Tortie could not paste into this session.\"}",
+      "write": "44444444444444444444444444444444"
+     }
+    }
+   ]
+  },
+  {
+   "arm": "P2",
+   "name": "a Return was added after the raw paste",
+   "expect": "fail",
+   "mustFail": [
+    "the recorder read 61 0d 62 and nothing after"
+   ],
+   "ops": [
+    {
+     "set": "readHex",
+     "value": "610d620d"
+    }
+   ]
+  },
+  {
+   "arm": "P2",
+   "name": "the raw paste was bracketed though the program never asked",
+   "expect": "fail",
+   "mustFail": [
+    "the recorder read 61 0d 62 and nothing after"
+   ],
+   "ops": [
+    {
+     "set": "readHex",
+     "value": "1b5b3230307e610d621b5b3230317e"
+    }
+   ]
+  },
+  {
+   "arm": "P3",
+   "name": "half a surrogate refused long, not character",
+   "expect": "fail",
+   "mustFail": [
+    "each is refused character in the Mac's words"
+   ],
+   "ops": [
+    {
+     "set": "cases.6.answer",
+     "value": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "long",
+      "sentence": "That is too long to paste. Nothing was pasted.",
+      "body": "{\"verb\":\"paste\",\"write\":\"57575757575757575757575757575757\",\"outcome\":\"refused\",\"reason\":\"long\",\"sentence\":\"That is too long to paste. Nothing was pasted.\"}",
+      "write": "57575757575757575757575757575757"
+     }
+    }
+   ]
+  },
+  {
+   "arm": "P3",
+   "name": "ESC was pasted, and the recorder read it",
+   "expect": "fail",
+   "mustFail": [
+    "each is refused character in the Mac's words",
+    "the recorder read ZERO bytes"
+   ],
+   "ops": [
+    {
+     "set": "cases.0.answer",
+     "value": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "body": "{\"verb\":\"paste\",\"write\":\"51515151515151515151515151515151\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+      "write": "51515151515151515151515151515151"
+     }
+    },
+    {
+     "set": "cases.0.readHex",
+     "value": "611b62"
+    }
+   ]
+  },
+  {
+   "arm": "P3",
+   "name": "ESC answered done though nothing reached the recorder",
+   "expect": "fail",
+   "mustFail": [
+    "each is refused character in the Mac's words"
+   ],
+   "ops": [
+    {
+     "set": "cases.0.answer",
+     "value": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "body": "{\"verb\":\"paste\",\"write\":\"51515151515151515151515151515151\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+      "write": "51515151515151515151515151515151"
+     }
+    }
+   ]
+  },
+  {
+   "arm": "P3",
+   "name": "only six of the seven texts were sent",
+   "expect": "fail",
+   "mustFail": [
+    "each is refused character in the Mac's words"
+   ],
+   "ops": [
+    {
+     "delete": "cases.6"
+    }
+   ]
+  },
+  {
+   "arm": "P3",
+   "name": "a refused DEL still typed a byte",
+   "expect": "fail",
+   "mustFail": [
+    "the recorder read ZERO bytes"
+   ],
+   "ops": [
+    {
+     "set": "cases.3.readHex",
+     "value": "7f"
+    }
+   ]
+  },
+  {
+   "arm": "P4",
+   "name": "the text at the cap did not land as it was sent",
+   "expect": "fail",
+   "mustFail": [
+    "16,384 bytes answered done and landed exact"
+   ],
+   "ops": [
+    {
+     "set": "atCap.text",
+     "value": "x"
+    }
+   ]
+  },
+  {
+   "arm": "P4",
+   "name": "the text at the cap was refused",
+   "expect": "fail",
+   "mustFail": [
+    "16,384 bytes answered done and landed exact"
+   ],
+   "ops": [
+    {
+     "set": "atCap.answer",
+     "value": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "long",
+      "sentence": "That is too long to paste. Nothing was pasted.",
+      "body": "{\"verb\":\"paste\",\"write\":\"61616161616161616161616161616161\",\"outcome\":\"refused\",\"reason\":\"long\",\"sentence\":\"That is too long to paste. Nothing was pasted.\"}",
+      "write": "61616161616161616161616161616161"
+     }
+    }
+   ]
+  },
+  {
+   "arm": "P4",
+   "name": "one byte over the cap was split and its first part pasted",
+   "expect": "fail",
+   "mustFail": [
+    "16,385 bytes refused long in the Mac's words, ZERO bytes"
+   ],
+   "ops": [
+    {
+     "set": "overCap.readHex",
+     "value": "70333438"
+    }
+   ]
+  },
+  {
+   "arm": "P4",
+   "name": "one byte over the cap was taken",
+   "expect": "fail",
+   "mustFail": [
+    "16,385 bytes refused long in the Mac's words, ZERO bytes"
+   ],
+   "ops": [
+    {
+     "set": "overCap.answer",
+     "value": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "body": "{\"verb\":\"paste\",\"write\":\"62626262626262626262626262626262\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+      "write": "62626262626262626262626262626262"
+     }
+    }
+   ]
+  },
+  {
+   "arm": "P5",
+   "name": "the question never moved, so the lock was never asked",
+   "expect": "fail",
+   "mustFail": [
+    "the question moved between the phone's read and its write"
+   ],
+   "ops": [
+    {
+     "set": "moved",
+     "value": {
+      "turn": "3c0f8a91d2b47e65-4",
+      "dialog": "9f8e7d6c5b4a"
+     }
+    }
+   ]
+  },
+  {
+   "arm": "P5",
+   "name": "THE LOCK DID NOT HOLD: the paste landed on the new question",
+   "expect": "fail",
+   "mustFail": [
+    "the paste is refused changed in the Mac's words"
+   ],
+   "ops": [
+    {
+     "set": "answer",
+     "value": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "done",
+      "reason": null,
+      "sentence": null,
+      "body": "{\"verb\":\"paste\",\"write\":\"63636363636363636363636363636363\",\"outcome\":\"done\",\"reason\":null,\"sentence\":null}",
+      "write": "63636363636363636363636363636363"
+     }
+    }
+   ]
+  },
+  {
+   "arm": "P5",
+   "name": "the stand-in read bytes of the refused paste",
+   "expect": "fail",
+   "mustFail": [
+    "the stand-in read ZERO bytes"
+   ],
+   "ops": [
+    {
+     "set": "readHex",
+     "value": "7035"
+    }
+   ]
+  },
+  {
+   "arm": "P5",
+   "name": "the stand-in never drew a question",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "first.asking",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "P6",
+   "name": "the far picture offers a paste",
+   "expect": "fail",
+   "mustFail": [
+    "the far picture carries no paste key"
+   ],
+   "ops": [
+    {
+     "set": "pasteFlag",
+     "value": true
+    },
+    {
+     "set": "pasteKey",
+     "value": true
+    }
+   ]
+  },
+  {
+   "arm": "P6",
+   "name": "the far picture carries paste: false, a key D30 never writes there",
+   "expect": "fail",
+   "mustFail": [
+    "the far picture carries no paste key"
+   ],
+   "ops": [
+    {
+     "set": "pasteKey",
+     "value": true
+    }
+   ]
+  },
+  {
+   "arm": "P6",
+   "name": "a far paste refused in other words",
+   "expect": "fail",
+   "mustFail": [
+    "the paste is refused machine in the Mac's words"
+   ],
+   "ops": [
+    {
+     "set": "answer",
+     "value": {
+      "status": 200,
+      "ok": true,
+      "why": "",
+      "outcome": "refused",
+      "reason": "unreachable",
+      "sentence": "This session is not taking keys now.",
+      "body": "{\"verb\":\"paste\",\"write\":\"64646464646464646464646464646464\",\"outcome\":\"refused\",\"reason\":\"unreachable\",\"sentence\":\"This session is not taking keys now.\"}",
+      "write": "64646464646464646464646464646464"
+     }
+    }
+   ]
+  },
+  {
+   "arm": "P6",
+   "name": "a load-buffer reached the machine",
+   "expect": "fail",
+   "mustFail": [
+    "nothing of the paste reached the machine as a tmux command (the far log, which a control connection's commands do not reach)"
+   ],
+   "ops": [
+    {
+     "set": "far.verbs",
+     "value": [
+      "'-L' 'gmux-p348-4242' 'load-buffer' '-b' 'tortie-paste-00' '-'"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "P6",
+   "name": "the paste's canary is in a far command line",
+   "expect": "fail",
+   "mustFail": [
+    "nothing of the paste reached the machine as a tmux command (the far log, which a control connection's commands do not reach)"
+   ],
+   "ops": [
+    {
+     "set": "far.canary",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "P7",
+   "name": "the first paste was refused",
+   "expect": "fail",
+   "mustFail": [
+    "the first paste answered done"
+   ],
+   "ops": [
+    {
+     "set": "first.outcome",
+     "value": "refused"
+    }
+   ]
+  },
+  {
+   "arm": "P7",
+   "name": "the same bytes again were answered",
+   "expect": "fail",
+   "mustFail": [
+    "the same bytes again are 404"
+   ],
+   "ops": [
+    {
+     "set": "again",
+     "value": 200
+    }
+   ]
+  },
+  {
+   "arm": "P7",
+   "name": "the re-signed write id got another answer",
+   "expect": "fail",
+   "mustFail": [
+    "the same write id fresh-signed is the recorded answer, byte for byte"
+   ],
+   "ops": [
+    {
+     "set": "resent.body",
+     "value": "{\"verb\":\"paste\",\"write\":\"71717171717171717171717171717171\",\"outcome\":\"busy\",\"reason\":null,\"sentence\":\"Tortie is still doing the last thing you asked from this phone. Nothing was done.\"}"
+    }
+   ]
+  },
+  {
+   "arm": "P7",
+   "name": "THE PASTE LANDED TWICE",
+   "expect": "fail",
+   "mustFail": [
+    "the recorder read nothing more"
+   ],
+   "ops": [
+    {
+     "set": "moreHex",
+     "value": "7033343863303030303030303030373031207265706c6179"
+    }
+   ]
+  },
+  {
+   "arm": "K",
+   "name": "a paste's canary in a file under the profile",
+   "expect": "fail",
+   "mustFail": [
+    "no canary in any file under the profile, HOME or the harness folder"
+   ],
+   "ops": [
+    {
+     "push": "fileHits",
+     "value": {
+      "file": "p348/profile/gmux/snapshots/p348-rec.bin"
+     }
+    }
+   ]
+  },
+  {
+   "arm": "K",
+   "name": "no file was scanned",
+   "expect": "fail",
+   "mustFail": [
+    "no canary in any file under the profile, HOME or the harness folder"
+   ],
+   "ops": [
+    {
+     "set": "filesScanned",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "arm": "K",
+   "name": "a paste's canary in app.log",
+   "expect": "fail",
+   "mustFail": [
+    "no canary in app.log, and one log line per write that acted"
+   ],
+   "ops": [
+    {
+     "set": "appLogHits",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "K",
+   "name": "a paste logged twice",
+   "expect": "fail",
+   "mustFail": [
+    "no canary in app.log, and one log line per write that acted"
+   ],
+   "ops": [
+    {
+     "set": "lines.paste",
+     "value": 18
+    }
+   ]
+  },
+  {
+   "arm": "K",
+   "name": "a Remove that acted left no log line",
+   "expect": "fail",
+   "mustFail": [
+    "no canary in app.log, and one log line per write that acted"
+   ],
+   "ops": [
+    {
+     "set": "lines.remove",
+     "value": 8
+    }
+   ]
+  },
+  {
+   "arm": "K",
+   "name": "a paste's canary in an argv the sampler saw",
+   "expect": "fail",
+   "mustFail": [
+    "no canary in any argv the sampler saw"
+   ],
+   "ops": [
+    {
+     "set": "argvHits",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "K",
+   "name": "the sampler never read the process table",
+   "expect": "fail",
+   "mustFail": [
+    "no canary in any argv the sampler saw"
+   ],
+   "ops": [
+    {
+     "set": "argvSamples",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "arm": "K",
+   "name": "a tortie-paste buffer left on a server",
+   "expect": "fail",
+   "mustFail": [
+    "no tortie-paste buffer on either server"
+   ],
+   "ops": [
+    {
+     "set": "buffers",
+     "value": [
+      "buffer0",
+      "tortie-paste-0123456789abcdef0123456789abcdef"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "K",
+   "name": "app.log could not be read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "appLogRead",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "W",
+   "name": "the long output's picture misses a mark",
+   "expect": "fail",
+   "mustFail": [
+    "each live picture's wraps equal this run's reading"
+   ],
+   "ops": [
+    {
+     "set": "local.0.wraps",
+     "value": [
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "W",
+   "name": "a picture whose marks could not be read",
+   "expect": "fail",
+   "mustFail": [
+    "each live picture's wraps equal this run's reading"
+   ],
+   "ops": [
+    {
+     "set": "local.0.problem",
+     "value": "wraps holds 23, past the last row that may be marked (22)"
+    }
+   ]
+  },
+  {
+   "arm": "W",
+   "name": "the page's marks are not this run's reading",
+   "expect": "fail",
+   "mustFail": [
+    "the page's wraps equal this run's reading of the same range"
+   ],
+   "ops": [
+    {
+     "set": "page.wraps",
+     "value": [
+      2,
+      4,
+      6,
+      8,
+      10,
+      12,
+      14,
+      16,
+      18,
+      20,
+      22,
+      24,
+      26,
+      28,
+      30,
+      32,
+      34,
+      36,
+      38,
+      40,
+      42,
+      44,
+      46,
+      48,
+      50,
+      52,
+      54,
+      56,
+      58,
+      60,
+      62,
+      64,
+      66,
+      68,
+      70,
+      72,
+      74,
+      76,
+      78,
+      80,
+      82,
+      84,
+      86,
+      88,
+      90,
+      92,
+      94,
+      96,
+      98
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "W",
+   "name": "the page carried no marks at all",
+   "expect": "fail",
+   "mustFail": [
+    "the page's wraps equal this run's reading of the same range"
+   ],
+   "ops": [
+    {
+     "set": "page.wraps",
+     "value": []
+    },
+    {
+     "set": "page.mine",
+     "value": []
+    }
+   ]
+  },
+  {
+   "arm": "W",
+   "name": "the page was refused",
+   "expect": "fail",
+   "mustFail": [
+    "the page's wraps equal this run's reading of the same range"
+   ],
+   "ops": [
+    {
+     "set": "page.status",
+     "value": 404
+    }
+   ]
+  },
+  {
+   "arm": "W",
+   "name": "THE WIDTH RULE: G1b's cleared row joined",
+   "expect": "fail",
+   "mustFail": [
+    "G1b's rewritten row is flagged and NOT marked"
+   ],
+   "ops": [
+    {
+     "set": "local.1.wraps",
+     "value": [
+      0,
+      1
+     ]
+    },
+    {
+     "set": "local.1.mine",
+     "value": [
+      0,
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "W",
+   "name": "the alternate screen carried marks",
+   "expect": "fail",
+   "mustFail": [
+    "the alternate screen carries no mark"
+   ],
+   "ops": [
+    {
+     "set": "local.2.wraps",
+     "value": [
+      0,
+      1
+     ]
+    },
+    {
+     "set": "local.2.mine",
+     "value": [
+      0,
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "W",
+   "name": "the alternate screen held nothing tmux flagged, so the guard was never asked",
+   "expect": "fail",
+   "mustFail": [
+    "the alternate screen carries no mark"
+   ],
+   "ops": [
+    {
+     "set": "local.2.flagged",
+     "value": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "W",
+   "name": "the far picture's marks are not this run's fallback reading",
+   "expect": "fail",
+   "mustFail": [
+    "the far picture, read through the fallback, equals this run's reading"
+   ],
+   "ops": [
+    {
+     "set": "far.wraps",
+     "value": [
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "W",
+   "name": "the far picture carried no marks",
+   "expect": "fail",
+   "mustFail": [
+    "the far picture, read through the fallback, equals this run's reading"
+   ],
+   "ops": [
+    {
+     "set": "far.wraps",
+     "value": []
+    },
+    {
+     "set": "far.mine",
+     "value": []
+    }
+   ]
+  },
+  {
+   "arm": "W",
+   "name": "no picture was drawn to read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "local",
+     "value": []
+    }
+   ]
+  },
+  {
+   "arm": "W",
+   "name": "the machine was not usable",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "far",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "W",
+   "name": "the machine's tmux is 3.7b, so the fallback road is not there to read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "far.version",
+     "value": "3.7b"
+    }
+   ]
+  },
+  {
+   "arm": "W",
+   "name": "no page could be asked for",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "page",
+     "value": null
+    },
+    {
+     "set": "pageWhy",
+     "value": "the history drawer's picture carried depth 40, not more than 100"
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "the Tailscale preflight refused",
+   "expect": "fail",
+   "mustFail": [
+    "the Tailscale preflight passed"
+   ],
+   "ops": [
+    {
+     "set": "tailscalePreflight",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "the DNS preflight refused at the second launch",
+   "expect": "fail",
+   "mustFail": [
+    "the DNS preflight passed at every launch"
+   ],
+   "ops": [
+    {
+     "set": "dnsPreflights",
+     "value": [
+      true,
+      false
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "a hidden agent resolved at the second launch",
+   "expect": "fail",
+   "mustFail": [
+    "the hidden agents held at every launch"
+   ],
+   "ops": [
+    {
+     "set": "agentsHeld",
+     "value": [
+      true,
+      false
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "claude did not resolve to the stand-in",
+   "expect": "fail",
+   "mustFail": [
+    "claude and codex resolved to the stand-ins and no hidden one resolved"
+   ],
+   "ops": [
+    {
+     "set": "resolved",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "a session ran a program outside the run",
+   "expect": "fail",
+   "mustFail": [
+    "every session the manifest holds ran a program of this run"
+   ],
+   "ops": [
+    {
+     "push": "manifest.outside",
+     "value": {
+      "id": "p348-x",
+      "name": "p348-claude",
+      "agent": "claude",
+      "argv0": "/usr/local/bin/claude"
+     }
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "a real Tailscale was sampled under the app",
+   "expect": "fail",
+   "mustFail": [
+    "no real Tailscale in any sample, and nothing forbidden at the stand-in"
+   ],
+   "ops": [
+    {
+     "set": "realTailscale",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "a forbidden argv reached the stand-in",
+   "expect": "fail",
+   "mustFail": [
+    "no real Tailscale in any sample, and nothing forbidden at the stand-in"
+   ],
+   "ops": [
+    {
+     "set": "forbidden",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "an Electron was left running",
+   "expect": "fail",
+   "mustFail": [
+    "every stand-in and Electron ended, and nothing of this run is left"
+   ],
+   "ops": [
+    {
+     "set": "electronsLeft",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "a recorder was left running",
+   "expect": "fail",
+   "mustFail": [
+    "every stand-in and Electron ended, and nothing of this run is left"
+   ],
+   "ops": [
+    {
+     "set": "runLeft",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "his shell history moved across the run",
+   "expect": "fail",
+   "mustFail": [
+    "his shell history did not move across the run"
+   ],
+   "ops": [
+    {
+     "set": "history.after",
+     "value": "1043 1700000500|2000 1700000100"
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "the manifest could not be read after the app was gone",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "manifest",
+     "value": {
+      "read": false,
+      "rows": 0,
+      "outside": [],
+      "why": "no manifest.db"
+     }
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "his shell history could not be read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "history.after",
+     "value": "none|2000 1700000100"
+    }
+   ]
+  },
+  {
+   "arm": "PARENT",
+   "name": "THE PROBE REVIEW: the parent's recorder log could not be read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "bytes",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "A0",
+   "name": "THE PROBE REVIEW: the recorder's log could not be read while the routes waited",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "bytesBefore",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "P1",
+   "name": "THE PROBE REVIEW: the paste-mode recorder's log could not be read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "targets.2.readHex",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "P2",
+   "name": "THE PROBE REVIEW: the recorder's log could not be read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "readHex",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "P3",
+   "name": "THE PROBE REVIEW: the recorder's log could not be read for one case",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "cases.0.readHex",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "P3",
+   "name": "THE PROBE REVIEW: the control paste after the refusals never reached the recorder (a dead recorder reads zero bytes too)",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "control.landed",
+     "value": false
+    },
+    {
+     "set": "control.readHex",
+     "value": ""
+    }
+   ]
+  },
+  {
+   "arm": "P3",
+   "name": "THE PROBE REVIEW: no control paste was sent",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "delete": "control"
+    }
+   ]
+  },
+  {
+   "arm": "P4",
+   "name": "THE PROBE REVIEW: the recorder's log could not be read over the cap",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "overCap.readHex",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "P5",
+   "name": "THE PROBE REVIEW: no stand-in said hello, so its log could not be read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "readHex",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "P5",
+   "name": "THE PROBE REVIEW: the control paste after the refusal never reached the stand-in",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "control.landed",
+     "value": false
+    },
+    {
+     "set": "control.readHex",
+     "value": ""
+    }
+   ]
+  },
+  {
+   "arm": "P7",
+   "name": "THE PROBE REVIEW: the recorder's log could not be read after the replays",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "moreHex",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "W",
+   "name": "THE PROBE REVIEW: the phone never read the alternate screen's picture (no marks read as none)",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "local.2.pictured",
+     "value": false
+    },
+    {
+     "set": "local.2.pictureAlternate",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "W",
+   "name": "THE PROBE REVIEW: the phone never read the far picture",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "far.pictured",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "W",
+   "name": "THE PROBE REVIEW: the picture read for the alternate screen says the main screen",
+   "expect": "fail",
+   "mustFail": [
+    "the alternate screen carries no mark"
+   ],
+   "ops": [
+    {
+     "set": "local.2.pictureAlternate",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "P6",
+   "name": "THE PROBE REVIEW: the far log could not be read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "far",
+     "value": {
+      "read": false,
+      "all": 0,
+      "naming": [],
+      "verbs": [],
+      "canary": 0
+     }
+    }
+   ]
+  },
+  {
+   "arm": "R1",
+   "name": "THE PROBE REVIEW: no row had saved scrollback before its Remove",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "rows.0.files.snapshotBefore",
+     "value": 0
+    },
+    {
+     "set": "rows.1.files.snapshotBefore",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "arm": "R1",
+   "name": "THE PROBE REVIEW: no row had a hook file before its Remove",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "rows.1.files.hookBefore",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "R1",
+   "name": "THE FIX ROUND: the Past tab could not be opened again before the Claude Code row's Restore, so it was never pressed",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "rows.1.restore.reopened",
+     "value": false
+    },
+    {
+     "set": "rows.1.restore.pressed",
+     "value": false
+    },
+    {
+     "set": "rows.1.restore.listedAgain",
+     "value": false
+    },
+    {
+     "set": "rows.1.restore.idAfter",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "R1",
+   "name": "THE FIX ROUND: the Past tab opened again but the Claude Code row's Restore was not there to press",
+   "expect": "fail",
+   "mustFail": [
+    "Restore from Past brings each back, the conversation id with it"
+   ],
+   "ops": [
+    {
+     "set": "rows.1.restore.reopened",
+     "value": true
+    },
+    {
+     "set": "rows.1.restore.pressed",
+     "value": false
+    },
+    {
+     "set": "rows.1.restore.listedAgain",
+     "value": false
+    },
+    {
+     "set": "rows.1.restore.idAfter",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "P5",
+   "name": "THE FIX ROUND: the control against the question still drawn was refused, so the lock refused even the current picture",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "control.outcome",
+     "value": "refused"
+    },
+    {
+     "set": "control.landed",
+     "value": false
+    },
+    {
+     "set": "control.readHex",
+     "value": ""
+    }
+   ]
+  }
+ ]
+}

@@ -294,6 +294,43 @@ final class SampleReaderTests: XCTestCase {
         XCTAssertEqual(ended.rows.map(\.statusTitle), ["Ended", "Ended", "Ended"])
     }
 
+    /// Remove (Phase 348, build/p348/SPEC.md section 4.2 step 9, his ruling
+    /// that Remove asks no Face ID): the sample removes only an ENDED
+    /// session, asking nothing, on its own copy (the reader is its own
+    /// remover, so nothing leaves the phone); the removed session leaves
+    /// every list and has no detail; it cannot be removed or ended again; and
+    /// a running session is not taken.
+    func testRemoveTakesAnEndedSessionOffEveryList() async throws {
+        let reader = SampleReader(book: try XCTUnwrap(SampleBook(data: SampleBookFixture.removedData())), now: Clock().read)
+        XCTAssertTrue(reader.remover is SampleReader)
+        let running = await reader.remove("s-wait")
+        XCTAssertEqual(running, .notTaken, "a running session was removed")
+        var state = await reader.world.currentState()
+        XCTAssertEqual(state, "waiting.live.ended")
+        let removed = await reader.remove("s-done")
+        guard case .answered(let answer) = removed else { return XCTFail("the sample's Remove was not done: \(removed)") }
+        XCTAssertEqual(answer.outcome, .done)
+        XCTAssertEqual(DoorWords.removeSentence(for: removed), Copy.remove)
+        state = await reader.world.currentState()
+        XCTAssertEqual(state, "waiting.live.removed")
+        let blocked = try await reader.blocked()
+        XCTAssertFalse((blocked.rows + blocked.others).contains { $0.sessionId == "s-done" }, "a removed session is still listed")
+        let all = try await reader.sessions(SessionsQuery(show: .all, group: .project, sort: .recent, agent: nil, machine: nil))
+        XCTAssertEqual(all.rows.map(\.sessionId), ["s-wait", "s-idle"])
+        do {
+            _ = try await reader.session("s-done")
+            XCTFail("a removed session still has a detail")
+        } catch {
+            XCTAssertEqual(error as? DoorFailure, .refused)
+        }
+        let again = await reader.remove("s-done")
+        XCTAssertEqual(again, .notTaken, "a removed session was removed twice")
+        let ended = await reader.end("s-done", batch: false)
+        XCTAssertEqual(ended, .notTaken, "a removed session was ended")
+        state = await reader.world.currentState()
+        XCTAssertEqual(state, "waiting.live.removed")
+    }
+
     /// Keys on an ended session are not taken.
     func testKeysOnAnEndedSessionAreNotTaken() async throws {
         let reader = reader()

@@ -76,6 +76,8 @@ type PocketWriteDeps = import('../writes').PocketWriteDeps;
 type PocketEndOutcome = import('../routes').PocketEndOutcome;
 type PocketReplyOutcome = import('../routes').PocketReplyOutcome;
 type PocketStartOutcome = import('../routes').PocketStartOutcome;
+type PocketRemoveOutcome = import('../routes').PocketRemoveOutcome;
+type PocketPasteOutcome = import('../routes').PocketPasteOutcome;
 type PocketChooseInput = import('../routes').PocketChooseInput;
 type PocketSayInput = import('../routes').PocketSayInput;
 type PocketKeysInput = import('../routes').PocketKeysInput;
@@ -223,6 +225,16 @@ function rig(over: { writes?: false } = {}): Rig {
             start: async (): Promise<PocketStartOutcome> => {
               self.asked.push('start');
               return { outcome: 'failed', sentence: 'not in this test' };
+            },
+            // Phase 348's Remove and paste, which these arms never reach
+            // (./p348-remove-write.test.ts and ./p348-paste-write.test.ts drive them).
+            remove: async (): Promise<PocketRemoveOutcome> => {
+              self.asked.push('remove');
+              return { outcome: 'failed', sentence: 'not in this test' };
+            },
+            paste: async (): Promise<PocketPasteOutcome> => {
+              self.asked.push('paste');
+              return { outcome: 'failed', sentence: 'not in this test' };
             }
           }
         })
@@ -238,7 +250,10 @@ const doneWrites = {
   say: async (): Promise<PocketReplyOutcome> => ({ outcome: 'done' }),
   keys: async (): Promise<PocketReplyOutcome> => ({ outcome: 'done' }),
   // Phase 346's start, which these session-verb arms never reach.
-  start: async (): Promise<PocketStartOutcome> => ({ outcome: 'failed', sentence: 'not in this test' })
+  start: async (): Promise<PocketStartOutcome> => ({ outcome: 'failed', sentence: 'not in this test' }),
+  // Phase 348's Remove and paste, each answering done.
+  remove: async (): Promise<PocketRemoveOutcome> => ({ outcome: 'done' }),
+  paste: async (): Promise<PocketPasteOutcome> => ({ outcome: 'done' })
 };
 
 // ---------------------------------------------------------------------------
@@ -255,8 +270,9 @@ describe('the body caps, computed from the worst legal body (§5.3.3, §14 findi
   });
 
   it('holds it under its cap, each write route has its own cap, and the worst legal body parses', () => {
-    // Phase 346 added `start`, 512 (build/p346/SPEC.md D6).
-    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512 });
+    // Phase 346 added `start`, 512 (build/p346/SPEC.md D6); Phase 348 `remove`,
+    // 512, and `paste`, 131,072 (build/p348/SPEC.md D29).
+    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512, remove: 512, paste: 131_072 });
     expect(endBody(longest, wid(1)).byteLength).toBeLessThanOrEqual(POCKET_WRITE_BODY_CAPS.end);
     // The whole alphabet at the longest length.
     const every = 'aZ09._:-'.repeat(16);

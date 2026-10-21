@@ -86,6 +86,17 @@
 //   did not come is the one other write ever sent again under its own id
 //   (`KeptStart`, Screens/Start.swift), and only on his own press.
 //
+//   AND SINCE PHASE 348 TWO MORE, `POST /v1/remove` and `POST /v1/paste`
+//   (build/p348/SPEC.md D27, D28, D54, D55), through the same one
+//   `signedPost`: Remove names ONE session that has ended and nothing else
+//   (`{session, write}`), with a fresh write id every press and none kept; a
+//   paste is his clipboard's text as ONE write on the Terminal's kept typing
+//   line, with the question id and the window's mark of the picture he
+//   pasted against (`{dialog, session, text, turn, write}`). Each answer is a
+//   shape of its own with an open reason (`PocketRemoveAnswer`,
+//   `PocketPasteAnswer`), read by `RemoveResult` and `PasteResult` exactly as
+//   `StartResult` reads a start's.
+//
 // It never logs: not a header, not a key, not a signature, not a line of the
 // conversation. Its failures are `DoorFailure` cases with no words in them;
 // the screens draw each one with a sentence from Copy.swift.
@@ -336,6 +347,27 @@ final class DoorClient: DoorExchanging {
         await signedPost(route: .start(project: project, agent: agent), door: door, limits: limits, write: write).asStart
     }
 
+    // MARK: Remove and paste (Phase 348), signed, over the identity
+
+    /// `POST /v1/remove`: ask the Mac to remove ONE session that has ended,
+    /// which it moves to Past Sessions after asking both of its gates again by
+    /// id (build/p348/SPEC.md D48). A fresh write id every press and NONE kept,
+    /// so a repeat is a new write, which the Mac answers `gone` once the first
+    /// landed (D55). Never retried.
+    func remove(_ sessionId: String, door: PairedDoor) async -> RemoveResult {
+        await signedPost(route: .remove(session: sessionId), door: door, limits: limits, write: nil).asRemove
+    }
+
+    /// `POST /v1/paste`: ONE paste of his clipboard's text, exactly as it was
+    /// read, carrying the question id and the window's mark of the picture he
+    /// pasted against, which the Mac compares while a question is drawn
+    /// (D50). On the Terminal's kept typing line, beside the keys, a fresh
+    /// write id, never retried and never split (D54).
+    func paste(_ sessionId: String, text: String, turn: String, dialog: String?, line: DoorLine, door: PairedDoor) async -> PasteResult {
+        let route = WriteRoute.paste(session: sessionId, text: text, turn: turn, dialog: dialog)
+        return await signedPost(route: route, door: door, limits: limits, write: nil, line: line).asPaste
+    }
+
     // MARK: The Terminal's history (Phase 337.1), on its side line
 
     /// `GET /v1/scrollback?id=&from=&count=&depth=&wrap=&keep=`
@@ -386,6 +418,9 @@ final class DoorClient: DoorExchanging {
     static let keysTarget = "/v1/keys"
     /// Phase 346: start one session.
     static let startTarget = "/v1/start"
+    /// Phase 348: remove one ended session, and paste into one.
+    static let removeTarget = "/v1/remove"
+    static let pasteTarget = "/v1/paste"
 
     static func sessionTarget(_ sessionId: String) -> String {
         "/v1/session?id=\(queryValue(sessionId))"
@@ -493,13 +528,14 @@ final class DoorClient: DoorExchanging {
     /// build/p318/SPEC.md section 5.7.1 and build/p337/SPEC.md section 5.8.2):
     /// a write id, the body with sorted keys, the signature over `POST`, the
     /// path and the body, and the phone's identity presented. Called by `end`,
-    /// `choose`, `say`, `keys` and, since Phase 346, `start` alone, once per
-    /// press, and never in a loop: nothing retries a write. It answers how the
+    /// `choose`, `say`, `keys`, since Phase 346 `start`, and since Phase 348
+    /// `remove` and `paste` alone, once per press, and never in a loop:
+    /// nothing retries a write. It answers how the
     /// exchange ended (`PostEnd`), which each verb reads as its own result. A keys write goes on the Screen's kept `line`,
     /// which carries it only while idle under 4 s (`DoorLine`), and is never
     /// sent again on another.
     ///
-    /// THE ID. `end`, `choose` and `keys` always pass nil, and so do a new
+    /// THE ID. `end`, `choose`, `keys`, `remove` and `paste` always pass nil, and so do a new
     /// message and a new start: `WriteId.fresh()` makes one here. The ids that
     /// are ever handed in are a message's or a start's whose answer did not
     /// come (Revision R13, build/p346/SPEC.md D17), used as they are when well
@@ -530,6 +566,10 @@ final class DoorClient: DoorExchanging {
                 body = try encoder.encode(KeysBody(dialog: dialog, keys: keys, session: session, turn: turn, write: id))
             case .start(let project, let agent):
                 body = try encoder.encode(StartBody(agent: agent, project: project, write: id))
+            case .remove(let session):
+                body = try encoder.encode(RemoveBody(session: session, write: id))
+            case .paste(let session, let text, let turn, let dialog):
+                body = try encoder.encode(PasteBody(dialog: dialog, session: session, text: text, turn: turn, write: id))
             }
             headers = try door.signer.headers(
                 method: "POST",
@@ -694,6 +734,11 @@ enum WriteRoute: Equatable, Sendable {
     /// Phase 346: one session, in a project the Mac offered, with an agent
     /// installed there. Two ids, and nothing else.
     case start(project: String, agent: String)
+    /// Phase 348: remove ONE session that has ended. Its id, and nothing else.
+    case remove(session: String)
+    /// Phase 348: one paste of his clipboard's text, with the question id and
+    /// the window's mark of the picture he pasted against.
+    case paste(session: String, text: String, turn: String, dialog: String?)
 
     var target: String {
         switch self {
@@ -702,19 +747,22 @@ enum WriteRoute: Equatable, Sendable {
         case .say: DoorClient.sayTarget
         case .keys: DoorClient.keysTarget
         case .start: DoorClient.startTarget
+        case .remove: DoorClient.removeTarget
+        case .paste: DoorClient.pasteTarget
         }
     }
 
-    /// The verb a session write's answer must name. Nil for a start, whose
-    /// answer is `PocketStartAnswer` and whose classifier (`StartResult.of`)
-    /// reads its own verb and never this one.
+    /// The verb a session write's answer must name. Nil for a start, a remove
+    /// and a paste, whose answers are shapes of their own (Phase 346, 348)
+    /// and whose classifiers (`StartResult.of`, `RemoveResult.of`,
+    /// `PasteResult.of`) read their own verbs and never this one.
     var verb: PocketWriteAnswer.Verb? {
         switch self {
         case .end: .end
         case .choose: .choose
         case .say: .say
         case .keys: .keys
-        case .start: nil
+        case .start, .remove, .paste: nil
         }
     }
 }
@@ -789,6 +837,43 @@ struct StartBody: Encodable, Sendable {
     let agent: String
     let project: String
     let write: String
+}
+
+/// `POST /v1/remove`'s body (Phase 348, D28): exactly these two keys
+/// (`session,write`), read strictly by the Mac, which refuses any other key.
+/// No batch: no Mac batch removes (conformance:manager T8). Encoded with
+/// sorted keys.
+struct RemoveBody: Encodable, Sendable {
+    let session: String
+    let write: String
+}
+
+/// `POST /v1/paste`'s body (Phase 348, D28): exactly these five keys
+/// (`dialog,session,text,turn,write`), read strictly by the Mac. `text` is his
+/// clipboard's text exactly as it was read, never trimmed or rewritten, which
+/// the Mac takes as it is (at most 16,384 bytes of UTF-8, refused whole above
+/// that and never split, D29); `turn` and `dialog` are the picture's own at
+/// his press, echoed, so the Mac's question lock compares the picture he
+/// pasted against (D31). `dialog` is written as `null` when the picture had
+/// none, because the Mac reads the key as always present. Nothing here is a
+/// size: the phone never sizes the Mac. Encoded with sorted keys.
+struct PasteBody: Encodable, Sendable {
+    let dialog: String?
+    let session: String
+    let text: String
+    let turn: String
+    let write: String
+
+    enum CodingKeys: String, CodingKey { case dialog, session, text, turn, write }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(dialog, forKey: .dialog)
+        try c.encode(session, forKey: .session)
+        try c.encode(text, forKey: .text)
+        try c.encode(turn, forKey: .turn)
+        try c.encode(write, forKey: .write)
+    }
 }
 
 /// A write's id: 128 bits from the system's random source, as 32 lowercase
@@ -913,6 +998,28 @@ enum PostEnd: Sendable {
             SentStart(result: StartResult.of(end, sent: write), write: write)
         }
     }
+
+    /// A Remove's result (Phase 348's `RemoveResult.of`). No id is handed
+    /// back: none is kept.
+    var asRemove: RemoveResult {
+        switch self {
+        case .notSent(let failure, _):
+            .notSent(failure)
+        case .ended(let end, let write):
+            RemoveResult.of(end, sent: write)
+        }
+    }
+
+    /// A paste's result (Phase 348's `PasteResult.of`). No id is handed back:
+    /// a paste is never sent again.
+    var asPaste: PasteResult {
+        switch self {
+        case .notSent(let failure, _):
+            .notSent(failure)
+        case .ended(let end, let write):
+            PasteResult.of(end, sent: write)
+        }
+    }
 }
 
 /// What is TRUE of one start once it ended (Phase 346, D25), classified
@@ -968,6 +1075,100 @@ enum StartResult: Equatable, Sendable {
 struct SentStart: Equatable, Sendable {
     let result: StartResult
     let write: String?
+}
+
+/// What is TRUE of one Remove once it ended (Phase 348, D55), classified
+/// exactly as `StartResult` is. Never retried, and no id is kept: a new press
+/// is a new write id, and a repeat of a Remove that landed answers `gone`.
+enum RemoveResult: Equatable, Sendable {
+    /// 200, and the answer named the remove and echoed the id this write
+    /// carried (or `""` with `refused` `malformed`): what the Mac decided, in
+    /// its own words.
+    case answered(PocketRemoveAnswer)
+    /// 404: the door's own refusal, made before anything was removed. A Mac
+    /// whose Allow of `remove` waits answers so before the body.
+    case notTaken
+    /// The bytes were handed to the connection and no answer this build can
+    /// read came back: the Mac may have removed the session, once.
+    case noAnswer
+    /// It failed BEFORE its bytes were handed, so the Mac saw none of it.
+    /// `.cancelled` is a Remove WITHHELD because the app left.
+    case notSent(DoorFailure)
+
+    /// The Remove was withheld when the app left: never sent.
+    var withheld: Bool {
+        self == .notSent(.cancelled)
+    }
+
+    /// One exchange's end, read as a Remove's result. Classified by `handed`:
+    /// a failure before the bytes were handed is `notSent`, after it
+    /// `noAnswer`. A 200 is an answer only when it names the remove and
+    /// echoes the id this write carried.
+    static func of(_ end: ExchangeEnd, sent: String) -> RemoveResult {
+        switch end.result {
+        case .failure(let error):
+            guard end.handed else { return .notSent(error as? DoorFailure ?? .notPaired) }
+            return .noAnswer
+        case .success(let reply):
+            switch reply.status {
+            case 200:
+                guard let answer = try? JSONDecoder().decode(PocketRemoveAnswer.self, from: reply.body),
+                      answer.verb == "remove",
+                      answer.write == sent || answer.echoesNoId else { return .noAnswer }
+                return .answered(answer)
+            case 404:
+                return .notTaken
+            default:
+                return .noAnswer
+            }
+        }
+    }
+}
+
+/// What is TRUE of one paste once it ended (Phase 348, D54), classified
+/// exactly as `StartResult` is. Never retried and never split: the key sender
+/// sends a paste once, and a new paste is a new write id.
+enum PasteResult: Equatable, Sendable {
+    /// 200, and the answer named the paste and echoed the id this write
+    /// carried (or `""` with `refused` `malformed`).
+    case answered(PocketPasteAnswer)
+    /// 404: the door's own refusal, made before anything was pasted. A Mac
+    /// whose Allow of `paste` waits answers so before the body.
+    case notTaken
+    /// The bytes were handed to the connection and no answer this build can
+    /// read came back: the Mac may have pasted it, once.
+    case noAnswer
+    /// It failed BEFORE its bytes were handed, so the Mac saw none of it.
+    /// `.cancelled` is a paste WITHHELD because the app left.
+    case notSent(DoorFailure)
+
+    /// The paste was withheld when the app left: never sent.
+    var withheld: Bool {
+        self == .notSent(.cancelled)
+    }
+
+    /// One exchange's end, read as a paste's result. Classified by `handed`,
+    /// and a 200 is an answer only when it names the paste and echoes the id
+    /// this write carried.
+    static func of(_ end: ExchangeEnd, sent: String) -> PasteResult {
+        switch end.result {
+        case .failure(let error):
+            guard end.handed else { return .notSent(error as? DoorFailure ?? .notPaired) }
+            return .noAnswer
+        case .success(let reply):
+            switch reply.status {
+            case 200:
+                guard let answer = try? JSONDecoder().decode(PocketPasteAnswer.self, from: reply.body),
+                      answer.verb == "paste",
+                      answer.write == sent || answer.echoesNoId else { return .noAnswer }
+                return .answered(answer)
+            case 404:
+                return .notTaken
+            default:
+                return .noAnswer
+            }
+        }
+    }
 }
 
 // MARK: - The pin

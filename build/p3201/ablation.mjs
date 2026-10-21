@@ -42,7 +42,15 @@
  * its one exec (140), `k21` and `k22` the live address first and no carriage
  * row (141), and `k23` the closed list of control-connection writers (101,
  * which the page round joins through read.ts's one statement); `k12` was re-pointed where the far live read
- * now begins with its first display. 123 in all.
+ * now begins with its first display. 123 in all. PHASE 348 (build/p348/SPEC.md
+ * §7.4) re-pointed `k10`, `k16`, `k21` and `k22` where each far reader's one
+ * exec moved into its `readOn` (the wrap marks' road picks the composer's
+ * argv, and a marked read that fails is taken once more without marks), and
+ * added 4 for the marks' reads that ride those execs: `k24` the live read's
+ * flags road losing its -F and `k25` its marked shape answered under the
+ * other road's guard (124 widened), `k26` the fallback page's -J capture
+ * losing its range and `k27` the page's flags road reading -J (140 widened).
+ * 127 in all.
  *
  * A GREEN GATE IS ONLY EVIDENCE IF IT CAN GO RED. Phase 320.1 opens the first
  * interactive write path on a machine's control connection, the carriage
@@ -1320,8 +1328,9 @@ export const ABLATIONS = [
     name: 'the far screen read twice an exec',
     why: 'a far screen is read by ONE exec of capture-pane and display-message, the exec plane\'s ledger read.',
     file: REMOTE_SCREEN,
-    from: '    stdout = await execOn(ctx, remoteScreenArgv(address.tmuxId), { timeoutMs });',
-    to: '    await execOn(ctx, remoteScreenArgv(address.tmuxId), { timeoutMs });\n    stdout = await execOn(ctx, remoteScreenArgv(address.tmuxId), { timeoutMs });'
+    // Phase 348 moved it into readOn, where the road picks the argv.
+    from: '      stdout = await execOn(ctx, remoteScreenArgv(tmuxId, road), { timeoutMs });',
+    to: '      await execOn(ctx, remoteScreenArgv(tmuxId, road), { timeoutMs });\n      stdout = await execOn(ctx, remoteScreenArgv(tmuxId, road), { timeoutMs });'
   },
   {
     n: 'k11',
@@ -1389,8 +1398,9 @@ export const ABLATIONS = [
     name: 'a far page exec handed an argv written in its reader',
     why: 'every far exec is handed remoteScreenArgv( or remoteScrollbackArgv(, the two composers no caller string reaches (D10).',
     file: REMOTE_SCREEN,
-    from: '    stdout = await execOn(ctx, remoteScrollbackArgv(address.tmuxId, a, b), { timeoutMs });',
-    to: "    stdout = await execOn(ctx, ['capture-pane', '-p', '-e', '-t', address.tmuxId, '-S', String(a), '-E', String(b)], { timeoutMs });"
+    // Phase 348 moved it into readOn, where the road picks the argv.
+    from: '      stdout = await execOn(ctx, remoteScrollbackArgv(tmuxId, a, b, road), { timeoutMs });',
+    to: "      stdout = await execOn(ctx, ['capture-pane', '-p', '-e', '-t', tmuxId, '-S', String(a), '-E', String(b)], { timeoutMs });"
   },
   {
     n: 'k17',
@@ -1439,8 +1449,9 @@ export const ABLATIONS = [
     name: 'the far page read past an address that is not live',
     why: 'a $N a far restart handed to somebody else\'s session is never read: the page asks the live address first and answers unreachable for anything else (§5.3.5).',
     file: REMOTE_SCREEN,
-    from: "  timeoutMs: number\n): Promise<PageRound | 'unreachable' | null> {\n  const address = remoteScrollAddress(sessionId);\n  if (address.kind !== 'live') return 'unreachable';\n",
-    to: "  timeoutMs: number\n): Promise<PageRound | 'unreachable' | null> {\n  const address = remoteScrollAddress(sessionId);\n"
+    // Phase 348 gave the reader the marks' owner as its fifth parameter.
+    from: "  timeoutMs: number,\n  marks?: FarMarksRoads\n): Promise<PageRound | 'unreachable' | null> {\n  const address = remoteScrollAddress(sessionId);\n  if (address.kind !== 'live') return 'unreachable';\n",
+    to: "  timeoutMs: number,\n  marks?: FarMarksRoads\n): Promise<PageRound | 'unreachable' | null> {\n  const address = remoteScrollAddress(sessionId);\n"
   },
   {
     n: 'k22',
@@ -1449,8 +1460,9 @@ export const ABLATIONS = [
     name: 'the far page read leaves copy mode on its way',
     why: 'a page is a read over the exec plane; it names no carriage row, no send-keys and no copy-mode, so it never moves a pane he is reading at the Mac (§5.3.5).',
     file: REMOTE_SCREEN,
-    from: '    stdout = await execOn(ctx, remoteScrollbackArgv(address.tmuxId, a, b), { timeoutMs });',
-    to: "    void ['copy-mode', '-q'];\n    stdout = await execOn(ctx, remoteScrollbackArgv(address.tmuxId, a, b), { timeoutMs });"
+    // Phase 348 moved it into readOn, where the road picks the argv.
+    from: '      stdout = await execOn(ctx, remoteScrollbackArgv(tmuxId, a, b, road), { timeoutMs });',
+    to: "      void ['copy-mode', '-q'];\n      stdout = await execOn(ctx, remoteScrollbackArgv(tmuxId, a, b, road), { timeoutMs });"
   },
   {
     n: 'k23',
@@ -1461,6 +1473,49 @@ export const ABLATIONS = [
     file: 'src/main/screen/compose.ts',
     from: 'export function spaceOf(',
     to: "export const poke = (c: { sendCommand(line: string): Promise<string[]> }): Promise<string[]> => c.sendCommand('refresh-client');\nexport function spaceOf("
+  },
+  // PHASE 348 (build/p348/SPEC.md D44, §7.4): the wrap marks ride the far
+  // reads' one exec by the road the marks' owner hands in, and nothing else
+  // moves (124 and 140 widened).
+  {
+    n: 'k24',
+    check: 'machines',
+    owner: 'C124',
+    name: "the far live read's flags road losing its -F",
+    why: 'on a server of 3.7b or later the styled capture itself takes -F and no command is added (D44); a flags road that reads no letters marks nothing while saying it does.',
+    file: REMOTE_SCREEN,
+    from: /('capture-pane', '-p', '-e', )'-F', ('-t', tmuxId, ';',\n)/,
+    to: (_m, a, b) => `${a}${b}`
+  },
+  {
+    n: 'k25',
+    check: 'machines',
+    owner: 'C124',
+    name: "the far live read's flags shape answered under the fallback road's guard",
+    why: 'each marked read is chosen by the road the marks\' owner hands in, by the running server\'s version (D44); a shape under the wrong road sends a far 3.6a server an -F it refuses.',
+    file: REMOTE_SCREEN,
+    from: /if \(road === 'flags'\) \{(\n\s*return \['display-message', '-p', '-t', tmuxId, SCREEN_FORMAT, ';', 'capture-pane', '-p', '-e', '-F', '-t', tmuxId, ';',)/,
+    to: (_m, rest) => `if (road === 'fallback') {${rest}`
+  },
+  {
+    n: 'k26',
+    check: 'machines',
+    owner: 'C140',
+    name: "the fallback page's -J capture losing its range",
+    why: 'the fallback\'s two added captures read the SAME range as the styled capture (D44), or the -J lines line up against rows of another part of the history and mark the wrong rows.',
+    file: REMOTE_SCREEN,
+    from: /('capture-pane', '-p', '-J', '-t', tmuxId), '-S', start, '-E', end(, ';',)/,
+    to: (_m, a, b) => `${a}${b}`
+  },
+  {
+    n: 'k27',
+    check: 'machines',
+    owner: 'C140',
+    name: "the far page's flags road reading -J",
+    why: 'a page on the flags road is today\'s capture with -F and nothing else (D44); -J joins the rows tmux wrapped and changes what the composer is handed.',
+    file: REMOTE_SCREEN,
+    from: /('capture-pane', '-p', '-e', )'-F'(, '-t', tmuxId, '-S', start, '-E', end, ';',)/,
+    to: (_m, a, b) => `${a}'-J'${b}`
   },
   {
     n: 'r13',

@@ -131,6 +131,15 @@
 // trim listener (tmux reports none, so the depth and the overlap stand in);
 // its 1,000-line default.
 //
+// A MARK PER INDEX (Phase 348, build/p348/SPEC.md D43, D46). Every row held
+// keeps whether its line goes on into the next row, as the page or the live
+// picture that drew it said: a page's own marks (`wraps`, indices into its
+// rows, its last row never listed), a carried row the live picture's. A
+// page's LAST row never overwrites a mark the phone already holds for its
+// index, because the Mac never marks a page's last row: it cannot say from
+// the page whether that line goes on. Copy joins by them
+// (Screens/ScreenSelection.swift).
+//
 // NOTHING IS KEPT. Every row lives in memory while the Terminal is up, and
 // nothing is written, cached or logged. Every whole number the door sends is
 // taken through `DoorNumber`, which cannot trap (conformance:ios rule k).
@@ -430,7 +439,8 @@ struct ScrollbackLayout: Equatable, Sendable {
         guard shown == k || mode == .following else { return nil }
         for (place, row) in last.rows.prefix(shown).enumerated() {
             let index = Self.plus(live, place)
-            held[index] = ScrollbackRow(row: ScreenRowModel(index: index, runs: row.runs, holds: holds), styles: last.styles, carried: true)
+            // The live picture's mark goes with the row (Phase 348, D43).
+            held[index] = ScrollbackRow(row: ScreenRowModel(index: index, runs: row.runs, holds: holds, wrapped: row.wrapped), styles: last.styles, carried: true)
         }
         hi = depth
         return Self.less(k, shown)
@@ -630,13 +640,20 @@ struct ScrollbackLayout: Equatable, Sendable {
             return .moved
         }
         let styles = page.styles.map(ScreenStyle.init)
+        // The page's marks (Phase 348, D43): its last row is never marked by
+        // the Mac, so it keeps the mark the phone already holds for its
+        // index, if any, and never overwrites a known one.
+        let marks = Set(page.wraps)
+        let lastOffset = page.rows.indices.last
         var rows: [Int: ScrollbackRow] = [:]
         for (offset, runs) in page.rows.enumerated() {
             let index = Self.plus(from, offset)
+            let wrapped = offset == lastOffset ? held[index]?.row.wrapped ?? false : marks.contains(offset)
             let row = ScreenRowModel(
                 index: index,
                 runs: runs.map { ScreenRun(text: $0.text, styleIndex: $0.runStyle, span: $0.runCells) },
-                holds: holds
+                holds: holds,
+                wrapped: wrapped
             )
             rows[index] = ScrollbackRow(row: row, styles: styles)
         }

@@ -548,7 +548,8 @@ const ARMS = [
   { id: 'C2', control: true, what: 'the Mac adds a GET row /v1/probe with a new id', edits: [
     { file: 'src/main/pocket/door/table.ts', find: "  { id: 'scrollback', method: 'GET', path: '/v1/scrollback', reads: true, windowOnly: false, signed: true },\n", to: "  { id: 'scrollback', method: 'GET', path: '/v1/scrollback', reads: true, windowOnly: false, signed: true },\n  { id: 'probe', method: 'GET', path: '/v1/probe', reads: true, windowOnly: false, signed: true },\n" },
     // Phase 346 moved its anchor: the route id list ends on start (build/p346/SPEC.md D4).
-    { file: 'src/shared/ipc/pocket.ts', find: "  'start'\n] as const;", to: "  'start',\n  'probe'\n] as const;" }
+    // Phase 348 moved it again: the list ends on paste, after remove (build/p348/SPEC.md D26).
+    { file: 'src/shared/ipc/pocket.ts', find: "  'paste'\n] as const;", to: "  'paste',\n  'probe'\n] as const;" }
   ] },
   { id: 'C3', control: true, what: 'the phone reads a new key with decodeIfPresent in PocketBlockedAnswer', edits: [
     { file: 'ios/Tortie/Door/Contract.swift', find: 'enum CodingKeys: String, CodingKey { case rows, others, othersOmitted, at, emptyLine, ageNote }', to: 'enum CodingKeys: String, CodingKey { case rows, others, othersOmitted, at, emptyLine, ageNote, macVersion }' },

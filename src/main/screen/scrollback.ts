@@ -53,6 +53,14 @@
  * `display-message -p` with `SCREEN_FORMAT` and `capture-pane -p -e` with two
  * whole numbers main computed and checked; it reads no error's text, holds
  * nothing on disk, and drops a refused attempt's capture unsent and unkept.
+ *
+ * THE WRAP MARKS (Phase 348, build/p348/SPEC.md §4.6 step 15, D43, D44): each
+ * round reads them in its own statement by the road the marks' owner hands in
+ * (./watch.ts `createScreenMarksRoads`): on `flags` the styled capture takes
+ * `-F` and nothing else moves; on `fallback` its range's `-p -T -N` and `-p
+ * -J` captures ride the same statement, split by count from both ends. A
+ * marked round that fails is taken once more without marks, and the owner is
+ * told when that one answers. The page answer carries `wraps` when it has one.
  */
 
 import {
@@ -70,21 +78,26 @@ import { execTmux } from '../tmux';
 import { composePageSteps, spaceOf, type ComposedPage } from './compose';
 import {
   agree,
+  fallbackMarksOf,
   lineOf,
   pageLineCount,
   SCREEN_FORMAT,
+  splitScrollbackMarkedRead,
   splitScrollbackRead,
   statementOverControl,
+  type MarksRoad,
   type PageRound,
   type ScreenCore,
   type ScreenSpawn
 } from './read';
 import {
+  NO_MARKS_ROADS,
   SCREEN_DUTY_FACTOR,
   SCREEN_LOCAL_READ_DEADLINE_MS,
   SCREEN_REMOTE_READ_DEADLINE_MS,
   SCREEN_TICK_MS,
-  SCREEN_TICK_REMOTE_MS
+  SCREEN_TICK_REMOTE_MS,
+  type ScreenMarksRoads
 } from './watch';
 
 /** The rows read above the page's first row, so lines arriving since the phone's picture still leave it covered (D9). */
@@ -124,6 +137,14 @@ export interface ScreenScrollbackDeps {
   now?(): number;
   /** Hand the event loop back between two steps of a composition. Production: `setImmediate`. Tests inject. */
   handBack?(): Promise<void>;
+  /**
+   * THE MARKS' OWNER (Phase 348, D44): which captures carry the wrap marks on
+   * this Mac's server and on each machine's. Production: the one keeper
+   * src/main/capabilities.ts builds and hands the watcher too. Absent, no
+   * marks and no version read (./watch.ts `NO_MARKS_ROADS`). An injected
+   * round reader is handed no road.
+   */
+  marks?: ScreenMarksRoads;
 }
 
 export interface ScreenScrollback {
@@ -185,11 +206,35 @@ function pageRange(from: number, count: number, h0: number): { a: number; b: num
   return { a, b };
 }
 
-/** A round's two argvs (D9, D15): the display with the one format, and the capture of tmux lines `a` to `b`. */
-function roundArgvs(tmuxId: string, a: number, b: number): { display: string[]; capture: string[] } {
+/**
+ * A round's argvs (D9, D15): the display with the one format, and the capture
+ * of tmux lines `a` to `b`; on the `flags` road (Phase 348, D44) the capture
+ * takes `-F`, and on `fallback` the same range's `-p -T -N` and `-p -J` are
+ * the extras.
+ */
+function roundArgvs(
+  tmuxId: string,
+  a: number,
+  b: number,
+  road: MarksRoad = 'none'
+): { display: string[]; capture: string[]; extras: string[][] } {
+  // One capture verb, its flags by the road: the styled capture, and on the
+  // fallback road the rows with their used cells and the lines joined.
+  const capture = (flags: readonly string[]): string[] => [
+    'capture-pane',
+    '-p',
+    ...flags,
+    '-t',
+    tmuxId,
+    '-S',
+    String(a),
+    '-E',
+    String(b)
+  ];
   return {
     display: ['display-message', '-p', '-t', tmuxId, SCREEN_FORMAT],
-    capture: ['capture-pane', '-p', '-e', '-t', tmuxId, '-S', String(a), '-E', String(b)]
+    capture: capture(road === 'flags' ? ['-e', '-F'] : ['-e']),
+    extras: road === 'fallback' ? [capture(['-T', '-N']), capture(['-J'])] : []
   };
 }
 
@@ -199,26 +244,64 @@ function roundArgvs(tmuxId: string, a: number, b: number): { display: string[]; 
  * with the client down, ONE spawned `tmux` carrying the three as a `;` list,
  * split by count from its first display. Null on any failure.
  */
+async function readLocalRoundOn(
+  core: ScreenCore,
+  tmuxId: string,
+  a: number,
+  b: number,
+  spawn: ScreenSpawn,
+  road: MarksRoad
+): Promise<{ round: PageRound; marksRefused: boolean } | null> {
+  const { display, capture, extras } = roundArgvs(tmuxId, a, b, road);
+  if (core.control.connected) {
+    // ./read.ts's one statement: display, capture, the road's extras, display, in one tick.
+    const three = await statementOverControl(core.control, lineOf(display), lineOf(capture), extras.map(lineOf));
+    if (three === null) return null;
+    const folded = road === 'fallback' ? fallbackMarksOf(three.captured, three.extras) : null;
+    const marks = road === 'flags' ? ({ road: 'flags' } as const) : folded;
+    return {
+      round: { first: three.first, rows: three.captured, last: three.last, ...(marks === null ? {} : { marks }) },
+      marksRefused: road === 'fallback' && three.extras.some((one) => one === null)
+    };
+  }
+  let stdout: string;
+  try {
+    stdout = await spawn([...display, ';', ...capture, ';', ...extras.flatMap((argv) => [...argv, ';']), ...display], {
+      timeoutMs: SCREEN_LOCAL_READ_DEADLINE_MS
+    });
+  } catch {
+    return null;
+  }
+  const split = road === 'fallback' ? splitScrollbackMarkedRead(stdout, a, b) : splitScrollbackRead(stdout, a, b);
+  if (split === null) return null;
+  return { round: road === 'flags' ? { ...split, marks: { road: 'flags' } } : split, marksRefused: false };
+}
+
+/**
+ * ONE ROUND ON THIS MAC on the road the owner chose (Phase 348, D44), and a
+ * marked round that failed taken once more without marks: when that one
+ * answers, `onRefused` is told, so a wrong version costs the marks and never
+ * the page.
+ */
 async function readLocalRound(
   core: ScreenCore,
   tmuxId: string,
   a: number,
   b: number,
-  spawn: ScreenSpawn
+  spawn: ScreenSpawn,
+  road: MarksRoad = 'none',
+  onRefused?: () => void
 ): Promise<PageRound | null> {
-  const { display, capture } = roundArgvs(tmuxId, a, b);
-  if (core.control.connected) {
-    // ./read.ts's one statement: display, capture, display, in one tick.
-    const three = await statementOverControl(core.control, lineOf(display), lineOf(capture));
-    return three === null ? null : { first: three.first, rows: three.captured, last: three.last };
+  const marked = await readLocalRoundOn(core, tmuxId, a, b, spawn, road);
+  if (marked !== null) {
+    if (marked.marksRefused) onRefused?.();
+    return marked.round;
   }
-  let stdout: string;
-  try {
-    stdout = await spawn([...display, ';', ...capture, ';', ...display], { timeoutMs: SCREEN_LOCAL_READ_DEADLINE_MS });
-  } catch {
-    return null;
-  }
-  return splitScrollbackRead(stdout, a, b);
+  if (road === 'none') return null;
+  const plain = await readLocalRoundOn(core, tmuxId, a, b, spawn, 'none');
+  if (plain === null) return null;
+  onRefused?.();
+  return plain.round;
 }
 
 /** What one raced round came to. */
@@ -317,12 +400,20 @@ interface Lane {
 export function createScreenScrollback(deps: ScreenScrollbackDeps): ScreenScrollback {
   const now = deps.now ?? ((): number => performance.now());
   const handBack = deps.handBack ?? nextTurn;
+  // PHASE 348 (D44): the marks' owner, shared with the watcher in production;
+  // with none, no marks and no version read.
+  const marks = deps.marks ?? NO_MARKS_ROADS;
   const readLocalRounds =
     deps.readLocalRounds ??
-    ((core: ScreenCore, tmuxId: string, a: number, b: number) => readLocalRound(core, tmuxId, a, b, execTmux));
+    ((core: ScreenCore, tmuxId: string, a: number, b: number) =>
+      readLocalRound(core, tmuxId, a, b, execTmux, marks.local(core), () => marks.localRefused()));
   const readRemoteRounds =
     deps.readRemoteRounds ??
-    ((sessionId: string, a: number, b: number) => readScrollbackRemote(sessionId, a, b, SCREEN_REMOTE_READ_DEADLINE_MS));
+    ((sessionId: string, a: number, b: number) =>
+      readScrollbackRemote(sessionId, a, b, SCREEN_REMOTE_READ_DEADLINE_MS, {
+        road: (machineId) => marks.far(machineId),
+        refused: (machineId) => marks.farRefused(machineId)
+      }));
   const lanes = new Map<string, Lane>();
 
   const laneOf = (sessionId: string): Lane => {
@@ -487,11 +578,18 @@ export function createScreenScrollback(deps: ScreenScrollbackDeps): ScreenScroll
       // COMPOSE, a step at a time, handing the event loop back once the steps
       // have held it PAGE_SLICE_MS, and timed for the duty cycle (the fix
       // round): the time is the steps' own, never the waits between them.
-      const steps = composePageSteps(rows.join('\n'), firstIndex, last.cols, {
-        from: ask.from,
-        count: Math.min(ask.count, h1 - ask.from),
-        keep: ask.keep
-      });
+      const steps = composePageSteps(
+        rows.join('\n'),
+        firstIndex,
+        last.cols,
+        {
+          from: ask.from,
+          count: Math.min(ask.count, h1 - ask.from),
+          keep: ask.keep
+        },
+        // PHASE 348 (D44): what the round carried for the marks.
+        outcome.marks
+      );
       const composing = composeInSteps(steps, closing, now, handBack).then(
         (value) => value,
         () => null
@@ -500,8 +598,8 @@ export function createScreenScrollback(deps: ScreenScrollbackDeps): ScreenScroll
       if (done === null || done === 'closing' || done === 'late') return answer(absent(id, 'unreachable'));
       lane.lastComposeMs = done.ms;
       const composed = done.page;
-      // 5. THE ANSWER.
-      return answer({
+      // 5. THE ANSWER, with its wrap marks when it has any (Phase 348, D43).
+      const page: PocketScrollbackAnswer = {
         sessionId: id,
         at: Date.now(),
         from: composed.from,
@@ -512,7 +610,9 @@ export function createScreenScrollback(deps: ScreenScrollbackDeps): ScreenScroll
         rows: composed.rows,
         why: null,
         sentence: null
-      });
+      };
+      if (composed.wraps.length > 0) page.wraps = composed.wraps;
+      return answer(page);
     }
     // 4. No attempt agreed and covered.
     return answer(absent(id, 'busy'));

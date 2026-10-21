@@ -481,16 +481,18 @@ describe('the lines a person reads are exactly the hashed facts', () => {
     // Screen's read and write (build/p337/SPEC.md D35); PHASE 337.1 the
     // Screen's history, by derivation from the hashed route list
     // (build/p3371/SPEC.md D1, D35); PHASE 346 the phone's start
-    // (build/p346/SPEC.md D1), because BASE allows every route this build has.
+    // (build/p346/SPEC.md D1), and PHASE 348 Remove and paste
+    // (build/p348/SPEC.md D26), because BASE allows every route this build has.
     expect(lines[3]).toBe(
-      'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, scrollback, session, sessions, start, turns'
+      'Answers these and nothing else: blocked, choose, end, keys, pair, paste, remove, say, screen, scrollback, session, sessions, start, turns'
     );
     // PHASE 317: what the writes let a phone do, in words, straight after;
     // PHASE 318 joins its two as a list (build/p318/SPEC.md §5.1.7, D28);
-    // PHASE 337 adds the keys' clause, and PHASE 346 the start's last, the
-    // closed list's order (build/p346/SPEC.md D3, D4).
+    // PHASE 337 adds the keys' clause, PHASE 346 the start's, and PHASE 348
+    // Remove's and paste's last, the closed list's order (build/p346/SPEC.md
+    // D3, D4; build/p348/SPEC.md D26, D32).
     expect(lines[4]).toBe(
-      'Lets an allowed phone end a session, answer a numbered question, send a session one message, type into any session as you would at this Mac and start a session in a project open in Tortie, on this Mac or another machine'
+      'Lets an allowed phone end a session, answer a numbered question, send a session one message, type into any session as you would at this Mac, start a session in a project open in Tortie, on this Mac or another machine, remove a session that has ended and paste text into a session on this Mac'
     );
     expect(lines[5]).toBe('Tells your phone nothing through Apple');
     expect(lines[6]).toBe('Allows no phone yet');
@@ -543,6 +545,8 @@ describe('the lines a person reads are exactly the hashed facts', () => {
       'end',
       'keys',
       'pair',
+      'paste',
+      'remove',
       'say',
       'screen',
       'scrollback',
@@ -565,7 +569,11 @@ describe('the lines a person reads are exactly the hashed facts', () => {
     // never allowed `start` hashes as the eleven, not as BASE.
     const ELEVEN = { ...BASE, routes: [...eleven] };
     expect(pocketExecutionHash(BASE)).not.toBe(pocketExecutionHash(ELEVEN));
-    expect(pocketExecutionHash({ ...BASE, routes: [...eleven, 'start'] })).toBe(pocketExecutionHash(BASE));
+    // PHASE 348: BASE allows the fourteen, so the twelve a 0.112.0 Mac
+    // answered are a door of their own too, and Remove and paste wait for
+    // their own Allow (build/p348/SPEC.md D9, D26).
+    expect(pocketExecutionHash({ ...BASE, routes: [...eleven, 'start', 'remove', 'paste'] })).toBe(pocketExecutionHash(BASE));
+    expect(pocketExecutionHash({ ...BASE, routes: [...eleven, 'start'] })).not.toBe(pocketExecutionHash(BASE));
     const p317 = pocketExecutionHash({ ...BASE, routes: ['pair', 'blocked', 'session', 'turns', 'end'] });
     expect(pocketExecutionHash(ELEVEN)).not.toBe(p317);
     expect(pocketExecutionHash({ ...BASE, routes: [...eleven].reverse() })).toBe(pocketExecutionHash(ELEVEN));

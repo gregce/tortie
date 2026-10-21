@@ -227,6 +227,47 @@
  * `AR9s`, `Z1s`, `O2n`, `SU5b` and `L5s` (L5's exemption is the phone's
  * `pocketStart.start(` alone, so a door start beside it still reds).
  *
+ * PHASE 348 ADDED ONE HUNDRED AND EIGHT (build/p348/SPEC.md §7.1, §7.2), 734
+ * entries in all, at the end of the table, for remove an ended session and
+ * paste from the phone: `RM1a` to `RM7b`, at least one per RM rule (the remove
+ * row window-only, its clause, cap, face and New words moved, remove in the
+ * legacy set, paste said before it, a batch key, the own-bytes check and the
+ * session reader dropped, a sixth answer field and a fifth reason, the gate's
+ * environment with canDiscard false, the shared gate dropped from the verdict
+ * (the only lock on a far row, so the hostile client runs too), End's
+ * environment asked, main's gate dropped, an unknown row answered changed, an
+ * await before the verb, no broadcast, a throw read by its text, a refusal
+ * inside the verb answered failed, the offer made whatever was allowed, set
+ * whatever it answered, copied whole, removeAllowed answering yes, made
+ * without the verdict, a kill in the path and a Face ID sentence); `PS1a` to
+ * `PS8h`, at least one per PS rule (the paste row window-only, its cap halved,
+ * its text bound doubled and re-spelled, its clause losing "on this Mac", the
+ * routes reordered, paste among the session writes, the text trimmed, the turn
+ * read as any string, an enter key, the answer without its reason and a tenth
+ * reason, a Return after the paste (the hostile client too), no -p, an await
+ * before the act, the words loaded after the read, a far session refused
+ * after the load, the words never dropped, pasted starting true (the hostile
+ * client too), a failed load never dropped, the flag on a far session, copied
+ * whatever is served, pasteAllowed answering yes, an absent answer read as yes,
+ * the facts always allowed, the list's message read, a log line, the funnel
+ * told before the act, the alternate screen marked, the ink guard dropped, the
+ * last row listed, the line flags spelled twice, -F from 3.7a, the fallback
+ * from 3.3a, a partly taken -J line still marking, and an unprefixed line read
+ * as unmarked); `PSHw`, ESC let into a paste, red on the hostile client
+ * alone; and one or more per clause the phase widened: `R2w`, `R3w`, `R3x`,
+ * `X1w`, `X1x`, `X2w`, `X3w`, `X4w` (the hostile client too), `X5w`, `X5x`,
+ * `X5y`, `X6w`, `NS1w`, `NS2w`, `NS11w`, `AR9w`, `AR9x`, `Z1w`, `AF2w`, `Y2w`,
+ * `Y3w`, `Y3x`, `Y4w`, `Y4x`, `Y4y`, `Y13w`, `Y15w`, `Z4w`, `Z7w`, `Z8w`,
+ * `Z9w`, `Z9x`, `Z9y`, `Z9z`, `Z11w`, `Z11x`, `Z25w`, `Z20w`, `Z20x`, `Z21w`,
+ * `Z26w` and `Z27w`. The six arms whose literal ended at start were moved with
+ * the routes, each still reddening the rule it owns: `R2e` (the caps object
+ * without say), `Y1b` (the caps unfrozen), `NS1b` (the writes listed with
+ * start first), `R2j` (start's cap doubled), `Z1s` (start taken off the door's
+ * write list) and `SU5b` (a route after the last, now paste). The read gate
+ * runs WITHOUT Phase 348's own self-test inside the clone
+ * (`P313_NO_SELF_TEST=1`, set on the `gate` check below), so an arm is judged
+ * on its rule alone and never on a self-test plant whose text the arm moved.
+ *
  * An ablation that leaves the check green is a hole in the check. An ablation
  * that reddens only rules OTHER than its own is a finding about the check
  * rather than about the build, and it is printed as one.
@@ -285,6 +326,7 @@
  *   P313_ONLY=Q2a,Q2b,Q2c,Q2d,Q2e,Q2f,Q2g,Q2h,Q2i,Q2j,Q2k,Q2l,Q2m,Q2n,Q2o,Q2p,Q2q,Q2r,Q2s,Q2t,Q2u node build/ablation-p313.mjs  Phase 333.12.2's twenty-one
  *   P313_ONLY=NS1a,NS2a,NS3a,NS4a,NS5a,NS6a,NS7a,NS8a,NS9a,NS10a,NS11a,NS12a node build/ablation-p313.mjs  some of Phase 346's
  *   P313_ONLY=NS6e,NS6f,NS6g,NS6h node build/ablation-p313.mjs  the readiness, the ruled round's three plants and the fix round's
+ *   P313_ONLY=RM1a,RM4b,RM5a,PS1b,PS4a,PS8b,PSHw node build/ablation-p313.mjs  some of Phase 348's
  *   P313_ALLOW_RED_BASE=1 node build/ablation-p313.mjs
  */
 
@@ -366,13 +408,24 @@ const LEDGER = 'src/main/pocket/route-ledger.ts';
 const POCKET_START = 'src/main/sessions/pocket-start.ts';
 const START_COPY = 'src/shared/start-copy.ts';
 const RESOLVE = 'src/main/tmux/resolve.ts';
+// PHASE 348: the one buffer helper, the Screen's paste verb, the paste's text
+// rule, the two gate environments, main's Remove gate and the screen's words.
+const BUFFER = 'src/main/reply/buffer.ts';
+const SCREEN_PASTE = 'src/main/screen/paste.ts';
+const TEXT_RULES = 'src/main/reply/text-rules.ts';
+const SESSION_GATES = 'src/shared/session-gates.ts';
+const LIFECYCLE_GATE = 'src/main/sessions/lifecycle-gate.ts';
+const SCREEN_COPY = 'src/shared/screen-copy.ts';
 
 /**
  * The checks this harness runs inside the clone, in order. Each prints its
  * findings as `[p313 <rule>]`, which is what the delta below reads.
  */
 const CHECKS = [
-  ['gate', ['build/conformance-pocket.mjs']],
+  // PHASE 348: the read gate's own self-test breaks clauses in memory, so in
+  // the clone it is skipped and every arm is judged on its rule alone, never
+  // on a self-test plant whose text the arm moved (build/p348/SPEC.md §7.1).
+  ['gate', ['build/conformance-pocket.mjs'], { env: { P313_NO_SELF_TEST: '1' } }],
   ['hostile', ['build/p313/hostile-client.mjs']],
   // PHASE 316.7: the route's own unit fixtures, DRIVEN, for the two arms whose
   // clause a text rule could miss in a shape nobody wrote yet (O2k, O2l). It
@@ -2018,8 +2071,9 @@ const ABLATIONS = [
     file: LIMITS,
     // Phase 337 put keys on this line (D17) and Phase 346 start (D6); the
     // write it drops is still say.
-    from: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512 } as const);',
-    to: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, keys: 16_384, start: 512 } as const);',
+    // Phase 348 put remove and paste on this line (D29); the write it drops is still say.
+    from: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512, remove: 512, paste: 131_072 } as const);',
+    to: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, keys: 16_384, start: 512, remove: 512, paste: 131_072 } as const);',
     needs: ['gate']
   },
   {
@@ -2098,8 +2152,9 @@ const ABLATIONS = [
     name: 'the full ledger’s busy is marked acted',
     why: 'only an answer that speaks for a write that acted, or may be acting, is marked; a busy for a write that never acted, marked, is never replaced and says nothing true.',
     file: WRITES,
-    from: "      // Full: a live entry is never evicted to make room, and this write never acted.\n      return { status: 200, body: writeAnswer(verb, parsed.write, 'busy', null, POCKET_WRITE_SENTENCES.busy) };",
-    to: "      // Full: a live entry is never evicted to make room, and this write never acted.\n      return { status: 200, body: writeAnswer(verb, parsed.write, 'busy', null, POCKET_WRITE_SENTENCES.busy), acted: true };",
+    // Phase 348: every session verb's door answers are composed in its own shape (doorAnswer, D27).
+    from: "      // Full: a live entry is never evicted to make room, and this write never acted.\n      return { status: 200, body: doorAnswer(verb, parsed.write, 'busy', null, POCKET_WRITE_SENTENCES.busy) };",
+    to: "      // Full: a live entry is never evicted to make room, and this write never acted.\n      return { status: 200, body: doorAnswer(verb, parsed.write, 'busy', null, POCKET_WRITE_SENTENCES.busy), acted: true };",
     needs: ['gate']
   },
   {
@@ -2108,7 +2163,8 @@ const ABLATIONS = [
     name: 'a duplicate of a write still in flight gets an unmarked busy',
     why: 'the write it duplicates may be acting now, and a 404 in place of its busy would say it was not (§14 finding 9).',
     file: WRITES,
-    from: /(body: writeAnswer\(verb, parsed\.write, 'busy', null, POCKET_WRITE_SENTENCES\.busy\)),\n\s*acted: true\n\s*\};/,
+    // Phase 348: every session verb's door answers are composed in its own shape (doorAnswer, D27).
+    from: /(body: doorAnswer\(verb, parsed\.write, 'busy', null, POCKET_WRITE_SENTENCES\.busy\)),\n\s*acted: true\n\s*\};/,
     to: (m, body) => body + '\n      };',
     needs: ['gate']
   },
@@ -2249,8 +2305,9 @@ const ABLATIONS = [
     why: 'Restore and Remove stay on the Mac (research 127 §5); a member on the interface is a verb the door can reach.',
     file: ROUTES,
     // Phase 346 made start the interface's last member (D12).
-    from: '  start(input: PocketStartInput, still: PocketStillAllowed): Promise<PocketStartOutcome>;\n}',
-    to: '  start(input: PocketStartInput, still: PocketStillAllowed): Promise<PocketStartOutcome>;\n  restore(input: { sessionId: string }): Promise<PocketEndOutcome>;\n}',
+    // Phase 348 made paste the interface's last member (D26).
+    from: '  paste(input: PocketPasteInput, still: PocketStillAllowed): Promise<PocketPasteOutcome>;\n}',
+    to: '  paste(input: PocketPasteInput, still: PocketStillAllowed): Promise<PocketPasteOutcome>;\n  restore(input: { sessionId: string }): Promise<PocketEndOutcome>;\n}',
     needs: ['gate']
   },
   {
@@ -2802,8 +2859,9 @@ const ABLATIONS = [
     why: 'a cap anything can raise at run time is not a cap.',
     file: LIMITS,
     // Phase 346 put start on this line (D6).
-    from: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512 } as const);',
-    to: 'export const POCKET_WRITE_BODY_CAPS = { end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512 } as const;',
+    // Phase 348 put remove and paste on this line (D29).
+    from: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512, remove: 512, paste: 131_072 } as const);',
+    to: 'export const POCKET_WRITE_BODY_CAPS = { end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512, remove: 512, paste: 131_072 } as const;',
     needs: ['gate']
   },
   {
@@ -2873,9 +2931,10 @@ const ABLATIONS = [
     rule: 'Y4',
     name: 'the message on the argv instead of standard input',
     why: 'a failed tmux command’s text holds its argv (research 135 §4.8), and an argv is in ps for anyone to read; his words go on stdin and nowhere else.',
-    file: WRITER,
-    from: "await run(['load-buffer', '-b', name, '-'], { stdin: Buffer.from(input.text, 'utf8') });",
-    to: "await run(['set-buffer', '-b', name, input.text]);",
+    file: BUFFER,
+    // Phase 348 moved the load into the one buffer helper (D52).
+    from: "    await run(['load-buffer', '-b', name, '-'], { stdin: Buffer.from(text, 'utf8') });",
+    to: "    await run(['set-buffer', '-b', name, text]);",
     needs: ['gate']
   },
   {
@@ -2883,9 +2942,10 @@ const ABLATIONS = [
     rule: 'Y4',
     name: 'the buffer named by the session rather than an id the writer mints',
     why: 'a buffer another write can predict is a buffer another write can paste; the name is the writer’s own random id.',
-    file: WRITER,
-    from: "const name = BUFFER_PREFIX + randomBytes(16).toString('hex');",
-    to: 'const name = BUFFER_PREFIX + input.sessionId;',
+    file: BUFFER,
+    // Phase 348 moved the name's mint into the one buffer helper (D52).
+    from: "  const name = prefix + randomBytes(16).toString('hex');",
+    to: '  const name = prefix + text.length.toString(16);',
     needs: ['gate']
   },
   {
@@ -2894,8 +2954,9 @@ const ABLATIONS = [
     name: 'the buffer deleted outside a finally',
     why: 'a refusal or a throw after load-buffer would leave his words in the private server (§13 item 11).',
     file: WRITER,
-    from: /    \} finally \{\n(\s*\/\/[^\n]*\n)*\s*if \(!pasted\) await run\(\['delete-buffer', '-b', name\]\)\.catch\(\(\) => undefined\);\n    \}/,
-    to: "    }\n    await run(['delete-buffer', '-b', name]).catch(() => undefined);",
+    // Phase 348: the writer drops its words through the helper's dropWords (D52).
+    from: /    \} finally \{\n(\s*\/\/[^\n]*\n)*\s*if \(!pasted && name !== null\) await dropWords\(run, name\);\n    \}/,
+    to: '    }\n    if (name !== null) await dropWords(run, name);',
     needs: ['gate']
   },
   {
@@ -3144,8 +3205,9 @@ const ABLATIONS = [
     name: 'the text cap spelled twice',
     why: 'two spellings of one cap agree until the day one moves.',
     file: WRITER,
-    from: "const BUFFER_PREFIX = 'tortie-say-';",
-    to: "const BUFFER_PREFIX = 'tortie-say-';\nconst REPLY_TEXT_MAX_BYTES = 4_096;\nvoid REPLY_TEXT_MAX_BYTES;",
+    // Phase 348 moved the buffer's prefix into the helper; the writer imports it (D52).
+    from: "import { dropWords, loadWords, SAY_BUFFER_PREFIX } from './buffer';",
+    to: "import { dropWords, loadWords, SAY_BUFFER_PREFIX } from './buffer';\nconst REPLY_TEXT_MAX_BYTES = 4_096;\nvoid REPLY_TEXT_MAX_BYTES;",
     needs: ['gate']
   },
   {
@@ -3983,8 +4045,9 @@ const ABLATIONS = [
     name: 'the down path drops its second display',
     why: 'when the control client is down a read is ONE spawned list of the three; fewer is a read that cannot tell a screen that moved under it (§Attack A8).',
     file: SCREEN_READ,
-    from: "return [...displayArgs(tmuxId), ';', ...captureArgs(tmuxId), ';', ...displayArgs(tmuxId)];",
-    to: "return [...displayArgs(tmuxId), ';', ...captureArgs(tmuxId)];",
+    // Phase 348: the list's road picks the capture; today's roads drop the display here.
+    from: "    return [...displayArgs(tmuxId), ';', ...captureArgs(tmuxId, road), ';', ...displayArgs(tmuxId)];",
+    to: "    return [...displayArgs(tmuxId), ';', ...captureArgs(tmuxId, road)];",
     needs: ['gate']
   },
   {
@@ -3993,8 +4056,9 @@ const ABLATIONS = [
     name: 'the down path spawns a second tmux per read',
     why: 'a down control client costs ONE spawn a read, the three commands in one list; a second spawn per read is the thirty a second per watched session the attack measured (§Attack A8).',
     file: SCREEN_READ,
-    from: '    stdout = await spawn(spawnedReadArgs(tmuxId), { timeoutMs });\n',
-    to: '    stdout = await spawn(spawnedReadArgs(tmuxId), { timeoutMs });\n    await spawn(displayArgs(tmuxId), { timeoutMs });\n',
+    // Phase 348: the spawn is handed the read's road.
+    from: '    stdout = await spawn(spawnedReadArgs(tmuxId, road), { timeoutMs });\n',
+    to: '    stdout = await spawn(spawnedReadArgs(tmuxId, road), { timeoutMs });\n    await spawn(displayArgs(tmuxId), { timeoutMs });\n',
     needs: ['gate']
   },
   {
@@ -4080,8 +4144,9 @@ const ABLATIONS = [
     name: 'a page’s start built from a string',
     why: 'a number tmux cannot read silently starts the capture at the VISIBLE TOP (§14 M1), so every -S and -E is String( of a whole number main checked (D9, D15).',
     file: SCREEN_SCROLLBACK,
-    from: "'-S', String(a)",
-    to: "'-S', `${a}`",
+    // Phase 348: the page's capture is one composer of its flags (D44).
+    from: "    '-S',\n    String(a),",
+    to: "    '-S',\n    `${a}`,",
     needs: ['gate']
   },
   {
@@ -4100,8 +4165,9 @@ const ABLATIONS = [
     name: 'the page capture joins wrapped lines',
     why: 'the page read names -p, -e, -t, -S and -E alone; -J rewraps the history, which moves every index under the phone (D12, D15).',
     file: SCREEN_SCROLLBACK,
-    from: "capture: ['capture-pane', '-p', '-e', '-t', tmuxId, '-S'",
-    to: "capture: ['capture-pane', '-p', '-e', '-J', '-t', tmuxId, '-S'",
+    // Phase 348: the page's capture is one composer of its flags (D44); -J rides the fallback's own capture alone.
+    from: "    capture: capture(road === 'flags' ? ['-e', '-F'] : ['-e']),",
+    to: "    capture: capture(road === 'flags' ? ['-e', '-F'] : ['-e', '-J']),",
     needs: ['gate']
   },
   {
@@ -4110,8 +4176,9 @@ const ABLATIONS = [
     name: 'a far page round costs a second exec',
     why: 'ONE exec a page attempt; a second exec doubles what a far machine pays for every page (§Attack B2).',
     file: REMOTE_SCREEN,
-    from: '    stdout = await execOn(ctx, remoteScrollbackArgv(address.tmuxId, a, b), { timeoutMs });',
-    to: '    await execOn(ctx, remoteScreenArgv(address.tmuxId), { timeoutMs });\n    stdout = await execOn(ctx, remoteScrollbackArgv(address.tmuxId, a, b), { timeoutMs });',
+    // Phase 348 moved the exec into readOn, where the road picks the argv.
+    from: '      stdout = await execOn(ctx, remoteScrollbackArgv(tmuxId, a, b, road), { timeoutMs });',
+    to: '      await execOn(ctx, remoteScreenArgv(tmuxId, road), { timeoutMs });\n      stdout = await execOn(ctx, remoteScrollbackArgv(tmuxId, a, b, road), { timeoutMs });',
     needs: ['gate']
   },
   {
@@ -4120,8 +4187,9 @@ const ABLATIONS = [
     name: 'the page composer reads a clock',
     why: 'the composer is pure; the page reader times it from outside for the duty cycle (§5.3.4).',
     file: SCREEN_COMPOSE,
-    from: 'export function composePage(styled: string, firstLine: number, cols: number, want: PageWant): ComposedPage {\n',
-    to: 'export function composePage(styled: string, firstLine: number, cols: number, want: PageWant): ComposedPage {\n  void Date.now();\n',
+    // Phase 348 gave composePage the marks the round carried as its fifth parameter.
+    from: '  marks?: ScreenMarks\n): ComposedPage {\n',
+    to: '  marks?: ScreenMarks\n): ComposedPage {\n  void Date.now();\n',
     needs: ['gate']
   },
   {
@@ -4501,8 +4569,9 @@ const ABLATIONS = [
     why: 'tmux writes each cell’s style as a change from the cell before it, across rows, so a row cut before its pens are read can lose its pen (D11).',
     file: SCREEN_COMPOSE,
     // Since the fix round the page's pens are read a step at a time, in composePageSteps' loop over styledRows.
-    from: '  for (const row of styledRows(styled)) {',
-    to: "  for (const row of styledRows(styled.split('\\n').slice(want.from - firstLine).join('\\n'))) {",
+    // Phase 348: on the flags road each line's prefix is stripped first, over the whole capture.
+    from: '  for (const row of styledRows(stylesOf(styled, marks))) {',
+    to: "  for (const row of styledRows(stylesOf(styled, marks).split('\\n').slice(want.from - firstLine).join('\\n'))) {",
     needs: ['gate']
   },
   {
@@ -4563,8 +4632,9 @@ const ABLATIONS = [
     name: 'composePage composing beside the steps rather than through them',
     why: 'a page composed whole and a page composed in steps would be two compositions of one page (the fix round).',
     file: SCREEN_COMPOSE,
-    from: '  const steps = composePageSteps(styled, firstLine, cols, want);\n  for (;;) {\n    const step = steps.next();\n    if (step.done === true) return step.value;\n  }\n',
-    to: '  return { from: want.from, styles: [], rows: [], bytes: 0 };\n',
+    // Phase 348 hands the steps the marks the round carried.
+    from: '  const steps = composePageSteps(styled, firstLine, cols, want, marks);\n  for (;;) {\n    const step = steps.next();\n    if (step.done === true) return step.value;\n  }\n',
+    to: '  return { from: want.from, styles: [], rows: [], bytes: 0, wraps: [] };\n',
     needs: ['gate']
   },
   {
@@ -6359,8 +6429,9 @@ const ABLATIONS = [
     name: 'the five writes listed with start first',
     why: 'D4: describePocketDoor names the clauses in this order, so start is said last on the Allow line; R2 compares the set sorted and cannot see this.',
     file: SHARED,
-    from: "export const POCKET_WRITE_ROUTE_IDS = ['end', 'choose', 'say', 'keys', 'start'] as const",
-    to: "export const POCKET_WRITE_ROUTE_IDS = ['start', 'end', 'choose', 'say', 'keys'] as const",
+    // Phase 348 appended remove and paste after start (D26).
+    from: "export const POCKET_WRITE_ROUTE_IDS = ['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste'] as const",
+    to: "export const POCKET_WRITE_ROUTE_IDS = ['start', 'end', 'choose', 'say', 'keys', 'remove', 'paste'] as const",
     needs: ['gate']
   },
   {
@@ -6389,8 +6460,9 @@ const ABLATIONS = [
     name: 'the honesty sentence’s start clause claiming Face ID',
     why: 'D20, 317 D13: Start asks no Face ID and the Mac cannot verify one, so no word may say it does.',
     file: SHARED,
-    from: "  start: 'start a session in a project open in Tortie, on this Mac or another machine'\n});",
-    to: "  start: 'start a session after Face ID in a project open in Tortie, on this Mac or another machine'\n});",
+    // Phase 348 put remove's and paste's clauses after start's (D32).
+    from: "  start: 'start a session in a project open in Tortie, on this Mac or another machine',\n  // PHASE 348",
+    to: "  start: 'start a session after Face ID in a project open in Tortie, on this Mac or another machine',\n  // PHASE 348",
     needs: ['gate']
   },
   {
@@ -6782,8 +6854,9 @@ const ABLATIONS = [
     name: 'start’s body cap doubled',
     why: 'D6: start has its own cap, 512, about three and a half times its worst legal body.',
     file: LIMITS,
-    from: 'keys: 16_384, start: 512 }',
-    to: 'keys: 16_384, start: 1024 }',
+    // Phase 348 put remove and paste after start on this line (D29).
+    from: 'keys: 16_384, start: 512, remove: 512',
+    to: 'keys: 16_384, start: 1024, remove: 512',
     needs: ['gate']
   },
   {
@@ -6882,8 +6955,9 @@ const ABLATIONS = [
     name: 'start taken off the door’s write list',
     why: '§4.12: the door hands main a write only for an id on its own list.',
     file: WIRE,
-    from: "const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say', 'keys', 'start'];",
-    to: "const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say', 'keys'];",
+    // Phase 348 put remove and paste after start on this line (§4.2 step 2).
+    from: "const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste'];",
+    to: "const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say', 'keys', 'remove', 'paste'];",
     needs: ['gate']
   },
   {
@@ -6902,8 +6976,9 @@ const ABLATIONS = [
     name: 'a route after start',
     why: 'Phase 346 adds start, last, and nothing else.',
     file: SHARED,
-    from: /'start'\n\] as const;/,
-    to: () => "'start',\n  'restart'\n] as const;",
+    // Phase 348 appended remove and paste after start (D26); a route after paste is the plant.
+    from: /'paste'\n\] as const;/,
+    to: () => "'paste',\n  'restart'\n] as const;",
     needs: ['gate']
   },
   {
@@ -6914,6 +6989,1131 @@ const ABLATIONS = [
     file: CAPABILITIES,
     from: '  const pocketStart = createPocketStart({ core: () => pocketCore });\n',
     to: '  const pocketStart = createPocketStart({ core: () => pocketCore });\n  void pocketHost.start();\n',
+    needs: ['gate']
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 348 (build/p348/SPEC.md §7.1): remove an ended session and paste
+  // from the phone. One or more arms per RM and PS rule, each red on the rule
+  // that owns it, then one per clause the phase widened. They run the read
+  // gate alone (`needs`), but the five whose clause a live door must show too
+  // (the shared gate as the only lock on a far row, a Return after a paste, a
+  // refused paste's words left behind, a Remove beside an End, ESC in a paste),
+  // which run the hostile client beside it.
+  // -------------------------------------------------------------------------
+  {
+    n: 'RM1a',
+    rule: 'RM1',
+    name: 'the remove row made window-only',
+    why: 'D9, D26: a Remove is a write alive outside any pairing window, served only after the Allow whose lines name it; a window-only row is a write a stranger could reach while the code shows.',
+    file: TABLE,
+    from: "{ id: 'remove', method: 'POST', path: '/v1/remove', reads: false, windowOnly: false, signed: true }",
+    to: "{ id: 'remove', method: 'POST', path: '/v1/remove', reads: false, windowOnly: true, signed: true }",
+    needs: ['gate']
+  },
+  {
+    n: 'RM1b',
+    rule: 'RM1',
+    alsoRed: ['X12'],
+    name: 'the Allow line’s remove clause widened to every session',
+    why: 'D32, his ruling of 2026-10-18: a phone removes a session that has ENDED; an Allow line saying "remove sessions" grants in words what the gates refuse, and a clause never widens under its id.',
+    file: PAIRING,
+    from: "  remove: 'remove a session that has ended',",
+    to: "  remove: 'remove sessions',",
+    needs: ['gate']
+  },
+  {
+    n: 'RM1c',
+    rule: 'RM1',
+    alsoRed: ['R2', 'Y1', 'Z2'],
+    name: 'the remove cap doubled',
+    why: 'D29: 512 holds the worst legal Remove body (185 bytes) twice over; a larger cap is bytes the door reads for a stranger with nothing to say.',
+    file: LIMITS,
+    from: 'start: 512, remove: 512, paste: 131_072 }',
+    to: 'start: 512, remove: 1_024, paste: 131_072 }',
+    needs: ['gate']
+  },
+  {
+    n: 'RM1d',
+    rule: 'RM1',
+    name: 'the face’s remove row claiming Face ID',
+    why: 'his ruling of 2026-10-18 ("No Face ID, just confirm"): Remove asks no owner check and the Mac cannot verify one, so no word may say it does.',
+    file: SHARED,
+    from: "  remove: 'remove ended sessions',",
+    to: "  remove: 'remove ended sessions after Face ID',",
+    needs: ['gate']
+  },
+  {
+    n: 'RM1e',
+    rule: 'RM1',
+    name: 'remove let into the legacy allowed set',
+    why: '333.12, his answer 10, D9: a person who allowed the eleven before Remove existed never read a line naming it, so remove WAITS for the Allow that does; in the legacy set it is served without being asked.',
+    file: SHARED,
+    from: "  'pair',\n  'say',\n  'screen',",
+    to: "  'pair',\n  'remove',\n  'say',\n  'screen',",
+    needs: ['gate']
+  },
+  {
+    n: 'RM1w',
+    rule: 'RM1',
+    alsoRed: ['PS1', 'NS1'],
+    name: 'paste said before remove among the writes',
+    why: 'D26: describePocketDoor names the clauses in POCKET_WRITE_ROUTE_IDS’s order, so the Allow line says remove, then paste, last; a sorted comparison cannot see the order.',
+    file: SHARED,
+    from: "'start', 'remove', 'paste'] as const satisfies",
+    to: "'start', 'paste', 'remove'] as const satisfies",
+    needs: ['gate']
+  },
+  {
+    n: 'RM1x',
+    rule: 'RM1',
+    alsoRed: ['NS1'],
+    name: 'the honesty sentence’s remove clause widened',
+    why: 'D32: the sheet’s sentence says what the door lets a phone do in the Allow line’s own words; "remove any session" says more than the gates allow.',
+    file: SHARED,
+    from: "  remove: 'remove a session that has ended',\n  paste: 'paste text into a session on this Mac'",
+    to: "  remove: 'remove any session',\n  paste: 'paste text into a session on this Mac'",
+    needs: ['gate']
+  },
+  {
+    n: 'RM1y',
+    rule: 'RM1',
+    alsoRed: ['NS1'],
+    name: 'the New: line’s remove sentence reworded',
+    why: 'D32: the waiting route’s sentence says where a removed session goes, Past Sessions on this Mac, where it can be restored; a sentence that drops it reads as a delete.',
+    file: SHARED,
+    from: "    sentence: 'An ended session moves to Past Sessions on this Mac, where you can restore it.'",
+    to: "    sentence: 'Your phone can remove sessions.'",
+    needs: ['gate']
+  },
+  {
+    n: 'RM2a',
+    rule: 'RM2',
+    alsoRed: ['X2'],
+    name: 'a batch key let into the Remove body',
+    why: 'D28, conformance:manager T8: no Mac batch removes, so a phone’s Remove names one session; a batch key is a bulk delete nobody offered.',
+    file: WRITES,
+    from: "const REMOVE_KEYS = 'session,write';",
+    to: "const REMOVE_KEYS = 'batch,session,write';",
+    needs: ['gate']
+  },
+  {
+    n: 'RM2b',
+    rule: 'RM2',
+    name: 'the Remove body read without onlyItsOwnBytes',
+    why: 'D28, as Phase 346’s fix round found for start: JSON.parse keeps the LAST of a key given twice and reads an escape as its letter, so a body whose first session is another would remove a session a reader of the body never saw.',
+    file: WRITES,
+    from: '  if (body.byteLength > POCKET_WRITE_BODY_CAPS.remove || !onlyItsOwnBytes(value, body)) return { ok: false, write };',
+    to: '  if (body.byteLength > POCKET_WRITE_BODY_CAPS.remove) return { ok: false, write };',
+    needs: ['gate']
+  },
+  {
+    n: 'RM2c',
+    rule: 'RM2',
+    name: 'the Remove’s session id read as any string',
+    why: 'D28: the session id is read one character at a time by isSessionId; any string is a path, a NUL or a 600-byte id handed to the verb.',
+    file: WRITES,
+    from: "  const session = value['session'];\n  if (write === '' || !isSessionId(session)) return { ok: false, write };\n  if (body.byteLength > POCKET_WRITE_BODY_CAPS.remove",
+    to: "  const session = value['session'];\n  if (write === '' || typeof session !== 'string') return { ok: false, write };\n  if (body.byteLength > POCKET_WRITE_BODY_CAPS.remove",
+    needs: ['gate']
+  },
+  {
+    n: 'RM3a',
+    rule: 'RM3',
+    name: 'a sixth field on the Remove’s answer',
+    why: 'D27: the five fields are all of it, and nothing that could claim Face ID happened or say what was removed.',
+    file: WRITES,
+    from: "    sentence: answer.sentence\n  });\n}\n\n/**\n * A paste's answer",
+    to: "    sentence: answer.sentence,\n    removed: true\n  });\n}\n\n/**\n * A paste's answer",
+    needs: ['gate']
+  },
+  {
+    n: 'RM3b',
+    rule: 'RM3',
+    name: 'a fifth Remove reason',
+    why: 'D27: PocketRemoveReason is the four words main can mean; a reason no refusal sets is a word a phone shows for a state that cannot happen.',
+    file: SHARED,
+    from: "export type PocketRemoveReason = 'malformed' | 'gone' | 'changed' | 'unreachable';",
+    to: "export type PocketRemoveReason = 'malformed' | 'gone' | 'changed' | 'unreachable' | 'live';",
+    needs: ['gate']
+  },
+  {
+    n: 'RM4a',
+    rule: 'RM4',
+    name: 'DOOR_REMOVE_GATE_ENV with canDiscard false',
+    why: 'D47: canRemove is the gate’s own ended && canDiscard, so with canDiscard false every row, ended or not, is refused, and the Remove the phone was offered never works.',
+    file: SESSION_GATES,
+    from: '  canRestore: false,\n  canDiscard: true,',
+    to: '  canRestore: false,\n  canDiscard: false,',
+    needs: ['gate']
+  },
+  {
+    n: 'RM4b',
+    rule: 'RM4',
+    alsoRed: ['hostile'],
+    name: 'the shared gate dropped from the Remove verdict',
+    why: 'D6, ruling R11: main’s removeRefusal passes every record on another machine, so the shared gate is the ONLY lock on a remote row; without it a phone tombstones a session that is running on his other machine.',
+    file: POCKET_WRITES,
+    from: '  const canRemove = sessionActionGates(session, session.status, DOOR_REMOVE_GATE_ENV).canRemove;',
+    to: '  const canRemove = session.status !== undefined;',
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'RM4c',
+    rule: 'RM4',
+    alsoRed: ['X5'],
+    name: 'the Remove verdict asking the gate with End’s environment',
+    why: 'D47: DOOR_GATE_ENV’s canDiscard is false, so canRemove of it refuses every row; the Remove gate has an environment of its own, and DOOR_GATE_ENV does not move.',
+    file: POCKET_WRITES,
+    from: 'sessionActionGates(session, session.status, DOOR_REMOVE_GATE_ENV).canRemove',
+    to: 'sessionActionGates(session, session.status, DOOR_GATE_ENV).canRemove',
+    needs: ['gate']
+  },
+  {
+    n: 'RM4d',
+    rule: 'RM4',
+    name: 'main’s own gate dropped from the Remove verdict',
+    why: 'D48: main’s removeRefusal is asked first, so a Remove the Mac would refuse is refused in the Mac’s own sentence; a verdict of the shared gate alone refuses in a sentence the desk never says.',
+    file: POCKET_WRITES,
+    from: '    const refusedByMain = removeRefusal(record);',
+    to: '    const refusedByMain: string | null = null;',
+    needs: ['gate']
+  },
+  {
+    n: 'RM4e',
+    rule: 'RM4',
+    name: 'a session Tortie cannot see answered changed',
+    why: '§10.3: a row Tortie cannot see is unreachable, and the phone says so in those words; changed tells him the session moved when Tortie only lost sight of it.',
+    file: POCKET_WRITES,
+    from: "      return { ok: false, reason: record.status === 'unknown' ? 'unreachable' : 'changed', sentence: refusedByMain };",
+    to: "      return { ok: false, reason: 'changed', sentence: refusedByMain };",
+    needs: ['gate']
+  },
+  {
+    n: 'RM5a',
+    rule: 'RM5',
+    alsoRed: ['X5'],
+    name: 'an await between the Remove’s verdict and its verb',
+    why: 'D48: nothing is awaited between the verdict and removeSession, or the row could come back to life (a restore, a resume) and be tombstoned live.',
+    file: POCKET_WRITES,
+    from: "        // THE MAC'S OWN REMOVE, synchronous, in the statement after the verdict.\n        core.removeSession(sessionId);",
+    to: '        await Promise.resolve();\n        core.removeSession(sessionId);',
+    needs: ['gate']
+  },
+  {
+    n: 'RM5b',
+    rule: 'RM5',
+    name: 'the windows never told of a Remove',
+    why: 'D10: the Mac’s own Remove tells its windows and its open Past tab, as sessions:discard does; a phone’s Remove that does not leaves the Mac drawing a row that is gone.',
+    file: POCKET_WRITES,
+    from: '      try {\n        core.broadcastSessions();\n      } catch {',
+    to: '      try {\n        void core;\n      } catch {',
+    needs: ['gate']
+  },
+  {
+    n: 'RM5c',
+    rule: 'RM5',
+    name: 'a thrown Remove told apart by its text',
+    why: 'D48: a failed command’s text can carry its argv, so a Remove is told apart by its code alone (isGmuxError); read by its text, a session that was simply gone answers failed.',
+    file: POCKET_WRITES,
+    from: "function removeThrownOutcome(err: unknown, core: PocketWritesCore, sessionId: string): PocketRemoveOutcome {\n  if (isGmuxError(err, 'SESSION_NOT_FOUND')) {",
+    to: 'function removeThrownOutcome(err: unknown, core: PocketWritesCore, sessionId: string): PocketRemoveOutcome {\n  if (err instanceof Error && /not found/i.test(err.message)) {',
+    needs: ['gate']
+  },
+  {
+    n: 'RM5d',
+    rule: 'RM5',
+    name: 'a Remove refused inside the verb answered failed',
+    why: 'D48: when the row came back to life after the verdict, main’s gate is asked again and its sentence is the answer; failed tells him something broke when the session is simply running again.',
+    file: POCKET_WRITES,
+    from: '      again = record === undefined ? null : removeRefusal(record);',
+    to: '      again = record === undefined ? null : null;',
+    needs: ['gate']
+  },
+  {
+    n: 'RM6a',
+    rule: 'RM6',
+    name: 'the Remove offer made whatever was allowed',
+    why: 'D49: a Mac whose Allow waits offers no Remove; offering one draws a button whose write the door then refuses 404, with no words.',
+    file: CAPABILITIES,
+    from: '    removeConfirmOf: (session) => (pocketHost?.removeAllowed() === true ? pocketWrites.removeOffer(session) : null),',
+    to: '    removeConfirmOf: (session) => pocketWrites.removeOffer(session),',
+    needs: ['gate']
+  },
+  {
+    n: 'RM6b',
+    rule: 'RM6',
+    name: 'removeConfirm set whatever the offer answered',
+    why: 'D49: removeConfirm is present exactly when the one implementation offers Remove on the session now, and absent otherwise, so a phone draws Remove only where the Mac offers it.',
+    file: ROUTES,
+    from: '      if (removeConfirm !== null) detail.removeConfirm = removeConfirm;',
+    to: '      detail.removeConfirm = removeConfirm as PocketEndConfirm;',
+    needs: ['gate']
+  },
+  {
+    n: 'RM6c',
+    rule: 'RM6',
+    name: 'the Remove offer copied whole',
+    why: 'D49: the offer is copied field by field, so nothing else the implementation’s object holds can leave on /v1/session.',
+    file: ROUTES,
+    from: '    return { title, body, confirmLabel };\n  };',
+    to: '    return confirm;\n  };',
+    needs: ['gate']
+  },
+  {
+    n: 'RM6d',
+    rule: 'RM6',
+    name: 'removeAllowed answering yes',
+    why: 'D49, §4.2 step 5: removeAllowed is the served set’s own answer; a constant yes offers Remove on a Mac whose Allow waits.',
+    file: IPC,
+    from: "  removeAllowed(): boolean {\n    return this.routeServed('remove');",
+    to: '  removeAllowed(): boolean {\n    return true;',
+    needs: ['gate']
+  },
+  {
+    n: 'RM6e',
+    rule: 'RM6',
+    name: 'the Remove offer made without the verdict',
+    why: 'D48, D49: the offer is the verdict passing; an offer made without it draws Remove on a live session, whose press the verdict then refuses.',
+    file: POCKET_WRITES,
+    from: '      const verdict = removeVerdict(session, recordOf(core, session.id));\n      if (!verdict.ok) return null;\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'RM7a',
+    rule: 'RM7',
+    alsoRed: ['RM5'],
+    name: 'a Remove that ends the session first',
+    why: 'D10, D48: Remove is offered on an ENDED session and kills nothing; a kill in its path is an End nobody asked for, and on another machine a far verb.',
+    file: POCKET_WRITES,
+    from: "        // THE MAC'S OWN REMOVE, synchronous, in the statement after the verdict.\n        core.removeSession(sessionId);",
+    to: '        void core.killSession(sessionId);\n        core.removeSession(sessionId);',
+    needs: ['gate']
+  },
+  {
+    n: 'RM7b',
+    rule: 'RM7',
+    name: 'a Remove sentence asking for Face ID',
+    why: 'his ruling of 2026-10-18 ("No Face ID, just confirm"): the Mac’s own confirmation is the whole of it, so no word in Remove’s path names an owner check.',
+    file: POCKET_WRITES,
+    from: "      if (core === null) return { outcome: 'failed', sentence: REMOVE_FAILED };\n      const sessionId = input.sessionId;",
+    to: "      if (core === null) return { outcome: 'failed', sentence: 'Confirm with Face ID, then try again.' };\n      const sessionId = input.sessionId;",
+    needs: ['gate']
+  },
+  {
+    n: 'PS1a',
+    rule: 'PS1',
+    name: 'the paste row made window-only',
+    why: 'D21, D26: a paste is a write alive outside any pairing window, served only after the Allow whose lines name it; a window-only row is a write a stranger could reach while the code shows.',
+    file: TABLE,
+    from: "{ id: 'paste', method: 'POST', path: '/v1/paste', reads: false, windowOnly: false, signed: true }",
+    to: "{ id: 'paste', method: 'POST', path: '/v1/paste', reads: false, windowOnly: true, signed: true }",
+    needs: ['gate']
+  },
+  {
+    n: 'PS1b',
+    rule: 'PS1',
+    alsoRed: ['R2', 'Y1', 'Z2'],
+    name: 'the paste cap halved',
+    why: 'D29, §2.2: the worst legal paste body, 16,384 bytes of control characters each escaped as \\u00XX, is 98,566 bytes; a cap under it drops at the door a body the verb would answer in words.',
+    file: LIMITS,
+    from: 'remove: 512, paste: 131_072 }',
+    to: 'remove: 512, paste: 65_536 }',
+    needs: ['gate']
+  },
+  {
+    n: 'PS1c',
+    rule: 'PS1',
+    name: 'the paste text bound doubled',
+    why: 'D29, §2.2: 16,384 bytes is what tmux 3.7b and 3.6a were measured to take in one load-buffer and one paste list; a larger bound is a paste nobody measured, in a body the door’s cap no longer covers.',
+    file: SHARED,
+    from: 'export const POCKET_PASTE_MAX_TEXT_BYTES = 16_384;',
+    to: 'export const POCKET_PASTE_MAX_TEXT_BYTES = 32_768;',
+    needs: ['gate']
+  },
+  {
+    n: 'PS1d',
+    rule: 'PS1',
+    alsoRed: ['Y15'],
+    name: 'the paste bound re-spelled beside the text rule',
+    why: 'D29: the bound is declared once, in the contract, so the phone’s counter and the Mac’s refusal are one number; a second spelling drifts the day one of them moves.',
+    file: TEXT_RULES,
+    from: "import { POCKET_PASTE_MAX_TEXT_BYTES } from '@shared/ipc/pocket';",
+    to: 'const POCKET_PASTE_MAX_TEXT_BYTES = 16_384;',
+    needs: ['gate']
+  },
+  {
+    n: 'PS1e',
+    rule: 'PS1',
+    alsoRed: ['X12'],
+    name: 'the Allow line’s paste clause losing “on this Mac”',
+    why: 'D22, D32: a paste reaches sessions on this Mac only in this phase, and a clause never widens under its id, so a later far paste takes a route of its own.',
+    file: PAIRING,
+    from: "  paste: 'paste text into a session on this Mac'",
+    to: "  paste: 'paste text into a session'",
+    needs: ['gate']
+  },
+  {
+    n: 'PS1w',
+    rule: 'PS1',
+    alsoRed: ['RM1', 'NS1', 'SU5'],
+    name: 'paste listed before remove among the routes',
+    why: 'D26: the route ids end start, remove, paste, in the order the phases added them, and every list that says them follows it.',
+    file: SHARED,
+    from: /  'remove',\n(  \/\*\* `POST \/v1\/paste`[^\n]*\n)  'paste'\n\] as const;/,
+    to: (_m, comment) => `  'paste',\n${comment}  'remove'\n] as const;`,
+    needs: ['gate']
+  },
+  {
+    n: 'PS1x',
+    rule: 'PS1',
+    alsoRed: ['NS2'],
+    name: 'paste among the session writes PocketWriteAnswer speaks for',
+    why: 'D27, gate:onlyadd A3: PocketWriteAnswer’s verb is the four a frozen phone’s closed Verb reads; widened, a paste could be answered in a shape a frozen phone refuses whole.',
+    file: SHARED,
+    from: "export const POCKET_SESSION_WRITE_IDS = ['end', 'choose', 'say', 'keys'] as const",
+    to: "export const POCKET_SESSION_WRITE_IDS = ['end', 'choose', 'say', 'keys', 'paste'] as const",
+    needs: ['gate']
+  },
+  {
+    n: 'PS2a',
+    rule: 'PS2',
+    name: 'the paste’s text trimmed in the parse',
+    why: 'D28, §4.6 step 8: a paste’s text is taken AS IT IS; a parse that trims it pastes something he did not copy, and what Tortie does not paste is refused in words.',
+    file: WRITES,
+    from: "  const text = value['text'];\n  const turn = value['turn'];\n  const dialog = value['dialog'];",
+    to: "  const text = typeof value['text'] === 'string' ? value['text'].trim() : value['text'];\n  const turn = value['turn'];\n  const dialog = value['dialog'];",
+    needs: ['gate']
+  },
+  {
+    n: 'PS2b',
+    rule: 'PS2',
+    alsoRed: ['X2'],
+    name: 'the paste’s turn read as any string',
+    why: 'D28: the turn is a question id read one character at a time; any string is a lock compared against nothing the Mac ever minted.',
+    file: WRITES,
+    from: "typeof text !== 'string' || !isQuestionId(turn) ||",
+    to: "typeof text !== 'string' || typeof turn !== 'string' ||",
+    needs: ['gate']
+  },
+  {
+    n: 'PS2c',
+    rule: 'PS2',
+    alsoRed: ['X2'],
+    name: 'an enter key let into the paste body',
+    why: 'D28, his ruling of 2026-10-18 ("with no Return added"): a paste lands as a paste at the desk does, and a body key that could ask for a Return is a keystroke nobody typed.',
+    file: WRITES,
+    from: "const PASTE_KEYS = 'dialog,session,text,turn,write';",
+    to: "const PASTE_KEYS = 'dialog,enter,session,text,turn,write';",
+    needs: ['gate']
+  },
+  {
+    n: 'PS3a',
+    rule: 'PS3',
+    name: 'the paste’s answer composed without its reason',
+    why: 'D27: the five fields are all of it and each is set on its own; a refusal with no reason is an answer a phone cannot say why nothing was typed from.',
+    file: WRITES,
+    from: "  const answer: PocketPasteAnswer = { verb: 'paste', write, outcome, reason, sentence };\n  return JSON.stringify({\n    verb: answer.verb,\n    write: answer.write,\n    outcome: answer.outcome,\n    reason: answer.reason,\n",
+    to: "  const answer: PocketPasteAnswer = { verb: 'paste', write, outcome, reason, sentence };\n  return JSON.stringify({\n    verb: answer.verb,\n    write: answer.write,\n    outcome: answer.outcome,\n",
+    needs: ['gate']
+  },
+  {
+    n: 'PS3b',
+    rule: 'PS3',
+    name: 'a tenth paste reason',
+    why: 'D27: PocketPasteReason is the nine words main can mean; a reason no refusal sets is a word a phone shows for a state that cannot happen.',
+    file: SHARED,
+    from: "| 'character' | 'stopped';",
+    to: "| 'character' | 'stopped' | 'busy';",
+    needs: ['gate']
+  },
+  {
+    n: 'PS4a',
+    rule: 'PS4',
+    alsoRed: ['hostile'],
+    name: 'a Return after the paste',
+    why: 'his ruling of 2026-10-18: a paste lands as a paste at the desk does, with NO Return added; a Return after it runs what he pasted into a shell before he looked at it.',
+    file: SCREEN_PASTE,
+    from: "const list = ['copy-mode', '-q', '-t', pane, ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', pane];",
+    to: "const list = ['copy-mode', '-q', '-t', pane, ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', pane, ';', 'send-keys', '-t', pane, 'Enter'];",
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'PS4b',
+    rule: 'PS4',
+    name: 'the paste without -p',
+    why: 'D50: -p brackets the paste wherever the program asked for bracketed paste, which is how a program tells a paste from typing; without it a shell runs each pasted line as it lands.',
+    file: SCREEN_PASTE,
+    from: "'paste-buffer', '-p', '-d', '-b', name",
+    to: "'paste-buffer', '-d', '-b', name",
+    needs: ['gate']
+  },
+  {
+    n: 'PS4c',
+    rule: 'PS4',
+    alsoRed: ['Z4'],
+    name: 'an await between the paste’s final check and its act',
+    why: 'D50 step 6: that window is the one a moved question or a removed phone would paste through, so nothing is awaited between still( and the act.',
+    file: SCREEN_PASTE,
+    from: "      deps.turns.bump(id, 'phone');\n      deps.onLastCheck?.(id);",
+    to: "      await sleep(0);\n      deps.turns.bump(id, 'phone');\n      deps.onLastCheck?.(id);",
+    needs: ['gate']
+  },
+  {
+    n: 'PS4d',
+    rule: 'PS4',
+    name: 'the words loaded after the fresh read',
+    why: 'D50 steps 3 and 4: the words are loaded before the one fresh read, so only the synchronous final check sits between the read and the act; a load after it is a spawn the screen can change under.',
+    file: SCREEN_PASTE,
+    from: '      name = await loadWords(run, PASTE_BUFFER_PREFIX, input.text);\n      // 4. ONE FRESH READ, its capture the last thing awaited.\n      const fresh = await deps.watch.readFresh(row);\n',
+    to: '      // 4. ONE FRESH READ, its capture the last thing awaited.\n      const fresh = await deps.watch.readFresh(row);\n      name = await loadWords(run, PASTE_BUFFER_PREFIX, input.text);\n',
+    needs: ['gate']
+  },
+  {
+    n: 'PS4e',
+    rule: 'PS4',
+    name: 'a session on another machine refused after its words were loaded',
+    why: 'D22: a far session is refused before the buffer and any read, so his words are never loaded into this Mac’s private server for a paste that cannot happen.',
+    file: SCREEN_PASTE,
+    from: /(      \/\/ D22: another machine is refused here, before the buffer and any read\.\n)(      if \(row\.machine !== undefined\) return refused\('machine', PASTE_THIS_MAC_ONLY\);\n)([\s\S]*?      name = await loadWords\(run, PASTE_BUFFER_PREFIX, input\.text\);\n)/,
+    to: (_m, _comment, refusal, rest) => `${rest}${refusal}`,
+    needs: ['gate']
+  },
+  {
+    n: 'PS5a',
+    rule: 'PS5',
+    name: 'the paste’s words never dropped',
+    why: 'D50 step 7: a paste refused after its load leaves his words in the private server, where any client of it can paste them again.',
+    file: SCREEN_PASTE,
+    from: '      if (!pasted && name !== null) await dropWords(run, name);',
+    to: '      void name;',
+    needs: ['gate']
+  },
+  {
+    n: 'PS5b',
+    rule: 'PS5',
+    alsoRed: ['hostile'],
+    name: 'pasted starting true',
+    why: 'D50 step 7: the finally drops the words on every path the paste did not take them; a flag that starts true reads every refusal as a paste and leaves his words in the private server.',
+    file: SCREEN_PASTE,
+    from: '    let pasted = false;',
+    to: '    let pasted = true;',
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'PS5c',
+    rule: 'PS5',
+    name: 'a failed load never dropped by the helper',
+    why: 'D52: tmux may have taken the words before the client failed, and the caller holds no name to drop, so only the helper can take them back out of the private server.',
+    file: BUFFER,
+    from: '    if (!loaded) await dropWords(run, name);',
+    to: '    void loaded;',
+    needs: ['gate']
+  },
+  {
+    n: 'PS6a',
+    rule: 'PS6',
+    name: 'the paste flag set for a session on another machine',
+    why: 'D22, D30: a paste reaches sessions on this Mac only in this phase; a flag on a far session draws Paste where every press is refused machine.',
+    file: SCREEN_COMPOSE,
+    from: '  if (extra.typable && extra.local === true) screen.paste = true;',
+    to: '  if (extra.typable) screen.paste = true;',
+    needs: ['gate']
+  },
+  {
+    n: 'PS6b',
+    rule: 'PS6',
+    name: 'the door copying the paste flag whatever is served',
+    why: 'D30: the flag leaves only while a person allowed paste; copied regardless, a Mac whose Allow waits draws Paste whose write the door refuses 404 with no words.',
+    file: ROUTES,
+    from: '  if (pasteServed && screen.paste === true) body.paste = true;',
+    to: '  if (screen.paste === true) body.paste = true;',
+    needs: ['gate']
+  },
+  {
+    n: 'PS6c',
+    rule: 'PS6',
+    name: 'pasteAllowed answering yes',
+    why: 'D30, §4.6 step 9: pasteAllowed is the served set’s own answer; a constant yes sends the flag from a Mac whose Allow waits.',
+    file: IPC,
+    from: "  pasteAllowed(): boolean {\n    return this.routeServed('paste');",
+    to: '  pasteAllowed(): boolean {\n    return true;',
+    needs: ['gate']
+  },
+  {
+    n: 'PS6d',
+    rule: 'PS6',
+    name: 'the screen route reading an absent pasteAllowed as yes',
+    why: '§4.6 step 9: facts with no pasteAllowed read false; !== false reads an absent answer as allowed.',
+    file: ROUTES,
+    from: 'facts.pasteAllowed?.() === true',
+    to: 'facts.pasteAllowed?.() !== false',
+    needs: ['gate']
+  },
+  {
+    n: 'PS6e',
+    rule: 'PS6',
+    name: 'the facts handed a paste always allowed',
+    why: 'D30: the facts ask the host, which asks the served set; a constant is a flag that outlives the Allow it stood for.',
+    file: CAPABILITIES,
+    from: '    pasteAllowed: () => pocketHost?.pasteAllowed() === true',
+    to: '    pasteAllowed: () => true',
+    needs: ['gate']
+  },
+  {
+    n: 'PS7a',
+    rule: 'PS7',
+    name: 'the failed paste list’s message read',
+    why: 'D50: a failed tmux command’s text holds its argv, the buffer’s name among it; nothing it says reaches the phone or a log.',
+    file: SCREEN_PASTE,
+    from: '        // pasted, so the status funnel is not asked and the buffer is dropped.\n        () => false\n',
+    to: "        // pasted, so the status funnel is not asked and the buffer is dropped.\n        (err: Error) => err.message === ''\n",
+    needs: ['gate']
+  },
+  {
+    n: 'PS7b',
+    rule: 'PS7',
+    name: 'a log line in the paste verb',
+    why: 'D50: the one line a write gets is the door’s, and his words are logged nowhere; a line in the verb is one more place a paste is written down.',
+    file: SCREEN_PASTE,
+    from: '      lastAct.set(id, actAt);\n',
+    to: "      lastAct.set(id, actAt);\n      console.info('paste', id, pasted);\n",
+    needs: ['gate']
+  },
+  {
+    n: 'PS7c',
+    rule: 'PS7',
+    alsoRed: ['Z8'],
+    name: 'the desk’s funnel told before the paste lands',
+    why: 'CLAUDE.md refusal 5, §4.7: noteUserInput is called once, after the act, when the list succeeded; told before, a paste that never lands reads as his input.',
+    file: SCREEN_PASTE,
+    from: '      deps.onLastCheck?.(id);\n      const act: Promise<boolean> = run(list).then(',
+    to: '      deps.onLastCheck?.(id);\n      deps.noteUserInput(id);\n      const act: Promise<boolean> = run(list).then(',
+    needs: ['gate']
+  },
+  {
+    n: 'PS8a',
+    rule: 'PS8',
+    name: 'the alternate screen’s rows marked wrapped',
+    why: 'D45 (c): tmux keeps marks on the alternate screen too, where a full-screen program draws rows that only look wrapped; Copy would join lines no program wrote as one.',
+    file: SCREEN_COMPOSE,
+    from: '  if (alternate) return [];\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'PS8b',
+    rule: 'PS8',
+    name: 'the ink guard dropped',
+    why: 'D45 (b), §2.4 G1b: a row rewritten short and cleared to its end keeps tmux’s W; only the ink in its last column says the line truly goes on.',
+    file: SCREEN_COMPOSE,
+    from: '    if (inkAtEnd(input.lines[k] ?? [], cols)) out.push(k);',
+    to: '    out.push(k);',
+    needs: ['gate']
+  },
+  {
+    n: 'PS8c',
+    rule: 'PS8',
+    name: 'the last row listed',
+    why: 'D45 (d): the row after the last is not in the answer, so a mark on the last row joins it to a line the phone never received.',
+    file: SCREEN_COMPOSE,
+    from: '  for (let k = 0; k < input.lines.length - 1; k += 1) {',
+    to: '  for (let k = 0; k < input.lines.length; k += 1) {',
+    needs: ['gate']
+  },
+  {
+    n: 'PS8d',
+    rule: 'PS8',
+    name: 'tmux’s line flags spelled twice',
+    why: 'D44, D45: -F’s prefix is one pattern read by one function, so the composer that strips it and the reader that marks from it never disagree about what a prefix is.',
+    file: SCREEN_COMPOSE,
+    from: 'const FLAG_PREFIX = /^([DHOPWX]+|-) /;',
+    to: "const FLAG_PREFIX = /^([DHOPWX]+|-) /;\nexport const FLAG_LETTERS = 'DHOPWX';",
+    needs: ['gate']
+  },
+  {
+    n: 'PS8e',
+    rule: 'PS8',
+    name: '-F asked of tmux 3.7a',
+    why: 'D44, §2.4: 3.7b is the first release measured to have capture-pane -F, and 3.7 and 3.7a could not be measured; a styled capture with a flag the server lacks answers unknown flag and no screen at all.',
+    file: SCREEN_COMPOSE,
+    from: "export const MARKS_FLAGS_SINCE = '3.7b';",
+    to: "export const MARKS_FLAGS_SINCE = '3.7a';",
+    needs: ['gate']
+  },
+  {
+    n: 'PS8f',
+    rule: 'PS8',
+    name: 'the fallback asked of tmux 3.3a',
+    why: 'D44: capture-pane -T arrived in 3.4 (CHANGES "3.3a TO 3.4"); on an older server the fallback is two captures tmux refuses, read for nothing on every tick.',
+    file: SCREEN_COMPOSE,
+    from: "export const MARKS_FALLBACK_SINCE = '3.4';",
+    to: "export const MARKS_FALLBACK_SINCE = '3.3a';",
+    needs: ['gate']
+  },
+  {
+    n: 'PS8g',
+    rule: 'PS8',
+    name: 'a -J line its rows take only part of still marking them',
+    why: 'D45 (a): the two captures agree only where the screen held still between them; a line its rows do not consume exactly is a moved screen, and a mark read from it joins lines that are not one.',
+    file: SCREEN_COMPOSE,
+    from: '    if (!exact) for (let k = start; k < r; k += 1) marked[k] = false;',
+    to: '    void exact;',
+    needs: ['gate']
+  },
+  {
+    n: 'PS8h',
+    rule: 'PS8',
+    name: 'a line with no -F prefix read as unmarked',
+    why: 'D45 (a): on the flags road every line carries its prefix, or the capture is not what the road says; reading on past one marks rows of a capture nobody can vouch for.',
+    file: SCREEN_COMPOSE,
+    from: "      if (flagged === null) return null;\n      out.push(flagged.letters.includes('W'));",
+    to: "      if (flagged === null) {\n        out.push(false);\n        continue;\n      }\n      out.push(flagged.letters.includes('W'));",
+    needs: ['gate']
+  },
+  {
+    n: 'PSHw',
+    rule: 'hostile',
+    name: 'ESC let into a paste',
+    why: 'D51: an ESC inside a bracketed paste can close the bracket (ESC [201~) and type the rest as keystrokes; refused whole, in words, a paste can never be anything but a paste.',
+    file: TEXT_RULES,
+    from: "    if (unit <= 0x1f && unit !== 0x0a && unit !== 0x09) return 'character';",
+    to: "    if (unit <= 0x1f && unit !== 0x0a && unit !== 0x09 && unit !== 0x1b) return 'character';",
+    needs: ['gate', 'hostile']
+  },
+  // The clauses Phase 348 widened, one arm each.
+  {
+    n: 'R2w',
+    rule: 'R2',
+    name: 'the paste row claiming to be a read',
+    why: 'a row that says it is a read and is not a GET is a write nobody counted; the writes are exactly the seven (D26).',
+    file: TABLE,
+    from: "{ id: 'paste', method: 'POST', path: '/v1/paste', reads: false,",
+    to: "{ id: 'paste', method: 'POST', path: '/v1/paste', reads: true,",
+    needs: ['gate']
+  },
+  {
+    n: 'R3w',
+    rule: 'R3',
+    name: 'the door’s write path building the Screen’s paste itself',
+    why: '§6: the door reaches a paste only through PocketWrites.paste, implemented outside its directory; a door that names createScreenPaste holds the verb that types.',
+    file: WRITES,
+    from: "import { PASTE_FAILED } from '@shared/screen-copy';",
+    to: "import { PASTE_FAILED } from '@shared/screen-copy';\nimport { createScreenPaste } from '../screen/paste';",
+    needs: ['gate']
+  },
+  {
+    n: 'R3x',
+    rule: 'R3',
+    name: 'the door composing a load-buffer',
+    why: '§6, D52: his words reach the private server only through src/main/reply/buffer.ts; a door that spells load-buffer composes a paste of its own.',
+    file: WRITES,
+    from: "const PASTE_ACT_FAILED: PocketPasteOutcome = Object.freeze({ outcome: 'failed', sentence: PASTE_FAILED });",
+    to: "const PASTE_ACT_FAILED: PocketPasteOutcome = Object.freeze({ outcome: 'failed', sentence: PASTE_FAILED });\nexport const PASTE_LOAD = ['load-buffer', '-'] as const;",
+    needs: ['gate']
+  },
+  {
+    n: 'X1w',
+    rule: 'X1',
+    name: 'the paste’s settle function awaiting before it starts the paste',
+    why: '§4.2 step 3: the act starts in the statement after the last check; an await in its settle function is a window a removed phone’s paste types through.',
+    file: WRITES,
+    from: 'function pasteSettled(start: () => Promise<PocketPasteOutcome>, write: string): Promise<Acted> {\n  try {',
+    to: 'async function pasteSettled(start: () => Promise<PocketPasteOutcome>, write: string): Promise<Acted> {\n  await Promise.resolve();\n  try {',
+    needs: ['gate']
+  },
+  {
+    n: 'X1x',
+    rule: 'X1',
+    name: 'the Remove’s settle function awaiting before it starts the Remove',
+    why: '§4.2 step 3: the act starts in the statement after the last check; an await in its settle function is a window a removed phone’s Remove acts through.',
+    file: WRITES,
+    from: 'function removeSettled(start: () => Promise<PocketRemoveOutcome>, write: string): Promise<Acted> {\n  try {',
+    to: 'async function removeSettled(start: () => Promise<PocketRemoveOutcome>, write: string): Promise<Acted> {\n  await Promise.resolve();\n  try {',
+    needs: ['gate']
+  },
+  {
+    n: 'X2w',
+    rule: 'X2',
+    name: 'the paste’s dialog parsed a second time',
+    why: 'D28: a write body is parsed ONCE, through objectOf, inside a try; a second parse reads bytes the first never vouched for.',
+    file: WRITES,
+    from: "  const text = value['text'];\n  const turn = value['turn'];\n  const dialog = value['dialog'];",
+    to: "  const text = value['text'];\n  const turn = value['turn'];\n  const dialog = JSON.parse(JSON.stringify(value['dialog'])) as unknown;",
+    needs: ['gate']
+  },
+  {
+    n: 'X3w',
+    rule: 'X3',
+    name: 'a Remove keyed in the ledger as an End',
+    why: 'build/p318/SPEC.md D4: the same write id under another verb is its own write; keyed as an End, a Remove whose id an End used is answered with the End’s record and removes nothing.',
+    file: WRITES,
+    from: '    const key = keyOf(verifiedPhone, verb, parsed.write);',
+    to: "    const key = keyOf(verifiedPhone, verb === 'remove' ? 'end' : verb, parsed.write);",
+    needs: ['gate']
+  },
+  {
+    n: 'X4w',
+    rule: 'X4',
+    alsoRed: ['hostile'],
+    name: 'a Remove that skips the session’s in-flight claim',
+    why: '§4.2 step 3: one write is in flight per session ACROSS verbs, so an End and a Remove never overlap on one session; a Remove that skips the check acts on a session an End is still ending.',
+    file: WRITES,
+    from: '    if (phonesInFlight.has(verifiedPhone) || sessionsInFlight.has(session)) {',
+    to: "    if (phonesInFlight.has(verifiedPhone) || (verb !== 'remove' && sessionsInFlight.has(session))) {",
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'X5w',
+    rule: 'X5',
+    alsoRed: ['RM4'],
+    name: 'the Remove verdict reading canEnd',
+    why: 'D47: Remove is offered on an ENDED session, which canEnd refuses; read off canEnd, the verdict passes a live far row and refuses every ended one.',
+    file: POCKET_WRITES,
+    from: 'sessionActionGates(session, session.status, DOOR_REMOVE_GATE_ENV).canRemove',
+    to: 'sessionActionGates(session, session.status, DOOR_REMOVE_GATE_ENV).canEnd',
+    needs: ['gate']
+  },
+  {
+    n: 'X5x',
+    rule: 'X5',
+    alsoRed: ['RM5'],
+    name: 'a Remove retried in its thrown handler',
+    why: 'D48: removeSession is called once, inside remove, right after the verdict; a retry after INVALID_INPUT tombstones a row main just refused because it came back to life.',
+    file: POCKET_WRITES,
+    from: "  if (isGmuxError(err, 'INVALID_INPUT')) {\n    let again: string | null = null;\n    try {\n      const record = core.manifest.getSession(sessionId);",
+    to: "  if (isGmuxError(err, 'INVALID_INPUT')) {\n    core.removeSession(sessionId);\n    let again: string | null = null;\n    try {\n      const record = core.manifest.getSession(sessionId);",
+    needs: ['gate']
+  },
+  {
+    n: 'X6w',
+    rule: 'X6',
+    name: 'a literal sentence handed to the paste’s answer',
+    why: '§5.1, D27: every sentence the write path says is a named constant from the copy modules; a literal is a sentence nobody reviewed and no gate holds.',
+    file: WRITES,
+    from: "  return { outcome: 'failed', answer: pasteAnswer(write, 'failed', null, PASTE_FAILED) };",
+    to: "  return { outcome: 'failed', answer: pasteAnswer(write, 'failed', null, 'It did not paste.') };",
+    needs: ['gate']
+  },
+  {
+    n: 'NS1w',
+    rule: 'NS1',
+    name: 'the face’s paste row said before its Remove row',
+    why: 'D26, D32: the face says start, then remove, then paste, in the order the phases added them, as the Allow line does.',
+    file: SHARED,
+    from: "  remove: 'remove ended sessions',\n  paste: 'paste into a session'",
+    to: "  paste: 'paste into a session',\n  remove: 'remove ended sessions'",
+    needs: ['gate']
+  },
+  {
+    n: 'NS2w',
+    rule: 'NS2',
+    alsoRed: ['PS3'],
+    name: 'a sixth field on PocketPasteAnswer',
+    why: 'D27: each new write has an answer of its own, five fields, and nothing that could claim Face ID happened or count what was typed.',
+    file: SHARED,
+    from: "  verb: 'paste';\n",
+    to: "  verb: 'paste';\n  typed: number;\n",
+    needs: ['gate']
+  },
+  {
+    n: 'NS11w',
+    rule: 'NS11',
+    alsoRed: ['X5'],
+    name: 'an eighth member on PocketWrites',
+    why: '§4.2 step 4: PocketWrites holds exactly the seven writes; a member past paste is a verb the door could reach that no Allow line names.',
+    file: ROUTES,
+    from: '  paste(input: PocketPasteInput, still: PocketStillAllowed): Promise<PocketPasteOutcome>;\n}',
+    to: '  paste(input: PocketPasteInput, still: PocketStillAllowed): Promise<PocketPasteOutcome>;\n  restore(input: { sessionId: string }): Promise<PocketRemoveOutcome>;\n}',
+    needs: ['gate']
+  },
+  {
+    n: 'AR9w',
+    rule: 'AR9',
+    name: 'the ledger’s paste row given another cap',
+    why: '333.12 D12, D29: an allowed id’s meaning is written once, and its cap is the door’s.',
+    file: LEDGER,
+    from: "path: '/v1/paste', reads: false, signed: true, windowOnly: false, bodyCap: 131072,",
+    to: "path: '/v1/paste', reads: false, signed: true, windowOnly: false, bodyCap: 65536,",
+    needs: ['gate']
+  },
+  {
+    n: 'AR9x',
+    rule: 'AR9',
+    alsoRed: ['RM1'],
+    name: 'the ledger’s remove row reworded',
+    why: '333.12 D12, D32: the ledger’s clause is the Allow line’s, word for word, so the line a person allowed is the meaning on record.',
+    file: LEDGER,
+    from: "bodyCap: 512, clause: 'remove a session that has ended' }",
+    to: "bodyCap: 512, clause: 'remove sessions' }",
+    needs: ['gate']
+  },
+  {
+    n: 'Z1w',
+    rule: 'Z1',
+    alsoRed: ['PS1'],
+    name: 'paste taken off the door’s write list',
+    why: '§4.2 step 2: the door hands main a write only for an id on its own list; off it, every paste is refused with no words.',
+    file: WIRE,
+    from: "const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste'];",
+    to: "const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say', 'keys', 'start', 'remove'];",
+    needs: ['gate']
+  },
+  {
+    n: 'AF2w',
+    rule: 'AF2',
+    alsoRed: ['PS1'],
+    name: 'the face’s paste row reworded',
+    why: 'D32: the face says each route in its own short words, once; a reworded row is a fact the face no longer says as the Allow line does.',
+    file: SHARED,
+    from: "  paste: 'paste into a session'\n});",
+    to: "  paste: 'paste into sessions'\n});",
+    needs: ['gate']
+  },
+  {
+    n: 'Y3w',
+    rule: 'Y3',
+    name: 'the writer composing its own delete-buffer again',
+    why: 'D52: the domain’s one delete is the buffer helper’s, so a message and a paste leave the server the same way; a second spelling is the one the next change misses.',
+    file: WRITER,
+    from: '      if (!pasted && name !== null) await dropWords(run, name);',
+    to: "      if (!pasted && name !== null) await run(['delete-buffer', '-b', name]).catch(() => '');",
+    needs: ['gate']
+  },
+  {
+    n: 'Y3x',
+    rule: 'Y3',
+    alsoRed: ['Z7'],
+    name: 'the paste setting its buffer from an argv',
+    why: 'D52, research 135 §4.8: his words reach tmux only on load-buffer’s standard input; set-buffer puts them in an argv any process on the Mac can read.',
+    file: SCREEN_PASTE,
+    from: '      name = await loadWords(run, PASTE_BUFFER_PREFIX, input.text);',
+    to: "      name = PASTE_BUFFER_PREFIX;\n      await run(['set-buffer', '-b', name, '--', input.text]);",
+    needs: ['gate']
+  },
+  {
+    n: 'Y4w',
+    rule: 'Y4',
+    name: 'a buffer named by the clock',
+    why: 'D52: the name is the prefix and sixteen random bytes, so no other client of the private server can guess it and paste his words first.',
+    file: BUFFER,
+    from: "  const name = prefix + randomBytes(16).toString('hex');",
+    to: '  const name = prefix + String(Date.now());',
+    needs: ['gate']
+  },
+  {
+    n: 'Y4x',
+    rule: 'Y4',
+    name: 'the paste naming its buffer with the say’s prefix',
+    why: 'D52: each caller hands the helper its own prefix, so a buffer left behind says which verb loaded it.',
+    file: SCREEN_PASTE,
+    from: 'loadWords(run, PASTE_BUFFER_PREFIX, input.text)',
+    to: 'loadWords(run, SAY_BUFFER_PREFIX, input.text)',
+    needs: ['gate']
+  },
+  {
+    n: 'Y13w',
+    rule: 'Y13',
+    alsoRed: ['PS4'],
+    name: 'the paste never moving the question id',
+    why: '§4.7: every phone write bumps the one question id before its act, so a press the phone composed against the picture before a paste is refused changed rather than typed into what the paste started.',
+    file: SCREEN_PASTE,
+    from: "      deps.turns.bump(id, 'phone');\n",
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'Y15w',
+    rule: 'Y15',
+    name: 'the paste’s text normalized',
+    why: '§4.6 step 8: a paste is exactly his bytes; nothing is stripped, trimmed or normalized, and what Tortie does not paste is refused in words.',
+    file: SCREEN_PASTE,
+    from: '      name = await loadWords(run, PASTE_BUFFER_PREFIX, input.text);',
+    to: "      name = await loadWords(run, PASTE_BUFFER_PREFIX, input.text.normalize('NFC'));",
+    needs: ['gate']
+  },
+  {
+    n: 'Z4w',
+    rule: 'Z4',
+    alsoRed: ['PS4'],
+    name: 'the paste reading the screen twice',
+    why: 'D50 step 4: ONE fresh read, its capture the last thing awaited, so the final check compares what the act will paste over; a second read is a picture the check never saw.',
+    file: SCREEN_PASTE,
+    from: '      const fresh = await deps.watch.readFresh(row);',
+    to: '      await deps.watch.readFresh(row);\n      const fresh = await deps.watch.readFresh(row);',
+    needs: ['gate']
+  },
+  {
+    n: 'Z7w',
+    rule: 'Z7',
+    name: 'the paste’s words handed to the measuring seam',
+    why: 'D50, D52: a paste’s text reaches the text rule and the one buffer helper and nothing else; the seam is a probe’s, and his words are not.',
+    file: SCREEN_PASTE,
+    from: '      deps.onLastCheck?.(id);',
+    to: '      deps.onLastCheck?.(id + input.text);',
+    needs: ['gate']
+  },
+  {
+    n: 'Z8w',
+    rule: 'Z8',
+    name: 'the desk’s funnel told whatever the paste list answered',
+    why: 'CLAUDE.md refusal 5, §4.7: noteUserInput is asked only when the list succeeded; told after a failed list, a paste that never landed reads as his input.',
+    file: SCREEN_PASTE,
+    from: '      if (pasted) {\n        try {\n          deps.noteUserInput(id);',
+    to: '      {\n        try {\n          deps.noteUserInput(id);',
+    needs: ['gate']
+  },
+  {
+    n: 'Z9w',
+    rule: 'Z9',
+    name: 'the fallback’s -J capture carrying its styles',
+    why: 'D44: the -J lines are compared with the -T -N rows as text; with -e every line holds escapes no row does, so the two never agree and nothing is ever marked.',
+    file: SCREEN_READ,
+    from: "    joined: ['capture-pane', '-p', '-J', '-t', tmuxId]",
+    to: "    joined: ['capture-pane', '-p', '-J', '-e', '-t', tmuxId]",
+    needs: ['gate']
+  },
+  {
+    n: 'Z9x',
+    rule: 'Z9',
+    name: 'the flags road’s capture without -F',
+    why: 'D44: on 3.7b and later the styled capture takes -F; without it the flags road reads a screen line that starts with W and a space as a mark, and strips it.',
+    file: SCREEN_READ,
+    from: "road === 'flags' ? ['capture-pane', '-p', '-e', '-F', '-t', tmuxId] :",
+    to: "road === 'flags' ? ['capture-pane', '-p', '-e', '-t', tmuxId] :",
+    needs: ['gate']
+  },
+  {
+    n: 'Z9y',
+    rule: 'Z9',
+    name: 'the far flags road’s capture without -F',
+    why: 'D44: a machine’s read takes the road its own server’s version picks; without -F the far road reads screen text as marks, as Z9x does here.',
+    file: REMOTE_SCREEN,
+    from: "SCREEN_FORMAT, ';', 'capture-pane', '-p', '-e', '-F', '-t', tmuxId, ';',\n      'display-message'",
+    to: "SCREEN_FORMAT, ';', 'capture-pane', '-p', '-e', '-t', tmuxId, ';',\n      'display-message'",
+    needs: ['gate']
+  },
+  {
+    n: 'Z11w',
+    rule: 'Z11',
+    name: 'the screen answer’s wrap marks copied unchecked',
+    why: 'D43: the marks leave only through wrapsCopyOf, a fresh array of ascending whole numbers below the last row; copied as handed, a mark past the rows joins a line to nothing.',
+    file: ROUTES,
+    from: '  const wraps = wrapsCopyOf(screen.wraps, rows);\n  if (wraps !== null) body.wraps = wraps;',
+    to: '  if (Array.isArray(screen.wraps)) body.wraps = screen.wraps;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z11x',
+    rule: 'Z11',
+    name: 'wrapsCopyOf letting the last row through',
+    why: 'D43: the last row is never listed, because its next row is not in the answer.',
+    file: ROUTES,
+    from: '    if (!wholeIn(r, 0, limit - 2) || r <= previous) return null;',
+    to: '    if (!wholeIn(r, 0, limit - 1) || r <= previous) return null;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z25w',
+    rule: 'Z25',
+    name: 'a page’s wrap marks copied unchecked',
+    why: 'D43: a page’s marks are indices into its own rows, through the same checked copier as the screen’s.',
+    file: ROUTES,
+    from: '  const wraps = wrapsCopyOf(answer.wraps, rows.length);\n  if (wraps !== null) composed.wraps = wraps;',
+    to: '  if (Array.isArray(answer.wraps)) composed.wraps = answer.wraps;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z20w',
+    rule: 'Z20',
+    name: 'the paste handed a last-act store of its own',
+    why: 'D57: keys and a paste share ONE last-act store, so a keys write and a paste handed 0 ms apart still reach the program 50 ms apart; two stores pace neither against the other.',
+    file: CAPABILITIES,
+    from: '    lastActs: screenLastActs\n  });\n  // PHASE 346 (build/p346/SPEC.md §4.13)',
+    to: '    lastActs: createScreenLastActs()\n  });\n  // PHASE 346 (build/p346/SPEC.md §4.13)',
+    needs: ['gate']
+  },
+  {
+    n: 'Z20x',
+    rule: 'Z20',
+    name: 'the paste stamping its last act before the act',
+    why: 'D57: the last-act time is written once, after the act, from the clock read as it started; a stamp before it is written for a paste that may never land.',
+    file: SCREEN_PASTE,
+    from: '      deps.onLastCheck?.(id);\n      const act: Promise<boolean> = run(list).then(',
+    to: '      deps.onLastCheck?.(id);\n      lastAct.set(id, now());\n      const act: Promise<boolean> = run(list).then(',
+    needs: ['gate']
+  },
+  {
+    n: 'Z21w',
+    rule: 'Z21',
+    alsoRed: ['Z9'],
+    name: 'the fallback list missing a separator',
+    why: 'D44, §Attack A8: the down path is ONE spawned list split by count; a missing ; makes two captures one command, and the split reads every line one off.',
+    file: SCREEN_READ,
+    from: "    ...extra.rows, ';',\n    ...extra.joined, ';',",
+    to: "    ...extra.rows,\n    ...extra.joined, ';',",
+    needs: ['gate']
+  },
+  {
+    n: 'Z26w',
+    rule: 'Z26',
+    name: 'the control statement’s extras defaulting to a capture',
+    why: 'D44: the extras are the fallback’s two captures and only its; a default that writes one rides every page round and every flags read with a line nobody asked for.',
+    file: SCREEN_READ,
+    from: '  extras: readonly string[] = []',
+    to: "  extras: readonly string[] = ['capture-pane -p -J']",
+    needs: ['gate']
+  },
+  {
+    n: 'Z27w',
+    rule: 'Z27',
+    name: 'a page’s pens read from the asked rows alone',
+    why: 'D44, §Attack B10: tmux writes each cell’s style as a change from the cell before it, across rows, so the pens are read over the WHOLE capture with the prefix stripped first; cut first, a row loses its pen.',
+    file: SCREEN_COMPOSE,
+    from: '  for (const row of styledRows(stylesOf(styled, marks))) {',
+    to: "  for (const row of styledRows(stylesOf(styled.split('\\n').slice(want.from - firstLine).join('\\n'), marks))) {",
+    needs: ['gate']
+  },
+  {
+    n: 'X5y',
+    rule: 'X5',
+    alsoRed: ['RM4'],
+    name: 'the Remove gate asked with DOOR_GATE_ENV spread and edited',
+    why: 'D6, D47: the door asks canRemove of its OWN named environment, never an edit of DOOR_GATE_ENV, whose contract is that the door asks canEnd of it and nothing else; a spread edited in place is the second environment with no name and no gate on it.',
+    file: POCKET_WRITES,
+    from: '  const canRemove = sessionActionGates(session, session.status, DOOR_REMOVE_GATE_ENV).canRemove;',
+    to: '  const canRemove = sessionActionGates(session, session.status, { ...DOOR_GATE_ENV, canDiscard: true }).canRemove;',
+    needs: ['gate']
+  },
+  {
+    n: 'Y2w',
+    rule: 'Y2',
+    name: 'the paste handed a still that is always yes',
+    why: 'D50 step 5: the paste reads the session before it types, and asks the door’s four again with nothing awaited before its act; a still that is always yes types for a phone removed while the paste read.',
+    file: WRITES,
+    from: '{ sessionId: parsed.session, text: parsed.text, turn: parsed.turn, dialog: parsed.dialog },\n                        still\n',
+    to: '{ sessionId: parsed.session, text: parsed.text, turn: parsed.turn, dialog: parsed.dialog },\n                        () => true\n',
+    needs: ['gate']
+  },
+  {
+    n: 'Y4y',
+    rule: 'Y4',
+    alsoRed: ['PS5'],
+    name: 'the paste dropping its words outside the finally',
+    why: 'D52: dropWords( sits in a finally in both callers, so a refusal or a throw after loadWords( never leaves his words in the private server.',
+    file: SCREEN_PASTE,
+    from: '      if (!pasted && name !== null) await dropWords(run, name);\n    }\n  }\n',
+    to: '    }\n    if (!pasted && name !== null) await dropWords(run, name);\n  }\n',
+    needs: ['gate']
+  },
+  {
+    n: 'Z9z',
+    rule: 'Z9',
+    name: 'the page read choosing its own road',
+    why: 'D44: the road is chosen by the running server’s version through marksRoadOf, asked by the marks’ owner alone; a read that asks it itself carries marks on a version nobody read.',
+    file: SCREEN_SCROLLBACK,
+    from: "import { composePageSteps, spaceOf, type ComposedPage } from './compose';",
+    to: "import { composePageSteps, marksRoadOf, spaceOf, type ComposedPage } from './compose';\nexport const PAGE_ROAD_NOW = marksRoadOf('3.7b');",
     needs: ['gate']
   }
 ];
@@ -6967,12 +8167,19 @@ function runChecks(which = CHECKS.map(([name]) => name)) {
     if (!which.includes(name)) continue;
     const r = spawnSync(process.execPath, options?.relative === true ? argv : argv.map((a) => join(scratch, a)), {
       cwd: scratch,
+      env: { ...process.env, ...(options?.env ?? {}) },
       encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024,
       timeout: 120_000
     });
     const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
     text += out;
+    // PHASE 348: a check that DIED rather than answered (a signal, a spawn
+    // error, the timeout) prints no rule at all, and an arm then reads "red
+    // instead: nothing numbered" with nothing to say why. Measured on
+    // 2026-10-19: two of 130 arms read so while the machine grew its swap, and
+    // each reddened its own rule when run again alone. Say how the check ended.
+    if (r.error !== undefined || r.signal !== null) text += `\n${name} did not answer: ${r.error !== undefined ? r.error.message : `ended by ${String(r.signal)}`}\n`;
     if ((r.status ?? 1) !== 0) code = 1;
     if ((r.status ?? 1) !== 0 && options?.tag !== undefined) {
       red.add(options.tag);
@@ -7109,9 +8316,13 @@ try {
         );
       } else if (!own) {
         const lines = out.text.split('\n').filter((l) => l.includes('[p313 ')).slice(0, 3).map((l) => l.trim().slice(0, 220));
+        // With nothing numbered, the last lines the checks printed say why (a
+        // check that died, or one that printed no rule), so the arm can be
+        // told apart from a hole and run again.
+        const tail = lines.length > 0 ? [] : out.text.split('\n').map((l) => l.trim()).filter((l) => l !== '').slice(-3).map((l) => l.slice(0, 220));
         problems.push(
           `${entry.n} "${entry.name}": something went red but ${[entry.rule, ...(entry.alsoRed ?? [])].join(' and ')} did not all (red instead: ` +
-            `${newlyRed.join(', ') || 'nothing numbered'}). ${lines.join(' // ')}`
+            `${newlyRed.join(', ') || 'nothing numbered'}). ${[...lines, ...tail].join(' // ')}`
         );
       }
     } finally {

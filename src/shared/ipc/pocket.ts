@@ -44,11 +44,12 @@
  * outbound hand-off, and the answer was to remove the thing rather than to
  * guard it. Pairing establishes keys each way and every request is signed.
  *
- * FIVE WRITE ROUTES, AND WHAT THEY CAN DO IS ALL THEY CAN DO (Phase 317,
+ * SEVEN WRITE ROUTES, AND WHAT THEY CAN DO IS ALL THEY CAN DO (Phase 317,
  * build/p317/SPEC.md §5.3; Phase 318, build/p318/SPEC.md §5.1; Phase 337,
- * build/p337/SPEC.md §5.1; Phase 346, build/p346/SPEC.md D1, D4).
- * {@link POCKET_WRITE_ROUTE_IDS} is exactly `end`, `choose`, `say`, `keys`
- * and `start`:
+ * build/p337/SPEC.md §5.1; Phase 346, build/p346/SPEC.md D1, D4; Phase 348,
+ * build/p348/SPEC.md §4.2, §4.6, D26 to D30).
+ * {@link POCKET_WRITE_ROUTE_IDS} is exactly `end`, `choose`, `say`, `keys`,
+ * `start`, `remove` and `paste`:
  *
  *   - `end` asks main to end ONE session by id, through both gates the Mac's
  *     own End asks, and main's verb does the ending;
@@ -67,12 +68,23 @@
  *   - `start` (Phase 346) asks main to start ONE session through the Mac's
  *     own one-press create, naming a project main offered and an installed
  *     agent; it carries no path, flag, name or login. It is not a session
- *     write: it names no session, and its answer is {@link PocketStartAnswer}.
+ *     write: it names no session, and its answer is {@link PocketStartAnswer};
+ *   - `remove` (Phase 348) asks main to remove ONE session that has ENDED,
+ *     through both gates the Mac's own Remove asks, by the Mac's own verb: it
+ *     moves to Past Sessions on the Mac, where Restore brings its conversation
+ *     back. Its answer is {@link PocketRemoveAnswer};
+ *   - `paste` (Phase 348) asks main to paste ONE text into a running session
+ *     on this Mac as a paste at the desk lands (bracketed where the program
+ *     asked, a line feed as a carriage return, no Return added), refused with
+ *     nothing typed when the numbered question the phone was looking at has
+ *     moved since. Its answer is {@link PocketPasteAnswer}.
  *
  * Nothing here can set a status, start a process by itself, or restore,
- * remove, restart, resize or rename a session. (A key typed into a shell runs
- * what a person types at the desk would run, and that is the write's whole
- * point; his ruling of 2026-10-05, "Every key, including Ctrl-C".) The
+ * restart, resize or rename a session. A phone may remove a session that has
+ * ended, never a live one, and it restores nothing. (A key typed or a text
+ * pasted into a shell runs what the same at the desk would run, and that is
+ * the write's whole point; his rulings of 2026-10-05, "Every key, including
+ * Ctrl-C", and of 2026-10-18, "paste natively".) The
  * route ids in {@link POCKET_ROUTE_IDS} are a confirmed field of the door's
  * own hash, so each phase that added one asked the person again, and a later
  * phase that adds one asks again too. (The fix round removed a fourth write,
@@ -133,35 +145,45 @@ export const POCKET_ROUTE_IDS = [
    * `POST /v1/start` — start one session in a project open on this Mac or one
    * of its machines, with an agent installed there (Phase 346).
    */
-  'start'
+  'start',
+  /** `POST /v1/remove` — remove one session that has ended, after both gates (Phase 348). */
+  'remove',
+  /** `POST /v1/paste` — paste one text into a running session on this Mac, as at the desk (Phase 348). */
+  'paste'
 ] as const;
 
 export type PocketRouteId = (typeof POCKET_ROUTE_IDS)[number];
 
 /**
- * The write routes, and there are exactly these FIVE (Phase 317; Phase 318
+ * The write routes, and there are exactly these SEVEN (Phase 317; Phase 318
  * added `choose` and `say` to the same door, the same write path and the same
  * ledger, and no second gate; Phase 337 added `keys` in the same way; Phase
- * 346 added `start`, build/p346/SPEC.md D4). A `reads: false` row of the
- * door's table is one of these, and `conformance:pocket` R2 holds the table
- * and this list to each other. The ORDER is the order the confirm line names
- * them in, so start's clause is said last.
+ * 346 added `start`, build/p346/SPEC.md D4; Phase 348 added `remove` and
+ * `paste`, build/p348/SPEC.md D26). A `reads: false` row of the door's table
+ * is one of these, and `conformance:pocket` R2 holds the table and this list
+ * to each other. The ORDER is the order the confirm line names them in, so
+ * start's, remove's and paste's clauses are said last, in that order.
  *
  * `start` is a write but NOT A SESSION WRITE: it names no session (a session
  * is what it makes), its body is a project and an agent, and its answer is
- * {@link PocketStartAnswer}, never {@link PocketWriteAnswer}. The four that act
- * on one named session are {@link POCKET_SESSION_WRITE_IDS}.
+ * {@link PocketStartAnswer}, never {@link PocketWriteAnswer}. `remove` and
+ * `paste` (Phase 348, D27) each name one session and take the session verbs'
+ * path, but each answers with a shape of its own ({@link PocketRemoveAnswer},
+ * {@link PocketPasteAnswer}), because the frozen phones read
+ * {@link PocketWriteAnswer}'s verb and reasons as closed sets. The four that
+ * answer {@link PocketWriteAnswer} are {@link POCKET_SESSION_WRITE_IDS}.
  */
-export const POCKET_WRITE_ROUTE_IDS = ['end', 'choose', 'say', 'keys', 'start'] as const satisfies readonly PocketRouteId[];
+export const POCKET_WRITE_ROUTE_IDS = ['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste'] as const satisfies readonly PocketRouteId[];
 
 export type PocketWriteRouteId = (typeof POCKET_WRITE_ROUTE_IDS)[number];
 
 /**
- * THE FOUR WRITES THAT ACT ON ONE NAMED SESSION (Phase 346,
+ * THE FOUR WRITES THAT ANSWER {@link PocketWriteAnswer} (Phase 346,
  * build/p346/SPEC.md D4): exactly the phone's frozen
  * `PocketWriteAnswer.Verb`, which is why {@link PocketWriteAnswer.verb} is
  * typed by it. A word outside it in that field is a word the frozen phone
- * refuses (`gate:onlyadd` A3), and `start` answers with its own shape.
+ * refuses (`gate:onlyadd` A3), and `start` answers with its own shape, as
+ * (Phase 348, D27) `remove` and `paste` do, though each names one session.
  */
 export const POCKET_SESSION_WRITE_IDS = ['end', 'choose', 'say', 'keys'] as const satisfies readonly PocketWriteRouteId[];
 
@@ -259,10 +281,12 @@ export interface PocketBlockedRow {
    * True when {@link blockedSince} fell inside the first seconds after this Mac
    * woke (Phase 314). The poll does not run while the Mac sleeps, so such a
    * wait was first SEEN at the wake and its stamp is the wake's, not the
-   * moment it began. A client draws "since your Mac woke" for it instead of an
-   * age, and an age from {@link blockedSince} otherwise. Computed in main by
-   * `blockedAge` in src/main/tray/attention.ts and nowhere else; the push alert
-   * reads it off the same row.
+   * moment it began. Computed in main by `blockedAge` in
+   * src/main/tray/attention.ts and nowhere else. ONE SURFACE DRAWS IT, the
+   * push alert, which reads it off the same row and leads with `Seen when
+   * your Mac woke`; a phone decodes it and draws the age main composed,
+   * {@link ageText}, and nothing else (Phase 348 corrected this line, which
+   * said a client draws "since your Mac woke": none ever did).
    *
    * PHASE 316: it is true only of a row that IS blocked. A row that is not
    * waiting carries its creation clock in {@link blockedSince} as a fallback,
@@ -456,6 +480,17 @@ export interface PocketSessionDetail extends PocketBlockedRow {
    * READS FALSE, here and on the phone, so an older Mac draws no Screen row.
    */
   screen?: boolean;
+  /**
+   * The Mac's own Remove confirmation for this session, word for word (Phase
+   * 348, build/p348/SPEC.md D5, D49): `removeSessionConfirm` over main's own
+   * row, copied field by field. PRESENT EXACTLY WHEN this Mac serves `remove`
+   * (a person allowed it) and both of the Mac's gates offer Remove on this
+   * session now, so a phone never draws a Remove whose words it would have to
+   * make up. ABSENT on a Mac older than this phase, on one whose Allow waits,
+   * and on every session Remove is not offered on; a phone reads absent as no
+   * Remove.
+   */
+  removeConfirm?: PocketEndConfirm;
 }
 
 /**
@@ -522,7 +557,7 @@ export interface PocketBlockedAnswer {
   /** Drawn when `rows` is empty. One spelling, main's. */
   emptyLine: string;
   /**
-   * The sentence drawn under the ages: {@link POCKET_AGE_HONESTY}, Phase 314's
+   * The age note, {@link POCKET_AGE_HONESTY}: empty since Phase 348 and drawn by no client, Phase 314's
    * one spelling, handed over rather than spelled by a client.
    */
   ageNote: string;
@@ -924,6 +959,84 @@ export interface PocketStartOffer {
 
 /** The sessions answer's `start` key (D9): waiting for an Allow, or the offer. */
 export type PocketSessionsStart = { state: 'waiting' } | PocketStartOffer;
+
+// ---------------------------------------------------------------------------
+// Removing a session and pasting into one (Phase 348, build/p348/SPEC.md §4.2,
+// §4.6, D27 to D30)
+// ---------------------------------------------------------------------------
+
+/**
+ * Why a Remove was refused (Phase 348, D27). A word; the sentence beside it is
+ * what a person reads. `malformed`: the door could not read the body. `gone`:
+ * nothing by that id is listed any more (never listed, or removed already).
+ * `changed`: it is not a session Remove is offered on now (it has not ended,
+ * or main's own gate refused it). `unreachable`: Tortie cannot see whether it
+ * runs.
+ *
+ * A PHONE READS THIS AS AN OPEN WORD and draws the sentence, so a later Mac
+ * may add a reason without a frozen phone refusing the whole answer.
+ */
+export type PocketRemoveReason = 'malformed' | 'gone' | 'changed' | 'unreachable';
+
+/**
+ * The answer to `POST /v1/remove` (Phase 348, D27), composed field by field in
+ * main, and these five fields are all of it, with {@link PocketWriteAnswer}'s
+ * invariants: `write` is `""` ONLY on the one `refused` `malformed` answer
+ * whose body yielded no well-formed id; `reason` is non-null exactly when
+ * `outcome` is `refused`; `sentence` is null exactly when `outcome` is `done`.
+ * Every outcome the Remove decides is a 200 with this body; a 404 with no body
+ * is the door's own refusal and means nothing was removed.
+ */
+export interface PocketRemoveAnswer {
+  verb: 'remove';
+  /** The request's write id, echoed: 32 lowercase hex, or `""` as above. */
+  write: string;
+  outcome: PocketWriteOutcome;
+  /** Non-null exactly when {@link outcome} is `refused`. Read by a phone as an OPEN word. */
+  reason: PocketRemoveReason | null;
+  /** The Mac's words. Null exactly when {@link outcome} is `done`. */
+  sentence: string | null;
+}
+
+/**
+ * The most bytes of UTF-8 one paste may carry (Phase 348, D29), declared here
+ * and nowhere else: refused whole above it, never split. MEASURED by the spec
+ * step (build/p348/SPEC.md §2.2): tmux 3.7b and 3.6a each took 16,384 bytes in
+ * ONE `load-buffer -` and ONE paste list, exact to the byte.
+ */
+export const POCKET_PASTE_MAX_TEXT_BYTES = 16_384;
+
+/**
+ * Why a paste was refused (Phase 348, D27). A word; the sentence beside it is
+ * what a person reads. `malformed`: the door could not read the body. `gone`:
+ * nothing by that id is listed. `changed`: the session moved under the paste,
+ * or the numbered question the phone was looking at did. `unreachable`: it is
+ * not running, Tortie cannot see it, or it takes no keys now. `machine`: it
+ * runs on another machine, where this phase pastes nothing (D22). `empty`,
+ * `long` and `character`: the text's own three rules (D51). `stopped`: the
+ * door's last check failed while the paste read.
+ *
+ * A PHONE READS THIS AS AN OPEN WORD and draws the sentence, so a later Mac
+ * may add a reason without a frozen phone refusing the whole answer.
+ */
+export type PocketPasteReason = 'malformed' | 'gone' | 'changed' | 'unreachable' | 'machine' | 'empty' | 'long' | 'character' | 'stopped';
+
+/**
+ * The answer to `POST /v1/paste` (Phase 348, D27), composed field by field in
+ * main, and these five fields are all of it, with {@link PocketRemoveAnswer}'s
+ * invariants. Every outcome the paste decides is a 200 with this body; a 404
+ * with no body is the door's own refusal and means nothing was typed.
+ */
+export interface PocketPasteAnswer {
+  verb: 'paste';
+  /** The request's write id, echoed: 32 lowercase hex, or `""` on the one malformed answer that has none. */
+  write: string;
+  outcome: PocketWriteOutcome;
+  /** Non-null exactly when {@link outcome} is `refused`. Read by a phone as an OPEN word. */
+  reason: PocketPasteReason | null;
+  /** The Mac's words. Null exactly when {@link outcome} is `done`. */
+  sentence: string | null;
+}
 
 // ---------------------------------------------------------------------------
 // The sheet in Settings then Phone
@@ -1333,10 +1446,16 @@ export const POCKET_DOOR_HONESTY =
  *
  * PHASE 346 (build/p346/SPEC.md D3): `start`, in the words its Allow line
  * says it (`WRITE_CLAUSES.start` in src/main/pocket/pairing.ts and the route
- * ledger's row). No word names Face ID: the Mac cannot verify it.
+ * ledger's row). No word names Face ID: the Mac cannot verify it. PHASE 348
+ * (build/p348/SPEC.md D32): `remove` and `paste` the same way, after it.
  */
 const POCKET_HONESTY_ADDED: Readonly<Record<Exclude<PocketRouteId, LegacyAllowedRouteId>, string>> = Object.freeze({
-  start: 'start a session in a project open in Tortie, on this Mac or another machine'
+  start: 'start a session in a project open in Tortie, on this Mac or another machine',
+  // PHASE 348 (build/p348/SPEC.md D32): Remove and paste, in the words their
+  // Allow lines say them. Paste says "on this Mac" because a far paste is
+  // refused in this phase (D22), and a clause never widens under its id.
+  remove: 'remove a session that has ended',
+  paste: 'paste text into a session on this Mac'
 });
 
 /**
@@ -1481,7 +1600,10 @@ export const POCKET_FACE_CLAUSES: Readonly<Record<PocketRouteId, string | null>>
   end: 'end a session',
   pair: null,
   // PHASE 346 (build/p346/SPEC.md D3): the face's short words for Start.
-  start: 'start sessions'
+  start: 'start sessions',
+  // PHASE 348 (build/p348/SPEC.md D32): Remove's and paste's.
+  remove: 'remove ended sessions',
+  paste: 'paste into a session'
 });
 
 /**
@@ -1493,12 +1615,23 @@ export const POCKET_FACE_CLAUSES: Readonly<Record<PocketRouteId, string | null>>
  * PHASE 346 (build/p346/SPEC.md D3) adds Start's row. 333.12.1 D7 had drafted
  * `Your phone could start Claude Code or Codex in a project here.`; his
  * answers 6 and 8 (any installed agent, remote projects too) made that false,
- * so the sentence says what is true.
+ * so the sentence says what is true. PHASE 348 (build/p348/SPEC.md D32) adds
+ * Remove's and paste's rows; one Allow serves both, because its proposal is
+ * the allowed set with this build's routes added.
  */
 export const POCKET_NEW_ROUTE_WORDS: PocketNewRouteTable = Object.freeze({
   start: {
     title: 'start sessions from your phone',
     sentence: 'An agent installed where the project is, with your launch defaults.'
+  },
+  // PHASE 348 (build/p348/SPEC.md D32): Remove's and paste's rows, added.
+  remove: {
+    title: 'remove sessions from your phone',
+    sentence: 'An ended session moves to Past Sessions on this Mac, where you can restore it.'
+  },
+  paste: {
+    title: 'paste into sessions from your phone',
+    sentence: 'It lands as a paste at this Mac does, with no Return added.'
   }
 });
 
@@ -1708,16 +1841,21 @@ export const POCKET_NAME_SENTENCES: Readonly<Record<'checking' | 'unreadable', s
 export const POCKET_NAME_ROUND_RULE = 'Pair opens when a round finds your Mac’s name and no server says it is missing.';
 
 /**
- * How the ages a phone draws can be off, said where they are drawn (Phase 314).
+ * THE AGE NOTE, EMPTY SINCE PHASE 348 (build/p348/SPEC.md §4.4, D14; his words
+ * of 2026-10-18: "really weird and confusing").
  *
- * The poll that stamps a wait does not run while this Mac sleeps or while
- * Tortie is not running, so a wait that began then is timed from when it was
- * first seen. A wait seen before a sleep keeps its true age across it, which is
- * why the sentence names only the waits FIRST SEEN after. Drawn by the phone
- * app's settings (Phase 316) and by nothing in Phase 314.
+ * Phase 314 wrote here a sentence about how a wait's age can be off: the poll
+ * that stamps a wait does not run while this Mac sleeps or while Tortie is not
+ * running, so a wait that began then is timed from when it was first seen.
+ * That stays true, and ⌘J draws the same ages with no note. The KEY stays on
+ * `/v1/blocked` and `/v1/sessions` (`ageNote`) only because the launch phone
+ * and build 11 require it (`gate:onlyadd` A3); no client draws it since Phase
+ * 348: build 12 decodes it and draws `read <time>` alone, and build 11 and the
+ * launch build draw no sentence for the empty one (§2.6 measured what build 11
+ * draws). Its name and its single quotes stay, because build/probe-p313.mjs
+ * and build/p3333/sample.mjs read it by that spelling.
  */
-export const POCKET_AGE_HONESTY =
-  'Waits first seen after your Mac wakes or Tortie restarts are timed from then.';
+export const POCKET_AGE_HONESTY = '';
 
 // ---------------------------------------------------------------------------
 // The channels
@@ -1941,6 +2079,25 @@ export interface PocketScreen {
    * {@link depth}.
    */
   space: string | null;
+  /**
+   * Whether this Mac takes a paste into this session now (Phase 348,
+   * build/p348/SPEC.md D30): present, and `true`, ONLY while a person allowed
+   * `paste`, the session takes keys and it runs on this Mac (a paste reaches
+   * sessions on this Mac only, D22). ABSENT otherwise, and absent reads false,
+   * so a Mac older than this phase, one whose Allow waits, an ended session
+   * and a session on another machine draw Copy alone. The live revision does
+   * not hash it: after an Allow, Paste appears at the session's next picture.
+   */
+  paste?: boolean;
+  /**
+   * THE WRAP MARKS (Phase 348, D43 to D45): the live row indices whose line
+   * goes on into the next row, ascending, each `0 <= r < rows - 1`, so Copy
+   * joins a long line the terminal wrapped. A row is marked only when tmux
+   * marked it wrapped AND its last column holds ink, on the main screen. ABSENT
+   * means no marks, which is today's Copy; a client that cannot read it reads
+   * no marks and never fails the answer.
+   */
+  wraps?: number[];
 }
 
 /** Why a screen answer carries no screen (D13). */
@@ -2003,4 +2160,11 @@ export interface PocketScrollbackAnswer {
   why: PocketScrollbackAbsence | null;
   /** Main's words for {@link why}, null otherwise. */
   sentence: string | null;
+  /**
+   * THE WRAP MARKS of this page (Phase 348, D43): indices into {@link rows}
+   * whose line goes on into the next row, ascending, each
+   * `0 <= r < rows.length - 1` (the page's last row is never listed: its next
+   * row is another page's). ABSENT means no marks; never present with `why`.
+   */
+  wraps?: number[];
 }

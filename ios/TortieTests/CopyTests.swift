@@ -310,7 +310,11 @@ final class CopyTests: XCTestCase {
             (settings, Copy.thisMac),
             (settings, Copy.readAt("4:32 PM")),
             (settings, Copy.pairMatchLabel),
-            (settings, Copy.joined([Copy.paired, "Sep 30, 2026"])),
+            // Phase 348 (build/p348/SPEC.md section 4.3, D12): Paired is a
+            // labelled row, its word on the left and the date on the right,
+            // as Version is, where it was one joined line.
+            (settings, Copy.paired),
+            (settings, "Sep 30, 2026"),
             (settings, Copy.alerts),
             (settings, Copy.notifications),
             (settings, Copy.notificationsAllowed),
@@ -455,7 +459,11 @@ final class CopyTests: XCTestCase {
     /// word the phone says (Phase 317 brought `Select`): none of their words
     /// is here. Phase 318 brought the message box, so its four words left
     /// this list and are the phone's own (`send`, `messagePlaceholder`,
-    /// `sending`, `oneMessage`). Nor is a search (Phase 316.7, D14).
+    /// `sending`, `oneMessage`). Nor is a search (Phase 316.7, D14). Phase
+    /// 348 brought iOS's own paste on his ruling of 2026-10-18 ("Paste is
+    /// native"), so `Paste` and `paste` left this list on purpose and are the
+    /// phone's words now (`paste`, the Mac terminal menu's own, and the paste
+    /// rule's sentences); every other entry stays.
     func testNoWordOfAControlThePhoneDoesNotHave() throws {
         let refused = [
             "Open in Claude", "Open in Terminal", "Enter a code instead", "End with Face ID",
@@ -463,14 +471,14 @@ final class CopyTests: XCTestCase {
             // Phase 316.7, D14: no search, so no word of one.
             "Search",
             // Phase 337: the Screen is the session's screen, never a remote
-            // desktop or SSH (his ruling 1), and no paste key (section 12);
-            // and the sentence D31 replaced, which the Screen made false.
-            "SSH", "remote desktop", "Remote Desktop", "Paste",
+            // desktop or SSH (his ruling 1); and the sentence D31 replaced,
+            // which the Screen made false. (Its "no paste key", section 12,
+            // and 337.1's "no paste" ended with Phase 348's ruling.)
+            "SSH", "remote desktop", "Remote Desktop",
             "The terminal’s own output stays on your Mac.",
             // Phase 337.1 (D22): the Terminal scrolls back, so the line that
-            // kept its scrollback on the Mac is false and gone; and no paste
-            // (his ruling, "i don't think we need paste to start").
-            "The terminal’s scrollback stays on your Mac.", "paste",
+            // kept its scrollback on the Mac is false and gone.
+            "The terminal’s scrollback stays on your Mac.",
         ]
         for entry in try entries() {
             for word in refused where entry.literal.contains(word) {

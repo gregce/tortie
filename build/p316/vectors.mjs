@@ -57,6 +57,19 @@
  *             `startAnswer` over that body (or the body cut short) with a door
  *             whose served set holds `start`, the busy one a second phone's
  *             while the first start is still acting.
+ *             Phase 348 adds REMOVE and PASTE (build/p348/SPEC.md D27, D28,
+ *             §4.2, §4.6): `POST /v1/remove` with `{session, write}` and
+ *             `POST /v1/paste` with `{dialog, session, text, turn, write}`,
+ *             each as Swift writes it, keys sorted and every `/` escaped,
+ *             the paste's text holding `/`, `"`, a line feed, a tab and an
+ *             emoji (built from its code point); each accepted by the
+ *             shipping verifier over the phone's channel, at most its route's
+ *             shipping cap, and read back by the shipping `parseRemoveBody`
+ *             and `parsePasteBody` to the very fields written; and their
+ *             answers (`remove-done`, `remove-refused`, `remove-malformed`,
+ *             `paste-done`, `paste-refused-machine`, `paste-malformed`), each
+ *             from a fresh shipping write path whose served set holds the
+ *             route, the act recorded.
  *   pins      two door certificates issued by the shipping `tls.ts` for the
  *             public name, with the `publicKeyFingerprint` it reports and the
  *             QR pin `spkiPinOf` makes of it.
@@ -120,6 +133,13 @@
  *             own revision (`screen-unchanged`) and its absence on an exited
  *             session (`screen-ended`), by the SHIPPING `routes.screen`, the
  *             facts deciding live or ended by the shipping `screenLive`; and
+ *             Since Phase 348 (D30, D43, D49): `session-ended`, an exited
+ *             session's answer from a door that serves `remove`, carrying the
+ *             Mac's own `removeConfirm` (the shipping `removeVerdict` passing,
+ *             in `removeSessionConfirm`'s words); `screen-paste`, the sample's
+ *             screen from a door that serves `paste`, carrying `paste` and the
+ *             rows marked wrapped as the route copies them; and
+ *             `scrollback-wraps`, a page carrying its marks.
  *             five write answers (`end-done`, `choose-changed`, `say-failed`,
  *             `keys-done`, `end-malformed`), each from a FRESH shipping
  *             `createPocketWriteHandler` handed the very bodies the request
@@ -374,6 +394,18 @@ const START_SESSION = { id: '9e2d4c6b-1a3f-4e5d-8c7b-6a5f4e3d2c1b', name: 'claud
 /** The message: `/`, `"`, a line break and an emoji, the emoji from its code point. */
 const SAY_TEXT = `run "ls /tmp" now\nthen /exit ${String.fromCodePoint(0x1f44d)}`;
 /**
+ * PHASE 348: Remove's and the paste's write ids, the ended session Remove
+ * names (the exited row of the facts below, `S.failed`), and the paste's
+ * stamp; the paste's text holds `/`, `"`, a line feed, a tab and an emoji,
+ * the emoji from its code point, and nothing the phone's rule refuses.
+ */
+const WRITE_REMOVE = sha256hex('tortie-p348-vector write remove').slice(0, 32);
+const WRITE_PASTE = sha256hex('tortie-p348-vector write paste').slice(0, 32);
+const SESSION_ENDED = '4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c05';
+const PASTE_TEXT = `git log --oneline -- "src/main"\n\tcd ../build ${String.fromCodePoint(0x1f4cb)}`;
+const PASTE_TURN = `${sha256hex('tortie-p348-vector turn').slice(0, 16)}-12`;
+const PASTE_MARK = sha256hex('tortie-p348-vector mark').slice(0, 12);
+/**
  * PHASE 337 (build/p337/SPEC.md §6.4, the vectors): the Screen's read and its
  * keys. The revision the read holds, the keys write ids, and the text, which
  * holds a quote, a backslash, a slash and an emoji (built from its code point,
@@ -472,7 +504,12 @@ const requestShapes = [
   },
   // PHASE 346: the start, its body as Swift writes it (build/p346/SPEC.md D6).
   // Appended, so every earlier request keeps its clock.
-  { name: 'start', method: 'POST', target: '/v1/start', body: swiftJson({ agent: 'claude', project: START_PROJECT, write: WRITE_START }), id: null }
+  { name: 'start', method: 'POST', target: '/v1/start', body: swiftJson({ agent: 'claude', project: START_PROJECT, write: WRITE_START }), id: null },
+  // PHASE 348: Remove and the paste, each body as Swift writes it
+  // (build/p348/SPEC.md D28). Appended, so every earlier request keeps its
+  // clock.
+  { name: 'remove', method: 'POST', target: '/v1/remove', body: swiftJson({ session: SESSION_ENDED, write: WRITE_REMOVE }), id: null },
+  { name: 'paste', method: 'POST', target: '/v1/paste', body: swiftJson({ dialog: PASTE_MARK, session: SESSION_TALK, text: PASTE_TEXT, turn: PASTE_TURN, write: WRITE_PASTE }), id: null }
 ];
 
 const requests = requestShapes.map((shape, i) => {
@@ -669,6 +706,30 @@ for (const r of requests.filter((x) => x.method === 'POST' && x.target !== '/pai
   else if (!parsed.ok) fail('write start: the shipping parseStartBody refused the Swift bytes as malformed');
   else if (parsed.project !== START_PROJECT || parsed.agent !== 'claude' || parsed.write !== WRITE_START) fail('write start: the shipping parse reads other ids than were written');
   if (Object.keys(JSON.parse(r?.body ?? '{}')).join() !== 'agent,project,write') fail('write start: its body is not exactly agent, project and write');
+}
+// PHASE 348: Remove's and the paste's bodies are ones the SHIPPING parses
+// take, as the Mac reads them, back to the very fields written, their keys
+// exactly theirs; the paste's text arrives exactly, a slash written as Swift
+// writes it among it.
+{
+  const { parseRemoveBody, parsePasteBody } = await import('../../src/main/pocket/writes.ts');
+  const remove = requests.find((x) => x.name === 'remove');
+  const removed = typeof parseRemoveBody === 'function' ? parseRemoveBody(Buffer.from(remove?.body ?? '', 'utf8')) : null;
+  if (removed === null) fail('write remove: the shipping writes.ts exports no parseRemoveBody to read it');
+  else if (!removed.ok) fail('write remove: the shipping parseRemoveBody refused the Swift bytes as malformed');
+  else if (removed.session !== SESSION_ENDED || removed.write !== WRITE_REMOVE) fail('write remove: the shipping parse reads another session or write id than were written');
+  if (Object.keys(JSON.parse(remove?.body ?? '{}')).join() !== 'session,write') fail('write remove: its body is not exactly session and write');
+  const paste = requests.find((x) => x.name === 'paste');
+  const pasted = typeof parsePasteBody === 'function' ? parsePasteBody(Buffer.from(paste?.body ?? '', 'utf8')) : null;
+  if (pasted === null) fail('write paste: the shipping writes.ts exports no parsePasteBody to read it');
+  else if (!pasted.ok) fail('write paste: the shipping parsePasteBody refused the Swift bytes as malformed');
+  else if (pasted.text !== PASTE_TEXT || pasted.session !== SESSION_TALK || pasted.turn !== PASTE_TURN || pasted.dialog !== PASTE_MARK || pasted.write !== WRITE_PASTE) {
+    fail('write paste: the shipping parse reads other fields than were written');
+  }
+  if (Object.keys(JSON.parse(paste?.body ?? '{}')).join() !== 'dialog,session,text,turn,write') fail('write paste: its body is not exactly dialog, session, text, turn and write');
+  if (!(paste?.body ?? '').includes('\\/') || !PASTE_TEXT.includes('"') || !PASTE_TEXT.includes('\n') || !PASTE_TEXT.includes('\t') || ![...PASTE_TEXT].some((c) => (c.codePointAt(0) ?? 0) > 0xffff)) {
+    fail('write paste: the vector does not hold a slash written as Swift writes it, a quote, a line feed, a tab and an emoji');
+  }
 }
 // PHASE 318: the Mac's own reader (JSON.parse) reads the Swift bytes back to
 // the very fields the phone wrote, the slash escapes included, and the text
@@ -1500,6 +1561,102 @@ const WROTE = { outcome: 'done' };
 const QUESTION_MOVED = { outcome: 'refused', reason: 'changed', sentence: LIFECYCLE_SESSION_CHANGED };
 const COULD_NOT_TYPE = { outcome: 'failed', sentence: REPLY_FAILED };
 
+// ---------------------------------------------------------------------------
+// PHASE 348 (build/p348/SPEC.md D27, D30, D43, D49): Remove and the paste
+// ---------------------------------------------------------------------------
+
+const { PASTE_THIS_MAC_ONLY } = await import('../../src/shared/screen-copy.ts');
+const { removeSessionConfirm } = await import('../../src/shared/lifecycle-words.ts');
+if (SESSION_ENDED !== S.failed) fail('the Remove request names another session than the facts\' exited row');
+const PASTE_FAR = { outcome: 'refused', reason: 'machine', sentence: PASTE_THIS_MAC_ONLY };
+/** Remove's body with its closing brace cut off, and the paste's: bodies that are not JSON. */
+const REMOVE_NOT_JSON = () => bodyOf('remove').slice(0, -1);
+const PASTE_NOT_JSON = () => bodyOf('paste').slice(0, -1);
+/**
+ * One Remove or paste answer from a FRESH shipping write path whose served
+ * set holds `remove` and `paste` (a door that allowed both), over `body`, a
+ * recording `writes` whose `remove` and `paste` answer `outcome` (the others
+ * are not this vector's).
+ */
+async function phoneWriteVector(name, path, body, outcome) {
+  if (typeof createPocketWriteHandler !== 'function' || typeof matchPocketRoute !== 'function') {
+    fail(`answer ${name}: the shipping writes.ts or routes.ts exports no createPocketWriteHandler or matchPocketRoute`);
+    return null;
+  }
+  const route = matchPocketRoute('POST', path);
+  if (route === null) {
+    fail(`answer ${name}: the shipping route table matches no POST ${path}`);
+    return null;
+  }
+  const handed = [];
+  const verb = (id) => async (input, still) => {
+    handed.push({ verb: id, input, still: typeof still === 'function' ? still() : null });
+    return outcome;
+  };
+  const other = () => async () => ({ outcome: 'failed', sentence: 'not this verb' });
+  const handle = createPocketWriteHandler({
+    shuttingDown: () => false,
+    stillPaired: () => true,
+    routeServed: (id) => id === 'remove' || id === 'paste' || routeServed(id),
+    writes: { end: other(), choose: other(), say: other(), keys: other(), start: other(), remove: verb('remove'), paste: verb('paste') },
+    now: () => T
+  });
+  const consoleLog = console.log;
+  console.log = () => {};
+  let answer;
+  try {
+    answer = await handle(route, Buffer.from(body, 'utf8'), identityVectors.phoneId, { stopping: () => false });
+  } finally {
+    console.log = consoleLog;
+  }
+  writesSeen.set(name, { status: answer.status, acted: answer.acted ?? false, handed });
+  if (answer.status !== 200 || typeof answer.body !== 'string') {
+    fail(`answer ${name}: the shipping write path answered ${String(answer.status)} with no body`);
+    return null;
+  }
+  const parsed = JSON.parse(answer.body);
+  if (JSON.stringify(parsed) !== answer.body) fail(`answer ${name}: the door's bytes are not what JSON.stringify writes of them`);
+  return parsed;
+}
+/**
+ * THE REMOVE OFFER (D49) as a door that serves `remove` composes it: the
+ * SHIPPING `removeVerdict` over the row and its record (the manifest's
+ * status, as written; every row here is on this Mac), passing, in the Mac's
+ * own `removeSessionConfirm` words, copied field by field.
+ */
+const removeOfferOfRow = (session) => {
+  if (typeof pocketWrites.removeVerdict !== 'function') {
+    fail('the shipping src/main/sessions/pocket-writes.ts exports no removeVerdict, so no row\'s Remove can be composed');
+    return null;
+  }
+  const verdict = pocketWrites.removeVerdict(session, { status: session.status, machineId: null });
+  if (verdict?.ok !== true) return null;
+  const confirm = removeSessionConfirm(session);
+  return { title: confirm.title, body: confirm.body, confirmLabel: confirm.confirmLabel };
+};
+const removeRoutes = createPocketRoutes({ ...facts, removeConfirmOf: (session) => removeOfferOfRow(session) });
+/**
+ * THE PASTE FLAG AND THE MARKS (D30, D43): the sample's screen as the
+ * composer would hand it on a session on this Mac that takes keys (`paste`
+ * set, two rows marked), from a door that serves `paste`; and a page carrying
+ * its marks, its last row never listed. The routes copy both field by field
+ * after their own checks.
+ */
+const SCREEN_WRAPS = [1, 4];
+const PAGE_WRAPS = [0, 2, 3];
+const pasteRoutes = createPocketRoutes({
+  ...facts,
+  pasteAllowed: () => true,
+  screen: async () => ({ ...SAMPLE, sessionId: S.talk, screen: { ...SAMPLE.screen, paste: true, wraps: SCREEN_WRAPS } })
+});
+const wrapsRoutes = createPocketRoutes({
+  ...facts,
+  scrollback: async (session, ask) => {
+    const page = await historyRoutes.scrollback(scrollbackQueryFor(session.id), () => false);
+    return page === null ? null : { ...page, from: ask.from, depth: ask.depth, wrap: ask.wrap, wraps: PAGE_WRAPS };
+  }
+});
+
 const answerShapes = [
   ['blocked', () => routes.blocked()],
   ['session-talk', () => routes.session(S.talk)],
@@ -1535,7 +1692,19 @@ const answerShapes = [
   ['start-done', () => startVector('start-done', bodyOf('start'), [STARTED])],
   ['start-refused-project', () => startVector('start-refused-project', bodyOf('start'), [START_GONE])],
   ['start-busy', () => startVector('start-busy', bodyOf('start'), [() => STARTED], { firstBody: START_FIRST(), phone: 'p346-vector-second-phone' })],
-  ['start-malformed', () => startVector('start-malformed', START_NOT_JSON(), [STARTED])]
+  ['start-malformed', () => startVector('start-malformed', START_NOT_JSON(), [STARTED])],
+  // PHASE 348: Remove's and the paste's answers, each from a fresh shipping
+  // write path whose door allowed both; the ended session's answer from a
+  // door that serves `remove`; the screen and a page with their new keys.
+  ['remove-done', () => phoneWriteVector('remove-done', '/v1/remove', bodyOf('remove'), WROTE)],
+  ['remove-refused', () => phoneWriteVector('remove-refused', '/v1/remove', bodyOf('remove'), QUESTION_MOVED)],
+  ['remove-malformed', () => phoneWriteVector('remove-malformed', '/v1/remove', REMOVE_NOT_JSON(), WROTE)],
+  ['paste-done', () => phoneWriteVector('paste-done', '/v1/paste', bodyOf('paste'), WROTE)],
+  ['paste-refused-machine', () => phoneWriteVector('paste-refused-machine', '/v1/paste', bodyOf('paste'), PASTE_FAR)],
+  ['paste-malformed', () => phoneWriteVector('paste-malformed', '/v1/paste', PASTE_NOT_JSON(), WROTE)],
+  ['session-ended', () => removeRoutes.session(S.failed)],
+  ['screen-paste', () => pasteRoutes.screen(new URLSearchParams(`id=${S.talk}`), () => false)],
+  ['scrollback-wraps', () => wrapsRoutes.scrollback(scrollbackQueryFor(S.talk), () => false)]
 ];
 const answers = {};
 for (const [name, compose] of answerShapes) {
@@ -1721,6 +1890,60 @@ for (const [name, compose] of answerShapes) {
     if (!same(seen?.handed, handed)) fail(`answer ${name}: the recording start was handed ${JSON.stringify(seen?.handed)}, not ${JSON.stringify(handed)}`);
     if ((seen?.acted ?? false) !== acted) fail(`answer ${name}: the shipping write path says it ${seen?.acted ? 'acted' : 'did not act'}`);
   }
+
+  // PHASE 348: REMOVE AND THE PASTE. Each answer is the shipping write
+  // path's, its five fields in their order; the act was handed exactly what
+  // the body says (Remove its session alone, the paste its text exactly and
+  // the stamp it carried, with every ask of the last check holding); and a
+  // body that is not JSON reached no act and echoes no write id.
+  for (const body of [REMOVE_NOT_JSON(), PASTE_NOT_JSON()]) {
+    try {
+      JSON.parse(body);
+      fail('answer remove-malformed or paste-malformed: its body is JSON, so it proves nothing about a body the door cannot read');
+    } catch {
+      // Not JSON, as it must be.
+    }
+  }
+  const pasteInput = { sessionId: SESSION_TALK, text: PASTE_TEXT, turn: PASTE_TURN, dialog: PASTE_MARK };
+  const wantPhoneWrites = [
+    ['remove-done', { verb: 'remove', write: WRITE_REMOVE, outcome: 'done', reason: null, sentence: null }, [{ verb: 'remove', input: { sessionId: SESSION_ENDED }, still: null }], true],
+    ['remove-refused', { verb: 'remove', write: WRITE_REMOVE, outcome: 'refused', reason: 'changed', sentence: LIFECYCLE_SESSION_CHANGED }, [{ verb: 'remove', input: { sessionId: SESSION_ENDED }, still: null }], true],
+    ['remove-malformed', { verb: 'remove', write: '', outcome: 'refused', reason: 'malformed', sentence: POCKET_WRITE_SENTENCES?.unreadable }, [], false],
+    ['paste-done', { verb: 'paste', write: WRITE_PASTE, outcome: 'done', reason: null, sentence: null }, [{ verb: 'paste', input: pasteInput, still: true }], true],
+    ['paste-refused-machine', { verb: 'paste', write: WRITE_PASTE, outcome: 'refused', reason: 'machine', sentence: PASTE_THIS_MAC_ONLY }, [{ verb: 'paste', input: pasteInput, still: true }], true],
+    ['paste-malformed', { verb: 'paste', write: '', outcome: 'refused', reason: 'malformed', sentence: POCKET_WRITE_SENTENCES?.unreadable }, [], false]
+  ];
+  for (const [name, want, handed, acted] of wantPhoneWrites) {
+    if (writeRows !== null && !writeRows.includes(routeOfAnswer(name))) fail(`answer ${name}: ${routeOfAnswer(name)} is not one of the shipping table's write rows`);
+    const got = read(name);
+    if (!same(got, want)) fail(`answer ${name}: the shipping write path answered ${brief(got)}, not ${brief(want)}`);
+    if (got !== null && Object.keys(got).join() !== 'verb,write,outcome,reason,sentence') fail(`answer ${name}: its fields are ${Object.keys(got).join()}, not the five in their order`);
+    const seen = writesSeen.get(name);
+    if (!same(seen?.handed, handed)) fail(`answer ${name}: the recording verb was handed ${JSON.stringify(seen?.handed)}, not ${JSON.stringify(handed)}`);
+    if ((seen?.acted ?? false) !== acted) fail(`answer ${name}: the shipping write path says it ${seen?.acted ? 'acted' : 'did not act'}`);
+  }
+  // THE REMOVE OFFER: the exited session's answer from a door that serves
+  // `remove` carries the Mac's own words, the shipping verdict passing; a
+  // running session's carries none; and the launch door's answers, which
+  // serve no `remove`, carry none.
+  const ended = read('session-ended')?.session;
+  const wantConfirm = removeSessionConfirm(sessions.find((s) => s.id === S.failed));
+  if (!same(ended?.removeConfirm, { title: wantConfirm.title, body: wantConfirm.body, confirmLabel: wantConfirm.confirmLabel })) {
+    fail(`answer session-ended: the shipping /v1/session answers ${JSON.stringify(ended?.removeConfirm)} as the exited session's removeConfirm, not the Mac's own removeSessionConfirm`);
+  }
+  if (ended?.end?.state !== 'none') fail('answer session-ended: an exited session is offered End');
+  const live = await removeRoutes.session(S.talk);
+  if (live?.session?.removeConfirm !== undefined) fail('the shipping /v1/session offers Remove on a running session');
+  for (const name of ['session-talk', 'session-waiting']) {
+    if ('removeConfirm' in (read(name)?.session ?? {})) fail(`answer ${name}: a door that serves no remove sent removeConfirm`);
+  }
+  // THE PASTE FLAG AND THE MARKS: copied by the routes exactly, and absent
+  // from the launch door's screen (it serves no paste).
+  const pasted = read('screen-paste')?.screen;
+  if (pasted?.paste !== true || !same(pasted?.wraps, SCREEN_WRAPS)) fail(`answer screen-paste: the shipping routes.screen copied paste ${JSON.stringify(pasted?.paste)} and wraps ${JSON.stringify(pasted?.wraps)}, not true and ${JSON.stringify(SCREEN_WRAPS)}`);
+  if ('paste' in (read('screen-sample')?.screen ?? {})) fail('answer screen-sample: a door that serves no paste sent paste');
+  const marked = read('scrollback-wraps');
+  if (!same(marked?.wraps, PAGE_WRAPS) || (marked?.rows ?? []).length !== SCROLLBACK_ASKED.count) fail(`answer scrollback-wraps: the shipping routes.scrollback copied wraps ${JSON.stringify(marked?.wraps)} over ${String((marked?.rows ?? []).length)} rows`);
 }
 
 // ---------------------------------------------------------------------------

@@ -70,6 +70,16 @@
  *   they read UNREADABLE and the run exits 2. The "one corrupt record" row is
  *   MultiMacKeychainTests (`test:ios`), not this probe: it has no way into the
  *   keychain and adds no seam for one.
+ *   SINCE PHASE 348 (build/p348/SPEC.md §6): a pairing that finishes lands on
+ *   that Mac's SESSIONS (D1), so T1 and RP read the landing there and that
+ *   Mac's Needs input after an explicit `tab:needs`, and HEAD's own first
+ *   pairing is kept when it lands on Sessions; P1 skips what later phases
+ *   changed on purpose (`P1_STATED`: the titles in the iPhone's own bar, Select,
+ *   the filter and the "+" in it, the age note and the read line it moved) and
+ *   one shift under the bar, and its Settings half is SUPERSEDED by Phase 348's
+ *   grouped Settings, which probe:p316's S6, SE4, SA12 and SC1 read. Show is
+ *   NOT stated: his ruling of 2026-10-20 ("Top bar (Recommended)") keeps it at
+ *   build 11's full width, so a Show drawn otherwise is a difference.
  *
  * ENVIRONMENT
  *   P345_PARENT_CHECKOUT=<dir>   build 10's checkout (its ios/ is built here)
@@ -92,7 +102,7 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash, generateKeyPairSync, randomBytes } from 'node:crypto';
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { readFile as readFileAsync } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -107,6 +117,8 @@ import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin, quietAgentsHeld,
 import { hostileDoorArgv } from '../p316/hostile-door.mjs';
 import { fingerprintDigits, makePhone, pairThrough, readOffer, readSessions, screenRead, screenRowText, shaHex, signedGet } from '../p316/node-phone.mjs';
 import { sniOf, startSniRelay } from './sni-relay.mjs';
+// THE PROBE REVIEW (Phase 348, rule 9): the precondition every probe of this phase asks.
+import { manifestSessions, plantedResolve, within } from '../scratch-login.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TAG = '[p345]';
@@ -541,10 +553,95 @@ export const settingsShift = (row) => ({
   allowNew: (id) => id.startsWith('settings-pair-another')
 });
 
-/** P1: with one Mac kept, every screen as build 10 draws it but Settings' one row, and nothing else on the relay. */
+/**
+ * WHAT LATER PHASES CHANGED ON PURPOSE on the screens P1 holds to build 10,
+ * by id (build/p348/SPEC.md §6, items 4 and 5): each is skipped on both sides
+ * and named in P1's verdict, never read as a difference. Phase 346's "+"
+ * (`start-open`); Phase 348's tab roots, whose titles are the iPhone's own bar
+ * (D15) with Select, the filter and the "+" in it (D16; his ruling of
+ * 2026-10-20 put the "+" back there after the fix round had moved it to the
+ * list's first line); and the age note gone from every list's foot (item 4),
+ * which moves the foot's read line up.
+ */
+export const P1_STATED = Object.freeze({
+  needs: Object.freeze({
+    'needs-input-title': 'Phase 348 (D15): the title is the iPhone\'s own bar',
+    'needs-list-age-note': 'Phase 348 (item 4): no age note',
+    'needs-list-read': 'Phase 348 (item 4): the foot\'s read line moves up with the note gone'
+  }),
+  sessions: Object.freeze({
+    'list-title': 'Phase 348 (D15): the title is the iPhone\'s own bar',
+    'list-select': 'Phase 348 (D16): Select in the bar',
+    'list-menu': 'Phase 348 (D16): the filter in the bar',
+    'start-open': 'Phase 346\'s "+", alone at the bar\'s trailing edge since Phase 348 (D16; his ruling of 2026-10-20)',
+    'list-age-note': 'Phase 348 (item 4): no age note',
+    'list-read': 'Phase 348 (item 4): the foot\'s read line moves up with the note gone'
+  })
+});
+/**
+ * Where each list's content starts under its bar (Phase 348, D15): everything
+ * at or below build 10's title moves by ONE amount, read off the first element
+ * both builds draw under it (`pivot`), so a row that moved anything else is
+ * still a difference.
+ */
+const P1_PIVOTS = Object.freeze({
+  needs: { title: 'needs-input-title', pivot: (d) => [...(d?.elements ?? [])].filter((e) => /^needs-row-/.test(String(e.id)) && !/^needs-row-(?:dot|name|machine|age|line)-/.test(String(e.id))).sort((x, y) => (x.frame?.[1] ?? 0) - (y.frame?.[1] ?? 0))[0]?.id ?? null },
+  sessions: { title: 'list-title', pivot: () => 'list-show' }
+});
+/**
+ * THE PROBE REVIEW (Phase 348, rule 9): the most the one shift under the bar
+ * may be. The large title costs the list 74.5 to 74.67 pt on iOS 26.3 and
+ * 55 pt on 18.3 (build/p348/SPEC.md §2.5, read (4)); a shift taken out with
+ * no bound read ANY uniform move as "what Phase 348 moved", content pushed
+ * far down or drawn up under the bar among it. (The fix round's first-line
+ * "+" took it to 96; his ruling of 2026-10-20 put the "+" back in the bar, and
+ * the review's 80 with it.)
+ */
+export const P1_SHIFT_MAX = 80;
+/** The shells a `shell` session may run: the system's, and the login shell this probe was given. */
+const SYSTEM_SHELLS_345 = new Set(['/bin/zsh', '/bin/bash', '/bin/sh', (process.env['SHELL'] ?? '').trim()].filter((x) => x !== ''));
+/**
+ * THE PROBE REVIEW (Phase 348, rule 9; probe:p313's and probe:p348's RUN
+ * clause), pure: `manifest` is build/scratch-login.mjs `manifestSessions`'
+ * answer, read once the apps are gone. A shell row runs a system shell (or
+ * names none); every other row ran an agent, whose argv[0] must be under
+ * `run`. A manifest not read is UNREADABLE, never a pass. `{ ok, said, reading }`.
+ */
+export function manifestProgramsVerdict({ manifest, run, shells = SYSTEM_SHELLS_345 }) {
+  if (manifest?.read !== true) return { ok: null, said: `the manifest could not be read after the app was gone (${String(manifest?.why ?? 'no reading')})`, reading: { read: false } };
+  const agents = manifest.rows.filter((r) => r.agent !== 'shell');
+  const outside = agents.filter((r) => !within(run, r.argv0));
+  const oddShells = manifest.rows.filter((r) => r.agent === 'shell' && r.argv0 !== null && !shells.has(r.argv0));
+  const said = `${String(manifest.rows.length)} row(s), ${String(agents.length)} agent row(s), ${outside.length === 0 ? 'every one this run\'s stand-in' : `${String(outside.length)} OUTSIDE the run: ${J(outside)}`}; ${oddShells.length === 0 ? 'every shell row a system shell' : `${String(oddShells.length)} shell row(s) not a system shell: ${J(oddShells)}`}`;
+  return { ok: outside.length === 0 && oddShells.length === 0, said, reading: { read: true, rows: manifest.rows.length, agents: agents.map((r) => ({ name: r.name, agent: r.agent, argv0: r.argv0 })), outside, oddShells } };
+}
+
+/** The one shift under the bar for `key`'s screen, from build 10's dump to HEAD's, or null when none is read or none is needed. */
+export function p1ShiftOf(key, parent, head) {
+  const at = P1_PIVOTS[key];
+  if (at === undefined) return null;
+  const title = el(parent, at.title);
+  const id = at.pivot(parent);
+  const from = id === null ? null : el(parent, id);
+  const to = id === null ? null : el(head, id);
+  if (title === null || from === null || to === null || !Array.isArray(title.frame) || !Array.isArray(from.frame) || !Array.isArray(to.frame)) return null;
+  const dy = to.frame[1] - from.frame[1];
+  return dy === 0 ? null : { fromY: title.frame[1] + title.frame[3], dy };
+}
+
+/**
+ * P1: with one Mac kept, every screen as build 10 draws it but what later
+ * phases changed on purpose (P1_STATED, and one shift under the bar), and
+ * nothing else on the relay. SETTINGS IS SUPERSEDED for P1 (Phase 348, item
+ * 3, build/p348/SPEC.md §6): Settings is grouped as the iPhone's own Settings
+ * now, every row in today's order and at least today's height, which
+ * probe:p316's S6, SE4, SA12 and SC1 read, so its dumps are printed here and
+ * not compared with build 10's.
+ */
 export function gradeP1(r) {
   const p = [];
   const u = [];
+  const stated = [];
   for (const key of ['needs', 'sessions', 'terminal', 'catchUp']) {
     const a = r.before?.[key] ?? null;
     const b = r.after?.[key] ?? null;
@@ -552,19 +649,14 @@ export function gradeP1(r) {
       u.push(`no ${key} dump ${a === null ? 'from the parent' : 'from HEAD'}`);
       continue;
     }
-    const d = screenDiff(a, b);
+    const named = P1_STATED[key] ?? {};
+    for (const id of Object.keys(named)) if (!stated.includes(id) && [a, b].some((x) => has(x, id))) stated.push(id);
+    const skip = (x) => ({ ...x, elements: (x.elements ?? []).filter((e) => !Object.hasOwn(named, e.id)) });
+    const shift = p1ShiftOf(key, a, b);
+    // THE PROBE REVIEW: the shift is the large title's cost, down and at most P1_SHIFT_MAX, or it is a difference.
+    if (shift !== null && !(shift.dy > 0 && shift.dy <= P1_SHIFT_MAX)) p.push(`${key}: everything under the bar moved ${String(shift.dy)} pt, outside the large title's cost (above 0, at most ${String(P1_SHIFT_MAX)})`);
+    const d = screenDiff(skip(a), skip(b), { shift });
     if (d.length > 0) p.push(`${key}: ${d.slice(0, 4).join(', ')}${d.length > 4 ? ` and ${String(d.length - 4)} more` : ''}`);
-  }
-  const sa = r.before?.settings ?? null;
-  const sb = r.after?.settings ?? null;
-  if (sa === null || sb === null) u.push(`no settings dump ${sa === null ? 'from the parent' : 'from HEAD'}`);
-  else {
-    const row = el(sb, 'settings-pair-another');
-    if (row === null) p.push('HEAD\'s Settings draws no Pair another Mac');
-    else {
-      const d = screenDiff(sa, sb, settingsShift(row));
-      if (d.length > 0) p.push(`settings: ${d.slice(0, 4).join(', ')}${d.length > 4 ? ` and ${String(d.length - 4)} more` : ''}`);
-    }
   }
   const tabs = tabButtonsOf(r.tabs);
   if (tabs === null) u.push('HEAD\'s tab bar was not read with one Mac kept');
@@ -572,7 +664,7 @@ export function gradeP1(r) {
   if (r.macsDrawn === true) p.push('a Macs screen was drawn with one Mac kept');
   if (r.otherNames === null) u.push('the relay was not read');
   else if (r.otherNames > 0) p.push(`${String(r.otherNames)} connection(s) named a door that is not A`);
-  return decide(p, u, 'Needs input, Sessions, the Terminal and Catch Me Up equal to build 10\'s element by element (ages and the terminal\'s rows aside); Settings equal above Pair another Mac and 66 pt lower below it; three tabs; no Macs screen; no connection to any other door');
+  return decide(p, u, `Needs input, Sessions, the Terminal and Catch Me Up equal to build 10's element by element (ages and the terminal's rows aside), but what later phases changed on purpose (${stated.length === 0 ? 'none drawn' : stated.join(', ')}) and one shift under the bar; Settings superseded by Phase 348's grouped Settings (probe:p316's S6, SE4, SA12, SC1); three tabs; no Macs screen; no connection to any other door`);
 }
 
 /** AL1, AL2: an alert's tap opens the session it names, on the Mac that sent it. */
@@ -602,7 +694,7 @@ export function gradeAlertOpens(r) {
   return decide(p, u, `the alert for ${String(r.name)} was delivered and tapped, and the tap opened ${String(r.name)}${r.chosenAfter === undefined ? '' : ' on the Mac that sent it, which is now ticked'}${r.otherPlace === undefined ? '' : ', the other Mac\'s place kept'}`);
 }
 
-/** T1: a second Mac paired from the sheet: its fingerprint, its Needs input, four tabs, and (18.3) both badges. */
+/** T1: a second Mac paired from the sheet: its fingerprint, its Sessions, then its Needs input by a tab press (Phase 348, D1), four tabs, and (18.3) both badges. */
 export function gradeT1(r) {
   const p = [];
   const u = [];
@@ -618,11 +710,16 @@ export function gradeT1(r) {
     u.push('the fingerprints matched and the Mac did not take Allow, so nothing the phone drew after it can be judged');
     return decide(p, u, '');
   }
-  if (r.line === null || r.end === null) u.push('no "pair-another" line or dump');
+  // Phase 348 (D1): the sheet closes onto the second Mac's SESSIONS (`landed`,
+  // its own dump), and its Needs input is read after an explicit tab press
+  // (`end`, the `tab-needs` dump, beside the doors).
+  if (r.line === null || r.landed === null || r.landed === undefined) u.push('no "pair-another" line or dump');
   else {
     if (r.line.closed !== true) p.push(`the sheet did not close (its line: ${J(r.line.line)})`);
-    if (!has(r.end, 'screen-needs-input')) p.push('the sheet did not close onto Needs input');
-    if (r.doorRows === null) u.push('the second Mac\'s door was not read');
+    if (!has(r.landed, 'screen-list')) p.push(`the sheet did not close onto that Mac's Sessions (it drew ${J((r.landed.elements ?? []).find((e) => String(e.id).startsWith('screen-'))?.id ?? null)})`);
+    if (r.end === null || r.end === undefined) u.push('the second Mac\'s Needs input was not read after the tab press');
+    else if (!has(r.end, 'screen-needs-input')) p.push('the tab press drew no Needs input');
+    else if (r.doorRows === null) u.push('the second Mac\'s door was not read');
     else if (!sameSet(needsRowIds(r.end), r.doorRows)) p.push(`Needs input draws ${J(needsRowIds(r.end))}, the second Mac's door answers ${J(r.doorRows)}`);
   }
   const tabs = tabButtonsOf(r.tabs);
@@ -640,7 +737,7 @@ export function gradeT1(r) {
       badges = `Needs input's badge ${String(n)}, the Macs tab's ${String(m)}`;
     }
   }
-  return decide(p, u, `the sheet's fingerprint was the Mac's; Allow pressed; the sheet closed onto the second Mac's Needs input, its ${String(r.doorRows?.length ?? 0)} row(s) the door's; four tabs, the fourth ${J(r.label)}; ${badges}`);
+  return decide(p, u, `the sheet's fingerprint was the Mac's; Allow pressed; the sheet closed onto the second Mac's Sessions, and its Needs input (pressed) drew ${String(r.doorRows?.length ?? 0)} row(s), the door's; four tabs, the fourth ${J(r.label)}; ${badges}`);
 }
 
 /** T2: one tap switches the whole app; each Mac's lists are that Mac's, its key its own, its place kept, and nothing reads the Mac not on screen. */
@@ -916,14 +1013,21 @@ export function gradeRM(r) {
   return decide(p, u, `Remove on the Mac drew ${J(WORDS.notPairedHere)} on that Mac alone; A read on`);
 }
 
-/** RP: a re-pair draws the Mac again, the same count of Macs, and it moves to the end (D9, stated). */
+/** RP: a re-pair lands on the Mac's Sessions and draws its Needs input again by a tab press (Phase 348, D1), the same count of Macs, and it moves to the end (D9, stated). */
 export function gradeRP(r) {
   const p = [];
   const u = [];
-  if (r.line === null || r.end === null) u.push('no pair-another line or dump');
+  // Phase 348 (D1): the re-pair lands on that Mac's Sessions (`landed`), and
+  // its Needs input is read after an explicit tab press (`end`).
+  if (r.line === null || r.landed === null || r.landed === undefined) u.push('no pair-another line or dump');
   else {
     if (r.line.closed !== true) p.push(`the re-pair did not close the sheet (its line: ${J(r.line.line)})`);
-    if (r.doorRows === null) u.push('the re-paired Mac\'s door was not read beside it');
+    if (!has(r.landed, 'screen-list')) p.push('the re-pair did not land on that Mac\'s Sessions');
+    if (r.end === null || r.end === undefined) u.push('the re-paired Mac\'s Needs input was not read after the tab press');
+    // THE PROBE REVIEW (Phase 348, rule 9): as T1's, the tab press must DRAW Needs input; a screen with no needs rows
+    // over a door with none read as equal sets before it.
+    else if (!has(r.end, 'screen-needs-input')) p.push('the tab press drew no Needs input');
+    else if (r.doorRows === null) u.push('the re-paired Mac\'s door was not read beside it');
     else if (!sameSet(needsRowIds(r.end), r.doorRows)) p.push(`it draws ${J(needsRowIds(r.end))}, its door answers ${J(r.doorRows)}`);
   }
   const rows = macsRowsOf(r.macs);
@@ -1078,7 +1182,20 @@ function selfTest() {
   check('P1 fail: a fourth tab with one Mac', gradeP1({ ...p1, tabs: tabs4('p345-studio') }), false);
   check('P1 fail: Sessions moved', gradeP1({ ...p1, after: { ...p1.after, sessions: D('list', [E('screen-list'), E('x-1', 'a', [0, 12, 10, 10])]) } }), false);
   check('P1 fail: another door dialled', gradeP1({ ...p1, otherNames: 1 }), false);
-  check('P1 fail: no Pair another Mac', gradeP1({ ...p1, after: { ...p1.after, settings: base } }), false);
+  // Phase 348 (item 3): Settings is SUPERSEDED for P1, so a Settings drawn otherwise than build 10's is not P1's to grade.
+  check('P1 pass: Settings superseded (no Pair another Mac read as a difference)', gradeP1({ ...p1, after: { ...p1.after, settings: base } }), true);
+  // Phase 348 (D15, D16, item 4; his ruling of 2026-10-20): build 10's Sessions with its title row and its note, and
+  // HEAD's with the title in the bar, Select, the filter and the "+" in it, no note, Show at its full width, and every
+  // element under the old title 75 pt lower.
+  const p1Parent = D('list', [E('screen-list', '', [0, 0, 402, 874]), E('list-title', 'Sessions', [16, 106.17, 115, 33.67]), E('list-menu', '', [268.33, 117.33, 19.67, 19]), E('list-select', 'Select', [304, 114.67, 48, 24.33]), E('start-open', 'New session', [354, 102, 46, 46]), E('list-show', '', [16, 148, 370, 32]), E('list-show-all', 'All', [18, 150, 122, 28]), E(`row-${A_ID}`, '', [0, 223, 402, 57]), E('list-age-note', 'note', [16, 501, 357, 33.67]), E('list-read', 'read 9:41', [305.33, 540.67, 80.67, 15.67])]);
+  const p1Head = D('list', [E('screen-list', '', [0, 0, 402, 874]), E('list-menu', '', [98, 120, 58, 36]), E('list-select', 'Select', [20, 120, 62, 36]), E('start-open', 'New session', [332, 120, 50, 36]), E('list-show', '', [16, 223, 370, 32]), E('list-show-all', 'All', [18, 225, 122, 28]), E(`row-${A_ID}`, '', [0, 298, 402, 57]), E('list-read', 'read 9:42', [305.33, 596, 80.67, 15.67])]);
+  check('P1 pass: HEAD\'s Sessions under the bar, what Phase 348 moved stated', gradeP1({ ...p1, before: { ...p1.before, sessions: p1Parent }, after: { ...p1.after, sessions: p1Head } }), true);
+  check('P1 fail: HEAD\'s Sessions with a row moved more than the bar moved everything', gradeP1({ ...p1, before: { ...p1.before, sessions: p1Parent }, after: { ...p1.after, sessions: D('list', p1Head.elements.map((e) => (e.id === `row-${A_ID}` ? { ...e, frame: [0, 300, 402, 57] } : e))) } }), false);
+  check('P1 fail: HEAD\'s Sessions pushed down past the large title\'s cost', gradeP1({ ...p1, before: { ...p1.before, sessions: p1Parent }, after: { ...p1.after, sessions: D('list', p1Head.elements.map((e) => (/^(?:row-|list-show|list-read)/.test(e.id) ? { ...e, frame: [e.frame[0], e.frame[1] + 10, e.frame[2], e.frame[3]] } : e))) } }), false);
+  // His ruling of 2026-10-20 ("Top bar (Recommended)"): Show keeps build 11's full width, so the fix round's Show,
+  // narrowed beside a first-line "+", is a difference P1 names, never a stated one.
+  check('P1 fail: HEAD\'s Show narrowed beside a first-line "+" (the fix round\'s construction)', gradeP1({ ...p1, before: { ...p1.before, sessions: p1Parent }, after: { ...p1.after, sessions: D('list', p1Head.elements.map((e) => (e.id === 'list-show' ? { ...e, frame: [16, 223, 306, 32] } : e.id === 'list-show-all' ? { ...e, frame: [18, 225, 100.67, 28] } : e))) } }), false);
+  check('P1 fail: HEAD\'s Sessions with a row build 10 did not draw', gradeP1({ ...p1, before: { ...p1.before, sessions: p1Parent }, after: { ...p1.after, sessions: D('list', [...p1Head.elements, E('row-stranger', '', [0, 360, 402, 57])]) } }), false);
   check('P1 unreadable: no parent', gradeP1({ ...p1, before: {} }), null);
   // The ruled round: an age is drawn against the row's right edge and its
   // width moves with the clock (run 2's `now` and `1m`): the edge, y and
@@ -1108,10 +1225,14 @@ function selfTest() {
   check('AL2 fail: the sender is not ticked', gradeAlertOpens({ ...al2, chosenAfter: D('macs', [E('macs-row-0'), E('macs-row-name-0', 'p345-studio'), E('macs-row-1'), E('macs-row-chosen-1')]) }), false);
 
   // T1
-  const t1 = { drawn: FP, macFingerprint: FP, allowed: true, line: { closed: true, line: '' }, end: D('pair-another-end', [E('screen-needs-input'), E(`needs-row-${B1}`), E(`needs-row-${B2}`)]), doorRows: [B2, B1], tabs: tabs4('p345-laptop'), label: 'p345-laptop', readBadges: true, needsBadge: { tab: 'Needs input', value: '2', system: '18.3', found: true }, macsBadge: { tab: 'p345-laptop', value: '1', system: '18.3', found: true }, expectNeeds: 2, expectMacs: 1 };
+  // Phase 348 (D1): the sheet closes onto B's Sessions (`landed`), and B's Needs input is read after a tab press (`end`).
+  const t1 = { drawn: FP, macFingerprint: FP, allowed: true, line: { closed: true, line: '' }, landed: D('pair-another-end', [E('screen-list'), E(`row-${B1}`), E(`row-${B2}`)]), end: D('tab-needs', [E('screen-needs-input'), E(`needs-row-${B1}`), E(`needs-row-${B2}`)]), doorRows: [B2, B1], tabs: tabs4('p345-laptop'), label: 'p345-laptop', readBadges: true, needsBadge: { tab: 'Needs input', value: '2', system: '18.3', found: true }, macsBadge: { tab: 'p345-laptop', value: '1', system: '18.3', found: true }, expectNeeds: 2, expectMacs: 1 };
   check('T1 pass', gradeT1(t1), true);
   check('T1 fail: the fingerprint is not the Mac\'s', gradeT1({ ...t1, macFingerprint: 'ffff ffff ffff ffff ffff ffff' }), false);
-  check('T1 fail: the first Mac\'s rows', gradeT1({ ...t1, end: D('pair-another-end', [E('screen-needs-input'), E(`needs-row-${A_ID}`)]) }), false);
+  check('T1 fail: the first Mac\'s rows', gradeT1({ ...t1, end: D('tab-needs', [E('screen-needs-input'), E(`needs-row-${A_ID}`)]) }), false);
+  check('T1 fail: the sheet closed onto Needs input, build 10\'s landing (Phase 348, D1)', gradeT1({ ...t1, landed: D('pair-another-end', [E('screen-needs-input'), E(`needs-row-${B1}`), E(`needs-row-${B2}`)]) }), false);
+  check('T1 unreadable: no Needs input read after the tab press', gradeT1({ ...t1, end: null }), null);
+  check('T1 fail: the tab press drew no Needs input', gradeT1({ ...t1, end: D('tab-needs', [E('screen-list')]) }), false);
   check('T1 fail: three tabs', gradeT1({ ...t1, tabs: tabs3 }), false);
   check('T1 fail: the Macs badge counts the Mac on screen', gradeT1({ ...t1, macsBadge: { tab: 'p345-laptop', value: '3', system: '18.3', found: true } }), false);
   check('T1 unreadable: badges on a glass bar', gradeT1({ ...t1, needsBadge: { ...t1.needsBadge, system: '26.3' } }), null);
@@ -1256,8 +1377,10 @@ function selfTest() {
 
   // RP
   const rpMacs = D('macs', ['p345-studio.tail00000.ts.net', 'p345-studio.tail99999.ts.net', 'p345-cmac', 'p345-laptop'].flatMap((n, i) => [E(`macs-row-${String(i)}`), E(`macs-row-name-${String(i)}`, n)]));
-  const rp = { line: { closed: true }, end: D('pair-another-end', [E('screen-needs-input'), E(`needs-row-${B1}`)]), doorRows: [B1], macs: rpMacs, lastName: 'p345-laptop', expectCount: 4 };
+  const rp = { line: { closed: true }, landed: D('pair-another-end', [E('screen-list'), E(`row-${B1}`)]), end: D('tab-needs', [E('screen-needs-input'), E(`needs-row-${B1}`)]), doorRows: [B1], macs: rpMacs, lastName: 'p345-laptop', expectCount: 4 };
   check('RP pass', gradeRP(rp), true);
+  check('RP fail: the re-pair landed on Needs input, build 10\'s landing (Phase 348, D1)', gradeRP({ ...rp, landed: D('pair-another-end', [E('screen-needs-input'), E(`needs-row-${B1}`)]) }), false);
+  check('RP unreadable: no Needs input read after the tab press', gradeRP({ ...rp, end: null }), null);
   check('RP fail: not moved to the end', gradeRP({ ...rp, macs: four, lastName: 'p345-laptop' }), false);
   // The fix round: the count is the kept list's (two when RP runs without CAP).
   const rpTwo = D('macs', ['p345-studio', 'p345-laptop'].flatMap((n, i) => [E(`macs-row-${String(i)}`), E(`macs-row-name-${String(i)}`, n)]));
@@ -1322,6 +1445,35 @@ function selfTest() {
     is('recorded: every other grader has an honest reading and a broken one', both(recorded.graders, 'grader', Object.keys(GRADERS)), `${String(recorded.graders.length)} readings`);
     for (const d of recorded.drives) check(`${d.arm} recorded: ${d.name}`, COMPOSE[d.arm](d, relayOf(d.relayLog)), wantOf[d.want]);
     for (const g of recorded.graders) check(`${g.grader} recorded: ${g.name}`, GRADERS[g.grader](g.reading), wantOf[g.want]);
+  }
+  // THE PROBE REVIEW (Phase 348, rule 9): the manifest's programs, each Mac's, after the apps are gone.
+  {
+    const run = '/private/tmp/p345-probe-1';
+    const honestM = { read: true, rows: [{ id: 'a', name: 'a-shell', agent: 'shell', argv0: '/bin/zsh' }, { id: 'b', name: 'a-ask', agent: 'claude', argv0: `${run}/a/home/.local/bin/claude` }], why: null };
+    const mv = (m) => manifestProgramsVerdict({ manifest: m, run, shells: new Set(['/bin/zsh']) });
+    check('RUN (the review) every program this run\'s', mv(honestM), true);
+    check('RUN (the review) a claude row on his real Claude Code', mv({ ...honestM, rows: [...honestM.rows, { id: 'x', name: 'b-ask1', agent: 'claude', argv0: '/Users/gdc/.local/bin/claude' }] }), false);
+    check('RUN (the review) a shell row that is no system shell', mv({ ...honestM, rows: [{ id: 'y', name: 'x', agent: 'shell', argv0: '/opt/homebrew/bin/fish' }] }), false);
+    check('RUN (the review) a manifest not read', mv({ read: false, rows: [], why: 'locked' }), null);
+  }
+  // THE PROBE REVIEW'S OWN RECORDED READINGS (Phase 348, docs/method/HOW-WE-BUILT-THIS.md rule 9), in
+  // build/p348/fixtures/reviewer/p345.json: T1, RP and P1 as Phase 348 moved them, in the shape the run assembles
+  // them, each honest reading beside readings ONE thing away from it, answering exactly PASS, FAIL or UNREADABLE.
+  {
+    let review = null;
+    try {
+      review = JSON.parse(readFileSync(join(ROOT, 'build', 'p348', 'fixtures', 'reviewer', 'p345.json'), 'utf8')).graders;
+    } catch (err) {
+      is('the review\'s Phase 348 readings read', false, String(err?.message ?? err));
+    }
+    if (review !== null) {
+      for (const g of review) {
+        if (GRADERS[g.grader] === undefined) is(`the review's ${g.name}`, false, `no grader ${String(g.grader)}`);
+        else check(`${g.grader} the review: ${g.name}`, GRADERS[g.grader](g.reading), wantOf[g.want]);
+      }
+      const reached = ['T1', 'RP', 'P1'].filter((id) => review.some((g) => g.grader === id && g.want === 'pass') && review.some((g) => g.grader === id && g.want !== 'pass'));
+      is('the review\'s readings reach T1, RP and P1, honest and broken', reached.length === 3, J(reached));
+    }
   }
 
   const bad = results.filter((x) => !x).length;
@@ -1408,6 +1560,8 @@ function macWorld(key, name, socket, { alerts, shells, waiting }) {
     profile: join(harness, 'profile'),
     work: join(dir, 'project'),
     bin: join(dir, 'home', '.local', 'bin'),
+    // THE PROBE REVIEW (Phase 348, rule 9): ONE `node` link for the Electron shim, and nothing else of that folder.
+    nodeBin: join(dir, 'nodebin'),
     stop: join(dir, 'stop'),
     alertsDir: join(harness, 'alerts'),
     keyFile: join(harness, 'alerts', `AuthKey_${KEY_ID}.p8`),
@@ -1423,6 +1577,30 @@ function macWorld(key, name, socket, { alerts, shells, waiting }) {
     extra: []
   };
 }
+/**
+ * THE LOGIN PATH AND THE APP'S OWN PATH (the Phase 348 probe review,
+ * docs/method/HOW-WE-BUILT-THIS.md rule 9; the rule probe:p313, probe:p346
+ * and probe:p348 keep): each Mac's stand-ins, one `node` link, the system
+ * folders, and NOTHING of whoever ran the probe. Before the review each app
+ * inherited the verifier's PATH and its scratch `.zprofile` put that PATH
+ * behind the stand-in, so Tortie's detection scan could run the person's own
+ * Cursor, Muse, pi, OpenCode and DeepSeek CLIs, and the copies of Claude Code
+ * and Codex behind the stand-ins, with `--version` from his own folders.
+ */
+const loginPathOf = (mac) => `${mac.bin}:/usr/bin:/bin:/usr/sbin:/sbin`;
+const appPathOf = (mac) => `${mac.bin}:${mac.nodeBin}:/usr/bin:/bin:/usr/sbin:/sbin`;
+/** The variables the registry's rows name in their own install folders (`$NVM_BIN`…), read as text; no app is handed one. */
+const ROW_DIR_UNSET = (() => {
+  let src = '';
+  try {
+    src = readFileSync(join(ROOT, 'src', 'main', 'agents', 'registry.ts'), 'utf8');
+  } catch {
+    src = '';
+  }
+  const names = new Set(['NVM_BIN']);
+  for (const m of src.matchAll(/extraProbeDirs:\s*\[([^\]]*)\]/g)) for (const v of m[1].matchAll(/\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?/g)) names.add(v[1]);
+  return Object.freeze(Object.fromEntries([...names].map((n) => [n, undefined])));
+})();
 const MAC_A = macWorld('A', A_NAME, `gmux-p345a-${PID}`, { alerts: true, shells: ['a-shell'], waiting: ['a-ask'] });
 const MAC_B = macWorld('B', B_NAME, `gmux-p345b-${PID}`, { alerts: false, shells: ['b-shell'], waiting: ['b-ask1', 'b-ask2'] });
 const MACS = [MAC_A, MAC_B];
@@ -2079,7 +2257,8 @@ async function runDevice(sim, device, parentBuilt) {
     const r = await drive(sim, { label: 'pair-a', steps: ['pair', 'settings'], keep: false, payload: first.payload, device, reactions: { fingerprint: fingerprintReactor(queue, record), dump: readBeside } });
     await afterMacPairing(first, device, record);
     const paired = lastDump(r.events, 'pair-end');
-    if (paired !== null && has(paired, 'screen-needs-input')) kept.push(A_NAME);
+    // Phase 348 (D1): HEAD's pairing lands on Sessions (build 10's, above, on Needs input).
+    if (paired !== null && has(paired, 'screen-list')) kept.push(A_NAME);
     device.oneMacSettings = lastDump(r.events, 'settings');
   }
   if (!kept.includes(A_NAME)) {
@@ -2110,17 +2289,19 @@ async function runDevice(sim, device, parentBuilt) {
     const queue = [p.target];
     const record = [];
     const label = drawnName(B_NAME, [...kept, B_NAME]);
-    const r = await drive(sim, { label: 't1', steps: [`pair-another:${b64(p.payload)}`, `macs:${b64(label)}`], device, reactions: { fingerprint: fingerprintReactor(queue, record), dump: readBeside } });
+    // Phase 348 (D1): the sheet closes onto B's Sessions; B's Needs input is read after an explicit tab press.
+    const r = await drive(sim, { label: 't1', steps: [`pair-another:${b64(p.payload)}`, 'tab:needs', `macs:${b64(label)}`], device, reactions: { fingerprint: fingerprintReactor(queue, record), dump: readBeside } });
     await afterMacPairing(p, device, record);
     const line = lineOf(r.events, 'pair-another');
-    const end = lastDump(r.events, 'pair-another-end');
+    const landed = lastDump(r.events, 'pair-another-end');
+    const end = lastDump(r.events, 'tab-needs');
     if (line?.closed === true) kept.push(B_NAME);
     const macsLine = lineOf(r.events, 'macs');
     const fp = record.find((x) => x.target === 'B') ?? null;
     if (ARMS.has('T1'))
       arm(
         tag('T1 a second Mac paired from the sheet'),
-        gradeT1({ drawn: fp?.drawn ?? null, macFingerprint: fp?.macFingerprint ?? null, allowed: fp?.allowed ?? false, line, end, doorRows: end?.doors?.B?.blocked ?? null, tabs: line?.tabs ?? null, label, readBadges: !order, needsBadge: macsLine?.needsBadge ?? null, macsBadge: macsLine?.macsBadge ?? null, expectNeeds: waitingB(), expectMacs: waitingA() })
+        gradeT1({ drawn: fp?.drawn ?? null, macFingerprint: fp?.macFingerprint ?? null, allowed: fp?.allowed ?? false, line, landed, end, doorRows: end?.doors?.B?.blocked ?? null, tabs: line?.tabs ?? null, label, readBadges: !order, needsBadge: macsLine?.needsBadge ?? null, macsBadge: macsLine?.macsBadge ?? null, expectNeeds: waitingB(), expectMacs: waitingA() })
       );
   });
   if (!kept.includes(B_NAME)) {
@@ -2475,15 +2656,17 @@ async function runDevice(sim, device, parentBuilt) {
       const p = await macPairing(MAC_B, device);
       if (!p.ok) return unreadableArm(tag('RP'), `B opened no window: ${p.why}`);
       const record = [];
-      const r = await drive(sim, { label: 'rp', steps: [`pair-another:${b64(p.payload)}`, `macs:${b64(labelOf(B_NAME))}`], device, reactions: { fingerprint: fingerprintReactor([p.target], record), dump: readBeside } });
+      // Phase 348 (D1): the re-pair lands on B's Sessions; its Needs input is read after an explicit tab press.
+      const r = await drive(sim, { label: 'rp', steps: [`pair-another:${b64(p.payload)}`, 'tab:needs', `macs:${b64(labelOf(B_NAME))}`], device, reactions: { fingerprint: fingerprintReactor([p.target], record), dump: readBeside } });
       await afterMacPairing(p, device, record);
       const line = lineOf(r.events, 'pair-another');
       if (line?.closed === true) {
         kept.splice(kept.indexOf(B_NAME), 1);
         kept.push(B_NAME);
       }
-      const end = lastDump(r.events, 'pair-another-end');
-      arm(tag('RP a re-pair draws the Mac again and moves it to the end'), gradeRP({ line, end, doorRows: end?.doors?.B?.blocked ?? null, macs: lastDump(r.events, 'macs'), lastName: labelOf(B_NAME), expectCount: kept.length }));
+      const landed = lastDump(r.events, 'pair-another-end');
+      const end = lastDump(r.events, 'tab-needs');
+      arm(tag('RP a re-pair lands on the Mac\'s Sessions, draws it again and moves it to the end'), gradeRP({ line, landed, end, doorRows: end?.doors?.B?.blocked ?? null, macs: lastDump(r.events, 'macs'), lastName: labelOf(B_NAME), expectCount: kept.length }));
     });
 
   if (ARMS.has('UP')) await upArm(sim, device, tag);
@@ -2592,8 +2775,38 @@ exit 0
       'utf8'
     );
     chmodSync(join(mac.bin, 'claude'), 0o755);
-    writeFileSync(join(mac.home, '.zprofile'), `export PATH="${mac.bin}:$PATH"\n`, 'utf8');
-    writeFileSync(join(mac.home, '.zshrc'), `export PATH="${mac.bin}:$PATH"\nexport HISTFILE=/dev/null\n`, 'utf8');
+    // THE PROBE REVIEW (Phase 348, rule 9): a `codex` that is not Codex, so the bare name resolves to a stand-in
+    // here too. No session of this probe starts it; it answers its version and waits.
+    writeFileSync(
+      join(mac.bin, 'codex'),
+      `#!/bin/sh
+# probe:p345. Not Codex: it answers its version and waits. No session of this probe starts it.
+case "$1" in
+  -V|--version) echo "codex-cli 0.0.0"; exit 0;;
+esac
+while [ ! -f "$P345_STOP" ]; do sleep 1; done
+exit 0
+`,
+      'utf8'
+    );
+    chmodSync(join(mac.bin, 'codex'), 0o755);
+    mkdirSync(mac.nodeBin, { recursive: true });
+    symlinkSync(process.execPath, join(mac.nodeBin, 'node'));
+    // THE PROBE REVIEW: the login PATH is the scratch bin and the system folders, never `$PATH` after them.
+    writeFileSync(join(mac.home, '.zprofile'), `export PATH="${loginPathOf(mac)}"\n`, 'utf8');
+    writeFileSync(join(mac.home, '.zshrc'), `export PATH="${loginPathOf(mac)}"\nexport HISTFILE=/dev/null\n`, 'utf8');
+    // THE PRECONDITION (the probe review; Phase 346's ruled round's rule): the login shell this Mac's app will ask,
+    // with the environment it will be given, resolves `claude` and `codex` to this file's stand-ins, or nothing is
+    // launched (UNREADABLE, exit 2).
+    {
+      const asked = plantedResolve({ home: mac.home, bin: mac.bin, names: ['claude', 'codex'], env: { ...INHERITED_CLAUDE, ...ROW_DIR_UNSET, PATH: appPathOf(mac) } });
+      report.readings[`resolves${mac.key}`] = asked.resolved;
+      if (!asked.ok) {
+        unreadableArm(`the run (${mac.key})`, `REFUSED: ${asked.said}, so a session would start a real agent. Nothing is launched.`);
+        throw new Error(`${mac.key}: a planted agent does not resolve to its stand-in`);
+      }
+      say(`${mac.key}: ${asked.said}`);
+    }
     const git = (args) => spawnSync('git', args, { cwd: mac.work, encoding: 'utf8', env: { ...process.env, HOME: mac.home } });
     git(['init', '-q']);
     writeFileSync(join(mac.work, 'note.txt'), `p345 ${mac.key}\n`);
@@ -2623,6 +2836,9 @@ exit 0
     args: ['--remote-debugging-port=0', '--use-mock-keychain'],
     env: withoutDevRenderer({
       ...INHERITED_CLAUDE,
+      // THE PROBE REVIEW (Phase 348, rule 9): no row folder's variable (`NVM_BIN`), and the app's own closed PATH.
+      ...ROW_DIR_UNSET,
+      PATH: appPathOf(mac),
       HOME: mac.home,
       ZDOTDIR: mac.home,
       HISTFILE: '/dev/null',
@@ -2718,6 +2934,16 @@ exit 0
 // first window that did not open ended the device with no arm and exit 0).
 gradingOn = null;
 for (const { key, id } of ungradedArms(DEVICES, ARMS, graded)) unreadableArm(`${id} (iOS ${key === 'order' ? RUNTIME_CURRENT : RUNTIME_FLOOR})`, `never graded: the ${key} device stopped before it${report.readings.stopped === undefined ? '' : ` (${String(report.readings.stopped).slice(0, 200)})`}`);
+// THE PROBE REVIEW (Phase 348, rule 9): every session each Mac's manifest holds ran a program of this run, read from
+// a COPY beside its WAL once the apps are gone: a shell row a system shell, every other row's argv[0] under this
+// run's folder. The precondition says what the login shell would resolve; this says what the sessions DID run.
+if (ran) {
+  for (const mac of MACS) {
+    const v = manifestProgramsVerdict({ manifest: manifestSessions(join(mac.profile, 'gmux', 'manifest.db')), run: RUN });
+    report.readings[`manifestPrograms${mac.key}`] = v.reading;
+    arm(`RUN ${mac.key}'s sessions ran programs of this run`, verdict(v.ok, v.said));
+  }
+}
 if (!KEEP) rmSync(RUN, { recursive: true, force: true });
 const OUT = join(ROOT, 'out', 'p345');
 mkdirSync(OUT, { recursive: true });

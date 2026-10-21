@@ -114,21 +114,41 @@ struct PairingOffer: Sendable, Equatable, CustomReflectable {
         let dx: String?
     }
 
-    /// The code, or `badCode`, `codeFromNewerMac` or `codeFromOlderMac`.
-    ///
-    /// THE ORDER (Phase 333.1, D24): the size; then THE TORTIE MARKER, an
-    /// integer `v` beside an `fp` of exactly 32 bytes and a `dk` and a `dx`,
-    /// or the code is not Tortie's (`badCode`) whatever its `v`; then the
-    /// version against this app's, compared and never computed: above it,
-    /// up to 99, is a newer Mac's code, and from 1 up to below it an older
-    /// Mac's; this app's version goes on to the whole v:3 shape; anything
-    /// else is `badCode`. Unknown fields are ignored; a field that is present
-    /// and wrong refuses the whole code.
-    static func parse(_ payload: String) throws -> PairingOffer {
+    /// THE SIZE AND THE TORTIE MARKER, asked ONCE, here, by both of their
+    /// callers, `parse` and `readsAsCode` (Phase 333.1, D24; Phase 348, D53,
+    /// rule p): a code that is not empty and at most `maxPayloadBytes`, whose
+    /// JSON holds an integer `v` beside an `fp` of exactly 32 bytes, a `dk`
+    /// and a `dx`. The marker holds nothing secret, and is never kept.
+    private static func markerOf(_ payload: String) -> Marker? {
         guard !payload.isEmpty, payload.utf8.count <= maxPayloadBytes,
               let marker = try? JSONDecoder().decode(Marker.self, from: Data(payload.utf8)),
               let fp = marker.fp, let markerPin = Base64URL.decode(fp), markerPin.count == 32,
-              marker.dk != nil, marker.dx != nil else {
+              marker.dk != nil, marker.dx != nil else { return nil }
+        return marker
+    }
+
+    /// Whether `payload` reads as a Tortie pairing code (Phase 348, D53): it,
+    /// or it with its leading and trailing white space and line breaks taken
+    /// off, passes the marker `parse` asks first. The trim is for this test
+    /// alone: what a paste sends is never trimmed. A paste that reads as a
+    /// code is refused on the phone with nothing sent, because a code carries
+    /// its window's one-shot secret, which reaches no session.
+    static func readsAsCode(_ payload: String) -> Bool {
+        markerOf(payload) != nil || markerOf(payload.trimmingCharacters(in: .whitespacesAndNewlines)) != nil
+    }
+
+    /// The code, or `badCode`, `codeFromNewerMac` or `codeFromOlderMac`.
+    ///
+    /// THE ORDER (Phase 333.1, D24): the size; then THE TORTIE MARKER, an
+    /// integer `v` beside an `fp` of exactly 32 bytes and a `dk` and a `dx`
+    /// (`markerOf`), or the code is not Tortie's (`badCode`) whatever its
+    /// `v`; then the version against this app's, compared and never computed:
+    /// above it, up to 99, is a newer Mac's code, and from 1 up to below it an
+    /// older Mac's; this app's version goes on to the whole v:3 shape;
+    /// anything else is `badCode`. Unknown fields are ignored; a field that is
+    /// present and wrong refuses the whole code.
+    static func parse(_ payload: String) throws -> PairingOffer {
+        guard let marker = markerOf(payload) else {
             throw PairingFailure.badCode
         }
         if marker.v > version && marker.v <= 99 { throw PairingFailure.codeFromNewerMac }

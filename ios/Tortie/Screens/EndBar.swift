@@ -34,6 +34,13 @@
 // answer. This is the session as it reads now.` ONLY when the read that
 // follows a write with no answer succeeded; otherwise that read's own
 // consequence stands (its sentence, back to the list, or Pairing).
+//
+// AND ONCE END IS DONE, REMOVE (Phase 348, build/p348/SPEC.md D4, D33): the
+// session's End holds its Remove (`EndModel.remove`), which takes End's place
+// at the top right and in the Terminal's ⋯, and whose one line is drawn on
+// End's line under the status. Remove's press, its runner and its
+// confirmation live in Screens/Remove.swift, which names no owner check:
+// Remove asks no Face ID, only the Mac's own confirmation.
 
 import SwiftUI
 
@@ -215,6 +222,10 @@ final class EndModel {
     let writer: (any DoorWriting)?
     private let ownerCheck: any OwnerCheck
     private let registry: (any EndRunnerRegistry)?
+    /// The session's Remove once End is done (Phase 348, D4), or nil for a
+    /// pairing that removes nothing. It takes End's place; its press asks no
+    /// owner check (Screens/Remove.swift).
+    let remove: RemoveModel?
     /// The press's task, held so a test can wait for it. Never drawn from.
     @ObservationIgnored private(set) var pressing: Task<Void, Never>?
 
@@ -222,13 +233,23 @@ final class EndModel {
         sessionId: String,
         writer: (any DoorWriting)?,
         ownerCheck: any OwnerCheck,
-        registry: (any EndRunnerRegistry)?
+        registry: (any EndRunnerRegistry)?,
+        remove: RemoveModel? = nil
     ) {
         self.sessionId = sessionId
         self.writer = writer
         self.ownerCheck = ownerCheck
         self.registry = registry
+        self.remove = remove
         kind = writer == nil ? .none : ownerCheck.kind()
+    }
+
+    /// The line under the status: Remove's once a Remove has been pressed on
+    /// this session's page (Phase 348: Remove takes End's place, and its line
+    /// End's line), else End's own.
+    var shownLine: String? {
+        if let remove, remove.pressed { return remove.line }
+        return line
     }
 
     /// Ask iOS again what confirms the owner: a passcode set in iOS Settings
@@ -457,14 +478,15 @@ extension View {
 }
 
 /// End's one line, drawn under the session's status: the Mac's sentence, the
-/// phone's, or the passcode's. Nothing when there is none.
+/// phone's, or the passcode's; and once a Remove was pressed, Remove's
+/// (Phase 348). Nothing when there is none.
 struct EndLine: View {
     let model: EndModel
     let offer: PocketEndOffer
     let confirm: PocketEndConfirm?
 
     var body: some View {
-        let drawing = EndBarDrawing(offer: offer, confirm: confirm, kind: model.kind, phase: model.phase, line: model.line)
+        let drawing = EndBarDrawing(offer: offer, confirm: confirm, kind: model.kind, phase: model.phase, line: model.shownLine)
         if model.writer != nil, let line = drawing.line {
             Words(line, .secondary, Tokens.textSecondary, lines: nil)
                 .accessibilityIdentifier(ID.sessionEndLine)

@@ -5,14 +5,15 @@
 //
 // THE FOURTH TAB. With two or more Macs kept the bar gains one item at its
 // right, named after the Mac on screen, and this screen is its root: the
-// title, then one card with a row per Mac in the phone's order (the first Mac
-// paired, then the rest by when each was paired, D9). The Mac on screen is
-// ticked. Under each name is its line: the sentence its last read said when
-// that read failed, else `Needs your input (n)` with the waiting dot when
-// something there waits on him, else nothing. A tap on a row switches the
-// whole app to that Mac and lands on its Needs input, where he was in it
-// (D4). With one Mac kept the tab is not drawn and this screen is never
-// reached.
+// title (the system's large title over the iPhone's own bar since Phase 348,
+// build/p348/SPEC.md §4.5, D15), then one card with a row per Mac in the
+// phone's order (the first Mac paired, then the rest by when each was paired,
+// D9). The Mac on screen is ticked. Under each name is its line: the sentence
+// its last read said when that read failed, else `Needs your input (n)` with
+// the waiting dot when something there waits on him, else nothing. A tap on
+// a row switches the whole app to that Mac and lands on its Needs input,
+// where he was in it (D4). With one Mac kept the tab is not drawn and this
+// screen is never reached.
 //
 // IT DOES NO ARITHMETIC AND COMPOSES NOTHING. Each row's count is the count of
 // the rows that Mac's own last answer called waiting, as its Needs input
@@ -78,10 +79,10 @@ struct MacsScreen: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                title
                 macsCard(MacRow.rows(app))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, MacsFrame.underTitle)
             .padding(.bottom, Frame.gutter)
         }
         .scrollIndicators(.hidden)
@@ -91,17 +92,9 @@ struct MacsScreen: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(ID.macsScreen)
         .navigationTitle(Copy.macs)
-        .toolbar(.hidden, for: .navigationBar)
-    }
-
-    /// `Macs`, 28/34 semibold, `padding: 0 16px 8px`, as Settings' title.
-    private var title: some View {
-        Words(Copy.macs, .title, Tokens.textPrimary)
-            .lineBox(.title)
-            .accessibilityAddTraits(.isHeader)
-            .accessibilityIdentifier(ID.macsTitle)
-            .padding(.horizontal, Frame.gutter)
-            .padding(.bottom, 8)
+        .navigationBarTitleDisplayMode(.large)
+        .toolbarBackground(Tokens.bgSidebar, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
     }
 
     /// One card, a row per Mac, a hairline between two rows.
@@ -181,4 +174,7 @@ private enum MacsFrame {
     static let tick: CGFloat = 20
     /// A card that holds rows, as Settings' (`padding-top: 12px` less a row's 6).
     static let cardVertical: CGFloat = 6
+    /// Between the large title and the card, as the title row's own
+    /// `padding: 0 16px 8px` held it before the bar drew the title (Phase 348).
+    static let underTitle: CGFloat = 8
 }

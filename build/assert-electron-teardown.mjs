@@ -510,12 +510,23 @@ const HELPER = 'electron-run.mjs';
  * and every stand-in pid and paused sshd pid ended or resumed in its
  * `finally`.
  *
+ * PHASE 348 RAISED IT FROM 177 TO 178, by one for build/p348/probe-p348.mjs
+ * (`probe:p348`), the Mac side of Remove and paste from the phone: ONE
+ * Electron at HEAD through the helper, the parent's (`P348_PARENT_CHECKOUT`,
+ * required) FIRST on the same profile, one after the other and never at once,
+ * on a scratch profile, HOME and ZDOTDIR with HISTFILE=/dev/null and the socket
+ * gmux-p348…, inside build/with-scratch-machine.mjs's loopback machine with the
+ * quiet shell and its own far HOME, the five hidden agents renamed before
+ * every launch, `claude` and `codex` build/p318/stand-in.mjs behind their bare
+ * names, every key read by build/p337/key-recorder.mjs, and every stand-in
+ * pid, recorder pid and paused sshd pid ended or resumed in its `finally`.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 177;
+const HELPER_USER_FLOOR = 178;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

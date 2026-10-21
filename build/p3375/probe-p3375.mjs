@@ -56,7 +56,15 @@
  *   N1 a long press on a word: the edit menu up with exactly ONE item, Copy;
  *      none of Share…, Translate, Look Up, Search Web, Speak, Writing Tools,
  *      Select All, Cut or Paste anywhere in the app's elements; Copy pressed,
- *      the pasteboard the sample's word
+ *      the pasteboard the sample's word. NARROWED BY PHASE 348 (build/p348/
+ *      SPEC.md §6, D39 to D42; his ruling of 2026-10-18, "paste natively"):
+ *      iOS's own Paste is ADMITTED, and only beside Copy, right after it,
+ *      carrying `screen-paste`, exactly where the Mac takes a paste (the
+ *      sample's picture says `paste` and `typable`, read from sample.json) and
+ *      the clipboard holds text (the handle's own read before the arm). There
+ *      the menu is [Copy, Paste]; anywhere else it is [Copy] and Paste stays
+ *      forbidden as before. An arm that reads the pasteboard before nothing
+ *      (N7) admits either. Every other forbidden word stays
  *   N2 a press that slides along its row: the word to the end column
  *   N3 the end handle dragged three rows down: those rows by absolute index
  *   N4 dragged down into history, a word of history, its end handle dragged
@@ -205,8 +213,19 @@ export function slowSample(text) {
   const t = String(text ?? '');
   return t.split(SLOW_ANCHOR).length === 2 ? t.replace(SLOW_ANCHOR, SLOW_PLANTED) : null;
 }
-/** What the menu must never offer, nor the app draw anywhere (SPEC D9, §7.3 N1). */
+/**
+ * What the menu must never offer, nor the app draw anywhere (SPEC D9, §7.3
+ * N1). PHASE 348 NARROWED IT (build/p348/SPEC.md §6): `Paste` stays on the
+ * list and is forbidden everywhere but in ONE place, the menu's item right
+ * after Copy where {@link pasteAdmitted} says the Mac takes a paste and the
+ * clipboard holds text (D39: an app-built UICommand with the standard
+ * selector, `screen-paste`). Every other word stays forbidden everywhere.
+ */
 export const FORBIDDEN = Object.freeze(['Share…', 'Translate', 'Look Up', 'Search Web', 'Speak', 'Writing Tools', 'Select All', 'Cut', 'Paste']);
+/** The one forbidden word Phase 348 admits, and where: the menu's second item, after Copy (D39). */
+export const ADMITTED_BESIDE_COPY = 'Paste';
+/** The menu's Paste carries Identifiers.swift's `screen-paste` (build/p348/SPEC.md §5.3). */
+export const PASTE_ID = 'screen-paste';
 /** An iPhone 16 Pro draws three pixels to a point: "within a pixel" is a third of a point. */
 export const PIXEL_PT = 1 / 3 + 1e-6;
 /** UIDeviceOrientation's landscapeLeft and landscapeRight. */
@@ -225,7 +244,9 @@ function copyWordOf(name) {
 }
 export const WORDS = Object.freeze({
   copy: copyWordOf('copy') ?? 'Copy',
-  sessions: copyWordOf('sessions') ?? 'Sessions'
+  sessions: copyWordOf('sessions') ?? 'Sessions',
+  // PHASE 348 (build/p348/SPEC.md §5.2): `paste`, folded into Copy.swift by the integrator.
+  paste: copyWordOf('paste') ?? ADMITTED_BESIDE_COPY
 });
 
 // ---------------------------------------------------------------------------
@@ -358,8 +379,22 @@ export function sampleWorld(sample, id = SESSION) {
     liveCount: picture.lines.length,
     histFrom: Number(hist.from),
     histCount: hist.rows.length,
+    // PHASE 348 (D30, §4.6 step 6): whether the Terminal this arm opens takes a
+    // paste, by the phone's own rule (`pasteOffered`: the picture's `paste` true
+    // and it typable), read from the sample's picture rather than the app.
+    pastes: samplePastes(picture),
     runsAt: (abs) => rows.get(abs) ?? null
   };
+}
+
+/**
+ * PHASE 348 (build/p348/SPEC.md D30, §4.6 steps 5 and 6): whether a picture
+ * takes a paste, by the phone's `pasteOffered()`: `paste` exactly true and the
+ * picture `typable`. A picture with no `paste` key (build 11's sample, a Mac
+ * older than this phase) takes none.
+ */
+export function samplePastes(picture) {
+  return picture !== null && typeof picture === 'object' && picture.paste === true && picture.typable === true;
 }
 
 /** A row's absolute index: live row n at `depth + n`, a row of history at its own. */
@@ -467,6 +502,8 @@ export function buildPlan(sample, words = WORDS) {
     depth: world.depth,
     copyWord: words.copy,
     sessionsWord: words.sessions,
+    // PHASE 348: the word the menu's admitted Paste carries.
+    pasteWord: words.paste ?? ADMITTED_BESIDE_COPY,
     arms: {
       N1: { candidates: liveCandidates(world, 7, 6) },
       N2: {
@@ -576,10 +613,50 @@ const decide = (problems, unreadable, green) =>
 
 const normalWord = (s) => String(s ?? '').trim().replace(/(?:…|\.\.\.)$/u, '').trim().toLowerCase();
 const FORBIDDEN_NORMAL = new Set(FORBIDDEN.map(normalWord));
-/** Every label in a menu reading (its items and every element of the app) that is a forbidden word. */
-export function forbiddenIn(menu) {
+const PASTE_NORMAL = normalWord(ADMITTED_BESIDE_COPY);
+/**
+ * Every label in a menu reading (its items and every element of the app) that
+ * is a forbidden word. PHASE 348: with `pasteAdmitted`, the word Paste is not
+ * counted, because the menu's own Paste is one of the app's elements and the
+ * UI test's label list is de-duplicated; where it stands is the menu grader's
+ * question ({@link pasteStanding}). Without it, Paste anywhere is forbidden,
+ * as it was.
+ */
+export function forbiddenIn(menu, { pasteAdmitted = false } = {}) {
   const labels = [...(menu?.items ?? []).map((i) => i?.label), ...(menu?.labels ?? [])];
-  return [...new Set(labels.filter((l) => FORBIDDEN_NORMAL.has(normalWord(l))))];
+  return [...new Set(labels.filter((l) => FORBIDDEN_NORMAL.has(normalWord(l)) && !(pasteAdmitted && normalWord(l) === PASTE_NORMAL)))];
+}
+
+/**
+ * PHASE 348 (build/p348/SPEC.md §6): whether Paste is admitted in this arm's
+ * menus. `true` where the sample's picture takes a paste and the handle read
+ * text on the pasteboard before the arm; `false` where either is not so;
+ * `null` where the sample takes one but the arm read the pasteboard before
+ * nothing (N7), so either menu is right.
+ */
+export function pasteAdmitted(r, world) {
+  if (world?.pastes !== true) return false;
+  if (r?.before === null || r?.before === undefined || r.before.missing === true) return null;
+  return typeof r.before.text === 'string' && r.before.text.length > 0;
+}
+
+/**
+ * Where a menu's Paste stands, when it is admitted: right after Copy, ONE of
+ * it, carrying `screen-paste`, and (when the UI test reports elements by that
+ * id, `pastes`) drawn as the menu's item and never as a button. The problems,
+ * or none.
+ */
+export function pasteStanding(menu, words, tag = '') {
+  const p = [];
+  const items = menu?.items ?? [];
+  const when = tag === '' ? '' : ` ${tag}`;
+  const at = items.findIndex((i) => normalWord(i?.label) === normalWord(words.paste));
+  if (at === -1) return p;
+  if (items.filter((i) => normalWord(i?.label) === normalWord(words.paste)).length > 1) p.push(`the menu${when} offered ${words.paste} twice`);
+  if (at !== 1 || normalWord(items[0]?.label) !== normalWord(words.copy)) p.push(`the menu's ${words.paste}${when} is not the item right after ${words.copy}`);
+  if (items[at]?.id !== PASTE_ID) p.push(`the menu's ${words.paste}${when} is identified ${J(items[at]?.id ?? null)}, not ${PASTE_ID} (build/p348/SPEC.md §5.3)`);
+  if ((menu?.pastes ?? []).some((x) => x?.button === true || x?.menuItem === false)) p.push(`${PASTE_ID} is drawn${when} as something other than the menu's item (no Paste key, build/p348/SPEC.md §12)`);
+  return p;
 }
 const itemLabels = (menu) => (menu?.items ?? []).map((i) => String(i?.label ?? ''));
 const copyAlone = (menu, word) => J(itemLabels(menu)) === J([word]);
@@ -642,18 +719,29 @@ function clipboard(r, expected, p, u) {
   if (r.after.text !== expected) p.push(`the pasteboard held ${J(r.after.text)} where the sample's own text is ${J(expected)}`);
 }
 
-/** Every menu the arm read must offer Copy alone, hittable, and nothing forbidden anywhere. */
-function menusClean(r, tags, word, p, u) {
+/**
+ * Every menu the arm read must offer Copy, hittable, with nothing forbidden
+ * anywhere: Copy alone, or (PHASE 348) Copy then Paste exactly where
+ * {@link pasteAdmitted} admits it, either where it cannot say.
+ */
+function menusClean(r, tags, word, p, u, ctx = {}) {
+  const words = { copy: word, paste: ctx.pasteWord ?? WORDS.paste };
+  const admitted = ctx.world === undefined ? false : pasteAdmitted(r, ctx.world);
   for (const tag of tags) {
     const m = r.menus[tag];
     if (m === undefined) {
       u.push(`the menu was not read ${tag}`);
       continue;
     }
-    if (!copyAlone(m, word)) p.push(`the menu ${tag} offered ${J(itemLabels(m))}, not ${word} alone`);
+    const withPaste = J(itemLabels(m)) === J([word, words.paste]);
+    const shapeOk = admitted === true ? withPaste : admitted === false ? copyAlone(m, word) : copyAlone(m, word) || withPaste;
+    const wanted = admitted === true ? `${word} then ${words.paste}` : admitted === false ? `${word} alone` : `${word}, or ${word} then ${words.paste}`;
+    const why = admitted === true ? ' (the Mac takes a paste and the clipboard holds text)' : admitted === false && ctx.world?.pastes === true ? ' (the clipboard was empty before the arm)' : '';
+    if (!shapeOk) p.push(`the menu ${tag} offered ${J(itemLabels(m))}, not ${wanted}${why}`);
     else if (!copyHittable(m, word)) p.push(`the menu's ${word} ${tag} could not be pressed`);
     else if (m.items[0]?.id !== COPY_ID) p.push(`the menu's ${word} ${tag} is identified ${J(m.items[0]?.id ?? null)}, not ${COPY_ID} (SPEC D8, D18)`);
-    const bad = forbiddenIn(m);
+    if (shapeOk && withPaste) p.push(...pasteStanding(m, words, tag));
+    const bad = forbiddenIn(m, { pasteAdmitted: admitted !== false && withPaste });
     if (bad.length > 0) p.push(`with the menu up ${tag} the app drew ${J(bad)}`);
     // Upright as sideways: the menu's Copy REPLACES the button (SPEC D16).
     if ((m.copies ?? []).some((x) => x?.button === true)) p.push(`a screen-copy BUTTON is drawn beside the menu ${tag} (SPEC D16: replaced, never doubled)`);
@@ -686,7 +774,7 @@ export function gradeN(r, ctx) {
   if (u.length > 0) return decide(p, u, '');
   const c = taken(r, plan, world, u);
   if (c === null) return decide(p, u, '');
-  menusClean(r, MENUS[r.arm] ?? ['pressed'], word, p, u);
+  menusClean(r, MENUS[r.arm] ?? ['pressed'], word, p, u, { world, pasteWord: plan.pasteWord });
   // The first sideways reading of the menu: anything but Copy there takes the
   // phase out of Tier 2 (SPEC §1.1, §13 item 5), and the verdict says so.
   if (r.arm === 'N6' && p.some((x) => x.startsWith('the menu ') || x.startsWith('with the menu up'))) p.unshift('TIER 3: the menu sideways is not Copy alone, which stops the phase (SPEC §13 item 5)');
@@ -732,17 +820,20 @@ export function gradeN(r, ctx) {
     else clipboard(r, expected, p, u);
   }
   const where = `${c.kind} row ${String(c.n)} column ${String(c.col)}`;
+  // PHASE 348: what the menu offered, in the words the arm's admission asks for.
+  const pasteNow = pasteAdmitted(r, world);
+  const menuWords = pasteNow === true ? `${word} then ${plan.pasteWord ?? WORDS.paste}` : pasteNow === false ? `${word} alone` : `${word} (with ${plan.pasteWord ?? WORDS.paste} admitted)`;
   const wide = r.arm === 'N4' ? (wideIn(r.arm, world, c) ? '; its wide character copied once' : '; the sample holds no wide character on those rows') : '';
   const green = {
-    N1: `the word at ${where}: the menu ${word} alone, nothing forbidden drawn, the pasteboard the sample's word`,
+    N1: `the word at ${where}: the menu ${menuWords}, nothing forbidden drawn, the pasteboard the sample's word`,
     N2: `the word at ${where} slid to column ${String(c.toCol)}: the pasteboard the sample's cells`,
     N3: `the word at ${where}, its end handle to live row ${String(c.to?.n)}: the pasteboard the sample's rows`,
     N4: `the word at ${where}, its end handle to live row ${String(c.to?.n)}: the history rows then the live rows${wide}`,
-    N5: `keyboard up, the word at ${where}: the key bar stayed, the menu ${word} alone, the pasteboard the word`,
-    N6: `sideways, the word at ${where}: the menu ${word} alone and hittable, no screen-copy button, the pasteboard the word`,
+    N5: `keyboard up, the word at ${where}: the key bar stayed, the menu ${menuWords}, the pasteboard the word`,
+    N6: `sideways, the word at ${where}: the menu ${menuWords} and hittable, no screen-copy button, the pasteboard the word`,
     N7: `the word at ${where}: a tap on it showed the menu, a tap elsewhere left no menu and no keyboard, and a tap where it was raised the keyboard`,
     N8: `the word at ${where}, its start handle up to history row ${String(c.to?.n)}: the pasteboard the sample's rows from there`,
-    N9: `the word at ${where}: its end handle to live row ${String(c.to?.n)}, then each handle rested on a second, the end to live row ${String(c.hold?.n)} and the start to live row ${String(c.up?.n)}: the pasteboard the sample's rows, every menu ${word} alone`,
+    N9: `the word at ${where}: its end handle to live row ${String(c.to?.n)}, then each handle rested on a second, the end to live row ${String(c.hold?.n)} and the start to live row ${String(c.up?.n)}: the pasteboard the sample's rows, every menu ${menuWords}`,
     N10: `the word at ${where}, its start handle ${String(c.above)} row(s) up onto rows not yet fetched: no menu at the lift, the menu by itself ${Number(r.appeared?.after).toFixed(1)} s later, the pasteboard their text`
   }[r.arm];
   return decide(p, u, green);
@@ -1120,7 +1211,9 @@ function selfTest() {
       check('N1 the pasteboard reads empty after Copy (UNREADABLE)', grade('N1', e), null);
       const s = honest('N1');
       s.pb.set(pbBefore(s), { code: 0, text: expectedText('N1', world, s.c), reads: 1 });
-      check('N1 the pasteboard held the word before the arm (UNREADABLE)', grade('N1', s), null);
+      // The integrator (Phase 348): the committed sample takes a paste since its regeneration (D34), so build 11's
+      // sample, which took none, is named here; with a sample that takes one, the word on the clipboard admits Paste.
+      check('N1 the pasteboard held the word before the arm (UNREADABLE)', gradeN(readArm('N1', s.events, s.pb), { ...ctx, world: { ...world, pastes: false } }), null);
       const m = honest('N1');
       m.pb.delete(pbAfter(m));
       check('N1 the pasteboard never read after Copy (UNREADABLE)', grade('N1', m), null);
@@ -1163,6 +1256,53 @@ function selfTest() {
     }
     check('N6 screen-copy drawn as another kind of element', grade('N6', broken('N6', isMenu('pressed'), (e) => e.copies.push({ type: 1, menuItem: false, button: false }))), false);
     check("N1 the menu's Copy is not identified screen-copy", grade('N1', broken('N1', isMenu('pressed'), (e) => (e.items[0].id = ''))), false);
+    // PHASE 348 (build/p348/SPEC.md §6, D39 to D42): Paste ADMITTED beside Copy
+    // where the sample takes a paste and the clipboard held text before the
+    // arm, and nowhere else. The committed sample's own answer is read below;
+    // these readings plant a sample that takes one.
+    {
+      const pctx = { plan, world: { ...world, pastes: true } };
+      const pgrade = (arm, h) => gradeN(readArm(arm, h.events, h.pb), pctx);
+      const pasteItem = () => ({ label: 'Paste', id: PASTE_ID, frame: [127, 540, 72, 47], hittable: true });
+      /** Every menu that drew items gains the admitted Paste after Copy, its element a menu item. */
+      const withPaste = (h, edit = () => undefined) => {
+        for (const e of h.events) {
+          if (e.step !== 'menu' || e.items.length === 0) continue;
+          e.items = [...e.items, pasteItem()];
+          e.labels = [...e.labels, 'Paste'];
+          e.pastes = [{ type: 41, menuItem: true, button: false }];
+          edit(e);
+        }
+        return h;
+      };
+      const textBefore = (h, text = 'text another app copied') => {
+        h.pb.set(pbBefore(h), { code: 0, text, reads: 1 });
+        return h;
+      };
+      check('N1 [Copy, Paste] where the sample takes a paste and the clipboard holds text', pgrade('N1', withPaste(textBefore(honest('N1')))), true);
+      check('N1 [Copy] over an empty clipboard, the sample taking a paste', pgrade('N1', honest('N1')), true);
+      check('N1 Copy alone where Paste is admitted', pgrade('N1', textBefore(honest('N1'))), false);
+      check('N1 Paste offered over an empty clipboard', pgrade('N1', withPaste(honest('N1'))), false);
+      // The integrator (Phase 348): build 11's sample is named, because the committed one takes a paste since its regeneration (D34).
+      check('N1 Paste offered where the sample takes no paste (build 11\'s sample)', gradeN(readArm('N1', ...((h) => [h.events, h.pb])(withPaste(textBefore(honest('N1'))))), { ...pctx, world: { ...world, pastes: false } }), false);
+      check('N1 Paste before Copy', pgrade('N1', withPaste(textBefore(honest('N1')), (e) => e.items.reverse())), false);
+      check('N1 Paste not identified screen-paste', pgrade('N1', withPaste(textBefore(honest('N1')), (e) => (e.items[1].id = ''))), false);
+      check('N1 Paste drawn as a button beside the menu (a Paste key)', pgrade('N1', withPaste(textBefore(honest('N1')), (e) => e.pastes.push({ type: 9, menuItem: false, button: true }))), false);
+      check('N1 Share… beside Copy and Paste', pgrade('N1', withPaste(textBefore(honest('N1')), (e) => e.items.push({ label: 'Share…', id: '', frame: [0, 0, 1, 1], hittable: true }))), false);
+      check('N1 Cut drawn while Paste is admitted', pgrade('N1', withPaste(textBefore(honest('N1')), (e) => e.labels.push('Cut'))), false);
+      check('N3 [Copy, Paste] after the handle too', pgrade('N3', withPaste(textBefore(honest('N3')))), true);
+      check('N3 the menu after the handle drops Paste where it is admitted', pgrade('N3', withPaste(textBefore(honest('N3')), (e) => (e.tag === 'dragged' ? (e.items = e.items.slice(0, 1)) : undefined))), false);
+      check('N6 sideways [Copy, Paste] where admitted', pgrade('N6', withPaste(textBefore(honest('N6')))), true);
+      check('N7 reads the pasteboard before nothing: [Copy, Paste] admitted', pgrade('N7', withPaste(honest('N7'))), true);
+      check('N7 reads the pasteboard before nothing: [Copy] admitted', pgrade('N7', honest('N7')), true);
+      check('N7 a menu of Paste alone', pgrade('N7', broken('N7', isMenu('inside'), (e) => (e.items = [pasteItem()]))), false);
+      const admittedNow = pgrade('N1', withPaste(textBefore(honest('N1'))));
+      is("N1's pass says Copy then Paste where admitted", /Copy then Paste/.test(admittedNow.said), admittedNow.said.slice(0, 80));
+      is('forbiddenIn: Paste admitted beside Copy is not forbidden, anything else still is', J(forbiddenIn({ items: [{ label: 'Copy' }, { label: 'Paste' }], labels: ['Copy', 'Paste', 'Cut'] }, { pasteAdmitted: true })) === J(['Cut']) && J(forbiddenIn({ items: [{ label: 'Copy' }], labels: ['Paste'] })) === J(['Paste']));
+      is('pasteAdmitted: true over text with a sample that pastes, false over an empty clipboard or a sample that does not, null with no read', pasteAdmitted({ before: { text: 'x' } }, { pastes: true }) === true && pasteAdmitted({ before: { text: '' } }, { pastes: true }) === false && pasteAdmitted({ before: { text: 'x' } }, { pastes: false }) === false && pasteAdmitted({ before: null }, { pastes: true }) === null);
+      is('samplePastes: the phone\'s pasteOffered, paste true and typable', samplePastes({ paste: true, typable: true }) === true && samplePastes({ paste: true, typable: false }) === false && samplePastes({ typable: true }) === false && samplePastes(null) === false);
+      is(`the committed sample's Terminal ${world.pastes ? 'takes' : 'takes no'} paste (its picture's paste ${J(sample.screen?.[SESSION]?.[world.variant]?.answer?.screen?.paste ?? null)})`, typeof world.pastes === 'boolean');
+    }
     // N7.
     check('N7 a tap on the selection showed no menu', grade('N7', broken('N7', isMenu('inside'), (e) => (e.items = []))), false);
     check('N7 a tap elsewhere left the menu up', grade('N7', broken('N7', isMenu('outside'), (e) => (e.items = [{ label: 'Copy', hittable: true }]))), false);

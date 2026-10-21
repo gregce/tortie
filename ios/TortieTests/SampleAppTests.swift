@@ -150,6 +150,28 @@ final class SampleAppTests: XCTestCase {
             note("screenDoor")
             return RecordingScreen(reader: self)
         }
+
+        /// Phase 348: the paired Mac's Remove, recorded, so a Remove the
+        /// sample sent to the paired Mac would be counted.
+        var remover: (any DoorRemoving)? {
+            note("remover")
+            return RecordingRemover(reader: self)
+        }
+    }
+
+    /// The paired Mac's Remove (Phase 348): every Remove recorded in its
+    /// reader's log, and none taken.
+    final class RecordingRemover: DoorRemoving, @unchecked Sendable {
+        let reader: RecordingReader
+
+        init(reader: RecordingReader) {
+            self.reader = reader
+        }
+
+        func remove(_ sessionId: String) async -> RemoveResult {
+            reader.note("remover.remove")
+            return .notTaken
+        }
     }
 
     /// The paired Mac's writer: every write recorded in its reader's log, and
@@ -201,6 +223,17 @@ final class SampleAppTests: XCTestCase {
             return .notTaken
         }
 
+        /// Phase 348: the paired Mac's paste, recorded.
+        var pastes: Bool {
+            reader.note("screen.pastes")
+            return true
+        }
+
+        func paste(_ text: String, turn: String, dialog: String?) async -> PasteResult {
+            reader.note("screen.paste")
+            return .notTaken
+        }
+
         func scrollback(from: Int, count: Int, depth: Int, wrap: Int, keep: ScrollbackKeep) async throws -> PocketScrollbackAnswer {
             reader.note("screen.scrollback")
             throw DoorFailure.unreachable(code: -1004)
@@ -249,8 +282,9 @@ final class SampleAppTests: XCTestCase {
 
     /// Everything a person can do in the sample, through the app's OWN reader
     /// and models: the list and the badge, the Sessions tab and a choice on
-    /// it, a session, its turns, its Terminal and a keys write on it, a press
-    /// on a waiting question, and an End.
+    /// it, a session, its turns, its Terminal and a keys write and a paste on
+    /// it, a press on a waiting question, an End, and (Phase 348) the Remove
+    /// of the session it ended.
     private func drive(_ app: AppModel) async throws {
         let reader = try XCTUnwrap(app.reader)
         XCTAssertTrue(reader is SampleReader, "the app's reader is not the sample's")
@@ -278,6 +312,13 @@ final class SampleAppTests: XCTestCase {
         let screen = try XCTUnwrap(picture.screen, "the sample's Terminal drew no picture")
         let typed = await terminal.keys([.text("ls"), .key(.enter)], turn: screen.turn, dialog: screen.dialog)
         XCTAssertTrue(Self.done(typed), "the sample's keys were not taken: \(typed)")
+        // Phase 348 (D34): a paste on the sample's Terminal, echoed on its own
+        // prompt, and nothing leaves the phone.
+        XCTAssertTrue(terminal.pastes, "the sample's Terminal takes no paste")
+        let pasted = await terminal.paste("echo sample", turn: screen.turn, dialog: screen.dialog)
+        guard case .answered(let pasteAnswer) = pasted, pasteAnswer.outcome == .done else {
+            return XCTFail("the sample's paste was not taken: \(pasted)")
+        }
         let depth = try XCTUnwrap(screen.historyDepth, "the sample's Terminal has no history")
         let page = try await terminal.scrollback(from: 0, count: min(depth, 10), depth: depth, wrap: screen.screenColumns, keep: .bottom)
         XCTAssertFalse(page.rows.isEmpty, "the sample's Terminal paged back nothing")
@@ -298,6 +339,15 @@ final class SampleAppTests: XCTestCase {
         XCTAssertTrue(Self.done(pressed), "the sample's question did not take a press: \(pressed)")
         let ended = await writer.end(liveId, batch: false)
         XCTAssertTrue(Self.done(ended), "the sample's End did not end its copy: \(ended)")
+        // Phase 348 (D11): once its End is done, Remove on its own copy, which
+        // takes it off the lists, and nothing leaves the phone.
+        let remover = try XCTUnwrap(reader.remover, "the sample's reader removes nothing")
+        let removed = await remover.remove(liveId)
+        guard case .answered(let removeAnswer) = removed, removeAnswer.outcome == .done else {
+            return XCTFail("the sample's Remove did not remove its ended copy: \(removed)")
+        }
+        let afterRemove = try await reader.blocked()
+        XCTAssertFalse((afterRemove.rows + afterRemove.others).contains { $0.sessionId == liveId }, "the sample still lists the session it removed")
         // End these, over every session still live.
         for row in try await reader.blocked().others where row.sessionId != liveId {
             _ = await writer.end(row.sessionId, batch: true)

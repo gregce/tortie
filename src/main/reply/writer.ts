@@ -29,7 +29,10 @@
  * before the reading, so the one spawn after the final check is the paste list:
  * leave copy mode, paste bracketed and delete the buffer, press Enter. Offered
  * only at the agent's own empty prompt while its own reader says idle
- * (§Revision R15, his ruling "Only when idle at its prompt").
+ * (§Revision R15, his ruling "Only when idle at its prompt"). SINCE PHASE 348
+ * (build/p348/SPEC.md D52) the buffer's load and its delete are the one buffer
+ * helper's, ./buffer.ts, which the phone's paste calls too; the order (the
+ * buffer before the reading) and the `finally` are this module's, unchanged.
  *
  * WHAT IT NEVER DOES. It never derives an argv element from the words, whose
  * one sink is `stdin`; it never reads an error's text, because a failed tmux
@@ -40,7 +43,6 @@
  * read-back screen (D16 as the fix round amended it, §Revision R11).
  */
 
-import { randomBytes } from 'node:crypto';
 import { POCKET_NO_REPLY, POCKET_WRITE_SENTENCES, type PocketReplyOffer } from '@shared/ipc/pocket';
 import { LIFECYCLE_SESSION_CHANGED, SESSION_NOT_FOUND } from '@shared/lifecycle-words';
 import {
@@ -81,6 +83,7 @@ import {
   replyOffer,
   type ReplyReadDeps
 } from './reader';
+import { dropWords, loadWords, SAY_BUFFER_PREFIX } from './buffer';
 import { textRefusal } from './text-rules';
 
 /** What the writer reads from and types through, structurally. `GmuxCore` satisfies it as it stands. */
@@ -122,9 +125,6 @@ export interface ReplyDeps {
 
 /** How long after a press's keystroke the screen is read back (research 135 §2.7 step 6). */
 export const REPLY_READ_BACK_MS = 300;
-
-/** Every message buffer's name starts so; the rest is an id this module mints. */
-const BUFFER_PREFIX = 'tortie-say-';
 
 const DONE: PocketReplyOutcome = Object.freeze({ outcome: 'done' });
 
@@ -303,11 +303,12 @@ export function createReplyVerbs(
     if (agent === null) return refused('unsayable', REPLY_NOT_READY);
     // 3. Where the count stands before anything is read.
     const n0 = deps.turns.current(id).n;
-    // 4. THE BUFFER, before the reading (D10), named by an id minted here.
-    const name = BUFFER_PREFIX + randomBytes(16).toString('hex');
+    // 4. THE BUFFER, before the reading (D10), through the one buffer helper
+    // (Phase 348, D52), which names it with an id it mints, never the write id.
+    let name: string | null = null;
     let pasted = false;
     try {
-      await run(['load-buffer', '-b', name, '-'], { stdin: Buffer.from(input.text, 'utf8') });
+      name = await loadWords(run, SAY_BUFFER_PREFIX, input.text);
       // 5. ONE FRESH READING, styled, its capture last.
       const reading = await readReply(row, kind, tmuxId, readDepsOf(core));
       // 6. THE FINAL CHECK, synchronous: nothing is awaited from here to the paste.
@@ -344,8 +345,9 @@ export function createReplyVerbs(
     } catch {
       return failed(REPLY_FAILED);
     } finally {
-      // The words leave the server on every path the paste did not take them.
-      if (!pasted) await run(['delete-buffer', '-b', name]).catch(() => undefined);
+      // The words leave the server on every path the paste did not take them
+      // (a load that failed was dropped by the helper, which named it).
+      if (!pasted && name !== null) await dropWords(run, name);
     }
   }
 

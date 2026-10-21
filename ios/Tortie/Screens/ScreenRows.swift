@@ -32,6 +32,11 @@
 // EVERY POSITION IS A CGFloat: a column is accumulated as `CGFloat` from each
 // run's cells and never in `Int`, so nothing here can trap, whatever the
 // door's numbers (conformance:ios rule k).
+//
+// A ROW CARRIES ITS MARK (Phase 348, build/p348/SPEC.md D43 to D46): whether
+// its line goes on into the next row, as tmux marked it and behind the Mac's
+// ink guard. Nothing is drawn differently for it (no wrapping inside the
+// Terminal, research 142); Copy reads it (Screens/ScreenSelection.swift).
 
 import CoreText
 import SwiftUI
@@ -127,14 +132,20 @@ struct ScreenRowModel: Equatable, Hashable, Sendable {
     /// Each column's character, a wide cell's in its first column and
     /// nothing in its second: what a selection copies.
     let cells: [String]
+    /// The row's line goes on into the next row (Phase 348, D43, D45): tmux
+    /// marked it wrapped, its last column holds ink, and it is on the main
+    /// screen. Copy joins it to the next row with no line break (D46). False
+    /// is no mark, which is today's Copy: the row is its own line.
+    let wrapped: Bool
 
-    init(index: Int, runs: [ScreenRun], holds: (Character) -> Bool) {
+    init(index: Int, runs: [ScreenRun], holds: (Character) -> Bool, wrapped: Bool = false) {
         self.index = index
         self.runs = runs
         boxes = ScreenLayout.boxes(runs, holds: holds)
         let text = runs.map(\.text).joined()
         label = String(text.reversed().drop(while: { $0 == " " }).reversed())
         cells = ScreenLayout.cells(runs)
+        self.wrapped = wrapped
     }
 }
 
@@ -169,6 +180,10 @@ struct ScreenPicture: Equatable, Sendable {
     /// read, or a Mac older than 337.1).
     let historyDepth: Int?
     let space: String?
+    /// The Mac takes a paste on this session now (Phase 348, D30): it serves
+    /// `paste`, the screen is typable and the session is on this Mac. False
+    /// draws Copy alone, as before.
+    let paste: Bool
 
     init(_ screen: PocketScreen, revision: String, holds: (Character) -> Bool = ScreenFont.holds) {
         self.revision = revision
@@ -183,11 +198,15 @@ struct ScreenPicture: Equatable, Sendable {
         ink = Token.drawn(screen.ink)
         caret = Token.drawn(screen.caret)
         styles = screen.styles.map(ScreenStyle.init)
+        // The marks, by row (D43): the decoder kept them only when they square
+        // with this picture, so each names a row with a row after it.
+        let marks = Set(screen.wraps)
         rows = screen.lines.enumerated().map { place, runs in
             ScreenRowModel(
                 index: place,
                 runs: runs.map { ScreenRun(text: $0.text, styleIndex: $0.runStyle, span: $0.runCells) },
-                holds: holds
+                holds: holds,
+                wrapped: marks.contains(place)
             )
         }
         turn = screen.turn
@@ -196,6 +215,7 @@ struct ScreenPicture: Equatable, Sendable {
         typable = screen.typable
         historyDepth = screen.historyDepth
         space = screen.space
+        paste = screen.paste
     }
 
     /// The style of a run, or the screen's own ink for an index the decoder

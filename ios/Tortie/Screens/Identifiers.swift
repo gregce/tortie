@@ -20,7 +20,15 @@
 //                                Sessions tab is screen-list. A tab's button
 //                                has no identifier: SwiftUI gives a `Tab`
 //                                none, so a test finds it by its label
-//   list-title                   "Sessions"
+//
+// THE TAB ROOTS' TITLES (Phase 348, build/p348/SPEC.md D15, section 5.3) are
+// the iPhone's own navigation bar with its large title, which carries no
+// identifier of ours: a test reads `app.navigationBars[<title>]`, the bar
+// whose identifier is its title ("Needs input", "Sessions", "Settings",
+// "Macs"). So `list-title`, `needs-input-title`, `settings-title` and
+// `macs-title` are gone, and with the age note (item 4) `list-age-note` and
+// `needs-list-age-note`.
+//
 //   list-alerts-line             `Pair again to get alerts.`, under the title
 //   list-notice                  the Mac's sentence for a session it no longer
 //                                has, after a tap on an alert naming it
@@ -33,7 +41,9 @@
 //                                the header's words, for the 16 pt gutter
 //   list-empty                   main's `emptyLine` when nothing waits
 //   list-others-left-out         the line when `othersOmitted` > 0
-//   list-age-note, list-read     the foot: main's `ageNote`, then `read <time>`
+//   list-read                    the foot: `read <time>` alone (main's
+//                                `ageNote` is read and never drawn since
+//                                Phase 348)
 //   row-<sessionId>              one row; a container, so its parts below are
 //                                elements of their own with their own frames
 //   row-dot-<id>, row-name-<id>, row-machine-<id>, row-age-<id>, row-line-<id>
@@ -89,38 +99,41 @@
 //                                333.1, D23)
 //
 // THE NEEDS INPUT TAB (Phase 316.6) is the list's first section alone, under
-// a title of its own, and every element it shares with the Sessions tab
-// carries the prefix `needs-`, so the two tabs never share an identifier:
+// a title of its own (the bar's large title since Phase 348), and every
+// element it shares with the Sessions tab carries the prefix `needs-`, so the
+// two tabs never share an identifier:
 //
-//   needs-input-title            "Needs input"
 //   needs-list-alerts-line, needs-list-notice, needs-list-loading,
-//   needs-list-failure, needs-list-empty, needs-list-age-note, needs-list-read
+//   needs-list-failure, needs-list-empty, needs-list-read
 //                                as the list's, on this tab
 //   needs-row-<sessionId>        one waiting row; a container, with its parts
 //   needs-row-dot-<id>, needs-row-name-<id>, needs-row-machine-<id>,
 //   needs-row-age-<id>, needs-row-line-<id>
 //
-// SETTINGS (Phase 316.6):
+// SETTINGS (Phase 316.6; an inset grouped page since Phase 348, D12, each
+// group's id on the whole group, so what was read inside a card still is):
 //
-//   settings-title               "Settings"
-//   settings-mac                 the This Mac card; a container
+//   settings-mac                 the This Mac group; a container
 //   settings-mac-name            the public name's first label
 //   settings-mac-address         the public name and its port
 //   settings-mac-read            `read <time>` from the list's last answer
 //   settings-match               "Check this matches your Mac"
 //   settings-fingerprint         the six groups, as Pairing draws them
-//   settings-paired              `Paired · <date>`
-//   settings-alerts              the Alerts card, only for a Mac that sends
+//   settings-paired              the day this iPhone paired, the right side
+//                                of the `Paired` row (Phase 348: a labelled
+//                                row, as Version is; `Paired · <date>` before)
+//   settings-alerts              the Alerts group, only for a Mac that sends
 //   settings-notifications       the row that opens iOS Settings; a button
 //   settings-notifications-state what iOS allows: Allowed, Off, Not asked, —
 //   settings-alerts-line         `Pair again to get alerts.`, when the list
-//                                says it
+//                                says it: the Alerts group's footer
 //   settings-unpair              Unpair this iPhone; a button
-//   settings-unpair-line         the sentence when the phone could not forget
+//   settings-unpair-line         the sentence when the phone could not forget:
+//                                the Unpair group's footer
 //   settings-see-sample          See a sample, under Unpair on a paired phone;
 //                                a button (Phase 333.3, D13)
 //   settings-about, settings-version
-//                                the About card and its `1.0.0 (4)`
+//                                the About group and its `1.0.0 (4)`
 //   settings-mac-site            Tortie for Mac, a button that opens tortie.sh
 //                                (Phase 333.1, D22)
 //   settings-mac-site-name       `tortie.sh`, on that row's right
@@ -135,8 +148,8 @@
 // every tab's button it has no identifier, and a test finds it by that name.
 // `<i>` counts the Macs from 0 in the phone's order (D9):
 //
-//   screen-macs                  the Macs screen, the fourth tab's root
-//   macs-title                   "Macs"
+//   screen-macs                  the Macs screen, the fourth tab's root,
+//                                under the bar's large title `Macs`
 //   macs-row-<i>                 one Mac; a container, and a button that
 //                                chooses it
 //   macs-row-name-<i>            its drawn name (D21)
@@ -160,6 +173,11 @@
 //
 //   session-end                  `End`, the navigation bar's trailing item; a
 //                                button
+//   session-remove               `Remove`, in End's place at Catch Me Up's top
+//                                right once End is done and the Mac offers
+//                                Remove (Phase 348, D4, D33); a button
+//   remove-writing               present beside the ⋯ or the top-right press
+//                                while a Remove's write runs (Phase 348)
 //   session-end-line             the one line about End, under the status
 //   session-end-glyph-<name>     the row's glyph, an image: faceid, touchid or
 //                                lock, and lock.open in the sample on an
@@ -169,7 +187,8 @@
 //   end-writing                  present beside the Terminal's ⋯ while End's
 //                                write runs (Phase 337.3)
 //   list-select                  `Select`, or `Cancel` while selecting, at the
-//                                Sessions title's trailing edge
+//                                bar's leading edge on Sessions (Phase 348,
+//                                D16; at the title's trailing edge before)
 //   list-selected-count          `3 selected`
 //   list-end-selected            `End selected sessions…`; a button
 //   row-select-<id>              a row's circle while selecting; selected
@@ -214,6 +233,9 @@
 //   terminal-menu-catch-up, terminal-menu-end
 //                                its two items, Catch Me Up then End
 //                                session…; buttons, found once it is open
+//   terminal-menu-remove         Remove, in End session…'s place once End is
+//                                done and the Mac offers Remove (Phase 348,
+//                                build/p348/SPEC.md D4, D33); a button
 //   screen-grid                  the grid of rows, at the Mac's width
 //   screen-loading, screen-failure
 //                                the spinner before the first picture, and the
@@ -237,24 +259,28 @@
 //   screen-key-bar               the key bar above the keyboard; a container
 //   screen-key-<name>            one of its keys: esc, tab, btab, left, up,
 //                                down, right, ctrl, return, hide
-//   screen-copy                  `Copy`, the edit menu's one item over a
+//   screen-copy                  `Copy`, the edit menu's first item over a
 //                                selection; a menu item (Phase 337.5)
+//   screen-paste                 `Paste`, iOS's own paste command after Copy,
+//                                only while the Mac takes a paste and the
+//                                clipboard holds text; a menu item (Phase
+//                                348, D39)
 //   screen-cover                 the plate over the grid while the app is not
 //                                active, so iOS keeps no picture of it
 //
 // THE SESSIONS TAB (Phase 316.7, build/p3167/SPEC.md section 6.4.9) keeps
-// every name above on its new screen: screen-list, list-title, list-select,
-// list-loading, list-failure, list-alerts-line, list-notice, list-age-note,
-// list-read and row-* (its rows are `RowView`s), so every existing UI test step
-// finds them. On the older-Mac face it IS the list above, every name as it
-// was. New:
+// every name above on its new screen: screen-list, list-select,
+// list-loading, list-failure, list-alerts-line, list-notice, list-read and
+// row-* (its rows are `RowView`s), so every existing UI test step finds them.
+// On the older-Mac face it IS the list above, every name as it was. New:
 //
 //   list-show                    the Show control; a container
 //   list-show-all, list-show-active, list-show-ended
 //                                its three buttons; the chosen one carries the
 //                                selected trait
-//   list-menu                    the menu beside Select (Group by, Sort by,
-//                                Agent, Machine, Clear filters); a button
+//   list-menu                    the menu after Select at the bar's leading
+//                                edge (Group by, Sort by, Agent, Machine,
+//                                Clear filters); a button
 //   group-<id>                   one project's header; a button laid over its
 //                                parts, one tap opens or closes it, off while
 //                                End these takes taps (the fix round,
@@ -278,9 +304,11 @@
 //
 // NEW SESSION (Phase 346, build/p346/SPEC.md section 4.16):
 //
-//   start-open                   the "+" at the trailing end of the Sessions
-//                                title, drawn only for an offered start; a
-//                                button, off while End these takes taps
+//   start-open                   the "+" alone at the bar's trailing edge on
+//                                Sessions (Phase 348, D16; at the title's
+//                                trailing end before), drawn only for an
+//                                offered start; a button, off while End
+//                                these takes taps
 //   start-sheet                  New session; a container
 //   start-project                its Project menu; a button
 //   start-project-<id>           one project in the menu, `<id>` the Mac's
@@ -330,7 +358,6 @@ enum ID {
     static let pairingScreen = "screen-pairing"
 
     // The list.
-    static let listTitle = "list-title"
     static let listAlertsLine = "list-alerts-line"
     static let listNotice = "list-notice"
     static let listLoading = "list-loading"
@@ -341,7 +368,6 @@ enum ID {
     static let sectionOthersText = "section-others-text"
     static let listEmpty = "list-empty"
     static let listOthersLeftOut = "list-others-left-out"
-    static let listAgeNote = "list-age-note"
     static let listRead = "list-read"
     static func row(_ id: String) -> String { "row-" + id }
     static func rowDot(_ id: String) -> String { "row-dot-" + id }
@@ -414,13 +440,11 @@ enum ID {
 
     // The Needs input tab (Phase 316.6).
     static let needsInputScreen = "screen-needs-input"
-    static let needsInputTitle = "needs-input-title"
     static let needsListAlertsLine = "needs-list-alerts-line"
     static let needsListNotice = "needs-list-notice"
     static let needsListLoading = "needs-list-loading"
     static let needsListFailure = "needs-list-failure"
     static let needsListEmpty = "needs-list-empty"
-    static let needsListAgeNote = "needs-list-age-note"
     static let needsListRead = "needs-list-read"
     static func needsRow(_ id: String) -> String { "needs-row-" + id }
     static func needsRowDot(_ id: String) -> String { "needs-row-dot-" + id }
@@ -431,7 +455,6 @@ enum ID {
 
     // Settings (Phase 316.6).
     static let settingsScreen = "screen-settings"
-    static let settingsTitle = "settings-title"
     static let settingsMac = "settings-mac"
     static let settingsMacName = "settings-mac-name"
     static let settingsMacAddress = "settings-mac-address"
@@ -452,7 +475,6 @@ enum ID {
 
     // Several Macs (Phase 345).
     static let macsScreen = "screen-macs"
-    static let macsTitle = "macs-title"
     static func macsRow(_ i: Int) -> String { "macs-row-" + String(i) }
     static func macsRowName(_ i: Int) -> String { "macs-row-name-" + String(i) }
     static func macsRowLine(_ i: Int) -> String { "macs-row-line-" + String(i) }
@@ -469,6 +491,12 @@ enum ID {
     static let endConfirming = "end-confirming"
     /// Beside the Terminal's ⋯ while End's write runs (Phase 337.3, D24).
     static let endWriting = "end-writing"
+    /// Remove at Catch Me Up's top right, a button (End's `session-end`
+    /// place, Phase 348).
+    static let sessionRemove = "session-remove"
+    /// The progress mark beside the ⋯ or the top-right press while a
+    /// Remove's write runs (Phase 348).
+    static let removeWriting = "remove-writing"
     static let listSelect = "list-select"
     static let listSelectedCount = "list-selected-count"
     static let listEndSelected = "list-end-selected"
@@ -506,6 +534,9 @@ enum ID {
     static let terminalMenuCatchUp = "terminal-menu-catch-up"
     /// Its second item, End session… (D22).
     static let terminalMenuEnd = "terminal-menu-end"
+    /// Remove in the Terminal's ⋯ (End session…'s `terminal-menu-end` place,
+    /// Phase 348).
+    static let terminalMenuRemove = "terminal-menu-remove"
     static let screenGrid = "screen-grid"
     static let screenLoading = "screen-loading"
     static let screenFailure = "screen-failure"
@@ -524,6 +555,8 @@ enum ID {
     static func screenKey(_ name: String) -> String { "screen-key-" + name }
     /// The edit menu's Copy over a selection (Phase 337.5): a menu item.
     static let screenCopy = "screen-copy"
+    /// The long-press menu's Paste command, a menu item (Phase 348).
+    static let screenPaste = "screen-paste"
     static let screenCover = "screen-cover"
 
     // The Sessions tab (Phase 316.7).

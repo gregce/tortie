@@ -105,16 +105,105 @@ final class ScreensDrawingTests: XCTestCase {
         XCTAssertEqual(edge.othersHeader, Copy.everythingElse(9_007_199_254_740_992))
     }
 
-    /// Clause: the foot is main's age note and `read <the answer's moment>`.
-    func testTheFootIsMainsNoteAndTheAnswersMoment() throws {
+    /// Clause (Phase 348, build/p348/SPEC.md §4.4, D14): the foot is
+    /// `read <the answer's moment>` alone. Main's age note is decoded (its
+    /// key stays required, Door/Contract.swift) and never drawn: the drawing
+    /// holds nothing of it whatever main sends, and the list's foot draws one
+    /// line, the read line, and names no note. Moved on purpose from Phase
+    /// 316.2's "the foot is main's age note and the answer's moment".
+    func testTheFootIsTheAnswersMomentAlone() throws {
         var asked: Double?
-        let drawing = try ListDrawing(Answers.blocked(at: 1_758_600_000_123)) { at in
+        let base = Answers.blocked(at: 1_758_600_000_123)
+        // A note main could send, whatever its words: the drawing holds none.
+        let answer = PocketBlockedAnswer(
+            rows: base.rows, others: base.others, othersOmitted: base.othersOmitted, at: base.at,
+            emptyLine: base.emptyLine, ageNote: "A note main sends, which the phone reads and never draws."
+        )
+        let drawing = try ListDrawing(answer) { at in
             asked = at
             return "4:32 PM"
         }
         XCTAssertEqual(asked, 1_758_600_000_123)
         XCTAssertEqual(drawing.readLine, "read 4:32 PM")
-        XCTAssertEqual(drawing.ageNote, Answers.blocked().ageNote)
+        let fields = Mirror(reflecting: drawing).children.compactMap(\.label)
+        XCTAssertFalse(fields.contains("ageNote"), "the list draws main's age note")
+        for (name, value) in Mirror(reflecting: drawing).children.compactMap({ c in c.label.map { ($0, c.value) } }) {
+            if let text = value as? String { XCTAssertNotEqual(text, answer.ageNote, "\(name) carries main's age note") }
+        }
+        let source = try StyleSource.text("ios/Tortie/Screens/ListScreen.swift")
+        let foot = try Self.body(of: "private func foot(", in: source)
+        XCTAssertEqual(foot.components(separatedBy: "Words(").count, 2, "the foot draws other than one line")
+        XCTAssertTrue(foot.contains("Words(drawing.readLine, .age, Tokens.textMuted)"), "the foot's one line is not the read line")
+        XCTAssertFalse(foot.contains("ageNote"), "the foot names the age note")
+        XCTAssertFalse(source.contains(".ageNote"), "ListScreen.swift reads main's age note")
+    }
+
+    /// Clause (Phase 348, build/p348/SPEC.md §4.5, D15): the four tab roots
+    /// take the iPhone's own navigation bar with the system's large title in
+    /// the pushed pages' bar colours, and none hides it or draws a title row
+    /// of its own: Needs input and the older-Mac face (ListScreen), Sessions,
+    /// Settings and Macs. The bar's background is the automatic one, shown
+    /// once the list scrolls under it, never forced visible as a pushed
+    /// page's is. Read from the source, because SwiftUI draws nothing here.
+    func testTheFourTabRootsTakeTheIPhonesOwnBar() throws {
+        let roots: [(file: String, title: String)] = [
+            ("ListScreen", ".navigationTitle(kind.title)"),
+            ("SessionsScreen", ".navigationTitle(Copy.sessions)"),
+            ("SettingsScreen", ".navigationTitle(Copy.settings)"),
+            ("MacsScreen", ".navigationTitle(Copy.macs)"),
+        ]
+        for root in roots {
+            let source = try StyleSource.text("ios/Tortie/Screens/\(root.file).swift")
+            let title = try XCTUnwrap(source.range(of: root.title), "\(root.file) names no \(root.title)").lowerBound
+            let after = String(source[title...].prefix(400))
+            for modifier in [
+                ".navigationBarTitleDisplayMode(.large)",
+                ".toolbarBackground(Tokens.bgSidebar, for: .navigationBar)",
+                ".toolbarColorScheme(.dark, for: .navigationBar)",
+            ] {
+                XCTAssertTrue(after.contains(modifier), "\(root.file)'s title is not followed by \(modifier)")
+            }
+            XCTAssertFalse(source.contains(".toolbar(.hidden"), "\(root.file) hides its navigation bar")
+            XCTAssertFalse(source.contains(".toolbarBackground(.visible"), "\(root.file) forces its bar's background visible")
+            XCTAssertFalse(source.contains(", .title, Tokens.textPrimary)"), "\(root.file) still draws a title row in the title face")
+            XCTAssertFalse(source.contains(".lineBox(.title)"), "\(root.file) still lays out a title row")
+        }
+        // The older-Mac face's bar holds Select alone, and Needs input's none.
+        let list = try StyleSource.text("ios/Tortie/Screens/ListScreen.swift")
+        let bar = try XCTUnwrap(list.range(of: ".toolbar {")).lowerBound
+        let held = String(list[bar...].prefix(500))
+        let gate = try XCTUnwrap(held.range(of: "if kind == .sessions {"), "the older-Mac face's Select is not behind its kind").lowerBound
+        let item = try XCTUnwrap(held.range(of: "ToolbarItem(placement: .topBarLeading) {"), "Select is not at the bar's leading edge").lowerBound
+        let select = try XCTUnwrap(held.range(of: "EndBatchTitleControl()"), "the older-Mac face's bar holds no Select").lowerBound
+        XCTAssertTrue(gate < item && item < select)
+        XCTAssertEqual(list.components(separatedBy: "EndBatchTitleControl()").count, 2, "ListScreen draws Select other than once")
+    }
+
+    /// The text of one declaration's braces, from `head` to its closing brace.
+    static func body(of head: String, in source: String) throws -> String {
+        let start = try XCTUnwrap(source.range(of: head), "no \(head)").lowerBound
+        var depth = 0
+        var opened = false
+        var index = start
+        while index < source.endIndex {
+            let character = source[index]
+            if character == "{" {
+                depth += 1
+                opened = true
+            } else if character == "}" {
+                depth -= 1
+                if opened, depth == 0 { return String(source[start...index]) }
+            }
+            index = source.index(after: index)
+        }
+        throw Unclosed(head: head)
+    }
+
+    /// A declaration whose braces never close: the source is not one a test
+    /// can read.
+    struct Unclosed: Error, CustomStringConvertible {
+        let head: String
+        var description: String { "\(head) never closes" }
     }
 
     /// Clause: a session in both lists, or twice in one, is not an answer the

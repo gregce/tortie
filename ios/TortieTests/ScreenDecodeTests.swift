@@ -276,7 +276,9 @@ enum ScreenSample {
         typable: Bool = true,
         alternate: Bool = false,
         depth: Any? = nil,
-        space: Any? = nil
+        space: Any? = nil,
+        paste: Any? = nil,
+        wraps: Any? = nil
     ) -> [String: Any] {
         let drawn: [[[String: Any]]] = lines ?? [
             [["text": "ab", "style": 0, "cells": 2], ["text": "cd", "style": 1, "cells": 2]],
@@ -291,6 +293,9 @@ enum ScreenSample {
         ]
         if let depth { built["depth"] = depth }
         if let space { built["space"] = space }
+        // Phase 348: each left out when nil (a Mac older than 348).
+        if let paste { built["paste"] = paste }
+        if let wraps { built["wraps"] = wraps }
         return built
     }
 
@@ -324,11 +329,13 @@ enum ScreenSample {
         cols: Int = 4,
         alternate: Bool = false,
         depth: Int? = nil,
-        space: String? = nil
+        space: String? = nil,
+        paste: Bool? = nil,
+        wraps: [Int]? = nil
     ) -> ScreenPicture {
         let built = screen(
             cols: cols, rows: lines?.count ?? 2, lines: lines, turn: turn, asking: asking, dialog: dialog, typable: typable,
-            alternate: alternate, depth: depth, space: space
+            alternate: alternate, depth: depth, space: space, paste: paste, wraps: wraps
         )
         let read = try? decode(answer(screen: built, revision: revision))
         guard let screen = read?.screen else { fatalError("the sample screen does not decode") }

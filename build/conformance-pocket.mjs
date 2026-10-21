@@ -224,6 +224,40 @@
  * start's 512) and AF2 (its drives pass the eleven, and two drives the
  * twelve). One hundred and sixty-five rules in all.
  *
+ * PHASE 348 REMOVES AN ENDED SESSION AND PASTES FROM THE PHONE
+ * (build/p348/SPEC.md §7.1), his words of 2026-10-18 ("the ability to remove
+ * it", "the ability to paste copied content") and his rulings that Remove asks
+ * no Face ID ("No Face ID, just confirm") and that a paste lands as a paste at
+ * the desk does, with no Return added. The door's sixth and seventh writes,
+ * `POST /v1/remove` and `POST /v1/paste`, take the session branch of the one
+ * write path, each with an answer of its own; Remove's act is
+ * `src/main/sessions/pocket-writes.ts`'s, over the pure `removeVerdict`, and
+ * the paste's is `src/main/screen/paste.ts`'s, which loads the words through
+ * the ONE buffer helper `src/main/reply/buffer.ts` say now shares. Fifteen
+ * rules joined: RM1 to RM7 for Remove (the route and its words, the body, the
+ * answer, the verdict DRIVEN over every status on this Mac and another
+ * machine, the act's order, the offer, and nothing else in its path) and PS1
+ * to PS8 for the paste (the route, the cap and the worst legal body THIS GATE
+ * composes, the body DRIVEN over a hostile corpus, the answer, the verb's
+ * order, the buffer's finally, the flag, the module's silence, and the one
+ * reader of tmux's wrap marks). Widened on purpose: R2 (seven writes, the
+ * two caps), R3 (removeSession's reason, his request named), R4 (the pin to
+ * fourteen routes, `2f5feba1…`; LEGACY_ROUTE_PIN unmoved), X1 to X12 (the two
+ * verbs; X5 lets `removeSession(` be called ONCE, inside remove, and reads
+ * canEnd of DOOR_GATE_ENV for end and canRemove of DOOR_REMOVE_GATE_ENV for
+ * remove), NS1 (start, remove, paste last), NS2 (two answers beside
+ * start's), NS11 (seven members), Y1 and Z2 (the caps), AR9 (two ledger
+ * rows), Y3 and Y4 (the shared buffer helper), Y13 (the paste's one bump),
+ * Y15 (nothing trims a paste), Z4, Z7, Z8 and Z20 (the second verb), Z9 (the
+ * marks reads exactly), Z11 and Z25 (paste and wraps, field by field). One
+ * hundred and eighty rules in all. And each of the fifteen new rules has its
+ * OWN SELF-TEST, run in every run of this gate (`p348SelfTest`): its clause
+ * broken in memory through a source overlay, the rule run again over the
+ * broken source, and the rule required to go red on a finding of its own,
+ * twenty-five plants in all; ablation:p313 breaks the same rules on disk in a
+ * clone, and sets `P313_NO_SELF_TEST=1` there so an arm is judged on the rule
+ * alone.
+ *
  * HOW IT READS. The source, parsed with the TypeScript compiler's own parser,
  * so a comment, a string and a call are each read as what they are. A rule
  * that could be satisfied by a word in a comment is not a rule, and three of
@@ -239,8 +273,10 @@
  * exist. So a missing module FAILS the rule that needed it, by name, and says
  * which module and which builder owns it.
  *
- *   node build/conformance-pocket.mjs            the gate
+ *   node build/conformance-pocket.mjs            the gate, Phase 348's self-test included
  *   node build/conformance-pocket.mjs --list     the rules, and nothing run
+ *   P313_NO_SELF_TEST=1 node build/conformance-pocket.mjs   the gate without
+ *       Phase 348's self-test (ablation:p313's clone sets it, and the run says so)
  */
 
 import { createHash } from 'node:crypto';
@@ -266,10 +302,10 @@ const RULES = [
   ['L3', 'build/p330/SPEC.md §6.1, §4.2.4', 'the Funnel target’s host is the literal 127.0.0.1 and its port is the listener’s REPORTED localPort, spelled once, and never a stored field or a setting'],
   ['L4', 'build/p330/SPEC.md §6.1, §3 row 8', 'the local port is ephemeral, listen(0) and nothing else, and a confirmed public port that is taken refuses port-taken: 443 is never named'],
   ['R1', 'SPEC §2', 'the route table is CLOSED: frozen, every path an exact string, no pattern, no wildcard, no default arm (read in door/table.ts, where Phase 330 moved it, and in routes.ts, which re-exports it)'],
-  ['R2', 'SPEC §2, entry mechanism 4; build/p317/SPEC.md §6.1; build/p318/SPEC.md §6.1; build/p337/SPEC.md §6.1; build/p346/SPEC.md D1, D4, D6', 'every row is a read (reads: true, a GET or the one pairing row, window-only and unsigned) or a write (reads: false, POST, signed: true, windowOnly: false); the writes are EXACTLY end, choose, say and keys, the contract’s POCKET_WRITE_ROUTE_IDS says the same, and each has its own cap in POCKET_WRITE_BODY_CAPS'],
-  ['R4', 'the fix round, 2026-09-22; build/p337/SPEC.md D1; build/p3371/SPEC.md D1; build/p346/SPEC.md D1, §12 M3', 'the table’s MEMBERSHIP is pinned: the exact set of method-and-path pairs, by sha256, so a fourth route is a visible edit rather than a green build'],
+  ['R2', 'SPEC §2, entry mechanism 4; build/p317/SPEC.md §6.1; build/p318/SPEC.md §6.1; build/p337/SPEC.md §6.1; build/p346/SPEC.md D1, D4, D6; build/p348/SPEC.md D26, D29', 'every row is a read (reads: true, a GET or the one pairing row, window-only and unsigned) or a write (reads: false, POST, signed: true, windowOnly: false); the writes are EXACTLY end, choose, say, keys, start, remove and paste, the contract’s POCKET_WRITE_ROUTE_IDS says the same, and each has its own cap in POCKET_WRITE_BODY_CAPS (start’s and remove’s 512, paste’s 131,072)'],
+  ['R4', 'the fix round, 2026-09-22; build/p337/SPEC.md D1; build/p3371/SPEC.md D1; build/p346/SPEC.md D1, §12 M3; build/p348/SPEC.md §7.1', 'the table’s MEMBERSHIP is pinned: the exact set of method-and-path pairs, by sha256, so a fourth route is a visible edit rather than a green build'],
   ['R5', 'entry, mechanism 4', 'the turn limit is clamped AT THE DOOR against the overview store’s own MAX_TURN_LIMIT, which is imported and never re-spelled'],
-  ['R3', 'entry, mechanism 4; build/p330/SPEC.md §6.1; build/p318/SPEC.md §6.1; build/p337/SPEC.md §6.1; build/p3331/SPEC.md §6.1; build/p346/SPEC.md §5.1', 'the domain names no write verb, no status setter, no credential read and nothing of the reply writer (main/reply/) or of the Screen (main/screen/), and starts NO process but funnel.ts’s spawn of the resolved program, its execFile of that program and of /bin/ps, and bind.ts’s one utilityProcess.fork, and two LaunchServices opens a person’s press makes, Tailscale’s download page and the Tailscale app (SU3)'],
+  ['R3', 'entry, mechanism 4; build/p330/SPEC.md §6.1; build/p318/SPEC.md §6.1; build/p337/SPEC.md §6.1; build/p3331/SPEC.md §6.1; build/p346/SPEC.md §5.1; build/p348/SPEC.md §6', 'the domain names no write verb, no status setter, no credential read and nothing of the reply writer (main/reply/) or of the Screen (main/screen/), and starts NO process but funnel.ts’s spawn of the resolved program, its execFile of that program and of /bin/ps, and bind.ts’s one utilityProcess.fork, and two LaunchServices opens a person’s press makes, Tailscale’s download page and the Tailscale app (SU3)'],
   ['A1', 'entry, mechanism 5', 'no Authorization header and no cookie is read or written anywhere in the domain'],
   ['A2', 'entry, mechanism 5, research 127 §7', 'no secret is in a path or a query: no route path interpolates and no 32-hex token is matched out of one'],
   ['A3', 'entry, mechanism 3', '/pair is dead outside its window, and the window is checked before anything is read off the request'],
@@ -318,23 +354,23 @@ const RULES = [
   ['D7', 'build/p332/SPEC.md §4.8', 'GMUX_POCKET_NAME_SERVERS is read in nameServersFrom alone, which answers the search for a packaged build before it looks, matches every entry against a pattern anchored on ^127\\.0\\.0\\.1:, answers refused for anything else and never the search; and askNameRound returns override-unusable for a refused source before it names findZoneServers'],
   ['D8', 'build/p332/SPEC.md §4.3 step 1', 'the shipping transport answers an error for a server that is not 127.0.0.1 unless process.versions.electron is a string, BEFORE it creates a socket: no test and no script reaches a real DNS server through it'],
   ['D9', 'build/p332/SPEC.md §4.13; after his ruling, 2026-09-30', 'THE PUSH SEAM PAIRS NOTHING WITHOUT THE NAME STAND-IN: nameStandInOnly answers nameServersFrom(…).kind === \'fixed\' alone, openDoorForPairing returns false on it before it first calls its host, waits a bounded time for host.status().pairable after the switch and before every return true, with the wait’s answer deciding a return false, and the seam presses beginPairing only on openDoorForPairing’s true'],
-  ['X1', 'build/p317/SPEC.md §5.3.4, D3, D4; build/p318/SPEC.md §5.1.4; build/p337/SPEC.md §5.5; build/p346/SPEC.md §3.3', 'THE WRITE ORDER, over all four session verbs (and since Phase 346 a start handed to its own branch, ONE test, before the strict parse, whose order NS8 holds): the parse, the ledger, the in-flight claim, the last check, the act and the outcome appear in that order; nothing sits between the last check and the act, whose ONE statement starts end, choose, say or keys through a settle function that calls it at once; every 404 precedes the act; after it every return is marked acted: true; before it only the ledger’s returns are marked, a recorded hit with its own acted and the busy for a pending entry of the same write id'],
-  ['X2', 'build/p317/SPEC.md §5.3.4 step 1, D2; build/p318/SPEC.md §5.1.2; build/p337/SPEC.md §5.5; build/p346/SPEC.md D6', 'THE STRICT PARSE, five of them (Phase 346 adds parseStartBody): one JSON.parse in the write path, inside a try, reached by the parse functions alone; each key set compared exactly (batch,session,write; mark,marker,question,session,write; session,text,write; dialog,keys,session,turn,write); the write id, the session id, the question id, the mark and the marker read one character at a time, and no pattern'],
-  ['X3', 'build/p317/SPEC.md D5, §3 row 18; build/p318/SPEC.md D4; build/p337/SPEC.md D24; build/p346/SPEC.md D17', 'THE LEDGER (and since Phase 346 the start branch’s, keyed keyOf(phone, start, write id), its pending entry storing acted): keyed on the verified phone, THE VERB and the write id, joined by a newline no part can hold; each entry stores its acted; its lifetime is 2 * POCKET_CLOCK_SKEW_MS imported from ./pairing; caps of 2,048 and 8,192 compared against; no entry evicted but by its lifetime or, pending and never acted, in the finally; the pending entry made at the in-flight claim; no node:fs'],
-  ['X4', 'build/p317/SPEC.md §5.3.4 step 3; build/p318/SPEC.md D4; build/p346/SPEC.md D16', 'ONE IN FLIGHT, ACROSS VERBS (since Phase 346 the start branch asks and claims the same phonesInFlight, releases it in its finally and never reads sessionsInFlight): a claim per phone and per session, each asked first and never under a branch on the verb, claimed before the act and released in the finally of the try that holds the act, so an End and a message can never overlap on one session'],
-  ['X5', 'build/p317/SPEC.md §5.4, D7, D14; build/p318/SPEC.md §5.1.5; build/p337/SPEC.md §5.4; build/p346/SPEC.md §4.7, §4.8', 'POCKETWRITES: declared once, in routes.ts, with exactly end, choose, say, keys and (Phase 346) start, which passes through to deps.start.start(; implemented once, in src/main/sessions/pocket-writes.ts, whose choose and say pass through to deps.reply and keys to deps.keys, and nothing else; built in src/main/capabilities.ts alone; end asks endRefusal( and .canEnd of sessionActionGates( with DOOR_GATE_ENV before its first await, which is killSession(; the batch arm calls the injected machineKnown( and nothing reads .answering; the production machineKnown is machineRow( from src/main/machines/store.ts; no other lifecycle verb and no status setter; PocketFacts.endOffer is optional'],
-  ['X6', 'build/p317/SPEC.md §5.3.1, §5.4, research 135 §4.8; build/p318/SPEC.md D19, D20; build/p337/SPEC.md §5.4; build/p346/SPEC.md §4.2', 'THE ANSWER (and since Phase 346 every start sentence too, from src/shared/start-copy.ts, over writes.ts and pocket-start.ts): PocketWriteAnswer is exactly verb, write, outcome, reason and sentence; every sentence the write path, pocket-writes.ts, src/main/reply or src/main/screen sets is a named constant from lifecycle-words.ts, src/shared/reply-copy.ts, src/shared/screen-copy.ts, endRefusal’s own, or POCKET_WRITE_SENTENCES; no .message is read; a caught error is told apart by isGmuxError(, by code, and nothing else'],
+  ['X1', 'build/p317/SPEC.md §5.3.4, D3, D4; build/p318/SPEC.md §5.1.4; build/p337/SPEC.md §5.5; build/p346/SPEC.md §3.3; build/p348/SPEC.md §4.2 step 3', 'THE WRITE ORDER, over all six session verbs (Phase 348 adds remove and paste; since Phase 346 a start handed to its own branch, ONE test, before the strict parse, whose order NS8 holds): the parse, the ledger, the in-flight claim, the last check, the act and the outcome appear in that order; nothing sits between the last check and the act, whose ONE statement starts end, choose, say, keys, remove or paste through a settle function that calls it at once; every 404 precedes the act; after it every return is marked acted: true; before it only the ledger’s returns are marked, a recorded hit with its own acted and the busy for a pending entry of the same write id'],
+  ['X2', 'build/p317/SPEC.md §5.3.4 step 1, D2; build/p318/SPEC.md §5.1.2; build/p337/SPEC.md §5.5; build/p346/SPEC.md D6; build/p348/SPEC.md D28', 'THE STRICT PARSE, seven of them (Phase 346 adds parseStartBody, Phase 348 parseRemoveBody and parsePasteBody): one JSON.parse in the write path, inside a try, reached by the parse functions alone; each key set compared exactly (batch,session,write; mark,marker,question,session,write; session,text,write; dialog,keys,session,turn,write; agent,project,write; session,write; dialog,session,text,turn,write); the write id, the session id, the question id, the mark and the marker read one character at a time, and no pattern'],
+  ['X3', 'build/p317/SPEC.md D5, §3 row 18; build/p318/SPEC.md D4; build/p337/SPEC.md D24; build/p346/SPEC.md D17; build/p348/SPEC.md §4.2 step 3', 'THE LEDGER (and since Phase 346 the start branch’s, keyed keyOf(phone, start, write id), its pending entry storing acted; remove and paste take the session branch’s): keyed on the verified phone, THE VERB (handed to keyOf whole and never mapped, Phase 348) and the write id, joined by a newline no part can hold; each entry stores its acted; its lifetime is 2 * POCKET_CLOCK_SKEW_MS imported from ./pairing; caps of 2,048 and 8,192 compared against; no entry evicted but by its lifetime or, pending and never acted, in the finally; the pending entry made at the in-flight claim; no node:fs'],
+  ['X4', 'build/p317/SPEC.md §5.3.4 step 3; build/p318/SPEC.md D4; build/p346/SPEC.md D16; build/p348/SPEC.md §4.2 step 3', 'ONE IN FLIGHT, ACROSS VERBS (since Phase 346 the start branch asks and claims the same phonesInFlight, releases it in its finally and never reads sessionsInFlight; since Phase 348 remove and paste claim the session branch’s two, so an End and a Remove, or keys and a paste, never overlap on one session): a claim per phone and per session, each asked first and never under a branch on the verb (nor, since Phase 348, beside a short circuit on it), claimed before the act and released in the finally of the try that holds the act, so an End and a message can never overlap on one session'],
+  ['X5', 'build/p317/SPEC.md §5.4, D7, D14; build/p318/SPEC.md §5.1.5; build/p337/SPEC.md §5.4; build/p346/SPEC.md §4.7, §4.8; build/p348/SPEC.md D47, D48, §4.2 step 4', 'POCKETWRITES: declared once, in routes.ts, with exactly end, choose, say, keys, start and (Phase 348) remove and paste; implemented once, in src/main/sessions/pocket-writes.ts, whose choose and say pass through to deps.reply, keys to deps.keys, start to deps.start and paste to deps.paste, and nothing else; built in src/main/capabilities.ts alone; end asks endRefusal( and .canEnd of sessionActionGates( with DOOR_GATE_ENV before its first await, which is killSession(; remove calls removeVerdict( (which asks removeRefusal( and .canRemove of sessionActionGates( with DOOR_REMOVE_GATE_ENV) and then removeSession( exactly once, the one call of it in the module, with nothing awaited between; sessionActionGates( is asked with those two environments alone and no other field of either is read; the batch arm calls the injected machineKnown( and nothing reads .answering; the production machineKnown is machineRow( from src/main/machines/store.ts; no other lifecycle verb and no status setter; PocketFacts.endOffer is optional'],
+  ['X6', 'build/p317/SPEC.md §5.3.1, §5.4, research 135 §4.8; build/p318/SPEC.md D19, D20; build/p337/SPEC.md §5.4; build/p346/SPEC.md §4.2; build/p348/SPEC.md D27, §5.1', 'THE ANSWER (and since Phase 346 every start sentence too, from src/shared/start-copy.ts, over writes.ts and pocket-start.ts; since Phase 348 every sentence handed to removeAnswer( and pasteAnswer( or set in src/main/screen/paste.ts, removeRefusal’s own among them): PocketWriteAnswer is exactly verb, write, outcome, reason and sentence; every sentence the write path, pocket-writes.ts, src/main/reply or src/main/screen sets is a named constant from lifecycle-words.ts, src/shared/reply-copy.ts, src/shared/screen-copy.ts, endRefusal’s or removeRefusal’s own, or POCKET_WRITE_SENTENCES; no .message is read; a caught error is told apart by isGmuxError(, by code, and nothing else'],
   ['X7', 'build/p317/SPEC.md D4, §5.3.2', 'NEVER 404 AFTER THE ACT: bind.ts posts nothing for an acted answer that fails validation; the listener’s late-answer timer cuts a write (writesCut) before it could answer 404; no refusal follows the forward, and every other 404 is a refusal before it or the read half of a choice that cuts a forwarded write'],
   ['X8', 'build/p317/SPEC.md D2, §5.3.1, §5.3.2', 'THE DOOR NEVER PARSES A WRITE: JSON.parse in the door process is presentationOfBody’s, reached by the pairing route alone; a write’s target is url.pathname, a write with a query is refused route, and doorRequestOf refuses a target that is not the write’s path; the cap is read from POCKET_WRITE_BODY_CAPS on both sides'],
   ['X9', 'build/p317/SPEC.md "§Fix round"', 'A PHONE IS REMOVED BY REMOVE ALONE: the one store write that filters a phone out is in removePhone, before its first await; no write route reaches it (the write path’s deps are exactly shuttingDown, stillPaired, routeServed, writes and now, and name nothing that drops a phone), and no answer carries a step to run after it (DoorAnswer has no after, and nothing in bind.ts, ipc.ts or writes.ts runs one)'],
   ['X10', 'build/p317/SPEC.md §5.3.2, §14 finding 22', 'THE REVOKED SOCKET: applyPins marks it revoked and destroys it at once unless it is answering a write (writes === 0); a forwarded write is counted on its socket and the socket is cut when that answer finishes or closes; handleRequest refuses a revoked socket before anything else'],
   ['X11', 'build/p317/SPEC.md §5.3.4 step 7; build/p318/SPEC.md §5.1.4 step 7', 'ONE LOG LINE PER WRITE, whatever its verb: exactly one log call in the write path, after the act, interpolating the verb and the outcome word, with the session id as its one field, never the body, the write id, a header, a sentence, the question id, the mark, the marker or the text'],
-  ['X12', 'build/p317/SPEC.md D19, §5.6; build/p318/SPEC.md §5.1.7, D28; build/p337/SPEC.md D35', 'THE LINES SAY IT: describePocketDoor derives “Lets an allowed phone …” from fields.routes through a compiled map keyed by PocketWriteRouteId, whose clauses are exactly end a session, answer a numbered question, send a session one message and type into any session as you would at this Mac, joined as a list; POCKET_DOOR_HONESTY names the screen, the keys and the three, and no longer says it can change nothing else; POCKET_READ_ONLY_HONESTY is named nowhere'],
+  ['X12', 'build/p317/SPEC.md D19, §5.6; build/p318/SPEC.md §5.1.7, D28; build/p337/SPEC.md D35; build/p346/SPEC.md D3; build/p348/SPEC.md D32', 'THE LINES SAY IT: describePocketDoor derives “Lets an allowed phone …” from fields.routes through a compiled map keyed by PocketWriteRouteId, whose clauses are exactly end a session, answer a numbered question, send a session one message, type into any session as you would at this Mac, start a session in a project open in Tortie, on this Mac or another machine, remove a session that has ended and paste text into a session on this Mac, joined as a list; POCKET_DOOR_HONESTY names the screen, the keys and the three, and no longer says it can change nothing else; POCKET_READ_ONLY_HONESTY is named nowhere'],
   // PHASE 318, the reply (build/p318/SPEC.md §6.1).
-  ['Y1', 'build/p318/SPEC.md D3, §Revision R18; build/p337/SPEC.md D17', 'THE CAPS: POCKET_WRITE_BODY_CAPS is frozen and exactly end 512, choose 512, say 32,768 and keys 16,384, keyed by the closed write list'],
+  ['Y1', 'build/p318/SPEC.md D3, §Revision R18; build/p337/SPEC.md D17; build/p346/SPEC.md D6; build/p348/SPEC.md D29', 'THE CAPS: POCKET_WRITE_BODY_CAPS is frozen and exactly end 512, choose 512, say 32,768, keys 16,384, start 512, remove 512 and paste 131,072, keyed by the closed write list'],
   ['Y2', 'build/p318/SPEC.md D5, §5.1.4 step 4; build/p33312/SPEC.md §6.1', 'STILL: the write path builds still from exactly the four asks of its own last check (the quit, the door stopping, the phone still paired and, since Phase 333.12, the route still served) and hands it to writes.choose( and writes.say( as their second argument; a message’s text reaches writes.say( and nothing else'],
-  ['Y3', 'build/p318/SPEC.md D8, D9, §5.6, §Revision R19 b', 'THE ARGV, element for element: writer.ts and reader.ts compose only the press’s two control lines and its spawned list, load-buffer -b <name> -, the paste list, delete-buffer -b <name>, list-panes … -F PANE_FORMAT, display-message for the cursor and capture-pane -p [-e]; the press and the paste aim at the reading’s pane and never the session list-panes reads; -l only before -- and the marker; no Enter but the paste list’s'],
-  ['Y4', 'build/p318/SPEC.md §5.6.2, research 135 §4.8', 'THE TEXT’S ONE SINK: no argv element is derived from a message’s text, which reaches textRefusal( and load-buffer’s stdin alone; the buffer is named tortie-say- and an id the writer mints (randomBytes(16)), never the phone’s write id; delete-buffer sits in a finally'],
+  ['Y3', 'build/p318/SPEC.md D8, D9, §5.6, §Revision R19 b; build/p348/SPEC.md D52', 'THE ARGV, element for element: writer.ts and reader.ts compose only the press’s two control lines and its spawned list, the paste list, list-panes … -F PANE_FORMAT, display-message for the cursor and capture-pane -p [-e], and (Phase 348) the ONE load-buffer -b <name> - and the ONE delete-buffer -b <name> in the domain live in src/main/reply/buffer.ts, which composes nothing else; the press and the paste aim at the reading’s pane and never the session list-panes reads; -l only before -- and the marker; no Enter but the paste list’s'],
+  ['Y4', 'build/p318/SPEC.md §5.6.2, research 135 §4.8; build/p348/SPEC.md D50, D52', 'THE TEXT’S ONE SINK: no argv element is derived from a message’s text, which reaches textRefusal( and loadWords( alone in writer.ts, and the stdin of buffer.ts’s one load-buffer alone there; the buffer is named by loadWords as its prefix and an id it mints (randomBytes(16)), the prefixes tortie-say- (writer.ts) and tortie-paste- (src/main/screen/paste.ts), never the phone’s write id; writer.ts and paste.ts reach load-buffer and delete-buffer only through loadWords( and dropWords(, and dropWords( sits in a finally in both'],
   ['Y5', 'build/p318/SPEC.md D5, D8, §5.6.1 steps 4 and 5, §Revision R15, R19 a', 'THE FINAL CHECK, THEN THE ACT: in choose and say, still(, then the phone’s bump(, then onLastCheck?.(, then the act (the press’s Promise.allSettled([…]) of two sendCommand( lines or its spawned list; the say’s paste list), with no await between the first still( and the act; and readReply’s last awaited read is the capture'],
   ['Y6', 'build/p318/SPEC.md D16 (as the fix round of 2026-10-04 amended it), D17, §5.6.1 step 8, §Revision R11; CLAUDE.md refusal 5', 'ONE STATUS CALL: noteUserInput( once in src/main/reply, in choose, after the read-back and only when no hook came since the press and the read-back screen draws no choice; never guarded by the id’s count, which a tick’s choice-gone moves; no other status setter named there'],
   ['Y7', 'build/p318/SPEC.md D11, §5.4.3, §5.3; CLAUDE.md refusal 5', 'THE PURE MODULES: press-shapes, input-row, text-rules, gate, hook-says and question-id import no configuration, settings, overlay or agent registry, no node:fs, no child_process and no tmux module; question-id imports node:crypto alone; the shape tables are Object.freeze’d literals'],
@@ -343,9 +379,9 @@ const RULES = [
   ['Y10', 'build/p318/SPEC.md §5.4.1, D22', 'THE REMOTE ARM FIRST: replyGate( precedes every tmux call in choose and say, and refuses a row on another machine before it reads the status; spawnTmux throws for a stdin on a remote context before tmuxCommand( composes anything'],
   ['Y11', 'build/p318/SPEC.md §6.1, §6.5', 'THE DOOR NAMES NOTHING OF THE WRITER: no file under src/main/pocket imports src/main/reply'],
   ['Y12', 'build/p318/SPEC.md §3 row 20; build/p337/SPEC.md §6.1', 'G1 OVER THE REPLY AND THE SCREEN: no log argument in src/main/reply, src/main/screen or remote-screen.ts names a message, a screen, a mark, a marker or any of G1’s words'],
-  ['Y13', 'build/p318/SPEC.md D6, D7, §5.3, §Revision R2, R16; build/p337/SPEC.md D21', 'WHO MOVES THE QUESTION ID: replyTurns.hook( twice in core.ts (onEvent, onSessionEnd), replyTurns.bump( in core.ts with desk, choice-${kind} and status (the last guarded by !== needs_input), writer.ts’s phone bump twice, src/main/screen/keys.ts’s phone bump once, and nowhere else; the prefix randomBytes(8) once; the id composed as a string'],
+  ['Y13', 'build/p318/SPEC.md D6, D7, §5.3, §Revision R2, R16; build/p337/SPEC.md D21; build/p348/SPEC.md §4.7', 'WHO MOVES THE QUESTION ID: replyTurns.hook( twice in core.ts (onEvent, onSessionEnd), replyTurns.bump( in core.ts with desk, choice-${kind} and status (the last guarded by !== needs_input), writer.ts’s phone bump twice, src/main/screen/keys.ts’s phone bump once, src/main/screen/paste.ts’s phone bump once (Phase 348), and nowhere else; the prefix randomBytes(8) once; the id composed as a string'],
   ['Y14', 'build/p318/SPEC.md D13, D18, §5.4.2, §5.2', 'THE READER READS ONE WAY: reader.ts calls detectDialogRows( and choiceMarkOf( and none of detectDialog(, detectShapes(, noteForeground(, foregroundToRead(, agentHoldsTerminal(; routes.ts composes reply field by field, in one place, with a fresh pressable array'],
-  ['Y15', 'build/p318/SPEC.md D15, §5.5', 'NOTHING STRIPS A MESSAGE: text-rules.ts and writer.ts call no .replace(, .trim, .normalize( or .slice( on the text; REPLY_TEXT_MAX_BYTES is declared once'],
+  ['Y15', 'build/p318/SPEC.md D15, §5.5; build/p348/SPEC.md §4.6 step 8', 'NOTHING STRIPS A MESSAGE OR A PASTE: text-rules.ts, writer.ts and (Phase 348) src/main/screen/paste.ts call no .replace(, .trim, .normalize( or .slice( on the text; REPLY_TEXT_MAX_BYTES and POCKET_PASTE_MAX_TEXT_BYTES are each declared once'],
   ['Y16', 'build/p318/SPEC.md §5.2', 'THE OPTIONAL FIELDS: PocketFacts.replyOffer and PocketSessionDetail.reply are optional; POCKET_NO_REPLY is frozen, its pressable a frozen empty array'],
   ['Y17', 'build/p318/SPEC.md D23, §Revision R14', 'PANE REPORTS MOVE NOTHING: attach-host.ts calls onInput?.( once, after client.pty.write(, under req.machine === undefined and !isPaneReport( of the same chunk; isPaneReport, isFocusReport, isColorReport and isDeviceReport are declared once each, in src/shared/pane-report.ts'],
   ['Y18', 'build/p318/SPEC.md D14, §Revision R15; his ruling of 2026-10-02', 'ONLY WHEN IDLE AT ITS PROMPT: no working or busy literal in gate.ts, reader.ts or writer.ts, and the reply compares the native reading’s .state with idle'],
@@ -368,17 +404,17 @@ const RULES = [
   ['D10', 'build/p3321/SPEC.md §5.3, §5.4, §8.1', 'THE PROGRESS DECIDES NOTHING AND CARRIES NOTHING: PocketNameAnswer is exactly record, negative and unreadable; PocketNameProgress is exactly answers, asking, elapsedMs and nextInMs and no string; PocketStatus.nameProgress is PocketNameProgress | null; in ipc.ts the run’s startedAt, nextAt, endedAt and answers, and this.nameShown, are read inside nameProgressNow alone and written only in beginNameCheck, stopNameCheck, armNameRound and settleNameRound; nameProgressNow is called once, in status(), as nameProgress: this.nameProgressNow(); and PhoneSection.tsx’s pairingStage, pairAfterAllowNext and every live onPair name no nameProgress'],
   // PHASE 337, the Screen (build/p337/SPEC.md §6.1): a read that holds a
   // request, and a write that types every key.
-  ['Z1', 'build/p337/SPEC.md D1, §5.1', 'THE TWO ROWS: screen a signed GET read and keys a signed POST write, neither window-only, exactly one row each; SIGNED_ROUTES and WRITE_ROUTES in door/wire.ts each gain exactly that id'],
-  ['Z2', 'build/p337/SPEC.md D17, §14 M15', 'THE KEYS CAP: POCKET_WRITE_BODY_CAPS is exactly end 512, choose 512, say 32,768 and keys 16,384 (Y1 widened), and keys is at least twice the worst legal-shape keys body THIS GATE composes, so a C0 text is answered in words rather than dropped'],
+  ['Z1', 'build/p337/SPEC.md D1, §5.1; build/p348/SPEC.md §4.2 step 2', 'THE TWO ROWS: screen a signed GET read and keys a signed POST write, neither window-only, exactly one row each; SIGNED_ROUTES and WRITE_ROUTES in door/wire.ts each gain exactly that id (and WRITE_ROUTES since Phase 346 start, since Phase 348 remove and paste)'],
+  ['Z2', 'build/p337/SPEC.md D17, §14 M15; build/p348/SPEC.md D29', 'THE KEYS CAP: POCKET_WRITE_BODY_CAPS is exactly end 512, choose 512, say 32,768, keys 16,384, start 512, remove 512 and paste 131,072 (Y1 widened), and keys is at least twice the worst legal-shape keys body THIS GATE composes, so a C0 text is answered in words rather than dropped (the twice-the-worst rule is the keys cap’s alone; PS1 holds the paste’s)'],
   ['Z3', 'build/p337/SPEC.md D17, §5.5, §Attack A1', 'THE KEYS PARSE: parseKeysBody compares the keys with dialog,keys,session,turn,write; holds 1 to POCKET_KEYS_MAX_ITEMS items, each exactly one own key t or k; compares a name with === against POCKET_SCREEN_KEY_NAMES; takes a named key other than BSpace only as the one item; reads turn by isQuestionId and dialog as null or isMark; and trims, normalises and replaces nothing'],
-  ['Z4', 'build/p337/SPEC.md §5.4, D19, D21', 'THE KEYS VERB’S ORDER: the text rule, the gate, ONE awaited readFresh(, then the final check’s still(, bump(, onLastCheck?.( and the act, with nothing awaited from still( to the act, and the act’s lines written in ONE statement over the control client'],
+  ['Z4', 'build/p337/SPEC.md §5.4, D19, D21; build/p348/SPEC.md D50', 'THE KEYS VERB’S ORDER: the text rule, the gate, ONE awaited readFresh(, then the final check’s still(, bump(, onLastCheck?.( and the act, with nothing awaited from still( to the act, and the act’s lines written in ONE statement over the control client; and (Phase 348) the paste verb in src/main/screen/paste.ts holds the same order, its one act a spawned list, PS4 its whole'],
   ['Z5', 'build/p337/SPEC.md D16, D21, D22', 'THE ONE REFUSAL: asking is the status needs_input OR detectDialogRows( .atChoice in one function the verb asks; while asking, or when the body’s dialog is not null, the verb compares the turn with turns.current( and the dialog with the fresh one and refuses changed with SCREEN_QUESTION_MOVED; hashScreen(readBackWindowOf( is spelled once, in windowMarkOf, which the verb calls'],
   ['Z6', 'build/p337/SPEC.md D18, D19, D20', 'THE ACT’S ARGV: locally only copy-mode -q -t <pane>, send-keys -t <pane> -H <hex> and send-keys -t <pane> <name>; never -l; never send-keys without -t; hex as two lowercase digits; on another machine only typePhoneKeys(, handed in by capabilities.ts as typeRemote'],
-  ['Z7', 'build/p337/SPEC.md D18, D41', 'NO TEXT IN AN ARGV, NO .message, NO LOG: a text item reaches tmux only as its bytes; nothing in src/main/screen or remote-screen.ts reads an error’s .message or logs'],
-  ['Z8', 'build/p337/SPEC.md D23; CLAUDE.md refusal 5', 'ONE STATUS CALL: noteUserInput( exactly once in src/main/screen, in keys.ts, after the act and after the final check; no other status setter named there, and needs_input never written'],
-  ['Z9', 'build/p337/SPEC.md D5, D6, D7, §5.3.3', 'THE READS: read.ts sends only display-message -p -t <x> SCREEN_FORMAT and capture-pane -p -e -t <x>; remote-screen.ts makes ONE execOn( of exactly capture-pane -p -e -t <x> ; display-message -p -t <x> SCREEN_FORMAT; SCREEN_FORMAT declared once and equal to the spec’s; nothing this phase adds names refresh-client, resize-window, resize-pane, attach-session, new-session, switch-client, -x or -y'],
+  ['Z7', 'build/p337/SPEC.md D18, D41; build/p348/SPEC.md D50, D52', 'NO TEXT IN AN ARGV, NO .message, NO LOG: a text item reaches tmux only as its bytes, and (Phase 348) a paste’s text reaches pasteRefusal( and loadWords( alone and no argv paste.ts composes; nothing in src/main/screen or remote-screen.ts reads an error’s .message or logs'],
+  ['Z8', 'build/p337/SPEC.md D23; CLAUDE.md refusal 5; build/p348/SPEC.md §4.7', 'ONE STATUS CALL A VERB: noteUserInput( exactly once in keys.ts and (Phase 348) exactly once in paste.ts, each after its act and after its final check, the paste’s only when its list succeeded; no other file in src/main/screen names it, no other status setter is named there, and needs_input is never written'],
+  ['Z9', 'build/p337/SPEC.md D5, D6, D7, §5.3.3; build/p348/SPEC.md D44, §7.1', 'THE READS: read.ts sends only display-message -p -t <x> SCREEN_FORMAT and capture-pane -p -e [-F] -t <x>, and (Phase 348) on the fallback capture-pane -p -T -N -t <x> and capture-pane -p -J -t <x>; scrollback.ts the same with the page’s -S and -E; remote-screen.ts makes ONE execOn( a read of display ; the styled capture ; [the fallback’s two ;] display, its -F or fallback chosen by marksRoadOf( alone; marksRoadOf declared once, in compose.ts; SCREEN_FORMAT declared once and equal to the spec’s; nothing this phase adds names refresh-client, resize-window, resize-pane, attach-session, new-session, switch-client, -x or -y'],
   ['Z10', 'build/p337/SPEC.md D3, §Attack A7', 'THE HOLD: SCREEN_HOLD_MS + SCREEN_TICK_MS <= ANSWER_TIMEOUT_MS - 2,000, 2 * SCREEN_TICK_MS < DOOR_STOP_JOIN_MS and the local read deadline <= the remote one, as arithmetic over the declared constants; every read raced against its deadline; a poll answered from its own timer, whose callback asks closing( and awaits nothing'],
-  ['Z11', 'build/p337/SPEC.md D13, D15', 'THE ANSWER FIELD BY FIELD: routes.ts’s screenOf composes the screen answer with no spread, no clone and fresh arrays; the five caps imported from the contract, each read once, and equal to the spec’s; why exactly ended, unreachable or large'],
+  ['Z11', 'build/p337/SPEC.md D13, D15; build/p348/SPEC.md D30, D43', 'THE ANSWER FIELD BY FIELD: routes.ts’s screenOf composes the screen answer with no spread, no clone and fresh arrays; the five caps imported from the contract, each read once, and equal to the spec’s; why exactly ended, unreachable or large; and (Phase 348) paste copied only where its caller says the route is served, and wraps a fresh array of whole numbers'],
   ['Z12', 'build/p337/SPEC.md §5.3.4, §Attack A16', 'THE COMPOSER IS PURE: sgr, cells, cell-widths, palette and compose import no fs, child_process, tmux, settings, config or registry and read no clock; compose.ts imports nothing outside src/main/screen and src/shared but ../activity/screen and ../reply/reader; windowMarkOf declared once, in compose.ts, the one readBackWindowOf( in src/main/screen; the width table and the palette are frozen literals'],
   ['Z13', 'build/p337/SPEC.md D3, §5.3.1', 'CLOSING HANDED TO THE READ: server.ts calls deps.answer( once, with refusal 1’s own closing, deps.shuttingDown() || door.stopping(), as its third argument'],
   ['Z14', 'build/p337/SPEC.md D32; conformance:manager T23', 'THE SCREEN ROW: /v1/session’s screen is set in ONE place, facts.screen !== undefined && screenLive(session); screenLive is declared once, in routes.ts, and answers sessionActionGates(…).live, the one live partition, naming no status; and the watcher asks screenLive( and names no status list'],
@@ -387,7 +423,7 @@ const RULES = [
   ['Z17', 'build/p337/SPEC.md D8, §14 M3', 'A BLOCK ENDS ONLY ON ITS OWN GUARD: TmuxControlClient.handleLine closes an open block on an end or command-error only when its commandNumber and timestamp equal the ones the block recorded at its begin'],
   ['Z18', 'build/p337/SPEC.md D24, §5.2', 'THE CAPS ON KEYS: the ledger caps 2,048 and 8,192, and POCKET_KEYS_MAX_ITEMS (64) and POCKET_KEYS_MAX_TEXT_BYTES (1,024) declared once, in the contract, and imported where the parse and the verb read them'],
   ['Z19', 'build/p337/SPEC.md D40, §Attack A13', 'THE NONCE MEMORY: POCKET_NONCE_MEMORY is 4,096 and at least (2 * POCKET_CLOCK_SKEW_MS / 1000) * (1000 / SCREEN_MIN_ANSWER_GAP_MS + 20), as arithmetic over the declared constants; SCREEN_MIN_ANSWER_GAP_MS is 250 and measured against a poll’s arrival'],
-  ['Z20', 'build/p337/SPEC.md D42, §Attack A1', 'THE GAP: SCREEN_KEYS_GAP_MS is 50, declared once, in keys.ts; the verb awaits its remainder ONCE, after the gate and before its one readFresh(; and the last-act time is written after the act'],
+  ['Z20', 'build/p337/SPEC.md D42, §Attack A1; build/p348/SPEC.md D57', 'THE GAP: SCREEN_KEYS_GAP_MS is 50, declared once, in keys.ts; each verb (keys, and since Phase 348 paste) awaits its remainder ONCE, after the gate and before its one readFresh(; the last-act time is written after the act; and the last-act store is ONE, createScreenLastActs( built once in capabilities.ts and handed to createScreenKeys( and createScreenPaste('],
   ['Z21', 'build/p337/SPEC.md D3, D4, D5, §Attack A6, A7, A8', 'THE SETTLE AND THE SLOT: nudge(sessionId, before) takes the act’s window mark; a settling session is answered by a read whose windowMarkOf( differs or that starts SCREEN_SETTLE_MS (300, longer than SCREEN_NUDGE_MS) after the nudge; one read in flight per session, its slot given back in a finally; the local down path ONE spawned list per read'],
   ['Z22', 'build/p337/SPEC.md D43, §Attack A11', 'THE LOG LINE, BOUNDED: writes.ts holds one log call; a keys write answered done reaches it only through the KEYS_LOG_QUIET_MS (60,000) condition, and every other verb and outcome reaches it unconditionally'],
   // PHASE 337.1, terminal first (build/p3371/SPEC.md §6.1): the Screen scrolls
@@ -395,7 +431,7 @@ const RULES = [
   // vitest held (D5's pane clause, the remote cadence) get a gate.
   ['Z23', 'build/p3371/SPEC.md D5, D36, §5.4', 'THE TWO DISPLAYS AND THE PANE: agree is declared once, exported from read.ts, and compares exactly paneId, cols, rows, alternate and history with ===; it is the one comparison readScreenLocal, splitRemoteRead and scrollback.ts call, and no second spelling of it exists; readScreenLocal calls its attempt exactly twice, serves the second attempt when the first did not agree, framed by its second display, with steady never a literal true; and keys.ts aims every -t at the fresh reading’s display.paneId and at no pane named anywhere else'],
   ['Z24', 'build/p3371/SPEC.md D36, §5.4, §Attack B22', 'THE CADENCE: SCREEN_TICK_MS is 100, SCREEN_TICK_REMOTE_MS 400 and at least four times it; tickOf is declared once and answers SCREEN_TICK_REMOTE_MS for a row with a machine or a core whose control client is not connected, SCREEN_TICK_MS otherwise; outside tickOf no read is scheduled at either tick but through tickOf(, and SCREEN_TICK_MS is otherwise only a poll’s own interval; no numeric literal schedules a read; and the ONE other delay a read is scheduled at is SCREEN_NUDGE_MS, behind the settle (settles.has( or a settles.get( guard) or in nudge( alone'],
-  ['Z25', 'build/p3371/SPEC.md D7, D8, §5.3.1', 'THE PAGE ROUTE: readScrollbackQuery takes exactly id, from, count, depth, wrap and keep, each once, refuses with the six words, reads every number by a character walk with no pattern and in D7’s bounds read from the contract’s constants, holds from + count <= depth, and compares keep with ===; the route answers a refusal, an unknown id, an absent facts.scrollback, a rejection and a session removed while read as null; and scrollbackOf composes field by field with fresh arrays, why one of four words with main’s own sentence, and holds from + rows <= depth, cells <= wrap, the page’s own styles, a 12-hex space, the row cap and the byte cap'],
+  ['Z25', 'build/p3371/SPEC.md D7, D8, §5.3.1; build/p348/SPEC.md D43', 'THE PAGE ROUTE: readScrollbackQuery takes exactly id, from, count, depth, wrap and keep, each once, refuses with the six words, reads every number by a character walk with no pattern and in D7’s bounds read from the contract’s constants, holds from + count <= depth, and compares keep with ===; the route answers a refusal, an unknown id, an absent facts.scrollback, a rejection and a session removed while read as null; and scrollbackOf composes field by field with fresh arrays, why one of four words with main’s own sentence, and holds from + rows <= depth, cells <= wrap, the page’s own styles, a 12-hex space, the row cap and the byte cap; and (Phase 348) wraps, when copied, a fresh array of whole numbers'],
   ['Z26', 'build/p3371/SPEC.md D9, D10, D14, §5.3.5, §Attack B1, B2, B3, B10', 'THE PAGE READ: scrollback.ts’s constants (overscan 128, 3 attempts, floors 250 and SCREEN_TICK_REMOTE_MS, queue 4); its order (the row by screenLive(; the turn, a queue bounded by SCROLLBACK_QUEUE_MAX answering busy past it, the floor Math.max( of the session’s floor and SCREEN_DUTY_FACTOR times the last compose, the wait asking closing( on a SCREEN_TICK_MS timer; then per attempt closing( first, ONE three-line statement with no display-only round, the agreement through read.ts’s agree(, the refusals, the cover, compose); attempt 1’s h0 the ask’s depth and later ones the previous display’s history; a = from − SCROLLBACK_OVERSCAN − h0 with no Math.max( around from − SCROLLBACK_OVERSCAN, the first index Math.max(0, a + h1); at most SCROLLBACK_ATTEMPTS; and every exec raced against closing( on a timer as well as its deadline; and (the fix round) the page composed through composePageSteps a step at a time, never composePage whole, the event loop handed back once the steps have held it PAGE_SLICE_MS (at most 8 ms) with closing( asked after each hand-back'],
   ['Z27', 'build/p3371/SPEC.md D11, §5.3.4, §Attack B10', 'THE PAGE’S ROWS: composePage is declared once, in compose.ts, reads the WHOLE capture’s pens before it cuts and builds runs only for the kept rows, keeps keep’s end past a cap, and builds the page’s own style table; the page answer’s space comes from spaceOf( over the agreed display, and its rows are bounded by from + rows <= depth; and (the fix round) composePage drives the one generator composePageSteps, which stops inside its reading of the pens and inside its building of the runs, PAGE_STEP_ROWS (at most 16) rows a stop'],
   ['Z28', 'build/p3371/SPEC.md D3, D4, §5.3.4, §Attack B8, B16', 'THE LIVE DEPTH AND SPACE: SCREEN_FORMAT is declared once with #{history_size} its eighth and last field, read as WHOLE9, at most nine digits; composeScreen sets depth and space together, from the display only when the reading is steady, not the alternate screen and the history at most POCKET_SCROLLBACK_MAX_INDEX, and both null otherwise; spaceOf is declared once, in compose.ts, and imports nothing of watch.ts'],
@@ -408,7 +444,7 @@ const RULES = [
   ['SU2', 'build/p3331/SPEC.md D10, D16', 'NO TIMER AND NO READ AT OPEN: the sheet’s surface calls recheck( exactly twice, once in an onWindowLooked( callback and once under document.hasFocus(), in ONE effect that hands back the unsubscribe; onWindowLooked is imported from machines/remote-writes and is the only listener (no focus or visibilitychange listener of the surface’s own); no setInterval, setTimeout or requestAnimationFrame callback names it; rechecks()’s first statement asks the switch and recheck’s first statement asks rechecks()'],
   ['SU3', 'build/p3331/SPEC.md D11 to D13, §5.2.3; r2 §Attack F23', 'THE SETUP PRESSES: POCKET_SETUP_ACTIONS is exactly get-tailscale, open-tailscale and copy-admin-link; setupAction’s first statement after the parse returns false under isHarnessLaunch(process.env); each act once, after setupActionsNow(, the page TAILSCALE_DOWNLOAD_PAGE, the app TAILSCALE_APP_BUNDLE and the held link after approvalOpens(, written as funnel.ts’s one approvalCopyText( spells it (null unless approvalOpens(, else new URL(…).href beginning https://login.tailscale.com/, never the printed text; the 333.1 reverify); the press’s word reaches no act; shell.openExternal only in openApproval and electronSetupSeam, shell.openPath and clipboard only in electronSetupSeam, each read inside an arrow’s body; open-tailscale listed only for a pinned, non-override program at TAILSCALE_APP_PROGRAM; PocketHostDeps.setup handed by tests alone'],
   ['SU4', 'build/p3331/SPEC.md D2, D3', 'THE STAT: status() calls this.funnel.resolve() exactly once, reaches the program only through funnelProgramOf( and hands the same resolution to setupActionsNow(, and names no readTailnet(, readServe(, exec, spawn or sweepFunnelOrphan(; tailscale is this.tailscaleNow( called once, in status(), and its body names no tailnetFacts, readStore(, facts( or fields('],
-  ['SU5', 'build/p3331/SPEC.md D4, D30', 'DRAWN AND NEVER HASHED: no account in PocketExecutionFields, NORMALIZE, PocketStore, facts.ts, routes.ts, door/**, any contract type but PocketStatus, or any log call’s arguments in the domain; POCKET_EXECUTION_HASH_ALGORITHM is sha256-pocket-exec-v3 and POCKET_ROUTE_IDS the eleven routes it was and, since Phase 346, start last'],
+  ['SU5', 'build/p3331/SPEC.md D4, D30', 'DRAWN AND NEVER HASHED: no account in PocketExecutionFields, NORMALIZE, PocketStore, facts.ts, routes.ts, door/**, any contract type but PocketStatus, or any log call’s arguments in the domain; POCKET_EXECUTION_HASH_ALGORITHM is sha256-pocket-exec-v3 and POCKET_ROUTE_IDS the eleven routes it was and, since Phase 346, start, and since Phase 348 remove and paste, last in that order'],
   // PHASE 333.12.1 (build/p333121/SPEC.md §6.1): his ruling of 2026-10-15,
   // "ok i like your proposed design, ship it", REPLACES ruling 2: the hashed
   // lines and both warnings move behind ONE shut Details, byte for byte, and
@@ -427,7 +463,7 @@ const RULES = [
   ['AR6', 'build/p33312/SPEC.md D8, D22', 'ONE SERVED SET: PocketHost declares servedRoutes, routeServed and postRoutes once each; servedRoutes reads this.fields().routes and pocketRouteIds() through servedRoutesOf( and nothing else (no record read); both handlers are handed routeServed; startPocketDoor( is handed routes: this.servedRoutes(); updatePocketDoor({ routes is called only inside postRoutes, which returns while the door is not listening and is called in confirmDoor and in openNow after the door answered'],
   ['AR7', 'build/p33312/SPEC.md D13', 'THE WORDS FOLLOW THE ALLOWED SET: pocketDoorHonesty is declared once, in src/shared/ipc/pocket.ts, and DRIVEN answers POCKET_DOOR_HONESTY byte for byte for LEGACY_ALLOWED_ROUTES and a planted clause only once allowed; POCKET_HONESTY_ADDED is typed Record<Exclude<PocketRouteId, LegacyAllowedRouteId>, string>; the sheet’s confirm block draws pocketDoorHonesty(status.routesOffered), what the Allow beside it grants (the fix round), and no file under src/renderer draws POCKET_DOOR_HONESTY itself; describePocketDoor’s route and clause lines read only fields.routes'],
   ['AR8', 'build/p33312/SPEC.md D9, D10, D11, D11b; his answer 10', 'THE THREE CONFIRM PATHS AND THE TWO NARROWINGS: confirmDoor hands confirmPocketDoor( the result of this.proposal(, never this.fields(); PocketPairing is built with fieldsNow: () => this.fields() and allow hands confirmPocketDoor( this.fieldsWithPending() alone; the sheet calls its confirmDoor helper exactly once, inside onConfirmDoor, and onSetPushAlerts calls no confirmDoor; narrowPocketDoor( is called only in removePhone and setPushAlerts, each handing it exactly (<a const read from this.fields() before the store write>, this.fields()) after that write (the fix round, lens 1’s K16), and its body asks isPocketSubtraction( and compares the record with pocketExecutionHash(before) before writeConfirmRecords(; isPocketSubtraction (DRIVEN) admits exactly one phone gone or pushAlerts true to false, by canonicalPocketText('],
-  ['AR9', 'build/p33312/SPEC.md D12', 'THE TABLE IS HELD TO THE LEDGER: POCKET_ROUTE_LEDGER’s rows are literals and the ledger imports nothing; every POCKET_ROUTES row has a ledger row of the same id with the same method, path, reads, signed and windowOnly; its bodyCap is the door’s cap for that row and its clause WRITE_CLAUSES[id] for a write and null for a read; ledger ids are distinct; every LEGACY_ALLOWED_ROUTES id is a ledger id; and (Phase 346) the start row is exactly POST /v1/start, signed, reads false, not window-only, bodyCap 512, its clause D3’s'],
+  ['AR9', 'build/p33312/SPEC.md D12; build/p346/SPEC.md D3; build/p348/SPEC.md D26, D32', 'THE TABLE IS HELD TO THE LEDGER: POCKET_ROUTE_LEDGER’s rows are literals and the ledger imports nothing; every POCKET_ROUTES row has a ledger row of the same id with the same method, path, reads, signed and windowOnly; its bodyCap is the door’s cap for that row and its clause WRITE_CLAUSES[id] for a write and null for a read; ledger ids are distinct; every LEGACY_ALLOWED_ROUTES id is a ledger id; (Phase 346) the start row is exactly POST /v1/start, signed, reads false, not window-only, bodyCap 512, its clause D3’s; and (Phase 348) the remove row is exactly POST /v1/remove, bodyCap 512, and the paste row POST /v1/paste, bodyCap 131072, each with its clause, the ledger’s last three rows start, remove and paste'],
   ['AR10', 'build/p33312/SPEC.md D11c; his answer 9', 'REMOVE KEEPS THE OTHERS: removePhone reads this.fields() and pocketConfirmStatus( BEFORE its store write, which stays before the first await; narrowPocketDoor( is called only under the confirmed reading AND while another phone remains; forgetPocketDoor() is reached only when that did not record'],
   ['AR11', 'build/p33312/SPEC.md D5, D6', 'THE STATUS: status() answers confirmLines and confirmHash from ONE describePocketDoor( call over this.proposal( (directly or through one const), routesOffered: servedRoutesOf(<that proposal>.routes, pocketRouteIds()) (the fix round), routesAllowed: this.servedRoutes(), and routesWaiting from waitingRoutesOf( over fields.routes with the on-record condition naming confirmed and changed; PocketStatus declares the three lists readonly PocketRouteId[]; the proposal is proposedRoutes(fields.routes, pocketRouteIds(), state !== never), and proposedRoutes answers the build alone when not on record (DRIVEN, with servedRoutesOf and waitingRoutesOf)'],
   ['AR12', 'build/p33312/SPEC.md D23', 'THE SHEET DRAWS A WAITING ROUTE ON A PUBLISHED DOOR: steps.ts’s publishRow listening arm keeps STATE_PUBLISHED, published and doorListening( and draws [{ kind: confirm }] exactly under routesWait(status), which reads state === listening, confirmable and routesWaiting.length > 0 and nothing else; doorNeedsConfirm’s body is unchanged'],
@@ -436,14 +472,14 @@ const RULES = [
   // hash come from; the sheet draws them and composes none; Details names
   // every hashed fact.
   ['AF1', 'build/p333121/SPEC.md D1, D2', 'THE FACE IS MAIN’S, FROM THE PROPOSAL: pocketConfirmFace is declared once, in src/shared/ipc/pocket.ts; its first parameter is typed PocketFaceFacts, which declares exactly funnelProgram, publicName, publicPort, phones (whose element type declares exactly id and label) and pushAlerts; PocketStatus declares confirmFace: PocketConfirmFace, required; under src/main/** (tests excepted) it is called exactly once, inside status(), with exactly four arguments: the identifier describePocketDoor( is handed there, which is the one const initialised from this.proposal(, then routesOffered, routesWaiting and gate.state, where those two are consts of status() initialised to servedRoutesOf(<that proposal>.routes, pocketRouteIds()) and waitingRoutesOf(fields.routes, pocketRouteIds(), …); the answer carries confirmFace from that call'],
-  ['AF2', 'build/p333121/SPEC.md D3 to D8', 'THE FACE SAYS EACH FACT ONCE, DRIVEN: transpiled in memory, pocketConfirmFace answers for never, changed and unknown the rows reach, can, phones, alerts in that order labelled Reachable at, Your phone can, Phones, Alerts; reach is <name>:<port>, by Tailscale for the app’s path, by the whole path otherwise and no by for an empty one; can over the eleven is exactly “see your sessions, type into them, answer questions, send a message, end a session”, says each clause once and leaves out a route not offered or waiting; phones the labels in id order joined by “, ” or “none yet”; alerts “through Apple, never what an agent asks” or “off”; confirmed gives no rows; a waiting route with a row in the table handed in reads New: <title> and its sentence, with none New: <id> and null, in the order handed in; POCKET_FACE_CLAUSES is typed Readonly<Record<PocketRouteId, string | null>> with a key for every route, POCKET_NEW_ROUTE_WORDS is PocketNewRouteTable, frozen, and PocketNewRouteTable is Readonly<Partial<Record<Exclude<PocketRouteId, LegacyAllowedRouteId>, PocketNewRouteWords>>>; the composer and pocketFaceProgram name no imported identifier, no Date, no process and no toLocale'],
+  ['AF2', 'build/p333121/SPEC.md D3 to D8; build/p348/SPEC.md D32', 'THE FACE SAYS EACH FACT ONCE, DRIVEN (and since Phase 348 its drives pass the eleven, the twelve with start, and the fourteen with remove and paste, and two Allow lines waiting at once): transpiled in memory, pocketConfirmFace answers for never, changed and unknown the rows reach, can, phones, alerts in that order labelled Reachable at, Your phone can, Phones, Alerts; reach is <name>:<port>, by Tailscale for the app’s path, by the whole path otherwise and no by for an empty one; can over the eleven is exactly “see your sessions, type into them, answer questions, send a message, end a session”, says each clause once and leaves out a route not offered or waiting; phones the labels in id order joined by “, ” or “none yet”; alerts “through Apple, never what an agent asks” or “off”; confirmed gives no rows; a waiting route with a row in the table handed in reads New: <title> and its sentence, with none New: <id> and null, in the order handed in; POCKET_FACE_CLAUSES is typed Readonly<Record<PocketRouteId, string | null>> with a key for every route, POCKET_NEW_ROUTE_WORDS is PocketNewRouteTable, frozen, and PocketNewRouteTable is Readonly<Partial<Record<Exclude<PocketRouteId, LegacyAllowedRouteId>, PocketNewRouteWords>>>; the composer and pocketFaceProgram name no imported identifier, no Date, no process and no toLocale'],
   ['AF3', 'build/p333121/SPEC.md D1, D12', 'THE SHEET DRAWS THE FACE AND COMPOSES NONE: outside its <details> the confirm block draws text only through row.label and row.value of status.confirmFace.rows.map(, the title and sentence of status.confirmFace.added.map( and BTN_ALLOW, draws each of the five, and no JSX text and no string literal is drawn as a child; it holds no <li>, <ul> or set-config-warning outside the <details>; its layout, data-phone-confirm-face, is chosen from status.confirmFace.rows.length and no other field; no file under src/renderer that is not a test names pocketConfirmFace, pocketFaceProgram, POCKET_FACE_CLAUSES, POCKET_NEW_ROUTE_WORDS or any POCKET_FACE_ constant'],
   ['AF4', 'build/p333121/SPEC.md §2.3, §4', 'DETAILS NAMES EVERY HASHED FACT: describePocketDoor reads fields.<key> for every key of NORMALIZE, and <phone>.<member> over fields.phones for every member NORMALIZE’s phones emits but id (which is phoneIdOf(signingKey)); a key added to NORMALIZE without a read here is red. Its DRIVEN half is p333121-face.test.ts F3, ablation:p313’s face check'],
   // PHASE 346, start a session from the phone (build/p346/SPEC.md §5.1): the
   // door's fifth write, POST /v1/start, whose act lives outside the door in
   // src/main/sessions/pocket-start.ts and builds exactly quickCreate's input.
-  ['NS1', 'build/p346/SPEC.md D1, D2, D3, D4', 'THE ROUTE: exactly one start row, POST /v1/start, signed, reads: false, not window-only; start in POCKET_ROUTE_IDS (last) and POCKET_WRITE_ROUTE_IDS (end, choose, say, keys, start), NOT in LEGACY_ALLOWED_ROUTES; WRITE_ROUTES and DoorWriteRoute in door/wire.ts gain it; WRITE_CLAUSES.start, the ledger row’s clause, POCKET_HONESTY_ADDED, POCKET_FACE_CLAUSES and POCKET_NEW_ROUTE_WORDS each hold D3’s exact words, none naming Face ID'],
-  ['NS2', 'build/p346/SPEC.md D4, D5, §4.2', 'THE ANSWERS: PocketWriteAnswer.verb is PocketSessionWriteId, from POCKET_SESSION_WRITE_IDS, exactly the four; PocketStartAnswer is exactly verb, write, outcome, reason, sentence, session, its verb the literal start; PocketStartReason the seven; startAnswer composes the six one by one; src/shared/start-copy.ts holds the nine sentences byte for byte and imports nothing; every sentence handed to startAnswer or set in pocket-start.ts is a named constant of start-copy.ts or POCKET_WRITE_SENTENCES'],
+  ['NS1', 'build/p346/SPEC.md D1, D2, D3, D4; build/p348/SPEC.md D26', 'THE ROUTE: exactly one start row, POST /v1/start, signed, reads: false, not window-only; start in POCKET_ROUTE_IDS (followed only by remove and paste, Phase 348) and POCKET_WRITE_ROUTE_IDS (end, choose, say, keys, start, remove, paste), NOT in LEGACY_ALLOWED_ROUTES; WRITE_ROUTES and DoorWriteRoute in door/wire.ts gain it; WRITE_CLAUSES.start, the ledger row’s clause, POCKET_HONESTY_ADDED, POCKET_FACE_CLAUSES and POCKET_NEW_ROUTE_WORDS each hold D3’s exact words, none naming Face ID'],
+  ['NS2', 'build/p346/SPEC.md D4, D5, §4.2; build/p348/SPEC.md D27', 'THE ANSWERS: PocketWriteAnswer.verb is PocketSessionWriteId, from POCKET_SESSION_WRITE_IDS, exactly the four; PocketStartAnswer is exactly verb, write, outcome, reason, sentence, session, its verb the literal start; PocketStartReason the seven; startAnswer composes the six one by one; and (Phase 348) PocketRemoveAnswer and PocketPasteAnswer are declared beside it, each exactly verb, write, outcome, reason, sentence; src/shared/start-copy.ts holds the nine sentences byte for byte and imports nothing; every sentence handed to startAnswer or set in pocket-start.ts is a named constant of start-copy.ts or POCKET_WRITE_SENTENCES'],
   ['NS3', 'build/p346/SPEC.md D6; his answer 7', 'THE BODY: parseStartBody compares the sorted keys with exactly agent,project,write, reaches the one JSON.parse, compares the agent with === against LAUNCHABLE_AGENT_IDS (imported, no agent id spelled in the write path), reads the project and the write id one character at a time; and DRIVEN over a hostile corpus of at least 30 bodies (shell, SHELL, a padded or NUL id, an overlay-only id, a 65-character project, a project holding /, . or %, a 31- and 33-hex write id, arrays, strings, null, nested objects, duplicate keys with the bad value last AND first, a legal value written with a \\u escape, a 600-byte body), every one malformed, a refused body echoing its well-formed write id, beside the honest body accepted'],
   ['NS4', 'build/p346/SPEC.md D13, D15', 'NOTHING FROM THE PHONE BUT TWO IDS: in pocket-start.ts the phone’s project is read only in an === against a listed project’s id and its agent only in an === or includes( against installed ids or as composeStartInput’s agent, and the input is never read whole; composeStartInput sets exactly name (ordinalName), projectPath (the row), agent and, conditionally, projectMachineId and machineId (the row), BOTH, each once in a spread falling back to {} under ONE condition that reads the row’s machine, extraArgs (defaultLaunchArgs) and capture (captureDefaultFor); no cwd, startAnyway, login or signIn key anywhere in the module'],
   ['NS5', 'build/p346/SPEC.md D8; his answer 6', 'THE OFFER STARTS NOTHING: pocket-start.ts names no listDetectedAgents, rescanAgents, getUserPath, installUserPath, resolveBinary, scanMachineAgents, spawn, exec, fork, child_process or setActiveSession; sessionsKey, composeStartOffer, localInstalledAgents and every function they reach are neither async nor awaiting; userPathNow is declared once, in src/main/tmux/resolve.ts, synchronous, and reads its slot and nothing else'],
@@ -452,8 +488,27 @@ const RULES = [
   ['NS8', 'build/p346/SPEC.md §3.3; X1 widened', 'THE START BRANCH’S ORDER: parse, ledger, this phone’s write in flight, the start in flight, the rate, the phone’s claim, the start’s claim, the pending entry, the last check (ONE, asking routeServed for start, refusing with one 404), the act through startSettled( in the very next statement (which calls the act before any await and catches its rejection), the outcome and the one log line (the outcome word and the session alone), in that order; both claims released in the finally of the try that holds the act'],
   ['NS9', 'build/p346/SPEC.md D9, D26, §4.8', 'THE KEY: sessions reads facts.start?.() once, through pocketStartOf(, and spreads it last; pocketStartOf answers undefined for anything that is not { state: waiting } or a whole offer, DRIVEN over 16 hostile values (an unknown state, a project naming an unlisted place, 201 projects, a 300-character label, a chosen or defaultAgent not listed, a number where a string is, 65 agents, …) beside waiting and a whole offer answered'],
   ['NS10', 'build/p346/SPEC.md D2, D9, §4.11, §4.13', 'THE WAITING STATE: capabilities.ts hands the facts start as () => pocketStart.sessionsKey(pocketHost?.startAllowed() === true); startAllowed is ONE public PocketHost method whose body is return this.routeServed(\'start\') alone, and nothing in the door’s domain asks it'],
-  ['NS11', 'build/p346/SPEC.md §4.7, §4.13; X5 widened', 'THE PASS-THROUGH: PocketWrites holds exactly end, choose, say, keys and start; createPocketWrites’s start passes to deps.start.start( and does nothing else, and pocket-writes.ts calls no createSession(; capabilities.ts alone builds createPocketStart(, once'],
+  ['NS11', 'build/p346/SPEC.md §4.7, §4.13; X5 widened; build/p348/SPEC.md §4.2 step 4', 'THE PASS-THROUGH: PocketWrites holds exactly end, choose, say, keys, start, remove and paste (Phase 348); createPocketWrites’s start passes to deps.start.start( and does nothing else, and pocket-writes.ts calls no createSession(; capabilities.ts alone builds createPocketStart(, once'],
   ['NS12', 'build/p346/SPEC.md D31; 333.12 D16', 'THE SEAM CONFIRMS THE PROPOSAL: push-seam.ts hands every confirmDoor( host.status().confirmLines and host.status().confirmHash (directly or through one status const), and names no pocketConfirmStatus(host.fields())'],
+  // PHASE 348, remove an ended session and paste from the phone
+  // (build/p348/SPEC.md §7.1): the door's sixth and seventh writes. Remove's act is
+  // pocket-writes.ts's over the pure removeVerdict, the paste's is
+  // src/main/screen/paste.ts's through the one buffer helper.
+  ['RM1', 'build/p348/SPEC.md D9, D26, D29, D32', 'THE REMOVE ROUTE AND ITS WORDS: exactly one remove row, POST /v1/remove, signed, reads: false, not window-only, in POCKET_ROUTE_IDS after start and before paste and in POCKET_WRITE_ROUTE_IDS, NOT in LEGACY_ALLOWED_ROUTES nor POCKET_SESSION_WRITE_IDS; its cap 512 and at least twice the worst legal body THIS GATE composes; WRITE_ROUTES and DoorWriteRoute in door/wire.ts name it; WRITE_CLAUSES.remove, the ledger row’s clause and POCKET_HONESTY_ADDED.remove are remove a session that has ended, POCKET_FACE_CLAUSES.remove remove ended sessions and POCKET_NEW_ROUTE_WORDS.remove D32’s title and sentence, none naming Face ID'],
+  ['RM2', 'build/p348/SPEC.md D28', 'THE REMOVE BODY: parseRemoveBody compares the sorted keys with exactly session,write (REMOVE_KEYS), reaches the one JSON.parse, reads the session by isSessionId and the write id by isWriteId and nothing else, so no batch rides along; and DRIVEN over a hostile corpus (a batch key, a third key, a missing key, a padded or overlong id, a 31- or 33-hex write id, arrays, strings, null, nested objects, duplicate keys with the bad value last and first, a 600-byte body) every one malformed, a refused body echoing its well-formed write id, beside the honest body accepted'],
+  ['RM3', 'build/p348/SPEC.md D27', 'THE REMOVE ANSWER: PocketRemoveAnswer is exactly verb, write, outcome, reason and sentence, its verb the literal remove; PocketRemoveReason exactly malformed, gone, changed and unreachable; removeAnswer is exported from writes.ts and composes the five one by one; remove is not in POCKET_SESSION_WRITE_IDS, so PocketWriteAnswer.verb stays the four the frozen phones read'],
+  ['RM4', 'build/p348/SPEC.md D47, D48, §10.3', 'THE REMOVE VERDICT IS PURE AND ASKS BOTH GATES: removeVerdict is declared once, in pocket-writes.ts, names no await, no async and no core, asks removeRefusal( before sessionActionGates(, asks the shared gate with DOOR_REMOVE_GATE_ENV and reads .canRemove of it alone; DOOR_REMOVE_GATE_ENV is declared once, in src/shared/session-gates.ts, frozen, beside an unmoved DOOR_GATE_ENV; and DRIVEN over every status on this Mac and another machine, it refuses wherever main’s gate or the shared gate refuses, a LIVE REMOTE row included, and passes exactly exited and restorable'],
+  ['RM5', 'build/p348/SPEC.md D48, §4.2 step 4', 'THE REMOVE ACT: createPocketWrites’s remove calls removeVerdict(, then removeSession( and broadcastSessions( in that order, with no await between the verdict and the verb; removeSession( is called once in the module and broadcastSessions( once; a throw is told apart by isGmuxError( and its code alone (SESSION_NOT_FOUND gone, INVALID_INPUT main’s gate asked again, else REMOVE_FAILED)'],
+  ['RM6', 'build/p348/SPEC.md D49', 'THE REMOVE OFFER: removeConfirm is set only by routes.ts’s session composer, only when facts.removeConfirmOf answers non-null, its title, body and confirmLabel copied one by one; PocketFacts.removeConfirmOf is optional; capabilities.ts hands it asking removeAllowed() before removeOffer(; removeAllowed is ONE PocketHost method answering this.routeServed(\'remove\') alone'],
+  ['RM7', 'build/p348/SPEC.md D7, D48; CLAUDE.md refusal 5', 'NOTHING ELSE IN REMOVE’S PATH: remove and removeVerdict set no status, kill nothing, log nothing, name no machine’s verb (no execOn(, sendToMachine( or killSession() and name no owner check'],
+  ['PS1', 'build/p348/SPEC.md D21, D26, D29, D32', 'THE PASTE ROUTE, ITS CAP AND ITS WORDS: exactly one paste row, POST /v1/paste, signed, reads: false, not window-only, LAST in POCKET_ROUTE_IDS and in POCKET_WRITE_ROUTE_IDS, NOT in LEGACY_ALLOWED_ROUTES nor POCKET_SESSION_WRITE_IDS; WRITE_ROUTES and DoorWriteRoute name it; its cap 131,072, at or above the worst legal body THIS GATE composes (16,384 C0 bytes each escaped \\u00XX with the other four keys at their longest, 98,566 bytes); POCKET_PASTE_MAX_TEXT_BYTES is 16,384, declared once, in the contract; WRITE_CLAUSES.paste, the ledger row’s clause and POCKET_HONESTY_ADDED.paste are paste text into a session on this Mac, POCKET_FACE_CLAUSES.paste paste into a session and POCKET_NEW_ROUTE_WORDS.paste D32’s title and sentence, none naming Face ID'],
+  ['PS2', 'build/p348/SPEC.md D28, §4.6 step 8', 'THE PASTE BODY: parsePasteBody compares the sorted keys with exactly dialog,session,text,turn,write (PASTE_KEYS), reads turn by isQuestionId, dialog as null or isMark, the session and the write id by their own readers, and the text as it is; and DRIVEN over a hostile corpus (an extra key, a missing dialog, a turn that is not a question id, a number, null, an array or an object for the text, bad ids) every one malformed, beside the honest body whose text comes back byte for byte'],
+  ['PS3', 'build/p348/SPEC.md D27, §4.6 step 8', 'THE PASTE ANSWER: PocketPasteAnswer is exactly verb, write, outcome, reason and sentence, its verb the literal paste; PocketPasteReason exactly the nine words malformed, gone, changed, unreachable, machine, empty, long, character and stopped; pasteAnswer is exported from writes.ts and composes the five one by one'],
+  ['PS4', 'build/p348/SPEC.md D50, D22', 'THE PASTE VERB’S ORDER: createScreenPaste’s paste asks pasteRefusal( first, the machine refusal before loadWords(, loadWords( before the ONE awaited readFresh(, then still(, bump(, onLastCheck?.( and ONE run( whose argv is exactly copy-mode -q -t <pane> ; paste-buffer -p -d -b <name> -t <pane>, the buffer loadWords( answered and no send-keys, no Enter and no -S; nothing awaited from still( to the act'],
+  ['PS5', 'build/p348/SPEC.md D50, D52', 'THE BUFFER’S FINALLY: paste.ts calls dropWords( only inside a finally, under a guard naming the flag the act sets when its list succeeded (!pasted), so a refused or failed paste leaves no words in the private server and a pasted one is not deleted twice'],
+  ['PS6', 'build/p348/SPEC.md D30, §4.6 step 9', 'THE PASTE FLAG: paste is composed only in compose.ts’s composeScreen, from the screen being typable and the session on this Mac; routes.ts copies it only in screenBodyOf and only when its caller says the route is served, which the screen route reads from facts.pasteAllowed?.() === true; PocketFacts.pasteAllowed is optional and pasteAllowed is ONE PocketHost method answering this.routeServed(\'paste\') alone'],
+  ['PS7', 'build/p348/SPEC.md D50; CLAUDE.md refusal 5', 'THE PASTE MODULE’S SILENCE: src/main/screen/paste.ts reads no .message, makes no log call, names no status setter but noteUserInput(, names no execOn( or typePhoneKeys( and no send-keys, and createScreenPaste( is built ONCE, in capabilities.ts'],
+  ['PS8', 'build/p348/SPEC.md D43, D44, D45', 'THE ONE READER OF THE MARKS: wrapsOf and marksRoadOf are declared once, in compose.ts; wrapsOf is the only reader of capture-pane -F’s prefix (^([DHOPWX]+|-) , marked when the letters hold W) and of the fallback’s -T -N / -J alignment; the ink guard reads the composed row’s last cell; the version lines 3.7b and 3.4 are declared once each; and DRIVEN over §2.4’s cases (G1b’s cleared row and the alternate screen marked nothing, a prompt row with W marked, the last row never listed)'],
 ];
 
 if (process.argv.includes('--list')) {
@@ -493,12 +548,29 @@ function sourcesUnder(dir) {
   return out.sort();
 }
 
+/**
+ * THE SELF-TEST'S OVERLAY (Phase 348, build/p348/SPEC.md §7.1: each new rule
+ * has its own self-test). While a plant is in it, every read of that file's
+ * text answers the planted text instead: the parser's ({@link astOf}), the
+ * comment-blanked text's, the in-memory loader's (`zLoad`) and every word
+ * scan's, because each reads through {@link sourceOf}. So a rule can be run
+ * again over a source with one clause broken and nothing is written to disk.
+ * EMPTY outside {@link p348SelfTest}.
+ */
+const OVERLAY = new Map();
+const overlayParsed = new Map();
+/** A source file's text: the overlay's while a plant holds it, the disk's otherwise. */
+function sourceOf(path) {
+  return OVERLAY.has(path) ? OVERLAY.get(path) : readFileSync(path, 'utf8');
+}
+
 const parsed = new Map();
 function astOf(path) {
-  let sf = parsed.get(path);
+  const cache = OVERLAY.has(path) ? overlayParsed : parsed;
+  let sf = cache.get(path);
   if (sf === undefined) {
-    sf = ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true, path.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
-    parsed.set(path, sf);
+    sf = ts.createSourceFile(path, sourceOf(path), ts.ScriptTarget.Latest, true, path.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+    cache.set(path, sf);
   }
   return sf;
 }
@@ -553,7 +625,7 @@ function codeStringsOf(path) {
 
 /** The source with every comment blanked, for the rules that read text. */
 function codeTextOf(path) {
-  const text = readFileSync(path, 'utf8');
+  const text = sourceOf(path);
   const sf = astOf(path);
   const spans = [];
   const collect = (node) => {
@@ -954,8 +1026,10 @@ function routeRules() {
   // build/p337/SPEC.md D1, adding the keys on his ruling of 2026-10-05,
   // "Every key, including Ctrl-C"; Phase 346, build/p346/SPEC.md D1 and D4,
   // adding start, his request of 2026-10-12, the one write that names no
-  // session). Sorted, because both sides are compared sorted.
-  const WRITE_IDS = ['choose', 'end', 'keys', 'say', 'start'];
+  // session; Phase 348, build/p348/SPEC.md D26, adding remove and paste, his
+  // words of 2026-10-18, "the ability to remove it" and "the ability to paste
+  // copied content"). Sorted, because both sides are compared sorted.
+  const WRITE_IDS = ['choose', 'end', 'keys', 'paste', 'remove', 'say', 'start'];
   const tableWrites = writeRows.map((w) => w.id ?? '(no literal id)').sort();
   checked('R2', 3);
   if (tableWrites.join(',') !== WRITE_IDS.join(',')) {
@@ -1005,6 +1079,13 @@ function routeRules() {
     // worst legal body; never the session writes' caps, which Y1 and Z2 pin.
     checked('R2');
     if (caps['start'] !== 512) fail('R2', `${rel(limits)}: POCKET_WRITE_BODY_CAPS.start is ${J(caps['start'] ?? null)}; start has its own cap, 512 (build/p346/SPEC.md D6)`);
+    // PHASE 348 (build/p348/SPEC.md D29): remove's own 512 (its worst legal
+    // body is 185 bytes) and paste's own 131,072 (its worst legal body, 16,384
+    // C0 bytes each escaped \u00XX, is 98,566 bytes, and must reach main to be
+    // refused in words). PS1 and RM1 compose the worst bodies themselves.
+    checked('R2', 2);
+    if (caps['remove'] !== 512) fail('R2', `${rel(limits)}: POCKET_WRITE_BODY_CAPS.remove is ${J(caps['remove'] ?? null)}; remove has its own cap, 512 (build/p348/SPEC.md D29)`);
+    if (caps['paste'] !== 131_072) fail('R2', `${rel(limits)}: POCKET_WRITE_BODY_CAPS.paste is ${J(caps['paste'] ?? null)}; paste has its own cap, 131,072 (build/p348/SPEC.md D29)`);
   }
 
   // No pattern dispatch anywhere in the table's module, or in the module that
@@ -1104,8 +1185,20 @@ function routeRules() {
  * gates builder the same way before the table held the row. The eleven's pin
  * is not gone: it is {@link LEGACY_ROUTE_PIN}, which AR3 holds the legacy
  * ledger rows to, because the routes every 0.111.x Mac answered never move.
+ *
+ * PHASE 348 MOVED IT ON PURPOSE, from Phase 346's
+ * `1b92ce21d601f9202eee2f196f32a1d8a3f275c1dd46c558779516ed77fcf57f` (twelve
+ * lines) to the value below, by its two write rows `POST /v1/remove` and
+ * `POST /v1/paste` (build/p348/SPEC.md §7.1, his words of 2026-10-18, "the
+ * ability to remove it" and "the ability to paste copied content"): fourteen
+ * sorted lines, the value the spec step measured, re-derived by the gates
+ * builder two ways before the table held the rows, node's
+ * `createHash('sha256')` over the fourteen lines sorted and joined by a
+ * newline (`--write-route-pin`'s method), and `printf '<fourteen lines>' |
+ * LC_ALL=C sort | shasum -a 256` with the final newline taken off, both
+ * `2f5feba1…`. LEGACY_ROUTE_PIN does not move.
  */
-const ROUTE_PIN = '1b92ce21d601f9202eee2f196f32a1d8a3f275c1dd46c558779516ed77fcf57f';
+const ROUTE_PIN = '2f5feba1e9a0250faa601217a7ad7d3787a05cab3d70c571b64c3bd878343163';
 
 /**
  * THE ELEVEN, PINNED FOR GOOD (Phase 346, build/p346/SPEC.md §5.1): the
@@ -1440,7 +1533,7 @@ function bridgeRule() {
 /** The words a read-only door may not name, and why each one is here. */
 const FORBIDDEN = [
   ['killSession', 'a write verb'],
-  ['removeSession', 'a write verb'],
+  ['removeSession', 'a write verb the door never names: the phone’s Remove reaches it only through PocketWrites.remove, implemented outside the door in src/main/sessions/pocket-writes.ts after both gates (Phase 348, his request of 2026-10-18, “the ability to remove it”, on a session that has ended)'],
   ['restartSession', 'a write verb'],
   ['resumeInPlace', 'a write verb'],
   ['createSession', 'a write verb the door never names: the phone’s start reaches it only through PocketWrites.start, implemented outside the door (Phase 346, his request of 2026-10-12; refusal 8 is about configuration, and a start is his press)'],
@@ -1451,7 +1544,12 @@ const FORBIDDEN = [
   ['applyDetectedStatus', 'a status setter, and CLAUDE.md refusal 5'],
   ['sendInput', 'attach bytes, which a phone can never be the sender of'],
   ['send-keys', 'typing into a pane, which is the reply writer’s in src/main/reply/ (Phase 318) and never the door’s'],
-  ['paste-buffer', 'a paste into a pane, which is the reply writer’s in src/main/reply/ (Phase 318) and never the door’s'],
+  ['paste-buffer', 'a paste into a pane, which is the reply writer’s in src/main/reply/ (Phase 318) and the Screen’s paste’s in src/main/screen/paste.ts (Phase 348), and never the door’s'],
+  // PHASE 348 (build/p348/SPEC.md §6). The door reaches the phone's paste only
+  // through PocketWrites.paste, and names nothing of the module that loads a
+  // paste's words into a buffer.
+  ['load-buffer', 'a paste’s words loaded into the private server, which only src/main/reply/buffer.ts does (Phase 348)'],
+  ['createScreenPaste', 'the Screen’s paste verb, which only src/main/capabilities.ts builds (Phase 348)'],
   // PHASE 318. The door reaches the press and the message only through the
   // PocketWrites and PocketFacts members it is handed, and names nothing of
   // the module that types (Y11 holds the imports; these hold the words).
@@ -2383,7 +2481,7 @@ function noTailnetKeyRule() {
     return;
   }
   for (const file of files) {
-    const raw = readFileSync(file, 'utf8');
+    const raw = sourceOf(file);
     if (!/tskey-|tailnet_?key|\btk\b/i.test(raw)) continue;
     for (const { node, text } of codeStringsOf(file)) {
       checked('K2');
@@ -3507,7 +3605,7 @@ function q2Counter(ipc, sf, prop, method, tag, cost) {
   }
   const writes = [];
   for (const file of mainSources()) {
-    if (!readFileSync(file, 'utf8').includes(prop)) continue;
+    if (!sourceOf(file).includes(prop)) continue;
     for (const n of nodesOf(file)) if (q2WritesTo(n, prop)) writes.push({ file, node: n });
   }
   checked('Q2', writes.length + 1);
@@ -3570,7 +3668,7 @@ function q2Mark(ipc, sf, start, stop) {
   }
   const writes = [];
   for (const file of mainSources()) {
-    if (!readFileSync(file, 'utf8').includes(prop)) continue;
+    if (!sourceOf(file).includes(prop)) continue;
     for (const n of nodesOf(file)) if (q2WritesTo(n, prop)) writes.push({ file, node: n });
   }
   checked('Q2', writes.length + 2);
@@ -3621,7 +3719,7 @@ function q2Owed(ipc, start, queueStart) {
   const closeUnless = q2Method(ipc, 'closeNowUnlessConfirmed');
   const writes = [];
   for (const file of mainSources()) {
-    if (!readFileSync(file, 'utf8').includes(prop)) continue;
+    if (!sourceOf(file).includes(prop)) continue;
     for (const n of nodesOf(file)) if (q2WritesTo(n, prop)) writes.push({ file, node: n });
   }
   checked('Q2', writes.length + 4);
@@ -4032,7 +4130,7 @@ function funnelArgvRule() {
   // from. The renderer starts nothing, and names `--yes` for agents' own
   // command lines, so it is not read here.
   for (const file of processSources()) {
-    const raw = readFileSync(file, 'utf8');
+    const raw = sourceOf(file);
     if (!/--(?:bg|https?|tls-terminated-tcp|set-path|yes|service)\b/.test(raw)) continue;
     for (const { node, text } of codeStringsOf(file)) {
       checked('U1');
@@ -4048,7 +4146,7 @@ function funnelArgvRule() {
   // element a later round can put a flag in front of.
   let funnelShapes = 0;
   for (const file of processSources()) {
-    const raw = readFileSync(file, 'utf8');
+    const raw = sourceOf(file);
     if (!/'(?:funnel|serve)'/.test(raw)) continue;
     for (const node of nodesOf(file)) {
       if (!ts.isArrayLiteralExpression(node)) continue;
@@ -4308,7 +4406,7 @@ function injectedDepsRule() {
   const files = sourcesUnder(join(ROOT, 'src'));
   const allowed = (file) => file.endsWith(join('harness', 'push-seam.ts'));
   for (const file of files) {
-    const raw = readFileSync(file, 'utf8');
+    const raw = sourceOf(file);
     if (!/inProcessDoor|new PocketHost\(/.test(raw)) continue;
     for (const node of nodesOf(file)) {
       if (ts.isIdentifier(node) && node.text === 'inProcessDoor') {
@@ -4553,7 +4651,7 @@ function pushKeyPortRule() {
   const capabilities = join(ROOT, 'src', 'main', 'capabilities.ts');
   let handedByComposition = 0;
   for (const file of sourcesUnder(join(ROOT, 'src'))) {
-    if (!/new PocketHost\(/.test(readFileSync(file, 'utf8'))) continue;
+    if (!/new PocketHost\(/.test(sourceOf(file))) continue;
     for (const node of nodesOf(file)) {
       if (!ts.isNewExpression(node) || !ts.isIdentifier(node.expression) || node.expression.text !== 'PocketHost') continue;
       const arg = node.arguments?.[0];
@@ -4600,7 +4698,7 @@ function builtDoorRule() {
     const file = queue.shift();
     if (seen.has(file)) continue;
     seen.add(file);
-    const text = readFileSync(file, 'utf8');
+    const text = sourceOf(file);
     checked('U5');
     for (const m of text.matchAll(/\brequire\(\s*(["'])([^"']+)\1\s*\)|\bfrom\s*(["'])([^"']+)\3|\bimport\(\s*(["'])([^"']+)\5\s*\)/g)) {
       const spec = m[2] ?? m[4] ?? m[6];
@@ -5510,7 +5608,7 @@ function nameRangesRule() {
     }
   }
   for (const src of productionSources()) {
-    if (!/NAME_REFUSED_V4/.test(readFileSync(src, 'utf8'))) continue;
+    if (!/NAME_REFUSED_V4/.test(sourceOf(src))) continue;
     for (const n of nodesOf(src)) {
       if (!ts.isIdentifier(n) || n.text !== 'NAME_REFUSED_V4') continue;
       if (ts.isVariableDeclaration(n.parent) && n.parent.name === n) continue;
@@ -5624,7 +5722,7 @@ function nameStartRule() {
   }
   nameClockFence(file, ipc);
   for (const s of productionSources()) {
-    if (!/new PocketHost\(/.test(readFileSync(s, 'utf8'))) continue;
+    if (!/new PocketHost\(/.test(sourceOf(s))) continue;
     for (const n of nodesOf(s)) {
       if (!ts.isNewExpression(n) || !ts.isIdentifier(n.expression) || n.expression.text !== 'PocketHost') continue;
       const arg = n.arguments?.[0];
@@ -5864,7 +5962,7 @@ function pairableRule() {
   if (!stepFiles.some((f) => f === join(phoneDir, 'steps.ts'))) {
     fail('D6', 'src/renderer/settings/phone/steps.ts does not exist (build/p3331/SPEC.md D19, the sheet builder\'s), so whether the step composer decides anything from the name check is not read');
   }
-  if (!stepFiles.some((f) => f.endsWith('.tsx') && !/\/Qr\.tsx$/.test(f) && /\bcheckListOf\b|\bStepFace\b/i.test(readFileSync(f, 'utf8')))) {
+  if (!stepFiles.some((f) => f.endsWith('.tsx') && !/\/Qr\.tsx$/.test(f) && /\bcheckListOf\b|\bStepFace\b/i.test(sourceOf(f)))) {
     fail('D6', 'no .tsx under src/renderer/settings/phone/ draws a StepFace (build/p3331/SPEC.md D19, the step frame), so whether the frame decides anything from the name check is not read');
   }
   for (const file of stepFiles) {
@@ -6074,7 +6172,7 @@ function nameOverrideRule() {
   );
   let readsInside = 0;
   for (const s of productionSources()) {
-    const raw = readFileSync(s, 'utf8');
+    const raw = sourceOf(s);
     if (!/GMUX_POCKET_NAME_SERVERS|NAME_SERVERS_ENV/.test(raw)) continue;
     for (const n of nodesOf(s)) {
       const read =
@@ -6412,8 +6510,8 @@ function writePathAnchors(file, handler) {
   const receiver = (call) => (ts.isPropertyAccessExpression(call.expression) ? call.expression.expression.getText(sf) : '');
   const at = (n) => (n === undefined ? -1 : n.getStart(sf));
   // PHASE 318: the parse dispatches by the verb (parseWriteBody), or names one
-  // of the three parses directly.
-  const parse = calls.find((c) => /^(?:parseWriteBody|parseEndBody|parseChooseBody|parseSayBody|parseKeysBody)$/.test(calleeName(c) ?? ''));
+  // of the three parses directly. PHASE 348: or one of remove's and paste's.
+  const parse = calls.find((c) => /^(?:parseWriteBody|parseEndBody|parseChooseBody|parseSayBody|parseKeysBody|parseRemoveBody|parsePasteBody)$/.test(calleeName(c) ?? ''));
   const ledgerGet = calls.find((c) => calleeName(c) === 'get' && /ledger/i.test(receiver(c)));
   const ledgerSet = calls.find((c) => calleeName(c) === 'set' && /ledger/i.test(receiver(c)));
   const lastChecks = nodes.filter((n) => ts.isIfStatement(n) && descendantsOf(n.expression).some((m) => ts.isCallExpression(m) && calleeName(m) === 'stillPaired'));
@@ -6424,14 +6522,15 @@ function writePathAnchors(file, handler) {
     actStatement = list[list.indexOf(lastCheck) + 1];
   }
   // PHASE 318: the ONE statement after the last check starts whichever of the
-  // three verbs the body names, each through its settle function.
+  // three verbs the body names, each through its settle function. PHASE 348
+  // (build/p348/SPEC.md §4.2 step 3): six, remove and paste among them.
   const actCalls =
     actStatement === undefined
       ? []
       : descendantsOf(actStatement).filter(
           (n) =>
             ts.isCallExpression(n) &&
-            /^(?:end|choose|say|keys)$/.test(calleeName(n) ?? '') && /writes/.test(receiver(n))
+            /^(?:end|choose|say|keys|remove|paste)$/.test(calleeName(n) ?? '') && /writes/.test(receiver(n))
         );
   const actCall = actCalls[0];
   const inflightCheck = nodes.find(
@@ -6542,8 +6641,8 @@ function writePathRules() {
         // names, so no verb's act sits anywhere but right after the check.
         const verbs = new Set(a.actCalls.map((c) => calleeName(c)));
         checked('X1');
-        for (const v of ['end', 'choose', 'say', 'keys']) {
-          if (!verbs.has(v)) fail('X1', `${where(writes, a.actStatement)}: the act's one statement starts no writes.${v}(; every verb's act is that statement, right after the last check (build/p318/SPEC.md §5.1.4; build/p337/SPEC.md §5.5)`);
+        for (const v of ['end', 'choose', 'say', 'keys', 'remove', 'paste']) {
+          if (!verbs.has(v)) fail('X1', `${where(writes, a.actStatement)}: the act's one statement starts no writes.${v}(; every verb's act is that statement, right after the last check (build/p318/SPEC.md §5.1.4; build/p337/SPEC.md §5.5; build/p348/SPEC.md §4.2 step 3)`);
         }
         const awaitsFirst = descendantsOf(a.actStatement).some((n) => ts.isAwaitExpression(n) && n.getStart() < a.actCall.getStart());
         if (awaitsFirst) fail('X1', `${where(writes, a.actStatement)}: something is awaited inside the act’s statement before the act is called`);
@@ -6658,6 +6757,18 @@ function writePathRules() {
         if (!/\bverb\b|\broute\.id\b|\.verb\b/.test(text)) {
           fail('X3', `${where(writes, call)}: the ledger’s key is ${JSON.stringify(text.slice(0, 60))}, which holds no verb; the same write id under another verb would read another write's recorded answer (build/p318/SPEC.md D4)`);
         }
+        // PHASE 348 (build/p348/SPEC.md §4.2 step 3): the verb is handed to
+        // keyOf WHOLE, never mapped, so a Remove or a paste is never keyed as
+        // another verb's write (a key built as `verb === 'remove' ? 'end' :
+        // verb` names the verb and would answer a Remove with an End's record).
+        const keyCall = key === undefined ? undefined : bare(key);
+        if (keyCall !== undefined && ts.isCallExpression(keyCall) && calleeName(keyCall) === 'keyOf') {
+          const verbArg = keyCall.arguments[1] === undefined ? '' : squash(keyCall.arguments[1].getText());
+          checked('X3');
+          if (keyCall.arguments.length !== 3 || !/^(?:verb|parsed\.verb|route\.id|'start')$/.test(verbArg)) {
+            fail('X3', `${where(writes, call)}: the ledger’s key hands keyOf the verb as ${JSON.stringify(verbArg.slice(0, 60))}; it hands it the verb itself, whole, so each of the seven writes is keyed as its own (build/p318/SPEC.md D4; build/p348/SPEC.md §4.2 step 3)`);
+          }
+        }
       }
       // The key joins its parts with a newline no part can hold (Phase 318, D4).
       const keyOf = constNamed(writes, 'keyOf');
@@ -6707,6 +6818,23 @@ function writePathRules() {
       checked('X4');
       if (guardedByName(n, handler, 'verb') || /route\.id|parsed\.verb/.test(guardingIf(n)?.expression.getText() ?? '')) {
         fail('X4', `${where(writes, n)}: an in-flight claim is asked or made under a branch on the verb; one write is in flight per phone and per session ACROSS verbs, so an End and a message can never overlap on one session (build/p318/SPEC.md D4)`);
+      }
+      // PHASE 348 (build/p348/SPEC.md §4.2 step 3): nor under a short circuit
+      // on the verb (`verb !== 'remove' && sessionsInFlight.has(…)`), a branch
+      // the if-walk above does not see, which would let a Remove overlap an
+      // End, or a paste overlap keys, on one session.
+      for (let c = n; c.parent !== undefined && c.parent !== handler; c = c.parent) {
+        const p = c.parent;
+        if (ts.isIfStatement(p) || ts.isBlock(p) || ts.isExpressionStatement(p) || ts.isVariableStatement(p) || ts.isReturnStatement(p) || ts.isFunctionLike(p)) break;
+        if (!ts.isBinaryExpression(p)) continue;
+        const op = p.operatorToken.kind;
+        if (op !== ts.SyntaxKind.AmpersandAmpersandToken && op !== ts.SyntaxKind.BarBarToken && op !== ts.SyntaxKind.QuestionQuestionToken) continue;
+        const other = p.left === c ? p.right : p.left;
+        checked('X4');
+        if (/\bverb\b|route\.id|parsed\.verb/.test(other.getText())) {
+          fail('X4', `${where(writes, n)}: an in-flight claim is asked or made beside ${JSON.stringify(other.getText().slice(0, 50))}, a short circuit on the verb; one write is in flight per phone and per session ACROSS all seven verbs, so a Remove never overlaps an End and a paste never overlaps keys (build/p348/SPEC.md §4.2 step 3)`);
+          break;
+        }
       }
     }
     for (const name of sets.keys()) {
@@ -6796,7 +6924,9 @@ function writePathRules() {
   // PHASE 346 (build/p346/SPEC.md D6, X2 widened with NS3): the start's parse
   // reads its body through the same one JSON.parse, so it is a parse function
   // here too, with its own key set and its two values read by hand.
-  const parseFns = ['parseEndBody', 'parseChooseBody', 'parseSayBody', 'parseKeysBody', 'parseStartBody'].map((name) => [name, oneFunction(writes, name)]);
+  // PHASE 348 (build/p348/SPEC.md D28, X2 widened with RM2 and PS2): remove's
+  // and paste's parses read through the same one JSON.parse.
+  const parseFns = ['parseEndBody', 'parseChooseBody', 'parseSayBody', 'parseKeysBody', 'parseStartBody', 'parseRemoveBody', 'parsePasteBody'].map((name) => [name, oneFunction(writes, name)]);
   checked('X2', 3);
   for (const [name, fn] of parseFns) if (fn === null) fail('X2', `${rel(writes)} declares no single ${name}`);
   if (parses.length !== 1) {
@@ -6819,7 +6949,7 @@ function writePathRules() {
       fail('X2', `${where(writes, call)}: JSON.parse sits in ${String(ownerName)}, which something other than the parse function calls`);
     }
   }
-  const KEY_SETS = { parseEndBody: 'batch,session,write', parseChooseBody: 'mark,marker,question,session,write', parseSayBody: 'session,text,write', parseKeysBody: 'dialog,keys,session,turn,write', parseStartBody: 'agent,project,write' };
+  const KEY_SETS = { parseEndBody: 'batch,session,write', parseChooseBody: 'mark,marker,question,session,write', parseSayBody: 'session,text,write', parseKeysBody: 'dialog,keys,session,turn,write', parseStartBody: 'agent,project,write', parseRemoveBody: 'session,write', parsePasteBody: 'dialog,session,text,turn,write' };
   for (const [name, fn] of parseFns) {
     if (fn === null) continue;
     checked('X2');
@@ -6863,7 +6993,9 @@ function writePathRules() {
   // id and the question id's count beside the hex its mark shares), say two.
   // PHASE 337: keys reads the write id, the session id and the question id
   // (its turn) the same way, and its dialog by the one mark reader.
-  const READS = { parseEndBody: [2, 'the write id and the session id'], parseChooseBody: [3, 'the write id, the session id and the question id'], parseSayBody: [2, 'the write id and the session id'], parseKeysBody: [3, 'the write id, the session id and the question id'], parseStartBody: [2, 'the write id and the project id'] };
+  // PHASE 348: remove reads the write id and the session id by hand, paste
+  // those and its turn, the question id (D28).
+  const READS = { parseEndBody: [2, 'the write id and the session id'], parseChooseBody: [3, 'the write id, the session id and the question id'], parseSayBody: [2, 'the write id and the session id'], parseKeysBody: [3, 'the write id, the session id and the question id'], parseStartBody: [2, 'the write id and the project id'], parseRemoveBody: [2, 'the write id and the session id'], parsePasteBody: [3, 'the write id, the session id and the question id'] };
   for (const [name, fn] of parseFns) {
     if (fn === null) continue;
     const [want, what] = READS[name];
@@ -6952,7 +7084,9 @@ function pocketWritesRules() {
     } else {
       const members = iface.members.map(memberName);
       // PHASE 346 (build/p346/SPEC.md §4.8): and start, the fifth.
-      if ([...members].sort().join(',') !== 'choose,end,keys,say,start') fail('X5', `${where(routes, iface)}: PocketWrites holds ${JSON.stringify(members)}; it holds exactly end, choose, say, keys and start (build/p318/SPEC.md §5.1.5; build/p337/SPEC.md §5.4; build/p346/SPEC.md §4.8), and a sixth member is a verb the door can reach`);
+      // PHASE 348 (build/p348/SPEC.md §4.2 step 4): and remove and paste, the
+      // sixth and seventh.
+      if ([...members].sort().join(',') !== 'choose,end,keys,paste,remove,say,start') fail('X5', `${where(routes, iface)}: PocketWrites holds ${JSON.stringify(members)}; it holds exactly end, choose, say, keys, start, remove and paste (build/p318/SPEC.md §5.1.5; build/p337/SPEC.md §5.4; build/p346/SPEC.md §4.8; build/p348/SPEC.md §4.2 step 4), and an eighth member is a verb the door can reach`);
     }
     const facts = interfaceOf(routes, 'PocketFacts');
     const endOffer = facts?.members.find((m) => memberName(m) === 'endOffer');
@@ -6964,7 +7098,7 @@ function pocketWritesRules() {
   const implementers = [];
   const handedBy = [];
   for (const file of productionSources()) {
-    const src = readFileSync(file, 'utf8');
+    const src = sourceOf(file);
     if (!/PocketWrites|createPocketWrites/.test(src)) continue;
     for (const n of nodesOf(file)) {
       if ((ts.isInterfaceDeclaration(n) || ts.isTypeAliasDeclaration(n)) && n.name.text === 'PocketWrites' && file !== routes) declaredElsewhere.push(where(file, n));
@@ -6987,7 +7121,7 @@ function pocketWritesRules() {
   // And only capabilities.ts hands a PocketHost any writes: the push seam's
   // host has none, so its door answers both write routes 404.
   for (const file of productionSources()) {
-    if (!readFileSync(file, 'utf8').includes('new PocketHost(')) continue;
+    if (!sourceOf(file).includes('new PocketHost(')) continue;
     for (const n of nodesOf(file)) {
       if (!ts.isNewExpression(n) || n.expression.getText() !== 'PocketHost') continue;
       const arg = n.arguments?.[0] === undefined ? undefined : bare(n.arguments[0]);
@@ -7027,15 +7161,39 @@ function pocketWritesRules() {
       if (!reach.has('endRefusal')) fail('X5', `${where(impl, end)}: end does not ask main’s gate, endRefusal(, before the verb`);
       if (!reach.has('sessionActionGates')) fail('X5', `${where(impl, end)}: end does not ask the shared gate, sessionActionGates(, before the verb`);
     }
+    // PHASE 348 (build/p348/SPEC.md D47, X5 widened): the shared gate is asked
+    // with TWO named environments and nothing else: .canEnd of DOOR_GATE_ENV
+    // for end, and .canRemove of DOOR_REMOVE_GATE_ENV for remove, inside the
+    // one pure removeVerdict. Never another field of either, and never an edit
+    // of DOOR_GATE_ENV: a Remove is offered on an ENDED session, which canEnd
+    // refuses, so it is asked of the second environment rather than by
+    // widening the first.
     const gateCalls = callsOf(impl).filter((c) => calleeName(c) === 'sessionActionGates');
-    checked('X5', 2);
+    const X5_ENVS = { canEnd: 'DOOR_GATE_ENV', canRemove: 'DOOR_REMOVE_GATE_ENV' };
+    const removeVerdictFn = oneFunction(impl, 'removeVerdict');
+    checked('X5', 3);
     for (const c of gateCalls) {
-      const readsCanEnd = ts.isPropertyAccessExpression(c.parent) && c.parent.name.text === 'canEnd';
-      if (!readsCanEnd || c.arguments[2]?.getText() !== 'DOOR_GATE_ENV') {
-        fail('X5', `${where(impl, c)}: the shared gate is asked as ${JSON.stringify(c.parent.getText().slice(0, 80))}; the door reads .canEnd of sessionActionGates( with DOOR_GATE_ENV, and nothing else`);
+      const field = ts.isPropertyAccessExpression(c.parent) && c.parent.expression === c ? c.parent.name.text : null;
+      const env = c.arguments[2]?.getText();
+      if (field === null || !Object.prototype.hasOwnProperty.call(X5_ENVS, field) || env !== X5_ENVS[field]) {
+        fail('X5', `${where(impl, c)}: the shared gate is asked as ${JSON.stringify(c.parent.getText().slice(0, 80))}; the door reads .canEnd of sessionActionGates( with DOOR_GATE_ENV for end and .canRemove of it with DOOR_REMOVE_GATE_ENV for remove, and nothing else (build/p348/SPEC.md D47)`);
+      } else if (field === 'canRemove' && (removeVerdictFn === null || !inside(c, removeVerdictFn))) {
+        fail('X5', `${where(impl, c)}: .canRemove is read outside removeVerdict; the remove gate is asked in the one pure verdict (build/p348/SPEC.md D48)`);
+      } else if (field === 'canEnd' && removeVerdictFn !== null && inside(c, removeVerdictFn)) {
+        fail('X5', `${where(impl, c)}: removeVerdict reads .canEnd; Remove is offered on an ended session, which canEnd refuses, so the verdict reads .canRemove of DOOR_REMOVE_GATE_ENV (build/p348/SPEC.md D47)`);
       }
     }
     if (gateCalls.length === 0) fail('X5', `${rel(impl)} never asks sessionActionGates(`);
+    if (!gateCalls.some((c) => ts.isPropertyAccessExpression(c.parent) && c.parent.name.text === 'canRemove' && c.arguments[2]?.getText() === 'DOOR_REMOVE_GATE_ENV')) {
+      fail('X5', `${rel(impl)} never reads .canRemove of sessionActionGates( with DOOR_REMOVE_GATE_ENV, so the Remove a phone asks for has no shared gate, the ONLY lock on a row on another machine (build/p348/SPEC.md D6, D47, D48)`);
+    }
+    // Neither environment is read for one of its fields, spread or rebuilt.
+    for (const n of nodesOf(impl)) {
+      if (!ts.isIdentifier(n) || (n.text !== 'DOOR_GATE_ENV' && n.text !== 'DOOR_REMOVE_GATE_ENV') || ts.isImportSpecifier(n.parent)) continue;
+      checked('X5');
+      const asEnvironment = ts.isCallExpression(n.parent) && calleeName(n.parent) === 'sessionActionGates' && n.parent.arguments[2] === n;
+      if (!asEnvironment) fail('X5', `${where(impl, n)}: ${n.text} is read as ${J(n.parent.getText().slice(0, 70))}; it is handed to sessionActionGates( as its environment and read no other way, so no field of it is spelled, spread or overridden here (build/p348/SPEC.md D47)`);
+    }
     // The batch arm reads the injected machineKnown, never answering.
     checked('X5', 3);
     for (const n of nodesOf(impl)) {
@@ -7055,20 +7213,43 @@ function pocketWritesRules() {
     // handed, deps.keys.keys(, the same way (build/p337/SPEC.md §5.4).
     // PHASE 346: and start passes through to the phone's start it is handed,
     // deps.start.start(, the same way (build/p346/SPEC.md §4.7).
-    for (const [verb, callee] of [['choose', 'deps.reply.choose'], ['say', 'deps.reply.say'], ['keys', 'deps.keys.keys'], ['start', 'deps.start.start']]) {
+    // PHASE 348: and paste passes through to the Screen's paste verb it is
+    // handed, deps.paste.paste(, the same way (build/p348/SPEC.md §4.2 step 4).
+    for (const [verb, callee] of [['choose', 'deps.reply.choose'], ['say', 'deps.reply.say'], ['keys', 'deps.keys.keys'], ['start', 'deps.start.start'], ['paste', 'deps.paste.paste']]) {
       const member = factory === null ? undefined : descendantsOf(factory).find((n) => (ts.isPropertyAssignment(n) && memberName(n) === verb && (ts.isArrowFunction(n.initializer) || ts.isFunctionExpression(n.initializer))) || (ts.isMethodDeclaration(n) && memberName(n) === verb));
       checked('X5');
       const fn = member === undefined ? null : ts.isPropertyAssignment(member) ? member.initializer : member;
       const calls = fn === null ? [] : descendantsOf(fn).filter((n) => ts.isCallExpression(n));
       const passes = calls.length === 1 && calls[0].expression.getText().replace(/\s+/g, '') === callee;
-      if (!passes) fail('X5', `${rel(impl)}: createPocketWrites's ${verb} is ${member === undefined ? 'absent' : JSON.stringify(member.getText().slice(0, 80))}; it passes the call to ${callee}( and does nothing else (build/p318/SPEC.md §5.1.5; build/p337/SPEC.md §5.4)`);
+      if (!passes) fail('X5', `${rel(impl)}: createPocketWrites's ${verb} is ${member === undefined ? 'absent' : JSON.stringify(member.getText().slice(0, 80))}; it passes the call to ${callee}( and does nothing else (build/p318/SPEC.md §5.1.5; build/p337/SPEC.md §5.4; build/p348/SPEC.md §4.2 step 4)`);
     }
-    // No other lifecycle verb, no status setter.
-    const NOT_THE_DOORS = /^(?:restoreSession|restorePastSession|discardSession|removeSession|restartSession|renameSession|createSession|resumeInPlace|discard|restore|restart|rename|noteHookEvent|noteUserInput|applyDetectedStatus|setStatus|setSessionStatus|updateStatus|writeStatus|markStatus)$/;
+    // No other lifecycle verb, no status setter. PHASE 348 (build/p348/SPEC.md
+    // D48): removeSession( left this list, because the phone's Remove is the
+    // Mac's own verb; it is called ONCE, inside remove, after removeVerdict(
+    // and with nothing awaited between the verdict and the verb.
+    const NOT_THE_DOORS = /^(?:restoreSession|restorePastSession|discardSession|restartSession|renameSession|createSession|resumeInPlace|discard|restore|restart|rename|noteHookEvent|noteUserInput|applyDetectedStatus|setStatus|setSessionStatus|updateStatus|writeStatus|markStatus)$/;
     for (const c of callsOf(impl)) {
       checked('X5');
       const name = calleeName(c);
-      if (name !== null && NOT_THE_DOORS.test(name)) fail('X5', `${where(impl, c)} calls ${name}(; the phone’s End names one verb, killSession, and no status setter (refusal 5)`);
+      if (name !== null && NOT_THE_DOORS.test(name)) fail('X5', `${where(impl, c)} calls ${name}(; the phone’s End names one verb, killSession, its Remove one, removeSession, and neither a status setter (refusal 5)`);
+    }
+    const removeMember = factory === null ? undefined : descendantsOf(factory).find((n) => (ts.isPropertyAssignment(n) && memberName(n) === 'remove' && (ts.isArrowFunction(bare(n.initializer)) || ts.isFunctionExpression(bare(n.initializer)))) || (ts.isMethodDeclaration(n) && memberName(n) === 'remove'));
+    const removeFn = removeMember === undefined ? null : ts.isPropertyAssignment(removeMember) ? bare(removeMember.initializer) : removeMember;
+    const removes = callsOf(impl).filter((c) => calleeName(c) === 'removeSession');
+    checked('X5', 3);
+    if (removeFn === null) fail('X5', `${rel(impl)}: createPocketWrites answers no remove (build/p348/SPEC.md §4.2 step 4)`);
+    if (removes.length !== 1) {
+      fail('X5', `${rel(impl)} calls removeSession( ${String(removes.length)} time(s)${removes.length > 0 ? ` (${removes.map((c) => where(impl, c)).join(', ')})` : ''}; exactly once, inside remove, after removeVerdict( passed (build/p348/SPEC.md D48)`);
+    } else if (removeFn !== null) {
+      const verb = removes[0];
+      const verdict = descendantsOf(removeFn).find((n) => ts.isCallExpression(n) && calleeName(n) === 'removeVerdict');
+      if (!inside(verb, removeFn)) fail('X5', `${where(impl, verb)}: removeSession( is called outside remove; the Mac's own verb is reached by the phone's Remove alone (build/p348/SPEC.md D48)`);
+      else if (verdict === undefined || verdict.getStart() > verb.getStart()) fail('X5', `${where(impl, verb)}: removeSession( is not preceded by removeVerdict( inside remove, so a row could be tombstoned without both gates asked (build/p348/SPEC.md D48)`);
+      else {
+        for (const w of descendantsOf(removeFn).filter((n) => ts.isAwaitExpression(n) && n.getStart() > verdict.getStart() && n.getStart() < verb.getStart())) {
+          fail('X5', `${where(impl, w)}: remove awaits ${J(w.getText().slice(0, 50))} between removeVerdict( and removeSession(; nothing is awaited between the verdict and the verb, or the row could change under it (build/p348/SPEC.md D48)`);
+        }
+      }
     }
   }
 
@@ -7118,7 +7299,20 @@ function pocketWritesRules() {
         if (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isIdentifier(n.left)) note(n.left.text, n.right);
       }
       for (const [name, list] of values) {
-        const fromMain = (v) => ts.isCallExpression(bare(v)) && calleeName(bare(v)) === 'endRefusal';
+        // PHASE 348 (build/p348/SPEC.md D48): Remove's refusals are main's own
+        // removeRefusal's two sentences, private to lifecycle-gate.ts and
+        // reached only by calling it.
+        // A conditional whose every branch is main's own refusal or null
+        // (`record === undefined ? null : removeRefusal(record)`) is one too.
+        const fromMain = (v) => {
+          const b = bare(v);
+          if (b === undefined) return false;
+          if (ts.isConditionalExpression(b)) {
+            const arms = [b.whenTrue, b.whenFalse];
+            return arms.some((x) => fromMain(x)) && arms.every((x) => fromMain(x) || bare(x)?.kind === ts.SyntaxKind.NullKeyword);
+          }
+          return ts.isCallExpression(b) && /^(?:endRefusal|removeRefusal)$/.test(calleeName(b) ?? '');
+        };
         if (list.some(fromMain) && list.every((v) => fromMain(v) || bare(v).kind === ts.SyntaxKind.NullKeyword)) refusalBound.add(name);
       }
     }
@@ -7157,6 +7351,9 @@ function pocketWritesRules() {
       if (ts.isPropertyAssignment(n) && memberName(n) === 'sentence') value = n.initializer;
       else if (ts.isShorthandPropertyAssignment(n) && n.name.text === 'sentence') value = n.name;
       else if (ts.isCallExpression(n) && calleeName(n) === 'writeAnswer' && n.arguments.length === 5) value = n.arguments[4];
+      // PHASE 348 (build/p348/SPEC.md D27): remove's and paste's own composers,
+      // (write, outcome, reason, sentence).
+      else if (ts.isCallExpression(n) && /^(?:removeAnswer|pasteAnswer)$/.test(calleeName(n) ?? '') && n.arguments.length === 4) value = n.arguments[3];
       if (value === undefined) continue;
       checked('X6');
       if (!isNamedSentence(value, n)) {
@@ -7496,7 +7693,8 @@ function writeLinesRule() {
     // PHASE 337 (D35): and keys, in the plainest true words for a write that
     // can run a command in a shell.
     // PHASE 346 (build/p346/SPEC.md D3): and start, in the words D3 gives it.
-    const want = { end: 'end a session', choose: 'answer a numbered question', say: 'send a session one message', keys: 'type into any session as you would at this Mac', start: 'start a session in a project open in Tortie, on this Mac or another machine' };
+    // PHASE 348 (build/p348/SPEC.md D32): and remove and paste, in D32's.
+    const want = { end: 'end a session', choose: 'answer a numbered question', say: 'send a session one message', keys: 'type into any session as you would at this Mac', start: 'start a session in a project open in Tortie, on this Mac or another machine', remove: 'remove a session that has ended', paste: 'paste text into a session on this Mac' };
     checked('X12', 2);
     if (JSON.stringify(Object.keys(got).sort().map((k) => [k, got[k]])) !== JSON.stringify(Object.keys(want).sort().map((k) => [k, want[k]]))) {
       fail('X12', `${rel(pairing)}: the write clauses are ${JSON.stringify(got)}; they are exactly ${JSON.stringify(want)}, so the line reads "Lets an allowed phone end a session, answer a numbered question, send a session one message and type into any session as you would at this Mac" (build/p318/SPEC.md §5.1.7; build/p337/SPEC.md D35)`);
@@ -7533,7 +7731,7 @@ function writeLinesRule() {
     if (said !== WANT) fail('X12', `src/shared/ipc/pocket.ts: POCKET_DOOR_HONESTY says ${JSON.stringify(said)}; it says ${JSON.stringify(WANT)}, which names the terminal, what it printed before, the keys and the three writes and no Face ID (build/p318/SPEC.md §5.1.7, D28; build/p337/SPEC.md D35; build/p3371/SPEC.md D35)`);
   }
   for (const file of productionSources()) {
-    if (!readFileSync(file, 'utf8').includes('POCKET_READ_ONLY_HONESTY')) continue;
+    if (!sourceOf(file).includes('POCKET_READ_ONLY_HONESTY')) continue;
     for (const n of nodesOf(file)) {
       if (ts.isIdentifier(n) && n.text === 'POCKET_READ_ONLY_HONESTY') {
         fail('X12', `${where(file, n)} names POCKET_READ_ONLY_HONESTY; a constant named read only, drawn under a door that ends sessions, is false in code and on screen`);
@@ -7695,9 +7893,10 @@ function replyRules() {
       // PHASE 337 widened it (Z2 holds the keys cap's arithmetic). PHASE 346
       // (build/p346/SPEC.md D6) adds start's 512, which R2 and NS7 hold; the
       // four caps above it do not move.
-      const want = { choose: 512, end: 512, keys: 16_384, say: 32_768, start: 512 };
+      // PHASE 348 (build/p348/SPEC.md D29): remove's 512 and paste's 131,072.
+      const want = { choose: 512, end: 512, keys: 16_384, paste: 131_072, remove: 512, say: 32_768, start: 512 };
       if (J(Object.keys(got).sort().map((k) => [k, got[k]])) !== J(Object.keys(want).sort().map((k) => [k, want[k]]))) {
-        fail('Y1', `${where(limits, caps)}: POCKET_WRITE_BODY_CAPS is ${J(got)}; it is exactly end 512, choose 512, say 32,768, keys 16,384 and (Phase 346, D6) start 512. The say cap holds a 4,096-byte text of C0 controls escaped \\u00XX (24,771 bytes), so the Mac answers it refused character rather than the door dropping it oversized (D3, §Revision R10, R18; build/p337/SPEC.md D17)`);
+        fail('Y1', `${where(limits, caps)}: POCKET_WRITE_BODY_CAPS is ${J(got)}; it is exactly end 512, choose 512, say 32,768, keys 16,384, (Phase 346, D6) start 512 and (Phase 348, D29) remove 512 and paste 131,072. The say cap holds a 4,096-byte text of C0 controls escaped \\u00XX (24,771 bytes), so the Mac answers it refused character rather than the door dropping it oversized (D3, §Revision R10, R18; build/p337/SPEC.md D17)`);
       }
       if (!(caps.initializer !== undefined && ts.isCallExpression(bare(caps.initializer)) && calleeName(bare(caps.initializer)) === 'freeze')) {
         fail('Y1', `${where(limits, caps)}: POCKET_WRITE_BODY_CAPS is not Object.freeze(...)`);
@@ -7731,22 +7930,28 @@ function replyRules() {
       const handed = (verb) =>
         descendantsOf(handler).some((n) => ts.isCallExpression(n) && calleeName(n) === verb && /writes/.test(ts.isPropertyAccessExpression(n.expression) ? n.expression.expression.getText() : '') && n.arguments[1] !== undefined && bare(n.arguments[1]).getText() === 'still');
       if (!handed('choose') || !handed('say')) fail('Y2', `${rel(writesFile)}: writes.choose( and writes.say( are not each handed still as their second argument (D5)`);
+      // PHASE 348 (build/p348/SPEC.md D50): the paste reads the session before
+      // it types too, so it is handed the same still.
+      checked('Y2');
+      if (!handed('paste')) fail('Y2', `${rel(writesFile)}: writes.paste( is not handed still as its second argument; a paste reads the session before it types, and asks the door's four again before its act (build/p348/SPEC.md D50)`);
     }
-    // The text reaches writes.say( and nowhere else (the parse aside).
-    const sayParse = oneFunction(writesFile, 'parseSayBody');
+    // The text reaches writes.say( and nowhere else (the parse aside). PHASE
+    // 348: a paste's text reaches writes.paste( and nowhere else (its parse
+    // aside), the same way.
+    const textParses = ['parseSayBody', 'parsePasteBody'].map((name) => oneFunction(writesFile, name)).filter((fn) => fn !== null);
     for (const n of nodesOf(writesFile)) {
       if (!ts.isPropertyAccessExpression(n) || n.name.text !== 'text') continue;
-      if (sayParse !== null && inside(n, sayParse)) continue;
+      if (textParses.some((fn) => inside(n, fn))) continue;
       checked('Y2');
       let ok = false;
       for (let p = n.parent; p !== undefined; p = p.parent) {
-        if (ts.isCallExpression(p) && calleeName(p) === 'say' && /writes/.test(ts.isPropertyAccessExpression(p.expression) ? p.expression.expression.getText() : '')) {
+        if (ts.isCallExpression(p) && /^(?:say|paste)$/.test(calleeName(p) ?? '') && /writes/.test(ts.isPropertyAccessExpression(p.expression) ? p.expression.expression.getText() : '')) {
           ok = p.arguments.some((a) => inside(n, a));
           break;
         }
         if (ts.isFunctionLike(p) && p === handler) break;
       }
-      if (!ok) fail('Y2', `${where(writesFile, n)}: a message's text is read as ${J(n.parent.getText().slice(0, 60))}; in the write path it reaches writes.say( and nothing else, so no log line, answer or ledger entry can carry it`);
+      if (!ok) fail('Y2', `${where(writesFile, n)}: a message's or a paste's text is read as ${J(n.parent.getText().slice(0, 60))}; in the write path it reaches writes.say( or writes.paste( and nothing else, so no log line, answer or ledger entry can carry it`);
     }
   }
 
@@ -7755,14 +7960,18 @@ function replyRules() {
   // -------------------------------------------------------------------------
   const writer = replyModule('writer', 'Y3');
   const reader = replyModule('reader', 'Y3');
+  // PHASE 348 (build/p348/SPEC.md D52): the ONE buffer helper, which composes
+  // the domain's one load-buffer and its one delete-buffer for say and paste.
+  const buffer = replyModule('buffer', 'Y3');
   if (writer === null) for (const id of ['Y4', 'Y5', 'Y6', 'Y10', 'Y13']) fail(id, `src/main/reply/writer.ts does not exist. It is ${REPLY_OWNER}.`);
   if (reader === null) for (const id of ['Y5', 'Y14']) fail(id, `src/main/reply/reader.ts does not exist. It is ${REPLY_OWNER}.`);
+  if (buffer === null) fail('Y4', `src/main/reply/buffer.ts does not exist, so the words' one sink was not read. It is ${P348_OWNER} (build/p348/SPEC.md D52).`);
   const argvs = [];
-  for (const file of [writer, reader].filter((f) => f !== null)) for (const a of tmuxArgvsOf(file)) argvs.push({ file, ...a });
-  for (const file of replyFiles.filter((f) => f !== writer && f !== reader)) {
+  for (const file of [writer, reader, buffer].filter((f) => f !== null)) for (const a of tmuxArgvsOf(file)) argvs.push({ file, ...a });
+  for (const file of replyFiles.filter((f) => f !== writer && f !== reader && f !== buffer)) {
     for (const a of tmuxArgvsOf(file)) {
       checked('Y3');
-      fail('Y3', `${where(file, a.node)} composes a tmux argv (${J(a.shape.map((e) => e.lit ?? e.text).slice(0, 4))}); only writer.ts and reader.ts speak to tmux in the reply domain`);
+      fail('Y3', `${where(file, a.node)} composes a tmux argv (${J(a.shape.map((e) => e.lit ?? e.text).slice(0, 4))}); only writer.ts, reader.ts and (Phase 348) buffer.ts speak to tmux in the reply domain`);
     }
   }
   const kinds = new Map();
@@ -7777,6 +7986,10 @@ function replyRules() {
     if (a.file === writer && /^(?:list-panes|display-message|capture-pane)/.test(a.kind) && reader !== null && !tmuxArgvsOf(reader).some((r) => r.kind === a.kind)) {
       fail('Y3', `${where(a.file, a.node)}: writer.ts reads the screen itself (${a.kind}) where the reader does not; the offer and the press read one way, through readReply`);
     }
+    // PHASE 348: the buffer helper composes the load and the delete and
+    // nothing else, and nobody else in the domain composes either.
+    if (a.file === buffer && a.kind !== 'load-buffer' && a.kind !== 'delete-buffer') fail('Y3', `${where(a.file, a.node)}: buffer.ts composes the ${a.kind}; it composes load-buffer -b <name> - and delete-buffer -b <name>, and nothing else (build/p348/SPEC.md D52)`);
+    if (a.file !== buffer && (a.kind === 'load-buffer' || a.kind === 'delete-buffer')) fail('Y3', `${where(a.file, a.node)}: ${rel(a.file)} composes the ${a.kind} itself; the domain's one ${a.kind} lives in src/main/reply/buffer.ts, reached through loadWords( and dropWords( (build/p348/SPEC.md D52)`);
   }
   // The press and the paste aim at the reading's pane, never the session.
   const targets = (kind, positions) => (kinds.get(kind) ?? []).flatMap((a) => positions.map((i) => a.shape[i].text));
@@ -7799,23 +8012,38 @@ function replyRules() {
     const marker = a.shape[a.shape.length - 1].text;
     if (!/(?:^|\.)marker$/.test(marker)) fail('Y3', `${where(a.file, a.node)}: the press types ${J(marker)}; it types the marker the phone named and the reading holds, one digit`);
   }
-  checked('Y3', 3);
+  checked('Y3', 4);
   if (writer !== null) {
     if ((kinds.get('press control: send-keys') ?? []).length !== 1 || (kinds.get('press control: copy-mode') ?? []).length !== 1) fail('Y3', `${rel(writer)}: the press's two control lines are composed ${String((kinds.get('press control: copy-mode') ?? []).length)} and ${String((kinds.get('press control: send-keys') ?? []).length)} time(s); once each (D8)`);
     if ((kinds.get('press list') ?? []).length !== 1) fail('Y3', `${rel(writer)}: the spawned press list is composed ${String((kinds.get('press list') ?? []).length)} time(s); once, the fallback when the control client is not connected (D8)`);
-    if ((kinds.get('paste list') ?? []).length !== 1 || (kinds.get('load-buffer') ?? []).length !== 1) fail('Y3', `${rel(writer)}: the message's load-buffer and paste list are composed ${String((kinds.get('load-buffer') ?? []).length)} and ${String((kinds.get('paste list') ?? []).length)} time(s); once each (D9)`);
+    if ((kinds.get('paste list') ?? []).length !== 1) fail('Y3', `${rel(writer)}: the message's paste list is composed ${String((kinds.get('paste list') ?? []).length)} time(s); once (D9)`);
+  }
+  if (buffer !== null) {
+    for (const kind of ['load-buffer', 'delete-buffer']) {
+      const found = (kinds.get(kind) ?? []).filter((a) => a.file === buffer);
+      if (found.length !== 1) fail('Y3', `${rel(buffer)}: the ${kind} is composed ${String(found.length)} time(s); ONCE, the domain's one (build/p348/SPEC.md D52)`);
+    }
   }
   // Every Enter, -l and send-keys literal in the domain sits in a shape above.
   const inArgv = (n) => argvs.some((a) => inside(n, a.node) && a.kind !== null);
   for (const file of replyFiles) {
     for (const { node, text } of codeStringsOf(file)) {
-      if (!['Enter', 'C-m', 'KPEnter', '-l', 'send-keys', 'paste-buffer'].includes(text)) continue;
+      if (!['Enter', 'C-m', 'KPEnter', '-l', 'send-keys', 'paste-buffer', 'load-buffer', 'delete-buffer'].includes(text)) continue;
       checked('Y3');
-      if (!inArgv(node)) fail('Y3', `${where(file, node)} spells ${J(text)} outside the argv shapes Y3 names. An Enter is the paste list's alone, -l is the press's alone, and nothing else in the reply domain may compose a keystroke`);
+      if (!inArgv(node)) fail('Y3', `${where(file, node)} spells ${J(text)} outside the argv shapes Y3 names. An Enter is the paste list's alone, -l is the press's alone, the buffer's two verbs are buffer.ts's, and nothing else in the reply domain may compose a keystroke`);
+    }
+  }
+  // PHASE 348: the Screen's paste reaches the buffer only through the helper.
+  for (const file of screenFiles) {
+    for (const { node, text } of codeStringsOf(file)) {
+      if (text !== 'load-buffer' && text !== 'delete-buffer' && text !== 'set-buffer') continue;
+      checked('Y3');
+      fail('Y3', `${where(file, node)} spells ${J(text)}; src/main/screen reaches a buffer only through loadWords( and dropWords( of src/main/reply/buffer.ts (build/p348/SPEC.md D52)`);
     }
   }
 
-  // Y4: no argv element is the text; its one sink is stdin; the buffer is the writer's own; delete-buffer in a finally.
+  // Y4: no argv element is the text; its one sink is the helper's stdin; the
+  // buffer is the helper's own name; dropWords( in a finally in both callers.
   if (writer !== null) {
     for (const a of argvs) {
       for (const el of a.shape) {
@@ -7823,6 +8051,7 @@ function replyRules() {
         if (/\btext\b/.test(el.text)) fail('Y4', `${where(a.file, a.node)}: an argv element is ${J(el.text)}; no argv element in src/main/reply is derived from a message's text, whose one sink is load-buffer's stdin (research 135 §3.1, §4.8: a failed tmux command's text holds its argv)`);
       }
     }
+    // In writer.ts the message's text reaches textRefusal( and loadWords( alone.
     const textReads = nodesOf(writer).filter((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'text' && /input|parsed|body/.test(n.expression.getText()));
     checked('Y4', 2);
     if (textReads.length === 0) fail('Y4', `${rel(writer)} never reads input.text, so where a message goes cannot be read`);
@@ -7834,35 +8063,88 @@ function replyRules() {
           ok = true;
           break;
         }
-        if (ts.isPropertyAssignment(p) && memberName(p) === 'stdin') {
+        if (ts.isCallExpression(p) && calleeName(p) === 'loadWords' && p.arguments[2] !== undefined && inside(n, p.arguments[2])) {
           ok = true;
           sinks += 1;
           break;
         }
       }
-      if (!ok) fail('Y4', `${where(writer, n)}: the text is read as ${J(n.parent.getText().slice(0, 60))}; it reaches textRefusal( and the stdin of load-buffer, and nothing else`);
+      if (!ok) fail('Y4', `${where(writer, n)}: the text is read as ${J(n.parent.getText().slice(0, 60))}; it reaches textRefusal( and loadWords(, the one buffer helper, and nothing else (build/p348/SPEC.md D52)`);
     }
-    if (sinks !== 1) fail('Y4', `${rel(writer)}: the text reaches a stdin ${String(sinks)} time(s); once, load-buffer's`);
-    for (const kind of ['load-buffer', 'paste list', 'delete-buffer']) {
-      for (const a of kinds.get(kind) ?? []) {
-        const at = kind === 'paste list' ? 9 : 2;
-        const name = a.shape[at].text;
-        const decl = ts.isIdentifier(bare(a.node.elements[at])) ? constNamed(writer, name) : null;
-        // The initializer, with every module const it names read in beside it
-        // (`BUFFER_PREFIX + randomBytes(16).toString('hex')`).
-        const init = decl === null ? '' : [decl.initializer.getText(astOf(writer)), ...descendantsOf(decl.initializer).filter((m) => ts.isIdentifier(m)).map((m) => constNamed(writer, m.text)).filter((d) => d !== null && d !== decl).map((d) => d.initializer.getText(astOf(writer)))].join(' ');
-        checked('Y4');
-        if (decl === null || !/tortie-say-/.test(init) || /\binput\b|\bparsed\b|\.write\b/.test(init)) {
-          fail('Y4', `${where(a.file, a.node)}: the ${kind}'s buffer is ${J(name)}${decl === null ? ', not a const of the writer' : ` = ${J(init.slice(0, 60))}`}; it is 'tortie-say-' and an id the writer mints itself, and the phone's write id never names a tmux object`);
-        }
+    if (sinks !== 1) fail('Y4', `${rel(writer)}: the text reaches loadWords( ${String(sinks)} time(s); once (build/p348/SPEC.md D52)`);
+    // The paste list's buffer is the name loadWords( answered.
+    const loadsInWriter = callsOf(writer).filter((c) => calleeName(c) === 'loadWords');
+    const nameOf = (load) => {
+      for (let p = load?.parent; p !== undefined && !ts.isFunctionLike(p); p = p.parent) {
+        if (ts.isBinaryExpression(p) && p.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isIdentifier(p.left)) return p.left.text;
+        if (ts.isVariableDeclaration(p) && ts.isIdentifier(p.name)) return p.name.text;
       }
+      return null;
+    };
+    for (const a of (kinds.get('paste list') ?? []).filter((x) => x.file === writer)) {
+      checked('Y4');
+      const named = a.shape[9].text;
+      if (loadsInWriter.length !== 1 || named !== nameOf(loadsInWriter[0])) fail('Y4', `${where(a.file, a.node)}: the paste list's buffer is ${J(named)}; it is the name loadWords( answered, minted by the helper, never the phone's write id (build/p348/SPEC.md D52)`);
     }
-    checked('Y4', 2);
-    if (!callsOf(writer).some((c) => calleeName(c) === 'randomBytes' && c.arguments[0]?.getText() === '16')) fail('Y4', `${rel(writer)} mints no 32-hex id of its own (randomBytes(16)) for the buffer`);
-    for (const a of kinds.get('delete-buffer') ?? []) {
-      if (!insideFinally(a.node)) fail('Y4', `${where(a.file, a.node)}: delete-buffer is not in a finally, so a refusal or a throw after load-buffer leaves his words in the private server`);
+  }
+  // Both callers hand the helper their own prefix, never the write id, and
+  // drop the words in a finally.
+  {
+    const prefixValue = (file, arg) => {
+      const b = bare(arg);
+      if (b === undefined) return null;
+      if (ts.isStringLiteralLike(b)) return b.text;
+      if (!ts.isIdentifier(b)) return null;
+      for (const f of [file, buffer].filter((x) => x !== null)) {
+        const d = constNamed(f, b.text);
+        const v = d === null ? undefined : bare(d.initializer);
+        if (v !== undefined && ts.isStringLiteralLike(v)) return v.text;
+      }
+      return null;
+    };
+    for (const [file, prefix, label] of [[writer, 'tortie-say-', 'writer.ts (say)'], [existsSync(PS_PASTE) ? PS_PASTE : null, 'tortie-paste-', 'src/main/screen/paste.ts (paste)']]) {
+      checked('Y4', 3);
+      if (file === null) {
+        fail('Y4', `${label} does not exist, so its buffer was not read (build/p348/SPEC.md D52)`);
+        continue;
+      }
+      const loads = callsOf(file).filter((c) => calleeName(c) === 'loadWords');
+      const drops = callsOf(file).filter((c) => calleeName(c) === 'dropWords');
+      if (loads.length !== 1) fail('Y4', `${rel(file)} calls loadWords( ${String(loads.length)} time(s); once, before its one fresh reading (build/p348/SPEC.md D52)`);
+      for (const l of loads) {
+        const got = prefixValue(file, l.arguments[1]);
+        if (got !== prefix) fail('Y4', `${where(file, l)}: loadWords( is handed the prefix ${J(l.arguments[1]?.getText() ?? null)} (${J(got)}); ${label}'s is ${J(prefix)} (build/p348/SPEC.md D52)`);
+        if (l.arguments.some((x) => /\.write\b|\bparsed\b|\bwrite\b/.test(x.getText()))) fail('Y4', `${where(file, l)}: loadWords( is handed ${J(l.getText().slice(0, 80))}; the phone's write id never names a tmux object (build/p348/SPEC.md D52)`);
+      }
+      if (drops.length === 0) fail('Y4', `${rel(file)} never calls dropWords(, so words refused after the load stay in the private server (build/p348/SPEC.md D52)`);
+      for (const d of drops) if (!insideFinally(d)) fail('Y4', `${where(file, d)}: dropWords( is not in a finally, so a refusal or a throw after loadWords( leaves his words in the private server (build/p348/SPEC.md D52)`);
     }
-    if ((kinds.get('delete-buffer') ?? []).length === 0) fail('Y4', `${rel(writer)} never deletes the buffer, so a message refused after load-buffer stays in the private server`);
+  }
+  // buffer.ts: the name is minted there, the text's one sink is the load's stdin.
+  if (buffer !== null) {
+    const load = oneFunction(buffer, 'loadWords');
+    const drop = oneFunction(buffer, 'dropWords');
+    checked('Y4', 5);
+    if (load === null || drop === null) fail('Y4', `${rel(buffer)} declares ${J({ loadWords: load !== null, dropWords: drop !== null })}; it declares each once (build/p348/SPEC.md D52)`);
+    if (load !== null) {
+      const [, prefixParam, textParam] = load.parameters.map((p) => (ts.isIdentifier(p.name) ? p.name.text : null));
+      const minted = descendantsOf(load).find((n) => ts.isVariableDeclaration(n) && n.initializer !== undefined && ts.isBinaryExpression(bare(n.initializer)) && bare(n.initializer).operatorToken.kind === ts.SyntaxKind.PlusToken);
+      const mintText = minted === undefined ? '' : squash(minted.initializer.getText());
+      if (prefixParam === null || mintText !== `${prefixParam}+randomBytes(16).toString('hex')`) fail('Y4', `${where(buffer, load)}: loadWords names its buffer ${J(mintText)}; it is the prefix and an id it mints, prefix + randomBytes(16).toString('hex'), and never anything the phone sent (build/p348/SPEC.md D52)`);
+      const uses = textParam === null ? [] : descendantsOf(load).filter((n) => ts.isIdentifier(n) && n.text === textParam && !ts.isParameter(n.parent));
+      const sink = uses.filter((u) => {
+        for (let p = u.parent; p !== undefined && p !== load; p = p.parent) if (ts.isPropertyAssignment(p) && memberName(p) === 'stdin') return true;
+        return false;
+      });
+      if (uses.length !== 1 || sink.length !== 1) fail('Y4', `${where(buffer, load)}: loadWords reads its text ${String(uses.length)} time(s) and hands it to a stdin ${String(sink.length)} time(s); once, as load-buffer's stdin, and nowhere else (build/p348/SPEC.md D52)`);
+      if (!callsOf(buffer).some((c) => calleeName(c) === 'randomBytes' && c.arguments[0]?.getText() === '16')) fail('Y4', `${rel(buffer)} mints no 32-hex id of its own (randomBytes(16)) for the buffer`);
+    }
+    for (const [name, want] of [['SAY_BUFFER_PREFIX', 'tortie-say-'], ['PASTE_BUFFER_PREFIX', 'tortie-paste-']]) {
+      const d = constNamed(buffer, name);
+      const v = d === null ? undefined : bare(d.initializer);
+      checked('Y4');
+      if (v === undefined || !ts.isStringLiteralLike(v) || v.text !== want) fail('Y4', `${rel(buffer)}: ${name} is ${J(v?.getText() ?? null)}; it is ${J(want)} (build/p348/SPEC.md D52)`);
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -8139,7 +8421,7 @@ function replyRules() {
     const qid = replyModule('question-id', 'Y13');
     const sites = [];
     for (const file of productionSources()) {
-      const src = readFileSync(file, 'utf8');
+      const src = sourceOf(file);
       if (!/replyTurns|\.bump\(|\.hook\(/.test(src)) continue;
       for (const c of callsOf(file)) {
         const name = calleeName(c);
@@ -8154,8 +8436,20 @@ function replyRules() {
     // PHASE 337 (build/p337/SPEC.md §6.1, D21): and the Screen's keys verb,
     // once, with the cause 'phone', as the statement before its act.
     const screenKeys = join(SCREEN_DIR, 'keys.ts');
+    // PHASE 348 (build/p348/SPEC.md §4.7): and the Screen's paste verb, once,
+    // with the cause 'phone', before its act.
+    const screenPaste = join(SCREEN_DIR, 'paste.ts');
     for (const s of sites) {
-      if (s.file !== core && s.file !== writer && s.file !== screenKeys) fail('Y13', `${where(s.file, s.c)} moves the question id (${s.recv}.${s.name}(); only core.ts's hook, onInput, onChoiceMoved and onStatus wiring, writer.ts's two acts and src/main/screen/keys.ts's one act do`);
+      if (s.file !== core && s.file !== writer && s.file !== screenKeys && s.file !== screenPaste) fail('Y13', `${where(s.file, s.c)} moves the question id (${s.recv}.${s.name}(); only core.ts's hook, onInput, onChoiceMoved and onStatus wiring, writer.ts's two acts, src/main/screen/keys.ts's one act and src/main/screen/paste.ts's one act do`);
+    }
+    checked('Y13');
+    if (!existsSync(screenPaste)) {
+      fail('Y13', `src/main/screen/paste.ts does not exist, so the paste verb's bump was not read. It is ${P348_OWNER}.`);
+    } else {
+      const k = at(screenPaste);
+      if (k.length !== 1 || k[0].name !== 'bump' || k[0].cause !== "'phone'") {
+        fail('Y13', `src/main/screen/paste.ts moves the question id as ${J(k.map((x) => `${x.name}(${String(x.cause)})`))}; it bumps 'phone' exactly once, before its act, and never names hook( (build/p348/SPEC.md §4.7)`);
+      }
     }
     checked('Y13');
     if (!existsSync(screenKeys)) {
@@ -8236,8 +8530,12 @@ function replyRules() {
   // Y15, NOTHING STRIPS, TRIMS OR NORMALIZES A MESSAGE.
   // -------------------------------------------------------------------------
   {
-    for (const name of ['text-rules', 'writer']) {
-      const file = name === 'writer' ? writer : replyModule(name, 'Y15');
+    // PHASE 348 (build/p348/SPEC.md §4.6 step 8): the paste verb is read the
+    // same way, because a paste's text is his bytes too, taken AS IT IS.
+    const pasteVerb = existsSync(PS_PASTE) ? PS_PASTE : null;
+    if (pasteVerb === null) fail('Y15', `${rel(PS_PASTE)} does not exist, so a paste's text was read for nothing. It is ${P348_OWNER} (build/p348/SPEC.md §9.1).`);
+    for (const name of ['text-rules', 'writer', 'paste']) {
+      const file = name === 'writer' ? writer : name === 'paste' ? pasteVerb : replyModule(name, 'Y15');
       if (file === null) continue;
       for (const c of callsOf(file)) {
         if (!ts.isPropertyAccessExpression(c.expression)) continue;
@@ -8250,11 +8548,19 @@ function replyRules() {
     }
     const decls = [];
     for (const file of productionSources()) {
-      if (!readFileSync(file, 'utf8').includes('REPLY_TEXT_MAX_BYTES')) continue;
+      if (!sourceOf(file).includes('REPLY_TEXT_MAX_BYTES')) continue;
       for (const n of nodesOf(file)) if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'REPLY_TEXT_MAX_BYTES') decls.push(where(file, n));
     }
     checked('Y15');
     if (decls.length !== 1) fail('Y15', `REPLY_TEXT_MAX_BYTES is declared ${String(decls.length)} time(s) (${decls.join(', ') || 'nowhere'}); once, in src/main/reply/text-rules.ts`);
+    // PHASE 348: and the paste's bound, once, in the contract (PS1 reads its value).
+    const pasteDecls = [];
+    for (const file of productionSources()) {
+      if (!sourceOf(file).includes('POCKET_PASTE_MAX_TEXT_BYTES')) continue;
+      for (const n of nodesOf(file)) if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'POCKET_PASTE_MAX_TEXT_BYTES') pasteDecls.push(where(file, n));
+    }
+    checked('Y15');
+    if (pasteDecls.length !== 1 || !pasteDecls[0].startsWith('src/shared/ipc/pocket.ts')) fail('Y15', `POCKET_PASTE_MAX_TEXT_BYTES is declared ${String(pasteDecls.length)} time(s) (${pasteDecls.join(', ') || 'nowhere'}); once, in src/shared/ipc/pocket.ts, so a paste's bound is one number the phone and the Mac both read (build/p348/SPEC.md D29)`);
   }
 
   // -------------------------------------------------------------------------
@@ -8313,7 +8619,7 @@ function replyRules() {
     const want = ['isPaneReport', 'isFocusReport', 'isColorReport', 'isDeviceReport'];
     const declared = new Map(want.map((w) => [w, []]));
     for (const file of productionSources()) {
-      const src = readFileSync(file, 'utf8');
+      const src = sourceOf(file);
       if (!want.some((w) => src.includes(w))) continue;
       for (const n of nodesOf(file)) {
         const name = (ts.isFunctionDeclaration(n) && n.name !== undefined ? n.name.text : null) ?? (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer !== undefined && (ts.isArrowFunction(bare(n.initializer)) || ts.isFunctionExpression(bare(n.initializer))) ? n.name.text : null);
@@ -9458,13 +9764,14 @@ function screenRules() {
     }
     const wire = zFile('src/main/pocket/door/wire.ts', 'Z1', Z_OWNER.door);
     if (wire !== null) {
-      for (const [name, want] of [['SIGNED_ROUTES', ['blocked', 'screen', 'scrollback', 'session', 'sessions', 'turns']], ['WRITE_ROUTES', ['choose', 'end', 'keys', 'say', 'start']]]) {
+      // PHASE 348 (build/p348/SPEC.md §4.2 step 2): WRITE_ROUTES gains remove and paste.
+      for (const [name, want] of [['SIGNED_ROUTES', ['blocked', 'screen', 'scrollback', 'session', 'sessions', 'turns']], ['WRITE_ROUTES', ['choose', 'end', 'keys', 'paste', 'remove', 'say', 'start']]]) {
         checked('Z1');
         const decl = constNamed(wire, name);
         const init = decl === null ? undefined : bare(decl.initializer);
         const got = init !== undefined && ts.isArrayLiteralExpression(init) ? init.elements.map((e) => (ts.isStringLiteral(e) ? e.text : '?')).sort() : null;
         if (got === null || J(got) !== J(want)) {
-          fail('Z1', `${rel(wire)}: ${name} is ${J(got)}; it is exactly ${J(want)} (build/p337/SPEC.md §5.1; build/p3371/SPEC.md §5.1 adds scrollback to the signed reads and nothing to the writes; build/p346/SPEC.md §4.12 adds start to the writes). The door hands main a signed read or a write only for an id on its own list.`);
+          fail('Z1', `${rel(wire)}: ${name} is ${J(got)}; it is exactly ${J(want)} (build/p337/SPEC.md §5.1; build/p3371/SPEC.md §5.1 adds scrollback to the signed reads and nothing to the writes; build/p346/SPEC.md §4.12 adds start to the writes; build/p348/SPEC.md §4.2 step 2 adds remove and paste). The door hands main a signed read or a write only for an id on its own list.`);
         }
       }
     }
@@ -9484,9 +9791,12 @@ function screenRules() {
       for (const p of init.properties) if (ts.isPropertyAssignment(p) && memberName(p) !== null) got[memberName(p)] = ts.isNumericLiteral(bare(p.initializer)) ? Number(bare(p.initializer).text.replace(/_/g, '')) : null;
     }
     // PHASE 346 (build/p346/SPEC.md D6): and start's 512, which R2 and NS7 hold.
-    const want = { choose: 512, end: 512, keys: 16_384, say: 32_768, start: 512 };
+    // PHASE 348 (build/p348/SPEC.md D29): remove's 512 and paste's 131,072;
+    // the twice-the-worst rule below is the keys cap's alone (PS1 holds the
+    // paste's own worst body).
+    const want = { choose: 512, end: 512, keys: 16_384, paste: 131_072, remove: 512, say: 32_768, start: 512 };
     if (J(Object.keys(got).sort().map((k) => [k, got[k]])) !== J(Object.keys(want).sort().map((k) => [k, want[k]]))) {
-      fail('Z2', `${limits === null ? 'src/main/pocket/door/limits.ts' : rel(limits)}: POCKET_WRITE_BODY_CAPS is ${J(got)}; it is exactly end 512, choose 512, say 32,768, keys 16,384 and (Phase 346, D6) start 512 (build/p337/SPEC.md D17, Y1 widened)`);
+      fail('Z2', `${limits === null ? 'src/main/pocket/door/limits.ts' : rel(limits)}: POCKET_WRITE_BODY_CAPS is ${J(got)}; it is exactly end 512, choose 512, say 32,768, keys 16,384, (Phase 346, D6) start 512 and (Phase 348, D29) remove 512 and paste 131,072 (build/p337/SPEC.md D17, Y1 widened)`);
     }
     // The worst legal-shape keys body, composed HERE by this gate rather than
     // read from the spec: the longest session id the parse takes (128), a
@@ -9675,15 +9985,33 @@ function screenRules() {
       if (!handed) fail('Z6', 'src/main/capabilities.ts does not hand createScreenKeys typeRemote: typePhoneKeys, so a key on another machine does not go through the carriage’s one composer (build/p337/SPEC.md D20)');
     }
 
-    // Z8, THE ONE STATUS CALL.
-    const notes = screenFilesNow.flatMap((file) => callsOf(file).filter((c) => calleeName(c) === 'noteUserInput').map((c) => ({ file, c })));
-    checked('Z8', 3);
-    if (notes.length !== 1 || notes[0].file !== keysFile) {
-      fail('Z8', `src/main/screen calls noteUserInput( ${String(notes.length)} time(s) (${notes.map((x) => where(x.file, x.c)).join(', ')}); exactly once, in keys.ts, after the act (build/p337/SPEC.md D23)`);
+    // Z8, THE ONE STATUS CALL A VERB. PHASE 348 (build/p348/SPEC.md §4.7): the
+    // keys verb's one, and the paste verb's one, each after its act.
+    const pasteFile = join(SCREEN_DIR, 'paste.ts');
+    const allNotes = screenFilesNow.flatMap((file) => callsOf(file).filter((c) => calleeName(c) === 'noteUserInput').map((c) => ({ file, c })));
+    const notes = allNotes.filter((x) => x.file === keysFile);
+    const pasteNotes = allNotes.filter((x) => x.file === pasteFile);
+    checked('Z8', 4);
+    for (const x of allNotes.filter((y) => y.file !== keysFile && y.file !== pasteFile)) fail('Z8', `${where(x.file, x.c)} calls noteUserInput(; in src/main/screen only keys.ts and paste.ts do, once each, after their act (build/p337/SPEC.md D23; build/p348/SPEC.md §4.7)`);
+    if (notes.length !== 1) {
+      fail('Z8', `src/main/screen/keys.ts calls noteUserInput( ${String(notes.length)} time(s) (${notes.map((x) => where(x.file, x.c)).join(', ')}); exactly once, after the act (build/p337/SPEC.md D23)`);
     } else if (k.act !== undefined && zAt(k.standIn(notes[0].c)) <= k.act.at) {
       fail('Z8', `${where(keysFile, notes[0].c)}: noteUserInput( comes before the act; a key answers what the session was waiting on only once it has been typed`);
     } else if (k.still !== undefined && zAt(k.standIn(notes[0].c)) <= k.still.at) {
       fail('Z8', `${where(keysFile, notes[0].c)}: noteUserInput( is reached on a path before the final check, so a refused write could move the status`);
+    }
+    if (pasteNotes.length !== 1) {
+      fail('Z8', `src/main/screen/paste.ts calls noteUserInput( ${String(pasteNotes.length)} time(s)${pasteNotes.length > 0 ? ` (${pasteNotes.map((x) => where(x.file, x.c)).join(', ')})` : ''}; exactly once, after its act, when the list succeeded (build/p348/SPEC.md §4.7)`);
+    } else {
+      const verb = psVerbOf(pasteFile);
+      const own = verb === null ? [] : psOwn(verb);
+      const act = own.find((c) => ts.isCallExpression(c) && ts.isIdentifier(c.expression) && c.expression.text === 'run');
+      const reads = own.filter((c) => ts.isCallExpression(c) && calleeName(c) === 'readFresh');
+      const still = own.find((c) => ts.isCallExpression(c) && ts.isIdentifier(c.expression) && c.expression.text === 'still' && reads[0] !== undefined && c.getStart() > reads[0].getStart());
+      const note = pasteNotes[0].c;
+      if (verb === null || act === undefined || note.getStart() <= act.getStart()) fail('Z8', `${where(pasteFile, note)}: the paste's noteUserInput( does not come after its act; a paste answers what the session was waiting on only once it landed (build/p348/SPEC.md §4.7)`);
+      else if (still === undefined || note.getStart() <= still.getStart()) fail('Z8', `${where(pasteFile, note)}: the paste's noteUserInput( is reached before its final check, so a refused paste could move the status (§4.7)`);
+      else if (!/\bpasted\b/.test(guardingIf(note)?.expression.getText() ?? '')) fail('Z8', `${where(pasteFile, note)}: the paste's noteUserInput( is not guarded by the act's own answer (pasted); it is asked only when the list succeeded (§4.7)`);
     }
     const SETTERS = /^(?:noteHookEvent|applyDetectedStatus|setStatus|setSessionStatus|updateStatus|writeStatus|markStatus|noteForeground|raiseNeedsInput)$/;
     for (const file of screenFilesNow) {
@@ -9802,14 +10130,54 @@ function screenRules() {
         }
       }
       // The spawned down path: ONE list per read, the three joined by `;`.
+      // PHASE 348 (build/p348/SPEC.md D44): the list is spawnedReadArgs( on
+      // the road the marks' owner handed the read, DRIVEN here over the three:
+      // today's three commands, the same three with -F on the flags road, and
+      // five on the fallback, its two captures before the second display.
       const spawned = callsOf(read).filter((c) => /^(?:execTmux|run|spawn|spawnTmux|execFile)$/.test(calleeName(c) ?? ''));
       checked('Z21');
       if (spawned.length !== 1) {
         fail('Z21', `${rel(read)} starts ${String(spawned.length)} spawned tmux call(s); when the control client is down a read is ONE spawned tmux carrying the three as a ; list (build/p337/SPEC.md D5, §Attack A8)`);
       } else {
-        const list = arrayOfArg(read, spawned[0].arguments[0]);
-        const semis = list === null ? 0 : list.elements.filter((e) => ts.isStringLiteral(e) && e.text === ';').length;
-        if (semis !== 2) fail('Z21', `${where(read, spawned[0])}: the down path's one spawn carries ${String(semis)} ; separator(s); it carries the three commands as ONE list, display ; capture ; display, so a down client costs one spawn a read and never three`);
+        const handed = bare(spawned[0].arguments[0]);
+        checked('Z21');
+        if (handed === undefined || !ts.isCallExpression(handed) || calleeName(handed) !== 'spawnedReadArgs') fail('Z21', `${where(read, spawned[0])}: the down path's one spawn is handed ${J(handed?.getText().slice(0, 60) ?? null)}; it is handed spawnedReadArgs(, the one composer of the list (build/p337/SPEC.md D5, §Attack A8)`);
+      }
+      let readMod = null;
+      try {
+        readMod = zLoad(read, AR_STUBS);
+      } catch (err) {
+        fail('Z9', `${rel(read)} could not be loaded in memory to drive its reads: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      const D = (x) => ['display-message', '-p', '-t', x, SCREEN_FORMAT_8];
+      const READ_ROADS = [
+        [undefined, [...D('$7'), ';', 'capture-pane', '-p', '-e', '-t', '$7', ';', ...D('$7')]],
+        ['none', [...D('$7'), ';', 'capture-pane', '-p', '-e', '-t', '$7', ';', ...D('$7')]],
+        ['flags', [...D('$7'), ';', 'capture-pane', '-p', '-e', '-F', '-t', '$7', ';', ...D('$7')]],
+        ['fallback', [...D('$7'), ';', 'capture-pane', '-p', '-e', '-t', '$7', ';', 'capture-pane', '-p', '-T', '-N', '-t', '$7', ';', 'capture-pane', '-p', '-J', '-t', '$7', ';', ...D('$7')]]
+      ];
+      checked('Z21');
+      if (typeof readMod?.spawnedReadArgs !== 'function') fail('Z21', `${rel(read)} exports no spawnedReadArgs to drive, so the down path's list cannot be read (build/p337/SPEC.md §Attack A8)`);
+      else {
+        for (const [road, want] of READ_ROADS) {
+          checked('Z21', 2);
+          let got;
+          try {
+            got = road === undefined ? readMod.spawnedReadArgs('$7') : readMod.spawnedReadArgs('$7', road);
+          } catch (err) {
+            got = `threw ${err instanceof Error ? err.message : String(err)}`;
+          }
+          if (J(got) !== J(want)) fail('Z9', `spawnedReadArgs('$7'${road === undefined ? '' : `, '${road}'`}) composes ${J(got).slice(0, 300)}; it is exactly ${J(want).slice(0, 300)}: the live read's display, styled capture and display, the marks riding the same list by the road and nothing else new (build/p337/SPEC.md D5; build/p348/SPEC.md D44)`);
+          const semis = Array.isArray(got) ? got.filter((x) => x === ';').length : -1;
+          if (semis !== want.filter((x) => x === ';').length) fail('Z21', `spawnedReadArgs('$7'${road === undefined ? '' : `, '${road}'`}) carries ${String(semis)} ; separator(s); a down client costs ONE spawn a read whatever the road, its commands one ; list (build/p337/SPEC.md §Attack A8; build/p348/SPEC.md D44)`);
+        }
+      }
+      // Every flag read.ts spells is one of the reads' own (Phase 348 adds the
+      // marks' four), and nothing that sizes.
+      for (const { node, text } of codeStringsOf(read)) {
+        if (!/^-[A-Za-z]$/.test(text)) continue;
+        checked('Z9');
+        if (!['-p', '-e', '-t', '-F', '-T', '-N', '-J'].includes(text)) fail('Z9', `${where(read, node)}: read.ts names the flag ${J(text)}; its reads name -p, -e, -t and (Phase 348) the marks' -F, -T, -N and -J alone (build/p348/SPEC.md D44)`);
       }
     }
     // THE FAR READS (build/p3371/SPEC.md D6, D10, §5.3.3, §5.3.5). Every
@@ -9850,19 +10218,40 @@ function screenRules() {
           continue;
         }
         const target = fn.parameters[0] !== undefined && ts.isIdentifier(fn.parameters[0].name) ? fn.parameters[0].name.text : null;
-        const rets = ownReturnsOf(fn).map((r) => (r.expression === undefined ? null : flatArgvOf(remote, r.expression))).filter((r) => r !== null);
-        if (rets.length !== 1) {
-          fail('Z9', `${where(remote, fn)}: ${name} answers ${String(rets.length)} argv literal(s); it answers ONE, three commands in one exec`);
-          continue;
-        }
-        const shape = rets[0].map((e, i, all) => {
+        // PHASE 348 (build/p348/SPEC.md D44): one answer per road, the road
+        // the marks' owner handed in: today's three commands, the flags road's
+        // styled capture with -F, and the fallback's two captures of the same
+        // range before the second display. A marked shape is answered under
+        // its own road's guard, and nothing else is new.
+        const returns = ownReturnsOf(fn).map((r) => ({ r, argv: r.expression === undefined ? null : flatArgvOf(remote, r.expression) })).filter((x) => x.argv !== null);
+        const shapeOf = (argv) => argv.map((e, i, all) => {
           if (/^'/.test(e)) return e;
           if (target !== null && e === target) return T;
           if (all[i - 1] === "'-S'") return 'START';
           if (all[i - 1] === "'-E'") return 'END';
           return e;
         });
-        if (J(shape) !== J(want)) fail('Z9', `${where(remote, fn)}: ${name}'s argv is ${J(rets[0])}; it is exactly ${J(want)}: the display, the capture, the display, in ONE exec, the one format and nothing a caller wrote (build/p3371/SPEC.md D6, D10)`);
+        const capture = want.slice(want.indexOf("'capture-pane'"), want.lastIndexOf("';'"));
+        const range = capture.includes("'-S'") ? ["'-S'", 'START', "'-E'", 'END'] : [];
+        const flags = [...capture.slice(0, 3), "'-F'", ...capture.slice(3)];
+        const roads = {
+          none: want,
+          flags: [...DISPLAY, "';'", ...flags, "';'", ...DISPLAY],
+          fallback: [...DISPLAY, "';'", ...capture, "';'", "'capture-pane'", "'-p'", "'-T'", "'-N'", "'-t'", T, ...range, "';'", "'capture-pane'", "'-p'", "'-J'", "'-t'", T, ...range, "';'", ...DISPLAY]
+        };
+        checked('Z9', 2);
+        const got = returns.map((x) => J(shapeOf(x.argv))).sort();
+        const expected = Object.values(roads).map((w) => J(w)).sort();
+        if (J(got) !== J(expected)) fail('Z9', `${where(remote, fn)}: ${name} answers ${J(returns.map((x) => x.argv))}; it answers exactly ${J(Object.values(roads))}: the display, the capture, the display, in ONE exec, the one format and nothing a caller wrote (build/p3371/SPEC.md D6, D10), the wrap marks riding it by the road and nothing else new (build/p348/SPEC.md D44)`);
+        for (const road of ['flags', 'fallback']) {
+          const under = returns.filter((x) => {
+            for (let p = x.r.parent; p !== undefined && p !== fn; p = p.parent) {
+              if (ts.isIfStatement(p) && new RegExp(`^road\\s*===\\s*'${road}'$`).test(p.expression.getText().trim())) return true;
+            }
+            return false;
+          });
+          if (under.length !== 1 || J(shapeOf(under[0].argv)) !== J(roads[road])) fail('Z9', `${where(remote, fn)}: ${name} does not answer the ${road} road's exec, and that one only, under its own guard (if (road === '${road}')); a marked read is chosen by the road the marks' owner hands in (build/p348/SPEC.md D44)`);
+        }
       }
     }
     // THE LOCAL PAGE READ (build/p3371/SPEC.md D9, D15, §5.3.5): scrollback.ts
@@ -9896,6 +10285,50 @@ function screenRules() {
       }
       for (const { node, text } of codeStringsOf(page)) {
         if (/#\{/.test(text)) fail('Z9', `${where(page, node)} spells a format of its own (${J(text.slice(0, 40))}); the page read's one format is SCREEN_FORMAT, imported from ./read (D15)`);
+      }
+      // PHASE 348 (build/p348/SPEC.md D44): the marks' flags ride the page's
+      // capture in exactly their groups, the styled capture's -e with -F on
+      // the flags road, and the fallback's -T -N and -J, each the same range;
+      // no other flag is new, and none of the four is spelled anywhere else.
+      const GROUPS = [J(['-e']), J(['-e', '-F']), J(['-T', '-N']), J(['-J'])];
+      const inGroup = new Set();
+      for (const arr of nodesOf(page).filter((n) => ts.isArrayLiteralExpression(n) && n.elements.length > 0 && n.elements.every((e) => ts.isStringLiteral(e) && /^-/.test(e.text)))) {
+        checked('Z9');
+        const words = arr.elements.map((e) => e.text);
+        if (!GROUPS.includes(J(words))) fail('Z9', `${where(page, arr)}: the page read's flag group is ${J(words)}; a capture's flags are -e, -e with -F on the flags road, or the fallback's -T -N and -J, and nothing else (build/p348/SPEC.md D44)`);
+        for (const e of arr.elements) inGroup.add(e);
+      }
+      for (const { node, text } of codeStringsOf(page)) {
+        if (!/^-[A-Za-z]$/.test(text)) continue;
+        checked('Z9');
+        if (!['-p', '-e', '-t', '-S', '-E', '-F', '-T', '-N', '-J'].includes(text)) fail('Z9', `${where(page, node)}: the page read names the flag ${J(text)}; it names -p, -e, -t, -S, -E and the marks' -F, -T, -N and -J alone (D15; build/p348/SPEC.md D44)`);
+        if (['-F', '-T', '-N', '-J'].includes(text) && !inGroup.has(node)) fail('Z9', `${where(page, node)}: the marks' flag ${J(text)} is spelled outside its flag group; the marks ride the capture by the road and nowhere else (build/p348/SPEC.md D44)`);
+      }
+      for (const flag of ['-F', '-T', '-N', '-J']) {
+        const n = codeStringsOf(page).filter((s) => s.text === flag).length;
+        checked('Z9');
+        if (n !== 1) fail('Z9', `${rel(page)} spells ${J(flag)} ${String(n)} time(s); once, in its one flag group (build/p348/SPEC.md D44)`);
+      }
+    }
+    // PHASE 348 (build/p348/SPEC.md D44): THE ROAD IS CHOSEN BY marksRoadOf(
+    // ALONE. Only the marks' owner calls it (src/main/screen/watch.ts, by the
+    // running server's version), and no other function in the Screen's
+    // modules answers a marked road, so a read never takes -F or the fallback
+    // on any word but the version's.
+    {
+      const sources = [...sourcesUnder(join(ROOT, 'src', 'main', 'screen')), ...(existsSync(REMOTE_SCREEN) ? [REMOTE_SCREEN] : [])];
+      const callers = productionSources().flatMap((f) => (sourceOf(f).includes('marksRoadOf') ? callsOf(f).filter((c) => calleeName(c) === 'marksRoadOf').map((c) => ({ f, c })) : []));
+      const owner = join(ROOT, 'src', 'main', 'screen', 'watch.ts');
+      checked('Z9', 2);
+      if (callers.length === 0) fail('Z9', 'nothing calls marksRoadOf(, so no read ever carries the wrap marks (build/p348/SPEC.md D44)');
+      for (const { f, c } of callers) {
+        if (f !== owner) fail('Z9', `${where(f, c)} calls marksRoadOf(; only the marks' owner in src/main/screen/watch.ts asks it, by the running server's version (build/p348/SPEC.md D44)`);
+      }
+      for (const f of sources) {
+        for (const r of nodesOf(f).filter((n) => ts.isReturnStatement(n) && n.expression !== undefined && ts.isStringLiteralLike(bare(n.expression)) && /^(?:flags|fallback)$/.test(bare(n.expression).text))) {
+          checked('Z9');
+          if (enclosingName(r) !== 'marksRoadOf') fail('Z9', `${where(f, r)} answers the road ${J(bare(r.expression).text)} outside marksRoadOf; a marked road is the version's alone (build/p348/SPEC.md D44)`);
+        }
       }
     }
     const phaseFiles = [...sourcesUnder(join(ROOT, 'src', 'main', 'screen')), ...(existsSync(REMOTE_SCREEN) ? [REMOTE_SCREEN] : [])];
@@ -10464,7 +10897,7 @@ function zLoad(path, stubs) {
   const load = (file) => {
     const seen = cache.get(file);
     if (seen !== undefined) return seen.exports;
-    const text = readFileSync(file, 'utf8');
+    const text = sourceOf(file);
     const js = ts.transpileModule(text, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true }, fileName: file }).outputText;
     const module = { exports: {} };
     cache.set(file, module);
@@ -11192,9 +11625,24 @@ async function scrollbackRules() {
       if (viaShared && existsSync(join(ROOT, 'src', 'main', 'screen', 'read.ts'))) {
         const readFile = join(ROOT, 'src', 'main', 'screen', 'read.ts');
         const shared = oneFunction(readFile, 'statementOverControl');
-        const own = shared === null ? [] : descendantsOf(shared).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'sendCommand');
-        const one = new Set(own.map((c) => statementOf(c)?.statement));
-        if (shared === null || own.length !== 3 || one.size !== 1) fail('Z26', `src/main/screen/read.ts: statementOverControl writes ${String(own.length)} line(s) in ${String(one.size)} statement(s); the one statement is exactly three lines, display, capture and display, in one tick (D9)`);
+        // PHASE 348 (build/p348/SPEC.md D44): the fallback road's two added
+        // captures ride the SAME statement, each its own line, written by ONE
+        // map over an extras parameter that defaults to none: three lines
+        // written directly (display, capture, display) and the extras between.
+        const all = shared === null ? [] : descendantsOf(shared).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'sendCommand');
+        const own = all.filter((c) => !nestedIn(c, shared));
+        const extra = all.filter((c) => nestedIn(c, shared));
+        const extrasParam = shared === null ? undefined : shared.parameters.find((p) => ts.isIdentifier(p.name) && p.name.text === 'extras');
+        const mapped = extra.every((c) => {
+          for (let p = c.parent; p !== undefined && p !== shared; p = p.parent) if (ts.isCallExpression(p) && calleeName(p) === 'map' && /^extras\./.test(p.expression.getText())) return true;
+          return false;
+        });
+        if (shared === null || own.length !== 3 || extra.length > 1 || !mapped || (extra.length === 1 && (extrasParam === undefined || bare(extrasParam.initializer)?.getText() !== '[]'))) fail('Z26', `src/main/screen/read.ts: statementOverControl writes ${String(own.length)} line(s) directly and ${String(extra.length)} through a map; the one statement is exactly three lines, display, capture and display, in one tick (D9), and since Phase 348 the road's extras between, one map over an extras parameter that defaults to none (build/p348/SPEC.md D44)`);
+        const statementsAt = new Set(own.map((c) => {
+          for (let p = c.parent; p !== undefined && p !== shared; p = p.parent) if (ts.isVariableStatement(p) || ts.isExpressionStatement(p) || ts.isReturnStatement(p)) return p;
+          return null;
+        }));
+        if (statementsAt.size !== 1 || [...statementsAt][0] === null) fail('Z26', `src/main/screen/read.ts: statementOverControl writes its lines in ${String(statementsAt.size)} statement(s); ONE statement, so they reach tmux in one tick and in order (D9)`);
       }
       const spawns = callsOf(page).filter((c) => /^(?:execTmux|spawn|spawnTmux|execFile)$/.test(calleeName(c) ?? ''));
       checked('Z26');
@@ -11340,7 +11788,16 @@ async function scrollbackRules() {
       const first = head.parameters[0] !== undefined && ts.isIdentifier(head.parameters[0].name) ? head.parameters[0].name.text : null;
       const reads = nodes.filter((n) => ts.isCallExpression(n) && (calleeName(n) === 'readStyledRows' || calleeName(n) === 'styledRows'));
       checked('Z27', 4);
-      if (reads.length === 0 || !reads.some((c) => c.arguments[0] !== undefined && bare(c.arguments[0]).getText() === first)) {
+      // PHASE 348 (build/p348/SPEC.md D44): on the flags road each line's
+      // prefix is stripped first, by stylesOf over the WHOLE capture, so the
+      // pens are still read over every row of it.
+      const whole = (arg) => {
+        const b = bare(arg);
+        if (b === undefined) return false;
+        if (b.getText() === first) return true;
+        return ts.isCallExpression(b) && calleeName(b) === 'stylesOf' && b.arguments[0] !== undefined && bare(b.arguments[0]).getText() === first;
+      };
+      if (reads.length === 0 || !reads.some((c) => c.arguments[0] !== undefined && whole(c.arguments[0]))) {
         fail('Z27', `${where(compose, fn)}: composePage does not read the WHOLE capture's pens (styledRows(${String(first)}) or readStyledRows(${String(first)})); tmux writes each cell's style as a change from the cell before it, across rows, so a row cut before its pens are read can lose its pen (D11)`);
       }
       if (nodes.some((n) => ts.isCallExpression(n) && calleeName(n) === 'composeRows')) fail('Z27', `${where(compose, fn)}: composePage calls composeRows(, which builds runs for every row of the capture; runs are built for the kept rows only, through composeRows' per-row body, shared (§Attack B10)`);
@@ -12232,7 +12689,7 @@ function setupPressRule(ipc) {
   }
   // PocketHostDeps.setup is the tests' alone (U4's rule; D12).
   for (const file of sourcesUnder(join(ROOT, 'src'))) {
-    if (!/new PocketHost\(/.test(readFileSync(file, 'utf8'))) continue;
+    if (!/new PocketHost\(/.test(sourceOf(file))) continue;
     for (const node of nodesOf(file)) {
       if (!ts.isNewExpression(node) || !ts.isIdentifier(node.expression) || node.expression.text !== 'PocketHost') continue;
       const arg = node.arguments?.[0];
@@ -12328,8 +12785,9 @@ function accountRule() {
   // PHASE 346 RETIRES "THE ELEVEN IT WAS" ON PURPOSE (build/p346/SPEC.md §5.1):
   // Phase 333.1 added no route and held the list there; Phase 346 adds start,
   // last, and nothing else, so the list is the eleven and then start.
-  const SU5_ROUTES = [...ROUTES_BEFORE_3331, 'start'];
-  if (JSON.stringify(ids) !== JSON.stringify(SU5_ROUTES)) fail('SU5', `src/shared/ipc/pocket.ts's POCKET_ROUTE_IDS is ${JSON.stringify(ids)}, not the eleven it was (${ROUTES_BEFORE_3331.join(', ')}) and Phase 346's start, last: 333.1 added no door route (D30), and Phase 346 adds start alone (build/p346/SPEC.md D1)`);
+  // PHASE 348 (build/p348/SPEC.md D26): and remove and paste after start.
+  const SU5_ROUTES = [...ROUTES_BEFORE_3331, 'start', 'remove', 'paste'];
+  if (JSON.stringify(ids) !== JSON.stringify(SU5_ROUTES)) fail('SU5', `src/shared/ipc/pocket.ts's POCKET_ROUTE_IDS is ${JSON.stringify(ids)}, not the eleven it was (${ROUTES_BEFORE_3331.join(', ')}), Phase 346's start and Phase 348's remove and paste, in that order: 333.1 added no door route (D30), Phase 346 adds start alone (build/p346/SPEC.md D1) and Phase 348 remove and paste (build/p348/SPEC.md D26)`);
   // The contract: account is a member of PocketStatus and of no other type.
   for (const n of nodesOf(contract)) {
     if (!(ts.isPropertySignature(n) || ts.isPropertyDeclaration(n)) || memberName(n) !== 'account') continue;
@@ -12783,9 +13241,10 @@ function arFile(path, id, owner) {
 const arTextCache = new Map();
 function arFilesNaming(dir, word) {
   return sourcesUnder(dir).filter((f) => {
+    if (OVERLAY.has(f)) return OVERLAY.get(f).includes(word);
     let text = arTextCache.get(f);
     if (text === undefined) {
-      text = readFileSync(f, 'utf8');
+      text = sourceOf(f);
       arTextCache.set(f, text);
     }
     return text.includes(word);
@@ -12833,7 +13292,7 @@ function arLoadText(path, text, stubs = AR_STUBS) {
 /** The frozen launch set's route ids and membership, or null with the rule failed. */
 function arLaunch(id) {
   try {
-    const wire = JSON.parse(readFileSync(AR_LAUNCH, 'utf8'));
+    const wire = JSON.parse(sourceOf(AR_LAUNCH));
     const routes = Array.isArray(wire.routes) ? wire.routes : [];
     if (routes.length === 0) throw new Error('it holds no routes');
     return { routes, ids: routes.map((r) => r.id), membership: wire.routeMembership ?? null };
@@ -13490,7 +13949,7 @@ function arHonestyRule() {
           if (got !== honesty) fail(id, `pocketDoorHonesty(${what}) answers ${J(got)?.slice(0, 160)}, not POCKET_DOOR_HONESTY byte for byte (D13)`);
         }
         if (added !== null) {
-          const text = readFileSync(contract, 'utf8');
+          const text = sourceOf(contract);
           const init = added.initializer;
           const variant = `${text.slice(0, init.getStart(astOf(contract)))}Object.freeze({ probe: 'read a probe', spare: 'write a spare' }) as never${text.slice(init.getEnd())}`;
           let planted = null;
@@ -13836,6 +14295,18 @@ function arLedgerRule() {
     const row = rows.find((r) => r.id === 'start');
     checked(id);
     if (row === undefined || nsSorted(row) !== nsSorted(want)) fail(id, `${rel(ledger)}: the start row is ${J(row ?? null)}; it is exactly ${J(want)} (build/p346/SPEC.md D1, D3, D6)`);
+  }
+  // PHASE 348 (build/p348/SPEC.md §4.2 step 2, D26, D29, D32): the ledger's
+  // remove and paste rows, written out exactly, appended after start, because
+  // the ledger only grows at its end and an id's row is its meaning for good.
+  {
+    for (const want of [RM_LEDGER_ROW, PS_LEDGER_ROW]) {
+      const row = rows.find((r) => r.id === want.id);
+      checked(id);
+      if (row === undefined || nsSorted(row) !== nsSorted(want)) fail(id, `${rel(ledger)}: the ${want.id} row is ${J(row ?? null)}; it is exactly ${J(want)} (build/p348/SPEC.md §4.2 step 2, D29, D32)`);
+    }
+    checked(id);
+    if (J(ids.slice(-3)) !== J(['start', 'remove', 'paste'])) fail(id, `${rel(ledger)}: the ledger's ids are ${J(ids)}; its last three rows are start, remove and paste, in that order, because the ledger only grows at its end (build/p348/SPEC.md D26)`);
   }
   const contract = existsSync(AR_CONTRACT) ? arLoad(AR_CONTRACT, id) : null;
   for (const legacy of contract?.LEGACY_ALLOWED_ROUTES ?? []) {
@@ -14319,11 +14790,16 @@ function afDrivenRule() {
   }
   // PHASE 346 (build/p346/SPEC.md §5.1): the drives below are the eleven's
   // (start left out, as the spec step read them); one drive after them passes
-  // this build's twelve and reads start's own clause last.
-  const twelve = [...mod.POCKET_ROUTE_IDS];
-  const routes = twelve.filter((r) => r !== 'start');
+  // this build's twelve and reads start's own clause last. PHASE 348
+  // (build/p348/SPEC.md D32): remove and paste are left out of the eleven's
+  // drives too, the twelve's drive is the eleven and start, and one more
+  // passes this build's fourteen.
+  const fourteen = [...mod.POCKET_ROUTE_IDS];
+  const LATER = ['start', 'remove', 'paste'];
+  const routes = fourteen.filter((r) => !LATER.includes(r));
+  const twelve = [...routes, 'start'];
   checked(id, 2);
-  if (J(Object.keys(mod.POCKET_FACE_CLAUSES).sort()) !== J([...twelve].sort())) fail(id, `POCKET_FACE_CLAUSES has the keys ${J(Object.keys(mod.POCKET_FACE_CLAUSES).sort())}, not one per route of POCKET_ROUTE_IDS (D5)`);
+  if (J(Object.keys(mod.POCKET_FACE_CLAUSES).sort()) !== J([...fourteen].sort())) fail(id, `POCKET_FACE_CLAUSES has the keys ${J(Object.keys(mod.POCKET_FACE_CLAUSES).sort())}, not one per route of POCKET_ROUTE_IDS (D5)`);
   if (!Object.isFrozen(mod.POCKET_FACE_CLAUSES) || !Object.isFrozen(mod.POCKET_NEW_ROUTE_WORDS)) fail(id, 'POCKET_FACE_CLAUSES or POCKET_NEW_ROUTE_WORDS is not frozen, so a renderer or a test could write the face\'s words at run time (§5.1)');
   const name = 'mac.tail0000.ts.net';
   const reach = (program) => `${name}:8443${program === '' ? '' : `, by ${program}`}`;
@@ -14361,6 +14837,12 @@ function afDrivenRule() {
   // waits, it is said once, as New, with its own words.
   drive('a first setup on this build, the twelve', [facts(), twelve, [], 'never'], { rows: rowsOf([reach('Tailscale'), `${AF_CAN_ELEVEN}, start sessions`, AF_NO_PHONE, AF_ALERTS_OFF]), added: [] }, 'Start is said once, last, as "start sessions" (build/p346/SPEC.md D3)');
   drive('start waiting on an agreement on record', [facts(), routes, ['start'], 'confirmed', mod.POCKET_NEW_ROUTE_WORDS], { rows: [], added: [['start', 'New: start sessions from your phone', 'An agent installed where the project is, with your launch defaults.']] }, 'A Mac that updated draws one New line for start, with D3\'s title and sentence (build/p346/SPEC.md D2, D3)');
+  // PHASE 348 (build/p348/SPEC.md D32, §1): a first setup on this build offers
+  // the fourteen, the can row saying start's, remove's and paste's clauses
+  // last in that order; and a 0.112.0 Mac's store that allowed the twelve,
+  // once updated, draws the two New lines above ONE Allow that serves both.
+  drive('a first setup on this build, the fourteen', [facts(), fourteen, [], 'never'], { rows: rowsOf([reach('Tailscale'), `${AF_CAN_ELEVEN}, start sessions, remove ended sessions, paste into a session`, AF_NO_PHONE, AF_ALERTS_OFF]), added: [] }, 'Start, Remove and paste are each said once, last, in that order (build/p348/SPEC.md D32)');
+  drive('remove and paste waiting on an agreement on record', [facts(), twelve, ['remove', 'paste'], 'confirmed', mod.POCKET_NEW_ROUTE_WORDS], { rows: [], added: [['remove', 'New: remove sessions from your phone', 'An ended session moves to Past Sessions on this Mac, where you can restore it.'], ['paste', 'New: paste into sessions from your phone', 'It lands as a paste at this Mac does, with no Return added.']] }, 'A 0.112.0 Mac that updated draws one New line each for remove and paste, with D32\'s titles and sentences, in that order, above one Allow (build/p348/SPEC.md D9, D32)');
 }
 
 // ---- AF3, the sheet draws the face and composes none ---------------------------
@@ -14604,9 +15086,14 @@ const NS_CLAUSE = 'start a session in a project open in Tortie, on this Mac or a
 const NS_FACE_CLAUSE = 'start sessions';
 /** D3: Settings then Phone's `New:` line for the waiting route. */
 const NS_NEW_WORDS = { title: 'start sessions from your phone', sentence: 'An agent installed where the project is, with your launch defaults.' };
-/** D4: the four writes that act on one named session, and the five writes. */
+/**
+ * D4: the four writes that act on one named session and that the frozen
+ * phones read as PocketWriteAnswer's verb, and the writes in their one order
+ * (Phase 348, build/p348/SPEC.md D26: remove and paste after start, and
+ * neither joins the four, D27).
+ */
 const NS_SESSION_WRITES = ['end', 'choose', 'say', 'keys'];
-const NS_WRITE_IDS = ['end', 'choose', 'say', 'keys', 'start'];
+const NS_WRITE_IDS = ['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste'];
 /** D5. */
 const NS_REASONS = ['agent', 'interpreter', 'machine', 'malformed', 'often', 'project', 'stopped'];
 const NS_ANSWER_FIELDS = ['outcome', 'reason', 'sentence', 'session', 'verb', 'write'];
@@ -14784,12 +15271,14 @@ function nsRouteRule() {
   if (contract !== null) {
     const routeIds = arLiteralStrings(constNamed(contract, 'POCKET_ROUTE_IDS'));
     checked(id);
-    if (routeIds === null || routeIds.filter((r) => r === 'start').length !== 1 || routeIds[routeIds.length - 1] !== 'start') {
-      fail(id, `src/shared/ipc/pocket.ts: POCKET_ROUTE_IDS is ${J(routeIds)}; it gains 'start' once, last (D4, §4.1 item 1)`);
+    // PHASE 348 (build/p348/SPEC.md D26): start is followed by remove and then
+    // paste and nothing else, because the list only grows at its end.
+    if (routeIds === null || routeIds.filter((r) => r === 'start').length !== 1 || J(routeIds.slice(-3)) !== J(['start', 'remove', 'paste'])) {
+      fail(id, `src/shared/ipc/pocket.ts: POCKET_ROUTE_IDS is ${J(routeIds)}; it holds 'start' once, followed only by 'remove' and then 'paste', which Phase 348 appended (D4, §4.1 item 1; build/p348/SPEC.md D26)`);
     }
     const writeIds = arLiteralStrings(constNamed(contract, 'POCKET_WRITE_ROUTE_IDS'));
     checked(id);
-    if (J(writeIds) !== J(NS_WRITE_IDS)) fail(id, `src/shared/ipc/pocket.ts: POCKET_WRITE_ROUTE_IDS is ${J(writeIds)}; it is ${J(NS_WRITE_IDS)} in that order, so describePocketDoor names start's clause last (D4)`);
+    if (J(writeIds) !== J(NS_WRITE_IDS)) fail(id, `src/shared/ipc/pocket.ts: POCKET_WRITE_ROUTE_IDS is ${J(writeIds)}; it is ${J(NS_WRITE_IDS)} in that order, so describePocketDoor names start's clause after the four and before remove's and paste's (D4; build/p348/SPEC.md D26)`);
     const legacy = arLiteralStrings(constNamed(contract, 'LEGACY_ALLOWED_ROUTES'));
     checked(id);
     if (legacy === null || legacy.includes('start')) fail(id, `src/shared/ipc/pocket.ts: LEGACY_ALLOWED_ROUTES is ${J(legacy)}; it never grows, and start is not in it, so a store that never allowed start serves the eleven and start WAITS for the Allow whose lines name it (D2, his answer 10)`);
@@ -14829,19 +15318,22 @@ function nsRouteRule() {
     // with the parser; the face's two tables are driven as loaded.
     const added = nsObjectOf(constNamed(contract, 'POCKET_HONESTY_ADDED'));
     const addedWords = added === null ? null : Object.fromEntries(Object.entries(added).map(([k, v]) => [k, v !== undefined && ts.isStringLiteralLike(v) ? v.text : null]));
+    // PHASE 348 (build/p348/SPEC.md D32, §5.1): both tables gain remove and
+    // paste after start, add only; RM1 and PS1 hold their words, this the
+    // tables whole and in their order.
     const words = [
-      ['POCKET_HONESTY_ADDED', addedWords, { start: NS_CLAUSE }],
-      ['POCKET_NEW_ROUTE_WORDS', mod?.POCKET_NEW_ROUTE_WORDS, { start: NS_NEW_WORDS }]
+      ['POCKET_HONESTY_ADDED', addedWords, { start: NS_CLAUSE, remove: RM_CLAUSE, paste: PS_CLAUSE }],
+      ['POCKET_NEW_ROUTE_WORDS', mod?.POCKET_NEW_ROUTE_WORDS, { start: NS_NEW_WORDS, remove: RM_NEW_WORDS, paste: PS_NEW_WORDS }]
     ];
     for (const [name, got, want] of words) {
       checked(id);
-      if (J(got) !== J(want)) fail(id, `src/shared/ipc/pocket.ts: ${name} is ${J(got)}; it is exactly ${J(want)} (D3, §4.1 item 6)`);
+      if (J(got) !== J(want)) fail(id, `src/shared/ipc/pocket.ts: ${name} is ${J(got)}; it is exactly ${J(want)} (D3, §4.1 item 6; build/p348/SPEC.md D32)`);
     }
     checked(id);
     if (mod?.POCKET_FACE_CLAUSES?.['start'] !== NS_FACE_CLAUSE) fail(id, `src/shared/ipc/pocket.ts: POCKET_FACE_CLAUSES.start is ${J(mod?.POCKET_FACE_CLAUSES?.['start'] ?? null)}; it is ${J(NS_FACE_CLAUSE)}, the face's Your phone can row (D3)`);
     const keys = Object.keys(mod?.POCKET_FACE_CLAUSES ?? {});
     checked(id);
-    if (keys[keys.length - 1] !== 'start') fail(id, `src/shared/ipc/pocket.ts: POCKET_FACE_CLAUSES's keys are ${J(keys)}; start is its last key (§4.1 item 6)`);
+    if (J(keys.slice(-3)) !== J(['start', 'remove', 'paste'])) fail(id, `src/shared/ipc/pocket.ts: POCKET_FACE_CLAUSES's keys are ${J(keys)}; start is followed only by remove and then paste (§4.1 item 6; build/p348/SPEC.md D26)`);
     // No word of start's names Face ID: the Mac cannot verify it (317 D13, his answer 5).
     for (const said of [NS_CLAUSE, NS_FACE_CLAUSE, NS_NEW_WORDS.title, NS_NEW_WORDS.sentence, addedWords?.['start'], mod?.POCKET_NEW_ROUTE_WORDS?.['start']?.sentence]) {
       checked(id);
@@ -14881,6 +15373,15 @@ function nsAnswerRule() {
     const literals = reason !== null && ts.isTypeAliasDeclaration(reason) && ts.isUnionTypeNode(reason.type) ? reason.type.types.map((t) => (ts.isLiteralTypeNode(t) && ts.isStringLiteral(t.literal) ? t.literal.text : '?')).sort() : null;
     checked(id);
     if (J(literals) !== J(NS_REASONS)) fail(id, `src/shared/ipc/pocket.ts: PocketStartReason is ${J(literals)}; it is exactly ${J(NS_REASONS)} (D5)`);
+    // PHASE 348 (build/p348/SPEC.md D27): two answers of their own beside
+    // start's, each five fields, so neither verb ever widens the four the
+    // frozen phones read as PocketWriteAnswer's verb. RM3 and PS3 hold each.
+    for (const name of ['PocketRemoveAnswer', 'PocketPasteAnswer']) {
+      const other = interfaceOf(contract, name);
+      checked(id);
+      if (other === null) fail(id, `src/shared/ipc/pocket.ts declares no interface ${name} beside PocketStartAnswer (build/p348/SPEC.md D27)`);
+      else if (J(other.members.map(memberName).sort()) !== J(RM_ANSWER_FIELDS)) fail(id, `${where(contract, other)}: ${name} holds ${J(other.members.map(memberName).sort())}; it holds exactly verb, write, outcome, reason and sentence (build/p348/SPEC.md D27)`);
+    }
   }
   // start-copy.ts: the nine sentences, byte for byte, importing nothing.
   const copy = nsFile(NS_COPY, id);
@@ -15333,7 +15834,7 @@ function nsOfferRule() {
     });
   }
   // userPathNow: declared once, in resolve.ts, synchronous, writing nothing.
-  const decls = declarationsOf(sourcesUnder(join(ROOT, 'src')).filter((f) => readFileSync(f, 'utf8').includes('userPathNow')), 'userPathNow');
+  const decls = declarationsOf(sourcesUnder(join(ROOT, 'src')).filter((f) => sourceOf(f).includes('userPathNow')), 'userPathNow');
   checked(id);
   if (decls.length !== 1 || decls[0].file !== NS_RESOLVE) {
     fail(id, `userPathNow is declared ${String(decls.length)} time(s) (${decls.map((d) => where(d.file, d.n)).join(', ') || 'nowhere'}); once, in src/main/tmux/resolve.ts (D8, §4.5)`);
@@ -15505,7 +16006,7 @@ function nsLimitsRule() {
   const writes = nsFile(NS_WRITES, id);
   const all = sourcesUnder(join(ROOT, 'src'));
   for (const [name, want] of [['START_RATE_MAX', 6], ['START_RATE_WINDOW_MS', 60_000]]) {
-    const decls = declarationsOf(all.filter((f) => readFileSync(f, 'utf8').includes(name)), name);
+    const decls = declarationsOf(all.filter((f) => sourceOf(f).includes(name)), name);
     checked(id, 2);
     if (decls.length !== 1 || decls[0].file !== NS_WRITES) {
       fail(id, `${name} is declared ${String(decls.length)} time(s) (${decls.map((d) => where(d.file, d.n)).join(', ') || 'nowhere'}); once, in src/main/pocket/writes.ts (D16)`);
@@ -15532,7 +16033,7 @@ function nsLimitsRule() {
   checked(id);
   if (limits?.POCKET_WRITE_BODY_CAPS?.start !== 512) fail(id, `${rel(NS_LIMITS)}: POCKET_WRITE_BODY_CAPS.start is ${J(limits?.POCKET_WRITE_BODY_CAPS?.start ?? null)}; it is 512, about three and a half times the worst legal body (D6)`);
   for (const [name, want] of [['POCKET_START_PROJECTS_MAX', 200], ['POCKET_START_AGENTS_MAX', 64]]) {
-    const decls = declarationsOf(all.filter((f) => readFileSync(f, 'utf8').includes(name)), name);
+    const decls = declarationsOf(all.filter((f) => sourceOf(f).includes(name)), name);
     checked(id, 2);
     if (decls.length !== 1 || decls[0].file !== AR_CONTRACT) {
       fail(id, `${name} is declared ${String(decls.length)} time(s) (${decls.map((d) => where(d.file, d.n)).join(', ') || 'nowhere'}); once, in src/shared/ipc/pocket.ts (D7)`);
@@ -15837,7 +16338,7 @@ function nsPassRule() {
     const iface = interfaceOf(routes, 'PocketWrites');
     const members = iface === null ? null : iface.members.map(memberName).sort();
     checked(id);
-    if (J(members) !== J([...NS_WRITE_IDS].sort())) fail(id, `${rel(routes)}: PocketWrites holds ${J(members)}; it holds exactly end, choose, say, keys and start (§4.8)`);
+    if (J(members) !== J([...NS_WRITE_IDS].sort())) fail(id, `${rel(routes)}: PocketWrites holds ${J(members)}; it holds exactly end, choose, say, keys, start, remove and paste (§4.8; build/p348/SPEC.md §4.2 step 4)`);
   }
   const impl = nsFile(POCKET_WRITES_FILE, id);
   if (impl !== null) {
@@ -15854,7 +16355,7 @@ function nsPassRule() {
   }
   const builders = [];
   for (const file of productionSources()) {
-    if (!readFileSync(file, 'utf8').includes('createPocketStart')) continue;
+    if (!sourceOf(file).includes('createPocketStart')) continue;
     for (const c of callsOf(file)) if (calleeName(c) === 'createPocketStart') builders.push({ file, c });
   }
   checked(id);
@@ -15910,6 +16411,1615 @@ function startRules() {
     }
   }
   for (const id of NS_RULE_IDS) if (checks.get(id) === 0 && failures.get(id).length === 0) fail(id, 'the rule checked nothing, so it proves nothing (build/p346/SPEC.md §5)');
+}
+
+// ---------------------------------------------------------------------------
+// RM, PS — PHASE 348: remove an ended session and paste from the phone
+// (build/p348/SPEC.md §7.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * THE PHONE TAKES A SESSION OUT, AND PUTS HIS CLIPBOARD INTO ONE. His words of
+ * 2026-10-18 ("the ability to remove it", "the ability to paste copied
+ * content") and his rulings ("No Face ID, just confirm"; "paste natively …
+ * just like how the clipboard normally works") make the door's sixth and
+ * seventh writes `POST /v1/remove` and `POST /v1/paste`. Both take the
+ * session branch of the one write path and its one ledger, and each answers
+ * with a shape of its own, because the frozen phones read
+ * PocketWriteAnswer's verb as a closed set (D27).
+ *
+ * REMOVE (RM1 to RM7) is the Mac's own verb, `core.removeSession`, after BOTH
+ * of the Mac's gates over the row as it is now, in the pure `removeVerdict`
+ * of `src/main/sessions/pocket-writes.ts`: main's `removeRefusal` passes
+ * every record on another machine (ruling R11), so for a remote row the
+ * shared gate, asked with the second named environment
+ * `DOOR_REMOVE_GATE_ENV`, is THE ONLY LOCK, and RM4 drives it over every
+ * status on this Mac and another machine. A LIVE REMOTE row a phone names
+ * must be refused with nothing tombstoned.
+ *
+ * PASTE (PS1 to PS8) types his clipboard into a running session on this Mac
+ * as a paste at the desk lands: the words reach tmux only through the ONE
+ * buffer helper `src/main/reply/buffer.ts` (on `load-buffer`'s standard input,
+ * never a command line), then ONE list, `copy-mode -q ; paste-buffer -p -d`,
+ * and no Return. Its order is the keys verb's (the question lock, one fresh
+ * read, a synchronous final check), its words leave the private server in a
+ * `finally`, and it is offered only where the Mac says so. PS8 holds the one
+ * reader of tmux's wrap marks, which Copy joins by.
+ *
+ * Read with the parser as every rule here is; RM2, RM4, RM5, PS2 and PS8
+ * also DRIVE the shipping function in memory (`zLoad`). A rule that checked
+ * nothing is red: a zero where something must be counted is a gate that
+ * stopped reading. A module that is not there fails the rule that needed it,
+ * by name, and says which builder owns it.
+ */
+const RM_RULE_IDS = ['RM1', 'RM2', 'RM3', 'RM4', 'RM5', 'RM6', 'RM7'];
+const PS_RULE_IDS = ['PS1', 'PS2', 'PS3', 'PS4', 'PS5', 'PS6', 'PS7', 'PS8'];
+const P348_OWNER = "Phase 348 builder mac's";
+/** D32: the Allow line's clause, the honesty sentence's addition and the ledger row's clause, one string each. */
+const RM_CLAUSE = 'remove a session that has ended';
+const PS_CLAUSE = 'paste text into a session on this Mac';
+/** D32: the face's `Your phone can` rows. */
+const RM_FACE_CLAUSE = 'remove ended sessions';
+const PS_FACE_CLAUSE = 'paste into a session';
+/** D32: Settings then Phone's `New:` lines for the waiting routes. */
+const RM_NEW_WORDS = { title: 'remove sessions from your phone', sentence: 'An ended session moves to Past Sessions on this Mac, where you can restore it.' };
+const PS_NEW_WORDS = { title: 'paste into sessions from your phone', sentence: 'It lands as a paste at this Mac does, with no Return added.' };
+/** D29: the two caps, and the paste's text bound. */
+const RM_CAP = 512;
+const PS_CAP = 131_072;
+const PS_MAX_TEXT_BYTES = 16_384;
+/** §4.2 step 2: the ledger rows, written out. */
+const RM_LEDGER_ROW = Object.freeze({ id: 'remove', method: 'POST', path: '/v1/remove', reads: false, signed: true, windowOnly: false, bodyCap: RM_CAP, clause: RM_CLAUSE });
+const PS_LEDGER_ROW = Object.freeze({ id: 'paste', method: 'POST', path: '/v1/paste', reads: false, signed: true, windowOnly: false, bodyCap: PS_CAP, clause: PS_CLAUSE });
+/** D27: each answer's five fields, and each verb's reasons. */
+const RM_ANSWER_FIELDS = ['outcome', 'reason', 'sentence', 'verb', 'write'];
+const RM_REASONS = ['changed', 'gone', 'malformed', 'unreachable'];
+const PS_REASONS = ['changed', 'character', 'empty', 'gone', 'long', 'machine', 'malformed', 'stopped', 'unreachable'];
+/** D28: the bodies' keys, sorted and joined. */
+const RM_KEYS = 'session,write';
+const PS_KEYS = 'dialog,session,text,turn,write';
+const PS_PASTE = join(ROOT, 'src', 'main', 'screen', 'paste.ts');
+const PS_BUFFER = join(ROOT, 'src', 'main', 'reply', 'buffer.ts');
+const PS_COMPOSE = join(ROOT, 'src', 'main', 'screen', 'compose.ts');
+const PS_TEXT_RULES = join(ROOT, 'src', 'main', 'reply', 'text-rules.ts');
+const RM_GATES = join(ROOT, 'src', 'shared', 'session-gates.ts');
+const RM_LIFECYCLE = join(ROOT, 'src', 'main', 'sessions', 'lifecycle-gate.ts');
+const RM_ERRORS = join(ROOT, 'src', 'main', 'errors.ts');
+const RM_IPC = join(DOMAIN, 'ipc.ts');
+const RM_FACTS = join(DOMAIN, 'facts.ts');
+/** Words no Remove or paste word may hold: neither asks an owner check (D7, his ruling). */
+const P348_NO_OWNER_CHECK = /face\s*id|touch\s*id|passcode|biometr/i;
+
+/** A file a Phase 348 rule needs, or null with the rule failed by name and its owner. */
+function p348File(path, id) {
+  if (existsSync(path)) return path;
+  fail(
+    id,
+    `${rel(path)} does not exist, so this rule read nothing. It is ${P348_OWNER} (build/p348/SPEC.md §9.1). ` +
+      'A gate that passed here would go green on the day the phone’s Remove or paste does not exist.'
+  );
+  return null;
+}
+
+/** A union of string literals a type alias declares, sorted, or null. */
+function p348Literals(file, name) {
+  const alias = declaredType(file, name);
+  if (alias === null || !ts.isTypeAliasDeclaration(alias) || !ts.isUnionTypeNode(alias.type)) return null;
+  return alias.type.types.map((t) => (ts.isLiteralTypeNode(t) && ts.isStringLiteral(t.literal) ? t.literal.text : '?')).sort();
+}
+
+/** The worst legal Remove body, composed HERE (D29): the longest session id the parse takes and a write id. */
+function rmWorstBody(sessionMax) {
+  return Buffer.byteLength(JSON.stringify({ session: 's'.repeat(sessionMax), write: '0'.repeat(32) }), 'utf8');
+}
+
+/**
+ * The worst legal paste body, composed HERE (D29, §2.2's recipe): the text at
+ * its bound in C0 bytes, each of which JSON escapes as `\u00XX`, beside the
+ * other four keys at their longest (a mark, the longest session id, a question
+ * id of 16 hex and 16 digits, a write id).
+ */
+function psWorstBody(sessionMax, textBytes) {
+  const body = (text) => JSON.stringify({ dialog: 'a'.repeat(12), session: 's'.repeat(sessionMax), text, turn: `${'f'.repeat(16)}-${'9'.repeat(16)}`, write: '0'.repeat(32) });
+  return Math.max(
+    Buffer.byteLength(body(String.fromCharCode(1).repeat(textBytes)), 'utf8'),
+    Buffer.byteLength(body('"'.repeat(textBytes)), 'utf8'),
+    // An astral character an encoder escapes as a surrogate pair (\uD83D\uDE00,
+    // twelve bytes for four of text): the same length as twelve letters.
+    Buffer.byteLength(body('x'.repeat((textBytes / 4) * 12)), 'utf8')
+  );
+}
+
+/** The longest session id writes.ts's parse takes (its SESSION_ID_MAX), or 128 with nothing read. */
+function p348SessionMax(writes) {
+  const v = writes === null ? undefined : bare(constNamed(writes, 'SESSION_ID_MAX')?.initializer);
+  return v !== undefined && ts.isNumericLiteral(v) ? Number(v.text.replace(/_/g, '')) : 128;
+}
+
+/**
+ * RM1 and PS1's shared half: the route row, its place in the two id lists,
+ * the door's write list, its cap against the worst body, and its four words.
+ */
+function p348RouteWords(id, want) {
+  const table = p348File(NS_TABLE, id);
+  if (table !== null) {
+    const rows = nsTableRows(table);
+    const mine = rows.filter((r) => r.row.id === want.route);
+    const paths = rows.filter((r) => r.row.path === want.path);
+    const row = { id: want.route, method: 'POST', path: want.path, reads: false, windowOnly: false, signed: true };
+    checked(id, 2);
+    if (mine.length !== 1 || paths.length !== 1 || nsSorted(mine[0].row) !== nsSorted(row)) {
+      fail(id, `${rel(table)}: the ${want.route} row is ${J(mine.map((s) => s.row))} (and ${String(paths.length)} row(s) name ${want.path}); it is exactly ONE row ${J(row)}: a signed POST write through the one write path, alive outside any window (build/p348/SPEC.md D26)`);
+    }
+  }
+  const contract = p348File(AR_CONTRACT, id);
+  if (contract !== null) {
+    const routeIds = arLiteralStrings(constNamed(contract, 'POCKET_ROUTE_IDS'));
+    const writeIds = arLiteralStrings(constNamed(contract, 'POCKET_WRITE_ROUTE_IDS'));
+    const sessionWrites = arLiteralStrings(constNamed(contract, 'POCKET_SESSION_WRITE_IDS'));
+    const legacy = arLiteralStrings(constNamed(contract, 'LEGACY_ALLOWED_ROUTES'));
+    checked(id, 4);
+    if (routeIds === null || routeIds.filter((r) => r === want.route).length !== 1 || routeIds.indexOf(want.route) !== routeIds.indexOf(want.after) + 1 || (want.last && routeIds[routeIds.length - 1] !== want.route)) {
+      fail(id, `src/shared/ipc/pocket.ts: POCKET_ROUTE_IDS is ${J(routeIds)}; it holds ${J(want.route)} once, right after ${J(want.after)}${want.last ? ', and last' : ''} (build/p348/SPEC.md D26)`);
+    }
+    if (writeIds === null || writeIds.filter((r) => r === want.route).length !== 1 || writeIds.indexOf(want.route) !== writeIds.indexOf(want.after) + 1 || (want.last && writeIds[writeIds.length - 1] !== want.route)) {
+      fail(id, `src/shared/ipc/pocket.ts: POCKET_WRITE_ROUTE_IDS is ${J(writeIds)}; it holds ${J(want.route)} once, right after ${J(want.after)}${want.last ? ', and last' : ''} (build/p348/SPEC.md D26)`);
+    }
+    if (sessionWrites === null || sessionWrites.includes(want.route)) {
+      fail(id, `src/shared/ipc/pocket.ts: POCKET_SESSION_WRITE_IDS is ${J(sessionWrites)}; ${want.route} is not in it, so PocketWriteAnswer's verb stays the four a frozen phone reads (build/p348/SPEC.md D27; gate:onlyadd A3)`);
+    }
+    if (legacy === null || legacy.includes(want.route)) {
+      fail(id, `src/shared/ipc/pocket.ts: LEGACY_ALLOWED_ROUTES is ${J(legacy)}; it never grows, so ${want.route} WAITS for the Allow whose lines name it (333.12, his answer 10; build/p348/SPEC.md D9)`);
+    }
+  }
+  const wire = p348File(AR_WIRE, id);
+  if (wire !== null) {
+    const decl = constNamed(wire, 'WRITE_ROUTES');
+    const init = decl === null ? undefined : bare(decl.initializer);
+    const got = init !== undefined && ts.isArrayLiteralExpression(init) ? init.elements.map((e) => (ts.isStringLiteral(e) ? e.text : '?')) : null;
+    const alias = declaredType(wire, 'DoorWriteRoute');
+    checked(id, 2);
+    if (got === null || got.filter((r) => r === want.route).length !== 1) fail(id, `${rel(wire)}: WRITE_ROUTES is ${J(got)}; it names ${J(want.route)} exactly once, so the door hands main a ${want.route} only for its own id (build/p348/SPEC.md §4.2 step 2)`);
+    if (alias === null || !new RegExp(`'${want.route}'`).test(alias.getText())) fail(id, `${rel(wire)}: DoorWriteRoute ${alias === null ? 'is not declared' : `is ${J(squash(alias.getText()).slice(0, 140))}`}; it names ${J(want.route)} (build/p348/SPEC.md §4.2 step 2)`);
+  }
+  // The cap, against the worst legal body this gate composes.
+  const limits = p348File(NS_LIMITS, id);
+  const writes = existsSync(NS_WRITES) ? NS_WRITES : null;
+  if (limits !== null) {
+    const mod = arLoad(limits, id);
+    const cap = mod?.POCKET_WRITE_BODY_CAPS?.[want.route];
+    const worst = want.worst(p348SessionMax(writes));
+    checked(id, 2);
+    if (cap !== want.cap) fail(id, `${rel(limits)}: POCKET_WRITE_BODY_CAPS.${want.route} is ${J(cap ?? null)}; it is ${String(want.cap)} (build/p348/SPEC.md D29)`);
+    if (!(typeof cap === 'number' && cap >= want.factor * worst)) fail(id, `${rel(limits)}: POCKET_WRITE_BODY_CAPS.${want.route} is ${J(cap ?? null)}; the worst legal ${want.route} body this gate composes is ${String(worst)} bytes, and the cap is at least ${want.factor === 1 ? 'it' : `${String(want.factor)} times it`}, so a body of the legal shape reaches main and is answered in words rather than dropped oversized (build/p348/SPEC.md D29, §2.2)`);
+  }
+  // The four words, each in its one owner.
+  const said = [];
+  const pairing = p348File(AR_PAIRING, id);
+  if (pairing !== null) {
+    const clause = nsObjectOf(constNamed(pairing, 'WRITE_CLAUSES'))?.[want.route];
+    checked(id);
+    if (clause === undefined || !ts.isStringLiteralLike(clause) || clause.text !== want.clause) fail(id, `${rel(pairing)}: WRITE_CLAUSES.${want.route} is ${clause === undefined ? 'absent' : J(clause.getText().slice(0, 100))}; it is ${J(want.clause)}, the Allow line's words (build/p348/SPEC.md D32)`);
+    if (clause !== undefined && ts.isStringLiteralLike(clause)) said.push(clause.text);
+  }
+  if (existsSync(AR_LEDGER)) {
+    const ledger = arLoad(AR_LEDGER, id);
+    const row = (Array.isArray(ledger?.POCKET_ROUTE_LEDGER) ? ledger.POCKET_ROUTE_LEDGER : []).find((r) => r.id === want.route);
+    checked(id);
+    if (row === undefined || row.clause !== want.clause) fail(id, `${rel(AR_LEDGER)}: the ${want.route} row's clause is ${J(row?.clause ?? null)}; it is WRITE_CLAUSES.${want.route}, ${J(want.clause)} (build/p348/SPEC.md D32; 333.12 D12)`);
+  } else {
+    fail(id, `${rel(AR_LEDGER)} does not exist, so the ${want.route} row's clause was not read`);
+  }
+  if (contract !== null) {
+    const mod = arLoad(contract, id);
+    const added = nsObjectOf(constNamed(contract, 'POCKET_HONESTY_ADDED'))?.[want.route];
+    const addedText = added !== undefined && ts.isStringLiteralLike(added) ? added.text : null;
+    checked(id, 3);
+    if (addedText !== want.clause) fail(id, `src/shared/ipc/pocket.ts: POCKET_HONESTY_ADDED.${want.route} is ${J(addedText)}; it is ${J(want.clause)}, the honesty sentence's words (build/p348/SPEC.md D32)`);
+    if (mod?.POCKET_FACE_CLAUSES?.[want.route] !== want.face) fail(id, `src/shared/ipc/pocket.ts: POCKET_FACE_CLAUSES.${want.route} is ${J(mod?.POCKET_FACE_CLAUSES?.[want.route] ?? null)}; it is ${J(want.face)}, the face's Your phone can row (build/p348/SPEC.md D32)`);
+    if (J(mod?.POCKET_NEW_ROUTE_WORDS?.[want.route] ?? null) !== J(want.words)) fail(id, `src/shared/ipc/pocket.ts: POCKET_NEW_ROUTE_WORDS.${want.route} is ${J(mod?.POCKET_NEW_ROUTE_WORDS?.[want.route] ?? null)}; it is exactly ${J(want.words)} (build/p348/SPEC.md D32)`);
+    said.push(addedText, mod?.POCKET_FACE_CLAUSES?.[want.route], mod?.POCKET_NEW_ROUTE_WORDS?.[want.route]?.title, mod?.POCKET_NEW_ROUTE_WORDS?.[want.route]?.sentence);
+  }
+  // No word names an owner check: Remove asks none (his ruling), and neither does a paste.
+  for (const s of said) {
+    checked(id);
+    if (typeof s === 'string' && P348_NO_OWNER_CHECK.test(s)) fail(id, `a ${want.route} word says ${J(s)}; no word names Face ID, which ${want.route === 'remove' ? 'Remove never asks (his ruling, “No Face ID, just confirm”)' : 'a paste never asks'} (build/p348/SPEC.md D7)`);
+  }
+}
+
+// ---- RM1, the Remove route and its words ---------------------------------------
+
+function rmRouteRule() {
+  p348RouteWords('RM1', { route: 'remove', path: '/v1/remove', after: 'start', last: false, cap: RM_CAP, factor: 2, worst: (max) => rmWorstBody(max), clause: RM_CLAUSE, face: RM_FACE_CLAUSE, words: RM_NEW_WORDS });
+}
+
+// ---- PS1, the paste route, its cap and its words -------------------------------
+
+function psRouteRule() {
+  const id = 'PS1';
+  p348RouteWords(id, { route: 'paste', path: '/v1/paste', after: 'remove', last: true, cap: PS_CAP, factor: 1, worst: (max) => psWorstBody(max, PS_MAX_TEXT_BYTES), clause: PS_CLAUSE, face: PS_FACE_CLAUSE, words: PS_NEW_WORDS });
+  // POCKET_PASTE_MAX_TEXT_BYTES: 16,384, declared once, in the contract.
+  const decls = [];
+  for (const file of productionSources()) {
+    if (!sourceOf(file).includes('POCKET_PASTE_MAX_TEXT_BYTES')) continue;
+    for (const n of nodesOf(file)) if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'POCKET_PASTE_MAX_TEXT_BYTES') decls.push({ file, n });
+  }
+  checked(id, 2);
+  if (decls.length !== 1 || decls[0].file !== AR_CONTRACT) {
+    fail(id, `POCKET_PASTE_MAX_TEXT_BYTES is declared ${String(decls.length)} time(s) (${decls.map((d) => where(d.file, d.n)).join(', ') || 'nowhere'}); once, in src/shared/ipc/pocket.ts (build/p348/SPEC.md §4.6 step 8)`);
+  } else {
+    const v = bare(decls[0].n.initializer);
+    if (v === undefined || !ts.isNumericLiteral(v) || Number(v.text.replace(/_/g, '')) !== PS_MAX_TEXT_BYTES) fail(id, `${where(decls[0].file, decls[0].n)}: POCKET_PASTE_MAX_TEXT_BYTES is ${J(v?.getText() ?? null)}; it is 16,384 bytes of UTF-8, measured in ONE load and ONE list on 3.7b and 3.6a (build/p348/SPEC.md D29, §2.2)`);
+  }
+  // The recipe this gate composes reads §2.2's number: a check on the gate itself.
+  checked(id);
+  if (psWorstBody(128, PS_MAX_TEXT_BYTES) !== 98_566) fail(id, `this gate's worst paste body for a 128-character session id is ${String(psWorstBody(128, PS_MAX_TEXT_BYTES))} bytes; §2.2 measured 98,566, so the gate's own recipe moved`);
+}
+
+// ---- RM2 and PS2, the bodies, DRIVEN ------------------------------------------
+
+/** RM2's hostile corpus (D28): every one is malformed. */
+function rmHostileBodies() {
+  const session = 'ses_1.a:b-c';
+  const write = 'a'.repeat(32);
+  const ok = { session, write };
+  const j = (o) => JSON.stringify(o);
+  const bodies = [
+    ['the session missing', j({ write })],
+    ['the write id missing', j({ session })],
+    ['a batch key (no Mac batch removes, conformance:manager T8)', j({ ...ok, batch: true })],
+    ['a batch key that is false', j({ ...ok, batch: false })],
+    ['a third key, sessions', j({ ...ok, sessions: [session] })],
+    ['a third key, force', j({ ...ok, force: true })],
+    ['an empty session id', j({ ...ok, session: '' })],
+    ['a 129-character session id', j({ ...ok, session: 's'.repeat(129) })],
+    ['a session id holding a space', j({ ...ok, session: 'ses 1' })],
+    ['a session id holding /', j({ ...ok, session: '../ses' })],
+    ['a session id holding a NUL', j({ ...ok, session: 'ses\u0000' })],
+    ['a session id that is a number', j({ ...ok, session: 7 })],
+    ['a session id that is an array', j({ ...ok, session: [session] })],
+    ['a session id that is an object', j({ ...ok, session: { id: session } })],
+    ['a 31-hex write id', j({ ...ok, write: 'a'.repeat(31) })],
+    ['a 33-hex write id', j({ ...ok, write: 'a'.repeat(33) })],
+    ['an uppercase write id', j({ ...ok, write: 'A'.repeat(32) })],
+    ['a write id that is not hex', j({ ...ok, write: 'g'.repeat(32) })],
+    ['a write id that is a number', j({ ...ok, write: 1 })],
+    ['an array', j([ok])],
+    ['a string', j('remove')],
+    ['null', 'null'],
+    ['a number', '42'],
+    ['duplicate keys, the last session bad', `{"session":"${session}","session":"bad id","write":"${write}"}`],
+    // As Phase 346's fix round found for start: one JSON.parse reads each of
+    // these as the honest object, so only the byte count (onlyItsOwnBytes) can
+    // refuse them (build/p348/SPEC.md §4.2 step 3).
+    ['duplicate keys, the FIRST session bad and the last legal', `{"session":"bad id","session":"${session}","write":"${write}"}`],
+    ['duplicate keys, the FIRST write id another and the last legal', `{"session":"${session}","write":"${'b'.repeat(32)}","write":"${write}"}`],
+    ['a 600-byte body, its session padded out', j({ ...ok, session: 's'.repeat(560) })],
+    ['not JSON', '{session:ses_1}'],
+    ['an empty body', '']
+  ];
+  return { bodies, honest: ok };
+}
+
+/** PS2's hostile corpus (D28): every one is malformed. */
+function psHostileBodies() {
+  const session = 'ses_1';
+  const write = 'b'.repeat(32);
+  const turn = `${'0123456789abcdef'}-42`;
+  const ok = { dialog: null, session, text: 'echo hi\n', turn, write };
+  const j = (o) => JSON.stringify(o);
+  const bodies = [
+    ['the dialog missing', j({ session, text: 'x', turn, write })],
+    ['the text missing', j({ dialog: null, session, turn, write })],
+    ['the turn missing', j({ dialog: null, session, text: 'x', write })],
+    ['the session missing', j({ dialog: null, text: 'x', turn, write })],
+    ['the write id missing', j({ dialog: null, session, text: 'x', turn })],
+    ['an extra key, keys', j({ ...ok, keys: [{ t: 'x' }] })],
+    ['an extra key, enter', j({ ...ok, enter: true })],
+    ['a turn that is not a question id (no dash)', j({ ...ok, turn: '0123456789abcdef42' })],
+    ['a turn whose count has a leading zero', j({ ...ok, turn: '0123456789abcdef-042' })],
+    ['a turn whose prefix is 15 hex', j({ ...ok, turn: '0123456789abcde-4' })],
+    ['a turn whose prefix is uppercase', j({ ...ok, turn: '0123456789ABCDEF-4' })],
+    ['a turn that is a number', j({ ...ok, turn: 42 })],
+    ['a dialog of 11 hex', j({ ...ok, dialog: 'a'.repeat(11) })],
+    ['a dialog of 13 hex', j({ ...ok, dialog: 'a'.repeat(13) })],
+    ['a dialog in capitals', j({ ...ok, dialog: 'A'.repeat(12) })],
+    ['a dialog that is an empty string', j({ ...ok, dialog: '' })],
+    ['a dialog that is false', j({ ...ok, dialog: false })],
+    ['the text a number', j({ ...ok, text: 7 })],
+    ['the text null', j({ ...ok, text: null })],
+    ['the text an array', j({ ...ok, text: ['echo hi'] })],
+    ['the text an object', j({ ...ok, text: { t: 'echo hi' } })],
+    ['the text a boolean', j({ ...ok, text: true })],
+    ['an empty session id', j({ ...ok, session: '' })],
+    ['a session id holding a space', j({ ...ok, session: 'ses 1' })],
+    ['a 129-character session id', j({ ...ok, session: 's'.repeat(129) })],
+    ['a 31-hex write id', j({ ...ok, write: 'b'.repeat(31) })],
+    ['a write id that is not hex', j({ ...ok, write: 'z'.repeat(32) })],
+    ['an array', j([ok])],
+    ['null', 'null'],
+    ['not JSON', '{text:"x"}'],
+    ['an empty body', '']
+  ];
+  return { bodies, honest: ok, turn, session, write };
+}
+
+/** A parse driven over a corpus: the honest bodies accepted as they are, every hostile one malformed, a refused one echoing a well-formed write id. */
+function p348DriveParse(id, writes, name, { bodies, honests }) {
+  const mod = arLoad(writes, id);
+  const parse = mod?.[name];
+  checked(id);
+  if (typeof parse !== 'function') {
+    fail(id, `${rel(writes)} exports no ${name} to drive (build/p348/SPEC.md §9.3: exported for the hostile client, the vectors and the tests)`);
+    return;
+  }
+  const run = (text) => {
+    try {
+      return { r: parse(Buffer.from(text, 'utf8')) };
+    } catch (err) {
+      return { threw: err instanceof Error ? err.message : String(err) };
+    }
+  };
+  for (const [what, body, keep] of honests) {
+    const got = run(typeof body === 'string' ? body : JSON.stringify(body));
+    checked(id);
+    const r = got.r;
+    const accepted = got.threw === undefined && r !== null && typeof r === 'object' && r.ok !== false && Object.entries(keep).every(([k, v]) => r[k] === v);
+    if (!accepted) fail(id, `${name} refused or misread the honest body ${what} (answered ${J(r ?? got.threw).slice(0, 200)}); the corpus below would then prove a parse that refuses everything`);
+  }
+  checked(id);
+  if (bodies.length < 25) fail(id, `the hostile corpus holds ${String(bodies.length)} bodies; it holds at least 25`);
+  for (const [what, text] of bodies) {
+    checked(id);
+    const got = run(text);
+    if (got.threw !== undefined) {
+      fail(id, `${name} threw on ${what} (${got.threw}); a body it cannot read answers malformed and never throws past the parse`);
+      continue;
+    }
+    const r = got.r;
+    const isAccepted = r !== null && typeof r === 'object' && r.ok !== false && typeof r.session === 'string';
+    if (isAccepted) fail(id, `${name} ACCEPTED ${what} as ${J(r).slice(0, 160)}; it is malformed (build/p348/SPEC.md D28)`);
+    let echo = null;
+    try {
+      const v = JSON.parse(text);
+      if (v !== null && typeof v === 'object' && !Array.isArray(v) && typeof v.write === 'string' && /^[0-9a-f]{32}$/.test(v.write)) echo = v.write;
+    } catch {
+      /* not JSON: nothing to echo */
+    }
+    if (!isAccepted && r !== null && typeof r === 'object' && 'write' in r && echo !== null && r.write !== echo) {
+      fail(id, `${name} refused ${what} with write ${J(r.write)}; a refused body echoes its well-formed write id ${echo} (build/p317/SPEC.md §14 finding 14)`);
+    }
+  }
+}
+
+function rmBodyRule() {
+  const id = 'RM2';
+  const writes = p348File(NS_WRITES, id);
+  if (writes === null) return;
+  const fn = oneFunction(writes, 'parseRemoveBody');
+  checked(id);
+  if (fn === null) {
+    fail(id, `${rel(writes)} declares no single parseRemoveBody (build/p348/SPEC.md §4.2 step 3)`);
+    return;
+  }
+  checked(id, 2);
+  if (!nsComparesKeys(writes, fn, RM_KEYS)) fail(id, `${where(writes, fn)}: parseRemoveBody does not compare the body's sorted keys with exactly ${J(RM_KEYS)} (REMOVE_KEYS), so a batch or a third key could ride along (D28)`);
+  const keysConst = constNamed(writes, 'REMOVE_KEYS');
+  if (keysConst === null || !ts.isStringLiteralLike(bare(keysConst.initializer)) || bare(keysConst.initializer).text !== RM_KEYS) fail(id, `${rel(writes)}: REMOVE_KEYS is ${J(keysConst?.initializer?.getText() ?? null)}; it is ${J(RM_KEYS)} (§4.2 step 3)`);
+  const reach = nsReach(writes, fn);
+  const parses = callsOf(writes).filter((c) => c.expression.getText() === 'JSON.parse');
+  const called = new Set(reach.flatMap((f) => descendantsOf(f).filter((n) => ts.isCallExpression(n)).map((c) => calleeName(c))));
+  checked(id, 4);
+  if (parses.length !== 1 || !reach.some((f) => inside(parses[0], f))) fail(id, `${where(writes, fn)}: parseRemoveBody does not reach the ONE JSON.parse of the write path (objectOf), so it parses its body some other way (D28)`);
+  for (const reader of ['isSessionId', 'isWriteId', 'onlyItsOwnBytes']) {
+    if (!called.has(reader)) fail(id, `${where(writes, fn)}: nothing parseRemoveBody reaches calls ${reader}(; the session is read by isSessionId, the write id by isWriteId, and the body holds only its own bytes, as start's parse does (build/p348/SPEC.md §4.2 step 3)`);
+  }
+  for (const n of descendantsOf(fn)) {
+    if ((ts.isPropertyAccessExpression(n) && n.name.text === 'batch') || (ts.isStringLiteralLike(n) && n.text === 'batch')) {
+      checked(id);
+      fail(id, `${where(writes, n)}: parseRemoveBody reads a batch; a Remove names one session and no Mac batch removes (D28, conformance:manager T8)`);
+    }
+  }
+  const { bodies, honest } = rmHostileBodies();
+  p348DriveParse(id, writes, 'parseRemoveBody', { bodies, honests: [['{session, write}', honest, honest]] });
+}
+
+function psBodyRule() {
+  const id = 'PS2';
+  const writes = p348File(NS_WRITES, id);
+  if (writes === null) return;
+  const fn = oneFunction(writes, 'parsePasteBody');
+  checked(id);
+  if (fn === null) {
+    fail(id, `${rel(writes)} declares no single parsePasteBody (build/p348/SPEC.md §4.6 step 8)`);
+    return;
+  }
+  checked(id, 2);
+  if (!nsComparesKeys(writes, fn, PS_KEYS)) fail(id, `${where(writes, fn)}: parsePasteBody does not compare the body's sorted keys with exactly ${J(PS_KEYS)} (PASTE_KEYS), so a key could ride along (D28)`);
+  const keysConst = constNamed(writes, 'PASTE_KEYS');
+  if (keysConst === null || !ts.isStringLiteralLike(bare(keysConst.initializer)) || bare(keysConst.initializer).text !== PS_KEYS) fail(id, `${rel(writes)}: PASTE_KEYS is ${J(keysConst?.initializer?.getText() ?? null)}; it is ${J(PS_KEYS)} (§4.6 step 8)`);
+  const reach = nsReach(writes, fn);
+  const parses = callsOf(writes).filter((c) => c.expression.getText() === 'JSON.parse');
+  const called = new Set(reach.flatMap((f) => descendantsOf(f).filter((n) => ts.isCallExpression(n)).map((c) => calleeName(c))));
+  checked(id, 5);
+  if (parses.length !== 1 || !reach.some((f) => inside(parses[0], f))) fail(id, `${where(writes, fn)}: parsePasteBody does not reach the ONE JSON.parse of the write path (objectOf), so it parses its body some other way (D28)`);
+  for (const reader of ['isSessionId', 'isWriteId', 'isQuestionId', 'isMark']) {
+    if (!called.has(reader)) fail(id, `${where(writes, fn)}: nothing parsePasteBody reaches calls ${reader}(; the session, the write id, the turn and the dialog are each read by their own reader, the keys body's lock fields (build/p348/SPEC.md §4.6 step 8)`);
+  }
+  // The text AS IT IS: nothing in the parse trims, replaces, normalizes or cuts a text.
+  for (const c of descendantsOf(fn).filter((n) => ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression))) {
+    const m = c.expression.name.text;
+    if (!/^(?:replace|replaceAll|trim|trimStart|trimEnd|normalize|slice|substring|substr|toWellFormed|toLowerCase|toUpperCase)$/.test(m)) continue;
+    checked(id);
+    if (/\btext\b/.test(c.expression.expression.getText())) fail(id, `${where(writes, c)}: parsePasteBody calls .${m}( on ${J(c.expression.expression.getText())}; a paste's text is taken AS IT IS, and what Tortie does not paste is refused by the verb, in words (build/p348/SPEC.md §4.6 step 8, D51)`);
+  }
+  const { bodies, honest, turn, session, write } = psHostileBodies();
+  // The text comes back byte for byte, whatever it holds: a line break, a tab,
+  // every plane of UTF-8, a line separator, and even ESC and CR, because the
+  // parse refuses no text; the verb's pasteRefusal does, in words (D51).
+  const texts = ['echo hi\n', 'a\tb', 'é 😀 中   x', '  leading and trailing  ', 'x\u001b[201~ echo y\n', 'a\r\nb', '\ud800'];
+  const honests = [
+    ['with dialog null', honest, { session, turn, write, text: honest.text, dialog: null }],
+    ['with a dialog mark', { ...honest, dialog: 'c'.repeat(12) }, { session, turn, write, text: honest.text, dialog: 'c'.repeat(12) }],
+    ...texts.map((text) => [`whose text is ${J(text)}`, { ...honest, text }, { text }])
+  ];
+  p348DriveParse(id, writes, 'parsePasteBody', { bodies, honests });
+}
+
+// ---- RM3 and PS3, the answers -------------------------------------------------------
+
+function p348AnswerRule(id, iface, reasonType, wantReasons, composer, verb) {
+  const contract = p348File(AR_CONTRACT, id);
+  if (contract !== null) {
+    const answer = interfaceOf(contract, iface);
+    checked(id, 3);
+    if (answer === null) fail(id, `src/shared/ipc/pocket.ts declares no interface ${iface} (build/p348/SPEC.md D27)`);
+    else {
+      const fields = answer.members.map(memberName).sort();
+      if (J(fields) !== J(RM_ANSWER_FIELDS)) fail(id, `${where(contract, answer)}: ${iface} holds ${J(fields)}; it holds exactly verb, write, outcome, reason and sentence, and nothing that could claim Face ID happened (D27)`);
+      const v = answer.members.find((m) => memberName(m) === 'verb');
+      if (v?.type === undefined || squash(v.type.getText()) !== `'${verb}'`) fail(id, `${where(contract, answer)}: ${iface}.verb is ${J(v?.type?.getText() ?? null)}; it is the literal '${verb}' (D27)`);
+      const r = answer.members.find((m) => memberName(m) === 'reason');
+      if (r?.type === undefined || squash(r.type.getText()) !== `${reasonType}|null`) fail(id, `${where(contract, answer)}: ${iface}.reason is ${J(r?.type?.getText() ?? null)}; it is ${reasonType} | null, read by a phone as an OPEN word (D27)`);
+    }
+    const literals = p348Literals(contract, reasonType);
+    checked(id);
+    if (J(literals) !== J(wantReasons)) fail(id, `src/shared/ipc/pocket.ts: ${reasonType} is ${J(literals)}; it is exactly ${J(wantReasons)} (build/p348/SPEC.md D27, §4.2 step 1, §4.6 step 8)`);
+  }
+  const writes = p348File(NS_WRITES, id);
+  if (writes === null) return;
+  const fn = oneFunction(writes, composer);
+  checked(id);
+  if (fn === null) {
+    fail(id, `${rel(writes)} declares no single ${composer}; the answer is composed field by field in one function (D27)`);
+    return;
+  }
+  const exported = ts.isFunctionDeclaration(fn) && (ts.getCombinedModifierFlags(fn) & ts.ModifierFlags.Export) !== 0;
+  const params = fn.parameters.map((p) => (ts.isIdentifier(p.name) ? p.name.text : '?'));
+  checked(id, 2);
+  if (!exported) fail(id, `${where(writes, fn)}: ${composer} is not an exported function declaration; it is exported beside startAnswer, for the vectors, the sample and the tests (build/p348/SPEC.md §9.3)`);
+  if (J(params) !== J(['write', 'outcome', 'reason', 'sentence'])) fail(id, `${where(writes, fn)}: ${composer} takes ${J(params)}; it takes exactly (write, outcome, reason, sentence) and its verb is its own literal (D27)`);
+  const objects = descendantsOf(fn).filter((n) => ts.isObjectLiteralExpression(n) && n.properties.some((p) => memberName(p) === 'verb'));
+  const stringified = descendantsOf(fn).filter((n) => ts.isCallExpression(n) && n.expression.getText() === 'JSON.stringify').map((c) => bare(c.arguments[0]));
+  checked(id, 3);
+  if (objects.length === 0) fail(id, `${where(writes, fn)}: ${composer} builds no object naming verb, so the five fields cannot be read`);
+  for (const o of objects) {
+    const names = o.properties.map((p) => (ts.isSpreadAssignment(p) ? '…' : memberName(p) ?? '?')).sort();
+    if (J(names) !== J(RM_ANSWER_FIELDS)) fail(id, `${where(writes, o)}: ${composer}'s answer holds ${J(names)}; it holds exactly the five fields, each set on its own and none spread (D27)`);
+  }
+  if (stringified.length !== 1 || !objects.includes(stringified[0])) fail(id, `${where(writes, fn)}: ${composer} hands JSON.stringify ${J(stringified.map((s) => s?.getText().slice(0, 50) ?? null))}; it hands it ONE object literal of the five fields, composed field by field (D27)`);
+  const literalVerb = objects.some((o) => {
+    const v = bare(propOf(o, 'verb'));
+    return v !== undefined && ts.isStringLiteralLike(v) && v.text === verb;
+  });
+  if (!literalVerb) fail(id, `${where(writes, fn)}: ${composer} never sets verb to the literal '${verb}' (D27)`);
+  // DRIVEN: what it composes is exactly the five fields, in their order.
+  const mod = arLoad(writes, id);
+  checked(id);
+  if (typeof mod?.[composer] === 'function') {
+    let parsedAnswer = null;
+    try {
+      parsedAnswer = JSON.parse(mod[composer]('c'.repeat(32), 'refused', wantReasons[0], 'x'));
+    } catch (err) {
+      fail(id, `${composer}( could not be driven: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    if (parsedAnswer !== null && J(Object.keys(parsedAnswer)) !== J(['verb', 'write', 'outcome', 'reason', 'sentence'])) fail(id, `${composer}( composes ${J(parsedAnswer)}; it composes exactly verb, write, outcome, reason and sentence in that order (D27)`);
+    if (parsedAnswer !== null && parsedAnswer.verb !== verb) fail(id, `${composer}( answers verb ${J(parsedAnswer.verb)}; it answers '${verb}' (D27)`);
+  } else {
+    fail(id, `${rel(writes)} exports no ${composer} to drive`);
+  }
+}
+
+function rmAnswerRule() {
+  p348AnswerRule('RM3', 'PocketRemoveAnswer', 'PocketRemoveReason', RM_REASONS, 'removeAnswer', 'remove');
+}
+
+function psAnswerRule() {
+  p348AnswerRule('PS3', 'PocketPasteAnswer', 'PocketPasteReason', PS_REASONS, 'pasteAnswer', 'paste');
+}
+
+// ---- RM4, the Remove verdict, pure, both gates, DRIVEN ---------------------------
+
+/** The stand-ins pocket-writes.ts is loaded over: the machines' store is never read, and the errors module is the one handed in. */
+function rmStubs(errorsModule) {
+  return {
+    ...AR_STUBS,
+    'main/machines/store': { machineRow: () => null },
+    ...(errorsModule === null ? {} : { 'main/errors': errorsModule })
+  };
+}
+
+/** A listed row for the verdict: on this Mac, or on a machine Tortie holds a row for. */
+function rmRow(id, status, remote) {
+  return {
+    id,
+    name: `name-${id}`,
+    tmuxName: `t-${id}`,
+    agentId: 'claude',
+    projectId: 'p1',
+    cwd: '/tmp/p348-project',
+    status,
+    createdAt: 1_700_000_000_000,
+    ...(remote ? { machine: { id: 'studio', name: 'Studio', canRestore: true } } : {})
+  };
+}
+
+/** A manifest record for the verdict: main's gate reads its status and its machine. */
+function rmRecord(status, remote) {
+  return remote ? { status, machineId: 'studio' } : { status };
+}
+
+function rmVerdictRule() {
+  const id = 'RM4';
+  const impl = p348File(POCKET_WRITES_FILE, id);
+  const gates = p348File(RM_GATES, id);
+  if (gates !== null) {
+    // DOOR_REMOVE_GATE_ENV, declared once, frozen, canDiscard true; DOOR_GATE_ENV unmoved.
+    const decls = declarationsOf(productionSources().filter((f) => sourceOf(f).includes('DOOR_REMOVE_GATE_ENV')), 'DOOR_REMOVE_GATE_ENV');
+    checked(id, 3);
+    if (decls.length !== 1 || decls[0].file !== gates) fail(id, `DOOR_REMOVE_GATE_ENV is declared ${String(decls.length)} time(s) (${decls.map((d) => where(d.file, d.n)).join(', ') || 'nowhere'}); once, in src/shared/session-gates.ts beside DOOR_GATE_ENV (build/p348/SPEC.md D47)`);
+    const envOf = (name) => {
+      const d = constNamed(gates, name);
+      let init = bare(d?.initializer);
+      const frozen = init !== undefined && ts.isCallExpression(init) && calleeName(init) === 'freeze';
+      if (frozen) init = bare(init.arguments[0]);
+      const out = {};
+      if (init !== undefined && ts.isObjectLiteralExpression(init)) {
+        for (const p of init.properties) if (ts.isPropertyAssignment(p) && memberName(p) !== null) out[memberName(p)] = bare(p.initializer).getText();
+      }
+      return { frozen, out, typed: d?.type?.getText() ?? null };
+    };
+    const remove = envOf('DOOR_REMOVE_GATE_ENV');
+    const end = envOf('DOOR_GATE_ENV');
+    if (!remove.frozen || remove.typed !== 'SessionGateEnv' || nsSorted(remove.out) !== nsSorted({ canRestore: 'false', canDiscard: 'true', shellPathReady: 'false', handback: 'undefined' })) {
+      fail(id, `${rel(gates)}: DOOR_REMOVE_GATE_ENV is ${J(remove)}; it is Object.freeze({ canRestore: false, canDiscard: true, shellPathReady: false, handback: undefined }) typed SessionGateEnv, so canRemove is exactly whether the session has ended (D47)`);
+    }
+    if (!end.frozen || nsSorted(end.out) !== nsSorted({ canRestore: 'false', canDiscard: 'false', shellPathReady: 'false', handback: 'undefined' })) {
+      fail(id, `${rel(gates)}: DOOR_GATE_ENV is ${J(end)}; it does not move: Object.freeze({ canRestore: false, canDiscard: false, shellPathReady: false, handback: undefined }) (D47)`);
+    }
+  }
+  if (impl === null) return;
+  const verdicts = functionsNamed(impl, 'removeVerdict');
+  checked(id);
+  if (verdicts.length !== 1) {
+    fail(id, `${rel(impl)} declares removeVerdict ${String(verdicts.length)} time(s); ONE pure function decides a Remove (build/p348/SPEC.md D48)`);
+    return;
+  }
+  const fn = verdicts[0];
+  const exported = ts.isFunctionDeclaration(fn) && (ts.getCombinedModifierFlags(fn) & ts.ModifierFlags.Export) !== 0;
+  const isAsync = (ts.getCombinedModifierFlags(fn) & ts.ModifierFlags.Async) !== 0;
+  checked(id, 4);
+  if (!exported) fail(id, `${where(impl, fn)}: removeVerdict is not an exported function declaration; it is exported, pure, for the tests and conformance:manager G2 (D48)`);
+  if (isAsync || descendantsOf(fn).some((n) => ts.isAwaitExpression(n))) fail(id, `${where(impl, fn)}: removeVerdict is async or awaits; it is PURE over the listed row and the record, so nothing can change between the verdict and the verb (D48)`);
+  const names = new Set(descendantsOf(fn).filter((n) => ts.isIdentifier(n)).map((n) => n.text));
+  for (const impure of ['core', 'deps', 'manifest', 'listSessions', 'Date', 'process']) {
+    if (names.has(impure)) fail(id, `${where(impl, fn)}: removeVerdict names ${impure}; it reads only the row and the record it is handed (D48)`);
+  }
+  const calls = descendantsOf(fn).filter((n) => ts.isCallExpression(n));
+  const refusal = calls.find((c) => calleeName(c) === 'removeRefusal');
+  const shared = calls.filter((c) => calleeName(c) === 'sessionActionGates');
+  checked(id, 3);
+  if (refusal === undefined) fail(id, `${where(impl, fn)}: removeVerdict never asks main's gate, removeRefusal( (D48)`);
+  if (shared.length === 0) fail(id, `${where(impl, fn)}: removeVerdict never asks the shared gate, sessionActionGates(, which is THE ONLY LOCK on a row on another machine (D6, D48)`);
+  if (refusal !== undefined && shared.length > 0 && refusal.getStart() > shared[0].getStart()) fail(id, `${where(impl, refusal)}: removeVerdict asks the shared gate before main's removeRefusal(; main's gate first, so main's own sentence answers a live row on this Mac (D48)`);
+  for (const c of shared) {
+    checked(id);
+    const field = ts.isPropertyAccessExpression(c.parent) && c.parent.expression === c ? c.parent.name.text : null;
+    if (field !== 'canRemove' || c.arguments[2]?.getText() !== 'DOOR_REMOVE_GATE_ENV') fail(id, `${where(impl, c)}: removeVerdict asks the shared gate as ${J(c.parent.getText().slice(0, 80))}; it reads .canRemove of sessionActionGates( with DOOR_REMOVE_GATE_ENV and nothing else (D47)`);
+  }
+  // DRIVEN over every status, on this Mac and on another machine (§10.3).
+  const lifecycle = existsSync(RM_LIFECYCLE) ? arLoad(RM_LIFECYCLE, id) : null;
+  const gatesMod = gates === null ? null : arLoad(gates, id);
+  const types = arLoad(join(ROOT, 'src', 'shared', 'types.ts'), id);
+  let mod = null;
+  try {
+    mod = zLoad(impl, rmStubs(null));
+  } catch (err) {
+    fail(id, `${rel(impl)} could not be loaded in memory to be driven: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  const verdict = mod?.removeVerdict;
+  checked(id);
+  if (typeof verdict !== 'function' || typeof lifecycle?.removeRefusal !== 'function' || typeof gatesMod?.sessionActionGates !== 'function' || gatesMod?.DOOR_REMOVE_GATE_ENV === undefined || !Array.isArray(types?.SESSION_STATUSES)) {
+    fail(id, 'removeVerdict, removeRefusal, sessionActionGates, DOOR_REMOVE_GATE_ENV or SESSION_STATUSES could not be loaded, so the partition was driven over nothing');
+    return;
+  }
+  const WANT = {
+    // both pass: an ended session, on this Mac or another machine
+    exited: { local: 'ok', remote: 'ok' },
+    restorable: { local: 'ok', remote: 'ok' },
+    // main's gate refuses a live or unknown row on this Mac; the shared gate
+    // alone refuses one on another machine (main passes every remote record)
+    running: { local: 'changed', remote: 'changed' },
+    idle: { local: 'changed', remote: 'changed' },
+    needs_input: { local: 'changed', remote: 'changed' },
+    unknown: { local: 'unreachable', remote: 'unreachable' },
+    // main passes a removed row; the shared gate refuses it
+    discarded: { local: 'changed', remote: 'changed' }
+  };
+  checked(id);
+  if (J([...types.SESSION_STATUSES].sort()) !== J(Object.keys(WANT).sort())) fail(id, `SESSION_STATUSES is ${J(types.SESSION_STATUSES)}; every status is placed in this partition on purpose, and a new one must be placed here (§10.3)`);
+  let mainAloneRefused = 0;
+  for (const status of types.SESSION_STATUSES) {
+    for (const place of ['local', 'remote']) {
+      const remote = place === 'remote';
+      const row = rmRow(`r-${status}-${place}`, status, remote);
+      const record = rmRecord(status, remote);
+      const mainPasses = lifecycle.removeRefusal(record) === null;
+      const gatePasses = gatesMod.sessionActionGates(row, status, gatesMod.DOOR_REMOVE_GATE_ENV).canRemove === true;
+      if (mainPasses && !gatePasses) mainAloneRefused += 1;
+      let got;
+      try {
+        got = verdict(row, record);
+      } catch (err) {
+        fail(id, `removeVerdict threw on ${status} ${place} (${err instanceof Error ? err.message : String(err)}); it answers every row`);
+        continue;
+      }
+      checked(id, 2);
+      const word = got?.ok === true ? 'ok' : got?.reason ?? '?';
+      if ((got?.ok === true) !== (mainPasses && gatePasses)) fail(id, `removeVerdict answers ${J(got)} for a ${status} row ${remote ? 'on another machine' : 'on this Mac'}, where main's gate ${mainPasses ? 'passes' : 'refuses'} and the shared gate ${gatePasses ? 'passes' : 'refuses'}; it passes exactly where BOTH pass (§10.3)`);
+      if (WANT[status]?.[place] !== undefined && word !== WANT[status][place]) fail(id, `removeVerdict answers ${J(word)} for a ${status} row ${remote ? 'on another machine' : 'on this Mac'}; it answers ${J(WANT[status][place])} (D48)`);
+      if (got?.ok !== true && (typeof got?.sentence !== 'string' || got.sentence.length === 0)) fail(id, `removeVerdict refuses a ${status} row ${place} with no sentence (${J(got)}); every refusal carries main's own words or the shared ones (D48)`);
+    }
+  }
+  // The attack this gate exists for: the shared gate is the ONLY lock on a
+  // live remote row, so the partition must still disagree there.
+  checked(id);
+  if (mainAloneRefused < 5) fail(id, `the shared gate alone refuses ${String(mainAloneRefused)} row(s) main passes; it refuses at least the four live and unknown statuses on another machine and a removed row, the rows main's removeRefusal passes by design (§10.3, ruling R11)`);
+  // The arms with no row: nothing at all, and a record no surface lists.
+  for (const [what, row, record, want] of [
+    ['an id nothing holds', undefined, undefined, 'gone'],
+    ['a record no surface lists', undefined, rmRecord('exited', false), 'gone'],
+    ['a removed record no surface lists', undefined, rmRecord('discarded', false), 'gone']
+  ]) {
+    checked(id);
+    let got;
+    try {
+      got = verdict(row, record);
+    } catch (err) {
+      got = { threw: err instanceof Error ? err.message : String(err) };
+    }
+    if (got?.ok === true || got?.reason !== want) fail(id, `removeVerdict answers ${J(got)} for ${what}; it answers refused ${want} (D48)`);
+  }
+}
+
+// ---- RM5, the Remove act, DRIVEN ------------------------------------------------
+
+function rmActRule() {
+  const id = 'RM5';
+  const impl = p348File(POCKET_WRITES_FILE, id);
+  if (impl === null) return;
+  const factory = oneFunction(impl, 'createPocketWrites');
+  const member = factory === null ? undefined : descendantsOf(factory).find((n) => (ts.isPropertyAssignment(n) && memberName(n) === 'remove' && (ts.isArrowFunction(bare(n.initializer)) || ts.isFunctionExpression(bare(n.initializer)))) || (ts.isMethodDeclaration(n) && memberName(n) === 'remove'));
+  const fn = member === undefined ? null : ts.isPropertyAssignment(member) ? bare(member.initializer) : member;
+  checked(id);
+  if (fn === null) {
+    fail(id, `${rel(impl)}: createPocketWrites answers no remove, so the act cannot be read (build/p348/SPEC.md §4.2 step 4)`);
+    return;
+  }
+  const own = descendantsOf(fn);
+  const at = (name) => own.find((n) => ts.isCallExpression(n) && calleeName(n) === name);
+  const verdict = at('removeVerdict');
+  const verb = at('removeSession');
+  const broadcast = at('broadcastSessions');
+  checked(id, 3);
+  if (verdict === undefined || verb === undefined || broadcast === undefined) {
+    fail(id, `${where(impl, fn)}: remove names ${J({ removeVerdict: verdict !== undefined, removeSession: verb !== undefined, broadcastSessions: broadcast !== undefined })}; it asks removeVerdict(, then calls the Mac's own removeSession( and broadcastSessions( (D10, D48)`);
+  } else {
+    if (!(verdict.getStart() < verb.getStart() && verb.getStart() < broadcast.getStart())) fail(id, `${where(impl, fn)}: remove's removeVerdict(, removeSession( and broadcastSessions( are not in that order; the verdict first, then the verb, then the windows told (D10, D48)`);
+    for (const w of own.filter((n) => ts.isAwaitExpression(n) && n.getStart() > verdict.getStart() && n.getStart() < broadcast.getStart())) {
+      fail(id, `${where(impl, w)}: remove awaits ${J(w.getText().slice(0, 50))} between its verdict and its verb; nothing is awaited there (D48)`);
+    }
+    for (const c of [verb, broadcast]) {
+      const recv = ts.isPropertyAccessExpression(c.expression) ? c.expression.expression.getText() : '';
+      if (!/(?:^|\.)core$/.test(recv)) fail(id, `${where(impl, c)}: ${calleeName(c)}( is called on ${J(recv)}; it is the core's own, the Mac's verb (D48)`);
+    }
+  }
+  for (const name of ['removeSession', 'broadcastSessions']) {
+    const n = callsOf(impl).filter((c) => calleeName(c) === name).length;
+    checked(id);
+    if (n !== 1) fail(id, `${rel(impl)} calls ${name}( ${String(n)} time(s); once, in remove (D48)`);
+  }
+  const reach = nsReach(impl, fn);
+  const codes = new Set(reach.flatMap((f) => descendantsOf(f).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'isGmuxError' && n.arguments[1] !== undefined && ts.isStringLiteralLike(n.arguments[1])).map((c) => c.arguments[1].text)));
+  checked(id, 2);
+  for (const code of ['SESSION_NOT_FOUND', 'INVALID_INPUT']) if (!codes.has(code)) fail(id, `${where(impl, fn)}: nothing remove reaches asks isGmuxError( for ${code}; a thrown Remove is told apart by its code alone (D48)`);
+  // DRIVEN over a fake core whose verbs record, and errors made by the same module.
+  let errorsModule = null;
+  let mod = null;
+  let words = null;
+  try {
+    errorsModule = zLoad(RM_ERRORS, AR_STUBS);
+    mod = zLoad(impl, rmStubs(errorsModule));
+    words = zLoad(join(ROOT, 'src', 'shared', 'lifecycle-words.ts'), AR_STUBS);
+  } catch (err) {
+    fail(id, `${rel(impl)} could not be loaded in memory to be driven: ${err instanceof Error ? err.message : String(err)}`);
+    return;
+  }
+  checked(id);
+  if (typeof mod?.createPocketWrites !== 'function' || typeof errorsModule?.GmuxError !== 'function') {
+    fail(id, `${rel(impl)} exports no createPocketWrites to drive`);
+    return;
+  }
+  const REMOVE_FAILED = words?.REMOVE_FAILED;
+  checked(id);
+  if (typeof REMOVE_FAILED !== 'string') fail(id, 'src/shared/lifecycle-words.ts exports no REMOVE_FAILED, so a failed Remove has no words of its own (§5.1)');
+  const drive = async (what, { rows, records, throwCode, flip, coreNull = false }, want) => {
+    const log = [];
+    const core = {
+      listSessions: () => rows,
+      manifest: { getSession: (sid) => records[sid] },
+      killSession: async (sid) => {
+        log.push(['kill', sid]);
+      },
+      removeSession: (sid) => {
+        log.push(['remove', sid]);
+        if (flip !== undefined) records[sid] = flip;
+        if (throwCode === 'plain') throw new Error('the verb failed');
+        if (throwCode !== undefined) throw new errorsModule.GmuxError(throwCode, 'refused');
+      },
+      broadcastSessions: () => log.push(['broadcast'])
+    };
+    const nope = async () => ({ outcome: 'failed', sentence: 'nope' });
+    const writes = mod.createPocketWrites({ core: () => (coreNull ? null : core), machineKnown: () => true, reply: { choose: nope, say: nope }, keys: { keys: nope }, start: { start: nope }, paste: { paste: nope } });
+    const outcome = await zSettle(Promise.resolve().then(() => writes.remove({ sessionId: rows[0]?.id ?? 'ghost' })));
+    checked(id, 2);
+    if (!outcome.ok) {
+      fail(id, `remove threw on ${what} (${outcome.error}); it answers an outcome and never throws`);
+      return;
+    }
+    const got = outcome.value;
+    const said = got.outcome === 'done' ? 'done' : `${got.outcome}${got.reason === undefined ? '' : ` ${got.reason}`}`;
+    if (said !== want.said || (want.sentence !== undefined && got.sentence !== want.sentence)) fail(id, `remove answers ${J(got)} for ${what}; it answers ${want.said}${want.sentence === undefined ? '' : ` with ${J(want.sentence)}`} (D48)`);
+    if (J(log) !== J(want.log)) fail(id, `remove made the calls ${J(log)} for ${what}; it makes ${J(want.log)}: the verb only after the verdict passed, the windows told after it, and nothing killed (D10, D48)`);
+  };
+  const ended = rmRow('ses-ended', 'exited', false);
+  const sid = ended.id;
+  const live = rmRow('ses-live', 'running', true);
+  const unknown = rmRow('ses-unknown', 'unknown', false);
+  const mainWords = existsSync(RM_LIFECYCLE) ? arLoad(RM_LIFECYCLE, id) : null;
+  const liveSentence = typeof mainWords?.removeRefusal === 'function' ? mainWords.removeRefusal({ status: 'running' }) : undefined;
+  return (async () => {
+    await drive('an ended session on this Mac', { rows: [ended], records: { [sid]: { status: 'exited' } } }, { said: 'done', log: [['remove', sid], ['broadcast']] });
+    await drive('a restorable session on another machine', { rows: [rmRow('ses-far', 'restorable', true)], records: { 'ses-far': rmRecord('restorable', true) } }, { said: 'done', log: [['remove', 'ses-far'], ['broadcast']] });
+    await drive('a LIVE session on another machine (the shared gate the only lock)', { rows: [live], records: { [live.id]: rmRecord('running', true) } }, { said: 'refused changed', log: [] });
+    await drive('a session Tortie cannot see', { rows: [unknown], records: { [unknown.id]: { status: 'unknown' } } }, { said: 'refused unreachable', log: [] });
+    await drive('the verb answering SESSION_NOT_FOUND', { rows: [ended], records: { [sid]: { status: 'exited' } }, throwCode: 'SESSION_NOT_FOUND' }, { said: 'refused gone', sentence: words?.SESSION_NOT_FOUND, log: [['remove', sid]] });
+    await drive('the verb answering INVALID_INPUT because the row came back to life', { rows: [ended], records: { [sid]: { status: 'exited' } }, throwCode: 'INVALID_INPUT', flip: { status: 'running' } }, { said: 'refused changed', sentence: liveSentence, log: [['remove', sid]] });
+    await drive('the verb answering INVALID_INPUT with main passing again', { rows: [ended], records: { [sid]: { status: 'exited' } }, throwCode: 'INVALID_INPUT' }, { said: 'failed', sentence: REMOVE_FAILED, log: [['remove', sid]] });
+    await drive('the verb throwing a plain error', { rows: [ended], records: { [sid]: { status: 'exited' } }, throwCode: 'plain' }, { said: 'failed', sentence: REMOVE_FAILED, log: [['remove', sid]] });
+    await drive('a core that has not booted', { rows: [ended], records: {}, coreNull: true }, { said: 'failed', log: [] });
+  })();
+}
+
+// ---- RM6, the Remove offer ---------------------------------------------------
+
+function rmOfferRule() {
+  const id = 'RM6';
+  const routes = p348File(NS_ROUTES, id);
+  if (routes !== null) {
+    // removeConfirm is set only by the session detail composer, from
+    // facts.removeConfirmOf, its three fields copied one by one: a property of
+    // the detail, or the detail's field assigned once, from the offer copied
+    // by one helper whose every answer is the three fields or null.
+    const sets = nodesOf(routes).filter((n) => ((ts.isPropertyAssignment(n) || ts.isShorthandPropertyAssignment(n)) && memberName(n) === 'removeConfirm') || (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isPropertyAccessExpression(n.left) && n.left.name.text === 'removeConfirm'));
+    checked(id, 2);
+    if (sets.length !== 1) fail(id, `${rel(routes)} sets removeConfirm ${String(sets.length)} time(s); ONCE, in /v1/session's detail composer (build/p348/SPEC.md D49)`);
+    const facts = interfaceOf(routes, 'PocketFacts');
+    const member = facts?.members.find((m) => memberName(m) === 'removeConfirmOf');
+    if (member === undefined || member.questionToken === undefined) fail(id, `${rel(routes)}: PocketFacts.removeConfirmOf is ${member === undefined ? 'absent' : 'required'}; it is optional, and absent or null is no removeConfirm, because the push seam's and the tests' facts offer no Remove (D49)`);
+    const asks = callsOf(routes).filter((c) => calleeName(c) === 'removeConfirmOf');
+    checked(id);
+    if (asks.length !== 1) fail(id, `${rel(routes)} asks removeConfirmOf ${String(asks.length)} time(s); once, in the detail composer (D49)`);
+    /** An object literal of exactly title, body and confirmLabel, each read off the offer by name or destructured from it in `holder`. */
+    const fieldByField = (o, holder) => {
+      if (!ts.isObjectLiteralExpression(o)) return false;
+      if (J(o.properties.map((p) => (ts.isSpreadAssignment(p) ? '…' : memberName(p) ?? '?')).sort()) !== J(['body', 'confirmLabel', 'title'])) return false;
+      const destructured = holder !== null && descendantsOf(holder).some((m) => ts.isVariableDeclaration(m) && ts.isObjectBindingPattern(m.name) && J(m.name.elements.map((e) => (ts.isIdentifier(e.name) ? e.name.text : '?')).sort()) === J(['body', 'confirmLabel', 'title']) && m.name.elements.every((e) => e.propertyName === undefined && e.dotDotDotToken === undefined));
+      return o.properties.every((p) => (ts.isPropertyAssignment(p) && ts.isPropertyAccessExpression(bare(p.initializer)) && bare(p.initializer).name.text === memberName(p)) || (ts.isShorthandPropertyAssignment(p) && destructured));
+    };
+    for (const s of sets) {
+      let value = bare(ts.isBinaryExpression(s) ? s.right : ts.isPropertyAssignment(s) ? s.initializer : s.name);
+      if (value !== undefined && ts.isIdentifier(value)) {
+        for (let p = s.parent; p !== undefined; p = p.parent) {
+          if (!ts.isFunctionLike(p)) continue;
+          const d = descendantsOf(p).find((m) => ts.isVariableDeclaration(m) && ts.isIdentifier(m.name) && m.name.text === value.text && m.initializer !== undefined);
+          if (d !== undefined) value = bare(d.initializer);
+          break;
+        }
+      }
+      let ok = value !== undefined && fieldByField(value, null);
+      if (!ok && value !== undefined && ts.isCallExpression(value) && ts.isIdentifier(value.expression)) {
+        const helper = oneFunction(routes, value.expression.text);
+        const rets = helper === null ? [] : ownReturnsOf(helper).map((r) => bare(r.expression)).filter((e) => e !== undefined);
+        const objects = rets.filter((e) => e.kind !== ts.SyntaxKind.NullKeyword);
+        ok = helper !== null && objects.length > 0 && objects.every((e) => fieldByField(e, helper)) && descendantsOf(helper).some((m) => ts.isCallExpression(m) && calleeName(m) === 'removeConfirmOf');
+      }
+      checked(id, 2);
+      if (!ok) fail(id, `${where(routes, s)}: removeConfirm is ${J(value?.getText().slice(0, 90) ?? null)}; it is the offer's title, body and confirmLabel copied one by one, so nothing else the offer holds can leave (D49)`);
+      // Only when the offer answered non-null.
+      const guard = guardingIf(s)?.expression.getText() ?? '';
+      const guarded = /!==\s*null|!==\s*undefined/.test(guard) || (() => {
+        for (let p = s.parent; p !== undefined && !ts.isFunctionLike(p); p = p.parent) {
+          if (ts.isConditionalExpression(p) && /null|undefined/.test(p.condition.getText())) return true;
+          if (ts.isBinaryExpression(p) && p.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) return true;
+        }
+        return false;
+      })();
+      if (!guarded) fail(id, `${where(routes, s)}: removeConfirm is set whatever removeConfirmOf answered; it is present ONLY when the offer is non-null, and absent otherwise (D49)`);
+    }
+  }
+  // capabilities.ts hands removeConfirmOf asking removeAllowed() before removeOffer(.
+  const capabilities = p348File(NS_CAPABILITIES, id);
+  if (capabilities !== null) {
+    const handed = nodesOf(capabilities).filter((n) => ts.isPropertyAssignment(n) && memberName(n) === 'removeConfirmOf');
+    checked(id, 2);
+    if (handed.length !== 1) fail(id, `${rel(capabilities)} hands removeConfirmOf ${String(handed.length)} time(s); once, in the door's facts (D49)`);
+    for (const h of handed) {
+      const calls = descendantsOf(h.initializer).filter((n) => ts.isCallExpression(n));
+      const allowed = calls.find((c) => calleeName(c) === 'removeAllowed');
+      const offer = calls.find((c) => calleeName(c) === 'removeOffer');
+      if (allowed === undefined || offer === undefined || allowed.getStart() > offer.getStart()) fail(id, `${where(capabilities, h)}: removeConfirmOf is ${J(h.initializer.getText().slice(0, 110))}; it asks removeAllowed() first and only then removeOffer(, so no Remove is offered on a Mac whose Allow waits (D49)`);
+    }
+  }
+  const ipc = p348File(RM_IPC, id);
+  if (ipc !== null) p348AllowedMethod(id, ipc, 'removeAllowed', 'remove');
+  // removeOffer is the verdict passing, composed as the Mac's own words.
+  const impl = existsSync(POCKET_WRITES_FILE) ? POCKET_WRITES_FILE : null;
+  if (impl !== null) {
+    const factory = oneFunction(impl, 'createPocketWrites');
+    const offer = factory === null ? undefined : descendantsOf(factory).find((n) => (ts.isMethodDeclaration(n) || ts.isPropertyAssignment(n)) && memberName(n) === 'removeOffer');
+    checked(id);
+    if (offer === undefined) fail(id, `${rel(impl)}: createPocketWrites answers no removeOffer (D48, D49)`);
+    else {
+      const names = new Set(descendantsOf(offer).filter((n) => ts.isCallExpression(n)).map((c) => calleeName(c)));
+      for (const want of ['removeVerdict', 'removeSessionConfirm']) if (!names.has(want)) fail(id, `${where(impl, offer)}: removeOffer never calls ${want}(; the offer is the verdict passing, in the Mac's own removeSessionConfirm words (D48, D5)`);
+    }
+  }
+}
+
+/** A PocketHost method answering `this.routeServed('<route>')` alone, the one way a host says a route is served (NS10's shape). */
+function p348AllowedMethod(id, ipc, name, route) {
+  const found = hostMembers(ipc, name);
+  checked(id, 2);
+  if (found.length !== 1 || !ts.isMethodDeclaration(found[0]) || found[0].body === undefined) {
+    fail(id, `${rel(ipc)}: PocketHost declares ${name} ${String(found.length)} time(s); ONE public method (build/p348/SPEC.md §4.2 step 5)`);
+    return;
+  }
+  const stmts = found[0].body.statements;
+  const only = stmts.length === 1 && ts.isReturnStatement(stmts[0]) ? squash(stmts[0].expression?.getText() ?? '') : null;
+  const hidden = (found[0].modifiers ?? []).some((x) => x.kind === ts.SyntaxKind.PrivateKeyword || x.kind === ts.SyntaxKind.ProtectedKeyword);
+  if (only !== `this.routeServed('${route}')` || hidden) fail(id, `${where(ipc, found[0])}: ${name}'s body is ${J(squash(found[0].body.getText()).slice(0, 90))}${hidden ? ', and it is not public' : ''}; it is a public method whose body is return this.routeServed('${route}') alone, the served set main asks for every route (build/p348/SPEC.md §4.2 step 5)`);
+  // Nothing in the door's own domain asks the HOST's method: the door is
+  // handed what it may offer by capabilities.ts (a facts member of the same
+  // name, read off facts, is the door's own optional read).
+  for (const file of domainFiles) {
+    for (const c of callsOf(file).filter((x) => calleeName(x) === name)) {
+      const recv = ts.isPropertyAccessExpression(c.expression) ? c.expression.expression.getText() : '';
+      if (/(?:^|\.)facts$/.test(recv)) continue;
+      checked(id);
+      fail(id, `${where(file, c)} asks ${recv === '' ? '' : `${recv}.`}${name}(; the door is handed what it may offer by src/main/capabilities.ts, and asks nothing of the host (as NS10's startAllowed)`);
+    }
+  }
+}
+
+// ---- RM7, nothing else in Remove's path -------------------------------------------
+
+function rmQuietRule() {
+  const id = 'RM7';
+  const impl = p348File(POCKET_WRITES_FILE, id);
+  if (impl === null) return;
+  const factory = oneFunction(impl, 'createPocketWrites');
+  const member = factory === null ? undefined : descendantsOf(factory).find((n) => (ts.isPropertyAssignment(n) && memberName(n) === 'remove') || (ts.isMethodDeclaration(n) && memberName(n) === 'remove'));
+  const verdict = oneFunction(impl, 'removeVerdict');
+  const roots = [member === undefined ? null : ts.isPropertyAssignment(member) ? bare(member.initializer) : member, verdict].filter((f) => f !== null && f !== undefined);
+  checked(id);
+  if (roots.length < 2) {
+    fail(id, `${rel(impl)}: remove or removeVerdict could not be found, so their path was read over nothing (D48)`);
+    return;
+  }
+  const path = [...new Set(roots.flatMap((r) => nsReach(impl, r)))];
+  const NOT_IN_REMOVE = /^(?:noteUserInput|noteHookEvent|applyDetectedStatus|setStatus|setSessionStatus|updateStatus|writeStatus|markStatus|killSession|kill|killTree|endTree|execOn|execTmux|sendToMachine|remoteRemove|runOnMachine|getLog|info|warn|error|debug|log|evaluatePolicy|confirmOwner|ownerCheck)$/;
+  for (const f of path) {
+    for (const c of descendantsOf(f).filter((n) => ts.isCallExpression(n))) {
+      checked(id);
+      const name = calleeName(c);
+      if (name !== null && NOT_IN_REMOVE.test(name)) fail(id, `${where(impl, c)}: Remove's path calls ${name}(; it sets no status, kills nothing, logs nothing, names no machine's verb and asks no owner check: the Mac's own removeSession does the removing (D7, D48; CLAUDE.md refusal 5)`);
+    }
+    for (const s of descendantsOf(f).filter((n) => ts.isStringLiteralLike(n))) {
+      checked(id);
+      if (P348_NO_OWNER_CHECK.test(s.text) || /\bneeds_input\b/.test(s.text)) fail(id, `${where(impl, s)}: Remove's path spells ${J(s.text)}; it names no owner check and writes no status (D7)`);
+    }
+  }
+}
+
+// ---- PS4, the paste verb's order -------------------------------------------------
+
+/** The paste verb itself: the one function named paste inside createScreenPaste, or null. */
+function psVerbOf(file) {
+  const factory = oneFunction(file, 'createScreenPaste');
+  if (factory === null) return null;
+  const inner = functionsNamed(file, 'paste').filter((f) => f !== factory && inside(f, factory));
+  return inner.length === 1 ? inner[0] : null;
+}
+
+/** The nodes of `fn` that are its own, not inside a function nested in it. */
+const psOwn = (fn) => descendantsOf(fn).filter((n) => n !== fn && !nestedIn(n, fn));
+
+function psOrderRule() {
+  const id = 'PS4';
+  const file = p348File(PS_PASTE, id);
+  if (file === null) return;
+  const factories = functionsNamed(file, 'createScreenPaste');
+  const fn = psVerbOf(file);
+  checked(id, 2);
+  if (factories.length !== 1) fail(id, `${rel(file)} declares createScreenPaste ${String(factories.length)} time(s); once (build/p348/SPEC.md §4.6 step 10)`);
+  if (fn === null) {
+    fail(id, `${rel(file)}: createScreenPaste holds no one paste verb, so its order cannot be read (D50)`);
+    return;
+  }
+  const own = psOwn(fn);
+  const ownCalls = own.filter((n) => ts.isCallExpression(n));
+  const named = (name) => ownCalls.filter((c) => calleeName(c) === name);
+  const reachesRefusal = (c) => calleeName(c) === 'pasteRefusal' || (ts.isIdentifier(c.expression) && (() => {
+    const g = oneFunction(file, c.expression.text);
+    return g !== null && nsReach(file, g).some((f) => descendantsOf(f).some((m) => ts.isCallExpression(m) && calleeName(m) === 'pasteRefusal'));
+  })());
+  // 1. The text rule first, before anything else is called.
+  checked(id);
+  if (ownCalls.length === 0 || !reachesRefusal(ownCalls[0])) fail(id, `${where(file, fn)}: the paste's first call is ${J(ownCalls[0]?.getText().slice(0, 60) ?? null)}; it is the text rule, pasteRefusal( (directly or through one local function), before the core, the row or the buffer is touched (D50 step 1)`);
+  // 2. The machine refusal, before the buffer.
+  const loads = named('loadWords');
+  const reads = named('readFresh');
+  const machineRefusals = own.filter((n) => ts.isReturnStatement(n) && n.expression !== undefined && descendantsOf(n.expression).some((m) => ts.isStringLiteralLike(m) && m.text === 'machine'));
+  checked(id, 3);
+  if (loads.length !== 1) fail(id, `${where(file, fn)}: the paste calls loadWords( ${String(loads.length)} time(s); ONCE, through the one buffer helper (D50 step 3, D52)`);
+  if (reads.length !== 1) fail(id, `${where(file, fn)}: the paste calls readFresh( ${String(reads.length)} time(s); ONCE, its capture the last thing awaited (D50 step 4)`);
+  if (machineRefusals.length === 0 || (loads[0] !== undefined && machineRefusals[0].getStart() > loads[0].getStart())) fail(id, `${where(file, fn)}: the paste does not refuse a session on another machine with reason machine BEFORE loadWords(; a far paste is refused before the buffer and before any read (D22, D50 step 2)`);
+  if (loads[0] !== undefined && reads[0] !== undefined && loads[0].getStart() > reads[0].getStart()) fail(id, `${where(file, loads[0])}: the words are loaded AFTER the fresh read; they are loaded before it, so the one spawn after the final check is the paste list (D50 step 3, D52)`);
+  if (reads[0] !== undefined && !ts.isAwaitExpression(reads[0].parent)) fail(id, `${where(file, reads[0])}: readFresh( is not awaited where it is called; it is the ONE awaited fresh read (D50 step 4)`);
+  // 5 and 6. The final check, the bump, the seam and the ONE act, in order, nothing awaited from still( to the act.
+  const readAt = reads[0]?.getStart() ?? -1;
+  const firstStill = ownCalls.find((c) => ts.isIdentifier(c.expression) && c.expression.text === 'still' && c.getStart() > readAt);
+  const bump = ownCalls.find((c) => calleeName(c) === 'bump' && c.arguments.some((a) => ts.isStringLiteralLike(a) && a.text === 'phone'));
+  const seam = ownCalls.find((c) => calleeName(c) === 'onLastCheck');
+  const acts = ownCalls.filter((c) => ts.isIdentifier(c.expression) && c.expression.text === 'run');
+  checked(id, 3);
+  if (firstStill === undefined || bump === undefined || seam === undefined || acts.length !== 1) {
+    fail(id, `${where(file, fn)}: the paste names ${J({ still: firstStill !== undefined, bump: bump !== undefined, onLastCheck: seam !== undefined, act: acts.length })}; after its one fresh read it asks still(, bumps the question id for the phone, calls onLastCheck?.( and then makes ONE run( (D50 steps 5, 6)`);
+    return;
+  }
+  const act = acts[0];
+  if (!(firstStill.getStart() < bump.getStart() && bump.getStart() < seam.getStart() && seam.getStart() < act.getStart())) fail(id, `${where(file, fn)}: the paste's still(, bump(, onLastCheck?.( and run( are not in that order; the id moves before the act so a desk keystroke racing it is told apart, and the seam's stamp is the last thing before the act (D50 step 6)`);
+  for (const w of own.filter((n) => ts.isAwaitExpression(n) && n.getStart() > firstStill.getStart() && n.getStart() < act.getStart())) {
+    fail(id, `${where(file, w)}: the paste awaits ${J(w.getText().slice(0, 50))} between its final check and its act; nothing is awaited there, because that window is the one a moved question or a Removed phone would type through (D50 step 5)`);
+  }
+  // The act's argv, element for element: copy mode left, then the one paste, no Enter.
+  const argv = flatArgvOf(file, act.arguments[0]);
+  const want = ["'copy-mode'", "'-q'", "'-t'", 'PANE', "';'", "'paste-buffer'", "'-p'", "'-d'", "'-b'", 'NAME', "'-t'", 'PANE'];
+  const nameVar = (() => {
+    const load = loads[0];
+    for (let p = load?.parent; p !== undefined && p !== fn; p = p.parent) {
+      if (ts.isBinaryExpression(p) && p.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isIdentifier(p.left)) return p.left.text;
+      if (ts.isVariableDeclaration(p) && ts.isIdentifier(p.name)) return p.name.text;
+    }
+    return null;
+  })();
+  checked(id, 2);
+  const shape = argv === null ? null : argv.map((e, i) => (i === 3 || i === 11 ? (argv[3] === argv[11] && !/^'/.test(e) ? 'PANE' : e) : i === 9 ? (nameVar !== null && e === nameVar ? 'NAME' : e) : e));
+  if (J(shape) !== J(want)) fail(id, `${where(file, act)}: the act's argv is ${J(argv)}; it is exactly copy-mode -q -t <pane> ; paste-buffer -p -d -b <the name loadWords( answered> -t <the same pane>: no send-keys, no Enter, no -S, one pane (D50 step 6, D58)`);
+  for (const s of codeStringsOf(file)) {
+    checked(id);
+    if (['send-keys', 'Enter', 'C-m', 'KPEnter', '-S', '-l', '-H'].includes(s.text)) fail(id, `${where(file, s.node)}: paste.ts spells ${J(s.text)}; a paste is one paste-buffer -p -d after copy mode is left, with no Return added and no -S (D19, D58)`);
+  }
+}
+
+// ---- PS5, the buffer's finally ---------------------------------------------------
+
+function psFinallyRule() {
+  const id = 'PS5';
+  const file = p348File(PS_PASTE, id);
+  if (file === null) return;
+  const fn = psVerbOf(file);
+  const drops = callsOf(file).filter((c) => calleeName(c) === 'dropWords');
+  checked(id, 2);
+  if (drops.length === 0) fail(id, `${rel(file)} never calls dropWords(, so a refused or failed paste leaves his words in the private server (D50 step 7)`);
+  for (const d of drops) {
+    if (!insideFinally(d)) fail(id, `${where(file, d)}: dropWords( is not inside a finally, so a refusal or a throw after loadWords( leaves his words in the private server (D50 step 7)`);
+    const guard = guardingIf(d)?.expression.getText() ?? '';
+    if (!/!\s*pasted\b/.test(guard)) fail(id, `${where(file, d)}: dropWords( is guarded by ${J(guard)}; it runs on every path the paste did not take the buffer, under !pasted, because paste-buffer -d took it on the path that did (D50 step 7)`);
+  }
+  // pasted starts false and is written only after the act.
+  const decl = fn === null ? undefined : descendantsOf(fn).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'pasted');
+  const act = fn === null ? undefined : psOwn(fn).find((c) => ts.isCallExpression(c) && ts.isIdentifier(c.expression) && c.expression.text === 'run');
+  checked(id, 2);
+  if (decl === undefined || bare(decl.initializer)?.kind !== ts.SyntaxKind.FalseKeyword || !(decl.parent.flags & ts.NodeFlags.Let)) fail(id, `${rel(file)}: the paste declares no let pasted = false, so the finally cannot tell a paste that landed from one that did not (D50 step 7)`);
+  for (const w of (fn === null ? [] : descendantsOf(fn)).filter((n) => ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isIdentifier(n.left) && n.left.text === 'pasted')) {
+    if (act === undefined || w.getStart() < act.getStart()) fail(id, `${where(file, w)}: pasted is written before the act; it is set from the act's own answer, so a paste refused before it never reads as pasted (D50 step 7)`);
+  }
+  // The helper itself drops a load that failed (writer.ts and paste.ts never hold a name it did not answer).
+  const buffer = p348File(PS_BUFFER, id);
+  if (buffer !== null) {
+    const load = oneFunction(buffer, 'loadWords');
+    const inner = load === null ? [] : descendantsOf(load).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'dropWords');
+    checked(id);
+    if (inner.length !== 1 || !insideFinally(inner[0])) fail(id, `${rel(buffer)}: loadWords does not drop its own name in a finally when the load failed, so words tmux may have taken before the client failed stay on the server (D52)`);
+  }
+}
+
+// ---- PS6, the paste flag ---------------------------------------------------------
+
+/** Every place a file gives `paste` a value: a property `paste:` of an object literal, or an assignment `<x>.paste = …`. */
+function psPasteSets(file) {
+  const out = [];
+  for (const n of nodesOf(file)) {
+    if ((ts.isPropertyAssignment(n) || ts.isShorthandPropertyAssignment(n)) && memberName(n) === 'paste') out.push({ n, value: ts.isPropertyAssignment(n) ? bare(n.initializer) : n.name });
+    if (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isPropertyAccessExpression(n.left) && n.left.name.text === 'paste') out.push({ n, value: bare(n.right) });
+  }
+  return out;
+}
+
+/** The conditions guarding `node` up to `stop`, joined: each if, each ternary's test and each && left side it sits under. */
+function psGuards(node, stop) {
+  const texts = [];
+  for (let p = node.parent; p !== undefined && p !== stop; p = p.parent) {
+    if (ts.isConditionalExpression(p)) texts.push(p.condition.getText());
+    if (ts.isIfStatement(p)) texts.push(p.expression.getText());
+    if (ts.isBinaryExpression(p) && p.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) texts.push(p.left.getText());
+  }
+  return texts.join(' ');
+}
+
+function psFlagRule() {
+  const id = 'PS6';
+  // Composed only in compose.ts's composeScreen, as true, from typable and this Mac.
+  const compose = p348File(PS_COMPOSE, id);
+  const composeScreen = compose === null ? null : oneFunction(compose, 'composeScreen');
+  const screenSources = [...screenFiles, ...(existsSync(REMOTE_SCREEN) ? [REMOTE_SCREEN] : [])];
+  // createScreenPaste's own `return { paste }` hands out the verb, not the flag.
+  const sets = screenSources.flatMap((file) => psPasteSets(file).map((s) => ({ file, ...s }))).filter(({ file, n }) => !(file === PS_PASTE && ts.isShorthandPropertyAssignment(n)));
+  checked(id, 2);
+  if (composeScreen === null) fail(id, `${compose === null ? 'src/main/screen/compose.ts' : rel(compose)} declares no single composeScreen, so the flag's one composer cannot be read (D30)`);
+  if (sets.length === 0) fail(id, 'nothing in src/main/screen composes the paste flag, so no Mac ever offers a paste (build/p348/SPEC.md D30, §4.6 step 9)');
+  for (const { file, n, value } of sets) {
+    checked(id, 2);
+    if (file !== compose || composeScreen === null || !inside(n, composeScreen)) {
+      fail(id, `${where(file, n)} sets paste; it is composed only in compose.ts's composeScreen, from the screen being typable and the session on this Mac (D30)`);
+      continue;
+    }
+    const guard = psGuards(n, composeScreen);
+    if (value?.kind !== ts.SyntaxKind.TrueKeyword) fail(id, `${where(file, n)}: paste is ${J(value?.getText() ?? null)}; it is the literal true, and absent otherwise (D30)`);
+    if (!/typable/.test(guard) || !/machine|local|thisMac|remote/i.test(guard)) fail(id, `${where(file, n)}: paste is set under ${J(guard)}; it is set exactly when the screen is typable and the session is on this Mac (D22, D30)`);
+  }
+  // The door copies it only in screenBodyOf, and only when its caller says paste is served.
+  const routes = p348File(NS_ROUTES, id);
+  if (routes !== null) {
+    const body = oneFunction(routes, 'screenBodyOf');
+    const copies = psPasteSets(routes);
+    checked(id, 2);
+    if (body === null) fail(id, `${rel(routes)} declares no single screenBodyOf, the door's copier of the screen answer (§4.6 step 9)`);
+    if (copies.length !== 1) fail(id, `${rel(routes)} gives paste a value ${String(copies.length)} time(s); once, in screenBodyOf (Z11)`);
+    for (const { n, value } of copies) {
+      checked(id, 2);
+      if (body === null || !inside(n, body)) {
+        fail(id, `${where(routes, n)} sets paste outside screenBodyOf; the door copies the flag in one place (D30)`);
+        continue;
+      }
+      const params = body.parameters.map((p) => (ts.isIdentifier(p.name) ? p.name.text : null)).filter((p) => p !== null);
+      const guard = psGuards(n, body);
+      const served = params.find((p) => /paste|served/i.test(p) && new RegExp(`\\b${p}\\b`).test(guard));
+      if (served === undefined) fail(id, `${where(routes, n)}: paste is copied under ${J(guard)}; it is copied ONLY when screenBodyOf's caller says the paste route is served, a parameter of its own (D30)`);
+      if (value?.kind !== ts.SyntaxKind.TrueKeyword && !(ts.isPropertyAccessExpression(value) && value.name.text === 'paste')) fail(id, `${where(routes, n)}: paste is copied as ${J(value?.getText() ?? null)}; it is the literal true or the composed screen's own paste, copied, never derived here (D30)`);
+    }
+    // The screen route's handler reads facts.pasteAllowed?.() === true.
+    const allowed = callsOf(routes).filter((c) => calleeName(c) === 'pasteAllowed');
+    checked(id, 2);
+    if (allowed.length !== 1) fail(id, `${rel(routes)} asks pasteAllowed ${String(allowed.length)} time(s); once, in the screen route's handler (§4.6 step 9)`);
+    for (const a of allowed) {
+      const cmp = a.parent;
+      const strict = ts.isBinaryExpression(cmp) && cmp.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken && cmp.right.kind === ts.SyntaxKind.TrueKeyword;
+      if (!strict || squash(a.getText()) !== 'facts.pasteAllowed?.()') fail(id, `${where(routes, a)}: the route asks ${J(cmp.getText().slice(0, 70))}; it asks facts.pasteAllowed?.() === true, so absent reads false (§4.6 step 9)`);
+    }
+    const facts = interfaceOf(routes, 'PocketFacts');
+    const member = facts?.members.find((m) => memberName(m) === 'pasteAllowed');
+    checked(id);
+    if (member === undefined || member.questionToken === undefined) fail(id, `${rel(routes)}: PocketFacts.pasteAllowed is ${member === undefined ? 'absent' : 'required'}; it is optional, absent reading false (§4.6 step 9)`);
+  }
+  const ipc = p348File(RM_IPC, id);
+  if (ipc !== null) p348AllowedMethod(id, ipc, 'pasteAllowed', 'paste');
+  const capabilities = p348File(NS_CAPABILITIES, id);
+  if (capabilities !== null) {
+    const handed = nodesOf(capabilities).filter((n) => ts.isPropertyAssignment(n) && memberName(n) === 'pasteAllowed');
+    checked(id);
+    if (handed.length !== 1 || !descendantsOf(handed[0].initializer).some((n) => ts.isCallExpression(n) && calleeName(n) === 'pasteAllowed')) fail(id, `${rel(capabilities)} hands the facts pasteAllowed ${String(handed.length)} time(s)${handed.length === 1 ? `, as ${J(handed[0].initializer.getText().slice(0, 80))}` : ''}; once, asking the host's own pasteAllowed() (§4.6 step 9)`);
+  }
+}
+
+// ---- PS7, the paste module's silence ------------------------------------------------
+
+function psQuietRule() {
+  const id = 'PS7';
+  const file = p348File(PS_PASTE, id);
+  if (file === null) return;
+  for (const n of nodesOf(file)) {
+    if (ts.isPropertyAccessExpression(n) && n.name.text === 'message') {
+      checked(id);
+      fail(id, `${where(file, n)} reads .message; a failed tmux command's text holds its argv, and nothing it says reaches the phone or a log (D50)`);
+    }
+  }
+  const SETTERS = /^(?:noteHookEvent|applyDetectedStatus|setStatus|setSessionStatus|updateStatus|writeStatus|markStatus)$/;
+  const FAR = /^(?:execOn|typePhoneKeys|typeRemote|sendToMachine|remoteScrollRunner)$/;
+  for (const c of callsOf(file)) {
+    checked(id);
+    const name = calleeName(c) ?? '';
+    const recv = ts.isPropertyAccessExpression(c.expression) ? c.expression.expression.getText() : '';
+    if (SETTERS.test(name)) fail(id, `${where(file, c)} calls ${name}(; the paste names no status setter but noteUserInput(, the desk's own funnel (CLAUDE.md refusal 5)`);
+    if (FAR.test(name)) fail(id, `${where(file, c)} calls ${name}(; a paste reaches sessions on this Mac only, and names no road to another machine (D22)`);
+    if (/^(?:debug|info|warn|error|log)$/.test(name) && /log|console/i.test(recv)) fail(id, `${where(file, c)}: a log call in the paste; the one line a write gets is the door's, and the words are logged nowhere (D50)`);
+    if (name === 'getLog') fail(id, `${where(file, c)}: paste.ts makes a logger; it logs nothing (D50)`);
+  }
+  const notes = callsOf(file).filter((c) => calleeName(c) === 'noteUserInput');
+  checked(id);
+  if (notes.length !== 1) fail(id, `${rel(file)} calls noteUserInput( ${String(notes.length)} time(s); once, after the act, when the list succeeded (§4.7)`);
+  for (const s of codeStringsOf(file)) {
+    checked(id);
+    if (s.text === 'send-keys' || s.text === 'needs_input') fail(id, `${where(file, s.node)}: paste.ts spells ${J(s.text)}; it types nothing but its one paste and writes no status (D50)`);
+  }
+  // createScreenPaste( built once, in capabilities.ts.
+  const builders = [];
+  for (const f of productionSources()) {
+    if (!sourceOf(f).includes('createScreenPaste')) continue;
+    for (const c of callsOf(f)) if (calleeName(c) === 'createScreenPaste') builders.push({ f, c });
+  }
+  checked(id);
+  if (builders.length !== 1 || builders[0].f !== NS_CAPABILITIES) fail(id, `createScreenPaste( is called at ${builders.map((b) => where(b.f, b.c)).join(', ') || 'nowhere'}; production builds it ONCE, in src/main/capabilities.ts, beside createScreenKeys( (§4.6 step 10)`);
+}
+// ---- PS8, the one reader of the wrap marks ---------------------------------------
+
+function psMarksRule() {
+  const id = 'PS8';
+  const compose = p348File(PS_COMPOSE, id);
+  if (compose === null) return;
+  const screenSources = [...screenFiles, ...(existsSync(REMOTE_SCREEN) ? [REMOTE_SCREEN] : [])];
+  const mainSources = sourcesUnder(join(ROOT, 'src', 'main'));
+  for (const name of ['wrapsOf', 'marksRoadOf']) {
+    const decls = declarationsOf(mainSources.filter((f) => sourceOf(f).includes(name)), name);
+    checked(id);
+    if (decls.length !== 1 || decls[0].file !== compose) fail(id, `${name} is declared ${String(decls.length)} time(s) (${decls.map((d) => where(d.file, d.n)).join(', ') || 'nowhere'}); once, in src/main/screen/compose.ts (build/p348/SPEC.md D44, §4.6 step 15)`);
+  }
+  const wraps = oneFunction(compose, 'wrapsOf');
+  const reach = wraps === null ? [] : nsReach(compose, wraps);
+  /** The function a node sits in, or null at module scope. */
+  const holderOf = (node) => {
+    for (let p = node.parent; p !== undefined; p = p.parent) if (ts.isFunctionLike(p)) return p;
+    return null;
+  };
+  // The -F prefix is ONE pattern naming tmux's line flags, declared once, in
+  // compose.ts, and READ BY ONE FUNCTION, which wrapsOf reaches: the composer
+  // that strips the prefix and wrapsOf that reads the letters go through it.
+  const prefixes = screenSources.flatMap((file) =>
+    nodesOf(file)
+      .filter((n) => (n.kind === ts.SyntaxKind.RegularExpressionLiteral || ts.isStringLiteralLike(n)) && /DHOPWX/.test(n.getText()))
+      .map((n) => ({ file, n }))
+  );
+  checked(id, 2);
+  if (prefixes.length !== 1 || prefixes[0].file !== compose) {
+    fail(id, `tmux's line flags are spelled ${String(prefixes.length)} time(s) in the Screen's modules (${prefixes.map((x) => where(x.file, x.n)).join(', ') || 'nowhere'}); ONCE, in compose.ts, as the one pattern of -F's prefix (^([DHOPWX]+|-) ), so a wrapped row that is also a prompt (P) or holds a link (H) is read the same everywhere (D44, D45, §3)`);
+  } else {
+    const lit = prefixes[0].n;
+    const decl = ts.isVariableDeclaration(lit.parent) && lit.parent.initializer === lit && ts.isIdentifier(lit.parent.name) ? lit.parent : null;
+    const readers = decl === null ? [holderOf(lit)] : [...new Set(referencesOf(compose, decl.name.text).map((r) => holderOf(r)))];
+    if (readers.length !== 1 || readers[0] === null) fail(id, `${where(compose, lit)}: -F's prefix is read in ${String(readers.length)} place(s); ONE function reads it (D44, D45)`);
+    else if (!reach.includes(readers[0])) fail(id, `${where(compose, lit)}: wrapsOf does not reach the one reader of -F's prefix, so the marks are read some other way (D44, D45)`);
+  }
+  checked(id);
+  if (wraps !== null && !reach.some((f) => descendantsOf(f).some((n) => ts.isStringLiteralLike(n) && n.text === 'W'))) {
+    fail(id, `${where(compose, wraps)}: nothing wrapsOf reaches reads the letter W, tmux's own mark of a row that wrapped (D45 (a))`);
+  }
+  // The fallback's -J lines are read where the marks are: inside what wrapsOf reaches.
+  for (const file of screenSources) {
+    // A read of the -J LINES a reading carried (`marks.joined`), never the
+    // read's own argv of that capture (read.ts's `fallbackArgs(…).joined`).
+    for (const n of nodesOf(file).filter((m) => ts.isPropertyAccessExpression(m) && m.name.text === 'joined' && /(?:^|\.)marks$/.test(m.expression.getText()))) {
+      checked(id);
+      if (file !== compose || !reach.some((f) => inside(n, f))) fail(id, `${where(file, n)} reads the fallback's -J lines (${J(n.getText().slice(0, 40))}); wrapsOf in compose.ts is the ONE reader of the fallback's alignment (D44, D45)`);
+    }
+  }
+  // The version lines, each declared once in the Screen's modules.
+  for (const version of ['3.7b', '3.4']) {
+    const found = screenSources.flatMap((file) => codeStringsOf(file).filter((s) => s.text === version).map((s) => ({ file, ...s })));
+    checked(id);
+    if (found.length !== 1 || found[0].file !== compose) fail(id, `the version line ${J(version)} is spelled ${String(found.length)} time(s) in the Screen's modules (${found.map((f) => where(f.file, f.node)).join(', ') || 'nowhere'}); once, in compose.ts, which marksRoadOf reads (D44)`);
+  }
+  // marksRoadOf answers the road by the RUNNING server's version, and nothing
+  // else chooses one: the reads ask it.
+  const road = oneFunction(compose, 'marksRoadOf');
+  checked(id);
+  if (road !== null && (ts.getCombinedModifierFlags(road) & ts.ModifierFlags.Async) !== 0) fail(id, `${where(compose, road)}: marksRoadOf is async; it is a pure function of a version (D44)`);
+  return psMarksDriven(id, compose);
+}
+
+/**
+ * PS8's DRIVEN half: the shipping marksRoadOf over the versions D44 names, and
+ * the shipping wrapsOf over §2.4's cases, by the -F road and the fallback.
+ * Written against the spec's names; the cases are the measured ones.
+ */
+function psMarksDriven(id, compose) {
+  let mod = null;
+  try {
+    mod = zLoad(compose, AR_STUBS);
+  } catch (err) {
+    fail(id, `${rel(compose)} could not be loaded in memory to be driven: ${err instanceof Error ? err.message : String(err)}`);
+    return;
+  }
+  const road = mod?.marksRoadOf;
+  checked(id);
+  if (typeof road !== 'function') {
+    fail(id, `${rel(compose)} exports no marksRoadOf to drive (D44)`);
+    return;
+  }
+  // The road by version: -F at 3.7b and later; the fallback from 3.4 to
+  // before 3.7b; none below 3.4 or unreadable. Read as the three words the
+  // function answers, whatever their spelling, by grouping.
+  const answers = {};
+  for (const v of ['3.7b', '3.7c', '3.8', '3.10', 'next-3.8', '3.7a', '3.7', '3.6a', '3.5', '3.4', '3.3a', '3.2a', '3.0', '2.9', '', 'garbage', null, undefined]) {
+    try {
+      answers[String(v)] = J(road(v));
+    } catch (err) {
+      answers[String(v)] = `threw ${err instanceof Error ? err.message : String(err)}`;
+    }
+  }
+  const flag = answers['3.7b'];
+  const fallback = answers['3.6a'];
+  const none = answers['3.3a'];
+  checked(id, 4);
+  if (flag === fallback || fallback === none || flag === none) fail(id, `marksRoadOf answers ${J({ '3.7b': flag, '3.6a': fallback, '3.3a': none })}; it answers three different roads at 3.7b (the styled capture takes -F), 3.6a (the fallback's two captures) and 3.3a (none, today's read) (D44)`);
+  for (const v of ['3.7c', '3.8', '3.10']) if (answers[v] !== flag) fail(id, `marksRoadOf(${J(v)}) answers ${answers[v]}; a server at or after 3.7b takes -F, as 3.7b does (${flag}) (D44)`);
+  for (const v of ['3.7a', '3.7', '3.5', '3.4']) if (answers[v] !== fallback) fail(id, `marksRoadOf(${J(v)}) answers ${answers[v]}; a server from 3.4 to before 3.7b takes the fallback, as 3.6a does (${fallback}) (D44: 3.7 and 3.7a could not be measured, and the fallback is right on either)`);
+  for (const v of ['3.2a', '3.0', '2.9', '', 'garbage', 'null', 'undefined']) if (answers[v] !== none) fail(id, `marksRoadOf(${J(v)}) answers ${answers[v]}; a server below 3.4 or a version that cannot be read reads no marks, today's read exactly, as 3.3a does (${none}) (D44)`);
+  // wrapsOf over §2.4's cases, by the -F road and the fallback: the input the
+  // composer hands it, the captured lines as read and the composed rows' own
+  // runs (one run a row here), on a 40-column pane.
+  const marksOf = mod.wrapsOf;
+  checked(id);
+  if (typeof marksOf !== 'function') {
+    fail(id, `${rel(compose)} exports no wrapsOf to drive (D45)`);
+    return;
+  }
+  const run = (text) => [{ text, cells: [...text].length, style: 0 }];
+  const flagsRoad = JSON.parse(flag);
+  const fallbackRoad = JSON.parse(fallback);
+  const A40 = 'A'.repeat(40);
+  const cases = [
+    ['G1a, 100 As (rows 0 and 1 wrapped)', { marks: { road: flagsRoad }, captured: [`W ${A40}`, `W ${A40}`, `- ${'A'.repeat(20)}`], lines: [run(A40), run(A40), run('A'.repeat(20))] }, false, [0, 1]],
+    ['G1b, a row rewritten short and cleared to its end keeps its W and is not joined', { marks: { road: flagsRoad }, captured: [`W status: ok${' '.repeat(30)}`, `W ${A40}`, `- ${'A'.repeat(20)}`], lines: [run(`status: ok${' '.repeat(30)}`), run(A40), run('A'.repeat(20))] }, false, [1]],
+    ['a wrapped prompt row (P and W) is marked', { marks: { road: flagsRoad }, captured: [`PW ${A40}`, `- ${'b'.repeat(10)}`], lines: [run(A40), run('b'.repeat(10))] }, false, [0]],
+    ['the last row is never listed', { marks: { road: flagsRoad }, captured: [`W ${A40}`, `W ${A40}`], lines: [run(A40), run(A40)] }, false, [0]],
+    ['the alternate screen marks nothing', { marks: { road: flagsRoad }, captured: [`W ${A40}`, `W ${A40}`, `- ${'A'.repeat(20)}`], lines: [run(A40), run(A40), run('A'.repeat(20))] }, true, []],
+    ['a line with no prefix on the flags road marks nothing', { marks: { road: flagsRoad }, captured: [A40, `W ${A40}`, '- x'], lines: [run(A40), run(A40), run('x')] }, false, []],
+    ['the fallback, -J going on past row 0', { marks: { road: fallbackRoad, rows: [A40, 'tail'], joined: [`${A40}tail`] }, captured: [A40, 'tail'], lines: [run(A40), run('tail')] }, false, [0]],
+    ['the fallback, the two reads disagreeing over a line', { marks: { road: fallbackRoad, rows: [A40, 'tail'], joined: [`${'B'.repeat(40)}tail`] }, captured: [A40, 'tail'], lines: [run(A40), run('tail')] }, false, []],
+    // A -J line its rows take only part of (the screen moved between the two
+    // reads): every row of it is unmarked, the first included, so a row the
+    // walk marked on the way is cleared again (D45 (a)).
+    ['the fallback, a -J line its rows do not consume exactly', { marks: { road: fallbackRoad, rows: [A40, 'tail'], joined: [`${A40}tailX`] }, captured: [A40, 'tail'], lines: [run(A40), run('tail')] }, false, []],
+    // Two -J lines, the first going on past its first row: the walk takes the
+    // second line's row on its own, and only the first row is marked.
+    ['the fallback, a wrapped line and then a line of its own', { marks: { road: fallbackRoad, rows: [A40, 'tail', 'next'], joined: [`${A40}tail`, 'next'] }, captured: [A40, 'tail', 'next'], lines: [run(A40), run('tail'), run('next')] }, false, [0]]
+  ];
+  for (const [what, input, alternate, want] of cases) {
+    checked(id);
+    let got;
+    try {
+      got = marksOf(input, 40, alternate);
+    } catch (err) {
+      got = `threw ${err instanceof Error ? err.message : String(err)}`;
+    }
+    if (J(got) !== J(want)) fail(id, `wrapsOf over ${what} answers ${J(got)}; it answers ${J(want)} (build/p348/SPEC.md D45, §2.4)`);
+  }
+}
+
+// ---- Z4, Z7, Z11, Z20 and Z25 widened to the paste and the marks -------------------
+
+/**
+ * PHASE 348 (build/p348/SPEC.md §7.1): the five Screen rules the paste and the
+ * wrap marks widen, each under its own id. Z4 the paste verb keeps the keys
+ * verb's order (PS4 holds it whole); Z7 a paste's text reaches pasteRefusal(
+ * and loadWords( alone, never an argv; Z20 the gap awaited once, from the
+ * keys verb's own constant, and ONE last-act store for both verbs; Z11 and
+ * Z25 the screen answer and the page copy `wraps` through ONE checked copier,
+ * a fresh array of ascending whole numbers below the last row.
+ */
+function p348ScreenWidenings() {
+  const file = existsSync(PS_PASTE) ? PS_PASTE : null;
+  const fn = file === null ? null : psVerbOf(file);
+  checked('Z4');
+  if (fn === null) fail('Z4', `${rel(PS_PASTE)} holds no paste verb inside createScreenPaste, so its order cannot be read. It is ${P348_OWNER}.`);
+  else {
+    const own = psOwn(fn);
+    const reads = own.filter((n) => ts.isCallExpression(n) && calleeName(n) === 'readFresh');
+    const still = own.find((n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === 'still' && reads[0] !== undefined && n.getStart() > reads[0].getStart());
+    const act = own.find((n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === 'run');
+    checked('Z4', 3);
+    if (reads.length !== 1 || !ts.isAwaitExpression(reads[0].parent)) fail('Z4', `${where(file, fn)}: the paste reads the screen ${String(reads.length)} time(s); ONE awaited readFresh(, the keys verb's own read (build/p337/SPEC.md §5.4; build/p348/SPEC.md D50)`);
+    if (still === undefined || act === undefined || still.getStart() > act.getStart()) fail('Z4', `${where(file, fn)}: the paste does not ask still( after its read and before its act, the keys verb's final check (build/p348/SPEC.md D50)`);
+    else for (const w of own.filter((n) => ts.isAwaitExpression(n) && n.getStart() > still.getStart() && n.getStart() < act.getStart())) fail('Z4', `${where(file, w)}: the paste awaits between its final check and its act, which the keys verb never does (build/p337/SPEC.md D19; build/p348/SPEC.md D50)`);
+  }
+  // Z7: a paste's text reaches pasteRefusal( and loadWords( alone, and no argv.
+  if (file !== null && fn !== null) {
+    const param = fn.parameters[0] !== undefined && ts.isIdentifier(fn.parameters[0].name) ? fn.parameters[0].name.text : null;
+    const textReads = nodesOf(file).filter((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'text' && param !== null && n.expression.getText() === param);
+    const sinks = { rule: 0, load: 0 };
+    checked('Z7', 2);
+    if (textReads.length === 0) fail('Z7', `${rel(file)}: the paste never reads ${String(param)}.text, so where his words go cannot be read`);
+    for (const n of textReads) {
+      let ok = false;
+      for (let p = n.parent; p !== undefined && p !== fn; p = p.parent) {
+        if (ts.isCallExpression(p) && p.arguments.some((a) => inside(n, a))) {
+          const callee = calleeName(p);
+          const reachesRule = callee === 'pasteRefusal' || (ts.isIdentifier(p.expression) && (() => {
+            const g = oneFunction(file, p.expression.text);
+            return g !== null && nsReach(file, g).some((f) => descendantsOf(f).some((m) => ts.isCallExpression(m) && calleeName(m) === 'pasteRefusal'));
+          })());
+          if (reachesRule) {
+            ok = true;
+            sinks.rule += 1;
+          } else if (callee === 'loadWords' && p.arguments[2] !== undefined && inside(n, p.arguments[2])) {
+            ok = true;
+            sinks.load += 1;
+          }
+          break;
+        }
+      }
+      checked('Z7');
+      if (!ok) fail('Z7', `${where(file, n)}: a paste's text is read as ${J(n.parent.getText().slice(0, 60))}; it reaches pasteRefusal( and loadWords(, the one buffer helper whose one sink is load-buffer's stdin, and nothing else (build/p348/SPEC.md D50, D52)`);
+    }
+    if (sinks.load !== 1) fail('Z7', `${rel(file)}: the paste's text reaches loadWords( ${String(sinks.load)} time(s); once (build/p348/SPEC.md D52)`);
+    for (const arr of nodesOf(file).filter((n) => ts.isArrayLiteralExpression(n))) {
+      checked('Z7');
+      if (arr.elements.some((e) => /\btext\b/.test(e.getText()))) fail('Z7', `${where(file, arr)}: an argv element is derived from a paste's text (${J(arr.getText().slice(0, 70))}); a text reaches tmux only as its bytes on stdin (build/p337/SPEC.md D18; build/p348/SPEC.md D50)`);
+    }
+  }
+  // Z20: the gap awaited once, from the keys verb's constant; ONE last-act store.
+  if (file !== null && fn !== null) {
+    const own = psOwn(fn);
+    const loads = own.filter((n) => ts.isCallExpression(n) && calleeName(n) === 'loadWords');
+    const sleeps = own.filter((n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression) && /^(?:sleep|wait)$/.test(n.expression.text));
+    const act = own.find((n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === 'run');
+    const sets = own.filter((n) => ts.isCallExpression(n) && calleeName(n) === 'set' && ts.isPropertyAccessExpression(n.expression) && /last/i.test(n.expression.expression.getText()));
+    checked('Z20', 4);
+    if (sleeps.length !== 1 || !ts.isAwaitExpression(sleeps[0].parent) || (loads[0] !== undefined && sleeps[0].getStart() > loads[0].getStart())) fail('Z20', `${where(file, fn)}: the paste awaits its gap ${String(sleeps.length)} time(s)${sleeps.length === 1 ? ' or after its buffer' : ''}; ONCE, after the gate and before the buffer and the one readFresh(, so the final check stays synchronous (build/p337/SPEC.md D42; build/p348/SPEC.md D50 step 2a)`);
+    if (constNamed(file, 'SCREEN_KEYS_GAP_MS') !== null || !specifiersOf(file).some(({ node, text: spec }) => spec === './keys' && /\bSCREEN_KEYS_GAP_MS\b/.test(node.getText()))) fail('Z20', `${rel(file)}: SCREEN_KEYS_GAP_MS is not imported from ./keys, or is declared again; the gap is declared once, in keys.ts (build/p348/SPEC.md D57)`);
+    if (sets.length !== 1 || act === undefined || sets[0].getStart() < act.getStart()) fail('Z20', `${where(file, fn)}: the paste writes the session's last-act time ${String(sets.length)} time(s)${sets.length === 1 ? ' before its act' : ''}; once, after the act (build/p348/SPEC.md D50 step 7)`);
+  }
+  const keysFile = join(ROOT, 'src', 'main', 'screen', 'keys.ts');
+  if (existsSync(keysFile)) {
+    const decls = declarationsOf(productionSources().filter((f) => sourceOf(f).includes('createScreenLastActs')), 'createScreenLastActs');
+    checked('Z20');
+    if (decls.length !== 1 || decls[0].file !== keysFile) fail('Z20', `createScreenLastActs is declared ${String(decls.length)} time(s) (${decls.map((d) => where(d.file, d.n)).join(', ') || 'nowhere'}); once, in src/main/screen/keys.ts beside SCREEN_KEYS_GAP_MS (build/p348/SPEC.md D57)`);
+  }
+  if (existsSync(NS_CAPABILITIES)) {
+    const builds = callsOf(NS_CAPABILITIES).filter((c) => calleeName(c) === 'createScreenLastActs');
+    const keys = callsOf(NS_CAPABILITIES).find((c) => calleeName(c) === 'createScreenKeys');
+    const paste = callsOf(NS_CAPABILITIES).find((c) => calleeName(c) === 'createScreenPaste');
+    const handed = (call) => {
+      const arg = call === undefined ? undefined : bare(call.arguments[0]);
+      const v = arg !== undefined && ts.isObjectLiteralExpression(arg) ? bare(propOf(arg, 'lastActs')) : undefined;
+      return v === undefined ? null : v.getText();
+    };
+    const store = builds.length === 1 && ts.isVariableDeclaration(builds[0].parent) && ts.isIdentifier(builds[0].parent.name) ? builds[0].parent.name.text : null;
+    checked('Z20', 2);
+    if (builds.length !== 1 || store === null) fail('Z20', `src/main/capabilities.ts builds createScreenLastActs( ${String(builds.length)} time(s); ONCE, as one const both verbs are handed (build/p348/SPEC.md D57)`);
+    else if (handed(keys) !== store || handed(paste) !== store) fail('Z20', `src/main/capabilities.ts hands createScreenKeys( lastActs ${J(handed(keys))} and createScreenPaste( lastActs ${J(handed(paste))}; both are handed the one store, ${store}, so two acts on one session are 50 ms apart whichever verb came first (build/p348/SPEC.md D57)`);
+  }
+  // Z11 and Z25: wraps through ONE checked copier, driven.
+  const routes = existsSync(NS_ROUTES) ? NS_ROUTES : null;
+  if (routes !== null) {
+    const copier = oneFunction(routes, 'wrapsCopyOf');
+    const sets = nodesOf(routes).filter((n) => (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isPropertyAccessExpression(n.left) && n.left.name.text === 'wraps') || ((ts.isPropertyAssignment(n) || ts.isShorthandPropertyAssignment(n)) && memberName(n) === 'wraps'));
+    const fromCopier = (n) => {
+      const v = bare(ts.isBinaryExpression(n) ? n.right : ts.isPropertyAssignment(n) ? n.initializer : n.name);
+      if (v !== undefined && ts.isCallExpression(v) && calleeName(v) === 'wrapsCopyOf') return true;
+      if (v === undefined || !ts.isIdentifier(v)) return false;
+      const local = (() => {
+        for (let p = n.parent; p !== undefined; p = p.parent) {
+          if (ts.isFunctionLike(p)) return descendantsOf(p).find((m) => ts.isVariableDeclaration(m) && ts.isIdentifier(m.name) && m.name.text === v.text) ?? null;
+        }
+        return null;
+      })();
+      return local !== null && local.initializer !== undefined && ts.isCallExpression(bare(local.initializer)) && calleeName(bare(local.initializer)) === 'wrapsCopyOf';
+    };
+    const body = oneFunction(routes, 'screenBodyOf');
+    const page = oneFunction(routes, 'scrollbackOf');
+    checked('Z11', 2);
+    checked('Z25', 2);
+    if (copier === null) {
+      fail('Z11', `${rel(routes)} declares no single wrapsCopyOf, the one checked copier of the wrap marks (build/p348/SPEC.md D43)`);
+      fail('Z25', `${rel(routes)} declares no single wrapsCopyOf, the one checked copier of the wrap marks (build/p348/SPEC.md D43)`);
+    }
+    for (const n of sets) {
+      const id = body !== null && inside(n, body) ? 'Z11' : page !== null && inside(n, page) ? 'Z25' : 'Z11';
+      checked(id);
+      if ((body === null || !inside(n, body)) && (page === null || !inside(n, page))) fail(id, `${where(routes, n)} sets wraps outside screenBodyOf and scrollbackOf; the door copies the marks in those two places alone (build/p348/SPEC.md D43)`);
+      else if (!fromCopier(n)) fail(id, `${where(routes, n)}: wraps is set as ${J(n.getText().slice(0, 70))}; it is the checked copy wrapsCopyOf( answers, a fresh array, or no key at all (build/p348/SPEC.md D43)`);
+    }
+    if (body !== null && !sets.some((n) => inside(n, body))) fail('Z11', `${where(routes, body)}: screenBodyOf copies no wraps, so the phone's Copy never joins a wrapped line (build/p348/SPEC.md D43)`);
+    if (page !== null && !sets.some((n) => inside(n, page))) fail('Z25', `${where(routes, page)}: scrollbackOf copies no wraps onto a page (build/p348/SPEC.md D43)`);
+    // DRIVEN: the copier lifted out with the helper it calls.
+    if (copier !== null) {
+      const declText = (name) => {
+        const f = oneFunction(routes, name);
+        return f === null || !ts.isFunctionDeclaration(f) ? null : codeOfNode(routes, f).replace(/^\s*export\s+/, '');
+      };
+      const helpers = ['wholeIn'].map(declText);
+      let copy = null;
+      try {
+        const js = ts.transpileModule(`${helpers.filter((h) => h !== null).join('\n')}\n${declText('wrapsCopyOf')}\nreturn wrapsCopyOf;`, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText;
+        copy = new Function(js)();
+      } catch (err) {
+        fail('Z11', `wrapsCopyOf could not be lifted out to drive it: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      if (typeof copy === 'function') {
+        const input = [0, 2];
+        const cases = [
+          ['ascending marks below the last row', input, 4, [0, 2]],
+          ['the last row of four', [3], 4, null],
+          ['a mark at the last row of a three-row screen', [0, 2], 3, null],
+          ['out of order', [2, 0], 4, null],
+          ['a repeat', [1, 1], 4, null],
+          ['a negative row', [-1], 4, null],
+          ['a fraction', [0.5], 4, null],
+          ['a string', ['1'], 4, null],
+          ['not an array', '0,1', 4, null],
+          ['an empty list', [], 4, null]
+        ];
+        for (const [what, value, rows, want] of cases) {
+          checked('Z11');
+          let got;
+          try {
+            got = copy(value, rows);
+          } catch (err) {
+            got = `threw ${err instanceof Error ? err.message : String(err)}`;
+          }
+          if (J(got) !== J(want)) fail('Z11', `wrapsCopyOf over ${what} answers ${J(got)}; it answers ${J(want)}: ascending whole numbers, each 0 <= r < rows - 1, or no key (build/p348/SPEC.md D43, §4.6 step 16)`);
+        }
+        checked('Z11');
+        if (copy(input, 4) === input) fail('Z11', 'wrapsCopyOf answers the array it was handed; it answers a fresh one, so nothing the composer holds can be changed through the answer (build/p337/SPEC.md D13)');
+      }
+    }
+  }
+}
+
+/** RM1 to RM7 and PS1 to PS8, each the one function that reads it. */
+const P348_RULE_RUNS = [
+  ['RM1', rmRouteRule], ['RM2', rmBodyRule], ['RM3', rmAnswerRule], ['RM4', rmVerdictRule], ['RM5', rmActRule], ['RM6', rmOfferRule], ['RM7', rmQuietRule],
+  ['PS1', psRouteRule], ['PS2', psBodyRule], ['PS3', psAnswerRule], ['PS4', psOrderRule], ['PS5', psFinallyRule], ['PS6', psFlagRule], ['PS7', psQuietRule], ['PS8', psMarksRule]
+];
+
+/** RM1 to RM7 and PS1 to PS8, then a red for any rule that checked nothing. */
+async function p348Rules() {
+  const runs = [
+    ...P348_RULE_RUNS,
+    // The Screen rules the paste and the marks widen, each failing by its own id.
+    ['Z4', p348ScreenWidenings]
+  ];
+  for (const [id, run] of runs) {
+    try {
+      await run();
+    } catch (err) {
+      fail(id, `the rule could not be read: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  for (const id of [...RM_RULE_IDS, ...PS_RULE_IDS]) if (checks.get(id) === 0 && failures.get(id).length === 0) fail(id, 'the rule checked nothing, so it proves nothing (build/p348/SPEC.md §7.1)');
+}
+
+/**
+ * EACH NEW RULE'S OWN SELF-TEST (build/p348/SPEC.md §7.1: "each a rule with
+ * its own self-test and ablation arm"). Every run of this gate breaks each RM
+ * and PS rule's clause IN MEMORY, through {@link OVERLAY}, runs that one rule
+ * again over the broken source, puts back every finding and count the run made,
+ * and requires that rule to have gone red on a finding of its own: a finding
+ * that says only that a module could not be loaded, read or driven proves
+ * nothing and does not count. A plant whose text is not in its file exactly
+ * once is red under its rule, so a self-test can never pass by planting
+ * nothing, and moving a clause moves its plant in the same commit.
+ *
+ * ablation:p313 breaks clauses of the same rules ON DISK, in a clone; this is
+ * the cheaper proof that runs every time. `P313_NO_SELF_TEST=1` skips it, and
+ * ablation:p313 sets it for the read gate inside its clone, so an arm there is
+ * judged on the rule alone and never on a plant whose text the arm moved.
+ */
+const P348_SELF_TESTS = [
+  { rule: 'RM1', what: 'the remove row made window-only', file: NS_TABLE, from: "{ id: 'remove', method: 'POST', path: '/v1/remove', reads: false, windowOnly: false, signed: true }", to: "{ id: 'remove', method: 'POST', path: '/v1/remove', reads: false, windowOnly: true, signed: true }" },
+  { rule: 'RM1', what: 'the face’s remove clause naming Face ID', file: AR_CONTRACT, from: "  remove: 'remove ended sessions',\n", to: "  remove: 'remove ended sessions after Face ID',\n" },
+  { rule: 'RM2', what: 'a batch let into the Remove body’s keys', file: NS_WRITES, from: "const REMOVE_KEYS = 'session,write';", to: "const REMOVE_KEYS = 'batch,session,write';" },
+  { rule: 'RM2', what: 'the Remove body’s own-bytes check dropped (a key given twice reads as the honest body)', file: NS_WRITES, from: 'if (body.byteLength > POCKET_WRITE_BODY_CAPS.remove || !onlyItsOwnBytes(value, body)) return { ok: false, write };', to: 'if (body.byteLength > POCKET_WRITE_BODY_CAPS.remove) return { ok: false, write };' },
+  { rule: 'RM3', what: 'a fifth Remove reason', file: AR_CONTRACT, from: "export type PocketRemoveReason = 'malformed' | 'gone' | 'changed' | 'unreachable';", to: "export type PocketRemoveReason = 'malformed' | 'gone' | 'changed' | 'unreachable' | 'busy';" },
+  { rule: 'RM4', what: 'DOOR_REMOVE_GATE_ENV with canDiscard false (no ended row removable)', file: RM_GATES, from: 'export const DOOR_REMOVE_GATE_ENV: SessionGateEnv = Object.freeze({\n  canRestore: false,\n  canDiscard: true,', to: 'export const DOOR_REMOVE_GATE_ENV: SessionGateEnv = Object.freeze({\n  canRestore: false,\n  canDiscard: false,' },
+  { rule: 'RM4', what: 'the verdict’s unknown arm dropped (an unknown far row reads changed, not unreachable)', file: POCKET_WRITES_FILE, from: "  // THE SHARED GATE: a session Tortie cannot see is never removed.\n  if (session.status === 'unknown') {\n    return { ok: false, reason: 'unreachable', sentence: END_UNREACHABLE_TITLE };\n  }\n", to: '' },
+  { rule: 'RM5', what: 'an await between the verdict and removeSession', file: POCKET_WRITES_FILE, from: "        // THE MAC'S OWN REMOVE, synchronous, in the statement after the verdict.\n        core.removeSession(sessionId);", to: "        // THE MAC'S OWN REMOVE, synchronous, in the statement after the verdict.\n        await Promise.resolve();\n        core.removeSession(sessionId);" },
+  { rule: 'RM5', what: 'a thrown SESSION_NOT_FOUND read as changed', file: POCKET_WRITES_FILE, from: "PocketRemoveOutcome {\n  if (isGmuxError(err, 'SESSION_NOT_FOUND')) {\n    return { outcome: 'refused', reason: 'gone', sentence: SESSION_NOT_FOUND };", to: "PocketRemoveOutcome {\n  if (isGmuxError(err, 'SESSION_NOT_FOUND')) {\n    return { outcome: 'refused', reason: 'changed', sentence: SESSION_NOT_FOUND };" },
+  { rule: 'RM6', what: 'the offer composed whether or not remove is served', file: NS_CAPABILITIES, from: 'removeConfirmOf: (session) => (pocketHost?.removeAllowed() === true ? pocketWrites.removeOffer(session) : null),', to: 'removeConfirmOf: (session) => pocketWrites.removeOffer(session),' },
+  { rule: 'RM6', what: 'removeAllowed answering yes for an End’s Allow', file: RM_IPC, from: "  removeAllowed(): boolean {\n    return this.routeServed('remove');", to: "  removeAllowed(): boolean {\n    return this.routeServed('remove') || this.routeServed('end');" },
+  { rule: 'RM7', what: 'a log line in the Remove’s path', file: POCKET_WRITES_FILE, from: '      try {\n        core.broadcastSessions();\n      } catch {', to: "      try {\n        core.broadcastSessions();\n        getLog().info('the phone removed a session');\n      } catch {" },
+  { rule: 'PS1', what: 'the paste cap below the worst legal body', file: NS_LIMITS, from: 'start: 512, remove: 512, paste: 131_072 }', to: 'start: 512, remove: 512, paste: 65_536 }' },
+  { rule: 'PS1', what: 'the paste row unsigned', file: NS_TABLE, from: "{ id: 'paste', method: 'POST', path: '/v1/paste', reads: false, windowOnly: false, signed: true }", to: "{ id: 'paste', method: 'POST', path: '/v1/paste', reads: false, windowOnly: false, signed: false }" },
+  { rule: 'PS2', what: 'the paste’s text trimmed in its parse', file: NS_WRITES, from: "  const text = value['text'];\n  const turn = value['turn'];\n  const dialog = value['dialog'];", to: "  const text = typeof value['text'] === 'string' ? value['text'].trim() : value['text'];\n  const turn = value['turn'];\n  const dialog = value['dialog'];" },
+  { rule: 'PS2', what: 'a text that is not a string let through the parse', file: NS_WRITES, from: "|| typeof text !== 'string' || !isQuestionId(turn)", to: '|| !isQuestionId(turn)' },
+  { rule: 'PS3', what: 'the machine reason taken out of PocketPasteReason', file: AR_CONTRACT, from: "'unreachable' | 'machine' | 'empty'", to: "'unreachable' | 'empty'" },
+  { rule: 'PS4', what: 'a Return sent after the paste', file: PS_PASTE, from: "const list = ['copy-mode', '-q', '-t', pane, ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', pane];", to: "const list = ['copy-mode', '-q', '-t', pane, ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', pane, ';', 'send-keys', '-t', pane, 'Enter'];" },
+  { rule: 'PS4', what: 'an await between the final check and the act', file: PS_PASTE, from: "      deps.turns.bump(id, 'phone');\n      deps.onLastCheck?.(id);", to: "      await Promise.resolve();\n      deps.turns.bump(id, 'phone');\n      deps.onLastCheck?.(id);" },
+  { rule: 'PS5', what: 'the buffer dropped even after the paste took it', file: PS_PASTE, from: 'if (!pasted && name !== null) await dropWords(run, name);', to: 'if (name !== null) await dropWords(run, name);' },
+  { rule: 'PS6', what: 'the paste flag set on a typable screen on another machine', file: PS_COMPOSE, from: 'if (extra.typable && extra.local === true) screen.paste = true;', to: 'if (extra.typable) screen.paste = true;' },
+  { rule: 'PS6', what: 'the door copying the paste flag whether or not paste is served', file: NS_ROUTES, from: 'if (pasteServed && screen.paste === true) body.paste = true;', to: 'if (screen.paste === true) body.paste = true;' },
+  { rule: 'PS7', what: 'a caught error’s text read in the paste', file: PS_PASTE, from: '    } catch {\n      return FAILED;\n    } finally {', to: "    } catch (err) {\n      void (err instanceof Error ? err.message : '');\n      return FAILED;\n    } finally {" },
+  { rule: 'PS8', what: 'the -F road from 3.7, which was never measured to have it', file: PS_COMPOSE, from: "export const MARKS_FLAGS_SINCE = '3.7b';", to: "export const MARKS_FLAGS_SINCE = '3.7';" },
+  { rule: 'PS8', what: 'the ink guard dropped (a cleared tail joins the next row)', file: PS_COMPOSE, from: "  return end !== undefined && end !== ' ' && end !== '\\t';", to: '  return end !== undefined;' }
+];
+
+/** A finding that says only that a module could not be loaded, read or driven, which proves nothing about the clause. */
+const P348_NOT_A_FINDING = /could not be (?:loaded|read|driven)|exports no |checked nothing/;
+/** What the self-test proved, printed above the rule table. */
+const p348SelfTestLines = [];
+
+async function p348SelfTest() {
+  if (process.env['P313_NO_SELF_TEST'] === '1') {
+    p348SelfTestLines.push('self-test skipped: P313_NO_SELF_TEST=1, which ablation:p313 sets for the read gate inside its clone');
+    return;
+  }
+  const runs = new Map(P348_RULE_RUNS);
+  for (const plant of P348_SELF_TESTS) {
+    const run = runs.get(plant.rule);
+    checked(plant.rule);
+    const text = existsSync(plant.file) ? readFileSync(plant.file, 'utf8') : null;
+    const count = text === null ? 0 : text.split(plant.from).length - 1;
+    if (run === undefined || count !== 1) {
+      fail(plant.rule, `the self-test's plant "${plant.what}" found its text ${String(count)} time(s) in ${rel(plant.file)}; it names it exactly once. Re-point the plant at the clause it breaks, or ${plant.rule}'s self-test plants nothing (build/p348/SPEC.md §7.1)`);
+      continue;
+    }
+    const keptFailures = new Map([...failures].map(([k, v]) => [k, [...v]]));
+    const keptChecks = new Map(checks);
+    OVERLAY.set(plant.file, text.replace(plant.from, () => plant.to));
+    overlayParsed.clear();
+    let threw = null;
+    try {
+      await run();
+    } catch (err) {
+      threw = err instanceof Error ? err.message : String(err);
+    }
+    const own = failures.get(plant.rule).slice(keptFailures.get(plant.rule).length).filter((f) => !P348_NOT_A_FINDING.test(f));
+    OVERLAY.clear();
+    overlayParsed.clear();
+    for (const [k, v] of keptFailures) failures.set(k, v);
+    for (const [k, v] of keptChecks) checks.set(k, v);
+    checked(plant.rule);
+    if (threw !== null) {
+      fail(plant.rule, `the self-test planted ${plant.what} in ${rel(plant.file)} and ${plant.rule} threw (${threw.slice(0, 120)}) rather than reading it; a rule answers a broken source with a finding (build/p348/SPEC.md §7.1)`);
+    } else if (own.length === 0) {
+      fail(plant.rule, `the self-test planted ${plant.what} in ${rel(plant.file)} and ${plant.rule} stayed green, so it cannot see the clause it exists for (build/p348/SPEC.md §7.1)`);
+    } else {
+      p348SelfTestLines.push(`self-test ${plant.rule}: ${plant.what} → red, as it must be (${own[0].slice(0, 90)}${own[0].length > 90 ? '…' : ''})`);
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -15987,7 +18097,12 @@ const PHASES = [
   // PHASE 333.12.1, the confirm block's face (build/p333121/SPEC.md §6.1).
   ['the confirm block’s face', confirmFaceRules, 'AF1'],
   // PHASE 346, start a session from the phone (build/p346/SPEC.md §5.1).
-  ['start a session from the phone', startRules, 'NS1']
+  ['start a session from the phone', startRules, 'NS1'],
+  // PHASE 348, remove and paste from the phone (build/p348/SPEC.md §7.1).
+  // Two of its rules drive async functions in-process, so it is awaited.
+  ['remove and paste from the phone', p348Rules, 'RM1'],
+  // Then each of its fifteen rules is shown red on its own clause, in memory.
+  ['the Phase 348 self-test', p348SelfTest, 'RM1']
 ];
 
 for (const [name, run, onError] of PHASES) {
@@ -15998,6 +18113,7 @@ for (const [name, run, onError] of PHASES) {
   }
 }
 
+for (const line of p348SelfTestLines) process.stdout.write(`  ${line}\n`);
 let red = 0;
 let total = 0;
 for (const [id, owner, title] of RULES) {

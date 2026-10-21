@@ -20,10 +20,23 @@
 // runs; dictation's text goes once, when it ends. Backspace is `BSpace`,
 // even on an empty field. A replacement that is exactly a line break is
 // `Enter`; ANY OTHER REPLACEMENT HOLDING A LINE BREAK IS SWALLOWED WHOLE, and
-// the field takes NO PASTE AND NO DROP, so a block of lines can never arrive
-// as lines and Returns, each run by a shell (§Attack A9). The field is
-// emptied after each Return and once it holds 256 characters, never while
-// text is marked.
+// the field takes NO DROP, so a block of lines can never arrive as typed
+// lines and Returns, each run by a shell (§Attack A9). The field is emptied
+// after each Return and once it holds 256 characters, never while text is
+// marked.
+//
+// A PASTE IS NOT TYPING (Phase 348, build/p348/SPEC.md D19 to D21, D35, D41,
+// D53; his ruling of 2026-10-18, "i'd like to be able to paste natively").
+// Command-V on a keyboard and the three-finger paste reach the field's
+// `paste(_:)`, which `canPerformAction` admits while the page says the Mac
+// takes a paste and the clipboard holds text; it reads the clipboard's string
+// once and hands it to the page's one paste, NEVER into the field's text, so
+// `ScreenInputState` never sees a paste, an armed Ctrl is never applied to one,
+// and a typed replacement holding a line break is still swallowed. The page
+// sends it as ONE paste write, landing as a paste at the desk does, with no
+// Return added. Paste and Match Style, Paste and Go, Paste and Search and every
+// drop stay refused. `ScreenPasteRule` (below) is what the phone refuses
+// before anything is sent.
 //
 // THE DESIGN IS PASEO'S (packages/app/src/terminal/native-renderer/
 // terminal-input.native.tsx and terminal-key-events.ts at getpaseo/paseo
@@ -193,11 +206,16 @@ struct ScreenInputState: Equatable, Sendable {
 
 // MARK: - The hidden field
 
-/// The hidden text view: the keyboard's owner. It refuses paste and drop and
-/// sends its changes through `ScreenInputState`.
+/// The hidden text view: the keyboard's owner. It refuses every drop, takes a
+/// paste only as one paste for the page (never into its own text), and sends
+/// its changes through `ScreenInputState`.
 final class ScreenTextView: UITextView {
     /// What a change sends.
     var onKeys: (([KeyItem]) -> Void)?
+    /// Whether the page offers Paste now (Phase 348, D30, D41).
+    var pasteOffered: () -> Bool = { false }
+    /// A paste, handed to the page's one paste (Phase 348, D41).
+    var onPaste: ((String) -> Void)?
     /// The machine that reads each change.
     var state = ScreenInputState()
 
@@ -232,22 +250,32 @@ final class ScreenTextView: UITextView {
             || ScreenInputState.holdsPlaceholder(text ?? "")
     }
 
-    /// No paste of any kind, ever: the session gets what he types, key by
-    /// key.
+    /// iOS's own paste (Command-V, the three-finger paste) only while the
+    /// page says the Mac takes a paste and the clipboard holds text
+    /// (`hasStrings`, which raises no alert); the other three paste actions
+    /// never (Phase 348, D35, D41).
     override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        if action == #selector(UIResponderStandardEditActions.paste(_:)) {
+            return pasteOffered() && UIPasteboard.general.hasStrings
+        }
         if Self.refused.contains(action) { return false }
         return super.canPerformAction(action, withSender: sender)
     }
 
     /// The paste actions this field refuses.
     static let refused: Set<Selector> = [
-        #selector(UIResponderStandardEditActions.paste(_:)),
         #selector(UIResponderStandardEditActions.pasteAndMatchStyle(_:)),
         #selector(UIResponderStandardEditActions.pasteAndGo(_:)),
         #selector(UIResponderStandardEditActions.pasteAndSearch(_:)),
     ]
 
-    override func paste(_ sender: Any?) {}
+    /// The paste itself, on his press: the clipboard's text read once,
+    /// synchronously, and handed to the page's one paste. NEVER into this
+    /// field's text, so nothing of it is typed, autocorrected or composed.
+    override func paste(_ sender: Any?) {
+        guard let payload = UIPasteboard.general.string else { return }
+        onPaste?(payload)
+    }
 
     override func deleteBackward() {
         let change = state.backspace(marked: markedTextRange != nil)
@@ -287,11 +315,81 @@ final class ScreenDropRefusal: NSObject, UITextDropDelegate {
 
 // MARK: - The field, in SwiftUI
 
+// MARK: - What the phone refuses to paste (pure, and tested)
+
+/// Why the phone refused a paste (Phase 348, D53): drawn as its sentence on
+/// the Terminal's one line, and nothing is sent.
+enum ScreenPasteRefusal: Equatable, Sendable {
+    /// There is nothing to paste.
+    case empty
+    /// More than `ScreenPasteRule.mostBytes` bytes of UTF-8.
+    case long
+    /// A character a paste never carries: ESC, CR or another control.
+    case character
+    /// It reads as a Tortie pairing code, whose one-shot secret must reach
+    /// no session.
+    case code
+
+    /// The sentence the Terminal's line draws: the Mac's own words for the
+    /// three it refuses too (src/shared/screen-copy.ts), and the phone's for
+    /// the pairing code.
+    var sentence: String {
+        switch self {
+        case .empty: Copy.pasteEmpty
+        case .long: Copy.pasteTooLong
+        case .character: Copy.pasteCharacter
+        case .code: Copy.pasteCode
+        }
+    }
+}
+
+/// THE PHONE'S PASTE RULE (Phase 348, D53), pure: what the phone refuses
+/// before a paste is queued, in this order. An empty text; more than
+/// 16,384 bytes of UTF-8 (`POCKET_PASTE_MAX_TEXT_BYTES`), refused whole and
+/// never split; a character no paste carries, read SCALAR BY SCALAR, so a
+/// Windows line break (`\r\n`, one Character) is refused for its CR: ESC, CR
+/// and every other C0 control but LF and TAB, DEL, and a C1 control (the
+/// Mac's `pasteRefusal` refuses the same, because tmux 3.6a passes a pasted
+/// ESC raw and a CR lands as a second Return); and a text that reads as a
+/// Tortie pairing code (`PairingOffer.readsAsCode`, the marker spelled once).
+/// A Swift String holds no half of a surrogate pair, so that refusal of the
+/// Mac's needs no test here.
+enum ScreenPasteRule {
+    /// The most UTF-8 bytes one paste holds: `POCKET_PASTE_MAX_TEXT_BYTES`.
+    static let mostBytes = 16_384
+    /// LF, the one line break a paste carries, in the field's one spelling of
+    /// a line feed (`ScreenInputState.lineFeed`, rule aj). CR, the other half
+    /// of `ScreenInputState.lineBreakScalars`, is refused with the controls.
+    static let lineFeeds: Set<Unicode.Scalar> = Set(ScreenInputState.lineFeed.unicodeScalars)
+    /// TAB, from its code point.
+    static let tab = Unicode.Scalar(UInt8(0x09))
+
+    /// The refusal, or nil when the paste may be sent.
+    static func refusal(_ payload: String) -> ScreenPasteRefusal? {
+        if payload.isEmpty { return .empty }
+        if payload.utf8.count > mostBytes { return .long }
+        if payload.unicodeScalars.contains(where: refuses) { return .character }
+        if PairingOffer.readsAsCode(payload) { return .code }
+        return nil
+    }
+
+    /// A scalar no paste carries: a control (`KeyItem.isControl`: U+0000 to
+    /// U+001F, U+007F and U+0080 to U+009F) that is not LF or TAB.
+    static func refuses(_ scalar: Unicode.Scalar) -> Bool {
+        guard !lineFeeds.contains(scalar), scalar != tab else { return false }
+        return KeyItem.isControl(scalar)
+    }
+}
+
 /// Whether Control is armed, drawn by the key bar and read by the field.
 @MainActor
 @Observable
 final class ScreenKeyBarModel {
     var controlArmed = false
+    /// Disarm Control in the field itself (Phase 348, D20): a paste disarms
+    /// it as every key of the bar does, so the next letter he types is a
+    /// letter. Set by the field when it is made.
+    @ObservationIgnored var disarm: (@MainActor () -> Void)?
 }
 
 /// The hidden field behind the grid, holding the keyboard while `typing`.
@@ -299,6 +397,11 @@ struct ScreenKeyField: UIViewRepresentable {
     @Binding var typing: Bool
     let bar: ScreenKeyBarModel
     let onKeys: ([KeyItem]) -> Void
+    /// Whether the page offers Paste now (Phase 348).
+    let pasteOffered: () -> Bool
+    /// The page's one paste (Phase 348): the field's Command-V and three-
+    /// finger paste go to the same function as the edit menu's.
+    let onPaste: (String) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -308,6 +411,9 @@ struct ScreenKeyField: UIViewRepresentable {
         let field = ScreenTextView(frame: CGRect(x: 0, y: 0, width: 1, height: 1), textContainer: nil)
         field.delegate = context.coordinator
         field.onKeys = { [weak coordinator = context.coordinator] items in coordinator?.keys(items) }
+        field.pasteOffered = { [weak coordinator = context.coordinator] in coordinator?.parent.pasteOffered() ?? false }
+        field.onPaste = { [weak coordinator = context.coordinator] payload in coordinator?.parent.onPaste(payload) }
+        bar.disarm = { [weak coordinator = context.coordinator] in coordinator?.disarm() }
         let host = UIHostingController(rootView: ScreenKeyBar(
             bar: bar,
             press: { [weak coordinator = context.coordinator] name in coordinator?.press(name) },
@@ -379,6 +485,13 @@ struct ScreenKeyField: UIViewRepresentable {
             parent.bar.controlArmed = false
             if name == .enter { field.empty() }
             parent.onKeys([.key(name)])
+        }
+
+        /// Control disarmed, in the field's state and on the bar: what a
+        /// paste does as every key of the bar does (Phase 348, D20).
+        func disarm() {
+            field?.state.controlArmed = false
+            parent.bar.controlArmed = false
         }
 
         func hide() {

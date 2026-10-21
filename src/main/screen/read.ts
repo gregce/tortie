@@ -38,6 +38,20 @@
  * string reaches (a format on a long-lived connection can run programs,
  * src/main/machines/scroll-shapes.ts). It logs nothing and reads no error's
  * text.
+ *
+ * THE WRAP MARKS (Phase 348, build/p348/SPEC.md §4.6 step 15, D44) are read in
+ * the same statement, by the road the read's owner hands in ({@link
+ * MarksRoad}, chosen from the running server's version by `marksRoadOf` in
+ * ./compose.ts): on `flags` the styled capture itself takes `-F` (NO NEW
+ * COMMAND: the line count is unchanged, so every split by count holds); on
+ * `fallback` two captures are added between the styled capture and the second
+ * display, `-p -T -N` and `-p -J`, and the spawned list is then SPLIT BY COUNT
+ * FROM BOTH ENDS; on `none`, today's read exactly. Over the control client
+ * each capture is its own line in the one statement, and a fallback line that
+ * fails drops only the marks. A marked read that fails is taken once more
+ * without marks, and when that one answers, the owner is told
+ * (`onRoadRefused`), so a wrong version can cost the marks and never the
+ * Terminal.
  */
 
 import type { Session } from '@shared/types';
@@ -85,11 +99,32 @@ export interface ScreenDisplay {
  * picture is answered, and its `depth` with it, as D3 says the next one is.
  */
 export interface ScreenReading {
+  /** The styled capture as read: on the `flags` road (D44) each line starts with its flag letters, which ./compose.ts strips. */
   readonly styled: string;
   readonly display: ScreenDisplay;
   readonly displayLine: string;
   readonly steady: boolean;
+  /** What this read carried for the wrap marks (Phase 348, D44). Absent is none: today's read. */
+  readonly marks?: ScreenMarks;
 }
+
+/**
+ * WHICH CAPTURES CARRY THE WRAP MARKS on a server (Phase 348, D44), as its
+ * owner chose them by the running server's version: `flags`, the styled
+ * capture itself takes `-F`; `fallback`, `-p -T -N` and `-p -J` are added;
+ * `none`, today's read.
+ */
+export type MarksRoad = 'flags' | 'fallback' | 'none';
+
+/**
+ * What one read carried for the marks (D44): on `flags`, the letters ride the
+ * styled capture's own lines; on `fallback`, the two added captures' lines, the
+ * `-T -N` rows (as many as the styled capture's) and the `-J` lines.
+ */
+export type ScreenMarks =
+  | { readonly road: 'none' }
+  | { readonly road: 'flags' }
+  | { readonly road: 'fallback'; readonly rows: readonly string[]; readonly joined: readonly string[] };
 
 /**
  * What the screen's modules read from and type through, structurally, as
@@ -100,7 +135,16 @@ export interface ScreenCore {
   listSessions(): readonly Session[];
   tmuxIdOf(sessionId: string): string | null;
   readonly manifest: { getSession(id: string): Pick<ManifestSessionRecord, 'status'> | undefined };
-  readonly control: { readonly connected: boolean; sendCommand(command: string): Promise<string[]> };
+  readonly control: {
+    readonly connected: boolean;
+    sendCommand(command: string): Promise<string[]>;
+    /**
+     * The control client's own `connected` event (Phase 348, D44): the marks'
+     * owner reads this Mac's server version again whenever the client
+     * reconnects. Optional: a core without it keeps the version it read.
+     */
+    on?(event: 'connected', listener: () => void): unknown;
+  };
   readonly activity: { noteUserInput(sessionId: string): void };
 }
 
@@ -191,7 +235,12 @@ interface Attempt {
   readonly second: ScreenDisplay;
   readonly secondLine: string;
   readonly styled: string;
+  /** What it carried for the marks (Phase 348). */
+  readonly marks: ScreenMarks;
 }
+
+/** A read's marks when it carried none (Phase 348). */
+const NO_MARKS: ScreenMarks = Object.freeze({ road: 'none' });
 
 /** The control client's one-command line for an argv (./scrollback.ts writes its page round with it too). */
 export function lineOf(args: readonly string[]): string {
@@ -203,14 +252,36 @@ function displayArgs(tmuxId: string): string[] {
   return ['display-message', '-p', '-t', tmuxId, SCREEN_FORMAT];
 }
 
-/** The styled capture's argv, aimed at a `$`-id. */
-function captureArgs(tmuxId: string): string[] {
-  return ['capture-pane', '-p', '-e', '-t', tmuxId];
+/** The styled capture's argv, aimed at a `$`-id; on the `flags` road (D44) it takes `-F`, and nothing else moves. */
+function captureArgs(tmuxId: string, road: MarksRoad = 'none'): string[] {
+  return road === 'flags' ? ['capture-pane', '-p', '-e', '-F', '-t', tmuxId] : ['capture-pane', '-p', '-e', '-t', tmuxId];
 }
 
-/** The down path's ONE spawned list: display, capture, display (§Attack A8). */
-export function spawnedReadArgs(tmuxId: string): string[] {
-  return [...displayArgs(tmuxId), ';', ...captureArgs(tmuxId), ';', ...displayArgs(tmuxId)];
+/** The fallback's two added captures (D44), aimed at a `$`-id: the rows with their used cells, and the lines joined. */
+function fallbackArgs(tmuxId: string): { rows: string[]; joined: string[] } {
+  return {
+    rows: ['capture-pane', '-p', '-T', '-N', '-t', tmuxId],
+    joined: ['capture-pane', '-p', '-J', '-t', tmuxId]
+  };
+}
+
+/**
+ * The down path's ONE spawned list: display, capture, display (§Attack A8);
+ * on the `fallback` road (Phase 348, D44) the two added captures sit between
+ * the styled capture and the second display.
+ */
+export function spawnedReadArgs(tmuxId: string, road: MarksRoad = 'none'): string[] {
+  if (road !== 'fallback') {
+    return [...displayArgs(tmuxId), ';', ...captureArgs(tmuxId, road), ';', ...displayArgs(tmuxId)];
+  }
+  const extra = fallbackArgs(tmuxId);
+  return [
+    ...displayArgs(tmuxId), ';',
+    ...captureArgs(tmuxId), ';',
+    ...extra.rows, ';',
+    ...extra.joined, ';',
+    ...displayArgs(tmuxId)
+  ];
 }
 
 /**
@@ -229,7 +300,37 @@ export function splitSpawnedRead(stdout: string): Attempt | null {
   const secondLine = lines[first.rows + 1] ?? '';
   const second = parseScreenDisplay(secondLine);
   if (second === null) return null;
-  return { first, firstLine, second, secondLine, styled: lines.slice(1, first.rows + 1).join('\n') };
+  return { first, firstLine, second, secondLine, styled: lines.slice(1, first.rows + 1).join('\n'), marks: NO_MARKS };
+}
+
+/**
+ * The fallback road's spawned list (Phase 348, D44), SPLIT BY COUNT FROM BOTH
+ * ENDS: the first line is the first display, then exactly its `rows` lines of
+ * the styled capture, then exactly as many `-T -N` rows, then the `-J` lines,
+ * whose count is whatever is left before the LAST line, which must be the
+ * second display. Null when it is not, so the read is taken once more without
+ * marks.
+ */
+export function splitSpawnedMarkedRead(stdout: string): Attempt | null {
+  const lines = stdout.split('\n');
+  if (lines[lines.length - 1] === '') lines.pop();
+  const firstLine = lines[0];
+  if (firstLine === undefined) return null;
+  const first = parseScreenDisplay(firstLine);
+  if (first === null) return null;
+  const rows = first.rows;
+  if (lines.length < 2 * rows + 2) return null;
+  const secondLine = lines[lines.length - 1] ?? '';
+  const second = parseScreenDisplay(secondLine);
+  if (second === null) return null;
+  return {
+    first,
+    firstLine,
+    second,
+    secondLine,
+    styled: lines.slice(1, rows + 1).join('\n'),
+    marks: { road: 'fallback', rows: lines.slice(rows + 1, 2 * rows + 1), joined: lines.slice(2 * rows + 1, lines.length - 1) }
+  };
 }
 
 /**
@@ -240,8 +341,11 @@ export function splitSpawnedRead(stdout: string): Attempt | null {
  */
 export interface PageRound {
   readonly first: ScreenDisplay;
+  /** The styled capture's lines as read: on the `flags` road (Phase 348, D44) each starts with its flag letters. */
   readonly rows: readonly string[];
   readonly last: ScreenDisplay;
+  /** What the round carried for the wrap marks (Phase 348, D44). Absent is none. */
+  readonly marks?: ScreenMarks;
 }
 
 /**
@@ -279,6 +383,33 @@ export function splitScrollbackRead(stdout: string, a: number, b: number): PageR
   return { first, rows: lines.slice(1, count + 1), last };
 }
 
+/**
+ * A page round on the `fallback` road (Phase 348, D44) sent as ONE `;` list,
+ * SPLIT BY COUNT FROM BOTH ENDS: the first display, exactly
+ * {@link pageLineCount} lines of the styled capture, exactly as many `-T -N`
+ * rows over the same range, then the `-J` lines, whose count is whatever is
+ * left before the LAST line, which must be the second display. Null when it
+ * is not, so the round is taken once more without marks.
+ */
+export function splitScrollbackMarkedRead(stdout: string, a: number, b: number): PageRound | null {
+  const lines = stdout.split('\n');
+  if (lines[lines.length - 1] === '') lines.pop();
+  const firstLine = lines[0];
+  if (firstLine === undefined) return null;
+  const first = parseScreenDisplay(firstLine);
+  if (first === null) return null;
+  const count = pageLineCount(a, b, first.history);
+  if (!(count >= 1) || lines.length < 2 * count + 2) return null;
+  const last = parseScreenDisplay(lines[lines.length - 1] ?? '');
+  if (last === null) return null;
+  return {
+    first,
+    rows: lines.slice(1, count + 1),
+    last,
+    marks: { road: 'fallback', rows: lines.slice(count + 1, 2 * count + 1), joined: lines.slice(2 * count + 1, lines.length - 1) }
+  };
+}
+
 /** What one statement of display, capture, display answered over the control client. */
 export interface ControlStatement {
   readonly first: ScreenDisplay;
@@ -287,27 +418,39 @@ export interface ControlStatement {
   readonly captured: string[];
   readonly last: ScreenDisplay;
   readonly lastLine: string;
+  /**
+   * The extra captures' lines, in the order they were handed (Phase 348, D44:
+   * the fallback's two), each null when its line was refused: a refused extra
+   * line drops only what it carried.
+   */
+  readonly extras: (string[] | null)[];
 }
 
 /**
  * THE ONE STATEMENT over the control client (D5, and a page round's, Phase
  * 337.1 D9): the display line, the capture line and the display line once
  * more, written in ONE statement, so they reach tmux in one tick and in order.
- * Null when any line was refused, or a display did not answer exactly one line
- * that parses. This module's live read and ./scrollback.ts's rounds both write
- * through it.
+ * Null when any of those three was refused, or a display did not answer
+ * exactly one line that parses. This module's live read and ./scrollback.ts's
+ * rounds both write through it. PHASE 348 (D44): `extras`, the fallback's
+ * added captures, are written between the capture and the second display, in
+ * the same statement, each its own line.
  */
 export async function statementOverControl(
   control: ScreenCore['control'],
   display: string,
-  capture: string
+  capture: string,
+  extras: readonly string[] = []
 ): Promise<ControlStatement | null> {
   const answers = await Promise.allSettled([
     control.sendCommand(display),
     control.sendCommand(capture),
+    ...extras.map((extra) => control.sendCommand(extra)),
     control.sendCommand(display)
   ]);
-  const [a, b, c] = answers;
+  const a = answers[0];
+  const b = answers[1];
+  const c = answers[answers.length - 1];
   if (a?.status !== 'fulfilled' || b?.status !== 'fulfilled' || c?.status !== 'fulfilled') return null;
   if (a.value.length !== 1 || c.value.length !== 1) return null;
   const firstLine = a.value[0] ?? '';
@@ -315,31 +458,70 @@ export async function statementOverControl(
   const first = parseScreenDisplay(firstLine);
   const last = parseScreenDisplay(lastLine);
   if (first === null || last === null) return null;
-  return { first, firstLine, captured: b.value, last, lastLine };
+  const extraLines = answers.slice(2, answers.length - 1).map((one) => (one.status === 'fulfilled' ? one.value : null));
+  return { first, firstLine, captured: b.value, last, lastLine, extras: extraLines };
 }
 
-/** One attempt over the control client: the three lines written in ONE statement (D5). */
-async function attemptOverControl(control: ScreenCore['control'], tmuxId: string): Promise<Attempt | null> {
-  const three = await statementOverControl(control, lineOf(displayArgs(tmuxId)), lineOf(captureArgs(tmuxId)));
+/**
+ * The fallback's marks from a statement's two extra captures (D44), or null
+ * when either line was refused or the `-T -N` rows are not as many as the
+ * styled capture's lines.
+ */
+export function fallbackMarksOf(captured: readonly string[], extras: readonly (string[] | null)[]): ScreenMarks | null {
+  const rows = extras[0];
+  const joined = extras[1];
+  if (rows === null || rows === undefined || joined === null || joined === undefined) return null;
+  if (rows.length !== captured.length) return null;
+  return { road: 'fallback', rows, joined };
+}
+
+/**
+ * One attempt over the control client: the three lines written in ONE
+ * statement (D5); on the `flags` road the capture line takes `-F`, and on the
+ * `fallback` road the two added captures ride the same statement (Phase 348).
+ * A fallback line refused drops only the marks, and says so (`marksRefused`).
+ */
+async function attemptOverControl(
+  control: ScreenCore['control'],
+  tmuxId: string,
+  road: MarksRoad
+): Promise<(Attempt & { readonly marksRefused: boolean }) | null> {
+  const extra = fallbackArgs(tmuxId);
+  const three = await statementOverControl(
+    control,
+    lineOf(displayArgs(tmuxId)),
+    lineOf(captureArgs(tmuxId, road)),
+    road === 'fallback' ? [lineOf(extra.rows), lineOf(extra.joined)] : []
+  );
   if (three === null) return null;
+  const folded = road === 'fallback' ? fallbackMarksOf(three.captured, three.extras) : null;
   return {
     first: three.first,
     firstLine: three.firstLine,
     second: three.last,
     secondLine: three.lastLine,
-    styled: three.captured.join('\n')
+    styled: three.captured.join('\n'),
+    marks: road === 'flags' ? { road: 'flags' } : (folded ?? NO_MARKS),
+    marksRefused: road === 'fallback' && three.extras.some((one) => one === null)
   };
 }
 
-/** One attempt as ONE spawned list (the control client is down). */
-async function attemptSpawned(spawn: ScreenSpawn, tmuxId: string, timeoutMs: number): Promise<Attempt | null> {
+/** One attempt as ONE spawned list (the control client is down), split by its road's count. */
+async function attemptSpawned(
+  spawn: ScreenSpawn,
+  tmuxId: string,
+  timeoutMs: number,
+  road: MarksRoad
+): Promise<(Attempt & { readonly marksRefused: boolean }) | null> {
   let stdout: string;
   try {
-    stdout = await spawn(spawnedReadArgs(tmuxId), { timeoutMs });
+    stdout = await spawn(spawnedReadArgs(tmuxId, road), { timeoutMs });
   } catch {
     return null;
   }
-  return splitSpawnedRead(stdout);
+  const split = road === 'fallback' ? splitSpawnedMarkedRead(stdout) : splitSpawnedRead(stdout);
+  if (split === null) return null;
+  return { ...split, marks: road === 'flags' ? { road: 'flags' } : split.marks, marksRefused: false };
 }
 
 /**
@@ -349,12 +531,15 @@ async function attemptSpawned(spawn: ScreenSpawn, tmuxId: string, timeoutMs: num
  */
 function readingOf(attempt: Attempt): ScreenReading {
   const steady = agree(attempt.first, attempt.second);
-  return {
+  const reading: ScreenReading = {
     styled: attempt.styled,
     display: attempt.second,
     displayLine: steady ? attempt.secondLine : `${attempt.firstLine}\n${attempt.secondLine}`,
     steady
   };
+  // PHASE 348: the marks ride a reading only when it carried some, so a read
+  // with none is the reading it was before this phase.
+  return attempt.marks.road === 'none' ? reading : { ...reading, marks: attempt.marks };
 }
 
 /** How the down path spawns and how long it waits, for tests and the watcher. */
@@ -362,6 +547,14 @@ export interface ScreenReadOptions {
   readonly spawn?: ScreenSpawn;
   /** The spawned list's own deadline; the watcher races every read against its deadline besides. */
   readonly timeoutMs?: number;
+  /** Which captures carry the wrap marks on this server (Phase 348, D44); absent is `none`, today's read. */
+  readonly road?: MarksRoad;
+  /**
+   * A capture carrying a mark flag failed and the same read without marks
+   * answered (Phase 348, D44): the owner sets this server's road to none until
+   * its version is read again. Called at most once a read.
+   */
+  readonly onRoadRefused?: () => void;
 }
 
 /**
@@ -379,10 +572,32 @@ export async function readScreenLocal(
   if (!SESSION_TARGET.test(tmuxId)) return null;
   const spawn = options.spawn ?? execTmux;
   const timeoutMs = options.timeoutMs ?? 1_000;
-  const attempt = (): Promise<Attempt | null> =>
+  // PHASE 348 (D44): the road this read takes, set to none for the rest of it
+  // once a marked capture failed and the plain read answered.
+  let road: MarksRoad = options.road ?? 'none';
+  const refused = (): void => {
+    if (road === 'none') return;
+    road = 'none';
+    options.onRoadRefused?.();
+  };
+  const attemptOn = (on: MarksRoad): Promise<(Attempt & { readonly marksRefused: boolean }) | null> =>
     core.control.connected
-      ? attemptOverControl(core.control, tmuxId)
-      : attemptSpawned(spawn, tmuxId, timeoutMs);
+      ? attemptOverControl(core.control, tmuxId, on)
+      : attemptSpawned(spawn, tmuxId, timeoutMs, on);
+  const attempt = async (): Promise<Attempt | null> => {
+    const marked = await attemptOn(road);
+    if (marked !== null) {
+      // A fallback line refused over the control client dropped only the marks.
+      if (marked.marksRefused) refused();
+      return marked;
+    }
+    if (road === 'none') return null;
+    // A marked read that failed is taken once more without marks; when that
+    // one answers, the marks were the trouble.
+    const plain = await attemptOn('none');
+    if (plain !== null) refused();
+    return plain;
+  };
   const once = await attempt();
   if (once === null) return null;
   if (agree(once.first, once.second)) return readingOf(once);

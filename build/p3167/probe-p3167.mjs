@@ -162,9 +162,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * beside this phase's `sessions` and Phase 318's `choose` and `say`
  * (build/p3167/SPEC.md §12 and the replay's fix round; build/p337/SPEC.md D1;
  * build/p3371/SPEC.md D1, §Attack B7). The parent's line below stays this
- * phase's own parent.
+ * phase's own parent. Phase 348 (build/p348/SPEC.md §6) added `remove` and
+ * `paste`, fourteen routes, which the lines before Allow name because they are
+ * the proposal's (src/main/pocket/ipc.ts `confirmLines`).
  */
-export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, scrollback, session, sessions, start, turns';
+export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, paste, remove, say, screen, scrollback, session, sessions, start, turns';
 /** The parent's line: main before this phase, seven routes and no `sessions`. */
 export const PARENT_ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, pair, say, session, turns';
 export const ROUTE_PREFIX = 'Answers these and nothing else:';

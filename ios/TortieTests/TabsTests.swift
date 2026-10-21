@@ -5,7 +5,8 @@ import UIKit
 #endif
 
 /// The tab bar (Phase 316.6, build/p3166/SPEC.md section 5.1): three tabs,
-/// each its own path, Needs input first and on screen every launch, its badge
+/// each its own path, Needs input first and on screen every launch (and since
+/// Phase 348 Sessions after every pairing that finishes), its badge
 /// the count of the rows the door's last answer called waiting, an alert's tap
 /// on Needs input alone, and one read for one return to the foreground; and
 /// since Phase 345 (build/p345/SPEC.md D3) a fourth, the Macs tab, drawn only
@@ -31,20 +32,11 @@ final class TabsTests: XCTestCase {
     }
 
     /// Clause: the app opens on Needs input every launch, paired or not, and
-    /// lands there when a pairing is done and when a pairing is lost, whatever
-    /// was on screen: no tab is remembered.
+    /// lands there when a pairing is lost, whatever was on screen: no tab is
+    /// remembered.
     func testTheAppOpensOnNeedsInput() async throws {
         XCTAssertEqual(app().tab, .needsInput)
         XCTAssertEqual(AppModel(door: StandInPhone(), label: "iPhone", alerts: StandInAlerts()).tab, .needsInput)
-
-        let first = Answers.blocked(rows: [Answers.row("w", dot: "attention")])
-        let pairing = AppModel(door: StandInPhone(outcomes: [.paired(ScriptedReader(), first)]), label: "iPhone", alerts: StandInAlerts())
-        pairing.tab = .settings
-        pairing.sessionsPath = [.session(mac: Answers.mac, id: "s", name: "s")]
-        await pairing.pairing.read("code")
-        XCTAssertEqual(pairing.root, .reading)
-        XCTAssertEqual(pairing.tab, .needsInput, "a pairing done did not land on Needs input")
-        XCTAssertEqual(pairing.sessionsPath, [], "a pairing done kept another pairing's screens")
 
         let lost = app(ScriptedReader(blocked: [.failure(.refused)]))
         lost.tab = .sessions
@@ -53,6 +45,45 @@ final class TabsTests: XCTestCase {
         XCTAssertEqual(lost.root, .pairing)
         XCTAssertEqual(lost.tab, .needsInput, "a lost pairing kept its tab")
         XCTAssertEqual(lost.waitingPath, [])
+    }
+
+    /// Clause (Phase 348, build/p348/SPEC.md D1 and D2, his words "when the
+    /// phone first pairs we should have it selected to Sessions"): a pairing
+    /// that finishes lands on that Mac's Sessions whatever tab was on screen,
+    /// on the Pairing screen and on Settings' Pair another Mac sheet alike,
+    /// with every pushed path of the old pairing cleared; and a model made
+    /// again over the same store, which is the next launch, opens on Needs
+    /// input, because no tab is stored.
+    func testAPairingThatFinishesLandsOnSessions() async throws {
+        let first = Answers.blocked(rows: [Answers.row("w", dot: "attention")])
+        let pairing = AppModel(door: StandInPhone(outcomes: [.paired(ScriptedReader(), first)]), label: "iPhone", alerts: StandInAlerts())
+        pairing.tab = .settings
+        pairing.sessionsPath = [.session(mac: Answers.mac, id: "s", name: "s")]
+        await pairing.pairing.read("code")
+        XCTAssertEqual(pairing.root, .reading)
+        XCTAssertEqual(pairing.tab, .sessions, "a pairing done did not land on Sessions")
+        XCTAssertEqual(pairing.sessionsPath, [], "a pairing done kept another pairing's screens")
+        XCTAssertEqual(pairing.waitingPath, [], "a pairing done kept another pairing's screens")
+
+        // The sheet: a second Mac paired from Settings lands on ITS Sessions.
+        let studio = "studio.tail0.ts.net"
+        let laptop = "laptop.tail0.ts.net"
+        let phone = StandInPhone(kept: ScriptedReader(mac: studio), outcomes: [.paired(ScriptedReader(mac: laptop), first)])
+        phone.keepsWhatPairs = true
+        let sheet = AppModel(door: phone, label: "iPhone", alerts: StandInAlerts())
+        sheet.tab = .settings
+        sheet.pairAnotherMac()
+        await sheet.anotherPairing?.read("code")
+        XCTAssertNil(sheet.anotherPairing, "the sheet did not close")
+        XCTAssertEqual(sheet.chosen?.id, laptop)
+        XCTAssertEqual(sheet.tab, .sessions, "a pairing from the sheet did not land on Sessions")
+
+        // The next launch: a model made again over the same store opens on
+        // Needs input with the first Mac, because nothing was stored.
+        let relaunched = AppModel(door: phone, label: "iPhone", alerts: StandInAlerts())
+        XCTAssertEqual(relaunched.root, .reading)
+        XCTAssertEqual(relaunched.tab, .needsInput, "a relaunch did not open on Needs input")
+        XCTAssertEqual(relaunched.chosen?.id, studio, "a relaunch did not open on the first Mac")
     }
 
     /// Clause: the three tabs in the bar's order, each a Copy word with its

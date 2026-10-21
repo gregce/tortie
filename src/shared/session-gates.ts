@@ -315,13 +315,33 @@ export function sessionActionGates(
 }
 
 /**
- * The environment the phone's door asks the gate with (Phase 317). The door asks
- * `canEnd` and nothing else, and `canEnd` reads none of these: a test holds that
- * over every status and every environment.
+ * The environment the phone's door asks the gate with (Phase 317). Of THIS
+ * environment the door asks `canEnd` and nothing else, and `canEnd` reads none
+ * of these: a test holds that over every status and every environment. Since
+ * Phase 348 the door asks `canRemove` too, and only of
+ * {@link DOOR_REMOVE_GATE_ENV}, never of this one, which does not move.
  */
 export const DOOR_GATE_ENV: SessionGateEnv = Object.freeze({
   canRestore: false,
   canDiscard: false,
+  shellPathReady: false,
+  handback: undefined
+});
+
+/**
+ * THE SECOND ENVIRONMENT THE PHONE'S DOOR ASKS THE GATE WITH (Phase 348,
+ * build/p348/SPEC.md D6, D47): `canDiscard` is true, so `canRemove` is the
+ * gate's own `ended && canDiscard`, which is exactly whether the session has
+ * ended. The door asks `canEnd` of {@link DOOR_GATE_ENV} and `canRemove` of
+ * this one, and nothing else of either. For a session on another machine this
+ * gate is the only lock, because main's `removeRefusal` passes every remote
+ * record (ruling R11), so a remote row the phone names while it runs is
+ * refused here and never tombstoned. Restore stays off: the phone restores
+ * nothing.
+ */
+export const DOOR_REMOVE_GATE_ENV: SessionGateEnv = Object.freeze({
+  canRestore: false,
+  canDiscard: true,
   shellPathReady: false,
   handback: undefined
 });

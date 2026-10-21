@@ -60,7 +60,7 @@ final class ScreenKeysTests: XCTestCase {
         keys.send([.text("c")])
         await settle()
         XCTAssertEqual(door.asked.count, 1, "a second write while one is out")
-        XCTAssertEqual(keys.pending, [.text("b"), .text("c")])
+        XCTAssertEqual(keys.pending, [.key(.text("b")), .key(.text("c"))])
         clock = clock.advanced(by: .milliseconds(150))
         door.answer(done())
         await settle()
@@ -277,15 +277,34 @@ final class ScreenKeysTests: XCTestCase {
     }
 }
 
-/// A Screen door whose keys and pages answer when the test says, and every
-/// write and page asked, in order. Its status read (Phase 337.1) answers the
-/// door's refusal, counted.
+/// A Screen door whose keys, pastes and pages answer when the test says, and
+/// every write and page asked, in order. Its status read (Phase 337.1)
+/// answers the door's refusal, counted. Since Phase 348 it takes a paste
+/// unless made with `pastes: false`.
 @MainActor
 final class ScriptedScreenDoor: ScreenDoor {
     struct Asked: Equatable {
         let keys: [KeyItem]
         let turn: String
         let dialog: String?
+    }
+
+    /// One paste asked (Phase 348): its text exactly, and the stamp it carried.
+    struct PasteAsked: Equatable {
+        let text: String
+        let turn: String
+        let dialog: String?
+    }
+
+    /// Whether this door takes a paste (Phase 348).
+    nonisolated let pastesOn: Bool
+    private(set) var pastesAsked: [PasteAsked] = []
+    /// Every write asked, `keys` or `paste`, in order (Phase 348).
+    private(set) var writeOrder: [String] = []
+    private var pasteWaiting: [CheckedContinuation<PasteResult, Never>] = []
+
+    init(pastes: Bool = true) {
+        pastesOn = pastes
     }
 
     /// One page asked (Phase 337.1).
@@ -349,11 +368,37 @@ final class ScriptedScreenDoor: ScreenDoor {
         }
     }
 
+    nonisolated var pastes: Bool { pastesOn }
+
+    nonisolated func paste(_ text: String, turn: String, dialog: String?) async -> PasteResult {
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { (continuation: CheckedContinuation<PasteResult, Never>) in
+                Task { @MainActor in
+                    self.pastesAsked.append(PasteAsked(text: text, turn: turn, dialog: dialog))
+                    self.writeOrder.append("paste")
+                    self.pasteWaiting.append(continuation)
+                }
+            }
+        } onCancel: {
+            Task { @MainActor in
+                self.cancelledWhileAsked = true
+                self.answerPaste(.notSent(.cancelled))
+            }
+        }
+    }
+
+    /// Answer the oldest paste waiting.
+    func answerPaste(_ result: PasteResult) {
+        guard !pasteWaiting.isEmpty else { return }
+        pasteWaiting.removeFirst().resume(returning: result)
+    }
+
     nonisolated func keys(_ keys: [KeyItem], turn: String, dialog: String?) async -> WriteResult {
         await withTaskCancellationHandler {
             await withCheckedContinuation { (continuation: CheckedContinuation<WriteResult, Never>) in
                 Task { @MainActor in
                     self.asked.append(Asked(keys: keys, turn: turn, dialog: dialog))
+                    self.writeOrder.append("keys")
                     self.waiting.append(continuation)
                 }
             }

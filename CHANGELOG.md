@@ -4,6 +4,17 @@ Each commit appears once under Added, Changed or Fixed. Every bullet stays on on
 
 The operator set the style on 2026-08-23 by rewriting every entry, and it binds every entry after. An item is one or two sentences. It says what a person can now do or what no longer goes wrong, in plain words, and then stops. A limit that a person will hit goes in the same item in one clause, e.g. "Saves have no undo", and a limit nobody will hit stays in the commit body. No measured numbers unless the number is the point. No build story, no file names, no gate names. The lead paragraph says what the release is about in two or three sentences and lists nothing.
 
+## Unreleased
+
+### Added
+
+- After you pair your iPhone with a Mac, it opens on that Mac's Sessions. Each launch after that still opens on Needs input
+- Remove a session you ended from your iPhone, with the question your Mac asks, and it moves to Past Sessions on your Mac, where you can restore it. Your Mac asks you to allow this once, in Settings then Phone
+- Settings on your iPhone is grouped like the iPhone's own Settings, with the same rows in the same order
+- The iPhone's lists end with the time they were read, and no longer with a note about how waits are timed
+- The iPhone's tabs have the iPhone's own title bar, and New session is a "+" on its own at the top right, away from Select
+- Paste into the terminal of a session on your Mac from your iPhone with iOS's own Paste, a keyboard's Command-V or a pinch open with three fingers, and your Mac asks you to allow pasting once, in Settings then Phone. A line the terminal wrapped copies back as one line, except where it wrapped at a space
+
 ## 0.112.0 (2026-10-17)
 
 This release is mostly about your iPhone, which gets build 11 of Tortie for iPhone on TestFlight and can now start a session on your Mac. A Tortie update no longer switches your iPhone off: what you allowed keeps working, and starting a session waits for Allow in Settings then Phone. On your Mac, a full file path that an agent breaks across lines now opens as one link.

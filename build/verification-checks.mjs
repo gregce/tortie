@@ -1469,6 +1469,29 @@ export const CHECKS = [
   // `finally`) and ends every stand-in pid by pid in its `finally`.
   // `--grader-self-test` grades recorded fixtures and starts nothing.
   remote('probe:p346'),
+  // PHASE 348's app run, the Mac side of Remove and paste from the phone
+  // (build/p348/SPEC.md §8.1): the door's two new writes, POST /v1/remove and
+  // POST /v1/paste, waiting for their one Allow, the offer each reads
+  // (`removeConfirm` on /v1/session, `paste` on the screen answer) and the
+  // marks Copy joins by (`wraps`). ONE Electron at HEAD through
+  // build/electron-run.mjs's withElectron, the parent's (P348_PARENT_CHECKOUT,
+  // required by its `--preflight`) FIRST on the same profile, one after the
+  // other and never at once, on a scratch profile, a scratch HOME and the
+  // socket gmux-p348…, inside build/with-scratch-machine.mjs's loopback
+  // machine with the quiet shell, its own far HOME and none of his keys (R2,
+  // R3, P6 and W read sessions there, behind a far tmux wrapper that logs
+  // every command it is sent), which is why this is `remote` and not
+  // `electron`. Tailscale is build/p330/tailscale-standin.mjs behind its
+  // preflight and sampler, the name check asks build/p332/dns-standin.mjs in
+  // the probe's own process, the phones are build/p316/node-phone.mjs, every
+  // agent is build/p318/stand-in.mjs behind `claude` and `codex` (refused to
+  // start without), and every key a paste lands as is read by
+  // build/p337/key-recorder.mjs. build/hidden-agents.mjs renames five agents'
+  // binaries before each launch; no vendor process runs and no token is
+  // spent; every stand-in, recorder and paused sshd pid is ended or resumed in
+  // its `finally`. `--grader-self-test` grades build/p348/fixtures/graders.json
+  // and starts nothing.
+  remote('probe:p348'),
   // PHASE 342's measurement (build/p342/SPEC.md §7.4): the re-derivation
   // outside Electron. Through build/docker-run.mjs, one throwaway container per
   // distribution in his Docker, each the distribution's own image with its own

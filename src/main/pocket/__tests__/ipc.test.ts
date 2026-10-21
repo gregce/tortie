@@ -1649,6 +1649,9 @@ describe('the Screen and its keys, through the host (Phase 337)', () => {
       writes: {
         // Phase 346's start, which this test never reaches.
         start: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
+        // Phase 348's Remove and paste, which this test never reaches.
+        remove: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
+        paste: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
         end: async () => ({ outcome: 'done' }),
         choose: async () => ({ outcome: 'done' }),
         say: async () => ({ outcome: 'done' }),
@@ -1837,6 +1840,9 @@ describe('the phone’s writes, through the host', () => {
       writes: {
         // Phase 346's start, which this test never reaches.
         start: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
+        // Phase 348's Remove and paste, which this test never reaches.
+        remove: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
+        paste: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
         end: async (input) => {
           asked.push(input);
           return { outcome: 'done' };
@@ -1874,6 +1880,9 @@ describe('the phone’s writes, through the host', () => {
       writes: {
         // Phase 346's start, which this test never reaches.
         start: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
+        // Phase 348's Remove and paste, which this test never reaches.
+        remove: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
+        paste: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
         end: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
         choose: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
         say: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
@@ -2070,8 +2079,9 @@ describe('the window’s deadline', () => {
     expect(POCKET_PAIRING_WINDOW_MS).toBe(3 * 60_000);
     // Phase 317 added the write after the reads, Phase 318 the two after it,
     // Phase 316.7 the Sessions tab's read after those, Phase 337 the
-    // Screen's read and write, Phase 337.1 its history's read, and Phase 346
-    // the phone's start last; the window did not move.
+    // Screen's read and write, Phase 337.1 its history's read, Phase 346
+    // the phone's start, and Phase 348 Remove and paste last; the window did
+    // not move.
     expect(POCKET_ROUTE_IDS).toEqual([
       'pair',
       'blocked',
@@ -2084,7 +2094,9 @@ describe('the window’s deadline', () => {
       'screen',
       'keys',
       'scrollback',
-      'start'
+      'start',
+      'remove',
+      'paste'
     ]);
   });
 });

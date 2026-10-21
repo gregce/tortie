@@ -13,7 +13,7 @@
  * change to what the door composes turns `--check` red until this file is
  * re-run in that change's commit, so the sample cannot drift from the door.
  *
- * WHAT IT COMPOSES, for each of the 36 states (every session in one of its
+ * WHAT IT COMPOSES, for each of the 288 states (every session in one of its
  * variants, the product in session order) with `createPocketRoutes`
  * (src/main/pocket/routes.ts) over facts built as `src/main/pocket/facts.ts`
  * builds them: `/v1/blocked`, and `/v1/sessions` for every Show × Group by ×
@@ -40,6 +40,18 @@
  * every sessions answer it assembles. Clause (2) holds the assembled answers
  * equal to the composer's with it, and that it is the offer the world was
  * chosen to make.
+ *
+ * AND SINCE PHASE 348 (build/p348/SPEC.md D11, D30, D34, D49), REMOVE AND
+ * PASTE. Every session has a last variant, `removed`, after `ended`, which
+ * the sample's Remove moves it to: the facts list no removed session (main's
+ * own listing drops a removed record), so every list composed in a state
+ * where a session is removed holds no row of it, and the book holds no
+ * session, turns or screen answer for it. Each ended variant's session answer
+ * carries the Mac's own Remove words, composed as a door that serves `remove`
+ * composes them (the shipping `removeVerdict` passing, in
+ * `removeSessionConfirm`'s words); each live picture carries `paste`, as the
+ * shipping composer sets it on a session on this Mac that takes keys and a
+ * door that serves `paste` copies it. Clauses (2) to (4) hold all three.
  *
  * THE FILE (§5.1.3) is ASCII (every character past U+007F written `\uXXXX`),
  * deterministic, with one newline at the end. The lists are SKELETONS of
@@ -126,7 +138,8 @@ const { readPocketTurns, pocketTurnOf, pocketLineKind } = await import('../../sr
 const { composeScreen, composePage, spaceOf } = await import('../../src/main/screen/compose.ts');
 const { parseScreenDisplay } = await import('../../src/main/screen/read.ts');
 const { readingRevisionOf, screenRevisionOf } = await import('../../src/main/screen/watch.ts');
-const { endOfferOf } = await import('../../src/main/sessions/pocket-writes.ts');
+const { endOfferOf, removeVerdict } = await import('../../src/main/sessions/pocket-writes.ts');
+const { removeSessionConfirm } = await import('../../src/shared/lifecycle-words.ts');
 const { buildProjectLine } = await import('../../src/shared/overview-line.ts');
 const { statusVisual } = await import('../../src/shared/status-words.ts');
 const { getRegistryEntry, LAUNCHABLE_AGENT_IDS } = await import('../../src/main/agents/registry.ts');
@@ -241,7 +254,9 @@ function sessionsQueries() {
 const STATES = allStates();
 const QUERIES = sessionsQueries();
 const sessionOf = new Map(SESSIONS.map((s) => [s.id, s]));
-const liveVariant = (variant) => variant !== 'ended';
+/** Phase 348: a removed session, which no list holds and no answer is about. */
+const isRemoved = (variant) => variant === world.REMOVED;
+const liveVariant = (variant) => variant !== 'ended' && !isRemoved(variant);
 
 // ---------------------------------------------------------------------------
 // The world, read once: turns, captures, screens and histories
@@ -289,7 +304,9 @@ for (const session of SESSIONS) {
     const reading = { styled: capture.styled, display, displayLine: capture.displayLine, steady: true };
     const status = world.statusOf(session, variant);
     const turn = world.questionIdOf(session.id, variant === 'answered' ? 2 : 1);
-    const composed = composeScreen(reading, { turn, status, typable: true });
+    // PHASE 348 (D30): every sample session is on this Mac, so the shipping
+    // composer offers a paste on a screen that takes keys.
+    const composed = composeScreen(reading, { turn, status, typable: true, local: true });
     if (composed === 'large') {
       fail(`(4) ${session.id} ${variant}: the shipping composer answers large`);
       continue;
@@ -338,6 +355,19 @@ const START_OFFER = composeStartOffer({
   catalogs: getFlagCatalogViews()
 });
 
+/**
+ * PHASE 348 (D49): the Remove offer as `createPocketWrites`' `removeOffer`
+ * composes it: the SHIPPING `removeVerdict` over the row and its record (the
+ * manifest's status, as written; every sample session is on this Mac),
+ * passing, in the Mac's own `removeSessionConfirm` words, field by field.
+ */
+function removeOfferOf(session) {
+  const verdict = removeVerdict(session, { status: session.status, machineId: null });
+  if (verdict?.ok !== true) return null;
+  const confirm = removeSessionConfirm(session);
+  return { title: confirm.title, body: confirm.body, confirmLabel: confirm.confirmLabel };
+}
+
 /** A page's absence as the page reader answers it; the door fills the sentence. */
 const pageAbsent = (sessionId, why) => ({
   sessionId,
@@ -357,7 +387,9 @@ const pageAbsent = (sessionId, why) => ({
  * session: `page` composes the history, `moved` answers the index space moved.
  */
 function factsFor(variants, pages = 'page') {
-  const rows = SESSIONS.map((s) => world.sessionRowOf(s, variants[s.id]));
+  // PHASE 348: a removed session is listed nowhere, as main's own listing
+  // drops a removed record.
+  const rows = SESSIONS.filter((s) => !isRemoved(variants[s.id])).map((s) => world.sessionRowOf(s, variants[s.id]));
   const rowOf = new Map(rows.map((r) => [r.id, r]));
   const statusNow = (id) => rowOf.get(id)?.status ?? 'idle';
   return {
@@ -434,6 +466,12 @@ function factsFor(variants, pages = 'page') {
     // PHASE 346: a Mac that allowed Start offers it on every sessions answer.
     start: () => START_OFFER,
     endOffer: (session) => endOfferOf(session, { status: session.status }, () => true),
+    // PHASE 348 (D49): a door that serves `remove` offers it where the
+    // shipping verdict passes, in the Mac's own words.
+    removeConfirmOf: (session) => removeOfferOf(session),
+    // PHASE 348 (D30): a door that serves `paste`, so the route copies the
+    // composer's flag.
+    pasteAllowed: () => true,
     replyOffer: async (session) => {
       const question = QUESTIONS[session.id];
       const waiting = screens.get(`${session.id}.waiting`);
@@ -579,6 +617,8 @@ for (const variants of STATES) {
   for (const session of SESSIONS) {
     const id = session.id;
     const variant = variants[id];
+    // PHASE 348: nothing answers about a removed session.
+    if (isRemoved(variant)) continue;
     const got = {
       session: await routes.session(id),
       turns: await routes.turns(id, { limit: '20' }),
@@ -606,7 +646,8 @@ const pageEndedAnswers = {};
 const pageMovedAnswers = {};
 {
   const start = STATES[0];
-  const allEnded = STATES[STATES.length - 1];
+  // PHASE 348: every session ended, none removed (the last state removes all).
+  const allEnded = STATES.find((v) => SESSIONS.every((s) => v[s.id] === 'ended')) ?? STATES[STATES.length - 1];
   const live = createPocketRoutes(factsFor(start));
   const moved = createPocketRoutes(factsFor(start, 'moved'));
   const ended = createPocketRoutes(factsFor(allEnded));
@@ -806,6 +847,13 @@ function readBackClause(parsed) {
       if (detail.screen !== live) problems.push(`(2) ${session.id} ${variant}: the session answer says screen ${String(detail.screen)}`);
       if (live !== (detail.end?.state === 'offered')) problems.push(`(2) ${session.id} ${variant}: End is ${detail.end?.state ?? 'absent'}`);
       if (live !== (detail.endConfirm !== null && typeof detail.endConfirm === 'object')) problems.push(`(2) ${session.id} ${variant}: the End confirmation is ${detail.endConfirm === null ? 'missing' : 'there on an ended session'}`);
+      // PHASE 348 (D49): the Mac's own Remove words on an ended session, and
+      // none on a live one.
+      const wantRemove = live ? undefined : removeOfferOf(world.sessionRowOf(session, variant));
+      if (JSON.stringify(detail.removeConfirm) !== JSON.stringify(wantRemove ?? undefined)) {
+        problems.push(`(2) ${session.id} ${variant}: the session answer's removeConfirm is ${JSON.stringify(detail.removeConfirm)}, not the Mac's own Remove words${live ? ' (none on a live session)' : ''}`);
+      }
+      if (!live && (wantRemove === null || wantRemove?.confirmLabel !== 'Remove')) problems.push(`(2) ${session.id} ${variant}: the shipping verdict offers no Remove on an ended session`);
       if (detail.agentLabel !== agentLabelOf(session.agent)) problems.push(`(2) ${session.id} ${variant}: the agent is drawn ${String(detail.agentLabel)}`);
       if (answer.at !== T || turns.at !== T) problems.push(`(2) ${session.id} ${variant}: an answer's at is not the composer's clock`);
       const count = world.TURNS[session.id].length;
@@ -859,10 +907,27 @@ function completeClause(parsed) {
     if (list.length === 0) problems.push(`(3) there are no ${kind} pieces`);
     for (let i = 0; i < list.length; i += 1) if (!used[kind].has(i)) problems.push(`(3) ${kind} piece ${String(i)} is used by no skeleton`);
   }
+  // PHASE 348: in every state, no list holds a row of a removed session.
+  const rowIdOf = (kind, i) => pieceAt(p[kind] ?? [], i)?.sessionId;
+  for (const key of stateKeys) {
+    const variants = key.split('.');
+    const gone = new Set(SESSIONS.filter((s, i) => isRemoved(variants[i])).map((s) => s.id));
+    if (gone.size === 0) continue;
+    const entry = parsed.lists?.[key];
+    const named = [
+      ...(entry?.blocked?.rows ?? []).map((i) => rowIdOf('blockedRows', i)),
+      ...(entry?.blocked?.others ?? []).map((i) => rowIdOf('blockedRows', i)),
+      ...Object.values(entry?.sessions ?? {}).flatMap((k) => (k.rows ?? []).map((i) => rowIdOf('sessionsRows', i)))
+    ];
+    for (const id of named) if (gone.has(id)) problems.push(`(3) state ${key} lists a removed session, ${id}`);
+  }
   for (const session of SESSIONS) {
     for (const variant of session.variants) {
       for (const member of ['session', 'turns', 'screen']) {
-        if (parsed[member]?.[session.id]?.[variant] === undefined) problems.push(`(3) ${member} ${session.id} ${variant} is missing`);
+        const held = parsed[member]?.[session.id]?.[variant];
+        if (isRemoved(variant)) {
+          if (held !== undefined) problems.push(`(3) ${member} ${session.id} ${variant} is there for a removed session`);
+        } else if (held === undefined) problems.push(`(3) ${member} ${session.id} ${variant} is missing`);
       }
     }
     const live = session.variants.some(liveVariant);
@@ -927,6 +992,8 @@ function screensClause(parsed) {
         continue;
       }
       if (screen.cols !== COLS || screen.rows !== ROWS) problems.push(`(4) ${session.id} ${variant}: the screen is ${String(screen.cols)}x${String(screen.rows)}`);
+      // PHASE 348 (D30): a live picture on this Mac offers a paste.
+      if (screen.paste !== true) problems.push(`(4) ${session.id} ${variant}: the live picture offers no paste`);
       (screen.lines ?? []).forEach((row, i) => {
         if (ABSOLUTE_PATH.test(textOfRow(row))) problems.push(`(4) ${session.id} ${variant}: row ${String(i)} draws an absolute path`);
       });
@@ -1159,6 +1226,9 @@ function proofs() {
   red('a reply missing an option', 2, judge((b) => { b.session['sample-1'].waiting.session.reply.pressable.pop(); }), 'is not the offer the world chose');
   red('a press on an answered session', 2, judge((b) => { b.session['sample-1'].answered.session.reply = b.session['sample-1'].waiting.session.reply; }), 'is not the offer the world chose');
   red('an End on an ended session', 2, judge((b) => { b.session['sample-5'].ended.session.end = { state: 'offered', batch: true }; }), 'End is offered');
+  // PHASE 348: Remove's words gone from an ended session, and given to a live one.
+  red('a Remove gone from an ended session', 2, judge((b) => { delete b.session['sample-5'].ended.session.removeConfirm; }), "not the Mac's own Remove words");
+  red('a Remove on a live session', 2, judge((b) => { b.session['sample-3'].live.session.removeConfirm = b.session['sample-5'].ended.session.removeConfirm; }), "not the Mac's own Remove words");
   red('a turn missing', 2, judge((b) => { b.turns['sample-4'].live.turns.pop(); }), "are not the world's");
   red('an answer that is not every state\'s', 2, judge((b) => { b.session['sample-3'].live.session.lastMessageText = '1m'; }), 'would lie');
   // (3) a state, a question, an index, an unused piece, a history, a screen.
@@ -1168,6 +1238,13 @@ function proofs() {
   red('an unused piece', 3, judge((b) => { b.pieces.groups.push({ id: 'unused' }); }), 'is used by no skeleton');
   red('a history missing', 3, judge((b) => { delete b.history['sample-3']; }), 'history sample-3 is missing');
   red('a screen missing', 3, judge((b) => { delete b.screen['sample-2'].answered; }), 'screen sample-2 answered is missing');
+  // PHASE 348: a removed session listed again, and an answer about one.
+  red('a removed session listed', 3, judge((b) => {
+    const state = Object.keys(b.lists).find((key) => key.split('.')[4] === 'removed');
+    const at = b.pieces.blockedRows.findIndex((row) => row.sessionId === 'sample-5');
+    b.lists[state].blocked.others.push(at);
+  }), 'lists a removed session');
+  red('an answer for a removed session', 3, judge((b) => { b.session['sample-5'].removed = b.session['sample-5'].ended; }), 'is there for a removed session');
   // (4) the echo's rows, a style, a depth, a space, a history, an absence.
   red('the prompt column moved', 4, judge((b) => { b.screen[firstLive.id][liveVariantOf].prompt.column += 1; }), "the prompt row's runs cover");
   red('the note row on an inked row', 4, judge((b) => { b.screen[firstLive.id][liveVariantOf].note.row = 0; }), "the note row is not empty");
@@ -1188,6 +1265,8 @@ function proofs() {
   red('a blank first history row', 4, judge((b) => { b.history['sample-2'].rows[0] = []; }), "first row is blank");
   red('a moved page that is not main\'s', 4, judge((b) => { b.pageMoved['sample-3'].sentence = 'moved'; }), "its moved page");
   red('a picture on an ended screen', 4, judge((b) => { b.screen['sample-5'].ended.answer.screen = b.screen['sample-3'].live.answer.screen; }), "not main's ended screen");
+  // PHASE 348: a live picture that offers no paste.
+  red('a live picture with no paste', 4, judge((b) => { delete b.screen['sample-3'].live.answer.screen.paste; }), 'offers no paste');
   const waitingEntry = ENTRIES.find((e) => e.variant === 'waiting');
   const promptEntry = ENTRIES.find((e) => e.prompt !== null);
   const swap = (entry, changed) => ENTRIES.map((e) => (e === entry ? changed : e));
@@ -1249,7 +1328,7 @@ if (problems.length > 0) {
 
 const pieceCount = book.pieces.blockedRows.length + book.pieces.sessionsRows.length + book.pieces.groups.length + book.pieces.choices.length;
 const listAnswers = STATES.length * (1 + QUERIES.length);
-const sessionCount = SESSIONS.reduce((n, s) => n + s.variants.length, 0);
+const sessionCount = SESSIONS.reduce((n, s) => n + s.variants.filter((v) => !isRemoved(v)).length, 0);
 const screenCount = Object.values(book.screen).reduce((n, byVariant) => n + Object.values(byVariant).filter((e) => e.answer?.screen !== null).length, 0);
 const historyCount = Object.keys(book.history).length;
 const numbers = `${String(SESSIONS.length)} sessions, ${String(STATES.length)} states, ${counted(listAnswers)} list answers from ${counted(pieceCount)} pieces, ${String(sessionCount)} sessions, ${String(screenCount)} screens, ${String(historyCount)} histories`;

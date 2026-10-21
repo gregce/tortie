@@ -22,6 +22,11 @@ body { margin: 0; }
 .tab .ico { position: relative; width: 28px; height: 26px; display: flex; align-items: center; justify-content: center; }
 .tab .lbl { font-size: 10px; line-height: 12px; font-weight: 500; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .badge { position: absolute; top: -4px; left: 17px; min-width: 18px; height: 18px; box-sizing: border-box; padding: 0 5px; border-radius: 9px; background: #f5b84a; color: #131417; font-size: 13px; line-height: 18px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
+/* Phase 348 (build/p348/SPEC.md §4.5, D15, D37): the iPhone's own bar, which
+   holds nothing on this tab, and its large title, in --text-primary here; the
+   app draws the system's own colour. */
+.navbar { height: 52px; flex-shrink: 0; }
+.large { padding: 2px 16px 10px 16px; font-size: 34px; line-height: 41px; font-weight: 700; color: #C9CACD; flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -38,16 +43,16 @@ body { margin: 0; }
      screen's own count, so it and the list under it never disagree; the Macs
      item's badge counts what waits on the OTHER Macs, so nothing waiting is
      hidden without a mark. With one Mac kept none of this is drawn and the
-     bar is the three tabs it always was. -->
+     bar is the three tabs it always was. Since Phase 348 the title is the
+     iPhone's own large title under the bar. -->
 <div class="t" style="width: 390px; height: 844px; box-sizing: border-box; background: #0E0F13; color: #C9CACD; display: flex; flex-direction: column; overflow: hidden;">
 
   <div style="height: 44px; flex-shrink: 0;"></div>
 
-  <div style="padding: 0 16px 8px 16px; flex-shrink: 0;">
-    <div style="font-size: 28px; line-height: 34px; font-weight: 600; color: #C9CACD;">Macs</div>
-  </div>
+  <div class="navbar"></div>
+  <div class="large">Macs</div>
 
-  <div class="card" style="margin: 0 16px; flex-shrink: 0;">
+  <div class="card" style="margin: 8px 16px 0 16px; flex-shrink: 0;">
     <a class="row" href="NeedsInput.html">
       <div class="tick">
         <svg width="16" height="13" viewBox="0 0 16 13" fill="none" stroke="#4d9de8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 7 6 11.3 14.5 1.7"></path></svg>

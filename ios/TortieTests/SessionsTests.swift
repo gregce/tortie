@@ -663,6 +663,126 @@ final class SessionsTests: XCTestCase {
             XCTAssertEqual(error as? DoorFailure, .refused)
         }
     }
+
+    // MARK: - The bar and the foot (Phase 348, build/p348/SPEC.md §4.4, §4.5)
+
+    /// Clause (D16, his words "the new session button is not as prominent as
+    /// it could be and too close to select"): the tab's bar is ONE
+    /// `ToolbarContent`, `SessionsBar`, in this file: Select then the menu in
+    /// one group at the leading edge, and the "+" alone at the trailing edge,
+    /// built behind the offer's `if` so no empty slot is drawn; the menu and
+    /// the "+" each off while End these takes taps, and identified as the
+    /// probe reads them. Read from the source, because SwiftUI draws nothing
+    /// in a unit test.
+    func testTheSessionsBar() throws {
+        let source = try StyleSource.text("ios/Tortie/Screens/SessionsScreen.swift")
+        XCTAssertEqual(source.components(separatedBy: ": ToolbarContent").count, 2, "the tab has other than one bar")
+        XCTAssertTrue(source.contains("struct SessionsBar: ToolbarContent {"))
+        let screen = try ScreensDrawingTests.body(of: "struct SessionsScreen: View {", in: source)
+        XCTAssertTrue(screen.contains(".toolbar {\n            SessionsBar(model: model, start: start)\n        }"), "the screen does not apply the one bar")
+        let bar = try ScreensDrawingTests.body(of: "struct SessionsBar: ToolbarContent {", in: source)
+        let body = try ScreensDrawingTests.body(of: "    var body: some ToolbarContent {", in: bar)
+        let leading = try XCTUnwrap(body.range(of: "ToolbarItemGroup(placement: .topBarLeading) {"), "no leading group").lowerBound
+        let select = try XCTUnwrap(body.range(of: "EndBatchTitleControl()"), "the bar draws no Select").lowerBound
+        let menu = try XCTUnwrap(body.range(of: "            menu\n"), "the bar draws no menu").lowerBound
+        let offer = try XCTUnwrap(body.range(of: "if let start, model.startOffer != nil {"), "the \"+\" is behind no offer").lowerBound
+        let trailing = try XCTUnwrap(body.range(of: "ToolbarItem(placement: .topBarTrailing) {"), "no trailing item").lowerBound
+        let plus = try XCTUnwrap(body.range(of: "StartTitleControl(open: start)"), "the bar draws no \"+\"").lowerBound
+        XCTAssertTrue(leading < select && select < menu && menu < offer && offer < trailing && trailing < plus, "the bar is not Select then the menu at the leading edge, then the \"+\" alone behind the offer at the trailing edge")
+        XCTAssertEqual(body.components(separatedBy: "ToolbarItem").count, 3, "the bar holds other than the leading group and the \"+\"")
+        let afterPlus = String(body[plus...])
+        XCTAssertTrue(afterPlus.contains(".disabled(batch?.takesTaps ?? false)"), "the \"+\" is on while End these takes taps")
+        XCTAssertTrue(afterPlus.contains(".accessibilityIdentifier(ID.startOpen)"), "the \"+\" is not identified start-open")
+        XCTAssertEqual(source.components(separatedBy: "StartTitleControl(").count, 2, "the \"+\" is made other than once")
+        XCTAssertEqual(source.components(separatedBy: "EndBatchTitleControl()").count, 2, "Select is drawn other than once")
+        let menuBody = try ScreensDrawingTests.body(of: "    private var menu: some View {", in: bar)
+        for needle in [".disabled(batch?.takesTaps ?? false)", ".accessibilityLabel(Text(verbatim: Copy.sessionsOptions))", ".accessibilityIdentifier(ID.listMenu)"] {
+            XCTAssertTrue(menuBody.contains(needle), "the menu does not hold \(needle)")
+        }
+        // The glyph is the iPhone's own on each runtime.
+        let glyph = try ScreensDrawingTests.body(of: "    private var filterGlyph: some View {", in: bar)
+        let modern = try XCTUnwrap(glyph.range(of: "if #available(iOS 26, *) {"), "the glyph does not ask the runtime").lowerBound
+        let bare = try XCTUnwrap(glyph.range(of: "Image(systemName: \"line.3.horizontal.decrease\")"), "no bare glyph on iOS 26").lowerBound
+        let circle = try XCTUnwrap(glyph.range(of: "Image(systemName: model.filtered ? \"line.3.horizontal.decrease.circle.fill\" : \"line.3.horizontal.decrease.circle\")"), "no circle on iOS 18").lowerBound
+        XCTAssertTrue(modern < bare && bare < circle)
+        // The title row is gone with its controls.
+        XCTAssertFalse(source.contains("private var title: some View"), "the screen still draws a title row")
+        XCTAssertFalse(source.contains("controlGap"), "the title row's gap is still spelled")
+    }
+
+    /// Clause (D56): the bar presses exactly a control's own frame, so each
+    /// label is framed ONCE, with a rectangle for its shape, its lengths
+    /// `SessionsFrame`'s literals, and nothing in the bar is padded: the
+    /// "+" 46 square, the menu's glyph and Select at least 44 each way.
+    func testTheBarsPressesAreItsLabelsFrames() throws {
+        XCTAssertEqual(SessionsFrame.plusPress, 46)
+        XCTAssertEqual(SessionsFrame.barPress, 44)
+        let sessions = try StyleSource.text("ios/Tortie/Screens/SessionsScreen.swift")
+        let bar = try ScreensDrawingTests.body(of: "struct SessionsBar: ToolbarContent {", in: sessions)
+        XCTAssertFalse(bar.contains(".padding("), "a control in the bar is padded")
+        XCTAssertEqual(bar.components(separatedBy: ".frame(").count, 2, "the bar frames other than the menu's label")
+        XCTAssertTrue(bar.contains(".frame(minWidth: SessionsFrame.barPress, minHeight: SessionsFrame.barPress)\n                .contentShape(Rectangle())"), "the menu's label is not framed at least 44 with its shape")
+        let sheet = try StyleSource.text("ios/Tortie/Screens/StartSheet.swift")
+        let plus = try ScreensDrawingTests.body(of: "struct StartTitleControl: View {", in: sheet)
+        XCTAssertFalse(plus.contains(".padding("), "the \"+\" is padded")
+        XCTAssertEqual(plus.components(separatedBy: ".frame(width: SessionsFrame.plusPress, height: SessionsFrame.plusPress)\n                    .contentShape(Rectangle())").count, 3, "the \"+\"'s label is not framed 46 square with its shape on both runtimes")
+        XCTAssertEqual(plus.components(separatedBy: ".frame(").count, 3, "the \"+\" frames other than its label")
+        let batch = try StyleSource.text("ios/Tortie/Screens/EndBatch.swift")
+        let select = try ScreensDrawingTests.body(of: "struct EndBatchTitleControl: View {", in: batch)
+        XCTAssertFalse(select.contains(".padding("), "Select is padded")
+        for word in ["Copy.select", "Copy.cancel"] {
+            XCTAssertTrue(select.contains("Text(verbatim: \(word))\n                        .frame(minWidth: SessionsFrame.barPress, minHeight: SessionsFrame.barPress)\n                        .contentShape(Rectangle())"), "\(word)'s label is not framed at least 44 with its shape")
+        }
+        XCTAssertEqual(select.components(separatedBy: ".frame(").count, 3, "Select frames other than its two labels")
+        // Phase 346's 46-point reach around the glyph in the title row went
+        // with the row.
+        for file in ["Screens/StartSheet.swift", "Screens/SessionsScreen.swift", "Screens/ListScreen.swift"] {
+            let text = try StyleSource.text("ios/Tortie/\(file)")
+            XCTAssertFalse(text.contains("plusReach") || text.contains("plusGiveBack"), "\(file) still names the title row's reach")
+        }
+    }
+
+    /// Clause (D16, D21 of Phase 346): the "+" is the iPhone's own on each
+    /// runtime: `plus` in the bar's prominent glass tinted the accent on iOS
+    /// 26, and `plus.circle.fill` in the accent before it, spoken New
+    /// session on both.
+    func testThePlusIsTheIPhonesOwn() throws {
+        let sheet = try StyleSource.text("ios/Tortie/Screens/StartSheet.swift")
+        XCTAssertTrue(sheet.contains("struct StartTitleControl: View {"), "the \"+\"'s declaration line moved")
+        let plus = try ScreensDrawingTests.body(of: "struct StartTitleControl: View {", in: sheet)
+        let modern = try XCTUnwrap(plus.range(of: "if #available(iOS 26, *) {")).lowerBound
+        let glyph = try XCTUnwrap(plus.range(of: "Image(systemName: \"plus\")")).lowerBound
+        let glass = try XCTUnwrap(plus.range(of: ".buttonStyle(.glassProminent)")).lowerBound
+        let tint = try XCTUnwrap(plus.range(of: ".tint(Tokens.accent)")).lowerBound
+        let older = try XCTUnwrap(plus.range(of: "Image(systemName: \"plus.circle.fill\")")).lowerBound
+        XCTAssertTrue(modern < glyph && glyph < glass && glass < tint && tint < older, "the \"+\" is not the glass plus on iOS 26 and the filled circle before it")
+        XCTAssertTrue(String(plus[older...]).contains(".foregroundStyle(Tokens.accent)"), "the circle is not the accent")
+        XCTAssertEqual(plus.components(separatedBy: ".accessibilityLabel(Text(verbatim: Copy.newSession))").count, 3, "the \"+\" is not spoken New session on both runtimes")
+    }
+
+    /// Clause (D14): the foot is `read <the answer's moment>` alone; main's
+    /// age note is decoded and never drawn, so the drawing holds nothing of
+    /// it and the foot draws one line and names no note.
+    func testTheFootIsTheReadLineAlone() throws {
+        let base = SessionsAnswers.honest()
+        // A note main could send, whatever its words: the drawing holds none.
+        let note = "A note main sends, which the phone reads and never draws."
+        let answer = PocketSessionsAnswer(
+            asked: base.asked, rows: base.rows, groups: base.groups, agents: base.agents, machines: base.machines,
+            totalSessions: base.totalSessions, omittedRows: base.omittedRows, at: base.at, ageNote: note
+        )
+        let drawing = try SessionsDrawing(answer, asked: .standard, clock: { _ in "4:32 PM" })
+        XCTAssertEqual(drawing.readLine, Copy.readAt("4:32 PM"))
+        XCTAssertFalse(Mirror(reflecting: drawing).children.compactMap(\.label).contains("ageNote"), "Sessions draws main's age note")
+        for child in Mirror(reflecting: drawing).children {
+            if let text = child.value as? String { XCTAssertNotEqual(text, note, "\(child.label ?? "a field") carries main's age note") }
+        }
+        let source = try StyleSource.text("ios/Tortie/Screens/SessionsScreen.swift")
+        let foot = try ScreensDrawingTests.body(of: "    private func foot(", in: source)
+        XCTAssertEqual(foot.components(separatedBy: "Words(").count, 2, "the foot draws other than one line")
+        XCTAssertTrue(foot.contains("Words(drawing.readLine, .age, Tokens.textMuted)"))
+        XCTAssertFalse(source.contains(".ageNote"), "SessionsScreen.swift reads main's age note")
+    }
 }
 
 /// Where the list's routing sent the app.

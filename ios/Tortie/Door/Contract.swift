@@ -478,6 +478,154 @@ extension PocketStartAnswer: Codable {
     }
 }
 
+// MARK: - Remove and paste (Phase 348)
+
+/// The two invariants an answer whose reason is an OPEN word holds (Phase 348,
+/// build/p348/SPEC.md D27), asked of plain values and never of a decoder: a
+/// reason, and a non-empty one, exactly when refused; a sentence, and a
+/// non-empty one, exactly when not done. Start's decoder (Phase 346) asks the
+/// same two inline, and is left byte for byte as the frozen phones read it.
+enum PocketOpenAnswer {
+    /// The reason the Mac answers a body it could read no write id in.
+    static let unreadable = "malformed"
+
+    static func holds(outcome: PocketWriteAnswer.Outcome, reason: String?, sentence: String?) -> Bool {
+        let reasoned = reason.map { !$0.isEmpty } ?? false
+        guard reasoned == (outcome == .refused), reason == nil || reasoned else { return false }
+        let said = sentence.map { !$0.isEmpty } ?? false
+        return said == (outcome != .done) && (sentence == nil || said)
+    }
+
+    /// The one answer that may carry an empty echo: the Mac could read no
+    /// write id in the body, refused it `malformed`, and did nothing.
+    static func echoesNoId(write: String, outcome: PocketWriteAnswer.Outcome, reason: String?) -> Bool {
+        write.isEmpty && outcome == .refused && reason == unreadable
+    }
+}
+
+/// `PocketRemoveAnswer`: what `POST /v1/remove` answers with a 200
+/// (build/p348/SPEC.md D27, D48). Five fields, shaped as Start's are, and these
+/// are all of it:
+///
+///   - `verb` is `remove`, and an answer naming anything else refuses whole;
+///   - `write` is the write id the request carried, echoed, or `""` only on
+///     the one `refused` `malformed` answer the Mac makes when it could read
+///     no id at all;
+///   - `outcome` is one of the four every write answers with;
+///   - `reason` is non-null EXACTLY when `refused`, and is read as an OPEN
+///     word: the phone draws the Mac's sentence and never the word, so a
+///     reason this build does not know never refuses the whole answer (the
+///     lesson of `PocketWriteAnswer.Reason`'s closed twelve, which Start
+///     learnt first);
+///   - `sentence` is null exactly when `done`, and a non-empty sentence
+///     otherwise.
+///
+/// Remove is no session write the frozen phones read: `PocketWriteAnswer.Verb`
+/// stays the four they know (gate:onlyadd A3). The client turns any refusal of
+/// this shape into "no answer" (Door/DoorClient.swift `RemoveResult`), because
+/// the bytes reached the Mac and what it did is not known.
+struct PocketRemoveAnswer: Equatable, Sendable {
+    /// The one verb this answer names.
+    static let verbWord = "remove"
+
+    let verb: String
+    let write: String
+    let outcome: PocketWriteAnswer.Outcome
+    /// The Mac's word for why; drawn never, read only as present or not.
+    let reason: String?
+    /// The Mac's words; nil exactly when `done`.
+    let sentence: String?
+
+    /// The one answer that may carry an empty echo.
+    var echoesNoId: Bool {
+        PocketOpenAnswer.echoesNoId(write: write, outcome: outcome, reason: reason)
+    }
+}
+
+extension PocketRemoveAnswer: Codable {
+    enum CodingKeys: String, CodingKey { case verb, write, outcome, reason, sentence }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        verb = try c.decode(String.self, forKey: .verb)
+        write = try c.decode(String.self, forKey: .write)
+        outcome = try c.decode(PocketWriteAnswer.Outcome.self, forKey: .outcome)
+        reason = try c.nullable(String.self, forKey: .reason)
+        sentence = try c.nullable(String.self, forKey: .sentence)
+        guard verb == "remove" else {
+            throw DecodingError.dataCorruptedError(forKey: .verb, in: c, debugDescription: "a remove's answer names the remove")
+        }
+        guard PocketOpenAnswer.holds(outcome: outcome, reason: reason, sentence: sentence) else {
+            throw DecodingError.dataCorruptedError(forKey: .reason, in: c, debugDescription: "a reason comes with refused, and a sentence with every outcome but done")
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(verb, forKey: .verb)
+        try c.encode(write, forKey: .write)
+        try c.encode(outcome, forKey: .outcome)
+        try c.encode(reason, forKey: .reason)
+        try c.encode(sentence, forKey: .sentence)
+    }
+}
+
+/// `PocketPasteAnswer`: what `POST /v1/paste` answers with a 200
+/// (build/p348/SPEC.md D27, D50): the same five fields as Remove's, its verb
+/// `paste`, its reason an OPEN word (the Mac's own, for one: `machine`, a
+/// session on another machine, D22), drawn never. The client turns any
+/// refusal of this shape into "no answer" (Door/DoorClient.swift
+/// `PasteResult`).
+struct PocketPasteAnswer: Equatable, Sendable {
+    /// The one verb this answer names.
+    static let verbWord = "paste"
+    /// The reason the Mac answers a paste raced by a question that moved since
+    /// the picture it was pasted against, which locks the key sender by the
+    /// picture's revision as a keys write's `changed` does.
+    static let changedWord = "changed"
+
+    let verb: String
+    let write: String
+    let outcome: PocketWriteAnswer.Outcome
+    /// The Mac's word for why; drawn never.
+    let reason: String?
+    /// The Mac's words; nil exactly when `done`.
+    let sentence: String?
+
+    /// The one answer that may carry an empty echo.
+    var echoesNoId: Bool {
+        PocketOpenAnswer.echoesNoId(write: write, outcome: outcome, reason: reason)
+    }
+}
+
+extension PocketPasteAnswer: Codable {
+    enum CodingKeys: String, CodingKey { case verb, write, outcome, reason, sentence }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        verb = try c.decode(String.self, forKey: .verb)
+        write = try c.decode(String.self, forKey: .write)
+        outcome = try c.decode(PocketWriteAnswer.Outcome.self, forKey: .outcome)
+        reason = try c.nullable(String.self, forKey: .reason)
+        sentence = try c.nullable(String.self, forKey: .sentence)
+        guard verb == "paste" else {
+            throw DecodingError.dataCorruptedError(forKey: .verb, in: c, debugDescription: "a paste's answer names the paste")
+        }
+        guard PocketOpenAnswer.holds(outcome: outcome, reason: reason, sentence: sentence) else {
+            throw DecodingError.dataCorruptedError(forKey: .reason, in: c, debugDescription: "a reason comes with refused, and a sentence with every outcome but done")
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(verb, forKey: .verb)
+        try c.encode(write, forKey: .write)
+        try c.encode(outcome, forKey: .outcome)
+        try c.encode(reason, forKey: .reason)
+        try c.encode(sentence, forKey: .sentence)
+    }
+}
+
 // MARK: - Reply (Phase 318)
 
 /// `PocketReplyOffer`: what the phone may do with one session's question or
@@ -701,6 +849,13 @@ struct PocketSessionDetail: Equatable, Sendable {
     /// Mac, which is false: no Screen row, and nothing to refuse. Read through
     /// `drawsScreen`.
     var screen: Bool?
+    /// The Mac's own Remove confirmation for this session (Phase 348, D49):
+    /// its `removeSessionConfirm` words, present exactly when the Mac serves
+    /// `remove` and both of its gates offer Remove now (a session that has
+    /// ended); absent from a Mac older than 348, or one whose Allow waits. A
+    /// Remove is drawn only with it, so the phone never makes up the words of
+    /// a confirmation.
+    var removeConfirm: PocketEndConfirm?
 
     /// The offer to draw: absent reads as the empty offer (no button, no box).
     var replyOffer: PocketReplyOffer { reply ?? .empty }
@@ -715,7 +870,7 @@ struct PocketSessionDetail: Equatable, Sendable {
 
 extension PocketSessionDetail: Codable {
     enum CodingKeys: String, CodingKey {
-        case catchUp, lastAnswer, turnCount, handoff, activity, lastMessageText, endConfirm, reply, screen
+        case catchUp, lastAnswer, turnCount, handoff, activity, lastMessageText, endConfirm, reply, screen, removeConfirm
     }
 
     init(from decoder: Decoder) throws {
@@ -741,6 +896,9 @@ extension PocketSessionDetail: Codable {
         // Absent on a Mac older than Phase 337; anything but a boolean
         // refuses the answer, as every field does here.
         screen = try c.decodeIfPresent(Bool.self, forKey: .screen)
+        // Absent on a Mac older than Phase 348 and on every session Remove is
+        // not offered on; a present one is read strictly, as End's is.
+        removeConfirm = try c.decodeIfPresent(PocketEndConfirm.self, forKey: .removeConfirm)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -755,6 +913,7 @@ extension PocketSessionDetail: Codable {
         try c.encodeIfPresent(endConfirm, forKey: .endConfirm)
         try c.encodeIfPresent(reply, forKey: .reply)
         try c.encodeIfPresent(screen, forKey: .screen)
+        try c.encodeIfPresent(removeConfirm, forKey: .removeConfirm)
     }
 }
 
@@ -1572,11 +1731,21 @@ struct PocketScreen: Equatable, Sendable {
     /// Which pane the index space belongs to, 12 lowercase hex; nil exactly
     /// when `historyDepth` is.
     let space: String?
+    /// `paste` (Phase 348, D30): the Mac takes a paste on this session now (it
+    /// serves `paste`, the screen is typable, and the session is on this
+    /// Mac). Absent is false: a Mac older than 348, one whose Allow waits, an
+    /// ended session and a session on another machine draw Copy alone.
+    var paste: Bool = false
+    /// `wraps` (Phase 348, D43): the rows whose line goes on into the next
+    /// row, as tmux marked them and behind the Mac's ink guard (D45),
+    /// ascending, each a row with a row after it. Empty is no marks, and Copy
+    /// is then today's: every row its own line.
+    var wraps: [Int] = []
 }
 
 extension PocketScreen: Decodable {
     enum CodingKeys: String, CodingKey {
-        case cursor, alternate, ground, ink, caret, styles, lines, turn, asking, dialog, typable, space
+        case cursor, alternate, ground, ink, caret, styles, lines, turn, asking, dialog, typable, space, paste, wraps
         case screenColumns = "cols"
         case screenRows = "rows"
         case historyDepth = "depth"
@@ -1605,12 +1774,32 @@ extension PocketScreen: Decodable {
             historyDepth = nil
         }
         space = try c.decodeIfPresent(String.self, forKey: .space)
+        // Absent from a Mac older than Phase 348; anything but a boolean
+        // refuses the answer, as every field does here (D30).
+        paste = try c.decodeIfPresent(Bool.self, forKey: .paste) ?? false
+        // The marks, read LENIENTLY (D43): a list this build cannot square
+        // (not whole numbers, not ascending, a row out of range or the last
+        // row named) is no marks, and never refuses the picture it rides on.
+        let marks = (try? c.decodeIfPresent([Int].self, forKey: .wraps)) ?? nil
+        wraps = Self.marks(marks, rows: screenRows)
         guard Self.holdsTogether(
             columns: screenColumns, rows: screenRows, cursor: cursor, styles: styles.count,
             lines: lines, turn: turn, dialog: dialog
         ), Self.indexSpaceHolds(depth: historyDepth, space: space) else {
             throw DecodingError.dataCorruptedError(forKey: .lines, in: c, debugDescription: "a screen no Mac composed")
         }
+    }
+
+    /// D43: the marks as a Mac composed them, or none: ascending whole
+    /// numbers, each a row that has a row after it (`0 <= r < rows - 1`),
+    /// asked only through comparisons and `DoorNumber`'s checked sum, so no
+    /// mark is arithmetic of its own and no whole number is held beside the
+    /// decoded fields (rule k). Anything else is no marks.
+    static func marks(_ read: [Int]?, rows: Int) -> [Int] {
+        guard let read,
+              read.allSatisfy({ mark in DoorNumber.isCount(mark) && (DoorNumber.sum(mark, 1).map { $0 < rows } ?? false) }),
+              zip(read, read.dropFirst()).allSatisfy({ $0 < $1 }) else { return [] }
+        return read
     }
 
     /// D3: the depth and the space, both or neither; the depth at most the
@@ -1749,11 +1938,16 @@ struct PocketScrollbackAnswer: Equatable, Sendable {
     let why: PocketScrollbackAbsence?
     /// Main's words for `why`; nil otherwise.
     let sentence: String?
+    /// `wraps` (Phase 348, D43): indices into `rows` whose line goes on into
+    /// the next row, ascending, the page's last row never listed. Empty is no
+    /// marks: a Mac older than 348, an absence, or a list this build cannot
+    /// square.
+    var wraps: [Int] = []
 }
 
 extension PocketScrollbackAnswer: Decodable {
     enum CodingKeys: String, CodingKey {
-        case sessionId, at, space, styles, rows, why, sentence
+        case sessionId, at, space, styles, rows, why, sentence, wraps
         case pageFrom = "from"
         case pageDepth = "depth"
         case pageWrap = "wrap"
@@ -1771,6 +1965,10 @@ extension PocketScrollbackAnswer: Decodable {
         rows = try c.decode([[PocketScreenRun]].self, forKey: .rows)
         why = try c.nullable(PocketScrollbackAbsence.self, forKey: .why)
         sentence = try c.nullable(String.self, forKey: .sentence)
+        // The marks, read LENIENTLY as the live picture's are (D43): none for
+        // a list this build cannot square, and never a refused page.
+        let marks = (try? c.decodeIfPresent([Int].self, forKey: .wraps)) ?? nil
+        wraps = PocketScreen.marks(marks, rows: rows.count)
         guard Self.holdsTogether(
             from: pageFrom, depth: pageDepth, wrap: pageWrap, space: space, styles: styles.count,
             rows: rows, why: why, sentence: sentence

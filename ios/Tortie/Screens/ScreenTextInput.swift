@@ -1,8 +1,9 @@
 // The Terminal's text, to UIKit's own selection (Phase 337.5,
 // build/p3375/SPEC.md D1 to D17, his words "In the Terminal itself"): the
 // iPhone's two round handles at a selection's ends, its magnifier under the
-// finger, and its edit menu above the selection holding ONE item, Copy, over
-// rows the Terminal draws itself, by their absolute index.
+// finger, and its edit menu above the selection holding Copy (and, since
+// Phase 348, iOS's own Paste where the Mac takes a paste), over rows the
+// Terminal draws itself, by their absolute index.
 //
 // WHY THIS DESIGN, MEASURED (D1, build/p3375/SPEC.md section 14 M1 to M10).
 // The content view of the Terminal's scroll view is this view; it adopts
@@ -23,14 +24,28 @@
 // its menu from nothing.
 //
 // NOTHING THAT SENDS HIS WORDS ANYWHERE CAN REACH THEM (D8, D9; conformance:ios
-// rule al). The menu is built here from nothing: one action, `Copy`, offered
-// only while every selected row is drawn, and an empty menu otherwise, which
-// UIKit does not show; the system's suggested actions are never read. This
-// view never becomes first responder, so no edit command, Look Up, Share or
-// Translate is ever offered for it; Writing Tools is off; and the text input's
-// mutators do nothing. Copy's press tells the page, whose `copySelection()`
-// writes the clipboard through Screens/ScreenSelection.swift alone; this file
-// names no pasteboard.
+// rule al). The menu is built here from nothing: `Copy`, offered only while
+// every selected row is drawn, and an empty menu otherwise, which UIKit does
+// not show; the system's suggested actions are never read. This view never
+// becomes first responder, so no edit command, Look Up, Share or Translate is
+// ever offered for it; Writing Tools is off; and the text input's mutators do
+// nothing. Copy's press tells the page, whose `copySelection()` writes the
+// clipboard through Screens/ScreenSelection.swift alone.
+//
+// AND PASTE, NATIVELY (Phase 348, build/p348/SPEC.md D39, D40, D42; his ruling
+// of 2026-10-18, "i'd like to be able to paste natively"). After Copy, while
+// the page says the Mac takes a paste, the menu holds iOS's OWN paste command:
+// an app-built `UICommand` with the standard `paste(_:)` selector, which iOS
+// honours with no Allow Paste alert (measured on iOS 26.3 and 18.3, with
+// another app's text and after a trip to another app). NEVER a `UIAction`
+// that reads the pasteboard, which raised the alert on both and blocked its
+// read about a minute; and never the system's suggested element. THIS view
+// takes the command whoever is first responder (measured: with the keyboard
+// up and down the content view took it and the hidden field none), asks
+// `hasStrings` in `canPerformAction` alone, reads the clipboard's string once,
+// synchronously, in `paste(_:)` alone, and hands it to the page's one paste,
+// whose first step is the phone's paste rule. So the clipboard is read only on
+// his press, and nothing of it is kept here.
 //
 // A SELECTION OVER ROWS NOT YET FETCHED WAITS (D10). While a selected row is
 // reserved the menu is empty and its showing is OWED; the layout pass that
@@ -134,13 +149,20 @@ struct ScreenTextGeometry: Equatable {
     static let none = ScreenTextGeometry(cell: ScreenCell(fontSize: 1, width: 1, height: 1), first: 0, columns: 0, rows: 0)
 }
 
-/// What the selection tells the page: a range made or moved (or nil), and
-/// that the menu's Copy was pressed.
+/// What the selection tells the page: a range made or moved (or nil), that
+/// the menu's Copy was pressed, and since Phase 348 whether the Mac takes a
+/// paste now and the text of one.
 struct ScreenTextEvents {
     let select: @MainActor (ScreenSelectionRange?) -> Void
     let copy: @MainActor () -> Void
+    /// Whether the menu offers Paste now (Phase 348, D30): the page's answer,
+    /// false by default.
+    var pasteOffered: @MainActor () -> Bool = { false }
+    /// The menu's Paste was pressed, with the clipboard's text (Phase 348).
+    var paste: @MainActor (String) -> Void = { _ in }
 
-    /// Told nothing, until the scroll view sets its own.
+    /// Told nothing, until the scroll view sets its own: no Paste offered,
+    /// and a paste does nothing.
     static var none: ScreenTextEvents {
         ScreenTextEvents(select: { _ in }, copy: {})
     }
@@ -161,6 +183,9 @@ final class ScreenTextContent: UIView, UITextInput {
     var cells: (Int) -> [String]? = { _ in nil }
     /// Whether every row of a selection is drawn (D10).
     var drawn: (ScreenSelectionRange) -> Bool = { _ in false }
+    /// Whether a row's line goes on into the next, by absolute index (Phase
+    /// 348, D46), so the text UIKit reads joins as Copy does.
+    var wrapped: (Int) -> Bool = { _ in false }
     /// The page's side.
     var events = ScreenTextEvents.none
 
@@ -250,6 +275,27 @@ final class ScreenTextContent: UIView, UITextInput {
 
     override var canBecomeFirstResponder: Bool { false }
 
+    // MARK: iOS's own paste (Phase 348, D39, D40, D42)
+
+    /// The menu's Paste is iOS's own command, offered only while the page
+    /// says the Mac takes a paste AND the clipboard holds text (`hasStrings`,
+    /// which raises no alert: measured, 0.0 to 5.2 ms). Every other action is
+    /// answered as before.
+    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        if action == #selector(UIResponderStandardEditActions.paste(_:)) {
+            return events.pasteOffered() && UIPasteboard.general.hasStrings
+        }
+        return super.canPerformAction(action, withSender: sender)
+    }
+
+    /// The command itself, on his press: the clipboard's text read once,
+    /// synchronously, and handed to the page's one paste, which asks the
+    /// phone's paste rule first. Nothing else; nothing is kept.
+    override func paste(_ sender: Any?) {
+        guard let payload = UIPasteboard.general.string else { return }
+        events.paste(payload)
+    }
+
     /// Writing Tools is off. A get-only property only "nearly matches" the
     /// optional requirement and is not taken (build/p3375/SPEC.md section 14),
     /// so it has a setter that keeps nothing.
@@ -289,7 +335,7 @@ final class ScreenTextContent: UIView, UITextInput {
 
     func text(in range: UITextRange) -> String? {
         guard let selected = cellsOf(range) else { return nil }
-        return ScreenSelecting.text(selected, columns: geometry.columns, cells: cells)
+        return ScreenSelecting.text(selected, columns: geometry.columns, cells: cells, wrapped: wrapped)
     }
 
     /// The cells a UIKit range covers, or nil when it covers none.
@@ -635,9 +681,12 @@ final class ScreenTextContent: UIView, UITextInput {
 extension ScreenTextContent: UITextSelectionDisplayInteractionDelegate {}
 
 extension ScreenTextContent: @preconcurrency UIEditMenuInteractionDelegate {
-    /// THE MENU (D8, D10): `Copy` alone, while every selected row is drawn,
-    /// and an empty menu, which UIKit does not show, otherwise. Built from
-    /// nothing: the suggested actions are never read.
+    /// THE MENU (D8, D10): `Copy`, while every selected row is drawn, and an
+    /// empty menu, which UIKit does not show, otherwise; and since Phase 348
+    /// (D39) iOS's own Paste after Copy while the page says the Mac takes a
+    /// paste, which iOS then draws only while the clipboard holds text (this
+    /// view's `canPerformAction`). Built from nothing: the suggested actions
+    /// are never read.
     func editMenuInteraction(_ interaction: UIEditMenuInteraction, menuFor configuration: UIEditMenuConfiguration, suggestedActions: [UIMenuElement]) -> UIMenu? {
         guard let selection else { return UIMenu(children: []) }
         guard drawn(selection) else {
@@ -648,7 +697,12 @@ extension ScreenTextContent: @preconcurrency UIEditMenuInteractionDelegate {
             self?.events.copy()
         }
         copy.accessibilityIdentifier = ID.screenCopy
-        return UIMenu(children: [copy])
+        guard events.pasteOffered() else { return UIMenu(children: [copy]) }
+        // iOS's own paste command: the standard selector, so iOS shows no
+        // Allow Paste alert, taken by this view's `paste(_:)` (D39, D40).
+        let paste = UICommand(title: Copy.paste, image: UIImage(systemName: "doc.on.clipboard"), action: #selector(UIResponderStandardEditActions.paste(_:)))
+        paste.accessibilityIdentifier = ID.screenPaste
+        return UIMenu(children: [copy, paste])
     }
 
     /// The menu sits over the selection: the union of its rectangles.

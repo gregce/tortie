@@ -15,13 +15,19 @@
 // sample's `start` answers not taken, with nothing sent anywhere, so Create
 // says `This is a sample, so nothing ran.`
 //
+// REMOVE AND PASTE (Phase 348, D11, D34, his answer 11). An ended sample
+// session offers Remove, with the Mac's own words the book holds and no owner
+// check, and the sample's `remove` moves it to `removed`, so it leaves the
+// lists; and a sample Terminal takes a paste, echoed on its own prompt as
+// typed text is. Nothing leaves the phone.
+//
 // THE SAMPLE KEEPS NOTHING (D17): Show, Group by and Sort by live in
 // `SampleChoices`, made fresh each time the sample opens, so the paired tab's
 // three words are never touched.
 
 import Foundation
 
-struct SampleReader: DoorReading, DoorWriting, DoorStarting {
+struct SampleReader: DoorReading, DoorWriting, DoorStarting, DoorRemoving {
     let world: SampleWorld
 
     init(book: SampleBook, now: @escaping @Sendable () -> Double = SampleWorld.phoneClock) {
@@ -40,6 +46,11 @@ struct SampleReader: DoorReading, DoorWriting, DoorStarting {
 
     /// The sample's New session, which starts nothing (D28).
     var starter: (any DoorStarting)? {
+        self
+    }
+
+    /// The sample's Remove, on its own copy (Phase 348, D11).
+    var remover: (any DoorRemoving)? {
         self
     }
 
@@ -94,6 +105,12 @@ struct SampleReader: DoorReading, DoorWriting, DoorStarting {
     func start(project: String, agent: String, write: String?) async -> SentStart {
         SentStart(result: .notTaken, write: nil)
     }
+
+    /// Remove, on the sample's copy (Phase 348, D11): an ended session leaves
+    /// the lists. No owner check is asked.
+    func remove(_ sessionId: String) async -> RemoveResult {
+        await world.removeEnded(sessionId)
+    }
 }
 
 /// One sample session's Terminal: the held read, the echo and the history,
@@ -116,6 +133,14 @@ final class SampleScreenDoor: ScreenDoor {
 
     func keys(_ keys: [KeyItem], turn: String, dialog: String?) async -> WriteResult {
         await world.typeKeys(sessionId, keys)
+    }
+
+    /// The sample takes a paste, and echoes it on its own prompt (Phase 348,
+    /// D34).
+    var pastes: Bool { true }
+
+    func paste(_ text: String, turn: String, dialog: String?) async -> PasteResult {
+        await world.pasteText(sessionId, text)
     }
 
     func scrollback(from: Int, count: Int, depth: Int, wrap: Int, keep: ScrollbackKeep) async throws -> PocketScrollbackAnswer {

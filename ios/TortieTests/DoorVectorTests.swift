@@ -728,6 +728,159 @@ final class DoorVectorTests: XCTestCase {
         }
     }
 
+    // MARK: Remove and paste (Phase 348)
+
+    /// Clause (Phase 348, build/p348/SPEC.md D28, section 9.3): the remove and
+    /// the paste are the requests the shipping verifier accepted and the
+    /// shipping `parseRemoveBody` and `parsePasteBody` read back: POST, the
+    /// client's own targets, and the bodies Swift's encoder writes from
+    /// `RemoveBody` and `PasteBody` with sorted keys, byte for byte, exactly
+    /// their keys. The paste's text holds `/` (which Swift writes `\/`), `"`, a
+    /// line break, a tab and an emoji, every one a character the phone's rule
+    /// lets through, and a picture with no dialog writes the key as `null`,
+    /// because the Mac reads it as always present. The signature loops above
+    /// sign and verify both with the rest.
+    func testTheRemoveAndThePasteAreTheDoorsByteForByte() throws {
+        let byName = Dictionary(uniqueKeysWithValues: v.requests.map { ($0.name, $0) })
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+
+        let remove = try XCTUnwrap(byName["remove"], "vectors.json carries no remove write; run node build/p316/vectors.mjs")
+        XCTAssertEqual(remove.method, "POST")
+        XCTAssertEqual(remove.target, DoorClient.removeTarget)
+        let removed = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(remove.body.utf8)) as? [String: String])
+        XCTAssertEqual(Array(removed.keys).sorted(), ["session", "write"])
+        let removeBody = RemoveBody(session: try XCTUnwrap(removed["session"]), write: try XCTUnwrap(removed["write"]))
+        XCTAssertEqual(String(decoding: try encoder.encode(removeBody), as: UTF8.self), remove.body)
+        XCTAssertTrue(WriteId.isWellFormed(removeBody.write))
+
+        let paste = try XCTUnwrap(byName["paste"], "vectors.json carries no paste write; run node build/p316/vectors.mjs")
+        XCTAssertEqual(paste.method, "POST")
+        XCTAssertEqual(paste.target, DoorClient.pasteTarget)
+        let pasted = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(paste.body.utf8)) as? [String: Any])
+        XCTAssertEqual(pasted.keys.sorted(), ["dialog", "session", "text", "turn", "write"])
+        let text = try XCTUnwrap(pasted["text"] as? String)
+        let pasteBody = PasteBody(
+            dialog: pasted["dialog"] as? String, session: try XCTUnwrap(pasted["session"] as? String), text: text,
+            turn: try XCTUnwrap(pasted["turn"] as? String), write: try XCTUnwrap(pasted["write"] as? String)
+        )
+        XCTAssertEqual(String(decoding: try encoder.encode(pasteBody), as: UTF8.self), paste.body)
+        XCTAssertTrue(WriteId.isWellFormed(pasteBody.write))
+        XCTAssertTrue(PocketReplyOffer.isQuestionId(pasteBody.turn), pasteBody.turn)
+        XCTAssertTrue(pasteBody.dialog.map(PocketReplyOffer.isMark) ?? false, "the vector's paste carries no dialog mark")
+        XCTAssertTrue(text.contains("/") && paste.body.contains(#"\/"#), "the vector's text has no slash written as Swift writes it")
+        XCTAssertTrue(text.contains("\""), "the vector's text has no quote")
+        XCTAssertTrue(text.contains("\n"), "the vector's text has no line break")
+        XCTAssertTrue(text.contains("\t"), "the vector's text has no tab")
+        XCTAssertTrue(text.unicodeScalars.contains { $0.properties.isEmoji && !$0.isASCII }, "the vector's text has no emoji")
+        XCTAssertNil(ScreenPasteRule.refusal(text), "the vector's text is one the phone refuses, so it proves nothing it sends")
+
+        let none = PasteBody(dialog: nil, session: pasteBody.session, text: "x", turn: pasteBody.turn, write: pasteBody.write)
+        let noneFields = try XCTUnwrap(try JSONSerialization.jsonObject(with: try encoder.encode(none)) as? [String: Any])
+        XCTAssertEqual(noneFields.keys.sorted(), ["dialog", "session", "text", "turn", "write"])
+        XCTAssertTrue(noneFields["dialog"] is NSNull, "a picture with no dialog leaves the key out, which the Mac refuses as malformed")
+    }
+
+    /// Clause (Phase 348, D39, D40, D54): the remove and paste answers the
+    /// SHIPPING write path composed read back as the door wrote them, unknown
+    /// fields ignored, each by its own rules (a reason exactly when refused, a
+    /// sentence exactly when not done, its own verb); one write's answer is
+    /// never read as the other's; the client takes each as its write's answer
+    /// to the vector's request (its id echoed, or `""` with `refused`
+    /// `malformed`); and the line the phone draws for a refusal is the Mac's
+    /// own sentence.
+    func testTheRemoveAndPasteAnswersReadBackAsTheDoorWroteThem() throws {
+        let done = try assertRoundTrip(PocketRemoveAnswer.self, "remove-done")
+        XCTAssertEqual(done.outcome, .done)
+        XCTAssertNil(done.reason)
+        XCTAssertNil(done.sentence)
+        let refused = try assertRoundTrip(PocketRemoveAnswer.self, "remove-refused")
+        XCTAssertEqual(refused.outcome, .refused)
+        XCTAssertNotNil(refused.reason)
+        XCTAssertNotNil(refused.sentence)
+        let malformed = try assertRoundTrip(PocketRemoveAnswer.self, "remove-malformed")
+        XCTAssertEqual(malformed.write, "")
+        XCTAssertEqual(malformed.reason, PocketOpenAnswer.unreadable)
+
+        let pasted = try assertRoundTrip(PocketPasteAnswer.self, "paste-done")
+        XCTAssertEqual(pasted.outcome, .done)
+        XCTAssertNil(pasted.sentence)
+        let machine = try assertRoundTrip(PocketPasteAnswer.self, "paste-refused-machine")
+        XCTAssertEqual(machine.outcome, .refused)
+        XCTAssertEqual(machine.reason, "machine")
+        XCTAssertNotNil(machine.sentence)
+        let unread = try assertRoundTrip(PocketPasteAnswer.self, "paste-malformed")
+        XCTAssertEqual(unread.write, "")
+        XCTAssertEqual(unread.reason, PocketOpenAnswer.unreadable)
+
+        for name in ["remove-done", "remove-refused"] {
+            XCTAssertThrowsError(try JSONDecoder().decode(PocketPasteAnswer.self, from: Data(try answer(name).json.utf8)), "\(name) reads as a paste's answer")
+        }
+        for name in ["paste-done", "paste-refused-machine"] {
+            XCTAssertThrowsError(try JSONDecoder().decode(PocketRemoveAnswer.self, from: Data(try answer(name).json.utf8)), "\(name) reads as a remove's answer")
+        }
+
+        let sentOf = { (request: String) throws -> String in
+            let body = try XCTUnwrap(self.v.requests.first { $0.name == request }?.body, "no \(request) request")
+            return try XCTUnwrap((try JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any])?["write"] as? String)
+        }
+        let removeSent = try sentOf("remove")
+        for name in ["remove-done", "remove-refused", "remove-malformed"] {
+            let end = ExchangeEnd(result: .success(DoorReply(status: 200, body: Data(try answer(name).json.utf8))), handed: true)
+            guard case .answered(let read) = RemoveResult.of(end, sent: removeSent) else { return XCTFail("\(name) is not read as the remove's answer") }
+            let line = DoorWords.removeSentence(for: .answered(read))
+            XCTAssertEqual(line, read.outcome == .done ? Copy.remove : read.sentence, name)
+            XCTAssertFalse(line.isEmpty, name)
+            let other = ExchangeEnd(result: .success(DoorReply(status: 200, body: Data(try answer(name).json.utf8))), handed: true)
+            if read.outcome != .refused || read.reason != PocketOpenAnswer.unreadable {
+                XCTAssertEqual(RemoveResult.of(other, sent: String(repeating: "0", count: WriteId.hexCount)), .noAnswer, "\(name) is read as the answer to another write")
+            }
+        }
+        let pasteSent = try sentOf("paste")
+        for name in ["paste-done", "paste-refused-machine", "paste-malformed"] {
+            let end = ExchangeEnd(result: .success(DoorReply(status: 200, body: Data(try answer(name).json.utf8))), handed: true)
+            guard case .answered(let read) = PasteResult.of(end, sent: pasteSent) else { return XCTFail("\(name) is not read as the paste's answer") }
+            let line = DoorWords.pasteSentence(for: .answered(read))
+            XCTAssertEqual(line, read.outcome == .done ? Copy.replySent : read.sentence, name)
+            XCTAssertFalse(line.isEmpty, name)
+        }
+        let crossed = ExchangeEnd(result: .success(DoorReply(status: 200, body: Data(try answer("remove-done").json.utf8))), handed: true)
+        XCTAssertEqual(PasteResult.of(crossed, sent: removeSent), .noAnswer, "a remove's answer is read as a paste's")
+    }
+
+    /// Clause (Phase 348, D39, D41, D43, D30): the session the SHIPPING
+    /// composer drew with Remove offered reads back whole, carrying the Mac's
+    /// own confirmation (title, body and label, Remove's own words), and a
+    /// session with Remove not offered carries none; a picture of a session on
+    /// this Mac whose Allow of `paste` holds says the Mac takes a paste and
+    /// carries its marks, each a row with a row after it, which the phone
+    /// draws as joined rows; and a page of history carries its own marks.
+    func testTheRemoveConfirmTheMarksAndThePasteFlagArriveAsComposed() throws {
+        let ended = try assertRoundTrip(PocketSessionAnswer.self, "session-ended")
+        let confirm = try XCTUnwrap(ended.session.removeConfirm, "the ended session carries no remove confirmation")
+        XCTAssertEqual(confirm.confirmLabel, Copy.remove)
+        XCTAssertTrue(confirm.title.hasPrefix(Copy.remove), confirm.title)
+        XCTAssertFalse(confirm.body.isEmpty)
+        for live in ["session-talk", "session-waiting"] {
+            let talk = try JSONDecoder().decode(PocketSessionAnswer.self, from: Data(try answer(live).json.utf8))
+            XCTAssertNil(talk.session.removeConfirm, "\(live) offers Remove while it runs")
+        }
+
+        let screen = try JSONDecoder().decode(PocketScreenAnswer.self, from: Data(try answer("screen-paste").json.utf8))
+        let drawn = try XCTUnwrap(screen.screen, "screen-paste carries no picture")
+        XCTAssertTrue(drawn.paste, "screen-paste does not say the Mac takes a paste")
+        XCTAssertFalse(drawn.wraps.isEmpty, "screen-paste carries no marks")
+        let picture = ScreenPicture(drawn, revision: screen.revision, holds: { _ in true })
+        XCTAssertTrue(picture.paste)
+        XCTAssertEqual(picture.rows.indices.filter { picture.rows[$0].wrapped }, drawn.wraps)
+        let older = try JSONDecoder().decode(PocketScreenAnswer.self, from: Data(try answer("screen-sample").json.utf8))
+        XCTAssertFalse(try XCTUnwrap(older.screen).paste, "a picture that says nothing of paste is drawn with Paste")
+
+        let page = try JSONDecoder().decode(PocketScrollbackAnswer.self, from: Data(try answer("scrollback-wraps").json.utf8))
+        XCTAssertFalse(page.wraps.isEmpty, "scrollback-wraps carries no marks")
+        XCTAssertTrue(page.wraps.allSatisfy { $0 >= 0 && $0 < page.rows.count - 1 }, "a page's mark names its last row or none")
+    }
+
     /// Clause: the ask arrives exactly as he typed it, markdown characters and
     /// all, and so does the answer; the phone decodes and never rewrites.
     func testTheAskAndTheAnswerArriveVerbatim() throws {

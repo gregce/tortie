@@ -192,10 +192,11 @@ describe('the table is closed', () => {
   it('holds exactly the ids the contract names, and no more', () => {
     expect(pocketRouteIdsAgree()).toBe(true);
     expect([...pocketRouteIds()].sort()).toEqual([...POCKET_ROUTE_IDS].sort());
-    // Twelve since Phase 346's `POST /v1/start`, after Phase 337.1's
-    // `GET /v1/scrollback`, Phase 337's `GET /v1/screen` and `POST /v1/keys`,
-    // Phase 318's `choose` and `say` and Phase 316.7's `GET /v1/sessions`.
-    expect(POCKET_ROUTES).toHaveLength(12);
+    // Fourteen since Phase 348's `POST /v1/remove` and `POST /v1/paste`, after
+    // Phase 346's `POST /v1/start`, Phase 337.1's `GET /v1/scrollback`, Phase
+    // 337's `GET /v1/screen` and `POST /v1/keys`, Phase 318's `choose` and
+    // `say` and Phase 316.7's `GET /v1/sessions`.
+    expect(POCKET_ROUTES).toHaveLength(14);
   });
 
   it('cannot be pushed onto at run time', () => {
@@ -210,8 +211,8 @@ describe('the table is closed', () => {
         signed: true
       })
     ).toThrow();
-    // Twelve since Phase 346's start.
-    expect(POCKET_ROUTES).toHaveLength(12);
+    // Fourteen since Phase 348's Remove and paste.
+    expect(POCKET_ROUTES).toHaveLength(14);
     expect(matchPocketRoute('POST', '/v1/type')).toBeNull();
   });
 
@@ -220,8 +221,9 @@ describe('the table is closed', () => {
   // it to the reply's two writes, on the same door and no second family.
   // PHASE 337 (build/p337/SPEC.md §5.1, D1) adds `keys`, the fourth.
   // PHASE 346 (build/p346/SPEC.md D1, D4) adds `start`, the fifth.
-  it('holds EXACTLY five write routes, end, choose, say, keys and start, each a signed POST alive outside a window', () => {
-    expect(pocketWriteRouteIds()).toEqual(['end', 'choose', 'say', 'keys', 'start']);
+  // PHASE 348 (build/p348/SPEC.md D26) adds `remove` and `paste`, the sixth and seventh.
+  it('holds EXACTLY seven write routes, end, choose, say, keys, start, remove and paste, each a signed POST alive outside a window', () => {
+    expect(pocketWriteRouteIds()).toEqual(['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste']);
     expect([...pocketWriteRouteIds()]).toEqual([...POCKET_WRITE_ROUTE_IDS]);
     for (const route of POCKET_ROUTES) {
       if (route.reads) continue;
@@ -229,7 +231,15 @@ describe('the table is closed', () => {
       expect(route.signed, route.id).toBe(true);
       expect(route.windowOnly, route.id).toBe(false);
     }
-    expect(POCKET_ROUTES.filter((r) => !r.reads).map((r) => r.path)).toEqual(['/v1/end', '/v1/choose', '/v1/say', '/v1/keys', '/v1/start']);
+    expect(POCKET_ROUTES.filter((r) => !r.reads).map((r) => r.path)).toEqual([
+      '/v1/end',
+      '/v1/choose',
+      '/v1/say',
+      '/v1/keys',
+      '/v1/start',
+      '/v1/remove',
+      '/v1/paste'
+    ]);
     // Every other row is still a read.
     expect(POCKET_ROUTES.filter((r) => r.reads).map((r) => r.id).sort()).toEqual([
       'blocked',

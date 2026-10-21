@@ -37,9 +37,39 @@
 // dropped, a write whose bytes were not yet handed to its connection is
 // withheld (Door/DoorClient.swift), and the door's two kept connections
 // close.
+//
+// A PASTE (Phase 348, build/p348/SPEC.md D20, D21, D31, D53, D54) goes through
+// this ONE sender, so his typing and his pastes land in the order he made
+// them. The phone's paste rule is asked first (Screens/ScreenKeyField.swift
+// `ScreenPasteRule`: a refusal is its sentence on this line, and nothing is
+// sent). Then, AT HIS PRESS, the picture drawn now: not typable, nothing is
+// queued; inside a question with the picture spent, nothing is queued;
+// otherwise the Terminal goes back to live and ONE paste item is queued,
+// STAMPED WITH THAT PICTURE's turn, dialog and revision. A paste goes ALONE in
+// its write (`POST /v1/paste`), never merged with keys and never split, with
+// its own stamp and never the picture at the flush, so a question drawn after
+// his press is answered `changed` by the Mac and nothing is typed; and the
+// one-batch-per-picture lock holds for it as for keys. No Return is added.
 
 import Foundation
 import Observation
+
+/// One thing waiting to go, in the order he made it (Phase 348, D31): a key
+/// he typed, or ONE paste, which goes alone in its write.
+enum ScreenQueued: Equatable, Sendable {
+    case key(KeyItem)
+    case paste(ScreenPasteItem)
+}
+
+/// One paste, stamped at his press with the picture he pasted against
+/// (Phase 348, D31, D54): the text exactly as the clipboard held it, and that
+/// picture's question id, window mark and revision.
+struct ScreenPasteItem: Equatable, Sendable {
+    let text: String
+    let turn: String
+    let dialog: String?
+    let revision: String
+}
 
 /// Where the app keeps every live key sender, so a trip to the background
 /// stops each one. `AppModel` is the app's.
@@ -67,8 +97,8 @@ final class ScreenKeySender {
         case other
     }
 
-    /// The keys waiting to go, in order. In memory only.
-    private(set) var pending: [KeyItem] = []
+    /// The keys and pastes waiting to go, in order. In memory only.
+    private(set) var pending: [ScreenQueued] = []
     /// The one line under the Screen this sender owns, or nil. Never empty.
     private(set) var line: String?
     /// The lock: the question id and the revision the last batch carried,
@@ -122,7 +152,40 @@ final class ScreenKeySender {
         }
         // A key he sends returns the Terminal to its live rows (D27).
         onSend?()
-        pending.append(contentsOf: items.flatMap(Self.withinCap))
+        pending.append(contentsOf: items.flatMap(Self.withinCap).map(ScreenQueued.key))
+        flush()
+    }
+
+    /// Whether the Terminal offers Paste now (Phase 348, D30): the door
+    /// pastes, and the picture drawn says the Mac takes a paste and keys.
+    var pasteOffered: Bool {
+        guard !stopped, door.pastes, let drawn = picture() else { return false }
+        return drawn.paste && drawn.typable
+    }
+
+    /// A paste, from the edit menu's Paste, Command-V or the three-finger
+    /// paste, with the clipboard's text (Phase 348, D53, D54): the phone's
+    /// paste rule first, then the picture drawn NOW, at his press, which the
+    /// one item queued is stamped with.
+    func paste(_ payload: String) {
+        guard !stopped else { return }
+        if let sentence = ScreenPasteRule.refusal(payload)?.sentence {
+            line = sentence
+            return
+        }
+        guard let drawn = picture(), drawn.typable else {
+            pending = []
+            line = Copy.screenCannotType
+            return
+        }
+        if drawn.asking, spent(drawn) {
+            // One batch per picture inside a question: not sent, ever.
+            line = Copy.screenWaitForRedraw
+            return
+        }
+        // A paste returns the Terminal to its live rows, as a key does (D27).
+        onSend?()
+        pending.append(.paste(ScreenPasteItem(text: payload, turn: drawn.turn, dialog: drawn.dialog, revision: drawn.revision)))
         flush()
     }
 
@@ -196,6 +259,22 @@ final class ScreenKeySender {
             }
             return
         }
+        if case .paste(let item)? = pending.first {
+            // A paste ALONE in its write, with the stamp of his press, never
+            // the picture drawn now (Phase 348, D31, D54).
+            pending.removeFirst()
+            lastStarted = now()
+            lastTurn = item.turn
+            lastRevision = item.revision
+            lastOutcome = nil
+            if line == Copy.screenWaitForRedraw { line = nil }
+            let door = door
+            inFlight = Task { [weak self] in
+                let result = await door.paste(item.text, turn: item.turn, dialog: item.dialog)
+                self?.pasted(result)
+            }
+            return
+        }
         let batch = takeBatch()
         guard !batch.isEmpty else { return }
         lastStarted = now()
@@ -213,19 +292,20 @@ final class ScreenKeySender {
 
     /// The next write's items: a named key other than Backspace alone, or
     /// the leading text and Backspace items, at most 64 of them and 1,024
-    /// bytes of text (D17, D30).
+    /// bytes of text (D17, D30); never a paste, which goes alone (Phase 348).
     private func takeBatch() -> [KeyItem] {
-        guard let first = pending.first else { return [] }
+        guard case .key(let first)? = pending.first else { return [] }
         if first.standsAlone {
             pending.removeFirst()
             return [first]
         }
         var batch: [KeyItem] = []
         var bytes = 0
-        while let next = pending.first, !next.standsAlone, batch.count < Self.mostItems,
+        while case .key(let next)? = pending.first, !next.standsAlone, batch.count < Self.mostItems,
               let total = DoorNumber.sum(bytes, next.textBytes), total <= Self.mostTextBytes {
             bytes = total
-            batch.append(pending.removeFirst())
+            pending.removeFirst()
+            batch.append(next)
         }
         return batch
     }
@@ -243,6 +323,27 @@ final class ScreenKeySender {
         default:
             lastOutcome = .other
             line = DoorWords.keysSentence(for: result)
+        }
+        flush()
+    }
+
+    /// A paste's answer, read for the lock exactly as a keys write's is
+    /// (Phase 348, D54): `done` locks by the turn it carried, `changed` by its
+    /// revision, anything else releases it; every outcome but `done` draws
+    /// `DoorWords.pasteSentence(for:)`.
+    private func pasted(_ result: PasteResult) {
+        inFlight = nil
+        guard !stopped else { return }
+        switch result {
+        case .answered(let answer) where answer.outcome == .done:
+            lastOutcome = .done
+            if line != Copy.screenWaitForRedraw { line = nil }
+        case .answered(let answer) where answer.reason == PocketPasteAnswer.changedWord:
+            lastOutcome = .changed
+            line = DoorWords.pasteSentence(for: result)
+        default:
+            lastOutcome = .other
+            line = DoorWords.pasteSentence(for: result)
         }
         flush()
     }

@@ -48,6 +48,20 @@
  * `dialog`, the keys verb's final check (D21) and the watcher's nudge (D4) all
  * call it, so the three can never compare two different hashes.
  *
+ * THE WRAP MARKS (Phase 348, build/p348/SPEC.md D43 to D46): which captures
+ * carry them on a server is ONE pure {@link marksRoadOf}, by the running
+ * server's version; on the `flags` road the styled capture's own lines start
+ * with tmux's flag letters, and THIS MODULE STRIPS THEM before it composes
+ * (one reader of the prefix, {@link flaggedLineOf}), so every composition, the
+ * plain text, the window's mark and the keys' check read today's capture
+ * byte for byte. {@link wrapsOf} is the ONE reader of the letters and of the
+ * fallback's alignment, with the INK guard over the composed rows' own cells
+ * (D45, CORRECTED by the spec's measurement: a row rewritten short and cleared
+ * to its end keeps its used width, so a width guard would glue a cleared tail
+ * to the next row, which today's Copy never does). A composed screen and page
+ * carry `wraps` only when there is one; the screen carries `paste` only when
+ * it takes keys and runs on this Mac (D30).
+ *
  * PURE. It reads no clock, no file and no process, and logs nothing. Outside
  * src/main/screen and src/shared it imports ../activity/screen and
  * ../reply/reader alone, and node's sha256 for {@link spaceOf} (§5.3.4,
@@ -72,7 +86,7 @@ import { detectDialogRows, hashScreen, normalizeCapture } from '../activity/scre
 import { readBackWindowOf } from '../reply/reader';
 import { clusterCells, type TaggedCell, type TaggedPoint } from './cells';
 import { SCREEN_PALETTE, xterm256 } from './palette';
-import type { ScreenReading } from './read';
+import type { MarksRoad, ScreenMarks, ScreenReading } from './read';
 import { DEFAULT_PEN, readStyledRows, styledRows, type Colour, type Pen, type StyledRow } from './sgr';
 
 /** tmux's default tab stops: every eighth column (measured, ./cells.ts). */
@@ -85,6 +99,205 @@ export interface ComposeExtra {
   readonly status: SessionStatus;
   /** Keys are taken now. */
   readonly typable: boolean;
+  /**
+   * The session runs on this Mac (Phase 348, D22, D30). With {@link typable}
+   * it decides the screen's `paste` flag; absent reads false, so a caller that
+   * says nothing offers no paste.
+   */
+  readonly local?: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// THE WRAP MARKS (Phase 348, build/p348/SPEC.md D43 to D46)
+// ---------------------------------------------------------------------------
+
+/**
+ * The first release measured to have `capture-pane -F` (D44): the vendored
+ * 3.7b has it and Homebrew's 3.6a answers `unknown flag -F`, exit 1 (§2.4);
+ * 3.7 and 3.7a could not be measured, and fall to the fallback, which is right
+ * on any of them. Declared once.
+ */
+export const MARKS_FLAGS_SINCE = '3.7b';
+
+/** The first release with `capture-pane -T` (CHANGES "3.3a TO 3.4"), which the fallback needs (D44). Declared once. */
+export const MARKS_FALLBACK_SINCE = '3.4';
+
+/** A release as tmux's `#{version}` names one: major, minor and a letter or none. Null for any other spelling. */
+function releaseOf(version: string | null): readonly [number, number, number] | null {
+  if (version === null) return null;
+  const m = /^([0-9]{1,3})\.([0-9]{1,3})([a-z]?)$/.exec(version);
+  if (m === null) return null;
+  const letter = m[3] ?? '';
+  return [Number(m[1]), Number(m[2]), letter === '' ? 0 : letter.charCodeAt(0) - 96];
+}
+
+/** Whether release `a` is `b` or later. */
+function atLeast(a: readonly [number, number, number], b: readonly [number, number, number]): boolean {
+  for (let i = 0; i < 3; i += 1) {
+    const x = a[i] ?? 0;
+    const y = b[i] ?? 0;
+    if (x !== y) return x > y;
+  }
+  return true;
+}
+
+/**
+ * WHICH CAPTURES CARRY THE WRAP MARKS ON A SERVER OF THIS VERSION (D44), the
+ * one pure answer: `flags` from {@link MARKS_FLAGS_SINCE} (the styled capture
+ * takes `-F`, no new command), `fallback` from {@link MARKS_FALLBACK_SINCE}
+ * (`-p -T -N` and `-p -J` added), and `none` below that or for a version that
+ * is not a release's spelling (a development build, an unreadable answer),
+ * which is today's read exactly.
+ */
+export function marksRoadOf(version: string | null): MarksRoad {
+  const release = releaseOf(version);
+  const flags = releaseOf(MARKS_FLAGS_SINCE);
+  const fallback = releaseOf(MARKS_FALLBACK_SINCE);
+  if (release === null || flags === null || fallback === null) return 'none';
+  if (atLeast(release, flags)) return 'flags';
+  if (atLeast(release, fallback)) return 'fallback';
+  return 'none';
+}
+
+/**
+ * `capture-pane -F`'s prefix: a run of the flag letters, in tmux's order, or
+ * `-` when the row has none, then one space (`cmd-capture-pane.c`). Read by
+ * {@link flaggedLineOf} alone.
+ */
+const FLAG_PREFIX = /^([DHOPWX]+|-) /;
+
+/** One `-F` line: its flag letters (`-` for none) and the row's own text after them, or null when it has no prefix. */
+export function flaggedLineOf(line: string): { readonly letters: string; readonly text: string } | null {
+  const m = FLAG_PREFIX.exec(line);
+  if (m === null) return null;
+  return { letters: m[1] ?? '-', text: line.slice(m[0].length) };
+}
+
+/** The styled capture as a composer reads it: on the `flags` road, every line's prefix stripped; otherwise as read. */
+function stylesOf(styled: string, marks: ScreenMarks | undefined): string {
+  if (marks?.road !== 'flags') return styled;
+  return styled
+    .split('\n')
+    .map((line) => flaggedLineOf(line)?.text ?? line)
+    .join('\n');
+}
+
+/**
+ * THE FALLBACK'S ALIGNMENT (D44, D45 (a)): walk the `-J` lines in order; for
+ * each, take `-T -N` rows while the line's remainder starts with the row's
+ * text; a row taken with some of the line left after it is marked; a line its
+ * rows do not consume exactly marks none of its rows, and the walk goes on at
+ * the next line. A row with no text continues no line. Both captures read the
+ * same used cells (neither trims, neither pads), so the two agree wherever the
+ * screen held still between them, and a disagreement marks nothing.
+ */
+function alignedOf(rows: readonly string[], joined: readonly string[]): boolean[] {
+  const marked: boolean[] = rows.map(() => false);
+  let r = 0;
+  for (const line of joined) {
+    let rest = line;
+    const start = r;
+    let exact = false;
+    while (r < rows.length) {
+      const row = rows[r] ?? '';
+      if (row.length === 0 ? rest.length !== 0 : !rest.startsWith(row)) break;
+      rest = rest.slice(row.length);
+      r += 1;
+      if (rest.length === 0) {
+        exact = true;
+        break;
+      }
+      marked[r - 1] = true;
+    }
+    if (!exact) for (let k = start; k < r; k += 1) marked[k] = false;
+  }
+  return marked;
+}
+
+/**
+ * Which captured lines tmux marked wrapped, by the road the read took, before
+ * the ink guard: on `flags`, each line's letters hold `W` (every line must
+ * carry its prefix, or the capture is not what the road says and nothing is
+ * marked); on `fallback`, {@link alignedOf} over the read's two captures,
+ * which must hold as many rows as the styled capture. Null for no marks.
+ */
+function rowsMarkedOf(marks: ScreenMarks | undefined, captured: readonly string[]): boolean[] | null {
+  if (marks === undefined || marks.road === 'none') return null;
+  if (marks.road === 'flags') {
+    const out: boolean[] = [];
+    for (const line of captured) {
+      const flagged = flaggedLineOf(line);
+      if (flagged === null) return null;
+      out.push(flagged.letters.includes('W'));
+    }
+    return out;
+  }
+  if (marks.rows.length !== captured.length) return null;
+  return alignedOf(marks.rows, marks.joined);
+}
+
+/**
+ * The marks as the revision hashes them (D43): the captured lines tmux marked
+ * wrapped, by index, before the ink guard, which reads only the styled capture
+ * the revision already covers. Empty for a read with no marks, so a revision
+ * with none is the revision it was before this phase.
+ */
+export function marksKeyOf(reading: ScreenReading): string {
+  const marked = rowsMarkedOf(reading.marks, reading.styled.split('\n'));
+  if (marked === null) return '';
+  const rows: number[] = [];
+  marked.forEach((on, i) => {
+    if (on) rows.push(i);
+  });
+  return `${reading.marks?.road ?? 'none'}:${rows.join(',')}`;
+}
+
+/** THE INK GUARD (D45 (b)): the cell in the row's last column holds a character other than a space or a tab. */
+function inkAtEnd(runs: readonly PocketScreenRun[], cols: number): boolean {
+  let used = 0;
+  for (const run of runs) used += run.cells;
+  const last = runs[runs.length - 1];
+  if (used !== cols || last === undefined) return false;
+  // The last column is the last run's last cell: its text ends that cell's
+  // code points, the right half of a wide character included.
+  const points = Array.from(last.text);
+  const end = points[points.length - 1];
+  return end !== undefined && end !== ' ' && end !== '\t';
+}
+
+/** What {@link wrapsOf} reads. */
+export interface WrapsInput {
+  /** What the read carried for the marks; absent or `none` is no marks. */
+  readonly marks: ScreenMarks | undefined;
+  /** The styled capture's lines AS READ, one a captured row (on the `flags` road, each with its flag letters). */
+  readonly captured: readonly string[];
+  /** The composed rows the marks are asked for: row `k` is captured line `first + k`. */
+  readonly lines: readonly (readonly PocketScreenRun[])[];
+  /** The captured line the first composed row is. 0 for the live screen. */
+  readonly first?: number;
+}
+
+/**
+ * THE WRAP MARKS (D43, D45): the indices `k` of {@link WrapsInput.lines}, in
+ * ascending order, whose line goes on into the next row: (a) tmux marked the
+ * captured row wrapped (its `-F` letters hold `W`, or the fallback's `-J` line
+ * goes on past it, the two reads agreeing); (b) THE INK GUARD, its last column
+ * holds a character that is not a space, read off the composed row's own
+ * cells; (c) the screen is the main one, never the alternate screen, where
+ * tmux keeps marks too; (d) it is not the last row (the next row is not here).
+ * Pure.
+ */
+export function wrapsOf(input: WrapsInput, cols: number, alternate: boolean): number[] {
+  if (alternate) return [];
+  const marked = rowsMarkedOf(input.marks, input.captured);
+  if (marked === null) return [];
+  const first = input.first ?? 0;
+  const out: number[] = [];
+  for (let k = 0; k < input.lines.length - 1; k += 1) {
+    if (marked[first + k] !== true) continue;
+    if (inkAtEnd(input.lines[k] ?? [], cols)) out.push(k);
+  }
+  return out;
 }
 
 /** A composed screen, with the plain text and the window mark it was decided from. */
@@ -308,7 +521,7 @@ function composeRows(styled: string, rows: number, cols: number, caps = false): 
 export function plainOf(reading: ScreenReading): string {
   const { cols, rows } = reading.display;
   if (cols > POCKET_SCREEN_MAX_COLS || rows > POCKET_SCREEN_MAX_ROWS) return '';
-  return composeRows(reading.styled, rows, cols)?.plain ?? '';
+  return composeRows(stylesOf(reading.styled, reading.marks), rows, cols)?.plain ?? '';
 }
 
 /** The question a read shows, over its plain text and the session's status (D16). */
@@ -329,7 +542,7 @@ export function questionOf(
 export function composeScreen(reading: ScreenReading, extra: ComposeExtra): ComposedScreen | 'large' {
   const display = reading.display;
   if (display.cols > POCKET_SCREEN_MAX_COLS || display.rows > POCKET_SCREEN_MAX_ROWS) return 'large';
-  const composed = composeRows(reading.styled, display.rows, display.cols, true);
+  const composed = composeRows(stylesOf(reading.styled, reading.marks), display.rows, display.cols, true);
   if (composed === null || composed.styles.length > POCKET_SCREEN_MAX_STYLES || composed.runs > POCKET_SCREEN_MAX_RUNS) {
     return 'large';
   }
@@ -361,6 +574,16 @@ export function composeScreen(reading: ScreenReading, extra: ComposeExtra): Comp
     depth: placed ? display.history : null,
     space: placed ? spaceOf(display.paneId) : null
   };
+  // PHASE 348 (D30): a paste is offered on a screen that takes keys, on this
+  // Mac alone (D22). The door copies it only while the route is served.
+  if (extra.typable && extra.local === true) screen.paste = true;
+  // PHASE 348 (D43, D45): the wrap marks over the composed rows' own cells.
+  const wraps = wrapsOf(
+    { marks: reading.marks, captured: reading.styled.split('\n'), lines: composed.lines },
+    display.cols,
+    display.alternate
+  );
+  if (wraps.length > 0) screen.wraps = wraps;
   const bytes = Buffer.byteLength(JSON.stringify(screen), 'utf8');
   if (bytes > POCKET_SCREEN_MAX_BYTES) return 'large';
   return { screen, plain: composed.plain, mark, bytes };
@@ -390,6 +613,11 @@ export interface ComposedPage {
   readonly rows: PocketScreenRun[][];
   /** `{ styles, rows }` as JSON, in bytes. */
   readonly bytes: number;
+  /**
+   * The page's wrap marks (Phase 348, D43): indices into {@link rows}, by
+   * {@link wrapsOf}, the page's last row never listed. Empty for none.
+   */
+  readonly wraps: number[];
 }
 
 /** A run's JSON with its style index at its widest (four digits: a kept table holds at most 1,024). */
@@ -430,8 +658,14 @@ export const PAGE_STEP_ROWS = 4;
  * page a stall the phone's door never caused before. This drives the same
  * steps to the end at once, for every caller that wants the page whole.
  */
-export function composePage(styled: string, firstLine: number, cols: number, want: PageWant): ComposedPage {
-  const steps = composePageSteps(styled, firstLine, cols, want);
+export function composePage(
+  styled: string,
+  firstLine: number,
+  cols: number,
+  want: PageWant,
+  marks?: ScreenMarks
+): ComposedPage {
+  const steps = composePageSteps(styled, firstLine, cols, want, marks);
   for (;;) {
     const step = steps.next();
     if (step.done === true) return step.value;
@@ -443,11 +677,13 @@ export function* composePageSteps(
   styled: string,
   firstLine: number,
   cols: number,
-  want: PageWant
+  want: PageWant,
+  marks?: ScreenMarks
 ): Generator<void, ComposedPage, undefined> {
-  // 1. EVERY PEN, over the whole capture, PAGE_STEP_ROWS rows a step.
+  // 1. EVERY PEN, over the whole capture, PAGE_STEP_ROWS rows a step (on the
+  //    `flags` road, each line's prefix stripped first, Phase 348).
   const read: StyledRow[] = [];
-  for (const row of styledRows(styled)) {
+  for (const row of styledRows(stylesOf(styled, marks))) {
     read.push(row);
     if (read.length % PAGE_STEP_ROWS === 0) yield;
   }
@@ -503,10 +739,14 @@ export function* composePageSteps(
       return { text: run.text, style: at, cells: run.cells };
     })
   );
+  // 5. THE WRAP MARKS (Phase 348, D43): kept row k is captured line
+  //    `want.from + first + k - firstLine`; the page's last row is never listed.
+  const wraps = wrapsOf({ marks, captured: styled.split('\n'), lines: rows, first: want.from + first - firstLine }, cols, false);
   return {
     from: want.from + first,
     styles,
     rows,
-    bytes: Buffer.byteLength(JSON.stringify({ styles, rows }), 'utf8')
+    bytes: Buffer.byteLength(JSON.stringify({ styles, rows }), 'utf8'),
+    wraps
   };
 }

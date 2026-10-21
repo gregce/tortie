@@ -675,6 +675,9 @@ describe('S6: the last check refuses a route that stopped being served, before t
       writes: {
         // Phase 346's start, which this test never reaches.
         start: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
+        // Phase 348's Remove and paste, which this test never reaches.
+        remove: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
+        paste: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
         end: async () => ({ outcome: 'done' }),
         choose: async () => ({ outcome: 'done' }),
         say: async (input) => {
@@ -713,6 +716,9 @@ describe('S6: the last check refuses a route that stopped being served, before t
       writes: {
         // Phase 346's start, which this test never reaches.
         start: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
+        // Phase 348's Remove and paste, which this test never reaches.
+        remove: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
+        paste: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
         end: async () => ({ outcome: 'done' }),
         choose: async () => ({ outcome: 'done' }),
         say: async (input) => {
@@ -755,6 +761,9 @@ describe('S7: `still` sees a route stop being served after the claim', () => {
       writes: {
         // Phase 346's start, which this test never reaches.
         start: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
+        // Phase 348's Remove and paste, which this test never reaches.
+        remove: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
+        paste: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
         end: async () => ({ outcome: 'done' }),
         choose: async () => ({ outcome: 'done' }),
         say: async (input, still): Promise<PocketReplyOutcome> => {

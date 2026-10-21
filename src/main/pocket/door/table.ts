@@ -8,8 +8,9 @@
  * Phase 316.7 by the read row `sessions` (build/p3167/SPEC.md §3 row 1),
  * Phase 337 by the read row `screen` and the write row `keys`
  * (build/p337/SPEC.md §5.1, D1), Phase 337.1 by the read row
- * `scrollback` (build/p3371/SPEC.md §5.1, D1), and Phase 346 by the write
- * row `start` (build/p346/SPEC.md D1).
+ * `scrollback` (build/p3371/SPEC.md §5.1, D1), Phase 346 by the write
+ * row `start` (build/p346/SPEC.md D1), and Phase 348 by the write rows
+ * `remove` and `paste` (build/p348/SPEC.md D26).
  *
  * ## Closed means closed
  *
@@ -37,8 +38,8 @@ export interface PocketRoute {
    * A ROW WITH `reads: false` IS A WRITE, AND THE SET OF WRITES IS CLOSED
    * (Phase 317, build/p317/SPEC.md §5.3.1; Phase 318, build/p318/SPEC.md
    * §5.1.1; Phase 337, build/p337/SPEC.md §5.1; Phase 346, build/p346/SPEC.md
-   * D1): exactly `end`, `choose`, `say`, `keys` and `start`, each a `POST`
-   * that is signed,
+   * D1; Phase 348, build/p348/SPEC.md D26): exactly `end`, `choose`, `say`,
+   * `keys`, `start`, `remove` and `paste`, each a `POST` that is signed,
    * alive outside any window, takes no query string and has its own body cap
    * (`./limits.ts`). `build/conformance-pocket.mjs` R2 and X1 read it. The field is what makes adding a write a visible edit to this
    * table rather than a quiet change inside a handler, and a write's body is
@@ -106,6 +107,15 @@ export interface PocketRoute {
  * guarded create, outside this domain. The offer rides `/v1/sessions` as an
  * optional key rather than a second read, so the "+" and the sheet can never
  * disagree. It waits for the Allow whose lines name it (Phase 333.12).
+ *
+ * `remove` and `paste` are the Remove and the paste (Phase 348,
+ * build/p348/SPEC.md §4.2, §4.6, D26 to D29), appended after `start` in that
+ * order: each a signed `POST` alive outside any window, through the same one
+ * write path (`../writes.ts`) and ledger. `remove`'s body names one session
+ * and a write id, and nothing else (no batch: no Mac batch removes); `paste`'s
+ * names one session, the text, and the question id and the window's mark of
+ * the picture it was sent against, the keys body's lock. Each waits for its
+ * own Allow, and one Allow serves both (Phase 333.12).
  */
 export const POCKET_ROUTES: readonly PocketRoute[] = Object.freeze([
   { id: 'pair', method: 'POST', path: '/pair', reads: true, windowOnly: true, signed: false },
@@ -119,7 +129,9 @@ export const POCKET_ROUTES: readonly PocketRoute[] = Object.freeze([
   { id: 'choose', method: 'POST', path: '/v1/choose', reads: false, windowOnly: false, signed: true },
   { id: 'say', method: 'POST', path: '/v1/say', reads: false, windowOnly: false, signed: true },
   { id: 'keys', method: 'POST', path: '/v1/keys', reads: false, windowOnly: false, signed: true },
-  { id: 'start', method: 'POST', path: '/v1/start', reads: false, windowOnly: false, signed: true }
+  { id: 'start', method: 'POST', path: '/v1/start', reads: false, windowOnly: false, signed: true },
+  { id: 'remove', method: 'POST', path: '/v1/remove', reads: false, windowOnly: false, signed: true },
+  { id: 'paste', method: 'POST', path: '/v1/paste', reads: false, windowOnly: false, signed: true }
 ]);
 
 /**

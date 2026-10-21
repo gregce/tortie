@@ -172,13 +172,17 @@ export const MACHINE_ID = 'p317far';
  * Phase 337.1's `scrollback` read joined the route line alone, eleven routes,
  * no write clause moving (build/p3371/SPEC.md D1, D35, §Attack B7).
  */
-export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, scrollback, session, sessions, start, turns';
+export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, paste, remove, say, screen, scrollback, session, sessions, start, turns';
 /**
  * HEAD's write line, every write allowed (Phase 346 added `start`, and its ruled round this literal and `start` in
  * ROUTE_LINE, which Phase 346's build left at 337.1's: this file's own self-test read ROUTE_LINE red against the
  * tree's route ids, and a run at HEAD would have read W1's write line red over a door that said it right).
+ * PHASE 348 moved both literals again (build/p348/SPEC.md §6): `remove` and `paste`, each a signed
+ * POST alive outside any window, join the route line and their clauses join the write line, after
+ * start's, in the closed list's order; under 333.12 both wait at HEAD on a store the parent confirmed,
+ * and the lines a person reads before Allow name the proposal, so they name all fourteen.
  */
-export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question, send a session one message, type into any session as you would at this Mac and start a session in a project open in Tortie, on this Mac or another machine';
+export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question, send a session one message, type into any session as you would at this Mac, start a session in a project open in Tortie, on this Mac or another machine, remove a session that has ended and paste text into a session on this Mac';
 /** HEAD's door honesty sentence, by value for the fixtures (build/p3371/SPEC.md D35: the terminal and what it printed before); the run reads the tree's own. */
 export const HONESTY_LINE = 'A phone you allow can see what any session’s terminal shows and what it printed before, type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.';
 export const LIVE = Object.freeze(['running', 'idle', 'needs_input']);
@@ -655,7 +659,7 @@ function graderSelfTest() {
   // The word reader and the route reader.
   const src = "export const A = 'one';\nexport const B: string =\n  'two, ' +\n  \"three.\";\n";
   say(constWord(src, 'A') === 'one' && constWord(src, 'B') === 'two, three.' && constWord(src, 'C') === null, 'constWord reads a literal and a concatenation over a line break');
-  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'choose', 'end', 'keys', 'pair', 'say', 'screen', 'scrollback', 'session', 'sessions', 'start', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
+  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'choose', 'end', 'keys', 'pair', 'paste', 'remove', 'say', 'screen', 'scrollback', 'session', 'sessions', 'start', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
   say(answerOf({ status: 200, body: '{"outcome":"done"}' })?.outcome === 'done' && answerOf({ status: 404, body: '' }) === null && answerOf({ status: 200, body: 'x' }) === null, 'answerOf reads a 200 answer and nothing else');
   say(deepEqual(descendantsOf(new Map([[1, [2, 3]], [3, [4]]]), 1), [2, 4, 3]), 'descendantsOf walks a tree deepest first');
   // The tests round: W6b's listener, both ways.

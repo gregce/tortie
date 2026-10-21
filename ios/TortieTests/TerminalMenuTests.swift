@@ -155,10 +155,12 @@ final class TerminalMenuTests: XCTestCase {
     }
 
     /// Clause (D21, D22): ONE `Menu {`, labelled with the symbol in the
-    /// accent, spoken `More`, identified `terminal-menu`; its items exactly
+    /// accent, spoken `More`, identified `terminal-menu`; its items at most
     /// two in this order, Catch Me Up (the Mac's word, its speech bubble, its
     /// identifier, pushing Catch Me Up) then End's item, and End's only where
-    /// `endRow` says it is drawn.
+    /// `endRow` says it is drawn. Since Phase 348 (D33, his ruling that
+    /// Remove asks no Face ID) the second item is Remove's where the menu
+    /// draws no End and Remove is drawn, in End's place: never both.
     func testOneMenuOfTwoItemsInOrder() throws {
         let control = try span("ios/Tortie/Screens/SessionScreen.swift", "struct TerminalMenuControl: View {")
         XCTAssertEqual(control.components(separatedBy: "Menu {").count, 2, "the ⋯ is not exactly one menu")
@@ -173,6 +175,10 @@ final class TerminalMenuTests: XCTestCase {
         XCTAssertTrue(items.contains("if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {"), "End's item is not drawn exactly where End's press would be")
         XCTAssertEqual(items.components(separatedBy: "Button(").count, 2, "the menu holds an item besides Catch Me Up and End")
         XCTAssertEqual(items.components(separatedBy: "EndMenuItem(").count, 2)
+        let otherwise = try XCTUnwrap(items.range(of: "} else if let removal {\n                    RemoveMenuItem(drawing: removal) {"), "Remove is not End's item's otherwise")
+        XCTAssertLessThan(end.lowerBound, otherwise.lowerBound)
+        XCTAssertEqual(items.components(separatedBy: "RemoveMenuItem(").count, 2)
+        XCTAssertTrue(control.contains("let removal = TerminalMenuControl.removeDrawing(end, offer: offer, removeConfirm: removeConfirm)"))
         XCTAssertFalse(items.contains("Divider()"))
         let chrome = String(control[label.lowerBound...])
         XCTAssertTrue(chrome.contains("Image(systemName: TerminalMenuControl.symbol)"))
@@ -199,13 +205,20 @@ final class TerminalMenuTests: XCTestCase {
         XCTAssertLessThan(id.lowerBound, confirmation.lowerBound, "the confirmation is not in the menu's own chain")
         XCTAssertTrue(items.contains("guard drawing.confirm != nil else { return }\n                        asking = true"), "the press does more than ask for the Mac's words")
         XCTAssertEqual(control.components(separatedBy: "asking = true").count, 2, "something else asks for the confirmation")
+        // Remove's (Phase 348, D33): the Mac's Remove words, outside the
+        // items too, asked for by Remove's press alone.
+        XCTAssertFalse(items.contains(".removeConfirmation("), "Remove's confirmation is inside the menu's items")
+        XCTAssertTrue(after.contains(".removeConfirmation(model: end?.remove, drawing: removal, isPresented: $removeAsked, reread: reread)"))
+        XCTAssertTrue(items.contains("guard removal.confirm != nil else { return }\n                        removeAsked = true"), "Remove's press does more than ask for the Mac's words")
+        XCTAssertEqual(control.components(separatedBy: "removeAsked = true").count, 2, "something else asks for Remove's confirmation")
     }
 
-    /// Clause (D21): the Terminal's top bar holds ONE trailing item, the ⋯.
+    /// Clause (D21): the Terminal's top bar holds ONE trailing item, the ⋯,
+    /// handed since Phase 348 the Mac's Remove words beside End's.
     func testTheMenuIsOneTopBarTrailingItem() throws {
         let menu = try span("ios/Tortie/Screens/SessionScreen.swift", "struct TerminalMenu: ToolbarContent {")
         XCTAssertEqual(menu.components(separatedBy: "ToolbarItem(").count, 2)
-        XCTAssertTrue(menu.contains("ToolbarItem(placement: .topBarTrailing) {\n            TerminalMenuControl(end: end, offer: offer, confirm: confirm, reread: reread, openCatchUp: openCatchUp)"))
+        XCTAssertTrue(menu.contains("ToolbarItem(placement: .topBarTrailing) {\n            TerminalMenuControl(end: end, offer: offer, confirm: confirm, removeConfirm: removeConfirm, reread: reread, openCatchUp: openCatchUp)"))
     }
 
     /// Clause (D23, rule ac, "we can keep face input for end session"): the

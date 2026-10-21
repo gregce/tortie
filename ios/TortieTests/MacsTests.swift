@@ -242,7 +242,6 @@ final class MacsTests: XCTestCase {
         XCTAssertEqual(app.tab, .needsInput)
         XCTAssertEqual(MacRow.rows(app).map(\.chosen), [false, true, false])
         XCTAssertEqual(ID.macsScreen, "screen-macs")
-        XCTAssertEqual(ID.macsTitle, "macs-title")
         XCTAssertEqual(ID.macsRow(0), "macs-row-0")
         XCTAssertEqual(ID.macsRowName(1), "macs-row-name-1")
         XCTAssertEqual(ID.macsRowLine(2), "macs-row-line-2")
@@ -505,10 +504,10 @@ final class MacsTests: XCTestCase {
         XCTAssertNil(unpaired.anotherPairing, "Pairing opened the sheet")
     }
 
-    /// Clause (D16): the sheet's pairing done closes the sheet onto the new
-    /// Mac's Needs input, chosen, its list the first read's, in the store's
-    /// order, with the alert line asked again; a Mac paired again takes its
-    /// own place with a new reader and nothing pushed.
+    /// Clause (D16, and Phase 348's D1): the sheet's pairing done closes the
+    /// sheet onto the new Mac's Sessions, chosen, its list the first read's,
+    /// in the store's order, with the alert line asked again; a Mac paired
+    /// again takes its own place with a new reader and nothing pushed.
     func testAPairingFromTheSheetChoosesTheNewMac() async throws {
         let first = waiting(2)
         let newLaptop = ScriptedReader(mac: laptop)
@@ -521,7 +520,7 @@ final class MacsTests: XCTestCase {
         XCTAssertNil(app.anotherPairing, "the sheet did not close")
         XCTAssertEqual(app.spaces.map(\.id), [studio, laptop])
         XCTAssertEqual(app.chosen?.id, laptop)
-        XCTAssertEqual(app.tab, .needsInput)
+        XCTAssertEqual(app.tab, .sessions, "a pairing from the sheet did not land on Sessions (Phase 348, D1)")
         XCTAssertTrue(app.showsMacs)
         XCTAssertEqual(app.waitingBadge, 2, "the new Mac's list is not the first read's")
         XCTAssertNotNil(app.addressCheck, "the pairing did not ask the alert line again")

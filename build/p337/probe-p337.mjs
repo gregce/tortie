@@ -190,10 +190,15 @@ export const MACHINE_ID = 'p337far';
  * HEAD's route and write lines, every route allowed. Phase 346 added `start`; its ruled round moved these two
  * literals, which its build left at 337.1's (this file's own self-test read ROUTE_LINE red against the tree's
  * route ids, and a run at HEAD would have read the door's lines red over a door that said them right).
+ * PHASE 348 moved both again (build/p348/SPEC.md §6): `remove` and `paste`, each a signed POST alive
+ * outside any window, join the route line and their clauses join the write line after start's, in
+ * the closed list's order. Under 333.12 both wait at HEAD on a store the parent confirmed, and the
+ * lines a person reads before Allow are the proposal's (src/main/pocket/ipc.ts `confirmLines`), so
+ * they name all fourteen.
  */
-export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, scrollback, session, sessions, start, turns';
-export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question, send a session one message, type into any session as you would at this Mac and start a session in a project open in Tortie, on this Mac or another machine';
-export const ROUTE_IDS = Object.freeze(['blocked', 'choose', 'end', 'keys', 'pair', 'say', 'screen', 'scrollback', 'session', 'sessions', 'start', 'turns']);
+export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, paste, remove, say, screen, scrollback, session, sessions, start, turns';
+export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question, send a session one message, type into any session as you would at this Mac, start a session in a project open in Tortie, on this Mac or another machine, remove a session that has ended and paste text into a session on this Mac';
+export const ROUTE_IDS = Object.freeze(['blocked', 'choose', 'end', 'keys', 'pair', 'paste', 'remove', 'say', 'screen', 'scrollback', 'session', 'sessions', 'start', 'turns']);
 /** The parent's (337's) route line: ten routes and no `scrollback`. */
 export const PARENT_ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, session, sessions, turns';
 export const LIVE = Object.freeze(['running', 'idle', 'needs_input']);
@@ -1205,7 +1210,7 @@ function graderSelfTest() {
   // ROUTE_LINE against the tree's own POCKET_ROUTE_IDS (Phase 337.1 added scrollback), and the parent's line one route short of it.
   const treeIds = [...(/POCKET_ROUTE_IDS = \[([\s\S]*?)\] as const/.exec(contract)?.[1] ?? '').replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/'([a-z]+)'/g)].map((m) => m[1]).sort();
   say(treeIds.length > 0 && J(routeIdsOf([ROUTE_LINE])) === J(treeIds), `ROUTE_LINE names exactly the tree's POCKET_ROUTE_IDS (${treeIds.join(', ')})`);
-  say(J(routeIdsOf([PARENT_ROUTE_LINE])) === J(ROUTE_IDS.filter((id) => id !== 'scrollback' && id !== 'start')), "PARENT_ROUTE_LINE is HEAD's less scrollback and Phase 346's start");
+  say(J(routeIdsOf([PARENT_ROUTE_LINE])) === J(ROUTE_IDS.filter((id) => id !== 'scrollback' && id !== 'start' && id !== 'remove' && id !== 'paste')), "PARENT_ROUTE_LINE is HEAD's less scrollback, Phase 346's start and Phase 348's remove and paste");
   // The reader's bounds by value against the tree's own (src/main/screen/scrollback.ts, watch.ts, door/limits.ts).
   {
     const src = (rel) => {

@@ -3,8 +3,8 @@
 //
 // Most of what a person reads on the phone is NOT here. The status words and
 // their raised titles, the agent's question and its choices, the Catch Me Up
-// outcome, every age, the absence sentences, the empty line and the age note
-// arrive in the door's answer, composed on the Mac (src/shared/ipc/pocket.ts).
+// outcome, every age, the absence sentences and the empty line arrive in the
+// door's answer, composed on the Mac (src/shared/ipc/pocket.ts).
 // This file holds only the chrome around them, and each entry is one of two
 // things, said in the comment directly above it:
 //
@@ -375,7 +375,8 @@ enum Copy {
     /// same Mac.
     static let thisMac = "This Mac"
 
-    /// Phone: before the date this iPhone was paired, `Paired · Sep 30, 2026`.
+    /// Phone: the label of Settings' row whose right side is the day this
+    /// iPhone paired (a labelled row since Phase 348, D12, as Version is).
     /// No Mac surface says when a phone paired.
     static let paired = "Paired"
 
@@ -562,6 +563,21 @@ enum Copy {
     /// true.
     static let endNoAnswer = "Your Mac did not answer. This is the session as it reads now."
 
+    // MARK: - Remove (Phase 348: TerminalMenuRemove.html, build/p348/SPEC.md section 5.2)
+    //
+    // Once End is done, Remove takes End's place at Catch Me Up's top right
+    // and in the Terminal's ⋯, and asks no Face ID (his ruling of 2026-10-18,
+    // "No Face ID, just confirm"). The confirmation itself is NOT here: the
+    // door sends the Mac's own `removeSessionConfirm` for the session, word
+    // for word, and its refusals in the Mac's own sentences. A Remove whose
+    // answer did not come draws `endNoAnswer`, which is true of any write.
+
+    /// Mac: src/renderer/app/session-actions.tsx ⟦label: 'Remove',⟧
+    static let remove = "Remove"
+
+    /// Phone: the door refused the Remove before acting (a 404), or the app left before its bytes were handed
+    static let removeNotTaken = "Your Mac did not remove it. Nothing was changed."
+
     // MARK: - Reply (Phase 318: Answer.html, Composer.html, build/p318/SPEC.md section 5.7.5)
     //
     // A press and a message ask no Face ID (his ruling, "Only for End"). The
@@ -632,6 +648,9 @@ enum Copy {
     /// clipboard: the Mac's own word for copying from a terminal.
     static let copy = "Copy"
 
+    /// Mac: src/renderer/terminal/terminal-menu.ts ⟦label: 'Paste',⟧
+    static let paste = "Paste"
+
     /// Phone: the poll did not come back, so the terminal drawn is the last
     /// picture the Mac sent (Phase 337.1, D23: the feature is the Terminal).
     /// The Mac never shows an old terminal.
@@ -650,6 +669,27 @@ enum Copy {
     /// state is unknown, or its machine has no live connection). The Mac's
     /// own terminal says so by not drawing one.
     static let screenCannotType = "Keys cannot reach this session now."
+
+    // A paste of his clipboard (Phase 348, build/p348/SPEC.md D19 to D22,
+    // D53): iOS's own Paste beside Copy, Command-V or the three-finger pinch,
+    // with no alert and no preview. The phone's own rule refuses these before
+    // anything is sent, each in the Mac's words where the Mac has them; the
+    // Mac's refusals arrive in its own sentences.
+
+    /// Mac: src/shared/screen-copy.ts ⟦PASTE_EMPTY = 'There is nothing to paste.'⟧
+    static let pasteEmpty = "There is nothing to paste."
+
+    /// Mac: src/shared/screen-copy.ts ⟦PASTE_TOO_LONG = 'That is too long to paste. Nothing was pasted.'⟧
+    static let pasteTooLong = "That is too long to paste. Nothing was pasted."
+
+    /// Mac: src/shared/screen-copy.ts ⟦PASTE_CHARACTER = 'That holds a character Tortie does not paste. Nothing was pasted.'⟧
+    static let pasteCharacter = "That holds a character Tortie does not paste. Nothing was pasted."
+
+    /// Phone: the clipboard holds a Tortie pairing code, whose one-shot secret must reach no session (rule (p)); no Mac surface reads a pairing code from a clipboard
+    static let pasteCode = "That looks like a Tortie pairing code, so it was not pasted."
+
+    /// Phone: the door refused the paste before acting (a 404), or the app left before its bytes were handed
+    static let pasteNotTaken = "Your Mac did not take it. Nothing was pasted."
 
     /// Phone: the key bar's Escape. The Mac has a keyboard.
     static let keyEsc = "esc"

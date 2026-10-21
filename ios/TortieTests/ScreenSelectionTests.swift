@@ -226,22 +226,55 @@ final class ScreenSelectionTests: XCTestCase {
         XCTAssertEqual(ScreenSelecting.text(nil, in: picture), "")
     }
 
-    /// Clause (conformance:ios rule al): `UIPasteboard` is named only in
-    /// Screens/ScreenSelection.swift and only written there; nothing in the
-    /// app reads it, the Terminal's text input (Phase 337.5) included.
-    func testThePasteboardIsWrittenAndNeverRead() throws {
-        let files = ["App/TortieApp.swift", "Screens/Screen.swift", "Screens/ScreenGrid.swift", "Screens/ScreenKeyField.swift",
-                     "Screens/ScreenKeys.swift", "Screens/ScreenRows.swift", "Screens/SessionScreen.swift", "Door/DoorClient.swift",
-                     "Screens/ScreenScroller.swift", "Screens/ScreenScrollback.swift", "Screens/ScreenTextInput.swift"]
+    /// Clause (conformance:ios rule al, as Phase 348 widened it on purpose:
+    /// build/p348/SPEC.md D39 to D42 and his ruling of 2026-10-18 that paste
+    /// is iOS's own): Copy's write in Screens/ScreenSelection.swift is the one
+    /// place the app WRITES the pasteboard, and it names nothing else of it;
+    /// the only other files that name it are the two that take iOS's own
+    /// paste, the Terminal's content view and its key field, and each names
+    /// exactly the clipboard's string (read on his press) and `hasStrings`
+    /// (asked before the command is offered): no items, no other strings, no
+    /// patterns, no change count and no write. Every other file of the
+    /// Terminal and the door names it nowhere, not even in a comment.
+    /// PasteTests holds where inside those two files each mention sits.
+    func testThePasteboardIsWrittenByCopyAndReadOnlyByPaste() throws {
+        let files = ["App/TortieApp.swift", "Screens/Screen.swift", "Screens/ScreenGrid.swift", "Screens/ScreenKeys.swift",
+                     "Screens/ScreenRows.swift", "Screens/SessionScreen.swift", "Door/DoorClient.swift", "Door/Pairing.swift",
+                     "Screens/ScreenScroller.swift", "Screens/ScreenScrollback.swift", "Screens/Remove.swift", "Screens/EndBar.swift"]
         for file in files {
             XCTAssertFalse(try StyleSource.text("ios/Tortie/" + file).contains("UIPasteboard"), file)
         }
-        let selection = try StyleSource.text("ios/Tortie/Screens/ScreenSelection.swift")
-        let code = selection.components(separatedBy: "\n").filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }.joined(separator: "\n")
-        XCTAssertEqual(code.components(separatedBy: "UIPasteboard").count, 2, "one mention, the write")
-        XCTAssertTrue(code.contains("UIPasteboard.general.string = text"))
-        for read in [".strings", ".items", "hasStrings", "detectPatterns", ".changeCount", "= UIPasteboard"] {
-            XCTAssertFalse(code.contains(read), read)
+        let selection = try Self.code("ios/Tortie/Screens/ScreenSelection.swift")
+        XCTAssertEqual(Self.pasteboardPaths(selection), ["UIPasteboard.general.string"], "one mention, the write")
+        XCTAssertTrue(selection.contains("UIPasteboard.general.string = text"))
+        for reader in ["Screens/ScreenTextInput.swift", "Screens/ScreenKeyField.swift"] {
+            let code = try Self.code("ios/Tortie/" + reader)
+            XCTAssertEqual(
+                Self.pasteboardPaths(code).sorted(), ["UIPasteboard.general.hasStrings", "UIPasteboard.general.string"],
+                "\(reader) names the pasteboard other than for its one read and its one hasStrings"
+            )
+            XCTAssertFalse(code.contains("UIPasteboard.general.string ="), "\(reader) writes the pasteboard")
         }
+    }
+
+    /// A Swift file of the app with its comment lines taken out.
+    static func code(_ path: String) throws -> String {
+        try StyleSource.text(path).components(separatedBy: "\n")
+            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
+            .joined(separator: "\n")
+    }
+
+    /// Every `UIPasteboard` access in `code`, in order, as its name and the
+    /// members after it (`UIPasteboard.general.string`), so a read of any
+    /// other member is a path of its own.
+    static func pasteboardPaths(_ code: String) -> [String] {
+        var paths: [String] = []
+        var rest = code[...]
+        while let hit = rest.range(of: "UIPasteboard") {
+            let path = rest[hit.lowerBound...].prefix { $0.isLetter || $0.isNumber || $0 == "." || $0 == "_" }
+            paths.append(String(path))
+            rest = rest[hit.upperBound...]
+        }
+        return paths
     }
 }

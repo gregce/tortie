@@ -184,9 +184,14 @@ final class ScreenInputTests: XCTestCase {
         XCTAssertFalse(KeyItem.text("a").standsAlone)
     }
 
-    /// Clause (§Attack A9, rule aj): the hidden field takes no paste of any
-    /// kind and no drop, makes no correction, prediction or Writing Tools
-    /// edit, and asks for no ASCII-capable keyboard.
+    /// Clause (§Attack A9, rule aj, as Phase 348 widened it on purpose:
+    /// build/p348/SPEC.md D35, D41 and his ruling of 2026-10-18 that paste is
+    /// iOS's own): the hidden field takes no Paste and Match Style, no Paste
+    /// and Go and no Paste and Search, ever, and iOS's own paste only behind
+    /// the page's word that the Mac takes one, which a field nobody has told
+    /// anything does not have (PasteTests drives the word); it takes no
+    /// drop, makes no correction, prediction or Writing Tools edit, and asks
+    /// for no ASCII-capable keyboard.
     @MainActor
     func testTheFieldRefusesPasteAndCorrections() {
         let field = ScreenTextView(frame: CGRect(x: 0, y: 0, width: 1, height: 1), textContainer: nil)
@@ -198,6 +203,9 @@ final class ScreenInputTests: XCTestCase {
         ] {
             XCTAssertFalse(field.canPerformAction(action, withSender: nil), "\(action)")
         }
+        XCTAssertFalse(field.pasteOffered(), "a field nobody told anything offers iOS's paste")
+        XCTAssertFalse(ScreenTextView.refused.contains(#selector(UIResponderStandardEditActions.paste(_:))), "iOS's own paste is refused whatever the page says")
+        XCTAssertEqual(ScreenTextView.refused.count, 3)
         XCTAssertNil(field.pasteConfiguration)
         XCTAssertNotNil(field.textDropDelegate)
         XCTAssertEqual(field.autocorrectionType, .no)

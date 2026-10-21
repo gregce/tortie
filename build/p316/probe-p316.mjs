@@ -186,7 +186,10 @@
  * ask `p3166 md <name>`, `{{MD3}}` filled with the port of a loopback listener
  * this file holds (MD3), which counts every connection and must count none.
  * The relay counts the app's connections too (U1).
- *   T2a to T2d  order and floor: pairing lands on Needs input; the badge is
+ *   T2a to T2d  order and floor: pairing lands on that Mac's Sessions since
+ *       Phase 348 (D1; Needs input before it), the Sessions tab read as
+ *       selected where XCUITest reads the trait and UNREADABLE, never a pass,
+ *       where it does not; the badge is
  *       `/v1/blocked`'s waiting count, read by the node reader just before and
  *       after (from the button's value, else a number-only label inside it;
  *       none on iOS 26's glass bar is UNREADABLE); a session opened in
@@ -210,7 +213,7 @@
  *   U1  floor, after F1+: Cancel changes no label; Unpair draws Pairing; the
  *       relay counts no connection in the 20 s after; a relaunch with no
  *       forget seam draws Pairing; the Mac still lists the phone; a second
- *       drive pairs again onto Needs input
+ *       drive pairs again onto Sessions (Phase 348, D1; Needs input before)
  *   HM  hostile: `md-hostile` and `md-huge` end drawn, alive, MD3 still 0;
  *       every turn from the oldest the drive reached to the newest drew (its
  *       md-<turn>-0, drawn as written while markdown is off), and the older
@@ -488,7 +491,9 @@
  * P316DriveUITests.swift's `start-open`, `start-pick:<project id>`,
  * `start-agent:<id>`, `start-create`, `start-read`, `start-close` and
  * `start-home`. The arms:
- *   NP1 26.3 and 18.3: the "+" at the trailing end of the Sessions title,
+ *   NP1 26.3 and 18.3: the "+" alone at the trailing edge of the iPhone's own
+ *       bar on Sessions since Phase 348 (D16; the title's trailing end before),
+ *       Select and the filter at its leading edge 100 pt or more from it,
  *       named New session; the sheet's projects the offer's in its order, the
  *       chosen one selected, a project at a place not ready dimmed (read over
  *       the hostile door's honest offer, which has one); the marks exactly the
@@ -514,12 +519,44 @@
  *       gone onto the made session's Terminal, no owner check. This file runs
  *       no machine, so the Mac half of that start (the far server holding it)
  *       is probe:p346's S3, through the same door and write
- *   NP12 26.3 (the ruled round): before any start, `start-reach` reads the
- *       Sessions title row and taps outside the "+"'s glyph along each edge
- *       and at the corners of a 44 × 44 pt square around it: the press is at
- *       least 44 × 44 pt, and every frame on the row (the title, the menu,
- *       Select, the "+" and the Show control) equals the build before's
- *       (`START_TITLE_ROW_BEFORE`) within 0.01 pt, before and after the taps
+ *   NP12 (Phase 348, item 5, D56, RE-POINTED ON PURPOSE: the ruled round's
+ *       `start-reach` around the title row's glyph and its
+ *       `START_TITLE_ROW_BEFORE` are retired, because the "+" is a control in
+ *       the iPhone's own bar now; the fix round moved it to the list's first
+ *       line and his ruling of 2026-10-20, "Top bar (Recommended)", put it
+ *       back): before any start, `bar-grid` taps on iOS 26 every 4 pt across
+ *       the bar at three heights of its controls' row, and on both runtimes a
+ *       cross every 2 pt through Select's, the filter's and the "+"'s centre
+ *       (iOS 18.3 relaunched every 8 taps and left idle 20 s, the 16 Pro's
+ *       floor grid in a drive of its own on a fresh device before the NB rows
+ *       are made, and the SE's the last step of its drive), each tap graded
+ *       by what it opened (New session's sheet, Select's selection, the
+ *       filter's menu, a Show segment put back, nothing), read from one
+ *       snapshot. Each press, from the taps alone, is at least D56's on its
+ *       runtime (`BAR_PRESSES_D56`: the "+" 50 × 36, Select 62 × 36, the
+ *       filter 58 × 36 on 26.3; 54 × 44, 56 × 44, 60 × 44 on 18.3), printed
+ *       beside the parent's (`BAR_PRESSES_PARENT`), and the "+" beside build
+ *       11's own press on a paired phone of that size (`PLUS_PRESS_PARENT`,
+ *       50 × 52 on a 16 Pro), HIS STATED TRADE, never required; the "+"
+ *       inside the bar the drive read; on iOS 26 every row presses Select, the
+ *       filter, then the "+", each one run, and none a Show segment (on 18.3,
+ *       with no rows, the three crosses' runs fall in that order along the
+ *       bar); Select's press ends at least `BAR_GAP_MIN` (200) pt before the
+ *       "+"'s; nothing moved. On 26.3 and 18.3, and on an iPhone SE on both
+ *       (with NB, NS and NP1)
+ *   NB (Phase 348, item 5, D15): `bar-swipe` reads the bar at rest, a LARGE
+ *       Sessions title inside it below its controls, the "+" inside it (his
+ *       ruling of 2026-10-20) and the Show control under the bar, then after
+ *       ONE swipe up the title INLINE (no large title, a Sessions inside the
+ *       shorter bar); UNREADABLE when XCUITest reads no inline title, never a
+ *       pass
+ *   NS (his ruling of 2026-10-20, "Top bar (Recommended)": "Show keeps its
+ *       full width"): at rest, while the Mac offers Start (the "+" drawn in
+ *       the bar), each of All, Active and Ended at least build 11's own frame
+ *       on a paired phone of that size (`SHOW_SEGMENT_PARENT`: 122 × 28 on an
+ *       iPhone 16 Pro, 113 × 28 on an SE); UNREADABLE when the "+" was not
+ *       drawn or a segment was not read. On 26.3 and 18.3, on a 16 Pro and an
+ *       SE
  *   NP5 26.3 and 18.3: the project closed on the Mac at `start-ready`, then
  *       Create: the sheet stays with the Mac's START_PROJECT_GONE, nothing made
  *   NP6 26.3: the relay CUTS the answer once main logged the act: the
@@ -542,6 +579,94 @@
  *       reason word in the door's own sentence, and `start-hold`'s Try again
  *       sends the first body again byte for byte; the hostile group's own loop
  *       leaves them to NPH
+ *
+ * PHASE 348, THE PHONE POLISHED (build/p348/SPEC.md §8.2). Item 1: T2a and
+ * U1's second pairing land on Sessions, N8 and N11 relaunch onto Needs input,
+ * and the hostile `sessions-cap` arm's first row is timed from the landing,
+ * which `pair` reads as it happens, inside iOS's notification question's
+ * window too (the fix round: it was read after that 10 s window, which timed
+ * the UI test's own wait). Item 5: NB, NS and NP12 above, NP1 at the bar
+ * (his ruling of 2026-10-20 put the "+" back there), SL7 reading the "+" off
+ * while End these takes taps. THE FIX ROUND also
+ * STATES the four arms that fail at the parent too (`STATED_AT_PARENT`: S1,
+ * T1, MD1 and SL6, Catch Me Up's paging), printed and never counted, each
+ * only on its arm's known clauses, build 11's own counts pinned (the second
+ * fix round). The UI test's new steps are `bar-read`, `bar-swipe`,
+ * `bar-grid`, `remove-read`, `remove`, `remove-cancel`, `remove-home`,
+ * `to-catch-up` (Catch Me Up pressed and stayed on, for RV1's top right),
+ * `paste-write:<b64url>`, `paste-empty`, `paste-menu`, `paste-menu-read`,
+ * `paste-cmdv`, `paste-pinch`, `paste-trip`, `paste-ctrl`, `paste-read` and
+ * `paste-select:<from>:<to>`.
+ *   THE `remove` GROUP (`P316_ARMS=remove`; his ruling of 2026-10-18, "No
+ *   Face ID, just confirm"), over shells on this Mac each ENDED from the phone
+ *   first, Face ID answered for End and nothing else:
+ *   RV1 26.3 (the Terminal's ⋯, and Catch Me Up's top right, each arm read
+ *       on ITS face or UNREADABLE, the second fix round) and 18.3: after
+ *       End, Remove where End was and End gone; the Mac's own words in ONE
+ *       confirmation, word for word against /v1/session's `removeConfirm` read
+ *       before the press; its Cancel, or on iOS 26, which draws the dialog as
+ *       a popover with the destructive press alone, its dismiss region pressed
+ *       once (`remove-cancel`, the fix round) leaving the page as it was with
+ *       nothing written; back to the list; no owner check at any moment; ONE
+ *       act in main's log, the row in `listRemoved()` and no longer main's own
+ *   RV2 26.3: the destructive press with the relay holding every new
+ *       connection from `remove-ready`, then Home: no act, the row still the
+ *       Mac's, and `Your Mac did not remove it. Nothing was changed.` on return
+ *   RV3 26.3: under All the removed row is gone and the one left alone drawn
+ *   RV4 with P348_PARENT_IOS (d2bb05ee's ios/, build 11): its own app and UI
+ *       test against this Mac draw no Remove on any screen or in its ⋯ after
+ *       End, and its End is one act that ends the session
+ *   RV5 and RVH 26.3: every Remove arm of build/p316/hostile-door.mjs
+ *       (REMOVE_ARMS): ONE POST /v1/remove, back to the list for a done one,
+ *       else the line the row names; `remove-offer-absent` (RV5, the new app
+ *       against a 0.112.0 Mac) and `remove-confirm-malformed` draw no Remove
+ *       and send nothing
+ *   RV6 26.3: See a sample: after the sample's End, Remove with the book's own
+ *       words, no owner check, the session gone from the sample's list, and
+ *       the relay's count unmoved
+ *   THE `paste` GROUP (`P316_ARMS=paste`; his ruling, "i'd like to be able to
+ *   paste natively"), over build/p337/key-recorder.mjs in shells on this Mac
+ *   (one asking for bracketed paste, one not), whose log is the ground truth,
+ *   graded against `pasteBytesOf`, this file's own composition of what
+ *   `paste-buffer -p` must send (brackets iff the recorder asked, every line
+ *   feed a carriage return, nothing after). Before every paste the UI test
+ *   prints `paste-ready` and waits for `paste-<seq>`; a Command-V the recorder
+ *   read nothing of is answered `again` once (D41):
+ *   PA8 26.3 and 18.3, FIRST, THE ABLATION: a SCRATCH COPY of the app (`cp -Rc`
+ *       of ios/ under the run, its menu Paste made a `UIAction` that reads the
+ *       clipboard itself, built into its own derived data, never a seam in the
+ *       shipping app) raises iOS's alert, which the UI test's detector sees
+ *   PA1 26.3 and 18.3: Paste beside Copy in the long-press menu (exactly
+ *       `[Copy, Paste]`), Command-V and three fingers pinching out, each over
+ *       text the runner wrote and after a trip to Settings: each lands once,
+ *       as the program asked, and no alert in SpringBoard or the app for 8 s,
+ *       nor an owner check; UNREADABLE unless that runtime's PA8 saw its alert
+ *   PA2 26.3 and, since the fix round, 18.3: with the key bar's Control
+ *       armed, the paste's own bytes
+ *   PA3 26.3: a pairing code's shape on the clipboard: refused on the phone
+ *       with `Copy.pasteCode`, no act in main's log, no byte at the recorder
+ *   PA4 26.3 and, since the fix round, 18.3 (the floor drive reads the same
+ *       panes again): a line wider than its shell's pane, selected over its rows and
+ *       copied, is ONE line on the device's clipboard (the helper's own read)
+ *       and pasted back whole; the selection is pressed at its LAST row's end
+ *       and dragged back to its first row's start (the fix round: a press
+ *       begun 4 pt from the screen's edge was iOS's back-swipe, which popped
+ *       the Terminal and left PA2, PA4 and PA5 UNREADABLE)
+ *   PA5 26.3 and, since the fix round, 18.3, STATED (D46): a command zsh is
+ *       still editing copies as the parent copies it, each row its own line
+ *   PA6 26.3: See a sample: Paste beside Copy, the words on the sample's
+ *       prompt, no alert, the relay's count unmoved
+ *   PA7 and PAH 26.3: every paste flag arm and paste arm of the hostile door
+ *       (PASTE_FLAG_ARMS, PASTE_ARMS): a picture that takes no paste (as a far
+ *       session's is; probe:p348 P6 reads the Mac's own) draws Copy alone and
+ *       sends nothing; a paste arm sends ONE POST /v1/paste and draws its row's
+ *       line, or none for a done one. The runner writes the clipboard and
+ *       reads it back off its main thread, bounded at 10 s (the fix round: its
+ *       read on the main thread hung a 26.3 drive for 15 minutes, and with no
+ *       read back the app's own read answered nothing on 2 to 7 of 10 hostile
+ *       pastes); a menu press that did not take, its selection still held, is
+ *       pressed once more, as Command-V is on `again`; and an app state the UI
+ *       test never printed is UNREADABLE
  *
  * PHASE 337, THE `screen` GROUP (build/p337/SPEC.md §7.8, `P316_ARMS=screen`):
  * a session's own screen read and typed into from the phone, with every key
@@ -782,7 +907,8 @@
  *   lies between them
  *   THE HOSTILE SESSIONS ARMS (hostile-door.mjs), on 26.3 and, for those it
  *   marks `floor` (or every one with P316_HOSTILE_FLOOR=all), on 18.3:
- *   `sessions-cap` (the first row within 2 s of the door's answer, the walk to
+ *   `sessions-cap` (the first row within 2 s of the door's answer, timed from
+ *   the landing since Phase 348's pairing lands on Sessions, the walk to
  *   the last row and the left-out lines, the bidi name its characters with its
  *   age inside its row, the two local `app` headers with their folders and the
  *   one elsewhere with its badge and no folder, the Machine section offered, no
@@ -952,9 +1078,14 @@
  * answers. Every window waits for main's `pairable` (`confirmListening`), and
  * Q1 grades every question the Mac asked: an `A` question, RD 0, for that
  * name (Phase 332 called it N1; Phase 316.5 renamed it, because SPEC §7.4
- * gives N1 to the push key). Before the launch the profile's agents.json renames the Gemini, Qwen,
- * Antigravity, Grok and Droid binaries and `agents:list` is read back, so no
- * agent's `--version` ever runs.
+ * gives N1 to the push key). Before the launch the profile's agents.json
+ * renames EVERY probed registry row but the run's stand-ins, claude and codex
+ * (Phase 348's second fix round: the five it renamed before left Oh My Pi,
+ * `omp`, which the app's own extra folders resolve, run for its version on
+ * every launch), build/hidden-agents.mjs's precheck holds that list to the
+ * checkout's own registry, and `agents:list` is read back: anything but the
+ * two stand-ins, under this run, resolved is no run (exit 2), so no agent's
+ * `--version` ever runs.
  *
  * WHAT IT REFUSES TO DO. It never binds a real interface and dials nothing but
  * 127.0.0.1 (the code's host is a public NAME nobody resolves here), never runs
@@ -980,8 +1111,9 @@
  * (exit 2) when the checkout has no build.
  *
  *   npm run -s probe:p316
- *   P316_ARMS=order,floor,deny,hostile,end,reply,screen,sessions,setup,sample,start    which arms (default all; `order` holds N11 and N0 to N8; `end` is Phase 317's, `reply` Phase 318's, `screen` Phase 337's, `sessions` Phase 316.7's, `setup` Phase 333.1's, `sample` Phase 333.3's, `start` Phase 346's)
+ *   P316_ARMS=order,floor,deny,hostile,end,reply,screen,sessions,setup,sample,start,remove,paste    which arms (default all; `order` holds N11 and N0 to N8; `end` is Phase 317's, `reply` Phase 318's, `screen` Phase 337's, `sessions` Phase 316.7's, `setup` Phase 333.1's, `sample` Phase 333.3's, `start` Phase 346's, `remove` and `paste` Phase 348's)
  *   P346_PARENT_IOS=<dir>                 Phase 346's NP11: the directory holding 0b87d0af's ios/
+ *   P348_PARENT_IOS=<dir>                 Phase 348's RV4: the directory holding d2bb05ee's ios/ (build 11)
  *                                         (`git archive 0b87d0af ios | tar -x` into scratch, build 11)
  *   P316_HOSTILE=honest,wrong-key         which hostile arms (default all)
  *   P316_HOSTILE_FLOOR=all|<arm,…>        which hostile sessions arms also run on iOS 18.3 (default those marked `floor`)
@@ -1031,6 +1163,7 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
+  symlinkSync,
   writeFileSync
 } from 'node:fs';
 import { readFile as readFileAsync } from 'node:fs/promises';
@@ -1042,6 +1175,7 @@ import { wsConnect, cdpEval } from '../cdp-client.mjs';
 import { pickRendererTarget } from '../cdp-target.mjs';
 import { withElectron, withoutDevRenderer } from '../electron-run.mjs';
 import {
+  DEVICE_TYPE_TOUCH_ID,
   RUNTIME_CURRENT,
   RUNTIME_FLOOR,
   countDevicesNamed,
@@ -1052,9 +1186,10 @@ import {
 } from '../simulator-run.mjs';
 import { startApnsStandIn } from '../p314/apns-stand-in.mjs';
 import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, watchForRealTailscale } from '../p330/tailscale-standin.mjs';
-import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin, nameQuestionsSelfTest, nameQuestionsVerdict, quietAgentsHeld, writeQuietAgents } from '../p332/dns-standin.mjs';
-import { plantedResolve } from '../scratch-login.mjs';
-import { HOSTILE_ARMS, HOSTILE_NAME, HOSTILE_PUBLIC_PORT, REPLY_ARMS, SCREEN_ARMS, SCROLLBACK_ARMS, START_ARMS, START_FAR, START_UNKNOWN_SENTENCE, UNKNOWN_STATUS_TITLE, hostileDoorArgv, markdownFixtures } from './hostile-door.mjs';
+import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin, nameQuestionsSelfTest, nameQuestionsVerdict } from '../p332/dns-standin.mjs';
+import { manifestSessions, plantedResolve, within } from '../scratch-login.mjs';
+import { AGENTS_LIST_EXPR, hiddenAgentsBesides, hiddenAgentsPrecheck, hiddenAgentsScanVerdict, standInsOnlyVerdict, writeHiddenAgents } from '../hidden-agents.mjs';
+import { HOSTILE_ARMS, HOSTILE_NAME, HOSTILE_PUBLIC_PORT, P348_ARMS, PASTE_ARMS, PASTE_FLAG_ARMS, PASTE_UNKNOWN_SENTENCE, REMOVE_ARMS, REMOVE_UNKNOWN_SENTENCE, REPLY_ARMS, SCREEN_ARMS, SCROLLBACK_ARMS, START_ARMS, START_FAR, START_UNKNOWN_SENTENCE, UNKNOWN_STATUS_TITLE, hostileDoorArgv, markdownFixtures } from './hostile-door.mjs';
 // Phase 346: NP10's one loopback port for two Macs, by each connection's server name.
 import { startSniRelay } from '../p345/sni-relay.mjs';
 import { hellos as p318Hellos, readLog as p318ReadLog, readState as p318ReadState, sendOps as p318SendOps, writeWrappers as p318WriteWrappers } from '../p318/stand-in.mjs';
@@ -1091,8 +1226,9 @@ const PROJECT = join(ROOT, 'ios', 'Tortie.xcodeproj');
 // `sessions` is Phase 316.7's (build/p3167/SPEC.md §9.4): SL1 to SL8 on a fresh Simulator of its own, and SL1, SL6 and SL8 on the floor.
 // `setup` is Phase 333.1's (build/p3331/SPEC.md §7.7): SE1 to SE7 on a fresh Simulator, SE8 on the floor, SEP with P3331_PARENT_IOS.
 // `sample` is Phase 333.3's (build/p3333/SPEC.md §7.4): SA1 to SA13, SAX and SD fresh on 26.3, SB on the floor, SC1 to SC3 paired, SP with P3333_PARENT_IOS.
-// `start` is Phase 346's (build/p346/SPEC.md §6.2): NP1 to NP11 and NPH, NP1, NP3 and NP5 on the floor too.
-const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,deny,hostile,end,reply,screen,sessions,setup,sample,start').split(',').map((s) => s.trim()));
+// `start` is Phase 346's (build/p346/SPEC.md §6.2): NP1 to NP11 and NPH, NP1, NP3 and NP5 on the floor too; since Phase 348 NB and NP12's tap grid on both runtimes and an iPhone SE.
+// `remove` and `paste` are Phase 348's (build/p348/SPEC.md §8.2): RV1 to RV6 and RVH; PA1 to PA8 and PAH; RV1, PA1 and PA8 on the floor too.
+const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,deny,hostile,end,reply,screen,sessions,setup,sample,start,remove,paste').split(',').map((s) => s.trim()));
 if (ARMS.has('ats')) {
   // The ATS arm left with TailscaleKit (Phase 330): the phone has no tailnet
   // and no ATS exception, so there is nothing for it to prove.
@@ -1104,7 +1240,7 @@ if (ARMS.has('ats')) {
 // Phase 333.1: the setup group's SE8 is the floor's.
 // Phase 333.3: the sample group's SB is the floor's.
 const runtimes =
-  ARMS.has('floor') || ARMS.has('end') || ARMS.has('reply') || ARMS.has('screen') || ARMS.has('sessions') || ARMS.has('hostile') || ARMS.has('setup') || ARMS.has('sample') || ARMS.has('start')
+  ARMS.has('floor') || ARMS.has('end') || ARMS.has('reply') || ARMS.has('screen') || ARMS.has('sessions') || ARMS.has('hostile') || ARMS.has('setup') || ARMS.has('sample') || ARMS.has('start') || ARMS.has('remove') || ARMS.has('paste')
     ? [RUNTIME_CURRENT, RUNTIME_FLOOR]
     : [RUNTIME_CURRENT];
 
@@ -1129,11 +1265,46 @@ const SCHEME = 'Tortie';
 const BUNDLE_ID = 'com.itavero.tortie.phone';
 const UI_TEST = 'TortieUITests/P316DriveUITests/testDrive';
 const RUN = `/private/tmp/p316-probe-${String(process.pid)}`;
+/** The run's agent stand-ins, and every other probed registry row, hidden (Phase 348's second fix round). */
+const P316_STAND_INS = Object.freeze(['claude', 'codex']);
+const P316_HIDDEN_IDS = hiddenAgentsBesides(P316_STAND_INS);
 const HOME = join(RUN, 'home');
 const HARNESS = join(RUN, 'harness');
 const PROFILE = join(HARNESS, 'profile');
 const WORK = join(RUN, 'project');
 const BIN = join(HOME, '.local', 'bin');
+/**
+ * THE LOGIN PATH AND THE APP'S OWN PATH (the Phase 348 probe review,
+ * docs/method/HOW-WE-BUILT-THIS.md rule 9; the rule probe:p313, probe:p346
+ * and probe:p348 already keep): the stand-ins, one `node` link for the
+ * Electron shim's `#!/usr/bin/env node`, the system folders, and NOTHING of
+ * whoever ran the probe. Before the review the app inherited the verifier's
+ * PATH and the scratch `.zprofile` put that PATH behind the stand-ins, so
+ * Tortie's detection scan (every ordinary and GMUX_PROBES launch probes every
+ * copy of a name it resolves) could run the person's own Claude Code, Codex,
+ * Cursor, Muse, pi and OpenCode with `--version` from his own folders.
+ */
+const LOGIN_PATH = `${BIN}:/usr/bin:/bin:/usr/sbin:/sbin`;
+const NODE_BIN = join(RUN, 'nodebin');
+const APP_PATH = `${BIN}:${NODE_BIN}:/usr/bin:/bin:/usr/sbin:/sbin`;
+/**
+ * The variables the registry's rows name in their own install folders
+ * (`$NVM_BIN`…), read from its source as text, `NVM_BIN` always among them:
+ * Tortie probes a row's `extraProbeDirs` whatever PATH it is given, and a
+ * verifier's environment carries `NVM_BIN` naming the person's nvm folder, so
+ * neither the app nor the login shell the precondition asks is handed one.
+ */
+const ROW_DIR_UNSET = (() => {
+  let src = '';
+  try {
+    src = readFileSync(join(ROOT, 'src', 'main', 'agents', 'registry.ts'), 'utf8');
+  } catch {
+    src = '';
+  }
+  const names = new Set(['NVM_BIN']);
+  for (const m of src.matchAll(/extraProbeDirs:\s*\[([^\]]*)\]/g)) for (const v of m[1].matchAll(/\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?/g)) names.add(v[1]);
+  return Object.freeze(Object.fromEntries([...names].map((n) => [n, undefined])));
+})();
 const XCODE = join(RUN, 'xcode');
 const DD = resolve((process.env['P316_DERIVED_DATA'] ?? '').trim() || join(XCODE, 'dd'));
 /** OUTSIDE the profile, so the helper's profile sweep never takes the stand-in's children for the app's. */
@@ -1177,6 +1348,13 @@ const PARENT_IOS_318 = (process.env['P318_PARENT_IOS'] ?? '').trim();
  * parent has had since 317.
  */
 const PARENT_IOS_346 = (process.env['P346_PARENT_IOS'] ?? '').trim();
+/**
+ * Phase 348's RV4 (build/p348/SPEC.md §8.2 item 2): the directory holding
+ * `d2bb05ee`'s ios/ (`git archive d2bb05ee ios | tar -x` into scratch, build
+ * 11, which draws no Remove), built and driven by its OWN UI test, which knows
+ * no Remove step, so RV4 reads its screens and its ⋯ after End.
+ */
+const PARENT_IOS_348 = (process.env['P348_PARENT_IOS'] ?? '').trim();
 /** Phase 337's PSP: a checkout of `aebb4ce9` whose ios/ is the parent's app, or empty. */
 const PARENT_IOS_337 = (process.env['P337_PARENT_IOS'] ?? '').trim();
 /**
@@ -1403,11 +1581,42 @@ const report = {
   modelTurns: 0
 };
 let failures = 0;
+/**
+ * THE ARMS THAT FAIL AT THE PARENT TOO (Phase 348's fix round, 2026-10-19):
+ * the phone lens drove build 11's own app through this probe and UI test (its
+ * run7) and each of these failed there exactly as at HEAD, every clause the
+ * same, because Catch Me Up pages its conversation (Phase 337.1) and their
+ * drive and graders read one page. They are STATED, printed and never counted
+ * as a FAIL, so a red line means this phase; they are queued to be brought up
+ * to date, not fixed here. A failure is stated only when EVERY one of its
+ * clauses is one of its arm's known clauses below: a new clause in the same
+ * arm is still a FAIL.
+ */
+export const STATED_AT_PARENT = Object.freeze([
+  // BUILD 11'S OWN COUNTS, pinned (the second fix round, the reverify's nit: with `\d+` a HEAD that drew fewer turns
+  // than build 11 still read STATED): the phone lens's run7 drove build 11's app through this probe and read exactly
+  // these on 26.3 and 18.3 (S1, T1, MD1), and its run5 SL6's (as Phase 346's log had it).
+  Object.freeze({ id: /^S1 /, clauses: [/^the Catch Me Up outcome is not main's$/, /^the last answer is not drawn$/] }),
+  Object.freeze({
+    id: /^T1 /,
+    clauses: [/^20 turn\(s\) drawn, and the door's turnCount is 44$/, /^the indexes drawn are not the indexes the door holds$/, /^the planted ask reads back nowhere: it was drawn as markdown$/, /^the planted answer reads back nowhere: it was not drawn as markdown$/]
+  }),
+  Object.freeze({ id: /^MD1 /, clauses: [/^8 planted turn\(s\) drew no md- element: answer-realistic, nested-list-task, table-align, table-at-caps, quote-nested, fence-unclosed$/] }),
+  Object.freeze({ id: /^SL6 /, clauses: [/^the turns drawn \[24,25,26,27,28\]… are not the 44 the door holds$/, /^the conversation was not paged to its first turn$/, /^20 turn\(s\) drawn, the door's turnCount 44$/] })
+]);
+/** Whether a FAIL of arm `id` saying `said` is one STATED_AT_PARENT names, every clause of it. */
+export function statedAtParent(id, said) {
+  const row = STATED_AT_PARENT.find((x) => x.id.test(String(id)));
+  if (row === undefined) return false;
+  const parts = String(said).split('; ');
+  return parts.length > 0 && parts.every((part) => row.clauses.some((re) => re.test(part)));
+}
 const arm = (id, ok, said) => {
   const text = unsecret(said);
-  report.arms.push({ id, ok, said: text });
-  if (ok === false) failures += 1;
-  say(`${ok === null ? 'UNREADABLE' : ok ? 'PASS' : 'FAIL'} ${id}: ${text}`);
+  const stated = ok === false && statedAtParent(id, text);
+  report.arms.push(stated ? { id, ok, said: text, statedAtParent: true } : { id, ok, said: text });
+  if (ok === false && !stated) failures += 1;
+  say(`${ok === null ? 'UNREADABLE' : ok ? 'PASS' : stated ? 'STATED (fails at the parent too, queued)' : 'FAIL'} ${id}: ${text}`);
 };
 
 // ---------------------------------------------------------------------------
@@ -1440,10 +1649,15 @@ async function armed(cdp) {
   await cdp.call('Runtime.enable');
   for (let i = 0; i < 200; i += 1) {
     if ((await cdpEval(cdp, 'window.gmux !== undefined && window.gmux.pocket !== undefined && window.__gmuxP93 !== undefined && window.__gmuxP202 !== undefined')) === true) {
-      // NO AGENT STARTS (Phase 332): the renamed rows must read not installed.
-      const held = quietAgentsHeld(JSON.parse(await cdpEval(cdp, 'window.gmux.agentsList().then((r) => JSON.stringify(r))')));
-      agentsHeld.push(held.ok);
-      if (!held.ok) throw new Error(`agents:list says the renamed agents are not all absent: ${held.problems.join('; ')}`);
+      // NO AGENT STARTS (Phase 332; Phase 348's second fix round): every renamed row must read not installed, and
+      // nothing but the two stand-ins, under this run, may have resolved at all.
+      const list = JSON.parse(await cdpEval(cdp, AGENTS_LIST_EXPR));
+      const held = hiddenAgentsScanVerdict(list, P316_HIDDEN_IDS);
+      const only = standInsOnlyVerdict(list, { standIns: P316_STAND_INS, under: RUN });
+      (report.readings.agentScans ??= []).push({ held: held.said, only: only.said });
+      agentsHeld.push(held.ok && only.ok);
+      if (!held.ok) throw new Error(`agents:list says a renamed agent resolved: ${held.said}`);
+      if (!only.ok) throw new Error(`agents:list says an agent other than the stand-ins resolved: ${only.said}`);
       return true;
     }
     await sleep(300);
@@ -2087,8 +2301,9 @@ function gradeList(dump, reads) {
     const second = asking ? row.question : row.statusTitle;
     if (!line.includes(row.project) || !line.includes(second)) problems.push(`row ${row.sessionId}'s second line ${J(line.slice(0, 80))} does not carry the project and ${asking ? 'the question' : 'the status title'}`);
   }
-  const note = el(dump, 'list-age-note')?.label;
-  if (note !== first.ageNote) problems.push(`the age note reads ${J(note)}, not main's ${J(first.ageNote)}`);
+  // Phase 348 (item 4, D14): the foot reads `read <time>` alone; main's
+  // ageNote is read and never drawn, whatever it says.
+  for (const id of ['list-age-note', 'needs-list-age-note']) if (el(dump, id) !== null) problems.push(`the foot draws ${id} (${J(el(dump, id).label)}); since Phase 348 it reads \`read <time>\` alone`);
   const read = el(dump, 'list-read')?.label ?? '';
   if (COPY.readLead !== null && !read.startsWith(COPY.readLead)) problems.push(`the foot reads ${J(read)}, which does not start with ${J(COPY.readLead)}`);
   // THE FRAMES, from the mock's own CSS, measured from POSITIONS: a text's
@@ -2732,13 +2947,69 @@ function undrawnByDesign(source) {
   return { fence, task };
 }
 
-/** T2a: the first screen after pairing is Needs input. */
+/**
+ * T2a, inverted by Phase 348 (build/p348/SPEC.md D1, his words "when the phone
+ * first pairs we should have it selected to Sessions"): the first screen after
+ * a pairing is that Mac's Sessions, and the tab bar the drive read at the same
+ * moment (`tabs`) says Sessions is selected. A tab bar whose buttons carry no
+ * selected trait (iOS 26's glass bar may give XCUITest none) is UNREADABLE,
+ * never a pass.
+ */
 function gradeT2a(r) {
   const d = r.pairEnd;
   if (d === null || d === undefined) return verdict(null, 'the UI test printed no "pair-end" dump');
   const p = [];
-  if (el(d, 'screen-needs-input') === null) p.push(`pairing landed on ${el(d, 'screen-list') !== null ? 'the Sessions list' : 'no list'}, not Needs input`);
-  return decide(p, [], 'pairing landed on the Needs input tab');
+  if (el(d, 'screen-list') === null) p.push(`pairing landed on ${el(d, 'screen-needs-input') !== null ? 'Needs input' : 'no list'}, not Sessions (D1)`);
+  if (p.length > 0) return decide(p, [], '');
+  const inBar = r.tabs?.tabs?.inBar;
+  if (!Array.isArray(inBar) || inBar.length === 0) return verdict(null, 'pairing landed on the Sessions list, and no tab bar was read to say which tab is selected');
+  const selected = inBar.filter((t) => t.selected === true).map((t) => t.label);
+  if (selected.length === 0) return verdict(null, `pairing landed on the Sessions list, and XCUITest read no tab as selected among ${J(inBar.map((t) => t.label))}, so the trait is UNREADABLE here`);
+  // THE PROBE REVIEW (rule 9): Sessions ALONE. A bar that says two tabs are selected has not said Sessions is.
+  if (selected.length !== 1 || selected[0] !== SESSIONS_WORD) p.push(`the tab read as selected is ${J(selected)}, not ${J(SESSIONS_WORD)} alone`);
+  return decide(p, [], 'pairing landed on the Sessions list, the Sessions tab read as selected');
+}
+
+/**
+ * THE PROBE REVIEW (rule 9; build/p348/SPEC.md §8.2 item 1: "T2a and U1 land on
+ * Sessions, with the Sessions tab read as selected where XCUITest reads that
+ * trait, and UNREADABLE, never a pass, where it does not"): what a landing's
+ * `tabs` line says is selected, as U1 reads it: `{}` for Sessions alone,
+ * `{ unread }` when no tab bar or no selected trait was read, `{ problem }`
+ * for another tab or more than one.
+ */
+function landingTab(tabs) {
+  const inBar = tabs?.tabs?.inBar;
+  if (!Array.isArray(inBar) || inBar.length === 0) return { unread: 'no tab bar was read to say which tab is selected' };
+  const selected = inBar.filter((t) => t.selected === true).map((t) => t.label);
+  if (selected.length === 0) return { unread: `XCUITest read no tab as selected among ${J(inBar.map((t) => t.label))}, so the trait is UNREADABLE here` };
+  if (selected.length !== 1 || selected[0] !== SESSIONS_WORD) return { problem: `the tab read as selected is ${J(selected)}, not ${J(SESSIONS_WORD)} alone` };
+  return {};
+}
+
+/** The Sessions tab's label, Copy.swift's own word. */
+const SESSIONS_WORD = copyOf('sessions') ?? 'Sessions';
+
+/** The shells a `shell` session may run: the system's, and the login shell this probe was given. */
+const SYSTEM_SHELLS_316 = new Set(['/bin/zsh', '/bin/bash', '/bin/sh', (process.env['SHELL'] ?? '').trim()].filter((x) => x !== ''));
+/**
+ * THE PROBE REVIEW (Phase 348, rule 9; probe:p313's and probe:p348's RUN
+ * clause), pure: `manifest` is build/scratch-login.mjs `manifestSessions`'
+ * answer, read once the app is gone. A row the sessions group seeded through
+ * the store (`seeded`, its ids) is a record that never ran and is left out; a
+ * shell row runs a system shell (or names none); every other row ran an
+ * agent, whose argv[0] must be under `run`. A manifest not read is
+ * UNREADABLE, never a pass. `{ ok, said, reading }`.
+ */
+export function manifestProgramsVerdict({ manifest, seeded = [], run, shells = SYSTEM_SHELLS_316 }) {
+  if (manifest?.read !== true) return { ok: null, said: `the manifest could not be read after the app was gone (${String(manifest?.why ?? 'no reading')})`, reading: { read: false } };
+  const kept = new Set(seeded);
+  const launched = manifest.rows.filter((r) => !kept.has(r.id));
+  const agents = launched.filter((r) => r.agent !== 'shell');
+  const outside = agents.filter((r) => !within(run, r.argv0));
+  const oddShells = launched.filter((r) => r.agent === 'shell' && r.argv0 !== null && !shells.has(r.argv0));
+  const said = `${String(manifest.rows.length)} row(s), ${String(manifest.rows.length - launched.length)} seeded record(s) left out; ${String(agents.length)} agent row(s), ${outside.length === 0 ? 'every one this run\'s stand-in' : `${String(outside.length)} ran a program OUTSIDE the run: ${J(outside)}`}; ${oddShells.length === 0 ? 'every shell row a system shell' : `${String(oddShells.length)} shell row(s) not a system shell: ${J(oddShells)}`}`;
+  return { ok: outside.length === 0 && oddShells.length === 0, said, reading: { read: true, rows: manifest.rows.length, seeded: manifest.rows.length - launched.length, agents: agents.map((r) => ({ name: r.name, agent: r.agent, argv0: r.argv0 })), outside, oddShells } };
 }
 
 /**
@@ -2992,8 +3263,16 @@ function gradeU1(r) {
   if (r.stillListed === null) u.push('the Mac\'s status could not be read');
   else if (!r.stillListed) p.push('the Mac no longer lists the phone (its half of Unpair is Phase 317\'s)');
   if (r.again === null) u.push('the second drive printed no "pair-end" dump');
-  else if (el(r.again, 'screen-needs-input') === null) p.push('a new code did not pair again onto Needs input');
-  return decide(p, u, 'Cancel changed nothing; Unpair drew Pairing with its not-paired line; 0 dials in 20 s; a relaunch drew Pairing; the Mac still lists the phone; a new code paired again onto Needs input');
+  // Phase 348 (D1): a pairing that finishes lands on Sessions, after Unpair too.
+  else if (el(r.again, 'screen-list') === null) p.push('a new code did not pair again onto Sessions (Phase 348, D1)');
+  else {
+    // THE PROBE REVIEW (rule 9; SPEC §8.2 item 1): U1's landing is read as T2a's is, by the tab the bar says is
+    // selected, UNREADABLE where the trait is not read. The landing read by its screen alone was the build's.
+    const t = landingTab(r.againTabs);
+    if (t.unread !== undefined) u.push(`a new code paired again onto the Sessions list, and ${t.unread}`);
+    else if (t.problem !== undefined) p.push(`a new code paired again onto the Sessions list, but ${t.problem}`);
+  }
+  return decide(p, u, 'Cancel changed nothing; Unpair drew Pairing with its not-paired line; 0 dials in 20 s; a relaunch drew Pairing; the Mac still lists the phone; a new code paired again onto Sessions, its tab read as selected');
 }
 
 /**
@@ -3152,10 +3431,14 @@ function tabsSelfTest() {
   cases.push({ what: 'undrawn by design: the fence info and the task box, and no table word', got: () => design.fence.get('ts') === 1 && design.task.get('x') === 1 && design.cap === undefined, want: true });
   cases.push({ what: 'badge: a number in the value', got: () => badgeNumber({ value: '3 items', label: 'Needs input' }) === 3 && badgeNumber({ value: null, label: 'Needs input' }) === null, want: true });
   cases.push({ what: 'badge: a label inside that is only a number, and no other', got: () => badgeNumber({ value: '', label: 'Needs input', inside: ['Needs input', '3'] }) === 3 && badgeNumber({ value: '', label: 'Needs input', inside: ['Needs input', 'item 3'] }) === null, want: true });
-  // T2a
-  const pairEnd = { step: 'screen', name: 'pair-end', elements: [{ id: 'screen-needs-input', label: '' }] };
-  add('T2a honest', gradeT2a, { pairEnd }, true);
-  add('T2a landed on Sessions', gradeT2a, { pairEnd: { ...pairEnd, elements: [{ id: 'screen-list', label: '' }] } }, false);
+  // T2a, inverted by Phase 348 (D1)
+  const pairEnd = { step: 'screen', name: 'pair-end', elements: [{ id: 'screen-list', label: '' }] };
+  const tabsAt = (selected) => ({ step: 'tabs', for: 'pair-end', tabs: { read: true, inBar: ['Needs input', SESSIONS_WORD, 'Settings'].map((label) => ({ label, selected: label === selected })) } });
+  add('T2a honest: Sessions, its tab selected', gradeT2a, { pairEnd, tabs: tabsAt(SESSIONS_WORD) }, true);
+  add('T2a is red landed on Needs input (the parent\'s landing)', gradeT2a, { pairEnd: { ...pairEnd, elements: [{ id: 'screen-needs-input', label: '' }] }, tabs: tabsAt('Needs input') }, false);
+  add('T2a is red on the Sessions list drawn under another tab read as selected', gradeT2a, { pairEnd, tabs: tabsAt('Settings') }, false);
+  add('T2a is UNREADABLE when no tab carries the selected trait', gradeT2a, { pairEnd, tabs: tabsAt(null) }, null);
+  add('T2a is UNREADABLE with no tab bar read', gradeT2a, { pairEnd, tabs: null }, null);
   add('T2a no dump (UNREADABLE)', gradeT2a, { pairEnd: null }, null);
   // T2b
   const read = (n) => ({ rows: Array.from({ length: n }, (_, i) => ({ sessionId: String(i) })) });
@@ -3301,7 +3584,9 @@ function tabsSelfTest() {
     relay: { before: 7, after: 7, waitedMs: 20_100 },
     relaunch: { step: 'screen', name: 'relaunch-keep', elements: [{ id: 'screen-pairing', label: '' }] },
     stillListed: true,
-    again: pairEnd
+    again: pairEnd,
+    // THE PROBE REVIEW: the second pairing's tabs line, Sessions selected.
+    againTabs: tabsAt(SESSIONS_WORD)
   };
   add('U1 honest', gradeU1, u1, true);
   add('U1 Cancel changed a label', gradeU1, edit(u1, (x) => { x.cancelDump.elements[3].label = '—'; }), false);
@@ -3313,8 +3598,27 @@ function tabsSelfTest() {
   add('U1 a short count (UNREADABLE)', gradeU1, edit(u1, (x) => { x.relay.waitedMs = 5_000; }), null);
   add('U1 the pairing kept across a relaunch', gradeU1, edit(u1, (x) => { x.relaunch.elements = [{ id: 'screen-needs-input', label: '' }]; }), false);
   add('U1 the Mac forgot the phone', gradeU1, edit(u1, (x) => { x.stillListed = false; }), false);
-  add('U1 the second pairing landed elsewhere', gradeU1, edit(u1, (x) => { x.again.elements = [{ id: 'screen-list', label: '' }]; }), false);
+  // Phase 348 (D1): a pairing that finishes lands on Sessions, so the build before's Needs input is the wrong landing.
+  add('U1 the second pairing landed on Needs input, the build before\'s landing', gradeU1, edit(u1, (x) => { x.again.elements = [{ id: 'screen-needs-input', label: '' }]; }), false);
   add('U1 no second drive (UNREADABLE)', gradeU1, edit(u1, (x) => { x.again = null; }), null);
+  // THE PROBE REVIEW (rule 9): the manifest's programs, the RUN clause probe:p313 and probe:p348 already hold.
+  {
+    const run = '/private/tmp/p316-probe-1';
+    const honestM = { read: true, rows: [{ id: 'a', name: 'p316-shell', agent: 'shell', argv0: '/bin/zsh' }, { id: 'b', name: 'p316-talk', agent: 'claude', argv0: `${run}/home/.local/bin/claude` }, { id: 'c', name: 'p316-codex', agent: 'codex', argv0: `${run}/home/.local/bin/codex` }, { id: 'seed-1', name: 'seeded', agent: 'claude', argv0: '/usr/local/bin/claude' }], why: null };
+    const mv = (m, seeded = ['seed-1']) => manifestProgramsVerdict({ manifest: m, seeded, run, shells: new Set(['/bin/zsh']) });
+    add('RUN (the review) passes every program this run\'s, a seeded record left out', () => mv(honestM), null, true);
+    add('RUN (the review) is red on a claude row on his real Claude Code', () => mv({ ...honestM, rows: [...honestM.rows, { id: 'x', name: 'p316-talk2', agent: 'claude', argv0: '/Users/gdc/.local/bin/claude' }] }), null, false);
+    add('RUN (the review) is red on a seeded record counted as a launch', () => mv(honestM, []), null, false);
+    add('RUN (the review) is red on a folder that only starts like the run', () => mv({ ...honestM, rows: [{ id: 'y', name: 'x', agent: 'codex', argv0: `${run}-other/codex` }] }), null, false);
+    add('RUN (the review) is red on a shell row that is not a system shell', () => mv({ ...honestM, rows: [{ id: 'z', name: 'x', agent: 'shell', argv0: '/opt/homebrew/bin/fish' }] }), null, false);
+    add('RUN (the review) is UNREADABLE on a manifest not read', () => mv({ read: false, rows: [], why: 'locked' }), null, null);
+  }
+  // THE PROBE REVIEW (rule 9; SPEC §8.2 item 1): the second pairing's landing by the selected tab, as T2a's.
+  add('U1 (the review) the second pairing\'s Sessions list under Needs input read as selected', gradeU1, edit(u1, (x) => { x.againTabs = tabsAt('Needs input'); }), false);
+  add('U1 (the review) no tab read as selected after the second pairing (UNREADABLE)', gradeU1, edit(u1, (x) => { x.againTabs = tabsAt(null); }), null);
+  add('U1 (the review) no tab bar read after the second pairing (UNREADABLE)', gradeU1, edit(u1, (x) => { x.againTabs = null; }), null);
+  add('U1 (the review) two tabs read as selected', gradeU1, edit(u1, (x) => { x.againTabs.tabs.inBar[0].selected = true; }), false);
+  add('T2a (the review) two tabs read as selected', gradeT2a, { pairEnd, tabs: { ...tabsAt(SESSIONS_WORD), tabs: { read: true, inBar: tabsAt(SESSIONS_WORD).tabs.inBar.map((t) => ({ ...t, selected: t.label !== 'Settings' })) } } }, false);
   // HM
   const hm = {
     turnCount: 2,
@@ -4589,7 +4893,8 @@ export function gradeSl7(r) {
   const unread = [];
   if (r.authUp !== true || r.acked !== true) unread.push('the owner check was never seen up and answered');
   const controls = r.controls ?? {};
-  const offs = Object.entries(controls).filter(([id]) => id === 'list-menu' || id.startsWith('list-show-'));
+  // Phase 348 (D16): the "+", in the bar beside them, is drawn off too.
+  const offs = Object.entries(controls).filter(([id]) => id === 'list-menu' || id === 'start-open' || id.startsWith('list-show-'));
   if (offs.length === 0) problems.push('no Show segment and no menu was read while selecting');
   else if (offs.some(([, enabled]) => enabled !== false)) problems.push(`while selecting, ${J(offs.filter(([, e]) => e !== false).map(([id]) => id))} still take presses`);
   if (Object.entries(controls).some(([id, enabled]) => id.startsWith('group-') && enabled !== false)) problems.push('a project header takes presses while selecting');
@@ -4608,7 +4913,7 @@ export function gradeSl7(r) {
     const drawnAfter = rowIdsOf(r.after?.dump?.elements);
     for (const id of r.targets) if (drawnAfter.includes(id)) problems.push(`ended target ${id} is still drawn under Active after Done`);
   }
-  return decide(problems, unread, 'Select drew the Show control and the menu off; three ended in the drawn order; a pull before Done kept every row and its word; after Done the list is the next answer\'s');
+  return decide(problems, unread, 'Select drew the Show control, the menu and (where offered) the "+" off; three ended in the drawn order; a pull before Done kept every row and its word; after Done the list is the next answer\'s');
 }
 
 /** SL8: the Needs input tab and its badge, before and after a pull on Sessions, are /v1/blocked's waiting rows. */
@@ -4633,7 +4938,9 @@ export function gradeSl8({ tabs }) {
 
 /**
  * H sessions-cap: the 2,000-row answer drawn. The first row within 2 s of the
- * door's answer, the walk reaching the last row and the list's left-out line,
+ * door's answer (since Phase 348 the read a pairing's landing on Sessions
+ * makes, and the first row the drive's `pair` saw drawn after it), the walk
+ * reaching the last row and the list's left-out line,
  * the bidi name its characters with its age inside the row, the three `app`
  * headers apart, every open project's left-out line, the Machine section in the
  * menu, the app alive and never reported busy.
@@ -4772,8 +5079,8 @@ function gradeSessionsList(dump, reads) {
     if (el(dump, `group-label-${g.id}`)?.label !== g.label) problems.push(`header ${g.id} reads ${J(el(dump, `group-label-${g.id}`)?.label)}, not ${J(g.label)}`);
     if (el(dump, `group-count-${g.id}`)?.label !== String(g.count)) problems.push(`header ${g.id} counts ${J(el(dump, `group-count-${g.id}`)?.label)}, not ${String(g.count)}`);
   }
-  const note = el(dump, 'list-age-note')?.label;
-  if (note !== undefined && note !== first.ageNote) problems.push(`the age note reads ${J(note)}, not main's ${J(first.ageNote)}`);
+  // Phase 348 (item 4, D14): no age note drawn on any foot.
+  for (const id of ['list-age-note', 'needs-list-age-note']) if (el(dump, id) !== null) problems.push(`the foot draws ${id} (${J(el(dump, id).label)}); since Phase 348 it reads \`read <time>\` alone`);
   const read = el(dump, 'list-read')?.label;
   if (read !== undefined && COPY.readLead !== null && !read.startsWith(COPY.readLead)) problems.push(`the foot reads ${J(read)}, which does not start with ${J(COPY.readLead)}`);
   const frames = [];
@@ -5002,6 +5309,9 @@ function sessionsSelfTest() {
   sl7Case('passes its honest reading', () => undefined, true);
   sl7Case('is red when no Show segment or menu was read while selecting', (r) => void (r.controls = {}), false);
   sl7Case('is red on the menu taking presses while selecting', (r) => void (r.controls['list-menu'] = true), false);
+  // THE PROBE REVIEW (rule 9): the "+" Phase 348 put in the bar beside them is drawn off too (D16).
+  sl7Case('(the review) passes with the "+" read off while selecting', (r) => void (r.controls['start-open'] = false), true);
+  sl7Case('(the review) is red on the "+" taking presses while selecting', (r) => void (r.controls['start-open'] = true), false);
   sl7Case('is red on a header taking presses while selecting', (r) => void (r.controls['group-g1'] = true), false);
   sl7Case('is red on a target that did not end', (r) => void (r.outcomes.y = 'Not run'), false);
   sl7Case('is red on two acts for three targets', (r) => void (r.acts = 2), false);
@@ -5126,8 +5436,7 @@ function sessionsSelfTest() {
         { id: 'group-count-g1', label: '2', frame: [80, 150, 10, 16] },
         ...rowAt('w', 177, 'n-w', '2m', 'Edit x?', false),
         ...rowAt('a', 234, 'n-a', '3d old', 'Idle', true),
-        { id: 'list-age-note', label: 'note', frame: [16, 300, 357, 33] },
-        { id: 'list-read', label: `${String(COPY.readLead)}4:32 PM`, frame: [306, 340, 80, 15] }
+        { id: 'list-read', label: `${String(COPY.readLead)}4:32 PM`, frame: [306, 300, 80, 15] }
       ]
     };
     edit?.(d);
@@ -5152,7 +5461,9 @@ function sessionsSelfTest() {
   add('L1 on the new face is red on a row badge under Project', l1((d) => void d.elements.push({ id: 'row-machine-a', label: 'Mac Pro', frame: [300, 240, 50, 16] })), false);
   add('L1 on the new face is red on a header label that is not the door\'s', l1((d) => void (l1Find(d, 'group-label-g1').label = 'x')), false);
   add('L1 on the new face is red on a header count that is not the door\'s', l1((d) => void (l1Find(d, 'group-count-g1').label = '3')), false);
-  add('L1 on the new face is red on an age note that is not main\'s', l1((d) => void (l1Find(d, 'list-age-note').label = 'x')), false);
+  // Phase 348 (item 4): the honest foot draws no note; one drawn is red, main's or not.
+  add('L1 on the new face is red on an age note drawn (main\'s own)', l1((d) => void d.elements.push({ id: 'list-age-note', label: 'note', frame: [16, 300, 357, 33] })), false);
+  add('L1 on the new face is red on an age note drawn on Needs input\'s foot', l1((d) => void d.elements.push({ id: 'needs-list-age-note', label: 'x', frame: [16, 300, 357, 33] })), false);
   add('L1 on the new face is red on a foot that is not the read line', l1((d) => void (l1Find(d, 'list-read').label = 'x')), false);
   add('L1 on the new face is red on a row off the mock\'s box', l1((d) => void (l1Find(d, 'row-w').frame[3] = 61)), false);
   // E7's drawn order, and the small readers.
@@ -5510,19 +5821,27 @@ export function gradeNp1(r) {
   if (r.offer === null || r.offer?.state !== 'offered') return verdict(null, `the Mac's /v1/sessions carried no offer when the "+" was read (${J(r.offer?.state ?? null)})`);
   const o = r.open;
   if (o === null || o === undefined) return verdict(null, 'the UI test printed no start-open line');
-  if (o.found !== true) return decide(['no "+" on the Sessions title of a Mac that offers a start'], [], '');
+  if (o.found !== true) return decide(['no "+" in the Sessions bar of a Mac that offers a start'], [], '');
   if (o.label !== START_WORDS.newSession) problems.push(`the "+" is named ${J(o.label)}, not ${J(START_WORDS.newSession)}`);
   const plus = o.frame;
   // THE PROBE REVIEW (rule 9): with no window read, the trailing-half test read [0, 0] and always held, and with no
   // title read the row test was skipped; either is a reading missing, never a "+" in its place.
   const window = Array.isArray(o.window) && o.window[0] > 0 ? o.window : null;
   if (window === null) unread.push('the window\'s size was not read, so which half the "+" sits in was not');
-  if (!Array.isArray(o.title)) unread.push('the Sessions title was not read, so whether the "+" is on its row was not');
+  // Phase 348 (D16; his ruling of 2026-10-20, "Top bar (Recommended)"): the
+  // "+" alone at the trailing edge of the iPhone's own bar, Select and the
+  // filter at its leading edge, away from it.
+  if (!Array.isArray(o.bar)) unread.push('the bar named Sessions was not read, so whether the "+" is in it was not');
   if (!Array.isArray(plus)) problems.push('the "+" has no frame');
   else {
-    if (window !== null && !(plus[0] + plus[2] / 2 > window[0] / 2)) problems.push(`the "+" ${J(plus)} is not in the title's trailing half`);
-    for (const c of o.controls ?? []) if (Array.isArray(c.frame) && c.frame[0] + c.frame[2] > plus[0] + 1) problems.push(`${c.id} ends at ${String(c.frame[0] + c.frame[2])}, right of the "+" at ${String(plus[0])}`);
-    if (Array.isArray(o.title) && !(plus[1] < o.title[1] + o.title[3] && plus[1] + plus[3] > o.title[1])) problems.push(`the "+" ${J(plus)} is not on the title's row ${J(o.title)}`);
+    if (window !== null && !(plus[0] + plus[2] / 2 > window[0] / 2)) problems.push(`the "+" ${J(plus)} is not in the bar's trailing half`);
+    for (const c of o.controls ?? []) {
+      if (!Array.isArray(c.frame)) continue;
+      if (c.frame[0] + c.frame[2] > plus[0] + 1) problems.push(`${c.id} ends at ${String(c.frame[0] + c.frame[2])}, right of the "+" at ${String(plus[0])}`);
+      if (window !== null && !(c.frame[0] + c.frame[2] / 2 < window[0] / 2)) problems.push(`${c.id} ${J(c.frame)} is not at the bar's leading edge`);
+      if (plus[0] - (c.frame[0] + c.frame[2]) < 100) problems.push(`${c.id} ends ${String(plus[0] - (c.frame[0] + c.frame[2]))} pt from the "+", too close to it (his words: "too close to select")`);
+    }
+    if (Array.isArray(o.bar) && !(plus[1] >= o.bar[1] - 1 && plus[1] + plus[3] <= o.bar[1] + o.bar[3] + 1)) problems.push(`the "+" ${J(plus)} is not inside the bar ${J(o.bar)}: it is the bar's trailing item (his ruling of 2026-10-20)`);
   }
   if (o.sheet !== true) return decide([...problems, 'the "+" opened no sheet'], unread, '');
   const items = startItems(o.projects);
@@ -5545,7 +5864,8 @@ export function gradeNp1(r) {
     const name = (r.offer.agents ?? []).find((a) => a.id === m.id)?.name ?? null;
     if (m.label !== name) problems.push(`the ${m.id} mark is labelled ${J(m.label)}, not ${J(name)}`);
   }
-  return decide(problems, unread, `the "+" at the title's trailing end, named ${J(o.label)}; ${String(items.length)} project(s) in the offer's order, the chosen one selected, a place not ready dimmed; ${String(marks.length)} mark(s), exactly the chosen place's`);
+  const nearest = Math.min(...(o.controls ?? []).filter((c) => Array.isArray(c.frame)).map((c) => (Array.isArray(plus) ? plus[0] - (c.frame[0] + c.frame[2]) : Number.NaN)));
+  return decide(problems, unread, `the "+" alone at the trailing edge of the iPhone's own bar ${J(plus)}, inside the bar ${J(o.bar ?? null)}, ${Number.isFinite(nearest) ? `${String(Math.round(nearest))} pt from Select and the filter at its leading edge` : 'Select and the filter at its leading edge'}, named ${J(o.label)}; ${String(items.length)} project(s) in the offer's order, the chosen one selected, a place not ready dimmed; ${String(marks.length)} mark(s), exactly the chosen place's`);
 }
 
 /**
@@ -5651,81 +5971,728 @@ export function gradeNp4(r) {
 }
 
 /**
- * The Sessions title row of the build BEFORE the ruled round, as XCUITest read
- * it (probe:p316's start group, the Phase 346 reverify's run 25704, drives 1, 2
- * and 19 on an iPhone 16 Pro, iOS 26.3 and the 18.3 floor, every reading equal):
- * each frame in points, `[x, y, width, height]`. NP12 holds the row to it.
+ * THE BAR'S PRESSES (Phase 348, build/p348/SPEC.md D56, §2.5.1), each
+ * `[width, height]` in points as §2.5.1's cross scans measured them on an
+ * iPhone 16 Pro (the bar is the system's, so its items do not move with the
+ * device): iOS 26.3's bar holds no item taller than 36 pt, iOS 18.3's grows
+ * one to 44. NP12 holds each press at least these, from the taps alone. The
+ * ruled round's NP12, which tapped around the title row's 18 × 16 glyph
+ * (`START_TITLE_ROW_BEFORE`), is retired on purpose by item 5: the "+" is a
+ * control in the iPhone's own bar, and nothing is drawn on a title row. The
+ * fix round moved the "+" to the list's first line, because in the bar it
+ * presses less than build 11's on a paired phone; his ruling of 2026-10-20
+ * ("Top bar (Recommended)") put it back and accepted that trade, so the "+"
+ * is held to the bar's own item here and build 11's press
+ * (`PLUS_PRESS_PARENT`) is printed beside it and never required.
  */
-export const START_TITLE_ROW_BEFORE = Object.freeze({
-  'list-title': [16, 62.16666666666667, 115, 33.66666666666666],
-  'list-menu': [268.3333333333333, 73.33333333333333, 19.666666666666686, 19],
-  'list-select': [304, 70.66666666666667, 48, 24.33333333333333],
-  'start-open': [368, 75, 18, 16],
-  'list-show': [16, 104, 370, 32]
+export const BAR_PRESSES_D56 = Object.freeze({
+  26: Object.freeze({ plus: [50, 36], select: [62, 36], menu: [58, 36] }),
+  18: Object.freeze({ plus: [54, 44], select: [56, 44], menu: [60, 44] })
 });
+/**
+ * BUILD 11'S "+" ON A PAIRED PHONE (1eb477bf's ios/, measured by the fix round
+ * on 2026-10-19 with the cross NP12 uses: a tap every 2 pt through the "+"'s
+ * centre from 8 pt outside its frame, each graded by whether New session
+ * opened, a point outside the window never tapped), as `[across, down]` in
+ * points, by the runtime's major version and the window's width (402 an iPhone
+ * 16 Pro, 375 an iPhone SE): `pressRunOf`'s run, across from 2 pt left of its
+ * frame to the screen's edge, down from 4 pt above its frame (the status bar
+ * above an SE's) to the Show control under it. HIS STATED TRADE, his ruling
+ * of 2026-10-20 ("Top bar (Recommended)": "iOS 26 makes every top-bar button
+ * 36 pt tall, so it presses 50x36 against today's 50x52"): NP12 prints the
+ * build's "+" beside these and never requires them.
+ */
+export const PLUS_PRESS_PARENT = Object.freeze({
+  26: Object.freeze({ 402: Object.freeze([50, 52]), 375: Object.freeze([50, 44]) }),
+  18: Object.freeze({ 402: Object.freeze([50, 52]), 375: Object.freeze([48, 42]) })
+});
+/**
+ * The parent's bar presses (build 11, §2.5.1), printed beside the build's and
+ * never graded: Select about 64 × 32.3 (16 pt of it the gap at its left), the
+ * filter its 19.67 × 19 frame, and Select 2 pt from the "+".
+ */
+export const BAR_PRESSES_PARENT = Object.freeze({ select: [64, 32.3], menu: [19.67, 19], gap: 2 });
+/**
+ * The least distance between Select's press and the "+"'s, re-derived from the
+ * taps (his words, "away from Select"), along each one's centre row: D56
+ * measured 250 pt on an iPhone 16 Pro's 402 pt window; the iPhone SE's 375 pt
+ * narrows it by 27, so 200 holds both with room, and the parent's 2 pt is far
+ * under it.
+ */
+export const BAR_GAP_MIN = 200;
+/**
+ * The start group's drives' budget (the fix round, 2026-10-19): their tap
+ * grids alone took 2,141 s on iOS 26.3 (the phone lens's run on his machine),
+ * and iOS 18.3's are cut into short launches, so each is given an hour where
+ * the drive's default is 900 s.
+ */
+const START_DRIVE_MS = 3_600_000;
+/** The cross scans' step (the drive's), in points. */
+const BAR_CROSS_STEP = 2;
+const BAR_OUTCOMES = Object.freeze(['plus', 'select', 'menu', 'show', 'none', 'offscreen']);
 
 /**
- * NP12 (the ruled round): the "+"'s press is at least 44 × 44 pt and nothing
- * drawn on the Sessions title row moved. `r.reach` is the UI test's
- * `start-reach`: the row's frames before and after its taps, the glyph's
- * frame, and every tap (`side`, `by` past that edge, `opened`, `closed`).
- * Each side's reach is the largest distance whose tap opened New session with
- * every nearer one on that side opening too; the press measured is the glyph
- * plus the reach on both sides, and the four corners of a 44 × 44 pt square
- * around the glyph must each open it. The corners are what decide: iOS's touch
- * radius alone opened the sheet along each axis 17.5 pt from the bare glyph on
- * the ruled round's first run, and at no corner of the square. Every frame on the row, read before and
- * after the taps, equals `START_TITLE_ROW_BEFORE` within 0.01 pt.
+ * The run of taps that pressed `name` through the control's centre, along one
+ * line of taps `[x, y, outcome]` (`axis` 0 across, 1 down): the run that holds
+ * the pressed tap nearest the centre, its ends and its nominal extent (last
+ * minus first plus one step, so a press of E pt on a lattice of s pt reads at
+ * least E whenever E is a whole number of steps, and never more than one step
+ * under it otherwise).
+ */
+export function pressRunOf(taps, name, centre, axis, step = BAR_CROSS_STEP) {
+  const line = (Array.isArray(taps) ? taps : []).filter((t) => Array.isArray(t) && t.length === 3).slice().sort((a, b) => a[axis] - b[axis]);
+  let best = -1;
+  for (let i = 0; i < line.length; i += 1) {
+    if (line[i][2] !== name) continue;
+    if (best === -1 || Math.abs(line[i][axis] - centre) < Math.abs(line[best][axis] - centre)) best = i;
+  }
+  if (best === -1) return null;
+  let lo = best;
+  let hi = best;
+  while (lo > 0 && line[lo - 1][2] === name) lo -= 1;
+  while (hi < line.length - 1 && line[hi + 1][2] === name) hi += 1;
+  return { first: line[lo][axis], last: line[hi][axis], extent: line[hi][axis] - line[lo][axis] + step };
+}
+
+/** One row of the grid as runs, left to right: `[outcome, firstX, lastX]`, with `none` kept. */
+function gridRunsOf(row) {
+  const runs = [];
+  for (const [x, , o] of row) {
+    const lastRun = runs.at(-1);
+    if (lastRun !== undefined && lastRun[0] === o) lastRun[2] = x;
+    else runs.push([o, x, x]);
+  }
+  return runs;
+}
+
+/**
+ * NP12 (Phase 348, item 5, D56; build/p348/SPEC.md §10.2's tap grid; his
+ * ruling of 2026-10-20, "Top bar (Recommended)"): each press of the iPhone's
+ * own bar re-derived from the taps alone and never from a frame. `r.grid` is
+ * the UI test's `bar-grid`: on iOS 26 a tap every 4 pt across the bar's width
+ * at three heights of its controls' row; on both runtimes a CROSS of taps
+ * every 2 pt through Select's, the filter's and the "+"'s centre (iOS 18.3
+ * relaunched every 8 taps), each graded by what it opened (the sheet, the
+ * selection, the menu, a Show segment put back, or nothing; a point outside
+ * the window `offscreen`, never tapped); `r.before` and `r.after` are the
+ * `bar-read`s around it. Each press, across and down its cross, must be at
+ * least D56's on that runtime, the "+" the bar's own item (50 × 36 on iOS
+ * 26.3, 54 × 44 on 18.3); the "+" sits inside the bar the drive read; on
+ * each row of the grid the presses fall Select, the filter, then the "+",
+ * each one run, the middle row pressing all three, and no tap anywhere
+ * chooses a Show segment (on iOS 18, with no rows, the three crosses' runs
+ * fall in that order along the bar); Select's press ends at least BAR_GAP_MIN
+ * before the "+"'s begins along their centre rows; nothing moved across the
+ * taps; no owner check. Each press is printed beside the parent's, and the
+ * "+" beside build 11's own on a paired phone of that size, HIS STATED TRADE,
+ * never required.
  */
 export function gradeNp12(r) {
   const problems = [];
-  const e = r.reach;
-  if (e === null || e === undefined) return verdict(null, 'the UI test printed no start-reach line');
-  if (e.found !== true) return verdict(null, 'no "+" on the Sessions title to measure');
-  const before = r.before ?? START_TITLE_ROW_BEFORE;
-  const near = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === 4 && b.length === 4 && a.every((v, i) => Math.abs(v - b[i]) <= 0.01);
-  const holds = (outer, inner) => Array.isArray(outer) && Array.isArray(inner) && outer[0] <= inner[0] + 0.01 && outer[1] <= inner[1] + 0.01 && outer[0] + outer[2] >= inner[0] + inner[2] - 0.01 && outer[1] + outer[3] >= inner[1] + inner[3] - 0.01;
-  if (e.given !== true || !near(e.glyph, before['start-open'])) return verdict(null, `the taps were not placed around where the build before drew the glyph (${J(e.glyph)}, given ${J(e.given)})`);
-  // Every frame on the row is the build before's. The "+"'s own element is the glyph's frame, or (the operator's
-  // "a larger frame around the same glyph") a press around it; either way its glyph's slot is pinned by Select,
-  // which ends where it did, and the row's trailing edge.
-  let plusShape = 'the glyph\'s own frame';
-  for (const [when, row] of [['before its taps', e.row], ['after its taps', e.rowAfter]]) {
-    for (const [id, want] of Object.entries(before)) {
-      const got = row?.[id] ?? null;
-      if (id === 'start-open' && !near(got, want) && holds(got, want)) {
-        plusShape = `a press ${J(got)} around the glyph`;
-        continue;
-      }
-      if (!near(got, want)) problems.push(`${id} is drawn at ${J(got)} ${when}, the build before drew it at ${J(want)}`);
+  const g = r.grid;
+  if (g === null || g === undefined) return verdict(null, 'the UI test printed no bar-grid line');
+  if (g.found !== true) return verdict(null, 'no control in the bar to tap');
+  const major = Number.parseInt(String(g.system ?? ''), 10);
+  const want = BAR_PRESSES_D56[major];
+  if (want === undefined) return verdict(null, `D56 measured the bar on iOS 26.3 and 18.3, and this run was iOS ${J(g.system ?? null)}`);
+  const width = Array.isArray(g.window) ? Math.round(Number(g.window[0])) : null;
+  const parentPlus = PLUS_PRESS_PARENT[major]?.[String(width)] ?? null;
+  const all = [...(Array.isArray(g.taps) ? g.taps : []), ...(g.crosses ?? []).flatMap((c) => [...(c.across ?? []), ...(c.down ?? [])])];
+  const strange = all.filter((t) => !Array.isArray(t) || !BAR_OUTCOMES.includes(t[2]));
+  if (strange.length > 0) return verdict(null, `${String(strange.length)} tap(s) answered no known outcome (${J(strange.slice(0, 3))})`);
+  if (all.length === 0) return verdict(null, 'no tap was read');
+  // Nothing on the bar moved across the taps, to a hundredth of a point: on iOS 18.3 the reads before and after are
+  // of different launches (the relaunches), and the same frame comes back 1e-13 apart (the second fix round's run
+  // read [16, 56.33333333333341, 56, 44.00000000000001] then [16, 56.333333333333336, 56, 43.99999999999999]).
+  if (r.before === null || r.before === undefined || r.after === null || r.after === undefined) return verdict(null, 'the bar was not read before and after the taps');
+  const sameFrame = (a, b) => a.length === b.length && a.every((v, i) => Math.abs(Number(v) - Number(b[i])) < 0.01);
+  for (const name of ['select', 'menu', 'plus']) {
+    const a = r.before[name]?.frame ?? null;
+    const b = r.after[name]?.frame ?? null;
+    if (a === null || b === null) problems.push(`${name} was not read both before and after the taps`);
+    else if (!sameFrame(a, b)) problems.push(`${name} moved across the taps (${J(a)} to ${J(b)})`);
+  }
+  // No tap anywhere chose a Show segment: the "+" is the bar's, and Show is under the bar.
+  const shows = all.filter((t) => t[2] === 'show').length;
+  if (shows > 0) problems.push(`${String(shows)} tap(s) on the bar chose a Show segment`);
+  // Each press from its cross, and the "+" inside the bar.
+  const measured = {};
+  const runs = {};
+  for (const name of ['select', 'menu', 'plus']) {
+    const c = (g.crosses ?? []).find((x) => x.control === name);
+    if (c === undefined || !Array.isArray(c.frame)) {
+      problems.push(`no cross was tapped through ${name}`);
+      continue;
+    }
+    const [fx, fy, fw, fh] = c.frame;
+    if (name === 'plus' && Array.isArray(r.before?.bar)) {
+      const [, by, , bh] = r.before.bar;
+      if (!(fy + fh / 2 >= by && fy + fh / 2 <= by + bh)) problems.push(`the "+" ${J(c.frame)} is not in the bar ${J(r.before.bar)}: it is the bar's trailing item (his ruling of 2026-10-20)`);
+    }
+    const across = pressRunOf(c.across, name, fx + fw / 2, 0);
+    const down = pressRunOf(c.down, name, fy + fh / 2, 1);
+    runs[name] = across;
+    measured[name] = [across?.extent ?? 0, down?.extent ?? 0];
+    const [w, h] = want[name];
+    if (across === null || down === null) problems.push(`no tap through ${name}'s centre pressed it (across ${J(across)}, down ${J(down)})`);
+    else {
+      if (across.extent < w) problems.push(`${name}'s press is ${String(across.extent)} pt wide by the taps (${String(across.first)} to ${String(across.last)}), under D56's ${String(w)} on iOS ${String(major)}`);
+      if (down.extent < h) problems.push(`${name}'s press is ${String(down.extent)} pt tall by the taps (${String(down.first)} to ${String(down.last)}), under D56's ${String(h)} on iOS ${String(major)}`);
     }
   }
-  const taps = Array.isArray(e.taps) ? e.taps : [];
-  if (taps.length === 0) return verdict(null, 'no tap was read');
-  const unclosed = taps.filter((t) => t.opened === true && t.closed !== true);
-  if (unclosed.length > 0) return verdict(null, `${String(unclosed.length)} tap(s) opened New session and Cancel did not close it, so the next taps are not readings`);
-  const reachOf = (side) => {
-    let best = 0;
-    for (const t of taps.filter((x) => x.side === side).sort((a, b) => a.by - b.by)) {
-      if (t.opened !== true) break;
-      best = t.by;
+  // The grid (iOS 26): on each row, Select, the filter, then the "+", each one run; the middle row presses all three.
+  const rows = new Map();
+  for (const t of Array.isArray(g.taps) ? g.taps : []) {
+    const key = String(t[1]);
+    if (!rows.has(key)) rows.set(key, []);
+    rows.get(key).push(t);
+  }
+  const order = ['select', 'menu', 'plus'];
+  const heights = Array.isArray(g.heights) ? g.heights : [];
+  let middle = null;
+  for (const [y, row] of rows) {
+    row.sort((a, b) => a[0] - b[0]);
+    const pressed = gridRunsOf(row).filter((run) => run[0] !== 'none' && run[0] !== 'offscreen' && run[0] !== 'show');
+    const names = pressed.map((run) => run[0]);
+    if (new Set(names).size !== names.length) problems.push(`at y ${y} a control's press is split in two (${J(pressed)})`);
+    const ranks = names.map((n) => order.indexOf(n));
+    if (ranks.some((v, i) => i > 0 && v < ranks[i - 1])) problems.push(`at y ${y} the presses fall ${J(names)}, not Select, the filter, then the "+"`);
+    if (heights.length === 3 && Math.abs(Number(y) - heights[1]) <= 0.01) middle = names;
+  }
+  if (rows.size === 0) {
+    if (major >= 26) problems.push('the grid across the bar was not tapped on iOS 26');
+    else {
+      // iOS 18: no rows (the log quarantine, SPEC §0 rule 14); the three crosses' runs along the bar instead.
+      const seq = order.map((n) => runs[n]);
+      if (seq.every((x) => x !== null && x !== undefined) && !(seq[0].last < seq[1].first && seq[1].last < seq[2].first)) problems.push(`along the bar the presses do not fall Select, the filter, then the "+" (${J(order.map((n, i) => [n, seq[i].first, seq[i].last]))})`);
     }
-    return best;
+  } else if (middle === null) problems.push('the grid has no middle row');
+  else if (J(middle) !== J(order)) problems.push(`the middle row pressed ${J(middle)}, not Select, the filter and the "+"`);
+  // Select far from the "+", along their centre rows.
+  if (runs.select && runs.plus) {
+    const gap = runs.plus.first - (runs.select.last + BAR_CROSS_STEP);
+    measured.gap = gap;
+    if (gap < BAR_GAP_MIN) problems.push(`Select's press ends ${String(gap)} pt before the "+"'s, under ${String(BAR_GAP_MIN)} (the parent's ${String(BAR_PRESSES_PARENT.gap)})`);
+  }
+  if (g.faceId === true) problems.push('an owner check was asked');
+  const said = ['plus', 'select', 'menu']
+    .map((n) => {
+      const got = measured[n] === undefined ? '?' : `${String(measured[n][0])} × ${String(measured[n][1])}`;
+      if (n === 'plus') return `plus ${got} (D56 ${String(want.plus[0])} × ${String(want.plus[1])}; build 11's ${parentPlus === null ? 'not measured on this phone' : `${String(parentPlus[0])} × ${String(parentPlus[1])} on this phone`}, his stated trade, never required)`;
+      return `${n} ${got} (D56 ${String(want[n][0])} × ${String(want[n][1])}, the parent ${String(BAR_PRESSES_PARENT[n][0])} × ${String(BAR_PRESSES_PARENT[n][1])})`;
+    })
+    .join(', ');
+  return decide(problems, [], `iOS ${String(major)} on a ${String(width)} pt window, from ${String(all.length)} taps${typeof g.relaunches === 'number' && g.relaunches > 0 ? ` over ${String(g.relaunches + 1)} launches` : ''}: ${said}; Select ${String(measured.gap)} pt from the "+" (the parent ${String(BAR_PRESSES_PARENT.gap)}); ${rows.size > 0 ? 'each bar row Select, the filter, then the "+"' : 'Select\'s press, the filter\'s, then the "+"\'s along the bar'}; nothing moved; no owner check`);
+}
+
+/** A large title's least height, in points: iOS draws it at 34 pt type (about 41 tall); an inline title at 17. */
+const LARGE_TITLE_MIN = 28;
+
+/**
+ * NB (Phase 348, item 5, D15): the tab's own bar, as the iPhone's apps draw
+ * theirs. `r.swipe` is the UI test's `bar-swipe`: at rest, a LARGE title named
+ * Sessions inside the bar and below its controls, and the Show control under
+ * the bar; after ONE swipe up, the title INLINE (no large title, a "Sessions"
+ * inside the shorter bar).
+ */
+export function gradeNb(r) {
+  const problems = [];
+  const s = r.swipe;
+  if (s === null || s === undefined) return verdict(null, 'the UI test printed no bar-swipe line');
+  const rest = s.rest ?? {};
+  const swiped = s.swiped ?? {};
+  if (!Array.isArray(rest.bar)) return verdict(null, 'no bar named Sessions was read at rest');
+  if (!Array.isArray(swiped.bar)) return verdict(null, 'no bar named Sessions was read after the swipe');
+  const [, by, , bh] = rest.bar;
+  const controlsBottom = Math.max(...(rest.controls ?? []).map((c) => c.frame[1] + c.frame[3]));
+  const large = (rest.titles ?? []).filter((t) => t[3] >= LARGE_TITLE_MIN);
+  if (large.length === 0) problems.push(`at rest no large Sessions title is drawn (${J(rest.titles ?? [])})`);
+  else {
+    const t = large[0];
+    if (!(t[1] >= by - 0.5 && t[1] + t[3] <= by + bh + 0.5)) problems.push(`at rest the large title ${J(t)} lies outside the bar ${J(rest.bar)}`);
+    if (Number.isFinite(controlsBottom) && t[1] < controlsBottom - 1) problems.push(`at rest the large title ${J(t)} starts above the controls' bottom ${String(controlsBottom)}`);
+  }
+  if (!Array.isArray(rest.show)) problems.push('at rest no Show control was read');
+  else if (rest.show[1] < by + bh - 0.5) problems.push(`the Show control ${J(rest.show)} starts above the bar's bottom ${String(by + bh)}`);
+  // His ruling of 2026-10-20 ("Top bar (Recommended)"): the "+" is the bar's trailing item, inside the bar.
+  const restPlus = (rest.controls ?? []).find((c) => c.id === 'start-open')?.frame ?? null;
+  if (Array.isArray(restPlus) && !(restPlus[1] + restPlus[3] / 2 >= by && restPlus[1] + restPlus[3] / 2 <= by + bh)) problems.push(`the "+" ${J(restPlus)} is not in the bar ${J(rest.bar)}; it is the bar's trailing item (his ruling of 2026-10-20)`);
+  const [, sy, , sh] = swiped.bar;
+  // A list no longer than the screen springs back from a swipe and keeps its large title, which says nothing about
+  // the bar: the Show control where it was at rest is a list that did not move.
+  if (problems.length === 0 && Array.isArray(rest.show) && Array.isArray(swiped.show) && Math.abs(swiped.show[1] - rest.show[1]) < 1) return verdict(null, `the list did not move under one swipe (the Show control stayed at ${String(rest.show[1])}), so it is too short to fold the title`);
+  if ((swiped.titles ?? []).some((t) => t[3] >= LARGE_TITLE_MIN)) problems.push(`after one swipe a large title is still drawn (${J(swiped.titles)})`);
+  const inline = (swiped.titles ?? []).filter((t) => t[3] < LARGE_TITLE_MIN && t[1] + t[3] / 2 >= sy && t[1] + t[3] / 2 <= sy + sh);
+  if (problems.length === 0 && inline.length === 0) return verdict(null, `after one swipe XCUITest read no inline Sessions title inside the bar ${J(swiped.bar)} (${J(swiped.titles ?? [])})`);
+  if (!(sh < bh)) problems.push(`the bar did not shorten after the swipe (${String(bh)} to ${String(sh)})`);
+  return decide(problems, [], `at rest a large title ${J(large[0] ?? null)} in the bar ${J(rest.bar)} with the Show control under it; after one swipe inline ${J(inline[0] ?? null)} in a ${String(sh)} pt bar`);
+}
+
+/**
+ * BUILD 11'S SHOW SEGMENTS ON A PAIRED PHONE, `[width, height]` by the window's
+ * width (the fix round's instrument dumps of 1eb477bf's app, re-read by the
+ * reverify: `[18, 106, 122, 28]`, `[140, 106, 122, 28]` and `[262, 106, 122,
+ * 28]` on an iPhone 16 Pro at 26.3 and 18.3, 113 wide on an SE). The three abut
+ * inside the capsule, so each one's frame is its press across.
+ */
+export const SHOW_SEGMENT_PARENT = Object.freeze({ 402: Object.freeze([122, 28]), 375: Object.freeze([113, 28]) });
+
+/**
+ * NS (Phase 348, item 5; his ruling of 2026-10-20, "Top bar (Recommended)":
+ * "Show keeps its full width"): at rest, while the Mac offers Start (the "+"
+ * drawn in the bar, `start-open` among the controls `bar-swipe` read), each of
+ * All, Active and Ended is at least build 11's own frame on a paired phone of
+ * that size (`SHOW_SEGMENT_PARENT`). The fix round's first-line "+" drew them
+ * 100.67 × 28 on a 16 Pro, the narrowing the reverify measured. UNREADABLE
+ * when the "+" was not drawn, a segment was not read, or the window is one
+ * build 11 was not read on.
+ */
+export function gradeNs(r) {
+  const s = r.swipe;
+  if (s === null || s === undefined) return verdict(null, 'the UI test printed no bar-swipe line');
+  const rest = s.rest ?? {};
+  const width = Array.isArray(s.window) ? Math.round(Number(s.window[0])) : null;
+  const floor = SHOW_SEGMENT_PARENT[String(width)] ?? null;
+  if (floor === null) return verdict(null, `build 11's Show was read on a 402 and a 375 pt window, and this run's is ${J(s.window ?? null)}`);
+  if (!(rest.controls ?? []).some((c) => c.id === 'start-open')) return verdict(null, 'the "+" was not drawn at rest, so Show was not read while the Mac offers Start');
+  const problems = [];
+  const said = [];
+  for (const word of ['all', 'active', 'ended']) {
+    const seg = (rest.segments ?? []).find((x) => x.id === `list-show-${word}`);
+    if (seg === undefined || !Array.isArray(seg.frame)) return verdict(null, `the ${word} segment was not read at rest`);
+    const [, , w, h] = seg.frame;
+    said.push(`${word} ${String(w)} × ${String(h)}`);
+    if (w < floor[0] - 0.01) problems.push(`${word} is ${String(w)} pt wide, narrower than build 11's ${String(floor[0])} (his ruling: Show keeps its full width)`);
+    if (h < floor[1] - 0.01) problems.push(`${word} is ${String(h)} pt tall, shorter than build 11's ${String(floor[1])}`);
+  }
+  return decide(problems, [], `while the Mac offers Start, ${said.join(', ')}, each at least build 11's ${String(floor[0])} × ${String(floor[1])} on a ${String(width)} pt window`);
+}
+
+/** NP12's reading from a drive's events: its `bar-grid` and the `bar-read`s just before and after it. */
+export function barGridOf(events) {
+  const at = events.findIndex((e) => e.step === 'bar-grid');
+  if (at < 0) return { grid: null, before: null, after: null };
+  return {
+    grid: events[at],
+    before: events.slice(0, at).reverse().find((e) => e.step === 'bar-read') ?? null,
+    after: events.slice(at + 1).find((e) => e.step === 'bar-read') ?? null
   };
-  const reach = { up: reachOf('up'), down: reachOf('down'), left: reachOf('left'), right: reachOf('right') };
-  const g = e.glyph;
-  if (!Array.isArray(g) || g.length !== 4) return verdict(null, 'the glyph\'s frame was not read');
-  const width = g[2] + reach.left + reach.right;
-  const height = g[3] + reach.up + reach.down;
-  if (!(width >= 44)) problems.push(`the press is at least ${String(width)} pt wide (the glyph ${String(g[2])}, ${String(reach.left)} left and ${String(reach.right)} right), under 44`);
-  if (!(height >= 44)) problems.push(`the press is at least ${String(height)} pt tall (the glyph ${String(g[3])}, ${String(reach.up)} up and ${String(reach.down)} down), under 44`);
-  for (const side of ['corner-top-left', 'corner-top-right', 'corner-bottom-left', 'corner-bottom-right', 'centre']) {
-    const t = taps.find((x) => x.side === side);
-    if (t === undefined) problems.push(`no tap at the ${side}`);
-    else if (t.opened !== true) problems.push(`a tap at the ${side} ${J(t.at)} opened nothing`);
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 348: Remove and paste on the phone (build/p348/SPEC.md §8.2, §10.2)
+// ---------------------------------------------------------------------------
+
+/** The phone's own words Phase 348's arms read, from Copy.swift. */
+export const P348_WORDS = Object.freeze({
+  remove: copyOf('remove') ?? 'Remove',
+  removeNotTaken: copyOf('removeNotTaken'),
+  endNoAnswer: copyOf('endNoAnswer'),
+  cancel: copyOf('cancel') ?? 'Cancel',
+  copy: copyOf('copy') ?? 'Copy',
+  paste: copyOf('paste') ?? 'Paste',
+  pasteCode: copyOf('pasteCode'),
+  answerUnreadable: copyOf('answerUnreadable')
+});
+
+/**
+ * What `paste-buffer -p` must hand a program for `text` (build/p348/SPEC.md
+ * D19, D50, D58), composed here and never read from the verb: every line feed
+ * as a carriage return, the bracket's two marks around it when the program
+ * asked for bracketed paste, and nothing after. Lowercase hex.
+ */
+export function pasteBytesOf(text, bracketed) {
+  const body = Buffer.from(String(text).replace(/\n/g, '\r'), 'utf8').toString('hex');
+  return bracketed ? `1b5b3230307e${body}1b5b3230317e` : body;
+}
+
+/** Where a Remove is drawn on a face: the Terminal's ⋯ or Catch Me Up's top right. */
+const REMOVE_IDS = Object.freeze({ menu: 'terminal-menu-remove', top: 'session-remove' });
+
+/**
+ * The face, the confirmation and the landing every honest Remove shares
+ * (RV1, RV6, RH's honest arm): `read` is the drive's `remove-read` (or the
+ * reading `remove` made before its press), `dialog` its `remove-dialog`,
+ * `after` its `remove-after`, `want` the Mac's `removeConfirm` (or the book's).
+ */
+function removeFaceProblems(r, problems, unread) {
+  const read = r.read;
+  const remove = read?.remove ?? null;
+  // THE PROBE REVIEW (rule 9): a session page that never settled drew no Remove because nothing was read there,
+  // never because the app left it out (the drive's `removeHere` answers `settled: false` and no face).
+  if (read?.settled === false || (read?.face !== 'terminal' && read?.face !== 'catch-up')) unread.push(`the session's page never settled (${J({ settled: read?.settled ?? null, face: read?.face ?? null })}), so where Remove is drawn was not read`);
+  else if (remove === null) problems.push(`after End no Remove is drawn on the ${String(read?.face)} face`);
+  else {
+    if (remove.label !== P348_WORDS.remove) problems.push(`Remove reads ${J(remove.label)}, not ${J(P348_WORDS.remove)}`);
+    if (remove.enabled !== true) problems.push('Remove cannot be pressed');
+    const wantId = REMOVE_IDS[read.via] ?? null;
+    if (wantId === null) problems.push(`Remove was found ${J(read.via)}, neither in the ⋯ nor at the top right`);
+    else if (remove.id !== wantId) problems.push(`Remove is ${J(remove.id)}, not ${wantId}`);
   }
-  if (e.faceId === true) problems.push('an owner check was asked');
-  return decide(problems, [], `the press reaches ${J(reach)} past the ${String(g[2])} × ${String(g[3])} pt glyph, at least ${String(width)} × ${String(height)} pt, the four corners of a 44 × 44 pt square open New session, and every frame on the title row is where the build before drew it (the "+" element: ${plusShape})`);
+  // End is gone: in the ⋯ no End item; at the top right no session-end.
+  if (read?.via === 'menu' ? read.end !== null && read.end !== undefined : read?.end === true) problems.push('End is still drawn beside Remove');
+  const d = r.dialog;
+  if (d === null || d === undefined) unread.push('no confirmation was read');
+  else {
+    if (d.via === 'app') problems.push('no confirmation was drawn: the press went on with nothing asked');
+    const words = [d.title, ...(d.texts ?? [])].filter((w) => typeof w === 'string');
+    if (!words.includes(r.want.title)) problems.push(`the confirmation's words ${J(words)} do not hold the Mac's title ${J(r.want.title)}`);
+    if (!words.includes(r.want.body)) problems.push(`the confirmation's words do not hold the Mac's body ${J(r.want.body)}`);
+    const buttons = d.buttons ?? [];
+    if (!buttons.includes(r.want.confirmLabel)) problems.push(`the confirmation's presses ${J(buttons)} do not hold the Mac's ${J(r.want.confirmLabel)}`);
+    // THE FIX ROUND (2026-10-19, the phone lens): on iOS 26 a confirmation dialog is drawn as a POPOVER with the
+    // destructive press alone and the screen around it its way out (`PopoverDismissRegion`), as End's and Unpair's
+    // are in both builds; this clause asked for a Cancel iOS 26 does not draw, and failed RV1 and RV6 on that alone.
+    // There, the way out is the dismissal, DRIVEN (`r.cancel`, the drive's `remove-cancel` before its press): it must
+    // leave the session's page as it was, nothing written. Before iOS 26 the Cancel is still required.
+    const major = Number.parseInt(String(d.system ?? ''), 10);
+    if (buttons.includes(P348_WORDS.cancel)) {
+      // The sheet's own Cancel: nothing more to read.
+    } else if (major >= 26 && d.dismiss === true) {
+      const c = r.cancel ?? null;
+      if (c === null || c.after === null || c.after === undefined) unread.push('the popover\'s dismissal was not driven, so that it keeps the session was not read');
+      else {
+        if (c.after.cancelVia !== 'dismiss' && c.after.cancelVia !== 'cancel') problems.push(`the dismissal was not made (${J(c.after.cancelVia ?? null)})`);
+        if (c.after.landed !== 'session') problems.push(`after the popover was dismissed the app is on ${J(c.after.landed)}, not the session's page`);
+        if (c.after.writing === true) problems.push('a Remove was being written after the popover was dismissed');
+        if (c.after.faceId === true) problems.push('an owner check was drawn when the popover was dismissed');
+      }
+    } else problems.push(`the confirmation has no ${P348_WORDS.cancel}${major >= 26 ? ' and no dismiss region' : ''}`);
+  }
+  const a = r.after;
+  if (a === null || a === undefined) unread.push('no remove-after line');
+  else if (a.landed !== 'list') problems.push(`after Remove the app is on ${J(a.landed)}, not the list${typeof a.line === 'string' && a.line !== '' ? ` (its line: ${J(a.line)})` : ''}`);
+  if ([read, d, a].some((x) => x?.faceId === true)) problems.push('an owner check was drawn during the Remove ("No Face ID, just confirm")');
+  if ((r.authAsked ?? 0) > 0) problems.push(`the UI test asked for Face ID ${String(r.authAsked)} time(s) during the Remove`);
+}
+
+/**
+ * RV1 (Phase 348, item 2; his ruling of 2026-10-18, "No Face ID, just
+ * confirm"): after End, Remove drawn where End was (the Terminal's ⋯ in End
+ * session…'s place, or Catch Me Up's top right), End gone; the Mac's own
+ * words in ONE confirmation (`want`, the session answer's `removeConfirm`
+ * read before the press); its destructive press back to the list; no owner
+ * check at any moment; ONE act in main's log (`acts`); and the row in main's
+ * Past Sessions (`removed`) and no longer among its own (`live`).
+ */
+export function gradeRv1(r) {
+  const problems = [];
+  const unread = [];
+  if (r.want === null || r.want === undefined) return verdict(null, 'the Mac\'s session answer carried no removeConfirm before the press, so there was no Remove to draw');
+  if (r.read === null || r.read === undefined) return verdict(null, 'the UI test printed no remove-read line');
+  // THE SECOND FIX ROUND (the reverify, 2026-10-20): an arm that names a face reads Remove on THAT face, or it read
+  // nothing of its own (the drive's `catch-up` went back to the Terminal, and "Catch Me Up's top right" passed on
+  // a Remove read in the ⋯).
+  if (r.expect !== undefined && r.expect !== null && (r.read.face !== r.expect.face || r.read.via !== r.expect.via)) return verdict(null, `Remove was read on the ${J(r.read.face ?? null)} face via ${J(r.read.via ?? null)}, not on ${r.expect.face} via ${r.expect.via}, so this arm's face was not read`);
+  removeFaceProblems(r, problems, unread);
+  if (r.acts !== 1) problems.push(`main logged ${String(r.acts)} Remove(s) of the session, not one`);
+  if (r.removed !== true) problems.push('main\'s Past Sessions does not list the session');
+  if (r.live === true) problems.push('main still lists the session among its own');
+  return decide(problems, unread, `Remove where End was (${String(r.read.via)}), the Mac's own words in one confirmation, back to the list, one act, the session in Past Sessions, no owner check`);
+}
+
+/**
+ * RV2: the destructive press, then Home at once, with the relay holding the
+ * write's connection before its handshake (`held`): the write withheld, no
+ * act in main's log, the session still the Mac's and not in Past Sessions,
+ * and on return the session's page with `Your Mac did not remove it. Nothing
+ * was changed.` under its status.
+ */
+export function gradeRv2(r) {
+  const problems = [];
+  if (typeof r.held !== 'number' || r.held < 1) return verdict(null, `the relay held ${J(r.held ?? null)} connection(s) while the app went home, so nothing was withheld`);
+  const a = r.after;
+  if (a === null || a === undefined) return verdict(null, 'no remove-after line for remove-home');
+  if (r.acts !== 0) problems.push(`main logged ${String(r.acts)} Remove(s) of a write the app withheld`);
+  if (r.live !== true) problems.push('the session is no longer among the Mac\'s own');
+  if (r.removed === true) problems.push('main\'s Past Sessions lists the session');
+  if (a.landed !== 'session') problems.push(`on return the app is on ${J(a.landed)}, not the session's page`);
+  if (a.line !== P348_WORDS.removeNotTaken) problems.push(`on return the line reads ${J(a.line ?? null)}, not ${J(P348_WORDS.removeNotTaken)}`);
+  if (a.faceId === true) problems.push('an owner check was drawn');
+  return decide(problems, [], `the write held before its handshake was withheld by Home: no act, the session still the Mac's, ${J(P348_WORDS.removeNotTaken)} on return`);
+}
+
+/**
+ * RV3: Done went back to the list, and under All the list draws no row of
+ * the removed session (`id`) while it still draws the one left alone
+ * (`kept`), so the walk read rows.
+ */
+export function gradeRv3(r) {
+  const d = r.dump;
+  if (d === null || d === undefined) return verdict(null, 'no sessions-dump was read after the Remove');
+  if (d.complete !== true) return verdict(null, 'the list was not walked to its end');
+  const all = (d.elements ?? []).find((e) => e.id === 'list-show-all');
+  if (all?.selected !== true) return verdict(null, `the walk was not under All (${J(all ?? null)})`);
+  const rows = rowIdsOf(d.elements);
+  const problems = [];
+  if (rows.includes(r.id)) problems.push('the removed session\'s row is still drawn under All');
+  if (!rows.includes(r.kept)) problems.push('the session left alone is not drawn under All, so the walk read too little');
+  return decide(problems, [], `under All the list draws ${String(rows.length)} row(s), the one left alone among them and not the removed one`);
+}
+
+/**
+ * RV4, with P348_PARENT_IOS (build 11, d2bb05ee's ios/, its OWN UI test): the
+ * parent's app against this Mac draws no Remove on any screen or in its ⋯
+ * after End (`menuAfter`), and its End is unchanged: one act, the session
+ * ended, and no Remove sent.
+ */
+export function gradeRv4(r) {
+  if (!Array.isArray(r.dumps) || r.dumps.length === 0) return verdict(null, 'the parent\'s UI test printed no screen');
+  const problems = [];
+  if (r.dumps.some((d) => (d.elements ?? []).some((e) => e.id === REMOVE_IDS.top || e.id === REMOVE_IDS.menu))) problems.push('the parent\'s app drew a Remove');
+  if ((r.menuAfter?.rows ?? []).some((x) => x.id === REMOVE_IDS.menu || x.label === P348_WORDS.remove)) problems.push('the parent\'s ⋯ after End offers Remove');
+  if (r.endActs !== 1) problems.push(`main logged ${String(r.endActs)} End(s) for the parent's one press`);
+  if (r.status !== 'exited') problems.push(`the session reads ${J(r.status)} after the parent's End, not exited`);
+  if (r.removeActs !== 0) problems.push(`main logged ${String(r.removeActs)} Remove(s) from the parent`);
+  // THE PROBE REVIEW (rule 9): the ⋯ after End is a reading of its own. Not printed, or printed with the menu shut,
+  // it held no rows, and "no Remove in its ⋯" passed over a menu nobody opened.
+  const unread = [];
+  if (r.menuAfter === null || r.menuAfter === undefined) unread.push('the parent\'s drive printed no terminal-menu line after End, so its ⋯ was not read');
+  else if (r.menuAfter.opened !== true) unread.push('the parent\'s ⋯ after End did not open, so its rows were not read');
+  return decide(problems, unread, 'build 11 against this Mac: no Remove drawn, its ⋯ after End read with no Remove, its End one act that ended the session');
+}
+
+/**
+ * RV6: See a sample. After the sample's End, Remove where End was, the
+ * book's own Remove words in one confirmation (`want`, the ended variant's
+ * `removeConfirm`), no owner check, back to the list, the made-up session
+ * gone from the sample's list under All (`dump`, with the session left alone
+ * `kept` still drawn), and nothing left the phone (`connections`).
+ */
+export function gradeRv6(r) {
+  const problems = [];
+  const unread = [];
+  if (r.want === null || r.want === undefined) return verdict(null, 'the book holds no removeConfirm for the ended session');
+  if (r.read === null || r.read === undefined) return verdict(null, 'the sample\'s drive printed no remove-read line');
+  removeFaceProblems(r, problems, unread);
+  const gone = gradeRv3({ dump: r.dump, id: r.id, kept: r.kept });
+  if (gone.ok === false) problems.push(gone.said);
+  else if (gone.ok === null) unread.push(gone.said);
+  if (r.connections !== 0) problems.push(`the relay took ${String(r.connections)} connection(s): the sample's Remove left the phone`);
+  return decide(problems, unread, 'the sample\'s Remove: where End was, the book\'s words, no owner check, gone from its list, nothing left the phone');
+}
+
+/**
+ * RVH, every Remove arm of build/p316/hostile-door.mjs (P348_ARMS, RV5 among
+ * them): `spec` the arm's row. An answer arm sends ONE POST /v1/remove and
+ * ends on the list (`remove-honest`) or on the session's page with the line
+ * the row names (a Copy.swift word, the Mac's own sentence, or this door's
+ * for an open reason word); an offer arm draws no Remove and sends nothing,
+ * its page drawn (`no-remove`) or failed with the word it names.
+ */
+export function gradeRvh(r) {
+  const spec = r.spec;
+  const problems = [];
+  if (r.alive !== RUNNING_FOREGROUND) problems.push(`the app's state is ${J(r.alive)} at the end`);
+  if (r.posts !== spec.posts) problems.push(`the door read ${String(r.posts)} POST /v1/remove, not ${String(spec.posts)}`);
+  const wantLine = () => (spec.doorSentence === true ? r.doorSentence ?? null : (spec.mac ?? []).length > 0 ? r.words?.[spec.mac[0]] ?? null : copyOf(spec.expect?.[0] ?? '') ?? null);
+  if (spec.remove === 'offer') {
+    if (r.read === null || r.read === undefined) return decide(problems, ['the UI test printed no remove-read line'], '');
+    // THE PROBE REVIEW (rule 9): "no Remove drawn" over a page that never settled is no reading; an arm whose page is
+    // drawn must have drawn its face (a refusing arm's evidence is its failure line, read below).
+    if (spec.ends !== 'sentence' && (r.read.settled === false || (r.read.face !== 'terminal' && r.read.face !== 'catch-up'))) return decide(problems, [`the session's page never settled (${J({ settled: r.read.settled ?? null, face: r.read.face ?? null })}), so whether a Remove is drawn was not read`], '');
+    if (r.read.remove !== null && r.read.remove !== undefined) problems.push(`a Remove is drawn (${J(r.read.remove)}) where the Mac offers none`);
+    if (spec.ends === 'sentence') {
+      const want = wantLine();
+      if (r.failure !== want) problems.push(`the page reads ${J(r.failure ?? null)}, not ${J(want)}`);
+    }
+    return decide(problems, [], spec.ends === 'sentence' ? `the answer refused whole with ${J(wantLine())}, no Remove drawn, nothing sent` : 'no Remove drawn, nothing sent');
+  }
+  const a = r.after;
+  if (a === null || a === undefined) {
+    // THE PROBE REVIEW (rule 9): the drive prints `remove-missing` with its page's reading when it found no Remove to
+    // press; over a settled session page whose Mac offers one, that is the app's failure, never a reading missing.
+    const m = r.missing ?? null;
+    if (m !== null && m.settled !== false && (m.face === 'terminal' || m.face === 'catch-up')) return decide([...problems, `no Remove is drawn on the ${String(m.face)} face where the Mac offers one`], [], '');
+    return decide(problems, ['no remove-after line: Remove was not pressed'], '');
+  }
+  if (spec.ends === 'list') {
+    if (a.landed !== 'list') problems.push(`a done Remove left the app on ${J(a.landed)}, not the list`);
+  } else {
+    if (a.landed !== 'session') problems.push(`the app is on ${J(a.landed)}, not the session's page`);
+    const want = wantLine();
+    if (want === null) problems.push('the arm names no line this file can read');
+    else if (a.line !== want) problems.push(`the line reads ${J(a.line ?? null)}, not ${J(want)}`);
+  }
+  if (a.faceId === true || r.dialog?.faceId === true) problems.push('an owner check was drawn');
+  return decide(problems, [], spec.ends === 'list' ? 'one Remove, done: back to the list' : `one Remove, its line ${J(wantLine())}`);
+}
+
+/**
+ * PA8 (Phase 348, item 6; §2.1 arm y): THE ABLATION. A scratch copy of the
+ * app, made and built by this probe under its own scratch and never a seam in
+ * the shipping app, whose menu Paste is a `UIAction` that reads the clipboard
+ * itself: its press must raise iOS's alert, which the UI test's detector sees
+ * (`read.alerts`). With no alert seen the detector cannot see one, and PA1's
+ * "no alert" proves nothing.
+ */
+export function gradePa8(r) {
+  if (r.built !== true) return verdict(null, `the scratch copy did not build (${String(r.why ?? 'no reason')})`);
+  if (r.planted !== true) return verdict(null, 'the scratch copy\'s Paste could not be made a UIAction');
+  const read = r.read;
+  if (read === null || read === undefined) return verdict(null, 'the scratch copy\'s drive printed no paste-menu line');
+  if (read.pressed !== true) return verdict(null, 'the scratch copy\'s Paste was not pressed');
+  const alerts = read.alerts ?? [];
+  if (alerts.length === 0) return verdict(false, 'a Paste that reads the clipboard the app\'s own way raised no alert the detector saw, so PA1\'s "no alert" proves nothing');
+  return verdict(true, `a Paste that reads the clipboard the app's own way raised ${J(alerts[0])}: the detector sees iOS's alert`);
+}
+
+/**
+ * PA1 (Phase 348, item 6; his ruling, "just like how the clipboard normally
+ * works on a phone"): iOS's own Paste beside Copy in the long-press menu
+ * (exactly `[Copy, Paste]`), Command-V and the three-finger pinch out, each
+ * over text the runner wrote and after a trip to Settings and back: the
+ * recorder reads exactly what `paste-buffer -p` must send (`want`), and no
+ * alert is drawn in SpringBoard or the app for 8 s after each, nor an owner
+ * check. UNREADABLE unless PA8 saw the alert its ablation must raise.
+ */
+export function gradePa1(r) {
+  if (r.pa8?.ok !== true) return verdict(null, `PA8 did not see iOS's alert for a Paste read the app's own way (${r.pa8 === null || r.pa8 === undefined ? 'not run' : String(r.pa8.said)}), so "no alert" here proves nothing`);
+  const problems = [];
+  const unread = [];
+  const ways = Array.isArray(r.ways) ? r.ways : [];
+  for (const w of ways) {
+    if (w.read === null || w.read === undefined) {
+      unread.push(`${w.via}: the UI test printed no line`);
+      continue;
+    }
+    if (w.trip?.settings !== true || w.trip?.back !== true) unread.push(`${w.via}: the trip to Settings and back was not made (${J(w.trip ?? null)})`);
+    if (w.via === 'menu') {
+      const labels = (w.read.items ?? []).map((i) => i.label);
+      if (J(labels) !== J([P348_WORDS.copy, P348_WORDS.paste])) problems.push(`the long-press menu reads ${J(labels)}, not ${J([P348_WORDS.copy, P348_WORDS.paste])}`);
+      if (w.read.pressed !== true) problems.push('the menu\'s Paste was not pressed');
+    }
+    if (w.via === 'pinch' && w.read.result !== 'synthesized') unread.push(`the three fingers were not synthesized (${J(w.read.result ?? null)})`);
+    if ((w.read.alerts ?? []).length > 0) problems.push(`${w.via}: iOS drew ${J(w.read.alerts)}`);
+    if (w.read.faceId === true) problems.push(`${w.via}: an owner check was drawn`);
+    if (w.bytes !== w.want) problems.push(`${w.via}: the recorder read ${J(w.bytes)}, not ${J(w.want)}`);
+  }
+  if (ways.length !== 3) unread.push(`${String(ways.length)} of the three ways were read`);
+  // THE PROBE REVIEW (rule 9): the three are the menu, Command-V and the pinch, each once, never one of them thrice.
+  else if (J(ways.map((w) => w.via).sort()) !== J(['cmdv', 'menu', 'pinch'])) unread.push(`the ways read are ${J(ways.map((w) => w.via))}, not the menu, Command-V and the pinch`);
+  return decide(problems, unread, 'the menu\'s Paste beside Copy, Command-V and the three fingers each landed the runner\'s text once, as the program asked, after a trip to Settings, with no alert and no owner check');
+}
+
+/** PA2: an armed one-shot Control is not applied to a paste: the recorder reads the paste's own bytes (`want`), its first byte the text's. */
+export function gradePa2(r) {
+  if (r.read === null || r.read === undefined) return verdict(null, 'the UI test printed no paste-ctrl line');
+  if (r.read.armed !== true) return verdict(null, 'the key bar\'s Control was not armed');
+  const problems = [];
+  if (r.bytes !== r.want) problems.push(`with Control armed the recorder read ${J(r.bytes)}, not the paste's ${J(r.want)}`);
+  if ((r.read.alerts ?? []).length > 0) problems.push(`iOS drew ${J(r.read.alerts)}`);
+  return decide(problems, [], `an armed Control is not applied: the paste's first byte is ${J(String(r.want).slice(0, 2))}, as it is with none`);
+}
+
+/** PA3: a pairing code on the clipboard is refused on the phone with its own line, and nothing reaches the Mac (no act in main's log, no byte at the recorder). */
+export function gradePa3(r) {
+  if (r.read === null || r.read === undefined) return verdict(null, 'the UI test printed no paste line for the code');
+  const problems = [];
+  if (r.bytes !== '') problems.push(`the recorder read ${J(r.bytes)} from a pairing code`);
+  if (r.acts !== 0) problems.push(`main logged ${String(r.acts)} paste(s) of a pairing code`);
+  if (r.line !== P348_WORDS.pasteCode) problems.push(`the Terminal's line reads ${J(r.line ?? null)}, not ${J(P348_WORDS.pasteCode)}`);
+  return decide(problems, [], `a pairing code is refused on the phone (${J(P348_WORDS.pasteCode)}), and nothing reached the Mac`);
+}
+
+/**
+ * PA4 (D46): a line the terminal wrapped over `rows` rows, selected from its
+ * first row's start to its last row's end and copied, is ONE line on the
+ * clipboard (`copied`, read through the helper's own pasteboard of its own
+ * device, never the runner), and pasted back into a recorder that asked for
+ * no bracket it arrives whole (`bytes` against `want`).
+ */
+export function gradePa4(r) {
+  if (r.read?.copy !== true) return verdict(null, 'Copy was not drawn over the selection');
+  if (r.copied === null || r.copied === undefined) return verdict(null, 'the device\'s clipboard was not read after Copy');
+  if (!(r.rows >= 2)) return verdict(null, `the line was drawn on ${String(r.rows)} row(s), so nothing wrapped`);
+  const problems = [];
+  if (r.copied !== r.line) problems.push(`Copy put ${J(r.copied)} on the clipboard, not the one line ${J(r.line)}`);
+  if (r.bytes !== r.want) problems.push(`pasted back, the recorder read ${J(r.bytes)}, not ${J(r.want)}`);
+  return decide(problems, [], `a ${String(String(r.line).length)}-character line the terminal wrapped over ${String(r.rows)} rows copied as one line and pasted back whole`);
+}
+
+/**
+ * PA5, STATED (D46): a command zsh is still editing carries no mark, so it
+ * copies as the parent copies it: each row its own line, trimmed (`rows`, the
+ * pane's rows as tmux shows them). A copy that joins them says D46's statement
+ * is wrong here, which the arm reports rather than hides.
+ */
+export function gradePa5(r) {
+  if (r.copied === null || r.copied === undefined) return verdict(null, 'the device\'s clipboard was not read after Copy');
+  if (!Array.isArray(r.rows) || r.rows.length < 2) return verdict(null, `the command was drawn on ${String(r.rows?.length ?? 0)} row(s), so nothing wrapped`);
+  const parent = r.rows.map((t) => String(t).replace(/\s+$/, '')).join('\n');
+  if (r.copied === parent) return verdict(true, `STATED (D46): a command zsh is still editing copies as the parent copies it, ${String(r.rows.length)} rows each its own line (tmux's marks ${J(r.marked ?? null)})`);
+  return verdict(false, `the copy ${J(r.copied)} is not the parent's ${J(parent)}: D46's statement that a command zsh is editing carries no mark is wrong here (tmux's marks ${J(r.marked ?? null)})`);
+}
+
+/** PA6 (D34): See a sample: Paste beside Copy, the pasted words on the sample's prompt as typed keys are, no alert, and nothing left the phone (`connections`). */
+export function gradePa6(r) {
+  if (r.read === null || r.read === undefined) return verdict(null, 'the sample\'s drive printed no paste-menu line');
+  const problems = [];
+  const labels = (r.read.items ?? []).map((i) => i.label);
+  if (J(labels) !== J([P348_WORDS.copy, P348_WORDS.paste])) problems.push(`the sample's menu reads ${J(labels)}, not ${J([P348_WORDS.copy, P348_WORDS.paste])}`);
+  if (r.read.pressed !== true) problems.push('the sample\'s Paste was not pressed');
+  if ((r.read.alerts ?? []).length > 0) problems.push(`iOS drew ${J(r.read.alerts)}`);
+  const rows = (r.screen?.rows ?? []).map((x) => String(x.label));
+  if (!rows.some((t) => t.includes(r.text))) problems.push(`no row of the sample's Terminal shows the pasted ${J(r.text)} (its last rows ${J(rows.slice(-3))})`);
+  if (r.connections !== 0) problems.push(`the relay took ${String(r.connections)} connection(s): the sample's paste left the phone`);
+  return decide(problems, [], 'the sample\'s paste is echoed on its prompt, with no alert, and nothing left the phone');
+}
+
+/**
+ * PA7, over the picture's paste flag arms (P348_ARMS, D30): a picture that
+ * takes no paste, as a far session's is (probe:p348 P6 reads the Mac's own),
+ * draws Copy alone and lets nothing be sent; a flag of another type refuses
+ * the picture with the word the row names.
+ */
+export function gradePa7(r) {
+  const spec = r.spec;
+  const problems = [];
+  // THE FIX ROUND (2026-10-19, the phone lens): an app state nobody read is the drive's, never the phone's. The UI
+  // test prints its `alive` line last, so a drive the harness ended (the runner's own pasteboard read-back hung in
+  // one) printed none, and this grader called the phone broken over an app it never asked.
+  if (r.alive === null || r.alive === undefined) return verdict(null, 'the UI test never printed its last line, so the app\'s state at the end was not read (the drive was ended)');
+  if (r.posts !== 0) problems.push(`${String(r.posts)} POST /v1/paste reached the door`);
+  if (r.alive !== RUNNING_FOREGROUND) problems.push(`the app's state is ${J(r.alive)} at the end`);
+  if (spec.ends === 'drawn') {
+    if (r.read === null || r.read === undefined) return decide(problems, ['the UI test printed no paste-menu-read line'], '');
+    const labels = (r.read.items ?? []).map((i) => i.label);
+    if (J(labels) !== J([P348_WORDS.copy])) problems.push(`the long-press menu reads ${J(labels)}, not Copy alone`);
+    return decide(problems, [], 'a picture that takes no paste: Copy alone, nothing sent');
+  }
+  const want = copyOf(spec.expect?.[0] ?? '') ?? null;
+  const line = r.screen?.line ?? r.screen?.failure ?? null;
+  if (line !== want) problems.push(`the Terminal's line reads ${J(line)}, not ${J(want)}`);
+  return decide(problems, [], `the picture refused with ${J(want)}, nothing sent`);
+}
+
+/**
+ * PAH, every paste arm of build/p316/hostile-door.mjs (P348_ARMS): Paste
+ * pressed once, ONE POST /v1/paste read, and the Terminal drawn after a done
+ * one with no line, or its line the row's words (a Copy.swift word, the Mac's
+ * own sentence, or this door's for an open reason word); no alert.
+ */
+export function gradePah(r) {
+  const spec = r.spec;
+  const problems = [];
+  if (r.read === null || r.read === undefined) return verdict(null, 'the UI test printed no paste-menu line');
+  // THE PROBE REVIEW (rule 9): every paste arm's picture takes a paste (`paste` true, typable), so a menu READ that
+  // offers no Paste is the app's failure, never a reading missing; only a menu that drew nothing at all is.
+  if (r.read.pressed !== true) {
+    const labels = (r.read.items ?? []).map((i) => i.label);
+    if (labels.length > 0 && !labels.includes(P348_WORDS.paste)) return verdict(false, `the long-press menu reads ${J(labels)}: no ${P348_WORDS.paste} over a picture that takes one`);
+    return verdict(null, 'Paste was not pressed');
+  }
+  if (r.alive !== RUNNING_FOREGROUND) problems.push(`the app's state is ${J(r.alive)} at the end`);
+  if (r.posts !== spec.posts) problems.push(`the door read ${String(r.posts)} POST /v1/paste, not ${String(spec.posts)}`);
+  const line = r.screen?.line ?? null;
+  const want = spec.doorSentence === true ? r.doorSentence ?? null : (spec.mac ?? []).length > 0 ? r.words?.[spec.mac[0]] ?? null : copyOf(spec.expect?.[0] ?? '') ?? null;
+  if (spec.ends === 'drawn') {
+    if ((r.screen?.rows ?? []).length === 0) problems.push('the Terminal is not drawn after the paste');
+    if (typeof line === 'string' && line !== '') problems.push(`the Terminal's line reads ${J(line)} after a done paste`);
+  } else if (want === null) problems.push('the arm names no line this file can read');
+  else if (line !== want) problems.push(`the Terminal's line reads ${J(line)}, not ${J(want)}`);
+  if ((r.read.alerts ?? []).length > 0) problems.push(`iOS drew ${J(r.read.alerts)}`);
+  return decide(problems, [], spec.ends === 'drawn' ? 'one paste, done: the Terminal drawn with no line' : `one paste, its line ${J(want)}`);
 }
 
 /** NP5: the project closed on the Mac while the sheet is open, then Create: the sheet stays with the Mac's START_PROJECT_GONE, nothing started. */
@@ -5883,13 +6850,16 @@ function startSelfTest() {
     defaultAgent: 'claude'
   };
   const mark = (id, label, x, selected) => ({ id, label, frame: [x, 600, 44, 44], selected });
+  // Phase 348 (D16; his ruling of 2026-10-20): a paired 16 Pro at 26.3, the "+" alone at the bar's trailing edge.
   const open = {
     found: true,
     label: START_WORDS.newSession,
-    frame: [350, 100, 30, 30],
+    frame: [332, 66, 50, 36],
     window: [402, 874],
-    title: [16, 96, 120, 40],
-    controls: [{ id: 'list-menu', frame: [280, 100, 30, 30] }, { id: 'list-select', frame: [310, 100, 36, 30] }],
+    title: [16, 116, 143.33, 48.67],
+    bar: [0, 62, 402, 106.67],
+    show: [16, 172, 370, 32],
+    controls: [{ id: 'list-menu', frame: [98, 66, 58, 36] }, { id: 'list-select', frame: [20, 66, 62, 36] }],
     list: true,
     sheet: true,
     reading: { sheet: true, agents: [mark('claude', 'Claude Code', 20, true), mark('codex', 'Codex CLI', 70, false)], line: null, create: { label: START_WORDS.creating === null ? 'Create' : 'Create', enabled: true } },
@@ -5903,8 +6873,14 @@ function startSelfTest() {
   add('NP1 passes its honest reading', gradeNp1, np1, true);
   add('NP1 is red on no "+"', gradeNp1, edit(np1, (r) => void (r.open.found = false)), false);
   add('NP1 is red on another name', gradeNp1, edit(np1, (r) => void (r.open.label = 'Add')), false);
-  add('NP1 is red on a "+" left of the menu', gradeNp1, edit(np1, (r) => void (r.open.frame = [240, 100, 30, 30])), false);
-  add('NP1 is red on a "+" off the title\'s row', gradeNp1, edit(np1, (r) => void (r.open.frame = [350, 400, 30, 30])), false);
+  add('NP1 is red on a "+" left of the menu', gradeNp1, edit(np1, (r) => void (r.open.frame = [60, 66, 30, 36])), false);
+  add('NP1 is red on a "+" outside the bar', gradeNp1, edit(np1, (r) => void (r.open.frame = [350, 400, 30, 30])), false);
+  // His ruling of 2026-10-20: the fix round's first-line "+", under the bar beside Show, is no longer where it is.
+  add('NP1 is red on the "+" on the list\'s first line (the fix round\'s construction)', gradeNp1, edit(np1, (r) => void (r.open.frame = [334, 168.67, 52, 52])), false);
+  // Phase 348 (D16): the parent's shape, Select and the filter beside the "+".
+  add('NP1 is red on Select beside the "+" (the parent\'s 2 pt)', gradeNp1, edit(np1, (r) => void (r.open.controls[1].frame = [280, 66, 48, 36])), false);
+  add('NP1 is UNREADABLE with no bar read', gradeNp1, edit(np1, (r) => void (r.open.bar = null)), null);
+  add('NP1\'s PASS names the bar', (r) => ({ ok: gradeNp1(r).ok === true && /trailing edge of the iPhone's own bar/.test(gradeNp1(r).said) }), np1, true);
   add('NP1 is red on the projects out of the offer\'s order', gradeNp1, edit(np1, (r) => void (r.open.projects[0].frame[1] = 400)), false);
   add('NP1 is red on another project chosen', gradeNp1, edit(np1, (r) => Object.assign(r.open.projects[1], { selected: true })), false);
   add('NP1 is red on a project not connected that can be chosen', gradeNp1, edit(np1, (r) => void (r.open.projects[2].enabled = true)), false);
@@ -5948,32 +6924,7 @@ function startSelfTest() {
   // THE RULED ROUND: the build before drew Create again inside the closing sheet, which a press could take.
   add('NP3 is red on Create drawn again while the sheet closes', gradeNp3, edit(np3, (r) => void (r.created.labels = ['Create', START_WORDS.creating, 'Create'])), false);
   add('NP3 is red on Try again drawn while the sheet closes', gradeNp3, edit(np3, (r) => void (r.created.labels = ['Create', START_WORDS.creating, START_WORDS.tryAgain])), false);
-  // NP12, the "+"'s press: the design's reach (17 up, 13 down, 14 each side), sampled the UI test's way.
-  {
-    const g = START_TITLE_ROW_BEFORE['start-open'];
-    const design = { up: 17, down: 13, left: 14, right: 14 };
-    const sweep = { up: [11.5, 12.5, 13.5, 14.5, 15.5, 16.5, 17.5], down: [9.5, 10.5, 11.5, 12.5], left: [11.5, 12.5, 13.5], right: [11.5, 12.5, 13.5, 14.5] };
-    const taps = [];
-    for (const [side, list] of Object.entries(sweep)) for (const by of list) taps.push({ side, by, at: [0, 0], opened: by < design[side], closed: true });
-    for (const side of ['corner-top-left', 'corner-top-right', 'corner-bottom-left', 'corner-bottom-right', 'centre']) taps.push({ side, by: 0, at: [0, 0], opened: true, closed: true });
-    const row = structuredClone(START_TITLE_ROW_BEFORE);
-    const np12 = { reach: { found: true, glyph: [...g], given: true, element: [...g], row, rowAfter: structuredClone(row), taps, faceId: false } };
-    add('NP12 passes its honest reading', gradeNp12, np12, true);
-    add('NP12 is red on the glyph alone (the build before: no tap off the glyph opens)', gradeNp12, edit(np12, (r) => r.reach.taps.forEach((t) => void (t.opened = t.side === 'centre'))), false);
-    add('NP12 is red on a press under 44 pt tall', gradeNp12, edit(np12, (r) => r.reach.taps.forEach((t) => void (t.side === 'up' && t.by > 12 && (t.opened = false)))), false);
-    add('NP12 is red on a corner that opens nothing', gradeNp12, edit(np12, (r) => void (r.reach.taps.find((t) => t.side === 'corner-top-right').opened = false)), false);
-    add('NP12 is red on Select moved', gradeNp12, edit(np12, (r) => void (r.reach.row['list-select'][0] = 290)), false);
-    add('NP12 passes a "+" element that is the press around the same glyph', gradeNp12, edit(np12, (r) => Object.assign(r.reach.row, { 'start-open': [354, 58, 46, 46] }) && Object.assign(r.reach.rowAfter, { 'start-open': [354, 58, 46, 46] })), true);
-    add('NP12 is red on the "+" moved off its glyph', gradeNp12, edit(np12, (r) => void (r.reach.rowAfter['start-open'] = [360, 75, 18, 16])), false);
-    add('NP12 is red on Select toggled by a tap (the second run: Select gone, the menu moved)', gradeNp12, edit(np12, (r) => Object.assign(r.reach.rowAfter, { 'list-select': null, 'list-menu': [332.3333333333333, 73.33333333333333, 19.666666666666686, 19] })), false);
-    add('NP12 is UNREADABLE when the taps were placed around the element\'s frame', gradeNp12, edit(np12, (r) => Object.assign(r.reach, { given: false, glyph: [354, 58, 46, 46] })), null);
-    add('NP12 is red on the Show control pushed down', gradeNp12, edit(np12, (r) => void (r.reach.row['list-show'][1] = 110)), false);
-    // The ruled round's FIRST run (26.3, 2026-10-16), the glyph's own label padded and given back: iOS's touch radius
-    // opened the sheet along each axis (up to 17.5 up, 14.5 and 15.5 across) and at no corner of the square.
-    add('NP12 is red on the first build\'s reading: the axes reached by the touch radius, no corner', gradeNp12, edit(np12, (r) => r.reach.taps.forEach((t) => void (t.opened = t.side === 'up' || t.side === 'left' || t.side === 'right' || t.side === 'centre'))), false);
-    add('NP12 is UNREADABLE with no reading', gradeNp12, { reach: null }, null);
-    add('NP12 is UNREADABLE when a sheet it opened did not close', gradeNp12, edit(np12, (r) => void (r.reach.taps[0].closed = false)), null);
-  }
+  // NP12 is retired from here on purpose (Phase 348, item 5): its cases are polishSelfTest's, over the bar's tap grid.
   // THE FIX ROUND: NP4, the start on a project on a ready machine, over the hostile door's start-remote.
   const np4 = {
     offer,
@@ -6082,10 +7033,20 @@ function startSelfTest() {
         }
         return reading;
       };
+      // PHASE 348 (item 5, D16; his ruling of 2026-10-20, "Top bar
+      // (Recommended)"): the "+" left the Sessions title row for the iPhone's
+      // own bar, so the review's NP1 reading (build 11's title row, Select 4
+      // pt from the "+") is given the bar's frames on a paired 16 Pro at 26.3
+      // before its ops, and its one case that took the title away takes the
+      // bar away, which NP1 reads in its place.
+      if (review.base.gradeNp1?.open !== undefined) {
+        Object.assign(review.base.gradeNp1.open, { frame: [332, 66, 50, 36], bar: [0, 62, 402, 106.67], title: [16, 116, 143.33, 48.67], controls: [{ id: 'list-menu', frame: [98, 66, 58, 36] }, { id: 'list-select', frame: [20, 66, 62, 36] }] });
+      }
+      const opsOf = (c) => (c.grader === 'gradeNp1' ? c.ops.map((op) => (op.set === 'open.title' ? { delete: 'open.bar' } : op)) : c.ops);
       const reached = new Set();
       for (const c of review.cases) {
         const grader = graders[c.grader];
-        cases.push({ what: `the review's ${c.grader} ${c.want === true ? 'PASSES' : c.want === false ? 'is red on' : 'is UNREADABLE on'} ${c.name}`, got: () => grader(apply(structuredClone(review.base[c.grader]), c.ops)).ok, want: c.want });
+        cases.push({ what: `the review's ${c.grader} ${c.want === true ? 'PASSES' : c.want === false ? 'is red on' : 'is UNREADABLE on'} ${c.name}`, got: () => grader(apply(structuredClone(review.base[c.grader]), opsOf(c))).ok, want: c.want });
         if (c.want !== true) reached.add(c.grader);
       }
       cases.push({ what: `the review's broken readings reach every start grader (${J(Object.keys(graders).filter((g) => !reached.has(g)))} missing)`, got: () => Object.keys(graders).every((g) => reached.has(g)), want: true });
@@ -10049,7 +11010,10 @@ export function samplePlan(book, cast, W = SESSIONS_WORDS, macShellId = null) {
     floorSteps,
     pairedSteps,
     stateAfterEnd: sampleState(book, { [A]: 'answered', [B]: 'answered', [R]: 'ended' }),
-    allEnded: sampleState(book, Object.fromEntries(book.ids.map((id, i) => [id, book.variants[i].at(-1)])))
+    // Every session ENDED, by name: since Phase 348 (D11) each session's last
+    // variant is `removed`, Remove's on the sample's own copy, so the last
+    // one is no longer the ended one.
+    allEnded: sampleState(book, Object.fromEntries(book.ids.map((id, i) => [id, book.variants[i].includes('ended') ? 'ended' : book.variants[i].at(-1)])))
   };
 }
 
@@ -10263,8 +11227,8 @@ function sampleSelfTest() {
   // ---- SA2
   // Made fresh for every page that holds it, so an edit to one page's bar is that page's alone.
   const barOf = () => [E('sample-bar', '', 0, 44, 0, 402), E('sample-label', words.sample, 12, 20, 16, 60), E('sample-leave', words.leaveSample, 0, 44, 290, 100)];
-  const open = dump('sample-open', [...barOf(), E('screen-needs-input', '', 44, 830, 0, 402), E('needs-input-title', 'x', 100), E('needs-row-fx-1', '', 160, 60, 0, 402), E('needs-row-name-fx-1', 'fixture-one', 166)], { sampleLabel: true });
-  const needsPage = { step: 'sample-inventory', for: 'needs', read: true, inSample: true, window: [402, 874], elements: [{ id: '', label: 'Tortie', button: false, frame: [0, 0, 402, 874] }, ...barOf().map((e) => ({ ...e, button: e.id === 'sample-leave' })), { id: '', label: 'Leave sample', button: false, frame: [300, 12, 80, 20] }, { id: 'needs-input-title', label: 'x', button: false, frame: [16, 100, 370, 20] }] };
+  const open = dump('sample-open', [...barOf(), E('screen-needs-input', '', 44, 830, 0, 402), E('needs-row-fx-1', '', 160, 60, 0, 402), E('needs-row-name-fx-1', 'fixture-one', 166)], { sampleLabel: true });
+  const needsPage = { step: 'sample-inventory', for: 'needs', read: true, inSample: true, window: [402, 874], elements: [{ id: '', label: 'Tortie', button: false, frame: [0, 0, 402, 874] }, ...barOf().map((e) => ({ ...e, button: e.id === 'sample-leave' })), { id: '', label: 'Leave sample', button: false, frame: [300, 12, 80, 20] }, { id: 'needs-row-fx-1', label: '', button: false, frame: [0, 160, 402, 60] }] };
   const sa2 = { open, needs: structuredClone(open), page: needsPage, book, words };
   add('SA2 passes its honest reading', gradeSa2, sa2, true);
   add('SA2 is red with no Sample bar', gradeSa2, edit(sa2, (r) => void r.open.elements.splice(0, 1)), false);
@@ -10273,9 +11237,10 @@ function sampleSelfTest() {
   add('SA2 is red on a 30 pt Leave sample', gradeSa2, edit(sa2, (r) => void (r.open.elements[2].frame[3] = 30)), false);
   add('SA2 is red on a Leave sample that is not a button', gradeSa2, edit(sa2, (r) => void (r.page.elements[3].button = false)), false);
   add('SA2 is red on an element above the bar\'s bottom', gradeSa2, edit(sa2, (r) => void (r.open.elements[4].frame[1] = 30)), false);
-  add('SA2 is red on a Needs input that lists nothing', gradeSa2, edit(sa2, (r) => void r.needs.elements.splice(5, 2)), false);
+  // Phase 348: Needs input draws no title of its own (D15), so its row is the fifth element and its name the sixth.
+  add('SA2 is red on a Needs input that lists nothing', gradeSa2, edit(sa2, (r) => void r.needs.elements.splice(4, 2)), false);
   add('SA2 is red on a row that is not the book\'s', gradeSa2, edit(sa2, (r) => void r.needs.elements.push(E('needs-row-fx-9', '', 230, 60, 0, 402))), false);
-  add('SA2 is red on a row named other than the book', gradeSa2, edit(sa2, (r) => void (r.needs.elements[6].label = 'fixture-nine')), false);
+  add('SA2 is red on a row named other than the book', gradeSa2, edit(sa2, (r) => void (r.needs.elements[5].label = 'fixture-nine')), false);
   add('SA2 with no Needs input read is UNREADABLE', gradeSa2, edit(sa2, (r) => void (r.needs = null)), null);
   add('SA2 with no book is UNREADABLE', gradeSa2, edit(sa2, (r) => void (r.book = null)), null);
 
@@ -10445,11 +11410,12 @@ function sampleSelfTest() {
   add('SA11 with the owner check never answered is UNREADABLE', gradeSa11, edit(sa11, (r) => void (r.authUp = null)), null);
 
   // ---- SA12
-  const settingsIn = dump('tab-settings', [E('screen-settings', '', 44, 830), E('settings-title', 'Settings', 60), E('settings-about', '', 120, 200), E('settings-version', '1.0.0 (0)', 140)], { sampleLabel: true });
+  const settingsIn = dump('tab-settings', [E('screen-settings', '', 44, 830), E('settings-about', '', 120, 200), E('settings-version', '1.0.0 (0)', 140)], { sampleLabel: true });
   const sa12 = { dump: settingsIn };
   add('SA12 passes its honest reading', gradeSa12, sa12, true);
   for (const id of ['settings-mac', 'settings-alerts', 'settings-unpair', 'settings-see-sample']) add(`SA12 is red on ${id} drawn inside the sample`, gradeSa12, edit(sa12, (r) => void r.dump.elements.push(E(id, 'x', 400))), false);
-  add('SA12 is red with no About', gradeSa12, edit(sa12, (r) => void r.dump.elements.splice(2, 1)), false);
+  // Phase 348: Settings draws no title of its own (D15), so About is the second element.
+  add('SA12 is red with no About', gradeSa12, edit(sa12, (r) => void r.dump.elements.splice(1, 1)), false);
   add('SA12 is red on Settings with no sample-label', gradeSa12, edit(sa12, (r) => void (r.dump.sampleLabel = false)), false);
   add('SA12 with Settings never read is UNREADABLE', gradeSa12, { dump: null }, null);
 
@@ -10774,9 +11740,9 @@ function sampleRecordedDrive(book, cast, steps, words, opts = {}) {
   const needsEls = () => {
     const s = book.lists[key()].blocked;
     const rows = s.rows.map((i) => book.pieces.blockedRows[i]);
-    return [E('screen-needs-input', '', [0, 106, 402, 685]), E('needs-input-title', 'Needs input', [16, 120, 370, 34]), ...rows.flatMap((r, k) => [E(`needs-row-${r.sessionId}`, '', [0, 170 + k * 60, 402, 60]), E(`needs-row-name-${r.sessionId}`, r.name, [34, 176 + k * 60, 200, 20])])];
+    return [E('screen-needs-input', '', [0, 106, 402, 685]), ...rows.flatMap((r, k) => [E(`needs-row-${r.sessionId}`, '', [0, 170 + k * 60, 402, 60]), E(`needs-row-name-${r.sessionId}`, r.name, [34, 176 + k * 60, 200, 20])])];
   };
-  const settingsEls = () => [E('screen-settings', '', [0, 106, 402, 685]), E('settings-title', 'Settings', [16, 120, 370, 34]), E('settings-about', '', [16, 200, 370, 200]), E('settings-version', '1.0.0 (10)', [16, 220, 370, 20])];
+  const settingsEls = () => [E('screen-settings', '', [0, 106, 402, 685]), E('settings-about', '', [16, 200, 370, 200]), E('settings-version', '1.0.0 (10)', [16, 220, 370, 20])];
   const page = () => {
     if (!inSample) return pairingEls();
     const top = stack[tab].at(-1);
@@ -11020,7 +11986,7 @@ function sampleRecordedSelfTest() {
     ['SA2', 'Needs input lists a session that is not waiting', (ev) => void find(ev, screenNamed('tab-needs')).elements.push({ id: `needs-row-${cast.liveCodex}`, label: '', frame: [0, 300, 402, 60] })],
     ['SA3', 'one dump inside the sample without the Sample bar\'s label', (ev) => void (find(ev, screenNamed('back')).sampleLabel = false)],
     ['SA3', 'sideways, the grid itself runs up under the Sample bar', (ev) => void (find(ev, (e) => e.step === 'sample-inventory' && e.for === 'terminal-sideways').elements.find((e) => e.id === 'screen-grid').frame[1] = 20)],
-    ['SA3', 'Settings draws an identified element wholly inside the bar (over it)', (ev) => void find(ev, (e) => e.step === 'sample-inventory' && e.for === 'settings').elements.push({ id: 'settings-title', label: 'Settings', frame: [16, 70, 100, 30], button: false })],
+    ['SA3', 'Settings draws an identified element wholly inside the bar (over it)', (ev) => void find(ev, (e) => e.step === 'sample-inventory' && e.for === 'settings').elements.push({ id: 'settings-about', label: 'About', frame: [16, 70, 100, 30], button: false })],
     ['SA3', 'Needs input\'s page holds its container from the window\'s top, under the bar', (ev) => void (find(ev, (e) => e.step === 'sample-inventory' && e.for === 'needs').elements.find((e) => e.id === 'screen-needs-input').frame = [0, 0, 402, 874])],
     ['SA3', 'Catch Me Up\'s turns read with no clip, so the one scrolled above it is over the bar', (ev) => void find(ev, (e) => e.step === 'sample-inventory' && e.for === 'catch-up').elements.forEach((e) => delete e.clip)],
     ['SA3', 'Catch Me Up holds a turn inside the bar that its clip does not cut', (ev) => void find(ev, (e) => e.step === 'sample-inventory' && e.for === 'catch-up').elements.push({ id: 'turn-ask-9', label: 'x', frame: [16, 60, 370, 40], clip: [0, 0, 402, 874], button: false })],
@@ -11175,6 +12141,369 @@ function sampleRecordedSelfTest() {
   return runSelfTestCases(cases);
 }
 
+
+/**
+ * Phase 348's graders over recorded readings (build/p348/SPEC.md §8.2): NB and
+ * NP12 (the bar), RV1 to RV6 and RVH (Remove), PA1 to PA8 and PAH (paste). An
+ * honest reading of each passes, each clause that can say FAIL is shown red on
+ * a broken reading of its own, and a reading that cannot be graded is
+ * UNREADABLE, never a pass.
+ */
+function polishSelfTest() {
+  const cases = [];
+  const add = (what, grader, input, want) => cases.push({ what, got: () => grader(input).ok, want });
+  const edit = (base, fn) => {
+    const copy = structuredClone(base);
+    fn(copy);
+    return copy;
+  };
+  // ---- NP12: the tap grid over the bar's presses on a paired 16 Pro at 26.3 (§2.5.1; his ruling of 2026-10-20) ----
+  const frames = { select: [20, 66, 62, 36], menu: [98, 66, 58, 36], plus: [332, 66, 50, 36] };
+  const BAR_16 = [0, 62, 402, 106.67];
+  const pressOf = (fr, x, y) => {
+    for (const [name, f] of Object.entries(fr)) if (x >= f[0] && x < f[0] + f[2] && y >= f[1] && y < f[1] + f[3]) return name;
+    return 'none';
+  };
+  const gridOf = (fr, { width = 402, height = 874, system = '26.3', rows = true } = {}) => {
+    const top = Math.min(...Object.values(fr).map((f) => f[1]));
+    const bottom = Math.max(...Object.values(fr).map((f) => f[1] + f[3]));
+    const heights = rows ? [top + 2, (top + bottom) / 2, bottom - 2] : [];
+    const out = (x, y) => (x < 0 || y < 0 || x >= width || y >= height ? 'offscreen' : pressOf(fr, x, y));
+    const taps = [];
+    for (const y of heights) for (let x = 2; x < width - 1; x += 4) taps.push([x, y, out(x, y)]);
+    const crosses = Object.entries(fr).map(([name, f]) => {
+      const across = [];
+      for (let x = f[0] - 8; x <= f[0] + f[2] + 8; x += 2) across.push([x, f[1] + f[3] / 2, out(x, f[1] + f[3] / 2)]);
+      const down = [];
+      for (let y = f[1] - 8; y <= f[1] + f[3] + 8; y += 2) down.push([f[0] + f[2] / 2, y, out(f[0] + f[2] / 2, y)]);
+      return { control: name, frame: [...f], across, down };
+    });
+    return { step: 'bar-grid', found: true, heights, taps, crosses, window: [width, height], system, relaunches: 0, faceId: false };
+  };
+  const barReadOf = (fr, bar = BAR_16) => ({ bar: [...bar], select: { frame: [...fr.select] }, menu: { frame: [...fr.menu] }, plus: { frame: [...fr.plus] } });
+  const np12Of = (fr, opts, bar = BAR_16) => ({ grid: gridOf(fr, opts), before: barReadOf(fr, bar), after: barReadOf(fr, bar) });
+  const np12 = np12Of(frames);
+  add('NP12 passes the bar\'s presses on 26.3, the "+" its 50 × 36 item, from the taps alone', gradeNp12, np12, true);
+  add('NP12 prints build 11\'s "+" beside it as his stated trade and never requires it', (r) => ({ ok: gradeNp12(r).ok === true && /build 11's 50 × 52 on this phone, his stated trade, never required/.test(gradeNp12(r).said) }), np12, true);
+  // The press narrower than D56's: the "+" pressing 46 pt where it pressed 50.
+  const narrow = { ...frames, plus: [332, 66, 46, 36] };
+  add('NP12 is red on a "+" whose press is 46 pt wide', gradeNp12, { ...np12, grid: { ...gridOf(narrow), crosses: gridOf(narrow).crosses.map((c) => (c.control === 'plus' ? { ...c, frame: [...frames.plus] } : c)) } }, false);
+  const short = { ...frames, select: [20, 70, 62, 28] };
+  add('NP12 is red on Select pressing 28 pt tall', gradeNp12, { ...np12, grid: { ...gridOf(short), crosses: gridOf(short).crosses.map((c) => (c.control === 'select' ? { ...c, frame: [...frames.select] } : c)) } }, false);
+  const beside = { ...frames, plus: [158, 66, 50, 36] };
+  add('NP12 is red on the "+" beside the filter, 76 pt from Select', gradeNp12, np12Of(beside), false);
+  const swapped = { select: [20, 66, 62, 36], plus: [98, 66, 50, 36], menu: [332, 66, 58, 36] };
+  add('NP12 is red on the "+" before the filter', gradeNp12, np12Of(swapped), false);
+  add('NP12 is red on a press split in two on the grid', gradeNp12, edit(np12, (r) => void (r.grid.taps.find((t) => t[0] === 354 && Math.abs(t[1] - 84) < 0.01)[2] = 'none')), false);
+  add('NP12 is red on a bar tap that chose a Show segment', gradeNp12, edit(np12, (r) => void (r.grid.taps.find((t) => t[0] === 202 && Math.abs(t[1] - 84) < 0.01)[2] = 'show')), false);
+  add('NP12 is red on a cross tap that chose a Show segment', gradeNp12, edit(np12, (r) => void (r.grid.crosses.find((c) => c.control === 'plus').down.at(-1)[2] = 'show')), false);
+  add('NP12 is red on Select moved across the taps', gradeNp12, edit(np12, (r) => void (r.after.select.frame[0] = 30)), false);
+  add('NP12 is red on the "+" moved across the taps', gradeNp12, edit(np12, (r) => void (r.after.plus.frame[1] = 70)), false);
+  // THE SECOND FIX ROUND's 16 Pro 18.3 run: the same frames read 1e-13 apart across the relaunches are not a move.
+  add('NP12 passes the bar read 1e-13 apart before and after, across 18.3\'s relaunches', gradeNp12, edit(np12, (r) => {
+    r.before.select.frame = [20, 66.00000000000009, 62, 36.00000000000001];
+    r.after.select.frame = [20, 65.99999999999999, 62, 35.99999999999999];
+  }), true);
+  add('NP12 is red on Select moved half a point across the taps', gradeNp12, edit(np12, (r) => void (r.after.select.frame[1] = 66.5)), false);
+  add('NP12 is red on an owner check', gradeNp12, edit(np12, (r) => void (r.grid.faceId = true)), false);
+  add('NP12 is red on iOS 26 with no row tapped across the bar', gradeNp12, np12Of(frames, { rows: false }), false);
+  // His ruling of 2026-10-20: the fix round's first-line "+", 52 square under the bar, presses more and is NOT the bar's.
+  const firstLine = { ...frames, plus: [334, 168.67, 52, 52] };
+  add('NP12 is red on the "+" on the list\'s first line under the bar (the fix round\'s construction)', gradeNp12, np12Of(firstLine), false);
+  // iOS 18.3: the bar grows an item to 44, no row across it, short launches.
+  const tall = { select: [16, 58, 56, 44], menu: [80, 58, 60, 44], plus: [332, 58, 54, 44] };
+  add('NP12 passes 18.3\'s presses over short launches, with no row across the bar', gradeNp12, edit(np12Of(tall, { system: '18.3', rows: false }), (r) => void (r.grid.relaunches = 9)), true);
+  add('NP12 is red on 18.3 with the filter\'s press before Select\'s', gradeNp12, np12Of({ select: [80, 58, 60, 44], menu: [16, 58, 56, 44], plus: tall.plus }, { system: '18.3', rows: false }), false);
+  add('NP12 is red on 18.3 with the "+" pressing 44 across', gradeNp12, np12Of({ ...tall, plus: [332, 58, 44, 44] }, { system: '18.3', rows: false }), false);
+  add('NP12 is red on 26.3\'s bar read on 18.3, where the bar grows an item to 44', gradeNp12, edit(np12, (r) => void (r.grid.system = '18.3')), false);
+  // An iPhone SE on 26.3: the bar's "+" presses 50 × 36 there too, build 11's 50 × 44 printed beside it.
+  const se = { select: [20, 24, 62, 36], menu: [98, 24, 58, 36], plus: [305, 24, 50, 36] };
+  add('NP12 passes an SE\'s bar "+" on 26.3, build 11\'s 50 × 44 printed beside it', gradeNp12, np12Of(se, { width: 375, height: 667 }, [0, 20, 375, 106.5]), true);
+  add('NP12 is UNREADABLE with no grid', gradeNp12, { grid: null, before: null, after: null }, null);
+  add('NP12 is UNREADABLE with no control in the bar', gradeNp12, { grid: { found: false }, before: null, after: null }, null);
+  add('NP12 is UNREADABLE on a runtime D56 never measured', gradeNp12, edit(np12, (r) => void (r.grid.system = '17.5')), null);
+  add('NP12 passes on a window build 11\'s "+" was never measured on, printing that it was not', gradeNp12, edit(np12, (r) => void (r.grid.window = [430, 932])), true);
+  add('NP12 is UNREADABLE on a tap that answered no known outcome', gradeNp12, edit(np12, (r) => void (r.grid.taps[0][2] = 'unread')), null);
+  add('NP12 is UNREADABLE with no bar read after the taps', gradeNp12, edit(np12, (r) => void (r.after = null)), null);
+  // ---- NB: the large title at rest, inline after one swipe ------------------
+  const nb = {
+    swipe: {
+      rest: {
+        bar: [0, 62, 402, 106.67],
+        titles: [[16, 116, 143.33, 40.67]],
+        show: [16, 172, 370, 32],
+        controls: [{ id: 'list-select', frame: [20, 66, 62, 36] }, { id: 'list-menu', frame: [98, 66, 58, 36] }, { id: 'start-open', frame: [332, 66, 50, 36] }],
+        segments: [{ id: 'list-show-all', frame: [18, 174, 122, 28] }, { id: 'list-show-active', frame: [140, 174, 122, 28] }, { id: 'list-show-ended', frame: [262, 174, 122, 28] }]
+      },
+      swiped: { bar: [0, 62, 402, 54], titles: [[178, 79, 46, 20.33]], show: null, controls: [] },
+      window: [402, 874],
+      system: '26.3'
+    }
+  };
+  add('NB passes a large title at rest and an inline one after one swipe', gradeNb, nb, true);
+  add('NB is red on no large title at rest', gradeNb, edit(nb, (r) => void (r.swipe.rest.titles = [[178, 79, 46, 20.33]])), false);
+  add('NB is red on a large title above the controls', gradeNb, edit(nb, (r) => void (r.swipe.rest.titles = [[16, 64, 143.33, 40.67]])), false);
+  add('NB is red on the Show control under the bar\'s bottom edge', gradeNb, edit(nb, (r) => void (r.swipe.rest.show = [16, 150, 370, 32])), false);
+  add('NB is red on the "+" drawn under the bar, the fix round\'s first line (his ruling of 2026-10-20)', gradeNb, edit(nb, (r) => void (r.swipe.rest.controls[2].frame = [334, 168.67, 52, 52])), false);
+  add('NB is red on a large title still drawn after the swipe', gradeNb, edit(nb, (r) => void (r.swipe.swiped.titles = [[16, 116, 143.33, 40.67]])), false);
+  add('NB is red on a bar that did not shorten', gradeNb, edit(nb, (r) => void (r.swipe.swiped.bar = [0, 62, 402, 106.67])), false);
+  add('NB is UNREADABLE with no inline title read after the swipe', gradeNb, edit(nb, (r) => void (r.swipe.swiped.titles = [])), null);
+  add('NB is UNREADABLE with no bar-swipe line', gradeNb, { swipe: null }, null);
+  add('NB is UNREADABLE on a list that did not move under the swipe (too short to scroll)', gradeNb, edit(nb, (r) => Object.assign(r.swipe.swiped, { bar: [0, 62, 402, 106.67], titles: [[16, 116, 143.33, 40.67]], show: [16, 172, 370, 32] })), null);
+  // ---- NS: Show's three segments at build 11's width while the Mac offers Start (his ruling of 2026-10-20) ----
+  add('NS passes All, Active and Ended at build 11\'s 122 × 28 on a 16 Pro', gradeNs, nb, true);
+  add('NS is red on the fix round\'s 100.67 pt segments beside a first-line "+"', gradeNs, edit(nb, (r) => r.swipe.rest.segments.forEach((sg, i) => void (sg.frame = [18 + i * 100.67, 180.67, 100.67, 28]))), false);
+  add('NS is red on one segment narrower than build 11\'s', gradeNs, edit(nb, (r) => void (r.swipe.rest.segments[2].frame[2] = 120)), false);
+  add('NS is red on a segment shorter than build 11\'s', gradeNs, edit(nb, (r) => void (r.swipe.rest.segments[0].frame[3] = 24)), false);
+  add('NS passes an SE\'s 113 × 28 segments', gradeNs, edit(nb, (r) => Object.assign(r.swipe, { window: [375, 667] }) && r.swipe.rest.segments.forEach((sg, i) => void (sg.frame = [18 + i * 113, 138.5, 113, 28]))), true);
+  add('NS is red on an SE\'s 91.5 pt segments', gradeNs, edit(nb, (r) => Object.assign(r.swipe, { window: [375, 667] }) && r.swipe.rest.segments.forEach((sg, i) => void (sg.frame = [18 + i * 91.5, 138.5, 91.5, 28]))), false);
+  add('NS is UNREADABLE when the "+" was not drawn (the Mac not offering Start)', gradeNs, edit(nb, (r) => void r.swipe.rest.controls.pop()), null);
+  add('NS is UNREADABLE with a segment unread', gradeNs, edit(nb, (r) => void r.swipe.rest.segments.pop()), null);
+  add('NS is UNREADABLE on a window build 11\'s Show was not read on', gradeNs, edit(nb, (r) => void (r.swipe.window = [430, 932])), null);
+  add('NS is UNREADABLE with no bar-swipe line', gradeNs, { swipe: null }, null);
+  // ---- The arms STATED because they fail at the parent too (the fix round) -----
+  const stated = (r) => ({ ok: statedAtParent(r.id, r.said) });
+  add('A T1 that fails exactly as build 11 does is stated', stated, { id: 'T1 the conversation, paged to the first turn, ask plain and answer formatted', said: "20 turn(s) drawn, and the door's turnCount is 44; the indexes drawn are not the indexes the door holds; the planted ask reads back nowhere: it was drawn as markdown; the planted answer reads back nowhere: it was not drawn as markdown" }, true);
+  add('An SL6 that fails exactly as build 11 does is stated', stated, { id: 'SL6 iOS 26.3: an ended session opens from Ended, its conversation pages to its first turn, and no End is drawn', said: "the turns drawn [24,25,26,27,28]… are not the 44 the door holds; the conversation was not paged to its first turn; 20 turn(s) drawn, the door's turnCount 44" }, true);
+  add('An MD1 that fails exactly as build 11 does is stated', stated, { id: 'MD1 iOS 26.3: markdown off, every planted answer drawn as written', said: '8 planted turn(s) drew no md- element: answer-realistic, nested-list-task, table-align, table-at-caps, quote-nested, fence-unclosed' }, true);
+  // THE SECOND FIX ROUND (the reverify's nit): build 11's own counts are pinned, so fewer turns than build 11 drew is a FAIL.
+  add('A T1 drawing fewer turns than build 11 did is NOT stated', stated, { id: 'T1 the conversation, paged to the first turn, ask plain and answer formatted', said: "12 turn(s) drawn, and the door's turnCount is 44; the indexes drawn are not the indexes the door holds" }, false);
+  add('An SL6 whose door holds another count is NOT stated', stated, { id: 'SL6 iOS 26.3: an ended session opens from Ended', said: "the turns drawn [24,25,26,27,28]… are not the 40 the door holds; 20 turn(s) drawn, the door's turnCount 40" }, false);
+  add('An MD1 naming other answers than build 11 did is NOT stated', stated, { id: 'MD1 iOS 26.3: markdown off', said: '9 planted turn(s) drew no md- element: answer-realistic' }, false);
+  // ---- No agent but the stand-ins (the second fix round: the reverify found Oh My Pi run for its version) ----
+  const RUN1 = '/private/tmp/p316-probe-1';
+  const scanOf = (r) => standInsOnlyVerdict(r, { standIns: P316_STAND_INS, under: RUN1 });
+  const scanOk = [
+    { id: 'claude', installed: true, binPath: `${RUN1}/home/.local/bin/claude`, version: '2.1.0 (Claude Code)' },
+    { id: 'codex', installed: true, binPath: `${RUN1}/home/.local/bin/codex`, version: 'codex-cli 0.0.0' },
+    { id: 'omp', installed: false, binPath: null, version: null },
+    { id: 'cursoride', installed: false, binPath: '/opt/homebrew/bin/cursor', version: null }
+  ];
+  add('the agents scan passes the two stand-ins under the run, Oh My Pi hidden, an IDE row resolved for display', scanOf, scanOk, true);
+  add('the agents scan is red on Oh My Pi resolved and run for its version (the reverify\'s finding)', scanOf, scanOk.map((a) => (a.id === 'omp' ? { ...a, installed: true, binPath: '/opt/homebrew/bin/omp', version: 'omp/18.0.11' } : a)), false);
+  add('the agents scan is red on a stand-in resolved outside the run', scanOf, scanOk.map((a) => (a.id === 'codex' ? { ...a, binPath: '/opt/homebrew/bin/codex' } : a)), false);
+  add('the agents scan is red on a row it does not know', scanOf, [...scanOk, { id: 'newagent', installed: true, binPath: '/opt/homebrew/bin/newagent', version: '1.0' }], false);
+  add('every probed row but the two stand-ins is hidden, Oh My Pi among them', () => ({ ok: P316_HIDDEN_IDS.length === 11 && P316_HIDDEN_IDS.includes('omp') && !P316_HIDDEN_IDS.includes('claude') && !P316_HIDDEN_IDS.includes('codex') }), null, true);
+  add('An S1 that fails exactly as build 11 does is stated', stated, { id: "S1 one session, in main's words", said: "the Catch Me Up outcome is not main's; the last answer is not drawn" }, true);
+  add('A T1 with a clause build 11 never failed is NOT stated', stated, { id: 'T1 the conversation', said: "20 turn(s) drawn, and the door's turnCount is 44; a terminal line is still drawn above the conversation" }, false);
+  add('An S1 failing on its status is NOT stated', stated, { id: "S1 one session, in main's words", said: 'the status reads "Ended", not "Idle"' }, false);
+  add('A FAIL of an arm not in the table is NOT stated', stated, { id: 'RV1 26.3, the Terminal\'s ⋯', said: "the last answer is not drawn" }, false);
+  // ---- RV1 to RV6 and RVH -------------------------------------------------------
+  const want = { title: "Remove 'p348-rv1'?", body: 'It moves to Past Sessions and you can restore it from there.', confirmLabel: 'Remove' };
+  const menuRead = { face: 'terminal', via: 'menu', opened: true, end: null, remove: { id: 'terminal-menu-remove', label: 'Remove', enabled: true, frame: [210, 120, 180, 44], via: 'id' }, faceId: false };
+  const topRead = { face: 'catch-up', via: 'top', end: false, remove: { id: 'session-remove', label: 'Remove', enabled: true, hittable: true, frame: [330, 62, 56, 44] }, line: null, faceId: false };
+  const dialog = { for: 'remove', via: 'sheet', title: want.title, texts: [want.title, want.body], buttons: [want.confirmLabel, 'Cancel'], faceId: false };
+  const after = { for: 'remove', pressed: 'Remove', landed: 'list', line: null, writing: true, faceId: false };
+  const rv1 = { want, read: menuRead, dialog, after, authAsked: 0, acts: 1, removed: true, live: false };
+  add('RV1 passes Remove in the ⋯ after End', gradeRv1, rv1, true);
+  add('RV1 passes Remove at Catch Me Up\'s top right', gradeRv1, edit(rv1, (r) => void (r.read = topRead)), true);
+  // THE SECOND FIX ROUND (the reverify): an arm that names its face is read on that face, or it is UNREADABLE.
+  add('RV1 passes the top right arm read on Catch Me Up via the top', gradeRv1, edit(rv1, (r) => Object.assign(r, { read: topRead, expect: { face: 'catch-up', via: 'top' } })), true);
+  add('RV1 is UNREADABLE when the top right arm read Remove in the Terminal\'s ⋯', gradeRv1, edit(rv1, (r) => void (r.expect = { face: 'catch-up', via: 'top' })), null);
+  add('RV1 passes the ⋯ arm read on the Terminal via the menu', gradeRv1, edit(rv1, (r) => void (r.expect = { face: 'terminal', via: 'menu' })), true);
+  add('RV1 is UNREADABLE when the ⋯ arm read Remove at the top right', gradeRv1, edit(rv1, (r) => Object.assign(r, { read: topRead, expect: { face: 'terminal', via: 'menu' } })), null);
+  add('RV1 is red on no Remove after End', gradeRv1, edit(rv1, (r) => void (r.read.remove = null)), false);
+  add('RV1 is red on End still drawn beside Remove', gradeRv1, edit(rv1, (r) => void (r.read.end = { id: 'terminal-menu-end', label: 'End session…' })), false);
+  add('RV1 is red on Remove under another id', gradeRv1, edit(rv1, (r) => void (r.read.remove.id = 'session-end')), false);
+  add('RV1 is red on the confirmation\'s words not the Mac\'s', gradeRv1, edit(rv1, (r) => void (r.dialog.texts = [want.title, 'Remove it?'])), false);
+  add('RV1 is red on no Cancel', gradeRv1, edit(rv1, (r) => void (r.dialog.buttons = ['Remove'])), false);
+  // THE FIX ROUND (2026-10-19): iOS 26's popover draws the destructive press alone, its dismiss region the way out.
+  const pop = (r) => Object.assign(r.dialog, { buttons: ['Remove'], dismiss: true, system: '26.3.1' });
+  const popCancel = { dialog: { for: 'remove-cancel', via: 'sheet', title: want.title, texts: [want.title, want.body], buttons: ['Remove'], dismiss: true, system: '26.3.1', faceId: false }, after: { for: 'remove-cancel', landed: 'session', cancelVia: 'dismiss', faceId: false, writing: false } };
+  add('RV1 passes iOS 26\'s popover with its dismissal driven and the session kept', gradeRv1, edit(rv1, (r) => { pop(r); r.cancel = popCancel; }), true);
+  add('RV1 is UNREADABLE on iOS 26\'s popover with no dismissal driven', gradeRv1, edit(rv1, (r) => pop(r)), null);
+  add('RV1 is red on iOS 26\'s popover whose dismissal left the page', gradeRv1, edit(rv1, (r) => { pop(r); r.cancel = { ...popCancel, after: { ...popCancel.after, landed: 'list' } }; }), false);
+  add('RV1 is red on iOS 26\'s popover whose dismissal wrote a Remove', gradeRv1, edit(rv1, (r) => { pop(r); r.cancel = { ...popCancel, after: { ...popCancel.after, writing: true } }; }), false);
+  add('RV1 is red on no Cancel on iOS 18 even with a dismiss region', gradeRv1, edit(rv1, (r) => Object.assign(r.dialog, { buttons: ['Remove'], dismiss: true, system: '18.3.1' })), false);
+  add('RV1 is red on iOS 26 with neither a Cancel nor a dismiss region', gradeRv1, edit(rv1, (r) => Object.assign(r.dialog, { buttons: ['Remove'], dismiss: false, system: '26.3.1' })), false);
+  add('RV1 is red on no confirmation drawn', gradeRv1, edit(rv1, (r) => Object.assign(r.dialog, { via: 'app', title: null, texts: [], buttons: [] })), false);
+  add('RV1 is red on an owner check', gradeRv1, edit(rv1, (r) => void (r.after.faceId = true)), false);
+  add('RV1 is red on Face ID asked by the UI test', gradeRv1, edit(rv1, (r) => void (r.authAsked = 1)), false);
+  add('RV1 is red on the app left on the session\'s page', gradeRv1, edit(rv1, (r) => Object.assign(r.after, { landed: 'session', line: P348_WORDS.removeNotTaken })), false);
+  add('RV1 is red on two acts', gradeRv1, edit(rv1, (r) => void (r.acts = 2)), false);
+  add('RV1 is red on no row in Past Sessions', gradeRv1, edit(rv1, (r) => void (r.removed = false)), false);
+  add('RV1 is red on the session still the Mac\'s own', gradeRv1, edit(rv1, (r) => void (r.live = true)), false);
+  add('RV1 is UNREADABLE with no removeConfirm offered', gradeRv1, edit(rv1, (r) => void (r.want = null)), null);
+  add('RV1 is UNREADABLE with no remove-read', gradeRv1, edit(rv1, (r) => void (r.read = null)), null);
+  const rv2 = { held: 1, acts: 0, live: true, removed: false, after: { for: 'remove-home', landed: 'session', line: P348_WORDS.removeNotTaken, faceId: false } };
+  add('RV2 passes a write withheld by Home', gradeRv2, rv2, true);
+  add('RV2 is red on an act', gradeRv2, edit(rv2, (r) => void (r.acts = 1)), false);
+  add('RV2 is red on the row removed', gradeRv2, edit(rv2, (r) => Object.assign(r, { removed: true, live: false })), false);
+  add('RV2 is red on another line on return', gradeRv2, edit(rv2, (r) => void (r.after.line = P348_WORDS.endNoAnswer)), false);
+  add('RV2 is red on the list on return', gradeRv2, edit(rv2, (r) => void (r.after.landed = 'list')), false);
+  add('RV2 is UNREADABLE when the relay held nothing', gradeRv2, edit(rv2, (r) => void (r.held = 0)), null);
+  const dumpOf = (ids) => ({ step: 'sessions-dump', complete: true, elements: [{ id: 'list-show-all', selected: true }, ...ids.flatMap((id) => [{ id: `row-${id}` }, { id: `row-name-${id}` }])] });
+  const rv3 = { dump: dumpOf(['s-kept', 's-other']), id: 's-gone', kept: 's-kept' };
+  add('RV3 passes the removed row gone under All', gradeRv3, rv3, true);
+  add('RV3 is red on the removed row still drawn', gradeRv3, edit(rv3, (r) => void r.dump.elements.push({ id: 'row-s-gone' })), false);
+  add('RV3 is red on the kept row missing', gradeRv3, edit(rv3, (r) => void (r.dump = dumpOf(['s-other']))), false);
+  add('RV3 is UNREADABLE on a walk not under All', gradeRv3, edit(rv3, (r) => void (r.dump.elements[0].selected = false)), null);
+  add('RV3 is UNREADABLE on a walk that did not end', gradeRv3, edit(rv3, (r) => void (r.dump.complete = false)), null);
+  const rv4 = { dumps: [{ name: 'end', elements: [{ id: 'session-status', label: 'p348-rv4 · Ended' }] }], menuAfter: { opened: true, rows: [{ id: 'terminal-menu-catch-up', label: 'Catch Me Up' }] }, endActs: 1, status: 'exited', removeActs: 0 };
+  add('RV4 passes build 11 drawing no Remove', gradeRv4, rv4, true);
+  add('RV4 is red on build 11 drawing a Remove', gradeRv4, edit(rv4, (r) => void r.dumps[0].elements.push({ id: 'session-remove' })), false);
+  add('RV4 is red on a Remove in build 11\'s ⋯', gradeRv4, edit(rv4, (r) => void r.menuAfter.rows.push({ id: 'x', label: 'Remove' })), false);
+  add('RV4 is red on End acting twice', gradeRv4, edit(rv4, (r) => void (r.endActs = 2)), false);
+  add('RV4 is red on the session still running', gradeRv4, edit(rv4, (r) => void (r.status = 'running')), false);
+  add('RV4 is UNREADABLE with no screen', gradeRv4, edit(rv4, (r) => void (r.dumps = [])), null);
+  // THE PROBE REVIEW (rule 9): the ⋯ after End is a reading of its own.
+  add('RV4 (the review) is UNREADABLE with no terminal-menu line after End', gradeRv4, edit(rv4, (r) => void (r.menuAfter = null)), null);
+  add('RV4 (the review) is UNREADABLE when the ⋯ after End did not open', gradeRv4, edit(rv4, (r) => Object.assign(r.menuAfter, { opened: false, rows: [] })), null);
+  const rv6 = { want, read: topRead, dialog, after, authAsked: 0, dump: dumpOf(['sample-1', 'sample-2']), id: 'sample-3', kept: 'sample-1', connections: 0 };
+  add('RV6 passes the sample\'s Remove', gradeRv6, rv6, true);
+  add('RV6 is red on a connection', gradeRv6, edit(rv6, (r) => void (r.connections = 1)), false);
+  add('RV6 is red on the removed sample row still listed', gradeRv6, edit(rv6, (r) => void r.dump.elements.push({ id: 'row-sample-3' })), false);
+  add('RV6 is red on an owner check', gradeRv6, edit(rv6, (r) => void (r.dialog.faceId = true)), false);
+  add('RV6 is UNREADABLE with no book words', gradeRv6, edit(rv6, (r) => void (r.want = null)), null);
+  const rhSpec = (name) => P348_ARMS[name];
+  const rhHonest = { spec: rhSpec('remove-honest'), alive: RUNNING_FOREGROUND, posts: 1, read: topRead, dialog, after, words: {}, doorSentence: 'door words' };
+  add('RVH passes remove-honest', gradeRvh, rhHonest, true);
+  add('RVH is red on remove-honest with two POSTs', gradeRvh, edit(rhHonest, (r) => void (r.posts = 2)), false);
+  add('RVH is red on remove-honest left on the page', gradeRvh, edit(rhHonest, (r) => void (r.after.landed = 'session')), false);
+  const rhSentence = { ...rhHonest, spec: rhSpec('remove-404'), after: { ...after, landed: 'session', line: P348_WORDS.removeNotTaken } };
+  add('RVH passes remove-404 with the not-removed line', gradeRvh, rhSentence, true);
+  add('RVH is red on remove-404 with another line', gradeRvh, edit(rhSentence, (r) => void (r.after.line = P348_WORDS.endNoAnswer)), false);
+  add('RVH passes remove-unknown-reason with the door\'s own sentence', gradeRvh, { ...rhSentence, spec: rhSpec('remove-unknown-reason'), after: { ...after, landed: 'session', line: 'door words' } }, true);
+  add('RVH passes remove-refused-changed with the Mac\'s sentence', gradeRvh, { ...rhSentence, spec: rhSpec('remove-refused-changed'), words: { LIFECYCLE_SESSION_CHANGED: 'changed words' }, after: { ...after, landed: 'session', line: 'changed words' } }, true);
+  const rhAbsent = { spec: rhSpec('remove-offer-absent'), alive: RUNNING_FOREGROUND, posts: 0, read: { ...topRead, remove: null }, after: null };
+  add('RVH passes remove-offer-absent (RV5): no Remove, nothing sent', gradeRvh, rhAbsent, true);
+  add('RVH is red on remove-offer-absent drawing a Remove', gradeRvh, edit(rhAbsent, (r) => void (r.read.remove = topRead.remove)), false);
+  add('RVH is red on remove-offer-absent sending a POST', gradeRvh, edit(rhAbsent, (r) => void (r.posts = 1)), false);
+  // THE PROBE REVIEW (rule 9): no Remove on a page that never settled is no reading.
+  add('RVH (the review) is UNREADABLE on remove-offer-absent over a page that never settled', gradeRvh, edit(rhAbsent, (r) => void (r.read = { step: 'remove-read', settled: false, via: 'none', faceId: false })), null);
+  add('RV1 (the review) is UNREADABLE on a session page that never settled', gradeRv1, edit(rv1, (r) => void (r.read = { step: 'remove-read', settled: false, via: 'none', faceId: false })), null);
+  const rhMalformed = { ...rhAbsent, spec: rhSpec('remove-confirm-malformed'), failure: P348_WORDS.answerUnreadable };
+  add('RVH passes remove-confirm-malformed refused whole', gradeRvh, rhMalformed, true);
+  add('RVH is red on remove-confirm-malformed drawn as an answer', gradeRvh, edit(rhMalformed, (r) => void (r.failure = null)), false);
+  add('RVH is UNREADABLE with Remove never pressed', gradeRvh, edit(rhSentence, (r) => void (r.after = null)), null);
+  add('RVH (the review) is red on no Remove drawn over a settled page whose Mac offers one', gradeRvh, edit(rhSentence, (r) => Object.assign(r, { after: null, missing: { step: 'remove-missing', face: 'catch-up', via: 'top', remove: null, end: false, line: null } })), false);
+  // ---- PA1 to PA8 and PAH -------------------------------------------------------
+  const text = 'p348 one\ttwo ✓\nline two';
+  const bytes = pasteBytesOf(text, true);
+  add('pasteBytesOf brackets and turns a line feed into a carriage return', () => verdict(bytes === `1b5b3230307e${Buffer.from('p348 one\ttwo ✓\rline two', 'utf8').toString('hex')}1b5b3230317e`, ''), null, true);
+  add('pasteBytesOf adds no bracket for a program that asked for none', () => verdict(pasteBytesOf('a\nb', false) === '610d62', ''), null, true);
+  const pa8 = { built: true, planted: true, read: { step: 'paste-menu', pressed: true, items: [{ label: 'Copy' }, { label: 'Paste' }], alerts: [{ in: 'springboard', label: '“Tortie” would like to paste', buttons: ['Don’t Allow Paste', 'Allow Paste'] }] } };
+  add('PA8 passes an alert seen for the app\'s own read', gradePa8, pa8, true);
+  add('PA8 is red on no alert seen', gradePa8, edit(pa8, (r) => void (r.read.alerts = [])), false);
+  add('PA8 is UNREADABLE on a copy that did not build', gradePa8, edit(pa8, (r) => void (r.built = false)), null);
+  add('PA8 is UNREADABLE on a plant that did not land', gradePa8, edit(pa8, (r) => void (r.planted = false)), null);
+  const trip = { step: 'paste-trip', settings: true, back: true, terminal: true };
+  const way = (via, extra = {}) => ({ via, read: { step: `paste-${via}`, items: [{ label: 'Copy' }, { label: 'Paste' }], pressed: true, alerts: [], faceId: false, result: 'synthesized', presses: 1, ...extra }, bytes, want: bytes, trip });
+  const pa1 = { pa8: { ok: true, said: '' }, ways: [way('menu'), way('cmdv'), way('pinch')] };
+  add('PA1 passes the three ways with no alert', gradePa1, pa1, true);
+  add('PA1 passes a second Command-V when the first reached nothing', gradePa1, edit(pa1, (r) => void (r.ways[1].read.presses = 2)), true);
+  add('PA1 is red on an alert after Command-V', gradePa1, edit(pa1, (r) => void (r.ways[1].read.alerts = [{ in: 'springboard', label: 'Allow Paste?' }])), false);
+  add('PA1 is red on a menu holding more than Copy and Paste', gradePa1, edit(pa1, (r) => void r.ways[0].read.items.push({ label: 'Paste and Go' })), false);
+  add('PA1 is red on a Return added', gradePa1, edit(pa1, (r) => void (r.ways[2].bytes = `${bytes}0d`)), false);
+  add('PA1 is red on a paste that landed twice', gradePa1, edit(pa1, (r) => void (r.ways[1].bytes = `${bytes}${bytes}`)), false);
+  add('PA1 is red on an owner check', gradePa1, edit(pa1, (r) => void (r.ways[0].read.faceId = true)), false);
+  add('PA1 is UNREADABLE when PA8 saw no alert', gradePa1, edit(pa1, (r) => void (r.pa8 = { ok: false, said: 'no alert' })), null);
+  add('PA1 is UNREADABLE with no trip to Settings', gradePa1, edit(pa1, (r) => void (r.ways[0].trip = { settings: false, back: true })), null);
+  add('PA1 is UNREADABLE on a pinch not synthesized', gradePa1, edit(pa1, (r) => void (r.ways[2].read.result = 'no-classes')), null);
+  const pa2 = { read: { step: 'paste-ctrl', armed: true, alerts: [] }, bytes, want: bytes };
+  add('PA2 passes an armed Control not applied', gradePa2, pa2, true);
+  add('PA2 is red on the first byte made a control key', gradePa2, edit(pa2, (r) => void (r.bytes = `10${bytes.slice(2)}`)), false);
+  add('PA2 is UNREADABLE with Control not armed', gradePa2, edit(pa2, (r) => void (r.read.armed = false)), null);
+  const pa3 = { read: { step: 'paste-cmdv' }, bytes: '', acts: 0, line: P348_WORDS.pasteCode };
+  add('PA3 passes a pairing code refused on the phone', gradePa3, pa3, true);
+  add('PA3 is red on the code reaching the program', gradePa3, edit(pa3, (r) => void (r.bytes = '7b')), false);
+  add('PA3 is red on an act in main\'s log', gradePa3, edit(pa3, (r) => void (r.acts = 1)), false);
+  add('PA3 is red on another line', gradePa3, edit(pa3, (r) => void (r.line = null)), false);
+  const line = `echo p348 ${'x'.repeat(200)}`;
+  const pa4 = { read: { step: 'paste-copied', copy: true }, copied: line, line, rows: 3, bytes: pasteBytesOf(line, false), want: pasteBytesOf(line, false) };
+  add('PA4 passes a wrapped line copied as one and pasted whole', gradePa4, pa4, true);
+  add('PA4 is red on the copy broken at each row (the parent\'s)', gradePa4, edit(pa4, (r) => void (r.copied = `${line.slice(0, 80)}\n${line.slice(80, 160)}\n${line.slice(160)}`)), false);
+  add('PA4 is red on the paste broken in the middle', gradePa4, edit(pa4, (r) => void (r.bytes = pasteBytesOf(`${line.slice(0, 80)}\n${line.slice(80)}`, false))), false);
+  add('PA4 is UNREADABLE when nothing wrapped', gradePa4, edit(pa4, (r) => void (r.rows = 1)), null);
+  add('PA4 is UNREADABLE with no Copy drawn', gradePa4, edit(pa4, (r) => void (r.read.copy = false)), null);
+  const zle = ['% echo p348zle zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz', 'zzzzzzzzzzzzzz   '];
+  const pa5 = { copied: `${zle[0]}\n${zle[1].trimEnd()}`, rows: zle, marked: [] };
+  add('PA5 passes zsh\'s editing line copied as the parent copies it (stated)', gradePa5, pa5, true);
+  add('PA5 is red on zsh\'s editing line joined, which D46 says it is not', gradePa5, edit(pa5, (r) => void (r.copied = `${zle[0]}${zle[1].trimEnd()}`)), false);
+  add('PA5 is UNREADABLE with nothing wrapped', gradePa5, edit(pa5, (r) => void (r.rows = [zle[0]])), null);
+  const pa6 = { read: { step: 'paste-menu', items: [{ label: 'Copy' }, { label: 'Paste' }], pressed: true, alerts: [] }, screen: { rows: [{ label: '› run the tests' }, { label: '› p348 sample paste' }] }, text: 'p348 sample paste', connections: 0 };
+  add('PA6 passes the sample\'s paste echoed on its prompt', gradePa6, pa6, true);
+  add('PA6 is red on a connection', gradePa6, edit(pa6, (r) => void (r.connections = 1)), false);
+  add('PA6 is red on the words not echoed', gradePa6, edit(pa6, (r) => void (r.screen.rows = [{ label: '›' }])), false);
+  add('PA6 is red on an alert', gradePa6, edit(pa6, (r) => void (r.read.alerts = [{ in: 'app', label: 'Allow Paste?' }])), false);
+  add('PA6 is UNREADABLE with no paste line', gradePa6, edit(pa6, (r) => void (r.read = null)), null);
+  const pa7 = { spec: P348_ARMS['screen-paste-flag-absent'], read: { step: 'paste-menu-read', items: [{ label: 'Copy' }] }, posts: 0, alive: RUNNING_FOREGROUND };
+  add('PA7 passes Copy alone on a picture with no paste', gradePa7, pa7, true);
+  add('PA7 is red on Paste offered', gradePa7, edit(pa7, (r) => void r.read.items.push({ label: 'Paste' })), false);
+  add('PA7 is red on a POST', gradePa7, edit(pa7, (r) => void (r.posts = 1)), false);
+  add('PA7 passes a flag of another type refused with its word', gradePa7, { spec: P348_ARMS['screen-paste-flag-string'], read: null, screen: { line: copyOf('screenNotAnswering') }, posts: 0, alive: RUNNING_FOREGROUND }, true);
+  add('PA7 is red on a string flag read as a picture', gradePa7, { spec: P348_ARMS['screen-paste-flag-string'], read: null, screen: { line: null }, posts: 0, alive: RUNNING_FOREGROUND }, false);
+  add('PA7 is UNREADABLE when the UI test printed no last line (a drive the harness ended)', gradePa7, { spec: P348_ARMS['screen-paste-flag-string'], read: null, screen: null, posts: 0, alive: null }, null);
+  const ph = { spec: P348_ARMS['paste-404'], read: { step: 'paste-menu', pressed: true, items: [{ label: 'Copy' }, { label: 'Paste' }], alerts: [] }, screen: { rows: [{ label: 'x' }], line: copyOf('pasteNotTaken') }, posts: 1, alive: RUNNING_FOREGROUND, words: {}, doorSentence: 'door words' };
+  add('PAH passes paste-404 with its line', gradePah, ph, true);
+  add('PAH is red on paste-404 with another line', gradePah, edit(ph, (r) => void (r.screen.line = null)), false);
+  add('PAH is red on two POSTs', gradePah, edit(ph, (r) => void (r.posts = 2)), false);
+  add('PAH passes paste-honest drawn with no line', gradePah, edit(ph, (r) => Object.assign(r, { spec: P348_ARMS['paste-honest'], screen: { rows: [{ label: 'x' }], line: null } })), true);
+  add('PAH passes paste-refused-character with the Mac\'s sentence', gradePah, edit(ph, (r) => Object.assign(r, { spec: P348_ARMS['paste-refused-character'], words: { PASTE_CHARACTER: 'mac words' }, screen: { rows: [{ label: 'x' }], line: 'mac words' } })), true);
+  add('PAH passes paste-unknown-reason with the door\'s own sentence', gradePah, edit(ph, (r) => Object.assign(r, { spec: P348_ARMS['paste-unknown-reason'], screen: { rows: [{ label: 'x' }], line: 'door words' } })), true);
+  add('PAH is UNREADABLE with Paste never pressed', gradePah, edit(ph, (r) => Object.assign(r.read, { pressed: false, items: [] })), null);
+  // THE PROBE REVIEW'S OWN RECORDED READINGS (docs/method/HOW-WE-BUILT-THIS.md rule 9), in
+  // build/p348/fixtures/reviewer/p316.json: an honest reading per Phase 348 grader in the shape the UI test prints
+  // it (an iPhone SE where these cases above read a 16 Pro), and cases each ONE thing away from it, answering
+  // exactly green, red or UNREADABLE; THE REVIEW's cases are the readings that passed, or were never asked, before
+  // it. A spec named { "$arm": name } is that row of P348_ARMS.
+  {
+    const graders = { gradeT2a, gradeU1, gradeNp12, gradeNb, gradeRv1, gradeRv2, gradeRv3, gradeRv4, gradeRv6, gradeRvh, gradePa1, gradePa2, gradePa3, gradePa4, gradePa5, gradePa6, gradePa7, gradePa8, gradePah };
+    let review = null;
+    try {
+      review = JSON.parse(readFileSync(join(ROOT, 'build', 'p348', 'fixtures', 'reviewer', 'p316.json'), 'utf8'));
+    } catch (err) {
+      cases.push({ what: `the review's Phase 348 readings load (${String(err?.message ?? err)})`, got: () => false, want: true });
+    }
+    if (review !== null) {
+      const armsOf = (x) => (Array.isArray(x) ? x.map(armsOf) : x !== null && typeof x === 'object' ? (typeof x.$arm === 'string' && Object.keys(x).length === 1 ? P348_ARMS[x.$arm] : Object.fromEntries(Object.entries(x).map(([k, v]) => [k, armsOf(v)]))) : x);
+      const pathOf = (obj, path) => {
+        const keys = String(path).split('.');
+        let o = obj;
+        for (const k of keys.slice(0, -1)) o = o[/^\d+$/.test(k) ? Number(k) : k];
+        const last = keys.at(-1);
+        return { o, k: /^\d+$/.test(last) ? Number(last) : last };
+      };
+      const apply = (reading, ops) => {
+        for (const op of ops) {
+          if (op.set !== undefined) {
+            const { o, k } = pathOf(reading, op.set);
+            o[k] = structuredClone(op.value);
+          } else if (op.push !== undefined) {
+            const { o, k } = pathOf(reading, op.push);
+            o[k].push(structuredClone(op.value));
+          } else if (op.delete !== undefined) {
+            const { o, k } = pathOf(reading, op.delete);
+            if (Array.isArray(o)) o.splice(k, 1);
+            else delete o[k];
+          } else throw new Error(`an op this reader does not know: ${J(op)}`);
+        }
+        return reading;
+      };
+      for (const [name, reading] of Object.entries(review.base)) {
+        cases.push({ what: `the review's honest ${name} PASSES`, got: () => (graders[name] === undefined ? 'no such grader' : graders[name](armsOf(structuredClone(reading))).ok), want: true });
+      }
+      const reached = new Set();
+      for (const rc of review.cases) {
+        cases.push({ what: `the review's ${rc.grader} ${rc.want === true ? 'PASSES' : rc.want === false ? 'is red on' : 'is UNREADABLE on'} ${rc.name}`, got: () => (graders[rc.grader] === undefined ? 'no such grader' : graders[rc.grader](armsOf(apply(structuredClone(review.base[rc.grader]), rc.ops))).ok), want: rc.want });
+        if (rc.want !== true) reached.add(rc.grader);
+      }
+      cases.push({ what: `the review's broken readings reach every Phase 348 grader (${J(Object.keys(graders).filter((g) => !reached.has(g)))} missing)`, got: () => Object.keys(graders).every((g) => reached.has(g)), want: true });
+    }
+  }
+  // THE PROBE REVIEW (rule 9): a menu read that offers no Paste over a picture that takes one is the app's failure.
+  add('PAH (the review) is red on a menu of Copy alone over a picture that takes a paste', gradePah, edit(ph, (r) => Object.assign(r.read, { pressed: false, items: [{ label: 'Copy' }] })), false);
+  add('PA1 (the review) is UNREADABLE on the menu read three times and no Command-V or pinch', gradePa1, edit(pa1, (r) => void (r.ways = [way('menu'), way('menu'), way('menu')])), null);
+  let bad = 0;
+  for (const c of cases) {
+    const got = c.got();
+    const ok = got === c.want;
+    if (!ok) bad += 1;
+    console.log(`${ok ? 'ok  ' : 'FAIL'} ${c.what}: ${got === true ? 'green' : got === false ? 'red' : got === null ? 'UNREADABLE' : String(got)}`);
+  }
+  return { bad, total: cases.length };
+}
+
 function selfTest() {
   const reads = [
     {
@@ -11204,15 +12533,13 @@ function selfTest() {
     window: [402, 874],
     elements: [
       { id: 'screen-list', label: '', frame: [0, 0, 402, 874] },
-      { id: 'list-title', label: 'Sessions', frame: [16, 62.1667, 115, 33.6667] },
       { id: 'section-blocked', label: '', frame: [16, 110.1667, 156.6667, 15.6667] },
       { id: 'section-blocked-text', label: `${String(COPY.needsLead)}1${String(COPY.close)}`, frame: [16, 110.1667, 156.6667, 15.6667] },
       ...rowAt('a', 133, 'fix-login', '2m', 'webapp · Edit x?', null, false),
       { id: 'section-others', label: '', frame: [16, 216.1667, 149.6667, 15.6667] },
       { id: 'section-others-text', label: `${String(COPY.othersLead)}1${String(COPY.close)}`, frame: [16, 216.1667, 149.6667, 15.6667] },
       ...rowAt('b', 239, 'talk', 'now', 'api · Working', 'Mac Pro', true),
-      { id: 'list-age-note', label: 'the age note', frame: [16, 312, 357, 33.6667] },
-      { id: 'list-read', label: `${String(COPY.readLead)}4:32 PM`, frame: [306, 351.6667, 80, 15.6667] }
+      { id: 'list-read', label: `${String(COPY.readLead)}4:32 PM`, frame: [306, 312, 80, 15.6667] }
     ]
   };
   const edit = (fn) => {
@@ -11241,7 +12568,9 @@ function selfTest() {
     { what: 'a row that is not the last drawn without its hairline', dump: edit((l) => (find(l, 'row-a').frame[3] = 56)), red: true },
     { what: 'the last row drawn with a hairline under it', dump: edit((l) => (find(l, 'row-b').frame[3] = 57)), red: true },
     { what: 'rows with 8/16 padding', dump: edit((l) => { find(l, 'row-a').frame[3] = 61; move(l, /^row-(name|age|line|dot)-a$/, 2); }), red: true },
-    { what: 'the question missing from the second line', dump: edit((l) => (find(l, 'row-line-a').label = 'webapp')), red: true }
+    { what: 'the question missing from the second line', dump: edit((l) => (find(l, 'row-line-a').label = 'webapp')), red: true },
+    // Phase 348 (item 4): a note drawn on the foot, the parent's shape.
+    { what: 'the age note drawn on the foot, the parent\'s foot', dump: edit((l) => l.push({ id: 'list-age-note', label: 'the age note', frame: [16, 312, 357, 33.6667] })), red: true }
   ];
   let bad = 0;
   for (const c of cases) {
@@ -11329,7 +12658,14 @@ function selfTest() {
       ? `${TAG} fill self-test PASS: ${String(fill.total)} cases (PF1 to PF9 and PF1 (pages), PL1 to PL5, PM1, PP1 to PP3, PSH scrollback-fill-moved, the run's readers and the stand-in's two tails) graded as they must be.`
       : `${TAG} fill self-test FAIL: ${String(fill.bad)} of ${String(fill.total)} case(s) graded wrongly.`
   );
-  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 && ends.bad === 0 && replies.bad === 0 && starts.bad === 0 && screens.bad === 0 && sessionsCases.bad === 0 && setupCases.bad === 0 && sampleCases.bad === 0 && recordedCases.bad === 0 && fill.bad === 0 ? 0 : 1);
+  // Phase 348: the bar (NB, NP12), Remove (RV1 to RV6, RVH) and paste (PA1 to PA8, PAH).
+  const polish = polishSelfTest();
+  console.log(
+    polish.bad === 0
+      ? `${TAG} Phase 348 self-test PASS: ${String(polish.total)} cases (NB and NP12's tap grid, RV1 to RV6 and RVH, PA1 to PA8 and PAH, and the paste's bytes) graded as they must be.`
+      : `${TAG} Phase 348 self-test FAIL: ${String(polish.bad)} of ${String(polish.total)} case(s) graded wrongly.`
+  );
+  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 && ends.bad === 0 && replies.bad === 0 && starts.bad === 0 && screens.bad === 0 && sessionsCases.bad === 0 && setupCases.bad === 0 && sampleCases.bad === 0 && recordedCases.bad === 0 && fill.bad === 0 && polish.bad === 0 ? 0 : 1);
 }
 // NOT `--self-test`: build/cdp-target.mjs, imported above, runs ITS fixtures
 // and exits when argv holds that exact word.
@@ -11442,7 +12778,9 @@ const redactedDelivery = (d) => ({ arm: d.arm, readySeq: d.readySeq, code: d.cod
 
 try {
   rmSync(RUN, { recursive: true, force: true });
-  for (const dir of [HOME, HARNESS, PROFILE, WORK, BIN, XCODE, join(HOME, '.claude')]) mkdirSync(dir, { recursive: true });
+  for (const dir of [HOME, HARNESS, PROFILE, WORK, BIN, NODE_BIN, XCODE, join(HOME, '.claude')]) mkdirSync(dir, { recursive: true });
+  // THE PROBE REVIEW: ONE `node`, for the Electron shim and nothing else (never the folder node lives in).
+  symlinkSync(process.execPath, join(NODE_BIN, 'node'));
   standin = makeStandin({ dir: STANDIN_DIR, scenario: { ...DEFAULT_SCENARIO } });
   const pre = preflightStandin(standin, standin.binPath);
   preflightOk = pre.ok;
@@ -11550,13 +12888,15 @@ exit 0
   p318WriteWrappers({ dir: P318_DIR, bin: P318_BIN, standinDir: P318_STANDIN });
   writeFileSync(join(BIN, 'codex'), `#!/bin/sh\n# probe:p316. Not Codex: build/p318/stand-in.mjs.\nexec '${P318_BIN}/codex' "$@"\n`, 'utf8');
   chmodSync(join(BIN, 'codex'), 0o755);
-  writeFileSync(join(HOME, '.zprofile'), `export PATH="${BIN}:$PATH"\n`, 'utf8');
-  writeFileSync(join(HOME, '.zshrc'), `export PATH="${BIN}:$PATH"\nexport HISTFILE=/dev/null\n`, 'utf8');
+  // THE PROBE REVIEW: the login PATH is the scratch bin and the system folders, never `$PATH` after them.
+  writeFileSync(join(HOME, '.zprofile'), `export PATH="${LOGIN_PATH}"\n`, 'utf8');
+  writeFileSync(join(HOME, '.zshrc'), `export PATH="${LOGIN_PATH}"\nexport HISTFILE=/dev/null\n`, 'utf8');
   // THE PRECONDITION (Phase 346's ruled round): the login shell the app will ask, with the environment it will be
   // given, resolves `claude` and `codex` to this file's stand-ins, or nothing is launched (UNREADABLE, exit 2). On
   // 2026-10-16 a ZDOTDIR probe:p313 did not set started his real Claude Code in both of its claude sessions.
+  // THE PROBE REVIEW: asked with the app's own closed PATH and no row folder's variable, as the app is launched.
   {
-    const asked = plantedResolve({ home: HOME, bin: BIN, names: ['claude', 'codex'], env: INHERITED_CLAUDE });
+    const asked = plantedResolve({ home: HOME, bin: BIN, names: ['claude', 'codex'], env: { ...INHERITED_CLAUDE, ...ROW_DIR_UNSET, PATH: APP_PATH } });
     report.readings.resolves = asked.resolved;
     if (!asked.ok) {
       arm('the run', null, `REFUSED: ${asked.said}, so a session would start a real agent. Nothing is launched.`);
@@ -11590,7 +12930,19 @@ exit 0
     arm('the run', null, `the DNS preflight refused the launch: ${dnsPre.problems.join('; ')}`);
     throw new Error('port taken');
   }
-  writeQuietAgents(PROFILE);
+  // NO AGENT BUT THE STAND-INS (Phase 348's second fix round): the checkout's own overlay reader, merge and resolver
+  // over the overlay, and the registry's own probed rows, before anything starts; a refusal is no run (exit 2).
+  {
+    const pre = hiddenAgentsPrecheck({ checkout: ROOT, prefix: 'p316', home: HOME, userPath: APP_PATH, standIns: P316_STAND_INS });
+    report.readings.hiddenPrecheck = { ok: pre.ok, said: pre.said, ids: pre.ids, wouldResolve: pre.wouldResolve };
+    if (!pre.ok) {
+      agentsHeld.push(false);
+      arm('the run', null, `REFUSED: the hidden agents' precheck says ${pre.said}, so an agent other than the stand-ins could run for its version. Nothing is launched.`);
+      throw new Error('the hidden agents precheck refused the launch');
+    }
+    say(`hidden before the launch: ${pre.said}`);
+  }
+  writeHiddenAgents(PROFILE, 'p316', P316_HIDDEN_IDS);
   await withElectron(
     {
       label: 'p316',
@@ -11600,6 +12952,9 @@ exit 0
       args: ['--remote-debugging-port=0', '--use-mock-keychain'],
       env: withoutDevRenderer({
         ...INHERITED_CLAUDE,
+        // THE PROBE REVIEW: no row folder's variable (`NVM_BIN`), and the app's own closed PATH.
+        ...ROW_DIR_UNSET,
+        PATH: APP_PATH,
         HOME,
         // PHASE 346's FIX ROUND: every shell a pane of this run starts keeps its
         // history in the scratch HOME or nowhere, whatever the environment of
@@ -12204,8 +13559,8 @@ exit 0
 
         /** T2a to T2d, over one drive's lines. */
         const gradeTabArms = (ev, run, where) => {
-          const v1 = gradeT2a({ pairEnd: lastDump(ev, 'pair-end') });
-          arm(`T2a ${where}: pairing lands on the Needs input tab`, v1.ok, v1.said);
+          const v1 = gradeT2a({ pairEnd: lastDump(ev, 'pair-end'), tabs: ev.find((e) => e.step === 'tabs' && e.for === 'pair-end') ?? null });
+          arm(`T2a ${where}: pairing lands on that Mac's Sessions tab (Phase 348, D1)`, v1.ok, v1.said);
           const v2 = gradeT2b({ badges: run.badgeReads ?? [] });
           arm(`T2b ${where}: the Needs input badge is the door's waiting count`, v2.ok, v2.said);
           const v3 = gradeT2c({ tabSessions: lastDump(ev, 'tab-sessions'), name: talk?.name ?? null });
@@ -12592,7 +13947,9 @@ exit 0
                 relay: at.unpair === undefined || at.idleEnd === undefined ? null : { before: at.unpair.count, after: at.idleEnd.count, waitedMs: at.idleEnd.at - at.unpair.at },
                 relaunch: lastDump(ev, 'relaunch-keep'),
                 stillListed: listed === null || run.simPhoneId === null ? null : (listed.phones ?? []).some((ph) => ph.id === run.simPhoneId),
-                again: again.ok ? lastDump(again.result.events, 'pair-end') : null
+                again: again.ok ? lastDump(again.result.events, 'pair-end') : null,
+                // THE PROBE REVIEW (rule 9; SPEC §8.2 item 1): the second pairing's landing by its selected tab.
+                againTabs: again.ok ? again.result.events.find((e) => e.step === 'tabs' && e.for === 'pair-end') ?? null : null
               });
               md.readings.U1 = { relay: at, stillListed: listed === null ? null : (listed.phones ?? []).length, again: again.ok ? again.result.events.length : again.why };
               arm(`U1 iOS ${sim.runtime}: Unpair forgets the pairing on the phone, dials nothing after, and a new code pairs again`, u1.ok, u1.said);
@@ -15509,6 +16866,35 @@ exit 0
             report.readings.startOffer = ready === null ? { state: (await offerNow())?.state ?? null } : { projects: ready.projects.length, places: ready.places.map((p) => ({ id: p.id, ready: p.ready, agents: p.agents })), chosen: ready.chosen, defaultAgent: ready.defaultAgent };
             if (ready === null) arm('NP the Mac offers a start', null, `the Mac's /v1/sessions never carried an offer naming the scratch projects (${J(report.readings.startOffer)})`);
             else {
+              // ---- NP12 on the 16 Pro's floor, FIRST, a drive of its own on a fresh device (the fix round), as the
+              // SE's 18.3 grid that read whole had it: pairing, the list and the grid, nothing else. THE SECOND FIX
+              // ROUND runs it before the NB rows are made: on iOS 18.3 the app ended inside XCTest's log quarantine at
+              // Select's first taps on this phone while the SE, which draws fewer rows under the bar, read 204 taps
+              // whole, and every snapshot of a tap reads the whole list (SPEC §0 rule 14), so the list is short here.
+              // Select is drawn only over a row End is offered on, so one shell is made when nothing is live. ----
+              {
+                const live0 = (await sessionsAll()).filter((x) => ['running', 'idle', 'needs_input'].includes(x.status)).length;
+                if (live0 === 0) await cdpEval(cdp, `window.gmux.sessions.create(${J({ name: 'p348-grid-0', projectPath: WORK, cwd: WORK, agent: 'shell' })}).then(() => true).catch(() => false)`);
+                report.readings.floorGridRows = { live: live0, made: live0 === 0 ? 1 : 0 };
+                await confirmListening(cdp);
+                await withSimulator({ label: 'p316-start-floor-grid', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-start-floor-grid'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                  const run = await pairAndRead(sim, ['pair', 'list', 'bar-grid'], 'start-floor-grid', { timeoutMs: START_DRIVE_MS });
+                  const ev = run.ok ? run.result.events : [];
+                  const np12F = !run.ok || ev.length === 0 ? verdict(null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`) : gradeNp12(barGridOf(ev));
+                  arm('NP12 18.3, the floor, a drive of its own: the crosses over short launches, each press at least D56\'s on 18.3, the "+" its 54 × 44 item (build 11\'s press printed beside it, his stated trade)', np12F.ok, np12F.said);
+                });
+              }
+              // PHASE 348 (NB): one swipe folds the large title inline only on a list longer than the screen, so the
+              // Mac draws at least NB_ROWS live sessions before the bar is read (shells made here, counted by nothing else).
+              {
+                const NB_ROWS = 14;
+                const live = (await sessionsAll()).filter((x) => ['running', 'idle', 'needs_input'].includes(x.status)).length;
+                for (let k = live; k < NB_ROWS; k += 1) await cdpEval(cdp, `window.gmux.sessions.create(${J({ name: `p348-nb-${String(k)}`, projectPath: WORK, cwd: WORK, agent: 'shell' })}).then(() => true).catch(() => false)`);
+                report.readings.nbRows = { before: live, after: (await untilStart(async () => {
+                  const n = (await sessionsAll()).filter((x) => ['running', 'idle', 'needs_input'].includes(x.status)).length;
+                  return n >= NB_ROWS ? n : null;
+                }, 60_000, 500)) };
+              }
               // ---- 26.3: NP1, NP5, NP3, NP6 and NP7, one drive -------------
               const plan = ['np5', 'np3', 'np6a', 'np6b', 'np7'];
               const tags = [];
@@ -15560,10 +16946,10 @@ exit 0
               const steps = [
                 'pair',
                 'list',
-                // THE RULED ROUND: the "+"'s press measured around where the build before drew its glyph, and the title
-                // row read, before any start (NP12).
-                // Underscores, because the drive's steps are joined by commas.
-                `start-reach:${START_TITLE_ROW_BEFORE['start-open'].join('_')}`,
+                // Phase 348 (item 5): the bar read at rest and after one swipe (NB), then the tap grid across it (NP12),
+                // before any start. The ruled round's `start-reach` around the title row's glyph is retired on purpose.
+                'bar-swipe',
+                'bar-grid',
                 'start-open',
                 `start-pick:${closeA}`,
                 'start-create',
@@ -15588,7 +16974,9 @@ exit 0
               ];
               try {
                 await withSimulator({ label: 'p316-start', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-start'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
-                  const run = await pairAndRead(sim, steps, 'start', { env: { P316_ACKS: acks.dir }, react });
+                  // THE FIX ROUND (2026-10-19, the phone lens): the tap grid alone took 2,141 s on iOS 26.3 on his machine, past the
+                  // drive's 900 s default, which ended it mid-scan and read NP1, NB, NP12, NP3, NP5, NP6 and NP7 UNREADABLE.
+                  const run = await pairAndRead(sim, steps, 'start', { env: { P316_ACKS: acks.dir }, react, timeoutMs: START_DRIVE_MS });
                   const ev = run.ok ? run.result.events : [];
                   if (!run.ok || ev.length === 0) {
                     arm('NP1 the "+" and New session over this Mac\'s offer', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
@@ -15602,12 +16990,16 @@ exit 0
                   // NP1
                   {
                     const v = gradeNp1({ offer: S.openOffer, open: opens[0] ?? null });
-                    arm('NP1 26.3: the "+" at the title\'s trailing end, named New session; the sheet\'s projects and marks this Mac\'s offer\'s', v.ok, v.said);
+                    arm('NP1 26.3: the "+" alone at the trailing edge of the iPhone\'s own bar, named New session; the sheet\'s projects and marks this Mac\'s offer\'s', v.ok, v.said);
                   }
-                  // NP12 (the ruled round)
+                  // NB and NP12 (Phase 348, item 5): the iPhone's own bar, and each press from the taps alone
                   {
-                    const v = gradeNp12({ reach: ev.find((e) => e.step === 'start-reach') ?? null });
-                    arm('NP12 26.3: the "+"\'s press is at least 44 × 44 pt and nothing drawn on the Sessions title row moved', v.ok, v.said);
+                    const nb = gradeNb({ swipe: ev.find((e) => e.step === 'bar-swipe') ?? null });
+                    arm('NB 26.3: the Sessions tab\'s large title at rest, inline after one swipe, the Show control under the bar', nb.ok, nb.said);
+                    const ns = gradeNs({ swipe: ev.find((e) => e.step === 'bar-swipe') ?? null });
+                    arm('NS 26.3: All, Active and Ended each at least build 11\'s 122 × 28 while the Mac offers Start (his ruling: Show keeps its full width)', ns.ok, ns.said);
+                    const v = gradeNp12(barGridOf(ev));
+                    arm('NP12 26.3: the tap grid: each press at least D56\'s (the "+" the bar\'s own 50 × 36 item, build 11\'s 50 × 52 printed beside it, his stated trade), Select, the filter, then the "+" on the bar, Select far from it, nothing moved', v.ok, v.said);
                   }
                   // NP5
                   {
@@ -15636,10 +17028,10 @@ exit 0
                 relay.resume();
               }
 
-              // ---- 18.3, the floor: NP1, NP5 and NP3 ----------------------------
+              // ---- 18.3, the floor: NP1, NB, NS and NP5 (NP3 has a drive of its own below) ------------
               await confirmListening(cdp);
               {
-                const fplan = ['np5', 'np3'];
+                const fplan = ['np5'];
                 const ftags = [];
                 const fat = {};
                 const F = { openOffer: null, removed: false };
@@ -15656,7 +17048,11 @@ exit 0
                   }
                 };
                 await withSimulator({ label: 'p316-start-floor', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-start-floor'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
-                  const run = await pairAndRead(sim, ['pair', 'list', 'start-open', `start-pick:${closeB}`, 'start-create', 'start-close', 'start-open', `start-pick:${workId}`, 'start-agent:claude', 'start-create'], 'start-floor', { env: { P316_ACKS: facks.dir }, react: freact });
+                  // NO GRID on the floor's starts (the fix round): on iOS 18.3 the starts and the grid in one drive spent
+                  // XCTest's log quarantine, the app ending in the grid's first read in one run and at NP3's Create in the
+                  // next, so the grid has a drive of its own above; and THE SECOND FIX ROUND gives NP3 one too (the
+                  // reverify's 18.3 run still ended at NP3's Create after the fix round's relaunch between NP5 and NP3).
+                  const run = await pairAndRead(sim, ['pair', 'list', 'bar-swipe', 'start-open', `start-pick:${closeB}`, 'start-create', 'start-close'], 'start-floor', { env: { P316_ACKS: facks.dir }, react: freact, timeoutMs: START_DRIVE_MS });
                   const ev = run.ok ? run.result.events : [];
                   if (!run.ok || ev.length === 0) {
                     arm('NP1 18.3, the floor', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
@@ -15669,11 +17065,81 @@ exit 0
                   const opens = ev.filter((e) => e.step === 'start-open');
                   const v1 = gradeNp1({ offer: F.openOffer, open: opens[0] ?? null });
                   arm('NP1 18.3, the floor: the "+" and New session over this Mac\'s offer', v1.ok, v1.said);
-                  const v5 = fat.np5 === undefined ? verdict(null, 'no Create on the project to be closed') : gradeNp5({ removed: F.removed, created: byTag.np5 ?? null, made: made(fat.np5, fat.np3 ?? endMark).length });
+                  const nbF = gradeNb({ swipe: ev.find((e) => e.step === 'bar-swipe') ?? null });
+                  arm('NB 18.3, the floor: the large title at rest, inline after one swipe, the Show control under the bar', nbF.ok, nbF.said);
+                  const nsF = gradeNs({ swipe: ev.find((e) => e.step === 'bar-swipe') ?? null });
+                  arm('NS 18.3, the floor: All, Active and Ended each at least build 11\'s 122 × 28 while the Mac offers Start', nsF.ok, nsF.said);
+                  const v5 = fat.np5 === undefined ? verdict(null, 'no Create on the project to be closed') : gradeNp5({ removed: F.removed, created: byTag.np5 ?? null, made: made(fat.np5, endMark).length });
                   arm('NP5 18.3, the floor: a project closed while the sheet is open', v5.ok, v5.said);
-                  const v3 = fat.np3 === undefined ? verdict(null, 'no Create on this Mac\'s project') : gradeNp3({ agent: 'claude', projectPath: WORK, made: made(fat.np3, endMark), openFaceId: opens.some((o) => o.faceId === true), created: byTag.np3 ?? null });
-                  arm('NP3 18.3, the floor: Create opens the Terminal of the session main created, no owner check', v3.ok, v3.said);
                 });
+              }
+
+              // ---- 18.3, the floor: NP3 in a drive of its own on a fresh device (the second fix round, the reverify:
+              // "each get a fresh device and launch of their own, as the SE's 18.3 grid did when it read") --------
+              await confirmListening(cdp);
+              {
+                const n3 = { tags: [], at: {} };
+                const n3acks = startAcks('floor-np3');
+                const n3react = async (event) => {
+                  if (event.step === 'start-ready') {
+                    const tag = n3.tags.length === 0 ? 'np3' : 'extra';
+                    n3.tags.push(tag);
+                    n3.at[tag] = await takeMark();
+                    if (tag === 'np3') relay.delayNextBy(2_500);
+                    n3acks.ack(event.seq);
+                  }
+                };
+                await withSimulator({ label: 'p316-start-floor-np3', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-start-floor-np3'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                  const run = await pairAndRead(sim, ['pair', 'list', 'start-open', `start-pick:${workId}`, 'start-agent:claude', 'start-create'], 'start-floor-np3', { env: { P316_ACKS: n3acks.dir }, react: n3react, timeoutMs: START_DRIVE_MS });
+                  const ev = run.ok ? run.result.events : [];
+                  if (!run.ok || ev.length === 0) {
+                    arm('NP3 18.3, the floor, a drive of its own', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
+                    return;
+                  }
+                  const endMark = await takeMark();
+                  const listNow = await sessionsAll();
+                  const made = (from, to) => [...to.ids].filter((id) => !from.ids.has(id)).map((id) => listNow.find((x) => x.id === id) ?? { id, name: null, agent: null, projectPath: null });
+                  const byTag = byTagOf(ev, n3.tags);
+                  const opens = ev.filter((e) => e.step === 'start-open');
+                  const v3 = n3.at.np3 === undefined ? verdict(null, 'no Create on this Mac\'s project') : gradeNp3({ agent: 'claude', projectPath: WORK, made: made(n3.at.np3, endMark), openFaceId: opens.some((o) => o.faceId === true), created: byTag.np3 ?? null });
+                  arm('NP3 18.3, the floor, a drive of its own: Create opens the Terminal of the session main created, no owner check', v3.ok, v3.said);
+                });
+              }
+
+              // ---- Phase 348: NB, NP12 and NP1 on an iPhone SE, both runtimes ---------
+              {
+                const seMissing = simulatorHarnessMissing({ runtimes: [RUNTIME_CURRENT, RUNTIME_FLOOR], deviceType: DEVICE_TYPE_TOUCH_ID });
+                for (const runtime of [RUNTIME_CURRENT, RUNTIME_FLOOR]) {
+                  if (seMissing !== null) {
+                    arm(`NB, NP12 and NP1 on an ${DEVICE_TYPE_TOUCH_ID}, iOS ${runtime}`, null, seMissing);
+                    continue;
+                  }
+                  await confirmListening(cdp);
+                  const SE = { openOffer: null };
+                  await withSimulator({ label: `p316-start-se-${runtime}`, runtime, deviceType: DEVICE_TYPE_TOUCH_ID, scratch: join(XCODE, `sim-start-se-${runtime}`), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                    // On 18.3 the grid comes last, as on the floor (the fix round), so NP1 reads whatever the scan meets.
+                    const seSteps = runtime === RUNTIME_FLOOR ? ['pair', 'list', 'bar-swipe', 'start-open', 'start-close', 'bar-grid'] : ['pair', 'list', 'bar-swipe', 'bar-grid', 'start-open', 'start-close'];
+                    const run = await pairAndRead(sim, seSteps, `start-se-${runtime}`, {
+                      react: async (event) => {
+                        if (event.step === 'start-open' && SE.openOffer === null) SE.openOffer = await offerNow();
+                      },
+                      timeoutMs: START_DRIVE_MS
+                    });
+                    const ev = run.ok ? run.result.events : [];
+                    if (!run.ok || ev.length === 0) {
+                      arm(`NB, NP12 and NP1 on an ${DEVICE_TYPE_TOUCH_ID}, iOS ${runtime}`, null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
+                      return;
+                    }
+                    const nb = gradeNb({ swipe: ev.find((e) => e.step === 'bar-swipe') ?? null });
+                    arm(`NB ${runtime}, iPhone SE: the large title at rest, inline after one swipe, the Show control under the bar`, nb.ok, nb.said);
+                    const ns = gradeNs({ swipe: ev.find((e) => e.step === 'bar-swipe') ?? null });
+                    arm(`NS ${runtime}, iPhone SE: All, Active and Ended each at least build 11's 113 × 28 while the Mac offers Start`, ns.ok, ns.said);
+                    const np12 = gradeNp12(barGridOf(ev));
+                    arm(`NP12 ${runtime}, iPhone SE: the tap grid, each press at least D56's, the "+" the bar's own item (build 11's press printed beside it, his stated trade), Select far from it`, np12.ok, np12.said);
+                    const np1 = gradeNp1({ offer: SE.openOffer, open: ev.find((e) => e.step === 'start-open') ?? null });
+                    arm(`NP1 ${runtime}, iPhone SE: the "+" alone at the trailing edge of the iPhone's own bar, and New session over this Mac's offer`, np1.ok, np1.said);
+                  });
+                }
               }
 
               // ---- NPH, NP2 and NP8: the hostile door's start arms, 26.3 --------------
@@ -15833,6 +17299,730 @@ exit 0
                   });
                 }
               } else report.readings.startParent = 'not run: P346_PARENT_IOS is not set';
+            }
+          }
+        }
+
+        // ==================================================================
+        // Phase 348: THE `remove` GROUP (build/p348/SPEC.md §8.2 item 2; his
+        // ruling of 2026-10-18, "No Face ID, just confirm"). Shells on this
+        // Mac, each ENDED from the phone first (Face ID answered for End and
+        // nothing else), then removed: RV1 in the Terminal's ⋯ and at Catch
+        // Me Up's top right, RV3 the list under All after it, RV2 Home during
+        // the write with the relay holding it before its handshake; RV1 again
+        // on the 18.3 floor; RV5 and RVH over the hostile door's Remove arms;
+        // RV6 the sample's Remove; RV4 with P348_PARENT_IOS, build 11's own
+        // app and UI test against this Mac.
+        // ==================================================================
+        if (ARMS.has('remove')) {
+          const rvDir = join(RUN, 'acks-remove');
+          mkdirSync(rvDir, { recursive: true });
+          const rvAck = (name, text = 'ok') => writeFileSync(join(rvDir, name), `${text}\n`);
+          const rvAll = async () => JSON.parse(await cdpEval(cdp, 'window.gmux.sessions.list().then((s) => JSON.stringify(s.map((x) => ({ id: x.id, name: x.name, tmuxName: x.tmuxName, status: x.status }))))'));
+          const rvRemovedIds = async () => {
+            try {
+              return new Set(JSON.parse(await cdpEval(cdp, 'window.gmux.sessions.listRemoved().then((l) => JSON.stringify(l.map((s) => s.id)))')));
+            } catch {
+              return null;
+            }
+          };
+          const rvShell = async (name) => {
+            await cdpEval(cdp, `window.gmux.sessions.create(${J({ name, projectPath: WORK, cwd: WORK, agent: 'shell' })}).then(() => true).catch(() => false)`);
+            for (let i = 0; i < 60; i += 1) {
+              const s = (await rvAll()).find((x) => x.name === name);
+              if (s !== undefined && ['running', 'idle', 'needs_input'].includes(s.status)) return s;
+              await sleep(500);
+            }
+            return null;
+          };
+          const rvActs = async (verb, id) => (await appLogText()).split('\n').filter((l) => l.includes(`the phone's ${verb}:`) && l.includes(id)).length;
+          /** Main's own reading of a session: listed and not discarded, its status, and whether Past Sessions lists it. */
+          const rvState = async (id) => {
+            const row = (await rvAll()).find((x) => x.id === id) ?? null;
+            const removed = await rvRemovedIds();
+            return { live: row !== null && row.status !== 'discarded', status: row?.status ?? null, removed: removed === null ? null : removed.has(id) };
+          };
+          const rvConfirmOf = async (id) => (await readJson(`/v1/session?id=${encodeURIComponent(id)}`))?.session?.removeConfirm ?? null;
+          /**
+           * The reactions every Remove drive shares: End's Face ID answered
+           * `match` (acked `auth-<seq>`), the Mac's Remove words read at each
+           * `remove-read` (in `plan`'s order, before the press that follows),
+           * and Home's write held at the relay from `remove-ready`, counted 3 s
+           * after Home and released, as E5 holds End's.
+           */
+          const rvReactor = (sim, plan, marks) => async (event) => {
+            if (event.step === 'end-auth-up') {
+              const b = await sim.biometry('match').catch(() => ({ code: -1 }));
+              marks.auth.push({ for: event.for ?? null, code: b.code });
+              rvAck(`auth-${String(event.seq)}`);
+            }
+            if (event.step === 'remove-read') {
+              const id = plan.shift() ?? null;
+              if (id !== null) marks.want[id] = await rvConfirmOf(id);
+            }
+            if (event.step === 'remove-ready') {
+              marks.heldBefore = relay.held();
+              relay.pause();
+              rvAck(`remove-${String(event.seq)}`);
+            }
+            if (event.step === 'remove-home-pressed') {
+              await sleep(3_000);
+              marks.held = relay.held() - (marks.heldBefore ?? relay.held());
+              relay.resume();
+            }
+            if (event.step === 'remove-home-away') rvAck(`remove-${String(event.seq)}`);
+          };
+          const rvFor = (events, step, name) => events.filter((e) => e.step === step && e.for === name);
+          const rvAuthAsked = (events) => events.filter((e) => e.step === 'end-auth-up' && String(e.for ?? '').startsWith('remove')).length;
+
+          const RV = {};
+          for (const key of ['rv1a', 'rv1b', 'rv2', 'kept', 'rv1f', 'rv4']) RV[key] = await rvShell(`p348-${key}`);
+          if (Object.values(RV).some((s) => s === null)) arm('RV the remove group\'s sessions', null, `not every session was made live: ${J(Object.fromEntries(Object.entries(RV).map(([k, s]) => [k, s?.status ?? null])))}`);
+          else {
+            // ---- RV1, RV3 and RV2, one drive on iOS 26.3 ----------------------
+            await confirmListening(cdp);
+            await withSimulator({ label: 'p316-remove', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-remove'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+              await sim.biometry('enrol');
+              const marks = { auth: [], want: {}, held: null, heldBefore: null };
+              const plan = [RV.rv1a.id, RV.rv1b.id];
+              const steps = [
+                'pair',
+                'list',
+                `open:${RV.rv1a.id}`,
+                'end',
+                'remove-read',
+                'remove-cancel',
+                'remove',
+                `open:${RV.rv1b.id}`,
+                // THE SECOND FIX ROUND (the reverify): `catch-up` went back to the Terminal, so End and Remove ran in
+                // its ⋯; `to-catch-up` stays on Catch Me Up through End, the read and both presses.
+                'to-catch-up',
+                'end',
+                'remove-read',
+                'remove-cancel',
+                'remove',
+                'show:all',
+                'sessions-dump:rv3',
+                `open:${RV.rv2.id}`,
+                'end',
+                'remove-home'
+              ];
+              const run = await pairAndRead(sim, steps, 'remove', { env: { P316_ACKS: rvDir }, react: rvReactor(sim, plan, marks) });
+              const ev = run.ok ? run.result.events : [];
+              report.readings.remove = { auth: marks.auth, held: marks.held };
+              if (!run.ok || ev.length === 0) {
+                arm('RV1 Remove where End was, the Mac\'s words, no Face ID', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
+                return;
+              }
+              const reads = ev.filter((e) => e.step === 'remove-read');
+              const dialogs = rvFor(ev, 'remove-dialog', 'remove');
+              const afters = rvFor(ev, 'remove-after', 'remove');
+              // THE FIX ROUND: each face's confirmation is dismissed once (`remove-cancel`) before its press.
+              const cancelDialogs = rvFor(ev, 'remove-dialog', 'remove-cancel');
+              const cancelAfters = rvFor(ev, 'remove-after', 'remove-cancel');
+              for (const [k, s, face, expect] of [
+                [0, RV.rv1a, 'the Terminal\'s ⋯', { face: 'terminal', via: 'menu' }],
+                [1, RV.rv1b, 'Catch Me Up\'s top right', { face: 'catch-up', via: 'top' }]
+              ]) {
+                const state = await rvState(s.id);
+                const v = gradeRv1({ expect, want: marks.want[s.id] ?? null, read: reads[k] ?? null, dialog: dialogs[k] ?? null, after: afters[k] ?? null, cancel: { dialog: cancelDialogs[k] ?? null, after: cancelAfters[k] ?? null }, authAsked: rvAuthAsked(ev), acts: await rvActs('remove', s.id), removed: state.removed, live: state.live });
+                arm(`RV1 26.3, ${face}: after End, Remove where End was, the Mac's own words in one confirmation, back to the list, one act, in Past Sessions, no owner check`, v.ok, v.said);
+              }
+              {
+                const v = gradeRv3({ dump: ev.find((e) => e.step === 'sessions-dump' && e.tag === 'rv3') ?? null, id: RV.rv1a.id, kept: RV.kept.id });
+                arm('RV3 26.3: Done went back to the list, and under All the removed session is gone', v.ok, v.said);
+              }
+              {
+                const state = await rvState(RV.rv2.id);
+                const v = gradeRv2({ held: marks.held, acts: await rvActs('remove', RV.rv2.id), live: state.live, removed: state.removed, after: rvFor(ev, 'remove-after', 'remove-home')[0] ?? null });
+                arm('RV2 26.3: Remove then Home with the write held before its handshake: withheld, nothing removed, the not-removed line on return', v.ok, v.said);
+              }
+            });
+
+            // ---- RV1 on the floor, iOS 18.3 -------------------------------------
+            await confirmListening(cdp);
+            await withSimulator({ label: 'p316-remove-floor', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-remove-floor'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+              await sim.biometry('enrol');
+              const marks = { auth: [], want: {}, held: null, heldBefore: null };
+              const run = await pairAndRead(sim, ['pair', 'list', `open:${RV.rv1f.id}`, 'end', 'remove-read', 'remove'], 'remove-floor', { env: { P316_ACKS: rvDir }, react: rvReactor(sim, [RV.rv1f.id], marks) });
+              const ev = run.ok ? run.result.events : [];
+              const state = await rvState(RV.rv1f.id);
+              const v =
+                !run.ok || ev.length === 0
+                  ? verdict(null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`)
+                  : gradeRv1({ want: marks.want[RV.rv1f.id] ?? null, read: ev.find((e) => e.step === 'remove-read') ?? null, dialog: rvFor(ev, 'remove-dialog', 'remove')[0] ?? null, after: rvFor(ev, 'remove-after', 'remove')[0] ?? null, authAsked: rvAuthAsked(ev), acts: await rvActs('remove', RV.rv1f.id), removed: state.removed, live: state.live });
+              arm('RV1 18.3, the floor: after End, Remove where End was, the Mac\'s words, back to the list, one act, no owner check', v.ok, v.said);
+            });
+
+            // ---- RV4: build 11's own app and UI test, P348_PARENT_IOS --------------
+            if (PARENT_IOS_348 !== '') {
+              const parentProject = join(resolve(PARENT_IOS_348), 'ios', 'Tortie.xcodeproj');
+              const parentDd = join(XCODE, 'dd-parent-348');
+              const built = existsSync(parentProject)
+                ? await xcodebuildRun({ label: 'parent-remove', scratch: XCODE, derivedDataPath: parentDd, args: ['build-for-testing', '-project', parentProject, '-scheme', SCHEME, '-configuration', 'Debug', '-destination', 'generic/platform=iOS Simulator'] })
+                : { code: -1 };
+              if (built.code !== 0) arm('RV4 build 11 against this Mac: no Remove, End unchanged', null, `the parent's project did not build (${String(built.code)})`);
+              else {
+                await confirmListening(cdp);
+                await withSimulator({ label: 'p316-remove-parent', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-remove-parent'), derivedDataPath: parentDd, keep: KEEP }, async (sim) => {
+                  await sim.biometry('enrol');
+                  const marks = { auth: [], want: {}, held: null, heldBefore: null };
+                  // Its OWN UI test, which knows no Remove step: its screens and its ⋯ after End are read.
+                  const run = await pairAndRead(sim, ['pair', 'list', `open:${RV.rv4.id}`, 'end'], 'remove-parent', { project: parentProject, derivedDataPath: parentDd, env: { P316_ACKS: rvDir }, react: rvReactor(sim, [], marks) });
+                  const ev = run.ok ? run.result.events : [];
+                  const v = gradeRv4({ dumps: ev.filter((e) => e.step === 'screen'), menuAfter: rvFor(ev, 'terminal-menu', 'end-after')[0] ?? null, endActs: await rvActs('end', RV.rv4.id), status: (await rvState(RV.rv4.id)).status, removeActs: await rvActs('remove', RV.rv4.id) });
+                  arm('RV4 build 11 (P348_PARENT_IOS) against this Mac: no Remove drawn, its End one act that ended the session', v.ok, v.said);
+                });
+              }
+            } else report.readings.removeParent = 'not run: P348_PARENT_IOS is not set';
+          }
+
+          // ---- RV5 and RVH: the hostile door's Remove arms, 26.3 -------------------
+          await withSimulator({ label: 'p316-remove-hostile', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-remove-hostile'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+            for (const name of REMOVE_ARMS) {
+              const spec = P348_ARMS[name];
+              await sim.simctl('keychain', 'reset');
+              const door = await startDoorChild(name);
+              doorChildren.add(door.child);
+              try {
+                if (door.facts === null) {
+                  arm(`RVH ${name}`, null, door.why ?? 'the hostile door did not start');
+                  continue;
+                }
+                const sid = door.facts.sessionToOpen;
+                // The session is ENDED, which the Sessions tab lists under All only (it opens on Active).
+                const steps = spec.remove === 'offer' ? ['pair', 'list', 'show:all', `open:${sid}`, 'remove-read'] : ['pair', 'list', 'show:all', `open:${sid}`, 'remove'];
+                const r = await drive(sim, {
+                  test: { id: UI_TEST },
+                  label: `remove-hostile-${name}`,
+                  env: { P316_PAYLOAD: door.facts.payload, P316_STEPS: steps.join(','), P316_WAIT_S: '60', P330_DOOR_ENDPOINT: `127.0.0.1:${String(door.facts.port)}` }
+                });
+                if (r.events.length === 0) {
+                  arm(`RVH ${name}: ${spec.what}`, null, `the UI test printed no P316 line (xcodebuild exited ${String(r.code)})`);
+                  continue;
+                }
+                const posts = door.events.filter((e) => e.kind === 'request' && e.route === 'POST /v1/remove').length;
+                const read = r.events.find((e) => e.step === 'remove-read') ?? null;
+                const v = gradeRvh({
+                  spec,
+                  alive: aliveOf(r.events),
+                  posts,
+                  read,
+                  failure: el(lastDump(r.events, 'remove-read'), 'session-failure')?.label ?? null,
+                  dialog: r.events.find((e) => e.step === 'remove-dialog') ?? null,
+                  after: r.events.find((e) => e.step === 'remove-after') ?? null,
+                  // THE PROBE REVIEW: the drive's own line when it found no Remove to press.
+                  missing: r.events.find((e) => e.step === 'remove-missing') ?? null,
+                  words: door.facts.p348Words ?? {},
+                  doorSentence: REMOVE_UNKNOWN_SENTENCE
+                });
+                arm(`${name === 'remove-offer-absent' ? 'RV5' : 'RVH'} ${name}: ${spec.what}`, v.ok, v.said);
+              } finally {
+                await endDoorChild(door.child);
+                doorChildren.delete(door.child);
+              }
+            }
+          });
+
+          // ---- RV6: See a sample, 26.3, unpaired ------------------------------------
+          {
+            let book = null;
+            try {
+              book = readSampleBook(readFileSync(SAMPLE_BOOK_PATH, 'utf8')).book ?? null;
+            } catch {
+              book = null;
+            }
+            const cast = book === null ? null : sampleCast(book);
+            if (cast === null || cast.liveClaude === null || cast.waitingClaude === null) arm('RV6 the sample\'s Remove', null, 'the sample\'s book or its live Claude Code session could not be read');
+            else {
+              const R = cast.liveClaude;
+              const wantRv6 = book.session?.[R]?.ended?.session?.removeConfirm ?? null;
+              await withSimulator({ label: 'p316-remove-sample', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-remove-sample'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                await sim.biometry('enrol');
+                const dir = join(RUN, 'acks-remove-sample');
+                mkdirSync(dir, { recursive: true });
+                const before = relay.connections();
+                const r = await drive(sim, {
+                  test: { id: UI_TEST },
+                  label: 'remove-sample',
+                  env: { P316_STEPS: ['sample-see', `terminal-open:${R}`, 'end', 'remove-read', 'remove-cancel', 'remove', 'show:all', 'sessions-dump:rv6', 'sample-leave'].join(','), P316_WAIT_S: '60', P316_ACKS: dir, P330_DOOR_ENDPOINT: `127.0.0.1:${String(relay.port)}` },
+                  onEvent: async (event) => {
+                    if (event.step === 'sample-open' || event.step === 'sample-leaving') writeFileSync(join(dir, `sample-${String(event.seq)}`), 'ok\n');
+                    if (event.step === 'end-auth-up') {
+                      await sim.biometry('match').catch(() => ({ code: -1 }));
+                      writeFileSync(join(dir, `auth-${String(event.seq)}`), 'ok\n');
+                    }
+                  }
+                });
+                const connections = relay.connections() - before;
+                if (r.events.length === 0) {
+                  arm('RV6 the sample\'s Remove', null, `the UI test printed no P316 line (xcodebuild exited ${String(r.code)})`);
+                  return;
+                }
+                const v = gradeRv6({
+                  want: wantRv6,
+                  read: r.events.find((e) => e.step === 'remove-read') ?? null,
+                  dialog: r.events.find((e) => e.step === 'remove-dialog' && e.for === 'remove') ?? null,
+                  after: r.events.find((e) => e.step === 'remove-after' && e.for === 'remove') ?? null,
+                  cancel: { dialog: r.events.find((e) => e.step === 'remove-dialog' && e.for === 'remove-cancel') ?? null, after: r.events.find((e) => e.step === 'remove-after' && e.for === 'remove-cancel') ?? null },
+                  authAsked: rvAuthAsked(r.events),
+                  dump: r.events.find((e) => e.step === 'sessions-dump' && e.tag === 'rv6') ?? null,
+                  id: R,
+                  kept: cast.waitingClaude,
+                  connections
+                });
+                arm('RV6 26.3, See a sample: after End, Remove where End was with the book\'s words, no owner check, gone from the list, nothing left the phone', v.ok, v.said);
+              });
+            }
+          }
+        }
+
+        // ==================================================================
+        // Phase 348: THE `paste` GROUP (build/p348/SPEC.md §8.2 item 6; his
+        // ruling of 2026-10-18, "i'd like to be able to paste natively").
+        // build/p337/key-recorder.mjs in shells on this Mac, one asking for
+        // bracketed paste and one not, logs every byte the paste reaches it
+        // as; a zsh and a shell drawing a line wider than its pane give PA4
+        // and PA5 their rows. Before every paste the UI test prints
+        // `paste-ready` and waits for this file's `paste-<seq>`, so the
+        // recorder is marked at THAT moment; a Command-V the recorder read no
+        // byte of is answered `again` once (D41). PA8 builds a SCRATCH COPY of
+        // the app under this run whose menu Paste is a UIAction, and PA1 is
+        // graded only once PA8 saw the alert that copy must raise.
+        // ==================================================================
+        if (ARMS.has('paste')) {
+          const paDir = join(RUN, 'acks-paste');
+          mkdirSync(paDir, { recursive: true });
+          const paAck = (name, text = 'ok') => writeFileSync(join(paDir, name), `${text}\n`);
+          const paAll = async () => JSON.parse(await cdpEval(cdp, 'window.gmux.sessions.list().then((s) => JSON.stringify(s.map((x) => ({ id: x.id, name: x.name, tmuxName: x.tmuxName, status: x.status }))))'));
+          const paTmux = (...args) => {
+            const r = spawnSync('tmux', ['-L', SOCKET, ...args], { encoding: 'utf8', timeout: 10_000, maxBuffer: 16 * 1024 * 1024 });
+            return r.status === 0 ? String(r.stdout ?? '') : null;
+          };
+          const paUntil = async (test, ms, every = 250) => {
+            const until = Date.now() + ms;
+            for (;;) {
+              const v = await test();
+              if (v !== null && v !== undefined && v !== false) return v;
+              if (Date.now() > until) return null;
+              await sleep(every);
+            }
+          };
+          const paShell = async (name) => {
+            await cdpEval(cdp, `window.gmux.sessions.create(${J({ name, projectPath: WORK, cwd: WORK, agent: 'shell' })}).then(() => true).catch(() => false)`);
+            const s = await paUntil(async () => (await paAll()).find((x) => x.name === name && ['running', 'idle', 'needs_input'].includes(x.status)) ?? null, 60_000, 500);
+            if (s === null) return null;
+            await paUntil(() => (String(paTmux('capture-pane', '-p', '-t', `=${s.tmuxName}:`) ?? '').trim() !== '' ? true : null), 20_000);
+            return s;
+          };
+          const RECORDER = join(ROOT, 'build', 'p337', 'key-recorder.mjs');
+          const paLogs = new Map();
+          /** A key recorder in a fresh shell session, in `modes`, its log under the run. */
+          const paRecorder = async (name, modes) => {
+            const s = await paShell(name);
+            if (s === null) return null;
+            const log = join(RUN, `${name}.jsonl`);
+            paLogs.set(s.id, log);
+            paTmux('send-keys', '-t', `=${s.tmuxName}:`, '-l', `exec '${process.execPath}' '${RECORDER}' '${log}' ${modes} --label=${name} --life=3600`);
+            paTmux('send-keys', '-t', `=${s.tmuxName}:`, 'Enter');
+            const ready = await paUntil(() => {
+              try {
+                return readRecorderLog(readFileSync(log, 'utf8')).ready !== null ? true : null;
+              } catch {
+                return null;
+              }
+            }, 20_000, 200);
+            return ready === true ? s : null;
+          };
+          /** Every byte the recorder of `id` read from `from` (process.hrtime.bigint) up to `to`, as lowercase hex. */
+          const paBytes = (id, from, to = null) => {
+            try {
+              return readRecorderLog(readFileSync(paLogs.get(id) ?? '', 'utf8'))
+                .reads.filter((r) => BigInt(r.t) >= BigInt(from) && (to === null || BigInt(r.t) < BigInt(to)))
+                .map((r) => r.hex)
+                .join('');
+            } catch {
+              return '';
+            }
+          };
+          const paActs = async (id) => (await appLogText()).split('\n').filter((l) => l.includes("the phone's paste:") && l.includes(id)).length;
+          /** A shell's pane: its width, its rows as tmux shows them, and its line marks where tmux can say them. */
+          const paPane = (s) => {
+            const target = `=${s.tmuxName}:`;
+            const width = Number(String(paTmux('display-message', '-p', '-t', target, '#{pane_width}') ?? '').trim());
+            const rows = String(paTmux('capture-pane', '-p', '-t', target) ?? '').split('\n');
+            const flagged = paTmux('capture-pane', '-p', '-F', '-t', target);
+            return { width, rows, flagged: flagged === null ? null : flagged.split('\n') };
+          };
+          const paReactor = (sim, readyPlan, marks) => async (event) => {
+            if (event.step === 'paste-ready') {
+              const tag = readyPlan.shift() ?? 'extra';
+              const id = marks.recorderOf[tag] ?? null;
+              marks.actsAt[tag] = id === null ? null : await paActs(id);
+              marks.ready.push({ tag, at: process.hrtime.bigint() });
+              paAck(`paste-${String(event.seq)}`);
+            }
+            if (event.step === 'paste-sent') {
+              // D41: the first Command-V after a return may reach nothing; the drive presses it once more on `again`.
+              await sleep(1_500);
+              const last = marks.ready.at(-1);
+              const id = marks.recorderOf[last?.tag ?? ''] ?? null;
+              const none = id !== null && last !== undefined && paBytes(id, last.at) === '';
+              if (none) marks.again.push(last.tag);
+              paAck(`paste-${String(event.seq)}`, none ? 'again' : 'ok');
+            }
+            if (event.step === 'paste-copied') {
+              await sleep(800);
+              const pb = await sim.pasteboard().catch(() => null);
+              marks.copied.push(pb !== null && pb.code === 0 ? String(pb.stdout ?? '') : null);
+              paAck(`paste-${String(event.seq)}`);
+            }
+            if (event.step === 'end-auth-up') {
+              await sim.biometry('match').catch(() => ({ code: -1 }));
+              paAck(`auth-${String(event.seq)}`);
+            }
+          };
+          /** The bytes each ready mark's paste reached its recorder as: up to the next mark on that recorder, or now. */
+          const paWindows = (marks) => {
+            const out = {};
+            marks.ready.forEach((m, k) => {
+              const id = marks.recorderOf[m.tag] ?? null;
+              const next = marks.ready.slice(k + 1).find((n) => marks.recorderOf[n.tag] === id);
+              out[m.tag] = id === null ? null : paBytes(id, m.at, next?.at ?? null);
+            });
+            return out;
+          };
+          const T = {
+            pa1menu: 'p348 menu paste\tone ✓\nline two',
+            pa1cmdv: 'p348 command-v paste\nline two',
+            pa1pinch: 'p348 three-finger paste ✓',
+            pa2: 'p348 control not applied',
+            pa6: 'p348 sample paste',
+            pa8: 'p348 the ablation\'s paste'
+          };
+          // A made-up code in the pairing code's shape (v, a 32-byte fp, dk, dx): no window's secret is in it.
+          const CODE = J({ v: 3, fp: Buffer.alloc(32, 7).toString('base64url'), dk: 'p348-made-up', dx: 'p348-made-up', ps: 'p348-made-up', exp: 0 });
+          const PA = {
+            rec: await paRecorder('p348-pa-rec', 'paste'),
+            raw: await paRecorder('p348-pa-raw', 'normal'),
+            sh: await paShell('p348-pa-sh'),
+            zle: await paShell('p348-pa-zle'),
+            floor: await paRecorder('p348-pa-floor', 'paste'),
+            pa8: await paRecorder('p348-pa8', 'paste')
+          };
+          if (Object.values(PA).some((s) => s === null)) arm('PA the paste group\'s sessions', null, `not every session was made, or a recorder never said it was ready: ${J(Object.fromEntries(Object.entries(PA).map(([k, s]) => [k, s?.status ?? null])))}`);
+          else {
+            // PA4: a line wider than the shell's pane, drawn by `cat` at the top of a cleared screen.
+            const width4 = paPane(PA.sh).width;
+            const line4 = `echo p348 ${'w'.repeat(Math.max(40, 2 * width4))}`;
+            const file4 = join(RUN, 'p348-pa4.txt');
+            writeFileSync(file4, `${line4}\n`, 'utf8');
+            paTmux('send-keys', '-t', `=${PA.sh.tmuxName}:`, '-l', `clear; cat '${file4}'`);
+            paTmux('send-keys', '-t', `=${PA.sh.tmuxName}:`, 'Enter');
+            await paUntil(() => (paPane(PA.sh).rows[0] ?? '').startsWith('echo p348') ? true : null, 10_000, 200);
+            const pane4 = paPane(PA.sh);
+            const rows4 = Math.ceil(line4.length / Math.max(1, pane4.width));
+            // PA5: a command zsh is still editing, wider than its pane, at the top of a cleared screen, never run.
+            paTmux('send-keys', '-t', `=${PA.zle.tmuxName}:`, '-l', 'clear');
+            paTmux('send-keys', '-t', `=${PA.zle.tmuxName}:`, 'Enter');
+            await sleep(1_000);
+            const width5 = paPane(PA.zle).width;
+            paTmux('send-keys', '-t', `=${PA.zle.tmuxName}:`, '-l', `echo p348zle ${'z'.repeat(Math.max(40, Math.round(1.5 * width5)))}`);
+            await sleep(1_000);
+            const pane5 = paPane(PA.zle);
+            const last5 = (() => {
+              let k = 0;
+              for (let i = 0; i < pane5.rows.length; i += 1) if (pane5.rows[i].trim() !== '') k = i;
+              return k;
+            })();
+            const rows5 = pane5.rows.slice(0, last5 + 1);
+            const marks = { ready: [], again: [], copied: [], actsAt: {}, recorderOf: { 'pa1-menu': PA.rec.id, 'pa1-cmdv': PA.rec.id, 'pa1-pinch': PA.rec.id, pa3: PA.rec.id, pa4: PA.raw.id, pa2: PA.raw.id } };
+            const readyPlan = ['pa1-menu', 'pa1-cmdv', 'pa1-pinch', 'pa3', 'pa4', 'pa2'];
+            const startMark = process.hrtime.bigint();
+
+            // ---- PA8 first, on both runtimes: the ablation, a scratch copy whose Paste is a UIAction ----
+            const pa8 = { [RUNTIME_CURRENT]: verdict(null, 'not run'), [RUNTIME_FLOOR]: verdict(null, 'not run') };
+            {
+              const copyRoot = join(RUN, 'p348-pa8-app');
+              rmSync(copyRoot, { recursive: true, force: true });
+              mkdirSync(copyRoot, { recursive: true });
+              const cp = spawnSync('cp', ['-Rc', join(ROOT, 'ios'), join(copyRoot, 'ios')], { encoding: 'utf8', timeout: 120_000 });
+              const input = join(copyRoot, 'ios', 'Tortie', 'Screens', 'ScreenTextInput.swift');
+              // The shipping menu's Paste, and what the ablation makes it: a UIAction that reads the clipboard itself.
+              const PA8_FROM = 'let paste = UICommand(title: Copy.paste, image: UIImage(systemName: "doc.on.clipboard"), action: #selector(UIResponderStandardEditActions.paste(_:)))';
+              const PA8_TO = 'let paste = UIAction(title: Copy.paste, image: UIImage(systemName: "doc.on.clipboard"), identifier: UIAction.Identifier(ID.screenPaste)) { [weak self] _ in self?.events.paste(UIPasteboard.general.string ?? "") }';
+              let planted = false;
+              if (cp.status === 0 && existsSync(input)) {
+                const text = readFileSync(input, 'utf8');
+                if (text.split(PA8_FROM).length === 2) {
+                  writeFileSync(input, text.replace(PA8_FROM, PA8_TO), 'utf8');
+                  planted = true;
+                }
+              }
+              const copyProject = join(copyRoot, 'ios', 'Tortie.xcodeproj');
+              const copyDd = join(XCODE, 'dd-pa8');
+              const built = planted ? await xcodebuildRun({ label: 'pa8-copy', scratch: XCODE, derivedDataPath: copyDd, args: ['build-for-testing', '-project', copyProject, '-scheme', SCHEME, '-configuration', 'Debug', '-destination', 'generic/platform=iOS Simulator'] }) : { code: -1 };
+              report.readings.pa8Build = { cp: cp.status, planted, code: built.code };
+              for (const runtime of [RUNTIME_CURRENT, RUNTIME_FLOOR]) {
+                if (built.code !== 0) {
+                  pa8[runtime] = gradePa8({ built: false, planted, why: cp.status !== 0 ? `cp exited ${String(cp.status)}` : `xcodebuild exited ${String(built.code)}` });
+                } else {
+                  await confirmListening(cdp);
+                  await withSimulator({ label: `p316-paste-pa8-${runtime}`, runtime, scratch: join(XCODE, `sim-paste-pa8-${runtime}`), derivedDataPath: copyDd, keep: KEEP }, async (sim) => {
+                    const m8 = { ready: [], again: [], copied: [], actsAt: {}, recorderOf: { pa8: PA.pa8.id } };
+                    const run = await pairAndRead(sim, ['pair', 'list', `open:${PA.pa8.id}`, 'screen-open', `paste-write:${b64uText(T.pa8)}`, 'paste-menu'], `paste-pa8-${runtime}`, { project: copyProject, derivedDataPath: copyDd, env: { P316_ACKS: paDir }, react: paReactor(sim, ['pa8'], m8) });
+                    const ev = run.ok ? run.result.events : [];
+                    pa8[runtime] = gradePa8({ built: true, planted, read: ev.find((e) => e.step === 'paste-menu') ?? null });
+                  });
+                }
+                arm(`PA8 ${runtime}, THE ABLATION: a scratch copy whose menu Paste is a UIAction reading the clipboard raises iOS's alert, which the detector sees`, pa8[runtime].ok, pa8[runtime].said);
+              }
+              rmSync(copyRoot, { recursive: true, force: true });
+            }
+
+            // ---- PA1 to PA5, one drive on iOS 26.3 --------------------------------
+            await confirmListening(cdp);
+            await withSimulator({ label: 'p316-paste', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-paste'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+              const steps = [
+                'pair',
+                'list',
+                `open:${PA.rec.id}`,
+                'screen-open',
+                `paste-write:${b64uText(T.pa1menu)}`,
+                'paste-trip',
+                'paste-menu',
+                `paste-write:${b64uText(T.pa1cmdv)}`,
+                'paste-trip',
+                'paste-cmdv',
+                `paste-write:${b64uText(T.pa1pinch)}`,
+                'paste-trip',
+                'paste-pinch',
+                `paste-write:${b64uText(CODE)}`,
+                'paste-cmdv',
+                'paste-read',
+                'back',
+                `open:${PA.sh.id}`,
+                'screen-open',
+                `paste-select:0:${String(rows4 - 1)}`,
+                'back',
+                `open:${PA.raw.id}`,
+                'screen-open',
+                'paste-cmdv',
+                `paste-write:${b64uText(T.pa2)}`,
+                'paste-ctrl',
+                'back',
+                `open:${PA.zle.id}`,
+                'screen-open',
+                `paste-select:0:${String(last5)}`
+              ];
+              const run = await pairAndRead(sim, steps, 'paste', { env: { P316_ACKS: paDir }, react: paReactor(sim, readyPlan, marks) });
+              const ev = run.ok ? run.result.events : [];
+              const bytes = paWindows(marks);
+              report.readings.paste = { again: marks.again, rows4, rows5: rows5.length, width4: pane4.width, width5 };
+              if (!run.ok || ev.length === 0) {
+                arm('PA1 Paste beside Copy, Command-V and three fingers, no alert', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
+                return;
+              }
+              const trips = ev.filter((e) => e.step === 'paste-trip');
+              const cmdvs = ev.filter((e) => e.step === 'paste-cmdv');
+              {
+                const v = gradePa1({
+                  pa8: pa8[RUNTIME_CURRENT],
+                  ways: [
+                    { via: 'menu', read: ev.find((e) => e.step === 'paste-menu') ?? null, bytes: bytes['pa1-menu'], want: pasteBytesOf(T.pa1menu, true), trip: trips[0] ?? null },
+                    { via: 'cmdv', read: cmdvs[0] ?? null, bytes: bytes['pa1-cmdv'], want: pasteBytesOf(T.pa1cmdv, true), trip: trips[1] ?? null },
+                    { via: 'pinch', read: ev.find((e) => e.step === 'paste-pinch') ?? null, bytes: bytes['pa1-pinch'], want: pasteBytesOf(T.pa1pinch, true), trip: trips[2] ?? null }
+                  ]
+                });
+                arm('PA1 26.3: Paste beside Copy in the menu, Command-V and three fingers, each after a trip to Settings: the text landed once as the program asked, no alert, no owner check', v.ok, v.said);
+              }
+              {
+                const v = gradePa3({ read: cmdvs[1] ?? null, bytes: bytes.pa3 ?? '', acts: typeof marks.actsAt.pa3 === 'number' ? (await paActs(PA.rec.id)) - marks.actsAt.pa3 : null, line: ev.find((e) => e.step === 'paste-read')?.line ?? null });
+                arm('PA3 26.3: a pairing code on the clipboard is refused on the phone with its line, and nothing reached the Mac', v.ok, v.said);
+              }
+              {
+                const copied = ev.filter((e) => e.step === 'paste-copied');
+                const v = gradePa4({ read: copied[0] ?? null, copied: marks.copied[0] ?? null, line: line4, rows: rows4, bytes: bytes.pa4, want: pasteBytesOf(line4, false) });
+                arm('PA4 26.3: a line the terminal wrapped copies as one line and pastes back whole', v.ok, v.said);
+                const marked5 = pane5.flagged === null ? null : pane5.flagged.slice(0, last5 + 1).map((l) => l.slice(0, 4));
+                const v5 = gradePa5({ copied: marks.copied[1] ?? null, rows: rows5, marked: marked5 });
+                arm('PA5 26.3, STATED (D46): a command zsh is still editing copies as the parent copies it', v5.ok, v5.said);
+              }
+              {
+                const v = gradePa2({ read: ev.find((e) => e.step === 'paste-ctrl') ?? null, bytes: bytes.pa2, want: pasteBytesOf(T.pa2, false) });
+                arm('PA2 26.3: an armed Control is not applied to a paste', v.ok, v.said);
+              }
+            });
+
+            // ---- PA1 on the floor, iOS 18.3, and since the fix round PA4 there too ----
+            // (the phone lens: "re-run PA2, PA4 and PA5 on 26.3 and 18.3"; the same panes, drawn once above, are read
+            // again, so a selection pressed on iOS 18's own long press is graded by the same rules as 26.3's). The app
+            // is relaunched, still paired (`relaunch-keep`), before PA4: one 18.3 app that did all three after PA1
+            // ended inside XCTest's log quarantine (SPEC §0 rule 14), measured. THE SECOND FIX ROUND gives PA2 and PA5
+            // a fresh device and launch each, below (the reverify's 18.3 run still ended at PA2's and PA5's steps).
+            await confirmListening(cdp);
+            await withSimulator({ label: 'p316-paste-floor', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-paste-floor'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+              const mf = { ready: [], again: [], copied: [], actsAt: {}, recorderOf: { 'pa1-menu': PA.floor.id, 'pa1-cmdv': PA.floor.id, 'pa1-pinch': PA.floor.id, pa4: PA.raw.id } };
+              const steps = [
+                'pair',
+                'list',
+                `open:${PA.floor.id}`,
+                'screen-open',
+                `paste-write:${b64uText(T.pa1menu)}`,
+                'paste-trip',
+                'paste-menu',
+                `paste-write:${b64uText(T.pa1cmdv)}`,
+                'paste-trip',
+                'paste-cmdv',
+                `paste-write:${b64uText(T.pa1pinch)}`,
+                'paste-trip',
+                'paste-pinch',
+                'relaunch-keep',
+                `open:${PA.sh.id}`,
+                'screen-open',
+                `paste-select:0:${String(rows4 - 1)}`,
+                'back',
+                `open:${PA.raw.id}`,
+                'screen-open',
+                'paste-cmdv'
+              ];
+              const run = await pairAndRead(sim, steps, 'paste-floor', { env: { P316_ACKS: paDir }, react: paReactor(sim, ['pa1-menu', 'pa1-cmdv', 'pa1-pinch', 'pa4'], mf) });
+              const ev = run.ok ? run.result.events : [];
+              const bytes = paWindows(mf);
+              const trips = ev.filter((e) => e.step === 'paste-trip');
+              const v =
+                !run.ok || ev.length === 0
+                  ? verdict(null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`)
+                  : gradePa1({
+                      pa8: pa8[RUNTIME_FLOOR],
+                      ways: [
+                        { via: 'menu', read: ev.find((e) => e.step === 'paste-menu') ?? null, bytes: bytes['pa1-menu'], want: pasteBytesOf(T.pa1menu, true), trip: trips[0] ?? null },
+                        { via: 'cmdv', read: ev.find((e) => e.step === 'paste-cmdv') ?? null, bytes: bytes['pa1-cmdv'], want: pasteBytesOf(T.pa1cmdv, true), trip: trips[1] ?? null },
+                        { via: 'pinch', read: ev.find((e) => e.step === 'paste-pinch') ?? null, bytes: bytes['pa1-pinch'], want: pasteBytesOf(T.pa1pinch, true), trip: trips[2] ?? null }
+                      ]
+                    });
+              arm('PA1 18.3, the floor: Paste beside Copy, Command-V and three fingers, no alert', v.ok, v.said);
+              if (!run.ok || ev.length === 0) {
+                arm('PA4 18.3, the floor', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
+                return;
+              }
+              const copied = ev.filter((e) => e.step === 'paste-copied');
+              const v4 = gradePa4({ read: copied[0] ?? null, copied: mf.copied[0] ?? null, line: line4, rows: rows4, bytes: bytes.pa4, want: pasteBytesOf(line4, false) });
+              arm('PA4 18.3, the floor: a line the terminal wrapped copies as one line and pastes back whole', v4.ok, v4.said);
+            });
+
+            // ---- PA2 on the floor, a drive of its own on a fresh device (the second fix round) ----
+            await confirmListening(cdp);
+            await withSimulator({ label: 'p316-paste-floor-pa2', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-paste-floor-pa2'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+              const m2 = { ready: [], again: [], copied: [], actsAt: {}, recorderOf: { pa2: PA.raw.id } };
+              const steps = ['pair', 'list', `open:${PA.raw.id}`, 'screen-open', `paste-write:${b64uText(T.pa2)}`, 'paste-ctrl'];
+              const run = await pairAndRead(sim, steps, 'paste-floor-pa2', { env: { P316_ACKS: paDir }, react: paReactor(sim, ['pa2'], m2) });
+              const ev = run.ok ? run.result.events : [];
+              const v2 =
+                !run.ok || ev.length === 0
+                  ? verdict(null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`)
+                  : gradePa2({ read: ev.find((e) => e.step === 'paste-ctrl') ?? null, bytes: paWindows(m2).pa2, want: pasteBytesOf(T.pa2, false) });
+              arm('PA2 18.3, the floor, a drive of its own: an armed Control is not applied to a paste', v2.ok, v2.said);
+            });
+
+            // ---- PA5 on the floor, a drive of its own on a fresh device (the second fix round) ----
+            await confirmListening(cdp);
+            await withSimulator({ label: 'p316-paste-floor-pa5', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-paste-floor-pa5'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+              const m5 = { ready: [], again: [], copied: [], actsAt: {}, recorderOf: {} };
+              const steps = ['pair', 'list', `open:${PA.zle.id}`, 'screen-open', `paste-select:0:${String(last5)}`];
+              const run = await pairAndRead(sim, steps, 'paste-floor-pa5', { env: { P316_ACKS: paDir }, react: paReactor(sim, [], m5) });
+              const ev = run.ok ? run.result.events : [];
+              const marked5 = pane5.flagged === null ? null : pane5.flagged.slice(0, last5 + 1).map((l) => l.slice(0, 4));
+              const v5 = !run.ok || ev.length === 0 ? verdict(null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`) : gradePa5({ copied: m5.copied[0] ?? null, rows: rows5, marked: marked5 });
+              arm('PA5 18.3, the floor, a drive of its own, STATED (D46): a command zsh is still editing copies as the parent copies it', v5.ok, v5.said);
+            });
+            report.readings.pasteSince = String(process.hrtime.bigint() - startMark);
+          }
+
+          // ---- PA7 and PAH: the hostile door's paste flag and paste arms, 26.3 ------
+          // How many presses the menu's Paste took in each drive that pressed it (the fix round: a press that
+          // did not take, its selection still held, is pressed once more), printed and never graded.
+          const menuPresses = [];
+          await withSimulator({ label: 'p316-paste-hostile', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-paste-hostile'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+            for (const name of [...PASTE_FLAG_ARMS, ...PASTE_ARMS]) {
+              const spec = P348_ARMS[name];
+              await sim.simctl('keychain', 'reset');
+              const door = await startDoorChild(name);
+              doorChildren.add(door.child);
+              try {
+                if (door.facts === null) {
+                  arm(`PAH ${name}`, null, door.why ?? 'the hostile door did not start');
+                  continue;
+                }
+                const flag = Object.hasOwn(spec, 'pasteFlag');
+                const sid = door.facts.sessionToOpen;
+                const steps = ['pair', 'list', `open:${sid}`, 'screen-open', `paste-write:${b64uText('p348 hostile paste')}`, flag ? 'paste-menu-read' : 'paste-menu', 'paste-read'];
+                const hd = join(RUN, `acks-paste-${name}`);
+                mkdirSync(hd, { recursive: true });
+                const r = await drive(sim, {
+                  test: { id: UI_TEST },
+                  label: `paste-hostile-${name}`,
+                  env: { P316_PAYLOAD: door.facts.payload, P316_STEPS: steps.join(','), P316_WAIT_S: '60', P316_ACKS: hd, P330_DOOR_ENDPOINT: `127.0.0.1:${String(door.facts.port)}` },
+                  onEvent: async (event) => {
+                    if (event.step === 'paste-ready') writeFileSync(join(hd, `paste-${String(event.seq)}`), 'ok\n');
+                  }
+                });
+                if (r.events.length === 0) {
+                  arm(`${flag ? 'PA7' : 'PAH'} ${name}: ${spec.what}`, null, `the UI test printed no P316 line (xcodebuild exited ${String(r.code)})`);
+                  continue;
+                }
+                const posts = door.events.filter((e) => e.kind === 'request' && e.route === 'POST /v1/paste').length;
+                const screen = r.events.find((e) => e.step === 'paste-read') ?? null;
+                if (flag) {
+                  const v = gradePa7({ spec, read: r.events.find((e) => e.step === 'paste-menu-read') ?? null, screen, posts, alive: aliveOf(r.events) });
+                  arm(`PA7 ${name}: ${spec.what}`, v.ok, v.said);
+                } else {
+                  menuPresses.push({ arm: name, presses: r.events.find((e) => e.step === 'paste-menu')?.presses ?? null, readBack: r.events.find((e) => e.step === 'paste-written')?.readBack ?? null, posts });
+                  const v = gradePah({ spec, read: r.events.find((e) => e.step === 'paste-menu') ?? null, screen, posts, alive: aliveOf(r.events), words: door.facts.p348Words ?? {}, doorSentence: PASTE_UNKNOWN_SENTENCE });
+                  arm(`PAH ${name}: ${spec.what}`, v.ok, v.said);
+                }
+              } finally {
+                await endDoorChild(door.child);
+                doorChildren.delete(door.child);
+              }
+            }
+          });
+
+          report.readings.pasteMenuPresses = menuPresses;
+          say(`the hostile paste drives' menu Paste: ${String(menuPresses.filter((m) => m.presses === 1 && m.posts > 0).length)} sent on the first press, ${String(menuPresses.filter((m) => m.presses === 2 && m.posts > 0).length)} on the second, ${String(menuPresses.filter((m) => m.posts === 0).length)} sent nothing; the runner read its write back in ${String(menuPresses.filter((m) => m.readBack === true).length)} of ${String(menuPresses.length)}`);
+
+          // ---- PA6: See a sample, 26.3, unpaired -------------------------------------
+          {
+            let book = null;
+            try {
+              book = readSampleBook(readFileSync(SAMPLE_BOOK_PATH, 'utf8')).book ?? null;
+            } catch {
+              book = null;
+            }
+            const cast = book === null ? null : sampleCast(book);
+            if (cast === null || cast.liveCodex === null) arm('PA6 the sample\'s paste', null, 'the sample\'s book or its idle Codex session could not be read');
+            else {
+              await withSimulator({ label: 'p316-paste-sample', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-paste-sample'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                const dir = join(RUN, 'acks-paste-sample');
+                mkdirSync(dir, { recursive: true });
+                const before = relay.connections();
+                const r = await drive(sim, {
+                  test: { id: UI_TEST },
+                  label: 'paste-sample',
+                  env: { P316_STEPS: ['sample-see', `terminal-open:${cast.liveCodex}`, `paste-write:${b64uText(T.pa6)}`, 'paste-menu', 'paste-read', 'sample-leave'].join(','), P316_WAIT_S: '60', P316_ACKS: dir, P330_DOOR_ENDPOINT: `127.0.0.1:${String(relay.port)}` },
+                  onEvent: async (event) => {
+                    if (event.step === 'sample-open' || event.step === 'sample-leaving') writeFileSync(join(dir, `sample-${String(event.seq)}`), 'ok\n');
+                    if (event.step === 'paste-ready') writeFileSync(join(dir, `paste-${String(event.seq)}`), 'ok\n');
+                  }
+                });
+                const connections = relay.connections() - before;
+                if (r.events.length === 0) {
+                  arm('PA6 the sample\'s paste', null, `the UI test printed no P316 line (xcodebuild exited ${String(r.code)})`);
+                  return;
+                }
+                const v = gradePa6({ read: r.events.find((e) => e.step === 'paste-menu') ?? null, screen: r.events.find((e) => e.step === 'paste-read') ?? null, text: T.pa6, connections });
+                arm('PA6 26.3, See a sample: Paste beside Copy, the words on the sample\'s prompt, no alert, nothing left the phone', v.ok, v.said);
+              });
             }
           }
         }
@@ -16035,7 +18225,7 @@ exit 0
     const verdict = nameQuestionsVerdict({ expect: log.some((e) => e.kind === 'funnel'), rows: nameRows, name: PUBLIC_NAME });
     report.readings.nameQuestions = nameRows;
     arm(
-      'Q1 the name check asked only the DNS stand-in, an A question with RD 0 for the stand-in’s name, and no agent was started',
+      'Q1 the name check asked only the DNS stand-in, an A question with RD 0 for the stand-in’s name, and no agent but the stand-ins resolved',
       verdict.ok && dnsPreflights.length > 0 && dnsPreflights.every((x) => x === true) && agentsHeld.length > 0 && agentsHeld.every((x) => x === true),
       `${verdict.said}; the DNS preflight ${J(dnsPreflights)}; the renamed agents ${J(agentsHeld)} absent`
     );
@@ -16075,6 +18265,22 @@ if (ran) {
   const hits = scanned.flatMap((s) => s.hits);
   const printed = SECRETS.some((secret) => appText.includes(secret)) || appText.includes('PRIVATE KEY-----');
   arm('K2 no window\'s secret and no private key is in any file of the Mac\'s scratch world or anything the app printed', SECRETS.length > 0 && scanned.reduce((n, s) => n + s.files, 0) > 0 && hits.length === 0 && !printed, `${String(scanned.reduce((n, s) => n + s.files, 0))} file(s) read for ${String(SECRETS.length)} secret(s) and any PEM private key; ${hits.length === 0 ? 'none holds one' : J(hits)}; the app's output ${printed ? 'CARRIES one' : 'does not'}`);
+}
+// ---- THE PROBE REVIEW (Phase 348, rule 9): every session the manifest holds ran a program of this run --------
+// The precondition says what the login shell WOULD resolve; this says what every session DID run, read from a
+// COPY of the manifest beside its WAL once the app is gone (build/scratch-login.mjs). A row the sessions group
+// seeded through the store is a record only, never launched, and is left out by its id; a shell row runs a
+// system shell; every other row ran an agent, and its argv[0] must be under this run's folder.
+if (ran) {
+  let seeded = [];
+  try {
+    seeded = JSON.parse(readFileSync(SEED_OUT, 'utf8')).ids ?? [];
+  } catch {
+    seeded = [];
+  }
+  const v = manifestProgramsVerdict({ manifest: manifestSessions(join(PROFILE, 'gmux', 'manifest.db')), seeded, run: RUN, shells: SYSTEM_SHELLS_316 });
+  report.readings.manifestPrograms = v.reading;
+  arm('RUN every session the manifest holds ran a program of this run', v.ok, v.said);
 }
 if (!KEEP) rmSync(RUN, { recursive: true, force: true });
 

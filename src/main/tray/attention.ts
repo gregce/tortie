@@ -96,9 +96,12 @@ export const WAKE_WINDOW_MS = 15_000;
  * that began during the sleep, or in the first seconds after it as frozen
  * agents resumed, is first SEEN on the wake tick and stamped then. Its age is
  * therefore the age since the wake, not since it began, and a surface that drew
- * "3 s ago" for it would be lying. `seenAtWake` says so, and the surface draws
- * that instead of an age. A wait stamped before the sleep keeps its true stamp
- * across it, because a sleep does not restart the process, and reads false.
+ * "3 s ago" for it would be lying. `seenAtWake` says so, and the one surface
+ * that draws it, the push alert, says "Seen when your Mac woke" instead of an
+ * age (Phase 348 corrected this line, which said every surface draws it: the
+ * phone's lists draw the age main composed and nothing else). A wait stamped
+ * before the sleep keeps its true stamp across it, because a sleep does not
+ * restart the process, and reads false.
  *
  * Pure. `since` is the stamp itself; it is here so a later rule that moves the
  * number moves it in one place.

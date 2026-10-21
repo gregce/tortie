@@ -69,6 +69,26 @@
  *  neither file reads `.answering`. G2, driven, is the partition between the
  *  two gates. T10 reads lifecycle-words.ts as well as copy.ts.
  *
+ *  READ AND DRIVEN, THE PHONE'S REMOVE (Phase 348, build/p348/SPEC.md §7.4,
+ *  §10.3). The phone may remove an ENDED session, through the same two gates
+ *  the Mac's own Remove asks. T25 holds pocket-writes.ts to them for Remove as
+ *  for End: it imports `removeRefusal` and `DOOR_REMOVE_GATE_ENV`, and its pure
+ *  `removeVerdict` asks both and reads `.canRemove` of the second environment,
+ *  never `.canEnd`. G2 gains the Remove partition, DRIVEN in this process over
+ *  the shipping `removeRefusal`, `sessionActionGates`, `DOOR_REMOVE_GATE_ENV`
+ *  and `removeVerdict` (transpiled in memory, nothing spawned), and it requires
+ *  EXACTLY §10.3's difference: both pass on `exited` and `restorable` on this
+ *  Mac and on another machine; both refuse a live or unknown row on this Mac;
+ *  main passes and the shared gate refuses a live or unknown row on another
+ *  machine (main's `removeRefusal` passes every remote record, so the shared
+ *  gate is the only lock there) and a removed row anywhere; and `removeVerdict`
+ *  refuses everywhere either refuses. A partition asserted as plain equality
+ *  passes while reading nothing, so the drive runs itself again over four
+ *  planted variants of the shipping text (main's gate tidied to refuse a remote
+ *  row, the environment's canDiscard false, canRemove widened to a live row,
+ *  the verdict dropping the shared gate), each of which must read red, beside
+ *  the unplanted control, which must read green.
+ *
  *  READ AND DRIVEN, THE PHONE'S GROUPS (Phase 316.7, build/p3167/SPEC.md §8.3).
  *  The sheet's group identity, collection, label, order and lifecycle
  *  partition moved, token for token, to src/shared/session-list.ts, and
@@ -91,6 +111,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
@@ -135,7 +156,7 @@ const TEXT_RULES = [
   // Phase 317, build/p317/SPEC.md §6.2. The gate moved below the renderer so
   // main can ask it, and the phone's door asks it beside main's own gate.
   ['T24', '§6.2, Phase 317', 'the gate moved and was not copied: resume.ts declares and re-exports none of the moved names, and nothing under src/ declares a second sessionActionGates'],
-  ['T25', '§6.2, Phase 317', 'the phone asks both gates: pocket-writes.ts imports sessionActionGates from @shared/session-gates and endRefusal from ./lifecycle-gate, endVerdict asks both, its batch arm is the Mac batch\'s predicate read as text in both files, and neither reads .answering'],
+  ['T25', '§6.2, Phase 317; build/p348/SPEC.md §7.4', 'the phone asks both gates: pocket-writes.ts imports sessionActionGates from @shared/session-gates and endRefusal from ./lifecycle-gate, endVerdict asks both, its batch arm is the Mac batch\'s predicate read as text in both files, and neither reads .answering; and (Phase 348) it imports removeRefusal and DOOR_REMOVE_GATE_ENV, and removeVerdict asks removeRefusal( and sessionActionGates( with DOOR_REMOVE_GATE_ENV, reading .canRemove and never .canEnd'],
   // Phase 316.7, build/p3167/SPEC.md §8.3. The grouping rule moved below the
   // renderer so the phone's door groups by it too.
   ['T26', '§8.3, Phase 316.7', 'one grouping rule: sessionGroupIdentity, collectSessionGroups, sessionGroupLabel, compareSessionGroups, firstNamed and lifecycleKeeps are declared once, in src/shared/session-list.ts; projection.ts and routes.ts import and call them; routes.ts writes no ??=; no other function compares group labels with localeCompare beside a key; orderGroups hands its tab map and routes.ts an empty one; displayPath and createdOld are declared once, in their shared homes']
@@ -1410,6 +1431,36 @@ function moveRules() {
       }
     }
   }
+  // T25, PHASE 348 (build/p348/SPEC.md §7.4, D47, D48): the phone's Remove
+  // asks both gates too, the shared one with the second named environment.
+  if (existsSync(POCKET_WRITES)) {
+    checked('T25', 2);
+    if (!importsFrom(POCKET_WRITES, 'removeRefusal', './lifecycle-gate')) {
+      fail('T25', `${rel(POCKET_WRITES)} does not import removeRefusal from ./lifecycle-gate, main's own Remove gate (build/p348/SPEC.md D48)`);
+    }
+    if (!importsFrom(POCKET_WRITES, 'DOOR_REMOVE_GATE_ENV', '@shared/session-gates')) {
+      fail('T25', `${rel(POCKET_WRITES)} does not import DOOR_REMOVE_GATE_ENV from @shared/session-gates, the environment the door asks canRemove of (build/p348/SPEC.md D47)`);
+    }
+    const removeVerdict = functionDeclared(POCKET_WRITES, 'removeVerdict');
+    checked('T25');
+    if (removeVerdict === null) {
+      fail('T25', `${rel(POCKET_WRITES)} declares no removeVerdict, so nothing names where the phone's Remove asks the two gates (build/p348/SPEC.md D48)`);
+    } else {
+      const inside = [];
+      const visit = (n) => {
+        inside.push(n);
+        ts.forEachChild(n, visit);
+      };
+      visit(removeVerdict);
+      const calls = new Set(inside.filter((n) => ts.isCallExpression(n)).map((n) => calleeName(n)));
+      checked('T25', 5);
+      if (!calls.has('removeRefusal')) fail('T25', `${where(POCKET_WRITES, removeVerdict)} removeVerdict never calls removeRefusal(, main's gate`);
+      if (!calls.has('sessionActionGates')) fail('T25', `${where(POCKET_WRITES, removeVerdict)} removeVerdict never calls sessionActionGates(, the shared gate, which is the ONLY lock on a row on another machine`);
+      if (!inside.some((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'canRemove')) fail('T25', `${where(POCKET_WRITES, removeVerdict)} removeVerdict never reads .canRemove`);
+      if (inside.some((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'canEnd')) fail('T25', `${where(POCKET_WRITES, removeVerdict)} removeVerdict reads .canEnd; Remove is offered on an ENDED session, which canEnd refuses (build/p348/SPEC.md D47)`);
+      if (!codeText(POCKET_WRITES, removeVerdict).includes('DOOR_REMOVE_GATE_ENV')) fail('T25', `${where(POCKET_WRITES, removeVerdict)} removeVerdict does not ask the shared gate with DOOR_REMOVE_GATE_ENV (build/p348/SPEC.md D47)`);
+    }
+  }
   const eligibility = functionDeclared(BATCH_END, 'batchEligibility');
   checked('T25');
   if (eligibility === null || !codeText(BATCH_END, eligibility).includes(BATCH_NARROWING)) {
@@ -1454,6 +1505,164 @@ function drivenRules() {
 }
 
 // ---------------------------------------------------------------------------
+// G2's Remove partition (Phase 348, build/p348/SPEC.md §10.3), DRIVEN here
+// ---------------------------------------------------------------------------
+
+const LIFECYCLE_GATE = join(ROOT, 'src', 'main', 'sessions', 'lifecycle-gate.ts');
+const SHARED_TYPES = join(ROOT, 'src', 'shared', 'types.ts');
+
+/**
+ * A module transpiled and run IN MEMORY, its imports loaded the same way: a
+ * `@shared/` or relative specifier to the tree's own `.ts` (read through
+ * `texts` when a variant is planted there), a node built-in through node, and
+ * the few modules a pure gate must never reach stood in by `stubs`, keyed by
+ * their path under src/ without the extension. Nothing is spawned or written.
+ */
+function loadInMemory(path, texts, stubs) {
+  const cache = new Map();
+  const nodeRequire = createRequire(import.meta.url);
+  const resolveTs = (from, spec) => {
+    let base;
+    if (spec.startsWith('@shared/')) base = join(ROOT, 'src', 'shared', spec.slice('@shared/'.length));
+    else if (spec.startsWith('.')) base = resolve(dirname(from), spec);
+    else return null;
+    for (const candidate of [`${base}.ts`, `${base}.tsx`, join(base, 'index.ts')]) if (existsSync(candidate)) return candidate;
+    throw new Error(`${rel(from)} imports ${spec}, which resolves to no .ts file`);
+  };
+  const load = (file) => {
+    const seen = cache.get(file);
+    if (seen !== undefined) return seen.exports;
+    const source = texts.get(file) ?? readFileSync(file, 'utf8');
+    const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true }, fileName: file }).outputText;
+    const module = { exports: {} };
+    cache.set(file, module);
+    const req = (spec) => {
+      if (spec === 'electron') return {};
+      const target = resolveTs(file, spec);
+      if (target === null) return nodeRequire(spec);
+      const key = relative(join(ROOT, 'src'), target).replace(/\.tsx?$/, '');
+      if (Object.prototype.hasOwnProperty.call(stubs, key)) return stubs[key];
+      return load(target);
+    };
+    new Function('require', 'module', 'exports', js)(req, module, module.exports);
+    return module.exports;
+  };
+  return load(path);
+}
+
+/** What a Remove reads on this Mac or on another machine: a listed row, and main's record. */
+const removeRowOf = (status, remote) => ({
+  id: `g2-${status}-${remote ? 'far' : 'here'}`,
+  name: `g2-${status}`,
+  tmuxName: `g2-${status}`,
+  agentId: 'claude',
+  projectId: 'p',
+  cwd: '/tmp/g2',
+  status,
+  createdAt: 1_700_000_000_000,
+  ...(remote ? { machine: { id: 'studio', name: 'Studio', canRestore: true } } : {})
+});
+const removeRecordOf = (status, remote) => (remote ? { status, machineId: 'studio' } : { status });
+
+/**
+ * THE REMOVE PARTITION over the shipping gates (or a planted variant of their
+ * text), as the failures it finds. §10.3's table, re-derived from the two
+ * functions' text by the spec step: canRemove is `ended && env.canDiscard`
+ * with `ended` exited or restorable; removeRefusal answers null for every
+ * record on another machine and for exited, restorable and discarded here.
+ */
+function removePartitionFailures(texts) {
+  const out = [];
+  const stubs = { 'main/machines/store': { machineRow: () => null }, 'main/log': { getLog: () => ({ info() {}, warn() {}, error() {}, debug() {} }) } };
+  let main;
+  let gates;
+  let verdictOf;
+  let statuses;
+  try {
+    main = loadInMemory(LIFECYCLE_GATE, texts, stubs);
+    gates = loadInMemory(SESSION_GATES, texts, stubs);
+    verdictOf = loadInMemory(POCKET_WRITES, texts, stubs).removeVerdict;
+    statuses = loadInMemory(SHARED_TYPES, texts, stubs).SESSION_STATUSES;
+  } catch (err) {
+    return { checks: 1, failures: [`the Remove partition could not be loaded in memory: ${err instanceof Error ? err.message : String(err)}`] };
+  }
+  if (typeof main?.removeRefusal !== 'function' || typeof gates?.sessionActionGates !== 'function' || gates?.DOOR_REMOVE_GATE_ENV === undefined || typeof verdictOf !== 'function' || !Array.isArray(statuses)) {
+    return { checks: 1, failures: ['removeRefusal, sessionActionGates, DOOR_REMOVE_GATE_ENV, removeVerdict or SESSION_STATUSES could not be read, so the Remove partition was driven over nothing (build/p348/SPEC.md §10.3)'] };
+  }
+  const BOTH_PASS = ['exited', 'restorable'];
+  const LIVE = ['running', 'idle', 'needs_input', 'unknown'];
+  let checks = 0;
+  const cells = { bothPass: [], bothRefuse: [], mainAlone: [], gateAlone: [] };
+  for (const status of statuses) {
+    for (const remote of [false, true]) {
+      checks += 2;
+      const where = `${status} ${remote ? 'on another machine' : 'on this Mac'}`;
+      const mainPasses = main.removeRefusal(removeRecordOf(status, remote)) === null;
+      const gatePasses = gates.sessionActionGates(removeRowOf(status, remote), status, gates.DOOR_REMOVE_GATE_ENV).canRemove === true;
+      if (mainPasses && gatePasses) cells.bothPass.push(where);
+      else if (!mainPasses && !gatePasses) cells.bothRefuse.push(where);
+      else if (mainPasses) cells.gateAlone.push(where);
+      else cells.mainAlone.push(where);
+      let verdict;
+      try {
+        verdict = verdictOf(removeRowOf(status, remote), removeRecordOf(status, remote));
+      } catch (err) {
+        out.push(`removeVerdict threw on ${where}: ${err instanceof Error ? err.message : String(err)}`);
+        continue;
+      }
+      if ((verdict?.ok === true) !== (mainPasses && gatePasses)) out.push(`removeVerdict answers ${JSON.stringify(verdict)} on ${where}, where main's removeRefusal ${mainPasses ? 'passes' : 'refuses'} and canRemove of DOOR_REMOVE_GATE_ENV ${gatePasses ? 'passes' : 'refuses'}; it refuses everywhere either refuses (build/p348/SPEC.md §10.3)`);
+    }
+  }
+  const want = {
+    bothPass: BOTH_PASS.flatMap((s) => [`${s} on this Mac`, `${s} on another machine`]),
+    bothRefuse: LIVE.map((s) => `${s} on this Mac`),
+    gateAlone: [...LIVE.map((s) => `${s} on another machine`), 'discarded on this Mac', 'discarded on another machine'],
+    mainAlone: []
+  };
+  const sorted = (a) => JSON.stringify([...a].sort());
+  checks += 5;
+  if (JSON.stringify([...statuses].sort()) !== JSON.stringify([...BOTH_PASS, ...LIVE, 'discarded'].sort())) out.push(`SESSION_STATUSES is ${JSON.stringify(statuses)}; every status is placed in the Remove partition on purpose, and a new one must be placed here (build/p348/SPEC.md §10.3)`);
+  if (sorted(cells.bothPass) !== sorted(want.bothPass)) out.push(`both gates pass on ${JSON.stringify(cells.bothPass)}; they pass on exactly ${JSON.stringify(want.bothPass)}, an ended session wherever it ran (§10.3)`);
+  if (sorted(cells.bothRefuse) !== sorted(want.bothRefuse)) out.push(`both gates refuse on ${JSON.stringify(cells.bothRefuse)}; they refuse exactly ${JSON.stringify(want.bothRefuse)}, a live or unknown session on this Mac (§10.3)`);
+  if (sorted(cells.gateAlone) !== sorted(want.gateAlone)) out.push(`main passes and the shared gate refuses on ${JSON.stringify(cells.gateAlone)}; the EXACT difference is ${JSON.stringify(want.gateAlone)}: main's removeRefusal passes every remote record and a removed one, so there the shared gate is the only lock (§10.3, ruling R11)`);
+  if (sorted(cells.mainAlone) !== sorted(want.mainAlone)) out.push(`main refuses and the shared gate passes on ${JSON.stringify(cells.mainAlone)}; there is no such row (§10.3)`);
+  return { checks, failures: out };
+}
+
+/**
+ * THE PARTITION'S OWN SELF-TEST: four planted variants of the shipping text,
+ * each a tidying a later round could make, must each read RED, and the
+ * unplanted control must read green. A plant whose anchor is gone fails the
+ * self-test by name, so a variant can never pass by planting nothing.
+ */
+function removePartitionRule() {
+  const failures = [];
+  let checks = 0;
+  const control = removePartitionFailures(new Map());
+  checks += control.checks;
+  failures.push(...control.failures);
+  const read = (file) => (existsSync(file) ? readFileSync(file, 'utf8') : '');
+  const plants = [
+    ['main\'s gate tidied to refuse a live row on another machine', LIFECYCLE_GATE, /\n\s*if \(record\.machineId !== undefined && record\.machineId !== LOCAL_MACHINE_ID\) \{\n\s*return null;\n\s*\}/, '\n'],
+    ['the remove environment\'s canDiscard false', SESSION_GATES, /(export const DOOR_REMOVE_GATE_ENV: SessionGateEnv = Object\.freeze\(\{\n\s*canRestore: false,\n\s*)canDiscard: true/, '$1canDiscard: false'],
+    ['canRemove widened to every row that may be acted on', SESSION_GATES, 'canRemove: ended && env.canDiscard', 'canRemove: acts && env.canDiscard'],
+    ['the verdict dropping the shared gate', POCKET_WRITES, /sessionActionGates\(session, session\.status, DOOR_REMOVE_GATE_ENV\)\.canRemove/, 'true']
+  ];
+  for (const [what, file, from, to] of plants) {
+    checks += 2;
+    const text = read(file);
+    const hit = from instanceof RegExp ? from.test(text) : text.includes(from);
+    if (!hit) {
+      failures.push(`the self-test's plant "${what}" found no anchor in ${rel(file)}; re-point it, or the partition is unproven against that tidying`);
+      continue;
+    }
+    const planted = removePartitionFailures(new Map([[file, text.replace(from, to)]]));
+    if (planted.failures.length === 0) failures.push(`the self-test planted "${what}" and the Remove partition stayed GREEN, so it does not catch that tidying`);
+  }
+  return { checks, failures };
+}
+
+// ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
 
@@ -1488,6 +1697,26 @@ try {
   fail('T24', `the move rules could not read the tree: ${err instanceof Error ? err.message : String(err)}`);
 }
 const driven = drivenRules();
+// PHASE 348 (build/p348/SPEC.md §7.4, §10.3): G2 gains the Remove partition,
+// driven here beside the probe's End partition, and its self-test.
+{
+  let partition;
+  try {
+    partition = removePartitionRule();
+  } catch (err) {
+    partition = { checks: 1, failures: [`the Remove partition could not be driven: ${err instanceof Error ? err.message : String(err)}`] };
+  }
+  const g2 = driven.find((r) => r.id === 'G2');
+  const removeTitle = 'and (Phase 348) the Remove partition: both pass on exited and restorable here and on another machine, both refuse a live or unknown row here, main passes and the shared gate refuses a live or unknown row on another machine and a removed row anywhere, and removeVerdict refuses where either refuses, its self-test red on four planted tidyings';
+  if (g2 === undefined) {
+    driven.push({ id: 'G2', owner: 'build/p348/SPEC.md §10.3', title: `the Remove partition (the probe's End half did not answer): ${removeTitle}`, checks: partition.checks, failures: partition.failures });
+  } else {
+    g2.checks += partition.checks;
+    g2.failures.push(...partition.failures);
+    g2.title = `${g2.title}; ${removeTitle}`;
+    g2.owner = `${g2.owner}; build/p348/SPEC.md §10.3`;
+  }
+}
 const all = [
   ...driven,
   ...TEXT_RULES.map(([id, owner, title]) => ({ id, owner, title, checks: checks.get(id), failures: failures.get(id) }))

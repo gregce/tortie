@@ -33,6 +33,23 @@
  * session through the Mac's own one guarded create. This module only passes
  * the call through, and names nothing that starts a process.
  *
+ * PHASE 348 (build/p348/SPEC.md §4.2 steps 3 to 6, D6, D47 to D49; his
+ * request of 2026-10-18, "when you end a session from the phone you should
+ * also have the ability to remove it", which is what changed Phase 317's "No
+ * Remove"): `remove` is implemented HERE, beside `end`, and calls the Mac's
+ * own Remove, `core.removeSession`, ONCE, then `core.broadcastSessions()`, as
+ * the Mac's own `sessions:discard` does (the core's local Remove does not
+ * broadcast by itself). It asks BOTH gates the Mac's Remove asks, over the
+ * row as it is NOW, in the pure {@link removeVerdict}: main's `removeRefusal`
+ * over the manifest record, and the shared gate's `canRemove` over the listed
+ * row with a SECOND named environment, `DOOR_REMOVE_GATE_ENV`, whose
+ * `canDiscard` is true. For a session on another machine the shared gate is
+ * the only lock, because main's gate passes every remote record (ruling R11):
+ * a remote row the phone names while it runs is refused here and never
+ * tombstoned. `removeOffer` is the verdict passing, in the Mac's own words.
+ * `paste` is delegated, as `keys` is, to the Screen's paste verb
+ * (`createScreenPaste` in `src/main/screen/paste.ts`).
+ *
  * Neither alone is enough (D7), and `conformance:manager` G2 holds the place
  * where they disagree. The batch adds the Mac batch's ONE narrowing (D14,
  * `batchEligibility` in src/renderer/session-manager/batch-end.ts): a session
@@ -52,20 +69,29 @@
  * argv, and nothing an error says reaches the phone or a log. It logs nothing.
  */
 
-import type { PocketEndOffer } from '@shared/ipc/pocket';
+import type { PocketEndConfirm, PocketEndOffer, PocketRemoveReason } from '@shared/ipc/pocket';
 import {
   END_FAILED,
   END_UNREACHABLE_TITLE,
   LIFECYCLE_SESSION_CHANGED,
+  REMOVE_FAILED,
+  removeSessionConfirm,
   SESSION_NOT_FOUND
 } from '@shared/lifecycle-words';
-import { DOOR_GATE_ENV, sessionActionGates } from '@shared/session-gates';
+import { DOOR_GATE_ENV, DOOR_REMOVE_GATE_ENV, sessionActionGates } from '@shared/session-gates';
 import type { Session } from '@shared/types';
 import { isGmuxError } from '../errors';
 import { machineRow } from '../machines/store';
 import type { ManifestSessionRecord } from '../manifest';
-import type { PocketEndOutcome, PocketReplyOutcome, PocketStartOutcome, PocketWrites } from '../pocket/routes';
-import { endRefusal } from './lifecycle-gate';
+import type {
+  PocketEndOutcome,
+  PocketPasteOutcome,
+  PocketRemoveOutcome,
+  PocketReplyOutcome,
+  PocketStartOutcome,
+  PocketWrites
+} from '../pocket/routes';
+import { endRefusal, removeRefusal } from './lifecycle-gate';
 
 /** Why the phone's End was refused, as the door's answer words it. */
 export type PocketEndRefusal = 'removed' | 'unreachable' | 'ended' | 'gone';
@@ -75,16 +101,29 @@ export type PocketEndVerdict =
   | { ok: true }
   | { ok: false; reason: PocketEndRefusal; sentence: string };
 
-/** What the one implementation reads from the session core. Every member but the verb is a read. */
+/** What the one implementation reads from the session core. Every member but the verbs and the broadcast is a read. */
 export interface PocketWritesCore {
   /** Exactly `core.listSessions()`: the rows every surface draws. */
   listSessions(): readonly Session[];
-  /** The manifest, for the record main's own gate is asked over. */
+  /**
+   * The manifest, for the record main's own gates are asked over. Phase 348
+   * widened it to `machineId`, which `removeRefusal` reads (the core satisfies
+   * it as it stands).
+   */
   readonly manifest: {
-    getSession(id: string): Pick<ManifestSessionRecord, 'status'> | undefined;
+    getSession(id: string): Pick<ManifestSessionRecord, 'status' | 'machineId'> | undefined;
   };
   /** The Mac's own End, unchanged: capture, tree read, hang-up, `exited`, broadcast. */
   killSession(sessionId: string): Promise<void>;
+  /**
+   * The Mac's own Remove, unchanged (Phase 348): the tombstone, the claim
+   * released, the saved scrollback and the hook file deleted. Synchronous; it
+   * throws `INVALID_INPUT` when main's own gate refuses a local row and
+   * `SESSION_NOT_FOUND` for an id nothing holds.
+   */
+  removeSession(sessionId: string): void;
+  /** Every window told the list moved, as `sessions:discard` tells them after a Remove (Phase 348, D10). */
+  broadcastSessions(): void;
 }
 
 /**
@@ -141,6 +180,88 @@ function machineKnownNow(machineId: string): boolean {
   return machineRow(machineId) !== null;
 }
 
+/** Why the phone's Remove was refused, as the door's answer words it (Phase 348): every reason but the door's own `malformed`. */
+export type PocketRemoveRefusal = Exclude<PocketRemoveReason, 'malformed'>;
+
+/** The Remove verdict over one row as it is now (Phase 348, D48). */
+export type PocketRemoveVerdict =
+  | { ok: true }
+  | { ok: false; reason: PocketRemoveRefusal; sentence: string };
+
+/**
+ * PURE: both of the Mac's Remove gates over the row as it is NOW (Phase 348,
+ * build/p348/SPEC.md D48), in this order, each arm saying which gate owns it:
+ *
+ *   1. no record and no listed row: `gone`, the verb's own `Session not found.`;
+ *   2. MAIN'S GATE, `removeRefusal`, over a record it refuses: `unreachable`
+ *      when the record is `unknown`, else `changed`, in main's own words (it
+ *      passes every record on another machine, ruling R11, and a removed one);
+ *   3. no listed row (a removed record is filtered out of the list): `gone`,
+ *      the press rule's words;
+ *   4. THE SHARED GATE: a row Tortie cannot see is `unreachable`;
+ *   5. THE SHARED GATE, `canRemove` with {@link DOOR_REMOVE_GATE_ENV}: a row
+ *      that has not ended is `changed`. THE ONLY LOCK ON A REMOTE ROW.
+ *
+ * A record main has none of (a row an older Tortie made on another machine)
+ * passes step 2 and is held by the shared gate alone, as the Mac's own Remove
+ * holds it.
+ */
+export function removeVerdict(
+  session: Session | undefined,
+  record: Pick<ManifestSessionRecord, 'status' | 'machineId'> | undefined
+): PocketRemoveVerdict {
+  // THE VERB'S OWN WORDS for an id nothing holds.
+  if (session === undefined && record === undefined) {
+    return { ok: false, reason: 'gone', sentence: SESSION_NOT_FOUND };
+  }
+  // MAIN'S GATE, in main's own sentence.
+  if (record !== undefined) {
+    const refusedByMain = removeRefusal(record);
+    if (refusedByMain !== null) {
+      return { ok: false, reason: record.status === 'unknown' ? 'unreachable' : 'changed', sentence: refusedByMain };
+    }
+  }
+  // THE PRESS RULE: a record no surface lists any more changed under the press.
+  if (session === undefined) return { ok: false, reason: 'gone', sentence: LIFECYCLE_SESSION_CHANGED };
+  // THE SHARED GATE: a session Tortie cannot see is never removed.
+  if (session.status === 'unknown') {
+    return { ok: false, reason: 'unreachable', sentence: END_UNREACHABLE_TITLE };
+  }
+  // THE SHARED GATE: Remove is offered on an ended session only.
+  const canRemove = sessionActionGates(session, session.status, DOOR_REMOVE_GATE_ENV).canRemove;
+  if (!canRemove) return { ok: false, reason: 'changed', sentence: LIFECYCLE_SESSION_CHANGED };
+  return { ok: true };
+}
+
+/**
+ * What a thrown Remove came to, told apart BY CODE ONLY (Phase 348, D48). No
+ * error's text is read:
+ *
+ *  - `SESSION_NOT_FOUND`: the verb's own `Session not found.`;
+ *  - `INVALID_INPUT`: main's own gate refused inside the verb (the row turned
+ *    live after the verdict). Main's gate is asked AGAIN, and its sentence is
+ *    the answer; when it has none, the Remove failed;
+ *  - anything else (a quit that started, say): the Remove failed.
+ */
+function removeThrownOutcome(err: unknown, core: PocketWritesCore, sessionId: string): PocketRemoveOutcome {
+  if (isGmuxError(err, 'SESSION_NOT_FOUND')) {
+    return { outcome: 'refused', reason: 'gone', sentence: SESSION_NOT_FOUND };
+  }
+  if (isGmuxError(err, 'INVALID_INPUT')) {
+    let again: string | null = null;
+    try {
+      const record = core.manifest.getSession(sessionId);
+      again = record === undefined ? null : removeRefusal(record);
+    } catch {
+      again = null;
+    }
+    return again === null
+      ? { outcome: 'failed', sentence: REMOVE_FAILED }
+      : { outcome: 'refused', reason: 'changed', sentence: again };
+  }
+  return { outcome: 'failed', sentence: REMOVE_FAILED };
+}
+
 /**
  * What a thrown End came to, told apart BY CODE ONLY. No error's text is read:
  *
@@ -193,10 +314,22 @@ export function createPocketWrites(deps: {
    * this module only passes the call through.
    */
   start: Pick<PocketWrites, 'start'>;
-}): PocketWrites & { endOffer(session: Session): PocketEndOffer } {
+  /**
+   * The paste (Phase 348): the Screen's paste verb, `createScreenPaste`'s
+   * `paste`, handed in by `../capabilities.ts`. It answers an outcome and never
+   * throws; this module only passes the call through.
+   */
+  paste: Pick<PocketWrites, 'paste'>;
+}): PocketWrites & {
+  endOffer(session: Session): PocketEndOffer;
+  removeOffer(session: Session): PocketEndConfirm | null;
+} {
   const machineKnown = deps.machineKnown ?? machineKnownNow;
 
-  const recordOf = (core: PocketWritesCore | null, id: string): Pick<ManifestSessionRecord, 'status'> | undefined => {
+  const recordOf = (
+    core: PocketWritesCore | null,
+    id: string
+  ): Pick<ManifestSessionRecord, 'status' | 'machineId'> | undefined => {
     if (core === null) return undefined;
     try {
       return core.manifest.getSession(id);
@@ -234,6 +367,53 @@ export function createPocketWrites(deps: {
     // PHASE 337. Passed through to the Screen's keys verb, and nothing else.
     keys: (input, still): Promise<PocketReplyOutcome> => deps.keys.keys(input, still),
     // PHASE 346. Passed through to the phone's start, and nothing else.
-    start: (input, still): Promise<PocketStartOutcome> => deps.start.start(input, still)
+    start: (input, still): Promise<PocketStartOutcome> => deps.start.start(input, still),
+
+    /**
+     * PHASE 348 (D49). The Remove offer on one row: the verdict passing, in the
+     * Mac's own words (`removeSessionConfirm`), copied field by field; null
+     * otherwise. A READ: it asks the two gates and does nothing.
+     */
+    removeOffer(session: Session): PocketEndConfirm | null {
+      const core = deps.core();
+      if (core === null) return null;
+      const verdict = removeVerdict(session, recordOf(core, session.id));
+      if (!verdict.ok) return null;
+      const confirm = removeSessionConfirm(session);
+      return { title: confirm.title, body: confirm.body, confirmLabel: confirm.confirmLabel };
+    },
+
+    /**
+     * PHASE 348 (D48). THE PHONE'S REMOVE: the row re-read by id and BOTH
+     * gates over it, then the Mac's own Remove and the broadcast, with nothing
+     * awaited between the verdict and the verb. It sets no status, kills
+     * nothing and sends nothing to any machine (the core's remote branch sends
+     * nothing either).
+     */
+    async remove(input: { sessionId: string }): Promise<PocketRemoveOutcome> {
+      const core = deps.core();
+      if (core === null) return { outcome: 'failed', sentence: REMOVE_FAILED };
+      const sessionId = input.sessionId;
+      try {
+        const session = core.listSessions().find((s) => s.id === sessionId);
+        const verdict = removeVerdict(session, core.manifest.getSession(sessionId));
+        if (!verdict.ok) return { outcome: 'refused', reason: verdict.reason, sentence: verdict.sentence };
+        // THE MAC'S OWN REMOVE, synchronous, in the statement after the verdict.
+        core.removeSession(sessionId);
+      } catch (err) {
+        return removeThrownOutcome(err, core, sessionId);
+      }
+      // The Mac's windows and its open Past tab are told, as `sessions:discard`
+      // tells them (D10). The session is removed whether or not this lands.
+      try {
+        core.broadcastSessions();
+      } catch {
+        // The next broadcast carries it.
+      }
+      return { outcome: 'done' };
+    },
+
+    // PHASE 348. Passed through to the Screen's paste verb, and nothing else.
+    paste: (input, still): Promise<PocketPasteOutcome> => deps.paste.paste(input, still)
   };
 }

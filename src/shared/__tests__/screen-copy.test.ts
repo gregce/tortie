@@ -2,6 +2,7 @@
  * The Mac's words for a session's screen and its keys (Phase 337,
  * build/p337/SPEC.md §5.4), and for a page of its history (Phase 337.1,
  * build/p3371/SPEC.md D23): exactly the eight sentences the two SPECs name,
+ * and (Phase 348, build/p348/SPEC.md §5.1) the paste's five, thirteen in all,
  * each one line ending in a full stop; the feature named Terminal wherever a
  * sentence names it; the three keys refusals each say nothing was typed; no
  * sentence names a tmux word or a remote-control word; and the module imports
@@ -17,10 +18,16 @@ import * as copy from '../screen-copy';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
 describe('src/shared/screen-copy.ts', () => {
-  it('holds exactly the eight sentences the SPECs name, each one line, non-empty, ending in a full stop', () => {
+  it('holds exactly the thirteen sentences the SPECs name, each one line, non-empty, ending in a full stop', () => {
     const names = Object.keys(copy).sort();
     expect(names).toEqual(
       [
+        // PHASE 348 (build/p348/SPEC.md §5.1): the paste's own five.
+        'PASTE_CHARACTER',
+        'PASTE_EMPTY',
+        'PASTE_FAILED',
+        'PASTE_THIS_MAC_ONLY',
+        'PASTE_TOO_LONG',
         'SCREEN_ENDED',
         'SCREEN_KEY_CHARACTER',
         'SCREEN_NOT_TYPABLE',
@@ -57,6 +64,19 @@ describe('src/shared/screen-copy.ts', () => {
     for (const [name, sentence] of Object.entries(copy)) {
       expect(String(sentence), name).not.toMatch(/\bscreens?\b/i);
     }
+  });
+
+  it('holds the paste’s words byte for byte, each refusal saying nothing was pasted (Phase 348, §5.1)', () => {
+    expect(copy.PASTE_EMPTY).toBe('There is nothing to paste.');
+    expect(copy.PASTE_TOO_LONG).toBe('That is too long to paste. Nothing was pasted.');
+    expect(copy.PASTE_CHARACTER).toBe('That holds a character Tortie does not paste. Nothing was pasted.');
+    expect(copy.PASTE_THIS_MAC_ONLY).toBe('Tortie pastes only into sessions on this Mac. Nothing was pasted.');
+    expect(copy.PASTE_FAILED).toBe('Tortie could not paste into this session.');
+    for (const s of [copy.PASTE_TOO_LONG, copy.PASTE_CHARACTER, copy.PASTE_THIS_MAC_ONLY]) {
+      expect(s.endsWith(' Nothing was pasted.')).toBe(true);
+    }
+    // A failed paste may have landed in part: its words claim neither way.
+    expect(copy.PASTE_FAILED).not.toMatch(/nothing|was pasted/i);
   });
 
   it('`busy` is true of both of its causes: it names no speed and no queue (§Attack B14)', () => {

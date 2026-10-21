@@ -90,10 +90,11 @@ export const EDITS = Object.freeze([
   Object.freeze({
     name: "POCKET_ROUTE_IDS gains 'probe'",
     file: 'src/shared/ipc/pocket.ts',
-    // Two spellings, exactly one of which a checkout holds: since Phase 346 the
-    // list ends at its twelfth route, 'start', and before it at 'scrollback'.
-    from: Object.freeze(["  'start'\n] as const;", "  'scrollback'\n] as const;"]),
-    to: Object.freeze(["  'start',\n  'probe'\n] as const;", "  'scrollback',\n  'probe'\n] as const;"])
+    // Three spellings, exactly one of which a checkout holds: since Phase 348
+    // the list ends at its fourteenth route, 'paste'; from Phase 346 to it at
+    // its twelfth, 'start'; and before that at 'scrollback'.
+    from: Object.freeze(["  'paste'\n] as const;", "  'start'\n] as const;", "  'scrollback'\n] as const;"]),
+    to: Object.freeze(["  'paste',\n  'probe'\n] as const;", "  'start',\n  'probe'\n] as const;", "  'scrollback',\n  'probe'\n] as const;"])
   }),
   Object.freeze({
     name: 'the door table gains the probe row',

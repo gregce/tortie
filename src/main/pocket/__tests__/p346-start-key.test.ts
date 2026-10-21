@@ -23,6 +23,11 @@
  * a MUTABLE copy of the real table, from which {@link asTheParent} removes
  * `start` so a door can be set up as the parent build leaves it. Nothing binds
  * a socket, nothing execs a program, nothing reads his home.
+ *
+ * PHASE 348 (build/p348/SPEC.md D26) appended `remove` and `paste` after
+ * `start`. The mocked copy LEAVES THEM OUT, so "this build" here is the twelve
+ * Phase 346 shipped and `start` stays the one route that waits; Remove's and
+ * paste's own waits are driven in `./p348-remove-write.test.ts`.
  */
 
 import { EventEmitter } from 'node:events';
@@ -69,7 +74,8 @@ const hoisted = vi.hoisted(() => ({ routes: [] as unknown[], start: null as unkn
 
 vi.mock('../door/table', async (importOriginal) => {
   const real = await importOriginal<typeof import('../door/table')>();
-  hoisted.routes.splice(0, hoisted.routes.length, ...real.POCKET_ROUTES);
+  // Phase 348: the twelve Phase 346 shipped, Remove and paste left out (the header says why).
+  hoisted.routes.splice(0, hoisted.routes.length, ...real.POCKET_ROUTES.filter((r) => r.id !== 'remove' && r.id !== 'paste'));
   hoisted.start = real.POCKET_ROUTES.find((r) => r.id === 'start') ?? null;
   const routes = hoisted.routes as PocketRoute[];
   return {
@@ -433,10 +439,12 @@ describe('the route and its words (D1, D3, D4)', () => {
   it('is one signed POST alive outside any window, last in the table, the contract and the writes', () => {
     asThisBuild();
     expect(pocketRouteIds().at(-1)).toBe('start');
-    expect(POCKET_ROUTE_IDS.at(-1)).toBe('start');
+    // Phase 348 appended Remove and paste after it in the contract (D26).
+    expect(POCKET_ROUTE_IDS.slice(-3)).toEqual(['start', 'remove', 'paste']);
     const rows = (hoisted.routes as PocketRoute[]).filter((r) => r.id === 'start');
     expect(rows).toEqual([{ id: 'start', method: 'POST', path: '/v1/start', reads: false, windowOnly: false, signed: true }]);
-    expect(POCKET_WRITE_ROUTE_IDS).toEqual(['end', 'choose', 'say', 'keys', 'start']);
+    expect(POCKET_WRITE_ROUTE_IDS).toEqual(['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste']);
+    // The table this file models is the twelve (the header): its writes end on start.
     expect(pocketWriteRouteIds()).toEqual(['end', 'choose', 'say', 'keys', 'start']);
     expect(POCKET_SESSION_WRITE_IDS).toEqual(['end', 'choose', 'say', 'keys']);
     expect(POCKET_WRITE_BODY_CAPS.start).toBe(512);
@@ -445,7 +453,8 @@ describe('the route and its words (D1, D3, D4)', () => {
 
   it('says D3’s words in every owner, and the ledger row matches the table and the cap', () => {
     expect(WRITE_CLAUSES.start).toBe(CLAUSE);
-    expect(POCKET_ROUTE_LEDGER.at(-1)).toEqual({
+    // Phase 348 appended Remove's and paste's rows after it; the ledger only grows at its end.
+    expect(POCKET_ROUTE_LEDGER.find((r) => r.id === 'start')).toEqual({
       id: 'start',
       method: 'POST',
       path: '/v1/start',

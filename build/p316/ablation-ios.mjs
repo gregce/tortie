@@ -1465,7 +1465,8 @@ const ARMS = [
     rule: 's',
     what: 'Release a build ahead of Debug',
     file: () => PBX,
-    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 11;/, '$1CURRENT_PROJECT_VERSION = 12;')
+    // Re-pointed by Phase 348: the build is 12 (rule s).
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 12;/, '$1CURRENT_PROJECT_VERSION = 13;')
   },
   {
     id: 's9',
@@ -1813,9 +1814,9 @@ const ARMS = [
   {
     id: 's11',
     rule: 's',
-    what: "the app's Release left at build 10, 333.3's and the public one, which App Store Connect refuses as a duplicate",
+    what: "the app's Release left at build 11, 345's and the public one, which App Store Connect refuses as a duplicate (re-pointed by Phase 348)",
     file: () => PBX,
-    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 11;/, '$1CURRENT_PROJECT_VERSION = 10;')
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 12;/, '$1CURRENT_PROJECT_VERSION = 11;')
   },
   {
     id: 'x10',
@@ -2512,7 +2513,9 @@ const ARMS = [
     rule: 'ag',
     what: 'a press that sends an id of its own',
     file: () => `${APP}/Door/DoorClient.swift`,
-    edit: (src) => src.replace('        return await signedPost(route: route, door: door, limits: limits, write: nil).result', '        return await signedPost(route: route, door: door, limits: limits, write: question).result')
+    // Re-pointed by Phase 348's integrator: Phase 346 made the press read
+    // signedPost's end through asWrite(verb:), so the old anchor found nothing.
+    edit: (src) => src.replace('        return await signedPost(route: route, door: door, limits: limits, write: nil).asWrite(verb: route.verb).result', '        return await signedPost(route: route, door: door, limits: limits, write: question).asWrite(verb: route.verb).result')
   },
   {
     id: 'ag9',
@@ -3326,8 +3329,8 @@ const ARMS = [
     file: () => `${APP}/Screens/SessionScreen.swift`,
     edit: (src) =>
       src.replace(
-        '            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n',
-        '            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n            EndTopItem(model: end, offer: drawing.end, confirm: drawing.endConfirm) { await session.load() }\n'
+        '            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, removeConfirm: drawing.removeConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n',
+        '            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, removeConfirm: drawing.removeConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n            EndTopItem(model: end, offer: drawing.end, confirm: drawing.endConfirm) { await session.load() }\n'
       )
   },
   {
@@ -3686,9 +3689,9 @@ const ARMS = [
   {
     id: 's12',
     rule: 's',
-    what: 'the build left at 10 in one configuration (Debug), 333.3’s and the public one',
+    what: 'the build left at 11 in one configuration (Debug), 345’s and the public one (re-pointed by Phase 348)',
     file: () => PBX,
-    edit: (src) => src.replace('CURRENT_PROJECT_VERSION = 11;', 'CURRENT_PROJECT_VERSION = 10;')
+    edit: (src) => src.replace('CURRENT_PROJECT_VERSION = 12;', 'CURRENT_PROJECT_VERSION = 11;')
   },
   {
     id: 'v32',
@@ -3730,7 +3733,7 @@ const ARMS = [
     rule: 'b',
     what: 'the hide moved into TerminalPage',
     file: () => `${APP}/Screens/SessionScreen.swift`,
-    edit: (src) => src.replace('            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n        }\n', '            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n        }\n        .toolbarVisibility(.hidden, for: .tabBar)\n')
+    edit: (src) => src.replace('            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, removeConfirm: drawing.removeConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n        }\n', '            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, removeConfirm: drawing.removeConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n        }\n        .toolbarVisibility(.hidden, for: .tabBar)\n')
   },
   {
     id: 'b9',
@@ -3862,7 +3865,7 @@ const ARMS = [
     file: () => `${APP}/Screens/SessionScreen.swift`,
     edit: (src) =>
       src
-        .replace('            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n', '            CatchUpItem { openCatchUp(drawing.outcome) }\n            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n')
+        .replace('            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, removeConfirm: drawing.removeConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n', '            CatchUpItem { openCatchUp(drawing.outcome) }\n            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, removeConfirm: drawing.removeConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n')
         .replace('struct TerminalMenu: ToolbarContent {', 'struct CatchUpItem: ToolbarContent {\n    let open: () -> Void\n    var body: some ToolbarContent {\n        ToolbarItem(placement: .topBarTrailing) {\n            Button(action: open) { Image(systemName: "text.bubble") }\n        }\n    }\n}\nstruct TerminalMenu: ToolbarContent {')
   },
   {
@@ -4205,10 +4208,11 @@ const ARMS = [
     rule: 'ay',
     what: 'the two items swapped, End session… first',
     file: () => `${APP}/Screens/SessionScreen.swift`,
+    // Re-pointed by Phase 348: End's if now has Remove's else beside it.
     edit: (src) =>
       src.replace(
-        '                Button(action: openCatchUp) {\n                    Label(Copy.catchMeUp, systemImage: "text.bubble")\n                }\n                .accessibilityIdentifier(ID.terminalMenuCatchUp)\n                if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {\n                    EndMenuItem(row: row, drawing: drawing) {\n                        guard drawing.confirm != nil else { return }\n                        asking = true\n                    }\n                }\n',
-        '                if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {\n                    EndMenuItem(row: row, drawing: drawing) {\n                        guard drawing.confirm != nil else { return }\n                        asking = true\n                    }\n                }\n                Button(action: openCatchUp) {\n                    Label(Copy.catchMeUp, systemImage: "text.bubble")\n                }\n                .accessibilityIdentifier(ID.terminalMenuCatchUp)\n'
+        '                Button(action: openCatchUp) {\n                    Label(Copy.catchMeUp, systemImage: "text.bubble")\n                }\n                .accessibilityIdentifier(ID.terminalMenuCatchUp)\n                if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {\n',
+        '                if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {\n                    EndMenuItem(row: row, drawing: drawing) { asking = true }\n                }\n                Button(action: openCatchUp) {\n                    Label(Copy.catchMeUp, systemImage: "text.bubble")\n                }\n                .accessibilityIdentifier(ID.terminalMenuCatchUp)\n                if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {\n'
       )
   },
   {
@@ -4303,7 +4307,8 @@ const ARMS = [
     rule: 'ay',
     what: 'a second ToolbarItem in TerminalMenu',
     file: () => `${APP}/Screens/SessionScreen.swift`,
-    edit: (src) => src.replace('            TerminalMenuControl(end: end, offer: offer, confirm: confirm, reread: reread, openCatchUp: openCatchUp)\n        }\n', '            TerminalMenuControl(end: end, offer: offer, confirm: confirm, reread: reread, openCatchUp: openCatchUp)\n        }\n        ToolbarItem(placement: .topBarTrailing) { EmptyView() }\n')
+    // Re-pointed by Phase 348: the control's call gained removeConfirm.
+    edit: (src) => src.replace('            TerminalMenuControl(end: end, offer: offer, confirm: confirm, removeConfirm: removeConfirm, reread: reread, openCatchUp: openCatchUp)\n        }\n', '            TerminalMenuControl(end: end, offer: offer, confirm: confirm, removeConfirm: removeConfirm, reread: reread, openCatchUp: openCatchUp)\n        }\n        ToolbarItem(placement: .topBarTrailing) { EmptyView() }\n')
   },
   {
     id: 'ay16',
@@ -5154,16 +5159,43 @@ const ARMS = [
   {
     id: 'bb6a',
     rule: 'bb',
-    what: 'the "+" drawn on a Mac that offers no start (D9, D21)',
+    what: 'the "+" drawn on a Mac that offers no start (D9, D21), in the bar since Phase 348',
     file: () => SESSIONS_SCREEN,
     edit: (src) => src.replace('if let start, model.startOffer != nil {', 'if let start {')
   },
   {
     id: 'bb6b',
     rule: 'bb',
-    what: 'the "+" left on while End these takes taps (D21)',
+    what: 'the "+" left on while End these takes taps (D21), in the bar since Phase 348',
     file: () => SESSIONS_SCREEN,
     edit: (src) => src.replace(/(StartTitleControl\(open: start\)\n)[ \t]*\.disabled\([^\n]*\)\n/, '$1')
+  },
+  // His ruling of 2026-10-20 ("Top bar (Recommended)"): the "+" in the bar's trailing item and never on the list's
+  // first line, and never hidden from VoiceOver, the reverify's plants that no clause caught.
+  {
+    id: 'bb6d',
+    rule: 'bb',
+    also: ['bc'],
+    what: 'his ruling (2026-10-20): the "+" moved onto the list\'s first line beside Show, the fix round\'s construction, which drew each of All, Active and Ended 100.67 pt wide where build 11 draws 122',
+    file: () => SESSIONS_SCREEN,
+    edit: (src) =>
+      src
+        .replace('                showControl\n', '                HStack(spacing: 12) {\n                    showControl\n                    if let start, model.startOffer != nil {\n                        StartTitleControl(open: start)\n                            .disabled(batch?.takesTaps ?? false)\n                            .accessibilityIdentifier(ID.startOpen)\n                    }\n                }\n')
+        .replace('        if let start, model.startOffer != nil {\n            ToolbarItem(placement: .topBarTrailing) {\n                StartTitleControl(open: start)\n                    .disabled(batch?.takesTaps ?? false)\n                    .accessibilityIdentifier(ID.startOpen)\n            }\n        }\n', '')
+  },
+  {
+    id: 'bb6e',
+    rule: 'bb',
+    what: 'his ruling (2026-10-20): the "+" hidden from VoiceOver in the bar, so New session cannot be found by ear',
+    file: () => SESSIONS_SCREEN,
+    edit: (src) => src.replace('                    .accessibilityIdentifier(ID.startOpen)\n', '                    .accessibilityIdentifier(ID.startOpen)\n                    .accessibilityHidden(true)\n')
+  },
+  {
+    id: 'bb6f',
+    rule: 'bb',
+    what: 'his ruling (2026-10-20): StartTitleControl hides its own button from VoiceOver on iOS 26',
+    file: () => START_SHEET,
+    edit: (src) => src.replace('            .tint(Tokens.accent)\n            .accessibilityLabel(Text(verbatim: Copy.newSession))\n', '            .tint(Tokens.accent)\n            .accessibilityLabel(Text(verbatim: Copy.newSession))\n            .accessibilityHidden(true)\n')
   },
   {
     id: 'bb7a',
@@ -5284,6 +5316,417 @@ const ARMS = [
     what: 'the owner check named in New session (OWNER_CHECK_ABSENT, D20)',
     file: () => START_SHEET,
     edit: (src) => src.replace('struct StartTitleControl: View {', 'struct P346Check {\n    let check: any OwnerCheck\n}\n\nstruct StartTitleControl: View {')
+  },
+  // PHASE 348 (build/p348/SPEC.md §7.3): one arm per new clause, each red on
+  // the rule that owns it in the clone.
+  // (bc) the tab roots' bars.
+  {
+    id: 'bc1a',
+    rule: 'bc',
+    also: ['b'],
+    what: 'Settings hides its navigation bar again, the parent\'s house title row',
+    file: () => `${APP}/Screens/SettingsScreen.swift`,
+    edit: (src) => src.replace('        .navigationTitle(Copy.settings)\n        .navigationBarTitleDisplayMode(.large)\n', '        .navigationTitle(Copy.settings)\n        .navigationBarTitleDisplayMode(.large)\n        .toolbar(.hidden, for: .navigationBar)\n')
+  },
+  {
+    id: 'bc1b',
+    rule: 'bc',
+    what: 'Needs input\'s title inline, not the large title',
+    file: () => `${APP}/Screens/ListScreen.swift`,
+    edit: (src) => src.replace('        .navigationTitle(kind.title)\n        .navigationBarTitleDisplayMode(.large)\n', '        .navigationTitle(kind.title)\n        .navigationBarTitleDisplayMode(.inline)\n')
+  },
+  {
+    id: 'bc1c',
+    rule: 'bc',
+    what: 'the Macs bar\'s background forced visible',
+    file: () => `${APP}/Screens/MacsScreen.swift`,
+    edit: (src) => src.replace('        .toolbarBackground(Tokens.bgSidebar, for: .navigationBar)\n        .toolbarColorScheme(.dark, for: .navigationBar)\n    }\n', '        .toolbarBackground(Tokens.bgSidebar, for: .navigationBar)\n        .toolbarBackground(.visible, for: .navigationBar)\n        .toolbarColorScheme(.dark, for: .navigationBar)\n    }\n')
+  },
+  {
+    id: 'bc1d',
+    rule: 'bc',
+    what: 'Sessions\' bar left in the light scheme',
+    file: () => SESSIONS_SCREEN,
+    edit: (src) => src.replace('        .navigationTitle(Copy.sessions)\n        .navigationBarTitleDisplayMode(.large)\n        .toolbarBackground(Tokens.bgSidebar, for: .navigationBar)\n        .toolbarColorScheme(.dark, for: .navigationBar)\n', '        .navigationTitle(Copy.sessions)\n        .navigationBarTitleDisplayMode(.large)\n        .toolbarBackground(Tokens.bgSidebar, for: .navigationBar)\n')
+  },
+  {
+    id: 'bc2a',
+    rule: 'bc',
+    what: 'a house title row drawn in Macs again',
+    file: () => `${APP}/Screens/MacsScreen.swift`,
+    edit: (src) => src.replace('        .navigationTitle(Copy.macs)\n', '        .overlay { Words(Copy.macs, .title, Tokens.textPrimary) }\n        .navigationTitle(Copy.macs)\n')
+  },
+  {
+    id: 'bc2b',
+    rule: 'bc',
+    what: 'the list\'s title identifier declared again',
+    file: () => `${APP}/Screens/Identifiers.swift`,
+    edit: (src) => src.replace('    // The list.\n', '    // The list.\n    static let listTitle = "list-title"\n')
+  },
+  {
+    id: 'bc2c',
+    rule: 'bc',
+    what: 'the age note\'s identifier named on the Needs input foot again',
+    file: () => `${APP}/Screens/Identifiers.swift`,
+    edit: (src) => src.replace('    static let needsListEmpty = "needs-list-empty"\n', '    static let needsListEmpty = "needs-list-empty"\n    static let needsListAgeNote = "needs-list-age-note"\n')
+  },
+  {
+    id: 'bc3a',
+    rule: 'bc',
+    what: 'the filter before Select at the bar\'s leading edge',
+    file: () => SESSIONS_SCREEN,
+    edit: (src) => src.replace('        ToolbarItemGroup(placement: .topBarLeading) {\n            EndBatchTitleControl()\n            menu\n        }\n', '        ToolbarItemGroup(placement: .topBarLeading) {\n            menu\n            EndBatchTitleControl()\n        }\n')
+  },
+  {
+    id: 'bc3b',
+    rule: 'bc',
+    what: 'the "+" back beside Select in the leading group, the parent\'s 2 pt',
+    file: () => SESSIONS_SCREEN,
+    edit: (src) => src.replace('        ToolbarItemGroup(placement: .topBarLeading) {\n            EndBatchTitleControl()\n            menu\n        }\n', '        ToolbarItemGroup(placement: .topBarLeading) {\n            EndBatchTitleControl()\n            menu\n            if let start { StartTitleControl(open: start) }\n        }\n')
+  },
+  {
+    id: 'bc3c',
+    rule: 'bc',
+    what: 'a second ToolbarContent in SessionsScreen.swift',
+    file: () => SESSIONS_SCREEN,
+    edit: append('struct P348Bar: ToolbarContent {\n    var body: some ToolbarContent { ToolbarItem(placement: .principal) { EmptyView() } }\n}\n')
+  },
+  {
+    id: 'bc3e',
+    rule: 'bc',
+    what: 'his ruling (2026-10-20): the bar\'s trailing item removed, as the fix round\'s construction had it, so the bar draws no "+"',
+    file: () => SESSIONS_SCREEN,
+    edit: (src) => src.replace('        if let start, model.startOffer != nil {\n            ToolbarItem(placement: .topBarTrailing) {\n                StartTitleControl(open: start)\n                    .disabled(batch?.takesTaps ?? false)\n                    .accessibilityIdentifier(ID.startOpen)\n            }\n        }\n', '')
+  },
+  {
+    id: 'bc4a',
+    rule: 'bc',
+    what: 'the "+" with no glass on iOS 26',
+    file: () => START_SHEET,
+    edit: (src) => src.replace('            .buttonStyle(.glassProminent)\n', '')
+  },
+  {
+    id: 'bc4b',
+    rule: 'bc',
+    what: 'the "+" tinted another colour',
+    file: () => START_SHEET,
+    edit: (src) => src.replace('            .tint(Tokens.accent)\n', '            .tint(Tokens.textMuted)\n')
+  },
+  {
+    id: 'bc4c',
+    rule: 'bc',
+    what: 'the iOS 18 "+" another symbol',
+    file: () => START_SHEET,
+    edit: (src) => src.replace('Image(systemName: "plus.circle.fill")', 'Image(systemName: "plus.circle")')
+  },
+  {
+    id: 'bc5a',
+    rule: 'bc',
+    what: 'the "+" framed at 44, smaller than the parent\'s 46',
+    file: () => START_SHEET,
+    edit: (src) => src.replace('                Image(systemName: "plus")\n                    .frame(width: SessionsFrame.plusPress, height: SessionsFrame.plusPress)\n', '                Image(systemName: "plus")\n                    .frame(width: SessionsFrame.barPress, height: SessionsFrame.barPress)\n')
+  },
+  {
+    id: 'bc5b',
+    rule: 'bc',
+    what: 'Select\'s label unframed',
+    file: () => `${APP}/Screens/EndBatch.swift`,
+    edit: (src) => src.replace('                    Text(verbatim: Copy.select)\n                        .frame(minWidth: SessionsFrame.barPress, minHeight: SessionsFrame.barPress)\n                        .contentShape(Rectangle())\n', '                    Text(verbatim: Copy.select)\n')
+  },
+  {
+    id: 'bc5c',
+    rule: 'bc',
+    what: 'the filter\'s label padded instead of framed',
+    file: () => SESSIONS_SCREEN,
+    edit: (src) => src.replace('            filterGlyph\n                .frame(minWidth: SessionsFrame.barPress, minHeight: SessionsFrame.barPress)\n', '            filterGlyph\n                .padding(12)\n')
+  },
+  {
+    id: 'bc5d',
+    rule: 'bc',
+    what: 'SessionsFrame.barPress set at 36, under iOS\'s 44',
+    file: () => SESSIONS_SCREEN,
+    edit: (src) => src.replace('    static let barPress: CGFloat = 44', '    static let barPress: CGFloat = 36')
+  },
+  {
+    id: 'bc5e',
+    rule: 'bc',
+    what: 'the "+" with no content shape, so its corners would not press',
+    file: () => START_SHEET,
+    edit: (src) => src.replace('                Image(systemName: "plus")\n                    .frame(width: SessionsFrame.plusPress, height: SessionsFrame.plusPress)\n                    .contentShape(Rectangle())\n', '                Image(systemName: "plus")\n                    .frame(width: SessionsFrame.plusPress, height: SessionsFrame.plusPress)\n')
+  },
+  // bc6 (his ruling of 2026-10-20): the Show control keeps build 11's full width, 122 × 28 a segment on a 16 Pro.
+  {
+    id: 'bc6a',
+    rule: 'bc',
+    what: 'his ruling (2026-10-20): the Show control held at a fixed 240 pt, the reverify\'s plant, narrower than build 11\'s',
+    file: () => SESSIONS_SCREEN,
+    edit: (src) => src.replace('        .padding(SessionsFrame.showInset)\n', '        .padding(SessionsFrame.showInset)\n        .frame(width: 240)\n')
+  },
+  {
+    id: 'bc6b',
+    rule: 'bc',
+    what: 'his ruling (2026-10-20): the Show control given 64 pt more inset at its trailing side, room for a "+" beside it',
+    file: () => SESSIONS_SCREEN,
+    edit: (src) => src.replace('        .padding(.horizontal, Frame.gutter)\n        .padding(.bottom, 8)\n    }\n\n    @ViewBuilder\n    private func lineView', '        .padding(.horizontal, Frame.gutter)\n        .padding(.trailing, 64)\n        .padding(.bottom, 8)\n    }\n\n    @ViewBuilder\n    private func lineView')
+  },
+  {
+    id: 'bc6c',
+    rule: 'bc',
+    what: 'his ruling (2026-10-20): the Show control drawn at its ideal size, not the line\'s width',
+    file: () => SESSIONS_SCREEN,
+    edit: (src) => src.replace('        .padding(SessionsFrame.showInset)\n', '        .padding(SessionsFrame.showInset)\n        .fixedSize()\n')
+  },
+  // (b) no tab root hides its bar any more.
+  {
+    id: 'b30',
+    rule: 'b',
+    what: 'Needs input and the older Sessions hide their bar again (NAV_BAR_ROOTS emptied)',
+    file: () => `${APP}/Screens/ListScreen.swift`,
+    edit: (src) => src.replace('        .navigationTitle(kind.title)\n', '        .toolbar(.hidden, for: .navigationBar)\n        .navigationTitle(kind.title)\n')
+  },
+  // (ab) the two writes.
+  {
+    id: 'ab40',
+    rule: 'ab',
+    what: 'remove calling signedPost a second time',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('        await signedPost(route: .remove(session: sessionId), door: door, limits: limits, write: nil).asRemove\n', '        _ = await signedPost(route: .remove(session: sessionId), door: door, limits: limits, write: nil)\n        return await signedPost(route: .remove(session: sessionId), door: door, limits: limits, write: nil).asRemove\n')
+  },
+  {
+    id: 'ab41',
+    rule: 'ab',
+    what: 'a batch key on the Remove body (no Mac batch removes)',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('struct RemoveBody: Encodable, Sendable {\n    let session: String\n', 'struct RemoveBody: Encodable, Sendable {\n    let batch: Bool = false\n    let session: String\n')
+  },
+  {
+    id: 'ab42',
+    rule: 'ab',
+    what: 'a sixth key on the paste body, a size',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('struct PasteBody: Encodable, Sendable {\n    let dialog: String?\n', 'struct PasteBody: Encodable, Sendable {\n    let cols: Int = 0\n    let dialog: String?\n')
+  },
+  // (ac) Remove asks no owner check.
+  {
+    id: 'ac50',
+    rule: 'ac',
+    what: 'the owner check named in Remove.swift (his ruling, "No Face ID, just confirm")',
+    file: () => `${APP}/Screens/Remove.swift`,
+    edit: (src) => src.replace('@MainActor\nprotocol RemoveRegistry: AnyObject {', 'struct P348Check {\n    let check: any OwnerCheck\n}\n\n@MainActor\nprotocol RemoveRegistry: AnyObject {')
+  },
+  // (ad) one Remove per press, stopped when the app leaves.
+  {
+    id: 'ad30',
+    rule: 'ad',
+    what: 'the Remove runner registered after its task starts',
+    file: () => `${APP}/Screens/Remove.swift`,
+    edit: (src) => src.replace('        registry?.registerRemove(runner)\n', '').replace('        runner.task = task\n', '        runner.task = task\n        registry?.registerRemove(runner)\n')
+  },
+  {
+    id: 'ad31',
+    rule: 'ad',
+    what: 'wentAway stopping no Remove',
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: (src) => src.replace('        for runner in liveRemoves {\n            runner.stop()\n        }\n', '')
+  },
+  {
+    id: 'ad32',
+    rule: 'ad',
+    what: 'a Remove runner\'s stop set back',
+    file: () => `${APP}/Screens/Remove.swift`,
+    edit: (src) => src.replace('    func stop() {\n        stopRequested = true\n        task?.cancel()\n    }\n', '    func stop() {\n        stopRequested = true\n        task?.cancel()\n        stopRequested = false\n    }\n')
+  },
+  // (ah) the paste never sizes the Mac.
+  {
+    id: 'ah20',
+    rule: 'ah',
+    what: 'ScreenDoor.paste handed a size',
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) => src.replace('    func paste(_ text: String, turn: String, dialog: String?) async -> PasteResult\n    /// Whether this door takes a paste at all', '    func paste(_ text: String, turn: String, dialog: String?, cols: Int) async -> PasteResult\n    /// Whether this door takes a paste at all')
+  },
+  // (ai) one paste, alone, stamped at his press.
+  {
+    id: 'ai30',
+    rule: 'ai',
+    what: 'the paste sent with the picture drawn at the flush, not the one of his press',
+    file: () => `${APP}/Screens/ScreenKeys.swift`,
+    edit: (src) => src.replace('                let result = await door.paste(item.text, turn: item.turn, dialog: item.dialog)\n', '                let result = await door.paste(item.text, turn: drawn.turn, dialog: drawn.dialog)\n')
+  },
+  {
+    id: 'ai31',
+    rule: 'ai',
+    what: 'the paste queued before the paste rule is asked',
+    file: () => `${APP}/Screens/ScreenKeys.swift`,
+    edit: (src) => src.replace('        guard !stopped else { return }\n        if let sentence = ScreenPasteRule.refusal(payload)?.sentence {\n', '        guard !stopped else { return }\n        pending.append(.paste(ScreenPasteItem(text: payload, turn: "", dialog: nil, revision: "")))\n        if let sentence = ScreenPasteRule.refusal(payload)?.sentence {\n')
+  },
+  {
+    id: 'ai32',
+    rule: 'ai',
+    what: 'takeBatch merging a paste into the keys',
+    file: () => `${APP}/Screens/ScreenKeys.swift`,
+    edit: (src) => src.replace('        guard case .key(let first)? = pending.first else { return [] }\n', '        guard let first = pending.first.flatMap({ if case .key(let k) = $0 { k } else { KeyItem.typed("x") } }) else { return [] }\n')
+  },
+  // (aj) the field takes iOS's own paste and puts nothing in itself.
+  {
+    id: 'aj20',
+    rule: 'aj',
+    what: 'paste(_:) refused again, so Command-V takes nothing',
+    file: () => `${APP}/Screens/ScreenKeyField.swift`,
+    edit: (src) => src.replace('    static let refused: Set<Selector> = [\n', '    static let refused: Set<Selector> = [\n        #selector(UIResponderStandardEditActions.paste(_:)),\n')
+  },
+  {
+    id: 'aj21',
+    rule: 'aj',
+    what: 'the field\'s paste written into its own text',
+    file: () => `${APP}/Screens/ScreenKeyField.swift`,
+    edit: (src) => src.replace('        guard let payload = UIPasteboard.general.string else { return }\n        onPaste?(payload)\n', '        guard let payload = UIPasteboard.general.string else { return }\n        text = payload\n        onPaste?(payload)\n')
+  },
+  {
+    id: 'aj22',
+    rule: 'aj',
+    what: 'pasteAndMatchStyle let in',
+    file: () => `${APP}/Screens/ScreenKeyField.swift`,
+    edit: (src) => src.replace('        #selector(UIResponderStandardEditActions.pasteAndMatchStyle(_:)),\n', '')
+  },
+  // (al) the clipboard read only by iOS's own paste.
+  {
+    id: 'al30',
+    rule: 'al',
+    what: 'a UIAction titled Paste that reads the clipboard (raises iOS\'s alert, §2.1 arm y)',
+    file: () => `${APP}/Screens/ScreenTextInput.swift`,
+    edit: (src) => src.replace('        let paste = UICommand(title: Copy.paste, image: UIImage(systemName: "doc.on.clipboard"), action: #selector(UIResponderStandardEditActions.paste(_:)))\n', '        let paste = UIAction(title: Copy.paste, image: UIImage(systemName: "doc.on.clipboard")) { [weak self] _ in self?.events.paste(UIPasteboard.general.string ?? "") }\n')
+  },
+  {
+    id: 'al31',
+    rule: 'al',
+    what: 'Paste offered with no word from the page that the Mac takes one',
+    file: () => `${APP}/Screens/ScreenTextInput.swift`,
+    edit: (src) => src.replace('        guard events.pasteOffered() else { return UIMenu(children: [copy]) }\n', '')
+  },
+  {
+    id: 'al32',
+    rule: 'al',
+    what: 'the clipboard read unasked as the content is laid out',
+    file: () => `${APP}/Screens/ScreenTextInput.swift`,
+    edit: (src) => src.replace('    override func paste(_ sender: Any?) {\n', '    func peek() -> String? { UIPasteboard.general.string }\n\n    override func paste(_ sender: Any?) {\n')
+  },
+  {
+    id: 'al33',
+    rule: 'al',
+    what: 'hasStrings asked outside canPerformAction',
+    file: () => `${APP}/Screens/ScreenKeyField.swift`,
+    edit: (src) => src.replace('    override func paste(_ sender: Any?) {\n', '    var holds: Bool { UIPasteboard.general.hasStrings }\n\n    override func paste(_ sender: Any?) {\n')
+  },
+  {
+    id: 'al34',
+    rule: 'al',
+    what: 'Paste before Copy in the menu',
+    file: () => `${APP}/Screens/ScreenTextInput.swift`,
+    edit: (src) => src.replace('        return UIMenu(children: [copy, paste])\n', '        return UIMenu(children: [paste, copy])\n')
+  },
+  {
+    id: 'al35',
+    rule: 'al',
+    what: 'Paste offered over an empty clipboard (no hasStrings)',
+    file: () => `${APP}/Screens/ScreenTextInput.swift`,
+    edit: (src) => src.replace('            return events.pasteOffered() && UIPasteboard.general.hasStrings\n', '            return events.pasteOffered()\n')
+  },
+  // (av8) the marker spelled once.
+  {
+    id: 'av30',
+    rule: 'av',
+    what: 'markerOf\'s guard loosened, so somebody else\'s code reads as Tortie\'s',
+    file: () => `${APP}/Door/Pairing.swift`,
+    edit: (src) => src.replace('              let fp = marker.fp, let markerPin = Base64URL.decode(fp), markerPin.count == 32,\n              marker.dk != nil, marker.dx != nil else { return nil }', '              true else { return nil }')
+  },
+  {
+    id: 'av31',
+    rule: 'av',
+    what: 'markerOf asked from a third place',
+    file: () => `${APP}/Door/Pairing.swift`,
+    edit: (src) => src.replace('    static func readsAsCode(_ payload: String) -> Bool {\n', '    static func peek(_ payload: String) -> Bool { markerOf(payload) != nil }\n\n    static func readsAsCode(_ payload: String) -> Bool {\n')
+  },
+  // (ay) Remove in End's place in the ⋯.
+  {
+    id: 'ay30',
+    rule: 'ay',
+    what: 'Remove taken out of the ⋯ (the parent\'s menu)',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace('                } else if let removal {\n                    RemoveMenuItem(drawing: removal) {\n                        guard removal.confirm != nil else { return }\n                        removeAsked = true\n                    }\n                }\n', '                }\n')
+  },
+  {
+    id: 'ay31',
+    rule: 'ay',
+    what: 'Remove drawn with an owner check\'s glyph',
+    file: () => `${APP}/Screens/Remove.swift`,
+    edit: (src) => src.replace('        Button(Copy.remove, role: .destructive) {\n            ask()\n        }\n', '        Button(role: .destructive) { ask() } label: { Label(Copy.remove, systemImage: "faceid") }\n')
+  },
+  {
+    id: 'ay32',
+    rule: 'ay',
+    what: 'Remove\'s confirmation inside the menu\'s items',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace('        .removeConfirmation(model: end?.remove, drawing: removal, isPresented: $removeAsked, reread: reread)\n', '').replace('                    RemoveMenuItem(drawing: removal) {\n', '                    RemoveMenuItem(drawing: removal) {\n                        removeAsked = true\n                    }\n                    .removeConfirmation(model: end?.remove, drawing: removal, isPresented: $removeAsked, reread: reread)\n                    RemoveMenuItem(drawing: removal) {\n')
+  },
+  // (az) the sample's Remove and paste stay on the phone.
+  {
+    id: 'az50',
+    rule: 'az',
+    what: 'the sample\'s Remove reaching the paired reader\'s door client',
+    file: () => `${APP}/Sample/SampleReader.swift`,
+    edit: (src) => src.replace('    func remove(_ sessionId: String) async -> RemoveResult {\n        await world.removeEnded(sessionId)\n    }\n', '    func remove(_ sessionId: String) async -> RemoveResult {\n        let client: DoorClient? = nil\n        _ = client\n        return await world.removeEnded(sessionId)\n    }\n')
+  },
+  {
+    id: 'az51',
+    rule: 'az',
+    what: 'the sample\'s paste echo kept in UserDefaults',
+    file: () => `${APP}/Sample/SampleReader.swift`,
+    edit: (src) => src.replace('    func paste(_ text: String, turn: String, dialog: String?) async -> PasteResult {\n', '    func paste(_ text: String, turn: String, dialog: String?) async -> PasteResult {\n        UserDefaults.standard.set(text, forKey: "p348")\n')
+  },
+  // (p) the paste's payload watched to the pairing-code refusal.
+  {
+    id: 'p30',
+    rule: 'p',
+    what: 'the paste\'s read bound to a name nobody watches',
+    file: () => `${APP}/Screens/ScreenKeyField.swift`,
+    edit: (src) => src.replace('        guard let payload = UIPasteboard.general.string else { return }\n        onPaste?(payload)\n', '        guard let clip = UIPasteboard.general.string else { return }\n        onPaste?(clip)\n')
+  },
+  {
+    id: 'p31',
+    rule: 'p',
+    what: 'the paste kept on the key sender before its refusal',
+    file: () => `${APP}/Screens/ScreenKeys.swift`,
+    edit: (src) => src.replace('    func paste(_ payload: String) {\n        guard !stopped else { return }\n', '    func paste(_ payload: String) {\n        lastPaste = payload\n        guard !stopped else { return }\n')
+  },
+  // (t) the hostile door's Phase 348 arms.
+  {
+    id: 't50',
+    rule: 't',
+    what: 'a Remove arm dropped from the hostile door',
+    file: () => 'build/p316/hostile-door.mjs',
+    edit: (src) => src.replace(/\n  'remove-late': \{[^\n]*\},/, '')
+  },
+  {
+    id: 't51',
+    rule: 't',
+    what: 'a paste arm counting two POSTs, a paste split',
+    file: () => 'build/p316/hostile-door.mjs',
+    edit: (src) => src.replace("'paste-cut': { what: 'a paste\\'s connection cut after its request was read', ends: 'sentence', paste: 'answer', posts: 1,", "'paste-cut': { what: 'a paste\\'s connection cut after its request was read', ends: 'sentence', paste: 'answer', posts: 2,")
+  },
+  // (v) a Remove's line and a paste's always a sentence.
+  {
+    id: 'v50',
+    rule: 'v',
+    what: 'removeSentence answering String?',
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) => src.replace('    static func removeSentence(for result: RemoveResult) -> String {\n', '    static func removeSentence(for result: RemoveResult) -> String? {\n')
+  },
+  {
+    id: 'v51',
+    rule: 'v',
+    what: 'pasteSentence with a default, so a new case draws a line nobody chose',
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) => src.replace('        case .noAnswer:\n            return Copy.endNoAnswer\n        case .notSent(let failure):\n            return failure == .cancelled ? Copy.pasteNotTaken : sentence(for: failure)\n', '        default:\n            return Copy.endNoAnswer\n')
   }
 ];
 
@@ -5497,7 +5940,8 @@ if (only.length === 0) {
     }
   }
   // Phase 337.1's rules, Phase 337.3's ((aw), (ax), (ay)), Phase 333.3's (az) and Phase 345's (ba); (av) is Phase 333.1's and joins here when it lands.
-  for (const rule of ['ar', 'as', 'at', 'au', 'aw', 'ax', 'ay', 'az', 'ba', 'bb']) {
+  // Phase 348's (bc).
+  for (const rule of ['ar', 'as', 'at', 'au', 'aw', 'ax', 'ay', 'az', 'ba', 'bb', 'bc']) {
     if (!rulesProved.has(rule)) {
       failed += 1;
       say(`rule (${rule}) has no arm that turned it red, so nothing here proves it can fail`);
@@ -5510,5 +5954,5 @@ if (failed > 0) {
 }
 say(
   `PASS: ${String(arms.length)} of ${String(arms.length)} arms red on the rule that owns them, ` +
-    `${only.length === 0 ? 'every rule (a) to (z) and (aa) to (bb) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
+    `${only.length === 0 ? 'every rule (a) to (z) and (aa) to (bc) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
 );

@@ -34,8 +34,11 @@ import XCTest
 /// Labels and frames only, never a photograph.
 ///
 /// THE TABS, SETTINGS AND THE RENDERED ANSWER (Phase 316.6, build/p3166/SPEC.md
-/// section 7.4). Pairing lands on the Needs input tab, so `pair` ends at
-/// `screen-needs-input` and `list` selects the Sessions tab first. A tab's
+/// section 7.4). Pairing landed on the Needs input tab until Phase 348, so
+/// `pair` ended at `screen-needs-input` and `list` selects the Sessions tab
+/// first; since Phase 348 (build/p348/SPEC.md D1) a pairing that finishes
+/// lands on that Mac's Sessions, `pair` prints the tab bar it landed on
+/// (`tabs`, each button's selected trait), and `list` finds Sessions there. A tab's
 /// button has no identifier (SwiftUI gives a `Tab` none), so it is found by
 /// its label, the Copy word spelled again here. New steps read the tab bar
 /// and its badge, the answer drawn as markdown (every `md-` element and every
@@ -107,6 +110,34 @@ import XCTest
 /// THAT moment. Every reading is a label or a frame: each `screen-row-<n>`'s
 /// label is the row's text. Nothing here asks Face ID, and `auth` in a line
 /// says whether iOS's owner check was up, which must never be so for a key.
+///
+/// THE PHONE POLISHED (Phase 348, build/p348/SPEC.md section 8.2). The tab
+/// roots take the iPhone's own navigation bar with its large title, so the
+/// four title identifiers are gone and a title is read as the bar whose
+/// identifier is its title (`app.navigationBars["Sessions"]`); the list's top
+/// is the Show control, its first line. New steps read Sessions' bar
+/// (`bar-read`), read it at rest and after one swipe (`bar-swipe`), and tap
+/// it on a grid (`bar-grid`: on iOS 26 every 4 pt across its controls' row at
+/// its top, middle and bottom, and on both runtimes a cross every 2 pt through
+/// Select's, the filter's and the "+"'s centre, each tap graded by what it
+/// opened: New session, Select's selection, the filter's menu, or a Show
+/// segment, put back; on iOS 18.3 the app is relaunched every 8 taps, the fix
+/// round). The "+" is the bar's trailing item, by his ruling of 2026-10-20
+/// ("Top bar (Recommended)"), and `bar-swipe` also reads All, Active and
+/// Ended's frames at rest while the Mac offers Start. Remove is read and
+/// pressed where End was (`remove-read`,
+/// `remove`, `remove-cancel`, `remove-home`; `to-catch-up` presses Catch Me
+/// Up and STAYS there, so the End and the Remove after it are Catch Me Up's
+/// top right's, never the Terminal's ⋯), and paste natively
+/// (`paste-write:<b64url>`, written by THIS runner, another app, to the
+/// device's pasteboard; `paste-menu`, `paste-menu-read`, `paste-cmdv`,
+/// `paste-pinch`, `paste-trip`, `paste-ctrl`, `paste-read`,
+/// `paste-select:<from>:<to>`), each paste watching SpringBoard and the app
+/// for iOS's Allow Paste alert for 8 s. A pairing that lands on Sessions
+/// looks for its first row at once, before anything else is read
+/// (`sessions-first-row` times the hostile cap arm from the landing). Nothing here logs per
+/// event: a long drive on iOS 18.3 can end the app inside XCTAutomationSupport
+/// (build/p348/SPEC.md section 0 rule 14).
 ///
 /// TERMINAL FIRST (Phase 337.1, build/p3371/SPEC.md section 7.8). A list row
 /// now opens a running session on its Terminal at once, and an ended one on
@@ -258,12 +289,15 @@ import XCTest
 /// Each prints `<step>-missing` and stops when the grid is not there.
 ///
 /// NEW SESSION (Phase 346, build/p346/SPEC.md section 6.2, `P316_ARMS=start`).
-/// Eight steps, appended (`start-reach`, the ruled round's, measures the
-/// "+"'s press by taps and reads the title row's frames; see its own note); every step above is unchanged, and SPEC section
+/// Seven steps, appended (the ruled round's `start-reach` is retired on
+/// purpose by Phase 348, whose `bar-grid` measures the "+"'s press in the
+/// iPhone's own bar); every step above is unchanged, and SPEC section
 /// 4.16's identifiers are spelled again in `Seen`. `start-open` selects the
 /// Sessions tab and waits for its list, reads the "+" (`start-open`: whether
-/// it is drawn, its label, frame and state, beside the title's other controls
-/// `list-menu` and `list-select`), presses it when it can be pressed, and
+/// it is drawn, its label, frame and state, beside the bar's other controls
+/// `list-menu` and `list-select`, the bar and its large title, and the Show
+/// control under the bar, Phase 348),
+/// presses it when it can be pressed, and
 /// reads the sheet: its marks, the agent's name, the danger line, the state
 /// line and Create (`reading`), and the Project menu opened, every item's id,
 /// label, state and whether it is the chosen one (`projects`), shut again by
@@ -374,13 +408,11 @@ private enum Seen {
 
     // Phase 316.6: the Needs input tab, Settings and the drawn answer.
     static let needsScreen = "screen-needs-input"
-    static let needsTitle = "needs-input-title"
     static let needsAlertsLine = "needs-list-alerts-line"
     static let needsNotice = "needs-list-notice"
     static let needsLoading = "needs-list-loading"
     static let needsFailure = "needs-list-failure"
     static let needsEmpty = "needs-list-empty"
-    static let needsAgeNote = "needs-list-age-note"
     static let needsRead = "needs-list-read"
     static func needsRow(_ id: String) -> String { "needs-row-" + id }
     static func needsRowDot(_ id: String) -> String { "needs-row-dot-" + id }
@@ -389,7 +421,6 @@ private enum Seen {
     static func needsRowAge(_ id: String) -> String { "needs-row-age-" + id }
     static func needsRowLine(_ id: String) -> String { "needs-row-line-" + id }
     static let settingsScreen = "screen-settings"
-    static let settingsTitle = "settings-title"
     static let settingsMac = "settings-mac"
     static let settingsMacName = "settings-mac-name"
     static let settingsMacAddress = "settings-mac-address"
@@ -437,9 +468,9 @@ private enum Seen {
     static let oneMessage = "Goes to this session as one message."
     static let sending = "Sending…"
     // Phase 316.7: the Sessions tab's controls and its project headers.
-    /// The list's title, the first line the tab draws: drawn and pressable
-    /// only at the list's top, because the tab is lazy and it scrolls away.
-    static let listTitle = "list-title"
+    // (Phase 348, build/p348/SPEC.md D15: the tab roots' titles are the
+    // iPhone's own bar, so `needs-input-title`, `list-title`,
+    // `settings-title` and `macs-title` are gone, and so is the age note.)
     static let listShow = "list-show"
     static func showSegment(_ word: String) -> String { "list-show-" + word }
     static let listMenu = "list-menu"
@@ -466,6 +497,9 @@ private enum Seen {
     /// link alert's (`Copy.open`, `Copy.cancel`).
     static let unpairPress = "Unpair"
     static let cancelPress = "Cancel"
+    /// iOS 26's own region around a popover, the way out of a confirmation
+    /// dialog drawn as one (Phase 348's fix round): iOS's identifier, not ours.
+    static let popoverDismiss = "PopoverDismissRegion"
     static let openPress = "Open"
     static let safari = "com.apple.mobilesafari"
     /// A screen the app is paired on: either list tab.
@@ -481,6 +515,8 @@ private enum Seen {
     static let screenRow = "screen-row-"
     static let screenCursor = "screen-cursor"
     static let screenLine = "screen-line"
+    /// The Terminal's line while a selection is held (`Copy.screenHeldWhileSelecting`).
+    static let heldWhileSelecting = "Showing the terminal as it was when you started selecting."
     static let screenKeyField = "screen-key-field"
     static let screenKeyBar = "screen-key-bar"
     static let screenKey = "screen-key-"
@@ -642,6 +678,15 @@ private final class Drive {
     private var inSample = false
     /// Phase 345: the first launch keeps what the Keychain holds (`P345_KEEP_PAIRING=1`).
     private let keepPairing: Bool
+    /// Phase 348 (D1): when the last pairing landed on Sessions, and its first
+    /// row as soon as it was drawn, by the clock (`sessions-first-row` times
+    /// the hostile `sessions-cap` arm from the landing).
+    private var landedAt: Double?
+    private var landedFirstRow: (at: Double, id: String)?
+    /// The Show segment chosen when `bar-grid` began (the fix round's guard,
+    /// kept): a tap that chose another is put back and said, and the probe
+    /// reads a bar tap that did as a problem.
+    fileprivate var barShow: String?
     /// Phase 333.4.1: the content size category every launch carries, or nil.
     private let textSize: String?
     /// Phase 333.4.1: `P316_TEXT_SIZE` named something that is not a content
@@ -838,6 +883,8 @@ private final class Drive {
                 terminalOpen(String(step.dropFirst("terminal-open:".count)))
             } else if step == "catch-up" {
                 catchUp()
+            } else if step == "to-catch-up" {
+                toCatchUpStay()
             } else if step.hasPrefix("scroll-up:") {
                 scrollUp(Int(String(step.dropFirst("scroll-up:".count))) ?? 1)
             } else if step == "scroll-hold" {
@@ -911,8 +958,6 @@ private final class Drive {
                 macsPull()
             } else if step == "start-open" {
                 startOpen()
-            } else if step == "start-reach" || step.hasPrefix("start-reach:") {
-                startReach(step.hasPrefix("start-reach:") ? String(step.dropFirst("start-reach:".count)) : nil)
             } else if step.hasPrefix("start-pick:") {
                 startPick(String(step.dropFirst("start-pick:".count)))
             } else if step.hasPrefix("start-agent:") {
@@ -931,6 +976,41 @@ private final class Drive {
                 keysRead()
             } else if step == "pan-sideways" {
                 panSideways()
+            } else if step == "bar-read" {
+                barRead()
+            } else if step == "bar-grid" {
+                barGrid()
+            } else if step == "bar-swipe" {
+                barSwipe()
+            } else if step == "remove-read" {
+                removeRead()
+            } else if step == "remove" {
+                removePress(mode: "press")
+            } else if step == "remove-cancel" {
+                removePress(mode: "cancel")
+            } else if step == "remove-home" {
+                removePress(mode: "home")
+            } else if step.hasPrefix("paste-write:") {
+                pasteWrite(String(step.dropFirst("paste-write:".count)))
+            } else if step == "paste-empty" {
+                pasteEmpty()
+            } else if step == "paste-menu" {
+                pasteMenu(press: true)
+            } else if step == "paste-menu-read" {
+                pasteMenu(press: false)
+            } else if step == "paste-cmdv" {
+                pasteCommandV()
+            } else if step == "paste-pinch" {
+                pastePinch()
+            } else if step == "paste-trip" {
+                pasteTrip()
+            } else if step == "paste-read" {
+                pasteRead()
+            } else if step == "paste-ctrl" {
+                pasteCtrl()
+            } else if step.hasPrefix("paste-select:") {
+                let parts = step.dropFirst("paste-select:".count).split(separator: ":").compactMap { Int($0) }
+                pasteSelect(from: parts.first ?? 0, to: parts.dropFirst().first ?? (parts.first ?? 0))
             } else {
                 lines.emit(["step": "unknown-step", "name": step])
             }
@@ -945,26 +1025,75 @@ private final class Drive {
         _ = poll { has($0, Seen.pairingFingerprint) || has($0, Seen.pairingAgain) || has($0, Seen.listScreen) }
         let fingerprint = find(tree(), Seen.pairingFingerprint)
         lines.emit(["step": "fingerprint", "text": fingerprint.map { $0.label as Any } ?? NSNull()])
+        // Phase 348 (D1): a pairing lands on Sessions, and the landing and its
+        // first row are timed by the clock AS THEY HAPPEN, read on every look
+        // below, the notification question's window included (the fix round,
+        // 2026-10-19, the phone lens: they were looked for only after that
+        // window, so a door that never makes iOS ask, the hostile
+        // `sessions-cap` arm's, timed the UI test's own 10 s wait rather than
+        // the app, and its first row read 8.5 s after the door's answer).
+        landedAt = nil
+        landedFirstRow = nil
+        let noteLanding = { (found: [Found]) in
+            guard self.landedFirstRow == nil, self.has(found, Seen.listScreen) else { return }
+            let now = Date().timeIntervalSince1970 * 1000
+            if self.landedAt == nil { self.landedAt = now }
+            if let row = found.first(where: { $0.id.hasPrefix("row-") && Self.isRow($0.id) }) { self.landedFirstRow = (now, row.id) }
+        }
         // iOS asks only when the Mac says it can send, and the phone hears
-        // that on its first `pending`: 10 seconds for it, then said either way.
-        // A question that comes later (a name that took long to resolve) is
-        // still answered, marked late, so the pairing never waits on it.
-        var answered = fingerprint != nil ? notifications(within: 10) : true
+        // that on its first `pending`: 10 seconds for it, then said either way,
+        // the landing read four times a second meanwhile. A question that comes
+        // later (a name that took long to resolve) is still answered, marked
+        // late, so the pairing never waits on it.
+        var answered = true
+        if fingerprint != nil {
+            answered = false
+            let deadline = Date().addingTimeInterval(10)
+            while !answered, Date() < deadline {
+                if springboard.alerts.firstMatch.exists {
+                    answered = notifications(within: 0)
+                    break
+                }
+                // The app is read only until its first row is seen, so a long
+                // window asks SpringBoard alone (iOS 18.3's log volume, SPEC §0
+                // rule 14).
+                if landedFirstRow == nil { noteLanding(tree()) }
+                Thread.sleep(forTimeInterval: 0.25)
+            }
+            if !answered { answered = notifications(within: 0) }
+        }
         // Paired is a list, which only the first SIGNED read draws: since Phase
-        // 316.6 the Needs input tab, where pairing lands (the Sessions tab's
-        // list is accepted too); stopped is `Pair again`, which only a pairing
-        // that ended draws.
+        // 316.6 the Needs input tab, where pairing landed until Phase 348 (the
+        // Sessions tab's list since); stopped is `Pair again`, which only a
+        // pairing that ended draws.
         _ = poll { found in
             if !answered, self.springboard.alerts.firstMatch.exists { answered = self.notifications(within: 0, late: true) }
-            return found.contains { Seen.paired($0.id) } || has(found, Seen.pairingAgain)
+            noteLanding(found)
+            return found.contains { Seen.paired($0.id) } || self.has(found, Seen.pairingAgain)
+        }
+        // The first row, looked for for up to 3 s more when the landing was
+        // seen and its row was not yet.
+        if landedAt != nil, landedFirstRow == nil {
+            let deadline = Date().addingTimeInterval(3)
+            while landedFirstRow == nil, Date() < deadline {
+                noteLanding(tree())
+                if landedFirstRow == nil { Thread.sleep(forTimeInterval: 0.1) }
+            }
+        } else if landedAt == nil {
+            noteLanding(tree())
         }
         dump("pair-end")
+        // Phase 348 (D1): the tab a finished pairing landed on, by each tab
+        // button's selected trait, which XCUITest may not read on iOS 26's
+        // glass bar (then the probe grades it UNREADABLE, never a pass).
+        lines.emit(["step": "tabs", "for": "pair-end", "tabs": tabsReading(), "system": UIDevice.current.systemVersion])
         if !tree().contains(where: { Seen.paired($0.id) }) { stuck = true }
     }
 
     private func list() {
-        // Since Phase 316.6 the list is the Sessions tab, and pairing lands on
-        // Needs input: the Sessions tab is selected first.
+        // Since Phase 316.6 the list is the Sessions tab; pairing landed on
+        // Needs input until Phase 348, which lands it on Sessions. The tab is
+        // selected first whenever it is not the one drawn.
         if !has(tree(), Seen.listScreen) { _ = selectTab(Seen.tabSessions) }
         guard poll({ has($0, Seen.listScreen) && !has($0, Seen.listLoading) }) else {
             return missing("list")
@@ -2418,13 +2547,19 @@ private final class Drive {
     /// rather than left for a later step to fail on silently.
     private func scrollToTop() {
         let scroll = scrollTarget()
-        let title = element(Seen.listTitle)
+        // Phase 348 (D15): the title is the bar's large title, which stays on
+        // screen as the list scrolls, so the list's top is its first line,
+        // the Show control (on the older-Mac face, the first section header).
+        // Asked again at every swipe: the list is lazy, so the mark is in the
+        // tree only once the top is near.
+        let marks = [element(Seen.listShow), element(Seen.sectionBlockedHeader)]
+        let atTop = { marks.contains { $0.exists && $0.isHittable } }
         var last = "\u{0}"
         var settling = 0
         let deadline = Date().addingTimeInterval(max(wait, 120))
         while Date() < deadline {
-            if title.exists && title.isHittable {
-                // The title is drawn: at most a few more swipes, until nothing moves.
+            if atTop() {
+                // The first line is drawn: at most a few more swipes, until nothing moves.
                 settling += 1
                 if settling > 3 { return }
             }
@@ -2434,7 +2569,7 @@ private final class Drive {
             if now == last { break }
             last = now
         }
-        if title.exists && title.isHittable { return }
+        if atTop() { return }
         lines.emit(["step": "scroll-to-top", "reached": false])
     }
 
@@ -2484,7 +2619,9 @@ private final class Drive {
         var stack: [XCUIElementSnapshot] = [root]
         while let node = stack.popLast() {
             let id = node.identifier
-            if id == Seen.listMenu || id.hasPrefix(Seen.listShow + "-") || (id.hasPrefix("group-") && !Self.isGroupPart(id)) {
+            // Phase 348 (D15, SL7): the "+" sits in the same bar as the menu,
+            // so it is read off while End these takes taps, as the menu is.
+            if id == Seen.listMenu || id == Seen.startOpen || id.hasPrefix(Seen.listShow + "-") || (id.hasPrefix("group-") && !Self.isGroupPart(id)) {
                 out[id] = node.isEnabled
             }
             stack.append(contentsOf: node.children.reversed())
@@ -2530,9 +2667,20 @@ private final class Drive {
         return inMenu.isEmpty ? app.buttons.allElementsBoundByIndex.filter(\.exists).map(\.label) : inMenu
     }
 
-    /// An open menu put away: a press on the title's row, which no menu covers.
+    /// An open menu put away. Since Phase 348 (D16) the filter is in the bar
+    /// beside Select, where the old press on the title's row would land on
+    /// Select: a press on the large title, which no menu covers and which
+    /// does nothing, else on the bar's middle between the two edges' items.
     private func dismissMenu() {
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.06, dy: 0.12)).tap()
+        let bar = app.navigationBars[Seen.tabSessions]
+        let title = bar.staticTexts[Seen.tabSessions]
+        if bar.exists, title.exists, title.isHittable, title.frame.minX > 0 {
+            title.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        } else if bar.exists {
+            bar.coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: 0.25)).tap()
+        } else {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.06, dy: 0.12)).tap()
+        }
         Thread.sleep(forTimeInterval: 0.6)
     }
 
@@ -2736,9 +2884,21 @@ private final class Drive {
 
     /// `sessions-first-row`: the moment the Sessions tab is pressed, and the
     /// moment its first row is in the tree, by the clock (the probe holds them
-    /// to the door's answer: within 2 s, SPEC section 9.5).
+    /// to the door's answer: within 2 s, SPEC section 9.5). Since Phase 348 a
+    /// pairing lands on Sessions, so after one the moments are the landing and
+    /// the first row `pair` saw drawn (build/p348/SPEC.md section 6, item 1).
     private func sessionsFirstRow() {
-        lines.emit(["step": "first-row-start", "at": Date().timeIntervalSince1970 * 1000])
+        // Phase 348 (D1): a pairing that landed on Sessions is timed from the
+        // landing, and its first row from the moment pairing saw it drawn.
+        if let landedAt {
+            lines.emit(["step": "first-row-start", "at": landedAt, "landed": true])
+            if let row = landedFirstRow {
+                lines.emit(["step": "first-row", "at": row.at, "id": row.id, "landed": true])
+                return
+            }
+        } else {
+            lines.emit(["step": "first-row-start", "at": Date().timeIntervalSince1970 * 1000])
+        }
         _ = selectTab(Seen.tabSessions)
         let deadline = Date().addingTimeInterval(wait)
         while Date() < deadline {
@@ -3386,6 +3546,18 @@ private final class Drive {
         if back.exists { back.tap() }
         let returned = poll { found in self.has(found, Seen.screenScreen) }
         lines.emit(["step": "catch-up", "reading": reading, "backToTerminal": returned, "after": terminalReading()])
+    }
+
+    /// `to-catch-up` (Phase 348's second fix round, the reverify's RV1
+    /// finding): Catch Me Up pressed and STAYED on, never Back, so the End,
+    /// the Remove read and its presses that follow are Catch Me Up's top
+    /// right's, where `catch-up` above returns to the Terminal and they ran
+    /// in its ⋯ instead.
+    private func toCatchUpStay() {
+        guard poll({ self.sessionSettled($0) }), toCatchUp(for: "to-catch-up") else { return missing("to-catch-up") }
+        Thread.sleep(forTimeInterval: 1)
+        emitFace("to-catch-up")
+        dump("to-catch-up")
     }
 
     /// One drag of the finger DOWN the grid, which scrolls the terminal up
@@ -4357,6 +4529,23 @@ private final class Drive {
         return out
     }
 
+    /// One snapshot of the app for `barTapOutcome` (the fix round): the
+    /// identified elements, as `tree()` reads them, and whether any element,
+    /// identified or not, is the filter menu's `Group by`, which is how its
+    /// menu is known to be open.
+    private func barSnapshot() -> (found: [Found], menuOpen: Bool) {
+        guard let root = try? app.snapshot() else { return ([], false) }
+        var out: [Found] = []
+        var menuOpen = false
+        var stack: [XCUIElementSnapshot] = [root]
+        while let node = stack.popLast() {
+            if !node.identifier.isEmpty { out.append(Found(id: node.identifier, label: node.label, frame: node.frame)) }
+            if !menuOpen, node.label.hasPrefix(Seen.groupByWords) { menuOpen = true }
+            stack.append(contentsOf: node.children.reversed())
+        }
+        return (out, menuOpen)
+    }
+
     private func has(_ found: [Found], _ id: String) -> Bool {
         found.contains { $0.id == id }
     }
@@ -4490,13 +4679,12 @@ enum MarkdownLabels {
 // MARK: - Several Macs (Phase 345, build/p345/SPEC.md section 5.3)
 
 /// The identifiers Phase 345 adds (ios/Tortie/Screens/Identifiers.swift's
-/// `settingsPairAnother`, `macsScreen`, `macsTitle`, `macsRow…`,
+/// `settingsPairAnother`, `macsScreen`, `macsRow…`,
 /// `pairAnotherSheet` and `pairAnotherCancel`), spelled again because a UI
 /// test cannot import the app.
 private extension Seen {
     static let settingsPairAnother = "settings-pair-another"
     static let macsScreen = "screen-macs"
-    static let macsTitle = "macs-title"
     static let macsRow = "macs-row-"
     static let macsRowName = "macs-row-name-"
     static let macsRowLine = "macs-row-line-"
@@ -4849,8 +5037,12 @@ extension Drive {
             "frame": present ? frameOf(plus.frame) as Any : NSNull(),
             "enabled": present ? plus.isEnabled as Any : NSNull(),
             "hittable": present ? plus.isHittable as Any : NSNull(),
-            "title": find(found, Seen.listTitle).map { frameOf($0.frame) as Any } ?? NSNull(),
+            // Phase 348 (D15, D16): the bar named Sessions and its large title.
+            "title": barTitleFrame().map { frameOf($0) as Any } ?? NSNull(),
+            "bar": app.navigationBars[Seen.tabSessions].exists ? frameOf(app.navigationBars[Seen.tabSessions].frame) as Any : NSNull(),
             "controls": [Seen.listMenu, Seen.listSelect].compactMap { id in find(found, id).map { ["id": id, "frame": frameOf($0.frame)] as [String: Any] } },
+            // The Show control under the bar, at its full width (his ruling of 2026-10-20).
+            "show": find(found, Seen.listShow).map { frameOf($0.frame) as Any } ?? NSNull(),
             "list": has(found, Seen.listScreen),
             "window": windowSize(),
             "tabs": tabsReading(),
@@ -4872,86 +5064,10 @@ extension Drive {
         dump("start-open")
     }
 
-    /// `start-reach` (the ruled round, probe:p316's NP12): the Sessions title
-    /// row read from ONE snapshot (the title, the menu, Select, the "+" and
-    /// the Show control, each frame), then the "+"'s PRESS measured by taps
-    /// at points outside its glyph: along each of its four edges at growing
-    /// distances, and at the four corners of a 44 × 44 pt square around it.
-    /// A tap that opens New session is answered by Cancel and the sheet's
-    /// going before the next. The distances stop short of Select (left) and
-    /// of the Show control's buttons (down), so no tap can press either. The
-    /// row is read again after the last tap. `glyph` (`x_y_width_height`, the
-    /// probe's) is where the build before drew the glyph, and the taps are
-    /// placed around it, never around the "+"'s element frame now: the second
-    /// run of this step placed them around a frame that had grown to the press
-    /// square, and its taps pressed Select and the Show control's Ended.
-    fileprivate func startReach(_ given: String?) {
-        let before = tree()
-        if !has(before, Seen.listScreen) || onSessionPage(before) || onTerminal(before) { _ = selectTab(Seen.tabSessions) }
-        _ = poll { found in self.has(found, Seen.listScreen) && !self.has(found, Seen.listLoading) }
-        Thread.sleep(forTimeInterval: 1)
-        let plus = element(Seen.startOpen)
-        guard plus.waitForExistence(timeout: min(wait, 15)) else {
-            lines.emit(["step": "start-reach", "found": false])
-            return
-        }
-        let rowIds = [Seen.listTitle, Seen.listMenu, Seen.listSelect, Seen.startOpen, Seen.listShow]
-        let rowOf = { (found: [Found]) -> [String: Any] in
-            var out: [String: Any] = [:]
-            for id in rowIds { out[id] = self.find(found, id).map { self.frameOf($0.frame) as Any } ?? NSNull() }
-            return out
-        }
-        let first = tree()
-        let plusFrame = find(first, Seen.startOpen)?.frame ?? plus.frame
-        // `x_y_width_height`: the drive's steps are joined by commas, so the
-        // argument names its four numbers with underscores.
-        let parts = (given ?? "").split(separator: "_").compactMap { Double($0) }
-        let glyph = parts.count == 4 ? CGRect(x: parts[0], y: parts[1], width: parts[2], height: parts[3]) : plusFrame
-        // (side, distance past that edge): x and y in points.
-        var points: [(side: String, by: Double, x: Double, y: Double)] = []
-        for by in [11.5, 12.5, 13.5, 14.5, 15.5, 16.5, 17.5] { points.append(("up", by, Double(glyph.midX), Double(glyph.minY) - by)) }
-        // Down stops 0.5 pt above the Show control's capsule and left 1.5 pt clear of Select: the first run of
-        // this step tapped 104.5, 1.5 pt above the Ended button, and iOS's touch radius pressed Ended.
-        for by in [9.5, 10.5, 11.5, 12.5] { points.append(("down", by, Double(glyph.midX), Double(glyph.maxY) + by)) }
-        for by in [11.5, 12.5, 13.5] { points.append(("left", by, Double(glyph.minX) - by, Double(glyph.midY))) }
-        for by in [11.5, 12.5, 13.5, 14.5] { points.append(("right", by, Double(glyph.maxX) + by, Double(glyph.midY))) }
-        // A 44 × 44 pt square: 13 past each side (18 + 26), 16 above and 12 below (16 + 28).
-        let left = Double(glyph.minX) - 13
-        let right = Double(glyph.maxX) + 13
-        let top = Double(glyph.minY) - 16
-        let bottom = Double(glyph.maxY) + 12
-        for (side, x, y) in [("corner-top-left", left, top), ("corner-top-right", right, top), ("corner-bottom-left", left, bottom), ("corner-bottom-right", right, bottom), ("centre", Double(glyph.midX), Double(glyph.midY))] {
-            points.append((side, 0, x, y))
-        }
-        let origin = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
-        var taps: [[String: Any]] = []
-        for p in points {
-            origin.withOffset(CGVector(dx: p.x, dy: p.y)).tap()
-            let opened = element(Seen.startSheet).waitForExistence(timeout: 2.5)
-            var closed = true
-            if opened {
-                let close = element(Seen.startClose)
-                if close.waitForExistence(timeout: 5), close.isHittable { close.tap() }
-                closed = poll { !self.has($0, Seen.startSheet) }
-                Thread.sleep(forTimeInterval: 0.6)
-            } else {
-                Thread.sleep(forTimeInterval: 0.3)
-            }
-            taps.append(["side": p.side, "by": p.by, "at": [p.x, p.y], "opened": opened, "closed": closed])
-        }
-        lines.emit([
-            "step": "start-reach",
-            "found": true,
-            "glyph": frameOf(glyph),
-            "given": parts.count == 4,
-            "element": frameOf(plusFrame),
-            "row": rowOf(first),
-            "rowAfter": rowOf(tree()),
-            "window": windowSize(),
-            "taps": taps,
-            "faceId": ownerCheckUp()
-        ])
-    }
+    // `start-reach` (the ruled round's NP12, which tapped around the title
+    // row's 18 × 16 glyph) is retired on purpose (Phase 348, build/p348/SPEC.md
+    // item 5, D56): the "+" is a control in the iPhone's own bar, and its press
+    // is measured by `bar-grid`, a tap grid across the whole bar.
 
     /// `start-pick:<project id>`: the menu opened and that project pressed.
     fileprivate func startPick(_ id: String) {
@@ -5044,8 +5160,10 @@ extension Drive {
                 gone = true
                 break
             }
-            let button = element(Seen.startCreate)
-            let label = button.exists ? button.label : ""
+            // The label from the snapshot just read (the fix round): a second
+            // query raced the sheet closing, and its `.label` on an element
+            // gone between `exists` and the read failed the drive.
+            let label = find(found, Seen.startCreate)?.label ?? ""
             if !label.isEmpty, labels.last != label { labels.append(label) }
             if label == Seen.creatingWords { sawCreating = true }
             let line = find(found, Seen.startLine)?.label
@@ -5082,5 +5200,706 @@ extension Drive {
             "tabs": tabsReading()
         ])
         dump("start-create")
+    }
+}
+
+
+// MARK: - The phone polished (Phase 348, build/p348/SPEC.md section 8.2)
+
+/// The identifiers and words Phase 348 adds (ios/Tortie/Screens/Identifiers.swift's
+/// `sessionRemove`, `terminalMenuRemove`, `removeWriting` and `screenPaste`;
+/// Style/Copy.swift's `remove`, `paste` and `groupBy`), spelled again because
+/// a UI test cannot import the app.
+private extension Seen {
+    static let sessionRemove = "session-remove"
+    static let terminalMenuRemove = "terminal-menu-remove"
+    static let removeWriting = "remove-writing"
+    static let screenPaste = "screen-paste"
+    static let removeWords = "Remove"
+    static let pasteWords = "Paste"
+    static let groupByWords = "Group by"
+    /// The older-Mac face's first line, the waiting section's header.
+    static let sectionBlockedHeader = "section-blocked"
+}
+
+extension Drive {
+    /// The large title of the bar named Sessions, or nil when it is not drawn.
+    fileprivate func barTitleFrame() -> CGRect? {
+        let bar = app.navigationBars[Seen.tabSessions]
+        guard bar.exists else { return nil }
+        let title = bar.staticTexts[Seen.tabSessions]
+        return title.exists ? title.frame : nil
+    }
+
+    /// `bar-read` (Phase 348, D15, D16, D56): on the Sessions list at its top,
+    /// ONE snapshot of the bar named Sessions: its frame, its large title's,
+    /// and each control's frame, label, whether it can be pressed and whether
+    /// it is hittable (Select, the filter, the "+"), with the Show control
+    /// under the title and the window's size.
+    fileprivate func barRead() {
+        goToSessionsList()
+        _ = poll { found in self.has(found, Seen.listScreen) && !self.has(found, Seen.listLoading) }
+        scrollToTop()
+        Thread.sleep(forTimeInterval: 1)
+        let found = tree()
+        let control = { (id: String) -> Any in
+            let e = self.element(id)
+            guard e.exists else { return NSNull() }
+            return ["frame": self.frameOf(e.frame), "label": e.label, "enabled": e.isEnabled, "hittable": e.isHittable] as [String: Any]
+        }
+        let bar = app.navigationBars[Seen.tabSessions]
+        lines.emit([
+            "step": "bar-read",
+            "bar": bar.exists ? frameOf(bar.frame) as Any : NSNull(),
+            "title": barTitleFrame().map { frameOf($0) as Any } ?? NSNull(),
+            "select": control(Seen.listSelect),
+            "menu": control(Seen.listMenu),
+            "plus": control(Seen.startOpen),
+            "show": find(found, Seen.listShow).map { frameOf($0.frame) as Any } ?? NSNull(),
+            "titleRow": [Seen.listSelect, Seen.listMenu, Seen.startOpen].filter { self.has(found, $0) },
+            "window": windowSize(),
+            "system": UIDevice.current.systemVersion
+        ])
+    }
+
+    /// iOS 18.3's taps a launch in `bar-grid` (SPEC section 0 rule 14; the
+    /// phone lens saw the app end about 30 taps into one, and the fix round's
+    /// own run saw it end 17 taps into a launch of Select's cross, each of
+    /// whose taps is two presses, Select and its Cancel).
+    static let barTapsPerLaunch = 8
+
+    /// How long iOS 18.3's `bar-grid` waits, the app idle, after each relaunch
+    /// (the fix round).
+    static let barCooldown: TimeInterval = 20
+
+    /// The app relaunched, still paired, and the Sessions list read again at
+    /// its top, for `bar-grid` on iOS 18.3.
+    fileprivate func relaunchForBar() {
+        app.terminate()
+        _ = app.wait(for: .notRunning, timeout: 10)
+        app.launchArguments = carried
+        app.launch()
+        _ = poll { found in self.settledList(found) }
+        goToSessionsList()
+        _ = poll { found in self.has(found, Seen.listScreen) && !self.has(found, Seen.listLoading) && self.has(found, Seen.startOpen) }
+        scrollToTop()
+        Thread.sleep(forTimeInterval: 1)
+    }
+
+    /// What one tap on the bar opened (Phase 348, D56): New session's sheet
+    /// (`plus`, closed again by its Cancel), Select's selection (`select`,
+    /// Select's label turned Cancel, pressed again to end it), the filter's
+    /// menu (`menu`, its Group by drawn, put away), or nothing (`none`).
+    fileprivate func barTapOutcome() -> String {
+        Thread.sleep(forTimeInterval: 0.6)
+        // ONE snapshot says what the tap opened (the fix round): each of the
+        // four `exists` this read before was a query of its own, and on iOS
+        // 18.3 the app's own logging of XCTest's queries is what ends a long
+        // tap drive (SPEC section 0 rule 14).
+        let (found, menuOpen) = barSnapshot()
+        if has(found, Seen.startSheet) {
+            let close = element(Seen.startClose)
+            if close.waitForExistence(timeout: 5), close.isHittable { close.tap() }
+            _ = poll { !self.has($0, Seen.startSheet) }
+            Thread.sleep(forTimeInterval: 0.5)
+            return "plus"
+        }
+        if find(found, Seen.listSelect)?.label == Seen.cancelPress {
+            element(Seen.listSelect).tap()
+            Thread.sleep(forTimeInterval: 0.5)
+            return "select"
+        }
+        if menuOpen {
+            dismissMenu()
+            return "menu"
+        }
+        // A tap that chose another Show segment is put back, and said (the
+        // fix round's guard, kept: the "+" is the bar's again, his ruling of
+        // 2026-10-20, so no bar tap should reach Show, and the probe reads one
+        // that did as a problem).
+        if let kept = barShow {
+            let segment = element(Seen.showSegment(kept))
+            if segment.exists, !segment.isSelected {
+                segment.tap()
+                Thread.sleep(forTimeInterval: 1)
+                return "show"
+            }
+        }
+        return "none"
+    }
+
+    /// `bar-grid` (Phase 348, build/p348/SPEC.md section 10.2 item 5, D56):
+    /// the bar's controls, Select, the filter and the "+" (the bar's trailing
+    /// item, his ruling of 2026-10-20), each pressed by taps graded by what
+    /// they opened (`barTapOutcome`), never by a frame. On iOS 26 a tap every
+    /// 4 pt across the whole bar's width at three heights of its controls'
+    /// row (2 pt inside its top, its middle, 2 pt inside its bottom); on both
+    /// runtimes a CROSS every 2 pt through each
+    /// control's centre, from 8 pt outside its frame on one side to 8 pt
+    /// outside on the other, across and down, a point outside the window
+    /// recorded `offscreen` and never tapped. iOS 18.3 ends a long tap drive
+    /// inside XCTest's own logging (SPEC section 0 rule 14), so there the full
+    /// rows are not tapped and the app is relaunched, still paired, every
+    /// `barTapsPerLaunch` taps, Sessions read again before the next. The bar
+    /// is read before and after (`bar-read`'s fields), so the probe holds
+    /// that nothing moved. One line at the end, never one per tap.
+    fileprivate func barGrid() {
+        let floor = (Int(UIDevice.current.systemVersion.split(separator: ".").first ?? "") ?? 0) < 26
+        // iOS 18.3: a fresh launch and the idle pause BEFORE the first read, so
+        // the steps before the grid (pairing, the list, the swipe, the floor's
+        // starts) leave no log volume behind; the fix round's floor drive
+        // ended in the quarantine inside this very read, after its starts.
+        if floor {
+            relaunchForBar()
+            Thread.sleep(forTimeInterval: Self.barCooldown)
+        }
+        barRead()
+        let bar = [Seen.listSelect, Seen.listMenu, Seen.startOpen].map { element($0) }.filter(\.exists).map(\.frame)
+        guard let top = bar.map(\.minY).min(), let bottom = bar.map(\.maxY).max() else {
+            lines.emit(["step": "bar-grid", "found": false])
+            return
+        }
+        // And a fresh launch for the first taps, the read's own queries left
+        // behind, as the SE's 18.3 grid that read whole had it.
+        if floor { relaunchForBar() }
+        barShow = ["all", "active", "ended"].first { element(Seen.showSegment($0)).isSelected }
+        let size = (try? app.snapshot())?.frame.size ?? .zero
+        let width = Double(size.width)
+        let height = Double(size.height)
+        let origin = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+        var tapsThisLaunch = 0
+        var relaunches = 0
+        let press = { (x: Double, y: Double) -> String in
+            guard x >= 0, y >= 0, x < width, y < height else { return "offscreen" }
+            if floor, tapsThisLaunch >= Self.barTapsPerLaunch {
+                self.relaunchForBar()
+                // A pause with the app idle (the fix round): the quarantine
+                // counted across launches, ending the fifth launch of 8 taps
+                // at its fourth, so time is what spends it down.
+                Thread.sleep(forTimeInterval: Self.barCooldown)
+                tapsThisLaunch = 0
+                relaunches += 1
+            }
+            origin.withOffset(CGVector(dx: x, dy: y)).tap()
+            tapsThisLaunch += 1
+            return self.barTapOutcome()
+        }
+        let heights = floor ? [] : [Double(top) + 2, Double(top + bottom) / 2, Double(bottom) - 2]
+        var taps: [[Any]] = []
+        for y in heights {
+            var x = 2.0
+            while x < width - 1 {
+                taps.append([x, y, press(x, y)])
+                x += 4
+            }
+        }
+        // A CROSS through each control's centre every 2 pt (§2.5.1's
+        // `test6PlusScan`, the way D56 was measured): its press's width and
+        // height from the taps alone, at 2 pt. Each frame is read again before
+        // its cross, after any relaunch.
+        var crosses: [[String: Any]] = []
+        for (name, id) in [("select", Seen.listSelect), ("menu", Seen.listMenu), ("plus", Seen.startOpen)] {
+            let control = element(id)
+            guard control.exists else { continue }
+            let f = control.frame
+            var across: [[Any]] = []
+            var x = Double(f.minX) - 8
+            while x <= Double(f.maxX) + 8 {
+                across.append([x, Double(f.midY), press(x, Double(f.midY))])
+                x += 2
+            }
+            var down: [[Any]] = []
+            var y = Double(f.minY) - 8
+            while y <= Double(f.maxY) + 8 {
+                down.append([Double(f.midX), y, press(Double(f.midX), y)])
+                y += 2
+            }
+            crosses.append(["control": name, "frame": frameOf(f), "across": across, "down": down])
+        }
+        barShow = nil
+        // iOS 18.3: a fresh launch again before the closing read and the
+        // steps after the grid.
+        if floor { relaunchForBar() }
+        lines.emit(["step": "bar-grid", "found": true, "heights": heights, "taps": taps, "crosses": crosses, "window": windowSize(), "system": UIDevice.current.systemVersion, "relaunches": relaunches, "faceId": ownerCheckUp()])
+        barRead()
+    }
+
+    /// `bar-swipe` (Phase 348, NB, D15): the bar named Sessions at rest (its
+    /// frame, every "Sessions" text in it, the controls and the Show control
+    /// under it), then ONE swipe up on the list, read again, and the list put
+    /// back at its top.
+    fileprivate func barSwipe() {
+        goToSessionsList()
+        _ = poll { found in self.has(found, Seen.listScreen) && !self.has(found, Seen.listLoading) }
+        scrollToTop()
+        Thread.sleep(forTimeInterval: 1)
+        let reading = { () -> [String: Any] in
+            let found = self.tree()
+            let bar = self.app.navigationBars[Seen.tabSessions]
+            let titles = bar.exists ? bar.staticTexts.matching(NSPredicate(format: "label == %@", Seen.tabSessions)).allElementsBoundByIndex.filter(\.exists).map { self.frameOf($0.frame) } : []
+            return [
+                "bar": bar.exists ? self.frameOf(bar.frame) as Any : NSNull(),
+                "titles": titles,
+                "show": self.find(found, Seen.listShow).map { self.frameOf($0.frame) as Any } ?? NSNull(),
+                "controls": [Seen.listSelect, Seen.listMenu, Seen.startOpen].compactMap { id in self.find(found, id).map { ["id": id, "frame": self.frameOf($0.frame)] as [String: Any] } },
+                // His ruling of 2026-10-20: All, Active and Ended keep build
+                // 11's full width while the Mac offers Start (the "+" drawn
+                // in the bar), each segment's own frame read here.
+                "segments": ["all", "active", "ended"].compactMap { word in self.find(found, Seen.showSegment(word)).map { ["id": Seen.showSegment(word), "frame": self.frameOf($0.frame)] as [String: Any] } }
+            ]
+        }
+        let rest = reading()
+        app.swipeUp()
+        Thread.sleep(forTimeInterval: 1.5)
+        let swiped = reading()
+        scrollToTop()
+        lines.emit(["step": "bar-swipe", "rest": rest, "swiped": swiped, "window": windowSize(), "system": UIDevice.current.systemVersion])
+    }
+
+    /// Remove where it is drawn on an ended session's page: Catch Me Up's top
+    /// right (`session-remove`), or the Terminal's ⋯ in End session…'s place
+    /// (`terminal-menu-remove`, read with the menu OPEN and left open).
+    fileprivate func removeHere(_ step: String) -> (element: XCUIElement?, via: String, read: [String: Any]) {
+        guard poll({ self.sessionSettled($0) }) else { return (nil, "none", ["settled": false]) }
+        Thread.sleep(forTimeInterval: 1)
+        let found = tree()
+        let face = faceOf(found)
+        if face == "terminal" {
+            let menu = openTerminalMenu(for: step)
+            let hit = menuItem(id: Seen.terminalMenuRemove, words: [Seen.removeWords])
+            let read: [String: Any] = [
+                "face": face,
+                "opened": menu.opened,
+                "end": menu.end.map(itemLine) ?? NSNull(),
+                "remove": hit.map { ["id": $0.element.identifier, "label": $0.element.label, "enabled": $0.element.isEnabled, "frame": frameOf($0.element.frame), "via": $0.via] as Any } ?? NSNull()
+            ]
+            return (hit?.element, "menu", read)
+        }
+        let top = element(Seen.sessionRemove)
+        let read: [String: Any] = [
+            "face": face,
+            "remove": top.exists ? ["id": top.identifier, "label": top.label, "enabled": top.isEnabled, "hittable": top.isHittable, "frame": frameOf(top.frame)] as Any : NSNull(),
+            "end": has(found, Seen.sessionEnd),
+            "line": find(found, Seen.sessionEndLine).map { $0.label as Any } ?? NSNull()
+        ]
+        return (top.exists ? top : nil, "top", read)
+    }
+
+    /// `remove-read`: where Remove is drawn on this page, End's absence, and
+    /// the menu put away; nothing pressed.
+    fileprivate func removeRead() {
+        let here = removeHere("remove-read")
+        if here.via == "menu" { closeTerminalMenu(for: "remove-read") }
+        var object = here.read
+        object["step"] = "remove-read"
+        object["via"] = here.via
+        object["faceId"] = ownerCheckUp()
+        lines.emit(object)
+        dump("remove-read")
+    }
+
+    /// `remove`, `remove-cancel` and `remove-home`: Remove pressed, the Mac's
+    /// own confirmation read whole (`remove-dialog`: its title, its texts and
+    /// its presses), then its destructive press, its Cancel, or (`home`) the
+    /// destructive press after `remove-ready` and the probe's file, and Home at
+    /// once, away 20 s, and back. iOS's owner check is watched throughout and
+    /// never answered: Remove asks none (his ruling, "No Face ID, just
+    /// confirm"). Then where the app went: the list (`landed: list`) or the
+    /// page with Remove's line under the status.
+    fileprivate func removePress(mode: String) {
+        let step = mode == "press" ? "remove" : "remove-" + mode
+        let here = removeHere(step)
+        guard let press = here.element, press.isEnabled else {
+            if here.via == "menu" { closeTerminalMenu(for: step) }
+            var object = here.read
+            object["step"] = step + "-missing"
+            lines.emit(object)
+            return missing(step)
+        }
+        press.tap()
+        var faceID = ownerCheckUp()
+        // The Mac's own words, in ONE confirmation.
+        var via = "sheet"
+        var container: XCUIElement? = [app.sheets.firstMatch, app.alerts.firstMatch].first { $0.waitForExistence(timeout: 5) }
+        if container?.elementType == .alert { via = "alert" }
+        if container == nil {
+            container = app
+            via = "app"
+        }
+        let sheet = container ?? app
+        let texts = via == "app" ? [] : sheet.staticTexts.allElementsBoundByIndex.map(\.label)
+        let buttons = sheet.buttons.allElementsBoundByIndex.map(\.label)
+        // iOS 26 draws a confirmation dialog as a POPOVER, its destructive
+        // press alone and the screen around it the way out (the fix round,
+        // 2026-10-19, the phone lens), as End's and Unpair's are in both
+        // builds: the region is read here and is what `cancel` presses there.
+        let region = app.otherElements[Seen.popoverDismiss]
+        let dismissable = via != "app" && region.exists
+        lines.emit(["step": "remove-dialog", "for": step, "via": via, "title": via == "app" ? NSNull() : sheet.label as Any, "texts": texts, "buttons": buttons, "dismiss": dismissable, "system": UIDevice.current.systemVersion, "faceId": ownerCheckUp()])
+        let destructive = buttons.first { $0 != Seen.cancelPress && !$0.isEmpty }
+        if mode == "cancel" {
+            var cancelVia = "none"
+            if sheet.buttons[Seen.cancelPress].exists {
+                sheet.buttons[Seen.cancelPress].tap()
+                cancelVia = "cancel"
+            } else if dismissable {
+                // Low on the screen, away from the popover at the top right.
+                region.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75)).tap()
+                cancelVia = "dismiss"
+            }
+            Thread.sleep(forTimeInterval: 2)
+            lines.emit(["step": "remove-after", "for": step, "landed": landedAfterRemove(), "cancelVia": cancelVia, "faceId": faceID || ownerCheckUp(), "writing": element(Seen.removeWriting).exists])
+            dump(step)
+            return
+        }
+        guard let destructive, sheet.buttons[destructive].exists else { return missing(step) }
+        if mode == "home" {
+            // The relay holds the next connection before its handshake while
+            // the probe answers this line, so the write is withheld by Home.
+            let seq = lines.emit(["step": "remove-ready", "for": step])
+            _ = ack("remove-\(seq)")
+            sheet.buttons[destructive].tap()
+            home()
+            lines.emit(["step": "remove-home-pressed", "state": Int(app.state.rawValue)])
+            Thread.sleep(forTimeInterval: 20)
+            let away = lines.emit(["step": "remove-home-away"])
+            _ = ack("remove-\(away)")
+            app.activate()
+            _ = app.wait(for: .runningForeground, timeout: 30)
+        } else {
+            sheet.buttons[destructive].tap()
+        }
+        // While the write runs: its mark, and never an owner check.
+        var writing = false
+        let deadline = Date().addingTimeInterval(min(wait, 20))
+        while Date() < deadline {
+            if element(Seen.removeWriting).exists { writing = true }
+            if ownerCheckUp() { faceID = true }
+            let found = tree()
+            if !self.has(found, Seen.removeWriting) && (self.settledList(found) || self.has(found, Seen.sessionEndLine)) { break }
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        Thread.sleep(forTimeInterval: 1.5)
+        let found = tree()
+        lines.emit([
+            "step": "remove-after",
+            "for": step,
+            "pressed": destructive,
+            "landed": landedAfterRemove(),
+            "line": find(found, Seen.sessionEndLine).map { $0.label as Any } ?? NSNull(),
+            "writing": writing,
+            "faceId": faceID
+        ])
+        dump(step)
+    }
+
+    /// Where the app is after a Remove: the list, or the session's page.
+    fileprivate func landedAfterRemove() -> String {
+        let found = tree()
+        if onSessionPage(found) { return "session" }
+        if has(found, Seen.listScreen) { return "list" }
+        if has(found, Seen.needsScreen) { return "needs-input" }
+        if has(found, Seen.pairingScreen) { return "pairing" }
+        return "unread"
+    }
+
+    /// `paste-write:<b64url>`: THIS runner, another app, writes the words to
+    /// the device's pasteboard, so iOS's rule for another app's text applies
+    /// (D24), and reads them back OFF ITS MAIN THREAD, at most 10 s, the main
+    /// run loop turning meanwhile (the fix round, 2026-10-19 and 20, the phone
+    /// lens's other fix). Its read on the main thread waited on a semaphore in
+    /// `-[_UIConcretePasteboard string]` for the whole of a 15 minute 26.3
+    /// drive; with no read back at all the app's own read in `paste(_:)`
+    /// answered nothing on 2 to 7 of 10 hostile pastes (a scratch copy of the
+    /// app that sent a nil read as its own text read nil on 2 of 20), so the
+    /// read back is the barrier, bounded. `readBack` is true, false, or null
+    /// when it never answered.
+    fileprivate func pasteWrite(_ b64url: String) {
+        guard let text = Self.words(b64url) else { return missing("paste-write") }
+        UIPasteboard.general.string = text
+        let readBack = Self.readBack(text, within: 10)
+        Thread.sleep(forTimeInterval: 0.5)
+        lines.emit(["step": "paste-written", "bytes": text.utf8.count, "readBack": readBack.map { $0 as Any } ?? NSNull()])
+    }
+
+    /// The runner's own read of what it wrote, on a background queue, while
+    /// the main run loop keeps turning, so neither can hold the other: true
+    /// when it read the same text, false otherwise, nil past `seconds`.
+    private static func readBack(_ text: String, within seconds: TimeInterval) -> Bool? {
+        final class Answer: @unchecked Sendable {
+            private let lock = NSLock()
+            private var value: Bool?
+            func set(_ v: Bool) { lock.lock(); value = v; lock.unlock() }
+            func get() -> Bool? { lock.lock(); defer { lock.unlock() }; return value }
+        }
+        let answer = Answer()
+        DispatchQueue.global(qos: .userInitiated).async {
+            answer.set(UIPasteboard.general.string == text)
+        }
+        let deadline = Date().addingTimeInterval(seconds)
+        while Date() < deadline {
+            if let v = answer.get() { return v }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        }
+        return answer.get()
+    }
+
+    /// `paste-empty`: the runner empties the device's pasteboard.
+    fileprivate func pasteEmpty() {
+        UIPasteboard.general.items = []
+        Thread.sleep(forTimeInterval: 0.5)
+        lines.emit(["step": "paste-emptied", "hasStrings": UIPasteboard.general.hasStrings])
+    }
+
+    /// iOS's Allow Paste alert, watched for `seconds` in SpringBoard and the
+    /// app; one found is answered Allow Paste so a read it blocks can end, and
+    /// its words and presses are printed (§2.1's detector).
+    fileprivate func pasteAlerts(_ seconds: TimeInterval) -> [[String: Any]] {
+        let deadline = Date().addingTimeInterval(seconds)
+        var seen: [[String: Any]] = []
+        var answered = false
+        while Date() < deadline {
+            for (who, root) in [("springboard", springboard), ("app", app)] {
+                for alert in root.alerts.allElementsBoundByIndex where alert.exists {
+                    let buttons = alert.buttons.allElementsBoundByIndex.filter(\.exists).map(\.label)
+                    seen.append(["in": who, "label": alert.label, "buttons": buttons])
+                    if !answered, let allow = alert.buttons.allElementsBoundByIndex.first(where: { $0.exists && $0.label.contains("Allow") && !$0.label.contains("Don") }) {
+                        allow.tap()
+                        answered = true
+                    }
+                }
+            }
+            if !seen.isEmpty { break }
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        return seen
+    }
+
+    /// The Terminal's grid is up, with its rows.
+    fileprivate func terminalUp() -> Bool {
+        poll { found in found.contains { self.index($0.id, after: Seen.screenRow) != nil } }
+    }
+
+    /// `paste-menu` and `paste-menu-read`: a long press on a row of the
+    /// Terminal (it selects a word), the edit menu read (every item's label
+    /// and identifier), and (`paste-menu`) its Paste pressed after
+    /// `paste-ready` and the probe's file; then the alerts watched for 8 s
+    /// and the selection put away.
+    fileprivate func pasteMenu(press: Bool) {
+        let step = press ? "paste-menu" : "paste-menu-read"
+        guard terminalUp() else { return missing(step) }
+        let row = element(Seen.screenRow + "0")
+        row.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5)).press(forDuration: 1.0)
+        let deadline = Date().addingTimeInterval(5)
+        while Date() < deadline, app.menuItems.count == 0 { Thread.sleep(forTimeInterval: 0.25) }
+        Thread.sleep(forTimeInterval: 0.5)
+        let items = app.menuItems.allElementsBoundByIndex.filter(\.exists).map { ["label": $0.label, "id": $0.identifier] as [String: String] }
+        var pressed = false
+        var alerts: [[String: Any]] = []
+        var presses = 0
+        if press {
+            let seq = lines.emit(["step": "paste-ready", "for": step, "items": items])
+            _ = ack("paste-\(seq)")
+            let tapPaste = { () -> Bool in
+                let paste = self.app.menuItems.matching(identifier: Seen.screenPaste).firstMatch
+                let byWords = self.app.menuItems[Seen.pasteWords]
+                if paste.exists { paste.tap(); return true }
+                if byWords.exists { byWords.tap(); return true }
+                return false
+            }
+            pressed = tapPaste()
+            if pressed { presses = 1 }
+            alerts = pasteAlerts(8)
+            // A press that did not take (the fix round): the app lets the
+            // selection go before it sends anything, so a selection still held
+            // after the press means nothing was sent, and the menu is opened
+            // and Paste pressed ONCE more, as Command-V is on `again` (D41).
+            if pressed, element(Seen.screenLine).exists, element(Seen.screenLine).label == Seen.heldWhileSelecting {
+                row.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5)).press(forDuration: 1.0)
+                let again = Date().addingTimeInterval(5)
+                while Date() < again, app.menuItems.count == 0 { Thread.sleep(forTimeInterval: 0.25) }
+                Thread.sleep(forTimeInterval: 0.5)
+                if tapPaste() { presses = 2 }
+                alerts += pasteAlerts(8)
+            }
+        }
+        lines.emit(["step": step, "items": items, "pressed": pressed, "presses": presses, "alerts": alerts, "faceId": ownerCheckUp()])
+        element(Seen.screenGrid).tap()
+        Thread.sleep(forTimeInterval: 1)
+    }
+
+    /// The keyboard up over the Terminal (its key field takes first responder).
+    fileprivate func keyboardUp() -> Bool {
+        element(Seen.screenGrid).coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3)).tap()
+        let up = app.keyboards.firstMatch.waitForExistence(timeout: 6)
+        if up { passKeyboardIntroduction() }
+        Thread.sleep(forTimeInterval: 1)
+        return app.keyboards.firstMatch.exists
+    }
+
+    /// `paste-cmdv`: the keyboard raised, `paste-ready` and the probe's file,
+    /// then Command-V; `paste-sent` names the press, and the probe's file in
+    /// answer says `again` when the recorder read no byte (the first Command-V
+    /// after a return to the app may reach nothing, D41), which presses it once
+    /// more. The alerts watched for 8 s after each press.
+    fileprivate func pasteCommandV() {
+        guard terminalUp() else { return missing("paste-cmdv") }
+        let up = keyboardUp()
+        let seq = lines.emit(["step": "paste-ready", "for": "paste-cmdv", "keyboard": up])
+        _ = ack("paste-\(seq)")
+        app.typeKey("v", modifierFlags: .command)
+        var alerts = pasteAlerts(8)
+        let sent = lines.emit(["step": "paste-sent", "for": "paste-cmdv", "press": 1])
+        var presses = 1
+        if again("paste-\(sent)") {
+            app.typeKey("v", modifierFlags: .command)
+            presses = 2
+            alerts += pasteAlerts(8)
+        }
+        lines.emit(["step": "paste-cmdv", "keyboard": up, "presses": presses, "alerts": alerts, "faceId": ownerCheckUp()])
+    }
+
+    /// The probe's file `name`, waited for; true when it says `again`.
+    fileprivate func again(_ name: String) -> Bool {
+        guard ack(name), let acks else { return false }
+        let path = (acks as NSString).appendingPathComponent(name)
+        let text = (try? String(contentsOfFile: path, encoding: .utf8)) ?? ""
+        return text.trimmingCharacters(in: .whitespacesAndNewlines) == "again"
+    }
+
+    /// `paste-pinch`: the keyboard raised, `paste-ready` and the probe's file,
+    /// then three fingers spreading from the grid, through XCTest's own event
+    /// record (XCUITest has no three-finger pinch of its own); the alerts
+    /// watched for 8 s.
+    fileprivate func pastePinch() {
+        guard terminalUp() else { return missing("paste-pinch") }
+        let up = keyboardUp()
+        let seq = lines.emit(["step": "paste-ready", "for": "paste-pinch", "keyboard": up])
+        _ = ack("paste-\(seq)")
+        let result = pinchOut()
+        let alerts = pasteAlerts(8)
+        lines.emit(["step": "paste-pinch", "keyboard": up, "result": result, "alerts": alerts, "faceId": ownerCheckUp()])
+    }
+
+    /// `paste-read`: the Terminal read once a paste's answer drew its line,
+    /// or after 20 s with none (a done paste draws no line).
+    fileprivate func pasteRead() {
+        let deadline = Date().addingTimeInterval(20)
+        while Date() < deadline {
+            let found = tree()
+            if let line = find(found, Seen.screenLine), !line.label.isEmpty { break }
+            if has(found, Seen.screenFailure) { break }
+            Thread.sleep(forTimeInterval: 0.5)
+        }
+        emitScreen("paste-read")
+    }
+
+    /// `paste-trip`: to iOS's Settings and back (D24, "after a trip to
+    /// another app").
+    fileprivate func pasteTrip() {
+        let settings = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
+        XCUIDevice.shared.press(.home)
+        Thread.sleep(forTimeInterval: 1.5)
+        settings.activate()
+        let there = settings.wait(for: .runningForeground, timeout: 15)
+        Thread.sleep(forTimeInterval: 2)
+        app.activate()
+        let back = app.wait(for: .runningForeground, timeout: 15)
+        Thread.sleep(forTimeInterval: 2)
+        lines.emit(["step": "paste-trip", "settings": there, "back": back, "terminal": element(Seen.screenRow + "0").exists])
+    }
+
+    /// `paste-ctrl`: the key bar's one-shot Control armed, then Command-V:
+    /// the paste is never a control key (D20). The probe's recorder reads the
+    /// text's first byte.
+    fileprivate func pasteCtrl() {
+        guard terminalUp() else { return missing("paste-ctrl") }
+        let up = keyboardUp()
+        let ctrl = raiseKeys("ctrl")
+        let armed = ctrl.waitForExistence(timeout: 5)
+        if armed { ctrl.tap() }
+        let seq = lines.emit(["step": "paste-ready", "for": "paste-ctrl", "keyboard": up, "armed": armed])
+        _ = ack("paste-\(seq)")
+        app.typeKey("v", modifierFlags: .command)
+        let alerts = pasteAlerts(4)
+        let sent = lines.emit(["step": "paste-sent", "for": "paste-ctrl", "press": 1])
+        if again("paste-\(sent)") { app.typeKey("v", modifierFlags: .command) }
+        lines.emit(["step": "paste-ctrl", "armed": armed, "alerts": alerts])
+    }
+
+    /// `paste-select:<from>:<to>`: rows `from` to `to` selected whole, Copy
+    /// pressed, and the probe's file waited for (it reads the device's
+    /// pasteboard through build/simulator-run.mjs's helper, never this runner).
+    ///
+    /// THE PRESS STARTS AT ROW `to`'s END AND IS DRAGGED BACK TO ROW `from`'s
+    /// START (the fix round, 2026-10-19, the phone lens): a press that BEGAN
+    /// 4 pt from the screen's left edge, as this one did, is iOS's own
+    /// back-swipe, which popped the Terminal, so PA4, PA5 and PA2 read
+    /// UNREADABLE on every run. A press that begins at the right and ends at
+    /// the left edge is no back-swipe, and the selection grows to the cell the
+    /// finger ends on in either direction (`ScreenSelectionRange.extending`),
+    /// so the same cells, row `from`'s first to row `to`'s last, are selected.
+    fileprivate func pasteSelect(from: Int, to: Int) {
+        guard terminalUp() else { return missing("paste-select") }
+        let first = element(Seen.screenRow + String(from))
+        let last = element(Seen.screenRow + String(to))
+        guard first.exists, last.exists else { return missing("paste-select") }
+        let start = last.coordinate(withNormalizedOffset: CGVector(dx: 0.99, dy: 0.5))
+        let end = first.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.5))
+        start.press(forDuration: 1.0, thenDragTo: end)
+        let copy = element(Seen.screenCopy)
+        let shown = copy.waitForExistence(timeout: 5)
+        if shown { copy.tap() }
+        let seq = lines.emit(["step": "paste-copied", "from": from, "to": to, "copy": shown, "rows": [first.label, last.label]])
+        _ = ack("paste-\(seq)")
+        element(Seen.screenGrid).tap()
+        Thread.sleep(forTimeInterval: 1)
+    }
+
+    /// Three fingers spreading from the grid's upper third, through XCTest's
+    /// own event record (the spec step's M1 arm h, build/p348/SPEC.md section
+    /// 2.1). Answers what XCTest said.
+    fileprivate func pinchOut() -> String {
+        guard let pathClass = NSClassFromString("XCPointerEventPath") as? NSObject.Type,
+              let recordClass = NSClassFromString("XCSynthesizedEventRecord") as? NSObject.Type else { return "no-classes" }
+        let grid = element(Seen.screenGrid).frame
+        let centre = CGPoint(x: grid.midX, y: grid.minY + grid.height * 0.35)
+        typealias InitPath = @convention(c) (AnyObject, Selector, CGPoint, Double) -> AnyObject
+        typealias Move = @convention(c) (AnyObject, Selector, CGPoint, Double) -> Void
+        typealias Lift = @convention(c) (AnyObject, Selector, Double) -> Void
+        typealias InitRecord = @convention(c) (AnyObject, Selector, NSString, Int) -> AnyObject
+        typealias Add = @convention(c) (AnyObject, Selector, AnyObject) -> Void
+        typealias Synth = @convention(c) (AnyObject, Selector, AutoreleasingUnsafeMutablePointer<NSError?>?) -> Bool
+        let initPathSel = NSSelectorFromString("initForTouchAtPoint:offset:")
+        let moveSel = NSSelectorFromString("moveToPoint:atOffset:")
+        let liftSel = NSSelectorFromString("liftUpAtOffset:")
+        let initRecordSel = NSSelectorFromString("initWithName:interfaceOrientation:")
+        let addSel = NSSelectorFromString("addPointerEventPath:")
+        let synthSel = NSSelectorFromString("synthesizeWithError:")
+        guard let ip = pathClass.instanceMethod(for: initPathSel), let mv = pathClass.instanceMethod(for: moveSel),
+              let lf = pathClass.instanceMethod(for: liftSel), let ir = recordClass.instanceMethod(for: initRecordSel),
+              let ad = recordClass.instanceMethod(for: addSel), let sy = recordClass.instanceMethod(for: synthSel) else { return "no-methods" }
+        let initPath = unsafeBitCast(ip, to: InitPath.self)
+        let move = unsafeBitCast(mv, to: Move.self)
+        let lift = unsafeBitCast(lf, to: Lift.self)
+        let initRecord = unsafeBitCast(ir, to: InitRecord.self)
+        let add = unsafeBitCast(ad, to: Add.self)
+        let synth = unsafeBitCast(sy, to: Synth.self)
+        guard let recordRaw = (recordClass as AnyObject).perform(NSSelectorFromString("alloc"))?.takeUnretainedValue() else { return "no-alloc" }
+        let record = initRecord(recordRaw, initRecordSel, "p348 pinch out" as NSString, 1)
+        let starts = [CGPoint(x: centre.x - 18, y: centre.y), CGPoint(x: centre.x + 18, y: centre.y), CGPoint(x: centre.x, y: centre.y + 18)]
+        let ends = [CGPoint(x: centre.x - 110, y: centre.y - 50), CGPoint(x: centre.x + 110, y: centre.y - 50), CGPoint(x: centre.x, y: centre.y + 130)]
+        for (s, e) in zip(starts, ends) {
+            guard let pathRaw = (pathClass as AnyObject).perform(NSSelectorFromString("alloc"))?.takeUnretainedValue() else { return "no-alloc" }
+            let path = initPath(pathRaw, initPathSel, s, 0)
+            for step in 1...12 {
+                let t = Double(step) / 12
+                move(path, moveSel, CGPoint(x: s.x + (e.x - s.x) * t, y: s.y + (e.y - s.y) * t), 0.025 * Double(step))
+            }
+            lift(path, liftSel, 0.34)
+            add(record, addSel, path)
+        }
+        var error: NSError?
+        return synth(record, synthSel, &error) ? "synthesized" : "failed: \(error?.localizedDescription ?? "?")"
     }
 }

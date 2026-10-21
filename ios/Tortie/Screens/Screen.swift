@@ -10,9 +10,16 @@
 // name in the app Terminal. The phone never changes the size of a session on
 // his Mac ("Never"): it draws the Mac's width and he zooms, pans or turns the
 // phone. Every key, Ctrl-C included, and no Face ID on any ("Every key,
-// including Ctrl-C"); no paste ("i don't think we need paste to start"). The
-// Mac composes the screen and each page of history, and the phone fetches
-// them; no stream and no emulator on the phone ("simple delivery first").
+// including Ctrl-C"). And since Phase 348 PASTE, natively (his ruling of
+// 2026-10-18, "i'd like to be able to paste natively as pasting will always
+// be into a terminal of a session, just like how the clipboard normally works
+// on a phone or on a computer", which lifts 337.1's "i don't think we need
+// paste to start"): iOS's own Paste beside Copy in the long-press menu,
+// Command-V and the three-finger paste, with no Allow Paste alert and no
+// preview, landing as a paste at the desk does with no Return added, where
+// the Mac says it takes one (a session on this Mac). The Mac composes the
+// screen and each page of history, and the phone fetches them; no stream and
+// no emulator on the phone ("simple delivery first").
 //
 // THE POLL (`ScreenModel`). One task, while the Screen is on top and the app
 // in the foreground: read with the revision drawn; a new revision draws; an
@@ -55,8 +62,10 @@
 // COPY IS THE EDIT MENU'S, upright and sideways (Phase 337.5,
 // build/p3375/SPEC.md D8, D16): a long press selects a word with the iPhone's
 // own handles and magnifier, and the iPhone's edit menu over the selection
-// holds one item, Copy (Screens/ScreenTextInput.swift). The page holds the
-// selection and the picture it began on, and writes the clipboard.
+// holds Copy and, where the Mac takes a paste and the clipboard holds text,
+// iOS's own Paste (Phase 348, Screens/ScreenTextInput.swift). The page holds
+// the selection and the picture it began on, writes the clipboard, and hands
+// every paste, the menu's or the hidden field's, to its ONE paste (`pasted`).
 
 import SwiftUI
 
@@ -333,10 +342,15 @@ struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {
                 }
             }
             if let keys {
-                ScreenKeyField(typing: $typing, bar: bar) { items in keys.send(items) }
-                    .frame(width: 1, height: 1)
-                    .opacity(0.01)
-                    .allowsHitTesting(false)
+                ScreenKeyField(
+                    typing: $typing, bar: bar,
+                    onKeys: { items in keys.send(items) },
+                    pasteOffered: { keys.pasteOffered },
+                    onPaste: { payload in pasted(payload) }
+                )
+                .frame(width: 1, height: 1)
+                .opacity(0.01)
+                .allowsHitTesting(false)
             }
             if ScreenCover.drawn(for: scenePhase) {
                 ScreenCover()
@@ -430,7 +444,9 @@ struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {
                     tap: { point in tapped(point, picture: picture) },
                     select: { selected($0) },
                     copy: { copySelection() },
-                    overlap: { overlap = $0 }
+                    overlap: { overlap = $0 },
+                    pasteOffered: { keys?.pasteOffered ?? false },
+                    paste: { payload in pasted(payload) }
                 )
             )
         }
@@ -533,6 +549,19 @@ struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {
             scrollback.selecting = false
             model.letGo()
         }
+    }
+
+    /// THE ONE PASTE (Phase 348, D40, D41, D54): the edit menu's Paste and
+    /// the hidden field's (Command-V, the three-finger paste) both land here,
+    /// so there is one sender. A selection held is let go first, so the
+    /// paste's echo is drawn; Control is disarmed, as every key of the bar
+    /// disarms it, so a paste never passes through it and the next letter he
+    /// types is a letter; and the one key sender asks the phone's paste rule
+    /// before anything is queued.
+    private func pasted(_ payload: String) {
+        selected(nil)
+        bar.disarm?()
+        keys?.paste(payload)
     }
 
     /// Copy: the selected text, read by absolute index from the held history

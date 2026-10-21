@@ -51,3 +51,27 @@ export const SCROLLBACK_MOVED = 'Earlier lines changed on your Mac. Go back to t
  * the Mac holds. True of both, which "printing too fast" was not.
  */
 export const SCROLLBACK_BUSY = 'Tortie could not read this session’s earlier lines just now.';
+
+/**
+ * THE PASTE'S OWN WORDS (Phase 348, build/p348/SPEC.md §5.1, D50, D51). A
+ * paste that breaks a text rule is refused whole with nothing typed, each rule
+ * with its own sentence; a paste the gate refuses for its machine says why;
+ * and an act that failed says `PASTE_FAILED`, which is true whether or not
+ * part of it landed. The paste's other refusals are the keys verb's own words
+ * above and ./lifecycle-words.ts's, unchanged.
+ */
+
+/** `empty`: the text has no characters. */
+export const PASTE_EMPTY = 'There is nothing to paste.';
+
+/** `long`: more than `POCKET_PASTE_MAX_TEXT_BYTES` bytes of UTF-8 (./ipc/pocket.ts). */
+export const PASTE_TOO_LONG = 'That is too long to paste. Nothing was pasted.';
+
+/** `character`: ESC, CR or any other control character but a line feed and a tab, DEL, a C1 control, or half of a surrogate pair. */
+export const PASTE_CHARACTER = 'That holds a character Tortie does not paste. Nothing was pasted.';
+
+/** `machine`: the session runs on another machine, where this phase pastes nothing (D22). */
+export const PASTE_THIS_MAC_ONLY = 'Tortie pastes only into sessions on this Mac. Nothing was pasted.';
+
+/** `failed`: the paste was asked for and is not known to have landed. */
+export const PASTE_FAILED = 'Tortie could not paste into this session.';

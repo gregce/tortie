@@ -16,13 +16,15 @@
 // (the list above) and Settings (the paired Mac, what iOS allows for alerts,
 // the version, and Unpair this iPhone). Each tab is its own navigation stack,
 // so each keeps its place, and the bar stays under a pushed session. The app
-// opens on Needs input every launch and stores no tab. One read of the list
-// feeds the Needs input tab and the badge (and, until Phase 316.7, the
-// Sessions tab, which now has a read of its own beside it). Unpair forgets
-// the pairing on the phone (the record first, then every client key), and in
-// a Release build tells Apple to stop taking alerts for this install; the
-// Mac's half is not built (Phase 317's fix round took it out, because waiting
-// on it made Unpair slower than today when the Mac did not answer).
+// opens on Needs input every launch, lands on that Mac's Sessions after every
+// pairing that finishes (Phase 348, build/p348/SPEC.md D1), and stores no
+// tab. One read of the list feeds the Needs input tab and the badge (and,
+// until Phase 316.7, the Sessions tab, which now has a read of its own beside
+// it). Unpair forgets the pairing on the phone (the record first, then every
+// client key), and in a Release build tells Apple to stop taking alerts for
+// this install; the Mac's half is not built (Phase 317's fix round took it
+// out, because waiting on it made Unpair slower than today when the Mac did
+// not answer).
 //
 // And since Phase 316.5, the alert: a tap on one opens the session it names
 // (`Route.alerted`), or the list with the Mac's own sentence when the Mac no
@@ -86,15 +88,19 @@
 // Leave sample returns to where See a sample was pressed: Pairing as it was,
 // or the paired Mac's lists with the pairing untouched.
 //
-// WHAT IT NEVER DOES. It types nothing he did not press, write or type; it
-// offers no message box while the agent works, asks him something or holds
-// words typed at the Mac (the Mac decides, and asks again when the write
-// arrives); and it retries or stores no write. It keeps no line of a
-// terminal past the Terminal it is drawn on, pastes nothing, and never changes
-// the size of a session on the Mac. It restores and removes nothing, and it
-// ends a session only on his press, his confirmation and his face, finger or
-// passcode. It has no background mode: it reads on appear, on return to the
-// foreground and on pull (build/p316/SPEC.md section 4.0), the Terminal alone
+// WHAT IT NEVER DOES. It types nothing he did not press, write, type or
+// paste; it offers no message box while the agent works, asks him something
+// or holds words typed at the Mac (the Mac decides, and asks again when the
+// write arrives); and it retries or stores no write. It keeps no line of a
+// terminal past the Terminal it is drawn on, reads the clipboard only on his
+// own press of iOS's Paste, Command-V or the three-finger paste, into a
+// session on that Mac alone (Phase 348, D19 to D22), and never changes the
+// size of a session on the Mac. It restores nothing; it removes a session
+// only once it has ended, on his press and the Mac's own question with no
+// Face ID (Phase 348, D4 to D7); and it ends a session only on his press, his
+// confirmation and his face, finger or passcode. It has no background mode:
+// it reads on appear, on return to the foreground and on pull
+// (build/p316/SPEC.md section 4.0), the Terminal alone
 // polls while it is on top, and an alert that arrives while it is open
 // refreshes nothing. Nothing keeps it running to finish a write. Dark only,
 // iPhone, portrait but for the Terminal.
@@ -123,6 +129,15 @@
 // runner and stops each one on the way to the background, and each Mac keeps
 // at most one start whose answer did not come, in memory, forgotten when the
 // app leaves (`MacSpace.keptStart`).
+//
+// AND SINCE PHASE 348, THE PHONE POLISHED (build/p348/SPEC.md; his words and
+// rulings of 2026-10-18). A pairing that finishes lands on that Mac's
+// Sessions. Once End is done, Remove takes End's place and moves the session
+// to Past Sessions on the Mac, with the Mac's own question and no Face ID; the
+// app keeps every live Remove's runner and stops each one on the way to the
+// background, the same way as the rest (`liveRemoves`). And the Terminal takes
+// a paste of his clipboard's text through iOS's own Paste, on the key sender's
+// one line, only where the Mac says it takes one (`PairedScreenDoor.paste`).
 //
 // THIS FILE COMPOSES and draws nothing of its own: Door/ holds the keys, the
 // signature and the one network user, Screens/ draws, and `LiveDoor` below is
@@ -266,7 +281,8 @@ final class AppModel {
     /// The Mac on screen when See a sample was pressed, chosen again when the
     /// sample is left if it is still kept (D26).
     private var sampleChosen: String?
-    /// The tab on screen. Needs input every launch, and never stored.
+    /// The tab on screen. Needs input every launch, Sessions after a pairing
+    /// that finishes (Phase 348, D1), and never stored.
     var tab: AppTab = .needsInput
     /// Every Mac kept, each its own space, in the store's order (D9): the
     /// first Mac paired, then the rest by when each was paired. Inside the
@@ -309,6 +325,10 @@ final class AppModel {
     /// Every start under way (Phase 346): registered at Create, before its
     /// write starts, and stopped with the Ends.
     @ObservationIgnored private(set) var liveStarts: [StartRunner] = []
+    /// Every Remove under way (Phase 348, D55): registered at the
+    /// confirmation's destructive press, before its write starts, and stopped
+    /// with the Ends.
+    @ObservationIgnored private(set) var liveRemoves: [RemoveRunner] = []
 
     private let door: any PhoneDoor
     /// What the Mac shows beside the fingerprint: this iPhone's name.
@@ -592,14 +612,18 @@ final class AppModel {
 
     // MARK: Pairing
 
-    /// The first pairing, from Pairing: the paired lists, on Needs input.
-    /// When one Mac's refusal put the phone on Pairing and this pairing is
-    /// with ANOTHER Mac, that Mac's pairing is forgotten first, so the new Mac
-    /// takes its place, as build 10's one pairing was replaced (D18a).
+    /// The first pairing, from Pairing: the paired lists, on that Mac's
+    /// Sessions (Phase 348, D1: his words, "when the phone first pairs we
+    /// should have it selected to Sessions"), every pushed path cleared as
+    /// before. When one Mac's refusal put the phone on Pairing and this
+    /// pairing is with ANOTHER Mac, that Mac's pairing is forgotten first, so
+    /// the new Mac takes its place, as build 10's one pairing was replaced
+    /// (D18a).
     func paired(_ reader: any DoorReading, first: PocketBlockedAnswer) {
         replaceRefused(with: reader.facts.publicName)
         adopt(reader, first: first)
         startOver()
+        tab = .sessions
         root = .reading
         // The launch's check, at once (the 316.5 fix round): an Allow pressed
         // on the Mac while iOS was still asking pairs with no address, and
@@ -623,12 +647,12 @@ final class AppModel {
         anotherPairing = nil
     }
 
-    /// The sheet's pairing is done: the sheet closes onto that Mac's Needs
-    /// input, chosen, whether it was new or paired again.
+    /// The sheet's pairing is done: the sheet closes onto that Mac's
+    /// Sessions (Phase 348, D1), chosen, whether it was new or paired again.
     private func pairedAnother(_ reader: any DoorReading, first: PocketBlockedAnswer) {
         guard root == .reading else { return }
         adopt(reader, first: first)
-        tab = .needsInput
+        tab = .sessions
         alertPermission = nil
         anotherPairing = nil
         addressCheck = Task { [weak self] in await self?.checkAlertAddress() }
@@ -761,6 +785,9 @@ final class AppModel {
     /// is withheld, never sent on the way back in, and never retried; and
     /// every Mac forgets its kept start, so Try again after a trip away is a
     /// new start.
+    ///
+    /// And every Remove (Phase 348, D55): a Remove whose bytes were not
+    /// handed is withheld, never sent on the way back in, and never retried.
     func wentAway() {
         for space in spaces {
             space.list.clearNotice()
@@ -777,6 +804,9 @@ final class AppModel {
             sender.stop()
         }
         for runner in liveStarts {
+            runner.stop()
+        }
+        for runner in liveRemoves {
             runner.stop()
         }
     }
@@ -1102,6 +1132,18 @@ extension AppModel: StartRunnerRegistry {
     }
 }
 
+/// The app keeps every live Remove's runner until it ends, so `wentAway` can
+/// stop each one (Phase 348).
+extension AppModel: RemoveRegistry {
+    func registerRemove(_ runner: RemoveRunner) {
+        liveRemoves.append(runner)
+    }
+
+    func releaseRemove(_ runner: RemoveRunner) {
+        liveRemoves.removeAll { $0 === runner }
+    }
+}
+
 /// The app keeps every live End's runner until it ends, so `wentAway` can
 /// stop each one.
 extension AppModel: EndRunnerRegistry {
@@ -1338,7 +1380,8 @@ struct RootView: View {
                 SessionRoute(
                     id: id, name: name, reader: reader, routing: app.routing(tab, mac: mac),
                     isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick,
-                    ownerCheck: app.endCheck(for: reader), registry: app, replies: app, keys: app
+                    ownerCheck: app.endCheck(for: reader), registry: app, replies: app, keys: app,
+                    removes: app, removeRouting: app.routing(tab, mac: mac)
                 ) { honestLine in
                     app.openCatchUp(id, honestLine: honestLine, in: tab)
                 }
@@ -1346,13 +1389,15 @@ struct RootView: View {
                 CatchUpRoute(
                     id: id, honestLine: honestLine, reader: reader, routing: app.routing(tab, mac: mac),
                     isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick,
-                    ownerCheck: app.endCheck(for: reader), registry: app, replies: app
+                    ownerCheck: app.endCheck(for: reader), registry: app, replies: app,
+                    removes: app, removeRouting: app.routing(tab, mac: mac)
                 )
             case .alerted(let mac, let id):
                 SessionRoute(
                     id: id, name: "", reader: reader, routing: app.alertedRouting(mac: mac),
                     isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick,
-                    ownerCheck: app.endCheck(for: reader), registry: app, replies: app, keys: app
+                    ownerCheck: app.endCheck(for: reader), registry: app, replies: app, keys: app,
+                    removes: app, removeRouting: app.routing(tab, mac: mac)
                 ) { honestLine in
                     app.openCatchUp(id, honestLine: honestLine, in: tab)
                 }
@@ -1438,12 +1483,19 @@ private struct SessionRoute: View {
         id: String, name: String, reader: any DoorReading, routing: ReadRouting,
         isTop: Bool, foregroundTick: Int, ownerCheck: any OwnerCheck, registry: any EndRunnerRegistry,
         replies: any ReplyRunnerRegistry, keys: any ScreenKeysRegistry,
+        removes: any RemoveRegistry, removeRouting: ReadRouting,
         openCatchUp: @escaping (String?) -> Void
     ) {
         _route = State(initialValue: SessionRouteModel(sessionId: id, reader: reader, routing: routing))
         _conversation = State(initialValue: ConversationModel(sessionId: id, door: reader, routing: routing))
+        // Remove, once End is done (Phase 348, D4): a pairing that removes
+        // nothing has none. Its done goes back to the list through the tab's
+        // own routing, never an alerted route's sentence (SPEC section 4.2).
+        let remove = reader.remover.map {
+            RemoveModel(sessionId: id, remover: $0, registry: removes, routing: removeRouting)
+        }
         _end = State(initialValue: reader.writer.map {
-            EndModel(sessionId: id, writer: $0, ownerCheck: ownerCheck, registry: registry)
+            EndModel(sessionId: id, writer: $0, ownerCheck: ownerCheck, registry: registry, remove: remove)
         })
         _reply = State(initialValue: reader.writer.map {
             ReplyModel(sessionId: id, writer: $0, registry: replies)
@@ -1595,12 +1647,16 @@ private struct CatchUpRoute: View {
     init(
         id: String, honestLine: String?, reader: any DoorReading, routing: ReadRouting,
         isTop: Bool, foregroundTick: Int, ownerCheck: any OwnerCheck, registry: any EndRunnerRegistry,
-        replies: any ReplyRunnerRegistry
+        replies: any ReplyRunnerRegistry, removes: any RemoveRegistry, removeRouting: ReadRouting
     ) {
         _conversation = State(initialValue: ConversationModel(sessionId: id, door: reader, routing: routing))
         _session = State(initialValue: SessionModel(sessionId: id, door: reader, routing: routing))
+        // Remove, once End is done (Phase 348, D4), as the Terminal's route.
+        let remove = reader.remover.map {
+            RemoveModel(sessionId: id, remover: $0, registry: removes, routing: removeRouting)
+        }
         _end = State(initialValue: reader.writer.map {
-            EndModel(sessionId: id, writer: $0, ownerCheck: ownerCheck, registry: registry)
+            EndModel(sessionId: id, writer: $0, ownerCheck: ownerCheck, registry: registry, remove: remove)
         })
         _reply = State(initialValue: reader.writer.map {
             ReplyModel(sessionId: id, writer: $0, registry: replies)
@@ -1624,9 +1680,9 @@ private struct CatchUpRoute: View {
 /// three writes (End, and Phase 318's press and message), through the one
 /// network user, and since Phase 337 each session's Screen door. It is its
 /// own writer, answered through `DoorReading`'s requirement, so the app's
-/// `any DoorReading` reads it; and since Phase 346 its own starter, the same
-/// way.
-struct PairedReader: DoorReading, DoorWriting, DoorStarting {
+/// `any DoorReading` reads it; since Phase 346 its own starter, the same
+/// way; and since Phase 348 its own remover (D55).
+struct PairedReader: DoorReading, DoorWriting, DoorStarting, DoorRemoving {
     let client: DoorClient
     let door: PairedDoor
 
@@ -1636,6 +1692,12 @@ struct PairedReader: DoorReading, DoorWriting, DoorStarting {
 
     /// Phase 346: this pairing starts sessions on its Mac.
     var starter: (any DoorStarting)? {
+        self
+    }
+
+    /// Phase 348: this pairing removes a session that has ended on its Mac,
+    /// once the Mac offers it (`removeConfirm`).
+    var remover: (any DoorRemoving)? {
         self
     }
 
@@ -1692,6 +1754,12 @@ struct PairedReader: DoorReading, DoorWriting, DoorStarting {
     func start(project: String, agent: String, write: String?) async -> SentStart {
         await client.start(project: project, agent: agent, write: write, door: door)
     }
+
+    /// `POST /v1/remove`, once (Phase 348), under a fresh write id; none is
+    /// kept, so a repeat is a new write that answers gone.
+    func remove(_ sessionId: String) async -> RemoveResult {
+        await client.remove(sessionId, door: door)
+    }
 }
 
 /// One session's Terminal through the kept pairing (Phase 337, widened in
@@ -1731,6 +1799,16 @@ final class PairedScreenDoor: ScreenDoor {
 
     func keys(_ keys: [KeyItem], turn: String, dialog: String?) async -> WriteResult {
         await client.keys(sessionId, keys: keys, turn: turn, dialog: dialog, line: typing, door: door)
+    }
+
+    /// A paired door takes a paste wherever it takes keys (Phase 348); the
+    /// Mac's own `paste` flag on each picture says whether it takes one now.
+    var pastes: Bool { writes }
+
+    /// `POST /v1/paste` (Phase 348, D54): ONE paste on the keys' kept line,
+    /// so a paste and his typing land in the order he made them.
+    func paste(_ text: String, turn: String, dialog: String?) async -> PasteResult {
+        await client.paste(sessionId, text: text, turn: turn, dialog: dialog, line: typing, door: door)
     }
 
     /// One page of the session's history, on the side line (Phase 337.1).

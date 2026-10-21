@@ -159,6 +159,33 @@
  * (NSH12); and one log line per start naming no project, agent or write id
  * (NSH14).
  *
+ * PHASE 348 REMOVES AN ENDED SESSION AND PASTES (build/p348/SPEC.md §7.2):
+ * the door's sixth and seventh writes, `POST /v1/remove` and `POST
+ * /v1/paste`, through the SHIPPING write path, whose `remove` is the SHIPPING
+ * `createPocketWrites(…).remove` (src/main/sessions/pocket-writes.ts) over a
+ * fake core that records every `removeSession` and `broadcastSessions`, and
+ * whose `paste` is the SHIPPING `createScreenPaste(…).paste`
+ * (src/main/screen/paste.ts) over a fake core, a fake watcher and a RECORDING
+ * tmux runner, so a refusal is graded on its reason word AND on ZERO bytes
+ * typed (no paste list run, every loaded buffer deleted) and NO row changed
+ * (no `removeSession`). The RMH arms: a door that does not serve remove (404
+ * route before the body), an honest Remove acting once with its five fields,
+ * the same bytes, the same write id fresh-signed, End and Remove on one
+ * session from two phones (busy), a body with a batch, bad ids, a body of 513
+ * bytes, a LIVE REMOTE row (the shared gate the only lock), a live, an unknown
+ * and a removed row, a phone removed before the act and the door stopping
+ * after it. The PSH arms: a door that does not serve paste, an honest paste
+ * landing as ONE load and ONE paste list with no Return, the same bytes and
+ * the same id fresh-signed, keys and a paste on one session from two phones
+ * (busy), malformed bodies (an extra key, no dialog, a turn that is not a
+ * question id; PSH5) and bad ids (PSH6), a body of 131,073 bytes dropped at
+ * the door and one of 131,072 that reaches main, ESC, CR, CR LF, DEL, NUL,
+ * U+0085 and a lone surrogate each refused character in words, 16,384 bytes
+ * taken and 16,385 refused long, a far row refused machine, a question that
+ * moved refused changed, a phone removed and the door stopping while a paste
+ * reads (refused stopped, never 404), the door stopping after a paste acted
+ * (never 404, typed once; PSH15), and the log naming no pasted word.
+ *
  * It prints one line, `P313_HOSTILE:{...}`, which the runner beside it reads.
  */
 
@@ -187,6 +214,9 @@ import type {
   PocketEndOutcome,
   PocketFacts,
   PocketKeysInput,
+  PocketPasteInput,
+  PocketPasteOutcome,
+  PocketRemoveOutcome,
   PocketReplyOutcome,
   PocketRoute,
   PocketSayInput,
@@ -1088,6 +1118,129 @@ try {
    * a phone signs.
    */
   let writeSkew = 0;
+  /**
+   * PHASE 348 (build/p348/SPEC.md §7.2): THE SHIPPING REMOVE, over a fake core
+   * that records what the Mac's own verb would do. `removed` is every session
+   * id `removeSession` was handed and `broadcasts` how many times the windows
+   * were told: a refusal changes no row, so both stay where they were.
+   */
+  const { createPocketWrites: createShippingWrites } = await import('../../src/main/sessions/pocket-writes.js');
+  const removeRows: Session[] = [
+    aSession('ses_rm_ended', 'ended-here', 'exited'),
+    aSession('ses_rm_ended2', 'ended-again', 'restorable'),
+    aSession('ses_rm_far_ended', 'far-ended', 'exited', { machine: { id: 'm1', label: 'Mac Pro' } as Session['machine'] }),
+    aSession('ses_rm_far_live', 'far-live', 'running', { machine: { id: 'm1', label: 'Mac Pro' } as Session['machine'] }),
+    aSession('ses_rm_live', 'live-here', 'running'),
+    aSession('ses_rm_unknown', 'unseen', 'unknown'),
+    aSession('ses_w_rm', 'end-and-remove', 'idle')
+  ];
+  const removeRecords = new Map<string, { status: SessionStatus; machineId?: string }>([
+    ['ses_rm_ended', { status: 'exited' }],
+    ['ses_rm_ended2', { status: 'restorable' }],
+    ['ses_rm_far_ended', { status: 'exited', machineId: 'm1' }],
+    ['ses_rm_far_live', { status: 'running', machineId: 'm1' }],
+    ['ses_rm_live', { status: 'running' }],
+    ['ses_rm_unknown', { status: 'unknown' }],
+    ['ses_rm_gone', { status: 'discarded' }],
+    ['ses_w_rm', { status: 'idle' }]
+  ]);
+  const removed: string[] = [];
+  let broadcasts = 0;
+  const removeCore = {
+    listSessions: (): readonly Session[] => removeRows,
+    manifest: { getSession: (id: string) => removeRecords.get(id) },
+    killSession: async (): Promise<void> => {
+      throw new Error('the phone’s Remove never ends a session');
+    },
+    removeSession: (id: string): void => {
+      removed.push(id);
+      const row = removeRows.findIndex((s) => s.id === id);
+      if (row !== -1) removeRows.splice(row, 1);
+      removeRecords.set(id, { status: 'discarded' });
+    },
+    broadcastSessions: (): void => {
+      broadcasts += 1;
+    }
+  };
+  const unused = async (): Promise<PocketReplyOutcome> => ({ outcome: 'failed', sentence: 'unused' });
+  const shippingRemove = createShippingWrites({
+    core: () => removeCore,
+    machineKnown: () => true,
+    reply: { choose: unused, say: unused },
+    keys: { keys: unused },
+    start: { start: async (): Promise<PocketStartOutcome> => ({ outcome: 'failed', sentence: 'unused', session: null }) as PocketStartOutcome },
+    paste: { paste: async (): Promise<PocketPasteOutcome> => ({ outcome: 'failed', sentence: 'unused' }) }
+  } as Parameters<typeof createShippingWrites>[0]);
+  let removesReached = 0;
+  /**
+   * PHASE 348: THE SHIPPING PASTE VERB, over a fake core, a fake watcher whose
+   * reading the arms choose, and a RECORDING tmux runner. `typed` counts the
+   * paste lists run (a paste list is the one thing that types), `loads` and
+   * `drops` the buffers loaded and deleted, and `stdin` keeps the bytes each
+   * load carried, so a refusal is graded on zero bytes typed and on no word
+   * left in the private server.
+   */
+  const { createScreenPaste } = await import('../../src/main/screen/paste.js');
+  const { createScreenLastActs } = await import('../../src/main/screen/keys.js');
+  const { createQuestionIds } = await import('../../src/main/reply/question-id.js');
+  const { PASTE_CHARACTER, PASTE_TOO_LONG, PASTE_THIS_MAC_ONLY } = await import('../../src/shared/screen-copy.js');
+  const pasteRows: Session[] = [
+    aSession('ses_p1', 'paste-here', 'idle'),
+    aSession('ses_p_far', 'paste-far', 'idle', { machine: { id: 'm1', label: 'Mac Pro' } as Session['machine'] }),
+    aSession('ses_p_ask', 'paste-asked', 'needs_input'),
+    aSession('ses_w_kp', 'keys-and-paste', 'idle')
+  ];
+  const pasteTurns = createQuestionIds('0123456789abcdef');
+  const tmuxRun: { args: readonly string[]; stdin: Buffer | null }[] = [];
+  let pasteClock = 1_000_000;
+  let holdRead: Promise<void> | null = null;
+  let readsReached = 0;
+  let notedInput = 0;
+  const pasteCore = {
+    listSessions: (): readonly Session[] => pasteRows,
+    tmuxIdOf: (id: string): string | null => (pasteRows.some((s) => s.id === id) ? `$${String(1 + pasteRows.findIndex((s) => s.id === id))}` : null),
+    manifest: { getSession: (id: string) => (pasteRows.some((s) => s.id === id) ? { status: 'idle' as SessionStatus } : undefined) },
+    control: { connected: false, sendCommand: async (): Promise<string[]> => [] },
+    activity: { noteUserInput: (): void => undefined }
+  };
+  /** The fresh reading the verb is handed: one 80 by 3 screen at a prompt, its pane %7. */
+  const pasteReading = (): unknown => ({
+    styled: '$ \n\n',
+    display: { paneId: '%7', cols: 80, rows: 3, cursorX: 2, cursorY: 0, cursorVisible: true, alternate: false, history: 0 },
+    displayLine: '%7 80 3 2 0 1 0 0',
+    steady: true
+  });
+  const shippingPaste = createScreenPaste({
+    core: () => pasteCore,
+    turns: pasteTurns,
+    watch: {
+      readFresh: async () => {
+        readsReached += 1;
+        if (holdRead !== null) await holdRead;
+        return pasteReading();
+      },
+      nudge: () => undefined
+    },
+    noteUserInput: () => {
+      notedInput += 1;
+    },
+    lastActs: createScreenLastActs(),
+    run: async (args: readonly string[], options?: { stdin?: Buffer }): Promise<string> => {
+      tmuxRun.push({ args: [...args], stdin: options?.stdin ?? null });
+      return '';
+    },
+    now: () => pasteClock,
+    sleep: async (ms: number): Promise<void> => {
+      pasteClock += ms;
+    }
+  } as Parameters<typeof createScreenPaste>[0]);
+  /** What the recording runner saw: paste lists run, buffers loaded and deleted, the bytes each load carried. */
+  const tmuxNow = (): { typed: number; loads: number; drops: number; stdin: string[] } => ({
+    typed: tmuxRun.filter((r) => r.args.includes('paste-buffer')).length,
+    loads: tmuxRun.filter((r) => r.args[0] === 'load-buffer').length,
+    drops: tmuxRun.filter((r) => r.args[0] === 'delete-buffer').length,
+    stdin: tmuxRun.filter((r) => r.args[0] === 'load-buffer').map((r) => r.stdin?.toString('utf8') ?? '')
+  });
   const recordingWrites: PocketWrites = {
     end: async (input): Promise<PocketEndOutcome> => {
       acts.push(input);
@@ -1116,6 +1269,18 @@ try {
       if (!allowed) return { outcome: 'refused', reason: 'stopped', sentence: POCKET_WRITE_SENTENCES.stopped };
       startMade += 1;
       return { outcome: 'done', session: { id: `ses_started_${String(startMade)}`, name: `${input.agent}-${String(startMade)}` } };
+    },
+    // PHASE 348: the SHIPPING Remove and paste verbs, behind the same hold.
+    remove: async (input): Promise<PocketRemoveOutcome> => {
+      removesReached += 1;
+      actsReached += 1;
+      if (holdAct !== null) await holdAct;
+      return shippingRemove.remove(input);
+    },
+    paste: async (input: PocketPasteInput, still): Promise<PocketPasteOutcome> => {
+      actsReached += 1;
+      if (holdAct !== null) await holdAct;
+      return shippingPaste.paste(input, still);
     }
   };
   const writeHandler = createPocketWriteHandler({
@@ -1217,6 +1382,8 @@ try {
         case 'say':
         case 'keys':
         case 'start':
+        case 'remove':
+        case 'paste':
           return null;
       }
     },
@@ -3314,6 +3481,368 @@ try {
         record('NSH14', 'the log: one line per start that reached its act, naming no project, agent or write id', `lines-${String(acted)}-clean`, `lines-${String(lines)}-${leaked.length === 0 ? 'clean' : `LEAKED ${String(leaked.length)}: ${leaked[0]?.slice(0, 80) ?? ''}`}`, 'D32: the phone’s start: <outcome>, and the new session’s id as its one field.');
       }
       await serveNow(launchSet);
+    }
+
+    // -----------------------------------------------------------------------
+    // PHASE 348 (build/p348/SPEC.md §7.2): REMOVE AND PASTE, through the
+    // SHIPPING write path, whose remove is the SHIPPING Remove over a core that
+    // records every removeSession, and whose paste is the SHIPPING paste verb
+    // over a runner that records every tmux command. Each arm on its answer,
+    // its reason word, and on what the recorders saw: NO row changed and ZERO
+    // bytes typed wherever a write is refused.
+    // -----------------------------------------------------------------------
+    {
+      const launchSet = served;
+      const serveNow = async (next: readonly PocketRouteId[]): Promise<void> => {
+        served = next;
+        bind.updatePocketDoor({ routes: served });
+        await new Promise((resolve) => setImmediate(resolve));
+      };
+      const sentenceOf = (answer: Answer): string => String(bodyOf(answer)['sentence']);
+      const sentIds: string[] = [];
+      const id348 = (): string => {
+        const id = writeId();
+        sentIds.push(id);
+        return id;
+      };
+      const TURN = '0123456789abcdef-1';
+      const removeBody = (session: string, write: string, over: Record<string, unknown> = {}): Buffer =>
+        Buffer.from(JSON.stringify({ session, write, ...over }), 'utf8');
+      const pasteBody = (session: string, text: string, write: string, over: Record<string, unknown> = {}): Buffer =>
+        Buffer.from(JSON.stringify({ dialog: null, session, text, turn: TURN, write, ...over }), 'utf8');
+      const removedNow = (): string => `${String(removed.length)}r${String(broadcasts)}b`;
+      const typedNow = (): string => {
+        const n = tmuxNow();
+        return `${String(n.typed)}t${String(n.loads)}l${String(n.drops)}d`;
+      };
+      const logFrom = logged.length;
+
+      // RMH0 and PSH0 (first: a store that allowed the twelve serves no remove
+      // and no paste). Each 404 route before the body, main never asked.
+      {
+        await serveNow([...launchSet, 'start']);
+        const before = stats();
+        const mainBefore = mainRequests;
+        const rm = await writeAs(wA, '/v1/remove', removeBody('ses_rm_ended', id348()));
+        const rmBig = await writeAs(wA, '/v1/remove', Buffer.alloc(16 * 1024, 0x41));
+        const ps = await writeAs(wA, '/v1/paste', pasteBody('ses_p1', 'echo hi', id348()));
+        const psBig = await writeAs(wA, '/v1/paste', Buffer.alloc(200 * 1024, 0x41));
+        const after = stats();
+        record('RMH0', 'served without remove (an agreement on the twelve): an honest Remove, and one with a 16 KiB body', `refused-404/refused-404-route-not-oversized-not-forwarded-0r0b`, `${verdict(rm)}/${verdict(rmBig)}-${after.refused.route >= before.refused.route + 2 ? 'route' : 'other'}-${after.refused.oversized === before.refused.oversized ? 'not-oversized' : 'OVERSIZED'}-${after.forwarded === before.forwarded && mainRequests === mainBefore ? 'not-forwarded' : 'FORWARDED'}-${removedNow()}`, 'D9, 333.12: remove WAITS for the Allow whose lines name it; until then the door answers it as a route it does not have, before a byte of body.');
+        record('PSH0', 'served without paste: an honest paste, and one with a 200 KiB body', `refused-404/refused-404-not-forwarded-0t0l0d`, `${verdict(ps)}/${verdict(psBig)}-${after.forwarded === before.forwarded && mainRequests === mainBefore ? 'not-forwarded' : 'FORWARDED'}-${typedNow()}`, 'D9, 333.12: paste waits for its own Allow too, and one Allow serves both.');
+      }
+      await serveNow([...launchSet, 'start', 'remove', 'paste']);
+
+      // RMH1. An honest Remove of an ended session on this Mac: done, ONE
+      // removeSession of exactly that id, ONE broadcast, and the five fields.
+      const rmId = id348();
+      const rmHonestBody = removeBody('ses_rm_ended', rmId);
+      const rmHonestHeaders = writeHeaders(wA, '/v1/remove', rmHonestBody);
+      const rmHonest = await ask('POST', '/v1/remove', rmHonestHeaders, rmHonestBody, { as: wA });
+      record('RMH1', 'an honest Remove of an ended session on this Mac', '200:done-1r1b-ses_rm_ended', `${said(rmHonest)}-${removedNow()}-${removed.join(',')}`, 'D48: both gates passed, then the Mac’s own removeSession, once, and the windows told (D10).');
+      {
+        const b = bodyOf(rmHonest);
+        record('RMH1b', 'its answer is the five fields, echoing the write id', `remove-${rmId}-5-null-null`, `${String(b['verb'])}-${String(b['write'])}-${String(Object.keys(b).length)}-${String(b['reason'])}-${String(b['sentence'])}`, 'D27: verb, write, outcome, reason and sentence, its own shape, so the frozen phones never read a fifth verb in PocketWriteAnswer.');
+      }
+      // RMH2. The same bytes again: the nonce is spent.
+      record('RMH2', 'the same Remove, the same bytes again', `refused-404:replay-1r1b`, `${verdict(await ask('POST', '/v1/remove', rmHonestHeaders, rmHonestBody, { as: wA }))}:${lastVerify}-${removedNow()}`, 'a signed request is spent once, whatever it carries.');
+      // RMH3. The same write id fresh-signed: the recorded answer, nothing removed again.
+      {
+        const again = await writeAs(wA, '/v1/remove', rmHonestBody);
+        record('RMH3', 'the same Remove write id, signed afresh', `recorded-1r1b`, `${again.body === rmHonest.body ? 'recorded' : `other(${said(again)})`}-${removedNow()}`, 'the ledger answers a write id it holds with what it answered, and acts on nothing.');
+      }
+      // RMH4. End and Remove on one session from two phones: the second is busy.
+      {
+        const release = holding();
+        const reachedBefore = actsReached;
+        const first = writeAs(wA, '/v1/end', endBody('ses_w_rm', writeId()));
+        await until(() => actsReached > reachedBefore);
+        const second = await writeAs(wB, '/v1/remove', removeBody('ses_w_rm', id348()));
+        release();
+        const firstAnswer = await first;
+        record('RMH4', 'an End and a Remove on one session from two phones at once', `200:done/200:busy-1r1b`, `${said(firstAnswer)}/${said(second)}-${removedNow()}`, '§4.2 step 3: one write in flight per session ACROSS every verb, so an End and a Remove never overlap on one session.');
+      }
+      // RMH5. A Remove body with a batch, and with a third key.
+      {
+        const id = id348();
+        const withBatch = await writeAs(wA, '/v1/remove', removeBody('ses_rm_ended2', id, { batch: true }));
+        const third = await writeAs(wA, '/v1/remove', removeBody('ses_rm_ended2', id348(), { force: true }));
+        record('RMH5', 'a Remove body with a batch, and one with a third key', `200:refused:malformed-echoed/200:refused:malformed-1r1b`, `${said(withBatch)}-${bodyOf(withBatch)['write'] === id ? 'echoed' : 'not-echoed'}/${said(third)}-${removedNow()}`, 'D28: Remove’s body is exactly {session, write}; no Mac batch removes (conformance:manager T8).');
+      }
+      // RMH6. Bad session ids and write ids.
+      {
+        const bad = [
+          ['a session id holding a space', removeBody('ses rm', id348())],
+          ['a 129-character session id', removeBody('s'.repeat(129), id348())],
+          ['a session id that is a number', Buffer.from(JSON.stringify({ session: 7, write: id348() }), 'utf8')],
+          ['a 31-hex write id', removeBody('ses_rm_ended2', 'a'.repeat(31))],
+          ['an uppercase write id', removeBody('ses_rm_ended2', 'A'.repeat(32))]
+        ] as const;
+        const wrong: string[] = [];
+        for (const [what, body] of bad) {
+          const answer = await writeAs(wA, '/v1/remove', body);
+          if (said(answer) !== '200:refused:malformed' || bodyOf(answer)['verb'] !== 'remove') wrong.push(`${what}: ${said(answer)}`);
+        }
+        record('RMH6', 'Remove bodies with bad session ids and write ids', `all-malformed-1r1b`, `${wrong.length === 0 ? 'all-malformed' : `WRONG ${wrong.join(' // ')}`}-${removedNow()}`, 'D28: each id read by its own reader, one character at a time; a refusal answers in Remove’s own shape.');
+      }
+      // RMH7. A Remove body of 513 bytes: dropped at the door, main never asked.
+      {
+        const before = stats();
+        const mainBefore = mainRequests;
+        const fill = { session: 'ses_rm_ended2', write: id348(), pad: '' };
+        const base = Buffer.byteLength(JSON.stringify(fill), 'utf8');
+        const big = Buffer.from(JSON.stringify({ ...fill, pad: 'x'.repeat(513 - base) }), 'utf8');
+        const answer = await writeAs(wA, '/v1/remove', big);
+        const after = stats();
+        record('RMH7', `a Remove body over its cap (${String(big.length)} bytes)`, `513-refused-404-oversized-not-forwarded-1r1b`, `${String(big.length)}-${verdict(answer)}-${after.refused.oversized > before.refused.oversized ? 'oversized' : 'other'}-${after.forwarded === before.forwarded && mainRequests === mainBefore ? 'not-forwarded' : 'FORWARDED'}-${removedNow()}`, 'D29: remove’s cap is 512, its worst legal body 185 bytes.');
+      }
+      // RMH8. THE ATTACK: a LIVE session on another machine. main's
+      // removeRefusal passes every remote record, so the shared gate is the
+      // only lock: refused changed, and never tombstoned.
+      {
+        const answer = await writeAs(wA, '/v1/remove', removeBody('ses_rm_far_live', id348()));
+        record('RMH8', 'a LIVE session on another machine named by a phone’s Remove', `200:refused:changed-1r1b-still-listed`, `${said(answer)}-${removedNow()}-${removeRows.some((s) => s.id === 'ses_rm_far_live') && removeRecords.get('ses_rm_far_live')?.status === 'running' ? 'still-listed' : 'TOMBSTONED'}`, 'D6, D48, §10.3: canRemove of DOOR_REMOVE_GATE_ENV refuses a session that has not ended, wherever it runs.');
+      }
+      // RMH9. A live row and an unknown row on this Mac, a removed id, and an
+      // ended row on another machine, which IS removed and sends that machine nothing.
+      {
+        const live = await writeAs(wA, '/v1/remove', removeBody('ses_rm_live', id348()));
+        const unknown = await writeAs(wA, '/v1/remove', removeBody('ses_rm_unknown', id348()));
+        const gone = await writeAs(wA, '/v1/remove', removeBody('ses_rm_gone', id348()));
+        const nobody = await writeAs(wA, '/v1/remove', removeBody('ses_rm_nobody', id348()));
+        record('RMH9', 'a live row, an unknown row, a removed id and an id nothing holds', `200:refused:changed/200:refused:unreachable/200:refused:gone/200:refused:gone-1r1b`, `${said(live)}/${said(unknown)}/${said(gone)}/${said(nobody)}-${removedNow()}`, 'D48: main’s gate refuses a live row on this Mac in its own words; Tortie cannot see an unknown one; a removed row is not listed.');
+        const far = await writeAs(wA, '/v1/remove', removeBody('ses_rm_far_ended', id348()));
+        record('RMH9b', 'an ended session on another machine', `200:done-2r2b`, `${said(far)}-${removedNow()}`, 'D6: Remove is offered on every ended session the Mac’s own gates offer it on, on this Mac or another machine; the core’s remote branch sends that machine nothing (§4.2 step 6).');
+      }
+      // RMH10. A phone removed BEFORE the act: 404, nothing removed.
+      {
+        removeBeforeWrite = wB.fields.id;
+        const before = await writeAs(wB, '/v1/remove', removeBody('ses_rm_ended2', id348()));
+        record('RMH10', 'a phone removed after its signature held and before the Remove', `refused-404-2r2b`, `${verdict(before)}-${removedNow()}`, 'the last check before the act asks again whether the phone is paired; a 404 here means nothing was done.');
+        phones = [...phones, wB.fields];
+        bind.updatePocketDoor({ pins: pinsOf(phones) });
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+      // RMH11. The door stopping as a Remove's answer is composed: the answer
+      // or a cut, never a 404 after the act.
+      {
+        stopAfterWrite = 'arm';
+        const answer = await writeAs(wA, '/v1/remove', removeBody('ses_rm_ended2', id348()));
+        const stopping = stopAfterWrite;
+        stopAfterWrite = null;
+        if (stopping !== null && stopping !== 'arm') await stopping;
+        doorStarted = false;
+        record('RMH11', 'the door switched off after a Remove acted', `not-404-3r3b`, `${answer.status === 404 ? 'A-404' : 'not-404'}-${removedNow()}`, '317 D4: after the act, nothing replaces the answer with a 404, because a 404 tells the phone nothing was done.');
+        await restart();
+        await serveNow([...launchSet, 'start', 'remove', 'paste']);
+      }
+
+      // PSH1. An honest paste: done, ONE load of exactly the text on stdin,
+      // ONE paste list that leaves copy mode and pastes with -p -d, no Return.
+      const psText = 'line one\nline two';
+      const psId = id348();
+      const psHonestBody = pasteBody('ses_p1', psText, psId);
+      const psHonestHeaders = writeHeaders(wA, '/v1/paste', psHonestBody);
+      const runBefore = tmuxRun.length;
+      const psHonest = await ask('POST', '/v1/paste', psHonestHeaders, psHonestBody, { as: wA });
+      {
+        const ran = tmuxRun.slice(runBefore);
+        const load = ran.find((r) => r.args[0] === 'load-buffer');
+        const list = ran.find((r) => r.args.includes('paste-buffer'));
+        const name = load?.args[2] ?? '';
+        const wantList = ['copy-mode', '-q', '-t', '%7', ';', 'paste-buffer', '-p', '-d', '-b', name, '-t', '%7'];
+        const shape = `${String(ran.length)}-${load?.stdin?.toString('utf8') === psText ? 'exact-stdin' : 'WRONG-STDIN'}-${name.startsWith('tortie-paste-') && name.length === 'tortie-paste-'.length + 32 ? 'own-name' : `NAME ${name}`}-${JSON.stringify(list?.args ?? null) === JSON.stringify(wantList) ? 'one-list' : `LIST ${JSON.stringify(list?.args ?? null)}`}-${ran.some((r) => r.args.includes('Enter') || r.args.includes('send-keys')) ? 'A-RETURN' : 'no-return'}-noted${String(notedInput)}`;
+        record('PSH1', 'an honest paste into a session on this Mac', '200:done-2-exact-stdin-own-name-one-list-no-return-noted1', `${said(psHonest)}-${shape}`, 'D50, D52: the words reach tmux only on load-buffer’s stdin, under a name the helper mints, then ONE copy-mode -q ; paste-buffer -p -d, and no Enter.');
+        const b = bodyOf(psHonest);
+        record('PSH1b', 'its answer is the five fields, echoing the write id', `paste-${psId}-5-null-null`, `${String(b['verb'])}-${String(b['write'])}-${String(Object.keys(b).length)}-${String(b['reason'])}-${String(b['sentence'])}`, 'D27: the paste’s own shape.');
+      }
+      // PSH2 and PSH3. The same bytes; the same write id fresh-signed.
+      {
+        const t0 = typedNow();
+        const replay = await ask('POST', '/v1/paste', psHonestHeaders, psHonestBody, { as: wA });
+        const replayWord = lastVerify;
+        const t1 = typedNow();
+        const again = await writeAs(wA, '/v1/paste', psHonestBody);
+        record('PSH2', 'the same paste, the same bytes again', `refused-404:replay-${t0}`, `${verdict(replay)}:${replayWord}-${t1}`, 'a signed request is spent once.');
+        record('PSH3', 'the same paste write id, signed afresh', `recorded-${t0}`, `${again.body === psHonest.body ? 'recorded' : `other(${said(again)})`}-${typedNow()}`, 'the ledger answers a write id it holds with what it answered, and types nothing again.');
+      }
+      // PSH4. Keys and a paste on one session from two phones: busy.
+      {
+        const t0 = typedNow();
+        const release = holding();
+        const reachedBefore = actsReached;
+        const keysBody = Buffer.from(JSON.stringify({ dialog: null, keys: [{ t: 'x' }], session: 'ses_w_kp', turn: TURN, write: writeId() }), 'utf8');
+        const first = writeAs(wA, '/v1/keys', keysBody);
+        await until(() => actsReached > reachedBefore);
+        const second = await writeAs(wB, '/v1/paste', pasteBody('ses_w_kp', 'echo hi', id348()));
+        release();
+        await first;
+        record('PSH4', 'keys and a paste on one session from two phones at once', `200:busy-${t0}`, `${said(second)}-${typedNow()}`, '§4.2 step 3: one write in flight per session ACROSS every verb, so keys and a paste never overlap on one session.');
+      }
+      // PSH5 and PSH6. Malformed paste bodies, by their keys and values, then
+      // by their ids: each refused whole in the paste's own shape, nothing typed.
+      {
+        const malformed = async (bodies: readonly (readonly [string, Buffer])[]): Promise<string[]> => {
+          const wrong: string[] = [];
+          for (const [what, body] of bodies) {
+            const answer = await writeAs(wA, '/v1/paste', body);
+            if (said(answer) !== '200:refused:malformed' || bodyOf(answer)['verb'] !== 'paste') wrong.push(`${what}: ${said(answer)}`);
+          }
+          return wrong;
+        };
+        const t0 = typedNow();
+        const shapes = [
+          ['an extra key', pasteBody('ses_p1', 'x', id348(), { enter: true })],
+          ['a missing dialog', Buffer.from(JSON.stringify({ session: 'ses_p1', text: 'x', turn: TURN, write: id348() }), 'utf8')],
+          ['a turn that is not a question id', pasteBody('ses_p1', 'x', id348(), { turn: '0123456789abcdef42' })],
+          ['a turn with a leading zero', pasteBody('ses_p1', 'x', id348(), { turn: '0123456789abcdef-01' })],
+          ['the text a number', pasteBody('ses_p1', 'x', id348(), { text: 7 })],
+          ['the text an array', pasteBody('ses_p1', 'x', id348(), { text: ['x'] })],
+          ['a dialog that is not a mark', pasteBody('ses_p1', 'x', id348(), { dialog: 'z'.repeat(12) })]
+        ] as const;
+        const wrongShapes = await malformed(shapes);
+        record('PSH5', `paste bodies malformed by their keys and values (${String(shapes.length)})`, `all-malformed-${t0}`, `${wrongShapes.length === 0 ? 'all-malformed' : `WRONG ${wrongShapes.join(' // ')}`}-${typedNow()}`, 'D28: exactly {dialog, session, text, turn, write}, each read by its own reader; a refusal answers in the paste’s own shape and types nothing.');
+        const t1 = typedNow();
+        const ids = [
+          ['a session id holding a space', pasteBody('ses p1', 'x', id348())],
+          ['a 129-character session id', pasteBody('s'.repeat(129), 'x', id348())],
+          ['a session id that is a number', Buffer.from(JSON.stringify({ dialog: null, session: 7, text: 'x', turn: TURN, write: id348() }), 'utf8')],
+          ['a 33-hex write id', pasteBody('ses_p1', 'x', 'a'.repeat(33))],
+          ['an uppercase write id', pasteBody('ses_p1', 'x', 'A'.repeat(32))]
+        ] as const;
+        const wrongIds = await malformed(ids);
+        record('PSH6', `paste bodies with bad session ids and write ids (${String(ids.length)})`, `all-malformed-${t1}`, `${wrongIds.length === 0 ? 'all-malformed' : `WRONG ${wrongIds.join(' // ')}`}-${typedNow()}`, 'D28: each id read by its own reader, one character at a time; a refusal answers in the paste’s own shape and types nothing.');
+      }
+      // PSH7. A body of 131,073 bytes dropped at the door; one of 131,072 reaches main.
+      {
+        const t0 = typedNow();
+        const sized = (n: number): Buffer => {
+          const shell = pasteBody('ses_p1', '', id348());
+          return pasteBody('ses_p1', 'a'.repeat(n - shell.length), JSON.parse(shell.toString('utf8')).write as string);
+        };
+        const before = stats();
+        const mainBefore = mainRequests;
+        const over = await writeAs(wA, '/v1/paste', sized(131_073));
+        const mid = stats();
+        const mainMid = mainRequests;
+        const at = sized(131_072);
+        const atCap = await writeAs(wA, '/v1/paste', at);
+        record('PSH7', 'a paste body of 131,073 bytes, then one of exactly 131,072', `refused-404-oversized-not-forwarded/131072-200:refused:long-forwarded-${t0}`, `${verdict(over)}-${mid.refused.oversized > before.refused.oversized ? 'oversized' : 'other'}-${mid.forwarded === before.forwarded && mainMid === mainBefore ? 'not-forwarded' : 'FORWARDED'}/${String(at.length)}-${said(atCap)}-${mainRequests > mainMid ? 'forwarded' : 'NOT-FORWARDED'}-${typedNow()}`, 'D29: the cap is 131,072, so the worst legal body reaches main and is answered in words, and one byte more is dropped whole at the door.');
+      }
+      // PSH8. Characters the paste refuses: each refused character in words, nothing loaded.
+      {
+        const t0 = typedNow();
+        const cases = [
+          ['ESC', 'a\u001bb'],
+          ['the 3.6a bracket close', 'x\u001b[201~ echo y\n'],
+          ['CR', 'a\rb'],
+          ['CR LF', 'a\r\nb'],
+          ['DEL', 'a\u007fb'],
+          ['NUL', 'a\u0000b'],
+          ['U+0085', 'a\u0085b']
+        ] as const;
+        const wrong: string[] = [];
+        for (const [what, text] of cases) {
+          const answer = await writeAs(wA, '/v1/paste', pasteBody('ses_p1', text, id348()));
+          if (said(answer) !== '200:refused:character' || sentenceOf(answer) !== PASTE_CHARACTER) wrong.push(`${what}: ${said(answer)} ${sentenceOf(answer)}`);
+        }
+        // A lone surrogate, written as JSON writes it: \ud800.
+        const loneId = id348();
+        const lone = await writeAs(wA, '/v1/paste', Buffer.from(`{"dialog":null,"session":"ses_p1","text":"a\\ud800b","turn":"${TURN}","write":"${loneId}"}`, 'utf8'));
+        if (said(lone) !== '200:refused:character' || sentenceOf(lone) !== PASTE_CHARACTER) wrong.push(`a lone surrogate: ${said(lone)} ${sentenceOf(lone)}`);
+        record('PSH8', 'a paste holding ESC, the bracket close, CR, CR LF, DEL, NUL, U+0085 or a lone surrogate', `all-character-in-words-${t0}`, `${wrong.length === 0 ? 'all-character-in-words' : `WRONG ${wrong.join(' // ')}`}-${typedNow()}`, 'D51, §2.2: every byte tmux 3.7b and 3.6a send differently is refused, so a pasted ESC[201~ can never end the bracket and run the line after it; nothing is loaded.');
+      }
+      // PSH9. 16,384 bytes taken whole; 16,385 refused long.
+      {
+        const t0 = tmuxNow();
+        const taken = await writeAs(wA, '/v1/paste', pasteBody('ses_p1', 'é'.repeat(8_192), id348()));
+        const t1 = tmuxNow();
+        const tooLong = await writeAs(wA, '/v1/paste', pasteBody('ses_p1', `${'é'.repeat(8_192)}a`, id348()));
+        const t2 = tmuxNow();
+        const landed = t1.stdin[t1.stdin.length - 1] ?? '';
+        record('PSH9', '16,384 bytes of text, then 16,385', `200:done-16384-+1t/200:refused:long-in-words-+0t+0l`, `${said(taken)}-${String(Buffer.byteLength(landed, 'utf8'))}-+${String(t1.typed - t0.typed)}t/${said(tooLong)}-${sentenceOf(tooLong) === PASTE_TOO_LONG ? 'in-words' : `OTHER ${sentenceOf(tooLong)}`}-+${String(t2.typed - t1.typed)}t+${String(t2.loads - t1.loads)}l`, 'D29, D51: 16,384 bytes of UTF-8 land in ONE load and ONE list; one byte more is refused whole and never split.');
+      }
+      // PSH10. A session on another machine: refused machine, nothing loaded.
+      {
+        const t0 = typedNow();
+        const answer = await writeAs(wA, '/v1/paste', pasteBody('ses_p_far', 'echo hi', id348()));
+        record('PSH10', 'a paste aimed at a session on another machine', `200:refused:machine-this-mac-only-${t0}`, `${said(answer)}-${sentenceOf(answer) === PASTE_THIS_MAC_ONLY ? 'this-mac-only' : `OTHER ${sentenceOf(answer)}`}-${typedNow()}`, 'D22: no road there keeps his text out of every command line, so a far paste is refused before the buffer and before any read.');
+      }
+      // PSH11. The question lock: a screen asking a question the phone's turn
+      // does not name. Refused changed; the words loaded were deleted.
+      {
+        const t0 = tmuxNow();
+        const answer = await writeAs(wA, '/v1/paste', pasteBody('ses_p_ask', '1', id348()));
+        const t1 = tmuxNow();
+        record('PSH11', 'a paste against a question that moved since the phone’s picture', `200:refused:changed-+0t-+${String(t1.loads - t0.loads)}l+${String(t1.loads - t0.loads)}d`, `${said(answer)}-+${String(t1.typed - t0.typed)}t-+${String(t1.loads - t0.loads)}l+${String(t1.drops - t0.drops)}d`, 'D50 step 5: a paste meant for a question reaches that question or nothing, and the buffer leaves the server in the finally.');
+      }
+      // PSH12. A phone removed while its paste reads: refused stopped, never 404.
+      {
+        const t0 = tmuxNow();
+        let release = (): void => undefined;
+        holdRead = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        const reachedBefore = readsReached;
+        const inFlight = writeAs(wB, '/v1/paste', pasteBody('ses_p1', 'echo held', id348()));
+        await until(() => readsReached > reachedBefore);
+        phones = phones.filter((p) => p.id !== wB.fields.id);
+        bind.updatePocketDoor({ pins: pinsOf(phones) });
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        release();
+        holdRead = null;
+        const during = await inFlight;
+        const t1 = tmuxNow();
+        record('PSH12', 'a phone removed while its paste reads', `200:refused:stopped-+0t-dropped`, `${said(during)}-+${String(t1.typed - t0.typed)}t-${t1.loads - t0.loads === t1.drops - t0.drops ? 'dropped' : 'WORDS-LEFT'}`, 'D50 step 5: still() is asked again with nothing awaited before the act, so a Removed phone types nothing, and the answer says so rather than 404.');
+        phones = [...phones, wB.fields];
+        bind.updatePocketDoor({ pins: pinsOf(phones) });
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+      // PSH15. The door stopping as a paste's answer is composed, after the
+      // paste acted: the answer or a cut, never a 404, and typed exactly once.
+      {
+        const t0 = tmuxNow();
+        stopAfterWrite = 'arm';
+        const answer = await writeAs(wA, '/v1/paste', pasteBody('ses_p1', 'echo after', id348()));
+        const stopping = stopAfterWrite;
+        stopAfterWrite = null;
+        if (stopping !== null && stopping !== 'arm') await stopping;
+        doorStarted = false;
+        const t1 = tmuxNow();
+        record('PSH15', 'the door switched off after a paste acted', 'not-404-+1t', `${answer.status === 404 ? 'A-404' : 'not-404'}-+${String(t1.typed - t0.typed)}t`, '317 D4: after the act, nothing replaces the answer with a 404, because a 404 tells the phone nothing was typed, and the phone would paste it again.');
+        await restart();
+        await serveNow([...launchSet, 'start', 'remove', 'paste']);
+      }
+      // PSH13. The door stopping while a paste reads: refused stopped or a cut, never 404.
+      {
+        const t0 = tmuxNow();
+        let release = (): void => undefined;
+        holdRead = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        const reachedBefore = readsReached;
+        const inFlight = writeAs(wA, '/v1/paste', pasteBody('ses_p1', 'echo stop', id348()));
+        await until(() => readsReached > reachedBefore);
+        const stopping = bind.stopPocketDoor();
+        release();
+        holdRead = null;
+        const answer = await inFlight;
+        await stopping;
+        doorStarted = false;
+        const t1 = tmuxNow();
+        record('PSH13', 'the door switched off while a paste reads', `200:refused:stopped-+0t-dropped`, `${said(answer)}-+${String(t1.typed - t0.typed)}t-${t1.loads - t0.loads === t1.drops - t0.drops ? 'dropped' : 'WORDS-LEFT'}`, 'D50: the stopping door is in still, so nothing is pasted, and after the act began nothing replaces the answer with a 404.');
+        await restart();
+        await serveNow(launchSet);
+      }
+      // PSH14. The log: lines for the paste and the Remove, naming no pasted word and no write id.
+      {
+        const since = logged.slice(logFrom);
+        const words = ['line one', 'line two', 'echo hi', 'echo held', 'echo stop', 'echo after', 'ééé'];
+        const leaked = since.filter((l) => words.some((w) => l.includes(w)) || sentIds.some((id) => l.includes(id)));
+        const pasteLines = since.filter((l) => l.includes("the phone's paste:")).length;
+        const removeLines = since.filter((l) => l.includes("the phone's remove:")).length;
+        record('PSH14', 'the log: lines for the paste and the Remove, naming no pasted word and no write id', `paste-lines-remove-lines-clean`, `${pasteLines > 0 ? 'paste-lines' : 'NO-PASTE-LINE'}-${removeLines > 0 ? 'remove-lines' : 'NO-REMOVE-LINE'}-${leaked.length === 0 ? 'clean' : `LEAKED ${String(leaked.length)}: ${leaked[0]?.slice(0, 80) ?? ''}`}`, 'D50: the one line a write gets is the door’s, its verb and its outcome word; a paste’s words are logged nowhere.');
+      }
     }
 
     phones = phonesBefore;

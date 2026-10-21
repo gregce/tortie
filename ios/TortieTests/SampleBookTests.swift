@@ -20,14 +20,47 @@ final class SampleBookTests: XCTestCase {
         XCTAssertEqual(book.agents, ["claude", "codex"])
     }
 
-    /// Every one of the 36 states and all 54 questions each, every session,
+    /// Every one of the 288 states and all 54 questions each, every session,
     /// turns, screen, history and absence: decoded, and drawn by the screens'
-    /// own checks.
+    /// own checks. Phase 348 (build/p348/SPEC.md section 4.2 step 9) gave
+    /// every session a last variant, `removed`, so the 36 states became 288:
+    /// a removed session has no answer of its own and no list names it.
     func testEveryAnswerOfTheBundledBookDecodesAndDraws() throws {
         let book = try XCTUnwrap(SampleBook.bundled())
         let counted = try SampleBookFixture.assertWhole(book)
-        XCTAssertEqual(counted.states, 36)
-        XCTAssertEqual(counted.questions, 36 * 54)
+        XCTAssertEqual(counted.states, 288)
+        XCTAssertEqual(counted.questions, 288 * 54)
+    }
+
+    /// Phase 348 (D11, D30, D49, section 4.2 step 9): every session of the
+    /// bundled book is removed only after it ended (`removed` its last
+    /// variant, after `ended`); its ended detail carries the Mac's own Remove
+    /// words, as the Mac's composer wrote them, and a running one carries
+    /// none; and every picture the book draws says the Mac takes a paste, as
+    /// the composer says of a typable session on this Mac.
+    func testTheBundledBookRemovesAndPastesAsTheMacWould() throws {
+        let book = try XCTUnwrap(SampleBook.bundled())
+        for id in book.ids {
+            let variants = try XCTUnwrap(book.variants[id])
+            XCTAssertEqual(variants.last, SampleWorld.Variant.removed, "\(id) cannot be removed")
+            XCTAssertEqual(variants.filter { $0 == SampleWorld.Variant.removed }.count, 1, id)
+            XCTAssertTrue(variants.contains(SampleWorld.Variant.ended), id)
+            for variant in variants where variant != SampleWorld.Variant.removed {
+                let detail = try book.session(id: id, variant: variant, at: 1).session
+                guard variant != SampleWorld.Variant.ended else {
+                    let confirm = try XCTUnwrap(detail.removeConfirm, "\(id) ended offers no Remove")
+                    XCTAssertEqual(confirm.confirmLabel, Copy.remove, id)
+                    XCTAssertEqual(confirm.title, "\(Copy.remove) '\(detail.name)'?", id)
+                    XCTAssertFalse(confirm.body.isEmpty, id)
+                    XCTAssertNil(detail.endConfirm, "\(id) ended still offers End")
+                    continue
+                }
+                XCTAssertNil(detail.removeConfirm, "\(id) \(variant) offers Remove while it runs")
+                if let drawn = try book.screen(id: id, variant: variant, at: 1).answer.screen {
+                    XCTAssertTrue(drawn.paste, "\(id) \(variant): the Mac would take a paste here")
+                }
+            }
+        }
     }
 
     // MARK: The reader, over the tests' own book
@@ -36,6 +69,24 @@ final class SampleBookTests: XCTestCase {
         let counted = try SampleBookFixture.assertWhole(SampleBookFixture.book())
         XCTAssertEqual(counted.states, 6)
         XCTAssertEqual(counted.questions, 6 * 54)
+    }
+
+    /// Phase 348 (section 4.2 step 9): over the tests' own book with `s-done`
+    /// removable, every state still decodes and draws; a state with it
+    /// removed lists the other two alone, everywhere; it has no detail, no
+    /// turns and no screen; and its history was never the book's to hold.
+    func testARemovedSessionHasNoAnswerAndNoListNamesIt() throws {
+        let book = try XCTUnwrap(SampleBook(data: SampleBookFixture.removedData()))
+        let counted = try SampleBookFixture.assertWhole(book)
+        XCTAssertEqual(counted.states, 12)
+        XCTAssertEqual(counted.questions, 12 * 54)
+        let blocked = try book.blocked(state: "waiting.live.removed", at: 1)
+        XCTAssertEqual(blocked.rows.map(\.sessionId), ["s-wait"])
+        XCTAssertEqual(blocked.others.map(\.sessionId), ["s-idle"])
+        let all = SessionsQuery(show: .all, group: .project, sort: .recent, agent: nil, machine: nil)
+        XCTAssertEqual(try book.sessions(state: "waiting.live.removed", query: all, at: 1).rows.map(\.sessionId), ["s-wait", "s-idle"])
+        XCTAssertThrowsError(try book.session(id: "s-done", variant: SampleWorld.Variant.removed, at: 1)) { XCTAssertEqual($0 as? DoorFailure, .refused) }
+        XCTAssertThrowsError(try book.screen(id: "s-done", variant: SampleWorld.Variant.removed, at: 1)) { XCTAssertEqual($0 as? DoorFailure, .refused) }
     }
 
     /// The state key is each session's variant, in the book's order.
@@ -216,6 +267,8 @@ enum SampleBookFixture {
     static let blockedAgeNote = "Waits are timed from the first time Tortie saw them."
     static let sessionsAgeNote = "Ages are timed from the newest message."
     static let endedSentence = "This session is not running, so it has no terminal."
+    /// Phase 348: the variant after `ended`, which the book holds no answer for.
+    static let removed = "removed"
     static let movedSentence = "The history moved, so it is read again."
 
     /// The sessions' spaces, revisions and question prefixes.
@@ -227,6 +280,58 @@ enum SampleBookFixture {
 
     static func book() -> SampleBook {
         SampleBook(data: data())!
+    }
+
+    /// Phase 348: the book with `s-done` removable, its variants `ended` then
+    /// `removed`, and every state with it removed listing the other two
+    /// alone (the Mac's composer lists a removed session nowhere) under
+    /// groups that count two; no answer of its own at `removed`, as
+    /// build/p3333/sample.mjs writes none.
+    static func removedData() -> Data {
+        var object = whole()
+        object["variants"] = [variants[0], variants[1], ["ended", removed]]
+        let index = Dictionary(uniqueKeysWithValues: pairs.enumerated().map { ("\($1.0) \($1.1)", $0) })
+        var pieces = object["pieces"] as? [String: Any] ?? [:]
+        var groups = pieces["groups"] as? [[String: Any]] ?? []
+        let twoAt = groups.count
+        groups += [true, false].map { waiting -> [String: Any] in
+            [
+                "id": "AAAAAAAAAAAAAAAA", "label": "alpha", "machine": NSNull(), "folder": NSNull(),
+                "count": 2, "omitted": 0, "waiting": waiting, "collapsed": false
+            ]
+        }
+        pieces["groups"] = groups
+        object["pieces"] = pieces
+        var lists = object["lists"] as? [String: Any] ?? [:]
+        for first in variants[0] {
+            for second in variants[1] {
+                let shown = zip(ids, [first, second]).map { index["\($0) \($1)"]! }
+                let waiting = first == "waiting"
+                var sessions: [String: Any] = [:]
+                for show in SessionsShow.allCases {
+                    for group in SessionsGroupBy.allCases {
+                        for sort in SessionsSortBy.allCases {
+                            for agent in ["*", "claude", "codex"] {
+                                sessions["\(show.rawValue).\(group.rawValue).\(sort.rawValue).\(agent)"] = [
+                                    "rows": shown, "groups": [waiting ? twoAt : twoAt + 1], "agents": [0, 1], "machines": [2],
+                                    "total": 2, "omitted": 0
+                                ] as [String: Any]
+                            }
+                        }
+                    }
+                }
+                lists[[first, second, removed].joined(separator: ".")] = [
+                    "blocked": [
+                        "rows": waiting ? [shown[0]] : [Int](),
+                        "others": waiting ? Array(shown.dropFirst()) : shown,
+                        "othersOmitted": 0
+                    ] as [String: Any],
+                    "sessions": sessions
+                ] as [String: Any]
+            }
+        }
+        object["lists"] = lists
+        return try! JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
     }
 
     /// The book's bytes, changed by `edit` first.
@@ -276,20 +381,38 @@ enum SampleBookFixture {
         XCTAssertEqual(asked.count, 54, "the questions per state", file: file, line: line)
         for state in states(book) {
             counted.states += 1
+            // Phase 348: the sessions removed in this state, which no list may name.
+            let removed = Set(zip(book.ids, state.components(separatedBy: SampleBook.stateJoin)).filter { $0.1 == Self.removed }.map(\.0))
             let blocked = try book.blocked(state: state, at: at)
             XCTAssertEqual(blocked.at, at, file: file, line: line)
             XCTAssertNoThrow(try ListDrawing(blocked), "\(state) blocked", file: file, line: line)
+            XCTAssertTrue(Set((blocked.rows + blocked.others).map(\.sessionId)).isDisjoint(with: removed), "\(state): blocked lists a removed session", file: file, line: line)
             for query in asked {
                 counted.questions += 1
                 let answer = try book.sessions(state: state, query: query, at: at)
                 XCTAssertTrue(answer.asked.answers(query), "\(state) \(SampleBook.sessionsKey(query))", file: file, line: line)
                 XCTAssertNoThrow(try SessionsDrawing(answer, asked: query), "\(state) \(SampleBook.sessionsKey(query))", file: file, line: line)
+                XCTAssertTrue(Set(answer.rows.map(\.sessionId)).isDisjoint(with: removed), "\(state) \(SampleBook.sessionsKey(query)) lists a removed session", file: file, line: line)
             }
         }
         for id in book.ids {
             var spaces = Set<String>()
             var depths = Set<Int>()
             for variant in book.variants[id] ?? [] {
+                // Phase 348: a removed session has no detail, no turns and no
+                // screen of its own; the door would answer none.
+                if variant == Self.removed {
+                    XCTAssertThrowsError(try book.session(id: id, variant: variant, at: at), "\(id) removed has a detail", file: file, line: line) {
+                        XCTAssertEqual($0 as? DoorFailure, .refused, file: file, line: line)
+                    }
+                    XCTAssertThrowsError(try book.turns(id: id, variant: variant, at: at), "\(id) removed has turns", file: file, line: line) {
+                        XCTAssertEqual($0 as? DoorFailure, .refused, file: file, line: line)
+                    }
+                    XCTAssertThrowsError(try book.screen(id: id, variant: variant, at: at), "\(id) removed has a screen", file: file, line: line) {
+                        XCTAssertEqual($0 as? DoorFailure, .refused, file: file, line: line)
+                    }
+                    continue
+                }
                 let detail = try book.session(id: id, variant: variant, at: at)
                 XCTAssertEqual(detail.session.sessionId, id, file: file, line: line)
                 let turns = try book.turns(id: id, variant: variant, at: at)
@@ -322,7 +445,7 @@ enum SampleBookFixture {
                     XCTAssertEqual(drawn.lines[note.row], [], "\(id) \(variant): the note row is empty", file: file, line: line)
                 }
             }
-            guard book.variants[id]?.contains(where: { $0 != "ended" }) == true else { continue }
+            guard book.variants[id]?.contains(where: { $0 != "ended" && $0 != Self.removed }) == true else { continue }
             let history = try book.history(id: id)
             XCTAssertNil(history.why, file: file, line: line)
             XCTAssertEqual(history.pageFrom, 0, file: file, line: line)

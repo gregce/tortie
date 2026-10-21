@@ -9,7 +9,7 @@
  * for everything else. A path that is not in the list does not exist, and the
  * door refuses it before it reads a header, a query or a byte of body.
  *
- * ## Five questions, and four narrow writes declared here and done elsewhere
+ * ## The questions, and the narrow writes declared here and done elsewhere
  *
  * The blocked list (with, since Phase 316, every other session Tortie lists),
  * one session, that session's turns, (Phase 316.7) every listed session
@@ -62,12 +62,21 @@
  *
  * The writes (Phase 317, build/p317/SPEC.md §5.4; Phase 318,
  * build/p318/SPEC.md §5.1.5; Phase 337, build/p337/SPEC.md §5.4; Phase 346,
- * build/p346/SPEC.md §4.8) are DECLARED here, as {@link PocketWrites}, a
- * hand-written interface with five members, and done outside this domain
- * (`src/main/sessions/pocket-writes.ts`, which hands the reply's two to the
- * verbs in `src/main/reply/`, the keys to the verb in `src/main/screen/` and
- * the start to `src/main/sessions/pocket-start.ts`), which is handed in.
- * Nothing in this module can name the verb a write reaches.
+ * build/p346/SPEC.md §4.8; Phase 348, build/p348/SPEC.md §4.2, §4.6) are
+ * DECLARED here, as {@link PocketWrites}, a hand-written interface with seven
+ * members, and done outside this domain (`src/main/sessions/pocket-writes.ts`,
+ * which does End and (Phase 348) Remove itself and hands the reply's two to
+ * the verbs in `src/main/reply/`, the keys and the paste to the verbs in
+ * `src/main/screen/` and the start to `src/main/sessions/pocket-start.ts`),
+ * which is handed in. Nothing in this module can name the verb a write
+ * reaches.
+ *
+ * (Phase 348) Whether a phone may offer Remove on one session, and in which
+ * words, is composed outside this domain too ({@link
+ * PocketFacts.removeConfirmOf}) and copied here FIELD BY FIELD onto
+ * `/v1/session` as `removeConfirm`; and whether a screen takes a paste rides
+ * the screen answer as `paste`, copied ONLY while the route is served
+ * ({@link PocketFacts.pasteAllowed}).
  *
  * (Phase 346) Whether a phone may start a session, and what it may start, is
  * composed outside this domain too ({@link PocketFacts.start}), starting
@@ -163,6 +172,8 @@ import {
   type PocketEndOffer,
   type PocketHandoff,
   type PocketKeyItem,
+  type PocketPasteReason,
+  type PocketRemoveReason,
   type PocketReplyOffer,
   type PocketRouteId,
   type PocketScreen,
@@ -221,9 +232,10 @@ function isWriteRouteId(id: PocketRouteId): id is PocketWriteRouteId {
 
 /**
  * The write rows' ids, read from the table (Phase 317; Phase 318 added two;
- * Phase 337 one; Phase 346 one). Exactly `end`, `choose`, `say`, `keys` and
- * `start`, five, and `routes.test.ts` holds it to that list. It replaces
- * `pocketTableIsReadOnly()`, which Phase 317 made false.
+ * Phase 337 one; Phase 346 one; Phase 348 two). Exactly `end`, `choose`,
+ * `say`, `keys`, `start`, `remove` and `paste`, seven, and `routes.test.ts`
+ * holds it to that list. It replaces `pocketTableIsReadOnly()`, which Phase
+ * 317 made false.
  */
 export function pocketWriteRouteIds(): readonly PocketWriteRouteId[] {
   const ids: PocketWriteRouteId[] = [];
@@ -376,6 +388,22 @@ export interface PocketFacts {
    * the tests build their own facts, and a phone draws no "+".
    */
   start?(): PocketSessionsStart | undefined;
+  /**
+   * The Mac's Remove confirmation for one session, or null when Remove is not
+   * offered on it now (Phase 348, build/p348/SPEC.md §4.2 step 5, D49): the one
+   * implementation in `src/main/sessions/pocket-writes.ts` (`removeOffer`),
+   * which asks both gates the Mac's Remove asks over the row and its manifest
+   * record, asked only while a person allowed `remove`, handed in. A READ.
+   * OPTIONAL, AND ABSENT (or answering null) IS NO `removeConfirm`: the push
+   * seam and the tests build their own facts and offer no Remove.
+   */
+  removeConfirmOf?(session: Session): PocketEndConfirm | null;
+  /**
+   * Whether a person allowed `paste` (Phase 348, D30): the screen answer
+   * carries the composer's `paste` flag only while this answers exactly
+   * `true`. A READ. OPTIONAL, AND ABSENT IS NO `paste`.
+   */
+  pasteAllowed?(): boolean;
   now?(): number;
 }
 
@@ -442,6 +470,20 @@ export interface PocketKeysInput {
 }
 
 /**
+ * One paste, as the phone sent it (Phase 348, build/p348/SPEC.md §4.2 step 4,
+ * D28): the text exactly as its body held it (nothing trimmed, replaced or
+ * normalized), and the question id and the window's mark of the picture it was
+ * sent against, the keys body's lock, which the verb compares with a fresh
+ * reading before it types.
+ */
+export interface PocketPasteInput {
+  sessionId: string;
+  text: string;
+  turn: string;
+  dialog: string | null;
+}
+
+/**
  * The door's last check, handed to a verb that reads before it acts (Phase 318,
  * D5): the quit, this door instance stopping, the signing phone still paired.
  * The verb asks it AGAIN in its own final synchronous check, with nothing
@@ -456,8 +498,8 @@ export type PocketStillAllowed = () => boolean;
  * (`src/main/sessions/pocket-writes.ts`), and handed in. Nothing here can name
  * the verb it reaches (`conformance:pocket` R3).
  *
- * Hand written and narrow, like {@link PocketFacts}, with FIVE members and no
- * sixth; no member may set a status.
+ * Hand written and narrow, like {@link PocketFacts}, with SEVEN members and no
+ * eighth (Phase 348 added `remove` and `paste`); no member may set a status.
  */
 export interface PocketWrites {
   /**
@@ -483,7 +525,42 @@ export interface PocketWrites {
    * Answers an outcome and never throws.
    */
   start(input: PocketStartInput, still: PocketStillAllowed): Promise<PocketStartOutcome>;
+  /**
+   * Remove ONE session that has ended (Phase 348, build/p348/SPEC.md D48): both
+   * gates the Mac's Remove asks over the row re-read by id, then the Mac's own
+   * Remove and the broadcast, with nothing awaited between the verdict and the
+   * verb. It sets no status, kills nothing and sends nothing to any machine.
+   * Answers an outcome and never throws.
+   */
+  remove(input: { sessionId: string }): Promise<PocketRemoveOutcome>;
+  /**
+   * Paste ONE text into a running session on this Mac (Phase 348, D50), after
+   * one fresh reading and `still` asked once more, as a paste at the desk
+   * lands, with no Return added. Answers an outcome and never throws.
+   */
+  paste(input: PocketPasteInput, still: PocketStillAllowed): Promise<PocketPasteOutcome>;
 }
+
+/**
+ * What one Remove came to, as the write path answers it (Phase 348, D27,
+ * D48). `malformed` is the door's own word, decided before the act.
+ */
+export type PocketRemoveOutcome =
+  | { outcome: 'done' }
+  | { outcome: 'refused'; reason: Exclude<PocketRemoveReason, 'malformed'>; sentence: string }
+  | { outcome: 'failed'; sentence: string };
+
+/** Why a paste was refused by its verb (Phase 348): every paste reason but the door's own `malformed`. */
+export type PocketPasteRefusal = Exclude<PocketPasteReason, 'malformed'>;
+
+/**
+ * What one paste came to, as the write path answers it (Phase 348, D27, D50).
+ * `malformed` is the door's own word, decided before the act.
+ */
+export type PocketPasteOutcome =
+  | { outcome: 'done' }
+  | { outcome: 'refused'; reason: PocketPasteRefusal; sentence: string }
+  | { outcome: 'failed'; sentence: string };
 
 /** What a start names (Phase 346, D6): a project main offered and an agent, each an id. */
 export interface PocketStartInput {
@@ -1176,13 +1253,37 @@ function screenStyleOf(style: PocketScreenStyle): PocketScreenStyle | null {
 }
 
 /**
+ * THE WRAP MARKS AS THE DOOR SERVES THEM (Phase 348, build/p348/SPEC.md D43):
+ * a FRESH array of whole numbers, strictly ascending, each `0 <= r < limit -
+ * 1` (the last row is never listed: its next row is not in this answer), or
+ * null, which leaves the key off. An empty list is null too, so a screen with
+ * no marks is answered byte for byte as before. Never a reason to refuse the
+ * answer: a list of the wrong shape costs the marks and nothing else.
+ */
+function wrapsCopyOf(value: unknown, limit: number): number[] | null {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  const out: number[] = [];
+  let previous = -1;
+  for (const r of value as unknown[]) {
+    if (!wholeIn(r, 0, limit - 2) || r <= previous) return null;
+    out.push(r);
+    previous = r;
+  }
+  return out;
+}
+
+/**
  * The screen, copied FIELD BY FIELD with fresh arrays (D13), the contract's
  * caps held again (D15): past any one of them the answer is `large`, and a
  * value of the wrong shape is null, so nothing the watcher's object carries
  * beyond these fields, and nothing the phone's decoder would refuse whole, can
  * leave. Each cap is read once.
+ *
+ * PHASE 348 (D30, D43): `paste` is copied, as the literal `true`, ONLY when
+ * the caller says the route is served AND the composer set it, and is set
+ * nowhere else; `wraps` only after {@link wrapsCopyOf}'s own check.
  */
-function screenBodyOf(screen: PocketScreen): PocketScreen | 'large' | null {
+function screenBodyOf(screen: PocketScreen, pasteServed: boolean): PocketScreen | 'large' | null {
   if (typeof screen !== 'object' || screen === null) return null;
   const { cols, rows } = screen;
   if (!wholeIn(cols, 1, Number.MAX_SAFE_INTEGER) || !wholeIn(rows, 1, Number.MAX_SAFE_INTEGER)) return null;
@@ -1231,7 +1332,7 @@ function screenBodyOf(screen: PocketScreen): PocketScreen | 'large' | null {
     lines.push(row);
   }
   if (runs > POCKET_SCREEN_MAX_RUNS) return 'large';
-  return {
+  const body: PocketScreen = {
     cols,
     rows,
     cursor: { x: cursor.x, y: cursor.y, visible: cursor.visible },
@@ -1248,6 +1349,12 @@ function screenBodyOf(screen: PocketScreen): PocketScreen | 'large' | null {
     depth,
     space
   };
+  // PHASE 348 (D30): the paste flag, only where the route is served.
+  if (pasteServed && screen.paste === true) body.paste = true;
+  // PHASE 348 (D43): the wrap marks, after their own check, or no key.
+  const wraps = wrapsCopyOf(screen.wraps, rows);
+  if (wraps !== null) body.wraps = wraps;
+  return body;
 }
 
 /**
@@ -1259,8 +1366,17 @@ function screenBodyOf(screen: PocketScreen): PocketScreen | 'large' | null {
  * its sentence is main's own word for it; a screen past any cap, the whole
  * answer's bytes included, is `large`. Null when there is nothing honest to
  * answer, which the door answers as an unknown id.
+ *
+ * `pasteServed` (Phase 348, D30) is whether a person allowed `paste`, read by
+ * the screen route from {@link PocketFacts.pasteAllowed}; the composer's flag
+ * leaves only while it holds.
  */
-export function screenOf(answer: PocketScreenAnswer, sessionId: string, fallbackAt: number): PocketScreenAnswer | null {
+export function screenOf(
+  answer: PocketScreenAnswer,
+  sessionId: string,
+  fallbackAt: number,
+  pasteServed = false
+): PocketScreenAnswer | null {
   if (typeof answer !== 'object' || answer === null) return null;
   const revision = answer.revision;
   if (typeof revision !== 'string' || !isLowerHexOf(revision, SCREEN_REVISION_CHARS)) return null;
@@ -1282,7 +1398,7 @@ export function screenOf(answer: PocketScreenAnswer, sessionId: string, fallback
     const why = screenAbsenceOf(answer.why);
     return why === null ? null : absent(why);
   }
-  const screen = screenBodyOf(answer.screen as PocketScreen);
+  const screen = screenBodyOf(answer.screen as PocketScreen, pasteServed);
   if (screen === null) return null;
   if (screen === 'large') return absent('large');
   const composed: PocketScreenAnswer = { sessionId, revision, at, unchanged: false, screen, why: null, sentence: null };
@@ -1422,6 +1538,7 @@ export function scrollbackOf(
     if (why === null) return null;
     // Nothing else is carried beside a `why`, or the answer says two things.
     if (answer.from !== null || answer.depth !== null || answer.wrap !== null || answer.space !== null) return null;
+    if (answer.wraps !== undefined) return null;
     if (!Array.isArray(answer.rows) || answer.rows.length !== 0) return null;
     if (!Array.isArray(answer.styles) || answer.styles.length !== 0) return null;
     return {
@@ -1484,6 +1601,10 @@ export function scrollbackOf(
     why: null,
     sentence: null
   };
+  // PHASE 348 (D43): the page's wrap marks, indices into its rows, after their
+  // own check, or no key; the page's last row is never listed.
+  const wraps = wrapsCopyOf(answer.wraps, rows.length);
+  if (wraps !== null) composed.wraps = wraps;
   // The whole answer's bytes, as the door will send them, under the cap.
   if (Buffer.byteLength(JSON.stringify(composed), 'utf8') > POCKET_SCREEN_MAX_BYTES) return null;
   return composed;
@@ -1539,6 +1660,25 @@ export function createPocketRoutes(facts: PocketFacts): {
     }
     if (typeof offer !== 'object' || offer === null) offer = POCKET_NO_REPLY;
     return replyOf(offer, drawn);
+  };
+
+  /**
+   * PHASE 348 (D49). The Remove words for one session, asked of the one
+   * implementation ONCE and copied field by field, or null: no implementation,
+   * one that answers null, throws or answers anything but three strings.
+   */
+  const removeConfirmFor = (session: Session): PocketEndConfirm | null => {
+    if (facts.removeConfirmOf === undefined) return null;
+    let confirm: PocketEndConfirm | null;
+    try {
+      confirm = facts.removeConfirmOf(session);
+    } catch {
+      return null;
+    }
+    if (typeof confirm !== 'object' || confirm === null) return null;
+    const { title, body, confirmLabel } = confirm;
+    if (typeof title !== 'string' || typeof body !== 'string' || typeof confirmLabel !== 'string') return null;
+    return { title, body, confirmLabel };
   };
 
   return {
@@ -1648,6 +1788,13 @@ export function createPocketRoutes(facts: PocketFacts): {
         // live, so the phone draws a Screen row only where one can open.
         screen: facts.screen !== undefined && screenLive(session)
       };
+      // PHASE 348 (build/p348/SPEC.md D49). The Mac's own Remove words, word
+      // for word, set in this one place and ONLY when the one implementation
+      // offers Remove on this session now, which it asks only while a person
+      // allowed the route; copied field by field, so a client never draws a
+      // Remove whose words it would have to make up.
+      const removeConfirm = removeConfirmFor(session);
+      if (removeConfirm !== null) detail.removeConfirm = removeConfirm;
       return { session: detail, at };
     },
 
@@ -2002,7 +2149,9 @@ export function createPocketRoutes(facts: PocketFacts): {
       // AGAIN, after the hold: removed while the request was held is answered
       // as an id nobody has, and nothing of it leaves.
       if (sessionById(session.id) === undefined) return null;
-      return screenOf(answer, session.id, now());
+      // PHASE 348 (D30): the paste flag leaves only while a person allowed
+      // `paste`, asked here, as the answer leaves.
+      return screenOf(answer, session.id, now(), facts.pasteAllowed?.() === true);
     },
 
     /**

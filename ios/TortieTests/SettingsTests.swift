@@ -101,7 +101,7 @@ final class SettingsTests: XCTestCase {
         let unpaired = SettingsDrawing(facts: nil, list: nil, alertsLine: Copy.pairAgainForAlerts, permission: .authorized, settingsLine: nil, info: nil)
         XCTAssertNil(unpaired.notificationsState)
         XCTAssertNil(unpaired.alertsLine)
-        XCTAssertNil(unpaired.pairedLine)
+        XCTAssertNil(unpaired.pairedDate)
     }
 
     /// Clause: what iOS allows, in the phone's own words, a dash before it is
@@ -116,16 +116,18 @@ final class SettingsTests: XCTestCase {
         for word in words { XCTAssertFalse(word.lowercased() == "on", "the phone says alerts are on") }
     }
 
-    /// Clause: the This Mac card's lines: `read 4:32 PM` only from a LOADED
-    /// answer, `Paired · <date>` from when it paired, and the sentence under
-    /// Unpair only when the app holds one.
+    /// Clause: the This Mac group's lines: `read 4:32 PM` only from a LOADED
+    /// answer, the day it paired, which the `Paired` row draws on its right
+    /// as Version's row draws the version (Phase 348, D12; it was one joined
+    /// line, `Paired · <date>`, until then), and the sentence under Unpair
+    /// only when the app holds one.
     func testTheMacCardsLines() throws {
         let loaded = ListModel.drawn(Answers.blocked())
         guard case .loaded(let drawing) = loaded else { return XCTFail("\(loaded)") }
         let facts = Answers.facts(pairedAt: 1_759_190_400_000)
         let shown = SettingsDrawing(facts: facts, list: loaded, alertsLine: nil, permission: nil, settingsLine: nil, info: nil, date: { _ in "Sep 30, 2026" })
         XCTAssertEqual(shown.readLine, drawing.readLine)
-        XCTAssertEqual(shown.pairedLine, Copy.joined([Copy.paired, "Sep 30, 2026"]))
+        XCTAssertEqual(shown.pairedDate, "Sep 30, 2026")
         XCTAssertNil(shown.unpairLine)
         for state in [ListState.loading, .failed(Copy.macDidNotAnswer)] {
             XCTAssertNil(SettingsDrawing(facts: facts, list: state, alertsLine: nil, permission: nil, settingsLine: nil, info: nil).readLine, "\(state)")
@@ -181,7 +183,9 @@ final class SettingsTests: XCTestCase {
 
     /// Clause: the version line is the bundle's own version and build, a dash
     /// for either it does not say; and the app this test is hosted in is
-    /// 1.0.0, build 11 (Phase 345's several Macs, build/p345/SPEC.md D27;
+    /// 1.0.0, build 12 (Phase 348's phone polished, build/p348/SPEC.md: the
+    /// one archive cut from that phase's tree; build 11 was Phase 345's
+    /// several Macs, build/p345/SPEC.md D27;
     /// build 10 was Phase 333.3's See a sample, build/p3333/SPEC.md D23, the
     /// public and App Store build; build 9 was Phase 337.3's, set when it was rebased onto Phase 333.1,
     /// and the build submitted to Beta App Review on 2026-10-09; build 8 was
@@ -194,7 +198,7 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(AppVersion.line(["CFBundleShortVersionString": "", "CFBundleVersion": 4]), Copy.dash + " (" + Copy.dash + ")")
         XCTAssertEqual(AppVersion.line(nil), Copy.dash + " (" + Copy.dash + ")")
         #if os(iOS)
-        XCTAssertEqual(AppVersion.line(Bundle.main.infoDictionary), "1.0.0 (11)", "the app these tests are hosted in is not 1.0.0 (11)")
+        XCTAssertEqual(AppVersion.line(Bundle.main.infoDictionary), "1.0.0 (12)", "the app these tests are hosted in is not 1.0.0 (12)")
         #endif
     }
 
@@ -251,30 +255,34 @@ final class SettingsTests: XCTestCase {
         XCTAssertFalse(SettingsRows(root: .pairing).pairAnother)
     }
 
-    /// Clause (Phase 333.3, D13, D18): the body draws Unpair and its line only
-    /// under `rows.unpair`, then See a sample only under `rows.seeSample`,
-    /// directly under them and above About; See a sample is a card row in
-    /// Unpair's shape whose press opens the app's sample, identified
+    /// Clause (Phase 333.3, D13, D18; grouped since Phase 348, D12): the body
+    /// draws its groups in today's order, Unpair and its line only under
+    /// `rows.unpair`, then See a sample only under `rows.seeSample`, directly
+    /// under them and above About; See a sample is a group of its own, one
+    /// row in Unpair's shape whose press opens the app's sample, identified
     /// `settings-see-sample`; and the facts are nil inside the sample. Read
     /// from the source, because SwiftUI draws nothing in a unit test.
     func testSeeASampleIsUnderUnpairAndTheSampleDrawsNoMac() throws {
         let source = try StyleSource.text("ios/Tortie/Screens/SettingsScreen.swift")
         let start = try XCTUnwrap(source.range(of: "    var body: some View {")).lowerBound
-        let end = try XCTUnwrap(source.range(of: "/// `Settings`, 28/34 semibold", range: start..<source.endIndex)).lowerBound
+        let end = try XCTUnwrap(source.range(of: "// MARK: The groups, in today's order", range: start..<source.endIndex)).lowerBound
         let body = String(source[start..<end])
         let order = [
-            "macCard(facts, drawing: drawing)", "alertsCard(state: state, line: drawing.alertsLine)",
+            "macGroup(facts, drawing: drawing)", "alertsGroup(state: state, line: drawing.alertsLine)",
             "if rows.pairAnother {", "pairAnotherRow",
-            "if rows.unpair {", "unpairRow", "ID.settingsUnpairLine", "if rows.seeSample {", "seeSampleRow", "aboutCard(drawing.version)"
+            "if rows.unpair {", "unpairGroup(line: drawing.unpairLine)", "if rows.seeSample {", "seeSampleRow", "aboutCard(drawing.version)"
         ]
         let places = try order.map { needle in
             try XCTUnwrap(body.range(of: needle), "Settings' body does not draw \(needle)").lowerBound
         }
-        XCTAssertEqual(places, places.sorted(), "Pair another Mac is not between the Mac's cards and Unpair, or See a sample not under Unpair and above About, each under its own row's rule")
+        XCTAssertEqual(places, places.sorted(), "Pair another Mac is not between the Mac's groups and Unpair, or See a sample not under Unpair and above About, each under its own row's rule")
+        let unpair = try ScreensDrawingTests.body(of: "private func unpairGroup(", in: source)
+        for needle in ["footer: line.map { GroupFooter(words: $0, id: ID.settingsUnpairLine) }", "unpairRow"] {
+            XCTAssertTrue(unpair.contains(needle), "Unpair's group does not hold \(needle)")
+        }
         XCTAssertTrue(source.contains("facts: app.inSample ? nil : app.reader?.facts,"), "Settings in the sample may draw a Mac")
-        let row = try XCTUnwrap(source.range(of: "private var seeSampleRow: some View {")).lowerBound
-        let drawn = String(source[row...].prefix(800))
-        for needle in ["Button(action: openSample)", "Copy.seeSample", "Chevron()", ".frame(height: Frame.linkRowHeight)", ".card()", "ID.settingsSeeSample"] {
+        let drawn = try ScreensDrawingTests.body(of: "private var seeSampleRow: some View {", in: source)
+        for needle in ["group {", "Button(action: openSample)", "symbol(SettingsSymbol.seeSample)", "Copy.seeSample", "Chevron()", ".frame(height: Frame.linkRowHeight)", "ID.settingsSeeSample"] {
             XCTAssertTrue(drawn.contains(needle), "See a sample's row does not hold \(needle)")
         }
         let press = try XCTUnwrap(source.range(of: "    func openSample() {")).lowerBound
@@ -282,25 +290,26 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(ID.settingsSeeSample, "settings-see-sample")
     }
 
-    /// Clause (Phase 345, D15): Pair another Mac is a card row in See a
-    /// sample's shape, 54 tall with the chevron of a row that opens
-    /// something, identified `settings-pair-another`, whose press opens the
-    /// app's sheet: it moves everything under it down by exactly one row and
-    /// one gap (`Frame.linkRowHeight + Frame.cardGap`, 66 points). The card
-    /// draws the Mac on screen's drawn name. Read from the source, because
-    /// SwiftUI draws nothing in a unit test; the press is driven.
+    /// Clause (Phase 345, D15; grouped since Phase 348, D12): Pair another
+    /// Mac is a group of its own, one row in See a sample's shape, 54 tall
+    /// past its symbol with the chevron of a row that opens something,
+    /// identified `settings-pair-another`, whose press opens the app's sheet:
+    /// it moves everything under it down by exactly one row and one group's
+    /// gap (`Frame.linkRowHeight + SettingsFrame.groupGap`, 78 points, where
+    /// it was one row and one card's gap, 66, before the page was grouped).
+    /// The card draws the Mac on screen's drawn name. Read from the source,
+    /// because SwiftUI draws nothing in a unit test; the press is driven.
     @MainActor
     func testPairAnotherMacIsOneRowThatOpensTheSheet() throws {
         let source = try StyleSource.text("ios/Tortie/Screens/SettingsScreen.swift")
-        let row = try XCTUnwrap(source.range(of: "private var pairAnotherRow: some View {")).lowerBound
-        let drawn = String(source[row...].prefix(800))
+        let drawn = try ScreensDrawingTests.body(of: "private var pairAnotherRow: some View {", in: source)
         for needle in [
-            "Button(action: pairAnother)", "Copy.pairAnotherMac", "Chevron()", ".frame(height: Frame.linkRowHeight)", ".card()",
-            "ID.settingsPairAnother", ".padding(.top, Frame.cardGap)"
+            "group {", "Button(action: pairAnother)", "symbol(SettingsSymbol.pairAnother)", "Copy.pairAnotherMac", "Chevron()",
+            ".frame(height: Frame.linkRowHeight)", "ID.settingsPairAnother"
         ] {
             XCTAssertTrue(drawn.contains(needle), "Pair another Mac's row does not hold \(needle)")
         }
-        XCTAssertEqual(Frame.linkRowHeight + Frame.cardGap, 66, "the row no longer moves what is under it by 66 points")
+        XCTAssertEqual(Frame.linkRowHeight + (try Self.length("groupGap", in: source)), 78, "the row no longer moves what is under it by one row and one group's gap")
         XCTAssertTrue(source.contains("Words(drawing.macName ?? facts.name, .lead, Tokens.textPrimary)"), "the card does not draw the Mac's drawn name")
         XCTAssertTrue(source.contains("drawnName: app.chosen.map { app.drawnName($0) }"), "the card is not handed the Mac on screen's drawn name")
         XCTAssertEqual(ID.settingsPairAnother, "settings-pair-another")
@@ -314,5 +323,126 @@ final class SettingsTests: XCTestCase {
         XCTAssertTrue(sheet.keepsOthers)
         XCTAssertEqual(sheet.line, Copy.notPairedHere)
         XCTAssertEqual(settings.drawing.macName, "studio")
+    }
+
+    // MARK: - Grouped, like the iPhone's own Settings (Phase 348, D12)
+
+    /// Clause (D12, his words "redesign the settings screen on the phone to
+    /// make it look better"): an inset grouped page of the house pieces and
+    /// never SwiftUI's own list. Every group is one card drawn by ONE
+    /// `group(` piece, with its raised header above the card and its footer
+    /// under it in the secondary words; nothing else in the file draws a card,
+    /// and no system list, form or section is named.
+    func testSettingsIsGroupedFromTheHousePieces() throws {
+        let source = try StyleSource.text("ios/Tortie/Screens/SettingsScreen.swift")
+        for system in ["List {", "List(", "Form {", "Section(", "Section {", ".listStyle(", "LabeledContent("] {
+            XCTAssertFalse(source.contains(system), "Settings names the system's \(system)")
+        }
+        XCTAssertEqual(source.components(separatedBy: ".card()").count, 2, "a card is drawn outside the one group piece")
+        let piece = try ScreensDrawingTests.body(of: "private func group<Rows: View>(", in: source)
+        let header = try XCTUnwrap(piece.range(of: "RaisedLabel(header)"), "a group's header is not the raised label").lowerBound
+        let card = try XCTUnwrap(piece.range(of: ".card()"), "a group draws no card").lowerBound
+        let footer = try XCTUnwrap(piece.range(of: "Words(footer.words, .secondary, Tokens.textSecondary, lines: nil)"), "a group's footer is not the secondary words").lowerBound
+        XCTAssertTrue(header < card && card < footer, "a group is not its header, its card, then its footer")
+        XCTAssertTrue(piece.contains(".accessibilityIdentifier(footer.id)"), "a footer is not identified")
+        // Rows inside a card are parted by a hairline from the text column.
+        let line = try ScreensDrawingTests.body(of: "private func rowLine(symbols: Bool)", in: source)
+        for needle in ["if symbols {", "symbolSpace", "Hairline()", ".padding(.leading, Frame.cardPadding)"] {
+            XCTAssertTrue(line.contains(needle), "the rows' hairline does not hold \(needle)")
+        }
+        // Every group is drawn by the piece: six, in today's order.
+        for head in ["private func macGroup(", "private func alertsGroup(", "private var pairAnotherRow: some View {", "private func unpairGroup(", "private var seeSampleRow: some View {", "private func aboutCard("] {
+            let drawn = try ScreensDrawingTests.body(of: head, in: source)
+            XCTAssertTrue(drawn.contains("group(") || drawn.contains("group {"), "\(head) is not drawn as a group")
+        }
+    }
+
+    /// Clause (D12): four symbols, SF Symbols' own, in the secondary text
+    /// colour with no tile and hidden from VoiceOver: `desktopcomputer` on
+    /// the Mac's name, `bell.badge` on Notifications, `plus.circle` on Pair
+    /// another Mac and `eye` on See a sample, each drawn once and no other.
+    func testTheFourSymbols() throws {
+        let source = try StyleSource.text("ios/Tortie/Screens/SettingsScreen.swift")
+        let names = try ScreensDrawingTests.body(of: "private enum SettingsSymbol {", in: source)
+        let declared = names.components(separatedBy: "\n").compactMap { line -> String? in
+            guard let open = line.range(of: "= \""), let close = line.range(of: "\"", range: open.upperBound..<line.endIndex) else { return nil }
+            return String(line[open.upperBound..<close.lowerBound])
+        }
+        XCTAssertEqual(declared, ["desktopcomputer", "bell.badge", "plus.circle", "eye"])
+        for (symbol, place) in [("mac", "private func macGroup("), ("notifications", "private func alertsGroup("), ("pairAnother", "private var pairAnotherRow: some View {"), ("seeSample", "private var seeSampleRow: some View {")] {
+            XCTAssertEqual(source.components(separatedBy: "symbol(SettingsSymbol.\(symbol))").count, 2, "\(symbol) is drawn other than once")
+            XCTAssertTrue(try ScreensDrawingTests.body(of: place, in: source).contains("symbol(SettingsSymbol.\(symbol))"), "\(symbol) is not drawn by \(place)")
+        }
+        XCTAssertEqual(source.components(separatedBy: "Image(systemName:").count, 2, "Settings draws a symbol outside its one symbol piece")
+        let piece = try ScreensDrawingTests.body(of: "private func symbol(_ name: String)", in: source)
+        for needle in ["Image(systemName: name)", ".foregroundStyle(Tokens.textSecondary)", ".frame(width: SettingsFrame.symbolColumn)", ".accessibilityHidden(true)"] {
+            XCTAssertTrue(piece.contains(needle), "a symbol is not drawn with \(needle)")
+        }
+        for tile in [".background(", ".clipShape(", ".fill(", "RoundedRectangle("] {
+            XCTAssertFalse(piece.contains(tile), "a symbol is drawn on a tile (\(tile))")
+        }
+    }
+
+    /// Clause (D12, "no regression against today"): every row that presses is
+    /// at least as tall as the parent's, the whole card row pressing: Pair
+    /// another Mac, Unpair this iPhone and See a sample 54, Notifications and
+    /// About's three site rows at least 44 (build/p348/SPEC.md §2.8).
+    func testEveryPressableRowIsAtLeastTodaysHeight() throws {
+        let source = try StyleSource.text("ios/Tortie/Screens/SettingsScreen.swift")
+        XCTAssertEqual(Frame.linkRowHeight, 54)
+        XCTAssertEqual(try Self.length("lineHeight", in: source), 44)
+        for head in ["private var pairAnotherRow: some View {", "private var unpairRow: some View {", "private var seeSampleRow: some View {"] {
+            let row = try ScreensDrawingTests.body(of: head, in: source)
+            XCTAssertTrue(row.contains(".frame(height: Frame.linkRowHeight)"), "\(head) is not 54 tall")
+            let frame = try XCTUnwrap(row.range(of: ".frame(height: Frame.linkRowHeight)")).lowerBound
+            let shape = try XCTUnwrap(row.range(of: ".contentShape(Rectangle())"), "\(head) presses its words alone").lowerBound
+            let pad = try XCTUnwrap(row.range(of: ".padding(.horizontal, Frame.cardPadding)"), "\(head) is not inset in its card").lowerBound
+            XCTAssertTrue(pad < frame && frame < shape, "\(head)'s press is not the whole card row")
+        }
+        for head in ["private func alertsGroup(", "private func siteRow("] {
+            let row = try ScreensDrawingTests.body(of: head, in: source)
+            XCTAssertTrue(row.contains(".frame(minHeight: SettingsFrame.lineHeight)"), "\(head)'s row is not at least 44 tall")
+            XCTAssertTrue(row.contains(".contentShape(Rectangle())"), "\(head)'s row presses its words alone")
+        }
+        // The Notifications row is still ONE element that contains its state.
+        let alerts = try ScreensDrawingTests.body(of: "private func alertsGroup(", in: source)
+        let state = try XCTUnwrap(alerts.range(of: ".accessibilityIdentifier(ID.settingsNotificationsState)")).lowerBound
+        let contain = try XCTUnwrap(alerts.range(of: ".accessibilityElement(children: .contain)")).lowerBound
+        let row = try XCTUnwrap(alerts.range(of: ".accessibilityIdentifier(ID.settingsNotifications)\n")).lowerBound
+        XCTAssertTrue(state < contain && contain < row, "the Notifications row no longer contains its state")
+    }
+
+    /// Clause (D12): Paired is a labelled row, `Paired` on the left and the
+    /// day on the right as Version is, the day identified `settings-paired`;
+    /// and the two lines are their groups' footers, `Pair again to get
+    /// alerts.` under Alerts and the could-not-forget sentence under Unpair.
+    func testPairedIsALabelledRowAndTheLinesAreFooters() throws {
+        let source = try StyleSource.text("ios/Tortie/Screens/SettingsScreen.swift")
+        XCTAssertFalse(source.contains("Copy.joined([Copy.paired"), "Paired is still one joined line")
+        let mac = try ScreensDrawingTests.body(of: "private func macGroup(", in: source)
+        let label = try XCTUnwrap(mac.range(of: "Words(Copy.paired, .body, Tokens.textPrimary)"), "the Paired row has no label").lowerBound
+        let date = try XCTUnwrap(mac.range(of: "Words(paired, .body, Tokens.textSecondary)"), "the Paired row has no day").lowerBound
+        let id = try XCTUnwrap(mac.range(of: ".accessibilityIdentifier(ID.settingsPaired)"), "the day is not identified").lowerBound
+        XCTAssertTrue(label < date && date < id, "the Paired row is not its label, then the day, identified")
+        XCTAssertTrue(mac.contains("if let paired = drawing.pairedDate {"), "the Paired row is not drawn from the day")
+        let alerts = try ScreensDrawingTests.body(of: "private func alertsGroup(", in: source)
+        XCTAssertTrue(alerts.contains("footer: line.map { GroupFooter(words: $0, id: ID.settingsAlertsLine) }"), "Pair again to get alerts. is not the Alerts group's footer")
+        let unpair = try ScreensDrawingTests.body(of: "private func unpairGroup(", in: source)
+        XCTAssertTrue(unpair.contains("footer: line.map { GroupFooter(words: $0, id: ID.settingsUnpairLine) }"), "the could-not-forget line is not the Unpair group's footer")
+        // Each container keeps its identifier, so every element read inside
+        // it before is read inside it still.
+        for (head, id) in [("private func macGroup(", "ID.settingsMac)"), ("private func alertsGroup(", "ID.settingsAlerts)"), ("private func aboutCard(", "ID.settingsAbout)")] {
+            XCTAssertTrue(try ScreensDrawingTests.body(of: head, in: source).contains(".accessibilityIdentifier(\(id)"), "\(head) is not identified \(id)")
+        }
+    }
+
+    /// One `static let <name>: CGFloat = <n>` of `SettingsFrame`, read from
+    /// the source, because the enum is private to its file.
+    static func length(_ name: String, in source: String) throws -> CGFloat {
+        let frame = try ScreensDrawingTests.body(of: "private enum SettingsFrame {", in: source)
+        let head = "static let \(name): CGFloat = "
+        let at = try XCTUnwrap(frame.range(of: head), "SettingsFrame holds no \(name)").upperBound
+        let digits = frame[at...].prefix { $0.isNumber }
+        return CGFloat(try XCTUnwrap(Double(String(digits)), "SettingsFrame.\(name) is not a whole number"))
     }
 }

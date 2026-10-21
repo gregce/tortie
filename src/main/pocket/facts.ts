@@ -51,7 +51,13 @@
  *     way: the phone's start (`../sessions/pocket-start.ts`), whose
  *     `sessionsKey` answers whether the route waits for its Allow or what a
  *     phone may start, composed STARTING NOTHING. This module never imports
- *     it. Absent, the Sessions answer carries no `start` key.
+ *     it. Absent, the Sessions answer carries no `start` key;
+ *   - `removeConfirmOf` and `pasteAllowed` (Phase 348, build/p348/SPEC.md
+ *     §4.2 step 5, D30, D49) are handed in the same way: the phone's Remove
+ *     words for one session (`../sessions/pocket-writes.ts`'s `removeOffer`,
+ *     asked only while a person allowed `remove`) and whether a person
+ *     allowed `paste`. This module imports neither. Absent, no session
+ *     carries `removeConfirm` and no screen answer carries `paste`.
  *
  * ## What this module never does
  *
@@ -66,6 +72,7 @@
 import type { SessionChoiceInfo } from '@shared/ipc/sessions';
 import type {
   PocketCatchUp,
+  PocketEndConfirm,
   PocketEndOffer,
   PocketReplyOffer,
   PocketScreenAnswer,
@@ -150,6 +157,19 @@ export interface PocketFactsDeps {
    * whether the route is served. A READ that starts nothing. Absent, no key.
    */
   start?: () => PocketSessionsStart | undefined;
+  /**
+   * The phone's Remove words for one session, or null when Remove is not
+   * offered on it now (Phase 348, D49): handed in by `../capabilities.ts`,
+   * which asks whether a person allowed `remove` first. A READ. Absent, no
+   * session carries `removeConfirm`.
+   */
+  removeConfirmOf?: (session: Session) => PocketEndConfirm | null;
+  /**
+   * Whether a person allowed `paste` (Phase 348, D30): the host's
+   * `pasteAllowed`, handed in by `../capabilities.ts`. A READ. Absent, no
+   * screen answer carries `paste`.
+   */
+  pasteAllowed?: () => boolean;
   now?(): number;
 }
 
@@ -372,6 +392,8 @@ export function createPocketFacts(deps: PocketFactsDeps): PocketFacts & {
     ...(deps.screen !== undefined ? { screen: deps.screen } : {}),
     ...(deps.scrollback !== undefined ? { scrollback: deps.scrollback } : {}),
     ...(deps.start !== undefined ? { start: deps.start } : {}),
+    ...(deps.removeConfirmOf !== undefined ? { removeConfirmOf: deps.removeConfirmOf } : {}),
+    ...(deps.pasteAllowed !== undefined ? { pasteAllowed: deps.pasteAllowed } : {}),
     now
   };
 }
