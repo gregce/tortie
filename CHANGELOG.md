@@ -8,12 +8,12 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Added
 
-- After you pair your iPhone with a Mac, it opens on that Mac's Sessions. Each launch after that still opens on Needs input
-- Remove a session you ended from your iPhone, with the question your Mac asks, and it moves to Past Sessions on your Mac, where you can restore it. Your Mac asks you to allow this once, in Settings then Phone
-- Settings on your iPhone is grouped like the iPhone's own Settings, with the same rows in the same order
-- The iPhone's lists end with the time they were read, and no longer with a note about how waits are timed
-- The iPhone's tabs have the iPhone's own title bar, and New session is a "+" on its own at the top right, away from Select
-- Paste into the terminal of a session on your Mac from your iPhone with iOS's own Paste, a keyboard's Command-V or a pinch open with three fingers, and your Mac asks you to allow pasting once, in Settings then Phone. A line the terminal wrapped copies back as one line, except where it wrapped at a space
+- After you pair your iPhone with a Mac, it opens on that Mac's Sessions. Each launch after that still opens on Needs input ([`b944aa20`](https://github.com/gregce/tortie/commit/b944aa20))
+- Remove a session you ended from your iPhone, with the question your Mac asks, and it moves to Past Sessions on your Mac, where you can restore it. Your Mac asks you to allow this once, in Settings then Phone ([`b944aa20`](https://github.com/gregce/tortie/commit/b944aa20))
+- Settings on your iPhone is grouped like the iPhone's own Settings, with the same rows in the same order ([`b944aa20`](https://github.com/gregce/tortie/commit/b944aa20))
+- The iPhone's lists end with the time they were read, and no longer with a note about how waits are timed ([`b944aa20`](https://github.com/gregce/tortie/commit/b944aa20))
+- The iPhone's tabs have the iPhone's own title bar, and New session is a "+" on its own at the top right, away from Select ([`b944aa20`](https://github.com/gregce/tortie/commit/b944aa20))
+- Paste into the terminal of a session on your Mac from your iPhone with iOS's own Paste, a keyboard's Command-V or a pinch open with three fingers, and your Mac asks you to allow pasting once, in Settings then Phone. A line the terminal wrapped copies back as one line, except where it wrapped at a space ([`b944aa20`](https://github.com/gregce/tortie/commit/b944aa20))
 
 ## 0.112.0 (2026-10-17)
 
