@@ -249,7 +249,7 @@ const reader = await import('./p33311/swift-wire.mjs');
  * a retirement that removes a set's files without lowering the floor is red,
  * and so is one that lowers the floor without naming the label here.
  */
-const FROZEN_SETS_FLOOR = 2;
+const FROZEN_SETS_FLOOR = 3;
 /**
  * Every frozen set retired by his ruling, label → '<date>: <his words>'. A
  * label any committed copy holds and no working set holds must be named
@@ -2594,7 +2594,10 @@ async function clauseR2(sets) {
           say: async (input) => (calls.push({ verb: 'say', input }), { outcome: 'done' }),
           keys: async (input) => (calls.push({ verb: 'keys', input }), { outcome: 'done' }),
           // PHASE 346 (build/p346/SPEC.md D5, D12): a start answers the session it made.
-          start: async (input) => (calls.push({ verb: 'start', input }), { outcome: 'done', session: { id: 'p33311-replayed', name: 'claude-1' } })
+          start: async (input) => (calls.push({ verb: 'start', input }), { outcome: 'done', session: { id: 'p33311-replayed', name: 'claude-1' } }),
+          // PHASE 348 (build/p348/SPEC.md D28): Remove and paste answer done in their own shapes, so build 12's set replays.
+          remove: async (input) => (calls.push({ verb: 'remove', input }), { outcome: 'done' }),
+          paste: async (input) => (calls.push({ verb: 'paste', input }), { outcome: 'done' })
         };
         const handler = writesMod.createPocketWriteHandler({ shuttingDown: () => false, stillPaired: () => true, routeServed: (id) => served.includes(id), writes, now: () => Number(r.timestamp) });
         const answer = await quietly(() => handler(route, Buffer.from(r.body ?? '', 'utf8'), parties.phone.id, { stopping: () => false }));
@@ -2609,7 +2612,9 @@ async function clauseR2(sets) {
           choose: { sessionId: body.session, question: body.question, mark: body.mark, marker: body.marker },
           say: { sessionId: body.session, text: body.text },
           keys: { sessionId: body.session, keys: body.keys, turn: body.turn, dialog: body.dialog },
-          start: { project: body.project, agent: body.agent }
+          start: { project: body.project, agent: body.agent },
+          remove: { sessionId: body.session },
+          paste: { sessionId: body.session, text: body.text, turn: body.turn, dialog: body.dialog }
         }[fr.id];
         if (answer?.status !== 200) fail('R2', `${where}: the shipping write path answers ${String(answer?.status)}`);
         if (calls.length !== 1 || calls[0].verb !== fr.id) fail('R2', `${where}: the shipping write path reached ${calls.map((c) => c.verb).join(', ') || 'no verb'}, not exactly ${fr.id}`);

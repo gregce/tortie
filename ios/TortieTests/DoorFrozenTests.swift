@@ -404,6 +404,8 @@ enum FrozenRoute {
         case "scrollback": return try decoder.decode(PocketScrollbackAnswer.self, from: data)
         case "end", "choose", "say", "keys": return try decoder.decode(PocketWriteAnswer.self, from: data)
         case "start": return try decoder.decode(PocketStartAnswer.self, from: data)
+        case "remove": return try decoder.decode(PocketRemoveAnswer.self, from: data)
+        case "paste": return try decoder.decode(PocketPasteAnswer.self, from: data)
         case "qr": return try PairingOffer.parse(String(decoding: data, as: UTF8.self))
         default: throw NoRoute(route: route)
         }
@@ -451,6 +453,10 @@ enum FrozenRoute {
         case let answer as PocketWriteAnswer:
             if (json?["write"] as? String) == "", !answer.echoesNoId { return "lost:echoesNoId" }
         case let answer as PocketStartAnswer:
+            if (json?["write"] as? String) == "", !answer.echoesNoId { return "lost:echoesNoId" }
+        case let answer as PocketRemoveAnswer:
+            if (json?["write"] as? String) == "", !answer.echoesNoId { return "lost:echoesNoId" }
+        case let answer as PocketPasteAnswer:
             if (json?["write"] as? String) == "", !answer.echoesNoId { return "lost:echoesNoId" }
         default:
             break
@@ -803,7 +809,8 @@ enum FrozenRequest {
     /// request is a canonical-text vector and not a phone's own.
     private static func methodOf(_ path: String) -> String? {
         switch path {
-        case DoorClient.endTarget, DoorClient.chooseTarget, DoorClient.sayTarget, DoorClient.keysTarget, DoorClient.startTarget: return "POST"
+        case DoorClient.endTarget, DoorClient.chooseTarget, DoorClient.sayTarget, DoorClient.keysTarget, DoorClient.startTarget,
+             DoorClient.removeTarget, DoorClient.pasteTarget: return "POST"
         case DoorClient.pairTarget: return nil
         default: return "GET"
         }
@@ -827,7 +834,8 @@ enum FrozenRequest {
         }
         let number = { (name: String) -> Int? in values[name].flatMap { Int($0) } }
         switch path {
-        case DoorClient.blockedTarget, DoorClient.pairTarget, DoorClient.endTarget, DoorClient.chooseTarget, DoorClient.sayTarget, DoorClient.keysTarget, DoorClient.startTarget:
+        case DoorClient.blockedTarget, DoorClient.pairTarget, DoorClient.endTarget, DoorClient.chooseTarget, DoorClient.sayTarget, DoorClient.keysTarget, DoorClient.startTarget,
+             DoorClient.removeTarget, DoorClient.pasteTarget:
             return parts.count == 1 ? (path, nil) : nil
         case "/v1/session":
             guard names == ["id"], let id = values["id"] else { return nil }
@@ -899,6 +907,14 @@ enum FrozenRequest {
             guard named == ["agent", "project", "write"], let f = fields, let agent = f["agent"] as? String,
                   let project = f["project"] as? String, let write = f["write"] as? String else { return "unreadable" }
             return encoded(StartBody(agent: agent, project: project, write: write))
+        case DoorClient.removeTarget:
+            guard named == ["session", "write"], let f = fields, let session = f["session"] as? String,
+                  let write = f["write"] as? String else { return "unreadable" }
+            return encoded(RemoveBody(session: session, write: write))
+        case DoorClient.pasteTarget:
+            guard named == ["dialog", "session", "text", "turn", "write"], let f = fields, let session = f["session"] as? String,
+                  let text = f["text"] as? String, let turn = f["turn"] as? String, let write = f["write"] as? String else { return "unreadable" }
+            return encoded(PasteBody(dialog: f["dialog"] as? String, session: session, text: text, turn: turn, write: write))
         default:
             return ""
         }
