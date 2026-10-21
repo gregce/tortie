@@ -4,7 +4,9 @@ Each commit appears once under Added, Changed or Fixed. Every bullet stays on on
 
 The operator set the style on 2026-08-23 by rewriting every entry, and it binds every entry after. An item is one or two sentences. It says what a person can now do or what no longer goes wrong, in plain words, and then stops. A limit that a person will hit goes in the same item in one clause, e.g. "Saves have no undo", and a limit nobody will hit stays in the commit body. No measured numbers unless the number is the point. No build story, no file names, no gate names. The lead paragraph says what the release is about in two or three sentences and lists nothing.
 
-## Unreleased
+## 0.113.0 (2026-10-20)
+
+This release is about your iPhone, which gets build 12 of Tortie for iPhone on TestFlight. From your iPhone you can now remove a session you ended and paste into a session's terminal, and its title bars and Settings look like the iPhone's own. Your Mac asks you once, in Settings then Phone, to allow the two new things.
 
 ### Added
 
