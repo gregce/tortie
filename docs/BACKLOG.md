@@ -43672,6 +43672,464 @@ needs_work goes to him.
 
 ---
 
+## Phase 350 — "scrollback not working on the phone for pi agent compared to claude and fix that (and test it on our other supported agents, too)" and "In pi: I can't scroll back on my iPhone" — scroll back pi and every full-screen agent from the phone (operator, 2026-10-30; John Berryman, issue 42)
+
+**Subject.** `feat(pocket): scroll back pi on the iPhone, and page a full-screen agent`
+
+**First body line.** `Phase 350: scroll back a full-screen agent from the phone`
+
+**Semver.** Minor, unreleased, Mac and phone, each half on his word (D12). No phone phase moves the build number until
+the next archive (his rule, `docs/BACKLOG.md:45404`). CHANGELOG items under `## Unreleased`, both under `### Added`,
+because one commit is told in one section:
+
+- "Tortie now starts pi on this Mac with its conversation in the terminal's scrollback, as it does Claude Code and
+  Codex, so your iPhone and your Mac each scroll back through it on their own; pi's own full-screen view is not
+  available inside Tortie, and a pi on another machine or one already running keeps its view until it is next
+  restored. Reported by [John Berryman](https://github.com/JnBrymn) in
+  [#42](https://github.com/gregce/tortie/issues/42)"
+- "On your iPhone, pull a full-screen agent's terminal down past its top to page back through it, or up past its
+  bottom to page forward; the agent pages on your Mac too."
+
+**Tier 3.** It changes how pi is launched and resumed, and a pass rewrites recorded rows' resume argv, which is the
+manifest and restore; it claims to work across every agent, here and on another machine, so its evidence is a per-row
+matrix; and it widens what a phone may type into a session from the internet. His lighter checking covers Tier 1 and
+Tier 2 only (`docs/BACKLOG.md:45378`). Two independent methods, one an attack; fix once, reverify once.
+
+**Charter.** Issue 42, "Feature Request: scrollable iphone UI", by John Berryman (JnBrymn), 2026-10-26: "When I run pi
+in Tortie the output of the agent is sometimes quite long and I want to scroll back and read it. As best I can tell,
+the iPhone doesn't allow me to scroll back which limits the utility of the iPhone." Asked on 2026-10-27 whether he was
+on the current versions, he answered on 2026-10-28: "In pi: I can't scroll back on my iPhone, but if I scroll the pi
+session back on my computer and watch my iPhone it scrolls back. In claude: I _can_ scroll back on my iPhone and my
+computer screen is unchanged. If I scroll on my computer then my iPhone is unchanged." The operator, 2026-10-30: "look
+at github for the latest comment from john about scrollback not working on the phone for pi agent compared to claude
+and fix that (and test it on our other supported agents, too)". The research is that day's read-only investigation of
+the Mac, the phone and every agent, and an adversary's attack on all three; this entry carries the attack's
+corrections. There is no `docs/research/` document, so the spec writes what it measures into `build/p350/SPEC.md`
+before any builder starts. To answer his request the phase lifts Phase 337's refusal of Page Up and Page Down, for those
+two keys only (`build/p337/SPEC.md:1276-1277`), restates 337.1's §1 item 3 (`build/p3371/SPEC.md:96-97`), and builds
+the version floor that research 134 requires before pi's switch may be compiled
+(`docs/research/134-inline-mode-every-agent.md:258-287`). His standing rules bind: inline wherever a switch can be had
+("i like the inline mode lets do that", `docs/BACKLOG.md:36571`); no regression against today; just enough words; a
+new route waits for its own Allow; nothing released without his word. **It starts once 349 lands, on 349's landed
+tree**, which edits most of the files this phase edits. Line numbers are origin/main's (`40aebfcc`), and this file's
+own are as it reads with this entry in it.
+
+### What was measured before this entry was written, so no round re-derives it
+
+On scratch tmux servers (`-L p350-<role>-<pid>`, `-f /dev/null`, then `resources/gmux-tmux.conf`'s options) of the
+vendored 3.7b and Homebrew's 3.6a, with node stand-ins that draw committed screens and log every byte, and the shipping
+modules run under the pinned tsx. No agent, Electron or Simulator ran. The two versions agreed on every reading but
+timings and one format 3.7 alone has.
+
+- **Why the phone draws pi with nothing above it.** A screen read names the alternate screen and the history size,
+  and nothing about the mouse (`src/main/screen/read.ts:69-70`). `composeScreen` sets `depth` and `space` only off
+  the alternate screen (`src/main/screen/compose.ts:555`, `:574-575`), the page reader refuses the alternate screen as
+  `moved` (`src/main/screen/scrollback.ts:556-563`), and the phone drops what it held
+  (`ios/Tortie/Screens/ScreenScrollback.swift:349-358`). A stand-in sending what pi's full-screen renderer sends under
+  tmux (`1049`, `?7l`, `1000`, `1002`, `1004`, `1006`) composed `alternate: true`, `depth: null`, `space: null`.
+  tmux's history read 11 lines before and after 300 lines drawn on the alternate screen, and they were the lines from
+  before the switch.
+- **Why the Mac's wheel moves the phone's pi.** The renderer hands the wheel to a program that asked for the mouse
+  (`src/renderer/terminal/scroll/surface.ts:591-601`), and with Tortie's `mouse off` (`resources/gmux-tmux.conf:63`)
+  tmux forwards xterm's report to it: `ESC[<64;col;rowM` up and `65` down to a program that asked for `1006`, the
+  legacy `ESC[M` form to one that did not, byte for byte on both versions. Three notches moved the stand-in's top row
+  from `0195` to `0186`, the composed picture's first row moved with it, and `depth` stayed null.
+- **Why Claude is independent.** Claude runs inline on this Mac (`src/main/agents/registry.ts:687`). The Mac's wheel
+  parks the pane in copy mode (`src/main/tmux/scroll.ts:323`, `:680`) and the phone's capture has no `-M`
+  (`read.ts:256-258`): after 20 lines of scroll on the Mac the composed first row read `main 0272` before and after,
+  and the phone's page answered 20 rows from index 251.
+- **pi's versions**, from its installed 0.84.2 (the copy research 134 cites) and its upstream tags, read as text.
+  Before 0.84.0 pi has no full-screen view and no `--tui-mode`, and an unknown flag stops it after its trust question
+  (`docs/research/134-inline-mode-every-agent.md:280-281`). From 0.84.0 (2026-08-06) to 0.99.2 it is inline by
+  default. From 1.0.0 (published 2026-10-01, "Fullscreen by default") through 1.4.0 (2026-10-21) it is full screen by
+  default, asks for `1000`, `1002`, `1004` and `1006` under tmux (pi-tui `tui-alt-screen.ts:376-384` at v1.4.0), and
+  binds Page Up and Page Down to "Scroll viewport up one page" and down (`keybindings.ts:160-167`). The command line
+  beats the setting and the last `--tui-mode` wins (`args.ts:225-229`). John named no version: a pi drawing full
+  screen, a 1.x by default or an earlier one set to it, is the one mechanism found that produces both his sentences,
+  inferred and not read.
+- **The record is stale, and nothing could see it.** pi's row says `inline-already`, measured on 0.84.2
+  (`registry.ts:1546-1552`); `conformance:resume:capture` records an inline-already row read on the alternate screen
+  as a mismatch and never fails (`src/main/conformance/screen-class.ts:135-149`); the pi installed here is 0.84.2.
+- **Every agent**, one stand-in a row in its recorded modes (research 134's table, `:95-109`), 15 panes on 3.7b. The
+  inline rows (claude, codex, cursor, gemini, muse, pi 0.84, omp) had `depth` equal to the history (271 to 308), a
+  page captured 228 rows each, and the Mac's wheel parked copy mode while the phone's picture stayed. The full-screen
+  rows that take the mouse (pi 1.x, opencode, deepseek, qwen, antigravity in assumed modes, grok, a full-screen
+  Claude) had `depth` null, took 3 wheel reports each and scrolled 3, and the picture moved. A full-screen Codex
+  without its switch (`1049`, `1007`, no mouse) took the Mac's notches as `ESC [ A`.
+- **What the phone can send today.** 35 key names, none of them a page key (`src/shared/ipc/pocket.ts:1995`,
+  `:2007-2011`). A text holding ESC is refused `character` (`src/main/reply/text-rules.ts:43-60`); a `{w}` item and
+  `Escape` before text are `malformed` (`src/main/pocket/writes.ts:472-522`); `Escape` and then text 50 ms later reach
+  a program as two reads 57.9 and 60.9 ms apart; `send-keys WheelUpPane` types the word `WheelUpPane`, and the
+  carriage refuses it.
+- **Page keys.** tmux's `PPage` and `NPage` reached the program as `ESC[5~` and `ESC[6~` on both versions in every
+  mode measured (pi's full screen, the alternate screen alone, legacy mouse, application cursor keys, inline), as
+  Phase 337's committed fixture already records in its seven modes (`build/fixtures/screen/keys-encoding.json`). A
+  stand-in paged 24 lines and back to 0. Sent to a shell prompt (`zsh -f`, `bash --norc`, `/bin/sh -i`), one is one
+  `~`; node's readline reads one `pageup` key.
+- **The wheel from the phone, and why this phase does not send it.** `send-keys -H` writes a report into any program,
+  mouse or not, so the mode must be read first. With a stand-in that took and released the mouse every 200 ms, a read
+  and then a separate write put reports into a program that had let go: 3 and 5 times by spawned clients, 1 and 2 over
+  a control client, and at 14 of 19 and 19 of 21 mode changes with 40 ms between the read and the write, as a far
+  round trip makes it. Asked inside tmux in the same command (`if-shell -F`), it was once each, 0.33 and 0.31 ms late.
+  The two-field gate (`alternate_on`, `mouse_any_flag`) read true over a pane the desk had scrolled back, and a
+  keys-shaped act threw the desk to live and delivered; adding `pane_in_mode` closed it. A stray report types
+  `64;10;5M` at a shell prompt, and readline reads it as the keys `6`, `4`, `;`, `1`, `0`, `;`, `5`, `M`. pi parses
+  one report per input chunk (0.84.2 `dist/tui-alt-screen.js:505`, `:1060-1061`) and scales a wheel by its own clock
+  (`fullscreenWheelScrollLines: "auto"`, upstream `settings-defaults.ts:66`).
+- **pi inline is not Claude's quiet history.** pi's inline renderer clears with `CSI 2J`, `CSI H`, `CSI 3J` and prints
+  the conversation again on a size change, a change above the visible rows and three more cases (0.84.2
+  `dist/tui-main-screen.js:179-185`, `:238-259`, `:300-316`, `:345-350`). A stand-in doing that at 3,000 lines left
+  the history lower for 5.9 ms and then at 2,972 against 2,970, index 20 reading `line 00018` where it had read
+  `line 00020`; at 12,000 lines, 28.3 ms, and index 5,985 reading `05983`. Every refusal of the page reader passes,
+  and the phone's eight-row overlap check stops its paging with `Earlier lines changed on your Mac. Go back to the
+  live terminal to read them again.` (`ScreenScrollback.swift:105-114`; `src/shared/screen-copy.ts:46`).
+- **The phone's drag today.** Upright at the fitted zoom a full-screen program's rows fit the view, so a one-finger
+  drag only bounces (`ios/Tortie/Screens/ScreenScroller.swift:236-237`, `:519-521`) and nothing is sent; PS16 grades
+  exactly that, over a stand-in that takes no mouse and reads nothing (`build/p316/probe-p316.mjs:768`, `:7695`;
+  `build/p3371/history-stand-in.mjs:293`). PS16's drag is about 298 pt. Sideways, on the measured 750 × 382 pt
+  terminal, a 40-row program at 120 columns or fewer is taller than the view, so its rows pan first (cell sizes from
+  CoreText by the phone's own rule).
+- **Status.** The keys verb moves the question id and calls `noteUserInput` (`src/main/screen/keys.ts`, steps 5 and
+  7, and `:385`). A changed screen is read as work for an agent read from its screen
+  (`src/main/activity/state-machine.ts:404-407`), which every agent but claude, codex, deepseek and muse is
+  (`registry.ts:777`, `:970`, `:1040`, `:1269`, `:1450`, `:1545`, `:1634`, `:1775`, `:1897`). The reflow grace
+  discounts a repaint Tortie caused (`REFLOW_GRACE_MS`, 2,500 ms, `state-machine.ts:70`, `:336-349`).
+
+### The mechanism
+
+**pi, on this Mac.**
+
+1. **One token, behind a floor.** `PI_INLINE_ARGS`, `['--tui-mode', 'regular']`, spelled once beside
+   `CODEX_SCROLLBACK_ARGS` (`src/main/agents/registry.ts:598`). It sits in neither pi's `launch.argv` (`:1514`) nor
+   its `resume.template` (`:1527`), which would hand it to every pi. `launchArgvFor` and `resumeArgvFor`
+   (`:2206-2220`, `:2260`) put it straight after argv[0], before `--session-id <id>` and before a person's flags, only
+   when their caller says the floor holds; every caller says so explicitly, and the far ones
+   (`src/main/machines/remote-sessions.ts:1532`, `:1938`; `src/main/machines/remote-record.ts:667`) never do.
+   `fixedLaunchTokens` (`registry.ts:2082-2086`) names it at every version, so `ownLaunchFlags` (`:2106-2111`) and
+   `agentExtrasOf` (`src/main/sessions/launch-plan.ts:112-115`) never read it as the person's; Restart's
+   `recoverLaunchExtras` also puts it into the argv it compares (`src/main/restart/extras.ts:144-150`), which M2 makes
+   hold below the floor.
+2. **The floor** is `cachedAgentVersion('pi')` (`src/main/sessions/id-harvest.ts:113-118`) at 0.84.0 or later,
+   compared by the rule `compareSpecStoryVersions` uses (`src/shared/specstory-status.ts:397-411`), not a third copy
+   of it (the second is `src/main/skills/resolve.ts:239`). A version unread or unparseable is below it; D13 says when
+   it is read.
+3. **The record** (`registry.ts:1546-1552`) becomes `switch-to-inline`, carriage `argv`, with the tokens and the
+   floor, and it is true at every version, because below 0.84.0 pi has no full-screen view. `measured` names 0.84.2
+   live and 1.0.0 to 1.4.0 read as text, and the note's "recorded, not compiled" is replaced. The argv arm of the
+   record's type (`:404`) gains the optional floor.
+4. **The rows already written.** A pi arm in `src/main/sessions/inline-repair.ts`, beside its argv and env arms and
+   under its rules (no row emptied, a captured row re-wrapped or left alone, a row already right byte identical, one
+   column written): every local pi row with a conversation id, every status. Where the floor holds, the token goes in
+   after argv[0] and nothing else moves; where the version reads below it, the token Tortie put in that place, and in
+   no other, comes out; a version the scan could not read moves no row, because restore's arm already holds that case
+   (D13). A `--tui-mode` anywhere else is the person's and stays byte identical. The arm runs once per
+   process, when the agent scan first answers (`id-harvest.ts:97-104`), never before it, never on a timer, and never
+   on another machine's row. Restore arms what the row records (`src/main/restore/restore.ts:686-688`), less
+   Tortie's token while the floor does not hold (D13).
+
+**Every full-screen program, from the phone.**
+
+5. **Two keys.** `PPage` and `NPage` join `POCKET_SCREEN_KEY_NAMES` (`src/shared/ipc/pocket.ts:2007-2011`), 35 to
+   37, and its sentence naming §12 (`:1995`) is rewritten. Each is the only item of its write
+   (`src/main/pocket/writes.ts:519-520`). The act does not change: `copy-mode -q` then `send-keys -t <%pane> PPage` on
+   this Mac (`src/main/screen/keys.ts:35-44`, `:244`), and on another machine `typePhoneKeys`' `type-key` row, which
+   reads the contract's names (`src/main/machines/scroll-shapes.ts:264`, composed at `scroll-order.ts:1220`), so tmux
+   encodes the key for the program's current mode as it lands.
+6. **The offer.** An optional `pages?: boolean` on `PocketScreen` (`pocket.ts:2047-2101`), set beside `paste` in
+   `composeScreen` (`compose.ts:577-579`) when `display.alternate && extra.typable`, here and on another machine, and
+   copied by the door's field-by-field `screenBodyOf` beside it (`src/main/pocket/routes.ts:1286`, `:1353`). Absent
+   otherwise, and absent reads false.
+7. **The repaint.** After a keys act that is exactly one page key, the verb stamps, through its deps, the clock
+   `noteGeometryChange` stamps (`src/main/activity/monitor.ts:543-556`), beside its one `noteUserInput`, so the
+   program's redraw is discounted for `REFLOW_GRACE_MS` while a question it draws is still caught on time
+   (`state-machine.ts:336-341`).
+8. **The phone's names and offer.** `ScreenKeyName` gains `pageUp = "PPage"` and `pageDown = "NPage"`
+   (`ios/Tortie/Door/Contract.swift:2016-2051`). `pages` is read with `decodeIfPresent`, absent false, as `paste` is
+   (`:1734-1738`, `:1779`). The sample's `typeKeys` takes both (`ios/Tortie/Sample/SampleWorld.swift:242-270`).
+9. **The pull**, in `ios/Tortie/Screens/ScreenScroller.swift`: the vertical travel the scroll view's own pan reports,
+   read through `panGestureRecognizer.addTarget`, counted only past the top or the bottom of the program's rows.
+   Upright at the fitted zoom that is every pull; sideways or zoomed the rows pan first. Released past the threshold
+   M3 measures, a pull down past the top sends one `pageUp` and a pull up past the bottom one `pageDown`, through the
+   one `ScreenKeySender` (`ios/Tortie/Screens/ScreenKeys.swift:84-91`, `:141`, `:239`) with the picture's turn and
+   dialog, so a page keeps his order with keys and pastes and their pacing. Only on a picture whose `pages` is true,
+   and never while it asks, a selection is held (`ios/Tortie/Screens/Screen.swift:156-162`), the pinch runs or two
+   fingers are down (`ScreenScroller.swift:144-163`, `:363-377`). No new recognizer, no offset written, no word drawn
+   and no Face ID.
+
+### The decisions
+
+Where his words leave a choice, these are the defaults. He may overrule any before the first commit.
+
+- **D1. Two halves.** pi keeps its conversation in the scrollback wherever Tortie can switch it, which is the only road
+  to what John has with Claude: the phone pages tmux's history and the Mac stays put. Every full-screen picture pages
+  by Page Up and Page Down from the phone, which is the only road for the agents with no switch Tortie may compile,
+  for a pi on another machine and for a program typed in a shell. He may take either half alone.
+- **D2. The floor**, which research 134 asked for before pi's switch could be compiled, read on this Mac only,
+  because Tortie reads no agent's version on another machine (research 134 §5). His standing ruling makes inline the
+  default wherever a switch can be had; he may keep pi as it is and take the pages alone.
+- **D3. The pass handles only its own token.** The token's place, straight after argv[0], is one a person's flags
+  never take (`registry.ts:2206-2220`), so the pass tells it from a person's own `--tui-mode` and never touches
+  theirs. It waits for the agent scan because every version reads null before it, and restore changes only as D13
+  says.
+- **D4. Page keys, not the wheel.** tmux encodes a named key for the program's mode as it lands, so there is no read
+  and write to race and no encoding to choose; a stray page is one `~`, where a stray wheel report is digits; the
+  pages reach another machine through the existing `type-key` row with no new carriage shape; they are the scroll keys
+  of pi 1.x, opencode, Qwen, Gemini's opt-in view, grok's scrollback and, by its docs, DeepSeek (research 134 §3.3);
+  and a plain Page Up at the desk already goes to the program (`src/renderer/terminal/keys/index.ts:141-155`). The
+  wheel would need, as measured above: its gate asked inside tmux in the command that writes, a new carriage shape
+  for another machine, `pane_in_mode` in the gate and no `copy-mode -q` first, one report per write because pi parses
+  one per input chunk, pi's own scaling, a way back to the bottom, and a route with its own Allow. He may choose the
+  wheel; those are its conditions.
+- **D5. The pages ride `/v1/keys`, with no route and no Allow.** A page is a key a person types at this Mac, which the
+  route's clause, "type into any session as you would at this Mac", already says, and the row's method, path, signing,
+  window, cap and clause do not move (`src/main/pocket/route-ledger.ts:18-20`, `:74`). He may rule a route of its
+  own, as Phase 348 gave paste (`build/p348/SPEC.md:185`), with its own ledger row and Allow.
+- **D6. The Mac says when.** `pages` only on a picture of the alternate screen that takes keys, so a phone never sends
+  a page to a Mac that would answer it `malformed` (`writes.ts:472-489`), nor over an inline picture, where the phone
+  pages history.
+- **D7. One page a pull**, sent on lift: a page is never sent mid-pinch, and the program's own page decides the
+  distance. He may ask for pages during the pull instead.
+- **D8. Not while the screen asks.** A page key over a list can move its highlight (pi's next release does so for its
+  own lists in full screen, by its upstream `CHANGELOG.md`, Unreleased), and the keys' lock refuses only a stale
+  picture (`keys.ts:20-26`).
+- **D9. A page is a key, and its repaint is not work.** The verb's order and its one `noteUserInput` stay; the grace
+  is added so that paging never makes a session look busy, the rule `state-machine.ts:333-335` states for copy mode.
+  The desk's own wheel into a full-screen program is measured at the parent and not changed. He may overrule the
+  grace.
+- **D10. No words.** The pull draws nothing; the picture changing is the answer.
+- **D11. The record tells the truth** at every version (mechanism 3), so `conformance:resume:capture` fails a pi that
+  comes up full screen under the token.
+- **D12. The release.** The Mac half and the phone half each on his word, and either may ship first: a new phone
+  sends a page only where a picture offers it, and an older phone ignores `pages`.
+- **D13. The version is read before it decides, and no restore is worse than today.** At a boot with sessions to
+  show, no scan runs until Create Session, the quick create menu, Settings or the shortcuts overlay asks for one
+  (`src/main/sessions/core.ts:1536-1550`, `src/main/agents/detection.ts:701-706`), and the phone's start starts none
+  (`src/main/sessions/pocket-start.ts:304-311`), so until then the floor reads null, a pi starts as today and the pass
+  waits. The default: a boot whose manifest holds a local pi row starts the one memoised scan, as a boot with nothing
+  to show does, and a restore arms a local pi row with Tortie's token taken out while the floor does not hold, the
+  scan unanswered included, so a pi taken below 0.84.0 never stops after its trust question (research 134 §5). He may
+  keep Phase 164's boot as it is instead.
+
+### The proof, run rather than read
+
+**The spec measures first**, into `build/p350/SPEC.md`:
+
+- **M1, pi's rule at each band**, read from its source as text at 0.83.0, 0.99.2, 1.0.0 and 1.4.0: what each version
+  draws for each setting and argv, which the stand-in then applies.
+- **M2, the token's seam**, traced and driven over planted rows before any builder: both composers and every caller,
+  `fixedLaunchTokens`, `ownLaunchFlags`, `agentExtrasOf`, `recoverLaunchExtras`, the harvest's rescues, the pass and
+  restore's arm, for a pre-assign row whose fixed tokens come before `--session-id`, which no row has had; and when
+  D13's scan answers against a boot's first restore and the phone's first start.
+- **M3, the pull**, on iOS 26.3 and the 18.3 floor, an iPhone 16 Pro and an iPhone SE, through
+  `build/simulator-run.mjs`: that the scroll view's own pan reports travel while the rows fill the view under
+  `alwaysBounceVertical`; the threshold; a pinch, two fingers and a held selection; sideways and zoomed.
+- **M4, the page keys' bytes** in every mode on the vendored 3.7b, Homebrew's 3.6a and each build
+  `build/build-tmux-version.mjs` makes down to 3.2a, here and through the `type-key` row on the loopback machine.
+- **M5, status**: an idle stand-in read from its screen, paged with and without the grace, and the desk's own wheel
+  over it at the parent, recorded and not changed.
+
+**The gates.** `npm run typecheck && npm run build`, which runs conformance:ios, gate:onlyadd and gate:contract, then
+the full battery; for these paths `conformance:agents`, `conformance:installs`, `conformance:pocket`,
+`conformance:pocket:hostile`, `conformance:machines` and `measure:p337 -- --check`; `test:ios` on 26.3 and 18.3, Debug
+and Release; `ablation:p331`, `ablation:p313`, `ablation:p316` and `ablation:p320`, one arm per new clause, each red
+when broken; and once at HEAD `probe:p337` and `probe:p316`'s screen group. The runs CLAUDE.md names for these paths
+that start real agents, `conformance:resume:capture` and `probe:p331` (each to its first screen) and
+`conformance:resume` (real turns, whose real pi 0.84.2 takes the flag), wait for his word, as the real pi below does.
+`HELPER_USER_FLOOR` rises in the commit that adds `probe:p350`.
+
+**The stand-ins** (new, `build/p350/stand-in.mjs`) run under each agent's bare name (`exec -a`). Each applies its
+agent's own switch rule (Claude's environment, Codex's `-c`, pi's flag, setting and version band, answering `-v` with
+its band), draws that agent's committed screen from `build/fixtures/questions/`, pages its own view by its height on
+`ESC[5~` and `ESC[6~` and by three lines on a wheel report, and logs every byte it receives. Every grade is read from
+that log or the probe's own `capture-pane`, never from the verb's report.
+
+**The per-agent matrix**, at the parent and at HEAD, on this Mac and again on the loopback machine, where Claude's and
+pi's switches do not travel:
+
+| Row | The stand-in's modes and screen | At HEAD, a pull from the phone |
+| --- | --- | --- |
+| claude | inline under Tortie's switch, `a-claude-0015`; without it `1049`, `1000/1002/1003/1006` | pages history, the Mac unchanged; on the loopback machine, one Page Up |
+| codex | inline under its switch, `a-codex-0004`; with a person's `=true`, `1049`, `1007` | pages history; with `=true`, one Page Up |
+| cursor | inline, cleared and its last 10 turns printed again on mount and resize, `a-cursor-0003` | pages what it printed since its last clear |
+| gemini | inline, `a-gemini-0004`; opted in, `1049`, `1002/1006` | pages history; opted in, one Page Up |
+| deepseek | `1049`, `1000/1002/1003/1015/1006`, numbered lines | one Page Up |
+| antigravity | `1049` with an ASSUMED `1000/1006`, `a-antigravity-0014` | one Page Up |
+| muse | inline, numbered lines | pages history |
+| qwen | `1049`, `CSI 3J`, `1002/1006`, `a-qwen-0005` | one Page Up |
+| pi | pi's rule at 0.83.0, 0.99.2 and 1.4.0, `a-pi-0002` | pages history at each band, the Mac unchanged; one Page Up with a person's `--tui-mode fullscreen` from 0.84.0, and at 1.4.0 typed in a shell or on the loopback machine |
+| omp | inline, cleared at first paint, `a-omp-0002`; an overlay, `1049` with `1000/1003/1006` | pages history; during the overlay, one Page Up |
+| grok | `1049`, `1000/1002/1003/1015/1006`, `a-grok-0046` | one Page Up, which grok reads only after Tab |
+| opencode | `1049`, `1000/1002/1003/1006`, `a-opencode-0003` | one Page Up |
+| droid | never observed, no committed screen | not run, stated |
+| controls | `1000` without `1006`; `1049` alone; a program leaving full screen mid-pull; an asking picture | one Page Up; one Page Up; at most one `~`; nothing |
+
+Each row is graded on the picture's `alternate`, `depth` and `pages`, the bytes the stand-in received for one pull
+(exactly `ESC[5~`, or nothing), whether its view moved, a history page where it is inline, the Mac's view (unchanged
+where inline), and the Mac's own wheel over it, byte for byte as at the parent.
+
+**John's two sentences, measured on the parent** (349's landed tip). A pi 1.4.0 stand-in started by the pi row draws
+with `depth` null, a page answers `moved`, and a pull in the parent's phone app sends nothing (the relay counts no
+POST); real wheel notches on the Mac, driven as `probe:p331` drives them, move its view and the next picture follows.
+The Claude stand-in pages 228 rows on the phone with the Mac unchanged, and a scroll on the Mac leaves the picture
+unchanged. **At HEAD** the same pi reads as the Claude row reads, on both sentences; pi typed in a shell and pi on the
+loopback machine read as the parent's pi, plus one Page Up a pull.
+
+**Method 1, re-derived.** The verifier writes its own reader of pi's rule from pi's source as text and grades every
+composed argv by what that pi would draw, over band, setting and a person's flag, not by its bytes; and it grades each
+pull's bytes against its own `send-keys PPage` on a scratch server of every version M4 builds.
+
+**Method 2, the attack.** `conformance:pocket:hostile` sends a page beside another item, a page to the parent's Mac
+(`malformed`, nothing typed), a page against a stale question picture (`changed`), and the names cased and spaced
+wrong; `build/p316/hostile-door.mjs` sends a `pages` that is not a boolean, which refuses the answer as a bad `paste`
+does. The pass runs over planted rows (each band, unread, another machine's, a wrapped one, a discarded one, one
+holding a person's `--tui-mode fullscreen`, one holding the token at a pi that now reads 0.83.0, restored before the
+scan answers and after), each graded byte for byte and then restored. One ablation per new clause, each red.
+
+**`probe:p350`** (new, `build/p350/probe-p350.mjs`), the Mac's app run: one Electron at HEAD after the parent on the
+same profile, inside `build/with-scratch-machine.mjs`'s loopback machine with its quiet shell and none of his keys; two
+`build/p316/node-phone.mjs` phones; the stand-in Tailscale and DNS; every agent binary the scan would run resolving to
+a stand-in or renamed (`build/hidden-agents.mjs`), pi and omp among them, or the run is unreadable (exit 2). Its arms:
+the matrix; John's two sentences; pi's three bands, each created once main's agent scan has answered and then
+relaunched, and one restored before it answers (D13); the pass over planted rows; the refusals; the grace (an idle
+stand-in paged does not read working); and the Mac's wheel unchanged against the parent. `--grader-self-test` starts
+nothing.
+
+**The phone's app run**, a `pages` group in `probe:p316` on 26.3 and the 18.3 floor, beside the parent's app
+(`P316_PARENT_IOS`). PS16 is split: its stand-in on the alternate screen with no mouse becomes
+`build/p350/stand-in.mjs`, because PS16's reads nothing, and gets exactly one `ESC[5~` per pull, read from its log; a
+pi 1.x stand-in pages its own view, the next picture showing it. An inline picture's pull pages history and sends
+nothing; a pinch, two fingers, a held selection, an asking picture and an untypable one send nothing; sideways the
+rows pan first; a Mac that offers no `pages`, and the parent's app, send nothing.
+
+**Real agents, only on his word**: a pi 1.4.0 installed with `--ignore-scripts` into a scratch prefix under a scratch
+home, resumed over a committed long conversation with no model turn, started inline, then paged under a person's
+`--tui-mode fullscreen`.
+
+**At the end, once.** Electrons counted with CLAUDE.md's line; `xcrun simctl list devices | grep -c p316-` reads 0
+with nothing booted; `~/.zsh_history`'s size and time unchanged; his `-L gmux` sessions counted only.
+
+### What moves on purpose
+
+- **conformance:agents.** 11.5 reads exactly three switch rows, claude (env), codex (argv) and pi (argv, with its
+  floor) (`build/conformance-agents.mjs:2492-2501`), and its attack "a third (pi) made a switch" (`:2612-2619`)
+  becomes a fourth; new clauses hold pi's token spelled once, in neither its `launch.argv` nor its `resume.template`,
+  put in by the two composers under the floor alone, and named by `fixedLaunchTokens` at every version.
+- **conformance:resume:capture** judges pi as a switch, so a pi on the alternate screen fails
+  (`src/main/conformance/screen-class.ts:135-149`). **probe:p331** moves pi out of its unswitched rows
+  (`build/p331/SPEC.md:713-720`), and **ablation:p331**'s B2 (`:637`) anchors on pi's `measured` string
+  (`build/p331/ablation.mjs:151`), which moves with it.
+- **conformance:pocket.** Z3 reads 37 names (`build/conformance-pocket.mjs:409`); Z8 counts the grace's one stamp
+  beside `noteUserInput` in `keys.ts` (`:414`); Z11 reads `pages` copied field by field (`:417`); ablation:p313's Z
+  arms with them.
+- **conformance:machines** 122, which pins the 35 names in order, and 102 and 103, which read the `type-key` row
+  against them, read 37 (`build/conformance-machines.mjs:11674-11684`); ablation:p320's arms with them.
+  **measure:p337**'s K drives the contract's names, so it reads `PPage` and `NPage` against
+  `build/fixtures/screen/keys-encoding.json`, which already holds them in all seven modes on both builds; the fixture
+  does not move.
+- **conformance:ios.** (ai6) reads 37 names (`build/conformance-ios.mjs:11107`); a new rule (be), A FULL-SCREEN
+  PAGE, holds the pull to the pan's own target with no new recognizer ((aq13), `:12245`) and no offset written
+  ((aq6), `:12126`), one page a pull, only on `pages`, and never while asking, a selection held, a pinch or two
+  fingers; (az) takes the sample's switch, and (t) the hostile `pages`; ablation:p316 with them.
+- **probe:p316.** PS16 (`build/p316/probe-p316.mjs:768`, `gradePs16` at `:7695`) is split as above.
+- **gate:onlyadd.** P0 to P4 are re-run, because `Contract.swift` is in build 12's read record
+  (`ios/TortieTests/Fixtures/frozen/build-12.wire.json:9`); the frozen sets do not move, because two names and an
+  optional key are adds.
+- **CLAUDE.md**'s rows for conformance:agents, conformance:machines and conformance:ios say three switch rows and
+  37 names, and the Screen row names the grace beside "its one status call is `noteUserInput`", in the same commit.
+- **Refusals restated by name.** 337 §12's "no Page Up, Page Down" (`build/p337/SPEC.md:1276-1277`) and its §13 item
+  7 (`:1318`); 337.1's §1 item 3 (`build/p3371/SPEC.md:96-97`), whose "as the Mac's own terminal shows nothing above
+  it" is not true of a program that takes the mouse, while "No history for a full-screen program" (`:1026`) stands;
+  research 134's pi row (`:106`), superseded by name in the registry's note.
+- **What does not move:** the door's routes, ledger and Allow; `SCREEN_FORMAT`; the page reader; the Mac's wheel
+  routes (`src/renderer/terminal/scroll/surface.ts:591-601`) and Shift+Page Up; Claude's and Codex's switches;
+  gate:contract, because its inventory names no pocket type (`docs/audits/contract-baseline.txt`).
+
+### Stated trades
+
+- **pi gives up its own full-screen view inside Tortie**: its search, its scrollbar and its mouse selection, as
+  Claude Code and Codex did in Phase 331, while Tortie's wheel, search, Read last lines and capture hold the whole
+  conversation. A person who wants it back adds `--tui-mode fullscreen` to pi's launch flags, which come after
+  Tortie's token and win.
+- **pi rewrites its history** on a size change and in four more cases, so a phone scrolled back over it is stopped
+  with `Earlier lines changed on your Mac…` and reads again from the live terminal. How often that happens in a real
+  turn is unmeasured.
+- **The switch reaches only a pi Tortie starts on this Mac**, at 0.84.0 or later, once its version is read. A pi on
+  another machine, typed in a shell or switched by pi's own `/settings` stays full screen and pages by the pull. A row
+  recorded before this phase, or created before the scan answered, takes the token from the pass and is switched at
+  its next restore; a session running now keeps its view until then.
+- **A pi started or restored before its version is read** comes up as today, full screen from 1.0.0, and takes the
+  token at a later restore (D13); a pi taken below 0.84.0 is armed without it, so it never stops after its trust
+  question (research 134:280-281).
+- **The floor has no ceiling.** A later pi that drops `--tui-mode` would stop after its trust question on every row
+  carrying the token, research 134 §5's second death (`:271-273`); `conformance:resume` after a pi upgrade, on his
+  word, is what would see it.
+- **A page moves the Mac too.** A full-screen program has one view, so a page from the phone pages it at the desk and
+  leaves it there, until a pull up past the bottom, or the desk, pages it back. Independence is for inline agents.
+- **Each agent's own Page Up decides.** pi, opencode, Qwen and Gemini's opt-in view page; DeepSeek does by its docs;
+  grok does only after Tab moves its focus; a full-screen Claude Code says it does ("scroll with PgUp/PgDn",
+  research 134:425-426), unmeasured, and Antigravity's is unmeasured; a program that binds Page Up to something else
+  does that, as at the desk; and a page over an open list or menu, such as omp's overlays or, in pi's next release,
+  pi's own lists, can move its highlight.
+- **One page a pull**, seen at the next picture: one keys round trip and one read, at most about four pictures a
+  second here and fewer on another machine (`src/main/screen/watch.ts:85-97`).
+- **Nothing pages while the screen asks**, so a person reads back through a question in Catch Me Up, which reads
+  every agent but opencode and droid (`src/main/overview/reader/resolve.ts:125-126`); a question the Mac does not
+  detect takes the page as the key it is.
+- **A page is typing.** It returns the desk's pane to live output first and moves the question id, so a choice drawn
+  on the picture before it answers `changed`, as any key does; one that lands as the program leaves full screen types
+  one `~` at a shell prompt.
+- **The grace.** For 2.5 s after a page a redraw is not read as work, so an agent that starts real work in that window
+  reads working a little later; a question is still caught on time.
+
+### The menus
+
+The Mac's native menus do not change: no Mac surface is added, renamed or removed. On the phone no menu changes
+either; a pull on a full-screen picture pages it.
+
+### Release obligations
+
+- D12's release, each half on his word. The Mac half adds no route, so there is no Allow (D5); if he rules a route of
+  its own, its ledger row and its own Allow ship with it.
+- At the phone release the calling build's wire is frozen beside the others and `FROZEN_SETS_FLOOR` raised
+  (`build/assert-door-only-adds.mjs:252`).
+- The store's What to Test and review notes gain the pull, within 4,000 bytes; the review notes already hold 3,960
+  before his phone number goes in (`build/p333/STORE-CHECKLIST.md:144`), and 349 adds Rename to them.
+- `build/p350/CHECKLIST.md` for his seat: on his own phone, read back a pi 1.x session on his Mac (pi updated on his
+  word) without its window moving, and pull back a full-screen agent's session (opencode, Qwen or DeepSeek) on his Mac
+  and one on his Mac Pro.
+- Issue 42 is answered when the release ships, on his word.
+
+### The lane
+
+One build lane, verified once at the end: spec (M1 to M5), builders on disjoint files (pi's token, record, pass and D13;
+the Mac's page keys, offer and grace; the phone's names and pull; the stand-ins and `probe:p350`), integrate (the
+integrator owns `CLAUDE.md`, `CHANGELOG.md`, `conformance-agents.mjs`, `conformance-ios.mjs`, `probe-p316.mjs`,
+`P316DriveUITests.swift` and the ablation files), verify, fix once, an independent reverify that re-runs the failed
+items live, commit. A second needs_work goes to him.
+
+### What is NOT in this phase
+
+- **No wheel or mouse report from the phone.** D4 names what it would take.
+- **No arrow keys from a pull**, which walk Codex's prompt history and move an approval's answer
+  (`docs/research/133-codex-scroll.md:49-52`).
+- **No history for a full-screen program on the phone** (`build/p3371/SPEC.md:1026` stands), no `capture-pane -a`,
+  and no change to the page reader.
+- **No inline switch for opencode, Qwen, DeepSeek, Antigravity or grok** (research 134 §8's refusals stand), and no
+  change to Claude's or Codex's.
+- **No switch for a pi on another machine**, no version read there, and no environment sent there.
+- **Nothing written to an agent's settings**, pi's `tuiMode` included.
+- **No Home, End, Ctrl+Home, Ctrl+End, function key, Alt or modified arrow**, nothing added to the key bar, and no
+  VoiceOver scroll action.
+- **No per-agent key table**: the phone sends the same two keys to every program.
+- **No change to the Mac's wheel, copy mode, Shift+Page Up, drag-select or the desk's status funnel**; the desk's
+  wheel into a full-screen program is measured and left as it is.
+- **No new route, ledger row, clause or Allow.**
+- **No change to Catch Me Up, the reply, paste, End, Remove or rename.**
+- **No real agent in the proof without his word**, and no release, tag, version bump, upload or screenshot inside the
+  phase.
+
+---
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -44968,3 +45426,5 @@ cycle rather than only the evening it was written.
 - 2026-10-20, **PHASE 348 LANDED, `b944aa20` — the phone, polished: a pairing lands on Sessions, Remove takes End's place with no Face ID, Settings is grouped like the iPhone's own, the age note is gone, the tabs have the iPhone's own title bar with the "+" alone at the top right, and paste is native, with Copy joining a wrapped line; unreleased, phone build 12.** Two needs_work went to him. His rulings of 2026-10-20: "Top bar (Recommended)", so the "+" stays in the bar at its own 50 x 36 on iOS 26 and 54 x 44 on 18 against build 11's 50 x 52, his stated trade, with Show at build 11's full width; and "Keep, list as known limits (Recommended)", so Copy keeps its join and its two rare wrong joins are stated (a full-width line redrawn in place, and a line wrapped into a scroll region that then scrolled). On his word ("can we ship with known limitations and then get the build ready for upload asap, please") the second fix round's two reverify lenses were stopped before they ran; its app files are byte for byte the integrator's, which the three lenses read, and the landing battery was green but for the five native watcher tests red at the parent too. Carried, and not yet queued as phases: three hostile paste arms read no POST where the Simulator's menu Paste took two presses (the stated clipboard miss); thirteen probes that hide only the five agents can still run his Homebrew `omp` for its version; `build/electron-run.mjs` skips its last teardown steps when a signal lands in its grace. Next: 0.113.0 beside phone build 12, then 349.
 
 - 2026-10-20, **0.113.0 PUBLISHED as Latest, `f1103aee` (tag `v0.113.0`) — the phone polish release.** Phase 348 on the Mac (the `remove` and `paste` routes behind one Allow, the wrap marks, the empty age note) beside phone build 12. The release run (39521413998) passed on its fifth attempt: the first lost its network connection to Apple while stapling the DMG, the second failed `stapler validate` on the DMG with Error 68, and the third and fourth stopped on the zero-warnings rule because `build/verify-signed.mjs` reports ANY failed `stapler validate` of the ZIP's inner app as "no ticket in this copy", which here was Apple's ticket service failing (Error 68 in the log), not a missing ticket; Apple accepted every notarization, and the fifth attempt was clean. `releases/latest` and `latest-mac.yml` read 0.113.0. No open issue is this release's. Phone build 12 was archived from the landed tree, passed `--read-app` and is in his Organizer for Distribute App; build 12's wire is frozen beside build-11 and launch (`f5fb5877`, FROZEN_SETS_FLOOR 3), and the store checklist holds build 12's review notes, What to Test and claims (`266d7d91`); the README names Remove and paste. Owed, not yet queued: `verify-signed.mjs` should tell a failed ticket lookup from a missing ticket and retry it, so a flaky Apple service stops costing a full release run. Next: 349 (its spec step running, resumed after his own terminals moved his history; the phase's own commands now run under a sandbox that denies writes to it).
+
+- 2026-10-30, **350 QUEUED — scroll back pi and every full-screen agent from the phone (John's issue 42)** (full section above; Tier 3, verified once at the end; Tortie starts pi with `--tui-mode regular` when this Mac reads it at 0.84.0 or later, the floor research 134 asked for, so the phone pages pi's history while the Mac stays put, as with Claude, and a pass brings recorded pi rows across, with no restore arming it below that floor; every full-screen picture pages by Page Up and Page Down from a pull past its edge, here and on another machine, riding the allowed `keys` route behind a new `pages` offer, so no Allow; a wheel from the phone is held back for its measured race, far carriage and Allow; it starts once 349 lands).
