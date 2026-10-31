@@ -8,9 +8,9 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Added
 
-- Rename a session from your iPhone, from the Terminal's ⋯ or by holding the session in a list. A session on another machine can be renamed while it runs, and your Mac asks you to allow renaming once, in Settings then Phone
-- New session on your iPhone takes a name. Left empty, your Mac names the session as before
-- On your Mac, renaming a session to a name that starts with a slash, a dot or a dash now works, and a name with # in it, or one ending in ;, keeps exactly what you typed
+- Rename a session from your iPhone, from the Terminal's ⋯ or by holding the session in a list. A session on another machine can be renamed while it runs, and your Mac asks you to allow renaming once, in Settings then Phone ([`57a7bbc2`](https://github.com/gregce/tortie/commit/57a7bbc2))
+- New session on your iPhone takes a name. Left empty, your Mac names the session as before ([`57a7bbc2`](https://github.com/gregce/tortie/commit/57a7bbc2))
+- On your Mac, renaming a session to a name that starts with a slash, a dot or a dash now works, and a name with # in it, or one ending in ;, keeps exactly what you typed ([`57a7bbc2`](https://github.com/gregce/tortie/commit/57a7bbc2))
 
 ## 0.113.0 (2026-10-20)
 
