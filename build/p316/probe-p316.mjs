@@ -668,6 +668,83 @@
  *       pressed once more, as Command-V is on `again`; and an app state the UI
  *       test never printed is UNREADABLE
  *
+ * PHASE 349, THE `rename` GROUP (build/p349/SPEC.md §8.2, `P316_ARMS=rename`;
+ * his words of 2026-10-19, "making it possible to rename sessions from the
+ * phone that it can access (and name sessions initially that are created via
+ * the phone)", and his ruling, "Only for End"): shells on this Mac and one
+ * Claude Code stand-in waiting on the committed Phase 312 dialog, every rename
+ * graded against the name it typed, read from main's own list and its one log
+ * line per write, tmux by `$`-id (off the `@gmux-id` stamp, never a name)
+ * against this file's own reading of D7 (`d7Of`), the hostile door's events
+ * and the relay's count. No Face ID is ever answered, and one drawn FAILS.
+ * Since this phase the ⋯ holds Catch Me Up, Rename, then End session… (or
+ * Remove after End), and E1, PS10, PM1 and RV1 read the three items (§6 item 7).
+ *   RM1 26.3 and 18.3: the ⋯ holds Catch Me Up, Rename, then End session…,
+ *       Rename by `terminal-menu-rename`; its sheet titled Rename with Cancel
+ *       and Save name, the whole name prefilled, the keyboard up, and the first
+ *       focus selecting it whole (the first words typed replace it)
+ *   RM2 26.3: a row's long press on Sessions and on Needs input draws Rename
+ *       alone (`row-rename-<id>`, `needs-row-rename-<id>`), a tap still opens
+ *       the session, and the sheet reads /v1/session first (D20): a
+ *       300-character name the list clips at 200 is prefilled WHOLE with Save
+ *       off, and a name typed over it turns Save on
+ *   RM3 26.3 and 18.3: Save sends ONE rename by main's log, asks no Face ID,
+ *       closes, the page takes the Mac's name, and tmux holds D7's by `$`-id
+ *   RM4 26.3: the session ended and removed on the Mac under the sheet: the
+ *       sheet keeps his text and draws the Mac's own sentence for what main
+ *       holds now (the hostile door's refused answers are RMH's)
+ *   RM5 26.3: an empty, an unchanged and a blank name keep Save off, and the
+ *       field holds 120 UTF-16 units at most however many are typed
+ *   RM6 26.3: while End these selects, a long press draws no Rename and leaves
+ *       the row's selection as it was, as build 12's own app does, beside its
+ *       control, the same row held outside End these
+ *   RM7 26.3: Save, then Home with every new connection held before its
+ *       handshake: no rename, the name unmoved, `Your Mac did not rename it.
+ *       Nothing was changed.` on return. Driven BEFORE RM6, whose End these
+ *       is the drive's last act
+ * THE FIX ROUND of 2026-10-30 (build/p349/SPEC.md §As built): Save name is
+ * read off its BUTTON (`saveButtonOf`, XCUIElement type 9). The UI test prints
+ * every element carrying `rename-save` as `saveAll`, because iOS draws an
+ * `Other` wrapper at the button's frame that always reads enabled, and the
+ * first match of any type found it; a reading with no button is UNREADABLE.
+ * RM6 no longer asks a hold to toggle the row, which build 12 never did.
+ * And (2026-10-31) a session page that could not reach the Mac draws no ⋯:
+ * the drive presses its Try again once (`rename-reach`), and RM1 reads a page
+ * that press did not clear as no reading, never as a ⋯ that did not open.
+ *   RM8 26.3: New session's Name drawn exactly where `renames` says, not
+ *       focused (D19); left empty, Create sends today's start, its keys, ids
+ *       and a fresh write id as build 12's own start over the same world
+ *   RM9 26.3: named, Create starts ONE session, then ONE rename of the id the
+ *       start answered (main's log, in that order), and the Terminal opens
+ *       under his name
+ *   RM10 26.3: See a sample: Rename and the Name on its own sessions, each
+ *       saying `This is a sample, so nothing ran.`, the relay's count unmoved
+ *   RMP 26.3, with P349_PARENT_IOS (build 12) and P348_PARENT_IOS (build 11),
+ *       BOTH REQUIRED: each older app's own UI test against this Mac keeps its
+ *       own ⋯, rows and New session over answers that now carry `rename` and
+ *       `renames`; and this app against a 348 Mac (the hostile door's
+ *       `start-404` world) draws no Rename and no Name, beside the main
+ *       drive's controls; an older build not driven is UNREADABLE
+ *   RMH 26.3: every rename arm of build/p316/hostile-door.mjs (RENAME_ARMS):
+ *       a key arm draws no Name and keeps the "+"; a row and the detail arm
+ *       read unreadable as the H list arms read; an answer arm sends ONE POST
+ *       /v1/rename from a ⋯ that opened with Rename and draws its line
+ * Before the launch the probe refuses (exit 2) when a copy of a stand-in's name
+ * sits where Tortie's scan looks (`extraBinDirsFor`'s folders and the app's
+ * PATH beside the stand-ins), because the scan runs `--version` on every
+ * shadowed copy and no `agents:list` verdict sees it (the Phase 349 probe
+ * review, finding 2). The UI test's new steps are `rename-menu-read`,
+ * `rename-open`, `row-rename:<tab>:<id>`, `row-menu-read:<tab>:<id>`,
+ * `select-hold:<id>`, `rename-type:<b64url>`, `rename-save`,
+ * `rename-save:ack`, `rename-cancel`, `rename-home`, `start-name-read` and
+ * `start-name:<b64url>`. THE PROBE REVIEW of 2026-10-30: a missing reading is
+ * UNREADABLE, never a pass and never the app's failure: main's log (read over
+ * app.log.1 and app.log, RM9's lines by their own time), a typed line with no
+ * words, the Sessions row's tap, a selection, the stored name, a Name read
+ * whose dump never came, and a row arm's list the door never served; and
+ * every refusal (the planted resolve, the precheck, the shadow refusal, the
+ * scan's verdict) is no run, exit 2, as this header says, where it exited 1.
+ *
  * PHASE 337, THE `screen` GROUP (build/p337/SPEC.md §7.8, `P316_ARMS=screen`):
  * a session's own screen read and typed into from the phone, with every key
  * and no Face ID (his rulings 1 and 3), and End at the top right. The sessions
@@ -1111,9 +1188,12 @@
  * (exit 2) when the checkout has no build.
  *
  *   npm run -s probe:p316
- *   P316_ARMS=order,floor,deny,hostile,end,reply,screen,sessions,setup,sample,start,remove,paste    which arms (default all; `order` holds N11 and N0 to N8; `end` is Phase 317's, `reply` Phase 318's, `screen` Phase 337's, `sessions` Phase 316.7's, `setup` Phase 333.1's, `sample` Phase 333.3's, `start` Phase 346's, `remove` and `paste` Phase 348's)
+ *   P316_ARMS=order,floor,deny,hostile,end,reply,screen,sessions,setup,sample,start,remove,paste,rename    which arms (default all; `order` holds N11 and N0 to N8; `end` is Phase 317's, `reply` Phase 318's, `screen` Phase 337's, `sessions` Phase 316.7's, `setup` Phase 333.1's, `sample` Phase 333.3's, `start` Phase 346's, `remove` and `paste` Phase 348's, `rename` Phase 349's)
  *   P346_PARENT_IOS=<dir>                 Phase 346's NP11: the directory holding 0b87d0af's ios/
- *   P348_PARENT_IOS=<dir>                 Phase 348's RV4: the directory holding d2bb05ee's ios/ (build 11)
+ *   P348_PARENT_IOS=<dir>                 Phase 348's RV4: the directory holding d2bb05ee's ios/ (build 11);
+ *                                         Phase 349's RMP reads it too
+ *   P349_PARENT_IOS=<dir>                 Phase 349's RMP and RM8: the directory holding 40aebfcc's ios/
+ *                                         (266d7d91's, build 12), both required
  *                                         (`git archive 0b87d0af ios | tar -x` into scratch, build 11)
  *   P316_HOSTILE=honest,wrong-key         which hostile arms (default all)
  *   P316_HOSTILE_FLOOR=all|<arm,…>        which hostile sessions arms also run on iOS 18.3 (default those marked `floor`)
@@ -1189,7 +1269,7 @@ import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, w
 import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin, nameQuestionsSelfTest, nameQuestionsVerdict } from '../p332/dns-standin.mjs';
 import { manifestSessions, plantedResolve, within } from '../scratch-login.mjs';
 import { AGENTS_LIST_EXPR, hiddenAgentsBesides, hiddenAgentsPrecheck, hiddenAgentsScanVerdict, standInsOnlyVerdict, writeHiddenAgents } from '../hidden-agents.mjs';
-import { HOSTILE_ARMS, HOSTILE_NAME, HOSTILE_PUBLIC_PORT, P348_ARMS, PASTE_ARMS, PASTE_FLAG_ARMS, PASTE_UNKNOWN_SENTENCE, REMOVE_ARMS, REMOVE_UNKNOWN_SENTENCE, REPLY_ARMS, SCREEN_ARMS, SCROLLBACK_ARMS, START_ARMS, START_FAR, START_UNKNOWN_SENTENCE, UNKNOWN_STATUS_TITLE, hostileDoorArgv, markdownFixtures } from './hostile-door.mjs';
+import { HOSTILE_ARMS, HOSTILE_NAME, HOSTILE_PUBLIC_PORT, P348_ARMS, P349_ARMS, PASTE_ARMS, PASTE_FLAG_ARMS, PASTE_UNKNOWN_SENTENCE, REMOVE_ARMS, REMOVE_UNKNOWN_SENTENCE, RENAME_ARMS, RENAME_UNKNOWN_SENTENCE, REPLY_ARMS, SCREEN_ARMS, SCROLLBACK_ARMS, START_ARMS, START_FAR, START_UNKNOWN_SENTENCE, UNKNOWN_STATUS_TITLE, hostileDoorArgv, markdownFixtures } from './hostile-door.mjs';
 // Phase 346: NP10's one loopback port for two Macs, by each connection's server name.
 import { startSniRelay } from '../p345/sni-relay.mjs';
 import { hellos as p318Hellos, readLog as p318ReadLog, readState as p318ReadState, sendOps as p318SendOps, writeWrappers as p318WriteWrappers } from '../p318/stand-in.mjs';
@@ -1228,7 +1308,8 @@ const PROJECT = join(ROOT, 'ios', 'Tortie.xcodeproj');
 // `sample` is Phase 333.3's (build/p3333/SPEC.md §7.4): SA1 to SA13, SAX and SD fresh on 26.3, SB on the floor, SC1 to SC3 paired, SP with P3333_PARENT_IOS.
 // `start` is Phase 346's (build/p346/SPEC.md §6.2): NP1 to NP11 and NPH, NP1, NP3 and NP5 on the floor too; since Phase 348 NB and NP12's tap grid on both runtimes and an iPhone SE.
 // `remove` and `paste` are Phase 348's (build/p348/SPEC.md §8.2): RV1 to RV6 and RVH; PA1 to PA8 and PAH; RV1, PA1 and PA8 on the floor too.
-const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,deny,hostile,end,reply,screen,sessions,setup,sample,start,remove,paste').split(',').map((s) => s.trim()));
+// `rename` is Phase 349's (build/p349/SPEC.md §8.2): RM1 to RM10, RMP and RMH; RM1 and RM3 on the floor too.
+const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,deny,hostile,end,reply,screen,sessions,setup,sample,start,remove,paste,rename').split(',').map((s) => s.trim()));
 if (ARMS.has('ats')) {
   // The ATS arm left with TailscaleKit (Phase 330): the phone has no tailnet
   // and no ATS exception, so there is nothing for it to prove.
@@ -1240,7 +1321,7 @@ if (ARMS.has('ats')) {
 // Phase 333.1: the setup group's SE8 is the floor's.
 // Phase 333.3: the sample group's SB is the floor's.
 const runtimes =
-  ARMS.has('floor') || ARMS.has('end') || ARMS.has('reply') || ARMS.has('screen') || ARMS.has('sessions') || ARMS.has('hostile') || ARMS.has('setup') || ARMS.has('sample') || ARMS.has('start') || ARMS.has('remove') || ARMS.has('paste')
+  ARMS.has('floor') || ARMS.has('end') || ARMS.has('reply') || ARMS.has('screen') || ARMS.has('sessions') || ARMS.has('hostile') || ARMS.has('setup') || ARMS.has('sample') || ARMS.has('start') || ARMS.has('remove') || ARMS.has('paste') || ARMS.has('rename')
     ? [RUNTIME_CURRENT, RUNTIME_FLOOR]
     : [RUNTIME_CURRENT];
 
@@ -1355,6 +1436,14 @@ const PARENT_IOS_346 = (process.env['P346_PARENT_IOS'] ?? '').trim();
  * no Remove step, so RV4 reads its screens and its ⋯ after End.
  */
 const PARENT_IOS_348 = (process.env['P348_PARENT_IOS'] ?? '').trim();
+/**
+ * Phase 349's RMP and RM8 (build/p349/SPEC.md §8.2): the directory holding
+ * `40aebfcc`'s ios/ (`git archive 40aebfcc ios | tar -x` into scratch, which
+ * is `266d7d91`'s, build 12, the app this phase moves from), built and driven
+ * by its OWN UI test, which knows no rename step. RMP needs it and build 11's
+ * (`P348_PARENT_IOS`) both; either missing reads UNREADABLE.
+ */
+const PARENT_IOS_349 = (process.env['P349_PARENT_IOS'] ?? '').trim();
 /** Phase 337's PSP: a checkout of `aebb4ce9` whose ios/ is the parent's app, or empty. */
 const PARENT_IOS_337 = (process.env['P337_PARENT_IOS'] ?? '').trim();
 /**
@@ -1656,6 +1745,10 @@ async function armed(cdp) {
       const only = standInsOnlyVerdict(list, { standIns: P316_STAND_INS, under: RUN });
       (report.readings.agentScans ??= []).push({ held: held.said, only: only.said });
       agentsHeld.push(held.ok && only.ok);
+      if (!held.ok || !only.ok) {
+        agentsRefused = true;
+        arm('the run', null, `REFUSED: ${!held.ok ? `agents:list says a renamed agent resolved: ${held.said}` : `agents:list says an agent other than the stand-ins resolved: ${only.said}`}. Nothing more is driven.`);
+      }
       if (!held.ok) throw new Error(`agents:list says a renamed agent resolved: ${held.said}`);
       if (!only.ok) throw new Error(`agents:list says an agent other than the stand-ins resolved: ${only.said}`);
       return true;
@@ -1744,6 +1837,14 @@ let standin = null;
 let dns = null;
 const dnsPreflights = [];
 const agentsHeld = [];
+/**
+ * THE PROBE REVIEW of 2026-10-30: set when the run is refused because an agent
+ * other than the stand-ins could run (the planted resolve, the precheck, the
+ * shadow refusal, the scan's own verdict). That is no run, exit 2, as this
+ * file's header says, and never the app's failure: the refusal is armed
+ * UNREADABLE where it happens and nothing more.
+ */
+let agentsRefused = false;
 /** The live Funnel child's forwarder port, or 0 while nothing is published. */
 const forwarderPort = () => standin?.readFunnel()[0]?.forwarderPort ?? 0;
 
@@ -4096,6 +4197,10 @@ const foldedAt = (text, needle, from = 0) => (typeof needle === 'string' && need
  * gone from the ended session. As first left, E1 read the bar, its 50-tall
  * row and its glyphs off a container this phase removed, so it failed on
  * every run whatever the phone did.
+ *
+ * PHASE 349 (build/p349/SPEC.md §6 item 7): the open menu holds Catch Me Up,
+ * Rename, then End session…, because the Mac offers Rename on every session
+ * that acts.
  */
 function gradeE1(r) {
   const unread = [];
@@ -4130,7 +4235,7 @@ function gradeE1(r) {
   if (viaMenu) {
     if (r.bar.opened !== true) problems.push('the ⋯ did not open its menu, so End was not read');
     const labels = (r.menu?.rows ?? []).map((x) => x.label);
-    if (J(labels) !== J([MENU_WORDS.catchMeUp, MENU_WORDS.endSession])) problems.push(`the menu holds ${J(labels)}, not Catch Me Up then End session…`);
+    if (J(labels) !== J(menuOfThree(MENU_WORDS.endSession))) problems.push(`the menu holds ${J(labels)}, not Catch Me Up, Rename, then End session…`);
     if (r.bar.enabled !== true) problems.push('End session… is drawn off with Face ID enrolled');
   }
   const words = dialogWords(r.dialog);
@@ -6331,6 +6436,13 @@ function removeFaceProblems(r, problems, unread) {
   }
   // End is gone: in the ⋯ no End item; at the top right no session-end.
   if (read?.via === 'menu' ? read.end !== null && read.end !== undefined : read?.end === true) problems.push('End is still drawn beside Remove');
+  // PHASE 349 (build/p349/SPEC.md §6 item 7): in the ⋯ after End, Catch Me Up,
+  // Rename, then Remove, read from the `terminal-menu` line the drive printed
+  // as it opened the menu (`rows`, which the drive attaches).
+  if (read?.via === 'menu' && read.settled !== false) {
+    if (!Array.isArray(read.rows)) unread.push('the ⋯\'s rows were not read, so their order was not');
+    else if (J(read.rows.map((x) => x.label)) !== J(menuOfThree(P348_WORDS.remove))) problems.push(`the ⋯ after End holds ${J(read.rows.map((x) => x.label))}, not Catch Me Up, Rename, then Remove`);
+  }
   const d = r.dialog;
   if (d === null || d === undefined) unread.push('no confirmation was read');
   else {
@@ -7449,7 +7561,8 @@ function gradePs10(r) {
  * right is the ⋯ alone, named More, pressable, in the bar's trailing half, no
  * End and no Catch Me Up icon in the bar; opened, its menu holds Catch Me Up
  * then End session…; and while a selection is held, Copy and the ⋯ are both
- * pressable, Copy to the ⋯'s left.
+ * pressable, Copy to the ⋯'s left. Since Phase 349 (build/p349/SPEC.md §6
+ * item 7) the menu holds Catch Me Up, Rename, then End session….
  */
 function gradePs10Menu(r, p, u, window) {
   const o = r.open;
@@ -7470,7 +7583,7 @@ function gradePs10Menu(r, p, u, window) {
   else if (menu.opened !== true) p.push('the ⋯ did not open its menu');
   else {
     const labels = (menu.rows ?? []).map((x) => x.label);
-    if (J(labels) !== J([MENU_WORDS.catchMeUp, MENU_WORDS.endSession])) p.push(`the menu holds ${J(labels)}, not Catch Me Up then End session…`);
+    if (J(labels) !== J(menuOfThree(MENU_WORDS.endSession))) p.push(`the menu holds ${J(labels)}, not Catch Me Up, Rename, then End session…`);
   }
   const old = [...new Set((o.labels ?? []).filter((l) => OLD_PAGE_WORDS.includes(l)))];
   if (old.length > 0) p.push(`the Terminal draws ${J(old)}`);
@@ -7480,7 +7593,7 @@ function gradePs10Menu(r, p, u, window) {
   if (h === null || h === undefined) u.push('no selection was held, so Copy beside the ⋯ was not read');
   else if (h.copy !== true || h.menu !== true) p.push(`with a selection held: Copy ${String(h.copy)}, the ⋯ ${String(h.menu)} (each must be pressable)`);
   else if (Array.isArray(h.copyFrame) && Array.isArray(h.menuFrame) && !(centreX(h.copyFrame) < centreX(h.menuFrame))) p.push('Copy is not to the ⋯\'s left while selecting');
-  return decide(p, u, `the Terminal at once (its first row ${typeof o.firstRowMs === 'number' ? String(Math.round(o.firstRowMs)) : '?'} ms after the tap, printed); the status line the door's; the ⋯ alone top right, its menu Catch Me Up then End session…; Copy beside it while selecting`);
+  return decide(p, u, `the Terminal at once (its first row ${typeof o.firstRowMs === 'number' ? String(Math.round(o.firstRowMs)) : '?'} ms after the tap, printed); the status line the door's; the ⋯ alone top right, its menu Catch Me Up, Rename, then End session…; Copy beside it while selecting`);
 }
 
 /** PS11: an ended session opens on Catch Me Up: the two-line title, its turns or its empty line, the now card, no grid. */
@@ -8332,6 +8445,8 @@ function gradePl5(r) {
  * session…; End enabled exactly where the Terminal's End line does not say a
  * passcode is needed (whichever iOS answers is printed); its glyph the image
  * the open menu holds; Catch Me Up pushes Catch Me Up and Back returns.
+ * Since Phase 349 (build/p349/SPEC.md §6 item 7) the rows are three, Catch Me
+ * Up, Rename, then End session…, Rename by its own identifier.
  */
 function gradePm1(r) {
   const o = r.open;
@@ -8354,7 +8469,8 @@ function gradePm1(r) {
   else {
     const rows = menu.rows ?? [];
     const labels = rows.map((x) => x.label);
-    if (J(labels) !== J([MENU_WORDS.catchMeUp, MENU_WORDS.endSession])) p.push(`the menu holds ${J(labels)}, not exactly Catch Me Up then End session…`);
+    if (J(labels) !== J(menuOfThree(MENU_WORDS.endSession))) p.push(`the menu holds ${J(labels)}, not exactly Catch Me Up, Rename, then End session…`);
+    if (!rows.some((x) => x.id === RENAME_IDS.menu)) p.push(`no item of the menu is identified ${RENAME_IDS.menu}`);
     if (menu.catchUp?.label !== MENU_WORDS.catchMeUp) p.push(`Catch Me Up's item reads ${J(menu.catchUp?.label ?? null)}`);
     if (menu.end === null || menu.end === undefined) p.push('the menu holds no End session… on a session the Mac offers End on');
     else {
@@ -8372,7 +8488,7 @@ function gradePm1(r) {
     if (r.face?.via !== 'menu' || r.face?.now !== 'catch-up') p.push(`the menu's Catch Me Up did not push Catch Me Up (${J(r.face ?? null)})`);
     if (c.backToTerminal !== true) p.push('Back from Catch Me Up did not return to the Terminal');
   }
-  return decide(p, u, `the ⋯ alone in the bar's trailing half, named ${J(MENU_WORDS.more)}; its menu Catch Me Up then End session…, End ${menu?.end?.enabled ? 'on' : 'off'} as iOS answered (${kind}); Catch Me Up pushed and Back returned`);
+  return decide(p, u, `the ⋯ alone in the bar's trailing half, named ${J(MENU_WORDS.more)}; its menu Catch Me Up, Rename, then End session…, End ${menu?.end?.enabled ? 'on' : 'off'} as iOS answered (${kind}); Catch Me Up pushed and Back returned`);
 }
 
 /** PP1 (26.3), the parent (dfa878b5's ios/, build 7, read by this drive): T.hist opens with live row 0 at the grid's top and no history drawn, his item 1's defect, the arm that proves PF1 can fail. */
@@ -8729,11 +8845,12 @@ function fillSelfTest() {
   add('PL5 is UNREADABLE with Catch Me Up unread sideways', gradePl5, edit(pl5, (r) => void (r.sideways = null)), null);
 
   // PM1: the ⋯.
-  const menuRows = () => [{ id: 'terminal-menu-catch-up', label: MENU_WORDS.catchMeUp, enabled: true, via: 'id' }, { id: 'terminal-menu-end', label: MENU_WORDS.endSession, enabled: true, via: 'id' }];
+  // Phase 349 (§6 item 7): three rows, Rename second.
+  const menuRows = () => [{ id: 'terminal-menu-catch-up', label: MENU_WORDS.catchMeUp, enabled: true, via: 'id' }, { id: RENAME_IDS.menu, label: RENAME_WORDS.rename, enabled: true, via: 'id' }, { id: 'terminal-menu-end', label: MENU_WORDS.endSession, enabled: true, via: 'id' }];
   const pm1 = {
     open: { face: 'terminal', menu: { label: MENU_WORDS.more, frame: [346, 66, 36, 36], hittable: true }, nav: [0, 62, 402, 54], navIds: [{ id: 'terminal-menu' }], endLine: null },
     dump: { elements: [{ id: 'terminal-menu' }, { id: 'terminal-status' }, { id: 'screen-grid' }] },
-    menu: { opened: true, rows: menuRows(), catchUp: menuRows()[0], end: menuRows()[1], glyph: 'faceid', glyphs: ['faceid'] },
+    menu: { opened: true, rows: menuRows(), catchUp: menuRows()[0], end: menuRows()[2], glyph: 'faceid', glyphs: ['faceid'] },
     catchUp: { backToTerminal: true },
     face: { via: 'menu', now: 'catch-up' }
   };
@@ -8748,7 +8865,7 @@ function fillSelfTest() {
   add('PM1 is red on the Catch Me Up icon still drawn', gradePm1, edit(pm1, (r) => void r.dump.elements.push({ id: 'session-open-catch-up' })), false);
   add('PM1 is red on End still drawn in the bar', gradePm1, edit(pm1, (r) => void r.open.navIds.push({ id: 'session-end' })), false);
   add('PM1 is red on the menu not opening', gradePm1, edit(pm1, (r) => void (r.menu.opened = false)), false);
-  add('PM1 is red on a third item', gradePm1, edit(pm1, (r) => void r.menu.rows.push({ id: 'x', label: 'Copy', enabled: true, via: 'id' })), false);
+  add('PM1 is red on a fourth item', gradePm1, edit(pm1, (r) => void r.menu.rows.push({ id: 'x', label: 'Copy', enabled: true, via: 'id' })), false);
   add('PM1 is red on the two items swapped', gradePm1, edit(pm1, (r) => void r.menu.rows.reverse()), false);
   add('PM1 is red on no End session… on a session the Mac offers End on', gradePm1, edit(pm1, (r) => { r.menu.rows = r.menu.rows.slice(0, 1); r.menu.end = null; }), false);
   add('PM1 is red on End off where no passcode line says so', gradePm1, edit(pm1, (r) => void (r.menu.end.enabled = false)), false);
@@ -9079,7 +9196,8 @@ function screenSelfTest() {
     r.open.menu = { label: MENU_WORDS.more, frame: [346, 58, 36, 36], hittable: true };
     r.open.navIds = [{ id: 'terminal-menu' }];
     r.open.labels = ['p3371-hist', 'Working', 'Claude Code · p316', 'L000001 abc'];
-    r.menu = { opened: true, rows: [{ label: MENU_WORDS.catchMeUp }, { label: MENU_WORDS.endSession }] };
+    // Phase 349 (§6 item 7): Catch Me Up, Rename, then End session….
+    r.menu = { opened: true, rows: [{ label: MENU_WORDS.catchMeUp }, { label: RENAME_WORDS.rename }, { label: MENU_WORDS.endSession }] };
     r.held = { copy: true, menu: true, copyFrame: [290, 58, 50, 36], menuFrame: [346, 58, 36, 36] };
   });
   add('PS10 (the ⋯) passes its honest reading', gradePs10, ps10m, true);
@@ -12290,7 +12408,8 @@ function polishSelfTest() {
   add('A FAIL of an arm not in the table is NOT stated', stated, { id: 'RV1 26.3, the Terminal\'s ⋯', said: "the last answer is not drawn" }, false);
   // ---- RV1 to RV6 and RVH -------------------------------------------------------
   const want = { title: "Remove 'p348-rv1'?", body: 'It moves to Past Sessions and you can restore it from there.', confirmLabel: 'Remove' };
-  const menuRead = { face: 'terminal', via: 'menu', opened: true, end: null, remove: { id: 'terminal-menu-remove', label: 'Remove', enabled: true, frame: [210, 120, 180, 44], via: 'id' }, faceId: false };
+  // Phase 349 (§6 item 7): the ⋯'s rows, Rename second, as the drive attaches them.
+  const menuRead = { face: 'terminal', via: 'menu', opened: true, end: null, remove: { id: 'terminal-menu-remove', label: 'Remove', enabled: true, frame: [210, 120, 180, 44], via: 'id' }, rows: menuOfThree(P348_WORDS.remove).map((label) => ({ label })), faceId: false };
   const topRead = { face: 'catch-up', via: 'top', end: false, remove: { id: 'session-remove', label: 'Remove', enabled: true, hittable: true, frame: [330, 62, 56, 44] }, line: null, faceId: false };
   const dialog = { for: 'remove', via: 'sheet', title: want.title, texts: [want.title, want.body], buttons: [want.confirmLabel, 'Cancel'], faceId: false };
   const after = { for: 'remove', pressed: 'Remove', landed: 'list', line: null, writing: true, faceId: false };
@@ -12504,6 +12623,883 @@ function polishSelfTest() {
   return { bad, total: cases.length };
 }
 
+// ---------------------------------------------------------------------------
+// PHASE 349: rename from the phone (build/p349/SPEC.md §8.2). The `rename`
+// group's graders, pure over readings, each proved both ways by
+// renameSelfTest below; this file's own reading of D7; the ⋯'s three items
+// that E1, PS10, PM1 and the RV arms read (§6 item 7); and the two readers of
+// the shadow refusal (the Phase 349 probe review, finding 2).
+// ---------------------------------------------------------------------------
+
+/** The rename's words, from Copy.swift (never typed here twice), and the Mac's own two refusals of a session it no longer has. */
+const RENAME_WORDS = Object.freeze({
+  rename: copyOf('rename'),
+  saveName: copyOf('saveName'),
+  cancel: copyOf('cancel'),
+  notTaken: copyOf('renameNotTaken'),
+  noAnswer: copyOf('endNoAnswer'),
+  sample: copyOf('startSample'),
+  unreadable: copyOf('answerUnreadable'),
+  gone: macWord('src/shared/lifecycle-words.ts', 'SESSION_NOT_FOUND'),
+  changed: macWord('src/shared/lifecycle-words.ts', 'LIFECYCLE_SESSION_CHANGED')
+});
+/** The rename's identifiers (build/p349/SPEC.md §5.3, Identifiers.swift). */
+const RENAME_IDS = Object.freeze({
+  menu: 'terminal-menu-rename',
+  row: (id) => `row-rename-${id}`,
+  needsRow: (id) => `needs-row-rename-${id}`,
+  name: 'start-name'
+});
+/** The longest name the field holds: NameRule.maxUnits, the Mac's SESSION_NAME_MAX_UNITS. */
+const RENAME_MAX_UNITS = 120;
+
+/**
+ * The ⋯ as Phase 349 draws it (§6 item 7), the order E1, PS10, PM1 and the RV
+ * arms read: Catch Me Up, Rename, then End session… on a live session or
+ * Remove on an ended one, because the Mac offers Rename on every session that
+ * acts (`canRename`), ended or not.
+ */
+const menuOfThree = (last) => [MENU_WORDS.catchMeUp, RENAME_WORDS.rename, last];
+
+/** The format letters and syntax every measured version reads after a `#` (SPEC §2.1, M1's scan). */
+const D7_READS_AFTER_HASH = new Set(['{', '(', '#', ',', '}', 'D', 'F', 'H', 'I', 'P', 'S', 'T', 'W', 'h']);
+/** The tmux names no session of a person's is ever given (D7): the control client's own. */
+const D7_RESERVED = Object.freeze(['gmux-control']);
+
+/**
+ * D7, THIS FILE'S OWN READING (build/p349/SPEC.md §4.3, §2.1), never the
+ * shipping module's: this Mac's tmux name for a display name, `taken` the
+ * other sessions' tmux names on its server. Strip the control characters
+ * (C0 but tab, line feed and return, DEL, C1), fold whitespace runs to one
+ * space and trim, `.` `:` `/` as `-`, cut at 200 UTF-16 units, then hold back
+ * what tmux reads: every backslash, a `#` before what tmux reads after one or
+ * at the end, a final `;`, a leading `-` or `$`, each as `_`; nothing left
+ * reads `session`; then the dedupe, `-2`, `-3`, … past what is taken and the
+ * reserved name.
+ */
+export function d7Of(display, taken = new Set()) {
+  let cleaned = '';
+  for (const c of String(display)) {
+    const u = c.codePointAt(0) ?? 0;
+    if (u <= 0x08 || u === 0x0b || u === 0x0c || (u >= 0x0e && u <= 0x1f) || (u >= 0x7f && u <= 0x9f)) continue;
+    cleaned += c;
+  }
+  cleaned = cleaned.replace(/\s+/g, ' ').trim().replace(/[.:/]/g, '-').slice(0, 200);
+  let held = '';
+  for (let i = 0; i < cleaned.length; i += 1) {
+    const ch = cleaned.charAt(i);
+    const last = i === cleaned.length - 1;
+    if (ch === '\\') held += '_';
+    else if (ch === '#' && (last || D7_READS_AFTER_HASH.has(cleaned.charAt(i + 1)))) held += '_';
+    else if (ch === ';' && last) held += '_';
+    else if ((ch === '-' || ch === '$') && i === 0) held += '_';
+    else held += ch;
+  }
+  const name = held.length > 0 ? held : 'session';
+  const free = (n) => !taken.has(n) && !D7_RESERVED.includes(n);
+  if (free(name)) return name;
+  for (let k = 2; ; k += 1) if (free(`${name}-${String(k)}`)) return `${name}-${String(k)}`;
+}
+
+/**
+ * THE SHADOW REFUSAL'S FOLDERS (the Phase 349 probe review, finding 2):
+ * Tortie's scan runs `--version` on every SHADOWED copy of a name it resolves
+ * (src/main/agents/detection.ts), in the absolute folders its resolver always
+ * searches too (src/main/tmux/resolve.ts `extraBinDirsFor`, read here as
+ * text), and no `agents:list` verdict sees it. Null when the function is gone,
+ * which refuses the launch.
+ */
+export function absoluteScanDirsOf(resolveText) {
+  const src = String(resolveText ?? '');
+  const at = src.indexOf('export function extraBinDirsFor(');
+  if (at === -1) return null;
+  const end = src.indexOf('\n}\n', at);
+  const body = src.slice(at, end === -1 ? src.length : end);
+  return [...new Set([...body.matchAll(/'(\/[^']*)'/g)].map((m) => m[1]))];
+}
+
+/**
+ * Where a copy of `names` sits in `dirs`: `{ ok, copies, unreadable }`, ok when
+ * no folder holds one and every folder that exists could be read. Names only:
+ * no file is opened. The file system is handed in, so the self-test reads no
+ * folder of his.
+ */
+export function shadowCopiesOf(dirs, names, fs = { list: (d) => readdirSync(d) }) {
+  const copies = [];
+  const unreadable = [];
+  for (const dir of dirs) {
+    let entries = null;
+    try {
+      entries = fs.list(dir);
+    } catch (err) {
+      if (err?.code !== 'ENOENT') unreadable.push(dir);
+      continue;
+    }
+    for (const name of names) if (entries.includes(name)) copies.push(join(dir, name));
+  }
+  return { ok: copies.length === 0 && unreadable.length === 0, copies, unreadable };
+}
+
+/** A row's long-press menu as read: its items' labels, top first. */
+const heldItems = (read) => (read?.items ?? []).map((x) => x.label);
+
+/** XCUIElement.ElementType.button's raw value: the one element type Save name is read off. */
+const XCUI_BUTTON = 9;
+
+/**
+ * Save name as its BUTTON reads it, from a line's `saveAll` (every element
+ * carrying `rename-save` in one snapshot, each with its XCUIElement type), or
+ * null when no button was read (THE FIX ROUND of 2026-10-30). iOS draws an
+ * `Other` wrapper (type 1) at the button's frame that always reads enabled,
+ * and the first match of any type found that wrapper, so Save read on over
+ * names the app keeps it off for. A line from before `saveAll` has no button.
+ */
+export function saveButtonOf(line) {
+  const all = Array.isArray(line?.saveAll) ? line.saveAll : [];
+  return all.find((x) => x?.type === XCUI_BUTTON && typeof x.enabled === 'boolean') ?? null;
+}
+
+/**
+ * RM1: the Terminal's ⋯ reads Catch Me Up, Rename, then End session… (a live
+ * session) or Remove (an ended one), Rename by its identifier; its press opens
+ * the sheet titled Rename with Cancel and Save name, the whole name the Mac
+ * holds prefilled, the keyboard up; and the first focus selected it whole,
+ * shown by the first words typed replacing it (`typed`).
+ */
+export function gradeRm1(r) {
+  const problems = [];
+  const unread = [];
+  // THE FIX ROUND of 2026-10-31: a session page that could not reach the Mac draws no ⋯, so neither it nor Rename
+  // was read (the first fix run's 18.3 drive read that as a ⋯ that did not open). The drive presses its Try again
+  // once; a page that press did not clear is no reading.
+  const reach = r.reach ?? null;
+  if (reach !== null && reach.cleared !== true) return verdict(null, `the session's page drew ${J(reach.failure ?? null)}${reach.retried === true ? ' and drew it again after one Try again' : ' with no Try again to press'}, so its ⋯ was never drawn and Rename was not read`);
+  const m = r.menu;
+  if (m === null || m === undefined) return verdict(null, 'the UI test printed no terminal-menu line for the rename');
+  if (m.opened !== true) return decide(['the ⋯ did not open its menu'], [], '');
+  const last = r.ended === true ? P348_WORDS.remove : MENU_WORDS.endSession;
+  const labels = (m.rows ?? []).map((x) => x.label);
+  if (J(labels) !== J(menuOfThree(last))) problems.push(`the ⋯ holds ${J(labels)}, not Catch Me Up, Rename, then ${J(last)}`);
+  if (!(m.rows ?? []).some((x) => x.id === RENAME_IDS.menu)) problems.push(`no row of the ⋯ is identified ${RENAME_IDS.menu}`);
+  const s = r.sheet;
+  if (s === null || s === undefined) return decide([...problems, 'Rename opened no sheet'], unread, '');
+  if (s.found !== true) problems.push('the Rename sheet is not drawn');
+  if (s.title !== RENAME_WORDS.rename) problems.push(`the sheet is titled ${J(s.title ?? null)}, not ${J(RENAME_WORDS.rename)}`);
+  if (s.cancel !== RENAME_WORDS.cancel) problems.push(`its leading press reads ${J(s.cancel ?? null)}, not ${J(RENAME_WORDS.cancel)}`);
+  // THE FIX ROUND of 2026-10-30: Save name read off its button, never a wrapper carrying its identifier.
+  const save = saveButtonOf(s);
+  if (save === null) unread.push('Save name was read off no button (no saveAll entry of type 9)');
+  else if (save.label !== RENAME_WORDS.saveName) problems.push(`its trailing press reads ${J(save.label ?? null)}, not ${J(RENAME_WORDS.saveName)}`);
+  if (typeof r.name !== 'string') unread.push('the Mac\'s name for the session was not read');
+  else if (s.value !== r.name) problems.push(`the field holds ${J(s.value ?? null)}, not the whole name ${J(r.name)}`);
+  if (s.keyboard !== true) problems.push('the keyboard is not up as the sheet opens');
+  if (s.faceId === true) problems.push('an owner check was drawn ("Only for End")');
+  const t = r.typed;
+  // THE PROBE REVIEW of 2026-10-30: a line with no typed words compared nothing with nothing and passed.
+  if (t === null || t === undefined || t.found === false || typeof t.typed !== 'string') unread.push('nothing was typed into the sheet, so whether its first focus selected the name was not read');
+  else if (t.value !== t.typed) problems.push(`typing ${J(t.typed)} left ${J(t.value)}: the first focus did not select the whole name`);
+  const first = reach === null ? '' : ` (its page first drew ${J(reach.failure ?? null)}, and one Try again cleared it)`;
+  return decide(problems, unread, `the ⋯ holds Catch Me Up, Rename, then ${last}; its sheet titled Rename with Cancel and Save name, the whole name prefilled and selected, the keyboard up${first}`);
+}
+
+/**
+ * RM2: a row's long press on Sessions (`tab: 'sessions'`) and on Needs input
+ * (`'needs'`) draws a menu of Rename alone, by `row-rename-<id>` and
+ * `needs-row-rename-<id>`; a tap still opens the session (`tapped`); and the
+ * sheet reads /v1/session first (D20): a 300-character name, which the list
+ * clips at 200, is prefilled WHOLE (`whole`), Save off over it (the name
+ * unchanged, and past the cap), and one name typed over it turns Save on
+ * (`typed`), which only a first read that came back offering Rename allows.
+ */
+export function gradeRm2(r) {
+  const problems = [];
+  const unread = [];
+  const held = r.held;
+  if (held === null || held === undefined) return verdict(null, 'the UI test printed no row-menu-read line');
+  if (held.found !== true) return verdict(null, `the ${String(r.tab)} row ${String(r.id)} was not found to hold`);
+  const want = r.tab === 'needs' ? RENAME_IDS.needsRow(r.id) : RENAME_IDS.row(r.id);
+  if (held.rename === null || held.rename === undefined) problems.push(`no ${want} in the row's long-press menu`);
+  else {
+    if (held.rename.id !== want) problems.push(`the menu's Rename is ${J(held.rename.id)}, not ${want}`);
+    if (held.rename.label !== RENAME_WORDS.rename) problems.push(`the menu's item reads ${J(held.rename.label)}, not ${J(RENAME_WORDS.rename)}`);
+  }
+  if (J(heldItems(held)) !== J([RENAME_WORDS.rename])) problems.push(`the row's menu holds ${J(heldItems(held))}, not Rename alone`);
+  if (held.faceId === true) problems.push('an owner check was drawn over the row');
+  // The tap is asked of the Sessions row (its `visit`) and of no other: the Needs input row's tap no step of the
+  // drive asks. THE PROBE REVIEW of 2026-10-30: the skip is the tab's, never a missing reading's, which passed.
+  if (r.tab !== 'needs') {
+    if (r.tapped !== true && r.tapped !== false) unread.push('the row was not tapped, so whether its tap still opens the session was not read');
+    else if (r.tapped !== true) problems.push('a tap on the row no longer opens the session');
+  }
+  const s = r.sheet;
+  if (s === null || s === undefined || s.found !== true) return decide([...problems, 'the row\'s Rename opened no sheet'], unread, '');
+  if (s.title !== RENAME_WORDS.rename) problems.push(`the sheet is titled ${J(s.title ?? null)}, not ${J(RENAME_WORDS.rename)}`);
+  if (typeof r.whole !== 'string') unread.push('the session\'s whole name was not read from the Mac');
+  else if (s.value !== r.whole) problems.push(`the field holds ${String(String(s.value ?? '').length)} unit(s) (${J(String(s.value ?? '').slice(0, 24))}…), not the whole ${String(r.whole.length)}-unit name the Mac holds`);
+  // THE FIX ROUND of 2026-10-30: Save name read off its button (type 9), never the wrapper that always reads enabled.
+  const save = saveButtonOf(s);
+  if (save === null) unread.push('Save name was read off no button over the name as the Mac holds it (no saveAll entry of type 9)');
+  else if (save.enabled !== false) problems.push('Save name is on over the name as the Mac holds it');
+  if (s.faceId === true) problems.push('an owner check was drawn ("Only for End")');
+  const t = r.typed;
+  if (t === null || t === undefined || t.found === false || typeof t.typed !== 'string') unread.push('no name was typed over the row\'s prefill, so whether its first read came back offering Rename was not read');
+  else {
+    if (t.value !== t.typed) problems.push(`typing ${J(t.typed)} left ${J(t.value)}: one keystroke did not replace the prefilled name`);
+    const typedSave = saveButtonOf(t);
+    if (typedSave === null) unread.push('Save name was read off no button after a name was typed (no saveAll entry of type 9)');
+    else if (typedSave.enabled !== true) problems.push('Save name stayed off for a new name after the row\'s first read');
+  }
+  return decide(problems, unread, `the ${r.tab === 'needs' ? 'Needs input' : 'Sessions'} row's long press draws Rename alone (${want})${r.tapped === true ? '; a tap still opens it' : ''}; the sheet read the session first, holds the whole ${String(r.whole?.length ?? '?')}-unit name with Save off, and a name typed over it turns Save on`);
+}
+
+/**
+ * RM3: Save sends ONE rename (main's log, one line per write, `acts`), asks no
+ * Face ID, closes, and the page under it takes the name the Mac stored
+ * (`stored`, read from /v1/session); tmux holds D7's name by `$`-id
+ * (`tmuxName`, `d7`).
+ */
+export function gradeRm3(r) {
+  const problems = [];
+  const unread = [];
+  const a = r.after;
+  if (a === null || a === undefined) return verdict(null, 'the UI test printed no rename-after line');
+  // THE FIX ROUND of 2026-10-30: Save name read off its button at the press (type 9), never a wrapper.
+  const atPress = saveButtonOf(a);
+  if (atPress === null) unread.push('Save name was read off no button at the press (no saveAll entry of type 9)');
+  else if (atPress.enabled === false) unread.push('Save name was off when it was pressed');
+  // THE PROBE REVIEW of 2026-10-30: an unread log is no count (it read as none).
+  if (typeof r.acts !== 'number') unread.push('main\'s log was not read, so its rename lines were not counted');
+  else if (r.acts !== 1) problems.push(`main logged ${String(r.acts)} rename(s) of the session, not one`);
+  if (a.faceId === true) problems.push('an owner check was drawn during the rename ("Only for End")');
+  if (a.closed !== true) problems.push(`the sheet stayed${typeof a.line === 'string' ? `, its line ${J(a.line)}` : ''}`);
+  if (typeof r.stored !== 'string') unread.push('the Mac\'s stored name was not read back');
+  else {
+    if (r.stored !== r.typed) problems.push(`the Mac stored ${J(r.stored)}, not the name typed ${J(r.typed)}`);
+    if (!Array.isArray(a.title)) unread.push('the page under the sheet was not read');
+    else if (!a.title.includes(r.stored)) problems.push(`the page under the sheet is titled ${J(a.title)}, not ${J(r.stored)}`);
+  }
+  if (typeof r.tmuxName !== 'string') unread.push('tmux was not asked for the session by its $-id');
+  else if (r.tmuxName !== r.d7) problems.push(`tmux holds ${J(r.tmuxName)} by $-id, not D7's ${J(r.d7)}`);
+  return decide(problems, unread, `one rename, no owner check, the sheet closed, the page titled ${J(r.stored ?? null)}, tmux ${J(r.tmuxName ?? null)} by $-id`);
+}
+
+/**
+ * RM4: a session removed on the Mac under the sheet (`removed`, ended and
+ * removed through the bridge between the sheet's read and its Save): the sheet
+ * keeps his text and draws the Mac's own sentence for what it holds now
+ * (`want`: Session not found. when main lists it no more, This session
+ * changed. Nothing was done. when it lists it removed).
+ */
+export function gradeRm4(r) {
+  const problems = [];
+  const a = r.after;
+  if (r.removed !== true) return verdict(null, 'the session was not removed on the Mac under the sheet, so no refusal was asked for');
+  if (typeof r.want !== 'string') return verdict(null, 'what main holds of the removed session was not read, so the Mac\'s sentence is not known');
+  if (a === null || a === undefined) return verdict(null, 'the UI test printed no rename-after line');
+  if (a.closed === true) problems.push('the sheet closed on a refusal, and his text went with it');
+  if (a.value !== r.typed) problems.push(`the field holds ${J(a.value ?? null)}, not his text ${J(r.typed)}`);
+  if (a.line !== r.want) problems.push(`the line reads ${J(a.line ?? null)}, not the Mac's ${J(r.want)}`);
+  // THE PROBE REVIEW of 2026-10-30: an unread log is no count (it read as none).
+  const unread = typeof r.acts === 'number' ? [] : ['main\'s log was not read, so its rename lines were not counted'];
+  if (typeof r.acts === 'number' && r.acts !== 1) problems.push(`main logged ${String(r.acts)} rename(s) of the removed session, not the one it refused`);
+  if (a.faceId === true) problems.push('an owner check was drawn');
+  return decide(problems, unread, `the sheet kept his text and the Mac's ${J(r.want)}`);
+}
+
+/**
+ * RM5: an empty name, the name unchanged and a blank one keep Save off, read
+ * off Save name's BUTTON (`saveButtonOf`; THE FIX ROUND of 2026-10-30: the
+ * first match of any type was a wrapper that always reads enabled), and the
+ * field never holds more than 120 UTF-16 units however many are typed.
+ */
+export function gradeRm5(r) {
+  const problems = [];
+  const unread = [];
+  for (const [key, what] of [['empty', 'an empty name'], ['unchanged', 'the name unchanged'], ['spaces', 'a name of spaces']]) {
+    const x = r[key];
+    if (x === null || x === undefined || x.found === false) unread.push(`${what} was not typed`);
+    else {
+      const save = saveButtonOf(x);
+      if (save === null) unread.push(`Save name was read off no button for ${what} (no saveAll entry of type 9)`);
+      else if (save.enabled !== false) problems.push(`Save name is on for ${what}`);
+    }
+  }
+  const c = r.cap;
+  if (c === null || c === undefined || c.found === false) unread.push('no name past the cap was typed');
+  else {
+    if (typeof c.typed !== 'string' || c.typed.length <= RENAME_MAX_UNITS) unread.push('the name typed for the cap was not read past it');
+    if (!(typeof c.units === 'number' && c.units <= RENAME_MAX_UNITS)) problems.push(`the field holds ${String(c.units)} UTF-16 units after ${String(c.typed?.length ?? '?')} were typed, past the Mac's ${String(RENAME_MAX_UNITS)}`);
+  }
+  return decide(problems, unread, `Save off for an empty, an unchanged and a blank name; the field held ${String(c?.units ?? '?')} of ${String(c?.typed?.length ?? '?')} units typed`);
+}
+
+/**
+ * RM6: while End these takes taps, holding a row draws no Rename and leaves
+ * the row's selection as it was (`selecting`); beside its CONTROL, the same row
+ * held outside End these first (`control`), which must show Rename by its
+ * identifier. THE FIX ROUND of 2026-10-30: this asked the hold to TOGGLE the
+ * row, which build 12's own app never did (the verify lens measured build 12
+ * and build 13 alike: a 1.2 s hold on a ticked row leaves it ticked, twice
+ * each), so the clause is the parent's own reading: End these does not change
+ * (build/p349/SPEC.md §12).
+ */
+export function gradeRm6(r) {
+  const problems = [];
+  const c = r.control;
+  if (c === null || c === undefined || c.found !== true) return verdict(null, 'the row was not held outside End these first, so the absence has no control');
+  if (c.rename?.id !== RENAME_IDS.row(r.id)) return verdict(null, `outside End these the row's menu showed ${J(c.rename ?? null)}, not ${RENAME_IDS.row(r.id)}, so an absence while selecting proves nothing`);
+  const s = r.selecting;
+  if (s === null || s === undefined || s.found !== true) return verdict(null, 'the row was not held while End these selects');
+  if (s.rename !== null && s.rename !== undefined) problems.push(`while End these selects the row's long press draws ${J(s.rename)}`);
+  if (s.byWord === true) problems.push('while End these selects a Rename is drawn by its word');
+  // THE PROBE REVIEW of 2026-10-30: a selection never read is no reading.
+  if (typeof s.before !== 'boolean' || typeof s.after !== 'boolean') return decide(problems, ['the row\'s selection was not read before and after the hold'], '');
+  if (s.before !== s.after) problems.push(`the hold while selecting ${s.after ? 'ticked' : 'unticked'} the row, which build 12's hold never does`);
+  return decide(problems, [], 'outside End these the row offers Rename; while it selects, holding the row draws no Rename and leaves its selection as build 12 does');
+}
+
+/**
+ * RM7: Save, then Home at once with the relay holding every new connection
+ * before its handshake (`held`): no rename in main's log, the session's name
+ * unchanged on the Mac, and on return the sheet's line reads `Your Mac did not
+ * rename it. Nothing was changed.`
+ */
+export function gradeRm7(r) {
+  const problems = [];
+  if (typeof r.held !== 'number' || r.held < 1) return verdict(null, `the relay held ${J(r.held ?? null)} connection(s) while the app went home, so nothing was withheld`);
+  const a = r.after;
+  if (a === null || a === undefined) return verdict(null, 'no rename-after line for rename-home');
+  // THE PROBE REVIEW of 2026-10-30: an unread log read as no rename, and an unread name as the app's failure.
+  const unread = [];
+  if (typeof r.acts !== 'number') unread.push('main\'s log was not read, so a rename that went out could not be counted');
+  else if (r.acts !== 0) problems.push(`main logged ${String(r.acts)} rename(s) of a write the app withheld`);
+  if (typeof r.stored !== 'string') unread.push('the Mac\'s name for the session was not read back');
+  else if (r.stored !== r.before) problems.push(`the Mac's name moved from ${J(r.before)} to ${J(r.stored)}`);
+  if (a.closed === true) problems.push('the sheet closed over a write that was withheld');
+  if (a.line !== RENAME_WORDS.notTaken) problems.push(`on return the line reads ${J(a.line ?? null)}, not ${J(RENAME_WORDS.notTaken)}`);
+  if (a.faceId === true) problems.push('an owner check was drawn');
+  return decide(problems, unread, `the write held before its handshake was withheld by Home: no rename, ${J(RENAME_WORDS.notTaken)} on return`);
+}
+
+/**
+ * RM8: New session's Name is drawn exactly where the Sessions answer says
+ * `renames` (`renames`) and does not take the keyboard (D19); left empty,
+ * Create sends today's start: its keys `agent,project,write`, its ids and a
+ * fresh 32-hex write id, equal to the parent's own start over the same world
+ * (`parent`; a write id is never the same twice, so the bytes differ there
+ * alone), and no rename. A `start-name-read` with `missing:true` read no sheet.
+ */
+export function gradeRm8(r) {
+  const problems = [];
+  const unread = [];
+  const n = r.nameRead;
+  if (n === null || n === undefined || n.missing === true) return verdict(null, 'New session was not open when its Name was read (start-name-read missing)');
+  if (n.present !== (r.renames === true)) problems.push(`the Name is ${n.present ? 'drawn' : 'not drawn'} where the Sessions answer ${r.renames === true ? 'says renames' : 'says nothing of renames'}`);
+  if (n.present === true && n.focused === true) problems.push('the Name took the keyboard as the sheet opened (D19)');
+  const s = r.start;
+  if (s === null || s === undefined) return decide(problems, [...unread, 'no start reached the door'], '');
+  if (s.keys !== 'agent,project,write') problems.push(`the start carried ${J(s.keys)}, not agent, project and write`);
+  if (!/^[0-9a-f]{32}$/.test(String(s.write ?? ''))) problems.push(`the start's write id is ${J(s.write ?? null)}, not 32 hex`);
+  if (r.parent === null || r.parent === undefined) unread.push('the parent\'s own start was not read, so today\'s start was not compared');
+  else if (J([s.keys, s.project, s.agent]) !== J([r.parent.keys, r.parent.project, r.parent.agent])) problems.push(`the start ${J([s.keys, s.project, s.agent])} is not the parent's ${J([r.parent.keys, r.parent.project, r.parent.agent])}`);
+  if (r.renamePosts !== 0) problems.push(`an empty Name sent ${String(r.renamePosts)} rename(s)`);
+  return decide(problems, unread, `the Name drawn where renames says; left empty, Create sent today's start (${J(s.keys)}, the parent's ids) and no rename`);
+}
+
+/**
+ * RM9: named, Create sends ONE start, then ONE rename, of the id the start
+ * answered (`renames`, the session each rename line in main's log names,
+ * `startedId`), the start's line first (`order`), and the Terminal opens under
+ * his name (`opened`, the page's title). `missing:true` typed no Name.
+ */
+export function gradeRm9(r) {
+  const problems = [];
+  const unread = [];
+  const n = r.named;
+  if (n === null || n === undefined || n.missing === true) return verdict(null, 'New session\'s Name was not typed (start-name missing)');
+  if (r.starts !== 1) problems.push(`${String(r.starts)} session(s) started, not one`);
+  // THE PROBE REVIEW of 2026-10-30: an unread log read as no rename, and an unread stored name was skipped.
+  if (!Array.isArray(r.renames)) unread.push('main\'s log was not read, so the rename after the start was not counted');
+  else {
+    const renames = r.renames;
+    if (renames.length !== 1) problems.push(`${String(renames.length)} rename(s) followed the start, not one`);
+    else if (typeof r.startedId !== 'string') unread.push('the id the start answered was not read');
+    else if (renames[0].session !== r.startedId) problems.push(`the rename named ${J(renames[0].session)}, not the session the start made ${J(r.startedId)}`);
+    if (renames.length === 1 && r.order !== 'start-then-rename') problems.push(`main's log reads ${J(r.order)}, not the start then the rename`);
+  }
+  if (typeof r.stored !== 'string') unread.push('the Mac\'s stored name for the started session was not read');
+  else if (r.stored !== n.typed) problems.push(`the Mac stored ${J(r.stored)}, not his name ${J(n.typed)}`);
+  const o = r.opened;
+  if (o === null || o === undefined) unread.push('the page the start opened was not read');
+  else if (!(o.title ?? []).includes(n.typed)) problems.push(`the opened page is titled ${J(o.title ?? null)}, not his name ${J(n.typed)}`);
+  return decide(problems, unread, `one start, then ONE rename of ${J(r.startedId ?? null)}, the Terminal opened under ${J(n.typed)}`);
+}
+
+/**
+ * RM10: See a sample: its sessions draw Rename in the ⋯ and New session its
+ * Name; Save name and a named Create each say `This is a sample, so nothing
+ * ran.`; and the relay counts no connection (`connections`).
+ */
+export function gradeRm10(r) {
+  const problems = [];
+  const unread = [];
+  const m = r.menu;
+  if (m === null || m === undefined || m.opened !== true) unread.push('the sample\'s ⋯ was not opened');
+  else if (!(m.rows ?? []).some((x) => x.id === RENAME_IDS.menu)) problems.push('the sample\'s ⋯ holds no Rename');
+  if (r.save === null || r.save === undefined) unread.push('the sample\'s Save name was not pressed');
+  else {
+    if (r.save.line !== RENAME_WORDS.sample) problems.push(`the sample's Save name says ${J(r.save.line ?? null)}, not ${J(RENAME_WORDS.sample)}`);
+    if (r.save.faceId === true) problems.push('an owner check was drawn over the sample\'s rename');
+  }
+  if (r.nameRead === null || r.nameRead === undefined || r.nameRead.missing === true) unread.push('the sample\'s New session was not open when its Name was read');
+  else if (r.nameRead.present !== true) problems.push('the sample\'s New session draws no Name');
+  if (r.create === null || r.create === undefined) unread.push('the sample\'s named Create was not pressed');
+  else if (r.create.line !== RENAME_WORDS.sample) problems.push(`the sample's named Create says ${J(r.create.line ?? null)}, not ${J(RENAME_WORDS.sample)}`);
+  if (r.connections !== 0) problems.push(`the relay took ${String(r.connections)} connection(s): the sample's rename left the phone`);
+  return decide(problems, unread, `See a sample: Rename in its ⋯, a Name in its New session, both saying ${J(RENAME_WORDS.sample)}, nothing left the phone`);
+}
+
+/**
+ * RMP: each OLDER APP against this Mac (`b12`, build 12, P349_PARENT_IOS;
+ * `b11`, build 11, P348_PARENT_IOS), driven by its OWN UI test, which knows no
+ * rename step: its ⋯ holds its own two items, Catch Me Up then End session…,
+ * and no Rename; its list draws its rows and no sentence over this Mac's
+ * answers, which now carry `rename` and `renames`; and its New session opens
+ * with no Name. THIS APP AGAINST A 348 MAC (`oldMac`, the hostile door's
+ * `start-404` world, the shipping composer's answers with no `rename` and no
+ * `renames`): a row's long press draws no Rename, the ⋯ no Rename, New
+ * session no Name. Every absence of this app's stands beside the main
+ * drive's controls (`controls`: RM6's row showing Rename, RM9's Name drawn),
+ * and an older build not driven is UNREADABLE.
+ */
+export function gradeRmp(r) {
+  const problems = [];
+  const unread = [];
+  const c = r.controls ?? {};
+  for (const [key, who] of [['b12', 'build 12 (P349_PARENT_IOS)'], ['b11', 'build 11 (P348_PARENT_IOS)']]) {
+    const x = r[key];
+    if (x === null || x === undefined || x.driven !== true) {
+      unread.push(`${who} was not driven`);
+      continue;
+    }
+    if (x.menu === null || x.menu === undefined || x.menu.opened !== true) unread.push(`${who}: its ⋯ was not opened`);
+    else {
+      const labels = (x.menu.rows ?? []).map((y) => y.label);
+      if ((x.menu.rows ?? []).some((y) => y.id === RENAME_IDS.menu || y.label === RENAME_WORDS.rename)) problems.push(`${who} draws Rename in its ⋯`);
+      else if (J(labels) !== J([MENU_WORDS.catchMeUp, MENU_WORDS.endSession])) problems.push(`${who}'s ⋯ holds ${J(labels)}, not its own Catch Me Up then End session…`);
+    }
+    if (x.sentence !== null && x.sentence !== undefined) problems.push(`${who} draws ${J(x.sentence.id)} over this Mac's answers`);
+    else if (!(x.listRows > 0)) unread.push(`${who}: its list drew no row`);
+    if (x.nameRead === null || x.nameRead === undefined || x.nameRead.missing === true) unread.push(`${who}: New session was not open when its Name was read`);
+    else if (x.nameRead.present === true) problems.push(`${who} draws a Name in New session`);
+  }
+  const o = r.oldMac;
+  const who = 'this app against a 348 Mac';
+  if (o === null || o === undefined || o.driven !== true) unread.push(`${who} was not driven`);
+  else {
+    if (c.row !== true) unread.push('the main drive\'s row never showed Rename, so a row with none proves nothing');
+    else if (o.held === null || o.held === undefined || o.held.found !== true) unread.push(`${who}: no row was held`);
+    else if ((o.held.rename ?? null) !== null || o.held.byWord === true) problems.push(`${who} draws Rename in a row's menu`);
+    if (o.menu === null || o.menu === undefined || o.menu.opened !== true) unread.push(`${who}: its ⋯ was not opened`);
+    else if ((o.menu.rows ?? []).some((y) => y.id === RENAME_IDS.menu || y.label === RENAME_WORDS.rename)) problems.push(`${who} draws Rename in its ⋯`);
+    if (c.name !== true) unread.push('the main drive\'s New session never drew its Name, so a sheet with none proves nothing');
+    else if (o.nameRead === null || o.nameRead === undefined || o.nameRead.missing === true) unread.push(`${who}: New session was not open when its Name was read`);
+    else if (o.nameRead.present === true) problems.push(`${who} draws a Name in New session`);
+  }
+  return decide(problems, unread, 'build 12 and build 11 against this Mac keep their own ⋯, rows and New session, and this app against a 348 Mac draws no Rename and no Name, beside the main drive\'s controls');
+}
+
+/**
+ * RMH: one rename arm of build/p316/hostile-door.mjs (P349_ARMS), `spec` its
+ * row. A KEY arm draws no Name and keeps the "+" and the list (its absence
+ * beside the main drive's Name, `control`); a ROW arm and the DETAIL arm read
+ * unreadable as the H list arms read (`sentence`, drawSentence's reading):
+ * in the row's place, the row's word, and never beside a row; a drawn list
+ * with no sentence, or a sentence beside rows, FAILS; an ANSWER arm sends ONE
+ * POST /v1/rename from a ⋯ that opened WITH Rename (one with none FAILS, as
+ * RVH reads Remove) and draws its line: the row's Copy word, or this door's
+ * own sentence for an open reason, the sheet kept.
+ */
+export function gradeRmh(r) {
+  const spec = r.spec;
+  const problems = [];
+  const unread = [];
+  if (r.alive !== RUNNING_FOREGROUND) problems.push(`the app's state is ${J(r.alive)} at the end`);
+  if (r.posts !== spec.posts) problems.push(`the door read ${String(r.posts)} POST /v1/rename, not ${String(spec.posts)}`);
+  const want = spec.doorSentence === true ? r.doorSentence ?? null : copyOf(spec.expect?.[0] ?? '') ?? null;
+  if (spec.rename === 'key') {
+    if (r.sentence !== null && r.sentence !== undefined) problems.push(`the list drew ${J(r.sentence.id)} over a renames key the phone reads leniently`);
+    if (r.plus !== true) problems.push('the "+" is gone with the renames key');
+    if (r.control !== true) unread.push('the main drive never drew New session\'s Name, so a Name absent here proves nothing');
+    const n = r.nameRead;
+    if (n === null || n === undefined || n.missing === true) unread.push('New session was not open when its Name was read');
+    else if (n.present === true) problems.push('New session draws a Name over a renames key the phone cannot read');
+    return decide(problems, unread, 'no Name drawn, the "+" and the list kept, nothing sent');
+  }
+  if (spec.rename === 'row' || spec.rename === 'blocked-row' || spec.rename === 'detail') {
+    // THE PROBE REVIEW of 2026-10-30: a list the door never served honestly first never met the arm, so what it
+    // drew there is no reading (a drive that never reached the list read FAIL, its problem decided first).
+    if (spec.list === true && r.honestFirst !== true) return verdict(null, 'the list\'s first read was never answered honestly, so its refresh never met the arm');
+    const s = r.sentence;
+    if (s === null || s === undefined) problems.push(spec.rename === 'detail' ? 'the session drew no sentence' : `the list drew ${String(r.listRows ?? 0)} row(s) and no sentence`);
+    else {
+      if (s.id !== spec.at) problems.push(`the sentence is drawn in ${J(s.id)}, not ${J(spec.at)}`);
+      if (s.word !== (spec.expect?.[0] ?? null)) problems.push(`the sentence is ${J(s.word ? `Copy.${s.word}` : null)}, not Copy.${String(spec.expect?.[0])}`);
+      if (spec.rename !== 'detail' && s.rows > 0) problems.push(`the list drew ${String(s.rows)} row(s) beside its sentence`);
+    }
+    if (spec.list === true && r.honestFirst !== true) unread.push('the list\'s first read was never answered honestly, so its refresh never met the arm');
+    return decide(problems, unread, `${spec.rename === 'detail' ? 'the session' : 'the list'} read unreadable: ${J(want)}`);
+  }
+  const m = r.menu;
+  if (m === null || m === undefined || m.opened !== true) return decide(problems, [...unread, 'the ⋯ was not opened'], '');
+  if (!(m.rows ?? []).some((x) => x.id === RENAME_IDS.menu)) return decide([...problems, 'the ⋯ opened with no Rename where the door offers one'], unread, '');
+  const a = r.after;
+  if (a === null || a === undefined) return decide(problems, [...unread, 'no rename-after line: Save name was not pressed'], '');
+  if (want === null) problems.push('the arm names no line this file can read');
+  else if (a.line !== want) problems.push(`the line reads ${J(a.line ?? null)}, not ${J(want)}`);
+  if (a.closed === true) problems.push('the sheet closed over an answer this write cannot take');
+  if (a.faceId === true) problems.push('an owner check was drawn');
+  return decide(problems, unread, `one POST, its line ${J(want)}`);
+}
+
+// --grader-self-test: every rename grader, each clause shown red on its own break.
+function renameSelfTest() {
+  const cases = [];
+  const add = (what, grader, input, want) => cases.push({ what, got: () => grader(input).ok, want });
+  const edit = (base, fn) => {
+    const copy = structuredClone(base);
+    fn(copy);
+    return copy;
+  };
+  const menuOf = (last = MENU_WORDS.endSession) => ({ opened: true, rows: [{ id: 'terminal-menu-catch-up', label: MENU_WORDS.catchMeUp }, { id: RENAME_IDS.menu, label: RENAME_WORDS.rename }, { id: last === MENU_WORDS.endSession ? 'terminal-menu-end' : 'terminal-menu-remove', label: last }] });
+  // THE FIX ROUND of 2026-10-30: every Save reading carries `saveAll`, the wrapper (type 1, always enabled) BESIDE
+  // the button (type 9), as iOS 26 draws them; the graders read the button.
+  const wrapper = { type: 1, enabled: true, label: RENAME_WORDS.saveName };
+  const button = (on) => ({ type: 9, enabled: on, label: RENAME_WORDS.saveName });
+  const saveAllOf = (on) => [{ ...wrapper }, button(on)];
+  const setButton = (line, on) => void (line.saveAll.find((x) => x.type === 9).enabled = on);
+  const sheet = { found: true, title: RENAME_WORDS.rename, cancel: RENAME_WORDS.cancel, save: { label: RENAME_WORDS.saveName, enabled: false, type: 9 }, saveAll: saveAllOf(false), value: 'p349-rm1', units: 8, keyboard: true, line: null, faceId: false };
+  // ---- RM1 ----
+  const rm1 = { menu: menuOf(), ended: false, sheet, name: 'p349-rm1', typed: { found: true, typed: 'fix #H here', value: 'fix #H here', save: true, saveAll: saveAllOf(true) } };
+  add('RM1 passes the ⋯ with Rename second and its sheet', gradeRm1, rm1, true);
+  add('RM1 passes Remove last on an ended session', gradeRm1, edit(rm1, (r) => Object.assign(r, { ended: true, menu: menuOf(P348_WORDS.remove) })), true);
+  add('RM1 is red on the parent\'s two-item ⋯', gradeRm1, edit(rm1, (r) => void r.menu.rows.splice(1, 1)), false);
+  add('RM1 is red on Rename after End', gradeRm1, edit(rm1, (r) => void r.menu.rows.reverse()), false);
+  add('RM1 is red on End where an ended session draws Remove', gradeRm1, edit(rm1, (r) => void (r.ended = true)), false);
+  add('RM1 is red on Rename found by its word alone', gradeRm1, edit(rm1, (r) => void (r.menu.rows[1].id = '')), false);
+  add('RM1 is red on a ⋯ that did not open', gradeRm1, edit(rm1, (r) => void (r.menu.opened = false)), false);
+  add('RM1 is red on a sheet that did not open', gradeRm1, edit(rm1, (r) => void (r.sheet = null)), false);
+  add('RM1 is red on another title', gradeRm1, edit(rm1, (r) => void (r.sheet.title = 'Rename session')), false);
+  add('RM1 is red on Save in another word', gradeRm1, edit(rm1, (r) => void (r.sheet.saveAll[1].label = 'Save')), false);
+  add('RM1 is UNREADABLE with Save read off no button (the fix round)', gradeRm1, edit(rm1, (r) => void (r.sheet.saveAll = [{ ...wrapper }])), null);
+  // THE FIX ROUND of 2026-10-31: a page that could not reach the Mac is no reading of the ⋯, never a ⋯ that did not
+  // open (the first fix run's 18.3 drive, whose page drew this sentence as the door refused one TLS handshake).
+  const unreached = 'Tortie could not reach your Mac.';
+  add('RM1 is UNREADABLE when the page could not reach the Mac and one Try again did not clear it (2026-10-31)', gradeRm1, edit(rm1, (r) => Object.assign(r, { reach: { failure: unreached, retried: true, cleared: false }, menu: null, sheet: { found: false, reach: unreached } })), null);
+  add('RM1 is UNREADABLE when the page could not reach the Mac and drew no Try again (2026-10-31)', gradeRm1, edit(rm1, (r) => Object.assign(r, { reach: { failure: unreached, retried: false, cleared: false }, menu: null, sheet: { found: false, reach: unreached } })), null);
+  add('RM1 is UNREADABLE on that page even beside a ⋯ line that says it opened (2026-10-31)', gradeRm1, edit(rm1, (r) => void (r.reach = { failure: unreached, retried: true, cleared: false })), null);
+  add('RM1 passes when one Try again cleared a page that could not reach the Mac (2026-10-31)', gradeRm1, edit(rm1, (r) => void (r.reach = { failure: unreached, retried: true, cleared: true })), true);
+  add('RM1 is red on a ⋯ that did not open after one Try again cleared the page (2026-10-31)', gradeRm1, edit(rm1, (r) => Object.assign(r, { reach: { failure: unreached, retried: true, cleared: true }, menu: { ...r.menu, opened: false } })), false);
+  add('RM1 is red on the parent\'s two-item ⋯ after one Try again cleared the page (2026-10-31)', gradeRm1, edit(rm1, (r) => { r.reach = { failure: unreached, retried: true, cleared: true }; r.menu.rows.splice(1, 1); }), false);
+  add('RM1 is red on no Cancel', gradeRm1, edit(rm1, (r) => void (r.sheet.cancel = null)), false);
+  add('RM1 is red on a name cut short', gradeRm1, edit(rm1, (r) => void (r.sheet.value = 'p349')), false);
+  add('RM1 is red on the keyboard down', gradeRm1, edit(rm1, (r) => void (r.sheet.keyboard = false)), false);
+  add('RM1 is red on an owner check', gradeRm1, edit(rm1, (r) => void (r.sheet.faceId = true)), false);
+  add('RM1 is red on a first focus that did not select the name', gradeRm1, edit(rm1, (r) => void (r.typed.value = 'p349-rm1fix #H here')), false);
+  add('RM1 is UNREADABLE with no menu line', gradeRm1, edit(rm1, (r) => void (r.menu = null)), null);
+  add('RM1 is UNREADABLE with nothing typed', gradeRm1, edit(rm1, (r) => void (r.typed = null)), null);
+  add('RM1 is UNREADABLE with the field not found to type in', gradeRm1, edit(rm1, (r) => void (r.typed = { found: false })), null);
+  add('RM1 is UNREADABLE with the Mac\'s name unread', gradeRm1, edit(rm1, (r) => void (r.name = null)), null);
+  // ---- RM2 ----
+  const whole = `p349 ${'w'.repeat(295)}`;
+  const held = { found: true, rename: { id: RENAME_IDS.row('s2'), label: RENAME_WORDS.rename, enabled: true }, byWord: true, items: [{ id: RENAME_IDS.row('s2'), label: RENAME_WORDS.rename }], faceId: false };
+  const rm2 = { tab: 'sessions', id: 's2', held, tapped: true, sheet: { ...structuredClone(sheet), value: whole, units: 300 }, whole, typed: { found: true, typed: 'p349 rm2 typed', value: 'p349 rm2 typed', save: true, saveAll: saveAllOf(true) } };
+  add('RM2 passes the Sessions row\'s Rename alone and the whole name', gradeRm2, rm2, true);
+  add('RM2 passes the Needs input row\'s, whose tap this drive does not ask', gradeRm2, edit(rm2, (r) => { Object.assign(r, { tab: 'needs', held: { ...r.held, rename: { ...r.held.rename, id: RENAME_IDS.needsRow('s2') }, items: [{ id: RENAME_IDS.needsRow('s2'), label: RENAME_WORDS.rename }] } }); delete r.tapped; }), true);
+  add('RM2 is red on the Needs input row carrying the Sessions identifier', gradeRm2, edit(rm2, (r) => void (r.tab = 'needs')), false);
+  add('RM2 is red on no Rename in the row\'s menu', gradeRm2, edit(rm2, (r) => Object.assign(r.held, { rename: null, items: [] })), false);
+  add('RM2 is red on a second item in the row\'s menu', gradeRm2, edit(rm2, (r) => void r.held.items.push({ id: '', label: 'End session…' })), false);
+  add('RM2 is red on the row\'s Rename in another word', gradeRm2, edit(rm2, (r) => void (r.held.rename.label = 'Rename…')), false);
+  add('RM2 is red on an owner check over the row', gradeRm2, edit(rm2, (r) => void (r.held.faceId = true)), false);
+  add('RM2 is red on a tap that no longer opens the session', gradeRm2, edit(rm2, (r) => void (r.tapped = false)), false);
+  add('RM2 is red on the list\'s clipped 200 prefilled', gradeRm2, edit(rm2, (r) => void (r.sheet.value = whole.slice(0, 200))), false);
+  add('RM2 is red on Save\'s button on over the name as the Mac holds it', gradeRm2, edit(rm2, (r) => setButton(r.sheet, true)), false);
+  add('RM2 is red on Save\'s button off for a new name after the first read', gradeRm2, edit(rm2, (r) => setButton(r.typed, false)), false);
+  add('RM2 passes Save off read off its button beside a wrapper that reads enabled (the fix round)', gradeRm2, edit(rm2, (r) => void (r.sheet.saveAll = [{ ...wrapper }, button(false)])), true);
+  add('RM2 passes the button listed before the wrapper (the fix round)', gradeRm2, edit(rm2, (r) => void r.sheet.saveAll.reverse()), true);
+  add('RM2 is UNREADABLE on the sheet\'s Save read off a wrapper alone (the fix round)', gradeRm2, edit(rm2, (r) => void (r.sheet.saveAll = [{ ...wrapper }])), null);
+  add('RM2 is UNREADABLE on a typed line\'s Save read off a wrapper alone (the fix round)', gradeRm2, edit(rm2, (r) => void (r.typed.saveAll = [{ ...wrapper }])), null);
+  add('RM2 is UNREADABLE on a sheet line from before saveAll (the fix round)', gradeRm2, edit(rm2, (r) => void delete r.sheet.saveAll), null);
+  add('RM2 is red on a keystroke that did not replace the prefill', gradeRm2, edit(rm2, (r) => void (r.typed.value = `${whole}p`)), false);
+  add('RM2 is red on no sheet', gradeRm2, edit(rm2, (r) => void (r.sheet = null)), false);
+  add('RM2 is UNREADABLE with no row-menu-read line', gradeRm2, edit(rm2, (r) => void (r.held = null)), null);
+  add('RM2 is UNREADABLE with the row not found', gradeRm2, edit(rm2, (r) => void (r.held.found = false)), null);
+  add('RM2 is UNREADABLE with no tap', gradeRm2, edit(rm2, (r) => void (r.tapped = null)), null);
+  add('RM2 is UNREADABLE with nothing typed over the prefill', gradeRm2, edit(rm2, (r) => void (r.typed = null)), null);
+  // ---- RM3 ----
+  const rm3 = { after: { enabled: true, saveAll: saveAllOf(true), closed: true, line: null, title: ['fix #H here'], faceId: false }, acts: 1, typed: 'fix #H here', stored: 'fix #H here', tmuxName: 'fix _H here', d7: 'fix _H here' };
+  add('RM3 passes one rename, closed, the title the Mac\'s, D7 in tmux', gradeRm3, rm3, true);
+  add('RM3 is red on two renames', gradeRm3, edit(rm3, (r) => void (r.acts = 2)), false);
+  add('RM3 is red on none', gradeRm3, edit(rm3, (r) => void (r.acts = 0)), false);
+  add('RM3 is red on an owner check', gradeRm3, edit(rm3, (r) => void (r.after.faceId = true)), false);
+  add('RM3 is red on the sheet left up', gradeRm3, edit(rm3, (r) => void (r.after.closed = false)), false);
+  add('RM3 is red on another name stored', gradeRm3, edit(rm3, (r) => void (r.stored = 'fix _H here')), false);
+  add('RM3 is red on the page under it keeping the old name', gradeRm3, edit(rm3, (r) => void (r.after.title = ['p349-rm1'])), false);
+  add('RM3 is red on tmux expanding the name (the parent\'s #H)', gradeRm3, edit(rm3, (r) => void (r.tmuxName = 'fix Mac here')), false);
+  add('RM3 is UNREADABLE with no rename-after line', gradeRm3, edit(rm3, (r) => void (r.after = null)), null);
+  add('RM3 is UNREADABLE with Save\'s button off at the press', gradeRm3, edit(rm3, (r) => setButton(r.after, false)), null);
+  add('RM3 is UNREADABLE with Save read off no button at the press (the fix round)', gradeRm3, edit(rm3, (r) => void (r.after.saveAll = [{ ...wrapper }])), null);
+  add('RM3 is UNREADABLE with tmux not asked', gradeRm3, edit(rm3, (r) => void (r.tmuxName = null)), null);
+  add('RM3 is UNREADABLE with the stored name unread', gradeRm3, edit(rm3, (r) => void (r.stored = null)), null);
+  // ---- RM4 ----
+  const rm4 = { removed: true, want: RENAME_WORDS.gone, typed: 'gone now', acts: 1, after: { closed: false, value: 'gone now', line: RENAME_WORDS.gone, faceId: false } };
+  add('RM4 passes the sheet keeping his text and the Mac\'s sentence', gradeRm4, rm4, true);
+  add('RM4 passes a removed row the Mac still lists, with its own sentence', gradeRm4, edit(rm4, (r) => Object.assign(r, { want: RENAME_WORDS.changed, after: { ...r.after, line: RENAME_WORDS.changed } })), true);
+  add('RM4 is red on the sheet closing on a refusal', gradeRm4, edit(rm4, (r) => void (r.after.closed = true)), false);
+  add('RM4 is red on his text lost', gradeRm4, edit(rm4, (r) => void (r.after.value = '')), false);
+  add('RM4 is red on another line', gradeRm4, edit(rm4, (r) => void (r.after.line = RENAME_WORDS.notTaken)), false);
+  add('RM4 is red on no refusal in main\'s log', gradeRm4, edit(rm4, (r) => void (r.acts = 0)), false);
+  add('RM4 is UNREADABLE when nothing was removed under the sheet', gradeRm4, edit(rm4, (r) => void (r.removed = false)), null);
+  add('RM4 is UNREADABLE with main\'s hold of it unread', gradeRm4, edit(rm4, (r) => void (r.want = null)), null);
+  add('RM4 is UNREADABLE with no rename-after line', gradeRm4, edit(rm4, (r) => void (r.after = null)), null);
+  // ---- RM5 ----
+  const rm5 = { empty: { found: true, save: false, saveAll: saveAllOf(false) }, unchanged: { found: true, save: false, saveAll: saveAllOf(false) }, spaces: { found: true, save: false, saveAll: saveAllOf(false) }, cap: { found: true, typed: 'x'.repeat(130), units: 120 } };
+  add('RM5 passes Save off three ways and the cap held', gradeRm5, rm5, true);
+  add('RM5 is red on Save\'s button on for an empty name', gradeRm5, edit(rm5, (r) => setButton(r.empty, true)), false);
+  add('RM5 is red on Save\'s button on for the name unchanged', gradeRm5, edit(rm5, (r) => setButton(r.unchanged, true)), false);
+  add('RM5 is red on Save\'s button on for a name of spaces', gradeRm5, edit(rm5, (r) => setButton(r.spaces, true)), false);
+  // THE FIX ROUND of 2026-10-30, the verify lens's reading: a wrapper (type 1) that reads enabled BESIDE the button
+  // (type 9) that reads off is Save OFF, whatever `save` (the old first match) said, and a wrapper alone is no reading.
+  add('RM5 passes a type-1 wrapper reading enabled beside a type-9 button reading off, for all three (the fix round)', gradeRm5, edit(rm5, (r) => { for (const k of ['empty', 'unchanged', 'spaces']) r[k] = { found: true, save: true, saveAll: [{ ...wrapper }, button(false)] }; }), true);
+  add('RM5 is UNREADABLE on Save read off a type-1 wrapper alone that reads enabled (the fix round)', gradeRm5, edit(rm5, (r) => void (r.empty.saveAll = [{ ...wrapper }])), null);
+  add('RM5 is UNREADABLE on a typed line from before saveAll (the fix round)', gradeRm5, edit(rm5, (r) => void delete r.unchanged.saveAll), null);
+  add('RM5 is red on the button reading on even with the old first match off (the fix round)', gradeRm5, edit(rm5, (r) => Object.assign(r.spaces, { save: false, saveAll: [{ ...wrapper, enabled: false }, button(true)] })), false);
+  add('RM5 is red on the field past 120 units', gradeRm5, edit(rm5, (r) => void (r.cap.units = 130)), false);
+  add('RM5 is UNREADABLE with no cap typed', gradeRm5, edit(rm5, (r) => void (r.cap = null)), null);
+  add('RM5 is UNREADABLE with a cap name under the cap', gradeRm5, edit(rm5, (r) => void (r.cap.typed = 'x'.repeat(40))), null);
+  add('RM5 is UNREADABLE with the empty name never typed', gradeRm5, edit(rm5, (r) => void (r.empty = { found: false })), null);
+  // ---- RM6 ----
+  // THE FIX ROUND of 2026-10-30: build 12's hold leaves a ticked row ticked (the verify lens, twice at each build).
+  const rm6 = { id: 's6', control: { found: true, rename: { id: RENAME_IDS.row('s6'), label: RENAME_WORDS.rename } }, selecting: { found: true, rename: null, byWord: false, items: [], before: true, after: true } };
+  add('RM6 passes no menu while selecting beside its control, the row still ticked as build 12 leaves it', gradeRm6, rm6, true);
+  add('RM6 is red on Rename drawn while selecting', gradeRm6, edit(rm6, (r) => void (r.selecting.rename = { id: RENAME_IDS.row('s6'), label: RENAME_WORDS.rename })), false);
+  add('RM6 is red on Rename by its word while selecting', gradeRm6, edit(rm6, (r) => void (r.selecting.byWord = true)), false);
+  add('RM6 is red on a hold that unticked the row, which build 12\'s hold never does (the fix round)', gradeRm6, edit(rm6, (r) => void (r.selecting.after = false)), false);
+  add('RM6 is UNREADABLE with no control (the probe review)', gradeRm6, edit(rm6, (r) => void (r.control = null)), null);
+  add('RM6 is UNREADABLE when the control showed no Rename', gradeRm6, edit(rm6, (r) => void (r.control.rename = null)), null);
+  add('RM6 is UNREADABLE with no hold while selecting', gradeRm6, edit(rm6, (r) => void (r.selecting = null)), null);
+  // ---- RM7 ----
+  const rm7 = { held: 1, acts: 0, before: 'p349-rm7', stored: 'p349-rm7', after: { closed: false, line: RENAME_WORDS.notTaken, faceId: false } };
+  add('RM7 passes the write withheld by Home', gradeRm7, rm7, true);
+  add('RM7 is red on a rename that went out', gradeRm7, edit(rm7, (r) => void (r.acts = 1)), false);
+  add('RM7 is red on the name moved', gradeRm7, edit(rm7, (r) => void (r.stored = 'held back')), false);
+  add('RM7 is UNREADABLE on the name not read back (the probe review, 2026-10-30: it read as a failure of the app)', gradeRm7, edit(rm7, (r) => void (r.stored = null)), null);
+  add('RM7 is red on another line', gradeRm7, edit(rm7, (r) => void (r.after.line = RENAME_WORDS.noAnswer)), false);
+  add('RM7 is red on the sheet closing', gradeRm7, edit(rm7, (r) => void (r.after.closed = true)), false);
+  add('RM7 is UNREADABLE with nothing held', gradeRm7, edit(rm7, (r) => void (r.held = 0)), null);
+  add('RM7 is UNREADABLE with no rename-after line', gradeRm7, edit(rm7, (r) => void (r.after = null)), null);
+  // ---- RM8 ----
+  const rm8 = { nameRead: { missing: false, present: true, focused: false }, renames: true, start: { keys: 'agent,project,write', write: 'a'.repeat(32), project: 'p1', agent: 'claude' }, parent: { keys: 'agent,project,write', write: 'b'.repeat(32), project: 'p1', agent: 'claude' }, renamePosts: 0 };
+  add('RM8 passes the Name drawn and today\'s start for an empty one', gradeRm8, rm8, true);
+  add('RM8 passes no Name where the answer says nothing of renames', gradeRm8, edit(rm8, (r) => Object.assign(r, { renames: false, nameRead: { missing: false, present: false } })), true);
+  add('RM8 is red on a Name the Mac did not offer', gradeRm8, edit(rm8, (r) => void (r.renames = false)), false);
+  add('RM8 is red on no Name where the Mac renames', gradeRm8, edit(rm8, (r) => void (r.nameRead.present = false)), false);
+  add('RM8 is red on the Name focused as the sheet opens', gradeRm8, edit(rm8, (r) => void (r.nameRead.focused = true)), false);
+  add('RM8 is red on a start carrying a name', gradeRm8, edit(rm8, (r) => void (r.start.keys = 'agent,name,project,write')), false);
+  add('RM8 is red on a start with no fresh write id', gradeRm8, edit(rm8, (r) => void (r.start.write = '')), false);
+  add('RM8 is red on a start not the parent\'s', gradeRm8, edit(rm8, (r) => void (r.start.agent = 'codex')), false);
+  add('RM8 is red on an empty Name sending a rename', gradeRm8, edit(rm8, (r) => void (r.renamePosts = 1)), false);
+  add('RM8 is UNREADABLE on start-name-read missing (the probe review)', gradeRm8, edit(rm8, (r) => void (r.nameRead.missing = true)), null);
+  add('RM8 is UNREADABLE with the parent\'s start unread', gradeRm8, edit(rm8, (r) => void (r.parent = null)), null);
+  // ---- RM9 ----
+  const rm9 = { named: { missing: false, typed: 'named at start' }, starts: 1, renames: [{ session: 'made-9' }], startedId: 'made-9', order: 'start-then-rename', stored: 'named at start', opened: { title: ['named at start'] } };
+  add('RM9 passes the start, one rename of its id, the page under his name', gradeRm9, rm9, true);
+  add('RM9 is red on two starts', gradeRm9, edit(rm9, (r) => void (r.starts = 2)), false);
+  add('RM9 is red on no rename', gradeRm9, edit(rm9, (r) => void (r.renames = [])), false);
+  add('RM9 is red on two renames', gradeRm9, edit(rm9, (r) => void r.renames.push({ session: 'made-9' })), false);
+  add('RM9 is red on the rename aimed at another id', gradeRm9, edit(rm9, (r) => void (r.renames[0].session = 'other')), false);
+  add('RM9 is red on the rename before the start', gradeRm9, edit(rm9, (r) => void (r.order = 'rename-then-start')), false);
+  add('RM9 is red on another name stored', gradeRm9, edit(rm9, (r) => void (r.stored = 'claude-3')), false);
+  add('RM9 is red on the page under the Mac\'s name', gradeRm9, edit(rm9, (r) => void (r.opened.title = ['claude-3'])), false);
+  add('RM9 is UNREADABLE on start-name missing (the probe review)', gradeRm9, edit(rm9, (r) => void (r.named.missing = true)), null);
+  add('RM9 is UNREADABLE with the started id unread', gradeRm9, edit(rm9, (r) => void (r.startedId = null)), null);
+  add('RM9 is UNREADABLE with the opened page unread', gradeRm9, edit(rm9, (r) => void (r.opened = null)), null);
+  // ---- RM10 ----
+  const rm10 = { menu: menuOf(), save: { line: RENAME_WORDS.sample, faceId: false }, nameRead: { missing: false, present: true }, create: { line: RENAME_WORDS.sample }, connections: 0 };
+  add('RM10 passes the sample\'s rename and named Create saying nothing ran', gradeRm10, rm10, true);
+  add('RM10 is red on no Rename in the sample\'s ⋯', gradeRm10, edit(rm10, (r) => void r.menu.rows.splice(1, 1)), false);
+  add('RM10 is red on the sample\'s Save saying another line', gradeRm10, edit(rm10, (r) => void (r.save.line = RENAME_WORDS.notTaken)), false);
+  add('RM10 is red on an owner check over the sample\'s rename', gradeRm10, edit(rm10, (r) => void (r.save.faceId = true)), false);
+  add('RM10 is red on no Name in the sample\'s New session', gradeRm10, edit(rm10, (r) => void (r.nameRead.present = false)), false);
+  add('RM10 is red on the sample\'s Create saying another line', gradeRm10, edit(rm10, (r) => void (r.create.line = null)), false);
+  add('RM10 is red on a connection', gradeRm10, edit(rm10, (r) => void (r.connections = 1)), false);
+  add('RM10 is UNREADABLE with Save not pressed', gradeRm10, edit(rm10, (r) => void (r.save = null)), null);
+  // ---- RMP ----
+  const older = { driven: true, menu: { opened: true, rows: [{ id: 'terminal-menu-catch-up', label: MENU_WORDS.catchMeUp }, { id: 'terminal-menu-end', label: MENU_WORDS.endSession }] }, sentence: null, listRows: 6, nameRead: { missing: false, present: false } };
+  const oldMac = { driven: true, held: { found: true, rename: null, byWord: false, items: [] }, menu: { opened: true, rows: [{ id: 'terminal-menu-catch-up', label: MENU_WORDS.catchMeUp }, { id: 'terminal-menu-end', label: MENU_WORDS.endSession }] }, nameRead: { missing: false, present: false } };
+  const rmp = { controls: { row: true, name: true }, b12: older, b11: structuredClone(older), oldMac };
+  add('RMP passes the older builds keeping their own and this app against a 348 Mac drawing neither', gradeRmp, rmp, true);
+  add('RMP is red on build 12 drawing Rename in its ⋯', gradeRmp, edit(rmp, (r) => void r.b12.menu.rows.splice(1, 0, { id: RENAME_IDS.menu, label: RENAME_WORDS.rename })), false);
+  add('RMP is red on build 11\'s ⋯ no longer its own two items', gradeRmp, edit(rmp, (r) => void r.b11.menu.rows.pop()), false);
+  add('RMP is red on build 12 refusing this Mac\'s list', gradeRmp, edit(rmp, (r) => void (r.b12.sentence = { id: 'list-failure', rows: 0, word: 'answerUnreadable' })), false);
+  add('RMP is red on build 11 drawing a Name', gradeRmp, edit(rmp, (r) => void (r.b11.nameRead.present = true)), false);
+  add('RMP is red on this app drawing Rename in a 348 Mac\'s row', gradeRmp, edit(rmp, (r) => void (r.oldMac.held.byWord = true)), false);
+  add('RMP is red on this app drawing Rename in a 348 Mac\'s ⋯', gradeRmp, edit(rmp, (r) => void r.oldMac.menu.rows.splice(1, 0, { id: RENAME_IDS.menu, label: RENAME_WORDS.rename })), false);
+  add('RMP is red on this app drawing a Name against a 348 Mac', gradeRmp, edit(rmp, (r) => void (r.oldMac.nameRead.present = true)), false);
+  add('RMP is UNREADABLE with build 12 not driven (the probe review)', gradeRmp, edit(rmp, (r) => void (r.b12 = null)), null);
+  add('RMP is UNREADABLE with build 11 not driven (the probe review)', gradeRmp, edit(rmp, (r) => void (r.b11.driven = false)), null);
+  add('RMP is UNREADABLE with an older list drawing no row', gradeRmp, edit(rmp, (r) => void (r.b12.listRows = 0)), null);
+  add('RMP is UNREADABLE with no row control', gradeRmp, edit(rmp, (r) => void (r.controls.row = false)), null);
+  add('RMP is UNREADABLE with no Name control', gradeRmp, edit(rmp, (r) => void (r.controls.name = false)), null);
+  add('RMP is UNREADABLE on a Name read with no sheet open', gradeRmp, edit(rmp, (r) => void (r.oldMac.nameRead.missing = true)), null);
+  // ---- RMH ----
+  const hostileOf = (name) => P349_ARMS[name];
+  const keyArm = { spec: hostileOf('rename-key-null'), posts: 0, alive: RUNNING_FOREGROUND, control: true, sentence: null, nameRead: { missing: false, present: false }, plus: true };
+  add('RMH passes a key arm: no Name, the "+" and the list kept', gradeRmh, keyArm, true);
+  add('RMH is red on a key arm drawing a Name', gradeRmh, edit(keyArm, (r) => void (r.nameRead.present = true)), false);
+  add('RMH is red on a key arm losing the "+"', gradeRmh, edit(keyArm, (r) => void (r.plus = false)), false);
+  add('RMH is red on a key arm refusing the list', gradeRmh, edit(keyArm, (r) => void (r.sentence = { id: 'list-failure', rows: 0, word: 'answerUnreadable' })), false);
+  add('RMH is red on a key arm sending a rename', gradeRmh, edit(keyArm, (r) => void (r.posts = 1)), false);
+  add('RMH is UNREADABLE on a key arm with no Name control', gradeRmh, edit(keyArm, (r) => void (r.control = false)), null);
+  const rowArm = { spec: hostileOf('rename-row-not-boolean'), posts: 0, alive: RUNNING_FOREGROUND, honestFirst: true, sentence: { id: 'list-failure', rows: 0, word: 'answerUnreadable' }, listRows: 0 };
+  add('RMH passes a row arm read unreadable', gradeRmh, rowArm, true);
+  add('RMH passes the Needs input row arm read unreadable on its own list', gradeRmh, edit(rowArm, (r) => Object.assign(r, { spec: hostileOf('rename-blocked-row-not-boolean'), sentence: { id: 'needs-list-failure', rows: 0, word: 'answerUnreadable' } })), true);
+  add('RMH is red on a drawn list with no sentence (the probe review)', gradeRmh, edit(rowArm, (r) => Object.assign(r, { sentence: null, listRows: 3 })), false);
+  add('RMH is red on a sentence drawn beside rows (the probe review)', gradeRmh, edit(rowArm, (r) => void (r.sentence.rows = 3)), false);
+  add('RMH is red on a row arm reading another sentence', gradeRmh, edit(rowArm, (r) => void (r.sentence.word = 'endNoAnswer')), false);
+  add('RMH is red on the Needs input arm\'s sentence on the Sessions list', gradeRmh, edit(rowArm, (r) => void (r.spec = hostileOf('rename-blocked-row-not-boolean'))), false);
+  add('RMH is UNREADABLE on a row arm whose first read was never honest', gradeRmh, edit(rowArm, (r) => void (r.honestFirst = false)), null);
+  const detailArm = { spec: hostileOf('rename-detail-not-boolean'), posts: 0, alive: RUNNING_FOREGROUND, sentence: { id: 'session-failure', rows: 0, word: 'answerUnreadable' } };
+  add('RMH passes the detail arm read unreadable', gradeRmh, detailArm, true);
+  add('RMH is red on the detail arm drawn', gradeRmh, edit(detailArm, (r) => void (r.sentence = null)), false);
+  add('RMH is red on the detail arm\'s sentence in the list\'s place', gradeRmh, edit(detailArm, (r) => void (r.sentence.id = 'list-failure')), false);
+  const answerArm = { spec: hostileOf('rename-404'), posts: 1, alive: RUNNING_FOREGROUND, menu: menuOf(), after: { closed: false, line: RENAME_WORDS.notTaken, faceId: false }, doorSentence: RENAME_UNKNOWN_SENTENCE };
+  add('RMH passes the 404 with the not-taken line', gradeRmh, answerArm, true);
+  add('RMH passes the unknown reason with this door\'s sentence', gradeRmh, edit(answerArm, (r) => Object.assign(r, { spec: hostileOf('rename-answer-unknown-reason'), after: { closed: false, line: RENAME_UNKNOWN_SENTENCE, faceId: false } })), true);
+  add('RMH passes no echo with the no-answer line', gradeRmh, edit(answerArm, (r) => Object.assign(r, { spec: hostileOf('rename-answer-no-echo'), after: { closed: false, line: RENAME_WORDS.noAnswer, faceId: false } })), true);
+  add('RMH is red on a ⋯ that opened with no Rename (the probe review)', gradeRmh, edit(answerArm, (r) => void r.menu.rows.splice(1, 1)), false);
+  add('RMH is red on two POSTs', gradeRmh, edit(answerArm, (r) => void (r.posts = 2)), false);
+  add('RMH is red on another line', gradeRmh, edit(answerArm, (r) => void (r.after.line = RENAME_WORDS.noAnswer)), false);
+  add('RMH is red on the sheet closing over an answer it cannot take', gradeRmh, edit(answerArm, (r) => void (r.after.closed = true)), false);
+  add('RMH is red on an owner check over a hostile answer', gradeRmh, edit(answerArm, (r) => void (r.after.faceId = true)), false);
+  add('RMH is red on the app no longer in the foreground', gradeRmh, edit(answerArm, (r) => void (r.alive = 1)), false);
+  add('RMH is UNREADABLE with the ⋯ not opened', gradeRmh, edit(answerArm, (r) => void (r.menu = null)), null);
+  add('RMH is UNREADABLE with Save not pressed', gradeRmh, edit(answerArm, (r) => void (r.after = null)), null);
+  // ---- the ⋯'s three items in E1, PS10, PM1 and RV1 (§6 item 7) ----
+  const three = (last) => menuOfThree(last).map((label, k) => ({ id: ['terminal-menu-catch-up', RENAME_IDS.menu, last === MENU_WORDS.endSession ? 'terminal-menu-end' : 'terminal-menu-remove'][k], label, enabled: true, via: 'id' }));
+  const e1m = {
+    authUp: true,
+    acked: true,
+    permission: { seen: false },
+    bar: { via: 'menu', opened: true, enabled: true, bar: null, nav: [0, 62, 402, 54], row: [346, 66, 36, 36], glyphs: [{ id: 'faceid', label: 'Face ID' }] },
+    menu: { opened: true, rows: three(MENU_WORDS.endSession) },
+    after: { opened: true, end: null, rows: three(P348_WORDS.remove) },
+    dialog: { title: "End 'p316-e1'?", texts: ["End 'p316-e1'?", 'This stops it.'], buttons: ['End session', 'Cancel'] },
+    want: { title: "End 'p316-e1'?", body: 'This stops it.', confirmLabel: 'End session' },
+    doneLines: 1,
+    tmuxAlive: false,
+    mainStatus: 'exited',
+    drawnStatus: 'Ended',
+    doorStatus: 'Ended',
+    endAfter: false
+  };
+  add('E1 (the ⋯) passes Catch Me Up, Rename, then End session…', gradeE1, e1m, true);
+  add('E1 (the ⋯) is red on the parent\'s two items', gradeE1, edit(e1m, (r) => void r.menu.rows.splice(1, 1)), false);
+  add('E1 (the ⋯) is red on Rename after End session…', gradeE1, edit(e1m, (r) => void r.menu.rows.push(r.menu.rows.splice(1, 1)[0])), false);
+  const ps10Of3 = (rows) => gradePs10Menu({ open: { menu: { label: MENU_WORDS.more, frame: [346, 58, 36, 36], hittable: true }, nav: [0, 54, 402, 54], navIds: [{ id: 'terminal-menu' }], labels: [], statusWord: { label: 'Working' }, agent: { label: 'a' } }, door: { statusTitle: 'Working', agentLine: 'a' }, held: { copy: true, menu: true, copyFrame: [290, 58, 50, 36], menuFrame: [346, 58, 36, 36] }, menu: { opened: true, rows } }, [], [], [402, 874]);
+  add('PS10 (the ⋯) passes Catch Me Up, Rename, then End session…', ps10Of3, three(MENU_WORDS.endSession), true);
+  add('PS10 (the ⋯) is red on the parent\'s two items', ps10Of3, three(MENU_WORDS.endSession).filter((x) => x.id !== RENAME_IDS.menu), false);
+  const pm1Base = { open: { face: 'terminal', menu: { label: MENU_WORDS.more, frame: [346, 66, 36, 36], hittable: true }, nav: [0, 62, 402, 54], navIds: [{ id: 'terminal-menu' }], endLine: null }, dump: { elements: [] }, catchUp: { backToTerminal: true }, face: { via: 'menu', now: 'catch-up' } };
+  const pm1Of3 = (rows) => ({ ...structuredClone(pm1Base), menu: { opened: true, rows, catchUp: rows[0], end: rows.find((x) => x.id === 'terminal-menu-end') ?? null, glyph: 'faceid', glyphs: ['faceid'] } });
+  add('PM1 passes Catch Me Up, Rename, then End session…', gradePm1, pm1Of3(three(MENU_WORDS.endSession)), true);
+  add('PM1 is red on the parent\'s two items', gradePm1, pm1Of3(three(MENU_WORDS.endSession).filter((x) => x.id !== RENAME_IDS.menu)), false);
+  add('PM1 is red on Rename found by its word alone', gradePm1, pm1Of3(three(MENU_WORDS.endSession).map((x) => (x.id === RENAME_IDS.menu ? { ...x, id: '' } : x))), false);
+  const rvRead = { face: 'terminal', via: 'menu', opened: true, end: null, remove: { id: 'terminal-menu-remove', label: P348_WORDS.remove, enabled: true, via: 'id' }, rows: three(P348_WORDS.remove), faceId: false };
+  const rvWant = { title: "Remove 'p348-rv1'?", body: 'It moves to Past Sessions.', confirmLabel: 'Remove' };
+  const rv1m = { want: rvWant, read: rvRead, dialog: { via: 'sheet', title: rvWant.title, texts: [rvWant.title, rvWant.body], buttons: ['Remove', 'Cancel'], faceId: false }, after: { landed: 'list', line: null, faceId: false }, authAsked: 0, acts: 1, removed: true, live: false };
+  add('RV1 (the ⋯) passes Catch Me Up, Rename, then Remove', gradeRv1, rv1m, true);
+  add('RV1 (the ⋯) is red on the parent\'s two items', gradeRv1, edit(rv1m, (r) => void r.read.rows.splice(1, 1)), false);
+  add('RV1 (the ⋯) is red on Rename after Remove', gradeRv1, edit(rv1m, (r) => void r.read.rows.push(r.read.rows.splice(1, 1)[0])), false);
+  add('RV1 (the ⋯) is UNREADABLE with the ⋯\'s rows unread', gradeRv1, edit(rv1m, (r) => void delete r.read.rows), null);
+  // ---- this file's D7, against §2.1.1's interesting names ----
+  const d7Rows = [['gmux-control', 'gmux-control-2'], ['/review', '_review'], ['.env fix', '_env fix'], ['-x', '_x'], ['--', '_-'], ['fix #', 'fix _'], ['C#', 'C_'], ['a\\b', 'a_b'], ['$0', '_0'], ['$HOME x', '_HOME x'], ['x;', 'x_'], ['a;b;', 'a;b_'], ['#{session_id}', '_{session_id}'], ['#H', '_H'], ['##', '__'], ['a##b', 'a_#b'], ['cost $HOME', 'cost $HOME'], ['fix #H here', 'fix _H here'], ['PR #12', 'PR #12'], ['#[fg=red]ok', '#[fg=red]ok'], ["it's \"x\" fix--auth", "it's \"x\" fix--auth"]];
+  const d7Wrong = d7Rows.filter(([n, w]) => d7Of(n) !== w);
+  add(`this file's D7 reads §2.1.1's interesting names as it says${d7Wrong.length === 0 ? '' : ` (wrong: ${J(d7Wrong)})`}`, () => ({ ok: d7Wrong.length === 0 }), null, true);
+  add('this file\'s D7 cuts a 250-character name at 200 and dedupes past a taken one', () => ({ ok: d7Of('x'.repeat(250)) === 'x'.repeat(200) && d7Of('a b', new Set(['a b'])) === 'a b-2' && d7Of('   ') === 'session' }), null, true);
+  // ---- the shadow refusal's readers (the probe review, finding 2) ----
+  const resolveText = (() => {
+    try {
+      return readFileSync(join(ROOT, 'src', 'main', 'tmux', 'resolve.ts'), 'utf8');
+    } catch {
+      return '';
+    }
+  })();
+  add(`the shadow refusal reads the tree's extraBinDirsFor as /opt/homebrew/bin and /usr/local/bin (${J(absoluteScanDirsOf(resolveText))})`, () => ({ ok: J(absoluteScanDirsOf(resolveText)) === J(['/opt/homebrew/bin', '/usr/local/bin']) }), null, true);
+  add('the shadow refusal answers null when extraBinDirsFor is gone, which refuses the launch', () => ({ ok: absoluteScanDirsOf('export function other() {}') === null }), null, true);
+  const fakeFs = {
+    list: (d) => {
+      if (d === '/x/has') return ['claude', 'other'];
+      if (d === '/x/empty') return [];
+      if (d === '/x/locked') throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    }
+  };
+  add('the shadow refusal finds a copy of a stand-in\'s name', () => ({ ok: J(shadowCopiesOf(['/x/has', '/x/empty', '/x/none'], P316_STAND_INS, fakeFs).copies) === J(['/x/has/claude']) }), null, true);
+  add('the shadow refusal refuses a folder it cannot read', () => ({ ok: shadowCopiesOf(['/x/empty', '/x/locked'], P316_STAND_INS, fakeFs).ok === false }), null, true);
+  add('the shadow refusal passes empty and missing folders', () => ({ ok: shadowCopiesOf(['/x/empty', '/x/none'], P316_STAND_INS, fakeFs).ok === true }), null, true);
+  add('the twelve rename arms are the hostile door\'s, each with its row', () => ({ ok: RENAME_ARMS.length === 12 && RENAME_ARMS.every((a) => P349_ARMS[a] !== undefined) }), null, true);
+  add('the rename words are Copy.swift\'s and the Mac\'s', () => ({ ok: Object.values(RENAME_WORDS).every((w) => typeof w === 'string' && w.length > 0) }), null, true);
+  // ---- THE PROBE REVIEW of 2026-10-30: readings of its own for every rename grader, an honest variant and broken
+  // ones. Those marked NEW-RULE are answered differently by the review's grader fixes than by the graders it was
+  // handed: a missing reading is UNREADABLE, never a pass, and never a failure of the app.
+  const pr = (what) => `${what} (the probe review, 2026-10-30)`;
+  add(pr('RM1 passes Remove last on an ended session whose name holds a quote'), gradeRm1, edit(rm1, (r) => Object.assign(r, { ended: true, menu: menuOf(P348_WORDS.remove), name: "it's x", sheet: { ...r.sheet, value: "it's x" } })), true);
+  add(pr('NEW-RULE RM1 is UNREADABLE on a rename-typed line carrying no typed words'), gradeRm1, edit(rm1, (r) => void (r.typed = { found: true, save: true, saveAll: saveAllOf(true) })), null);
+  add(pr('RM1 is red on a sheet found false'), gradeRm1, edit(rm1, (r) => void (r.sheet.found = false)), false);
+  add(pr('RM2 passes a Sessions row whose sheet draws no line'), gradeRm2, edit(rm2, (r) => void (r.sheet.line = null)), true);
+  add(pr('NEW-RULE RM2 is UNREADABLE on the Sessions row with no tap read at all'), gradeRm2, edit(rm2, (r) => void delete r.tapped), null);
+  add(pr('NEW-RULE RM2 is UNREADABLE on a rename-typed line carrying no typed words'), gradeRm2, edit(rm2, (r) => void (r.typed = { found: true, save: true, saveAll: saveAllOf(true) })), null);
+  add(pr('RM2 is red on the sheet titled otherwise'), gradeRm2, edit(rm2, (r) => void (r.sheet.title = null)), false);
+  add(pr('RM3 passes D7 deduped past a taken name'), gradeRm3, edit(rm3, (r) => Object.assign(r, { tmuxName: 'fix _H here-2', d7: 'fix _H here-2' })), true);
+  add(pr("NEW-RULE RM3 is UNREADABLE with main's log unread"), gradeRm3, edit(rm3, (r) => void (r.acts = null)), null);
+  add(pr('RM3 is red on tmux holding the name with a leading space'), gradeRm3, edit(rm3, (r) => void (r.tmuxName = ' fix _H here')), false);
+  add(pr('RM4 passes his text holding a pictograph'), gradeRm4, edit(rm4, (r) => Object.assign(r, { typed: 'gone \u{1F600}', after: { ...r.after, value: 'gone \u{1F600}' } })), true);
+  add(pr("NEW-RULE RM4 is UNREADABLE with main's log unread"), gradeRm4, edit(rm4, (r) => void (r.acts = null)), null);
+  add(pr('RM4 is red on an owner check'), gradeRm4, edit(rm4, (r) => void (r.after.faceId = true)), false);
+  add(pr('RM5 passes the cap held at 120 of 200 typed'), gradeRm5, edit(rm5, (r) => void (r.cap = { found: true, typed: 'y'.repeat(200), units: 120 })), true);
+  add(pr('NEW-RULE RM5 is UNREADABLE on a cap line carrying no typed words'), gradeRm5, edit(rm5, (r) => void (r.cap = { found: true, units: 120 })), null);
+  add(pr('RM5 is red on the field holding 121 units'), gradeRm5, edit(rm5, (r) => void (r.cap.units = 121)), false);
+  add('RM6 passes an unticked row the hold leaves unticked (the fix round)', gradeRm6, edit(rm6, (r) => Object.assign(r.selecting, { before: false, after: false })), true);
+  add('RM6 is red on a hold that ticked an unticked row (the fix round; the probe review read it as a pass)', gradeRm6, edit(rm6, (r) => Object.assign(r.selecting, { before: false, after: true })), false);
+  add(pr("NEW-RULE RM6 is UNREADABLE with the row's selection unread"), gradeRm6, edit(rm6, (r) => { delete r.selecting.before; delete r.selecting.after; }), null);
+  add(pr('RM6 is red on Rename by its word, the selection kept'), gradeRm6, edit(rm6, (r) => Object.assign(r.selecting, { byWord: true, after: true })), false);
+  add(pr('RM7 passes two connections held'), gradeRm7, edit(rm7, (r) => void (r.held = 2)), true);
+  add(pr("NEW-RULE RM7 is UNREADABLE with main's log unread"), gradeRm7, edit(rm7, (r) => void (r.acts = null)), null);
+  add(pr('RM7 is red on an owner check'), gradeRm7, edit(rm7, (r) => void (r.after.faceId = true)), false);
+  add(pr('RM8 passes a write id of sixteen zero bytes'), gradeRm8, edit(rm8, (r) => void (r.start.write = '0'.repeat(32))), true);
+  add(pr('RM8 is UNREADABLE with no start-name-read line'), gradeRm8, edit(rm8, (r) => void (r.nameRead = null)), null);
+  add(pr("RM8 is red on the start's project not the parent's"), gradeRm8, edit(rm8, (r) => void (r.start.project = 'p2')), false);
+  add(pr("RM9 passes the Terminal's title holding his name beside its status"), gradeRm9, edit(rm9, (r) => void (r.opened.title = ['named at start', 'Working'])), true);
+  add(pr("NEW-RULE RM9 is UNREADABLE with the Mac's stored name unread"), gradeRm9, edit(rm9, (r) => void (r.stored = null)), null);
+  add(pr("NEW-RULE RM9 is UNREADABLE with main's log unread"), gradeRm9, edit(rm9, (r) => Object.assign(r, { renames: null, order: 'unread' })), null);
+  add(pr('RM9 is red on the Mac storing the name with its spaces doubled'), gradeRm9, edit(rm9, (r) => void (r.stored = 'named  at start')), false);
+  add(pr("RM10 passes an ended sample session's ⋯ with Remove last"), gradeRm10, edit(rm10, (r) => void (r.menu = menuOf(P348_WORDS.remove))), true);
+  add(pr("RM10 is UNREADABLE with the sample's ⋯ never opened"), gradeRm10, edit(rm10, (r) => void (r.menu = null)), null);
+  add(pr('RM10 is red on two connections'), gradeRm10, edit(rm10, (r) => void (r.connections = 2)), false);
+  add(pr("RMP passes build 11's list of three rows"), gradeRmp, edit(rmp, (r) => void (r.b11.listRows = 3)), true);
+  add(pr('RMP is UNREADABLE with this app against a 348 Mac not driven'), gradeRmp, edit(rmp, (r) => void (r.oldMac = null)), null);
+  add(pr("RMP is red on build 12's ⋯ holding Remove second"), gradeRmp, edit(rmp, (r) => void r.b12.menu.rows.splice(1, 0, { id: 'terminal-menu-remove', label: P348_WORDS.remove })), false);
+  add(pr('RMH passes the wrong-verb arm with the no-answer line'), gradeRmh, edit(answerArm, (r) => Object.assign(r, { spec: hostileOf('rename-answer-wrong-verb'), after: { closed: false, line: RENAME_WORDS.noAnswer, faceId: false } })), true);
+  add(pr('RMH is UNREADABLE on a key arm with no start-name-read line'), gradeRmh, edit(keyArm, (r) => void (r.nameRead = null)), null);
+  add(pr('NEW-RULE RMH is UNREADABLE on a row arm whose list the door never served, no sentence and no row'), gradeRmh, edit(rowArm, (r) => Object.assign(r, { honestFirst: false, sentence: null, listRows: 0 })), null);
+  add(pr('RMH is red on the Needs input row arm drawing its rows and no sentence'), gradeRmh, edit(rowArm, (r) => Object.assign(r, { spec: hostileOf('rename-blocked-row-not-boolean'), sentence: null, listRows: 2 })), false);
+  add(pr('RMH is red on the done-no-name arm closing the sheet'), gradeRmh, edit(answerArm, (r) => Object.assign(r, { spec: hostileOf('rename-answer-done-no-name'), after: { closed: true, line: null, faceId: false } })), false);
+  add(pr('PM1 is red on End session… second'), gradePm1, pm1Of3([three(MENU_WORDS.endSession)[0], three(MENU_WORDS.endSession)[2], three(MENU_WORDS.endSession)[1]]), false);
+  add(pr('RV1 (the ⋯) is red on End session… where an ended session draws Remove'), gradeRv1, edit(rv1m, (r) => void (r.read.rows = three(MENU_WORDS.endSession))), false);
+  add(pr('E1 (the ⋯) is red on the ⋯ holding Rename alone'), gradeE1, edit(e1m, (r) => void (r.menu.rows = [r.menu.rows[1]])), false);
+  return runSelfTestCases(cases);
+}
+
 function selfTest() {
   const reads = [
     {
@@ -12665,7 +13661,14 @@ function selfTest() {
       ? `${TAG} Phase 348 self-test PASS: ${String(polish.total)} cases (NB and NP12's tap grid, RV1 to RV6 and RVH, PA1 to PA8 and PAH, and the paste's bytes) graded as they must be.`
       : `${TAG} Phase 348 self-test FAIL: ${String(polish.bad)} of ${String(polish.total)} case(s) graded wrongly.`
   );
-  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 && ends.bad === 0 && replies.bad === 0 && starts.bad === 0 && screens.bad === 0 && sessionsCases.bad === 0 && setupCases.bad === 0 && sampleCases.bad === 0 && recordedCases.bad === 0 && fill.bad === 0 && polish.bad === 0 ? 0 : 1);
+  // Phase 349: rename from the phone (RM1 to RM10, RMP and RMH), the ⋯'s three items, D7 and the shadow refusal.
+  const renames = renameSelfTest();
+  console.log(
+    renames.bad === 0
+      ? `${TAG} Phase 349 self-test PASS: ${String(renames.total)} cases (RM1 to RM10, RMP and RMH, the ⋯'s three items in E1, PS10, PM1 and RV1, this file's D7 and the shadow refusal) graded as they must be.`
+      : `${TAG} Phase 349 self-test FAIL: ${String(renames.bad)} of ${String(renames.total)} case(s) graded wrongly.`
+  );
+  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 && ends.bad === 0 && replies.bad === 0 && starts.bad === 0 && screens.bad === 0 && sessionsCases.bad === 0 && setupCases.bad === 0 && sampleCases.bad === 0 && recordedCases.bad === 0 && fill.bad === 0 && polish.bad === 0 && renames.bad === 0 ? 0 : 1);
 }
 // NOT `--self-test`: build/cdp-target.mjs, imported above, runs ITS fixtures
 // and exits when argv holds that exact word.
@@ -12899,6 +13902,7 @@ exit 0
     const asked = plantedResolve({ home: HOME, bin: BIN, names: ['claude', 'codex'], env: { ...INHERITED_CLAUDE, ...ROW_DIR_UNSET, PATH: APP_PATH } });
     report.readings.resolves = asked.resolved;
     if (!asked.ok) {
+      agentsRefused = true;
       arm('the run', null, `REFUSED: ${asked.said}, so a session would start a real agent. Nothing is launched.`);
       throw new Error('a planted agent does not resolve to its stand-in');
     }
@@ -12937,10 +13941,35 @@ exit 0
     report.readings.hiddenPrecheck = { ok: pre.ok, said: pre.said, ids: pre.ids, wouldResolve: pre.wouldResolve };
     if (!pre.ok) {
       agentsHeld.push(false);
+      agentsRefused = true;
       arm('the run', null, `REFUSED: the hidden agents' precheck says ${pre.said}, so an agent other than the stand-ins could run for its version. Nothing is launched.`);
       throw new Error('the hidden agents precheck refused the launch');
     }
     say(`hidden before the launch: ${pre.said}`);
+  }
+  // THE SHADOW REFUSAL (the Phase 349 probe review, finding 2): Tortie's scan
+  // runs `--version` on every SHADOWED copy of a name it resolves, in the
+  // folders its resolver always searches too, and agents:list reports only the
+  // winner. No copy of a stand-in's name may sit in `extraBinDirsFor`'s
+  // folders or the app's PATH beside the stand-ins, and a folder that cannot be
+  // read refuses the launch. Names only: no file there is opened.
+  {
+    const scan = absoluteScanDirsOf((() => {
+      try {
+        return readFileSync(join(ROOT, 'src', 'main', 'tmux', 'resolve.ts'), 'utf8');
+      } catch {
+        return '';
+      }
+    })());
+    const shadow = scan === null ? { ok: false, copies: [], unreadable: ['(extraBinDirsFor not found in the checkout)'] } : shadowCopiesOf([...scan, ...APP_PATH.split(':').filter((d) => d !== BIN)], P316_STAND_INS);
+    report.readings.shadows = shadow;
+    if (!shadow.ok) {
+      agentsHeld.push(false);
+      agentsRefused = true;
+      arm('the run', null, `REFUSED: a copy of a stand-in's name sits where Tortie's scan looks, or a folder it searches cannot be read (${J(shadow)}), so Tortie would run it for its version. Nothing is launched.`);
+      throw new Error('a shadow copy of a stand-in');
+    }
+    say(`no shadow copy of ${P316_STAND_INS.join(' or ')} where the scan looks (${String(scan.length)} absolute folder(s) and the app's PATH)`);
   }
   writeHiddenAgents(PROFILE, 'p316', P316_HIDDEN_IDS);
   await withElectron(
@@ -15510,7 +16539,7 @@ exit 0
                       // Phase 337.3 (D21, D22): the open line carries the ⋯, so its menu is read too.
                       const menu = ev.find((e) => e.step === 'terminal-menu' && e.for === 'terminal-open') ?? null;
                       const v = gradePs10({ open, door: open === null ? null : (doorOf(marksT.door ?? (await readSession3371(T.hist.id)))), held: copied?.held ?? null, menu });
-                      arm('PS10 terminal first: a list row opens the Terminal at once, the status line the door\'s, the ⋯ alone top right holding Catch Me Up then End session…', v.ok, v.said);
+                      arm('PS10 terminal first: a list row opens the Terminal at once, the status line the door\'s, the ⋯ alone top right holding Catch Me Up, Rename, then End session…', v.ok, v.said);
                       if (typeof open?.firstRowMs === 'number') report.readings.terminalFirstRowMs = open.firstRowMs;
                     }
                     {
@@ -15557,7 +16586,7 @@ exit 0
                     }
                     {
                       const v = gradePm1(pm1Of(ev));
-                      arm('PM1 the ⋯ (iOS 26.3): alone in the bar\'s trailing half, named More, its menu Catch Me Up then End session…, End on where iOS can ask, Catch Me Up pushed and Back', v.ok, v.said);
+                      arm('PM1 the ⋯ (iOS 26.3): alone in the bar\'s trailing half, named More, its menu Catch Me Up, Rename, then End session…, End on where iOS can ask, Catch Me Up pushed and Back', v.ok, v.said);
                     }
                     {
                       const v = gradePf5({ lines: lines3371, toLive: of3371(ev, 'to-live')[0] ?? null, key: of3371(ev, 'scroll-key')[0] ?? null });
@@ -17373,6 +18402,19 @@ exit 0
             if (event.step === 'remove-home-away') rvAck(`remove-${String(event.seq)}`);
           };
           const rvFor = (events, step, name) => events.filter((e) => e.step === step && e.for === name);
+          /**
+           * Phase 349 (build/p349/SPEC.md §6 item 7): a `remove-read` read in
+           * the Terminal's ⋯ carries that ⋯'s rows, from the `terminal-menu`
+           * line `openTerminalMenu` printed for it just before.
+           */
+          const rvWithRows = (events, read) => {
+            if (read === null || read === undefined || read.via !== 'menu') return read ?? null;
+            for (let i = events.indexOf(read) - 1; i >= 0; i -= 1) {
+              if (events[i].step === 'remove-read') break;
+              if (events[i].step === 'terminal-menu' && events[i].for === 'remove-read') return { ...read, rows: events[i].rows ?? [] };
+            }
+            return read;
+          };
           const rvAuthAsked = (events) => events.filter((e) => e.step === 'end-auth-up' && String(e.for ?? '').startsWith('remove')).length;
 
           const RV = {};
@@ -17425,7 +18467,7 @@ exit 0
                 [1, RV.rv1b, 'Catch Me Up\'s top right', { face: 'catch-up', via: 'top' }]
               ]) {
                 const state = await rvState(s.id);
-                const v = gradeRv1({ expect, want: marks.want[s.id] ?? null, read: reads[k] ?? null, dialog: dialogs[k] ?? null, after: afters[k] ?? null, cancel: { dialog: cancelDialogs[k] ?? null, after: cancelAfters[k] ?? null }, authAsked: rvAuthAsked(ev), acts: await rvActs('remove', s.id), removed: state.removed, live: state.live });
+                const v = gradeRv1({ expect, want: marks.want[s.id] ?? null, read: rvWithRows(ev, reads[k] ?? null), dialog: dialogs[k] ?? null, after: afters[k] ?? null, cancel: { dialog: cancelDialogs[k] ?? null, after: cancelAfters[k] ?? null }, authAsked: rvAuthAsked(ev), acts: await rvActs('remove', s.id), removed: state.removed, live: state.live });
                 arm(`RV1 26.3, ${face}: after End, Remove where End was, the Mac's own words in one confirmation, back to the list, one act, in Past Sessions, no owner check`, v.ok, v.said);
               }
               {
@@ -17450,7 +18492,7 @@ exit 0
               const v =
                 !run.ok || ev.length === 0
                   ? verdict(null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`)
-                  : gradeRv1({ want: marks.want[RV.rv1f.id] ?? null, read: ev.find((e) => e.step === 'remove-read') ?? null, dialog: rvFor(ev, 'remove-dialog', 'remove')[0] ?? null, after: rvFor(ev, 'remove-after', 'remove')[0] ?? null, authAsked: rvAuthAsked(ev), acts: await rvActs('remove', RV.rv1f.id), removed: state.removed, live: state.live });
+                  : gradeRv1({ want: marks.want[RV.rv1f.id] ?? null, read: rvWithRows(ev, ev.find((e) => e.step === 'remove-read') ?? null), dialog: rvFor(ev, 'remove-dialog', 'remove')[0] ?? null, after: rvFor(ev, 'remove-after', 'remove')[0] ?? null, authAsked: rvAuthAsked(ev), acts: await rvActs('remove', RV.rv1f.id), removed: state.removed, live: state.live });
               arm('RV1 18.3, the floor: after End, Remove where End was, the Mac\'s words, back to the list, one act, no owner check', v.ok, v.said);
             });
 
@@ -17561,7 +18603,7 @@ exit 0
                 }
                 const v = gradeRv6({
                   want: wantRv6,
-                  read: r.events.find((e) => e.step === 'remove-read') ?? null,
+                  read: rvWithRows(r.events, r.events.find((e) => e.step === 'remove-read') ?? null),
                   dialog: r.events.find((e) => e.step === 'remove-dialog' && e.for === 'remove') ?? null,
                   after: r.events.find((e) => e.step === 'remove-after' && e.for === 'remove') ?? null,
                   cancel: { dialog: r.events.find((e) => e.step === 'remove-dialog' && e.for === 'remove-cancel') ?? null, after: r.events.find((e) => e.step === 'remove-after' && e.for === 'remove-cancel') ?? null },
@@ -18028,6 +19070,549 @@ exit 0
         }
 
         // ==================================================================
+        // Phase 349: THE `rename` GROUP (build/p349/SPEC.md §8.2; his words of
+        // 2026-10-19, "making it possible to rename sessions from the phone
+        // that it can access (and name sessions initially that are created
+        // via the phone)"; his ruling, "Only for End"). Shells on this Mac and
+        // one Claude Code stand-in that waits on the committed Phase 312
+        // dialog, every rename graded against the name it typed: main's own
+        // list and its one log line per write, tmux by `$`-id on the run's
+        // scratch socket against this file's own reading of D7 (`d7Of`), the
+        // hostile door's events, and the relay's count. No Face ID is ever
+        // answered: a rename asks none, and a drive that sees one FAILS.
+        // ==================================================================
+        if (ARMS.has('rename')) {
+          const rnDir = join(RUN, 'acks-rename');
+          mkdirSync(rnDir, { recursive: true });
+          const rnAck = (name, text = 'ok') => writeFileSync(join(rnDir, name), `${text}\n`);
+          const rnAll = async () => JSON.parse(await cdpEval(cdp, 'window.gmux.sessions.list().then((s) => JSON.stringify(s.map((x) => ({ id: x.id, name: x.name, tmuxName: x.tmuxName, status: x.status, agent: x.agent }))))'));
+          const rnRemovedIds = async () => {
+            try {
+              return new Set(JSON.parse(await cdpEval(cdp, 'window.gmux.sessions.listRemoved().then((l) => JSON.stringify(l.map((s) => s.id)))')));
+            } catch {
+              return null;
+            }
+          };
+          /**
+           * A session made the way a person makes one, live, or null. A
+           * `claude` is this file's stand-in printing the committed Phase 312
+           * dialog (P316_NEXT `ask`), so main reads it waiting.
+           */
+          const rnMake = async (name, agent = 'shell') => {
+            if (agent === 'claude') writeFileSync(NEXT, 'ask', 'utf8');
+            await cdpEval(cdp, `window.gmux.sessions.create(${J({ name, projectPath: WORK, cwd: WORK, agent })}).then(() => true).catch(() => false)`);
+            const live = agent === 'claude' ? ['needs_input'] : ['running', 'idle', 'needs_input'];
+            let made = null;
+            for (let i = 0; i < 60 && made === null; i += 1) {
+              const s = (await rnAll()).find((x) => x.name === name);
+              if (s !== undefined && live.includes(s.status)) made = s;
+              else await sleep(500);
+            }
+            rmSync(NEXT, { force: true });
+            return made;
+          };
+          const rnTmux = (...args) => {
+            const r = spawnSync('tmux', ['-L', SOCKET, ...args], { encoding: 'utf8', timeout: 10_000, maxBuffer: 16 * 1024 * 1024 });
+            return r.status === 0 ? String(r.stdout ?? '') : null;
+          };
+          /** The run's server's sessions as `$`-id → `@gmux-id` (empty for one Tortie never stamped), from its own list; both are space-free. */
+          const rnIds = () => {
+            const out = new Map();
+            for (const line of String(rnTmux('list-sessions', '-F', '#{session_id} #{@gmux-id}') ?? '').split('\n')) {
+              const m = /^(\$\d+)(?: (\S*))?$/.exec(line.trim());
+              if (m !== null) out.set(m[1], m[2] ?? '');
+            }
+            return out;
+          };
+          /**
+           * tmux's own name for a session, BY ITS `$`-ID (read off the
+           * `@gmux-id` stamp, never by a name), and every other session's
+           * name on the server, which D7's dedupe is asked against.
+           */
+          const rnTmuxRead = (sessionId) => {
+            const ids = rnIds();
+            const dollar = [...ids.entries()].find(([, g]) => g === sessionId)?.[0] ?? null;
+            if (dollar === null) return { name: null, taken: new Set() };
+            const nameOf = (id) => {
+              const n = rnTmux('display-message', '-p', '-t', id, '#{session_name}');
+              return n === null ? null : n.replace(/\n$/, '');
+            };
+            const taken = new Set([...ids.keys()].filter((id) => id !== dollar).map(nameOf).filter((n) => typeof n === 'string' && n !== ''));
+            return { name: nameOf(dollar), taken };
+          };
+          const rnStored = async (id) => (await readJson(`/v1/session?id=${encodeURIComponent(id)}`))?.session?.name ?? null;
+          /**
+           * Main's one log line per write (X11) for a start or a rename, with the session it names and its own time,
+           * in the order written, over app.log.1 (the transport keeps ONE rotated file) then app.log; null when
+           * neither was read. THE PROBE REVIEW of 2026-10-30: an unread log read as no line, so RM7's "no rename"
+           * passed over a log nobody read, and a rotation could take a line out of the count.
+           */
+          const rnLogRecords = async () => {
+            const read = async (name) => {
+              try {
+                return await readFileAsync(join(PROFILE, 'logs', name), 'utf8');
+              } catch {
+                return null;
+              }
+            };
+            const now = await read('app.log');
+            const older = (await read('app.log.1')) ?? '';
+            if (now === null || (now === '' && older === '')) return null;
+            const out = [];
+            for (const line of `${older}\n${now}`.split('\n')) {
+              if (!/the phone's (start|rename):/.test(line)) continue;
+              let rec = null;
+              try {
+                rec = JSON.parse(line);
+              } catch {
+                rec = null;
+              }
+              const msg = typeof rec?.msg === 'string' ? rec.msg : line;
+              const at = typeof rec?.ts === 'string' ? Date.parse(rec.ts) : Number.NaN;
+              out.push({ verb: msg.includes("the phone's start:") ? 'start' : 'rename', session: typeof rec?.session === 'string' ? rec.session : null, at: Number.isFinite(at) ? at : null });
+            }
+            return out;
+          };
+          /** The renames main logged of one session, or null when its log was not read. */
+          const rnActs = async (id) => {
+            const records = await rnLogRecords();
+            return records === null ? null : records.filter((w) => w.verb === 'rename' && w.session === id).length;
+          };
+          /** End then Remove on the Mac through the bridge, as N6 does; then what main holds of it, and the Mac's sentence a rename of it draws now. */
+          const rnRemove = async (id) => {
+            await cdpEval(cdp, `window.gmux.sessions.kill(${J(id)}).catch(() => 0).then(() => window.gmux.sessions.discard(${J(id)}).catch(() => 0)).then(() => true)`).catch(() => false);
+            let row = null;
+            let removed = null;
+            for (let i = 0; i < 20; i += 1) {
+              row = (await rnAll()).find((x) => x.id === id) ?? null;
+              removed = await rnRemovedIds();
+              if (row === null || row.status === 'discarded' || removed?.has(id) === true) break;
+              await sleep(500);
+            }
+            const gone = row === null;
+            const discarded = row?.status === 'discarded';
+            return { removed: gone || discarded, status: row?.status ?? null, inPast: removed === null ? null : removed.has(id), want: gone ? RENAME_WORDS.gone : discarded ? RENAME_WORDS.changed : null };
+          };
+          const b64 = (text) => Buffer.from(text, 'utf8').toString('base64url');
+          /** A drive's sheets, each with its place, so what was typed and what came after are read per sheet. */
+          const rnSheets = (ev) => ev.map((e, i) => [e, i]).filter(([e]) => e.step === 'rename-sheet');
+          /** The first `step` after a sheet (and `for`), before the next sheet. */
+          const rnAfterSheet = (ev, pair, step, forName) => {
+            if (pair === null || pair === undefined) return null;
+            for (let i = pair[1] + 1; i < ev.length; i += 1) {
+              const e = ev[i];
+              if (e.step === 'rename-sheet') return null;
+              if (e.step === step && (forName === undefined || e.for === forName)) return e;
+            }
+            return null;
+          };
+          /** The ⋯ read just before a sheet, as `openTerminalMenu` printed it for `forName`. */
+          /**
+           * The `rename-reach` line just before a sheet, or null: its page could not reach the Mac, whether its
+           * one Try again was pressed and whether that cleared it (the fix round of 2026-10-31).
+           */
+          const rnReachBefore = (ev, pair) => {
+            if (pair === null || pair === undefined) return null;
+            for (let i = pair[1] - 1; i >= 0; i -= 1) {
+              if (ev[i].step === 'rename-sheet') return null;
+              if (ev[i].step === 'rename-reach') return ev[i];
+            }
+            return null;
+          };
+          const rnMenuBefore = (ev, pair, forName) => {
+            if (pair === null || pair === undefined) return null;
+            for (let i = pair[1] - 1; i >= 0; i -= 1) {
+              if (ev[i].step === 'rename-sheet') return null;
+              if (ev[i].step === 'terminal-menu' && ev[i].for === forName) return ev[i];
+            }
+            return null;
+          };
+          /**
+           * The reactions a rename drive shares: Create's `start-ready` acked;
+           * Home's write held at the relay from `rename-ready`, counted 3 s
+           * after Home and released, as RV2 holds Remove's; and (RM4) the
+           * session removed on the Mac under the sheet before Save is pressed.
+           */
+          const rnReactor = (marks) => async (event) => {
+            if (event.step === 'start-ready') rnAck(`start-${String(event.seq)}`);
+            if (event.step === 'rename-ready' && event.for === 'rename-home') {
+              marks.heldBefore = relay.held();
+              relay.pause();
+              rnAck(`rename-${String(event.seq)}`);
+            }
+            if (event.step === 'rename-home-pressed') {
+              await sleep(3_000);
+              marks.held = relay.held() - (marks.heldBefore ?? relay.held());
+              relay.resume();
+            }
+            if (event.step === 'rename-home-away') rnAck(`rename-${String(event.seq)}`);
+            if (event.step === 'rename-ready' && event.for === 'rename-save') {
+              if (typeof marks.removeUnder === 'string') marks.removal = await rnRemove(marks.removeUnder);
+              rnAck(`rename-${String(event.seq)}`);
+            }
+          };
+          /** The main drive's controls for RMP's and RMH's absences: RM6's row showing Rename, RM9's (or RM8's) Name drawn. */
+          const rnControls = { row: false, name: false };
+          let rm8 = null;
+          const RN = {};
+          RN.rm1 = await rnMake('p349-rm1');
+          RN.rm2 = await rnMake(`p349 ${'w'.repeat(295)}`);
+          RN.rm4 = await rnMake('p349-rm4');
+          RN.rm6 = await rnMake('p349-rm6');
+          RN.rm7 = await rnMake('p349-rm7');
+          RN.rm2n = await rnMake('p349-rm2n', 'claude');
+          if (Object.values(RN).some((s) => s === null)) arm('RM the rename group\'s sessions', null, `not every session was made live: ${J(Object.fromEntries(Object.entries(RN).map(([k, s]) => [k, s?.status ?? null])))}`);
+          else {
+            // ---- RM1 to RM7 on iOS 26.3, one drive ----------------------------
+            await confirmListening(cdp);
+            await withSimulator({ label: 'p316-rename', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-rename'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+              const marks = { held: null, heldBefore: null, removeUnder: RN.rm4.id, removal: null };
+              const typed3 = 'fix #H here';
+              const steps = [
+                'pair',
+                'list',
+                // RM1 and RM3: the Terminal's ⋯, its sheet, a name typed and saved.
+                `open:${RN.rm1.id}`,
+                'rename-open',
+                `rename-type:${b64(typed3)}`,
+                'rename-save',
+                // RM5: an empty name, the name unchanged, a blank one and one past the cap, each on a sheet of its own.
+                'rename-open',
+                `rename-type:${b64('\b')}`,
+                'rename-cancel',
+                'rename-open',
+                `rename-type:${b64(typed3)}`,
+                'rename-cancel',
+                'rename-open',
+                `rename-type:${b64('   ')}`,
+                'rename-cancel',
+                'rename-open',
+                `rename-type:${b64('x'.repeat(130))}`,
+                'rename-cancel',
+                // RM2: the Sessions row of a 300-character name, and the Needs input row.
+                `row-menu-read:sessions:${RN.rm2.id}`,
+                `visit:${RN.rm2.id}`,
+                'back',
+                `row-rename:sessions:${RN.rm2.id}`,
+                `rename-type:${b64('p349 rm2 typed')}`,
+                'rename-cancel',
+                `row-menu-read:needs:${RN.rm2n.id}`,
+                `row-rename:needs:${RN.rm2n.id}`,
+                `rename-type:${b64('p349 rm2n typed')}`,
+                'rename-cancel',
+                // RM4: the session removed on the Mac under the sheet, then Save.
+                `row-rename:sessions:${RN.rm4.id}`,
+                `rename-type:${b64('gone now')}`,
+                'rename-save:ack',
+                'rename-cancel',
+                // RM7: Save, then Home with every new connection held before its handshake, then its sheet put away.
+                // THE FIX ROUND of 2026-10-30: RM7 runs BEFORE RM6, because `batch-done` presses Done, which End
+                // these draws only after a batch ran, so the list stayed selecting and RM7's row held an empty menu.
+                `row-rename:sessions:${RN.rm7.id}`,
+                `rename-type:${b64('held back')}`,
+                'rename-home',
+                'rename-cancel',
+                // RM6: the row held outside End these (its control), then while it selects: the drive's last act.
+                `row-menu-read:sessions:${RN.rm6.id}`,
+                `select:${RN.rm6.id}`,
+                `select-hold:${RN.rm6.id}`
+              ];
+              const run = await pairAndRead(sim, steps, 'rename', { env: { P316_ACKS: rnDir }, react: rnReactor(marks) });
+              const ev = run.ok ? run.result.events : [];
+              report.readings.rename = { held: marks.held, removal: marks.removal };
+              if (!run.ok || ev.length === 0) {
+                arm('RM1 the ⋯\'s Rename and its sheet', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
+                return;
+              }
+              const sheets = rnSheets(ev);
+              const menuSheets = sheets.filter(([e]) => e.via === 'menu');
+              const rowSheet = (id) => sheets.find(([e]) => e.via === 'row' && e.id === id) ?? null;
+              const helds = ev.filter((e) => e.step === 'row-menu-read');
+              {
+                const pair = menuSheets[0] ?? null;
+                const v = gradeRm1({ reach: rnReachBefore(ev, pair), menu: rnMenuBefore(ev, pair, 'rename-open'), ended: false, sheet: pair?.[0] ?? null, name: 'p349-rm1', typed: rnAfterSheet(ev, pair, 'rename-typed') });
+                arm('RM1 26.3: the ⋯ holds Catch Me Up, Rename, then End session…; its sheet titled Rename with Cancel and Save name, the whole name selected, the keyboard up', v.ok, v.said);
+              }
+              {
+                const t = rnTmuxRead(RN.rm1.id);
+                const v = gradeRm3({ after: rnAfterSheet(ev, menuSheets[0] ?? null, 'rename-after', 'rename-save'), acts: await rnActs(RN.rm1.id), typed: typed3, stored: await rnStored(RN.rm1.id), tmuxName: t.name, d7: d7Of(typed3, t.taken) });
+                arm('RM3 26.3: Save sends one rename, no Face ID, the sheet closes, the page takes the Mac\'s name, tmux holds D7\'s by $-id', v.ok, v.said);
+              }
+              {
+                const typedOn = (k) => rnAfterSheet(ev, menuSheets[k] ?? null, 'rename-typed');
+                const v = gradeRm5({ empty: typedOn(1), unchanged: typedOn(2), spaces: typedOn(3), cap: typedOn(4) });
+                arm('RM5 26.3: an empty, an unchanged and a blank name keep Save off, and the field holds 120 units at most', v.ok, v.said);
+              }
+              {
+                const s2 = rowSheet(RN.rm2.id);
+                const v1 = gradeRm2({ tab: 'sessions', id: RN.rm2.id, held: helds.find((h) => h.id === RN.rm2.id) ?? null, tapped: lastDump(ev, 'visit') === null ? null : sessionPageOf(lastDump(ev, 'visit')) !== null, sheet: s2?.[0] ?? null, whole: await rnStored(RN.rm2.id), typed: rnAfterSheet(ev, s2, 'rename-typed') });
+                arm('RM2 26.3, Sessions: a row\'s long press holds Rename alone, its tap opens the session, the sheet reads the whole 300-character name and Save turns on for a new one', v1.ok, v1.said);
+                const s2n = rowSheet(RN.rm2n.id);
+                // The Needs input row's tap is not asked here: no step of the drive opens a waiting row.
+                const v2 = gradeRm2({ tab: 'needs', id: RN.rm2n.id, held: helds.find((h) => h.id === RN.rm2n.id) ?? null, sheet: s2n?.[0] ?? null, whole: await rnStored(RN.rm2n.id), typed: rnAfterSheet(ev, s2n, 'rename-typed') });
+                arm('RM2 26.3, Needs input: the waiting row\'s long press holds Rename alone, its sheet the whole name', v2.ok, v2.said);
+              }
+              {
+                const s4 = rowSheet(RN.rm4.id);
+                const v = gradeRm4({ removed: marks.removal?.removed === true, want: marks.removal?.want ?? null, typed: 'gone now', acts: await rnActs(RN.rm4.id), after: rnAfterSheet(ev, s4, 'rename-after', 'rename-save') });
+                arm('RM4 26.3: a session removed on the Mac under the sheet: the sheet keeps his text and the Mac\'s own sentence', v.ok, v.said);
+              }
+              {
+                const control = helds.find((h) => h.id === RN.rm6.id) ?? null;
+                if (control?.found === true && control?.rename?.id === RENAME_IDS.row(RN.rm6.id)) rnControls.row = true;
+                const v = gradeRm6({ id: RN.rm6.id, control, selecting: ev.find((e) => e.step === 'select-hold') ?? null });
+                arm('RM6 26.3: while End these selects, holding a row draws no Rename and leaves its selection as build 12 does, beside the same row offering it outside End these', v.ok, v.said);
+              }
+              {
+                const v = gradeRm7({ held: marks.held, acts: await rnActs(RN.rm7.id), before: 'p349-rm7', stored: await rnStored(RN.rm7.id), after: rnAfterSheet(ev, rowSheet(RN.rm7.id), 'rename-after', 'rename-home') });
+                arm('RM7 26.3: Save then Home with the write held before its handshake: withheld, the not-renamed line on return', v.ok, v.said);
+              }
+            });
+
+            // ---- RM9 on iOS 26.3: a named Create against this Mac's stand-ins ----
+            await confirmListening(cdp);
+            await withSimulator({ label: 'p316-rename-start', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-rename-start'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+              const typed = 'named at start';
+              const before = new Set((await rnAll()).map((s) => s.id));
+              // THE PROBE REVIEW of 2026-10-30: main's lines from the drive on, by their own time, so a rotation of
+              // app.log between two reads cannot shift a count, and an unread log is no reading.
+              const driveFrom = Date.now();
+              const run = await pairAndRead(sim, ['pair', 'list', 'start-open', 'start-name-read', `start-name:${b64(typed)}`, 'start-create'], 'rename-start', { env: { P316_ACKS: rnDir }, react: rnReactor({}) });
+              const ev = run.ok ? run.result.events : [];
+              if (ev.find((e) => e.step === 'start-name-read')?.present === true) rnControls.name = true;
+              const made = (await rnAll()).filter((s) => !before.has(s.id));
+              const id = made[0]?.id ?? null;
+              const records = await rnLogRecords();
+              const writes = records === null ? null : records.filter((w) => w.at !== null && w.at >= driveFrom);
+              const startAt = writes === null ? -1 : writes.findIndex((w) => w.verb === 'start' && w.session === id);
+              const renameAt = writes === null ? -1 : writes.findIndex((w) => w.verb === 'rename' && w.session === id);
+              const created = ev.find((e) => e.step === 'start-created') ?? null;
+              const v =
+                !run.ok || ev.length === 0
+                  ? verdict(null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`)
+                  : gradeRm9({
+                      named: ev.find((e) => e.step === 'start-name') ?? null,
+                      starts: made.length,
+                      renames: writes === null ? null : writes.filter((w) => w.verb === 'rename').map((w) => ({ session: w.session })),
+                      startedId: id,
+                      order: startAt !== -1 && renameAt !== -1 ? (startAt < renameAt ? 'start-then-rename' : 'rename-then-start') : 'unread',
+                      stored: id === null ? null : await rnStored(id),
+                      opened: created === null ? null : { title: [...(created.nav ?? []), created.status].filter((x) => typeof x === 'string') }
+                    });
+              arm('RM9 26.3: a named Create starts ONE session, then ONE rename of the id it answered, and the Terminal opens under his name', v.ok, v.said);
+            });
+
+            // ---- RM1 and RM3 on the floor, iOS 18.3 ------------------------------
+            const floor = await rnMake('p349-rm1f');
+            if (floor === null) arm('RM1 18.3, the floor', null, 'the floor\'s session was not made');
+            else {
+              await confirmListening(cdp);
+              await withSimulator({ label: 'p316-rename-floor', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-rename-floor'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                const typed = 'it\'s "x" fix--auth';
+                const run = await pairAndRead(sim, ['pair', 'list', `open:${floor.id}`, 'rename-open', `rename-type:${b64(typed)}`, 'rename-save'], 'rename-floor', { env: { P316_ACKS: rnDir }, react: rnReactor({}) });
+                const ev = run.ok ? run.result.events : [];
+                if (!run.ok || ev.length === 0) {
+                  arm('RM1 18.3, the floor', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
+                  return;
+                }
+                const pair = rnSheets(ev)[0] ?? null;
+                const v1 = gradeRm1({ reach: rnReachBefore(ev, pair), menu: rnMenuBefore(ev, pair, 'rename-open'), ended: false, sheet: pair?.[0] ?? null, name: 'p349-rm1f', typed: rnAfterSheet(ev, pair, 'rename-typed') });
+                arm('RM1 18.3, the floor: the ⋯ holds Catch Me Up, Rename, then End session…, and its sheet', v1.ok, v1.said);
+                const t = rnTmuxRead(floor.id);
+                const v3 = gradeRm3({ after: rnAfterSheet(ev, pair, 'rename-after', 'rename-save'), acts: await rnActs(floor.id), typed, stored: await rnStored(floor.id), tmuxName: t.name, d7: d7Of(typed, t.taken) });
+                arm('RM3 18.3, the floor: one rename, no Face ID, the Mac\'s name, D7 in tmux', v3.ok, v3.said);
+              });
+            }
+          }
+
+          // ---- RM8, this app against a 348 Mac, and RMH: the hostile door's worlds, 26.3 ----
+          // A rename arm's world offers Rename on every row and the session,
+          // `renames` and an honest start; `start-404`'s is a 348 Mac's: the
+          // shipping composer's answers with no `rename` and no `renames`.
+          const rnDrive = async (sim, name, stepsOf, test = { id: UI_TEST }, derivedDataPath = undefined) => {
+            await sim.simctl('keychain', 'reset');
+            const door = await startDoorChild(name);
+            doorChildren.add(door.child);
+            try {
+              if (door.facts === null) return { door, r: null, why: door.why ?? 'the hostile door did not start' };
+              const r = await drive(sim, {
+                test,
+                derivedDataPath,
+                label: `rename-hostile-${name}-${test.project === undefined ? 'head' : 'parent'}`,
+                env: { P316_PAYLOAD: door.facts.payload, P316_STEPS: stepsOf(door.facts).join(','), P316_WAIT_S: '60', P316_ACKS: rnDir, P330_DOOR_ENDPOINT: `127.0.0.1:${String(door.facts.port)}` },
+                onEvent: async (event) => {
+                  if (event.step === 'start-ready') rnAck(`start-${String(event.seq)}`);
+                }
+              });
+              return { door, r, why: r.events.length === 0 ? `the UI test printed no P316 line (xcodebuild exited ${String(r.code)})` : null };
+            } finally {
+              await endDoorChild(door.child);
+              doorChildren.delete(door.child);
+            }
+          };
+          const rnPosts = (door, route) => door.events.filter((e) => e.kind === 'request' && e.route === route);
+          const rnStartOf = (door) => {
+            const s = rnPosts(door, 'POST /v1/start')[0] ?? null;
+            return s === null ? null : { keys: s.keys, project: s.startProject, agent: s.startAgent, write: s.startWrite };
+          };
+          await withSimulator({ label: 'p316-rename-hostile', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-rename-hostile'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+            // RM8 over the 404 arm's world (renames offered, an honest start): an empty Name.
+            const empty = await rnDrive(sim, 'rename-404', () => ['pair', 'list', 'start-open', 'start-name-read', 'start-create']);
+            if (empty.r === null || empty.why !== null) rm8 = { why: empty.why ?? 'no drive' };
+            else {
+              const nameRead = empty.r.events.find((e) => e.step === 'start-name-read') ?? null;
+              if (nameRead?.present === true) rnControls.name = true;
+              rm8 = { nameRead, renames: empty.door.facts.renameOffered === true, start: rnStartOf(empty.door), renamePosts: rnPosts(empty.door, 'POST /v1/rename').length };
+            }
+            // This app against a 348 Mac: a row held, the ⋯ read, New session read.
+            const old = await rnDrive(sim, 'start-404', (facts) => ['pair', 'list', `row-menu-read:sessions:${facts.sessionToOpen}`, `open:${facts.sessionToOpen}`, 'rename-menu-read', 'back', 'start-open', 'start-name-read']);
+            report.readings.renameOldMac =
+              old.r === null || old.why !== null
+                ? { driven: false, why: old.why }
+                : { driven: true, held: old.r.events.find((e) => e.step === 'row-menu-read') ?? null, menu: old.r.events.find((e) => e.step === 'terminal-menu' && e.for === 'rename-menu-read') ?? null, nameRead: old.r.events.find((e) => e.step === 'start-name-read') ?? null, posts: rnPosts(old.door, 'POST /v1/rename').length };
+            // RMH: every rename arm, each its own way.
+            for (const name of RENAME_ARMS) {
+              const spec = P349_ARMS[name];
+              const stepsOf = (facts) =>
+                spec.rename === 'key'
+                  ? ['pair', 'list', 'start-open', 'start-name-read', 'start-close']
+                  : spec.rename === 'row'
+                    ? ['pair', 'list', 'sentence']
+                    : spec.rename === 'blocked-row'
+                      ? ['pair', 'list', 'tab:needs', 'sentence']
+                      : spec.rename === 'detail'
+                        ? ['pair', 'list', `open:${facts.sessionToOpen}`, 'sentence']
+                        : ['pair', 'list', `open:${facts.sessionToOpen}`, 'rename-open', `rename-type:${b64('hostile rename')}`, 'rename-save'];
+              const got = await rnDrive(sim, name, stepsOf);
+              if (got.r === null || got.why !== null) {
+                arm(`RMH ${name}: ${spec.what}`, null, got.why ?? 'no drive');
+                continue;
+              }
+              const ev = got.r.events;
+              const pair = rnSheets(ev)[0] ?? null;
+              const v = gradeRmh({
+                spec,
+                posts: rnPosts(got.door, 'POST /v1/rename').length,
+                alive: aliveOf(ev),
+                control: rnControls.name,
+                nameRead: ev.find((e) => e.step === 'start-name-read') ?? null,
+                plus: ev.some((e) => e.step === 'start-open' && e.found === true),
+                sentence: drawnSentence(ev),
+                listRows: rowIdsOf((ev.filter((e) => e.step === 'screen').at(-1) ?? {}).elements ?? []).length,
+                honestFirst: got.door.events.some((e) => e.kind === 'request' && e.honestFirst === true),
+                menu: rnMenuBefore(ev, pair, 'rename-open'),
+                after: rnAfterSheet(ev, pair, 'rename-after', 'rename-save'),
+                doorSentence: RENAME_UNKNOWN_SENTENCE
+              });
+              arm(`RMH ${name}: ${spec.what}`, v.ok, v.said);
+            }
+          });
+
+          // ---- RM10: See a sample, 26.3, unpaired ----------------------------------
+          {
+            let book = null;
+            try {
+              book = readSampleBook(readFileSync(SAMPLE_BOOK_PATH, 'utf8')).book ?? null;
+            } catch {
+              book = null;
+            }
+            const cast = book === null ? null : sampleCast(book);
+            if (cast === null || cast.liveClaude === null) arm('RM10 the sample\'s rename', null, 'the sample\'s book or its live Claude Code session could not be read');
+            else {
+              await withSimulator({ label: 'p316-rename-sample', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-rename-sample'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                const dir = join(RUN, 'acks-rename-sample');
+                mkdirSync(dir, { recursive: true });
+                const before = relay.connections();
+                const r = await drive(sim, {
+                  test: { id: UI_TEST },
+                  label: 'rename-sample',
+                  env: { P316_STEPS: ['sample-see', `terminal-open:${cast.liveClaude}`, 'rename-open', `rename-type:${b64('sample name')}`, 'rename-save', 'rename-cancel', 'back', 'start-open', 'start-name-read', `start-name:${b64('sample start')}`, 'start-create', 'sample-leave'].join(','), P316_WAIT_S: '60', P316_ACKS: dir, P330_DOOR_ENDPOINT: `127.0.0.1:${String(relay.port)}` },
+                  onEvent: async (event) => {
+                    if (event.step === 'sample-open' || event.step === 'sample-leaving') writeFileSync(join(dir, `sample-${String(event.seq)}`), 'ok\n');
+                    if (event.step === 'start-ready') writeFileSync(join(dir, `start-${String(event.seq)}`), 'ok\n');
+                  }
+                });
+                const connections = relay.connections() - before;
+                if (r.events.length === 0) {
+                  arm('RM10 the sample\'s rename', null, `the UI test printed no P316 line (xcodebuild exited ${String(r.code)})`);
+                  return;
+                }
+                const pair = rnSheets(r.events)[0] ?? null;
+                const created = r.events.find((e) => e.step === 'start-created') ?? null;
+                const v = gradeRm10({
+                  menu: rnMenuBefore(r.events, pair, 'rename-open'),
+                  save: rnAfterSheet(r.events, pair, 'rename-after', 'rename-save'),
+                  nameRead: r.events.find((e) => e.step === 'start-name-read') ?? null,
+                  create: created === null ? null : { line: created.reading?.line ?? (created.lines ?? []).at(-1) ?? null },
+                  connections
+                });
+                arm('RM10 26.3, See a sample: Rename and the Name on its own sessions, each saying nothing ran, nothing left the phone', v.ok, v.said);
+              });
+            }
+          }
+
+          // ---- RMP: build 12 and build 11 against this Mac, by their OWN UI tests; RM8's parent start ----
+          {
+            const older = { b12: null, b11: null };
+            let parentStart = null;
+            for (const [key, dir, label] of [
+              ['b12', PARENT_IOS_349, 'rename-parent-12'],
+              ['b11', PARENT_IOS_348, 'rename-parent-11']
+            ]) {
+              if (dir === '') {
+                report.readings[`renameParent_${key}`] = `not run: ${key === 'b12' ? 'P349_PARENT_IOS' : 'P348_PARENT_IOS'} is not set`;
+                continue;
+              }
+              const parentProject = join(resolve(dir), 'ios', 'Tortie.xcodeproj');
+              const parentDd = join(XCODE, `dd-${label}`);
+              const built = existsSync(parentProject)
+                ? await xcodebuildRun({ label, scratch: XCODE, derivedDataPath: parentDd, args: ['build-for-testing', '-project', parentProject, '-scheme', SCHEME, '-configuration', 'Debug', '-destination', 'generic/platform=iOS Simulator'] })
+                : { code: -1 };
+              if (built.code !== 0) {
+                report.readings[`renameParent_${key}`] = `not run: the parent's project did not build (${String(built.code)})`;
+                continue;
+              }
+              const s = await rnMake(`p349-${key}`);
+              if (s === null) {
+                report.readings[`renameParent_${key}`] = 'not run: its session was not made';
+                continue;
+              }
+              await confirmListening(cdp);
+              await withSimulator({ label: `p316-${label}`, runtime: RUNTIME_CURRENT, scratch: join(XCODE, `sim-${label}`), derivedDataPath: parentDd, keep: KEEP }, async (sim) => {
+                // Its OWN UI test, which knows no rename step: its ⋯ read with
+                // nothing pressed (`end-top`), its list, and New session.
+                const run = await pairAndRead(sim, ['pair', 'list', `open:${s.id}`, 'end-top', 'back', 'start-open', 'start-close'], label, { project: parentProject, derivedDataPath: parentDd, env: { P316_ACKS: rnDir }, react: rnReactor({}) });
+                const ev = run.ok ? run.result.events : [];
+                const opened = ev.find((e) => e.step === 'start-open') ?? null;
+                older[key] =
+                  run.ok && ev.length > 0
+                    ? {
+                        driven: true,
+                        menu: ev.find((e) => e.step === 'terminal-menu' && e.for === 'end-top') ?? null,
+                        sentence: drawnSentence(ev),
+                        listRows: rowIdsOf(lastDump(ev, 'list')?.elements ?? []).length,
+                        // THE PROBE REVIEW of 2026-10-30: a sheet whose dump never came is no reading of its Name.
+                        nameRead: opened === null || opened.sheet !== true || lastDump(ev, 'start-open') === null ? { missing: true } : { missing: false, present: el(lastDump(ev, 'start-open'), RENAME_IDS.name) !== null }
+                      }
+                    : null;
+                // RM8's comparison: build 12's own start over the 404 arm's world.
+                if (key === 'b12') {
+                  const got = await rnDrive(sim, 'rename-404', () => ['pair', 'list', 'start-open', 'start-create'], { id: UI_TEST, project: parentProject }, parentDd);
+                  parentStart = got.r === null || got.why !== null ? null : rnStartOf(got.door);
+                }
+              });
+            }
+            report.readings.renameOlder = { b12: older.b12, b11: older.b11, parentStart };
+            {
+              const v = rm8 === null || rm8.why !== undefined ? verdict(null, `the 404 arm's New session was not driven: ${String(rm8?.why ?? 'not run')}`) : gradeRm8({ ...rm8, parent: parentStart });
+              arm('RM8 26.3: New session draws its Name where the Mac renames, and an empty one sends today\'s start alone, as build 12 sends it', v.ok, v.said);
+            }
+            const v = gradeRmp({ controls: rnControls, b12: older.b12, b11: older.b11, oldMac: report.readings.renameOldMac ?? null });
+            arm('RMP build 12 (P349_PARENT_IOS) and build 11 (P348_PARENT_IOS) against this Mac keep their own, and this app against a 348 Mac draws no Rename and no Name', v.ok, v.said);
+          }
+        }
+
+        // ==================================================================
         // Phase 316.6: PR, the parent app over the same planted turns
         // (SPEC §7.6 item 4). Its own project, built here into its own derived
         // data, driven by ITS OWN UI test against this Mac, which this phase
@@ -18097,7 +19682,8 @@ exit 0
     }
   );
 } catch (err) {
-  if (!['port taken', 'no build'].includes(String(err?.message ?? err))) arm('the run', false, `it threw: ${String(err?.message ?? err)}`);
+  // A refusal was armed where it happened (THE PROBE REVIEW of 2026-10-30): its throw is no failure of the app.
+  if (!agentsRefused && !['port taken', 'no build'].includes(String(err?.message ?? err))) arm('the run', false, `it threw: ${String(err?.message ?? err)}`);
 } finally {
   for (const child of [...doorChildren]) await endDoorChild(child);
   await relay?.close().catch(() => undefined);
@@ -18308,6 +19894,11 @@ say(`wrote ${join(OUT, 'probe-p316.json')}`);
 const unreadable = report.arms.filter((a) => a.ok === null).length;
 if (ran && failures === 0 && unreadable > 0) {
   say(`probe:p316 could not READ ${String(unreadable)} arm(s); that is not a pass`);
+  process.exit(2);
+}
+// THE PROBE REVIEW of 2026-10-30: a refused run is no run, exit 2, whatever an arm after the refusal read.
+if (agentsRefused) {
+  say('probe:p316 was REFUSED: an agent other than the stand-ins could have run, so this is no run (exit 2)');
   process.exit(2);
 }
 say(failures > 0 ? `probe:p316 FAILED ${String(failures)} arm(s)` : !ran ? 'probe:p316 did not complete' : 'probe:p316 OK');

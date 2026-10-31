@@ -229,12 +229,17 @@ final class EndModel {
     /// The press's task, held so a test can wait for it. Never drawn from.
     @ObservationIgnored private(set) var pressing: Task<Void, Never>?
 
+    /// `line` seeds the line under the status as the page opens (Phase 349,
+    /// D2): a named Create's rename that was not taken, which the start's
+    /// done arm composed through `DoorWords.renameSentence(for:sample:)`. An
+    /// empty one seeds nothing, so the line is still never an empty string.
     init(
         sessionId: String,
         writer: (any DoorWriting)?,
         ownerCheck: any OwnerCheck,
         registry: (any EndRunnerRegistry)?,
-        remove: RemoveModel? = nil
+        remove: RemoveModel? = nil,
+        line: String? = nil
     ) {
         self.sessionId = sessionId
         self.writer = writer
@@ -242,6 +247,9 @@ final class EndModel {
         self.registry = registry
         self.remove = remove
         kind = writer == nil ? .none : ownerCheck.kind()
+        if let line, !line.isEmpty {
+            self.line = line
+        }
     }
 
     /// The line under the status: Remove's once a Remove has been pressed on

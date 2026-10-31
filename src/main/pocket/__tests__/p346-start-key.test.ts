@@ -25,9 +25,11 @@
  * a socket, nothing execs a program, nothing reads his home.
  *
  * PHASE 348 (build/p348/SPEC.md D26) appended `remove` and `paste` after
- * `start`. The mocked copy LEAVES THEM OUT, so "this build" here is the twelve
- * Phase 346 shipped and `start` stays the one route that waits; Remove's and
- * paste's own waits are driven in `./p348-remove-write.test.ts`.
+ * `start`, and PHASE 349 (build/p349/SPEC.md §4.1) `rename` after them. The
+ * mocked copy LEAVES ALL THREE OUT, so "this build" here is the twelve Phase
+ * 346 shipped and `start` stays the one route that waits; Remove's and
+ * paste's own waits are driven in `./p348-remove-write.test.ts`, and
+ * rename's in `./p349-rename-offers.test.ts`.
  */
 
 import { EventEmitter } from 'node:events';
@@ -74,8 +76,9 @@ const hoisted = vi.hoisted(() => ({ routes: [] as unknown[], start: null as unkn
 
 vi.mock('../door/table', async (importOriginal) => {
   const real = await importOriginal<typeof import('../door/table')>();
-  // Phase 348: the twelve Phase 346 shipped, Remove and paste left out (the header says why).
-  hoisted.routes.splice(0, hoisted.routes.length, ...real.POCKET_ROUTES.filter((r) => r.id !== 'remove' && r.id !== 'paste'));
+  // Phase 348: the twelve Phase 346 shipped, Remove and paste left out, and
+  // (Phase 349) rename with them (the header says why).
+  hoisted.routes.splice(0, hoisted.routes.length, ...real.POCKET_ROUTES.filter((r) => r.id !== 'remove' && r.id !== 'paste' && r.id !== 'rename'));
   hoisted.start = real.POCKET_ROUTES.find((r) => r.id === 'start') ?? null;
   const routes = hoisted.routes as PocketRoute[];
   return {
@@ -439,11 +442,12 @@ describe('the route and its words (D1, D3, D4)', () => {
   it('is one signed POST alive outside any window, last in the table, the contract and the writes', () => {
     asThisBuild();
     expect(pocketRouteIds().at(-1)).toBe('start');
-    // Phase 348 appended Remove and paste after it in the contract (D26).
-    expect(POCKET_ROUTE_IDS.slice(-3)).toEqual(['start', 'remove', 'paste']);
+    // Phase 348 appended Remove and paste after it in the contract (D26), and
+    // Phase 349 rename after them (build/p349/SPEC.md §4.1).
+    expect(POCKET_ROUTE_IDS.slice(-4)).toEqual(['start', 'remove', 'paste', 'rename']);
     const rows = (hoisted.routes as PocketRoute[]).filter((r) => r.id === 'start');
     expect(rows).toEqual([{ id: 'start', method: 'POST', path: '/v1/start', reads: false, windowOnly: false, signed: true }]);
-    expect(POCKET_WRITE_ROUTE_IDS).toEqual(['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste']);
+    expect(POCKET_WRITE_ROUTE_IDS).toEqual(['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste', 'rename']);
     // The table this file models is the twelve (the header): its writes end on start.
     expect(pocketWriteRouteIds()).toEqual(['end', 'choose', 'say', 'keys', 'start']);
     expect(POCKET_SESSION_WRITE_IDS).toEqual(['end', 'choose', 'say', 'keys']);

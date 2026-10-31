@@ -129,6 +129,49 @@ final class SampleReaderTests: XCTestCase {
         }
     }
 
+    /// Phase 349 (build/p349/SPEC.md §4.5 step 5): the sample is its own
+    /// renamer, through `any DoorReading` as the app holds it, and its rename
+    /// is not taken, asking nothing: Save name and a named Create say nothing
+    /// ran, and the book's names never change.
+    func testTheSampleIsItsOwnRenamerAndRenamesNothing() async throws {
+        let reading: any DoorReading = reader()
+        let renamer = try XCTUnwrap(reading.renamer, "the sample draws no Rename")
+        XCTAssertTrue(renamer is SampleReader)
+        let before = try await reading.sessions(.standard).rows.map(\.name)
+        let sent = await renamer.rename("s-idle", name: "a new name")
+        XCTAssertEqual(sent, .notTaken)
+        let elsewhere = await renamer.rename("s-none", name: "x")
+        XCTAssertEqual(elsewhere, .notTaken, "a session the sample does not have")
+        XCTAssertEqual(DoorWords.renameSentence(for: sent, sample: true), Copy.startSample)
+        let after = try await reading.sessions(.standard).rows.map(\.name)
+        XCTAssertEqual(after, before, "a sample rename changed a name")
+        let session = try await renamer.session("s-idle")
+        XCTAssertEqual(session.session.name, SampleBookFixture.name("s-idle"), "the renamer's read is not the sample's own")
+    }
+
+    /// Phase 349 (§4.5 step 5): the book's `renames` rides on every sessions
+    /// answer, as its start offer does, and a book with none carries none.
+    func testTheBooksRenamesRideOnEverySessionsAnswer() throws {
+        let plain = SampleBookFixture.book()
+        XCTAssertFalse(try plain.sessions(state: "waiting.live.ended", query: .standard, at: 1).renames, "a book with no renames renames")
+        let renaming = try XCTUnwrap(SampleBook(data: SampleBookFixture.data { book in
+            book[path: ["constants", "renames"]] = true
+        }))
+        for state in ["waiting.live.ended", "answered.ended.ended"] {
+            for query in [SessionsQuery.standard, SessionsQuery(show: .all, group: .none, sort: .name, agent: "claude", machine: nil)] {
+                guard let answer = try? renaming.sessions(state: state, query: query, at: 1) else { continue }
+                XCTAssertTrue(answer.renames, "\(state) \(query)")
+                XCTAssertEqual(answer.rows.map(\.sessionId), try plain.sessions(state: state, query: query, at: 1).rows.map(\.sessionId))
+            }
+        }
+        let crooked = try XCTUnwrap(SampleBook(data: SampleBookFixture.data { book in
+            book[path: ["constants", "renames"]] = "yes"
+        }))
+        let answer = try crooked.sessions(state: "waiting.live.ended", query: .standard, at: 1)
+        XCTAssertFalse(answer.renames, "a renames the contract cannot read renames")
+        XCTAssertEqual(answer.rows.map(\.sessionId), ["s-wait", "s-idle", "s-done"], "and the answer under it is read as ever")
+    }
+
     /// D10: no sample session offers a message, and `say` is not taken, with
     /// no write id.
     func testSayIsNotTakenAndCarriesNoWriteId() async {

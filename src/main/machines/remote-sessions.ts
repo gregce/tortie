@@ -161,7 +161,7 @@ import type {
   SessionMachine,
   SessionStatus
 } from '@shared/types';
-import { gmuxError, isGmuxError, GmuxError } from '../errors';
+import { gmuxError, gmuxErrorPayloadOf, isGmuxError, GmuxError } from '../errors';
 import { machineClassOf } from './errors';
 import { isLinkFailure } from './liveness';
 import { getLog } from '../log';
@@ -2302,9 +2302,11 @@ export async function remoteRename(
     ctx,
     remoteStampArgs(row.tmuxId, '@gmux-name', oneLine(newDisplayName))
   ).catch((err: unknown) => {
+    // PHASE 349 (build/p349/SPEC.md §4.3 step 7): the error's CODE, never its
+    // text, which carries the command and so the name (exec-plane.ts).
     machinesLog.warn(
       `${row.machineId} did not keep the new name on ${row.tmuxId}: ` +
-        `${(err as Error).message}`
+        `${gmuxErrorPayloadOf(err)?.code ?? 'unknown'}`
     );
   });
   const state = stateOf(row.machineId);
@@ -2321,9 +2323,10 @@ export async function remoteRename(
     try {
       remoteManifest().renameSession(sessionId, oneLine(newDisplayName), tmuxName);
     } catch (err) {
+      // PHASE 349: the code, never the text, as above.
       machinesLog.warn(
         `the new name landed on ${row.machineId} and not in the session list: ` +
-          `${(err as Error).message}`
+          `${gmuxErrorPayloadOf(err)?.code ?? 'unknown'}`
       );
     }
   }

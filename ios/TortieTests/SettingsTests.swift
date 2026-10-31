@@ -183,8 +183,10 @@ final class SettingsTests: XCTestCase {
 
     /// Clause: the version line is the bundle's own version and build, a dash
     /// for either it does not say; and the app this test is hosted in is
-    /// 1.0.0, build 12 (Phase 348's phone polished, build/p348/SPEC.md: the
-    /// one archive cut from that phase's tree; build 11 was Phase 345's
+    /// 1.0.0, build 13 (Phase 349's rename from the phone, build/p349/SPEC.md
+    /// §0.4 rule 12: the build that calls `rename`; build 12 was Phase 348's
+    /// phone polished, build/p348/SPEC.md, the one archive cut from that
+    /// phase's tree; build 11 was Phase 345's
     /// several Macs, build/p345/SPEC.md D27;
     /// build 10 was Phase 333.3's See a sample, build/p3333/SPEC.md D23, the
     /// public and App Store build; build 9 was Phase 337.3's, set when it was rebased onto Phase 333.1,
@@ -198,7 +200,7 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(AppVersion.line(["CFBundleShortVersionString": "", "CFBundleVersion": 4]), Copy.dash + " (" + Copy.dash + ")")
         XCTAssertEqual(AppVersion.line(nil), Copy.dash + " (" + Copy.dash + ")")
         #if os(iOS)
-        XCTAssertEqual(AppVersion.line(Bundle.main.infoDictionary), "1.0.0 (12)", "the app these tests are hosted in is not 1.0.0 (12)")
+        XCTAssertEqual(AppVersion.line(Bundle.main.infoDictionary), "1.0.0 (13)", "the app these tests are hosted in is not 1.0.0 (13)")
         #endif
     }
 

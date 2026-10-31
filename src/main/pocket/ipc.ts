@@ -929,6 +929,17 @@ export class PocketHost {
   }
 
   /**
+   * Whether a person allowed the phone to rename sessions (Phase 349,
+   * build/p349/SPEC.md §4.2 step 6, D13): what a row's `rename` and the
+   * Sessions answer's `renames` ask before either is offered. NEVER A WRITE'S
+   * CHECK: the write path asks {@link routeServed} itself, at its own last
+   * check.
+   */
+  renameAllowed(): boolean {
+    return this.routeServed('rename');
+  }
+
+  /**
    * Hand the door process the served set as it stands now (D7, D22). No socket
    * is cut when it moves: every request is asked. Nothing while the door is not
    * listening; the start carries it.

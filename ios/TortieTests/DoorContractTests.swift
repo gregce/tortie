@@ -80,6 +80,112 @@ final class DoorContractTests: XCTestCase {
         XCTAssertTrue(decodes(try blocked(rows: [row(["blockedSince": 1_790_000_000_000.5])])))
     }
 
+    // MARK: Rename's offer (Phase 349, build/p349/SPEC.md §4.4 step 1, bd10)
+
+    /// One sessions row, as main's composer writes it, with `extra` spread in.
+    private func sessionsRow(_ extra: [String: Any?] = [:]) -> [String: Any] {
+        var fields: [String: Any] = [
+            "sessionId": "s1", "name": "fix-login", "group": 0, "machine": NSNull(), "statusDot": "working",
+            "statusTitle": "Working", "ageText": "2m", "waiting": false, "question": NSNull(), "end": ["state": "none"]
+        ]
+        for (key, value) in extra { fields[key] = value ?? NSNull() }
+        return fields
+    }
+
+    private func sessions(rows: [[String: Any]], extra: [String: Any] = [:]) throws -> Data {
+        var fields: [String: Any] = [
+            "asked": ["show": "active", "group": "project", "sort": "recent", "agent": NSNull(), "machine": NSNull()],
+            "rows": rows,
+            "groups": [["id": "Ab3dE5fG7hJ9kL1m", "label": "tortie", "machine": NSNull(), "folder": NSNull(), "count": rows.count, "omitted": 0, "waiting": false, "collapsed": false]],
+            "agents": [], "machines": [], "total": rows.count, "omitted": 0, "at": 1_790_000_000_000.0, "ageNote": ""
+        ]
+        for (key, value) in extra { fields[key] = value }
+        return try JSONSerialization.data(withJSONObject: fields)
+    }
+
+    /// A session's detail: the row's fields beside the detail's own.
+    private func detail(_ overrides: [String: Any?]) throws -> Data {
+        var session = row(overrides)
+        for (key, value) in ["catchUp": NSNull(), "lastAnswer": NSNull(), "turnCount": 3, "handoff": NSNull(), "activity": NSNull(), "lastMessageText": NSNull()] as [String: Any] {
+            session[key] = value
+        }
+        return try JSONSerialization.data(withJSONObject: ["session": session, "at": 1.0] as [String: Any])
+    }
+
+    /// The values that are not a Boolean a broken door could send.
+    private let notBooleans: [Any] = ["true", 1, 0, ["true"], ["rename": true], 1.5]
+
+    /// Clause (Phase 349, bd10): a blocked row's `rename`, and so the
+    /// detail's, is read STRICTLY beside `end`: `true` is Rename offered;
+    /// absent, null and `false` are none; and anything that is not a Boolean
+    /// refuses the WHOLE answer, as a row missing a field does.
+    func testABlockedRowsRenameIsReadStrictly() throws {
+        let decode = { (data: Data) in try JSONDecoder().decode(PocketBlockedAnswer.self, from: data) }
+        XCTAssertTrue(try decode(try blocked(rows: [row(["rename": true])])).rows[0].rename)
+        XCTAssertFalse(try decode(try blocked(rows: [row()])).rows[0].rename, "an older Mac's row offers Rename")
+        XCTAssertFalse(try decode(try blocked(rows: [row(["rename": nil])])).rows[0].rename)
+        XCTAssertFalse(try decode(try blocked(rows: [row(["rename": false])])).rows[0].rename)
+        for broken in notBooleans {
+            XCTAssertFalse(decodes(try blocked(rows: [row(), row(["rename": broken])])), "a list whose row says rename \(broken) drew")
+            XCTAssertNil(try? JSONDecoder().decode(PocketSessionAnswer.self, from: try detail(["rename": broken])), "a session that says rename \(broken) drew")
+        }
+        let session = try JSONDecoder().decode(PocketSessionAnswer.self, from: try detail(["rename": true]))
+        XCTAssertTrue(session.session.rename, "the detail does not carry its row's offer")
+        XCTAssertFalse(try JSONDecoder().decode(PocketSessionAnswer.self, from: try detail([:])).session.rename)
+    }
+
+    /// Clause (Phase 349, bd10): a Sessions row's `rename` is read the same
+    /// strict way.
+    func testASessionsRowsRenameIsReadStrictly() throws {
+        let decode = { (data: Data) in try JSONDecoder().decode(PocketSessionsAnswer.self, from: data) }
+        XCTAssertTrue(try decode(try sessions(rows: [sessionsRow(["rename": true])])).rows[0].rename)
+        XCTAssertFalse(try decode(try sessions(rows: [sessionsRow()])).rows[0].rename)
+        XCTAssertFalse(try decode(try sessions(rows: [sessionsRow(["rename": nil])])).rows[0].rename)
+        for broken in notBooleans {
+            XCTAssertNil(try? decode(try sessions(rows: [sessionsRow(["rename": broken])])), "a Sessions list whose row says rename \(broken) drew")
+        }
+    }
+
+    /// Clause (Phase 349; the integrator's reconcile): a row is written back
+    /// as the door writes it, every field it always sends present and a
+    /// nullable one as null, so it reads again; and `rename` only when
+    /// offered, so a row from a Mac that offers none reads back with no key.
+    func testARowWritesBackAsTheDoorWroteIt() throws {
+        var plain = Answers.row("s1")
+        XCTAssertNil(plain.machine)
+        let written = try XCTUnwrap(try JSONSerialization.jsonObject(with: try JSONEncoder().encode(plain)) as? [String: Any])
+        XCTAssertTrue(written["machine"] is NSNull, "a null machine is left out, and the row no longer reads")
+        XCTAssertTrue(written["question"] is NSNull)
+        XCTAssertNil(written["rename"], "a row offering no Rename grew the key")
+        XCTAssertEqual(try JSONDecoder().decode(PocketBlockedRow.self, from: try JSONEncoder().encode(plain)), plain)
+        plain.rename = true
+        let offered = try XCTUnwrap(try JSONSerialization.jsonObject(with: try JSONEncoder().encode(plain)) as? [String: Any])
+        XCTAssertEqual(offered["rename"] as? Bool, true)
+        XCTAssertEqual(try JSONDecoder().decode(PocketBlockedRow.self, from: try JSONEncoder().encode(plain)), plain)
+
+        var listed = try XCTUnwrap(try JSONDecoder().decode(PocketSessionsAnswer.self, from: try sessions(rows: [sessionsRow()])).rows.first)
+        let back = try XCTUnwrap(try JSONSerialization.jsonObject(with: try JSONEncoder().encode(listed)) as? [String: Any])
+        XCTAssertTrue(back["machine"] is NSNull && back["ageText"] is NSString && back["question"] is NSNull)
+        XCTAssertEqual(back["group"] as? Int, 0)
+        XCTAssertNil(back["rename"])
+        listed.rename = true
+        XCTAssertEqual(try JSONDecoder().decode(PocketSessionsRow.self, from: try JSONEncoder().encode(listed)), listed)
+    }
+
+    /// Clause (Phase 349, bb5): the Sessions answer writes `renames` back only
+    /// when the Mac said it renames, so an answer from a Mac that says nothing
+    /// reads back exactly as it was.
+    func testTheSessionsAnswerWritesRenamesOnlyWhenTrue() throws {
+        var answer = try JSONDecoder().decode(PocketSessionsAnswer.self, from: try sessions(rows: [sessionsRow()]))
+        XCTAssertFalse(answer.renames)
+        let plain = try XCTUnwrap(try JSONSerialization.jsonObject(with: try JSONEncoder().encode(answer)) as? [String: Any])
+        XCTAssertEqual(Set(plain.keys), ["asked", "rows", "groups", "agents", "machines", "total", "omitted", "at", "ageNote"])
+        answer.renames = true
+        let offered = try XCTUnwrap(try JSONSerialization.jsonObject(with: try JSONEncoder().encode(answer)) as? [String: Any])
+        XCTAssertEqual(offered["renames"] as? Bool, true)
+        XCTAssertEqual(try JSONDecoder().decode(PocketSessionsAnswer.self, from: try JSONEncoder().encode(answer)), answer)
+    }
+
     /// Clause: `/pair` answers one of three, `allowed` alone carries the
     /// certificate and must, and nothing else decodes (build/p330/SPEC.md
     /// section 4.8.3).

@@ -70,6 +70,38 @@
  *             `paste-done`, `paste-refused-machine`, `paste-malformed`), each
  *             from a fresh shipping write path whose served set holds the
  *             route, the act recorded.
+ *             Phase 349 adds RENAME (build/p349/SPEC.md §4.1, §4.2, D6, D21):
+ *             `POST /v1/rename` with `{name, session, write}` as Swift writes
+ *             it, keys sorted and every `/` escaped, the name holding spaces at
+ *             both ends, `/`, `"` and an emoji (built from its code point);
+ *             accepted by the shipping verifier over the phone's channel, at
+ *             most the route's shipping cap, and read back by the shipping
+ *             `parseRenameBody` to the very fields written, the name AS SENT.
+ *             Its eight answers (`rename-done`, `rename-failed`,
+ *             `rename-busy`, `rename-malformed`, `rename-refused-name`,
+ *             `rename-refused-changed`, `rename-refused-gone`,
+ *             `rename-refused-unreachable`) are each a fresh shipping write
+ *             path's over the SHIPPING verb itself
+ *             (`createPocketWrites(...).rename`, src/main/sessions/pocket-writes.ts)
+ *             over a fake core that records what the Mac's own rename was
+ *             handed, so every word in them is the verb's own: the done one
+ *             names what main stored (the name trimmed), every one echoes the
+ *             request's write id but the malformed one, and
+ *             `rename-refused-name` is the Mac's answer to a body no phone
+ *             whose rule holds would send (a right-to-left override inside the
+ *             name).
+ *   names     (Phase 349, D5) the one name rule, read off the SHIPPING
+ *             `trimmedSessionName` and `sessionNameRefusal`
+ *             (src/shared/session-names.ts): `maxUnits`; `trimmed`, every BMP
+ *             code unit the trim takes from the ends of a name, and `refused`,
+ *             every BMP code unit the rule refuses inside one, each read ONE
+ *             CODE UNIT AT A TIME and held to D5's list, which this file spells
+ *             once; and `rows`, 157 names, each with its UTF-16 `units`, its
+ *             `text` (null where Node's `isWellFormed` says no Swift string can
+ *             hold it, the six lone-surrogate rows the Mac alone judges), the
+ *             `trimmedUnits` the shipping trim leaves, and the shipping rule's
+ *             `reason` and `sentence`, each verdict held to D5 re-derived here.
+ *             The phone's `NameRule` is held to every row it can hold.
  *   pins      two door certificates issued by the shipping `tls.ts` for the
  *             public name, with the `publicKeyFingerprint` it reports and the
  *             QR pin `spkiPinOf` makes of it.
@@ -140,6 +172,13 @@
  *             screen from a door that serves `paste`, carrying `paste` and the
  *             rows marked wrapped as the route copies them; and
  *             `scrollback-wraps`, a page carrying its marks.
+ *             Since Phase 349 (D3, D14, bb5): `blocked-rename`,
+ *             `session-rename` and `sessions-renames`, from a SEPARATE
+ *             composer whose facts carry the rename offer the shipping
+ *             `renameOfferOf` decides over each row and `renames: true`, over
+ *             the facts' sessions and ONE more, a session that ended on
+ *             another machine, which D3 offers no Rename; so no earlier answer
+ *             moves a byte.
  *             five write answers (`end-done`, `choose-changed`, `say-failed`,
  *             `keys-done`, `end-malformed`), each from a FRESH shipping
  *             `createPocketWriteHandler` handed the very bodies the request
@@ -406,6 +445,14 @@ const PASTE_TEXT = `git log --oneline -- "src/main"\n\tcd ../build ${String.from
 const PASTE_TURN = `${sha256hex('tortie-p348-vector turn').slice(0, 16)}-12`;
 const PASTE_MARK = sha256hex('tortie-p348-vector mark').slice(0, 12);
 /**
+ * PHASE 349: the rename's write id, and the name it sends: two spaces at
+ * each end (the verb trims them as the Mac trims a name, so the done answer
+ * names what main stored), a quote, a slash and an emoji, the emoji from its
+ * code point, and nothing the rule refuses.
+ */
+const WRITE_RENAME = sha256hex('tortie-p349-vector write rename').slice(0, 32);
+const RENAME_NAME = `  fix "auth" / ${String.fromCodePoint(0x1f680)} build  `;
+/**
  * PHASE 337 (build/p337/SPEC.md §6.4, the vectors): the Screen's read and its
  * keys. The revision the read holds, the keys write ids, and the text, which
  * holds a quote, a backslash, a slash and an emoji (built from its code point,
@@ -509,7 +556,10 @@ const requestShapes = [
   // (build/p348/SPEC.md D28). Appended, so every earlier request keeps its
   // clock.
   { name: 'remove', method: 'POST', target: '/v1/remove', body: swiftJson({ session: SESSION_ENDED, write: WRITE_REMOVE }), id: null },
-  { name: 'paste', method: 'POST', target: '/v1/paste', body: swiftJson({ dialog: PASTE_MARK, session: SESSION_TALK, text: PASTE_TEXT, turn: PASTE_TURN, write: WRITE_PASTE }), id: null }
+  { name: 'paste', method: 'POST', target: '/v1/paste', body: swiftJson({ dialog: PASTE_MARK, session: SESSION_TALK, text: PASTE_TEXT, turn: PASTE_TURN, write: WRITE_PASTE }), id: null },
+  // PHASE 349: the rename, its body as Swift writes it (build/p349/SPEC.md
+  // §4.2 step 1). Appended, so every earlier request keeps its clock.
+  { name: 'rename', method: 'POST', target: '/v1/rename', body: swiftJson({ name: RENAME_NAME, session: SESSION_TALK, write: WRITE_RENAME }), id: null }
 ];
 
 const requests = requestShapes.map((shape, i) => {
@@ -729,6 +779,21 @@ for (const r of requests.filter((x) => x.method === 'POST' && x.target !== '/pai
   if (Object.keys(JSON.parse(paste?.body ?? '{}')).join() !== 'dialog,session,text,turn,write') fail('write paste: its body is not exactly dialog, session, text, turn and write');
   if (!(paste?.body ?? '').includes('\\/') || !PASTE_TEXT.includes('"') || !PASTE_TEXT.includes('\n') || !PASTE_TEXT.includes('\t') || ![...PASTE_TEXT].some((c) => (c.codePointAt(0) ?? 0) > 0xffff)) {
     fail('write paste: the vector does not hold a slash written as Swift writes it, a quote, a line feed, a tab and an emoji');
+  }
+}
+// PHASE 349: the rename body is one the SHIPPING parse takes, as the Mac reads
+// it, back to the very fields written, its keys exactly the three, and the
+// name AS SENT, its spaces at both ends kept for the verb to trim.
+{
+  const { parseRenameBody } = await import('../../src/main/pocket/writes.ts');
+  const rename = requests.find((x) => x.name === 'rename');
+  const parsed = typeof parseRenameBody === 'function' ? parseRenameBody(Buffer.from(rename?.body ?? '', 'utf8')) : null;
+  if (parsed === null) fail('write rename: the shipping writes.ts exports no parseRenameBody to read it');
+  else if (!parsed.ok) fail('write rename: the shipping parseRenameBody refused the Swift bytes as malformed');
+  else if (parsed.name !== RENAME_NAME || parsed.session !== SESSION_TALK || parsed.write !== WRITE_RENAME) fail('write rename: the shipping parse reads another name, session or write id than were written');
+  if (Object.keys(JSON.parse(rename?.body ?? '{}')).join() !== 'name,session,write') fail('write rename: its body is not exactly name, session and write');
+  if (!(rename?.body ?? '').includes('\\/') || !RENAME_NAME.includes('"') || RENAME_NAME.trim() === RENAME_NAME || ![...RENAME_NAME].some((c) => (c.codePointAt(0) ?? 0) > 0xffff)) {
+    fail('write rename: the vector does not hold a slash written as Swift writes it, a quote, spaces at its ends and an emoji');
   }
 }
 // PHASE 318: the Mac's own reader (JSON.parse) reads the Swift bytes back to
@@ -1657,6 +1722,138 @@ const wrapsRoutes = createPocketRoutes({
   }
 });
 
+// ---------------------------------------------------------------------------
+// PHASE 349 (build/p349/SPEC.md §4.1, §4.2, D3, D5, D14, D21): the rename
+// ---------------------------------------------------------------------------
+
+const { RENAME_FAILED, RENAME_UNREACHABLE, SESSION_NOT_FOUND } = await import('../../src/shared/lifecycle-words.ts');
+const names349 = await import('../../src/shared/session-names.ts');
+/**
+ * The rows the rename's fake core lists: the facts' five, a session that
+ * ended on another machine (D3 renames it nowhere) and one whose status Tortie
+ * cannot see. Only the rename's own vectors and the offers' composer read
+ * them, so no earlier answer moves.
+ */
+const S_FAR_ENDED = '4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c06';
+const S_UNSEEN = '4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c07';
+const FAR_ENDED_ROW = aSession(S_FAR_ENDED, 'far-ended', 'exited', T - 1_800_000, { machine: { id: 'm1', label: 'Mac Pro' } });
+const UNSEEN_ROW = aSession(S_UNSEEN, 'unseen', 'unknown', T - 2_400_000);
+const RENAME_ROWS = [...sessions, FAR_ENDED_ROW, UNSEEN_ROW];
+/** The rename's body with another session or name, its write id the request's own, so every answer answers the request the phone signed. */
+const renameBodyWith = (over) => swiftJson({ name: RENAME_NAME, session: SESSION_TALK, write: WRITE_RENAME, ...over });
+/** The rename's body with its closing brace cut off: a body that is not JSON. */
+const RENAME_NOT_JSON = () => bodyOf('rename').slice(0, -1);
+/** A name no phone whose rule holds would send: a right-to-left override inside it. */
+const RENAME_REFUSED_NAME = `a${String.fromCharCode(0x202e)}b`;
+/** What each rename vector's fake core was handed: the Mac's own rename, by vector name. */
+const renamesHanded = new Map();
+/**
+ * One rename answer from a FRESH shipping write path whose served set holds
+ * `rename` (a door that allowed it), over `body`, through the SHIPPING verb
+ * (`createPocketWrites(...).rename`) over a fake core that lists
+ * {@link RENAME_ROWS} and records every `renameSession` it is handed. `fails`
+ * makes the Mac's own rename throw a plain error; `second`, when given, is a
+ * second phone's rename sent while the first, on the same session, is still
+ * renaming: its answer is the vector, and the first is then released.
+ */
+async function renameVector(name, body, { fails = false, second = null } = {}) {
+  if (typeof createPocketWriteHandler !== 'function' || typeof matchPocketRoute !== 'function' || typeof pocketWrites.createPocketWrites !== 'function') {
+    fail(`answer ${name}: the shipping writes.ts, routes.ts or pocket-writes.ts exports no createPocketWriteHandler, matchPocketRoute or createPocketWrites`);
+    return null;
+  }
+  const route = matchPocketRoute('POST', '/v1/rename');
+  if (route === null) {
+    fail(`answer ${name}: the shipping route table matches no POST /v1/rename`);
+    return null;
+  }
+  const handed = [];
+  let release = () => undefined;
+  const held = second === null ? null : new Promise((resolve) => {
+    release = resolve;
+  });
+  const core = {
+    listSessions: () => RENAME_ROWS,
+    manifest: { getSession: () => undefined },
+    killSession: async () => {
+      throw new Error('a rename ends nothing');
+    },
+    removeSession: () => {
+      throw new Error('a rename removes nothing');
+    },
+    broadcastSessions: () => undefined,
+    renameSession: async (input) => {
+      handed.push({ sessionId: input.sessionId, name: input.name });
+      if (fails) throw new Error('the far command failed');
+      if (held !== null) await held;
+      const row = RENAME_ROWS.find((s) => s.id === input.sessionId);
+      return { ...row, name: input.name };
+    }
+  };
+  const other = () => async () => ({ outcome: 'failed', sentence: 'not this verb' });
+  const verb = pocketWrites.createPocketWrites({
+    core: () => core,
+    machineKnown: () => true,
+    reply: { choose: other(), say: other() },
+    keys: { keys: other() },
+    start: { start: other() },
+    paste: { paste: other() }
+  });
+  const handle = createPocketWriteHandler({
+    shuttingDown: () => false,
+    stillPaired: () => true,
+    routeServed: (id) => id === 'rename' || routeServed(id),
+    writes: { end: other(), choose: other(), say: other(), keys: other(), start: other(), remove: other(), paste: other(), rename: (input) => verb.rename(input) },
+    now: () => T
+  });
+  const consoleLog = console.log;
+  console.log = () => {};
+  let answer;
+  try {
+    if (second === null) {
+      answer = await handle(route, Buffer.from(body, 'utf8'), identityVectors.phoneId, { stopping: () => false });
+    } else {
+      const first = handle(route, Buffer.from(second.firstBody, 'utf8'), identityVectors.phoneId, { stopping: () => false });
+      // The first rename is renaming: the Mac's own rename was handed it, and is held.
+      for (let i = 0; i < 50 && handed.length === 0; i += 1) await new Promise((resolve) => setImmediate(resolve));
+      answer = await handle(route, Buffer.from(body, 'utf8'), second.phone, { stopping: () => false });
+      release();
+      await first;
+    }
+  } finally {
+    console.log = consoleLog;
+  }
+  writesSeen.set(name, { status: answer.status, acted: answer.acted ?? false, handed: [] });
+  renamesHanded.set(name, handed);
+  if (answer.status !== 200 || typeof answer.body !== 'string') {
+    fail(`answer ${name}: the shipping write path answered ${String(answer.status)} with no body`);
+    return null;
+  }
+  const parsed = JSON.parse(answer.body);
+  if (JSON.stringify(parsed) !== answer.body) fail(`answer ${name}: the door's bytes are not what JSON.stringify writes of them`);
+  return parsed;
+}
+/** The first rename's body in the busy vector: the same session, another write id, so the second is its own. */
+const RENAME_FIRST = () => swiftJson({ name: 'first press', session: SESSION_TALK, write: sha256hex('tortie-p349-vector write rename first').slice(0, 32) });
+/**
+ * THE OFFERS (D14) as a door that serves `rename` composes them: the facts
+ * above with the far ended session added, each row's `rename` the SHIPPING
+ * `renameOfferOf` over it, and `renames: true`. A separate composer, so no
+ * earlier answer moves.
+ */
+const renameOfferOfRow = (session) => {
+  if (typeof pocketWrites.renameOfferOf !== 'function') {
+    fail('the shipping src/main/sessions/pocket-writes.ts exports no renameOfferOf, so no row\'s Rename can be offered');
+    return false;
+  }
+  return pocketWrites.renameOfferOf(session);
+};
+const renameRoutes = createPocketRoutes({
+  ...facts,
+  sessions: () => [...sessions, FAR_ENDED_ROW],
+  renameOffer: (session) => renameOfferOfRow(session),
+  renames: () => true
+});
+
 const answerShapes = [
   ['blocked', () => routes.blocked()],
   ['session-talk', () => routes.session(S.talk)],
@@ -1704,7 +1901,21 @@ const answerShapes = [
   ['paste-malformed', () => phoneWriteVector('paste-malformed', '/v1/paste', PASTE_NOT_JSON(), WROTE)],
   ['session-ended', () => removeRoutes.session(S.failed)],
   ['screen-paste', () => pasteRoutes.screen(new URLSearchParams(`id=${S.talk}`), () => false)],
-  ['scrollback-wraps', () => wrapsRoutes.scrollback(scrollbackQueryFor(S.talk), () => false)]
+  ['scrollback-wraps', () => wrapsRoutes.scrollback(scrollbackQueryFor(S.talk), () => false)],
+  // PHASE 349: the rename's answers, each from a fresh shipping write path
+  // whose door allowed `rename`, through the shipping verb; and the offers,
+  // from a door that serves it.
+  ['rename-done', () => renameVector('rename-done', bodyOf('rename'))],
+  ['rename-failed', () => renameVector('rename-failed', bodyOf('rename'), { fails: true })],
+  ['rename-busy', () => renameVector('rename-busy', bodyOf('rename'), { second: { firstBody: RENAME_FIRST(), phone: 'p349-vector-second-phone' } })],
+  ['rename-malformed', () => renameVector('rename-malformed', RENAME_NOT_JSON())],
+  ['rename-refused-name', () => renameVector('rename-refused-name', renameBodyWith({ name: RENAME_REFUSED_NAME }))],
+  ['rename-refused-changed', () => renameVector('rename-refused-changed', renameBodyWith({ session: S_FAR_ENDED }))],
+  ['rename-refused-gone', () => renameVector('rename-refused-gone', renameBodyWith({ session: 'p349-vector-nobody' }))],
+  ['rename-refused-unreachable', () => renameVector('rename-refused-unreachable', renameBodyWith({ session: S_UNSEEN }))],
+  ['blocked-rename', () => renameRoutes.blocked()],
+  ['session-rename', () => renameRoutes.session(S.talk)],
+  ['sessions-renames', () => renameRoutes.sessions(new URLSearchParams('show=all&group=project&sort=recent'))]
 ];
 const answers = {};
 for (const [name, compose] of answerShapes) {
@@ -1944,7 +2155,251 @@ for (const [name, compose] of answerShapes) {
   if ('paste' in (read('screen-sample')?.screen ?? {})) fail('answer screen-sample: a door that serves no paste sent paste');
   const marked = read('scrollback-wraps');
   if (!same(marked?.wraps, PAGE_WRAPS) || (marked?.rows ?? []).length !== SCROLLBACK_ASKED.count) fail(`answer scrollback-wraps: the shipping routes.scrollback copied wraps ${JSON.stringify(marked?.wraps)} over ${String((marked?.rows ?? []).length)} rows`);
+
+  // PHASE 349: THE RENAME. Each answer is the shipping write path's over the
+  // shipping verb, its six fields in their order and in its owners' own words;
+  // the Mac's own rename was handed the session and the name TRIMMED, once, for
+  // a done or a failed rename and for the first of the busy pair, and nothing
+  // for a refusal or a body it could not read; every answer after the act is
+  // marked acted; and a body that is not JSON echoes no write id.
+  try {
+    JSON.parse(RENAME_NOT_JSON());
+    fail('answer rename-malformed: its body is JSON, so it proves nothing about a body the door cannot read');
+  } catch {
+    // Not JSON, as it must be.
+  }
+  const stored = RENAME_NAME.trim();
+  const once = [{ sessionId: SESSION_TALK, name: stored }];
+  const wantRenames = [
+    ['rename-done', { verb: 'rename', write: WRITE_RENAME, outcome: 'done', reason: null, sentence: null, name: stored }, once, true],
+    ['rename-failed', { verb: 'rename', write: WRITE_RENAME, outcome: 'failed', reason: null, sentence: RENAME_FAILED, name: null }, once, true],
+    ['rename-busy', { verb: 'rename', write: WRITE_RENAME, outcome: 'busy', reason: null, sentence: POCKET_WRITE_SENTENCES?.busy, name: null }, [{ sessionId: SESSION_TALK, name: 'first press' }], false],
+    ['rename-malformed', { verb: 'rename', write: '', outcome: 'refused', reason: 'malformed', sentence: POCKET_WRITE_SENTENCES?.unreadable, name: null }, [], false],
+    ['rename-refused-name', { verb: 'rename', write: WRITE_RENAME, outcome: 'refused', reason: 'name', sentence: names349.SESSION_NAME_CHARACTER, name: null }, [], true],
+    ['rename-refused-changed', { verb: 'rename', write: WRITE_RENAME, outcome: 'refused', reason: 'changed', sentence: LIFECYCLE_SESSION_CHANGED, name: null }, [], true],
+    ['rename-refused-gone', { verb: 'rename', write: WRITE_RENAME, outcome: 'refused', reason: 'gone', sentence: SESSION_NOT_FOUND, name: null }, [], true],
+    ['rename-refused-unreachable', { verb: 'rename', write: WRITE_RENAME, outcome: 'refused', reason: 'unreachable', sentence: RENAME_UNREACHABLE, name: null }, [], true]
+  ];
+  for (const [name, want, handed, acted] of wantRenames) {
+    if (writeRows !== null && !writeRows.includes(routeOfAnswer(name))) fail(`answer ${name}: ${routeOfAnswer(name)} is not one of the shipping table's write rows`);
+    if (typeof want.sentence === 'undefined' || (want.outcome !== 'done' && typeof want.sentence !== 'string')) fail(`answer ${name}: the sentence it should carry is not one of its owners' words`);
+    const got = read(name);
+    if (!same(got, want)) fail(`answer ${name}: the shipping write path answered ${brief(got)}, not ${brief(want)}`);
+    if (got !== null && Object.keys(got).join() !== 'verb,write,outcome,reason,sentence,name') fail(`answer ${name}: its fields are ${Object.keys(got).join()}, not the six in their order`);
+    // D21: a name exactly when done.
+    if (got !== null && (got.outcome === 'done') !== (typeof got.name === 'string' && got.name.length > 0)) fail(`answer ${name}: it carries a name ${JSON.stringify(got.name)} with the outcome ${String(got.outcome)}; a name is a non-empty string exactly when done (D21)`);
+    if (!same(renamesHanded.get(name), handed)) fail(`answer ${name}: the Mac's own rename was handed ${JSON.stringify(renamesHanded.get(name))}, not ${JSON.stringify(handed)}`);
+    if ((writesSeen.get(name)?.acted ?? false) !== acted) fail(`answer ${name}: the shipping write path says it ${writesSeen.get(name)?.acted ? 'acted' : 'did not act'}`);
+  }
+  // The refused name is one the shipping rule refuses, in the words it says.
+  if (names349.sessionNameRefusal?.(RENAME_REFUSED_NAME)?.reason !== 'character') fail('answer rename-refused-name: the shipping rule does not refuse its name as a character Tortie does not use');
+  // THE OFFERS. Every row of the three carries `rename` exactly where the
+  // shipping renameOfferOf passes it, the far ended session none (D3) and the
+  // exited one on this Mac one; the Sessions answer carries `renames`; and no
+  // answer composed by the launch door's facts carries either.
+  const offerRows = [
+    ...(read('blocked-rename')?.rows ?? []),
+    ...(read('blocked-rename')?.others ?? []),
+    ...(read('sessions-renames')?.rows ?? [])
+  ];
+  const rowOf349 = (id) => [...sessions, FAR_ENDED_ROW].find((s) => s.id === id);
+  let offered = 0;
+  let plain = 0;
+  for (const row of offerRows) {
+    const session = rowOf349(row.sessionId);
+    const want = session !== undefined && pocketWrites.renameOfferOf?.(session) === true;
+    if (('rename' in row) !== want || (want && row.rename !== true)) fail(`answer blocked-rename or sessions-renames: the row ${row.sessionId} carries rename ${JSON.stringify(row.rename)}, where the shipping renameOfferOf answers ${String(want)}`);
+    if (want) offered += 1;
+    else plain += 1;
+  }
+  const farInBlocked = [...(read('blocked-rename')?.rows ?? []), ...(read('blocked-rename')?.others ?? [])].some((r) => r.sessionId === S_FAR_ENDED);
+  const farInSessions = (read('sessions-renames')?.rows ?? []).some((r) => r.sessionId === S_FAR_ENDED);
+  if (!farInBlocked || !farInSessions) fail('answer blocked-rename or sessions-renames: the far ended session is not a row of both, so D3\'s refusal is drawn nowhere');
+  if (offered === 0 || plain === 0) fail(`the offers hold ${String(offered)} offered and ${String(plain)} plain rows; both are needed, so a phone that drew Rename everywhere or nowhere is caught`);
+  if (pocketWrites.renameOfferOf?.(rowOf349(S.failed)) !== true) fail('the shipping renameOfferOf offers no Rename on an ended session on this Mac, which the Mac\'s own Rename offers');
+  if (read('session-rename')?.session?.rename !== true) fail('answer session-rename: the talking session\'s detail offers no Rename from a door that serves it');
+  const renamesAnswer = read('sessions-renames');
+  if (renamesAnswer?.renames !== true) fail('answer sessions-renames: the Sessions answer from a door that serves rename carries no renames');
+  if (renamesAnswer !== null && Object.keys(renamesAnswer).at(-1) !== 'renames' && Object.keys(renamesAnswer).at(-1) !== 'start') fail('answer sessions-renames: renames is neither the last key nor before start');
+  for (const name of Object.keys(answers).filter((n) => !/^(?:rename-|blocked-rename$|session-rename$|sessions-renames$)/.test(n))) {
+    const json = answers[name]?.json ?? '';
+    if (json.includes('"rename":') || json.includes('"renames":')) fail(`answer ${name}: an answer from a door that serves no rename carries rename or renames, so it moved`);
+  }
 }
+
+// ---------------------------------------------------------------------------
+// PHASE 349 (build/p349/SPEC.md D5, §4.3 step 1): the one name rule, read off
+// the SHIPPING functions one code unit at a time
+// ---------------------------------------------------------------------------
+
+/**
+ * D5'S LIST, SPELLED ONCE, which the scans below are held to: the trim is
+ * ECMAScript's own (WhiteSpace and LineTerminator, 25 code points), and a name
+ * holding a C0 control (TAB, LF and CR included), DEL, a C1 control, a bidi
+ * embedding or override, a bidi isolate, or a line or paragraph separator is
+ * refused at that unit; so is half of a surrogate pair. Inclusive ranges.
+ */
+const D5_TRIM = [[0x09, 0x0d], [0x20, 0x20], [0xa0, 0xa0], [0x1680, 0x1680], [0x2000, 0x200a], [0x2028, 0x2029], [0x202f, 0x202f], [0x205f, 0x205f], [0x3000, 0x3000], [0xfeff, 0xfeff]];
+const D5_REFUSED = [[0x00, 0x1f], [0x7f, 0x7f], [0x80, 0x9f], [0x202a, 0x202e], [0x2066, 0x2069], [0x2028, 0x2029]];
+const inRanges = (ranges, unit) => ranges.some(([lo, hi]) => unit >= lo && unit <= hi);
+const unitsOfRanges = (ranges) => ranges.flatMap(([lo, hi]) => Array.from({ length: hi - lo + 1 }, (_, i) => lo + i)).sort((a, b) => a - b);
+const isSurrogate = (unit) => unit >= 0xd800 && unit <= 0xdfff;
+const unitsOf = (text) => Array.from({ length: text.length }, (_, i) => text.charCodeAt(i));
+const textOfUnits = (units) => String.fromCharCode(...units);
+/** D5 re-derived HERE over the units, never by calling the rule under test: the trim, then empty, long, character. */
+function d5Verdict(units) {
+  let lo = 0;
+  let hi = units.length;
+  while (lo < hi && inRanges(D5_TRIM, units[lo])) lo += 1;
+  while (hi > lo && inRanges(D5_TRIM, units[hi - 1])) hi -= 1;
+  const kept = units.slice(lo, hi);
+  if (kept.length === 0) return { trimmed: kept, reason: 'empty' };
+  if (kept.length > 120) return { trimmed: kept, reason: 'long' };
+  for (let i = 0; i < kept.length; i += 1) {
+    const u = kept[i];
+    if (u >= 0xd800 && u <= 0xdbff) {
+      const next = kept[i + 1];
+      if (next !== undefined && next >= 0xdc00 && next <= 0xdfff) {
+        i += 1;
+        continue;
+      }
+      return { trimmed: kept, reason: 'character' };
+    }
+    if ((u >= 0xdc00 && u <= 0xdfff) || inRanges(D5_REFUSED, u)) return { trimmed: kept, reason: 'character' };
+  }
+  return { trimmed: kept, reason: null };
+}
+const names = (() => {
+  const refusal = names349.sessionNameRefusal;
+  const trim = names349.trimmedSessionName;
+  const sentenceOf = {
+    empty: names349.SESSION_NAME_EMPTY,
+    long: names349.SESSION_NAME_TOO_LONG,
+    character: names349.SESSION_NAME_CHARACTER
+  };
+  if (typeof refusal !== 'function' || typeof trim !== 'function' || names349.SESSION_NAME_MAX_UNITS !== 120) {
+    fail('names: the shipping src/shared/session-names.ts exports no sessionNameRefusal or trimmedSessionName, or its bound is not 120 (D5)');
+    return null;
+  }
+  for (const [reason, sentence] of Object.entries(sentenceOf)) if (typeof sentence !== 'string' || sentence === '') fail(`names: the shipping rule has no sentence for ${reason}`);
+  // THE SCANS: every BMP code unit but the surrogates, one at a time, through
+  // the SHIPPING trim (the unit alone, trimmed to nothing) and the SHIPPING
+  // rule (the unit between two letters, refused as a character).
+  const trimmed = [];
+  const refused = [];
+  for (let u = 0; u <= 0xffff; u += 1) {
+    if (isSurrogate(u)) continue;
+    const alone = String.fromCharCode(u);
+    if (trim(alone) === '') trimmed.push(u);
+    if (refusal(`a${alone}b`)?.reason === 'character') refused.push(u);
+  }
+  if (JSON.stringify(trimmed) !== JSON.stringify(unitsOfRanges(D5_TRIM))) fail(`names: the shipping trim takes ${String(trimmed.length)} units, not ECMAScript's 25 (${JSON.stringify(trimmed.slice(0, 30))})`);
+  if (JSON.stringify(refused) !== JSON.stringify(unitsOfRanges(D5_REFUSED))) fail(`names: the shipping rule refuses ${String(refused.length)} units, not D5's 76 (${JSON.stringify(refused.slice(0, 80))})`);
+  const ch = (u) => String.fromCharCode(u);
+  const astral = String.fromCodePoint(0x1f600);
+  const corpus = [
+    // The trim: each unit it takes, at both ends of a name, which is then a name.
+    ...trimmed.map((u) => [`U+${u.toString(16).toUpperCase().padStart(4, '0')} at both ends`, `${ch(u)}x${ch(u)}`]),
+    // The rule: each unit it refuses, inside a name.
+    ...refused.map((u) => [`U+${u.toString(16).toUpperCase().padStart(4, '0')} inside`, `a${ch(u)}b`]),
+    // Empty, in every way the trim leaves nothing.
+    ['the empty name', ''],
+    ['one space', ' '],
+    ['spaces only', '    '],
+    ['TAB, LF and CR only', `${ch(9)}${ch(10)}${ch(13)}`],
+    ['every unit the trim takes, together', trimmed.map(ch).join('')],
+    ['a line and a paragraph separator alone', `${ch(0x2028)}${ch(0x2029)}`],
+    // The bound, in units, after the trim; long is said before character.
+    ['one letter', 'a'],
+    ['one astral character', astral],
+    ['120 units', 'a'.repeat(120)],
+    ['121 units', 'a'.repeat(121)],
+    ['120 units padded by two spaces at each end', `  ${'a'.repeat(120)}  `],
+    ['121 units padded by two spaces at each end', `  ${'a'.repeat(121)}  `],
+    ['60 astral characters, 120 units', astral.repeat(60)],
+    ['61 astral characters, 122 units', astral.repeat(61)],
+    ['118 letters and an astral character, 120 units', `${'a'.repeat(118)}${astral}`],
+    ['121 refused units, long before character', ch(1).repeat(121)],
+    ['120 refused units', ch(1).repeat(120)],
+    // What passes: letters of every script, marks, joins and what tmux reads.
+    ['a valid pair inside', `a${astral}b`],
+    ['a family joined by ZWJ', `${String.fromCodePoint(0x1f468, 0x200d, 0x1f469, 0x200d, 0x1f467, 0x200d, 0x1f466)} fam`],
+    ['a combining acute', `e${ch(0x301)}`],
+    ['a tower of 50 combining marks', `a${ch(0x301).repeat(50)}`],
+    ['Hebrew letters', `${ch(0x5e9)}${ch(0x5dc)}${ch(0x5d5)}${ch(0x5dd)}`],
+    ['Arabic letters', `${ch(0x645)}${ch(0x631)}${ch(0x62d)}${ch(0x628)}${ch(0x627)}`],
+    ['CJK', `${ch(0x65e5)}${ch(0x672c)}${ch(0x8a9e)}`],
+    ['a quote and a slash', 'fix "auth" / build'],
+    ['an apostrophe', 'it\'s'],
+    ['a tmux format', '#{session_id}'],
+    ['a tmux job', '#(touch EVIL)'],
+    ['a final semicolon', 'x;'],
+    ['a leading dash', '-x'],
+    ['a dollar', '$HOME x'],
+    ['a backslash', 'a\\b'],
+    ['a strftime word', '%Y'],
+    ['the control session’s name', 'gmux-control'],
+    ['a name another session holds', 'claude-3'],
+    // The edges of D5's ranges, and the marks D5 does not name.
+    ['U+2027 inside, below the embeddings', `a${ch(0x2027)}b`],
+    ['U+2065 inside, below the isolates', `a${ch(0x2065)}b`],
+    ['U+206A inside, above the isolates', `a${ch(0x206a)}b`],
+    ['U+007E inside, below DEL', `a${ch(0x7e)}b`],
+    ['U+00A1 inside, above C1', `a${ch(0xa1)}b`],
+    ['U+00A0 inside', `a${ch(0xa0)}b`],
+    ['U+202F inside', `a${ch(0x202f)}b`],
+    ['U+3000 inside', `a${ch(0x3000)}b`],
+    ['U+FEFF inside', `a${ch(0xfeff)}b`],
+    ['U+200B inside', `a${ch(0x200b)}b`],
+    ['U+200E inside', `a${ch(0x200e)}b`],
+    ['U+200F inside', `a${ch(0x200f)}b`],
+    ['U+061C inside', `a${ch(0x61c)}b`],
+    ['U+2028 at the start, trimmed', `${ch(0x2028)}ab`],
+    ['U+2029 at the end, trimmed', `ab${ch(0x2029)}`],
+    // Half of a pair: the six names only the Mac can hold.
+    ['a lone high surrogate inside', `a${ch(0xd800)}b`],
+    ['a lone low surrogate inside', `a${ch(0xdc00)}b`],
+    ['a high surrogate at the end', `ab${ch(0xdbff)}`],
+    ['a low surrogate at the start', `${ch(0xdfff)}ab`],
+    ['a pair written low first', `a${ch(0xde00)}${ch(0xd83d)}b`],
+    ['a high surrogate before a whole pair', `a${ch(0xd800)}${astral}b`]
+  ];
+  const rows = [];
+  for (const [what, text] of corpus) {
+    const units = unitsOf(text);
+    const shipped = refusal(text);
+    const reason = shipped === null ? null : shipped?.reason;
+    const trimmedUnits = unitsOf(trim(text));
+    const d5 = d5Verdict(units);
+    if (reason !== d5.reason) fail(`names: the shipping rule answers ${JSON.stringify(reason)} for ${what}, where D5 answers ${JSON.stringify(d5.reason)}`);
+    if (JSON.stringify(trimmedUnits) !== JSON.stringify(d5.trimmed)) fail(`names: the shipping trim leaves ${JSON.stringify(trimmedUnits.slice(0, 12))} of ${what}, where D5 leaves ${JSON.stringify(d5.trimmed.slice(0, 12))}`);
+    if (reason !== null && shipped?.sentence !== sentenceOf[reason]) fail(`names: the shipping rule says ${JSON.stringify(shipped?.sentence)} for ${what}, not its sentence for ${reason}`);
+    // Only the Mac can hold a name no Swift string holds: decided by Node, not by the rule.
+    const macOnly = !text.isWellFormed();
+    rows.push({ what, text: macOnly ? null : text, units, macOnly, trimmedUnits, reason, sentence: reason === null ? null : sentenceOf[reason] });
+  }
+  // What the phone's test needs of the rows, so a thinner corpus is refused by name.
+  const has = (pred) => rows.some(pred);
+  const needs = [
+    ['every reason', ['empty', 'long', 'character', null].every((r) => has((row) => row.reason === r))],
+    ['both sides of the bound', has((row) => row.reason === null && row.trimmedUnits.length === 120) && has((row) => row.reason === 'long' && row.trimmedUnits.length === 121)],
+    ['an astral name at the bound and past it', has((row) => row.what.startsWith('60 astral') && row.reason === null) && has((row) => row.what.startsWith('61 astral') && row.reason === 'long')],
+    ['long said before character', has((row) => row.what.startsWith('121 refused units') && row.reason === 'long')],
+    ['every unit the trim takes', trimmed.every((u) => has((row) => row.units[0] === u && row.units.at(-1) === u && row.reason === null))],
+    ['every unit the rule refuses', refused.every((u) => has((row) => row.units.length === 3 && row.units[1] === u && row.reason === 'character'))],
+    ['the six names only the Mac can hold', rows.filter((row) => row.macOnly).length === 6 && rows.filter((row) => row.macOnly).every((row) => row.reason === 'character' && row.text === null)],
+    ['a text exactly where a Swift string holds one', rows.every((row) => (row.text === null) === row.macOnly && (row.text === null || JSON.stringify(unitsOf(row.text)) === JSON.stringify(row.units)))]
+  ];
+  for (const [what, held] of needs) if (!held) fail(`names: the rows do not hold ${what}`);
+  if (rows.length !== 157) fail(`names: the corpus holds ${String(rows.length)} names; it holds 157 (25 trimmed, 76 refused and 56 more)`);
+  return {
+    about: 'The one name rule (build/p349/SPEC.md D5), read off the shipping src/shared/session-names.ts one code unit at a time. `text` is null where no Swift string can hold the name.',
+    maxUnits: names349.SESSION_NAME_MAX_UNITS,
+    trimmed,
+    refused,
+    rows
+  };
+})();
 
 // ---------------------------------------------------------------------------
 // Phase 314's alerts, and the tap each one is (Phase 316.5)
@@ -1990,7 +2445,9 @@ const vectors = {
   qr,
   pairAnswers,
   answers,
-  alerts
+  alerts,
+  // PHASE 349: the one name rule, read off the shipping functions.
+  names
 };
 const text = `${JSON.stringify(vectors, null, 2)}\n`;
 
@@ -2026,7 +2483,7 @@ const answeredRoutes = new Set(answerNames.map(routeOfAnswer)).size;
 const writeAnswers = answerNames.filter((name) => writeRouteIds.includes(routeOfAnswer(name))).length;
 const counts =
   `${String(requests.length)} signed requests, ${String(requests.filter((r) => r.method === 'POST' && r.target !== '/pair').length)} of them writes (and 2 tampered targets, 3 tampered write bodies), ${String(pins.length)} pins, 1 client certificate, 3 seals (1 with an alert address), ` +
-  `${String(qr.length)} QR payloads, ${String(Object.keys(pairAnswers).length)} /pair answers, ${String(answerNames.length)} answers to ${String(answeredRoutes)} routes (${String(writeAnswers)} of them to writes), ${String(alerts.length)} alerts`;
+  `${String(qr.length)} QR payloads, ${String(Object.keys(pairAnswers).length)} /pair answers, ${String(answerNames.length)} answers to ${String(answeredRoutes)} routes (${String(writeAnswers)} of them to writes), ${String(alerts.length)} alerts, ${String(names?.rows.length ?? 0)} names (${String(names?.rows.filter((r) => r.macOnly).length ?? 0)} only the Mac can hold)`;
 if (CHECK) {
   process.stdout.write(`${TAG} PASS: ios/TortieTests/Fixtures/vectors.json is what the shipping TypeScript produces: ${counts}.\n`);
 } else {

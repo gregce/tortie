@@ -20,6 +20,13 @@
  *    asks AFTER its `ensureRemoteServer`, whose re-read of a server it just
  *    started clears a verdict recorded against the server that is gone.
  *
+ * PHASE 349 (build/p349/SPEC.md D7, D15, D16, §4.3 step 7) adds four driven
+ * blocks through this same harness: the far create and rename hold back what
+ * tmux reads in a name (D7 inside `farTmuxName`), the far stamp keeps a value's
+ * final `;` (D15), `remoteRename`'s two warnings name an error's code and never
+ * its text, and the restore composes the record's far name by the far rule
+ * (D16). `./p349-far-names.test.ts` holds the pure and source-text halves.
+ *
  * NOTHING HERE RUNS A COMMAND. The exec plane is replaced by a function that
  * records the argv it was handed and answers with text a machine printed, the
  * way `./remote-sessions.test.ts` does it and for its reason.
@@ -85,8 +92,26 @@ const world = vi.hoisted(() => ({
    * PHASE 342'S SECOND FIX ROUND. True when the machine's search list was
    * never captured, as after a set-up the boot line stopped.
    */
-  notReady: false
+  notReady: false,
+  /** PHASE 349. Every line a module logged, level first. */
+  logged: [] as string[],
+  /** PHASE 349. What the manifest's rename throws, or null when it lands. */
+  renameThrows: null as unknown
 }));
+
+// PHASE 349. The log, captured, so a warning is read for what it names.
+vi.mock('../../log', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../../log')>();
+  const capture =
+    (level: string) =>
+    (msg: string, fields?: Record<string, unknown>): void => {
+      world.logged.push(`${level} ${msg} ${JSON.stringify(fields ?? null)}`);
+    };
+  return {
+    ...real,
+    getLog: () => ({ error: capture('error'), warn: capture('warn'), info: capture('info'), debug: capture('debug') })
+  };
+});
 
 vi.mock('../context', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../context')>()),
@@ -163,7 +188,9 @@ vi.mock('../remote-record', async (importOriginal) => ({
   markRemoteCreateUnconfirmed: () => undefined,
   remoteManifest: () => ({
     deleteSession: (id: string) => world.rows.delete(id),
-    renameSession: () => undefined,
+    renameSession: () => {
+      if (world.renameThrows !== null) throw world.renameThrows;
+    },
     updateSession: (id: string, patch: Record<string, unknown>) => {
       world.updates.push({ id, patch });
     }
@@ -271,6 +298,8 @@ beforeEach(() => {
   world.updates = [];
   world.offered = false;
   world.notReady = false;
+  world.logged = [];
+  world.renameThrows = null;
   resetRemoteSessionsForTests();
   resetControlPlanesForTests();
   resetRescueForTests();
@@ -539,6 +568,113 @@ describe('the create and the rename send no $ in the far name (D12)', () => {
     ]);
     const stamp = world.sent.find((argv) => argv[0] === 'set-option' && argv[3] === '@gmux-name');
     expect(stamp?.[4]).toBe('$HOME notes');
+  });
+
+  // -------------------------------------------------------------------------
+  // PHASE 349 (build/p349/SPEC.md D7, D15): the far name holds back what tmux
+  // reads, and the stamp keeps what the person typed, a final `;` included.
+  // -------------------------------------------------------------------------
+
+  const BACKSLASH = String.fromCharCode(92);
+  /** What the stamp is sent as: the value, its final `;` as a backslash then `;` (D15). */
+  const stampedAs = (value: string): string => (value.endsWith(';') ? `${value.slice(0, -1)}${BACKSLASH};` : value);
+
+  /** [typed, the far tmux name D7's far rule gives] over the corpus names a far create and rename meet. */
+  const FAR_D7: readonly (readonly [string, string])[] = [
+    ['/review', '_review'],
+    ['.env fix', '_env fix'],
+    ['-x', '_x'],
+    ['--', '_-'],
+    ['#{session_id}', '_{session_id}'],
+    ['#H', '_H'],
+    ['fix #', 'fix _'],
+    ['x;', 'x_'],
+    ['a;b;', 'a;b_'],
+    [`a${BACKSLASH}b`, 'a_b'],
+    ['$0', '_0'],
+    ['cost $HOME', 'cost _HOME'],
+    ['PR #12', 'PR #12'],
+    ['a;b', 'a;b'],
+    ['#[fg=red]ok', '#[fg=red]ok'],
+    ['gmux-control', 'gmux-control-2']
+  ];
+
+  it('Phase 349: creates each corpus name with D7\'s far name, and stamps the name a person typed (D7, D15)', async () => {
+    for (const [typed, far] of FAR_D7) {
+      resetRemoteSessionsForTests();
+      world.sent = [];
+      world.createdUuid = '';
+      await createOne(typed);
+      const create = world.sent.find((argv) => argv[0] === 'new-session') ?? [];
+      expect(create[create.indexOf('-s') + 1], typed).toBe(far);
+      const stamp = world.sent.find((argv) => argv[0] === 'set-option' && argv[3] === '@gmux-name');
+      expect(stamp?.[4], typed).toBe(stampedAs(typed));
+      expect(remoteSessions()[0]?.name, typed).toBe(typed);
+    }
+  });
+
+  it('Phase 349: renames to each corpus name with D7\'s far name, and stamps the name a person typed (D7, D15)', async () => {
+    for (const [typed, far] of FAR_D7) {
+      resetRemoteSessionsForTests();
+      world.answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1', tmuxName: 'work' });
+      await pollRemoteMachine(MACHINE);
+      world.sent = [];
+      await remoteRename('ours-1', typed);
+      expect(world.sent.find((argv) => argv[0] === 'rename-session'), typed).toEqual(['rename-session', '-t', '$1', far]);
+      const stamp = world.sent.find((argv) => argv[0] === 'set-option' && argv[3] === '@gmux-name');
+      expect(stamp, typed).toEqual(['set-option', '-t', '$1', '@gmux-name', stampedAs(typed)]);
+    }
+  });
+
+  it('Phase 349: sends no rename-session when D7\'s far name is the one the session holds', async () => {
+    world.answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1', tmuxName: '_review' });
+    await pollRemoteMachine(MACHINE);
+    world.sent = [];
+    await remoteRename('ours-1', '/review');
+    expect(world.sent.some((argv) => argv[0] === 'rename-session')).toBe(false);
+    expect(world.sent.find((argv) => argv[0] === 'set-option')?.[4]).toBe('/review');
+  });
+});
+
+describe('Phase 349: remoteRename\'s two warnings name the error\'s code, never its text (§4.3 step 7)', () => {
+  const CANARY = 'CANARY-p349 set-option -t $1 @gmux-name the-typed-name';
+
+  async function listOurs(): Promise<void> {
+    world.answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1', tmuxName: 'work' });
+    await pollRemoteMachine(MACHINE);
+  }
+
+  it('a stamp that did not stick logs its code, and the rename still lands', async () => {
+    await listOurs();
+    world.answers['set-option'] = gmuxError('TMUX_UNREACHABLE', CANARY, CANARY);
+    world.sent = [];
+    await remoteRename('ours-1', 'the-typed-name');
+    expect(world.sent.find((argv) => argv[0] === 'rename-session')).toEqual(['rename-session', '-t', '$1', 'the-typed-name']);
+    const warns = world.logged.filter((one) => one.startsWith('warn '));
+    expect(warns.some((one) => one.includes('did not keep the new name') && one.includes('TMUX_UNREACHABLE'))).toBe(true);
+    expect(world.logged.join('\n')).not.toContain('CANARY');
+  });
+
+  it('a manifest write that failed logs its code', async () => {
+    await listOurs();
+    world.rows.set('ours-1', { id: 'ours-1', machineId: MACHINE, name: 'work', tmuxName: 'work', status: 'running' });
+    world.renameThrows = gmuxError('INVALID_INPUT', CANARY, CANARY);
+    await remoteRename('ours-1', 'the-typed-name');
+    const warns = world.logged.filter((one) => one.startsWith('warn '));
+    expect(warns.some((one) => one.includes('not in the session list') && one.includes('INVALID_INPUT'))).toBe(true);
+    expect(world.logged.join('\n')).not.toContain('CANARY');
+  });
+
+  it('a value with no code reads unknown, and its text is never read', async () => {
+    await listOurs();
+    world.rows.set('ours-1', { id: 'ours-1', machineId: MACHINE, name: 'work', tmuxName: 'work', status: 'running' });
+    world.answers['set-option'] = new Error(CANARY);
+    world.renameThrows = new Error(CANARY);
+    await remoteRename('ours-1', 'the-typed-name');
+    const warns = world.logged.filter((one) => one.startsWith('warn '));
+    expect(warns.filter((one) => one.endsWith(': unknown null'))).toHaveLength(2);
+    expect(world.logged.join('\n')).not.toContain('CANARY');
+    expect(world.logged.join('\n')).not.toContain('the-typed-name');
   });
 });
 
@@ -929,5 +1065,41 @@ describe('the restore of a session on another machine (D12, D4b)', () => {
     expect(boot).toBeGreaterThan(-1);
     expect(read).toBeGreaterThan(boot);
     expect(create).toBeGreaterThan(read);
+  });
+
+  // -------------------------------------------------------------------------
+  // PHASE 349 (build/p349/SPEC.md D16): the restore composes the record's far
+  // name by the far rule, D7 with it, and dedupes against nothing it holds.
+  // -------------------------------------------------------------------------
+
+  for (const [kept, far] of [
+    ['-review', '_review'],
+    ['x;', 'x_'],
+    ['#H', '_H'],
+    ['$0', '_0'],
+    ['cost $HOME', 'cost _HOME'],
+    ['PR #12', 'PR #12'],
+    ['gmux-control', 'gmux-control-2']
+  ] as const) {
+    it(`Phase 349: restores a record whose far name is ${JSON.stringify(kept)} as ${JSON.stringify(far)}, and keeps that name (D16)`, async () => {
+      world.offered = true;
+      recordRow(kept);
+      machine('warm');
+      const outcome = await restoreRemoteSession(ID);
+      expect(outcome.tmuxId).toBe('$9');
+      const create = world.sent.find((argv) => argv[0] === 'new-session') ?? [];
+      expect(create[create.indexOf('-s') + 1]).toBe(far);
+      expect(world.updates.find((one) => one.id === ID)?.patch['tmuxName']).toBe(far);
+    });
+  }
+
+  it('Phase 349: restores a record with no far name from its display name, by the same rule (D16)', async () => {
+    world.offered = true;
+    recordRow('');
+    machine('warm');
+    await restoreRemoteSession(ID);
+    const create = world.sent.find((argv) => argv[0] === 'new-session') ?? [];
+    expect(create[create.indexOf('-s') + 1]).toBe(farTmuxName('cost $HOME', new Set()));
+    expect(create[create.indexOf('-s') + 1]).toBe('cost _HOME');
   });
 });

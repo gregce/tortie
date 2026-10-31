@@ -327,6 +327,46 @@
  * Every other arm answers `/v1/remove` and `/v1/paste` 404 and offers no
  * Remove, a Mac older than this phase.
  *
+ * THE PHASE 349 ARMS (build/p349/SPEC.md §4.4 step 7, named for
+ * conformance:ios (t)), in a table of their own, P349_ARMS, for the reason
+ * P348_ARMS has one. Each answers the pairing and every read honestly but its
+ * one break, its world OFFERING Rename: every /v1/blocked row and the
+ * session's own answer carry `rename: true` after `end`, every /v1/sessions
+ * row carries it as the shipping composer writes it, the Sessions answer
+ * carries `renames: true` before `start`, and `start` is the honest offer, so
+ * the "+" is drawn:
+ *   rename-key-*            the Sessions answer's `renames` is not a Boolean
+ *                           `true` (`-not-boolean` the string "true", `-null`,
+ *                           `-huge` a list of 10,000 trues): read as false,
+ *                           so New session draws no Name, the "+" stays and
+ *                           the list is drawn
+ *   rename-row-not-boolean  every Sessions row's `rename` is the string
+ *                           "true" on the tab's refresh, its first read
+ *                           honest: the list reads unreadable, as the
+ *                           `missing-fields` arm does
+ *   rename-blocked-row-not-boolean
+ *                           the same for every /v1/blocked row, pairing's
+ *                           read honest: the Needs input list reads
+ *                           unreadable
+ *   rename-detail-not-boolean
+ *                           the session's own answer's `rename` is the
+ *                           string "true": the session reads unreadable
+ *   rename-answer-*         the ONE `POST /v1/rename` a Save sends is
+ *                           counted, verified over its body (its digest, its
+ *                           write id and its name's length in UTF-16 units in
+ *                           the event, never the name) and answered in a
+ *                           shape this write cannot take: `-wrong-verb`,
+ *                           `-no-echo`, `-done-no-name` and
+ *                           `-name-when-refused`, each read as no answer
+ *                           (`Copy.endNoAnswer`, over a read of the session
+ *                           that came back after it); or `-unknown-reason`, an
+ *                           OPEN word, drawn as this door's own sentence
+ *   rename-404              a 404 with no body, the door's own refusal
+ *                           (`Copy.renameNotTaken`)
+ * Twelve, and none of Start's `refused-no-reason`, `2mib`, `chunked` or
+ * `hold` (a stated narrowing). Every other arm answers `/v1/rename` 404 and
+ * offers no Rename, a Mac older than this phase.
+ *
  * The ATS arm (a SOCKS5 stand-in dialling 100.64.0.1) left with TailscaleKit in
  * Phase 330: the phone has no tailnet and no ATS exception any more.
  *
@@ -432,6 +472,11 @@ import {
   pasteText,
   removeAnswerOf,
   pasteAnswerOf,
+  // Phase 349: the rename, its answer, a row's offer and the Sessions answer's key, each read the phone's way.
+  renameSession,
+  renameAnswerOf,
+  rowRenameOf,
+  sessionsRenamesOf,
   screenPasteOf,
   screenWrapsOf,
   scrollbackWrapsOf
@@ -713,6 +758,41 @@ export const PASTE_UNKNOWN_SENTENCE = 'Your Mac said no for a reason this phone 
 /** How many numbers `wraps-huge` carries: far more than any picture has rows. */
 export const WRAPS_HUGE_COUNT = 100_000;
 
+/**
+ * PHASE 349'S ARMS, in a table of their own (build/p349/SPEC.md §4.4 step 7,
+ * §7.3 (t)), for the reason P348_ARMS has one: probe:p316's hostile group
+ * drives every row of HOSTILE_ARMS that is not a write, a reply or a start by
+ * default and grades it as a read, and these rows are New session's Name,
+ * the lists' and the session's Rename offers and the ONE rename a Save sends,
+ * which that group's grader cannot read. probe:p316 takes them by name
+ * (RENAME_ARMS below), and conformance:ios (t) reads each row on its one line.
+ * `rename` says what each breaks: the Sessions answer's `renames` key, a
+ * Sessions row's or a /v1/blocked row's `rename` (on the list's refresh, its
+ * first read honest, as a list arm's), the session's own `rename`, or the
+ * answer to the one rename. Every other field is the honest door's, the
+ * world offering Rename everywhere.
+ */
+export const P349_ARMS = Object.freeze({
+  'rename-key-not-boolean': { what: 'a /v1/sessions renames key that is the string "true": no Name in New session, the "+" and the list drawn', ends: 'no-name', rename: 'key', posts: 0, at: 'screen-list', expect: [] },
+  'rename-key-null': { what: 'a /v1/sessions renames key that is null: no Name in New session, the "+" and the list drawn', ends: 'no-name', rename: 'key', posts: 0, at: 'screen-list', expect: [] },
+  'rename-key-huge': { what: 'a /v1/sessions renames key that is a list of 10,000 trues: no Name in New session, the "+" and the list drawn', ends: 'no-name', rename: 'key', posts: 0, at: 'screen-list', expect: [] },
+  'rename-row-not-boolean': { what: 'every /v1/sessions row\'s rename the string "true", on the tab\'s refresh: the list reads unreadable', ends: 'sentence', rename: 'row', list: true, posts: 0, at: 'list-failure', expect: ['answerUnreadable'] },
+  'rename-blocked-row-not-boolean': { what: 'every /v1/blocked row\'s rename the string "true", on the list\'s refresh: the Needs input list reads unreadable', ends: 'sentence', rename: 'blocked-row', list: true, posts: 0, at: 'needs-list-failure', expect: ['answerUnreadable'] },
+  'rename-detail-not-boolean': { what: 'the session\'s own answer\'s rename the string "true": the session reads unreadable', ends: 'sentence', rename: 'detail', posts: 0, at: 'session-failure', expect: ['answerUnreadable'] },
+  'rename-answer-wrong-verb': { what: 'a 200 done to a rename whose verb is end', ends: 'sentence', rename: 'answer', posts: 1, at: 'rename-line', expect: ['endNoAnswer'] },
+  'rename-answer-no-echo': { what: 'a 200 done to a rename whose write id is not the one sent', ends: 'sentence', rename: 'answer', posts: 1, at: 'rename-line', expect: ['endNoAnswer'] },
+  'rename-answer-done-no-name': { what: 'a 200 done to a rename that names no stored name', ends: 'sentence', rename: 'answer', posts: 1, at: 'rename-line', expect: ['endNoAnswer'] },
+  'rename-answer-name-when-refused': { what: 'a 200 refused changed to a rename that still names a stored name', ends: 'sentence', rename: 'answer', posts: 1, at: 'rename-line', expect: ['endNoAnswer'] },
+  'rename-answer-unknown-reason': { what: 'a 200 refused to a rename with a reason word the Mac never says, drawn as its sentence', ends: 'sentence', rename: 'answer', posts: 1, at: 'rename-line', expect: [], doorSentence: true },
+  'rename-404': { what: 'a 404 with no body to a rename, the door\'s own refusal', ends: 'sentence', rename: 'answer', posts: 1, at: 'rename-line', expect: ['renameNotTaken'] }
+});
+/** The rename arms (Phase 349), in the table's order. */
+export const RENAME_ARMS = Object.freeze(Object.keys(P349_ARMS));
+/** The sentence a rename arm's unknown reason, or its refusal that still names a name, carries: this door's words, never the Mac's. */
+export const RENAME_UNKNOWN_SENTENCE = 'Your Mac said no for a reason this phone does not know. Nothing was renamed.';
+/** How many `true`s `rename-key-huge`'s list carries. */
+export const RENAME_KEY_HUGE_COUNT = 10_000;
+
 /** The two machines the honest offer names: one ready with Codex alone (D11's move), one not ready (D22's dimmed row). */
 export const START_FAR = Object.freeze({ id: 'p346far', label: 'Studio' });
 export const START_AWAY = Object.freeze({ id: 'p346away', label: 'Laptop' });
@@ -828,7 +908,7 @@ export const SECOND_MAC_ARMS = Object.freeze({
   twin: { what: 'a second Mac that claims alerts, may share a kept Mac\'s first label, lists another Mac\'s session ids under its own name on twin-mirror, and refuses every signed read after twin-refuse', ends: 'drawn', twin: true, alerts: true }
 });
 /** Every arm a door can be started as. */
-const ALL_ARMS = Object.freeze({ ...HOSTILE_ARMS, ...SECOND_MAC_ARMS, ...P348_ARMS });
+const ALL_ARMS = Object.freeze({ ...HOSTILE_ARMS, ...SECOND_MAC_ARMS, ...P348_ARMS, ...P349_ARMS });
 /** The most ids one `twin-mirror` may name, and the shape of one. */
 export const MIRROR_MAX = 64;
 const MIRROR_ID = /^[A-Za-z0-9._:-]{1,128}$/;
@@ -1383,6 +1463,90 @@ export function forgetRemoved(world, sessionId) {
   return world;
 }
 
+// ---------------------------------------------------------------------------
+// Phase 349's world: every row and the session offering Rename
+// (build/p349/SPEC.md §4.2, §4.4 step 7)
+// ---------------------------------------------------------------------------
+
+/**
+ * A row (or a session's own answer) with `rename` set to `value` right after
+ * its `end`, where the shipping row composer writes it (`rowOf`, and so the
+ * detail, which inherits it), or last when it has no `end`. A new object;
+ * every other key in its own order.
+ */
+export function withRename(row, value) {
+  const out = {};
+  let placed = false;
+  for (const [k, v] of Object.entries(row)) {
+    if (k === 'rename') continue;
+    out[k] = v;
+    if (k === 'end') {
+      out.rename = value;
+      placed = true;
+    }
+  }
+  if (!placed) out.rename = value;
+  return out;
+}
+
+/**
+ * A rename arm's world (Phase 349): every /v1/blocked row and the session's
+ * own answer carry `rename: true` after `end`, so every row, the session and,
+ * through `factsFromBlocked`, every Sessions row offers Rename. The arm's one
+ * break is made where it is read. Answers the world.
+ */
+export function offerRename(world) {
+  world.blocked.rows = world.blocked.rows.map((r) => withRename(r, true));
+  world.blocked.others = world.blocked.others.map((r) => withRename(r, true));
+  world.session.session = withRename(world.session.session, true);
+  world.renameOffered = true;
+  return world;
+}
+
+/** A key arm's `renames` (Phase 349): a value that is not the Boolean `true`, each its own way. */
+export function renameKeyOf(arm) {
+  switch (arm) {
+    case 'rename-key-not-boolean':
+      return 'true';
+    case 'rename-key-null':
+      return null;
+    case 'rename-key-huge':
+      return Array.from({ length: RENAME_KEY_HUGE_COUNT }, () => true);
+    default:
+      throw new Error(`${arm} is not a rename key arm`);
+  }
+}
+
+/** What a row arm writes where `rename` is a Boolean: the string, never the word. */
+export const RENAME_NOT_BOOLEAN = 'true';
+
+/**
+ * A Sessions answer under a rename arm (Phase 349): a key arm's `renames`,
+ * in the place the composer wrote it, or every row's `rename` not a Boolean
+ * for the row arm. Any other arm's answer as it was. A list arm's first read
+ * is answered honestly before this is asked.
+ */
+export function p349Sessions(arm, answer) {
+  const kind = P349_ARMS[arm]?.rename;
+  if (kind === 'key') answer.renames = renameKeyOf(arm);
+  else if (kind === 'row') answer.rows = answer.rows.map((r) => withRename(r, RENAME_NOT_BOOLEAN));
+  return answer;
+}
+
+/** A /v1/blocked answer under the blocked row arm (Phase 349): every row's `rename` not a Boolean. Any other arm's as it was. */
+export function p349Blocked(arm, answer) {
+  if (P349_ARMS[arm]?.rename !== 'blocked-row') return answer;
+  answer.rows = answer.rows.map((r) => withRename(r, RENAME_NOT_BOOLEAN));
+  answer.others = answer.others.map((r) => withRename(r, RENAME_NOT_BOOLEAN));
+  return answer;
+}
+
+/** A session's own answer under the detail arm (Phase 349): its `rename` not a Boolean. Any other arm's as it was. */
+export function p349Detail(arm, answer) {
+  if (P349_ARMS[arm]?.rename !== 'detail') return answer;
+  return { ...answer, session: withRename(answer.session, RENAME_NOT_BOOLEAN) };
+}
+
 /**
  * A Phase 348 arm's picture over an honest one (D30, D43), for the phone's
  * `n`th read. A paste arm's picture takes a paste (`paste` true, typable); a
@@ -1467,9 +1631,12 @@ const ageMsOf = (text) => {
  * the status the row names), each row's own status word, agent name and End
  * offer handed back unchanged, so every row the Sessions tab draws is a row the
  * door's `/v1/session` answers for. Built per request, after a write arm has
- * set its End offer on the rows.
+ * set its End offer on the rows. Since Phase 349 each row's own Rename offer is
+ * handed back unchanged too (`renameOffer`, true exactly when the row carries
+ * `rename: true`), and the answer's `renames` is offered only when `renames` is
+ * true, a world that offers Rename.
  */
-export function factsFromBlocked(seed, blocked, now = Date.now()) {
+export function factsFromBlocked(seed, blocked, now = Date.now(), { renames = false } = {}) {
   const rows = [...(blocked.rows ?? []).map((r) => ({ r, waiting: true })), ...(blocked.others ?? []).map((r) => ({ r, waiting: false }))];
   const sessions = [];
   const byId = new Map();
@@ -1501,7 +1668,7 @@ export function factsFromBlocked(seed, blocked, now = Date.now()) {
     }
   });
   const labels = new Map(rows.map(({ r }) => [r.agent, r.agentLabel]));
-  return seed.factsOf(sessions, {
+  const facts = seed.factsOf(sessions, {
     stamps,
     activity,
     questions,
@@ -1509,6 +1676,9 @@ export function factsFromBlocked(seed, blocked, now = Date.now()) {
     agentLabel: (id) => labels.get(id) ?? id,
     endOffer: (s) => byId.get(s.id)?.end ?? { state: 'none' }
   });
+  // PHASE 349: the shipping composer sets `rename: true` on a row exactly when
+  // `renameOffer` answers true, and `renames: true` exactly when `renames` does.
+  return { ...facts, renameOffer: (s) => byId.get(s.id)?.rename === true, renames: () => renames === true };
 }
 
 /** What a sessions request event carries: the counts, and for the sessions arms the ids and groups sent. */
@@ -1666,14 +1836,20 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
     const p348Spec = P348_ARMS[arm];
     const p348WordsNow = p348Spec !== undefined && (typeof p348Spec.remove === 'string' || typeof p348Spec.paste === 'string') ? await p348Words() : null;
     if (typeof p348Spec?.remove === 'string') offerRemove(world, arm, p348WordsNow);
+    // Phase 349: a rename arm's world offers Rename on every row and the session.
+    const p349Spec = P349_ARMS[arm];
+    if (p349Spec !== undefined) offerRename(world);
+    /** The Phase 349 renames read. */
+    let renamePosts = 0;
     /** The Phase 348 writes read, and the sessions a done Remove took. */
     let removePosts = 0;
     let pastePosts = 0;
     const removed = new Set();
     /** write-cut-reread-refused: every signed read after its write is refused. */
     let refuseReads = false;
-    // Phase 346: a start arm's honest offer, and the starts it has read.
-    const startOffer = typeof ALL_ARMS[arm].start === 'string' ? honestStartOffer(world) : null;
+    // Phase 346: a start arm's honest offer, and the starts it has read; and
+    // (Phase 349) a rename arm's, so the "+" is drawn beside its Name or none.
+    const startOffer = typeof ALL_ARMS[arm].start === 'string' || p349Spec !== undefined ? honestStartOffer(world) : null;
     let startPosts = 0;
     /** Phase 345: the ids a twin lists under its own name, in the order it was told. */
     let mirrored = [];
@@ -1714,7 +1890,7 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
         })()
       : null;
     /** The answer to one `/v1/sessions` query, as the shipping composer writes it, or null when it refuses the words. */
-    const composeSessions = (query) => (sessionsKit === null ? null : sessionsKit.shipping.compose(cap?.facts ?? factsFromBlocked(sessionsKit.seed, world.blocked), query));
+    const composeSessions = (query) => (sessionsKit === null ? null : sessionsKit.shipping.compose(cap?.facts ?? factsFromBlocked(sessionsKit.seed, world.blocked, undefined, { renames: world.renameOffered === true }), query));
     /** Signed `/v1/sessions` reads answered. */
     let sessionsReads = 0;
     /** `missing-first`: whether the door has been told the Mac updated. */
@@ -2119,6 +2295,59 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
               return send(res, 200, J(done), event);
           }
         }
+        if (req.method === 'POST' && url.pathname === '/v1/rename' && p349Spec !== undefined) {
+          // PHASE 349's write: counted, verified over the body, and answered
+          // the arm's way. The event carries the body's digest, its write id
+          // and its name's length in UTF-16 units: never the name.
+          counts.writes += 1;
+          renamePosts += 1;
+          const verifiedWrite = verifySigned({ method: 'POST', target: req.url ?? '', headers: req.headers, body, phone, doorExchangePrivate: doorX.privateKey, doorExchangeKey: dx });
+          const channelWrite = phone !== null && seen.clientPin === clientKeyPinOf(phone.clientKey);
+          let parsed = null;
+          try {
+            parsed = JSON.parse(body.toString('utf8'));
+          } catch {
+            parsed = null;
+          }
+          const id = typeof parsed?.write === 'string' && /^[0-9a-f]{32}$/.test(parsed.write) ? parsed.write : '';
+          const keys = parsed === null || typeof parsed !== 'object' ? '' : Object.keys(parsed).sort().join(',');
+          const event = {
+            route,
+            ...seen,
+            sessionId: typeof parsed?.session === 'string' ? parsed.session : null,
+            verified: verifiedWrite,
+            channelHeld: channelWrite,
+            write: counts.writes,
+            verb: 'rename',
+            keys,
+            renameWrite: id,
+            bodySha: createHash('sha256').update(body).digest('hex'),
+            bodyBytes: body.length,
+            nameUnits: typeof parsed?.name === 'string' ? parsed.name.length : null,
+            post: renamePosts,
+            query: url.search !== ''
+          };
+          if (verifiedWrite !== 'ok' || url.search !== '') return send(res, 404, '', event);
+          // The name an honest Mac stores: the one typed, trimmed (D5).
+          const stored = typeof parsed?.name === 'string' ? parsed.name.trim() : '';
+          const done = { verb: 'rename', write: id, outcome: 'done', reason: null, sentence: null, name: stored };
+          switch (arm) {
+            case 'rename-answer-wrong-verb':
+              return send(res, 200, J({ ...done, verb: 'end' }), event);
+            case 'rename-answer-no-echo':
+              return send(res, 200, J({ ...done, write: otherWriteId(id) }), event);
+            case 'rename-answer-done-no-name':
+              return send(res, 200, J({ ...done, name: null }), event);
+            case 'rename-answer-name-when-refused':
+              return send(res, 200, J({ verb: 'rename', write: id, outcome: 'refused', reason: 'changed', sentence: RENAME_UNKNOWN_SENTENCE, name: stored }), event);
+            case 'rename-answer-unknown-reason':
+              return send(res, 200, J({ verb: 'rename', write: id, outcome: 'refused', reason: 'sideways', sentence: RENAME_UNKNOWN_SENTENCE, name: null }), event);
+            case 'rename-404':
+              return send(res, 404, '', event);
+            default:
+              return send(res, 200, J(done), event);
+          }
+        }
         if (req.method === 'POST' && url.pathname === '/v1/start' && startOffer !== null) {
           // PHASE 346's write: counted, verified over the body, and answered
           // the arm's way. Its event carries the body's digest and write id,
@@ -2206,7 +2435,9 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
             summary.bidi = bidi === null ? null : { id: bidi.sessionId, name: bidi.name, ageText: bidi.ageText };
           }
           // A list arm answers the Sessions tab's FIRST read honestly, so the
-          // tab draws, and its refresh meets the body.
+          // tab draws, and its refresh meets the body. A rename list arm's
+          // world carries the honest start offer on that read too (Phase 349).
+          if (spec.list === true && n === 1 && startOffer !== null) answer.start = startOffer;
           if (spec.list === true && n === 1) return send(res, 200, J(answer), { ...ev, honestFirst: true, sessions: summary });
           if (spec.list === true) {
             if (spec.raw === true) return sendRaw(req, rawAnswerOf(arm, J(answer)), ev);
@@ -2227,6 +2458,8 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
             }
           }
           if (spec.sessions === 'malformed') return send(res, 200, malformedSessions(arm, answer), { ...ev, malformed: arm });
+          // PHASE 349: a rename arm's key or rows (a list arm's first read was answered above).
+          p349Sessions(arm, answer);
           // Phase 346: a start arm's key, last, as main spreads it.
           if (startOffer !== null) {
             answer.start = spec.start === 'key' ? hostileStartKey(arm, startOffer) : startOffer;
@@ -2271,6 +2504,8 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
             emit({ kind: 'request', arm, ...event, status: 200, bytes: 9, held: true });
             return;
           }
+          // PHASE 349: the blocked row arm's rows, on every read after pairing's.
+          p349Blocked(arm, answer);
           return send(res, 200, J(answer), event);
         }
         if (url.pathname === '/v1/session') {
@@ -2279,9 +2514,10 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
           if (url.searchParams.get('id') !== world.sessionId) {
             const other = [...world.blocked.rows, ...world.blocked.others].find((r) => r.sessionId === url.searchParams.get('id'));
             if (other === undefined) return send(res, 404, '', event);
-            return send(res, 200, J({ session: { ...world.session.session, ...other }, at: world.at }), event);
+            // PHASE 349: the detail arm's own answer, its rename not a Boolean.
+            return send(res, 200, J(p349Detail(arm, { session: { ...world.session.session, ...other }, at: world.at })), event);
           }
-          return send(res, 200, J(world.session), event);
+          return send(res, 200, J(p349Detail(arm, world.session)), event);
         }
         // /v1/turns
         const page = honestPage(world, url.searchParams);
@@ -2368,6 +2604,8 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
       removeConfirm: world.removeConfirm ?? null,
       p348Words: p348WordsNow === null ? null : { LIFECYCLE_SESSION_CHANGED: p348WordsNow.LIFECYCLE_SESSION_CHANGED, PASTE_CHARACTER: p348WordsNow.PASTE_CHARACTER, PASTE_THIS_MAC_ONLY: p348WordsNow.PASTE_THIS_MAC_ONLY },
       removedIds: () => [...removed],
+      // Phase 349: whether a rename arm's rows, session and Sessions answer offer Rename.
+      renameOffered: world.renameOffered === true,
       counts,
       // Phase 316.7: whether this door can compose /v1/sessions, and the cap world's own facts.
       sessionsComposer: sessionsKit !== null,
@@ -2461,6 +2699,8 @@ async function serve(arm, md3, extra = {}) {
       // Phase 348: a Remove arm's offer and the Mac's words a Phase 348 arm draws, for the probe to hold the phone to.
       removeConfirm: door.removeConfirm,
       p348Words: door.p348Words,
+      // Phase 349: whether a rename arm's rows, session and Sessions answer offer Rename.
+      renameOffered: door.renameOffered,
       // Phase 316.7: the sessions read.
       sessionsComposer: door.sessionsComposer,
       sessionsComposerWhy: door.sessionsComposerWhy,
@@ -3441,6 +3681,151 @@ async function selfTest() {
         await honestDoor?.close();
       }
     }
+  }
+  // PHASE 349'S ARMS (build/p349/SPEC.md §4.4 step 7), each driven by the node
+  // phone over a world that offers Rename everywhere: a key arm's `renames`
+  // read beside an honest start offer and a list that draws; the row arms'
+  // refresh and the detail arm's session, each broken in its one place; and
+  // the ONE rename's answer, read the phone's way (`renameAnswerOf`), counted,
+  // verified over its body with the client identity and logged by shape only,
+  // never the name.
+  {
+    const parse = (text) => {
+      try {
+        return JSON.parse(text);
+      } catch {
+        return null;
+      }
+    };
+    /** A row that offers Rename, read the phone's way (strictly, `rowRenameOf`). */
+    const offers = (r) => rowRenameOf(r).ok && rowRenameOf(r).rename === true;
+    /** A row the phone refuses its whole answer for (a `rename` that is not a Bool). */
+    const refuses = (r) => !rowRenameOf(r).ok;
+    const allRows = (b) => (b === null || typeof b !== 'object' ? [] : [...(b.rows ?? []), ...(b.others ?? [])]);
+    for (const arm of RENAME_ARMS) {
+      const spec = P349_ARMS[arm];
+      const events = [];
+      let door = null;
+      try {
+        door = await startHostileDoor(arm, (e) => events.push(e), { md3: SELF_TEST_MD3 });
+        const qr = JSON.parse(door.payload);
+        const d = doorFrom(qr, door.port);
+        const phone = makePhone('p349 self-test phone', qr.dx);
+        const paired = await pairThrough(d, qr, phone, { tries: 3, everyMs: 50 });
+        if (!paired.ok) {
+          check(arm, false, `pairing answered ${J(paired.words)} (${paired.why})`);
+          continue;
+        }
+        const sid = door.sessionToOpen;
+        /** The renames this door took as renames. */
+        const posts = () => events.filter((e) => e.kind === 'request' && e.route === 'POST /v1/rename' && e.verb === 'rename');
+        const asked = askedOf({});
+        if (spec.rename === 'key') {
+          const sessions = await readSessions(phone, d, {});
+          const a = sessions.answer;
+          const rest = a === null ? ['no answer'] : sessionsAnswerProblems(a, asked);
+          const keys = a === null ? [] : Object.keys(a);
+          const key = a?.renames;
+          const shape = {
+            'rename-key-not-boolean': key === RENAME_NOT_BOOLEAN,
+            'rename-key-null': key === null && keys.includes('renames'),
+            'rename-key-huge': Array.isArray(key) && key.length === RENAME_KEY_HUGE_COUNT && key.every((x) => x === true)
+          }[arm];
+          const plus = startKeyProblems(a?.start).length === 0 && a?.start?.state === 'offered';
+          const placed = keys.includes('renames') && keys.indexOf('renames') < keys.indexOf('start') && keys.at(-1) === 'start';
+          const rows = (a?.rows ?? []).length > 0 && a.rows.every(offers);
+          check(arm, sessions.status === 200 && rest.length === 0 && shape === true && !sessionsRenamesOf(a) && plus && placed && rows && posts().length === 0, `/v1/sessions answered ${String(sessions.status)}, the rest drawn (refused for ${J(rest.slice(0, 2))}); renames ${Array.isArray(key) ? `a list of ${String(key.length)}` : J(key)}, before start: ${String(placed)}; the start offer drawn: ${String(plus)}; every row still offers Rename: ${String(rows)}; ${String(posts().length)} POST(s)`);
+          continue;
+        }
+        if (spec.rename === 'row') {
+          const s1 = await readSessions(phone, d, {});
+          const s1Problems = s1.answer === null ? ['no answer'] : sessionsAnswerProblems(s1.answer, asked);
+          const s2 = await readSessions(phone, d, {});
+          const honestFirst = s1.status === 200 && s1Problems.length === 0 && sessionsRenamesOf(s1.answer) && startKeyProblems(s1.answer.start).length === 0 && s1.answer.rows.length > 0 && s1.answer.rows.every(offers);
+          const broken = s2.status === 200 && s2.answer !== null && s2.answer.rows.length > 0 && s2.answer.rows.every((r) => r.rename === RENAME_NOT_BOOLEAN && refuses(r));
+          const blocked = allRows(parse((await signedGet(phone, d, '/v1/blocked')).body));
+          const blockedHonest = blocked.length > 0 && blocked.every(offers);
+          check(arm, honestFirst && broken && blockedHonest && posts().length === 0, `the tab's first /v1/sessions drawn with every row offering Rename: ${String(honestFirst)} (refused for ${J(s1Problems.slice(0, 2))}); its refresh's rows carry rename ${J(s2.answer?.rows?.[0]?.rename)}: ${String(broken)}; /v1/blocked honest: ${String(blockedHonest)}`);
+          continue;
+        }
+        if (spec.rename === 'blocked-row') {
+          const first = allRows(parse((await signedGet(phone, d, '/v1/blocked')).body));
+          const second = allRows(parse((await signedGet(phone, d, '/v1/blocked')).body));
+          const honestFirst = first.length > 0 && first.every(offers);
+          const broken = second.length > 0 && second.every((r) => r.rename === RENAME_NOT_BOOLEAN && refuses(r));
+          const sessions = await readSessions(phone, d, {});
+          const sessionsHonest = sessions.status === 200 && sessions.answer !== null && sessionsAnswerProblems(sessions.answer, asked).length === 0 && sessions.answer.rows.length > 0 && sessions.answer.rows.every(offers);
+          check(arm, honestFirst && broken && sessionsHonest && posts().length === 0, `pairing's /v1/blocked drawn with every row offering Rename: ${String(honestFirst)}; the list's next read carries rename ${J(second[0]?.rename)}: ${String(broken)}; /v1/sessions honest: ${String(sessionsHonest)}`);
+          continue;
+        }
+        if (spec.rename === 'detail') {
+          const rows = allRows(parse((await signedGet(phone, d, '/v1/blocked')).body));
+          const detail = parse((await signedGet(phone, d, `/v1/session?id=${encodeURIComponent(sid)}`)).body);
+          const keys = Object.keys(detail?.session ?? {});
+          const broken = detail?.session?.rename === RENAME_NOT_BOOLEAN && refuses(detail.session) && keys.indexOf('rename') === keys.indexOf('end') + 1;
+          check(arm, rows.length > 0 && rows.every(offers) && broken && posts().length === 0, `every /v1/blocked row offers Rename: ${String(rows.length > 0 && rows.every(offers))}; the session's own answer carries rename ${J(detail?.session?.rename)} right after end: ${String(broken)}`);
+          continue;
+        }
+        // An answer arm: the session offers Rename after its End, and the ONE rename is answered the arm's way.
+        const detail = parse((await signedGet(phone, d, `/v1/session?id=${encodeURIComponent(sid)}`)).body);
+        const keys = Object.keys(detail?.session ?? {});
+        const sessionOffers = offers(detail?.session) && keys.indexOf('rename') === keys.indexOf('end') + 1;
+        const name = ' p349 \u{1F600} self-test rename ';
+        const write = randomBytes(16).toString('hex');
+        const got = await renameSession(phone, d, { session: sid, name, write });
+        const read = renameAnswerOf(got, write);
+        const said = got.status === 200 ? parse(got.body) : null;
+        const shape = {
+          'rename-answer-wrong-verb': !read.ok && said?.verb === 'end' && said?.write === write && said?.outcome === 'done' && said?.name === name.trim(),
+          'rename-answer-no-echo': !read.ok && said?.verb === 'rename' && said?.write !== write && /^[0-9a-f]{32}$/.test(said?.write ?? '') && said?.outcome === 'done' && said?.name === name.trim(),
+          'rename-answer-done-no-name': !read.ok && said?.verb === 'rename' && said?.write === write && said?.outcome === 'done' && said?.name === null,
+          'rename-answer-name-when-refused': !read.ok && said?.verb === 'rename' && said?.write === write && said?.outcome === 'refused' && said?.reason === 'changed' && said?.name === name.trim(),
+          'rename-answer-unknown-reason': read.ok && read.answer.outcome === 'refused' && read.answer.reason === 'sideways' && read.answer.sentence === RENAME_UNKNOWN_SENTENCE && read.answer.name === null,
+          'rename-404': !read.ok && got.status === 404 && got.body === ''
+        }[arm];
+        const one = posts();
+        const shaped = one.length === 1 && one[0].verified === 'ok' && one[0].channelHeld === true && one[0].keys === 'name,session,write' && one[0].renameWrite === write && typeof one[0].bodySha === 'string' && one[0].nameUnits === name.length && !J(one[0]).includes('self-test rename');
+        check(arm, sessionOffers && shape === true && shaped, `the session offers Rename after its End: ${String(sessionOffers)}; the one rename answered ${String(got.status)} ${String(got.body).slice(0, 140)} (read: ${read.ok ? 'whole' : read.why}); ${String(one.length)} POST(s), verified over its body with the client identity, its event naming the name's ${String(name.length)} units and never the name: ${String(shaped)}`);
+      } catch (err) {
+        check(arm, false, `threw: ${String(err?.stack ?? err)}`);
+      } finally {
+        await door?.close();
+      }
+    }
+    // Every other arm answers a rename 404, a Mac older than this phase, and offers no Rename anywhere.
+    let door = null;
+    try {
+      door = await startHostileDoor('honest', () => undefined);
+      const qr = JSON.parse(door.payload);
+      const d = doorFrom(qr, door.port);
+      const phone = makePhone('p349 self-test honest phone', qr.dx);
+      const paired = await pairThrough(d, qr, phone, { tries: 3, everyMs: 50 });
+      const r = await renameSession(phone, d, { session: door.sessionToOpen, name: 'p349 honest' });
+      const rows = allRows(parse((await signedGet(phone, d, '/v1/blocked')).body));
+      const detail = parse((await signedGet(phone, d, `/v1/session?id=${encodeURIComponent(door.sessionToOpen)}`)).body);
+      const sessions = await readSessions(phone, d, {});
+      const none =
+        rows.length > 0 &&
+        rows.every((row) => !Object.hasOwn(row, 'rename') && rowRenameOf(row).ok && !rowRenameOf(row).rename) &&
+        detail?.session !== undefined &&
+        !Object.hasOwn(detail.session, 'rename') &&
+        sessions.answer !== null &&
+        !Object.hasOwn(sessions.answer, 'renames') &&
+        !sessionsRenamesOf(sessions.answer) &&
+        sessions.answer.rows.every((row) => !Object.hasOwn(row, 'rename'));
+      check('p349 honest', paired.ok && r.status === 404 && r.body === '' && none && door.renameOffered === false, `an honest door answers a rename ${String(r.status)}, and no row, session or Sessions answer offers Rename: ${String(none)}`);
+    } catch (err) {
+      check('p349 honest', false, `threw: ${String(err?.stack ?? err)}`);
+    } finally {
+      await door?.close();
+    }
+    const kinds = (k) => RENAME_ARMS.filter((a) => P349_ARMS[a].rename === k).length;
+    const narrowed = ['refused-no-reason', '2mib', 'chunked', 'hold'].every((w) => !RENAME_ARMS.some((a) => a.endsWith(w)));
+    check(
+      'p349 names',
+      RENAME_ARMS.length === 12 && kinds('key') === 3 && kinds('row') === 1 && kinds('blocked-row') === 1 && kinds('detail') === 1 && kinds('answer') === 6 && narrowed && RENAME_ARMS.every((a) => a.startsWith('rename-') && !Object.hasOwn(HOSTILE_ARMS, a) && !Object.hasOwn(P348_ARMS, a) && !Object.hasOwn(SECOND_MAC_ARMS, a)),
+      `${String(RENAME_ARMS.length)} rename arm(s): ${String(kinds('key'))} key, ${String(kinds('row'))} Sessions row, ${String(kinds('blocked-row'))} Needs input row, ${String(kinds('detail'))} session and ${String(kinds('answer'))} answer; none of Start's refused-no-reason, 2mib, chunked or hold: ${String(narrowed)}; none in HOSTILE_ARMS, which probe:p316's hostile group drives by default`
+    );
   }
   const failed = results.filter((r) => !r.ok).length;
   process.stdout.write(failed === 0 ? `${TAG} self-test PASS: ${String(results.length)} arms serve what they claim, on loopback, and every listener is closed.\n` : `${TAG} self-test FAIL: ${String(failed)} of ${String(results.length)} arm(s).\n`);

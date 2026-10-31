@@ -258,6 +258,32 @@
  * clone, and sets `P313_NO_SELF_TEST=1` there so an arm is judged on the rule
  * alone.
  *
+ * PHASE 349 RENAMES A SESSION FROM THE PHONE (build/p349/SPEC.md §7.1), his
+ * words of 2026-10-19 ("making it possible to rename sessions from the phone
+ * that it can access (and name sessions initially that are created via the
+ * phone)") and his ruling that only End asks Face ID. The door's eighth write,
+ * `POST /v1/rename`, takes the session branch of the one write path with an
+ * answer of its own (`PocketRenameAnswer`, six fields, the stored name non-null
+ * exactly when done), waits for its own Allow, and reaches the Mac's own
+ * `core.renameSession` through `src/main/sessions/pocket-writes.ts`'s
+ * `rename`, over the pure `renameVerdict` and the ONE name rule of
+ * `src/shared/session-names.ts`. Ten rules joined, RN1 to RN10 (the route and
+ * its words, the body DRIVEN, the answer, the path DRIVEN, the verdict's order
+ * DRIVEN over every status on this Mac and another machine, the first await,
+ * codes only, nothing else in the path, the one rule DRIVEN over D5's cases,
+ * and the offers with the far log), each with its OWN SELF-TEST
+ * (`p349SelfTest`, twenty plants). Widened on purpose: R2 (eight writes,
+ * rename's 2,048), R3 (renameSession's reason, his request named), R4 (the pin
+ * to fifteen routes, `3ba0fec5…`; LEGACY_ROUTE_PIN unmoved), X1 to X6, X11 and
+ * X12 (the eighth verb; X5 lets `renameSession(` be called ONCE, inside
+ * rename, after renameVerdict(, and reads canRename of DOOR_RENAME_GATE_ENV
+ * for rename; X6 reads a name in the function that declares it), Y1 and Z2
+ * (the caps), NS1, NS_WRITE_IDS and NS11 (eight members), AR9 (one more
+ * ledger row), G1 (a name, read off the code, reaches no log call), and,
+ * because rename sits after paste and its clause and its cap are in the tree,
+ * PS1 (paste no longer last), SU5, Z1 and AF2. One hundred and ninety rules in
+ * all.
+ *
  * HOW IT READS. The source, parsed with the TypeScript compiler's own parser,
  * so a comment, a string and a call are each read as what they are. A rule
  * that could be satisfied by a word in a comment is not a rule, and three of
@@ -273,10 +299,11 @@
  * exist. So a missing module FAILS the rule that needed it, by name, and says
  * which module and which builder owns it.
  *
- *   node build/conformance-pocket.mjs            the gate, Phase 348's self-test included
+ *   node build/conformance-pocket.mjs            the gate, Phase 348's and Phase 349's self-tests included
  *   node build/conformance-pocket.mjs --list     the rules, and nothing run
  *   P313_NO_SELF_TEST=1 node build/conformance-pocket.mjs   the gate without
- *       Phase 348's self-test (ablation:p313's clone sets it, and the run says so)
+ *       Phase 348's and Phase 349's self-tests (ablation:p313's clone sets it,
+ *       and the run says so)
  */
 
 import { createHash } from 'node:crypto';
@@ -302,10 +329,10 @@ const RULES = [
   ['L3', 'build/p330/SPEC.md §6.1, §4.2.4', 'the Funnel target’s host is the literal 127.0.0.1 and its port is the listener’s REPORTED localPort, spelled once, and never a stored field or a setting'],
   ['L4', 'build/p330/SPEC.md §6.1, §3 row 8', 'the local port is ephemeral, listen(0) and nothing else, and a confirmed public port that is taken refuses port-taken: 443 is never named'],
   ['R1', 'SPEC §2', 'the route table is CLOSED: frozen, every path an exact string, no pattern, no wildcard, no default arm (read in door/table.ts, where Phase 330 moved it, and in routes.ts, which re-exports it)'],
-  ['R2', 'SPEC §2, entry mechanism 4; build/p317/SPEC.md §6.1; build/p318/SPEC.md §6.1; build/p337/SPEC.md §6.1; build/p346/SPEC.md D1, D4, D6; build/p348/SPEC.md D26, D29', 'every row is a read (reads: true, a GET or the one pairing row, window-only and unsigned) or a write (reads: false, POST, signed: true, windowOnly: false); the writes are EXACTLY end, choose, say, keys, start, remove and paste, the contract’s POCKET_WRITE_ROUTE_IDS says the same, and each has its own cap in POCKET_WRITE_BODY_CAPS (start’s and remove’s 512, paste’s 131,072)'],
-  ['R4', 'the fix round, 2026-09-22; build/p337/SPEC.md D1; build/p3371/SPEC.md D1; build/p346/SPEC.md D1, §12 M3; build/p348/SPEC.md §7.1', 'the table’s MEMBERSHIP is pinned: the exact set of method-and-path pairs, by sha256, so a fourth route is a visible edit rather than a green build'],
+  ['R2', 'SPEC §2, entry mechanism 4; build/p317/SPEC.md §6.1; build/p318/SPEC.md §6.1; build/p337/SPEC.md §6.1; build/p346/SPEC.md D1, D4, D6; build/p348/SPEC.md D26, D29; build/p349/SPEC.md §4.1, D6', 'every row is a read (reads: true, a GET or the one pairing row, window-only and unsigned) or a write (reads: false, POST, signed: true, windowOnly: false); the writes are EXACTLY end, choose, say, keys, start, remove, paste and rename, the contract’s POCKET_WRITE_ROUTE_IDS says the same, and each has its own cap in POCKET_WRITE_BODY_CAPS (start’s and remove’s 512, paste’s 131,072, rename’s 2,048)'],
+  ['R4', 'the fix round, 2026-09-22; build/p337/SPEC.md D1; build/p3371/SPEC.md D1; build/p346/SPEC.md D1, §12 M3; build/p348/SPEC.md §7.1; build/p349/SPEC.md §2.4, §7.1', 'the table’s MEMBERSHIP is pinned: the exact set of method-and-path pairs, by sha256, so a fourth route is a visible edit rather than a green build'],
   ['R5', 'entry, mechanism 4', 'the turn limit is clamped AT THE DOOR against the overview store’s own MAX_TURN_LIMIT, which is imported and never re-spelled'],
-  ['R3', 'entry, mechanism 4; build/p330/SPEC.md §6.1; build/p318/SPEC.md §6.1; build/p337/SPEC.md §6.1; build/p3331/SPEC.md §6.1; build/p346/SPEC.md §5.1; build/p348/SPEC.md §6', 'the domain names no write verb, no status setter, no credential read and nothing of the reply writer (main/reply/) or of the Screen (main/screen/), and starts NO process but funnel.ts’s spawn of the resolved program, its execFile of that program and of /bin/ps, and bind.ts’s one utilityProcess.fork, and two LaunchServices opens a person’s press makes, Tailscale’s download page and the Tailscale app (SU3)'],
+  ['R3', 'entry, mechanism 4; build/p330/SPEC.md §6.1; build/p318/SPEC.md §6.1; build/p337/SPEC.md §6.1; build/p3331/SPEC.md §6.1; build/p346/SPEC.md §5.1; build/p348/SPEC.md §6; build/p349/SPEC.md §6 item 1', 'the domain names no write verb, no status setter, no credential read and nothing of the reply writer (main/reply/) or of the Screen (main/screen/), and starts NO process but funnel.ts’s spawn of the resolved program, its execFile of that program and of /bin/ps, and bind.ts’s one utilityProcess.fork, and two LaunchServices opens a person’s press makes, Tailscale’s download page and the Tailscale app (SU3)'],
   ['A1', 'entry, mechanism 5', 'no Authorization header and no cookie is read or written anywhere in the domain'],
   ['A2', 'entry, mechanism 5, research 127 §7', 'no secret is in a path or a query: no route path interpolates and no 32-hex token is matched out of one'],
   ['A3', 'entry, mechanism 3', '/pair is dead outside its window, and the window is checked before anything is read off the request'],
@@ -313,7 +340,7 @@ const RULES = [
   ['W1', 'the fix round, 2026-09-22', 'every file and directory this domain creates names an owner-only mode, so one write in it cannot drift looser than its sibling'],
   ['B1', 'the judge, 2026-09-22; build/p330/SPEC.md §4.11; build/p3165/SPEC.md §6.1; build/p3331/SPEC.md §6.1', 'the bridge and the registrar move together, and they carry the same FIFTEEN pocket channels the contract declares (pocket:recheck and pocket:setupAction since Phase 333.1)'],
   ['S3', 'entry, proof; hooks.ts:256-316', 'the disposer owns the door: admission closes on the first line of every stop, before any await, in main AND in the door process, and the stop ends the process and closes the listener'],
-  ['G1', 'entry, proof; hooks.ts:368-385; build/p317/SPEC.md §6.1', 'no token, no body, no header value, no message, no typed text and no line of conversation is reachable from any log call in the domain or in src/main/sessions/pocket-writes.ts'],
+  ['G1', 'entry, proof; hooks.ts:368-385; build/p317/SPEC.md §6.1; build/p349/SPEC.md §6 item 1', 'no token, no body, no header value, no message, no typed text, no line of conversation and (Phase 349) no name, read off the code (a bare name or a .name of anything but a caught error), is reachable from any log call in the domain or in src/main/sessions/pocket-writes.ts'],
   ['T1', 'the operator, 2026-09-22', 'nothing in this repository binds a real interface: every test and every gate drives the door on loopback'],
   ['H1', 'his ruling, 2026-09-22 (“lets skip the web app”)', 'this domain composes NO HTML document and names no text/html content type: the page was built, could not be reached under mechanism 5’s own refusals, and was removed on his ruling, so a later round that wants one asks him rather than rebuilding it under a green gate'],
   ['N1', 'Phase 314, build/p314/SPEC.md §1.1 row 3; build/p317/SPEC.md §6.1', 'NO ROUTE NAMES THE PUSH: no route id, path or contract id names push, apns, notify, device, token or alert (Phase 317 dropped the second pin on Phase 313’s membership; R4 holds the membership)'],
@@ -354,20 +381,20 @@ const RULES = [
   ['D7', 'build/p332/SPEC.md §4.8', 'GMUX_POCKET_NAME_SERVERS is read in nameServersFrom alone, which answers the search for a packaged build before it looks, matches every entry against a pattern anchored on ^127\\.0\\.0\\.1:, answers refused for anything else and never the search; and askNameRound returns override-unusable for a refused source before it names findZoneServers'],
   ['D8', 'build/p332/SPEC.md §4.3 step 1', 'the shipping transport answers an error for a server that is not 127.0.0.1 unless process.versions.electron is a string, BEFORE it creates a socket: no test and no script reaches a real DNS server through it'],
   ['D9', 'build/p332/SPEC.md §4.13; after his ruling, 2026-09-30', 'THE PUSH SEAM PAIRS NOTHING WITHOUT THE NAME STAND-IN: nameStandInOnly answers nameServersFrom(…).kind === \'fixed\' alone, openDoorForPairing returns false on it before it first calls its host, waits a bounded time for host.status().pairable after the switch and before every return true, with the wait’s answer deciding a return false, and the seam presses beginPairing only on openDoorForPairing’s true'],
-  ['X1', 'build/p317/SPEC.md §5.3.4, D3, D4; build/p318/SPEC.md §5.1.4; build/p337/SPEC.md §5.5; build/p346/SPEC.md §3.3; build/p348/SPEC.md §4.2 step 3', 'THE WRITE ORDER, over all six session verbs (Phase 348 adds remove and paste; since Phase 346 a start handed to its own branch, ONE test, before the strict parse, whose order NS8 holds): the parse, the ledger, the in-flight claim, the last check, the act and the outcome appear in that order; nothing sits between the last check and the act, whose ONE statement starts end, choose, say, keys, remove or paste through a settle function that calls it at once; every 404 precedes the act; after it every return is marked acted: true; before it only the ledger’s returns are marked, a recorded hit with its own acted and the busy for a pending entry of the same write id'],
-  ['X2', 'build/p317/SPEC.md §5.3.4 step 1, D2; build/p318/SPEC.md §5.1.2; build/p337/SPEC.md §5.5; build/p346/SPEC.md D6; build/p348/SPEC.md D28', 'THE STRICT PARSE, seven of them (Phase 346 adds parseStartBody, Phase 348 parseRemoveBody and parsePasteBody): one JSON.parse in the write path, inside a try, reached by the parse functions alone; each key set compared exactly (batch,session,write; mark,marker,question,session,write; session,text,write; dialog,keys,session,turn,write; agent,project,write; session,write; dialog,session,text,turn,write); the write id, the session id, the question id, the mark and the marker read one character at a time, and no pattern'],
-  ['X3', 'build/p317/SPEC.md D5, §3 row 18; build/p318/SPEC.md D4; build/p337/SPEC.md D24; build/p346/SPEC.md D17; build/p348/SPEC.md §4.2 step 3', 'THE LEDGER (and since Phase 346 the start branch’s, keyed keyOf(phone, start, write id), its pending entry storing acted; remove and paste take the session branch’s): keyed on the verified phone, THE VERB (handed to keyOf whole and never mapped, Phase 348) and the write id, joined by a newline no part can hold; each entry stores its acted; its lifetime is 2 * POCKET_CLOCK_SKEW_MS imported from ./pairing; caps of 2,048 and 8,192 compared against; no entry evicted but by its lifetime or, pending and never acted, in the finally; the pending entry made at the in-flight claim; no node:fs'],
-  ['X4', 'build/p317/SPEC.md §5.3.4 step 3; build/p318/SPEC.md D4; build/p346/SPEC.md D16; build/p348/SPEC.md §4.2 step 3', 'ONE IN FLIGHT, ACROSS VERBS (since Phase 346 the start branch asks and claims the same phonesInFlight, releases it in its finally and never reads sessionsInFlight; since Phase 348 remove and paste claim the session branch’s two, so an End and a Remove, or keys and a paste, never overlap on one session): a claim per phone and per session, each asked first and never under a branch on the verb (nor, since Phase 348, beside a short circuit on it), claimed before the act and released in the finally of the try that holds the act, so an End and a message can never overlap on one session'],
-  ['X5', 'build/p317/SPEC.md §5.4, D7, D14; build/p318/SPEC.md §5.1.5; build/p337/SPEC.md §5.4; build/p346/SPEC.md §4.7, §4.8; build/p348/SPEC.md D47, D48, §4.2 step 4', 'POCKETWRITES: declared once, in routes.ts, with exactly end, choose, say, keys, start and (Phase 348) remove and paste; implemented once, in src/main/sessions/pocket-writes.ts, whose choose and say pass through to deps.reply, keys to deps.keys, start to deps.start and paste to deps.paste, and nothing else; built in src/main/capabilities.ts alone; end asks endRefusal( and .canEnd of sessionActionGates( with DOOR_GATE_ENV before its first await, which is killSession(; remove calls removeVerdict( (which asks removeRefusal( and .canRemove of sessionActionGates( with DOOR_REMOVE_GATE_ENV) and then removeSession( exactly once, the one call of it in the module, with nothing awaited between; sessionActionGates( is asked with those two environments alone and no other field of either is read; the batch arm calls the injected machineKnown( and nothing reads .answering; the production machineKnown is machineRow( from src/main/machines/store.ts; no other lifecycle verb and no status setter; PocketFacts.endOffer is optional'],
-  ['X6', 'build/p317/SPEC.md §5.3.1, §5.4, research 135 §4.8; build/p318/SPEC.md D19, D20; build/p337/SPEC.md §5.4; build/p346/SPEC.md §4.2; build/p348/SPEC.md D27, §5.1', 'THE ANSWER (and since Phase 346 every start sentence too, from src/shared/start-copy.ts, over writes.ts and pocket-start.ts; since Phase 348 every sentence handed to removeAnswer( and pasteAnswer( or set in src/main/screen/paste.ts, removeRefusal’s own among them): PocketWriteAnswer is exactly verb, write, outcome, reason and sentence; every sentence the write path, pocket-writes.ts, src/main/reply or src/main/screen sets is a named constant from lifecycle-words.ts, src/shared/reply-copy.ts, src/shared/screen-copy.ts, endRefusal’s or removeRefusal’s own, or POCKET_WRITE_SENTENCES; no .message is read; a caught error is told apart by isGmuxError(, by code, and nothing else'],
+  ['X1', 'build/p317/SPEC.md §5.3.4, D3, D4; build/p318/SPEC.md §5.1.4; build/p337/SPEC.md §5.5; build/p346/SPEC.md §3.3; build/p348/SPEC.md §4.2 step 3; build/p349/SPEC.md §4.2 step 3', 'THE WRITE ORDER, over all seven session verbs (Phase 348 adds remove and paste, Phase 349 rename; since Phase 346 a start handed to its own branch, ONE test, before the strict parse, whose order NS8 holds): the parse, the ledger, the in-flight claim, the last check, the act and the outcome appear in that order; nothing sits between the last check and the act, whose ONE statement starts end, choose, say, keys, remove, paste or rename through a settle function that calls it at once; every 404 precedes the act; after it every return is marked acted: true; before it only the ledger’s returns are marked, a recorded hit with its own acted and the busy for a pending entry of the same write id'],
+  ['X2', 'build/p317/SPEC.md §5.3.4 step 1, D2; build/p318/SPEC.md §5.1.2; build/p337/SPEC.md §5.5; build/p346/SPEC.md D6; build/p348/SPEC.md D28; build/p349/SPEC.md §4.2 step 1', 'THE STRICT PARSE, eight of them (Phase 346 adds parseStartBody, Phase 348 parseRemoveBody and parsePasteBody, Phase 349 parseRenameBody): one JSON.parse in the write path, inside a try, reached by the parse functions alone; each key set compared exactly (batch,session,write; mark,marker,question,session,write; session,text,write; dialog,keys,session,turn,write; agent,project,write; session,write; dialog,session,text,turn,write; name,session,write); the write id, the session id, the question id, the mark and the marker read one character at a time, and no pattern'],
+  ['X3', 'build/p317/SPEC.md D5, §3 row 18; build/p318/SPEC.md D4; build/p337/SPEC.md D24; build/p346/SPEC.md D17; build/p348/SPEC.md §4.2 step 3; build/p349/SPEC.md §4.2 step 3', 'THE LEDGER (and since Phase 346 the start branch’s, keyed keyOf(phone, start, write id), its pending entry storing acted; remove, paste and rename take the session branch’s): keyed on the verified phone, THE VERB (handed to keyOf whole and never mapped, Phase 348) and the write id, joined by a newline no part can hold; each entry stores its acted; its lifetime is 2 * POCKET_CLOCK_SKEW_MS imported from ./pairing; caps of 2,048 and 8,192 compared against; no entry evicted but by its lifetime or, pending and never acted, in the finally; the pending entry made at the in-flight claim; no node:fs'],
+  ['X4', 'build/p317/SPEC.md §5.3.4 step 3; build/p318/SPEC.md D4; build/p346/SPEC.md D16; build/p348/SPEC.md §4.2 step 3; build/p349/SPEC.md §4.2 step 3', 'ONE IN FLIGHT, ACROSS VERBS (since Phase 346 the start branch asks and claims the same phonesInFlight, releases it in its finally and never reads sessionsInFlight; since Phase 348 remove and paste, and since Phase 349 rename, claim the session branch’s two, so an End and a Remove, keys and a paste, or a rename and any other write, never overlap on one session): a claim per phone and per session, each asked first and never under a branch on the verb (nor, since Phase 348, beside a short circuit on it), claimed before the act and released in the finally of the try that holds the act, so an End and a message can never overlap on one session'],
+  ['X5', 'build/p317/SPEC.md §5.4, D7, D14; build/p318/SPEC.md §5.1.5; build/p337/SPEC.md §5.4; build/p346/SPEC.md §4.7, §4.8; build/p348/SPEC.md D47, D48, §4.2 step 4; build/p349/SPEC.md D4, §4.3 step 4, §7.1', 'POCKETWRITES: declared once, in routes.ts, with exactly end, choose, say, keys, start, (Phase 348) remove and paste and (Phase 349) rename; implemented once, in src/main/sessions/pocket-writes.ts, whose choose and say pass through to deps.reply, keys to deps.keys, start to deps.start and paste to deps.paste, and nothing else; built in src/main/capabilities.ts alone; end asks endRefusal( and .canEnd of sessionActionGates( with DOOR_GATE_ENV before its first await, which is killSession(; remove calls removeVerdict( (which asks removeRefusal( and .canRemove of sessionActionGates( with DOOR_REMOVE_GATE_ENV) and then removeSession( exactly once, the one call of it in the module, with nothing awaited between; (Phase 349) rename calls renameVerdict( (which reads .canRename of sessionActionGates( with DOOR_RENAME_GATE_ENV) and then renameSession( exactly once, the one call of it in the module, with nothing awaited between but the verb’s own await; sessionActionGates( is asked with those three environments alone and no other field of any is read; the batch arm calls the injected machineKnown( and nothing reads .answering; the production machineKnown is machineRow( from src/main/machines/store.ts; no other lifecycle verb and no status setter; PocketFacts.endOffer is optional'],
+  ['X6', 'build/p317/SPEC.md §5.3.1, §5.4, research 135 §4.8; build/p318/SPEC.md D19, D20; build/p337/SPEC.md §5.4; build/p346/SPEC.md §4.2; build/p348/SPEC.md D27, §5.1; build/p349/SPEC.md §4.2, §5.1', 'THE ANSWER (and since Phase 346 every start sentence too, from src/shared/start-copy.ts, over writes.ts and pocket-start.ts; since Phase 348 every sentence handed to removeAnswer( and pasteAnswer( or set in src/main/screen/paste.ts, removeRefusal’s own among them; since Phase 349 every sentence handed to renameAnswer(, the name rule’s src/shared/session-names.ts among the named ones, and a name read in the function that declares it): PocketWriteAnswer is exactly verb, write, outcome, reason and sentence; every sentence the write path, pocket-writes.ts, src/main/reply or src/main/screen sets is a named constant from lifecycle-words.ts, src/shared/reply-copy.ts, src/shared/screen-copy.ts, endRefusal’s or removeRefusal’s own, or POCKET_WRITE_SENTENCES; no .message is read; a caught error is told apart by isGmuxError(, by code, and nothing else'],
   ['X7', 'build/p317/SPEC.md D4, §5.3.2', 'NEVER 404 AFTER THE ACT: bind.ts posts nothing for an acted answer that fails validation; the listener’s late-answer timer cuts a write (writesCut) before it could answer 404; no refusal follows the forward, and every other 404 is a refusal before it or the read half of a choice that cuts a forwarded write'],
   ['X8', 'build/p317/SPEC.md D2, §5.3.1, §5.3.2', 'THE DOOR NEVER PARSES A WRITE: JSON.parse in the door process is presentationOfBody’s, reached by the pairing route alone; a write’s target is url.pathname, a write with a query is refused route, and doorRequestOf refuses a target that is not the write’s path; the cap is read from POCKET_WRITE_BODY_CAPS on both sides'],
   ['X9', 'build/p317/SPEC.md "§Fix round"', 'A PHONE IS REMOVED BY REMOVE ALONE: the one store write that filters a phone out is in removePhone, before its first await; no write route reaches it (the write path’s deps are exactly shuttingDown, stillPaired, routeServed, writes and now, and name nothing that drops a phone), and no answer carries a step to run after it (DoorAnswer has no after, and nothing in bind.ts, ipc.ts or writes.ts runs one)'],
   ['X10', 'build/p317/SPEC.md §5.3.2, §14 finding 22', 'THE REVOKED SOCKET: applyPins marks it revoked and destroys it at once unless it is answering a write (writes === 0); a forwarded write is counted on its socket and the socket is cut when that answer finishes or closes; handleRequest refuses a revoked socket before anything else'],
-  ['X11', 'build/p317/SPEC.md §5.3.4 step 7; build/p318/SPEC.md §5.1.4 step 7', 'ONE LOG LINE PER WRITE, whatever its verb: exactly one log call in the write path, after the act, interpolating the verb and the outcome word, with the session id as its one field, never the body, the write id, a header, a sentence, the question id, the mark, the marker or the text'],
-  ['X12', 'build/p317/SPEC.md D19, §5.6; build/p318/SPEC.md §5.1.7, D28; build/p337/SPEC.md D35; build/p346/SPEC.md D3; build/p348/SPEC.md D32', 'THE LINES SAY IT: describePocketDoor derives “Lets an allowed phone …” from fields.routes through a compiled map keyed by PocketWriteRouteId, whose clauses are exactly end a session, answer a numbered question, send a session one message, type into any session as you would at this Mac, start a session in a project open in Tortie, on this Mac or another machine, remove a session that has ended and paste text into a session on this Mac, joined as a list; POCKET_DOOR_HONESTY names the screen, the keys and the three, and no longer says it can change nothing else; POCKET_READ_ONLY_HONESTY is named nowhere'],
+  ['X11', 'build/p317/SPEC.md §5.3.4 step 7; build/p318/SPEC.md §5.1.4 step 7; build/p349/SPEC.md §4.2 step 3', 'ONE LOG LINE PER WRITE, whatever its verb: exactly one log call in the write path, after the act, interpolating the verb and the outcome word, with the session id as its one field, never the body, the write id, a header, a sentence, the question id, the mark, the marker, the text or (Phase 349) a name'],
+  ['X12', 'build/p317/SPEC.md D19, §5.6; build/p318/SPEC.md §5.1.7, D28; build/p337/SPEC.md D35; build/p346/SPEC.md D3; build/p348/SPEC.md D32; build/p349/SPEC.md D10', 'THE LINES SAY IT: describePocketDoor derives “Lets an allowed phone …” from fields.routes through a compiled map keyed by PocketWriteRouteId, whose clauses are exactly end a session, answer a numbered question, send a session one message, type into any session as you would at this Mac, start a session in a project open in Tortie, on this Mac or another machine, remove a session that has ended, paste text into a session on this Mac and rename a session, joined as a list; POCKET_DOOR_HONESTY names the screen, the keys and the three, and no longer says it can change nothing else; POCKET_READ_ONLY_HONESTY is named nowhere'],
   // PHASE 318, the reply (build/p318/SPEC.md §6.1).
-  ['Y1', 'build/p318/SPEC.md D3, §Revision R18; build/p337/SPEC.md D17; build/p346/SPEC.md D6; build/p348/SPEC.md D29', 'THE CAPS: POCKET_WRITE_BODY_CAPS is frozen and exactly end 512, choose 512, say 32,768, keys 16,384, start 512, remove 512 and paste 131,072, keyed by the closed write list'],
+  ['Y1', 'build/p318/SPEC.md D3, §Revision R18; build/p337/SPEC.md D17; build/p346/SPEC.md D6; build/p348/SPEC.md D29; build/p349/SPEC.md D6', 'THE CAPS: POCKET_WRITE_BODY_CAPS is frozen and exactly end 512, choose 512, say 32,768, keys 16,384, start 512, remove 512, paste 131,072 and rename 2,048, keyed by the closed write list'],
   ['Y2', 'build/p318/SPEC.md D5, §5.1.4 step 4; build/p33312/SPEC.md §6.1', 'STILL: the write path builds still from exactly the four asks of its own last check (the quit, the door stopping, the phone still paired and, since Phase 333.12, the route still served) and hands it to writes.choose( and writes.say( as their second argument; a message’s text reaches writes.say( and nothing else'],
   ['Y3', 'build/p318/SPEC.md D8, D9, §5.6, §Revision R19 b; build/p348/SPEC.md D52', 'THE ARGV, element for element: writer.ts and reader.ts compose only the press’s two control lines and its spawned list, the paste list, list-panes … -F PANE_FORMAT, display-message for the cursor and capture-pane -p [-e], and (Phase 348) the ONE load-buffer -b <name> - and the ONE delete-buffer -b <name> in the domain live in src/main/reply/buffer.ts, which composes nothing else; the press and the paste aim at the reading’s pane and never the session list-panes reads; -l only before -- and the marker; no Enter but the paste list’s'],
   ['Y4', 'build/p318/SPEC.md §5.6.2, research 135 §4.8; build/p348/SPEC.md D50, D52', 'THE TEXT’S ONE SINK: no argv element is derived from a message’s text, which reaches textRefusal( and loadWords( alone in writer.ts, and the stdin of buffer.ts’s one load-buffer alone there; the buffer is named by loadWords as its prefix and an id it mints (randomBytes(16)), the prefixes tortie-say- (writer.ts) and tortie-paste- (src/main/screen/paste.ts), never the phone’s write id; writer.ts and paste.ts reach load-buffer and delete-buffer only through loadWords( and dropWords(, and dropWords( sits in a finally in both'],
@@ -404,8 +431,8 @@ const RULES = [
   ['D10', 'build/p3321/SPEC.md §5.3, §5.4, §8.1', 'THE PROGRESS DECIDES NOTHING AND CARRIES NOTHING: PocketNameAnswer is exactly record, negative and unreadable; PocketNameProgress is exactly answers, asking, elapsedMs and nextInMs and no string; PocketStatus.nameProgress is PocketNameProgress | null; in ipc.ts the run’s startedAt, nextAt, endedAt and answers, and this.nameShown, are read inside nameProgressNow alone and written only in beginNameCheck, stopNameCheck, armNameRound and settleNameRound; nameProgressNow is called once, in status(), as nameProgress: this.nameProgressNow(); and PhoneSection.tsx’s pairingStage, pairAfterAllowNext and every live onPair name no nameProgress'],
   // PHASE 337, the Screen (build/p337/SPEC.md §6.1): a read that holds a
   // request, and a write that types every key.
-  ['Z1', 'build/p337/SPEC.md D1, §5.1; build/p348/SPEC.md §4.2 step 2', 'THE TWO ROWS: screen a signed GET read and keys a signed POST write, neither window-only, exactly one row each; SIGNED_ROUTES and WRITE_ROUTES in door/wire.ts each gain exactly that id (and WRITE_ROUTES since Phase 346 start, since Phase 348 remove and paste)'],
-  ['Z2', 'build/p337/SPEC.md D17, §14 M15; build/p348/SPEC.md D29', 'THE KEYS CAP: POCKET_WRITE_BODY_CAPS is exactly end 512, choose 512, say 32,768, keys 16,384, start 512, remove 512 and paste 131,072 (Y1 widened), and keys is at least twice the worst legal-shape keys body THIS GATE composes, so a C0 text is answered in words rather than dropped (the twice-the-worst rule is the keys cap’s alone; PS1 holds the paste’s)'],
+  ['Z1', 'build/p337/SPEC.md D1, §5.1; build/p348/SPEC.md §4.2 step 2; build/p349/SPEC.md §4.1 step 2', 'THE TWO ROWS: screen a signed GET read and keys a signed POST write, neither window-only, exactly one row each; SIGNED_ROUTES and WRITE_ROUTES in door/wire.ts each gain exactly that id (and WRITE_ROUTES since Phase 346 start, since Phase 348 remove and paste, since Phase 349 rename)'],
+  ['Z2', 'build/p337/SPEC.md D17, §14 M15; build/p348/SPEC.md D29; build/p349/SPEC.md D6', 'THE KEYS CAP: POCKET_WRITE_BODY_CAPS is exactly end 512, choose 512, say 32,768, keys 16,384, start 512, remove 512, paste 131,072 and rename 2,048 (Y1 widened), and keys is at least twice the worst legal-shape keys body THIS GATE composes, so a C0 text is answered in words rather than dropped (the twice-the-worst rule is the keys cap’s alone; PS1 holds the paste’s)'],
   ['Z3', 'build/p337/SPEC.md D17, §5.5, §Attack A1', 'THE KEYS PARSE: parseKeysBody compares the keys with dialog,keys,session,turn,write; holds 1 to POCKET_KEYS_MAX_ITEMS items, each exactly one own key t or k; compares a name with === against POCKET_SCREEN_KEY_NAMES; takes a named key other than BSpace only as the one item; reads turn by isQuestionId and dialog as null or isMark; and trims, normalises and replaces nothing'],
   ['Z4', 'build/p337/SPEC.md §5.4, D19, D21; build/p348/SPEC.md D50', 'THE KEYS VERB’S ORDER: the text rule, the gate, ONE awaited readFresh(, then the final check’s still(, bump(, onLastCheck?.( and the act, with nothing awaited from still( to the act, and the act’s lines written in ONE statement over the control client; and (Phase 348) the paste verb in src/main/screen/paste.ts holds the same order, its one act a spawned list, PS4 its whole'],
   ['Z5', 'build/p337/SPEC.md D16, D21, D22', 'THE ONE REFUSAL: asking is the status needs_input OR detectDialogRows( .atChoice in one function the verb asks; while asking, or when the body’s dialog is not null, the verb compares the turn with turns.current( and the dialog with the fresh one and refuses changed with SCREEN_QUESTION_MOVED; hashScreen(readBackWindowOf( is spelled once, in windowMarkOf, which the verb calls'],
@@ -444,7 +471,7 @@ const RULES = [
   ['SU2', 'build/p3331/SPEC.md D10, D16', 'NO TIMER AND NO READ AT OPEN: the sheet’s surface calls recheck( exactly twice, once in an onWindowLooked( callback and once under document.hasFocus(), in ONE effect that hands back the unsubscribe; onWindowLooked is imported from machines/remote-writes and is the only listener (no focus or visibilitychange listener of the surface’s own); no setInterval, setTimeout or requestAnimationFrame callback names it; rechecks()’s first statement asks the switch and recheck’s first statement asks rechecks()'],
   ['SU3', 'build/p3331/SPEC.md D11 to D13, §5.2.3; r2 §Attack F23', 'THE SETUP PRESSES: POCKET_SETUP_ACTIONS is exactly get-tailscale, open-tailscale and copy-admin-link; setupAction’s first statement after the parse returns false under isHarnessLaunch(process.env); each act once, after setupActionsNow(, the page TAILSCALE_DOWNLOAD_PAGE, the app TAILSCALE_APP_BUNDLE and the held link after approvalOpens(, written as funnel.ts’s one approvalCopyText( spells it (null unless approvalOpens(, else new URL(…).href beginning https://login.tailscale.com/, never the printed text; the 333.1 reverify); the press’s word reaches no act; shell.openExternal only in openApproval and electronSetupSeam, shell.openPath and clipboard only in electronSetupSeam, each read inside an arrow’s body; open-tailscale listed only for a pinned, non-override program at TAILSCALE_APP_PROGRAM; PocketHostDeps.setup handed by tests alone'],
   ['SU4', 'build/p3331/SPEC.md D2, D3', 'THE STAT: status() calls this.funnel.resolve() exactly once, reaches the program only through funnelProgramOf( and hands the same resolution to setupActionsNow(, and names no readTailnet(, readServe(, exec, spawn or sweepFunnelOrphan(; tailscale is this.tailscaleNow( called once, in status(), and its body names no tailnetFacts, readStore(, facts( or fields('],
-  ['SU5', 'build/p3331/SPEC.md D4, D30', 'DRAWN AND NEVER HASHED: no account in PocketExecutionFields, NORMALIZE, PocketStore, facts.ts, routes.ts, door/**, any contract type but PocketStatus, or any log call’s arguments in the domain; POCKET_EXECUTION_HASH_ALGORITHM is sha256-pocket-exec-v3 and POCKET_ROUTE_IDS the eleven routes it was and, since Phase 346, start, and since Phase 348 remove and paste, last in that order'],
+  ['SU5', 'build/p3331/SPEC.md D4, D30; build/p349/SPEC.md §4.1', 'DRAWN AND NEVER HASHED: no account in PocketExecutionFields, NORMALIZE, PocketStore, facts.ts, routes.ts, door/**, any contract type but PocketStatus, or any log call’s arguments in the domain; POCKET_EXECUTION_HASH_ALGORITHM is sha256-pocket-exec-v3 and POCKET_ROUTE_IDS the eleven routes it was and, since Phase 346, start, since Phase 348 remove and paste, and since Phase 349 rename, last in that order'],
   // PHASE 333.12.1 (build/p333121/SPEC.md §6.1): his ruling of 2026-10-15,
   // "ok i like your proposed design, ship it", REPLACES ruling 2: the hashed
   // lines and both warnings move behind ONE shut Details, byte for byte, and
@@ -463,7 +490,7 @@ const RULES = [
   ['AR6', 'build/p33312/SPEC.md D8, D22', 'ONE SERVED SET: PocketHost declares servedRoutes, routeServed and postRoutes once each; servedRoutes reads this.fields().routes and pocketRouteIds() through servedRoutesOf( and nothing else (no record read); both handlers are handed routeServed; startPocketDoor( is handed routes: this.servedRoutes(); updatePocketDoor({ routes is called only inside postRoutes, which returns while the door is not listening and is called in confirmDoor and in openNow after the door answered'],
   ['AR7', 'build/p33312/SPEC.md D13', 'THE WORDS FOLLOW THE ALLOWED SET: pocketDoorHonesty is declared once, in src/shared/ipc/pocket.ts, and DRIVEN answers POCKET_DOOR_HONESTY byte for byte for LEGACY_ALLOWED_ROUTES and a planted clause only once allowed; POCKET_HONESTY_ADDED is typed Record<Exclude<PocketRouteId, LegacyAllowedRouteId>, string>; the sheet’s confirm block draws pocketDoorHonesty(status.routesOffered), what the Allow beside it grants (the fix round), and no file under src/renderer draws POCKET_DOOR_HONESTY itself; describePocketDoor’s route and clause lines read only fields.routes'],
   ['AR8', 'build/p33312/SPEC.md D9, D10, D11, D11b; his answer 10', 'THE THREE CONFIRM PATHS AND THE TWO NARROWINGS: confirmDoor hands confirmPocketDoor( the result of this.proposal(, never this.fields(); PocketPairing is built with fieldsNow: () => this.fields() and allow hands confirmPocketDoor( this.fieldsWithPending() alone; the sheet calls its confirmDoor helper exactly once, inside onConfirmDoor, and onSetPushAlerts calls no confirmDoor; narrowPocketDoor( is called only in removePhone and setPushAlerts, each handing it exactly (<a const read from this.fields() before the store write>, this.fields()) after that write (the fix round, lens 1’s K16), and its body asks isPocketSubtraction( and compares the record with pocketExecutionHash(before) before writeConfirmRecords(; isPocketSubtraction (DRIVEN) admits exactly one phone gone or pushAlerts true to false, by canonicalPocketText('],
-  ['AR9', 'build/p33312/SPEC.md D12; build/p346/SPEC.md D3; build/p348/SPEC.md D26, D32', 'THE TABLE IS HELD TO THE LEDGER: POCKET_ROUTE_LEDGER’s rows are literals and the ledger imports nothing; every POCKET_ROUTES row has a ledger row of the same id with the same method, path, reads, signed and windowOnly; its bodyCap is the door’s cap for that row and its clause WRITE_CLAUSES[id] for a write and null for a read; ledger ids are distinct; every LEGACY_ALLOWED_ROUTES id is a ledger id; (Phase 346) the start row is exactly POST /v1/start, signed, reads false, not window-only, bodyCap 512, its clause D3’s; and (Phase 348) the remove row is exactly POST /v1/remove, bodyCap 512, and the paste row POST /v1/paste, bodyCap 131072, each with its clause, the ledger’s last three rows start, remove and paste'],
+  ['AR9', 'build/p33312/SPEC.md D12; build/p346/SPEC.md D3; build/p348/SPEC.md D26, D32; build/p349/SPEC.md §4.1 step 2', 'THE TABLE IS HELD TO THE LEDGER: POCKET_ROUTE_LEDGER’s rows are literals and the ledger imports nothing; every POCKET_ROUTES row has a ledger row of the same id with the same method, path, reads, signed and windowOnly; its bodyCap is the door’s cap for that row and its clause WRITE_CLAUSES[id] for a write and null for a read; ledger ids are distinct; every LEGACY_ALLOWED_ROUTES id is a ledger id; (Phase 346) the start row is exactly POST /v1/start, signed, reads false, not window-only, bodyCap 512, its clause D3’s; and (Phase 348) the remove row is exactly POST /v1/remove, bodyCap 512, and the paste row POST /v1/paste, bodyCap 131072, each with its clause, and (Phase 349) the rename row POST /v1/rename, bodyCap 2048, its clause D10’s, the ledger’s last four rows start, remove, paste and rename'],
   ['AR10', 'build/p33312/SPEC.md D11c; his answer 9', 'REMOVE KEEPS THE OTHERS: removePhone reads this.fields() and pocketConfirmStatus( BEFORE its store write, which stays before the first await; narrowPocketDoor( is called only under the confirmed reading AND while another phone remains; forgetPocketDoor() is reached only when that did not record'],
   ['AR11', 'build/p33312/SPEC.md D5, D6', 'THE STATUS: status() answers confirmLines and confirmHash from ONE describePocketDoor( call over this.proposal( (directly or through one const), routesOffered: servedRoutesOf(<that proposal>.routes, pocketRouteIds()) (the fix round), routesAllowed: this.servedRoutes(), and routesWaiting from waitingRoutesOf( over fields.routes with the on-record condition naming confirmed and changed; PocketStatus declares the three lists readonly PocketRouteId[]; the proposal is proposedRoutes(fields.routes, pocketRouteIds(), state !== never), and proposedRoutes answers the build alone when not on record (DRIVEN, with servedRoutesOf and waitingRoutesOf)'],
   ['AR12', 'build/p33312/SPEC.md D23', 'THE SHEET DRAWS A WAITING ROUTE ON A PUBLISHED DOOR: steps.ts’s publishRow listening arm keeps STATE_PUBLISHED, published and doorListening( and draws [{ kind: confirm }] exactly under routesWait(status), which reads state === listening, confirmable and routesWaiting.length > 0 and nothing else; doorNeedsConfirm’s body is unchanged'],
@@ -472,13 +499,13 @@ const RULES = [
   // hash come from; the sheet draws them and composes none; Details names
   // every hashed fact.
   ['AF1', 'build/p333121/SPEC.md D1, D2', 'THE FACE IS MAIN’S, FROM THE PROPOSAL: pocketConfirmFace is declared once, in src/shared/ipc/pocket.ts; its first parameter is typed PocketFaceFacts, which declares exactly funnelProgram, publicName, publicPort, phones (whose element type declares exactly id and label) and pushAlerts; PocketStatus declares confirmFace: PocketConfirmFace, required; under src/main/** (tests excepted) it is called exactly once, inside status(), with exactly four arguments: the identifier describePocketDoor( is handed there, which is the one const initialised from this.proposal(, then routesOffered, routesWaiting and gate.state, where those two are consts of status() initialised to servedRoutesOf(<that proposal>.routes, pocketRouteIds()) and waitingRoutesOf(fields.routes, pocketRouteIds(), …); the answer carries confirmFace from that call'],
-  ['AF2', 'build/p333121/SPEC.md D3 to D8; build/p348/SPEC.md D32', 'THE FACE SAYS EACH FACT ONCE, DRIVEN (and since Phase 348 its drives pass the eleven, the twelve with start, and the fourteen with remove and paste, and two Allow lines waiting at once): transpiled in memory, pocketConfirmFace answers for never, changed and unknown the rows reach, can, phones, alerts in that order labelled Reachable at, Your phone can, Phones, Alerts; reach is <name>:<port>, by Tailscale for the app’s path, by the whole path otherwise and no by for an empty one; can over the eleven is exactly “see your sessions, type into them, answer questions, send a message, end a session”, says each clause once and leaves out a route not offered or waiting; phones the labels in id order joined by “, ” or “none yet”; alerts “through Apple, never what an agent asks” or “off”; confirmed gives no rows; a waiting route with a row in the table handed in reads New: <title> and its sentence, with none New: <id> and null, in the order handed in; POCKET_FACE_CLAUSES is typed Readonly<Record<PocketRouteId, string | null>> with a key for every route, POCKET_NEW_ROUTE_WORDS is PocketNewRouteTable, frozen, and PocketNewRouteTable is Readonly<Partial<Record<Exclude<PocketRouteId, LegacyAllowedRouteId>, PocketNewRouteWords>>>; the composer and pocketFaceProgram name no imported identifier, no Date, no process and no toLocale'],
+  ['AF2', 'build/p333121/SPEC.md D3 to D8; build/p348/SPEC.md D32; build/p349/SPEC.md D10, D13', 'THE FACE SAYS EACH FACT ONCE, DRIVEN (and since Phase 348 its drives pass the eleven, the twelve with start, and the fourteen with remove and paste, and two Allow lines waiting at once; since Phase 349 the fifteen with rename, and rename’s one New line waiting over the fourteen): transpiled in memory, pocketConfirmFace answers for never, changed and unknown the rows reach, can, phones, alerts in that order labelled Reachable at, Your phone can, Phones, Alerts; reach is <name>:<port>, by Tailscale for the app’s path, by the whole path otherwise and no by for an empty one; can over the eleven is exactly “see your sessions, type into them, answer questions, send a message, end a session”, says each clause once and leaves out a route not offered or waiting; phones the labels in id order joined by “, ” or “none yet”; alerts “through Apple, never what an agent asks” or “off”; confirmed gives no rows; a waiting route with a row in the table handed in reads New: <title> and its sentence, with none New: <id> and null, in the order handed in; POCKET_FACE_CLAUSES is typed Readonly<Record<PocketRouteId, string | null>> with a key for every route, POCKET_NEW_ROUTE_WORDS is PocketNewRouteTable, frozen, and PocketNewRouteTable is Readonly<Partial<Record<Exclude<PocketRouteId, LegacyAllowedRouteId>, PocketNewRouteWords>>>; the composer and pocketFaceProgram name no imported identifier, no Date, no process and no toLocale'],
   ['AF3', 'build/p333121/SPEC.md D1, D12', 'THE SHEET DRAWS THE FACE AND COMPOSES NONE: outside its <details> the confirm block draws text only through row.label and row.value of status.confirmFace.rows.map(, the title and sentence of status.confirmFace.added.map( and BTN_ALLOW, draws each of the five, and no JSX text and no string literal is drawn as a child; it holds no <li>, <ul> or set-config-warning outside the <details>; its layout, data-phone-confirm-face, is chosen from status.confirmFace.rows.length and no other field; no file under src/renderer that is not a test names pocketConfirmFace, pocketFaceProgram, POCKET_FACE_CLAUSES, POCKET_NEW_ROUTE_WORDS or any POCKET_FACE_ constant'],
   ['AF4', 'build/p333121/SPEC.md §2.3, §4', 'DETAILS NAMES EVERY HASHED FACT: describePocketDoor reads fields.<key> for every key of NORMALIZE, and <phone>.<member> over fields.phones for every member NORMALIZE’s phones emits but id (which is phoneIdOf(signingKey)); a key added to NORMALIZE without a read here is red. Its DRIVEN half is p333121-face.test.ts F3, ablation:p313’s face check'],
   // PHASE 346, start a session from the phone (build/p346/SPEC.md §5.1): the
   // door's fifth write, POST /v1/start, whose act lives outside the door in
   // src/main/sessions/pocket-start.ts and builds exactly quickCreate's input.
-  ['NS1', 'build/p346/SPEC.md D1, D2, D3, D4; build/p348/SPEC.md D26', 'THE ROUTE: exactly one start row, POST /v1/start, signed, reads: false, not window-only; start in POCKET_ROUTE_IDS (followed only by remove and paste, Phase 348) and POCKET_WRITE_ROUTE_IDS (end, choose, say, keys, start, remove, paste), NOT in LEGACY_ALLOWED_ROUTES; WRITE_ROUTES and DoorWriteRoute in door/wire.ts gain it; WRITE_CLAUSES.start, the ledger row’s clause, POCKET_HONESTY_ADDED, POCKET_FACE_CLAUSES and POCKET_NEW_ROUTE_WORDS each hold D3’s exact words, none naming Face ID'],
+  ['NS1', 'build/p346/SPEC.md D1, D2, D3, D4; build/p348/SPEC.md D26; build/p349/SPEC.md §4.1', 'THE ROUTE: exactly one start row, POST /v1/start, signed, reads: false, not window-only; start in POCKET_ROUTE_IDS (followed only by remove and paste, Phase 348, and rename, Phase 349) and POCKET_WRITE_ROUTE_IDS (end, choose, say, keys, start, remove, paste, rename), NOT in LEGACY_ALLOWED_ROUTES; WRITE_ROUTES and DoorWriteRoute in door/wire.ts gain it; WRITE_CLAUSES.start, the ledger row’s clause, POCKET_HONESTY_ADDED, POCKET_FACE_CLAUSES and POCKET_NEW_ROUTE_WORDS each hold D3’s exact words, none naming Face ID'],
   ['NS2', 'build/p346/SPEC.md D4, D5, §4.2; build/p348/SPEC.md D27', 'THE ANSWERS: PocketWriteAnswer.verb is PocketSessionWriteId, from POCKET_SESSION_WRITE_IDS, exactly the four; PocketStartAnswer is exactly verb, write, outcome, reason, sentence, session, its verb the literal start; PocketStartReason the seven; startAnswer composes the six one by one; and (Phase 348) PocketRemoveAnswer and PocketPasteAnswer are declared beside it, each exactly verb, write, outcome, reason, sentence; src/shared/start-copy.ts holds the nine sentences byte for byte and imports nothing; every sentence handed to startAnswer or set in pocket-start.ts is a named constant of start-copy.ts or POCKET_WRITE_SENTENCES'],
   ['NS3', 'build/p346/SPEC.md D6; his answer 7', 'THE BODY: parseStartBody compares the sorted keys with exactly agent,project,write, reaches the one JSON.parse, compares the agent with === against LAUNCHABLE_AGENT_IDS (imported, no agent id spelled in the write path), reads the project and the write id one character at a time; and DRIVEN over a hostile corpus of at least 30 bodies (shell, SHELL, a padded or NUL id, an overlay-only id, a 65-character project, a project holding /, . or %, a 31- and 33-hex write id, arrays, strings, null, nested objects, duplicate keys with the bad value last AND first, a legal value written with a \\u escape, a 600-byte body), every one malformed, a refused body echoing its well-formed write id, beside the honest body accepted'],
   ['NS4', 'build/p346/SPEC.md D13, D15', 'NOTHING FROM THE PHONE BUT TWO IDS: in pocket-start.ts the phone’s project is read only in an === against a listed project’s id and its agent only in an === or includes( against installed ids or as composeStartInput’s agent, and the input is never read whole; composeStartInput sets exactly name (ordinalName), projectPath (the row), agent and, conditionally, projectMachineId and machineId (the row), BOTH, each once in a spread falling back to {} under ONE condition that reads the row’s machine, extraArgs (defaultLaunchArgs) and capture (captureDefaultFor); no cwd, startAnyway, login or signIn key anywhere in the module'],
@@ -488,7 +515,7 @@ const RULES = [
   ['NS8', 'build/p346/SPEC.md §3.3; X1 widened', 'THE START BRANCH’S ORDER: parse, ledger, this phone’s write in flight, the start in flight, the rate, the phone’s claim, the start’s claim, the pending entry, the last check (ONE, asking routeServed for start, refusing with one 404), the act through startSettled( in the very next statement (which calls the act before any await and catches its rejection), the outcome and the one log line (the outcome word and the session alone), in that order; both claims released in the finally of the try that holds the act'],
   ['NS9', 'build/p346/SPEC.md D9, D26, §4.8', 'THE KEY: sessions reads facts.start?.() once, through pocketStartOf(, and spreads it last; pocketStartOf answers undefined for anything that is not { state: waiting } or a whole offer, DRIVEN over 16 hostile values (an unknown state, a project naming an unlisted place, 201 projects, a 300-character label, a chosen or defaultAgent not listed, a number where a string is, 65 agents, …) beside waiting and a whole offer answered'],
   ['NS10', 'build/p346/SPEC.md D2, D9, §4.11, §4.13', 'THE WAITING STATE: capabilities.ts hands the facts start as () => pocketStart.sessionsKey(pocketHost?.startAllowed() === true); startAllowed is ONE public PocketHost method whose body is return this.routeServed(\'start\') alone, and nothing in the door’s domain asks it'],
-  ['NS11', 'build/p346/SPEC.md §4.7, §4.13; X5 widened; build/p348/SPEC.md §4.2 step 4', 'THE PASS-THROUGH: PocketWrites holds exactly end, choose, say, keys, start, remove and paste (Phase 348); createPocketWrites’s start passes to deps.start.start( and does nothing else, and pocket-writes.ts calls no createSession(; capabilities.ts alone builds createPocketStart(, once'],
+  ['NS11', 'build/p346/SPEC.md §4.7, §4.13; X5 widened; build/p348/SPEC.md §4.2 step 4; build/p349/SPEC.md §4.2 step 4', 'THE PASS-THROUGH: PocketWrites holds exactly end, choose, say, keys, start, remove, paste and rename (Phases 348 and 349); createPocketWrites’s start passes to deps.start.start( and does nothing else, and pocket-writes.ts calls no createSession(; capabilities.ts alone builds createPocketStart(, once'],
   ['NS12', 'build/p346/SPEC.md D31; 333.12 D16', 'THE SEAM CONFIRMS THE PROPOSAL: push-seam.ts hands every confirmDoor( host.status().confirmLines and host.status().confirmHash (directly or through one status const), and names no pocketConfirmStatus(host.fields())'],
   // PHASE 348, remove an ended session and paste from the phone
   // (build/p348/SPEC.md §7.1): the door's sixth and seventh writes. Remove's act is
@@ -501,7 +528,7 @@ const RULES = [
   ['RM5', 'build/p348/SPEC.md D48, §4.2 step 4', 'THE REMOVE ACT: createPocketWrites’s remove calls removeVerdict(, then removeSession( and broadcastSessions( in that order, with no await between the verdict and the verb; removeSession( is called once in the module and broadcastSessions( once; a throw is told apart by isGmuxError( and its code alone (SESSION_NOT_FOUND gone, INVALID_INPUT main’s gate asked again, else REMOVE_FAILED)'],
   ['RM6', 'build/p348/SPEC.md D49', 'THE REMOVE OFFER: removeConfirm is set only by routes.ts’s session composer, only when facts.removeConfirmOf answers non-null, its title, body and confirmLabel copied one by one; PocketFacts.removeConfirmOf is optional; capabilities.ts hands it asking removeAllowed() before removeOffer(; removeAllowed is ONE PocketHost method answering this.routeServed(\'remove\') alone'],
   ['RM7', 'build/p348/SPEC.md D7, D48; CLAUDE.md refusal 5', 'NOTHING ELSE IN REMOVE’S PATH: remove and removeVerdict set no status, kill nothing, log nothing, name no machine’s verb (no execOn(, sendToMachine( or killSession() and name no owner check'],
-  ['PS1', 'build/p348/SPEC.md D21, D26, D29, D32', 'THE PASTE ROUTE, ITS CAP AND ITS WORDS: exactly one paste row, POST /v1/paste, signed, reads: false, not window-only, LAST in POCKET_ROUTE_IDS and in POCKET_WRITE_ROUTE_IDS, NOT in LEGACY_ALLOWED_ROUTES nor POCKET_SESSION_WRITE_IDS; WRITE_ROUTES and DoorWriteRoute name it; its cap 131,072, at or above the worst legal body THIS GATE composes (16,384 C0 bytes each escaped \\u00XX with the other four keys at their longest, 98,566 bytes); POCKET_PASTE_MAX_TEXT_BYTES is 16,384, declared once, in the contract; WRITE_CLAUSES.paste, the ledger row’s clause and POCKET_HONESTY_ADDED.paste are paste text into a session on this Mac, POCKET_FACE_CLAUSES.paste paste into a session and POCKET_NEW_ROUTE_WORDS.paste D32’s title and sentence, none naming Face ID'],
+  ['PS1', 'build/p348/SPEC.md D21, D26, D29, D32; build/p349/SPEC.md §4.1', 'THE PASTE ROUTE, ITS CAP AND ITS WORDS: exactly one paste row, POST /v1/paste, signed, reads: false, not window-only, right after remove in POCKET_ROUTE_IDS and in POCKET_WRITE_ROUTE_IDS (last until Phase 349 appended rename after it), NOT in LEGACY_ALLOWED_ROUTES nor POCKET_SESSION_WRITE_IDS; WRITE_ROUTES and DoorWriteRoute name it; its cap 131,072, at or above the worst legal body THIS GATE composes (16,384 C0 bytes each escaped \\u00XX with the other four keys at their longest, 98,566 bytes); POCKET_PASTE_MAX_TEXT_BYTES is 16,384, declared once, in the contract; WRITE_CLAUSES.paste, the ledger row’s clause and POCKET_HONESTY_ADDED.paste are paste text into a session on this Mac, POCKET_FACE_CLAUSES.paste paste into a session and POCKET_NEW_ROUTE_WORDS.paste D32’s title and sentence, none naming Face ID'],
   ['PS2', 'build/p348/SPEC.md D28, §4.6 step 8', 'THE PASTE BODY: parsePasteBody compares the sorted keys with exactly dialog,session,text,turn,write (PASTE_KEYS), reads turn by isQuestionId, dialog as null or isMark, the session and the write id by their own readers, and the text as it is; and DRIVEN over a hostile corpus (an extra key, a missing dialog, a turn that is not a question id, a number, null, an array or an object for the text, bad ids) every one malformed, beside the honest body whose text comes back byte for byte'],
   ['PS3', 'build/p348/SPEC.md D27, §4.6 step 8', 'THE PASTE ANSWER: PocketPasteAnswer is exactly verb, write, outcome, reason and sentence, its verb the literal paste; PocketPasteReason exactly the nine words malformed, gone, changed, unreachable, machine, empty, long, character and stopped; pasteAnswer is exported from writes.ts and composes the five one by one'],
   ['PS4', 'build/p348/SPEC.md D50, D22', 'THE PASTE VERB’S ORDER: createScreenPaste’s paste asks pasteRefusal( first, the machine refusal before loadWords(, loadWords( before the ONE awaited readFresh(, then still(, bump(, onLastCheck?.( and ONE run( whose argv is exactly copy-mode -q -t <pane> ; paste-buffer -p -d -b <name> -t <pane>, the buffer loadWords( answered and no send-keys, no Enter and no -S; nothing awaited from still( to the act'],
@@ -509,6 +536,17 @@ const RULES = [
   ['PS6', 'build/p348/SPEC.md D30, §4.6 step 9', 'THE PASTE FLAG: paste is composed only in compose.ts’s composeScreen, from the screen being typable and the session on this Mac; routes.ts copies it only in screenBodyOf and only when its caller says the route is served, which the screen route reads from facts.pasteAllowed?.() === true; PocketFacts.pasteAllowed is optional and pasteAllowed is ONE PocketHost method answering this.routeServed(\'paste\') alone'],
   ['PS7', 'build/p348/SPEC.md D50; CLAUDE.md refusal 5', 'THE PASTE MODULE’S SILENCE: src/main/screen/paste.ts reads no .message, makes no log call, names no status setter but noteUserInput(, names no execOn( or typePhoneKeys( and no send-keys, and createScreenPaste( is built ONCE, in capabilities.ts'],
   ['PS8', 'build/p348/SPEC.md D43, D44, D45', 'THE ONE READER OF THE MARKS: wrapsOf and marksRoadOf are declared once, in compose.ts; wrapsOf is the only reader of capture-pane -F’s prefix (^([DHOPWX]+|-) , marked when the letters hold W) and of the fallback’s -T -N / -J alignment; the ink guard reads the composed row’s last cell; the version lines 3.7b and 3.4 are declared once each; and DRIVEN over §2.4’s cases (G1b’s cleared row and the alternate screen marked nothing, a prompt row with W marked, the last row never listed)'],
+  // PHASE 349 (build/p349/SPEC.md §7.1): rename a session from the phone.
+  ['RN1', 'build/p349/SPEC.md §4.1, D6, D8, D10, D13', 'THE ROUTE: exactly one rename row, POST /v1/rename, signed, a write, not window-only, LAST in POCKET_ROUTES, POCKET_ROUTE_IDS and POCKET_WRITE_ROUTE_IDS (right after paste), NOT in LEGACY_ALLOWED_ROUTES nor POCKET_SESSION_WRITE_IDS; WRITE_ROUTES and DoorWriteRoute name it; its cap 2,048, at least twice the worst legal body THIS GATE composes (120 C0 units each escaped \\u00XX with the longest session id, 915 bytes); its ledger row ONE literal, last, bodyCap 2048, clause rename a session, equal to WRITE_CLAUSES.rename and POCKET_HONESTY_ADDED.rename; POCKET_FACE_CLAUSES.rename rename sessions and POCKET_NEW_ROUTE_WORDS.rename D10’s title and sentence, none naming Face ID'],
+  ['RN2', 'build/p349/SPEC.md §4.2 step 1, D6', 'THE BODY: parseRenameBody compares the sorted keys with exactly name,session,write (RENAME_KEYS), reaches the one JSON.parse, reads session by isSessionId and write by isWriteId, takes name as typeof name === \'string\' AS IT IS (nothing trims or normalizes it) and does NOT reach onlyItsOwnBytes(; and DRIVEN over a hostile corpus of at least 25 bodies, every one malformed and echoing its well-formed write id, beside honest bodies whose name comes back exactly (the empty one, spaces, a refused character, a lone surrogate, an escaped name, a key given twice keeping its last value)'],
+  ['RN3', 'build/p349/SPEC.md §4.1 step 1, §4.2 step 2, D21', 'THE ANSWER: PocketRenameAnswer is exactly verb, write, outcome, reason, sentence and name, in that order, verb the literal rename, reason PocketRenameReason | null and name string | null; PocketRenameReason exactly malformed, gone, unreachable, changed and name; renameAnswer an exported function of (write, outcome, reason, sentence, name) composing the six one by one into one object; doorAnswer’s ONE rename arm hands it null for the name; every renameAnswer( handed done carries a name and every other one null (D21); and DRIVEN, the six in order'],
+  ['RN4', 'build/p349/SPEC.md §4.2 step 3, D21', 'THE PATH: STEP 1’s ladder names verb === \'rename\' ? parseRenameBody(body) once, inside the one parse statement, paste the fall-through; STEP 5’s one statement after the last check calls renameSettled(() => writes.rename({ sessionId: parsed.session, name: parsed.name }), parsed.write) once; renameSettled and renameActedOf are declared once, name RENAME_FAILED and answer only done, refused and failed; and DRIVEN through the shipping handler: a done carries the stored name, a done with an empty or non-string name, an outcome nothing names, a rejection and a throw each read failed with RENAME_FAILED, every one a 200 marked acted'],
+  ['RN5', 'build/p349/SPEC.md §4.3 step 4, D3, D4, §10.3', 'THE VERDICT’S ORDER: renameVerdict is declared once, exported, pure (no await, no core, deps, manifest, Date or process) and calls sessionActionGates( and sessionNameRefusal( and nothing else, never endRefusal( or removeRefusal(; it reads .canRename of DOOR_RENAME_GATE_ENV once and nothing else; its arms run gone, unreachable, the gate’s changed, the far changed, then name; DOOR_RENAME_GATE_ENV is declared once, frozen, every field off; and DRIVEN over every status on this Mac and another machine: canRename the same over every environment, the far ended rows (and only they) the gate passing and the verdict refusing changed, renameTargetVerdict and renameOfferOf tracking the first four arms, and the name’s own arm over D5’s cases'],
+  ['RN6', 'build/p349/SPEC.md §4.3 step 4', 'THE FIRST AWAIT: in createPocketWrites’s rename, renameVerdict( precedes the one first await, which is core.renameSession( handed trimmedSessionName( of the name; and DRIVEN over a fake core: a padded name renamed trimmed, once, on a live or ended row on this Mac and a live row on another machine, and nothing called for an ended far row, a refused name, an id nothing lists or a core that has not booted'],
+  ['RN7', 'build/p349/SPEC.md §4.3 step 4', 'CODES ONLY: nothing in the rename’s path reads a .message; a caught value is read through isGmuxError( alone; SESSION_NOT_FOUND and INVALID_INPUT are asked for by code; and DRIVEN: SESSION_NOT_FOUND gone, INVALID_INPUT changed, a plain error and another code failed with RENAME_FAILED, and no error’s text in any answer'],
+  ['RN8', 'build/p349/SPEC.md §4.3 step 4, D8; CLAUDE.md refusal 5', 'NOTHING ELSE: rename, renameOffer, renameVerdict, renameTargetVerdict, renameOfferOf and everything they reach set no status, call no noteUserInput(, kill nothing, remove nothing, start nothing, log nothing, name no machine’s verb (no execOn(, remoteRename( or sendToMachine() and name no owner check'],
+  ['RN9', 'build/p349/SPEC.md D5, §4.3 step 1, §5.1', 'THE ONE RULE: sessionNameRefusal, trimmedSessionName and SESSION_NAME_MAX_UNITS (120) are declared once, in src/shared/session-names.ts; each of the three sentences is declared as a constant ONCE, there, beside the Mac’s own throw of the first in renameSessionAdmitted, byte for byte; on the Mac the door’s verb alone calls the rule; the rule reads one code unit at a time and no pattern; and DRIVEN over D5’s cases in their order (empty, long before character, every refused range and its edges, a valid pair, a lone half), trimmedSessionName ECMAScript’s own trim'],
+  ['RN10', 'build/p349/SPEC.md §4.2 steps 5 and 6, §4.3 step 7, D14', 'THE OFFERS AND THE FAR LOG: rename: true is set exactly twice, by rowOf and the Sessions row composer, each as ...(facts.renameOffer?.(session) === true ? { rename: true } : {}); renames: true once, in the Sessions answer, right before start and never inside pocketStartOf; PocketFacts.renameOffer and .renames are optional; capabilities.ts asks pocketHost?.renameAllowed() === true before pocketWrites.renameOffer(; PocketHost.renameAllowed is return this.routeServed(\'rename\') alone; facts.ts passes both through; and remoteRename’s two warnings read a caught error as gmuxErrorPayloadOf(err)?.code and nothing else, no .message and no name']
 ];
 
 if (process.argv.includes('--list')) {
@@ -1028,8 +1066,10 @@ function routeRules() {
   // adding start, his request of 2026-10-12, the one write that names no
   // session; Phase 348, build/p348/SPEC.md D26, adding remove and paste, his
   // words of 2026-10-18, "the ability to remove it" and "the ability to paste
-  // copied content"). Sorted, because both sides are compared sorted.
-  const WRITE_IDS = ['choose', 'end', 'keys', 'paste', 'remove', 'say', 'start'];
+  // copied content"; Phase 349, build/p349/SPEC.md §4.1, adding rename, his
+  // words of 2026-10-19, "making it possible to rename sessions from the
+  // phone"). Sorted, because both sides are compared sorted.
+  const WRITE_IDS = ['choose', 'end', 'keys', 'paste', 'remove', 'rename', 'say', 'start'];
   const tableWrites = writeRows.map((w) => w.id ?? '(no literal id)').sort();
   checked('R2', 3);
   if (tableWrites.join(',') !== WRITE_IDS.join(',')) {
@@ -1086,6 +1126,11 @@ function routeRules() {
     checked('R2', 2);
     if (caps['remove'] !== 512) fail('R2', `${rel(limits)}: POCKET_WRITE_BODY_CAPS.remove is ${J(caps['remove'] ?? null)}; remove has its own cap, 512 (build/p348/SPEC.md D29)`);
     if (caps['paste'] !== 131_072) fail('R2', `${rel(limits)}: POCKET_WRITE_BODY_CAPS.paste is ${J(caps['paste'] ?? null)}; paste has its own cap, 131,072 (build/p348/SPEC.md D29)`);
+    // PHASE 349 (build/p349/SPEC.md D6, §2.4): rename's own 2,048 (its worst
+    // legal body, 120 C0 units each escaped \u00XX, is 915 bytes, and must
+    // reach main to be refused in words). RN1 composes the worst body itself.
+    checked('R2');
+    if (caps['rename'] !== 2_048) fail('R2', `${rel(limits)}: POCKET_WRITE_BODY_CAPS.rename is ${J(caps['rename'] ?? null)}; rename has its own cap, 2,048 (build/p349/SPEC.md D6)`);
   }
 
   // No pattern dispatch anywhere in the table's module, or in the module that
@@ -1197,8 +1242,21 @@ function routeRules() {
  * newline (`--write-route-pin`'s method), and `printf '<fourteen lines>' |
  * LC_ALL=C sort | shasum -a 256` with the final newline taken off, both
  * `2f5feba1…`. LEGACY_ROUTE_PIN does not move.
+ *
+ * PHASE 349 MOVED IT ON PURPOSE, from Phase 348's
+ * `2f5feba1e9a0250faa601217a7ad7d3787a05cab3d70c571b64c3bd878343163`
+ * (fourteen lines) to the value below, by its one write row
+ * `POST /v1/rename` (build/p349/SPEC.md §2.4, §7.1, his words of 2026-10-19,
+ * "making it possible to rename sessions from the phone"): fifteen sorted
+ * lines, the value the spec step measured, re-derived by the door builder
+ * two ways from the table's TEXT before the table held the row, node's
+ * `createHash('sha256')` over the fifteen lines sorted and joined by a
+ * newline (`--write-route-pin`'s method), and `grep | sed | LC_ALL=C sort |
+ * perl -pe 'chomp if eof' | shasum -a 256`, both `3ba0fec5…`, and both giving
+ * Phase 348's `2f5feba1…` with the rename line left out. LEGACY_ROUTE_PIN does
+ * not move.
  */
-const ROUTE_PIN = '2f5feba1e9a0250faa601217a7ad7d3787a05cab3d70c571b64c3bd878343163';
+const ROUTE_PIN = '3ba0fec56446be39e7ec0e15b17053cfcb1cbcb05d4448201c78cb7c078ed706';
 
 /**
  * THE ELEVEN, PINNED FOR GOOD (Phase 346, build/p346/SPEC.md §5.1): the
@@ -1537,7 +1595,7 @@ const FORBIDDEN = [
   ['restartSession', 'a write verb'],
   ['resumeInPlace', 'a write verb'],
   ['createSession', 'a write verb the door never names: the phone’s start reaches it only through PocketWrites.start, implemented outside the door (Phase 346, his request of 2026-10-12; refusal 8 is about configuration, and a start is his press)'],
-  ['renameSession', 'a write verb'],
+  ['renameSession', 'a write verb the door never names: the phone’s Rename reaches it only through PocketWrites.rename, implemented outside the door in src/main/sessions/pocket-writes.ts after the gate the Mac’s Rename asks and the one name rule (Phase 349, his request of 2026-10-19, “making it possible to rename sessions from the phone that it can access”)'],
   ['restoreSession', 'a write verb'],
   ['noteHookEvent', 'a status setter, and CLAUDE.md refusal 5'],
   ['noteUserInput', 'a status setter, and CLAUDE.md refusal 5'],
@@ -2011,9 +2069,51 @@ function serverRules() {
               'The log takes a reason and never a value: 500 anonymous posts wrote 500 lines in 47 ms on the hook route, and app.log holds 2 MiB with one archive.'
           );
         }
+        // PHASE 349 (build/p349/SPEC.md §6 item 1, §7.1): a rename body's NAME,
+        // read off the CODE rather than by one more word, because `name` is
+        // ordinary prose in a hundred honest lines and `err.name` is a class
+        // name, never a person's words.
+        const named = nameValueIn(arg);
+        if (named !== null) {
+          fail(
+            'G1',
+            `${where(file, call)} hands ${JSON.stringify(text.slice(0, 80))} to ${name}(), which reads a name (${JSON.stringify(named.getText().slice(0, 40))}). ` +
+              'A name a phone typed is a person’s words, as a message is, and no log line holds one (build/p349/SPEC.md §6 item 1).'
+          );
+        }
       }
     }
   }
+}
+
+/** The caught-error names whose `.name` is a class name and never a person's words. */
+const G1_ERROR_NAMES = /^(?:err|error|e|cause|caught|failure)$/;
+
+/**
+ * PHASE 349 (G1 widened): the first node in a log call's argument that READS A
+ * NAME as a value, or null: a bare `name` (a shorthand `{ name }` included), or
+ * `.name` / `['name']` of anything but a caught error. The literal text of a
+ * template is not code and is never read here.
+ */
+function nameValueIn(arg) {
+  for (const n of [arg, ...descendantsOf(arg)]) {
+    if (ts.isIdentifier(n) && n.text === 'name') {
+      const p = n.parent;
+      // `x.name`: judged below by its receiver, never as a bare name.
+      if (p !== undefined && ts.isPropertyAccessExpression(p) && p.name === n) continue;
+      // `{ name: … }`: the key is not a value; its initializer is walked.
+      if (p !== undefined && ts.isPropertyAssignment(p) && p.name === n) continue;
+      return n;
+    }
+    if (ts.isShorthandPropertyAssignment(n) && n.name.text === 'name') return n;
+    if (ts.isPropertyAccessExpression(n) && n.name.text === 'name') {
+      const recv = bare(n.expression);
+      if (recv !== undefined && ts.isIdentifier(recv) && G1_ERROR_NAMES.test(recv.text)) continue;
+      return n;
+    }
+    if (ts.isElementAccessExpression(n) && ts.isStringLiteralLike(n.argumentExpression) && n.argumentExpression.text === 'name') return n;
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -6511,7 +6611,8 @@ function writePathAnchors(file, handler) {
   const at = (n) => (n === undefined ? -1 : n.getStart(sf));
   // PHASE 318: the parse dispatches by the verb (parseWriteBody), or names one
   // of the three parses directly. PHASE 348: or one of remove's and paste's.
-  const parse = calls.find((c) => /^(?:parseWriteBody|parseEndBody|parseChooseBody|parseSayBody|parseKeysBody|parseRemoveBody|parsePasteBody)$/.test(calleeName(c) ?? ''));
+  // PHASE 349: or rename's.
+  const parse = calls.find((c) => /^(?:parseWriteBody|parseEndBody|parseChooseBody|parseSayBody|parseKeysBody|parseRemoveBody|parsePasteBody|parseRenameBody)$/.test(calleeName(c) ?? ''));
   const ledgerGet = calls.find((c) => calleeName(c) === 'get' && /ledger/i.test(receiver(c)));
   const ledgerSet = calls.find((c) => calleeName(c) === 'set' && /ledger/i.test(receiver(c)));
   const lastChecks = nodes.filter((n) => ts.isIfStatement(n) && descendantsOf(n.expression).some((m) => ts.isCallExpression(m) && calleeName(m) === 'stillPaired'));
@@ -6523,14 +6624,15 @@ function writePathAnchors(file, handler) {
   }
   // PHASE 318: the ONE statement after the last check starts whichever of the
   // three verbs the body names, each through its settle function. PHASE 348
-  // (build/p348/SPEC.md §4.2 step 3): six, remove and paste among them.
+  // (build/p348/SPEC.md §4.2 step 3): six, remove and paste among them. PHASE
+  // 349 (build/p349/SPEC.md §4.2 step 3): seven, rename among them.
   const actCalls =
     actStatement === undefined
       ? []
       : descendantsOf(actStatement).filter(
           (n) =>
             ts.isCallExpression(n) &&
-            /^(?:end|choose|say|keys|remove|paste)$/.test(calleeName(n) ?? '') && /writes/.test(receiver(n))
+            /^(?:end|choose|say|keys|remove|paste|rename)$/.test(calleeName(n) ?? '') && /writes/.test(receiver(n))
         );
   const actCall = actCalls[0];
   const inflightCheck = nodes.find(
@@ -6641,8 +6743,8 @@ function writePathRules() {
         // names, so no verb's act sits anywhere but right after the check.
         const verbs = new Set(a.actCalls.map((c) => calleeName(c)));
         checked('X1');
-        for (const v of ['end', 'choose', 'say', 'keys', 'remove', 'paste']) {
-          if (!verbs.has(v)) fail('X1', `${where(writes, a.actStatement)}: the act's one statement starts no writes.${v}(; every verb's act is that statement, right after the last check (build/p318/SPEC.md §5.1.4; build/p337/SPEC.md §5.5; build/p348/SPEC.md §4.2 step 3)`);
+        for (const v of ['end', 'choose', 'say', 'keys', 'remove', 'paste', 'rename']) {
+          if (!verbs.has(v)) fail('X1', `${where(writes, a.actStatement)}: the act's one statement starts no writes.${v}(; every verb's act is that statement, right after the last check (build/p318/SPEC.md §5.1.4; build/p337/SPEC.md §5.5; build/p348/SPEC.md §4.2 step 3; build/p349/SPEC.md §4.2 step 3)`);
         }
         const awaitsFirst = descendantsOf(a.actStatement).some((n) => ts.isAwaitExpression(n) && n.getStart() < a.actCall.getStart());
         if (awaitsFirst) fail('X1', `${where(writes, a.actStatement)}: something is awaited inside the act’s statement before the act is called`);
@@ -6766,7 +6868,7 @@ function writePathRules() {
           const verbArg = keyCall.arguments[1] === undefined ? '' : squash(keyCall.arguments[1].getText());
           checked('X3');
           if (keyCall.arguments.length !== 3 || !/^(?:verb|parsed\.verb|route\.id|'start')$/.test(verbArg)) {
-            fail('X3', `${where(writes, call)}: the ledger’s key hands keyOf the verb as ${JSON.stringify(verbArg.slice(0, 60))}; it hands it the verb itself, whole, so each of the seven writes is keyed as its own (build/p318/SPEC.md D4; build/p348/SPEC.md §4.2 step 3)`);
+            fail('X3', `${where(writes, call)}: the ledger’s key hands keyOf the verb as ${JSON.stringify(verbArg.slice(0, 60))}; it hands it the verb itself, whole, so each of the eight writes is keyed as its own (build/p318/SPEC.md D4; build/p348/SPEC.md §4.2 step 3; build/p349/SPEC.md §4.2 step 3)`);
           }
         }
       }
@@ -6832,7 +6934,7 @@ function writePathRules() {
         const other = p.left === c ? p.right : p.left;
         checked('X4');
         if (/\bverb\b|route\.id|parsed\.verb/.test(other.getText())) {
-          fail('X4', `${where(writes, n)}: an in-flight claim is asked or made beside ${JSON.stringify(other.getText().slice(0, 50))}, a short circuit on the verb; one write is in flight per phone and per session ACROSS all seven verbs, so a Remove never overlaps an End and a paste never overlaps keys (build/p348/SPEC.md §4.2 step 3)`);
+          fail('X4', `${where(writes, n)}: an in-flight claim is asked or made beside ${JSON.stringify(other.getText().slice(0, 50))}, a short circuit on the verb; one write is in flight per phone and per session ACROSS all eight verbs, so a Remove never overlaps an End, a paste never overlaps keys and a rename never overlaps either (build/p348/SPEC.md §4.2 step 3; build/p349/SPEC.md §4.2 step 3)`);
           break;
         }
       }
@@ -6925,8 +7027,9 @@ function writePathRules() {
   // reads its body through the same one JSON.parse, so it is a parse function
   // here too, with its own key set and its two values read by hand.
   // PHASE 348 (build/p348/SPEC.md D28, X2 widened with RM2 and PS2): remove's
-  // and paste's parses read through the same one JSON.parse.
-  const parseFns = ['parseEndBody', 'parseChooseBody', 'parseSayBody', 'parseKeysBody', 'parseStartBody', 'parseRemoveBody', 'parsePasteBody'].map((name) => [name, oneFunction(writes, name)]);
+  // and paste's parses read through the same one JSON.parse. PHASE 349
+  // (build/p349/SPEC.md §4.2 step 1, X2 widened with RN2): and rename's.
+  const parseFns = ['parseEndBody', 'parseChooseBody', 'parseSayBody', 'parseKeysBody', 'parseStartBody', 'parseRemoveBody', 'parsePasteBody', 'parseRenameBody'].map((name) => [name, oneFunction(writes, name)]);
   checked('X2', 3);
   for (const [name, fn] of parseFns) if (fn === null) fail('X2', `${rel(writes)} declares no single ${name}`);
   if (parses.length !== 1) {
@@ -6949,7 +7052,7 @@ function writePathRules() {
       fail('X2', `${where(writes, call)}: JSON.parse sits in ${String(ownerName)}, which something other than the parse function calls`);
     }
   }
-  const KEY_SETS = { parseEndBody: 'batch,session,write', parseChooseBody: 'mark,marker,question,session,write', parseSayBody: 'session,text,write', parseKeysBody: 'dialog,keys,session,turn,write', parseStartBody: 'agent,project,write', parseRemoveBody: 'session,write', parsePasteBody: 'dialog,session,text,turn,write' };
+  const KEY_SETS = { parseEndBody: 'batch,session,write', parseChooseBody: 'mark,marker,question,session,write', parseSayBody: 'session,text,write', parseKeysBody: 'dialog,keys,session,turn,write', parseStartBody: 'agent,project,write', parseRemoveBody: 'session,write', parsePasteBody: 'dialog,session,text,turn,write', parseRenameBody: 'name,session,write' };
   for (const [name, fn] of parseFns) {
     if (fn === null) continue;
     checked('X2');
@@ -6994,8 +7097,9 @@ function writePathRules() {
   // PHASE 337: keys reads the write id, the session id and the question id
   // (its turn) the same way, and its dialog by the one mark reader.
   // PHASE 348: remove reads the write id and the session id by hand, paste
-  // those and its turn, the question id (D28).
-  const READS = { parseEndBody: [2, 'the write id and the session id'], parseChooseBody: [3, 'the write id, the session id and the question id'], parseSayBody: [2, 'the write id and the session id'], parseKeysBody: [3, 'the write id, the session id and the question id'], parseStartBody: [2, 'the write id and the project id'], parseRemoveBody: [2, 'the write id and the session id'], parsePasteBody: [3, 'the write id, the session id and the question id'] };
+  // those and its turn, the question id (D28). PHASE 349: rename reads the
+  // write id and the session id by hand, and takes its name as any string.
+  const READS = { parseEndBody: [2, 'the write id and the session id'], parseChooseBody: [3, 'the write id, the session id and the question id'], parseSayBody: [2, 'the write id and the session id'], parseKeysBody: [3, 'the write id, the session id and the question id'], parseStartBody: [2, 'the write id and the project id'], parseRemoveBody: [2, 'the write id and the session id'], parsePasteBody: [3, 'the write id, the session id and the question id'], parseRenameBody: [2, 'the write id and the session id'] };
   for (const [name, fn] of parseFns) {
     if (fn === null) continue;
     const [want, what] = READS[name];
@@ -7085,8 +7189,9 @@ function pocketWritesRules() {
       const members = iface.members.map(memberName);
       // PHASE 346 (build/p346/SPEC.md §4.8): and start, the fifth.
       // PHASE 348 (build/p348/SPEC.md §4.2 step 4): and remove and paste, the
-      // sixth and seventh.
-      if ([...members].sort().join(',') !== 'choose,end,keys,paste,remove,say,start') fail('X5', `${where(routes, iface)}: PocketWrites holds ${JSON.stringify(members)}; it holds exactly end, choose, say, keys, start, remove and paste (build/p318/SPEC.md §5.1.5; build/p337/SPEC.md §5.4; build/p346/SPEC.md §4.8; build/p348/SPEC.md §4.2 step 4), and an eighth member is a verb the door can reach`);
+      // sixth and seventh. PHASE 349 (build/p349/SPEC.md §4.2 step 4): and
+      // rename, the eighth.
+      if ([...members].sort().join(',') !== 'choose,end,keys,paste,remove,rename,say,start') fail('X5', `${where(routes, iface)}: PocketWrites holds ${JSON.stringify(members)}; it holds exactly end, choose, say, keys, start, remove, paste and rename (build/p318/SPEC.md §5.1.5; build/p337/SPEC.md §5.4; build/p346/SPEC.md §4.8; build/p348/SPEC.md §4.2 step 4; build/p349/SPEC.md §4.2 step 4), and a ninth member is a verb the door can reach`);
     }
     const facts = interfaceOf(routes, 'PocketFacts');
     const endOffer = facts?.members.find((m) => memberName(m) === 'endOffer');
@@ -7169,27 +7274,39 @@ function pocketWritesRules() {
     // refuses, so it is asked of the second environment rather than by
     // widening the first.
     const gateCalls = callsOf(impl).filter((c) => calleeName(c) === 'sessionActionGates');
-    const X5_ENVS = { canEnd: 'DOOR_GATE_ENV', canRemove: 'DOOR_REMOVE_GATE_ENV' };
+    // PHASE 349 (build/p349/SPEC.md D4, X5 widened): a THIRD named
+    // environment, and .canRename of it alone, inside the one pure
+    // renameVerdict; canRename reads none of any environment (it is acts), so
+    // the name is what keeps each of the door's three questions apart.
+    const X5_ENVS = { canEnd: 'DOOR_GATE_ENV', canRemove: 'DOOR_REMOVE_GATE_ENV', canRename: 'DOOR_RENAME_GATE_ENV' };
     const removeVerdictFn = oneFunction(impl, 'removeVerdict');
-    checked('X5', 3);
+    const renameVerdictFn = oneFunction(impl, 'renameVerdict');
+    checked('X5', 4);
     for (const c of gateCalls) {
       const field = ts.isPropertyAccessExpression(c.parent) && c.parent.expression === c ? c.parent.name.text : null;
       const env = c.arguments[2]?.getText();
       if (field === null || !Object.prototype.hasOwnProperty.call(X5_ENVS, field) || env !== X5_ENVS[field]) {
-        fail('X5', `${where(impl, c)}: the shared gate is asked as ${JSON.stringify(c.parent.getText().slice(0, 80))}; the door reads .canEnd of sessionActionGates( with DOOR_GATE_ENV for end and .canRemove of it with DOOR_REMOVE_GATE_ENV for remove, and nothing else (build/p348/SPEC.md D47)`);
+        fail('X5', `${where(impl, c)}: the shared gate is asked as ${JSON.stringify(c.parent.getText().slice(0, 80))}; the door reads .canEnd of sessionActionGates( with DOOR_GATE_ENV for end, .canRemove of it with DOOR_REMOVE_GATE_ENV for remove and .canRename of it with DOOR_RENAME_GATE_ENV for rename, and nothing else (build/p348/SPEC.md D47; build/p349/SPEC.md D4)`);
       } else if (field === 'canRemove' && (removeVerdictFn === null || !inside(c, removeVerdictFn))) {
         fail('X5', `${where(impl, c)}: .canRemove is read outside removeVerdict; the remove gate is asked in the one pure verdict (build/p348/SPEC.md D48)`);
       } else if (field === 'canEnd' && removeVerdictFn !== null && inside(c, removeVerdictFn)) {
         fail('X5', `${where(impl, c)}: removeVerdict reads .canEnd; Remove is offered on an ended session, which canEnd refuses, so the verdict reads .canRemove of DOOR_REMOVE_GATE_ENV (build/p348/SPEC.md D47)`);
+      } else if (field === 'canRename' && (renameVerdictFn === null || !inside(c, renameVerdictFn))) {
+        fail('X5', `${where(impl, c)}: .canRename is read outside renameVerdict; the rename gate is asked in the one pure verdict (build/p349/SPEC.md §4.3 step 4)`);
+      } else if (field !== 'canRename' && renameVerdictFn !== null && inside(c, renameVerdictFn)) {
+        fail('X5', `${where(impl, c)}: renameVerdict reads .${field}; a Rename is offered where the Mac's own Rename is, on an ended session too, so the verdict reads .canRename of DOOR_RENAME_GATE_ENV and no other field (build/p349/SPEC.md D3, D4)`);
       }
     }
     if (gateCalls.length === 0) fail('X5', `${rel(impl)} never asks sessionActionGates(`);
     if (!gateCalls.some((c) => ts.isPropertyAccessExpression(c.parent) && c.parent.name.text === 'canRemove' && c.arguments[2]?.getText() === 'DOOR_REMOVE_GATE_ENV')) {
       fail('X5', `${rel(impl)} never reads .canRemove of sessionActionGates( with DOOR_REMOVE_GATE_ENV, so the Remove a phone asks for has no shared gate, the ONLY lock on a row on another machine (build/p348/SPEC.md D6, D47, D48)`);
     }
-    // Neither environment is read for one of its fields, spread or rebuilt.
+    if (!gateCalls.some((c) => ts.isPropertyAccessExpression(c.parent) && c.parent.name.text === 'canRename' && c.arguments[2]?.getText() === 'DOOR_RENAME_GATE_ENV')) {
+      fail('X5', `${rel(impl)} never reads .canRename of sessionActionGates( with DOOR_RENAME_GATE_ENV, so the Rename a phone asks for is not asked of the gate the Mac's own Rename asks (build/p349/SPEC.md D4, §4.3 step 4)`);
+    }
+    // No environment is read for one of its fields, spread or rebuilt.
     for (const n of nodesOf(impl)) {
-      if (!ts.isIdentifier(n) || (n.text !== 'DOOR_GATE_ENV' && n.text !== 'DOOR_REMOVE_GATE_ENV') || ts.isImportSpecifier(n.parent)) continue;
+      if (!ts.isIdentifier(n) || (n.text !== 'DOOR_GATE_ENV' && n.text !== 'DOOR_REMOVE_GATE_ENV' && n.text !== 'DOOR_RENAME_GATE_ENV') || ts.isImportSpecifier(n.parent)) continue;
       checked('X5');
       const asEnvironment = ts.isCallExpression(n.parent) && calleeName(n.parent) === 'sessionActionGates' && n.parent.arguments[2] === n;
       if (!asEnvironment) fail('X5', `${where(impl, n)}: ${n.text} is read as ${J(n.parent.getText().slice(0, 70))}; it is handed to sessionActionGates( as its environment and read no other way, so no field of it is spelled, spread or overridden here (build/p348/SPEC.md D47)`);
@@ -7226,12 +7343,38 @@ function pocketWritesRules() {
     // No other lifecycle verb, no status setter. PHASE 348 (build/p348/SPEC.md
     // D48): removeSession( left this list, because the phone's Remove is the
     // Mac's own verb; it is called ONCE, inside remove, after removeVerdict(
-    // and with nothing awaited between the verdict and the verb.
-    const NOT_THE_DOORS = /^(?:restoreSession|restorePastSession|discardSession|restartSession|renameSession|createSession|resumeInPlace|discard|restore|restart|rename|noteHookEvent|noteUserInput|applyDetectedStatus|setStatus|setSessionStatus|updateStatus|writeStatus|markStatus)$/;
+    // and with nothing awaited between the verdict and the verb. PHASE 349
+    // (build/p349/SPEC.md §4.3 step 4, §7.1): renameSession( left it too, for
+    // the same reason, called ONCE, inside rename, after renameVerdict(.
+    // NS_NOT_THE_ACT still keeps it out of the start's module.
+    const NOT_THE_DOORS = /^(?:restoreSession|restorePastSession|discardSession|restartSession|createSession|resumeInPlace|discard|restore|restart|rename|noteHookEvent|noteUserInput|applyDetectedStatus|setStatus|setSessionStatus|updateStatus|writeStatus|markStatus)$/;
     for (const c of callsOf(impl)) {
       checked('X5');
       const name = calleeName(c);
-      if (name !== null && NOT_THE_DOORS.test(name)) fail('X5', `${where(impl, c)} calls ${name}(; the phone’s End names one verb, killSession, its Remove one, removeSession, and neither a status setter (refusal 5)`);
+      if (name !== null && NOT_THE_DOORS.test(name)) fail('X5', `${where(impl, c)} calls ${name}(; the phone’s End names one verb, killSession, its Remove one, removeSession, its Rename one, renameSession, and none a status setter (refusal 5)`);
+    }
+    // PHASE 349 (build/p349/SPEC.md §4.3 step 4, §7.1): renameSession( exactly
+    // once, inside rename, after renameVerdict( refused nothing, with nothing
+    // awaited between but the verb's own await.
+    {
+      const renameMember = factory === null ? undefined : descendantsOf(factory).find((n) => (ts.isPropertyAssignment(n) && memberName(n) === 'rename' && (ts.isArrowFunction(bare(n.initializer)) || ts.isFunctionExpression(bare(n.initializer)))) || (ts.isMethodDeclaration(n) && memberName(n) === 'rename'));
+      const renameFn = renameMember === undefined ? null : ts.isPropertyAssignment(renameMember) ? bare(renameMember.initializer) : renameMember;
+      const renames = callsOf(impl).filter((c) => calleeName(c) === 'renameSession');
+      checked('X5', 3);
+      if (renameFn === null) fail('X5', `${rel(impl)}: createPocketWrites answers no rename (build/p349/SPEC.md §4.3 step 4)`);
+      if (renames.length !== 1) {
+        fail('X5', `${rel(impl)} calls renameSession( ${String(renames.length)} time(s)${renames.length > 0 ? ` (${renames.map((c) => where(impl, c)).join(', ')})` : ''}; exactly once, inside rename, after renameVerdict( refused nothing (build/p349/SPEC.md §4.3 step 4, §7.1)`);
+      } else if (renameFn !== null) {
+        const verb = renames[0];
+        const verdict = descendantsOf(renameFn).find((n) => ts.isCallExpression(n) && calleeName(n) === 'renameVerdict');
+        if (!inside(verb, renameFn)) fail('X5', `${where(impl, verb)}: renameSession( is called outside rename; the Mac's own rename is reached by the phone's Rename alone (build/p349/SPEC.md §4.3 step 4)`);
+        else if (verdict === undefined || verdict.getStart() > verb.getStart()) fail('X5', `${where(impl, verb)}: renameSession( is not preceded by renameVerdict( inside rename, so a session could be renamed without the gate and the name rule asked (build/p349/SPEC.md §4.3 step 4)`);
+        else {
+          for (const w of descendantsOf(renameFn).filter((n) => ts.isAwaitExpression(n) && n.getStart() > verdict.getStart() && n.getStart() < verb.getStart() && !inside(verb, n))) {
+            fail('X5', `${where(impl, w)}: rename awaits ${J(w.getText().slice(0, 50))} between renameVerdict( and renameSession(; nothing is awaited between the verdict and the verb but the verb itself, or the row could change under it (build/p349/SPEC.md §4.3 step 4)`);
+          }
+        }
+      }
     }
     const removeMember = factory === null ? undefined : descendantsOf(factory).find((n) => (ts.isPropertyAssignment(n) && memberName(n) === 'remove' && (ts.isArrowFunction(bare(n.initializer)) || ts.isFunctionExpression(bare(n.initializer)))) || (ts.isMethodDeclaration(n) && memberName(n) === 'remove'));
     const removeFn = removeMember === undefined ? null : ts.isPropertyAssignment(removeMember) ? bare(removeMember.initializer) : removeMember;
@@ -7274,7 +7417,9 @@ function pocketWritesRules() {
   for (const file of [writes, impl, ...sourcesUnder(join(ROOT, 'src', 'main', 'reply')), ...sourcesUnder(join(ROOT, 'src', 'main', 'screen')), ...(existsSync(NS_START) ? [NS_START] : [])].filter((f) => f !== null)) {
     const fromWords = new Set();
     for (const n of nodesOf(file)) {
-      if (ts.isImportDeclaration(n) && ts.isStringLiteral(n.moduleSpecifier) && /^@shared\/(?:lifecycle-words|reply-copy|screen-copy|start-copy)$/.test(n.moduleSpecifier.text) && n.importClause?.namedBindings !== undefined && ts.isNamedImports(n.importClause.namedBindings)) {
+      // PHASE 349 (build/p349/SPEC.md §5.1): and the one name rule's own
+      // sentences, src/shared/session-names.ts.
+      if (ts.isImportDeclaration(n) && ts.isStringLiteral(n.moduleSpecifier) && /^@shared\/(?:lifecycle-words|reply-copy|screen-copy|start-copy|session-names)$/.test(n.moduleSpecifier.text) && n.importClause?.namedBindings !== undefined && ts.isNamedImports(n.importClause.namedBindings)) {
         for (const el of n.importClause.namedBindings.elements) fromWords.add(el.name.text);
       }
     }
@@ -7290,6 +7435,21 @@ function pocketWritesRules() {
     }
     // A name every value of which is main's own refusal sentence (or null):
     // `const refused = endRefusal(record)`, or a `let` assigned only from it.
+    // PHASE 348 (build/p348/SPEC.md D48): Remove's refusals are main's own
+    // removeRefusal's two sentences, private to lifecycle-gate.ts and reached
+    // only by calling it. A conditional whose every branch is main's own
+    // refusal or null (`record === undefined ? null : removeRefusal(record)`)
+    // is one too.
+    const fromMain = (v) => {
+      const b = bare(v);
+      if (b === undefined) return false;
+      if (ts.isConditionalExpression(b)) {
+        const arms = [b.whenTrue, b.whenFalse];
+        return arms.some((x) => fromMain(x)) && arms.every((x) => fromMain(x) || bare(x)?.kind === ts.SyntaxKind.NullKeyword);
+      }
+      return ts.isCallExpression(b) && /^(?:endRefusal|removeRefusal)$/.test(calleeName(b) ?? '');
+    };
+    const boundTo = (list) => list.some(fromMain) && list.every((v) => fromMain(v) || bare(v)?.kind === ts.SyntaxKind.NullKeyword);
     const refusalBound = new Set();
     {
       const values = new Map();
@@ -7298,30 +7458,35 @@ function pocketWritesRules() {
         if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer !== undefined) note(n.name.text, n.initializer);
         if (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isIdentifier(n.left)) note(n.left.text, n.right);
       }
-      for (const [name, list] of values) {
-        // PHASE 348 (build/p348/SPEC.md D48): Remove's refusals are main's own
-        // removeRefusal's two sentences, private to lifecycle-gate.ts and
-        // reached only by calling it.
-        // A conditional whose every branch is main's own refusal or null
-        // (`record === undefined ? null : removeRefusal(record)`) is one too.
-        const fromMain = (v) => {
-          const b = bare(v);
-          if (b === undefined) return false;
-          if (ts.isConditionalExpression(b)) {
-            const arms = [b.whenTrue, b.whenFalse];
-            return arms.some((x) => fromMain(x)) && arms.every((x) => fromMain(x) || bare(x)?.kind === ts.SyntaxKind.NullKeyword);
-          }
-          return ts.isCallExpression(b) && /^(?:endRefusal|removeRefusal)$/.test(calleeName(b) ?? '');
-        };
-        if (list.some(fromMain) && list.every((v) => fromMain(v) || bare(v).kind === ts.SyntaxKind.NullKeyword)) refusalBound.add(name);
-      }
+      for (const [name, list] of values) if (boundTo(list)) refusalBound.add(name);
     }
+    /**
+     * PHASE 349 (build/p349/SPEC.md §7.1, X6 widened): a name is read IN THE
+     * FUNCTION THAT DECLARES IT, so a second function that declares a name of
+     * the same spelling for another value (the Rename's own) neither lends its
+     * value to End's nor takes End's away. A name no enclosing function
+     * declares is read file-wide, as before.
+     */
+    const refusalBoundAt = (name, at) => {
+      const ownerOf = (m) => {
+        for (let p = m.parent; p !== undefined; p = p.parent) if (ts.isFunctionLike(p)) return p;
+        return null;
+      };
+      for (let scope = at; scope !== undefined; scope = scope.parent) {
+        if (!ts.isFunctionLike(scope)) continue;
+        const own = descendantsOf(scope).filter((m) => ts.isVariableDeclaration(m) && ts.isIdentifier(m.name) && m.name.text === name && m.initializer !== undefined && ownerOf(m) === scope);
+        if (own.length === 0) continue;
+        const assigned = descendantsOf(scope).filter((m) => ts.isBinaryExpression(m) && m.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isIdentifier(m.left) && m.left.text === name && ownerOf(m) === scope);
+        return boundTo([...own.map((d) => d.initializer), ...assigned.map((m) => m.right)]);
+      }
+      return refusalBound.has(name);
+    };
     const isNamedSentence = (expr, at) => {
       const e = bare(expr);
       if (e === undefined) return false;
       if (e.kind === ts.SyntaxKind.NullKeyword) return true;
       if (ts.isIdentifier(e)) {
-        if (fromWords.has(e.text) || refusalBound.has(e.text)) return true;
+        if (fromWords.has(e.text) || refusalBoundAt(e.text, at)) return true;
         // A parameter named sentence relays a sentence its caller chose.
         const fn = (() => {
           for (let n = at; n !== undefined; n = n.parent) if (ts.isFunctionLike(n)) return n;
@@ -7354,6 +7519,9 @@ function pocketWritesRules() {
       // PHASE 348 (build/p348/SPEC.md D27): remove's and paste's own composers,
       // (write, outcome, reason, sentence).
       else if (ts.isCallExpression(n) && /^(?:removeAnswer|pasteAnswer)$/.test(calleeName(n) ?? '') && n.arguments.length === 4) value = n.arguments[3];
+      // PHASE 349 (build/p349/SPEC.md §4.2 step 2): rename's own composer,
+      // (write, outcome, reason, sentence, name).
+      else if (ts.isCallExpression(n) && calleeName(n) === 'renameAnswer' && n.arguments.length === 5) value = n.arguments[3];
       if (value === undefined) continue;
       checked('X6');
       if (!isNamedSentence(value, n)) {
@@ -7694,7 +7862,8 @@ function writeLinesRule() {
     // can run a command in a shell.
     // PHASE 346 (build/p346/SPEC.md D3): and start, in the words D3 gives it.
     // PHASE 348 (build/p348/SPEC.md D32): and remove and paste, in D32's.
-    const want = { end: 'end a session', choose: 'answer a numbered question', say: 'send a session one message', keys: 'type into any session as you would at this Mac', start: 'start a session in a project open in Tortie, on this Mac or another machine', remove: 'remove a session that has ended', paste: 'paste text into a session on this Mac' };
+    // PHASE 349 (build/p349/SPEC.md D10): and rename, in D10's.
+    const want = { end: 'end a session', choose: 'answer a numbered question', say: 'send a session one message', keys: 'type into any session as you would at this Mac', start: 'start a session in a project open in Tortie, on this Mac or another machine', remove: 'remove a session that has ended', paste: 'paste text into a session on this Mac', rename: 'rename a session' };
     checked('X12', 2);
     if (JSON.stringify(Object.keys(got).sort().map((k) => [k, got[k]])) !== JSON.stringify(Object.keys(want).sort().map((k) => [k, want[k]]))) {
       fail('X12', `${rel(pairing)}: the write clauses are ${JSON.stringify(got)}; they are exactly ${JSON.stringify(want)}, so the line reads "Lets an allowed phone end a session, answer a numbered question, send a session one message and type into any session as you would at this Mac" (build/p318/SPEC.md §5.1.7; build/p337/SPEC.md D35)`);
@@ -7894,9 +8063,10 @@ function replyRules() {
       // (build/p346/SPEC.md D6) adds start's 512, which R2 and NS7 hold; the
       // four caps above it do not move.
       // PHASE 348 (build/p348/SPEC.md D29): remove's 512 and paste's 131,072.
-      const want = { choose: 512, end: 512, keys: 16_384, paste: 131_072, remove: 512, say: 32_768, start: 512 };
+      // PHASE 349 (build/p349/SPEC.md D6): rename's 2,048.
+      const want = { choose: 512, end: 512, keys: 16_384, paste: 131_072, remove: 512, rename: 2_048, say: 32_768, start: 512 };
       if (J(Object.keys(got).sort().map((k) => [k, got[k]])) !== J(Object.keys(want).sort().map((k) => [k, want[k]]))) {
-        fail('Y1', `${where(limits, caps)}: POCKET_WRITE_BODY_CAPS is ${J(got)}; it is exactly end 512, choose 512, say 32,768, keys 16,384, (Phase 346, D6) start 512 and (Phase 348, D29) remove 512 and paste 131,072. The say cap holds a 4,096-byte text of C0 controls escaped \\u00XX (24,771 bytes), so the Mac answers it refused character rather than the door dropping it oversized (D3, §Revision R10, R18; build/p337/SPEC.md D17)`);
+        fail('Y1', `${where(limits, caps)}: POCKET_WRITE_BODY_CAPS is ${J(got)}; it is exactly end 512, choose 512, say 32,768, keys 16,384, (Phase 346, D6) start 512, (Phase 348, D29) remove 512 and paste 131,072 and (Phase 349, D6) rename 2,048. The say cap holds a 4,096-byte text of C0 controls escaped \\u00XX (24,771 bytes), so the Mac answers it refused character rather than the door dropping it oversized (D3, §Revision R10, R18; build/p337/SPEC.md D17)`);
       }
       if (!(caps.initializer !== undefined && ts.isCallExpression(bare(caps.initializer)) && calleeName(bare(caps.initializer)) === 'freeze')) {
         fail('Y1', `${where(limits, caps)}: POCKET_WRITE_BODY_CAPS is not Object.freeze(...)`);
@@ -9765,13 +9935,14 @@ function screenRules() {
     const wire = zFile('src/main/pocket/door/wire.ts', 'Z1', Z_OWNER.door);
     if (wire !== null) {
       // PHASE 348 (build/p348/SPEC.md §4.2 step 2): WRITE_ROUTES gains remove and paste.
-      for (const [name, want] of [['SIGNED_ROUTES', ['blocked', 'screen', 'scrollback', 'session', 'sessions', 'turns']], ['WRITE_ROUTES', ['choose', 'end', 'keys', 'paste', 'remove', 'say', 'start']]]) {
+      // PHASE 349 (build/p349/SPEC.md §4.1 step 2): and rename.
+      for (const [name, want] of [['SIGNED_ROUTES', ['blocked', 'screen', 'scrollback', 'session', 'sessions', 'turns']], ['WRITE_ROUTES', ['choose', 'end', 'keys', 'paste', 'remove', 'rename', 'say', 'start']]]) {
         checked('Z1');
         const decl = constNamed(wire, name);
         const init = decl === null ? undefined : bare(decl.initializer);
         const got = init !== undefined && ts.isArrayLiteralExpression(init) ? init.elements.map((e) => (ts.isStringLiteral(e) ? e.text : '?')).sort() : null;
         if (got === null || J(got) !== J(want)) {
-          fail('Z1', `${rel(wire)}: ${name} is ${J(got)}; it is exactly ${J(want)} (build/p337/SPEC.md §5.1; build/p3371/SPEC.md §5.1 adds scrollback to the signed reads and nothing to the writes; build/p346/SPEC.md §4.12 adds start to the writes; build/p348/SPEC.md §4.2 step 2 adds remove and paste). The door hands main a signed read or a write only for an id on its own list.`);
+          fail('Z1', `${rel(wire)}: ${name} is ${J(got)}; it is exactly ${J(want)} (build/p337/SPEC.md §5.1; build/p3371/SPEC.md §5.1 adds scrollback to the signed reads and nothing to the writes; build/p346/SPEC.md §4.12 adds start to the writes; build/p348/SPEC.md §4.2 step 2 adds remove and paste; build/p349/SPEC.md §4.1 step 2 adds rename). The door hands main a signed read or a write only for an id on its own list.`);
         }
       }
     }
@@ -9793,10 +9964,11 @@ function screenRules() {
     // PHASE 346 (build/p346/SPEC.md D6): and start's 512, which R2 and NS7 hold.
     // PHASE 348 (build/p348/SPEC.md D29): remove's 512 and paste's 131,072;
     // the twice-the-worst rule below is the keys cap's alone (PS1 holds the
-    // paste's own worst body).
-    const want = { choose: 512, end: 512, keys: 16_384, paste: 131_072, remove: 512, say: 32_768, start: 512 };
+    // paste's own worst body). PHASE 349 (build/p349/SPEC.md D6): rename's
+    // 2,048, whose worst body RN1 composes.
+    const want = { choose: 512, end: 512, keys: 16_384, paste: 131_072, remove: 512, rename: 2_048, say: 32_768, start: 512 };
     if (J(Object.keys(got).sort().map((k) => [k, got[k]])) !== J(Object.keys(want).sort().map((k) => [k, want[k]]))) {
-      fail('Z2', `${limits === null ? 'src/main/pocket/door/limits.ts' : rel(limits)}: POCKET_WRITE_BODY_CAPS is ${J(got)}; it is exactly end 512, choose 512, say 32,768, keys 16,384, (Phase 346, D6) start 512 and (Phase 348, D29) remove 512 and paste 131,072 (build/p337/SPEC.md D17, Y1 widened)`);
+      fail('Z2', `${limits === null ? 'src/main/pocket/door/limits.ts' : rel(limits)}: POCKET_WRITE_BODY_CAPS is ${J(got)}; it is exactly end 512, choose 512, say 32,768, keys 16,384, (Phase 346, D6) start 512, (Phase 348, D29) remove 512 and paste 131,072 and (Phase 349, D6) rename 2,048 (build/p337/SPEC.md D17, Y1 widened)`);
     }
     // The worst legal-shape keys body, composed HERE by this gate rather than
     // read from the spec: the longest session id the parse takes (128), a
@@ -12786,8 +12958,9 @@ function accountRule() {
   // Phase 333.1 added no route and held the list there; Phase 346 adds start,
   // last, and nothing else, so the list is the eleven and then start.
   // PHASE 348 (build/p348/SPEC.md D26): and remove and paste after start.
-  const SU5_ROUTES = [...ROUTES_BEFORE_3331, 'start', 'remove', 'paste'];
-  if (JSON.stringify(ids) !== JSON.stringify(SU5_ROUTES)) fail('SU5', `src/shared/ipc/pocket.ts's POCKET_ROUTE_IDS is ${JSON.stringify(ids)}, not the eleven it was (${ROUTES_BEFORE_3331.join(', ')}), Phase 346's start and Phase 348's remove and paste, in that order: 333.1 added no door route (D30), Phase 346 adds start alone (build/p346/SPEC.md D1) and Phase 348 remove and paste (build/p348/SPEC.md D26)`);
+  // PHASE 349 (build/p349/SPEC.md §4.1): and rename after paste.
+  const SU5_ROUTES = [...ROUTES_BEFORE_3331, 'start', 'remove', 'paste', 'rename'];
+  if (JSON.stringify(ids) !== JSON.stringify(SU5_ROUTES)) fail('SU5', `src/shared/ipc/pocket.ts's POCKET_ROUTE_IDS is ${JSON.stringify(ids)}, not the eleven it was (${ROUTES_BEFORE_3331.join(', ')}), Phase 346's start, Phase 348's remove and paste and Phase 349's rename, in that order: 333.1 added no door route (D30), Phase 346 adds start alone (build/p346/SPEC.md D1), Phase 348 remove and paste (build/p348/SPEC.md D26) and Phase 349 rename (build/p349/SPEC.md §4.1)`);
   // The contract: account is a member of PocketStatus and of no other type.
   for (const n of nodesOf(contract)) {
     if (!(ts.isPropertySignature(n) || ts.isPropertyDeclaration(n)) || memberName(n) !== 'account') continue;
@@ -14299,14 +14472,16 @@ function arLedgerRule() {
   // PHASE 348 (build/p348/SPEC.md §4.2 step 2, D26, D29, D32): the ledger's
   // remove and paste rows, written out exactly, appended after start, because
   // the ledger only grows at its end and an id's row is its meaning for good.
+  // PHASE 349 (build/p349/SPEC.md §4.1 step 2, §7.1): and the rename row,
+  // one literal appended after paste's, nothing else touched.
   {
-    for (const want of [RM_LEDGER_ROW, PS_LEDGER_ROW]) {
+    for (const [want, cite] of [[RM_LEDGER_ROW, 'build/p348/SPEC.md §4.2 step 2, D29, D32'], [PS_LEDGER_ROW, 'build/p348/SPEC.md §4.2 step 2, D29, D32'], [RN_LEDGER_ROW, 'build/p349/SPEC.md §4.1 step 2, D6, D10']]) {
       const row = rows.find((r) => r.id === want.id);
       checked(id);
-      if (row === undefined || nsSorted(row) !== nsSorted(want)) fail(id, `${rel(ledger)}: the ${want.id} row is ${J(row ?? null)}; it is exactly ${J(want)} (build/p348/SPEC.md §4.2 step 2, D29, D32)`);
+      if (row === undefined || nsSorted(row) !== nsSorted(want)) fail(id, `${rel(ledger)}: the ${want.id} row is ${J(row ?? null)}; it is exactly ${J(want)} (${cite})`);
     }
     checked(id);
-    if (J(ids.slice(-3)) !== J(['start', 'remove', 'paste'])) fail(id, `${rel(ledger)}: the ledger's ids are ${J(ids)}; its last three rows are start, remove and paste, in that order, because the ledger only grows at its end (build/p348/SPEC.md D26)`);
+    if (J(ids.slice(-4)) !== J(['start', 'remove', 'paste', 'rename'])) fail(id, `${rel(ledger)}: the ledger's ids are ${J(ids)}; its last four rows are start, remove, paste and rename, in that order, because the ledger only grows at its end (build/p348/SPEC.md D26; build/p349/SPEC.md §4.1 step 2)`);
   }
   const contract = existsSync(AR_CONTRACT) ? arLoad(AR_CONTRACT, id) : null;
   for (const legacy of contract?.LEGACY_ALLOWED_ROUTES ?? []) {
@@ -14793,13 +14968,15 @@ function afDrivenRule() {
   // this build's twelve and reads start's own clause last. PHASE 348
   // (build/p348/SPEC.md D32): remove and paste are left out of the eleven's
   // drives too, the twelve's drive is the eleven and start, and one more
-  // passes this build's fourteen.
-  const fourteen = [...mod.POCKET_ROUTE_IDS];
-  const LATER = ['start', 'remove', 'paste'];
-  const routes = fourteen.filter((r) => !LATER.includes(r));
+  // passes a 0.113.0 Mac's fourteen. PHASE 349 (build/p349/SPEC.md D10): and
+  // rename with them, one more passing this build's fifteen.
+  const fifteen = [...mod.POCKET_ROUTE_IDS];
+  const LATER = ['start', 'remove', 'paste', 'rename'];
+  const routes = fifteen.filter((r) => !LATER.includes(r));
   const twelve = [...routes, 'start'];
+  const fourteen = [...twelve, 'remove', 'paste'];
   checked(id, 2);
-  if (J(Object.keys(mod.POCKET_FACE_CLAUSES).sort()) !== J([...fourteen].sort())) fail(id, `POCKET_FACE_CLAUSES has the keys ${J(Object.keys(mod.POCKET_FACE_CLAUSES).sort())}, not one per route of POCKET_ROUTE_IDS (D5)`);
+  if (J(Object.keys(mod.POCKET_FACE_CLAUSES).sort()) !== J([...fifteen].sort())) fail(id, `POCKET_FACE_CLAUSES has the keys ${J(Object.keys(mod.POCKET_FACE_CLAUSES).sort())}, not one per route of POCKET_ROUTE_IDS (D5)`);
   if (!Object.isFrozen(mod.POCKET_FACE_CLAUSES) || !Object.isFrozen(mod.POCKET_NEW_ROUTE_WORDS)) fail(id, 'POCKET_FACE_CLAUSES or POCKET_NEW_ROUTE_WORDS is not frozen, so a renderer or a test could write the face\'s words at run time (§5.1)');
   const name = 'mac.tail0000.ts.net';
   const reach = (program) => `${name}:8443${program === '' ? '' : `, by ${program}`}`;
@@ -14841,8 +15018,14 @@ function afDrivenRule() {
   // the fourteen, the can row saying start's, remove's and paste's clauses
   // last in that order; and a 0.112.0 Mac's store that allowed the twelve,
   // once updated, draws the two New lines above ONE Allow that serves both.
-  drive('a first setup on this build, the fourteen', [facts(), fourteen, [], 'never'], { rows: rowsOf([reach('Tailscale'), `${AF_CAN_ELEVEN}, start sessions, remove ended sessions, paste into a session`, AF_NO_PHONE, AF_ALERTS_OFF]), added: [] }, 'Start, Remove and paste are each said once, last, in that order (build/p348/SPEC.md D32)');
+  drive('a first setup on a 0.113.0 Mac, the fourteen', [facts(), fourteen, [], 'never'], { rows: rowsOf([reach('Tailscale'), `${AF_CAN_ELEVEN}, start sessions, remove ended sessions, paste into a session`, AF_NO_PHONE, AF_ALERTS_OFF]), added: [] }, 'Start, Remove and paste are each said once, last, in that order (build/p348/SPEC.md D32)');
   drive('remove and paste waiting on an agreement on record', [facts(), twelve, ['remove', 'paste'], 'confirmed', mod.POCKET_NEW_ROUTE_WORDS], { rows: [], added: [['remove', 'New: remove sessions from your phone', 'An ended session moves to Past Sessions on this Mac, where you can restore it.'], ['paste', 'New: paste into sessions from your phone', 'It lands as a paste at this Mac does, with no Return added.']] }, 'A 0.112.0 Mac that updated draws one New line each for remove and paste, with D32\'s titles and sentences, in that order, above one Allow (build/p348/SPEC.md D9, D32)');
+  // PHASE 349 (build/p349/SPEC.md D10, D13): a first setup on this build
+  // offers the fifteen, rename's clause said last; and a 0.113.0 Mac's store
+  // that allowed the fourteen, once updated, draws ONE New line for rename,
+  // with D10's title and sentence, above an Allow of its own.
+  drive('a first setup on this build, the fifteen', [facts(), fifteen, [], 'never'], { rows: rowsOf([reach('Tailscale'), `${AF_CAN_ELEVEN}, start sessions, remove ended sessions, paste into a session, rename sessions`, AF_NO_PHONE, AF_ALERTS_OFF]), added: [] }, 'Start, Remove, paste and Rename are each said once, last, in that order (build/p349/SPEC.md D10)');
+  drive('rename waiting on an agreement on record', [facts(), fourteen, ['rename'], 'confirmed', mod.POCKET_NEW_ROUTE_WORDS], { rows: [], added: [['rename', 'New: rename sessions from your phone', 'Name a session as you start it, or rename one later.']] }, 'A 0.113.0 Mac that updated draws one New line for rename, with D10\'s title and sentence, above an Allow of its own (build/p349/SPEC.md D10, D13)');
 }
 
 // ---- AF3, the sheet draws the face and composes none ---------------------------
@@ -15090,10 +15273,11 @@ const NS_NEW_WORDS = { title: 'start sessions from your phone', sentence: 'An ag
  * D4: the four writes that act on one named session and that the frozen
  * phones read as PocketWriteAnswer's verb, and the writes in their one order
  * (Phase 348, build/p348/SPEC.md D26: remove and paste after start, and
- * neither joins the four, D27).
+ * neither joins the four, D27; Phase 349, build/p349/SPEC.md §4.1: rename
+ * after paste, and it does not join them either).
  */
 const NS_SESSION_WRITES = ['end', 'choose', 'say', 'keys'];
-const NS_WRITE_IDS = ['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste'];
+const NS_WRITE_IDS = ['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste', 'rename'];
 /** D5. */
 const NS_REASONS = ['agent', 'interpreter', 'machine', 'malformed', 'often', 'project', 'stopped'];
 const NS_ANSWER_FIELDS = ['outcome', 'reason', 'sentence', 'session', 'verb', 'write'];
@@ -15272,13 +15456,14 @@ function nsRouteRule() {
     const routeIds = arLiteralStrings(constNamed(contract, 'POCKET_ROUTE_IDS'));
     checked(id);
     // PHASE 348 (build/p348/SPEC.md D26): start is followed by remove and then
-    // paste and nothing else, because the list only grows at its end.
-    if (routeIds === null || routeIds.filter((r) => r === 'start').length !== 1 || J(routeIds.slice(-3)) !== J(['start', 'remove', 'paste'])) {
-      fail(id, `src/shared/ipc/pocket.ts: POCKET_ROUTE_IDS is ${J(routeIds)}; it holds 'start' once, followed only by 'remove' and then 'paste', which Phase 348 appended (D4, §4.1 item 1; build/p348/SPEC.md D26)`);
+    // paste, and (Phase 349, build/p349/SPEC.md §4.1) rename, and nothing
+    // else, because the list only grows at its end.
+    if (routeIds === null || routeIds.filter((r) => r === 'start').length !== 1 || J(routeIds.slice(-4)) !== J(['start', 'remove', 'paste', 'rename'])) {
+      fail(id, `src/shared/ipc/pocket.ts: POCKET_ROUTE_IDS is ${J(routeIds)}; it holds 'start' once, followed only by 'remove', 'paste' and then 'rename', which Phases 348 and 349 appended (D4, §4.1 item 1; build/p348/SPEC.md D26; build/p349/SPEC.md §4.1)`);
     }
     const writeIds = arLiteralStrings(constNamed(contract, 'POCKET_WRITE_ROUTE_IDS'));
     checked(id);
-    if (J(writeIds) !== J(NS_WRITE_IDS)) fail(id, `src/shared/ipc/pocket.ts: POCKET_WRITE_ROUTE_IDS is ${J(writeIds)}; it is ${J(NS_WRITE_IDS)} in that order, so describePocketDoor names start's clause after the four and before remove's and paste's (D4; build/p348/SPEC.md D26)`);
+    if (J(writeIds) !== J(NS_WRITE_IDS)) fail(id, `src/shared/ipc/pocket.ts: POCKET_WRITE_ROUTE_IDS is ${J(writeIds)}; it is ${J(NS_WRITE_IDS)} in that order, so describePocketDoor names start's clause after the four and before remove's, paste's and rename's (D4; build/p348/SPEC.md D26; build/p349/SPEC.md §4.1)`);
     const legacy = arLiteralStrings(constNamed(contract, 'LEGACY_ALLOWED_ROUTES'));
     checked(id);
     if (legacy === null || legacy.includes('start')) fail(id, `src/shared/ipc/pocket.ts: LEGACY_ALLOWED_ROUTES is ${J(legacy)}; it never grows, and start is not in it, so a store that never allowed start serves the eleven and start WAITS for the Allow whose lines name it (D2, his answer 10)`);
@@ -15320,20 +15505,21 @@ function nsRouteRule() {
     const addedWords = added === null ? null : Object.fromEntries(Object.entries(added).map(([k, v]) => [k, v !== undefined && ts.isStringLiteralLike(v) ? v.text : null]));
     // PHASE 348 (build/p348/SPEC.md D32, §5.1): both tables gain remove and
     // paste after start, add only; RM1 and PS1 hold their words, this the
-    // tables whole and in their order.
+    // tables whole and in their order. PHASE 349 (build/p349/SPEC.md D10):
+    // and rename after paste, add only; RN1 holds its words.
     const words = [
-      ['POCKET_HONESTY_ADDED', addedWords, { start: NS_CLAUSE, remove: RM_CLAUSE, paste: PS_CLAUSE }],
-      ['POCKET_NEW_ROUTE_WORDS', mod?.POCKET_NEW_ROUTE_WORDS, { start: NS_NEW_WORDS, remove: RM_NEW_WORDS, paste: PS_NEW_WORDS }]
+      ['POCKET_HONESTY_ADDED', addedWords, { start: NS_CLAUSE, remove: RM_CLAUSE, paste: PS_CLAUSE, rename: RN_CLAUSE }],
+      ['POCKET_NEW_ROUTE_WORDS', mod?.POCKET_NEW_ROUTE_WORDS, { start: NS_NEW_WORDS, remove: RM_NEW_WORDS, paste: PS_NEW_WORDS, rename: RN_NEW_WORDS }]
     ];
     for (const [name, got, want] of words) {
       checked(id);
-      if (J(got) !== J(want)) fail(id, `src/shared/ipc/pocket.ts: ${name} is ${J(got)}; it is exactly ${J(want)} (D3, §4.1 item 6; build/p348/SPEC.md D32)`);
+      if (J(got) !== J(want)) fail(id, `src/shared/ipc/pocket.ts: ${name} is ${J(got)}; it is exactly ${J(want)} (D3, §4.1 item 6; build/p348/SPEC.md D32; build/p349/SPEC.md D10)`);
     }
     checked(id);
     if (mod?.POCKET_FACE_CLAUSES?.['start'] !== NS_FACE_CLAUSE) fail(id, `src/shared/ipc/pocket.ts: POCKET_FACE_CLAUSES.start is ${J(mod?.POCKET_FACE_CLAUSES?.['start'] ?? null)}; it is ${J(NS_FACE_CLAUSE)}, the face's Your phone can row (D3)`);
     const keys = Object.keys(mod?.POCKET_FACE_CLAUSES ?? {});
     checked(id);
-    if (J(keys.slice(-3)) !== J(['start', 'remove', 'paste'])) fail(id, `src/shared/ipc/pocket.ts: POCKET_FACE_CLAUSES's keys are ${J(keys)}; start is followed only by remove and then paste (§4.1 item 6; build/p348/SPEC.md D26)`);
+    if (J(keys.slice(-4)) !== J(['start', 'remove', 'paste', 'rename'])) fail(id, `src/shared/ipc/pocket.ts: POCKET_FACE_CLAUSES's keys are ${J(keys)}; start is followed only by remove, paste and then rename (§4.1 item 6; build/p348/SPEC.md D26; build/p349/SPEC.md D10)`);
     // No word of start's names Face ID: the Mac cannot verify it (317 D13, his answer 5).
     for (const said of [NS_CLAUSE, NS_FACE_CLAUSE, NS_NEW_WORDS.title, NS_NEW_WORDS.sentence, addedWords?.['start'], mod?.POCKET_NEW_ROUTE_WORDS?.['start']?.sentence]) {
       checked(id);
@@ -16338,7 +16524,7 @@ function nsPassRule() {
     const iface = interfaceOf(routes, 'PocketWrites');
     const members = iface === null ? null : iface.members.map(memberName).sort();
     checked(id);
-    if (J(members) !== J([...NS_WRITE_IDS].sort())) fail(id, `${rel(routes)}: PocketWrites holds ${J(members)}; it holds exactly end, choose, say, keys, start, remove and paste (§4.8; build/p348/SPEC.md §4.2 step 4)`);
+    if (J(members) !== J([...NS_WRITE_IDS].sort())) fail(id, `${rel(routes)}: PocketWrites holds ${J(members)}; it holds exactly end, choose, say, keys, start, remove, paste and rename (§4.8; build/p348/SPEC.md §4.2 step 4; build/p349/SPEC.md §4.2 step 4)`);
   }
   const impl = nsFile(POCKET_WRITES_FILE, id);
   if (impl !== null) {
@@ -16539,8 +16725,23 @@ function p348SessionMax(writes) {
 /**
  * RM1 and PS1's shared half: the route row, its place in the two id lists,
  * the door's write list, its cap against the worst body, and its four words.
+ * PHASE 349 (build/p349/SPEC.md §7.1): RN1's too, `want.cites` naming the
+ * clauses of its own SPEC each finding cites, and `want.never` what its words
+ * say no owner check is ever asked for.
  */
 function p348RouteWords(id, want) {
+  const cite = {
+    row: 'build/p348/SPEC.md D26',
+    ids: 'build/p348/SPEC.md D26',
+    session: 'build/p348/SPEC.md D27; gate:onlyadd A3',
+    legacy: '333.12, his answer 10; build/p348/SPEC.md D9',
+    wire: 'build/p348/SPEC.md §4.2 step 2',
+    cap: 'build/p348/SPEC.md D29',
+    worst: 'build/p348/SPEC.md D29, §2.2',
+    words: 'build/p348/SPEC.md D32',
+    owner: 'build/p348/SPEC.md D7',
+    ...(want.cites ?? {})
+  };
   const table = p348File(NS_TABLE, id);
   if (table !== null) {
     const rows = nsTableRows(table);
@@ -16549,7 +16750,7 @@ function p348RouteWords(id, want) {
     const row = { id: want.route, method: 'POST', path: want.path, reads: false, windowOnly: false, signed: true };
     checked(id, 2);
     if (mine.length !== 1 || paths.length !== 1 || nsSorted(mine[0].row) !== nsSorted(row)) {
-      fail(id, `${rel(table)}: the ${want.route} row is ${J(mine.map((s) => s.row))} (and ${String(paths.length)} row(s) name ${want.path}); it is exactly ONE row ${J(row)}: a signed POST write through the one write path, alive outside any window (build/p348/SPEC.md D26)`);
+      fail(id, `${rel(table)}: the ${want.route} row is ${J(mine.map((s) => s.row))} (and ${String(paths.length)} row(s) name ${want.path}); it is exactly ONE row ${J(row)}: a signed POST write through the one write path, alive outside any window (${cite.row})`);
     }
   }
   const contract = p348File(AR_CONTRACT, id);
@@ -16560,16 +16761,16 @@ function p348RouteWords(id, want) {
     const legacy = arLiteralStrings(constNamed(contract, 'LEGACY_ALLOWED_ROUTES'));
     checked(id, 4);
     if (routeIds === null || routeIds.filter((r) => r === want.route).length !== 1 || routeIds.indexOf(want.route) !== routeIds.indexOf(want.after) + 1 || (want.last && routeIds[routeIds.length - 1] !== want.route)) {
-      fail(id, `src/shared/ipc/pocket.ts: POCKET_ROUTE_IDS is ${J(routeIds)}; it holds ${J(want.route)} once, right after ${J(want.after)}${want.last ? ', and last' : ''} (build/p348/SPEC.md D26)`);
+      fail(id, `src/shared/ipc/pocket.ts: POCKET_ROUTE_IDS is ${J(routeIds)}; it holds ${J(want.route)} once, right after ${J(want.after)}${want.last ? ', and last' : ''} (${cite.ids})`);
     }
     if (writeIds === null || writeIds.filter((r) => r === want.route).length !== 1 || writeIds.indexOf(want.route) !== writeIds.indexOf(want.after) + 1 || (want.last && writeIds[writeIds.length - 1] !== want.route)) {
-      fail(id, `src/shared/ipc/pocket.ts: POCKET_WRITE_ROUTE_IDS is ${J(writeIds)}; it holds ${J(want.route)} once, right after ${J(want.after)}${want.last ? ', and last' : ''} (build/p348/SPEC.md D26)`);
+      fail(id, `src/shared/ipc/pocket.ts: POCKET_WRITE_ROUTE_IDS is ${J(writeIds)}; it holds ${J(want.route)} once, right after ${J(want.after)}${want.last ? ', and last' : ''} (${cite.ids})`);
     }
     if (sessionWrites === null || sessionWrites.includes(want.route)) {
-      fail(id, `src/shared/ipc/pocket.ts: POCKET_SESSION_WRITE_IDS is ${J(sessionWrites)}; ${want.route} is not in it, so PocketWriteAnswer's verb stays the four a frozen phone reads (build/p348/SPEC.md D27; gate:onlyadd A3)`);
+      fail(id, `src/shared/ipc/pocket.ts: POCKET_SESSION_WRITE_IDS is ${J(sessionWrites)}; ${want.route} is not in it, so PocketWriteAnswer's verb stays the four a frozen phone reads (${cite.session})`);
     }
     if (legacy === null || legacy.includes(want.route)) {
-      fail(id, `src/shared/ipc/pocket.ts: LEGACY_ALLOWED_ROUTES is ${J(legacy)}; it never grows, so ${want.route} WAITS for the Allow whose lines name it (333.12, his answer 10; build/p348/SPEC.md D9)`);
+      fail(id, `src/shared/ipc/pocket.ts: LEGACY_ALLOWED_ROUTES is ${J(legacy)}; it never grows, so ${want.route} WAITS for the Allow whose lines name it (${cite.legacy})`);
     }
   }
   const wire = p348File(AR_WIRE, id);
@@ -16579,8 +16780,8 @@ function p348RouteWords(id, want) {
     const got = init !== undefined && ts.isArrayLiteralExpression(init) ? init.elements.map((e) => (ts.isStringLiteral(e) ? e.text : '?')) : null;
     const alias = declaredType(wire, 'DoorWriteRoute');
     checked(id, 2);
-    if (got === null || got.filter((r) => r === want.route).length !== 1) fail(id, `${rel(wire)}: WRITE_ROUTES is ${J(got)}; it names ${J(want.route)} exactly once, so the door hands main a ${want.route} only for its own id (build/p348/SPEC.md §4.2 step 2)`);
-    if (alias === null || !new RegExp(`'${want.route}'`).test(alias.getText())) fail(id, `${rel(wire)}: DoorWriteRoute ${alias === null ? 'is not declared' : `is ${J(squash(alias.getText()).slice(0, 140))}`}; it names ${J(want.route)} (build/p348/SPEC.md §4.2 step 2)`);
+    if (got === null || got.filter((r) => r === want.route).length !== 1) fail(id, `${rel(wire)}: WRITE_ROUTES is ${J(got)}; it names ${J(want.route)} exactly once, so the door hands main a ${want.route} only for its own id (${cite.wire})`);
+    if (alias === null || !new RegExp(`'${want.route}'`).test(alias.getText())) fail(id, `${rel(wire)}: DoorWriteRoute ${alias === null ? 'is not declared' : `is ${J(squash(alias.getText()).slice(0, 140))}`}; it names ${J(want.route)} (${cite.wire})`);
   }
   // The cap, against the worst legal body this gate composes.
   const limits = p348File(NS_LIMITS, id);
@@ -16590,8 +16791,8 @@ function p348RouteWords(id, want) {
     const cap = mod?.POCKET_WRITE_BODY_CAPS?.[want.route];
     const worst = want.worst(p348SessionMax(writes));
     checked(id, 2);
-    if (cap !== want.cap) fail(id, `${rel(limits)}: POCKET_WRITE_BODY_CAPS.${want.route} is ${J(cap ?? null)}; it is ${String(want.cap)} (build/p348/SPEC.md D29)`);
-    if (!(typeof cap === 'number' && cap >= want.factor * worst)) fail(id, `${rel(limits)}: POCKET_WRITE_BODY_CAPS.${want.route} is ${J(cap ?? null)}; the worst legal ${want.route} body this gate composes is ${String(worst)} bytes, and the cap is at least ${want.factor === 1 ? 'it' : `${String(want.factor)} times it`}, so a body of the legal shape reaches main and is answered in words rather than dropped oversized (build/p348/SPEC.md D29, §2.2)`);
+    if (cap !== want.cap) fail(id, `${rel(limits)}: POCKET_WRITE_BODY_CAPS.${want.route} is ${J(cap ?? null)}; it is ${String(want.cap)} (${cite.cap})`);
+    if (!(typeof cap === 'number' && cap >= want.factor * worst)) fail(id, `${rel(limits)}: POCKET_WRITE_BODY_CAPS.${want.route} is ${J(cap ?? null)}; the worst legal ${want.route} body this gate composes is ${String(worst)} bytes, and the cap is at least ${want.factor === 1 ? 'it' : `${String(want.factor)} times it`}, so a body of the legal shape reaches main and is answered in words rather than dropped oversized (${cite.worst})`);
   }
   // The four words, each in its one owner.
   const said = [];
@@ -16599,14 +16800,14 @@ function p348RouteWords(id, want) {
   if (pairing !== null) {
     const clause = nsObjectOf(constNamed(pairing, 'WRITE_CLAUSES'))?.[want.route];
     checked(id);
-    if (clause === undefined || !ts.isStringLiteralLike(clause) || clause.text !== want.clause) fail(id, `${rel(pairing)}: WRITE_CLAUSES.${want.route} is ${clause === undefined ? 'absent' : J(clause.getText().slice(0, 100))}; it is ${J(want.clause)}, the Allow line's words (build/p348/SPEC.md D32)`);
+    if (clause === undefined || !ts.isStringLiteralLike(clause) || clause.text !== want.clause) fail(id, `${rel(pairing)}: WRITE_CLAUSES.${want.route} is ${clause === undefined ? 'absent' : J(clause.getText().slice(0, 100))}; it is ${J(want.clause)}, the Allow line's words (${cite.words})`);
     if (clause !== undefined && ts.isStringLiteralLike(clause)) said.push(clause.text);
   }
   if (existsSync(AR_LEDGER)) {
     const ledger = arLoad(AR_LEDGER, id);
     const row = (Array.isArray(ledger?.POCKET_ROUTE_LEDGER) ? ledger.POCKET_ROUTE_LEDGER : []).find((r) => r.id === want.route);
     checked(id);
-    if (row === undefined || row.clause !== want.clause) fail(id, `${rel(AR_LEDGER)}: the ${want.route} row's clause is ${J(row?.clause ?? null)}; it is WRITE_CLAUSES.${want.route}, ${J(want.clause)} (build/p348/SPEC.md D32; 333.12 D12)`);
+    if (row === undefined || row.clause !== want.clause) fail(id, `${rel(AR_LEDGER)}: the ${want.route} row's clause is ${J(row?.clause ?? null)}; it is WRITE_CLAUSES.${want.route}, ${J(want.clause)} (${cite.words}; 333.12 D12)`);
   } else {
     fail(id, `${rel(AR_LEDGER)} does not exist, so the ${want.route} row's clause was not read`);
   }
@@ -16615,15 +16816,17 @@ function p348RouteWords(id, want) {
     const added = nsObjectOf(constNamed(contract, 'POCKET_HONESTY_ADDED'))?.[want.route];
     const addedText = added !== undefined && ts.isStringLiteralLike(added) ? added.text : null;
     checked(id, 3);
-    if (addedText !== want.clause) fail(id, `src/shared/ipc/pocket.ts: POCKET_HONESTY_ADDED.${want.route} is ${J(addedText)}; it is ${J(want.clause)}, the honesty sentence's words (build/p348/SPEC.md D32)`);
-    if (mod?.POCKET_FACE_CLAUSES?.[want.route] !== want.face) fail(id, `src/shared/ipc/pocket.ts: POCKET_FACE_CLAUSES.${want.route} is ${J(mod?.POCKET_FACE_CLAUSES?.[want.route] ?? null)}; it is ${J(want.face)}, the face's Your phone can row (build/p348/SPEC.md D32)`);
-    if (J(mod?.POCKET_NEW_ROUTE_WORDS?.[want.route] ?? null) !== J(want.words)) fail(id, `src/shared/ipc/pocket.ts: POCKET_NEW_ROUTE_WORDS.${want.route} is ${J(mod?.POCKET_NEW_ROUTE_WORDS?.[want.route] ?? null)}; it is exactly ${J(want.words)} (build/p348/SPEC.md D32)`);
+    if (addedText !== want.clause) fail(id, `src/shared/ipc/pocket.ts: POCKET_HONESTY_ADDED.${want.route} is ${J(addedText)}; it is ${J(want.clause)}, the honesty sentence's words (${cite.words})`);
+    if (mod?.POCKET_FACE_CLAUSES?.[want.route] !== want.face) fail(id, `src/shared/ipc/pocket.ts: POCKET_FACE_CLAUSES.${want.route} is ${J(mod?.POCKET_FACE_CLAUSES?.[want.route] ?? null)}; it is ${J(want.face)}, the face's Your phone can row (${cite.words})`);
+    if (J(mod?.POCKET_NEW_ROUTE_WORDS?.[want.route] ?? null) !== J(want.words)) fail(id, `src/shared/ipc/pocket.ts: POCKET_NEW_ROUTE_WORDS.${want.route} is ${J(mod?.POCKET_NEW_ROUTE_WORDS?.[want.route] ?? null)}; it is exactly ${J(want.words)} (${cite.words})`);
     said.push(addedText, mod?.POCKET_FACE_CLAUSES?.[want.route], mod?.POCKET_NEW_ROUTE_WORDS?.[want.route]?.title, mod?.POCKET_NEW_ROUTE_WORDS?.[want.route]?.sentence);
   }
-  // No word names an owner check: Remove asks none (his ruling), and neither does a paste.
+  // No word names an owner check: Remove asks none (his ruling), and neither
+  // does a paste, nor (Phase 349, D8) a rename.
+  const never = want.never ?? (want.route === 'remove' ? 'Remove never asks (his ruling, “No Face ID, just confirm”)' : 'a paste never asks');
   for (const s of said) {
     checked(id);
-    if (typeof s === 'string' && P348_NO_OWNER_CHECK.test(s)) fail(id, `a ${want.route} word says ${J(s)}; no word names Face ID, which ${want.route === 'remove' ? 'Remove never asks (his ruling, “No Face ID, just confirm”)' : 'a paste never asks'} (build/p348/SPEC.md D7)`);
+    if (typeof s === 'string' && P348_NO_OWNER_CHECK.test(s)) fail(id, `a ${want.route} word says ${J(s)}; no word names Face ID, which ${never} (${cite.owner})`);
   }
 }
 
@@ -16637,7 +16840,9 @@ function rmRouteRule() {
 
 function psRouteRule() {
   const id = 'PS1';
-  p348RouteWords(id, { route: 'paste', path: '/v1/paste', after: 'remove', last: true, cap: PS_CAP, factor: 1, worst: (max) => psWorstBody(max, PS_MAX_TEXT_BYTES), clause: PS_CLAUSE, face: PS_FACE_CLAUSE, words: PS_NEW_WORDS });
+  // PHASE 349 (build/p349/SPEC.md §4.1): paste is no longer last; rename is
+  // appended after it, which RN1 holds (right after paste, and last).
+  p348RouteWords(id, { route: 'paste', path: '/v1/paste', after: 'remove', last: false, cap: PS_CAP, factor: 1, worst: (max) => psWorstBody(max, PS_MAX_TEXT_BYTES), clause: PS_CLAUSE, face: PS_FACE_CLAUSE, words: PS_NEW_WORDS });
   // POCKET_PASTE_MAX_TEXT_BYTES: 16,384, declared once, in the contract.
   const decls = [];
   for (const file of productionSources()) {
@@ -16744,13 +16949,17 @@ function psHostileBodies() {
   return { bodies, honest: ok, turn, session, write };
 }
 
-/** A parse driven over a corpus: the honest bodies accepted as they are, every hostile one malformed, a refused one echoing a well-formed write id. */
-function p348DriveParse(id, writes, name, { bodies, honests }) {
+/**
+ * A parse driven over a corpus: the honest bodies accepted as they are, every
+ * hostile one malformed, a refused one echoing a well-formed write id. PHASE
+ * 349: RN2's too, `cite` naming its SPEC's clauses (Phase 348's by default).
+ */
+function p348DriveParse(id, writes, name, { bodies, honests, cite = { seam: 'build/p348/SPEC.md §9.3', body: 'build/p348/SPEC.md D28' } }) {
   const mod = arLoad(writes, id);
   const parse = mod?.[name];
   checked(id);
   if (typeof parse !== 'function') {
-    fail(id, `${rel(writes)} exports no ${name} to drive (build/p348/SPEC.md §9.3: exported for the hostile client, the vectors and the tests)`);
+    fail(id, `${rel(writes)} exports no ${name} to drive (${cite.seam}: exported for the hostile client, the vectors and the tests)`);
     return;
   }
   const run = (text) => {
@@ -16778,7 +16987,7 @@ function p348DriveParse(id, writes, name, { bodies, honests }) {
     }
     const r = got.r;
     const isAccepted = r !== null && typeof r === 'object' && r.ok !== false && typeof r.session === 'string';
-    if (isAccepted) fail(id, `${name} ACCEPTED ${what} as ${J(r).slice(0, 160)}; it is malformed (build/p348/SPEC.md D28)`);
+    if (isAccepted) fail(id, `${name} ACCEPTED ${what} as ${J(r).slice(0, 160)}; it is malformed (${cite.body})`);
     let echo = null;
     try {
       const v = JSON.parse(text);
@@ -17961,7 +18170,7 @@ const P348_SELF_TESTS = [
   { rule: 'RM6', what: 'the offer composed whether or not remove is served', file: NS_CAPABILITIES, from: 'removeConfirmOf: (session) => (pocketHost?.removeAllowed() === true ? pocketWrites.removeOffer(session) : null),', to: 'removeConfirmOf: (session) => pocketWrites.removeOffer(session),' },
   { rule: 'RM6', what: 'removeAllowed answering yes for an End’s Allow', file: RM_IPC, from: "  removeAllowed(): boolean {\n    return this.routeServed('remove');", to: "  removeAllowed(): boolean {\n    return this.routeServed('remove') || this.routeServed('end');" },
   { rule: 'RM7', what: 'a log line in the Remove’s path', file: POCKET_WRITES_FILE, from: '      try {\n        core.broadcastSessions();\n      } catch {', to: "      try {\n        core.broadcastSessions();\n        getLog().info('the phone removed a session');\n      } catch {" },
-  { rule: 'PS1', what: 'the paste cap below the worst legal body', file: NS_LIMITS, from: 'start: 512, remove: 512, paste: 131_072 }', to: 'start: 512, remove: 512, paste: 65_536 }' },
+  { rule: 'PS1', what: 'the paste cap below the worst legal body', file: NS_LIMITS, from: 'start: 512, remove: 512, paste: 131_072, rename: 2_048 }', to: 'start: 512, remove: 512, paste: 65_536, rename: 2_048 }' },
   { rule: 'PS1', what: 'the paste row unsigned', file: NS_TABLE, from: "{ id: 'paste', method: 'POST', path: '/v1/paste', reads: false, windowOnly: false, signed: true }", to: "{ id: 'paste', method: 'POST', path: '/v1/paste', reads: false, windowOnly: false, signed: false }" },
   { rule: 'PS2', what: 'the paste’s text trimmed in its parse', file: NS_WRITES, from: "  const text = value['text'];\n  const turn = value['turn'];\n  const dialog = value['dialog'];", to: "  const text = typeof value['text'] === 'string' ? value['text'].trim() : value['text'];\n  const turn = value['turn'];\n  const dialog = value['dialog'];" },
   { rule: 'PS2', what: 'a text that is not a string let through the parse', file: NS_WRITES, from: "|| typeof text !== 'string' || !isQuestionId(turn)", to: '|| !isQuestionId(turn)' },
@@ -18018,6 +18227,1168 @@ async function p348SelfTest() {
       fail(plant.rule, `the self-test planted ${plant.what} in ${rel(plant.file)} and ${plant.rule} stayed green, so it cannot see the clause it exists for (build/p348/SPEC.md §7.1)`);
     } else {
       p348SelfTestLines.push(`self-test ${plant.rule}: ${plant.what} → red, as it must be (${own[0].slice(0, 90)}${own[0].length > 90 ? '…' : ''})`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// RN — PHASE 349: rename a session from the phone (build/p349/SPEC.md §7.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * THE PHONE RENAMES A SESSION. His words of 2026-10-19 ("making it possible to
+ * rename sessions from the phone that it can access (and name sessions
+ * initially that are created via the phone)") and his ruling that nothing but
+ * End asks Face ID make the door's eighth write `POST /v1/rename`: the session
+ * branch of the one write path and its one ledger, answered by a shape of its
+ * own, `PocketRenameAnswer`, six fields, `name` the name main STORED and
+ * non-null exactly when the answer says `done` (D21), because the frozen
+ * phones read PocketWriteAnswer's verb as a closed set (348 D27). The route
+ * waits for its own Allow (D13), and a name typed in New session reaches the
+ * Mac as one rename after today's start (D2), so `/v1/start` stays byte for
+ * byte.
+ *
+ * THE ACT is `src/main/sessions/pocket-writes.ts`'s `rename`, over the PURE
+ * `renameVerdict`: no listed row is `gone`, a row Tortie cannot see
+ * `unreachable`, a row the shared gate's `canRename` refuses (asked of a THIRD
+ * named environment, `DOOR_RENAME_GATE_ENV`) `changed`, a row on another
+ * machine that does not run now `changed` (D3), and a name the ONE rule
+ * (`src/shared/session-names.ts`) refuses `name`, in the rule's words. Then
+ * the Mac's own `core.renameSession`, with the trimmed name, as its first
+ * await; a throw told apart by code alone; no status set, nothing logged.
+ *
+ * Read with the parser as every rule here is; RN2, RN3, RN4, RN5, RN6, RN7
+ * and RN9 also DRIVE the shipping function in memory (`zLoad`). A rule that
+ * checked nothing is red, and a module that is not there fails the rule that
+ * needed it, by name, with its owner. Each rule has its OWN SELF-TEST
+ * (`p349SelfTest`, below), run in every run of this gate.
+ */
+const RN_RULE_IDS = ['RN1', 'RN2', 'RN3', 'RN4', 'RN5', 'RN6', 'RN7', 'RN8', 'RN9', 'RN10'];
+const P349_OWNER = "Phase 349 builder door's or verb's";
+/** D10: the Allow line's clause, the honesty sentence's addition and the ledger row's clause, one string. */
+const RN_CLAUSE = 'rename a session';
+/** D10: the face's `Your phone can` row. */
+const RN_FACE_CLAUSE = 'rename sessions';
+/** D10: Settings then Phone's `New:` line while the route waits. */
+const RN_NEW_WORDS = { title: 'rename sessions from your phone', sentence: 'Name a session as you start it, or rename one later.' };
+/** D6: the cap, 2.2 times the worst legal body (§2.4). */
+const RN_CAP = 2048;
+/** §4.1 step 2: the ledger row, written out. */
+const RN_LEDGER_ROW = Object.freeze({ id: 'rename', method: 'POST', path: '/v1/rename', reads: false, signed: true, windowOnly: false, bodyCap: RN_CAP, clause: RN_CLAUSE });
+/** §4.1 step 1: the answer's six fields, in their order, and its reasons, sorted. */
+const RN_ANSWER_FIELDS = ['verb', 'write', 'outcome', 'reason', 'sentence', 'name'];
+const RN_REASONS = ['changed', 'gone', 'malformed', 'name', 'unreachable'];
+/** §4.2 step 1: the body's keys, sorted and joined. */
+const RN_KEYS = 'name,session,write';
+/** D5: the rule's bound and its three sentences, spelled once in session-names.ts. */
+const RN_MAX_UNITS = 120;
+const RN_SENTENCES = Object.freeze({
+  SESSION_NAME_EMPTY: 'Session name cannot be empty.',
+  SESSION_NAME_TOO_LONG: 'That name is too long.',
+  SESSION_NAME_CHARACTER: 'That name holds a character Tortie does not use.'
+});
+const RN_NAMES = join(ROOT, 'src', 'shared', 'session-names.ts');
+const RN_WORDS = join(ROOT, 'src', 'shared', 'lifecycle-words.ts');
+const RN_CORE = join(ROOT, 'src', 'main', 'sessions', 'core.ts');
+const RN_REMOTE = join(ROOT, 'src', 'main', 'machines', 'remote-sessions.ts');
+const RN_FACTS = join(DOMAIN, 'facts.ts');
+/** The SPEC's clauses RN1's shared half cites. */
+const RN_CITES = {
+  row: 'build/p349/SPEC.md §4.1 step 2',
+  ids: 'build/p349/SPEC.md §4.1 step 1',
+  session: 'build/p349/SPEC.md §4.1 step 1; 348 D27; gate:onlyadd A3',
+  legacy: '333.12, his answer 10; build/p349/SPEC.md D13',
+  wire: 'build/p349/SPEC.md §4.1 step 2',
+  cap: 'build/p349/SPEC.md D6',
+  worst: 'build/p349/SPEC.md D6, §2.4',
+  words: 'build/p349/SPEC.md D10',
+  owner: 'build/p349/SPEC.md D8'
+};
+
+/** A file a Phase 349 rule needs, or null with the rule failed by name and its owner. */
+function p349File(path, id) {
+  if (existsSync(path)) return path;
+  fail(
+    id,
+    `${rel(path)} does not exist, so this rule read nothing. It is ${P349_OWNER} (build/p349/SPEC.md §9.1). ` +
+      'A gate that passed here would go green on the day the phone’s rename does not exist.'
+  );
+  return null;
+}
+
+/**
+ * The worst legal rename body, composed HERE (D6, §2.4's recipe): a name the
+ * rule takes at its bound in C0 units, each of which JSON escapes as `\u00XX`,
+ * beside the longest session id the parse takes and a write id; and the same
+ * length for an astral name escaped as surrogate pairs (twelve bytes for two
+ * units), which is the same as twelve letters.
+ */
+function rnWorstBody(sessionMax) {
+  const body = (name) => JSON.stringify({ name, session: 's'.repeat(sessionMax), write: '0'.repeat(32) });
+  return Math.max(
+    Buffer.byteLength(body(String.fromCharCode(1).repeat(RN_MAX_UNITS)), 'utf8'),
+    Buffer.byteLength(body('x'.repeat((RN_MAX_UNITS / 2) * 12)), 'utf8'),
+    Buffer.byteLength(body('"'.repeat(RN_MAX_UNITS)), 'utf8')
+  );
+}
+
+/** The rename member of createPocketWrites (a method or a property holding a function), or null. */
+function rnMember(impl, name = 'rename') {
+  const factory = oneFunction(impl, 'createPocketWrites');
+  const member = factory === null ? undefined : descendantsOf(factory).find((n) => (ts.isPropertyAssignment(n) && memberName(n) === name && (ts.isArrowFunction(bare(n.initializer)) || ts.isFunctionExpression(bare(n.initializer)))) || (ts.isMethodDeclaration(n) && memberName(n) === name));
+  return member === undefined ? null : ts.isPropertyAssignment(member) ? bare(member.initializer) : member;
+}
+
+/** A row for the rename verdict, on this Mac or on another machine. */
+function rnRow(id, status, remote) {
+  return {
+    id,
+    name: `name-${id}`,
+    tmuxName: `t-${id}`,
+    agent: 'claude',
+    projectPath: '/tmp/p349-project',
+    cwd: '/tmp/p349-project',
+    status,
+    createdAt: 1_700_000_000_000,
+    ...(remote ? { machine: { id: 'studio', name: 'Studio', canRestore: true } } : {})
+  };
+}
+
+// ---- RN1, the route and its words -------------------------------------------
+
+function rnRouteRule() {
+  const id = 'RN1';
+  p348RouteWords(id, {
+    route: 'rename',
+    path: '/v1/rename',
+    after: 'paste',
+    last: true,
+    cap: RN_CAP,
+    factor: 2,
+    worst: (max) => rnWorstBody(max),
+    clause: RN_CLAUSE,
+    face: RN_FACE_CLAUSE,
+    words: RN_NEW_WORDS,
+    cites: RN_CITES,
+    never: 'a rename never asks (his rulings, “Only for End” and “No Face ID, just confirm”)'
+  });
+  // The table's rename row is LAST, after paste's.
+  const table = existsSync(NS_TABLE) ? NS_TABLE : null;
+  if (table !== null) {
+    const ids = nsTableRows(table).map((r) => r.row.id);
+    checked(id);
+    if (ids[ids.length - 1] !== 'rename' || ids[ids.length - 2] !== 'paste') fail(id, `${rel(table)}: the table's ids are ${J(ids)}; rename is appended LAST, right after paste (build/p349/SPEC.md §4.1 step 2)`);
+  }
+  // The ledger row: one literal, last, exactly D6's cap and D10's clause.
+  if (existsSync(AR_LEDGER)) {
+    const ledger = arLoad(AR_LEDGER, id);
+    const rows = Array.isArray(ledger?.POCKET_ROUTE_LEDGER) ? ledger.POCKET_ROUTE_LEDGER : [];
+    const mine = rows.filter((r) => r.id === 'rename');
+    checked(id, 2);
+    if (mine.length !== 1 || nsSorted(mine[0]) !== nsSorted(RN_LEDGER_ROW)) fail(id, `${rel(AR_LEDGER)}: the rename row is ${J(mine)}; it is exactly ONE row ${J(RN_LEDGER_ROW)} (build/p349/SPEC.md §4.1 step 2)`);
+    if (rows[rows.length - 1]?.id !== 'rename') fail(id, `${rel(AR_LEDGER)}: the ledger's last row is ${J(rows[rows.length - 1]?.id ?? null)}; rename's row is appended last, nothing else touched, because the ledger only grows at its end (333.12 D12)`);
+  }
+  // WRITE_CLAUSES.rename and POCKET_HONESTY_ADDED.rename are one string, the ledger's clause.
+  const pairing = existsSync(AR_PAIRING) ? AR_PAIRING : null;
+  const contract = existsSync(AR_CONTRACT) ? AR_CONTRACT : null;
+  if (pairing !== null && contract !== null) {
+    const clause = nsObjectOf(constNamed(pairing, 'WRITE_CLAUSES'))?.['rename'];
+    const added = nsObjectOf(constNamed(contract, 'POCKET_HONESTY_ADDED'))?.['rename'];
+    checked(id);
+    const a = clause !== undefined && ts.isStringLiteralLike(clause) ? clause.text : null;
+    const b = added !== undefined && ts.isStringLiteralLike(added) ? added.text : null;
+    if (a === null || a !== b || a !== RN_LEDGER_ROW.clause) fail(id, `WRITE_CLAUSES.rename is ${J(a)} and POCKET_HONESTY_ADDED.rename ${J(b)}; both are the ledger row's clause, ${J(RN_LEDGER_ROW.clause)}, one string in three owners (build/p349/SPEC.md D10)`);
+  }
+  // The recipe this gate composes reads §2.4's number: a check on the gate itself.
+  checked(id);
+  if (rnWorstBody(128) !== 915) fail(id, `this gate's worst rename body for a 128-character session id is ${String(rnWorstBody(128))} bytes; §2.4 measured 915, so the gate's own recipe moved`);
+}
+
+// ---- RN2, the body, DRIVEN ---------------------------------------------------
+
+/** RN2's hostile corpus (§4.2 step 1, D6): every one is malformed. */
+function rnHostileBodies() {
+  const session = 'ses_1.a:b-c';
+  const write = 'c'.repeat(32);
+  const ok = { name: 'nightly', session, write };
+  const j = (o) => JSON.stringify(o);
+  const bodies = [
+    ['the name missing', j({ session, write })],
+    ['the session missing', j({ name: 'x', write })],
+    ['the write id missing', j({ name: 'x', session })],
+    ['an extra key, batch', j({ ...ok, batch: false })],
+    ['an extra key, old (no lock, D6)', j({ ...ok, old: 'was' })],
+    ['the start’s keys', j({ agent: 'claude', project: 'p1', write })],
+    ['the Remove’s keys', j({ session, write })],
+    ['the name a number', j({ ...ok, name: 7 })],
+    ['the name null', j({ ...ok, name: null })],
+    ['the name an object', j({ ...ok, name: { t: 'x' } })],
+    ['the name an array', j({ ...ok, name: ['x'] })],
+    ['the name a boolean', j({ ...ok, name: true })],
+    ['an empty session id', j({ ...ok, session: '' })],
+    ['a 129-character session id', j({ ...ok, session: 's'.repeat(129) })],
+    ['a session id holding a space', j({ ...ok, session: 'ses 1' })],
+    ['a session id holding /', j({ ...ok, session: '../ses' })],
+    ['a session id that is a number', j({ ...ok, session: 7 })],
+    ['a 31-hex write id', j({ ...ok, write: 'c'.repeat(31) })],
+    ['a 33-hex write id', j({ ...ok, write: 'c'.repeat(33) })],
+    ['an uppercase write id', j({ ...ok, write: 'C'.repeat(32) })],
+    ['a write id that is not hex', j({ ...ok, write: 'z'.repeat(32) })],
+    ['an array', j([ok])],
+    ['a string', j('rename')],
+    ['null', 'null'],
+    ['a number', '42'],
+    ['a body over its cap', j({ ...ok, name: 'x'.repeat(2_100) })],
+    ['not JSON', '{name:"x"}'],
+    ['an empty body', '']
+  ];
+  return { bodies, honest: ok, session, write };
+}
+
+function rnBodyRule() {
+  const id = 'RN2';
+  const writes = p349File(NS_WRITES, id);
+  if (writes === null) return;
+  const fn = oneFunction(writes, 'parseRenameBody');
+  checked(id);
+  if (fn === null) {
+    fail(id, `${rel(writes)} declares no single parseRenameBody (build/p349/SPEC.md §4.2 step 1)`);
+    return;
+  }
+  checked(id, 2);
+  if (!nsComparesKeys(writes, fn, RN_KEYS)) fail(id, `${where(writes, fn)}: parseRenameBody does not compare the body's sorted keys with exactly ${J(RN_KEYS)} (RENAME_KEYS), so a lock or a fourth key could ride along (§4.2 step 1, D6)`);
+  const keysConst = constNamed(writes, 'RENAME_KEYS');
+  if (keysConst === null || !ts.isStringLiteralLike(bare(keysConst.initializer)) || bare(keysConst.initializer).text !== RN_KEYS) fail(id, `${rel(writes)}: RENAME_KEYS is ${J(keysConst?.initializer?.getText() ?? null)}; it is ${J(RN_KEYS)} (§4.2 step 1)`);
+  const reach = nsReach(writes, fn);
+  const parses = callsOf(writes).filter((c) => c.expression.getText() === 'JSON.parse');
+  const called = new Set(reach.flatMap((f) => descendantsOf(f).filter((n) => ts.isCallExpression(n)).map((c) => calleeName(c))));
+  checked(id, 4);
+  if (parses.length !== 1 || !reach.some((f) => inside(parses[0], f))) fail(id, `${where(writes, fn)}: parseRenameBody does not reach the ONE JSON.parse of the write path (objectOf), so it parses its body some other way (§4.2 step 1)`);
+  for (const reader of ['isSessionId', 'isWriteId']) {
+    if (!called.has(reader)) fail(id, `${where(writes, fn)}: nothing parseRenameBody reaches calls ${reader}(; the session is read by isSessionId and the write id by isWriteId, one character at a time (§4.2 step 1)`);
+  }
+  // D6: NOT held to its own bytes. An escaped character is legal in a name, and a key given twice keeps its last value.
+  if (called.has('onlyItsOwnBytes')) fail(id, `${where(writes, fn)}: parseRenameBody reaches onlyItsOwnBytes(; a name is any string, and an escaped character in it is legal, so the rename body is NOT held to its own bytes (D6)`);
+  // The name is read as a string and nothing else, and taken AS IT IS.
+  const typed = descendantsOf(fn).some((n) => ts.isBinaryExpression(n) && /^typeof\s*name$/.test(n.left.getText().replace(/\s+/g, ' ').trim()) && ts.isStringLiteralLike(n.right) && n.right.text === 'string');
+  if (!typed) fail(id, `${where(writes, fn)}: parseRenameBody does not read the name as typeof name === 'string'; the name is any string, its rules the verb's, each with its sentence (§4.2 step 1)`);
+  for (const c of descendantsOf(fn).filter((n) => ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression))) {
+    const m = c.expression.name.text;
+    if (!/^(?:replace|replaceAll|trim|trimStart|trimEnd|normalize|slice|substring|substr|toWellFormed|toLowerCase|toUpperCase)$/.test(m)) continue;
+    checked(id);
+    if (/\bname\b/.test(c.expression.expression.getText())) fail(id, `${where(writes, c)}: parseRenameBody calls .${m}( on ${J(c.expression.expression.getText())}; a name is taken AS IT IS, and the verb trims it as the Mac trims it (§4.2 step 1, §4.3 step 4)`);
+  }
+  const { bodies, honest, session, write } = rnHostileBodies();
+  // The name comes back exactly as sent, whatever it holds: the empty one,
+  // spaces, a refused character and a lone surrogate reach the verb, which
+  // answers each in words; an escape is legal; a key given twice keeps its
+  // last value (D6).
+  const names = ['', '   ', '  padded  ', 'a\tb', `x${String.fromCharCode(0x202e)}y`, String.fromCharCode(0xd800), 'it’s "x" fix--auth', '#{session_id}', 'x'.repeat(121)];
+  const honests = [
+    ['{name, session, write}', honest, { session, write, name: 'nightly' }],
+    ...names.map((name) => [`whose name is ${J(name)}`, { ...honest, name }, { name }]),
+    ['whose name is written with escapes', `{"name":"\\u0073\\u0031","session":"${session}","write":"${write}"}`, { name: 's1' }],
+    ['whose name is given twice, the last kept', `{"name":"first","name":"last","session":"${session}","write":"${write}"}`, { name: 'last' }]
+  ];
+  p348DriveParse(id, writes, 'parseRenameBody', { bodies, honests, cite: { seam: 'build/p349/SPEC.md §9.3', body: 'build/p349/SPEC.md §4.2 step 1' } });
+}
+
+// ---- RN3, the answer -----------------------------------------------------------
+
+function rnAnswerRule() {
+  const id = 'RN3';
+  const contract = p349File(AR_CONTRACT, id);
+  if (contract !== null) {
+    const answer = interfaceOf(contract, 'PocketRenameAnswer');
+    checked(id, 4);
+    if (answer === null) fail(id, 'src/shared/ipc/pocket.ts declares no interface PocketRenameAnswer (build/p349/SPEC.md §4.1 step 1)');
+    else {
+      const fields = answer.members.map(memberName);
+      if (J(fields) !== J(RN_ANSWER_FIELDS)) fail(id, `${where(contract, answer)}: PocketRenameAnswer holds ${J(fields)}; it holds exactly ${J(RN_ANSWER_FIELDS)}, in that order: Start's six with name in session's place, and nothing that could claim Face ID happened (§4.1 step 1, D8)`);
+      const typeOf = (name) => squash(answer.members.find((m) => memberName(m) === name)?.type?.getText() ?? '');
+      if (typeOf('verb') !== "'rename'") fail(id, `${where(contract, answer)}: PocketRenameAnswer.verb is ${J(typeOf('verb'))}; it is the literal 'rename', never a PocketWriteAnswer verb a frozen phone reads as a closed set (348 D27)`);
+      if (typeOf('reason') !== 'PocketRenameReason|null') fail(id, `${where(contract, answer)}: PocketRenameAnswer.reason is ${J(typeOf('reason'))}; it is PocketRenameReason | null, read by a phone as an OPEN word (§4.1 step 1)`);
+      if (typeOf('name') !== 'string|null') fail(id, `${where(contract, answer)}: PocketRenameAnswer.name is ${J(typeOf('name'))}; it is string | null, the name main stored, non-null exactly when done (D21)`);
+    }
+    const literals = p348Literals(contract, 'PocketRenameReason');
+    checked(id);
+    if (J(literals) !== J(RN_REASONS)) fail(id, `src/shared/ipc/pocket.ts: PocketRenameReason is ${J(literals)}; it is exactly ${J(RN_REASONS)} (build/p349/SPEC.md §4.1 step 1)`);
+  }
+  const writes = p349File(NS_WRITES, id);
+  if (writes === null) return;
+  const fn = oneFunction(writes, 'renameAnswer');
+  checked(id);
+  if (fn === null) {
+    fail(id, `${rel(writes)} declares no single renameAnswer; the answer is composed field by field in one function (§4.2 step 2)`);
+    return;
+  }
+  const exported = ts.isFunctionDeclaration(fn) && (ts.getCombinedModifierFlags(fn) & ts.ModifierFlags.Export) !== 0;
+  const params = fn.parameters.map((p) => (ts.isIdentifier(p.name) ? p.name.text : '?'));
+  checked(id, 2);
+  if (!exported) fail(id, `${where(writes, fn)}: renameAnswer is not an exported function declaration; it is exported beside removeAnswer, for the vectors and the tests (§4.2 step 2, §9.3)`);
+  if (J(params) !== J(['write', 'outcome', 'reason', 'sentence', 'name'])) fail(id, `${where(writes, fn)}: renameAnswer takes ${J(params)}; it takes exactly (write, outcome, reason, sentence, name) and its verb is its own literal (§4.2 step 2)`);
+  const objects = descendantsOf(fn).filter((n) => ts.isObjectLiteralExpression(n) && n.properties.some((p) => memberName(p) === 'verb'));
+  const stringified = descendantsOf(fn).filter((n) => ts.isCallExpression(n) && n.expression.getText() === 'JSON.stringify').map((c) => bare(c.arguments[0]));
+  checked(id, 3);
+  if (objects.length === 0) fail(id, `${where(writes, fn)}: renameAnswer builds no object naming verb, so the six fields cannot be read`);
+  for (const o of objects) {
+    const names = o.properties.map((p) => (ts.isSpreadAssignment(p) ? '…' : memberName(p) ?? '?')).sort();
+    if (J(names) !== J([...RN_ANSWER_FIELDS].sort())) fail(id, `${where(writes, o)}: renameAnswer's answer holds ${J(names)}; it holds exactly the six fields, each set on its own and none spread (§4.2 step 2)`);
+  }
+  if (stringified.length !== 1 || !objects.includes(stringified[0])) fail(id, `${where(writes, fn)}: renameAnswer hands JSON.stringify ${J(stringified.map((s) => s?.getText().slice(0, 50) ?? null))}; it hands it ONE object literal of the six fields, composed field by field (§4.2 step 2)`);
+  const literalVerb = objects.some((o) => {
+    const v = bare(propOf(o, 'verb'));
+    return v !== undefined && ts.isStringLiteralLike(v) && v.text === 'rename';
+  });
+  if (!literalVerb) fail(id, `${where(writes, fn)}: renameAnswer never sets verb to the literal 'rename' (§4.2 step 2)`);
+  // doorAnswer's rename arm: the door's own busy and malformed in the rename's shape, with no name.
+  const door = oneFunction(writes, 'doorAnswer');
+  const arm = door === null ? [] : descendantsOf(door).filter((n) => ts.isIfStatement(n) && /verb\s*===\s*'rename'/.test(n.expression.getText()));
+  const armCall = arm.length === 1 ? descendantsOf(arm[0].thenStatement).find((n) => ts.isCallExpression(n) && calleeName(n) === 'renameAnswer') : undefined;
+  checked(id);
+  if (armCall === undefined || armCall.arguments.length !== 5 || bare(armCall.arguments[4])?.kind !== ts.SyntaxKind.NullKeyword) fail(id, `${door === null ? rel(writes) : where(writes, door)}: doorAnswer has ${String(arm.length)} rename arm(s)${armCall === undefined ? '' : ` answering ${J(armCall.getText().slice(0, 80))}`}; it has ONE, answering renameAnswer(write, outcome, reason, sentence, null), so a busy and a malformed are the rename's own shape with no name (§4.2 step 2)`);
+  // D21, structurally: every renameAnswer( handed 'done' carries a name, and every other one hands null.
+  for (const c of callsOf(writes).filter((n) => calleeName(n) === 'renameAnswer')) {
+    const outcome = bare(c.arguments[1]);
+    const name = bare(c.arguments[4]);
+    checked(id);
+    if (outcome === undefined || name === undefined) continue;
+    const isDone = ts.isStringLiteralLike(outcome) && outcome.text === 'done';
+    const isNull = name.kind === ts.SyntaxKind.NullKeyword;
+    if (ts.isStringLiteralLike(outcome) && isDone === isNull) fail(id, `${where(writes, c)}: renameAnswer( is handed outcome ${J(outcome.text)} with name ${J(name.getText().slice(0, 40))}; name is a non-empty string exactly when the outcome is done, and null otherwise (D21)`);
+  }
+  // DRIVEN: what it composes is exactly the six fields, in their order.
+  const mod = arLoad(writes, id);
+  checked(id, 2);
+  if (typeof mod?.renameAnswer !== 'function') {
+    fail(id, `${rel(writes)} exports no renameAnswer to drive`);
+    return;
+  }
+  for (const [args, want] of [
+    [['d'.repeat(32), 'done', null, null, 'nightly'], { verb: 'rename', write: 'd'.repeat(32), outcome: 'done', reason: null, sentence: null, name: 'nightly' }],
+    [['d'.repeat(32), 'refused', 'name', 'That name is too long.', null], { verb: 'rename', write: 'd'.repeat(32), outcome: 'refused', reason: 'name', sentence: 'That name is too long.', name: null }],
+    [['', 'refused', 'malformed', 'x', null], { verb: 'rename', write: '', outcome: 'refused', reason: 'malformed', sentence: 'x', name: null }]
+  ]) {
+    let got = null;
+    try {
+      got = JSON.parse(mod.renameAnswer(...args));
+    } catch (err) {
+      fail(id, `renameAnswer( could not be driven: ${err instanceof Error ? err.message : String(err)}`);
+      continue;
+    }
+    checked(id);
+    if (J(got) !== J(want)) fail(id, `renameAnswer(${J(args).slice(1, -1)}) composes ${J(got)}; it composes ${J(want)}, the six fields in that order (§4.2 step 2)`);
+  }
+}
+
+// ---- RN4, the path -------------------------------------------------------------
+
+function rnPathRule() {
+  const id = 'RN4';
+  const writes = p349File(NS_WRITES, id);
+  if (writes === null) return;
+  const handler = writeHandlerOf(writes);
+  checked(id);
+  if (handler === null) {
+    fail(id, `${rel(writes)}: createPocketWriteHandler returns no function, so the rename's path cannot be read`);
+    return;
+  }
+  const a = writePathAnchors(writes, handler);
+  // STEP 1's ladder names rename explicitly; paste stays the fall-through.
+  const ladderArm = descendantsOf(handler).filter((n) => ts.isConditionalExpression(n) && /^verb\s*===\s*'rename'$/.test(n.condition.getText().trim()) && ts.isCallExpression(bare(n.whenTrue)) && calleeName(bare(n.whenTrue)) === 'parseRenameBody');
+  checked(id, 2);
+  if (ladderArm.length !== 1) fail(id, `${where(writes, handler)}: STEP 1's ladder names verb === 'rename' ? parseRenameBody(body) ${String(ladderArm.length)} time(s); once, explicitly, with paste the fall-through (build/p349/SPEC.md §4.2 step 3)`);
+  if (ladderArm.length === 1) {
+    const stmt = a.parse === undefined ? undefined : statementOf(a.parse)?.statement;
+    checked(id);
+    if (stmt === undefined || !inside(ladderArm[0], stmt)) fail(id, `${where(writes, ladderArm[0])}: the rename's parse is not in the one statement that parses every session verb's body (§4.2 step 3)`);
+  }
+  // STEP 5: renameSettled( in the statement right after the last check.
+  const settles = a.actStatement === undefined ? [] : descendantsOf(a.actStatement).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'renameSettled');
+  checked(id, 2);
+  if (settles.length !== 1) {
+    fail(id, `${a.actStatement === undefined ? rel(writes) : where(writes, a.actStatement)}: the statement right after the last check calls renameSettled( ${String(settles.length)} time(s); once, starting writes.rename({ sessionId: parsed.session, name: parsed.name }) with parsed.write, nothing between the last check and the act (§4.2 step 3)`);
+  } else {
+    const [start, write] = settles[0].arguments;
+    const act = start === undefined ? undefined : descendantsOf(start).find((n) => ts.isCallExpression(n) && calleeName(n) === 'rename' && /writes/.test(n.expression.getText()));
+    const input = act === undefined ? undefined : bare(act.arguments[0]);
+    const ok =
+      act !== undefined &&
+      input !== undefined &&
+      ts.isObjectLiteralExpression(input) &&
+      J(input.properties.map((p) => memberName(p)).sort()) === J(['name', 'sessionId']) &&
+      squash(propOf(input, 'sessionId')?.getText() ?? '') === 'parsed.session' &&
+      squash(propOf(input, 'name')?.getText() ?? '') === 'parsed.name' &&
+      squash(write?.getText() ?? '') === 'parsed.write';
+    if (!ok) fail(id, `${where(writes, settles[0])}: the rename's act is ${J(settles[0].getText().slice(0, 120))}; it is renameSettled(() => writes.rename({ sessionId: parsed.session, name: parsed.name }), parsed.write): the session id and the name as sent, and nothing else (§4.2 step 3)`);
+  }
+  // renameSettled and renameActedOf: removeSettled's and removeActedOf's shape for the rename.
+  const settled = oneFunction(writes, 'renameSettled');
+  const acted = oneFunction(writes, 'renameActedOf');
+  checked(id, 2);
+  if (settled === null || acted === null) {
+    fail(id, `${rel(writes)} declares renameSettled ${settled === null ? 'no' : 'one'} time(s) and renameActedOf ${acted === null ? 'no' : 'one'} time(s); each once, the rename's own settle and its three shapes (§4.2 step 3)`);
+  } else {
+    const usesFailed = (fn) => descendantsOf(fn).some((n) => ts.isIdentifier(n) && /^RENAME_(?:ACT_)?FAILED$/.test(n.text));
+    if (!usesFailed(settled) || !usesFailed(acted)) fail(id, `${rel(writes)}: renameSettled or renameActedOf names no RENAME_FAILED; a rejection, a throw before the promise exists and an outcome it does not name read failed with RENAME_FAILED (§4.2 step 3)`);
+    const outcomes = new Set(descendantsOf(acted).filter((n) => ts.isBinaryExpression(n) && /\.outcome$/.test(n.left.getText()) && ts.isStringLiteralLike(n.right)).map((n) => n.right.text));
+    if (J([...outcomes].sort()) !== J(['done', 'failed', 'refused'])) fail(id, `${where(writes, acted)}: renameActedOf asks the outcome for ${J([...outcomes].sort())}; it answers exactly done, refused and failed, and anything else reads failed (§4.2 step 3)`);
+  }
+  // DRIVEN: the shipping handler over a recording writes.
+  const mod = arLoad(writes, id);
+  const words = existsSync(RN_WORDS) ? arLoad(RN_WORDS, id) : null;
+  const RENAME_FAILED = words?.RENAME_FAILED;
+  checked(id, 2);
+  if (typeof mod?.createPocketWriteHandler !== 'function' || typeof RENAME_FAILED !== 'string') {
+    fail(id, `${rel(writes)} exports no createPocketWriteHandler to drive, or src/shared/lifecycle-words.ts no RENAME_FAILED (§5.1)`);
+    return undefined;
+  }
+  const route = { id: 'rename', method: 'POST', path: '/v1/rename', reads: false, windowOnly: false, signed: true };
+  const body = (n) => Buffer.from(JSON.stringify({ name: '  nightly  ', session: 's1', write: n.toString(16).padStart(32, '0') }), 'utf8');
+  const nope = async () => ({ outcome: 'failed', sentence: 'not in this test' });
+  return (async () => {
+    let n = 0;
+    for (const [what, act, want] of [
+      ['a done with the name main stored', async (input) => ({ outcome: 'done', name: input.name.trim() }), { outcome: 'done', reason: null, sentence: null, name: 'nightly' }],
+      ['a done with an empty name (D21)', async () => ({ outcome: 'done', name: '' }), { outcome: 'failed', reason: null, sentence: RENAME_FAILED, name: null }],
+      ['a done with a name that is not a string (D21)', async () => ({ outcome: 'done', name: 7 }), { outcome: 'failed', reason: null, sentence: RENAME_FAILED, name: null }],
+      ['a refusal in its own words', async () => ({ outcome: 'refused', reason: 'name', sentence: 'That name is too long.' }), { outcome: 'refused', reason: 'name', sentence: 'That name is too long.', name: null }],
+      ['an outcome nothing names', async () => ({ outcome: 'maybe' }), { outcome: 'failed', reason: null, sentence: RENAME_FAILED, name: null }],
+      ['a rejection', () => Promise.reject(new Error('CANARY')), { outcome: 'failed', reason: null, sentence: RENAME_FAILED, name: null }],
+      ['a throw before the promise exists', () => { throw new Error('CANARY'); }, { outcome: 'failed', reason: null, sentence: RENAME_FAILED, name: null }]
+    ]) {
+      n += 1;
+      const asked = [];
+      const handle = mod.createPocketWriteHandler({
+        shuttingDown: () => false,
+        stillPaired: () => true,
+        routeServed: () => true,
+        writes: { end: nope, choose: nope, say: nope, keys: nope, start: nope, remove: nope, paste: nope, rename: (input) => { asked.push(input); return act(input); } },
+        now: () => 1_000
+      });
+      const got = await zSettle(handle(route, body(n), 'phone-a', { stopping: () => false }));
+      checked(id, 3);
+      if (!got.ok) {
+        fail(id, `the write path threw on ${what} (${got.error}); a rename's act never throws past step 5`);
+        continue;
+      }
+      const answer = (() => {
+        try {
+          return JSON.parse(got.value?.body ?? 'null');
+        } catch {
+          return null;
+        }
+      })();
+      const wantWhole = { verb: 'rename', write: n.toString(16).padStart(32, '0'), ...want };
+      if (J(answer) !== J(wantWhole)) fail(id, `the write path answers ${what} with ${J(answer)}; it answers ${J(wantWhole)} (§4.2 step 3, D21)`);
+      if (got.value?.acted !== true || got.value?.status !== 200) fail(id, `the write path answers ${what} with status ${J(got.value?.status)} and acted ${J(got.value?.acted)}; after the act every answer is a 200 marked acted (§4.2 step 3)`);
+      if (J(asked) !== J([{ sessionId: 's1', name: '  nightly  ' }])) fail(id, `the write path handed writes.rename ${J(asked)} for ${what}; it hands it the session id and the name as sent, once (§4.2 step 3)`);
+    }
+  })();
+}
+
+// ---- RN5, the verdict's order, pure, DRIVEN ------------------------------------
+
+function rnVerdictRule() {
+  const id = 'RN5';
+  const impl = p349File(POCKET_WRITES_FILE, id);
+  const gates = p349File(RM_GATES, id);
+  if (gates !== null) {
+    // DOOR_RENAME_GATE_ENV, declared once, frozen, every field off (D4).
+    const decls = declarationsOf(productionSources().filter((f) => sourceOf(f).includes('DOOR_RENAME_GATE_ENV')), 'DOOR_RENAME_GATE_ENV');
+    checked(id, 2);
+    if (decls.length !== 1 || decls[0].file !== gates) fail(id, `DOOR_RENAME_GATE_ENV is declared ${String(decls.length)} time(s) (${decls.map((d) => where(d.file, d.n)).join(', ') || 'nowhere'}); once, in src/shared/session-gates.ts beside DOOR_GATE_ENV and DOOR_REMOVE_GATE_ENV (build/p349/SPEC.md D4)`);
+    const d = constNamed(gates, 'DOOR_RENAME_GATE_ENV');
+    let init = bare(d?.initializer);
+    const frozen = init !== undefined && ts.isCallExpression(init) && calleeName(init) === 'freeze';
+    if (frozen) init = bare(init.arguments[0]);
+    const out = {};
+    if (init !== undefined && ts.isObjectLiteralExpression(init)) for (const p of init.properties) if (ts.isPropertyAssignment(p) && memberName(p) !== null) out[memberName(p)] = bare(p.initializer).getText();
+    if (!frozen || d?.type?.getText() !== 'SessionGateEnv' || nsSorted(out) !== nsSorted({ canRestore: 'false', canDiscard: 'false', shellPathReady: 'false', handback: 'undefined' })) {
+      fail(id, `${rel(gates)}: DOOR_RENAME_GATE_ENV is ${J({ frozen, out, typed: d?.type?.getText() ?? null })}; it is Object.freeze({ canRestore: false, canDiscard: false, shellPathReady: false, handback: undefined }) typed SessionGateEnv: a rename restores, removes and starts nothing (D4)`);
+    }
+  }
+  if (impl === null) return;
+  const verdicts = functionsNamed(impl, 'renameVerdict');
+  checked(id);
+  if (verdicts.length !== 1) {
+    fail(id, `${rel(impl)} declares renameVerdict ${String(verdicts.length)} time(s); ONE pure function decides a rename (build/p349/SPEC.md §4.3 step 4)`);
+    return;
+  }
+  const fn = verdicts[0];
+  const exported = ts.isFunctionDeclaration(fn) && (ts.getCombinedModifierFlags(fn) & ts.ModifierFlags.Export) !== 0;
+  const isAsync = (ts.getCombinedModifierFlags(fn) & ts.ModifierFlags.Async) !== 0;
+  checked(id, 3);
+  if (!exported) fail(id, `${where(impl, fn)}: renameVerdict is not an exported function declaration; it is exported, pure, for the tests, the vectors and conformance:manager (§4.3 step 4)`);
+  if (isAsync || descendantsOf(fn).some((n) => ts.isAwaitExpression(n))) fail(id, `${where(impl, fn)}: renameVerdict is async or awaits; it is PURE over the row and the name, so nothing can change between the verdict and the verb (§4.3 step 4)`);
+  const names = new Set(descendantsOf(fn).filter((n) => ts.isIdentifier(n)).map((n) => n.text));
+  for (const impure of ['core', 'deps', 'manifest', 'listSessions', 'Date', 'process']) {
+    if (names.has(impure)) fail(id, `${where(impl, fn)}: renameVerdict names ${impure}; it reads only the row and the name it is handed (§4.3 step 4)`);
+  }
+  // No call outside the gate and the rule, and neither of main's gates.
+  const calls = descendantsOf(fn).filter((n) => ts.isCallExpression(n));
+  for (const c of calls) {
+    checked(id);
+    const name = calleeName(c);
+    if (name !== 'sessionActionGates' && name !== 'sessionNameRefusal') fail(id, `${where(impl, c)}: renameVerdict calls ${String(name)}(; it calls the shared gate and the one name rule and nothing else (§4.3 step 4)`);
+    if (name === 'endRefusal' || name === 'removeRefusal') fail(id, `${where(impl, c)}: renameVerdict asks main's ${name}(; the Mac's own Rename asks neither of main's gates (lifecycle-gate.ts has no rename refusal), so neither does the door (§4.3 step 4)`);
+  }
+  // .canRename of DOOR_RENAME_GATE_ENV, and nothing else of the gate.
+  const shared = calls.filter((c) => calleeName(c) === 'sessionActionGates');
+  checked(id);
+  if (shared.length !== 1) fail(id, `${where(impl, fn)}: renameVerdict asks sessionActionGates( ${String(shared.length)} time(s); ONCE, reading .canRename of DOOR_RENAME_GATE_ENV (D4)`);
+  for (const c of shared) {
+    checked(id);
+    const field = ts.isPropertyAccessExpression(c.parent) && c.parent.expression === c ? c.parent.name.text : null;
+    if (field !== 'canRename' || c.arguments[2]?.getText() !== 'DOOR_RENAME_GATE_ENV') fail(id, `${where(impl, c)}: renameVerdict asks the shared gate as ${J(c.parent.getText().slice(0, 80))}; it reads .canRename of sessionActionGates( with DOOR_RENAME_GATE_ENV and nothing else (D4)`);
+  }
+  // THE ORDER: gone, unreachable, the gate's changed, the far changed, then name.
+  const at = (pred) => {
+    const node = descendantsOf(fn).find(pred);
+    return node === undefined ? -1 : node.getStart();
+  };
+  const reasonAt = (word) => at((n) => ts.isPropertyAssignment(n) && memberName(n) === 'reason' && ts.isStringLiteralLike(bare(n.initializer)) && bare(n.initializer).text === word);
+  const order = [
+    ['gone (no listed row)', reasonAt('gone')],
+    ['unreachable (a row Tortie cannot see)', reasonAt('unreachable')],
+    ['the gate (sessionActionGates(…).canRename)', shared[0] === undefined ? -1 : shared[0].getStart()],
+    ['the far machine (session.machine)', at((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'machine')],
+    ['the name (sessionNameRefusal)', at((n) => ts.isCallExpression(n) && calleeName(n) === 'sessionNameRefusal')]
+  ];
+  checked(id, order.length);
+  for (const [what, pos] of order) if (pos === -1) fail(id, `${where(impl, fn)}: renameVerdict has no arm for ${what} (§4.3 step 4)`);
+  for (let i = 1; i < order.length; i += 1) {
+    if (order[i - 1][1] !== -1 && order[i][1] !== -1 && order[i - 1][1] >= order[i][1]) fail(id, `${where(impl, fn)}: renameVerdict asks ${order[i][0]} before ${order[i - 1][0]}; its arms run gone, unreachable, the gate's changed, the far changed, then name (§4.3 step 4)`);
+  }
+  // DRIVEN: the partition over every status, on this Mac and another machine (§10.3).
+  const gatesMod = gates === null ? null : arLoad(gates, id);
+  const types = arLoad(join(ROOT, 'src', 'shared', 'types.ts'), id);
+  let mod = null;
+  try {
+    mod = zLoad(impl, rmStubs(null));
+  } catch (err) {
+    fail(id, `${rel(impl)} could not be loaded in memory to be driven: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  const verdict = mod?.renameVerdict;
+  checked(id);
+  if (typeof verdict !== 'function' || typeof mod?.renameTargetVerdict !== 'function' || typeof mod?.renameOfferOf !== 'function' || typeof gatesMod?.sessionActionGates !== 'function' || gatesMod?.DOOR_RENAME_GATE_ENV === undefined || !Array.isArray(types?.SESSION_STATUSES)) {
+    fail(id, 'renameVerdict, renameTargetVerdict, renameOfferOf, sessionActionGates, DOOR_RENAME_GATE_ENV or SESSION_STATUSES could not be loaded, so the partition was driven over nothing');
+    return;
+  }
+  const WANT = {
+    running: { local: 'ok', remote: 'ok' },
+    idle: { local: 'ok', remote: 'ok' },
+    needs_input: { local: 'ok', remote: 'ok' },
+    // D3: an ended session renames on this Mac and never on another machine.
+    exited: { local: 'ok', remote: 'changed' },
+    restorable: { local: 'ok', remote: 'changed' },
+    unknown: { local: 'unreachable', remote: 'unreachable' },
+    discarded: { local: 'changed', remote: 'changed' }
+  };
+  checked(id);
+  if (J([...types.SESSION_STATUSES].sort()) !== J(Object.keys(WANT).sort())) fail(id, `SESSION_STATUSES is ${J(types.SESSION_STATUSES)}; every status is placed in the rename partition on purpose, and a new one must be placed here (§10.3)`);
+  const envs = [gatesMod.DOOR_GATE_ENV, gatesMod.DOOR_REMOVE_GATE_ENV, gatesMod.DOOR_RENAME_GATE_ENV, { canRestore: true, canDiscard: true, shellPathReady: true, handback: { state: 'offered' } }];
+  let farOnly = 0;
+  for (const status of types.SESSION_STATUSES) {
+    for (const place of ['local', 'remote']) {
+      const remote = place === 'remote';
+      const row = rnRow(`r-${status}-${place}`, status, remote);
+      const gatePasses = gatesMod.sessionActionGates(row, status, gatesMod.DOOR_RENAME_GATE_ENV).canRename === true;
+      // canRename reads none of any environment: it is `acts` (D4).
+      const answers = new Set(envs.map((env) => gatesMod.sessionActionGates(row, status, env).canRename === true));
+      checked(id);
+      if (answers.size !== 1) fail(id, `sessionActionGates(…).canRename answers differently across the door's environments for a ${status} row ${place}; it reads none of any environment, so the third is a name and never a widening (D4)`);
+      let got;
+      try {
+        got = verdict(row, 'a name the rule passes');
+      } catch (err) {
+        fail(id, `renameVerdict threw on ${status} ${place} (${err instanceof Error ? err.message : String(err)}); it answers every row`);
+        continue;
+      }
+      const word = got?.ok === true ? 'ok' : got?.reason ?? '?';
+      checked(id, 3);
+      if (WANT[status]?.[place] !== undefined && word !== WANT[status][place]) fail(id, `renameVerdict answers ${J(word)} for a ${status} row ${remote ? 'on another machine' : 'on this Mac'}; it answers ${J(WANT[status][place])} (§10.3, D3)`);
+      if (gatePasses && word !== 'ok') farOnly += 1;
+      if (got?.ok !== true && (typeof got?.sentence !== 'string' || got.sentence.length === 0)) fail(id, `renameVerdict refuses a ${status} row ${place} with no sentence (${J(got)}); every refusal carries its owner's words (§4.3 step 4)`);
+      const target = mod.renameTargetVerdict(row);
+      if ((target?.ok === true) !== (got?.ok === true) || mod.renameOfferOf(row) !== (got?.ok === true)) fail(id, `renameTargetVerdict answers ${J(target)} and renameOfferOf ${J(mod.renameOfferOf(row))} for a ${status} row ${place}, where the verdict over a passing name answers ${J(got)}; both track the first four arms (§4.3 step 4)`);
+    }
+  }
+  // The difference D3 exists for: the gate passes and the verdict refuses ONLY a far ended row.
+  checked(id);
+  if (farOnly !== 2) fail(id, `the gate passes and the verdict refuses ${String(farOnly)} row(s); exactly two, another machine's exited and restorable rows (D3, §10.3)`);
+  // The arm with no row, and the name's own arm over D5's cases on a passing row.
+  checked(id, 2);
+  const gone = verdict(undefined, 'x');
+  if (gone?.ok === true || gone?.reason !== 'gone') fail(id, `renameVerdict answers ${J(gone)} for an id nothing holds; it answers refused gone (§4.3 step 4)`);
+  const live = rnRow('r-name', 'running', false);
+  for (const [what, name, reason] of [
+    ['an empty name', '', 'name'],
+    ['spaces only', '    ', 'name'],
+    ['121 units', 'b'.repeat(121), 'name'],
+    ['a line feed', `a${String.fromCharCode(10)}b`, 'name'],
+    ['a right-to-left override', `a${String.fromCharCode(0x202e)}b`, 'name'],
+    ['a lone surrogate', `a${String.fromCharCode(0xd800)}b`, 'name'],
+    ['120 units', 'a'.repeat(120), 'ok'],
+    ['a name tmux would read (D7 holds it back, the door does not)', '#{session_id}', 'ok']
+  ]) {
+    checked(id);
+    const got = verdict(live, name);
+    const word = got?.ok === true ? 'ok' : got?.reason;
+    if (word !== reason) fail(id, `renameVerdict answers ${J(got)} for ${what} on a live row; it answers ${reason === 'ok' ? 'ok' : `refused ${reason}`} (D5, D7)`);
+  }
+}
+
+// ---- RN6, the first await --------------------------------------------------------
+
+function rnFirstAwaitRule() {
+  const id = 'RN6';
+  const impl = p349File(POCKET_WRITES_FILE, id);
+  if (impl === null) return undefined;
+  const fn = rnMember(impl);
+  checked(id);
+  if (fn === null) {
+    fail(id, `${rel(impl)}: createPocketWrites answers no rename, so its first await cannot be read (§4.3 step 4)`);
+    return undefined;
+  }
+  const own = descendantsOf(fn).filter((n) => !nestedIn(n, fn));
+  const verdict = own.find((n) => ts.isCallExpression(n) && calleeName(n) === 'renameVerdict');
+  const awaits = own.filter((n) => ts.isAwaitExpression(n));
+  const first = awaits[0];
+  const call = first === undefined ? undefined : bare(first.expression);
+  checked(id, 4);
+  if (verdict === undefined) fail(id, `${where(impl, fn)}: rename never asks renameVerdict(; the verdict comes first (§4.3 step 4)`);
+  if (first === undefined || call === undefined || !ts.isCallExpression(call) || calleeName(call) !== 'renameSession' || !/(?:^|\.)core$/.test(ts.isPropertyAccessExpression(call.expression) ? call.expression.expression.getText() : '')) {
+    fail(id, `${where(impl, fn)}: rename's first await is ${first === undefined ? 'nothing' : J(first.getText().slice(0, 60))}; it is the Mac's own core.renameSession(, and nothing is awaited before it (§4.3 step 4)`);
+  } else {
+    if (verdict !== undefined && verdict.getStart() > first.getStart()) fail(id, `${where(impl, verdict)}: renameVerdict( is asked after the first await; the verdict precedes the one await, the verb (§4.3 step 4)`);
+    const input = bare(call.arguments[0]);
+    const nameArg = input !== undefined && ts.isObjectLiteralExpression(input) ? bare(propOf(input, 'name')) : undefined;
+    if (nameArg === undefined || !ts.isCallExpression(nameArg) || calleeName(nameArg) !== 'trimmedSessionName') fail(id, `${where(impl, call)}: core.renameSession( is handed the name as ${J(nameArg?.getText().slice(0, 60) ?? null)}; it is handed trimmedSessionName( of the name, the Mac's own trim (§4.3 step 4, D5)`);
+  }
+  // DRIVEN over a fake core that records every call.
+  let errorsModule = null;
+  let mod = null;
+  try {
+    errorsModule = zLoad(RM_ERRORS, AR_STUBS);
+    mod = zLoad(impl, rmStubs(errorsModule));
+  } catch (err) {
+    fail(id, `${rel(impl)} could not be loaded in memory to be driven: ${err instanceof Error ? err.message : String(err)}`);
+    return undefined;
+  }
+  checked(id);
+  if (typeof mod?.createPocketWrites !== 'function') {
+    fail(id, `${rel(impl)} exports no createPocketWrites to drive`);
+    return undefined;
+  }
+  const drive = async (what, { rows, name, coreNull = false, sessionId }, want) => {
+    const log = [];
+    const core = {
+      listSessions: () => rows,
+      manifest: { getSession: () => undefined },
+      killSession: async (sid) => log.push(['kill', sid]),
+      removeSession: (sid) => log.push(['remove', sid]),
+      broadcastSessions: () => log.push(['broadcast']),
+      renameSession: async (input) => {
+        log.push(['rename', input.sessionId, input.name]);
+        return { ...rows.find((r) => r.id === input.sessionId), name: input.name };
+      }
+    };
+    const nope = async () => ({ outcome: 'failed', sentence: 'nope' });
+    const writes = mod.createPocketWrites({ core: () => (coreNull ? null : core), machineKnown: () => true, reply: { choose: nope, say: nope }, keys: { keys: nope }, start: { start: nope }, paste: { paste: nope } });
+    const outcome = await zSettle(Promise.resolve().then(() => writes.rename({ sessionId: sessionId ?? rows[0]?.id ?? 'ghost', name })));
+    checked(id, 2);
+    if (!outcome.ok) {
+      fail(id, `rename threw on ${what} (${outcome.error}); it answers an outcome and never throws`);
+      return;
+    }
+    const got = outcome.value;
+    const said = got.outcome === 'done' ? `done ${String(got.name)}` : `${got.outcome}${got.reason === undefined ? '' : ` ${got.reason}`}`;
+    if (said !== want.said) fail(id, `rename answers ${J(got)} for ${what}; it answers ${want.said} (§4.3 step 4)`);
+    if (J(log) !== J(want.log)) fail(id, `rename made the calls ${J(log)} for ${what}; it makes ${J(want.log)}: the Mac's own rename once, with the TRIMMED name, only after the verdict passed, and nothing else (§4.3 step 4)`);
+  };
+  const live = rnRow('ses-live', 'running', false);
+  const ended = rnRow('ses-ended', 'exited', false);
+  const farEnded = rnRow('ses-far', 'exited', true);
+  const farLive = rnRow('ses-far-live', 'idle', true);
+  return (async () => {
+    await drive('a live session on this Mac, a padded name', { rows: [live], name: '  nightly build  ' }, { said: 'done nightly build', log: [['rename', live.id, 'nightly build']] });
+    await drive('an ended session on this Mac', { rows: [ended], name: 'kept' }, { said: 'done kept', log: [['rename', ended.id, 'kept']] });
+    await drive('a live session on another machine', { rows: [farLive], name: 'far' }, { said: 'done far', log: [['rename', farLive.id, 'far']] });
+    await drive('an ended session on another machine (D3)', { rows: [farEnded], name: 'far' }, { said: 'refused changed', log: [] });
+    await drive('a name the rule refuses', { rows: [live], name: '   ' }, { said: 'refused name', log: [] });
+    await drive('an id nothing lists', { rows: [live], name: 'x', sessionId: 'ghost' }, { said: 'refused gone', log: [] });
+    await drive('a core that has not booted', { rows: [live], name: 'x', coreNull: true }, { said: 'failed', log: [] });
+  })();
+}
+
+// ---- RN7, codes only -------------------------------------------------------------
+
+function rnCodesRule() {
+  const id = 'RN7';
+  const impl = p349File(POCKET_WRITES_FILE, id);
+  if (impl === null) return undefined;
+  const fn = rnMember(impl);
+  const verdict = oneFunction(impl, 'renameVerdict');
+  checked(id);
+  if (fn === null || verdict === null) {
+    fail(id, `${rel(impl)}: rename or renameVerdict could not be found, so its path was read over nothing (§4.3 step 4)`);
+    return undefined;
+  }
+  const path = [...new Set([fn, verdict].flatMap((r) => nsReach(impl, r)))];
+  // No .message of anything read anywhere in the rename's path.
+  for (const f of path) {
+    for (const n of descendantsOf(f).filter((m) => (ts.isPropertyAccessExpression(m) && m.name.text === 'message') || (ts.isElementAccessExpression(m) && ts.isStringLiteralLike(m.argumentExpression) && m.argumentExpression.text === 'message'))) {
+      checked(id);
+      fail(id, `${where(impl, n)}: the rename's path reads ${J(n.getText().slice(0, 50))}; a thrown rename is told apart by its code alone, because a failed command's text carries its argv and so the name (§4.3 step 4)`);
+    }
+  }
+  // A caught value is read through isGmuxError( alone, in the rename and what it reaches.
+  for (const f of path) {
+    for (const clause of descendantsOf(f).filter((n) => ts.isCatchClause(n))) {
+      const v = clause.variableDeclaration;
+      if (v === undefined) continue;
+      const name = ts.isIdentifier(v.name) ? v.name.text : null;
+      for (const use of descendantsOf(clause.block).filter((n) => ts.isIdentifier(n) && n.text === name)) {
+        checked(id);
+        const call = use.parent;
+        const helper = ts.isCallExpression(call) && call.arguments.includes(use) ? oneFunction(impl, calleeName(call) ?? '') : null;
+        const ok =
+          (ts.isCallExpression(call) && calleeName(call) === 'isGmuxError' && call.arguments[0] === use) ||
+          (helper !== null &&
+            (() => {
+              const param = helper.parameters[call.arguments.indexOf(use)];
+              const pname = param !== undefined && ts.isIdentifier(param.name) ? param.name.text : null;
+              return pname !== null && descendantsOf(helper).filter((m) => ts.isIdentifier(m) && m.text === pname && m.parent !== param).every((m) => ts.isCallExpression(m.parent) && calleeName(m.parent) === 'isGmuxError' && m.parent.arguments[0] === m);
+            })());
+        if (!ok) fail(id, `${where(impl, use)}: the rename reads its caught ${String(name)} as ${J(use.parent.getText().slice(0, 60))}; it is told apart by isGmuxError(, by code, and nothing else (§4.3 step 4)`);
+      }
+    }
+  }
+  const codes = new Set(path.flatMap((f) => descendantsOf(f).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'isGmuxError' && n.arguments[1] !== undefined && ts.isStringLiteralLike(n.arguments[1])).map((c) => c.arguments[1].text)));
+  checked(id, 2);
+  for (const code of ['SESSION_NOT_FOUND', 'INVALID_INPUT']) if (!codes.has(code)) fail(id, `${where(impl, fn)}: nothing rename reaches asks isGmuxError( for ${code}; SESSION_NOT_FOUND is gone and INVALID_INPUT (TARGET_UNBOUND) changed (§4.3 step 4)`);
+  // DRIVEN: the verb's throws, made by the errors module itself.
+  let errorsModule = null;
+  let mod = null;
+  let words = null;
+  try {
+    errorsModule = zLoad(RM_ERRORS, AR_STUBS);
+    mod = zLoad(impl, rmStubs(errorsModule));
+    words = zLoad(RN_WORDS, AR_STUBS);
+  } catch (err) {
+    fail(id, `${rel(impl)} could not be loaded in memory to be driven: ${err instanceof Error ? err.message : String(err)}`);
+    return undefined;
+  }
+  checked(id);
+  if (typeof mod?.createPocketWrites !== 'function' || typeof errorsModule?.GmuxError !== 'function') {
+    fail(id, `${rel(impl)} exports no createPocketWrites to drive`);
+    return undefined;
+  }
+  const live = rnRow('ses-throw', 'running', false);
+  const drive = async (what, thrower, want) => {
+    const core = { listSessions: () => [live], manifest: { getSession: () => undefined }, killSession: async () => undefined, removeSession: () => undefined, broadcastSessions: () => undefined, renameSession: async () => thrower() };
+    const nope = async () => ({ outcome: 'failed', sentence: 'nope' });
+    const writes = mod.createPocketWrites({ core: () => core, machineKnown: () => true, reply: { choose: nope, say: nope }, keys: { keys: nope }, start: { start: nope }, paste: { paste: nope } });
+    const outcome = await zSettle(Promise.resolve().then(() => writes.rename({ sessionId: live.id, name: 'x' })));
+    checked(id, 2);
+    if (!outcome.ok) {
+      fail(id, `rename threw on ${what} (${outcome.error}); it answers an outcome and never throws`);
+      return;
+    }
+    const got = outcome.value;
+    if (got.outcome !== want.outcome || got.reason !== want.reason || got.sentence !== want.sentence) fail(id, `rename answers ${J(got)} for ${what}; it answers ${J(want)} (§4.3 step 4)`);
+    if (J(got).includes('CANARY')) fail(id, `rename answers ${J(got)} for ${what}: the error's text reached the answer; nothing an error says reaches the phone (§4.3 step 4)`);
+  };
+  return (async () => {
+    await drive('SESSION_NOT_FOUND', () => { throw new errorsModule.GmuxError('SESSION_NOT_FOUND', 'CANARY'); }, { outcome: 'refused', reason: 'gone', sentence: words?.SESSION_NOT_FOUND });
+    await drive('INVALID_INPUT (TARGET_UNBOUND)', () => { throw new errorsModule.GmuxError('INVALID_INPUT', 'CANARY'); }, { outcome: 'refused', reason: 'changed', sentence: words?.LIFECYCLE_SESSION_CHANGED });
+    await drive('a plain error', () => { throw new Error('CANARY'); }, { outcome: 'failed', reason: undefined, sentence: words?.RENAME_FAILED });
+    await drive('another code', () => { throw new errorsModule.GmuxError('TMUX_UNREACHABLE', 'CANARY'); }, { outcome: 'failed', reason: undefined, sentence: words?.RENAME_FAILED });
+  })();
+}
+
+// ---- RN8, nothing else in the rename's path ---------------------------------------
+
+function rnQuietRule() {
+  const id = 'RN8';
+  const impl = p349File(POCKET_WRITES_FILE, id);
+  if (impl === null) return;
+  const roots = [rnMember(impl), rnMember(impl, 'renameOffer'), oneFunction(impl, 'renameVerdict'), oneFunction(impl, 'renameTargetVerdict'), oneFunction(impl, 'renameOfferOf')].filter((f) => f !== null);
+  checked(id);
+  if (roots.length < 5) {
+    fail(id, `${rel(impl)}: rename, renameOffer, renameVerdict, renameTargetVerdict or renameOfferOf could not be found (${String(roots.length)} of 5), so their path was read over nothing (§4.3 step 4)`);
+    return;
+  }
+  const path = [...new Set(roots.flatMap((r) => nsReach(impl, r)))];
+  const NOT_IN_RENAME = /^(?:noteUserInput|noteHookEvent|applyDetectedStatus|setStatus|setSessionStatus|updateStatus|writeStatus|markStatus|killSession|removeSession|createSession|restoreSession|restartSession|kill|killTree|endTree|execOn|execTmux|sendToMachine|remoteRename|runOnMachine|renameTmuxSession|getLog|info|warn|error|debug|log|evaluatePolicy|confirmOwner|ownerCheck)$/;
+  for (const f of path) {
+    for (const c of descendantsOf(f).filter((n) => ts.isCallExpression(n))) {
+      checked(id);
+      const name = calleeName(c);
+      if (name !== null && NOT_IN_RENAME.test(name)) fail(id, `${where(impl, c)}: the rename's path calls ${name}(; it sets no status, calls no noteUserInput, kills nothing, logs nothing, names no machine's verb and asks no owner check: the Mac's own renameSession does the renaming (§4.3 step 4, D8; CLAUDE.md refusal 5)`);
+    }
+    for (const s of descendantsOf(f).filter((n) => ts.isStringLiteralLike(n))) {
+      checked(id);
+      if (P348_NO_OWNER_CHECK.test(s.text) || /\bneeds_input\b/.test(s.text) && !ts.isCaseClause(s.parent)) fail(id, `${where(impl, s)}: the rename's path spells ${J(s.text)}; it names no owner check and writes no status (D8)`);
+    }
+  }
+}
+
+// ---- RN9, the one rule -------------------------------------------------------------
+
+function rnRuleRule() {
+  const id = 'RN9';
+  const names = p349File(RN_NAMES, id);
+  if (names === null) return;
+  const sources = productionSources();
+  // The rule and its bound, declared once, in session-names.ts.
+  for (const name of ['sessionNameRefusal', 'trimmedSessionName', 'SESSION_NAME_MAX_UNITS']) {
+    const decls = declarationsOf(sources.filter((f) => sourceOf(f).includes(name)), name);
+    checked(id);
+    if (decls.length !== 1 || decls[0].file !== names) fail(id, `${name} is declared ${String(decls.length)} time(s) (${decls.map((d) => where(d.file, d.n)).join(', ') || 'nowhere'}); once, in src/shared/session-names.ts, the one rule (D5, §4.3 step 1)`);
+  }
+  const max = bare(constNamed(names, 'SESSION_NAME_MAX_UNITS')?.initializer);
+  checked(id);
+  if (max === undefined || !ts.isNumericLiteral(max) || Number(max.text.replace(/_/g, '')) !== RN_MAX_UNITS) fail(id, `${rel(names)}: SESSION_NAME_MAX_UNITS is ${J(max?.getText() ?? null)}; it is 120, the Mac sheet's own field (InlinePanel.tsx maxLength={120}) (D5)`);
+  // Each of the three sentences declared ONCE, there, and nowhere else as a const.
+  for (const [constName, sentence] of Object.entries(RN_SENTENCES)) {
+    const v = bare(constNamed(names, constName)?.initializer);
+    checked(id, 2);
+    if (v === undefined || !ts.isStringLiteralLike(v) || v.text !== sentence) fail(id, `${rel(names)}: ${constName} is ${J(v?.getText() ?? null)}; it is ${J(sentence)} (§5.1)`);
+    const declared = [];
+    for (const file of sources) {
+      if (!sourceOf(file).includes(sentence)) continue;
+      for (const n of nodesOf(file)) {
+        if (ts.isVariableDeclaration(n) && n.initializer !== undefined && ts.isStringLiteralLike(bare(n.initializer)) && bare(n.initializer).text === sentence) declared.push({ file, n });
+      }
+    }
+    if (declared.length !== 1 || declared[0].file !== names) fail(id, `${J(sentence)} is declared as a constant ${String(declared.length)} time(s) (${declared.map((d) => where(d.file, d.n)).join(', ') || 'nowhere'}); once, in src/shared/session-names.ts, so the phone's copy and the Mac's are held to one spelling (§5.1, RN9)`);
+  }
+  // Beside the Mac's own throw of the first, in renameSessionAdmitted, byte for byte.
+  const core = p349File(RN_CORE, id);
+  if (core !== null) {
+    const admitted = oneFunction(core, 'renameSessionAdmitted');
+    const thrown = admitted === null ? [] : descendantsOf(admitted).filter((n) => ts.isStringLiteralLike(n) && n.text === RN_SENTENCES.SESSION_NAME_EMPTY);
+    checked(id);
+    if (thrown.length !== 1) fail(id, `${admitted === null ? rel(core) : where(core, admitted)}: renameSessionAdmitted spells ${J(RN_SENTENCES.SESSION_NAME_EMPTY)} ${String(thrown.length)} time(s); the Mac's own throw of a blank name is the rule's first sentence byte for byte, and does not move (§5.1)`);
+  }
+  // On the Mac the door's verb alone reads the rule.
+  for (const name of ['sessionNameRefusal', 'trimmedSessionName']) {
+    for (const file of sources.filter((f) => f !== names && sourceOf(f).includes(name))) {
+      for (const c of callsOf(file).filter((n) => calleeName(n) === name)) {
+        checked(id);
+        if (file !== POCKET_WRITES_FILE) fail(id, `${where(file, c)} calls ${name}(; on the Mac the door's verb alone reads the rule (src/main/sessions/pocket-writes.ts), and the Mac's own rename keeps its rules (§4.3 step 1, §12)`);
+      }
+    }
+  }
+  // Read one code unit at a time, no pattern.
+  const refusal = oneFunction(names, 'sessionNameRefusal');
+  checked(id);
+  if (refusal === null) fail(id, `${rel(names)} declares no single sessionNameRefusal`);
+  else {
+    for (const f of nsReach(names, refusal)) {
+      for (const n of descendantsOf(f)) {
+        checked(id);
+        if (n.kind === ts.SyntaxKind.RegularExpressionLiteral || ((ts.isCallExpression(n) || ts.isNewExpression(n)) && n.expression.getText() === 'RegExp')) fail(id, `${where(names, n)}: the name rule uses a pattern; it reads one code unit at a time (D5)`);
+      }
+    }
+  }
+  // DRIVEN over D5's cases.
+  const mod = arLoad(names, id);
+  checked(id);
+  if (typeof mod?.sessionNameRefusal !== 'function' || typeof mod?.trimmedSessionName !== 'function') {
+    fail(id, `${rel(names)} exports no sessionNameRefusal or trimmedSessionName to drive`);
+    return;
+  }
+  const ch = (u) => String.fromCharCode(u);
+  const cases = [
+    ['empty', '', 'empty'],
+    ['spaces', '   ', 'empty'],
+    ['a tab and a line feed only', `${ch(9)}${ch(10)}`, 'empty'],
+    ['120 units', 'a'.repeat(120), null],
+    ['121 units', 'a'.repeat(121), 'long'],
+    ['121 units of a refused unit, long before character', ch(1).repeat(121), 'long'],
+    ['120 units padded by spaces', `  ${'a'.repeat(120)}  `, null],
+    ['60 astral characters', '😀'.repeat(60), null],
+    ['61 astral characters', '😀'.repeat(61), 'long'],
+    ['a valid pair', `a😀b`, null],
+    ['a lone high surrogate', `a${ch(0xd800)}b`, 'character'],
+    ['a lone low surrogate', `a${ch(0xdc00)}b`, 'character'],
+    ['a high surrogate at the end', `ab${ch(0xdbff)}`, 'character'],
+    ['DEL', `a${ch(0x7f)}b`, 'character'],
+    ['NUL inside', `a${ch(0)}b`, 'character'],
+    ['a tab inside', `a${ch(9)}b`, 'character'],
+    ['C1 0x80', `a${ch(0x80)}b`, 'character'],
+    ['C1 0x9f', `a${ch(0x9f)}b`, 'character'],
+    ['U+202A', `a${ch(0x202a)}b`, 'character'],
+    ['U+202E', `a${ch(0x202e)}b`, 'character'],
+    ['U+2066', `a${ch(0x2066)}b`, 'character'],
+    ['U+2069', `a${ch(0x2069)}b`, 'character'],
+    ['U+2028 inside', `a${ch(0x2028)}b`, 'character'],
+    ['U+2029 inside', `a${ch(0x2029)}b`, 'character'],
+    ['U+2027 passes', `a${ch(0x2027)}b`, null],
+    ['U+202F passes', `a${ch(0x202f)}b`, null],
+    ['U+2065 passes', `a${ch(0x2065)}b`, null],
+    ['U+206A passes', `a${ch(0x206a)}b`, null],
+    ['U+00A0 inside passes', `a${ch(0xa0)}b`, null],
+    ['a duplicate name passes', 'claude-3', null],
+    ['what tmux reads passes (D7 holds it back)', '#{session_id} x;', null]
+  ];
+  for (const [what, name, want] of cases) {
+    checked(id);
+    let got;
+    try {
+      got = mod.sessionNameRefusal(name);
+    } catch (err) {
+      fail(id, `sessionNameRefusal threw on ${what} (${err instanceof Error ? err.message : String(err)})`);
+      continue;
+    }
+    const reason = got === null ? null : got?.reason;
+    if (reason !== want) fail(id, `sessionNameRefusal answers ${J(got)} for ${what}; it answers ${want === null ? 'null' : J(want)} (D5)`);
+    const sentence = want === 'empty' ? RN_SENTENCES.SESSION_NAME_EMPTY : want === 'long' ? RN_SENTENCES.SESSION_NAME_TOO_LONG : want === 'character' ? RN_SENTENCES.SESSION_NAME_CHARACTER : null;
+    if (want !== null && got?.sentence !== sentence) fail(id, `sessionNameRefusal answers ${what} with the sentence ${J(got?.sentence ?? null)}; it is ${J(sentence)} (§5.1)`);
+  }
+  checked(id);
+  const padded = `${ch(0xfeff)}${ch(0x3000)} x ${ch(0x2028)}`;
+  if (mod.trimmedSessionName(padded) !== padded.trim() || mod.trimmedSessionName(padded) !== 'x') fail(id, `trimmedSessionName(${J(padded)}) is ${J(mod.trimmedSessionName(padded))}; it is ECMAScript's own trim, how the Mac trims a name (D5)`);
+}
+
+// ---- RN10, the offers and the far log ------------------------------------------------
+
+function rnOfferRule() {
+  const id = 'RN10';
+  const routes = p349File(NS_ROUTES, id);
+  if (routes !== null) {
+    // `rename: true` set exactly twice, by the two row composers, each only
+    // when facts.renameOffer?.( answered true.
+    const sets = nodesOf(routes).filter((n) => ts.isPropertyAssignment(n) && memberName(n) === 'rename');
+    checked(id, 2);
+    if (sets.length !== 2) fail(id, `${rel(routes)} sets rename ${String(sets.length)} time(s); TWICE, once by rowOf (the blocked rows and the detail) and once by the Sessions row composer (build/p349/SPEC.md §4.2 step 5, D14)`);
+    const composers = new Set();
+    for (const s of sets) {
+      const value = bare(s.initializer);
+      const spread = s.parent?.parent;
+      const cond = spread !== undefined ? bare(spread) : undefined;
+      const conditional = cond !== undefined && ts.isConditionalExpression(cond) ? cond : null;
+      const ok = value?.kind === ts.SyntaxKind.TrueKeyword && conditional !== null && /^facts\.renameOffer\?\.\(session\)===true$/.test(squash(conditional.condition.getText())) && ts.isSpreadAssignment(conditional.parent?.parent ?? conditional.parent);
+      checked(id);
+      if (!ok) fail(id, `${where(routes, s)}: rename is set as ${J((conditional ?? s).getText().slice(0, 100))}; it is ...(facts.renameOffer?.(session) === true ? { rename: true } : {}), present only when the facts' read answered exactly true (§4.2 step 5)`);
+      for (let p = s.parent; p !== undefined; p = p.parent) {
+        if (ts.isFunctionDeclaration(p) && p.name !== undefined) {
+          composers.add(p.name.text);
+          break;
+        }
+        if ((ts.isArrowFunction(p) || ts.isFunctionExpression(p)) && ts.isVariableDeclaration(p.parent) && ts.isIdentifier(p.parent.name)) {
+          composers.add(p.parent.name.text);
+          break;
+        }
+      }
+    }
+    checked(id);
+    if (J([...composers].sort()) !== J(['rowOf', 'sessionsRow'])) fail(id, `${rel(routes)}: rename is set in ${J([...composers].sort())}; it is set by rowOf and sessionsRow alone (§4.2 step 5)`);
+    // `renames: true` only by the Sessions answer, before start, never inside it.
+    const renames = nodesOf(routes).filter((n) => ts.isPropertyAssignment(n) && memberName(n) === 'renames');
+    const member = returnedMethod(routes, 'createPocketRoutes', 'sessions');
+    checked(id, 2);
+    if (renames.length !== 1 || member === null || !inside(renames[0], member)) {
+      fail(id, `${rel(routes)} sets renames ${String(renames.length)} time(s); ONCE, in the sessions answer (§4.2 step 5)`);
+    } else {
+      const cond = bare(renames[0].parent?.parent);
+      const conditional = cond !== undefined && ts.isConditionalExpression(cond) ? cond : null;
+      const spread = conditional === null ? undefined : conditional.parent?.parent ?? conditional.parent;
+      const ok = conditional !== null && /^facts\.renames\?\.\(\)===true$/.test(squash(conditional.condition.getText())) && spread !== undefined && ts.isSpreadAssignment(spread);
+      if (!ok) fail(id, `${where(routes, renames[0])}: renames is set as ${J((conditional ?? renames[0]).getText().slice(0, 100))}; it is ...(facts.renames?.() === true ? { renames: true } : {}) (§4.2 step 5)`);
+      if (ok) {
+        const obj = spread.parent;
+        const at = obj.properties.indexOf(spread);
+        const last = obj.properties[obj.properties.length - 1];
+        const startLast = last !== undefined && ts.isSpreadAssignment(last) && /\bstart\b/.test(last.getText());
+        checked(id);
+        if (!startLast || at !== obj.properties.length - 2) fail(id, `${where(routes, spread)}: the renames key is the sessions answer's key ${String(at + 1)} of ${String(obj.properties.length)}; it sits right BEFORE start, which stays last (NS9), and never inside it (§4.2 step 5, bb5)`);
+      }
+      const startOf = oneFunction(routes, 'pocketStartOf');
+      checked(id);
+      if (startOf !== null && descendantsOf(startOf).some((n) => (ts.isIdentifier(n) && n.text === 'renames') || (ts.isStringLiteralLike(n) && n.text === 'renames'))) fail(id, `${where(routes, startOf)}: pocketStartOf names renames; it is OUTSIDE start, so a fault in one never hides the other (§4.2 step 5, bb5)`);
+    }
+    const facts = interfaceOf(routes, 'PocketFacts');
+    for (const name of ['renameOffer', 'renames']) {
+      const m = facts?.members.find((x) => memberName(x) === name);
+      checked(id);
+      if (m === undefined || m.questionToken === undefined) fail(id, `${rel(routes)}: PocketFacts.${name} is ${m === undefined ? 'absent' : 'required'}; it is optional, a READ, absent from a host with no writes (§4.2 step 5)`);
+    }
+  }
+  // capabilities.ts hands both behind renameAllowed() === true, asked first.
+  const capabilities = p349File(NS_CAPABILITIES, id);
+  if (capabilities !== null) {
+    for (const [name, mustOffer] of [['renameOffer', true], ['renames', false]]) {
+      const handed = nodesOf(capabilities).filter((n) => ts.isPropertyAssignment(n) && memberName(n) === name);
+      checked(id, 2);
+      if (handed.length !== 1) {
+        fail(id, `${rel(capabilities)} hands ${name} ${String(handed.length)} time(s); once, in the door's facts (§4.2 step 6)`);
+        continue;
+      }
+      const calls = descendantsOf(handed[0].initializer).filter((n) => ts.isCallExpression(n));
+      const allowed = calls.find((c) => calleeName(c) === 'renameAllowed');
+      const offer = calls.find((c) => calleeName(c) === 'renameOffer');
+      const text = squash(handed[0].initializer.getText());
+      const ok = allowed !== undefined && /renameAllowed\(\)===true/.test(text) && (mustOffer ? offer !== undefined && allowed.getStart() < offer.getStart() && /&&/.test(text) : offer === undefined);
+      if (!ok) fail(id, `${where(capabilities, handed[0])}: ${name} is ${J(handed[0].initializer.getText().slice(0, 110))}; it asks pocketHost?.renameAllowed() === true first${mustOffer ? ' and only then pocketWrites.renameOffer(session)' : ', and nothing else'}, so a Mac whose Allow waits offers nothing (§4.2 step 6)`);
+    }
+  }
+  const ipc = p349File(RM_IPC, id);
+  if (ipc !== null) p348AllowedMethod(id, ipc, 'renameAllowed', 'rename');
+  // facts.ts passes both through untouched.
+  const facts = p349File(RN_FACTS, id);
+  if (facts !== null) {
+    for (const name of ['renameOffer', 'renames']) {
+      checked(id);
+      const re = new RegExp(`\\.\\.\\.\\(deps\\.${name}!==undefined\\?\\{${name}:deps\\.${name}\\}:\\{\\}\\)`);
+      if (!re.test(squash(codeTextOf(facts)))) fail(id, `${rel(facts)}: createPocketFacts does not pass ${name} through as ...(deps.${name} !== undefined ? { ${name}: deps.${name} } : {}); it hands the routes the very read it was handed (§4.2 step 6)`);
+    }
+  }
+  // remoteRename's two warnings log a code and never an error's text.
+  const remote = p349File(RN_REMOTE, id);
+  if (remote !== null) {
+    const fn = oneFunction(remote, 'remoteRename');
+    checked(id);
+    if (fn === null) {
+      fail(id, `${rel(remote)} declares no single remoteRename (§4.3 step 7)`);
+      return;
+    }
+    const logs = descendantsOf(fn).filter((n) => ts.isCallExpression(n) && /^(?:debug|info|warn|error|log)$/.test(calleeName(n) ?? '') && /log/i.test(ts.isPropertyAccessExpression(n.expression) ? n.expression.expression.getText() : ''));
+    checked(id);
+    if (logs.length < 2) fail(id, `${where(remote, fn)}: remoteRename makes ${String(logs.length)} log call(s); its two warnings (the stamp, the manifest write) are where an error's code is said (§4.3 step 7)`);
+    // The names a caught error is bound to inside remoteRename.
+    const caught = new Set();
+    for (const n of descendantsOf(fn)) {
+      if (ts.isCatchClause(n) && n.variableDeclaration !== undefined && ts.isIdentifier(n.variableDeclaration.name)) caught.add(n.variableDeclaration.name.text);
+      if (ts.isCallExpression(n) && calleeName(n) === 'catch') {
+        const cb = bare(n.arguments[0]);
+        if (cb !== undefined && (ts.isArrowFunction(cb) || ts.isFunctionExpression(cb))) for (const p of cb.parameters) if (ts.isIdentifier(p.name)) caught.add(p.name.text);
+      }
+    }
+    for (const call of logs) {
+      for (const n of [call, ...descendantsOf(call)]) {
+        if (ts.isPropertyAccessExpression(n) && n.name.text === 'message') {
+          checked(id);
+          fail(id, `${where(remote, n)}: remoteRename's warning reads ${J(n.getText().slice(0, 50))}; an exec error's text carries the command and so the name, so a warning logs the error's CODE (gmuxErrorPayloadOf(err)?.code) and never its text (§4.3 step 7)`);
+        }
+        if (ts.isIdentifier(n) && caught.has(n.text)) {
+          checked(id);
+          const p = n.parent;
+          const viaCode = ts.isCallExpression(p) && calleeName(p) === 'gmuxErrorPayloadOf' && p.arguments[0] === n && ts.isPropertyAccessExpression(p.parent) && p.parent.name.text === 'code';
+          if (!viaCode) fail(id, `${where(remote, n)}: remoteRename's warning reads the caught ${n.text} as ${J(p.getText().slice(0, 60))}; it reads gmuxErrorPayloadOf(${n.text})?.code and nothing else of it (§4.3 step 7)`);
+        }
+        if (ts.isIdentifier(n) && /^(?:newDisplayName|tmuxName|name)$/.test(n.text) && !(ts.isPropertyAccessExpression(n.parent) && n.parent.name === n)) {
+          checked(id);
+          fail(id, `${where(remote, n)}: remoteRename's warning names ${n.text}; a name a phone typed never reaches a log line (§4.3 step 7, G1)`);
+        }
+      }
+      checked(id);
+    }
+  }
+}
+
+/** RN1 to RN10, each the one function that reads it. */
+const P349_RULE_RUNS = [
+  ['RN1', rnRouteRule],
+  ['RN2', rnBodyRule],
+  ['RN3', rnAnswerRule],
+  ['RN4', rnPathRule],
+  ['RN5', rnVerdictRule],
+  ['RN6', rnFirstAwaitRule],
+  ['RN7', rnCodesRule],
+  ['RN8', rnQuietRule],
+  ['RN9', rnRuleRule],
+  ['RN10', rnOfferRule]
+];
+
+/** RN1 to RN10, then a red for any rule that checked nothing. */
+async function p349Rules() {
+  for (const [id, run] of P349_RULE_RUNS) {
+    try {
+      await run();
+    } catch (err) {
+      fail(id, `the rule could not be read: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  for (const id of RN_RULE_IDS) if (checks.get(id) === 0 && failures.get(id).length === 0) fail(id, 'the rule checked nothing, so it proves nothing (build/p349/SPEC.md §7.1)');
+}
+
+/**
+ * EACH RN RULE'S OWN SELF-TEST (build/p349/SPEC.md §7.1: "each a rule with its
+ * own self-test and ablation arm"), in Phase 348's shape: every run of this
+ * gate breaks each RN rule's clause IN MEMORY, through {@link OVERLAY}, runs
+ * that one rule again over the broken source, puts back every finding and
+ * count the run made, and requires that rule to have gone red on a finding of
+ * its own. A plant whose text is not in its file exactly once is red under
+ * its rule, so moving a clause moves its plant in the same commit.
+ * `P313_NO_SELF_TEST=1` skips it, as it skips Phase 348's.
+ */
+const P349_SELF_TESTS = [
+  { rule: 'RN1', what: 'the rename row made window-only', file: NS_TABLE, from: "{ id: 'rename', method: 'POST', path: '/v1/rename', reads: false, windowOnly: false, signed: true }", to: "{ id: 'rename', method: 'POST', path: '/v1/rename', reads: false, windowOnly: true, signed: true }" },
+  { rule: 'RN1', what: 'the rename cap below twice the worst legal body', file: NS_LIMITS, from: 'paste: 131_072, rename: 2_048 }', to: 'paste: 131_072, rename: 1_024 }' },
+  { rule: 'RN1', what: 'the face’s rename clause naming Face ID', file: AR_CONTRACT, from: "  rename: 'rename sessions'\n", to: "  rename: 'rename sessions after Face ID'\n" },
+  { rule: 'RN2', what: 'a lock let into the rename body’s keys', file: NS_WRITES, from: "const RENAME_KEYS = 'name,session,write';", to: "const RENAME_KEYS = 'name,old,session,write';" },
+  { rule: 'RN2', what: 'the rename body held to its own bytes (an escaped name refused)', file: NS_WRITES, from: '  if (body.byteLength > POCKET_WRITE_BODY_CAPS.rename) return { ok: false, write };', to: '  if (body.byteLength > POCKET_WRITE_BODY_CAPS.rename || !onlyItsOwnBytes(value, body)) return { ok: false, write };' },
+  { rule: 'RN2', what: 'the name trimmed in the parse', file: NS_WRITES, from: "  const name = value['name'];\n  if (write === '' || !isSessionId(session) || typeof name !== 'string') return { ok: false, write };", to: "  const name = typeof value['name'] === 'string' ? value['name'].trim() : value['name'];\n  if (write === '' || !isSessionId(session) || typeof name !== 'string') return { ok: false, write };" },
+  { rule: 'RN3', what: 'a sixth rename reason', file: AR_CONTRACT, from: "export type PocketRenameReason = 'malformed' | 'gone' | 'unreachable' | 'changed' | 'name';", to: "export type PocketRenameReason = 'malformed' | 'gone' | 'unreachable' | 'changed' | 'name' | 'busy';" },
+  { rule: 'RN3', what: 'the door’s busy answered with a name', file: NS_WRITES, from: "  if (verb === 'rename') return renameAnswer(write, outcome, reason, sentence, null);", to: "  if (verb === 'rename') return renameAnswer(write, outcome, reason, sentence, '');" },
+  { rule: 'RN4', what: 'a done with an empty name answered done (D21)', file: NS_WRITES, from: "    if (typeof name !== 'string' || name.length === 0) {\n      return { outcome: 'failed', answer: renameAnswer(write, 'failed', null, RENAME_FAILED, null) };\n    }", to: "    if (typeof name !== 'string') {\n      return { outcome: 'failed', answer: renameAnswer(write, 'failed', null, RENAME_FAILED, null) };\n    }" },
+  { rule: 'RN4', what: 'the rename handed the session id alone', file: NS_WRITES, from: 'renameSettled(() => writes.rename({ sessionId: parsed.session, name: parsed.name }), parsed.write)', to: "renameSettled(() => writes.rename({ sessionId: parsed.session, name: '' }), parsed.write)" },
+  { rule: 'RN5', what: 'the far arm dropped (an ended far session renames this Mac’s record alone)', file: POCKET_WRITES_FILE, from: '    if (!runsNow) return { ok: false, reason: \'changed\', sentence: LIFECYCLE_SESSION_CHANGED };', to: '    void runsNow;' },
+  { rule: 'RN5', what: 'the verdict asking End’s environment', file: POCKET_WRITES_FILE, from: 'sessionActionGates(session, session.status, DOOR_RENAME_GATE_ENV).canRename', to: 'sessionActionGates(session, session.status, DOOR_GATE_ENV).canRename' },
+  { rule: 'RN6', what: 'the name handed to the verb untrimmed', file: POCKET_WRITES_FILE, from: 'await core.renameSession({ sessionId: input.sessionId, name: trimmedSessionName(input.name) })', to: 'await core.renameSession({ sessionId: input.sessionId, name: input.name })' },
+  { rule: 'RN7', what: 'a caught error’s text read in the rename', file: POCKET_WRITES_FILE, from: "      } catch (err) {\n        return renameThrownOutcome(err);\n      }", to: "      } catch (err) {\n        void (err instanceof Error ? err.message : '');\n        return renameThrownOutcome(err);\n      }" },
+  { rule: 'RN8', what: 'a status set in the rename’s path', file: POCKET_WRITES_FILE, from: "        return { outcome: 'done', name: renamed.name };", to: "        core.noteUserInput(input.sessionId);\n        return { outcome: 'done', name: renamed.name };" },
+  { rule: 'RN9', what: 'the bound moved to 200', file: RN_NAMES, from: 'export const SESSION_NAME_MAX_UNITS = 120;', to: 'export const SESSION_NAME_MAX_UNITS = 200;' },
+  { rule: 'RN9', what: 'U+2028 let through the rule', file: RN_NAMES, from: '  return unit === 0x2028 || unit === 0x2029; // line and paragraph separators', to: '  return unit === 0x2029; // line and paragraph separators' },
+  { rule: 'RN10', what: 'the rename offer made whatever was allowed', file: NS_CAPABILITIES, from: 'renameOffer: (session) => pocketHost?.renameAllowed() === true && pocketWrites.renameOffer(session),', to: 'renameOffer: (session) => pocketWrites.renameOffer(session),' },
+  { rule: 'RN10', what: 'renames put after start', file: NS_ROUTES, from: "        ...(facts.renames?.() === true ? { renames: true } : {}),\n        ...(start !== undefined ? { start } : {})", to: "        ...(start !== undefined ? { start } : {}),\n        ...(facts.renames?.() === true ? { renames: true } : {})" },
+  { rule: 'RN10', what: 'a far warning logging the error’s text', file: RN_REMOTE, from: "        `${gmuxErrorPayloadOf(err)?.code ?? 'unknown'}`\n    );\n  });", to: "        `${(err as Error).message}`\n    );\n  });" }
+];
+
+/** What the Phase 349 self-test proved, printed above the rule table. */
+const p349SelfTestLines = [];
+
+async function p349SelfTest() {
+  if (process.env['P313_NO_SELF_TEST'] === '1') {
+    p349SelfTestLines.push('self-test skipped: P313_NO_SELF_TEST=1, which ablation:p313 sets for the read gate inside its clone');
+    return;
+  }
+  const runs = new Map(P349_RULE_RUNS);
+  for (const plant of P349_SELF_TESTS) {
+    const run = runs.get(plant.rule);
+    checked(plant.rule);
+    const text = existsSync(plant.file) ? readFileSync(plant.file, 'utf8') : null;
+    const count = text === null ? 0 : text.split(plant.from).length - 1;
+    if (run === undefined || count !== 1) {
+      fail(plant.rule, `the self-test's plant "${plant.what}" found its text ${String(count)} time(s) in ${rel(plant.file)}; it names it exactly once. Re-point the plant at the clause it breaks, or ${plant.rule}'s self-test plants nothing (build/p349/SPEC.md §7.1)`);
+      continue;
+    }
+    const keptFailures = new Map([...failures].map(([k, v]) => [k, [...v]]));
+    const keptChecks = new Map(checks);
+    OVERLAY.set(plant.file, text.replace(plant.from, () => plant.to));
+    overlayParsed.clear();
+    let threw = null;
+    try {
+      await run();
+    } catch (err) {
+      threw = err instanceof Error ? err.message : String(err);
+    }
+    const own = failures.get(plant.rule).slice(keptFailures.get(plant.rule).length).filter((f) => !P348_NOT_A_FINDING.test(f));
+    OVERLAY.clear();
+    overlayParsed.clear();
+    for (const [k, v] of keptFailures) failures.set(k, v);
+    for (const [k, v] of keptChecks) checks.set(k, v);
+    checked(plant.rule);
+    if (threw !== null) {
+      fail(plant.rule, `the self-test planted ${plant.what} in ${rel(plant.file)} and ${plant.rule} threw (${threw.slice(0, 120)}) rather than reading it; a rule answers a broken source with a finding (build/p349/SPEC.md §7.1)`);
+    } else if (own.length === 0) {
+      fail(plant.rule, `the self-test planted ${plant.what} in ${rel(plant.file)} and ${plant.rule} stayed green, so it cannot see the clause it exists for (build/p349/SPEC.md §7.1)`);
+    } else {
+      p349SelfTestLines.push(`self-test ${plant.rule}: ${plant.what} → red, as it must be (${own[0].slice(0, 90)}${own[0].length > 90 ? '…' : ''})`);
     }
   }
 }
@@ -18102,7 +19473,12 @@ const PHASES = [
   // Two of its rules drive async functions in-process, so it is awaited.
   ['remove and paste from the phone', p348Rules, 'RM1'],
   // Then each of its fifteen rules is shown red on its own clause, in memory.
-  ['the Phase 348 self-test', p348SelfTest, 'RM1']
+  ['the Phase 348 self-test', p348SelfTest, 'RM1'],
+  // PHASE 349, rename a session from the phone (build/p349/SPEC.md §7.1).
+  // Four of its rules drive async functions in-process, so it is awaited.
+  ['rename a session from the phone', p349Rules, 'RN1'],
+  // Then each of its ten rules is shown red on its own clause, in memory.
+  ['the Phase 349 self-test', p349SelfTest, 'RN1']
 ];
 
 for (const [name, run, onError] of PHASES) {
@@ -18113,7 +19489,7 @@ for (const [name, run, onError] of PHASES) {
   }
 }
 
-for (const line of p348SelfTestLines) process.stdout.write(`  ${line}\n`);
+for (const line of [...p348SelfTestLines, ...p349SelfTestLines]) process.stdout.write(`  ${line}\n`);
 let red = 0;
 let total = 0;
 for (const [id, owner, title] of RULES) {

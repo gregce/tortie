@@ -131,6 +131,33 @@ final class DoorWordsTests: XCTestCase {
         XCTAssertTrue(Copy.reachAllowAgain.contains("Settings then Phone"))
     }
 
+    /// Clause (Phase 349, rule v): every rename result has its line and none
+    /// is empty: the Mac's own word for done, its sentence for any answer, the
+    /// phone's not-renamed line for a 404 and a withheld write, End's
+    /// no-answer line, a failure's own sentence; and inside See a sample,
+    /// nothing ran, whatever the result.
+    func testEveryRenameResultHasItsLine() {
+        let done = PocketRenameAnswer(verb: "rename", write: "w", outcome: .done, reason: nil, sentence: nil, name: "x")
+        let refused = PocketRenameAnswer(verb: "rename", write: "w", outcome: .refused, reason: "a-later-word", sentence: "A later Mac's sentence.", name: nil)
+        let lines: [(RenameResult, String)] = [
+            (.answered(done), Copy.rename),
+            (.answered(refused), "A later Mac's sentence."),
+            (.notTaken, Copy.renameNotTaken),
+            (.noAnswer, Copy.endNoAnswer),
+            (.notSent(.cancelled), Copy.renameNotTaken),
+            (.notSent(.timedOut), Copy.macDidNotAnswer),
+            (.notSent(.unreachable(code: 61)), Copy.cannotReachMac),
+            (.notSent(.notPaired), Copy.notPaired)
+        ]
+        for (result, line) in lines {
+            XCTAssertEqual(DoorWords.renameSentence(for: result, sample: false), line, "\(result)")
+            XCTAssertFalse(line.isEmpty, "\(result)")
+            XCTAssertEqual(DoorWords.renameSentence(for: result, sample: true), Copy.startSample, "\(result)")
+        }
+        XCTAssertNotEqual(Copy.renameNotTaken, Copy.removeNotTaken)
+        XCTAssertNotEqual(Copy.renameNotTaken, Copy.startNotTaken)
+    }
+
     /// Clause: every step of a pairing under way has its line.
     func testEveryPairingStepHasItsLine() {
         let lines: [(PairingStep, String)] = [

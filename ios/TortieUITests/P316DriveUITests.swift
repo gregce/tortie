@@ -382,6 +382,8 @@ private enum Seen {
     static let sessionScreen = "screen-session"
     static let sessionLoading = "session-loading"
     static let sessionFailureId = "session-failure"
+    /// Its Try again (the rename drive presses it once; the fix round of 2026-10-31).
+    static let sessionFailureRetry = "session-failure-retry"
     /// Phase 337.1 (D21): Catch Me Up, the Conversation renamed: a face inside
     /// the session's route, or a page of its own pushed from the Terminal
     /// (since Phase 337.3 by its ⋯ menu's first item), which carries this alone.
@@ -1011,6 +1013,31 @@ private final class Drive {
             } else if step.hasPrefix("paste-select:") {
                 let parts = step.dropFirst("paste-select:".count).split(separator: ":").compactMap { Int($0) }
                 pasteSelect(from: parts.first ?? 0, to: parts.dropFirst().first ?? (parts.first ?? 0))
+            } else if step == "rename-menu-read" {
+                // Phase 349 (build/p349/SPEC.md section 8.2): rename from the phone.
+                renameMenuRead()
+            } else if step == "rename-open" {
+                renameOpen()
+            } else if step.hasPrefix("row-rename:") {
+                rowRename(String(step.dropFirst("row-rename:".count)))
+            } else if step.hasPrefix("row-menu-read:") {
+                rowMenuRead(String(step.dropFirst("row-menu-read:".count)))
+            } else if step.hasPrefix("select-hold:") {
+                selectHold(String(step.dropFirst("select-hold:".count)))
+            } else if step.hasPrefix("rename-type:") {
+                renameType(String(step.dropFirst("rename-type:".count)))
+            } else if step == "rename-save" {
+                renameSave(mode: "press")
+            } else if step == "rename-save:ack" {
+                renameSave(mode: "ack")
+            } else if step == "rename-cancel" {
+                renameSave(mode: "cancel")
+            } else if step == "rename-home" {
+                renameSave(mode: "home")
+            } else if step == "start-name-read" {
+                startNameRead()
+            } else if step.hasPrefix("start-name:") {
+                startName(String(step.dropFirst("start-name:".count)))
             } else {
                 lines.emit(["step": "unknown-step", "name": step])
             }
@@ -5901,5 +5928,408 @@ extension Drive {
         }
         var error: NSError?
         return synth(record, synthSel, &error) ? "synthesized" : "failed: \(error?.localizedDescription ?? "?")"
+    }
+}
+
+// MARK: - Rename from the phone (Phase 349, build/p349/SPEC.md section 8.2)
+
+/// The identifiers and words Phase 349 adds (ios/Tortie/Screens/Identifiers.swift's
+/// rename identifiers and `startName`; Style/Copy.swift's `rename`, `saveName`
+/// and `renameNotTaken`), spelled again because a UI test cannot import the app.
+private extension Seen {
+    static let terminalMenuRename = "terminal-menu-rename"
+    static func rowRename(_ id: String) -> String { "row-rename-" + id }
+    static func needsRowRename(_ id: String) -> String { "needs-row-rename-" + id }
+    static let startName = "start-name"
+    static let renameSheet = "rename-sheet"
+    static let renameField = "rename-field"
+    static let renameSave = "rename-save"
+    static let renameCancel = "rename-cancel"
+    static let renameLine = "rename-line"
+    static let renameWriting = "rename-writing"
+    static let renameWords = "Rename"
+    static let saveNameWords = "Save name"
+}
+
+extension Drive {
+    /// A list row on its tab, brought into view: `row-<id>` on Sessions,
+    /// `needs-row-<id>` on Needs input, with the identifier its long-press
+    /// menu's Rename carries.
+    fileprivate func renameRow(tab: String, id: String) -> (row: XCUIElement?, renameId: String) {
+        if tab == "needs" {
+            _ = selectTab(Seen.tabNeedsInput)
+            _ = poll { self.has($0, Seen.needsScreen) }
+            Thread.sleep(forTimeInterval: 1)
+            let row = element(Seen.needsRow(id))
+            return (row.waitForExistence(timeout: min(wait, 15)) ? row : nil, Seen.needsRowRename(id))
+        }
+        // Back to the list the way `open` goes, because the Sessions tab keeps
+        // its place and may still hold a session page.
+        goToSessionsList()
+        _ = poll { found in self.has(found, Seen.listScreen) && !self.has(found, Seen.listLoading) }
+        Thread.sleep(forTimeInterval: 1)
+        return (reveal(Seen.row(id)), Seen.rowRename(id))
+    }
+
+    /// `<tab>:<id>` of a row step: the tab first (`sessions` or `needs`).
+    fileprivate static func rowSpec(_ spec: String) -> (tab: String, id: String) {
+        let parts = spec.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
+        return parts.count > 1 ? (parts[0], parts[1]) : ("sessions", parts.first ?? "")
+    }
+
+    /// The rows of an open long-press menu: the buttons in the column its
+    /// Rename stands in, top first, from ONE snapshot.
+    fileprivate func menuColumn(anchor: CGRect) -> [[String: Any]] {
+        guard let root = try? app.snapshot() else { return [] }
+        var buttons: [XCUIElementSnapshot] = []
+        var stack: [XCUIElementSnapshot] = [root]
+        while let node = stack.popLast() {
+            if node.elementType == .button { buttons.append(node) }
+            stack.append(contentsOf: node.children.reversed())
+        }
+        let column = buttons.filter { abs($0.frame.minX - anchor.minX) <= 2 && abs($0.frame.width - anchor.width) <= 2 && $0.frame.height > 0 }
+        var seen = Set<String>()
+        var rows: [[String: Any]] = []
+        for b in column.sorted(by: { $0.frame.minY < $1.frame.minY }) {
+            let key = "\(Int(b.frame.minY.rounded()))|\(b.identifier)|\(b.label)"
+            guard seen.insert(key).inserted else { continue }
+            rows.append(["id": b.identifier, "label": b.label, "enabled": b.isEnabled, "frame": frameOf(b.frame)])
+        }
+        return rows
+    }
+
+    /// A long-press menu put away with nothing pressed: one press high on the
+    /// screen, above every row and away from the menu.
+    fileprivate func dismissContextMenu() {
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.04)).tap()
+        Thread.sleep(forTimeInterval: 1)
+    }
+
+    /// The long-press menu of a row read, ONE line: its Rename by identifier
+    /// (else by its word, `byWord`), and every row of the menu in Rename's
+    /// column, top first.
+    fileprivate func heldMenu(_ renameId: String) -> [String: Any] {
+        let byId = app.buttons.matching(identifier: renameId).firstMatch
+        let shown = byId.waitForExistence(timeout: 3)
+        let byWord = app.buttons.matching(NSPredicate(format: "label == %@", Seen.renameWords)).firstMatch
+        let anchor: CGRect? = shown ? byId.frame : (byWord.exists ? byWord.frame : nil)
+        return [
+            "rename": shown ? ["id": byId.identifier, "label": byId.label, "enabled": byId.isEnabled, "frame": frameOf(byId.frame)] as Any : NSNull(),
+            "byWord": byWord.exists,
+            "items": anchor.map { menuColumn(anchor: $0) } ?? []
+        ]
+    }
+
+    /// `row-menu-read:<tab>:<id>`: the row held, its long-press menu read and
+    /// put away with nothing pressed; an absent menu is an answer.
+    fileprivate func rowMenuRead(_ spec: String) {
+        let (tab, id) = Self.rowSpec(spec)
+        let here = renameRow(tab: tab, id: id)
+        guard let row = here.row else {
+            lines.emit(["step": "row-menu-read", "tab": tab, "id": id, "found": false])
+            return
+        }
+        row.press(forDuration: 1.2)
+        var object = heldMenu(here.renameId)
+        object["step"] = "row-menu-read"
+        object["tab"] = tab
+        object["id"] = id
+        object["found"] = true
+        object["faceId"] = ownerCheckUp()
+        lines.emit(object)
+        if !(object["items"] as? [[String: Any]] ?? []).isEmpty || (object["byWord"] as? Bool) == true { dismissContextMenu() }
+    }
+
+    /// `select-hold:<id>`: while End these selects, the Sessions row held as
+    /// long as a long-press menu needs: whether a menu with Rename came and
+    /// whether the row's circle took the touch instead (Phase 349, D1).
+    fileprivate func selectHold(_ id: String) {
+        guard let row = reveal(Seen.row(id)) else {
+            lines.emit(["step": "select-hold", "id": id, "found": false])
+            return
+        }
+        let before = element(Seen.rowSelect(id)).isSelected
+        row.press(forDuration: 1.2)
+        var object = heldMenu(Seen.rowRename(id))
+        if (object["byWord"] as? Bool) == true || !(object["items"] as? [[String: Any]] ?? []).isEmpty { dismissContextMenu() }
+        Thread.sleep(forTimeInterval: 0.5)
+        object["step"] = "select-hold"
+        object["id"] = id
+        object["found"] = true
+        object["before"] = before
+        object["after"] = element(Seen.rowSelect(id)).isSelected
+        lines.emit(object)
+    }
+
+    /// Save name, as its BUTTON (the fix round, 2026-10-30): iOS draws an
+    /// `Other` element at the button's frame carrying the same identifier,
+    /// which always reads enabled, and `element(_:)`'s first match of any type
+    /// found that wrapper, so Save read on over names the app keeps it off for.
+    fileprivate func saveButton() -> XCUIElement {
+        app.buttons.matching(identifier: Seen.renameSave).firstMatch
+    }
+
+    /// Every element carrying Save name's identifier, from ONE snapshot, each
+    /// with its XCUIElement type's raw value (`button` is 9, `other` 1),
+    /// whether it reads enabled and its label: the probe grades the button's
+    /// own reading and never a wrapper's.
+    fileprivate func saveReadings() -> [[String: Any]] {
+        guard let root = try? app.snapshot() else { return [] }
+        var out: [[String: Any]] = []
+        var stack: [XCUIElementSnapshot] = [root]
+        while let node = stack.popLast() {
+            if node.identifier == Seen.renameSave {
+                out.append(["type": Int(node.elementType.rawValue), "enabled": node.isEnabled, "label": node.label])
+            }
+            stack.append(contentsOf: node.children.reversed())
+        }
+        return out
+    }
+
+    /// The Rename sheet as drawn, ONE `rename-sheet` line, read once its field
+    /// holds still (a row's sheet reads the session first, D20): its title,
+    /// Cancel, Save name and whether it can be pressed (read off its button,
+    /// with every element carrying its identifier in `saveAll`), the field's
+    /// text and its length in UTF-16 units, the keyboard, the one line, and
+    /// whether an owner check was drawn.
+    fileprivate func renameSheetRead(via: String, tab: String?, id: String?) {
+        let sheet = element(Seen.renameSheet)
+        let up = sheet.waitForExistence(timeout: 10)
+        let field = element(Seen.renameField)
+        _ = field.waitForExistence(timeout: 10)
+        let save = saveButton()
+        var value = (field.value as? String) ?? ""
+        // A row's sheet keeps Save off over the name it holds, so its loop
+        // runs to the end unless a line is drawn: the whole time its first
+        // read of the session has (the fix round; before it, the wrapper's
+        // reading ended this loop at once).
+        let settleBy = Date().addingTimeInterval(min(wait, 15))
+        while Date() < settleBy {
+            Thread.sleep(forTimeInterval: 0.5)
+            let now = (field.value as? String) ?? ""
+            if now == value && (via == "menu" || (save.exists && save.isEnabled) || element(Seen.renameLine).exists) { break }
+            value = now
+        }
+        let found = tree()
+        let cancel = element(Seen.renameCancel)
+        lines.emit([
+            "step": "rename-sheet",
+            "via": via,
+            "tab": tab.map { $0 as Any } ?? NSNull(),
+            "id": id.map { $0 as Any } ?? NSNull(),
+            "found": up,
+            "title": app.navigationBars.staticTexts[Seen.renameWords].exists ? Seen.renameWords as Any : NSNull(),
+            "cancel": cancel.exists ? cancel.label as Any : NSNull(),
+            "save": save.exists ? ["label": save.label, "enabled": save.isEnabled, "type": Int(save.elementType.rawValue)] as Any : NSNull(),
+            "saveAll": saveReadings(),
+            "value": field.exists ? value as Any : NSNull(),
+            "units": value.utf16.count,
+            "keyboard": app.keyboards.firstMatch.exists,
+            "line": find(found, Seen.renameLine).map { $0.label as Any } ?? NSNull(),
+            "faceId": ownerCheckUp()
+        ])
+    }
+
+    /// `rename-menu-read`: on the session's page, the Terminal's ⋯ opened (its
+    /// `terminal-menu` line holds every row) and Rename read in it, then put
+    /// away; nothing pressed, and an absent Rename is an answer.
+    fileprivate func renameMenuRead() {
+        guard poll({ self.sessionSettled($0) }) else {
+            lines.emit(["step": "rename-menu-read", "settled": false])
+            return
+        }
+        Thread.sleep(forTimeInterval: 1)
+        let face = faceOf(tree())
+        guard face == "terminal" else {
+            lines.emit(["step": "rename-menu-read", "settled": true, "face": face])
+            return
+        }
+        let menu = openTerminalMenu(for: "rename-menu-read")
+        let hit = menu.opened ? menuItem(id: Seen.terminalMenuRename, words: [Seen.renameWords]) : nil
+        lines.emit(["step": "rename-menu-read", "settled": true, "face": face, "opened": menu.opened, "rename": hit.map { ["id": $0.element.identifier, "label": $0.element.label, "enabled": $0.element.isEnabled, "via": $0.via] as Any } ?? NSNull()])
+        if menu.opened { closeTerminalMenu(for: "rename-menu-read") }
+    }
+
+    /// `rename-open`: the Terminal's ⋯ opened, its Rename pressed, and the
+    /// sheet read.
+    fileprivate func renameOpen() {
+        guard poll({ self.sessionSettled($0) }) else {
+            lines.emit(["step": "rename-sheet", "via": "menu", "found": false])
+            return missing("rename-open")
+        }
+        // A page that could not reach the Mac draws no ⋯ (the fix round,
+        // 2026-10-31: the first fix run's 18.3 drive opened a session as the
+        // door refused one TLS handshake, and its page drew "Tortie could not
+        // reach your Mac."). Its Try again is pressed ONCE, as a person would,
+        // and `rename-reach` says what the page drew and whether the press
+        // cleared it; a page it did not clear is no reading of Rename.
+        if let failure = find(tree(), Seen.sessionFailureId) {
+            let retry = element(Seen.sessionFailureRetry)
+            let pressed = retry.exists
+            if pressed { retry.tap() }
+            let cleared = pressed && poll({ self.sessionSettled($0) && !self.has($0, Seen.sessionFailureId) })
+            lines.emit(["step": "rename-reach", "failure": failure.label, "retried": pressed, "cleared": cleared])
+            if !cleared {
+                lines.emit(["step": "rename-sheet", "via": "menu", "found": false, "reach": failure.label])
+                return missing("rename-open")
+            }
+        }
+        Thread.sleep(forTimeInterval: 1)
+        let menu = openTerminalMenu(for: "rename-open")
+        guard menu.opened, let hit = menuItem(id: Seen.terminalMenuRename, words: [Seen.renameWords]) else {
+            if menu.opened { closeTerminalMenu(for: "rename-open") }
+            lines.emit(["step": "rename-sheet", "via": "menu", "found": false, "opened": menu.opened])
+            return missing("rename-open")
+        }
+        hit.element.tap()
+        renameSheetRead(via: "menu", tab: nil, id: nil)
+    }
+
+    /// `row-rename:<tab>:<id>`: the row held, the menu's Rename pressed, and the
+    /// sheet read once its first read of the session came back.
+    fileprivate func rowRename(_ spec: String) {
+        let (tab, id) = Self.rowSpec(spec)
+        let here = renameRow(tab: tab, id: id)
+        guard let row = here.row else {
+            lines.emit(["step": "rename-sheet", "via": "row", "tab": tab, "id": id, "found": false])
+            return missing("row-rename")
+        }
+        row.press(forDuration: 1.2)
+        let press = app.buttons.matching(identifier: here.renameId).firstMatch
+        guard press.waitForExistence(timeout: 3) else {
+            lines.emit(["step": "rename-sheet", "via": "row", "tab": tab, "id": id, "found": false, "menu": false])
+            return missing("row-rename")
+        }
+        press.tap()
+        renameSheetRead(via: "row", tab: tab, id: id)
+    }
+
+    /// `rename-type:<b64url>`: the words typed into the sheet's field, which
+    /// its first focus selected whole, so they replace the name; then what the
+    /// field holds and whether Save can be pressed, read off its button
+    /// (`saveAll` holds every element carrying its identifier).
+    fileprivate func renameType(_ b64url: String) {
+        guard let text = Self.words(b64url) else {
+            lines.emit(["step": "unknown-step", "name": "rename-type"])
+            return
+        }
+        let field = element(Seen.renameField)
+        guard field.waitForExistence(timeout: 10) else {
+            lines.emit(["step": "rename-typed", "found": false])
+            return missing("rename-type")
+        }
+        if !app.keyboards.firstMatch.exists { field.tap() }
+        field.typeText(text)
+        Thread.sleep(forTimeInterval: 0.6)
+        let value = (field.value as? String) ?? ""
+        let save = saveButton()
+        lines.emit(["step": "rename-typed", "found": true, "typed": text, "value": value, "units": value.utf16.count, "save": save.exists ? save.isEnabled as Any : NSNull(), "saveAll": saveReadings(), "line": find(tree(), Seen.renameLine).map { $0.label as Any } ?? NSNull()])
+    }
+
+    /// `rename-save`, `rename-save:ack`, `rename-cancel` and `rename-home`:
+    /// Save name pressed (`:ack` prints `rename-ready` first and waits for the
+    /// probe's file, which acts on the Mac before the press), Cancel pressed,
+    /// or Save then Home at once after `rename-ready` and the file, away 20 s,
+    /// and back. iOS's owner check is watched throughout and never answered:
+    /// a rename asks none (his ruling, "Only for End"). Then whether the sheet
+    /// closed, its one line, the mark while the write ran, and the title of
+    /// the page under it. Save name is pressed and read as its BUTTON, and
+    /// `saveAll` holds every element carrying its identifier at the press.
+    fileprivate func renameSave(mode: String) {
+        let step = mode == "cancel" ? "rename-cancel" : mode == "home" ? "rename-home" : "rename-save"
+        if mode == "cancel" {
+            let cancel = element(Seen.renameCancel)
+            guard cancel.waitForExistence(timeout: 10) else { return missing(step) }
+            cancel.tap()
+            Thread.sleep(forTimeInterval: 1.5)
+            lines.emit(["step": "rename-after", "for": step, "closed": !element(Seen.renameSheet).exists, "faceId": ownerCheckUp()])
+            dump(step)
+            return
+        }
+        let save = saveButton()
+        guard save.waitForExistence(timeout: 10) else { return missing(step) }
+        var faceID = ownerCheckUp()
+        if mode == "home" || mode == "ack" {
+            let seq = lines.emit(["step": "rename-ready", "for": step])
+            _ = ack("rename-\(seq)")
+        }
+        let enabled = save.isEnabled
+        let atPress = saveReadings()
+        save.tap()
+        if mode == "home" {
+            home()
+            lines.emit(["step": "rename-home-pressed", "state": Int(app.state.rawValue)])
+            Thread.sleep(forTimeInterval: 20)
+            let away = lines.emit(["step": "rename-home-away"])
+            _ = ack("rename-\(away)")
+            app.activate()
+            _ = app.wait(for: .runningForeground, timeout: 30)
+        }
+        var writing = false
+        let deadline = Date().addingTimeInterval(min(wait, 20))
+        while Date() < deadline {
+            if element(Seen.renameWriting).exists { writing = true }
+            if ownerCheckUp() { faceID = true }
+            let found = tree()
+            if !has(found, Seen.renameSheet) || (!has(found, Seen.renameWriting) && has(found, Seen.renameLine)) { break }
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        Thread.sleep(forTimeInterval: 1.5)
+        let found = tree()
+        let field = element(Seen.renameField)
+        lines.emit([
+            "step": "rename-after",
+            "for": step,
+            "enabled": enabled,
+            "saveAll": atPress,
+            "closed": !has(found, Seen.renameSheet),
+            "line": find(found, Seen.renameLine).map { $0.label as Any } ?? NSNull(),
+            "value": field.exists ? (field.value as? String).map { $0 as Any } ?? NSNull() : NSNull(),
+            "title": app.navigationBars.firstMatch.exists ? app.navigationBars.firstMatch.staticTexts.allElementsBoundByIndex.map(\.label) as Any : NSNull(),
+            "writing": writing,
+            "faceId": faceID
+        ])
+        dump(step)
+    }
+
+    /// `start-name-read`: in New session (open), whether its Name is drawn,
+    /// where, and Create's frame; `missing` when no sheet is up, which is no
+    /// reading of the Name at all.
+    fileprivate func startNameRead() {
+        let found = tree()
+        guard has(found, Seen.startSheet) else {
+            lines.emit(["step": "start-name-read", "missing": true])
+            return
+        }
+        let name = element(Seen.startName)
+        let create = element(Seen.startCreate)
+        lines.emit([
+            "step": "start-name-read",
+            "missing": false,
+            "present": name.exists,
+            "frame": name.exists ? frameOf(name.frame) as Any : NSNull(),
+            "value": name.exists ? (name.value as? String).map { $0 as Any } ?? NSNull() : NSNull(),
+            "focused": name.exists && app.keyboards.firstMatch.exists,
+            "create": create.exists ? ["frame": frameOf(create.frame), "enabled": create.isEnabled] as Any : NSNull()
+        ])
+    }
+
+    /// `start-name:<b64url>`: the words typed into New session's Name, the
+    /// keyboard put away by Return (D19), and what the field and Create read.
+    fileprivate func startName(_ b64url: String) {
+        guard let text = Self.words(b64url) else {
+            lines.emit(["step": "unknown-step", "name": "start-name"])
+            return
+        }
+        let name = element(Seen.startName)
+        guard name.waitForExistence(timeout: 10) else {
+            lines.emit(["step": "start-name", "missing": true])
+            return missing("start-name")
+        }
+        name.tap()
+        name.typeText(text + "\n")
+        Thread.sleep(forTimeInterval: 0.8)
+        let create = element(Seen.startCreate)
+        lines.emit(["step": "start-name", "missing": false, "typed": text, "value": (name.value as? String).map { $0 as Any } ?? NSNull(), "keyboard": app.keyboards.firstMatch.exists, "create": create.exists ? ["label": create.label, "enabled": create.isEnabled] as Any : NSNull(), "line": find(tree(), Seen.startLine).map { $0.label as Any } ?? NSNull()])
     }
 }

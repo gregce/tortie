@@ -3,12 +3,23 @@
 // D25, D27, D28).
 //
 // WHAT IT SENDS. Two ids the Mac offered, the project's and the agent's, and a
-// write id, through `POST /v1/start` (Door/DoorClient.swift). Nothing on the
-// phone chooses a path, a flag, a name, a login or a machine: the Mac re-reads
-// both ids and builds exactly the session its own one-press create builds,
-// with its own launch defaults. The offer it chose from is the Mac's too, read
-// from the Sessions tab's answer (`PocketSessionsStart`), so the "+" and this
-// sheet can never disagree about what may be started.
+// write id, through `POST /v1/start` (Door/DoorClient.swift). The start names
+// no path, flag, name, login or machine: the Mac re-reads both ids and builds
+// exactly the session its own one-press create builds, with its own launch
+// defaults. The offer it chose from is the Mac's too, read from the Sessions
+// tab's answer (`PocketSessionsStart`), so the "+" and this sheet can never
+// disagree about what may be started.
+//
+// A NAME (Phase 349, build/p349/SPEC.md D2, D12). Where the Mac renames
+// (`renames` on the Sessions answer), the sheet draws one Name, empty. Left
+// empty, Create sends exactly today's start and the Mac names the session as
+// before. Named, Create still sends exactly today's start, and THEN, from the
+// start's done arm, ONE rename of the id the Mac answered (`RenameRunner`,
+// Screens/SessionName.swift), the name fixed at the press; the session opens
+// once that rename answered, under the name the Mac stored, or, when the
+// rename was not done, under the Mac's own name with the rename's sentence on
+// the opened page's one line. Nothing retries it, and the kept start never
+// holds the name.
 //
 // NO FACE ID, TOUCH ID OR PASSCODE (his answer 5, "no face id to start a
 // session"). THE RISK HE ACCEPTED, stated where it is made: a lost, unlocked
@@ -132,7 +143,8 @@ protocol StartKeeping: AnyObject {
 // MARK: - What the sheet is handed
 
 /// New session, for the Mac on screen (D27): its starter, the app's registry,
-/// the space that keeps its one kept start, and where a done start opens.
+/// the space that keeps its one kept start, the rename a named Create sends
+/// after its start (Phase 349), and where a done start opens.
 @MainActor
 struct StartSetup {
     /// The Mac's whole public name: the space that started it.
@@ -142,9 +154,16 @@ struct StartSetup {
     let keeper: any StartKeeping
     /// See a sample (D28): every Create says nothing ran.
     let sample: Bool
+    /// Phase 349 (D2): the rename a named Create sends to the id the start
+    /// answered, or nil for a pairing that renames nothing, which draws no
+    /// Name and sends today's start alone.
+    let renamer: (any DoorRenaming)?
+    /// Where the app keeps that rename's runner while it runs.
+    let renameRegistry: (any RenameRegistry)?
     /// Done: the session the Mac made, opened on that Mac's Sessions tab
-    /// (`AppModel.openStarted(mac:id:name:)`).
-    let opened: @MainActor (_ id: String, _ name: String) -> Void
+    /// (`AppModel.openStarted(mac:id:name:line:)`), under the name the Mac
+    /// stored, with the one line a rename that was not done says, or nil.
+    let opened: @MainActor (_ id: String, _ name: String, _ line: String?) -> Void
 }
 
 // MARK: - What the sheet draws, decided before anything is laid out
@@ -272,6 +291,18 @@ final class StartModel: Identifiable {
     private(set) var phase: Phase = .idle
     /// The line after a start, or nil. Never empty.
     private(set) var line: String?
+    /// The Name field's text (Phase 349, D12): empty when the sheet opens,
+    /// and sent exactly as he typed it.
+    var name: String = ""
+    /// Whether the Name is drawn (Phase 349): the Sessions answer's `renames`,
+    /// set again as Sessions reads again, for a pairing that renames. A
+    /// pairing with no renamer draws no Name, whatever its Mac says.
+    var renames: Bool {
+        get { macRenames && renamer != nil }
+        set { macRenames = newValue }
+    }
+    /// What the Mac last said in `renames`.
+    private var macRenames: Bool
     /// The last start's task, held so a test can wait for it. Never drawn
     /// from.
     @ObservationIgnored private(set) var running: Task<Void, Never>?
@@ -281,15 +312,20 @@ final class StartModel: Identifiable {
     private let registry: any StartRunnerRegistry
     private let keeper: any StartKeeping
     private let sample: Bool
+    private let renamer: (any DoorRenaming)?
+    private let renameRegistry: (any RenameRegistry)?
     private let clock: @Sendable () -> Date
 
-    init(offer: PocketStartOffer, setup: StartSetup, clock: @escaping @Sendable () -> Date = { Date() }) {
+    init(offer: PocketStartOffer, renames: Bool = false, setup: StartSetup, clock: @escaping @Sendable () -> Date = { Date() }) {
         self.offer = offer
+        macRenames = renames
         mac = setup.mac
         starter = setup.starter
         registry = setup.registry
         keeper = setup.keeper
         sample = setup.sample
+        renamer = setup.renamer
+        renameRegistry = setup.renameRegistry
         self.clock = clock
         let first = StartDrawing.firstProject(offer)
         project = first
@@ -301,6 +337,20 @@ final class StartModel: Identifiable {
         StartDrawing(offer: offer, project: project, agent: agent)
     }
 
+    /// The Name's line (Phase 349): the Mac's own sentence for a name its rule
+    /// refuses, a name of only spaces among them; nil for an empty Name, which
+    /// sends today's start alone, and for a name the rule takes.
+    var nameLine: String? {
+        guard renames, !name.isEmpty else { return nil }
+        return NameRule.refusal(name)?.sentence
+    }
+
+    /// The sheet's one line: what the last start said, else the Name's, else
+    /// the offer's state.
+    func lineDrawn(_ drawing: StartDrawing) -> String? {
+        line ?? nameLine ?? drawing.state
+    }
+
     /// Create's word: `Creating…` while a start runs and while the sheet
     /// closes after it was done, `Try again` while a kept start holds for this
     /// Mac, project and agent (D17), else `Create`.
@@ -309,9 +359,10 @@ final class StartModel: Identifiable {
         return kept(at: clock()) == nil ? Copy.create : Copy.tryAgain
     }
 
-    /// Whether Create can be pressed now.
+    /// Whether Create can be pressed now: nothing runs, the offer can start,
+    /// and the Name is empty or one the Mac's rule takes.
     var canCreate: Bool {
-        phase == .idle && drawing.canCreate
+        phase == .idle && drawing.canCreate && nameLine == nil
     }
 
     // MARK: Choosing
@@ -350,15 +401,20 @@ final class StartModel: Identifiable {
     // MARK: Create
 
     /// Start the chosen project with the chosen agent, as ONE runner. Nothing
-    /// is asked first (his answer 5). Does nothing while a start runs, or with
-    /// nothing to start. `reread` reads the Sessions tab again; `opened` closes
-    /// the sheet and opens the session the Mac made, and is called ONLY when
-    /// it answers done.
-    func create(reread: @escaping @MainActor () async -> Void, opened: @escaping @MainActor (_ id: String, _ name: String) -> Void) {
-        guard phase == .idle, drawing.canCreate, let project, let agent else { return }
+    /// is asked first (his answer 5). Does nothing while a start runs, with
+    /// nothing to start, or with a Name the Mac's rule refuses. `reread` reads
+    /// the Sessions tab again; `opened` closes the sheet and opens the session
+    /// the Mac made, and is called ONLY when it answers done (Phase 349: after
+    /// the one rename a named Create sends).
+    func create(reread: @escaping @MainActor () async -> Void, opened: @escaping @MainActor (_ id: String, _ name: String, _ line: String?) -> Void) {
+        guard canCreate, let project, let agent else { return }
         let at = clock()
         let reusing = kept(at: at)
         if reusing == nil { keeper.keptStart = nil }
+        // Phase 349 (D2): the name, as he typed it, fixed at the press; an
+        // empty Name, or none drawn, sends today's start alone. Never part of
+        // the start, and never kept with it.
+        let pendingName: String? = renames && !NameRule.trimmed(name).isEmpty ? name : nil
         let runner = StartRunner(project: project, agent: agent, write: reusing?.write, starter: starter)
         registry.registerStart(runner)
         let registry = registry
@@ -366,7 +422,7 @@ final class StartModel: Identifiable {
         line = nil
         let task = Task { [weak self] in
             let sent = await runner.run()
-            await self?.afterStart(sent, project: project, agent: agent, at: at, reusing: reusing, reread: reread, opened: opened)
+            await self?.afterStart(sent, project: project, agent: agent, at: at, reusing: reusing, pendingName: pendingName, reread: reread, opened: opened)
             // A done start stays `.done` until the sheet is gone with it.
             if self?.phase == .starting { self?.phase = .idle }
             registry.releaseStart(runner)
@@ -391,8 +447,9 @@ final class StartModel: Identifiable {
         agent: String,
         at: Date,
         reusing: KeptStart?,
+        pendingName: String?,
         reread: @MainActor () async -> Void,
-        opened: @MainActor (_ id: String, _ name: String) -> Void
+        opened: @escaping @MainActor (_ id: String, _ name: String, _ line: String?) -> Void
     ) async {
         switch sent.result {
         case .answered(let answer) where answer.outcome == .done:
@@ -405,7 +462,31 @@ final class StartModel: Identifiable {
                 // ruled round): the dismissal animates, and a press inside it
                 // would send a fresh id and start a second session.
                 phase = .done
-                opened(session.id, session.name)
+                if let pendingName, let renamer {
+                    // Phase 349 (D2, bb9): ONE rename, from this done arm, of
+                    // the id the start answered, with the name fixed at the
+                    // press, its runner registered before its task. The
+                    // session opens once it answered: under the name the Mac
+                    // stored, or under the Mac's own name with the rename's
+                    // sentence on the opened page's one line. Never retried.
+                    let runner = RenameRunner(target: session.id, name: pendingName, renamer: renamer)
+                    renameRegistry?.registerRename(runner)
+                    let renameRegistry = renameRegistry
+                    let sample = sample
+                    let renaming = Task {
+                        let result = await runner.run() ?? .notSent(.cancelled)
+                        if case .answered(let renamed) = result, renamed.outcome == .done, let stored = renamed.name {
+                            opened(session.id, stored, nil)
+                        } else {
+                            opened(session.id, session.name, DoorWords.renameSentence(for: result, sample: sample))
+                        }
+                        renameRegistry?.releaseRename(runner)
+                    }
+                    runner.task = renaming
+                    await renaming.value
+                } else {
+                    opened(session.id, session.name, nil)
+                }
             }
             await reread()
         case .answered(let answer):

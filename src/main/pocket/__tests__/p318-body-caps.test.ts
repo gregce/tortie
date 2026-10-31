@@ -77,9 +77,11 @@ describe('the write body caps (Phase 318, §5.1.3)', () => {
   // (build/p346/SPEC.md D6) added `start`, 512; its worst body is held in
   // `./p346-start-write.test.ts`. Phase 348 (build/p348/SPEC.md D29) added
   // `remove`, 512, and `paste`, 131,072; their worst bodies are held in
-  // `./p348-remove-write.test.ts` and `./p348-paste-write.test.ts`.
-  it('are exactly end 512, choose 512, say 32,768, keys 16,384, start 512, remove 512 and paste 131,072, frozen, keyed by the closed write list', () => {
-    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512, remove: 512, paste: 131_072 });
+  // `./p348-remove-write.test.ts` and `./p348-paste-write.test.ts`. Phase 349
+  // (build/p349/SPEC.md D6) added `rename`, 2,048; its worst body is held in
+  // `./p349-rename-write.test.ts`.
+  it('are exactly end 512, choose 512, say 32,768, keys 16,384, start 512, remove 512, paste 131,072 and rename 2,048, frozen, keyed by the closed write list', () => {
+    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512, remove: 512, paste: 131_072, rename: 2_048 });
     expect(Object.isFrozen(POCKET_WRITE_BODY_CAPS)).toBe(true);
     expect(Object.keys(POCKET_WRITE_BODY_CAPS).sort()).toEqual([...POCKET_WRITE_ROUTE_IDS].sort());
     // Every write row of the table has a cap, and no read row does.

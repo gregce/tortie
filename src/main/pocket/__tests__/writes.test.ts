@@ -78,6 +78,7 @@ type PocketReplyOutcome = import('../routes').PocketReplyOutcome;
 type PocketStartOutcome = import('../routes').PocketStartOutcome;
 type PocketRemoveOutcome = import('../routes').PocketRemoveOutcome;
 type PocketPasteOutcome = import('../routes').PocketPasteOutcome;
+type PocketRenameOutcome = import('../routes').PocketRenameOutcome;
 type PocketChooseInput = import('../routes').PocketChooseInput;
 type PocketSayInput = import('../routes').PocketSayInput;
 type PocketKeysInput = import('../routes').PocketKeysInput;
@@ -235,6 +236,12 @@ function rig(over: { writes?: false } = {}): Rig {
             paste: async (): Promise<PocketPasteOutcome> => {
               self.asked.push('paste');
               return { outcome: 'failed', sentence: 'not in this test' };
+            },
+            // Phase 349's rename, which these arms never reach
+            // (./p349-rename-write.test.ts drives it).
+            rename: async (): Promise<PocketRenameOutcome> => {
+              self.asked.push('rename');
+              return { outcome: 'failed', sentence: 'not in this test' };
             }
           }
         })
@@ -253,7 +260,9 @@ const doneWrites = {
   start: async (): Promise<PocketStartOutcome> => ({ outcome: 'failed', sentence: 'not in this test' }),
   // Phase 348's Remove and paste, each answering done.
   remove: async (): Promise<PocketRemoveOutcome> => ({ outcome: 'done' }),
-  paste: async (): Promise<PocketPasteOutcome> => ({ outcome: 'done' })
+  paste: async (): Promise<PocketPasteOutcome> => ({ outcome: 'done' }),
+  // Phase 349's rename, answering done with the name it was handed.
+  rename: async (input: { sessionId: string; name: string }): Promise<PocketRenameOutcome> => ({ outcome: 'done', name: input.name.trim() })
 };
 
 // ---------------------------------------------------------------------------
@@ -271,8 +280,9 @@ describe('the body caps, computed from the worst legal body (§5.3.3, §14 findi
 
   it('holds it under its cap, each write route has its own cap, and the worst legal body parses', () => {
     // Phase 346 added `start`, 512 (build/p346/SPEC.md D6); Phase 348 `remove`,
-    // 512, and `paste`, 131,072 (build/p348/SPEC.md D29).
-    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512, remove: 512, paste: 131_072 });
+    // 512, and `paste`, 131,072 (build/p348/SPEC.md D29); Phase 349 `rename`,
+    // 2,048 (build/p349/SPEC.md D6).
+    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512, remove: 512, paste: 131_072, rename: 2_048 });
     expect(endBody(longest, wid(1)).byteLength).toBeLessThanOrEqual(POCKET_WRITE_BODY_CAPS.end);
     // The whole alphabet at the longest length.
     const every = 'aZ09._:-'.repeat(16);

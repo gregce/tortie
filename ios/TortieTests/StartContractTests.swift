@@ -177,6 +177,61 @@ final class StartContractTests: XCTestCase {
         }
     }
 
+    // MARK: The rename key beside it (Phase 349, bb5)
+
+    /// A whole sessions answer with `start` and `renames` spelled as given (or
+    /// absent), `renames` written BEFORE `start`, as main spreads them.
+    private func sessions(start: String?, renames: String?) -> String {
+        let r = renames.map { #","renames":\#($0)"# } ?? ""
+        let s = start.map { #","start":\#($0)"# } ?? ""
+        return #"{"asked":{"show":"active","group":"project","sort":"recent","agent":null,"machine":null},"rows":[],"groups":[],"agents":[],"machines":[],"total":0,"omitted":0,"at":1,"ageNote":"Ages."\#(r)\#(s)}"#
+    }
+
+    /// Clause (Phase 349, bb5): `renames` is read LENIENTLY beside `start` and
+    /// never inside it: a Boolean `true` reads true, and anything else (absent,
+    /// `false`, null, a string, a number, a list, an object, a list of ten
+    /// thousand) reads false and refuses nothing: the answer is read exactly as
+    /// without it, and the offer beside it, so the "+", stays.
+    func testTheRenamesKeyNeverFailsSessionsOrHidesThePlus() throws {
+        let plain = try decode(PocketSessionsAnswer.self, sessions(start: offer, renames: nil))
+        XCTAssertFalse(plain.renames)
+        XCTAssertNotNil(plain.start?.offer)
+        XCTAssertTrue(try decode(PocketSessionsAnswer.self, sessions(start: offer, renames: "true")).renames)
+        XCTAssertTrue(try decode(PocketSessionsAnswer.self, sessions(start: nil, renames: "true")).renames, "renames read inside start")
+        let huge = "[" + Array(repeating: "true", count: 10_000).joined(separator: ",") + "]"
+        for broken in ["false", "null", #""true""#, "1", "0", "[true]", #"{"state":"offered"}"#, huge] {
+            let read = try decode(PocketSessionsAnswer.self, sessions(start: offer, renames: broken))
+            XCTAssertFalse(read.renames, String(broken.prefix(40)))
+            XCTAssertEqual(read.start, plain.start, "a broken renames hid the offer: \(broken.prefix(40))")
+            XCTAssertEqual(read.asked, plain.asked)
+            XCTAssertEqual(read.ageNote, plain.ageNote)
+        }
+        // And a broken start never takes renames with it.
+        let both = try decode(PocketSessionsAnswer.self, sessions(start: #"{"state":"later"}"#, renames: "true"))
+        XCTAssertNil(both.start)
+        XCTAssertTrue(both.renames, "a broken start hid the Name")
+    }
+
+    /// Clause (bb5): the key is read beside `start`'s read in the sessions
+    /// answer's own decoder, inside `try?` with `decodeIfPresent`, and never
+    /// inside the start's. A read is a decode, as conformance:ios bd10 counts
+    /// it; the answer's one write-back, only when true, is not a read.
+    func testTheRenamesKeyIsReadBesideStartInSource() throws {
+        let contract = RenameTests.code(try StyleSource.text("ios/Tortie/Door/Contract.swift"))
+        let start = "start = (try? c.decodeIfPresent(PocketSessionsStart.self, forKey: .start)) ?? nil"
+        let renames = "renames = (try? c.decodeIfPresent(Bool.self, forKey: .renames)) == true"
+        let a = try XCTUnwrap(contract.range(of: start), "the start's lenient read moved")
+        let b = try XCTUnwrap(contract.range(of: renames), "renames is not read leniently")
+        XCTAssertLessThan(a.lowerBound, b.lowerBound)
+        XCTAssertFalse(contract[a.upperBound..<b.lowerBound].contains("init(from"), "renames is not read in the same decoder as start")
+        let mentions = contract.components(separatedBy: "\n").filter { $0.contains("forKey: .renames") }
+        XCTAssertEqual(mentions.filter { $0.contains("decode") }.count, 1, "renames is read other than once")
+        XCTAssertEqual(mentions.filter { !$0.contains("decode") }.map { $0.trimmingCharacters(in: .whitespaces) }, ["if renames { try c.encode(renames, forKey: .renames) }"], "renames is written back other than once, and only when true")
+        let offer = try XCTUnwrap(contract.range(of: "extension PocketSessionsStart: Codable {"))
+        let offerEnd = try XCTUnwrap(contract.range(of: "\n}\n", range: offer.upperBound..<contract.endIndex))
+        XCTAssertFalse(contract[offer.lowerBound..<offerEnd.upperBound].contains("renames"), "renames is read inside the start")
+    }
+
     /// Clause (D26): the drawing of an answer with a broken key is the drawing
     /// of the same answer with none: Sessions draws as it always did.
     func testABrokenKeyDrawsTheSameSessions() throws {

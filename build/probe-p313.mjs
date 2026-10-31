@@ -296,9 +296,11 @@ const WRITE_ROUTES = WRITE_ROWS.length;
  * parent alike (the Phase 346 reverify, 2026-10-16); since the ruled round it
  * is the table's five. Phase 348 (build/p348/SPEC.md §6) appends `remove` and
  * `paste` after `start`, in the table's order (D26), each a signed POST alive
- * outside any window, so it is the table's seven.
+ * outside any window, so it is the table's seven. Phase 349 (build/p349/SPEC.md
+ * §4.1) appends `rename` after `paste`, a signed POST alive outside any window,
+ * so it is the table's eight.
  */
-const WRITE_IDS = Object.freeze(['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste']);
+const WRITE_IDS = Object.freeze(['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste', 'rename']);
 const WRITES_ARE_THE_TABLES = WRITE_ROWS.length === WRITE_IDS.length && WRITE_ROWS.every((r, i) => r.id === WRITE_IDS[i] && r.method === 'POST' && r.path === `/v1/${r.id}` && r.reads === false && r.signed === true && r.windowOnly === false);
 
 // ---------------------------------------------------------------------------

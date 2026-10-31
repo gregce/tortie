@@ -53,6 +53,17 @@
  * shipping composer sets it on a session on this Mac that takes keys and a
  * door that serves `paste` copies it. Clauses (2) to (4) hold all three.
  *
+ * AND SINCE PHASE 349 (build/p349/SPEC.md D2, D12, D14), RENAME. The facts
+ * are a door that serves `rename`: each row's offer is the shipping
+ * `renameOfferOf` (src/main/sessions/pocket-writes.ts) over it, so every row
+ * and every session answer the shipping composer makes carries `rename`
+ * exactly where the Mac's own Rename is offered; and every sessions answer
+ * carries `renames: true`, kept once, as the book's `constants.renames`,
+ * which the phone attaches to every sessions answer it assembles, as it does
+ * `constants.start`. Clause (2) holds the assembled answers equal to the
+ * composer's with it, every session answer's `rename` and every row's to the
+ * shipping verdict, and the book's `renames` to `true`.
+ *
  * THE FILE (§5.1.3) is ASCII (every character past U+007F written `\uXXXX`),
  * deterministic, with one newline at the end. The lists are SKELETONS of
  * indexes into shared PIECES, because 1,980 answers whole are about 2 MB and
@@ -138,7 +149,7 @@ const { readPocketTurns, pocketTurnOf, pocketLineKind } = await import('../../sr
 const { composeScreen, composePage, spaceOf } = await import('../../src/main/screen/compose.ts');
 const { parseScreenDisplay } = await import('../../src/main/screen/read.ts');
 const { readingRevisionOf, screenRevisionOf } = await import('../../src/main/screen/watch.ts');
-const { endOfferOf, removeVerdict } = await import('../../src/main/sessions/pocket-writes.ts');
+const { endOfferOf, removeVerdict, renameOfferOf } = await import('../../src/main/sessions/pocket-writes.ts');
 const { removeSessionConfirm } = await import('../../src/shared/lifecycle-words.ts');
 const { buildProjectLine } = await import('../../src/shared/overview-line.ts');
 const { statusVisual } = await import('../../src/shared/status-words.ts');
@@ -472,6 +483,10 @@ function factsFor(variants, pages = 'page') {
     // PHASE 348 (D30): a door that serves `paste`, so the route copies the
     // composer's flag.
     pasteAllowed: () => true,
+    // PHASE 349 (D14, D2): a door that serves `rename` offers it where the
+    // shipping verdict passes, and says it renames on every sessions answer.
+    renameOffer: (session) => renameOfferOf(session),
+    renames: () => true,
     replyOffer: async (session) => {
       const question = QUESTIONS[session.id];
       const waiting = screens.get(`${session.id}.waiting`);
@@ -585,6 +600,8 @@ for (const variants of STATES) {
     constants.sessionsAgeNote ??= answer.ageNote;
     // PHASE 346: the offer as the door sends it, re-composed by its own key reader.
     if (!('start' in constants) && answer.start !== undefined) constants.start = answer.start;
+    // PHASE 349: and `renames`, as the door sends it beside the offer.
+    if (!('renames' in constants) && answer.renames !== undefined) constants.renames = answer.renames;
     if (agentsOrder === null && question.key === 'all.project.recent.*') agentsOrder = answer.agents.map((a) => a.id);
     entry.sessions[question.key] = {
       rows: answer.rows.map((row) => sessionsRows.add(row)),
@@ -784,7 +801,9 @@ function assemblyClause(parsed, composed) {
         omitted: skeleton.omitted,
         ageNote: k.sessionsAgeNote,
         // PHASE 346: the book's one offer, on every sessions answer.
-        ...(k.start === undefined ? {} : { start: k.start })
+        ...(k.start === undefined ? {} : { start: k.start }),
+        // PHASE 349: and the book's one `renames`, beside it.
+        ...(k.renames === undefined ? {} : { renames: k.renames })
       };
       if (!deepEqual(assembled, withoutAt(want))) problems.push(`(2) state ${state}, ${question.key}: the assembled answer is not the shipping composer's`);
     }
@@ -824,6 +843,23 @@ function readBackClause(parsed) {
       offer.defaultAgent === defaultGmuxSettings().defaultAgent;
     if (!ok) problems.push("(2) the book's start offer is not the one the world was chosen to make");
   }
+  // PHASE 349 (D2, D12): a Mac that allowed Rename says so on every sessions
+  // answer, and the book keeps it once.
+  if (k.renames !== true) problems.push(`(2) the book's renames is ${JSON.stringify(k.renames)}, not true: a Mac that serves rename says so on every sessions answer`);
+  // PHASE 349 (D14): every row the book holds carries `rename` exactly where
+  // the shipping verdict offers it. Every session the world lists is on this
+  // Mac, so the verdict offers Rename on every listed variant, and every row
+  // carries it.
+  {
+    const offered = SESSIONS.every((s) => s.variants.filter((v) => !isRemoved(v)).every((v) => renameOfferOf(world.sessionRowOf(s, v)) === true));
+    if (!offered) problems.push('(2) the shipping verdict offers no Rename on a session the world lists, which is on this Mac');
+    const pieces = parsed.pieces ?? {};
+    for (const [kind, rows] of [['blockedRows', pieces.blockedRows ?? []], ['sessionsRows', pieces.sessionsRows ?? []]]) {
+      rows.forEach((row, i) => {
+        if (offered && row?.rename !== true) problems.push(`(2) ${kind} ${String(i)} (${String(row?.sessionId)}): a row offers no Rename (${JSON.stringify(row?.rename)}), where the shipping verdict offers it`);
+      });
+    }
+  }
   for (const session of SESSIONS) {
     for (const variant of session.variants) {
       const answer = parsed.session?.[session.id]?.[variant];
@@ -854,6 +890,12 @@ function readBackClause(parsed) {
         problems.push(`(2) ${session.id} ${variant}: the session answer's removeConfirm is ${JSON.stringify(detail.removeConfirm)}, not the Mac's own Remove words${live ? ' (none on a live session)' : ''}`);
       }
       if (!live && (wantRemove === null || wantRemove?.confirmLabel !== 'Remove')) problems.push(`(2) ${session.id} ${variant}: the shipping verdict offers no Remove on an ended session`);
+      // PHASE 349 (D14): `rename` exactly where the shipping verdict offers it,
+      // ended or not, and absent where it does not.
+      const wantRename = renameOfferOf(world.sessionRowOf(session, variant)) === true ? true : undefined;
+      if (detail.rename !== wantRename || ('rename' in detail) !== (wantRename !== undefined)) {
+        problems.push(`(2) ${session.id} ${variant}: the session answer's rename is ${JSON.stringify(detail.rename)}, not the shipping verdict's ${JSON.stringify(wantRename ?? null)}`);
+      }
       if (detail.agentLabel !== agentLabelOf(session.agent)) problems.push(`(2) ${session.id} ${variant}: the agent is drawn ${String(detail.agentLabel)}`);
       if (answer.at !== T || turns.at !== T) problems.push(`(2) ${session.id} ${variant}: an answer's at is not the composer's clock`);
       const count = world.TURNS[session.id].length;
@@ -1229,6 +1271,13 @@ function proofs() {
   // PHASE 348: Remove's words gone from an ended session, and given to a live one.
   red('a Remove gone from an ended session', 2, judge((b) => { delete b.session['sample-5'].ended.session.removeConfirm; }), "not the Mac's own Remove words");
   red('a Remove on a live session', 2, judge((b) => { b.session['sample-3'].live.session.removeConfirm = b.session['sample-5'].ended.session.removeConfirm; }), "not the Mac's own Remove words");
+  // PHASE 349: the book's renames gone and moved; a row's and a session's Rename gone; one that is not true.
+  red('the book\'s renames gone', 2, judge((b) => { delete b.constants.renames; }), "the book's renames");
+  red('the book\'s renames moved off true', 2, judge((b) => { b.constants.renames = false; }), "the assembled answer is not the shipping composer's");
+  red('a Rename gone from a sessions row', 2, judge((b) => { delete b.pieces.sessionsRows[0].rename; }), 'a row offers no Rename');
+  red('a Rename gone from a blocked row', 2, judge((b) => { delete b.pieces.blockedRows[0].rename; }), "the assembled answer is not the shipping composer's");
+  red('a Rename gone from a live session answer', 2, judge((b) => { delete b.session['sample-3'].live.session.rename; }), "the session answer's rename");
+  red('a Rename on an ended session that is not true', 2, judge((b) => { b.session['sample-5'].ended.session.rename = 1; }), "the session answer's rename");
   red('a turn missing', 2, judge((b) => { b.turns['sample-4'].live.turns.pop(); }), "are not the world's");
   red('an answer that is not every state\'s', 2, judge((b) => { b.session['sample-3'].live.session.lastMessageText = '1m'; }), 'would lie');
   // (3) a state, a question, an index, an unused piece, a history, a screen.

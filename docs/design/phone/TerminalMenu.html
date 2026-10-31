@@ -39,7 +39,12 @@ a { color: #4d9de8; }
      Up pushes Conversation.html. The page under the menu is Session.html, the
      terminal filled; the ⋯ itself stays drawn, spoken More. Both words are
      the Mac's own: Catch Me Up (src/main/menu.ts) and End session… (the
-     session manager's END_SESSION). -->
+     session manager's END_SESSION). Since Phase 349 (build/p349/SPEC.md D1,
+     his words "making it possible to rename sessions from the phone that it
+     can access"), Rename is the SECOND item, between them, where the Mac
+     offers it: the Mac's own word (its session menu's Rename) with its
+     pencil. Its press opens Rename.html, the Mac's own Rename and Save name,
+     and asks no Face ID; End session… does not move. -->
 <div class="t" style="width: 390px; height: 844px; box-sizing: border-box; background: #0E0F13; color: #C9CACD; display: flex; flex-direction: column; overflow: hidden; position: relative;">
 
   <div style="height: 44px; flex-shrink: 0;"></div>
@@ -159,11 +164,13 @@ a { color: #4d9de8; }
     </a>
   </div>
 
-  <!-- The menu, iOS's own, under the ⋯: Catch Me Up, then End session…
-       (D22). The rest of the page dims under it. -->
+  <!-- The menu, iOS's own, under the ⋯: Catch Me Up, then Rename (Phase
+       349, D1), then End session… (D22). The rest of the page dims under
+       it. -->
   <div class="dim"></div>
   <div class="menu" role="menu">
     <a class="item" href="Conversation.html" role="menuitem"><span>Catch Me Up</span><svg width="22" height="20" viewBox="0 0 22 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 2h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-4.5 3.5V15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"></path><path d="M6.5 6.5h9M6.5 10h6"></path></svg></a>
+    <a class="item" href="Rename.html" role="menuitem"><span>Rename</span><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M13.6 3.2l3.2 3.2L7.4 15.8 3.4 16.6l.8-4z"></path><path d="M11.6 5.2l3.2 3.2"></path></svg></a>
     <a class="item" href="End.html" role="menuitem" style="color: #e5655e;"><span>End session…</span><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 6V4a2 2 0 0 1 2-2h2M14 2h2a2 2 0 0 1 2 2v2M18 14v2a2 2 0 0 1-2 2h-2M6 18H4a2 2 0 0 1-2-2v-2"></path><path d="M7 7.5v1M13 7.5v1M10 7.5v3.5H9M7.2 13.2a4 4 0 0 0 5.6 0"></path></svg></a>
   </div>
 </div>

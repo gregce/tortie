@@ -57,7 +57,13 @@
  *     words for one session (`../sessions/pocket-writes.ts`'s `removeOffer`,
  *     asked only while a person allowed `remove`) and whether a person
  *     allowed `paste`. This module imports neither. Absent, no session
- *     carries `removeConfirm` and no screen answer carries `paste`.
+ *     carries `removeConfirm` and no screen answer carries `paste`;
+ *   - `renameOffer` and `renames` (Phase 349, build/p349/SPEC.md §4.2 step 6)
+ *     are handed in the same way: whether the phone may offer Rename on one
+ *     session (`../sessions/pocket-writes.ts`'s `renameOffer`, asked only
+ *     while a person allowed `rename`) and whether a person allowed `rename`.
+ *     This module imports neither. Absent, no row carries `rename` and no
+ *     Sessions answer carries `renames`.
  *
  * ## What this module never does
  *
@@ -170,6 +176,18 @@ export interface PocketFactsDeps {
    * screen answer carries `paste`.
    */
   pasteAllowed?: () => boolean;
+  /**
+   * Whether the phone may offer Rename on one session (Phase 349, D14): handed
+   * in by `../capabilities.ts`, which asks whether a person allowed `rename`
+   * first. A READ. Absent, no row carries `rename`.
+   */
+  renameOffer?: (session: Session) => boolean;
+  /**
+   * Whether a person allowed `rename` (Phase 349, D2): the host's
+   * `renameAllowed`, handed in by `../capabilities.ts`. A READ. Absent, no
+   * Sessions answer carries `renames`.
+   */
+  renames?: () => boolean;
   now?(): number;
 }
 
@@ -394,6 +412,8 @@ export function createPocketFacts(deps: PocketFactsDeps): PocketFacts & {
     ...(deps.start !== undefined ? { start: deps.start } : {}),
     ...(deps.removeConfirmOf !== undefined ? { removeConfirmOf: deps.removeConfirmOf } : {}),
     ...(deps.pasteAllowed !== undefined ? { pasteAllowed: deps.pasteAllowed } : {}),
+    ...(deps.renameOffer !== undefined ? { renameOffer: deps.renameOffer } : {}),
+    ...(deps.renames !== undefined ? { renames: deps.renames } : {}),
     now
   };
 }

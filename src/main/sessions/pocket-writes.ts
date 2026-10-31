@@ -50,6 +50,21 @@
  * `paste` is delegated, as `keys` is, to the Screen's paste verb
  * (`createScreenPaste` in `src/main/screen/paste.ts`).
  *
+ * PHASE 349 (build/p349/SPEC.md §4.3 step 4, D3 to D5; his words of
+ * 2026-10-19, "making it possible to rename sessions from the phone that it
+ * can access (and name sessions initially that are created via the phone)",
+ * which is what changed Phase 317's "No … Rename … from the phone"): `rename`
+ * is implemented HERE, beside `end` and `remove`, and calls the Mac's own
+ * rename, `core.renameSession`, ONCE, with the name trimmed as the Mac trims
+ * it; the verb broadcasts by itself. It asks what the Mac's own Rename offers
+ * on, over the row as it is NOW, in the pure {@link renameVerdict}: the shared
+ * gate's `canRename` with a THIRD named environment, `DOOR_RENAME_GATE_ENV`;
+ * on another machine, whether the session runs now (D3), because only then
+ * does the Mac's rename do its whole job there; and the one name rule,
+ * `sessionNameRefusal` (src/shared/session-names.ts). Main's two gates are not
+ * asked, because the Mac's own Rename asks neither (lifecycle-gate.ts has no
+ * rename refusal). `renameOffer` is the verdict, the name aside, passing.
+ *
  * Neither alone is enough (D7), and `conformance:manager` G2 holds the place
  * where they disagree. The batch adds the Mac batch's ONE narrowing (D14,
  * `batchEligibility` in src/renderer/session-manager/batch-end.ts): a session
@@ -69,16 +84,19 @@
  * argv, and nothing an error says reaches the phone or a log. It logs nothing.
  */
 
-import type { PocketEndConfirm, PocketEndOffer, PocketRemoveReason } from '@shared/ipc/pocket';
+import type { PocketEndConfirm, PocketEndOffer, PocketRemoveReason, PocketRenameReason } from '@shared/ipc/pocket';
 import {
   END_FAILED,
   END_UNREACHABLE_TITLE,
   LIFECYCLE_SESSION_CHANGED,
   REMOVE_FAILED,
+  RENAME_FAILED,
+  RENAME_UNREACHABLE,
   removeSessionConfirm,
   SESSION_NOT_FOUND
 } from '@shared/lifecycle-words';
-import { DOOR_GATE_ENV, DOOR_REMOVE_GATE_ENV, sessionActionGates } from '@shared/session-gates';
+import { DOOR_GATE_ENV, DOOR_REMOVE_GATE_ENV, DOOR_RENAME_GATE_ENV, sessionActionGates } from '@shared/session-gates';
+import { sessionNameRefusal, trimmedSessionName } from '@shared/session-names';
 import type { Session } from '@shared/types';
 import { isGmuxError } from '../errors';
 import { machineRow } from '../machines/store';
@@ -87,6 +105,7 @@ import type {
   PocketEndOutcome,
   PocketPasteOutcome,
   PocketRemoveOutcome,
+  PocketRenameOutcome,
   PocketReplyOutcome,
   PocketStartOutcome,
   PocketWrites
@@ -124,6 +143,14 @@ export interface PocketWritesCore {
   removeSession(sessionId: string): void;
   /** Every window told the list moved, as `sessions:discard` tells them after a Remove (Phase 348, D10). */
   broadcastSessions(): void;
+  /**
+   * The Mac's own rename, unchanged (Phase 349, build/p349/SPEC.md §4.3 step
+   * 4): tmux by `$`-id then the manifest, a session on another machine through
+   * `remoteRename`, and the broadcast, all inside the verb. It throws
+   * `INVALID_INPUT` (a blank name, or a far row no completed list reports any
+   * more, `TARGET_UNBOUND`) and `SESSION_NOT_FOUND` (an id nothing holds).
+   */
+  renameSession(input: { sessionId: string; name: string }): Promise<Session>;
 }
 
 /**
@@ -262,6 +289,102 @@ function removeThrownOutcome(err: unknown, core: PocketWritesCore, sessionId: st
   return { outcome: 'failed', sentence: REMOVE_FAILED };
 }
 
+/** Why the phone's Rename was refused, as the door's answer words it (Phase 349): every reason but the door's own `malformed`. */
+export type PocketRenameRefusal = Exclude<PocketRenameReason, 'malformed'>;
+
+/** The Rename verdict over one row as it is now, and the name asked for (Phase 349, §4.3 step 4). */
+export type PocketRenameVerdict =
+  | { ok: true }
+  | { ok: false; reason: PocketRenameRefusal; sentence: string };
+
+/**
+ * PURE: the Rename verdict over the row as it is NOW and the name asked for
+ * (Phase 349, build/p349/SPEC.md §4.3 step 4, D3, D4, D5), its five arms in
+ * this order, each saying which gate owns it:
+ *
+ *   1. no listed row: `gone`, the verb's own `Session not found.`;
+ *   2. THE SHARED GATE: a row Tortie cannot see is `unreachable`;
+ *   3. THE SHARED GATE, `canRename` with {@link DOOR_RENAME_GATE_ENV}: a row it
+ *      refuses (a removed one) is `changed`;
+ *   4. D3: a row on another machine that does not run now is `changed`, because
+ *      the Mac's own rename refuses one that ended during this run and renames
+ *      one that ended before in this Mac's records alone;
+ *   5. THE ONE NAME RULE, `sessionNameRefusal`: `name`, in the rule's words.
+ *
+ * It reads `.canRename` of the gate and nothing else, and asks neither of
+ * main's gates, because the Mac's own Rename asks neither. It awaits nothing
+ * and calls nothing but the gate and the rule.
+ */
+export function renameVerdict(session: Session | undefined, name: string): PocketRenameVerdict {
+  // THE VERB'S OWN WORDS for an id nothing lists.
+  if (session === undefined) return { ok: false, reason: 'gone', sentence: SESSION_NOT_FOUND };
+  // THE SHARED GATE: a session Tortie cannot see is never renamed.
+  if (session.status === 'unknown') {
+    return { ok: false, reason: 'unreachable', sentence: RENAME_UNREACHABLE };
+  }
+  // THE SHARED GATE: Rename is offered where the Mac's own Rename is offered.
+  const canRename = sessionActionGates(session, session.status, DOOR_RENAME_GATE_ENV).canRename;
+  if (!canRename) return { ok: false, reason: 'changed', sentence: LIFECYCLE_SESSION_CHANGED };
+  // D3: on another machine, only while the session runs. Every status that
+  // reaches here is placed on purpose, so a status the alphabet gains is a
+  // compile error rather than a far rename that renames this Mac's record alone.
+  if (session.machine !== undefined) {
+    let runsNow: boolean;
+    switch (session.status) {
+      case 'running':
+      case 'idle':
+      case 'needs_input':
+        runsNow = true;
+        break;
+      case 'exited':
+      case 'restorable':
+      case 'discarded':
+        runsNow = false;
+        break;
+    }
+    if (!runsNow) return { ok: false, reason: 'changed', sentence: LIFECYCLE_SESSION_CHANGED };
+  }
+  // THE ONE NAME RULE, in its own words.
+  const refusal = sessionNameRefusal(name);
+  if (refusal !== null) return { ok: false, reason: 'name', sentence: refusal.sentence };
+  return { ok: true };
+}
+
+/**
+ * PURE: the Rename verdict over the row alone, the name aside (Phase 349,
+ * §4.3 step 4): the first four arms of {@link renameVerdict}, asked over the
+ * name `'a'`, which the rule always passes, so the four arms are written once
+ * and `.canRename` is read only inside the verdict.
+ */
+export function renameTargetVerdict(session: Session | undefined): PocketRenameVerdict {
+  return renameVerdict(session, 'a');
+}
+
+/** PURE: whether a row offers Rename (Phase 349, D14): its target verdict passing. The offer and the sample read it. */
+export function renameOfferOf(session: Session): boolean {
+  return renameTargetVerdict(session).ok;
+}
+
+/**
+ * What a thrown Rename came to, told apart BY CODE ONLY (Phase 349, §4.3 step
+ * 4). No error's text is read, because a failed command's text can carry its
+ * argv, and so the name:
+ *
+ *  - `SESSION_NOT_FOUND`: the verb's own `Session not found.`;
+ *  - `INVALID_INPUT`: the row left a far machine's list after the verdict
+ *    (`TARGET_UNBOUND`), so the session changed under the press;
+ *  - anything else: the Rename failed.
+ */
+function renameThrownOutcome(err: unknown): PocketRenameOutcome {
+  if (isGmuxError(err, 'SESSION_NOT_FOUND')) {
+    return { outcome: 'refused', reason: 'gone', sentence: SESSION_NOT_FOUND };
+  }
+  if (isGmuxError(err, 'INVALID_INPUT')) {
+    return { outcome: 'refused', reason: 'changed', sentence: LIFECYCLE_SESSION_CHANGED };
+  }
+  return { outcome: 'failed', sentence: RENAME_FAILED };
+}
+
 /**
  * What a thrown End came to, told apart BY CODE ONLY. No error's text is read:
  *
@@ -323,6 +446,7 @@ export function createPocketWrites(deps: {
 }): PocketWrites & {
   endOffer(session: Session): PocketEndOffer;
   removeOffer(session: Session): PocketEndConfirm | null;
+  renameOffer(session: Session): boolean;
 } {
   const machineKnown = deps.machineKnown ?? machineKnownNow;
 
@@ -414,6 +538,37 @@ export function createPocketWrites(deps: {
     },
 
     // PHASE 348. Passed through to the Screen's paste verb, and nothing else.
-    paste: (input, still): Promise<PocketPasteOutcome> => deps.paste.paste(input, still)
+    paste: (input, still): Promise<PocketPasteOutcome> => deps.paste.paste(input, still),
+
+    /**
+     * PHASE 349 (D14). The Rename offer on one row: the verdict, the name
+     * aside, passing. A READ: it asks the shared gate and does nothing.
+     */
+    renameOffer(session: Session): boolean {
+      return renameOfferOf(session);
+    },
+
+    /**
+     * PHASE 349 (§4.3 step 4, D3, D5). THE PHONE'S RENAME: the row re-read by id
+     * and the verdict over it and the name, then the Mac's own rename with the
+     * TRIMMED name as its first await, nothing awaited between the verdict and
+     * the verb, which broadcasts by itself. The answer carries the name main
+     * STORED. It sets no status, kills nothing, logs nothing and names no
+     * machine's verb (the core's far branch is the Mac's own `remoteRename`).
+     */
+    async rename(input: { sessionId: string; name: string }): Promise<PocketRenameOutcome> {
+      const core = deps.core();
+      if (core === null) return { outcome: 'failed', sentence: RENAME_FAILED };
+      try {
+        const session = core.listSessions().find((s) => s.id === input.sessionId);
+        const verdict = renameVerdict(session, input.name);
+        if (!verdict.ok) return { outcome: 'refused', reason: verdict.reason, sentence: verdict.sentence };
+        // THE MAC'S OWN RENAME, the first await in this function.
+        const renamed = await core.renameSession({ sessionId: input.sessionId, name: trimmedSessionName(input.name) });
+        return { outcome: 'done', name: renamed.name };
+      } catch (err) {
+        return renameThrownOutcome(err);
+      }
+    }
   };
 }

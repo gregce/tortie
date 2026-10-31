@@ -304,7 +304,12 @@ const MAC_LIMITS = [
   { mac: 'POCKET_WRITE_BODY_CAPS.keys', file: 'src/main/pocket/door/limits.ts' },
   { mac: 'POCKET_PAIR_BODY_CAP_BYTES', file: 'src/main/pocket/door/limits.ts' },
   { mac: 'PER_SOURCE_MAX', file: 'src/main/pocket/door/limits.ts' },
-  { mac: 'KEEP_ALIVE_TIMEOUT_MS', file: 'src/main/pocket/door/limits.ts' }
+  { mac: 'KEEP_ALIVE_TIMEOUT_MS', file: 'src/main/pocket/door/limits.ts' },
+  // PHASE 349 (build/p349/SPEC.md §6 item 9, D5, D6): the name a phone may
+  // type and the rename's body cap, so no later Mac lowers either under a
+  // frozen phone. Added for the next freeze; no sealed set is touched.
+  { mac: 'SESSION_NAME_MAX_UNITS', file: 'src/shared/session-names.ts' },
+  { mac: 'POCKET_WRITE_BODY_CAPS.rename', file: 'src/main/pocket/door/limits.ts' }
 ];
 
 /**
@@ -2712,7 +2717,9 @@ const ASK_SAYS = {
   'ScreenKeySender.mostItems': 'keys the phone sends in one write',
   'ScreenKeySender.mostTextBytes': 'text bytes the phone sends in one keys write',
   'ScrollbackLayout.pageRows+overlapRows': 'rows one scrollback page asks for',
-  'DoorLine.freshFor': 'the phone keeps a line'
+  'DoorLine.freshFor': 'the phone keeps a line',
+  // PHASE 349 (build/p349/SPEC.md D5).
+  'NameRule.maxUnits': 'UTF-16 units of a name the phone’s field holds'
 };
 
 /**

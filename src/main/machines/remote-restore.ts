@@ -147,6 +147,7 @@ import { postDurabilityNotice } from '../notice';
 import { remoteManifest, remoteRecordOf } from './remote-record';
 import {
   REMOTE_STAMPS,
+  farTmuxName,
   oneLine,
   parseRemoteListLine,
   pollRemoteMachine,
@@ -483,15 +484,15 @@ export async function restoreRemoteSession(
   // Step 6. The create. `remoteCreateArgs` is the SAME composer the create path
   // uses, so both identity variables ride the line itself and a create whose
   // answer is lost is still identifiable by reading the pane environment back.
-  // PHASE 342 (build/p342/SPEC.md D12). Every `$` in the record's far name as
-  // `_`, the create's own rule (`farTmuxName`), and no dedupe, as today: tmux
-  // 3.2a to 3.4 store a `$` and a letter with a backslash, so `=<name>` would
-  // miss the session this restore makes, and a name beginning with `$` reads as
-  // an id. The manifest takes the new name at step 8.
-  const tmuxName = (record.tmuxName.length > 0 ? record.tmuxName : record.name).replace(
-    /\$/g,
-    '_'
-  );
+  // PHASE 342 (build/p342/SPEC.md D12), THEN PHASE 349 (build/p349/SPEC.md
+  // D16). The record's far name through the create's own far rule,
+  // `farTmuxName`, which this line once wrote by hand: every `$` as `_`, and
+  // since Phase 349 D7 with it (a backslash, a `#` tmux reads, a final `;` and a
+  // leading `-` or `$` held back), and no dedupe against the machine's names, as
+  // today: tmux 3.2a to 3.4 store a `$` and a letter with a backslash, so
+  // `=<name>` would miss the session this restore makes, and a name beginning
+  // with `$` reads as an id. The manifest takes the new name at step 8.
+  const tmuxName = farTmuxName(record.tmuxName.length > 0 ? record.tmuxName : record.name, new Set());
   // PHASE 270, issue 20. The same names a create reads, read the same way, so a
   // person's remote session does not hold its variables until the first restore
   // and then quietly lose them — which is the silence this phase exists to end.

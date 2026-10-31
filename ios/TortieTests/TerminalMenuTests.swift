@@ -7,12 +7,15 @@ import XCTest
 /// for end session)"): one native menu at the top right, Catch Me Up then End
 /// session…, End exactly where End's press at the top right would be drawn,
 /// on or off as it would be, behind the same confirmation and the same owner
-/// check, and a progress mark beside the ⋯ while End is under way. What the
-/// menu holds is read from the drawing, through the same functions the menu
-/// calls; its shape is read from the source, because a menu iOS draws is not
-/// a view a unit test can open. The Mac and iOS are scripts (EndFakes.swift).
-/// Each test names the clause it holds and fails when that clause is taken
-/// out of Screens/SessionScreen.swift, Screens/EndBar.swift,
+/// check, and a progress mark beside the ⋯ while End is under way. Since
+/// Phase 349 (build/p349/SPEC.md D1, D20) Rename is the second item where the
+/// Mac offers it and the pairing renames, its sheet's model made at the press
+/// over the name the Terminal holds, and outside the items. What the menu
+/// holds is read from the drawing, through the same functions the menu calls;
+/// its shape is read from the source, because a menu iOS draws is not a view
+/// a unit test can open. The Mac and iOS are scripts (EndFakes.swift). Each
+/// test names the clause it holds and fails when that clause is taken out of
+/// Screens/SessionScreen.swift, Screens/EndBar.swift,
 /// Screens/Identifiers.swift or Style/Copy.swift.
 @MainActor
 final class TerminalMenuTests: XCTestCase {
@@ -154,33 +157,53 @@ final class TerminalMenuTests: XCTestCase {
         XCTAssertTrue(control.contains("if #available(iOS 26, *) { \"ellipsis\" } else { \"ellipsis.circle\" }"))
     }
 
+    /// The ⋯'s items and what follows them, split at the ⋯'s OWN label: since
+    /// Phase 349 Rename's Button inside the items has a `label:` of its own,
+    /// so the first `} label: {` after `Menu {` is no longer the menu's.
+    private func menuParts(_ control: String) throws -> (items: String, chrome: String, after: String) {
+        let open = try XCTUnwrap(control.range(of: "Menu {"))
+        let label = try XCTUnwrap(
+            control.range(of: "} label: {\n                Image(systemName: TerminalMenuControl.symbol)", range: open.upperBound..<control.endIndex),
+            "the ⋯'s own label is not the symbol"
+        )
+        return (
+            String(control[open.upperBound..<label.lowerBound]),
+            String(control[label.lowerBound...]),
+            String(control[label.upperBound...])
+        )
+    }
+
     /// Clause (D21, D22): ONE `Menu {`, labelled with the symbol in the
     /// accent, spoken `More`, identified `terminal-menu`; its items at most
-    /// two in this order, Catch Me Up (the Mac's word, its speech bubble, its
-    /// identifier, pushing Catch Me Up) then End's item, and End's only where
-    /// `endRow` says it is drawn. Since Phase 348 (D33, his ruling that
-    /// Remove asks no Face ID) the second item is Remove's where the menu
-    /// draws no End and Remove is drawn, in End's place: never both.
-    func testOneMenuOfTwoItemsInOrder() throws {
+    /// three in this order, Catch Me Up (the Mac's word, its speech bubble, its
+    /// identifier, pushing Catch Me Up), then Rename where it is drawn (Phase
+    /// 349, D1: the Mac's word and its pencil, behind `if let rename`), then
+    /// End's item, and End's only where `endRow` says it is drawn. Since Phase
+    /// 348 (D33, his ruling that Remove asks no Face ID) the last item is
+    /// Remove's where the menu draws no End and Remove is drawn, in End's
+    /// place: never both.
+    func testOneMenuOfThreeItemsInOrder() throws {
         let control = try span("ios/Tortie/Screens/SessionScreen.swift", "struct TerminalMenuControl: View {")
         XCTAssertEqual(control.components(separatedBy: "Menu {").count, 2, "the ⋯ is not exactly one menu")
-        let open = try XCTUnwrap(control.range(of: "Menu {"))
-        let label = try XCTUnwrap(control.range(of: "} label: {", range: open.upperBound..<control.endIndex))
-        let items = String(control[open.upperBound..<label.lowerBound])
+        let (items, chrome, _) = try menuParts(control)
         let catchUp = try XCTUnwrap(items.range(of: "Button(action: openCatchUp) {"))
+        let rename = try XCTUnwrap(items.range(of: "if let rename {\n                    Button {\n                        renaming = rename.asked()\n                    } label: {"), "Rename is not its own item behind its drawing")
         let end = try XCTUnwrap(items.range(of: "EndMenuItem(row: row, drawing: drawing) {"))
-        XCTAssertLessThan(catchUp.lowerBound, end.lowerBound, "End is not after Catch Me Up")
+        XCTAssertLessThan(catchUp.lowerBound, rename.lowerBound, "Rename is not after Catch Me Up")
+        XCTAssertLessThan(rename.lowerBound, end.lowerBound, "Rename is not before End")
         XCTAssertTrue(items.contains("Label(Copy.catchMeUp, systemImage: \"text.bubble\")"))
         XCTAssertTrue(items.contains(".accessibilityIdentifier(ID.terminalMenuCatchUp)"))
+        XCTAssertTrue(items.contains("Label(Copy.rename, systemImage: \"pencil\")"), "Rename is not the Mac's word with its pencil")
+        XCTAssertTrue(items.contains(".accessibilityIdentifier(ID.terminalMenuRename)"))
+        XCTAssertEqual(items.components(separatedBy: "if let rename {").count, 2, "Rename is drawn other than once, behind its drawing")
         XCTAssertTrue(items.contains("if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {"), "End's item is not drawn exactly where End's press would be")
-        XCTAssertEqual(items.components(separatedBy: "Button(").count, 2, "the menu holds an item besides Catch Me Up and End")
+        XCTAssertEqual(items.components(separatedBy: "Button").count, 3, "the menu holds an item besides Catch Me Up, Rename and End")
         XCTAssertEqual(items.components(separatedBy: "EndMenuItem(").count, 2)
         let otherwise = try XCTUnwrap(items.range(of: "} else if let removal {\n                    RemoveMenuItem(drawing: removal) {"), "Remove is not End's item's otherwise")
         XCTAssertLessThan(end.lowerBound, otherwise.lowerBound)
         XCTAssertEqual(items.components(separatedBy: "RemoveMenuItem(").count, 2)
         XCTAssertTrue(control.contains("let removal = TerminalMenuControl.removeDrawing(end, offer: offer, removeConfirm: removeConfirm)"))
         XCTAssertFalse(items.contains("Divider()"))
-        let chrome = String(control[label.lowerBound...])
         XCTAssertTrue(chrome.contains("Image(systemName: TerminalMenuControl.symbol)"))
         XCTAssertTrue(chrome.contains(".foregroundStyle(Tokens.accent)"))
         XCTAssertTrue(chrome.contains(".accessibilityLabel(Text(verbatim: Copy.more))"))
@@ -191,15 +214,15 @@ final class TerminalMenuTests: XCTestCase {
 
     /// Clause (D23): the Mac's confirmation is attached to the MENU, outside
     /// its items, so it presents once the menu has closed; the press only
-    /// asks for it, and it shows only over the Mac's own words.
+    /// asks for it, and it shows only over the Mac's own words. Since Phase
+    /// 349 (D20) the Rename sheet is attached outside the items too, after
+    /// Remove's confirmation, and Rename's press makes its model and nothing
+    /// else.
     func testTheConfirmationIsOnTheMenuOutsideItsItems() throws {
         let control = try span("ios/Tortie/Screens/SessionScreen.swift", "struct TerminalMenuControl: View {")
-        let open = try XCTUnwrap(control.range(of: "Menu {"))
-        let label = try XCTUnwrap(control.range(of: "} label: {", range: open.upperBound..<control.endIndex))
-        let items = String(control[open.upperBound..<label.lowerBound])
+        let (items, _, after) = try menuParts(control)
         XCTAssertFalse(items.contains(".endConfirmation("), "the confirmation is inside the menu's items")
         XCTAssertFalse(items.contains("confirmationDialog"))
-        let after = String(control[label.upperBound...])
         let id = try XCTUnwrap(after.range(of: ".accessibilityIdentifier(ID.terminalMenu)"))
         let confirmation = try XCTUnwrap(after.range(of: ".endConfirmation(model: end, offer: offer, confirm: confirm, drawing: drawing, isPresented: $asking, reread: reread)"))
         XCTAssertLessThan(id.lowerBound, confirmation.lowerBound, "the confirmation is not in the menu's own chain")
@@ -208,17 +231,32 @@ final class TerminalMenuTests: XCTestCase {
         // Remove's (Phase 348, D33): the Mac's Remove words, outside the
         // items too, asked for by Remove's press alone.
         XCTAssertFalse(items.contains(".removeConfirmation("), "Remove's confirmation is inside the menu's items")
-        XCTAssertTrue(after.contains(".removeConfirmation(model: end?.remove, drawing: removal, isPresented: $removeAsked, reread: reread)"))
+        let remove = try XCTUnwrap(after.range(of: ".removeConfirmation(model: end?.remove, drawing: removal, isPresented: $removeAsked, reread: reread)"))
         XCTAssertTrue(items.contains("guard removal.confirm != nil else { return }\n                        removeAsked = true"), "Remove's press does more than ask for the Mac's words")
         XCTAssertEqual(control.components(separatedBy: "removeAsked = true").count, 2, "something else asks for Remove's confirmation")
+        // Rename's (Phase 349, D20): the sheet, outside the items, after
+        // Remove's confirmation, over the model the press made there and then.
+        XCTAssertFalse(items.contains(".sheet("), "the Rename sheet is inside the menu's items")
+        let sheet = try XCTUnwrap(after.range(of: ".sheet(item: $renaming) { asked in"), "the Rename sheet is not on the control")
+        XCTAssertLessThan(remove.lowerBound, sheet.lowerBound, "the Rename sheet is not after Remove's confirmation")
+        XCTAssertEqual(control.components(separatedBy: ".sheet(").count, 2, "the ⋯ presents other than one sheet")
+        XCTAssertEqual(control.components(separatedBy: "renaming = ").count, 2, "something else asks for the Rename sheet")
+        XCTAssertTrue(control.contains("@State private var renaming: RenameAsked?"))
     }
 
     /// Clause (D21): the Terminal's top bar holds ONE trailing item, the ⋯,
-    /// handed since Phase 348 the Mac's Remove words beside End's.
+    /// handed since Phase 348 the Mac's Remove words beside End's and since
+    /// Phase 349 its Rename.
     func testTheMenuIsOneTopBarTrailingItem() throws {
         let menu = try span("ios/Tortie/Screens/SessionScreen.swift", "struct TerminalMenu: ToolbarContent {")
         XCTAssertEqual(menu.components(separatedBy: "ToolbarItem(").count, 2)
-        XCTAssertTrue(menu.contains("ToolbarItem(placement: .topBarTrailing) {\n            TerminalMenuControl(end: end, offer: offer, confirm: confirm, removeConfirm: removeConfirm, reread: reread, openCatchUp: openCatchUp)"))
+        XCTAssertTrue(menu.contains("ToolbarItem(placement: .topBarTrailing) {\n            TerminalMenuControl(end: end, offer: offer, confirm: confirm, removeConfirm: removeConfirm, rename: rename, reread: reread, openCatchUp: openCatchUp)"))
+        // The Terminal hands Rename through a copy, so its one line that makes
+        // the menu keeps its words (EndTopTests reads it).
+        XCTAssertTrue(menu.contains("func renaming(_ rename: TerminalRename?) -> TerminalMenu {\n        var copy = self\n        copy.rename = rename\n        return copy\n    }"))
+        let session = try StyleSource.text("ios/Tortie/Screens/SessionScreen.swift")
+        XCTAssertTrue(session.contains(") { openCatchUp(drawing.outcome) }\n                .renaming(TerminalRename.of(drawing, setup: rename))\n"), "the Terminal does not hand the ⋯ its Rename")
+        XCTAssertEqual(session.components(separatedBy: ".renaming(").count, 2)
     }
 
     /// Clause (D23, rule ac, "we can keep face input for end session"): the
@@ -279,23 +317,102 @@ final class TerminalMenuTests: XCTestCase {
         }
     }
 
+    // MARK: Rename (Phase 349, build/p349/SPEC.md D1, D20)
+
+    /// A rename setup that makes the app's own models, as App/TortieApp.swift
+    /// does, and records what each press asked for.
+    @MainActor
+    private final class RecordingSetup {
+        struct Made: Equatable {
+            let sessionId: String
+            let name: String
+            let readsFirst: Bool
+        }
+
+        private(set) var made: [Made] = []
+
+        var setup: RenameSetup {
+            RenameSetup { [self] id, name, readsFirst in
+                made.append(Made(sessionId: id, name: name, readsFirst: readsFirst))
+                return RenameModel(sessionId: id, name: name, renamer: MenuRenamer(), registry: nil, readsFirst: readsFirst)
+            }
+        }
+    }
+
+    /// A renamer no test here presses: every rename is not taken.
+    private struct MenuRenamer: DoorRenaming {
+        func rename(_ sessionId: String, name: String) async -> RenameResult { .notTaken }
+        func session(_ sessionId: String) async throws -> PocketSessionAnswer { throw DoorFailure.refused }
+    }
+
+    /// Clause (D1, D20): Rename is drawn only where the app handed a setup (a
+    /// pairing that renames) and the latest detail offers it; no model is made
+    /// until the press, and the press's model holds the name the Terminal
+    /// holds, WHOLE (a list would clip it at 200), and reads nothing more.
+    func testRenameIsDrawnOnlyWithASetupAndTheMacsOffer() throws {
+        let long = String(repeating: "n", count: 300)
+        var row = Answers.row("s", name: long)
+        let plain = try SessionDrawing(Answers.detail(row))
+        row.rename = true
+        let offered = try SessionDrawing(Answers.detail(row))
+        let recording = RecordingSetup()
+        XCTAssertNil(TerminalRename.of(offered, setup: nil), "Rename drawn for a pairing that renames nothing")
+        XCTAssertNil(TerminalRename.of(plain, setup: recording.setup), "Rename drawn where the Mac offers none")
+        let rename = try XCTUnwrap(TerminalRename.of(offered, setup: recording.setup))
+        XCTAssertEqual(recording.made, [], "a sheet's model was made before the press")
+        let asked = rename.asked()
+        XCTAssertEqual(recording.made, [RecordingSetup.Made(sessionId: "s", name: long, readsFirst: false)])
+        XCTAssertEqual(asked.model.sessionId, "s")
+        XCTAssertEqual(asked.model.text, long, "the ⋯'s sheet does not hold the whole name the Terminal holds")
+        XCTAssertFalse(asked.model.readsFirst, "the ⋯'s sheet reads the session again")
+        XCTAssertEqual(asked.model.phase, .idle)
+        XCTAssertTrue(asked.model.offered)
+    }
+
+    /// Clause (D20): every press makes a model of its own, so a second press
+    /// always gets a fresh sheet, never one the first press left behind,
+    /// though both models are of one session; and a press's name is the one
+    /// the Terminal held when he pressed.
+    func testEachPressMakesAFreshSheetOverItsOwnModel() throws {
+        var row = Answers.row("s", name: "first")
+        row.rename = true
+        let recording = RecordingSetup()
+        let first = try XCTUnwrap(TerminalRename.of(try SessionDrawing(Answers.detail(row)), setup: recording.setup)).asked()
+        first.model.text = "typed over"
+        var later = Answers.row("s", name: "second")
+        later.rename = true
+        let second = try XCTUnwrap(TerminalRename.of(try SessionDrawing(Answers.detail(later)), setup: recording.setup)).asked()
+        XCTAssertNotEqual(first.id, second.id, "a second press was handed the first press's sheet")
+        XCTAssertTrue(first.model !== second.model)
+        XCTAssertEqual(first.model.sessionId, second.model.sessionId)
+        XCTAssertEqual(second.model.text, "second", "the second press did not take the name drawn when he pressed")
+        XCTAssertEqual(first.model.held, "first", "a press's name moved after the press")
+        XCTAssertEqual(recording.made.map(\.name), ["first", "second"])
+        XCTAssertEqual(recording.made.map(\.readsFirst), [false, false])
+    }
+
     // MARK: Words and names
 
     /// Clause (D27, D28): the ⋯'s spoken name is the phone's one new word,
-    /// `More`, owned by the phone; the menu's other words are the Mac's; and
-    /// the four names a drive finds them by.
+    /// `More`, owned by the phone; the menu's other words are the Mac's,
+    /// Rename among them since Phase 349 (D11); and the names a drive finds
+    /// them by.
     func testTheWordsAndTheNames() throws {
         XCTAssertEqual(Copy.more, "More")
+        XCTAssertEqual(Copy.rename, "Rename")
         let entries = StyleSource.copyEntries(try StyleSource.text("ios/Tortie/Style/Copy.swift")).entries
         let more = try XCTUnwrap(entries.first(where: { $0.name == "more" }))
         let end = try XCTUnwrap(entries.first(where: { $0.name == "endSessionMenu" }))
         let catchUp = try XCTUnwrap(entries.first(where: { $0.name == "catchMeUp" }))
+        let rename = try XCTUnwrap(entries.first(where: { $0.name == "rename" }), "Rename is not declared in Copy.swift")
         guard case .phone? = more.owner else { return XCTFail("More is not the phone's word") }
         guard case .mac? = end.owner else { return XCTFail("End session… is not the Mac's word") }
         guard case .mac? = catchUp.owner else { return XCTFail("Catch Me Up is not the Mac's word") }
+        guard case .mac? = rename.owner else { return XCTFail("Rename is not the Mac's word") }
         XCTAssertEqual(ID.terminalMenu, "terminal-menu")
         XCTAssertEqual(ID.terminalMenuCatchUp, "terminal-menu-catch-up")
         XCTAssertEqual(ID.terminalMenuEnd, "terminal-menu-end")
+        XCTAssertEqual(ID.terminalMenuRename, "terminal-menu-rename")
         XCTAssertEqual(ID.endWriting, "end-writing")
         XCTAssertEqual(ID.endConfirming, "end-confirming")
     }

@@ -216,10 +216,12 @@ export const MACHINE_ID = 'p318far';
  * outside any window, join the route line and their clauses join the write line after start's, in
  * the closed list's order. Under 333.12 both wait at HEAD on a store the parent confirmed, and the
  * lines a person reads before Allow are the proposal's (src/main/pocket/ipc.ts `confirmLines`), so
- * they name all fourteen.
+ * they name all fourteen. PHASE 349 moved both once more (build/p349/SPEC.md §4.1, D10): `rename`, a
+ * signed POST alive outside any window, joins the route line and `rename a session` ends the write
+ * line, after paste's, so they name all fifteen.
  */
-export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, paste, remove, say, screen, scrollback, session, sessions, start, turns';
-export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question, send a session one message, type into any session as you would at this Mac, start a session in a project open in Tortie, on this Mac or another machine, remove a session that has ended and paste text into a session on this Mac';
+export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, paste, remove, rename, say, screen, scrollback, session, sessions, start, turns';
+export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question, send a session one message, type into any session as you would at this Mac, start a session in a project open in Tortie, on this Mac or another machine, remove a session that has ended, paste text into a session on this Mac and rename a session';
 /** The parent's own lines: one write. */
 export const PARENT_WRITE_LINE = 'Lets an allowed phone end a session';
 export const LIVE = Object.freeze(['running', 'idle', 'needs_input']);
@@ -844,7 +846,7 @@ function graderSelfTest() {
   say(constWord(readFileSync(join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts'), 'utf8'), 'POCKET_DOOR_HONESTY') === WORDS.honesty, "the fixtures' honesty sentence is the tree's POCKET_DOOR_HONESTY, byte for byte");
   // The pure readers.
   say(constWord("export const A = 'one';\nexport const B: string =\n  'two, ' +\n  \"three.\";\n", 'B') === 'two, three.', 'constWord reads a concatenation over a line break');
-  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'choose', 'end', 'keys', 'pair', 'paste', 'remove', 'say', 'screen', 'scrollback', 'session', 'sessions', 'start', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
+  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'choose', 'end', 'keys', 'pair', 'paste', 'remove', 'rename', 'say', 'screen', 'scrollback', 'session', 'sessions', 'start', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
   say(frameHexOf('a\nb') === Buffer.from('\u001b[200~a\rb\u001b[201~\r', 'latin1').toString('hex'), 'frameHexOf writes LF as CR inside the paste marks and ends with one CR');
   say(quantile([1, 2, 3, 4], 0.5) === 2 && quantile([], 0.5) === null, 'quantile reads the nearest rank');
   say(actedOf({ status: 200, body: '{"outcome":"refused","reason":"character"}' }) === 'yes', 'actedOf counts a refusal the verb made (logged after step 5)');

@@ -58,7 +58,9 @@
  *          `/v1/end` requests answered byte for byte as HEAD answers the same
  *          bodies (graded after HEAD)
  *   A0     at HEAD over the parent's agreement: exactly `remove` and `paste`
- *          wait; each answers 404 before its body and nothing reaches main;
+ *          wait (since Phase 349 a later phase's route, `rename`, waiting
+ *          beside them with its own New: line is read past, LATER_ROUTES, and
+ *          nothing else); each answers 404 before its body and nothing reaches main;
  *          no `removeConfirm` and no `paste` flag; Settings then Phone draws
  *          both `New:` lines and their sentences above Allow, and the honesty
  *          sentence names both clauses; ONE Allow serves both; after it each
@@ -205,6 +207,14 @@ export const MACHINE_ID = 'p348far';
 export const MACHINE_LABEL = 'p348 loopback';
 /** The two routes this phase adds, in the table's order (D26). */
 export const NEW_ROUTES = Object.freeze(['remove', 'paste']);
+/**
+ * The routes LATER phases append after paste, in the table's order: Phase 349's
+ * `rename` (build/p349/SPEC.md §4.1). Over the parent's agreement each waits
+ * beside remove and paste and is named above the same Allow, which is no defect
+ * of this phase's, so A0's two waiting-route clauses read past them and nothing
+ * else; the self-test holds this list to the tree's own routes after paste.
+ */
+export const LATER_ROUTES = Object.freeze(['rename']);
 /** The most UTF-8 one paste may carry (D29). */
 export const PASTE_MAX_BYTES = 16_384;
 /** The phrases a write is logged under (writes.ts `logWrite`). */
@@ -462,10 +472,14 @@ export const GRADERS = {
   A0: {
     title: 'remove and paste wait for ONE Allow, then are answered',
     clauses: [
-      ['an agreement is on record and exactly remove and paste wait', (r) => r.before.confirmState === 'confirmed' && deepEqual(r.before.routesWaiting, NEW_ROUTES) && NEW_ROUTES.every((x) => !r.before.routesAllowed.includes(x))],
+      ['an agreement is on record and exactly remove and paste wait', (r) => r.before.confirmState === 'confirmed' && deepEqual(r.before.routesWaiting.filter((x) => !LATER_ROUTES.includes(x)), NEW_ROUTES) && NEW_ROUTES.every((x) => !r.before.routesAllowed.includes(x))],
       ['remove and paste answer 404 before their bodies, and nothing reaches main', (r) => r.removeHead === 404 && r.removeFull === 404 && r.pasteHead === 404 && r.pasteFull === 404 && r.linesBefore === 0 && r.bytesBefore === '' && unchanged(r.row)],
       ['no removeConfirm and no paste flag while they wait', (r) => r.detailBefore === true && r.pictureBefore === 200 && r.removeConfirmBefore === false && r.pasteFlagBefore === false],
-      ['the face says both New: lines and their sentences above Allow', (r) => r.face.length === 2 && r.face[0].id === 'remove' && r.face[0].title === `New: ${r.words.removeTitle}` && r.face[0].sentence === r.words.removeSentence && r.face[1].id === 'paste' && r.face[1].title === `New: ${r.words.pasteTitle}` && r.face[1].sentence === r.words.pasteSentence && typeof r.drawn?.remove === 'string' && r.drawn.remove.includes(r.face[0].title) && r.drawn.remove.includes(r.words.removeSentence) && typeof r.drawn?.paste === 'string' && r.drawn.paste.includes(r.face[1].title) && r.drawn.paste.includes(r.words.pasteSentence)],
+      ['the face says both New: lines and their sentences above Allow', (r) => {
+        // A later phase's own New: line (LATER_ROUTES) waits above the same Allow; read past it and nothing else.
+        const face = r.face.filter((x) => !LATER_ROUTES.includes(x.id));
+        return face.length === 2 && face[0].id === 'remove' && face[0].title === `New: ${r.words.removeTitle}` && face[0].sentence === r.words.removeSentence && face[1].id === 'paste' && face[1].title === `New: ${r.words.pasteTitle}` && face[1].sentence === r.words.pasteSentence && typeof r.drawn?.remove === 'string' && r.drawn.remove.includes(face[0].title) && r.drawn.remove.includes(r.words.removeSentence) && typeof r.drawn?.paste === 'string' && r.drawn.paste.includes(face[1].title) && r.drawn.paste.includes(r.words.pasteSentence);
+      }],
       ['the honesty sentence names both new clauses', (r) => Array.isArray(r.honesty) && typeof r.words.doorHonesty === 'string' && r.words.doorHonesty !== '' && r.honesty.some((p) => typeof p === 'string' && p.startsWith(r.words.doorHonesty) && p.includes(r.words.removeClause) && p.includes(r.words.pasteClause))],
       ['one Allow serves both, and nothing waits', (r) => r.allowPresses === 1 && r.after.confirmState === 'confirmed' && r.after.routesWaiting.length === 0 && NEW_ROUTES.every((x) => r.after.routesAllowed.includes(x))],
       ['after Allow each waits for a body, Remove is offered and the picture takes a paste', (r) => r.removeControl === 0 && r.pasteControl === 0 && r.removeConfirmAfter === true && r.pasteFlagAfter === true]
@@ -817,6 +831,26 @@ function graderSelfTest() {
       for (const [k, v] of Object.entries(reading?.words ?? {})) if (tree[k] !== v) drift.push(`${id}.${k}`);
     }
     say(drift.length === 0, `the fixtures' words are the tree's, byte for byte${drift.length === 0 ? '' : ` (differ: ${J(drift)})`}`);
+    // 6. PHASE 349: A0 reads past a LATER phase's route waiting beside remove and paste (its New: line drawn
+    // above the same Allow), and past nothing else: a route that is not a later phase's is still red, each on
+    // the clause that owns it. Taking the reading-past out turns the first of these red.
+    if (honest.A0 !== undefined) {
+      const later = structuredClone(honest.A0);
+      later.before.routesWaiting = [...later.before.routesWaiting, ...LATER_ROUTES];
+      later.face = [...later.face, ...LATER_ROUTES.map((id) => ({ id, title: `New: ${id} from your phone`, sentence: `A later phase's ${id}.` }))];
+      const v = verdictOf('A0', later);
+      say(v.state === 'pass', `A0 passes with the later phases' ${J(LATER_ROUTES)} waiting beside remove and paste and their New: lines drawn${v.state === 'pass' ? '' : ` (it read ${v.state}: ${J(v.failed)})`}`);
+      const stranger = structuredClone(honest.A0);
+      stranger.before.routesWaiting = [...stranger.before.routesWaiting, 'restart'];
+      const s = verdictOf('A0', stranger);
+      say(s.state === 'fail' && J(s.failed) === J(['an agreement is on record and exactly remove and paste wait']), `A0 is red on its waiting clause alone when a route that is no later phase's waits (it read ${s.state}: ${J(s.failed)})`);
+      const strangeFace = structuredClone(honest.A0);
+      strangeFace.face = [...strangeFace.face, { id: 'restart', title: 'New: restart sessions from your phone', sentence: 'Not a route.' }];
+      const f = verdictOf('A0', strangeFace);
+      say(f.state === 'fail' && J(f.failed) === J(['the face says both New: lines and their sentences above Allow']), `A0 is red on its face clause alone when a New: line that is no later phase's is drawn (it read ${f.state}: ${J(f.failed)})`);
+    } else {
+      say(false, 'the fixtures hold no honest A0 reading, so reading past a later phase\'s route is unproven');
+    }
   }
   // THE PROBE REVIEW'S OWN RECORDED READINGS (docs/method/HOW-WE-BUILT-THIS.md rule 9), in fixtures/reviewer/: an
   // honest reading per grader composed from the source (never from graders.json), and broken readings, each the
@@ -926,7 +960,8 @@ function graderSelfTest() {
       }
     })();
     const ids = [...(/POCKET_ROUTE_IDS = \[([\s\S]*?)\] as const/.exec(pocket)?.[1] ?? '').replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/'([a-z]+)'/g)].map((m) => m[1]);
-    say(ids.length === 14 && ids.slice(-3).join() === 'start,remove,paste', `the tree's POCKET_ROUTE_IDS end start, remove, paste, fourteen in all (${String(ids.length)}: the mac builder's half)`);
+    // PHASE 349: fourteen, then the later phases' routes after paste (LATER_ROUTES), in their order.
+    say(ids.length === 14 + LATER_ROUTES.length && ids.slice(11, 14).join() === 'start,remove,paste' && J(ids.slice(14)) === J(LATER_ROUTES), `the tree's POCKET_ROUTE_IDS hold start, remove, paste as their twelfth to fourteenth, then exactly the later phases' ${J(LATER_ROUTES)} (${String(ids.length)}: the mac builder's half)`);
     say(/POCKET_PASTE_MAX_TEXT_BYTES\s*=\s*16_384/.test(pocket), "the tree's POCKET_PASTE_MAX_TEXT_BYTES is 16,384 (D29)");
   }
   process.stdout.write(failures === 0 ? `[p348] grader self-test PASS: ${String(Object.keys(GRADERS).length)} graders, ${String(clauses)} clauses, each shown red on a broken reading of its own.\n` : `[p348] grader self-test FAIL: ${String(failures)}.\n`);

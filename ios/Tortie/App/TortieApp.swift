@@ -97,8 +97,11 @@
 // session on that Mac alone (Phase 348, D19 to D22), and never changes the
 // size of a session on the Mac. It restores nothing; it removes a session
 // only once it has ended, on his press and the Mac's own question with no
-// Face ID (Phase 348, D4 to D7); and it ends a session only on his press, his
-// confirmation and his face, finger or passcode. It has no background mode:
+// Face ID (Phase 348, D4 to D7); it renames a session only on his press of
+// Save name or of a named Create, to the name he typed, through the Mac's
+// own rename and its own sentences, with no Face ID (Phase 349, D8); and it
+// ends a session only on his press, his confirmation and his face, finger
+// or passcode. It has no background mode:
 // it reads on appear, on return to the foreground and on pull
 // (build/p316/SPEC.md section 4.0), the Terminal alone
 // polls while it is on top, and an alert that arrives while it is open
@@ -138,6 +141,16 @@
 // background, the same way as the rest (`liveRemoves`). And the Terminal takes
 // a paste of his clipboard's text through iOS's own Paste, on the key sender's
 // one line, only where the Mac says it takes one (`PairedScreenDoor.paste`).
+//
+// AND SINCE PHASE 349, RENAME (build/p349/SPEC.md; his words of 2026-10-19).
+// Where the Mac serves `rename`, the Terminal's ⋯ holds Rename after Catch Me
+// Up, a session row's long press holds Rename alone, and New session takes a
+// Name, sent as ONE rename of the id the start answered. The sheet is the
+// same everywhere (Screens/SessionName.swift), its model made at the press;
+// no Face ID (his ruling, "Only for End"). The app keeps every live rename's
+// runner and stops each one on the way to the background (`liveRenames`),
+// and a named Create's rename that was not taken says so on the opened
+// page's one line.
 //
 // THIS FILE COMPOSES and draws nothing of its own: Door/ holds the keys, the
 // signature and the one network user, Screens/ draws, and `LiveDoor` below is
@@ -189,8 +202,10 @@ enum AppTab: Hashable, Sendable {
 /// session id across Macs.
 enum Route: Hashable {
     /// One session: its Terminal, or Catch Me Up when it has none (Phase
-    /// 337.1, D16), decided at its first answer.
-    case session(mac: String, id: String, name: String)
+    /// 337.1, D16), decided at its first answer. `line` is the one line its
+    /// page draws when it opens: a named Create's rename that was not taken
+    /// (Phase 349, D2), else nil.
+    case session(mac: String, id: String, name: String, line: String? = nil)
     /// Catch Me Up, pushed from the Terminal's ⋯ (Phase 337.1, D18; a menu
     /// item since Phase 337.3).
     /// `honestLine` is the session's own line, drawn when it has no turns.
@@ -203,7 +218,7 @@ enum Route: Hashable {
     /// The Mac this route reads from: its whole public name.
     var mac: String {
         switch self {
-        case .session(let mac, _, _), .catchUp(let mac, _, _), .alerted(let mac, _): mac
+        case .session(let mac, _, _, _), .catchUp(let mac, _, _), .alerted(let mac, _): mac
         }
     }
 }
@@ -329,6 +344,10 @@ final class AppModel {
     /// confirmation's destructive press, before its write starts, and stopped
     /// with the Ends.
     @ObservationIgnored private(set) var liveRemoves: [RemoveRunner] = []
+    /// Every rename under way (Phase 349): registered at Save name or at a
+    /// named Create's done start, before its write starts, and stopped with
+    /// the Ends.
+    @ObservationIgnored private(set) var liveRenames: [RenameRunner] = []
 
     private let door: any PhoneDoor
     /// What the Mac shows beside the fingerprint: this iPhone's name.
@@ -788,6 +807,7 @@ final class AppModel {
     ///
     /// And every Remove (Phase 348, D55): a Remove whose bytes were not
     /// handed is withheld, never sent on the way back in, and never retried.
+    /// And every rename (Phase 349), the same way: none is kept or retried.
     func wentAway() {
         for space in spaces {
             space.list.clearNotice()
@@ -807,6 +827,9 @@ final class AppModel {
             runner.stop()
         }
         for runner in liveRemoves {
+            runner.stop()
+        }
+        for runner in liveRenames {
             runner.stop()
         }
     }
@@ -1094,6 +1117,9 @@ final class AppModel {
     /// D27): that Mac's starter, this app's registry, that Mac's space as the
     /// keeper of its one kept start, and a done start opened on that Mac.
     /// The sample's says nothing ran (D28). No owner check (his answer 5).
+    /// Since Phase 349 it also hands that Mac's renamer and this app's rename
+    /// registry, so a named Create sends ONE rename of the id the start
+    /// answered (D2), and `opened` carries the line a rename not taken draws.
     func startSetup(_ reader: any DoorReading) -> StartSetup? {
         let mac = reader.facts.publicName
         guard let starter = reader.starter, let space = space(mac) else { return nil }
@@ -1103,8 +1129,10 @@ final class AppModel {
             registry: self,
             keeper: space,
             sample: inSample,
-            opened: { [weak self] id, name in
-                self?.openStarted(mac: mac, id: id, name: name)
+            renamer: reader.renamer,
+            renameRegistry: self,
+            opened: { [weak self] id, name, line in
+                self?.openStarted(mac: mac, id: id, name: name, line: line)
             }
         )
     }
@@ -1112,11 +1140,25 @@ final class AppModel {
     /// A start on `mac` was done (D24): its session opens on that Mac's
     /// Sessions tab, its Terminal at its first answer. The Mac that started it
     /// is the one on screen, because its sheet is that Mac's; a start that
-    /// answers after another Mac was chosen opens nothing.
-    func openStarted(mac: String, id: String, name: String) {
+    /// answers after another Mac was chosen opens nothing. `line` is the
+    /// opened page's one line (Phase 349): a named Create's rename that was
+    /// not taken, said under the Mac's own name for the session.
+    func openStarted(mac: String, id: String, name: String, line: String? = nil) {
         guard chosen?.id == mac else { return }
         tab = .sessions
-        push(.session(mac: mac, id: id, name: name), on: .sessions)
+        push(.session(mac: mac, id: id, name: name, line: line), on: .sessions)
+    }
+
+    /// Rename, for a pairing that renames (Phase 349): the sheet's model for
+    /// one session, made at the press through that Mac's renamer, this app's
+    /// registry and the sample's say-so (D20). A reader that renames nothing
+    /// hands none, so no Rename is drawn anywhere. No owner check (D8).
+    func renameSetup(_ reader: any DoorReading) -> RenameSetup? {
+        guard let renamer = reader.renamer else { return nil }
+        let sample = inSample
+        return RenameSetup { [weak self] id, name, readsFirst in
+            RenameModel(sessionId: id, name: name, renamer: renamer, registry: self, readsFirst: readsFirst, sample: sample)
+        }
     }
 }
 
@@ -1129,6 +1171,18 @@ extension AppModel: StartRunnerRegistry {
 
     func releaseStart(_ runner: StartRunner) {
         liveStarts.removeAll { $0 === runner }
+    }
+}
+
+/// The app keeps every live rename's runner until it ends, so `wentAway` can
+/// stop each one (Phase 349).
+extension AppModel: RenameRegistry {
+    func registerRename(_ runner: RenameRunner) {
+        liveRenames.append(runner)
+    }
+
+    func releaseRename(_ runner: RenameRunner) {
+        liveRenames.removeAll { $0 === runner }
     }
 }
 
@@ -1325,7 +1379,8 @@ struct RootView: View {
                         foregroundTick: app.foregroundTick,
                         open: { app.open($0, in: .sessions) },
                         ends: app.reader.flatMap { app.endBatchSetup($0) },
-                        starts: app.reader.flatMap { app.startSetup($0) }
+                        starts: app.reader.flatMap { app.startSetup($0) },
+                        renames: app.reader.flatMap { app.renameSetup($0) }
                     )
                     .navigationDestination(for: Route.self) { route in
                         destination(route, tab: .sessions)
@@ -1365,7 +1420,8 @@ struct RootView: View {
             isTop: app.listIsTop(tab),
             foregroundTick: app.foregroundTick,
             open: { app.open($0, in: tab) },
-            ends: app.reader.flatMap { app.endBatchSetup($0) }
+            ends: app.reader.flatMap { app.endBatchSetup($0) },
+            renames: app.reader.flatMap { app.renameSetup($0) }
         )
     }
 
@@ -1376,12 +1432,13 @@ struct RootView: View {
     private func destination(_ route: Route, tab: AppTab) -> some View {
         if let reader = app.space(route.mac)?.reader {
             switch route {
-            case .session(let mac, let id, let name):
+            case .session(let mac, let id, let name, let line):
                 SessionRoute(
                     id: id, name: name, reader: reader, routing: app.routing(tab, mac: mac),
                     isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick,
                     ownerCheck: app.endCheck(for: reader), registry: app, replies: app, keys: app,
-                    removes: app, removeRouting: app.routing(tab, mac: mac)
+                    removes: app, removeRouting: app.routing(tab, mac: mac),
+                    line: line, rename: app.renameSetup(reader)
                 ) { honestLine in
                     app.openCatchUp(id, honestLine: honestLine, in: tab)
                 }
@@ -1397,7 +1454,8 @@ struct RootView: View {
                     id: id, name: "", reader: reader, routing: app.alertedRouting(mac: mac),
                     isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick,
                     ownerCheck: app.endCheck(for: reader), registry: app, replies: app, keys: app,
-                    removes: app, removeRouting: app.routing(tab, mac: mac)
+                    removes: app, removeRouting: app.routing(tab, mac: mac),
+                    rename: app.renameSetup(reader)
                 ) { honestLine in
                     app.openCatchUp(id, honestLine: honestLine, in: tab)
                 }
@@ -1478,12 +1536,15 @@ private struct SessionRoute: View {
     let foregroundTick: Int
     let keys: any ScreenKeysRegistry
     let openCatchUp: (String?) -> Void
+    /// Rename in the Terminal's ⋯ (Phase 349), for a pairing that renames.
+    let rename: RenameSetup?
 
     init(
         id: String, name: String, reader: any DoorReading, routing: ReadRouting,
         isTop: Bool, foregroundTick: Int, ownerCheck: any OwnerCheck, registry: any EndRunnerRegistry,
         replies: any ReplyRunnerRegistry, keys: any ScreenKeysRegistry,
         removes: any RemoveRegistry, removeRouting: ReadRouting,
+        line: String? = nil, rename: RenameSetup? = nil,
         openCatchUp: @escaping (String?) -> Void
     ) {
         _route = State(initialValue: SessionRouteModel(sessionId: id, reader: reader, routing: routing))
@@ -1494,8 +1555,11 @@ private struct SessionRoute: View {
         let remove = reader.remover.map {
             RemoveModel(sessionId: id, remover: $0, registry: removes, routing: removeRouting)
         }
+        // A named Create's page opens with its rename's line, when the rename
+        // was not taken (Phase 349, D2): End's one line, where End's and
+        // Remove's are drawn.
         _end = State(initialValue: reader.writer.map {
-            EndModel(sessionId: id, writer: $0, ownerCheck: ownerCheck, registry: registry, remove: remove)
+            EndModel(sessionId: id, writer: $0, ownerCheck: ownerCheck, registry: registry, remove: remove, line: line)
         })
         _reply = State(initialValue: reader.writer.map {
             ReplyModel(sessionId: id, writer: $0, registry: replies)
@@ -1507,6 +1571,7 @@ private struct SessionRoute: View {
         self.foregroundTick = foregroundTick
         self.keys = keys
         self.openCatchUp = openCatchUp
+        self.rename = rename
     }
 
     var body: some View {
@@ -1530,7 +1595,7 @@ private struct SessionRoute: View {
                     TerminalFace(
                         sessionId: route.sessionId, door: door, reader: reader, routing: routing, first: first,
                         isTop: isTop, foregroundTick: foregroundTick, end: end, reply: reply, registry: keys,
-                        openCatchUp: openCatchUp
+                        rename: rename, openCatchUp: openCatchUp
                     )
                 }
             case .catchUp?:
@@ -1600,11 +1665,13 @@ private struct TerminalFace: View {
     let reply: ReplyModel?
     let registry: any ScreenKeysRegistry
     let openCatchUp: (String?) -> Void
+    /// Rename in the ⋯ (Phase 349), or nil.
+    let rename: RenameSetup?
 
     init(
         sessionId: String, door: any ScreenDoor, reader: any DoorReading, routing: ReadRouting,
         first: SessionDrawing, isTop: Bool, foregroundTick: Int, end: EndModel?, reply: ReplyModel?,
-        registry: any ScreenKeysRegistry, openCatchUp: @escaping (String?) -> Void
+        registry: any ScreenKeysRegistry, rename: RenameSetup? = nil, openCatchUp: @escaping (String?) -> Void
     ) {
         let screen = ScreenModel(sessionId: sessionId, door: door, routing: routing)
         _screen = State(initialValue: screen)
@@ -1619,12 +1686,14 @@ private struct TerminalFace: View {
         self.reply = reply
         self.registry = registry
         self.openCatchUp = openCatchUp
+        self.rename = rename
     }
 
     var body: some View {
         TerminalPage(
             screen: screen, keys: keys, session: status, follow: follow, first: first,
-            isTop: isTop, foregroundTick: foregroundTick, end: end, reply: reply, openCatchUp: openCatchUp
+            isTop: isTop, foregroundTick: foregroundTick, end: end, reply: reply, openCatchUp: openCatchUp,
+            rename: rename
         )
         .onAppear { if let keys { registry.registerKeys(keys) } }
         .onDisappear { if let keys { registry.releaseKeys(keys) } }
@@ -1681,8 +1750,9 @@ private struct CatchUpRoute: View {
 /// network user, and since Phase 337 each session's Screen door. It is its
 /// own writer, answered through `DoorReading`'s requirement, so the app's
 /// `any DoorReading` reads it; since Phase 346 its own starter, the same
-/// way; and since Phase 348 its own remover (D55).
-struct PairedReader: DoorReading, DoorWriting, DoorStarting, DoorRemoving {
+/// way; since Phase 348 its own remover (D55); and since Phase 349 its own
+/// renamer.
+struct PairedReader: DoorReading, DoorWriting, DoorStarting, DoorRemoving, DoorRenaming {
     let client: DoorClient
     let door: PairedDoor
 
@@ -1698,6 +1768,12 @@ struct PairedReader: DoorReading, DoorWriting, DoorStarting, DoorRemoving {
     /// Phase 348: this pairing removes a session that has ended on its Mac,
     /// once the Mac offers it (`removeConfirm`).
     var remover: (any DoorRemoving)? {
+        self
+    }
+
+    /// Phase 349: this pairing renames a session on its Mac, once the Mac
+    /// offers it (`rename`).
+    var renamer: (any DoorRenaming)? {
         self
     }
 
@@ -1759,6 +1835,12 @@ struct PairedReader: DoorReading, DoorWriting, DoorStarting, DoorRemoving {
     /// kept, so a repeat is a new write that answers gone.
     func remove(_ sessionId: String) async -> RemoveResult {
         await client.remove(sessionId, door: door)
+    }
+
+    /// `POST /v1/rename`, once (Phase 349), under a fresh write id; none is
+    /// kept, so a repeat is a new write (D9).
+    func rename(_ sessionId: String, name: String) async -> RenameResult {
+        await client.rename(sessionId, name: name, door: door)
     }
 }
 

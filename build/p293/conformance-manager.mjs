@@ -89,6 +89,29 @@
  *  the verdict dropping the shared gate), each of which must read red, beside
  *  the unplanted control, which must read green.
  *
+ *  READ AND DRIVEN, THE PHONE'S RENAME (Phase 349, build/p349/SPEC.md §4.3
+ *  step 9, §10.3). The phone may rename a session wherever the Mac's own Rename
+ *  is offered, and on another machine only while it runs (D3). T25 holds
+ *  pocket-writes.ts to it: it imports `DOOR_RENAME_GATE_ENV` and
+ *  `sessionNameRefusal`, and its pure `renameVerdict` asks `sessionActionGates(`
+ *  ONCE, with that third environment, reads `.canRename` of it and no other
+ *  field, asks neither of main's gates (the Mac's Rename asks neither), keeps
+ *  the far arm after the gate and asks the one name rule after both;
+ *  `renameTargetVerdict` asks no gate itself. G2 gains the Rename partition,
+ *  DRIVEN in this process over the shipping `sessionActionGates`,
+ *  `DOOR_RENAME_GATE_ENV` and `renameVerdict` (transpiled in memory, nothing
+ *  spawned), and it requires EXACTLY §10.3's difference: both pass on a live,
+ *  exited or restorable row here and on a live row on another machine; both
+ *  refuse `unknown` (the verdict `unreachable`) and `discarded` (`changed`) in
+ *  both places; and ONLY on another machine's `exited` and `restorable` does the
+ *  gate pass while the verdict refuses `changed`. `canRename` answers the same
+ *  over every door environment and one with every field set, the target
+ *  verdict and the offer track the first four arms, and the name arm is driven
+ *  over D5's cases on its own. Its self-test plants five tidyings (canRename
+ *  reading the environment, canRename widened to a removed row, the verdict
+ *  dropping the shared gate, the far arm or the unreachable arm), each of which
+ *  must read red beside the unplanted control.
+ *
  *  READ AND DRIVEN, THE PHONE'S GROUPS (Phase 316.7, build/p3167/SPEC.md §8.3).
  *  The sheet's group identity, collection, label, order and lifecycle
  *  partition moved, token for token, to src/shared/session-list.ts, and
@@ -156,7 +179,7 @@ const TEXT_RULES = [
   // Phase 317, build/p317/SPEC.md §6.2. The gate moved below the renderer so
   // main can ask it, and the phone's door asks it beside main's own gate.
   ['T24', '§6.2, Phase 317', 'the gate moved and was not copied: resume.ts declares and re-exports none of the moved names, and nothing under src/ declares a second sessionActionGates'],
-  ['T25', '§6.2, Phase 317; build/p348/SPEC.md §7.4', 'the phone asks both gates: pocket-writes.ts imports sessionActionGates from @shared/session-gates and endRefusal from ./lifecycle-gate, endVerdict asks both, its batch arm is the Mac batch\'s predicate read as text in both files, and neither reads .answering; and (Phase 348) it imports removeRefusal and DOOR_REMOVE_GATE_ENV, and removeVerdict asks removeRefusal( and sessionActionGates( with DOOR_REMOVE_GATE_ENV, reading .canRemove and never .canEnd'],
+  ['T25', '§6.2, Phase 317; build/p348/SPEC.md §7.4; build/p349/SPEC.md §4.3 step 9', 'the phone asks both gates: pocket-writes.ts imports sessionActionGates from @shared/session-gates and endRefusal from ./lifecycle-gate, endVerdict asks both, its batch arm is the Mac batch\'s predicate read as text in both files, and neither reads .answering; and (Phase 348) it imports removeRefusal and DOOR_REMOVE_GATE_ENV, and removeVerdict asks removeRefusal( and sessionActionGates( with DOOR_REMOVE_GATE_ENV, reading .canRemove and never .canEnd; and (Phase 349) it imports DOOR_RENAME_GATE_ENV and sessionNameRefusal, renameVerdict asks sessionActionGates( once, with DOOR_RENAME_GATE_ENV, reads .canRename and no other field, asks neither endRefusal( nor removeRefusal(, keeps the far arm after the gate and calls sessionNameRefusal( after both, and renameTargetVerdict asks renameVerdict( and no gate itself'],
   // Phase 316.7, build/p3167/SPEC.md §8.3. The grouping rule moved below the
   // renderer so the phone's door groups by it too.
   ['T26', '§8.3, Phase 316.7', 'one grouping rule: sessionGroupIdentity, collectSessionGroups, sessionGroupLabel, compareSessionGroups, firstNamed and lifecycleKeeps are declared once, in src/shared/session-list.ts; projection.ts and routes.ts import and call them; routes.ts writes no ??=; no other function compares group labels with localeCompare beside a key; orderGroups hands its tab map and routes.ts an empty one; displayPath and createdOld are declared once, in their shared homes']
@@ -1461,6 +1484,75 @@ function moveRules() {
       if (!codeText(POCKET_WRITES, removeVerdict).includes('DOOR_REMOVE_GATE_ENV')) fail('T25', `${where(POCKET_WRITES, removeVerdict)} removeVerdict does not ask the shared gate with DOOR_REMOVE_GATE_ENV (build/p348/SPEC.md D47)`);
     }
   }
+  // T25, PHASE 349 (build/p349/SPEC.md §4.3 steps 4 and 9, D3, D4, D5): the
+  // phone's Rename asks what the Mac's own Rename offers on: the shared gate
+  // ALONE, once, with the THIRD named environment, then the far arm, then the
+  // one name rule. Main's two gates are never asked, because the Mac's own
+  // Rename asks neither (lifecycle-gate.ts has no rename refusal).
+  if (existsSync(POCKET_WRITES)) {
+    checked('T25', 2);
+    if (!importsFrom(POCKET_WRITES, 'DOOR_RENAME_GATE_ENV', '@shared/session-gates')) {
+      fail('T25', `${rel(POCKET_WRITES)} does not import DOOR_RENAME_GATE_ENV from @shared/session-gates, the environment the door asks canRename of (build/p349/SPEC.md D4)`);
+    }
+    if (!importsFrom(POCKET_WRITES, 'sessionNameRefusal', '@shared/session-names')) {
+      fail('T25', `${rel(POCKET_WRITES)} does not import sessionNameRefusal from @shared/session-names, the one name rule (build/p349/SPEC.md D5)`);
+    }
+    const renameVerdict = functionDeclared(POCKET_WRITES, 'renameVerdict');
+    checked('T25');
+    if (renameVerdict === null) {
+      fail('T25', `${rel(POCKET_WRITES)} declares no renameVerdict, so nothing names where the phone's Rename asks the gate (build/p349/SPEC.md §4.3 step 4)`);
+    } else {
+      const inside = [];
+      const visit = (n) => {
+        inside.push(n);
+        ts.forEachChild(n, visit);
+      };
+      visit(renameVerdict);
+      const gateCalls = inside.filter((n) => ts.isCallExpression(n) && calleeName(n) === 'sessionActionGates');
+      const calls = new Set(inside.filter((n) => ts.isCallExpression(n)).map((n) => calleeName(n)));
+      checked('T25', 7);
+      if (gateCalls.length !== 1) {
+        fail('T25', `${where(POCKET_WRITES, renameVerdict)} renameVerdict asks sessionActionGates( ${String(gateCalls.length)} time(s); it asks the shared gate ONCE (build/p349/SPEC.md §4.3 step 4)`);
+      }
+      const gate = gateCalls[0];
+      if (gate !== undefined) {
+        const field = ts.isPropertyAccessExpression(gate.parent) && gate.parent.expression === gate ? gate.parent.name.text : null;
+        if (field !== 'canRename') fail('T25', `${where(POCKET_WRITES, gate)} renameVerdict reads ${field === null ? 'the whole gate' : `.${field}`} of sessionActionGates(; it reads .canRename and nothing else (build/p349/SPEC.md D4)`);
+        if (gate.arguments[2]?.getText() !== 'DOOR_RENAME_GATE_ENV') fail('T25', `${where(POCKET_WRITES, gate)} renameVerdict asks the shared gate with ${gate.arguments[2]?.getText() ?? 'no environment'}; it asks with DOOR_RENAME_GATE_ENV (build/p349/SPEC.md D4)`);
+      }
+      const OTHER_FIELDS = new Set(['removed', 'ended', 'live', 'remote', 'offersRestore', 'canRestoreNow', 'canRestorePastNow', 'offersRestart', 'offersBare', 'offersResumeInPlace', 'canEnd', 'showsRemove', 'canRemove']);
+      for (const n of inside) {
+        if (ts.isPropertyAccessExpression(n) && OTHER_FIELDS.has(n.name.text)) {
+          fail('T25', `${where(POCKET_WRITES, n)} renameVerdict reads .${n.name.text}; it reads .canRename of the gate and nothing else (build/p349/SPEC.md D4)`);
+        }
+      }
+      for (const mains of ['endRefusal', 'removeRefusal']) {
+        if (calls.has(mains)) fail('T25', `${where(POCKET_WRITES, renameVerdict)} renameVerdict calls ${mains}(; the Mac's own Rename asks neither of main's gates, so the phone's asks neither (build/p349/SPEC.md §4.3 step 4)`);
+      }
+      const far = inside.find((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'machine');
+      const rule = inside.find((n) => ts.isCallExpression(n) && calleeName(n) === 'sessionNameRefusal');
+      if (far === undefined) fail('T25', `${where(POCKET_WRITES, renameVerdict)} renameVerdict reads no .machine, so a session on another machine is renamed whether or not it runs (build/p349/SPEC.md D3)`);
+      if (rule === undefined) fail('T25', `${where(POCKET_WRITES, renameVerdict)} renameVerdict never calls sessionNameRefusal(, the one name rule (build/p349/SPEC.md D5)`);
+      if (gate !== undefined && far !== undefined && far.getStart() < gate.getStart()) fail('T25', `${where(POCKET_WRITES, far)} renameVerdict reads the far arm before the shared gate; the gate's changed comes first (build/p349/SPEC.md §4.3 step 4)`);
+      if (gate !== undefined && rule !== undefined && rule.getStart() < gate.getStart()) fail('T25', `${where(POCKET_WRITES, rule)} renameVerdict asks the name rule before the shared gate; the rule is the fifth arm (build/p349/SPEC.md §4.3 step 4)`);
+      if (far !== undefined && rule !== undefined && rule.getStart() < far.getStart()) fail('T25', `${where(POCKET_WRITES, rule)} renameVerdict asks the name rule before the far arm; the rule is the fifth arm (build/p349/SPEC.md §4.3 step 4)`);
+    }
+    const target = functionDeclared(POCKET_WRITES, 'renameTargetVerdict');
+    checked('T25', 2);
+    if (target === null) {
+      fail('T25', `${rel(POCKET_WRITES)} declares no renameTargetVerdict, so the offer has no verdict of its own to ask (build/p349/SPEC.md §4.3 step 4)`);
+    } else {
+      const inside = [];
+      const visit = (n) => {
+        inside.push(n);
+        ts.forEachChild(n, visit);
+      };
+      visit(target);
+      const calls = new Set(inside.filter((n) => ts.isCallExpression(n)).map((n) => calleeName(n)));
+      if (calls.has('sessionActionGates')) fail('T25', `${where(POCKET_WRITES, target)} renameTargetVerdict asks sessionActionGates( itself; it asks renameVerdict(, so .canRename is read in one place (build/p349/SPEC.md §4.3 step 4)`);
+      if (!calls.has('renameVerdict')) fail('T25', `${where(POCKET_WRITES, target)} renameTargetVerdict never asks renameVerdict(, so the offer's four arms are written twice (build/p349/SPEC.md §4.3 step 4)`);
+    }
+  }
   const eligibility = functionDeclared(BATCH_END, 'batchEligibility');
   checked('T25');
   if (eligibility === null || !codeText(BATCH_END, eligibility).includes(BATCH_NARROWING)) {
@@ -1663,6 +1755,163 @@ function removePartitionRule() {
 }
 
 // ---------------------------------------------------------------------------
+// G2's Rename partition (Phase 349, build/p349/SPEC.md §10.3), DRIVEN here
+// ---------------------------------------------------------------------------
+
+const SESSION_NAMES = join(ROOT, 'src', 'shared', 'session-names.ts');
+
+/**
+ * THE RENAME PARTITION over the shipping gate and verdict (or a planted
+ * variant of their text), as the failures it finds. §10.3's table, re-derived
+ * from the two functions' text by the spec step: canRename is `acts`, a row
+ * that is neither unknown nor removed, whatever the environment; the verdict
+ * adds D3's far arm (another machine, only while the session runs) and, fifth,
+ * the one name rule, which is driven over D5's cases on its own.
+ */
+function renamePartitionFailures(texts) {
+  const out = [];
+  const stubs = { 'main/machines/store': { machineRow: () => null }, 'main/log': { getLog: () => ({ info() {}, warn() {}, error() {}, debug() {} }) } };
+  let gates;
+  let writes;
+  let names;
+  let statuses;
+  try {
+    gates = loadInMemory(SESSION_GATES, texts, stubs);
+    writes = loadInMemory(POCKET_WRITES, texts, stubs);
+    names = loadInMemory(SESSION_NAMES, texts, stubs);
+    statuses = loadInMemory(SHARED_TYPES, texts, stubs).SESSION_STATUSES;
+  } catch (err) {
+    return { checks: 1, failures: [`the Rename partition could not be loaded in memory: ${err instanceof Error ? err.message : String(err)}`] };
+  }
+  if (
+    typeof gates?.sessionActionGates !== 'function' ||
+    gates?.DOOR_RENAME_GATE_ENV === undefined ||
+    typeof writes?.renameVerdict !== 'function' ||
+    typeof writes?.renameTargetVerdict !== 'function' ||
+    typeof writes?.renameOfferOf !== 'function' ||
+    typeof names?.sessionNameRefusal !== 'function' ||
+    !Array.isArray(statuses)
+  ) {
+    return { checks: 1, failures: ['sessionActionGates, DOOR_RENAME_GATE_ENV, renameVerdict, renameTargetVerdict, renameOfferOf, sessionNameRefusal or SESSION_STATUSES could not be read, so the Rename partition was driven over nothing (build/p349/SPEC.md §10.3)'] };
+  }
+  const J = (value) => JSON.stringify(value);
+  const PASSES = 'a name the rule passes';
+  const every = { canRestore: true, canDiscard: true, shellPathReady: true, handback: { state: 'left', leftAt: 1 } };
+  const envs = [gates.DOOR_GATE_ENV, gates.DOOR_REMOVE_GATE_ENV, gates.DOOR_RENAME_GATE_ENV, every];
+  let checks = 0;
+  const cells = { bothPass: [], bothRefuse: [], gateAlone: [], verdictAlone: [] };
+  const reasons = {};
+  for (const status of statuses) {
+    for (const remote of [false, true]) {
+      checks += 4;
+      const where = `${status} ${remote ? 'on another machine' : 'on this Mac'}`;
+      const row = removeRowOf(status, remote);
+      const gatePasses = gates.sessionActionGates(row, status, gates.DOOR_RENAME_GATE_ENV).canRename === true;
+      const answers = new Set(envs.map((env) => gates.sessionActionGates(row, status, env).canRename === true));
+      if (answers.size !== 1) out.push(`canRename answers differently over DOOR_GATE_ENV, DOOR_REMOVE_GATE_ENV, DOOR_RENAME_GATE_ENV and one with every field set on ${where}; it reads none of ANY environment (build/p349/SPEC.md D4, §10.3)`);
+      let verdict;
+      try {
+        verdict = writes.renameVerdict(row, PASSES);
+      } catch (err) {
+        out.push(`renameVerdict threw on ${where}: ${err instanceof Error ? err.message : String(err)}`);
+        continue;
+      }
+      const verdictPasses = verdict?.ok === true;
+      if (!verdictPasses) reasons[where] = verdict?.reason;
+      if (gatePasses && verdictPasses) cells.bothPass.push(where);
+      else if (!gatePasses && !verdictPasses) cells.bothRefuse.push(where);
+      else if (gatePasses) cells.gateAlone.push(where);
+      else cells.verdictAlone.push(where);
+      const target = writes.renameTargetVerdict(row);
+      if (J(target) !== J(verdict)) out.push(`renameTargetVerdict answers ${J(target)} on ${where}, where renameVerdict over a name the rule passes answers ${J(verdict)}; it is the verdict's first four arms (§10.3)`);
+      if (writes.renameOfferOf(row) !== verdictPasses) out.push(`renameOfferOf answers ${J(writes.renameOfferOf(row))} on ${where}, where the target verdict ${verdictPasses ? 'passes' : 'refuses'}; the offer is that verdict passing (D14)`);
+    }
+  }
+  const LIVE = ['running', 'idle', 'needs_input'];
+  const want = {
+    bothPass: [...[...LIVE, 'exited', 'restorable'].map((s) => `${s} on this Mac`), ...LIVE.map((s) => `${s} on another machine`)],
+    bothRefuse: ['unknown', 'discarded'].flatMap((s) => [`${s} on this Mac`, `${s} on another machine`]),
+    gateAlone: ['exited on another machine', 'restorable on another machine'],
+    verdictAlone: []
+  };
+  const wantReasons = {
+    'unknown on this Mac': 'unreachable',
+    'unknown on another machine': 'unreachable',
+    'discarded on this Mac': 'changed',
+    'discarded on another machine': 'changed',
+    'exited on another machine': 'changed',
+    'restorable on another machine': 'changed'
+  };
+  const sorted = (a) => J([...a].sort());
+  checks += 6;
+  if (J([...statuses].sort()) !== J([...LIVE, 'exited', 'restorable', 'unknown', 'discarded'].sort())) out.push(`SESSION_STATUSES is ${J(statuses)}; every status is placed in the Rename partition on purpose, and a new one must be placed here (build/p349/SPEC.md §10.3)`);
+  if (sorted(cells.bothPass) !== sorted(want.bothPass)) out.push(`the gate and the verdict both pass on ${J(cells.bothPass)}; they pass on exactly ${J(want.bothPass)}: every row the Mac's Rename offers on here, and a running row on another machine (§10.3)`);
+  if (sorted(cells.bothRefuse) !== sorted(want.bothRefuse)) out.push(`the gate and the verdict both refuse on ${J(cells.bothRefuse)}; they refuse exactly ${J(want.bothRefuse)}, an unknown or removed row anywhere (§10.3)`);
+  if (sorted(cells.gateAlone) !== sorted(want.gateAlone)) out.push(`the gate passes and the verdict refuses on ${J(cells.gateAlone)}; the EXACT difference is ${J(want.gateAlone)}, an ended row on another machine, which the Mac's own rename refuses or renames here alone (D3, §10.3)`);
+  if (sorted(cells.verdictAlone) !== sorted(want.verdictAlone)) out.push(`the verdict passes where the gate refuses on ${J(cells.verdictAlone)}; there is no such row (§10.3)`);
+  if (sorted(Object.entries(reasons).map(([k, v]) => `${k}=${v}`)) !== sorted(Object.entries(wantReasons).map(([k, v]) => `${k}=${v}`))) {
+    out.push(`the verdict refuses as ${J(reasons)}; it refuses exactly ${J(wantReasons)}: an unknown row unreachable, a removed row and an ended far row changed (§4.3 step 4)`);
+  }
+  // THE FIFTH ARM, on its own, over D5's cases, on a row the four arms pass.
+  const named = removeRowOf('running', false);
+  const D5_CASES = [
+    ['', 'empty'],
+    ['   ', 'empty'],
+    ['x'.repeat(121), 'long'],
+    [`a${String.fromCharCode(7)}b`, 'character'],
+    [`a${String.fromCharCode(0x202e)}b`, 'character'],
+    [`a${String.fromCharCode(0xd800)}`, 'character'],
+    ['x'.repeat(120), null],
+    ['it\'s "x" fix--auth', null]
+  ];
+  for (const [name, why] of D5_CASES) {
+    checks += 1;
+    const v = writes.renameVerdict(named, name);
+    const refusal = names.sessionNameRefusal(name);
+    if (why === null) {
+      if (v?.ok !== true || refusal !== null) out.push(`renameVerdict answers ${J(v)} for the name ${J(name)}, which the rule passes (D5)`);
+    } else if (v?.ok !== false || v.reason !== 'name' || refusal?.reason !== why || v.sentence !== refusal.sentence) {
+      out.push(`renameVerdict answers ${J(v)} for the name ${J(name)}; it refuses name, in the rule's own ${why} sentence (D5)`);
+    }
+  }
+  return { checks, failures: out };
+}
+
+/**
+ * THE RENAME PARTITION'S OWN SELF-TEST: five planted variants of the shipping
+ * text, each a tidying a later round could make, must each read RED, and the
+ * unplanted control must read green. A plant whose anchor is gone fails the
+ * self-test by name, so a variant can never pass by planting nothing.
+ */
+function renamePartitionRule() {
+  const failures = [];
+  let checks = 0;
+  const control = renamePartitionFailures(new Map());
+  checks += control.checks;
+  failures.push(...control.failures);
+  const read = (file) => (existsSync(file) ? readFileSync(file, 'utf8') : '');
+  const plants = [
+    ['canRename reading the environment', SESSION_GATES, 'canRename: acts,', 'canRename: acts && env.canDiscard,'],
+    ['canRename widened to a removed row', SESSION_GATES, 'canRename: acts,', 'canRename: !unknown,'],
+    ['the verdict dropping the shared gate', POCKET_WRITES, 'sessionActionGates(session, session.status, DOOR_RENAME_GATE_ENV).canRename', 'true'],
+    ['the verdict dropping the far arm (D3)', POCKET_WRITES, /if \(session\.machine !== undefined\) \{(\n\s*let runsNow: boolean;)/, 'if (false) {$1'],
+    ['the verdict dropping its unreachable arm', POCKET_WRITES, /\n\s*if \(session\.status === 'unknown'\) \{\n\s*return \{ ok: false, reason: 'unreachable', sentence: RENAME_UNREACHABLE \};\n\s*\}/, '']
+  ];
+  for (const [what, file, from, to] of plants) {
+    checks += 2;
+    const text = read(file);
+    const hit = from instanceof RegExp ? from.test(text) : text.includes(from);
+    if (!hit) {
+      failures.push(`the self-test's plant "${what}" found no anchor in ${rel(file)}; re-point it, or the Rename partition is unproven against that tidying`);
+      continue;
+    }
+    const planted = renamePartitionFailures(new Map([[file, text.replace(from, to)]]));
+    if (planted.failures.length === 0) failures.push(`the self-test planted "${what}" and the Rename partition stayed GREEN, so it does not catch that tidying`);
+  }
+  return { checks, failures };
+}
+
+// ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
 
@@ -1715,6 +1964,27 @@ const driven = drivenRules();
     g2.failures.push(...partition.failures);
     g2.title = `${g2.title}; ${removeTitle}`;
     g2.owner = `${g2.owner}; build/p348/SPEC.md §10.3`;
+  }
+}
+// PHASE 349 (build/p349/SPEC.md §4.3 step 9, §10.3): G2 gains the Rename
+// partition, driven here beside the End and Remove partitions, and its
+// self-test.
+{
+  let partition;
+  try {
+    partition = renamePartitionRule();
+  } catch (err) {
+    partition = { checks: 1, failures: [`the Rename partition could not be driven: ${err instanceof Error ? err.message : String(err)}`] };
+  }
+  const g2 = driven.find((r) => r.id === 'G2');
+  const renameTitle = 'and (Phase 349) the Rename partition: both pass on every row the Mac\'s Rename offers on here and a running row on another machine, both refuse an unknown (unreachable) or removed (changed) row anywhere, ONLY an exited or restorable row on another machine passes the gate and is refused changed, canRename reads no environment, the target verdict and the offer track the first four arms and the name arm reads D5, its self-test red on five planted tidyings';
+  if (g2 === undefined) {
+    driven.push({ id: 'G2', owner: 'build/p349/SPEC.md §10.3', title: `the Rename partition (the probe's End half did not answer): ${renameTitle}`, checks: partition.checks, failures: partition.failures });
+  } else {
+    g2.checks += partition.checks;
+    g2.failures.push(...partition.failures);
+    g2.title = `${g2.title}; ${renameTitle}`;
+    g2.owner = `${g2.owner}; build/p349/SPEC.md §10.3`;
   }
 }
 const all = [

@@ -186,6 +186,27 @@
  * reads (refused stopped, never 404), the door stopping after a paste acted
  * (never 404, typed once; PSH15), and the log naming no pasted word.
  *
+ * PHASE 349 RENAMES A SESSION (build/p349/SPEC.md §7.2): the door's eighth
+ * write, `POST /v1/rename`, through the SHIPPING write path, whose `rename` is
+ * the SHIPPING `createPocketWrites(…).rename` over a fake core that records
+ * every `renameSession` and the name it was handed, so a refusal is graded on
+ * its reason word AND on no session renamed and every row's name where it
+ * was. The RNH arms: a door that does not serve rename (404 route before the
+ * body, nothing forwarded, RNH0), an honest rename acting once with the name
+ * trimmed (RNH1) and its six fields (RNH1b), the same bytes (RNH2), the same
+ * write id fresh-signed (RNH3), an End and a rename on one session from two
+ * phones (busy; the name it types reads `as it ends`, RNH4), a rename from the
+ * phone whose keys write runs and one on that session from the other phone
+ * (busy, RNH5) renaming neither (RNH5b), every name the rule refuses with each
+ * refused code unit written as a JSON escape (RNH6), a body of 2,049 bytes
+ * dropped at the door beside one of 2,048 answered in words (RNH7), malformed
+ * bodies each echoing its write id (RNH8), an id nothing holds, a removed
+ * session and an unknown one (RNH9), an ended session on another machine of
+ * each kind refused changed beside a live one that renames (RNH10), a phone
+ * removed and the door stopping before the act, and the door stopping after
+ * one (RNH11), and the log naming no typed name, refused name, 2,048-byte
+ * name or write id (RNH12).
+ *
  * It prints one line, `P313_HOSTILE:{...}`, which the runner beside it reads.
  */
 
@@ -217,6 +238,7 @@ import type {
   PocketPasteInput,
   PocketPasteOutcome,
   PocketRemoveOutcome,
+  PocketRenameOutcome,
   PocketReplyOutcome,
   PocketRoute,
   PocketSayInput,
@@ -1234,6 +1256,58 @@ try {
       pasteClock += ms;
     }
   } as Parameters<typeof createScreenPaste>[0]);
+  /**
+   * PHASE 349 (build/p349/SPEC.md §7.2): THE SHIPPING RENAME, over a fake core
+   * that records what the Mac's own verb would do. `renamed` is every
+   * `renameSession` the verb asked, with the name it was handed, and a row's
+   * name moves only there: a refusal renames nothing, so both stay where they
+   * were. Every name a phone types here is kept in `typedNames`, so RNH12 can
+   * read the log for each.
+   */
+  const farMachine = { machine: { id: 'm1', label: 'Mac Pro' } as Session['machine'] };
+  const renameRows: Session[] = [
+    aSession('ses_rn_live', 'live-here', 'running'),
+    aSession('ses_rn_ended', 'ended-here', 'exited'),
+    aSession('ses_rn_far_live', 'far-live', 'idle', farMachine),
+    // An ended session on another machine, of each kind (D3): one ended in
+    // this run (its machine's gone map) and one ended before (a record only).
+    aSession('ses_rn_far_gone', 'far-ended-now', 'exited', farMachine),
+    aSession('ses_rn_far_record', 'far-ended-before', 'restorable', farMachine),
+    aSession('ses_rn_unknown', 'unseen', 'unknown'),
+    aSession('ses_rn_removed', 'removed-soon', 'exited'),
+    aSession('ses_rn_names', 'refused-names', 'idle'),
+    aSession('ses_w_rn', 'end-and-rename', 'idle'),
+    aSession('ses_w_kn', 'keys-and-rename', 'idle')
+  ];
+  const renamed: { sessionId: string; name: string }[] = [];
+  const typedNames: string[] = [];
+  const renameCore = {
+    listSessions: (): readonly Session[] => renameRows,
+    manifest: { getSession: (): undefined => undefined },
+    killSession: async (): Promise<void> => {
+      throw new Error('the phone’s rename never ends a session');
+    },
+    removeSession: (): void => {
+      throw new Error('the phone’s rename never removes a session');
+    },
+    broadcastSessions: (): void => undefined,
+    renameSession: async (input: { sessionId: string; name: string }): Promise<Session> => {
+      renamed.push({ sessionId: input.sessionId, name: input.name });
+      const row = renameRows.find((s) => s.id === input.sessionId);
+      if (row === undefined) throw new Error('no such session');
+      row.name = input.name;
+      return row;
+    }
+  };
+  const shippingRename = createShippingWrites({
+    core: () => renameCore,
+    machineKnown: () => true,
+    reply: { choose: unused, say: unused },
+    keys: { keys: unused },
+    start: { start: async (): Promise<PocketStartOutcome> => ({ outcome: 'failed', sentence: 'unused', session: null }) as PocketStartOutcome },
+    paste: { paste: async (): Promise<PocketPasteOutcome> => ({ outcome: 'failed', sentence: 'unused' }) }
+  } as Parameters<typeof createShippingWrites>[0]);
+  let renamesReached = 0;
   /** What the recording runner saw: paste lists run, buffers loaded and deleted, the bytes each load carried. */
   const tmuxNow = (): { typed: number; loads: number; drops: number; stdin: string[] } => ({
     typed: tmuxRun.filter((r) => r.args.includes('paste-buffer')).length,
@@ -1281,6 +1355,13 @@ try {
       actsReached += 1;
       if (holdAct !== null) await holdAct;
       return shippingPaste.paste(input, still);
+    },
+    // PHASE 349: the SHIPPING rename, behind the same hold.
+    rename: async (input): Promise<PocketRenameOutcome> => {
+      renamesReached += 1;
+      actsReached += 1;
+      if (holdAct !== null) await holdAct;
+      return shippingRename.rename(input);
     }
   };
   const writeHandler = createPocketWriteHandler({
@@ -1299,6 +1380,8 @@ try {
    * signature and before the write path set the other.
    */
   let stopAfterWrite: Promise<unknown> | null | 'arm' = null;
+  /** PHASE 349 (RNH11): the door begins to stop after the signature held and before the write path's last check. */
+  let stopBeforeWrite: Promise<unknown> | null | 'arm' = null;
   let removeBeforeWrite: string | null = null;
   /**
    * PHASE 333.12 (PR5, PR6): a route taken out of `served` AFTER main's first
@@ -1384,6 +1467,7 @@ try {
         case 'start':
         case 'remove':
         case 'paste':
+        case 'rename':
           return null;
       }
     },
@@ -1400,6 +1484,7 @@ try {
         unserveBeforeWrite = null;
         served = served.filter((r) => r !== gone);
       }
+      if (stopBeforeWrite === 'arm') stopBeforeWrite = bind.stopPocketDoor();
       const answer = await writeHandler(route, body, verifiedPhone, door);
       if (stopAfterWrite === 'arm') stopAfterWrite = bind.stopPocketDoor();
       return answer;
@@ -3843,6 +3928,247 @@ try {
         const removeLines = since.filter((l) => l.includes("the phone's remove:")).length;
         record('PSH14', 'the log: lines for the paste and the Remove, naming no pasted word and no write id', `paste-lines-remove-lines-clean`, `${pasteLines > 0 ? 'paste-lines' : 'NO-PASTE-LINE'}-${removeLines > 0 ? 'remove-lines' : 'NO-REMOVE-LINE'}-${leaked.length === 0 ? 'clean' : `LEAKED ${String(leaked.length)}: ${leaked[0]?.slice(0, 80) ?? ''}`}`, 'D50: the one line a write gets is the door’s, its verb and its outcome word; a paste’s words are logged nowhere.');
       }
+    }
+
+    // -----------------------------------------------------------------------
+    // PHASE 349 (build/p349/SPEC.md §7.2): RENAME, through the SHIPPING write
+    // path, whose rename is the SHIPPING createPocketWrites(…).rename over a
+    // core that records every renameSession. Each arm on its answer, its
+    // reason word, and on what the recorder saw: NO session renamed, and every
+    // row's name where it was, wherever a rename is refused.
+    // -----------------------------------------------------------------------
+    {
+      const launchSet = served;
+      const serveNow = async (next: readonly PocketRouteId[]): Promise<void> => {
+        served = next;
+        bind.updatePocketDoor({ routes: served });
+        await new Promise((resolve) => setImmediate(resolve));
+      };
+      const { SESSION_NAME_CHARACTER, SESSION_NAME_EMPTY, SESSION_NAME_TOO_LONG } = await import('../../src/shared/session-names.js');
+      const { LIFECYCLE_SESSION_CHANGED, RENAME_UNREACHABLE, SESSION_NOT_FOUND } = await import('../../src/shared/lifecycle-words.js');
+      const sentIds: string[] = [];
+      const id349 = (): string => {
+        const id = writeId();
+        sentIds.push(id);
+        return id;
+      };
+      /** A name a phone types, kept so RNH12 can read the log for it. */
+      const typedName = (name: string): string => {
+        typedNames.push(name);
+        return name;
+      };
+      const TURN = '0123456789abcdef-1';
+      const renameBody = (session: string, name: string, write: string, over: Record<string, unknown> = {}): Buffer =>
+        Buffer.from(JSON.stringify({ name, session, write, ...over }), 'utf8');
+      /** The JSON text of a string with every code unit outside printable ASCII written as a \u escape. */
+      const escapedJson = (text: string): string => {
+        let out = '';
+        for (let i = 0; i < text.length; i += 1) {
+          const unit = text.charCodeAt(i);
+          out += unit < 0x20 || unit > 0x7e || unit === 0x22 || unit === 0x5c ? `${String.fromCharCode(0x5c)}u${unit.toString(16).padStart(4, '0')}` : text.charAt(i);
+        }
+        return out;
+      };
+      const renamedNow = (): string => `${String(renamed.length)}n`;
+      const nameOf = (id: string): string => renameRows.find((s) => s.id === id)?.name ?? '(not listed)';
+      const sentenceOf = (answer: Answer): string => String(bodyOf(answer)['sentence']);
+      const logFrom = logged.length;
+
+      // RNH0 (first: a store that allowed the fourteen, 0.113.0's, serves no
+      // rename). 404 route before the body, main never asked, nothing renamed.
+      {
+        await serveNow([...launchSet, 'start', 'remove', 'paste']);
+        const before = stats();
+        const mainBefore = mainRequests;
+        const rn = await writeAs(wA, '/v1/rename', renameBody('ses_rn_live', typedName('waits for its own Allow'), id349()));
+        const rnBig = await writeAs(wA, '/v1/rename', Buffer.alloc(16 * 1024, 0x41));
+        const after = stats();
+        record('RNH0', 'served without rename (an agreement on the fourteen): an honest rename, and one with a 16 KiB body', `refused-404/refused-404-route-not-oversized-not-forwarded-0n`, `${verdict(rn)}/${verdict(rnBig)}-${after.refused.route >= before.refused.route + 2 ? 'route' : 'other'}-${after.refused.oversized === before.refused.oversized ? 'not-oversized' : 'OVERSIZED'}-${after.forwarded === before.forwarded && mainRequests === mainBefore ? 'not-forwarded' : 'FORWARDED'}-${renamedNow()}`, 'D13, 333.12: rename WAITS for the Allow whose lines name it; until then the door answers it as a route it does not have, before a byte of body, and main is never asked.');
+      }
+      await serveNow([...launchSet, 'start', 'remove', 'paste', 'rename']);
+
+      // RNH1. An honest rename of a live session on this Mac: done, ONE
+      // renameSession with the name trimmed as the Mac trims it, and the six fields.
+      const rnId = id349();
+      const rnHonestBody = renameBody('ses_rn_live', typedName('  nightly build  '), rnId);
+      const rnHonestHeaders = writeHeaders(wA, '/v1/rename', rnHonestBody);
+      const rnHonest = await ask('POST', '/v1/rename', rnHonestHeaders, rnHonestBody, { as: wA });
+      record('RNH1', 'an honest rename of a live session on this Mac', '200:done-1n-ses_rn_live=nightly build', `${said(rnHonest)}-${renamedNow()}-${renamed.map((r) => `${r.sessionId}=${r.name}`).join(',')}`, '§4.3 step 4: the gate passed, then the Mac’s own renameSession, once, with the TRIMMED name as its first await.');
+      {
+        const b = bodyOf(rnHonest);
+        // THE PROBE REVIEW of 2026-10-30: the six fields in their order, never their count alone, which passed an
+        // answer whose fields came in another order.
+        record('RNH1b', 'its answer is the six fields in their order, echoing the write id and the name main stored', `rename-${rnId}-verb,write,outcome,reason,sentence,name-null-null-nightly build`, `${String(b['verb'])}-${String(b['write'])}-${Object.keys(b).join(',')}-${String(b['reason'])}-${String(b['sentence'])}-${String(b['name'])}`, '§4.1 step 1, D21: verb, write, outcome, reason, sentence and name, its own shape, the name the one main stored, so the phone draws what landed.');
+      }
+      // RNH2. The same bytes again: the nonce is spent.
+      record('RNH2', 'the same rename, the same bytes again', `refused-404:replay-1n`, `${verdict(await ask('POST', '/v1/rename', rnHonestHeaders, rnHonestBody, { as: wA }))}:${lastVerify}-${renamedNow()}`, 'a signed request is spent once, whatever it carries.');
+      // RNH3. The same write id fresh-signed: the recorded answer, renamed once.
+      {
+        const again = await writeAs(wA, '/v1/rename', rnHonestBody);
+        record('RNH3', 'the same rename write id, signed afresh', `recorded-1n`, `${again.body === rnHonest.body ? 'recorded' : `other(${said(again)})`}-${renamedNow()}`, 'the ledger answers a write id it holds with what it answered, and renames nothing again.');
+      }
+      // RNH4. End and a rename on one session from two phones: the rename is busy.
+      {
+        const release = holding();
+        const reachedBefore = actsReached;
+        const first = writeAs(wA, '/v1/end', endBody('ses_w_rn', writeId()));
+        await until(() => actsReached > reachedBefore);
+        const second = await writeAs(wB, '/v1/rename', renameBody('ses_w_rn', typedName('as it ends'), id349()));
+        release();
+        const firstAnswer = await first;
+        record('RNH4', 'an End and a rename on one session from two phones at once', `200:done/200:busy-1n-end-and-rename`, `${said(firstAnswer)}/${said(second)}-${renamedNow()}-${nameOf('ses_w_rn')}`, '§4.2 step 3: one write in flight per session ACROSS every verb, so an End and a rename never overlap on one session, and the busy keeps his name in the field.');
+      }
+      // RNH5 and RNH5b. A rename from the phone whose keys write runs, and one
+      // on that session from the other phone: both busy, neither renamed.
+      {
+        const release = holding();
+        const reachedBefore = actsReached;
+        const keysBody = Buffer.from(JSON.stringify({ dialog: null, keys: [{ t: 'x' }], session: 'ses_w_kn', turn: TURN, write: writeId() }), 'utf8');
+        const first = writeAs(wA, '/v1/keys', keysBody);
+        await until(() => actsReached > reachedBefore);
+        const samePhone = await writeAs(wA, '/v1/rename', renameBody('ses_rn_ended', typedName('mid keys here'), id349()));
+        const sameSession = await writeAs(wB, '/v1/rename', renameBody('ses_w_kn', typedName('mid keys there'), id349()));
+        release();
+        await first;
+        record('RNH5', 'a rename from the phone whose keys write runs, and one on that session from the other phone', `200:busy/200:busy`, `${said(samePhone)}/${said(sameSession)}`, '§4.2 step 3, §12.1: a phone has one write in flight, the Terminal’s keys included, and a session one write across verbs.');
+        record('RNH5b', 'counted: the two sessions renamed by neither', `1n-keys-and-rename-ended-here`, `${renamedNow()}-${nameOf('ses_w_kn')}-${nameOf('ses_rn_ended')}`, 'a busy is answered before the act, so nothing is renamed and the ledger keeps nothing for it.');
+      }
+      // RNH6. Every name the rule refuses, each refused code unit written as a
+      // JSON escape: refused name with its sentence, nothing renamed.
+      {
+        const n0 = renamed.length;
+        const units: number[] = [];
+        for (let u = 0x00; u <= 0x1f; u += 1) units.push(u);
+        units.push(0x7f);
+        for (let u = 0x80; u <= 0x9f; u += 1) units.push(u);
+        for (let u = 0x202a; u <= 0x202e; u += 1) units.push(u);
+        for (let u = 0x2066; u <= 0x2069; u += 1) units.push(u);
+        units.push(0x2028, 0x2029);
+        const refusedNames: [string, string, string][] = [
+          ['empty', typedName(''), SESSION_NAME_EMPTY],
+          ['spaces only', typedName('    '), SESSION_NAME_EMPTY],
+          ['121 units', typedName('n'.repeat(121)), SESSION_NAME_TOO_LONG],
+          ...units.map((u): [string, string, string] => [`U+${u.toString(16).padStart(4, '0').toUpperCase()}`, typedName(`r${String.fromCharCode(u)}nh`), SESSION_NAME_CHARACTER]),
+          ['a lone high surrogate', typedName(`r${String.fromCharCode(0xd800)}nh`), SESSION_NAME_CHARACTER],
+          ['a lone low surrogate', typedName(`r${String.fromCharCode(0xdc00)}nh`), SESSION_NAME_CHARACTER]
+        ];
+        const wrong: string[] = [];
+        for (const [what, name, sentence] of refusedNames) {
+          const answer = await writeAs(wA, '/v1/rename', Buffer.from(`{"name":"${escapedJson(name)}","session":"ses_rn_names","write":"${id349()}"}`, 'utf8'));
+          const b = bodyOf(answer);
+          if (said(answer) !== '200:refused:name' || b['sentence'] !== sentence || b['name'] !== null || b['verb'] !== 'rename') wrong.push(`${what}: ${said(answer)} ${String(b['sentence'])}`);
+        }
+        record('RNH6', `every refused name, each refused unit as a JSON escape (${String(refusedNames.length)})`, `all-refused-name-in-words-+0n-refused-names`, `${wrong.length === 0 ? 'all-refused-name-in-words' : `WRONG ${wrong.slice(0, 3).join(' // ')}`}-+${String(renamed.length - n0)}n-${nameOf('ses_rn_names')}`, 'D5: the one rule, in its order and its own words, over the name as the phone sent it; an escape is legal JSON and reaches the rule (D6), and nothing is renamed.');
+      }
+      // RNH7. A body of 2,049 bytes dropped at the door; one of 2,048 reaches main and is answered in words.
+      {
+        const n0 = renamed.length;
+        const before = stats();
+        const mainBefore = mainRequests;
+        const base = Buffer.byteLength(JSON.stringify({ name: '', session: 'ses_rn_names', write: 'f'.repeat(32) }), 'utf8');
+        const over = Buffer.from(JSON.stringify({ name: 'o'.repeat(2_049 - base), session: 'ses_rn_names', write: id349() }), 'utf8');
+        const answer = await writeAs(wA, '/v1/rename', over);
+        const mid = stats();
+        const mainMid = mainRequests;
+        const at = Buffer.from(JSON.stringify({ name: typedName('k'.repeat(2_048 - base)), session: 'ses_rn_names', write: id349() }), 'utf8');
+        const atCap = await writeAs(wA, '/v1/rename', at);
+        record('RNH7', 'a rename body of 2,049 bytes, then one of exactly 2,048', `2049-refused-404-oversized-not-forwarded/2048-200:refused:name-long-in-words-forwarded-+0n`, `${String(over.length)}-${verdict(answer)}-${mid.refused.oversized > before.refused.oversized ? 'oversized' : 'other'}-${mid.forwarded === before.forwarded && mainMid === mainBefore ? 'not-forwarded' : 'FORWARDED'}/${String(at.length)}-${said(atCap)}-${sentenceOf(atCap) === SESSION_NAME_TOO_LONG ? 'long-in-words' : `OTHER ${sentenceOf(atCap)}`}-${mainRequests > mainMid ? 'forwarded' : 'NOT-FORWARDED'}-+${String(renamed.length - n0)}n`, 'D6: the cap is 2,048, more than twice the worst legal body (915 bytes), so a body of the legal shape reaches main and is answered in words, and one byte more is dropped whole at the door.');
+      }
+      // RNH8. Malformed bodies: each refused malformed in the rename's own shape, its write id echoed.
+      {
+        const n0 = renamed.length;
+        const shapes: [string, string, string][] = [];
+        const add = (what: string, body: (write: string) => string, echo: boolean): void => {
+          const write = id349();
+          shapes.push([what, body(write), echo ? write : '']);
+        };
+        const s = 'ses_rn_names';
+        add('the name missing', (w) => JSON.stringify({ session: s, write: w }), true);
+        add('the session missing', (w) => JSON.stringify({ name: 'x', write: w }), true);
+        add('an extra key', (w) => JSON.stringify({ name: 'x', session: s, why: 'y', write: w }), true);
+        add('a batch', (w) => JSON.stringify({ batch: false, name: 'x', session: s, write: w }), true);
+        add('the start’s keys', (w) => JSON.stringify({ agent: 'claude', project: 'p1', write: w }), true);
+        add('the Remove’s keys', (w) => JSON.stringify({ session: s, write: w }), true);
+        add('a number for the name', (w) => JSON.stringify({ name: 7, session: s, write: w }), true);
+        add('null for the name', (w) => JSON.stringify({ name: null, session: s, write: w }), true);
+        add('an object for the name', (w) => JSON.stringify({ name: { t: 'x' }, session: s, write: w }), true);
+        add('a bad session id', (w) => JSON.stringify({ name: 'x', session: 'ses rn', write: w }), true);
+        add('a bad write id', () => JSON.stringify({ name: 'x', session: s, write: 'A'.repeat(32) }), false);
+        add('not JSON', () => '{name:"x"}', false);
+        add('an array', (w) => JSON.stringify([{ name: 'x', session: s, write: w }]), false);
+        const wrong: string[] = [];
+        for (const [what, text, echo] of shapes) {
+          const answer = await writeAs(wA, '/v1/rename', Buffer.from(text, 'utf8'));
+          const b = bodyOf(answer);
+          if (said(answer) !== '200:refused:malformed' || b['verb'] !== 'rename' || b['write'] !== echo || b['name'] !== null) wrong.push(`${what}: ${said(answer)} ${JSON.stringify(b).slice(0, 80)}`);
+        }
+        record('RNH8', `malformed rename bodies (${String(shapes.length)})`, `all-malformed-echoed-+0n`, `${wrong.length === 0 ? 'all-malformed-echoed' : `WRONG ${wrong.slice(0, 3).join(' // ')}`}-+${String(renamed.length - n0)}n`, '§4.2 step 1: exactly {name, session, write}, each id read by its own reader, the name a string; a refusal answers in the rename’s own shape, echoing a well-formed write id, and renames nothing.');
+      }
+      // RNH9. An id nothing holds, a removed session and an unknown one.
+      {
+        const n0 = renamed.length;
+        const nobody = await writeAs(wA, '/v1/rename', renameBody('ses_rn_nobody', typedName('to no one at all'), id349()));
+        // Taken out of the list as a Remove takes it.
+        const gone = renameRows.findIndex((s) => s.id === 'ses_rn_removed');
+        if (gone !== -1) renameRows.splice(gone, 1);
+        const removedOne = await writeAs(wA, '/v1/rename', renameBody('ses_rn_removed', typedName('after its removal'), id349()));
+        const unseen = await writeAs(wA, '/v1/rename', renameBody('ses_rn_unknown', typedName('unseen renamed'), id349()));
+        record('RNH9', 'an id nothing holds, a removed session, and one whose status is unknown', `200:refused:gone/200:refused:gone/200:refused:unreachable-own-words-+0n-unseen`, `${said(nobody)}/${said(removedOne)}/${said(unseen)}-${sentenceOf(nobody) === SESSION_NOT_FOUND && sentenceOf(removedOne) === SESSION_NOT_FOUND && sentenceOf(unseen) === RENAME_UNREACHABLE ? 'own-words' : 'OTHER-WORDS'}-+${String(renamed.length - n0)}n-${nameOf('ses_rn_unknown')}`, '§4.3 step 4: no listed row is gone in the verb’s own words, and a row Tortie cannot see is never renamed.');
+      }
+      // RNH10. THE ATTACK D3 EXISTS FOR: an ended session on another machine,
+      // of each kind, refused changed with nothing sent anywhere; beside a live
+      // one there, which renames.
+      {
+        const n0 = renamed.length;
+        const farNow = await writeAs(wA, '/v1/rename', renameBody('ses_rn_far_gone', typedName('far and ended now'), id349()));
+        const farBefore = await writeAs(wA, '/v1/rename', renameBody('ses_rn_far_record', typedName('far and ended before'), id349()));
+        const n1 = renamed.length;
+        const farLive = await writeAs(wA, '/v1/rename', renameBody('ses_rn_far_live', typedName('far and live'), id349()));
+        record('RNH10', 'an ended session on another machine of each kind, then a live one there', `200:refused:changed/200:refused:changed-in-words-+0n-far-ended-now-far-ended-before/200:done-+1n`, `${said(farNow)}/${said(farBefore)}-${sentenceOf(farNow) === LIFECYCLE_SESSION_CHANGED && sentenceOf(farBefore) === LIFECYCLE_SESSION_CHANGED ? 'in-words' : 'OTHER-WORDS'}-+${String(n1 - n0)}n-${nameOf('ses_rn_far_gone')}-${nameOf('ses_rn_far_record')}/${said(farLive)}-+${String(renamed.length - n1)}n`, 'D3: on another machine a session renames only while it runs; one that ended there is refused before anything is sent to any machine, and a live one goes through the Mac’s own rename.');
+      }
+      // RNH11. A phone removed before the act and the door stopping before it:
+      // 404 (or a cut) with nothing renamed; and never a 404 after the act.
+      {
+        const n0 = renamed.length;
+        removeBeforeWrite = wB.fields.id;
+        const removedBefore = await writeAs(wB, '/v1/rename', renameBody('ses_rn_ended', typedName('after the phone left'), id349()));
+        phones = [...phones, wB.fields];
+        bind.updatePocketDoor({ pins: pinsOf(phones) });
+        await new Promise((resolve) => setImmediate(resolve));
+        const n1 = renamed.length;
+        stopBeforeWrite = 'arm';
+        const stoppedBefore = await writeAs(wA, '/v1/rename', renameBody('ses_rn_ended', typedName('as the door stops'), id349()));
+        const stoppingBefore = stopBeforeWrite;
+        stopBeforeWrite = null;
+        if (stoppingBefore !== null && stoppingBefore !== 'arm') await stoppingBefore;
+        doorStarted = false;
+        await restart();
+        await serveNow([...launchSet, 'start', 'remove', 'paste', 'rename']);
+        const n2 = renamed.length;
+        stopAfterWrite = 'arm';
+        const after = await writeAs(wA, '/v1/rename', renameBody('ses_rn_ended', typedName('kept past the stop'), id349()));
+        const stoppingAfter = stopAfterWrite;
+        stopAfterWrite = null;
+        if (stoppingAfter !== null && stoppingAfter !== 'arm') await stoppingAfter;
+        doorStarted = false;
+        const stoppedWord = verdict(stoppedBefore) === 'refused-404' || verdict(stoppedBefore) === 'nosocket' ? 'not-acted' : `ACTED(${said(stoppedBefore)})`;
+        record('RNH11', 'a phone removed before the act, the door stopping before it, and the door stopping after one acted', `refused-404-+0n/not-acted-+0n/not-404-+1n`, `${verdict(removedBefore)}-+${String(n1 - n0)}n/${stoppedWord}-+${String(n2 - n1)}n/${after.status === 404 ? 'A-404' : 'not-404'}-+${String(renamed.length - n2)}n`, 'the last check before the act asks again whether the phone is paired and the door still answers; a 404 there means nothing was renamed, and after the act nothing replaces the answer with a 404 (317 D4).');
+        await restart();
+        await serveNow([...launchSet, 'start', 'remove', 'paste', 'rename']);
+      }
+      // RNH12. The log: lines for the renames, naming no typed name, no
+      // refused name, the 2,048-byte name, and no write id.
+      {
+        const since = logged.slice(logFrom);
+        const findable = typedNames.map((n) => n.trim()).filter((n) => n.length >= 3);
+        // THE PROBE REVIEW of 2026-10-30: as typed, and as a log field holds it (JSON.stringify escapes every C0
+        // control and half a surrogate pair, so a refused name logged as a field was never found).
+        const forms = [...new Set(findable.flatMap((n) => [n, JSON.stringify(n).slice(1, -1)]))];
+        const leaked = since.filter((l) => forms.some((n) => l.includes(n)) || sentIds.some((id) => l.includes(id)));
+        const renameLines = since.filter((l) => l.includes("the phone's rename:")).length;
+        record('RNH12', 'the log: lines for the renames, naming no typed or refused name and no write id', 'rename-lines-many-names-clean', `${renameLines > 0 ? 'rename-lines' : 'NO-RENAME-LINE'}-${findable.length >= 50 ? 'many' : 'few'}-names-${leaked.length === 0 ? 'clean' : `LEAKED ${String(leaked.length)}: ${leaked[0]?.slice(0, 80) ?? ''}`}`, '§4.2 step 3, G1: the one line a write gets is the door’s, its verb and its outcome word and the session id; a name a phone typed is logged nowhere.');
+      }
+      await serveNow(launchSet);
     }
 
     phones = phonesBefore;

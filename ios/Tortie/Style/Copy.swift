@@ -872,6 +872,35 @@ enum Copy {
     /// in the sheet's Project menu (D22). It cannot be chosen.
     static let startNotConnected = "Not connected"
 
+    // MARK: - Rename (Phase 349: Rename.html, RowMenu.html, build/p349/SPEC.md section 5.2)
+    //
+    // Rename is the Terminal's ⋯'s second item and the one item of a session
+    // row's long-press menu, and New session's Name row sends one rename after
+    // the start. A rename asks no Face ID (his ruling, "Only for End"; "No Face
+    // ID, just confirm"). Its refusals are the Mac's own sentences: the three
+    // name sentences below are the Mac's name rule's, word for word, and every
+    // other refusal arrives in the door's answer. The sheet's other words are
+    // declared once above and reused: `sortName` (`Name`, New session's label),
+    // `cancel`, `endNoAnswer`, `startSample`, `creating` and `answerUnreadable`.
+
+    /// Mac: src/renderer/app/session-actions.tsx ⟦label: 'Rename',⟧
+    static let rename = "Rename"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦SAVE_NAME = 'Save name'⟧
+    static let saveName = "Save name"
+
+    /// Mac: src/shared/session-names.ts ⟦SESSION_NAME_EMPTY = 'Session name cannot be empty.'⟧
+    static let nameEmpty = "Session name cannot be empty."
+
+    /// Mac: src/shared/session-names.ts ⟦SESSION_NAME_TOO_LONG = 'That name is too long.'⟧
+    static let nameTooLong = "That name is too long."
+
+    /// Mac: src/shared/session-names.ts ⟦SESSION_NAME_CHARACTER = 'That name holds a character Tortie does not use.'⟧
+    static let nameCharacter = "That name holds a character Tortie does not use."
+
+    /// Phone: the door refused the rename before acting (a 404), or the app left before its bytes were handed
+    static let renameNotTaken = "Your Mac did not rename it. Nothing was changed."
+
     // MARK: - Composed lines. No literal below this point.
 
     /// `Needs your input (3)`, as ⌘J draws it.

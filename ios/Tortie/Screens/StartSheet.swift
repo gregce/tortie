@@ -19,7 +19,17 @@
 // one `Starts with …` line when a sealed safeguard-off launch default applies;
 // one line for the state; and Create (`Creating…` while it runs, `Try again`
 // while a kept start holds). No Shell (his answer 7), no folder, no flag, no
-// name, no login and no machine to choose. Nothing asks Face ID (his answer 5).
+// login and no machine to choose. Nothing asks Face ID (his answer 5).
+//
+// THE NAME (Phase 349, build/p349/SPEC.md §4.5 step 4, D2, D12, D19): under
+// Agent, `Name` over the app's one field (Screens/NameField.swift), drawn only
+// on a Mac that serves Rename (the Sessions answer's `renames`). It starts
+// EMPTY, because the phone cannot know the number the Mac picks as it
+// creates; it is not focused when the sheet opens, and Return in it hides the
+// keyboard rather than creating, so Create is pressed by itself (an iPhone
+// SE's keyboard covers Create's last few points). Left empty, Create sends
+// today's start byte for byte; named, the start and then one rename
+// (Screens/Start.swift).
 //
 // Every word is Copy's or the Mac's, every colour a token, every element
 // identified (Screens/Identifiers.swift).
@@ -99,8 +109,9 @@ struct StartSheet: View {
     let model: StartModel
     /// Reads the Sessions tab again.
     let reread: @MainActor () async -> Void
-    /// Closes the sheet and opens the session the Mac made.
-    let opened: @MainActor (_ id: String, _ name: String) -> Void
+    /// Closes the sheet and opens the session the Mac made, under the name
+    /// it opens with and the one line its page draws, or nil (Phase 349).
+    let opened: @MainActor (_ id: String, _ name: String, _ line: String?) -> Void
     /// Closes the sheet.
     let close: () -> Void
 
@@ -111,11 +122,14 @@ struct StartSheet: View {
                 VStack(alignment: .leading, spacing: StartFrame.sectionGap) {
                     projectPart(drawing)
                     agentPart(drawing)
+                    if model.renames {
+                        namePart
+                    }
                     if let danger = drawing.danger {
                         Words(danger, .secondary, Tokens.textSecondary, lines: nil)
                             .accessibilityIdentifier(ID.startDanger)
                     }
-                    if let line = model.line ?? drawing.state {
+                    if let line = model.lineDrawn(drawing) {
                         Words(line, .secondary, Tokens.textSecondary, lines: nil)
                             .accessibilityIdentifier(ID.startLine)
                     }
@@ -211,6 +225,27 @@ struct StartSheet: View {
                     .accessibilityIdentifier(ID.startAgentName)
             }
         }
+    }
+
+    /// `Name` (Phase 349, D12, D19): the app's one field, empty, its
+    /// identifier and spoken name set inside the field itself (D18), NOT
+    /// focused when the sheet opens, Return hiding the keyboard and creating
+    /// nothing, and off while a start runs. Framed and carded as the Rename
+    /// sheet's field is.
+    private var namePart: some View {
+        VStack(alignment: .leading, spacing: StartFrame.labelGap) {
+            RaisedLabel(Copy.sortName)
+            NameField(text: name, identifier: ID.startName, label: Copy.sortName, focusOnAppear: false) {}
+                .frame(minHeight: StartFrame.menuHeight)
+                .padding(.horizontal, Frame.cardPadding)
+                .card()
+                .disabled(model.phase != .idle)
+        }
+    }
+
+    /// The Name field's text: the model's, as he types it.
+    private var name: Binding<String> {
+        Binding(get: { model.name }, set: { model.name = $0 })
     }
 
     /// One agent's mark: a 44 point press, the chosen one ringed in the

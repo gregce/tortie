@@ -43,7 +43,8 @@ export const POCKET_PAIR_BODY_CAP_BYTES = 4 * 1024;
 /**
  * A write's body, per route (Phase 317, build/p317/SPEC.md §5.3.3; Phase 318,
  * build/p318/SPEC.md §5.1.3, D3; Phase 337, build/p337/SPEC.md §5.1, D17;
- * Phase 346, build/p346/SPEC.md D6; Phase 348, build/p348/SPEC.md D29). The
+ * Phase 346, build/p346/SPEC.md D6; Phase 348, build/p348/SPEC.md D29; Phase
+ * 349, build/p349/SPEC.md D6, §2.4). The
  * door process checks the size and drops a body over it whole (404
  * `oversized`); main parses.
  *
@@ -91,11 +92,20 @@ export const POCKET_PAIR_BODY_CAP_BYTES = 4 * 1024;
  *     words rather than be dropped here, so the cap is 131,072, which held
  *     131,072 bytes and dropped 131,073 whole. Twice the worst is the keys
  *     cap's rule alone (`conformance:pocket` Z2).
+ *   - `rename` (Phase 349, build/p349/SPEC.md D6, §2.4):
+ *     `{"name":"…","session":"<128>","write":"<32 hex>"}` with a name the
+ *     Mac takes of at most `SESSION_NAME_MAX_UNITS` (120) UTF-16 units. The
+ *     worst legal body is 120 C0 units, each escaped `\u00XX`: 915 bytes,
+ *     re-derived two ways by the spec step (60 astral characters escaped as
+ *     surrogate pairs, 915; 120 quotes or Swift slashes, 435; 120 three-byte
+ *     characters raw, 555). It must reach main to be answered `refused name`
+ *     in words rather than be dropped here, so the cap is 2,048, more than
+ *     twice the worst, with room for a longer name later.
  *
  * Keyed by the route id, so the listener reads the cap of the row it matched
  * and a write route with no cap here is a type error.
  */
-export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512, remove: 512, paste: 131_072 } as const);
+export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512, remove: 512, paste: 131_072, rename: 2_048 } as const);
 
 /** The timings a test may shorten. Production passes none of these. */
 export interface DoorTimings {

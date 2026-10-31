@@ -489,6 +489,15 @@ export const ABLATIONS = [
     why: 'the screen read is not a joined capture and keeps a line’s own spaces (D14).',
     from: "import { readyRemoteContext } from './ready-context';", to: "import { readyRemoteContext } from './ready-context';\nimport { stripJoinedPadding } from './remote-capsule';\nvoid stripJoinedPadding('');"
   },
+  {
+    // PHASE 349 (build/p349/SPEC.md D16): the restore line condition 148 reads
+    // moved on purpose to the far rule, and no earlier arm named it.
+    n: 'b148e', check: 'machines', owner: 'C148', file: RESTORE,
+    name: 'the remote restore mapping $ by hand again, without the far rule',
+    why: 'a record named /review comes back as -review, which rename-session reads as flags, and a #H or a final ; reaches tmux as tmux reads it (D16, D7).',
+    from: '  const tmuxName = farTmuxName(record.tmuxName.length > 0 ? record.tmuxName : record.name, new Set());',
+    to: "  const tmuxName = (record.tmuxName.length > 0 ? record.tmuxName : record.name).replace(/\\$/g, '_');\n  void farTmuxName;"
+  },
   // ---------------------------------------------------------------- 149 the far scripts
   {
     n: 'b149a', check: 'machines', owner: 'C149', file: SCRIPTS,

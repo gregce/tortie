@@ -276,6 +276,31 @@
  * start opened on the Mac on screen; (ac) the owner check named in New
  * session.
  *
+ * PHASE 349, RENAME FROM THE PHONE (build/p349/SPEC.md §7.3), the Terminal's ⋯
+ * and a row's long press opening one sheet over the app's one UITextField, and
+ * New session's Name sent as one rename of the id the start answered, with no
+ * Face ID. Its thirty-eight arms, at the end of the list, are the ways a name
+ * could be rewritten, refused other than as the Mac refuses it, sent twice or
+ * after the app left, drawn where the Mac offers none, or reach another Mac:
+ * (bd) bd1a to bd10b, a SwiftUI field and a second UITextField, smart quotes
+ * left on, an identifier chained on the field, the cap raised and not held, a
+ * row menu under End these and a second item in it, the trim and the refused
+ * set moved off the Mac's, the renamer called outside its runner and retried,
+ * Save on for a refused or an unchanged name, the named Create's name read
+ * late and its session opened before its rename answered, and the two offers
+ * read the wrong way round; (ab) the rename body built outside signedPost and
+ * a lock key on it; (ac) the owner check named in the sheet; (ad) a runner
+ * never registered, registered after its task, and wentAway stopping none;
+ * (ay) Rename out of the ⋯, unidentified, and with no sheet; (az) the
+ * sample's rename reaching the door client and a second renamer member; (ba)
+ * a session route renaming through the Mac on screen; (t) a rename arm dropped
+ * and a key arm letting a POST through; (v) renameSentence with a default, its
+ * done in another word, and EndModel's seed with no test; and bb4b, bb5b and
+ * bb9c. `s8`, `s11` and `s12` moved to build 13, and five older arms moved with
+ * the text the phase changed: `b8` and `ay15` (the Terminal's ⋯ is made with
+ * `.renaming(…)` and its control handed the rename), and `bb1a`, `bb9a` and
+ * `ba11` (openStarted takes the opened page's line).
+ *
  * THE DELTA RULE. The base is run first. An arm passes only when its own rule
  * was GREEN at the base and is RED with the plant, so a rule that was already
  * red proves nothing and says so. An arm whose anchor is gone from the tree
@@ -286,7 +311,8 @@
  * during a phase, so the plants go into a CLONE: `cp -Rc` (APFS clonefile) of
  * `ios/`, `src/`, the brand master rule (r) reads, and every entry of
  * `build/` but `vendor/` under
- * `/private/tmp/p316-ablation-<pid>`, with `package.json` and the tsconfigs
+ * `/private/tmp/p316-ablation-<pid>` (or under `P316_SCRATCH`, a directory
+ * that exists, since Phase 349), with `package.json` and the tsconfigs
  * copied and `node_modules` and `build/vendor` symlinked (whatever is vendored
  * is never copied, and an arm whose file resolves under `build/vendor/` fails
  * by name rather than write through the link), and
@@ -305,6 +331,8 @@
  *   node build/p316/ablation-ios.mjs
  *   P316_ONLY=a1,h node build/p316/ablation-ios.mjs     named arms only
  *   P316_ONLY=bb1a,bb2a,bb3a,bb4a,bb5a,bb6a,bb7a,bb8a,bb9a,bb10a node build/p316/ablation-ios.mjs   some of Phase 346's
+ *   P316_ONLY=bd1a,bd5a,bd9a,ab50,ad40,ay40,az60,ba20,t60,v62,bb4c node build/p316/ablation-ios.mjs   some of Phase 349's
+ *   P316_SCRATCH=/private/var/tmp/<dir> node build/p316/ablation-ios.mjs   the clone under that directory
  */
 
 import { spawnSync } from 'node:child_process';
@@ -1465,8 +1493,8 @@ const ARMS = [
     rule: 's',
     what: 'Release a build ahead of Debug',
     file: () => PBX,
-    // Re-pointed by Phase 348: the build is 12 (rule s).
-    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 12;/, '$1CURRENT_PROJECT_VERSION = 13;')
+    // Re-pointed by Phase 349: the build is 13 (rule s).
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 13;/, '$1CURRENT_PROJECT_VERSION = 14;')
   },
   {
     id: 's9',
@@ -1814,9 +1842,9 @@ const ARMS = [
   {
     id: 's11',
     rule: 's',
-    what: "the app's Release left at build 11, 345's and the public one, which App Store Connect refuses as a duplicate (re-pointed by Phase 348)",
+    what: "the app's Release left at build 12, 348's and the one archived, which App Store Connect refuses as a duplicate (re-pointed by Phase 349)",
     file: () => PBX,
-    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 12;/, '$1CURRENT_PROJECT_VERSION = 11;')
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 13;/, '$1CURRENT_PROJECT_VERSION = 12;')
   },
   {
     id: 'x10',
@@ -3689,9 +3717,9 @@ const ARMS = [
   {
     id: 's12',
     rule: 's',
-    what: 'the build left at 11 in one configuration (Debug), 345’s and the public one (re-pointed by Phase 348)',
+    what: 'the build left at 12 in one configuration (Debug), 348’s and the one archived (re-pointed by Phase 349)',
     file: () => PBX,
-    edit: (src) => src.replace('CURRENT_PROJECT_VERSION = 12;', 'CURRENT_PROJECT_VERSION = 11;')
+    edit: (src) => src.replace('CURRENT_PROJECT_VERSION = 13;', 'CURRENT_PROJECT_VERSION = 12;')
   },
   {
     id: 'v32',
@@ -3733,7 +3761,8 @@ const ARMS = [
     rule: 'b',
     what: 'the hide moved into TerminalPage',
     file: () => `${APP}/Screens/SessionScreen.swift`,
-    edit: (src) => src.replace('            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, removeConfirm: drawing.removeConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n        }\n', '            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, removeConfirm: drawing.removeConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n        }\n        .toolbarVisibility(.hidden, for: .tabBar)\n')
+    // Re-pointed by Phase 349: the menu is made with `.renaming(…)` on the line after it.
+    edit: (src) => src.replace('            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, removeConfirm: drawing.removeConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n                .renaming(TerminalRename.of(drawing, setup: rename))\n        }\n', '            TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, removeConfirm: drawing.removeConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }\n                .renaming(TerminalRename.of(drawing, setup: rename))\n        }\n        .toolbarVisibility(.hidden, for: .tabBar)\n')
   },
   {
     id: 'b9',
@@ -4307,8 +4336,8 @@ const ARMS = [
     rule: 'ay',
     what: 'a second ToolbarItem in TerminalMenu',
     file: () => `${APP}/Screens/SessionScreen.swift`,
-    // Re-pointed by Phase 348: the control's call gained removeConfirm.
-    edit: (src) => src.replace('            TerminalMenuControl(end: end, offer: offer, confirm: confirm, removeConfirm: removeConfirm, reread: reread, openCatchUp: openCatchUp)\n        }\n', '            TerminalMenuControl(end: end, offer: offer, confirm: confirm, removeConfirm: removeConfirm, reread: reread, openCatchUp: openCatchUp)\n        }\n        ToolbarItem(placement: .topBarTrailing) { EmptyView() }\n')
+    // Re-pointed by Phase 348: the control's call gained removeConfirm; by Phase 349, rename.
+    edit: (src) => src.replace('            TerminalMenuControl(end: end, offer: offer, confirm: confirm, removeConfirm: removeConfirm, rename: rename, reread: reread, openCatchUp: openCatchUp)\n        }\n', '            TerminalMenuControl(end: end, offer: offer, confirm: confirm, removeConfirm: removeConfirm, rename: rename, reread: reread, openCatchUp: openCatchUp)\n        }\n        ToolbarItem(placement: .topBarTrailing) { EmptyView() }\n')
   },
   {
     id: 'ay16',
@@ -5057,7 +5086,8 @@ const ARMS = [
     rule: 'bb',
     what: 'a second call of the starter, outside StartRunner.run (D17)',
     file: () => TORTIE_APP,
-    edit: (src) => src.replace('    func openStarted(mac: String, id: String, name: String) {', '    func startAgain(_ s: any DoorStarting) async { _ = await s.start(project: "p", agent: "a", write: nil) }\n    func openStarted(mac: String, id: String, name: String) {')
+    // Re-pointed by Phase 349: openStarted takes the opened page's line.
+    edit: (src) => src.replace('    func openStarted(mac: String, id: String, name: String, line: String? = nil) {', '    func startAgain(_ s: any DoorStarting) async { _ = await s.start(project: "p", agent: "a", write: nil) }\n    func openStarted(mac: String, id: String, name: String, line: String? = nil) {')
   },
   {
     id: 'bb1b',
@@ -5244,7 +5274,8 @@ const ARMS = [
     rule: 'bb',
     what: 'a done start opened on Needs input (D24)',
     file: () => TORTIE_APP,
-    edit: (src) => src.replace('push(.session(mac: mac, id: id, name: name), on: .sessions)', 'push(.session(mac: mac, id: id, name: name), on: .needsInput)')
+    // Re-pointed by Phase 349: the route carries the opened page's line.
+    edit: (src) => src.replace('push(.session(mac: mac, id: id, name: name, line: line), on: .sessions)', 'push(.session(mac: mac, id: id, name: name, line: line), on: .needsInput)')
   },
   {
     id: 'bb9b',
@@ -5308,7 +5339,8 @@ const ARMS = [
     rule: 'ba',
     what: 'a done start opened on the Mac on screen rather than the one that started it (D27)',
     file: () => TORTIE_APP,
-    edit: (src) => src.replace('push(.session(mac: mac, id: id, name: name), on: .sessions)', 'push(.session(mac: chosen?.id ?? mac, id: id, name: name), on: .sessions)')
+    // Re-pointed by Phase 349: the route carries the opened page's line.
+    edit: (src) => src.replace('push(.session(mac: mac, id: id, name: name, line: line), on: .sessions)', 'push(.session(mac: chosen?.id ?? mac, id: id, name: name, line: line), on: .sessions)')
   },
   {
     id: 'ac40',
@@ -5727,6 +5759,285 @@ const ARMS = [
     what: 'pasteSentence with a default, so a new case draws a line nobody chose',
     file: () => `${APP}/Screens/DoorWords.swift`,
     edit: (src) => src.replace('        case .noAnswer:\n            return Copy.endNoAnswer\n        case .notSent(let failure):\n            return failure == .cancelled ? Copy.pasteNotTaken : sentence(for: failure)\n', '        default:\n            return Copy.endNoAnswer\n')
+  },
+  // ---- Phase 349: rename from the phone (build/p349/SPEC.md §7.3) ----------
+  // (bd) A SESSION'S NAME, one plant per clause.
+  {
+    id: 'bd1a',
+    rule: 'bd',
+    what: 'a SwiftUI TextField in the Rename sheet, which cannot turn smart punctuation off',
+    file: () => `${APP}/Screens/SessionName.swift`,
+    edit: (src) => src.replace('                    NameField(text: $model.text, identifier: ID.renameField, label: Copy.sortName, focusOnAppear: true) {\n', '                    TextField(Copy.sortName, text: $model.text)\n                    NameField(text: $model.text, identifier: ID.renameField, label: Copy.sortName, focusOnAppear: true) {\n')
+  },
+  {
+    id: 'bd1b',
+    rule: 'bd',
+    what: 'a second UITextField in the app',
+    file: () => `${APP}/Screens/SessionName.swift`,
+    edit: append('let p349SecondField = UITextField()\n')
+  },
+  {
+    id: 'bd2a',
+    rule: 'bd',
+    what: 'smart quotes left on in the name field',
+    file: () => `${APP}/Screens/NameField.swift`,
+    edit: (src) => src.replace('        field.smartQuotesType = .no\n', '')
+  },
+  {
+    id: 'bd3a',
+    rule: 'bd',
+    what: 'an identifier chained on New session\'s NameField (D18: it replaces the field\'s own)',
+    file: () => `${APP}/Screens/StartSheet.swift`,
+    edit: (src) => src.replace('            NameField(text: name, identifier: ID.startName, label: Copy.sortName, focusOnAppear: false) {}\n', '            NameField(text: name, identifier: ID.startName, label: Copy.sortName, focusOnAppear: false) {}\n                .accessibilityIdentifier(ID.startName)\n')
+  },
+  {
+    id: 'bd4a',
+    rule: 'bd',
+    what: 'the name cap raised past the Mac\'s 120',
+    file: () => `${APP}/Screens/NameField.swift`,
+    edit: (src) => src.replace('    static let maxUnits = 120\n', '    static let maxUnits = 200\n')
+  },
+  {
+    id: 'bd4b',
+    rule: 'bd',
+    what: 'the cap not held as he types',
+    file: () => `${APP}/Screens/NameField.swift`,
+    edit: (src) => src.replace('            NameField.takes(field.text ?? "", range, string)\n', '            true\n')
+  },
+  {
+    id: 'bd5a',
+    rule: 'bd',
+    what: 'a row\'s Rename menu drawn while End these takes taps',
+    file: () => `${APP}/Screens/ListScreen.swift`,
+    edit: (src) => src.replace('            if let rename, row.rename, !(batch?.takesTaps ?? false) {\n', '            if let rename, row.rename {\n')
+  },
+  {
+    id: 'bd5b',
+    rule: 'bd',
+    what: 'a second item in a row\'s long-press menu',
+    file: () => `${APP}/Screens/ListScreen.swift`,
+    edit: (src) => src.replace('                .accessibilityIdentifier(names.rowRename(row.id))\n', '                .accessibilityIdentifier(names.rowRename(row.id))\n                Button(Copy.endTop) {}\n')
+  },
+  {
+    id: 'bd6a',
+    rule: 'bd',
+    what: 'U+FEFF dropped from the phone\'s trim, which the Mac\'s trim takes',
+    file: () => `${APP}/Screens/NameField.swift`,
+    edit: (src) => src.replace('0x3000, 0xFEFF\n', '0x3000\n')
+  },
+  {
+    id: 'bd6b',
+    rule: 'bd',
+    what: 'the bidi isolates no longer refused in a name',
+    file: () => `${APP}/Screens/NameField.swift`,
+    edit: (src) => src.replace(', 0x2066...0x2069, 0x2028, 0x2029:', ', 0x2028, 0x2029:')
+  },
+  {
+    id: 'bd7a',
+    rule: 'bd',
+    what: 'the renamer called outside its runner, a second rename per press',
+    file: () => `${APP}/Screens/SessionName.swift`,
+    edit: (src) => src.replace('        guard canSave else { return }\n', '        guard canSave else { return }\n        Task { _ = await renamer.rename(sessionId, name: text) }\n')
+  },
+  {
+    id: 'bd7b',
+    rule: 'bd',
+    what: 'a retry around the rename',
+    file: () => `${APP}/Screens/SessionName.swift`,
+    edit: (src) => src.replace('        return await renamer.rename(target, name: name)\n', '        for _ in 0..<2 { _ = await renamer.rename(target, name: name) }\n        return nil\n')
+  },
+  {
+    id: 'bd8a',
+    rule: 'bd',
+    what: 'Save name drawn on while the Mac\'s rule refuses the name',
+    file: () => `${APP}/Screens/SessionName.swift`,
+    edit: (src) => src.replace('                        Button(Copy.saveName) { model.save(reread: reread) }\n                            .disabled(!model.canSave)\n', '                        Button(Copy.saveName) { model.save(reread: reread) }\n')
+  },
+  {
+    id: 'bd8b',
+    rule: 'bd',
+    what: 'Save on for the name the session already holds',
+    file: () => `${APP}/Screens/SessionName.swift`,
+    edit: (src) => src.replace('\n            && !NameRule.trimmed(text).utf8.elementsEqual(held.utf8)', '')
+  },
+  {
+    id: 'bd9a',
+    rule: 'bd',
+    what: 'the named Create\'s name read after the start, not fixed at the press',
+    file: () => `${APP}/Screens/Start.swift`,
+    // The use is edited with the declaration, so the clone's Start.swift still reads as Swift.
+    edit: allOf(['        let pendingName: String? = renames && !NameRule.trimmed(name).isEmpty ? name : nil\n', ''], ['pendingName: pendingName, reread: reread', 'pendingName: renames ? name : nil, reread: reread'])
+  },
+  {
+    id: 'bd9b',
+    rule: 'bd',
+    what: 'the named Create opened before its rename answered',
+    file: () => `${APP}/Screens/Start.swift`,
+    edit: (src) => src.replace('                    let renaming = Task {\n', '                    opened(session.id, session.name, nil)\n                    let renaming = Task {\n')
+  },
+  {
+    id: 'bd10a',
+    rule: 'bd',
+    what: 'a row\'s rename read leniently, so a broken offer reads as none',
+    file: () => `${APP}/Door/Contract.swift`,
+    edit: (src) => src.replace('        rename = try c.decodeIfPresent(Bool.self, forKey: .rename) ?? false\n', '        rename = (try? c.decodeIfPresent(Bool.self, forKey: .rename)) ?? false\n')
+  },
+  {
+    id: 'bd10b',
+    rule: 'bd',
+    what: 'the Sessions answer\'s renames read strictly, so a fault in it fails the list',
+    file: () => `${APP}/Door/Contract.swift`,
+    edit: (src) => src.replace('        renames = (try? c.decodeIfPresent(Bool.self, forKey: .renames)) == true\n', '        renames = try c.decodeIfPresent(Bool.self, forKey: .renames) ?? false\n')
+  },
+  // (ab) the eighth write.
+  {
+    id: 'ab50',
+    rule: 'ab',
+    what: 'the rename body built outside signedPost',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('    func rename(_ sessionId: String, name: String, door: PairedDoor) async -> RenameResult {\n', '    func peekRename() -> RenameBody { RenameBody(name: "", session: "", write: "") }\n\n    func rename(_ sessionId: String, name: String, door: PairedDoor) async -> RenameResult {\n')
+  },
+  {
+    id: 'ab51',
+    rule: 'ab',
+    what: 'a lock key on the rename body (D6: the last rename wins)',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('struct RenameBody: Encodable, Sendable {\n    let name: String\n', 'struct RenameBody: Encodable, Sendable {\n    let expect: String = ""\n    let name: String\n')
+  },
+  // (ac) a rename asks no owner check.
+  {
+    id: 'ac60',
+    rule: 'ac',
+    what: 'the owner check named in the Rename sheet (his ruling, "Only for End")',
+    file: () => `${APP}/Screens/SessionName.swift`,
+    edit: (src) => src.replace('@MainActor\nprotocol RenameRegistry: AnyObject {', 'struct P349Check {\n    let check: any OwnerCheck\n}\n\n@MainActor\nprotocol RenameRegistry: AnyObject {')
+  },
+  // (ad) one rename per press, stopped when the app leaves.
+  {
+    id: 'ad40',
+    rule: 'ad',
+    what: 'Save name\'s rename runner never registered',
+    file: () => `${APP}/Screens/SessionName.swift`,
+    edit: (src) => src.replace('        registry?.registerRename(runner)\n', '')
+  },
+  {
+    id: 'ad41',
+    rule: 'ad',
+    what: 'wentAway stopping no rename',
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: (src) => src.replace('        for runner in liveRenames {\n            runner.stop()\n        }\n', '')
+  },
+  {
+    id: 'ad42',
+    rule: 'ad',
+    what: 'the named Create\'s rename registered after its task starts',
+    file: () => `${APP}/Screens/Start.swift`,
+    edit: allOf(['                    renameRegistry?.registerRename(runner)\n', ''], ['                    runner.task = renaming\n', '                    runner.task = renaming\n                    renameRegistry?.registerRename(runner)\n'])
+  },
+  // (ay) Rename, the ⋯'s second item.
+  {
+    id: 'ay40',
+    rule: 'ay',
+    what: 'Rename taken out of the ⋯ (the parent\'s menu)',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace(/\n {16}if let rename \{\n[\s\S]*?\.accessibilityIdentifier\(ID\.terminalMenuRename\)\n {16}\}/, '')
+  },
+  {
+    id: 'ay41',
+    rule: 'ay',
+    what: 'the ⋯\'s Rename with no identifier',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace('                    .accessibilityIdentifier(ID.terminalMenuRename)\n', '')
+  },
+  {
+    id: 'ay42',
+    rule: 'ay',
+    what: 'no Rename sheet for the ⋯\'s Rename',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace('        .sheet(item: $renaming) { asked in\n            SessionNameSheet(model: asked.model, reread: { _ = await reread() })\n        }\n', '')
+  },
+  // (az) the sample's rename stays on the phone.
+  {
+    id: 'az60',
+    rule: 'az',
+    what: 'the sample\'s rename reaching the paired reader\'s door client',
+    file: () => SAMPLE_READER,
+    edit: (src) => src.replace('    func rename(_ sessionId: String, name: String) async -> RenameResult {\n        .notTaken\n    }\n', '    func rename(_ sessionId: String, name: String) async -> RenameResult {\n        let client: DoorClient? = nil\n        _ = client\n        return .notTaken\n    }\n')
+  },
+  {
+    id: 'az61',
+    rule: 'az',
+    what: 'a second renamer member declared beside a type the sample uses',
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: append('extension DoorWriting {\n    var renamer: (any DoorRenaming)? { nil }\n}\n')
+  },
+  // (ba) a rename goes to the Mac whose space drew it.
+  {
+    id: 'ba20',
+    rule: 'ba',
+    what: 'a session route renaming through the Mac on screen, not its own reader',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace('                    line: line, rename: app.renameSetup(reader)\n', '                    line: line, rename: app.reader.flatMap { app.renameSetup($0) }\n')
+  },
+  // (t) the hostile door's rename arms.
+  {
+    id: 't60',
+    rule: 't',
+    what: 'a rename arm dropped from the hostile door',
+    file: () => 'build/p316/hostile-door.mjs',
+    edit: (src) => src.replace(/\n  'rename-answer-no-echo': \{[^\n]*\},/, '')
+  },
+  {
+    id: 't61',
+    rule: 't',
+    what: 'a renames key arm that lets a POST through',
+    file: () => 'build/p316/hostile-door.mjs',
+    edit: (src) => src.replace(/('rename-key-null': \{[^\n]*?rename: 'key', )posts: 0,/, '$1posts: 1,')
+  },
+  // (v) a rename's line always a sentence, and End's seed never empty.
+  {
+    id: 'v60',
+    rule: 'v',
+    what: 'renameSentence with a default, so a new case draws a line nobody chose',
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) => src.replace('        case .noAnswer:\n            return Copy.endNoAnswer\n        case .notSent(let failure):\n            return failure == .cancelled ? Copy.renameNotTaken : sentence(for: failure)\n', '        default:\n            return Copy.endNoAnswer\n')
+  },
+  {
+    id: 'v61',
+    rule: 'v',
+    what: 'a done rename drawn in another word than the Mac\'s Rename',
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) => src.replace('            guard answer.outcome != .done else { return Copy.rename }\n', '            guard answer.outcome != .done else { return Copy.saveName }\n')
+  },
+  {
+    id: 'v62',
+    rule: 'v',
+    what: 'EndModel seeding its line with no test that it is not empty',
+    file: () => `${APP}/Screens/EndBar.swift`,
+    // Re-anchored on its guard, the seed read through a pattern: gate:background reads a quoted assignment as one.
+    edit: (src) => src.replace(/ {8}if let line, !line\.isEmpty \{\n( {12}self\.line\s=\sline\n) {8}\}\n/, (_, seed) => seed.slice(4))
+  },
+  // (bb) New session's Name, and the line a named Create opens with.
+  {
+    id: 'bb4c',
+    rule: 'bb',
+    what: 'a second NameField in New session',
+    file: () => START_SHEET,
+    edit: (src) => src.replace('            NameField(text: name, identifier: ID.startName, label: Copy.sortName, focusOnAppear: false) {}\n', '            NameField(text: name, identifier: ID.startName, label: Copy.sortName, focusOnAppear: false) {}\n            NameField(text: name, identifier: ID.startName, label: Copy.sortName, focusOnAppear: false) {}\n')
+  },
+  {
+    id: 'bb5b',
+    rule: 'bb',
+    what: 'renames read inside start\'s read',
+    file: () => CONTRACT_SWIFT,
+    edit: (src) => src.replace('        renames = (try? c.decodeIfPresent(Bool.self, forKey: .renames)) == true\n', '        renames = (try? c.decodeIfPresent(PocketSessionsStart.self, forKey: .start)) != nil && (try? c.decodeIfPresent(Bool.self, forKey: .renames)) == true\n')
+  },
+  {
+    id: 'bb9c',
+    rule: 'bb',
+    what: 'the opened page\'s line dropped on the way to the route',
+    file: () => TORTIE_APP,
+    edit: (src) => src.replace('        push(.session(mac: mac, id: id, name: name, line: line), on: .sessions)\n', '        push(.session(mac: mac, id: id, name: name), on: .sessions)\n')
   }
 ];
 
@@ -5765,7 +6076,10 @@ function treeDigest() {
 }
 
 function buildClone() {
-  scratch = mkdtempSync('/private/tmp/p316-ablation-');
+  // PHASE 349: under P316_SCRATCH when the caller names one (as
+  // ablation:p313's P313_SCRATCH), else /private/tmp as before. The directory
+  // must exist; the clone is made inside it.
+  scratch = mkdtempSync(join(process.env['P316_SCRATCH'] ?? '/private/tmp', 'p316-ablation-'));
   const clone = (from, to) => {
     const r = spawnSync('cp', ['-Rc', from, to], { encoding: 'utf8' });
     if (r.status !== 0) throw new Error(`cp -Rc ${relative(REPO, from)} failed: ${String(r.stderr).trim()}`);
@@ -5940,8 +6254,8 @@ if (only.length === 0) {
     }
   }
   // Phase 337.1's rules, Phase 337.3's ((aw), (ax), (ay)), Phase 333.3's (az) and Phase 345's (ba); (av) is Phase 333.1's and joins here when it lands.
-  // Phase 348's (bc).
-  for (const rule of ['ar', 'as', 'at', 'au', 'aw', 'ax', 'ay', 'az', 'ba', 'bb', 'bc']) {
+  // Phase 348's (bc), and Phase 349's (bd).
+  for (const rule of ['ar', 'as', 'at', 'au', 'aw', 'ax', 'ay', 'az', 'ba', 'bb', 'bc', 'bd']) {
     if (!rulesProved.has(rule)) {
       failed += 1;
       say(`rule (${rule}) has no arm that turned it red, so nothing here proves it can fail`);
@@ -5954,5 +6268,5 @@ if (failed > 0) {
 }
 say(
   `PASS: ${String(arms.length)} of ${String(arms.length)} arms red on the rule that owns them, ` +
-    `${only.length === 0 ? 'every rule (a) to (z) and (aa) to (bc) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
+    `${only.length === 0 ? 'every rule (a) to (z) and (aa) to (bd) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
 );

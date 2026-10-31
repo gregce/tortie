@@ -206,6 +206,87 @@ final class ScreensDrawingTests: XCTestCase {
         var description: String { "\(head) never closes" }
     }
 
+    // MARK: - Rename on a row (Phase 349, build/p349/SPEC.md §4.5 step 2, D1, D14)
+
+    /// Clause (D14): a row carries the Mac's Rename offer as the door sent it,
+    /// on both lists; a row with none (an older Mac, one whose Allow waits)
+    /// offers no Rename.
+    func testARowCarriesTheMacsRenameOffer() throws {
+        var offered = Answers.row("w", dot: "attention")
+        offered.rename = true
+        var other = Answers.row("o")
+        other.rename = true
+        let drawing = try ListDrawing(Answers.blocked(rows: [offered], others: [other, Answers.row("n")]), clock: { _ in "" })
+        XCTAssertEqual(drawing.waiting.map(\.rename), [true])
+        XCTAssertEqual(drawing.others.map(\.rename), [true, false], "a row the Mac offers no Rename on drew one")
+        XCTAssertFalse(RowDrawing(Answers.row("x"), waiting: false).rename, "a row from an older Mac offers Rename")
+    }
+
+    /// Clause (D14): the session's drawing carries the detail's own Rename
+    /// offer, which is the row's, and none from an older Mac.
+    func testTheSessionCarriesTheMacsRenameOffer() throws {
+        var row = Answers.row("s")
+        XCTAssertFalse(try SessionDrawing(Answers.detail(row)).rename)
+        row.rename = true
+        XCTAssertTrue(try SessionDrawing(Answers.detail(row)).rename)
+    }
+
+    /// Clause (§5.3): each tab names its rows' Rename by the row's id, and the
+    /// Needs input tab's carries `needs-`, so the two tabs never share one.
+    func testEachTabNamesItsRowsRename() {
+        XCTAssertEqual(ListNames.sessions.rowRename("s-1"), "row-rename-s-1")
+        XCTAssertEqual(ListNames.needsInput.rowRename("s-1"), "needs-row-rename-s-1")
+        XCTAssertEqual(ID.rowRename("s-1"), "row-rename-s-1")
+        XCTAssertEqual(ID.needsRowRename("s-1"), "needs-row-rename-s-1")
+        XCTAssertEqual(ListKind.sessions.names.rowRename("a"), ID.rowRename("a"))
+        XCTAssertEqual(ListKind.needsInput.names.rowRename("a"), ID.needsRowRename("a"))
+    }
+
+    /// Clause (D1, M3, bd5): a row's long press is the iPhone's own menu,
+    /// attached right after the row's tap, holding ONE item, Rename, the
+    /// Mac's word with its pencil, named by the row's id; its content is
+    /// guarded on ONE line by a tab that attached Rename, the row's own offer
+    /// and End these not taking taps, so no menu is drawn under End these.
+    /// The line that draws a row (rule k) is byte for byte as it was. Read
+    /// from the source, because a menu iOS draws is not a view a unit test
+    /// can open.
+    func testARowsLongPressHoldsRenameAloneAfterItsTap() throws {
+        let source = try StyleSource.text("ios/Tortie/Screens/ListScreen.swift")
+        let row = try Self.body(of: "struct RowView: View {", in: source)
+        XCTAssertTrue(row.contains("@Environment(\\.renameRows) private var rename"), "the row does not read the tab's Rename from the environment")
+        let tap = try XCTUnwrap(row.range(of: ".onTapGesture(perform: tapped)\n"), "the row has no tap").upperBound
+        XCTAssertTrue(row[tap...].hasPrefix("        .contextMenu {\n"), "the long press is not attached right after the tap")
+        let menu = try Self.body(of: "        .contextMenu {", in: row)
+        XCTAssertTrue(menu.contains("if let rename, row.rename, !(batch?.takesTaps ?? false) {"), "the menu's content is not guarded on one line by the tab, the offer and End these")
+        XCTAssertEqual(menu.components(separatedBy: "Button").count, 2, "the row's menu holds other than one item")
+        XCTAssertTrue(menu.contains("rename(row)"), "the item does not open the tab's sheet over this row")
+        XCTAssertTrue(menu.contains("Label(Copy.rename, systemImage: \"pencil\")"), "the item is not the Mac's Rename with its pencil")
+        XCTAssertTrue(menu.contains(".accessibilityIdentifier(names.rowRename(row.id))"), "the item is not named by the row's id")
+        for refused in ["OwnerCheck", "LAContext", "evaluatePolicy", "Copy.endSessionMenu", "Copy.remove"] {
+            XCTAssertFalse(menu.contains(refused), "the row's menu names \(refused)")
+        }
+        XCTAssertEqual(source.components(separatedBy: ".contextMenu {").count, 2, "ListScreen.swift draws another long-press menu")
+        XCTAssertEqual(
+            source.components(separatedBy: "            RowView(row: row, last: endsList && offset == rows.count - 1) { open(row) }\n").count, 2,
+            "the line that draws a row moved (rule k pins it)"
+        )
+    }
+
+    /// Clause (D20, §4.5 step 2): a tab presents ONE Rename sheet, over the
+    /// model its press made, and that model reads the session first; the
+    /// Needs input tab applies it once and hands its own read as the re-read.
+    func testATabPresentsOneRenameSheetMadeAtThePress() throws {
+        let source = try StyleSource.text("ios/Tortie/Screens/ListScreen.swift")
+        let piece = try Self.body(of: "private struct RenameRowsPiece: ViewModifier {", in: source)
+        XCTAssertEqual(piece.components(separatedBy: ".sheet(").count, 2, "a tab presents other than one Rename sheet")
+        XCTAssertTrue(piece.contains(".sheet(item: $asked) { asked in"), "the sheet is not presented over the press's own model")
+        XCTAssertTrue(piece.contains("asked = RenameAsked(model: setup.model(row.id, row.name, true))"), "the model is not made at the press, reading the session first")
+        XCTAssertTrue(piece.contains(".environment(\\.renameRows, RenameRowsAction { row in"), "the rows are not handed the tab's Rename")
+        XCTAssertEqual(source.components(separatedBy: ".renameRows(").count, 2, "ListScreen applies Rename other than once")
+        XCTAssertTrue(source.contains(".renameRows(renames, reread: { await read() })"), "the list's Rename does not read the list again")
+        XCTAssertEqual(source.components(separatedBy: "@Entry var renameRows: RenameRowsAction? = nil").count, 2)
+    }
+
     /// Clause: a session in both lists, or twice in one, is not an answer the
     /// door gives, and it is refused whole rather than half drawn.
     func testASessionListedTwiceIsRefusedWhole() {

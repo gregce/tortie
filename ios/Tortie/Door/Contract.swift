@@ -166,6 +166,15 @@ struct PocketBlockedRow: Equatable, Sendable, Identifiable {
     /// `.none`: no End is drawn. The press asks main again by id, so this
     /// decides what is drawn and nothing else.
     var end: PocketEndOffer = .none
+    /// Whether the Mac offers Rename on this row (Phase 349, D14), decided in
+    /// main by the gate the Mac's own Rename asks and, for a session on
+    /// another machine, by whether it runs (D3): present, and `true`, exactly
+    /// while the Mac serves `rename` and that verdict passes now. A Mac older
+    /// than 349, or one whose Allow of `rename` waits, sends none, which is
+    /// false: no Rename is drawn. The detail decodes this row, so it carries
+    /// the same offer. The press asks main again by id, so this decides what
+    /// is drawn and nothing else.
+    var rename: Bool = false
 
     var id: String { sessionId }
     var dot: StatusDot { StatusDot(name: statusDot) }
@@ -174,7 +183,7 @@ struct PocketBlockedRow: Equatable, Sendable, Identifiable {
 extension PocketBlockedRow: Codable {
     enum CodingKeys: String, CodingKey {
         case sessionId, name, project, machine, agent, agentLabel, statusLabel, statusTitle
-        case statusDot, question, choices, blockedSince, seenAtWake, ageText, end
+        case statusDot, question, choices, blockedSince, seenAtWake, ageText, end, rename
     }
 
     init(from decoder: Decoder) throws {
@@ -195,6 +204,34 @@ extension PocketBlockedRow: Codable {
         ageText = try c.decode(String.self, forKey: .ageText)
         // Absent on a Mac older than Phase 317: no End is offered.
         end = try c.decodeIfPresent(PocketEndOffer.self, forKey: .end) ?? .none
+        // Phase 349: absent (or null) on a Mac older than this phase, or one
+        // whose Allow of `rename` waits, and that is no Rename. Read STRICTLY,
+        // as `end` is: a value that is not a Boolean refuses the whole answer,
+        // as a row missing a field does.
+        rename = try c.decodeIfPresent(Bool.self, forKey: .rename) ?? false
+    }
+
+    /// Written back as the door writes it: every field the contract always
+    /// sends, a nullable one as `null`, and `rename` only when the Mac offers
+    /// it, because a Mac that offers none sends no key at all (Phase 349).
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(sessionId, forKey: .sessionId)
+        try c.encode(name, forKey: .name)
+        try c.encode(project, forKey: .project)
+        try c.encode(machine, forKey: .machine)
+        try c.encode(agent, forKey: .agent)
+        try c.encode(agentLabel, forKey: .agentLabel)
+        try c.encode(statusLabel, forKey: .statusLabel)
+        try c.encode(statusTitle, forKey: .statusTitle)
+        try c.encode(statusDot, forKey: .statusDot)
+        try c.encode(question, forKey: .question)
+        try c.encode(choices, forKey: .choices)
+        try c.encode(blockedSince, forKey: .blockedSince)
+        try c.encode(seenAtWake, forKey: .seenAtWake)
+        try c.encode(ageText, forKey: .ageText)
+        try c.encode(end, forKey: .end)
+        if rename { try c.encode(rename, forKey: .rename) }
     }
 }
 
@@ -626,6 +663,90 @@ extension PocketPasteAnswer: Codable {
     }
 }
 
+// MARK: - Rename (Phase 349)
+
+/// `PocketRenameAnswer`: what `POST /v1/rename` answers with a 200
+/// (build/p349/SPEC.md §4.1, D21). Six fields, Start's with `name` in
+/// `session`'s place, and these are all of it:
+///
+///   - `verb` is `rename`, and an answer naming anything else refuses whole;
+///   - `write` is the write id the request carried, echoed, or `""` only on
+///     the one `refused` `malformed` answer the Mac makes when it could read
+///     no id at all;
+///   - `outcome` is one of the four every write answers with;
+///   - `reason` is non-null EXACTLY when `refused`, and is read as an OPEN
+///     word (`malformed`, `gone`, `unreachable`, `changed` and `name` today):
+///     the phone draws the Mac's sentence and never the word, so a reason this
+///     build does not know never refuses the whole answer;
+///   - `sentence` is null exactly when `done`, and a non-empty sentence
+///     otherwise;
+///   - `name` is the name the Mac STORED (the one typed, trimmed as the Mac
+///     trims), a non-empty string exactly when `done`, else null.
+///
+/// Never a `PocketWriteAnswer`, whose verb and reasons the frozen phones read
+/// as closed sets (Phase 348 D27). The client turns any refusal of this shape
+/// into "no answer" (Door/DoorClient.swift `RenameResult`), because the bytes
+/// reached the Mac and what it did is not known.
+struct PocketRenameAnswer: Equatable, Sendable {
+    /// The one verb this answer names.
+    static let verbWord = "rename"
+
+    let verb: String
+    let write: String
+    let outcome: PocketWriteAnswer.Outcome
+    /// The Mac's word for why; drawn never, read only as present or not.
+    let reason: String?
+    /// The Mac's words; nil exactly when `done`.
+    let sentence: String?
+    /// The name the Mac stored; a non-empty one exactly when `done` (D21).
+    let name: String?
+
+    /// The one answer that may carry an empty echo.
+    var echoesNoId: Bool {
+        PocketOpenAnswer.echoesNoId(write: write, outcome: outcome, reason: reason)
+    }
+
+    /// A name, and a non-empty one, exactly when `done` (D21), asked of plain
+    /// values and never of a decoder.
+    static func namesWhatLanded(outcome: PocketWriteAnswer.Outcome, name: String?) -> Bool {
+        let named = name.map { !$0.isEmpty } ?? false
+        return named == (outcome == .done) && (name == nil || named)
+    }
+}
+
+extension PocketRenameAnswer: Codable {
+    enum CodingKeys: String, CodingKey { case verb, write, outcome, reason, sentence, name }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        verb = try c.decode(String.self, forKey: .verb)
+        write = try c.decode(String.self, forKey: .write)
+        outcome = try c.decode(PocketWriteAnswer.Outcome.self, forKey: .outcome)
+        reason = try c.nullable(String.self, forKey: .reason)
+        sentence = try c.nullable(String.self, forKey: .sentence)
+        name = try c.nullable(String.self, forKey: .name)
+        guard verb == "rename" else {
+            throw DecodingError.dataCorruptedError(forKey: .verb, in: c, debugDescription: "a rename's answer names the rename")
+        }
+        guard PocketOpenAnswer.holds(outcome: outcome, reason: reason, sentence: sentence) else {
+            throw DecodingError.dataCorruptedError(forKey: .reason, in: c, debugDescription: "a reason comes with refused, and a sentence with every outcome but done")
+        }
+        guard Self.namesWhatLanded(outcome: outcome, name: name) else {
+            throw DecodingError.dataCorruptedError(forKey: .name, in: c, debugDescription: "a name comes with done, and only with it")
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(verb, forKey: .verb)
+        try c.encode(write, forKey: .write)
+        try c.encode(outcome, forKey: .outcome)
+        try c.encode(reason, forKey: .reason)
+        try c.encode(sentence, forKey: .sentence)
+        try c.encode(name, forKey: .name)
+    }
+}
+
 // MARK: - Reply (Phase 318)
 
 /// `PocketReplyOffer`: what the phone may do with one session's question or
@@ -1029,6 +1150,18 @@ extension PocketSessionsAsked: Codable {
         agent = try c.nullable(String.self, forKey: .agent)
         machine = try c.nullable(String.self, forKey: .machine)
     }
+
+    /// Written back as the door writes it: every key, a filter that is not
+    /// set as `null`, so an answer written back reads again (Phase 349, the
+    /// integrator's reconcile beside the rows').
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(show, forKey: .show)
+        try c.encode(group, forKey: .group)
+        try c.encode(sort, forKey: .sort)
+        try c.encode(agent, forKey: .agent)
+        try c.encode(machine, forKey: .machine)
+    }
 }
 
 /// `PocketSessionsRow`: one session as the Sessions tab draws it.
@@ -1052,13 +1185,19 @@ struct PocketSessionsRow: Equatable, Sendable, Identifiable {
     /// Required here: only main's composer builds these rows (Phase 317's
     /// decoder reads it, and a state word it does not know is `.none`).
     let end: PocketEndOffer
+    /// Whether the Mac offers Rename on this row (Phase 349, D14), as a
+    /// blocked row says it: present, and `true`, exactly while the Mac serves
+    /// `rename` and the verdict passes now; absent on an older Mac, or one
+    /// whose Allow waits, which is false. A `var` with a default so every row
+    /// built field by field elsewhere keeps its shape.
+    var rename: Bool = false
 
     var id: String { sessionId }
 }
 
 extension PocketSessionsRow: Codable {
     enum CodingKeys: String, CodingKey {
-        case sessionId, name, machine, statusDot, statusTitle, ageText, waiting, question, end
+        case sessionId, name, machine, statusDot, statusTitle, ageText, waiting, question, end, rename
         case groupIndex = "group"
     }
 
@@ -1074,6 +1213,28 @@ extension PocketSessionsRow: Codable {
         waiting = try c.decode(Bool.self, forKey: .waiting)
         question = try c.nullable(String.self, forKey: .question)
         end = try c.decode(PocketEndOffer.self, forKey: .end)
+        // Phase 349: read STRICTLY beside `end`, as a blocked row's is: absent
+        // or null is no Rename, and a value that is not a Boolean refuses the
+        // whole list.
+        rename = try c.decodeIfPresent(Bool.self, forKey: .rename) ?? false
+    }
+
+    /// Written back as the door writes it: every field the contract always
+    /// sends, a nullable one as `null`, and `rename` only when the Mac offers
+    /// it (Phase 349).
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(sessionId, forKey: .sessionId)
+        try c.encode(name, forKey: .name)
+        try c.encode(groupIndex, forKey: .groupIndex)
+        try c.encode(machine, forKey: .machine)
+        try c.encode(statusDot, forKey: .statusDot)
+        try c.encode(statusTitle, forKey: .statusTitle)
+        try c.encode(ageText, forKey: .ageText)
+        try c.encode(waiting, forKey: .waiting)
+        try c.encode(question, forKey: .question)
+        try c.encode(end, forKey: .end)
+        if rename { try c.encode(rename, forKey: .rename) }
     }
 }
 
@@ -1118,6 +1279,20 @@ extension PocketSessionsGroup: Codable {
         waiting = try c.decode(Bool.self, forKey: .waiting)
         collapsed = try c.decode(Bool.self, forKey: .collapsed)
     }
+
+    /// Written back as the door writes it: every key, a machine or folder
+    /// main did not name as `null` (Phase 349, the integrator's reconcile).
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(label, forKey: .label)
+        try c.encode(machine, forKey: .machine)
+        try c.encode(folder, forKey: .folder)
+        try c.encode(sessionCount, forKey: .sessionCount)
+        try c.encode(omittedRows, forKey: .omittedRows)
+        try c.encode(waiting, forKey: .waiting)
+        try c.encode(collapsed, forKey: .collapsed)
+    }
 }
 
 /// `PocketSessionsChoice`: one agent or machine the menu may offer. The label
@@ -1137,6 +1312,14 @@ extension PocketSessionsChoice: Codable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
         label = try c.nullable(String.self, forKey: .label)
+    }
+
+    /// Written back as the door writes it: This Mac's null label as `null`
+    /// (Phase 349, the integrator's reconcile).
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(label, forKey: .label)
     }
 }
 
@@ -1400,11 +1583,17 @@ struct PocketSessionsAnswer: Equatable, Sendable {
     /// `var` with a default so every answer built field by field elsewhere
     /// keeps its shape.
     var start: PocketSessionsStart? = nil
+    /// Whether this Mac renames a session (Phase 349, D14; bb5): present, and
+    /// `true`, exactly while it serves `rename`, which is what New session's
+    /// Name is drawn by. Sent OUTSIDE `start`, so a fault in it never hides the
+    /// "+". DECODED LENIENTLY, beside `start`'s read and never inside it:
+    /// anything but a Boolean `true` reads false and refuses nothing else.
+    var renames: Bool = false
 }
 
 extension PocketSessionsAnswer: Codable {
     enum CodingKeys: String, CodingKey {
-        case asked, rows, groups, agents, machines, at, ageNote, start
+        case asked, rows, groups, agents, machines, at, ageNote, start, renames
         case totalSessions = "total"
         case omittedRows = "omitted"
     }
@@ -1424,6 +1613,28 @@ extension PocketSessionsAnswer: Codable {
         // cannot square, a state it does not know, or a list past the Mac's
         // caps is no offer, and the rest of the answer is drawn as ever.
         start = (try? c.decodeIfPresent(PocketSessionsStart.self, forKey: .start)) ?? nil
+        // Phase 349 (bb5): read the same lenient way beside it, never inside
+        // it, so a `renames` this build cannot read hides only New session's
+        // Name, never the "+" and never the list.
+        renames = (try? c.decodeIfPresent(Bool.self, forKey: .renames)) == true
+    }
+
+    /// Written back as the door writes it: `start` only when the Mac sent one,
+    /// and `renames` only when it is `true`, because a Mac that renames
+    /// nothing sends no key (Phase 349).
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(asked, forKey: .asked)
+        try c.encode(rows, forKey: .rows)
+        try c.encode(groups, forKey: .groups)
+        try c.encode(agents, forKey: .agents)
+        try c.encode(machines, forKey: .machines)
+        try c.encode(totalSessions, forKey: .totalSessions)
+        try c.encode(omittedRows, forKey: .omittedRows)
+        try c.encode(at, forKey: .at)
+        try c.encode(ageNote, forKey: .ageNote)
+        try c.encodeIfPresent(start, forKey: .start)
+        if renames { try c.encode(renames, forKey: .renames) }
     }
 }
 

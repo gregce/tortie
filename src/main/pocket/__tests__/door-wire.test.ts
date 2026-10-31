@@ -221,8 +221,9 @@ describe('a write the door forwards', () => {
 
   it('holds the write to its OWN route’s cap, and lets a body exactly at the cap through', () => {
     // Phase 346 added `start`, 512 (build/p346/SPEC.md D6); Phase 348 `remove`, 512,
-    // and `paste`, 131,072 (build/p348/SPEC.md D29).
-    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512, remove: 512, paste: 131_072 });
+    // and `paste`, 131,072 (build/p348/SPEC.md D29); Phase 349 `rename`, 2,048
+    // (build/p349/SPEC.md D6, §2.4).
+    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512, remove: 512, paste: 131_072, rename: 2_048 });
     expect(Object.isFrozen(POCKET_WRITE_BODY_CAPS)).toBe(true);
     expect(doorRequestOf(write({ body: new Uint8Array(512) }))).not.toBeNull();
     expect(doorRequestOf(write({ body: new Uint8Array(513) }))).toBeNull();
@@ -274,6 +275,26 @@ describe('a write the door forwards', () => {
     // §14 M15's worst legal keys body crosses; at end's cap it would not.
     expect(at(7_359)).not.toBeNull();
     expect(doorRequestOf(write({ body: new Uint8Array(7_359) }))).toBeNull();
+  });
+
+  // PHASE 349 (build/p349/SPEC.md §4.1, D6): the rename write, its own path,
+  // a POST only, never with a query, and its own cap of 2,048.
+  it('lets a POST to /v1/rename through at its own path and holds it to 2,048 bytes (Phase 349)', () => {
+    const got = doorRequestOf(write({ route: 'rename', target: '/v1/rename' }));
+    expect(got).toMatchObject({ route: 'rename', method: 'POST', target: '/v1/rename', channel: 'phone-a' });
+    expect(Object.keys(got ?? {}).sort()).toEqual(['body', 'channel', 'headers', 'method', 'route', 'target']);
+    expect(doorRequestOf(write({ route: 'rename', target: '/v1/rename', method: 'GET' }))).toBeNull();
+    expect(doorRequestOf(write({ route: 'rename', target: '/v1/remove' }))).toBeNull();
+    expect(doorRequestOf(write({ route: 'remove', target: '/v1/rename' }))).toBeNull();
+    for (const near of ['/v1/rename?x=1', '/v1/rename?', '/v1/rename/', '/v1/RENAME', '/v1/renames', '/v1/name']) {
+      expect(doorRequestOf(write({ route: 'rename', target: near })), near).toBeNull();
+    }
+    const at = (n: number) => doorRequestOf(write({ route: 'rename', target: '/v1/rename', body: new Uint8Array(n) }));
+    expect(at(2_048)).not.toBeNull();
+    expect(at(2_049)).toBeNull();
+    // The worst legal rename body (§2.4, 915 bytes) crosses; at end's cap it would not.
+    expect(at(915)).not.toBeNull();
+    expect(doorRequestOf(write({ body: new Uint8Array(915) }))).toBeNull();
   });
 
   it('refuses a route that is neither a read nor one of the writes', () => {

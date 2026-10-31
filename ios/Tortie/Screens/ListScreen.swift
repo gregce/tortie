@@ -57,6 +57,16 @@
 // of the list, so the bar is never hidden here. The older-Mac face's bar holds
 // Select alone, at its leading edge; Needs input's holds nothing. The foot is
 // `read 4:32 PM` alone (§4.4, D14): main's age note is read and never drawn.
+//
+// RENAME (Phase 349, build/p349/SPEC.md §4.5 step 2, D1, D20). A row the Mac
+// offers Rename on (`RowDrawing.rename`) takes the iPhone's own long-press
+// menu, holding Rename alone with the Mac's pencil; a tap still opens the
+// session, and while End these takes taps the menu is empty, which draws
+// nothing. Its press opens the tab's ONE Rename sheet (`renameRows`), whose
+// model is made at the press and reads `/v1/session` first, for the whole
+// name (a list clips it at 200) and a fresh offer. It reaches the rows through
+// the environment, as End these does, so the line that draws a row, which
+// conformance:ios rule k pins, does not move. Nothing asks Face ID.
 
 import SwiftUI
 
@@ -82,6 +92,11 @@ struct RowDrawing: Equatable, Identifiable, Sendable {
     /// Whether the Mac offers End on this row (Phase 317): End these selects
     /// over it, and decides nothing the Mac does not decide again.
     let end: PocketEndOffer
+    /// Whether the Mac offers Rename on this row (Phase 349, D14): the row's
+    /// long-press menu holds Rename only with it. A Mac older than 349, or one
+    /// whose Allow for it waits, sends none, which is false. The sheet reads
+    /// the session again first, so this decides what is drawn and nothing else.
+    let rename: Bool
 
     /// A waiting row reads `project · question`, the way Main.html's first
     /// section does; with no question on the row it reads what every other row
@@ -96,6 +111,7 @@ struct RowDrawing: Equatable, Identifiable, Sendable {
         age = row.ageText
         self.waiting = waiting
         end = row.end
+        rename = row.rename
         if waiting, let question = row.question {
             line = Copy.joined([row.project, question])
         } else {
@@ -306,7 +322,8 @@ enum ListKind: Equatable, Sendable {
 /// The identifiers one list tab draws (Screens/Identifiers.swift): the
 /// Sessions tab keeps every one Phase 316.2 gave the list, and the Needs input
 /// tab's carry `needs-`. Since Phase 348 neither draws a title row (the bar
-/// draws the title) nor the age note.
+/// draws the title) nor the age note. Since Phase 349 a row's long-press
+/// Rename is `row-rename-<id>`, and `needs-row-rename-<id>` on Needs input.
 struct ListNames: Sendable {
     let screen: String
     let alertsLine: String
@@ -321,12 +338,15 @@ struct ListNames: Sendable {
     let rowMachine: @Sendable (String) -> String
     let rowAge: @Sendable (String) -> String
     let rowLine: @Sendable (String) -> String
+    /// The row's long-press Rename (Phase 349).
+    let rowRename: @Sendable (String) -> String
 
     static let sessions = ListNames(
         screen: ID.listScreen, alertsLine: ID.listAlertsLine, notice: ID.listNotice,
         loading: ID.listLoading, failure: ID.listFailure, empty: ID.listEmpty, read: ID.listRead,
         row: { ID.row($0) }, rowDot: { ID.rowDot($0) }, rowName: { ID.rowName($0) },
-        rowMachine: { ID.rowMachine($0) }, rowAge: { ID.rowAge($0) }, rowLine: { ID.rowLine($0) }
+        rowMachine: { ID.rowMachine($0) }, rowAge: { ID.rowAge($0) }, rowLine: { ID.rowLine($0) },
+        rowRename: { ID.rowRename($0) }
     )
 
     static let needsInput = ListNames(
@@ -334,7 +354,8 @@ struct ListNames: Sendable {
         loading: ID.needsListLoading, failure: ID.needsListFailure, empty: ID.needsListEmpty,
         read: ID.needsListRead,
         row: { ID.needsRow($0) }, rowDot: { ID.needsRowDot($0) }, rowName: { ID.needsRowName($0) },
-        rowMachine: { ID.needsRowMachine($0) }, rowAge: { ID.needsRowAge($0) }, rowLine: { ID.needsRowLine($0) }
+        rowMachine: { ID.needsRowMachine($0) }, rowAge: { ID.needsRowAge($0) }, rowLine: { ID.needsRowLine($0) },
+        rowRename: { ID.needsRowRename($0) }
     )
 }
 
@@ -357,6 +378,10 @@ struct ListScreen: View {
     /// older-Mac face, which asks the Mac's sessions read first. Nil is the
     /// list's own reads.
     var reload: (() async -> Void)? = nil
+    /// Rename on this tab's rows (Phase 349), for a pairing that renames; nil
+    /// draws no row menu. The older-Mac face is handed none: `SessionsTab`
+    /// attaches Rename once, over both of its faces, as it does End these.
+    var renames: RenameSetup? = nil
 
     private var names: ListNames { kind.names }
 
@@ -410,6 +435,8 @@ struct ListScreen: View {
         }
         // End these, on the Sessions tab alone: the ONE line that attaches it.
         .endBatch(kind == .sessions ? ends : nil, list: model)
+        // Rename (Phase 349): this tab's ONE sheet, where it was handed one.
+        .renameRows(renames, reread: { await read() })
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(names.screen)
         .navigationTitle(kind.title)
@@ -527,6 +554,12 @@ private struct SectionHeader: View {
 /// row but the last. The row is a container, so XCUITest reads its frame and
 /// each part's frame; tapping anywhere on it opens the session. Internal since
 /// Phase 316.7: the Sessions tab draws its rows with it too.
+///
+/// A LONG PRESS (Phase 349, D1) is the iPhone's own menu, holding Rename
+/// alone, the Mac's word and its pencil, on a row the Mac offers Rename on and
+/// where a tab attached Rename. While End these takes taps its content is
+/// empty, and a menu with nothing in it draws nothing (M3), so a long press
+/// then does what it did before and the tap still ticks the row.
 struct RowView: View {
     let row: RowDrawing
     let last: Bool
@@ -536,6 +569,8 @@ struct RowView: View {
     /// End these, where it is attached: a tap toggles the row while it
     /// selects, and opens nothing while it confirms or runs.
     @Environment(\.endBatch) private var batch
+    /// Rename, where a tab attached it (Phase 349): the long press's one item.
+    @Environment(\.renameRows) private var rename
 
     init(row: RowDrawing, last: Bool, open: @escaping () -> Void) {
         self.row = row
@@ -589,6 +624,16 @@ struct RowView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture(perform: tapped)
+        .contextMenu {
+            if let rename, row.rename, !(batch?.takesTaps ?? false) {
+                Button {
+                    rename(row)
+                } label: {
+                    Label(Copy.rename, systemImage: "pencil")
+                }
+                .accessibilityIdentifier(names.rowRename(row.id))
+            }
+        }
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isButton)
         .accessibilityIdentifier(names.row(row.id))
@@ -600,6 +645,79 @@ struct RowView: View {
             batch.toggle(row.id)
         } else {
             open()
+        }
+    }
+}
+
+// MARK: - Rename, from a row (Phase 349, build/p349/SPEC.md §4.5 step 2, D1, D20)
+
+/// How the app makes a Rename sheet's model (Phase 349): App/TortieApp.swift
+/// hands one only to a pairing whose reader renames, so a pairing that renames
+/// nothing hands none and no Rename is drawn anywhere. The model is made at
+/// the press, so the name is fixed when he presses: from a row it reads
+/// `/v1/session` first (`readsFirst`), from the Terminal's ⋯ nothing more
+/// (D20).
+struct RenameSetup {
+    /// The sheet's model for one session: its id, its name as drawn, and
+    /// whether it reads the session first.
+    let model: @MainActor (_ sessionId: String, _ name: String, _ readsFirst: Bool) -> RenameModel
+}
+
+/// One Rename sheet as it is presented: its model, made at the press. Its id
+/// is the model's own identity, so a second press always gets a sheet of its
+/// own and no sheet is ever handed another press's model.
+struct RenameAsked: Identifiable {
+    let model: RenameModel
+
+    var id: ObjectIdentifier { ObjectIdentifier(model) }
+}
+
+/// A row's Rename, as a tab hands it to its rows through the environment, the
+/// way End these reaches them: pressed, it opens the tab's one sheet over that
+/// row's session. Nil where no tab attached it, which draws no row menu.
+struct RenameRowsAction {
+    let open: @MainActor (_ row: RowDrawing) -> Void
+
+    /// Open the sheet over `row`'s session.
+    @MainActor
+    func callAsFunction(_ row: RowDrawing) {
+        open(row)
+    }
+}
+
+extension EnvironmentValues {
+    /// A row's Rename, where a tab attached it (Phase 349).
+    @Entry var renameRows: RenameRowsAction? = nil
+}
+
+extension View {
+    /// Rename on this tab's rows (Phase 349), or nothing when `setup` is nil:
+    /// the tab's ONE sheet, presented over the row he held, its model made at
+    /// the press and reading the session first (D20). `reread` reads the tab
+    /// again once a rename is done.
+    func renameRows(_ setup: RenameSetup?, reread: @escaping @MainActor () async -> Void) -> some View {
+        modifier(RenameRowsPiece(setup: setup, reread: reread))
+    }
+}
+
+/// The tab's one Rename sheet, and the action its rows press.
+private struct RenameRowsPiece: ViewModifier {
+    let setup: RenameSetup?
+    let reread: @MainActor () async -> Void
+    /// The sheet up, over the model its press made.
+    @State private var asked: RenameAsked?
+
+    func body(content: Content) -> some View {
+        if let setup {
+            content
+                .environment(\.renameRows, RenameRowsAction { row in
+                    asked = RenameAsked(model: setup.model(row.id, row.name, true))
+                })
+                .sheet(item: $asked) { asked in
+                    SessionNameSheet(model: asked.model, reread: reread)
+                }
+        } else {
+            content
         }
     }
 }

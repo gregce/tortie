@@ -760,6 +760,85 @@ final class SessionsTests: XCTestCase {
         XCTAssertEqual(plus.components(separatedBy: ".accessibilityLabel(Text(verbatim: Copy.newSession))").count, 3, "the \"+\" is not spoken New session on both runtimes")
     }
 
+    // MARK: - Rename (Phase 349, build/p349/SPEC.md §4.5 step 3, D1, D2, D14)
+
+    /// Clause (D14): every Sessions row carries the Mac's Rename offer, under
+    /// Project and under None; a row with none offers no Rename.
+    func testSessionsRowsCarryTheMacsRenameOffer() throws {
+        var offered = SessionsAnswers.row("a")
+        offered.rename = true
+        let answer = SessionsAnswers.answer(rows: [offered, SessionsAnswers.row("b")], groups: [SessionsAnswers.group("g0", count: 2)])
+        let grouped = try SessionsDrawing(answer, asked: .standard)
+        XCTAssertEqual(grouped.groups[0].rows.map(\.rename), [true, false])
+        var none = SessionsQuery.standard
+        none.group = .none
+        var flatAnswer = SessionsAnswers.answer(none, rows: [offered, SessionsAnswers.row("b")], groups: [SessionsAnswers.group("g0", count: 2)])
+        flatAnswer.renames = true
+        let flat = try SessionsDrawing(flatAnswer, asked: none)
+        XCTAssertEqual(flat.rows.map(\.rename), [true, false])
+    }
+
+    /// Clause (D14, bb5): the answer's `renames` is read beside `start` and
+    /// never inside it: the drawing says it as the answer did, an answer with
+    /// none says false, and the model says the drawing on screen's, false
+    /// while there is none.
+    func testRenamesIsReadBesideStartAndNeverInsideIt() async throws {
+        var renaming = SessionsAnswers.honest()
+        renaming.renames = true
+        XCTAssertTrue(try SessionsDrawing(renaming, asked: .standard).renames)
+        XCTAssertFalse(try SessionsDrawing(SessionsAnswers.honest(), asked: .standard).renames)
+        XCTAssertNil(try SessionsDrawing(renaming, asked: .standard).start, "renames carried a start offer with it")
+
+        let reader = SessionsReader(blocked: [.success(Answers.blocked()), .success(Answers.blocked())]) { query in
+            var answer = SessionsAnswers.honest(query)
+            answer.renames = true
+            return .success(answer)
+        }
+        let model = makeModel(reader)
+        XCTAssertFalse(model.renames, "a model with nothing drawn says this Mac renames")
+        await model.load()
+        XCTAssertTrue(model.renames)
+        await reader.answer { .success(SessionsAnswers.honest($0)) }
+        await model.load()
+        XCTAssertFalse(model.renames, "renames outlived the answer that said it")
+    }
+
+    /// Clause (§4.5 step 3, as End these is, F6): the tab attaches Rename ONCE,
+    /// over both of its faces, reading the tab again; the older Mac's face is
+    /// handed none of its own, and this file holds no text field (rule aa3).
+    func testTheTabAttachesOneRenameOverBothFaces() throws {
+        let source = try StyleSource.text("ios/Tortie/Screens/SessionsScreen.swift")
+        XCTAssertEqual(source.components(separatedBy: ".renameRows(").count, 2, "Rename is attached other than once")
+        let tab = try ScreensDrawingTests.body(of: "struct SessionsTab: View {", in: source)
+        let body = try ScreensDrawingTests.body(of: "    var body: some View {", in: tab)
+        let batch = try XCTUnwrap(body.range(of: ".endBatch(ends, list: model)"), "End these is not attached over the faces").lowerBound
+        let rename = try XCTUnwrap(body.range(of: ".renameRows(renames, reread: { await model.load() })"), "Rename is not attached over the faces, reading the tab again").lowerBound
+        let face = try XCTUnwrap(body.range(of: "face\n")).lowerBound
+        XCTAssertTrue(face < batch && batch < rename, "Rename is not attached over both faces beside End these")
+        let call = try XCTUnwrap(tab.range(of: "            ListScreen(\n"), "the older Mac's face is not today's list").upperBound
+        let close = try XCTUnwrap(tab.range(of: "\n            )\n", range: call..<tab.endIndex), "the older Mac's list call does not close").lowerBound
+        let older = String(tab[call..<close])
+        XCTAssertTrue(older.contains("ends: nil,"), "the older Mac's call was not read whole")
+        XCTAssertFalse(older.contains("renames:"), "the older Mac's face is handed a Rename of its own")
+        for refused in ["TextField(", "SecureField(", "TextEditor(", "NameField("] {
+            XCTAssertFalse(source.contains(refused), "SessionsScreen.swift holds \(refused)")
+        }
+    }
+
+    /// Clause (D2, D12): New session is handed this Mac's `renames` at open
+    /// and while it is up, and a done start opens with its name and the one
+    /// line a rename that was not taken leaves.
+    func testNewSessionIsHandedTheAnswersRenames() throws {
+        let source = try StyleSource.text("ios/Tortie/Screens/SessionsScreen.swift")
+        let tab = try ScreensDrawingTests.body(of: "struct SessionsTab: View {", in: source)
+        XCTAssertTrue(tab.contains("starting = StartModel(offer: offer, renames: model.renames, setup: starts)"), "New session is not handed the answer's renames at open")
+        XCTAssertTrue(tab.contains(".onChange(of: model.renames)"), "New session does not follow the answer's renames while it is up")
+        XCTAssertTrue(tab.contains("opened: { id, name, line in\n                        startedSession = StartedSession(id: id, name: name, line: line)"), "a done start drops its line")
+        XCTAssertTrue(tab.contains("starts.opened(started.id, started.name, started.line)"), "the started session opens without its line")
+        let sheet = try StyleSource.text("ios/Tortie/Screens/StartSheet.swift")
+        XCTAssertTrue(sheet.contains("let opened: @MainActor (_ id: String, _ name: String, _ line: String?) -> Void"), "New session's opened takes other than the id, the name and the line")
+    }
+
     /// Clause (D14): the foot is `read <the answer's moment>` alone; main's
     /// age note is decoded and never drawn, so the drawing holds nothing of
     /// it and the foot draws one line and names no note.

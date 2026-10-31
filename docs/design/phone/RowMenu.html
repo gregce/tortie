@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>refactor-parser — held, its menu</title>
+<style>
+html,body{background:#0E0F13}
+body { margin: 0; }
+.t { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+.num { font-variant-numeric: tabular-nums; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.dot-attention { background: #f5b84a; animation: pulse 1.6s cubic-bezier(0.2, 0, 0, 1) infinite; }
+.dot-working { background: #4d9de8; }
+.dot-idle { background: #8b93a1; }
+.dot-ended { background: transparent; box-shadow: inset 0 0 0 2px #8b93a1; }
+.dot-failed { background: transparent; box-shadow: inset 0 0 0 2px #e5655e; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .dot-attention { animation: none; } }
+.row { display: flex; flex-direction: column; gap: 2px; padding: 6px 16px; border-bottom: 1px solid #25282E; text-decoration: none; }
+.hdr { height: 28px; display: flex; align-items: center; padding: 0 16px; border-bottom: 1px solid #25282E; font-size: 13px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: #9CA1AB; }
+.seg { display: flex; margin: 0 16px 8px 16px; padding: 2px; background: #191B20; border: 1px solid #25282E; border-radius: 9px; flex-shrink: 0; }
+.seg button { flex: 1; height: 28px; border: 0; border-radius: 7px; background: none; font: inherit; font-size: 13px; font-weight: 500; color: #9CA1AB; cursor: pointer; }
+.seg button.on { background: #202329; color: #C9CACD; }
+.grp { display: flex; flex-direction: column; padding: 8px 16px 6px 16px; border-bottom: 1px solid #25282E; cursor: pointer; }
+.grp-line { display: flex; align-items: center; gap: 8px; }
+.grp-name { font-size: 15px; line-height: 20px; font-weight: 600; color: #C9CACD; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.grp-count { font-size: 13px; line-height: 16px; color: #838996; }
+.grp-folder { font-size: 13px; line-height: 18px; color: #838996; padding-left: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chev { width: 9px; height: 15px; flex-shrink: 0; }
+.badge-mac { font-size: 11px; line-height: 16px; color: #56c2c0; border: 1px solid #56c2c0; border-radius: 4px; padding: 0 4px; flex-shrink: 0; }
+a { color: #4d9de8; }
+/* Phase 348 (build/p348/SPEC.md §4.5, D16, D37): the iPhone's own bar, drawn
+   as iOS 26 draws it. Select then the menu in one glass group at the leading
+   edge, the "+" alone in the accent's prominent glass at the trailing edge,
+   and the large title under them, in --text-primary here; the app draws the
+   system's own colour. */
+.navbar { height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; flex-shrink: 0; }
+.glass { display: flex; align-items: center; gap: 16px; height: 36px; box-sizing: border-box; padding: 0 12px; background: #191B20; border: 1px solid #25282E; border-radius: 18px; }
+.glass button { display: flex; align-items: center; justify-content: center; min-width: 44px; height: 34px; background: none; border: 0; padding: 0; font: inherit; font-size: 17px; color: #4d9de8; cursor: pointer; }
+.plus { display: flex; align-items: center; justify-content: center; width: 50px; height: 36px; box-sizing: border-box; border: 0; border-radius: 18px; background: #4d9de8; cursor: pointer; }
+.large { padding: 2px 16px 10px 16px; font-size: 34px; line-height: 41px; font-weight: 700; color: #C9CACD; flex-shrink: 0; }
+.tabbar { flex-shrink: 0; height: 83px; box-sizing: border-box; padding-top: 7px; background: #191B20; border-top: 1px solid #25282E; display: flex; }
+.tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; color: #838996; text-decoration: none; }
+.tab.on { color: #4d9de8; }
+.tab .ico { position: relative; width: 28px; height: 26px; display: flex; align-items: center; justify-content: center; }
+.tab .lbl { font-size: 10px; line-height: 12px; font-weight: 500; }
+/* Phase 349: the iPhone's own long-press menu over a held row. */
+.dim { position: absolute; inset: 0; background: rgba(9, 10, 12, 0.55); backdrop-filter: blur(6px); }
+.lift { position: absolute; top: 281px; left: 8px; right: 8px; display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; background: #191B20; border-radius: 12px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); }
+.menu { position: absolute; top: 349px; left: 16px; width: 250px; background: #202329; border-radius: 13px; overflow: hidden; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); }
+.item { display: flex; align-items: center; justify-content: space-between; height: 44px; padding: 0 16px; font-size: 17px; color: #C9CACD; text-decoration: none; }
+.badge { position: absolute; top: -4px; left: 17px; min-width: 18px; height: 18px; box-sizing: border-box; padding: 0 5px; border-radius: 9px; background: #f5b84a; color: #131417; font-size: 13px; line-height: 18px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<!-- Phase 349 (build/p349/SPEC.md D1, D20, §4.5 steps 2 and 6; his words
+     "making it possible to rename sessions from the phone that it can
+     access"): the Sessions tab (Main.html) with one row HELD. A long press on
+     any row the Mac offers Rename on is the iPhone's own menu, holding Rename
+     alone, the Mac's own word with its pencil; the row lifts where it was
+     drawn and the rest of the page dims under it. A tap still opens the
+     session, and Needs input's rows take the same menu. While End these
+     takes taps a row offers no menu at all, and a long press then does what
+     it did before. Rename opens Rename.html, which reads the session first,
+     so a name the list clips is prefilled whole, and asks no Face ID. -->
+<div class="t" style="width: 390px; height: 844px; box-sizing: border-box; background: #0E0F13; color: #C9CACD; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+
+  <div style="height: 44px; flex-shrink: 0;"></div>
+
+  <div class="navbar">
+    <div class="glass">
+      <button type="button">Select</button>
+      <button type="button" aria-label="Group, sort and filter"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#4d9de8" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h16M6 11h10M9 16h4"></path></svg></button>
+    </div>
+    <button type="button" class="plus" aria-label="New session"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#0E0F13" stroke-width="2.2" stroke-linecap="round"><path d="M9 3v12M3 9h12"></path></svg></button>
+  </div>
+  <div class="large">Sessions</div>
+
+  <div class="seg">
+    <button type="button">All</button>
+    <button type="button" class="on">Active</button>
+    <button type="button">Ended</button>
+  </div>
+
+  <div class="grp">
+    <div class="grp-line">
+      <svg class="chev" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8" style="transform: rotate(90deg);"><path d="M1.5 1.5 7 7.5 1.5 13.5"></path></svg>
+      <span class="grp-name">webapp</span>
+      <span class="grp-count num">2</span>
+      <span class="dot dot-attention"></span>
+    </div>
+  </div>
+
+  <a class="row" href="Session.html">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="dot dot-attention"></span>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9CA1AB" stroke-width="1.3" style="flex-shrink: 0;"><path d="M3 8.2 6 11l7-7"></path><path d="M2 3h5"></path></svg>
+      <span style="font-size: 17px; line-height: 22px; font-weight: 500; color: #C9CACD; flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">fix-login</span>
+      <span class="num" style="font-size: 13px; color: #838996;">2m</span>
+    </div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Edit src/auth/session.ts?</div>
+  </a>
+
+  <!-- The held row's place, kept while it is lifted. -->
+  <div style="height: 57px; flex-shrink: 0; border-bottom: 1px solid #25282E; box-sizing: border-box;"></div>
+
+  <div class="grp">
+    <div class="grp-line">
+      <svg class="chev" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8" style="transform: rotate(90deg);"><path d="M1.5 1.5 7 7.5 1.5 13.5"></path></svg>
+      <span class="grp-name">monorepo</span>
+      <span class="grp-count num">1</span>
+      <span style="flex-grow: 1;"></span>
+      <span class="badge-mac">Mac&nbsp;Pro</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="dot dot-working"></span>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9CA1AB" stroke-width="1.3" style="flex-shrink: 0;"><circle cx="8" cy="8" r="6"></circle><path d="M5.6 8h4.8"></path></svg>
+      <span style="font-size: 17px; line-height: 22px; color: #C9CACD; flex-grow: 1;">mac-pro-build</span>
+      <span class="num" style="font-size: 13px; color: #838996;">3m</span>
+    </div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB;">Working</div>
+  </div>
+
+  <div class="grp">
+    <div class="grp-line">
+      <svg class="chev" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8" style="transform: rotate(90deg);"><path d="M1.5 1.5 7 7.5 1.5 13.5"></path></svg>
+      <span class="grp-name">app</span>
+      <span class="grp-count num">2</span>
+    </div>
+    <div class="grp-folder">~/work/app</div>
+  </div>
+
+  <div class="row">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="dot dot-idle"></span>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9CA1AB" stroke-width="1.3" style="flex-shrink: 0;"><path d="M3 8.2 6 11l7-7"></path><path d="M2 3h5"></path></svg>
+      <span style="font-size: 17px; line-height: 22px; color: #C9CACD; flex-grow: 1;">review-pr</span>
+      <span class="num" style="font-size: 13px; color: #838996;">1h</span>
+    </div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB;">Idle</div>
+  </div>
+
+  <div class="row">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="dot dot-idle"></span>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9CA1AB" stroke-width="1.3" style="flex-shrink: 0;"><circle cx="8" cy="8" r="6"></circle><path d="M5.6 8h4.8"></path></svg>
+      <span style="font-size: 17px; line-height: 22px; color: #C9CACD; flex-grow: 1;">scratch</span>
+      <span class="num" style="font-size: 13px; color: #838996;">3d old</span>
+    </div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB;">Idle</div>
+  </div>
+
+  <div class="grp">
+    <div class="grp-line">
+      <svg class="chev" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8"><path d="M1.5 1.5 7 7.5 1.5 13.5"></path></svg>
+      <span class="grp-name">app</span>
+      <span class="grp-count num">1</span>
+      <span class="dot dot-attention"></span>
+    </div>
+    <div class="grp-folder">~/clients/app</div>
+  </div>
+
+  <div style="flex-grow: 1;"></div>
+  <div class="num" style="font-size: 13px; color: #838996; text-align: right; padding: 16px;">read 4:32 PM</div>
+
+  <div class="tabbar">
+    <a class="tab" href="NeedsInput.html">
+      <div class="ico">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 17v-6a6 6 0 0 1 12 0v6l1.5 2h-15z"></path><path d="M10 21.5h4"></path></svg>
+        <div class="badge">2</div>
+      </div>
+      <div class="lbl">Needs input</div>
+    </a>
+    <a class="tab on" href="Main.html">
+      <div class="ico">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="5" cy="7" r="1.1" fill="currentColor"></circle><circle cx="5" cy="12" r="1.1" fill="currentColor"></circle><circle cx="5" cy="17" r="1.1" fill="currentColor"></circle><path d="M9 7h11M9 12h11M9 17h11"></path></svg>
+      </div>
+      <div class="lbl">Sessions</div>
+    </a>
+    <a class="tab" href="Settings.html">
+      <div class="ico">
+        <svg width="24" height="24" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.1"><circle cx="8" cy="8" r="2.4"></circle><path d="M8 1.6v1.8M8 12.6v1.8M1.6 8h1.8M12.6 8h1.8M3.5 3.5l1.3 1.3M11.2 11.2l1.3 1.3M12.5 3.5l-1.3 1.3M4.8 11.2l-1.3 1.3"></path></svg>
+      </div>
+      <div class="lbl">Settings</div>
+    </a>
+  </div>
+
+  <!-- The rest of the page dims under the menu, as iOS draws it. -->
+  <div class="dim"></div>
+  <!-- The held row, lifted where it was drawn, as RowView draws it. -->
+  <div class="lift">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="dot dot-working"></span>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9CA1AB" stroke-width="1.3" style="flex-shrink: 0;"><path d="M3 8.2 6 11l7-7"></path><path d="M2 3h5"></path></svg>
+      <span style="font-size: 17px; line-height: 22px; color: #C9CACD; flex-grow: 1;">refactor-parser</span>
+      <span class="num" style="font-size: 13px; color: #838996;">1m</span>
+    </div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB;">Working</div>
+  </div>
+  <!-- Its menu, iOS's own: Rename alone, the Mac's word and its pencil. -->
+  <div class="menu" role="menu">
+    <a class="item" href="Rename.html" role="menuitem"><span>Rename</span><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M13.6 3.2l3.2 3.2L7.4 15.8 3.4 16.6l.8-4z"></path><path d="M11.6 5.2l3.2 3.2"></path></svg></a>
+  </div>
+</div>
+</body>
+</html>

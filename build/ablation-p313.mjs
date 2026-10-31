@@ -268,6 +268,34 @@
  * (`P313_NO_SELF_TEST=1`, set on the `gate` check below), so an arm is judged
  * on its rule alone and never on a self-test plant whose text the arm moved.
  *
+ * PHASE 349 ADDED FIFTY-NINE (build/p349/SPEC.md §7.1, §7.2), 793 entries in
+ * all, at the end of the table, for rename a session from the phone: `RN1a`
+ * to `RN10f`, at least one per RN rule (the rename row window-only, its
+ * honesty clause widened, its cap halved, the face naming Face ID, rename in
+ * the legacy set, the New: sentence reworded, a lock key, the own-bytes check
+ * the body must NOT have, the name trimmed in the parse, the session read as
+ * any string, a sixth reason, the door's busy carrying a name, a seventh
+ * field, a done with an empty name answered done, the name dropped from the
+ * act, the body read by the paste's parse, D3's far arm dropped (the hostile
+ * client too), End's environment asked, the environment that may discard, an
+ * unreachable row answered changed (the hostile client too), the shared gate
+ * dropped, the name handed over untrimmed (the hostile client too), an await
+ * before the verb, the verdict skipped (the hostile client too), an error's
+ * text read, a throw told apart by its text, INVALID_INPUT answered failed, a
+ * status set, a log line and a Face ID sentence in the path, the bound moved,
+ * U+2028 let through (the hostile client too), the empty sentence reworded,
+ * the rule read by the Mac's own rename, a pattern in the rule, the offer
+ * made whatever was allowed, renames after start, a far warning logging an
+ * error's text, renameAllowed answering yes, a row's rename set on the facts'
+ * presence, and the facts dropping the offer); `RNHw`, the cap read one byte
+ * short in main, red on the hostile client alone; and one per clause the
+ * phase widened: `R2r`, `R3r`, `R4r`, `X1r`, `X2r`, `X3r`, `X4r` (the hostile
+ * client too), `X5r`, `X6r`, `X12r`, `Y1r`, `NS1r`, `NS11r`, `AR9r`, `AF2r`,
+ * `Z1r` and `G1r` (a typed name in a log line, the hostile client too). The
+ * fourteen arms whose literal ended at paste were moved with the routes, each
+ * still reddening the rule it owns: `R2e`, `X5a`, `Y1b`, `NS1b`, `Z1s`,
+ * `SU5b`, `RM1c`, `RM1w`, `PS1b`, `PS1w`, `NS11w`, `Z1w`, `AF2w` and `Y2w`.
+ *
  * An ablation that leaves the check green is a hole in the check. An ablation
  * that reddens only rules OTHER than its own is a finding about the check
  * rather than about the build, and it is printed as one.
@@ -296,7 +324,10 @@
  * writes into `src/` even for the second a check takes can lose another
  * builder's edit. So it builds a CLONE, the shape of `build/p293/ablation.mjs`:
  * `cp -Rc` (APFS clonefile) of `src/` and `build/` under
- * `/private/tmp/p313-ablation-<pid>`, every tsconfig and `package.json` copied,
+ * `/private/tmp/p313-ablation-<pid>` (or under `P313_SCRATCH`, a directory
+ * the caller names, since Phase 349, so a phase whose work stays out of
+ * `/private/tmp` can keep its clone there too), every tsconfig and
+ * `package.json` copied,
  * `node_modules` symlinked, and every check run there with that directory as
  * its cwd. Each edited file is put back and CHECKED BY SHA256 against the
  * worktree's bytes before the next entry, and the clone is removed in a
@@ -327,7 +358,9 @@
  *   P313_ONLY=NS1a,NS2a,NS3a,NS4a,NS5a,NS6a,NS7a,NS8a,NS9a,NS10a,NS11a,NS12a node build/ablation-p313.mjs  some of Phase 346's
  *   P313_ONLY=NS6e,NS6f,NS6g,NS6h node build/ablation-p313.mjs  the readiness, the ruled round's three plants and the fix round's
  *   P313_ONLY=RM1a,RM4b,RM5a,PS1b,PS4a,PS8b,PSHw node build/ablation-p313.mjs  some of Phase 348's
+ *   P313_ONLY=RN1a,RN2b,RN5a,RN6c,RN9b,RN10a,X4r,G1r,RNHw node build/ablation-p313.mjs  some of Phase 349's
  *   P313_ALLOW_RED_BASE=1 node build/ablation-p313.mjs
+ *   P313_SCRATCH=/private/var/tmp/<dir> node build/ablation-p313.mjs  the clone under that directory
  */
 
 import { spawnSync } from 'node:child_process';
@@ -416,6 +449,9 @@ const TEXT_RULES = 'src/main/reply/text-rules.ts';
 const SESSION_GATES = 'src/shared/session-gates.ts';
 const LIFECYCLE_GATE = 'src/main/sessions/lifecycle-gate.ts';
 const SCREEN_COPY = 'src/shared/screen-copy.ts';
+// PHASE 349: the one name rule, and the far rename whose warnings log a code.
+const SESSION_NAMES = 'src/shared/session-names.ts';
+const REMOTE_SESSIONS = 'src/main/machines/remote-sessions.ts';
 
 /**
  * The checks this harness runs inside the clone, in order. Each prints its
@@ -2072,8 +2108,9 @@ const ABLATIONS = [
     // Phase 337 put keys on this line (D17) and Phase 346 start (D6); the
     // write it drops is still say.
     // Phase 348 put remove and paste on this line (D29); the write it drops is still say.
-    from: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512, remove: 512, paste: 131_072 } as const);',
-    to: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, keys: 16_384, start: 512, remove: 512, paste: 131_072 } as const);',
+    // Phase 349 put rename on this line (build/p349/SPEC.md D6); the write it drops is still say.
+    from: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512, remove: 512, paste: 131_072, rename: 2_048 } as const);',
+    to: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, keys: 16_384, start: 512, remove: 512, paste: 131_072, rename: 2_048 } as const);',
     needs: ['gate']
   },
   {
@@ -2306,8 +2343,9 @@ const ABLATIONS = [
     file: ROUTES,
     // Phase 346 made start the interface's last member (D12).
     // Phase 348 made paste the interface's last member (D26).
-    from: '  paste(input: PocketPasteInput, still: PocketStillAllowed): Promise<PocketPasteOutcome>;\n}',
-    to: '  paste(input: PocketPasteInput, still: PocketStillAllowed): Promise<PocketPasteOutcome>;\n  restore(input: { sessionId: string }): Promise<PocketEndOutcome>;\n}',
+    // Phase 349 made rename the interface's last member (build/p349/SPEC.md §4.2 step 4).
+    from: '  rename(input: { sessionId: string; name: string }): Promise<PocketRenameOutcome>;\n}',
+    to: '  rename(input: { sessionId: string; name: string }): Promise<PocketRenameOutcome>;\n  restore(input: { sessionId: string }): Promise<PocketEndOutcome>;\n}',
     needs: ['gate']
   },
   {
@@ -2860,8 +2898,9 @@ const ABLATIONS = [
     file: LIMITS,
     // Phase 346 put start on this line (D6).
     // Phase 348 put remove and paste on this line (D29).
-    from: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512, remove: 512, paste: 131_072 } as const);',
-    to: 'export const POCKET_WRITE_BODY_CAPS = { end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512, remove: 512, paste: 131_072 } as const;',
+    // Phase 349 put rename on this line (build/p349/SPEC.md D6).
+    from: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512, remove: 512, paste: 131_072, rename: 2_048 } as const);',
+    to: 'export const POCKET_WRITE_BODY_CAPS = { end: 512, choose: 512, say: 32_768, keys: 16_384, start: 512, remove: 512, paste: 131_072, rename: 2_048 } as const;',
     needs: ['gate']
   },
   {
@@ -6430,8 +6469,9 @@ const ABLATIONS = [
     why: 'D4: describePocketDoor names the clauses in this order, so start is said last on the Allow line; R2 compares the set sorted and cannot see this.',
     file: SHARED,
     // Phase 348 appended remove and paste after start (D26).
-    from: "export const POCKET_WRITE_ROUTE_IDS = ['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste'] as const",
-    to: "export const POCKET_WRITE_ROUTE_IDS = ['start', 'end', 'choose', 'say', 'keys', 'remove', 'paste'] as const",
+    // Phase 349 appended rename after paste (build/p349/SPEC.md §4.1).
+    from: "export const POCKET_WRITE_ROUTE_IDS = ['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste', 'rename'] as const",
+    to: "export const POCKET_WRITE_ROUTE_IDS = ['start', 'end', 'choose', 'say', 'keys', 'remove', 'paste', 'rename'] as const",
     needs: ['gate']
   },
   {
@@ -6956,8 +6996,9 @@ const ABLATIONS = [
     why: '§4.12: the door hands main a write only for an id on its own list.',
     file: WIRE,
     // Phase 348 put remove and paste after start on this line (§4.2 step 2).
-    from: "const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste'];",
-    to: "const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say', 'keys', 'remove', 'paste'];",
+    // Phase 349 put rename after them (build/p349/SPEC.md §4.1 step 2).
+    from: "const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste', 'rename'];",
+    to: "const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say', 'keys', 'remove', 'paste', 'rename'];",
     needs: ['gate']
   },
   {
@@ -6976,9 +7017,11 @@ const ABLATIONS = [
     name: 'a route after start',
     why: 'Phase 346 adds start, last, and nothing else.',
     file: SHARED,
-    // Phase 348 appended remove and paste after start (D26); a route after paste is the plant.
-    from: /'paste'\n\] as const;/,
-    to: () => "'paste',\n  'restart'\n] as const;",
+    // Phase 348 appended remove and paste after start (D26); Phase 349
+    // appended rename after paste (build/p349/SPEC.md §4.1); a route after
+    // rename is the plant.
+    from: /'rename'\n\] as const;/,
+    to: () => "'rename',\n  'restart'\n] as const;",
     needs: ['gate']
   },
   {
@@ -7028,8 +7071,9 @@ const ABLATIONS = [
     name: 'the remove cap doubled',
     why: 'D29: 512 holds the worst legal Remove body (185 bytes) twice over; a larger cap is bytes the door reads for a stranger with nothing to say.',
     file: LIMITS,
-    from: 'start: 512, remove: 512, paste: 131_072 }',
-    to: 'start: 512, remove: 1_024, paste: 131_072 }',
+    // Phase 349 put rename after paste on this line (build/p349/SPEC.md D6).
+    from: 'start: 512, remove: 512, paste: 131_072, rename: 2_048 }',
+    to: 'start: 512, remove: 1_024, paste: 131_072, rename: 2_048 }',
     needs: ['gate']
   },
   {
@@ -7059,8 +7103,9 @@ const ABLATIONS = [
     name: 'paste said before remove among the writes',
     why: 'D26: describePocketDoor names the clauses in POCKET_WRITE_ROUTE_IDS’s order, so the Allow line says remove, then paste, last; a sorted comparison cannot see the order.',
     file: SHARED,
-    from: "'start', 'remove', 'paste'] as const satisfies",
-    to: "'start', 'paste', 'remove'] as const satisfies",
+    // Phase 349 appended rename after paste (build/p349/SPEC.md §4.1).
+    from: "'start', 'remove', 'paste', 'rename'] as const satisfies",
+    to: "'start', 'paste', 'remove', 'rename'] as const satisfies",
     needs: ['gate']
   },
   {
@@ -7317,8 +7362,9 @@ const ABLATIONS = [
     name: 'the paste cap halved',
     why: 'D29, §2.2: the worst legal paste body, 16,384 bytes of control characters each escaped as \\u00XX, is 98,566 bytes; a cap under it drops at the door a body the verb would answer in words.',
     file: LIMITS,
-    from: 'remove: 512, paste: 131_072 }',
-    to: 'remove: 512, paste: 65_536 }',
+    // Phase 349 put rename after paste on this line (build/p349/SPEC.md D6).
+    from: 'remove: 512, paste: 131_072, rename: 2_048 }',
+    to: 'remove: 512, paste: 65_536, rename: 2_048 }',
     needs: ['gate']
   },
   {
@@ -7360,8 +7406,10 @@ const ABLATIONS = [
     name: 'paste listed before remove among the routes',
     why: 'D26: the route ids end start, remove, paste, in the order the phases added them, and every list that says them follows it.',
     file: SHARED,
-    from: /  'remove',\n(  \/\*\* `POST \/v1\/paste`[^\n]*\n)  'paste'\n\] as const;/,
-    to: (_m, comment) => `  'paste',\n${comment}  'remove'\n] as const;`,
+    // Phase 349 appended rename after paste (build/p349/SPEC.md §4.1), so
+    // the swap is of the two before it.
+    from: /  'remove',\n(  \/\*\* `POST \/v1\/paste`[^\n]*\n)  'paste',\n/,
+    to: (_m, comment) => `  'paste',\n${comment}  'remove',\n`,
     needs: ['gate']
   },
   {
@@ -7823,8 +7871,9 @@ const ABLATIONS = [
     name: 'an eighth member on PocketWrites',
     why: '§4.2 step 4: PocketWrites holds exactly the seven writes; a member past paste is a verb the door could reach that no Allow line names.',
     file: ROUTES,
-    from: '  paste(input: PocketPasteInput, still: PocketStillAllowed): Promise<PocketPasteOutcome>;\n}',
-    to: '  paste(input: PocketPasteInput, still: PocketStillAllowed): Promise<PocketPasteOutcome>;\n  restore(input: { sessionId: string }): Promise<PocketRemoveOutcome>;\n}',
+    // Phase 349 made rename the interface's last member (build/p349/SPEC.md §4.2 step 4).
+    from: '  rename(input: { sessionId: string; name: string }): Promise<PocketRenameOutcome>;\n}',
+    to: '  rename(input: { sessionId: string; name: string }): Promise<PocketRenameOutcome>;\n  restore(input: { sessionId: string }): Promise<PocketRemoveOutcome>;\n}',
     needs: ['gate']
   },
   {
@@ -7855,8 +7904,9 @@ const ABLATIONS = [
     name: 'paste taken off the door’s write list',
     why: '§4.2 step 2: the door hands main a write only for an id on its own list; off it, every paste is refused with no words.',
     file: WIRE,
-    from: "const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste'];",
-    to: "const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say', 'keys', 'start', 'remove'];",
+    // Phase 349 put rename after paste on this line (build/p349/SPEC.md §4.1 step 2).
+    from: "const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste', 'rename'];",
+    to: "const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say', 'keys', 'start', 'remove', 'rename'];",
     needs: ['gate']
   },
   {
@@ -7866,8 +7916,9 @@ const ABLATIONS = [
     name: 'the face’s paste row reworded',
     why: 'D32: the face says each route in its own short words, once; a reworded row is a fact the face no longer says as the Allow line does.',
     file: SHARED,
-    from: "  paste: 'paste into a session'\n});",
-    to: "  paste: 'paste into sessions'\n});",
+    // Phase 349 put rename's row after paste's (build/p349/SPEC.md D10).
+    from: "  paste: 'paste into a session',\n",
+    to: "  paste: 'paste into sessions',\n",
     needs: ['gate']
   },
   {
@@ -8091,8 +8142,10 @@ const ABLATIONS = [
     name: 'the paste handed a still that is always yes',
     why: 'D50 step 5: the paste reads the session before it types, and asks the door’s four again with nothing awaited before its act; a still that is always yes types for a phone removed while the paste read.',
     file: WRITES,
-    from: '{ sessionId: parsed.session, text: parsed.text, turn: parsed.turn, dialog: parsed.dialog },\n                        still\n',
-    to: '{ sessionId: parsed.session, text: parsed.text, turn: parsed.turn, dialog: parsed.dialog },\n                        () => true\n',
+    // Phase 349 nested the paste's act one arm deeper, after rename's
+    // (build/p349/SPEC.md §4.2 step 3), so its lines moved right.
+    from: '{ sessionId: parsed.session, text: parsed.text, turn: parsed.turn, dialog: parsed.dialog },\n                          still\n',
+    to: '{ sessionId: parsed.session, text: parsed.text, turn: parsed.turn, dialog: parsed.dialog },\n                          () => true\n',
     needs: ['gate']
   },
   {
@@ -8115,6 +8168,627 @@ const ABLATIONS = [
     from: "import { composePageSteps, spaceOf, type ComposedPage } from './compose';",
     to: "import { composePageSteps, marksRoadOf, spaceOf, type ComposedPage } from './compose';\nexport const PAGE_ROAD_NOW = marksRoadOf('3.7b');",
     needs: ['gate']
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 349 (build/p349/SPEC.md §7.1, §7.2): rename a session from the
+  // phone. One or more arms per RN rule, each red on the rule that owns it,
+  // and one per clause the phase widened. They run the read gate alone
+  // (`needs`), but the eight whose clause a live door must show too (a far
+  // ended session renamed, a session Tortie cannot see answered changed, the
+  // name handed over untrimmed, the verdict skipped, U+2028 let through, a
+  // rename beside another write on one session, a typed name in a log line,
+  // and the cap read one byte short in main), which run the hostile client
+  // beside it.
+  // -------------------------------------------------------------------------
+  {
+    n: 'RN1a',
+    rule: 'RN1',
+    name: 'the rename row made window-only',
+    why: '§4.1 step 2, D13: a rename is a write alive outside any pairing window, served only after the Allow whose lines name it; a window-only row is a write a stranger could reach as the code shows.',
+    file: TABLE,
+    from: "{ id: 'rename', method: 'POST', path: '/v1/rename', reads: false, windowOnly: false, signed: true }",
+    to: "{ id: 'rename', method: 'POST', path: '/v1/rename', reads: false, windowOnly: true, signed: true }",
+    needs: ['gate']
+  },
+  {
+    n: 'RN1b',
+    rule: 'RN1',
+    name: 'the honesty sentence’s rename clause widened',
+    why: 'D10: the sheet’s sentence says what the door lets a phone do in the Allow line’s own words, one string in three owners; "rename any session" says more than the gates allow.',
+    file: SHARED,
+    from: "  // says it, after paste.\n  rename: 'rename a session'\n",
+    to: "  // says it, after paste.\n  rename: 'rename any session'\n",
+    needs: ['gate']
+  },
+  {
+    n: 'RN1c',
+    rule: 'RN1',
+    alsoRed: ['R2', 'Y1', 'Z2'],
+    name: 'the rename cap below twice the worst legal body',
+    why: 'D6, §2.4: 2,048 is more than twice the worst legal rename body (915 bytes), so a body of the legal shape reaches main and is answered in words; at 1,024 the door drops a name the rule would answer.',
+    file: LIMITS,
+    from: 'paste: 131_072, rename: 2_048 }',
+    to: 'paste: 131_072, rename: 1_024 }',
+    needs: ['gate']
+  },
+  {
+    n: 'RN1d',
+    rule: 'RN1',
+    name: 'the face’s rename row claiming Face ID',
+    why: 'D8, his rulings ("Only for End", "No Face ID, just confirm"): a rename asks no owner check and the Mac cannot verify one, so no word may say it does.',
+    file: SHARED,
+    from: "  rename: 'rename sessions'\n",
+    to: "  rename: 'rename sessions after Face ID'\n",
+    needs: ['gate']
+  },
+  {
+    n: 'RN1e',
+    rule: 'RN1',
+    name: 'rename let into the legacy allowed set',
+    why: '333.12, his answer 10, D13: a person who allowed the door before Rename existed never read a line naming it, so rename WAITS for the Allow that does; in the legacy set it is served without being asked.',
+    file: SHARED,
+    from: "  'pair',\n  'say',\n  'screen',",
+    to: "  'pair',\n  'rename',\n  'say',\n  'screen',",
+    needs: ['gate']
+  },
+  {
+    n: 'RN1f',
+    rule: 'RN1',
+    name: 'the New: line’s rename sentence reworded',
+    why: 'D10: the waiting route’s sentence says both things it lets a phone do, name a session as it starts and rename one later; a sentence that drops one is a grant the person reads and the door does not keep.',
+    file: SHARED,
+    from: "    sentence: 'Name a session as you start it, or rename one later.'",
+    to: "    sentence: 'Your phone can rename sessions.'",
+    needs: ['gate']
+  },
+  {
+    n: 'RN2a',
+    rule: 'RN2',
+    alsoRed: ['X2'],
+    name: 'a lock let into the rename body’s keys',
+    why: 'D6: the body is exactly {name, session, write}; an old name riding along is a lock nobody offered, and the last rename wins, as between two Mac windows.',
+    file: WRITES,
+    from: "const RENAME_KEYS = 'name,session,write';",
+    to: "const RENAME_KEYS = 'name,old,session,write';",
+    needs: ['gate']
+  },
+  {
+    n: 'RN2b',
+    rule: 'RN2',
+    name: 'the rename body held to its own bytes',
+    why: 'D6: an escaped character is legal in a name, so the rename body is NOT held to onlyItsOwnBytes; held to it, a name the phone’s encoder wrote with an escape is refused malformed, in no words.',
+    file: WRITES,
+    from: '  if (body.byteLength > POCKET_WRITE_BODY_CAPS.rename) return { ok: false, write };',
+    to: '  if (body.byteLength > POCKET_WRITE_BODY_CAPS.rename || !onlyItsOwnBytes(value, body)) return { ok: false, write };',
+    needs: ['gate']
+  },
+  {
+    n: 'RN2c',
+    rule: 'RN2',
+    name: 'the name trimmed in the parse',
+    why: '§4.2 step 1: the name is taken AS IT IS and trimmed by the verb as the Mac trims it; a parse that trims answers the rule over a name the phone did not send.',
+    file: WRITES,
+    from: "  const name = value['name'];\n  if (write === '' || !isSessionId(session) || typeof name !== 'string') return { ok: false, write };",
+    to: "  const name = typeof value['name'] === 'string' ? value['name'].trim() : value['name'];\n  if (write === '' || !isSessionId(session) || typeof name !== 'string') return { ok: false, write };",
+    needs: ['gate']
+  },
+  {
+    n: 'RN2d',
+    rule: 'RN2',
+    name: 'the rename’s session id read as any string',
+    why: '§4.2 step 1: the session id is read one character at a time by isSessionId; any string is a path, a NUL or a 600-byte id handed to the verb.',
+    file: WRITES,
+    from: "  if (write === '' || !isSessionId(session) || typeof name !== 'string') return { ok: false, write };",
+    to: "  if (write === '' || typeof session !== 'string' || typeof name !== 'string') return { ok: false, write };",
+    needs: ['gate']
+  },
+  {
+    n: 'RN3a',
+    rule: 'RN3',
+    name: 'a sixth rename reason',
+    why: '§4.1 step 1: PocketRenameReason is the five words main can mean; a reason no refusal sets is a word a phone shows for a state that cannot happen.',
+    file: SHARED,
+    from: "export type PocketRenameReason = 'malformed' | 'gone' | 'unreachable' | 'changed' | 'name';",
+    to: "export type PocketRenameReason = 'malformed' | 'gone' | 'unreachable' | 'changed' | 'name' | 'taken';",
+    needs: ['gate']
+  },
+  {
+    n: 'RN3b',
+    rule: 'RN3',
+    name: 'the door’s busy answered with a name',
+    why: 'D21: name is a non-empty string exactly when the outcome is done; a busy carrying one tells the phone a rename landed when nothing was renamed.',
+    file: WRITES,
+    from: "  if (verb === 'rename') return renameAnswer(write, outcome, reason, sentence, null);",
+    to: "  if (verb === 'rename') return renameAnswer(write, outcome, reason, sentence, '');",
+    needs: ['gate']
+  },
+  {
+    n: 'RN3c',
+    rule: 'RN3',
+    name: 'a seventh field on PocketRenameAnswer',
+    why: '§4.1 step 1, D8: the six fields are all of it, and nothing that could claim Face ID happened or say what the name was before.',
+    file: SHARED,
+    from: '  name: string | null;\n}',
+    to: '  name: string | null;\n  was: string | null;\n}',
+    needs: ['gate']
+  },
+  {
+    n: 'RN4a',
+    rule: 'RN4',
+    name: 'a done with an empty name answered done',
+    why: 'D21: a done whose name is not a non-empty string reads failed with RENAME_FAILED, so the answer’s name is a non-empty string exactly when it says done, and a phone never draws a blank row.',
+    file: WRITES,
+    from: "    if (typeof name !== 'string' || name.length === 0) {\n      return { outcome: 'failed', answer: renameAnswer(write, 'failed', null, RENAME_FAILED, null) };\n    }",
+    to: "    if (typeof name !== 'string') {\n      return { outcome: 'failed', answer: renameAnswer(write, 'failed', null, RENAME_FAILED, null) };\n    }",
+    needs: ['gate']
+  },
+  {
+    n: 'RN4b',
+    rule: 'RN4',
+    name: 'the rename handed the session id alone',
+    why: '§4.2 step 3: the act hands the verb the session id and the name as sent, and nothing else; a name dropped there is refused in words the phone never earned.',
+    file: WRITES,
+    from: 'renameSettled(() => writes.rename({ sessionId: parsed.session, name: parsed.name }), parsed.write)',
+    to: "renameSettled(() => writes.rename({ sessionId: parsed.session, name: '' }), parsed.write)",
+    needs: ['gate']
+  },
+  {
+    n: 'RN4c',
+    rule: 'RN4',
+    name: 'the rename body read by the paste’s parse',
+    why: '§4.2 step 3: step 1’s ladder names rename explicitly and paste stays the fall-through; without its arm every rename is read as a paste and refused malformed.',
+    file: WRITES,
+    from: "                : verb === 'rename'\n                  ? parseRenameBody(body)\n                  : parsePasteBody(body);",
+    to: '                : parsePasteBody(body);',
+    needs: ['gate']
+  },
+  {
+    n: 'RN5a',
+    rule: 'RN5',
+    alsoRed: ['hostile'],
+    name: 'the far arm dropped from the rename verdict',
+    why: 'D3, the attack it exists for: the Mac’s own rename refuses a far session that ended during this run and renames one that ended before in this Mac’s records alone, so a phone that renames there sees a name the machine never kept.',
+    file: POCKET_WRITES,
+    from: "    if (!runsNow) return { ok: false, reason: 'changed', sentence: LIFECYCLE_SESSION_CHANGED };",
+    to: '    void runsNow;',
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'RN5b',
+    rule: 'RN5',
+    alsoRed: ['X5'],
+    name: 'the rename verdict asking the gate with End’s environment',
+    why: 'D4: the door asks canRename of its OWN named environment, the third, beside DOOR_GATE_ENV and DOOR_REMOVE_GATE_ENV, so each of the door’s asks has one environment and a test holds each.',
+    file: POCKET_WRITES,
+    from: 'sessionActionGates(session, session.status, DOOR_RENAME_GATE_ENV).canRename',
+    to: 'sessionActionGates(session, session.status, DOOR_GATE_ENV).canRename',
+    needs: ['gate']
+  },
+  {
+    n: 'RN5c',
+    rule: 'RN5',
+    name: 'DOOR_RENAME_GATE_ENV that may discard',
+    why: 'D4: a rename restores, removes and starts nothing, so every field of its environment is off; one on is a grant the next gate field reads without anyone asking.',
+    file: SESSION_GATES,
+    from: 'export const DOOR_RENAME_GATE_ENV: SessionGateEnv = Object.freeze({\n  canRestore: false,\n  canDiscard: false,',
+    to: 'export const DOOR_RENAME_GATE_ENV: SessionGateEnv = Object.freeze({\n  canRestore: false,\n  canDiscard: true,',
+    needs: ['gate']
+  },
+  {
+    n: 'RN5d',
+    rule: 'RN5',
+    alsoRed: ['hostile'],
+    name: 'a session Tortie cannot see answered changed',
+    why: '§10.3: a row Tortie cannot see is unreachable, and the phone says so in those words; changed tells him the session moved when Tortie only lost sight of it.',
+    file: POCKET_WRITES,
+    from: "    return { ok: false, reason: 'unreachable', sentence: RENAME_UNREACHABLE };",
+    to: "    return { ok: false, reason: 'changed', sentence: LIFECYCLE_SESSION_CHANGED };",
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'RN5e',
+    rule: 'RN5',
+    name: 'the shared gate dropped from the rename verdict',
+    why: 'D4: Rename is offered where the Mac’s own Rename is, and a removed session is not one; without the gate a phone renames a row the Mac has taken out of its lists.',
+    file: POCKET_WRITES,
+    from: '  const canRename = sessionActionGates(session, session.status, DOOR_RENAME_GATE_ENV).canRename;',
+    to: '  const canRename = session.status !== undefined;',
+    needs: ['gate']
+  },
+  {
+    n: 'RN6a',
+    rule: 'RN6',
+    alsoRed: ['hostile'],
+    name: 'the name handed to the Mac’s rename untrimmed',
+    why: 'D5, §4.3 step 4: the verb hands the Mac’s own rename the name trimmed as the Mac trims it; untrimmed, a phone stores a name with spaces the desk never would.',
+    file: POCKET_WRITES,
+    from: 'await core.renameSession({ sessionId: input.sessionId, name: trimmedSessionName(input.name) })',
+    to: 'await core.renameSession({ sessionId: input.sessionId, name: input.name })',
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'RN6b',
+    rule: 'RN6',
+    alsoRed: ['X5'],
+    name: 'an await between the rename’s verdict and its verb',
+    why: '§4.3 step 4: nothing is awaited between the verdict and the Mac’s own rename, or the row could end on its machine, or be removed, and be renamed after its verdict passed.',
+    file: POCKET_WRITES,
+    from: "        // THE MAC'S OWN RENAME, the first await in this function.\n        const renamed = await core.renameSession(",
+    to: '        await Promise.resolve();\n        const renamed = await core.renameSession(',
+    needs: ['gate']
+  },
+  {
+    n: 'RN6c',
+    rule: 'RN6',
+    alsoRed: ['X5', 'hostile'],
+    name: 'the rename verdict skipped',
+    why: '§4.3 step 4: the verdict comes first, the gate, D3’s far arm and the one name rule; skipped, a phone renames a far ended session and stores a name holding a control.',
+    file: POCKET_WRITES,
+    from: "        const verdict = renameVerdict(session, input.name);\n        if (!verdict.ok) return { outcome: 'refused', reason: verdict.reason, sentence: verdict.sentence };\n",
+    to: '        void session;\n',
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'RN7a',
+    rule: 'RN7',
+    name: 'a caught error’s text read in the rename',
+    why: '§4.3 step 4: a thrown rename is told apart by its code alone, because a failed command’s text carries its argv, and so the name.',
+    file: POCKET_WRITES,
+    from: '      } catch (err) {\n        return renameThrownOutcome(err);\n      }',
+    to: "      } catch (err) {\n        void (err instanceof Error ? err.message : '');\n        return renameThrownOutcome(err);\n      }",
+    needs: ['gate']
+  },
+  {
+    n: 'RN7b',
+    rule: 'RN7',
+    name: 'a thrown rename told apart by its text',
+    why: '§4.3 step 4: read by its text, the verb’s own throw for a session that was simply gone answers failed, and a far error naming the session reads as gone.',
+    file: POCKET_WRITES,
+    from: "function renameThrownOutcome(err: unknown): PocketRenameOutcome {\n  if (isGmuxError(err, 'SESSION_NOT_FOUND')) {",
+    to: 'function renameThrownOutcome(err: unknown): PocketRenameOutcome {\n  if (err instanceof Error && /not found/i.test(err.message)) {',
+    needs: ['gate']
+  },
+  {
+    n: 'RN7c',
+    rule: 'RN7',
+    name: 'a session that left its machine’s list answered failed',
+    why: '§4.3 step 4: INVALID_INPUT is the row leaving a far machine’s list after the verdict (TARGET_UNBOUND), so the session changed under the press; failed tells him something broke.',
+    file: POCKET_WRITES,
+    from: "  if (isGmuxError(err, 'INVALID_INPUT')) {\n    return { outcome: 'refused', reason: 'changed', sentence: LIFECYCLE_SESSION_CHANGED };\n  }\n  return { outcome: 'failed', sentence: RENAME_FAILED };",
+    to: "  return { outcome: 'failed', sentence: RENAME_FAILED };",
+    needs: ['gate']
+  },
+  {
+    n: 'RN8a',
+    rule: 'RN8',
+    name: 'a status set in the rename’s path',
+    why: 'CLAUDE.md refusal 5, D8: needs input is only ever caused by the session; a rename that notes user input moves a status the Mac’s own rename never moves.',
+    file: POCKET_WRITES,
+    from: "        return { outcome: 'done', name: renamed.name };",
+    to: "        core.noteUserInput(input.sessionId);\n        return { outcome: 'done', name: renamed.name };",
+    needs: ['gate']
+  },
+  {
+    n: 'RN8b',
+    rule: 'RN8',
+    name: 'a log line in the rename’s path',
+    why: '§4.3 step 4, G1: the one line a write gets is the door’s, its verb, its outcome word and the session id; a line in the verb is one nobody reads for a name.',
+    file: POCKET_WRITES,
+    from: "        return { outcome: 'done', name: renamed.name };",
+    to: "        console.log('the phone renamed a session');\n        return { outcome: 'done', name: renamed.name };",
+    needs: ['gate']
+  },
+  {
+    n: 'RN8c',
+    rule: 'RN8',
+    name: 'a rename sentence asking for Face ID',
+    why: 'D8, his rulings ("Only for End", "No Face ID, just confirm"): a rename asks no owner check, so no word in its path names one.',
+    file: POCKET_WRITES,
+    from: "      if (core === null) return { outcome: 'failed', sentence: RENAME_FAILED };",
+    to: "      if (core === null) return { outcome: 'failed', sentence: 'Confirm with Face ID, then try again.' };",
+    needs: ['gate']
+  },
+  {
+    n: 'RN9a',
+    rule: 'RN9',
+    name: 'the name bound moved to 200',
+    why: 'D5: the bound is 120 UTF-16 units, the Mac sheet’s own field; a phone that stores 200 stores a name the desk cannot type.',
+    file: SESSION_NAMES,
+    from: 'export const SESSION_NAME_MAX_UNITS = 120;',
+    to: 'export const SESSION_NAME_MAX_UNITS = 200;',
+    needs: ['gate']
+  },
+  {
+    n: 'RN9b',
+    rule: 'RN9',
+    alsoRed: ['hostile'],
+    name: 'U+2028 let through the name rule',
+    why: 'D5: a line separator in a name breaks the row it is drawn on and the alert title it heads; refused, a phone is told so in words.',
+    file: SESSION_NAMES,
+    from: '  return unit === 0x2028 || unit === 0x2029; // line and paragraph separators',
+    to: '  return unit === 0x2029; // line and paragraph separators',
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'RN9c',
+    rule: 'RN9',
+    name: 'the empty-name sentence reworded',
+    why: '§5.1: the rule’s first sentence is the Mac’s own throw of a blank name, byte for byte, so the phone and the desk say one thing; reworded, the two drift.',
+    file: SESSION_NAMES,
+    from: "export const SESSION_NAME_EMPTY = 'Session name cannot be empty.';",
+    to: "export const SESSION_NAME_EMPTY = 'Give the session a name.';",
+    needs: ['gate']
+  },
+  {
+    n: 'RN9d',
+    rule: 'RN9',
+    name: 'the name rule read by the Mac’s own rename too',
+    why: '§4.3 step 1, §12: on the Mac the door’s verb alone reads the rule, and the Mac’s own Rename keeps its rules; read there too, the desk refuses a name it stored the day before.',
+    file: CORE,
+    from: "    if (input.name.trim().length === 0) {\n      throw gmuxError('INVALID_INPUT', 'Session name cannot be empty.');\n    }",
+    to: "    if (sessionNameRefusal(input.name) !== null) {\n      throw gmuxError('INVALID_INPUT', 'Session name cannot be empty.');\n    }",
+    needs: ['gate']
+  },
+  {
+    n: 'RN9e',
+    rule: 'RN9',
+    name: 'a pattern in the name rule',
+    why: 'D5: the rule reads one code unit at a time, so its Swift copy can be held to it unit for unit; a pattern is a second grammar nobody compares.',
+    file: SESSION_NAMES,
+    from: '  if (unit <= 0x1f) return true; // C0, TAB, LF and CR included',
+    to: '  if (/[\\u0000-\\u001f]/.test(String.fromCharCode(unit))) return true; // C0, TAB, LF and CR included',
+    needs: ['gate']
+  },
+  {
+    n: 'RN10a',
+    rule: 'RN10',
+    name: 'the rename offer made whatever was allowed',
+    why: 'D13, §4.2 step 6: a Mac whose Allow waits offers no Rename; offering one draws a row whose write the door then refuses 404, with no words.',
+    file: CAPABILITIES,
+    from: 'renameOffer: (session) => pocketHost?.renameAllowed() === true && pocketWrites.renameOffer(session),',
+    to: 'renameOffer: (session) => pocketWrites.renameOffer(session),',
+    needs: ['gate']
+  },
+  {
+    n: 'RN10b',
+    rule: 'RN10',
+    name: 'renames put after start',
+    why: 'D2, D12, NS9: renames sits beside start and before it, so start stays the Sessions answer’s last key and a fault in one never hides the other.',
+    file: ROUTES,
+    from: "        ...(facts.renames?.() === true ? { renames: true } : {}),\n        ...(start !== undefined ? { start } : {})",
+    to: "        ...(start !== undefined ? { start } : {}),\n        ...(facts.renames?.() === true ? { renames: true } : {})",
+    needs: ['gate']
+  },
+  {
+    n: 'RN10c',
+    rule: 'RN10',
+    name: 'a far rename’s warning logging the error’s text',
+    why: '§4.3 step 7: an exec error’s text carries the command, and so the name a phone typed; a warning logs the error’s code and never its text.',
+    file: REMOTE_SESSIONS,
+    from: "        `${gmuxErrorPayloadOf(err)?.code ?? 'unknown'}`\n    );\n  });",
+    to: "        `${(err as Error).message}`\n    );\n  });",
+    needs: ['gate']
+  },
+  {
+    n: 'RN10d',
+    rule: 'RN10',
+    name: 'renameAllowed answering yes',
+    why: 'D13, §4.2 step 6: renameAllowed is the served set’s own answer; a constant yes offers Rename and Name on a Mac whose Allow waits.',
+    file: IPC,
+    from: "  renameAllowed(): boolean {\n    return this.routeServed('rename');",
+    to: '  renameAllowed(): boolean {\n    return true;',
+    needs: ['gate']
+  },
+  {
+    n: 'RN10e',
+    rule: 'RN10',
+    name: 'a row’s rename set whatever the offer answered',
+    why: 'D14: a row carries rename exactly when the one implementation answered exactly true; set on the facts’ presence alone, every row offers Rename, the removed and the far ended among them.',
+    file: ROUTES,
+    from: "    // answered exactly true, which it asks only while `rename` is served.\n    ...(facts.renameOffer?.(session) === true ? { rename: true } : {})",
+    to: "    // answered exactly true, which it asks only while `rename` is served.\n    ...(facts.renameOffer !== undefined ? { rename: true } : {})",
+    needs: ['gate']
+  },
+  {
+    n: 'RN10f',
+    rule: 'RN10',
+    name: 'the production facts dropping the rename offer',
+    why: '§4.2 step 6: createPocketFacts hands the routes the very read it was handed; dropped, no row ever offers Rename, and a phone a person allowed shows none.',
+    file: FACTS,
+    from: '    ...(deps.renameOffer !== undefined ? { renameOffer: deps.renameOffer } : {}),\n',
+    to: '',
+    needs: ['gate']
+  },
+  // The clauses Phase 349 widened, one arm each.
+  {
+    n: 'R2r',
+    rule: 'R2',
+    name: 'the rename row claiming to be a read',
+    why: 'a row that says it is a read and is not a GET is a write nobody counted; the writes are exactly the eight (§4.1 step 2).',
+    file: TABLE,
+    from: "{ id: 'rename', method: 'POST', path: '/v1/rename', reads: false,",
+    to: "{ id: 'rename', method: 'POST', path: '/v1/rename', reads: true,",
+    needs: ['gate']
+  },
+  {
+    n: 'R3r',
+    rule: 'R3',
+    name: 'the door’s write path naming the Mac’s own rename',
+    why: 'his request of 2026-10-19: the door reaches a rename only through PocketWrites.rename, implemented outside its directory after the gate and the one name rule; a door that names renameSession holds the verb itself.',
+    file: WRITES,
+    from: "const RENAME_ACT_FAILED: PocketRenameOutcome = Object.freeze({ outcome: 'failed', sentence: RENAME_FAILED });",
+    to: "const RENAME_ACT_FAILED: PocketRenameOutcome = Object.freeze({ outcome: 'failed', sentence: RENAME_FAILED });\nexport const P349_MAC_RENAME = 'renameSession';",
+    needs: ['gate']
+  },
+  {
+    n: 'R4r',
+    rule: 'R4',
+    alsoRed: ['RN1'],
+    name: 'the rename row at another path',
+    why: '§2.4, §7.1: the table’s membership is pinned at fifteen, 3ba0fec5…; a route moved is a visible edit to the pin, and the phone’s rename would answer 404.',
+    file: TABLE,
+    from: "{ id: 'rename', method: 'POST', path: '/v1/rename',",
+    to: "{ id: 'rename', method: 'POST', path: '/v1/renames',",
+    needs: ['gate']
+  },
+  {
+    n: 'X1r',
+    rule: 'X1',
+    name: 'the rename’s settle function awaiting before it starts the rename',
+    why: '§4.2 step 3: the act starts in the statement after the last check; an await in its settle function is a window a removed phone’s rename acts through.',
+    file: WRITES,
+    from: 'function renameSettled(start: () => Promise<PocketRenameOutcome>, write: string): Promise<Acted> {\n  try {',
+    to: 'async function renameSettled(start: () => Promise<PocketRenameOutcome>, write: string): Promise<Acted> {\n  await Promise.resolve();\n  try {',
+    needs: ['gate']
+  },
+  {
+    n: 'X2r',
+    rule: 'X2',
+    alsoRed: ['RN2'],
+    name: 'the rename’s name parsed a second time',
+    why: '§4.2 step 1: a write body is parsed ONCE, through objectOf, inside a try; a second parse reads bytes the first never vouched for.',
+    file: WRITES,
+    from: "  const name = value['name'];\n  if (write === '' || !isSessionId(session) || typeof name !== 'string')",
+    to: "  const name = JSON.parse(JSON.stringify(value['name'])) as unknown;\n  if (write === '' || !isSessionId(session) || typeof name !== 'string')",
+    needs: ['gate']
+  },
+  {
+    n: 'X3r',
+    rule: 'X3',
+    name: 'a rename keyed in the ledger as a paste',
+    why: 'build/p318/SPEC.md D4: the same write id under another verb is its own write; keyed as a paste, a rename whose id a paste used is answered with the paste’s record and renames nothing.',
+    file: WRITES,
+    from: '    const key = keyOf(verifiedPhone, verb, parsed.write);',
+    to: "    const key = keyOf(verifiedPhone, verb === 'rename' ? 'paste' : verb, parsed.write);",
+    needs: ['gate']
+  },
+  {
+    n: 'X4r',
+    rule: 'X4',
+    alsoRed: ['hostile'],
+    name: 'a rename that skips the session’s in-flight claim',
+    why: '§4.2 step 3: one write is in flight per session ACROSS verbs, so an End and a rename never overlap on one session; a rename that skips the check renames a session an End is still ending.',
+    file: WRITES,
+    from: '    if (phonesInFlight.has(verifiedPhone) || sessionsInFlight.has(session)) {',
+    to: "    if (phonesInFlight.has(verifiedPhone) || (verb !== 'rename' && sessionsInFlight.has(session))) {",
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'X5r',
+    rule: 'X5',
+    name: 'a rename retried in its thrown handler',
+    why: '§4.3 step 4: renameSession is called once, inside rename, right after the verdict; a retry after INVALID_INPUT renames a far row that just left its machine’s list.',
+    file: POCKET_WRITES,
+    from: '      } catch (err) {\n        return renameThrownOutcome(err);\n      }',
+    to: '      } catch (err) {\n        await core.renameSession({ sessionId: input.sessionId, name: trimmedSessionName(input.name) });\n        return renameThrownOutcome(err);\n      }',
+    needs: ['gate']
+  },
+  {
+    n: 'X6r',
+    rule: 'X6',
+    name: 'a literal sentence handed to the rename’s answer',
+    why: '§5.1: every sentence the write path says is a named constant from the copy modules; a literal is a sentence nobody reviewed and no gate holds.',
+    file: WRITES,
+    from: "  return { outcome: 'failed', answer: renameAnswer(write, 'failed', null, RENAME_FAILED, null) };\n}",
+    to: "  return { outcome: 'failed', answer: renameAnswer(write, 'failed', null, 'It did not rename.', null) };\n}",
+    needs: ['gate']
+  },
+  {
+    n: 'X12r',
+    rule: 'X12',
+    alsoRed: ['RN1'],
+    name: 'the Allow line’s rename clause widened to every session',
+    why: 'D10: the line names what each write lets a phone do in its own words, "rename a session"; a clause never widens under its id.',
+    file: PAIRING,
+    from: "  rename: 'rename a session'",
+    to: "  rename: 'rename sessions'",
+    needs: ['gate']
+  },
+  {
+    n: 'Y1r',
+    rule: 'Y1',
+    alsoRed: ['R2', 'Z2', 'RN1'],
+    name: 'the caps object without rename',
+    why: 'D6: every write has its own cap in the closed caps object; without one the door has no number to drop a rename body at.',
+    file: LIMITS,
+    from: 'paste: 131_072, rename: 2_048 }',
+    to: 'paste: 131_072 }',
+    needs: ['gate']
+  },
+  {
+    n: 'NS1r',
+    rule: 'NS1',
+    name: 'the face’s rename row said before its paste row',
+    why: 'D10: the face says start, then remove, then paste, then rename, in the order the phases added them, as the Allow line does.',
+    file: SHARED,
+    from: "  paste: 'paste into a session',\n  // PHASE 349 (build/p349/SPEC.md D10): Rename's.\n  rename: 'rename sessions'\n",
+    to: "  // PHASE 349 (build/p349/SPEC.md D10): Rename's.\n  rename: 'rename sessions',\n  paste: 'paste into a session'\n",
+    needs: ['gate']
+  },
+  {
+    n: 'NS11r',
+    rule: 'NS11',
+    alsoRed: ['X5'],
+    name: 'PocketWrites without rename',
+    why: '§4.2 step 4: PocketWrites holds exactly the eight writes; without rename the door holds a route no member answers.',
+    file: ROUTES,
+    from: '  rename(input: { sessionId: string; name: string }): Promise<PocketRenameOutcome>;\n}',
+    to: '}',
+    needs: ['gate']
+  },
+  {
+    n: 'AR9r',
+    rule: 'AR9',
+    alsoRed: ['RN1'],
+    name: 'the ledger’s rename row given another cap',
+    why: '333.12 D12, D6: an allowed id’s meaning is written once, and its cap is the door’s.',
+    file: LEDGER,
+    from: "path: '/v1/rename', reads: false, signed: true, windowOnly: false, bodyCap: 2048,",
+    to: "path: '/v1/rename', reads: false, signed: true, windowOnly: false, bodyCap: 4096,",
+    needs: ['gate']
+  },
+  {
+    n: 'AF2r',
+    rule: 'AF2',
+    alsoRed: ['RN1'],
+    name: 'the face’s rename row reworded',
+    why: 'D10: the face says each route in its own short words, once; a reworded row is a fact the face no longer says as the Allow line does.',
+    file: SHARED,
+    from: "  rename: 'rename sessions'\n",
+    to: "  rename: 'rename the sessions'\n",
+    needs: ['gate']
+  },
+  {
+    n: 'Z1r',
+    rule: 'Z1',
+    alsoRed: ['RN1'],
+    name: 'rename taken off the door’s write list',
+    why: '§4.1 step 2: the door hands main a write only for an id on its own list; off it, every rename is refused with no words.',
+    file: WIRE,
+    from: "const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste', 'rename'];",
+    to: "const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste'];",
+    needs: ['gate']
+  },
+  {
+    n: 'G1r',
+    rule: 'G1',
+    alsoRed: ['hostile'],
+    name: 'a log line naming the rename’s name',
+    why: '§6 item 1, G1: a name a phone typed is a person’s words, as a message is, and no log line holds one; read off the code, so err.name and the word in prose stay clean.',
+    file: WRITES,
+    from: '      logWrite(verb, done.outcome, session, pending.at, keysLoggedAt);\n',
+    to: "      logWrite(verb, done.outcome, session, pending.at, keysLoggedAt);\n      if (parsed.verb === 'rename') pocketLog.info(`the phone's rename: named`, { session, name: parsed.name });\n",
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'RNHw',
+    rule: 'hostile',
+    name: 'the rename cap read one byte short in main',
+    why: 'D6: a body of exactly 2,048 bytes is inside the cap the door holds, so main reads it and answers the name in words; one byte short, the body the door let through is refused malformed, in no words.',
+    file: WRITES,
+    from: '  if (body.byteLength > POCKET_WRITE_BODY_CAPS.rename) return { ok: false, write };',
+    to: '  if (body.byteLength >= POCKET_WRITE_BODY_CAPS.rename) return { ok: false, write };',
+    needs: ['gate', 'hostile']
   }
 ];
 
@@ -8122,7 +8796,9 @@ const ABLATIONS = [
 // The clone, and the checks run inside it
 // ---------------------------------------------------------------------------
 
-const scratch = mkdtempSync(join('/private/tmp', `p313-ablation-${String(process.pid)}-`));
+// PHASE 349: under P313_SCRATCH when the caller names one, else /private/tmp
+// as before. The directory must exist; the clone is made inside it.
+const scratch = mkdtempSync(join(process.env['P313_SCRATCH'] ?? '/private/tmp', `p313-ablation-${String(process.pid)}-`));
 const sha = (buf) => createHash('sha256').update(buf).digest('hex');
 
 function buildClone() {
@@ -8245,7 +8921,7 @@ const clean = () => {
   try {
     rmSync(scratch, { recursive: true, force: true });
   } catch {
-    /* under /private/tmp; not fatal */
+    /* a scratch directory; not fatal */
   }
 };
 for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {

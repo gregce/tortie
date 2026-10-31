@@ -91,6 +91,17 @@
  * `screenWrapsOf` and `scrollbackWrapsOf` read a list of marks, any list that
  * is not ascending in range reading as no marks rather than as a refusal
  * (D43).
+ *
+ * PHASE 349 (build/p349/SPEC.md §4.1, §4.2, §4.4, D14, D21): the rename.
+ * `renameSession` is `POST /v1/rename`, the body `{ name, session, write }`
+ * sorted (`renameBodyOf`), the name exactly as given, through the same
+ * `signedPost` with a fresh write id unless the caller hands one;
+ * `renameAnswerOf` reads its answer the phone's way (six fields, a name
+ * exactly when done, the reason an OPEN word); `rowRenameOf` reads a row's
+ * `rename` STRICTLY, as the phone decodes it, and `sessionsRenamesOf` the
+ * Sessions answer's `renames` LENIENTLY, beside `start`. Started directly with
+ * `--self-test`, this file proves those readers on answers it writes itself and
+ * opens no socket; imported, it runs nothing.
  */
 
 import {
@@ -107,7 +118,9 @@ import {
   verify as verifyWith
 } from 'node:crypto';
 import { request as httpsRequest } from 'node:https';
+import { resolve as resolvePath } from 'node:path';
 import { connect as tlsConnect } from 'node:tls';
+import { fileURLToPath } from 'node:url';
 
 export const b64u = (buf) => Buffer.from(buf).toString('base64url');
 export const shaHex = (data) => createHash('sha256').update(data).digest('hex');
@@ -642,6 +655,93 @@ function ownWriteAnswerOf(answer, sentWrite, verb) {
 export const removeAnswerOf = (answer, sentWrite) => ownWriteAnswerOf(answer, sentWrite, 'remove');
 /** A paste's answer (`PocketPasteAnswer`), read the phone's way. */
 export const pasteAnswerOf = (answer, sentWrite) => ownWriteAnswerOf(answer, sentWrite, 'paste');
+
+// ---------------------------------------------------------------------------
+// Phase 349's write (build/p349/SPEC.md §4.1, §4.2, D6, D14, D21)
+// ---------------------------------------------------------------------------
+
+/**
+ * A rename's body the phone's way (Phase 349, §4.2 step 1, D6): exactly
+ * `{ name, session, write }`, its keys sorted, the name exactly as given and
+ * never trimmed, normalized or judged here; `swiftSlashes: true` writes `/` as
+ * `\/`, as the phone's encoder does (build/p318/SPEC.md §5.1.3).
+ */
+export const renameBodyOf = ({ name, session, write }, { swiftSlashes = false } = {}) => writeBodyOf({ name, session, write }, { swiftSlashes });
+
+/**
+ * `POST /v1/rename` (Phase 349, §4.2 step 1, D6): rename ONE session to the name
+ * given. The Mac trims it as it trims a name and its one rule answers in
+ * words, so nothing here decides whether a name is one the Mac takes, and an
+ * arm can send one the Mac must refuse. A fresh write id every press unless
+ * the caller hands one (the phone keeps none). Answers `request`'s reading
+ * with the write id it sent.
+ */
+export async function renameSession(phone, door, { session, name, write = freshWriteId(), swiftSlashes = false, ...options } = {}) {
+  const fields = { name, session, write };
+  const body = options.body ?? renameBodyOf(fields, { swiftSlashes });
+  const answer = await signedPost(phone, door, '/v1/rename', fields, { ...options, body });
+  return { ...answer, write };
+}
+
+/** The outcomes a rename answer may carry (§4.1 step 1). Its `reason` is read as an OPEN word. */
+export const RENAME_OUTCOMES = REMOVE_OUTCOMES;
+
+/**
+ * A rename's answer, read the way the phone must (SPEC §4.1 step 1, D21):
+ * exactly the six fields `verb, write, outcome, reason, sentence, name` in that
+ * order, `verb` `rename`, a closed outcome, a `reason` that is a non-empty
+ * string exactly when `refused` (an OPEN word: a later Mac may add one), a
+ * sentence exactly when not `done`, and a `name`, a non-empty string,
+ * exactly when `done` (the name main stored, which the phone draws); the echo
+ * equal to the id sent, or `""` with `refused` and `malformed`, the one answer
+ * that cannot echo. Anything else is `{ ok: false }` with a reason, which the
+ * phone reads as no answer.
+ */
+export function renameAnswerOf(answer, sentWrite) {
+  if (answer?.status !== 200) return { ok: false, why: `status ${String(answer?.status)}${answer?.error ? ` (${answer.error})` : ''}` };
+  let body;
+  try {
+    body = JSON.parse(answer.body);
+  } catch {
+    return { ok: false, why: 'the body is not JSON' };
+  }
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) return { ok: false, why: 'the body is not an object' };
+  const keys = J(Object.keys(body));
+  if (keys !== J(['verb', 'write', 'outcome', 'reason', 'sentence', 'name'])) return { ok: false, why: `the keys are ${keys}` };
+  if (body.verb !== 'rename') return { ok: false, why: `verb ${J(body.verb)}` };
+  if (typeof body.write !== 'string') return { ok: false, why: 'the write id is not a string' };
+  if (!RENAME_OUTCOMES.includes(body.outcome)) return { ok: false, why: `outcome ${J(body.outcome)}` };
+  if (body.reason !== null && (typeof body.reason !== 'string' || body.reason === '')) return { ok: false, why: `reason ${J(body.reason)}` };
+  if ((body.outcome === 'refused') !== (body.reason !== null)) return { ok: false, why: 'a reason without a refusal, or a refusal without a reason' };
+  if (body.sentence !== null && (typeof body.sentence !== 'string' || body.sentence === '')) return { ok: false, why: `sentence ${J(body.sentence)}` };
+  if ((body.outcome === 'done') !== (body.sentence === null)) return { ok: false, why: 'a sentence on done, or none on anything else' };
+  if (body.name !== null && (typeof body.name !== 'string' || body.name === '')) return { ok: false, why: `name ${J(body.name)}` };
+  if ((body.outcome === 'done') !== (body.name !== null)) return { ok: false, why: 'a name on an answer that is not done, or none on done (D21)' };
+  const echoed = body.write === sentWrite || (body.write === '' && body.outcome === 'refused' && body.reason === 'malformed');
+  if (!echoed) return { ok: false, why: 'the echo is not the write id sent' };
+  return { ok: true, why: '', answer: body };
+}
+
+/**
+ * A row's `rename` (a `/v1/blocked` or `/v1/sessions` row, or the detail), read
+ * as the phone decodes it, STRICTLY (§4.4, D14: `decodeIfPresent(Bool) ?? false`):
+ * absent or null is no Rename, a Bool is itself, and anything else refuses
+ * the WHOLE answer the row is in (`ok: false`).
+ */
+export function rowRenameOf(row) {
+  if (row === null || typeof row !== 'object' || Array.isArray(row)) return { ok: false, rename: false, why: 'the row is not an object' };
+  if (!Object.hasOwn(row, 'rename') || row.rename === null) return { ok: true, rename: false, why: '' };
+  if (typeof row.rename !== 'boolean') return { ok: false, rename: false, why: `rename ${J(row.rename)} is not a Bool, so the answer is refused whole` };
+  return { ok: true, rename: row.rename, why: '' };
+}
+
+/**
+ * The Sessions answer's `renames`, read as the phone reads it, LENIENTLY and
+ * beside `start` (§4.4, D2, bb5): exactly `true` is a Mac that renames, and
+ * anything else, a wrong type included, is one that does not; it never
+ * refuses the answer, so a fault in it never hides the list or the `+`.
+ */
+export const sessionsRenamesOf = (answer) => answer !== null && typeof answer === 'object' && !Array.isArray(answer) && answer.renames === true;
 
 // ---------------------------------------------------------------------------
 // The wire. 127.0.0.1 and nothing else, ever.
@@ -1252,4 +1352,64 @@ export function rawExchange({ door, bytes, identity = null, pin = door?.pin, tim
     socket.on('close', () => finish(null));
     socket.on('error', (err) => finish(String(err?.message ?? err)));
   });
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 349: the self-test, only when this file is started directly
+// ---------------------------------------------------------------------------
+
+/**
+ * `node build/p316/node-phone.mjs --self-test`: the rename's readers proved on
+ * answers written here, each check one clause, and the body's bytes. It opens
+ * no socket and starts nothing. Imported (every probe, the hostile door), this
+ * file runs nothing, whatever flags its importer was started with.
+ */
+async function renameSelfTest() {
+  const results = [];
+  const check = (what, ok) => results.push({ what, ok: ok === true });
+  const w = 'a'.repeat(32);
+  const reply = (fields) => ({ status: 200, body: J(fields) });
+  const answer = (over) => reply({ verb: 'rename', write: w, outcome: 'done', reason: null, sentence: null, name: 'nightly', ...over });
+  const take = (a) => renameAnswerOf(a, w).ok;
+  check('a done naming what main stored is read', take(answer({})));
+  check('a refusal in words is read', take(answer({ outcome: 'refused', reason: 'name', sentence: 'That name is too long.', name: null })));
+  check('a failure in words is read', take(answer({ outcome: 'failed', sentence: 'Tortie could not rename this session.', name: null })));
+  check('a busy is read', take(answer({ outcome: 'busy', sentence: 'busy', name: null })));
+  check('the malformed answer, echoing no id, is read', take(answer({ write: '', outcome: 'refused', reason: 'malformed', sentence: 'unreadable', name: null })));
+  check('a reason a later Mac adds is read, an open word', take(answer({ outcome: 'refused', reason: 'sideways', sentence: 'not yet', name: null })));
+  check('a done with no name is no answer (D21)', !take(answer({ name: null })));
+  check('a done with an empty name is no answer (D21)', !take(answer({ name: '' })));
+  check('a refusal carrying a name is no answer (D21)', !take(answer({ outcome: 'refused', reason: 'changed', sentence: 'moved', name: 'nightly' })));
+  check('a failure carrying a name is no answer (D21)', !take(answer({ outcome: 'failed', sentence: 'no', name: 'nightly' })));
+  check('another verb is no answer', !take(answer({ verb: 'end' })));
+  check('another write id is no answer', !take(answer({ write: 'b'.repeat(32) })));
+  check('the six fields out of order are no answer', !take(reply({ write: w, verb: 'rename', outcome: 'done', reason: null, sentence: null, name: 'nightly' })));
+  check('a seventh field is no answer', !take(answer({ was: 'old' })));
+  check('a 404 is no answer', !renameAnswerOf({ status: 404, body: '' }, w).ok);
+  check('a body that is not JSON is no answer', !renameAnswerOf({ status: 200, body: '{"verb"' }, w).ok);
+  check('a sentence on done is no answer', !take(answer({ sentence: 'done it' })));
+  check('an empty echo with any other refusal is no answer', !take(answer({ write: '', outcome: 'refused', reason: 'changed', sentence: 'moved', name: null })));
+  check('a row with no rename offers none', rowRenameOf({ sessionId: 's' }).ok && rowRenameOf({ sessionId: 's' }).rename === false);
+  check('a row whose rename is null offers none', rowRenameOf({ sessionId: 's', rename: null }).ok && rowRenameOf({ sessionId: 's', rename: null }).rename === false);
+  check('a row whose rename is true offers it', rowRenameOf({ sessionId: 's', rename: true }).ok && rowRenameOf({ sessionId: 's', rename: true }).rename === true);
+  check('a row whose rename is not a Bool refuses its answer whole', !rowRenameOf({ sessionId: 's', rename: 'true' }).ok && !rowRenameOf({ sessionId: 's', rename: 1 }).ok);
+  check('renames true is a Mac that renames', sessionsRenamesOf({ rows: [], renames: true }));
+  check('any other renames is a Mac that does not, never a refusal', [undefined, null, false, 'true', 1, [true]].every((v) => sessionsRenamesOf({ rows: [], renames: v }) === false));
+  check(
+    'the body is exactly name, session and write, sorted, the name as given and a slash as Swift writes it',
+    renameBodyOf({ write: w, session: 's1', name: '  a/b  ' }, { swiftSlashes: true }).toString('utf8') === `{"name":"  a\\/b  ","session":"s1","write":"${w}"}`
+  );
+  const failed = results.filter((r) => !r.ok);
+  for (const r of failed) process.stdout.write(`[p316 node-phone] FAIL: ${r.what}\n`);
+  process.stdout.write(
+    failed.length === 0
+      ? `[p316 node-phone] SELF-TEST PASS: ${String(results.length)} checks of the rename's readers and its body, no socket opened.\n`
+      : `[p316 node-phone] SELF-TEST FAIL: ${String(failed.length)} of ${String(results.length)}.\n`
+  );
+  return failed.length === 0;
+}
+
+const startedDirectly = process.argv[1] !== undefined && resolvePath(process.argv[1]) === fileURLToPath(import.meta.url);
+if (startedDirectly && process.argv.includes('--self-test')) {
+  process.exit((await renameSelfTest()) ? 0 : 1);
 }

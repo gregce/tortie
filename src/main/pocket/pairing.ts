@@ -427,6 +427,9 @@ export interface PocketDoorSummary {
  * `start`, in that order, the same way. `paste` says "on this Mac" because a
  * paste reaches sessions on this Mac only in this phase (D22): a clause never
  * widens under its id, so a later far paste takes a route of its own.
+ *
+ * `rename` (Phase 349, build/p349/SPEC.md D10) is said after `paste`, the
+ * same way. Once committed its words never change under this id.
  */
 export const WRITE_CLAUSES: Readonly<Record<PocketWriteRouteId, string>> = Object.freeze({
   end: 'end a session',
@@ -435,7 +438,8 @@ export const WRITE_CLAUSES: Readonly<Record<PocketWriteRouteId, string>> = Objec
   keys: 'type into any session as you would at this Mac',
   start: 'start a session in a project open in Tortie, on this Mac or another machine',
   remove: 'remove a session that has ended',
-  paste: 'paste text into a session on this Mac'
+  paste: 'paste text into a session on this Mac',
+  rename: 'rename a session'
 });
 
 /**

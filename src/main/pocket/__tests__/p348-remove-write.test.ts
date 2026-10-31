@@ -99,7 +99,9 @@ function rig(): Rig {
       self.removes.push(input);
       return self.removeWith();
     },
-    paste: async () => ({ outcome: 'failed', sentence: 'not in this test' })
+    paste: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
+    // Phase 349's rename, which this test never reaches.
+    rename: async () => ({ outcome: 'failed', sentence: 'not in this test' })
   };
   self.handle = createPocketWriteHandler({
     shuttingDown: () => false,
@@ -125,8 +127,9 @@ describe('the route and its words (D9, D26, D32)', () => {
     ]);
     const ids = POCKET_ROUTES.map((r) => r.id);
     expect(ids.indexOf('remove')).toBe(ids.indexOf('start') + 1);
-    expect(pocket.POCKET_ROUTE_IDS.slice(-3)).toEqual(['start', 'remove', 'paste']);
-    expect(pocket.POCKET_WRITE_ROUTE_IDS).toEqual(['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste']);
+    // Phase 349 appended rename after paste (build/p349/SPEC.md §4.1).
+    expect(pocket.POCKET_ROUTE_IDS.slice(-4)).toEqual(['start', 'remove', 'paste', 'rename']);
+    expect(pocket.POCKET_WRITE_ROUTE_IDS).toEqual(['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste', 'rename']);
     // Not one of the eleven every older store was allowed: it waits for its own Allow.
     expect((pocket.LEGACY_ALLOWED_ROUTES as readonly string[]).includes('remove')).toBe(false);
     // Not a write the frozen phones read PocketWriteAnswer for (gate:onlyadd A3).

@@ -25,7 +25,9 @@
  * `sessionMenuItems` reads this predicate, the sheet's visible button reads
  * it, the batch reads it, every `*Now` verb in the sessions slice asks its own
  * field of it over a fresh row before it touches the bridge, and the phone's
- * door asks `canEnd` of it with {@link DOOR_GATE_ENV}.
+ * door asks `canEnd` of it with {@link DOOR_GATE_ENV}, `canRemove` with
+ * {@link DOOR_REMOVE_GATE_ENV} (Phase 348) and `canRename` with
+ * {@link DOOR_RENAME_GATE_ENV} (Phase 349), and nothing else of any.
  *
  * `conformance:manager` holds it: G1 drives it, G2 drives the End partition
  * against main's `endRefusal` and requires the exact difference, T24 refuses a
@@ -319,7 +321,10 @@ export function sessionActionGates(
  * environment the door asks `canEnd` and nothing else, and `canEnd` reads none
  * of these: a test holds that over every status and every environment. Since
  * Phase 348 the door asks `canRemove` too, and only of
- * {@link DOOR_REMOVE_GATE_ENV}, never of this one, which does not move.
+ * {@link DOOR_REMOVE_GATE_ENV}, never of this one, which does not move. Since
+ * Phase 349 it asks `canRename` too, and only of {@link DOOR_RENAME_GATE_ENV}:
+ * `canEnd` of the first, `canRemove` of the second and `canRename` of the
+ * third, and nothing else of any.
  */
 export const DOOR_GATE_ENV: SessionGateEnv = Object.freeze({
   canRestore: false,
@@ -337,11 +342,32 @@ export const DOOR_GATE_ENV: SessionGateEnv = Object.freeze({
  * gate is the only lock, because main's `removeRefusal` passes every remote
  * record (ruling R11), so a remote row the phone names while it runs is
  * refused here and never tombstoned. Restore stays off: the phone restores
- * nothing.
+ * nothing. Since Phase 349 the door asks `canRename` of
+ * {@link DOOR_RENAME_GATE_ENV}, never of this one: `canEnd` of the first,
+ * `canRemove` of this one and `canRename` of the third, and nothing else of
+ * any.
  */
 export const DOOR_REMOVE_GATE_ENV: SessionGateEnv = Object.freeze({
   canRestore: false,
   canDiscard: true,
+  shellPathReady: false,
+  handback: undefined
+});
+
+/**
+ * THE THIRD ENVIRONMENT THE PHONE'S DOOR ASKS THE GATE WITH (Phase 349,
+ * build/p349/SPEC.md D4, §4.3 step 2). Of THIS environment the door asks
+ * `canRename` and nothing else, and `canRename` reads none of ANY environment:
+ * it is `acts`, a row that is neither unknown nor removed, and a test holds it
+ * to one answer over every status, every environment and all three of the
+ * door's. It is a name of its own, beside the first two, so each of the door's
+ * three questions names the environment it is asked of, and Phase 348's two
+ * keep "nothing else of either". Restore, Remove and the shell path stay off:
+ * a rename restores, removes and starts nothing.
+ */
+export const DOOR_RENAME_GATE_ENV: SessionGateEnv = Object.freeze({
+  canRestore: false,
+  canDiscard: false,
   shellPathReady: false,
   handback: undefined
 });

@@ -15527,8 +15527,13 @@ const P337_KEY_NAMES = (() => {
       if (!/dollarOnRead\s*\?\s*withDollarUndone\(listed\)\s*:\s*listed/.test(sessions)) fail("the feed's pass does not undo 3.4's dollar ONLY behind dollarOnRead (D13).");
       if (!/quirks\?\.dollarOnRead\s*===\s*true/.test(sessions)) fail('the pass does not read dollarOnRead from the server\'s row (D13).');
     }
+    // PHASE 349 (build/p349/SPEC.md D16), MOVED ON PURPOSE: the remote restore
+    // no longer maps `$` by hand; it composes the record's far name through the
+    // create's own far rule, `farTmuxName` (every `$` as `_`, and D7 with it),
+    // with nothing taken, so it dedupes against nothing but a reserved name, as
+    // today. `ablation:p342` arm b148e is the attack on this clause.
     const restoreText = textOfFile(RESTORE);
-    if (restoreText !== null && !/const tmuxName = \(record\.tmuxName\.length > 0 \? record\.tmuxName : record\.name\)\.replace\(\s*\/\\\$\/g\s*,\s*'_'\s*\)/.test(restoreText)) fail('the remote restore does not map $ to _ in the record\'s name (D12).');
+    if (restoreText !== null && !/const tmuxName = farTmuxName\(record\.tmuxName\.length > 0 \? record\.tmuxName : record\.name, new Set\(\)\);/.test(restoreText)) fail('the remote restore does not compose the record\'s far name by farTmuxName with nothing taken, so $ is not _ and D7 is not applied there (D12; build/p349/SPEC.md D16).');
     const stripUsers = filesNaming('stripJoinedPadding').sort();
     if (J(stripUsers) !== J([CAPSULE, HISTORY].sort())) fail(`stripJoinedPadding is named in ${J(stripUsers)}; it is applied at exactly the capsule's two captures and the joined history copy, and nowhere else (D14, §Attack F8).`);
     const capsule = codeOf(CAPSULE);

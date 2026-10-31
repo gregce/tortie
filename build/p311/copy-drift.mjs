@@ -33,7 +33,8 @@
  * 316.7's Sessions tab, its menu and its older-Mac face, twenty-two since
  * Phase 333.3's See a sample, twenty-three since Phase 345's Macs,
  * twenty-four since Phase 348's TerminalMenuRemove, the ⋯ of a session that
- * has ended) through
+ * has ended, twenty-six since Phase 349's Rename sheet and a held row's menu)
+ * through
  * `<iframe src="…">` and its own prose is
  * commentary about the mock. It
  * is exempt as a class, with that reason, and the exemption is paid for: the run
@@ -364,6 +365,26 @@ const LEDGER = [
     needle: '<h2 className="modal-title">New session</h2>',
     draws: 'New session',
     why: "the spoken name of the \"+\" alone at the trailing edge of Sessions' own bar (build/p348/SPEC.md D16), the Mac's own ⌘T sheet title, which Copy.swift's newSession is pinned to"
+  }),
+  // PHASE 349 (build/p349/SPEC.md D1, D11, §4.5 step 6): Rename, the ⋯'s
+  // second item (TerminalMenu.html, TerminalMenuRemove.html), a held row's
+  // one item (RowMenu.html) and the title of the sheet both open
+  // (Rename.html), the Mac's own session menu word; and the sheet's press,
+  // Save name, the Mac's own inline rename press. Copy.swift's rename and
+  // saveName are pinned to the same two needles.
+  owned({
+    is: 'Rename',
+    module: 'src/renderer/app/session-actions.tsx',
+    needle: "label: 'Rename',",
+    draws: 'Rename',
+    why: "the ⋯ menu's second item, a held row's one item and the title of the sheet they open, the Mac's own session menu word; nothing it opens asks Face ID, Touch ID or the passcode (his ruling, “No Face ID, just confirm”)"
+  }),
+  owned({
+    is: 'Save name',
+    module: MANAGER_COPY,
+    needle: "SAVE_NAME = 'Save name'",
+    draws: 'Save name',
+    why: "the Rename sheet's press, the Mac's own inline rename press (src/renderer/session-manager/InlinePanel.tsx), drawn off while the name is the one the session already has"
   }),
   owned({
     is: 'Sessions',
@@ -1411,7 +1432,13 @@ const OWED_ABSENCE_FLOOR = 16;
    the phone's own word in Copy.swift; build/p345/SPEC.md §3.7. The cap's
    sentence and the refused Mac's line are drawn by no screen at rest, so
    MACS_PHONE_WORDS holds them against Copy.swift instead. */
-const OWNED_RULE_FLOOR = 109;
+/* PHASE 349 RAISED IT BY FOUR, FROM 109 TO 113, the count the run matches:
+   Phase 348's two, Remove (the ended session's ⋯ item) and New session (the
+   "+"'s spoken name), which joined without the floor moving, and Phase 349's
+   two, Rename (the ⋯'s second item, a held row's one item and the Rename
+   sheet's title) and Save name (the sheet's press), each the Mac's own word;
+   build/p349/SPEC.md §4.5 step 6, §6 item 8. */
+const OWNED_RULE_FLOOR = 113;
 
 // ---------------------------------------------------------------------------
 // Judgement
@@ -1602,6 +1629,11 @@ function checkContactSheet(names, sheet) {
  * Catch Me Up BEFORE End session…; Landscape.html draws no ⋯ and no word of
  * the bars (the tabs, Catch Me Up, End, End session…). Pure over the screens
  * so the self-test can mutate one in memory.
+ *
+ * PHASE 349 (build/p349/SPEC.md D1, D11, §4.5 step 6): both ⋯ mocks draw
+ * Rename SECOND, after Catch Me Up and before End session… or Remove;
+ * Rename.html's bar reads Cancel, Rename then Save name, Cancel leading and
+ * the press trailing; and RowMenu.html's held row's menu holds Rename alone.
  */
 const TERMINAL_FACES = Object.freeze({
   more: 'More',
@@ -1610,8 +1642,36 @@ const TERMINAL_FACES = Object.freeze({
   endSessionMenu: 'End session…',
   // PHASE 348 (build/p348/SPEC.md D4, D33): the ⋯ of a session that has ended.
   remove: 'Remove',
+  // PHASE 349 (build/p349/SPEC.md D1, D11): the ⋯'s second item, a held row's
+  // one item, and the Rename sheet's bar.
+  rename: 'Rename',
+  cancel: 'Cancel',
+  saveName: 'Save name',
   tabs: ['Needs input', 'Sessions', 'Settings']
 });
+
+/**
+ * The menu items one mock's `role="menu"` block draws, in order, each its
+ * words: the iPhone's own long-press menu, which RowMenu.html draws open.
+ * Null when the mock draws no menu.
+ */
+function menuItems(source) {
+  const open = source.indexOf('role="menu"');
+  if (open === -1) return null;
+  const start = source.lastIndexOf('<div', open);
+  let depth = 0;
+  let end = -1;
+  for (const m of source.slice(start).matchAll(/<\/?div\b[^>]*>/g)) {
+    depth += m[0].startsWith('</') ? -1 : 1;
+    if (depth === 0) {
+      end = start + m.index + m[0].length;
+      break;
+    }
+  }
+  if (end === -1) return null;
+  const block = source.slice(start, end);
+  return [...block.matchAll(/<a\b[^>]*role="menuitem"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => tidy(m[1].replace(/<svg\b[\s\S]*?<\/svg>/gi, ' ').replace(/<[^>]*>/g, ' ')));
+}
 function checkTerminalFaces(screens) {
   const findings = [];
   const page = (name) => screens.get(name) ?? '';
@@ -1630,6 +1690,9 @@ function checkTerminalFaces(screens) {
   const catchUpAt = menu.indexOf(`>${TERMINAL_FACES.catchMeUp}<`);
   const endAt = menu.indexOf(`>${TERMINAL_FACES.endSessionMenu}<`);
   if (catchUpAt === -1 || endAt === -1 || catchUpAt > endAt) findings.push({ file: 'TerminalMenu.html', text: `${TERMINAL_FACES.catchMeUp} then ${TERMINAL_FACES.endSessionMenu}`, why: 'the menu holds Catch Me Up and then End session…, in that order (build/p3373/SPEC.md D22)' });
+  // PHASE 349 (build/p349/SPEC.md D1): Rename is the SECOND item, between them.
+  const renameAt = menu.indexOf(`>${TERMINAL_FACES.rename}<`);
+  if (catchUpAt === -1 || renameAt === -1 || endAt === -1 || !(catchUpAt < renameAt && renameAt < endAt)) findings.push({ file: 'TerminalMenu.html', text: `${TERMINAL_FACES.catchMeUp}, ${TERMINAL_FACES.rename} then ${TERMINAL_FACES.endSessionMenu}`, why: "the ⋯ holds Catch Me Up, then Rename, then End session…: Rename is the second item and End's does not move (build/p349/SPEC.md D1)" });
   // PHASE 348 (build/p348/SPEC.md §6, D4, D33): the ⋯ of a session that has
   // ended reads Catch Me Up and then Remove, in End session…'s place, and
   // offers no End at all; TerminalMenu.html above keeps Catch Me Up then End
@@ -1642,9 +1705,29 @@ function checkTerminalFaces(screens) {
     const catchAt = removeMenu.indexOf(`>${TERMINAL_FACES.catchMeUp}<`);
     const removeAt = removeMenu.indexOf(`>${TERMINAL_FACES.remove}<`);
     if (catchAt === -1 || removeAt === -1 || catchAt > removeAt) findings.push({ file: 'TerminalMenuRemove.html', text: `${TERMINAL_FACES.catchMeUp} then ${TERMINAL_FACES.remove}`, why: 'the ⋯ of a session that has ended holds Catch Me Up and then Remove, in that order, Remove where End session… was (build/p348/SPEC.md D4, D33)' });
+    // PHASE 349 (build/p349/SPEC.md D1, D3): Rename second here too, before Remove.
+    const renamedAt = removeMenu.indexOf(`>${TERMINAL_FACES.rename}<`);
+    if (catchAt === -1 || renamedAt === -1 || removeAt === -1 || !(catchAt < renamedAt && renamedAt < removeAt)) findings.push({ file: 'TerminalMenuRemove.html', text: `${TERMINAL_FACES.catchMeUp}, ${TERMINAL_FACES.rename} then ${TERMINAL_FACES.remove}`, why: "the ⋯ of a session that has ended holds Catch Me Up, then Rename, then Remove: Rename is the second item and Remove's does not move (build/p349/SPEC.md D1)" });
     for (const word of [TERMINAL_FACES.endSessionMenu, TERMINAL_FACES.endTop]) {
       if (drawsWord(removeMenu, word)) findings.push({ file: 'TerminalMenuRemove.html', text: word, why: 'a session that has ended offers no End; Remove took its place (build/p348/SPEC.md D4)' });
     }
+  }
+  // PHASE 349 (build/p349/SPEC.md D11, §4.5 step 6): the Rename sheet at open
+  // reads Cancel, Rename then Save name, Cancel leading and the Mac's press
+  // trailing, as New session's sheet lays its bar out.
+  if (!screens.has('Rename.html')) {
+    findings.push({ file: 'Rename.html', text: 'Rename.html', why: 'the Rename sheet has no mock frame (build/p349/SPEC.md §4.5 step 6)' });
+  } else {
+    const sheet = page('Rename.html');
+    const at = [TERMINAL_FACES.cancel, TERMINAL_FACES.rename, TERMINAL_FACES.saveName].map((word) => sheet.indexOf(`>${word}<`));
+    if (at.includes(-1) || !(at[0] < at[1] && at[1] < at[2])) findings.push({ file: 'Rename.html', text: `${TERMINAL_FACES.cancel}, ${TERMINAL_FACES.rename} then ${TERMINAL_FACES.saveName}`, why: "the Rename sheet's bar reads Cancel, the Mac's Rename as its title, then the Mac's Save name (build/p349/SPEC.md D11)" });
+  }
+  // PHASE 349 (build/p349/SPEC.md D1): a held row's menu holds Rename alone.
+  if (!screens.has('RowMenu.html')) {
+    findings.push({ file: 'RowMenu.html', text: 'RowMenu.html', why: "a held row's menu has no mock frame (build/p349/SPEC.md §4.5 step 6)" });
+  } else {
+    const items = menuItems(page('RowMenu.html'));
+    if (items === null || items.length !== 1 || items[0] !== TERMINAL_FACES.rename) findings.push({ file: 'RowMenu.html', text: `${TERMINAL_FACES.rename} alone`, why: `a held row's long-press menu holds Rename alone, and it draws ${JSON.stringify(items)} (build/p349/SPEC.md D1)` });
   }
   const landscape = page('Landscape.html');
   for (const word of [...TERMINAL_FACES.tabs, TERMINAL_FACES.catchMeUp, TERMINAL_FACES.endTop, TERMINAL_FACES.endSessionMenu]) {
@@ -1758,8 +1841,13 @@ function checkSampleFace(screens, rows = sampleStartRows()) {
    (Phases 345 and 346 added five and left the floor at 80), and five more,
    Paste, the Mac terminal menu's own word, Remove, the Mac session menu's, and
    the paste's three refusals, src/shared/screen-copy.ts's own sentences. Its
-   three other words are the phone's own, with a reason. */
-const PHONE_MAC_FLOOR = 90;
+   three other words are the phone's own, with a reason.
+   PHASE 349 RAISED IT FROM 90 TO 95 (build/p349/SPEC.md §5.2), the count the
+   run matches once the phase's words are folded into Copy.swift: Rename, the
+   Mac session menu's own word, Save name, the Mac's inline rename press, and
+   the name rule's three sentences, src/shared/session-names.ts's own. Its
+   sixth word, the rename not taken, is the phone's own, with a reason. */
+const PHONE_MAC_FLOOR = 95;
 /* PHASE 333.1 RAISED PHONE_NAMES_FLOOR FROM 7 TO 9, the count the run matches:
    the second step names Settings and Phone, and the Allow line under "could
    not reach" names Allow, Settings and Phone (build/p3331/SPEC.md §5.6.1). */
@@ -2124,6 +2212,85 @@ const P348_MUTATIONS = [
     swift: (t) => t,
     module: ['src/shared/screen-copy.ts', (t) => t.replace("PASTE_EMPTY = 'There is nothing to paste.'", "PASTE_EMPTY = 'Nothing to paste.'")],
     names: 'PASTE_EMPTY'
+  }
+];
+
+// ---------------------------------------------------------------------------
+// Phase 349's words (build/p349/SPEC.md §5.2)
+// ---------------------------------------------------------------------------
+
+/**
+ * RENAME, THE SIX WORDS THE PHASE ADDS, judged against Copy.swift whether or
+ * not a screen draws them, each with the owner line §5.2 spells for it: five
+ * are the Mac's own, each pinned `/// Mac:` to the file and the needle §5.2
+ * names (the generic judgement above holds the needle to the module); one is
+ * the phone's own, `/// Phone:` with a reason, because no Mac surface says it.
+ * Rename and Save name are drawn at rest (TerminalMenu.html,
+ * TerminalMenuRemove.html, RowMenu.html, Rename.html); the name rule's three
+ * sentences and the not-taken line are said only after a keystroke or a
+ * press, so this is where a drift in them is caught.
+ */
+export const P349_PHONE_WORDS = Object.freeze([
+  ['rename', 'Rename', ['src/renderer/app/session-actions.tsx', "label: 'Rename',"]],
+  ['saveName', 'Save name', ['src/renderer/session-manager/copy.ts', "SAVE_NAME = 'Save name'"]],
+  ['nameEmpty', 'Session name cannot be empty.', ['src/shared/session-names.ts', "SESSION_NAME_EMPTY = 'Session name cannot be empty.'"]],
+  ['nameTooLong', 'That name is too long.', ['src/shared/session-names.ts', "SESSION_NAME_TOO_LONG = 'That name is too long.'"]],
+  ['nameCharacter', 'That name holds a character Tortie does not use.', ['src/shared/session-names.ts', "SESSION_NAME_CHARACTER = 'That name holds a character Tortie does not use.'"]],
+  ['renameNotTaken', 'Your Mac did not rename it. Nothing was changed.', null]
+]);
+
+/** Judge Phase 349's words, pure over Copy.swift's text and a module reader. */
+function judgeP349Words(swift, readModule) {
+  const findings = [];
+  const { entries } = copySwiftEntries(swift);
+  for (const [name, literal, mac] of P349_PHONE_WORDS) {
+    const e = entries.find((x) => x.name === name);
+    if (e === undefined) {
+      findings.push({ file: PHONE_COPY, text: `static let ${name} = "${literal}"`, why: `the rename word ${name} is not declared, so the phone draws it from somewhere this gate cannot read (build/p349/SPEC.md §5.2)` });
+    } else if (e.literal !== literal) {
+      findings.push({ file: PHONE_COPY, text: e.literal, why: `${name} is ${JSON.stringify(e.literal)}; it is ${JSON.stringify(literal)}, the word build/p349/SPEC.md §5.2 pins` });
+    } else if (mac === null && e.owner?.kind !== 'phone') {
+      findings.push({ file: PHONE_COPY, text: name, why: `${name} is not declared /// Phone: with a reason; no Mac surface says it, so its reason is the ledger entry (build/p349/SPEC.md §5.2)` });
+    } else if (mac !== null && (e.owner?.kind !== 'mac' || e.owner.path !== mac[0] || e.owner.needle !== mac[1])) {
+      findings.push({ file: PHONE_COPY, text: name, why: `${name}'s owner line is ${JSON.stringify(e.owner)}; it is /// Mac: ${mac[0]} ⟦${mac[1]}⟧, the Mac's own word byte for byte (build/p349/SPEC.md §5.2)` });
+    } else if (mac !== null && !(readModule(mac[0]) ?? '').includes(mac[1])) {
+      findings.push({ file: mac[0], text: mac[1], why: `${PHONE_COPY}'s ${name} quotes this, and the Mac module no longer says it (build/p349/SPEC.md §5.2)` });
+    }
+  }
+  return findings;
+}
+
+/** The mutations that prove Phase 349's words are judged. */
+const P349_MUTATIONS = [
+  {
+    what: 'Rename re-worded on the phone',
+    swift: (t) => t.replace('static let rename = "Rename"', 'static let rename = "Rename session"'),
+    module: null,
+    names: 'rename'
+  },
+  {
+    what: "Save name declared the phone's own word rather than the Mac's",
+    swift: (t) => t.replace(/\/\/\/ Mac: src\/renderer\/session-manager\/copy\.ts ⟦SAVE_NAME = 'Save name'⟧\n(\s*)static let saveName = "Save name"/, '/// Phone: the Rename sheet\'s press\n$1static let saveName = "Save name"'),
+    module: null,
+    names: 'saveName'
+  },
+  {
+    what: "the too-long sentence re-worded on the phone",
+    swift: (t) => t.replace('static let nameTooLong = "That name is too long."', 'static let nameTooLong = "Too long."'),
+    module: null,
+    names: 'nameTooLong'
+  },
+  {
+    what: 'the Rename not taken line taken out of Copy.swift',
+    swift: (t) => t.replace(/\n(?:[^\n]*\/\/\/[^\n]*\n)+\s*static let renameNotTaken = "Your Mac did not rename it\. Nothing was changed\."\n/, '\n'),
+    module: null,
+    names: 'renameNotTaken'
+  },
+  {
+    what: 'the Mac re-words the empty-name sentence the phone copied',
+    swift: (t) => t,
+    module: ['src/shared/session-names.ts', (t) => t.replace("SESSION_NAME_EMPTY = 'Session name cannot be empty.'", "SESSION_NAME_EMPTY = 'A session needs a name.'")],
+    names: 'SESSION_NAME_EMPTY'
   }
 ];
 
@@ -2545,6 +2712,79 @@ const MUTATIONS = [
       return next;
     },
     names: 'End session…'
+  },
+  {
+    // Phase 349 (D1): Rename moved after End session… in the ⋯.
+    what: "the ⋯'s Rename drawn after End session…",
+    apply(screens) {
+      const next = new Map(screens);
+      const menu = next.get('TerminalMenu.html') ?? '';
+      next.set('TerminalMenu.html', menu.replace('>Rename<', '>\u0000<').replace('>End session…<', '>Rename<').replace('>\u0000<', '>End session…<'));
+      return next;
+    },
+    names: 'Catch Me Up, Rename then End session…'
+  },
+  {
+    // Phase 349 (D1): Rename moved after Remove in the ended session's ⋯.
+    what: "the ended session's Rename drawn after Remove",
+    apply(screens) {
+      const next = new Map(screens);
+      const menu = next.get('TerminalMenuRemove.html') ?? '';
+      next.set('TerminalMenuRemove.html', menu.replace('>Rename<', '>\u0000<').replace('>Remove<', '>Rename<').replace('>\u0000<', '>Remove<'));
+      return next;
+    },
+    names: 'Catch Me Up, Rename then Remove'
+  },
+  {
+    // Phase 349: Rename re-worded in the mock must go red against the Mac's word.
+    what: 'Rename re-worded in TerminalMenu.html',
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('TerminalMenu.html', (next.get('TerminalMenu.html') ?? '').replace('>Rename<', '>Rename…<'));
+      return next;
+    },
+    names: 'Rename…'
+  },
+  {
+    // Phase 349 (D11): Save name re-worded on the sheet.
+    what: 'Save name re-worded in Rename.html',
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('Rename.html', (next.get('Rename.html') ?? '').replace('>Save name<', '>Save<'));
+      return next;
+    },
+    names: 'Save'
+  },
+  {
+    // Phase 349 (D11): the sheet's bar with Save name leading and Cancel trailing.
+    what: "the Rename sheet's bar drawn the other way round",
+    apply(screens) {
+      const next = new Map(screens);
+      const sheet = next.get('Rename.html') ?? '';
+      next.set('Rename.html', sheet.replace('>Cancel<', '>\u0000<').replace('>Save name<', '>Cancel<').replace('>\u0000<', '>Save name<'));
+      return next;
+    },
+    names: 'Cancel, Rename then Save name'
+  },
+  {
+    // Phase 349 (D1): End session… offered beside Rename on a held row.
+    what: "End session… added to a held row's menu",
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('RowMenu.html', (next.get('RowMenu.html') ?? '').replace('<span>Rename</span>', '<span>Rename</span></a><a class="item" role="menuitem"><span>End session…</span>'));
+      return next;
+    },
+    names: 'Rename alone'
+  },
+  {
+    // Phase 349: the held row's Rename re-worded must go red against the Mac's word.
+    what: "the held row's Rename re-worded in RowMenu.html",
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('RowMenu.html', (next.get('RowMenu.html') ?? '').replace('<span>Rename</span>', '<span>Edit name</span>'));
+      return next;
+    },
+    names: 'Edit name'
   }
 ];
 
@@ -2583,6 +2823,23 @@ const MODULE_MUTATIONS = [
     module: PHONE_COPY,
     edit: (text) => text.replace('static let seeSample = "See a sample"', 'static let seeSample = "See a simple"'),
     names: 'static let seeSample = "See a sample"'
+  },
+  {
+    // Phase 349 (build/p349/SPEC.md D11): the Mac's session menu re-words
+    // Rename; the four mocks that draw it then name an owner that no longer
+    // says it.
+    what: "Rename re-worded in the Mac's session menu",
+    module: 'src/renderer/app/session-actions.tsx',
+    edit: (text) => text.replace("label: 'Rename',", "label: 'Rename…',"),
+    names: "label: 'Rename',"
+  },
+  {
+    // Phase 349 (build/p349/SPEC.md D11): the Mac's inline rename press
+    // re-cased; Rename.html then draws a word the Mac does not say.
+    what: "Save name re-cased in the session manager's copy",
+    module: MANAGER_COPY,
+    edit: (text) => text.replace("SAVE_NAME = 'Save name'", "SAVE_NAME = 'Save Name'"),
+    names: "SAVE_NAME = 'Save name'"
   }
 ];
 
@@ -2837,6 +3094,9 @@ function main() {
   // Phase 348's words: Remove's and the paste's eight, as §5.2 spells them.
   const p348Findings = judgeP348Words(phoneSwift, readModule);
   findings.push(...p348Findings);
+  // Phase 349's words: Rename's six, as build/p349/SPEC.md §5.2 spells them.
+  const p349Findings = judgeP349Words(phoneSwift, readModule);
+  findings.push(...p349Findings);
 
   // Mechanism 6. It rides this script rather than a second one because the
   // entry says so: "the phase adds a rule to the copy gate below".
@@ -3011,6 +3271,26 @@ function main() {
       if (!red) {
         failed = true;
         console.error(`phonecopy SELF-TEST FAIL: ${mutation.what} produced no finding naming ${mutation.names}, so Phase 348's words are not judged`);
+      } else if (!quiet) {
+        console.log(`  self-test: ${mutation.what} → red, as it must be`);
+      }
+    }
+    for (const mutation of P349_MUTATIONS) {
+      const mutatedSwift = mutation.swift(phoneSwift);
+      const reader = mutation.module === null
+        ? readModule
+        : (path) => (path === mutation.module[0] ? mutation.module[1](readModule(path) ?? '') : readModule(path));
+      const moved = mutatedSwift !== phoneSwift || (mutation.module !== null && reader(mutation.module[0]) !== (readModule(mutation.module[0]) ?? ''));
+      if (!moved) {
+        failed = true;
+        console.error(`phonecopy SELF-TEST FAIL: ${mutation.what} changed nothing, so it proves nothing (the word it breaks is not in the tree yet)`);
+        continue;
+      }
+      const mutated = judgeP349Words(mutatedSwift, reader);
+      const red = mutated.length > p349Findings.length && mutated.some((f) => `${f.text} ${f.why}`.includes(mutation.names));
+      if (!red) {
+        failed = true;
+        console.error(`phonecopy SELF-TEST FAIL: ${mutation.what} produced no finding naming ${mutation.names}, so Phase 349's words are not judged`);
       } else if (!quiet) {
         console.log(`  self-test: ${mutation.what} → red, as it must be`);
       }

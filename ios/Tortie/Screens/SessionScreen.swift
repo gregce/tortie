@@ -47,6 +47,15 @@
 // agent asks to run is drawn whole under its question, and every option
 // whole, so a person never presses what they could not read.
 //
+// RENAME (Phase 349, build/p349/SPEC.md §4.5 step 1, D1, D20): where the Mac
+// offers Rename on the session and this pairing renames, Rename, the Mac's
+// word with its pencil, is the ⋯'s SECOND item, after Catch Me Up and before
+// End session… or Remove, which do not move. Its press opens the Rename sheet
+// (Screens/SessionName.swift) over the name the Terminal holds now, whole,
+// and reads nothing more; the sheet is attached to the ⋯ outside its items,
+// as the confirmations are, so it presents once the menu has closed. It asks
+// NO Face ID (his ruling, "No Face ID, just confirm").
+//
 // Every word is main's or `Copy`'s.
 
 import SwiftUI
@@ -90,6 +99,10 @@ struct SessionDrawing: Equatable, Sendable {
     /// than 337 and for a session that is not running. It decides the
     /// route's face (Phase 337.1, D16).
     let screen: Bool
+    /// Whether the Mac offers Rename on this session (Phase 349, D14), from
+    /// the detail's row: false from a Mac older than 349, one whose Allow for
+    /// it waits, and a session on another machine that is not running (D3).
+    let rename: Bool
 
     /// Throws `DoorFailure.malformed` when the counts are not ones the door
     /// could send (ActivityCells.swift), so the screen draws one sentence.
@@ -113,6 +126,7 @@ struct SessionDrawing: Equatable, Sendable {
         removeConfirm = detail.removeConfirm
         reply = detail.replyOffer
         screen = detail.drawsScreen
+        rename = detail.rename
     }
 
     /// The card is drawn when it has something to say.
@@ -415,6 +429,9 @@ struct TerminalPage: View {
     /// Push Catch Me Up, with the session's own line for a conversation
     /// that has no turns.
     let openCatchUp: (_ honestLine: String?) -> Void
+    /// Rename (Phase 349), for a pairing that renames, or nil: then the ⋯
+    /// holds no Rename.
+    var rename: RenameSetup? = nil
 
     /// The page's own height, for the tray's share of it.
     @State private var pageHeight: CGFloat = 0
@@ -436,8 +453,10 @@ struct TerminalPage: View {
             ChoiceTray(drawing: drawing, reply: reply, cap: pageHeight * 0.4) { await session.load() }
         } trailing: {
             // One ⋯: Catch Me Up, then End session…, or Remove once End is
-            // done (Phase 337.3, D21; Phase 348, D33).
+            // done (Phase 337.3, D21; Phase 348, D33), with Rename between
+            // them where the Mac offers it (Phase 349, D1).
             TerminalMenu(end: end, offer: drawing.end, confirm: drawing.endConfirm, removeConfirm: drawing.removeConfirm, reread: { await session.load() }) { openCatchUp(drawing.outcome) }
+                .renaming(TerminalRename.of(drawing, setup: rename))
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { pageHeight = $0 }
         .onAppear { follow.appeared() }
@@ -450,6 +469,32 @@ struct TerminalPage: View {
         .onChange(of: StatusFollow.Mark(screen.picture)) { _, mark in
             follow.picture(mark)
         }
+    }
+}
+
+/// Rename in the Terminal's ⋯ (Phase 349, D1, D20), decided before anything
+/// is laid out: drawn only where the app handed a rename setup (a pairing that
+/// renames) and the latest detail's `rename` is true. Pure, so the tests read
+/// every case of it.
+struct TerminalRename {
+    let sessionId: String
+    /// The name as the Terminal holds it now: the detail's, whole.
+    let name: String
+    let setup: RenameSetup
+
+    /// The ⋯'s Rename over `drawing`, or nil: no setup, or the Mac offers no
+    /// Rename on the session.
+    static func of(_ drawing: SessionDrawing, setup: RenameSetup?) -> TerminalRename? {
+        guard let setup, drawing.rename else { return nil }
+        return TerminalRename(sessionId: drawing.id, name: drawing.name, setup: setup)
+    }
+
+    /// The sheet's model, made AT THE PRESS (D20), so the name is fixed when
+    /// he presses: the Terminal already holds the latest detail, its whole
+    /// name and its `rename`, so the sheet reads nothing more.
+    @MainActor
+    func asked() -> RenameAsked {
+        RenameAsked(model: setup.model(sessionId, name, false))
     }
 }
 
@@ -470,10 +515,21 @@ struct TerminalMenu: ToolbarContent {
     let reread: @MainActor () async -> Bool
     /// Push Catch Me Up.
     let openCatchUp: () -> Void
+    /// Rename (Phase 349), or nil: then the menu holds no Rename.
+    var rename: TerminalRename? = nil
+
+    /// The same menu, holding Rename where `rename` says (Phase 349). A copy
+    /// rather than a new argument, so the Terminal's one line that makes the
+    /// menu keeps its words.
+    func renaming(_ rename: TerminalRename?) -> TerminalMenu {
+        var copy = self
+        copy.rename = rename
+        return copy
+    }
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
-            TerminalMenuControl(end: end, offer: offer, confirm: confirm, removeConfirm: removeConfirm, reread: reread, openCatchUp: openCatchUp)
+            TerminalMenuControl(end: end, offer: offer, confirm: confirm, removeConfirm: removeConfirm, rename: rename, reread: reread, openCatchUp: openCatchUp)
         }
     }
 }
@@ -493,21 +549,32 @@ struct TerminalMenu: ToolbarContent {
 /// a session is ending.
 ///
 /// ONCE END IS DONE (Phase 348, D33): where the menu draws no End and the Mac
-/// offers Remove, Remove is its second item, in End session…'s place, behind
+/// offers Remove, Remove is its last item, in End session…'s place, behind
 /// the Mac's own Remove confirmation (Screens/Remove.swift), which asks no
 /// owner check; `remove-writing` sits left of the ⋯ while its write runs.
+///
+/// RENAME (Phase 349, D1, D20): where `rename` is drawn, the second item is
+/// Rename, the Mac's word with its pencil, between Catch Me Up and End's or
+/// Remove's item, which keep their places. Its press makes the sheet's model
+/// there and then (`TerminalRename.asked`) and asks for the sheet, which the
+/// control holds OUTSIDE the menu's items, after Remove's confirmation, so it
+/// presents once the menu has closed. Nothing here asks an owner check.
 struct TerminalMenuControl: View {
     let end: EndModel?
     let offer: PocketEndOffer
     let confirm: PocketEndConfirm?
     /// The Mac's Remove confirmation (Phase 348), or nil.
     var removeConfirm: PocketEndConfirm? = nil
+    /// Rename (Phase 349), or nil: no Rename is drawn.
+    var rename: TerminalRename? = nil
     let reread: @MainActor () async -> Bool
     let openCatchUp: () -> Void
     /// The Mac's confirmation is up.
     @State private var asking = false
     /// The Mac's Remove confirmation is up (Phase 348).
     @State private var removeAsked = false
+    /// The Rename sheet is up, over the model its press made (Phase 349).
+    @State private var renaming: RenameAsked?
 
     /// SF Symbols' `ellipsis` on iOS 26 and later, where the bar draws its own
     /// glass circle around an item, and `ellipsis.circle` before it.
@@ -565,6 +632,14 @@ struct TerminalMenuControl: View {
                     Label(Copy.catchMeUp, systemImage: "text.bubble")
                 }
                 .accessibilityIdentifier(ID.terminalMenuCatchUp)
+                if let rename {
+                    Button {
+                        renaming = rename.asked()
+                    } label: {
+                        Label(Copy.rename, systemImage: "pencil")
+                    }
+                    .accessibilityIdentifier(ID.terminalMenuRename)
+                }
                 if let drawing, let row = TerminalMenuControl.endRow(drawing, writes: end?.writer != nil) {
                     EndMenuItem(row: row, drawing: drawing) {
                         guard drawing.confirm != nil else { return }
@@ -585,6 +660,9 @@ struct TerminalMenuControl: View {
             .endConfirmation(model: end, offer: offer, confirm: confirm, drawing: drawing, isPresented: $asking, reread: reread)
         }
         .removeConfirmation(model: end?.remove, drawing: removal, isPresented: $removeAsked, reread: reread)
+        .sheet(item: $renaming) { asked in
+            SessionNameSheet(model: asked.model, reread: { _ = await reread() })
+        }
     }
 }
 

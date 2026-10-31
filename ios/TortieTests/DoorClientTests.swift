@@ -137,6 +137,33 @@ final class DoorClientTests: XCTestCase {
         XCTAssertEqual(fields["dialog"] as? String, "a1b2c3d4e5f6")
     }
 
+    /// Clause (Phase 349, rule ab): the eight writes each name their own path,
+    /// spelled once, and only the four session writes name a verb the frozen
+    /// phones read as a closed set; the rename's body is exactly its three
+    /// keys, sorted.
+    func testEveryWriteNamesItsOwnPath() throws {
+        let routes: [(WriteRoute, String, PocketWriteAnswer.Verb?)] = [
+            (.end(session: "s", batch: false), "/v1/end", .end),
+            (.choose(session: "s", question: "q", mark: "m", marker: "1"), "/v1/choose", .choose),
+            (.say(session: "s", text: "t"), "/v1/say", .say),
+            (.keys(session: "s", keys: [], turn: "t", dialog: nil), "/v1/keys", .keys),
+            (.start(project: "p", agent: "a"), "/v1/start", nil),
+            (.remove(session: "s"), "/v1/remove", nil),
+            (.paste(session: "s", text: "t", turn: "t", dialog: nil), "/v1/paste", nil),
+            (.rename(session: "s", name: "n"), "/v1/rename", nil)
+        ]
+        XCTAssertEqual(Set(routes.map(\.1)).count, 8, "two writes share a path")
+        for (route, path, verb) in routes {
+            XCTAssertEqual(route.target, path)
+            XCTAssertEqual(route.verb, verb, path)
+            XCTAssertFalse(path.contains("?"), "\(path): a write carries a query, which the door refuses")
+        }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let body = try XCTUnwrap(try JSONSerialization.jsonObject(with: try encoder.encode(RenameBody(name: "n", session: "s", write: "w"))) as? [String: String])
+        XCTAssertEqual(body, ["name": "n", "session": "s", "write": "w"])
+    }
+
     /// Clause: `/pair`'s body is JSON with its length, and nothing streams.
     func testAPresentationCarriesItsLength() {
         let body = Data(#"{"ct":"x"}"#.utf8)

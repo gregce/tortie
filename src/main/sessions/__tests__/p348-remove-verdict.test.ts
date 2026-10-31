@@ -122,6 +122,10 @@ function fakeCore(rows: Session[], records?: Map<string, RecordRow>): FakeCore {
     broadcastSessions: () => {
       self.events.push('broadcast');
       self.broadcastWith();
+    },
+    // Phase 349: the shared core names the Mac's rename (PocketWritesCore.renameSession).
+    renameSession: async (): Promise<Session> => {
+      throw new Error('a Remove never renames anything');
     }
   };
   return self;

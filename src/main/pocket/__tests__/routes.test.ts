@@ -192,11 +192,12 @@ describe('the table is closed', () => {
   it('holds exactly the ids the contract names, and no more', () => {
     expect(pocketRouteIdsAgree()).toBe(true);
     expect([...pocketRouteIds()].sort()).toEqual([...POCKET_ROUTE_IDS].sort());
-    // Fourteen since Phase 348's `POST /v1/remove` and `POST /v1/paste`, after
-    // Phase 346's `POST /v1/start`, Phase 337.1's `GET /v1/scrollback`, Phase
-    // 337's `GET /v1/screen` and `POST /v1/keys`, Phase 318's `choose` and
-    // `say` and Phase 316.7's `GET /v1/sessions`.
-    expect(POCKET_ROUTES).toHaveLength(14);
+    // Fifteen since Phase 349's `POST /v1/rename`, after Phase 348's
+    // `POST /v1/remove` and `POST /v1/paste`, Phase 346's `POST /v1/start`,
+    // Phase 337.1's `GET /v1/scrollback`, Phase 337's `GET /v1/screen` and
+    // `POST /v1/keys`, Phase 318's `choose` and `say` and Phase 316.7's
+    // `GET /v1/sessions`.
+    expect(POCKET_ROUTES).toHaveLength(15);
   });
 
   it('cannot be pushed onto at run time', () => {
@@ -211,8 +212,8 @@ describe('the table is closed', () => {
         signed: true
       })
     ).toThrow();
-    // Fourteen since Phase 348's Remove and paste.
-    expect(POCKET_ROUTES).toHaveLength(14);
+    // Fifteen since Phase 349's rename, after Phase 348's Remove and paste.
+    expect(POCKET_ROUTES).toHaveLength(15);
     expect(matchPocketRoute('POST', '/v1/type')).toBeNull();
   });
 
@@ -222,8 +223,9 @@ describe('the table is closed', () => {
   // PHASE 337 (build/p337/SPEC.md §5.1, D1) adds `keys`, the fourth.
   // PHASE 346 (build/p346/SPEC.md D1, D4) adds `start`, the fifth.
   // PHASE 348 (build/p348/SPEC.md D26) adds `remove` and `paste`, the sixth and seventh.
-  it('holds EXACTLY seven write routes, end, choose, say, keys, start, remove and paste, each a signed POST alive outside a window', () => {
-    expect(pocketWriteRouteIds()).toEqual(['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste']);
+  // PHASE 349 (build/p349/SPEC.md §4.1) adds `rename`, the eighth.
+  it('holds EXACTLY eight write routes, end, choose, say, keys, start, remove, paste and rename, each a signed POST alive outside a window', () => {
+    expect(pocketWriteRouteIds()).toEqual(['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste', 'rename']);
     expect([...pocketWriteRouteIds()]).toEqual([...POCKET_WRITE_ROUTE_IDS]);
     for (const route of POCKET_ROUTES) {
       if (route.reads) continue;
@@ -238,7 +240,8 @@ describe('the table is closed', () => {
       '/v1/keys',
       '/v1/start',
       '/v1/remove',
-      '/v1/paste'
+      '/v1/paste',
+      '/v1/rename'
     ]);
     // Every other row is still a read.
     expect(POCKET_ROUTES.filter((r) => r.reads).map((r) => r.id).sort()).toEqual([

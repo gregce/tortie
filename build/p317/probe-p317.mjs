@@ -112,9 +112,9 @@
  *   WP  with P317_PARENT_CHECKOUT: `POST /v1/end` and `/v1/unpair` refused
  *       404 with nothing forwarded (main logs no write); the session still
  *       running; the lines name neither route
- *   RUN both preflights, the quiet agents at every launch, no real Tailscale,
- *       nothing forbidden at the stand-in, every stand-in ended, every paused
- *       pid resumed
+ *   RUN both preflights, every agent but the stand-in hidden and no shadow
+ *       copy of it at every launch, no real Tailscale, nothing forbidden at
+ *       the stand-in, every stand-in ended, every paused pid resumed
  *
  * WHAT IT REFUSES TO DO. It never names the person's tmux server or `-L gmux`
  * (it refuses any socket that is not a `gmux-p317` harness socket), never
@@ -122,9 +122,14 @@
  * `tailscale`, never asks real DNS, reads no keychain and no credential of his
  * (the app runs `--use-mock-keychain`), and signals only the pids it started
  * or RECORDED for W6b, the scratch machine's own sshd, by pid, never by
- * pattern. It takes NO screenshot. Before EVERY launch the profile's
- * agents.json renames the Gemini, Qwen, Antigravity, Grok and Droid binaries
- * and `agents:list` is read back, so no agent's `--version` runs.
+ * pattern. It takes NO screenshot. Before EVERY launch (since Phase 349)
+ * build/hidden-agents.mjs hides EVERY probed registry row but the one
+ * stand-in, `claude` (`hiddenAgentsBesides`), its precheck asked of the
+ * checkout first; the app and its login shell get a closed PATH (the stand-in,
+ * one `node`, the system folders); no copy of `claude` may sit where the app's
+ * scan looks; and `agents:list` is read back and must say nothing resolved but
+ * the stand-in, under this run, so no agent's `--version` runs. Anything else
+ * is no run, exit 2.
  *
  * VERIFIERS ONLY: it starts an Electron. Take the orchestrator's lock.
  *
@@ -139,7 +144,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { withElectron, withoutDevRenderer } from '../electron-run.mjs';
@@ -149,7 +154,8 @@ import { gradeFixtures } from '../probe-graders.mjs';
 import { keyscanText } from '../ssh-run.mjs';
 import { endSession, freshWriteId, makePhone, pairThrough, readOffer, signedGet, signedPost } from '../p316/node-phone.mjs';
 import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, processRows, watchForRealTailscale } from '../p330/tailscale-standin.mjs';
-import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin, quietAgentsHeld, writeQuietAgents } from '../p332/dns-standin.mjs';
+import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin } from '../p332/dns-standin.mjs';
+import { AGENTS_LIST_EXPR, PROBED_AGENT_IDS, hiddenAgentBinaries, hiddenAgentsBesides, hiddenAgentsPrecheck, hiddenAgentsScanVerdict, standInsOnlyVerdict, writeHiddenAgents } from '../hidden-agents.mjs';
 import { plantedResolve, scratchShellEnv } from '../scratch-login.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -170,9 +176,11 @@ export const MACHINE_ID = 'p317far';
  * `sessions` joined the route line when it landed second, Phase 337's
  * `screen` and `keys` joined both lines (build/p337/SPEC.md D1, D35), and
  * Phase 337.1's `scrollback` read joined the route line alone, eleven routes,
- * no write clause moving (build/p3371/SPEC.md D1, D35, §Attack B7).
+ * no write clause moving (build/p3371/SPEC.md D1, D35, §Attack B7). Phase 349
+ * (build/p349/SPEC.md §4.1, D10) added `rename` to the route line and its
+ * clause to the end of the write line, fifteen routes.
  */
-export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, paste, remove, say, screen, scrollback, session, sessions, start, turns';
+export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, paste, remove, rename, say, screen, scrollback, session, sessions, start, turns';
 /**
  * HEAD's write line, every write allowed (Phase 346 added `start`, and its ruled round this literal and `start` in
  * ROUTE_LINE, which Phase 346's build left at 337.1's: this file's own self-test read ROUTE_LINE red against the
@@ -180,9 +188,12 @@ export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end,
  * PHASE 348 moved both literals again (build/p348/SPEC.md §6): `remove` and `paste`, each a signed
  * POST alive outside any window, join the route line and their clauses join the write line, after
  * start's, in the closed list's order; under 333.12 both wait at HEAD on a store the parent confirmed,
- * and the lines a person reads before Allow name the proposal, so they name all fourteen.
+ * and the lines a person reads before Allow name the proposal, so they name all fourteen. PHASE 349 moved
+ * both once more (build/p349/SPEC.md §4.1, D10): `rename`, a signed POST alive outside any window, joins
+ * the route line and `rename a session` ends the write line, after paste's; under 333.12 it waits at HEAD
+ * beside nothing else on a store 0.113.0 confirmed, and the lines name the proposal, all fifteen.
  */
-export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question, send a session one message, type into any session as you would at this Mac, start a session in a project open in Tortie, on this Mac or another machine, remove a session that has ended and paste text into a session on this Mac';
+export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question, send a session one message, type into any session as you would at this Mac, start a session in a project open in Tortie, on this Mac or another machine, remove a session that has ended, paste text into a session on this Mac and rename a session';
 /** HEAD's door honesty sentence, by value for the fixtures (build/p3371/SPEC.md D35: the terminal and what it printed before); the run reads the tree's own. */
 export const HONESTY_LINE = 'A phone you allow can see what any session’s terminal shows and what it printed before, type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.';
 export const LIVE = Object.freeze(['running', 'idle', 'needs_input']);
@@ -433,7 +444,10 @@ export const GRADERS = {
     clauses: [
       ['the Tailscale preflight passed', (r) => r.tailscalePreflight === true],
       ['the DNS preflight passed at every launch', (r) => r.dnsPreflights.length > 0 && r.dnsPreflights.every(Boolean)],
-      ['the quiet agents held at every launch', (r) => r.agentsHeld.length > 0 && r.agentsHeld.every(Boolean)],
+      // THE PROBE REVIEW of 2026-10-30: ONE scan per launch that got past its shadow refusal; a launch whose own
+      // agents:list was never read passed over the scans that were.
+      ['every agent but the stand-in hidden at every launch, and nothing else resolved', (r) => r.agentsHeld.length > 0 && r.agentsHeld.length === r.shadows.filter(Boolean).length && r.agentsHeld.every(Boolean)],
+      ['no copy of the stand-in where the scan looks, at every launch', (r) => r.shadows.length > 0 && r.shadows.every(Boolean)],
       ['no real Tailscale in any sample', (r) => r.realTailscale === 0 && r.samples > 0],
       ['nothing forbidden reached the stand-in', (r) => r.forbidden === 0],
       ['every stand-in ended', (r) => r.standinLeft === 0],
@@ -619,18 +633,94 @@ export const GRADER_FIXTURES = {
     }
   },
   RUN: {
-    pass: { tailscalePreflight: true, dnsPreflights: [true, true], agentsHeld: [true, true], realTailscale: 0, samples: 600, forbidden: 0, standinLeft: 0, stillStopped: 0 },
+    pass: { tailscalePreflight: true, dnsPreflights: [true, true], agentsHeld: [true, true], shadows: [true, true], realTailscale: 0, samples: 600, forbidden: 0, standinLeft: 0, stillStopped: 0 },
     breaks: {
       'the Tailscale preflight passed': (r) => void (r.tailscalePreflight = false),
       'the DNS preflight passed at every launch': (r) => void (r.dnsPreflights = [true, false]),
-      'the quiet agents held at every launch': (r) => void (r.agentsHeld = []),
+      'every agent but the stand-in hidden at every launch, and nothing else resolved': (r) => void (r.agentsHeld = [true, false]),
+      'no copy of the stand-in where the scan looks, at every launch': (r) => void (r.shadows = [true, false]),
       'no real Tailscale in any sample': (r) => void (r.realTailscale = 1),
       'nothing forbidden reached the stand-in': (r) => void (r.forbidden = 1),
       'every stand-in ended': (r) => void (r.standinLeft = 1),
       'every paused pid was resumed': (r) => void (r.stillStopped = 1)
-    }
+    },
+    // THE PROBE REVIEW of 2026-10-30: readings of its own for the new hiding.
+    refused: [
+      { what: "HEAD's own agents:list never read (its window never came), the parent's clean", clause: 'every agent but the stand-in hidden at every launch, and nothing else resolved', edit: (r) => void (r.agentsHeld = [true]) },
+      { what: 'a shadow copy refused at the first launch, before any scan', clause: 'no copy of the stand-in where the scan looks, at every launch', edit: (r) => Object.assign(r, { dnsPreflights: [true], agentsHeld: [], shadows: [false] }) },
+      { what: 'the precheck refusing the parent, its scan never made', clause: 'every agent but the stand-in hidden at every launch, and nothing else resolved', edit: (r) => Object.assign(r, { dnsPreflights: [true], agentsHeld: [false], shadows: [true] }) }
+    ]
   }
 };
+
+// ---------------------------------------------------------------------------
+// PHASE 349: every probed agent but the stand-in hidden, a closed PATH, and no
+// shadow copy of the stand-in (the Phase 349 verify's finding)
+// ---------------------------------------------------------------------------
+
+/**
+ * Until Phase 349 this probe hid FIVE registry rows (build/p332/dns-standin.mjs's
+ * quiet agents) and handed the app the caller's PATH, and Tortie's scan always
+ * searches /opt/homebrew/bin and /usr/local/bin as well, so his omp, pi,
+ * opencode, cursor-agent and muse would have run for their versions. Since
+ * then, before EVERY launch: build/hidden-agents.mjs hides every probed row but
+ * the run's one stand-in (`hiddenAgentsBesides`), its precheck asked of the
+ * checkout first; the app and its login shell get a CLOSED PATH (the stand-in,
+ * one `node` for the Electron shim, the system folders); no copy of the
+ * stand-in's name may sit in a folder the scan searches, because the app runs
+ * every SHADOWED copy of a name it resolves for its version and no
+ * `agents:list` row shows it; and the app's own `agents:list` must say nothing
+ * resolved but the stand-in, under this run. Anything else is no run: exit 2.
+ */
+export const STAND_IN_IDS = Object.freeze(['claude']);
+export const HIDDEN_PREFIX = 'p317';
+export const HIDDEN_IDS = hiddenAgentsBesides(STAND_IN_IDS);
+export const HIDDEN_BINS = hiddenAgentBinaries(HIDDEN_IDS);
+/** The system folders a closed PATH holds beside the run's own, and nothing of his. */
+export const SYSTEM_DIRS = Object.freeze(['/usr/bin', '/bin', '/usr/sbin', '/sbin']);
+
+/**
+ * The ABSOLUTE folders a checkout's resolver always searches, read from
+ * `extraBinDirsFor` in its src/main/tmux/resolve.ts as text (every string
+ * literal in the function that begins with `/`); null when the function cannot
+ * be found, which refuses the launch rather than searching nothing.
+ */
+export function absoluteScanDirsOf(resolveText) {
+  const src = String(resolveText ?? '');
+  const at = src.indexOf('export function extraBinDirsFor(');
+  if (at === -1) return null;
+  const end = src.indexOf('\n}\n', at);
+  const body = src.slice(at, end === -1 ? src.length : end);
+  return [...new Set([...body.matchAll(/'(\/[^']*)'/g)].map((m) => m[1]))];
+}
+
+/**
+ * Where a copy of `names` sits in `dirs`: `{ ok, copies, unreadable }`, ok when
+ * no folder holds one and every folder that exists could be read. The file
+ * system is handed in, so the self-test reads no folder of his.
+ */
+export function shadowCopiesOf(dirs, names, fs = { list: (d) => readdirSync(d) }) {
+  const copies = [];
+  const unreadable = [];
+  for (const dir of dirs) {
+    let entries = null;
+    try {
+      entries = fs.list(dir);
+    } catch (err) {
+      if (err?.code !== 'ENOENT') unreadable.push(dir);
+      continue;
+    }
+    for (const name of names) if (entries.includes(name)) copies.push(join(dir, name));
+  }
+  return { ok: copies.length === 0 && unreadable.length === 0, copies, unreadable };
+}
+
+/** What in a PATH is neither under `run` nor a system folder: none is a closed PATH. */
+export function openPathEntries(path, run) {
+  return String(path)
+    .split(':')
+    .filter((d) => !(d === run || d.startsWith(`${run}/`) || SYSTEM_DIRS.includes(d)));
+}
 
 /** Every grader on its fixtures, and the pure readers on texts of their own. Starts nothing. */
 function graderSelfTest() {
@@ -659,7 +749,7 @@ function graderSelfTest() {
   // The word reader and the route reader.
   const src = "export const A = 'one';\nexport const B: string =\n  'two, ' +\n  \"three.\";\n";
   say(constWord(src, 'A') === 'one' && constWord(src, 'B') === 'two, three.' && constWord(src, 'C') === null, 'constWord reads a literal and a concatenation over a line break');
-  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'choose', 'end', 'keys', 'pair', 'paste', 'remove', 'say', 'screen', 'scrollback', 'session', 'sessions', 'start', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
+  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'choose', 'end', 'keys', 'pair', 'paste', 'remove', 'rename', 'say', 'screen', 'scrollback', 'session', 'sessions', 'start', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
   say(answerOf({ status: 200, body: '{"outcome":"done"}' })?.outcome === 'done' && answerOf({ status: 404, body: '' }) === null && answerOf({ status: 200, body: 'x' }) === null, 'answerOf reads a 200 answer and nothing else');
   say(deepEqual(descendantsOf(new Map([[1, [2, 3]], [3, [4]]]), 1), [2, 4, 3]), 'descendantsOf walks a tree deepest first');
   // The tests round: W6b's listener, both ways.
@@ -684,6 +774,42 @@ function graderSelfTest() {
   say(offAtSendCase({ status: 404, outcome: null, echoed: false, acts: 1, alive: false }) === null, 'offAtSendCase refuses a 404 after an act');
   say(offAtSendCase({ status: 0, outcome: null, echoed: false, acts: 0, alive: false }) === null, 'offAtSendCase refuses a session gone with no act logged');
   say(offAtSendCase({ status: 200, outcome: 'done', echoed: false, acts: 1, alive: false }) === null, 'offAtSendCase refuses a done that echoes another id');
+  // PHASE 349: the hidden agents, the closed PATH and the shadow refusal, each on cases of its own.
+  say(J(HIDDEN_IDS) === J(PROBED_AGENT_IDS.filter((id) => !STAND_IN_IDS.includes(id))) && HIDDEN_IDS.length === PROBED_AGENT_IDS.length - STAND_IN_IDS.length, `every probed row but the stand-in is hidden (${HIDDEN_IDS.join(', ')})`);
+  {
+    const run = '/private/var/tmp/p317-run';
+    const row = (id, binPath = null, version = null) => ({ id, installed: binPath !== null, binPath, version });
+    const honestScan = [row('claude', `${run}/home/.local/bin/claude`, '2.1.238'), ...HIDDEN_IDS.map((id) => row(id)), row('cursoride', '/Applications/Cursor.app/Contents/Resources/app/bin/cursor')];
+    say(standInsOnlyVerdict(honestScan, { standIns: STAND_IN_IDS, under: run }).ok && hiddenAgentsScanVerdict(honestScan, HIDDEN_IDS).ok, 'the scan verdicts pass the stand-in under the run beside every hidden row unresolved');
+    say(!standInsOnlyVerdict([...honestScan.filter((r) => r.id !== 'omp'), row('omp', '/opt/homebrew/bin/omp', '1.0')], { standIns: STAND_IN_IDS, under: run }).ok && !hiddenAgentsScanVerdict([...honestScan.filter((r) => r.id !== 'omp'), row('omp', '/opt/homebrew/bin/omp', '1.0')], HIDDEN_IDS).ok, 'the scan verdicts refuse omp resolved at /opt/homebrew/bin, as Phase 348\'s reverify found it');
+    say(!standInsOnlyVerdict([row('claude', '/Users/someone/.local/bin/claude', '2.1'), ...HIDDEN_IDS.map((id) => row(id))], { standIns: STAND_IN_IDS, under: run }).ok, 'standInsOnlyVerdict refuses the stand-in resolved outside the run');
+    say(!standInsOnlyVerdict([...honestScan, row('newagent', '/usr/local/bin/newagent', '0.1')], { standIns: STAND_IN_IDS, under: run }).ok, 'standInsOnlyVerdict refuses a resolved row this file does not know');
+    say(openPathEntries([`${run}/home/.local/bin`, `${run}/nodebin`, ...SYSTEM_DIRS].join(':'), run).length === 0 && J(openPathEntries(`${run}/bin:/opt/homebrew/bin:/usr/bin:/Users/someone/bin:${run}-other/bin`, run)) === J(['/opt/homebrew/bin', '/Users/someone/bin', `${run}-other/bin`]), 'openPathEntries passes a closed PATH and names every other folder, one that only starts like the run among them');
+    const resolveText = (() => {
+      try {
+        return readFileSync(join(ROOT, 'src', 'main', 'tmux', 'resolve.ts'), 'utf8');
+      } catch {
+        return '';
+      }
+    })();
+    say(J(absoluteScanDirsOf(resolveText)) === J(['/opt/homebrew/bin', '/usr/local/bin']), `absoluteScanDirsOf reads the tree's extraBinDirsFor as /opt/homebrew/bin and /usr/local/bin (${J(absoluteScanDirsOf(resolveText))})`);
+    say(absoluteScanDirsOf('export function other() {}') === null, 'absoluteScanDirsOf answers null when the function is gone, which refuses the launch');
+    const fake = {
+      list: (d) => {
+        if (d === '/x/has') return ['claude', 'other'];
+        if (d === '/x/empty') return [];
+        const e = new Error(d === '/x/locked' ? 'EACCES' : 'ENOENT');
+        e.code = d === '/x/locked' ? 'EACCES' : 'ENOENT';
+        throw e;
+      }
+    };
+    const s1 = shadowCopiesOf(['/x/has', '/x/empty', '/x/none'], STAND_IN_IDS, fake);
+    const s2 = shadowCopiesOf(['/x/empty', '/x/locked'], STAND_IN_IDS, fake);
+    const s3 = shadowCopiesOf(['/x/empty', '/x/none'], STAND_IN_IDS, fake);
+    say(s1.ok === false && J(s1.copies) === J(['/x/has/claude']) && s2.ok === false && J(s2.unreadable) === J(['/x/locked']) && s3.ok === true, 'shadowCopiesOf finds a copy, refuses a folder it cannot read, and passes a missing one');
+    // THE PROBE REVIEW of 2026-10-30: an honest run at HEAD alone, one launch, passes RUN.
+    say(grade('RUN', { ...structuredClone(GRADER_FIXTURES.RUN.pass), dnsPreflights: [true], agentsHeld: [true], shadows: [true] }).ok, 'RUN passes an honest run at HEAD alone, one launch (the probe review, 2026-10-30)');
+  }
   process.stdout.write(failures === 0 ? `[p317] grader self-test PASS: ${String(Object.keys(GRADERS).length)} graders, ${String(clauses)} clauses, each shown to go red on its own break.\n` : `[p317] grader self-test FAIL: ${String(failures)}.\n`);
   return failures === 0;
 }
@@ -778,6 +904,12 @@ const PROFILE = join(RUN, 'profile');
 const PROJECT = join(RUN, 'project');
 const FAR = join(RUN, 'far');
 const BIN = join(HOME, '.local', 'bin');
+/** THE CLOSED PATH (Phase 349): one `node`, a link to this node, for the Electron shim's `#!/usr/bin/env node`. */
+const NODE_BIN = join(RUN, 'nodebin');
+/** The scratch login shell's PATH: the stand-in and the system folders, nothing of his. */
+const LOGIN_PATH = [BIN, ...SYSTEM_DIRS].join(':');
+/** THE APP'S OWN PATH: the stand-in, that one `node`, and the system folders. */
+const APP_PATH = [BIN, NODE_BIN, ...SYSTEM_DIRS].join(':');
 /** OUTSIDE the profile, so the helper's profile sweep never takes the stand-in's children for the app's. */
 const STANDIN_DIR = join(RUN, 'standin');
 const STOP = join(RUN, 'fake-stop');
@@ -861,6 +993,10 @@ let lastApp = 0;
 let tailscalePreflight = false;
 const dnsPreflights = [];
 const agentsHeld = [];
+/** Phase 349: whether every launch's shadow refusal passed. */
+const shadows = [];
+/** Phase 349: set when a launch was refused for an agent that is not the stand-in, which is no run (exit 2). */
+let agentsRefused = false;
 /** W6b's paused pids, each resumed in the `finally` and on exit. */
 const stopped = new Set();
 function resumeStopped() {
@@ -1093,6 +1229,8 @@ function launchOptions(label, checkout) {
       HOME,
       // Phase 346's ruled round: zsh reads $ZDOTDIR/.zprofile, so the scratch HOME's or the stand-in is on no PATH.
       ...scratchShellEnv(HOME),
+      // Phase 349: the closed PATH, the stand-in and the system folders, never the caller's.
+      PATH: APP_PATH,
       GMUX_TMUX_SOCKET: SOCKET,
       GMUX_PROBES: '1',
       GMUX_LOG_FILE: '1',
@@ -1111,14 +1249,40 @@ function launchOptions(label, checkout) {
   };
 }
 
-/** One launch through the helper, after both preflights and the quiet agents. */
+/** One launch through the helper, after both preflights, the shadow refusal and the hidden agents. */
 async function launch(label, checkout, body) {
   const pre = preflightStandin(standin, standin.binPath);
   if (!pre.ok) throw new Error(`the Tailscale preflight refused the launch: ${pre.problems.join('; ')}`);
   const dnsPre = await dns.preflight(dns.servers);
   dnsPreflights.push(dnsPre.ok && loopbackOnlyServers(dns.servers));
   if (!dnsPre.ok) throw new Error(`the DNS preflight refused the launch: ${dnsPre.problems.join('; ')}`);
-  writeQuietAgents(PROFILE);
+  // PHASE 349: no shadow copy of the stand-in's name where the app's scan looks.
+  {
+    const scan = absoluteScanDirsOf((() => {
+      try {
+        return readFileSync(join(checkout, 'src', 'main', 'tmux', 'resolve.ts'), 'utf8');
+      } catch {
+        return '';
+      }
+    })());
+    const s = scan === null ? { ok: false, copies: [], unreadable: ['(extraBinDirsFor not found in the checkout)'] } : shadowCopiesOf([...scan, ...SYSTEM_DIRS], STAND_IN_IDS);
+    shadows.push(s.ok);
+    (report.readings.shadows ??= []).push({ label, ...s });
+    if (!s.ok) {
+      agentsRefused = true;
+      throw new Error(`a copy of the stand-in's name sits where the app's scan looks, or a folder it searches cannot be read (${J(s)}), so Tortie would run it for its version`);
+    }
+  }
+  // PHASE 349: build/hidden-agents.mjs before EVERY launch, every probed row but the stand-in: the checkout's own
+  // reader first, then the file.
+  const hiddenPre = hiddenAgentsPrecheck({ checkout, prefix: HIDDEN_PREFIX, home: HOME, userPath: `${LOGIN_PATH}:${APP_PATH}`, standIns: STAND_IN_IDS });
+  (report.readings.hiddenPrechecks ??= []).push({ label, ok: hiddenPre.ok, said: hiddenPre.said, wouldResolve: hiddenPre.wouldResolve });
+  if (!hiddenPre.ok) {
+    agentsHeld.push(false);
+    agentsRefused = true;
+    throw new Error(`the hidden agents' precheck refused the launch: ${hiddenPre.said}`);
+  }
+  writeHiddenAgents(PROFILE, HIDDEN_PREFIX, HIDDEN_IDS);
   return withElectron(launchOptions(label, checkout), async (handle) => {
     lastShim = handle.pid;
     const appNow = () => {
@@ -1133,11 +1297,17 @@ async function launch(label, checkout, body) {
     const main = await attachMain();
     appNow();
     try {
-      // NO AGENT STARTS: the renamed rows must read not installed, or nothing goes on.
-      const list = JSON.parse(await cdpEval(main, 'window.gmux.agentsList().then((r) => JSON.stringify(r))'));
-      const held = quietAgentsHeld(list);
-      agentsHeld.push(held.ok);
-      if (!held.ok) throw new Error(`agents:list says the renamed agents are not all absent: ${held.problems.join('; ')}`);
+      // NO AGENT STARTS but the stand-in (Phase 349): every hidden row must read not installed, and nothing but the
+      // stand-in, under this run, may have resolved at all.
+      const list = JSON.parse(await cdpEval(main, AGENTS_LIST_EXPR, 120_000));
+      const held = hiddenAgentsScanVerdict(list, HIDDEN_IDS);
+      const only = standInsOnlyVerdict(list, { standIns: STAND_IN_IDS, under: RUN });
+      (report.readings.agentScans ??= []).push({ label, held: held.said, only: only.said });
+      agentsHeld.push(held.ok && only.ok);
+      if (!held.ok || !only.ok) {
+        agentsRefused = true;
+        throw new Error(`agents:list says ${!held.ok ? `a hidden agent resolved: ${held.said}` : `an agent other than the stand-in resolved: ${only.said}`}`);
+      }
       await body(main, handle);
     } finally {
       main.close();
@@ -1181,7 +1351,8 @@ let parentInline = null;
 
 try {
   rmSync(RUN, { recursive: true, force: true });
-  for (const dir of [HOME, PROFILE, PROJECT, FAR, BIN, STANDIN_DIR]) mkdirSync(dir, { recursive: true });
+  for (const dir of [HOME, PROFILE, PROJECT, FAR, BIN, NODE_BIN, STANDIN_DIR]) mkdirSync(dir, { recursive: true });
+  symlinkSync(process.execPath, join(NODE_BIN, 'node'));
   writeFileSync(join(PROJECT, 'README.md'), '# Phase 317, the project\n');
   writeFileSync(join(FAR, 'README.md'), '# Phase 317, the far folder\n');
   // The fake claude: prints the committed Phase 312 dialog and waits.
@@ -1200,14 +1371,24 @@ exit 0
     'utf8'
   );
   chmodSync(join(BIN, 'claude'), 0o755);
-  writeFileSync(join(HOME, '.zprofile'), `export PATH="${BIN}:$PATH"\n`, 'utf8');
-  writeFileSync(join(HOME, '.zshrc'), `export PATH="${BIN}:$PATH"\nexport HISTFILE=/dev/null\nPS1='p317 %# '\n`, 'utf8');
+  writeFileSync(join(HOME, '.zprofile'), `export PATH="${LOGIN_PATH}"\n`, 'utf8');
+  writeFileSync(join(HOME, '.zshrc'), `export PATH="${LOGIN_PATH}"\nexport HISTFILE=/dev/null\nPS1='p317 %# '\n`, 'utf8');
   writeFileSync(join(HOME, '.hushlogin'), '');
   // THE PRECONDITION (Phase 346's ruled round): the login shell the app will ask, with the environment it will be given, resolves every agent this run plants to its stand-in, or nothing is launched (exit 2). On 2026-10-16 a ZDOTDIR probe:p313 did not set started his real Claude Code in both of its claude sessions.
   {
-    const asked = plantedResolve({ home: HOME, bin: BIN, names: ['claude'], env: INHERITED_CLAUDE });
+    const asked = plantedResolve({ home: HOME, bin: BIN, names: [...STAND_IN_IDS], env: { ...INHERITED_CLAUDE, PATH: APP_PATH } });
     if (!asked.ok) refuse(`${asked.said}, so a session would start a real agent. Nothing is launched.`);
     say(asked.said);
+    // PHASE 349: and no hidden row's binary resolves there, and the PATHs are closed.
+    const open = [...openPathEntries(APP_PATH, RUN), ...openPathEntries(LOGIN_PATH, RUN)];
+    if (open.length > 0) refuse(`the app's PATH or its login shell's holds ${J(open)}, which is not a closed PATH. Nothing is launched.`);
+    const shellEnv = { ...process.env, ...INHERITED_CLAUDE, HOME, ...scratchShellEnv(HOME), PATH: APP_PATH };
+    for (const [k, v] of Object.entries(shellEnv)) if (v === undefined) delete shellEnv[k];
+    const loginShell = (process.env['SHELL'] ?? '').trim() || '/bin/zsh';
+    const hidden = Object.fromEntries(HIDDEN_BINS.map((b) => [b, String(spawnSync(loginShell, ['-lic', `command -v ${b} || true`], { encoding: 'utf8', timeout: 30_000, env: shellEnv }).stdout ?? '').trim().split('\n').pop() ?? '']));
+    report.readings.hiddenResolve = hidden;
+    const resolvedHidden = Object.entries(hidden).filter(([, at]) => at !== '');
+    if (resolvedHidden.length > 0) refuse(`the scratch login shell resolves the hidden ${J(Object.fromEntries(resolvedHidden))}, so the app could run one. Nothing is launched.`);
   }
   writeMachines(true);
   {
@@ -1663,6 +1844,7 @@ exit 0
     tailscalePreflight,
     dnsPreflights,
     agentsHeld,
+    shadows,
     realTailscale: leaked.length,
     samples: watch?.samples() ?? 0,
     forbidden: standin === null ? 0 : standin.forbidden().length,
@@ -1676,4 +1858,6 @@ exit 0
 }
 
 say(`${String(report.arms.filter((a) => a.ok === true).length)} arm(s) passed, ${String(failures)} failed, ${String(unreadable)} could not be read`);
-process.exit(failures > 0 ? 1 : unreadable > 0 ? 2 : 0);
+// Phase 349: a launch refused for an agent that is not the stand-in is no run.
+if (agentsRefused) say('a launch was refused because an agent other than the stand-in could have run: no run, exit 2');
+process.exit(agentsRefused ? 2 : failures > 0 ? 1 : unreadable > 0 ? 2 : 0);

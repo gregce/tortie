@@ -38,11 +38,26 @@ export function oneLine(value: string): string {
   return value.replace(/[\t\r\n]+/g, ' ');
 }
 
-/** One stamp, aimed at an immutable identifier. Pure. */
+/**
+ * One stamp, aimed at an immutable identifier. Pure.
+ *
+ * PHASE 349 (build/p349/SPEC.md D15, §2.1's far stamp, measured on every
+ * version from 3.2a to 3.7c): tmux's command parser ENDS a command at an
+ * argument whose last character is `;` and drops that `;`, so a value ending
+ * in `;` came back without it (`x;` read back `x`). Such a value is sent with
+ * that one final `;` as two characters, a backslash then `;`, which every
+ * version reads back as the value sent. Nothing else in any value changes: a
+ * value beginning with `-`, and `--`, are kept on every version, `#H` is kept
+ * as typed and a backslash stays single, and 3.4's `\$` is undone on read by
+ * Phase 342's `dollarOnRead`. Every stamp is composed here, so a project path
+ * ending in `;` is kept too.
+ */
 export function remoteStampArgs(
   tmuxId: string,
   option: string,
   value: string
 ): string[] {
-  return ['set-option', '-t', tmuxId, option, value];
+  const backslash = String.fromCharCode(92);
+  const sent = value.endsWith(';') ? `${value.slice(0, -1)}${backslash};` : value;
+  return ['set-option', '-t', tmuxId, option, sent];
 }

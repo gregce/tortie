@@ -164,6 +164,24 @@
  * row printed, and `P348_SUITES` must be named in xcodebuild's own suite
  * lines.
  *
+ * PHASE 349 (build/p349/SPEC.md §4.4 step 8, §8.3) adds THE RENAME DOOR, a
+ * seventh listener under door A's key and admission, handed to the tests as
+ * `TEST_RUNNER_P349_DOOR_PORT`: it takes `POST /v1/rename` verified as the
+ * vectors' phone over the method, the path and the BODY, records every body it
+ * verified byte for byte with the length its head declared (read back with the
+ * identity on `GET /p349/bodies`; `GET /p349/counts` answers the counts), reads
+ * a body up to the door's own cap, 2,048 bytes, dropping a body past it whole
+ * with a 404, and answers each verified rename `done` with its id echoed and
+ * the name it carried as the name stored (`renameAnswerFor`), so
+ * `P349RenameTransportTests` drives the SHIPPING `DoorClient`: a rename read on
+ * the door exactly as typed, a 120-unit astral name, the 915-byte worst body
+ * a 120-unit name makes, each in ONE exchange, a rename through the paired
+ * reader as the app holds it, and a rename cancelled at 0.5 s while the
+ * handshake is held reaching the door that holds the handshake with no
+ * request (`writeProblems`' rule). After each configuration `renameProblems`
+ * reads the door's own record and every `P349_TRANSPORT|…` row printed, and
+ * `P349_SUITES` must be named in xcodebuild's own suite lines.
+ *
  * THE ORDER.
  *   1. The preflight: xcodebuild, simctl, the runtime and the device type
  *      (the iPhone 16 Pro, or the one P316_DEVICE names, which that runtime
@@ -897,7 +915,12 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
     // every signature that held or did not, every body past its route's cap
     // (dropped whole, as the door drops one), every answer, and every body it
     // verified, as text, in order, with the length its head declared.
-    p348: { posts: 0, remove: 0, paste: 0, verified: 0, refused: [], oversized: 0, answered: 0, bodies: [] }
+    p348: { posts: 0, remove: 0, paste: 0, verified: 0, refused: [], oversized: 0, answered: 0, bodies: [] },
+    // Phase 349. The rename door's own: every POST /v1/rename it read, every
+    // signature that held or did not, every body past the cap (dropped whole),
+    // every answer, and every body it verified, as text, in order, with the
+    // length its head declared.
+    p349: { posts: 0, verified: 0, refused: [], oversized: 0, answered: 0, bodies: [] }
   });
   let counts = fresh();
   // Every key door A ever issued over, which a `reset` between configurations
@@ -1280,7 +1303,64 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
     p348Http.emit('connection', socket);
   });
   p348Door.on('tlsClientError', () => undefined);
-  const servers = [doorA, doorB, holdTls, holdAnswer, screenDoor, startDoor, p348Door];
+  // PHASE 349: the rename door, under door A's key and admission, answering
+  // `POST /v1/rename` verified as the vectors' phone over the method, the path
+  // and the BODY, and recording every body it verified, byte for byte, with
+  // the length its head declared, so a body is known to have arrived whole in
+  // ONE exchange. A body past the door's own cap (`P349_BODY_CAP`) is read to
+  // its end, counted and answered 404 with no body, as the door drops one
+  // whole. Each verified rename is answered by `renameAnswerFor`: `done` with
+  // its id echoed and the name it carried. `GET /p349/bodies` answers the
+  // record and `GET /p349/counts` the counts, each only to the identity.
+  const p349Http = createHttp({ maxHeaderSize: 8192 }, (req, res) => {
+    const renaming = req.method === 'POST' && req.url === '/v1/rename';
+    const cap = renaming ? P349_BODY_CAP : WRITE_READ_CAP;
+    const chunks = [];
+    let size = 0;
+    req.on('data', (c) => {
+      size += c.length;
+      if (size <= cap) chunks.push(c);
+    });
+    req.on('end', () => {
+      const body = Buffer.concat(chunks);
+      if (req.method === 'GET' && req.url === '/p349/bodies') return answer(res, 200, JSON.stringify({ bodies: counts.p349.bodies.map((b) => b.text) }));
+      if (req.method === 'GET' && req.url === '/p349/counts') {
+        const c = counts.p349;
+        return answer(res, 200, JSON.stringify({ ...c, refused: c.refused.length, bodies: c.bodies.map((b) => ({ bytes: b.bytes, declared: b.declared, nameUnits: b.nameUnits })) }));
+      }
+      if (!renaming) return answer(res, 404, null);
+      counts.p349.posts += 1;
+      if (size > cap) {
+        counts.p349.oversized += 1;
+        return answer(res, 404, null);
+      }
+      const verdict = verifySigned({ method: req.method, target: req.url, headers: req.headers, body, ...writeSigner });
+      if (verdict !== 'ok') {
+        counts.p349.refused.push(verdict);
+        return answer(res, 404, null);
+      }
+      counts.p349.verified += 1;
+      counts.p349.bodies.push({ text: body.toString('utf8'), bytes: body.length, declared: Number(req.headers['content-length'] ?? -1), nameUnits: renameNameUnitsOf(body) });
+      const reply = renameAnswerFor(body, POCKET_WRITE_SENTENCES.unreadable);
+      counts.p349.answered += 1;
+      return answer(res, 200, JSON.stringify(reply));
+    });
+  });
+  const p349Door = createTls(tlsOptions);
+  p349Door.on('secureConnection', (socket) => {
+    const peer = socket.getPeerX509Certificate();
+    const pin = peer === undefined ? null : pinOfSpki(peer.publicKey.export({ type: 'spki', format: 'der' }));
+    if (pin === null || !admitted.has(pin)) {
+      counts.a.refused += 1;
+      socket.destroy();
+      return;
+    }
+    socket.p330Pin = pin;
+    socket.on('error', () => undefined);
+    p349Http.emit('connection', socket);
+  });
+  p349Door.on('tlsClientError', () => undefined);
+  const servers = [doorA, doorB, holdTls, holdAnswer, screenDoor, startDoor, p348Door, p349Door];
   const listening = [];
   const close = async () => {
     for (const raw of held) raw.destroy();
@@ -1298,6 +1378,7 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
     screenHttp.closeAllConnections?.();
     startHttp.closeAllConnections?.();
     p348Http.closeAllConnections?.();
+    p349Http.closeAllConnections?.();
   };
   try {
     for (const server of servers) {
@@ -1320,6 +1401,7 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
     portScreen: screenDoor.address().port,
     portStart: startDoor.address().port,
     portP348: p348Door.address().port,
+    portP349: p349Door.address().port,
     holdMs,
     pinA: A.pin,
     counts: () => counts,
@@ -1600,6 +1682,120 @@ export function pasteProblems(counts, configuration, text = null) {
  * of the bundle is not read as a pass.
  */
 export const P348_SUITES = Object.freeze(['RemoveTests', 'PasteTests', 'WrapJoinTests', 'P348PasteTransportTests']);
+
+// ---------------------------------------------------------------------------
+// Phase 349: the rename door (build/p349/SPEC.md §4.4 step 8, §8.3, D6)
+// ---------------------------------------------------------------------------
+
+/**
+ * The rename's body cap, the shipping door's (`POCKET_WRITE_BODY_CAPS.rename`,
+ * src/main/pocket/door/limits.ts, D6): 2,048 bytes, more than twice the worst
+ * legal body. A body past it is dropped whole.
+ */
+export const P349_BODY_CAP = 2_048;
+/**
+ * The worst body a 120-unit name makes from the phone's encoder (D6, §2.4):
+ * 120 controls each written `\u00XX` beside the longest session id, which the
+ * phone's own rule never lets through but the client and the door must carry.
+ */
+export const P349_WORST_BODY = 915;
+/** The most UTF-16 units a name holds: the Mac's `SESSION_NAME_MAX_UNITS` and the phone's `NameRule.maxUnits`. */
+export const P349_NAME_UNITS = 120;
+const P349_KEYS = 'name,session,write';
+const P349_WRITE_ID = /^[0-9a-f]{32}$/;
+
+/** A verified body's fields, or null when it is not a rename's whole body: exactly `{ name, session, write }`. */
+function p349BodyOf(body) {
+  let parsed = null;
+  try {
+    parsed = JSON.parse(Buffer.from(body).toString('utf8'));
+  } catch {
+    return null;
+  }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  if (Object.keys(parsed).sort().join(',') !== P349_KEYS) return null;
+  if (typeof parsed.write !== 'string' || !P349_WRITE_ID.test(parsed.write)) return null;
+  if (typeof parsed.session !== 'string' || parsed.session === '') return null;
+  if (typeof parsed.name !== 'string') return null;
+  return parsed;
+}
+
+/** The UTF-16 units of a verified rename body's name, or null. */
+export function renameNameUnitsOf(body) {
+  const parsed = p349BodyOf(body);
+  return parsed === null ? null : parsed.name.length;
+}
+
+/**
+ * The door's answer to one verified rename (Phase 349, D21): `done`, its write
+ * id echoed under the verb `rename`, and the name it carried as the name the
+ * Mac stored, in the six fields' own order; a body that is not exactly
+ * `{ name, session, write }` with a 32-lowercase-hex write id gets the Mac's
+ * own answer for it, `refused` `malformed` with `""` echoed and the shipping
+ * `unreadable` sentence.
+ */
+export function renameAnswerFor(body, unreadable) {
+  const parsed = p349BodyOf(body);
+  if (parsed === null) return { verb: 'rename', write: '', outcome: 'refused', reason: 'malformed', sentence: unreadable, name: null };
+  return { verb: 'rename', write: parsed.write, outcome: 'done', reason: null, sentence: null, name: parsed.name };
+}
+
+/**
+ * What each row of P349RenameTransportTests says as
+ * `P349_TRANSPORT|<row>|<reading>` (build/p349/SPEC.md §8.3): a rename read on
+ * the door as typed, the 120-unit astral name, the 915-byte worst body and the
+ * rename through the paired reader as the app holds it, each answered `done`;
+ * and the withheld rename's result, which must name the cancel. A row the run
+ * never printed is no reading of that row.
+ */
+export const P349_TRANSPORT_ROWS = Object.freeze({ rename: 'done', astral: 'done', 'near-cap': 'done', reader: 'done' });
+/** The rows that print a withheld rename's result, each of which must name the cancel. */
+export const P349_WITHHELD_ROWS = Object.freeze(['withheld']);
+
+/**
+ * What one configuration's rename rows left (Phase 349, SPEC §8.3), read off
+ * the DOOR'S OWN RECORD: at least three renames verified and answered (the
+ * typed one twice and the reader's), one whose name is exactly 120 UTF-16
+ * units, one body of exactly the 915-byte worst, every verified body as long
+ * as its head declared (it came in ONE exchange) and within the cap, no
+ * signature refused, and every verified rename answered. The withheld rename
+ * reaching the handshake-holding door with no request is `writeProblems`'
+ * own rule. Given xcodebuild's output, every `P349_TRANSPORT|<row>|<reading>`
+ * row must have printed and read what `P349_TRANSPORT_ROWS` says, and a
+ * withheld row must name the cancel. Returns the problems (sentences).
+ */
+export function renameProblems(counts, configuration, text = null) {
+  const problems = [];
+  const c = counts.p349;
+  if (c === undefined) return [`${configuration}: the doors carry no rename door, so P349RenameTransportTests had nothing to dial`];
+  const bodies = c.bodies ?? [];
+  if (bodies.length < 3) problems.push(`${configuration}: the rename door verified ${String(bodies.length)} POST /v1/rename, not the typed rename twice and the reader's at least`);
+  if (!bodies.some((b) => b.nameUnits === P349_NAME_UNITS)) problems.push(`${configuration}: the rename door verified no rename whose name is ${String(P349_NAME_UNITS)} UTF-16 units (it read ${JSON.stringify(bodies.map((b) => b.nameUnits))})`);
+  if (!bodies.some((b) => b.bytes === P349_WORST_BODY)) problems.push(`${configuration}: the rename door verified no body of the ${String(P349_WORST_BODY)}-byte worst, so it was never sent whole (it read ${JSON.stringify(bodies.map((b) => b.bytes))})`);
+  const cut = bodies.filter((b) => b.bytes !== b.declared || b.bytes > P349_BODY_CAP);
+  if (cut.length > 0) problems.push(`${configuration}: ${String(cut.length)} verified rename body(ies) were not as long as their head declared or passed the cap (${JSON.stringify(cut.map((b) => [b.bytes, b.declared]))}), so a rename was not read in one exchange`);
+  if ((c.refused ?? []).length > 0) problems.push(`${configuration}: the rename door refused ${String(c.refused.length)} signature(s) (${[...new Set(c.refused)].join(', ')}); every rename the shipping client signs with the vectors' key holds`);
+  if (c.answered < c.verified) problems.push(`${configuration}: the rename door verified ${String(c.verified)} rename(s) and answered ${String(c.answered)}`);
+  if (text !== null) {
+    const rows = new Map([...String(text).matchAll(/P349_TRANSPORT\|([a-z-]+)\|([^\s|]+)/g)].map((m) => [m[1], m[2]]));
+    for (const [row, want] of Object.entries(P349_TRANSPORT_ROWS)) {
+      if (!rows.has(row)) problems.push(`${configuration}: no P349_TRANSPORT|${row} line, so that row did not run to its end`);
+      else if (rows.get(row) !== want) problems.push(`${configuration}: P349_TRANSPORT|${row} read ${String(rows.get(row))}, not ${want}`);
+    }
+    for (const row of P349_WITHHELD_ROWS) {
+      if (!rows.has(row)) problems.push(`${configuration}: no P349_TRANSPORT|${row} line, so the withheld rename did not run to its end`);
+      else if (!/cancelled/.test(rows.get(row))) problems.push(`${configuration}: P349_TRANSPORT|${row} read ${String(rows.get(row))}, which names no cancel`);
+    }
+  }
+  return problems;
+}
+
+/**
+ * The test classes Phase 349 adds (build/p349/SPEC.md §8.3, §9.1), each of
+ * which must appear in xcodebuild's own suite lines, so a class that drops out
+ * of the bundle is not read as a pass.
+ */
+export const P349_SUITES = Object.freeze(['RenameTests', 'NameFieldTests', 'RenameClientTests', 'P349RenameTransportTests']);
 
 /**
  * What one configuration's Screen rows left (Phase 337, build/p337/SPEC.md
@@ -2496,6 +2692,79 @@ async function doorsSelfTest() {
     }
     doors.reset();
 
+    // Phase 349: the rename door. A rename with quotes, dashes and a slash
+    // written `\/` as the phone's encoder writes it, a 120-unit astral name and
+    // the 915-byte worst body each verified and answered done under rename with
+    // its id echoed and the name it carried, read the phone's way
+    // (node-phone.mjs's `renameAnswerOf`); a body past the cap dropped whole
+    // with a 404; a body changed after signing refused 404; a fourth key and a
+    // name that is not a string refused malformed with ""; the record read back
+    // only with the identity; and renameProblems both ways over the door's own
+    // record and the rows printed.
+    {
+      const readRename = (got, write) => (typeof phoneMod.renameAnswerOf === 'function' ? phoneMod.renameAnswerOf(got, write) : { ok: false, why: 'node-phone.mjs exports no renameAnswerOf' });
+      const typed = " it's \"x\" fix--auth /review ";
+      const renameId = randomBytes(16).toString('hex');
+      const renameBody = phoneMod.writeBodyOf({ name: typed, session: 'p349-session', write: renameId }, { swiftSlashes: true }).toString('utf8');
+      const renamed = await post(doors.portP349, '/v1/rename', signed('/v1/rename', renameBody));
+      const renameRead = readRename(renamed, renameId);
+      check('an honest rename is verified and answered done under rename with its id echoed and the name it carried', renameBody.includes('\\/review') && renameRead.ok && renameRead.answer.outcome === 'done' && renameRead.answer.name === typed, `${String(renamed.status)} ${renamed.body} (${renameRead.why})`);
+      const astral = '\u{1F600}'.repeat(60);
+      const astralId = randomBytes(16).toString('hex');
+      const astralBody = phoneMod.writeBodyOf({ name: astral, session: 'p349-session', write: astralId }).toString('utf8');
+      const astralGot = await post(doors.portP349, '/v1/rename', signed('/v1/rename', astralBody));
+      const astralRead = readRename(astralGot, astralId);
+      check('a name of 120 UTF-16 units, every one half of an astral character, is read whole and answered done', astral.length === P349_NAME_UNITS && astralRead.ok && astralRead.answer.name === astral, `${String(astralGot.status)} (${astralRead.why})`);
+      const worstId = randomBytes(16).toString('hex');
+      const worstBody = phoneMod.writeBodyOf({ name: '\u0001'.repeat(P349_NAME_UNITS), session: 'x'.repeat(128), write: worstId }).toString('utf8');
+      const worst = await post(doors.portP349, '/v1/rename', signed('/v1/rename', worstBody));
+      const worstRead = readRename(worst, worstId);
+      check('the worst body, 120 controls each escaped beside a 128-character session, is 915 bytes, read whole and answered done', Buffer.byteLength(worstBody) === P349_WORST_BODY && worstRead.ok && worstRead.answer.outcome === 'done', `${String(Buffer.byteLength(worstBody))} bytes: ${String(worst.status)} (${worstRead.why})`);
+      const overBody = `{"name":"${'y'.repeat(P349_BODY_CAP)}","session":"s","write":"${randomBytes(16).toString('hex')}"}`;
+      const over = await post(doors.portP349, '/v1/rename', signed('/v1/rename', overBody));
+      check('a rename body past 2,048 bytes is dropped whole: 404 with no body', over.status === 404 && over.body === '' && doors.counts().p349.oversized === 1, `${String(Buffer.byteLength(overBody))} bytes: ${String(over.status)}`);
+      const forged = await post(doors.portP349, '/v1/rename', signed('/v1/rename', renameBody, renameBody.replace('fix--auth', 'fix--AUTH')));
+      check('a rename whose body changed after signing is answered 404', forged.status === 404, String(forged.status));
+      const extraBody = JSON.stringify({ name: 'x', session: 'p349-session', turn: '0123456789abcdef-3', write: randomBytes(16).toString('hex') });
+      const extra = await post(doors.portP349, '/v1/rename', signed('/v1/rename', extraBody));
+      const extraRead = readRename(extra, '');
+      check('a rename body with a fourth key gets refused malformed with "" echoed', extraRead.ok && extraRead.answer.reason === 'malformed' && extraRead.answer.write === '' && extraRead.answer.name === null, `${extra.body} (${extraRead.why})`);
+      const numberBody = JSON.stringify({ name: 7, session: 'p349-session', write: randomBytes(16).toString('hex') });
+      const number = await post(doors.portP349, '/v1/rename', signed('/v1/rename', numberBody));
+      const numberRead = readRename(number, '');
+      check('a rename whose name is not a string gets refused malformed with "" echoed', numberRead.ok && numberRead.answer.reason === 'malformed' && numberRead.answer.write === '', `${number.body} (${numberRead.why})`);
+      const record = await phoneMod.request({ door: door(doors.portP349), method: 'GET', target: '/p349/bodies', identity, capBytes: 4 * 1024 * 1024 });
+      const bodies = (() => { try { return JSON.parse(record.body).bodies; } catch { return null; } })();
+      check('the record holds every verified body, in order, byte for byte', Array.isArray(bodies) && bodies.length === 5 && bodies[0] === renameBody && bodies[1] === astralBody && bodies[2] === worstBody && bodies[3] === extraBody && bodies[4] === numberBody, J((bodies ?? []).map((b) => b.length)));
+      const bare = await phoneMod.request({ door: door(doors.portP349), method: 'GET', target: '/p349/counts' });
+      check('the record is read only with the identity', bare.status === 0, String(bare.status));
+      const rc = doors.counts();
+      check('the door counted its renames', rc.p349.posts === 7 && rc.p349.verified === 5 && rc.p349.oversized === 1 && J(rc.p349.refused) === J(['signature']) && rc.p349.answered === 5 && J(rc.p349.bodies.map((b) => b.nameUnits)) === J([typed.length, P349_NAME_UNITS, P349_NAME_UNITS, null, null]), J({ ...rc.p349, bodies: rc.p349.bodies.map((b) => [b.bytes, b.nameUnits]) }));
+      const clean = structuredClone(rc);
+      clean.p349.refused = [];
+      const rightRows = `${Object.entries(P349_TRANSPORT_ROWS).map(([row, want]) => `P349_TRANSPORT|${row}|${want}`).join('\n')}\nP349_TRANSPORT|withheld|notSent(Tortie.DoorFailure.cancelled)\n`;
+      const oneRow = (row, value) => rightRows.split('\n').map((l) => (l.startsWith(`P349_TRANSPORT|${row}|`) ? (value === null ? '' : `P349_TRANSPORT|${row}|${value}`) : l)).join('\n');
+      check('renameProblems passes a run that verified a rename, a 120-unit name and the 915-byte worst body and printed every row', renameProblems(clean, 'self-test', rightRows).length === 0, J(renameProblems(clean, 'self-test', rightRows)));
+      check('renameProblems refuses the forged rename it saw', renameProblems(rc, 'self-test', rightRows).length === 1, J(renameProblems(rc, 'self-test', rightRows)));
+      const without = (edit) => {
+        const c = structuredClone(clean);
+        edit(c.p349);
+        return renameProblems(c, 'self-test', rightRows).length === 1;
+      };
+      check('renameProblems refuses a run that verified fewer than three renames', without((c) => void (c.bodies = c.bodies.slice(1, 3))));
+      check('renameProblems refuses a run with no name of 120 UTF-16 units', without((c) => void (c.bodies = c.bodies.map((b) => (b.nameUnits === P349_NAME_UNITS ? { ...b, nameUnits: P349_NAME_UNITS - 1 } : b)))));
+      check('renameProblems refuses a run with no body of the 915-byte worst', without((c) => void (c.bodies = c.bodies.map((b) => (b.bytes === P349_WORST_BODY ? { ...b, bytes: P349_WORST_BODY - 1, declared: P349_WORST_BODY - 1 } : b)))));
+      check('renameProblems refuses a body shorter than its head declared', without((c) => void (c.bodies[0].declared += 1)));
+      check('renameProblems refuses a rename verified and never answered', without((c) => void (c.answered -= 1)));
+      check('renameProblems refuses doors with no rename door', renameProblems({ ...clean, p349: undefined }, 'self-test', rightRows).length === 1);
+      check('renameProblems refuses a printed row that read wrong, and a withheld row with no cancel', renameProblems(clean, 'self-test', oneRow('near-cap', 'noAnswer')).length === 1 && renameProblems(clean, 'self-test', oneRow('withheld', 'answered')).length === 1);
+      check('renameProblems refuses a run that never printed the reader row', renameProblems(clean, 'self-test', oneRow('reader', null)).length === 1, J(renameProblems(clean, 'self-test', oneRow('reader', null))));
+      check('renameProblems refuses output that printed no P349 row at all', renameProblems(clean, 'self-test', 'no rows here\n').length === Object.keys(P349_TRANSPORT_ROWS).length + P349_WITHHELD_ROWS.length);
+      check('renameAnswerFor reads a whole body, one with a key missing, and one whose write id is not 32 hex', renameAnswerFor(Buffer.from(renameBody), 'u').name === typed && renameAnswerFor(Buffer.from(JSON.stringify({ session: 's', write: renameId })), 'u').reason === 'malformed' && renameAnswerFor(Buffer.from(JSON.stringify({ name: 'n', session: 's', write: 'ABC' })), 'u').write === '');
+      check('suitesNotRun names every Phase 349 suite that never ran', J(suitesNotRun('', P349_SUITES)) === J([...P349_SUITES]) && P349_SUITES.includes('P349RenameTransportTests'));
+    }
+    doors.reset();
+
     // (ad)'s first hold: closed while held, nothing read.
     const early = tlsConnect({ host: '127.0.0.1', port: doors.portHoldTls, servername: doors.name, minVersion: 'TLSv1.3', rejectUnauthorized: false, cert: identity.certPem, key: identity.clientPrivatePem });
     early.on('error', () => undefined);
@@ -2980,6 +3249,7 @@ async function main() {
         say(`the screen door, keeping its connections ${String(SCREEN_DOOR_KEEP_MS)} ms, on 127.0.0.1:${String(doors.portScreen)}`);
         say(`the start door, holding ${P346_HOLD_PROJECT} with no answer, on 127.0.0.1:${String(doors.portStart)}`);
         say(`the paste and remove door, reading a paste body up to ${String(P348_BODY_CAPS.paste)} bytes, on 127.0.0.1:${String(doors.portP348)}`);
+        say(`the rename door, reading a rename body up to ${String(P349_BODY_CAP)} bytes, on 127.0.0.1:${String(doors.portP349)}`);
         const testEnv = {
           P330_DOOR_NAME: doors.name,
           P330_DOOR_PORT: String(doors.portA),
@@ -2995,6 +3265,8 @@ async function main() {
           P346_START_PORT: String(doors.portStart),
           // Phase 348: the paste and remove door, under door A's key and name.
           P348_DOOR_PORT: String(doors.portP348),
+          // Phase 349: the rename door, under door A's key and name.
+          P349_DOOR_PORT: String(doors.portP349),
           // Phase 337.1: the screen door's history, which P3371ScrollbackTransportTests pages.
           P3371_DEPTH: String(SCROLLBACK_DOOR_DEPTH),
           P3371_SPACE: SCROLLBACK_DOOR_SPACE,
@@ -3012,10 +3284,11 @@ async function main() {
               { label: `unit-${c.name}`, derivedDataPath: c.derivedDataPath, timeoutMs: 900_000, testEnv }
             );
             const counted = doors.counts();
-            const transport = [...transportProblems(counted, c.name), ...writeProblems(counted, c.name), ...replyProblems(counted, c.name), ...screenProblems(counted, c.name, `${run.stdout}${run.stderr}`), ...scrollbackProblems(counted, c.name, `${run.stdout}${run.stderr}`), ...startProblems(counted, c.name, `${run.stdout}${run.stderr}`), ...pasteProblems(counted, c.name, `${run.stdout}${run.stderr}`)];
-            for (const l of `${run.stdout}${run.stderr}`.split('\n').filter((x) => /^P3371?_(?:TRANSPORT|GRID)\|/.test(x.trim()) || /^P34[68]_TRANSPORT\|/.test(x.trim()))) process.stdout.write(`  ${l.trim()}\n`);
+            const transport = [...transportProblems(counted, c.name), ...writeProblems(counted, c.name), ...replyProblems(counted, c.name), ...screenProblems(counted, c.name, `${run.stdout}${run.stderr}`), ...scrollbackProblems(counted, c.name, `${run.stdout}${run.stderr}`), ...startProblems(counted, c.name, `${run.stdout}${run.stderr}`), ...pasteProblems(counted, c.name, `${run.stdout}${run.stderr}`), ...renameProblems(counted, c.name, `${run.stdout}${run.stderr}`)];
+            for (const l of `${run.stdout}${run.stderr}`.split('\n').filter((x) => /^P3371?_(?:TRANSPORT|GRID)\|/.test(x.trim()) || /^P34[689]_TRANSPORT\|/.test(x.trim()))) process.stdout.write(`  ${l.trim()}\n`);
             say(`the start door after ${c.name}: ${String(counted.start.posts)} start(s) read, ${String(counted.start.verified)} verified, ${String(counted.start.refused.length)} refused, ${String(counted.start.held)} held with no answer, ${String(counted.start.answered)} answered`);
             say(`the paste and remove door after ${c.name}: ${String(counted.p348.remove)} Remove(s) and ${String(counted.p348.paste)} paste(s) read, ${String(counted.p348.verified)} verified, ${String(counted.p348.refused.length)} refused, ${String(counted.p348.oversized)} past their cap, ${String(counted.p348.answered)} answered; paste bodies of ${JSON.stringify(counted.p348.bodies.filter((b) => b.route === 'paste').map((b) => b.bytes))} bytes`);
+            say(`the rename door after ${c.name}: ${String(counted.p349.posts)} rename(s) read, ${String(counted.p349.verified)} verified, ${String(counted.p349.refused.length)} refused, ${String(counted.p349.oversized)} past the cap, ${String(counted.p349.answered)} answered; bodies of ${JSON.stringify(counted.p349.bodies.map((b) => b.bytes))} bytes, names of ${JSON.stringify(counted.p349.bodies.map((b) => b.nameUnits))} UTF-16 units`);
             for (const p of transport) process.stdout.write(`  ${p}\n`);
             say(
               `the write doors after ${c.name}: door A read ${String(counted.writes.end)} end write(s), ${String(counted.writes.choose)} press(es) and ${String(counted.writes.say)} message(s), ` +
@@ -3044,7 +3317,7 @@ async function main() {
               })
             );
             // Phase 317: every class it adds or changes must have run.
-            const notRun = suitesNotRun(`${run.stdout}${run.stderr}`, [...new Set([...P317_SUITES, ...P318_SUITES, ...P337_SUITES, ...P3371_SUITES, ...P3373_SUITES, ...P33311_SUITES, ...P3333_SUITES, ...P345_SUITES, ...P346_SUITES, ...P348_SUITES])]);
+            const notRun = suitesNotRun(`${run.stdout}${run.stderr}`, [...new Set([...P317_SUITES, ...P318_SUITES, ...P337_SUITES, ...P3371_SUITES, ...P3373_SUITES, ...P33311_SUITES, ...P3333_SUITES, ...P345_SUITES, ...P346_SUITES, ...P348_SUITES, ...P349_SUITES])]);
             if (notRun.length > 0) say(`${c.name}: xcodebuild names no run of ${notRun.join(', ')}, so those rows were not run`);
             // Phase 333.11: every frozen row, graded against the sealed sets.
             const frozen = frozenRowProblems(`${run.stdout}${run.stderr}`, frozenPre.sets, new Set(frozenPre.proof), frozenToday, c.name);

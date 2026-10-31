@@ -44,12 +44,13 @@
  * outbound hand-off, and the answer was to remove the thing rather than to
  * guard it. Pairing establishes keys each way and every request is signed.
  *
- * SEVEN WRITE ROUTES, AND WHAT THEY CAN DO IS ALL THEY CAN DO (Phase 317,
+ * EIGHT WRITE ROUTES, AND WHAT THEY CAN DO IS ALL THEY CAN DO (Phase 317,
  * build/p317/SPEC.md §5.3; Phase 318, build/p318/SPEC.md §5.1; Phase 337,
  * build/p337/SPEC.md §5.1; Phase 346, build/p346/SPEC.md D1, D4; Phase 348,
- * build/p348/SPEC.md §4.2, §4.6, D26 to D30).
+ * build/p348/SPEC.md §4.2, §4.6, D26 to D30; Phase 349, build/p349/SPEC.md
+ * §4.1, D2, D6, D10).
  * {@link POCKET_WRITE_ROUTE_IDS} is exactly `end`, `choose`, `say`, `keys`,
- * `start`, `remove` and `paste`:
+ * `start`, `remove`, `paste` and `rename`:
  *
  *   - `end` asks main to end ONE session by id, through both gates the Mac's
  *     own End asks, and main's verb does the ending;
@@ -77,10 +78,15 @@
  *     on this Mac as a paste at the desk lands (bracketed where the program
  *     asked, a line feed as a carriage return, no Return added), refused with
  *     nothing typed when the numbered question the phone was looking at has
- *     moved since. Its answer is {@link PocketPasteAnswer}.
+ *     moved since. Its answer is {@link PocketPasteAnswer};
+ *   - `rename` (Phase 349) asks main to rename ONE session, through the gate
+ *     the Mac's own Rename asks, by the Mac's own verb; on another machine
+ *     only while it runs. A name typed in New session goes after the start as
+ *     one rename to the id the start answered (D2). Its answer is
+ *     {@link PocketRenameAnswer}.
  *
  * Nothing here can set a status, start a process by itself, or restore,
- * restart, resize or rename a session. A phone may remove a session that has
+ * restart or resize a session. A phone may remove a session that has
  * ended, never a live one, and it restores nothing. (A key typed or a text
  * pasted into a shell runs what the same at the desk would run, and that is
  * the write's whole point; his rulings of 2026-10-05, "Every key, including
@@ -149,31 +155,35 @@ export const POCKET_ROUTE_IDS = [
   /** `POST /v1/remove` — remove one session that has ended, after both gates (Phase 348). */
   'remove',
   /** `POST /v1/paste` — paste one text into a running session on this Mac, as at the desk (Phase 348). */
-  'paste'
+  'paste',
+  /** `POST /v1/rename` — rename one session, after the gate (Phase 349). */
+  'rename'
 ] as const;
 
 export type PocketRouteId = (typeof POCKET_ROUTE_IDS)[number];
 
 /**
- * The write routes, and there are exactly these SEVEN (Phase 317; Phase 318
+ * The write routes, and there are exactly these EIGHT (Phase 317; Phase 318
  * added `choose` and `say` to the same door, the same write path and the same
  * ledger, and no second gate; Phase 337 added `keys` in the same way; Phase
  * 346 added `start`, build/p346/SPEC.md D4; Phase 348 added `remove` and
- * `paste`, build/p348/SPEC.md D26). A `reads: false` row of the door's table
- * is one of these, and `conformance:pocket` R2 holds the table and this list
- * to each other. The ORDER is the order the confirm line names them in, so
- * start's, remove's and paste's clauses are said last, in that order.
+ * `paste`, build/p348/SPEC.md D26; Phase 349 added `rename`,
+ * build/p349/SPEC.md §4.1). A `reads: false` row of the door's table is one
+ * of these, and `conformance:pocket` R2 holds the table and this list to each
+ * other. The ORDER is the order the confirm line names them in, so start's,
+ * remove's, paste's and rename's clauses are said last, in that order.
  *
  * `start` is a write but NOT A SESSION WRITE: it names no session (a session
  * is what it makes), its body is a project and an agent, and its answer is
  * {@link PocketStartAnswer}, never {@link PocketWriteAnswer}. `remove` and
- * `paste` (Phase 348, D27) each name one session and take the session verbs'
- * path, but each answers with a shape of its own ({@link PocketRemoveAnswer},
- * {@link PocketPasteAnswer}), because the frozen phones read
+ * `paste` (Phase 348, D27), and `rename` (Phase 349), each name one session
+ * and take the session verbs' path, but each answers with a shape of its own
+ * ({@link PocketRemoveAnswer}, {@link PocketPasteAnswer},
+ * {@link PocketRenameAnswer}), because the frozen phones read
  * {@link PocketWriteAnswer}'s verb and reasons as closed sets. The four that
  * answer {@link PocketWriteAnswer} are {@link POCKET_SESSION_WRITE_IDS}.
  */
-export const POCKET_WRITE_ROUTE_IDS = ['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste'] as const satisfies readonly PocketRouteId[];
+export const POCKET_WRITE_ROUTE_IDS = ['end', 'choose', 'say', 'keys', 'start', 'remove', 'paste', 'rename'] as const satisfies readonly PocketRouteId[];
 
 export type PocketWriteRouteId = (typeof POCKET_WRITE_ROUTE_IDS)[number];
 
@@ -183,7 +193,8 @@ export type PocketWriteRouteId = (typeof POCKET_WRITE_ROUTE_IDS)[number];
  * `PocketWriteAnswer.Verb`, which is why {@link PocketWriteAnswer.verb} is
  * typed by it. A word outside it in that field is a word the frozen phone
  * refuses (`gate:onlyadd` A3), and `start` answers with its own shape, as
- * (Phase 348, D27) `remove` and `paste` do, though each names one session.
+ * (Phase 348, D27) `remove` and `paste` do, and (Phase 349) `rename`, though
+ * each names one session.
  */
 export const POCKET_SESSION_WRITE_IDS = ['end', 'choose', 'say', 'keys'] as const satisfies readonly PocketWriteRouteId[];
 
@@ -319,6 +330,16 @@ export interface PocketBlockedRow {
    * that does not carry it never draws an End.
    */
   end?: PocketEndOffer;
+  /**
+   * Whether the phone may offer Rename on this row (Phase 349,
+   * build/p349/SPEC.md §4.1, D3, D14): PRESENT, and `true`, exactly when this
+   * Mac serves `rename` (a person allowed it) and the rename's verdict, the
+   * name aside, passes on this session now; ABSENT otherwise, and on a Mac
+   * older than this phase, which a phone reads as no Rename. The detail
+   * inherits it from its row. A client draws it and decides nothing: a rename
+   * asks main again by id.
+   */
+  rename?: boolean;
 }
 
 /**
@@ -636,6 +657,13 @@ export interface PocketSessionsRow {
    * because only the door's one composer builds these rows.
    */
   end: PocketEndOffer;
+  /**
+   * Whether the phone may offer Rename on this row (Phase 349, D14): present,
+   * and `true`, exactly as {@link PocketBlockedRow.rename} is; absent
+   * otherwise, which a phone reads as no Rename. Its bytes count inside
+   * {@link POCKET_SESSIONS_BUDGET_BYTES}, as End's do.
+   */
+  rename?: boolean;
 }
 
 /** One project on the Sessions tab: a folder on a machine (D7). */
@@ -718,6 +746,16 @@ export interface PocketSessionsAnswer {
   at: number;
   /** {@link POCKET_AGE_HONESTY}, handed over rather than spelled by a client. */
   ageNote: string;
+  /**
+   * Whether a phone may rename here (Phase 349, build/p349/SPEC.md §4.1, D2,
+   * D12): PRESENT, and `true`, exactly while this Mac serves `rename`, so New
+   * session draws its Name. OUTSIDE {@link start} and never inside it, so a
+   * fault in it never hides the "+" (NS9; bb5), and composed before `start`,
+   * which stays the answer's last key. ABSENT on a Mac older than this phase
+   * and on one whose Allow waits; a client decodes it leniently, anything but
+   * a Boolean `true` reading as absent.
+   */
+  renames?: boolean;
   /**
    * WHETHER A PHONE MAY START A SESSION HERE, AND WHAT IT MAY START (Phase 346,
    * build/p346/SPEC.md D1, D9). OPTIONAL, so a phone that never heard of it
@@ -1036,6 +1074,51 @@ export interface PocketPasteAnswer {
   reason: PocketPasteReason | null;
   /** The Mac's words. Null exactly when {@link outcome} is `done`. */
   sentence: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Renaming a session (Phase 349, build/p349/SPEC.md §4.1, D2, D3, D5, D6, D21)
+// ---------------------------------------------------------------------------
+
+/**
+ * Why a rename was refused (Phase 349). A word; the sentence beside it is what
+ * a person reads. `malformed`: the door could not read the body. `gone`:
+ * nothing by that id is listed any more. `unreachable`: Tortie cannot see
+ * whether it runs. `changed`: it is not a session Rename is offered on now
+ * (the Mac's own gate refused it, or it runs on another machine and has
+ * ended there, D3). `name`: the name's own rule refused it, its sentence
+ * saying which (empty, too long, or a character Tortie does not use, D5).
+ *
+ * A PHONE READS THIS AS AN OPEN WORD and draws the sentence, so a later Mac
+ * may add a reason without a frozen phone refusing the whole answer.
+ */
+export type PocketRenameReason = 'malformed' | 'gone' | 'unreachable' | 'changed' | 'name';
+
+/**
+ * The answer to `POST /v1/rename` (Phase 349), composed field by field in
+ * main, and these six fields are all of it: {@link PocketStartAnswer}'s six
+ * with `name` in `session`'s place. {@link PocketWriteAnswer}'s invariants
+ * hold: `write` is `""` ONLY on the one `refused` `malformed` answer whose
+ * body yielded no well-formed id; `reason` is non-null exactly when `outcome`
+ * is `refused`; `sentence` is null exactly when `outcome` is `done`. And one
+ * more (D21): `name`, the name main STORED (trimmed as the Mac trims), is a
+ * non-empty string exactly when `outcome` is `done`, and null otherwise.
+ * Every outcome the rename decides is a 200 with this body; a 404 with no body
+ * is the door's own refusal and means nothing was renamed. NEVER a
+ * {@link PocketWriteAnswer}, whose verb and reasons the frozen phones read as
+ * closed sets (348 D27).
+ */
+export interface PocketRenameAnswer {
+  verb: 'rename';
+  /** The request's write id, echoed: 32 lowercase hex, or `""` on the one malformed answer that has none. */
+  write: string;
+  outcome: PocketWriteOutcome;
+  /** Non-null exactly when {@link outcome} is `refused`. Read by a phone as an OPEN word. */
+  reason: PocketRenameReason | null;
+  /** The Mac's words. Null exactly when {@link outcome} is `done`. */
+  sentence: string | null;
+  /** The name main stored. A non-empty string exactly when {@link outcome} is `done`, else null (D21). */
+  name: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -1448,6 +1531,7 @@ export const POCKET_DOOR_HONESTY =
  * says it (`WRITE_CLAUSES.start` in src/main/pocket/pairing.ts and the route
  * ledger's row). No word names Face ID: the Mac cannot verify it. PHASE 348
  * (build/p348/SPEC.md D32): `remove` and `paste` the same way, after it.
+ * PHASE 349 (build/p349/SPEC.md D10): `rename` the same way, after paste.
  */
 const POCKET_HONESTY_ADDED: Readonly<Record<Exclude<PocketRouteId, LegacyAllowedRouteId>, string>> = Object.freeze({
   start: 'start a session in a project open in Tortie, on this Mac or another machine',
@@ -1455,7 +1539,10 @@ const POCKET_HONESTY_ADDED: Readonly<Record<Exclude<PocketRouteId, LegacyAllowed
   // Allow lines say them. Paste says "on this Mac" because a far paste is
   // refused in this phase (D22), and a clause never widens under its id.
   remove: 'remove a session that has ended',
-  paste: 'paste text into a session on this Mac'
+  paste: 'paste text into a session on this Mac',
+  // PHASE 349 (build/p349/SPEC.md D10): Rename, in the words its Allow line
+  // says it, after paste.
+  rename: 'rename a session'
 });
 
 /**
@@ -1603,7 +1690,9 @@ export const POCKET_FACE_CLAUSES: Readonly<Record<PocketRouteId, string | null>>
   start: 'start sessions',
   // PHASE 348 (build/p348/SPEC.md D32): Remove's and paste's.
   remove: 'remove ended sessions',
-  paste: 'paste into a session'
+  paste: 'paste into a session',
+  // PHASE 349 (build/p349/SPEC.md D10): Rename's.
+  rename: 'rename sessions'
 });
 
 /**
@@ -1617,7 +1706,9 @@ export const POCKET_FACE_CLAUSES: Readonly<Record<PocketRouteId, string | null>>
  * answers 6 and 8 (any installed agent, remote projects too) made that false,
  * so the sentence says what is true. PHASE 348 (build/p348/SPEC.md D32) adds
  * Remove's and paste's rows; one Allow serves both, because its proposal is
- * the allowed set with this build's routes added.
+ * the allowed set with this build's routes added. PHASE 349
+ * (build/p349/SPEC.md D10, D13) adds Rename's row, which waits for an Allow of
+ * its own on every Mac that allowed 348's two.
  */
 export const POCKET_NEW_ROUTE_WORDS: PocketNewRouteTable = Object.freeze({
   start: {
@@ -1632,6 +1723,12 @@ export const POCKET_NEW_ROUTE_WORDS: PocketNewRouteTable = Object.freeze({
   paste: {
     title: 'paste into sessions from your phone',
     sentence: 'It lands as a paste at this Mac does, with no Return added.'
+  },
+  // PHASE 349 (build/p349/SPEC.md D10, D13): Rename's row, added. 0.113.0
+  // shipped 348's two routes without it, so it waits for an Allow of its own.
+  rename: {
+    title: 'rename sessions from your phone',
+    sentence: 'Name a session as you start it, or rename one later.'
   }
 });
 

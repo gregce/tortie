@@ -1492,6 +1492,24 @@ export const CHECKS = [
   // its `finally`. `--grader-self-test` grades build/p348/fixtures/graders.json
   // and starts nothing.
   remote('probe:p348'),
+  // PHASE 349 (build/p349/SPEC.md §8.1): the Mac side of renaming a session
+  // from the phone. Two Electrons through build/electron-run.mjs, the parent's
+  // (`P349_PARENT_CHECKOUT`, required) FIRST on the same profile, one after the
+  // other and never at once, on a scratch profile, HOME and ZDOTDIR with
+  // HISTFILE=/dev/null and the socket gmux-p349…, inside
+  // build/with-scratch-machine.mjs's loopback machine with the quiet shell, its
+  // own far HOME and none of his keys; the door published through the
+  // Tailscale stand-in behind its preflight and sampler, the name check asking
+  // build/p332/dns-standin.mjs in the probe's own process, the phones
+  // build/p316/node-phone.mjs, every agent build/p318/stand-in.mjs behind
+  // `claude` and `codex` (refused to start without), every other probed
+  // registry row hidden by build/hidden-agents.mjs before each launch, and a
+  // shadow copy of a stand-in's name in a folder the scan always searches
+  // refused (exit 2). No vendor process runs, no token is spent and no name
+  // holding `#(` is sent; every stand-in pid is ended in its `finally`.
+  // `--grader-self-test` grades build/p349/fixtures/graders.json and starts
+  // nothing.
+  remote('probe:p349'),
   // PHASE 342's measurement (build/p342/SPEC.md §7.4): the re-derivation
   // outside Electron. Through build/docker-run.mjs, one throwaway container per
   // distribution in his Docker, each the distribution's own image with its own

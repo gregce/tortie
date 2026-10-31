@@ -549,7 +549,8 @@ const ARMS = [
     { file: 'src/main/pocket/door/table.ts', find: "  { id: 'scrollback', method: 'GET', path: '/v1/scrollback', reads: true, windowOnly: false, signed: true },\n", to: "  { id: 'scrollback', method: 'GET', path: '/v1/scrollback', reads: true, windowOnly: false, signed: true },\n  { id: 'probe', method: 'GET', path: '/v1/probe', reads: true, windowOnly: false, signed: true },\n" },
     // Phase 346 moved its anchor: the route id list ends on start (build/p346/SPEC.md D4).
     // Phase 348 moved it again: the list ends on paste, after remove (build/p348/SPEC.md D26).
-    { file: 'src/shared/ipc/pocket.ts', find: "  'paste'\n] as const;", to: "  'paste',\n  'probe'\n] as const;" }
+    // Phase 349 moved it again: the list ends on rename, after paste (build/p349/SPEC.md §4.1).
+    { file: 'src/shared/ipc/pocket.ts', find: "  'rename'\n] as const;", to: "  'rename',\n  'probe'\n] as const;" }
   ] },
   { id: 'C3', control: true, what: 'the phone reads a new key with decodeIfPresent in PocketBlockedAnswer', edits: [
     { file: 'ios/Tortie/Door/Contract.swift', find: 'enum CodingKeys: String, CodingKey { case rows, others, othersOmitted, at, emptyLine, ageNote }', to: 'enum CodingKeys: String, CodingKey { case rows, others, othersOmitted, at, emptyLine, ageNote, macVersion }' },
@@ -582,7 +583,10 @@ const ARMS = [
   { id: 'R8g', clause: 'R8', committedLedger: true, what: "a ledger row's clause edited in the clone, read against its committed copy through git", edits: [LEDGER_END_CLAUSE] },
   { id: 'R8gh', clause: 'R8', committedLedger: true, what: "a ledger row's clause edited and COMMITTED, so only the base commit's copy holds it", commit: [LEDGER_END_CLAUSE], edits: [] },
   // Phase 346 moved its anchor: the ledger's last row is start's now (build/p346/SPEC.md §4.12).
-  { id: 'R8c', control: true, what: 'a thirteenth ledger row appended (the ledger only adds)', edits: [{ file: 'src/main/pocket/route-ledger.ts', find: "clause: 'start a session in a project open in Tortie, on this Mac or another machine' }\n]);", to: "clause: 'start a session in a project open in Tortie, on this Mac or another machine' },\n  { id: 'probe', method: 'GET', path: '/v1/probe', reads: true, signed: true, windowOnly: false, bodyCap: 1024, clause: null }\n]);" }] },
+  // Phase 349 re-anchored it on the rename row, the ledger's last now
+  // (build/p349/SPEC.md §4.1 step 2). It had been STALE since Phase 348, whose
+  // remove and paste rows left start's row off the end, so it found no text.
+  { id: 'R8c', control: true, what: 'a sixteenth ledger row appended (the ledger only adds)', edits: [{ file: 'src/main/pocket/route-ledger.ts', find: "clause: 'rename a session' }\n]);", to: "clause: 'rename a session' },\n  { id: 'probe', method: 'GET', path: '/v1/probe', reads: true, signed: true, windowOnly: false, bodyCap: 1024, clause: null }\n]);" }] },
   // Phase 333.11.2: a retirement done right reads green. A further set and
   // the floor one higher committed; then its file removed, its label named in
   // the clone gate's RETIRED_SETS and the floor back where it was, judged by

@@ -79,8 +79,9 @@
 //   AND SINCE PHASE 346 A FIFTH, `POST /v1/start` (build/p346/SPEC.md D1, D5,
 //   D6, D17): ask the Mac to start ONE session, naming a project it offered
 //   and an agent installed where that project lives, through the same one
-//   `signedPost`. Its body is exactly `{agent, project, write}`: nothing on the
-//   phone chooses a path, a flag, a name, a login or a machine. Its answer is
+//   `signedPost`. Its body is exactly `{agent, project, write}`: it names no
+//   path, flag, name, login or machine. A name typed in New session goes AFTER
+//   it, as a rename of the id the start answered (Phase 349, D2). Its answer is
 //   `PocketStartAnswer`, read by `StartResult` exactly as `WriteResult` reads
 //   a session write's, by whether the bytes were handed. A start whose answer
 //   did not come is the one other write ever sent again under its own id
@@ -96,6 +97,16 @@
 //   shape of its own with an open reason (`PocketRemoveAnswer`,
 //   `PocketPasteAnswer`), read by `RemoveResult` and `PasteResult` exactly as
 //   `StartResult` reads a start's.
+//
+//   AND SINCE PHASE 349 AN EIGHTH, `POST /v1/rename` (build/p349/SPEC.md
+//   §4.4, D2, D6, D9), through the same one `signedPost`: rename ONE session,
+//   its body exactly `{name, session, write}`, the name the field's text as
+//   he typed it (the Mac trims it and judges it by its own rule), with a fresh
+//   write id every press and none kept, never retried. Its answer is a shape
+//   of its own with an open reason and the name the Mac stored
+//   (`PocketRenameAnswer`), read by `RenameResult` exactly as `RemoveResult`
+//   reads a Remove's. A name typed in New session is sent this way too, once
+//   the start answered the id it made.
 //
 // It never logs: not a header, not a key, not a signature, not a line of the
 // conversation. Its failures are `DoorFailure` cases with no words in them;
@@ -368,6 +379,18 @@ final class DoorClient: DoorExchanging {
         return await signedPost(route: route, door: door, limits: limits, write: nil, line: line).asPaste
     }
 
+    // MARK: Rename (Phase 349), signed, over the identity
+
+    /// `POST /v1/rename`: ask the Mac to rename ONE session to `name`, the
+    /// field's text exactly as he typed it, which the Mac trims and judges by
+    /// its own rule before its own rename stores it (build/p349/SPEC.md §4.3,
+    /// D5). A fresh write id every press and NONE kept, so a press after an
+    /// answer that did not come is a new write, which holds the same one name
+    /// (D9). Never retried.
+    func rename(_ sessionId: String, name: String, door: PairedDoor) async -> RenameResult {
+        await signedPost(route: .rename(session: sessionId, name: name), door: door, limits: limits, write: nil).asRename
+    }
+
     // MARK: The Terminal's history (Phase 337.1), on its side line
 
     /// `GET /v1/scrollback?id=&from=&count=&depth=&wrap=&keep=`
@@ -421,6 +444,8 @@ final class DoorClient: DoorExchanging {
     /// Phase 348: remove one ended session, and paste into one.
     static let removeTarget = "/v1/remove"
     static let pasteTarget = "/v1/paste"
+    /// Phase 349: rename one session.
+    static let renameTarget = "/v1/rename"
 
     static func sessionTarget(_ sessionId: String) -> String {
         "/v1/session?id=\(queryValue(sessionId))"
@@ -528,14 +553,14 @@ final class DoorClient: DoorExchanging {
     /// build/p318/SPEC.md section 5.7.1 and build/p337/SPEC.md section 5.8.2):
     /// a write id, the body with sorted keys, the signature over `POST`, the
     /// path and the body, and the phone's identity presented. Called by `end`,
-    /// `choose`, `say`, `keys`, since Phase 346 `start`, and since Phase 348
-    /// `remove` and `paste` alone, once per press, and never in a loop:
-    /// nothing retries a write. It answers how the
+    /// `choose`, `say`, `keys`, since Phase 346 `start`, since Phase 348
+    /// `remove` and `paste`, and since Phase 349 `rename` alone, once per
+    /// press, and never in a loop: nothing retries a write. It answers how the
     /// exchange ended (`PostEnd`), which each verb reads as its own result. A keys write goes on the Screen's kept `line`,
     /// which carries it only while idle under 4 s (`DoorLine`), and is never
     /// sent again on another.
     ///
-    /// THE ID. `end`, `choose`, `keys`, `remove` and `paste` always pass nil, and so do a new
+    /// THE ID. `end`, `choose`, `keys`, `remove`, `paste` and `rename` always pass nil, and so do a new
     /// message and a new start: `WriteId.fresh()` makes one here. The ids that
     /// are ever handed in are a message's or a start's whose answer did not
     /// come (Revision R13, build/p346/SPEC.md D17), used as they are when well
@@ -570,6 +595,8 @@ final class DoorClient: DoorExchanging {
                 body = try encoder.encode(RemoveBody(session: session, write: id))
             case .paste(let session, let text, let turn, let dialog):
                 body = try encoder.encode(PasteBody(dialog: dialog, session: session, text: text, turn: turn, write: id))
+            case .rename(let session, let name):
+                body = try encoder.encode(RenameBody(name: name, session: session, write: id))
             }
             headers = try door.signer.headers(
                 method: "POST",
@@ -739,6 +766,9 @@ enum WriteRoute: Equatable, Sendable {
     /// Phase 348: one paste of his clipboard's text, with the question id and
     /// the window's mark of the picture he pasted against.
     case paste(session: String, text: String, turn: String, dialog: String?)
+    /// Phase 349: rename ONE session to the name he typed. Its id and the
+    /// name, and nothing else.
+    case rename(session: String, name: String)
 
     var target: String {
         switch self {
@@ -749,20 +779,22 @@ enum WriteRoute: Equatable, Sendable {
         case .start: DoorClient.startTarget
         case .remove: DoorClient.removeTarget
         case .paste: DoorClient.pasteTarget
+        case .rename: DoorClient.renameTarget
         }
     }
 
-    /// The verb a session write's answer must name. Nil for a start, a remove
-    /// and a paste, whose answers are shapes of their own (Phase 346, 348)
-    /// and whose classifiers (`StartResult.of`, `RemoveResult.of`,
-    /// `PasteResult.of`) read their own verbs and never this one.
+    /// The verb a session write's answer must name. Nil for a start, a remove,
+    /// a paste and a rename, whose answers are shapes of their own (Phase 346,
+    /// 348, 349) and whose classifiers (`StartResult.of`, `RemoveResult.of`,
+    /// `PasteResult.of`, `RenameResult.of`) read their own verbs and never this
+    /// one.
     var verb: PocketWriteAnswer.Verb? {
         switch self {
         case .end: .end
         case .choose: .choose
         case .say: .say
         case .keys: .keys
-        case .start, .remove, .paste: nil
+        case .start, .remove, .paste, .rename: nil
         }
     }
 }
@@ -874,6 +906,21 @@ struct PasteBody: Encodable, Sendable {
         try c.encode(turn, forKey: .turn)
         try c.encode(write, forKey: .write)
     }
+}
+
+/// `POST /v1/rename`'s body (Phase 349, build/p349/SPEC.md §4.2, D6): exactly
+/// these three keys (`name,session,write`), read strictly by the Mac, which
+/// refuses any other key. `name` is the field's text exactly as he typed it,
+/// never trimmed or rewritten here: the Mac trims it as its own sheet does and
+/// judges it by its own rule, and the answer says the name it stored. No old
+/// name and no lock: the last rename wins, as between two Mac windows (D6).
+/// Encoded with sorted keys; Swift's encoder writes `/` as `\/`, which the
+/// Mac's JSON parse reads back, and the door's 2,048-byte cap holds the worst
+/// it writes for a 120-unit name.
+struct RenameBody: Encodable, Sendable {
+    let name: String
+    let session: String
+    let write: String
 }
 
 /// A write's id: 128 bits from the system's random source, as 32 lowercase
@@ -1020,6 +1067,17 @@ enum PostEnd: Sendable {
             PasteResult.of(end, sent: write)
         }
     }
+
+    /// A rename's result (Phase 349's `RenameResult.of`). No id is handed
+    /// back: none is kept (D9).
+    var asRename: RenameResult {
+        switch self {
+        case .notSent(let failure, _):
+            .notSent(failure)
+        case .ended(let end, let write):
+            RenameResult.of(end, sent: write)
+        }
+    }
 }
 
 /// What is TRUE of one start once it ended (Phase 346, D25), classified
@@ -1160,6 +1218,55 @@ enum PasteResult: Equatable, Sendable {
             case 200:
                 guard let answer = try? JSONDecoder().decode(PocketPasteAnswer.self, from: reply.body),
                       answer.verb == "paste",
+                      answer.write == sent || answer.echoesNoId else { return .noAnswer }
+                return .answered(answer)
+            case 404:
+                return .notTaken
+            default:
+                return .noAnswer
+            }
+        }
+    }
+}
+
+/// What is TRUE of one rename once it ended (Phase 349, build/p349/SPEC.md
+/// §4.4 step 2), classified EXACTLY as `RemoveResult` is. Never retried, and
+/// no id is kept: a new press is a new write id, and the same name twice holds
+/// one name (D9).
+enum RenameResult: Equatable, Sendable {
+    /// 200, and the answer named the rename and echoed the id this write
+    /// carried (or `""` with `refused` `malformed`): what the Mac decided, in
+    /// its own words, and on `done` the name it stored.
+    case answered(PocketRenameAnswer)
+    /// 404: the door's own refusal, made before anything was renamed. A Mac
+    /// whose Allow of `rename` waits answers so before the body.
+    case notTaken
+    /// The bytes were handed to the connection and no answer this build can
+    /// read came back: the Mac may have renamed the session, once.
+    case noAnswer
+    /// It failed BEFORE its bytes were handed, so the Mac saw none of it.
+    /// `.cancelled` is a rename WITHHELD because the app left.
+    case notSent(DoorFailure)
+
+    /// The rename was withheld when the app left: never sent.
+    var withheld: Bool {
+        self == .notSent(.cancelled)
+    }
+
+    /// One exchange's end, read as a rename's result. Classified by `handed`:
+    /// a failure before the bytes were handed is `notSent`, after it
+    /// `noAnswer`. A 200 is an answer only when it names the rename and
+    /// echoes the id this write carried.
+    static func of(_ end: ExchangeEnd, sent: String) -> RenameResult {
+        switch end.result {
+        case .failure(let error):
+            guard end.handed else { return .notSent(error as? DoorFailure ?? .notPaired) }
+            return .noAnswer
+        case .success(let reply):
+            switch reply.status {
+            case 200:
+                guard let answer = try? JSONDecoder().decode(PocketRenameAnswer.self, from: reply.body),
+                      answer.verb == "rename",
                       answer.write == sent || answer.echoesNoId else { return .noAnswer }
                 return .answered(answer)
             case 404:

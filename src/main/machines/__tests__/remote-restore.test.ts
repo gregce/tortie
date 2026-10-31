@@ -406,15 +406,20 @@ describe('the shape a remote restore takes, read off its own source', () => {
   });
 
   /**
-   * PHASE 342 (D12). The record's far name with every `$` as `_`, the create's
-   * own rule, and no dedupe, as at the parent: tmux 3.2a to 3.4 store a `$` and
-   * a letter with a backslash, so `=<name>` misses the session the restore
-   * makes. The manifest takes the new name at step 8.
+   * PHASE 342 (D12), MOVED ON PURPOSE BY PHASE 349 (build/p349/SPEC.md D16).
+   * The record's far name through the create's own far rule, `farTmuxName`,
+   * where Phase 342 mapped every `$` to `_` by hand: the `$` still becomes `_`,
+   * and D7 now holds back what tmux reads in a name there too. No dedupe
+   * against the machine's names, as at the parent (only the reserved control
+   * name is ever taken): tmux 3.2a to 3.4 store a `$` and a letter with a
+   * backslash, so `=<name>` misses the session the restore makes. The manifest
+   * takes the new name at step 8. `./p342-far-names.test.ts` drives it.
    */
-  it('maps every $ in the record\'s far name to _, and dedupes nothing', () => {
+  it('composes the record\'s far name by the far rule, with nothing taken, and maps no $ by hand', () => {
     expect(code).toMatch(
-      /const tmuxName = \(record\.tmuxName\.length > 0 \? record\.tmuxName : record\.name\)\.replace\(\s*\/\\\$\/g,\s*'_'\s*\);/
+      /const tmuxName = farTmuxName\(record\.tmuxName\.length > 0 \? record\.tmuxName : record\.name, new Set\(\)\);/
     );
+    expect(code).not.toMatch(/\.replace\(\s*\/\\\$\/g/);
     expect(code).not.toContain('dedupeSessionName');
     expect(code).toMatch(/updateSession\(sessionId, \{\s*tmuxName,/);
   });

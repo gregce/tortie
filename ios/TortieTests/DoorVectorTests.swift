@@ -666,11 +666,13 @@ final class DoorVectorTests: XCTestCase {
     /// Clause (Phase 316.7): every `/v1/sessions` answer the SHIPPING composer
     /// wrote reads back as the door wrote it, unknown fields ignored, and is
     /// one the Sessions tab draws for the words it echoes: never refused.
-    /// vectors.mjs composes two (the integrator's addition to section 9.2);
-    /// a file with none predates the route and fails here by name.
+    /// vectors.mjs composes two (the integrator's addition to section 9.2),
+    /// and since Phase 349 a third, drawn with Rename served; a file with
+    /// none predates the route and fails here by name.
     func testTheSessionsAnswersReadBackAndDraw() throws {
         let names = v.answers.keys.filter { $0.hasPrefix("sessions") }.sorted()
-        XCTAssertEqual(names, ["sessions-active-none-name", "sessions-all-project"], "vectors.json holds no /v1/sessions answer: run node build/p316/vectors.mjs")
+        // Phase 349 adds the one drawn with Rename served (`sessions-renames`).
+        XCTAssertEqual(names, ["sessions-active-none-name", "sessions-all-project", "sessions-renames"], "vectors.json holds no /v1/sessions answer: run node build/p316/vectors.mjs")
         for name in names {
             let answer = try assertRoundTrip(PocketSessionsAnswer.self, name)
             let asked = SessionsQuery(
@@ -881,6 +883,170 @@ final class DoorVectorTests: XCTestCase {
         XCTAssertTrue(page.wraps.allSatisfy { $0 >= 0 && $0 < page.rows.count - 1 }, "a page's mark names its last row or none")
     }
 
+    // MARK: Rename (Phase 349)
+
+    /// Clause (Phase 349, build/p349/SPEC.md D6, §9.3): the rename is the
+    /// request the shipping verifier accepted and the shipping
+    /// `parseRenameBody` read back: POST, the client's own target, and the
+    /// body Swift's encoder writes from `RenameBody` with sorted keys, byte for
+    /// byte, exactly its three keys. The signature loops above sign and verify
+    /// it with the rest.
+    func testTheRenameIsTheDoorsByteForByte() throws {
+        let rename = try XCTUnwrap(v.requests.first { $0.name == "rename" }, "vectors.json carries no rename write; run node build/p316/vectors.mjs")
+        XCTAssertEqual(rename.method, "POST")
+        XCTAssertEqual(rename.target, DoorClient.renameTarget)
+        let fields = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(rename.body.utf8)) as? [String: String])
+        XCTAssertEqual(Array(fields.keys).sorted(), ["name", "session", "write"])
+        let body = RenameBody(name: try XCTUnwrap(fields["name"]), session: try XCTUnwrap(fields["session"]), write: try XCTUnwrap(fields["write"]))
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        XCTAssertEqual(String(decoding: try encoder.encode(body), as: UTF8.self), rename.body)
+        XCTAssertTrue(WriteId.isWellFormed(body.write))
+    }
+
+    /// Clause (Phase 349, D21): the eight rename answers the SHIPPING verb and
+    /// write path composed read back as the door wrote them, unknown fields
+    /// ignored, each by its own rules (a reason exactly when refused, a
+    /// sentence exactly when not done, a name exactly when done); the client
+    /// takes each as the rename's answer to the vector's request (its id
+    /// echoed, or `""` with `refused` `malformed`) and never as the answer to
+    /// another write's id; the line the phone draws is the Mac's own; and no
+    /// other write's answer is ever a rename's.
+    func testTheRenameAnswersReadBackAsTheDoorWroteThem() throws {
+        let names = v.answers.keys.filter { $0.hasPrefix("rename-") }.sorted()
+        XCTAssertEqual(names, [
+            "rename-busy", "rename-done", "rename-failed", "rename-malformed",
+            "rename-refused-changed", "rename-refused-gone", "rename-refused-name", "rename-refused-unreachable"
+        ], "vectors.json holds no rename answers: run node build/p316/vectors.mjs")
+        let request = try XCTUnwrap(v.requests.first { $0.name == "rename" }, "vectors.json carries no rename write")
+        let sent = try XCTUnwrap((try JSONSerialization.jsonObject(with: Data(request.body.utf8)) as? [String: Any])?["write"] as? String)
+        for name in names {
+            let read = try assertRoundTrip(PocketRenameAnswer.self, name)
+            XCTAssertEqual(read.verb, PocketRenameAnswer.verbWord, name)
+            let end = ExchangeEnd(result: .success(DoorReply(status: 200, body: Data(try answer(name).json.utf8))), handed: true)
+            guard case .answered(let taken) = RenameResult.of(end, sent: sent) else { return XCTFail("\(name) is not read as the rename's answer") }
+            let line = DoorWords.renameSentence(for: .answered(taken), sample: false)
+            XCTAssertEqual(line, taken.outcome == .done ? Copy.rename : taken.sentence, name)
+            XCTAssertFalse(line.isEmpty, name)
+            if !taken.echoesNoId {
+                XCTAssertEqual(RenameResult.of(end, sent: String(repeating: "0", count: WriteId.hexCount)), .noAnswer, "\(name) is read as the answer to another write")
+            }
+        }
+        let done = try JSONDecoder().decode(PocketRenameAnswer.self, from: Data(try answer("rename-done").json.utf8))
+        XCTAssertEqual(done.outcome, .done)
+        XCTAssertFalse(try XCTUnwrap(done.name).isEmpty)
+        for (name, reason) in [("rename-refused-name", "name"), ("rename-refused-changed", "changed"), ("rename-refused-gone", "gone"), ("rename-refused-unreachable", "unreachable")] {
+            let refused = try JSONDecoder().decode(PocketRenameAnswer.self, from: Data(try answer(name).json.utf8))
+            XCTAssertEqual(refused.reason, reason, name)
+            XCTAssertNil(refused.name, name)
+        }
+        XCTAssertTrue(try JSONDecoder().decode(PocketRenameAnswer.self, from: Data(try answer("rename-malformed").json.utf8)).echoesNoId)
+        // Every other write's answer, refused as a rename's, and a rename's as theirs.
+        let others = v.answers.keys.filter { key in ["end-", "choose-", "say-", "keys-", "start-", "remove-", "paste-"].contains { key.hasPrefix($0) } }.sorted()
+        XCTAssertGreaterThanOrEqual(others.count, 15, "the vectors hold fewer write answers than Phase 348 left")
+        for name in others {
+            XCTAssertThrowsError(try JSONDecoder().decode(PocketRenameAnswer.self, from: Data(try answer(name).json.utf8)), "\(name) reads as a rename's answer")
+            let end = ExchangeEnd(result: .success(DoorReply(status: 200, body: Data(try answer(name).json.utf8))), handed: true)
+            XCTAssertEqual(RenameResult.of(end, sent: sent), .noAnswer, "\(name) is taken as a rename's answer")
+        }
+        let renamed = ExchangeEnd(result: .success(DoorReply(status: 200, body: Data(try answer("rename-done").json.utf8))), handed: true)
+        XCTAssertEqual(RemoveResult.of(renamed, sent: sent), .noAnswer, "a rename's answer is read as a remove's")
+        XCTAssertEqual(StartResult.of(renamed, sent: sent), .noAnswer, "a rename's answer is read as a start's")
+    }
+
+    /// Clause (Phase 349, D3, D14, bb5): the offers the SHIPPING composers drew
+    /// with `rename` served read back whole: a blocked row, the detail and a
+    /// Sessions row carry `rename` exactly where the door wrote it (and a
+    /// session ended on another machine none, D3), the Sessions answer
+    /// carries `renames`, and every answer from before this phase carries
+    /// neither, so it reads exactly as it did.
+    func testTheRenameOffersArriveAsComposed() throws {
+        let blocked = try assertRoundTrip(PocketBlockedAnswer.self, "blocked-rename")
+        let session = try assertRoundTrip(PocketSessionAnswer.self, "session-rename")
+        let sessions = try assertRoundTrip(PocketSessionsAnswer.self, "sessions-renames")
+        XCTAssertTrue(session.session.rename, "the detail drawn with Rename served offers none")
+        XCTAssertTrue(sessions.renames, "the Sessions answer drawn with Rename served does not say it renames")
+        var offered = 0
+        var plain = 0
+        let rawBlocked = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(try answer("blocked-rename").json.utf8)) as? [String: Any])
+        let blockedRows = ((rawBlocked["rows"] as? [[String: Any]]) ?? []) + ((rawBlocked["others"] as? [[String: Any]]) ?? [])
+        for (row, raw) in zip(blocked.rows + blocked.others, blockedRows) {
+            XCTAssertEqual(row.rename, (raw["rename"] as? Bool) ?? false, row.sessionId)
+            if row.rename { offered += 1 } else { plain += 1 }
+        }
+        let rawSessions = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(try answer("sessions-renames").json.utf8)) as? [String: Any])
+        for (row, raw) in zip(sessions.rows, (rawSessions["rows"] as? [[String: Any]]) ?? []) {
+            XCTAssertEqual(row.rename, (raw["rename"] as? Bool) ?? false, row.sessionId)
+            if row.rename { offered += 1 } else { plain += 1 }
+        }
+        XCTAssertGreaterThan(offered, 0, "no row offers Rename")
+        XCTAssertGreaterThan(plain, 0, "every row offers Rename, the ended remote one among them")
+        let asked = SessionsQuery(show: sessions.asked.show, group: sessions.asked.group, sort: sessions.asked.sort, agent: sessions.asked.agent, machine: sessions.asked.machine)
+        XCTAssertNoThrow(try SessionsDrawing(sessions, asked: asked), "the shipping composer's answer with Rename served is refused")
+        for name in ["blocked", "sessions-all-project", "sessions-active-none-name"] {
+            let raw = try answer(name).json
+            XCTAssertFalse(raw.contains("\"rename\"") || raw.contains("\"renames\""), "\(name), an answer from before this phase, moved")
+        }
+        XCTAssertFalse(try JSONDecoder().decode(PocketBlockedAnswer.self, from: Data(try answer("blocked").json.utf8)).rows.contains { $0.rename })
+        XCTAssertFalse(try JSONDecoder().decode(PocketSessionsAnswer.self, from: Data(try answer("sessions-all-project").json.utf8)).renames)
+    }
+
+    /// Clause (Phase 349, bd6, D5): the phone's `NameRule` IS the Mac's rule,
+    /// held to what the SHIPPING `trimmedSessionName` and
+    /// `sessionNameRefusal` wrote: the cap; over the whole BMP, the code units
+    /// the trim takes and the ones the rule refuses, read one at a time as the
+    /// Mac read them (a surrogate, which no Swift string holds alone, is the
+    /// Mac's to judge); and every row a Swift string can hold judged as the
+    /// Mac judged it: its reason, its sentence (Copy.swift's word, the Mac's
+    /// own), and what the trim leaves, unit for unit. A row no Swift string can
+    /// hold carries a lone surrogate, and only such a row carries no text.
+    func testTheNameRuleIsTheMacsOwn() throws {
+        let names = try XCTUnwrap(v.names, "vectors.json carries no names section: run node build/p316/vectors.mjs")
+        XCTAssertEqual(names.maxUnits, NameRule.maxUnits, "the phone's cap is not the Mac's")
+        var trimmed: [Int] = []
+        var refused: [Int] = []
+        for value in 0...0xFFFF {
+            guard let scalar = UnicodeScalar(UInt32(value)) else { continue }
+            let unit = String(scalar)
+            if NameRule.trimmed(unit).isEmpty { trimmed.append(value) }
+            if NameRule.refusal("a" + unit + "b")?.reason == .character { refused.append(value) }
+        }
+        let surrogates = 0xD800...0xDFFF
+        XCTAssertEqual(trimmed, names.trimmed.sorted(), "the phone trims other code units than the Mac")
+        XCTAssertEqual(Set(names.trimmed.map(UInt32.init)), NameRule.trimmedAway)
+        XCTAssertEqual(trimmed.count, 25)
+        XCTAssertEqual(refused, names.refused.filter { !surrogates.contains($0) }.sorted(), "the phone refuses other code units than the Mac")
+        XCTAssertEqual(refused.count, 76)
+        let macSurrogates = names.refused.filter { surrogates.contains($0) }.sorted()
+        XCTAssertTrue(macSurrogates.isEmpty || macSurrogates == Array(surrogates), "the Mac refuses some lone surrogates and not others")
+
+        let words = [Copy.nameEmpty, Copy.nameTooLong, Copy.nameCharacter]
+        var judged = 0
+        var macAlone = 0
+        var reasons: Set<String> = []
+        for (k, row) in names.rows.enumerated() {
+            let wellFormed = String(decoding: row.units.map { UInt16($0) }, as: UTF16.self).utf16.map(Int.init) == row.units
+            if let sentence = row.sentence { XCTAssertTrue(words.contains(sentence), "row \(k): the Mac's sentence \(sentence) is not Copy.swift's") }
+            XCTAssertEqual(row.reason == nil, row.sentence == nil, "row \(k): a reason without a sentence, or a sentence without a reason")
+            guard let text = row.text else {
+                macAlone += 1
+                XCTAssertFalse(wellFormed, "row \(k) carries no text but its units are a string Swift holds")
+                continue
+            }
+            XCTAssertTrue(wellFormed, "row \(k) carries text, yet its units hold a lone surrogate")
+            XCTAssertEqual(text.utf16.map(Int.init), row.units, "row \(k): its text is not its units")
+            let refusal = NameRule.refusal(text)
+            XCTAssertEqual(refusal?.reason.rawValue, row.reason, "row \(k) \(row.units.map { String($0, radix: 16) }): the phone's reason is not the Mac's")
+            XCTAssertEqual(refusal?.sentence, row.sentence, "row \(k): the phone's sentence is not the Mac's")
+            XCTAssertEqual(NameRule.trimmed(text).utf16.map(Int.init), row.trimmedUnits, "row \(k): the phone's trim leaves other units than the Mac's")
+            reasons.insert(row.reason ?? "taken")
+            judged += 1
+        }
+        XCTAssertGreaterThan(judged, 100, "the vectors judge too few names to hold the rule")
+        XCTAssertGreaterThan(macAlone, 0, "no row holds a lone surrogate, which only the Mac can judge")
+        XCTAssertEqual(reasons, ["taken", "empty", "long", "character"], "the rows do not reach every verdict")
+    }
+
     /// Clause: the ask arrives exactly as he typed it, markdown characters and
     /// all, and so does the answer; the phone decodes and never rewrites.
     func testTheAskAndTheAnswerArriveVerbatim() throws {
@@ -1002,6 +1168,30 @@ struct DoorVectorFile: Decodable {
     let answers: [String: Answer]
     let pushSeal: PushSeal
     let alerts: [Alert]
+    /// Phase 349 (D5): the one name rule as the SHIPPING `trimmedSessionName`
+    /// and `sessionNameRefusal` judged it. Optional so a file written before
+    /// it fails the one test that reads it, by name.
+    let names: Names?
+
+    /// Phase 349 (D5, bd6): the cap; every BMP code unit the trim takes from
+    /// the ends of a name (`trimmed`) and every one the rule refuses inside one
+    /// (`refused`), each read one code unit at a time; and the rows, each with
+    /// its UTF-16 `units`, its `text` (null where no Swift string can hold it:
+    /// a lone surrogate, which the Mac alone judges), what the trim leaves,
+    /// and the rule's reason and sentence (both null for a name it takes).
+    struct Names: Decodable {
+        struct Row: Decodable {
+            let units: [Int]
+            let text: String?
+            let trimmedUnits: [Int]
+            let reason: String?
+            let sentence: String?
+        }
+        let maxUnits: Int
+        let trimmed: [Int]
+        let refused: [Int]
+        let rows: [Row]
+    }
 
     /// The file beside this one in the checkout, which a Simulator process can
     /// read; the copy in the test bundle when there is one.

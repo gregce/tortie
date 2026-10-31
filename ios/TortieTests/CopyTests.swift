@@ -157,6 +157,43 @@ final class CopyTests: XCTestCase {
         XCTAssertNil(byName["startAgent"], "the sheet's Agent label is Copy.agent, declared once")
     }
 
+    /// Clause (Phase 349, build/p349/SPEC.md section 5.2): the rename's six
+    /// words, each pinned to its value and its owner: `Rename` and `Save name`
+    /// the Mac's own words in the Mac's own modules, the three name sentences
+    /// the Mac's name rule's (`src/shared/session-names.ts`), word for word,
+    /// and the not-taken line the phone's own. The sheet's other words are
+    /// the ones already declared once (`sortName`, `cancel`, `endNoAnswer`,
+    /// `startSample`), and none names a biometry (D8).
+    func testTheRenamesWordsArePinned() throws {
+        let entries = try entries()
+        let byName = Dictionary(uniqueKeysWithValues: entries.map { ($0.name, $0) })
+        let macWords: [(String, String, String)] = [
+            ("rename", "Rename", "src/renderer/app/session-actions.tsx"),
+            ("saveName", "Save name", "src/renderer/session-manager/copy.ts"),
+            ("nameEmpty", "Session name cannot be empty.", "src/shared/session-names.ts"),
+            ("nameTooLong", "That name is too long.", "src/shared/session-names.ts"),
+            ("nameCharacter", "That name holds a character Tortie does not use.", "src/shared/session-names.ts")
+        ]
+        for (name, value, owner) in macWords {
+            let entry = try XCTUnwrap(byName[name], "Copy.\(name) is not declared")
+            XCTAssertEqual(entry.literal, value, name)
+            guard case let .mac(path, _)? = entry.owner else { return XCTFail("\(name) is not the Mac's word") }
+            XCTAssertEqual(path, owner, name)
+        }
+        let notTaken = try XCTUnwrap(byName["renameNotTaken"], "Copy.renameNotTaken is not declared")
+        XCTAssertEqual(notTaken.literal, "Your Mac did not rename it. Nothing was changed.")
+        guard case .phone(let reason)? = notTaken.owner else { return XCTFail("renameNotTaken is not the phone's own word") }
+        XCTAssertFalse(reason.isEmpty)
+        XCTAssertEqual(Copy.sortName, "Name", "New session's Name label is not the phone's one Name")
+        XCTAssertNil(byName["renameName"], "the sheet's Name label is Copy.sortName, declared once")
+        XCTAssertNil(byName["renameCancel"], "the sheet's Cancel is Copy.cancel, declared once")
+        for entry in entries where ["rename", "saveName", "nameEmpty", "nameTooLong", "nameCharacter", "renameNotTaken"].contains(entry.name) {
+            for word in ["Face ID", "Touch ID", "passcode"] {
+                XCTAssertFalse(entry.literal.contains(word), "\(entry.name) names \(word); a rename asks no owner check")
+            }
+        }
+    }
+
     /// Clause (Phase 345, build/p345/SPEC.md section 3.7): the four words of
     /// several Macs, each the phone's own (no Mac surface switches between
     /// Macs, pairs a second Mac with a phone, or knows what the phone keeps),

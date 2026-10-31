@@ -101,6 +101,18 @@
 // with defaults that paste nothing (`.notSent(.notPaired)` and `false`), so a
 // test fake compiles untouched and offers no Paste. A paste asks no Face ID,
 // as no key does; its result becomes a sentence in `pasteSentence`.
+//
+// RENAME (Phase 349, build/p349/SPEC.md §4.4, D2, D8, D9, D20). A paired
+// reader also answers `renamer`, which renames ONE session through
+// `POST /v1/rename` and reads one session again (`session`, the sheet's first
+// read from a row and its one read after a rename whose answer did not come).
+// `renamer` is a REQUIREMENT of `DoorReading`, for the same reason as `writer`,
+// and its extension default is nil, so a reader that renames nothing (every
+// test fake before this phase) draws no Rename and no Name. Its one caller is
+// `RenameRunner.run` (Screens/SessionName.swift). It asks NO Face ID, Touch ID
+// or passcode (his rulings, "Only for End" and "No Face ID, just confirm"). See
+// a sample answers one that sends nothing. A rename's result becomes a
+// sentence in `renameSentence`.
 
 import Foundation
 
@@ -134,6 +146,9 @@ protocol DoorReading: Sendable {
     /// The Remove this pairing can make (Phase 348, D55), or nil when it
     /// makes none. A requirement, so `any DoorReading` reads the reader's own.
     var remover: (any DoorRemoving)? { get }
+    /// The rename this pairing can make (Phase 349), or nil when it makes
+    /// none. A requirement, so `any DoorReading` reads the reader's own.
+    var renamer: (any DoorRenaming)? { get }
 }
 
 extension DoorReading {
@@ -145,6 +160,9 @@ extension DoorReading {
 
     /// A reader that removes nothing: no Remove (Phase 348).
     var remover: (any DoorRemoving)? { nil }
+
+    /// A reader that renames nothing: no Rename and no Name (Phase 349).
+    var renamer: (any DoorRenaming)? { nil }
 
     /// A reader with no Screen: none is drawn.
     func screenDoor(_ sessionId: String) -> (any ScreenDoor)? { nil }
@@ -189,6 +207,19 @@ protocol DoorStarting: Sendable {
 protocol DoorRemoving: Sendable {
     /// `POST /v1/remove`. The ONE caller in the app is `RemoveRunner.run`.
     func remove(_ sessionId: String) async -> RemoveResult
+}
+
+/// Rename (Phase 349, D8, D9): ONE session on the reader's Mac, to the name he
+/// typed, sent at most once and never retried, with a fresh write id every
+/// press and none kept, asking no owner check (his rulings, "Only for End" and
+/// "No Face ID, just confirm").
+protocol DoorRenaming: Sendable {
+    /// `POST /v1/rename`. The ONE caller in the app is `RenameRunner.run`.
+    func rename(_ sessionId: String, name: String) async -> RenameResult
+    /// `GET /v1/session` for one session: the Rename sheet's first read when
+    /// it opens from a row, whose list clips a name at 200 (D20), and its one
+    /// read after a rename whose answer did not come.
+    func session(_ sessionId: String) async throws -> PocketSessionAnswer
 }
 
 /// One session's Terminal, through the door (Phase 337): the long poll and
@@ -608,6 +639,34 @@ enum DoorWords {
             return Copy.endNoAnswer
         case .notSent(let failure):
             return failure == .cancelled ? Copy.pasteNotTaken : sentence(for: failure)
+        }
+    }
+
+    /// A rename's line for its result (Phase 349, build/p349/SPEC.md §4.4 step
+    /// 3): ALWAYS a sentence, never empty (conformance:ios rule v). A `done`
+    /// rename draws nothing (the sheet closes, or the named session opens
+    /// under the name the Mac stored); its word here is the Mac's own
+    /// `Rename`, which is what it did, as `removeSentence`'s done is `Remove`.
+    /// An answered refusal, failure or busy is the Mac's own sentence (its
+    /// name rule's, `LIFECYCLE_SESSION_CHANGED`, `SESSION_NOT_FOUND`, …). A
+    /// 404 and a rename withheld because the app left are both `Your Mac did
+    /// not rename it. Nothing was changed.`, which is true of each; no answer
+    /// is End's own line, whose words are true of any write; anything else not
+    /// sent says why. Inside See a sample every rename says nothing ran.
+    static func renameSentence(for result: RenameResult, sample: Bool) -> String {
+        guard !sample else { return Copy.startSample }
+        switch result {
+        case .answered(let answer):
+            guard answer.outcome != .done else { return Copy.rename }
+            // The decoder refuses a non-done answer with no sentence or an
+            // empty one, so this is the Mac's own sentence.
+            return answer.sentence ?? Copy.answerUnreadable
+        case .notTaken:
+            return Copy.renameNotTaken
+        case .noAnswer:
+            return Copy.endNoAnswer
+        case .notSent(let failure):
+            return failure == .cancelled ? Copy.renameNotTaken : sentence(for: failure)
         }
     }
 

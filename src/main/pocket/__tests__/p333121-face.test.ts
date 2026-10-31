@@ -94,8 +94,10 @@ const PROBE = 'probe' as PocketRouteId;
 const CAN_ELEVEN = 'see your sessions, type into them, answer questions, send a message, end a session';
 /** Every clause over the twelve a 0.112.0 Mac had (Phase 346 added Start's, last: build/p346/SPEC.md D3). */
 const CAN_TWELVE = `${CAN_ELEVEN}, start sessions`;
-/** Phase 348 (build/p348/SPEC.md D32): this build's fourteen, Remove's and paste's clauses after Start's. */
+/** Phase 348 (build/p348/SPEC.md D32): a 0.113.0 Mac's fourteen, Remove's and paste's clauses after Start's. */
 const CAN_FOURTEEN = `${CAN_TWELVE}, remove ended sessions, paste into a session`;
+/** Phase 349 (build/p349/SPEC.md D10): this build's fifteen, Rename's clause after paste's. */
+const CAN_FIFTEEN = `${CAN_FOURTEEN}, rename sessions`;
 
 /** A phone as main stores one: its id derived from its signing key, as `phoneIdOf` derives it. */
 function phoneOf(seed: string, label: string, alerts = true): PocketPhoneFields {
@@ -176,10 +178,12 @@ describe('F1: the four rows over the eleven, labelled once, in order', () => {
         'Alerts'
       ]);
       expect(value(face, 'reach')).toBe(`${NAME}:8443, by Tailscale`);
-      // Over this build's table (Phase 346: twelve; Phase 348: fourteen), over
-      // the twelve a 0.112.0 store allowed, and over the eleven a store that
-      // never allowed Start reads as, byte for byte the parent's.
-      expect(value(face, 'can')).toBe(CAN_FOURTEEN);
+      // Over this build's table (Phase 346: twelve; Phase 348: fourteen; Phase
+      // 349: fifteen), over the fourteen a 0.113.0 store allowed, over the
+      // twelve a 0.112.0 store allowed, and over the eleven a store that never
+      // allowed Start reads as, byte for byte the parent's.
+      expect(value(face, 'can')).toBe(CAN_FIFTEEN);
+      expect(value(pocketConfirmFace(fieldsOf({ funnelProgram: APP }), [...LEGACY_ALLOWED_ROUTES, 'start', 'remove', 'paste'], [], state), 'can')).toBe(CAN_FOURTEEN);
       expect(value(pocketConfirmFace(fieldsOf({ funnelProgram: APP }), [...LEGACY_ALLOWED_ROUTES, 'start'], [], state), 'can')).toBe(CAN_TWELVE);
       expect(value(pocketConfirmFace(fieldsOf({ funnelProgram: APP }), LEGACY_ALLOWED_ROUTES, [], state), 'can')).toBe(CAN_ELEVEN);
       expect(value(face, 'phones')).toBe('Greg’s iPhone');
@@ -190,7 +194,7 @@ describe('F1: the four rows over the eleven, labelled once, in order', () => {
 
   it('says the clauses in the table’s order whatever order the routes are offered in', () => {
     const reversed = [...POCKET_ROUTE_IDS].reverse();
-    expect(value(pocketConfirmFace(fieldsOf(), reversed, [], 'never'), 'can')).toBe(CAN_FOURTEEN);
+    expect(value(pocketConfirmFace(fieldsOf(), reversed, [], 'never'), 'can')).toBe(CAN_FIFTEEN);
     // `pair` alone says nothing a phone can do; no clause at all says so.
     expect(value(pocketConfirmFace(fieldsOf(), ['pair'], [], 'never'), 'can')).toBe(POCKET_FACE_CAN_NOTHING);
     expect(POCKET_FACE_CAN_NOTHING).toBe('do nothing');
@@ -285,12 +289,12 @@ describe('F2: confirmed draws only the waiting routes, by their words or their i
     const face = pocketConfirmFace(fieldsOf(), POCKET_ROUTE_IDS, ['keys'], 'changed', words);
     expect(face.rows).toHaveLength(4);
     expect(value(face, 'can')).toBe(
-      'see your sessions, answer questions, send a message, end a session, start sessions, remove ended sessions, paste into a session'
+      'see your sessions, answer questions, send a message, end a session, start sessions, remove ended sessions, paste into a session, rename sessions'
     );
     expect(value(face, 'can')).not.toContain('type into them');
     expect(face.added).toEqual([{ id: 'keys', title: 'New: type from your phone', sentence: 'Your phone could type into a session.' }]);
     // Never on the face twice: what a phone can do with the route in it is said only once it is allowed.
-    expect(value(pocketConfirmFace(fieldsOf(), POCKET_ROUTE_IDS, [], 'changed', words), 'can')).toBe(CAN_FOURTEEN);
+    expect(value(pocketConfirmFace(fieldsOf(), POCKET_ROUTE_IDS, [], 'changed', words), 'can')).toBe(CAN_FIFTEEN);
   });
 });
 
@@ -372,11 +376,13 @@ describe('F3: every hashed fact moves the hash and the lines, and the face for e
     const after = drawn(base, 'changed', [...POCKET_ROUTE_IDS, PROBE]);
     // Phase 346: `base` allows the eleven, so this build's Start waits beside
     // the plant, by its own words, in the table's order; Phase 348's Remove
-    // and paste wait after it, each by its own words (build/p348/SPEC.md D32).
+    // and paste wait after it, each by its own words (build/p348/SPEC.md D32),
+    // and Phase 349's rename after them (build/p349/SPEC.md D10).
     expect(after.face.added).toEqual([
       { id: 'start', title: 'New: start sessions from your phone', sentence: 'An agent installed where the project is, with your launch defaults.' },
       { id: 'remove', title: 'New: remove sessions from your phone', sentence: 'An ended session moves to Past Sessions on this Mac, where you can restore it.' },
       { id: 'paste', title: 'New: paste into sessions from your phone', sentence: 'It lands as a paste at this Mac does, with no Return added.' },
+      { id: 'rename', title: 'New: rename sessions from your phone', sentence: 'Name a session as you start it, or rename one later.' },
       { id: PROBE, title: 'New: probe', sentence: null }
     ]);
     expect(after.face.rows).toHaveLength(4);
@@ -434,7 +440,8 @@ describe('F5: the face’s tables', () => {
       'pair',
       'start',
       'remove',
-      'paste'
+      'paste',
+      'rename'
     ]);
     expect(POCKET_FACE_CLAUSES.pair).toBeNull();
     // Phase 346 (build/p346/SPEC.md D3).
@@ -442,14 +449,17 @@ describe('F5: the face’s tables', () => {
     // Phase 348 (build/p348/SPEC.md D32).
     expect(POCKET_FACE_CLAUSES.remove).toBe('remove ended sessions');
     expect(POCKET_FACE_CLAUSES.paste).toBe('paste into a session');
+    // Phase 349 (build/p349/SPEC.md D10).
+    expect(POCKET_FACE_CLAUSES.rename).toBe('rename sessions');
     expect(Object.isFrozen(POCKET_FACE_CLAUSES)).toBe(true);
   });
 
   // PHASE 346 (build/p346/SPEC.md D3) added the first row, Start's, in his
   // answers' words rather than 333.12.1 D7's draft; PHASE 348 (build/p348/SPEC.md
-  // D32) Remove's and paste's, after it.
-  it('holds exactly Start’s, Remove’s and paste’s rows in the waiting routes’ table, frozen', () => {
-    expect(Object.keys(POCKET_NEW_ROUTE_WORDS)).toEqual(['start', 'remove', 'paste']);
+  // D32) Remove's and paste's, after it; PHASE 349 (build/p349/SPEC.md D10)
+  // Rename's, after them.
+  it('holds exactly Start’s, Remove’s, paste’s and Rename’s rows in the waiting routes’ table, frozen', () => {
+    expect(Object.keys(POCKET_NEW_ROUTE_WORDS)).toEqual(['start', 'remove', 'paste', 'rename']);
     expect(POCKET_NEW_ROUTE_WORDS.start).toEqual({
       title: 'start sessions from your phone',
       sentence: 'An agent installed where the project is, with your launch defaults.'
@@ -461,6 +471,10 @@ describe('F5: the face’s tables', () => {
     expect(POCKET_NEW_ROUTE_WORDS.paste).toEqual({
       title: 'paste into sessions from your phone',
       sentence: 'It lands as a paste at this Mac does, with no Return added.'
+    });
+    expect(POCKET_NEW_ROUTE_WORDS.rename).toEqual({
+      title: 'rename sessions from your phone',
+      sentence: 'Name a session as you start it, or rename one later.'
     });
     expect(Object.isFrozen(POCKET_NEW_ROUTE_WORDS)).toBe(true);
   });

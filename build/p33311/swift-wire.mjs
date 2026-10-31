@@ -159,7 +159,10 @@ export const ASK_ROWS = Object.freeze([
   { phone: 'DoorLine.keptLines+1', kept: 'DoorLine', plus: 1, mac: 'PER_SOURCE_MAX', macFile: 'src/main/pocket/door/limits.ts', rule: 'mac>=phone' },
   { phone: 'ScreenKeySender.mostItems', sum: ['ScreenKeySender.mostItems'], mac: 'POCKET_KEYS_MAX_ITEMS', macFile: 'src/shared/ipc/pocket.ts', rule: 'mac>=phone' },
   { phone: 'ScreenKeySender.mostTextBytes', sum: ['ScreenKeySender.mostTextBytes'], mac: 'POCKET_KEYS_MAX_TEXT_BYTES', macFile: 'src/shared/ipc/pocket.ts', rule: 'mac>=phone' },
-  { phone: 'ScrollbackLayout.pageRows+overlapRows', sum: ['ScrollbackLayout.pageRows', 'ScrollbackLayout.overlapRows'], mac: 'POCKET_SCROLLBACK_MAX_COUNT', macFile: 'src/shared/ipc/pocket.ts', rule: 'mac>=phone' }
+  { phone: 'ScrollbackLayout.pageRows+overlapRows', sum: ['ScrollbackLayout.pageRows', 'ScrollbackLayout.overlapRows'], mac: 'POCKET_SCROLLBACK_MAX_COUNT', macFile: 'src/shared/ipc/pocket.ts', rule: 'mac>=phone' },
+  // PHASE 349 (build/p349/SPEC.md §6 item 9, D5): the most UTF-16 units the
+  // phone's one name field holds, which the Mac's rule must take whole.
+  { phone: 'NameRule.maxUnits', sum: ['NameRule.maxUnits'], mac: 'SESSION_NAME_MAX_UNITS', macFile: 'src/shared/session-names.ts', rule: 'mac>=phone' }
 ]);
 
 // ---------------------------------------------------------------------------

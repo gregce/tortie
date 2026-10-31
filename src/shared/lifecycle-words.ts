@@ -175,3 +175,16 @@ export const END_FAILED = 'Tortie could not end this session.';
  * phone cannot say the session was removed.
  */
 export const REMOVE_FAILED = 'Tortie could not remove this session.';
+/**
+ * The phone's Rename that was asked for and threw something that is not one
+ * of the sentences above (Phase 349, build/p349/SPEC.md §5.1), or answered a
+ * done with no name to show (D21). It says only that the phone cannot say the
+ * session was renamed.
+ */
+export const RENAME_FAILED = 'Tortie could not rename this session.';
+/**
+ * Why the phone's Rename is refused on a row Tortie cannot see (Phase 349,
+ * §5.1), made the way {@link END_UNREACHABLE_TITLE} is: it names the session,
+ * never the machine.
+ */
+export const RENAME_UNREACHABLE = 'Tortie cannot see whether this session is running, so it cannot rename it.';

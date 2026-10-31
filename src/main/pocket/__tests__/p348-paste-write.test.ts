@@ -122,7 +122,9 @@ function rig(): Rig {
     paste: (input, still) => {
       self.pastes.push({ input, still });
       return self.pasteWith(still);
-    }
+    },
+    // Phase 349's rename, which this test never reaches.
+    rename: async () => ({ outcome: 'failed', sentence: 'not in this test' })
   };
   self.handle = createPocketWriteHandler({
     shuttingDown: () => self.quitting,
@@ -143,12 +145,16 @@ describe('the route and its words (D26, D29, D32)', () => {
     expect(POCKET_ROUTES.filter((r) => r.id === 'paste')).toEqual([
       { id: 'paste', method: 'POST', path: '/v1/paste', reads: false, windowOnly: false, signed: true }
     ]);
-    expect(POCKET_ROUTES.at(-1)?.id).toBe('paste');
-    expect(pocket.POCKET_ROUTE_IDS.at(-1)).toBe('paste');
-    expect(pocket.POCKET_WRITE_ROUTE_IDS.at(-1)).toBe('paste');
+    // Phase 349 appended rename after it (build/p349/SPEC.md §4.1), so paste
+    // is the next to last everywhere it is listed, right after remove.
+    const ids = POCKET_ROUTES.map((r) => r.id);
+    expect(ids.indexOf('paste')).toBe(ids.indexOf('remove') + 1);
+    expect(POCKET_ROUTES.at(-2)?.id).toBe('paste');
+    expect(pocket.POCKET_ROUTE_IDS.at(-2)).toBe('paste');
+    expect(pocket.POCKET_WRITE_ROUTE_IDS.at(-2)).toBe('paste');
     expect((pocket.LEGACY_ALLOWED_ROUTES as readonly string[]).includes('paste')).toBe(false);
     expect((pocket.POCKET_SESSION_WRITE_IDS as readonly string[]).includes('paste')).toBe(false);
-    const row = POCKET_ROUTE_LEDGER.at(-1);
+    const row = POCKET_ROUTE_LEDGER.at(-2);
     expect(row).toEqual({ id: 'paste', method: 'POST', path: '/v1/paste', reads: false, signed: true, windowOnly: false, bodyCap: 131072, clause: CLAUSE });
     expect(WRITE_CLAUSES.paste).toBe(CLAUSE);
     expect(pocket.POCKET_FACE_CLAUSES.paste).toBe('paste into a session');
@@ -158,8 +164,13 @@ describe('the route and its words (D26, D29, D32)', () => {
     });
   });
 
-  it('the honesty sentence over every route says the three added clauses in the table’s order', () => {
+  it('the honesty sentence over every route says the four added clauses in the table’s order', () => {
+    // Phase 349 (build/p349/SPEC.md §5.1): rename's clause last.
     expect(pocket.pocketDoorHonesty(pocket.POCKET_ROUTE_IDS)).toBe(
+      `${pocket.POCKET_DOOR_HONESTY} It can also start a session in a project open in Tortie, on this Mac or another machine, remove a session that has ended, paste text into a session on this Mac and rename a session.`
+    );
+    // A 0.113.0 Mac's fourteen, byte for byte as Phase 348 said them.
+    expect(pocket.pocketDoorHonesty(pocket.POCKET_ROUTE_IDS.filter((id) => id !== 'rename'))).toBe(
       `${pocket.POCKET_DOOR_HONESTY} It can also start a session in a project open in Tortie, on this Mac or another machine, remove a session that has ended and paste text into a session on this Mac.`
     );
   });

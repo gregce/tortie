@@ -47,6 +47,11 @@
 //   row-<sessionId>              one row; a container, so its parts below are
 //                                elements of their own with their own frames
 //   row-dot-<id>, row-name-<id>, row-machine-<id>, row-age-<id>, row-line-<id>
+//   row-rename-<id>              Rename, the one item of a Sessions row's
+//                                long-press menu; a button (M3 found it by
+//                                this), drawn only where the row offers Rename
+//                                and never while End these takes taps (Phase
+//                                349)
 //   session-status, session-dot, session-agent, session-machine
 //   session-outcome, session-question, session-asked
 //   session-choices-note, session-choice-<n> (n counts from 0 in drawn order),
@@ -109,6 +114,7 @@
 //   needs-row-<sessionId>        one waiting row; a container, with its parts
 //   needs-row-dot-<id>, needs-row-name-<id>, needs-row-machine-<id>,
 //   needs-row-age-<id>, needs-row-line-<id>
+//   needs-row-rename-<id>        the same on a Needs input row (Phase 349)
 //
 // SETTINGS (Phase 316.6; an inset grouped page since Phase 348, D12, each
 // group's id on the whole group, so what was read inside a card still is):
@@ -231,8 +237,12 @@
 //   terminal-menu                the Terminal's one ⋯ at the top right, a
 //                                menu (Phase 337.3, build/p3373/SPEC.md D21)
 //   terminal-menu-catch-up, terminal-menu-end
-//                                its two items, Catch Me Up then End
-//                                session…; buttons, found once it is open
+//                                its items, Catch Me Up then End session…;
+//                                buttons, found once it is open
+//   terminal-menu-rename         Rename, the Terminal's ⋯'s second item, after
+//                                Catch Me Up and before End session… or Remove
+//                                (Phase 349, build/p349/SPEC.md D1); a button,
+//                                found once the menu is open
 //   terminal-menu-remove         Remove, in End session…'s place once End is
 //                                done and the Mac offers Remove (Phase 348,
 //                                build/p348/SPEC.md D4, D33); a button
@@ -324,6 +334,21 @@
 //   start-line                   the one line for the state: a refusal, no
 //                                answer, no project or no agent
 //   start-close                  Cancel, which closes the sheet
+//   start-name                   New session's Name field, drawn only where
+//                                the Mac offers Rename; set in `makeUIView`
+//                                (Phase 349, D18)
+//
+// RENAME (Phase 349, build/p349/SPEC.md section 5.3): the sheet the ⋯'s
+// Rename and a row's Rename open, in New session's family:
+//
+//   rename-sheet                 the Rename sheet; a container
+//   rename-field                 its field, the whole name prefilled and
+//                                selected; set in `makeUIView` (D18)
+//   rename-save                  `Save name`; a button
+//   rename-cancel                `Cancel`; a button
+//   rename-line                  the sheet's one line, present only when it
+//                                has a sentence
+//   rename-writing               the progress mark while its write runs
 //
 // THE ANSWER DRAWN AS MARKDOWN (Phase 316.6, Screens/MarkdownView.swift).
 // `<scope>` is the turn's index in the conversation, or `last` for the
@@ -375,6 +400,8 @@ enum ID {
     static func rowMachine(_ id: String) -> String { "row-machine-" + id }
     static func rowAge(_ id: String) -> String { "row-age-" + id }
     static func rowLine(_ id: String) -> String { "row-line-" + id }
+    /// Rename in a Sessions row's long-press menu (Phase 349, D1).
+    static func rowRename(_ id: String) -> String { "row-rename-" + id }
 
     // One session.
     static let sessionStatus = "session-status"
@@ -452,6 +479,8 @@ enum ID {
     static func needsRowMachine(_ id: String) -> String { "needs-row-machine-" + id }
     static func needsRowAge(_ id: String) -> String { "needs-row-age-" + id }
     static func needsRowLine(_ id: String) -> String { "needs-row-line-" + id }
+    /// Rename in a Needs input row's long-press menu (Phase 349, D1).
+    static func needsRowRename(_ id: String) -> String { "needs-row-rename-" + id }
 
     // Settings (Phase 316.6).
     static let settingsScreen = "screen-settings"
@@ -537,6 +566,8 @@ enum ID {
     /// Remove in the Terminal's ⋯ (End session…'s `terminal-menu-end` place,
     /// Phase 348).
     static let terminalMenuRemove = "terminal-menu-remove"
+    /// Rename in the Terminal's ⋯, its second item (Phase 349, D1).
+    static let terminalMenuRename = "terminal-menu-rename"
     static let screenGrid = "screen-grid"
     static let screenLoading = "screen-loading"
     static let screenFailure = "screen-failure"
@@ -596,6 +627,22 @@ enum ID {
     static let startCreate = "start-create"
     static let startLine = "start-line"
     static let startClose = "start-close"
+    /// New session's Name field, set in `makeUIView` (D18).
+    static let startName = "start-name"
+
+    // Rename (Phase 349).
+    /// The Rename sheet.
+    static let renameSheet = "rename-sheet"
+    /// Its field, set in `makeUIView` (D18).
+    static let renameField = "rename-field"
+    /// `Save name`.
+    static let renameSave = "rename-save"
+    /// `Cancel`.
+    static let renameCancel = "rename-cancel"
+    /// The sheet's one line, present only when it has a sentence.
+    static let renameLine = "rename-line"
+    /// The progress mark while its write runs.
+    static let renameWriting = "rename-writing"
 
     // The answer drawn as markdown (Phase 316.6).
     /// The now card's scope; a conversation's is the turn's index.

@@ -21,13 +21,21 @@
 // lists; and a sample Terminal takes a paste, echoed on its own prompt as
 // typed text is. Nothing leaves the phone.
 //
+// RENAME (Phase 349, build/p349/SPEC.md §4.5 step 5). The book's rows offer
+// Rename and its sessions answers carry `renames`, as a Mac that allowed
+// Rename sends them, so the ⋯, a held row and New session's Name draw over the
+// sample's sessions; and the sample is its own renamer, whose `rename` answers
+// not taken without asking anything, so Save name and a named Create say
+// `This is a sample, so nothing ran.` and the book's names never change (its
+// book holds the Mac's own order). Nothing leaves the phone.
+//
 // THE SAMPLE KEEPS NOTHING (D17): Show, Group by and Sort by live in
 // `SampleChoices`, made fresh each time the sample opens, so the paired tab's
 // three words are never touched.
 
 import Foundation
 
-struct SampleReader: DoorReading, DoorWriting, DoorStarting, DoorRemoving {
+struct SampleReader: DoorReading, DoorWriting, DoorStarting, DoorRemoving, DoorRenaming {
     let world: SampleWorld
 
     init(book: SampleBook, now: @escaping @Sendable () -> Double = SampleWorld.phoneClock) {
@@ -51,6 +59,11 @@ struct SampleReader: DoorReading, DoorWriting, DoorStarting, DoorRemoving {
 
     /// The sample's Remove, on its own copy (Phase 348, D11).
     var remover: (any DoorRemoving)? {
+        self
+    }
+
+    /// The sample's Rename, which renames nothing (Phase 349).
+    var renamer: (any DoorRenaming)? {
         self
     }
 
@@ -110,6 +123,12 @@ struct SampleReader: DoorReading, DoorWriting, DoorStarting, DoorRemoving {
     /// the lists. No owner check is asked.
     func remove(_ sessionId: String) async -> RemoveResult {
         await world.removeEnded(sessionId)
+    }
+
+    /// Nothing leaves the phone, so no rename is taken and nothing ran
+    /// (Phase 349): nothing is asked, and the book's names never change.
+    func rename(_ sessionId: String, name: String) async -> RenameResult {
+        .notTaken
     }
 }
 

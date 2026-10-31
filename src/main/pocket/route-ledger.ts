@@ -74,7 +74,8 @@ export const POCKET_ROUTE_LEDGER: readonly PocketLedgerRow[] = Object.freeze([
   { id: 'keys', method: 'POST', path: '/v1/keys', reads: false, signed: true, windowOnly: false, bodyCap: 16384, clause: 'type into any session as you would at this Mac' },
   { id: 'start', method: 'POST', path: '/v1/start', reads: false, signed: true, windowOnly: false, bodyCap: 512, clause: 'start a session in a project open in Tortie, on this Mac or another machine' },
   { id: 'remove', method: 'POST', path: '/v1/remove', reads: false, signed: true, windowOnly: false, bodyCap: 512, clause: 'remove a session that has ended' },
-  { id: 'paste', method: 'POST', path: '/v1/paste', reads: false, signed: true, windowOnly: false, bodyCap: 131072, clause: 'paste text into a session on this Mac' }
+  { id: 'paste', method: 'POST', path: '/v1/paste', reads: false, signed: true, windowOnly: false, bodyCap: 131072, clause: 'paste text into a session on this Mac' },
+  { id: 'rename', method: 'POST', path: '/v1/rename', reads: false, signed: true, windowOnly: false, bodyCap: 2048, clause: 'rename a session' }
 ]);
 
 /** The ledger's ids: every id an allowed set may name. */

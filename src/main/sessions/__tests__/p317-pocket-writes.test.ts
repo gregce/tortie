@@ -281,6 +281,11 @@ function fakeCore(rows: Session[]): FakeCore {
     },
     broadcastSessions: () => {
       self.broadcasts += 1;
+    },
+    // Phase 349: the Mac's own rename, which no End, press, message, keys write,
+    // start, Remove or paste reaches.
+    renameSession: async (): Promise<Session> => {
+      throw new Error('an End never renames anything');
     }
   };
   return self;
@@ -508,8 +513,9 @@ describe('the press and the message, passed through (Phase 318, build/p318/SPEC.
     const writes = createPocketWrites({ core: () => core, machineKnown: known, reply: UNUSED_REPLY, keys: UNUSED_KEYS, start: UNUSED_START, paste: UNUSED_PASTE });
     expect(writes.endOffer(core.rows[0] as Session)).toEqual({ state: 'offered', batch: true });
     expect(await writes.end({ sessionId: 's1', batch: false })).toEqual({ outcome: 'done' });
-    // Phase 346 adds the start's pass-through; Phase 348 the Remove, its offer and the paste's pass-through.
-    expect(Object.keys(writes).sort()).toEqual(['choose', 'end', 'endOffer', 'keys', 'paste', 'remove', 'removeOffer', 'say', 'start']);
+    // Phase 346 adds the start's pass-through; Phase 348 the Remove, its offer and the paste's pass-through;
+    // Phase 349 the Rename and its offer.
+    expect(Object.keys(writes).sort()).toEqual(['choose', 'end', 'endOffer', 'keys', 'paste', 'remove', 'removeOffer', 'rename', 'renameOffer', 'say', 'start']);
     // Nothing of the Remove's either: an End removes nothing and broadcasts nothing itself.
     expect(core.removes).toEqual([]);
   });

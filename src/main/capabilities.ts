@@ -466,7 +466,8 @@ export function installMainCapabilities(
     },
     keys: { keys: (input, still) => screenKeys.keys(input, still) },
     start: { start: (input, still) => pocketStart.start(input, still) },
-    // PHASE 348: the paste, passed through; Remove is the one implementation's own.
+    // PHASE 348: the paste, passed through; Remove is the one implementation's
+    // own, and so (Phase 349) is Rename, over the core's own renameSession.
     paste: { paste: (input, still) => screenPaste.paste(input, still) }
   });
   const facts = createPocketFacts({
@@ -488,7 +489,13 @@ export function installMainCapabilities(
     // `remove`, so a Mac whose Allow waits offers no Remove.
     removeConfirmOf: (session) => (pocketHost?.removeAllowed() === true ? pocketWrites.removeOffer(session) : null),
     // PHASE 348 (D30): whether the screen answer's `paste` flag may leave.
-    pasteAllowed: () => pocketHost?.pasteAllowed() === true
+    pasteAllowed: () => pocketHost?.pasteAllowed() === true,
+    // PHASE 349 (build/p349/SPEC.md §4.2 step 6, D14): Rename on a row, asked
+    // of the one implementation ONLY while a person allowed `rename`, and
+    // whether New session may take a name, so a Mac whose Allow waits offers
+    // neither.
+    renameOffer: (session) => pocketHost?.renameAllowed() === true && pocketWrites.renameOffer(session),
+    renames: () => pocketHost?.renameAllowed() === true
   });
   // PHASE 316.5: the phone alerts. The engine's rows are the door's own
   // `/v1/blocked` rows from the same stateless composer over the same facts,

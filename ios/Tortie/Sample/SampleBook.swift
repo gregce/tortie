@@ -20,6 +20,13 @@
 // sends it on every one. A book written before that phase holds none, and
 // its answers carry none: no "+".
 //
+// RENAME (Phase 349, build/p349/SPEC.md §4.5 step 5). The book's
+// `constants.renames` is the `renames` a Mac that allowed Rename sends, and
+// every sessions answer assembled here carries it, as it carries the start;
+// each row's own `rename` is the Mac's composer's, in the pieces. A book
+// written before that phase holds none, and its answers carry none: no Name
+// in New session.
+//
 // WHAT IT TOUCHES: the app's own bundle, read once, and nothing else. It opens
 // no connection, keeps nothing on the phone and writes no file
 // (conformance:ios rule az).
@@ -114,7 +121,8 @@ struct SampleBook: @unchecked Sendable {
 
     /// `/v1/sessions` for one state and one question; a question the book
     /// holds no answer to is refused, as the door refuses a word it does not
-    /// know. The book's start offer rides on every one (Phase 346).
+    /// know. The book's start offer rides on every one (Phase 346), and so
+    /// does its `renames` (Phase 349).
     func sessions(state: String, query: SessionsQuery, at: Double) throws -> PocketSessionsAnswer {
         guard query.machine == nil,
               let all = lists(state)?["sessions"] as? [String: Any],
@@ -146,6 +154,9 @@ struct SampleBook: @unchecked Sendable {
         ]
         if let start = member("constants")?["start"] {
             object["start"] = start
+        }
+        if let renames = member("constants")?["renames"] {
+            object["renames"] = renames
         }
         return try Self.decoded(PocketSessionsAnswer.self, object)
     }

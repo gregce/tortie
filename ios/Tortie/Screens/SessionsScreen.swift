@@ -58,6 +58,14 @@
 // It is off while End these takes taps, as the menu is. The sheet belongs to
 // this tab of the Mac on screen, and a start it makes opens on this tab of
 // that Mac.
+//
+// RENAME (Phase 349, build/p349/SPEC.md §4.5 step 3, D1, D2). Every row the
+// Mac offers Rename on takes the long-press menu `RowView` draws, and
+// `SessionsTab` attaches the tab's ONE Rename sheet over both faces, as it
+// attaches End these, so the older Mac's face is handed none of its own. New
+// session is handed the answer's `renames`, read beside `start` and never
+// inside it, so its Name row is drawn only on a Mac that serves Rename. This
+// file holds no text field: the one field is Screens/NameField.swift's.
 
 import SwiftUI
 
@@ -171,6 +179,10 @@ struct SessionsDrawing: Equatable, Sendable {
     /// What New session may start on this Mac (Phase 346), as the answer
     /// carried it: nil when it carried none, or one this build could not read.
     let start: PocketSessionsStart?
+    /// Whether this Mac serves Rename (Phase 349): the answer's `renames`,
+    /// read beside `start` and never inside it. New session draws its Name
+    /// row only with it.
+    let renames: Bool
 
     /// Whether the rows are drawn under their projects.
     var grouped: Bool { asked.group == .project }
@@ -240,6 +252,7 @@ struct SessionsDrawing: Equatable, Sendable {
         machines = try Self.choices(answer.machines, unnamed: PocketSessionsChoice.thisMacId)
         readLine = Copy.readAt(clock(answer.at))
         start = answer.start
+        renames = answer.renames == true
     }
 
     /// The menu's choices, each with its label. Only `unnamed` may come with
@@ -322,6 +335,7 @@ extension RowDrawing {
         age = row.ageText ?? Copy.dash
         waiting = row.waiting
         end = row.end
+        rename = row.rename
         if grouped {
             line = row.waiting ? (row.question ?? row.statusTitle) : row.statusTitle
         } else if row.waiting, let question = row.question {
@@ -529,6 +543,14 @@ final class SessionsModel: EndBatchList {
         return drawing.start?.offer
     }
 
+    /// Whether this Mac serves Rename now (Phase 349): the drawing on
+    /// screen's `renames`, false while there is none. New session draws its
+    /// Name row only while it is true.
+    var renames: Bool {
+        guard case .loaded(let drawing) = state else { return false }
+        return drawing.renames
+    }
+
     /// `EndBatchList`'s: the rows drawn, a closed project's left out; on the
     /// older Mac's face, the list's own rows; otherwise none.
     var batchRows: [RowDrawing] {
@@ -617,6 +639,9 @@ struct SessionsTab: View {
     var ends: EndBatchSetup?
     /// New session, for a pairing that starts (Phase 346); nil draws no "+".
     var starts: StartSetup?
+    /// Rename on the rows, for a pairing that renames (Phase 349); nil draws
+    /// no row menu.
+    var renames: RenameSetup? = nil
     /// New session while it is up, over the offer it opened on.
     @State private var starting: StartModel?
     /// The session a done start made, opened once the sheet has gone.
@@ -626,12 +651,14 @@ struct SessionsTab: View {
         face
             // End these, ONCE, over both faces (F6).
             .endBatch(ends, list: model)
+            // Rename, ONCE, over both faces, as End these (Phase 349).
+            .renameRows(renames, reread: { await model.load() })
             .sheet(item: $starting, onDismiss: openStarted) { start in
                 StartSheet(
                     model: start,
                     reread: { await model.load() },
-                    opened: { id, name in
-                        startedSession = StartedSession(id: id, name: name)
+                    opened: { id, name, line in
+                        startedSession = StartedSession(id: id, name: name, line: line)
                         starting = nil
                     },
                     close: { starting = nil }
@@ -640,20 +667,25 @@ struct SessionsTab: View {
             .onChange(of: model.startOffer) { _, offer in
                 if let offer { starting?.refresh(offer) }
             }
+            .onChange(of: model.renames) { _, renames in
+                starting?.renames = renames
+            }
     }
 
-    /// The "+": New session over the offer on screen, for the Mac on screen.
+    /// The "+": New session over the offer on screen, for the Mac on screen,
+    /// with its Name row where this Mac serves Rename (Phase 349).
     private func openStart() {
         guard let starts, starting == nil, let offer = model.startOffer else { return }
         startedSession = nil
-        starting = StartModel(offer: offer, setup: starts)
+        starting = StartModel(offer: offer, renames: model.renames, setup: starts)
     }
 
-    /// Once the sheet has gone: the session a done start made, on this tab.
+    /// Once the sheet has gone: the session a done start made, on this tab,
+    /// with the rename's line when a named Create's rename was not taken.
     private func openStarted() {
         guard let started = startedSession, let starts else { return }
         startedSession = nil
-        starts.opened(started.id, started.name)
+        starts.opened(started.id, started.name, started.line)
     }
 
     @ViewBuilder
@@ -677,10 +709,13 @@ struct SessionsTab: View {
     }
 }
 
-/// A session a done start made, held while the sheet closes.
+/// A session a done start made, held while the sheet closes: its id, the
+/// name it opens under, and the one line its page draws (a named Create's
+/// rename that was not taken, Phase 349), or nil.
 private struct StartedSession: Equatable {
     let id: String
     let name: String
+    let line: String?
 }
 
 // MARK: - The screen

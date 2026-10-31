@@ -62,11 +62,12 @@
  *
  * The writes (Phase 317, build/p317/SPEC.md §5.4; Phase 318,
  * build/p318/SPEC.md §5.1.5; Phase 337, build/p337/SPEC.md §5.4; Phase 346,
- * build/p346/SPEC.md §4.8; Phase 348, build/p348/SPEC.md §4.2, §4.6) are
- * DECLARED here, as {@link PocketWrites}, a hand-written interface with seven
- * members, and done outside this domain (`src/main/sessions/pocket-writes.ts`,
- * which does End and (Phase 348) Remove itself and hands the reply's two to
- * the verbs in `src/main/reply/`, the keys and the paste to the verbs in
+ * build/p346/SPEC.md §4.8; Phase 348, build/p348/SPEC.md §4.2, §4.6; Phase
+ * 349, build/p349/SPEC.md §4.2) are DECLARED here, as {@link PocketWrites}, a
+ * hand-written interface with eight members, and done outside this domain
+ * (`src/main/sessions/pocket-writes.ts`, which does End, (Phase 348) Remove
+ * and (Phase 349) Rename itself and hands the reply's two to the verbs in
+ * `src/main/reply/`, the keys and the paste to the verbs in
  * `src/main/screen/` and the start to `src/main/sessions/pocket-start.ts`),
  * which is handed in. Nothing in this module can name the verb a write
  * reaches.
@@ -82,6 +83,13 @@
  * composed outside this domain too ({@link PocketFacts.start}), starting
  * nothing, and re-composed here FIELD BY FIELD ({@link pocketStartOf}) onto
  * the Sessions answer as its optional last key.
+ *
+ * (Phase 349) Whether a phone may offer Rename on a row is decided outside
+ * this domain too ({@link PocketFacts.renameOffer}), asked only while a person
+ * allowed `rename`, and set here as `rename: true` on a row only when that
+ * read answered exactly `true`; and whether New session may take a name rides
+ * the Sessions answer as `renames: true` ({@link PocketFacts.renames}), beside
+ * `start` and never inside it.
  *
  * ## Fresh before read (Phase 316)
  *
@@ -174,6 +182,7 @@ import {
   type PocketKeyItem,
   type PocketPasteReason,
   type PocketRemoveReason,
+  type PocketRenameReason,
   type PocketReplyOffer,
   type PocketRouteId,
   type PocketScreen,
@@ -232,10 +241,10 @@ function isWriteRouteId(id: PocketRouteId): id is PocketWriteRouteId {
 
 /**
  * The write rows' ids, read from the table (Phase 317; Phase 318 added two;
- * Phase 337 one; Phase 346 one; Phase 348 two). Exactly `end`, `choose`,
- * `say`, `keys`, `start`, `remove` and `paste`, seven, and `routes.test.ts`
- * holds it to that list. It replaces `pocketTableIsReadOnly()`, which Phase
- * 317 made false.
+ * Phase 337 one; Phase 346 one; Phase 348 two; Phase 349 one). Exactly `end`,
+ * `choose`, `say`, `keys`, `start`, `remove`, `paste` and `rename`, eight, and
+ * `routes.test.ts` holds it to that list. It replaces
+ * `pocketTableIsReadOnly()`, which Phase 317 made false.
  */
 export function pocketWriteRouteIds(): readonly PocketWriteRouteId[] {
   const ids: PocketWriteRouteId[] = [];
@@ -404,6 +413,22 @@ export interface PocketFacts {
    * `true`. A READ. OPTIONAL, AND ABSENT IS NO `paste`.
    */
   pasteAllowed?(): boolean;
+  /**
+   * Whether the phone may offer Rename on one session now (Phase 349,
+   * build/p349/SPEC.md §4.2 step 5, D3, D14): the one implementation in
+   * `src/main/sessions/pocket-writes.ts` (`renameOffer`), the rename's verdict
+   * with the name aside, asked only while a person allowed `rename`, handed
+   * in. A READ. Every row composer sets `rename: true` exactly when this
+   * answers exactly `true`. OPTIONAL, AND ABSENT IS NO `rename`: the push
+   * seam and the tests build their own facts and offer no Rename.
+   */
+  renameOffer?(session: Session): boolean;
+  /**
+   * Whether a person allowed `rename` (Phase 349, D2, D12): the Sessions
+   * answer carries `renames: true` only while this answers exactly `true`, so
+   * New session draws its Name. A READ. OPTIONAL, AND ABSENT IS NO `renames`.
+   */
+  renames?(): boolean;
   now?(): number;
 }
 
@@ -494,12 +519,14 @@ export type PocketStillAllowed = () => boolean;
 /**
  * THE PHONE'S WRITES (Phase 317, build/p317/SPEC.md §5.4; Phase 318,
  * build/p318/SPEC.md §5.1.5; Phase 337, build/p337/SPEC.md §5.4; Phase 346,
- * build/p346/SPEC.md §4.8), implemented ONCE, OUTSIDE this domain
- * (`src/main/sessions/pocket-writes.ts`), and handed in. Nothing here can name
- * the verb it reaches (`conformance:pocket` R3).
+ * build/p346/SPEC.md §4.8; Phase 349, build/p349/SPEC.md §4.2 step 4),
+ * implemented ONCE, OUTSIDE this domain (`src/main/sessions/pocket-writes.ts`),
+ * and handed in. Nothing here can name the verb it reaches
+ * (`conformance:pocket` R3).
  *
- * Hand written and narrow, like {@link PocketFacts}, with SEVEN members and no
- * eighth (Phase 348 added `remove` and `paste`); no member may set a status.
+ * Hand written and narrow, like {@link PocketFacts}, with EIGHT members and no
+ * ninth (Phase 348 added `remove` and `paste`, Phase 349 `rename`); no member
+ * may set a status.
  */
 export interface PocketWrites {
   /**
@@ -539,7 +566,25 @@ export interface PocketWrites {
    * lands, with no Return added. Answers an outcome and never throws.
    */
   paste(input: PocketPasteInput, still: PocketStillAllowed): Promise<PocketPasteOutcome>;
+  /**
+   * Rename ONE session (Phase 349, build/p349/SPEC.md §4.3): the gate the Mac's Rename asks over the row
+   * re-read by id, a session on another machine only while it runs, and the one name rule, then the Mac's
+   * own rename with the trimmed name. It sets no status and logs nothing. Answers an outcome and never throws.
+   */
+  rename(input: { sessionId: string; name: string }): Promise<PocketRenameOutcome>;
 }
+
+/**
+ * What one rename came to, as the write path answers it (Phase 349,
+ * build/p349/SPEC.md §4.2 step 4, D21). `malformed` is the door's own word,
+ * decided before the act. `name` is the name main STORED, which the answer
+ * carries; a `done` whose name is not a non-empty string is answered
+ * `failed` by the write path.
+ */
+export type PocketRenameOutcome =
+  | { outcome: 'done'; name: string }
+  | { outcome: 'refused'; reason: Exclude<PocketRenameReason, 'malformed'>; sentence: string }
+  | { outcome: 'failed'; sentence: string };
 
 /**
  * What one Remove came to, as the write path answers it (Phase 348, D27,
@@ -732,7 +777,11 @@ function rowOf(
     ageText: formatAge(agedFrom, at),
     // PHASE 317. On EVERY row, decided by both gates through the one
     // implementation; absent reads none, and no End is drawn.
-    end: facts.endOffer?.(session) ?? NO_END
+    end: facts.endOffer?.(session) ?? NO_END,
+    // PHASE 349 (build/p349/SPEC.md D14). On every row, after End, and so on
+    // the detail, which inherits it: present only when the one implementation
+    // answered exactly true, which it asks only while `rename` is served.
+    ...(facts.renameOffer?.(session) === true ? { rename: true } : {})
   };
 }
 
@@ -2061,7 +2110,9 @@ export function createPocketRoutes(facts: PocketFacts): {
           ageText,
           waiting,
           question: waiting && typeof question === 'string' && question.length > 0 ? question : null,
-          end: facts.endOffer?.(session) ?? NO_END
+          end: facts.endOffer?.(session) ?? NO_END,
+          // PHASE 349 (D14): after End, inside the budget's measure below.
+          ...(facts.renameOffer?.(session) === true ? { rename: true } : {})
         };
       };
 
@@ -2120,6 +2171,10 @@ export function createPocketRoutes(facts: PocketFacts): {
         omitted: kept.length - rows.length,
         at,
         ageNote: POCKET_AGE_HONESTY,
+        // PHASE 349 (build/p349/SPEC.md D2, D12): beside `start` and never
+        // inside it, so a fault in it never hides the "+" (NS9), and before
+        // it, so `start` stays the answer's last key.
+        ...(facts.renames?.() === true ? { renames: true } : {}),
         ...(start !== undefined ? { start } : {})
       };
     },
