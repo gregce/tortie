@@ -12,6 +12,10 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 - New session on your iPhone takes a name. Left empty, your Mac names the session as before ([`57a7bbc2`](https://github.com/gregce/tortie/commit/57a7bbc2))
 - On your Mac, renaming a session to a name that starts with a slash, a dot or a dash now works, and a name with # in it, or one ending in ;, keeps exactly what you typed ([`57a7bbc2`](https://github.com/gregce/tortie/commit/57a7bbc2))
 
+### Fixed
+
+- macOS no longer warns that Tortie includes a component that will not work with a future version of macOS: the app now carries only Apple silicon code. Reported by [Sean Johnson](https://github.com/belucid) in [#43](https://github.com/gregce/tortie/issues/43)
+
 ## 0.113.0 (2026-10-20)
 
 This release is about your iPhone, which gets build 12 of Tortie for iPhone on TestFlight. From your iPhone you can now remove a session you ended and paste into a session's terminal, and its title bars and Settings look like the iPhone's own. Your Mac asks you once, in Settings then Phone, to allow the two new things.

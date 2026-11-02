@@ -1,16 +1,21 @@
 /**
- * after-pack.cjs — the afterPack hook, and the composition point for the three
+ * after-pack.cjs — the afterPack hook, and the composition point for the five
  * things Tortie must do to a freshly packed .app before it gets sealed:
  *
- *   1. finish the helper rename electron-builder starts (below);
- *   2. harden/sign the nested CLI binaries (build/sign-nested-binaries.cjs);
- *   3. prove the bundled skills CLI is there and runs
+ *   1. refuse an app that carries Intel-only code, before anything below
+ *      writes or signs (build/assert-arm64-only.mjs);
+ *   2. finish the helper rename electron-builder starts (below);
+ *   3. harden/sign the nested CLI binaries (build/sign-nested-binaries.cjs);
+ *   4. prove every package the main and preload bundles require is in the
+ *      packed app (build/assert-main-requires.cjs);
+ *   5. prove the bundled skills CLI is there and runs
  *      (build/assert-skills-cli.cjs).
  *
- * Steps 2 and 3 live in their own modules because each is a different domain
- * with a different reason to change — Appendix F's signing recipe, one entry
- * per embedded binary, and Phase 22's packaging gate — and this file stays the
- * hook, not a junk drawer.
+ * Steps 1, 3, 4 and 5 live in their own modules because each is a different
+ * domain with a different reason to change — Phase 351's arm64 gate,
+ * Appendix F's signing recipe, one entry per embedded binary, Phase 27's
+ * require check, and Phase 22's packaging gate — and this file stays the hook,
+ * not a junk drawer.
  *
  * SEAL WARNING (Phase 27, research 27 section 6.3): everything in this hook
  * is safe ONLY because afterPack runs BEFORE signApp seals the bundle.
@@ -54,6 +59,17 @@ const { assertMainRequires } = require('./assert-main-requires.cjs');
 
 exports.default = async function afterPack(context) {
   if (context.electronPlatformName !== 'darwin') return;
+  // Phase 351, issue 43: macOS warns "Support Ending for Intel-based Apps" on
+  // an app that carries code with no arm64 slice. This only reads, and it is
+  // FIRST, so an app with Intel-only code stops before this hook writes or
+  // signs anything and before electron-builder signs, notarizes, cuts the DMG
+  // and ZIP or publishes. It THROWS, naming every such file. See
+  // build/assert-arm64-only.mjs.
+  const { assertArm64Only } = await import('./assert-arm64-only.mjs');
+  const arm64 = assertArm64Only(
+    join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`)
+  );
+  console.log(`  • after-pack: ${arm64.machO} Mach-O files, every one holds arm64 code`);
   renameHelpers(context);
   signNestedBinaries(context);
   // THROWS if a module the main/preload bundles require is not in the packed
@@ -68,7 +84,7 @@ exports.default = async function afterPack(context) {
   assertSkillsCli(context);
 };
 
-/** Step 1: CFBundleName ← the bundle's own executable name, for all helpers. */
+/** Step 2: CFBundleName ← the bundle's own executable name, for all helpers. */
 function renameHelpers(context) {
   const appName = context.packager.appInfo.productFilename; // "Tortie"
   const frameworks = join(

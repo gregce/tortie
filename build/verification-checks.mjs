@@ -1196,6 +1196,19 @@ export const CHECKS = [
   pure('gate:onlyadd'),
   pure('gate:menu-glyphs'),
   pure('gate:menu-accelerators'),
+  // PHASE 351. Every Mach-O file in a packaged app holds arm64 code (issue
+  // 43): read by its first bytes, never its name, mode or path, every offender
+  // named. It plants its own fixture bundles under the system temporary
+  // directory and runs its ablations on every invocation. It runs FIRST in
+  // build/after-pack.cjs, so every package build in every lane stops on
+  // Intel-only code before anything is signed, and alone on any .app named on
+  // its command line. It never spawns, never follows a symlink, and never
+  // writes inside the bundle it judges.
+  pure(
+    'gate:arm64',
+    'node and the repository install; it writes its planted fixture bundles under the system temporary directory and removes them in a finally, spawns nothing, and reads a packaged .app only when one is named on its command line',
+    'never skips; with no bundle named it runs its fixtures and ablations alone, and an argument that names no directory exits 2 with the reason'
+  ),
   pure('assert:doctypes'),
   pure('pin:tmux:check'),
   pure(

@@ -160,6 +160,20 @@ files:
   - "!node_modules/bail/**"
   - "!node_modules/trough/**"
   - "!node_modules/@ungap/**"
+  # Phase 351 (issue 43): macOS warns "Support Ending for Intel-based Apps" on
+  # an app that carries Intel-only code, and three Intel-only (x86_64)
+  # prebuilds shipped: better-sqlite3's darwin-x64.node and node-pty's
+  # darwin-x64/pty.node, the two the issue names, and node-pty's
+  # darwin-x64/spawn-helper. The app loads none of them: it maps
+  # better-sqlite3's prebuilds/darwin-arm64.node, node-pty's
+  # build/Release/pty.node and @parcel/watcher-darwin-arm64's watcher.node.
+  # These two lines leave out every prebuild that is not darwin-arm64, the
+  # Linux and Windows ones too. `!(…)` is minimatch's extglob, which
+  # electron-builder 26.15.3 reads. build/assert-arm64-only.mjs, run first by
+  # build/after-pack.cjs, fails the package if Intel-only code comes back by
+  # any route.
+  - "!node_modules/better-sqlite3/prebuilds/!(darwin-arm64.node)"
+  - "!node_modules/node-pty/prebuilds/!(darwin-arm64)/**"
 extraResources:
   # The private tmux server config rides in Contents/Resources/gmux-tmux.conf.
   # Main resolves it via process.resourcesPath when app.isPackaged
