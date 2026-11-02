@@ -44130,6 +44130,93 @@ items live, commit. A second needs_work goes to him.
 
 ---
 
+## Phase 351 — "can we also please address this issue?" — macOS warns "Support Ending for Intel-based Apps" because two Intel-only native files ship in the app (operator, 2026-11-02; Sean Johnson, issue 43)
+
+**Subject.** `fix(package): leave the Intel-only native modules out of the app`
+
+**First body line.** `Phase 351: no Intel-only code in the app (issue 43)`
+
+**Semver.** Patch, unreleased, Mac only, released on his word. One CHANGELOG item under `## Unreleased`, `### Fixed`,
+because one commit is told in one section:
+
+- "macOS no longer warns that Tortie includes a component that will not work with a future version of macOS: the app
+  now carries only Apple silicon code. Reported by [Sean Johnson](https://github.com/belucid) in
+  [#43](https://github.com/gregce/tortie/issues/43)"
+
+**Tier 2.** Nobody sees it in use and it moves no state, but it changes what the signed bundle carries, and a native
+module the app loads that went missing would stop every session and the manifest from opening. So the evidence is
+the packaged app itself, run once beside the parent's package, and two independent methods: the parent measured, and
+an attack on the new gate. It spawns nothing new, holds no credential and sends nothing anywhere.
+
+**Charter.** Issue 43, "macOS warns 'Support Ending for Intel-based Apps': Intel-only native prebuilds ship in the
+bundle", by Sean Johnson (belucid), 2026-10-30, with a picture of the notification: "On an Apple silicon Mac running
+macOS 26.6.2, Tortie 0.113.0 brings up the system notification 'Support Ending for Intel-based Apps'. It says that this
+version of 'Tortie' includes a component that will not work with a future release of macOS." His `lipo -archs` over
+every Mach-O file in `/Applications/Tortie.app` finds exactly two Intel-only files,
+`Contents/Resources/app.asar.unpacked/node_modules/better-sqlite3/prebuilds/darwin-x64.node` and
+`Contents/Resources/app.asar.unpacked/node_modules/node-pty/prebuilds/darwin-x64/pty.node`; everything else is arm64
+or universal. "Neither of these two files is ever loaded … macOS flags the bundle simply because those files are
+present." The other platforms' prebuilds ride along too (`better-sqlite3/prebuilds/` linux, linuxmusl and win32;
+`node-pty/prebuilds/` win32). His check: `find /Applications/Tortie.app -type f \( -perm +111 -o -name '*.node' -o
+-name '*.dylib' \) -exec sh -c 'a=$(lipo -archs "$1" 2>/dev/null) && echo "$a	$1"' _ {} \; | grep -v arm64` prints
+nothing on a fixed app, and "a packaging gate that fails on any x86_64-only Mach-O inside the bundle would keep it that
+way." The operator, 2026-11-02: "can we also please address this issue? https://github.com/gregce/tortie/issues/43".
+
+### What the tree says (read 2026-11-02 at `c60c2a48`)
+
+- `electron-builder.yml` builds a DMG and a ZIP for `arch: [arm64]` only, so nothing x64 is ever wanted. Its `files`
+  list is `out/**`, `package.json`, `NOTICE` and a run of exclusions; `asarUnpack` takes `**/*.node`, which is why both
+  prebuild folders land in `app.asar.unpacked`; `npmRebuild: true`; `afterPack: build/after-pack.cjs`, whose SEAL
+  WARNING orders everything it does before the nested binaries are signed.
+- `package.json`: `better-sqlite3` ^13.0.3 and `node-pty` ^1.1.0, and `postinstall` runs
+  `electron-rebuild -f -w node-pty,better-sqlite3`.
+- node-pty's loader (`node_modules/node-pty/lib/utils.js:17-38`) tries `build/Release`, `build/Debug`, then
+  `prebuilds/<platform>-<arch>`. better-sqlite3 carries eight files in `prebuilds/` and no `build/Release` in this tree,
+  so its `darwin-arm64.node` is very likely the file it loads. Which file each module loads in the PACKAGED app is
+  measured by the spec, never assumed.
+
+### The mechanism
+
+1. **Leave out every native prebuild that is not `darwin-arm64`**, for both modules: an exclusion in
+   `electron-builder.yml`'s `files`, or, if its globbing cannot say it, a step in `build/after-pack.cjs` that deletes
+   them BEFORE the nested signing, inside the SEAL WARNING's order. The spec picks one by measurement and says why.
+2. **Never remove a file the packaged app loads.** The spec reads which `.node` file each module maps in the running
+   packaged app, at the parent and at HEAD, and the fix keeps exactly those.
+3. **A gate**, `build/assert-arm64-only.mjs` or the spec's name for it: every Mach-O file inside a packaged `.app`,
+   found by its magic number rather than its name, must hold an arm64 slice, and each one that does not is named. It
+   runs on every package build, local and in the CI release lane, and fails before anything can be signed or
+   published; it also runs alone on any `.app`, so the release checklist can point it at the app inside a downloaded
+   DMG. It is classified in `build/verification-checks.mjs` both ways (`gate:checks`) and proves it can fail over
+   planted fixtures: an x86_64-only file, an arm64-only file, a universal file and a file that is not Mach-O.
+
+### The proof, run rather than read
+
+- **The gates.** `npm run typecheck && npm run build`, vitest under a scratch HOME, and the battery's `package`,
+  `smoke:t1`, `smoke` and `smoke:t3`. Every package UNSIGNED: `CSC_IDENTITY_AUTO_DISCOVERY=false`, a scratch HOME and
+  every signing variable unset, so electron-builder never reads a keychain.
+- **The parent, measured.** The issue's command over an unsigned package of the parent prints exactly the two lines,
+  and over HEAD's prints nothing; the prebuild files and bytes each package carries are listed side by side.
+- **The packaged app, run once beside the parent's.** Each unsigned package launched through
+  `build/electron-run.mjs` inside `build/harness-socket.mjs`, with a scratch profile, HOME and socket: a shell session
+  starts and draws (node-pty), the manifest opens and keeps a row across a relaunch (better-sqlite3), and the `.node`
+  files the running app maps are read from its pid. No agent runs.
+- **The attack.** The gate over its planted fixtures and over a copy of the parent's `.app` reads red and names both
+  files; over HEAD's it reads green. One ablation per clause of the gate, each red on the clause it breaks.
+
+### What is NOT in this phase
+
+- No signing, notarization, release, tag or version bump; the signed app is checked in the release lane on his word.
+- No Intel or universal build: Tortie stays Apple silicon only, as `electron-builder.yml` already says.
+- No change to which native modules ship, their versions or how they are rebuilt, unless the measurement shows the
+  packaged app loads something other than its `darwin-arm64` file.
+- Not the phone app.
+- No reply on GitHub: the main session asks him before commenting on or closing issue 43.
+
+### The lane
+
+Build lane, one workflow: spec (measures, then writes `build/p351/SPEC.md`), one builder (packaging has one owner),
+one verifier at Tier 2 with the two methods above, fix once on `needs_work`, an independent reverify.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -45432,3 +45519,7 @@ cycle rather than only the evening it was written.
 - 2026-10-31, **PHASE 349 LANDED, `57a7bbc2` — rename sessions from the phone: Rename second in the Terminal's ⋯ and alone in a held row's menu in Needs input and Sessions, a Name in New session (a start, then one rename by the id the Mac answered), a session on another machine renamed while it runs and an ended one there offering none, no Face ID, behind an Allow of its own; and the Mac's own F2 and ⌘T now take a name that starts with a slash, a dot or a dash and keep a # or a final ; as typed, because the tmux name holds tmux's syntax back; unreleased, phone build 13.** Rebuilt on his word of 2026-10-30 ("restart it and build it exactly as it was") after macOS's /private/tmp cleanup deleted the first build's paused, uncommitted worktree. The integrator and the fix were each cut off once by the usage limit and continued from a record of their own run; the main session ended what the cut-off fix left (a booted Simulator, a scratch tmux server with six stand-in panes, a crash handler, a lock slot). The attack lens approved; every major the phone and Mac lenses raised was a probe defect, fixed once; the reverify approved with five methods of its own. His three questions were built with their defaults (a start, then a rename; no Rename for an ended session on another machine; the Allow words as drafted, so the ledger clause `rename a session` is now fixed under its id, while the New line's two sentences can still change before the release). On his ruling that no run of ours lists his server, not even to count, probe:p349 never reaches the helper's census of `-L gmux`; probe:p316 and six older probes still hand the helper their socket and so still list it, read only, and are named for him. Carried to the release, each half on his word: the next Mac release with `rename` beside phone build 13, build 13's wire frozen then (`FROZEN_SETS_FLOOR` 3 to 4), the store notes and What to Test, and `build/p349/CHECKLIST.md` for his seat. Left for a later round: Save name says no reason for a refused character.
 
 - 2026-10-31, **350 STARTED — scroll back pi and every full-screen agent from the phone (John's issue 42)**, on 349's landed tree `e6e5ce52`, Tier 3 as queued, one workflow: spec, builders on disjoint files, integrator, probe review, three lenses (the attack, the phone live beside the parent, the Mac re-derived), fix once, reverify. His word of 2026-10-30 for its testing: "you can test with real agents for the phone for all of them, its fine". So its phone and Mac verifiers, and only they, also run every agent installed on this Mac, gemini, qwen, agy, grok, omp and pi included, in Tortie sessions in scratch project folders, at most two model turns each, every turn counted, installing nothing and with every self-update off; the builders, the integrator, the probe review and every graded matrix stay on stand-ins. No run of ours lists his `-L gmux` server: a new probe takes probe:p349's form, and every run of an older probe has the census guard first on its PATH. It does not extend to other phases.
+
+- 2026-11-02, **HE ALLOWED THE SESSION COUNT: "ok do the allow".** `build/electron-run.mjs`'s layer-4 census, which reads the names of his sessions on `-L gmux` once before and once after a probe launch that names a scratch socket, is allowed, read only; nothing else may name `-L gmux`. Phase 349's "not even to count", which came from the main session's brief, is withdrawn: probe:p349 and probe:p350 go back to the standard form in 350's ruled fix round, and the census guard of 350's first run is retired. The words above Allow for rename stay as written.
+- 2026-11-02, **PHASE 350's REVERIFY ANSWERED needs_work, AND HE TOOK EVERY RECOMMENDATION; THE RULED FIX ROUND STARTED.** The one case worse than today: a pi reached through a version manager's shim (mise, asdf, volta) in a project pinned below 0.84.0 was given `--tui-mode regular` and stopped after its trust question at every launch; everything else passed, the phone lens over all 12 installed real agents among it. His words: "OK take your defaults please for the fix to 350". (1) Tortie's token only when pi's real file is inside pi's own installed package, anything else unread and as today; (2) the warm at the first terminal bytes kept as built (D18); (3) at landing, `conformance:resume:capture` may start the real pi to its first screen, with no turn. One workflow, fix then an independent reverify, in `/private/var/tmp/tortie-wt/wt-p350`.
+- 2026-11-02, **351 QUEUED AND STARTED — no Intel-only code in the app (issue 43, Sean Johnson)**, full section above, on his word ("can we also please address this issue?"), Tier 2, one workflow: spec, one builder, verify, fix once, reverify, in `/private/var/tmp/tortie-wt/wt-p351`.
