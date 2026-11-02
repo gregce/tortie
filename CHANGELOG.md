@@ -14,7 +14,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Fixed
 
-- macOS no longer warns that Tortie includes a component that will not work with a future version of macOS: the app now carries only Apple silicon code. Reported by [Sean Johnson](https://github.com/belucid) in [#43](https://github.com/gregce/tortie/issues/43)
+- macOS no longer warns that Tortie includes a component that will not work with a future version of macOS: the app now carries only Apple silicon code. Reported by [Sean Johnson](https://github.com/belucid) in [#43](https://github.com/gregce/tortie/issues/43) ([`708efada`](https://github.com/gregce/tortie/commit/708efada))
 
 ## 0.113.0 (2026-10-20)
 
