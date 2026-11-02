@@ -28240,7 +28240,7 @@ its own research. And the reporter is the judge of the first complaint: the phas
 per-agent repetition solved until he has set a key once and seen it reach two agents.
 
 
-## Phase 274.1 — `tortie .` from a shell that spells the folder its own way (deferred out of 274, 2026-09-16)
+## Phase 274.1 — `tortie .` from a shell that spells the folder its own way (deferred out of 274, 2026-09-16) → IN PHASE 352, 2026-11-02
 
 **Subject.** `fix(shell): the shim hands main the folder the disk has`
 
@@ -28301,7 +28301,7 @@ person typed" now has to argue against a sibling door that already shows the dis
 decide this phase — a shell's `$PWD` is a person's own history in a way Finder's path never is — but
 it is evidence and the phase may not pretend it is not there.
 
-## Phase 274.2 — a mis-spelled project reads its agent context as empty (deferred out of 274, 2026-09-16)
+## Phase 274.2 — a mis-spelled project reads its agent context as empty (deferred out of 274, 2026-09-16) → IN PHASE 352, 2026-11-02
 
 **Subject.** `fix(context): the local scope is found however the folder is spelled`
 
@@ -28342,7 +28342,7 @@ Context panel's local scope for a mis-spelled project.
 change to `agent-context.ts`'s precedence matrix or to `conformance:context`. No write to
 `~/.claude.json`, ever — it is another program's file.
 
-## Phase 274.3 — an invisible character in a quoted path (deferred out of 274, 2026-09-16)
+## Phase 274.3 — an invisible character in a quoted path (deferred out of 274, 2026-09-16) → IN PHASE 352, 2026-11-02
 
 **Subject.** `fix(fs): a refusal that quotes a path escapes what cannot be seen`
 
@@ -29119,7 +29119,7 @@ running-log line. The PR is then closed with a note in the operator's voice link
 - No release.
 
 
-## Phase 283 — a file outside every project, written by the timer once (unexplained, 2026-09-17) QUEUED
+## Phase 283 — a file outside every project, written by the timer once (unexplained, 2026-09-17) QUEUED → IN PHASE 352, 2026-11-02
 
 **Subject.** `fix(editor): the skip list holds under load` (provisional; the cause decides it)
 
@@ -29352,7 +29352,7 @@ B's surround is darker than the work on the dark base, and the light base must k
 - No release.
 
 
-## Phase 285 — a probe goes red because he used his own machine (operator, 2026-09-17)
+## Phase 285 — a probe goes red because he used his own machine (operator, 2026-09-17) → IN PHASE 352, 2026-11-02
 
 **Subject.** `fix(harness): a probe fails for what it could have done to his server, never for what he did`
 
@@ -30354,7 +30354,7 @@ leave, the page opened from the session list).
   single session strip tab.
 
 
-## Phase 290 — a rewind's caution belongs to the file, not to the view that is open (Phase 282.2's attack verifier, operator's ruling, 2026-09-18)
+## Phase 290 — a rewind's caution belongs to the file, not to the view that is open (Phase 282.2's attack verifier, operator's ruling, 2026-09-18) → IN PHASE 352, 2026-11-02
 
 **Subject.** `fix(editor): a rewind's hold survives a tab switch and the File view`
 
@@ -30803,7 +30803,7 @@ Two reproducers, independently, neither trusting the issue nor the pull request
 - No release.
 
 
-## Phase 294 — the lines printed while you read are skipped on the way back down (Phase 292's reproduction, stated when 292 landed, 2026-09-19)
+## Phase 294 — the lines printed while you read are skipped on the way back down (Phase 292's reproduction, stated when 292 landed, 2026-09-19) → IN PHASE 353, 2026-11-02
 
 **Subject.** `fix(terminal): the way back down shows what printed while you read`
 
@@ -31069,7 +31069,7 @@ The operator's two rulings:
 - No release.
 
 
-## Phase 295 — a history copy on a busy pane can come out one line off (Phase 292's verifiers, 2026-09-19)
+## Phase 295 — a history copy on a busy pane can come out one line off (Phase 292's verifiers, 2026-09-19) → IN PHASE 353, 2026-11-02
 
 **Subject.** `fix(capture): a copy from a busy session's history is the lines you selected`
 
@@ -31938,7 +31938,7 @@ The Tier 3 verify ran three lenses (attribute, re-derive, parent) and a judge ov
 **What is still not true, in his terms.** The window does not keep painting while a large conversation is counted for the first time: the read is still on the main thread and the sheet still draws `…` for every row of the chunk until the invoke returns, and how long it draws it is exactly what it was — about 1.7 s on a record the size of his largest, about 0.4 s on the 200 MiB fixture, about 0.8 s on his own 186.8 MiB record as measured on 2026-09-19. Only the repeat ask is now nothing. The 200 MiB class on a record of his own shape (58 percent `item_completed` against the synthesised 100) was never measured by any run.
 
 
-## Phase 301 — the app keeps the drawing surfaces of sessions that have ended (found by Phase 293's battery, 2026-09-19)
+## Phase 301 — the app keeps the drawing surfaces of sessions that have ended (found by Phase 293's battery, 2026-09-19) → IN PHASE 353, 2026-11-02
 
 **Subject.** `fix(terminal): a closed session's glyph atlas is released with it`
 
@@ -31994,7 +31994,7 @@ At **today's build**, `origin/main` `50bd2561`, it failed worse and on two profi
 
 **What is NOT in this phase.** No xterm or `@xterm/addon-webgl` version move; the repair is a bounded patch under `patches/` in the shape the two existing ones use, and Phase 265's refusal is carried forward unchanged. **No repair of the two owners today's build shows on profile c** — `div.ed-skeleton` (`src/renderer/editor/MonacoHost.tsx:478-486`) and `div.overview-layer` (`src/renderer/overview/OverviewLayer.tsx:162`) — because Phase 293's head reads 4 detached on that profile and the parent's 190 → 121 → 307 is not monotone; the phase **re-measures c quiet at HEAD and states the answer**, and if it reproduces it is queued as its own entry rather than absorbed here. The 50 budget is not raised, and it is not lowered either. `P167_DETACHED`, the census, the roots limit and the snapshot-on-finding machinery are not touched. Past Sessions history is not trimmed. No Monaco service is replaced, wrapped or configured, and no third-party module is loaded to reach any of this. No user-facing surface is added, renamed or removed, so no native menu changes. No script reaching `build/electron-run.mjs` is added, so `HELPER_USER_FLOOR` does not move; nothing in the shared IPC contract, the manifest schema, a `gmux.*` key or a `GMUX_*` name changes, so `docs/audits/contract-baseline.txt` is not regenerated. `conformance:hue`, the remote profile and the other P167 profiles stay out, and no long soak is run in place of the deterministic clause.
 
-## Phase 302 — a session ended and then removed can lose its tombstone (Phase 293's press attack, 2026-09-19)
+## Phase 302 — a session ended and then removed can lose its tombstone (Phase 293's press attack, 2026-09-19) → IN PHASE 353, 2026-11-02
 
 **Subject.** `fix(sessions): a removed session keeps its tombstone whatever else is in flight`
 
@@ -32370,7 +32370,7 @@ copy is true.
   the default lift write over an unkept sign in, exactly as Phase 287 left it in its section 7. Stated, not fixed.
 - **No release.**
 
-## Phase 305 — a Restart can hard-delete the record of a session the person removed (found by Phase 302's census, 2026-09-20)
+## Phase 305 — a Restart can hard-delete the record of a session the person removed (found by Phase 302's census, 2026-09-20) → IN PHASE 353, 2026-11-02
 
 **Subject.** `fix(restart): a restart never deletes a row the person removed`
 
@@ -32582,7 +32582,7 @@ you closed". Phase 299 takes C1 to C3, Phase 300 takes C4 and C5, Phase 302 take
   separate entry if anybody meets it.
 - No release, and it lands after Phase 303 and rebases onto it.
 
-## Phase 307 — two gate clauses whose sentence is wider than their test: a regex read as a process, and a menu row read for its order but never for which menu it is in (Phase 293's battery and Phase 296's re-derivation verifier, 2026-09-20)
+## Phase 307 — two gate clauses whose sentence is wider than their test: a regex read as a process, and a menu row read for its order but never for which menu it is in (Phase 293's battery and Phase 296's re-derivation verifier, 2026-09-20) → IN PHASE 352, 2026-11-02
 
 **Subject.** `test(gates): a call is discovered by what it is, and a row by the menu it sits in`
 
@@ -32664,7 +32664,7 @@ Every number below was read by importing the gates' own exported functions from 
 - **No sweep of the other gates that discover a call by name.** Two were measured and named above; whether any third reader in `build/` has the same hole was not measured and finding out is its own entry.
 - **No release, and no session lifecycle is touched.** Nothing here ends, suspends or kills a session.
 
-## Phase 308 — a check goes red for the machine's reasons: the native watcher lane under a busy Spotlight (measured during the 0.109.0 release battery, 2026-09-20)
+## Phase 308 — a check goes red for the machine's reasons: the native watcher lane under a busy Spotlight (measured during the 0.109.0 release battery, 2026-09-20) → IN PHASE 352, 2026-11-02
 
 **Subject.** `test(watcher): the native lane fails for the code, never for a dropped batch`
 
@@ -32994,7 +32994,7 @@ never the recommendation.
 - **No release.**
 
 
-## Phase 310 — the scanner copies a line it is about to reject (Phase 300's attribution verifier, 2026-09-21)
+## Phase 310 — the scanner copies a line it is about to reject (Phase 300's attribution verifier, 2026-09-21) → IN PHASE 352, 2026-11-02
 
 **Subject.** `perf(overview): the reader does not copy a line it will not keep`
 
@@ -35570,7 +35570,7 @@ and a reboot wipes it. The numbers below marked "run 2" were read from its `A/re
 - **No menu, no new surface, and no copy change** beyond the version list where it is already drawn.
 - **No release.**
 
-## Phase 325 — "never by the user's own input to that session" — Tortie reads his own words as the agent's question (CLAUDE.md's UI rule, research 129 §9 item 6, left owed its own entry by his ruling on Phase 319, 2026-09-23)
+## Phase 325 — "never by the user's own input to that session" — Tortie reads his own words as the agent's question (CLAUDE.md's UI rule, research 129 §9 item 6, left owed its own entry by his ruling on Phase 319, 2026-09-23) → IN PHASE 353, 2026-11-02
 
 **Subject.** `fix(activity): words typed into a session are never its question`
 
@@ -35988,7 +35988,7 @@ Condition 44's probe uses `9.9z` (`build/machines-conformance-probe.mts:447-473`
 - **No menu change, no new sentence, no surface.**
 - **No release.**
 
-## Phase 328 — antigravity reads "running" at rest — the limit Phase 321 named and left to its own entry (research 129 §9 item 4; `build/p321/SPEC.md` §1.3 item 2, 2026-09-23)
+## Phase 328 — antigravity reads "running" at rest — the limit Phase 321 named and left to its own entry (research 129 §9 item 4; `build/p321/SPEC.md` §1.3 item 2, 2026-09-23) → IN PHASE 353, 2026-11-02
 
 **Subject.** `fix(activity): antigravity reads idle at its prompt`
 
@@ -44217,6 +44217,149 @@ way." The operator, 2026-11-02: "can we also please address this issue? https://
 Build lane, one workflow: spec (measures, then writes `build/p351/SPEC.md`), one builder (packaging has one owner),
 one verifier at Tier 2 with the two methods above, fix once on `needs_work`, an independent reverify.
 
+## Phase 352 — "would we be able to batch them into a big phase? that is logical based on parts of the codebase they touch" and "can we consolidate these as less batches? i don't think they should take a week and can probably be reviewed together" — files, folders and checks: nine queued entries in one phase, reviewed together (operator, 2026-11-02)
+
+**Subject.** `fix(editor): rewind and auto save hold, and folder names agree`
+
+**First body line.** `Phase 352: files, folders and checks`
+
+**Semver.** Patch, unreleased, Mac only, released on his word. One CHANGELOG item under `## Unreleased`, `### Fixed`, for
+each item a person meets, written from its entry's Semver paragraph in the release-note style: 290, 274.1, 274.2, 274.3
+and 310, and 283 only if its cause is found and fixed. None for 285, 307 and 308, which move no shipping byte.
+
+**Tier: each item at its own entry's tier, reviewed together at the end** (CLAUDE.md, "Mixed rounds verify per item at its
+own tier"). Tier 3: 283 (the auto-save timer writing where it must never write), 285 (the guard on his tmux server), 290 (a
+rewind lost from disk), 274.2 (an approval state read as empty) and 310 (every count and every Catch Me Up page comes from
+the path it rewrites). Tier 2: 274.1, 307 and 308. Tier 1: 274.3. A Tier 3 item gets real data or a per-row matrix and two
+independent methods, one of them an attack. The parent is measured for every item, and a scenario worse than the parent is
+a defect (no regression against today).
+
+**Charter.** His words of 2026-11-02, above, after the backlog table he asked for listed these entries as waiting on his
+go-ahead. Each entry binds as written, with its mechanism, its proof and its refusals:
+
+- **274.1**, `tortie .` from a shell that spells the folder its own way (`docs/BACKLOG.md:28243`)
+- **274.2**, a mis-spelled project reads its agent context as empty (`:28304`)
+- **274.3**, an invisible character in a quoted path (`:28345`)
+- **283**, a file outside every project, written by the auto-save timer once, cause unknown (`:29122`)
+- **285**, a probe goes red because he used his own machine (`:29355`)
+- **290**, a rewind's caution belongs to the file, not to the view that is open (`:30357`)
+- **307**, two gate clauses whose sentence is wider than their test (`:32585`)
+- **308**, the native watcher lane fails under a busy Spotlight (`:32667`)
+- **310**, the conversation reader copies a line it is about to reject (`:32997`)
+
+### The mechanism
+
+Each item's mechanism is its entry's, at the files it names. The spec re-reads every entry at today's tree first, because
+the entries are six to seven weeks old and later phases moved code under some of them, and records each correction in
+"§0 What the entries got wrong at this tree". An item that no longer reproduces at today's tree is closed with its reading
+and not built. Four builders on disjoint files, by the code they touch:
+
+1. **The editor** (283, 290): `src/renderer/editor/auto-save.ts`, `tab-io.ts`, `store.ts`, `RedlineDocument.tsx` and
+   `src/main/fs/guarded-write.ts`. 283 starts as research: reproduce it under load (probe:p268's arm G) and name the
+   cause before any change, and change nothing on suspicion alone, which is its entry's first refusal.
+2. **Folder names** (274.1, 274.2, 274.3): `src/main/shell/arrival.ts` and `shim.ts`, `src/main/context/**` and
+   `src/main/fs/paths.ts`, by `src/main/fs/folder-identity.ts`'s rule: a folder is what it IS, its device and inode, never
+   what it is called; never case-fold a comparison and never `.normalize()` a path.
+3. **The checks** (285, 307, 308): `build/electron-run.mjs`'s census, `build/scan-source.mjs` and the two gates 307 names
+   with their fixtures, and the two native watcher tests 308 names. 285 keeps the census his ruling of 2026-11-02 kept:
+   still read only, still `list-sessions` alone, and it fails a probe for what the probe could have done to his server,
+   never for what he did.
+4. **The conversation reader** (310): `src/main/overview/reader/**`. No count moves.
+
+CLAUDE.md, CHANGELOG.md, `build/verification-checks.mjs` and any file two builders both need are the integrator's.
+
+### The proof, run rather than read
+
+- Each entry's own proof, beside the parent.
+- The gates each item's paths trigger in CLAUDE.md's table, at least `conformance:save`, `conformance:redline`,
+  `conformance:redline-write`, `conformance:samefolder`, `conformance:containment`, `conformance:context`,
+  `conformance:overview`, `gate:electron`, `gate:background` and `gate:checks`, with the ablations they carry.
+- One app run for the items that need the app, driving all of them in one launch.
+- 285's attack: every session a probe could make on his server is still caught at HEAD as at the parent, and his own
+  start or end of a session during a run no longer fails it.
+- 310's counts and Catch Me Up pages equal the parent's over the committed records, byte for byte.
+
+### What is NOT in this phase
+
+- Nothing an entry refuses: each entry's refusals carry into this phase whole.
+- No item widened beyond its entry, and no entry not listed here. 327 is not in it; 319 and 318.1 stay parked and deferred
+  by his rulings.
+- No release, tag, version bump, archive or upload. Nothing under `ios/`.
+- No verb but `list-sessions` aimed at `-L gmux`, by anything.
+- An item whose reverify still answers needs_work is dropped from the commit, named in its body and taken back to him, and
+  the rest lands.
+
+### The lane
+
+Build lane, one workflow: spec (re-reads and re-measures every item and writes `build/p352/SPEC.md`), four builders on
+disjoint files, integrator, probe review, three verify lenses reviewing together (the editor; folder names and the reader;
+the checks, with 285's attack), fix once, an independent reverify, one commit. It starts now, beside Phase 350's second
+ruled round. It shares only CLAUDE.md, CHANGELOG.md and `build/verification-checks.mjs` with 350, which the main session
+merges at landing.
+
+## Phase 353 — the same words of 2026-11-02 — sessions and the terminal: seven queued entries in one phase, reviewed together (operator, 2026-11-02)
+
+**Subject.** `fix(sessions): keep records, read status truly, scroll and copy whole`
+
+**First body line.** `Phase 353: sessions and the terminal`
+
+**Semver.** Patch, unreleased, Mac only, released on his word. One CHANGELOG item under `## Unreleased`, `### Fixed`, for
+each item a person meets, from its entry's Semver paragraph: 294, 295, 302, 305, 325 and 328. None for 301, whose entry
+says nothing a person sees moves.
+
+**Tier 3, every item**, as each entry sets it, reviewed together at the end. Real data or a per-row matrix and two
+independent methods for each, one of them an attack, and the parent measured for every item.
+
+**Charter.** His words of 2026-11-02, as for Phase 352. The entries, each binding as written:
+
+- **294**, the lines printed while you read are skipped on the way back down (`docs/BACKLOG.md:30806`)
+- **295**, a history copy on a busy pane can come out one line off (`:31072`)
+- **301**, the app keeps the drawing surfaces of sessions that have ended (`:31941`)
+- **302**, a session ended and then removed can lose its tombstone (`:31997`)
+- **305**, a Restart can hard-delete the record of a session the person removed (`:32373`)
+- **325**, Tortie reads his own words as the agent's question (`:35573`)
+- **328**, antigravity reads "running" at rest (`:35991`)
+
+### The mechanism
+
+Each item's is its entry's; the spec re-reads every entry at today's tree first, as for 352, and closes any item that no
+longer reproduces. Three builders on disjoint files:
+
+1. **Session records** (302, 305): `src/main/manifest/**` (the sessions repository and `removed_at`), the remove path and
+   `listRemovedSessions` in `src/main/sessions/core.ts`, `src/main/restart/**`, and the renderer's lists that read them.
+2. **Status** (325, 328): `src/main/activity/**` (`screen.ts`, `state-machine.ts`, `monitor.ts`), `onInput` in
+   `src/main/attach/attach-host.ts`, and antigravity's activity profile in `src/main/agents/registry.ts`. The numbered
+   verdict's own loop does not move, which is 325's refusal and `conformance:choices`'.
+3. **The terminal** (294, 295, 301): `src/main/scrollback/**`, `src/main/capture/service.ts`, `src/main/tmux/scroll.ts`,
+   `src/renderer/terminal/scroll/**` and the teardown in `src/renderer/terminal/TerminalPane.tsx`.
+
+It starts once Phase 350 lands, on the tree that carries it, because 350 moved `src/main/sessions/core.ts`,
+`create-local.ts`, `src/main/restore/restore.ts` and `src/main/agents/registry.ts`, which these builders read and edit.
+
+### The proof, run rather than read
+
+- Each entry's own proof, beside the parent.
+- 302 and 305: the manifest attack, every interleaving of End, Remove, Restart and the boot pass over planted rows, with
+  no row lost and none moved to the wrong list, at HEAD as at the parent.
+- 325 and 328: the per-agent matrix over the committed recordings, replayed by stand-ins; no real agent starts unless his
+  word at the time covers it.
+- 294 and 295: probe:p292's arms and the entries' copy arms, on tmux 3.6a and 3.7b. 301: probe:p167's teardown arms.
+- The gates the paths trigger, at least `conformance:manager`, `conformance:remoteclose`, `conformance:endtree`,
+  `conformance:farattach`, `conformance:choices`, `conformance:handback`, `conformance:agents`,
+  `conformance:resume:capture`, `conformance:pocket` and `conformance:pocket:hostile`, with their ablations.
+
+### What is NOT in this phase
+
+- Nothing an entry refuses; no item widened beyond its entry; no entry not listed here.
+- No release, tag, version bump, archive or upload. Nothing under `ios/`.
+- An item whose reverify still answers needs_work is dropped from the commit and taken back to him, and the rest lands.
+
+### The lane
+
+Build lane, one workflow, as for 352: spec, three builders on disjoint files, integrator, probe review, three verify
+lenses reviewing together (the records with the manifest attack; status with the matrix; the terminal live beside the
+parent), fix once, an independent reverify, one commit.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -45525,3 +45668,5 @@ cycle rather than only the evening it was written.
 - 2026-11-02, **351 QUEUED AND STARTED — no Intel-only code in the app (issue 43, Sean Johnson)**, full section above, on his word ("can we also please address this issue?"), Tier 2, one workflow: spec, one builder, verify, fix once, reverify, in `/private/var/tmp/tortie-wt/wt-p351`.
 - 2026-11-02, **PHASE 351 LANDED, `708efada` — no Intel-only code in the app (issue 43, Sean Johnson)**: the packaged app now carries only Apple silicon code. The parent shipped THREE Intel-only files, not two: besides the issue's better-sqlite3 and node-pty prebuilds, node-pty's `darwin-x64/spawn-helper`, which the issue's command cannot see; none was ever loaded. Every better-sqlite3 and node-pty prebuild that is not darwin-arm64 is left out of the package (15 files, 16,446,432 bytes), and `gate:arm64` (`build/assert-arm64-only.mjs`), run first in `build/after-pack.cjs`, fails any package build that carries a Mach-O file with no arm64 slice, naming it. The verify's needs_work was the gate's own self-test (eleven one-line breaks it did not see); the fix round gave each a fixture and an ablation (41 and 34) and the independent reverify approved, with 355 mutants and a fuzz against `lipo -archs`. Unreleased, Mac only, ships with the next Mac release on his word. The issue's own `grep -v arm64` check prints nothing wherever the app sits under a path holding "arm64" (`release/mac-arm64`, the DMG's volume). Reply on issue 43 waits for his word.
 - 2026-11-02, **PHASE 350's RULED ROUND's REVERIFY ANSWERED needs_work; HE RULED; THE SECOND RULED ROUND STARTED.** The version-manager case was closed (0 of 33,120 re-derived rows worse), and one new case was worse than today: a create spawns pi by its bare name, and a relative PATH entry such as `./node_modules/.bin` is looked up from the session's folder, so a project's own pi below 0.84.0 got `--tui-mode regular` decided for the global pi and stopped after its trust question (npm and pnpm layouts, 2 rows). His choice, "Check the file that runs": before adding the switch, find pi the way the terminal will, starting from the session's folder, and add it only when that is the file Tortie checked; otherwise pi starts exactly as today; files are read and nothing is run. One workflow, fix then an independent reverify, in `/private/var/tmp/tortie-wt/wt-p350`, with the reverify's three nits.
+- 2026-11-02, **352 QUEUED AND STARTED, 353 QUEUED — the older queued entries as two phases by the code they touch, reviewed together, on his word** ("would we be able to batch them into a big phase? that is logical based on parts of the codebase they touch"; "can we consolidate these as less batches? i don't think they should take a week and can probably be reviewed together"), full sections above. 352, files, folders and checks: 274.1 to 274.3, 283, 285, 290, 307, 308 and 310, started now in `/private/var/tmp/tortie-wt/wt-p352`. 353, sessions and the terminal: 294, 295, 301, 302, 305, 325 and 328, starts when 350 lands, because 350 moved the session code it edits. Not in either: 327; 319 and 318.1 stay parked and deferred by his rulings. Each item is verified at its own tier and the whole reviewed together; an item that fails its reverify is dropped and taken to him, and the rest lands. Each old entry's heading now names the phase that carries it.
+- 2026-11-02, **HIS WORD FOR THE NEXT RELEASE: "we should do a release and upload a new iphone build when 350 finishes"**, and "remember we need to update /users/gdc/tortiedotsh as well when we release the desktop app". 0.114.0 carries 349 (rename from the phone), 350 (pi's scrollback and paging a full-screen agent) and 351 (no Intel-only code), beside phone build 13; tortie.sh's changelog is synced from a scratch clone and pushed with it.
