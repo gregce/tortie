@@ -92,6 +92,7 @@
 import { realpath } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { isProtectedFsPath } from '@shared/fs-ops';
+import { visibleName } from '@shared/visible-name';
 import type { GmuxErrorCode } from '../errors';
 import { GmuxError, gmuxError, gmuxErrorPayloadOf } from '../errors';
 
@@ -281,7 +282,7 @@ async function realpathOfAncestors(dir: string): Promise<string> {
         throw refuse(
           'unreadable',
           'FS_FAILED',
-          `"${basename(current)}" could not be read (${token}).`,
+          `"${visibleName(basename(current))}" could not be read (${token}).`,
           token
         );
       }
@@ -791,7 +792,7 @@ export async function resolveIncomingSource(input: unknown): Promise<string> {
     throw refuse(
       'unreadable',
       'FS_FAILED',
-      `"${basename(input)}" is no longer there.`,
+      `"${visibleName(basename(input))}" is no longer there.`,
       'ENOENT'
     );
   }

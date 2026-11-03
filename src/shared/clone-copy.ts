@@ -35,6 +35,7 @@
 // modules.
 import type { CloneFailureKind } from './ipc';
 import { CLONE_BAD_URL_MESSAGE } from './clone-url';
+import { visibleName } from './visible-name';
 
 /**
  * Which failure happened. The name this module used before the two copies of
@@ -113,8 +114,10 @@ export function cloneFailureMessage(
       return `The saved credential for ${ctx.host} was rejected. It may have expired. Sign in again from your terminal, then try again.`;
     case 'destinationExists':
       // The wording projects:create already ships, by name, so a clone and a
-      // create refuse the same collision with the same sentence.
-      return `'${ctx.name ?? repoLabel}' already exists in that folder.`;
+      // create refuse the same collision with the same sentence, the name
+      // with what cannot be seen written out in both (Phase 274.3, the fix
+      // round of Phase 352).
+      return `'${visibleName(ctx.name ?? repoLabel)}' already exists in that folder.`;
     case 'permission':
       return 'Tortie cannot write to that folder. Choose another one.';
     case 'diskFull':

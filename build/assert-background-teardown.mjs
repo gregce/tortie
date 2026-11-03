@@ -76,13 +76,21 @@
  *      lived child. Without this direction the gate goes on passing after
  *      somebody deletes every such probe, which is the lesson
  *      build/assert-probe-containment.mjs records about itself.
- *   5. THE FIXTURES. The scanner is run over nineteen files this gate writes
- *      itself, in build/background-fixtures.mjs, thirteen of which must make it
- *      fail, including the exact shape
- *      that leaked and the five shapes that walked past this gate as it first
- *      shipped. A checker nobody has seen fail is a checker nobody has seen
- *      work, and a NEW shape that walks past this gate goes into that file in
- *      the same commit as the fix.
+ *   5. THE FIXTURES. The scanner is run over every file this gate writes
+ *      itself from build/background-fixtures.mjs, most of which must make it
+ *      fail, including the exact shape that leaked, the five shapes that
+ *      walked past this gate as it first shipped, and the six Phase 307 added.
+ *      A checker nobody has seen fail is a checker nobody has seen work, and a
+ *      NEW shape that walks past this gate goes into that file in the same
+ *      commit as the fix.
+ *   6. A CALL IS READ BY WHAT IT IS (Phase 307). A method of a regular
+ *      expression and the header that declares a function are not starts, so
+ *      neither is a site, and a function whose only reach is a regular
+ *      expression's `exec` is not a starter. Nothing else is dropped: a method
+ *      of any other receiver and a spread stay calls. The test is
+ *      build/scan-source.mjs's `receiverOf`, shared with
+ *      build/assert-known-hosts-scoped.mjs, and `npm run ablation:p307` is the
+ *      attack on it.
  *
  * ## What it does not assert
  *
@@ -109,6 +117,8 @@ import {
   callArguments,
   lineAt,
   namedFunctions,
+  receiverContext,
+  receiverOf,
   stripComments
 } from './scan-source.mjs';
 
@@ -126,6 +136,13 @@ const STARTERS = ['probe-remote-env.mjs'];
 const NODE_SPAWNS = ['spawn', 'execFile', 'exec', 'fork'];
 
 /**
+ * The two kinds of site this gate drops, and the only two (Phase 307): a
+ * method of a regular expression, and the header that declares a function.
+ * Every other answer of build/scan-source.mjs's `receiverOf` is read.
+ */
+const NOT_A_START = new Set(['regex', 'declaration']);
+
+/**
  * A command line that does not stop by itself.
  *
  * FOUR TERMS AND NOT FIVE. A bare `yes` was tried and taken out: it appears in
@@ -139,6 +156,14 @@ const NEVER_STOPS =
 /** An options object that puts the child in its own process group. */
 const DETACHED = /\bdetached\s*:\s*true\b/;
 
+/** Every index at which `text` occurs in `code`, none for an empty text. */
+function placesOf(code, text) {
+  const out = [];
+  if (text === '') return out;
+  for (let at = code.indexOf(text); at !== -1; at = code.indexOf(text, at + 1)) out.push(at);
+  return out;
+}
+
 /**
  * Which names in this file start a process, being node's own plus every
  * function the file defines whose body reaches one of them.
@@ -151,16 +176,44 @@ const DETACHED = /\bdetached\s*:\s*true\b/;
  * on build/update-rehearsal.mjs, two rounds made 36 of its functions spawners
  * and one round makes none. A wrapper in this tree calls the real thing
  * directly, which is what one level is for.
+ *
+ * IT ASKS WHAT EACH CALL IS (Phase 307). A body whose only reach is
+ * `re.exec(x)` held 252 of the 269 promotions across build/, this file's own
+ * `bindingOf`, `aliasesOf` and `longLivedStarts` among them, and none of
+ * them starts anything. A call a body makes is read the way a site is read in
+ * {@link longLivedStarts}, through `receiverOf`.
  */
-export function spawnersIn(code) {
+export function spawnersIn(code, context = receiverContext(code)) {
   const names = new Set(NODE_SPAWNS);
+  const reach = new RegExp(`\\b(?:${NODE_SPAWNS.join('|')})\\s*\\(`, 'g');
+  // Asked at the body's own place in the file, so a parameter of the function
+  // a call sits in is seen for what it is. A body is always a slice of the
+  // file; were it not, it is asked on its own, with no scope.
+  //
+  // AT EVERY PLACE ITS TEXT OCCURS (the fix round of Phase 352). Two functions
+  // can hold byte-identical bodies, `function a(cmd) { return re.exec(cmd); }`
+  // beside `function b(re, cmd) { return re.exec(cmd); }`, and asked at the
+  // first place alone b was read in a's scope, where `re` is the file's
+  // regular expression, so `b(child, LOOP)` was no start while the parent found
+  // it (the verify lens's fixture v03). One place that reads a start promotes
+  // the name, which can promote a twin the parent promoted too, and never less.
+  const asks = [];
   for (const [name, body] of namedFunctions(code)) {
     if (names.has(name)) continue;
-    for (const known of NODE_SPAWNS) {
-      if (new RegExp(`\\b${known}\\s*\\(`).test(body)) {
-        names.add(name);
-        break;
-      }
+    const places = placesOf(code, body);
+    for (const at of places.length === 0 ? [-1] : places) asks.push([name, body, at]);
+  }
+  for (const [name, body, at] of asks) {
+    if (names.has(name)) continue;
+    const where = at === -1 ? body : code;
+    const offset = at === -1 ? 0 : at;
+    const asked = at === -1 ? { regexNames: context.regexNames, scopes: [] } : context;
+    reach.lastIndex = 0;
+    let m;
+    while ((m = reach.exec(body)) !== null) {
+      if (NOT_A_START.has(receiverOf(where, offset + m.index, asked))) continue;
+      names.add(name);
+      break;
     }
   }
   return names;
@@ -336,12 +389,17 @@ export function endedInFinally(code, binding) {
  */
 export function longLivedStarts(name, source) {
   const code = stripComments(source);
-  const spawners = spawnersIn(code);
   const values = assignedValues(code);
+  const context = receiverContext(code, values);
+  const spawners = spawnersIn(code, context);
   const hits = [];
   const call = new RegExp(`\\b(${[...spawners].join('|')})\\s*\\(`, 'g');
   let m;
   while ((m = call.exec(code)) !== null) {
+    // Phase 307: a regular expression's method and a declaration header start
+    // nothing, so neither is a site. A method of any other receiver and a
+    // spread are, and stay read.
+    if (NOT_A_START.has(receiverOf(code, m.index, context))) continue;
     // A name followed by `Sync` is a different call and this rule is not about
     // it: it returns when the child has already ended.
     const open = m.index + m[0].length - 1;

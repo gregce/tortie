@@ -109,6 +109,15 @@ describe('creating a project', () => {
     expect(w.made).toEqual([]);
   });
 
+  it('quotes a taken name with what cannot be seen written out (Phase 274.3, the fix round of Phase 352)', async () => {
+    const w = world({ exists: async () => true });
+    const err = await createProjectCreator(w.deps)
+      .create({ parentDir: '/Users/me/src', name: 'tak\u200Ben', gitInit: true })
+      .catch((e: unknown) => e);
+    expect(payloadOf(err).message).toBe("'tak<U+200B>en' already exists in that folder.");
+    expect(payloadOf(err).detail).toBe('/Users/me/src/tak\u200Ben');
+  });
+
   it('refuses a parent that is not a directory any more', async () => {
     const w = world({ isDirectory: async () => false });
     const err = await createProjectCreator(w.deps)

@@ -10,9 +10,15 @@
  *   message the toast copy, already naming the entry
  *   detail  the bare errno token, so the UI can branch (offer Replace on
  *           EEXIST) without parsing prose
+ *
+ * PHASE 274.3. The name a message quotes goes through `visibleName`, so a
+ * character that cannot be seen is written out as its code, `<U+200B>`, and two
+ * names that draw alike are told apart. Only the quoted name: the `detail`
+ * stays the errno or the raw message, exactly as before.
  */
 
 import type { FsOpErrno } from '@shared/fs-ops';
+import { visibleName } from '@shared/visible-name';
 import { GmuxError, gmuxError } from '../errors';
 
 /** What the user asked for, in the voice used inside the messages below. */
@@ -49,34 +55,35 @@ export function errnoOf(err: unknown): FsOpErrno | null {
 }
 
 function friendly(errno: FsOpErrno, verb: FsOpVerb, name: string): string {
+  const quoted = visibleName(name);
   switch (errno) {
     case 'EEXIST':
-      return `"${name}" already exists here.`;
+      return `"${quoted}" already exists here.`;
     case 'ENOENT':
-      return `"${name}" is no longer there.`;
+      return `"${quoted}" is no longer there.`;
     case 'EPERM':
     case 'EACCES':
-      return `You do not have permission to ${verb} "${name}".`;
+      return `You do not have permission to ${verb} "${quoted}".`;
     case 'EROFS':
-      return `That location is read-only, so "${name}" could not be changed.`;
+      return `That location is read-only, so "${quoted}" could not be changed.`;
     case 'ENOTEMPTY':
-      return `"${name}" is not empty.`;
+      return `"${quoted}" is not empty.`;
     case 'ENOSPC':
       return 'There is no space left on the disk.';
     case 'EXDEV':
-      return `"${name}" is on a different volume — Tortie cannot move it there.`;
+      return `"${quoted}" is on a different volume — Tortie cannot move it there.`;
     case 'EISDIR':
-      return `"${name}" is a folder.`;
+      return `"${quoted}" is a folder.`;
     case 'ENOTDIR':
-      return `"${name}" is not a folder.`;
+      return `"${quoted}" is not a folder.`;
     case 'EBUSY':
-      return `"${name}" is in use by something else.`;
+      return `"${quoted}" is in use by something else.`;
     case 'ENAMETOOLONG':
-      return `That name is too long for "${name}".`;
+      return `That name is too long for "${quoted}".`;
     case 'ELOOP':
-      return `"${name}" points at itself through a link.`;
+      return `"${quoted}" points at itself through a link.`;
     case 'EINVAL':
-      return `"${name}" is not a usable name.`;
+      return `"${quoted}" is not a usable name.`;
   }
 }
 
@@ -101,7 +108,7 @@ export function fsOpError(err: unknown, verb: FsOpVerb, name: string): Error {
   }
   return gmuxError(
     'FS_FAILED',
-    `${FALLBACK[verb]} "${name}".`,
+    `${FALLBACK[verb]} "${visibleName(name)}".`,
     err instanceof Error ? err.message : String(err)
   );
 }
@@ -121,6 +128,6 @@ export function fsOpMessage(
     message:
       errno !== null
         ? friendly(errno, verb, name)
-        : `${FALLBACK[verb]} "${name}".`
+        : `${FALLBACK[verb]} "${visibleName(name)}".`
   };
 }

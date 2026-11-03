@@ -72,6 +72,13 @@ export interface AcceptDeps {
    * ever READ here. Optional, so a caller that hands none is never held.
    */
   holds?: readonly RewindHold[];
+  /**
+   * PHASE 290. The tab still owes the read a refused adoption left it
+   * (`EditorTab.rewindOwesRead`). It answers `held` exactly as a hold does,
+   * because it IS a landed hold, seen from the tab rather than from the mount
+   * that a tab switch or the File view ends. Optional, like `holds`.
+   */
+  owed?: boolean;
 }
 
 export type AcceptResult =
@@ -110,6 +117,10 @@ export type AcceptResult =
  * the plainer reason that the bytes in front of the person still hold the
  * rewound change's insertion. The cost is one more press once the redraw has
  * come, and the view says why.
+ *
+ * PHASE 290. AND WHILE THE TAB OWES A REWIND'S READ, the same `held`, with the
+ * same sentence the view already says for a hold. The holds end with the
+ * mount; the mark ends with the read.
  */
 export function pressAccept(
   kind: 'one' | 'all',
@@ -120,7 +131,9 @@ export function pressAccept(
   if (kind === 'one' && pressed === null) return { outcome: 'nothing' };
   // After `nothing`, so the chord from an empty document stays a silent no-op,
   // and before the plan, so a held accept composes nothing.
-  if (deps.holds !== undefined && deps.holds.length > 0) return { outcome: 'held' };
+  if ((deps.holds !== undefined && deps.holds.length > 0) || deps.owed === true) {
+    return { outcome: 'held' };
+  }
   const plan = planAccept({
     baseline: tab.baseline,
     baselineGeneration: tab.generation,

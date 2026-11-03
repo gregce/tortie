@@ -35,6 +35,7 @@ import type {
 } from '@pierre/trees';
 import type { UseFileTreeResult } from '@pierre/trees/react';
 import { isProtectedFsPath } from '@shared/fs-ops';
+import { visibleName } from '@shared/visible-name';
 // PHASE 101 AND PHASE 102. What a create, a new folder and a rename on another
 // machine answer. The words are main's and the sentence for each one is
 // composed in ../machines/explorer.ts.
@@ -1052,11 +1053,13 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
         if (result.imported.length === 0 && result.skipped.length > 0) {
           // The drag-out-and-straight-back-in case, and the honest answer to
           // it is a sentence rather than silence.
+          // PHASE 274.3, the fix round of Phase 352: the refusal quotes the
+          // name with what cannot be seen written out.
           const [first] = result.skipped;
           app().toast(
             'info',
             result.skipped.length === 1 && first !== undefined
-              ? `"${baseNameOf(first.relPath)}" is already in that folder.`
+              ? `"${visibleName(baseNameOf(first.relPath))}" is already in that folder.`
               : `Those ${result.skipped.length} items are already in that folder.`
           );
         }

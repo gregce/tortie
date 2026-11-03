@@ -552,7 +552,7 @@ const ABLATIONS = [
     owns: ['r15-symlink-loop'],
     edits: [
       {
-        from: "        const token = typeof code === 'string' ? code : 'UNKNOWN';\n        throw refuse(\n          'unreadable',\n          'FS_FAILED',\n          `\"${basename(current)}\" could not be read (${token}).`,\n          token\n        );",
+        from: "        const token = typeof code === 'string' ? code : 'UNKNOWN';\n        throw refuse(\n          'unreadable',\n          'FS_FAILED',\n          `\"${visibleName(basename(current))}\" could not be read (${token}).`,\n          token\n        );",
         to: '        throw err;'
       }
     ]

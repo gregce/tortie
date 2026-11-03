@@ -21,6 +21,22 @@
  * is kept when any of them passes the whole line stage. The reference
  * returned only the first match, which is why a claude assistant record
  * holding only a tool_use part could never reach the path index.
+ *
+ * Phase 310, the view. A line that starts and ends inside one chunk reaches
+ * `onLine` as a view of the chunk, and nothing is copied. A line that does
+ * not end in the chunk it starts in is copied piece by piece, as before,
+ * because the next read writes over the bytes it holds. SO THE `line` HANDED
+ * TO `onLine` IS VALID ONLY DURING THE CALL: a caller that keeps it copies
+ * it. `containers.ts`, the one reader that ships, parses inside the call and
+ * keeps nothing; `build/overview-conformance-probe.mts`'s stage timing keeps
+ * lines, and copies them. Why not copy every line, as this file did until
+ * then: Phase 300's Tier 3 verify (its CORRECTION 5 in docs/BACKLOG.md)
+ * measured the copies piling up as external memory on Electron 43's V8 15,
+ * the engine main runs, to the size of the file, because a read that
+ * allocates nothing on the JS heap never triggers the scavenge that would
+ * free them, and the pile was swept later as a block on main. The same read
+ * holding the chunk view read a 960 MiB record in 1455 to 1583 ms with no
+ * block, against 1669 to 1846 ms copying (Phase 352's lens, measured).
  */
 
 import * as fs from 'node:fs';
@@ -148,6 +164,10 @@ export interface ScanOpts {
  * every line the prefilter admits. Returns byte accounting so the saving is
  * measured rather than asserted. A trailing line with no newline is NOT
  * consumed, so a record the agent is still writing is never parsed.
+ *
+ * `lineBuffer` is valid only during the call (Phase 310, the header): a line
+ * that lies inside one chunk is a view of that chunk, and the next read
+ * writes over it. Copy it to keep it.
  */
 export function scanFile(
   path: string,
@@ -237,7 +257,11 @@ export function scanFile(
             }
           }
           if (candidates === undefined || candidates.length > 0) {
-            const c = Buffer.from(seg);
+            // Phase 310. Nothing of this line is held yet and its newline is
+            // in this chunk, so the whole line is `seg`, and `finishLine`
+            // hands it on before the chunk is read into again: a view, no
+            // copy. A line that goes on into the next chunk is copied.
+            const c = held.length === 0 && nl !== -1 ? seg : Buffer.from(seg);
             held.push(c);
             heldLen += c.length;
           }

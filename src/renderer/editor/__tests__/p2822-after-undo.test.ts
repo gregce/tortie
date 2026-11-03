@@ -444,9 +444,19 @@ const release = async (label: string): Promise<void> => {
   if (step === null) throw new Error(`nothing is held at ${label}; held: ${main.waiting()}`);
   await act(() => step());
 };
+/**
+ * A STAND-IN FOR THE WATCHER'S READ, as a store patch. PHASE 290: the walk's
+ * reload now clears the rewind's owed read (`rewindOwesRead`) in the same
+ * patch, so the stand-in does too, or it would stand for a read the product no
+ * longer makes.
+ */
 const watcherReads = (id: string): Promise<void> =>
   act(() => {
-    useEditor.setState({ tabs: useEditor.getState().tabs.map((t) => (t.id === id ? { ...t, savedContents: disk.text } : t)) });
+    useEditor.setState({
+      tabs: useEditor
+        .getState()
+        .tabs.map((t) => (t.id === id ? { ...t, savedContents: disk.text, rewindOwesRead: false } : t))
+    });
   });
 
 const ID = '/repo/notes.txt';
@@ -515,16 +525,21 @@ describe('PHASE 282.2: the person does what the sentence says (undo), and the vi
       whileDirty: { toast: ACCEPT_DIRTY, drawn: ['"brown"->"red"', '"jumps"->"leaps"'], reads: 1, walks: 0 },
       // The picture is the disk's: the rewound change is gone, the person is on
       // the change that followed it, and nothing is drawn backwards.
+      //
+      // PHASE 290. TWO WALKS, NOT ONE. The refused adoption left the TAB owing
+      // the read (`rewindOwesRead`): the store's clean edge pulls it, and this
+      // view's effect, which asks the mark as well as its hold, pulls once
+      // more. The second is queued behind the first and finds nothing new.
       afterUndo: {
         dirty: false,
         savedContents: REWOUND,
         disk: REWOUND,
-        reads: 2,
-        walks: 1,
+        reads: 3,
+        walks: 2,
         drawn: ['"jumps"->"leaps"'],
         marked: '"jumps"->"leaps"'
       },
-      then: { drawn: [], toasts: [], reads: 2 }
+      then: { drawn: [], toasts: [], reads: 3 }
     });
   });
 
@@ -567,9 +582,10 @@ describe('PHASE 282.2: the person does what the sentence says (undo), and the vi
     const LATER = 'The quick brown fox leaps over the sleepy dog.\n';
     disk.text = LATER;
     await undoesTyping(ID);
+    // PHASE 290: 3, the store's read for the tab's mark and the view's (see THE WAY OUT).
     expect({ savedContents: tabNow()?.savedContents, reads: main.reads, drawn: drawn(), toasts }).toEqual({
       savedContents: LATER,
-      reads: 2,
+      reads: 3,
       drawn: ['"jumps"->"leaps"', '"lazy"->"sleepy"'],
       toasts: []
     });
@@ -626,8 +642,14 @@ describe('PHASE 282.2: the person does what the sentence says (undo), and the vi
     // so the release's second clause runs in the layout effect BEFORE the
     // effect this phase adds asks whether a landed hold exists.
     const SAVED = 'The quick red fox leaps over the lazy dog.!\n';
+    // PHASE 290. A save that lands clears the tab's owed read in the same
+    // patch (../tab-io `completeSave`), so this stand-in for one does too.
     await act(() => {
-      useEditor.setState({ tabs: useEditor.getState().tabs.map((t) => (t.id === ID ? { ...t, savedContents: SAVED, dirty: false } : t)) });
+      useEditor.setState({
+        tabs: useEditor
+          .getState()
+          .tabs.map((t) => (t.id === ID ? { ...t, savedContents: SAVED, dirty: false, rewindOwesRead: false } : t))
+      });
     });
     const afterSave = { reads: main.reads, walks: walks.count, marked: marked() };
     await accept();

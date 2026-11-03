@@ -9,7 +9,9 @@
  *  - the control-character rule mirrors `validateProjectName`
  *    (src/shared/project-create.ts);
  *  - the duplicate message is `fsOpMessage`'s EEXIST line
- *    (src/main/fs/errors.ts).
+ *    (src/main/fs/errors.ts), the name quoted through the same
+ *    `visibleName` (Phase 274.3), so a character that cannot be seen is
+ *    written out as its code in both.
  *
  * These rules are a strict superset of @pierre/trees' own commit validation
  * (empty, "/", exact-case duplicate), so a name this module passes never
@@ -22,6 +24,7 @@
  */
 
 import { isProtectedFsPath } from '@shared/fs-ops';
+import { visibleName } from '@shared/visible-name';
 
 /** macOS NAME_MAX: 255 per path component. */
 export const MAX_ENTRY_NAME = 255;
@@ -65,7 +68,7 @@ export function entryNameVerdict(
     return { kind: 'bad', reason: 'That name is too long.' };
   }
   if (takenLower.has(name.toLowerCase())) {
-    return { kind: 'bad', reason: `"${name}" already exists here.` };
+    return { kind: 'bad', reason: `"${visibleName(name)}" already exists here.` };
   }
   return { kind: 'ok', name };
 }

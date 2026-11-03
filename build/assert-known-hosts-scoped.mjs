@@ -151,6 +151,8 @@ import {
   lineAt,
   namedFunctions,
   parameterScopes,
+  receiverContext,
+  receiverOf,
   shadowedAt,
   stripComments
 } from './scan-source.mjs';
@@ -376,7 +378,7 @@ function helperProgramImports(code) {
  * ever assigned including another NAME that holds the client, and the same
  * again three levels deeper so a chain resolves.
  */
-function sshNames(code, values = stringValues(code)) {
+function sshNames(code, values = stringValues(code), candidates = assignedValues(code)) {
   const names = new Map();
   const keygens = new Map();
   for (const [name, value] of values) {
@@ -386,7 +388,6 @@ function sshNames(code, values = stringValues(code)) {
     if (keygen !== null) keygens.set(name, keygen);
   }
   for (const [name, path] of helperProgramImports(code)) names.set(name, path);
-  const candidates = assignedValues(code);
   for (let pass = 0; pass < 4; pass += 1) {
     let grew = false;
     for (const [name, pieces] of candidates) {
@@ -462,10 +463,20 @@ function spawnCallNames(code) {
   return names;
 }
 
-/** Every call of one of `names` in the file, with its arguments as text. */
-function* calls(code, names) {
+/**
+ * Every call of one of `names` in the file, with its arguments as text.
+ *
+ * THE MEMBER FORM IS KEPT on purpose (`cp.spawn(…)` is a call this gate must
+ * read), and since Phase 307 one member is not: a method of a REGULAR
+ * EXPRESSION, by the regex arm of build/scan-source.mjs's `receiverOf`, the
+ * test build/assert-background-teardown.mjs reads too. `const prog = 'ssh';
+ * /x/.exec(prog)` was rule 1, "exec(prog, ...) starts ssh itself", and rule 1c,
+ * over a call that starts nothing. Only that arm is asked here: this gate's own
+ * declaration guard below stays the spelling it has had since Phase 193.
+ */
+function* calls(code, names, receivers = receiverContext(code)) {
   const re = new RegExp(
-    `(?:\\b[A-Za-z_$][\\w$]*\\s*\\.\\s*)?\\b(${[...names].join('|')})\\s*\\(`,
+    `((?:\\b[A-Za-z_$][\\w$]*\\s*\\.\\s*)?)\\b(${[...names].join('|')})\\s*\\(`,
     'g'
   );
   let m;
@@ -474,8 +485,9 @@ function* calls(code, names) {
     // it. Reading the header as a call reports every wrapper's own parameter
     // list, which is noise on the one shape every script in this tree has.
     if (/\bfunction\s*\*?\s*$/.test(code.slice(Math.max(0, m.index - 24), m.index))) continue;
+    if (receiverOf(code, m.index + m[1].length, receivers) === 'regex') continue;
     const open = m.index + m[0].length - 1;
-    yield { callee: m[1], index: m.index, args: callArguments(code, open) };
+    yield { callee: m[2], index: m.index, args: callArguments(code, open) };
   }
 }
 
@@ -483,7 +495,8 @@ function* calls(code, names) {
 function contextOf(source) {
   const code = stripComments(source);
   const values = stringValues(code);
-  const { names, keygens } = sshNames(code, values);
+  const assigned = assignedValues(code);
+  const { names, keygens } = sshNames(code, values, assigned);
   return {
     code,
     values,
@@ -491,6 +504,7 @@ function contextOf(source) {
     keygens,
     scopes: parameterScopes(code),
     spawns: spawnCallNames(code),
+    receivers: receiverContext(code, assigned),
     sub: makeSubstituter(values)
   };
 }
@@ -498,7 +512,7 @@ function contextOf(source) {
 /** Every spawn in one file whose program is an ssh family program (rule 1). */
 export function sshSpawns(name, source, ctx = contextOf(source)) {
   const hits = [];
-  for (const { callee, index, args } of calls(ctx.code, ctx.spawns)) {
+  for (const { callee, index, args } of calls(ctx.code, ctx.spawns, ctx.receivers)) {
     const program = programOf(args[0], ctx.names, ctx.scopes, index);
     if (program === null) continue;
     hits.push({
@@ -515,7 +529,7 @@ export function sshSpawns(name, source, ctx = contextOf(source)) {
 /** Every spawn in one file that hands ssh-keygen a known_hosts flag (rule 1b). */
 export function keygenKnownHostsSpawns(name, source, ctx = contextOf(source)) {
   const hits = [];
-  for (const { index, args } of calls(ctx.code, ctx.spawns)) {
+  for (const { index, args } of calls(ctx.code, ctx.spawns, ctx.receivers)) {
     const first = (args[0] ?? '').trim();
     if (keygenLiteral(first) === null && !ctx.keygens.has(first)) continue;
     const argv = ctx.sub(args[1] ?? '');
@@ -576,7 +590,7 @@ export function shellSshLines(name, source, ctx = contextOf(source)) {
     add(m.index, line, `a command line handed to a shell after ${m[2]}`);
   }
 
-  for (const { callee, index, args } of calls(ctx.code, ctx.spawns)) {
+  for (const { callee, index, args } of calls(ctx.code, ctx.spawns, ctx.receivers)) {
     const commandLineCall = COMMAND_LINE_CALLS.test(callee);
     const shelled = args.some((one) => /\bshell\s*:\s*(?!false\b)[A-Za-z_$'"`0-9]/.test(one ?? ''));
     if (!commandLineCall && !shelled) continue;

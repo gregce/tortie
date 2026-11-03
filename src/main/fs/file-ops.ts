@@ -88,6 +88,7 @@ import type {
   FsTrashResult
 } from '@shared/fs-ops';
 import { MAX_IMPORT_SOURCES } from '@shared/fs-ops';
+import { visibleName } from '@shared/visible-name';
 import { gmuxError } from '../errors';
 import { fsOpError, fsOpMessage } from './errors';
 import type { ResolvedFsPath } from './paths';
@@ -414,7 +415,7 @@ export function createFileOps(deps: FileOpsDeps): FileOpsService {
       if (destAbs === null) {
         throw gmuxError(
           'FS_FAILED',
-          `There are already too many copies of "${name}".`,
+          `There are already too many copies of "${visibleName(name)}".`,
           'EEXIST'
         );
       }
@@ -483,7 +484,7 @@ export function createFileOps(deps: FileOpsDeps): FileOpsService {
         if (kind === 'dir' && isAtOrUnder(source.abs, destDir.abs)) {
           throw gmuxError(
             'INVALID_INPUT',
-            `"${basename(source.abs)}" cannot be moved inside itself.`,
+            `"${visibleName(basename(source.abs))}" cannot be moved inside itself.`,
             source.rel
           );
         }
@@ -613,7 +614,7 @@ export function createFileOps(deps: FileOpsDeps): FileOpsService {
         if (kind === 'dir' && isAtOrUnder(sourceAbs, destDir.abs)) {
           throw gmuxError(
             'INVALID_INPUT',
-            `"${basename(sourceAbs)}" cannot be copied inside itself.`,
+            `"${visibleName(basename(sourceAbs))}" cannot be copied inside itself.`,
             sourceAbs
           );
         }

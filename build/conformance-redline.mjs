@@ -552,6 +552,18 @@
  *      un-negated flag, the guard round the call on the negated one) are read
  *      for which way they test, and any other spelling is refused by name.
  *
+ *      PHASE 290 MOVED WHAT IT ASKS, AND TO THE TAB. The holds are one array
+ *      per mount, so a tab switch or a look at the File view ended the
+ *      refusal and the read a rewind owed, and ⌥↩ took the change the person
+ *      had rewound. A refused adoption now leaves a mark on the tab
+ *      (`rewindOwesRead`, set by the store's `adoptWritten`), and three
+ *      clauses read it here: the clean transition's test asks the mark AND
+ *      the landed hold (clause 7, so every read 282.2 pulled is still pulled);
+ *      an effect keyed on `[tab.id]` alone pulls the read when the view
+ *      arrives over a CLEAN tab that owes it (clause 8, the direction read as
+ *      clause 7 reads it); and the accept hands `pressAccept` the mark beside
+ *      its holds (clause 1).
+ *
  *      AND live-text.ts READS NO WORKING MODEL ON THE RENDER PATH. PR 28
  *      added one line there that read the model at every render; it made the
  *      Redline view draw text one keystroke ahead of the typing hook's own
@@ -573,7 +585,10 @@
  *      repeat test dropped, PR 28's live-text line put back, the clean
  *      transition's effect removed, its landed-hold test removed, its flag
  *      test inverted, the store's `rereadRepo` reaching nothing, and five
- *      more — each of which must turn this rule red on its own clause. The
+ *      more, and since Phase 290 the accept's mark, the clean transition's
+ *      mark and the mount's door removed, its mark test removed and its flag
+ *      test inverted — each of which must turn this rule red on its own
+ *      clause. The
  *      ablations are made on the strings in memory and never on the tree,
  *      because this gate runs in the commit battery; the four files' sha256
  *      are compared in a `finally` to prove it.
@@ -2805,6 +2820,26 @@ export async function again(ctx) { const b = gmuxBridge(); const w = b.fs.writeG
       from:
         '  return entry !== undefined && entry.generation === generation ? entry : undefined;',
       to: '  return entry;'
+    },
+    {
+      // PHASE 290, driven since the fix round of Phase 352. The tab's mark
+      // holds an accept with no hold of the view's: after `nothing`, before
+      // the plan, and the same press with no mark accepted. A verify lens took
+      // this clause out of the shipping redline-accept.ts with every gate
+      // green, because the gates read only that the view HANDS the mark.
+      name: '19g. while the tab owes a rewind’s read, an accept is held, after nothing and before the plan, and without the mark it is taken',
+      key: 'heldOnMark',
+      expect: (a) =>
+        a.outcome === 'held' &&
+        a.advanced === 0 &&
+        a.refused === null &&
+        a.controlOutcome === 'accepted' &&
+        a.controlAdvanced === 1 &&
+        a.nothingFirst === 'nothing' &&
+        a.beforePlan === 'held',
+      file: 'redline-accept.ts',
+      from: '  if ((deps.holds !== undefined && deps.holds.length > 0) || deps.owed === true) {',
+      to: '  if (deps.holds !== undefined && deps.holds.length > 0) {'
     }
   ];
 
@@ -5200,6 +5235,20 @@ function gridOf(css, cls) {
 // p2822-after-undo.test.ts and p282-view-presses.test.ts with no hand-made
 // read; this clause pins the wiring a later round would drop.
 //
+// THE TAB OWES THE READ, NOT THE MOUNT, Phase 290. A hold dies with the mount
+// that took it, and a tab switch, the mode chip to File and back, and an undo
+// made in the File view all end the mount, so the refusal and the read went
+// with it: ⌥↩ accepted the rewound change unsaid, the next read drew it
+// backwards, and the next ⌥⌫ wrote the agent's words back. The read is the
+// TAB's now (`rewindOwesRead`, set when ./tab-io's adoption refuses, cleared
+// by the walk's clean read and by a save that lands; `conformance:save` rule
+// 30 holds where it moves). So clause 7's test asks that mark AND the hold,
+// clause 8 is the arrival's own door over a clean tab that owes the read, and
+// clause 1 requires the accept to hand the mark to `pressAccept`. The store's
+// own door, an undo made where no Redline view is mounted, is
+// `conformance:save` rule 14's. p290-owed-read.test.ts and
+// p2822-second-undo.test.ts drive the behaviour.
+//
 // AND ./live-text READS NO WORKING MODEL ON THE RENDER PATH. PR 28 added one
 // line there that read the model at every render; it made this view draw text
 // one keystroke ahead of the typing hook's own last picture, which is the
@@ -5296,6 +5345,30 @@ function gridOf(css, cls) {
   };
 
   /**
+   * PHASE 290. The effect keyed EXACTLY on `[tab.id]` that calls `rereadRepo(`,
+   * found the way `cleanEffectOf` finds its own: by the dependencies, because
+   * they are the ruling (an arrival, and nothing else), and then by the call,
+   * because the view holds two other `[tab.id]` effects (the reset of the
+   * current change and the holds, and the scroller's focus) that read nothing.
+   */
+  const mountEffectOf = (code) => {
+    const opener = /\buse(?:Layout)?Effect\(/g;
+    let m;
+    while ((m = opener.exec(code)) !== null) {
+      const open = m.index + m[0].length - 1;
+      const close = closeOf(code, open);
+      if (close === -1) continue;
+      const args = callArguments(code, open);
+      if (args.length < 2) continue;
+      if (args[args.length - 1].replace(/\s+/g, '') !== '[tab.id]') continue;
+      const body = args.slice(0, -1).join(', ');
+      if (!body.includes('rereadRepo(')) continue;
+      return { start: m.index, open, close, body };
+    }
+    return null;
+  };
+
+  /**
    * PHASE 282.2's FIX ROUND. WHICH WAY the clean transition reads the flag:
    * 'clean' when the re-read is reached only on a tab that is NOT dirty,
    * 'dirty' when it is reached only on one that is, 'unread' when the flag is
@@ -5350,6 +5423,123 @@ function gridOf(css, cls) {
   };
 
   /**
+   * PHASE 290's FIX ROUND. WHICH WAY a condition asks the TAB's mark
+   * (`rewindOwesRead`): 1 when it is true for a tab that owes the read, other
+   * terms permitting, -1 when it is true for a tab that owes none, null when
+   * the mark is not in it, and NaN when the mark sits in a term this reader
+   * gives no direction, or in more than one. The clauses below named the mark
+   * and never its direction, so a verify lens inverted each of the three in
+   * the shipping view and this rule went red only because an ablation's
+   * anchor stopped matching. Read as `!`, `&&`, `||` and brackets over terms,
+   * the way a person reads it, and nothing is evaluated.
+   */
+  const markSignIn = (cond) => {
+    const s = String(cond).replace(/\s+/g, '');
+    let i = 0;
+    const MARK = '[\\w$.?()]*rewindOwesRead';
+    const term = (t) => {
+      if (!t.includes('rewindOwesRead')) return null;
+      if (new RegExp(`^${MARK}(?:===true|!==false)$`).test(t) || new RegExp(`^(?:true===|false!==)${MARK}$`).test(t)) return 1;
+      if (new RegExp(`^${MARK}(?:!==true|===false)$`).test(t) || new RegExp(`^(?:true!==|false===)${MARK}$`).test(t)) return -1;
+      if (new RegExp(`^${MARK}$`).test(t)) return 1;
+      return Number.NaN;
+    };
+    const join = (a, b) => {
+      if (Number.isNaN(a) || Number.isNaN(b)) return Number.NaN;
+      if (a === null) return b;
+      if (b === null) return a;
+      return Number.NaN;
+    };
+    const unary = () => {
+      if (s[i] === '!' && s[i + 1] !== '=') {
+        i += 1;
+        const v = unary();
+        return v === null || Number.isNaN(v) ? v : -v;
+      }
+      if (s[i] === '(') {
+        const close = closeOf(s, i);
+        if (close === -1) return Number.NaN;
+        const after = s[close + 1];
+        if (after === undefined || after === '&' || after === '|' || after === ')') {
+          const v = markSignIn(s.slice(i + 1, close));
+          i = close + 1;
+          return v;
+        }
+      }
+      const start = i;
+      let depth = 0;
+      while (i < s.length) {
+        const c = s[i];
+        if (c === '(' || c === '[' || c === '{') depth += 1;
+        else if (c === ')' || c === ']' || c === '}') {
+          if (depth === 0) break;
+          depth -= 1;
+        } else if (depth === 0 && (s.startsWith('&&', i) || s.startsWith('||', i))) break;
+        i += 1;
+      }
+      return term(s.slice(start, i));
+    };
+    const and = () => {
+      let v = unary();
+      while (s.startsWith('&&', i)) {
+        i += 2;
+        v = join(v, unary());
+      }
+      return v;
+    };
+    const or = () => {
+      let v = and();
+      while (s.startsWith('||', i)) {
+        i += 2;
+        v = join(v, and());
+      }
+      return v;
+    };
+    const v = or();
+    return i === s.length ? v : Number.NaN;
+  };
+
+  /**
+   * PHASE 290's FIX ROUND. Whether what decides the call before `call` reaches
+   * it for a tab that OWES the read: 'ok', 'inverted' (it reaches it for a tab
+   * that owes none), 'unread' (no direction this reader can give), or 'absent'
+   * (no test names the mark). The two spellings `flagPolarityOf` reads, an
+   * early return and a guard round the call, and a `const` the body declares
+   * before the test is read as the expression it holds.
+   */
+  const markPolarityOf = (body, call) => {
+    const consts = new Map();
+    for (const m of body.slice(0, call === -1 ? body.length : call).matchAll(/\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*([^;]+);/g)) {
+      consts.set(m[1], m[2]);
+    }
+    const tests = /\bif\s*\(/g;
+    let m;
+    while ((m = tests.exec(body)) !== null) {
+      const open = m.index + m[0].length - 1;
+      if (call !== -1 && open > call) break;
+      const close = closeOf(body, open);
+      if (close === -1) continue;
+      let cond = body.slice(open + 1, close);
+      for (const [name, value] of consts) {
+        cond = cond.replace(new RegExp(`(?<![\\w$.])${name.replace(/\$/g, '\\$')}(?![\\w$])`, 'g'), () => `(${value})`);
+      }
+      if (!cond.includes('rewindOwesRead')) continue;
+      const after = body.slice(close + 1);
+      const early = /^\s*(?:\{\s*)?return\b/.test(after);
+      if (!early) {
+        const brace = /^\s*\{/.exec(after);
+        const end = brace === null ? body.indexOf(';', close) : closeOf(body, close + brace[0].length);
+        if (call === -1 || call < close || call > end) continue;
+      }
+      const sign = markSignIn(cond);
+      if (sign === null || Number.isNaN(sign)) return 'unread';
+      // An early return reaches the call when its test is FALSE.
+      return (early ? sign < 0 : sign > 0) ? 'ok' : 'inverted';
+    }
+    return 'absent';
+  };
+
+  /**
    * What is wrong with this source's move, one-press and repeat wiring, or an
    * empty list. Both callbacks and both layout effects are found by name or by
    * the call they hold and read by MATCHING PARENTHESES, the way rule 20 reads
@@ -5372,6 +5562,24 @@ function gridOf(css, cls) {
       }
       if (!accept.includes('holds:')) {
         out.push('the accept passes no holds, so it can take a change while a rewind this view pressed is still being drawn');
+      }
+      // PHASE 290. And the TAB's mark, which outlives the holds: they are this
+      // mount's, and a switch or a look at the File view ends the mount.
+      const owed = /\bowed:([^,}\n]*)/.exec(accept);
+      if (owed === null || !owed[1].includes('rewindOwesRead')) {
+        out.push(
+          'the accept does not hand pressAccept the tab’s mark (owed: …rewindOwesRead), so after a switch or a look at the File view it takes the change the person rewound, with nothing said'
+        );
+      } else {
+        // The fix round of Phase 352: and the right way round.
+        const sign = markSignIn(owed[1]);
+        if (sign === -1) {
+          out.push(
+            'the accept hands pressAccept the tab’s mark the wrong way round, so it holds every accept on a tab that owes no read and takes the rewound change on the one that does'
+          );
+        } else if (sign !== 1) {
+          out.push('the accept hands pressAccept an owed: this rule cannot read the direction of; write owed: …rewindOwesRead === true');
+        }
       }
       if (!accept.includes("outcome === 'held'") || !accept.includes('redlineHeldSentence(')) {
         out.push('a held accept is not answered with a sentence, so a press that was refused says nothing at all');
@@ -5565,10 +5773,38 @@ function gridOf(css, cls) {
           'the effect keyed on tab.dirty never calls rereadRepo, so the undo the acceptDirty sentence names leads to no read'
         );
       }
-      if (!asked.includes('rewindHolds.current') || !/landed/i.test(asked)) {
+      // PHASE 290 RE-POINTED THIS CLAUSE AT THE MARK, and kept the hold beside
+      // it. What decides the call must ask the TAB's mark (`rewindOwesRead`),
+      // which a switch or the File view does not end, AND this mount's landed
+      // hold, so every read Phase 282.2 pulled is still pulled. Neither asked is
+      // the refusal the clause always made.
+      const asksHold = asked.includes('rewindHolds.current') && /landed/i.test(asked);
+      const asksMark = asked.includes('rewindOwesRead');
+      if (!asksHold && !asksMark) {
         out.push(
           'the re-read is pulled on every clean transition whether a hold has landed or not, so an ordinary undo on an ordinary tab reads the disk'
         );
+      } else if (!asksMark) {
+        out.push(
+          'the clean transition asks this mount’s holds and not the tab’s mark (rewindOwesRead), so a rewind whose hold a switch or the File view ended owes a read this effect never pulls'
+        );
+      } else if (!asksHold) {
+        out.push(
+          'the clean transition does not ask this mount’s landed hold, so a read Phase 282.2 pulled for a hold is no longer this effect’s to pull'
+        );
+      }
+      // The fix round of Phase 352: the mark asked the right way round.
+      if (asksMark) {
+        const way = markPolarityOf(clean.body, call);
+        if (way === 'inverted') {
+          out.push(
+            'the clean transition asks the tab’s mark the wrong way round, so it pulls the read for a tab that owes none and never for the one that owes it'
+          );
+        } else if (way !== 'ok') {
+          out.push(
+            'the clean transition names the tab’s mark in no test this rule can read the direction of; ask `tab.rewindOwesRead === true` in the test before the call'
+          );
+        }
       }
       if (!asked.includes('tab.dirty')) {
         out.push(
@@ -5592,6 +5828,52 @@ function gridOf(css, cls) {
         out.push(
           'the clean transition adopts the bytes the hold remembers instead of asking the disk what is there now, so a write that landed between the rewind and the undo is drawn over'
         );
+      }
+    }
+    // 8. PHASE 290. THE MOUNT PULLS THE READ THE TAB OWES. A switch back to a
+    //    tab, or the mode chip back to Redline, is a new arrival of this view
+    //    over a tab whose hold is gone; when that tab is CLEAN and its mark
+    //    stands, the arrival makes the read. An effect keyed on `[tab.id]` alone
+    //    (the mount and every change of tab, nothing else), whose test asks the
+    //    mark and the flag the right way round, and which reads rather than
+    //    adopting remembered bytes.
+    const mount = mountEffectOf(code);
+    if (mount === null) {
+      out.push(
+        'no effect keyed on [tab.id] alone pulls the read a tab owes, so a switch back to it, or the mode chip back to Redline, over a clean tab owing a rewind’s read reads nothing'
+      );
+    } else {
+      const call = mount.body.indexOf('rereadRepo(');
+      const asked = mount.body.slice(0, call);
+      if (!asked.includes('rewindOwesRead')) {
+        out.push('the mount pulls a read on every arrival, the tab’s mark not asked, so every switch walks the repository');
+      } else {
+        // The fix round of Phase 352: and the right way round.
+        const way = markPolarityOf(mount.body, call);
+        if (way === 'inverted') {
+          out.push(
+            'the mount asks the tab’s mark the wrong way round, so an arrival reads for a tab that owes nothing and never for the clean one that owes the read'
+          );
+        } else if (way !== 'ok') {
+          out.push(
+            'the mount names the tab’s mark in no test this rule can read the direction of; write `if (tab.dirty || tab.rewindOwesRead !== true) return;` before the call'
+          );
+        }
+      }
+      if (!asked.includes('tab.dirty')) {
+        out.push('the mount never asks the flag, so it pulls the read over a dirty tab, where the walk skips it and loads nothing');
+      } else {
+        const way = flagPolarityOf(mount.body, call);
+        if (way === 'dirty') {
+          out.push('the mount tests the flag the wrong way round, so it reads over a dirty tab and never over the clean one that owes the read');
+        } else if (way === 'unread') {
+          out.push(
+            'the mount names tab.dirty in no test this rule can read the direction of; write `if (tab.dirty || …) return;` before the call'
+          );
+        }
+      }
+      if (mount.body.includes('adoptWritten(')) {
+        out.push('the mount adopts bytes it remembers instead of asking the disk what is there now');
       }
     }
     return out;
@@ -5733,7 +6015,7 @@ function gridOf(css, cls) {
   const ACCEPT_BODY =
     '  const pressed = identityOf(pressedElement(host));\n' +
     "  const move = pressMoveOf('accept', changeElements(host).map(identityOf), pressed);\n" +
-    '  const result = pressAccept(kind, tabOf(), { focused: () => pressed, holds: rewindHolds.current });\n' +
+    '  const result = pressAccept(kind, tabOf(), { focused: () => pressed, owed: tabOf().rewindOwesRead === true, holds: rewindHolds.current });\n' +
     "  if (result.outcome === 'held') {\n" +
     "    toast('info', redlineHeldSentence('accept', live.name));\n" +
     '    return;\n' +
@@ -5781,13 +6063,21 @@ function gridOf(css, cls) {
     '  const host = hostRef.current;\n' +
     '  releaseHolds(rewindHolds.current, host === null ? [] : changeElements(host).map(identityOf), tab.savedContents);\n' +
     '}, [composed, tab.savedContents]);';
-  // PHASE 282.2. The clean transition, in the shape the view ships it in.
+  // PHASE 282.2. The clean transition, in the shape the view ships it in;
+  // PHASE 290 added the tab's mark to its test.
+  const CLEAN_TEST = '  if (!(tab.rewindOwesRead === true || rewindHolds.current.some((h) => h.landed !== null))) return;\n';
   const CLEAN_EFFECT =
     'useEffect(() => {\n' +
     '  if (tab.dirty) return;\n' +
-    '  if (!rewindHolds.current.some((h) => h.landed !== null)) return;\n' +
+    CLEAN_TEST +
     '  useEditor.getState().rereadRepo(tab.repoPath);\n' +
     '}, [tab.dirty]);';
+  // PHASE 290. The mount's door, in the shape the view ships it in.
+  const MOUNT_EFFECT =
+    'useEffect(() => {\n' +
+    '  if (tab.dirty || tab.rewindOwesRead !== true) return;\n' +
+    '  useEditor.getState().rereadRepo(tab.repoPath);\n' +
+    '}, [tab.id]);';
   const KEY_HANDLER =
     'const scroller = { onKeyDown: (event) => {\n' +
     '  const command = redlineCommandOf(event);\n' +
@@ -5803,6 +6093,7 @@ function gridOf(css, cls) {
       effect: MOVE_EFFECT,
       release: RELEASE_EFFECT,
       clean: CLEAN_EFFECT,
+      mount: MOUNT_EFFECT,
       keydown: KEY_HANDLER,
       ...over
     };
@@ -5812,7 +6103,7 @@ function gridOf(css, cls) {
       `const accept = useCallback((kind, host) => {\n${p.accept}\n}, [tab.id]);\n` +
       `const press = useCallback(async (kind, host) => {\n${p.press}\n}, [tab.id]);\n` +
       `useLayoutEffect(() => {\n${p.effect}\n}, [composed, generation, makeCurrent]);\n` +
-      `${p.release}\n${p.clean}\n${p.keydown}\n`
+      `${p.release}\n${p.clean}\n${p.mount}\n${p.keydown}\n`
     );
   };
   const NO_ACCEPT_MOVE =
@@ -6071,7 +6362,8 @@ function gridOf(css, cls) {
       source: viewSource({
         clean:
           'useLayoutEffect(() => {\n' +
-          '  if (!tab.dirty && rewindHolds.current.some((h) => h.landed !== null)) {\n' +
+          '  const owed = tab.rewindOwesRead === true || rewindHolds.current.some((h) => h.landed !== null);\n' +
+          '  if (!tab.dirty && owed) {\n' +
           '    useEditor.getState().rereadRepo(tab.repoPath);\n' +
           '  }\n' +
           '}, [tab.dirty]);'
@@ -6098,31 +6390,38 @@ function gridOf(css, cls) {
       want: 'never calls rereadRepo'
     },
     {
-      name: 'the landed-hold test deleted, so an ordinary undo reads the disk',
-      source: viewSource({
-        clean: CLEAN_EFFECT.replace(
-          '  if (!rewindHolds.current.some((h) => h.landed !== null)) return;\n',
-          ''
-        )
-      }),
+      name: 'the whole test deleted, the mark and the hold, so an ordinary undo reads the disk',
+      source: viewSource({ clean: CLEAN_EFFECT.replace(CLEAN_TEST, '') }),
       want: 'on every clean transition'
+    },
+    // PHASE 290. The mark and the hold, each taken out alone.
+    {
+      name: 'the clean transition asks the holds alone, as Phase 282.2 shipped it',
+      source: viewSource({
+        clean: CLEAN_EFFECT.replace(CLEAN_TEST, '  if (!rewindHolds.current.some((h) => h.landed !== null)) return;\n')
+      }),
+      want: 'not the tab’s mark'
+    },
+    {
+      name: 'the clean transition asks the mark alone, so a read 282.2 pulled for a hold is gone',
+      source: viewSource({
+        clean: CLEAN_EFFECT.replace(CLEAN_TEST, '  if (tab.rewindOwesRead !== true) return;\n')
+      }),
+      want: 'does not ask this mount’s landed hold'
     },
     {
       name: 'any hold asked for, landed or still in the air',
       source: viewSource({
-        clean: CLEAN_EFFECT.replace(
-          '!rewindHolds.current.some((h) => h.landed !== null)',
-          'rewindHolds.current.length === 0'
-        )
+        clean: CLEAN_EFFECT.replace('rewindHolds.current.some((h) => h.landed !== null)', 'rewindHolds.current.length > 0')
       }),
-      want: 'on every clean transition'
+      want: 'does not ask this mount’s landed hold'
     },
     {
-      name: 'the landed-hold test made after the re-read it was to decide',
+      name: 'the mark-and-hold test made after the re-read it was to decide',
       source: viewSource({
         clean: CLEAN_EFFECT.replace(
-          '  if (!rewindHolds.current.some((h) => h.landed !== null)) return;\n  useEditor.getState().rereadRepo(tab.repoPath);\n',
-          '  useEditor.getState().rereadRepo(tab.repoPath);\n  if (!rewindHolds.current.some((h) => h.landed !== null)) return;\n'
+          `${CLEAN_TEST}  useEditor.getState().rereadRepo(tab.repoPath);\n`,
+          `  useEditor.getState().rereadRepo(tab.repoPath);\n${CLEAN_TEST}`
         )
       }),
       want: 'on every clean transition'
@@ -6168,8 +6467,8 @@ function gridOf(css, cls) {
       name: 'the flag tested only AFTER the call it was to decide',
       source: viewSource({
         clean: CLEAN_EFFECT.replace(
-          '  if (tab.dirty) return;\n  if (!rewindHolds.current.some((h) => h.landed !== null)) return;\n  useEditor.getState().rereadRepo(tab.repoPath);\n',
-          '  if (!rewindHolds.current.some((h) => h.landed !== null)) return;\n  useEditor.getState().rereadRepo(tab.repoPath);\n  if (tab.dirty) return;\n'
+          `  if (tab.dirty) return;\n${CLEAN_TEST}  useEditor.getState().rereadRepo(tab.repoPath);\n`,
+          `${CLEAN_TEST}  useEditor.getState().rereadRepo(tab.repoPath);\n  if (tab.dirty) return;\n`
         )
       }),
       want: 'never asks which way the flag moved'
@@ -6178,8 +6477,8 @@ function gridOf(css, cls) {
       name: 'the early return with a second reason joined by ||, which must PASS',
       source: viewSource({
         clean: CLEAN_EFFECT.replace(
-          '  if (tab.dirty) return;\n  if (!rewindHolds.current.some((h) => h.landed !== null)) return;\n',
-          '  if (tab.dirty || !rewindHolds.current.some((h) => h.landed !== null)) return;\n'
+          `  if (tab.dirty) return;\n${CLEAN_TEST}`,
+          '  if (tab.dirty || !(tab.rewindOwesRead === true || rewindHolds.current.some((h) => h.landed !== null))) return;\n'
         )
       }),
       want: null
@@ -6194,6 +6493,89 @@ function gridOf(css, cls) {
         )
       }),
       want: 'adopts the bytes the hold remembers'
+    },
+    // PHASE 290. The accept hands the tab's mark, and the mount's door, one
+    // clause each, with a second spelling of the door that must PASS.
+    {
+      name: 'the accept hands pressAccept no mark, so a switch lets it take a rewound change',
+      source: viewSource({ accept: ACCEPT_BODY.replace(', owed: tabOf().rewindOwesRead === true', '') }),
+      want: 'does not hand pressAccept the tab’s mark'
+    },
+    {
+      name: 'the mount’s door written as a guard round the call',
+      source: viewSource({
+        mount:
+          'useEffect(() => {\n' +
+          '  if (!tab.dirty && tab.rewindOwesRead === true) {\n' +
+          '    useEditor.getState().rereadRepo(tab.repoPath);\n' +
+          '  }\n' +
+          '}, [tab.id]);'
+      }),
+      want: null
+    },
+    // The fix round of Phase 352: each of the three asked the wrong way round,
+    // which must be red on its direction and not only on an anchor.
+    {
+      name: 'the accept hands pressAccept the mark the wrong way round',
+      source: viewSource({ accept: ACCEPT_BODY.replace('owed: tabOf().rewindOwesRead === true', 'owed: tabOf().rewindOwesRead !== true') }),
+      want: 'hands pressAccept the tab’s mark the wrong way round'
+    },
+    {
+      name: 'the clean transition asks the mark the wrong way round',
+      source: viewSource({ clean: CLEAN_EFFECT.replace('tab.rewindOwesRead === true ||', 'tab.rewindOwesRead !== true ||') }),
+      want: 'the clean transition asks the tab’s mark the wrong way round'
+    },
+    {
+      name: 'the mount asks the mark the wrong way round',
+      source: viewSource({ mount: MOUNT_EFFECT.replace('tab.rewindOwesRead !== true) return;', 'tab.rewindOwesRead === true) return;') }),
+      want: 'the mount asks the tab’s mark the wrong way round'
+    },
+    {
+      name: 'the mount asks the mark negated, written as a guard, which is the wrong way round',
+      source: viewSource({
+        mount:
+          'useEffect(() => {\n' +
+          '  if (!tab.dirty && !tab.rewindOwesRead) {\n' +
+          '    useEditor.getState().rereadRepo(tab.repoPath);\n' +
+          '  }\n' +
+          '}, [tab.id]);'
+      }),
+      want: 'the mount asks the tab’s mark the wrong way round'
+    },
+    {
+      name: 'the mount’s door deleted, so a switch back over a clean tab owing the read reads nothing',
+      source: viewSource({ mount: '' }),
+      want: 'no effect keyed on [tab.id] alone pulls'
+    },
+    {
+      name: 'the mount’s door keyed on the flag as well, so it is not an arrival',
+      source: viewSource({ mount: MOUNT_EFFECT.replace('}, [tab.id]);', '}, [tab.id, tab.dirty]);') }),
+      want: 'no effect keyed on [tab.id] alone pulls'
+    },
+    {
+      name: 'the mount reads on every arrival, the mark not asked',
+      source: viewSource({ mount: MOUNT_EFFECT.replace(' || tab.rewindOwesRead !== true', '') }),
+      want: 'the tab’s mark not asked'
+    },
+    {
+      name: 'the mount never asks the flag, so it reads over a dirty tab',
+      source: viewSource({ mount: MOUNT_EFFECT.replace('tab.dirty || ', '') }),
+      want: 'never asks the flag'
+    },
+    {
+      name: 'the mount’s test inverted, so it reads over a dirty tab and never a clean one',
+      source: viewSource({ mount: MOUNT_EFFECT.replace('if (tab.dirty || ', 'if (!tab.dirty || ') }),
+      want: 'the wrong way round'
+    },
+    {
+      name: 'the mount adopts remembered bytes beside its read',
+      source: viewSource({
+        mount: MOUNT_EFFECT.replace(
+          '  useEditor.getState().rereadRepo(tab.repoPath);\n',
+          '  useEditor.getState().rereadRepo(tab.repoPath);\n  useEditor.getState().adoptWritten(tab.id, tab.savedContents, tab.savedContents);\n'
+        )
+      }),
+      want: 'the mount adopts bytes'
     },
     {
       name: 'the repeat test deleted, so a held chord rewinds the whole file',
@@ -6463,7 +6845,7 @@ function gridOf(css, cls) {
       want: 'no effect is keyed on [tab.dirty] alone'
     },
     {
-      name: 'the landed-hold test removed, so the read is pulled on every clean transition',
+      name: 'the landed-hold test removed, so the read no longer asks this mount’s hold',
       file: VIEW,
       edit: (source) => {
         const code = stripComments(source);
@@ -6475,7 +6857,7 @@ function gridOf(css, cls) {
         const close = closeOf(code, at + asks[0].length - 1);
         return close === -1 ? source : `${source.slice(0, at)}true${source.slice(close + 1)}`;
       },
-      want: 'on every clean transition'
+      want: 'does not ask this mount’s landed hold'
     },
     // PHASE 282.2's FIX ROUND. The two the verifiers made by hand in scratch
     // copies and found this rule had no arm for. The first is cut inside the
@@ -6502,6 +6884,69 @@ function gridOf(css, cls) {
       find: /(\n\s*rereadRepo\(repoPath\) \{\n\s*)void io\.refreshRepo\(repoPath\);/,
       to: '$1void repoPath;',
       want: 'does not reach refreshRepo'
+    },
+    // PHASE 290. The accept's mark, the clean transition's mark, and the
+    // mount's door, each taken out of the shipping bytes alone.
+    {
+      name: 'the accept hands pressAccept no mark',
+      file: VIEW,
+      find: '          owed: live.rewindOwesRead === true,\n',
+      to: '',
+      want: 'does not hand pressAccept the tab’s mark'
+    },
+    {
+      name: 'the clean transition’s mark taken out, so it asks the holds alone again',
+      file: VIEW,
+      find: 'tab.rewindOwesRead === true || rewindHolds.current',
+      to: 'rewindHolds.current',
+      want: 'not the tab’s mark'
+    },
+    {
+      name: 'the mount’s door removed, so a switch back over a clean tab owing the read reads nothing',
+      file: VIEW,
+      edit: (source) => {
+        const mount = mountEffectOf(stripComments(source));
+        return mount === null ? source : source.slice(0, mount.start) + source.slice(mount.close + 1);
+      },
+      want: 'no effect keyed on [tab.id] alone pulls'
+    },
+    {
+      name: 'the mount’s mark test taken out, so every arrival reads',
+      file: VIEW,
+      find: 'if (tab.dirty || tab.rewindOwesRead !== true) return;',
+      to: 'if (tab.dirty) return;',
+      want: 'the tab’s mark not asked'
+    },
+    {
+      name: 'the mount’s flag test inverted, so it reads over a dirty tab',
+      file: VIEW,
+      find: 'if (tab.dirty || tab.rewindOwesRead !== true) return;',
+      to: 'if (!tab.dirty || tab.rewindOwesRead !== true) return;',
+      want: 'the wrong way round'
+    },
+    // The fix round of Phase 352: the verify lens's A14, A16 and A18, each the
+    // mark asked the wrong way round in the shipping view, red here on the
+    // direction rather than only on another ablation's anchor.
+    {
+      name: 'the mount’s mark asked the wrong way round',
+      file: VIEW,
+      find: 'if (tab.dirty || tab.rewindOwesRead !== true) return;',
+      to: 'if (tab.dirty || tab.rewindOwesRead === true) return;',
+      want: 'the mount asks the tab’s mark the wrong way round'
+    },
+    {
+      name: 'the clean transition’s mark asked the wrong way round',
+      file: VIEW,
+      find: 'if (!(tab.rewindOwesRead === true || rewindHolds.current',
+      to: 'if (!(tab.rewindOwesRead !== true || rewindHolds.current',
+      want: 'the clean transition asks the tab’s mark the wrong way round'
+    },
+    {
+      name: 'the accept handing pressAccept the mark the wrong way round',
+      file: VIEW,
+      find: '          owed: live.rewindOwesRead === true,\n',
+      to: '          owed: live.rewindOwesRead !== true,\n',
+      want: 'hands pressAccept the tab’s mark the wrong way round'
     }
   ];
   let ablationsRed = 0;
@@ -6546,7 +6991,7 @@ function gridOf(css, cls) {
   }
 
   say(
-    `40. the press that moves on: the follower is carried by IDENTITY and the index is only landingAfterPress's fallback, one press at a time (the holds passed to both verbs, answered with a sentence, landed after the adoption and released in a layout effect that watches savedContents), the clean transition names the re-read (an effect keyed on [tab.dirty] alone that tests a landed hold before it calls rereadRepo, which reaches refreshRepo, and adopts nothing), the host takes the keyboard BEFORE the adoption, a key repeat runs only next and prev after the preventDefault, and live-text.ts reads no working model on the render path (${String(plantsOk)} of ${String(plantsTotal)} scanner fixtures behaved, ${String(plantsCaught)} of them must fail)`
+    `40. the press that moves on: the follower is carried by IDENTITY and the index is only landingAfterPress's fallback, one press at a time (the holds passed to both verbs, answered with a sentence, landed after the adoption and released in a layout effect that watches savedContents), the clean transition names the re-read (an effect keyed on [tab.dirty] alone that tests the tab's mark and a landed hold before it calls rereadRepo, which reaches refreshRepo, and adopts nothing), the arrival over a clean tab that owes the read pulls it (an effect keyed on [tab.id] alone, Phase 290), the accept hands pressAccept the tab's mark, the host takes the keyboard BEFORE the adoption, a key repeat runs only next and prev after the preventDefault, and live-text.ts reads no working model on the render path (${String(plantsOk)} of ${String(plantsTotal)} scanner fixtures behaved, ${String(plantsCaught)} of them must fail)`
   );
   say(
     `40. ${String(ablationsRed)} of ${String(ABLATIONS.length)} ablations of the SHIPPING source turned this rule red on their own clause, made on the strings in memory with the four files' sha256 compared in a finally`

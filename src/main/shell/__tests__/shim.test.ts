@@ -5,16 +5,24 @@
  * The shim's own refusal paths are driven for real: the script is written
  * to disk and run with /bin/sh. Neither refusal reaches the `exec
  * /usr/bin/open` line, so nothing is ever launched from these tests.
+ *
+ * Phase 274.1 drives the line that resolves the folder the same way, over a
+ * copy of the composed content whose `exec /usr/bin/open` line, and only that
+ * line, is swapped for a `printf` of the same argument. It prints the folder
+ * `open` would have been handed, and nothing is launched from there either.
  */
 
 import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -102,6 +110,101 @@ describe('the shim script, run with /bin/sh', () => {
     });
     expect(run.status).toBe(1);
     expect(run.stderr).toContain('tortie: extra arguments were ignored: x y');
+  });
+});
+
+describe('the folder the shim hands main, as the disk names it (Phase 274.1)', () => {
+  const composed = composeShimContent('com.itavero.tortie').split('\n');
+  const execAt = composed.findIndex((line) =>
+    line.startsWith('exec /usr/bin/open ')
+  );
+  const PRINT = `printf '%s\\n' "$abs"`;
+  const printing = composed.map((line, at) => (at === execAt ? PRINT : line));
+
+  const dir = join(root, 'hands');
+  const disk = join(dir, 'Proj', 'RealName');
+  mkdirSync(disk, { recursive: true });
+  symlinkSync(disk, join(dir, 'link'));
+  const shim = join(dir, 'tortie-prints');
+  writeFileSync(shim, printing.join('\n'), 'utf8');
+
+  /** The folder as the volume names it, which is what the Finder door stores. */
+  const onDisk = realpathSync.native(disk);
+  /** A wrong-case spelling reaches the folder only on a volume that folds case. */
+  const folds = existsSync(join(dir, 'proj', 'realname'));
+
+  /**
+   * `cd` the way a person's shell does, so the shell holds the spelling it was
+   * typed in and exports it as PWD, then run the shim from there.
+   */
+  function handed(cdInto: string, arg: string): { status: number | null; folder: string } {
+    const run = spawnSync(
+      '/bin/sh',
+      ['-c', 'cd "$1" && export PWD && exec /bin/sh "$2" "$3"', 'sh', cdInto, shim, arg],
+      { encoding: 'utf8' }
+    );
+    return { status: run.status, folder: run.stdout.replace(/\n$/, '') };
+  }
+
+  it('runs the composed content with only its exec line swapped', () => {
+    expect(composed.filter((line) => line.startsWith('exec ')).length).toBe(1);
+    expect(execAt).toBeGreaterThan(-1);
+    expect(printing.filter((line, at) => line !== composed[at])).toEqual([PRINT]);
+  });
+
+  it('asks /bin/pwd -P by its absolute path for a plain ASCII path, with the logical pwd only behind it', () => {
+    expect(composed).toContain('abs=$(cd "$dir" 2>/dev/null && here=$(pwd) && {');
+    expect(composed).toContain(`    (x) /bin/pwd -P 2>/dev/null || printf '%s\\n' "$here" ;;`);
+    expect(composed).toContain(`    (*) printf '%s\\n' "$here" ;;`);
+  });
+
+  it.skipIf(!folds)('from a wrong-case cd, hands the folder in the case the disk has', () => {
+    expect(handed(join(dir, 'proj', 'realname'), '.')).toEqual({
+      status: 0,
+      folder: onDisk
+    });
+  });
+
+  it.skipIf(!folds)('from a typed wrong-case argument, hands the case the disk has too', () => {
+    expect(handed(dir, join('proj', 'realname'))).toEqual({
+      status: 0,
+      folder: onDisk
+    });
+  });
+
+  it('from a cd through a link, hands the folder the link points at', () => {
+    expect(handed(join(dir, 'link'), '.')).toEqual({ status: 0, folder: onDisk });
+  });
+
+  // THE FIX ROUND OF PHASE 352. A path holding anything but plain printable
+  // ASCII is handed on as the shell spells it, as before this phase, because
+  // `/bin/pwd -P` answers a folder the disk stores decomposed in those bytes,
+  // and nothing here may normalise a path. These need no case-folding volume.
+  const nfd = join(dir, 'Cafe\u0301');
+  mkdirSync(nfd, { recursive: true });
+  const nfc = join(dir, 'Caf\u00e9');
+  const sameFolder = existsSync(nfc);
+
+  it.skipIf(!sameFolder)('a folder stored decomposed and typed composed is handed as typed, never as the disk spells it', () => {
+    const got = handed(nfc, '.');
+    expect(got).toEqual({ status: 0, folder: nfc });
+    expect(got.folder.endsWith('Cafe\u0301')).toBe(false);
+  });
+
+  it('a folder whose name holds a byte past ASCII is handed as the shell spells it', () => {
+    expect(handed(nfd, '.')).toEqual({ status: 0, folder: nfd });
+  });
+
+  it('a link whose own name holds a byte past ASCII is handed as typed, the link not followed', () => {
+    const linked = join(dir, 'l\u00efnk');
+    symlinkSync(disk, linked);
+    expect(handed(linked, '.')).toEqual({ status: 0, folder: linked });
+  });
+
+  it('a name that ends in a newline is handed with it stripped, as before this phase', () => {
+    const ending = join(dir, 'ends\n');
+    mkdirSync(ending, { recursive: true });
+    expect(handed(ending, '.')).toEqual({ status: 0, folder: join(realpathSync.native(dir), 'ends') });
   });
 });
 

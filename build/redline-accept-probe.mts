@@ -488,6 +488,51 @@ try {
   journal.forgetRewindJournal(CONTROL_ID);
 }
 
+// ---------------------------------------------------------------------------
+// ARM 7 (Phase 290, driven since the fix round of Phase 352): THE TAB'S MARK
+// HOLDS AN ACCEPT. While a tab owes a rewind's read (`owed`, set by the
+// editor store where an adoption refused) the SHIPPING pressAccept answers
+// `held` with no hold of the view's at all: after `nothing`, so the chord from
+// an empty document stays silent, and before the plan, so a press drawn at an
+// older generation is held rather than refused by the plan's own guard. The
+// control is the same press with no mark, which is accepted. A verify lens took
+// the `owed` clause out of redline-accept.ts with every gate green, because
+// nothing here drove it.
+// ---------------------------------------------------------------------------
+const markChange = changes[2]!;
+const markPress = (owed: boolean, focused: () => import('../src/renderer/editor/redline-press').PressedChange | null) => {
+  let advanced = 0;
+  let refusedWith: string | null = null;
+  const result = pressAccept(
+    'one',
+    { id: 'p290-owed', baseline: BASELINE, generation: GEN, current: CURRENT, truncated: false },
+    {
+      focused,
+      advance: () => {
+        advanced += 1;
+      },
+      refuse: (why) => {
+        refusedWith = why;
+      },
+      now: () => 0,
+      owed
+    }
+  );
+  return { outcome: result.outcome, advanced, refused: refusedWith };
+};
+const atNow = () => ({ off: markChange.off, del: markChange.del, ins: markChange.ins, generation: GEN });
+const onMark = markPress(true, atNow);
+const noMark = markPress(false, atNow);
+const heldOnMark = {
+  outcome: onMark.outcome,
+  advanced: onMark.advanced,
+  refused: onMark.refused,
+  controlOutcome: noMark.outcome,
+  controlAdvanced: noMark.advanced,
+  nothingFirst: markPress(true, () => null).outcome,
+  beforePlan: markPress(true, () => ({ ...atNow(), generation: GEN - 1 })).outcome
+};
+
 console.log(
   JSON.stringify({
     subsets,
@@ -495,6 +540,7 @@ console.log(
     acceptAfterAccept,
     noFileWritten,
     acceptAllEmpty,
-    undoAfterAccept
+    undoAfterAccept,
+    heldOnMark
   })
 );

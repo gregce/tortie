@@ -144,6 +144,7 @@
     "ablation:p306": "node build/p306/ablation.mjs",
     "ablation:p344": "node build/p344/ablation.mjs",
     "ablation:p296": "node build/p296/ablation.mjs",
+    "ablation:p307": "node build/p307/ablation.mjs",
     "ablation:p300": "node build/p300/ablation.mjs",
     "ablation:p312": "node build/p312/ablation.mjs",
     "ablation:p313": "node build/ablation-p313.mjs",

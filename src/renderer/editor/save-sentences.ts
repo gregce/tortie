@@ -29,6 +29,10 @@ import type { FsGuardedWriteRefusal } from '@shared/fs-ops';
 // about it, and rightly — a sentence that names a chord the person has
 // re-recorded is a sentence that lies.
 import { keyDisplay } from '@shared/keymap';
+// PHASE 274.3. The file's name in a refusal and in the stale title is written
+// with every character that cannot be seen spelled out as its code, the rule
+// main's fs refusals quote names by.
+import { visibleName } from '@shared/visible-name';
 // PHASE 268. Type only, deliberately: ./auto-save imports the composer at the
 // foot of this file, so the two modules meet in the type graph and never in
 // the value graph.
@@ -152,9 +156,17 @@ const SENTENCES: Record<SaveRefusalWord, string> = {
   io: 'Tortie could not save {name}. Nothing was written.'
 };
 
-/** One plain sentence for a refusal word, with the file's name filled in. */
+/**
+ * One plain sentence for a refusal word, with the file's name filled in.
+ *
+ * PHASE 274.3. The name is handed over by a FUNCTION, never as the replacement
+ * string itself: a string replacement reads `$'`, `$&`, `` $` `` and `$$` as
+ * patterns, so a file named `a$'b.md` printed the sentence's tail twice and
+ * `a$&b.md` printed `{name}` (measured, build/p352/SPEC.md §2.4). A function's
+ * answer is inserted as it is.
+ */
 export function saveRefusalSentence(why: SaveRefusalWord, name: string): string {
-  return SENTENCES[why].replace('{name}', name);
+  return SENTENCES[why].replace('{name}', () => visibleName(name));
 }
 
 // -- the choice (charter item 2) ---------------------------------------------
@@ -167,7 +179,7 @@ export function saveRefusalSentence(why: SaveRefusalWord, name: string): string 
  * the person. Nothing has been written when this is read.
  */
 export function staleSaveTitle(name: string): string {
-  return `'${name}' changed on disk`;
+  return `'${visibleName(name)}' changed on disk`;
 }
 
 /**
@@ -249,7 +261,9 @@ export function autoSaveStopSentence(
     return `${staleSaveTitle(name)}, so nothing was written. ${autoSaveStopped()}`;
   }
   if (why.kind === 'link') {
-    return `Tortie does not save ${name} on its own, because it is a link. Press ${keyDisplay(
+    // PHASE 274.3, the fix round of Phase 352: this arm quoted the name raw
+    // while every refusal beside it wrote out what cannot be seen.
+    return `Tortie does not save ${visibleName(name)} on its own, because it is a link. Press ${keyDisplay(
       'editor.save'
     )} to save it.`;
   }

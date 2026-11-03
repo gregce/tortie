@@ -390,6 +390,21 @@ export function RedlineDocument({
     setCurrent(null);
     rewindHolds.current = [];
   }, [tab.id]);
+  // PHASE 290. THE SECOND DOOR TO A REWIND'S OWED READ: arriving. The holds
+  // just emptied were this mount's, and a switch or a look at the File view
+  // ends the mount; what a refused adoption owes is the TAB's
+  // (`rewindOwesRead`, set by ./store's `adoptWritten`), so a view that
+  // arrives on a CLEAN tab still owing it pulls that read, once, here. A dirty
+  // tab is left to the way out of dirty (./store `markDirty`), because the
+  // walk skips it and the read would load nothing. A read and never an
+  // adoption of remembered bytes, as below. The call goes through a local, so
+  // the clean transition's own call further down stays the one line of its
+  // spelling that Phase 334's wiring test anchors on.
+  useEffect(() => {
+    if (tab.dirty || tab.rewindOwesRead !== true) return;
+    const editor = useEditor.getState();
+    editor.rereadRepo(tab.repoPath);
+  }, [tab.id]);
   // PHASE 236. Which change the chip is drawn for; the rule is
   // `chipAnchorFor` above, and the current change wins over the pointer.
   const anchor = chipAnchorFor(currentEl, hovered);
@@ -657,6 +672,10 @@ export function RedlineDocument({
               .toast('info', redlineAcceptRefusalSentence(why, live.name));
           },
           now: () => Date.now(),
+          // PHASE 290. And while the TAB owes a rewind's read, which a switch
+          // or the File view does not end, the same `held`, so the change the
+          // person rewound is never accepted off bytes the disk has left.
+          owed: live.rewindOwesRead === true,
           // PHASE 282. While a rewind on this tab has not left the picture,
           // every accept here answers `held` (./redline-accept says why a
           // different change is refused too).
@@ -961,9 +980,17 @@ export function RedlineDocument({
   // `releaseHolds`, the `unread` clause). A second ⌘Z inside this read made the
   // tab dirty again, so the read was dropped by rule; the ⌘⇧Z that takes it
   // back is a clean transition under the same landed hold, and reads.
+  //
+  // PHASE 290. AND UNDER THE TAB'S MARK, which outlives this mount: a hold this
+  // view never held (the press was made before a switch, or before a look at
+  // the File view) still owes its read on the way out of dirty. The holds are
+  // asked as well, so every read this effect pulled before is still pulled;
+  // the store's own clean edge reads for the mark too, and the second call
+  // queues one more walk behind the first, which the clauses of `refreshRepo`
+  // make a read that finds nothing new.
   useEffect(() => {
     if (tab.dirty) return;
-    if (!rewindHolds.current.some((h) => h.landed !== null)) return;
+    if (!(tab.rewindOwesRead === true || rewindHolds.current.some((h) => h.landed !== null))) return;
     useEditor.getState().rereadRepo(tab.repoPath);
   }, [tab.dirty]);
   // PHASE 251. THE ROOM THE PAGE HAS, and the token that re-measures the rail

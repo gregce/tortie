@@ -41,10 +41,13 @@
  * an override the app would OBEY (`socketRefusalReason`); it asks the app
  * which socket it really used and ends
  * the launch when the answer disagrees (`announcedSockets`,
- * `announcementFinding`), and counts the operator's own sessions before and
- * after any launch that named a scratch socket (`liveSessionNames`,
- * `censusFinding`). The full reasoning, and why a scanner over build/ would not
- * have done it, is at the head of that section below.
+ * `announcementFinding`), and it reads the sessions on the operator's own
+ * server before and after a launch that names a scratch socket, judging each
+ * one by identity since Phase 285 (`liveSessionRows`, `judgeCensus`,
+ * `censusVerdict`): a launch fails for what it could have done to his server,
+ * never for what he did. The full
+ * reasoning, and why a scanner over build/ would not have done it, is at the
+ * head of that section below.
  *
  * ## What the teardown does, and why each step is there
  *
@@ -96,8 +99,8 @@
  */
 
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { existsSync, mkdirSync, realpathSync, statSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -319,7 +322,8 @@ function programPath(program) {
  *            That is the half that asserts rather than trusts: a variable that
  *            never reached the child, a term spelled wrongly, and a future
  *            change to isHarnessLaunch are all caught by one reading.
- *   Layer 4  censusFinding() below, the operator's own ritual made mechanical.
+ *   Layer 4  censusVerdict() below, the operator's own ritual made mechanical,
+ *            and since Phase 285 judged by identity rather than by count.
  *
  * The four terms are duplicated from src/main/harness/launch-gate.ts on
  * purpose. This is a build script and cannot import TypeScript, and the
@@ -354,8 +358,9 @@ const HARNESS_TERMS = Object.freeze([
  *       `tmuxSocket: null`, and all four layers let it through — 2a permits it
  *       because a term IS set, the no-socket warning does not print because a
  *       socket WAS named, layer 3 finds the app's honest answer `gmux` equal to
- *       the `gmux` that was asked for, and layer 4 never runs because the
- *       census is read only for a launch that named a scratch socket. The app
+ *       the `gmux` that was asked for, and layer 4 never ran because the
+ *       census is read only for a launch that named a scratch socket, which
+ *       is why 2c refuses the name itself. The app
  *       would then have created its sessions on the operator's live server with
  *       nothing anywhere saying so. It is refused whatever else is set, because
  *       a launch has no legitimate reason to point the app at that server.
@@ -458,7 +463,9 @@ const ANNOUNCEMENT = /^\[gmux-socket\] local tmux socket: (\S+)/gm;
  * before the child's own stdout chunk — is not read, and this layer then
  * asserts nothing about that launch. The anchor is kept on purpose: dropping it
  * would read a line a child QUOTED in its own output, and a false alarm here
- * ends a run. The census in censusFinding() is what covers the miss.
+ * ends a run. The census in censusVerdict() is what covers the miss, and an
+ * announcement this reader missed is one that did not speak, so a session that
+ * went during that launch stays a failure.
  *
  * @param {string} text
  * @returns {string[]}
@@ -524,42 +531,534 @@ export function announcementFinding(input) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// PHASE 285. Layer 4, read by identity.
+// ---------------------------------------------------------------------------
 /**
- * The session names on the operator's private server, read and never written.
+ * WHY LAYER 4 ASKS WHO MADE A SESSION RATHER THAN COUNTING THEM.
+ *
+ * Until Phase 285 layer 4 was a difference of session NAMES around one launch,
+ * read only for a launch that named a scratch socket. It could not tell a
+ * session the launch made from one the operator made, so his own work failed
+ * probes by name: on 2026-09-17 `probe:p277` passed all four of its arms and
+ * exited 1 because he had started a session of his own, and on 2026-09-20
+ * `probe:p293` failed because he had removed `hotdog` in the sheet.
+ *
+ * THE RULE: a launch fails for what it could have done to his server, never
+ * for what he did. The census reads one row per session, keyed by its `$-id`
+ * together with its creation time (a server that restarts numbers its sessions
+ * from `$0` again), around a launch that names a scratch socket and only
+ * there, which is his allowance of 2026-11-02 as it reads (the fix round of
+ * Phase 352 put the guard back: a launch that names none is not read, exactly
+ * as before), and judges each session that APPEARED:
+ *
+ *   (a)  FAIL when its `@gmux-id` is in THIS launch's own scratch manifest,
+ *        `<userDataDir>/gmux/manifest.db`, where a Tortie session's row is
+ *        written before its spawn (src/main/sessions/create-local.ts).
+ *   (a') FAIL when its start folder, as tmux reports it or resolved, is under
+ *        this launch's scratch folder, in the `/tmp` and `/private/tmp`
+ *        spellings and the `/var` and `/private/var` ones.
+ *   (b)  FAIL when it carries no `@gmux-id` and still none ONE re-read at least
+ *        a second later: a `new-session` aimed at the wrong socket, an app
+ *        killed between its create and its stamp, or `gmux-control`, which is
+ *        unstamped by design and which only an app ON that server makes.
+ *   (c)  Otherwise an app that is not this launch stamped it, and it is the
+ *        operator's own: a NOTE naming it, and the exit does not move.
+ *
+ * A session that WENT fails the launch, unless the app announced its socket at
+ * least once and EVERY announcement named the scratch socket this launch asked
+ * for. Then the app was never on his server, rule 5f of
+ * build/assert-electron-teardown.mjs proves that no script importing this file
+ * aims anything but `list-sessions` at it in an argv, and the end is his: a
+ * NOTE. A launch whose app announced nothing keeps the failure, because "no
+ * line" and "the right line" are two different worlds and only one of them
+ * says anything.
+ *
+ * A RENAME IS JUDGED AS A SESSION THAT WENT IS (the fix round of Phase 352):
+ * the same session under a new name is a note after an agreeing announcement
+ * and a failure otherwise. Until then it was nothing, so a launch whose app
+ * renamed one of his sessions went unseen where the parent's names diff
+ * failed it.
+ *
+ * HIS SERVER RESTARTING, read as his (the fix round of Phase 352): after an
+ * agreeing announcement, a session that appeared still unstamped and carries
+ * the name of an unstamped session that WENT in the same launch is that
+ * session again, which is `gmux-control` when his server restarts and his app
+ * brings it back, and it is a note rather than (b)'s failure. Each one that
+ * went answers for one that appeared. A launch whose announcement did not
+ * agree keeps (b).
+ *
+ * A reading tmux could not answer and a row that does not read as one FAIL
+ * CLOSED, and so does a stamped session that appeared while this launch's own
+ * manifest could not be read: the census cannot tell this launch's sessions
+ * from his then, and says exactly that.
+ *
+ * STATED LIMITS, each the safe direction or named here:
+ *   - `gmux-control` appearing because HIS app started during a launch, with
+ *     no `gmux-control` that went before it, fails that launch by (b). A
+ *     probe's app pointed at his server makes it too, so it is what a probe
+ *     could have done, and it stays fatal.
+ *   - His app stamping a session more than about a second after the after-read
+ *     (the re-read is CENSUS_REREAD_MS later) fails that launch by (b), as the
+ *     parent's names diff failed it.
+ *   - A session that went, a rename, and a session stamped by an app that is
+ *     not this launch's are each read as his after an agreeing announcement,
+ *     because the census cannot tell who did it; the parent's names diff
+ *     failed all three. That rests on two things: the app said, every time it
+ *     spoke, that it used the scratch socket, and rule 5f of
+ *     build/assert-electron-teardown.mjs proves that no script importing this
+ *     file aims anything but `list-sessions` at his server in an argv. 5f reads
+ *     the pair `-L gmux` and the attached `-Lgmux`, a `-L` whose value is a
+ *     name the script declares as `'gmux'`, a `+` of literals that makes it,
+ *     and a `-S` whose path ends in `/gmux`. A socket name computed at run
+ *     time, and a command line a script hands a shell, are not read by it.
+ *   - The manifest read is THIS launch's scratch database, after the app is
+ *     gone. His live manifest is never opened: it is his private session list,
+ *     and a WAL database his running app owns.
+ */
+
+/**
+ * The one format the census asks tmux for: five fields split by a TAB, the
+ * start folder LAST because a folder may hold a tab and a session name never
+ * does (3.6a stores a typed tab as the four characters `\t` and 3.7b refuses
+ * the name, both measured for build/p352/SPEC.md §2.5). A client with no UTF-8
+ * locale is sent every tab as `_`, which is why the reader passes `-u`.
+ */
+export const CENSUS_FORMAT =
+  '#{session_id}\t#{@gmux-id}\t#{session_created}\t#{session_name}\t#{session_path}';
+
+/** How long after the after-read an unstamped session that appeared is read again. */
+export const CENSUS_REREAD_MS = 1000;
+
+/** What tmux answers when no server is listening on the socket at all. */
+const NO_SERVER =
+  /^(?:no server running on |error connecting to .*\(No such file or directory\))/m;
+
+/** A manifest session id, as `randomUUID` writes one. */
+const MANIFEST_ID = /^[A-Za-z0-9-]{1,64}$/;
+
+/**
+ * One line of the census as a row, or null when it does not read as one: it
+ * must split into five at its first four tabs, the folder taking the rest, and
+ * its first field must be a `$-id`.
+ *
+ * @param {string} line
+ * @returns {{id: string, gmuxId: string, created: string, name: string, path: string}|null}
+ */
+export function parseCensusLine(line) {
+  const fields = [];
+  let from = 0;
+  for (let k = 0; k < 4; k += 1) {
+    const at = String(line).indexOf('\t', from);
+    if (at === -1) return null;
+    fields.push(line.slice(from, at));
+    from = at + 1;
+  }
+  const [id, gmuxId, created, name] = fields;
+  if (!/^\$\d+$/.test(id)) return null;
+  return { id, gmuxId, created, name, path: line.slice(from) };
+}
+
+/**
+ * One `list-sessions` answer as a census reading, pure so the gate drives it.
+ * No server listening is an empty server; anything else tmux could not answer
+ * is `ok: false`, and every line that does not read as a row is kept, by its
+ * exact text, in `unreadable`.
+ *
+ * @typedef {{ok: boolean, why: string|null, rows: object[], unreadable: string[]}} CensusReading
+ * @param {{error?: Error, status?: number|null, stdout?: string, stderr?: string}} r
+ * @returns {CensusReading}
+ */
+export function censusReading(r) {
+  if (r?.error) {
+    return {
+      ok: false,
+      why: `tmux could not be run (${String(r.error.code ?? r.error.message)})`,
+      rows: [],
+      unreadable: []
+    };
+  }
+  if (r?.status !== 0) {
+    const said = String(r?.stderr ?? '').trim();
+    if (NO_SERVER.test(said)) return { ok: true, why: null, rows: [], unreadable: [] };
+    return {
+      ok: false,
+      why: `tmux answered exit ${String(r?.status)}${said === '' ? '' : `: ${said.split('\n')[0].slice(0, 160)}`}`,
+      rows: [],
+      unreadable: []
+    };
+  }
+  const rows = [];
+  const unreadable = [];
+  for (const line of String(r.stdout ?? '').split('\n')) {
+    if (line === '') continue;
+    const row = parseCensusLine(line);
+    if (row === null) unreadable.push(line);
+    else rows.push(row);
+  }
+  return { ok: true, why: null, rows, unreadable };
+}
+
+/**
+ * The sessions on the operator's private server, read and never written.
  *
  * THIS IS THE ONLY PLACE IN THIS FILE THAT NAMES `-L gmux`, and `list-sessions`
- * is the only verb it may ever be given. Rule 5f of
- * build/assert-electron-teardown.mjs asserts exactly that over this file's own
- * source, with a kill-server and a new-session planted to prove the scanner can
- * fail. A server that is not running answers with an empty list rather than an
- * error, which is what the filter below is for.
+ * is the only verb it may ever be given; `-u` is a client flag, which is what
+ * keeps the format's tabs. Rule 5f of build/assert-electron-teardown.mjs
+ * asserts exactly that over this file's own source and over every script that
+ * imports it, with planted verbs to prove the scanner can fail.
+ *
+ * @returns {CensusReading}
+ */
+export function liveSessionRows() {
+  return censusReading(
+    spawnSync('tmux', ['-u', '-L', 'gmux', 'list-sessions', '-F', CENSUS_FORMAT], {
+      encoding: 'utf8',
+      timeout: 10_000
+    })
+  );
+}
+
+/**
+ * The session NAMES on the operator's server, from the same one reader.
+ * Nothing in this file asks it: build/p261/probe-p261-socket.mjs reads it
+ * beside {@link censusFinding}, and both are kept for that probe.
  *
  * @returns {string[]}
  */
 export function liveSessionNames() {
-  const r = spawnSync(
-    'tmux',
-    ['-L', 'gmux', 'list-sessions', '-F', '#{session_name}'],
-    { encoding: 'utf8' }
-  );
-  return String(r.stdout ?? '')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line !== '');
+  return liveSessionRows().rows.map((row) => row.name);
+}
+
+/** realpath(3) of a path, or null when it does not resolve. */
+function realPathOrNull(path) {
+  try {
+    return realpathSync.native(path);
+  } catch {
+    return null;
+  }
+}
+
+/** True when a path names a directory. */
+function isDirectory(path) {
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/** A path and its other spelling: `/tmp` against `/private/tmp`, `/var` against `/private/var`. */
+export function bothSpellings(path) {
+  const out = [path];
+  for (const [real, link] of [
+    ['/private/tmp', '/tmp'],
+    ['/private/var', '/var']
+  ]) {
+    if (path === real || path.startsWith(`${real}/`)) out.push(link + path.slice(real.length));
+    else if (path === link || path.startsWith(`${link}/`)) out.push(real + path.slice(link.length));
+  }
+  return out;
 }
 
 /**
- * What changed on the operator's server across one launch, or null when
- * nothing did. Layer 4.
+ * This launch's scratch folders, each in both spellings: the harness directory
+ * its environment names, and the folder its profile sits in unless that is a
+ * system temporary root, the person's home, or a folder above the home.
  *
- * A NAME THAT APPEARED is the alarm this exists for, being the two incidents in
- * the header. A NAME THAT WENT is reported too, because the operator's own
- * ritual is to count before and after and stop when the two differ, and a
- * session of his that ENDED during a probe run is worse news than one that
- * appeared, not better.
+ * @param {{harnessDir?: string, userDataDir: string, tmp?: string, home?: string}} where
+ * @returns {string[]}
+ */
+export function scratchRootsFor({ harnessDir, userDataDir, tmp = tmpdir(), home = homedir() }) {
+  const roots = new Set();
+  const harness = String(harnessDir ?? '').trim();
+  if (harness !== '') {
+    const real = realPathOrNull(harness);
+    if (real !== null && isDirectory(real)) roots.add(real);
+  }
+  if (typeof userDataDir === 'string' && userDataDir !== '') {
+    const parent = realPathOrNull(dirname(resolve(userDataDir)));
+    const temps = new Set(['/tmp', '/private/tmp', '/var/tmp', '/private/var/tmp', resolve(tmp)]);
+    const realTmp = realPathOrNull(tmp);
+    if (realTmp !== null) temps.add(realTmp);
+    const realHome = realPathOrNull(home) ?? resolve(home);
+    const aboveHome =
+      parent !== null && `${realHome}/`.startsWith(parent === '/' ? '/' : `${parent}/`);
+    if (parent !== null && !temps.has(parent) && !aboveHome) roots.add(parent);
+  }
+  return [...roots].flatMap(bothSpellings);
+}
+
+/**
+ * This launch's own session ids, read from ITS scratch manifest once the app
+ * is gone, and never from his: `refuseProfileReason` has already refused a
+ * profile under his home. A file that is not there means this launch wrote no
+ * session.
  *
- * STATED LIMIT, and it is the safe direction: the operator starting or ending a
- * session by hand while a probe runs fails that probe, loudly and by name.
+ * @param {string} userDataDir
+ * @returns {{exists: boolean, ok: boolean, ids: string[], why: string|null}}
+ */
+export function launchManifestIds(userDataDir) {
+  const path = join(resolve(userDataDir), 'gmux', 'manifest.db');
+  if (!existsSync(path)) return { exists: false, ok: true, ids: [], why: null };
+  return manifestReading(
+    spawnSync('/usr/bin/sqlite3', [path, 'SELECT id FROM sessions;'], {
+      encoding: 'utf8',
+      timeout: 10_000
+    })
+  );
+}
+
+/**
+ * One `sqlite3` answer as this launch's session ids, pure so the gate drives
+ * it. A read that failed, and a row that is not a session id, are a manifest
+ * that could not be read.
+ */
+export function manifestReading(r) {
+  const failed = (why) => ({ exists: true, ok: false, ids: [], why });
+  if (r?.error) return failed(`sqlite3 could not be run (${String(r.error.code ?? r.error.message)})`);
+  if (r?.status !== 0) {
+    const said = String(r?.stderr ?? '').trim();
+    return failed(`sqlite3 answered exit ${String(r?.status)}${said === '' ? '' : `: ${said.split('\n')[0].slice(0, 160)}`}`);
+  }
+  const ids = String(r.stdout ?? '')
+    .split('\n')
+    .filter((line) => line !== '');
+  const bad = ids.find((id) => !MANIFEST_ID.test(id));
+  if (bad !== undefined) return failed(`a row did not read as a session id: ${JSON.stringify(bad.slice(0, 80))}`);
+  return { exists: true, ok: true, ids, why: null };
+}
+
+/** A session's identity across readings: its `$-id` and its creation time. */
+const identityOf = (row) => `${row.id}\t${row.created}`;
+
+/** How a session is named in a sentence. */
+const namedRow = (row) => `${row.id} ${JSON.stringify(row.name)}`;
+
+/** The scratch folder a session started under, as written or resolved, or null. */
+function scratchRootHolding(row, roots) {
+  for (const path of [row.path, row.resolved]) {
+    if (typeof path !== 'string' || path === '') continue;
+    const hit = roots.find((root) => path === root || path.startsWith(`${root}/`));
+    if (hit !== undefined) return hit;
+  }
+  return null;
+}
+
+/**
+ * Layer 4's judgement, pure so the gate drives it, every clause in the order
+ * the section above states them.
+ *
+ * @param {{
+ *   before: CensusReading|null,
+ *   after: CensusReading|null,
+ *   again?: CensusReading|null,
+ *   manifest?: {exists: boolean, ok: boolean, ids: string[], why: string|null}|null,
+ *   scratchRoots?: string[],
+ *   wanted?: string,
+ *   announced?: string[]
+ * }} input  `again` is the one re-read, null when nothing asked for it, and
+ *   `manifest` is this launch's own ids, null when nothing asked for them.
+ * @returns {{failures: string[], notes: string[]}}
+ */
+export function censusVerdict(input) {
+  const before = input?.before ?? null;
+  const after = input?.after ?? null;
+  const again = input?.again ?? null;
+  const manifest = input?.manifest ?? null;
+  const roots = (input?.scratchRoots ?? []).filter((r) => typeof r === 'string' && r !== '');
+  const wanted = String(input?.wanted ?? '').trim();
+  const announced = (input?.announced ?? [])
+    .map((s) => String(s).trim())
+    .filter((s) => s !== '');
+  const failures = [];
+  const notes = [];
+
+  // A reading tmux could not answer cannot say what changed: it fails closed,
+  // and alone, because every row of a reading that failed is a row it lost.
+  for (const [when, reading, needed] of [
+    ['before', before, true],
+    ['after', after, true],
+    ['a second after', again, false]
+  ]) {
+    if (reading === null) {
+      if (needed) failures.push(`-L gmux was not read ${when} this launch, so nothing can be said about what it did there`);
+      continue;
+    }
+    if (reading.ok !== true) {
+      failures.push(`-L gmux could not be read ${when} this launch (${String(reading.why)}), so nothing can be said about what it did there`);
+    }
+  }
+  if (failures.length > 0) return { failures, notes };
+
+  // A row that does not read as one fails closed, unless the very same line
+  // was already there before the launch.
+  const knownLines = new Set(before?.unreadable ?? []);
+  const strange = new Set();
+  for (const reading of [after, again]) {
+    for (const line of reading?.unreadable ?? []) if (!knownLines.has(line)) strange.add(line);
+  }
+  for (const line of strange) {
+    failures.push(`a row of -L gmux did not read as a session (${JSON.stringify(line.slice(0, 160))}), so it cannot be told from one this launch made`);
+  }
+
+  const was = new Map((before?.rows ?? []).map((row) => [identityOf(row), row]));
+  const now = new Map((after?.rows ?? []).map((row) => [identityOf(row), row]));
+  const later = new Map((again?.rows ?? []).map((row) => [identityOf(row), row]));
+  const own = new Set(manifest?.ok === true ? manifest.ids : []);
+  const fresh = [...now.values()].filter((row) => !was.has(identityOf(row)));
+  const went = [...was.values()].filter((row) => !now.has(identityOf(row)));
+
+  // Whether the app said, every time it spoke, that it used the scratch socket
+  // this launch asked for: what makes a session that went, a rename and his
+  // server's restart his rather than this launch's.
+  const spoke = announced.length > 0;
+  const agreed = wanted !== '' && announced.every((s) => s === wanted);
+  // The unstamped sessions that went, which his server restarting brings back
+  // under the same name; each answers for one that appeared.
+  const restorable = went.filter((row) => row.gmuxId === '');
+
+  for (const row of fresh) {
+    const reread = again === null ? undefined : later.get(identityOf(row));
+    const stamp = row.gmuxId !== '' ? row.gmuxId : (reread?.gmuxId ?? '');
+    // (a) this launch's own manifest holds its stamp.
+    if (stamp !== '' && own.has(stamp)) {
+      failures.push(`${namedRow(row)} APPEARED on -L gmux during this launch and its @gmux-id ${stamp} is in this launch's own manifest, so this launch made it`);
+      continue;
+    }
+    // (a') it started under this launch's scratch folder.
+    const root = scratchRootHolding(row, roots);
+    if (root !== null) {
+      failures.push(`${namedRow(row)} APPEARED on -L gmux during this launch and started under ${root}, this launch's own scratch folder, so this launch made it`);
+      continue;
+    }
+    // His server restarting: still unstamped, after an agreeing announcement,
+    // under the name of an unstamped session that went (the fix round of
+    // Phase 352).
+    const restored = stamp === '' && spoke && agreed ? restorable.findIndex((gone) => gone.name === row.name) : -1;
+    if (restored !== -1) {
+      const [gone] = restorable.splice(restored, 1);
+      notes.push(`${namedRow(row)} appeared on -L gmux during this launch unstamped, under the name of ${namedRow(gone)}, which went, while the app said it used ${wanted} throughout: his server restarting, the operator's own`);
+      continue;
+    }
+    // (b) still unstamped a second later.
+    if (stamp === '') {
+      failures.push(`${namedRow(row)} APPEARED on -L gmux during this launch with no @gmux-id and still had none a second later, so nothing can say whose it is`);
+      continue;
+    }
+    // A stamp this launch's manifest could not be asked about.
+    const readable = manifest !== null && (manifest.exists !== true || manifest.ok === true);
+    if (!readable) {
+      failures.push(`${namedRow(row)} APPEARED on -L gmux during this launch stamped ${stamp}, and this launch's own manifest could not be read (${String(manifest?.why ?? 'it was never asked')}), so this launch's sessions could not be told from his`);
+      continue;
+    }
+    // (c) his own.
+    notes.push(`${namedRow(row)} appeared on -L gmux during this launch, stamped ${stamp} by an app that is not this launch: the operator's own`);
+  }
+
+  // A session that went: his only when the app said, every time it spoke, that
+  // it used the scratch socket this launch asked for.
+  const said = !spoke
+    ? 'the app never said which socket it used'
+    : `the app said it used ${announced.join(', ')}${wanted === '' ? ' and this launch asked for none' : ` where this launch asked for ${wanted}`}`;
+  for (const row of went) {
+    if (spoke && agreed) {
+      notes.push(`${namedRow(row)} went from -L gmux during this launch while the app said it used ${wanted} throughout: the operator's own`);
+      continue;
+    }
+    failures.push(`${namedRow(row)} WENT from -L gmux during this launch and ${said}, so this launch may have ended it`);
+  }
+
+  // A rename: the same session under another name, judged as one that went is
+  // (the fix round of Phase 352). It was nothing, which read a launch whose
+  // app renamed one of his sessions as having done nothing at all.
+  for (const [key, row] of now) {
+    const old = was.get(key);
+    if (old === undefined || old.name === row.name) continue;
+    if (spoke && agreed) {
+      notes.push(`${namedRow(old)} was renamed ${JSON.stringify(row.name)} on -L gmux during this launch while the app said it used ${wanted} throughout: the operator's own`);
+      continue;
+    }
+    failures.push(`${namedRow(old)} was RENAMED ${JSON.stringify(row.name)} on -L gmux during this launch and ${said}, so this launch may have renamed it`);
+  }
+  return { failures, notes };
+}
+
+/**
+ * Layer 4 after the teardown, in order: the after-read, ONE re-read a second
+ * later when a session that appeared carries no stamp, this launch's own
+ * manifest when a session that appeared is stamped, and the verdict. Every
+ * effect is handed in, so the gate drives the whole order with readers of its
+ * own and starts no tmux at all.
+ *
+ * @param {{
+ *   before: CensusReading,
+ *   read: () => CensusReading,
+ *   manifest: () => {exists: boolean, ok: boolean, ids: string[], why: string|null},
+ *   wait?: (ms: number) => Promise<void>,
+ *   resolvePath?: (path: string) => string|null,
+ *   scratchRoots?: string[],
+ *   wanted?: string,
+ *   announced?: string[]
+ * }} input
+ * @returns {Promise<{failures: string[], notes: string[]}>}
+ */
+export async function judgeCensus({
+  before,
+  read,
+  manifest,
+  wait = (ms) => new Promise((r) => setTimeout(r, ms)),
+  resolvePath = realPathOrNull,
+  scratchRoots = [],
+  wanted = '',
+  announced = []
+}) {
+  const was = new Set((before?.rows ?? []).map(identityOf));
+  // Only a session that appeared is resolved: nothing else is judged.
+  const resolved = (reading) => ({
+    ...reading,
+    rows: (reading?.rows ?? []).map((row) =>
+      was.has(identityOf(row)) ? row : { ...row, resolved: resolvePath(row.path) }
+    )
+  });
+  const after = resolved(read());
+  const fresh = after.rows.filter((row) => !was.has(identityOf(row)));
+  const again = fresh.some((row) => row.gmuxId === '')
+    ? await wait(CENSUS_REREAD_MS).then(() => resolved(read()))
+    : null;
+  const stampedLater = new Set(
+    (again?.rows ?? []).filter((row) => row.gmuxId !== '').map(identityOf)
+  );
+  const stamped = fresh.some((row) => row.gmuxId !== '' || stampedLater.has(identityOf(row)));
+  return censusVerdict({
+    before,
+    after,
+    again,
+    manifest: stamped ? manifest() : null,
+    scratchRoots,
+    wanted,
+    announced
+  });
+}
+
+/** The failures of one verdict as the one sentence a launch is ended with. */
+export function censusSentence(failures) {
+  return (
+    `${failures.join('; ')}. -L gmux is the private server the operator's live ` +
+    `agent work runs on and a probe must never write to it. Read the app's ` +
+    `own [gmux-socket] line to see which socket it decided on.`
+  );
+}
+
+/**
+ * The parent's judgement, a difference of session NAMES, or null when nothing
+ * differs. withElectron no longer asks it: {@link censusVerdict} is layer 4
+ * since Phase 285. It is kept, unchanged, for build/p261/probe-p261-socket.mjs,
+ * whose own run reads it beside {@link liveSessionNames}.
+ *
+ * STATED LIMIT, and it is the reason Phase 285 replaced it: the operator
+ * starting or ending a session by hand while a launch runs reads here as a
+ * finding, loudly and by name.
  *
  * @param {string[]} before
  * @param {string[]} after
@@ -934,8 +1433,13 @@ export async function withElectron(options, body) {
   // PHASE 261, LAYER 4. The operator's own ritual, made mechanical. It is read
   // only when this launch asked for a scratch socket, because that is the
   // launch that has something to prove: it declared where its tmux work goes,
-  // so nothing of its making may appear anywhere else.
-  const censusBefore = tmuxSocket !== null ? liveSessionNames() : null;
+  // so nothing of its making may appear anywhere else. His allowance of
+  // 2026-11-02 is that read, around a launch that names `tmuxSocket`, and the
+  // fix round of Phase 352 kept it there rather than widening it to every
+  // launch. Still the one read-only `list-sessions`, from the one reader, and
+  // since Phase 285 judged after the teardown by who made each session rather
+  // than by how many there are.
+  const censusBefore = tmuxSocket !== null ? liveSessionRows() : null;
 
   const entry = {
     id: nextLaunchId++,
@@ -1080,18 +1584,38 @@ export async function withElectron(options, body) {
     // named. This block is the reason this file exists.
     await teardown(entry, options.graceMs ?? 15_000);
 
-    // PHASE 261, LAYER 4, the other half. It is AFTER the teardown, because a
-    // session the app made is only certainly there once the app is certainly
-    // gone. A finding is THROWN when the body returned normally and PRINTED
-    // when the body already threw, so the census can never mask the body's own
-    // error, which is the more informative of the two.
+    // PHASE 261, LAYER 4, the other half, judged by identity since Phase 285.
+    // It is AFTER the teardown, because a session the app made is only
+    // certainly there once the app is certainly gone. A failure is THROWN when
+    // the body returned normally and PRINTED when the body already threw, so
+    // the census can never mask the body's own error, which is the more
+    // informative of the two. A note is printed and moves no exit. A judgement
+    // that itself throws is a failure, so the census fails closed. A launch
+    // that named no scratch socket was not read before, and is not read now.
     if (censusBefore !== null) {
-      const drift = censusFinding(censusBefore, liveSessionNames());
-      if (drift !== null) {
+      let census;
+      try {
+        census = await judgeCensus({
+          before: censusBefore,
+          read: liveSessionRows,
+          manifest: () => launchManifestIds(userDataDir),
+          scratchRoots: scratchRootsFor({ harnessDir: childEnv['GMUX_HARNESS_DIR'], userDataDir }),
+          wanted: wantedSocket,
+          announced: announcedSockets(text)
+        });
+      } catch (err) {
+        census = {
+          failures: [`the census could not be judged (${String(err?.message ?? err)})`],
+          notes: []
+        };
+      }
+      for (const note of census.notes) console.error(`${TAG} ${label}: note: ${note}.`);
+      if (census.failures.length > 0) {
+        const finding = censusSentence(census.failures);
         if (bodyError !== null) {
-          console.error(`${TAG} ${label}: ${drift}`);
+          console.error(`${TAG} ${label}: ${finding}`);
         } else {
-          throw new Error(`${TAG} ${label}: ${drift}`);
+          throw new Error(`${TAG} ${label}: ${finding}`);
         }
       }
     }

@@ -158,8 +158,22 @@ ignore the variable and run on `-L gmux`, the operator's live server; it throws
 again when a launch names a scratch `tmuxSocket` for its teardown that the
 child's environment does not point the app at. The app prints
 `[gmux-socket] local tmux socket: …` once per launch and the helper ENDS a
-launch whose answer disagrees with what it asked for, and it counts the sessions
-on `-L gmux` before and after any launch that named a scratch socket.
+launch whose answer disagrees with what it asked for. Around a launch that
+names a scratch socket, and only there, it reads the sessions on `-L gmux`, with
+`list-sessions` alone, and judges each by who made it (Phase 285): a session
+stamped from this launch's own scratch manifest, one started under its scratch
+folder, or one still unstamped a second later fails the launch, and one the
+operator starts himself is printed as a note. A session that went, or one that
+was renamed, fails it too, unless every socket the app announced was the scratch
+one it asked for; then that is his, and a note, and so is his server restarting
+and bringing `gmux-control` back under its own name. That last reading rests on
+`gate:electron` rule 5f, which proves no script importing the helper aims
+anything but `list-sessions` at his server in any spelling the script itself
+writes; a socket name computed at run time, a command line handed to a shell,
+and his app stamping a new session more than about a second after the census
+reads are the stated limits. A probe fails for what it could have done to his
+server, never for what he did, so a probe that launches through the helper and
+names a scratch socket keeps no count of his server of its own.
 `build/harness-socket.mjs` hands every wrapped run `GMUX_PROBES=0` beside the
 socket it composes, so a wrapped script inherits a launch the app will honour
 without writing a line of its own. `npm run gate:electron`'s rule 5 is what
@@ -285,7 +299,8 @@ matching lines is compared against
 `git ls-files -z --cached --others --exclude-standard | xargs -0 grep -I -H -n`
 run directly in that repository, and against the ripgrep this build ships, on
 the same corpus. It also counts `tmux -L gmux list-sessions` before and after
-and fails on a difference.
+and fails on any difference, one the operator made himself included, which is a
+bare count Phase 285 left in place.
 
 `npm run probe:p99` is Phase 99's live gate, being the file names of a project
 that lives on another machine. It makes its own repository under `/tmp`, drives
@@ -298,7 +313,8 @@ folder which is not a repository answers with a walk that names nothing under
 `.git` and nothing under `node_modules`, that the name cap delivers exactly what
 was asked for and says it cut, and that the read left the repository byte for
 byte as it found it. It counts `tmux -L gmux list-sessions` before and after and
-fails on a difference.
+fails on any difference, one the operator made himself included, which is a bare
+count Phase 285 left in place.
 
 `npm run probe:p106` is Phase 106's live gate, being the branch checked out on
 another machine. It makes its own repositories under `/tmp`, drives
@@ -314,7 +330,8 @@ it prints what it measured rather than what anybody claimed. Row 13 compares
 `git status --porcelain` byte for byte before and after, and the size and
 modification time of every file under `.git`, because a read must leave the
 repository as it found it. It counts `tmux -L gmux list-sessions` before and
-after and fails on a difference.
+after and fails on any difference, one the operator made himself included, which
+is a bare count Phase 285 left in place.
 
 `npm run probe:p107` is Phase 107's live gate, being the commit graph of a
 folder on another machine. It makes its own repositories under `/tmp`, one of
@@ -352,8 +369,9 @@ measures the two `git show` calls a commit's file diff would need, over plain
 `ssh` and outside the product, because Tortie does not draw that diff on a
 remote tab after this phase and the next phase should inherit a measurement
 rather than an estimate. The probe counts `tmux -L gmux list-sessions` before
-and after and fails on a difference, and it reads the size of the person's own
-`~/.ssh/known_hosts` before and after for the same reason.
+and after and fails on any difference, one the operator made himself included
+(a bare count Phase 285 left in place), and it reads the size of the person's
+own `~/.ssh/known_hosts` before and after for the same reason.
 
 `npm run probe:p105` is Phase 105's live gate, being the workflow runs for the
 branch checked out on another machine. It makes six repositories and three plain
@@ -369,7 +387,8 @@ is the row that fails if the script ever asks with `--absolute-git-dir` instead
 of `--git-common-dir`. Row 17 is the end to end demonstration with the real gh on
 this Mac, and it prints SKIPPED with the reason when this Mac has no gh or is not
 signed in. A skipped row is never a pass. It counts `tmux -L gmux list-sessions`
-before and after and fails on a difference.
+before and after and fails on any difference, one the operator made himself
+included, which is a bare count Phase 285 left in place.
 
 ### Talking to a real machine
 
@@ -446,7 +465,8 @@ create, on either side. The rules are mechanical rather than promised.
    `probe:realmachine` writes to it not at all. It reads that socket's session
    list twice and runs every shape and every step on a scratch socket instead.
 6. This Mac's own `-L gmux` server is counted before and after with
-   `list-sessions`, read only, and a moved count is a failure.
+   `list-sessions`, read only, and a moved count is a failure, one the operator
+   made himself included, which is a bare count Phase 285 left in place.
 7. `kill-server` is sent from exactly one file of this carriage,
    `build/probe-real-machine.mjs`, at the control step that measures what the far
    side says when its server ends. Its socket argument is composed by

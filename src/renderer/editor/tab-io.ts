@@ -235,6 +235,11 @@ export interface TabIo {
    * first model has loaded, because a rewind's whole write fits inside that
    * load and this refusal cannot answer a flag set after it
    * (adopt-written.test.ts drives it through the real typing hook).
+   *
+   * PHASE 290. A REFUSAL LEAVES THE TAB OWING A READ (`rewindOwesRead`). This
+   * patches nothing when it refuses; ./store's `adoptWritten`, its one caller,
+   * reads what the tab holds afterwards and marks it. The walk's read of the
+   * tab while it is clean clears the mark, and so does a save that lands.
    */
   adoptWritten(id: string, contents: string, was: string): void;
   /**
@@ -878,7 +883,16 @@ export function createTabIo(deps: TabIoDeps): TabIo {
   ): true => {
     const now = getWorkingModel(id);
     if (now === null || now !== model) return true;
-    deps.patch(id, { savedContents: value, dirty: now.getValue() !== value });
+    // PHASE 290. A save that lands is the second of the two things that clear
+    // a rewind's owed read (`rewindOwesRead`): the disk now holds `value`, so
+    // `savedContents` is the disk's and nothing is left for a read to find.
+    // In the same patch, and only when the mark stands, so a save of a tab
+    // that owes nothing patches exactly the two fields it always has.
+    deps.patch(id, {
+      savedContents: value,
+      dirty: now.getValue() !== value,
+      ...(deps.byId(id)?.rewindOwesRead === true ? { rewindOwesRead: false } : {})
+    });
     return true;
   };
 
@@ -1922,11 +1936,30 @@ export function createTabIo(deps: TabIoDeps): TabIo {
             result.contents !== live.savedContents &&
             getWorkingModel(tab.id) === model
           ) {
+            // PHASE 290. The read a refused adoption left owing is THIS read,
+            // so the mark goes in the same patch that reloads the tab clean.
             deps.patch(tab.id, {
               savedContents: result.contents,
-              truncated: result.truncated
+              truncated: result.truncated,
+              rewindOwesRead: false
             });
             resetWorkingModel(tab.id, result.contents);
+          } else if (
+            live !== undefined &&
+            live.rewindOwesRead === true &&
+            !live.dirty &&
+            live.savedContents === savedBefore &&
+            result.contents === live.savedContents &&
+            getWorkingModel(tab.id) === model
+          ) {
+            // PHASE 290. The same clean read, finding the tab already holding
+            // what the disk holds, is the owed read as well: nothing is left
+            // to reload. An agent that writes its words again after the
+            // rewind is the shape: the clean edge reads, the bytes agree, and
+            // without this the mark stood until a save, refusing every ⌥↩ on
+            // a picture that was true. The clauses are the reload's own, so a
+            // read that raced a newer baseline clears nothing.
+            deps.patch(tab.id, { rewindOwesRead: false });
           }
         } catch {
           /* transient read failure — keep the buffer */

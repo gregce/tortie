@@ -13,9 +13,9 @@
  *
  * IT SPAWNS NOTHING. It starts no tmux server, opens no manifest, launches no
  * Electron, reads no file under the person's home and writes nothing anywhere.
- * It reads this repository's own source, and it imports five modules whose
- * every function is pure, being the two product modules below, the two seams
- * and `build/source-prose.mjs`. It is safe to run on a machine with live
+ * It reads this repository's own source, and it imports six modules whose
+ * every function is pure, being the two product modules below, the two seams,
+ * `build/source-prose.mjs` and `build/scan-source.mjs`. It is safe to run on a machine with live
  * sessions on it, which matters more here than for most gates, because the
  * feature it watches types into a live session.
  *
@@ -65,6 +65,7 @@ import {
   countOccurrences,
   decideArmLanding
 } from '../src/main/machines/remote-arm';
+import { closeOf } from './scan-source.mjs';
 import { stripProse } from './source-prose.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -308,6 +309,18 @@ const contract = {
 const menuCode = stripProse(readText('src/main/menu.ts'));
 
 /**
+ * THE MENU'S STRUCTURE, read from text whose prose is blanked whatever
+ * `menuCode` holds (Phase 307). The needles read `menuCode`, and
+ * `npm run ablation:p296` removes its blanking on purpose to build the naive
+ * needle; the brackets that say which submenu a row is in are read here
+ * instead, because a raw comment's apostrophe (`session's`, between End
+ * Session and the resume row) would throw any bracket matcher off. stripProse
+ * keeps every character's offset, so an offset into one is an offset into the
+ * other.
+ */
+const menuShape = stripProse(menuCode);
+
+/**
  * One needle over the blanked menu, and everything the checker needs to say
  * what it did not find.
  *
@@ -334,41 +347,76 @@ interface MenuNeedle {
   count: number;
   /** The one occurrence's 0-indexed line, or -1 when it is not exactly one. */
   at: number;
+  /** The one occurrence's character offset, or -1 when it is not exactly one. */
+  offset: number;
 }
 
 function menuNeedle(said: string, text: string): MenuNeedle {
   const lines: number[] = [];
+  const offsets: number[] = [];
   let found = menuCode.indexOf(text);
   while (found !== -1) {
     lines.push(menuCode.slice(0, found).split('\n').length);
+    offsets.push(found);
     found = menuCode.indexOf(text, found + text.length);
   }
-  const only = lines.length === 1 ? (lines[0] as number) - 1 : -1;
-  return { said, text, lines, count: lines.length, at: only };
+  const one = lines.length === 1;
+  return {
+    said,
+    text,
+    lines,
+    count: lines.length,
+    at: one ? (lines[0] as number) - 1 : -1,
+    offset: one ? (offsets[0] as number) : -1
+  };
 }
 
-/** The index of the parenthesis closing the one at `open`, or -1. */
-function closingParen(code: string, open: number): number {
-  let depth = 0;
-  let quote = '';
-  for (let i = open; i < code.length; i += 1) {
+/**
+ * Where the array element that starts at `at` ends: the `,` or the closing
+ * bracket that follows it at its own depth, brackets matched by `closeOf` and
+ * quotes skipped. The text's length when neither comes.
+ */
+function elementEnd(code: string, at: number): number {
+  for (let i = at; i < code.length; i += 1) {
     const c = code[i] as string;
-    if (quote !== '') {
-      if (c === '\\') i += 1;
-      else if (c === quote) quote = '';
-      continue;
-    }
     if (c === "'" || c === '"' || c === '`') {
-      quote = c;
+      for (i += 1; i < code.length && code[i] !== c; i += 1) if (code[i] === '\\') i += 1;
       continue;
     }
-    if (c === '(') depth += 1;
-    else if (c === ')') {
-      depth -= 1;
-      if (depth === 0) return i;
+    if (c === '(' || c === '[' || c === '{') {
+      const close = closeOf(code, i);
+      if (close === -1) return code.length;
+      i = close;
+      continue;
     }
+    if (c === ',' || c === ']' || c === ')' || c === '}') return i;
   }
-  return -1;
+  return code.length;
+}
+
+/** The 1-indexed line of an offset into the menu. */
+const menuLineOf = (offset: number): number => menuCode.slice(0, offset).split('\n').length;
+
+/**
+ * The `item(` call that holds `offset`, as the offsets of its `item(` and of
+ * the parenthesis closing it, or null. The nearest enclosing call wins and
+ * `item` must be a word of its own. Brackets are matched by
+ * build/scan-source.mjs's `closeOf`, the one matcher (Phase 307 deleted this
+ * file's own `closingParen`, the third copy of the same job).
+ */
+function itemSpanAround(code: string, offset: number): { open: number; close: number } | null {
+  if (offset < 0) return null;
+  let open = code.lastIndexOf('item(', offset);
+  while (open !== -1) {
+    const before = open === 0 ? ' ' : (code[open - 1] as string);
+    if (!/[A-Za-z0-9_$]/.test(before)) {
+      const close = closeOf(code, open + 'item'.length);
+      if (close > offset) return { open, close };
+    }
+    if (open === 0) break;
+    open = code.lastIndexOf('item(', open - 1);
+  }
+  return null;
 }
 
 /**
@@ -404,20 +452,11 @@ function closingParen(code: string, open: number): number {
  * holds one, and a label that did would be found by the accelerator gate's own
  * literal pass reading the same text.
  */
-function itemCallAround(at: number): string {
-  if (at < 0) return '';
-  let open = menuCode.lastIndexOf('item(', at);
-  while (open !== -1) {
-    const before = open === 0 ? ' ' : (menuCode[open - 1] as string);
-    if (!/[A-Za-z0-9_$]/.test(before)) {
-      const close = closingParen(menuCode, open + 'item'.length);
-      if (close > at) return menuCode.slice(open, close + 1);
-    }
-    if (open === 0) break;
-    open = menuCode.lastIndexOf('item(', open - 1);
-  }
-  const line = menuCode.slice(0, at).split('\n').length;
-  return (menuCode.split('\n')[line - 1] ?? '').trim();
+function itemCallAround(offset: number): string {
+  if (offset < 0) return '';
+  const span = itemSpanAround(menuCode, offset);
+  if (span !== null) return menuCode.slice(span.open, span.close + 1);
+  return (menuCode.split('\n')[menuLineOf(offset) - 1] ?? '').trim();
 }
 
 const resumeRow = menuNeedle(
@@ -433,15 +472,104 @@ const hotkeys = menuNeedle(
   '...agentHotkeyItems()'
 );
 
+/**
+ * PHASE 307. WHICH MENU A ROW IS IN, which this gate read for order alone until
+ * now: the three rows moved whole into the Project submenu passed it, in order
+ * and in the wrong menu (Phase 296's re-derivation verifier, recorded in
+ * 78514ab7's body). Every `submenu: [` is spanned with `closeOf` and named by
+ * the `label` or `role` its own object carries, and a row is in the innermost
+ * one that holds it.
+ */
+interface MenuSpan {
+  name: string;
+  open: number;
+  close: number;
+}
+const submenus: MenuSpan[] = (() => {
+  const out: MenuSpan[] = [];
+  const re = /\bsubmenu\s*:\s*\[/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(menuShape)) !== null) {
+    const open = m.index + m[0].length - 1;
+    const close = closeOf(menuShape, open);
+    if (close === -1) continue;
+    const head = menuShape.slice(menuShape.lastIndexOf('{', m.index) + 1, m.index);
+    const name =
+      /\blabel\s*:\s*'([^']*)'/.exec(head)?.[1] ??
+      /\brole\s*:\s*'([^']*)'/.exec(head)?.[1] ??
+      /\blabel\s*:\s*([^,\n]+)/.exec(head)?.[1]?.trim() ??
+      'a submenu with no label';
+    out.push({ name, open, close });
+  }
+  return out;
+})();
+
+/** The name of the innermost submenu holding an offset, or null when none does. */
+function submenuOf(offset: number): string | null {
+  let best: MenuSpan | null = null;
+  for (const span of submenus) {
+    if (offset > span.open && offset < span.close && (best === null || span.open > best.open)) best = span;
+  }
+  return best === null ? null : best.name;
+}
+
+/**
+ * The Session submenu, found by its label exactly once the way `rowCount`
+ * requires the resume id once, its span the `submenu: [` that follows it.
+ */
+const sessionLabels = [...menuShape.matchAll(/\blabel\s*:\s*'Session'/g)];
+const sessionSpan = (() => {
+  if (sessionLabels.length !== 1) return null;
+  const at = (sessionLabels[0] as RegExpMatchArray).index ?? -1;
+  return submenus.find((span) => span.open > at && !/[{}]/.test(menuShape.slice(at, span.open))) ?? null;
+})();
+
+/**
+ * PHASE 307. THE ROW AFTER END SESSION. The order clause read three lines in
+ * order and never asked what sits BETWEEN End Session and the resume row, so
+ * two rows and a separator there passed it. The resume row must be the NEXT
+ * ELEMENT of the Session submenu after End Session's own call, in the blanked
+ * text, which is what the clause's sentence ("immediately after End Session")
+ * has always said.
+ */
+//
+// THE NEXT ELEMENT, NOT THE NEXT `item(` CALL (the probe review of Phase 352).
+// The first build asked for the next `item(` call, so a separator, a role row
+// (`{ role: … }`), a row written as an object, or a spread of a helper's rows
+// set between End Session and the resume row passed this clause, and the table
+// printed the resume row as "the row after End Session" over a menu that drew
+// another row there. The element that follows End Session's own call in its
+// array is read whole, whatever it is, and must BE the resume row's call.
+const nextAfterEndSession = (() => {
+  const endCall = itemSpanAround(menuShape, endSession.offset);
+  let at: number;
+  if (endCall !== null) {
+    const comma = /^\s*,\s*/.exec(menuShape.slice(endCall.close + 1));
+    if (comma === null) return null;
+    at = endCall.close + 1 + comma[0].length;
+  } else {
+    // A needle inside no `item(` call, which `npm run ablation:p296`'s A1n
+    // builds on purpose (its needle reads comments): the next element is read
+    // from where the needle's text ends, as Phase 307's first build read it.
+    if (endSession.offset === -1) return null;
+    const from = endSession.offset + endSession.text.length;
+    at = from + (/^\s*,?\s*/.exec(menuShape.slice(from))?.[0].length ?? 0);
+  }
+  return { open: at, text: menuShape.slice(at, elementEnd(menuShape, at)) };
+})();
+const resumeCall = itemSpanAround(menuShape, resumeRow.offset);
+
 const menu = {
   declaredInUnion: unionMembers('src/shared/ipc/app.ts', 'MenuActionId').includes(
     ACTION
   ),
   rowCount: resumeRow.count,
-  /** The row's whole `item(` call, which is what says whether it is accelerated. */
-  rowLine: itemCallAround(
-    resumeRow.at === -1 ? -1 : menuCode.indexOf(`'${ACTION}'`)
-  ).replace(/\s+/g, ' '),
+  /**
+   * The row's whole `item(` call, which is what says whether it is
+   * accelerated. The offset is -1 unless the id occurs exactly once, so the
+   * guard and the argument are one quantity (Phase 307).
+   */
+  rowLine: itemCallAround(resumeRow.offset).replace(/\s+/g, ' '),
   rowAt: resumeRow.at,
   endSessionAt: endSession.at,
   /**
@@ -461,6 +589,25 @@ const menu = {
     row: resumeRow.said,
     hotkeys: hotkeys.said
   },
+  /**
+   * Phase 307's membership: how often `label: 'Session'` occurs, the 1-indexed
+   * lines its submenu spans, and the menu each row was found in (null outside
+   * every submenu, and for a row that was not found).
+   */
+  sessionMenu: {
+    count: sessionLabels.length,
+    fromLine: sessionSpan === null ? -1 : menuLineOf(sessionSpan.open),
+    toLine: sessionSpan === null ? -1 : menuLineOf(sessionSpan.close)
+  },
+  foundIn: {
+    endSession: endSession.offset === -1 ? null : submenuOf(endSession.offset),
+    row: resumeRow.offset === -1 ? null : submenuOf(resumeRow.offset),
+    hotkeys: hotkeys.offset === -1 ? null : submenuOf(hotkeys.offset)
+  },
+  /** Phase 307's adjacency: the next element after End Session's call, whatever it is, and whether it is the resume row's call. */
+  nextAfterEndSession: nextAfterEndSession === null ? '' : nextAfterEndSession.text.replace(/\s+/g, ' '),
+  adjacent:
+    nextAfterEndSession !== null && resumeCall !== null && nextAfterEndSession.open === resumeCall.open,
   dispatchedIn: filesNaming(srcRenderer, `'${ACTION}'`),
   /** No chord is registered for it anywhere. */
   keymapNames: filesNaming(srcShared, ACTION).filter((f) =>

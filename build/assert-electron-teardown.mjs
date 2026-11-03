@@ -67,6 +67,16 @@
  *      is proved the same way, against a count one below the floor and against
  *      the floor itself, because a floor nobody has seen refuse anything is
  *      indistinguishable from no floor at all.
+ *   5. THE SOCKET REFUSAL, THE ANNOUNCEMENT AND THE CENSUS (Phase 261, judged
+ *      by identity since Phase 285). See the section that runs it below.
+ *   6. THE CEILING (Phase 285). The scripts under build/ besides the helper
+ *      and this gate that aim an argv at `-L gmux` may only fall in number.
+ *      Phase 285 took the bare counts out of the probes it runs, and the rest
+ *      are held here so the sweep can finish over later rounds without a new
+ *      bare count ever arriving. Proved against a count one above it. Since
+ *      the probe review of Phase 352 a second count holds, the same way, the
+ *      scripts that hand a shell a command line aimed at it, which the argv
+ *      count never read.
  *
  * ## What it does not assert
  *
@@ -109,11 +119,20 @@
  *      under build/ is written with semicolons and there is no formatter in
  *      this repository that would remove them, so this miss is theoretical.
  *
- * Run it with `npm run gate:electron`. It spawns nothing, opens no profile and
- * launches no Electron, and it takes about 0.1 s.
+ * Run it with `npm run gate:electron`. It spawns nothing, opens no profile,
+ * launches no Electron and never reaches tmux, and it takes about 2 s, most of
+ * it the ablated copies of the helper that rule 5 loads (2.4 s measured on
+ * 2026-11-02 on a loaded machine, 4 to 5 s at a load average above 100).
  */
 
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -554,6 +573,56 @@ const HELPER_USER_FLOOR = 179;
 const NOT_A_HELPER_USER = new Set(['assert-electron-teardown.mjs']);
 
 /**
+ * RULE 6, THE CEILING (Phase 285). How many scripts under build/, besides the
+ * helper and this gate, may aim an argv at `-L gmux` at all, being `'-L',
+ * 'gmux'` in their code once build/scan-source.mjs's stripComments has blanked
+ * comments (see OPERATOR_ARGV below for the one spelling it does not read).
+ *
+ * WHY A CEILING AND NOT A SWEEP. About a hundred probes carry a hand written
+ * count of the operator's own server, and each of them fails when HE starts or
+ * ends a session while it runs: on 2026-09-17 `probe:p277` passed every arm and
+ * exited 1 because his count went from 52 to 53. Phase 285 took the count out
+ * of the seven probes this repository still runs (the Phase 237 four,
+ * `probe:p268`, `probe:p277` and `probe:redlinemoveon`), whose launches the
+ * helper's census now guards by identity, and his ruling of 2026-11-02 left
+ * the helper as the one reader of his server. Rewriting the rest in one commit
+ * is not this phase. Holding their number is: a ceiling lets the sweep finish
+ * over later rounds, and no NEW bare count can arrive without turning this
+ * gate red.
+ *
+ * Measured at 109 at 8b63abc1 (build/p352/SPEC.md §2.5, the spec's own reader)
+ * and 102 once the seven are converted. LOWER IT, in the same commit, when a
+ * round takes another count out. Raising it puts a new bare count of his
+ * server back, and that is what it exists to refuse.
+ *
+ * 105 SINCE THE FIX ROUND OF PHASE 352, AND NO SCRIPT WAS ADDED. The detector
+ * now counts every spelling rule 5f reads (a name the script declares as
+ * `'gmux'`, the attached `-Lgmux`, a `-S` path to his socket), and that reads
+ * three scripts the literal pair alone never saw, each as it stood at
+ * 8b63abc1: build/update-rehearsal.mjs:423 and build/tmux-pair.mjs:122, each
+ * `['-L', OPERATOR_SOCKET, 'list-sessions']`, and build/p245/corpus-scan.mjs:187,
+ * `['-L', SOCKET, ...a]`.
+ */
+const OPERATOR_ARGV_CEILING = 105;
+
+/**
+ * RULE 6, ITS SECOND COUNT (the probe review of Phase 352). The scripts under
+ * build/, besides the helper and this gate, that aim `-L gmux` through a
+ * command line a shell is handed: `tmux … -L gmux` inside one string in their
+ * code. The p98 to p131 family counts his server as
+ * `'tmux -L gmux list-sessions 2>/dev/null | wc -l'` under `/bin/sh -c`, and
+ * the argv count above never reads that spelling, so a NEW bare count written
+ * that way arrived with this gate green while its header said none could.
+ * Rule 5f does not read these lines either (build/electron-run.mjs's header
+ * states that limit), which is one more reason no new one may arrive.
+ * Measured at 32 at 8b63abc1 and at this phase's HEAD alike (the seven probes
+ * Phase 285 converted counted in argv form), and re-derived by the probe review
+ * with a comment stripper of its own over the same 32 files. LOWER IT in the
+ * same commit as a round that takes one out; never raise it.
+ */
+const OPERATOR_SHELL_CEILING = 32;
+
+/**
  * The one file that is allowed to name an Electron program in a spawn, plus the
  * one packing hook that runs the packed executable once with --version and
  * exits. That hook runs inside electron-builder's own process during
@@ -708,6 +777,67 @@ export function floorFinding(count, floor) {
       'the same command at the parent commit to see which file went. If the ' +
       'deletion was deliberate, lower HELPER_USER_FLOOR in this file in that ' +
       'same commit and say which file went in the commit body.'
+  };
+}
+
+/**
+ * An argv aimed at the operator's own server: the pair `'-L', 'gmux'` in any of
+ * the three quotes. A scratch socket such as `'gmux-p352'` is not it, because
+ * the quote must close on `gmux`.
+ *
+ * The attached `-Lgmux` is not matched HERE, because reading it as text
+ * counted a comment in prose: build/scan-source.mjs's stripComments loses its
+ * place after a template holding a template inside `${…}`, so
+ * build/p324/probe-p324.mjs:157, a comment that quotes `-Lgmux`, reached the
+ * scan as code (measured for Phase 285). Since the fix round of Phase 352 it
+ * IS counted, and so is every other spelling rule 5f reads, as an ELEMENT of
+ * an argv {@link operatorSocketVerbs} finds (see {@link aimsOperatorSocket}).
+ */
+const OPERATOR_ARGV = /(['"`])-L\1\s*,\s*(['"`])gmux\2/;
+
+/**
+ * Whether one script aims an argv at `-L gmux` (rule 6), comments stripped:
+ * the literal pair anywhere, or any spelling rule 5f reads inside an argv (the
+ * fix round of Phase 352), so the ceiling counts what 5f refuses.
+ */
+export function aimsOperatorSocket(source) {
+  return OPERATOR_ARGV.test(stripComments(source)) || operatorSocketVerbs(source).length > 0;
+}
+
+/**
+ * A command line aimed at `-L gmux` inside one string (rule 6's second count):
+ * the word `tmux`, then only flags and their values, then `-L gmux` or the
+ * attached `-Lgmux`, on one line and inside one literal. A scratch socket such
+ * as `-L gmux-p217` is not it, and neither is prose that names tmux and later
+ * the socket (build/p342/measure-p342.mjs's "Never -L gmux, never this Mac's
+ * tmux", which a looser reading counted).
+ */
+const OPERATOR_SHELL =
+  /(['"`])[^'"`\n]*\btmux(?:\s+-[A-Za-z0-9]+(?:\s+[^\s'"`-][^\s'"`]*)?)*\s+-L\s*gmux(?![\w-])/;
+
+/** Whether one script hands a shell a command line aimed at `-L gmux`, comments stripped. */
+export function aimsOperatorSocketByShell(source) {
+  return OPERATOR_SHELL.test(stripComments(source));
+}
+
+/**
+ * Rule 6 itself, as a function, so the fixture arm can watch it refuse.
+ * Returns a finding, or null when the count is at or under the ceiling.
+ */
+export function ceilingFinding(count, ceiling, how = 'aim an argv at', constant = 'OPERATOR_ARGV_CEILING') {
+  if (count <= ceiling) return null;
+  return {
+    what:
+      `${String(count)} scripts under build/ besides build/${HELPER} and this ` +
+      `gate ${how} -L gmux, and the ceiling is ${String(ceiling)}`,
+    detail:
+      "A script has started counting or reading the operator's own tmux " +
+      'server itself. Since Phase 285 build/electron-run.mjs is the one reader ' +
+      'of that server, around a launch that names a scratch socket and by ' +
+      'identity, so a probe that ' +
+      'launches through it needs no count of its own, and a bare count fails ' +
+      'the probe whenever he starts or ends a session of his own. Take the ' +
+      `count out of the script rather than raising ${constant}.`
   };
 }
 
@@ -940,16 +1070,32 @@ function runFixtures(failures) {
  *       later.
  *   5c  a named tmuxSocket against an env naming a different socket, and
  *       against an env naming none. Both refused, both messages naming the pair.
- *   5d  the reader and the judgement, over fixture texts.
+ *   5d  the readers and the judgements, over fixture texts: the announcement,
+ *       and since Phase 285 the census BY IDENTITY, being every clause of
+ *       censusVerdict over planted rows, the reader's parse of tmux's own
+ *       answers, the manifest read, and judgeCensus's order driven with
+ *       readers of this gate's own, so no fixture ever reaches tmux.
  *   5e  build/harness-socket.mjs names a harness term inside the argument
  *       object of the same spawn() call that names GMUX_TMUX_SOCKET, read by
  *       matching brackets, proved on three planted texts.
- *   5f  every `-L gmux` argv composed in electron-run.mjs is a list-sessions,
- *       proved on two plants.
+ *   5f  every `-L gmux` argv in electron-run.mjs AND in every script under
+ *       build/ that imports it is a list-sessions, the verb read past the
+ *       client flags tmux takes before one and a spread or a computed verb
+ *       refused, proved on planted texts; and the helper's reader carries the
+ *       `-u` that keeps the census format's tabs (Phase 285). Since the probe
+ *       review of Phase 352 what FOLLOWS list-sessions is read too: tmux runs a
+ *       second command after any argument ending in `;`.
  *   5g  an env naming the operator's OWN server is refused whatever else the
  *       launch sets, with a control that must still reach the program check.
  *   5h  the two backstops are WIRED into withElectron rather than merely
- *       exported, read by matching braces and proved on seven planted texts.
+ *       exported, read by matching braces and proved on planted texts; the
+ *       census read is taken around a launch that names a scratch socket and
+ *       only there (his allowance of 2026-11-02; the fix round of Phase 352
+ *       refuses a read on every launch), sits above the spawn, is
+ *       judged in the finally and has its failures thrown; and since the probe
+ *       review of Phase 352 the verdict is handed this launch's own manifest,
+ *       its scratch folders, the socket it asked for and what the app
+ *       announced, each of which carries a clause.
  *
  * 5g AND 5h ARE THE FIX ROUND'S AND EACH CLOSES A HOLE A VERIFIER DROVE. 5g's
  * shape walked past all four layers: `GMUX_TMUX_SOCKET: 'gmux'` with a harness
@@ -961,10 +1107,17 @@ function runFixtures(failures) {
  * `null`, each left this gate printing OK at exit 0 while the backstops did
  * nothing. A judgement nothing asks is not a backstop.
  *
- * And five ablations, one clause each, every one of which must turn a named arm
+ * And ablations, one clause each, every one of which must turn a named arm
  * red. Each ablated copy is required to LOAD and answer before its arm is
  * judged, because a copy that will not load fails for the wrong reason and
- * proves nothing about the clause, which is Phase 219's rule.
+ * proves nothing about the clause, which is Phase 219's rule. Phase 285 added
+ * one per clause of the census judgement, each moving the one fixture that
+ * clause owns.
+ *
+ * NO ARM HERE EVER REACHES TMUX. Every driven launch is refused before the
+ * census read, which sits below the program check, and every census fixture is
+ * a planted row handed to a pure function or to judgeCensus with readers of
+ * this gate's own. `-L gmux` is named by build/electron-run.mjs's reader alone.
  */
 
 /** The four terms, scrubbed from a fixture env so 5a can be driven here. */
@@ -1130,6 +1283,642 @@ function announcementReadings(helper) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// 5d's census half (Phase 285): every clause of the judgement, over rows.
+// ---------------------------------------------------------------------------
+
+/** One planted census row. The paths are made up and nothing reads them. */
+const ROW = (id, gmuxId, name, path, extra = {}) => ({
+  id,
+  gmuxId,
+  created: '1793000000',
+  name,
+  path,
+  ...extra
+});
+
+/** A census reading tmux answered. */
+const READ = (rows, unreadable = []) => ({ ok: true, why: null, rows, unreadable });
+
+/** This launch's scratch folder, in both spellings, as scratchRootsFor answers it. */
+const CENSUS_SCRATCH = ['/private/var/tmp/p285-gate-run', '/var/tmp/p285-gate-run'];
+
+/** The socket this launch asked for. */
+const CENSUS_WANTED = 'gmux-p285-gate';
+
+/** His server before the launch: two of his sessions and his control session. */
+const CENSUS_BEFORE = READ([
+  ROW('$1', 'his-one', 'claude-1', '/Users/p285-operator/one'),
+  ROW('$2', 'his-two', 'codex-2', '/Users/p285-operator/two'),
+  ROW('$3', '', 'gmux-control', '/Users/p285-operator')
+]);
+
+/** This launch's own manifest, read and readable. */
+const OWN_MANIFEST = { exists: true, ok: true, ids: ['own-0001'], why: null };
+
+/**
+ * Every census fixture, as the input censusVerdict is handed and what it must
+ * answer. `failures` and `notes` are counts, and `says` a pattern one failure
+ * (or, with no failure expected, one note) must hold.
+ */
+const CENSUS_FIXTURES = [
+  {
+    key: 'unchanged',
+    name: 'nothing moved, the rows read in another order',
+    input: { after: READ([...CENSUS_BEFORE.rows].reverse()) },
+    failures: 0,
+    notes: 0
+  },
+  {
+    key: 'rename',
+    name: 'he renamed one of his sessions, which keeps its $-id, and the app announced the scratch socket',
+    // Since the fix round of Phase 352 a rename is judged as a session that
+    // went is: a note after an agreeing announcement. It was nothing, so a
+    // launch whose app renamed one of his sessions went unseen.
+    input: {
+      after: READ([
+        ROW('$1', 'his-one', 'claude-1-renamed', '/Users/p285-operator/one'),
+        ...CENSUS_BEFORE.rows.slice(1)
+      ])
+    },
+    failures: 0,
+    notes: 1,
+    says: /\$1 "claude-1" was renamed "claude-1-renamed".*the operator's own/
+  },
+  {
+    key: 'renameSilent',
+    name: 'a session was renamed and the app announced nothing',
+    input: {
+      after: READ([
+        ROW('$1', 'his-one', 'claude-1-renamed', '/Users/p285-operator/one'),
+        ...CENSUS_BEFORE.rows.slice(1)
+      ]),
+      announced: []
+    },
+    failures: 1,
+    notes: 0,
+    says: /\$1 "claude-1" was RENAMED.*never said/
+  },
+  {
+    key: 'restartAgreed',
+    name: 'his server restarted and his app brought every session back, gmux-control among them, the app announcing the scratch socket',
+    // Every session is new by identity, because a restarted server numbers
+    // from $0 again with new creation times. His stamped ones are his by (c),
+    // the ones that went are his after the agreeing announcement, and the
+    // unstamped gmux-control answers for the gmux-control that went.
+    input: {
+      after: READ([
+        ROW('$0', 'his-one', 'claude-1', '/Users/p285-operator/one', { created: '1793009999' }),
+        ROW('$1', 'his-two', 'codex-2', '/Users/p285-operator/two', { created: '1793009999' }),
+        ROW('$2', '', 'gmux-control', '/Users/p285-operator', { created: '1793009999' })
+      ]),
+      again: READ([
+        ROW('$0', 'his-one', 'claude-1', '/Users/p285-operator/one', { created: '1793009999' }),
+        ROW('$1', 'his-two', 'codex-2', '/Users/p285-operator/two', { created: '1793009999' }),
+        ROW('$2', '', 'gmux-control', '/Users/p285-operator', { created: '1793009999' })
+      ]),
+      manifest: OWN_MANIFEST
+    },
+    failures: 0,
+    notes: 6,
+    says: /\$2 "gmux-control" appeared .*under the name of \$3 "gmux-control".*his server restarting/
+  },
+  {
+    key: 'restartSilent',
+    name: 'his server restarted the same way and the app announced nothing',
+    input: {
+      after: READ([
+        ROW('$0', 'his-one', 'claude-1', '/Users/p285-operator/one', { created: '1793009999' }),
+        ROW('$1', 'his-two', 'codex-2', '/Users/p285-operator/two', { created: '1793009999' }),
+        ROW('$2', '', 'gmux-control', '/Users/p285-operator', { created: '1793009999' })
+      ]),
+      again: READ([
+        ROW('$0', 'his-one', 'claude-1', '/Users/p285-operator/one', { created: '1793009999' }),
+        ROW('$1', 'his-two', 'codex-2', '/Users/p285-operator/two', { created: '1793009999' }),
+        ROW('$2', '', 'gmux-control', '/Users/p285-operator', { created: '1793009999' })
+      ]),
+      manifest: OWN_MANIFEST,
+      announced: []
+    },
+    failures: 4,
+    notes: 2,
+    says: /\$2 "gmux-control" APPEARED .*no @gmux-id/
+  },
+  {
+    key: 'restartOtherStamp',
+    name: 'an unstamped session appeared under the name of a STAMPED one that went, which is no restart',
+    input: {
+      after: READ([CENSUS_BEFORE.rows[0], CENSUS_BEFORE.rows[2], ROW('$9', '', 'codex-2', '/Users/p285-operator/two')]),
+      again: READ([CENSUS_BEFORE.rows[0], CENSUS_BEFORE.rows[2], ROW('$9', '', 'codex-2', '/Users/p285-operator/two')]),
+      manifest: OWN_MANIFEST
+    },
+    failures: 1,
+    notes: 1,
+    says: /\$9 "codex-2" APPEARED .*no @gmux-id/
+  },
+  {
+    key: 'restarted',
+    name: "a $-id a restarted server numbered again, now this launch's own session",
+    // A server that restarts numbers its sessions from $0 again, so the
+    // creation time is half of a session's identity: keyed by $-id alone this
+    // would read as a rename of his, which is nothing.
+    input: {
+      after: READ([
+        ROW('$1', 'own-0001', 'shell-1-6', '/Users/p285-operator/three', { created: '1793000999' }),
+        ...CENSUS_BEFORE.rows.slice(1)
+      ]),
+      manifest: OWN_MANIFEST
+    },
+    failures: 1,
+    notes: 1,
+    says: /\$1 "shell-1-6" .*this launch's own manifest/
+  },
+  {
+    key: 'his',
+    name: "his: a session stamped by an app that is not this launch, under a home-like folder",
+    input: {
+      after: READ([...CENSUS_BEFORE.rows, ROW('$9', 'his-nine', 'shell-1-7', '/Users/p285-operator/three')]),
+      manifest: OWN_MANIFEST
+    },
+    failures: 0,
+    notes: 1,
+    says: /\$9 .*the operator's own/
+  },
+  {
+    key: 'ownManifest',
+    name: "(a) a session whose stamp is in this launch's own manifest",
+    input: {
+      after: READ([...CENSUS_BEFORE.rows, ROW('$9', 'own-0001', 'shell-1-6', '/Users/p285-operator/three')]),
+      manifest: OWN_MANIFEST
+    },
+    failures: 1,
+    notes: 0,
+    says: /\$9 .*this launch's own manifest/
+  },
+  {
+    key: 'scratchRaw',
+    name: "(a') a session started under the scratch folder, spelled /var",
+    input: {
+      after: READ([...CENSUS_BEFORE.rows, ROW('$9', 'foreign-9', 'shell-1-6', '/var/tmp/p285-gate-run/project')]),
+      manifest: OWN_MANIFEST
+    },
+    failures: 1,
+    notes: 0,
+    says: /\$9 .*scratch folder/
+  },
+  {
+    key: 'scratchResolved',
+    name: "(a') a session whose folder resolves under the scratch folder",
+    input: {
+      after: READ([
+        ...CENSUS_BEFORE.rows,
+        ROW('$9', 'foreign-9', 'shell-1-6', '/Users/p285-operator/link', {
+          resolved: '/private/var/tmp/p285-gate-run/project'
+        })
+      ]),
+      manifest: OWN_MANIFEST
+    },
+    failures: 1,
+    notes: 0,
+    says: /\$9 .*scratch folder/
+  },
+  {
+    key: 'unstampedStill',
+    name: '(b) an unstamped session still unstamped a second later',
+    input: {
+      after: READ([...CENSUS_BEFORE.rows, ROW('$9', '', 'shell-1-6', '/Users/p285-operator/three')]),
+      again: READ([...CENSUS_BEFORE.rows, ROW('$9', '', 'shell-1-6', '/Users/p285-operator/three')]),
+      manifest: OWN_MANIFEST
+    },
+    failures: 1,
+    notes: 0,
+    says: /\$9 .*no @gmux-id/
+  },
+  {
+    key: 'unstampedGone',
+    name: '(b) an unstamped session gone again a second later',
+    input: {
+      after: READ([...CENSUS_BEFORE.rows, ROW('$9', '', 'shell-1-6', '/Users/p285-operator/three')]),
+      again: READ(CENSUS_BEFORE.rows),
+      manifest: OWN_MANIFEST
+    },
+    failures: 1,
+    notes: 0,
+    says: /\$9 .*no @gmux-id/
+  },
+  {
+    key: 'controlFresh',
+    name: '(b) a fresh gmux-control on a server that had none',
+    input: {
+      before: READ(CENSUS_BEFORE.rows.slice(0, 2)),
+      after: READ(CENSUS_BEFORE.rows),
+      again: READ(CENSUS_BEFORE.rows)
+    },
+    failures: 1,
+    notes: 0,
+    says: /\$3 "gmux-control".*no @gmux-id/
+  },
+  {
+    key: 'stampedLater',
+    name: 'the re-read: unstamped at first, stamped by another app a second later',
+    input: {
+      after: READ([...CENSUS_BEFORE.rows, ROW('$9', '', 'claude-1-8', '/Users/p285-operator/three')]),
+      again: READ([...CENSUS_BEFORE.rows, ROW('$9', 'his-late', 'claude-1-8', '/Users/p285-operator/three')]),
+      manifest: OWN_MANIFEST
+    },
+    failures: 0,
+    notes: 1,
+    says: /\$9 .*his-late.*the operator's own/
+  },
+  {
+    key: 'stampedLaterOwn',
+    name: "the re-read: stamped a second later with this launch's own id",
+    input: {
+      after: READ([...CENSUS_BEFORE.rows, ROW('$9', '', 'shell-1-6', '/Users/p285-operator/three')]),
+      again: READ([...CENSUS_BEFORE.rows, ROW('$9', 'own-0001', 'shell-1-6', '/Users/p285-operator/three')]),
+      manifest: OWN_MANIFEST
+    },
+    failures: 1,
+    notes: 0,
+    says: /this launch's own manifest/
+  },
+  {
+    key: 'manifestUnreadable',
+    name: "a stamped session appeared and this launch's own manifest could not be read",
+    input: {
+      after: READ([...CENSUS_BEFORE.rows, ROW('$9', 'foreign-9', 'shell-1-6', '/Users/p285-operator/three')]),
+      manifest: { exists: true, ok: false, ids: [], why: 'sqlite3 answered exit 1' }
+    },
+    failures: 1,
+    notes: 0,
+    says: /could not be told from his/
+  },
+  {
+    key: 'manifestMissing',
+    name: 'a stamped session appeared and this launch wrote no manifest at all',
+    input: {
+      after: READ([...CENSUS_BEFORE.rows, ROW('$9', 'foreign-9', 'shell-1-6', '/Users/p285-operator/three')]),
+      manifest: { exists: false, ok: true, ids: [], why: null }
+    },
+    failures: 0,
+    notes: 1,
+    says: /the operator's own/
+  },
+  {
+    key: 'manifestNeverAsked',
+    name: 'a stamped session appeared and nothing asked the manifest',
+    input: {
+      after: READ([...CENSUS_BEFORE.rows, ROW('$9', 'foreign-9', 'shell-1-6', '/Users/p285-operator/three')])
+    },
+    failures: 1,
+    notes: 0,
+    says: /could not be told from his/
+  },
+  {
+    key: 'wentSilent',
+    name: 'a session WENT and the app announced nothing',
+    input: { after: READ([CENSUS_BEFORE.rows[0], CENSUS_BEFORE.rows[2]]), announced: [] },
+    failures: 1,
+    notes: 0,
+    says: /\$2 .*WENT.*never said/
+  },
+  {
+    key: 'wentAgreed',
+    name: 'a session WENT and every announcement named the scratch socket',
+    input: {
+      after: READ([CENSUS_BEFORE.rows[0], CENSUS_BEFORE.rows[2]]),
+      announced: [CENSUS_WANTED, CENSUS_WANTED]
+    },
+    failures: 0,
+    notes: 1,
+    says: /\$2 .*went.*the operator's own/
+  },
+  {
+    key: 'wentDisagreed',
+    name: 'a session WENT and one announcement named his server',
+    input: {
+      after: READ([CENSUS_BEFORE.rows[0], CENSUS_BEFORE.rows[2]]),
+      announced: [CENSUS_WANTED, 'gmux']
+    },
+    failures: 1,
+    notes: 0,
+    says: /\$2 .*WENT.*gmux/
+  },
+  {
+    key: 'wentNoWant',
+    name: 'a session WENT from a launch that asked for no socket',
+    input: {
+      after: READ([CENSUS_BEFORE.rows[0], CENSUS_BEFORE.rows[2]]),
+      wanted: '',
+      announced: ['gmux-p285-other']
+    },
+    failures: 1,
+    notes: 0,
+    says: /asked for none/
+  },
+  {
+    key: 'unreadableFresh',
+    name: 'a row that does not read as one appeared',
+    input: { after: READ(CENSUS_BEFORE.rows, ['$9_foreign_1793000000_shell']) },
+    failures: 1,
+    notes: 0,
+    says: /did not read as a session/
+  },
+  {
+    key: 'unreadableKnown',
+    name: 'the same unreadable row was there before the launch',
+    input: {
+      before: READ(CENSUS_BEFORE.rows, ['$7 a row of his']),
+      after: READ(CENSUS_BEFORE.rows, ['$7 a row of his'])
+    },
+    failures: 0,
+    notes: 0
+  },
+  {
+    key: 'readFailed',
+    name: 'tmux could not answer after the launch',
+    input: {
+      after: { ok: false, why: 'tmux answered exit 1: lost server', rows: [], unreadable: [] }
+    },
+    failures: 1,
+    notes: 0,
+    says: /could not be read after/
+  }
+];
+
+/**
+ * 5d's census half: every fixture through the verdict, the reader's parse,
+ * the manifest read, and the order judgeCensus asks things in, driven with
+ * readers of this gate's own. Readings rather than failures, so an ablation can
+ * be shown to MOVE one.
+ */
+async function censusReadings(helper, rootsDir) {
+  const verdicts = {};
+  for (const f of CENSUS_FIXTURES) {
+    verdicts[f.key] = helper.censusVerdict({
+      before: CENSUS_BEFORE,
+      scratchRoots: CENSUS_SCRATCH,
+      wanted: CENSUS_WANTED,
+      announced: [CENSUS_WANTED],
+      ...f.input
+    });
+  }
+
+  const parse = {
+    ships: helper.censusReading({
+      status: 0,
+      stdout: '$1\this-one\t1793000000\tone two\t/a/b\tc\n$3\t\t1793000001\tgmux-control\t/x\n'
+    }),
+    fourFields: helper.censusReading({ status: 0, stdout: '$4\tid\t1793000000\tname\n' }),
+    notAnId: helper.censusReading({ status: 0, stdout: 'x4\tid\t1793000000\tname\t/p\n' }),
+    // The parent's measurement: with no UTF-8 locale tmux sends each tab as _.
+    underscored: helper.censusReading({
+      status: 0,
+      stdout: '$0_p352-foreign-id_1793659956_/private/x_one two\n'
+    }),
+    noServer: helper.censusReading({
+      status: 1,
+      stderr: 'no server running on /private/tmp/tmux-501/gmux\n'
+    }),
+    noSocket: helper.censusReading({
+      status: 1,
+      stderr: 'error connecting to /private/tmp/tmux-501/gmux (No such file or directory)\n'
+    }),
+    refused: helper.censusReading({
+      status: 1,
+      stderr: 'error connecting to /private/tmp/tmux-501/gmux (Permission denied)\n'
+    }),
+    notRun: helper.censusReading({
+      error: Object.assign(new Error('spawnSync tmux ENOENT'), { code: 'ENOENT' }),
+      status: null
+    })
+  };
+
+  // This launch's scratch folders, over directories this gate made under the
+  // system temporary root, so nothing outside it is ever resolved.
+  const roots = {
+    spellings: [helper.bothSpellings('/private/var/tmp/x'), helper.bothSpellings('/tmp/y')],
+    harnessAndProfile: helper.scratchRootsFor({
+      harnessDir: join(rootsDir, 'harness'),
+      userDataDir: join(rootsDir, 'harness', 'p', 'profile'),
+      tmp: tmpdir(),
+      home: join(rootsDir, 'home-like')
+    }),
+    profileInTmp: helper.scratchRootsFor({
+      userDataDir: join(tmpdir(), 'p285-gate-profile-in-the-temporary-root'),
+      tmp: tmpdir(),
+      home: join(rootsDir, 'home-like')
+    }),
+    profileAtHome: helper.scratchRootsFor({
+      userDataDir: join(rootsDir, 'home-like', 'profile'),
+      tmp: tmpdir(),
+      home: join(rootsDir, 'home-like')
+    }),
+    profileAboveHome: helper.scratchRootsFor({
+      userDataDir: join(rootsDir, 'profile'),
+      tmp: tmpdir(),
+      home: join(rootsDir, 'home-like')
+    }),
+    harnessMissing: helper.scratchRootsFor({
+      harnessDir: join(rootsDir, 'not-there'),
+      userDataDir: join(tmpdir(), 'p285-gate-profile-in-the-temporary-root'),
+      tmp: tmpdir(),
+      home: join(rootsDir, 'home-like')
+    })
+  };
+
+  const manifest = {
+    good: helper.manifestReading({ status: 0, stdout: '0f2c8a3e-1b4d-4e5f-9a6b-7c8d9e0f1a2b\nown-0001\n' }),
+    badId: helper.manifestReading({ status: 0, stdout: 'own-0001\nnot an id;\n' }),
+    failed: helper.manifestReading({ status: 1, stderr: 'Error: no such table: sessions\n' })
+  };
+
+  // The order, with readers of this gate's own and no tmux anywhere.
+  const order = async (reads, resolvePath = () => null) => {
+    const log = { reads: 0, waited: [], manifests: 0 };
+    const verdict = await helper.judgeCensus({
+      before: CENSUS_BEFORE,
+      read: () => {
+        log.reads += 1;
+        return reads[Math.min(log.reads, reads.length) - 1];
+      },
+      wait: async (ms) => {
+        log.waited.push(ms);
+      },
+      manifest: () => {
+        log.manifests += 1;
+        return OWN_MANIFEST;
+      },
+      resolvePath,
+      scratchRoots: CENSUS_SCRATCH,
+      wanted: CENSUS_WANTED,
+      announced: [CENSUS_WANTED]
+    });
+    return { ...log, verdict };
+  };
+  const nine = (gmuxId, path = '/Users/p285-operator/three') => ROW('$9', gmuxId, 'shell-1-6', path);
+  const orders = {
+    nothing: await order([CENSUS_BEFORE]),
+    stamped: await order([READ([...CENSUS_BEFORE.rows, nine('his-nine')])]),
+    unstamped: await order([
+      READ([...CENSUS_BEFORE.rows, nine('')]),
+      READ([...CENSUS_BEFORE.rows, nine('his-late')])
+    ]),
+    resolved: await order([READ([...CENSUS_BEFORE.rows, nine('his-nine', '/Users/p285-operator/link')])], (path) =>
+      path === '/Users/p285-operator/link' ? '/private/var/tmp/p285-gate-run/project' : null
+    )
+  };
+  return {
+    verdicts,
+    parse,
+    roots,
+    rootsDir: realpathSync(rootsDir),
+    manifest,
+    orders,
+    format: helper.CENSUS_FORMAT,
+    rereadMs: helper.CENSUS_REREAD_MS
+  };
+}
+
+/** What 5d requires of the census readings, as failures. */
+function censusExpectations(census) {
+  const out = [];
+  const say = (what, detail) => out.push({ what: `5d: ${what}`, detail });
+  for (const f of CENSUS_FIXTURES) {
+    const v = census.verdicts[f.key];
+    const got = `${String(v.failures.length)} failure(s) and ${String(v.notes.length)} note(s)`;
+    if (v.failures.length !== f.failures || v.notes.length !== f.notes) {
+      say(
+        `the census fixture "${f.name}" read ${got}`,
+        `It must read ${String(f.failures)} failure(s) and ${String(f.notes)} note(s). It said: ` +
+          `${JSON.stringify([...v.failures, ...v.notes]).slice(0, 400)}`
+      );
+      continue;
+    }
+    const said = f.failures > 0 ? v.failures : v.notes;
+    if (f.says !== undefined && !said.some((s) => f.says.test(s))) {
+      say(
+        `the census fixture "${f.name}" said the wrong thing`,
+        `It must match ${String(f.says)} and said ${JSON.stringify(said).slice(0, 400)}.`
+      );
+    }
+  }
+  const p = census.parse;
+  const parseRight =
+    p.ships.ok === true &&
+    p.ships.rows.length === 2 &&
+    p.ships.rows[0].path === '/a/b\tc' &&
+    p.ships.rows[0].name === 'one two' &&
+    p.ships.rows[1].gmuxId === '' &&
+    p.ships.unreadable.length === 0;
+  if (!parseRight) {
+    say(
+      'the census reader did not read its own format back',
+      `It answered ${JSON.stringify(p.ships)}. Five fields split at the first four tabs, the folder taking the rest.`
+    );
+  }
+  for (const [name, reading] of [
+    ['four fields', p.fourFields],
+    ['a first field that is not a $-id', p.notAnId],
+    ["tabs sent as _ to a client with no UTF-8 locale", p.underscored]
+  ]) {
+    if (reading.ok !== true || reading.rows.length !== 0 || reading.unreadable.length !== 1) {
+      say(`the census reader read a line with ${name} as a row`, `It answered ${JSON.stringify(reading)}. It is an unreadable row, and an unreadable row fails closed.`);
+    }
+  }
+  for (const [name, reading] of [
+    ['no server running', p.noServer],
+    ['no socket at all', p.noSocket]
+  ]) {
+    if (reading.ok !== true || reading.rows.length !== 0) {
+      say(`the census reader read ${name} as a failure`, `It answered ${JSON.stringify(reading)}. A server that is not there holds no sessions.`);
+    }
+  }
+  for (const [name, reading] of [
+    ['a refused connection', p.refused],
+    ['a tmux that would not start', p.notRun]
+  ]) {
+    if (reading.ok !== false) {
+      say(`the census reader read ${name} as an answer`, `It answered ${JSON.stringify(reading)}. A reading tmux could not give fails closed.`);
+    }
+  }
+  const r = census.roots;
+  const real = census.rootsDir;
+  // This gate's own spelling rule, written again rather than borrowed.
+  const spelled = (path) => {
+    for (const [realRoot, link] of [
+      ['/private/tmp', '/tmp'],
+      ['/private/var', '/var']
+    ]) {
+      if (path.startsWith(`${realRoot}/`)) return [path, link + path.slice(realRoot.length)];
+    }
+    return [path];
+  };
+  const wantRoots = [...spelled(`${real}/harness`), ...spelled(`${real}/harness/p`)].sort();
+  if (
+    JSON.stringify(r.spellings) !==
+    JSON.stringify([['/private/var/tmp/x', '/var/tmp/x'], ['/tmp/y', '/private/tmp/y']])
+  ) {
+    say('a scratch folder is not given both of its spellings', `It answered ${JSON.stringify(r.spellings)}.`);
+  }
+  if (JSON.stringify([...r.harnessAndProfile].sort()) !== JSON.stringify(wantRoots)) {
+    say(
+      "the scratch folders are not the harness directory and the profile's own folder",
+      `It answered ${JSON.stringify(r.harnessAndProfile)} where ${JSON.stringify(wantRoots)} was due.`
+    );
+  }
+  for (const [name, got] of [
+    ['a profile straight under the system temporary root', r.profileInTmp],
+    ['a profile straight under the home', r.profileAtHome],
+    ['a profile in a folder above the home', r.profileAboveHome],
+    ['a harness directory that is not there, beside a profile in the temporary root', r.harnessMissing]
+  ]) {
+    if (got.length !== 0) {
+      say(
+        `${name} made a scratch folder of a folder that is not this launch's own`,
+        `It answered ${JSON.stringify(got)}. A session of the operator's that started there would ` +
+          'read as one this launch made.'
+      );
+    }
+  }
+  const m = census.manifest;
+  if (m.good.ok !== true || m.good.ids.length !== 2) {
+    say("the manifest read refused this launch's own ids", `It answered ${JSON.stringify(m.good)}.`);
+  }
+  for (const [name, reading] of [
+    ['a row that is not a session id', m.badId],
+    ['a sqlite3 that failed', m.failed]
+  ]) {
+    if (reading.ok !== false || reading.exists !== true) {
+      say(`the manifest read took ${name} as an answer`, `It answered ${JSON.stringify(reading)}.`);
+    }
+  }
+  const o = census.orders;
+  const orderRight =
+    o.nothing.reads === 1 && o.nothing.waited.length === 0 && o.nothing.manifests === 0 &&
+    o.stamped.reads === 1 && o.stamped.waited.length === 0 && o.stamped.manifests === 1 &&
+    o.stamped.verdict.notes.length === 1 &&
+    o.unstamped.reads === 2 && o.unstamped.waited.length === 1 &&
+    o.unstamped.waited[0] >= 1000 && o.unstamped.manifests === 1 &&
+    o.unstamped.verdict.failures.length === 0 && o.unstamped.verdict.notes.length === 1 &&
+    o.resolved.verdict.failures.length === 1 && /scratch folder/.test(o.resolved.verdict.failures[0] ?? '');
+  if (!orderRight) {
+    say(
+      'judgeCensus did not ask in the order the rule states',
+      'It must read once, read ONE more time at least a second later only when a session that ' +
+        'appeared is unstamped, ask the manifest only when one is stamped, and resolve a folder ' +
+        `before judging it. It answered ${JSON.stringify(o).slice(0, 600)}.`
+    );
+  }
+  if (census.format !== '#{session_id}\t#{@gmux-id}\t#{session_created}\t#{session_name}\t#{session_path}') {
+    say('CENSUS_FORMAT moved', `It reads ${JSON.stringify(census.format)}. The folder is last and every field is split by a tab.`);
+  }
+  if (census.rereadMs < 1000) {
+    say('the re-read is under a second', `CENSUS_REREAD_MS is ${String(census.rereadMs)}.`);
+  }
+  return out;
+}
+
 /** 5e's scanner, and the fixture texts that prove it. */
 export function harnessTermBesideSocket(source) {
   const code = stripComments(source);
@@ -1181,11 +1970,17 @@ const TERM_FIXTURES = [
  *                 the guard that decides on THAT NAME holds a call to the
  *                 rejection. `if (false) {` therefore reads as unwired, which
  *                 is the ablation, and so does a block with the reject deleted.
- *   census        `censusBefore` is read from `liveSessionNames()`, that read
- *                 sits ABOVE the spawn, and the `finally` block hands it to
- *                 `censusFinding` with a fresh reading beside it. A census read
- *                 after the spawn would miss exactly the sessions it exists to
- *                 see.
+ *   census        `censusBefore` is `tmuxSocket !== null ? liveSessionRows() :
+ *                 null` and nothing else, so it is read around a launch that
+ *                 names a scratch socket and only there, which is his
+ *                 allowance of 2026-11-02 as it reads (Phase 285 had removed
+ *                 the guard and the fix round of Phase 352 put it back, so a
+ *                 read on every launch is refused here); that read
+ *                 sits ABOVE the spawn; and the `finally` block hands it to
+ *                 `judgeCensus` with the live reader beside it and throws the
+ *                 verdict's failures. A census read after the spawn would miss
+ *                 exactly the sessions it exists to see, and a verdict nobody
+ *                 throws is a census nobody reads.
  *
  * @param {string} source
  * @returns {{announcement: boolean, census: boolean, why: string[]}}
@@ -1251,12 +2046,16 @@ export function backstopWiring(source) {
     }
   }
 
-  // The census half.
+  // The census half, read around a launch that names a scratch socket and
+  // judged by identity (Phase 285, and his allowance of 2026-11-02 as it reads).
   let census = false;
   const assigned = /\b(?:const|let|var)\s+censusBefore\s*=\s*([^;]+);/.exec(body);
   if (assigned === null) why.push('withElectron never reads censusBefore');
-  else if (!/liveSessionNames\s*\(\s*\)/.test(assigned[1])) {
-    why.push(`censusBefore is ${assigned[1].trim()} rather than a live reading`);
+  else if (!/^tmuxSocket\s*!==\s*null\s*\?\s*liveSessionRows\s*\(\s*\)\s*:\s*null$/.test(assigned[1].trim())) {
+    why.push(
+      `censusBefore is ${assigned[1].trim()} rather than the live reading, taken ` +
+        'around a launch that names a scratch socket and only there'
+    );
   } else {
     // Asked as a pattern rather than as the literal text, because
     // build/assert-background-teardown.mjs discovers spawn call names by
@@ -1268,9 +2067,30 @@ export function backstopWiring(source) {
     } else {
       const fin = /\bfinally\s*\{/.exec(body);
       const block = fin === null ? null : blockAt(body, fin.index + fin[0].length - 1);
+      const call = block === null ? -1 : block.search(/\bjudgeCensus\s*\(/);
+      const argument =
+        call === -1 ? '' : callArguments(block, block.indexOf('(', call)).join(', ');
       if (block === null) why.push('withElectron has no finally block to read');
-      else if (!/censusFinding\s*\(\s*censusBefore\s*,/.test(block)) {
-        why.push('the finally block never hands censusBefore to censusFinding');
+      else if (call === -1) why.push('the finally block never hands the census to judgeCensus');
+      else if (!/\bbefore\s*:\s*censusBefore\b/.test(argument)) {
+        why.push('judgeCensus is never handed censusBefore');
+      } else if (!/\bread\s*:\s*liveSessionRows\b/.test(argument)) {
+        why.push('judgeCensus does not read the live server after the launch');
+      } else if (!/\bmanifest\s*:\s*\(\s*\)\s*=>\s*launchManifestIds\s*\(\s*userDataDir\s*\)\s*[,}]/.test(argument)) {
+        // THE VERDICT'S OTHER FOUR INPUTS (the probe review of Phase 352). Each
+        // carries a clause: the manifest (a), the scratch folders (a'), and the
+        // socket asked for with what the app announced, which decide whether a
+        // session that went is his. Each was ablated in a copy of the helper
+        // with this gate green until they were read here.
+        why.push("judgeCensus is not asked this launch's own manifest, so clause (a) can never fire");
+      } else if (!scratchRootsWired(argument)) {
+        why.push("judgeCensus is not handed this launch's scratch folders, so clause (a') can never fire");
+      } else if (!/\bwanted\s*:\s*wantedSocket\s*[,}]/.test(argument)) {
+        why.push('judgeCensus is not handed the socket this launch asked for, so a session that went is judged against another');
+      } else if (!/\bannounced\s*:\s*announcedSockets\s*\(\s*text\s*\)\s*[,}]/.test(argument)) {
+        why.push('judgeCensus is not handed what the app announced, so a session that went can read as his whatever the app said');
+      } else if (!/\.failures\b[\s\S]*\bthrow\b/.test(block.slice(call))) {
+        why.push("the verdict's failures are never thrown");
       } else census = true;
     }
   }
@@ -1278,151 +2098,604 @@ export function backstopWiring(source) {
 }
 
 /**
- * 5h's fixtures. Five of the seven must make the scanner answer false, and the
- * two that pass are the shipping shape and a spelling of it a refactor might
- * reasonably produce, so the scanner is seen to fail AND seen not to be a
- * tautology.
+ * Whether judgeCensus is handed `scratchRootsFor` over BOTH of this launch's
+ * scratch folders: the harness directory its composed environment names and
+ * its profile (the probe review of Phase 352).
  */
-const WIRING_FIXTURES = [
-  {
-    name: 'the shape that ships',
-    text: `export async function withElectron(options, body) {
-      const censusBefore = tmuxSocket !== null ? liveSessionNames() : null;
-      try {
-        const child = spawn(bin, argv, {});
-        const onText = (b) => {
-          const finding = announcementFinding({ wanted, announced: all });
-          if (finding !== null) {
+function scratchRootsWired(argument) {
+  const m = /\bscratchRoots\s*:\s*scratchRootsFor\s*\(\s*\{([^}]*)\}\s*\)\s*[,}]/.exec(argument);
+  return m !== null && /\bGMUX_HARNESS_DIR\b/.test(m[1]) && /\buserDataDir\b/.test(m[1]);
+}
+
+/**
+ * The arguments the shipping withElectron hands judgeCensus, written once so
+ * every 5h fixture is one edit of them. `null` leaves an argument out.
+ */
+const JUDGE_ARGS = {
+  before: 'before: censusBefore',
+  read: 'read: liveSessionRows',
+  manifest: 'manifest: () => launchManifestIds(userDataDir)',
+  scratchRoots: "scratchRoots: scratchRootsFor({ harnessDir: childEnv['GMUX_HARNESS_DIR'], userDataDir })",
+  wanted: 'wanted: wantedSocket',
+  announced: 'announced: announcedSockets(text)'
+};
+
+/** The finally block's judgement, with the named arguments swapped, and what follows it. */
+function judgedText(swap = {}, tail = 'if (census.failures.length > 0) throw new Error(censusSentence(census.failures));', order = null) {
+  const args = { ...JUDGE_ARGS, ...swap };
+  const keys = order ?? Object.keys(args);
+  const list = keys.map((k) => args[k]).filter((v) => v !== null && v !== undefined);
+  return `await teardown(entry, grace);
+        const census = await judgeCensus({ ${list.join(',\n          ')} });
+        ${tail}`;
+}
+
+/**
+ * 5h's fixtures, built from one template so each differs from the shape that
+ * ships in exactly the one place its name says. Three must make the scanner
+ * answer true on both halves, the shipping shape and two spellings of it a
+ * refactor might reasonably produce, and every other one must make one half
+ * answer false, so the scanner is seen to fail AND seen not to be a tautology.
+ */
+const WIRED = {
+  before: 'const censusBefore = tmuxSocket !== null ? liveSessionRows() : null;',
+  reject: `if (finding !== null) {
             announcementRejected = true;
             announcementReject?.(new Error(finding));
-          }
-        };
-      } finally {
-        await teardown(entry, grace);
-        if (censusBefore !== null) {
-          const drift = censusFinding(censusBefore, liveSessionNames());
-        }
-      }
-    }`,
-    want: { announcement: true, census: true }
-  },
-  {
-    name: 'a truthy guard spelled without the comparison',
-    text: `export async function withElectron(options, body) {
-      const censusBefore = liveSessionNames();
+          }`,
+  judged: judgedText()
+};
+
+/** One withElectron, the shipping shape with the named parts swapped. */
+function wiringText({ before = WIRED.before, after = '', reject = WIRED.reject, judged = WIRED.judged } = {}) {
+  return `export async function withElectron(options, body) {
+      ${before}
       try {
         const child = spawn(bin, argv, {});
-        const say = () => {
+        ${after}
+        const onText = (b) => {
           const finding = announcementFinding({ wanted, announced: all });
-          if (finding) announcementReject?.(new Error(finding));
+          ${reject}
         };
       } finally {
-        const drift = censusFinding(censusBefore, liveSessionNames());
+        ${judged}
       }
-    }`,
+    }`;
+}
+
+const WIRING_FIXTURES = [
+  { name: 'the shape that ships', text: wiringText(), want: { announcement: true, census: true } },
+  {
+    name: 'a truthy guard spelled without the comparison',
+    text: wiringText({ reject: 'if (finding) announcementReject?.(new Error(finding));' }),
     want: { announcement: true, census: true }
   },
   {
     name: 'the guard made constant, which is the ablation',
-    text: `export async function withElectron(options, body) {
-      const censusBefore = liveSessionNames();
-      try {
-        const child = spawn(bin, argv, {});
-        const say = () => {
-          const finding = announcementFinding({ wanted, announced: all });
-          if (false) {
-            announcementReject?.(new Error(finding));
-          }
-        };
-      } finally {
-        const drift = censusFinding(censusBefore, liveSessionNames());
-      }
-    }`,
+    text: wiringText({ reject: 'if (false) {\n            announcementReject?.(new Error(finding));\n          }' }),
     want: { announcement: false, census: true }
   },
   {
     name: 'the finding computed and thrown away',
-    text: `export async function withElectron(options, body) {
-      const censusBefore = liveSessionNames();
-      try {
-        const child = spawn(bin, argv, {});
-        const say = () => {
-          const finding = announcementFinding({ wanted, announced: all });
-          if (finding !== null) {
-            announcementRejected = true;
-          }
-        };
-      } finally {
-        const drift = censusFinding(censusBefore, liveSessionNames());
-      }
-    }`,
+    text: wiringText({ reject: 'if (finding !== null) {\n            announcementRejected = true;\n          }' }),
     want: { announcement: false, census: true }
   },
   {
     name: 'the census read replaced by null',
-    text: `export async function withElectron(options, body) {
-      const censusBefore = null;
-      try {
-        const child = spawn(bin, argv, {});
-        const say = () => {
-          const finding = announcementFinding({ wanted, announced: all });
-          if (finding !== null) announcementReject?.(new Error(finding));
-        };
-      } finally {
-        const drift = censusFinding(censusBefore, liveSessionNames());
-      }
-    }`,
+    text: wiringText({ before: 'const censusBefore = null;' }),
+    want: { announcement: true, census: false }
+  },
+  {
+    name: 'the census read on every launch, outside his allowance of 2026-11-02',
+    text: wiringText({ before: 'const censusBefore = liveSessionRows();' }),
     want: { announcement: true, census: false }
   },
   {
     name: 'the census read after the spawn',
-    text: `export async function withElectron(options, body) {
-      try {
-        const child = spawn(bin, argv, {});
-        const censusBefore = liveSessionNames();
-        const say = () => {
-          const finding = announcementFinding({ wanted, announced: all });
-          if (finding !== null) announcementReject?.(new Error(finding));
-        };
-      } finally {
-        const drift = censusFinding(censusBefore, liveSessionNames());
-      }
-    }`,
+    text: wiringText({ before: '', after: 'const censusBefore = tmuxSocket !== null ? liveSessionRows() : null;' }),
     want: { announcement: true, census: false }
   },
   {
     name: 'the census never judged in the finally',
-    text: `export async function withElectron(options, body) {
-      const censusBefore = liveSessionNames();
-      try {
-        const child = spawn(bin, argv, {});
-        const say = () => {
-          const finding = announcementFinding({ wanted, announced: all });
-          if (finding !== null) announcementReject?.(new Error(finding));
-        };
-      } finally {
-        await teardown(entry, grace);
-      }
-    }`,
+    text: wiringText({ judged: 'await teardown(entry, grace);' }),
+    want: { announcement: true, census: false }
+  },
+  {
+    name: 'the census judged against no live reading after the launch',
+    text: wiringText({ judged: judgedText({ read: 'read: () => censusBefore' }) }),
+    want: { announcement: true, census: false }
+  },
+  {
+    name: "the verdict judged and its failures never thrown",
+    text: wiringText({ judged: judgedText({}, "console.error(census.failures.join('; '));") }),
+    want: { announcement: true, census: false }
+  },
+  // The probe review of Phase 352: the verdict's other four inputs, each taken
+  // away alone, and the same six arguments in another order, which must pass.
+  {
+    name: 'the same six arguments in another order',
+    text: wiringText({
+      judged: judgedText({}, undefined, ['announced', 'wanted', 'scratchRoots', 'manifest', 'read', 'before'])
+    }),
+    want: { announcement: true, census: true }
+  },
+  {
+    name: "the census judged with no manifest of this launch's own, clause (a)",
+    text: wiringText({ judged: judgedText({ manifest: 'manifest: () => ({ exists: false, ok: true, ids: [], why: null })' }) }),
+    want: { announcement: true, census: false }
+  },
+  {
+    name: 'the census judged with no manifest argument at all',
+    text: wiringText({ judged: judgedText({ manifest: null }) }),
+    want: { announcement: true, census: false }
+  },
+  {
+    name: "the census judged with no scratch folders, clause (a')",
+    text: wiringText({ judged: judgedText({ scratchRoots: 'scratchRoots: []' }) }),
+    want: { announcement: true, census: false }
+  },
+  {
+    name: 'the census judged with the profile but not the harness directory',
+    text: wiringText({ judged: judgedText({ scratchRoots: 'scratchRoots: scratchRootsFor({ userDataDir })' }) }),
+    want: { announcement: true, census: false }
+  },
+  {
+    name: 'the census judged with the socket the app announced taken as the one asked for',
+    text: wiringText({ judged: judgedText({ wanted: "wanted: announcedSockets(text)[0] ?? ''" }) }),
+    want: { announcement: true, census: false }
+  },
+  {
+    name: 'the census judged with the announcement forged to agree',
+    text: wiringText({ judged: judgedText({ announced: 'announced: [wantedSocket]' }) }),
     want: { announcement: true, census: false }
   }
 ];
 
-/** 5f's scanner: every -L gmux argv in one file, with the verb it was given. */
+/**
+ * The tmux client flags a verb may sit behind, which change nothing the verb
+ * does to a server: `-u` (UTF-8), `-2` and `-8` (colours), `-v` (verbose).
+ */
+const CLIENT_FLAGS = new Set(['-u', '-2', '-8', '-v']);
+
+/** One argv element's literal value, or null when it is not a plain literal. */
+function literalOf(text) {
+  const m = /^(['"`])([^'"`\\]*)\1$/.exec(String(text ?? '').trim());
+  if (m === null) return null;
+  return m[1] === '`' && m[2].includes('${') ? null : m[2];
+}
+
+/**
+ * The bracket that opens the argv or argument list holding `at`, read
+ * BACKWARD from it, or -1 when it is in none.
+ *
+ * BACKWARD ON PURPOSE. A template literal holding another template inside its
+ * `${…}` loses the place of any reader that walks the whole file forward from
+ * its top, build/scan-source.mjs's stripComments included, and that is
+ * measured rather than feared: build/probe-p64-arch.mjs's census argv at its
+ * line 257 read as being inside a string to a forward reader. An argv is a
+ * short run of elements just before the pair, so the walk only ever crosses
+ * those: each string it meets is skipped back to its opening quote on the
+ * same line, and one it cannot bound there is a place it does not claim to
+ * know, answered -1, which 5f refuses.
+ */
+function openBracketBefore(code, at) {
+  let depth = 0;
+  for (let i = at - 1; i >= 0; i -= 1) {
+    const c = code[i];
+    if (c === "'" || c === '"' || c === '`') {
+      const open = code.lastIndexOf(c, i - 1);
+      if (open < code.lastIndexOf('\n', i - 1) + 1) return -1;
+      i = open;
+      continue;
+    }
+    if (c === ')' || c === ']' || c === '}') depth += 1;
+    else if (c === '(' || c === '[' || c === '{') {
+      if (depth === 0) return i;
+      depth -= 1;
+    }
+  }
+  return -1;
+}
+
+/**
+ * 5f's scanner (Phase 261, widened by Phase 285): every argv in one file that
+ * aims at `-L gmux`, with the verb it was given.
+ *
+ * It finds `'-L', 'gmux'` ANYWHERE in a bracketed argv or a call's argument
+ * list, and reads the verb as the first element after the pair that is not a
+ * client flag, so `['-u', '-L', 'gmux', 'list-sessions']` reads `list-sessions`
+ * and `['-L', 'gmux', '-u', 'new-session']` reads `new-session`. A spread, a
+ * name, a call or a template there is a verb nobody can read, answered as
+ * `null`, and refused. Until Phase 285 the pattern wanted the verb straight
+ * after `'gmux'`, so the first argv held no argv at all to it and the second
+ * read `-u` as its verb.
+ *
+ * AND EVERY SPELLING OF HIS SERVER THE TEXT ITSELF SAYS (the fix round of
+ * Phase 352). Since Phase 285 a session that went during an agreeing launch
+ * reads as his, which is safe only while this rule sees every argv that could
+ * end one. It read the literal pair alone, and a verify lens planted four
+ * spellings in a script importing the helper, each passing this gate at exit 0
+ * while the parent's census failed the end it made: `'-Lgmux'`, `'-L', HIS`
+ * with `const HIS = 'gmux'`, `'-L', 'g' + 'mux'`, and `'-S',
+ * '/private/tmp/tmux-501/gmux'`. So it reads, in any bracketed argv: `-L` with
+ * a value that is `gmux`, the attached `-Lgmux`, and `-S` (or `-S…`) with a
+ * path that is `gmux` or ends in `/gmux`, where a value is a literal, a name
+ * the text declares as one, a template whose every `${…}` is such a name or a
+ * `+` of these, and a path may also be a template or a `join` or `resolve`
+ * whose last part says it. STATED LIMIT: a value computed at run time is not
+ * read, and the new spellings outside any argv this scanner can read are not
+ * read either; the literal pair keeps its refusal there.
+ *
+ * @returns {{verb: string|null, why: string|null, flags: string[], line: number}[]}
+ */
 export function operatorSocketVerbs(source) {
   const code = stripComments(source);
-  const verbs = [];
-  const re = /\[\s*'-L'\s*,\s*'gmux'\s*,\s*'([A-Za-z-]+)'/g;
+  const pair = new RegExp(OPERATOR_ARGV.source, 'g');
+  const hits = [];
+  const read = new Set();
+  const opens = [];
   let m;
-  while ((m = re.exec(code)) !== null) verbs.push(m[1]);
-  return verbs;
+  while ((m = pair.exec(code)) !== null) {
+    const open = openBracketBefore(code, m.index);
+    if (open === -1 || code[open] === '{') {
+      hits.push({ verb: null, why: 'it is in no argv this scanner can read', flags: [], line: lineAt(code, m.index) });
+      continue;
+    }
+    opens.push(open);
+  }
+  // The other spellings: an argv holding a literal that opens with -L or -S,
+  // or a name this text declares as one.
+  const flag = /(['"`])-[LS]/g;
+  while ((m = flag.exec(code)) !== null) {
+    const open = openBracketBefore(code, m.index);
+    if (open !== -1 && code[open] !== '{') opens.push(open);
+  }
+  for (const name of declaredFlagNames(code)) {
+    const use = new RegExp(`(?<![\\w$.])${name.replace(/\$/g, '\\$')}(?![\\w$])`, 'g');
+    while ((m = use.exec(code)) !== null) {
+      const open = openBracketBefore(code, m.index);
+      if (open !== -1 && code[open] !== '{') opens.push(open);
+    }
+  }
+  for (const open of opens) {
+    if (read.has(open)) continue;
+    read.add(open);
+    const line = lineAt(code, open);
+    const elements = callArguments(code, open);
+    for (let k = 0; k < elements.length; k += 1) {
+      const past = socketAimAt(code, elements, k);
+      if (past === null) continue;
+      const flags = elements.slice(0, k).map(literalOf).filter((v) => CLIENT_FLAGS.has(v));
+      let j = past;
+      while (j < elements.length && CLIENT_FLAGS.has(literalOf(elements[j]))) {
+        flags.push(literalOf(elements[j]));
+        j += 1;
+      }
+      const element = elements[j];
+      if (element === undefined || element === '') {
+        hits.push({ verb: null, why: 'no verb follows it', flags, line });
+      } else if (element.startsWith('...')) {
+        hits.push({ verb: null, why: `its verb is a spread, ${element}`, flags, line });
+      } else if (literalOf(element) === null) {
+        hits.push({ verb: null, why: `its verb is computed, ${element.split('\n')[0]}`, flags, line });
+      } else {
+        // A verb other than list-sessions is refused as it stands; the one verb
+        // allowed is asked what follows it as well.
+        const verb = literalOf(element);
+        const chained = verb === 'list-sessions' ? chainAfter(code, elements.slice(j + 1)) : null;
+        hits.push(chained === null ? { verb, why: null, flags, line } : { verb: null, why: chained, flags, line });
+      }
+      k = j;
+    }
+  }
+  return hits;
+}
+
+/**
+ * Where element `k` of an argv aims at his server: the index of the element
+ * after its socket, or null when it does not (the fix round of Phase 352).
+ * `-L` then a value that is `gmux`, `-Lgmux`, and `-S` then a path, or `-S…`,
+ * that is `gmux` or ends in `/gmux`.
+ */
+function socketAimAt(code, elements, k) {
+  const v = staticValueOf(code, elements[k]);
+  if (v === null) return null;
+  if (v === '-L') return staticValueOf(code, elements[k + 1]) === 'gmux' ? k + 2 : null;
+  if (v === '-Lgmux') return k + 1;
+  if (v === '-S') return pathIsHisSocket(code, elements[k + 1]) ? k + 2 : null;
+  if (v.startsWith('-S') && v.length > 2) return hisSocketPath(v.slice(2)) ? k + 1 : null;
+  return null;
+}
+
+/** A socket path that is `gmux` or ends in `/gmux`. */
+const hisSocketPath = (path) => path === 'gmux' || path.endsWith('/gmux');
+
+/**
+ * Whether a `-S` value names his socket: a value the text says, or a template
+ * whose text after its last `${…}` says it, or a `join` or `resolve` whose
+ * last part does.
+ */
+function pathIsHisSocket(code, text) {
+  const v = staticValueOf(code, text);
+  if (v !== null) return hisSocketPath(v);
+  const t = String(text ?? '').trim();
+  const tpl = /^`((?:\\.|[^\\`])*)`$/.exec(t);
+  if (tpl !== null) return hisSocketPath(tpl[1].slice(tpl[1].lastIndexOf('}') + 1));
+  if (/^(?:[A-Za-z_$][\w$]*\s*\.\s*)?(?:join|resolve)\s*\(/.test(t) && t.endsWith(')')) {
+    const args = callArguments(t, t.indexOf('('));
+    const last = staticValueOf(code, args[args.length - 1]);
+    return last !== null && hisSocketPath(last);
+  }
+  return false;
+}
+
+/**
+ * The value one element's text holds when the text itself says so, or null:
+ * a literal with its escapes kept as written, a name the text declares as one
+ * (`declaredLiteral`), a template whose every `${…}` is such a name, a `+` of
+ * any of these, parenthesised or not. Anything computed at run time is null.
+ */
+function staticValueOf(code, text, depth = 0) {
+  const t = String(text ?? '').trim();
+  if (t === '' || depth > 6) return null;
+  if (t.startsWith('(') && closeOf(t, 0) === t.length - 1) return staticValueOf(code, t.slice(1, -1), depth + 1);
+  const parts = plusParts(t);
+  if (parts.length > 1) {
+    let out = '';
+    for (const part of parts) {
+      const v = staticValueOf(code, part, depth + 1);
+      if (v === null) return null;
+      out += v;
+    }
+    return out;
+  }
+  const quoted = /^(['"])((?:\\.|(?!\1)[^\\\n])*)\1$/.exec(t);
+  if (quoted !== null) return quoted[2];
+  const tpl = /^`((?:\\.|[^\\`])*)`$/.exec(t);
+  if (tpl !== null) {
+    let known = true;
+    const v = tpl[1].replace(/\$\{\s*([A-Za-z_$][\w$]*)\s*\}/g, (_all, name) => {
+      const said = declaredLiteral(code, name);
+      if (said === null) known = false;
+      return said ?? '';
+    });
+    return known && !v.includes('${') ? v : null;
+  }
+  if (/^[A-Za-z_$][\w$]*$/.test(t)) return declaredLiteral(code, t);
+  return null;
+}
+
+/** One expression's text split at every `+` outside a string or a bracket. */
+function plusParts(t) {
+  const parts = [];
+  let depth = 0;
+  let quote = '';
+  let from = 0;
+  for (let i = 0; i < t.length; i += 1) {
+    const c = t[i];
+    if (quote !== '') {
+      if (c === '\\') i += 1;
+      else if (c === quote) quote = '';
+      continue;
+    }
+    if (c === "'" || c === '"' || c === '`') quote = c;
+    else if (c === '(' || c === '[' || c === '{') depth += 1;
+    else if (c === ')' || c === ']' || c === '}') depth -= 1;
+    else if (c === '+' && depth === 0 && t[i + 1] !== '+' && t[i - 1] !== '+' && t[i + 1] !== '=') {
+      parts.push(t.slice(from, i));
+      from = i + 1;
+    }
+  }
+  parts.push(t.slice(from));
+  return parts;
+}
+
+/** The names this text declares as a literal that opens with `-L` or `-S`. */
+function declaredFlagNames(code) {
+  const names = new Set();
+  for (const m of code.matchAll(/\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*(['"`])-[LS]/g)) {
+    const v = declaredLiteral(code, m[1]);
+    if (v !== null && /^-[LS]/.test(v)) names.add(m[1]);
+  }
+  return names;
+}
+
+/**
+ * The literal a name is declared as in the same text, being `const NAME = '…';`
+ * exactly once, its body as written with its escapes kept, or null.
+ */
+function declaredLiteral(code, name) {
+  if (!/^[A-Za-z_$][\w$]*$/.test(name)) return null;
+  const re = new RegExp(
+    '\\bconst\\s+' + name.replace(/\$/g, '\\$') + '\\s*=\\s*([\'"`])((?:\\\\.|(?!\\1)[^\\\\\\n])*)\\1\\s*;',
+    'g'
+  );
+  const found = [...code.matchAll(re)];
+  if (found.length !== 1) return null;
+  const [, quote, body] = found[0];
+  return quote === '`' && body.includes('${') ? null : body;
+}
+
+/**
+ * WHY A VERB IS NOT THE WHOLE ARGV (the probe review of Phase 352). tmux ends
+ * one command at any argument that ends in an unescaped `;` and runs the next,
+ * measured on 3.6a and 3.7b over scratch servers: `list-sessions -F x ';'
+ * kill-session -t v` and `list-sessions -F 'x;' kill-session -t v` each ended
+ * `v`. So an argv whose verb is `list-sessions` can still end a session, and
+ * since Phase 285 a session that went during an agreeing launch reads as his.
+ * Every element after the verb must be a plain literal, or a name this text
+ * declares as one (the helper's own `CENSUS_FORMAT`), and none may end in an
+ * unescaped `;`. Returns why not, or null.
+ */
+function chainAfter(code, rest) {
+  for (const element of rest) {
+    const text = String(element ?? '').trim();
+    if (text === '') continue;
+    if (text.startsWith('...')) {
+      return `an element after its verb is a spread, ${text}, which could hold a ';' and a second command`;
+    }
+    // A literal may hold escapes here (a format's `\t`), which literalOf, the
+    // verb's own reader, refuses; its body is read as written.
+    const quoted = /^(['"`])((?:\\.|(?!\1)[^\\])*)\1$/.exec(text);
+    let value = quoted === null || (quoted[1] === '`' && quoted[2].includes('${')) ? null : quoted[2];
+    if (value === null) value = declaredLiteral(code, text);
+    if (value === null) {
+      return `an element after its verb is computed, ${text.split('\n')[0]}, which could end in a ';' and run a second command`;
+    }
+    if (/(?:^|[^\\]);$/.test(value)) {
+      return `an element after its verb, ${JSON.stringify(value)}, ends in ';', which tmux reads as the end of one command and the start of another`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Whether one script imports the helper, statically or by a dynamic import of
+ * a path built to it: a string in its code that ends in `electron-run.mjs`.
+ */
+export function importsHelper(source) {
+  return /(['"`])[^'"`\n]*electron-run\.mjs\1/.test(stripComments(source));
 }
 
 const VERB_FIXTURES = [
-  { name: 'the reader that ships', text: `spawnSync('tmux', ['-L', 'gmux', 'list-sessions', '-F', 'x'])`, want: ['list-sessions'] },
+  {
+    name: 'the reader that ships',
+    text: `export const CENSUS_FORMAT =\n  '#{session_id}\\t#{@gmux-id}\\t#{session_created}\\t#{session_name}\\t#{session_path}';\nspawnSync('tmux', ['-u', '-L', 'gmux', 'list-sessions', '-F', CENSUS_FORMAT])`,
+    want: ['list-sessions'],
+    flags: ['-u']
+  },
+  { name: "the parent's reader", text: `spawnSync('tmux', ['-L', 'gmux', 'list-sessions', '-F', 'x'])`, want: ['list-sessions'] },
   { name: 'a planted kill-server', text: `spawnSync('tmux', ['-L', 'gmux', 'kill-server'])`, want: ['kill-server'] },
-  { name: 'a planted new-session', text: `spawnSync('tmux', ['-L', 'gmux', 'new-session', '-d'])`, want: ['new-session'] }
+  { name: 'a planted new-session', text: `spawnSync('tmux', ['-L', 'gmux', 'new-session', '-d'])`, want: ['new-session'] },
+  { name: 'a client flag before the pair', text: `spawnSync('tmux', ['-u', '-L', 'gmux', 'list-sessions', '-F', 'x'])`, want: ['list-sessions'] },
+  { name: 'a client flag before a planted kill-server', text: `spawnSync('tmux', ['-u', '-L', 'gmux', 'kill-server'])`, want: ['kill-server'] },
+  { name: 'a client flag after the pair', text: `spawnSync('tmux', ['-L', 'gmux', '-u', 'new-session'])`, want: ['new-session'] },
+  { name: 'a spread where the verb goes', text: `execFileSync('tmux', ['-L', 'gmux', ...a])`, want: [null] },
+  { name: 'a name where the verb goes', text: `execFileSync('tmux', ['-L', 'gmux', verb, '-t', x])`, want: [null] },
+  { name: "a wrapper's own argument list", text: `tmux('-L', 'gmux', 'kill-session', '-t', target)`, want: ['kill-session'] },
+  { name: 'a pair in a comment', text: `// spawnSync('tmux', ['-L', 'gmux', 'kill-server'])\nconst x = 1;`, want: [] },
+  { name: 'a scratch socket', text: `spawnSync('tmux', ['-L', 'gmux-p285', 'kill-server'])`, want: [] },
+  // The probe review of Phase 352: what follows the verb, read as tmux reads it.
+  { name: "a second command after a lone ';'", text: `spawnSync('tmux', ['-L', 'gmux', 'list-sessions', ';', 'kill-session', '-t', 'x'])`, want: [null] },
+  { name: "a second command after a format ending in ';'", text: `spawnSync('tmux', ['-u', '-L', 'gmux', 'list-sessions', '-F', 'x;', 'kill-server'])`, want: [null] },
+  { name: 'a format the file declares as a plain literal', text: `const FMT = '#{session_name}';\nspawnSync('tmux', ['-L', 'gmux', 'list-sessions', '-F', FMT])`, want: ['list-sessions'] },
+  { name: "a format the file declares ending in ';'", text: `const FMT = 'x;';\nspawnSync('tmux', ['-L', 'gmux', 'list-sessions', '-F', FMT, 'kill-server'])`, want: [null] },
+  { name: 'a format the file never declares', text: `spawnSync('tmux', ['-L', 'gmux', 'list-sessions', '-F', fmt])`, want: [null] },
+  { name: 'a spread after the verb', text: `spawnSync('tmux', ['-L', 'gmux', 'list-sessions', ...more])`, want: [null] },
+  // The fix round of Phase 352: the four spellings a verify lens planted in a
+  // script importing the helper, each green here before, and the others the
+  // text itself can say, beside the controls that must stay unread.
+  { name: 'the attached spelling', text: `spawnSync('tmux', ['-Lgmux', 'kill-server'])`, want: ['kill-server'] },
+  { name: 'a name the text declares as gmux', text: `const HIS = 'gmux';\nspawnSync('tmux', ['-L', HIS, 'kill-server'])`, want: ['kill-server'] },
+  { name: 'the socket made by a +', text: `spawnSync('tmux', ['-L', 'g'+'mux', 'kill-server'])`, want: ['kill-server'] },
+  { name: 'a -S path to his socket', text: `spawnSync('tmux', ['-S', '/private/tmp/tmux-501/gmux', 'kill-server'])`, want: ['kill-server'] },
+  { name: 'the attached -S spelling', text: `spawnSync('tmux', ['-S/private/tmp/tmux-501/gmux', 'kill-session', '-t', x])`, want: ['kill-session'] },
+  { name: 'a -S path a template ends in /gmux', text: "spawnSync('tmux', ['-S', `${tmp}/tmux-501/gmux`, 'kill-server'])", want: ['kill-server'] },
+  { name: 'a -S path joined to gmux', text: `spawnSync('tmux', ['-S', join(dir, 'gmux'), 'kill-server'])`, want: ['kill-server'] },
+  { name: 'a flag the text declares as a name', text: `const FLAG = '-Lgmux';\nspawnSync('tmux', [FLAG, 'new-session', '-d'])`, want: ['new-session'] },
+  { name: 'a template of a declared name', text: "const S = 'gmux';\nspawnSync('tmux', ['-L', `${S}`, 'kill-server'])", want: ['kill-server'] },
+  { name: 'the attached spelling with list-sessions', text: `spawnSync('tmux', ['-u', '-Lgmux', 'list-sessions', '-F', 'x'])`, want: ['list-sessions'] },
+  { name: 'a scratch socket in a declared name', text: `const S = 'gmux-p285';\nspawnSync('tmux', ['-L', S, 'kill-server'])`, want: [] },
+  { name: 'a -S path to a scratch socket', text: `spawnSync('tmux', ['-S', '/tmp/x/gmux-p285', 'kill-server'])`, want: [] },
+  { name: "another program's -L", text: `spawnSync('curl', ['-L', url, '-o', out])`, want: [] },
+  { name: 'a socket computed at run time, the stated limit', text: `spawnSync('tmux', ['-L', process.env.SOCK, 'kill-server'])`, want: [] }
 ];
+
+/** Rule 6's detector, proved on texts before it is trusted on the tree. */
+const CEILING_FIXTURES = [
+  { name: 'a bare count of his server', text: `spawnSync('tmux', ['-L', 'gmux', 'list-sessions'])`, want: true },
+  { name: 'the pair in double quotes', text: `spawnSync("tmux", ["-L", "gmux", "list-sessions"])`, want: true },
+  { name: 'the pair in a comment', text: `// spawnSync('tmux', ['-L', 'gmux', 'list-sessions'])`, want: false },
+  { name: 'a scratch socket', text: `spawnSync('tmux', ['-L', 'gmux-p285', 'list-sessions'])`, want: false },
+  // The fix round of Phase 352: what rule 5f reads, counted here too.
+  { name: 'a name declared as gmux', text: `const SOCKET = 'gmux';\nspawnSync('tmux', ['-L', SOCKET, ...a])`, want: true },
+  { name: 'the attached spelling in an argv', text: `spawnSync('tmux', ['-Lgmux', 'list-sessions'])`, want: true },
+  { name: 'a -S path to his socket', text: `spawnSync('tmux', ['-S', '/private/tmp/tmux-501/gmux', 'list-sessions'])`, want: true },
+  { name: 'a scratch socket in a declared name', text: `const S = 'gmux-p285';\nspawnSync('tmux', ['-L', S, 'list-sessions'])`, want: false },
+  { name: 'the attached spelling in prose', text: "const said = 'the shim refuses -Lgmux and -L gmux';", want: false }
+];
+
+/** Rule 6's second detector, proved on texts before it is trusted on the tree. */
+const SHELL_CEILING_FIXTURES = [
+  { name: 'the p98 family’s bare count', text: `spawnSync('/bin/sh', ['-c', 'tmux -L gmux list-sessions 2>/dev/null | wc -l'])`, want: true },
+  { name: 'a path to tmux and a flag before the socket', text: `run("/usr/local/bin/tmux -f /dev/null -L gmux list-sessions")`, want: true },
+  { name: 'the attached spelling in a template', text: "spawnSync('/bin/sh', ['-c', `tmux -Lgmux kill-server`])", want: true },
+  { name: 'a scratch socket', text: `spawnSync('/bin/sh', ['-c', 'tmux -L gmux-p285 list-sessions'])`, want: false },
+  { name: 'the line in a comment', text: `// spawnSync('/bin/sh', ['-c', 'tmux -L gmux list-sessions'])`, want: false },
+  { name: 'the argv form, which the first count reads', text: `spawnSync('tmux', ['-L', 'gmux', 'list-sessions'])`, want: false },
+  { name: 'prose that names tmux and then the socket', text: "const said = `the tmux its own package manager installs. Never -L gmux, never this Mac's tmux.`;", want: false }
+];
+
+/**
+ * Rule 6's own proof: the detector over its fixtures, and the ceiling shown a
+ * count one above itself, which it must refuse, and itself, which it must not.
+ * A ceiling nobody has seen refuse a count is indistinguishable from none.
+ */
+function runCeilingFixtures(failures) {
+  for (const f of CEILING_FIXTURES) {
+    const got = aimsOperatorSocket(f.text);
+    if (got !== f.want) {
+      failures.push({
+        what: `6: the ceiling's detector read "${f.name}" as ${String(got)}`,
+        detail: `It must read ${String(f.want)}. A detector nobody has seen fail is not a detector.`
+      });
+    }
+  }
+  let refused = 0;
+  if (ceilingFinding(OPERATOR_ARGV_CEILING + 1, OPERATOR_ARGV_CEILING) === null) {
+    failures.push({
+      what: 'the ceiling accepted a count one above itself',
+      detail:
+        `ceilingFinding(${String(OPERATOR_ARGV_CEILING + 1)}, ` +
+        `${String(OPERATOR_ARGV_CEILING)}) returned null, so a new bare count of ` +
+        "the operator's server would arrive with this gate green."
+    });
+  } else refused += 1;
+  if (ceilingFinding(OPERATOR_ARGV_CEILING, OPERATOR_ARGV_CEILING) !== null) {
+    failures.push({
+      what: 'the ceiling refused a count that meets it',
+      detail: 'The ceiling is a maximum and not an equality, so the sweep can finish one count at a time.'
+    });
+  }
+  // The second count (the probe review of Phase 352), proved the same way.
+  for (const f of SHELL_CEILING_FIXTURES) {
+    const got = aimsOperatorSocketByShell(f.text);
+    if (got !== f.want) {
+      failures.push({
+        what: `6: the shell count's detector read "${f.name}" as ${String(got)}`,
+        detail: `It must read ${String(f.want)}. A detector nobody has seen fail is not a detector.`
+      });
+    }
+  }
+  let shellRefused = 0;
+  if (ceilingFinding(OPERATOR_SHELL_CEILING + 1, OPERATOR_SHELL_CEILING) === null) {
+    failures.push({
+      what: 'the shell count accepted a count one above its ceiling',
+      detail: "A new bare count of the operator's server handed to a shell would arrive with this gate green."
+    });
+  } else shellRefused += 1;
+  if (ceilingFinding(OPERATOR_SHELL_CEILING, OPERATOR_SHELL_CEILING) !== null) {
+    failures.push({
+      what: "the shell count's ceiling refused a count that meets it",
+      detail: 'The ceiling is a maximum and not an equality, so the sweep can finish one count at a time.'
+    });
+  }
+  return { refused, shellRefused };
+}
+
+/** How many failures one census fixture read, for the ablations to compare. */
+function censusFails(state, key) {
+  return state.census.verdicts[key].failures.length;
+}
+
+/**
+ * Whether every argv the helper aims at `-L gmux` carries `-u`, being what
+ * keeps the census format's tabs from reaching it as `_` (Phase 285).
+ */
+function readerCarriesU(source) {
+  const hits = operatorSocketVerbs(source);
+  return hits.length > 0 && hits.every((h) => h.flags.includes('-u'));
+}
 
 /**
  * The ablations. Each is one clause of the shipping text, removed from a copy
@@ -1458,12 +2731,183 @@ const SOCKET_ABLATIONS = [
     moved: (before, after) =>
       before.announce.differs !== null && after.announce.differs === null
   },
+  // ── Phase 285. One per clause of the census judgement, each moving the one
+  //    fixture that clause owns, and the reader's two halves. ──
   {
-    name: 'the census comparison',
+    name: 'the census comparison, which finds the sessions that appeared',
     file: HELPER,
-    from: `  const added = [...now].filter((n) => !was.has(n));`,
-    to: `  const added = [];`,
-    moved: (before, after) => before.censusAdded !== null && after.censusAdded === null
+    from: `  const fresh = [...now.values()].filter((row) => !was.has(identityOf(row)));`,
+    to: `  const fresh = [];`,
+    moved: (before, after) =>
+      censusFails(before, 'ownManifest') === 1 && censusFails(after, 'ownManifest') === 0
+  },
+  {
+    name: "a session's identity, its $-id together with its creation time",
+    file: HELPER,
+    from: 'const identityOf = (row) => `${row.id}\\t${row.created}`;',
+    to: 'const identityOf = (row) => row.id;',
+    moved: (before, after) =>
+      censusFails(before, 'restarted') === 1 && censusFails(after, 'restarted') === 0
+  },
+  {
+    name: "(a), a stamp in this launch's own manifest",
+    file: HELPER,
+    from: `    if (stamp !== '' && own.has(stamp)) {`,
+    to: `    if (false) {`,
+    moved: (before, after) =>
+      censusFails(before, 'ownManifest') === 1 && censusFails(after, 'ownManifest') === 0
+  },
+  {
+    name: "(a'), a session started under this launch's scratch folder",
+    file: HELPER,
+    from: `    const root = scratchRootHolding(row, roots);`,
+    to: `    const root = null;`,
+    moved: (before, after) =>
+      censusFails(before, 'scratchRaw') === 1 &&
+      censusFails(after, 'scratchRaw') === 0 &&
+      censusFails(after, 'scratchResolved') === 0
+  },
+  {
+    name: '(b), a session still unstamped a second later',
+    file: HELPER,
+    from: `    if (stamp === '') {`,
+    to: `    if (false) {`,
+    moved: (before, after) =>
+      censusFails(before, 'unstampedStill') === 1 && censusFails(after, 'unstampedStill') === 0
+  },
+  {
+    name: 'the re-read, as the judgement reads it for an unstamped session',
+    file: HELPER,
+    from: `    const reread = again === null ? undefined : later.get(identityOf(row));`,
+    to: `    const reread = undefined;`,
+    moved: (before, after) =>
+      censusFails(before, 'stampedLater') === 0 && censusFails(after, 'stampedLater') === 1
+  },
+  {
+    name: 'the re-read, as judgeCensus takes it a second after the after-read',
+    file: HELPER,
+    from:
+      "  const again = fresh.some((row) => row.gmuxId === '')\n" +
+      '    ? await wait(CENSUS_REREAD_MS).then(() => resolved(read()))\n' +
+      '    : null;',
+    to: '  const again = null;',
+    moved: (before, after) =>
+      before.census.orders.unstamped.reads === 2 &&
+      after.census.orders.unstamped.reads === 1 &&
+      after.census.orders.unstamped.verdict.failures.length === 1
+  },
+  // ── The fix round of Phase 352: a rename, and his server restarting. ──
+  {
+    name: 'a rename judged as a session that went is',
+    file: HELPER,
+    from: `    if (old === undefined || old.name === row.name) continue;`,
+    to: `    if (true) continue;`,
+    moved: (before, after) =>
+      censusFails(before, 'renameSilent') === 1 && censusFails(after, 'renameSilent') === 0
+  },
+  {
+    name: "his server's restart read as his only after an agreeing announcement",
+    file: HELPER,
+    from: `const restored = stamp === '' && spoke && agreed ? restorable`,
+    to: `const restored = stamp === '' ? restorable`,
+    moved: (before, after) =>
+      censusFails(before, 'restartSilent') === 4 && censusFails(after, 'restartSilent') === 3
+  },
+  {
+    name: "his server's restart read as his at all",
+    file: HELPER,
+    from: `    if (restored !== -1) {`,
+    to: `    if (false) {`,
+    moved: (before, after) =>
+      censusFails(before, 'restartAgreed') === 0 && censusFails(after, 'restartAgreed') === 1
+  },
+  {
+    name: "his server's restart asked of an UNSTAMPED session that went, and only that",
+    file: HELPER,
+    from: `  const restorable = went.filter((row) => row.gmuxId === '');`,
+    to: `  const restorable = went.filter(() => true);`,
+    moved: (before, after) =>
+      censusFails(before, 'restartOtherStamp') === 1 && censusFails(after, 'restartOtherStamp') === 0
+  },
+  {
+    name: 'the flip of a session that went, first condition: the app announced at all',
+    file: HELPER,
+    from: `  const spoke = announced.length > 0;`,
+    to: `  const spoke = true;`,
+    moved: (before, after) =>
+      censusFails(before, 'wentSilent') === 1 &&
+      censusFails(after, 'wentSilent') === 0 &&
+      censusFails(after, 'wentDisagreed') === 1
+  },
+  {
+    name: 'the flip of a session that went, second condition: every announcement agreed',
+    file: HELPER,
+    from: `  const agreed = wanted !== '' && announced.every((s) => s === wanted);`,
+    to: `  const agreed = true;`,
+    moved: (before, after) =>
+      censusFails(before, 'wentDisagreed') === 1 &&
+      censusFails(after, 'wentDisagreed') === 0 &&
+      censusFails(after, 'wentSilent') === 1
+  },
+  {
+    name: 'the harness directory, the first of the scratch folders',
+    file: HELPER,
+    from: `    if (real !== null && isDirectory(real)) roots.add(real);`,
+    to: `    void real;`,
+    moved: (before, after) =>
+      after.census.roots.harnessAndProfile.length < before.census.roots.harnessAndProfile.length
+  },
+  {
+    name: "the profile's folder kept out of the scratch folders when it is a temporary root, the home or above it",
+    file: HELPER,
+    from: `    if (parent !== null && !temps.has(parent) && !aboveHome) roots.add(parent);`,
+    to: `    if (parent !== null) roots.add(parent);`,
+    moved: (before, after) =>
+      before.census.roots.profileInTmp.length === 0 &&
+      after.census.roots.profileInTmp.length > 0 &&
+      after.census.roots.profileAtHome.length > 0
+  },
+  {
+    name: "the manifest read that fails closed",
+    file: HELPER,
+    from: `    if (!readable) {`,
+    to: `    if (false) {`,
+    moved: (before, after) =>
+      censusFails(before, 'manifestUnreadable') === 1 &&
+      censusFails(after, 'manifestUnreadable') === 0
+  },
+  {
+    name: 'a row that does not read as one, which fails closed',
+    file: HELPER,
+    from: `if (!knownLines.has(line)) strange.add(line);`,
+    to: `void line;`,
+    moved: (before, after) =>
+      censusFails(before, 'unreadableFresh') === 1 && censusFails(after, 'unreadableFresh') === 0
+  },
+  {
+    name: 'a reading tmux could not answer, which fails closed',
+    file: HELPER,
+    from: `    if (reading.ok !== true) {`,
+    to: `    if (false) {`,
+    moved: (before, after) =>
+      censusFails(before, 'readFailed') === 1 &&
+      !after.census.verdicts.readFailed.failures.some((f) => /could not be read/.test(f))
+  },
+  {
+    name: 'the $-id a census row must lead with',
+    file: HELPER,
+    from: '  if (!/^\\$\\d+$/.test(id)) return null;',
+    to: '  void id;',
+    moved: (before, after) =>
+      before.census.parse.notAnId.unreadable.length === 1 &&
+      after.census.parse.notAnId.rows.length === 1
+  },
+  {
+    name: "the -u that keeps the census format's tabs",
+    file: HELPER,
+    from: `['-u', '-L', 'gmux', 'list-sessions', '-F', CENSUS_FORMAT]`,
+    to: `['-L', 'gmux', 'list-sessions', '-F', CENSUS_FORMAT]`,
+    moved: (before, after) => before.readerU && !after.readerU
   },
   // ── The fix round's three. Each is a clause a verifier drove past, or one
   //    this gate could not see at all. ──
@@ -1490,8 +2934,46 @@ const SOCKET_ABLATIONS = [
   {
     name: 'the census read that sits above the spawn',
     file: HELPER,
-    from: `  const censusBefore = tmuxSocket !== null ? liveSessionNames() : null;`,
+    from: `  const censusBefore = tmuxSocket !== null ? liveSessionRows() : null;`,
     to: `  const censusBefore = null;`,
+    moved: (before, after) => before.wiring.census && !after.wiring.census
+  },
+  {
+    name: 'the census read on every launch, which his allowance of 2026-11-02 does not cover',
+    file: HELPER,
+    from: `  const censusBefore = tmuxSocket !== null ? liveSessionRows() : null;`,
+    to: `  const censusBefore = liveSessionRows();`,
+    moved: (before, after) => before.wiring.census && !after.wiring.census
+  },
+  // ── The probe review of Phase 352. The verdict's other four inputs, each
+  //    handed something that silences a clause. Each copy was driven against
+  //    this gate before these arms existed and the gate stayed green. ──
+  {
+    name: "this launch's own manifest, handed to the census, which clause (a) reads",
+    file: HELPER,
+    from: '          manifest: () => launchManifestIds(userDataDir),\n          scratchRoots:',
+    to: '          manifest: () => ({ exists: false, ok: true, ids: [], why: null }),\n          scratchRoots:',
+    moved: (before, after) => before.wiring.census && !after.wiring.census
+  },
+  {
+    name: "this launch's scratch folders, handed to the census, which clause (a') reads",
+    file: HELPER,
+    from: "          scratchRoots: scratchRootsFor({ harnessDir: childEnv['GMUX_HARNESS_DIR'], userDataDir }),\n",
+    to: '          scratchRoots: [],\n',
+    moved: (before, after) => before.wiring.census && !after.wiring.census
+  },
+  {
+    name: 'the socket this launch asked for, handed to the census',
+    file: HELPER,
+    from: "userDataDir }),\n          wanted: wantedSocket,\n",
+    to: "userDataDir }),\n          wanted: announcedSockets(text)[0] ?? '',\n",
+    moved: (before, after) => before.wiring.census && !after.wiring.census
+  },
+  {
+    name: 'what the app announced, handed to the census, which the flip of a session that went reads',
+    file: HELPER,
+    from: '          wanted: wantedSocket,\n          announced: announcedSockets(text)\n',
+    to: '          wanted: wantedSocket,\n          announced: [wantedSocket]\n',
     moved: (before, after) => before.wiring.census && !after.wiring.census
   },
   {
@@ -1510,7 +2992,7 @@ const SOCKET_ABLATIONS = [
  * Run rule 5. Returns a one line summary for the pass sentence, or pushes
  * failures.
  */
-async function runRule5(failures) {
+async function runRule5(failures, files) {
   const helper = await import('./electron-run.mjs');
   const helperSource = readFileSync(join(buildDir, HELPER), 'utf8');
   const harnessSource = readFileSync(join(buildDir, 'harness-socket.mjs'), 'utf8');
@@ -1616,260 +3098,287 @@ async function runRule5(failures) {
     });
   }
 
-  // 5d's other half, the census.
-  const censusAdded = helper.censusFinding(['a', 'b'], ['a', 'b', 'shell-1-6']);
-  const censusGone = helper.censusFinding(['a', 'b'], ['a']);
-  const censusSame = helper.censusFinding(['a', 'b'], ['b', 'a']);
-  const censusBoth = helper.censusFinding(['a', 'b'], ['a', 'claude-1-4']);
-  if (censusSame !== null) {
-    failures.push({
-      what: '5d: an unchanged census was reported as a change',
-      detail: `It said "${String(censusSame)}". Order is not a change.`
-    });
-  }
-  for (const [name, reading, needle] of [
-    ['a session that appeared', censusAdded, 'shell-1-6'],
-    ['a session that went', censusGone, 'b'],
-    ['both at once', censusBoth, 'claude-1-4']
-  ]) {
-    if (reading === null || !String(reading).includes(needle)) {
-      failures.push({
-        what: `5d: the census did not report ${name}`,
-        detail: `It answered ${JSON.stringify(reading)}.`
-      });
-    }
-  }
-
-  // 5e, the harness term beside the socket.
-  const term = harnessTermBesideSocket(harnessSource);
-  if (!term.sawSocket) {
-    failures.push({
-      what: '5e: no spawn in build/harness-socket.mjs names GMUX_TMUX_SOCKET',
-      detail:
-        'The scanner found nothing to judge, so this rule cannot fail and is ' +
-        'not a rule. Either the file moved or the scanner is broken.'
-    });
-  } else if (!term.found) {
-    failures.push({
-      what: '5e: build/harness-socket.mjs hands its child a socket and no harness term',
-      detail:
-        'The app ignores GMUX_TMUX_SOCKET unless one of ' +
-        `${HARNESS_TERM_NAMES.join(', ')} is set, so every wrapped run that ` +
-        "inherits its own environment runs on -L gmux, the operator's live " +
-        "server. Put GMUX_PROBES: process.env['GMUX_PROBES'] ?? '0' back " +
-        'beside GMUX_TMUX_SOCKET in that spawn.'
-    });
-  }
-  for (const f of TERM_FIXTURES) {
-    const got = harnessTermBesideSocket(f.text);
-    if (got.found !== f.want) {
-      failures.push({
-        what: `5e: the fixture "${f.name}" read found=${String(got.found)}`,
-        detail: `It must read found=${String(f.want)}. A scanner nobody has seen fail is not a scanner.`
-      });
-    }
-  }
-
-  // 5f, the one verb this file may aim at -L gmux.
-  const verbs = operatorSocketVerbs(helperSource);
-  if (verbs.length === 0) {
-    failures.push({
-      what: `5f: build/${HELPER} composes no -L gmux argv at all`,
-      detail:
-        'liveSessionNames() is the census reader and it is supposed to be ' +
-        'there. Either it went or the scanner is broken, and both make rule ' +
-        '5f vacuous.'
-    });
-  }
-  for (const verb of verbs) {
-    if (verb !== 'list-sessions') {
-      failures.push({
-        what: `5f: build/${HELPER} aims "${verb}" at -L gmux`,
-        detail:
-          "list-sessions is the only verb this file may ever give the " +
-          "operator's private server. Everything else writes to it."
-      });
-    }
-  }
-  for (const f of VERB_FIXTURES) {
-    const got = operatorSocketVerbs(f.text);
-    if (JSON.stringify(got) !== JSON.stringify(f.want)) {
-      failures.push({
-        what: `5f: the fixture "${f.name}" read ${JSON.stringify(got)}`,
-        detail: `It must read ${JSON.stringify(f.want)}.`
-      });
-    }
-  }
-
-  // 5g, the env that names the operator's own server. It is refused whatever
-  // else the launch sets, and the control must still reach the program check,
-  // because a clause that refuses everything is not this clause.
-  for (const [name, reading] of [
-    ['gmux', live.liveGmux],
-    ['default', live.liveDefault]
-  ]) {
-    if (!isSocketRefusal(reading)) {
-      failures.push({
-        what: `5g: an env naming "${name}" with a harness term was NOT refused`,
-        detail:
-          `It answered threw=${String(reading.threw)} "${reading.message}". A ` +
-          'harness term makes the app OBEY that name, so this launch would ' +
-          "have run its sessions on the operator's live server, and with " +
-          'tmuxSocket null the census never reads and layer 3 sees the app ' +
-          'agree with what was asked for. Every layer passes it.'
-      });
-    } else if (!/OBEY/.test(reading.message)) {
-      failures.push({
-        what: `5g: the refusal for "${name}" does not say the app would obey it`,
-        detail:
-          `It said "${reading.message}". The message is the whole remedy, and ` +
-          'the reason this shape is worse than the one 2a catches is that the ' +
-          'override works.'
-      });
-    }
-    if (reading.ran) {
-      failures.push({
-        what: `5g: the body ran for the env naming "${name}"`,
-        detail: 'The sentinel inside the body was reached, so the refusal came too late.'
-      });
-    }
-  }
-  if (!live.liveControl.threw || !/is not there/.test(live.liveControl.message)) {
-    failures.push({
-      what: '5g: the control launch on a scratch socket did not reach the program check',
-      detail:
-        `It answered threw=${String(live.liveControl.threw)} ` +
-        `"${live.liveControl.message}". A clause that refuses every env is ` +
-        'not the clause 5g is about, and this arm is what tells the two apart.'
-    });
-  }
-
-  // 5h, the wiring. The judgements above are pure and this gate drives them;
-  // what nothing asked until the fix round is whether withElectron CALLS them.
-  const wiring = backstopWiring(helperSource);
-  if (!wiring.announcement) {
-    failures.push({
-      what: '5h: nothing in withElectron rejects a launch on a disagreeing announcement',
-      detail:
-        `${wiring.why.join('; ')}. announcementFinding can answer perfectly ` +
-        'and change nothing, which is how layer 3 stops being a layer.'
-    });
-  }
-  if (!wiring.census) {
-    failures.push({
-      what: '5h: withElectron does not read the census around the launch',
-      detail:
-        `${wiring.why.join('; ')}. The read has to happen before the spawn ` +
-        'and be judged in the finally block, or layer 4 is a function nobody ' +
-        'calls.'
-    });
-  }
-  for (const f of WIRING_FIXTURES) {
-    const got = backstopWiring(f.text);
-    if (got.announcement !== f.want.announcement || got.census !== f.want.census) {
-      failures.push({
-        what: `5h: the fixture "${f.name}" read announcement=${String(got.announcement)} census=${String(got.census)}`,
-        detail:
-          `It must read announcement=${String(f.want.announcement)} ` +
-          `census=${String(f.want.census)}. A scanner nobody has seen fail is ` +
-          'not a scanner.'
-      });
-    }
-  }
-
-  // The ablations.
-  const before = {
-    ...live,
-    announce,
-    censusAdded,
-    term,
-    wiring
-  };
-  let ablationsRed = 0;
-  const dir = mkdtempSync(join(tmpdir(), 'p261-ablate-'));
+  // 5d's other half, the census, by identity since Phase 285. Until then this
+  // half REQUIRED a names difference to be a finding, which pinned the defect:
+  // the operator starting a session of his own failed whatever launch was
+  // running. Every clause of the judgement now has a fixture of its own. The
+  // scratch folders are read over directories made here and removed at the end
+  // of this rule.
+  const rootsDir = mkdtempSync(join(tmpdir(), 'p285-roots-'));
+  mkdirSync(join(rootsDir, 'harness', 'p'), { recursive: true });
+  mkdirSync(join(rootsDir, 'home-like'), { recursive: true });
   try {
-    for (const ab of SOCKET_ABLATIONS) {
-      const copyDir = join(dir, `ab-${String(ablationsRed)}-${Date.now()}`);
-      mkdirSync(copyDir, { recursive: true });
-      const sources = {
-        [HELPER]: helperSource,
-        'harness-socket.mjs': harnessSource
-      };
-      if (!sources[ab.file].includes(ab.from)) {
-        failures.push({
-          what: `the ablation "${ab.name}" found nothing to edit`,
-          detail:
-            `It looks for ${JSON.stringify(ab.from)} in build/${ab.file} and ` +
-            'that text is not there. An ablation that edits nothing proves ' +
-            'nothing, so the clause moved and this list has to move with it.'
-        });
-        continue;
-      }
-      // Only the file being ablated is copied out; the other is read in place,
-      // because these two do not import each other.
-      const target = join(copyDir, ab.file);
-      writeFileSync(target, sources[ab.file].replace(ab.from, ab.to));
+    const census = await censusReadings(helper, rootsDir);
+    failures.push(...censusExpectations(census));
 
-      let after;
-      if (ab.file === HELPER) {
-        let copy;
-        try {
-          copy = await import(`${target}?p261=${String(Date.now())}`);
-        } catch (err) {
-          failures.push({
-            what: `the ablated copy for "${ab.name}" would not load`,
-            detail:
-              `${String(err?.message ?? err)}. A copy that fails to load fails ` +
-              'this gate for the wrong reason and says nothing about the ' +
-              'clause, which is Phase 219\'s rule.'
-          });
-          continue;
-        }
-        if (typeof copy.withElectron !== 'function') {
-          failures.push({
-            what: `the ablated copy for "${ab.name}" answered nothing`,
-            detail: 'It loaded but exports no withElectron, so it was not driven.'
-          });
-          continue;
-        }
-        after = {
-          ...(await socketReadings(copy)),
-          announce: announcementReadings(copy),
-          censusAdded: copy.censusFinding(['a', 'b'], ['a', 'b', 'shell-1-6']),
-          term,
-          // The wiring is a property of the TEXT, so an ablation of it is read
-          // off the ablated copy rather than driven. It is the one reading here
-          // that no drive can take, which is exactly why it was missing.
-          wiring: backstopWiring(readFileSync(target, 'utf8'))
-        };
-      } else {
-        after = {
-          ...before,
-          term: harnessTermBesideSocket(readFileSync(target, 'utf8'))
-        };
-      }
-      if (ab.moved(before, after)) ablationsRed += 1;
-      else {
+    // 5e, the harness term beside the socket.
+    const term = harnessTermBesideSocket(harnessSource);
+    if (!term.sawSocket) {
+      failures.push({
+        what: '5e: no spawn in build/harness-socket.mjs names GMUX_TMUX_SOCKET',
+        detail:
+          'The scanner found nothing to judge, so this rule cannot fail and is ' +
+          'not a rule. Either the file moved or the scanner is broken.'
+      });
+    } else if (!term.found) {
+      failures.push({
+        what: '5e: build/harness-socket.mjs hands its child a socket and no harness term',
+        detail:
+          'The app ignores GMUX_TMUX_SOCKET unless one of ' +
+          `${HARNESS_TERM_NAMES.join(', ')} is set, so every wrapped run that ` +
+          "inherits its own environment runs on -L gmux, the operator's live " +
+          "server. Put GMUX_PROBES: process.env['GMUX_PROBES'] ?? '0' back " +
+          'beside GMUX_TMUX_SOCKET in that spawn.'
+      });
+    }
+    for (const f of TERM_FIXTURES) {
+      const got = harnessTermBesideSocket(f.text);
+      if (got.found !== f.want) {
         failures.push({
-          what: `the ablation "${ab.name}" moved no reading`,
-          detail:
-            'The clause was removed and rule 5 still passed, so nothing in ' +
-            'this gate is holding it.'
+          what: `5e: the fixture "${f.name}" read found=${String(got.found)}`,
+          detail: `It must read found=${String(f.want)}. A scanner nobody has seen fail is not a scanner.`
         });
       }
     }
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
 
-  return {
-    // COUNTED, and the denominator is counted too, because a hand written
-    // number beside a measured one is how this file's rule 2 used to lie.
-    refusals: WRONG_SHAPES(live).filter(isSocketRefusal).length,
-    shapes: WRONG_SHAPES(live).length,
-    wiredBackstops: [wiring.announcement, wiring.census].filter(Boolean).length,
-    ablationsRed
-  };
+    // 5f, the one verb aimed at -L gmux, by the helper AND by every script that
+    // imports it (Phase 285, 308's second clause). An agreeing announcement says
+    // a session that went was not ended by the APP; this is what says it was not
+    // ended by the script that launched it either, which is what makes that
+    // session a note rather than a failure.
+    const verbs = operatorSocketVerbs(helperSource);
+    if (verbs.length === 0) {
+      failures.push({
+        what: `5f: build/${HELPER} composes no -L gmux argv at all`,
+        detail:
+          'liveSessionRows() is the census reader and it is supposed to be ' +
+          'there. Either it went or the scanner is broken, and both make rule ' +
+          '5f vacuous.'
+      });
+    }
+    const readerU = readerCarriesU(helperSource);
+    if (verbs.length > 0 && !readerU) {
+      failures.push({
+        what: `5f: the census reader in build/${HELPER} does not pass -u`,
+        detail:
+          'tmux sends every tab of the census format as _ to a client with no ' +
+          'UTF-8 locale (measured on 3.6a and 3.7b), so every row would read as ' +
+          'unreadable and the census would fail every launch closed.'
+      });
+    }
+    const importers = files.filter(
+      (name) => name !== HELPER && !NOT_A_HELPER_USER.has(name) && importsHelper(readFileSync(join(buildDir, name), 'utf8'))
+    );
+    for (const name of [HELPER, ...importers]) {
+      const source = name === HELPER ? helperSource : readFileSync(join(buildDir, name), 'utf8');
+      for (const hit of operatorSocketVerbs(source)) {
+        if (hit.verb === 'list-sessions') continue;
+        failures.push({
+          what:
+            hit.verb === null
+              ? `5f: build/${name}:${String(hit.line)} aims an argv at -L gmux whose verb cannot be read (${String(hit.why)})`
+              : `5f: build/${name}:${String(hit.line)} aims "${hit.verb}" at -L gmux`,
+          detail:
+            "list-sessions is the only verb any script that launches through the " +
+            "helper may give the operator's private server, and a verb nobody can " +
+            'read is refused for the same reason. Everything else writes to it, ' +
+            'and since Phase 285 a session that went during an agreeing launch ' +
+            'reads as his own, so a script that could end one must not exist.'
+        });
+      }
+    }
+    for (const f of VERB_FIXTURES) {
+      const hits = operatorSocketVerbs(f.text);
+      const got = hits.map((h) => h.verb);
+      const flagsRight = f.flags === undefined || JSON.stringify(hits[0]?.flags ?? []) === JSON.stringify(f.flags);
+      if (JSON.stringify(got) !== JSON.stringify(f.want) || !flagsRight) {
+        failures.push({
+          what: `5f: the fixture "${f.name}" read ${JSON.stringify(got)} with flags ${JSON.stringify(hits.map((h) => h.flags))}`,
+          detail: `It must read ${JSON.stringify(f.want)}${f.flags === undefined ? '' : ` with flags ${JSON.stringify(f.flags)}`}.`
+        });
+      }
+    }
+
+    // 5g, the env that names the operator's own server. It is refused whatever
+    // else the launch sets, and the control must still reach the program check,
+    // because a clause that refuses everything is not this clause.
+    for (const [name, reading] of [
+      ['gmux', live.liveGmux],
+      ['default', live.liveDefault]
+    ]) {
+      if (!isSocketRefusal(reading)) {
+        failures.push({
+          what: `5g: an env naming "${name}" with a harness term was NOT refused`,
+          detail:
+            `It answered threw=${String(reading.threw)} "${reading.message}". A ` +
+            'harness term makes the app OBEY that name, so this launch would ' +
+            "have run its sessions on the operator's live server, and with " +
+            'tmuxSocket null the census never reads and layer 3 sees the app ' +
+            'agree with what was asked for. Every layer passes it.'
+        });
+      } else if (!/OBEY/.test(reading.message)) {
+        failures.push({
+          what: `5g: the refusal for "${name}" does not say the app would obey it`,
+          detail:
+            `It said "${reading.message}". The message is the whole remedy, and ` +
+            'the reason this shape is worse than the one 2a catches is that the ' +
+            'override works.'
+        });
+      }
+      if (reading.ran) {
+        failures.push({
+          what: `5g: the body ran for the env naming "${name}"`,
+          detail: 'The sentinel inside the body was reached, so the refusal came too late.'
+        });
+      }
+    }
+    if (!live.liveControl.threw || !/is not there/.test(live.liveControl.message)) {
+      failures.push({
+        what: '5g: the control launch on a scratch socket did not reach the program check',
+        detail:
+          `It answered threw=${String(live.liveControl.threw)} ` +
+          `"${live.liveControl.message}". A clause that refuses every env is ` +
+          'not the clause 5g is about, and this arm is what tells the two apart.'
+      });
+    }
+
+    // 5h, the wiring. The judgements above are pure and this gate drives them;
+    // what nothing asked until the fix round is whether withElectron CALLS them.
+    const wiring = backstopWiring(helperSource);
+    if (!wiring.announcement) {
+      failures.push({
+        what: '5h: nothing in withElectron rejects a launch on a disagreeing announcement',
+        detail:
+          `${wiring.why.join('; ')}. announcementFinding can answer perfectly ` +
+          'and change nothing, which is how layer 3 stops being a layer.'
+      });
+    }
+    if (!wiring.census) {
+      failures.push({
+        what: '5h: withElectron does not read the census around the launch',
+        detail:
+          `${wiring.why.join('; ')}. The read has to happen before the spawn ` +
+          'and be judged in the finally block, or layer 4 is a function nobody ' +
+          'calls.'
+      });
+    }
+    for (const f of WIRING_FIXTURES) {
+      const got = backstopWiring(f.text);
+      if (got.announcement !== f.want.announcement || got.census !== f.want.census) {
+        failures.push({
+          what: `5h: the fixture "${f.name}" read announcement=${String(got.announcement)} census=${String(got.census)}`,
+          detail:
+            `It must read announcement=${String(f.want.announcement)} ` +
+            `census=${String(f.want.census)}. A scanner nobody has seen fail is ` +
+            'not a scanner.'
+        });
+      }
+    }
+
+    // The ablations.
+    const before = {
+      ...live,
+      announce,
+      census,
+      term,
+      wiring,
+      readerU
+    };
+    let ablationsRed = 0;
+    const dir = mkdtempSync(join(tmpdir(), 'p261-ablate-'));
+    try {
+      // Each copy has a directory and an import URL of its own, by its index, so
+      // two ablations in the same millisecond can never share a cached module.
+      for (const [index, ab] of SOCKET_ABLATIONS.entries()) {
+        const copyDir = join(dir, `ab-${String(index)}`);
+        mkdirSync(copyDir, { recursive: true });
+        const sources = {
+          [HELPER]: helperSource,
+          'harness-socket.mjs': harnessSource
+        };
+        if (!sources[ab.file].includes(ab.from)) {
+          failures.push({
+            what: `the ablation "${ab.name}" found nothing to edit`,
+            detail:
+              `It looks for ${JSON.stringify(ab.from)} in build/${ab.file} and ` +
+              'that text is not there. An ablation that edits nothing proves ' +
+              'nothing, so the clause moved and this list has to move with it.'
+          });
+          continue;
+        }
+        // Only the file being ablated is copied out; the other is read in place,
+        // because these two do not import each other.
+        const target = join(copyDir, ab.file);
+        writeFileSync(target, sources[ab.file].replace(ab.from, () => ab.to));
+
+        let after;
+        if (ab.file === HELPER) {
+          let copy;
+          try {
+            copy = await import(`${target}?p261=${String(index)}-${String(Date.now())}`);
+          } catch (err) {
+            failures.push({
+              what: `the ablated copy for "${ab.name}" would not load`,
+              detail:
+                `${String(err?.message ?? err)}. A copy that fails to load fails ` +
+                'this gate for the wrong reason and says nothing about the ' +
+                'clause, which is Phase 219\'s rule.'
+            });
+            continue;
+          }
+          if (typeof copy.withElectron !== 'function') {
+            failures.push({
+              what: `the ablated copy for "${ab.name}" answered nothing`,
+              detail: 'It loaded but exports no withElectron, so it was not driven.'
+            });
+            continue;
+          }
+          const ablatedText = readFileSync(target, 'utf8');
+          after = {
+            ...(await socketReadings(copy)),
+            announce: announcementReadings(copy),
+            census: await censusReadings(copy, rootsDir),
+            term,
+            // The wiring is a property of the TEXT, so an ablation of it is read
+            // off the ablated copy rather than driven. It is the one reading here
+            // that no drive can take, which is exactly why it was missing. The
+            // reader's `-u` is read off the text the same way.
+            wiring: backstopWiring(ablatedText),
+            readerU: readerCarriesU(ablatedText)
+          };
+        } else {
+          after = {
+            ...before,
+            term: harnessTermBesideSocket(readFileSync(target, 'utf8'))
+          };
+        }
+        if (ab.moved(before, after)) ablationsRed += 1;
+        else {
+          failures.push({
+            what: `the ablation "${ab.name}" moved no reading`,
+            detail:
+              'The clause was removed and rule 5 still passed, so nothing in ' +
+              'this gate is holding it.'
+          });
+        }
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+
+    return {
+      // COUNTED, and the denominator is counted too, because a hand written
+      // number beside a measured one is how this file's rule 2 used to lie.
+      refusals: WRONG_SHAPES(live).filter(isSocketRefusal).length,
+      shapes: WRONG_SHAPES(live).length,
+      wiredBackstops: [wiring.announcement, wiring.census].filter(Boolean).length,
+      censusFixtures: CENSUS_FIXTURES.length,
+      importers: importers.length,
+      ablationsRed
+    };
+  } finally {
+    rmSync(rootsDir, { recursive: true, force: true });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1954,7 +3463,32 @@ async function main() {
   const fixtures = runFixtures(failures);
 
   // Rule 5, the socket refusal, driven rather than read.
-  const socket = await runRule5(failures);
+  const socket = await runRule5(failures, files);
+
+  // Rule 6, the ceiling (Phase 285): the scripts besides the helper and this
+  // gate that aim an argv at -L gmux may only fall in number.
+  const aiming = files.filter(
+    (name) =>
+      name !== HELPER &&
+      !NOT_A_HELPER_USER.has(name) &&
+      aimsOperatorSocket(readFileSync(join(buildDir, name), 'utf8'))
+  );
+  const over = ceilingFinding(aiming.length, OPERATOR_ARGV_CEILING);
+  if (over !== null) failures.push(over);
+  const byShell = files.filter(
+    (name) =>
+      name !== HELPER &&
+      !NOT_A_HELPER_USER.has(name) &&
+      aimsOperatorSocketByShell(readFileSync(join(buildDir, name), 'utf8'))
+  );
+  const overShell = ceilingFinding(
+    byShell.length,
+    OPERATOR_SHELL_CEILING,
+    'hand a shell a command line aimed at',
+    'OPERATOR_SHELL_CEILING'
+  );
+  if (overShell !== null) failures.push(overShell);
+  const ceilingProof = runCeilingFixtures(failures);
 
   if (failures.length > 0) {
     console.error(
@@ -1980,12 +3514,23 @@ async function main() {
       `${String(socket.refusals)} of ${String(socket.shapes)} launches in ` +
       `the wrong shape were refused before anything was spawned, an env ` +
       `naming the operator's own server among them and a control beside it, ` +
-      `the announcement reader and the census judged their fixtures, ` +
+      `the announcement reader judged its fixtures and the census judged ` +
+      `${String(socket.censusFixtures)} by identity, being who made each ` +
+      `session that appeared rather than how many there are, ` +
       `${String(socket.wiredBackstops)} of 2 backstops are wired into ` +
-      `withElectron's own braces, build/harness-socket.mjs hands its child ` +
-      `a harness term beside the socket, list-sessions is the only verb aimed ` +
-      `at -L gmux, and ${String(socket.ablationsRed)} of ` +
-      `${String(SOCKET_ABLATIONS.length)} ablations each moved a reading.`
+      `withElectron's own braces with the census read around a launch that ` +
+      `names a scratch socket and only there, ` +
+      `build/harness-socket.mjs hands its child a harness term beside the ` +
+      `socket, list-sessions is the only verb aimed at -L gmux by the helper ` +
+      `and by the ${String(socket.importers)} scripts that import it, and ` +
+      `${String(socket.ablationsRed)} of ${String(SOCKET_ABLATIONS.length)} ` +
+      `ablations each moved a reading. ${String(aiming.length)} other ` +
+      `scripts aim an argv at -L gmux, under a ceiling of ` +
+      `${String(OPERATOR_ARGV_CEILING)} that refused ${String(ceilingProof.refused)} ` +
+      `of the 2 counts it was shown, and ${String(byShell.length)} hand a shell ` +
+      `a command line aimed at it, under a ceiling of ` +
+      `${String(OPERATOR_SHELL_CEILING)} that refused ` +
+      `${String(ceilingProof.shellRefused)} of the 2.`
   );
 }
 

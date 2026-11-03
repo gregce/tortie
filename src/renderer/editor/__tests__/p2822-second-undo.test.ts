@@ -33,12 +33,28 @@
  * read drew it backwards, and the next ⌥⌫ wrote the agent's word back. A hold
  * whose adoption refused now goes on BYTES and never on a picture alone.
  *
- * WHAT WAS NOT (the second describe), MEASURED AND PINNED AS IT STANDS. Each
+ * WHAT WAS NOT (the last describe), MEASURED AND PINNED AS IT STANDS. Each
  * needs a ruling that is the operator's and not a fix round's
  * (build/p282/SPEC.md §12, "STATED LIMITS"), so nothing was built for them and
  * they are written here as SEEDS: the entry that closes one rewrites its
  * expectations, exactly as ./p2822-after-undo.test.ts rewrote the 282.1
  * reverifier's.
+ *
+ * PHASE 290 CLOSED TWO OF THEM (the third describe). The hold was the mount's,
+ * so a tab switch or a look at the File view ended the refusal and the read it
+ * owed, and the chain ran to `[wrote REWOUND, wrote AGENT]`: the person's
+ * rewind written away by the next ⌥⌫ in the rhythm. The tab owes the read now
+ * (`rewindOwesRead`), both seeds are flipped into that describe with the File
+ * view's own undo beside them, and their old expectations are gone with the
+ * defect. ONE ⌘Z TOO MANY and THE UNDO IS NOT TEMPORARY stay seeds: they are
+ * Phase 282.2's P3 and P4, and making a read non-undoable is a ruling he has
+ * not made.
+ *
+ * WHY A WAY OUT READS TWICE NOW. When the tab owes the read, the store's own
+ * clean edge pulls it (../store `markDirty`) and the view's effect, which asks
+ * that mark as well as its hold, pulls once more; the second walk is queued
+ * behind the first and finds nothing new. The counts below say so where they
+ * moved.
  */
 
 import { createHash } from 'node:crypto';
@@ -536,6 +552,8 @@ const withKey = (t: string): string => {
 };
 const ACCEPT_DIRTY =
   'A change in notes.txt was rewound, but your unsaved edits still show it, so nothing was accepted. Save or undo your edits first, then accept.';
+/** PHASE 290. Today's sentence for a held ⌥↩ on a CLEAN tab, which a mark answers too. */
+const ACCEPT_HELD = 'A change in notes.txt is still being rewound, so nothing was accepted.';
 const RED = '"brown"->"red"';
 const LEAPS = '"jumps"->"leaps"';
 const BACKWARDS = '"red"->"brown"';
@@ -768,8 +786,9 @@ describe("PHASE 282.2's FIX ROUND: the undo road, through a real keystroke and a
     expect(toasts).toEqual([ACCEPT_DIRTY]);
     await cmdZ();
     await draws([LEAPS]);
+    // PHASE 290: two walks, the store's for the tab's mark and the view's (the header says why).
     expect({ ...reading(), reads: main.reads, walks: main.walks }).toEqual({
-      dirty: false, saved: REWOUND, disk: REWOUND, model: REWOUND, baseline: BASE, reads: 2, walks: 1
+      dirty: false, saved: REWOUND, disk: REWOUND, model: REWOUND, baseline: BASE, reads: 3, walks: 2
     });
     await accept();
     await draws([]);
@@ -805,10 +824,11 @@ describe("PHASE 282.2's FIX ROUND: the undo road, through a real keystroke and a
     });
     // The person sees they went too far: ⌘⇧Z. Clean again, UNDER A LANDED
     // HOLD, so the clean transition reads a second time and the disk answers.
+    // PHASE 290: and under the tab's mark, so the store reads as well (4, not 3).
     await cmdZ({ shift: true });
     await draws([LEAPS]);
     expect({ ...reading(), reads: main.reads }).toEqual({
-      dirty: false, saved: REWOUND, disk: REWOUND, model: REWOUND, baseline: BASE, reads: 3
+      dirty: false, saved: REWOUND, disk: REWOUND, model: REWOUND, baseline: BASE, reads: 4
     });
     // ⌥↩ in the rhythm takes the change that FOLLOWED the rewound one...
     await markChange(LEAPS);
@@ -829,47 +849,77 @@ describe("PHASE 282.2's FIX ROUND: the undo road, through a real keystroke and a
     expect({ ...reading(), reads: main.reads }).toEqual({
       dirty: true, saved: AGENT, disk: REWOUND, model: BASE, baseline: BASE, reads: 1
     });
+    // PHASE 290: the store's read for the tab's mark and the view's (3, not 2).
     await cmdZ({ shift: true });
     await draws([LEAPS]);
     expect({ ...reading(), reads: main.reads }).toEqual({
-      dirty: false, saved: REWOUND, disk: REWOUND, model: REWOUND, baseline: BASE, reads: 2
+      dirty: false, saved: REWOUND, disk: REWOUND, model: REWOUND, baseline: BASE, reads: 3
     });
     expect(toasts).toEqual([]);
   });
 });
 
-describe('STATED LIMITS, MEASURED AS THEY STAND (build/p282/SPEC.md §12): each is the operator’s ruling to make, and a seed for the entry that makes it', () => {
+describe('PHASE 290: THE TAB OWES THE READ, NOT THE MOUNT. Two of 282.2’s seeds, flipped, and the File view’s own undo', () => {
   /**
-   * THE HOLD IS THE MOUNT'S (Phase 282's ruling, ../RedlineDocument
-   * `rewindHolds`), so whatever ends the mount ends the refusal AND the read
-   * this phase owes. The chain runs to the end: the rewind the person made is
-   * overwritten by the next ⌥⌫ in the rhythm.
+   * WHAT THE SEEDS PINNED, AND WHAT THEY READ NOW. The hold was the mount's
+   * (Phase 282's ruling, ../RedlineDocument `rewindHolds`), so whatever ended
+   * the mount ended the refusal AND the read it owed, and the chain ran to
+   * `[wrote REWOUND, wrote AGENT]`. The read is the TAB's now
+   * (`rewindOwesRead`, ../store): it outlives the mount, ⌥↩ asks it, and the
+   * way out of dirty pulls it. So the chain stops where the person's rewind
+   * is still on disk:
+   *
+   *  1. with no undo at all (the entry's dirty variant), ⌥↩ on the rewound
+   *     change is held in the sentence that names the way out;
+   *  2. the undo makes the tab clean and PULLS the read, and ⌥↩ pressed before
+   *     the disk answers says today's clean sentence and takes nothing;
+   *  3. the read lands, the rewound change leaves the picture, the mark goes
+   *     with it, and the rhythm and the agent's next write draw nothing
+   *     backwards, so nothing is left for a later ⌥⌫ to write the agent's words
+   *     back with.
    */
-  async function theChainToItsEnd(): Promise<void> {
-    // ⌘Z where the person now is. The tab goes clean and NOTHING reads.
-    await cmdZ();
-    await draws([RED, LEAPS]);
-    expect({ ...reading(), reads: main.reads, walks: main.walks }).toEqual({
-      dirty: false, saved: AGENT, disk: REWOUND, model: AGENT, baseline: BASE, reads: 1, walks: 0
-    });
-    // ⌥↩ on the change the person REWOUND: accepted, with nothing said.
-    const said = toasts.length;
+  async function theWayOutHolds(): Promise<void> {
+    // The mount that held the hold is gone; the TAB still owes the read.
+    expect(tabNow()?.rewindOwesRead).toBe(true);
+    // 1. THE DIRTY VARIANT: ⌥↩ on the rewound change, with no undo first.
     await markChange(RED);
     await accept();
+    expect(drawn()).toEqual([RED, LEAPS, '"lazy"->"lazyx"']);
+    expect(toasts).toEqual([ACCEPT_DIRTY, ACCEPT_DIRTY]);
+    expect(reading()).toMatchObject({ baseline: BASE, disk: REWOUND });
+    // 2. ⌘Z where the person now is, with the read it pulls held at main's door.
+    main.hold('read#2');
+    await cmdZ();
+    await arrives('read#2');
+    await draws([RED, LEAPS]);
+    expect({ ...reading(), reads: main.reads }).toEqual({
+      dirty: false, saved: AGENT, disk: REWOUND, model: AGENT, baseline: BASE, reads: 2
+    });
+    // ⌥↩ before the disk answers: today's sentence for a clean tab, and nothing taken.
+    await markChange(RED);
+    await accept();
+    expect(drawn()).toEqual([RED, LEAPS]);
+    expect(toasts.at(-1)).toBe(ACCEPT_HELD);
+    expect(reading()).toMatchObject({ baseline: BASE });
+    // 3. The read answers: the rewound change leaves the picture, and the mark with it.
+    await release('read#2');
     await draws([LEAPS]);
-    expect(toasts).toHaveLength(said);
-    expect(reading()).toMatchObject({ baseline: RED_ACCEPTED, disk: REWOUND });
-    // The agent writes another file of the repository: the rewind, drawn backwards.
+    expect(reading()).toEqual({ dirty: false, saved: REWOUND, disk: REWOUND, model: REWOUND, baseline: BASE });
+    expect(tabNow()?.rewindOwesRead).toBe(false);
+    // The rhythm: ⌥↩ on what is left, then the agent writes another file of the repository.
+    await markChange(LEAPS);
+    await accept();
+    await draws([]);
     await tick();
-    await draws([BACKWARDS, LEAPS]);
-    // ⌥⌫ in the rhythm, on the backwards change: the agent's word is back on disk.
-    await markChange(BACKWARDS);
-    await rewind();
-    await until('the second rewind landing', () => main.writeLog.length === 2);
-    expect(main.writeLog).toEqual([`wrote ${REWOUND}`, `wrote ${AGENT}`]);
+    await rest();
+    expect(drawn()).toEqual([]);
+    // Nothing is drawn backwards, so there is no change for a later ⌥⌫ to rewind
+    // into the agent's words: the person's rewind is the last write.
+    expect(main.writeLog).toEqual([`wrote ${REWOUND}`]);
+    expect(main.writeLog).not.toContain(`wrote ${AGENT}`);
   }
 
-  it('A TAB SWITCH AND BACK, then the undo: no read, ⌥↩ accepts the rewound change unsaid, and the rhythm writes the rewind away', async () => {
+  it('A TAB SWITCH AND BACK, then the undo: ⌥↩ is held without an undo, the undo pulls the read, and the rewind stays on disk', async () => {
     await rewindWithAKeystrokeInsideTheWrite({
       tabs: [tabOf(ID, BASE, AGENT), tabOf(OTHER, 'other\n', 'other\n')],
       files: { [ID]: AGENT, [OTHER]: 'other\n' }
@@ -880,10 +930,10 @@ describe('STATED LIMITS, MEASURED AS THEY STAND (build/p282/SPEC.md §12): each 
     await rest();
     await act(() => useEditor.getState().activate(ID));
     await draws([RED, LEAPS, '"lazy"->"lazyx"']);
-    await theChainToItsEnd();
+    await theWayOutHolds();
   });
 
-  it('A LOOK AT THE FILE VIEW AND BACK (the mode chip), then the undo: the same chain, to the same end', async () => {
+  it('A LOOK AT THE FILE VIEW AND BACK (the mode chip), then the undo: the same way out, to the same end', async () => {
     await rewindWithAKeystrokeInsideTheWrite();
     await accept();
     expect(toasts).toEqual([ACCEPT_DIRTY]);
@@ -891,9 +941,56 @@ describe('STATED LIMITS, MEASURED AS THEY STAND (build/p282/SPEC.md §12): each 
     await rest();
     await act(() => useEditor.getState().setMode(ID, 'redline'));
     await draws([RED, LEAPS, '"lazy"->"lazyx"']);
-    await theChainToItsEnd();
+    await theWayOutHolds();
   });
 
+  it('THE UNDO MADE IN THE FILE VIEW: the store’s clean edge pulls the read with no Redline mounted, ⌥↩ before it answers is held, and the view comes back on the disk’s bytes', async () => {
+    await rewindWithAKeystrokeInsideTheWrite();
+    await accept();
+    expect(toasts).toEqual([ACCEPT_DIRTY]);
+    await act(() => useEditor.getState().setMode(ID, 'file'));
+    await rest();
+    // The File view's undo, as MonacoHost hears it (../MonacoHost's content
+    // listener, which this rig does not mount): monaco's own undo, and the tab
+    // marked from the buffer. Nothing of the Redline view is mounted now.
+    const model = getWorkingModel(ID);
+    if (model === null) throw new Error('the keystroke built no model');
+    const monacoHost = model.onDidChangeContent(() => {
+      const current = tabNow();
+      if (current !== undefined) useEditor.getState().markDirty(ID, model.getValue() !== current.savedContents);
+    });
+    main.hold('read#2');
+    await act(() => model.undo());
+    await arrives('read#2');
+    expect({ ...reading(), reads: main.reads, owes: tabNow()?.rewindOwesRead }).toEqual({
+      dirty: false, saved: AGENT, disk: REWOUND, model: AGENT, baseline: BASE, reads: 2, owes: true
+    });
+    // Back to Redline (MonacoHost goes with the File view) while the read is
+    // still at main's door: the picture still draws the rewound change, and
+    // ⌥↩ on it says today's clean sentence and takes nothing.
+    monacoHost.dispose();
+    await act(() => useEditor.getState().setMode(ID, 'redline'));
+    await draws([RED, LEAPS]);
+    await markChange(RED);
+    await accept();
+    expect(drawn()).toEqual([RED, LEAPS]);
+    expect(toasts.at(-1)).toBe(ACCEPT_HELD);
+    await release('read#2');
+    await draws([LEAPS]);
+    expect({ ...reading(), owes: tabNow()?.rewindOwesRead }).toEqual({
+      dirty: false, saved: REWOUND, disk: REWOUND, model: REWOUND, baseline: BASE, owes: false
+    });
+    await markChange(LEAPS);
+    await accept();
+    await draws([]);
+    await tick();
+    await rest();
+    expect(drawn()).toEqual([]);
+    expect(main.writeLog).toEqual([`wrote ${REWOUND}`]);
+  });
+});
+
+describe('STATED LIMITS, MEASURED AS THEY STAND (build/p282/SPEC.md §12): each is the operator’s ruling to make, and a seed for the entry that makes it', () => {
   it('ONE ⌘Z TOO MANY, after the read has landed: the read is an undoable edit, so ⌘Z un-applies it, ⌥↩ accepts the rewound change from the buffer, and ⌘⇧Z draws it backwards', async () => {
     await rewindWithAKeystrokeInsideTheWrite();
     await cmdZ();

@@ -22,6 +22,7 @@ import {
   SAVE_OVERWRITE_LABEL,
   STALE_SAVE_BODY,
   compareTabName,
+  autoSaveStopSentence,
   compareTabTooltip,
   saveRefusalSentence,
   staleSaveTitle
@@ -148,5 +149,69 @@ describe('link is the one word a save never says', () => {
     for (const why of Object.keys(PINNED) as SaveRefusalWord[]) {
       expect(saveRefusalWord({ outcome: 'refused', why, reason: 'x' })).toBe(why);
     }
+  });
+});
+
+describe('the name is quoted as it is (Phase 274.3)', () => {
+  // A string replacement reads `$'`, `$&`, `` $` `` and `$$` in the NAME as
+  // patterns. Measured at the parent (build/p352/SPEC.md §2.4): `a$'b.md`
+  // printed the sentence's tail twice, `a$&b.md` printed `{name}`, `` a$`b.md ``
+  // printed the sentence's head and `a$$b.md` lost a dollar.
+  const DOLLARS = ["a$'b.md", 'a$&b.md', 'a$`b.md', 'a$$b.md'];
+
+  it('every refusal sentence quotes a name holding a $ pattern exactly as written', () => {
+    for (const name of DOLLARS) {
+      for (const [why, sentence] of Object.entries(PINNED)) {
+        expect(saveRefusalSentence(why as SaveRefusalWord, name)).toBe(
+          sentence.split(NAME).join(name)
+        );
+      }
+    }
+  });
+
+  it('reads the four shapes the parent mangled, as written', () => {
+    const tail =
+      ', because its project is not open — open it again and save. Nothing was written.';
+    expect(saveRefusalSentence('projectClosed', "a$'b.md")).toBe(
+      `Tortie did not save a$'b.md${tail}`
+    );
+    expect(saveRefusalSentence('projectClosed', 'a$&b.md')).toBe(
+      `Tortie did not save a$&b.md${tail}`
+    );
+    expect(saveRefusalSentence('projectClosed', 'a$`b.md')).toBe(
+      `Tortie did not save a$\`b.md${tail}`
+    );
+    expect(saveRefusalSentence('projectClosed', 'a$$b.md')).toBe(
+      `Tortie did not save a$$b.md${tail}`
+    );
+  });
+
+  it('the stale title quotes them as written too', () => {
+    for (const name of DOLLARS) {
+      expect(staleSaveTitle(name)).toBe(`'${name}' changed on disk`);
+    }
+  });
+
+  it('writes out what cannot be seen, in a refusal and in the stale title', () => {
+    expect(saveRefusalSentence('missing', 'no\u200Bte.md')).toBe(
+      'Tortie did not save no<U+200B>te.md, because it is no longer on disk. Nothing was written.'
+    );
+    expect(saveRefusalSentence('raced', 'my\u00A0notes.md')).toBe(
+      'Something wrote to my<U+00A0>notes.md as you saved, so nothing was written. Press Save again.'
+    );
+    expect(staleSaveTitle('no\u200Bte.md')).toBe("'no<U+200B>te.md' changed on disk");
+    expect(staleSaveTitle('invoice\u202Edm.exe')).toBe(
+      "'invoice<U+202E>dm.exe' changed on disk"
+    );
+  });
+
+  it('the auto save stop for a link writes out what cannot be seen too (the fix round of Phase 352)', () => {
+    const said = autoSaveStopSentence({ kind: 'link' }, 'no\u200Bte.md');
+    expect(said.startsWith('Tortie does not save no<U+200B>te.md on its own, because it is a link.')).toBe(true);
+    expect(said.includes('\u200B')).toBe(false);
+    expect(autoSaveStopSentence({ kind: 'link' }, 'notes.md').startsWith('Tortie does not save notes.md on its own')).toBe(true);
+    expect(autoSaveStopSentence({ kind: 'link' }, 'no\u200Bte.md')).not.toBe(
+      autoSaveStopSentence({ kind: 'link' }, 'note.md')
+    );
   });
 });

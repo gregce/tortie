@@ -109,7 +109,11 @@
  *      first build: a burst of characters saved, because the second keystroke
  *      takes the other branch and sees a dirty tab, and a SINGLE character
  *      never saved at all. It is one line, in one direction, and it is exactly
- *      the kind of thing a later round moves back.
+ *      the kind of thing a later round moves back. PHASE 290 EXTENDS IT,
+ *      never relaxes it: behind the patch and the arm, `markDirty` pulls the
+ *      read a rewind left the tab owing (`rewindOwesRead`), on the way out of
+ *      dirty only and only while that mark stands, because an undo made in
+ *      the File view reaches the store there and nowhere else.
  *  15. THE SENTENCE THAT WAS RIGHT KEEPS ITS BYTES, UNDER THE WORD THAT IS
  *      TRUE OF IT (Phase 273). "because its project is not open" was written
  *      for a project that was closed and was said to six different causes,
@@ -149,6 +153,19 @@
  *      deferred and never after an `await`, so a keystroke is dirty before a walk.
  *  29. `refreshRepo`'s loop opens with the `continue` on a draft never saved,
  *      before any read or patch, so a walk never marks that draft deleted.
+ *
+ * AND THE TAB'S MARK SINCE PHASE 290, which moves `savedContents`' meaning one
+ * step further: a rewind whose adoption refused leaves it older than the disk,
+ * and the tab now says so until a read or a save has landed.
+ *
+ *  30. `rewindOwesRead` is set ONCE, by the store's `adoptWritten` action,
+ *      after ./tab-io's adoption has answered and only for a tab it left
+ *      holding bytes other than the ones the write wrote (tab-io sets none, so
+ *      rule 25's two refusals read as they did); it is cleared only by
+ *      `refreshRepo`'s read under the walk's own clean clauses and by
+ *      `completeSave`; and nothing else under src/renderer writes it but the
+ *      one tab the store creates. Its behaviour is driven in
+ *      p290-owed-read.test.ts; this holds where it may move.
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
@@ -538,6 +555,215 @@ function contentListenerMark(code) {
   return wait !== -1 && wait < mark ? 'after-await' : 'own';
 }
 
+/**
+ * PHASE 290. The `if` condition that governs the statement holding the call
+ * at `call` in `body`, with its whitespace removed, or null when no `if` before
+ * the call governs it. The last governing `if` wins, so a test nested inside
+ * another is the one read.
+ */
+function governingTest(body, call) {
+  let cond = null;
+  const tests = /\bif\s*\(/g;
+  let m;
+  while ((m = tests.exec(body)) !== null) {
+    const open = m.index + m[0].length - 1;
+    if (open > call) break;
+    const close = closeOf(body, open);
+    if (close === -1 || close > call) continue;
+    const brace = /^\s*\{/.exec(body.slice(close + 1));
+    const end = brace === null ? body.indexOf(';', close) : closeOf(body, close + brace[0].length);
+    if (end !== -1 && call <= end) cond = body.slice(open + 1, close).replace(/\s+/g, '');
+  }
+  return cond;
+}
+
+/**
+ * PHASE 290. Where `markDirty` pulls the read a rewind left the tab owing:
+ * 'ok' when it is ONE `rereadRepo(` call, after the edge's `patchTab(` and
+ * after the arm's `noteChanged` behind it, governed by an `if` that asks the
+ * tab's mark (`rewindOwesRead`) and the clean edge (`!dirty`, or `dirty ===
+ * false`) joined by `&&` alone. Every other answer names what is wrong: 'absent'
+ * (no pull, so an undo made in the File view reads nothing), 'twice',
+ * 'before-patch', 'before-arm' (rule 14's order broken from below),
+ * 'unguarded', 'unread' (an `||` this reader will not evaluate), 'unmarked'
+ * (every clean edge reads), 'into-dirty' and 'every-edge'. Null with no body.
+ *
+ * AND WHICH WAY THE MARK IS ASKED (the fix round of Phase 352): 'inverted' when
+ * the test asks for a tab that owes NO read, `!== true` or `!…rewindOwesRead`,
+ * and 'unread' for a spelling this reader cannot give a direction. The clause
+ * named the mark and never its direction, so a verify lens inverted it in the
+ * shipping store and this gate went red only because an ablation's anchor
+ * stopped matching.
+ */
+function owedPullPlace(body) {
+  if (body === null) return null;
+  const pulls = [...body.matchAll(/rereadRepo\(/g)].map((m) => m.index);
+  if (pulls.length === 0) return 'absent';
+  if (pulls.length > 1) return 'twice';
+  const pull = pulls[0];
+  const edge = body.indexOf('patchTab(');
+  if (edge === -1 || pull < edge) return 'before-patch';
+  const arm = body.indexOf('noteChanged', edge);
+  if (arm === -1 || pull < arm) return 'before-arm';
+  const cond = governingTest(body, pull);
+  if (cond === null) return 'unguarded';
+  if (cond.includes('||')) return 'unread';
+  if (!cond.includes('rewindOwesRead')) return 'unmarked';
+  const parts = cond.split('&&');
+  const marks = parts.filter((p) => p.includes('rewindOwesRead'));
+  const sign = marks.length === 1 ? markSign(marks[0]) : 0;
+  if (sign === 0) return 'unread';
+  if (sign < 0) return 'inverted';
+  if (parts.some((p) => p === 'dirty' || p === 'dirty===true' || p === 'true===dirty')) return 'into-dirty';
+  if (!parts.some((p) => p === '!dirty' || p === 'dirty===false' || p === 'false===dirty')) return 'every-edge';
+  return 'ok';
+}
+
+/**
+ * PHASE 290's FIX ROUND. Which way one `&&` part with whitespace removed asks
+ * the tab's mark: 1 when it is true for a tab that owes the read
+ * (`…rewindOwesRead===true`, `…!==false`, the bare name), -1 when it is true
+ * for one that owes none (`…!==true`, `…===false`, `!…`), and 0 for anything
+ * else, which is a spelling this rule will not evaluate.
+ */
+function markSign(part) {
+  const t = String(part).replace(/^\(+|\)+$/g, '');
+  const mark = '[\\w$.?()]*rewindOwesRead';
+  if (new RegExp(`^${mark}(?:===true|!==false)$`).test(t) || new RegExp(`^(?:true===|false!==)${mark}$`).test(t)) return 1;
+  if (new RegExp(`^${mark}(?:!==true|===false)$`).test(t) || new RegExp(`^(?:true!==|false===)${mark}$`).test(t)) return -1;
+  if (new RegExp(`^!${mark}$`).test(t)) return -1;
+  if (new RegExp(`^${mark}$`).test(t)) return 1;
+  return 0;
+}
+
+/**
+ * PHASE 290. Rule 30's census of the mark (`rewindOwesRead`): which functions
+ * of ./tab-io set it (none may) and clear it, whether every clear inside
+ * `refreshRepo` sits under the walk's own clean clauses, and whether the
+ * store's `adoptWritten` action sets it after the adoption has answered and
+ * only for a tab the adoption left holding other bytes. Read from
+ * comment-stripped text.
+ */
+const MARK_SET = 'rewindOwesRead: true';
+const MARK_CLEAR = 'rewindOwesRead: false';
+const WALK_CLAUSES = ['!live.dirty', 'live.savedContents===savedBefore', 'getWorkingModel(tab.id)===model'];
+function markCensus(tabIo, store) {
+  const ioSetters = innermostNaming(tabIo, MARK_SET);
+  const clearers = innermostNaming(tabIo, MARK_CLEAR);
+  const walk = namedFunctions(stripComments(tabIo)).get('refreshRepo') ?? null;
+  let walkClears = 0;
+  let walkUnguarded = 0;
+  if (walk !== null) {
+    for (let at = walk.indexOf(MARK_CLEAR); at !== -1; at = walk.indexOf(MARK_CLEAR, at + 1)) {
+      walkClears += 1;
+      const cond = governingTest(walk, at);
+      if (cond === null || !WALK_CLAUSES.every((c) => cond.includes(c))) walkUnguarded += 1;
+    }
+  }
+  const action = methodBody(stripComments(store), 'adoptWritten');
+  const adopt = action === null ? -1 : action.indexOf('io.adoptWritten(');
+  const set = action === null ? -1 : action.indexOf(MARK_SET);
+  const cond = set === -1 ? null : governingTest(action, set);
+  return {
+    ioSetters,
+    clearers,
+    walkClears,
+    walkUnguarded,
+    action: action !== null,
+    actionSets: set !== -1,
+    adoptsFirst: adopt !== -1 && set !== -1 && adopt < set,
+    asksBytes: cond !== null && cond.includes('.savedContents!==contents') && !cond.includes('||')
+  };
+}
+
+/** PHASE 290. The shapes rule 30 accepts, written once so each broken fixture is one edit of them. */
+const MARK_FIXTURE = [
+  'export function createTabIo(deps) {',
+  '  const refreshRepo = async (repoPath) => {',
+  '    for (const tab of deps.worktreeTabsIn(repoPath)) {',
+  '      const before = deps.byId(tab.id);',
+  '      const model = getWorkingModel(tab.id);',
+  '      const savedBefore = before.savedContents;',
+  '      const result = await gmux.fs.readFile(tab.path);',
+  '      const live = deps.byId(tab.id);',
+  '      if (live !== undefined && !live.dirty && live.savedContents === savedBefore && result.contents !== live.savedContents && getWorkingModel(tab.id) === model) {',
+  '        deps.patch(tab.id, { savedContents: result.contents, rewindOwesRead: false });',
+  '      } else if (live !== undefined && live.rewindOwesRead === true && !live.dirty && live.savedContents === savedBefore && result.contents === live.savedContents && getWorkingModel(tab.id) === model) {',
+  '        deps.patch(tab.id, { rewindOwesRead: false });',
+  '      }',
+  '    }',
+  '  };',
+  '  const completeSave = (id, model, value) => {',
+  '    deps.patch(id, { savedContents: value, ...(deps.byId(id)?.rewindOwesRead === true ? { rewindOwesRead: false } : {}) });',
+  '    return true;',
+  '  };',
+  '  const adoptWritten = (id, contents, was) => {',
+  '    const tab = deps.byId(id);',
+  '    if (tab.dirty || tab.savedContents !== was) return;',
+  '    deps.patch(id, { savedContents: contents });',
+  '  };',
+  '  return { refreshRepo, adoptWritten, save };',
+  '}',
+  ''
+].join('\n');
+const STORE_MARK_FIXTURE = [
+  'export const useEditor = create((set, get) => ({',
+  '  adoptWritten(id, contents, was) {',
+  '    io.adoptWritten(id, contents, was);',
+  '    const after = tabById(id);',
+  '    if (after !== undefined && after.savedContents !== contents) {',
+  '      patchTab(id, { rewindOwesRead: true });',
+  '    }',
+  '  }',
+  '}));',
+  ''
+].join('\n');
+/**
+ * PHASE 290. What is wrong with one census of the mark, or nothing, being the
+ * one reading the shipping check, the fixtures and the shipping ablations all
+ * ask. The fix round of Phase 352 made it one: the shipping check asked the
+ * walk to clear the mark at least once, while the fixtures asked exactly twice,
+ * so taking either one of the walk's two clears out of the shipping tab-io left
+ * this gate green.
+ */
+function markProblems(m) {
+  const problems = [];
+  if (m.ioSetters.length > 0) {
+    problems.push(`tab-io sets the mark in ${m.ioSetters.join(', ')}, where only the store's adoptWritten action may set it`);
+  }
+  if (!m.action) {
+    problems.push('the editor store has no adoptWritten action, so this rule read nothing');
+  } else if (!m.actionSets) {
+    problems.push("the store's adoptWritten sets no mark, so a refused adoption leaves no read owed and a tab switch forgets the rewind");
+  } else {
+    if (!m.adoptsFirst) {
+      problems.push("the store's adoptWritten sets the mark before the adoption has answered, so it cannot know whether the tab took the bytes");
+    }
+    if (!m.asksBytes) {
+      problems.push(
+        "the store's adoptWritten marks a tab without asking whether it holds the bytes the write wrote, so a tab a walk had already read is refused every ⌥↩ with no read left to clear it"
+      );
+    }
+  }
+  if (m.clearers.join() !== 'completeSave,refreshRepo') {
+    problems.push(
+      `the mark is cleared in ${m.clearers.join(', ') || 'nothing'} in tab-io, where only refreshRepo's clean read and completeSave may clear it`
+    );
+  }
+  if (m.walkClears !== 2) {
+    problems.push(
+      `refreshRepo clears the mark ${String(m.walkClears)} time(s), where each of its two clean reads clears it once, the reload of a tab the disk moved under and the read that finds the tab already holding what the disk holds, so a read that lands without clearing it leaves the read owing for good`
+    );
+  }
+  if (m.walkUnguarded > 0) {
+    problems.push(
+      `refreshRepo clears the mark ${String(m.walkUnguarded)} time(s) outside the walk's clean clauses, so a read that raced a newer baseline lets it go`
+    );
+  }
+  return problems;
+}
+const markOk = (m) => markProblems(m).length === 0;
+
 // PHASE 347. Rule 29's statement, read with its whitespace collapsed.
 const DRAFT_SKIP = "if (tab.draft != null && tab.savedContents === '') continue;";
 
@@ -892,6 +1118,181 @@ const FIXTURES = [
       '}));',
     check: (c) =>
       orderIn(methodBody(c, 'markDirty'), 'patchTab(', 'patchTab(', 'noteChanged') === true
+  },
+  // -- Phase 290, rule 14's pull and rule 30 ---------------------------------
+  {
+    name: 'a markDirty that pulls the owed read after it arms, on the clean edge, while the mark stands, is clean',
+    catches: false,
+    code:
+      'const markDirty = (id, dirty) => { const tab = byId(id); if (tab.dirty === dirty) { autoSave.noteChanged(id); return; } ' +
+      'patchTab(id, { dirty }); autoSave.noteChanged(id); ' +
+      'if (!dirty && byId(id)?.rewindOwesRead === true) get().rereadRepo(tab.repoPath); };',
+    check: (c) => owedPullPlace(methodBody(c, 'markDirty')) === 'ok'
+  },
+  {
+    name: 'the same pull written as a guard with a block, as a store method, is clean',
+    catches: false,
+    code:
+      'export const useEditor = create((set, get) => ({\n' +
+      '  markDirty(id, dirty) {\n' +
+      '    if (byId(id).dirty === dirty) { autoSave.noteChanged(id); return; }\n' +
+      '    patchTab(id, { dirty });\n' +
+      '    autoSave.noteChanged(id);\n' +
+      '    if (dirty === false && byId(id).rewindOwesRead === true) {\n' +
+      '      get().rereadRepo(byId(id).repoPath);\n' +
+      '    }\n' +
+      '  }\n' +
+      '}));',
+    check: (c) => owedPullPlace(methodBody(c, 'markDirty')) === 'ok'
+  },
+  {
+    name: 'THE FILE VIEW’S UNDO READS NOTHING: a markDirty with no pull is caught',
+    catches: true,
+    code:
+      'const markDirty = (id, dirty) => { if (byId(id).dirty === dirty) return; patchTab(id, { dirty }); autoSave.noteChanged(id); };',
+    check: (c) => owedPullPlace(methodBody(c, 'markDirty')) === 'absent'
+  },
+  {
+    name: 'the pull made BEFORE the arm, which moves rule 14’s order, is caught',
+    catches: true,
+    code:
+      'const markDirty = (id, dirty) => { if (byId(id).dirty === dirty) return; patchTab(id, { dirty }); ' +
+      'if (!dirty && byId(id).rewindOwesRead === true) get().rereadRepo(repoPath); autoSave.noteChanged(id); };',
+    check: (c) => owedPullPlace(methodBody(c, 'markDirty')) === 'before-arm'
+  },
+  {
+    name: 'the pull made before the edge is patched at all is caught',
+    catches: true,
+    code:
+      'const markDirty = (id, dirty) => { if (!dirty && byId(id).rewindOwesRead === true) get().rereadRepo(repoPath); ' +
+      'if (byId(id).dirty === dirty) return; patchTab(id, { dirty }); autoSave.noteChanged(id); };',
+    check: (c) => owedPullPlace(methodBody(c, 'markDirty')) === 'before-patch'
+  },
+  {
+    name: 'the pull on every clean edge, the mark not asked, is caught',
+    catches: true,
+    code:
+      'const markDirty = (id, dirty) => { if (byId(id).dirty === dirty) return; patchTab(id, { dirty }); ' +
+      'autoSave.noteChanged(id); if (!dirty) get().rereadRepo(repoPath); };',
+    check: (c) => owedPullPlace(methodBody(c, 'markDirty')) === 'unmarked'
+  },
+  {
+    name: 'the pull on the way INTO dirty is caught',
+    catches: true,
+    code:
+      'const markDirty = (id, dirty) => { if (byId(id).dirty === dirty) return; patchTab(id, { dirty }); ' +
+      'autoSave.noteChanged(id); if (dirty && byId(id).rewindOwesRead === true) get().rereadRepo(repoPath); };',
+    check: (c) => owedPullPlace(methodBody(c, 'markDirty')) === 'into-dirty'
+  },
+  {
+    name: 'the pull on either edge while the mark stands is caught',
+    catches: true,
+    code:
+      'const markDirty = (id, dirty) => { if (byId(id).dirty === dirty) return; patchTab(id, { dirty }); ' +
+      'autoSave.noteChanged(id); if (byId(id).rewindOwesRead === true) get().rereadRepo(repoPath); };',
+    check: (c) => owedPullPlace(methodBody(c, 'markDirty')) === 'every-edge'
+  },
+  {
+    name: 'the pull with the mark asked the wrong way round is caught (the fix round of Phase 352)',
+    catches: true,
+    code:
+      'const markDirty = (id, dirty) => { if (byId(id).dirty === dirty) return; patchTab(id, { dirty }); ' +
+      'autoSave.noteChanged(id); if (!dirty && byId(id)?.rewindOwesRead !== true) get().rereadRepo(repoPath); };',
+    check: (c) => owedPullPlace(methodBody(c, 'markDirty')) === 'inverted'
+  },
+  {
+    name: 'the pull with the mark negated is caught (the fix round of Phase 352)',
+    catches: true,
+    code:
+      'const markDirty = (id, dirty) => { if (byId(id).dirty === dirty) return; patchTab(id, { dirty }); ' +
+      'autoSave.noteChanged(id); if (!dirty && !byId(id).rewindOwesRead) get().rereadRepo(repoPath); };',
+    check: (c) => owedPullPlace(methodBody(c, 'markDirty')) === 'inverted'
+  },
+  {
+    name: 'the pull with the mark asked as a bare truthy name is clean (the fix round of Phase 352)',
+    catches: false,
+    code:
+      'const markDirty = (id, dirty) => { if (byId(id).dirty === dirty) return; patchTab(id, { dirty }); ' +
+      'autoSave.noteChanged(id); if (!dirty && byId(id).rewindOwesRead) get().rereadRepo(repoPath); };',
+    check: (c) => owedPullPlace(methodBody(c, 'markDirty')) === 'ok'
+  },
+  {
+    name: 'a pull joined by || is read as unreadable, not as clean',
+    catches: true,
+    code:
+      'const markDirty = (id, dirty) => { if (byId(id).dirty === dirty) return; patchTab(id, { dirty }); ' +
+      'autoSave.noteChanged(id); if (!dirty || byId(id).rewindOwesRead === true) get().rereadRepo(repoPath); };',
+    check: (c) => owedPullPlace(methodBody(c, 'markDirty')) === 'unread'
+  },
+  {
+    name: 'a pull with no test round it is caught',
+    catches: true,
+    code:
+      'const markDirty = (id, dirty) => { if (byId(id).dirty === dirty) return; patchTab(id, { dirty }); ' +
+      'autoSave.noteChanged(id); get().rereadRepo(repoPath); };',
+    check: (c) => owedPullPlace(methodBody(c, 'markDirty')) === 'unguarded'
+  },
+  {
+    name: 'rule 30: the mark set by the store after the adoption has answered, for a tab not holding the written bytes, and cleared only by the walk’s clean read and a save, is clean',
+    catches: false,
+    code: MARK_FIXTURE,
+    check: (c) => markOk(markCensus(c, STORE_MARK_FIXTURE))
+  },
+  {
+    name: 'rule 30: a mark cleared by a third function (a mode switch) is caught',
+    catches: true,
+    code: MARK_FIXTURE.replace(
+      '  const completeSave = ',
+      '  const setMode = (id) => { deps.patch(id, { mode: "file", rewindOwesRead: false }); };\n  const completeSave = '
+    ),
+    check: (c) => markCensus(c, STORE_MARK_FIXTURE).clearers.join() === 'completeSave,refreshRepo,setMode'
+  },
+  {
+    name: 'rule 30: a clear in the walk outside its clean clauses is caught',
+    catches: true,
+    code: MARK_FIXTURE.replace(
+      '      const result = await gmux.fs.readFile(tab.path);\n',
+      '      const result = await gmux.fs.readFile(tab.path);\n      deps.patch(tab.id, { rewindOwesRead: false });\n'
+    ),
+    check: (c) => markCensus(c, STORE_MARK_FIXTURE).walkUnguarded === 1
+  },
+  {
+    name: 'rule 30: a mark set inside tab-io as well is caught',
+    catches: true,
+    code: MARK_FIXTURE.replace(
+      '    if (tab.dirty || tab.savedContents !== was) return;\n',
+      '    if (tab.dirty || tab.savedContents !== was) { deps.patch(id, { rewindOwesRead: true }); return; }\n'
+    ),
+    check: (c) => markCensus(c, STORE_MARK_FIXTURE).ioSetters.join() === 'adoptWritten'
+  },
+  {
+    name: 'rule 30: the store setting the mark before the adoption has answered is caught',
+    catches: true,
+    code: MARK_FIXTURE,
+    check: (c) =>
+      markCensus(
+        c,
+        STORE_MARK_FIXTURE.replace(
+          '    io.adoptWritten(id, contents, was);\n    const after = tabById(id);\n',
+          '    const after = tabById(id);\n    patchTab(id, { rewindOwesRead: true });\n    io.adoptWritten(id, contents, was);\n'
+        )
+      ).adoptsFirst === false
+  },
+  {
+    name: 'rule 30: the store marking every refusal, the written bytes not asked, is caught',
+    catches: true,
+    code: MARK_FIXTURE,
+    check: (c) =>
+      markCensus(
+        c,
+        STORE_MARK_FIXTURE.replace('after.savedContents !== contents', '(after.dirty || after.savedContents !== was)')
+      ).asksBytes === false
+  },
+  {
+    name: 'rule 30: a store whose action sets no mark is caught',
+    catches: true,
+    code: MARK_FIXTURE,
+    check: (c) => markCensus(c, STORE_MARK_FIXTURE.replace('      patchTab(id, { rewindOwesRead: true });\n', '')).actionSets === false
   },
   {
     name: 'a stop composer that reuses the shipped sentences is clean',
@@ -1739,6 +2140,33 @@ const WRITE_CHANNELS = ['fs:writeFile', 'fs:writeGuarded'];
   } else {
     say('14. markDirty patches the tab before it arms the timer, so the skip list is asked about the tab the store holds');
   }
+  // PHASE 290. AND THE PULL OF A REWIND'S OWED READ COMES AFTER BOTH, on the
+  // way out of dirty only, while the tab's mark stands. It is the door an undo
+  // made in the File view reaches, where no Redline view is mounted to pull
+  // the read, and it extends this rule rather than relaxing it: the patch and
+  // the arm keep their order, and the pull is read behind them.
+  const pull = owedPullPlace(methodBody(code, 'markDirty'));
+  const PULL_WRONG = {
+    absent:
+      'markDirty pulls no read on the way out of dirty, so an undo made in the File view leaves a tab that owes a rewind’s read clean over bytes the disk has left',
+    twice: 'markDirty names rereadRepo more than once, so this rule cannot say which call is the door',
+    'before-patch': 'markDirty pulls the read before it patches the tab, so the read can find a tab the store still calls dirty',
+    'before-arm': 'markDirty pulls the read before it arms the auto save, which moves the order rule 14 holds',
+    unguarded: 'markDirty pulls the read on every change, with no test round it',
+    unread: 'markDirty pulls the read under an || this rule will not evaluate; ask !dirty && the mark, joined by && alone',
+    unmarked: 'markDirty pulls a read on every clean edge, the mark not asked, so an ordinary undo on an ordinary tab reads the repository',
+    'into-dirty': 'markDirty pulls the read on the way INTO dirty, where the walk skips the tab and reads nothing it may load',
+    'every-edge': 'markDirty pulls the read on either edge while the mark stands, not on the way out of dirty alone',
+    inverted:
+      'markDirty asks the tab’s mark the wrong way round, so it pulls a read on the way out of dirty for every tab that owes none and never for the one that does'
+  };
+  if (pull === null) {
+    fail('14. markDirty is not in the editor store, so the pull of a rewind’s owed read was not asked');
+  } else if (pull !== 'ok') {
+    fail(`14. ${PULL_WRONG[pull] ?? pull}`);
+  } else {
+    say("14. and pulls a rewind's owed read after both, on the way out of dirty and only while the tab's mark stands (Phase 290)");
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -2286,6 +2714,127 @@ const PROJECT_CLOSED_SENTENCE =
   } else {
     say("29. refreshRepo's loop opens with the skip of a draft never saved, before any read or patch");
   }
+}
+
+// ---------------------------------------------------------------------------
+// Rule 30. THE TAB OWES THE READ, AND NOTHING BUT A READ OR A SAVE LETS IT GO
+// (Phase 290). A rewind whose adoption refused leaves `savedContents` older
+// than the disk, so the picture can still draw the change the person rewound,
+// and ⌥↩ would take it. Phase 282 kept that caution in the Redline mount's
+// holds, which a tab switch or a look at the File view ended; it is a mark on
+// the TAB now (`rewindOwesRead`). This rule holds where it moves, because a
+// clear added anywhere else is a mark let go unread, and a mark set anywhere
+// else is a refusal nobody asked for:
+//
+//   - set ONCE, by the store's `adoptWritten` action, after ./tab-io's
+//     adoption has answered and only for a tab it left holding bytes other
+//     than the ones the write wrote; ./tab-io's adoption itself sets nothing,
+//     so its two refusals stay exactly what rule 25 reads;
+//   - cleared in ./tab-io by `refreshRepo`, under the walk's own clean
+//     clauses (live clean, `savedContents` unmoved, the same model), and by
+//     `completeSave`, and by nothing else there;
+//   - written nowhere else under src/renderer but the one tab the store
+//     creates, which starts owing nothing.
+// ---------------------------------------------------------------------------
+
+{
+  const problems = [];
+  const TAB_IO_TEXT = source(TAB_IO);
+  const STORE_TEXT = source(EDITOR_STORE);
+  const m = markCensus(TAB_IO_TEXT, STORE_TEXT);
+  // The fix round of Phase 352: the same reading the fixtures ask, so the
+  // shipping bytes are held to EXACTLY two clears in the walk.
+  problems.push(...markProblems(m));
+  // Every renderer source: the mark written by tab-io's clears, the store's
+  // action and the store's new tab, and by nothing else.
+  const writes = /\brewindOwesRead\s*:/g;
+  const elsewhere = [];
+  for (const file of walk(join(repoRoot, 'src', 'renderer'), (n) => /\.[cm]?tsx?$/.test(n))) {
+    if (/__tests__|\.test\./.test(file)) continue;
+    const rel = relative(repoRoot, file);
+    if (rel === TAB_IO) continue;
+    const code = stripComments(readFileSync(file, 'utf8'));
+    const count = (code.match(writes) ?? []).length;
+    if (count === 0) continue;
+    if (rel === EDITOR_STORE) {
+      const literal = code.indexOf('const tab: EditorTab = {');
+      const close = literal === -1 ? -1 : closeOf(code, code.indexOf('{', literal + 'const tab: EditorTab ='.length));
+      const cleared = code.indexOf(MARK_CLEAR);
+      const inLiteral = literal !== -1 && close !== -1 && cleared > literal && cleared < close;
+      const sets = (code.match(/\brewindOwesRead:\s*true\b/g) ?? []).length;
+      const clears = (code.match(/\brewindOwesRead:\s*false\b/g) ?? []).length;
+      if (count !== 2 || sets !== 1 || clears !== 1 || !inLiteral) {
+        elsewhere.push(`${rel} (${String(sets)} set, ${String(clears)} cleared, the new tab's own ${inLiteral ? 'among them' : 'not among them'})`);
+      }
+    } else {
+      elsewhere.push(`${rel} (${String(count)})`);
+    }
+  }
+  if (elsewhere.length > 0) {
+    problems.push(`the mark is written in ${elsewhere.join(', ')}, beyond tab-io's clears, the store's action and the store's new tab`);
+  }
+  // THE READINGS ARE ANCHORED IN THE SHIPPING BYTES. Each ablation takes the
+  // real file's text IN MEMORY, removes one clause, and must turn its reading
+  // red; one whose edit matches nothing fails too, because a clause that was
+  // re-anchored while its ablation matched nothing is a clause nobody watches.
+  // Nothing here writes the tree.
+  const ABLATED = [
+    ['14', 'the pull taken out of markDirty', EDITOR_STORE,
+      'if (!dirty && tabById(id)?.rewindOwesRead === true) get().rereadRepo(tab.repoPath);', '',
+      (store) => owedPullPlace(methodBody(store, 'markDirty')) !== 'ok'],
+    ['14', 'the pull made on either edge', EDITOR_STORE,
+      'if (!dirty && tabById(id)?.rewindOwesRead === true)', 'if (tabById(id)?.rewindOwesRead === true)',
+      (store) => owedPullPlace(methodBody(store, 'markDirty')) !== 'ok'],
+    // The fix round of Phase 352: the mark asked the wrong way round, which
+    // must be red on the direction and not only on an anchor.
+    ['14', 'the pull asking the mark the wrong way round', EDITOR_STORE,
+      'if (!dirty && tabById(id)?.rewindOwesRead === true)', 'if (!dirty && tabById(id)?.rewindOwesRead !== true)',
+      (store) => owedPullPlace(methodBody(store, 'markDirty')) === 'inverted'],
+    ['30', 'the store’s mark taken out', EDITOR_STORE,
+      'patchTab(id, { rewindOwesRead: true });', '',
+      (store) => markProblems(markCensus(TAB_IO_TEXT, store)).length > 0],
+    ['30', 'the store marking every refusal, the written bytes not asked', EDITOR_STORE,
+      'after.savedContents !== contents', '(after.dirty || after.savedContents !== was)',
+      (store) => markProblems(markCensus(TAB_IO_TEXT, store)).length > 0],
+    ['30', 'a save that lands no longer clearing it', TAB_IO,
+      '...(deps.byId(id)?.rewindOwesRead === true ? { rewindOwesRead: false } : {})', '',
+      (io) => markProblems(markCensus(io, STORE_TEXT)).length > 0],
+    ['30', "the walk's equal read cleared outside its clean clauses", TAB_IO,
+      '            live.rewindOwesRead === true &&\n            !live.dirty &&\n            live.savedContents === savedBefore &&\n            result.contents === live.savedContents &&',
+      '            live.rewindOwesRead === true &&\n            result.contents === live.savedContents &&',
+      (io) => markProblems(markCensus(io, STORE_TEXT)).length > 0],
+    // The fix round of Phase 352: each of the walk's two clears taken out
+    // alone, which the verify lens's ablations A8 and A9 did to the shipping
+    // tab-io with this gate green.
+    ['30', "the walk's reload no longer clearing it", TAB_IO,
+      '              truncated: result.truncated,\n              rewindOwesRead: false\n',
+      '              truncated: result.truncated\n',
+      (io) => markProblems(markCensus(io, STORE_TEXT)).some((p) => p.startsWith('refreshRepo clears the mark 1 time'))],
+    ['30', "the walk's equal read no longer clearing it", TAB_IO,
+      '            deps.patch(tab.id, { rewindOwesRead: false });',
+      '            void 0;',
+      (io) => markProblems(markCensus(io, STORE_TEXT)).some((p) => p.startsWith('refreshRepo clears the mark 1 time'))]
+  ];
+  let ablatedRed = 0;
+  for (const [rule, name, rel, find, to, red] of ABLATED) {
+    const text = rel === TAB_IO ? TAB_IO_TEXT : STORE_TEXT;
+    if (text.split(find).length - 1 !== 1) {
+      fail(`${rule}. the shipping ablation "${name}" found its clause ${text.includes(find) ? 'more than once' : 'nowhere'} in ${rel}, so it proves nothing; re-anchor it`);
+      continue;
+    }
+    if (red(text.replace(find, () => to))) ablatedRed += 1;
+    else fail(`${rule}. the shipping ablation "${name}" did not turn its reading red, so the rule is not reading the bytes that ship`);
+  }
+  if (problems.length > 0) {
+    fail(`30. ${problems.join('; ')}`);
+  } else {
+    say(
+      "30. a refused adoption leaves the TAB owing the read: set once, by the store's adoptWritten after the adoption has answered and only for a tab not holding the written bytes; cleared only by refreshRepo's clean read and by completeSave; and written nowhere else but the store's new tab (Phase 290)"
+    );
+  }
+  say(
+    `30. ${String(ablatedRed)} of ${String(ABLATED.length)} ablations of the SHIPPING source turned rule 14's pull or rule 30 red on their own clause, made on the strings in memory`
+  );
 }
 
 // ---------------------------------------------------------------------------

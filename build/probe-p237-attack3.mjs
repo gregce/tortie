@@ -23,7 +23,12 @@
  *
  * Same safety rules as the other two: scratch home, scratch profile, scratch
  * project, one Electron through build/electron-run.mjs, no session, no agent,
- * no token, no keychain, no machine, no pasteboard, `-L gmux` read once.
+ * no token, no keychain, no machine, no pasteboard.
+ * This file names `-L gmux` nowhere: since Phase 285 build/electron-run.mjs's
+ * own census reads the operator's server around the launch, by identity, so a
+ * session he starts or ends while this runs is a note rather than a failure.
+ * Every agent row the app would run for its version is renamed before the
+ * launch (build/hidden-agents.mjs) and read back from the app's own scan.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -33,6 +38,12 @@ import { fileURLToPath } from 'node:url';
 
 import { cdpEval, wsConnect } from './cdp-client.mjs';
 import { withElectron } from './electron-run.mjs';
+import {
+  AGENTS_LIST_EXPR,
+  hiddenAgentsBesides,
+  standInsOnlyVerdict,
+  writeHiddenAgents
+} from './hidden-agents.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -44,18 +55,16 @@ const harnessDir = (process.env['GMUX_HARNESS_DIR'] ?? '').trim();
 if (harnessDir === '') refuse('GMUX_HARNESS_DIR is not set.');
 if (!existsSync(join(REPO, 'out', 'main', 'index.js'))) refuse('no build under out/.');
 
-function operatorSessions() {
-  const out = spawnSync('tmux', ['-L', 'gmux', 'list-sessions'], { encoding: 'utf8' });
-  return (out.stdout ?? '').split('\n').filter((l) => l.trim() !== '').length;
-}
-const sessionsBefore = operatorSessions();
-
 mkdirSync(join(harnessDir, 'p237v3'), { recursive: true });
 const root = realpathSync(join(harnessDir, 'p237v3'));
 const home = join(root, 'home');
 const profile = join(root, 'profile');
 const project = join(root, 'project');
 for (const d of [home, profile, project]) mkdirSync(d, { recursive: true });
+// No agent runs, not even for its version: every probed registry row is
+// renamed to a name nothing on this Mac carries, and the app's own scan is
+// read back once the window is up.
+writeHiddenAgents(profile, 'p237v3', hiddenAgentsBesides([]));
 
 const REL = 'notes.txt';
 const FILE = join(project, REL);
@@ -135,7 +144,7 @@ await withElectron(
   {
     label: 'p237v3',
     userDataDir: profile,
-    tmuxSocket: null,
+    tmuxSocket: socket,
     args: ['--remote-debugging-port=0', '--use-mock-keychain'],
     env: { HOME: home, GMUX_TMUX_SOCKET: socket, GMUX_PROBES: '1' },
     ceilingMs: 15 * 60 * 1000
@@ -144,6 +153,10 @@ await withElectron(
     const { cdp, url } = await cdpForAppWindow(90_000);
     say(`p237v3: app window at ${url}`);
     await cdp.call('Runtime.enable');
+    const agents = standInsOnlyVerdict(JSON.parse(await cdpEval(cdp, AGENTS_LIST_EXPR, 90_000)), {
+      standIns: []
+    });
+    check(agents.ok, "no agent resolved in the app's own scan", agents.said);
     for (;;) {
       if ((await cdpEval(cdp, `performance.getEntriesByType('navigation')[0].loadEventEnd`)) > 0) break;
       await sleep(50);
@@ -262,10 +275,6 @@ await withElectron(
     cdp.close();
   }
 );
-
-say('\n=== the operator’s own server ===');
-const sessionsAfter = operatorSessions();
-check(sessionsAfter === sessionsBefore, `the session count on -L gmux did not move (${String(sessionsBefore)} then ${String(sessionsAfter)})`);
 
 if (failures.length > 0) {
   say(`\nprobe-p237-attack3: ${String(failures.length)} check(s) failed:`);

@@ -45,17 +45,22 @@
  *   I. OFF IS OFF. Mode `off`, type, wait: the file never moves.
  *   J. THE MENU. The File > Auto Save action moves the mode off → afterDelay →
  *      off, through the same channel the row's click forwards to.
- *   K. THE OPERATOR'S WORLD. `tmux -L gmux list-sessions` counted before and
- *      after and asserted unmoved.
+ *   K. NO AGENT RUNS. Every agent row the app would run for its version is
+ *      renamed before the launch (build/hidden-agents.mjs) and the app's own
+ *      scan is read back: nothing may resolve. The operator's own tmux server
+ *      is not read here at all: since Phase 285 build/electron-run.mjs's census
+ *      reads it around the launch, by identity, so a session he starts or ends
+ *      while this runs is a note rather than a failure.
  *
  * ## SAFETY
  *
  * The Electron is started through build/electron-run.mjs, which ends the tree
- * it started in a `finally` block whatever happened. The socket is handed in by
- * build/harness-socket.mjs, which names it `gmux-p268-<slug>-<pid>`, ends the
- * server afterwards and unlinks its socket and marker; `gmux` and `default` are
- * refused by name. Every other process this script starts is a synchronous
- * `git` or `/bin/sh` that has exited before the call returns. EVERY BYTE THIS
+ * it started in a `finally` block whatever happened, and the scratch tmux server
+ * with it. The socket is handed in by build/harness-socket.mjs, which names it
+ * `gmux-p268-<slug>-<pid>`, ends the server afterwards and unlinks its socket
+ * and marker; `gmux` and `default` are refused by name. Every other process
+ * this script starts is a synchronous `git` or `/bin/sh` that has exited before
+ * the call returns. EVERY BYTE THIS
  * RUN WRITES is under `GMUX_HARNESS_DIR`. `--self-test` proves the grader on
  * fixtures and launches nothing.
  */
@@ -73,6 +78,12 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { withElectron, withoutDevRenderer } from '../electron-run.mjs';
 import { cdpEval, wsConnect } from '../cdp-client.mjs';
+import {
+  AGENTS_LIST_EXPR,
+  hiddenAgentsBesides,
+  standInsOnlyVerdict,
+  writeHiddenAgents
+} from '../hidden-agents.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TAG = '[p268]';
@@ -214,12 +225,6 @@ if (!existsSync(join(REPO, 'out', 'main', 'index.js'))) {
   process.exit(2);
 }
 
-const operatorCount = () =>
-  (spawnSync('tmux', ['-L', 'gmux', 'list-sessions'], { encoding: 'utf8' }).stdout ?? '')
-    .split('\n')
-    .filter((l) => l.trim() !== '').length;
-const opBefore = operatorCount();
-
 // ---------------------------------------------------------------------------
 // The scratch world: one git project, plus a file OUTSIDE every project.
 // ---------------------------------------------------------------------------
@@ -232,6 +237,10 @@ for (const d of [home, profile, project]) {
   rmSync(d, { recursive: true, force: true });
   mkdirSync(d, { recursive: true });
 }
+// No agent runs, not even for its version: every probed registry row is
+// renamed to a name nothing on this Mac carries, and the app's own scan is
+// read back once the window is up.
+writeHiddenAgents(profile, 'p268', hiddenAgentsBesides([]));
 // The ~/.claude/CLAUDE.md shape, inside the SCRATCH home and outside every
 // project root. Arm G types into it and watches its mtime never move.
 const outsideDir = join(home, '.claude');
@@ -426,7 +435,7 @@ await withElectron(
   {
     label: 'p268-autosave',
     userDataDir: profile,
-    tmuxSocket: null,
+    tmuxSocket: socket,
     cwd: REPO,
     args: ['--remote-debugging-port=0', '--use-mock-keychain'],
     env: withoutDevRenderer({ HOME: home, GMUX_TMUX_SOCKET: socket, GMUX_PROBES: '1' }),
@@ -437,6 +446,11 @@ await withElectron(
     say(`app window at ${url}, pid ${handle.appPid()}`);
     try {
       await cdp.call('Runtime.enable');
+      const agents = standInsOnlyVerdict(JSON.parse(await cdpEval(cdp, AGENTS_LIST_EXPR, 90000)), {
+        standIns: []
+      });
+      say(`agents: ${agents.ok ? 'ok' : 'NOT OK'}: ${agents.said}`);
+      if (!agents.ok) problems.push(`K an agent resolved in the app's own scan: ${agents.said}`);
       // ARM H NEEDS THIS. Monaco's focus tracker is driven by real `focus` and
       // `blur` EVENTS on its hidden input, and Chromium suppresses those for a
       // document it does not consider focused — which a probe's window is not.
@@ -776,11 +790,6 @@ await withElectron(
 );
 
 writeFileSync(join(root, 'readings.json'), `${JSON.stringify(findings, null, 2)}\n`);
-const opAfter = operatorCount();
-say(`the operator's own -L gmux sessions: ${String(opBefore)} before, ${String(opAfter)} after`);
-if (opBefore !== opAfter) {
-  problems.push("the operator's own tmux server changed under this run");
-}
 if (problems.length > 0) {
   for (const p of problems) process.stderr.write(`${TAG} ${p}\n`);
   process.stderr.write(`${TAG} FAILED: ${String(problems.length)} finding(s).\n`);

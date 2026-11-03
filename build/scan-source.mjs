@@ -30,6 +30,9 @@
  *   - {@link functionBodyOf} returns the body of ONE named function
  *     declaration, braces and all, for a gate that asks its question of one
  *     function rather than of a whole file.
+ *   - {@link receiverOf} says what stands in front of a call name a gate
+ *     matched: a regular expression it is a method of, any other receiver, a
+ *     spread, the `function` keyword that declares it, or nothing (Phase 307).
  *
  * It spawns nothing, opens no socket and reads no file. Callers hand it text.
  */
@@ -576,4 +579,275 @@ export function assignedValues(code) {
     }
   }
   return out;
+}
+
+/**
+ * Every function's parameters paired with the span of its body, read WIDE on
+ * purpose (Phase 307): every identifier inside a parameter list, defaults and
+ * destructuring included, and an arrow's expression body as well as a block.
+ *
+ * {@link parameterScopes} reads narrow, because its names only ever SUPPRESS a
+ * finding, and over-suppression hides a defect. These names do the opposite:
+ * a name a function takes as a parameter is the caller's value inside that
+ * function, so a regular expression this file assigns under the same name is
+ * not what the function's call is made on, and the site stays a candidate.
+ * Reading too many names here keeps more sites read, which is the direction a
+ * gate fails closed.
+ */
+function bindingScopes(code) {
+  const scopes = [];
+  const add = (text, start, end) => {
+    if (end !== -1) scopes.push({ names: new Set(text.match(/[A-Za-z_$][\w$]*/g) ?? []), start, end });
+  };
+  // A declared function or a function expression, past a TypeScript return
+  // type when there is one.
+  const declared = /\bfunction\b\s*\*?\s*[A-Za-z_$]?[\w$]*\s*\(/g;
+  let m;
+  while ((m = declared.exec(code)) !== null) {
+    const open = m.index + m[0].length - 1;
+    const close = closeOf(code, open);
+    if (close === -1) continue;
+    const brace = /^\s*(?::[^{;=]*)?\{/.exec(code.slice(close + 1, close + 300));
+    if (brace === null) continue;
+    const at = close + brace[0].length;
+    add(code.slice(open + 1, close), at, closeOf(code, at));
+  }
+  // An arrow, read BACK from its `=>`, so the matcher is never run from a
+  // bracket that is not a parameter list: `(params) =>` or `name =>`.
+  const arrow = /=>/g;
+  while ((m = arrow.exec(code)) !== null) {
+    let i = m.index - 1;
+    while (i >= 0 && /\s/.test(code[i])) i -= 1;
+    let text = null;
+    if (code[i] === ')') {
+      const open = parenBefore(code, i);
+      if (open !== -1) text = code.slice(open + 1, i);
+    } else {
+      text = /([A-Za-z_$][\w$]*)$/.exec(code.slice(Math.max(0, i - 64), i + 1))?.[1] ?? null;
+    }
+    if (text === null) continue;
+    let after = m.index + 2;
+    while (after < code.length && /\s/.test(code[after])) after += 1;
+    add(text, after - 1, code[after] === '{' ? closeOf(code, after) : statementEnd(code, after));
+  }
+  return scopes;
+}
+
+/**
+ * The parenthesis that opens the one closing at `close`, read backward, or
+ * -1. A string the walk meets is skipped back to its opening quote on the same
+ * line; one it cannot bound there, or a list longer than any parameter list,
+ * is -1, a scope not recorded.
+ */
+function parenBefore(code, close) {
+  let depth = 0;
+  for (let i = close; i >= 0 && close - i < 4000; i -= 1) {
+    const c = code[i];
+    if (c === "'" || c === '"' || c === '`') {
+      const open = code.lastIndexOf(c, i - 1);
+      if (open === -1 || open < code.lastIndexOf('\n', i - 1)) return -1;
+      i = open;
+      continue;
+    }
+    if (c === ')') depth += 1;
+    else if (c === '(') {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Whether `name` is bound anywhere in the file by something other than an `=`
+ * {@link assignedValues} reads: a destructuring declaration, a `for` head, a
+ * `catch` clause, an import, or a function or class declaration (the probe
+ * review of Phase 352). Such a binding can hold a child process under a name
+ * the file elsewhere assigns nothing but a regular expression, and
+ * `const { proc } = { proc: child }; proc.spawn(…)`, the same through
+ * `for (const proc of …)` and through `catch (proc)`, each walked past the
+ * background gate with a detached loop while the parent found them. A name
+ * bound so is never read as a regular expression, which keeps every one of its
+ * sites read: the direction these gates fail closed.
+ *
+ * AND A DESTRUCTURING ASSIGNMENT, with no keyword before it (the fix round of
+ * Phase 352). `[proc] = [child]` and `({ proc } = { proc: child })` rebind a
+ * name the file declared with `let proc = /x/;`, and the three patterns above
+ * each want a `const`, a `let` or a `var` in front of the bracket, so
+ * `proc.spawn('/bin/sh', ['-c', LOOP], { detached: true })` walked past the
+ * background gate and `cp.execFile('ssh', …)` after `[cp] = [child]` past the
+ * known-hosts gate, both found at the parent (the verify lens's fixtures v01,
+ * v02 and k02, now in build/background-fixtures.mjs and
+ * build/known-hosts-fixtures.mjs).
+ */
+function boundOtherwise(code, name) {
+  const n = name.replace(/\$/g, '\\$');
+  const word = `(?<![\\w$.])${n}(?![\\w$])`;
+  if (
+    new RegExp(
+      `\\b(?:const|let|var)\\s*[{[][^=;]*${word}` +
+        `|\\bfor\\s*(?:await\\s*)?\\(\\s*(?:const|let|var)?[^;)]*?${word}[^;)]*?\\b(?:of|in)\\b` +
+        `|\\bcatch\\s*\\(\\s*[^)]*${word}` +
+        `|\\bimport\\b[^;]*?${word}[^;]*?\\bfrom\\b` +
+        `|\\b(?:function|class)\\s*\\*?\\s*${n}(?![\\w$])`
+    ).test(code)
+  ) {
+    return true;
+  }
+  return assignmentTargetsOf(code).some((target) => new RegExp(word).test(target));
+}
+
+/** One file's destructuring assignment targets, read once per text. */
+let targetsRead = { code: null, targets: [] };
+
+/**
+ * The text inside every destructuring ASSIGNMENT target in `code`: the bracket
+ * that closes just before an `=` which is not `==`, `===` or `=>`, read back to
+ * the bracket that opens it. A `[` straight after a name, a `)` or a `]` is a
+ * member access (`values[i] = …`) and not a pattern, so it is passed over. A
+ * type annotation's braces before an `=` read as a target too, which keeps more
+ * names read, the direction this file's gates fail closed.
+ */
+function assignmentTargetsOf(code) {
+  if (targetsRead.code === code) return targetsRead.targets;
+  const targets = [];
+  const assign = /[\]}]\s*=(?![=>])/g;
+  let m;
+  while ((m = assign.exec(code)) !== null) {
+    const open = openerBefore(code, m.index);
+    if (open === -1) continue;
+    if (code[open] === '[') {
+      let p = open - 1;
+      while (p >= 0 && /\s/.test(code[p])) p -= 1;
+      if (p >= 0 && /[\w$)\]]/.test(code[p])) continue;
+    }
+    targets.push(code.slice(open + 1, m.index));
+  }
+  targetsRead = { code, targets };
+  return targets;
+}
+
+/**
+ * The bracket that opens the one closing at `close`, read backward over every
+ * kind of bracket, or -1. A string the walk meets is skipped back to its
+ * opening quote on the same line; one it cannot bound there is -1.
+ */
+function openerBefore(code, close) {
+  let depth = 0;
+  for (let i = close; i >= 0 && close - i < 4000; i -= 1) {
+    const c = code[i];
+    if (i !== close && (c === "'" || c === '"' || c === '`')) {
+      const open = code.lastIndexOf(c, i - 1);
+      if (open === -1 || open < code.lastIndexOf('\n', i - 1)) return -1;
+      i = open;
+      continue;
+    }
+    if (c === ')' || c === ']' || c === '}') depth += 1;
+    else if (c === '(' || c === '[' || c === '{') {
+      depth -= 1;
+      if (depth === 0) return c === '(' ? -1 : i;
+    }
+  }
+  return -1;
+}
+
+/** A right hand side that is a regular expression: a stripped literal, or a `RegExp`. */
+function regexValue(text) {
+  const t = String(text ?? '').trim();
+  return /^\/ +\/[dgimsuyv]*$/.test(t) || /^(?:new\s+)?RegExp\s*\(/.test(t);
+}
+
+/**
+ * What {@link receiverOf} needs to know about one whole file (Phase 307): the
+ * names it assigns NOTHING BUT a regular expression, and where each function
+ * takes a name as a parameter, so a method called on one of those names is a
+ * method of a regular expression everywhere but inside such a function.
+ * `code` is text {@link stripComments} has blanked, and `values` its
+ * {@link assignedValues}, handed in by a caller that has them already. The
+ * scopes are read the first time a regular expression's name is met, so a file
+ * that calls a method on none pays nothing for them.
+ */
+export function receiverContext(code, values = assignedValues(code)) {
+  const regexNames = new Set();
+  for (const [name, pieces] of values) {
+    if (pieces.length > 0 && pieces.every(regexValue) && !boundOtherwise(code, name)) regexNames.add(name);
+  }
+  let scopes = null;
+  return {
+    regexNames,
+    get scopes() {
+      if (scopes === null) scopes = bindingScopes(code);
+      return scopes;
+    }
+  };
+}
+
+/**
+ * PHASE 307. What stands in front of the call name that starts at `at` in
+ * `code`, being text {@link stripComments} has blanked.
+ *
+ * WHY A GATE THAT FINDS CALLS BY NAME NEEDS THIS. `exec` names a process
+ * starter and a regular expression's method, and `\bexec\s*\(` matches both,
+ * because `\b` sits between the `.` and the name. build/assert-background-
+ * teardown.mjs read `/^rgba?\(([^)]*)\)$/i.exec(raw)` beside
+ * `const raw = 'sleep 900'` as a runner nothing holds, which no `finally` can
+ * ever clear, so build/p293/probe-p293.mjs was routed around the gate rather
+ * than the gate weakened; and 252 of the 269 functions it read under build/ as
+ * process starters were read so only because a body held a method call named
+ * `exec`, `spawn` or `fork`. The same pattern reads `function other(cmd)` as a
+ * call of `other`.
+ *
+ * Five answers, and a gate drops a site for the first or the fourth alone:
+ *   'regex'        a method of a REGULAR EXPRESSION, in one of the three shapes
+ *                  measured for Phase 307: a literal ending in `/`
+ *                  (`/x/.exec(s)`), a literal's flag run after its `/`
+ *                  (`/x/i.exec(s)`), or a name this file assigns nothing but a
+ *                  regex literal or a `RegExp`, called outside every function
+ *                  that takes that name as a parameter (`RGB.exec(s)` after
+ *                  `const RGB = /x/i;`).
+ *   'member'       a method of anything else (`cp.spawn(…)`). It stays a
+ *                  candidate: a receiver that cannot be SHOWN to be a regular
+ *                  expression is read as one that is not.
+ *   'spread'       `...start(…)`, whose `.` is a spread rather than a member
+ *                  access, and which is a call.
+ *   'declaration'  `function start(…)`, where a function is DEFINED, spelled the
+ *                  way build/assert-known-hosts-scoped.mjs has spelled it since
+ *                  Phase 193.
+ *   'plain'        anything else.
+ *
+ * Nothing else is inferred. A regular expression reached through a parameter,
+ * a property or a loop variable reads 'member' and stays a candidate, which is
+ * the direction every gate here fails closed.
+ *
+ * `context` is {@link receiverContext} of the same code, computed once per
+ * file by a caller that asks about many sites.
+ */
+export function receiverOf(code, at, context = receiverContext(code)) {
+  if (/\bfunction\s*\*?\s*$/.test(code.slice(Math.max(0, at - 24), at))) return 'declaration';
+  const before = code.slice(Math.max(0, at - 400), at);
+  if (/\.\.\.\s*$/.test(before)) return 'spread';
+  const dot = /\.\s*$/.exec(before);
+  if (dot === null) return 'plain';
+  const receiver = before.slice(0, dot.index);
+  // A SLASH AFTER A POSTFIX `++` OR `--` DIVIDES (the fix round of Phase 352).
+  // stripComments reads it as opening a literal, because the character before
+  // it is a `+` or a `-`, and blanks up to the next slash, so
+  // `i++ / 2 /ms.spawn(…)` reached the two shapes below as a literal's flag run
+  // and a namespace whose name is only flag letters dropped a real start the
+  // parent found. A receiver like that is not shown to be a regular
+  // expression, so it is read as one that is not.
+  if (/[\w$)\]]\s*(?:\+\+|--)\s*\/ +\/[dgimsuyv]*\s*$/.test(receiver)) return 'member';
+  // A literal ending in `/`: stripComments keeps its two slashes and blanks
+  // its body, so it reads slash, spaces, slash. A slash after a name divides.
+  if (/\/ +\/\s*$/.test(receiver)) return 'regex';
+  // A literal's flag run after its closing slash.
+  if (/\/ +\/[dgimsuyv]+\s*$/.test(receiver)) return 'regex';
+  // A name this file only ever assigns a regular expression, and not a
+  // property of something else that happens to share the name, nor a
+  // parameter of a function the call sits in, where it is the caller's value.
+  const name = /(?:^|[^\w$.])([A-Za-z_$][\w$]*)\s*$/.exec(receiver);
+  if (name !== null && context.regexNames.has(name[1]) && !shadowedAt(context.scopes, name[1], at)) {
+    return 'regex';
+  }
+  return 'member';
 }

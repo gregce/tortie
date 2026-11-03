@@ -32,8 +32,15 @@
  *   renderer has no sentence for.
  *
  * SECTION 2 — the menu bar. One row, appearing once, unaccelerated, sitting
- *   between End Session and the per agent hotkeys, dispatched by the renderer,
- *   and named by no keymap entry anywhere. The row is the only surface that
+ *   in the Session menu immediately after End Session and before the per agent
+ *   hotkeys, dispatched by the renderer, and named by no keymap entry anywhere.
+ *   Since Phase 307 "in the Session menu" is asked of the submenu each row is
+ *   found in, and "immediately after" of the next element of that submenu
+ *   after End Session's call, whatever it is: the order alone passed the three
+ *   rows moved whole into the Project submenu, and two other rows set between
+ *   End Session and the resume row; and (the probe review of Phase 352) the
+ *   next `item(` call alone passed a separator, a role row, a row written as
+ *   an object and a spread of a helper's rows set between them. The row is the only surface that
  *   works in session focus mode, where the session list is hidden by design, so
  *   its absence is not cosmetic. Each of the three rows is found by something
  *   that does not change, being an action id or a spread, and End Session must
@@ -384,13 +391,33 @@ const missingMenuRows = menuRows.filter(
 // together.
 //
 // It reads yes only when this gate can stand behind the answer: all three rows
-// found, End Session found exactly once, and the three in order. Two occurrences
-// of the id mean two candidate rows and no answer at all, so that reads NO too.
+// found, End Session found exactly once, the three in order, and (Phase 307)
+// the resume row the NEXT ELEMENT after End Session's call, whatever it is,
+// which is what the sentence below has always said: two rows and a separator
+// between them passed an order read by lines, and one row that is not an
+// `item(` call passed a test of the next `item(` call. Two occurrences of the id mean two candidate rows and
+// no answer at all, so that reads NO too.
 const placedAfterEndSession =
   allMenuRowsLocated &&
   endSessionCount === 1 &&
   menu.endSessionAt < menu.rowAt &&
-  menu.rowAt < menu.hotkeysAt;
+  menu.rowAt < menu.hotkeysAt &&
+  menu.adjacent === true;
+
+// PHASE 307, MEMBERSHIP. The three rows sit in the Session menu, read as the
+// submenu each was FOUND in rather than as a line number, because the order
+// above passed all three moved whole into the Project submenu. The Session
+// menu is found by its label exactly once, as the resume id is, and a row that
+// was not found is the miss above and is not blamed twice.
+const sessionMenu = menu.sessionMenu ?? { count: 0, fromLine: -1, toLine: -1 };
+const foundIn = menu.foundIn ?? {};
+const menuOfRow = (key) =>
+  foundIn[key] === null || foundIn[key] === undefined
+    ? 'no submenu at all'
+    : `the ${foundIn[key]} menu`;
+const inSessionMenu =
+  sessionMenu.count === 1 &&
+  menuRows.every((row) => row.at === -1 || foundIn[row.key] === 'Session');
 
 for (const row of missingMenuRows) {
   // Say what was searched for when the probe records it, and say that it does
@@ -445,6 +472,23 @@ if (endSessionCount === null) {
       `${menu.endSessionAt + 1} and counts the action id 0 times. The line and ` +
       'the count are read from the same matches, so the probe is disagreeing ' +
       'with itself and neither answer can be used.'
+  );
+}
+
+if (sessionMenu.count !== 1) {
+  fail(
+    `label: 'Session' appears ${String(sessionMenu.count)} times in src/main/menu.ts, ` +
+      'so this gate cannot say which submenu is the Session menu, and the first ' +
+      'match never wins by default.'
+  );
+} else if (!inSessionMenu) {
+  fail(
+    `the three rows belong in the Session menu, lines ${String(sessionMenu.fromLine)} ` +
+      `to ${String(sessionMenu.toLine)} of src/main/menu.ts, and End Session was ` +
+      `found in ${menuOfRow('endSession')}, the ${data.action} row in ` +
+      `${menuOfRow('row')} and the per agent hotkeys in ${menuOfRow('hotkeys')}.\n` +
+      '      In session focus mode the menu bar is the only surface the verb has, ' +
+      'and a person looks for it beside End Session in the Session menu.'
   );
 }
 
@@ -780,6 +824,11 @@ process.stdout.write(
     // all three rows were found, End Session exactly once, and the three in
     // order. It can no longer read yes beside a failure.
     `${pad('placed after End Session', 34)} ${tick(placedAfterEndSession)}\n` +
+    // Phase 307's two lines: the submenu the rows were found in, and the row
+    // the menu really draws after End Session.
+    `${pad('in the Session menu', 34)} ${tick(inSessionMenu)}` +
+    `${inSessionMenu ? '' : ` (${menuOfRow('endSession')}, ${menuOfRow('row')}, ${menuOfRow('hotkeys')})`}\n` +
+    `${pad('the row after End Session', 34)} ${String(menu.nextAfterEndSession || 'none').slice(0, 80)}\n` +
     `${pad('dispatched by', 34)} ${list(menu.dispatchedIn)}\n` +
     `${pad('keymap entries naming it', 34)} ${list(menu.keymapNames)}\n`
 );

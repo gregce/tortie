@@ -55,8 +55,13 @@
  * ## What it refuses, and what it does not drive
  *
  *   - The socket `gmux` and the socket `default`, by name, before anything
- *     launches. `-L gmux` is only ever asked `list-sessions`, before and after,
- *     and the count must not move.
+ *     launches. This file names `-L gmux` nowhere: since Phase 285
+ *     build/electron-run.mjs's census reads it around the launch, by identity,
+ *     so a session the operator starts or ends while this runs is a note
+ *     rather than a failure, which is the reading that once failed this run.
+ *   - Any agent run, even for its version: every agent row the app would run
+ *     is renamed before the launch (build/hidden-agents.mjs), and the app's
+ *     own scan is read back and must resolve nothing.
  *   - Any byte outside `GMUX_HARNESS_DIR`.
  *   - Focus emulation. `probe:p268` turns it on for its blur arm; this run
  *     leaves it off on purpose, so arm 4b cannot pass or fail on a blur.
@@ -83,11 +88,11 @@
  * ## SAFETY
  *
  * The Electron is started through build/electron-run.mjs, which ends the tree
- * it started in a `finally` block whatever happened. The socket is handed in by
- * build/harness-socket.mjs, which names it `gmux-p277-<slug>-<pid>`, ends the
- * server afterwards and unlinks its socket and marker. Every other process this
- * script starts is a synchronous `git` or `tmux list-sessions` that has exited
- * before the call returns.
+ * it started in a `finally` block whatever happened, and the scratch tmux server
+ * with it. The socket is handed in by build/harness-socket.mjs, which names it
+ * `gmux-p277-<slug>-<pid>`, ends the server afterwards and unlinks its socket
+ * and marker. Every other process this script starts is a synchronous `git`
+ * that has exited before the call returns.
  */
 import { spawnSync } from 'node:child_process';
 import {
@@ -103,6 +108,12 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { withElectron, withoutDevRenderer } from '../electron-run.mjs';
 import { cdpEval, wsConnect } from '../cdp-client.mjs';
+import {
+  AGENTS_LIST_EXPR,
+  hiddenAgentsBesides,
+  standInsOnlyVerdict,
+  writeHiddenAgents
+} from '../hidden-agents.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TAG = '[p277]';
@@ -274,12 +285,6 @@ if (!existsSync(join(REPO, 'out', 'main', 'index.js'))) {
   process.exit(2);
 }
 
-const operatorCount = () =>
-  (spawnSync('tmux', ['-L', 'gmux', 'list-sessions'], { encoding: 'utf8' }).stdout ?? '')
-    .split('\n')
-    .filter((l) => l.trim() !== '').length;
-const opBefore = operatorCount();
-
 // ---------------------------------------------------------------------------
 // The scratch world: one git project holding one file.
 // ---------------------------------------------------------------------------
@@ -292,6 +297,10 @@ for (const d of [home, profile, project]) {
   rmSync(d, { recursive: true, force: true });
   mkdirSync(d, { recursive: true });
 }
+// No agent runs, not even for its version: every probed registry row is
+// renamed to a name nothing on this Mac carries, and the app's own scan is
+// read back once the window is up.
+writeHiddenAgents(profile, 'p277', hiddenAgentsBesides([]));
 
 const git = (cwd, ...a) => {
   const r = spawnSync('git', a, {
@@ -466,6 +475,8 @@ const arms = {
   '4 a timer does not outlive its policy (audit F2)': []
 };
 const [ARM1, ARM2, ARM3, ARM4] = Object.keys(arms);
+/** Findings about the run itself rather than an arm: an agent the app resolved. */
+const world = [];
 let stage = 'launch';
 
 /**
@@ -514,7 +525,7 @@ await withElectron(
   {
     label: 'p277-save',
     userDataDir: profile,
-    tmuxSocket: null,
+    tmuxSocket: socket,
     cwd: REPO,
     args: ['--remote-debugging-port=0', '--use-mock-keychain'],
     env: withoutDevRenderer({ HOME: home, GMUX_TMUX_SOCKET: socket, GMUX_PROBES: '1' }),
@@ -525,6 +536,11 @@ await withElectron(
     say(`app window at ${url}, pid ${handle.appPid()}`);
     try {
       await cdp.call('Runtime.enable');
+      const agents = standInsOnlyVerdict(JSON.parse(await cdpEval(cdp, AGENTS_LIST_EXPR, 90000)), {
+        standIns: []
+      });
+      say(`agents: ${agents.ok ? 'ok' : 'NOT OK'}: ${agents.said}`);
+      if (!agents.ok) world.push(`an agent resolved in the app's own scan: ${agents.said}`);
       for (;;) {
         if (
           (await cdpEval(cdp, `performance.getEntriesByType('navigation')[0].loadEventEnd`)) > 0
@@ -808,10 +824,7 @@ await withElectron(
   }
 );
 
-writeFileSync(join(root, 'readings.json'), `${JSON.stringify({ findings, arms }, null, 2)}\n`);
-const opAfter = operatorCount();
-say(`the operator's own -L gmux sessions: ${String(opBefore)} before, ${String(opAfter)} after`);
-const world = opBefore === opAfter ? [] : ["the operator's own tmux server changed under this run"];
+writeFileSync(join(root, 'readings.json'), `${JSON.stringify({ findings, arms, world }, null, 2)}\n`);
 
 let total = world.length;
 for (const [name, list] of Object.entries(arms)) {

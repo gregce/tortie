@@ -14,6 +14,16 @@
  * production subscription, end to end from a disk write to a re-read.
  * Delivery can lag about a second, so the wait is generous and the assertion
  * is on the result rather than on the timing.
+ *
+ * THE RULE THIS LANE ASSERTS BY (Phase 308), the same as
+ * src/main/watcher/__tests__/repo-watcher.native.test.ts's: a native lane
+ * asserts what the production contract promises, the contract promises a
+ * re-read for a dropped batch, and a sleep never carries a negative assertion
+ * alone. This file holds no negative assertion. Its one wait is a condition
+ * with a 10 s give-up bound, and when the bound is reached it says how many
+ * times the overlay was read from disk, so a repeat of the one failure seen in
+ * the 0.109.0 battery reads as a delivery problem (no read after the boot
+ * read) or a wiring problem (a read that did not take) rather than as neither.
  */
 
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -76,8 +86,15 @@ describe('the watcher over the native stream', () => {
       while (Date.now() < deadline && agentEntry('owl') === null) {
         await new Promise((r) => setTimeout(r, 100));
       }
-      expect(agentEntry('owl')?.displayName).toBe('Owl');
-      expect(agentOverlayDiskReads()).toBeGreaterThan(1);
+      const reads = agentOverlayDiskReads();
+      const said =
+        `agentOverlayDiskReads() = ${String(reads)}: ` +
+        (reads > 1
+          ? 'the change was delivered and the file re-read, and the entry still did not take, which is wiring'
+          : 'nothing after the boot read, so the change was never delivered by the native stream');
+      if (agentEntry('owl') === null) console.error(`store-watch.native: no entry within 10 s; ${said}`);
+      expect(agentEntry('owl')?.displayName, said).toBe('Owl');
+      expect(reads, said).toBeGreaterThan(1);
     } finally {
       await stopAgentOverlayWatch();
     }

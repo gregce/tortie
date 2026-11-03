@@ -586,5 +586,37 @@ function sh(file, args) {
 const out = sh('/opt/homebrew/bin/tmux', ['-V']);
 process.exit(out.status ?? 1);
 `)
+  },
+  {
+    id: 'R1',
+    from: 'fix round',
+    name: "a regular expression's own exec beside a name holding the client, which starts nothing",
+    mustFail: null,
+    usesHelper: false,
+    why:
+      'the control on Phase 307: before it this was rule 1, "exec(prog, ...) ' +
+      'starts ssh itself", and rule 1c, over a call that starts nothing',
+    text: A(`
+const prog = 'BARECLIENT';
+export const m = /x/.exec(prog);
+`)
+  },
+  {
+    id: 'R2',
+    from: 'fix round',
+    passed: true,
+    name: 'a regular expression name rebound to the child process module by a destructuring ASSIGNMENT, then spawned with the client',
+    mustFail: 1,
+    why:
+      "the verify lens's k02 (the fix round of Phase 352): no `const`, `let` or " +
+      '`var` in front of the bracket, so Phase 307 read the receiver as a ' +
+      'regular expression and dropped a real unrouted client the parent found',
+    text: A(`
+import * as child from 'node:child_process';
+let cp = /x/;
+[cp] = [child];
+const out = cp.LAUNCH('BARECLIENT', ['example.invalid', 'true'], { encoding: 'utf8' });
+process.exit(out.status ?? 1);
+`)
   }
 ];

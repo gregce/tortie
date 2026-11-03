@@ -5,6 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { fsOpMessage } from '../../../main/fs/errors';
 import { entryNameVerdict, MAX_ENTRY_NAME } from '../entry-name';
 
 const none: ReadonlySet<string> = new Set();
@@ -98,6 +99,39 @@ describe('what the disk allows, this module allows', () => {
     expect(entryNameVerdict('  keep.md  ', none)).toEqual({
       kind: 'ok',
       name: 'keep.md'
+    });
+  });
+});
+
+describe('a name holding what cannot be seen (Phase 274.3)', () => {
+  it('writes it out in the duplicate sentence, so two names that draw alike are told apart', () => {
+    expect(reasonOf('no\u200Bte.md', new Set(['no\u200Bte.md']))).toBe(
+      '"no<U+200B>te.md" already exists here.'
+    );
+    expect(reasonOf('my\u00A0notes.md', new Set(['my\u00A0notes.md']))).toBe(
+      '"my<U+00A0>notes.md" already exists here.'
+    );
+    expect(reasonOf('invoice\u202Edm.exe', new Set(['invoice\u202Edm.exe']))).toBe(
+      '"invoice<U+202E>dm.exe" already exists here.'
+    );
+  });
+
+  it('says what main says for the same name, byte for byte', () => {
+    const exists = Object.assign(new Error('EEXIST'), { code: 'EEXIST' });
+    for (const name of ['no\u200Bte.md', 'my\u00A0notes.md', 'a$&b.md', '\u2764\uFE0F.md']) {
+      expect(reasonOf(name, new Set([name]))).toBe(
+        fsOpMessage(exists, 'create', name).message
+      );
+    }
+  });
+
+  it('keeps an emoji as written, and hands back the name itself untouched', () => {
+    expect(reasonOf('\u2764\uFE0F.md', new Set(['\u2764\uFE0F.md']))).toBe(
+      '"\u2764\uFE0F.md" already exists here.'
+    );
+    expect(entryNameVerdict('no\u200Bte.md', none)).toEqual({
+      kind: 'ok',
+      name: 'no\u200Bte.md'
     });
   });
 });

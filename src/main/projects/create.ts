@@ -25,6 +25,7 @@
 
 import type { CreateProjectInput, CreateProjectResult } from '@shared/ipc';
 import { projectPathFor, validateProjectName } from '@shared/project-create';
+import { visibleName } from '@shared/visible-name';
 import type { Project } from '@shared/types';
 import { gmuxError } from '../errors';
 
@@ -80,9 +81,11 @@ export function createProjectCreator(
     if (await deps.exists(path)) {
       // Not an error state to recover FROM — the user picks another name —
       // so it names the collision rather than the errno.
+      // PHASE 274.3, the fix round of Phase 352: the name a person reads
+      // has what cannot be seen written out; the detail keeps the path.
       throw gmuxError(
         'INVALID_INPUT',
-        `'${name}' already exists in that folder.`,
+        `'${visibleName(name)}' already exists in that folder.`,
         path
       );
     }
@@ -92,7 +95,7 @@ export function createProjectCreator(
     } catch (err) {
       throw gmuxError(
         'FS_FAILED',
-        `Could not create '${name}'.`,
+        `Could not create '${visibleName(name)}'.`,
         (err as Error).message
       );
     }

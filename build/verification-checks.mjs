@@ -2794,6 +2794,24 @@ export const CHECKS = [
   // by sha256, and removes the clone in a `finally` and on a signal. About 10 s.
   // No Electron, no tmux, no ssh, no agent, no token.
   pure('ablation:p296'),
+  // PHASE 307's attack on its two narrowings (built in Phase 352): a call read
+  // by what it is (build/scan-source.mjs's `receiverOf`, its three regex shapes
+  // and the declaration guard, asked by gate:background and its promoted
+  // starters, and by gate:knownhosts' regex arm) and a menu row read by the
+  // submenu it sits in (conformance:handback's membership and true adjacency).
+  // Eleven arms, each taking ONE clause away in a clone and requiring the
+  // reading that clause owns to move and only that one, beside four controls
+  // that must stay found under every arm. It never writes into the working
+  // tree: it clones src/ and build/ under the system temporary directory,
+  // edits copies of the three gates, scan-source.mjs and src/main/menu.ts
+  // there, restores each by sha256 in a `finally`, removes the clone in a
+  // `finally` and on a signal, and asserts the worktree's bytes unmoved. About
+  // 40 s. No Electron, no tmux, no ssh, no agent, no token.
+  pure(
+    'ablation:p307',
+    'node and the repository install; it clones src/ and build/ under the system temporary directory, edits copies of the three gates, build/scan-source.mjs and src/main/menu.ts there, restores every file by sha256 in a finally, removes the clone, and spawns only node',
+    'never skips; a copy that will not load is a failure of the arm, not a pass'
+  ),
   // PHASE 300's attack on this phase's own rules, the five clauses of the
   // resolve cache: keyed without the home, no TTL, covering the direct stat,
   // unbounded, and a provider other than claude. It breaks the SHIPPING source

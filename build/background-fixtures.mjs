@@ -8,17 +8,18 @@
  * as the fix, so the next round reads it rather than rediscovering it. A
  * checker nobody has seen fail is a checker nobody has seen work.
  *
- * `LAUNCH` and `LOOP` are placeholders substituted immediately before a fixture
- * is written. They are placeholders for one reason: with the real words in
- * place this file's own source would read as a long lived child started with
- * no teardown, and the gate scans every file under build/.
+ * `LAUNCH`, `LOOP` and `SLEEPER` are placeholders substituted immediately
+ * before a fixture is written. They are placeholders for one reason: with the
+ * real words in place this file's own source would read as a long lived child
+ * started with no teardown, and the gate scans every file under build/.
  */
 
-/** The two words a fixture cannot carry literally. */
+/** The three words a fixture cannot carry literally. */
 export function fixture(text) {
   return text
     .replace(/LAUNCH/g, 'spa' + 'wn')
-    .replace(/LOOP/g, 'whi' + 'le true; do :; done');
+    .replace(/LOOP/g, 'whi' + 'le true; do :; done')
+    .replace(/SLEEPER/g, 'sle' + 'ep 900');
 }
 
 /**
@@ -315,6 +316,181 @@ try {
 } finally {
   say('nothing to end, because nothing was kept');
 }
+`)
+  },
+
+  // ------------------------------------------------------------------------
+  // PHASE 307: A CALL IS READ BY WHAT IT IS. A regular expression's own
+  // `exec` was read as `child_process.exec`, and the header that declares a
+  // function as a call of it. The first three shapes are what the gate drops
+  // now; the last three are what it must still find, because a gate that
+  // stopped reading member calls, spreads or a receiver it cannot prove is a
+  // gate made permissive.
+  // ------------------------------------------------------------------------
+  {
+    name: "a regular expression's own exec beside a name that collides, which starts nothing",
+    // RED BEFORE PHASE 307, held as nothing at all, so no finally could ever
+    // clear it, and build/p293/probe-p293.mjs was routed around the gate.
+    bad: 0,
+    text: fixture(`
+const raw = 'SLEEPER';
+export const parts = /^rgba?\\(([^)]*)\\)$/i.exec(raw);
+`)
+  },
+  {
+    name: 'the same regular expression held in a name the file assigns nothing else',
+    bad: 0,
+    text: fixture(`
+const raw = 'SLEEPER';
+const RGB = /^rgba?\\(([^)]*)\\)$/i;
+export const parts = RGB.exec(raw);
+`)
+  },
+  {
+    name: 'a declaration header beside the real start inside it',
+    // TWO findings on one line before Phase 307, the header and the call. The
+    // start inside is real and nothing holds it, so it is the one finding.
+    bad: 1,
+    text: fixture(`
+import { LAUNCH } from 'node:child_process';
+const cmd = 'LOOP';
+export function other(cmd) {
+  return LAUNCH('/bin/sh', ['-c', cmd]);
+}
+`)
+  },
+  {
+    name: 'a member-form detached loop, which must stay found',
+    bad: 1,
+    text: fixture(`
+import * as cp from 'node:child_process';
+const server = cp.LAUNCH('/bin/sh', ['-c', 'LOOP'], { detached: true });
+await drive();
+server.kill();
+`)
+  },
+  {
+    name: 'a spread of a starter whose argument holds a loop, which must stay found',
+    bad: 1,
+    text: fixture(`
+import { LAUNCH } from 'node:child_process';
+const BURN = 'LOOP';
+function startLoaders(cmd) {
+  return [LAUNCH('/bin/sh', ['-c', cmd], { stdio: 'ignore' })];
+}
+const kids = [...startLoaders(BURN)];
+await drive();
+for (const kid of kids) kid.kill('SIGKILL');
+`)
+  },
+  {
+    name: 'a regular expression reached through a parameter, which stays reported',
+    // THE RESIDUE, and the gate fails closed on it: nothing in this file says
+    // `re` is a regular expression, so its `exec` is still read as a start.
+    bad: 1,
+    text: fixture(`
+const raw = 'SLEEPER';
+function channel(re) {
+  return re.exec(raw);
+}
+export const parts = channel(/^rgba?\\(([^)]*)\\)$/i);
+`)
+  },
+  // ── The probe review of Phase 352. A name the file assigns nothing but a
+  //    regular expression by `=`, bound to a child process another way where
+  //    the start is made. Each walked past the gate at Phase 307's first build
+  //    (its receiver test read the name as a regular expression) and was found
+  //    at the parent. ──
+  {
+    name: 'a regular expression name rebound by a destructuring declaration, which must stay found',
+    bad: 1,
+    text: fixture(`
+import * as child from 'node:child_process';
+const proc = /^x$/i;
+export const looks = (s) => proc.test(s);
+export function go() {
+  const { proc } = { proc: child };
+  proc.LAUNCH('/bin/sh', ['-c', 'LOOP'], { detached: true });
+}
+`)
+  },
+  {
+    name: 'a regular expression name rebound by a for head, which must stay found',
+    bad: 1,
+    text: fixture(`
+import * as child from 'node:child_process';
+const handle = /^y$/;
+export const matches = (s) => handle.test(s);
+export function go() {
+  for (const handle of [child]) handle.LAUNCH('/bin/sh', ['-c', 'SLEEPER'], { detached: true });
+}
+`)
+  },
+  {
+    name: 'a regular expression name rebound by a catch clause, which must stay found',
+    bad: 1,
+    text: fixture(`
+import * as child from 'node:child_process';
+const job = /^z$/;
+export const seen = (s) => job.exec(s);
+export function go() {
+  try {
+    throw child;
+  } catch (job) {
+    job.LAUNCH('/bin/sh', ['-c', 'LOOP'], { detached: true });
+  }
+}
+`)
+  },
+  // ── The fix round of Phase 352: the verify lens's hostile fixtures, each
+  //    found at the parent and walked past by Phase 307's first build. ──
+  {
+    name: 'a regular expression name rebound by a destructuring ASSIGNMENT of an array, which must stay found',
+    // v01: no `const`, `let` or `var` in front of the bracket.
+    bad: 1,
+    text: fixture(`
+import * as child from 'node:child_process';
+let proc = /x/;
+[proc] = [child];
+const BURN = 'LOOP';
+proc.LAUNCH('/bin/sh', ['-c', BURN], { detached: true });
+`)
+  },
+  {
+    name: 'a regular expression name rebound by a destructuring ASSIGNMENT of an object, which must stay found',
+    // v02.
+    bad: 1,
+    text: fixture(`
+import * as child from 'node:child_process';
+let proc = /x/;
+({ proc } = { proc: child });
+const BURN = 'LOOP';
+proc.LAUNCH('/bin/sh', ['-c', BURN], { detached: true });
+`)
+  },
+  {
+    name: 'two functions with byte-identical bodies, the second taking the regex’s name as a parameter, which must stay found',
+    // v03: the second body was asked at the first one's place, where `re` is
+    // the file's regular expression, so `b` was no starter.
+    bad: 1,
+    text: fixture(`
+import * as child from 'node:child_process';
+const re = /x/;
+function a(cmd) { return re.exec(cmd); }
+function b(re, cmd) { return re.exec(cmd); }
+const BURN = 'LOOP';
+export const one = a('abc');
+b(child, BURN);
+`)
+  },
+  {
+    name: 'a division after a postfix ++ whose divisor is a member call on a namespace named with flag letters, which must stay found',
+    // v04: the slash after `i++` was read as a literal and its flag run.
+    bad: 1,
+    text: fixture(`
+import * as ms from 'node:child_process';
+let i = 0;
+export const n = i++ / 2 /ms.LAUNCH('/bin/sh', ['-c', 'LOOP'], { detached: true });
 `)
   }
 ];

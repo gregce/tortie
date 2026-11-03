@@ -340,6 +340,9 @@ interface EditorState {
    * read, and the adoption refuses when the tab has moved since — a keystroke
    * or a save — because then the watcher is the honest reader. ./tab-io's
    * `adoptWritten` holds both refusals.
+   *
+   * PHASE 290. And a tab the adoption left holding anything but `contents`
+   * OWES A READ (`rewindOwesRead`), which this action marks.
    */
   adoptWritten(id: string, contents: string, was: string): void;
   /**
@@ -352,6 +355,10 @@ interface EditorState {
    * ⌥↩ said "still being rewound" while nothing was. It hands over no bytes
    * and takes no tab id: it is ./tab-io's `refreshRepo`, serializer, clean
    * test, rules 22 and 26 and all, and a second call joins the queued walk.
+   *
+   * PHASE 290. Two more callers, both asking the TAB's mark
+   * (`rewindOwesRead`) rather than a mount's holds: `markDirty`'s clean edge
+   * below, and a Redline mount over a clean tab that owes the read.
    */
   rereadRepo(repoPath: string): void;
   /**
@@ -1128,6 +1135,8 @@ export const useEditor = create<EditorState>((set, get) => {
         // so a tab can never get stuck refusing focus: the landing resets it.
         pendingFocus: navigate ? shouldFocusFor(req) : true,
         dirty: false,
+        // PHASE 290. A new tab owes no read: it is about to make its first one.
+        rewindOwesRead: false,
         deleted: false,
         truncated: false,
         // Phase 160. The map tab has nothing to load through this store: its
@@ -1510,6 +1519,26 @@ export const useEditor = create<EditorState>((set, get) => {
 
     adoptWritten(id, contents, was) {
       io.adoptWritten(id, contents, was);
+      // PHASE 290. THE TAB OWES THE READ, NOT THE MOUNT. When the adoption
+      // refused (a dirty tab, or one whose `savedContents` was not the `was`
+      // the write replaced), the bytes are on disk and the tab goes on holding
+      // older ones, so the picture can still draw the change the person just
+      // rewound. Phase 282 kept that caution in the Redline view's holds, one
+      // array per mount, and a tab switch or a look at the File view forgot
+      // it: ⌥↩ took the rewound change with nothing said and the next ⌥⌫ wrote
+      // the agent's words back (build/p352/SPEC.md §2.6). It lives on the tab
+      // now (`rewindOwesRead`), and the two doors and ⌥↩ read it.
+      //
+      // IT ASKS THE BYTES, NOT WHICH REFUSAL ANSWERED, so ./tab-io's adoption
+      // keeps its two refusals exactly as `conformance:save` rule 25 reads
+      // them. A tab holding `contents` afterwards owes nothing: the adoption
+      // took them, or a walk had already read them in, and a mark there would
+      // refuse every ⌥↩ on a true picture with no read left to clear it. The
+      // success arm moves no mark; the walk's next clean read does.
+      const after = tabById(id);
+      if (after !== undefined && after.savedContents !== contents) {
+        patchTab(id, { rewindOwesRead: true });
+      }
     },
 
     // PHASE 282.2. The same call `init`'s watcher tick makes, fire and forget
@@ -1618,6 +1647,16 @@ export const useEditor = create<EditorState>((set, get) => {
       // dirty tab in the branch above) and a SINGLE character never did, which
       // is the shape arm C types. `conformance:save` rule 14 holds the order.
       autoSave.noteChanged(id);
+      // PHASE 290. THE FIRST DOOR TO THE READ A REWIND LEFT OWING: the way OUT
+      // of dirty, while the tab's mark stands. An undo made in the File view
+      // reaches the store only here (MonacoHost marks the tab from the buffer),
+      // and the Redline view that would have pulled the read is not mounted
+      // then, so before this the tab went clean over the agent's bytes and
+      // read nothing. After the patch and the arm above, never before them
+      // (`conformance:save` rule 14 reads both), and never on the way INTO
+      // dirty, where the walk skips the tab and the read would find nothing it
+      // may load.
+      if (!dirty && tabById(id)?.rewindOwesRead === true) get().rereadRepo(tab.repoPath);
     },
 
     autoSaveOnBlur(id) {

@@ -580,6 +580,12 @@ describe('the presses, through the mounted view', () => {
    * picture is the disk's, and the very next ⌥↩ accepts.
    * `p2822-after-undo.test.ts` holds that read in the air and reads the linger
    * for as long as the disk has not answered.
+   *
+   * PHASE 290. FROM 1 TO 3 NOW. The refused adoption left the TAB owing the
+   * read (`rewindOwesRead`), so the store's own clean edge reads for it, and
+   * the view's effect, which asks that mark as well as its hold, asks once
+   * more: a second walk queued behind the first, which finds nothing new. The
+   * picture, the bytes and the accept are the ones this case always read.
    */
   it('A KEYSTROKE INSIDE THE WRITE: the landed hold stays on the dirty tab, ⌥↩ says the way out, and ⌘Z alone pulls the read that lets it go with nothing drawn backwards', async () => {
     await mount([tabOf(ID, BASE, AGENT)], AGENT);
@@ -623,12 +629,12 @@ describe('the presses, through the mounted view', () => {
         reads: 1
       },
       afterUndo: {
-        reads: 2,
+        reads: 3,
         savedContents: 'The quick brown fox leaps over the lazy dog.\n',
         drawn: ['"jumps"->"leaps"'],
         marked: '"jumps"->"leaps"'
       },
-      then: { drawn: [], toasts: [], reads: 2 }
+      then: { drawn: [], toasts: [], reads: 3 }
     });
   });
 

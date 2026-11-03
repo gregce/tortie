@@ -76,8 +76,32 @@ export function defaultShimDeps(): ShimDeps {
  * The exact shim content. Every line is deliberate:
  *  - the dash refusal is the cap, enforced before anything else;
  *  - extra arguments are ignored OUT LOUD, never silently;
- *  - the shim resolves the argument itself (`cd` + `pwd`), so main never
- *    sees a relative path from this route;
+ *  - the shim resolves the argument itself (`cd`, then `/bin/pwd -P`), so
+ *    main never sees a relative path from this route, and it hands main the
+ *    folder as the DISK names it (Phase 274.1). A bare `pwd` is the logical
+ *    path, which keeps the spelling the person's own `cd` typed, so a first
+ *    `tortie .` in `~/source/proj` stored `source` where the disk says
+ *    `Source`, and that spelling named the tab from then on. The shell's own
+ *    `pwd -P` does not fix it: `/bin/sh` on a Mac is bash, whose builtin
+ *    resolves links by reading them and KEEPS THE TYPED CASE (measured
+ *    2026-11-02, build/p352/SPEC.md §2.2). `/bin/pwd -P` asks the volume, so
+ *    it answers the disk's case, a link's target and `/private/var` for
+ *    `/var`, which is what the Finder door stores (`canonicalPathSync` in
+ *    ./arrival.ts). It is named by absolute path so no PATH entry can stand
+ *    in for it, and the logical `pwd` is the fallback wherever it cannot
+ *    answer, which is the answer before this phase. ONLY FOR A PATH OF PLAIN
+ *    PRINTABLE ASCII (the fix round of Phase 352): a folder the disk stores
+ *    decomposed, `Café` as `e` and a combining accent, comes back from
+ *    `/bin/pwd -P` in those bytes where the shell typed it composed, and
+ *    Claude Code keys `~/.claude.json` by the composed form of its folder, so
+ *    the Context panel's lookup of the stored path read that project's local
+ *    servers and approvals as empty where the typed spelling had found them
+ *    (measured by the verify lens). Nothing here may normalise a path (Phase
+ *    274's rule 2), so a path holding any other byte is handed on as the
+ *    shell spells it, exactly as before this phase. `tr` is named by absolute
+ *    path and run in the C locale, so the test is of bytes. A shim installed
+ *    before this keeps its old line until it is removed and installed again in
+ *    Settings;
  *  - `exec /usr/bin/open -n -b <id>` finds the installed app by bundle id,
  *    never by a hardcoded path.
  */
@@ -99,7 +123,12 @@ export function composeShimContent(bundleId: string): string {
     '  shift',
     '  echo "tortie: extra arguments were ignored: $*" >&2',
     'fi',
-    'abs=$(cd "$dir" 2>/dev/null && pwd) || {',
+    'abs=$(cd "$dir" 2>/dev/null && here=$(pwd) && {',
+    `  case "$(printf '%s' "$here" | LC_ALL=C /usr/bin/tr -d ' -~'; printf x)" in`,
+    `    (x) /bin/pwd -P 2>/dev/null || printf '%s\\n' "$here" ;;`,
+    `    (*) printf '%s\\n' "$here" ;;`,
+    '  esac',
+    '}) || {',
     '  echo "tortie: $dir is not a folder that exists" >&2',
     '  exit 1',
     '}',

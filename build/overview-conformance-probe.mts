@@ -328,12 +328,19 @@ async function timeStages(file: string, provider: string, repo: string): Promise
   const compiled = cfg.prefilter
     ? linesMod.compileHead(cfg.prefilter, extra, wide ? linesMod.WIDE_HEAD_BYTES : undefined)
     : null;
+  // THE STAGE KEEPS A COPY OF EVERY LINE IT ADMITS. Since Phase 310 the
+  // scanner hands a line that lies inside one chunk as a view of that chunk,
+  // valid only during the callback (lines.ts's header), and this stage parses
+  // what it admitted AFTER `scanFile` returns, so a kept view would hold
+  // whatever a later chunk wrote over it. The copy is the stage's own cost
+  // and is inside `decideMs`; before Phase 310 the scanner made it for every
+  // line, admitted or not.
   const admitted: Buffer[] = [];
   let admittedBytes = 0;
   const t2 = process.hrtime.bigint();
   linesMod.scanFile(file, null, (line: Buffer) => {
     if (compiled === null) {
-      admitted.push(line);
+      admitted.push(Buffer.from(line));
       admittedBytes += line.length;
       return;
     }
@@ -341,7 +348,7 @@ async function timeStages(file: string, provider: string, repo: string): Promise
     const cands = linesMod.decideHead(compiled, head);
     if (cands.length === 0) return;
     if (!cands.some((rule: any) => linesMod.decideWhole(rule, line))) return;
-    admitted.push(line);
+    admitted.push(Buffer.from(line));
     admittedBytes += line.length;
   });
   const decideMs = ms(t2);

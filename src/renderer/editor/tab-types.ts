@@ -150,6 +150,31 @@ export interface EditorTab {
    */
   pendingFocus: boolean;
   dirty: boolean;
+  /**
+   * PHASE 290. A rewind wrote this file and the tab did not take its bytes, so
+   * the tab OWES A READ: until one lands, the picture may still draw the change
+   * the person rewound from `savedContents` the disk has left behind.
+   *
+   * Set by ./store's `adoptWritten` when ./tab-io's adoption refuses (a dirty
+   * tab, or one whose `savedContents` was not the bytes the write replaced) and
+   * leaves the tab holding something other than what the write put on disk.
+   * Cleared by ./tab-io: the walk's read of the tab while it is clean, and a
+   * save of it that lands; by nothing else (`conformance:save` rule 30).
+   * While it stands, two doors pull that read (`markDirty`'s clean edge in
+   * ./store, and a Redline mount over a clean tab) and ⌥↩ answers `held`
+   * (./redline-accept).
+   *
+   * It is the TAB's and not the view's. Phase 282's holds are one array per
+   * Redline mount, so a tab switch or a look at the File view forgot the read,
+   * and ⌥↩ then accepted the change the person had rewound with nothing said.
+   * Tabs are not persisted, so it lives as long as the tab and a reopened file
+   * starts without it, having read the disk fresh.
+   *
+   * Optional, for the reason `remote` is: every older tab and every fixture is
+   * still a valid tab. The store sets `false` on every tab it creates, and
+   * every reader asks `=== true`.
+   */
+  rewindOwesRead?: boolean;
   /** §6.12 — deleted on disk under the open tab. */
   deleted: boolean;
   /** Opened truncated (read cap) — read-only. */
