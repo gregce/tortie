@@ -15,10 +15,10 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 ### Fixed
 
 - macOS no longer warns that Tortie includes a component that will not work with a future version of macOS: the app now carries only Apple silicon code. Reported by [Sean Johnson](https://github.com/belucid) in [#43](https://github.com/gregce/tortie/issues/43) ([`708efada`](https://github.com/gregce/tortie/commit/708efada))
-- A change you rewound while typing in the same file can no longer be accepted by mistake after you switch tabs, look at the File view or undo there: ⌥↩ waits until Tortie has read the file again, so a later ⌥⌫ cannot put the agent's words back over your rewind
-- `tortie .` opens a folder under the name it has on disk, as opening it from Finder does, so a terminal that spells the folder differently, or reached it through a link, no longer names its tab; a path with a character outside plain ASCII is still opened as the terminal spells it. If you installed the tortie command before, remove it and install it again in Settings
-- When Tortie says it could not do something with a file or folder, a character you cannot see in its name is written out as its code, such as <U+200B>, so two names that look the same are told apart, and a name with a $ in it is quoted as it is
-- The first Catch Me Up of a very long conversation opens faster
+- A change you rewound while typing in the same file can no longer be accepted by mistake after you switch tabs, look at the File view or undo there: ⌥↩ waits until Tortie has read the file again, so a later ⌥⌫ cannot put the agent's words back over your rewind ([`a1668133`](https://github.com/gregce/tortie/commit/a1668133))
+- `tortie .` opens a folder under the name it has on disk, as opening it from Finder does, so a terminal that spells the folder differently, or reached it through a link, no longer names its tab; a path with a character outside plain ASCII is still opened as the terminal spells it. If you installed the tortie command before, remove it and install it again in Settings ([`a1668133`](https://github.com/gregce/tortie/commit/a1668133))
+- When Tortie says it could not do something with a file or folder, a character you cannot see in its name is written out as its code, such as <U+200B>, so two names that look the same are told apart, and a name with a $ in it is quoted as it is ([`a1668133`](https://github.com/gregce/tortie/commit/a1668133))
+- The first Catch Me Up of a very long conversation opens faster ([`a1668133`](https://github.com/gregce/tortie/commit/a1668133))
 
 ## 0.113.0 (2026-10-20)
 

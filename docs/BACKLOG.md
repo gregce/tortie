@@ -28301,7 +28301,7 @@ person typed" now has to argue against a sibling door that already shows the dis
 decide this phase — a shell's `$PWD` is a person's own history in a way Finder's path never is — but
 it is evidence and the phase may not pretend it is not there.
 
-## Phase 274.2 — a mis-spelled project reads its agent context as empty (deferred out of 274, 2026-09-16) → IN PHASE 352, 2026-11-02
+## Phase 274.2 — a mis-spelled project reads its agent context as empty (deferred out of 274, 2026-09-16) → IN PHASE 352, 2026-11-02 → CLOSED IN PHASE 352, NOT BUILT (`a1668133`, 2026-11-03)
 
 **Subject.** `fix(context): the local scope is found however the folder is spelled`
 
@@ -29119,7 +29119,7 @@ running-log line. The PR is then closed with a note in the operator's voice link
 - No release.
 
 
-## Phase 283 — a file outside every project, written by the timer once (unexplained, 2026-09-17) QUEUED → IN PHASE 352, 2026-11-02
+## Phase 283 — a file outside every project, written by the timer once (unexplained, 2026-09-17) QUEUED → IN PHASE 352, 2026-11-02 → CLOSED IN PHASE 352, NOT BUILT (`a1668133`, 2026-11-03)
 
 **Subject.** `fix(editor): the skip list holds under load` (provisional; the cause decides it)
 
@@ -44217,7 +44217,7 @@ way." The operator, 2026-11-02: "can we also please address this issue? https://
 Build lane, one workflow: spec (measures, then writes `build/p351/SPEC.md`), one builder (packaging has one owner),
 one verifier at Tier 2 with the two methods above, fix once on `needs_work`, an independent reverify.
 
-## Phase 352 — "would we be able to batch them into a big phase? that is logical based on parts of the codebase they touch" and "can we consolidate these as less batches? i don't think they should take a week and can probably be reviewed together" — files, folders and checks: nine queued entries in one phase, reviewed together (operator, 2026-11-02)
+## Phase 352 — "would we be able to batch them into a big phase? that is logical based on parts of the codebase they touch" and "can we consolidate these as less batches? i don't think they should take a week and can probably be reviewed together" — files, folders and checks: nine queued entries in one phase, reviewed together (operator, 2026-11-02) ✅ LANDED `a1668133`, 2026-11-03
 
 **Subject.** `fix(editor): rewind and auto save hold, and folder names agree`
 
@@ -44304,7 +44304,7 @@ merges at landing.
 **First body line.** `Phase 353: sessions and the terminal`
 
 **Semver.** Patch, unreleased, Mac only, released on his word. One CHANGELOG item under `## Unreleased`, `### Fixed`, for
-each item a person meets, from its entry's Semver paragraph: 294, 295, 302, 305, 325 and 328. None for 301, whose entry
+each item a person meets, from its entry's Semver paragraph: 294, 295, 302, 305, 325, 328 and 354. None for 301, whose entry
 says nothing a person sees moves.
 
 **Tier 3, every item**, as each entry sets it, reviewed together at the end. Real data or a per-row matrix and two
@@ -44319,11 +44319,13 @@ independent methods for each, one of them an attack, and the parent measured for
 - **305**, a Restart can hard-delete the record of a session the person removed (`:32373`)
 - **325**, Tortie reads his own words as the agent's question (`:35573`)
 - **328**, antigravity reads "running" at rest (`:35991`)
+- **354**, a session whose folder path holds a `#` starts in the home folder (its section below; added on his ruling of
+  2026-11-03, "Add it to Phase 353")
 
 ### The mechanism
 
 Each item's is its entry's; the spec re-reads every entry at today's tree first, as for 352, and closes any item that no
-longer reproduces. Three builders on disjoint files:
+longer reproduces. Four builders on disjoint files (the fourth added with 354):
 
 1. **Session records** (302, 305): `src/main/manifest/**` (the sessions repository and `removed_at`), the remove path and
    `listRemovedSessions` in `src/main/sessions/core.ts`, `src/main/restart/**`, and the renderer's lists that read them.
@@ -44332,6 +44334,9 @@ longer reproduces. Three builders on disjoint files:
    verdict's own loop does not move, which is 325's refusal and `conformance:choices`'.
 3. **The terminal** (294, 295, 301): `src/main/scrollback/**`, `src/main/capture/service.ts`, `src/main/tmux/scroll.ts`,
    `src/renderer/terminal/scroll/**` and the teardown in `src/renderer/terminal/TerminalPane.tsx`.
+4. **Where a session starts** (354): `createSession` in `src/main/tmux/sessions.ts`, the remote create in
+   `src/main/machines/remote-sessions.ts`, and Phase 350's `#` clause in `bareNameSpawnFile`
+   (`src/main/agents/detection.ts`) with its planted rows, removed in the same commit.
 
 It starts once Phase 350 lands, on the tree that carries it, because 350 moved `src/main/sessions/core.ts`,
 `create-local.ts`, `src/main/restore/restore.ts` and `src/main/agents/registry.ts`, which these builders read and edit.
@@ -44344,9 +44349,12 @@ It starts once Phase 350 lands, on the tree that carries it, because 350 moved `
 - 325 and 328: the per-agent matrix over the committed recordings, replayed by stand-ins; no real agent starts unless his
   word at the time covers it.
 - 294 and 295: probe:p292's arms and the entries' copy arms, on tmux 3.6a and 3.7b. 301: probe:p167's teardown arms.
+- 354: its entry's matrix, a `#` folder created and restored on this Mac and on the loopback machine, tmux 3.6a and
+  3.7b on both sides, beside the parent, and no conversation lost by a restore of a row created before the fix.
 - The gates the paths trigger, at least `conformance:manager`, `conformance:remoteclose`, `conformance:endtree`,
   `conformance:farattach`, `conformance:choices`, `conformance:handback`, `conformance:agents`,
-  `conformance:resume:capture`, `conformance:pocket` and `conformance:pocket:hostile`, with their ablations.
+  `conformance:resume:capture`, `conformance:machines`, `conformance:pocket` and `conformance:pocket:hostile`, with
+  their ablations.
 
 ### What is NOT in this phase
 
@@ -44356,9 +44364,111 @@ It starts once Phase 350 lands, on the tree that carries it, because 350 moved `
 
 ### The lane
 
-Build lane, one workflow, as for 352: spec, three builders on disjoint files, integrator, probe review, three verify
-lenses reviewing together (the records with the manifest attack; status with the matrix; the terminal live beside the
-parent), fix once, an independent reverify, one commit.
+Build lane, one workflow, as for 352: spec, four builders on disjoint files, integrator, probe review, three verify
+lenses reviewing together (the records with the manifest attack and 354's restore matrix; status with the matrix; the
+terminal live beside the parent), fix once, an independent reverify, one commit.
+
+## Phase 354 — "Add it to Phase 353" — a session whose folder path holds a `#` starts in the home folder (Phase 350's reverify, 2026-11-02; operator, 2026-11-03) → IN PHASE 353, 2026-11-03
+
+**Subject.** Rides in Phase 353's one commit; its spec may widen 353's subject to say so.
+
+**First body line.** Phase 353's.
+
+**Semver.** Patch. One CHANGELOG item under `### Fixed`, because a person meets it: a session in a folder whose name
+holds a `#` starts in that folder, not in the home folder, when it is created and when it is restored.
+
+**Tier 3.** It moves where every session starts, at create and at restore, on this Mac and on another machine, so it
+can lose a person's work: an agent restored in a folder its conversation was not filed under opens empty. The evidence
+is a per-row matrix over tmux 3.6a and 3.7b, the parent measured, and two independent methods, one an attack.
+
+**Charter.** The operator, 2026-11-03, choosing "Add it to Phase 353" to the question "A session whose folder path has
+a # in it (for example ~/code/C#/app) starts in your home folder, not the project folder, both when it's created and
+when it's restored. So the agent works in the wrong folder. Where should that fix go?" Found by Phase 350's second ruled
+round's reverify (build/p350/SPEC.md, its "### The second ruled fix round" and the reverify it records).
+
+### What the tree says (read 2026-11-03 at `8b63abc1`)
+
+- `createSession` in `src/main/tmux/sessions.ts:175` hands the folder to tmux raw, `args.push('-c', input.cwd)`. Every
+  local create and restore reaches it (`src/main/restore/restore.ts:1083` calls `tmux.createSession`).
+- The create on another machine does the same, `args.push('-c', input.cwd)` in `src/main/machines/remote-sessions.ts:911`,
+  and the far tmux reads it the same way.
+- tmux reads `new-session -c` AS A FORMAT. Measured by Phase 350's reverify on the vendored 3.7b and Homebrew's 3.6a,
+  with no Tortie: `C#Tools`, `#Sales`, `notes#Home`, `a#{b}` and `x##y` each name another folder and the pane starts in
+  the tmux server's HOME; a trailing `F#` does so on 3.7b only; `%`, `~` and `;` are taken literally; `C##Tools`
+  starts in `C#Tools` on both; a folder named `x#(cd;touch marker)` ran no command on either version.
+- Phase 350 reads pi's switch as unread for such a folder (`bareNameSpawnFile` in `src/main/agents/detection.ts`, his
+  ruling of 2026-11-03), so pi there starts exactly as before 350.
+
+### The mechanism
+
+1. **One escape, `#` doubled, at each point a create hands tmux its folder**: `createSession` and the remote create.
+   The spec re-measures which characters tmux reads in `-c` on 3.6a, 3.7b and every version in
+   `TESTED_REMOTE_TMUX_VERSIONS`, and escapes exactly those and nothing else. Nothing is normalised, case-folded or
+   resolved.
+2. **No conversation is lost by the move.** A session created before this fix ran in HOME, and its agent filed its
+   conversation where it ran. The spec measures, for every agent with a resume, where the conversation was filed and
+   where its resume looks, over committed fixtures and stand-ins, and a row recorded before the fix restores where it
+   really ran unless the measurement shows the agent finds it from the folder. A restore that opens an empty
+   conversation is the failure.
+3. **In the same commit, Phase 350's `#` clause goes**: `bareNameSpawnFile` walks from the folder the pane now really
+   starts in, its planted `#` rows in `src/main/agents/__tests__/p350-pi-bare-name.test.ts` flip to holding the token,
+   and `ablation:p331`'s arm for that clause is removed with it.
+
+### The proof, run rather than read
+
+- The parent measured: a `#` folder starts its session in HOME at the parent and in the folder at HEAD, created and
+  restored, on this Mac and on the loopback machine with 3.6a and 3.7b on the far side.
+- A hostile fixture of folder names, every format sequence tmux knows (`#{`, `#[`, `#(`, `##`, `#T`, `#S`, `#H`, a
+  trailing `#`) beside names that must stay literal, graded by the pane's own `#{pane_current_path}`.
+- Mechanism 2's matrix, per agent with a resume, a pre-fix row beside a post-fix row, no conversation lost.
+- `conformance:resume:capture`, `conformance:agents`, `conformance:farattach`, `conformance:machines` and
+  `ablation:p331`, with the `#` rows flipped.
+
+### What is NOT in this phase
+
+- No change to how a folder is chosen, typed or stored.
+- No escape of any character the measurement does not show tmux reading.
+- Nothing under `ios/`.
+
+## Phase 355 — the conversation reader can finish a line with bytes it never read (Phase 352's reader builder and folders lens, 2026-11-02)
+
+**Subject.** `fix(overview): the reader finishes a line only from bytes it read`
+
+**First body line.** `Phase 355: no stale bytes in a conversation's last line`
+
+**Semver.** Patch. A Catch Me Up of a conversation that is still being written can, today, end on a line made partly
+of bytes that were never in the file; after this, it ends on the last whole line. One CHANGELOG item, if the spec
+finds a count a person reads moving; none otherwise.
+
+**Tier 3.** It is the read path every count and every Catch Me Up page comes from, and the defect reads memory that was
+never the file's, so a moved count is both the fix and the risk. The evidence is `conformance:overview`'s per-provider
+matrix, the parent measured, and two independent methods, one an attack.
+
+**Charter.** Found while building Phase 352's item 310 and owed an entry there (build/p352/SPEC.md, "Found, not this
+phase's, owed an entry"). `scanFile` in `src/main/overview/reader/lines.ts` searches each chunk with
+`chunk.indexOf(10, i)`, which is not bounded by the `n` bytes the last read returned. When a record's last line has no
+newline yet and the last read is short, the search runs into bytes past `n` and finishes the line with them. The chunk
+is a `Buffer.allocUnsafe`, so those bytes may be the previous read's or memory that never held the file: measured at
+both builds, a 1.5 MiB record read `lastCompleteOffset` 1,573,264 against a size of 1,573,047, and a 1,678,030-byte file
+read 869 or 870 lines run to run, with `lastCompleteOffset` up to 1,760,864.
+
+### The mechanism
+
+1. Bound the search to the bytes read, `if (nl >= n) nl = -1;` or a search of `chunk.subarray(0, n)`, the spec's
+   choice by measurement.
+2. Nothing else in the reader moves: the head rule, the keep map, the fold and the view of Phase 352's 310 stay.
+
+### The proof, run rather than read
+
+- A record written while it is read, at the shipping 1 MiB chunk and at a small one: no line past the file's size, and
+  the same lines run to run, at HEAD; the parent's stale reading beside it.
+- `conformance:overview` at both builds, every row that moves named and explained.
+- An attack: a fixture of short reads at every offset of a last unterminated line.
+
+### What is NOT in this phase
+
+- No change to what is admitted, parsed or counted beyond a line that was never whole.
+- No release.
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
@@ -45670,3 +45780,6 @@ cycle rather than only the evening it was written.
 - 2026-11-02, **PHASE 350's RULED ROUND's REVERIFY ANSWERED needs_work; HE RULED; THE SECOND RULED ROUND STARTED.** The version-manager case was closed (0 of 33,120 re-derived rows worse), and one new case was worse than today: a create spawns pi by its bare name, and a relative PATH entry such as `./node_modules/.bin` is looked up from the session's folder, so a project's own pi below 0.84.0 got `--tui-mode regular` decided for the global pi and stopped after its trust question (npm and pnpm layouts, 2 rows). His choice, "Check the file that runs": before adding the switch, find pi the way the terminal will, starting from the session's folder, and add it only when that is the file Tortie checked; otherwise pi starts exactly as today; files are read and nothing is run. One workflow, fix then an independent reverify, in `/private/var/tmp/tortie-wt/wt-p350`, with the reverify's three nits.
 - 2026-11-02, **352 QUEUED AND STARTED, 353 QUEUED — the older queued entries as two phases by the code they touch, reviewed together, on his word** ("would we be able to batch them into a big phase? that is logical based on parts of the codebase they touch"; "can we consolidate these as less batches? i don't think they should take a week and can probably be reviewed together"), full sections above. 352, files, folders and checks: 274.1 to 274.3, 283, 285, 290, 307, 308 and 310, started now in `/private/var/tmp/tortie-wt/wt-p352`. 353, sessions and the terminal: 294, 295, 301, 302, 305, 325 and 328, starts when 350 lands, because 350 moved the session code it edits. Not in either: 327; 319 and 318.1 stay parked and deferred by his rulings. Each item is verified at its own tier and the whole reviewed together; an item that fails its reverify is dropped and taken to him, and the rest lands. Each old entry's heading now names the phase that carries it.
 - 2026-11-02, **HIS WORD FOR THE NEXT RELEASE: "we should do a release and upload a new iphone build when 350 finishes"**, and "remember we need to update /users/gdc/tortiedotsh as well when we release the desktop app". 0.114.0 carries 349 (rename from the phone), 350 (pi's scrollback and paging a full-screen agent) and 351 (no Intel-only code), beside phone build 13; tortie.sh's changelog is synced from a scratch clone and pushed with it.
+- 2026-11-03, **PHASE 350's SECOND RULED ROUND's REVERIFY ANSWERED needs_work; HE RULED; THE THIRD RULED ROUND STARTED.** The relative-PATH case was closed (the project's own pi starts with no switch and lives, as at the parent; 0 of 326,400 re-derived rows worse), and one new case was worse than today: tmux reads `new-session -c` as a format, so a session folder whose path holds a `#` starts in the home folder, and the resolver, walking from the folder as written, gave the switch to the global pi while the pane ran an older pi from home, which stopped after its trust question (1 row). His choice, "No switch for # folders": when the folder name has a #, pi starts exactly as today. The older bug under it, every session whose folder path holds a `#` starting in the home folder at create and at restore, for every agent, he put in Phase 353 ("Add it to Phase 353"): entry 354 above. One workflow, fix then an independent reverify, in `/private/var/tmp/tortie-wt/wt-p350`.
+- 2026-11-03, **PHASE 352 LANDED, `a1668133` — files, folders and checks**, nine entries reviewed together, seven built. 290: a rewind's caution is the file's, so ⌥↩ waits for a fresh read after a tab switch, the File view or an undo there. 274.1: `tortie .` names a folder the way the disk does for a plain ASCII path (an installed command needs Remove and Install). 274.3: an invisible character in a quoted name is written as `<U+XXXX>`. 310: the conversation reader hands a view, not a copy. 285: the census judges what it reads, so a probe fails for what it did and his own use of his machine is a note, still only around a launch that names a scratch socket (D15 dropped); it carries 308's three census clauses as built (SPEC D14, D16). 307: two gates read a call by what it is and a menu row by its menu. 308: the native watcher tests fail for the code, its ten greens owed to a quiet machine (fseventsd held 100% CPU through every run, both builds red alike). 283 and 274.2 closed, not built: 283 did not repeat in 21 runs at this tree, and 274.2 needs a path's accents composed, which its entry refuses (his Q1). Every lens answered needs_work, the fix round answered each and dropped two parts that were worse than the parent, and the independent reverify approved every item. Unreleased, Mac only.
+- 2026-11-03, **354 QUEUED INTO 353 ON HIS WORD, 355 WRITTEN DOWN.** 354, a session whose folder path holds a `#` starts in the home folder (found by 350's reverify), rides in Phase 353 with a fourth builder and removes 350's `#` clause in the same commit. 355, the conversation reader can finish a line with bytes it never read (found in 352, in the parent too), is written down above, Tier 3, not yet queued.
