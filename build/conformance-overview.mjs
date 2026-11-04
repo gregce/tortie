@@ -67,6 +67,12 @@
  *     a read reaches the store, when the answer is not in the asked order,
  *     when more ids than the cap are answered, and when the aggregate's query
  *     plan scans a table instead of reading it by its keys.
+ *  9. In either mode (Phase 355): a record whose last line has no newline yet
+ *     is counted with that line, or its watermark lands past the bytes the
+ *     read returned. `codex-unfinished` is the committed codex fixture's own
+ *     lines past one 1 MiB chunk with its last line cut, and the reference
+ *     reader still searches past its reads, so reference mode asserts the row
+ *     bites.
  *
  * TWO MODES. The default runs the product reader in src/main/overview/. With
  * `--reference` it runs the research 63 reference reader instead, which still
@@ -722,6 +728,50 @@ if (referenceMode) {
   if (textsOf(cases['base-cursoride']).includes('[Image: source:')) {
     fail('cursoride: an [Image: source: line leaked into a kept text.');
   }
+}
+
+// Phase 355. The committed codex fixture's own lines past one 1 MiB chunk,
+// the last one cut 120 bytes in. The product reader counts a line only once
+// it has read its newline, so the watermark sits where the cut line starts
+// and the next read resumes there. The reference reader still searches past
+// the bytes its read returned, finds the read before's newline in the chunk
+// and counts the cut line, which is the row's red-before.
+const unfinishedWritten = data.unfinished ?? null;
+const unfinishedFirst = cases['codex-unfinished'];
+const unfinishedNext = cases['codex-unfinished-next'];
+const unfinishedWhole = cases['codex-unfinished-whole'];
+const unfinishedMark = unfinishedFirst?.watermark ?? null;
+const isUnfinished = unfinishedWritten !== null && unfinishedWritten.lastByte !== 10;
+const unfinishedGot =
+  unfinishedWritten === null
+    ? `the record was not built (${String(unfinishedFirst?.error ?? 'no case')})`
+    : `${isUnfinished ? '' : 'the record is not unfinished, it ends in a newline: '}` +
+      `${String(unfinishedFirst?.lines)} lines of ${String(unfinishedWritten.newlines)}, ` +
+      `watermark ${String(unfinishedMark?.offset)} for ${String(unfinishedWritten.at)}` +
+      `${unfinishedMark?.open === true ? ' open' : ''}, next ${String(unfinishedNext?.work)}`;
+if (referenceMode) {
+  defect(
+    '355 an unfinished line',
+    '',
+    'the reference reader counts past the bytes it read',
+    isUnfinished && unfinishedFirst?.ok === true && unfinishedFirst.lines === unfinishedWritten.newlines + 1,
+    unfinishedGot
+  );
+} else {
+  defect(
+    '355 an unfinished line',
+    'counted at its newline; the next read resumes',
+    '',
+    isUnfinished &&
+      [unfinishedFirst, unfinishedNext, unfinishedWhole].every((c) => c?.ok === true) &&
+      unfinishedFirst.lines === unfinishedWritten.newlines &&
+      unfinishedMark !== null &&
+      unfinishedMark.offset === unfinishedWritten.at &&
+      unfinishedMark.open === false &&
+      unfinishedNext.work === 'tail' &&
+      JSON.stringify([...unfinishedFirst.turns, ...unfinishedNext.turns]) === JSON.stringify(unfinishedWhole.turns),
+    unfinishedGot
+  );
 }
 
 // ---------------------------------------------------------------------------

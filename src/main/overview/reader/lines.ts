@@ -37,6 +37,23 @@
  * free them, and the pile was swept later as a block on main. The same read
  * holding the chunk view read a 960 MiB record in 1455 to 1583 ms with no
  * block, against 1669 to 1846 ms copying (Phase 352's lens, measured).
+ *
+ * Phase 355, the bound. The newline search runs over `chunk.subarray(0, n)`,
+ * the bytes the read just returned. The chunk is reused and `allocUnsafe`,
+ * so past `n` it holds the previous read's bytes, or memory no read of this
+ * file wrote. Until then the search ran on into them whenever a record's last
+ * line had no newline yet and the read that reached it was short, and a
+ * newline there finished the line: a 1.5 MiB record whose last line was 39
+ * bytes counted a line it does not hold, and its last complete offset, which
+ * the watermark resumes from, fell 217 bytes past its end, so the next read
+ * began again from nothing; a finished line that parsed drew a reply the
+ * record does not hold, spliced from elsewhere in the conversation; and a
+ * record that grew during the read lost a reply for good.
+ * Why a view and not a check after the search (`if (nl >= n) nl = -1`): the
+ * check still searches past the read, 217 bytes on that record and about a
+ * megabyte on a short tail read, and it is a second statement a later edit
+ * can drop or widen by one, where the view holds no byte past `n` to find
+ * (build/p355/SPEC.md §2).
  */
 
 import * as fs from 'node:fs';
@@ -163,7 +180,8 @@ export interface ScanOpts {
  * Stream the file, calling onLine(lineBuffer, byteOffsetOfLineStart) for
  * every line the prefilter admits. Returns byte accounting so the saving is
  * measured rather than asserted. A trailing line with no newline is NOT
- * consumed, so a record the agent is still writing is never parsed.
+ * consumed, and the newline search sees only the bytes a read returned, so a
+ * record the agent is still writing is never parsed (Phase 355, the header).
  *
  * `lineBuffer` is valid only during the call (Phase 310, the header): a line
  * that lies inside one chunk is a view of that chunk, and the next read
@@ -237,9 +255,13 @@ export function scanFile(
       const n = fs.readSync(fd, chunk, 0, chunkSize, pos);
       if (n <= 0) break;
       acct.bytesRead += n;
+      // Phase 355. The chunk is reused and `allocUnsafe`, so a byte past `n`
+      // is the previous read's, or memory no read of this file wrote. The
+      // search sees only the `n` bytes this read returned.
+      const got = chunk.subarray(0, n);
       let i = 0;
       while (i < n) {
-        const nl = chunk.indexOf(10, i);
+        const nl = got.indexOf(10, i);
         const end = nl === -1 ? n : nl;
         const seg = chunk.subarray(i, end);
         const skipping = candidates !== undefined && candidates.length === 0;

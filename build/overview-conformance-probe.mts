@@ -48,6 +48,7 @@
 
 import { createHash } from 'node:crypto';
 import {
+  appendFileSync,
   copyFileSync,
   existsSync,
   mkdirSync,
@@ -99,6 +100,8 @@ interface NormalRead {
   bytesRead: number;
   /** PHASE 300. What crossed into JSON. The stage split reads it per row. */
   bytesParsed: number;
+  /** PHASE 355. The whole lines the scan counted, the unfinished-line row reads it. */
+  lines: number;
   prefilter: string;
   turnMode: string;
   joinSessionId: string | null;
@@ -171,6 +174,7 @@ function referenceReader(): { read: ReadFn; map: any } {
       work: String(r.work ?? 'full'),
       bytesRead: r.acct ? Number(r.acct.bytesRead ?? 0) : 0,
       bytesParsed: r.acct ? Number(r.acct.bytesParsed ?? 0) : 0,
+      lines: r.acct ? Number(r.acct.lines ?? 0) : 0,
       prefilter: '-',
       turnMode: '-',
       joinSessionId: r.join ? (r.join.sessionId ?? null) : null,
@@ -230,6 +234,7 @@ async function productReader(): Promise<{ read: ReadFn; map: any; mod: any; stor
       work: String(r.work ?? 'full'),
       bytesRead: r.acct ? Number(r.acct.bytesRead ?? 0) : 0,
       bytesParsed: r.acct ? Number(r.acct.bytesParsed ?? 0) : 0,
+      lines: r.acct ? Number(r.acct.lines ?? 0) : 0,
       prefilter: r.acct ? String(r.acct.prefilter ?? '-') : '-',
       turnMode: r.acct ? String(r.acct.turnMode ?? '-') : '-',
       joinSessionId: r.join ? (r.join.sessionId ?? null) : null,
@@ -458,6 +463,7 @@ function emptyRead(error: string): NormalRead {
     work: 'failed',
     bytesRead: 0,
     bytesParsed: 0,
+    lines: 0,
     prefilter: '-',
     turnMode: '-',
     joinSessionId: null,
@@ -712,6 +718,53 @@ function buildCodexInApp(src: string, out: string): void {
   });
   lines.push(wrapped, manifestOnly);
   writeFileSync(out, lines.join('\n') + '\n', 'utf8');
+}
+
+/**
+ * Phase 355. A codex record the agent is still writing, made only of the
+ * committed fixture's own lines: line 1, lines 2 to 27 repeated until the
+ * record passes one 1 MiB chunk and 40 KiB (each repetition ends on line 27, a
+ * `task_complete`, so no turn is open), then the first 120 bytes of line 28, a
+ * `task_started`, with no newline. The read that reaches that line is short and
+ * the chunk still holds the read before it, so a newline search that runs on
+ * past the bytes the read returned finds a newline there and counts the line:
+ * at the parent, 3,200 lines of 3,199, a watermark 72 bytes past the end, and a
+ * next read from nothing (build/p355/SPEC.md §2.7). Returns where the
+ * unfinished line starts, the newlines written, and the rest of the record:
+ * line 28's remainder and lines 29 and 30, each with its newline.
+ */
+function buildCodexUnfinished(src: string, out: string): { at: number; newlines: number; rest: string } {
+  const lines = readFileSync(src, 'utf8')
+    .split('\n')
+    .filter((l) => l.trim() !== '');
+  if (lines.length !== 30) {
+    throw new Error(`the codex fixture holds ${String(lines.length)} lines, and this record is built from exactly 30`);
+  }
+  const kindOf = (line: string | undefined): unknown => {
+    try {
+      return (JSON.parse(line ?? '') as any).payload?.type ?? null;
+    } catch {
+      return null;
+    }
+  };
+  if (kindOf(lines[26]) !== 'task_complete') throw new Error('line 27 of the codex fixture is no longer a task_complete');
+  if (kindOf(lines[27]) !== 'task_started') throw new Error('line 28 of the codex fixture is no longer a task_started');
+  const repeated = lines
+    .slice(1, 27)
+    .map((l) => l + '\n')
+    .join('');
+  let head = (lines[0] as string) + '\n';
+  while (Buffer.byteLength(head, 'utf8') < (1 << 20) + 40 * 1024) head += repeated;
+  const line28 = Buffer.from(lines[27] as string, 'utf8');
+  const content = Buffer.concat([Buffer.from(head, 'utf8'), line28.subarray(0, 120)]);
+  writeFileSync(out, content);
+  let newlines = 0;
+  for (let i = content.indexOf(10); i !== -1; i = content.indexOf(10, i + 1)) newlines += 1;
+  return {
+    at: Buffer.byteLength(head, 'utf8'),
+    newlines,
+    rest: line28.subarray(120).toString('utf8') + '\n' + lines[28] + '\n' + lines[29] + '\n'
+  };
 }
 
 /**
@@ -1781,6 +1834,47 @@ async function main(): Promise<void> {
     out.changedSizeEqual =
       changedAt !== null &&
       statSync(changed).size === statSync(join(FIXTURES, 'claude-session.jsonl')).size;
+
+    // Phase 355. A codex record whose last line the agent is still writing,
+    // read once; then that line is finished and two more follow, and it is
+    // read from the first read's watermark, as the service reads it, and from
+    // nothing. `unfinished` says what was written, so the row can tell a
+    // record that is not unfinished from a reader that counts too much.
+    const unfinished = join(SCRATCH, 'codex-unfinished.jsonl');
+    const unfinishedJob = (watermark: unknown): ReadJob => ({
+      provider: 'codex',
+      file: unfinished,
+      sessionId: null,
+      cwd: '/Users/example/rookery',
+      projectPath: '/Users/example/rookery',
+      watermark
+    });
+    let built: { at: number; newlines: number; rest: string } | null = null;
+    let notBuilt = '';
+    try {
+      built = buildCodexUnfinished(codexSrc, unfinished);
+    } catch (err) {
+      notBuilt = String((err as Error).message);
+    }
+    if (built === null) {
+      for (const k of ['codex-unfinished', 'codex-unfinished-next', 'codex-unfinished-whole']) {
+        out.cases[k] = emptyRead(`codex-unfinished was not built: ${notBuilt}`);
+      }
+      out.unfinished = null;
+    } else {
+      const firstOfUnfinished = read(unfinishedJob(null));
+      out.cases['codex-unfinished'] = firstOfUnfinished;
+      const written = readFileSync(unfinished);
+      out.unfinished = {
+        at: built.at,
+        newlines: built.newlines,
+        size: written.length,
+        lastByte: written.length > 0 ? (written[written.length - 1] ?? null) : null
+      };
+      appendFileSync(unfinished, built.rest, 'utf8');
+      out.cases['codex-unfinished-next'] = read(unfinishedJob(firstOfUnfinished.watermark));
+      out.cases['codex-unfinished-whole'] = read(unfinishedJob(null));
+    }
 
     if (mode === 'product') {
       const mod = (source as any).mod;

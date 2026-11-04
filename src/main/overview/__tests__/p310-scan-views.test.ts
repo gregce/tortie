@@ -397,7 +397,7 @@ describe('Phase 310: a line inside one chunk is handed as a view and never copie
   });
 
   it('a trailing line with no newline is not consumed, and what is held of it is a copy', () => {
-    // Each record ends where a chunk ends (the STATED LIMIT below says why).
+    // Each record ends where a chunk ends.
     const inside = checkCase(lines(kept(4)) + kept(11), { prefilter: RULES, chunkSize: C }, 'inside');
     expect(inside.acct).toMatchObject({ lines: 1, linesParsed: 1, lastCompleteOffset: 5, bytesRead: 16 });
     expect(offsets(inside.handed)).toEqual([0]);
@@ -513,16 +513,6 @@ describe('Phase 310: a line inside one chunk is handed as a view and never copie
   });
 });
 
-/**
- * STATED LIMIT, not this phase's and not moved by it. When a record's last
- * line has no newline yet and the read that reaches it is shorter than the
- * chunk, `scanFile`'s newline search runs on past the bytes it read, into
- * what the read before left in the chunk, and a newline there finishes the
- * line with those bytes, past the end of the file. Before this phase the copy
- * held the same bytes the view holds now, so the parent reads it exactly as
- * this phase does, and this phase moves no count, that one included. So a
- * case here that holds an unfinished line sizes it to end where a chunk ends.
- */
 describe('Phase 310: every chunk size from 1 to 48, three starts, three heads', () => {
   const WHOLE = lines(
     '',
@@ -548,13 +538,11 @@ describe('Phase 310: every chunk size from 1 to 48, three starts, three heads', 
     `Ké—😀${'é—😀'.repeat(3)}ok`,
     `P${'日本語'.repeat(3)}/`
   );
-  const WHOLE_BYTES = Buffer.byteLength(WHOLE);
-  /** The same lines and an unfinished one that ends where a chunk ends. */
-  const unfinished = (chunkSize: number, start: number): string => {
-    let n = 1;
-    while ((WHOLE_BYTES + n - start) % chunkSize !== 0) n += 1;
-    return WHOLE + (n >= 3 ? kept(n) : fill(n));
-  };
+  /** The same lines and an unfinished one, 23 bytes or 1, wherever a chunk ends. */
+  const UNFINISHED = [
+    ['unfinished, 23 bytes', WHOLE + kept(23)],
+    ['unfinished, 1 byte', WHOLE + fill(1)]
+  ] as const;
   const HEADS = [
     ['no prefilter', null, false],
     ['the 8 byte head', RULES, false],
@@ -563,13 +551,11 @@ describe('Phase 310: every chunk size from 1 to 48, three starts, three heads', 
   for (const [name, prefilter, wide] of HEADS) {
     it(name, () => {
       const whole = recordOf(WHOLE);
+      const open = UNFINISHED.map(([form, content]) => [form, recordOf(content)] as const);
       let saved = 0;
       for (let chunkSize = 1; chunkSize <= 48; chunkSize += 1) {
         for (const start of [0, 1, 9]) {
-          for (const [form, file] of [
-            ['whole', whole],
-            ['unfinished', recordOf(unfinished(chunkSize, start))]
-          ] as const) {
+          for (const [form, file] of [['whole', whole] as const, ...open]) {
             const label = `${name}, ${form}, chunk ${String(chunkSize)}, start ${String(start)}`;
             const r = checkFile(file, { prefilter, chunkSize, start, wide }, label);
             saved += r.copies.before.length - r.run.copies.length;
