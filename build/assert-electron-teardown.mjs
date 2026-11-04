@@ -602,8 +602,15 @@ const NOT_A_HELPER_USER = new Set(['assert-electron-teardown.mjs']);
  * 8b63abc1: build/update-rehearsal.mjs:423 and build/tmux-pair.mjs:122, each
  * `['-L', OPERATOR_SOCKET, 'list-sessions']`, and build/p245/corpus-scan.mjs:187,
  * `['-L', SOCKET, ...a]`.
+ *
+ * 98 SINCE 2026-11-03, his answer to Phase 352's question 5, "Delete them":
+ * the seven research scripts that could aim any verb at his server are gone,
+ * build/p245/corpus-scan.mjs, refused-family.mjs and root-cost.mjs,
+ * build/p247/offer-cost.mjs, build/p253/funnel-before-after.mts and
+ * vscode-catches.mts deleted, and build/p250/funnel.mts kept without its live
+ * measurement, because conformance:pathdoors rule 15 runs its self-test.
  */
-const OPERATOR_ARGV_CEILING = 105;
+const OPERATOR_ARGV_CEILING = 98;
 
 /**
  * RULE 6, ITS SECOND COUNT (the probe review of Phase 352). The scripts under

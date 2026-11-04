@@ -171,7 +171,7 @@ const CACHE_MS = 30_000;
  * asked: with the grep and tsc suffixes, the bracketed segments and the bare
  * file-shaped names all in the population, the busiest single pane of the
  * operator's 38 live panes held **739 distinct keys** against this 2,048
- * (`build/p253/funnel-before-after.mts`, 91,617 rows). The ceiling stands,
+ * (91,617 rows, by a Phase 253 script since removed). The ceiling stands,
  * and it still evicts oldest-first when a pane outgrows it, which costs a
  * round trip and never an answer.
  */

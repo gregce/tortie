@@ -8,13 +8,13 @@
  *
  * ## It is research 107's own detector B, ported rather than reinvented
  *
- * `build/p245/corpus-scan.mjs` holds `tokenizeB`, `looksPathB` and
- * `normalise`, and every rate in research 107 and research 111 was measured
- * through them: a 40.0% false-positive rate for the generous maximal-run
- * regex, 0 of 45 hand-marked for this one. The port is line for line so the
- * numbers those documents publish are numbers about the shipping code, and
- * `npm run conformance:pathdoors` drives the two side by side over the same
- * rows to keep it that way.
+ * Research 107's `build/p245/corpus-scan.mjs` held `tokenizeB`, `looksPathB`
+ * and `normalise`, and every rate in research 107 and research 111 was
+ * measured through them: a 40.0% false-positive rate for the generous
+ * maximal-run regex, 0 of 45 hand-marked for this one. The port is line for
+ * line so the numbers those documents publish are numbers about the shipping
+ * code. That script read his live sessions and was removed on his word of
+ * 2026-11-03.
  *
  * ## REFUSAL 8 LIVES HERE, AND PHASE 250 NARROWED IT TO WHAT IT WAS WRITTEN FOR
  *
