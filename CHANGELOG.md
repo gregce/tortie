@@ -19,7 +19,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 - `tortie .` opens a folder under the name it has on disk, as opening it from Finder does, so a terminal that spells the folder differently, or reached it through a link, no longer names its tab; a path with a character outside plain ASCII is still opened as the terminal spells it. If you installed the tortie command before, remove it and install it again in Settings ([`a1668133`](https://github.com/gregce/tortie/commit/a1668133))
 - When Tortie says it could not do something with a file or folder, a character you cannot see in its name is written out as its code, such as <U+200B>, so two names that look the same are told apart, and a name with a $ in it is quoted as it is ([`a1668133`](https://github.com/gregce/tortie/commit/a1668133))
 - The first Catch Me Up of a very long conversation opens faster ([`a1668133`](https://github.com/gregce/tortie/commit/a1668133))
-- Catch Me Up no longer shows a reply with words from elsewhere in the conversation, or drops a reply for good, when it reads a conversation the agent is still writing: a line is read only once the agent has finished it
+- Catch Me Up no longer shows a reply with words from elsewhere in the conversation, or drops a reply for good, when it reads a conversation the agent is still writing: a line is read only once the agent has finished it ([`0abe5d5b`](https://github.com/gregce/tortie/commit/0abe5d5b))
 
 ## 0.113.0 (2026-10-20)
 

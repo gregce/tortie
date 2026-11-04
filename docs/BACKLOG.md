@@ -44398,28 +44398,40 @@ round's reverify (build/p350/SPEC.md, its "### The second ruled fix round" and t
   starts in `C#Tools` on both; a folder named `x#(cd;touch marker)` ran no command on either version.
 - Phase 350 reads pi's switch as unread for such a folder (`bareNameSpawnFile` in `src/main/agents/detection.ts`, his
   ruling of 2026-11-03), so pi there starts exactly as before 350.
+- **Widened 2026-11-04: tmux's ARGUMENT READER too.** Phase 350's third ruled round's reverify measured it on bare 3.7b
+  and 3.6a, with `-f /dev/null` and with `gmux-tmux.conf`, the folder handed as `createSession` hands it, and live in
+  the app at HEAD and at `c60c2a48`: an argument that ends in `;` ends the tmux command, and an argument ending in `\;`
+  is read as one ending in a plain `;`. So a session folder ending in `;` cannot be created at all ("unknown command:
+  -e"); one ending in `\;` starts in HOME, or in its `;` twin when that exists, at create and at restore, for every
+  agent; and a launch flag ending in `;` followed by words that spell a tmux command runs that command on the private
+  server (measured with a harmless `display-message`; a launch flag comes from the person or a confirmed `agents.json`
+  row). Phase 350 reads pi's switch as unread for a folder ending in `;` too (his ruling of 2026-11-04, "Treat a
+  trailing ; like #").
 
 ### The mechanism
 
 1. **One escape, `#` doubled, at each point a create hands tmux its folder**: `createSession` and the remote create.
    The spec re-measures which characters tmux reads in `-c` on 3.6a, 3.7b and every version in
    `TESTED_REMOTE_TMUX_VERSIONS`, and escapes exactly those and nothing else. Nothing is normalised, case-folded or
-   resolved.
+   resolved. **And a trailing `;` escaped (a `\` before it) in every argument a create hands tmux**, being `-c`, each
+   `-e` pair and every argv element after `--`, at the same two points, measured the same way.
 2. **No conversation is lost by the move.** A session created before this fix ran in HOME, and its agent filed its
    conversation where it ran. The spec measures, for every agent with a resume, where the conversation was filed and
    where its resume looks, over committed fixtures and stand-ins, and a row recorded before the fix restores where it
    really ran unless the measurement shows the agent finds it from the folder. A restore that opens an empty
    conversation is the failure.
-3. **In the same commit, Phase 350's `#` clause goes**: `bareNameSpawnFile` walks from the folder the pane now really
-   starts in, its planted `#` rows in `src/main/agents/__tests__/p350-pi-bare-name.test.ts` flip to holding the token,
-   and `ablation:p331`'s arm for that clause is removed with it.
+3. **In the same commit, Phase 350's `#` clause and its trailing `;` term go**: `bareNameSpawnFile` walks from the
+   folder the pane now really starts in, its planted `#` and `\;` rows in
+   `src/main/agents/__tests__/p350-pi-bare-name.test.ts` flip to holding the token, and `ablation:p331`'s arms for the
+   two terms are removed with them.
 
 ### The proof, run rather than read
 
 - The parent measured: a `#` folder starts its session in HOME at the parent and in the folder at HEAD, created and
   restored, on this Mac and on the loopback machine with 3.6a and 3.7b on the far side.
 - A hostile fixture of folder names, every format sequence tmux knows (`#{`, `#[`, `#(`, `##`, `#T`, `#S`, `#H`, a
-  trailing `#`) beside names that must stay literal, graded by the pane's own `#{pane_current_path}`.
+  trailing `#`) and every ending tmux's argument reader knows (`;`, `\;`, `\\;`) beside names that must stay literal,
+  graded by the pane's own `#{pane_current_path}`, and a launch flag ending in `;` that must reach the agent as typed.
 - Mechanism 2's matrix, per agent with a resume, a pre-fix row beside a post-fix row, no conversation lost.
 - `conformance:resume:capture`, `conformance:agents`, `conformance:farattach`, `conformance:machines` and
   `ablation:p331`, with the `#` rows flipped.
@@ -44430,7 +44442,7 @@ round's reverify (build/p350/SPEC.md, its "### The second ruled fix round" and t
 - No escape of any character the measurement does not show tmux reading.
 - Nothing under `ios/`.
 
-## Phase 355 — the conversation reader can finish a line with bytes it never read (Phase 352's reader builder and folders lens, 2026-11-02)
+## Phase 355 — the conversation reader can finish a line with bytes it never read (Phase 352's reader builder and folders lens, 2026-11-02) ✅ LANDED `0abe5d5b`, 2026-11-04
 
 **Subject.** `fix(overview): the reader finishes a line only from bytes it read`
 
@@ -45786,3 +45798,6 @@ cycle rather than only the evening it was written.
 - 2026-11-03, **HIS ANSWERS TO PHASE 352's QUESTIONS.** 274.2 (the Context panel empty for a project stored under another spelling): "Leave it alone", so it stays closed and Tortie still never composes a path's accents. Question 5 (the research scripts that could aim any verb at his server): "Delete them", landed as `eb954fd4`: six deleted, `build/p250/funnel.mts` kept without its live measurement because `conformance:pathdoors` rule 15 runs its self-test, and `gate:electron`'s ceiling down from 105 to 98; what is left under it are older probes' read-only `list-sessions` counts. Questions 2 to 4 stand on their defaults.
 - 2026-11-03, **355 QUEUED AND STARTED — the conversation reader finishes a line only from bytes it read**, its section above, on his word ("Start it now"), Tier 3, one workflow: spec, one builder, verify, fix once, reverify, in `/private/var/tmp/tortie-wt/wt-p355`, beside 350's third ruled round. It rides in 0.114.0 only if it lands before 350; the release does not wait for it.
 - 2026-11-03, **PHASE 350's THIRD RULED ROUND RESTARTED** after its fixer lost the network (ENOTFOUND) at its last steps, about 35 minutes in: a fresh fixer takes over the edits it left in the tree, checks each before trusting it, and the independent reverify follows.
+- 2026-11-04, **PHASE 350's THIRD RULED ROUND's REVERIFY ANSWERED needs_work; HE RULED; THE FOURTH RULED ROUND STARTED.** The `#` row was closed (a pi created in `C#Tools` starts HOME's own pi with no switch and lives, field for field as at the parent), and one new case was worse than today: tmux's ARGUMENT READER reads an argument ending in `\;` as one ending in a plain `;`, so a session folder named `semi\;` starts in the home folder (or in a `semi;` twin), and the resolver, walking the folder as written, gave the switch to the global pi while an older pi ran there and stopped after its trust question (2 rows worse; found by the reverify's random differential of the resolver against real tmux, 1,008 readings, and driven live at both builds). Asked, he chose "Treat a trailing ; like #": a folder ending in `;` reads pi's switch as unread, one more term in the same guard, measured in a clone by the reverify (0 dangerous in both differentials, 208 of 208). The fourth ruled round (fix once, then an independent reverify) runs in `/private/var/tmp/tortie-wt/wt-p350`.
+- 2026-11-04, **354 WIDENED: tmux's argument reader.** The same reverify measured, at the parent too, that a session folder ending in `;` cannot be created, one ending in `\;` starts in the home folder for every agent at create and restore, and a launch flag ending in `;` ends the tmux command so the words after it run as a tmux command on the private server. Entry 354 (in Phase 353) now escapes a trailing `;` in every argument a create hands tmux, beside the `#`, and removes 350's `;` term with its `#` clause.
+- 2026-11-04, **PHASE 355 LANDED, `0abe5d5b` — the conversation reader finishes a line only from bytes it read** (Unreleased, for 0.114.0). The newline search runs over the bytes a read returned, so Catch Me Up never shows a reply spliced from elsewhere in the conversation or loses one for good while the agent is still writing, and a watermark no longer lands past the end and forces a full re-read. Verified on its first pass, Tier 3, seven independent methods (a real writer over 40 runs, a 45,750-case static attack, a groomed allocator, the app at both builds among them); `conformance:overview` gained the row `355 an unfinished line`. His Q1 stands on its default: a reply the old reader already lost stays lost in Tortie's copy until that conversation is read whole again, and no map version moves, because that would slow every conversation's first Catch Me Up.
