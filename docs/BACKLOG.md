@@ -44613,6 +44613,75 @@ stops costing a full release run") and met again by 0.114.0's first attempt.
 - No retry of `notarytool`, `codesign` or `spctl`, no retry of a missing ticket, and no unbounded wait.
 - No release, tag or rerun: the next release proves it in CI.
 
+## Phase 357 — "im on 0.114 and am getting these errors" — a session list that goes bad while Tortie runs shows a dialog per refresh and crashes the quit (operator, 2026-11-05)
+
+**Subject.** `fix(manifest): hold a session list that goes bad mid-run instead of a dialog per refresh`
+
+**First body line.** `Phase 357: a session list that goes bad while Tortie runs asks for one restart`
+
+**Semver.** Patch, with one CHANGELOG item under Fixed in his style, for example: if Tortie's session list stops reading correctly while it runs, Tortie says so once and offers a restart, instead of an error every few seconds and a crash when you quit; your sessions keep running either way.
+
+**Tier 3.** It touches the manifest and the quit, which can lose or corrupt a person's work, and he reported it, so the parent measurement is mandatory. Two independent methods at least, one of them an attack, and a fix round if any verdict is needs_work.
+
+**Charter.** His report of 2026-11-05 at 14:45 with the screenshot (`SqliteError: database disk image is malformed` at `SessionsRepository.listSessions`, from `ManifestStore.listSessions`, `GmuxCore.listSessions`, `GmuxCore.broadcastSessions`, a timer), then "can we diagnose and figure out a fix" and his app log. Phases 19, 20 and 21 bind it (the integrity gate at every open, the verified backup ring, the compatibility stamp): this phase reuses the gate and the ring and changes neither.
+
+### What happened on his Mac (read 2026-11-05: his app log on his word, the macOS crash report, and the manifest's sizes and times only; the manifest itself was not opened)
+
+- 0.114.0 started at 14:24:12 (pid 52311) after the in-app update. Its boot ran normally, Phase 350's pi pass rewriting 6 rows.
+- About 21 minutes in, every read of the session list in that process threw `database disk image is malformed`. `scheduleSessionsBroadcast` (`src/main/sessions/core.ts:1471`) runs `broadcastSessions` (`:2797`) from a `setTimeout`, nothing catches the throw, and main registers no `uncaughtException` or `unhandledRejection` handler anywhere, so Electron drew its dialog once per refresh and app.log recorded nothing at all.
+- He quit at 14:46:58 and the quit crashed the process inside `this.manifest.close()` (`core.ts:4320`): `EXC_BAD_ACCESS` (SIGSEGV) at `0x34`, a read through a null pointer in better-sqlite3's bundled SQLite, `Database::JS_close`, `sqlite3Close`, `sqlite3PagerClose`, `pcache1Destroy`, `pcache1EnforceMaxPage` (`~/Library/Logs/DiagnosticReports/Tortie-2026-11-05-144710.ips`). The connection's in-memory page cache was damaged. SQLite does not damage its own cache because a file is bad, so something in the process overwrote or freed that memory.
+- The FILE was not damaged. The relaunch at 14:47:00 (pid 67660) ran the gate's full `integrity_check` before opening it (5,054,464 bytes, under `STRONG_CHECK_MAX_BYTES` of 50 MB in `src/main/db/integrity.ts:70`, so not `quick_check`), found nothing, read every row, took ring generation 013159 at 14:47:01, and has written normally since. His tmux server has run since 8 October.
+- Nothing native changed between `v0.113.0` and `v0.114.0`: Electron 43.3.0, better-sqlite3 13.0.3, @parcel/watcher 2.6.0 and node-pty 1.1.0 in both, and 0.114.0 adds no production `openSync` or `closeSync`. Main holds four SQLite databases (the manifest, `arch.db`, the symbol index, the overview store) and two other native modules, and the watcher logged `Events were dropped by the FSEvents client` for `~/runstory` every few seconds under both builds. What damaged the cache is not known; Phase 358 is the research that looks for it.
+
+### The mechanism
+
+1. **One classifier, by code.** `src/main/db/integrity.ts`, beside `looksUnreadable` (`:134`), gains the one predicate for a broken connection: a better-sqlite3 `SqliteError` whose `code` is `SQLITE_CORRUPT`, an extended `SQLITE_CORRUPT_*` or `SQLITE_NOTADB`, read from `err.code` and never from message text. The spec measures the codes better-sqlite3 13.0.3 really surfaces for a damaged page, over a real damaged file in scratch, and decides whether `SQLITE_IOERR_*` belongs.
+2. **The store latches.** `ManifestStore` (`src/main/manifest/store.ts`) owns the connection for every session list read and write. The first broken-connection error from any call latches it as damaged, once: one app.log line naming the operation and the code, with no row data, and one read-only `checkDatabaseIntegrity` (`integrity.ts:158`) of the FILE from a fresh connection with its own page cache, so the line and the notice can say whether the file itself is fine. From the latch on, every write the store offers refuses with a typed error before it reaches SQLite, because writing pages out of a damaged cache is how damage in memory becomes damage in the file, and every read refuses the same way. The spec decides how every public method passes through the latch and the check that pins it, so a method added later cannot walk past it.
+3. **No session list error escapes a timer or a reply.** `broadcastSessions`, every other timer and event path in main that reads the manifest, and the phone's reads (`src/main/pocket/facts.ts`) catch the store's refusal. The window keeps the last list that read cleanly, the phone gets an answer in its own words rather than a thrown request, and the person sees ONE notice through `postDurabilityNotice` (`src/main/notice/index.ts:78`) in plain words, for example "Tortie's session list stopped reading correctly. Your sessions are still running. Restart Tortie to load it again.", with a Restart action that relaunches the app. The spec finds every such path; the verifier attacks for one it missed.
+4. **The quit does not close a damaged connection.** `GmuxCore`'s dispose skips `this.manifest.close()` once the store has latched, because that close is what crashed. WAL needs no clean close: the next open replays the log, and the gate checks the file and the ring repairs it if it must, as at every launch.
+5. **Main writes every uncaught exception and unhandled rejection to app.log.** `src/main/log/crash.ts` (`startCrashCapture`, `:34`) gains the two handlers, scope `crash`, logging the error's name, `code` and stack frames and never its message past a clip the spec sets, because app.log carries no payload; the same error is not shown twice in one run. The SPEC states what a person sees for any other uncaught exception and keeps today's behaviour apart from the repetition.
+
+### The proof, run rather than read
+
+- **The parent, measured** (origin/main's tip when the phase starts): one Electron on a scratch profile, HOME and socket with live shells, and a broken-connection error injected into the manifest mid-run through a seam that exists only in a harness launch. Count the uncaught exceptions that reach Electron's default handler over a minute of status ticks, try a create, and quit. Beside it HEAD: no uncaught exception, one notice, the create refused with its sentence, the last clean list still drawn, the phone's sessions read answered in words, a quit that exits cleanly without calling `close()`, and a next launch whose gate passes with every row byte for byte as before the fault.
+- **A real damaged file**, not only the seam: in vitest, the shipping store over a scratch manifest whose `sessions` pages are overwritten under a live connection until better-sqlite3 throws the real error, with the latch, the refusals and the integrity verdict following from it.
+- **The attack**: every write into `manifest.db` that does not pass the latch (the restore journal, the remote execution journal, the folder pins, migrations, reconciliation, the ring, any direct `db.prepare`), and every timer, callback or door that can still throw a manifest error uncaught, each tried live.
+- The battery; `conformance:resume:capture` if the build touches `restore/**` or `manifest/agents.ts`; `gate:contract` if a notice kind is a contract change, regenerated on purpose with the moved lines named; `conformance:pocket` for the door.
+
+### What is NOT in this phase
+
+- Not the cause of the damage. Phase 358 looks for it.
+- No change to the integrity gate, the backup ring, the recovery path, the schema, the migrations or the pragmas.
+- No automatic relaunch: the person presses Restart.
+- Nothing reads his live profile: every run uses a scratch profile, HOME and socket.
+- No release: shipping it as 0.114.1 needs his word.
+
+## Phase 358 — the same report — what damaged SQLite's page cache inside Tortie 0.114.0 (operator, 2026-11-05)
+
+**Research lane.** Investigate, attack, judge, write one document under `docs/research/`, commit. No production code.
+
+**Subject.** `docs(research): what damaged the session list's page cache in 0.114.0`
+
+**First body line.** `Phase 358: the cause of the damaged page cache, measured`
+
+**Semver.** None: a document.
+
+**Tier.** Research lane: the investigators measure, the adversaries try to refute each candidate before the judge ranks them, and the document is written last.
+
+**Charter.** His words of 2026-11-05, "can we diagnose and figure out a fix". Phase 357 stops the damage reaching his file and his screen; this finds what caused it, from the evidence in 357's section (one occurrence, about 21 minutes into a run, no native module or Electron change since 0.113.0).
+
+### What the investigators do, each by a different method
+
+1. **Reproduce under memory checking.** An unsigned build at `v0.114.0` with main started under macOS's malloc debugging (`MallocScribble`, `MallocGuardEdges`, `MallocCheckHeapStart` and `MallocCheckHeapEach`, Guard Malloc where the run can bear it), on a scratch profile shaped like his (`build/p3167/seed-sessions.mts` rows, live shells, the 1 Hz status poll, the phone door through the Tailscale stand-in, the ring ticking, and a watched folder churned until FSEvents drops events as `~/runstory` does), for as long as the budget allows, recording the first heap check failure with its stack.
+2. **SQLite's own assertions.** better-sqlite3 13.0.3 built in scratch with `SQLITE_DEBUG`, loaded by the same run, so the page cache's invariants fail at the write that breaks them rather than at a later close.
+3. **Read the lifecycles.** Every place Tortie closes, finalises or iterates a better-sqlite3 handle, unsubscribes the watcher, or ends a pty, for a use after free or a second close; and the four modules' issue trackers and changelogs since these versions for memory fixes.
+
+### What is NOT in this phase
+
+- No fix: a cause found here becomes its own build phase.
+- No run touches his live profile, his real Tortie or his tmux server.
+- It starts after Phase 356 lands, so no more than three phase workflows run at once.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -45936,3 +46005,5 @@ cycle rather than only the evening it was written.
 - 2026-11-05, **353 STARTED — sessions and the terminal** (294, 295, 301, 302, 305, 325, 328 and 354, his words of 2026-11-02 and 2026-11-03), its section above, Tier 3, one workflow: spec, four builders on disjoint files (session records, status, the terminal, where a session starts), integrator, probe review, three lenses reviewing together, fix once, an independent reverify, in `/private/var/tmp/tortie-wt/wt-p353` at `b1a557b8`. 354 removes Phase 350's `#` clause and `;` term in the same commit.
 - 2026-11-05, **0.114.0 PUBLISHED as Latest, `65a4eab5` (tag `v0.114.0`) — the rename and scrollback release**, on his word ("we should do a release and upload a new iphone build when 350 finishes"). It carries 349 (rename from the phone), 350 (pi's scrollback, paging a full-screen agent), 351 (no Intel-only code), 352 (files, folders and checks) and 355 (Catch Me Up's last line), beside phone build 13. The release run (42059523260) passed on its second attempt: the first stopped on the zero-warnings rule because `build/verify-signed.mjs` read one failed `stapler validate` of the ZIP's inner app as "no ticket in this copy" while Apple had accepted every notarization, the same flake 0.113.0 met; the second was clean, every artifact stapled with zero warnings. `releases/latest` and `latest-mac.yml` read 0.114.0, and tortie.sh's changelog refreshed (`f16020d8` in gregce/tortiedotsh) and serves it. Phone build 13 was archived from the tag, passed `--read-app` (team 4GRQMF5T5U, no DEBUG seam, no NetworkExtension or TailscaleKit) and is in his Organizer, because `xcodebuild -exportArchive` could not use his Xcode account ("Failed to Use Accounts") and sent nothing; build 13's wire is frozen beside build-12, build-11 and launch (`b1a557b8`, FROZEN_SETS_FLOOR 4); the store checklist holds build 13's review notes (3,975 of 4,000 bytes before his number) and What to Test, and the README names renaming and paging. Still owed, not queued: `verify-signed.mjs` telling a failed ticket lookup from a missing ticket and retrying it.
 - 2026-11-05, **356 QUEUED AND STARTED — a dropped Apple ticket lookup no longer fails a release**, its section above, on his word ("ok fix that flake issue please"), Tier 2, one workflow: spec, one builder, verify, fix once, an independent reverify, in `/private/var/tmp/tortie-wt/wt-p356`, beside 353.
+- 2026-11-05, **357 QUEUED AND STARTED — a session list that goes bad while Tortie runs asks for one restart**, its section above, on his report ("im on 0.114 and am getting these errors", then "can we diagnose and figure out a fix"): 0.114.0 read `malformed` from its own damaged page cache, drew a dialog per refresh and crashed closing the manifest at quit, while the file passed the full integrity check at the relaunch. Tier 3, one workflow: spec, builders on disjoint files, integrator, verify, fix once, an independent reverify, in `/private/var/tmp/tortie-wt/wt-p357`, beside 353 and 356.
+- 2026-11-05, **358 QUEUED — what damaged SQLite's page cache inside 0.114.0** (research), its section above; it starts when 356 lands.
