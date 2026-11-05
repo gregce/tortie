@@ -35,7 +35,14 @@
  *           mouse modes asked for, and after the screen settles
  *           `#{alternate_on}`, `#{mouse_any_flag}` and `#{history_size}`.
  *           Claude and Codex must leave the alternate screen at HEAD; every
- *           other agent must read at HEAD exactly what it read at the parent.
+ *           other agent must read at HEAD exactly what it read at the parent,
+ *           but pi. PHASE 350 made pi the third switch, behind a version floor
+ *           (build/p350/SPEC.md §6 item 2): HEAD's pi must be inline, its
+ *           recorded resume argv must carry `--tui-mode regular` straight
+ *           after the binary exactly when HEAD's scan read pi at 0.84.0 or
+ *           later, and the parent's never; a parent pi that was inline too
+ *           (0.84 to 0.99's default, the pi on this Mac) must read at HEAD
+ *           what it read at the parent on every other reading.
  *   (a)     three real wheel notches (CDP `Input.dispatchMouseEvent`) over a
  *           fresh Codex after a local `!seq`: the parent's xterm sends Up and
  *           the composer recalls a prompt; HEAD's xterm sends nothing and tmux
@@ -403,17 +410,49 @@ export function wrappedInner(argv) {
 export const innerCarriesPair = (inner) =>
   typeof inner === 'string' && (inner.match(/(?:^|\s)-c\s+'?tui\.fullscreen_transcript=false'?(?=\s|$)/g) ?? []).length === 1;
 
+/** PHASE 350. pi's inline token, as the manifest records it straight after the binary. */
+export const PI_TOKEN = Object.freeze(['--tui-mode', 'regular']);
+/** PHASE 350. The floor the token is composed behind (`PI_INLINE_FLOOR`). */
+export const PI_FLOOR = Object.freeze([0, 84, 0]);
+/** Whether a recorded argv carries pi's token at indices 1 and 2. */
+export const piTokenLeads = (argv) => Array.isArray(argv) && argv[1] === PI_TOKEN[0] && argv[2] === PI_TOKEN[1];
+
 /**
- * One agent's matrix reading at both builds, against its class: the two
+ * One agent's matrix reading at both builds, against its class: the three
  * switched agents must leave the alternate screen at HEAD; every other agent
  * must read at HEAD what it read at the parent, whatever its class says.
  * `null` is UNREADABLE (the parent did not show the defect, or a reading is missing).
+ *
+ * PHASE 350. pi is switched behind a floor, so `headPiVersion` (the version
+ * HEAD's own scan read, or null) is its fourth argument: HEAD must be inline,
+ * HEAD's recorded resume argv carries the token exactly when that version is
+ * at the floor, the parent's never does, and a parent that was already inline
+ * must read at HEAD what it read on every reading.
  */
-export function matrixVerdict(agent, parent, head) {
+export function matrixVerdict(agent, parent, head, headPiVersion = null) {
   if (parent === undefined || parent === null || head === undefined || head === null) return { ok: null, said: 'a build has no reading' };
   if (parent.flags === null || head.flags === null) return { ok: null, said: 'tmux answered no flags for a pane' };
   const p = `${String(parent.alt1049)}×1049 alt ${String(parent.flags.alternate_on)} mouse ${String(parent.flags.mouse_any_flag)} modes [${parent.modes.join(',')}] history ${String(parent.flags.history_size)}`;
   const h = `${String(head.alt1049)}×1049 alt ${String(head.flags.alternate_on)} mouse ${String(head.flags.mouse_any_flag)} modes [${head.modes.join(',')}] history ${String(head.flags.history_size)}`;
+  if (agent === 'pi') {
+    if (!Array.isArray(head.resumeArgv) || !Array.isArray(parent.resumeArgv)) return { ok: null, said: `a build recorded no resume argv for pi (parent ${J(parent.resumeArgv)}, HEAD ${J(head.resumeArgv)})` };
+    const held = atLeast(versionOf(headPiVersion), PI_FLOOR);
+    const tokenRight = piTokenLeads(head.resumeArgv) === held && !piTokenLeads(parent.resumeArgv);
+    const inline = head.alt1049 === 0 && head.flags.alternate_on === 0 && head.flags.mouse_any_flag === 0;
+    const parentInline = parent.alt1049 === 0 && parent.flags.alternate_on === 0;
+    const sameAsParent =
+      parent.flags.mouse_any_flag === head.flags.mouse_any_flag &&
+      J(parent.modes) === J(head.modes) &&
+      (parent.flags.history_size > 0) === (head.flags.history_size > 0);
+    const ok = tokenRight && inline && (!parentInline || sameAsParent);
+    return {
+      ok,
+      said:
+        `parent ${p}; HEAD ${h}; HEAD's scan read pi ${String(headPiVersion)}, so its resume argv must ${held ? '' : 'not '}lead with ${J(PI_TOKEN)} ` +
+        `(HEAD ${J(head.resumeArgv.slice(1, 3))}, parent ${J(parent.resumeArgv.slice(1, 3))}, which must not); HEAD must be inline` +
+        (parentInline ? ', and the parent was inline too, so every other reading must match it' : '')
+    };
+  }
   if (agent === 'claude') {
     if (!(parent.alt1049 > 0 && parent.flags.mouse_any_flag === 1)) return { ok: null, said: `the parent's Claude was not full-screen with the mouse (${p}), so there is no defect to fix` };
     return { ok: head.alt1049 === 0 && head.flags.alternate_on === 0 && head.flags.mouse_any_flag === 0, said: `parent ${p}; HEAD ${h} (HEAD must ask for no 1049 and no mouse)` };
@@ -485,8 +524,23 @@ function selfTest() {
   expect('matrix codex fixed', matrixVerdict('codex', codexParent, inline).ok, true);
   expect('matrix codex mouse at parent', matrixVerdict('codex', full, inline).ok, null);
   expect('matrix other same', matrixVerdict('deepseek', full, { ...full }).ok, true);
-  expect('matrix other moved', matrixVerdict('pi', inline, { ...inline, modes: [1000] }).ok, false);
-  expect('matrix other history class', matrixVerdict('pi', inline, { ...inline, flags: { ...inline.flags, history_size: 0 } }).ok, false);
+  expect('matrix other moved', matrixVerdict('omp', inline, { ...inline, modes: [1000] }).ok, false);
+  expect('matrix other history class', matrixVerdict('omp', inline, { ...inline, flags: { ...inline.flags, history_size: 0 } }).ok, false);
+  // PHASE 350. pi is the third switch, behind its floor.
+  const TOKENED = ['/p/pi', ...PI_TOKEN, '--session-id', 'u'];
+  const BARE = ['/p/pi', '--session-id', 'u'];
+  const piAt = (reading, resumeArgv) => ({ ...reading, resumeArgv });
+  expect('matrix pi 0.84.2 at both builds, the token at HEAD', matrixVerdict('pi', piAt(inline, BARE), piAt(inline, TOKENED), '0.84.2').ok, true);
+  expect('matrix pi a full-screen parent fixed', matrixVerdict('pi', piAt(full, BARE), piAt(inline, TOKENED), '1.4.0').ok, true);
+  expect('matrix pi still full screen at HEAD', matrixVerdict('pi', piAt(full, BARE), piAt(full, TOKENED), '1.4.0').ok, false);
+  expect('matrix pi no token at the floor', matrixVerdict('pi', piAt(inline, BARE), piAt(inline, BARE), '0.84.2').ok, false);
+  expect('matrix pi a token below the floor', matrixVerdict('pi', piAt(inline, BARE), piAt(inline, TOKENED), '0.83.0').ok, false);
+  expect('matrix pi no token below the floor', matrixVerdict('pi', piAt(inline, BARE), piAt(inline, BARE), '0.83.0').ok, true);
+  expect('matrix pi a token with no version read', matrixVerdict('pi', piAt(inline, BARE), piAt(inline, TOKENED), null).ok, false);
+  expect('matrix pi a token at the parent', matrixVerdict('pi', piAt(inline, TOKENED), piAt(inline, TOKENED), '0.84.2').ok, false);
+  expect('matrix pi an inline parent moved', matrixVerdict('pi', piAt(inline, BARE), piAt({ ...inline, modes: [1000] }, TOKENED), '0.84.2').ok, false);
+  expect('matrix pi no resume argv', matrixVerdict('pi', inline, piAt(inline, TOKENED), '0.84.2').ok, null);
+  expect('pi token leads', [piTokenLeads(TOKENED), piTokenLeads(BARE), piTokenLeads(['/p/pi', '--session-id', 'u', ...PI_TOKEN])], [true, false, false]);
   expect('composer ready', composerReady('header\n› Ask Codex to do anything'), true);
   expect('trust is not a composer', composerReady('Trust this folder?\n› 1. Trust and continue\n  2. Quit'), false);
   expect('version', versionOf('codex-cli 0.158.0'), [0, 158, 0]);
@@ -1222,7 +1276,9 @@ async function matrixOne(app, agent, build) {
     })(),
     variable: agent.id === 'claude' ? variableInPane(one) : undefined,
     hint: agent.id === 'claude' ? HINT.test(screen) : undefined,
-    loginScreen: agent.id === 'cursor' ? /log ?in|sign ?in/i.test(screen) : undefined
+    loginScreen: agent.id === 'cursor' ? /log ?in|sign ?in/i.test(screen) : undefined,
+    // PHASE 350. pi pre-assigns, so its resume argv is recorded at create.
+    resumeArgv: agent.id === 'pi' ? ((await app.find(one.id))?.resumeArgv ?? null) : undefined
   };
   return { one, reading };
 }
@@ -1422,7 +1478,12 @@ try {
               scan = null;
             }
             const never = neverScanVerdict(scan);
-            report.readings[`scan-${build}`] = { ...never, installed: Array.isArray(scan) ? scan.filter((a) => a.installed).map((a) => a.id) : null };
+            report.readings[`scan-${build}`] = {
+              ...never,
+              installed: Array.isArray(scan) ? scan.filter((a) => a.installed).map((a) => a.id) : null,
+              // PHASE 350. The version pi's floor is read from, per build.
+              piVersion: Array.isArray(scan) ? (scan.find((a) => a.id === 'pi')?.version ?? null) : null
+            };
             if (!never.ok) {
               neverBreached = true;
               throw new Unreadable(`(${build}) the app's own detection was not kept off the four: ${never.said}`);
@@ -2047,7 +2108,7 @@ function grade() {
         });
         continue;
       }
-      const v = matrixVerdict(agent.id, p, h);
+      const v = matrixVerdict(agent.id, p, h, report.readings['scan-head']?.piVersion ?? null);
       const hidden = [...new Set([...(p.envHidden ?? []), ...(h.envHidden ?? [])])];
       const hiddenNote =
         hidden.length === 0

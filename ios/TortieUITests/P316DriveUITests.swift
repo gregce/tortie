@@ -889,6 +889,21 @@ private final class Drive {
                 toCatchUpStay()
             } else if step.hasPrefix("scroll-up:") {
                 scrollUp(Int(String(step.dropFirst("scroll-up:".count))) ?? 1)
+            } else if step.hasPrefix("pull:") {
+                // Phase 350 (build/p350/SPEC.md §8.3): a pull, and never stuck.
+                pull(String(step.dropFirst("pull:".count)), blind: false)
+            } else if step.hasPrefix("pull-blind:") {
+                pull(String(step.dropFirst("pull-blind:".count)), blind: true)
+            } else if step.hasPrefix("pull-pinch:") {
+                pullPinch(String(step.dropFirst("pull-pinch:".count)), blind: false)
+            } else if step.hasPrefix("pull-pinch-blind:") {
+                pullPinch(String(step.dropFirst("pull-pinch-blind:".count)), blind: true)
+            } else if step.hasPrefix("pull-held:") {
+                pullHeld(String(step.dropFirst("pull-held:".count)), blind: false)
+            } else if step.hasPrefix("pull-held-blind:") {
+                pullHeld(String(step.dropFirst("pull-held-blind:".count)), blind: true)
+            } else if step.hasPrefix("pull-zoom:") {
+                pullZoom(String(step.dropFirst("pull-zoom:".count)))
             } else if step == "scroll-hold" {
                 scrollHold(seconds: 10, step: "scroll-hold")
             } else if step == "scroll-drag-hold" {
@@ -3610,6 +3625,123 @@ private final class Drive {
             readings.append(terminalReading())
         }
         lines.emit(["step": "scroll-up", "n": n, "before": before, "readings": readings])
+    }
+
+    // MARK: Phase 350, the pull on a full-screen picture (build/p350/SPEC.md §8.3)
+    //
+    // Every grade of these steps is read off the program's OWN log (the
+    // stand-in writes down every byte it reads) and the dump, never off the
+    // app: each step prints when it began (`startedAt`, the Mac's clock, which
+    // the Simulator shares) so the probe can cut that log at it. None calls
+    // `missing`, so a session with no grid (an ended one) is read and the drive
+    // goes on. The `-blind` forms read nothing of the Terminal at all, for the
+    // 18.3 floor (build/p350/SPEC.md §0.1 item 18, M3).
+
+    /// The two points of one pull along the grid's middle, `from` and `to` of
+    /// its height, kept above the key bar when the keyboard is up so the
+    /// finger never lands on a key; nil when there is no grid.
+    private func pullPoints(_ from: Double, _ to: Double) -> (a: XCUICoordinate, b: XCUICoordinate, p0: [Double], p1: [Double])? {
+        let grid = element(Seen.screenGrid)
+        guard grid.exists else { return nil }
+        let frame = grid.frame
+        let top = Double(frame.minY)
+        var bottom = Double(frame.maxY)
+        let bar = element(Seen.screenKeyBar)
+        if bar.exists { bottom = min(bottom, Double(bar.frame.minY) - 20) }
+        let height = max(1, bottom - top)
+        let x = Double(frame.midX)
+        let y0 = top + height * from
+        let y1 = top + height * to
+        let origin = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+        return (origin.withOffset(CGVector(dx: x, dy: y0)), origin.withOffset(CGVector(dx: x, dy: y1)), [x, y0], [x, y1])
+    }
+
+    /// The Mac's clock now, in milliseconds, as the stand-in stamps its reads.
+    private func nowMs() -> Double { Date().timeIntervalSince1970 * 1000 }
+
+    /// `pull:<label>:<from>:<to>`: ONE drag along the grid from `from` to `to`
+    /// of its height (a pull down past the top is a drag DOWN the grid, 0.3 to
+    /// 0.75, PS16's drag, which M3 read at least 66 pt past the edge on every
+    /// device; a pull up past the bottom the same drag the other way), pressed
+    /// 0.05 s, moved at 600 pt a second, held 0.3 s and lifted, and the
+    /// Terminal read before it and 1.2 s after, so the page it sent has landed.
+    private func pull(_ spec: String, blind: Bool) {
+        let parts = spec.split(separator: ":").map(String.init)
+        let label = parts.first ?? "pull"
+        let from = Double(parts.count > 1 ? parts[1] : "0.3") ?? 0.3
+        let to = Double(parts.count > 2 ? parts[2] : "0.75") ?? 0.75
+        let step = blind ? "pull-blind" : "pull"
+        let startedAt = nowMs()
+        guard element(Seen.screenGrid).waitForExistence(timeout: 5), let points = pullPoints(from, to) else {
+            lines.emit(["step": step, "label": label, "grid": false, "startedAt": startedAt, "endedAt": nowMs()])
+            return
+        }
+        let before: Any = blind ? (NSNull() as Any) : (terminalReading() as Any)
+        let dragAt = nowMs()
+        points.a.press(forDuration: 0.05, thenDragTo: points.b, withVelocity: XCUIGestureVelocity(600), thenHoldForDuration: 0.3)
+        Thread.sleep(forTimeInterval: 1.2)
+        let after: Any = blind ? (NSNull() as Any) : (terminalReading() as Any)
+        lines.emit(["step": step, "label": label, "grid": true, "from": points.p0, "to": points.p1, "startedAt": startedAt, "dragAt": dragAt, "endedAt": nowMs(), "before": before, "after": after])
+    }
+
+    /// `pull-pinch:<label>`: a pinch out and back in on the grid, which begins
+    /// no pan (M3), the Terminal read before and after.
+    private func pullPinch(_ label: String, blind: Bool) {
+        let step = blind ? "pull-pinch-blind" : "pull-pinch"
+        let startedAt = nowMs()
+        let grid = element(Seen.screenGrid)
+        guard grid.waitForExistence(timeout: 5) else {
+            lines.emit(["step": step, "label": label, "grid": false, "startedAt": startedAt, "endedAt": nowMs()])
+            return
+        }
+        let before: Any = blind ? (NSNull() as Any) : (terminalReading() as Any)
+        grid.pinch(withScale: 1.6, velocity: 1.5)
+        Thread.sleep(forTimeInterval: 0.8)
+        grid.pinch(withScale: 0.62, velocity: -1.5)
+        Thread.sleep(forTimeInterval: 1.2)
+        let after: Any = blind ? (NSNull() as Any) : (terminalReading() as Any)
+        lines.emit(["step": step, "label": label, "grid": true, "startedAt": startedAt, "endedAt": nowMs(), "before": before, "after": after])
+    }
+
+    /// `pull-held:<label>`: a long press on row 3, which selects a word, then a
+    /// drag down the grid well below it (0.45 to 0.9, clear of the
+    /// selection's handles) with the selection held, which M3 measured does
+    /// begin the pan. The selection is left as it is; the next step leaves
+    /// the session.
+    private func pullHeld(_ label: String, blind: Bool) {
+        let step = blind ? "pull-held-blind" : "pull-held"
+        let startedAt = nowMs()
+        let row = element(Seen.screenRow + "3")
+        guard row.waitForExistence(timeout: 5), let points = pullPoints(0.45, 0.9) else {
+            lines.emit(["step": step, "label": label, "grid": false, "startedAt": startedAt, "endedAt": nowMs()])
+            return
+        }
+        row.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.5)).press(forDuration: 1.0)
+        let selected = element(Seen.screenCopy).waitForExistence(timeout: 5)
+        let before: Any = blind ? (NSNull() as Any) : (terminalReading() as Any)
+        let dragAt = nowMs()
+        points.a.press(forDuration: 0.05, thenDragTo: points.b, withVelocity: XCUIGestureVelocity(600), thenHoldForDuration: 0.3)
+        Thread.sleep(forTimeInterval: 1.2)
+        let heldAfter = element(Seen.screenCopy).exists
+        let after: Any = blind ? (NSNull() as Any) : (terminalReading() as Any)
+        lines.emit(["step": step, "label": label, "grid": true, "selected": selected, "heldAfter": heldAfter, "startedAt": startedAt, "dragAt": dragAt, "endedAt": nowMs(), "before": before, "after": after])
+    }
+
+    /// `pull-zoom:<label>`: the grid double-tapped to the reading size (the
+    /// zoomed case of D21), the Terminal read before and after, and whether
+    /// the key bar came up with it (a pull then stays above it).
+    private func pullZoom(_ label: String) {
+        let startedAt = nowMs()
+        let grid = element(Seen.screenGrid)
+        guard grid.waitForExistence(timeout: 5) else {
+            lines.emit(["step": "pull-zoom", "label": label, "grid": false, "startedAt": startedAt, "endedAt": nowMs()])
+            return
+        }
+        let before = terminalReading()
+        grid.doubleTap()
+        Thread.sleep(forTimeInterval: 1.5)
+        let after = terminalReading()
+        lines.emit(["step": "pull-zoom", "label": label, "grid": true, "keyBar": element(Seen.screenKeyBar).exists, "startedAt": startedAt, "endedAt": nowMs(), "before": before, "after": after])
     }
 
     /// `scroll-hold` (PS13): the finger lifted, a reading every half second (or

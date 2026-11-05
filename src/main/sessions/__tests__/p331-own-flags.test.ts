@@ -40,6 +40,7 @@ const {
   CODEX_SCROLLBACK_ARGS,
   LAUNCHABLE_AGENT_IDS,
   ownLaunchFlags,
+  PI_INLINE_ARGS,
   registryLaunchArgv,
   registryResumeArgv
 } = await import('../../agents/registry');
@@ -376,7 +377,7 @@ describe('every other agent', () => {
     for (const id of [...LAUNCHABLE_AGENT_IDS, 'shell']) {
       if (id === 'codex') continue;
       // Every one of them, with the pair itself in the flags: only codex
-      // fixes tokens, so no other agent may ever have them set aside.
+      // fixes THIS pair, so no other agent may ever have it set aside.
       const argv = argvs[id] ?? [`/abs/${id}`, ...PAIR, '--p331-own'];
       expect(ownLaunchFlags(id, argv), id).toEqual(argv.slice(1));
       expect(agentExtrasOf(row(id, argv)), id).toEqual(argv.slice(1));
@@ -384,5 +385,34 @@ describe('every other agent', () => {
     // An agent the registry has never heard of is read the old way too.
     expect(ownLaunchFlags('not-an-agent', ['/x', ...PAIR])).toEqual([...PAIR]);
     expect([...CODEX_SCROLLBACK_ARGS]).toEqual(PAIR);
+  });
+
+  it("PHASE 350: pi's inline token is set aside when it leads, and only pi's", () => {
+    const PI = '/abs/pi';
+    // A row a create at the floor records: the token, then the id, then the
+    // person's own flags.
+    const head = registryLaunchArgv('pi', ['--model', 'm'], PI, ID, true);
+    expect(head).toEqual([PI, ...PI_INLINE_ARGS, '--session-id', ID, '--model', 'm']);
+    expect(ownLaunchFlags('pi', head)).toEqual(['--session-id', ID, '--model', 'm']);
+    // A row written before the phase reads exactly as it did.
+    expect(ownLaunchFlags('pi', [PI, '--session-id', ID, '--model', 'm'])).toEqual([
+      '--session-id',
+      ID,
+      '--model',
+      'm'
+    ]);
+    // A person's own --tui-mode after the id stays theirs.
+    expect(ownLaunchFlags('pi', [PI, '--session-id', ID, '--tui-mode', 'fullscreen'])).toEqual([
+      '--session-id',
+      ID,
+      '--tui-mode',
+      'fullscreen'
+    ]);
+    // No other agent ever has pi's token set aside.
+    for (const id of LAUNCHABLE_AGENT_IDS) {
+      if (id === 'pi') continue;
+      const argv = [`/abs/${id}`, ...PI_INLINE_ARGS, '--p350-own'];
+      expect(ownLaunchFlags(id, argv), id).toEqual(argv.slice(1));
+    }
   });
 });

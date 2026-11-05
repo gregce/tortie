@@ -50,9 +50,14 @@
 import { existsSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import { loginProviderForAgent } from '@shared/logins';
-import type { LaunchableAgentId, SessionRestore } from '@shared/types';
-import { listDetectedAgents } from '../agents/detection';
-import { getLaunchableEntry } from '../agents/registry';
+import type { LaunchableAgentId, LaunchableAgentKind, SessionRestore } from '@shared/types';
+import { LOCAL_MACHINE_ID } from '@shared/workspace-target';
+// PHASE 350. pi's floor is read off the same detection cache the version
+// sentence reads, through the one reader the boot pass also asks, for the
+// binary this row's armed command runs (its fix round), and the row's own
+// composition tells a person's leading `--tui-mode` from Tortie's.
+import { listDetectedAgents, piInlineFloorFor, piOwnResumeArgv } from '../agents/detection';
+import { getLaunchableEntry, PI_INLINE_ARGS, piTokenIsTortiesIn } from '../agents/registry';
 import { faultPoint } from '../fault/inject';
 import type { ManifestSessionRecord } from '../manifest';
 // Phase 74. The one login flag definition, shared with the create path so the
@@ -692,6 +697,17 @@ function buildDriftNoticeCommand(sentence: string): string {
  *  3. no specstory at all → arm the BARE agent resume. The conversation comes
  *     back, capture does not continue, and the log says so.
  *
+ * And after the ladder, whichever rung answered (PHASE 350, build/p350/SPEC.md
+ * D13 and D17): on a pi row on this Mac whose argv carries Tortie's inline
+ * token straight after the binary, the token is taken out while this Mac's
+ * scan does not read THAT binary at `PI_INLINE_FLOOR`, an unanswered scan, a
+ * second pi install and a pi reinstalled since the scan included (the fix
+ * round). A restore pressed before the scan answers therefore comes up exactly
+ * as the build before this phase would have, and a pi taken below 0.84.0 never
+ * stops after its trust question. A person's own leading `--tui-mode regular`
+ * is never the token taken out. Restore and resume in place both arm through
+ * {@link armableResume}, so both read this step.
+ *
  * The inner command comes from {@link unwrapArgv} because the resume argv is
  * composed after the fact (the harvest arms it once the agent's id exists) and
  * the manifest's verbatim copy — `specstory.agentArgv` — is the LAUNCH argv,
@@ -769,10 +785,52 @@ export interface ArmableResume {
  * a binary, never re-wraps, and never reaches the ladder below at all. When
  * the recorded command cannot be taken apart it arms NOTHING, because arming
  * the recorded line would run the very wrapper that was just declined.
+ *
+ * PHASE 350 (D17). Every answer, whichever arm gave it, passes through
+ * {@link withoutPiTokenBelowFloor} on its one way out, so a later arm cannot
+ * skip it.
  */
 export async function armableResume(
   rec: ManifestSessionRecord,
   options: ArmableResumeOptions = {}
+): Promise<ArmableResume> {
+  const decided = await armableResumeLadder(rec, options);
+  const argv = withoutPiTokenBelowFloor(rec, decided.argv);
+  return argv === decided.argv ? decided : { ...decided, argv };
+}
+
+/**
+ * PHASE 350 (build/p350/SPEC.md D13, D17), and its fix round. `argv` with
+ * Tortie's copy of pi's inline token taken out of indices 1 and 2, and `argv`
+ * itself in every other case.
+ *
+ * It answers `[argv[0], ...argv.slice(3)]` exactly when the row is a pi row on
+ * this Mac, indices 1 and 2 are Tortie's copy of {@link PI_INLINE_ARGS} (never
+ * the person's own: `piTokenIsTortiesIn` over the row's own composition), and
+ * this Mac's last resolved scan does not read THE BINARY `argv` RUNS at the
+ * floor (`unread` included, and every file but the one the scan read pi's
+ * version from, as it was then). It never waits on or starts a scan; its disk is
+ * one stat of `argv[0]`. A row on another machine is never handed the token, so
+ * it is never read.
+ */
+export function withoutPiTokenBelowFloor(
+  rec: ManifestSessionRecord,
+  argv: string[]
+): string[] {
+  if ((rec.agent as LaunchableAgentKind) !== 'pi') return argv;
+  if ((rec.machineId ?? LOCAL_MACHINE_ID) !== LOCAL_MACHINE_ID) return argv;
+  // No pair straight after the binary: nothing to take out, and nothing of the
+  // agent table or the scan is asked (a row recorded before this phase).
+  if (!PI_INLINE_ARGS.every((token, i) => argv[1 + i] === token)) return argv;
+  if (!piTokenIsTortiesIn(argv, piOwnResumeArgv(rec.agentSessionId ?? '', rec.specstory?.agentArgv ?? rec.argv))) return argv;
+  if (piInlineFloorFor(argv[0]) === 'holds') return argv;
+  return [...argv.slice(0, 1), ...argv.slice(1 + PI_INLINE_ARGS.length)];
+}
+
+/** The ladder {@link armableResume} decides by, before Phase 350's last step. */
+async function armableResumeLadder(
+  rec: ManifestSessionRecord,
+  options: ArmableResumeOptions
 ): Promise<ArmableResume> {
   const recorded = [...(rec.resumeArgv ?? [])];
   const capture = rec.specstory;

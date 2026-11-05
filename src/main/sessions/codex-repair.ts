@@ -237,11 +237,13 @@ function write(
   reader: CodexHomeReader,
   now: () => number
 ): CodexRepairOutcome {
+  // PHASE 350 (D20). A Codex recomposition: pi's floor is never this caller's.
   const composed = composeResumeArgv(
     rec,
     rec.agent as LaunchableAgentId,
     after,
-    agentExtrasOf(rec)
+    agentExtrasOf(rec),
+    false
   );
   const left = (verdict: CodexRepairVerdict): CodexRepairOutcome => ({
     sessionId: rec.id,

@@ -51,7 +51,12 @@
  *      parent's one statement, and the two handed to the verb AT ONCE, which
  *      the door never does (writes.ts step 3 answers a second write on a
  *      session `busy` while one is in flight); a named key not alone is
- *      refused before anything is read
+ *      refused before anything is read. Since Phase 350's fix round a page
+ *      (`PPage`, `NPage`) goes only to a screen that offers it, so each page
+ *      key is driven at each mode's own recorder on the normal screen, where
+ *      the verb must refuse it `changed` and the recorder read no byte, and
+ *      at a second recorder in the same mode on the alternate screen, whose
+ *      bytes are the ones compared
  *   L  the long poll through the SHIPPING watcher: 100 changes, change to
  *      answer p99 UNDER 250 ms, none missed; a held poll ends within two
  *      ticks of `closing()`
@@ -499,7 +504,14 @@ export function summarizeK(k) {
     gap: (k?.gap ?? []).map((g) => ({ reads: g.reads, apartMs: g.apartMs, actsApartMs: g.actsApartMs ?? null })),
     concurrent: (k?.concurrent ?? []).map((g) => ({ reads: g.reads, apartMs: g.apartMs, actsApartMs: g.actsApartMs ?? null })),
     parentShape: k?.parentShape ?? [],
-    notAlone: { outcome: k?.notAlone?.outcome?.outcome ?? null, reason: k?.notAlone?.outcome?.reason ?? null, freshReads: k?.notAlone?.freshReads ?? null }
+    notAlone: { outcome: k?.notAlone?.outcome?.outcome ?? null, reason: k?.notAlone?.outcome?.reason ?? null, freshReads: k?.notAlone?.freshReads ?? null },
+    // PHASE 350's FIX ROUND: every page sent at the normal screen, and each one that was not refused changed with no byte read.
+    offAltN: named.reduce((n, [, m]) => n + Object.keys(m?.offAlt ?? {}).length, 0),
+    offAlt: named.flatMap(([mode, m]) =>
+      Object.entries(m?.offAlt ?? {})
+        .filter(([, o]) => !(o?.outcome === 'refused' && o?.reason === 'changed' && o?.hex === ''))
+        .map(([name, o]) => `${mode}:${name}:${String(o?.outcome)}:${String(o?.reason)}:${String(o?.hex)}`)
+    )
   };
 }
 
@@ -693,7 +705,11 @@ export const GRADERS = {
       ['text reached the program byte for byte', (r) => r.textN > 0 && r.text.length === 0],
       ['at least 200 keys were timed, and p99 check-to-land is under 15 ms', (r) => r.land.n >= KEY_FLOOR && typeof r.land.p99 === 'number' && r.land.p99 < CHECK_TO_LAND_P99_MS],
       ["two writes handed 0 ms apart arrive as two reads, the verb's acts 50 ms or more apart and the reads within the landing slack of it (D42)", (r) => r.gap.length >= 5 && r.gap.every((g) => J(g.reads) === J(['1b', '62']) && typeof g.actsApartMs === 'number' && g.actsApartMs >= KEYS_GAP_MS && typeof g.apartMs === 'number' && g.apartMs >= KEYS_GAP_MS - LANDING_SLACK_MS)],
-      ['a named key not alone is refused before anything is read', (r) => r.notAlone.outcome === 'refused' && r.notAlone.freshReads === 0]
+      ['a named key not alone is refused before anything is read', (r) => r.notAlone.outcome === 'refused' && r.notAlone.freshReads === 0],
+      // PHASE 350's FIX ROUND. A summary recorded before it (RECORDED, Phase 337's run) carries no
+      // offAltN and is not asked; every live summary carries one, so a drive that sent no page off the
+      // alternate screen reads 0 and fails here.
+      ["a page at a screen that is not the alternate screen is refused changed in every mode, and types nothing (Phase 350's fix round)", (r) => r.offAltN === undefined || (r.offAltN >= 2 * K_MODES.length && Array.isArray(r.offAlt) && r.offAlt.length === 0)]
     ]
   },
   L: {
@@ -897,9 +913,12 @@ export const GRADER_FIXTURES = {
       gap: [gap(51.2), gap(49.6, 50.4), gap(55), gap(50.9), gap(52)],
       concurrent: [{ reads: ['1b62'], apartMs: null }],
       parentShape: [['1b62']],
-      notAlone: { outcome: 'refused', reason: 'character', freshReads: 0 }
+      notAlone: { outcome: 'refused', reason: 'character', freshReads: 0 },
+      offAltN: 14,
+      offAlt: []
     },
     breaks: {
+      "a page at a screen that is not the alternate screen is refused changed in every mode, and types nothing (Phase 350's fix round)": (r) => void (r.offAlt = ['normal:PPage:done:null:1b5b357e']),
       'every recorder mode was staged': (r) => void (r.unstaged = ['kitty']),
       'every key was answered done': (r) => void (r.notDone = 1),
       'every key reached the program as keys-encoding.json says': (r) => void (r.differ = ['decckm:Up']),
@@ -1126,7 +1145,19 @@ export const RECORDED = Object.freeze({
 const REVIEW_NAMES = Object.freeze(['Escape', 'Tab', 'BTab', 'Enter', 'BSpace', 'Up', 'Down', 'Left', 'Right', ...'abcdefghijklmnopqrstuvwxyz'.split('').map((l) => `C-${l}`)]);
 /** A raw K in the drive's shape, as the recorded 3.7b run read it, for the hostile edits above. */
 const RAW_K_HONEST = Object.freeze({
-  modes: Object.fromEntries(K_MODES.map((m) => [m, { got: Object.fromEntries(REVIEW_NAMES.map((n) => [n, { hex: '', outcome: 'done' }])), compared: 25, differ: [], carriageDiffer: [] }])),
+  modes: Object.fromEntries(
+    K_MODES.map((m) => [
+      m,
+      {
+        got: Object.fromEntries([...REVIEW_NAMES, 'PPage', 'NPage'].map((n) => [n, { hex: '', outcome: 'done' }])),
+        compared: 25,
+        differ: [],
+        carriageDiffer: [],
+        // Phase 350's fix round: each page refused at the normal screen, no byte read.
+        offAlt: { PPage: { hex: '', outcome: 'refused', reason: 'changed' }, NPage: { hex: '', outcome: 'refused', reason: 'changed' } }
+      }
+    ])
+  ),
   text: Array.from({ length: 12 }, () => ({ want: '61', got: '61' })),
   land: { n: 245, p50: 0.382708, p99: 2.070916, max: 2.367709 },
   gap: RECORDED['3.7b'].K.gap,
@@ -1241,6 +1272,8 @@ function selfTest() {
     ['K', 'a raw K with a mode that never said it was ready', summarizeK({ ...RAW_K_HONEST, modes: { ...RAW_K_HONEST.modes, kitty: { unread: 'the recorder never said it was ready' } } })],
     ['K', 'a raw K whose carriage typed C-q otherwise than the verb', summarizeK({ ...RAW_K_HONEST, modes: { ...RAW_K_HONEST.modes, normal: { ...RAW_K_HONEST.modes.normal, carriageDiffer: ['C-q'] } } })],
     ['K', 'a raw K whose named key not alone reached a read', summarizeK({ ...RAW_K_HONEST, notAlone: { outcome: { outcome: 'refused', reason: 'character' }, freshReads: 1 } })],
+    ['K', 'a raw K whose page at the normal screen of one mode was typed (Phase 350\'s fix round)', summarizeK({ ...RAW_K_HONEST, modes: { ...RAW_K_HONEST.modes, kitty: { ...RAW_K_HONEST.modes.kitty, offAlt: { ...RAW_K_HONEST.modes.kitty.offAlt, NPage: { hex: '1b5b367e', outcome: 'done', reason: null } } } } })],
+    ['K', 'a raw K from a drive that sent no page off the alternate screen (Phase 350\'s fix round)', summarizeK({ ...RAW_K_HONEST, modes: Object.fromEntries(Object.entries(RAW_K_HONEST.modes).map(([m, v]) => [m, { ...v, offAlt: {} }])) })],
     ['S', 'a raw S whose 250x70 screen composed instead of large', summarizeS({ screens: [{ w: 120, h: 40, cells: 4800, result: { bytes: 243_884 } }, { w: 250, h: 70, cells: 17_500, result: { bytes: 899_442 } }, { w: 400, h: 120, cells: 48_000, result: 'large' }] }, { cols: 512, rows: 200, runs: 16_384, bytes: 1_048_576 })],
     ['S', 'a raw S whose 120x40 screen was answered large', summarizeS({ screens: [{ w: 120, h: 40, cells: 4800, result: 'large' }, { w: 250, h: 70, cells: 17_500, result: 'large' }, { w: 400, h: 120, cells: 48_000, result: 'large' }] }, { cols: 512, rows: 200, runs: 16_384, bytes: 1_048_576 })],
     ['F', 'a raw F with one capture large and one whose far read differed', summarizeF({ fixtures: [...Array.from({ length: 54 }, (_, i) => ({ name: `x${String(i)}.txt`, textMismatch: [], styleMismatch: 0, remoteSame: true })), { name: 'big.ansi', large: true }, { name: 'far.txt', textMismatch: [], styleMismatch: 0, remoteSame: false }] })],
@@ -1251,6 +1284,12 @@ function selfTest() {
   for (const [id, what, reading] of hostile) {
     const g = grade(id, reading);
     say(!g.ok, `${id} refuses ${what}${g.ok ? ' (it PASSED)' : ` on ${J(g.failed)}`}`);
+  }
+  // Phase 350's fix round: the control the hostile raw K readings are cut from passes whole, so each one above
+  // is red on its own edit.
+  {
+    const g = grade('K', summarizeK(RAW_K_HONEST));
+    say(g.ok, `K passes the honest raw K the hostile ones are cut from${g.ok ? '' : `, failing ${J(g.failed)}`}`);
   }
   // The own SGR reader and the run comparison, both ways.
   {

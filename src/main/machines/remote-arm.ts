@@ -12,10 +12,12 @@
  *
  *  1. THE BYTES ARE COMPOSED BY TORTIE. Every element of the argv after the
  *     program path has to be a token the compiled build already holds, or the
- *     row's own conversation id. {@link armedResumeTokens} is that list and
- *     {@link composeArmedResumeText} is the check. A folder, a session name, a
- *     machine address or a person's free text cannot be in it, because none of
- *     them is in the compiled build.
+ *     row's own conversation id. {@link armedResumeTokens} is that list (the
+ *     template, the flag presets and, since Phase 350, the tokens the
+ *     composers fix after the program path) and {@link composeArmedResumeText}
+ *     is the check. A folder, a session name, a machine address or a person's
+ *     free text cannot be in it, because none of them is in the compiled
+ *     build.
  *  2. ONE CALL SITE. `sendArmedResumeText` in `./exec-plane.ts` is the only
  *     function that can send the verb, and this file is its only product
  *     caller. `build/conformance-machines.mjs` counts the call sites.
@@ -66,6 +68,7 @@
 import { getLog } from '../log';
 import {
   AGENT_REGISTRY,
+  fixedLaunchTokens,
   SESSION_ID_SLOT,
   type AgentRegistryEntry
 } from '../agents/registry';
@@ -189,6 +192,14 @@ function registryEntryFor(agent: string): AgentRegistryEntry | null {
  * agent's set or an empty one, and a row carrying an overlay flag is refused.
  * That is the boundary in CLAUDE.md working as written: configuration selects
  * from choices the compiled world already contains.
+ *
+ * PHASE 350 (build/p350/SPEC.md D16). It also holds the tokens the compiled
+ * composers fix after the program path (`fixedLaunchTokens`). Codex's pair is
+ * already in its template, so only pi gains anything: its inline token, which
+ * a pi row recorded on this Mac at the floor carries straight after its
+ * binary. Without it resume in place, which composes by this rule, would refuse
+ * every pi row this build records at the floor, where the build before it armed
+ * the same session.
  */
 export function armedResumeTokens(agent: string): ReadonlySet<string> {
   const tokens = new Set<string>();
@@ -198,6 +209,7 @@ export function armedResumeTokens(agent: string): ReadonlySet<string> {
       if (token !== SESSION_ID_SLOT) tokens.add(token);
     }
   }
+  for (const token of fixedLaunchTokens(agent)) tokens.add(token);
   const catalogues = [
     (AGENT_FLAG_PRESETS as Record<string, { presets: { flag: string }[] } | undefined>)[
       agent

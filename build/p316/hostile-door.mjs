@@ -367,6 +367,22 @@
  * `hold` (a stated narrowing). Every other arm answers `/v1/rename` 404 and
  * offers no Rename, a Mac older than this phase.
  *
+ * THE PHASE 350 ARMS (build/p350/SPEC.md §4.4 step 7, named for
+ * conformance:ios (t) and probe:p316's PG6 and PGH), in a table of their own,
+ * P350_ARMS, for the reason P348_ARMS has one. Each answers the pairing and
+ * every read honestly but its picture, a program's view on the ALTERNATE
+ * screen that takes keys, with no history, which a Mac of this phase would
+ * offer `pages: true` on, offering none:
+ *   pages-absent            no `pages` key, a Mac older than this phase: the
+ *                           Terminal drawn, and a pull sends no page
+ *   pages-not-boolean       `pages` null on the first picture (no offer,
+ *                           drawn), then 1 and the string "true" in turn on
+ *                           every one after it, each refused whole as a paste
+ *                           that is not a Boolean is: the line over the kept
+ *                           picture, which offers no page
+ * Neither lets a pull send a page (`posts: 0`); every /v1/screen event names
+ * what `pages` carried (`pagesSent`). No other arm's picture carries `pages`.
+ *
  * The ATS arm (a SOCKS5 stand-in dialling 100.64.0.1) left with TailscaleKit in
  * Phase 330: the phone has no tailnet and no ATS exception any more.
  *
@@ -793,6 +809,90 @@ export const RENAME_UNKNOWN_SENTENCE = 'Your Mac said no for a reason this phone
 /** How many `true`s `rename-key-huge`'s list carries. */
 export const RENAME_KEY_HUGE_COUNT = 10_000;
 
+/**
+ * PHASE 350'S ARMS, in a table of their own (build/p350/SPEC.md §4.4 step 7,
+ * §7.4 (t), §8.3 PG6 and PGH), for the reason P348_ARMS has one: probe:p316's
+ * hostile group drives every row of HOSTILE_ARMS that is not a write, a reply
+ * or a start by default and grades it as a read, and these rows are the
+ * picture's PAGE OFFER, which that group's grader cannot read. Each answers
+ * the pairing and every read honestly but its picture, which is a program's
+ * view on the ALTERNATE screen that takes keys, with no history (`depth` and
+ * `space` null and no marks, as the Mac composes one): the picture a Mac of
+ * this phase would offer `pages: true` on, offering none, each its own way.
+ * `pagesFlag` says which, and `posts: 0` that no pull may send a page:
+ *   pages-absent        no `pages` key on any picture, a Mac older than this
+ *                       phase: the Terminal drawn, and a pull sends nothing
+ *   pages-not-boolean   the first picture's `pages` null, which the phone
+ *                       reads as no offer (decodeIfPresent), so the Terminal
+ *                       draws; every picture after it `1`, then the string
+ *                       "true", in turn (PAGES_NOT_BOOLEAN), each REFUSED
+ *                       WHOLE as a `paste` that is not a Boolean is, at once
+ *                       and never held, so the line says the Mac is not
+ *                       answering over the kept picture, which offers no
+ *                       page: a pull sends nothing
+ * Every other arm's picture carries no `pages` key over the main screen, so no
+ * arm before this phase offers a page. Every `/v1/screen` event of these arms
+ * names what its picture's `pages` carried (`pagesSent`: `absent`, or the
+ * value as JSON), so the probe grades what this door SENT.
+ */
+export const P350_ARMS = Object.freeze({
+  'pages-absent': { what: 'a full-screen picture that takes keys with no pages key, a Mac older than this phase: the Terminal drawn, and a pull sends no page', ends: 'drawn', pagesFlag: 'absent', posts: 0, at: 'screen-grid', expect: [] },
+  'pages-not-boolean': { what: 'a full-screen picture whose pages is null on the first read (no offer, drawn), then 1 and the string "true" in turn on every read after it, each refused whole as a paste that is not a Boolean is: the line read over the kept picture, which offers no page, so a pull sends none', ends: 'sentence', pagesFlag: 'not-boolean', posts: 0, at: 'screen-line', expect: ['screenNotAnswering'] }
+});
+/** The page offer arms (Phase 350), in the table's order. */
+export const PAGES_ARMS = Object.freeze(Object.keys(P350_ARMS));
+/** What `pages-not-boolean`'s pictures carry as `pages`: null on the first read, then 1 and "true" in turn. */
+export const PAGES_NOT_BOOLEAN = Object.freeze([null, 1, 'true']);
+
+/** The `pages` value `pages-not-boolean` sends on the phone's `n`th read (1 is the first). */
+export function pagesNotBooleanOf(n) {
+  if (n <= 1) return PAGES_NOT_BOOLEAN[0];
+  return n % 2 === 0 ? PAGES_NOT_BOOLEAN[1] : PAGES_NOT_BOOLEAN[2];
+}
+
+/**
+ * PHASE 350 (D6): a picture's page offer read the phone's way
+ * (ios/Tortie/Door/Contract.swift, `decodeIfPresent(Bool.self, forKey:
+ * .pages) ?? false`), re-derived here because build/p316/node-phone.mjs is in
+ * no Phase 350 builder's list: absent or null reads false, a Boolean reads as
+ * itself, and any other type refuses the answer WHOLE. Answers `{ ok, pages }`.
+ */
+export function screenPagesOf(screen) {
+  if (screen === null || typeof screen !== 'object' || !Object.hasOwn(screen, 'pages') || screen.pages === null) return { ok: true, pages: false };
+  if (typeof screen.pages !== 'boolean') return { ok: false, pages: false };
+  return { ok: true, pages: screen.pages };
+}
+
+/** Whether a picture lets the phone send a page (D6, D8): the offer read the phone's way, the picture typable and not asking. */
+export function screenOffersPage(screen) {
+  const read = screenPagesOf(screen);
+  return read.ok && read.pages && screen.typable === true && screen.asking === false;
+}
+
+/** What a picture's `pages` carried, for an event: `absent`, or the value as JSON. */
+export const pagesSentOf = (screen) => (screen !== null && typeof screen === 'object' && Object.hasOwn(screen, 'pages') ? J(screen.pages) : 'absent');
+
+/**
+ * A Phase 350 arm's picture over an honest one, for the phone's `n`th read:
+ * the program's view on the alternate screen, typable, with no history and no
+ * marks, its `pages` as the arm says. Any other arm's picture as it was.
+ */
+export function p350Screen(arm, honest, n) {
+  const spec = P350_ARMS[arm];
+  if (spec === undefined) return honest;
+  const a = structuredClone(honest);
+  const sc = a.screen;
+  if (sc === null || typeof sc !== 'object') return a;
+  sc.alternate = true;
+  sc.typable = true;
+  sc.depth = null;
+  sc.space = null;
+  delete sc.wraps;
+  if (spec.pagesFlag === 'absent') delete sc.pages;
+  else sc.pages = pagesNotBooleanOf(n);
+  return a;
+}
+
 /** The two machines the honest offer names: one ready with Codex alone (D11's move), one not ready (D22's dimmed row). */
 export const START_FAR = Object.freeze({ id: 'p346far', label: 'Studio' });
 export const START_AWAY = Object.freeze({ id: 'p346away', label: 'Laptop' });
@@ -908,7 +1008,7 @@ export const SECOND_MAC_ARMS = Object.freeze({
   twin: { what: 'a second Mac that claims alerts, may share a kept Mac\'s first label, lists another Mac\'s session ids under its own name on twin-mirror, and refuses every signed read after twin-refuse', ends: 'drawn', twin: true, alerts: true }
 });
 /** Every arm a door can be started as. */
-const ALL_ARMS = Object.freeze({ ...HOSTILE_ARMS, ...SECOND_MAC_ARMS, ...P348_ARMS, ...P349_ARMS });
+const ALL_ARMS = Object.freeze({ ...HOSTILE_ARMS, ...SECOND_MAC_ARMS, ...P348_ARMS, ...P349_ARMS, ...P350_ARMS });
 /** The most ids one `twin-mirror` may name, and the shape of one. */
 export const MIRROR_MAX = 64;
 const MIRROR_ID = /^[A-Za-z0-9._:-]{1,128}$/;
@@ -1839,6 +1939,8 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
     // Phase 349: a rename arm's world offers Rename on every row and the session.
     const p349Spec = P349_ARMS[arm];
     if (p349Spec !== undefined) offerRename(world);
+    // Phase 350: a page offer arm's picture is a full-screen program's, its `pages` the arm's.
+    const p350Spec = P350_ARMS[arm];
     /** The Phase 349 renames read. */
     let renamePosts = 0;
     /** The Phase 348 writes read, and the sessions a done Remove took. */
@@ -2078,13 +2180,17 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
           const ev = { route, ...seen, verified: verifiedRead, channelHeld: channelRead, screenRead: n, params, line: lineSerial(req.socket), at: Date.now() };
           if (verifiedRead !== 'ok' || (params !== 'id' && params !== 'id,since')) return send(res, 404, '', ev);
           if (refuseReads) return send(res, 404, '', { ...ev, refusedAfterWrite: true });
-          // PHASE 348: the arm's own picture (a paste offered, a flag, marks), first read and after.
-          const honest = p348Screen(arm, honestScreen(world, url.searchParams.get('id') ?? world.sessionId, screenSerial), n);
+          // PHASE 348: the arm's own picture (a paste offered, a flag, marks), first read and after;
+          // PHASE 350: a page offer arm's full-screen picture, its `pages` the arm's.
+          const honest = p350Screen(arm, p348Screen(arm, honestScreen(world, url.searchParams.get('id') ?? world.sessionId, screenSerial), n), n);
           const spec = ALL_ARMS[arm];
           const since = url.searchParams.get('since');
           const first = n === 1;
           // PHASE 348: the string flag meets the phone's second read at once, as a Screen arm's hostile answer does.
           if (p348Spec?.pasteFlag === 'string' && !first) return send(res, 200, J(honest), { ...ev, hostile: arm });
+          // PHASE 350: so does a `pages` that is not a Boolean; every page offer arm's event names what `pages` carried.
+          if (p350Spec !== undefined) Object.assign(ev, { pagesSent: pagesSentOf(honest.screen) });
+          if (p350Spec?.pagesFlag === 'not-boolean' && !first) return send(res, 200, J(honest), { ...ev, hostile: arm });
           if (spec.screen === true && spec.keys !== true && spec.kept === undefined && !first) {
             if (arm === 'screen-never-answers') {
               emit({ kind: 'request', arm, ...ev, status: 200, bytes: 0, held: true });
@@ -3825,6 +3931,100 @@ async function selfTest() {
       'p349 names',
       RENAME_ARMS.length === 12 && kinds('key') === 3 && kinds('row') === 1 && kinds('blocked-row') === 1 && kinds('detail') === 1 && kinds('answer') === 6 && narrowed && RENAME_ARMS.every((a) => a.startsWith('rename-') && !Object.hasOwn(HOSTILE_ARMS, a) && !Object.hasOwn(P348_ARMS, a) && !Object.hasOwn(SECOND_MAC_ARMS, a)),
       `${String(RENAME_ARMS.length)} rename arm(s): ${String(kinds('key'))} key, ${String(kinds('row'))} Sessions row, ${String(kinds('blocked-row'))} Needs input row, ${String(kinds('detail'))} session and ${String(kinds('answer'))} answer; none of Start's refused-no-reason, 2mib, chunked or hold: ${String(narrowed)}; none in HOSTILE_ARMS, which probe:p316's hostile group drives by default`
+    );
+  }
+  // PHASE 350'S ARMS (build/p350/SPEC.md §4.4 step 7), each driven by the node
+  // phone: every picture the arm serves is a program's view on the alternate
+  // screen that takes keys, with no history, and none of them offers a page
+  // read the phone's way (`screenPagesOf`, `screenOffersPage`), so no pull can
+  // send one; `pages-not-boolean`'s first picture draws (null reads as no
+  // offer) and every later one, served at once, is refused whole; and its
+  // event names what each picture's `pages` carried. The reader is proved on
+  // its own shapes first, so an arm's check is never vacuous.
+  {
+    const readerRows = [
+      ['absent', screenPagesOf({}), true, false],
+      ['null', screenPagesOf({ pages: null }), true, false],
+      ['false', screenPagesOf({ pages: false }), true, false],
+      ['true', screenPagesOf({ pages: true }), true, true],
+      ['1', screenPagesOf({ pages: 1 }), false, false],
+      ['"true"', screenPagesOf({ pages: 'true' }), false, false],
+      ['0', screenPagesOf({ pages: 0 }), false, false],
+      ['[true]', screenPagesOf({ pages: [true] }), false, false]
+    ];
+    const readerOk = readerRows.every(([, r, ok, pages]) => r.ok === ok && r.pages === pages);
+    const offerOk =
+      screenOffersPage({ pages: true, typable: true, asking: false }) &&
+      !screenOffersPage({ pages: true, typable: false, asking: false }) &&
+      !screenOffersPage({ pages: true, typable: true, asking: true }) &&
+      !screenOffersPage({ pages: 'true', typable: true, asking: false }) &&
+      !screenOffersPage({ typable: true, asking: false });
+    check('p350 reader', readerOk && offerOk && J(PAGES_NOT_BOOLEAN) === J([null, 1, 'true']) && J([1, 2, 3, 4, 5].map(pagesNotBooleanOf)) === J([null, 1, 'true', 1, 'true']), `the phone's reading of pages: ${readerRows.map(([w, r]) => `${w} ${r.ok ? (r.pages ? 'offers' : 'none') : 'refused'}`).join(', ')}; an offer needs typable and not asking: ${String(offerOk)}; pages-not-boolean sends ${J([1, 2, 3, 4, 5].map(pagesNotBooleanOf))} on reads 1 to 5`);
+    for (const arm of PAGES_ARMS) {
+      const spec = P350_ARMS[arm];
+      const events = [];
+      let door = null;
+      try {
+        door = await startHostileDoor(arm, (e) => events.push(e), { md3: SELF_TEST_MD3 });
+        const qr = JSON.parse(door.payload);
+        const d = doorFrom(qr, door.port);
+        const phone = makePhone('p350 self-test phone', qr.dx);
+        const paired = await pairThrough(d, qr, phone, { tries: 3, everyMs: 50 });
+        if (!paired.ok) {
+          check(arm, false, `pairing answered ${J(paired.words)} (${paired.why})`);
+          continue;
+        }
+        const sid = door.sessionToOpen;
+        const reads = [];
+        let since = null;
+        for (let k = 0; k < 4; k += 1) {
+          // A pages-absent read whose since is current is held 2 s, so it is asked afresh; the hostile arm's never are.
+          const read = await screenRead(phone, d, sid, { since: spec.pagesFlag === 'absent' ? null : since });
+          reads.push(read);
+          since = read.answer?.revision ?? since;
+        }
+        const pictures = reads.map((r) => r.answer?.screen ?? null);
+        const full = pictures.every((sc) => sc !== null && sc.alternate === true && sc.typable === true && sc.asking === false && sc.depth === null && sc.space === null && !Object.hasOwn(sc, 'wraps'));
+        const readable = reads.map((r) => r.status === 200 && r.answer !== null && screenAnswerProblems(r.answer).length === 0 && screenPagesOf(r.answer.screen).ok);
+        const offers = pictures.some((sc) => screenOffersPage(sc));
+        const sent = events.filter((e) => e.route === 'GET /v1/screen').map((e) => e.pagesSent);
+        let shaped = false;
+        if (spec.pagesFlag === 'absent') {
+          shaped = pictures.every((sc) => sc !== null && !Object.hasOwn(sc, 'pages')) && readable.every(Boolean) && sent.length === 4 && sent.every((s) => s === 'absent');
+        } else {
+          shaped =
+            J(pictures.map((sc) => (sc === null ? 'none' : sc.pages))) === J([null, 1, 'true', 1]) &&
+            J(readable) === J([true, false, false, false]) &&
+            J(sent) === J(['null', '1', '"true"', '1']) &&
+            reads.slice(1).every((r) => r.ms < 1_500);
+        }
+        check(arm, full && shaped && !offers, `${String(reads.length)} picture(s), every one full screen, typable, not asking and with no history: ${String(full)}; pages sent ${J(sent)}, read the phone's way ${J(readable.map((ok) => (ok ? 'drawn' : 'refused')))}; any picture offering a page: ${String(offers)}`);
+      } catch (err) {
+        check(arm, false, `threw: ${String(err?.stack ?? err)}`);
+      } finally {
+        await door?.close();
+      }
+    }
+    // The control: an honest door's picture is on the main screen and carries no `pages` key, so no arm before this phase offers a page.
+    let door = null;
+    try {
+      door = await startHostileDoor('honest', () => undefined);
+      const qr = JSON.parse(door.payload);
+      const d = doorFrom(qr, door.port);
+      const phone = makePhone('p350 self-test honest phone', qr.dx);
+      const paired = await pairThrough(d, qr, phone, { tries: 3, everyMs: 50 });
+      const read = await screenRead(phone, d, door.sessionToOpen);
+      const sc = read.answer?.screen ?? null;
+      check('p350 honest', paired.ok && read.status === 200 && sc !== null && sc.alternate === false && !Object.hasOwn(sc, 'pages') && !screenOffersPage(sc) && p350Screen('honest', read.answer, 2) === read.answer, `an honest door's picture is ${sc?.alternate === true ? 'full screen' : 'on the main screen'} and carries ${sc !== null && Object.hasOwn(sc, 'pages') ? `pages ${J(sc.pages)}` : 'no pages key'}; p350Screen leaves another arm's answer as it was`);
+    } catch (err) {
+      check('p350 honest', false, `threw: ${String(err?.stack ?? err)}`);
+    } finally {
+      await door?.close();
+    }
+    check(
+      'p350 names',
+      PAGES_ARMS.length === 2 && J(PAGES_ARMS) === J(['pages-absent', 'pages-not-boolean']) && PAGES_ARMS.every((a) => P350_ARMS[a].posts === 0 && !Object.hasOwn(HOSTILE_ARMS, a) && !Object.hasOwn(P348_ARMS, a) && !Object.hasOwn(P349_ARMS, a) && !Object.hasOwn(SECOND_MAC_ARMS, a)),
+      `${String(PAGES_ARMS.length)} page offer arm(s) (${PAGES_ARMS.join(', ')}), each sending no POST, none in HOSTILE_ARMS, which probe:p316's hostile group drives by default`
     );
   }
   const failed = results.filter((r) => !r.ok).length;

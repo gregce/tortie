@@ -2087,10 +2087,15 @@ export interface GmuxPocketExtras {
 // ---------------------------------------------------------------------------
 
 /**
- * The 35 key names the phone may send, by tmux's own name (D17, D18), so tmux
+ * The 37 key names the phone may send, by tmux's own name (D17, D18), so tmux
  * encodes each for the program's current mode exactly as it encodes the same
- * key typed at the desk. No Page Up, Page Down, Home, End, function key, Alt
- * or modified arrow (§12). Read-only, and compared with `===` wherever it is
+ * key typed at the desk. Phase 337's 35 keep their order and their index, and
+ * PHASE 350 (build/p350/SPEC.md D4, D6, D24) appends the two a pull sends,
+ * `PPage` and `NPage`, Page Up and Page Down: a phone sends one only where the
+ * picture it holds offers {@link PocketScreen.pages}, each the ONLY item of its
+ * write, and tmux encodes it for the program as it lands (`ESC[5~` and `ESC[6~`
+ * in every mode measured). Still no Home, End, function key, Alt or modified
+ * arrow (Phase 337 §12). Read-only, and compared with `===` wherever it is
  * read; the phone's `ScreenKeyName` enum mirrors it (`conformance:ios` rule
  * ai) and the carriage's `type-key` row reads it (`conformance:machines` 103).
  *
@@ -2104,7 +2109,8 @@ export interface GmuxPocketExtras {
 export const POCKET_SCREEN_KEY_NAMES = [
   'Escape', 'Tab', 'BTab', 'Enter', 'BSpace', 'Up', 'Down', 'Left', 'Right',
   'C-a', 'C-b', 'C-c', 'C-d', 'C-e', 'C-f', 'C-g', 'C-h', 'C-i', 'C-j', 'C-k', 'C-l', 'C-m',
-  'C-n', 'C-o', 'C-p', 'C-q', 'C-r', 'C-s', 'C-t', 'C-u', 'C-v', 'C-w', 'C-x', 'C-y', 'C-z'
+  'C-n', 'C-o', 'C-p', 'C-q', 'C-r', 'C-s', 'C-t', 'C-u', 'C-v', 'C-w', 'C-x', 'C-y', 'C-z',
+  'PPage', 'NPage'
 ] as const;
 export type PocketScreenKeyName = (typeof POCKET_SCREEN_KEY_NAMES)[number];
 
@@ -2186,6 +2192,17 @@ export interface PocketScreen {
    * not hash it: after an Allow, Paste appears at the session's next picture.
    */
   paste?: boolean;
+  /**
+   * THE PAGE OFFER (Phase 350, build/p350/SPEC.md D6): present, and `true`,
+   * only on a picture of the alternate screen that takes keys, here and on
+   * another machine, so a phone sends Page Up or Page Down (`PPage`, `NPage`)
+   * only to a Mac that takes them and never over an inline picture, whose pull
+   * pages the history instead. ABSENT otherwise, and absent reads false, so a
+   * Mac older than this phase never receives a page. The revision already
+   * moves with it (the display line names the alternate screen, and a composed
+   * screen is typable), so no part is added to it.
+   */
+  pages?: boolean;
   /**
    * THE WRAP MARKS (Phase 348, D43 to D45): the live row indices whose line
    * goes on into the next row, ascending, each `0 <= r < rows - 1`, so Copy

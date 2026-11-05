@@ -427,6 +427,15 @@ describe('argv helpers', () => {
       '--session-id',
       'ID'
     ]);
+    // PHASE 350. With the floor held, pi's inline token goes straight after
+    // the binary, still ahead of the one place ids are injected.
+    expect(registryLaunchArgv('pi', [], '/abs/pi', 'ID', true)).toEqual([
+      '/abs/pi',
+      '--tui-mode',
+      'regular',
+      '--session-id',
+      'ID'
+    ]);
     expect(registryLaunchArgv('gemini', ['--x'], undefined, 'ID')).toEqual([
       'gemini',
       '--session-id',

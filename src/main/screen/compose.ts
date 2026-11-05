@@ -36,6 +36,11 @@
  *     is not the alternate screen and the history is at most
  *     `POCKET_SCROLLBACK_MAX_INDEX`; otherwise both null, and the phone offers
  *     no scrollback from that one picture.
+ *  7. THE PAGE OFFER (Phase 350, build/p350/SPEC.md D6): `pages`, the literal
+ *     `true`, exactly when the screen is the alternate screen and takes keys,
+ *     here and on another machine; absent otherwise. A full-screen program
+ *     owns its view and tmux holds no history of it, so the phone's pull
+ *     sends that program one Page Up or Page Down instead (D4).
  *
  * A PAGE OF HISTORY (Phase 337.1 D11, {@link composePage}) is composed WHOLE,
  * then cut: every pen of the whole capture is read first, because tmux writes
@@ -536,6 +541,12 @@ export function questionOf(
 }
 
 /**
+ * PHASE 350 FIX ROUND. What the page offer adds to a picture's JSON, the key
+ * and the comma before it: never the first key, so always these 13 bytes.
+ */
+const PAGES_OFFER_BYTES = Buffer.byteLength(',"pages":true', 'utf8');
+
+/**
  * One read composed into the phone's screen, or `'large'` over any cap of D15.
  * It reads no clock: the watcher times it for its duty cycle.
  */
@@ -577,6 +588,11 @@ export function composeScreen(reading: ScreenReading, extra: ComposeExtra): Comp
   // PHASE 348 (D30): a paste is offered on a screen that takes keys, on this
   // Mac alone (D22). The door copies it only while the route is served.
   if (extra.typable && extra.local === true) screen.paste = true;
+  // PHASE 350 (build/p350/SPEC.md D6): the page offer, on a picture of the
+  // alternate screen that takes keys, here and on another machine alike: the
+  // program owns its view, so a pull on the phone pages it by Page Up or Page
+  // Down. Set here and nowhere else; absent otherwise, and absent reads false.
+  if (display.alternate && extra.typable) screen.pages = true;
   // PHASE 348 (D43, D45): the wrap marks over the composed rows' own cells.
   const wraps = wrapsOf(
     { marks: reading.marks, captured: reading.styled.split('\n'), lines: composed.lines },
@@ -585,7 +601,15 @@ export function composeScreen(reading: ScreenReading, extra: ComposeExtra): Comp
   );
   if (wraps.length > 0) screen.wraps = wraps;
   const bytes = Buffer.byteLength(JSON.stringify(screen), 'utf8');
-  if (bytes > POCKET_SCREEN_MAX_BYTES) return 'large';
+  const over = bytes - POCKET_SCREEN_MAX_BYTES;
+  if (over > 0) {
+    // PHASE 350 FIX ROUND. The offer's own bytes never make `large` a picture
+    // the build before this phase composed: one over the cap by no more than
+    // the offer is composed without it, exactly as that build composed it.
+    if (screen.pages !== true || over > PAGES_OFFER_BYTES) return 'large';
+    delete screen.pages;
+    return { screen, plain: composed.plain, mark, bytes: bytes - PAGES_OFFER_BYTES };
+  }
   return { screen, plain: composed.plain, mark, bytes };
 }
 

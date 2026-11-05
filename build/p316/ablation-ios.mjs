@@ -301,6 +301,18 @@
  * `.renaming(…)` and its control handed the rename), and `bb1a`, `bb9a` and
  * `ba11` (openStarted takes the opened page's line).
  *
+ * PHASE 350 (build/p350/SPEC.md §7.4) ADDED NINETEEN, one per new clause and
+ * per moved one: `be1a` to `be7a` rule (be), A FULL-SCREEN PAGE (a second
+ * target on the pan, a recogniser made for the pull, the pull writing the
+ * offset, the travel at 30 pt, the rule asked mid-drag, a pinch, a selection
+ * or an asking picture that may page, the sender paging an asking picture or
+ * sending the Terminal back to live, a waiting page never dropped, pages
+ * decoded strictly, and a word drawn by the pull); `ai60` and `ai61` (ai6)'s
+ * order, the two pages put first and swapped; `az70` and `az71` the sample's
+ * switch, the page branch taken out and a page echoed; and `t70` and `t71` the
+ * hostile door's page arms, one sending a POST and the refused one read as
+ * drawn. `ai7` was re-worded, not re-anchored: Meta-x is a 38th name now.
+ *
  * THE DELTA RULE. The base is run first. An arm passes only when its own rule
  * was GREEN at the base and is RED with the plant, so a rule that was already
  * red proves nothing and says so. An arm whose anchor is gone from the tree
@@ -332,6 +344,7 @@
  *   P316_ONLY=a1,h node build/p316/ablation-ios.mjs     named arms only
  *   P316_ONLY=bb1a,bb2a,bb3a,bb4a,bb5a,bb6a,bb7a,bb8a,bb9a,bb10a node build/p316/ablation-ios.mjs   some of Phase 346's
  *   P316_ONLY=bd1a,bd5a,bd9a,ab50,ad40,ay40,az60,ba20,t60,v62,bb4c node build/p316/ablation-ios.mjs   some of Phase 349's
+ *   P316_ONLY=be1a,be1b,be2a,be3a,be3b,be4a,be4b,be4c,be5a,be5b,be5c,be6a,be7a,ai60,ai61,az70,az71,t70,t71 node build/p316/ablation-ios.mjs   Phase 350's nineteen
  *   P316_SCRATCH=/private/var/tmp/<dir> node build/p316/ablation-ios.mjs   the clone under that directory
  */
 
@@ -2818,7 +2831,7 @@ const ARMS = [
   {
     id: 'ai7',
     rule: 'ai',
-    what: 'a 36th key name, Meta-x, the Mac never takes',
+    what: 'a key name past the contract\'s 37, Meta-x, the Mac never takes',
     file: () => `${APP}/Door/Contract.swift`,
     edit: (src) => src.replace('    case controlZ = "C-z"', '    case controlZ = "C-z"\n    case metaX = "M-x"')
   },
@@ -6038,6 +6051,148 @@ const ARMS = [
     what: 'the opened page\'s line dropped on the way to the route',
     file: () => TORTIE_APP,
     edit: (src) => src.replace('        push(.session(mac: mac, id: id, name: name, line: line), on: .sessions)\n', '        push(.session(mac: mac, id: id, name: name), on: .sessions)\n')
+  },
+  // ---- Phase 350: scroll back a full-screen agent from the phone (build/p350/SPEC.md §7.4) ----
+  // (be) A FULL-SCREEN PAGE, one plant per clause.
+  {
+    id: 'be1a',
+    rule: 'be',
+    what: 'a second target on the scroll view\'s pan',
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('        panGestureRecognizer.addTarget(self, action: #selector(pulled(_:)))\n', '        panGestureRecognizer.addTarget(self, action: #selector(pulled(_:)))\n        panGestureRecognizer.addTarget(self, action: #selector(pulled(_:)))\n')
+  },
+  {
+    id: 'be1b',
+    rule: 'be',
+    what: 'a recogniser of its own for the pull, in place of the pan\'s own',
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('        panGestureRecognizer.addTarget(self, action: #selector(pulled(_:)))\n', '        let pull = UIPanGestureRecognizer(target: self, action: #selector(pulled(_:)))\n        addGestureRecognizer(pull)\n')
+  },
+  {
+    id: 'be2a',
+    rule: 'be',
+    what: 'the pull writing the offset back to where it began',
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('            if let key { actions?.page(key) }\n', '            if let key { actions?.page(key) }\n            contentOffset = CGPoint(x: contentOffset.x, y: pullStart)\n')
+  },
+  {
+    id: 'be3a',
+    rule: 'be',
+    what: 'the travel at 30 pt, which a drag the pan read as 30 pt past the edge would page (M3)',
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('    static let travel: CGFloat = 44\n', '    static let travel: CGFloat = 30\n')
+  },
+  {
+    id: 'be3b',
+    rule: 'be',
+    what: 'the rule asked while the finger is still down',
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('        case .ended:\n            let offered = picture?.pages', '        case .changed, .ended:\n            let offered = picture?.pages')
+  },
+  {
+    id: 'be4a',
+    rule: 'be',
+    what: 'a pull the pinch ran during that may page',
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('        guard offered, touches == 1, !pinched, !selected else { return nil }\n', '        guard offered, touches == 1, !selected else { return nil }\n')
+  },
+  {
+    id: 'be4b',
+    rule: 'be',
+    what: 'a pull with a selection held that may page (M3: such a drag pans)',
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('selected: pullSelected || selection != nil, offered: offered', 'selected: false, offered: offered')
+  },
+  {
+    id: 'be4c',
+    rule: 'be',
+    what: 'an offer that never asks whether the screen asks',
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('let offered = picture?.pages == true && picture?.typable == true && picture?.asking == false\n', 'let offered = picture?.pages == true && picture?.typable == true\n')
+  },
+  {
+    id: 'be5a',
+    rule: 'be',
+    what: 'the sender paging a picture that asks',
+    file: () => `${APP}/Screens/ScreenKeys.swift`,
+    edit: (src) => src.replace(', drawn.pages, drawn.typable, !drawn.asking else { return }\n        pending.append(.key(.key(key)))', ', drawn.pages, drawn.typable else { return }\n        pending.append(.key(.key(key)))')
+  },
+  {
+    id: 'be5b',
+    rule: 'be',
+    what: 'a page sending the Terminal back to live, which a full-screen picture has no history to leave',
+    file: () => `${APP}/Screens/ScreenKeys.swift`,
+    edit: (src) => src.replace(', drawn.pages, drawn.typable, !drawn.asking else { return }\n        pending.append(.key(.key(key)))', ', drawn.pages, drawn.typable, !drawn.asking else { return }\n        onSend?()\n        pending.append(.key(.key(key)))')
+  },
+  {
+    id: 'be5c',
+    rule: 'be',
+    what: 'a page waiting behind a write sent though the picture stopped offering pages',
+    file: () => `${APP}/Screens/ScreenKeys.swift`,
+    edit: (src) => src.replace('        while case .key(.key(let name))? = pending.first, name.isPage, !(drawn.pages && !drawn.asking) {\n            pending.removeFirst()\n        }\n', '')
+  },
+  {
+    id: 'be6a',
+    rule: 'be',
+    what: 'pages decoded strictly, so every answer from a Mac older than 350 is refused',
+    file: () => `${APP}/Door/Contract.swift`,
+    edit: (src) => src.replace('        pages = try c.decodeIfPresent(Bool.self, forKey: .pages) ?? false\n', '        pages = try c.decode(Bool.self, forKey: .pages)\n')
+  },
+  {
+    id: 'be7a',
+    rule: 'be',
+    what: 'a word said by a page',
+    file: () => `${APP}/Screens/ScreenKeys.swift`,
+    edit: (src) => src.replace(', drawn.pages, drawn.typable, !drawn.asking else { return }\n        pending.append(.key(.key(key)))', ', drawn.pages, drawn.typable, !drawn.asking else { return }\n        line = Copy.screenWaitForRedraw\n        pending.append(.key(.key(key)))')
+  },
+  // (ai6) the 37 names in the contract's order, Page Up and Page Down last.
+  {
+    id: 'ai60',
+    rule: 'ai',
+    what: 'the two page keys put first in ScreenKeyName',
+    file: () => `${APP}/Door/Contract.swift`,
+    edit: (src) => {
+      const pages = '    case pageUp = "PPage"\n    case pageDown = "NPage"\n';
+      const head = 'enum ScreenKeyName: String, CaseIterable, Sendable {\n';
+      return src.includes(pages) && src.includes(head) ? src.replace(pages, '').replace(head, `${head}${pages}`) : src;
+    }
+  },
+  {
+    id: 'ai61',
+    rule: 'ai',
+    what: 'Page Up and Page Down swapped in ScreenKeyName',
+    file: () => `${APP}/Door/Contract.swift`,
+    edit: (src) => src.replace('    case pageUp = "PPage"\n    case pageDown = "NPage"\n', '    case pageDown = "NPage"\n    case pageUp = "PPage"\n')
+  },
+  // (az) the sample takes the two names and draws nothing for them.
+  {
+    id: 'az70',
+    rule: 'az',
+    what: 'the sample\'s page branch taken out, so a page falls to another key\'s echo',
+    file: () => `${APP}/Sample/SampleWorld.swift`,
+    edit: (src) => src.replace(/\n[ \t]*\} else if name == \.pageUp \|\| name == \.pageDown \{\n(?:[ \t]*\/\/[^\n]*\n)*[ \t]*continue(?=\n)/, '')
+  },
+  {
+    id: 'az71',
+    rule: 'az',
+    what: 'a page echoed on the sample\'s prompt',
+    file: () => `${APP}/Sample/SampleWorld.swift`,
+    edit: (src) => src.replace(/(\} else if name == \.pageUp \|\| name == \.pageDown \{\n(?:[ \t]*\/\/[^\n]*\n)*[ \t]*)continue(?=\n)/, '$1session.echo.add("~", room: room)')
+  },
+  // (t) the hostile door's two page arms.
+  {
+    id: 't70',
+    rule: 't',
+    what: 'a page arm that lets a POST through',
+    file: () => 'build/p316/hostile-door.mjs',
+    edit: (src) => src.replace(/('pages-absent': \{[^\n]*?pagesFlag: 'absent', )posts: 0,/, '$1posts: 1,')
+  },
+  {
+    id: 't71',
+    rule: 't',
+    what: 'the refused pages arm read as a picture drawn',
+    file: () => 'build/p316/hostile-door.mjs',
+    edit: (src) => src.replace(/('pages-not-boolean': \{[^\n]*?)ends: 'sentence', (pagesFlag: 'not-boolean',)/, "$1ends: 'drawn', $2")
   }
 ];
 

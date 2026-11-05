@@ -568,6 +568,30 @@
       "signature": "Tkqwh5vgKZJgb93SmFt784SfulzKSYVXcuP4dgGL1JtrlrHks0Be6FSCjUeZ7SJFLhh2Fm3wATY1v1PV3BbWDw"
     },
     {
+      "name": "keys-PPage",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"PPage\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"acac2a6cab93392a38c9351657637d51\"}",
+      "bodySha256": "d8a0664e3949f6a6a1020c7c6cf85511d48b9add567a908a87e54dd57cfb9342",
+      "timestamp": "1790000045000",
+      "nonce": "9f32f8a8921ab6d9a4ccca59ada4462c",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\nd8a0664e3949f6a6a1020c7c6cf85511d48b9add567a908a87e54dd57cfb9342\n1790000045000\n9f32f8a8921ab6d9a4ccca59ada4462c\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "QjmD1deQ2V1yEVoFlfYVU1q3KjMM2GVBcZAs97k9rvtobAcF-nN8UVkVHVdJyRVt3a2TYaeT7n6brddT-jitBw"
+    },
+    {
+      "name": "keys-NPage",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"NPage\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"b260000ca08ab616462a6fa3cafd6bba\"}",
+      "bodySha256": "f397a4ce78941b39c351f40c4de299834e23f637d5924758845b5db85a6590b6",
+      "timestamp": "1790000046000",
+      "nonce": "1c4b9361101b2530a91866cd1cbe4ecd",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\nf397a4ce78941b39c351f40c4de299834e23f637d5924758845b5db85a6590b6\n1790000046000\n1c4b9361101b2530a91866cd1cbe4ecd\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "8gFLdWqVWZLyjaZNSVG58-60giPVdjNPr5Z5K4GuFL0ZdvxCTCeoygegFR0QKiRplgIRm5fZiy5X0_9GfIjMDQ"
+    },
+    {
       "name": "scrollback",
       "method": "GET",
       "target": "/v1/scrollback?id=4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02&from=2861&count=108&depth=2969&wrap=120&keep=bottom",
@@ -582,10 +606,10 @@
       },
       "body": "",
       "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "timestamp": "1790000045000",
+      "timestamp": "1790000047000",
       "nonce": "83370f05f628a57e9d365b0db18e628c",
-      "canonical": "tortie-pocket-req-v1\nGET\n/v1/scrollback?id=4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02&from=2861&count=108&depth=2969&wrap=120&keep=bottom\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n1790000045000\n83370f05f628a57e9d365b0db18e628c\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
-      "signature": "B0fyaqgOMjt_4Mt9evVHdmrxB6WCXHihzkjaUqb8vaSX59TyGu9baL0b87kF1ujgTDqeeRWrxb8PNAcLkHoJBg"
+      "canonical": "tortie-pocket-req-v1\nGET\n/v1/scrollback?id=4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02&from=2861&count=108&depth=2969&wrap=120&keep=bottom\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n1790000047000\n83370f05f628a57e9d365b0db18e628c\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "9XYBTpW1zdc9rmDJYwbAlIJPSLQAb_NSIMoGHfHkQ1AACZWVAGwNNKTdaa2kcaF6j5ftd_2Vpk-RPskGeo67DQ"
     },
     {
       "name": "start",
@@ -594,10 +618,10 @@
       "id": null,
       "body": "{\"agent\":\"claude\",\"project\":\"7c1e9a40-2b5d-4f6e-9a3c-0d8e1f2a3b4c\",\"write\":\"69e4c12c2b6e6c1f0df8489493e344dc\"}",
       "bodySha256": "59e39e7458ce2fa460a8f8e85a62389824f0ea16482b21c75a87657e558dc886",
-      "timestamp": "1790000046000",
+      "timestamp": "1790000048000",
       "nonce": "16c8475b49218341b61d5a7fe7df9c42",
-      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/start\n59e39e7458ce2fa460a8f8e85a62389824f0ea16482b21c75a87657e558dc886\n1790000046000\n16c8475b49218341b61d5a7fe7df9c42\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
-      "signature": "PAoTrjo3MuO4wImWzM-qSbabBI-crqT_3i6ybGJzxseQ2PiqpyoHpeyphxpYQN2lOG9oVlRN1BLv4D0KWpr7AA"
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/start\n59e39e7458ce2fa460a8f8e85a62389824f0ea16482b21c75a87657e558dc886\n1790000048000\n16c8475b49218341b61d5a7fe7df9c42\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "OTF8rAGrYxDPj_P2qzY7SOhiSw1tv63bQKtb1IwycWu8z6RYTtZyuotQDptj5iE8jf6CpcWNIv0I9azZzOsABg"
     },
     {
       "name": "remove",
@@ -606,10 +630,10 @@
       "id": null,
       "body": "{\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c05\",\"write\":\"09b40ca5bf67c4de08fd4f92e4a08acf\"}",
       "bodySha256": "9a130deb0276dfa1b7f99557ecdb9294c0685786572db02501b789cfd4846e6f",
-      "timestamp": "1790000047000",
+      "timestamp": "1790000049000",
       "nonce": "4aa18f06c3f1b28c2886e0cb67452265",
-      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/remove\n9a130deb0276dfa1b7f99557ecdb9294c0685786572db02501b789cfd4846e6f\n1790000047000\n4aa18f06c3f1b28c2886e0cb67452265\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
-      "signature": "0HKGalIdULGHsIfn0ebiH64M4w2j_JSO-ZFm2ISV326_MYY1aPzKvrL7mtvAmvPKwJ-jFTDA9yw4lLhKYm_gAA"
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/remove\n9a130deb0276dfa1b7f99557ecdb9294c0685786572db02501b789cfd4846e6f\n1790000049000\n4aa18f06c3f1b28c2886e0cb67452265\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "YkNerVjEFqoHa1MnP8_wsZiBQhD7mTblWMDCbNqTsQHUu_hD9UPzCQot_5DJdb3JwedjZ_0a8yswQTFP3qDvAQ"
     },
     {
       "name": "paste",
@@ -618,10 +642,10 @@
       "id": null,
       "body": "{\"dialog\":\"b73668a575ca\",\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"text\":\"git log --oneline -- \\\"src\\/main\\\"\\n\\tcd ..\\/build 📋\",\"turn\":\"825ecb579995247d-12\",\"write\":\"78dc66cbb579f1d347491ee0488ba2f6\"}",
       "bodySha256": "aa08111038a8e7d5d1f6a4c88333ba6455ce30cc8af9cc8e6bf95fbe1eb36945",
-      "timestamp": "1790000048000",
+      "timestamp": "1790000050000",
       "nonce": "5a48ef9c24ad18d70b516a077b42d9ca",
-      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/paste\naa08111038a8e7d5d1f6a4c88333ba6455ce30cc8af9cc8e6bf95fbe1eb36945\n1790000048000\n5a48ef9c24ad18d70b516a077b42d9ca\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
-      "signature": "5kurRUcgVAPiqErTA-EGD3lZM7PWGjEX6nOrj9aPXfX1o3GgSmlTZMOfBnl8PMqi-XfVQFQOVdLDKX3uR-vYBQ"
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/paste\naa08111038a8e7d5d1f6a4c88333ba6455ce30cc8af9cc8e6bf95fbe1eb36945\n1790000050000\n5a48ef9c24ad18d70b516a077b42d9ca\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "CsMJOozvDYeZ3O5qLmsQwmu05sI-JXNDk-k4NfR330Z7t3EPhHVYLb0_b_sUcjzSB0u3Vw-iZunS9hAK3VM9AA"
     },
     {
       "name": "rename",
@@ -630,10 +654,10 @@
       "id": null,
       "body": "{\"name\":\"  fix \\\"auth\\\" \\/ 🚀 build  \",\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"write\":\"dde81b8b017fca70a69373d14972275c\"}",
       "bodySha256": "8be200abb147b78722c2fa83d309a54ba0163a7afa52c6892ee7f94b4dede140",
-      "timestamp": "1790000049000",
+      "timestamp": "1790000051000",
       "nonce": "9d85f1ed5853c4f56b924edab8154356",
-      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/rename\n8be200abb147b78722c2fa83d309a54ba0163a7afa52c6892ee7f94b4dede140\n1790000049000\n9d85f1ed5853c4f56b924edab8154356\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
-      "signature": "THc92hyzehsGmOWO9w26U1XeD7M0UwQQEnHUmQ6qhtfEF-8A_PzspIrzaVhDAyjSsUNd3CRN76FXbUpw9EBODA"
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/rename\n8be200abb147b78722c2fa83d309a54ba0163a7afa52c6892ee7f94b4dede140\n1790000051000\n9d85f1ed5853c4f56b924edab8154356\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "kWrU-iPvOtia__l2XuwH0y8SuzCDa0HChx02IOIIYadSRDPy2k8zBIFr2EkQn-XZK7xprI7C9XULH21k3z6tBA"
     }
   ],
   "tampered": {
@@ -666,7 +690,7 @@
   "scrollbackTampered": {
     "signedFor": "scrollback",
     "target": "/v1/scrollback?id=4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02&from=2862&count=108&depth=2969&wrap=120&keep=bottom",
-    "canonical": "tortie-pocket-req-v1\nGET\n/v1/scrollback?id=4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02&from=2862&count=108&depth=2969&wrap=120&keep=bottom\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n1790000045000\n83370f05f628a57e9d365b0db18e628c\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+    "canonical": "tortie-pocket-req-v1\nGET\n/v1/scrollback?id=4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02&from=2862&count=108&depth=2969&wrap=120&keep=bottom\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n1790000047000\n83370f05f628a57e9d365b0db18e628c\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
     "doorSays": "signature"
   },
   "pins": [

@@ -24,7 +24,10 @@ import {
   // PHASE 49. The last RESOLVED scan, never a new one. The create path reads
   // this synchronously, so a create can never start a version probe and can
   // never wait on one.
-  peekDetectedAgents
+  peekDetectedAgents,
+  // PHASE 350 (D20). pi's floor, read off that same last resolved scan, for
+  // the binary the composed resume runs (its fix round).
+  piInlineFloorFor
 } from '../agents';
 import { getLog } from '../log';
 import {
@@ -50,7 +53,7 @@ import {
 // login the session was launched under (codex keeps its rollouts under
 // CODEX_HOME). One pure file read; it opens no keychain and spawns nothing.
 import { loginEnvForSession } from '../logins';
-import { composeResumeArgv } from './resume-argv';
+import { composeResumeArgv, resumeBinOf } from './resume-argv';
 import * as tmux from '../tmux';
 import type { LaunchableAgentKind, ResumeCapture } from '@shared/types';
 import { repairCodexResumeIds } from './codex-repair';
@@ -216,11 +219,16 @@ export function startIdCapture(
       // PHASE 215 moved the three rules of this composition into
       // ./resume-argv.ts, because the boot repair recomposes an argv for a row
       // whose id moved and must compose it exactly as this does.
+      //
+      // PHASE 350 (D20). pi's inline token goes in exactly when this Mac's
+      // last resolved scan reads, at the floor, the binary this resume runs,
+      // as a create's does.
       const composed = composeResumeArgv(
         rec,
         agent,
         harvested.sessionId,
-        extraArgs
+        extraArgs,
+        agent === 'pi' && piInlineFloorFor(resumeBinOf(rec, agent)) === 'holds'
       );
       if (composed === null) return; // never persist an id-less argv
       const resumeArgv = composed.argv;
@@ -648,12 +656,13 @@ export function admitConfirmedConversationId(
   // The same composition the harvest write above makes, for the same reason:
   // on a captured session `rec.argv[0]` is the SpecStory wrapper rather than
   // the agent, so the inner argv is composed first and the wrapper goes back
-  // around it afterwards.
+  // around it afterwards. Its floor is the harvest's too (Phase 350, D20).
   const composed = composeResumeArgv(
     rec,
     rec.agent,
     conversationId,
-    agentExtrasOf(rec)
+    agentExtrasOf(rec),
+    (rec.agent as LaunchableAgentKind) === 'pi' && piInlineFloorFor(resumeBinOf(rec, rec.agent)) === 'holds'
   );
   if (composed === null) return 'no-resume-argv';
   const resumeArgv = composed.argv;

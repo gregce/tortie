@@ -1153,8 +1153,10 @@ describe('Phase 337, step 1: the strict parse of a keys write', () => {
     });
   });
 
-  it('takes every one of the 35 names alone, compared exactly', () => {
-    expect(POCKET_SCREEN_KEY_NAMES).toHaveLength(35);
+  it('takes every one of the 37 names alone, compared exactly', () => {
+    // Phase 337's 35, then Phase 350's two page keys, last (build/p350/SPEC.md D24).
+    expect(POCKET_SCREEN_KEY_NAMES).toHaveLength(37);
+    expect(POCKET_SCREEN_KEY_NAMES.slice(35)).toEqual(['PPage', 'NPage']);
     for (const name of POCKET_SCREEN_KEY_NAMES) {
       const read = ok({ keys: [{ k: name }] });
       expect(read.ok, name).toBe(true);

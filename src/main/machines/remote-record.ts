@@ -664,11 +664,15 @@ export function writeRemoteHarvest(
   // set aside when they lead, because the template puts them back: this is the
   // one recomposition `agentExtrasOf` does not reach (research 134 §4.2), and
   // `record.argv.slice(1)` here would compose codex's pair twice.
+  // PHASE 350 (D20). The far floor is the literal `false`: Tortie reads no
+  // agent's version on another machine, so pi's inline token is never composed
+  // for one.
   const resumeArgv = registryResumeArgv(
     input.agent,
     input.conversationId,
     ownLaunchFlags(input.agent, record.argv),
-    record.argv[0]
+    record.argv[0],
+    false
   );
   if (resumeArgv.length === 0) return null;
 

@@ -296,6 +296,32 @@
  * still reddening the rule it owns: `R2e`, `X5a`, `Y1b`, `NS1b`, `Z1s`,
  * `SU5b`, `RM1c`, `RM1w`, `PS1b`, `PS1w`, `NS11w`, `Z1w`, `AF2w` and `Y2w`.
  *
+ * PHASE 350 ADDED TWENTY-TWO (build/p350/SPEC.md §7.2, §7.3), 815 entries in
+ * all, at the end of the table, for scroll back a full-screen agent from the
+ * phone: `Z3p` to `Z3t` the two page keys (swapped, a third name beside them,
+ * Page Down dropped, a page beside text, a name read with its case folded),
+ * `Z8p` to `Z8s` the reflow grace (stamped for every key, for any lone named
+ * key, never, or before the act), `Z11p` to `Z11r` the door's copy of the
+ * offer (dropped, copied whatever it was handed, behind paste's served gate),
+ * `Z31a` to `Z31e` the offer itself (composed nowhere, on every screen that
+ * takes keys, on this Mac alone, a revision part added for it, the field made
+ * required) and `Z32a` to `Z32c` its wiring (to the funnel, not at all, and to
+ * the paste too); and `PK4a` and `PK5a`, a stale page answered done and a
+ * replayed page typed again, red on the hostile client, whose PK1 to PK5 are
+ * the attack. One more driven check joined, `pages`
+ * (`src/main/screen/__tests__/p350-pages.test.ts` and
+ * `src/main/pocket/__tests__/p350-pages-wire.test.ts`), this harness's own tag
+ * as `unit` is, for the clauses only a composed picture, a parsed body or the
+ * shipping verb shows. No earlier arm moved.
+ *
+ * ITS FIX ROUND ADDED THREE, 818 entries in all: `Z31f`, the page typed off
+ * the alternate screen (the keys verb's act-time check that the program a page
+ * was sent to is still full screen taken out), red on Z31's own clause, on the
+ * hostile client's PK6 and on the `pages` vitest case that drives it; and
+ * `Z31g` and `Z11s`, the composer and the door answering `large` a picture or
+ * an answer the offer's own 13 bytes alone put over the 1 MiB cap, each red on
+ * the `pages` vitest case that drives the cap.
+ *
  * An ablation that leaves the check green is a hole in the check. An ablation
  * that reddens only rules OTHER than its own is a finding about the check
  * rather than about the build, and it is printed as one.
@@ -359,6 +385,7 @@
  *   P313_ONLY=NS6e,NS6f,NS6g,NS6h node build/ablation-p313.mjs  the readiness, the ruled round's three plants and the fix round's
  *   P313_ONLY=RM1a,RM4b,RM5a,PS1b,PS4a,PS8b,PSHw node build/ablation-p313.mjs  some of Phase 348's
  *   P313_ONLY=RN1a,RN2b,RN5a,RN6c,RN9b,RN10a,X4r,G1r,RNHw node build/ablation-p313.mjs  some of Phase 349's
+ *   P313_ONLY=Z3p,Z3q,Z3r,Z3s,Z3t,Z8p,Z8q,Z8r,Z8s,Z11p,Z11q,Z11r,Z31a,Z31b,Z31c,Z31d,Z31e,Z31f,Z31g,Z11s,Z32a,Z32b,Z32c,PK4a,PK5a node build/ablation-p313.mjs  Phase 350's twenty-five (Z31f, Z31g and Z11s its fix round's)
  *   P313_ALLOW_RED_BASE=1 node build/ablation-p313.mjs
  *   P313_SCRATCH=/private/var/tmp/<dir> node build/ablation-p313.mjs  the clone under that directory
  */
@@ -498,7 +525,11 @@ const CHECKS = [
   ['face', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/main/pocket/__tests__/p333121-face.test.ts'], { tag: 'face', relative: true }],
   // PHASE 333.12.2 (build/p33122/SPEC.md §6.2): the one-start rows, DRIVEN over
   // the shipping owner, for the arms whose clause only an order of jobs shows.
-  ['onestart', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/main/pocket/__tests__/p33122-one-start.test.ts'], { tag: 'onestart', relative: true }]
+  ['onestart', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/main/pocket/__tests__/p33122-one-start.test.ts'], { tag: 'onestart', relative: true }],
+  // PHASE 350 (build/p350/SPEC.md §7.2): the page offer, the door's copy, the
+  // parse of a lone page and the shipping keys verb's grace, DRIVEN by the Mac
+  // builder's two files. `[p313 pages]` is this harness's own tag, as `unit` is.
+  ['pages', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/main/screen/__tests__/p350-pages.test.ts', 'src/main/pocket/__tests__/p350-pages-wire.test.ts'], { tag: 'pages', relative: true }]
 ];
 
 /**
@@ -8788,6 +8819,276 @@ const ABLATIONS = [
     file: WRITES,
     from: '  if (body.byteLength > POCKET_WRITE_BODY_CAPS.rename) return { ok: false, write };',
     to: '  if (body.byteLength >= POCKET_WRITE_BODY_CAPS.rename) return { ok: false, write };',
+    needs: ['gate', 'hostile']
+  },
+  // ---------------------------------------------------------------------------
+  // PHASE 350 (build/p350/SPEC.md §7.2, §7.3): scroll back a full-screen agent
+  // from the phone. The two page keys, the offer, the door's copy, the grace
+  // and its wiring, and the hostile client's PK attack.
+  // ---------------------------------------------------------------------------
+  {
+    n: 'Z3p',
+    rule: 'Z3',
+    name: 'the page keys swapped in the contract',
+    why: 'D24: Page Up and Page Down are appended in that order after the 35, which keep their order and their index; the phone reads the contract word for word and in its order.',
+    file: SHARED,
+    from: "  'PPage', 'NPage'\n] as const;",
+    to: "  'NPage', 'PPage'\n] as const;",
+    needs: ['gate']
+  },
+  {
+    n: 'Z3q',
+    rule: 'Z3',
+    name: 'Home taken beside the two pages',
+    why: '§13: no Home, End, function key, Alt or modified arrow; the phone sends the same two keys to every program and nothing a third.',
+    file: SHARED,
+    from: "  'PPage', 'NPage'\n] as const;",
+    to: "  'PPage', 'NPage', 'Home'\n] as const;",
+    needs: ['gate']
+  },
+  {
+    n: 'Z3r',
+    rule: 'Z3',
+    alsoRed: ['hostile', 'pages'],
+    name: 'Page Down dropped from the contract',
+    why: 'D4: a pull up past the bottom sends one Page Down; without the name the door answers it malformed and the phone can page one way only.',
+    file: SHARED,
+    from: "  'PPage', 'NPage'\n] as const;",
+    to: "  'PPage'\n] as const;",
+    needs: ['gate', 'hostile', 'pages']
+  },
+  {
+    n: 'Z3s',
+    rule: 'Z3',
+    alsoRed: ['hostile', 'pages'],
+    name: 'a page let beside text in the parse',
+    why: 'D4, §7.3 PK2: a page is the one item of its write, as every named key but BSpace is; beside text in the same read it is Meta, or a stray ~.',
+    file: WRITES,
+    from: "if (keys.length > 1 && keys.some((key) => 'k' in key && key.k !== 'BSpace')) return { ok: false, write };",
+    to: "if (keys.length > 1 && keys.some((key) => 'k' in key && key.k !== 'BSpace' && key.k !== 'PPage')) return { ok: false, write };",
+    needs: ['gate', 'hostile', 'pages']
+  },
+  {
+    n: 'Z3t',
+    rule: 'hostile',
+    name: 'a key name read with its case folded',
+    why: '§7.3 PK3: the names are tmux’s own, by identity; ppage or NPAGE folded into a page is a key nobody named.',
+    file: WRITES,
+    from: '      if (known === name) return { k: known };',
+    to: "      if (typeof name === 'string' && known.toLowerCase() === name.toLowerCase()) return { k: known };",
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'Z8p',
+    rule: 'Z8',
+    alsoRed: ['pages'],
+    name: 'the grace stamped for every key that typed',
+    why: 'D9: the grace is for a page’s redraw; stamped for every key, an agent answering his typing reads idle for 2.5 s.',
+    file: SCREEN_KEYS,
+    from: 'if (result.any && isOnePage(input.keys)) {',
+    to: 'if (result.any) {',
+    needs: ['gate', 'pages']
+  },
+  {
+    n: 'Z8q',
+    rule: 'Z8',
+    alsoRed: ['pages'],
+    name: 'isOnePage answering yes for any lone named key',
+    why: 'D9: exactly one PPage or NPage item is a page; any other lone key is typing, and its answer is work.',
+    file: SCREEN_KEYS,
+    from: "return only !== undefined && 'k' in only && (only.k === 'PPage' || only.k === 'NPage');",
+    to: "return only !== undefined && 'k' in only;",
+    needs: ['gate', 'pages']
+  },
+  {
+    n: 'Z8r',
+    rule: 'Z8',
+    alsoRed: ['pages'],
+    name: 'the grace never stamped',
+    why: 'D9, M5: without it an idle program read from its screen read working for five ticks after one page, so paging made a session look busy.',
+    file: SCREEN_KEYS,
+    from: "        try {\n          deps.noteRepaint?.(id);\n        } catch {\n          // The clock is the desk's; a page typed stays typed.\n        }\n",
+    to: '',
+    needs: ['gate', 'pages']
+  },
+  {
+    n: 'Z8s',
+    rule: 'Z8',
+    name: 'the grace stamped before the act',
+    why: 'D9: the grace answers a page that was typed; stamped before the act, a refused page still quiets the session.',
+    file: SCREEN_KEYS,
+    from: '      deps.onLastCheck?.(id);\n',
+    to: '      deps.onLastCheck?.(id);\n      deps.noteRepaint?.(id);\n',
+    needs: ['gate']
+  },
+  {
+    n: 'Z11p',
+    rule: 'Z11',
+    alsoRed: ['pages'],
+    name: 'the door copying no offer',
+    why: 'D6: the composer offers the page and the door copies the answer field by field; dropped there, no phone ever pages.',
+    file: ROUTES,
+    from: '  if (screen.pages === true) body.pages = true;\n',
+    to: '',
+    needs: ['gate', 'pages']
+  },
+  {
+    n: 'Z11q',
+    rule: 'Z11',
+    name: 'the door copying whatever pages it was handed',
+    why: '§7.2 Z11: the literal true and only when the composer set it, so the wire never carries false or a value the watcher added.',
+    file: ROUTES,
+    from: 'if (screen.pages === true) body.pages = true;',
+    to: 'if (screen.pages !== undefined) body.pages = screen.pages;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z11r',
+    rule: 'Z11',
+    alsoRed: ['pages'],
+    name: 'the offer behind the paste’s served gate',
+    why: '§0.1 item 11: keys is legacy-allowed, so the offer needs no served gate; behind paste’s, a Mac whose paste waits for its Allow never pages.',
+    file: ROUTES,
+    from: 'if (screen.pages === true) body.pages = true;',
+    to: 'if (pasteServed && screen.pages === true) body.pages = true;',
+    needs: ['gate', 'pages']
+  },
+  {
+    n: 'Z31a',
+    rule: 'Z31',
+    alsoRed: ['pages'],
+    name: 'the offer composed nowhere',
+    why: 'D6: the Mac says when; with no offer the phone never sends a page and a full-screen program has nothing above its rows.',
+    file: SCREEN_COMPOSE,
+    from: '  if (display.alternate && extra.typable) screen.pages = true;\n',
+    to: '',
+    needs: ['gate', 'pages']
+  },
+  {
+    n: 'Z31b',
+    rule: 'Z31',
+    alsoRed: ['pages'],
+    name: 'the offer on every screen that takes keys',
+    why: 'D6: an inline picture pages its history on the phone; offered a page there, a pull would type a key into a shell prompt.',
+    file: SCREEN_COMPOSE,
+    from: 'if (display.alternate && extra.typable) screen.pages = true;',
+    to: 'if (extra.typable) screen.pages = true;',
+    needs: ['gate', 'pages']
+  },
+  {
+    n: 'Z31c',
+    rule: 'Z31',
+    alsoRed: ['pages'],
+    name: 'the offer on this Mac alone',
+    why: 'D1: a full-screen program on another machine pages by the pull too, across the existing carriage; this Mac alone leaves his Mac Pro with nothing.',
+    file: SCREEN_COMPOSE,
+    from: 'if (display.alternate && extra.typable) screen.pages = true;',
+    to: 'if (display.alternate && extra.typable && extra.local === true) screen.pages = true;',
+    needs: ['gate', 'pages']
+  },
+  {
+    n: 'Z31d',
+    rule: 'Z31',
+    name: 'a revision part added for the offer',
+    why: '§0.1 item 12: the display line already names the alternate screen, so the offer moves with the revision and no part is added.',
+    file: SCREEN_WATCH,
+    from: "    typable ? '1' : '0',\n    ...(marks === '' ? [] : ['marks', marks])",
+    to: "    typable ? '1' : '0',\n    reading.display.alternate ? 'pages' : '',\n    ...(marks === '' ? [] : ['marks', marks])",
+    needs: ['gate']
+  },
+  {
+    n: 'Z31e',
+    rule: 'Z31',
+    name: 'PocketScreen.pages made required',
+    why: 'D6, D12: absent reads false, so a Mac older than this phase never offers a page and an older phone ignores it; a required field moves the wire.',
+    file: SHARED,
+    from: '  pages?: boolean;\n',
+    to: '  pages: boolean;\n',
+    needs: ['gate']
+  },
+  {
+    n: 'Z32a',
+    rule: 'Z32',
+    name: 'the grace wired to the status funnel',
+    why: 'D23: the grace is the reflow clock noteGeometryChange stamps, never a second noteUserInput, which moves the question id.',
+    file: CAPABILITIES,
+    from: 'noteRepaint: (sessionId) => pocketCore?.activity.noteGeometryChange(sessionId),',
+    to: 'noteRepaint: (sessionId) => pocketCore?.activity.noteUserInput(sessionId),',
+    needs: ['gate']
+  },
+  {
+    n: 'Z32b',
+    rule: 'Z32',
+    name: 'the grace not handed to the keys verb',
+    why: 'D23: the verb stamps the grace through its deps; unwired, every page reads as work in production while the tests stay green.',
+    file: CAPABILITIES,
+    from: '    noteRepaint: (sessionId) => pocketCore?.activity.noteGeometryChange(sessionId),\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'Z32c',
+    rule: 'Z32',
+    name: 'the grace handed to the paste as well',
+    why: 'D9: a paste is his words arriving, which is work; only a page’s redraw is discounted.',
+    file: CAPABILITIES,
+    from: '  const screenPaste = createScreenPaste({\n    core: () => pocketCore,\n',
+    to: '  const screenPaste = createScreenPaste({\n    noteRepaint: (sessionId: string) => pocketCore?.activity.noteGeometryChange(sessionId),\n    core: () => pocketCore,\n',
+    needs: ['gate']
+  },
+  {
+    // THE FIX ROUND (build/p350/SPEC.md §As built, "The fix round").
+    n: 'Z31f',
+    rule: 'Z31',
+    alsoRed: ['hostile', 'pages'],
+    name: 'a page typed off the alternate screen',
+    why: 'The fix round: a page the phone sent against a full-screen picture whose program has since left it lands in the shell as a ~ on his command line, two where the terminal echoes it, and his next command fails; the offer’s condition is asked again of the fresh screen.',
+    file: SCREEN_KEYS,
+    from: "      if (isOnePage(input.keys) && !fresh.display.alternate) {\n        return refused('changed', LIFECYCLE_SESSION_CHANGED);\n      }\n",
+    to: '',
+    needs: ['gate', 'hostile', 'pages']
+  },
+  {
+    // THE FIX ROUND: the offer at the cap, in the composer.
+    n: 'Z31g',
+    rule: 'pages',
+    name: 'the composer answering large a picture the offer alone put over the cap',
+    why: 'The fix round: the offer adds 13 bytes, so a full-screen picture within 13 bytes of the 1 MiB cap read large where the build before served it; one over the cap by the offer alone is composed without it.',
+    file: SCREEN_COMPOSE,
+    from: "  if (over > 0) {\n    // PHASE 350 FIX ROUND. The offer's own bytes never make `large` a picture\n",
+    to: "  if (over > 0) return 'large';\n  if (over > 0) {\n    // PHASE 350 FIX ROUND. The offer's own bytes never make `large` a picture\n",
+    needs: ['pages']
+  },
+  {
+    // THE FIX ROUND: the offer at the cap, in the door.
+    n: 'Z11s',
+    rule: 'pages',
+    name: 'the door answering large an answer the offer alone put over the cap',
+    why: 'The fix round: the whole answer is held to the 1 MiB cap with the offer in it, so an answer within 13 bytes of it read large where the build before served it; one over the cap by the offer alone is served without it.',
+    file: ROUTES,
+    from: "  if (over > 0) {\n    // PHASE 350 FIX ROUND. The page offer's own bytes never make `large` an\n",
+    to: "  if (over > 0) return absent('large');\n  if (over > 0) {\n    // PHASE 350 FIX ROUND. The page offer's own bytes never make `large` an\n",
+    needs: ['pages']
+  },
+  {
+    n: 'PK4a',
+    rule: 'hostile',
+    alsoRed: ['pages'],
+    name: 'a page typed against a stale question picture',
+    why: '§7.3 PK4, D8: a page over a list can move its highlight, so a page against a picture whose turn moved is refused changed with nothing typed, as any key is.',
+    file: SCREEN_KEYS,
+    from: '        (asking || input.dialog !== null) &&\n',
+    to: '        !isOnePage(input.keys) && (asking || input.dialog !== null) &&\n',
+    needs: ['gate', 'hostile', 'pages']
+  },
+  {
+    n: 'PK5a',
+    rule: 'hostile',
+    name: 'a replayed page typed again',
+    why: '§7.3 PK5: the same write id signed afresh is answered from the record and pages once; a write path that forgets what it recorded pages twice for one pull.',
+    file: WRITES,
+    from: "    if (known !== undefined && known.state === 'recorded') {\n      // Answered again, acting on nothing, and carrying what it recorded.",
+    to: "    if (known !== undefined && known.state === ('never' as string)) {\n      // Answered again, acting on nothing, and carrying what it recorded.",
     needs: ['gate', 'hostile']
   }
 ];

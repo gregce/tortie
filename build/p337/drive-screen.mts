@@ -376,6 +376,32 @@ try {
     });
     const byMode: Record<string, unknown> = {};
     const lands: number[] = [];
+    // PHASE 350's FIX ROUND (build/p350/SPEC.md, "The fix round"): a page goes
+    // only to a screen that offers it. The keys verb refuses `PPage` and
+    // `NPage` `changed`, with nothing typed, when its fresh read is not the
+    // alternate screen, so each page key is driven twice in every mode: at this
+    // mode's own recorder on the normal screen, where it must be refused and
+    // read no byte (`offAlt`), and at a second recorder in the same mode on the
+    // alternate screen, where its bytes are `got` and are read against
+    // keys-encoding.json's entry for this mode beside the carriage's (the
+    // alternate screen does not change a key's encoding: SPEC §2.4, M4).
+    const PAGE_KEYS: readonly string[] = ['PPage', 'NPage'];
+    /** One key through the shipping verb at one recorder: its bytes, its outcome and the refusal's word. */
+    const typeOne = async (sessionId: string, log: string, name: string): Promise<{ hex: string; outcome: string; reason: string | null }> => {
+      const before = readRecorder(log).length;
+      const checks = lastChecks.length;
+      const outcome = (await keysVerb.keys({ sessionId, keys: [{ k: name }], turn: turns.current(sessionId).id, dialog: null } as never, () => true)) as { outcome: string; reason?: string };
+      let reads = readRecorder(log).slice(before);
+      for (let w = 0; w < 40 && reads.length === 0; w += 1) {
+        await sleep(5);
+        reads = readRecorder(log).slice(before);
+      }
+      await sleep(15);
+      reads = readRecorder(log).slice(before);
+      const check = lastChecks[checks];
+      if (check !== undefined && reads[0] !== undefined) lands.push(msBetween(check, reads[0].t));
+      return { hex: reads.map((r) => r.hex).join(''), outcome: outcome.outcome, reason: outcome.reason ?? null };
+    };
     let m = 0;
     for (const mode of modes) {
       m += 1;
@@ -386,38 +412,47 @@ try {
         byMode[mode] = { unread: 'the recorder never said it was ready' };
         continue;
       }
+      // The same mode on the alternate screen, asked FIRST so every other
+      // mode is set on the screen the keys reach.
+      const altLog = join(plan.dir, `rec-${String(m)}-alt.jsonl`);
+      const alt = await newSession(`k${String(m)}a`, 120, 40, `${q(plan.node)} ${q(plan.recorder)} ${q(altLog)} ${mode === 'normal' ? 'alt' : `alt,${mode}`} --label=k${String(m)}a`);
+      const altSession = addSession(`k${String(m)}a`, alt.tmuxId);
+      if (!(await waitReady(altLog))) {
+        byMode[mode] = { unread: 'the alternate-screen recorder never said it was ready' };
+        continue;
+      }
       await sleep(150);
       const got: Record<string, { hex: string; outcome: string }> = {};
+      const offAlt: Record<string, { hex: string; outcome: string; reason: string | null }> = {};
       for (const name of POCKET_SCREEN_KEY_NAMES) {
-        const before = readRecorder(log).length;
-        const checks = lastChecks.length;
-        const outcome = await keysVerb.keys({ sessionId: session.id, keys: [{ k: name }], turn: turns.current(session.id).id, dialog: null } as never, () => true);
-        let reads = readRecorder(log).slice(before);
-        for (let w = 0; w < 40 && reads.length === 0; w += 1) {
-          await sleep(5);
-          reads = readRecorder(log).slice(before);
+        if (PAGE_KEYS.includes(name)) {
+          offAlt[name] = await typeOne(session.id, log, name);
+          const onAlt = await typeOne(altSession.id, altLog, name);
+          got[name] = { hex: onAlt.hex, outcome: onAlt.outcome };
+        } else {
+          const one = await typeOne(session.id, log, name);
+          got[name] = { hex: one.hex, outcome: one.outcome };
         }
-        await sleep(15);
-        reads = readRecorder(log).slice(before);
-        got[name] = { hex: reads.map((r) => r.hex).join(''), outcome: (outcome as { outcome: string }).outcome };
-        const check = lastChecks[checks];
-        if (check !== undefined && reads[0] !== undefined) lands.push(msBetween(check, reads[0].t));
       }
       // The carriage's composer (scroll-shapes.ts `namedKeySequence`), each
       // argv run as a machine's own tmux runs it, one command at a time: the
-      // same bytes as this Mac's verb.
+      // same bytes as this Mac's verb, a page key at the alternate screen's
+      // recorder, where the verb typed it.
       const carriage: Record<string, string> = {};
       for (const name of POCKET_SCREEN_KEY_NAMES) {
-        const before = readRecorder(log).length;
-        for (const argv of namedKeySequence(tmuxId, name)) await scratchSpawn(argv).catch(() => '');
+        const page = PAGE_KEYS.includes(name);
+        const target = page ? alt.tmuxId : tmuxId;
+        const at = page ? altLog : log;
+        const before = readRecorder(at).length;
+        for (const argv of namedKeySequence(target, name)) await scratchSpawn(argv).catch(() => '');
         await sleep(40);
-        carriage[name] = readRecorder(log).slice(before).map((r) => r.hex).join('');
+        carriage[name] = readRecorder(at).slice(before).map((r) => r.hex).join('');
       }
       const fixture = encoding.modes[buildKey]?.[mode]?.keys ?? {};
       const compared = Object.keys(fixture).filter((k) => (POCKET_SCREEN_KEY_NAMES as readonly string[]).includes(k));
       const differ = compared.filter((k) => got[k]?.hex !== fixture[k]);
       const carriageDiffer = POCKET_SCREEN_KEY_NAMES.filter((k) => carriage[k] !== got[k]?.hex);
-      byMode[mode] = { got, compared: compared.length, differ, carriageDiffer };
+      byMode[mode] = { got, compared: compared.length, differ, carriageDiffer, offAlt };
     }
     // Text as typed, the exact bytes.
     const tlog = join(plan.dir, 'rec-text.jsonl');

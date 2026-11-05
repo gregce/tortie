@@ -58,9 +58,73 @@
  * rather than the whole decoded row. B4 and L2 moved their needles with the
  * clauses they break (a third argument to `failed`, and the one-column write).
  *
+ * ## Phase 350's arms
+ *
+ * P1 to P21 hold pi's inline token behind its floor (build/p350/SPEC.md §7.1,
+ * §4.1, §4.2): the token and the floor spelled as pi reads them, the floor rule
+ * the SpecStory reader's, the composers putting the token in only when their
+ * caller says the floor holds, `fixedLaunchTokens` naming it at every version,
+ * every production caller naming the floor (the far ones `false`, Restart
+ * `true`, the create and the harvest from the scan), the pi arm of the boot
+ * pass reading local pi rows alone, never moving one on an unread version and
+ * inserting at index 1 only, restore's strip on `armableResume`'s one way out,
+ * Rule 1 of the arming composer naming the fixed tokens, pi's record a switch
+ * behind its floor, and D18's warm and D19's pass on their edges. Each is
+ * owned by a `Phase 350 11.N (` row of `conformance:agents` and by the vitest
+ * rows the pi builder wrote, and B2 and C9 moved their needles with Phase 350
+ * (pi's new `measured` string, and the Codex arm's explicit `false`). A vitest
+ * title written in its file as a template (`at a floor that reads ${floor}`)
+ * names its written form third, so the title check reads the file's own text.
+ *
+ * P22 to P29 are the fix round's (build/p350/SPEC.md §As built, "The fix
+ * round"): the floor read for one FILE, so a row of a second pi install or of
+ * a pi reinstalled since the scan is never handed the token (P22, P23, P28);
+ * the strip and the below-floor pass taking out only Tortie's copy, never a
+ * person's own leading `--tui-mode` (P24, P25); the pass judging each row by
+ * its own binary (P26); the latch never set by a pass that read no floor
+ * (P27); and the first answer settled only by a scan that read every probe
+ * (P29, the verifier's m33). P7, P13, P18 and P21 moved their needles with the
+ * per-binary reader. P30 and P31 are the floor reader's: the version alone, as
+ * `pi -v` prints it, and a prerelease of the floor below it; P5 moved its
+ * needle with them. P32 is the row's own composition read with its own launch
+ * flags, so a person's flags put first by a confirmed row are told apart.
+ *
+ * P33 to P36 are the ruled round's (his ruling of 2026-11-02, R1: the token
+ * only for a pi whose real file is inside pi's own installed package): the
+ * package gate taken out of the floor reader, so a version manager's shim, a
+ * wrapper or a copy is handed the token again (P33); any package read as pi's
+ * (P34); a package.json that cannot be read or parsed read as pi's (P35); and a
+ * nearer package.json passed over for one further up (P36). Each is owned by
+ * `conformance:agents` 11.10 or by the planted install shapes of
+ * p350-pi-package.test.ts.
+ *
+ * P37 to P41 are the second ruled round's (his ruling of 2026-11-02, "Check the
+ * file that runs"): a relative PATH entry read from this process's folder and
+ * not the session's (P37); empty PATH entries passed over (P38); the pane's file
+ * told from the checked one by its spelling, not its device and inode (P39); the
+ * create asking the floor for the file it records and not the file its pane runs
+ * (P40); and, the reverify's nit, pi's package name read by its unscoped half
+ * under any scope (P41). Each is owned by `conformance:agents` 11.11 or by the
+ * planted rows of p350-pi-bare-name.test.ts and p350-pi-package.test.ts. P7 and
+ * P28 moved their needles with the create's new words.
+ *
+ * P42 and P43 are the third ruled round's (his ruling of 2026-11-03, "No switch
+ * for # folders"): the `#` clause taken out of the resolver's guard, so a
+ * folder tmux reads as a format is walked as written (P42); and the walk handed
+ * the project's folder instead of the session's (P43, the reverify's B2), red
+ * on a DRIVEN row whose session sits in a subfolder of its project. Phase 353,
+ * which hands tmux the folder escaped, takes P42 out with the clause.
+ *
+ * P44 is the fourth ruled round's (his ruling of 2026-11-04, "Treat a trailing
+ * ; like #"): the `;` term taken out of the same guard, so a folder ending in
+ * `\;`, which tmux's argument reader reads as ending in `;`, is walked as
+ * written, red on the DRIVEN `semi\;` and `twin\;` rows and on 11.11. Phase 353
+ * takes P44 out with its clause.
+ *
  * Usage:
  *   node build/p331/ablation.mjs
  *   P331_ONLY=C1,L2 node build/p331/ablation.mjs        named arms only
+ *   node build/p331/ablation.mjs --only P1,P2            the same, as an argument
  */
 
 import { spawnSync } from 'node:child_process';
@@ -104,7 +168,37 @@ const FLAGS_TEST = 'src/main/sessions/__tests__/p331-own-flags.test.ts';
 const PASS_TEST = 'src/main/sessions/__tests__/p331-inline-repair.test.ts';
 const SCREEN_TEST = 'src/main/conformance/__tests__/p331-screen.test.ts';
 const HARNESS_TEST = 'src/main/conformance/__tests__/p331-harness.test.ts';
-const TEST_FILES = [SWITCH_TEST, FLAGS_TEST, PASS_TEST, SCREEN_TEST, HARNESS_TEST];
+// Phase 350: the files that own pi's token, its floor, the pass and the arming.
+const CORE = 'src/main/sessions/core.ts';
+const DETECTION = 'src/main/agents/detection.ts';
+const RESTORE = 'src/main/restore/restore.ts';
+const ARM = 'src/main/machines/remote-arm.ts';
+const REMOTE_SESSIONS = 'src/main/machines/remote-sessions.ts';
+const CREATE = 'src/main/sessions/create-local.ts';
+const TOKEN_TEST = 'src/main/agents/__tests__/p350-pi-token.test.ts';
+const PI_PASS_TEST = 'src/main/sessions/__tests__/p350-pi-pass.test.ts';
+const PI_RESTORE_TEST = 'src/main/restore/__tests__/p350-pi-restore.test.ts';
+const ARM_TEST = 'src/main/machines/__tests__/remote-arm.test.ts';
+const EXTRAS_TEST = 'src/main/restart/__tests__/extras.test.ts';
+const WARM_TEST = 'src/main/agents/__tests__/p164-boot-warm.test.ts';
+// The ruled round (his ruling of 2026-11-02, R1): every install shape, planted.
+const PKG_TEST = 'src/main/agents/__tests__/p350-pi-package.test.ts';
+// The second ruled round: the file a bare-name spawn runs, and every create that spawns pi so.
+const BARE_TEST = 'src/main/agents/__tests__/p350-pi-bare-name.test.ts';
+const TEST_FILES = [
+  SWITCH_TEST, FLAGS_TEST, PASS_TEST, SCREEN_TEST, HARNESS_TEST,
+  TOKEN_TEST, PI_PASS_TEST, PI_RESTORE_TEST, ARM_TEST, EXTRAS_TEST, WARM_TEST, PKG_TEST, BARE_TEST
+];
+/** The planted shapes' one row title, written in its file as a template. */
+const SHAPE_ROW = '${name}: reads ${VERDICT[name]!}, and composes, keeps and passes the token exactly where it holds';
+const shapeRow = (name) => [PKG_TEST, `${name}: reads unread, and composes, keeps and passes the token exactly where it holds`, SHAPE_ROW];
+/** The bare-name creates' one row title, written in its file as a template. */
+const BARE_ROW = "${row.id} reads ${row.verdict}: the desk, the phone and Restart spawn pi ${row.verdict === 'holds' ? 'with the token' : 'as today'}, byte for byte";
+const bareRow = (id, verdict) => [
+  BARE_TEST,
+  `${id} reads ${verdict}: the desk, the phone and Restart spawn pi ${verdict === 'holds' ? 'with the token' : 'as today'}, byte for byte`,
+  BARE_ROW
+];
 
 /**
  * Every owner by its short name, and the `it` title it stands for (SPEC §3),
@@ -137,18 +231,105 @@ const TITLES = {
   H2: [HARNESS_TEST, 'a create reading taken at a trust question the harness could not answer is no reading, and fails a switch'],
   H3: [HARNESS_TEST, 'the detection scan a conformance run starts covers only the agents it was asked for'],
   H4: [HARNESS_TEST, 'Codex is created with its update check off, with and without the bypass flags, and the harvest carries it to the resume argv'],
-  H5: [HARNESS_TEST, 'an agent install that moved during the run is named, and one that stayed is not']
+  H5: [HARNESS_TEST, 'an agent install that moved during the run is named, and one that stayed is not'],
+  // Phase 350 (build/p350/SPEC.md §6 items 3 and 4, §7.1): the pi builder's rows.
+  N1: [TOKEN_TEST, 'PI_INLINE_ARGS and PI_INLINE_FLOOR are spelled as pi reads them'],
+  N2: [TOKEN_TEST, "piInlineFloor reads §7.1 11.8's nine versions byte for byte"],
+  N3: [TOKEN_TEST, "M2's composition: launch and resume are one argv with the floor, today's without it"],
+  N4: [TOKEN_TEST, 'exactly three switch rows, and only pi names a floor'],
+  N5: [TOKEN_TEST, 'fixedLaunchTokens names the token at every version, and ownLaunchFlags sets it aside only when it leads'],
+  N6: [TOKEN_TEST, 'starts nothing, and settles with the first scan that resolves'],
+  N7: [PI_PASS_TEST, 'at a floor that reads holds', 'at a floor that reads ${floor}'],
+  N8: [PI_PASS_TEST, 'at a floor that reads unread', 'at a floor that reads ${floor}'],
+  N9: [PI_PASS_TEST, "never touches another machine's pi row, nor any other agent's, whatever their argv holds"],
+  N10: [PI_PASS_TEST, 'the far callers pass the literal false: no pi on another machine is handed the token (D2)'],
+  N11: [PI_PASS_TEST, 'a create reads the version ONCE, before the launch is composed, and asks the floor of the binary it runs'],
+  N12: [PI_PASS_TEST, "the harvest and the admission both ask the floor with pi's own name, and the two Codex paths say false"],
+  N13: [PI_RESTORE_TEST, 'takes the token out of indices 1 and 2 while the floor does not hold, an unanswered scan included'],
+  N14: [PI_RESTORE_TEST, 'arms a HEAD row as today before the scan answers, and as recorded once it reads the floor'],
+  N15: [PI_RESTORE_TEST, 'composes a HEAD row with the token while the floor holds, and without it while not'],
+  N16: [ARM_TEST, "holds pi's inline token and nothing more of pi's than before"],
+  N17: [EXTRAS_TEST, "M2's eight planted rows, each byte for byte"],
+  N18: [WARM_TEST, 'starts nothing for a discarded pi row, a pi row on another machine, or no pi row'],
+  N19: [WARM_TEST, 'PHASE 350: no pi warm at boot, and the pi pass waits on the first answer behind the disposed flag'],
+  N20: [WARM_TEST, 'asks the pi warm once, after the milestone, behind its own latch, in a try'],
+  // The fix round's rows (build/p350/SPEC.md §As built, "The fix round").
+  N21: [TOKEN_TEST, 'answers for the very file the scan read, by what it is and not by its name (the fix round)'],
+  N22: [TOKEN_TEST, 'reads unread for the scanned file once it is rewritten, and again holds after a fresh scan (the fix round)'],
+  N23: [TOKEN_TEST, 'settles only once the scan has read every probe, so the pass it wakes reads the floor (the fix round)'],
+  N24: [PI_PASS_TEST, "a pass that read no row's floor leaves the latch open, and moved nothing"],
+  N25: [PI_PASS_TEST, "below the floor: one copy is the person's and stays; of two, the first is Tortie's and comes out"],
+  N26: [PI_PASS_TEST, 'a row recorded against a second pi install is never moved, at any reading of the scanned one'],
+  N27: [PI_RESTORE_TEST, 'a row that records a second pi install loses the token though the scanned pi holds (the fix round)'],
+  N28: [PI_RESTORE_TEST, "a person's own leading --tui-mode regular is armed as recorded; only Tortie's copy comes out (the fix round)"],
+  N29: [PI_PASS_TEST, 'the admission composes no token for a row that records another pi install, though the scanned one holds'],
+  N30: [PI_PASS_TEST, 'the floor is asked for the binary each row records, and for nothing else'],
+  N31: [TOKEN_TEST, 'reads only the version alone, as pi -v prints it, and a prerelease of the floor as below it (the fix round)'],
+  N32: [PI_PASS_TEST, "a row whose own launch flags come first and lead with the words keeps the person's copy; only Tortie's comes out (the fix round)"],
+  N33: [PI_RESTORE_TEST, "a person's own launch flags put first and leading with the words are armed as recorded (the fix round)"],
+  N34: [TOKEN_TEST, "composes a row's own resume with its own recorded flags and no token of Tortie's (the fix round)"],
+  // The ruled round's rows (his ruling of 2026-11-02, R1): each planted shape that must read unread.
+  N35: shapeRow('miseShim'),
+  N36: shapeRow('asdfShim'),
+  N37: shapeRow('voltaShim'),
+  N38: shapeRow('pnpmShim'),
+  N39: shapeRow('wrapper'),
+  N40: shapeRow('copy'),
+  N41: shapeRow('otherPackage'),
+  N42: shapeRow('unreadable'),
+  N43: shapeRow('notJson'),
+  N44: [PKG_TEST, 'insidePiPackage answers each planted shape as his ruling says, and starts nothing'],
+  N45: shapeRow('namelessNearer'),
+  N46: [PKG_TEST, "pnpm's package is real, but its shim is not inside it: the shim reads unread though pi's own file holds"],
+  // The second ruled round's rows (his ruling of 2026-11-02, "Check the file that runs").
+  N47: [BARE_TEST, "a relative entry is read from the session's own folder, never from this process's"],
+  N48: [BARE_TEST, "an empty entry, leading, doubled or trailing, is the session's folder itself"],
+  N49: [BARE_TEST, 'one file is one file by device and inode, never by its spelling'],
+  N50: bareRow('npm project, node_modules/.bin', 'unread'),
+  N51: bareRow('pnpm project, ./node_modules/.bin', 'unread'),
+  N52: bareRow('npm project, .', 'unread'),
+  N53: bareRow('npm project, a leading empty entry', 'unread'),
+  N54: bareRow('pnpm project, a doubled empty entry', 'unread'),
+  N55: bareRow('npm project, bin (a project binstub)', 'unread'),
+  N56: bareRow('npm project through a link, node_modules/.bin', 'unread'),
+  N57: bareRow('plain project, a relative entry to the global itself', 'holds'),
+  // The reverify's nit: pi's unscoped name under another scope, and under its old one.
+  N58: shapeRow('someoneScope'),
+  N59: shapeRow('oldScope'),
+  // The third ruled round (his ruling of 2026-11-03): a folder holding a `#`, and a session in a subfolder of its project.
+  N60: bareRow('C#Tools, a project with no pi, HOME holding its own pi 0.83.0, node_modules/.bin', 'unread'),
+  N61: bareRow('C#/app, the # in a parent folder, HOME holding its own pi 0.83.0, node_modules/.bin', 'unread'),
+  N62: [BARE_TEST, 'a session in a subfolder of its project that pins its own pi 0.83.0 reads unread from that subfolder: the desk and Restart spawn pi there as today, and the phone, which starts in the project folder, holds, byte for byte'],
+  N63: [BARE_TEST, "a folder whose name holds a # reads no file, wherever HOME's own pi is: tmux reads -c as a format"],
+  N64: [BARE_TEST, "a # in a parent folder's name counts"],
+  // The fourth ruled round (his ruling of 2026-11-04): a folder whose name ends in `;`.
+  N65: bareRow('semi\\;, a project with no pi whose name ends in a backslash and a semicolon, HOME holding its own pi 0.83.0, node_modules/.bin', 'unread'),
+  N66: bareRow('twin\\;, a project with no pi whose twin twin; pins its own pi 0.83.0, a HOME holding none, node_modules/.bin', 'unread'),
+  N67: [BARE_TEST, "a folder whose name ends in a backslash and a semicolon reads no file, wherever HOME's own pi is: tmux reads it as ending in ;"],
+  N68: [BARE_TEST, 'a folder ending in a backslash and a semicolon whose ; twin pins its own pi reads no file, and neither does the twin']
 };
-/** The `conformance:agents` rows, owned by the line the gate prints when one fails. */
-const GATE_ROWS = ['11.1', '11.2', '11.3', '11.4', '11.5'];
+/**
+ * The `conformance:agents` rows, owned by the line the gate prints when one
+ * fails: `Phase 331 11.N (` for Phase 331's five and, since Phase 350,
+ * `Phase 350 11.N (` for the four rows that hold pi's token.
+ */
+const GATE_PHASE = {
+  '11.1': '331', '11.2': '331', '11.3': '331', '11.4': '331', '11.5': '331',
+  '11.6': '350', '11.7': '350', '11.8': '350', '11.9': '350', '11.10': '350', '11.11': '350'
+};
+const GATE_ROWS = Object.keys(GATE_PHASE);
 const isGateRow = (owner) => GATE_ROWS.includes(owner);
 
 // ---------------------------------------------------------------------------
 // The two needles computed from the shipping source, braces matched
 // ---------------------------------------------------------------------------
 
-/** pi's record is anchored on its `measured` string, which SPEC §2.2 requires to be unique in the file. */
-const PI_MEASURED = "measured: '0.84.2, 2026-09-29, live (research 134)',";
+/**
+ * pi's record is anchored on its `measured` string, which SPEC §2.2 requires to
+ * be unique in the file. Phase 350 rewrote it with the record (a switch behind
+ * its floor), and the anchor moved with it.
+ */
+const PI_MEASURED = "measured: '0.84.2 live, 2026-09-29 (research 134); 1.0.0 to 1.4.0 read as text, 2026-10-31 (Phase 350)',";
 
 /**
  * pi's whole `screen: { … },` property, from the start of its line to the
@@ -230,8 +411,9 @@ function arms(registry, overlay) {
       find: "    if (composed.captureLost) return left('capture-lost');\n", to: '', owners: ['R5'] },
     { n: 'C8', name: 'the pass rewrites a row that already carries the pair', file: PASS,
       find: "  if (carriesPair(recordedInner)) return left('already-right');\n", to: '', owners: ['R3'] },
+    // Phase 350 (D20): the Codex arm's floor is the explicit `false` now, so the needle carries it.
     { n: 'C9', name: "the pass rewrites a remote row's argv[0]", file: PASS,
-      find: 'recorded[0]);', to: 'undefined);', owners: ['R6'] },
+      find: 'recorded[0], false);', to: 'undefined, false);', owners: ['R6'] },
     { n: 'L1', name: 'the claude variable taken out of launch.env', file: REGISTRY,
       find: '      env: { ...CLAUDE_INLINE_ENV },\n', to: '', owners: ['A4', 'A6', '11.3'] },
     { n: 'L2', name: 'the pass does not merge env', file: PASS,
@@ -266,7 +448,113 @@ function arms(registry, overlay) {
     { n: 'X8', name: 'the highlight after the Down read in a window the blank rows fill', file: PANE,
       find: '      const moved = bottomOfPane(await readPane(target), since);', to: '      const moved = currentScreen(afterMarker(await readPane(target), since));', owners: ['H1'] },
     { n: 'X9', name: 'the second look reads the whole pane again', file: PANE,
-      find: '    const pane = attempt === 0 ? capture : bottomOfPane(capture);', to: '    const pane = capture;', owners: ['H1'] }
+      find: '    const pane = attempt === 0 ? capture : bottomOfPane(capture);', to: '    const pane = capture;', owners: ['H1'] },
+    // PHASE 350'S ARMS, one clause each (build/p350/SPEC.md §7.1, §4.1, §4.2).
+    { n: 'P1', name: "pi's token spelled as another mode", file: REGISTRY,
+      find: "export const PI_INLINE_ARGS = ['--tui-mode', 'regular'] as const;", to: "export const PI_INLINE_ARGS = ['--tui-mode', 'fullscreen'] as const;", owners: ['N1', '11.6'] },
+    { n: 'P2', name: 'the floor lowered below the first pi that knows the flag', file: REGISTRY,
+      find: "export const PI_INLINE_FLOOR = '0.84.0';", to: "export const PI_INLINE_FLOOR = '0.80.0';", owners: ['N2', '11.6', '11.8'] },
+    { n: 'P3', name: 'the composers put the token in whatever the floor says', file: REGISTRY,
+      find: "  return floorHolds && id === 'pi' ? PI_INLINE_ARGS : [];", to: "  return id === 'pi' ? PI_INLINE_ARGS : [];", owners: ['N3', '11.7'] },
+    { n: 'P4', name: "fixedLaunchTokens no longer names pi's token", file: REGISTRY,
+      find: '  return [...flooredTokensOf(entry.id, true), ...entry.launch.argv.slice(1)];', to: '  return entry.launch.argv.slice(1);', owners: ['N5', '11.6'] },
+    { n: 'P5', name: 'the floor read as a string comparison of its own', file: REGISTRY,
+      find: "  return compareSpecStoryVersions(read, PI_INLINE_FLOOR) > 0 || read === PI_INLINE_FLOOR ? 'holds' : 'below';", to: "  return read >= PI_INLINE_FLOOR ? 'holds' : 'below';", owners: ['11.8'] },
+    { n: 'P6', name: 'the far launch hands pi the token', file: REMOTE_SESSIONS,
+      find: '  return launchArgvFor(entry, extraArgs, undefined, agentSessionId, false);', to: '  return launchArgvFor(entry, extraArgs, undefined, agentSessionId, true);', owners: ['N10', '11.7'] },
+    { n: 'P7', name: 'the create composes with no floor read', file: CREATE,
+      find: "    (input.agent as LaunchableAgentKind) === 'pi' && piInlineFloorFor(binPath, spawnedBy) === 'holds'", to: '    false', owners: ['N11', '11.7'] },
+    { n: 'P8', name: 'Restart compares against an argv composed without the token', file: EXTRAS,
+      find: '  const launch = registryLaunchArgv(agent, [], bin, rec.agentSessionId, true);', to: '  const launch = registryLaunchArgv(agent, [], bin, rec.agentSessionId, false);', owners: ['N17', '11.7'] },
+    { n: 'P9', name: "the pass reads another machine's pi row", file: PASS,
+      find: "    if ((rec.agent as LaunchableAgentKind) !== 'pi' || !isLocalRow(rec)) continue;", to: "    if ((rec.agent as LaunchableAgentKind) !== 'pi') continue;", owners: ['N9', '11.9'] },
+    { n: 'P10', name: 'the pass moves rows on an unread version', file: PASS,
+      find: "  if (floor === 'unread') return left('no-floor');\n", to: '', owners: ['N8', 'N26', '11.9'] },
+    { n: 'P11', name: 'the pass puts the token after the id rather than at index 1', file: PASS,
+      find: '      ...recorded.slice(0, 1),\n      ...PI_INLINE_ARGS,\n      ...recorded.slice(1)\n', to: '      ...recorded,\n      ...PI_INLINE_ARGS\n', owners: ['N7', '11.9'] },
+    { n: 'P12', name: 'armableResume hands back the ladder without the strip', file: RESTORE,
+      find: '  const argv = withoutPiTokenBelowFloor(rec, decided.argv);', to: '  const argv = decided.argv;', owners: ['N14', '11.9'] },
+    { n: 'P13', name: 'the strip keeps the token while the floor does not hold', file: RESTORE,
+      find: "  if (piInlineFloorFor(argv[0]) === 'holds') return argv;", to: "  if (piInlineFloorFor(argv[0]) !== 'holds') return argv;", owners: ['N13', '11.9'] },
+    { n: 'P14', name: "Rule 1 no longer admits the composers' fixed tokens", file: ARM,
+      find: '  for (const token of fixedLaunchTokens(agent)) tokens.add(token);\n', to: '', owners: ['N16', 'N15', '11.9'] },
+    { n: 'P15', name: "pi's record without its floor", file: REGISTRY,
+      find: '      floor: PI_INLINE_FLOOR,\n', to: '', owners: ['N4', '11.5'] },
+    { n: 'P16', name: "pi's record back to inline-already", file: REGISTRY,
+      find: "      class: 'switch-to-inline',\n      carriage: 'argv',\n      tokens: PI_INLINE_ARGS,\n      floor: PI_INLINE_FLOOR,\n", to: "      class: 'inline-already',\n", owners: ['N4', 'S1', '11.5'] },
+    { n: 'P17', name: 'the pi warm at the first terminal bytes taken out', file: CORE,
+      find: '            warmDetectionForLocalPi(this.manifest.listSessions());\n', to: '', owners: ['N20'] },
+    { n: 'P18', name: 'the boot pass never run when the scan answers', file: CORE,
+      find: '        repairPiInlineOnce(core.manifest, { floorFor: piInlineFloorFor, ownResume: piOwnResumeArgv });\n', to: '', owners: ['N19'] },
+    { n: 'P19', name: 'the warm starts a scan for a discarded pi row', file: DETECTION,
+      find: "      row.status !== 'discarded' &&\n", to: '', owners: ['N18'] },
+    { n: 'P20', name: 'the first answer settled by no scan', file: DETECTION,
+      find: '  answer.settle(result);\n', to: '', owners: ['N6'] },
+    { n: 'P21', name: 'the harvest hands pi the token whatever the scan read', file: HARVEST,
+      find: "        agent === 'pi' && piInlineFloorFor(resumeBinOf(rec, agent)) === 'holds'\n", to: '        true\n', owners: ['N12', '11.7'] },
+    // THE FIX ROUND'S ARMS (build/p350/SPEC.md §As built, "The fix round").
+    { n: 'P22', name: "the floor read for the scanned pi whatever file a row names", file: DETECTION,
+      find: "  return read !== undefined && now !== null && sameFile(read, now) ? reading : 'unread';", to: '  return reading;', owners: ['N21', 'N22', 'N27', 'N29'] },
+    { n: 'P23', name: 'a rewritten file read as the one the scan read', file: DETECTION,
+      find: '    a.ino === b.ino &&\n    a.size === b.size &&\n    a.mtimeMs === b.mtimeMs &&\n    a.ctimeMs === b.ctimeMs\n', to: '    a.ino === b.ino\n', owners: ['N22'] },
+    { n: 'P24', name: "the strip taking a person's own leading copy", file: RESTORE,
+      find: "  if (!piTokenIsTortiesIn(argv, piOwnResumeArgv(rec.agentSessionId ?? '', rec.specstory?.agentArgv ?? rec.argv))) return argv;", to: '  if (!piTokenIsTortiesIn(argv, [])) return argv;', owners: ['N28', '11.9'] },
+    { n: 'P25', name: "the below-floor pass taking a person's own leading copy", file: PASS,
+      find: "  if (!piTokenIsTortiesIn(recorded, readers.ownResume(id, rec.specstory?.agentArgv ?? rec.argv))) return left('already-right');", to: "  if (!piTokenLeads(recorded)) return left('already-right');", owners: ['N25', '11.9'] },
+    { n: 'P26', name: 'the pass judging every row by no binary of its own', file: PASS,
+      find: "  const floor = readers.floorFor(recorded[0] ?? '');", to: "  const floor = readers.floorFor(getRegistryEntry('pi').binaries[0] ?? '');", owners: ['N30', '11.9'] },
+    { n: 'P27', name: 'the latch set by a pass that read no floor', file: PASS,
+      find: '  if (floorsRead > 0 || outcomes.length === 0) piPassed = true;', to: '  piPassed = true;', owners: ['N24'] },
+    { n: 'P28', name: 'the create asking the floor of the scanned pi, not its own binary', file: CREATE,
+      find: "piInlineFloorFor(binPath, spawnedBy) === 'holds'", to: "piInlineFloorFor(input.agent, spawnedBy) === 'holds'", owners: ['N11'] },
+    { n: 'P29', name: 'the first answer settled before the scan read anything (the m33 shape)', file: DETECTION,
+      find: '  const answer = firstAnswer;\n', to: '  const answer = firstAnswer;\n  answer.settle({ agents: [], scannedAt: 0 });\n', owners: ['N23'] },
+    // The fix round's floor reader: the version ALONE, and a prerelease of the floor below it.
+    { n: 'P30', name: 'the floor read off a line with words around the version', file: REGISTRY,
+      find: "  if (read === null || read !== version) return 'unread';", to: "  if (read === null) return 'unread';", owners: ['N31', '11.8'] },
+    { n: 'P31', name: 'a prerelease of the floor read as holding it', file: REGISTRY,
+      find: "  return compareSpecStoryVersions(read, PI_INLINE_FLOOR) > 0 || read === PI_INLINE_FLOOR ? 'holds' : 'below';", to: "  return compareSpecStoryVersions(read, PI_INLINE_FLOOR) >= 0 ? 'holds' : 'below';", owners: ['N31', '11.8'] },
+    // The fix round's own composition: a person's launch flags read off the row, so ones put first are told apart.
+    { n: 'P32', name: "a row's own composition read with none of its own launch flags", file: DETECTION,
+      find: '        flags = launched.slice(at + pair.length);\n', to: '', owners: ['N32', 'N33', 'N34'] },
+    // THE RULED ROUND'S ARMS (his ruling of 2026-11-02, R1): only pi's own package.
+    { n: 'P33', name: "the floor read for any file the scan read, a shim's, a wrapper's or a copy's", file: DETECTION,
+      find: "  if (!insidePiPackage(bin)) return 'unread';\n", to: '', owners: ['11.10', 'N35', 'N36', 'N37', 'N38', 'N39', 'N40', 'N46'] },
+    { n: 'P34', name: "any package read as pi's own", file: DETECTION,
+      find: '(parsed as { name?: unknown }).name === PI_PACKAGE_NAME', to: '(parsed as { name?: unknown }).name !== undefined', owners: ['11.10', 'N41', 'N44'] },
+    { n: 'P35', name: "a package.json that cannot be read or parsed read as pi's", file: DETECTION,
+      find: '      } catch {\n        return false;\n      }\n    }\n    const up = dirname(dir);', to: '      } catch {\n        return true;\n      }\n    }\n    const up = dirname(dir);', owners: ['N42', 'N43', 'N44'] },
+    { n: 'P36', name: 'a nearer package.json passed over for one further up', file: DETECTION,
+      find: '        return typeof parsed === \'object\' && parsed !== null && (parsed as { name?: unknown }).name === PI_PACKAGE_NAME;',
+      to: '        if (typeof parsed === \'object\' && parsed !== null && (parsed as { name?: unknown }).name === PI_PACKAGE_NAME) return true;',
+      owners: ['N45', 'N44'] },
+    // THE SECOND RULED ROUND'S ARMS (his ruling of 2026-11-02, "Check the file that runs").
+    { n: 'P37', name: "a relative PATH entry read from this process's folder, not the session's", file: DETECTION,
+      find: "    const dir = entry.length === 0 ? folder : entry.startsWith('/') ? entry : `${folder}/${entry}`;", to: '    const dir = entry.length === 0 ? folder : entry;',
+      owners: ['11.11', 'N47', 'N50', 'N51', 'N52', 'N55', 'N56'] },
+    { n: 'P38', name: 'empty PATH entries passed over', file: DETECTION,
+      find: '  for (const entry of path.split(delimiter)) {\n', to: '  for (const entry of path.split(delimiter)) {\n    if (entry.length === 0) continue;\n',
+      owners: ['11.11', 'N48', 'N53', 'N54'] },
+    { n: 'P39', name: "the pane's file told from the checked one by its spelling", file: DETECTION,
+      find: '    const st = statSync(bin, { bigint: true });\n    return st.dev === runs.dev && st.ino === runs.ino;\n', to: '    return runs.at === bin;\n',
+      owners: ['11.11', 'N49', 'N57'] },
+    { n: 'P40', name: 'the create asking the floor for the file it records, not the file its pane runs', file: CREATE,
+      find: 'piInlineFloorFor(binPath, spawnedBy)', to: 'piInlineFloorFor(binPath)',
+      owners: ['11.11', 'N50', 'N51', 'N52', 'N53', 'N54', 'N55', 'N56'] },
+    { n: 'P41', name: "pi's package name read by its unscoped half under any scope", file: DETECTION,
+      find: '(parsed as { name?: unknown }).name === PI_PACKAGE_NAME', to: "String((parsed as { name?: unknown }).name).split('/').pop() === PI_PACKAGE_NAME.split('/').pop()",
+      owners: ['N58', 'N59', 'N44'] },
+    // THE THIRD RULED ROUND'S ARMS (his ruling of 2026-11-03, "No switch for # folders").
+    { n: 'P42', name: 'a folder holding a # walked as written, though tmux reads -c as a format', file: DETECTION,
+      find: " || folder.includes('#')", to: '',
+      owners: ['11.11', 'N60', 'N61', 'N63', 'N64'] },
+    { n: 'P43', name: "the walk handed the project's folder, not the session's", file: CREATE,
+      find: 'folder: cwd }', to: 'folder: input.projectPath }',
+      owners: ['11.11', 'N62'] },
+    // THE FOURTH RULED ROUND'S ARM (his ruling of 2026-11-04, "Treat a trailing ; like #").
+    { n: 'P44', name: "a folder ending in ; walked as written, though tmux's argument reader reads \\; as ;", file: DETECTION,
+      find: " || folder.endsWith(';')", to: '',
+      owners: ['11.11', 'N65', 'N66', 'N67', 'N68'] }
   ];
 }
 
@@ -350,7 +638,7 @@ function runGate() {
     timeout: 300_000
   });
   const text = `${r.stdout ?? ''}${r.stderr ?? ''}`;
-  const red = GATE_ROWS.filter((row) => text.includes(`Phase 331 ${row} (`));
+  const red = GATE_ROWS.filter((row) => text.includes(`Phase ${GATE_PHASE[row]} ${row} (`));
   return { code: r.status ?? 1, red, tail: text.split('\n').slice(-8).join('\n') };
 }
 
@@ -395,7 +683,7 @@ const started = Date.now();
 let ran = 0;
 let owned = 0;
 
-const WATCHED = [REGISTRY, EXTRAS, REMOTE_RECORD, HARVEST, PASS, OVERLAY, SCREEN, CASES, PANE, RESUME, REPORT, ...TEST_FILES, 'build/conformance-agents.mjs', 'build/agents-conformance-probe.mts'];
+const WATCHED = [REGISTRY, EXTRAS, REMOTE_RECORD, HARVEST, PASS, OVERLAY, SCREEN, CASES, PANE, RESUME, REPORT, CORE, DETECTION, RESTORE, ARM, REMOTE_SESSIONS, CREATE, ...TEST_FILES, 'build/conformance-agents.mjs', 'build/agents-conformance-probe.mts'];
 const before = new Map(WATCHED.filter((f) => existsSync(join(REPO, f))).map((f) => [f, sha(readFileSync(join(REPO, f)))]));
 
 try {
@@ -403,16 +691,20 @@ try {
     if (!existsSync(join(REPO, f))) problems.push(`the owning test file ${f} is not in the tree, so its rows cannot own anything`);
   }
   if (problems.length > 0) throw new Error('control red');
-  // Every title is written in its file, or it cannot be an owner.
-  for (const [short, [file, title]] of Object.entries(TITLES)) {
-    if (count(readFileSync(join(REPO, file), 'utf8'), title) === 0) problems.push(`${short}'s title is not written in ${file}: ${title}`);
+  // Every title is written in its file, or it cannot be an owner (a title the
+  // file writes as a template names its written form third, Phase 350).
+  for (const [short, [file, title, written]] of Object.entries(TITLES)) {
+    if (count(readFileSync(join(REPO, file), 'utf8'), written ?? title) === 0) problems.push(`${short}'s title is not written in ${file}: ${written ?? title}`);
   }
 
   buildClone();
   say(`clone at ${scratch}, node_modules and build/vendor symlinked, nothing under a home touched`);
 
   const list = arms(readFileSync(join(REPO, REGISTRY), 'utf8'), readFileSync(join(REPO, OVERLAY), 'utf8'));
-  const only = (process.env['P331_ONLY'] ?? '').split(',').map((s) => s.trim()).filter((s) => s !== '');
+  // Phase 350: `--only A,B` (or `--only=A,B`) beside P331_ONLY, as ablation:p320 takes it.
+  const at = process.argv.findIndex((a) => a === '--only' || a.startsWith('--only='));
+  const argOnly = at < 0 ? '' : process.argv[at].startsWith('--only=') ? process.argv[at].slice('--only='.length) : (process.argv[at + 1] ?? '');
+  const only = `${process.env['P331_ONLY'] ?? ''},${argOnly}`.split(',').map((s) => s.trim()).filter((s) => s !== '');
   for (const name of only) {
     if (name !== 'CTRL' && !list.some((a) => a.n === name)) problems.push(`P331_ONLY names ${JSON.stringify(name)}, which is no arm`);
   }
@@ -429,7 +721,7 @@ try {
     throw new Error('control red');
   }
   table.push(['CTRL', 'green', `${String(control.ran)} vitest rows and conformance:agents, unedited`]);
-  say(`control: ${String(control.ran)} rows green over the five files, and conformance:agents green`);
+  say(`control: ${String(control.ran)} rows green over the ${String(TEST_FILES.length)} files, and conformance:agents green`);
 
   for (const arm of list) {
     if (only.length > 0 && !only.includes(arm.n)) continue;

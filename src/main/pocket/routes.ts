@@ -77,7 +77,10 @@
  * PocketFacts.removeConfirmOf}) and copied here FIELD BY FIELD onto
  * `/v1/session` as `removeConfirm`; and whether a screen takes a paste rides
  * the screen answer as `paste`, copied ONLY while the route is served
- * ({@link PocketFacts.pasteAllowed}).
+ * ({@link PocketFacts.pasteAllowed}). (Phase 350) Whether a screen takes Page
+ * Up and Page Down rides it as `pages`, copied as the literal `true` exactly
+ * where the composer set it, with no served gate, because a page is a `keys`
+ * write.
  *
  * (Phase 346) Whether a phone may start a session, and what it may start, is
  * composed outside this domain too ({@link PocketFacts.start}), starting
@@ -1331,6 +1334,9 @@ function wrapsCopyOf(value: unknown, limit: number): number[] | null {
  * PHASE 348 (D30, D43): `paste` is copied, as the literal `true`, ONLY when
  * the caller says the route is served AND the composer set it, and is set
  * nowhere else; `wraps` only after {@link wrapsCopyOf}'s own check.
+ *
+ * PHASE 350 (build/p350/SPEC.md D6): `pages` is copied, as the literal
+ * `true`, only when the composer set it to `true`, and is set nowhere else.
  */
 function screenBodyOf(screen: PocketScreen, pasteServed: boolean): PocketScreen | 'large' | null {
   if (typeof screen !== 'object' || screen === null) return null;
@@ -1400,11 +1406,21 @@ function screenBodyOf(screen: PocketScreen, pasteServed: boolean): PocketScreen 
   };
   // PHASE 348 (D30): the paste flag, only where the route is served.
   if (pasteServed && screen.paste === true) body.paste = true;
+  // PHASE 350 (build/p350/SPEC.md D5, D6): the page offer, as the literal and
+  // only where the composer set it. No served gate: a page rides `keys`, one
+  // of the eleven routes every allowed door answers (LEGACY_ALLOWED_ROUTES).
+  if (screen.pages === true) body.pages = true;
   // PHASE 348 (D43): the wrap marks, after their own check, or no key.
   const wraps = wrapsCopyOf(screen.wraps, rows);
   if (wraps !== null) body.wraps = wraps;
   return body;
 }
+
+/**
+ * PHASE 350 FIX ROUND. What the page offer adds to an answer's JSON, the key
+ * and the comma before it: never the first key, so always these 13 bytes.
+ */
+const PAGES_OFFER_BYTES = Buffer.byteLength(',"pages":true', 'utf8');
 
 /**
  * THE SCREEN ANSWER AS THE DOOR SERVES IT (D13), composed FIELD BY FIELD from
@@ -1452,7 +1468,14 @@ export function screenOf(
   if (screen === 'large') return absent('large');
   const composed: PocketScreenAnswer = { sessionId, revision, at, unchanged: false, screen, why: null, sentence: null };
   // The whole answer's bytes, as the door will send them, under the cap.
-  if (Buffer.byteLength(JSON.stringify(composed), 'utf8') > POCKET_SCREEN_MAX_BYTES) return absent('large');
+  const over = Buffer.byteLength(JSON.stringify(composed), 'utf8') - POCKET_SCREEN_MAX_BYTES;
+  if (over > 0) {
+    // PHASE 350 FIX ROUND. The page offer's own bytes never make `large` an
+    // answer the build before this phase served: one over the cap by no more
+    // than the offer is served without it, exactly as that build served it.
+    if (screen.pages !== true || over > PAGES_OFFER_BYTES) return absent('large');
+    delete screen.pages;
+  }
   return composed;
 }
 

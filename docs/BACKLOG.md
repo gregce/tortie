@@ -44107,6 +44107,65 @@ integrator owns `CLAUDE.md`, `CHANGELOG.md`, `conformance-agents.mjs`, `conforma
 `P316DriveUITests.swift` and the ablation files), verify, fix once, an independent reverify that re-runs the failed
 items live, commit. A second needs_work goes to him.
 
+### His rulings of 2026-11-02, 2026-11-03 and 2026-11-04 (the ruled rounds)
+
+The reverify answered needs_work on one case worse than today: a pi reached through a version manager's shim, in a
+project that pins pi below 0.84.0, was handed `--tui-mode regular` and stopped after its trust question at every
+launch, because the shim is one file whose dispatcher picks pi's version by folder. His words: "OK take your defaults
+please for the fix to 350", and "ok do the allow". One ruled fix round, then an independent reverify
+(`build/p350/SPEC.md` §15 and §As built, "The ruled fix round").
+
+- **R1, only pi's own package.** The token is composed, kept at restore and put in by the pass only when pi's real file
+  sits inside pi's own installed package, the package.json nearest above it naming `@earendil-works/pi-coding-agent`
+  (the install map's npm route, and pi 0.84.2's own package.json read as text), and the version was read from that
+  same file. A version manager's shim or dispatcher (mise, rtx, asdf, volta, proto, an nvm-style wrapper), pnpm's
+  shell shim, any wrapper script, a copy of pi's file and a package.json that cannot be read all read `unread`, and pi
+  runs there exactly as today. Files are read, never run. The trade: pi behind a version manager keeps today's
+  full-screen view, and the CHANGELOG item says so.
+- **R2, the warm kept as built** (D18): the scan starts at a pi user's first terminal bytes.
+- **R3, the real pi in `conformance:resume:capture`**, with Claude Code and Codex, to its first screen and no turn;
+  the reverifier runs it, and the main session again at landing.
+- **R4, his session count allowed.** `build/electron-run.mjs`'s census of his session names, once before and once
+  after a launch that names `tmuxSocket`, read only, is allowed and Phase 349's "not even to count" is withdrawn:
+  `probe:p350` and `probe:p349` launch in the standard form again, and the census guard is retired.
+- The phone's `flush()` nit is not taken: no phone file moves in the round, and it is a stated limit.
+- **R5, the file that runs** (the second ruled round, the same day). The ruled round's reverify answered needs_work on
+  one case worse than today: a create spawns pi by its bare name, so a relative PATH entry ahead of the global pi
+  (`node_modules/.bin`, the common `export PATH=./node_modules/.bin:$PATH`) found a project's own pi below 0.84.0,
+  which was handed the token and stopped after its trust question at every create in that project. His words: "Check
+  the file that runs. Before adding the switch, find pi the way the terminal will, starting from the session's folder.
+  Add the switch only when that's the file Tortie checked. Otherwise pi starts exactly as today. It reads files and runs
+  nothing." One resolver walks the pane's PATH from the session's own folder as execvp does, and the desk's create, the
+  phone's start and Restart's replacement compose the token only when it finds the very file the floor was read for,
+  by device and inode. A project's own pi found first keeps today's view, and the CHANGELOG item says so. One fix
+  round, then an independent reverify (`build/p350/SPEC.md` §15 item 6 and §As built, "The second ruled fix round").
+- **R6, a folder holding a `#`** (the third ruled round, 2026-11-03). The second ruled round's reverify answered
+  needs_work on one case worse than today: Tortie hands a session's folder to tmux as written, tmux reads
+  `new-session -c` as a format, so a folder such as `C#Tools` starts its pane in the tmux server's HOME (3.7b and
+  3.6a), and the walk from the folder as written gave the token to the global pi while the pane ran HOME's older pi,
+  which stopped after its trust question. His words: "No switch for # folders. When the folder name has a #, pi starts
+  exactly as today. One small change, two more planted tests and an independent check." The resolver reads no file for
+  a folder holding a `#` anywhere in its path, its own name or a parent's, so pi starts there exactly as today; no
+  other character among the 50 spellings measured on 3.7b and 3.6a moved a pane, but a folder whose path ends in `;`,
+  which none of them did, does (R7). The reverify's nit, a session in a subfolder of its project, is planted beside
+  it. And "Add it to Phase 353": the older bug itself, that every session whose folder path holds a `#` starts in the
+  home folder, for every agent, at create and at restore, went to Phase 353 as its entry Phase 354, which escapes the
+  `#` where a create hands tmux its folder and takes this round's clause out in the same commit. Nothing in Phase 350
+  changes how a folder is handed to tmux, and the CHANGELOG does not move. One fix round, then an independent reverify
+  (`build/p350/SPEC.md` §As built, "The third ruled fix round").
+- **R7, a folder ending in `;`** (the fourth ruled round, 2026-11-04). The third ruled round's reverify answered
+  needs_work on two cases worse than today: tmux's argument reader ends a tmux command at an argument ending in `;` and
+  reads one ending in `\;` as ending in `;`, so a project folder named `semi\;` started its pane in HOME, and one named
+  `twin\;` in a `twin;` beside it, and the walk from the folder as written gave the token to the global pi while the
+  pane ran the older pi there, which stopped after its trust question. His words: "Treat a trailing ; like #. If the
+  folder name ends in ;, pi starts exactly as it does today, which is the rule you chose for #." One more term in the
+  same guard reads no file for a folder whose path ends in `;`, so pi starts there exactly as today; a `;` anywhere
+  else, which tmux takes as written, is walked as before, and a folder ending in a plain `;` cannot be created at either
+  build. The older bug, that a folder ending in `\;` starts every agent in the home folder or in its twin, at create
+  and at restore, is Phase 353's with the `#` (its entry Phase 354), which escapes a trailing `;` and takes both clauses
+  out in the same commit. Nothing in Phase 350 changes how a folder is handed to tmux, and the CHANGELOG does not move.
+  One fix round, then an independent reverify (`build/p350/SPEC.md` §As built, "The fourth ruled fix round").
+
 ### What is NOT in this phase
 
 - **No wheel or mouse report from the phone.** D4 names what it would take.

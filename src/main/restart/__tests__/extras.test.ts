@@ -205,6 +205,54 @@ describe('a shell pane', () => {
   });
 });
 
+/**
+ * PHASE 350 (build/p350/SPEC.md D15, M2's planted rows). pi's inline token is
+ * composed only when this Mac reads pi at the floor, and `fixedLaunchTokens`
+ * names it at every version, so the comparison composes Shape 1 and Shape 2
+ * with the floor answered `true`. Without that, M2 measured a row recorded
+ * with the token recovering null (Restart then drops `--model m`) and a row
+ * with no id recovering the token itself as a person's flag.
+ */
+describe("pi's inline token never comes back as a flag (Phase 350)", () => {
+  const PI = '/Users/x/.npm-global/bin/pi';
+  const U = '019a0000-0000-7000-8000-000000000001';
+  const TOK = ['--tui-mode', 'regular'];
+  const piRow = (argv: string[], id: string | null = U): ManifestSessionRecord =>
+    row('pi', argv, id === null ? {} : { agentSessionId: id });
+
+  it("M2's eight planted rows, each byte for byte", () => {
+    const cases: Array<[string, ManifestSessionRecord, string[] | null]> = [
+      ['R1 pre-phase', piRow([PI, '--session-id', U]), []],
+      ['R2 pre-phase with --model m', piRow([PI, '--session-id', U, '--model', 'm']), ['--model', 'm']],
+      ["R3 a person's --tui-mode fullscreen", piRow([PI, '--session-id', U, '--tui-mode', 'fullscreen']), ['--tui-mode', 'fullscreen']],
+      ['R4 HEAD, the token', piRow([PI, ...TOK, '--session-id', U, '--model', 'm']), ['--model', 'm']],
+      ["R5 HEAD, the token and a person's full screen", piRow([PI, ...TOK, '--session-id', U, '--tui-mode', 'fullscreen']), ['--tui-mode', 'fullscreen']],
+      ["R6 another machine's", { ...piRow(['/far/bin/pi', '--session-id', U]), machineId: 'mac-pro' }, []],
+      ['R7 discarded', { ...piRow([PI, '--session-id', U]), status: 'discarded' }, []],
+      ['R8 no id', piRow([PI], null), []]
+    ];
+    for (const [name, rec, want] of cases) {
+      expect(recoverLaunchExtras(rec), name).toEqual(want);
+    }
+  });
+
+  it('the replacement composes the token afresh from the floor read at that moment', () => {
+    // A create at the floor and below it, both recovered the same way.
+    for (const floor of [true, false]) {
+      const spec = buildLaunchSpec('pi', ['--model', 'opus'], PI, floor);
+      expect(spec.argv.slice(1, 3), String(floor)).toEqual(floor ? TOK : ['--session-id', spec.agentSessionId]);
+      const rec = piRow(spec.argv, spec.agentSessionId ?? null);
+      const extras = recoverLaunchExtras(rec);
+      expect(extras, String(floor)).toEqual(['--model', 'opus']);
+      expect(extras ?? [], String(floor)).not.toContain('--tui-mode');
+    }
+  });
+
+  it("a person's own --tui-mode regular after the id is still theirs", () => {
+    expect(recoverLaunchExtras(piRow([PI, '--session-id', U, ...TOK]))).toEqual(TOK);
+  });
+});
+
 describe('when the flags cannot be proven the answer is null, not empty', () => {
   // A row that says it has a pre-assigned conversation id, with an argv that
   // does not carry the pair that would have assigned it. Either the row or the

@@ -50,6 +50,18 @@
 // its own stamp and never the picture at the flush, so a question drawn after
 // his press is answered `changed` by the Mac and nothing is typed; and the
 // one-batch-per-picture lock holds for it as for keys. No Return is added.
+//
+// A PAGE (Phase 350, build/p350/SPEC.md D7, D8, D22) is one named key, Page
+// Up or Page Down, from a pull on a full-screen picture
+// (Screens/ScreenScroller.swift `ScreenPull`). It goes through this ONE
+// sender too, queued as a key he typed and sent by the one flush, which
+// stamps the picture's turn and dialog, paces it and keeps one write in
+// flight, alone in its write as every named key but Backspace is. Only while
+// the picture drawn offers pages, takes keys and does not ask, at the pull
+// and again when its write starts: a page waiting behind a write is dropped,
+// unsaid, if the picture drawn when it would go stopped offering pages or
+// asks. It draws no line, and it does not call `onSend`: a full-screen
+// picture holds no phone history to return from.
 
 import Foundation
 import Observation
@@ -189,6 +201,17 @@ final class ScreenKeySender {
         flush()
     }
 
+    /// One page from a pull (Phase 350, D7, D8, D22): Page Up or Page Down,
+    /// and no other key, queued as one key he typed and sent by the one
+    /// flush, only while the picture drawn offers pages, takes keys and does
+    /// not ask. Nothing is said (D10), and the Terminal is not sent back to
+    /// live: a full-screen picture holds no history here.
+    func page(_ key: ScreenKeyName) {
+        guard key.isPage, !stopped, let drawn = picture(), drawn.pages, drawn.typable, !drawn.asking else { return }
+        pending.append(.key(.key(key)))
+        flush()
+    }
+
     /// A new picture was drawn: the lock may be released, and what waits may
     /// go.
     func pictureChanged() {
@@ -243,6 +266,15 @@ final class ScreenKeySender {
             line = Copy.screenCannotType
             return
         }
+        // A page goes only against a picture that still offers it (Phase
+        // 350, D8), asked again whenever its write might start: one that
+        // waited behind a write or the gap while the picture stopped offering
+        // pages, or began to ask, is dropped, unsaid (D10), before the lock
+        // below could say anything for it.
+        while case .key(.key(let name))? = pending.first, name.isPage, !(drawn.pages && !drawn.asking) {
+            pending.removeFirst()
+        }
+        guard !pending.isEmpty else { return }
         if drawn.asking, lockHolds(drawn) {
             pending = []
             line = Copy.screenWaitForRedraw

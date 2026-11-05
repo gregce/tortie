@@ -68,7 +68,17 @@ import {
   type ActivitySession
 } from '../activity';
 import { AttachHost } from '../attach';
-import { warmDetectionAtBoot } from '../agents';
+import {
+  // PHASE 350 (D18, D19). When this process's agent scan first answers, the
+  // floor pi's inline token is composed behind (read for each row's own
+  // binary since the fix round), a row's own resume composition, and the warm
+  // a local pi row asks for at the first terminal bytes.
+  firstScanAnswered,
+  piInlineFloorFor,
+  piOwnResumeArgv,
+  warmDetectionAtBoot,
+  warmDetectionForLocalPi
+} from '../agents';
 import { noteActivityNow, type ActivityNow } from './activity-now';
 import { markMilestone, MILESTONES } from '../diagnostics/milestones';
 // The durable writer's own failure type and its own out-of-space test
@@ -549,6 +559,10 @@ import {
   startIdCapture,
   type IdHarvestDeps
 } from './id-harvest';
+// PHASE 350. The pi arm of Phase 331's inline switch pass. It cannot run at the
+// first refresh, where Phase 331's runs, because no version has been read then;
+// boot() runs it once, when the agent scan first answers.
+import { repairPiInlineOnce } from './inline-repair';
 // PHASE 125. The snapshot pass and the manifest generation the quit and sleep
 // paths take. The ORDER shutdownGmuxCore runs them in stays in this file.
 import {
@@ -974,6 +988,13 @@ export class GmuxCore {
   private statusPollMs = STATUS_POLL_MS;
   private statusPollBusy = false;
   private disposed = false;
+  /**
+   * PHASE 350 (build/p350/SPEC.md D18). Set by the first terminal chunk with
+   * bytes, so the pi warm on that edge is asked once per process. Its own flag,
+   * and never the diagnostics milestone, which is a measurement and not a
+   * switch.
+   */
+  private piWarmAsked = false;
 
   /**
    * Phase 116, refusal site B, moved to ./mutation-ledger.ts by Phase 125.
@@ -1132,6 +1153,23 @@ export class GmuxCore {
         // Phase 163: first bytes, the last startup milestone. One Set lookup
         // per chunk after it lands, and nothing else on this edge.
         if (byteLength > 0) markMilestone(MILESTONES.firstBytes);
+        // PHASE 350 (D18). Once per process, at the first chunk with bytes:
+        // the one memoised agent scan starts here when the manifest holds a pi
+        // row on this Mac a person would see, so pi's floor is read for the
+        // pass and the next restore, and never at boot, where Phase 164
+        // measured the probes slowing the first attach. The chunk has already
+        // been sent to its window. A failure is one log line and changes
+        // nothing about the terminal.
+        if (byteLength > 0 && !this.piWarmAsked) {
+          this.piWarmAsked = true;
+          try {
+            warmDetectionForLocalPi(this.manifest.listSessions());
+          } catch (err) {
+            sessionsLog.warn(
+              `the pi version read at the first terminal bytes did not start: ${(err as Error).message}`
+            );
+          }
+        }
         this.onTermData?.(sessionId, byteLength);
       },
       onExit: (sessionId, _exitCode, expected) => {
@@ -1548,6 +1586,27 @@ export class GmuxCore {
     // records the version as unknown when no scan has resolved, which the
     // manifest column has always tolerated.
     warmDetectionAtBoot(core.manifest.listSessions());
+    // PHASE 350 (build/p350/SPEC.md D19, §4.2 step 2). The pi rows already
+    // written take pi's inline token, or lose it below the floor, once THIS
+    // process's agent scan first answers, whoever starts it: a surface, a
+    // restore, the warm above, or the first terminal bytes' warm in the
+    // constructor. Subscribing starts nothing. The pass reads that scan through
+    // its two readers, the floor of each row's own binary and the row's own
+    // composition (the fix round), runs once with its own latch, and asks
+    // first whether this core has been disposed, because its manifest is
+    // closed then. A throw is one line; the rows it did not reach keep what
+    // they had.
+    void firstScanAnswered()
+      .then(() => {
+        if (core.disposed) return;
+        repairPiInlineOnce(core.manifest, { floorFor: piInlineFloorFor, ownResume: piOwnResumeArgv });
+      })
+      .catch((err: unknown) => {
+        sessionsLog.warn(
+          `the pi inline token pass did not finish: ${(err as Error).message}. ` +
+            'Every row it did not reach keeps its resume command.'
+        );
+      });
     // Phase 13.7 — one disk check, off the boot path. Boot is the moment
     // "sessions may not be saved when you quit" can still be acted on, and
     // this is deliberately the ONLY unprompted sample: the alternative was an

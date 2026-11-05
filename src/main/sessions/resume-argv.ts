@@ -41,18 +41,35 @@ export interface ComposedResume {
 }
 
 /**
+ * The agent's own binary a composed resume runs (rule 1 above): under capture
+ * the agent's argv[0] from the capture record, else the row's recorded
+ * argv[0], else the registry's bare name. PHASE 350 FIX ROUND: exported so a
+ * caller asks pi's floor for exactly this file (`piInlineFloorFor`), the one
+ * the composed argv names.
+ */
+export function resumeBinOf(rec: ManifestSessionRecord, agent: LaunchableAgentId): string {
+  return rec.specstory?.agentArgv[0] ?? rec.argv[0] ?? agentBinaryName(agent);
+}
+
+/**
  * The resume argv for this row and this conversation id, or null when the
  * registry cannot compose one.
+ *
+ * `floorHolds` (Phase 350, D20) is handed to `registryResumeArgv`: TRUE only
+ * when the caller read this Mac's pi at `PI_INLINE_FLOOR` or later for the
+ * binary {@link resumeBinOf} names, which puts pi's inline token straight after
+ * that binary. Every production caller passes it explicitly; the two Codex
+ * recompositions pass `false`.
  */
 export function composeResumeArgv(
   rec: ManifestSessionRecord,
   agent: LaunchableAgentId,
   sessionId: string,
-  extraArgs: readonly string[]
+  extraArgs: readonly string[],
+  floorHolds = false
 ): ComposedResume | null {
   const capture = rec.specstory;
-  const innerBin =
-    capture?.agentArgv[0] ?? rec.argv[0] ?? agentBinaryName(agent);
+  const innerBin = resumeBinOf(rec, agent);
   // `registryResumeArgv` THROWS for an agent the registry holds but cannot
   // launch in a session, e.g. cursoride, whose resume is a row written into
   // another program's database rather than a command. The harvest path never
@@ -62,7 +79,7 @@ export function composeResumeArgv(
   // land inside something nobody is awaiting, so it is an answer here.
   let innerResume: string[];
   try {
-    innerResume = registryResumeArgv(agent, sessionId, extraArgs, innerBin);
+    innerResume = registryResumeArgv(agent, sessionId, extraArgs, innerBin, floorHolds);
   } catch {
     return null;
   }

@@ -842,7 +842,12 @@
  *       own PS3 and PS6 run on the rebuilt view on both runtimes (PS3, PS6, PS9)
  *   PS15 26.3: Catch Me Up from its icon: the now card after the newest turn,
  *       318's box on an idle stand-in, End top right, Back to the Terminal
- *   PS16 26.3: a full-screen stand-in: drags up draw no history and no line
+ *   PS16 26.3: a full-screen stand-in: drags up draw no history and no line.
+ *       SPLIT BY PHASE 350 (build/p350/SPEC.md §8.3): its stand-in is
+ *       build/p350/stand-in.mjs --mode altonly (the alternate screen, no
+ *       mouse), whose log reads every byte; PS16a, exactly one ESC[5~ in it
+ *       for each drag (a pull down past the top), and PS16b, that old grade,
+ *       which holds
  *   PSH 26.3: every scrollback arm of build/p316/hostile-door.mjs
  *       (SCROLLBACK_ARMS): the live terminal drawn and the app in front; a
  *       moved arm draws Copy.scrollbackMoved and asks no page after it; a
@@ -933,6 +938,37 @@
  * is PL5's), PS10 (the ⋯ and its two items, Copy beside it), PS15 (through the
  * menu), E1 (the menu's End, Face ID's mark in the open menu, End gone after),
  * E2, E3, E5 and E6 (End through the menu).
+ *
+ * PHASE 350, THE `pages` GROUP (build/p350/SPEC.md §8.3, `P316_ARMS=pages`,
+ * in the default list), on the screen group's helpers: the pull on a
+ * full-screen picture. Its programs are build/p350/stand-in.mjs typed in a
+ * shell, every byte each reads written down in its own log (`p350SessionS`),
+ * and build/p318's codex stand-in on the alternate screen under a question for
+ * the asking picture; every grade reads those logs and the dump, never the
+ * app. The UI test's `pull:<label>:<from>:<to>` is one drag along the grid
+ * (0.3 to 0.75 of its height is PS16's drag, a pull down past the top), each
+ * printing when it began on the Mac's clock, and its `-blind` forms read
+ * nothing of the Terminal, for the 18.3 floor.
+ *   PG1 26.3: a full-screen pi (1.4.0, a person's --tui-mode fullscreen): one
+ *       pull down is one ESC[5~ and the next picture starts rows - 4 higher;
+ *       one pull up is one ESC[6~ and it is back
+ *   PG2 26.3: an inline picture (the claude stand-in): history drawn, nothing
+ *       typed
+ *   PG3 26.3: a pinch, a long press then a drag with the selection held, a
+ *       pull over a full-screen picture that asks (the Mac's own picture read
+ *       asking and pages, or UNREADABLE) and one on an ended session: nothing
+ *       reaches any program
+ *   PG4 26.3 sideways and PG5 zoomed by a double tap: a short drag within the
+ *       rows types nothing (whether the rows panned is printed: where they fit
+ *       the view there is nothing to pan), a long pull up past the bottom is
+ *       one ESC[6~
+ *   PG6 the hostile door's pages-absent (no keys write, the grid drawn) and,
+ *       with P350_PARENT_IOS (or P316_PARENT_IOS), c60c2a48's app driven by
+ *       THIS checkout's UI test over the full-screen pi: nothing reaches it
+ *   PGH pages-not-boolean: no keys write, the answer refused as a paste that
+ *       is not a Boolean is (Copy.screenNotAnswering)
+ *   PG7 18.3, blind: PG1's bytes, PS16a's three pulls and PG3's pinch, held
+ *       drag and asking picture
  *
  * PHASE 316.7, THE SESSIONS TAB (build/p3167/SPEC.md §9.4 and §9.5). The
  * Sessions tab reads `GET /v1/sessions` now and lays out what main composed:
@@ -1188,7 +1224,10 @@
  * (exit 2) when the checkout has no build.
  *
  *   npm run -s probe:p316
- *   P316_ARMS=order,floor,deny,hostile,end,reply,screen,sessions,setup,sample,start,remove,paste,rename    which arms (default all; `order` holds N11 and N0 to N8; `end` is Phase 317's, `reply` Phase 318's, `screen` Phase 337's, `sessions` Phase 316.7's, `setup` Phase 333.1's, `sample` Phase 333.3's, `start` Phase 346's, `remove` and `paste` Phase 348's, `rename` Phase 349's)
+ *   P316_ARMS=order,floor,deny,hostile,end,reply,screen,pages,sessions,setup,sample,start,remove,paste,rename    which arms (default all; `order` holds N11 and N0 to N8; `end` is Phase 317's, `reply` Phase 318's, `screen` Phase 337's, `pages` Phase 350's, `sessions` Phase 316.7's, `setup` Phase 333.1's, `sample` Phase 333.3's, `start` Phase 346's, `remove` and `paste` Phase 348's, `rename` Phase 349's)
+ *   P350_PARENT_IOS=<dir>                 Phase 350's PG6: the directory holding c60c2a48's ios/, copied into
+ *                                         the run's scratch with this checkout's UI test; P316_PARENT_IOS is
+ *                                         read when it is unset
  *   P346_PARENT_IOS=<dir>                 Phase 346's NP11: the directory holding 0b87d0af's ios/
  *   P348_PARENT_IOS=<dir>                 Phase 348's RV4: the directory holding d2bb05ee's ios/ (build 11);
  *                                         Phase 349's RMP reads it too
@@ -1269,7 +1308,9 @@ import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, w
 import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin, nameQuestionsSelfTest, nameQuestionsVerdict } from '../p332/dns-standin.mjs';
 import { manifestSessions, plantedResolve, within } from '../scratch-login.mjs';
 import { AGENTS_LIST_EXPR, hiddenAgentsBesides, hiddenAgentsPrecheck, hiddenAgentsScanVerdict, standInsOnlyVerdict, writeHiddenAgents } from '../hidden-agents.mjs';
-import { HOSTILE_ARMS, HOSTILE_NAME, HOSTILE_PUBLIC_PORT, P348_ARMS, P349_ARMS, PASTE_ARMS, PASTE_FLAG_ARMS, PASTE_UNKNOWN_SENTENCE, REMOVE_ARMS, REMOVE_UNKNOWN_SENTENCE, RENAME_ARMS, RENAME_UNKNOWN_SENTENCE, REPLY_ARMS, SCREEN_ARMS, SCROLLBACK_ARMS, START_ARMS, START_FAR, START_UNKNOWN_SENTENCE, UNKNOWN_STATUS_TITLE, hostileDoorArgv, markdownFixtures } from './hostile-door.mjs';
+import { HOSTILE_ARMS, HOSTILE_NAME, HOSTILE_PUBLIC_PORT, P348_ARMS, P349_ARMS, P350_ARMS, PAGES_ARMS, PASTE_ARMS, PASTE_FLAG_ARMS, PASTE_UNKNOWN_SENTENCE, REMOVE_ARMS, REMOVE_UNKNOWN_SENTENCE, RENAME_ARMS, RENAME_UNKNOWN_SENTENCE, REPLY_ARMS, SCREEN_ARMS, SCROLLBACK_ARMS, START_ARMS, START_FAR, START_UNKNOWN_SENTENCE, UNKNOWN_STATUS_TITLE, hostileDoorArgv, markdownFixtures } from './hostile-door.mjs';
+// Phase 350: the stand-in's own readers, so a grade and the stand-in read one spelling of its log, its view and its page.
+import { pageOf as p350PageOf, readLog as p350ReadLog, viewTopOf as p350ViewTopOf } from '../p350/stand-in.mjs';
 // Phase 346: NP10's one loopback port for two Macs, by each connection's server name.
 import { startSniRelay } from '../p345/sni-relay.mjs';
 import { hellos as p318Hellos, readLog as p318ReadLog, readState as p318ReadState, sendOps as p318SendOps, writeWrappers as p318WriteWrappers } from '../p318/stand-in.mjs';
@@ -1309,7 +1350,7 @@ const PROJECT = join(ROOT, 'ios', 'Tortie.xcodeproj');
 // `start` is Phase 346's (build/p346/SPEC.md §6.2): NP1 to NP11 and NPH, NP1, NP3 and NP5 on the floor too; since Phase 348 NB and NP12's tap grid on both runtimes and an iPhone SE.
 // `remove` and `paste` are Phase 348's (build/p348/SPEC.md §8.2): RV1 to RV6 and RVH; PA1 to PA8 and PAH; RV1, PA1 and PA8 on the floor too.
 // `rename` is Phase 349's (build/p349/SPEC.md §8.2): RM1 to RM10, RMP and RMH; RM1 and RM3 on the floor too.
-const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,deny,hostile,end,reply,screen,sessions,setup,sample,start,remove,paste,rename').split(',').map((s) => s.trim()));
+const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,deny,hostile,end,reply,screen,pages,sessions,setup,sample,start,remove,paste,rename').split(',').map((s) => s.trim()));
 if (ARMS.has('ats')) {
   // The ATS arm left with TailscaleKit (Phase 330): the phone has no tailnet
   // and no ATS exception, so there is nothing for it to prove.
@@ -1476,6 +1517,15 @@ const PARENT_IOS_3333 = (process.env['P3333_PARENT_IOS'] ?? '').trim();
  * never written.
  */
 const PARENT_IOS_3373 = (process.env['P3373_PARENT_IOS'] ?? '').trim();
+/**
+ * Phase 350's PG6 (build/p350/SPEC.md §8.3): the directory holding c60c2a48's
+ * ios/, copied into the run's scratch with THIS checkout's UI test, as PP1 to
+ * PP3 do, so the parent's app is pulled by the very steps HEAD's is. The spec
+ * names P316_PARENT_IOS, which PR also reads (at 28d89295), so this
+ * phase's own name is read first and P316_PARENT_IOS only when it is unset,
+ * as 337.1's PSP does.
+ */
+const PARENT_IOS_350 = (process.env['P350_PARENT_IOS'] ?? '').trim() || PARENT_IOS;
 /**
  * Phase 318: build/p318/stand-in.mjs's wrappers (never on the PATH: this
  * file's own `claude` hands a launch to its `claude` when the next mode is
@@ -7817,6 +7867,165 @@ function gradePs16(r) {
   return decide(p, [], `${String(readings.length - 1)} drag(s) up over a full-screen program drew no history and no line`);
 }
 
+// ---------------------------------------------------------------------------
+// Phase 350 (build/p350/SPEC.md §8.3): PS16a and the `pages` group
+// ---------------------------------------------------------------------------
+//
+// Every grade below reads what the PROGRAM read, from build/p350/stand-in.mjs's
+// own log (one line a read, `<ms> <hex>`, the Mac's clock) or build/p318's for
+// the asking session, cut at the moments the UI test printed (`startedAt`,
+// the same clock: the Simulator runs on this Mac), and the dump; never the
+// app's report of what it sent. The relay this file holds is a TCP forwarder
+// and cannot see a request inside TLS, so a page reaching the Mac is counted
+// where it lands, as bytes in the program.
+
+/** What Page Up and Page Down reach a program as, in all fifteen modes on every tmux M4 measured. */
+const PAGE_UP_HEX = '1b5b357e';
+const PAGE_DOWN_HEX = '1b5b367e';
+/** A pull's own window: from its start to the next pull on the same session, or this long when none follows. */
+const PULL_WINDOW_MS = 15_000;
+
+/**
+ * The live rows' labels of one Terminal reading, each AT ITS ROW `n` (a row the dump did not hold is ''), so a
+ * view's top read off them counts screen rows and not the dump's entries. THE PROBE REVIEW (2026-10-31): they were
+ * the entries in order, which put a row the accessibility tree skipped (a blank one, or one panned out of view)
+ * between two numbered rows' indices, and a page then read one row short.
+ */
+const liveLabels = (reading) => {
+  if (!Array.isArray(reading?.live)) return [];
+  const out = [];
+  for (const r of reading.live) if (Number.isInteger(r?.n) && r.n >= 0 && r.n < 1024) out[r.n] = String(r.label);
+  return Array.from(out, (x) => x ?? '');
+};
+
+/**
+ * PS16a (Phase 350): one ESC[5~ in the full-screen stand-in's own log for
+ * each pull down past the top, and nothing else, where Phase 337.1's PS16
+ * stand-in read nothing at all (PS16b, below, is that grade, which holds).
+ */
+function gradePs16a(r) {
+  if (!Number.isInteger(r?.pulls) || r.pulls < 1) return verdict(null, 'the full-screen session was not pulled');
+  if (!Array.isArray(r.reads)) return verdict(null, "the stand-in's log was not read");
+  const want = Array.from({ length: r.pulls }, () => PAGE_UP_HEX);
+  const p = J(r.reads) === J(want) ? [] : [`the stand-in read ${J(r.reads)} for ${String(r.pulls)} pull(s) down past the top, not ${String(r.pulls)} × ${PAGE_UP_HEX}`];
+  return decide(p, [], `${String(r.pulls)} pull(s) down past the top, each read by the program as exactly one ESC[5~ and nothing more`);
+}
+
+/**
+ * PG1 (Phase 350): a full-screen pi (1.4.0, a person's `--tui-mode
+ * fullscreen`): a pull down past the top sends exactly one ESC[5~ and the next
+ * picture's first row has moved up by `rows - 4`, pi's own page (D26); a pull
+ * up past the bottom sends one ESC[6~ and the view returns.
+ */
+function gradePg1(r) {
+  if (r?.down === null || r?.down === undefined || r?.up === null || r?.up === undefined) return verdict(null, 'the two pulls on the full-screen pi were not made');
+  if (r.down.grid !== true || r.up.grid !== true) return verdict(null, 'the full-screen pi drew no grid to pull');
+  const p = [];
+  const u = [];
+  if (J(r.readsDown) !== J([PAGE_UP_HEX])) p.push(`the pull down was read by pi as ${J(r.readsDown)}, not one ESC[5~`);
+  if (J(r.readsUp) !== J([PAGE_DOWN_HEX])) p.push(`the pull up was read by pi as ${J(r.readsUp)}, not one ESC[6~`);
+  if (r.blind !== true) {
+    const before = p350ViewTopOf(liveLabels(r.down.before));
+    const paged = p350ViewTopOf(liveLabels(r.down.after));
+    const back = p350ViewTopOf(liveLabels(r.up.after));
+    if (!Number.isInteger(r.rows) || r.rows < 1) u.push("the pane's height was not read");
+    else if (before === null || paged === null || back === null) u.push(`the view's top was not read off every picture (${J([before, paged, back])})`);
+    else {
+      const page = p350PageOf('rows-4', r.rows);
+      if (before - paged !== page) p.push(`the picture after the pull down starts ${String(before - paged)} rows up, not pi's page of ${String(page)} (rows - 4)`);
+      if (back !== before) p.push(`the picture after the pull up starts at line ${String(back + 1)}, not ${String(before + 1)}, where it was`);
+    }
+  }
+  return decide(p, u, r.blind === true ? 'one pull down read by pi as one ESC[5~ and one pull up as one ESC[6~ (read blind)' : `one pull down read as one ESC[5~, the picture paged up ${String(p350PageOf('rows-4', r.rows))} rows, and one pull up read as one ESC[6~, the picture back where it was`);
+}
+
+/** PG2 (Phase 350): an inline picture (the claude stand-in): the pull pages history and nothing reaches the program. */
+function gradePg2(r) {
+  if (r?.pull === null || r?.pull === undefined || r.pull.grid !== true) return verdict(null, 'the inline session was not pulled');
+  if (!Array.isArray(r.reads)) return verdict(null, "the stand-in's log was not read");
+  const p = [];
+  if (r.reads.length > 0) p.push(`the inline program read ${J(r.reads)}; a pull over an inline picture types nothing`);
+  if ((r.pull.after?.history ?? []).length === 0) p.push('no history row was drawn after the pull, so the inline picture did not page its history');
+  return decide(p, [], `a pull over the inline picture drew ${String((r.pull.after?.history ?? []).length)} history row(s) and typed nothing`);
+}
+
+/**
+ * PG3 (Phase 350): a pinch, a long press then a drag with the selection held,
+ * an asking full-screen picture and an ended session: nothing reaches any
+ * program.
+ */
+function gradePg3(r) {
+  const p = [];
+  const u = [];
+  const each = [
+    ['the pinch', r?.pinch],
+    ['the drag with a selection held', r?.held],
+    ['the pull over the asking picture', r?.asking],
+    // The floor's drive (PG7) opens no ended session.
+    ...(r?.floor === true ? [] : [['the pull on the ended session', r?.ended]])
+  ];
+  for (const [what, x] of each) {
+    if (x === null || x === undefined || x.event === null || x.event === undefined) {
+      u.push(`${what} was not made`);
+      continue;
+    }
+    if (!Array.isArray(x.reads)) u.push(`${what}: the program's log was not read`);
+    else if (x.reads.length > 0) p.push(`${what} reached a program as ${J(x.reads)}`);
+  }
+  if (r?.held?.event !== undefined && r?.held?.event !== null && r.held.event.selected !== true) u.push('the long press selected nothing, so the drag was not one with a selection held');
+  if (r?.asking !== undefined && r?.asking !== null && r.asking.screen !== undefined) {
+    const s = r.asking.screen;
+    if (s === null) u.push("the Mac's picture of the asking session was not read");
+    else if (s.asking !== true || s.pages !== true) u.push(`the Mac's picture of the asking session reads asking ${J(s.asking)} and pages ${J(s.pages)}, not both true, so the arm proves nothing about D8`);
+  }
+  if (r?.ended?.event !== undefined && r?.ended?.event !== null && r.ended.event.grid === true) p.push('the ended session drew a grid to pull');
+  return decide(p, u, 'a pinch, a drag with a selection held, a pull over a full-screen picture that asks and a pull on an ended session each reached no program');
+}
+
+/**
+ * PG4 and PG5 (Phase 350): sideways, and zoomed by double tap: a short drag
+ * within the rows sends nothing, and a long pull up past the bottom one
+ * ESC[6~. Whether the rows panned is printed: where they fit the view there
+ * is nothing to pan, and a short drag stays under the 44 pt travel anyway.
+ * THE FIX ROUND: PG5's short drag is 0.04 of the grid (about 26 pt on an
+ * iPhone 16 Pro, 19 on an SE), under the travel past the pan's own slop. Its
+ * earlier 0.12 was 77 pt on a 16 Pro, and a double tap zooms an 80x24 pane's
+ * rows to 344 pt, which still fits the 645 pt grid, so that drag was a pull
+ * 67 pt past the top and paged up, which is D21 working, not a defect.
+ */
+function gradePgSideways(r) {
+  if (r?.short === null || r?.short === undefined || r?.long === null || r?.long === undefined) return verdict(null, `the ${r?.what ?? 'sideways'} pulls were not made`);
+  if (r.short.grid !== true || r.long.grid !== true) return verdict(null, `the ${r.what ?? 'sideways'} picture drew no grid`);
+  if (r.what === 'zoomed' && r.zoomed !== true) return verdict(null, 'the double tap did not zoom the rows');
+  const p = [];
+  if (!Array.isArray(r.readsShort) || !Array.isArray(r.readsLong)) return verdict(null, "pi's log was not read");
+  if (r.readsShort.length > 0) p.push(`the short drag within the rows was read by pi as ${J(r.readsShort)}`);
+  if (J(r.readsLong) !== J([PAGE_DOWN_HEX])) p.push(`the long pull up past the bottom was read by pi as ${J(r.readsLong)}, not one ESC[6~`);
+  const y = (reading) => reading?.live?.[0]?.frame?.[1];
+  const panned = typeof y(r.short.before) === 'number' && typeof y(r.short.after) === 'number' && Math.abs(y(r.short.after) - y(r.short.before)) > 0.5;
+  return decide(p, [], `${r.what ?? 'sideways'}: the short drag ${panned ? 'panned the rows' : 'met rows that fit the view'} and typed nothing, and the long pull up was one ESC[6~`);
+}
+
+/** PG6 and PGH (Phase 350): a hostile door's page arm: no POST, and the arm's own end. */
+function gradePgHostile(r) {
+  const p = [];
+  if (r.alive !== RUNNING_FOREGROUND) p.push(`the app's state is ${J(r.alive)}, not running in the foreground`);
+  if (r.posts !== 0) p.push(`${String(r.posts)} keys write(s) reached the door; a pull over a picture that offers no page sends none`);
+  if (r.pulled !== true) return verdict(null, 'the pull was not made over the hostile picture');
+  if (r.ends === 'sentence') {
+    if (!(r.expect ?? []).map((w) => COPY_WORDS[w]).includes(r.line)) p.push(`the line reads ${J(r.line)}, none of the words its row names`);
+  } else if (r.ends === 'drawn' && !(r.rows > 0)) p.push('the grid was not drawn');
+  return decide(p, [], `ended ${r.ends === 'sentence' ? `in ${J(r.line)}` : 'drawn'}, no keys write`);
+}
+
+/** PG6 (Phase 350): the parent's app over this Mac: the pull it makes reaches no program. */
+function gradePgParent(r) {
+  if (r?.pulls === null || r?.pulls === undefined || r.pulls < 1) return verdict(null, "the parent's app made no pull");
+  if (!Array.isArray(r.reads)) return verdict(null, "pi's log was not read");
+  const p = r.reads.length > 0 ? [`the parent's app reached pi as ${J(r.reads)}; it knows no page`] : [];
+  return decide(p, [], `the parent's app pulled ${String(r.pulls)} time(s) over the full-screen pi and sent nothing`);
+}
+
 /**
  * PSH (Phase 337.1): each hostile scrollback arm ends with the live terminal
  * drawn and the app in front; a moved arm draws the moved line and asks no
@@ -9406,6 +9615,98 @@ function runSelfTestCases(cases) {
     const ok = got === c.want;
     if (!ok) bad += 1;
     console.log(`${ok ? 'ok  ' : 'FAIL'} ${c.what}${ok ? '' : ` (graded ${J(got)}, wanted ${J(c.want)})`}`);
+  }
+  return { total: cases.length, bad };
+}
+
+/** Phase 350: PS16a and the `pages` group (PG1 to PG7, PGH), proved both ways on readings written here. */
+function pagesSelfTest() {
+  const cases = [];
+  const add = (what, grader, input, want) => cases.push({ what, got: () => grader(input).ok, want });
+  const edit = (base, fn) => {
+    const copy = structuredClone(base);
+    fn(copy);
+    return copy;
+  };
+  /** A reading of a full-screen pi whose view starts at line `top + 1`, `rows` rows, the first `drawn` of them labelled. */
+  const view = (top, drawn = 6) => ({ live: Array.from({ length: drawn }, (_, n) => ({ n, label: `pi line ${String(top + n + 1).padStart(4, '0')}`, frame: [0, 160 + n * 9, 402, 9] })), history: [] });
+  const ps16a = { pulls: 3, reads: [PAGE_UP_HEX, PAGE_UP_HEX, PAGE_UP_HEX] };
+  add('PS16a passes three pulls read as three ESC[5~', gradePs16a, ps16a, true);
+  add('PS16a is red on a pull read as nothing (the parent)', gradePs16a, edit(ps16a, (r) => void r.reads.pop()), false);
+  add('PS16a is red on a page read twice', gradePs16a, edit(ps16a, (r) => void r.reads.push(PAGE_UP_HEX)), false);
+  add('PS16a is red on a Page Down for a pull down', gradePs16a, edit(ps16a, (r) => void (r.reads[1] = PAGE_DOWN_HEX)), false);
+  add('PS16a is red on a wheel report beside the pages', gradePs16a, edit(ps16a, (r) => void r.reads.push('1b5b3c36343b31303b354d')), false);
+  add('PS16a is UNREADABLE with no pull', gradePs16a, { pulls: 0, reads: [] }, null);
+  add('PS16a is UNREADABLE with the log unread', gradePs16a, edit(ps16a, (r) => void (r.reads = null)), null);
+  const rows = 40;
+  const pg1 = {
+    rows,
+    down: { grid: true, before: view(364), after: view(364 - (rows - 4)) },
+    up: { grid: true, before: view(364 - (rows - 4)), after: view(364) },
+    readsDown: [PAGE_UP_HEX],
+    readsUp: [PAGE_DOWN_HEX]
+  };
+  add('PG1 passes a page up of rows - 4 and back', gradePg1, pg1, true);
+  // THE PROBE REVIEW: a dump that skipped the top row of one picture still reads its top at the rows it holds.
+  add('PG1 passes when one picture\'s dump skips its top row (rows read at their n)', gradePg1, edit(pg1, (r) => void (r.down.before = { live: view(364).live.slice(1), history: [] })), true);
+  add('PG1 is red on the pull down read as nothing', gradePg1, edit(pg1, (r) => void (r.readsDown = [])), false);
+  add('PG1 is red on two pages for one pull', gradePg1, edit(pg1, (r) => void (r.readsDown = [PAGE_UP_HEX, PAGE_UP_HEX])), false);
+  add('PG1 is red on the pull up read as Page Up', gradePg1, edit(pg1, (r) => void (r.readsUp = [PAGE_UP_HEX])), false);
+  add('PG1 is red on a page of the whole height (not pi\'s rows - 4)', gradePg1, edit(pg1, (r) => void (r.down.after = view(364 - rows))), false);
+  add('PG1 is red on a view that never came back', gradePg1, edit(pg1, (r) => void (r.up.after = view(364 - (rows - 4)))), false);
+  add('PG1 is UNREADABLE with the pane height unread', gradePg1, edit(pg1, (r) => void (r.rows = null)), null);
+  add('PG1 is UNREADABLE with a picture whose top cannot be read', gradePg1, edit(pg1, (r) => void (r.down.after = { live: [{ n: 0, label: 'no number', frame: [0, 0, 1, 1] }] })), null);
+  add('PG1 is UNREADABLE with no pull made', gradePg1, edit(pg1, (r) => void (r.up = null)), null);
+  const pg7 = { blind: true, down: { grid: true }, up: { grid: true }, readsDown: [PAGE_UP_HEX], readsUp: [PAGE_DOWN_HEX] };
+  add('PG7 (PG1 blind) passes the bytes alone', gradePg1, pg7, true);
+  add('PG7 (PG1 blind) is red on no page', gradePg1, edit(pg7, (r) => void (r.readsDown = [])), false);
+  const pg2 = { pull: { grid: true, after: { live: view(0).live, history: [{ i: 1, label: 'claude line 0300', frame: [0, 100, 402, 9] }] } }, reads: [] };
+  add('PG2 passes an inline pull that drew history and typed nothing', gradePg2, pg2, true);
+  add('PG2 is red on a page typed into the inline program', gradePg2, edit(pg2, (r) => void (r.reads = [PAGE_UP_HEX])), false);
+  add('PG2 is red on no history drawn', gradePg2, edit(pg2, (r) => void (r.pull.after.history = [])), false);
+  add('PG2 is UNREADABLE with no pull', gradePg2, { pull: null, reads: [] }, null);
+  const pg3 = {
+    pinch: { event: { grid: true }, reads: [] },
+    held: { event: { grid: true, selected: true }, reads: [] },
+    asking: { event: { grid: true }, reads: [], screen: { asking: true, pages: true } },
+    ended: { event: { grid: false }, reads: [] }
+  };
+  add('PG3 passes four gestures that reached no program', gradePg3, pg3, true);
+  add('PG3 is red on a pinch that paged', gradePg3, edit(pg3, (r) => void (r.pinch.reads = [PAGE_UP_HEX])), false);
+  add('PG3 is red on a drag with a selection held that paged', gradePg3, edit(pg3, (r) => void (r.held.reads = [PAGE_UP_HEX])), false);
+  add('PG3 is red on a page over an asking picture', gradePg3, edit(pg3, (r) => void (r.asking.reads = ['1b5b357e'])), false);
+  add('PG3 is red on an ended session that drew a grid', gradePg3, edit(pg3, (r) => void (r.ended.event.grid = true)), false);
+  add('PG3 is UNREADABLE when the long press selected nothing', gradePg3, edit(pg3, (r) => void (r.held.event.selected = false)), null);
+  add('PG3 is UNREADABLE when the asking picture did not offer pages', gradePg3, edit(pg3, (r) => void (r.asking.screen.pages = false)), null);
+  add('PG3 is UNREADABLE with a gesture not made', gradePg3, edit(pg3, (r) => void (r.pinch.event = null)), null);
+  add('PG7 (PG3 on the floor) passes with no ended session asked', gradePg3, edit(pg3, (r) => Object.assign(r, { floor: true, ended: undefined })), true);
+  add('PG7 (PG3 on the floor) is red on a page over the asking picture', gradePg3, edit(pg3, (r) => Object.assign(r, { floor: true, ended: undefined, asking: { ...r.asking, reads: [PAGE_UP_HEX] } })), false);
+  const pg4 = { what: 'sideways', short: { grid: true, before: { live: [{ n: 0, label: 'pi line 0365', frame: [0, 100, 750, 9] }] }, after: { live: [{ n: 0, label: 'pi line 0365', frame: [0, 130, 750, 9] }] } }, long: { grid: true }, readsShort: [], readsLong: [PAGE_DOWN_HEX] };
+  add('PG4 passes a pan within the rows and one Page Down past the bottom', gradePgSideways, pg4, true);
+  add('PG4 is red on the short drag paging', gradePgSideways, edit(pg4, (r) => void (r.readsShort = [PAGE_UP_HEX])), false);
+  add('PG4 is red on the long pull read as nothing', gradePgSideways, edit(pg4, (r) => void (r.readsLong = [])), false);
+  add('PG4 is UNREADABLE with no grid', gradePgSideways, edit(pg4, (r) => void (r.long.grid = false)), null);
+  add('PG5 passes zoomed', gradePgSideways, edit(pg4, (r) => Object.assign(r, { what: 'zoomed', zoomed: true })), true);
+  add('PG5 is UNREADABLE when the double tap did not zoom', gradePgSideways, edit(pg4, (r) => Object.assign(r, { what: 'zoomed', zoomed: false })), null);
+  const pg6 = { alive: RUNNING_FOREGROUND, posts: 0, pulled: true, ends: 'drawn', expect: [], rows: 40, line: null };
+  add('PG6 (pages-absent) passes a drawn grid and no POST', gradePgHostile, pg6, true);
+  add('PG6 (pages-absent) is red on a keys write', gradePgHostile, edit(pg6, (r) => void (r.posts = 1)), false);
+  add('PG6 (pages-absent) is red on no grid', gradePgHostile, edit(pg6, (r) => void (r.rows = 0)), false);
+  add('PG6 (pages-absent) is UNREADABLE with no pull', gradePgHostile, edit(pg6, (r) => void (r.pulled = false)), null);
+  const pgh = { ...pg6, ends: 'sentence', expect: ['screenNotAnswering'], line: SCREEN_WORDS.notAnswering, rows: 0 };
+  add('PGH (pages-not-boolean) passes the refusal drawn as a bad paste is', gradePgHostile, pgh, true);
+  add('PGH (pages-not-boolean) is red on another line', gradePgHostile, edit(pgh, (r) => void (r.line = 'Something else.')), false);
+  add('PGH (pages-not-boolean) is red on a keys write', gradePgHostile, edit(pgh, (r) => void (r.posts = 2)), false);
+  const pgp = { pulls: 2, reads: [] };
+  add('PG6 (the parent) passes no byte reaching pi', gradePgParent, pgp, true);
+  add('PG6 (the parent) is red on a page from the parent', gradePgParent, edit(pgp, (r) => void (r.reads = [PAGE_UP_HEX])), false);
+  add('PG6 (the parent) is UNREADABLE with no pull', gradePgParent, { pulls: 0, reads: [] }, null);
+  let bad = 0;
+  for (const c of cases) {
+    const got = c.got();
+    const ok = got === c.want;
+    if (!ok) bad += 1;
+    console.log(`${ok ? 'ok  ' : 'FAIL'} ${c.what}${ok ? '' : ` (got ${J(got)}, want ${J(c.want)})`}`);
   }
   return { total: cases.length, bad };
 }
@@ -13661,6 +13962,13 @@ function selfTest() {
       ? `${TAG} Phase 348 self-test PASS: ${String(polish.total)} cases (NB and NP12's tap grid, RV1 to RV6 and RVH, PA1 to PA8 and PAH, and the paste's bytes) graded as they must be.`
       : `${TAG} Phase 348 self-test FAIL: ${String(polish.bad)} of ${String(polish.total)} case(s) graded wrongly.`
   );
+  // Phase 350: the pull (PS16a, PG1 to PG7 and PGH).
+  const pagesCases = pagesSelfTest();
+  console.log(
+    pagesCases.bad === 0
+      ? `${TAG} Phase 350 self-test PASS: ${String(pagesCases.total)} cases (PS16a, PG1 to PG7 and PGH) graded as they must be.`
+      : `${TAG} Phase 350 self-test FAIL: ${String(pagesCases.bad)} of ${String(pagesCases.total)} case(s) graded wrongly.`
+  );
   // Phase 349: rename from the phone (RM1 to RM10, RMP and RMH), the ⋯'s three items, D7 and the shadow refusal.
   const renames = renameSelfTest();
   console.log(
@@ -13668,7 +13976,7 @@ function selfTest() {
       ? `${TAG} Phase 349 self-test PASS: ${String(renames.total)} cases (RM1 to RM10, RMP and RMH, the ⋯'s three items in E1, PS10, PM1 and RV1, this file's D7 and the shadow refusal) graded as they must be.`
       : `${TAG} Phase 349 self-test FAIL: ${String(renames.bad)} of ${String(renames.total)} case(s) graded wrongly.`
   );
-  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 && ends.bad === 0 && replies.bad === 0 && starts.bad === 0 && screens.bad === 0 && sessionsCases.bad === 0 && setupCases.bad === 0 && sampleCases.bad === 0 && recordedCases.bad === 0 && fill.bad === 0 && polish.bad === 0 && renames.bad === 0 ? 0 : 1);
+  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 && ends.bad === 0 && replies.bad === 0 && starts.bad === 0 && screens.bad === 0 && sessionsCases.bad === 0 && setupCases.bad === 0 && sampleCases.bad === 0 && recordedCases.bad === 0 && fill.bad === 0 && polish.bad === 0 && renames.bad === 0 && pagesCases.bad === 0 ? 0 : 1);
 }
 // NOT `--self-test`: build/cdp-target.mjs, imported above, runs ITS fixtures
 // and exits when argv holds that exact word.
@@ -15899,7 +16207,9 @@ exit 0
         // this file's `screen-<seq>`, so the pane is read, the relay held or
         // the pasteboard read at THAT moment. Face ID is answered only for End.
         // ==================================================================
-        if (ARMS.has('screen')) {
+        // Phase 350: the `pages` group shares this group's helpers, so the block
+        // runs for either; the screen group's own arms are inside `ARMS.has('screen')` below.
+        if (ARMS.has('screen') || ARMS.has('pages')) {
           const hrS = () => process.hrtime.bigint();
           const sessionsNowS = async () =>
             JSON.parse(await cdpEval(cdp, 'window.gmux.sessions.list().then((s) => JSON.stringify(s.map((x) => ({ id: x.id, name: x.name, tmuxName: x.tmuxName, status: x.status, agent: x.agent }))))'));
@@ -15972,6 +16282,32 @@ exit 0
             }, 20_000, 200);
             return ready === true ? s : null;
           };
+          /**
+           * PHASE 350 (build/p350/SPEC.md §8.3): build/p350/stand-in.mjs in a fresh shell session, typed as a
+           * program in a shell (`exec env … node stand-in.mjs <args>`), with every byte it reads written down in
+           * its own log under the run (`<ms> <hex>`, the Mac's clock). Ready once its pane draws its numbered
+           * lines, read with the pane's history (`-S -`): an inline stand-in prints its numbered lines and then
+           * its committed screen, which fills an unattached 80x24 pane, so its numbered lines are history by the
+           * time it is ready (the fix round; the phone verifier's first run read only the visible rows and could
+           * never start the group). Its ceiling is three hours, past this file's longest group; it ends with its
+           * session anyway.
+           */
+          const P350_STANDIN = join(ROOT, 'build', 'p350', 'stand-in.mjs');
+          const p350Logs = new Map();
+          const p350SessionS = async (name, args, env = {}) => {
+            const s = await screenSession(name, 'shell');
+            if (s === null) return null;
+            const log = join(RUN, `${name}.reads.log`);
+            p350Logs.set(s.id, log);
+            await untilS(() => (String(tmuxS('capture-pane', '-p', '-t', `=${s.tmuxName}:`) ?? '').trim() !== '' ? true : null), 20_000);
+            const vars = Object.entries({ P350_LOG: log, P350_STANDIN_CEILING_MS: '10800000', ...env }).map(([k, v]) => `${k}='${v}'`).join(' ');
+            tmuxS('send-keys', '-t', `=${s.tmuxName}:`, '-l', `exec env ${vars} '${process.execPath}' '${P350_STANDIN}' ${args.join(' ')}`);
+            tmuxS('send-keys', '-t', `=${s.tmuxName}:`, 'Enter');
+            const drawn = await untilS(() => (/\bline \d{4}\b/.test(String(tmuxS('capture-pane', '-p', '-S', '-', '-t', `=${s.tmuxName}:`) ?? '')) ? true : null), 20_000, 200);
+            return drawn === true ? s : null;
+          };
+          /** A Phase 350 stand-in's reads in [fromMs, toMs), as hex, from its own log. */
+          const p350Reads = (id, fromMs = 0, toMs = Infinity) => p350ReadLog(p350Logs.get(id) ?? '').filter((l) => l.ms >= fromMs && l.ms < toMs).map((l) => l.hex);
           const ackDirS = (label) => {
             const dir = join(RUN, `screen-acks-${label}`);
             mkdirSync(dir, { recursive: true });
@@ -16005,6 +16341,7 @@ exit 0
 
           /** Phase 337.3: PS3's screen-rotate line, which PL5 reads the list sideways from. */
           let rotate3373 = null;
+          if (ARMS.has('screen')) {
           const S = {
             claude: await screenSession('p337-screen-claude', 'claude'),
             codex: await screenSession('p337-screen-codex', 'codex'),
@@ -16380,7 +16717,9 @@ exit 0
               };
               const T = {
                 hist: await standInSession('p3371-hist', '--lines 3000 --counter'),
-                alt: await standInSession('p3371-alt', '--lines 300 --alt'),
+                // Phase 350 (§8.3): PS16's full-screen session is build/p350/stand-in.mjs with no mouse, whose log
+                // reads every byte (Phase 337.1's history stand-in read nothing, so a page could not be seen).
+                alt: await p350SessionS('p350-ps16', ['--mode', 'altonly']),
                 idle: await screenSession('p3371-idle', 'claude'),
                 question: await screenSession('p3371-question', 'codex'),
                 ended: await screenSession('p3371-ended', 'shell')
@@ -16601,8 +16940,13 @@ exit 0
                       // scroll-up after its own open, never the last of the run, which is the 3,000-line shell's
                       // when the full-screen session's drags did not run.
                       const altOpen = ev.findLastIndex((e) => e.step === 'face' && e.for === 'session' && Array.isArray(e.title) && e.title.includes(T.alt.name));
-                      const v = gradePs16({ scroll: altOpen < 0 ? null : (ev.slice(altOpen).find((e) => e.step === 'scroll-up') ?? null) });
-                      arm('PS16 a full-screen program scrolls back nothing', v.ok, v.said);
+                      const scroll = altOpen < 0 ? null : (ev.slice(altOpen).find((e) => e.step === 'scroll-up') ?? null);
+                      const v = gradePs16({ scroll });
+                      arm('PS16b a full-screen program scrolls back nothing', v.ok, v.said);
+                      // Phase 350 (§8.3): every drag up is a pull down past the top, so the program reads one ESC[5~
+                      // a drag; no other input reaches this session in the run, so its whole log is the reading.
+                      const a = gradePs16a({ pulls: Array.isArray(scroll?.readings) ? scroll.readings.length : null, reads: p350Reads(T.alt.id) });
+                      arm('PS16a a full-screen program with no mouse reads one ESC[5~ a pull down past the top (iOS 26.3)', a.ok, a.said);
                     }
                   });
                 }
@@ -17041,6 +17385,252 @@ exit 0
                     } else report.readings.fillParent = 'not run: P3373_PARENT_IOS is not set';
                   }
                 }
+              }
+            }
+          }
+          }
+
+          // ==================================================================
+          // Phase 350: THE `pages` GROUP (build/p350/SPEC.md §8.3), on the
+          // screen group's helpers. Every program here is build/p350/stand-in.mjs
+          // typed in a shell (`p350SessionS`), writing down every byte it
+          // reads, except the asking picture, which is build/p318's codex
+          // stand-in on the alternate screen under a question, the road PS12
+          // proved reads `asking`. A pull's window in a program's log runs
+          // from its start to the next pull on that session. PG7 is the 18.3
+          // floor, its pulls blind (§0.1 item 18).
+          // ==================================================================
+          if (ARMS.has('pages')) {
+            const P = {
+              pi: await p350SessionS('p350-pg-pi', ['--agent', 'pi', '--tui-mode', 'fullscreen'], { P350_PI_BAND: '1.4.0' }),
+              claude: await p350SessionS('p350-pg-claude', ['--agent', 'claude'], { CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN: '1' }),
+              alt: await p350SessionS('p350-pg-alt', ['--mode', 'altonly']),
+              asking: await screenSession('p350-pg-asking', 'codex'),
+              ended: await screenSession('p350-pg-ended', 'shell')
+            };
+            if (Object.values(P).some((x) => x === null)) {
+              arm('PG the pages group\'s sessions', null, `not every session was made, or a stand-in never drew: ${J(Object.fromEntries(Object.entries(P).map(([k, v]) => [k, v?.status ?? null])))}`);
+            } else {
+              // The asking picture: the alternate screen, then a question over it (build/p318/stand-in.mjs's `alt`).
+              await tellS(P.asking.id, [{ op: 'alt', on: true, then: { op: 'press', command: 'touch p350-pg3.txt' } }]);
+              tmuxS('kill-session', '-t', `=${P.ended.tmuxName}`);
+              await untilS(async () => ((await sessionsNowS()).some((x) => x.id === P.ended.id && ['exited', 'restorable'].includes(x.status)) ? true : null), 60_000, 500);
+              /** The Mac's own picture of a session, read by the node reader (`/v1/screen`), or null. */
+              const pictureOfPg = async (id) => {
+                const got = await signedGet(reader, readerDoor, `/v1/screen?id=${encodeURIComponent(id)}`);
+                try {
+                  return got.status === 200 ? JSON.parse(got.body).screen ?? null : null;
+                } catch {
+                  return null;
+                }
+              };
+              const askingPicture = (await untilS(async () => {
+                const s = await pictureOfPg(P.asking.id);
+                return s?.asking === true && s?.alternate === true ? s : null;
+              }, 30_000, 500)) ?? (await pictureOfPg(P.asking.id));
+              const asked = askingPicture === null ? null : { asking: askingPicture.asking === true, pages: askingPicture.pages === true };
+              const PULL_STEPS = ['pull', 'pull-blind', 'pull-pinch', 'pull-pinch-blind', 'pull-held', 'pull-held-blind', 'pull-zoom'];
+              const pullsOf = (ev) => ev.filter((e) => PULL_STEPS.includes(e.step) && typeof e.label === 'string' && typeof e.startedAt === 'number');
+              const byLabel = (ev, label) => pullsOf(ev).find((e) => e.label === label) ?? null;
+              /** One pull's reads in a program's log: from its start to the next pull on the same session. */
+              const readsIn = (ev, label, session, onSession) => {
+                const e = byLabel(ev, label);
+                if (e === null) return null;
+                const later = pullsOf(ev).filter((x) => onSession.includes(x.label) && x.startedAt > e.startedAt).map((x) => x.startedAt);
+                return p350Reads(session.id, e.startedAt, later.length === 0 ? e.startedAt + PULL_WINDOW_MS : Math.min(...later));
+              };
+              /** The asking session's reads (build/p318's log, the run's monotonic clock) between two marks. */
+              const askingReads = (from, to) => logS(P.asking.id, from, to).filter((l) => l.kind === 'read').map((l) => String(l.hex));
+              const rowsOfPg = (s) => {
+                const n = Number(String(tmuxS('display-message', '-p', '-t', `=${s.tmuxName}:`, '#{pane_height}') ?? '').trim());
+                return Number.isInteger(n) && n > 0 ? n : null;
+              };
+              const reactPg = (acksP) => async (event) => {
+                if (/-ready$/.test(event.step) || event.step === 'screen-wait') acksP.ack(event.seq);
+              };
+              const PI_PULLS = ['pg1-down', 'pg1-up', 'pg4-short', 'pg4-long', 'pg5-zoom', 'pg5-short', 'pg5-long'];
+              // ---- PG1 to PG5, iOS 26.3 ------------------------------------------
+              await confirmListening(cdp);
+              {
+                const acksP = ackDirS('pages');
+                await withSimulator({ label: 'p316-pages', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-pages'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                  const steps = [
+                    'pair',
+                    'list',
+                    `open:${P.pi.id}`, 'screen-open', 'pull:pg1-down:0.3:0.75', 'pull:pg1-up:0.75:0.3', 'back',
+                    `open:${P.claude.id}`, 'screen-open', 'pull:pg2-down:0.3:0.75', 'back',
+                    `open:${P.alt.id}`, 'screen-open', 'pull-pinch:pg3-pinch', 'pull-held:pg3-held', 'back',
+                    `open:${P.asking.id}`, 'screen-open', 'pull:pg3-asking:0.3:0.75', 'back',
+                    `open:${P.pi.id}`, 'screen-open', 'landscape', 'pull:pg4-short:0.5:0.62', 'pull:pg4-long:0.92:0.08', 'portrait', 'back',
+                    `open:${P.pi.id}`, 'screen-open', 'pull-zoom:pg5-zoom', 'pull:pg5-short:0.5:0.54', 'pull:pg5-long:0.92:0.08', 'back',
+                    // Last, because an ended session opens on Catch Me Up and has no grid: the pull reads `grid: false`.
+                    'show:all', `open:${P.ended.id}`, 'pull:pg3-ended:0.3:0.75', 'back'
+                  ];
+                  const askFrom = hrS();
+                  const run = await pairAndRead(sim, steps, 'pages', { env: { P316_ACKS: acksP.dir }, react: reactPg(acksP) });
+                  const askTo = hrS();
+                  const ev = run.ok ? run.result.events : [];
+                  if (!run.ok || ev.length === 0) {
+                    arm('PG1 to PG5 the pages drive (iOS 26.3)', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
+                    return;
+                  }
+                  {
+                    const v = gradePg1({ rows: rowsOfPg(P.pi), down: byLabel(ev, 'pg1-down'), up: byLabel(ev, 'pg1-up'), readsDown: readsIn(ev, 'pg1-down', P.pi, PI_PULLS), readsUp: readsIn(ev, 'pg1-up', P.pi, PI_PULLS) });
+                    arm('PG1 a full-screen pi: one pull down pages its own view by rows - 4, one pull up pages it back (iOS 26.3)', v.ok, v.said);
+                  }
+                  {
+                    const v = gradePg2({ pull: byLabel(ev, 'pg2-down'), reads: readsIn(ev, 'pg2-down', P.claude, ['pg2-down']) });
+                    arm('PG2 an inline picture\'s pull pages history and types nothing (iOS 26.3)', v.ok, v.said);
+                  }
+                  {
+                    const ended = byLabel(ev, 'pg3-ended');
+                    const endedReads = ended === null ? null : [P.pi, P.claude, P.alt].flatMap((s) => p350Reads(s.id, ended.startedAt, ended.startedAt + PULL_WINDOW_MS));
+                    const v = gradePg3({
+                      pinch: { event: byLabel(ev, 'pg3-pinch'), reads: readsIn(ev, 'pg3-pinch', P.alt, ['pg3-pinch', 'pg3-held']) },
+                      held: { event: byLabel(ev, 'pg3-held'), reads: readsIn(ev, 'pg3-held', P.alt, ['pg3-pinch', 'pg3-held']) },
+                      asking: { event: byLabel(ev, 'pg3-asking'), reads: askingReads(askFrom, askTo), screen: asked },
+                      ended: { event: ended, reads: endedReads }
+                    });
+                    arm('PG3 a pinch, a drag with a selection held, a pull over a full-screen picture that asks and one on an ended session reach no program (iOS 26.3)', v.ok, v.said);
+                  }
+                  {
+                    const v = gradePgSideways({ what: 'sideways', short: byLabel(ev, 'pg4-short'), long: byLabel(ev, 'pg4-long'), readsShort: readsIn(ev, 'pg4-short', P.pi, PI_PULLS), readsLong: readsIn(ev, 'pg4-long', P.pi, PI_PULLS) });
+                    arm('PG4 sideways: a drag within the rows types nothing, a pull up past the bottom is one Page Down (iOS 26.3)', v.ok, v.said);
+                  }
+                  {
+                    const z = byLabel(ev, 'pg5-zoom');
+                    const cell = (reading) => reading?.live?.[0]?.frame?.[3];
+                    const zoomed = z === null || typeof cell(z.before) !== 'number' || typeof cell(z.after) !== 'number' ? null : cell(z.after) > cell(z.before) + 0.5;
+                    const v = gradePgSideways({ what: 'zoomed', zoomed, short: byLabel(ev, 'pg5-short'), long: byLabel(ev, 'pg5-long'), readsShort: readsIn(ev, 'pg5-short', P.pi, PI_PULLS), readsLong: readsIn(ev, 'pg5-long', P.pi, PI_PULLS) });
+                    arm('PG5 zoomed by a double tap: a drag within the rows types nothing, a pull up past the bottom is one Page Down (iOS 26.3)', v.ok, v.said);
+                  }
+                });
+              }
+
+              // ---- PG6 and PGH: the hostile door's two page arms --------------------
+              await withSimulator({ label: 'p316-pages-hostile', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-pages-hostile'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                for (const name of PAGES_ARMS) {
+                  const spec = P350_ARMS[name];
+                  await sim.simctl('keychain', 'reset');
+                  const door = await startDoorChild(name);
+                  doorChildren.add(door.child);
+                  try {
+                    const id = name === 'pages-absent' ? 'PG6' : 'PGH';
+                    if (door.facts === null) {
+                      arm(`${id} ${name}`, null, door.why ?? 'the hostile door did not start');
+                      continue;
+                    }
+                    const armAcks = ackDirS(`pages-hostile-${name}`);
+                    const steps = ['pair', 'list', `open:${door.facts.sessionToOpen}`, 'screen-open', `pull:pgh-${name}:0.3:0.75`, `screen-wait:${name}`];
+                    const r = await drive(sim, {
+                      test: { id: UI_TEST },
+                      label: `pages-hostile-${name}`,
+                      env: { P316_PAYLOAD: door.facts.payload, P316_STEPS: steps.join(','), P316_WAIT_S: '60', P316_ACKS: armAcks.dir, P330_DOOR_ENDPOINT: `127.0.0.1:${String(door.facts.port)}` },
+                      onEvent: async (event) => {
+                        if (/-ready$/.test(event.step)) armAcks.ack(event.seq);
+                        if (event.step === 'screen-wait') {
+                          await sleep(4_000);
+                          armAcks.ack(event.seq);
+                        }
+                      }
+                    });
+                    if (r.events.length === 0) {
+                      arm(`${id} ${name}: ${spec.what}`, null, `the UI test printed no P316 line (xcodebuild exited ${String(r.code)})`);
+                      continue;
+                    }
+                    const w = r.events.filter((e) => e.step === 'screen-wait').at(-1) ?? null;
+                    const v = gradePgHostile({
+                      alive: aliveOf(r.events),
+                      posts: door.events.filter((e) => e.kind === 'request' && e.route === 'POST /v1/keys').length,
+                      pulled: r.events.some((e) => e.step === 'pull' && e.label === `pgh-${name}` && e.grid === true),
+                      ends: spec.ends,
+                      expect: spec.expect,
+                      line: w?.line ?? w?.failure ?? null,
+                      rows: (w?.rows ?? []).length
+                    });
+                    arm(`${id} ${name}: ${spec.what}`, v.ok, v.said);
+                  } finally {
+                    await endDoorChild(door.child);
+                    doorChildren.delete(door.child);
+                  }
+                }
+              });
+
+              // ---- PG6: the parent's app over this Mac, driven by THIS checkout's UI test
+              if (PARENT_IOS_350 !== '') {
+                const parentSrc = join(resolve(PARENT_IOS_350), 'ios');
+                const parentRoot = join(XCODE, 'parent-350');
+                const parentProject = join(parentRoot, 'ios', 'Tortie.xcodeproj');
+                const parentDd = join(XCODE, 'dd-parent-350');
+                let laid = false;
+                if (existsSync(join(parentSrc, 'Tortie.xcodeproj'))) {
+                  rmSync(parentRoot, { recursive: true, force: true });
+                  mkdirSync(parentRoot, { recursive: true });
+                  const cp = spawnSync('cp', ['-Rc', parentSrc, join(parentRoot, 'ios')], { encoding: 'utf8', timeout: 120_000 });
+                  if (cp.status === 0) {
+                    writeFileSync(join(parentRoot, 'ios', 'TortieUITests', 'P316DriveUITests.swift'), readFileSync(join(ROOT, 'ios', 'TortieUITests', 'P316DriveUITests.swift')));
+                    laid = true;
+                  }
+                }
+                const built = laid ? await xcodebuildRun({ label: 'parent-pages', scratch: XCODE, derivedDataPath: parentDd, args: ['build-for-testing', '-project', parentProject, '-scheme', SCHEME, '-configuration', 'Debug', '-destination', 'generic/platform=iOS Simulator'] }) : { code: -1 };
+                if (built.code !== 0) arm('PG6 the parent\'s app over this Mac sends no page', null, `the parent's project did not ${laid ? `build (${String(built.code)})` : 'copy from P350_PARENT_IOS (or P316_PARENT_IOS)'}`);
+                else {
+                  await confirmListening(cdp);
+                  const acksP = ackDirS('pages-parent');
+                  await withSimulator({ label: 'p316-pages-parent', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-pages-parent'), derivedDataPath: parentDd, keep: KEEP }, async (sim) => {
+                    const steps = ['pair', 'list', `open:${P.pi.id}`, 'screen-open', 'pull:pg6p-down:0.3:0.75', 'pull:pg6p-up:0.75:0.3', 'back'];
+                    const run = await pairAndRead(sim, steps, 'pages-parent', { project: parentProject, derivedDataPath: parentDd, env: { P316_ACKS: acksP.dir }, react: reactPg(acksP) });
+                    const ev = run.ok ? run.result.events : [];
+                    const made = pullsOf(ev).filter((e) => e.grid === true);
+                    const reads = made.length === 0 ? null : p350Reads(P.pi.id, Math.min(...made.map((e) => e.startedAt)), Math.max(...made.map((e) => e.startedAt)) + PULL_WINDOW_MS);
+                    const v = gradePgParent({ pulls: made.length, reads });
+                    arm('PG6 the parent\'s app (c60c2a48\'s ios/) over this Mac: a pull sends no page', v.ok, v.said);
+                  });
+                }
+              } else report.readings.pagesParent = 'not run: neither P350_PARENT_IOS nor P316_PARENT_IOS is set';
+
+              // ---- PG7: the 18.3 floor, every pull blind ------------------------
+              await confirmListening(cdp);
+              {
+                const acksF = ackDirS('pages-floor');
+                await withSimulator({ label: 'p316-pages-floor', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-pages-floor'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                  const steps = [
+                    'pair',
+                    'list',
+                    `open:${P.pi.id}`, 'screen-open', 'pull-blind:pg7-down:0.3:0.75', 'pull-blind:pg7-up:0.75:0.3', 'back',
+                    // PS16a's three pulls first, so the selection pg7-held leaves cannot refuse them.
+                    `open:${P.alt.id}`, 'screen-open', 'pull-blind:pg7-ps16-1:0.3:0.75', 'pull-blind:pg7-ps16-2:0.3:0.75', 'pull-blind:pg7-ps16-3:0.3:0.75', 'pull-pinch-blind:pg7-pinch', 'pull-held-blind:pg7-held', 'back',
+                    `open:${P.asking.id}`, 'screen-open', 'pull-blind:pg7-asking:0.3:0.75', 'back'
+                  ];
+                  const askFrom = hrS();
+                  const run = await pairAndRead(sim, steps, 'pages-floor', { env: { P316_ACKS: acksF.dir }, react: reactPg(acksF) });
+                  const askTo = hrS();
+                  const ev = run.ok ? run.result.events : [];
+                  if (!run.ok || ev.length === 0) {
+                    arm('PG7 the pages drive on the floor (iOS 18.3)', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
+                    return;
+                  }
+                  const ALT_PULLS = ['pg7-ps16-1', 'pg7-ps16-2', 'pg7-ps16-3', 'pg7-pinch', 'pg7-held'];
+                  {
+                    const v = gradePg1({ blind: true, down: byLabel(ev, 'pg7-down'), up: byLabel(ev, 'pg7-up'), readsDown: readsIn(ev, 'pg7-down', P.pi, ['pg7-down', 'pg7-up']), readsUp: readsIn(ev, 'pg7-up', P.pi, ['pg7-down', 'pg7-up']) });
+                    arm('PG7 the floor (iOS 18.3): PG1, a full-screen pi paged down and back by one pull each, read blind', v.ok, v.said);
+                  }
+                  {
+                    const ps16 = ['pg7-ps16-1', 'pg7-ps16-2', 'pg7-ps16-3'].map((l) => ({ e: byLabel(ev, l), reads: readsIn(ev, l, P.alt, ALT_PULLS) }));
+                    const made = ps16.filter((x) => x.e !== null && x.e.grid === true);
+                    const v = gradePs16a({ pulls: made.length, reads: made.some((x) => x.reads === null) ? null : made.flatMap((x) => x.reads) });
+                    arm('PG7 the floor (iOS 18.3): PS16a, a full-screen program with no mouse read one ESC[5~ a pull, read blind', v.ok, v.said);
+                  }
+                  {
+                    const v = gradePg3({
+                      floor: true,
+                      pinch: { event: byLabel(ev, 'pg7-pinch'), reads: readsIn(ev, 'pg7-pinch', P.alt, ALT_PULLS) },
+                      held: { event: byLabel(ev, 'pg7-held'), reads: readsIn(ev, 'pg7-held', P.alt, ALT_PULLS) },
+                      asking: { event: byLabel(ev, 'pg7-asking'), reads: askingReads(askFrom, askTo), screen: asked }
+                    });
+                    arm('PG7 the floor (iOS 18.3): PG3, a pinch, a drag with a selection held and a pull over an asking picture reach no program, read blind', v.ok, v.said);
+                  }
+                });
               }
             }
           }

@@ -431,6 +431,10 @@ export function installMainCapabilities(
       nudge: (sessionId, before) => screenWatch.nudge(sessionId, before)
     },
     noteUserInput: (sessionId) => pocketCore?.activity.noteUserInput(sessionId),
+    // PHASE 350 (build/p350/SPEC.md D9, D23): the reflow grace's clock, which
+    // the verb stamps after a write of exactly one page key, so the program's
+    // redraw of its own page is not read as work.
+    noteRepaint: (sessionId) => pocketCore?.activity.noteGeometryChange(sessionId),
     typeRemote: (sessionId, keys) => typePhoneKeys(sessionId, keys),
     lastActs: screenLastActs
   });

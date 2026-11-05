@@ -59,7 +59,14 @@ export {
   // Phase 335: a harness launch probes no version its mode did not name.
   nameHarnessVersionProbes,
   versionProbeHeld,
-  type HarnessVersionProbes
+  type HarnessVersionProbes,
+  // Phase 350: when the scan first answers, pi's floor read from it for one
+  // binary (its fix round), a row's own resume composition, and the warm a
+  // local pi row asks for at this process's first terminal bytes.
+  firstScanAnswered,
+  piInlineFloorFor,
+  piOwnResumeArgv,
+  warmDetectionForLocalPi
 } from './detection';
 export {
   AGENT_IDS,
@@ -70,6 +77,13 @@ export {
   // that sets a row's fixed launch tokens aside from a person's own flags.
   CLAUDE_INLINE_ENV,
   CODEX_SCROLLBACK_ARGS,
+  // Phase 350: the third, pi's, and the floor it is composed behind.
+  PI_INLINE_ARGS,
+  PI_INLINE_FLOOR,
+  piInlineFloor,
+  // Phase 350's fix round: whether a leading token is Tortie's or a person's own.
+  piTokenIsTortiesIn,
+  type InlineFloorReading,
   DEFAULT_AGENT_ID,
   DEFAULT_IMAGE_DROP,
   DEFAULT_MULTILINE_KEY,

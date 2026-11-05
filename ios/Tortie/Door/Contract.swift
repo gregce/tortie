@@ -1947,6 +1947,13 @@ struct PocketScreen: Equatable, Sendable {
     /// Mac). Absent is false: a Mac older than 348, one whose Allow waits, an
     /// ended session and a session on another machine draw Copy alone.
     var paste: Bool = false
+    /// `pages` (Phase 350, build/p350/SPEC.md D6): the program drew on the
+    /// alternate screen and the screen takes keys, here or on another
+    /// machine, so a pull past the edge of its rows sends Page Up or Page
+    /// Down, which the program pages its own view by. Absent is false: a Mac
+    /// older than 350 never offers it, so a page is never sent to a Mac that
+    /// would refuse it, and an inline picture's pull pages its history.
+    var pages: Bool = false
     /// `wraps` (Phase 348, D43): the rows whose line goes on into the next
     /// row, as tmux marked them and behind the Mac's ink guard (D45),
     /// ascending, each a row with a row after it. Empty is no marks, and Copy
@@ -1956,7 +1963,7 @@ struct PocketScreen: Equatable, Sendable {
 
 extension PocketScreen: Decodable {
     enum CodingKeys: String, CodingKey {
-        case cursor, alternate, ground, ink, caret, styles, lines, turn, asking, dialog, typable, space, paste, wraps
+        case cursor, alternate, ground, ink, caret, styles, lines, turn, asking, dialog, typable, space, paste, pages, wraps
         case screenColumns = "cols"
         case screenRows = "rows"
         case historyDepth = "depth"
@@ -1988,6 +1995,10 @@ extension PocketScreen: Decodable {
         // Absent from a Mac older than Phase 348; anything but a boolean
         // refuses the answer, as every field does here (D30).
         paste = try c.decodeIfPresent(Bool.self, forKey: .paste) ?? false
+        // Absent from a Mac older than Phase 350, and absent or null is no
+        // offer; anything but a boolean refuses the answer, as paste's does
+        // (build/p350/SPEC.md D6).
+        pages = try c.decodeIfPresent(Bool.self, forKey: .pages) ?? false
         // The marks, read LENIENTLY (D43): a list this build cannot square
         // (not whole numbers, not ascending, a row out of range or the last
         // row named) is no marks, and never refuses the picture it rides on.
@@ -2220,10 +2231,12 @@ extension PocketScrollbackAnswer: Decodable {
 
 // MARK: - Keys (Phase 337)
 
-/// The 35 keys the phone may send, by tmux's own names (D17, D18): the raw
+/// The 37 keys the phone may send, by tmux's own names (D17, D18): the raw
 /// values are `POCKET_SCREEN_KEY_NAMES` in src/shared/ipc/pocket.ts, word for
-/// word (conformance:ios rule ai reads both). A closed set: nothing else is
-/// ever named.
+/// word and in its order (conformance:ios rule ai reads both). A closed set:
+/// nothing else is ever named. Phase 337's 35 keep their order, and Phase 350
+/// (build/p350/SPEC.md D4, D24) appends Page Up and Page Down, which only a
+/// pull on a picture that offers `pages` sends (Screens/ScreenScroller.swift).
 enum ScreenKeyName: String, CaseIterable, Sendable {
     case escape = "Escape"
     case tab = "Tab"
@@ -2260,6 +2273,14 @@ enum ScreenKeyName: String, CaseIterable, Sendable {
     case controlX = "C-x"
     case controlY = "C-y"
     case controlZ = "C-z"
+    case pageUp = "PPage"
+    case pageDown = "NPage"
+
+    /// Page Up or Page Down (Phase 350, D4): the two a pull sends, and the
+    /// only two `ScreenKeySender.page(_:)` takes.
+    var isPage: Bool {
+        self == .pageUp || self == .pageDown
+    }
 
     /// The control key of a letter, either case (`c` and `C` are `C-c`), or
     /// nil for anything that is not one ASCII letter.

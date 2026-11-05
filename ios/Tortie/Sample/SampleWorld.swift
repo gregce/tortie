@@ -25,7 +25,8 @@
 // THE ECHO (D7). Printable ASCII appears on the prompt row, one cell each; a
 // Ctrl key as `^` and its letter; Backspace takes the last of those back;
 // Return empties the prompt and draws ONE fixed line saying nothing ran, never
-// a shell's answer (guideline 2.5.2); every other key draws nothing. Each keys
+// a shell's answer (guideline 2.5.2); every other key, Page Up and Page Down
+// among them (Phase 350), draws nothing. Each keys
 // write moves the screen's question id and its revision, as every keystroke at
 // the Mac moves the question id, so the key sender's lock inside a question
 // lets go. A waiting screen has no prompt, so keys there draw nothing. A
@@ -256,6 +257,11 @@ actor SampleWorld {
                         session.echo.takeBack()
                     } else if name == .enter {
                         session.echo.pressReturn()
+                    } else if name == .pageUp || name == .pageDown {
+                        // Phase 350 (D22): taken, and nothing is drawn. The
+                        // sample's pictures are never full screen, so its
+                        // Terminal offers no page and no pull sends one.
+                        continue
                     } else if let letter = Self.controlLetter(name) {
                         session.echo.add("^\(letter)", room: room)
                     }
@@ -393,7 +399,7 @@ actor SampleWorld {
             alternate: screen.alternate, ground: screen.ground, ink: screen.ink, caret: screen.caret,
             styles: screen.styles, lines: lines, turn: turn, asking: screen.asking, dialog: screen.dialog,
             typable: screen.typable, historyDepth: screen.historyDepth, space: screen.space,
-            paste: screen.paste, wraps: screen.wraps
+            paste: screen.paste, pages: screen.pages, wraps: screen.wraps
         )
     }
 

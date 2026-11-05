@@ -16,6 +16,14 @@
  * variable leaves `launch.env`, A7 when one row's record goes, A9 when
  * `REFUSED_ROW_FIELDS.screen` goes.
  *
+ * PHASE 350 moved two cases here on purpose (build/p350/SPEC.md §6 item 4): pi
+ * is the third switch, an argv switch behind `PI_INLINE_FLOOR` whose token the
+ * two composers put in and which neither its `launch.argv` nor its
+ * `resume.template` carries, and `fixedLaunchTokens('pi')` names that token at
+ * every version. Composed WITHOUT the floor, every row below still composes
+ * exactly what it did at the parent; pi's own cases live in
+ * `p350-pi-token.test.ts`.
+ *
  * HERMETIC. Nothing here opens a file under the real HOME: `electron` is
  * mocked onto a scratch directory under the system temp directory, the
  * configuration store is never initialised (so the merged table is the
@@ -59,6 +67,8 @@ const {
   fixedLaunchTokens,
   getLaunchableEntry,
   LAUNCHABLE_AGENT_IDS,
+  PI_INLINE_ARGS,
+  PI_INLINE_FLOOR,
   registryLaunchArgv,
   registryResumeArgv,
   SESSION_ID_SLOT
@@ -293,11 +303,28 @@ describe('the compiled screen record', () => {
     expect(none.sort()).toEqual(['copilotide', 'cursoride']);
   });
 
-  it('exactly codex and claude are switch-to-inline', () => {
+  it('exactly codex, claude and pi are switch-to-inline (pi since Phase 350)', () => {
     const switched = AGENT_REGISTRY.filter((e) => e.screen?.class === 'switch-to-inline').map(
       (e) => e.id
     );
-    expect(switched.sort()).toEqual(['claude', 'codex']);
+    expect(switched.sort()).toEqual(['claude', 'codex', 'pi']);
+
+    // PHASE 350. pi's record names its token and its floor FROM the constants
+    // the composers spread, and its row carries the token in neither field:
+    // the composers put it in, behind the floor.
+    const pi = getLaunchableEntry('pi').screen;
+    expect(pi?.class === 'switch-to-inline' && pi.carriage).toBe('argv');
+    if (pi?.class === 'switch-to-inline' && pi.carriage === 'argv') {
+      expect(pi.tokens).toBe(PI_INLINE_ARGS);
+      expect(pi.floor).toBe(PI_INLINE_FLOOR);
+      expect(getLaunchableEntry('pi').launch.argv).toEqual(['pi']);
+      expect(getLaunchableEntry('pi').resume.template).toEqual(['--session-id', SESSION_ID_SLOT]);
+    }
+    // No other row names a floor.
+    for (const entry of AGENT_REGISTRY) {
+      if (entry.id === 'pi') continue;
+      expect((entry.screen as { floor?: unknown } | undefined)?.floor, entry.id).toBeUndefined();
+    }
 
     // Each record names its switch FROM the constant the row spreads, so the
     // record and the row cannot disagree.
@@ -452,8 +479,12 @@ describe('the rows the phase does not touch', () => {
       );
       const spec = buildLaunchSpec(id, ['--p331-own'], bin);
       expect(spec.env ?? null, id).toEqual(was.env);
-      // Only codex fixes tokens after argv[0].
-      expect([...fixedLaunchTokens(id)], id).toEqual(was.argv.slice(1));
+      // Codex fixes tokens after argv[0] in its row. PHASE 350: pi's are named
+      // at every version though its row carries none, because the composers
+      // put them in behind the floor (build/p350/SPEC.md D15).
+      expect([...fixedLaunchTokens(id)], id).toEqual(
+        id === 'pi' ? [...PI_INLINE_ARGS] : was.argv.slice(1)
+      );
     }
   });
 });

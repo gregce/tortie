@@ -184,6 +184,12 @@ struct ScreenPicture: Equatable, Sendable {
     /// `paste`, the screen is typable and the session is on this Mac. False
     /// draws Copy alone, as before.
     let paste: Bool
+    /// The Mac pages this picture's program (Phase 350, build/p350/SPEC.md
+    /// D6): it drew on the alternate screen and takes keys, so a pull past
+    /// the edge of its rows sends one Page Up or Page Down
+    /// (Screens/ScreenScroller.swift `ScreenPull`). False is no page, ever:
+    /// an inline picture, or a Mac older than 350.
+    var pages: Bool = false
 
     init(_ screen: PocketScreen, revision: String, holds: (Character) -> Bool = ScreenFont.holds) {
         self.revision = revision
@@ -216,6 +222,7 @@ struct ScreenPicture: Equatable, Sendable {
         historyDepth = screen.historyDepth
         space = screen.space
         paste = screen.paste
+        pages = screen.pages
     }
 
     /// The style of a run, or the screen's own ink for an index the decoder

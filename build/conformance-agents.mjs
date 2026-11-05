@@ -132,7 +132,7 @@
  *   named. Each row is also asked over in-memory copies of the source with its
  *   rule broken, and every copy must read red, so a gutted rule cannot pass.
  *
- * SECTION 11 — the screen record and the two inline switches (Phase 331).
+ * SECTION 11 — the screen record and the inline switches (Phases 331 and 350).
  *   Codex is launched AND resumed with `-c tui.fullscreen_transcript=false`,
  *   Claude Code with `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1` in its compiled
  *   `launch.env`, and every launchable row carries a compiled screen record
@@ -146,9 +146,24 @@
  *   schema, absent from `ConfigExecutionFields` and from what
  *   `executionFieldsOf` reads, the hash unmoved by it, and a row carrying it
  *   DRIVEN through the shipping loader is dropped with the refusal sentence
- *   (11.4); and exactly codex (argv) and claude (env) are switches (11.5).
- *   Every row is asked again over in-memory copies with its rule broken, and
- *   `npm run ablation:p331` breaks the shipping source.
+ *   (11.4); and exactly codex (argv), claude (env) and, since Phase 350, pi
+ *   (argv, behind its floor) are switches (11.5). Phase 350 adds four rows for
+ *   pi's token, which no row field carries: spelled once and named by its
+ *   record and `fixedLaunchTokens` (11.6), every production composer call
+ *   naming the floor and the token composed for pi alone (11.7), one floor rule
+ *   (11.8), and the boot pass, restore's strip and the arming composer, driven
+ *   over planted rows (11.9). Its ruled round (his ruling of 2026-11-02) adds a
+ *   fifth: the token only for a pi inside pi's own package, one predicate
+ *   (`insidePiPackage`) asked by the one floor reader every decision goes
+ *   through (11.10). Its second ruled round adds a sixth: the file that runs,
+ *   one resolver (`bareNameSpawnFile`) walking the pane's PATH from the
+ *   session's own folder and one comparison by device and inode
+ *   (`bareNameSpawnRuns`), a gate in that reader, and the create handing it
+ *   the spawn of a pane started by pi's bare name, driven over a planted world,
+ *   and, by his ruling of 2026-11-03, no walk at all for a folder holding a `#`,
+ *   nor, by his ruling of 2026-11-04, for one ending in `;`
+ *   (11.11). Every row is asked again over in-memory copies with its rule
+ *   broken, and `npm run ablation:p331` breaks the shipping source.
  *
  * WHAT IT DOES NOT PROVE, stated so nobody reads more into a pass. The confirm
  * record is sealed through `safeStorage`, which needs an Electron process, so
@@ -163,7 +178,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import ts from 'typescript';
 import { tsxCli } from './ts-runner.mjs';
@@ -2281,6 +2296,12 @@ const p331EndsWith = (argv, seq) =>
 const p331Rows = (p) => (Array.isArray(p?.rows) ? p.rows : []);
 const p331Switched = (p, carriage) =>
   p331Rows(p).filter((r) => r.launchable && r.screen?.class === 'switch-to-inline' && r.screen?.carriage === carriage);
+/**
+ * PHASE 350. An argv switch whose record names a `floor` is composed by the
+ * two composers behind that floor, not carried by the row, so 11.2 does not
+ * read it: rows 11.6 and 11.7 hold pi's token instead.
+ */
+const p331Floored = (r) => Object.prototype.hasOwnProperty.call(r?.screen ?? {}, 'floor');
 
 /** 11.1 Every launchable row declares one of four classes, a carriage exactly on a switch, and the IDE rows none. */
 function p331RecordFindings(p) {
@@ -2325,10 +2346,15 @@ function p331RecordFindings(p) {
   return out;
 }
 
-/** 11.2 An argv switch ends BOTH launch.argv and resume.template, and each composition carries it once. */
+/**
+ * 11.2 An argv switch ends BOTH launch.argv and resume.template, and each
+ * composition carries it once. Since Phase 350 it reads the rows whose record
+ * names no floor (Codex's); a floored switch (pi's) is in neither field by
+ * design and is held by 11.6 and 11.7.
+ */
 function p331ArgvFindings(p) {
-  const rows = p331Switched(p, 'argv');
-  if (rows.length === 0) return ['no switch-to-inline row carries its switch in the argv'];
+  const rows = p331Switched(p, 'argv').filter((r) => !p331Floored(r));
+  if (rows.length === 0) return ['no switch-to-inline row without a floor carries its switch in the argv'];
   const out = [];
   for (const r of rows) {
     const t = Array.isArray(r.screen.tokens) ? r.screen.tokens : [];
@@ -2489,15 +2515,27 @@ function p331OverlayFindings(src, p) {
   return out;
 }
 
-/** 11.5 Exactly two rows are switch-to-inline: codex in the argv and claude in the env. */
-function p331ExactlyTwoFindings(p) {
+/**
+ * 11.5 Exactly three rows are switch-to-inline: codex in the argv, claude in
+ * the env and, since Phase 350, pi in the argv behind its floor; pi's record
+ * names the floor `0.84.0` and no other row names one.
+ */
+function p331ExactlyThreeFindings(p) {
   const sw = p331Rows(p)
     .filter((r) => r.screen?.class === 'switch-to-inline')
     .map((r) => `${r.id} (${String(r.screen.carriage)})`)
     .sort();
-  return p331Same(sw, ['claude (env)', 'codex (argv)'])
+  const out = p331Same(sw, ['claude (env)', 'codex (argv)', 'pi (argv)'])
     ? []
-    : [`the switch-to-inline rows are ${sw.join(', ') || 'none'}, not exactly codex (argv) and claude (env)`];
+    : [`the switch-to-inline rows are ${sw.join(', ') || 'none'}, not exactly codex (argv), claude (env) and pi (argv)`];
+  const pi = p331Rows(p).find((r) => r.id === 'pi');
+  if (pi?.screen?.floor !== '0.84.0') {
+    out.push(`pi's record names the floor ${JSON.stringify(pi?.screen?.floor ?? null)}, not '0.84.0', so its switch would read as Codex's, in every pi`);
+  }
+  for (const r of p331Rows(p).filter((x) => x.id !== 'pi' && p331Floored(x))) {
+    out.push(`${r.id}'s record names a floor (${JSON.stringify(r.screen.floor)}), and only pi's may`);
+  }
+  return out;
 }
 
 const p331Result = [];
@@ -2555,7 +2593,15 @@ const p331Data = data.p331 ?? null;
       attacks: [
         ["pi's record deleted", () => withRow('pi', (r) => { r.screen = null; })],
         ["a class 'inline'", () => withRow('pi', (r) => { r.screen.class = 'inline'; })],
-        ['a carriage on an inline-already row', () => withRow('pi', (r) => { r.screen.carriage = 'argv'; r.screen.tokens = ['--tui-mode', 'regular']; })],
+        // PHASE 350: pi is a switch now, so the attack is aimed at a row that is
+        // still inline-already, whichever that is (cursor, gemini, muse, omp).
+        ['a carriage on an inline-already row', () => mut((d) => {
+          const r = p331Rows(d).find((x) => x.launchable && x.screen?.class === 'inline-already');
+          if (r === undefined) return false;
+          r.screen.carriage = 'argv';
+          r.screen.tokens = ['--x-mode', 'inline'];
+          return true;
+        })],
         ['a capture-only row given a record', () => mut((d) => {
           const r = p331Rows(d).find((x) => !x.launchable);
           if (r === undefined) return false;
@@ -2612,18 +2658,1168 @@ const p331Data = data.p331 ?? null;
     },
     {
       rule: '11.5',
-      name: 'exactly two rows are switch-to-inline: codex (argv) and claude (env)',
-      findings: () => p331ExactlyTwoFindings(p331Data),
+      name: 'exactly three rows are switch-to-inline: codex (argv), claude (env) and pi (argv, behind its floor)',
+      findings: () => p331ExactlyThreeFindings(p331Data),
       attacks: [
-        ['a third (pi) made a switch', () => withRow('pi', (r) => { r.screen = { ...r.screen, class: 'switch-to-inline', carriage: 'argv', tokens: ['--tui-mode', 'regular'] }; })],
-        ["claude's carriage made argv", () => withRow('claude', (r) => { r.screen = { ...r.screen, carriage: 'argv' }; })]
-      ].map(([n, build]) => [n, build, (d) => p331ExactlyTwoFindings(d)])
+        // PHASE 350: pi is the third, so the attack that a row joins is a fourth.
+        ['a fourth (opencode) made a switch', () => withRow('opencode', (r) => { r.screen = { ...r.screen, class: 'switch-to-inline', carriage: 'argv', tokens: ['--x-mode', 'inline'] }; })],
+        ["claude's carriage made argv", () => withRow('claude', (r) => { r.screen = { ...r.screen, carriage: 'argv' }; })],
+        ["pi's floor removed", () => withRow('pi', (r) => { delete r.screen.floor; })],
+        ['codex given a floor', () => withRow('codex', (r) => { r.screen.floor = '0.1.0'; })]
+      ].map(([n, build]) => [n, build, (d) => p331ExactlyThreeFindings(d)])
     }
   ];
   p331Result.push(
     ...judgeRuleCases('331', cases, (c) => (p331Data === null ? ['the probe printed no p331 section'] : c.findings()))
   );
   if (p331Result.length !== 5) fail('Phase 331 asks five rows, 11.1 to 11.5, and this gate no longer does.');
+}
+
+// ---------------------------------------------------------------------------
+// Section 11, rows 11.6 to 11.9 — pi's inline token behind its floor (Phase 350)
+// ---------------------------------------------------------------------------
+//
+// build/p350/SPEC.md §7.1. pi's switch, `--tui-mode regular`, is the third
+// inline switch and the first one the row does not carry: it is in neither
+// pi's `launch.argv` nor its `resume.template`, because a pi before 0.84.0
+// stops on the unknown flag after its trust question (research 134 §5). The two
+// composers put it straight after argv[0] only when their caller says this
+// Mac's scan reads pi at `PI_INLINE_FLOOR`, a boot pass brings recorded rows
+// across once the scan first answers, and restore takes it back out of an armed
+// command while the floor does not hold. Section 2 and rows 11.1 to 11.5 cannot
+// see any of that go, because it lives in callers, so four rows hold it:
+//
+//   11.6 THE TOKEN, spelled once and carried by no row field;
+//   11.7 THE FLOOR AT THE COMPOSERS, read with the TypeScript parser over every
+//        production file under src/main and driven over every launchable row;
+//   11.8 ONE FLOOR RULE, the SpecStory version reader's and no third copy;
+//   11.9 THE ROWS AND THE ARMING, the boot pass DRIVEN at each reading over
+//        planted rows and judged against this file's own reading of
+//        build/p350/SPEC.md §4.2 step 3, restore's strip driven at `unread`, and
+//        the arming composer's tokens.
+//
+// THE FIX ROUND (build/p350/SPEC.md §As built, "The fix round"). The floor is
+// a fact about ONE file: the create, the harvest, the pass and restore's strip
+// each ask it for the binary their own argv names (`piInlineFloorFor`), so a
+// row recorded against a second pi install, or against a pi reinstalled since
+// the scan, is never handed the token and loses Tortie's copy at restore. And
+// the two words straight after the binary are Tortie's only when the row's own
+// composition does not lead with them (`piTokenIsTortiesIn` over
+// `piOwnResumeArgv`), so a person's own agents.json `--tui-mode regular` is
+// never taken out. 11.7 reads the new reader by name; 11.9 drives two rows of
+// a second install, a row with Tortie's copy before a person's own, a fourth
+// pass run whose own composition leads with the words, and the strip over a
+// planted table that does, and reads both readers on the pass's and the
+// strip's own paths.
+//
+// The expectations below are this checker's own, written from the spec rather
+// than read back from the code: the token is the literal pair, a row's own id
+// is the literal `--session-id <id>`, and every verdict is computed here. Every
+// row is asked again over in-memory copies with its rule broken, and each copy
+// must read red; `npm run ablation:p331` breaks the SHIPPING source and
+// requires the row that owns each clause to go red here BY NAME (`Phase 350
+// 11.N (`).
+
+const P350_TOKENS = ['--tui-mode', 'regular'];
+const P350_FLOOR = '0.84.0';
+const P350_CREATE = 'src/main/sessions/create-local.ts';
+const P350_HARVEST = 'src/main/sessions/id-harvest.ts';
+const P350_EXTRAS = 'src/main/restart/extras.ts';
+const P350_RESTORE = 'src/main/restore/restore.ts';
+const P350_ARM = 'src/main/machines/remote-arm.ts';
+const P350_PASS = 'src/main/sessions/inline-repair.ts';
+const P350_RESUME_IN_PLACE = 'src/main/sessions/resume-in-place.ts';
+/** Every composer that takes the floor, and the file that declares it. */
+const P350_COMPOSERS = {
+  launchArgvFor: REGISTRY_SOURCE,
+  resumeArgvFor: REGISTRY_SOURCE,
+  registryLaunchArgv: REGISTRY_SOURCE,
+  registryResumeArgv: REGISTRY_SOURCE,
+  buildLaunchSpec: 'src/main/manifest/agents.ts',
+  resolveLaunchSpec: 'src/main/manifest/agents.ts',
+  composeResumeArgv: 'src/main/sessions/resume-argv.ts'
+};
+/** The files whose every composer call passes the literal `false` (D2, D20). */
+const P350_FALSE_FILES = [
+  'src/main/machines/remote-sessions.ts',
+  'src/main/machines/remote-record.ts',
+  'src/main/sessions/codex-repair.ts',
+  P350_PASS
+];
+/** The files that must still call a composer, so a call that went is noticed. */
+const P350_CALLING_FILES = [
+  'src/main/machines/remote-sessions.ts',
+  'src/main/machines/remote-record.ts',
+  P350_EXTRAS,
+  P350_CREATE,
+  P350_HARVEST
+];
+
+/** Every production TypeScript file under `root`, relative, tests excluded. */
+function p350ProductionFiles(root) {
+  const out = [];
+  const walk = (rel) => {
+    let names = [];
+    try {
+      names = readdirSync(join(process.cwd(), rel), { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const d of names) {
+      const child = `${rel}/${d.name}`;
+      if (d.isDirectory()) {
+        if (d.name === '__tests__' || d.name === 'node_modules') continue;
+        walk(child);
+      } else if (/\.tsx?$/.test(d.name) && !/\.test\.tsx?$/.test(d.name) && !d.name.endsWith('.d.ts')) {
+        out.push(child);
+      }
+    }
+  };
+  walk(root);
+  return out.sort();
+}
+
+/** The texts the rows read, as a map a self-test can copy and break one file of. */
+function p350Texts() {
+  const texts = new Map();
+  for (const root of ['src/main', 'src/shared', 'src/renderer', 'src/preload']) {
+    for (const rel of p350ProductionFiles(root)) texts.set(rel, sourceOf(rel) ?? '');
+  }
+  return texts;
+}
+const p350With = (texts, rel, edit) => {
+  const was = texts.get(rel);
+  if (was === undefined) return null;
+  const next = edit(was);
+  if (next === null || next === was) return null;
+  const copy = new Map(texts);
+  copy.set(rel, next);
+  return copy;
+};
+const p350Line = (sf, node) => sf.getLineAndCharacterOfPosition(node.getStart()).line + 1;
+/**
+ * One parse per distinct text of a file. Rows 11.6 and 11.7 read every
+ * production file, and each self-test hands them the same texts but one, so a
+ * copy reparses only the file its attack broke.
+ */
+const p350Parsed = new Map();
+/** Every node of a parsed file, walked once per parse. */
+const p350Nodes = new WeakMap();
+function p350NodesOf(sf) {
+  let nodes = p350Nodes.get(sf);
+  if (nodes === undefined) {
+    nodes = tsNodes(sf);
+    p350Nodes.set(sf, nodes);
+  }
+  return nodes;
+}
+function p350Parse(rel, text) {
+  let byText = p350Parsed.get(rel);
+  if (byText === undefined) {
+    byText = new Map();
+    p350Parsed.set(rel, byText);
+  }
+  let sf = byText.get(text);
+  if (sf === undefined) {
+    sf = tsParse(rel, text);
+    byText.set(text, sf);
+  }
+  return sf;
+}
+/** The function declaration `name` in a parsed file, or undefined. */
+const p350Fn = (sf, name) => tsNodes(sf).find((n) => ts.isFunctionDeclaration(n) && n.name?.text === name);
+/** The nodes of a function body that are not inside a nested function. */
+function p350OwnNodes(body) {
+  const out = [];
+  const visit = (n) => {
+    out.push(n);
+    if (n !== body && (ts.isFunctionLike(n) || ts.isClassLike(n))) return;
+    ts.forEachChild(n, visit);
+  };
+  visit(body);
+  return out;
+}
+const p350IsLiteralArray = (node, want) => {
+  const e = node === undefined ? undefined : tsPeel(node);
+  return (
+    e !== undefined &&
+    ts.isArrayLiteralExpression(e) &&
+    e.elements.length === want.length &&
+    e.elements.every((el, i) => (want[i].ident !== undefined ? ts.isIdentifier(el) && el.text === want[i].ident : ts.isStringLiteral(el) && el.text === want[i]))
+  );
+};
+/** A property's initializer inside an object literal, by name. */
+const p350Prop = (obj, name) => {
+  if (obj === undefined || !ts.isObjectLiteralExpression(obj)) return undefined;
+  const p = obj.properties.find((x) => ts.isPropertyAssignment(x) && propName(x) === name);
+  return p === undefined ? undefined : tsPeel(p.initializer);
+};
+
+/** 11.6 The token: spelled once, in no row field, named by the record and by `fixedLaunchTokens('pi')`. */
+function p350TokenFindings(texts, p, rows) {
+  const out = [];
+  const decls = { PI_INLINE_ARGS: [], PI_INLINE_FLOOR: [] };
+  const spellings = [];
+  for (const [rel, text] of texts) {
+    const sf = p350Parse(rel, text);
+    for (const n of p350NodesOf(sf)) {
+      if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text in decls) decls[n.name.text].push({ rel, n });
+      if ((ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) && n.text === P350_TOKENS[0]) spellings.push({ rel, n, sf });
+    }
+  }
+  if (decls.PI_INLINE_ARGS.length !== 1 || decls.PI_INLINE_ARGS[0].rel !== REGISTRY_SOURCE) {
+    out.push(`PI_INLINE_ARGS is declared ${String(decls.PI_INLINE_ARGS.length)} times (${decls.PI_INLINE_ARGS.map((d) => d.rel).join(', ') || 'nowhere'}), not once, in ${REGISTRY_SOURCE}`);
+  } else if (!p350IsLiteralArray(decls.PI_INLINE_ARGS[0].n.initializer, P350_TOKENS)) {
+    out.push(`PI_INLINE_ARGS is ${decls.PI_INLINE_ARGS[0].n.initializer?.getText() ?? 'nothing'}, not ${JSON.stringify(P350_TOKENS)}`);
+  }
+  if (decls.PI_INLINE_FLOOR.length !== 1 || decls.PI_INLINE_FLOOR[0].rel !== REGISTRY_SOURCE) {
+    out.push(`PI_INLINE_FLOOR is declared ${String(decls.PI_INLINE_FLOOR.length)} times, not once, in ${REGISTRY_SOURCE}`);
+  } else {
+    const init = tsPeel(decls.PI_INLINE_FLOOR[0].n.initializer);
+    if (init === undefined || !ts.isStringLiteral(init) || init.text !== P350_FLOOR) out.push(`PI_INLINE_FLOOR is ${init?.getText() ?? 'nothing'}, not '${P350_FLOOR}'`);
+  }
+  const home = decls.PI_INLINE_ARGS[0]?.n;
+  for (const s of spellings) {
+    const inside = home !== undefined && s.rel === REGISTRY_SOURCE && s.n.getStart() >= home.getStart() && s.n.getEnd() <= home.getEnd();
+    if (!inside) out.push(`${s.rel}:${String(p350Line(s.sf, s.n))} spells '${P350_TOKENS[0]}' a second time, beside PI_INLINE_ARGS`);
+  }
+  // pi's own row, read with the parser: the token in neither field, the record naming both constants.
+  const sf = p350Parse(REGISTRY_SOURCE, texts.get(REGISTRY_SOURCE) ?? '');
+  const piRow = tsNodes(sf).find(
+    (n) => ts.isObjectLiteralExpression(n) && n.properties.some((x) => ts.isPropertyAssignment(x) && propName(x) === 'id' && ts.isStringLiteral(x.initializer) && x.initializer.text === 'pi') && p350Prop(n, 'screen') !== undefined
+  );
+  if (piRow === undefined) {
+    out.push(`${REGISTRY_SOURCE} holds no pi row with a screen record`);
+  } else {
+    if (!p350IsLiteralArray(p350Prop(p350Prop(piRow, 'launch'), 'argv'), ['pi'])) out.push(`pi's launch.argv is ${p350Prop(p350Prop(piRow, 'launch'), 'argv')?.getText() ?? 'missing'}, not ['pi']: the token would reach every pi`);
+    if (!p350IsLiteralArray(p350Prop(p350Prop(piRow, 'resume'), 'template'), ['--session-id', { ident: 'SESSION_ID_SLOT' }])) out.push(`pi's resume.template is ${p350Prop(p350Prop(piRow, 'resume'), 'template')?.getText() ?? 'missing'}, not ['--session-id', SESSION_ID_SLOT]`);
+    const screen = p350Prop(piRow, 'screen');
+    const tokens = p350Prop(screen, 'tokens');
+    const floor = p350Prop(screen, 'floor');
+    if (tokens === undefined || !ts.isIdentifier(tokens) || tokens.text !== 'PI_INLINE_ARGS') out.push(`pi's record names its tokens as ${tokens?.getText() ?? 'nothing'}, not PI_INLINE_ARGS`);
+    if (floor === undefined || !ts.isIdentifier(floor) || floor.text !== 'PI_INLINE_FLOOR') out.push(`pi's record names its floor as ${floor?.getText() ?? 'nothing'}, not PI_INLINE_FLOOR`);
+  }
+  // What the registry's own exports said, through the probe.
+  if (p === null) return [...out, 'the probe printed no p350 section'];
+  if (!p331Same(p.tokens, P350_TOKENS)) out.push(`PI_INLINE_ARGS reads ${JSON.stringify(p.tokens)} at run time`);
+  if (p.floor !== P350_FLOOR) out.push(`PI_INLINE_FLOOR reads ${JSON.stringify(p.floor)} at run time`);
+  if (!p331Same(p.fixed?.pi, P350_TOKENS)) out.push(`fixedLaunchTokens('pi') answers ${JSON.stringify(p.fixed?.pi ?? null)}, not the token, so a row recorded with it would hand it back as a person's flag`);
+  const pi = rows.find((r) => r.id === 'pi');
+  if (pi === undefined) out.push('the probe read no pi row');
+  else {
+    if (!p331Same(pi.launchArgv, ['pi'])) out.push(`pi's launch.argv reads ${JSON.stringify(pi.launchArgv)} at run time, not ['pi']`);
+    if (!p331Same(pi.resumeTemplate, ['--session-id', '<sessionId>'])) out.push(`pi's resume.template reads ${JSON.stringify(pi.resumeTemplate)} at run time`);
+    if (!p331Same(pi.screen?.tokens, P350_TOKENS)) out.push(`pi's record reads tokens ${JSON.stringify(pi.screen?.tokens ?? null)} at run time`);
+  }
+  for (const [id, fixed] of Object.entries(p.fixed ?? {})) {
+    if (id !== 'pi' && p331Count(fixed, P350_TOKENS) > 0) out.push(`fixedLaunchTokens('${id}') names pi's token`);
+  }
+  return out;
+}
+
+/** The function-like node a call sits in, or undefined. */
+function p350Enclosing(node) {
+  let n = node.parent;
+  while (n !== undefined && !ts.isFunctionLike(n)) n = n.parent;
+  return n;
+}
+
+/** 11.7 Every production call of a composer passes the floor, and the right one. */
+function p350CallFindings(texts) {
+  const out = [];
+  const index = {};
+  for (const [name, rel] of Object.entries(P350_COMPOSERS)) {
+    const decl = p350Fn(p350Parse(rel, texts.get(rel) ?? ''), name);
+    if (decl === undefined) {
+      out.push(`${rel} no longer declares ${name}`);
+      continue;
+    }
+    const i = decl.parameters.findIndex((x) => ts.isIdentifier(x.name) && x.name.text === 'floorHolds');
+    if (i < 0) {
+      out.push(`${name} takes no floorHolds parameter`);
+      continue;
+    }
+    if (decl.parameters[i].initializer?.kind !== ts.SyntaxKind.FalseKeyword) {
+      out.push(`${name}'s floorHolds defaults to ${decl.parameters[i].initializer?.getText() ?? 'nothing'}, not false`);
+    }
+    index[name] = i;
+  }
+  const calls = {};
+  for (const [rel, text] of texts) {
+    if (!rel.startsWith('src/main/')) continue;
+    const sf = p350Parse(rel, text);
+    for (const call of p350NodesOf(sf).filter((n) => ts.isCallExpression(n))) {
+      const callee = call.expression;
+      const name = ts.isIdentifier(callee) ? callee.text : ts.isPropertyAccessExpression(callee) ? callee.name.text : null;
+      if (name === null || !Object.prototype.hasOwnProperty.call(P350_COMPOSERS, name) || index[name] === undefined) continue;
+      calls[rel] = (calls[rel] ?? 0) + 1;
+      const where = `${rel}:${String(p350Line(sf, call))}`;
+      if (call.arguments.some((a) => ts.isSpreadElement(a))) {
+        out.push(`${name} at ${where} spreads its arguments, so its floor cannot be read`);
+        continue;
+      }
+      const arg = call.arguments[index[name]];
+      if (arg === undefined) {
+        out.push(`${name} at ${where} passes no floor, so it composes as the default says rather than as its caller decided`);
+        continue;
+      }
+      const said = arg.getText().replace(/\s+/g, ' ');
+      const isFalse = arg.kind === ts.SyntaxKind.FalseKeyword;
+      const isTrue = arg.kind === ts.SyntaxKind.TrueKeyword;
+      const host = p350Enclosing(call);
+      const through = ts.isIdentifier(arg) && arg.text === 'floorHolds' && host !== undefined && host.parameters.some((x) => ts.isIdentifier(x.name) && x.name.text === 'floorHolds');
+      const names = (fn) => tsNodes(arg).some((n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === fn);
+      if (isTrue && rel !== P350_EXTRAS) out.push(`${name} at ${where} passes the literal true, which hands pi the token whatever this Mac's pi reads`);
+      if (P350_FALSE_FILES.includes(rel)) {
+        if (!isFalse) out.push(`${name} at ${where} passes ${said}; every composition in ${rel} is the literal false`);
+      } else if (rel === P350_EXTRAS) {
+        if (!isTrue) out.push(`${name} at ${where} passes ${said}; Restart composes the argv it compares with the floor answered true (D15)`);
+      } else if (rel === P350_CREATE) {
+        if (!names('piInlineFloorFor')) out.push(`${name} at ${where} passes ${said}, which does not ask piInlineFloorFor( of the binary the create runs`);
+      } else if (rel === P350_HARVEST) {
+        if (!names('piInlineFloorFor')) out.push(`${name} at ${where} passes ${said}, which does not ask piInlineFloorFor( of the binary its resume runs`);
+      } else if (!(isFalse || through || names('piInlineFloor') || names('piInlineFloorFor'))) {
+        out.push(`${name} at ${where} passes ${said}, which names no floor`);
+      }
+    }
+  }
+  for (const rel of P350_CALLING_FILES) {
+    if ((calls[rel] ?? 0) === 0) out.push(`${rel} calls none of the composers, so the floor it must pass cannot be read`);
+  }
+  return out;
+}
+
+/** 11.7, driven: the token straight after argv[0] for pi alone, only with the floor held. */
+function p350ComposedFindings(p) {
+  if (p === null) return ['the probe printed no p350 section'];
+  const out = [];
+  const composed = p.composed ?? {};
+  for (const need of ['pi', 'codex', 'claude']) if (composed[need] === undefined) out.push(`the probe composed nothing for ${need}`);
+  for (const [id, c] of Object.entries(composed)) {
+    for (const key of ['launch', 'resume', 'registryLaunch', 'registryResume', 'specArgv', 'specResume', 'composeResume']) {
+      const held = c?.held?.[key] ?? null;
+      const not = c?.notHeld?.[key] ?? null;
+      if (id === 'pi') {
+        if (!Array.isArray(not) || not.length === 0) {
+          out.push(`pi's ${key} composed nothing with the floor not held`);
+          continue;
+        }
+        const want = [not[0], ...P350_TOKENS, ...not.slice(1)];
+        if (!p331Same(held, want)) out.push(`pi's ${key} with the floor held is ${JSON.stringify(held)}, not ${JSON.stringify(want)}`);
+        if (p331Count(not, P350_TOKENS) !== 0) out.push(`pi's ${key} carries the token with the floor NOT held`);
+      } else if (!p331Same(held, not)) {
+        out.push(`${id}'s ${key} moves with pi's floor: ${JSON.stringify(not)} became ${JSON.stringify(held)}`);
+      }
+    }
+    for (const key of ['launch', 'resume']) {
+      if (!p331Same(c?.defaults?.[key], c?.notHeld?.[key])) out.push(`${id}'s ${key} with the floor omitted is not its ${key} with the floor false`);
+    }
+  }
+  return out;
+}
+
+/**
+ * 11.8 One floor rule: the SpecStory reader's, over the twelve readings, and no
+ * other comparison. The fix round's three: a reading is the version ALONE, as
+ * `pi -v` prints it (`22.11.0 node` and `pi 0.84.2` are unread), and a
+ * prerelease of the floor itself is below it, as semver orders it.
+ */
+function p350FloorRuleFindings(registryText, p) {
+  const out = [];
+  const want = [
+    [null, 'unread'], ['', 'unread'], ['garbage', 'unread'], ['0.83.9', 'below'], ['0.84.0', 'holds'],
+    ['0.84.2', 'holds'], ['0.99.2', 'holds'], ['1.4.0', 'holds'], ['10.0.0', 'holds'],
+    ['22.11.0 node', 'unread'], ['pi 0.84.2', 'unread'], ['0.84.0-rc.1', 'below']
+  ];
+  const got = Array.isArray(p?.readings) ? p.readings : [];
+  for (const [version, reading] of want) {
+    const r = got.find((x) => x.version === version);
+    if (r === undefined) out.push(`piInlineFloor(${JSON.stringify(version)}) was not driven`);
+    else if (r.reading !== reading) out.push(`piInlineFloor(${JSON.stringify(version)}) answers ${JSON.stringify(r.reading)}, not ${reading}`);
+  }
+  const sf = tsParse(REGISTRY_SOURCE, registryText);
+  const imported = tsNodes(sf).filter(
+    (n) => ts.isImportDeclaration(n) && ts.isStringLiteral(n.moduleSpecifier) && n.moduleSpecifier.text === '@shared/specstory-status'
+  );
+  const names = imported.flatMap((d) => (d.importClause?.namedBindings !== undefined && ts.isNamedImports(d.importClause.namedBindings) ? d.importClause.namedBindings.elements.map((e) => e.name.text) : []));
+  for (const fn of ['parseSpecStoryVersionOutput', 'compareSpecStoryVersions']) {
+    if (!names.includes(fn)) out.push(`${REGISTRY_SOURCE} does not import ${fn} from @shared/specstory-status`);
+  }
+  const fn = p350Fn(sf, 'piInlineFloor');
+  if (fn?.body === undefined) return [...out, `${REGISTRY_SOURCE} no longer declares piInlineFloor`];
+  const nodes = tsNodes(fn.body);
+  const called = new Set(nodes.filter((n) => ts.isCallExpression(n)).map((n) => n.expression.getText()));
+  for (const need of ['parseSpecStoryVersionOutput', 'compareSpecStoryVersions']) if (!called.has(need)) out.push(`piInlineFloor does not call ${need}`);
+  const foreign = [...called].filter((c) => c !== 'parseSpecStoryVersionOutput' && c !== 'compareSpecStoryVersions');
+  if (foreign.length > 0) out.push(`piInlineFloor also calls ${foreign.join(', ')}, a comparison of its own`);
+  if (nodes.some((n) => n.kind === ts.SyntaxKind.RegularExpressionLiteral)) out.push('piInlineFloor carries a regular expression of its own');
+  const RELATIONAL = [ts.SyntaxKind.LessThanToken, ts.SyntaxKind.GreaterThanToken, ts.SyntaxKind.LessThanEqualsToken, ts.SyntaxKind.GreaterThanEqualsToken];
+  for (const b of nodes.filter((n) => ts.isBinaryExpression(n) && RELATIONAL.includes(n.operatorToken.kind))) {
+    const left = tsPeel(b.left);
+    const isCompare = ts.isCallExpression(left) && left.expression.getText() === 'compareSpecStoryVersions';
+    if (!isCompare || !(ts.isNumericLiteral(b.right) && b.right.text === '0')) out.push(`piInlineFloor compares ${b.getText()}, not the shared rule's answer against 0`);
+  }
+  return out;
+}
+
+/** TRUE when `argv` holds the literal pair starting at `at`. */
+const p350PairAt = (argv, at) => argv[at] === P350_TOKENS[0] && argv[at + 1] === P350_TOKENS[1];
+
+/**
+ * Whether the pair straight after the binary is TORTIE's copy (the fix round):
+ * the composers put Tortie's first, so it is Tortie's unless the row's own
+ * composition leads with the same pair, and then only when a second follows.
+ */
+const p350Torties = (argv, ownLeads) => p350PairAt(argv, 1) && (!ownLeads || p350PairAt(argv, 3));
+
+/**
+ * The pass's answer for one planted row at one reading, written from
+ * build/p350/SPEC.md §4.2 step 3 in its own order, and from nothing in the
+ * code: null when the arm must not read the row at all. The fix round: the
+ * reading is the reader's for the row's OWN binary, `unread` for every binary
+ * but the one the probe's reader holds, and below the floor only Tortie's copy
+ * comes out.
+ */
+function p350PassWant(row, reading, local, readerBinary, ownLeads) {
+  if (row.agent !== 'pi' || (row.machineId ?? local) !== local) return null;
+  const id = row.agentSessionId ?? '';
+  if (id === '') return { verdict: 'no-id' };
+  const recorded = Array.isArray(row.resumeArgv) ? row.resumeArgv : [];
+  if (recorded.length === 0) return { verdict: 'no-resume-argv' };
+  if (row.wrapped === true) return { verdict: 'unreadable' };
+  const floor = recorded[0] === readerBinary ? reading : 'unread';
+  if (floor === 'unread') return { verdict: 'no-floor' };
+  let own = false;
+  for (let i = 1; i + 1 < recorded.length; i += 1) if (recorded[i] === '--session-id' && recorded[i + 1] === id) own = true;
+  if (!own) return { verdict: 'recorded-differs' };
+  if (floor === 'holds') return p350PairAt(recorded, 1) ? { verdict: 'already-right' } : { verdict: 'rewritten', argv: [recorded[0], ...P350_TOKENS, ...recorded.slice(1)] };
+  return p350Torties(recorded, ownLeads) ? { verdict: 'rewritten', argv: [recorded[0], ...recorded.slice(3)] } : { verdict: 'already-right' };
+}
+
+/** 11.9, driven: the pass at each reading and the strip at `unread`, each row byte for byte. */
+function p350DrivenRowFindings(p) {
+  if (p === null) return ['the probe printed no p350 section'];
+  const out = [];
+  const planted = Array.isArray(p.planted) ? p.planted : [];
+  if (planted.length < 12) out.push(`the probe planted ${String(planted.length)} rows, fewer than M2's set`);
+  if (p.pass === null || p.pass === undefined) return [...out, `the pass was not driven (${String(p.passWhy ?? 'no reason given')})`];
+  const local = p.local;
+  const readerBinary = p.readerBinary;
+  if (typeof readerBinary !== 'string' || readerBinary === '') out.push('the probe names no binary its reader holds a reading for');
+  // The fix round's rows, so the two regressions it fixed are driven every run.
+  const second = planted.filter((r) => r.agent === 'pi' && Array.isArray(r.resumeArgv) && r.resumeArgv[0] !== readerBinary && (r.machineId ?? local) === local && r.wrapped !== true);
+  if (second.length < 2) out.push(`the probe planted ${String(second.length)} row(s) of a second pi install on this Mac, fewer than two`);
+  if (!planted.some((r) => r.agent === 'pi' && Array.isArray(r.resumeArgv) && p350PairAt(r.resumeArgv, 1) && p350PairAt(r.resumeArgv, 3))) out.push("the probe planted no row with Tortie's copy before a person's own");
+  // Each run: its name, the reading for the reader's binary, and whether the row's own composition leads.
+  const RUNS = [['holds', 'holds', false], ['below', 'below', false], ['unread', 'unread', false], ['below-own', 'below', true]];
+  for (const [name, reading, ownLeads] of RUNS) {
+    const run = p.pass[name];
+    if (run === undefined) {
+      out.push(`the pass was not driven at ${name}`);
+      continue;
+    }
+    const outcomes = Array.isArray(run.outcomes) ? run.outcomes : [];
+    const writes = Array.isArray(run.writes) ? run.writes : [];
+    const wantWrites = [];
+    for (const row of planted) {
+      const want = p350PassWant(row, reading, local, readerBinary, ownLeads);
+      const got = outcomes.filter((o) => o.sessionId === row.id);
+      if (want === null) {
+        if (got.length > 0) out.push(`at ${name} the pass read ${row.id} (${row.agent}${row.machineId === undefined ? '' : ` on ${row.machineId}`}), which it must never read`);
+        continue;
+      }
+      if (got.length !== 1) {
+        out.push(`at ${name} the pass answered ${String(got.length)} outcomes for ${row.id}, not one`);
+        continue;
+      }
+      if (got[0].verdict !== want.verdict) out.push(`at ${name} ${row.id} reads ${String(got[0].verdict)}, not ${want.verdict}`);
+      if (got[0].arm !== 'pi') out.push(`at ${name} ${row.id} was judged under the ${String(got[0].arm)} arm`);
+      if (want.argv !== undefined) wantWrites.push({ id: row.id, argv: want.argv });
+    }
+    for (const w of wantWrites) {
+      const made = writes.filter((x) => x.id === w.id);
+      if (made.length !== 1) out.push(`at ${name} ${w.id} was written ${String(made.length)} times, not once`);
+      else if (!p331Same(made[0].argv, w.argv)) out.push(`at ${name} ${w.id} was written ${JSON.stringify(made[0].argv)}, not ${JSON.stringify(w.argv)}`);
+    }
+    for (const x of writes) {
+      if (!wantWrites.some((w) => w.id === x.id)) out.push(`at ${name} the pass wrote ${x.id}, which it must leave byte identical`);
+    }
+    if ((run.envWrites ?? []).length > 0) out.push(`at ${name} the pass wrote the env column of ${(run.envWrites ?? []).map((x) => x.id).join(', ')}`);
+    if (reading === 'unread' && writes.length > 0) out.push('an unread version moved a row (D13)');
+    const lines = Array.isArray(run.lines) ? run.lines : [];
+    if (lines.length === 0) out.push(`at ${name} the pass said nothing, though it read pi rows`);
+    for (const line of lines) {
+      for (const word of [...P350_TOKENS, '--session-id', p.id, '--model', ...new Set(planted.map((r) => (Array.isArray(r.resumeArgv) ? r.resumeArgv[0] : r.argv?.[0])).filter((b) => typeof b === 'string'))]) {
+        if (line.includes(word)) out.push(`at ${name} a line names ${JSON.stringify(word)}: ${line.slice(0, 120)}`);
+      }
+    }
+  }
+  // Restore's strip, at the one reading this probe can have.
+  if (p.floorNowBefore !== 'unread' || p.floorNowAfter !== 'unread') out.push(`piInlineFloorFor() read ${String(p.floorNowBefore)} and ${String(p.floorNowAfter)} in a process that started no scan, not unread`);
+  // The fix round: over the compiled table, and over a table whose pi
+  // template leads with the pair, where a person's own copy is theirs.
+  for (const [key, ownLeads, what] of [['strip', false, ''], ['stripOwn', true, ' with a template that leads with the pair']]) {
+    if (!Array.isArray(p[key])) {
+      out.push(`restore's strip${what} was not driven (${String(p.stripWhy ?? 'no reason given')})`);
+      continue;
+    }
+    for (const row of planted.filter((r) => Array.isArray(r.resumeArgv))) {
+      const got = p[key].find((s) => s.id === row.id);
+      const argv = row.resumeArgv;
+      const strips = row.agent === 'pi' && (row.machineId ?? local) === local && p350Torties(argv, ownLeads);
+      const want = strips ? [argv[0], ...argv.slice(3)] : argv;
+      if (got === undefined) out.push(`the strip${what} was not asked for ${row.id}`);
+      else if (!p331Same(got.argv, want)) out.push(`before the scan answers${what}, ${row.id} arms ${JSON.stringify(got.argv)}, not ${JSON.stringify(want)}`);
+    }
+  }
+  if (p.armed === null || p.armed === undefined) out.push(`armedResumeTokens was not read (${String(p.armedWhy ?? 'no reason given')})`);
+  else {
+    for (const t of [...P350_TOKENS, '--session-id']) if (!(p.armed.pi ?? []).includes(t)) out.push(`armedResumeTokens('pi') does not admit ${t}, so resume in place would refuse a pi row this build records (D16)`);
+    for (const t of P350_TOKENS) for (const a of ['codex', 'claude']) if ((p.armed[a] ?? []).includes(t)) out.push(`armedResumeTokens('${a}') admits pi's ${t}`);
+  }
+  return out;
+}
+
+/** 11.9, read: one column written, the strip on armableResume's one way out, Rule 1 naming the fixed tokens. */
+function p350ArmingSourceFindings(texts) {
+  const out = [];
+  const pass = tsParse(P350_PASS, texts.get(P350_PASS) ?? '');
+  for (const name of ['repairPiInline', 'piPass', 'piArm']) {
+    const fn = p350Fn(pass, name);
+    if (fn?.body === undefined) {
+      out.push(`${P350_PASS} no longer declares ${name}`);
+      continue;
+    }
+    const used = new Set(
+      tsNodes(fn.body)
+        .filter((n) => ts.isPropertyAccessExpression(n) && ts.isIdentifier(tsPeel(n.expression)) && tsPeel(n.expression).text === 'manifest')
+        .map((n) => n.name.text)
+    );
+    const foreign = [...used].filter((m) => m !== 'listSessions' && m !== 'setResumeArgvColumn');
+    if (foreign.length > 0) out.push(`${name} reaches manifest.${foreign.join(', manifest.')}, and the pi arm writes resume_argv alone`);
+  }
+  if (!tsNodes(p350Fn(pass, 'piArm') ?? pass).some((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'setResumeArgvColumn')) {
+    out.push('piArm writes no resume_argv at all');
+  }
+  // THE FIX ROUND: the floor of the row's OWN binary, and only Tortie's copy taken out.
+  {
+    const arm = p350Fn(pass, 'piArm');
+    const nodes = arm?.body === undefined ? [] : tsNodes(arm.body);
+    const floorCalls = nodes.filter((n) => ts.isCallExpression(n) && n.expression.getText() === 'readers.floorFor');
+    if (floorCalls.length !== 1 || !/^recorded\[0\]/.test(floorCalls[0].arguments[0]?.getText() ?? '')) {
+      out.push(`piArm asks readers.floorFor( ${String(floorCalls.length)} time(s)${floorCalls.length === 1 ? ` of ${floorCalls[0].arguments[0]?.getText() ?? 'nothing'}` : ''}; once, of the binary the row records (recorded[0]), so a second pi install's row is never judged by the scanned one's version`);
+    }
+    const torties = nodes.filter((n) => ts.isCallExpression(n) && n.expression.getText() === 'piTokenIsTortiesIn');
+    if (torties.length !== 1 || !tsNodes(torties[0]).some((n) => ts.isCallExpression(n) && n.expression.getText() === 'readers.ownResume')) {
+      out.push("piArm does not take the token out below the floor through piTokenIsTortiesIn( over readers.ownResume(, so a person's own leading --tui-mode would be taken out as Tortie's");
+    }
+  }
+  const restore = tsParse(P350_RESTORE, texts.get(P350_RESTORE) ?? '');
+  const arm = p350Fn(restore, 'armableResume');
+  if (arm?.body === undefined) out.push(`${P350_RESTORE} no longer declares armableResume`);
+  else {
+    const own = p350OwnNodes(arm.body);
+    const strips = own.filter((n) => ts.isCallExpression(n) && n.expression.getText() === 'withoutPiTokenBelowFloor');
+    if (strips.length !== 1) out.push(`armableResume calls withoutPiTokenBelowFloor ${String(strips.length)} times, not once on its way out`);
+    const bound = strips
+      .map((c) => c.parent)
+      .filter((v) => v !== undefined && ts.isVariableDeclaration(v) && ts.isIdentifier(v.name))
+      .map((v) => v.name.text);
+    for (const ret of own.filter((n) => ts.isReturnStatement(n))) {
+      const e = ret.expression;
+      const passes = e !== undefined && tsNodes(e).some((n) => (ts.isIdentifier(n) && bound.includes(n.text)) || (ts.isCallExpression(n) && n.expression.getText() === 'withoutPiTokenBelowFloor'));
+      if (!passes) out.push(`armableResume returns ${e?.getText().slice(0, 60) ?? 'nothing'} without the strip`);
+    }
+  }
+  const strip = p350Fn(restore, 'withoutPiTokenBelowFloor');
+  if (strip?.body === undefined) out.push(`${P350_RESTORE} no longer declares withoutPiTokenBelowFloor`);
+  else {
+    const nodes = tsNodes(strip.body);
+    // THE FIX ROUND: the floor of the binary the armed argv runs, argv[0].
+    const asksHolds = nodes.some(
+      (n) =>
+        ts.isBinaryExpression(n) &&
+        [ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken].includes(n.operatorToken.kind) &&
+        ts.isCallExpression(tsPeel(n.left)) &&
+        tsPeel(n.left).expression.getText() === 'piInlineFloorFor' &&
+        tsPeel(n.left).arguments[0]?.getText() === 'argv[0]' &&
+        ts.isStringLiteral(n.right) &&
+        n.right.text === 'holds'
+    );
+    if (!asksHolds) out.push("withoutPiTokenBelowFloor does not ask piInlineFloorFor(argv[0]) against 'holds'");
+    const torties = nodes.filter((n) => ts.isCallExpression(n) && n.expression.getText() === 'piTokenIsTortiesIn');
+    if (torties.length !== 1 || !tsNodes(torties[0]).some((n) => ts.isCallExpression(n) && n.expression.getText() === 'piOwnResumeArgv')) {
+      out.push("withoutPiTokenBelowFloor does not ask piTokenIsTortiesIn( over piOwnResumeArgv(, so a person's own leading --tui-mode would be taken out as Tortie's");
+    }
+    for (const ident of ['PI_INLINE_ARGS', 'LOCAL_MACHINE_ID']) {
+      if (!nodes.some((n) => ts.isIdentifier(n) && n.text === ident)) out.push(`withoutPiTokenBelowFloor does not read ${ident}`);
+    }
+  }
+  const inPlace = tsParse(P350_RESUME_IN_PLACE, texts.get(P350_RESUME_IN_PLACE) ?? '');
+  if (!tsNodes(inPlace).some((n) => ts.isCallExpression(n) && n.expression.getText() === 'armableResume')) {
+    out.push(`${P350_RESUME_IN_PLACE} no longer arms through armableResume, so it would skip the strip`);
+  }
+  const armed = p350Fn(tsParse(P350_ARM, texts.get(P350_ARM) ?? ''), 'armedResumeTokens');
+  if (armed?.body === undefined) out.push(`${P350_ARM} no longer declares armedResumeTokens`);
+  else if (!tsNodes(armed.body).some((n) => ts.isCallExpression(n) && n.expression.getText() === 'fixedLaunchTokens')) {
+    out.push('armedResumeTokens does not read fixedLaunchTokens(, so resume in place would refuse a pi row recorded at the floor (D16)');
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Row 11.10 — ONLY PI'S OWN PACKAGE (his ruling of 2026-11-02, R1)
+// ---------------------------------------------------------------------------
+//
+// The reverify found the one case worse than today: a pi reached through a
+// version manager's shim (mise, asdf, volta) resolves to the manager's own
+// dispatcher, ONE file that picks pi's version by the folder it runs in, so the
+// scan's global reading handed `--tui-mode regular` to a project pinned below
+// 0.84.0 and pi stopped after its trust question at every launch. His ruling:
+// the token only when pi's real file sits inside pi's OWN installed package, the
+// package.json above it naming pi's package, and anything else reads `unread`.
+// This row holds that by its shape, read with the TypeScript parser over every
+// production file: the package name declared once, in the registry, as this
+// checker's own literal (the name pi 0.84.2's package.json carries, read as text
+// on 2026-11-02) and the one the install map's npm route installs; ONE
+// predicate, `insidePiPackage`, in detection.ts, that reads files and starts no
+// process or scan; its ONE caller, `piInlineFloorFor`, which answers `unread`
+// before anything else when it is false; `piInlineFloor(`, the version-only
+// rule, asked nowhere else; and every place the token is decided asking
+// `piInlineFloorFor(` (the create, the harvest and the admission, restore's
+// strip, which resume in place arms through, and the boot pass's readers, which
+// the core hands it). Restart's replacement is a create; its shapes compose with
+// `true` to RECOGNISE the token, which 11.7 holds. What each shape of install
+// answers is DRIVEN by p350-pi-package.test.ts, which `ablation:p331` P33 to P35
+// tie to this row.
+
+const P350_DETECTION = 'src/main/agents/detection.ts';
+const P350_CORE = 'src/main/sessions/core.ts';
+/** pi's own package name, this checker's own literal: the `name` pi 0.84.2's own package.json reads. */
+const P350_PACKAGE = '@earendil-works/pi-coding-agent';
+/** The places pi's token is decided, each of which must ask `piInlineFloorFor(` (R1). */
+const P350_FLOOR_ASKERS = [P350_CREATE, P350_HARVEST, P350_RESTORE, P350_CORE];
+/** Calls that start a process or a scan; the package predicate may make none of them. */
+const P350_STARTERS = new Set([
+  'spawn', 'spawnSync', 'exec', 'execSync', 'execFile', 'execFileSync', 'fork', 'runGuarded', 'runVersionProbe',
+  'execProbe', 'scanAgents', 'listDetectedAgents', 'rescanAgents', 'warmDetectionAtBoot', 'warmDetectionForLocalPi'
+]);
+
+/** TRUE when `node` sits inside an import or an export declaration. */
+function p350InImportOrExport(node) {
+  for (let n = node.parent; n !== undefined; n = n.parent) {
+    if (ts.isImportDeclaration(n) || ts.isExportDeclaration(n)) return true;
+  }
+  return false;
+}
+
+/** The statement a `return` answers with the string literal `word`, alone or as a block's one statement. */
+const p350ReturnsWord = (stmt, word) => {
+  const s = stmt !== undefined && ts.isBlock(stmt) && stmt.statements.length === 1 ? stmt.statements[0] : stmt;
+  return s !== undefined && ts.isReturnStatement(s) && s.expression !== undefined && ts.isStringLiteral(tsPeel(s.expression)) && tsPeel(s.expression).text === word;
+};
+
+/** 11.10 Only pi's own package: one constant, one predicate, one gate, and every decision through it. */
+function p350PackageFindings(texts) {
+  const out = [];
+  const decls = [];
+  const preds = [];
+  const predCalls = [];
+  const ruleCalls = [];
+  const asks = new Map();
+  for (const [rel, text] of texts) {
+    const sf = p350Parse(rel, text);
+    for (const n of p350NodesOf(sf)) {
+      if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'PI_PACKAGE_NAME') decls.push({ rel, n });
+      if (ts.isFunctionDeclaration(n) && n.name?.text === 'insidePiPackage') preds.push({ rel, n });
+      if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === 'insidePiPackage') predCalls.push({ rel, n, sf });
+      if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === 'piInlineFloor') ruleCalls.push({ rel, n, sf });
+      if (ts.isIdentifier(n) && n.text === 'piInlineFloorFor' && !p350InImportOrExport(n) && !(ts.isFunctionDeclaration(n.parent) && n.parent.name === n)) {
+        asks.set(rel, (asks.get(rel) ?? 0) + 1);
+      }
+    }
+  }
+  // The constant, and the install map that names the same package.
+  if (decls.length !== 1 || decls[0].rel !== REGISTRY_SOURCE) {
+    out.push(`PI_PACKAGE_NAME is declared ${String(decls.length)} times (${decls.map((d) => d.rel).join(', ') || 'nowhere'}), not once, in ${REGISTRY_SOURCE}`);
+  } else {
+    const init = tsPeel(decls[0].n.initializer);
+    if (init === undefined || !ts.isStringLiteral(init) || init.text !== P350_PACKAGE) out.push(`PI_PACKAGE_NAME is ${init?.getText() ?? 'nothing'}, not '${P350_PACKAGE}', the name pi's own package.json carries`);
+  }
+  const registry = p350Parse(REGISTRY_SOURCE, texts.get(REGISTRY_SOURCE) ?? '');
+  const piRow = tsNodes(registry).find(
+    (n) => ts.isObjectLiteralExpression(n) && n.properties.some((x) => ts.isPropertyAssignment(x) && propName(x) === 'id' && ts.isStringLiteral(x.initializer) && x.initializer.text === 'pi') && p350Prop(n, 'install') !== undefined
+  );
+  const alternates = p350Prop(p350Prop(piRow, 'install'), 'alternates');
+  const named = alternates !== undefined && ts.isArrayLiteralExpression(alternates)
+    ? alternates.elements.some((el) => {
+      const cmd = p350Prop(tsPeel(el), 'command');
+      return cmd !== undefined && ts.isStringLiteral(cmd) && cmd.text.split(/\s+/).includes(P350_PACKAGE);
+    })
+    : false;
+  if (!named) out.push(`pi's install map names no route that installs ${P350_PACKAGE}, so the package the token is held to is not the one the map installs`);
+  // The predicate: once, in detection.ts, reading files and starting nothing.
+  if (preds.length !== 1 || preds[0].rel !== P350_DETECTION) {
+    out.push(`insidePiPackage is declared ${String(preds.length)} times (${preds.map((d) => d.rel).join(', ') || 'nowhere'}), not once, in ${P350_DETECTION}`);
+  } else {
+    const body = preds[0].n.body;
+    const nodes = body === undefined ? [] : tsNodes(body);
+    if (!nodes.some((n) => ts.isIdentifier(n) && n.text === 'PI_PACKAGE_NAME')) out.push('insidePiPackage compares no name with PI_PACKAGE_NAME, so any package reads as pi\'s');
+    if (!nodes.some((n) => ts.isCallExpression(n) && n.expression.getText() === 'realpathSync')) out.push('insidePiPackage does not follow the binary to its real file (realpathSync)');
+    if (!nodes.some((n) => ts.isStringLiteral(n) && n.text === 'package.json')) out.push("insidePiPackage reads no 'package.json'");
+    for (const call of nodes.filter((n) => ts.isCallExpression(n))) {
+      const callee = call.expression;
+      const name = ts.isIdentifier(callee) ? callee.text : ts.isPropertyAccessExpression(callee) ? callee.name.text : null;
+      if (name !== null && P350_STARTERS.has(name)) out.push(`insidePiPackage calls ${name}(, and it may read files only: nothing is run (R1)`);
+    }
+  }
+  // Its one caller, as the gate: `if (!insidePiPackage(bin)) return 'unread';` before the reader's last return.
+  const floorFor = p350Fn(p350Parse(P350_DETECTION, texts.get(P350_DETECTION) ?? ''), 'piInlineFloorFor');
+  if (floorFor?.body === undefined) out.push(`${P350_DETECTION} no longer declares piInlineFloorFor`);
+  else {
+    const own = p350OwnNodes(floorFor.body);
+    const outside = predCalls.filter((c) => !own.includes(c.n));
+    for (const c of outside) out.push(`insidePiPackage is called at ${c.rel}:${String(p350Line(c.sf, c.n))}, outside piInlineFloorFor, its one caller`);
+    const inside = predCalls.filter((c) => own.includes(c.n));
+    if (inside.length !== 1) out.push(`piInlineFloorFor asks insidePiPackage ${String(inside.length)} times, not once`);
+    else {
+      const call = inside[0].n;
+      const arg = call.arguments[0];
+      if (call.arguments.length !== 1 || arg === undefined || !ts.isIdentifier(arg) || arg.text !== 'bin') out.push(`piInlineFloorFor asks insidePiPackage of ${call.arguments.map((a) => a.getText()).join(', ') || 'nothing'}, not of the binary it was handed (bin)`);
+      const not = call.parent;
+      const gate = not?.parent;
+      const isGate = not !== undefined && ts.isPrefixUnaryExpression(not) && not.operator === ts.SyntaxKind.ExclamationToken && gate !== undefined && ts.isIfStatement(gate) && gate.expression === not && gate.elseStatement === undefined && p350ReturnsWord(gate.thenStatement, 'unread');
+      if (!isGate) out.push("piInlineFloorFor does not answer 'unread' when insidePiPackage(bin) is false (`if (!insidePiPackage(bin)) return 'unread';`)");
+      else {
+        const statements = floorFor.body.statements;
+        const at = statements.indexOf(gate);
+        const last = statements[statements.length - 1];
+        if (at < 0 || at >= statements.length - 1 || last === undefined || !ts.isReturnStatement(last)) out.push('the package gate is not a statement of piInlineFloorFor ahead of its last return, so a reading can leave before it is asked');
+        // No reading but `unread` may leave the reader before the gate has been asked.
+        for (const ret of own.filter((n) => ts.isReturnStatement(n))) {
+          const e = ret.expression === undefined ? undefined : tsPeel(ret.expression);
+          const unread = e !== undefined && ts.isStringLiteral(e) && e.text === 'unread';
+          if (!unread && ret.getStart() < gate.getEnd()) out.push(`piInlineFloorFor returns ${e?.getText() ?? 'nothing'} before it asks insidePiPackage, so that reading never asks whether pi is in its own package`);
+        }
+      }
+    }
+    // The version-only rule is asked inside the reader alone, so no decision bypasses the gate.
+    for (const c of ruleCalls.filter((x) => !own.includes(x.n))) out.push(`piInlineFloor( is asked at ${c.rel}:${String(p350Line(c.sf, c.n))}, outside piInlineFloorFor, so that decision never asks whether pi is in its own package`);
+    if (ruleCalls.filter((x) => own.includes(x.n)).length !== 1) out.push('piInlineFloorFor no longer reads the version through piInlineFloor(');
+  }
+  // Every place the token is decided asks the reader; the core hands it to the pass.
+  for (const rel of P350_FLOOR_ASKERS) {
+    if ((asks.get(rel) ?? 0) === 0) out.push(`${rel} no longer asks piInlineFloorFor, so the token it decides is not held to pi's own package`);
+  }
+  const core = p350Parse(P350_CORE, texts.get(P350_CORE) ?? '');
+  const handed = tsNodes(core).some((n) => {
+    if (!ts.isCallExpression(n) || n.expression.getText() !== 'repairPiInlineOnce') return false;
+    const readers = n.arguments[1] === undefined ? undefined : tsPeel(n.arguments[1]);
+    const floor = p350Prop(readers, 'floorFor');
+    return floor !== undefined && ts.isIdentifier(floor) && floor.text === 'piInlineFloorFor';
+  });
+  if (!handed) out.push('the core hands the boot pass a floor reader other than piInlineFloorFor, so the pass is not held to pi\'s own package');
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Row 11.11 — THE FILE THAT RUNS (his ruling of 2026-11-02, the second ruled
+// round)
+// ---------------------------------------------------------------------------
+//
+// The second ruled reverify found what 11.10 cannot see: a create spawns pi by
+// its BARE NAME (Phase 12.7 F3), and the pane's execvp walks the pane's PATH from
+// the folder tmux starts it in, so a relative entry (`node_modules/.bin`, the
+// common `export PATH=./node_modules/.bin:$PATH`) ahead of the global pi finds a
+// project's own pi below 0.84.0, which the token stops after its trust question,
+// while the scan read, and 11.10 passed, the global file. His ruling: "Check the
+// file that runs. Before adding the switch, find pi the way the terminal will,
+// starting from the session's folder. Add the switch only when that's the file
+// Tortie checked." This row holds it two ways.
+//
+// BY ITS SHAPE, read with the TypeScript parser over every production file: ONE
+// resolver, `bareNameSpawnFile`, and ONE comparison, `bareNameSpawnRuns`, each
+// declared once, in detection.ts, starting nothing and calling nothing that reads
+// this process's folder, normalises a path or folds its case; the resolver asked
+// by the comparison alone, which reads a device and an inode; the comparison asked
+// once, inside `piInlineFloorFor`, as a gate that answers `unread` ahead of the
+// reader's last return; and the create handing that reader its pane's spawn, built
+// from the bare name, the PATH `installUserPath` wrote and the very folder it
+// hands tmux. Since his ruling of 2026-11-03, the resolver's guard answers null for
+// a folder holding a `#`, beside `!folder.startsWith('/')`, because tmux reads
+// `new-session -c` as a format (Phase 353 takes the clause out when it escapes it).
+// Since his ruling of 2026-11-04 it answers null for a folder ending in `;` too,
+// because tmux's argument reader ends a command at an argument ending in `;` and
+// reads `\;` as `;` (Phase 353 takes that clause out with the `#` one).
+//
+// DRIVEN: the probe plants a world (a global npm pi; projects holding their own pi
+// as npm and pnpm install it, behind every relative and empty PATH entry and a
+// binstub; a second link, a hard link and a linked folder to the global file; a
+// `..` read through a linked folder; folders and links that cannot be read;
+// projects whose folder, or a parent's, holds a `#`; a project whose folder ends
+// in `\;`) and walks it through the SHIPPING resolver and comparison. Every answer is compared
+// with the table below, written from his ruling and from execvp's rule, never read
+// back from the code. `ablation:p331` P37 to P40 and P42 to P44 break the shipping source.
+
+/** The resolver and the comparison, by name. */
+const P350_SPAWN_FNS = ['bareNameSpawnFile', 'bareNameSpawnRuns'];
+/** What neither may call: a process or a scan, this process's folder, a normalised or case-folded path, a real path's text. */
+const P350_SPAWN_FORBIDDEN = new Set([
+  ...P350_STARTERS, 'cwd', 'chdir', 'resolve', 'normalize', 'join', 'realpathSync', 'realpath',
+  'toLowerCase', 'toUpperCase', 'toLocaleLowerCase', 'toLocaleUpperCase', 'localeCompare'
+]);
+/**
+ * Each planted shape: the file the pane's lookup finds, spelled as the walk spells it under the world's
+ * root (null for none), and whether that is the global file the floor was read for.
+ */
+const P350_SPAWN_TABLE = {
+  'nm-npm': ['npm/node_modules/.bin/pi', false],
+  'dotnm-pnpm': ['pnpm/./node_modules/.bin/pi', false],
+  'dot-npm': ['npm/./pi', false],
+  'lead-npm': ['npm/pi', false],
+  'double-pnpm': ['pnpm/pi', false],
+  'trail-npm': ['npm/pi', false],
+  'bin-npm': ['npm/bin/pi', false],
+  'nm-plain': ['g/bin/pi', true],
+  'lead-plain': ['g/bin/pi', true],
+  'after-npm': ['g/bin/pi', true],
+  'link-npm': ['npm-link/node_modules/.bin/pi', false],
+  'link-plain': ['g/bin/pi', true],
+  second: ['g2/pi', true],
+  hard: ['hard/pi', true],
+  alias: ['alias/pi', true],
+  dotdot: ['deep/link/../g/bin/pi', true],
+  locked: [null, false],
+  noexec: ['g/bin/pi', true],
+  dirpi: ['g/bin/pi', true],
+  dangling: ['g/bin/pi', true],
+  loop: [null, false],
+  shut: [null, false],
+  'relative-folder': [null, false],
+  none: [null, false],
+  // His ruling of 2026-11-03: a folder holding a `#`, in its own name or a parent's, is no folder the walk reads.
+  hash: [null, false],
+  'hash-parent': [null, false],
+  // His ruling of 2026-11-04: nor is a folder ending in `;` (here `semi\;`, which tmux reads as `semi;`).
+  semi: [null, false]
+};
+
+/** 11.11 by its shape: one resolver, one comparison by identity, one gate, and the create asking it. */
+function p350SpawnSourceFindings(texts) {
+  const out = [];
+  const decls = Object.fromEntries(P350_SPAWN_FNS.map((n) => [n, []]));
+  const calls = Object.fromEntries(P350_SPAWN_FNS.map((n) => [n, []]));
+  for (const [rel, text] of texts) {
+    const sf = p350Parse(rel, text);
+    for (const n of p350NodesOf(sf)) {
+      if (ts.isFunctionDeclaration(n) && n.name !== undefined && P350_SPAWN_FNS.includes(n.name.text)) decls[n.name.text].push({ rel, n });
+      if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && P350_SPAWN_FNS.includes(n.expression.text)) calls[n.expression.text].push({ rel, n, sf });
+    }
+  }
+  const one = {};
+  for (const name of P350_SPAWN_FNS) {
+    const list = decls[name];
+    if (list.length !== 1 || list[0].rel !== P350_DETECTION) {
+      out.push(`${name} is declared ${String(list.length)} times (${list.map((d) => d.rel).join(', ') || 'nowhere'}), not once, in ${P350_DETECTION}`);
+    } else {
+      one[name] = list[0].n;
+    }
+  }
+  // HIS RULING OF 2026-11-03: a folder holding a `#` anywhere is no folder the walk reads, by ONE clause in the
+  // resolver's guard beside the folder's own `!folder.startsWith('/')`, answering null ahead of the walk, because tmux
+  // reads `new-session -c` as a format. Phase 353 hands tmux the folder escaped and takes this clause out with it.
+  const resolver = one.bareNameSpawnFile;
+  if (resolver?.body !== undefined) {
+    const statements = resolver.body.statements;
+    const guard = statements.find((s) => ts.isIfStatement(s));
+    const walk = statements.findIndex((s) => ts.isForOfStatement(s) || ts.isForStatement(s) || ts.isWhileStatement(s));
+    const terms = [];
+    const flat = (e) => {
+      const x = tsPeel(e);
+      if (ts.isBinaryExpression(x) && x.operatorToken.kind === ts.SyntaxKind.BarBarToken) {
+        flat(x.left);
+        flat(x.right);
+      } else terms.push(x);
+    };
+    if (guard !== undefined) flat(guard.expression);
+    const hash = terms.some(
+      (t) => ts.isCallExpression(t) && t.expression.getText() === 'folder.includes' && t.arguments.length === 1 && ts.isStringLiteral(t.arguments[0]) && t.arguments[0].text === '#'
+    );
+    // HIS RULING OF 2026-11-04: a folder ending in `;` likewise, by one more term in the SAME guard, because tmux's
+    // argument reader ends a command at an argument ending in `;` and reads `\;` as `;`. Phase 353 takes it out too.
+    const semi = terms.some(
+      (t) => ts.isCallExpression(t) && t.expression.getText() === 'folder.endsWith' && t.arguments.length === 1 && ts.isStringLiteral(t.arguments[0]) && t.arguments[0].text === ';'
+    );
+    const absolute = terms.some((t) => t.getText().replace(/\s+/g, '') === "!folder.startsWith('/')");
+    const then = guard === undefined ? undefined : ts.isBlock(guard.thenStatement) && guard.thenStatement.statements.length === 1 ? guard.thenStatement.statements[0] : guard.thenStatement;
+    const returnsNull = then !== undefined && ts.isReturnStatement(then) && then.expression?.kind === ts.SyntaxKind.NullKeyword;
+    const ahead = guard !== undefined && guard.elseStatement === undefined && (walk < 0 || statements.indexOf(guard) < walk);
+    if (!(hash && absolute && returnsNull && ahead)) {
+      out.push("bareNameSpawnFile's guard does not answer null for a folder holding a `#` (`|| folder.includes('#')` beside `!folder.startsWith('/')`, ahead of the walk): tmux reads `new-session -c` as a format, so the pane may not start in that folder");
+    }
+    if (!(semi && absolute && returnsNull && ahead)) {
+      out.push("bareNameSpawnFile's guard does not answer null for a folder ending in `;` (`|| folder.endsWith(';')` beside `!folder.startsWith('/')`, ahead of the walk): tmux's argument reader reads `\\;` as `;` and ends a command at `;`, so the pane may not start in that folder");
+    }
+  }
+  // Neither starts anything, reads this process's folder, normalises a path, folds its case or reads a real path's text.
+  for (const name of P350_SPAWN_FNS) {
+    const fn = one[name];
+    if (fn?.body === undefined) continue;
+    for (const call of p350OwnNodes(fn.body).filter((n) => ts.isCallExpression(n))) {
+      const callee = call.expression;
+      const said = ts.isIdentifier(callee) ? callee.text : ts.isPropertyAccessExpression(callee) ? callee.name.text : null;
+      if (said !== null && P350_SPAWN_FORBIDDEN.has(said)) out.push(`${name} calls ${said}(: it reads the session's own folder as spelled and starts nothing`);
+    }
+  }
+  // The resolver is asked by the comparison alone; the comparison reads a device and an inode.
+  const runs = one.bareNameSpawnRuns;
+  if (runs?.body !== undefined) {
+    const own = p350OwnNodes(runs.body);
+    for (const c of calls.bareNameSpawnFile.filter((x) => !own.includes(x.n))) out.push(`bareNameSpawnFile is called at ${c.rel}:${String(p350Line(c.sf, c.n))}, outside bareNameSpawnRuns, its one caller`);
+    if (calls.bareNameSpawnFile.filter((x) => own.includes(x.n)).length !== 1) out.push('bareNameSpawnRuns does not ask bareNameSpawnFile once');
+    const names = new Set(own.filter((n) => ts.isPropertyAccessExpression(n)).map((n) => n.name.text));
+    for (const field of ['dev', 'ino']) if (!names.has(field)) out.push(`bareNameSpawnRuns compares no ${field}: one file is one device and one inode, never one spelling`);
+  }
+  // The comparison is asked once, inside piInlineFloorFor, as a gate answering `unread` ahead of its last return.
+  const floorFor = p350Fn(p350Parse(P350_DETECTION, texts.get(P350_DETECTION) ?? ''), 'piInlineFloorFor');
+  if (floorFor?.body === undefined) out.push(`${P350_DETECTION} no longer declares piInlineFloorFor`);
+  else {
+    const own = p350OwnNodes(floorFor.body);
+    for (const c of calls.bareNameSpawnRuns.filter((x) => !own.includes(x.n))) out.push(`bareNameSpawnRuns is called at ${c.rel}:${String(p350Line(c.sf, c.n))}, outside piInlineFloorFor, its one caller`);
+    const inside = calls.bareNameSpawnRuns.filter((x) => own.includes(x.n));
+    const param = floorFor.parameters[1];
+    if (param === undefined || !ts.isIdentifier(param.name) || param.name.text !== 'spawn' || param.questionToken === undefined) out.push("piInlineFloorFor takes no optional second parameter `spawn`, so a create cannot say how its pane will run pi");
+    if (inside.length !== 1) out.push(`piInlineFloorFor asks bareNameSpawnRuns ${String(inside.length)} times, not once`);
+    else {
+      const call = inside[0].n;
+      const args = call.arguments.map((a) => a.getText());
+      if (args.join(', ') !== 'spawn, bin') out.push(`piInlineFloorFor asks bareNameSpawnRuns(${args.join(', ')}), not of its own spawn and the binary it was handed (spawn, bin)`);
+      const not = call.parent;
+      const both = not?.parent;
+      const gate = both?.parent;
+      const isGate =
+        not !== undefined && ts.isPrefixUnaryExpression(not) && not.operator === ts.SyntaxKind.ExclamationToken &&
+        both !== undefined && ts.isBinaryExpression(both) && both.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken && both.right === not &&
+        both.left.getText().replace(/\s+/g, ' ') === 'spawn !== undefined' &&
+        gate !== undefined && ts.isIfStatement(gate) && gate.expression === both && gate.elseStatement === undefined && p350ReturnsWord(gate.thenStatement, 'unread');
+      if (!isGate) out.push("piInlineFloorFor does not answer 'unread' when the pane's lookup does not find bin (`if (spawn !== undefined && !bareNameSpawnRuns(spawn, bin)) return 'unread';`)");
+      else {
+        const statements = floorFor.body.statements;
+        const at = statements.indexOf(gate);
+        const last = statements[statements.length - 1];
+        if (at < 0 || at >= statements.length - 1 || last === undefined || !ts.isReturnStatement(last)) out.push('the spawn gate is not a statement of piInlineFloorFor ahead of its last return');
+        for (const ret of own.filter((n) => ts.isReturnStatement(n))) {
+          const e = ret.expression === undefined ? undefined : tsPeel(ret.expression);
+          const unread = e !== undefined && ts.isStringLiteral(e) && e.text === 'unread';
+          if (!unread && ret.getStart() < gate.getEnd()) out.push(`piInlineFloorFor returns ${e?.getText() ?? 'nothing'} before it asks how the pane will run pi`);
+        }
+      }
+    }
+  }
+  // The create hands the reader its pane's spawn: the bare name, the PATH installUserPath wrote, the folder it hands tmux.
+  const create = p350Parse(P350_CREATE, texts.get(P350_CREATE) ?? '');
+  const cnodes = p350NodesOf(create);
+  const asks = cnodes.filter((n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === 'piInlineFloorFor');
+  const constOf = (name) => cnodes.find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === name && ts.isVariableDeclarationList(n.parent) && (n.parent.flags & ts.NodeFlags.Const) !== 0);
+  if (asks.length !== 1) out.push(`${P350_CREATE} asks piInlineFloorFor ${String(asks.length)} times, not once`);
+  else {
+    const [binArg, spawnArg] = asks[0].arguments;
+    if (binArg === undefined || binArg.getText() !== 'binPath') out.push(`the create asks piInlineFloorFor of ${binArg?.getText() ?? 'nothing'}, not of binPath, the binary it records`);
+    if (spawnArg === undefined || !ts.isIdentifier(spawnArg)) out.push("the create asks piInlineFloorFor with no spawn, so the floor is read for a file its pane may not run");
+    else {
+      const decl = constOf(spawnArg.text);
+      const init = decl === undefined ? undefined : tsPeel(decl.initializer);
+      const whenTrue = init !== undefined && ts.isConditionalExpression(init) ? init : undefined;
+      const obj = whenTrue === undefined ? undefined : tsPeel(whenTrue.whenFalse);
+      const ok =
+        whenTrue !== undefined && whenTrue.condition.getText().replace(/\s+/g, ' ') === 'bareName === undefined' &&
+        whenTrue.whenTrue.getText() === 'undefined' && obj !== undefined && ts.isObjectLiteralExpression(obj);
+      if (!ok) out.push(`${spawnArg.text} is not \`bareName === undefined ? undefined : { name, path, folder }\`, so a pane spawned by its bare name is not described as it runs`);
+      else {
+        const name = p350Prop(obj, 'name');
+        const path = p350Prop(obj, 'path');
+        const folder = p350Prop(obj, 'folder');
+        if (name === undefined || name.getText() !== 'bareName') out.push(`the spawn's name is ${name?.getText() ?? 'nothing'}, not bareName, the argv[0] the pane gets`);
+        const pathDecl = path !== undefined && ts.isIdentifier(path) ? constOf(path.text) : undefined;
+        const pathInit = pathDecl === undefined ? undefined : tsPeel(pathDecl.initializer);
+        const fromInstall = pathInit !== undefined && ts.isAwaitExpression(pathInit) && pathInit.expression.getText() === 'tmux.installUserPath()';
+        if (!fromInstall) out.push(`the spawn's path is ${path?.getText() ?? 'nothing'}, not the PATH \`await tmux.installUserPath()\` wrote, which the pane's execvp walks`);
+        const handed = cnodes.filter((n) => ts.isCallExpression(n) && n.expression.getText() === 'tmux.createSession').map((n) => {
+          const arg = n.arguments[0] === undefined ? undefined : tsPeel(n.arguments[0]);
+          const prop = arg !== undefined && ts.isObjectLiteralExpression(arg) ? arg.properties.find((x) => (ts.isPropertyAssignment(x) || ts.isShorthandPropertyAssignment(x)) && propName(x) === 'cwd') : undefined;
+          return prop === undefined ? null : ts.isShorthandPropertyAssignment(prop) ? prop.name.text : prop.initializer.getText();
+        });
+        if (folder === undefined || !ts.isIdentifier(folder) || handed.length !== 1 || handed[0] !== folder.text) {
+          out.push(`the spawn's folder is ${folder?.getText() ?? 'nothing'}, and the create hands tmux ${handed.join(', ') || 'no folder'}: the lookup must start in the folder tmux changes into`);
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/** 11.11 driven: the probe's world through the SHIPPING resolver and comparison, against the table above. */
+function p350SpawnDrivenFindings(p) {
+  if (p === null) return ['the probe printed no p350 section'];
+  const world = p.spawn ?? null;
+  if (world === null || !Array.isArray(world.rows)) return ['the probe planted no world for the file that runs'];
+  const out = [];
+  if (world.why !== null && world.why !== undefined) out.push(`the probe's world stopped: ${world.why}`);
+  const got = new Map(world.rows.map((r) => [r.id, r]));
+  for (const [id, [found, runs]] of Object.entries(P350_SPAWN_TABLE)) {
+    const r = got.get(id);
+    if (r === undefined) {
+      out.push(`the probe walked no ${id}`);
+      continue;
+    }
+    if (r.found !== found) out.push(`${id}: the pane's lookup found ${JSON.stringify(r.found)}, not ${JSON.stringify(found)}`);
+    if (r.runs !== runs) out.push(`${id}: the comparison read ${String(r.runs)}, not ${String(runs)} (${runs ? 'one file' : 'another file or none'})`);
+  }
+  for (const id of got.keys()) if (!(id in P350_SPAWN_TABLE)) out.push(`the probe walked ${id}, which this checker has no answer for`);
+  return out;
+}
+
+const p350Result = [];
+const p350Data = data.p350 ?? null;
+{
+  const texts = p350Texts();
+  const rows = p331Rows(p331Data);
+  /** A copy of the probe's block with one change, or null when it cannot be built. */
+  const mut = (fn) => {
+    if (p350Data === null) return null;
+    const d = p331Copy(p350Data);
+    return fn(d) === false ? null : d;
+  };
+  const withRows = (fn) => {
+    const copy = p331Copy(rows);
+    return fn(copy) === false ? null : copy;
+  };
+  const judge6 = ({ t, p, r }) => p350TokenFindings(t, p, r);
+  const on6 = (build) => () => {
+    const x = build();
+    return x === null ? null : x;
+  };
+  const judge9 = ({ t, p }) => [...p350DrivenRowFindings(p), ...p350ArmingSourceFindings(t)];
+  const cases = [
+    {
+      rule: '11.6',
+      name: "pi's token is spelled once, in no row field, and named by its record and by fixedLaunchTokens",
+      findings: () => p350TokenFindings(texts, p350Data, rows),
+      attacks: [
+        ['the token put into launch.argv', on6(() => { const r = withRows((x) => { const pi = x.find((y) => y.id === 'pi'); if (pi === undefined) return false; pi.launchArgv = ['pi', ...P350_TOKENS]; return true; }); return r === null ? null : { t: texts, p: p350Data, r }; })],
+        ['the token put into resume.template', on6(() => { const t = p350With(texts, REGISTRY_SOURCE, (s) => s.replace("template: ['--session-id', SESSION_ID_SLOT],", "template: ['--session-id', SESSION_ID_SLOT, ...PI_INLINE_ARGS],")); return t === null ? null : { t, p: p350Data, r: rows }; })],
+        ["fixedLaunchTokens('pi') answering nothing", on6(() => { const p = mut((d) => { d.fixed.pi = []; }); return p === null ? null : { t: texts, p, r: rows }; })],
+        ['a second PI_INLINE_ARGS', on6(() => { const t = p350With(texts, 'src/main/restore/restore.ts', (s) => `${s}\nconst PI_INLINE_ARGS = ['--tui-mode', 'regular'] as const;\nvoid PI_INLINE_ARGS;\n`); return t === null ? null : { t, p: p350Data, r: rows }; })],
+        ["the token spelled again as a literal", on6(() => { const t = p350With(texts, 'src/main/sessions/create-local.ts', (s) => `${s}\nexport const P350_SELF_TEST = '--tui-mode';\n`); return t === null ? null : { t, p: p350Data, r: rows }; })],
+        ["the record's tokens a literal list", on6(() => { const t = p350With(texts, REGISTRY_SOURCE, (s) => s.replace('      tokens: PI_INLINE_ARGS,', "      tokens: ['--tui-mode', 'regular'],")); return t === null ? null : { t, p: p350Data, r: rows }; })]
+      ].map(([n, build]) => [n, build, judge6])
+    },
+    {
+      rule: '11.7',
+      name: 'every production composer call names the floor, and the token goes after argv[0] for pi alone, only with it held',
+      findings: () => [...p350CallFindings(texts), ...p350ComposedFindings(p350Data)],
+      attacks: [
+        ['a far caller passing true', () => p350With(texts, 'src/main/machines/remote-sessions.ts', (s) => s.replace('agentSessionId, false);', 'agentSessionId, true);')), (t) => p350CallFindings(t)],
+        ['the create passing no floor', () => p350With(texts, P350_CREATE, (s) => s.replace(/,\s*\/\/ `AgentKind`(?:[^\n]*\n){5}\s*\(input\.agent as LaunchableAgentKind\) === 'pi' && piInlineFloorFor\(binPath, spawnedBy\) === 'holds'/, '')), (t) => p350CallFindings(t)],
+        ['the create asking the version and not its binary', () => p350With(texts, P350_CREATE, (s) => s.replace("piInlineFloorFor(binPath, spawnedBy) === 'holds'", "piInlineFloorAt(agentVersion) === 'holds'")), (t) => p350CallFindings(t)],
+        ['Restart composing without the floor', () => p350With(texts, P350_EXTRAS, (s) => s.replace('rec.agentSessionId, true);', 'rec.agentSessionId, false);')), (t) => p350CallFindings(t)],
+        ['the harvest passing true', () => p350With(texts, P350_HARVEST, (s) => s.replace("agent === 'pi' && piInlineFloorFor(resumeBinOf(rec, agent)) === 'holds'", 'true')), (t) => p350CallFindings(t)],
+        ['a Codex repair dropping its false', () => p350With(texts, 'src/main/sessions/codex-repair.ts', (s) => s.replace(/agentExtrasOf\(rec\),\s*false\s*\)/, 'agentExtrasOf(rec))')), (t) => p350CallFindings(t)],
+        ['the floor defaulting to true', () => p350With(texts, 'src/main/sessions/resume-argv.ts', (s) => s.replace('  floorHolds = false\n', '  floorHolds = true\n')), (t) => p350CallFindings(t)],
+        ['pi composed without the token when held', () => mut((d) => { d.composed.pi.held.launch = [...d.composed.pi.notHeld.launch]; }), (d) => p350ComposedFindings(d)],
+        ["codex's argv moving with the floor", () => mut((d) => { d.composed.codex.held.resume = [...d.composed.codex.held.resume, ...P350_TOKENS]; }), (d) => p350ComposedFindings(d)]
+      ]
+    },
+    {
+      rule: '11.8',
+      name: "one floor rule: the SpecStory version reader's, over the twelve readings, and no comparison of its own",
+      findings: () => p350FloorRuleFindings(texts.get(REGISTRY_SOURCE) ?? '', p350Data),
+      attacks: [
+        ["'0.83.9' read as holding", () => mut((d) => { d.readings.find((x) => x.version === '0.83.9').reading = 'holds'; }), (d) => p350FloorRuleFindings(texts.get(REGISTRY_SOURCE) ?? '', d)],
+        ["'' read as below", () => mut((d) => { d.readings.find((x) => x.version === '').reading = 'below'; }), (d) => p350FloorRuleFindings(texts.get(REGISTRY_SOURCE) ?? '', d)],
+        ['the versions compared as strings', () => { const t = p350With(texts, REGISTRY_SOURCE, (s) => s.replace('compareSpecStoryVersions(read, PI_INLINE_FLOOR) > 0', 'read > PI_INLINE_FLOOR')); return t === null ? null : t.get(REGISTRY_SOURCE); }, (s) => p350FloorRuleFindings(s, p350Data)],
+        // THE FIX ROUND: a line with words around the version read as one, and a prerelease of the floor as holding it.
+        ["'22.11.0 node' read as holding", () => mut((d) => { const r = d.readings.find((x) => x.version === '22.11.0 node'); if (r === undefined) return false; r.reading = 'holds'; }), (d) => p350FloorRuleFindings(texts.get(REGISTRY_SOURCE) ?? '', d)],
+        ["'0.84.0-rc.1' read as holding", () => mut((d) => { const r = d.readings.find((x) => x.version === '0.84.0-rc.1'); if (r === undefined) return false; r.reading = 'holds'; }), (d) => p350FloorRuleFindings(texts.get(REGISTRY_SOURCE) ?? '', d)],
+        ['a reader of its own', () => { const t = p350With(texts, REGISTRY_SOURCE, (s) => s.replace('version === null ? null : parseSpecStoryVersionOutput(version)', 'version === null ? null : (/\\d+\\.\\d+\\.\\d+/.exec(version)?.[0] ?? null)')); return t === null ? null : t.get(REGISTRY_SOURCE); }, (s) => p350FloorRuleFindings(s, p350Data)]
+      ]
+    },
+    {
+      rule: '11.9',
+      name: 'the pi arm writes resume_argv alone, local pi rows with an id, index 1 only, never unread; the strip on every arm',
+      findings: () => [...p350DrivenRowFindings(p350Data), ...p350ArmingSourceFindings(texts)],
+      attacks: [
+        ['an unread version that moves a row', () => { const p = mut((d) => { d.pass.unread.writes.push({ id: 'R1', argv: d.planted[0].resumeArgv }); }); return p === null ? null : { t: texts, p }; }],
+        ["a second install's row handed the token", () => { const p = mut((d) => { const r = d.planted.find((x) => x.id === 'R13'); if (r === undefined) return false; d.pass.holds.writes.push({ id: 'R13', argv: [r.resumeArgv[0], ...P350_TOKENS, ...r.resumeArgv.slice(1)] }); }); return p === null ? null : { t: texts, p }; }],
+        ["a person's own copy taken out below the floor", () => { const p = mut((d) => { const r = d.planted.find((x) => x.id === 'R4'); if (r === undefined || d.pass['below-own'] === undefined) return false; d.pass['below-own'].writes.push({ id: 'R4', argv: [r.resumeArgv[0], ...r.resumeArgv.slice(3)] }); }); return p === null ? null : { t: texts, p }; }],
+        ["the strip taking a person's own copy", () => { const p = mut((d) => { const s = d.stripOwn?.find((x) => x.id === 'R4'); if (s === undefined) return false; s.argv = [s.argv[0], ...s.argv.slice(3)]; return true; }); return p === null ? null : { t: texts, p }; }],
+        ['the strip asking the scanned pi, not the binary it arms', () => { const t = p350With(texts, P350_RESTORE, (s) => s.replace("if (piInlineFloorFor(argv[0]) === 'holds') return argv;", "if (piInlineFloorFor(rec.argv[0]) === 'holds') return argv;")); return t === null ? null : { t, p: p350Data }; }],
+        ["the strip ignoring a person's own composition", () => { const t = p350With(texts, P350_RESTORE, (s) => s.replace("piTokenIsTortiesIn(argv, piOwnResumeArgv(rec.agentSessionId ?? '', rec.specstory?.agentArgv ?? rec.argv))", 'piTokenIsTortiesIn(argv, [])')); return t === null ? null : { t, p: p350Data }; }],
+        ['the pass judging rows by no binary of their own', () => { const t = p350With(texts, P350_PASS, (s) => s.replace("const floor = readers.floorFor(recorded[0] ?? '');", "const floor = readers.floorFor('');")); return t === null ? null : { t, p: p350Data }; }],
+        ["another machine's row read", () => { const p = mut((d) => { d.pass.holds.outcomes.push({ sessionId: 'R6', arm: 'pi', verdict: 'already-right' }); }); return p === null ? null : { t: texts, p }; }],
+        ['the token put in at index 2', () => { const p = mut((d) => { const w = d.pass.holds.writes.find((x) => x.id === 'R1'); if (w === undefined) return false; w.argv = [w.argv[0], w.argv[3], ...P350_TOKENS, ...w.argv.slice(4)]; return true; }); return p === null ? null : { t: texts, p }; }],
+        ['the env column written', () => { const p = mut((d) => { d.pass.holds.envWrites.push({ id: 'R1' }); }); return p === null ? null : { t: texts, p }; }],
+        ['a restore before the scan answers keeping the token', () => { const p = mut((d) => { const s = d.strip?.find((x) => x.id === 'R4'); if (s === undefined) return false; s.argv = d.planted.find((r) => r.id === 'R4').resumeArgv; return true; }); return p === null ? null : { t: texts, p }; }],
+        ['armableResume handing back the ladder unstripped', () => { const t = p350With(texts, P350_RESTORE, (s) => s.replace('const argv = withoutPiTokenBelowFloor(rec, decided.argv);', 'const argv = decided.argv;')); return t === null ? null : { t, p: p350Data }; }],
+        ['an early return around the strip', () => { const t = p350With(texts, P350_RESTORE, (s) => s.replace('  const decided = await armableResumeLadder(rec, options);', "  if (rec.agent === 'codex') return armableResumeLadder(rec, options);\n  const decided = await armableResumeLadder(rec, options);")); return t === null ? null : { t, p: p350Data }; }],
+        ['armedResumeTokens without the fixed tokens', () => { const t = p350With(texts, P350_ARM, (s) => s.replace('  for (const token of fixedLaunchTokens(agent)) tokens.add(token);\n', '')); return t === null ? null : { t, p: p350Data }; }],
+        ['the pi arm writing the whole row', () => { const t = p350With(texts, P350_PASS, (s) => s.replace("  if (floor === 'unread') return left('no-floor');", "  (manifest as unknown as { updateSession: (a: string, b: object) => void }).updateSession(rec.id, {});\n  if (floor === 'unread') return left('no-floor');")); return t === null ? null : { t, p: p350Data }; }]
+      ].map(([n, build]) => [n, build, judge9])
+    },
+    {
+      // HIS RULING OF 2026-11-02 (R1): see the block above p350PackageFindings.
+      rule: '11.10',
+      name: "only pi's own package: one name, one predicate that runs nothing, one gate in the floor reader, and every decision through it",
+      findings: () => p350PackageFindings(texts),
+      attacks: [
+        ['the gate taken out of piInlineFloorFor', () => p350With(texts, P350_DETECTION, (s) => s.replace("  if (!insidePiPackage(bin)) return 'unread';\n", ''))],
+        ['the gate asking another file', () => p350With(texts, P350_DETECTION, (s) => s.replace("if (!insidePiPackage(bin)) return 'unread';", "if (!insidePiPackage(lastReadFrom.get('pi')?.real ?? '')) return 'unread';"))],
+        ['the gate answering the reading', () => p350With(texts, P350_DETECTION, (s) => s.replace("if (!insidePiPackage(bin)) return 'unread';", 'if (!insidePiPackage(bin)) return reading;'))],
+        ['a reading returned before the gate is asked', () => p350With(texts, P350_DETECTION, (s) => s.replace("  if (!insidePiPackage(bin)) return 'unread';\n", "  if (reading === 'below') return reading;\n  if (!insidePiPackage(bin)) return 'unread';\n"))],
+        ['a second insidePiPackage', () => p350With(texts, P350_RESTORE, (s) => `${s}\nexport function insidePiPackage(bin: string): boolean {\n  return bin.length > 0;\n}\n`)],
+        ['the predicate asked outside the floor reader', () => p350With(texts, P350_RESTORE, (s) => `${s}\nexport const p350SelfTest = (bin: string): boolean => insidePiPackage(bin);\n`)],
+        ["pi's package named by its old scope", () => p350With(texts, REGISTRY_SOURCE, (s) => s.replace("export const PI_PACKAGE_NAME = '@earendil-works/pi-coding-agent';", "export const PI_PACKAGE_NAME = '@mariozechner/pi-coding-agent';"))],
+        ['the install map installing another package', () => p350With(texts, REGISTRY_SOURCE, (s) => s.replace("command: 'npm install -g --ignore-scripts @earendil-works/pi-coding-agent'", "command: 'npm install -g --ignore-scripts @someone/pi-fork'"))],
+        ['the predicate comparing no name', () => p350With(texts, P350_DETECTION, (s) => s.replace('(parsed as { name?: unknown }).name === PI_PACKAGE_NAME', '(parsed as { name?: unknown }).name !== undefined'))],
+        ['the predicate starting a scan', () => p350With(texts, P350_DETECTION, (s) => s.replace('export function insidePiPackage(bin: string): boolean {\n', 'export function insidePiPackage(bin: string): boolean {\n  void listDetectedAgents();\n'))],
+        ['a create asking the version rule alone', () => p350With(texts, P350_CREATE, (s) => s.replace("piInlineFloorFor(binPath, spawnedBy) === 'holds'", "piInlineFloor(agentVersion) === 'holds'"))],
+        ['the pass handed another floor reader', () => p350With(texts, P350_CORE, (s) => s.replace('floorFor: piInlineFloorFor', "floorFor: () => 'holds' as const"))]
+      ].map(([n, build]) => [n, build, (t) => p350PackageFindings(t)])
+    },
+    {
+      // HIS RULING OF 2026-11-02, THE SECOND RULED ROUND: see the block above p350SpawnSourceFindings.
+      rule: '11.11',
+      name: "the file that runs: one resolver from the session's own folder, one comparison by device and inode, one gate, and the create asking it",
+      findings: () => [...p350SpawnSourceFindings(texts), ...p350SpawnDrivenFindings(p350Data)],
+      attacks: [
+        // The source, broken one clause at a time.
+        ['the gate taken out of piInlineFloorFor', () => p350With(texts, P350_DETECTION, (s) => s.replace("  if (spawn !== undefined && !bareNameSpawnRuns(spawn, bin)) return 'unread';\n", ''))],
+        ['the create asking with no spawn', () => p350With(texts, P350_CREATE, (s) => s.replace('piInlineFloorFor(binPath, spawnedBy)', 'piInlineFloorFor(binPath)'))],
+        ["the spawn's folder this process's own", () => p350With(texts, P350_CREATE, (s) => s.replace('folder: cwd }', 'folder: process.cwd() }'))],
+        ["the spawn walking a PATH that is not the pane's", () => p350With(texts, P350_CREATE, (s) => s.replace('path: panePath,', "path: '',"))],
+        ['a second resolver', () => p350With(texts, P350_RESTORE, (s) => `${s}\nexport function bareNameSpawnFile(): null {\n  return null;\n}\n`)],
+        ['the comparison asked outside the floor reader', () => p350With(texts, P350_RESTORE, (s) => `${s}\nexport const p350SpawnSelfTest = (bin: string): boolean => bareNameSpawnRuns({ name: 'pi', path: '', folder: '/' }, bin);\n`)],
+        ['the resolver normalising its candidate', () => p350With(texts, P350_DETECTION, (s) => s.replace('    const at = `${dir}/${name}`;\n', '    const at = join(dir, name);\n'))],
+        ['the comparison reading real paths', () => p350With(texts, P350_DETECTION, (s) => s.replace('    const st = statSync(bin, { bigint: true });\n    return st.dev === runs.dev && st.ino === runs.ino;\n', '    return realpathSync(bin) === realpathSync(runs.at);\n'))],
+        // His ruling of 2026-11-03.
+        ["the # clause taken out of the resolver's guard", () => p350With(texts, P350_DETECTION, (s) => s.replace(" || folder.includes('#')", ''))],
+        // His ruling of 2026-11-04.
+        ["the ; clause taken out of the resolver's guard", () => p350With(texts, P350_DETECTION, (s) => s.replace(" || folder.endsWith(';')", ''))]
+      ].map(([n, build]) => [n, build, (t) => p350SpawnSourceFindings(t)]).concat([
+        // The behaviour, as each broken resolver answers over the same world.
+        ["a relative entry read from this process's folder", () => mut((d) => { const at = (id) => d.spawn?.rows?.find((r) => r.id === id); const a = at('nm-npm'); const b = at('dotdot'); if (a === undefined || b === undefined) return false; Object.assign(a, { found: 'g/bin/pi', runs: true }); Object.assign(b, { found: null, runs: false }); return true; }), (d) => p350SpawnDrivenFindings(d)],
+        ['empty entries passed over', () => mut((d) => { const rows = d.spawn?.rows ?? []; const hit = rows.filter((r) => ['lead-npm', 'double-pnpm'].includes(r.id)); if (hit.length !== 2) return false; for (const r of hit) Object.assign(r, { found: 'g/bin/pi', runs: true }); return true; }), (d) => p350SpawnDrivenFindings(d)],
+        ['one file told apart by its spelling', () => mut((d) => { const rows = d.spawn?.rows ?? []; const hit = rows.filter((r) => ['second', 'hard', 'alias', 'dotdot'].includes(r.id)); if (hit.length !== 4) return false; for (const r of hit) r.runs = false; return true; }), (d) => p350SpawnDrivenFindings(d)],
+        ['a folder holding a # walked as written', () => mut((d) => { const rows = d.spawn?.rows ?? []; const hit = rows.filter((r) => ['hash', 'hash-parent'].includes(r.id)); if (hit.length !== 2) return false; for (const r of hit) Object.assign(r, { found: 'g/bin/pi', runs: true }); return true; }), (d) => p350SpawnDrivenFindings(d)],
+        // His ruling of 2026-11-04.
+        ['a folder ending in ; walked as written', () => mut((d) => { const r = d.spawn?.rows?.find((x) => x.id === 'semi'); if (r === undefined) return false; Object.assign(r, { found: 'g/bin/pi', runs: true }); return true; }), (d) => p350SpawnDrivenFindings(d)]
+      ])
+    }
+  ];
+  p350Result.push(
+    ...judgeRuleCases('350', cases, (c) => (p350Data === null ? ['the probe printed no p350 section'] : c.findings()))
+  );
+  if (p350Result.length !== 6) fail('Phase 350 asks six rows, 11.6 to 11.11, and this gate no longer does.');
 }
 
 // ---------------------------------------------------------------------------
@@ -2735,6 +3931,25 @@ for (const row of p331Result) {
     `\n${String(driven)} rows went through the shipping parseAgentOverlay inside the probe, one parse each, and ` +
       `${String(p331Rows(p331Data).filter((r) => r.launchable).length)} launchable rows were read off the registry's own ` +
       `exports (${switched.join(' and ') || 'none'} switch-to-inline); nothing was written and nothing was started.\n`
+  );
+}
+
+process.stdout.write("\npi's inline token behind its floor (Phase 350)\n");
+process.stdout.write('-'.repeat(107) + '\n');
+for (const row of p350Result) {
+  process.stdout.write(`${pad(row.rule, 6)} ${pad(row.name, 90)} ${pad(tick(row.ok), 4)} ${row.note}\n`);
+}
+{
+  const planted = Array.isArray(p350Data?.planted) ? p350Data.planted.length : 0;
+  const composed = Object.keys(p350Data?.composed ?? {}).length;
+  const walked = Array.isArray(p350Data?.spawn?.rows) ? p350Data.spawn.rows.length : 0;
+  process.stdout.write(
+    `\n${String(composed)} launchable rows were composed by seven composers at both floor answers, the pi arm of the boot ` +
+      `pass ran at holds, below and unread, and below again with a person's own leading pair, over ${String(planted)} ` +
+      "planted rows through a recording store, each row's floor read for its own binary, and restore's strip ran at " +
+      'unread, the one reading a process that starts no scan can have, over the compiled table and a planted one whose ' +
+      `pi template leads with the pair; the file a bare-name spawn runs was walked over ${String(walked)} planted PATH ` +
+      "shapes in a scratch world the probe removed; no manifest was opened, nothing else was written and nothing was started.\n"
   );
 }
 

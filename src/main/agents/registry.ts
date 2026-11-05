@@ -57,6 +57,10 @@ import type { DialogShapeId } from '../activity/screen';
 // D1). Owned by Builder B in `src/shared/` (append-only); imported, never
 // spelled inline here.
 import { OPENCODE_DB_TEMPLATE } from '@shared/opencode-store';
+// PHASE 350 (build/p350/SPEC.md D25). The one reading of a version against a
+// floor, shared with the SpecStory status module rather than spelled a third
+// time beside it and `src/main/skills/resolve.ts`. It imports a type alone.
+import { compareSpecStoryVersions, parseSpecStoryVersionOutput } from '@shared/specstory-status';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -364,8 +368,8 @@ export interface AgentActivityProfile {
  * How an agent draws its screen inside Tortie (Phase 331, research 134 §2).
  *
  *  - `switch-to-inline`: Tortie compiles a switch that keeps the agent on the
- *    normal screen, so its conversation is in tmux history. Codex and Claude
- *    Code, and no other row.
+ *    normal screen, so its conversation is in tmux history. Codex, Claude
+ *    Code and pi, and no other row; pi's behind a version floor (Phase 350).
  *  - `inline-already`: the agent draws on the normal screen and asks for no
  *    mouse by default. Nothing to compile.
  *  - `fullscreen-with-mouse`: the agent draws on the alternate screen and asks
@@ -395,13 +399,23 @@ interface AgentScreenFacts {
  * NOTHING IN THE APP READS IT AT RUNTIME. Its readers are
  * `conformance:agents`, `conformance:resume` and the tests. The switch itself
  * lives in fields the row already has (`launch.argv` and `resume.template`,
- * or `launch.env`), and a switch record names its tokens FROM the same
- * constant the row spreads, so the two cannot disagree. It runs nothing, and
- * the overlay refuses it (`REFUSED_ROW_FIELDS.screen` in
+ * or `launch.env`), or, for pi since Phase 350, in the two composers behind
+ * {@link PI_INLINE_FLOOR}; a switch record names its tokens FROM the same
+ * constant the row or the composers spread, so the two cannot disagree. It
+ * runs nothing, and the overlay refuses it (`REFUSED_ROW_FIELDS.screen` in
  * src/shared/agent-overlay.ts); it is never an execution field.
+ *
+ * `floor` (Phase 350, argv arm only): the first version of the agent the
+ * switch is composed for, read from THIS Mac's agent scan. Absent means every
+ * version, which is Codex's.
  */
 export type AgentScreenRecord =
-  | (AgentScreenFacts & { class: 'switch-to-inline'; carriage: 'argv'; tokens: readonly string[] })
+  | (AgentScreenFacts & {
+      class: 'switch-to-inline';
+      carriage: 'argv';
+      tokens: readonly string[];
+      floor?: string;
+    })
   | (AgentScreenFacts & { class: 'switch-to-inline'; carriage: 'env'; env: Readonly<Record<string, string>> })
   | (AgentScreenFacts & { class: 'inline-already' | 'fullscreen-with-mouse' | 'unknown' });
 
@@ -573,7 +587,7 @@ export const SESSION_ID_SLOT = '<sessionId>';
 export const DEFAULT_AGENT_ID: AgentRegistryId = 'claude';
 
 // ---------------------------------------------------------------------------
-// The two inline switches (Phase 331), each spelled once
+// The three inline switches (Phases 331 and 350), each spelled once
 // ---------------------------------------------------------------------------
 
 /**
@@ -615,6 +629,109 @@ export const CODEX_SCROLLBACK_ARGS = ['-c', 'tui.fullscreen_transcript=false'] a
  * lists by Phase 275's rule.
  */
 export const CLAUDE_INLINE_ENV = { CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN: '1' } as const;
+
+/**
+ * PHASE 350. pi's own inline switch, put straight after argv[0] by
+ * {@link launchArgvFor} and {@link resumeArgvFor} when their caller says this
+ * Mac's agent scan reads pi at {@link PI_INLINE_FLOOR} or later
+ * (build/p350/SPEC.md §4.1, D1 to D3, D20). The operator's ruling of
+ * 2026-09-29, "i like the inline mode lets do that", reaches pi once the floor
+ * research 134 §5 asked for is built, and this supersedes research 134's pi row
+ * (docs/research/134-inline-mode-every-agent.md:106), which recorded the switch
+ * and did not compile it.
+ *
+ * Why the composers put it in, and not the row: in pi's `launch.argv` or its
+ * `resume.template` it would reach every pi, and a pi before 0.84.0 stops on the
+ * unknown flag after its trust question (research 134 §5). So the row stays
+ * `['pi']` and `['--session-id', <id>]`, and the token rides only on an argv
+ * composed for a pi this Mac read at the floor; a pi on another machine is
+ * never handed it, because Tortie reads no agent's version there.
+ *
+ * Why this spelling: from 0.84.0 to 1.4.0 pi reads `--tui-mode` on the command
+ * line over its `tuiMode` setting, and the LAST `--tui-mode` wins (pi's
+ * args.ts), so a person's own `--tui-mode fullscreen`, which follows the
+ * pre-assigned id, still wins. pi draws full screen by default from 1.0.0; this
+ * keeps its conversation in tmux history, as Codex's and Claude Code's
+ * switches do theirs.
+ */
+export const PI_INLINE_ARGS = ['--tui-mode', 'regular'] as const;
+
+/** PHASE 350 (D2). The first pi that knows `--tui-mode` (research 134 §5). */
+export const PI_INLINE_FLOOR = '0.84.0';
+
+/**
+ * PHASE 350, HIS RULING OF 2026-11-02 (R1). The `name` pi's OWN installed
+ * package carries in its package.json, and the only one: the package the install
+ * map's npm route installs (pi's row below, `alternates`), and the name pi
+ * 0.84.2's own package.json reads, read as text under its npm prefix on
+ * 2026-11-02. The token is composed, kept at restore and put in by the pass only
+ * for a pi whose real file sits inside a package of this name (`insidePiPackage`
+ * in ./detection.ts); a version manager's shim, a wrapper or a copy reads as no
+ * reading, and pi runs there as it did before this phase. pi was published as
+ * `@mariozechner/pi-coding-agent` until its scope moved (announced in 0.73.1),
+ * long before 0.84.0, so no pi that knows `--tui-mode` carries the old name.
+ */
+export const PI_PACKAGE_NAME = '@earendil-works/pi-coding-agent';
+
+/** PHASE 350 (D25). What one version reading says about {@link PI_INLINE_FLOOR}. */
+export type InlineFloorReading = 'holds' | 'below' | 'unread';
+
+/**
+ * PHASE 350 (D25). The one rule for pi's floor: a version the SpecStory reader
+ * cannot read as a dotted triple is `unread`, and a read one is compared by the
+ * same precedence `compareSpecStoryVersions` gives every other caller. The
+ * composers, restore and resume in place treat anything but `holds` as not
+ * held; the boot pass moves rows on `holds` or `below` only.
+ *
+ * ITS FIX ROUND. The floor now decides a flag that stops an older pi after
+ * its trust question, so the reading must be the version ALONE, exactly as
+ * `pi -v` prints it: a line that also carries other words, or another dotted
+ * triple before pi's (`22.11.0 node`), is `unread`, and pi runs as it did
+ * before this phase. A prerelease or build of the floor itself
+ * (`0.84.0-rc.1`) is `below` it, as semver orders it; the shared comparison
+ * reads only the three numbers, so the floor is held by a release AT it or by
+ * any version past it.
+ */
+export function piInlineFloor(version: string | null): InlineFloorReading {
+  const read = version === null ? null : parseSpecStoryVersionOutput(version);
+  if (read === null || read !== version) return 'unread';
+  return compareSpecStoryVersions(read, PI_INLINE_FLOOR) > 0 || read === PI_INLINE_FLOOR ? 'holds' : 'below';
+}
+
+/**
+ * The tokens a composer puts straight after argv[0]: {@link PI_INLINE_ARGS} for
+ * pi when the caller says the floor holds, and nothing for every other agent
+ * or reading. Module private; the composers and {@link fixedLaunchTokens} are
+ * its only readers.
+ */
+function flooredTokensOf(id: string, floorHolds: boolean): readonly string[] {
+  return floorHolds && id === 'pi' ? PI_INLINE_ARGS : [];
+}
+
+/** TRUE when `argv` holds {@link PI_INLINE_ARGS} starting at index `at`. */
+function piTokenAt(argv: readonly string[], at: number): boolean {
+  return PI_INLINE_ARGS.every((token, i) => argv[at + i] === token);
+}
+
+/**
+ * PHASE 350 FIX ROUND. Whether the {@link PI_INLINE_ARGS} at indices 1 and 2 of
+ * a recorded pi argv are the copy TORTIE put there, rather than a person's own.
+ *
+ * `own` is the person's own composition of the same command with no token of
+ * Tortie's: `resumeArgvFor(entry, id, [], bin, false)` over the row as this
+ * Mac's agent table holds it. The composers always put Tortie's copy first, so
+ * the two words straight after the binary are Tortie's whenever the person's
+ * own composition does not begin with them. When it does, which only an
+ * `agents.json` row whose `resume.template` leads with `--tui-mode regular`
+ * makes it do, those two words are the person's and Tortie's copy, if any,
+ * is the first of two, so the first is Tortie's only when a second follows it.
+ * A person's own `--tui-mode` is therefore never taken out as if it were
+ * Tortie's, and the boot pass and restore's strip ask this one rule.
+ */
+export function piTokenIsTortiesIn(argv: readonly string[], own: readonly string[]): boolean {
+  if (!piTokenAt(argv, 1)) return false;
+  return !piTokenAt(own, 1) || piTokenAt(argv, 1 + PI_INLINE_ARGS.length);
+}
 
 // ---------------------------------------------------------------------------
 // The 13 entries
@@ -1544,10 +1661,17 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     // Event API read from its .d.ts, never executed. Floor only.
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
     screen: {
-      class: 'inline-already',
-      measured: '0.84.2, 2026-09-29, live (research 134)',
+      class: 'switch-to-inline',
+      carriage: 'argv',
+      tokens: PI_INLINE_ARGS,
+      floor: PI_INLINE_FLOOR,
+      measured: '0.84.2 live, 2026-09-29 (research 134); 1.0.0 to 1.4.0 read as text, 2026-10-31 (Phase 350)',
       notes: [
-        '`--tui-mode regular` (0.84.0 and later) beats `tuiMode: fullscreen` and is recorded, not compiled, because an older pi dies on the unknown flag after its trust question.'
+        'Compiled behind the floor: the two composers put `--tui-mode regular` straight after the binary only when this Mac\'s scan reads pi at 0.84.0 or later, because an older pi stops on the unknown flag after its trust question.',
+        'True at every version: below 0.84.0 pi has no full-screen view, and from 1.0.0 full screen is its default.',
+        'A pi on another machine is not switched, because Tortie reads no agent version there.',
+        'A person\'s own `--tui-mode fullscreen` comes after the token and wins.',
+        'Supersedes research 134\'s pi row, which recorded the switch and did not compile it.'
       ]
     },
     iconKey: 'pi',
@@ -2071,18 +2195,25 @@ export function compiledLaunchEnvKeys(agentId: string): readonly string[] {
 
 /**
  * PHASE 331. The tokens a COMPILED row fixes after argv[0]. Empty for every
- * row but codex today, whose tokens are {@link CODEX_SCROLLBACK_ARGS}.
+ * row but codex and pi, whose tokens are {@link CODEX_SCROLLBACK_ARGS} and,
+ * since Phase 350, {@link PI_INLINE_ARGS}.
  *
  * A read of the compiled table only, never the overlay, for the reason
  * {@link compiledLaunchEnvKeys} gives, and for one more: every caller of
  * {@link ownLaunchFlags} composes through the compiled registry
  * (`registryResumeArgv`, `registryLaunchArgv`), so the tokens set aside must be
  * exactly the tokens that composer puts back.
+ *
+ * PHASE 350 (D15). pi's token is named at EVERY version, though the composers
+ * put it in only when the floor holds: a row recorded with it, read on a Mac
+ * whose pi now reads below the floor, must still give back the person's own
+ * flags without it, and Restart composes the argv it compares with the floor
+ * answered `true` for the same reason (`src/main/restart/extras.ts`).
  */
 export function fixedLaunchTokens(agentId: string): readonly string[] {
   const entry = BY_ID.get(agentId as AgentRegistryId);
   if (entry === undefined || entry.launch === null) return [];
-  return entry.launch.argv.slice(1);
+  return [...flooredTokensOf(entry.id, true), ...entry.launch.argv.slice(1)];
 }
 
 /**
@@ -2158,14 +2289,20 @@ export function preAssignFlag(id: LaunchableAgentId): string[] | null {
  *
  * @param sessionId  id to pre-assign. Ignored unless the agent's idCapture is
  *                   'pre-assign' — a harvest agent must never be handed one.
+ * @param floorHolds PHASE 350 (D20). TRUE only when the caller read this Mac's
+ *                   pi at {@link PI_INLINE_FLOOR} or later; it puts
+ *                   {@link PI_INLINE_ARGS} straight after argv[0] for pi and
+ *                   changes nothing for any other agent. Every production
+ *                   caller passes it explicitly.
  */
 export function registryLaunchArgv(
   id: LaunchableAgentId,
   extraArgs: readonly string[] = [],
   bin?: string,
-  sessionId?: string
+  sessionId?: string,
+  floorHolds = false
 ): string[] {
-  return launchArgvFor(getLaunchableEntry(id), extraArgs, bin, sessionId);
+  return launchArgvFor(getLaunchableEntry(id), extraArgs, bin, sessionId, floorHolds);
 }
 
 /**
@@ -2202,12 +2339,18 @@ export type LaunchableEntryLike = Omit<AgentRegistryEntry, 'id' | 'install'> & {
  * comes from `entry.binaries[0]`, and the pre-assignment flag comes from
  * `entry.resume.idCapture`. Neither can be resolved from an id that the
  * compiled registry has never heard of, which is why the lookups moved out.
+ *
+ * PHASE 350. With `floorHolds`, pi's {@link PI_INLINE_ARGS} go straight after
+ * argv[0], before the row's own tokens, the pre-assigned id and every extra, so
+ * a person's own `--tui-mode` comes later and wins. See
+ * {@link registryLaunchArgv} for the parameter.
  */
 export function launchArgvFor(
   entry: LaunchableEntryLike,
   extraArgs: readonly string[] = [],
   bin?: string,
-  sessionId?: string
+  sessionId?: string,
+  floorHolds = false
 ): string[] {
   const argv0 = bin ?? entry.launch.argv[0] ?? entry.binaries[0] ?? entry.id;
   const capture = entry.resume.idCapture;
@@ -2216,7 +2359,13 @@ export function launchArgvFor(
     flag !== null && sessionId !== undefined && sessionId.length > 0
       ? [...flag, sessionId]
       : [];
-  return [argv0, ...entry.launch.argv.slice(1), ...preAssign, ...extraArgs];
+  return [
+    argv0,
+    ...flooredTokensOf(entry.id, floorHolds),
+    ...entry.launch.argv.slice(1),
+    ...preAssign,
+    ...extraArgs
+  ];
 }
 
 /**
@@ -2238,14 +2387,18 @@ export function launchArgvFor(
  * --skip-onboarding resume <id>` resumes). Both composition sites —
  * launch-time arming in manifest/agents.ts and harvest-time arming in ipc.ts
  * — go through this one function, so the rule holds everywhere.
+ *
+ * `floorHolds` is {@link registryLaunchArgv}'s (Phase 350, D20): pi's token
+ * straight after argv[0] when it is true, and nothing moves otherwise.
  */
 export function registryResumeArgv(
   id: LaunchableAgentId,
   sessionId: string,
   extraArgs: readonly string[] = [],
-  bin?: string
+  bin?: string,
+  floorHolds = false
 ): string[] {
-  return resumeArgvFor(getLaunchableEntry(id), sessionId, extraArgs, bin);
+  return resumeArgvFor(getLaunchableEntry(id), sessionId, extraArgs, bin, floorHolds);
 }
 
 /**
@@ -2256,12 +2409,18 @@ export function registryResumeArgv(
  * template must have carried the slot" guard all apply the same way, which
  * matters more for a configured row than for a compiled one: a template a
  * person typed is exactly the template most likely to have lost its slot.
+ *
+ * PHASE 350. Every guard is still asked first. With `floorHolds`, pi's
+ * {@link PI_INLINE_ARGS} go straight after argv[0] on both branches, ahead of
+ * the template and of every extra, which is where {@link launchArgvFor} puts
+ * them, so pi's launch argv and its resume argv stay one argv.
  */
 export function resumeArgvFor(
   entry: LaunchableEntryLike,
   sessionId: string,
   extraArgs: readonly string[] = [],
-  bin?: string
+  bin?: string,
+  floorHolds = false
 ): string[] {
   if (entry.resume.strategy !== 'flag-uuid') return [];
   if (sessionId.length === 0) return [];
@@ -2272,9 +2431,10 @@ export function resumeArgvFor(
   // The template must have carried the slot; if it did not, the id is not in
   // the argv and firing it would resume someone else's conversation.
   if (!args.includes(sessionId)) return [];
+  const floored = flooredTokensOf(entry.id, floorHolds);
   return entry.resume.resumeExtrasPosition === 'leading'
-    ? [argv0, ...extraArgs, ...args]
-    : [argv0, ...args, ...extraArgs];
+    ? [argv0, ...floored, ...extraArgs, ...args]
+    : [argv0, ...floored, ...args, ...extraArgs];
 }
 
 /**

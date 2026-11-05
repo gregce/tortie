@@ -65,8 +65,8 @@
  * `signedPost`, the body `{ dialog, keys, session, turn, write }` with sorted
  * keys and a fresh write id, its items exactly `{ "t": text }` or
  * `{ "k": name }` as given: it decides nothing, so a probe can send a body the
- * Mac must refuse. `SCREEN_KEY_NAMES` is the 35 names, spelled here from the
- * wire format as a third reading.
+ * Mac must refuse. `SCREEN_KEY_NAMES` is the 37 names (Phase 350 appended
+ * `PPage` and `NPage`), spelled here from the wire format as a third reading.
  *
  * PHASE 337.1 (build/p3371/SPEC.md §5.2, D7, D8, D13): the Screen's history.
  * `scrollbackTarget` spells a `/v1/scrollback` target the phone's way (`id`,
@@ -917,10 +917,14 @@ export function askedOf(query = {}) {
 // The Screen (Phase 337, build/p337/SPEC.md §5.2, §5.8.2)
 // ---------------------------------------------------------------------------
 
-/** The 35 key names a keys write may carry, by tmux's own name (D17), spelled here from the wire format. */
+/**
+ * The 37 key names a keys write may carry, by tmux's own name (D17), spelled
+ * here from the wire format; Phase 350 appended Page Up and Page Down, last.
+ */
 export const SCREEN_KEY_NAMES = Object.freeze([
   'Escape', 'Tab', 'BTab', 'Enter', 'BSpace', 'Up', 'Down', 'Left', 'Right',
-  ...'abcdefghijklmnopqrstuvwxyz'.split('').map((letter) => `C-${letter}`)
+  ...'abcdefghijklmnopqrstuvwxyz'.split('').map((letter) => `C-${letter}`),
+  'PPage', 'NPage'
 ]);
 
 /** The caps the phone holds a screen answer to (§5.8.2). */
@@ -1013,6 +1017,8 @@ export function screenAnswerProblems(answer) {
   // whole; `wraps` is never a refusal (a bad list reads as no marks, D43),
   // and screenWrapsOf below reads it.
   if (s.paste !== undefined && s.paste !== null && typeof s.paste !== 'boolean') say(`paste ${J(s.paste)} is not a Bool`);
+  // PHASE 350 (D6): `pages` is read as `paste` is, decodeIfPresent(Bool.self).
+  if (s.pages !== undefined && s.pages !== null && typeof s.pages !== 'boolean') say(`pages ${J(s.pages)} is not a Bool`);
   if (!Array.isArray(s.styles) || s.styles.length > SCREEN_MAX_STYLES) say('styles is not a list of at most 1,024');
   const styles = Array.isArray(s.styles) ? s.styles : [];
   styles.forEach((st, i) => {

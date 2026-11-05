@@ -164,23 +164,30 @@ final class ScreenInputTests: XCTestCase {
         XCTAssertEqual(KeyItem.typed(emoji), .text(emoji))
     }
 
-    /// Clause: the keys encode as `{"t":…}` or `{"k":…}`, the 35 names are
-    /// the Mac's own, word for word, and a named key other than Backspace
-    /// stands alone.
+    /// Clause: the keys encode as `{"t":…}` or `{"k":…}`, the 37 names are
+    /// the Mac's own, word for word and in its order (Phase 337's 35, then
+    /// Phase 350's Page Up and Page Down LAST, build/p350/SPEC.md D24), and a
+    /// named key other than Backspace stands alone, the two pages among them.
     func testKeysEncodeAsTheMacReadsThem() throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         XCTAssertEqual(String(decoding: try encoder.encode(KeyItem.text("a/\"b")), as: UTF8.self), #"{"t":"a\/\"b"}"#)
         XCTAssertEqual(String(decoding: try encoder.encode(KeyItem.key(.controlC)), as: UTF8.self), #"{"k":"C-c"}"#)
+        XCTAssertEqual(String(decoding: try encoder.encode(KeyItem.key(.pageUp)), as: UTF8.self), #"{"k":"PPage"}"#)
+        XCTAssertEqual(String(decoding: try encoder.encode(KeyItem.key(.pageDown)), as: UTF8.self), #"{"k":"NPage"}"#)
         let pocket = try StyleSource.text("src/shared/ipc/pocket.ts")
         let start = try XCTUnwrap(pocket.range(of: "export const POCKET_SCREEN_KEY_NAMES = ["))
         let end = try XCTUnwrap(pocket.range(of: "] as const;", range: start.upperBound..<pocket.endIndex))
         let names = pocket[start.upperBound..<end.lowerBound].split(separator: "'").enumerated().filter { $0.offset % 2 == 1 }.map { String($0.element) }
         XCTAssertEqual(names, ScreenKeyName.allCases.map(\.rawValue), "the phone's names are not the Mac's")
-        XCTAssertEqual(names.count, 35)
+        XCTAssertEqual(names.count, 37)
+        XCTAssertEqual(Array(names.suffix(2)), ["PPage", "NPage"], "the two pages are not appended last, so the 35 moved")
+        XCTAssertEqual(ScreenKeyName.allCases.filter(\.isPage), [.pageUp, .pageDown], "a key other than the two pages reads as a page")
         XCTAssertFalse(KeyItem.key(.backspace).standsAlone)
         XCTAssertTrue(KeyItem.key(.escape).standsAlone)
         XCTAssertTrue(KeyItem.key(.controlC).standsAlone)
+        XCTAssertTrue(KeyItem.key(.pageUp).standsAlone)
+        XCTAssertTrue(KeyItem.key(.pageDown).standsAlone)
         XCTAssertFalse(KeyItem.text("a").standsAlone)
     }
 

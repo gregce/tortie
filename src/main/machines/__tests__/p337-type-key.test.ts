@@ -9,7 +9,7 @@
  * line reached the connection, after the table admitted it.
  *
  *  - `namedKeySequence` composes the `cancel` then one name, for every one of
- *    the contract's 35 names, and the table admits both as the shapes they are;
+ *    the contract's 37 names, and the table admits both as the shapes they are;
  *    a name not on the list is refused by the composer and by the table;
  *  - `typePhoneKeys` writes ONE `cancel` first, then every item's commands in
  *    order (text as `-H` bytes, at most 256 a command; a name as the eighth
@@ -125,8 +125,9 @@ afterEach(() => {
 });
 
 describe('namedKeySequence, the one composer of the eighth shape (condition 122)', () => {
-  it('composes the cancel then the one name, for each of the 35, each argv admitted as the shape it is', () => {
-    expect(POCKET_SCREEN_KEY_NAMES).toHaveLength(35);
+  it('composes the cancel then the one name, for each of the 37, each argv admitted as the shape it is', () => {
+    // Phase 337's 35, then Phase 350's PPage and NPage (build/p350/SPEC.md D24).
+    expect(POCKET_SCREEN_KEY_NAMES).toHaveLength(37);
     for (const name of POCKET_SCREEN_KEY_NAMES) {
       const argvs = namedKeySequence('$7', name);
       expect(argvs).toEqual([
@@ -141,7 +142,7 @@ describe('namedKeySequence, the one composer of the eighth shape (condition 122)
   });
 
   it('refuses a name not on the contract\'s list, by its own check and not only by its type', () => {
-    for (const name of ['M-x', 'F1', 'C-Up', 'Up Down', 'c-c', 'Enter;']) {
+    for (const name of ['M-x', 'F1', 'C-Up', 'Up Down', 'c-c', 'Enter;', 'PageUp', 'ppage', 'S-PPage', 'PPage NPage', 'Home', 'End']) {
       expect(() => namedKeySequence('$7', name as PocketScreenKeyName)).toThrow();
     }
   });

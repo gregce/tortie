@@ -1,0 +1,8279 @@
+{
+ "phase": 350,
+ "note": "build/p350/probe-p350.mjs --grader-self-test reads this: one honest reading per arm, one broken reading per clause that can say FAIL, one UNREADABLE per arm. Written by the standins builder; every value is a fixture, none a measurement. The probe review (2026-10-31) appended the readings named `review:`, each a read the drive records as missing, which must answer UNREADABLE.",
+ "readings": 100,
+ "honest": {
+  "J1": {
+   "pi": {
+    "id": "pi",
+    "place": "here",
+    "build": "parent",
+    "via": "row",
+    "agent": "pi",
+    "session": "s-parent-here-pi",
+    "argv": [
+     "/r/p350/home/.local/bin/pi",
+     "--session-id",
+     "0f3c5d1e-0000-4000-8000-000000000011"
+    ],
+    "resumeArgv": [
+     "/r/p350/home/.local/bin/pi",
+     "--session-id",
+     "0f3c5d1e-0000-4000-8000-000000000011"
+    ],
+    "hello": {
+     "view": "fullscreen",
+     "kind": "pi",
+     "setModes": [
+      1000,
+      1006
+     ],
+     "page": "rows-4",
+     "band": "1.4.0",
+     "argv": [
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000011"
+     ],
+     "claudeInline": false
+    },
+    "flags": {
+     "alternate": 1,
+     "mouseAny": 1,
+     "history": 0,
+     "inMode": 0,
+     "rows": 24,
+     "cols": 80,
+     "pane": "%3",
+     "dead": 0
+    },
+    "picture": {
+     "alternate": true,
+     "depth": null,
+     "space": null,
+     "pages": false,
+     "asking": false,
+     "typable": true,
+     "rows": 24,
+     "cols": 80,
+     "first": "pi line 0389",
+     "top": 388
+    },
+    "extraPage": {
+     "status": 200,
+     "why": "moved"
+    },
+    "pull": {
+     "kind": "none",
+     "why": "no pages offered",
+     "reads": []
+    },
+    "wheel": {
+     "geometry": "120x40",
+     "view": "fullscreen",
+     "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+     "reads": [
+      "1b5b3c36343b36303b31344d",
+      "1b5b3c36343b36303b31344d",
+      "1b5b3c36343b36303b31344d"
+     ],
+     "inMode": 0,
+     "firstBefore": "pi line 0389",
+     "firstAfter": "pi line 0380",
+     "topBefore": 388,
+     "topAfter": 379
+    }
+   },
+   "claude": {
+    "id": "claude",
+    "place": "here",
+    "build": "parent",
+    "via": "row",
+    "agent": "claude",
+    "session": "s-parent-here-claude",
+    "argv": [
+     "/r/p350/home/.local/bin/claude"
+    ],
+    "resumeArgv": [
+     "/r/p350/home/.local/bin/claude"
+    ],
+    "hello": {
+     "view": "inline",
+     "kind": "claude",
+     "setModes": [],
+     "page": "rows",
+     "band": null,
+     "argv": [],
+     "claudeInline": true
+    },
+    "flags": {
+     "alternate": 0,
+     "mouseAny": 0,
+     "history": 376,
+     "inMode": 0,
+     "rows": 24,
+     "cols": 80,
+     "pane": "%3",
+     "dead": 0
+    },
+    "picture": {
+     "alternate": false,
+     "depth": 376,
+     "space": "0a1b2c3d4e5f",
+     "pages": false,
+     "asking": false,
+     "typable": true,
+     "rows": 24,
+     "cols": 80,
+     "first": "claude line 0377",
+     "top": null
+    },
+    "extraPage": null,
+    "pull": {
+     "kind": "history",
+     "page": {
+      "status": 200,
+      "why": null,
+      "rows": 100,
+      "numbered": 100,
+      "first": 277,
+      "last": 376
+     },
+     "mac": {
+      "before": {
+       "inMode": 0,
+       "text": "claude line 0377\n…"
+      },
+      "after": {
+       "inMode": 0,
+       "text": "claude line 0377\n…"
+      }
+     },
+     "reads": []
+    },
+    "wheel": {
+     "geometry": "120x40",
+     "view": "inline",
+     "sent": "",
+     "reads": [],
+     "inMode": 1,
+     "firstBefore": "claude line 0377",
+     "firstAfter": "claude line 0377",
+     "topBefore": 0,
+     "topAfter": 0
+    }
+   },
+   "piKeys": [
+    {
+     "status": 200,
+     "outcome": "refused",
+     "reason": "malformed"
+    }
+   ],
+   "piKeysReads": []
+  },
+  "J2": {
+   "door": {
+    "ok": true,
+    "confirmState": "confirmed",
+    "routesWaiting": []
+   },
+   "pi": {
+    "id": "pi",
+    "place": "here",
+    "build": "head",
+    "via": "row",
+    "agent": "pi",
+    "session": "s-head-here-pi",
+    "argv": [
+     "/r/p350/home/.local/bin/pi",
+     "--tui-mode",
+     "regular",
+     "--session-id",
+     "0f3c5d1e-0000-4000-8000-000000000043"
+    ],
+    "resumeArgv": [
+     "/r/p350/home/.local/bin/pi",
+     "--tui-mode",
+     "regular",
+     "--session-id",
+     "0f3c5d1e-0000-4000-8000-000000000043"
+    ],
+    "hello": {
+     "view": "inline",
+     "kind": "pi",
+     "setModes": [],
+     "page": "rows-4",
+     "band": "1.4.0",
+     "argv": [
+      "--tui-mode",
+      "regular",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000043"
+     ],
+     "claudeInline": false
+    },
+    "flags": {
+     "alternate": 0,
+     "mouseAny": 0,
+     "history": 376,
+     "inMode": 0,
+     "rows": 24,
+     "cols": 80,
+     "pane": "%3",
+     "dead": 0
+    },
+    "picture": {
+     "alternate": false,
+     "depth": 376,
+     "space": "0a1b2c3d4e5f",
+     "pages": false,
+     "asking": false,
+     "typable": true,
+     "rows": 24,
+     "cols": 80,
+     "first": "pi line 0377",
+     "top": null
+    },
+    "extraPage": null,
+    "pull": {
+     "kind": "history",
+     "page": {
+      "status": 200,
+      "why": null,
+      "rows": 100,
+      "numbered": 100,
+      "first": 277,
+      "last": 376
+     },
+     "mac": {
+      "before": {
+       "inMode": 0,
+       "text": "pi line 0377\n…"
+      },
+      "after": {
+       "inMode": 0,
+       "text": "pi line 0377\n…"
+      }
+     },
+     "reads": []
+    },
+    "wheel": {
+     "geometry": "120x40",
+     "view": "inline",
+     "sent": "",
+     "reads": [],
+     "inMode": 1,
+     "firstBefore": "pi line 0377",
+     "firstAfter": "pi line 0377",
+     "topBefore": 0,
+     "topAfter": 0
+    }
+   },
+   "piPerson": {
+    "id": "pi-person",
+    "place": "here",
+    "build": "head",
+    "via": "row",
+    "agent": "pi",
+    "session": "s-head-here-pi-person",
+    "argv": [
+     "/r/p350/home/.local/bin/pi",
+     "--tui-mode",
+     "regular",
+     "--session-id",
+     "0f3c5d1e-0000-4000-8000-000000000044",
+     "--tui-mode",
+     "fullscreen"
+    ],
+    "resumeArgv": [
+     "/r/p350/home/.local/bin/pi",
+     "--tui-mode",
+     "regular",
+     "--session-id",
+     "0f3c5d1e-0000-4000-8000-000000000044",
+     "--tui-mode",
+     "fullscreen"
+    ],
+    "hello": {
+     "view": "fullscreen",
+     "kind": "pi",
+     "setModes": [
+      1000,
+      1006
+     ],
+     "page": "rows-4",
+     "band": "1.4.0",
+     "argv": [
+      "--tui-mode",
+      "regular",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000044",
+      "--tui-mode",
+      "fullscreen"
+     ],
+     "claudeInline": false
+    },
+    "flags": {
+     "alternate": 1,
+     "mouseAny": 1,
+     "history": 0,
+     "inMode": 0,
+     "rows": 24,
+     "cols": 80,
+     "pane": "%3",
+     "dead": 0
+    },
+    "picture": {
+     "alternate": true,
+     "depth": null,
+     "space": null,
+     "pages": true,
+     "asking": false,
+     "typable": true,
+     "rows": 24,
+     "cols": 80,
+     "first": "pi line 0389",
+     "top": 388
+    },
+    "extraPage": {
+     "status": 200,
+     "why": "moved"
+    },
+    "pull": {
+     "kind": "page",
+     "answer": {
+      "status": 200,
+      "outcome": "done",
+      "reason": null
+     },
+     "reads": [
+      "1b5b357e"
+     ],
+     "before": {
+      "top": 388
+     },
+     "after": {
+      "top": 368,
+      "first": "pi line 0369"
+     },
+     "step": 20
+    },
+    "wheel": {
+     "geometry": "120x40",
+     "view": "fullscreen",
+     "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+     "reads": [
+      "1b5b3c36343b36303b31344d",
+      "1b5b3c36343b36303b31344d",
+      "1b5b3c36343b36303b31344d"
+     ],
+     "inMode": 0,
+     "firstBefore": "pi line 0389",
+     "firstAfter": "pi line 0380",
+     "topBefore": 388,
+     "topAfter": 379
+    }
+   },
+   "piFar": {
+    "id": "pi",
+    "place": "far",
+    "build": "head",
+    "via": "row",
+    "agent": "pi",
+    "session": "s-head-far-pi",
+    "argv": [
+     "/r/p350/farbin/pi",
+     "--session-id",
+     "0f3c5d1e-0000-4000-8000-000000000061"
+    ],
+    "resumeArgv": [
+     "/r/p350/farbin/pi",
+     "--session-id",
+     "0f3c5d1e-0000-4000-8000-000000000061"
+    ],
+    "hello": {
+     "view": "fullscreen",
+     "kind": "pi",
+     "setModes": [
+      1000,
+      1006
+     ],
+     "page": "rows-4",
+     "band": "1.4.0",
+     "argv": [
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000061"
+     ],
+     "claudeInline": false
+    },
+    "flags": {
+     "alternate": 1,
+     "mouseAny": 1,
+     "history": 0,
+     "inMode": 0,
+     "rows": 24,
+     "cols": 80,
+     "pane": "%3",
+     "dead": 0
+    },
+    "picture": {
+     "alternate": true,
+     "depth": null,
+     "space": null,
+     "pages": true,
+     "asking": false,
+     "typable": true,
+     "rows": 24,
+     "cols": 80,
+     "first": "pi line 0389",
+     "top": 388
+    },
+    "extraPage": {
+     "status": 200,
+     "why": "moved"
+    },
+    "pull": {
+     "kind": "page",
+     "answer": {
+      "status": 200,
+      "outcome": "done",
+      "reason": null
+     },
+     "reads": [
+      "1b5b357e"
+     ],
+     "before": {
+      "top": 388
+     },
+     "after": {
+      "top": 368,
+      "first": "pi line 0369"
+     },
+     "step": 20
+    },
+    "wheel": {
+     "geometry": "120x40",
+     "view": "fullscreen",
+     "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+     "reads": [
+      "1b5b3c36343b36303b31344d",
+      "1b5b3c36343b36303b31344d",
+      "1b5b3c36343b36303b31344d"
+     ],
+     "inMode": 0,
+     "firstBefore": "pi line 0389",
+     "firstAfter": "pi line 0380",
+     "topBefore": 388,
+     "topAfter": 379
+    }
+   },
+   "claude": {
+    "id": "claude",
+    "place": "here",
+    "build": "head",
+    "via": "row",
+    "agent": "claude",
+    "session": "s-head-here-claude",
+    "argv": [
+     "/r/p350/home/.local/bin/claude"
+    ],
+    "resumeArgv": [
+     "/r/p350/home/.local/bin/claude"
+    ],
+    "hello": {
+     "view": "inline",
+     "kind": "claude",
+     "setModes": [],
+     "page": "rows",
+     "band": null,
+     "argv": [],
+     "claudeInline": true
+    },
+    "flags": {
+     "alternate": 0,
+     "mouseAny": 0,
+     "history": 376,
+     "inMode": 0,
+     "rows": 24,
+     "cols": 80,
+     "pane": "%3",
+     "dead": 0
+    },
+    "picture": {
+     "alternate": false,
+     "depth": 376,
+     "space": "0a1b2c3d4e5f",
+     "pages": false,
+     "asking": false,
+     "typable": true,
+     "rows": 24,
+     "cols": 80,
+     "first": "claude line 0377",
+     "top": null
+    },
+    "extraPage": null,
+    "pull": {
+     "kind": "history",
+     "page": {
+      "status": 200,
+      "why": null,
+      "rows": 100,
+      "numbered": 100,
+      "first": 277,
+      "last": 376
+     },
+     "mac": {
+      "before": {
+       "inMode": 0,
+       "text": "claude line 0377\n…"
+      },
+      "after": {
+       "inMode": 0,
+       "text": "claude line 0377\n…"
+      }
+     },
+     "reads": []
+    },
+    "wheel": {
+     "geometry": "120x40",
+     "view": "inline",
+     "sent": "",
+     "reads": [],
+     "inMode": 1,
+     "firstBefore": "claude line 0377",
+     "firstAfter": "claude line 0377",
+     "topBefore": 0,
+     "topAfter": 0
+    }
+   }
+  },
+  "M": {
+   "rows": [
+    {
+     "id": "claude",
+     "place": "here",
+     "build": "parent",
+     "via": "row",
+     "agent": "claude",
+     "session": "s-parent-here-claude",
+     "argv": [
+      "/r/p350/home/.local/bin/claude"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/claude"
+     ],
+     "hello": {
+      "view": "inline",
+      "kind": "claude",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": true
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "claude line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "claude line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "claude line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "claude line 0377",
+      "firstAfter": "claude line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     }
+    },
+    {
+     "id": "codex",
+     "place": "here",
+     "build": "parent",
+     "via": "row",
+     "agent": "codex",
+     "session": "s-parent-here-codex",
+     "argv": [
+      "/r/p350/home/.local/bin/codex"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/codex"
+     ],
+     "hello": {
+      "view": "inline",
+      "kind": "codex",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "codex line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "codex line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "codex line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "codex line 0377",
+      "firstAfter": "codex line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     }
+    },
+    {
+     "id": "codex-true",
+     "place": "here",
+     "build": "parent",
+     "via": "row",
+     "agent": "codex",
+     "session": "s-parent-here-codex-true",
+     "argv": [
+      "/r/p350/home/.local/bin/codex",
+      "-c",
+      "tui.fullscreen_transcript=true"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/codex",
+      "-c",
+      "tui.fullscreen_transcript=true"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "codex",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [
+       "-c",
+       "tui.fullscreen_transcript=true"
+      ],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "codex line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "no pages offered",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b4f411b4f411b4f411b4f411b4f411b4f411b4f411b4f411b4f41",
+      "reads": [
+       "1b4f411b4f411b4f411b4f411b4f411b4f411b4f411b4f411b4f41"
+      ],
+      "inMode": 0,
+      "firstBefore": "codex line 0389",
+      "firstAfter": "codex line 0389",
+      "topBefore": 388,
+      "topAfter": 388
+     }
+    },
+    {
+     "id": "cursor",
+     "place": "here",
+     "build": "parent",
+     "via": "row",
+     "agent": "cursor",
+     "session": "s-parent-here-cursor",
+     "argv": [
+      "/r/p350/home/.local/bin/cursor-agent"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/cursor-agent"
+     ],
+     "hello": {
+      "view": "inline",
+      "kind": "cursor",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "cursor line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "cursor line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "cursor line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "cursor line 0377",
+      "firstAfter": "cursor line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     }
+    },
+    {
+     "id": "gemini",
+     "place": "here",
+     "build": "parent",
+     "via": "shell",
+     "agent": "gemini",
+     "session": "s-parent-here-gemini",
+     "argv": null,
+     "resumeArgv": null,
+     "hello": {
+      "view": "inline",
+      "kind": "gemini",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "gemini line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "gemini line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "gemini line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "gemini line 0377",
+      "firstAfter": "gemini line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     }
+    },
+    {
+     "id": "gemini-opted",
+     "place": "here",
+     "build": "parent",
+     "via": "shell",
+     "agent": "gemini",
+     "session": "s-parent-here-gemini-opted",
+     "argv": null,
+     "resumeArgv": null,
+     "hello": {
+      "view": "fullscreen",
+      "kind": "gemini",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "gemini line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "no pages offered",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "gemini line 0389",
+      "firstAfter": "gemini line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "deepseek",
+     "place": "here",
+     "build": "parent",
+     "via": "row",
+     "agent": "deepseek",
+     "session": "s-parent-here-deepseek",
+     "argv": [
+      "/r/p350/home/.local/bin/codewhale"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/codewhale"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "deepseek",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "deepseek line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "no pages offered",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "deepseek line 0389",
+      "firstAfter": "deepseek line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "antigravity",
+     "place": "here",
+     "build": "parent",
+     "via": "row",
+     "agent": "antigravity",
+     "session": "s-parent-here-antigravity",
+     "argv": [
+      "/r/p350/home/.local/bin/agy"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/agy"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "antigravity",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "antigravity line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "no pages offered",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "antigravity line 0389",
+      "firstAfter": "antigravity line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "muse",
+     "place": "here",
+     "build": "parent",
+     "via": "row",
+     "agent": "muse",
+     "session": "s-parent-here-muse",
+     "argv": [
+      "/r/p350/home/.local/bin/muse"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/muse"
+     ],
+     "hello": {
+      "view": "inline",
+      "kind": "muse",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "muse line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "muse line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "muse line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "muse line 0377",
+      "firstAfter": "muse line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     }
+    },
+    {
+     "id": "qwen",
+     "place": "here",
+     "build": "parent",
+     "via": "row",
+     "agent": "qwen",
+     "session": "s-parent-here-qwen",
+     "argv": [
+      "/r/p350/home/.local/bin/qwen"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/qwen"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "qwen",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "qwen line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "no pages offered",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "qwen line 0389",
+      "firstAfter": "qwen line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "pi",
+     "place": "here",
+     "build": "parent",
+     "via": "row",
+     "agent": "pi",
+     "session": "s-parent-here-pi",
+     "argv": [
+      "/r/p350/home/.local/bin/pi",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000011"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/pi",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000011"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "pi",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows-4",
+      "band": "1.4.0",
+      "argv": [
+       "--session-id",
+       "0f3c5d1e-0000-4000-8000-000000000011"
+      ],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "pi line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "no pages offered",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "pi line 0389",
+      "firstAfter": "pi line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "pi-person",
+     "place": "here",
+     "build": "parent",
+     "via": "row",
+     "agent": "pi",
+     "session": "s-parent-here-pi-person",
+     "argv": [
+      "/r/p350/home/.local/bin/pi",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000012",
+      "--tui-mode",
+      "fullscreen"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/pi",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000012",
+      "--tui-mode",
+      "fullscreen"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "pi",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows-4",
+      "band": "1.4.0",
+      "argv": [
+       "--session-id",
+       "0f3c5d1e-0000-4000-8000-000000000012",
+       "--tui-mode",
+       "fullscreen"
+      ],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "pi line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "no pages offered",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "pi line 0389",
+      "firstAfter": "pi line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "pi-shell",
+     "place": "here",
+     "build": "parent",
+     "via": "shell",
+     "agent": "pi",
+     "session": "s-parent-here-pi-shell",
+     "argv": null,
+     "resumeArgv": null,
+     "hello": {
+      "view": "fullscreen",
+      "kind": "pi",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows-4",
+      "band": "1.4.0",
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "pi line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "no pages offered",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "pi line 0389",
+      "firstAfter": "pi line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "omp",
+     "place": "here",
+     "build": "parent",
+     "via": "shell",
+     "agent": "omp",
+     "session": "s-parent-here-omp",
+     "argv": null,
+     "resumeArgv": null,
+     "hello": {
+      "view": "inline",
+      "kind": "omp",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "omp line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "omp line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "omp line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "omp line 0377",
+      "firstAfter": "omp line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     },
+     "overlay": {
+      "picture": {
+       "alternate": true,
+       "depth": null,
+       "space": null,
+       "pages": false,
+       "asking": false,
+       "typable": true,
+       "rows": 24,
+       "cols": 80,
+       "first": "omp line 0389",
+       "top": 388
+      },
+      "pull": {
+       "kind": "none",
+       "why": "no pages offered",
+       "reads": []
+      }
+     }
+    },
+    {
+     "id": "grok",
+     "place": "here",
+     "build": "parent",
+     "via": "row",
+     "agent": "grok",
+     "session": "s-parent-here-grok",
+     "argv": [
+      "/r/p350/home/.local/bin/grok"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/grok"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "grok",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "grok line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "no pages offered",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "grok line 0389",
+      "firstAfter": "grok line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "opencode",
+     "place": "here",
+     "build": "parent",
+     "via": "row",
+     "agent": "opencode",
+     "session": "s-parent-here-opencode",
+     "argv": [
+      "/r/p350/home/.local/bin/opencode"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/opencode"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "opencode",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "opencode line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "no pages offered",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "opencode line 0389",
+      "firstAfter": "opencode line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "ctl-legacy1000",
+     "place": "here",
+     "build": "parent",
+     "via": "shell",
+     "agent": "p350",
+     "session": "s-parent-here-ctl-legacy1000",
+     "argv": null,
+     "resumeArgv": null,
+     "hello": {
+      "view": "fullscreen",
+      "kind": "legacy1000",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "p350 line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "no pages offered",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "p350 line 0389",
+      "firstAfter": "p350 line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "ctl-altonly",
+     "place": "here",
+     "build": "parent",
+     "via": "shell",
+     "agent": "p350",
+     "session": "s-parent-here-ctl-altonly",
+     "argv": null,
+     "resumeArgv": null,
+     "hello": {
+      "view": "fullscreen",
+      "kind": "altonly",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "p350 line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "no pages offered",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b4f411b4f411b4f411b4f411b4f411b4f411b4f411b4f411b4f41",
+      "reads": [
+       "1b4f411b4f411b4f411b4f411b4f411b4f411b4f411b4f411b4f41"
+      ],
+      "inMode": 0,
+      "firstBefore": "p350 line 0389",
+      "firstAfter": "p350 line 0389",
+      "topBefore": 388,
+      "topAfter": 388
+     }
+    },
+    {
+     "id": "ctl-leave",
+     "place": "here",
+     "build": "parent",
+     "via": "shell",
+     "agent": "p350",
+     "session": "s-parent-here-ctl-leave",
+     "argv": null,
+     "resumeArgv": null,
+     "hello": {
+      "view": "fullscreen",
+      "kind": "leave-on-page",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "p350 line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "no pages offered",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "p350 line 0389",
+      "firstAfter": "p350 line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "ctl-asking",
+     "place": "here",
+     "build": "parent",
+     "via": "shell",
+     "agent": "p350",
+     "session": "s-parent-here-ctl-asking",
+     "argv": null,
+     "resumeArgv": null,
+     "hello": {
+      "view": "fullscreen",
+      "kind": "asking",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": false,
+      "asking": true,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "p350 line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "asking",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "p350 line 0389",
+      "firstAfter": "p350 line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "claude",
+     "place": "far",
+     "build": "parent",
+     "via": "row",
+     "agent": "claude",
+     "session": "s-parent-far-claude",
+     "argv": [
+      "/r/p350/farbin/claude"
+     ],
+     "resumeArgv": [
+      "/r/p350/farbin/claude"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "claude",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "claude line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "no pages offered",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "claude line 0389",
+      "firstAfter": "claude line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "codex",
+     "place": "far",
+     "build": "parent",
+     "via": "row",
+     "agent": "codex",
+     "session": "s-parent-far-codex",
+     "argv": [
+      "/r/p350/farbin/codex"
+     ],
+     "resumeArgv": [
+      "/r/p350/farbin/codex"
+     ],
+     "hello": {
+      "view": "inline",
+      "kind": "codex",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "codex line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "codex line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "codex line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "codex line 0377",
+      "firstAfter": "codex line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     }
+    },
+    {
+     "id": "cursor",
+     "place": "far",
+     "build": "parent",
+     "via": "row",
+     "agent": "cursor",
+     "session": "s-parent-far-cursor",
+     "argv": [
+      "/r/p350/farbin/cursor-agent"
+     ],
+     "resumeArgv": [
+      "/r/p350/farbin/cursor-agent"
+     ],
+     "hello": {
+      "view": "inline",
+      "kind": "cursor",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "cursor line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "cursor line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "cursor line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "cursor line 0377",
+      "firstAfter": "cursor line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     }
+    },
+    {
+     "id": "gemini",
+     "place": "far",
+     "build": "parent",
+     "via": "shell",
+     "agent": "gemini",
+     "session": "s-parent-far-gemini",
+     "argv": null,
+     "resumeArgv": null,
+     "hello": {
+      "view": "inline",
+      "kind": "gemini",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "gemini line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "gemini line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "gemini line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "gemini line 0377",
+      "firstAfter": "gemini line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     }
+    },
+    {
+     "id": "deepseek",
+     "place": "far",
+     "build": "parent",
+     "via": "row",
+     "agent": "deepseek",
+     "session": "s-parent-far-deepseek",
+     "argv": [
+      "/r/p350/farbin/codewhale"
+     ],
+     "resumeArgv": [
+      "/r/p350/farbin/codewhale"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "deepseek",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "deepseek line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "no pages offered",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "deepseek line 0389",
+      "firstAfter": "deepseek line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "antigravity",
+     "place": "far",
+     "build": "parent",
+     "via": "row",
+     "agent": "antigravity",
+     "session": "s-parent-far-antigravity",
+     "argv": [
+      "/r/p350/farbin/agy"
+     ],
+     "resumeArgv": [
+      "/r/p350/farbin/agy"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "antigravity",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "antigravity line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "no pages offered",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "antigravity line 0389",
+      "firstAfter": "antigravity line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "muse",
+     "place": "far",
+     "build": "parent",
+     "via": "row",
+     "agent": "muse",
+     "session": "s-parent-far-muse",
+     "argv": [
+      "/r/p350/farbin/muse"
+     ],
+     "resumeArgv": [
+      "/r/p350/farbin/muse"
+     ],
+     "hello": {
+      "view": "inline",
+      "kind": "muse",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "muse line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "muse line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "muse line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "muse line 0377",
+      "firstAfter": "muse line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     }
+    },
+    {
+     "id": "qwen",
+     "place": "far",
+     "build": "parent",
+     "via": "row",
+     "agent": "qwen",
+     "session": "s-parent-far-qwen",
+     "argv": [
+      "/r/p350/farbin/qwen"
+     ],
+     "resumeArgv": [
+      "/r/p350/farbin/qwen"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "qwen",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "qwen line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "no pages offered",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "qwen line 0389",
+      "firstAfter": "qwen line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "pi",
+     "place": "far",
+     "build": "parent",
+     "via": "row",
+     "agent": "pi",
+     "session": "s-parent-far-pi",
+     "argv": [
+      "/r/p350/farbin/pi",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000029"
+     ],
+     "resumeArgv": [
+      "/r/p350/farbin/pi",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000029"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "pi",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows-4",
+      "band": "1.4.0",
+      "argv": [
+       "--session-id",
+       "0f3c5d1e-0000-4000-8000-000000000029"
+      ],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "pi line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "no pages offered",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "pi line 0389",
+      "firstAfter": "pi line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "omp",
+     "place": "far",
+     "build": "parent",
+     "via": "shell",
+     "agent": "omp",
+     "session": "s-parent-far-omp",
+     "argv": null,
+     "resumeArgv": null,
+     "hello": {
+      "view": "inline",
+      "kind": "omp",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "omp line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "omp line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "omp line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "omp line 0377",
+      "firstAfter": "omp line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     },
+     "overlay": {
+      "picture": {
+       "alternate": true,
+       "depth": null,
+       "space": null,
+       "pages": false,
+       "asking": false,
+       "typable": true,
+       "rows": 24,
+       "cols": 80,
+       "first": "omp line 0389",
+       "top": 388
+      },
+      "pull": {
+       "kind": "none",
+       "why": "no pages offered",
+       "reads": []
+      }
+     }
+    },
+    {
+     "id": "grok",
+     "place": "far",
+     "build": "parent",
+     "via": "row",
+     "agent": "grok",
+     "session": "s-parent-far-grok",
+     "argv": [
+      "/r/p350/farbin/grok"
+     ],
+     "resumeArgv": [
+      "/r/p350/farbin/grok"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "grok",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "grok line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "no pages offered",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "grok line 0389",
+      "firstAfter": "grok line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "opencode",
+     "place": "far",
+     "build": "parent",
+     "via": "row",
+     "agent": "opencode",
+     "session": "s-parent-far-opencode",
+     "argv": [
+      "/r/p350/farbin/opencode"
+     ],
+     "resumeArgv": [
+      "/r/p350/farbin/opencode"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "opencode",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "opencode line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "no pages offered",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "opencode line 0389",
+      "firstAfter": "opencode line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "claude",
+     "place": "here",
+     "build": "head",
+     "via": "row",
+     "agent": "claude",
+     "session": "s-head-here-claude",
+     "argv": [
+      "/r/p350/home/.local/bin/claude"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/claude"
+     ],
+     "hello": {
+      "view": "inline",
+      "kind": "claude",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": true
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "claude line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "claude line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "claude line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "claude line 0377",
+      "firstAfter": "claude line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     }
+    },
+    {
+     "id": "codex",
+     "place": "here",
+     "build": "head",
+     "via": "row",
+     "agent": "codex",
+     "session": "s-head-here-codex",
+     "argv": [
+      "/r/p350/home/.local/bin/codex"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/codex"
+     ],
+     "hello": {
+      "view": "inline",
+      "kind": "codex",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "codex line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "codex line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "codex line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "codex line 0377",
+      "firstAfter": "codex line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     }
+    },
+    {
+     "id": "codex-true",
+     "place": "here",
+     "build": "head",
+     "via": "row",
+     "agent": "codex",
+     "session": "s-head-here-codex-true",
+     "argv": [
+      "/r/p350/home/.local/bin/codex",
+      "-c",
+      "tui.fullscreen_transcript=true"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/codex",
+      "-c",
+      "tui.fullscreen_transcript=true"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "codex",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [
+       "-c",
+       "tui.fullscreen_transcript=true"
+      ],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": true,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "codex line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "page",
+      "answer": {
+       "status": 200,
+       "outcome": "done",
+       "reason": null
+      },
+      "reads": [
+       "1b5b357e"
+      ],
+      "before": {
+       "top": 388
+      },
+      "after": {
+       "top": 364,
+       "first": "codex line 0365"
+      },
+      "step": 24
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b4f411b4f411b4f411b4f411b4f411b4f411b4f411b4f411b4f41",
+      "reads": [
+       "1b4f411b4f411b4f411b4f411b4f411b4f411b4f411b4f411b4f41"
+      ],
+      "inMode": 0,
+      "firstBefore": "codex line 0389",
+      "firstAfter": "codex line 0389",
+      "topBefore": 388,
+      "topAfter": 388
+     }
+    },
+    {
+     "id": "cursor",
+     "place": "here",
+     "build": "head",
+     "via": "row",
+     "agent": "cursor",
+     "session": "s-head-here-cursor",
+     "argv": [
+      "/r/p350/home/.local/bin/cursor-agent"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/cursor-agent"
+     ],
+     "hello": {
+      "view": "inline",
+      "kind": "cursor",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "cursor line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "cursor line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "cursor line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "cursor line 0377",
+      "firstAfter": "cursor line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     }
+    },
+    {
+     "id": "gemini",
+     "place": "here",
+     "build": "head",
+     "via": "shell",
+     "agent": "gemini",
+     "session": "s-head-here-gemini",
+     "argv": null,
+     "resumeArgv": null,
+     "hello": {
+      "view": "inline",
+      "kind": "gemini",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "gemini line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "gemini line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "gemini line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "gemini line 0377",
+      "firstAfter": "gemini line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     }
+    },
+    {
+     "id": "gemini-opted",
+     "place": "here",
+     "build": "head",
+     "via": "shell",
+     "agent": "gemini",
+     "session": "s-head-here-gemini-opted",
+     "argv": null,
+     "resumeArgv": null,
+     "hello": {
+      "view": "fullscreen",
+      "kind": "gemini",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": true,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "gemini line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "page",
+      "answer": {
+       "status": 200,
+       "outcome": "done",
+       "reason": null
+      },
+      "reads": [
+       "1b5b357e"
+      ],
+      "before": {
+       "top": 388
+      },
+      "after": {
+       "top": 364,
+       "first": "gemini line 0365"
+      },
+      "step": 24
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "gemini line 0389",
+      "firstAfter": "gemini line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "deepseek",
+     "place": "here",
+     "build": "head",
+     "via": "row",
+     "agent": "deepseek",
+     "session": "s-head-here-deepseek",
+     "argv": [
+      "/r/p350/home/.local/bin/codewhale"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/codewhale"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "deepseek",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": true,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "deepseek line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "page",
+      "answer": {
+       "status": 200,
+       "outcome": "done",
+       "reason": null
+      },
+      "reads": [
+       "1b5b357e"
+      ],
+      "before": {
+       "top": 388
+      },
+      "after": {
+       "top": 364,
+       "first": "deepseek line 0365"
+      },
+      "step": 24
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "deepseek line 0389",
+      "firstAfter": "deepseek line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "antigravity",
+     "place": "here",
+     "build": "head",
+     "via": "row",
+     "agent": "antigravity",
+     "session": "s-head-here-antigravity",
+     "argv": [
+      "/r/p350/home/.local/bin/agy"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/agy"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "antigravity",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": true,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "antigravity line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "page",
+      "answer": {
+       "status": 200,
+       "outcome": "done",
+       "reason": null
+      },
+      "reads": [
+       "1b5b357e"
+      ],
+      "before": {
+       "top": 388
+      },
+      "after": {
+       "top": 364,
+       "first": "antigravity line 0365"
+      },
+      "step": 24
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "antigravity line 0389",
+      "firstAfter": "antigravity line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "muse",
+     "place": "here",
+     "build": "head",
+     "via": "row",
+     "agent": "muse",
+     "session": "s-head-here-muse",
+     "argv": [
+      "/r/p350/home/.local/bin/muse"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/muse"
+     ],
+     "hello": {
+      "view": "inline",
+      "kind": "muse",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "muse line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "muse line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "muse line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "muse line 0377",
+      "firstAfter": "muse line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     }
+    },
+    {
+     "id": "qwen",
+     "place": "here",
+     "build": "head",
+     "via": "row",
+     "agent": "qwen",
+     "session": "s-head-here-qwen",
+     "argv": [
+      "/r/p350/home/.local/bin/qwen"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/qwen"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "qwen",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": true,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "qwen line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "page",
+      "answer": {
+       "status": 200,
+       "outcome": "done",
+       "reason": null
+      },
+      "reads": [
+       "1b5b357e"
+      ],
+      "before": {
+       "top": 388
+      },
+      "after": {
+       "top": 364,
+       "first": "qwen line 0365"
+      },
+      "step": 24
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "qwen line 0389",
+      "firstAfter": "qwen line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "pi",
+     "place": "here",
+     "build": "head",
+     "via": "row",
+     "agent": "pi",
+     "session": "s-head-here-pi",
+     "argv": [
+      "/r/p350/home/.local/bin/pi",
+      "--tui-mode",
+      "regular",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000043"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/pi",
+      "--tui-mode",
+      "regular",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000043"
+     ],
+     "hello": {
+      "view": "inline",
+      "kind": "pi",
+      "setModes": [],
+      "page": "rows-4",
+      "band": "1.4.0",
+      "argv": [
+       "--tui-mode",
+       "regular",
+       "--session-id",
+       "0f3c5d1e-0000-4000-8000-000000000043"
+      ],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "pi line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "pi line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "pi line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "pi line 0377",
+      "firstAfter": "pi line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     }
+    },
+    {
+     "id": "pi-person",
+     "place": "here",
+     "build": "head",
+     "via": "row",
+     "agent": "pi",
+     "session": "s-head-here-pi-person",
+     "argv": [
+      "/r/p350/home/.local/bin/pi",
+      "--tui-mode",
+      "regular",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000044",
+      "--tui-mode",
+      "fullscreen"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/pi",
+      "--tui-mode",
+      "regular",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000044",
+      "--tui-mode",
+      "fullscreen"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "pi",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows-4",
+      "band": "1.4.0",
+      "argv": [
+       "--tui-mode",
+       "regular",
+       "--session-id",
+       "0f3c5d1e-0000-4000-8000-000000000044",
+       "--tui-mode",
+       "fullscreen"
+      ],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": true,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "pi line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "page",
+      "answer": {
+       "status": 200,
+       "outcome": "done",
+       "reason": null
+      },
+      "reads": [
+       "1b5b357e"
+      ],
+      "before": {
+       "top": 388
+      },
+      "after": {
+       "top": 368,
+       "first": "pi line 0369"
+      },
+      "step": 20
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "pi line 0389",
+      "firstAfter": "pi line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "pi-shell",
+     "place": "here",
+     "build": "head",
+     "via": "shell",
+     "agent": "pi",
+     "session": "s-head-here-pi-shell",
+     "argv": null,
+     "resumeArgv": null,
+     "hello": {
+      "view": "fullscreen",
+      "kind": "pi",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows-4",
+      "band": "1.4.0",
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": true,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "pi line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "page",
+      "answer": {
+       "status": 200,
+       "outcome": "done",
+       "reason": null
+      },
+      "reads": [
+       "1b5b357e"
+      ],
+      "before": {
+       "top": 388
+      },
+      "after": {
+       "top": 368,
+       "first": "pi line 0369"
+      },
+      "step": 20
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "pi line 0389",
+      "firstAfter": "pi line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "omp",
+     "place": "here",
+     "build": "head",
+     "via": "shell",
+     "agent": "omp",
+     "session": "s-head-here-omp",
+     "argv": null,
+     "resumeArgv": null,
+     "hello": {
+      "view": "inline",
+      "kind": "omp",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "omp line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "omp line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "omp line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "omp line 0377",
+      "firstAfter": "omp line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     },
+     "overlay": {
+      "picture": {
+       "alternate": true,
+       "depth": null,
+       "space": null,
+       "pages": true,
+       "asking": false,
+       "typable": true,
+       "rows": 24,
+       "cols": 80,
+       "first": "omp line 0389",
+       "top": 388
+      },
+      "pull": {
+       "kind": "page",
+       "answer": {
+        "status": 200,
+        "outcome": "done",
+        "reason": null
+       },
+       "reads": [
+        "1b5b357e"
+       ],
+       "before": {
+        "top": 388
+       },
+       "after": {
+        "top": 364,
+        "first": "omp line 0365"
+       },
+       "step": 24
+      }
+     }
+    },
+    {
+     "id": "grok",
+     "place": "here",
+     "build": "head",
+     "via": "row",
+     "agent": "grok",
+     "session": "s-head-here-grok",
+     "argv": [
+      "/r/p350/home/.local/bin/grok"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/grok"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "grok",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": true,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "grok line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "page",
+      "answer": {
+       "status": 200,
+       "outcome": "done",
+       "reason": null
+      },
+      "reads": [
+       "1b5b357e"
+      ],
+      "before": {
+       "top": 388
+      },
+      "after": {
+       "top": 364,
+       "first": "grok line 0365"
+      },
+      "step": 24
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "grok line 0389",
+      "firstAfter": "grok line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     },
+     "grok": {
+      "beforeTab": {
+       "kind": "page",
+       "answer": {
+        "status": 200,
+        "outcome": "done",
+        "reason": null
+       },
+       "reads": [
+        "1b5b357e"
+       ],
+       "before": {
+        "top": 388
+       },
+       "after": {
+        "top": 388,
+        "first": "grok line 0389"
+       },
+       "step": 24
+      },
+      "tab": {
+       "status": 200,
+       "outcome": "done",
+       "reason": null
+      }
+     }
+    },
+    {
+     "id": "opencode",
+     "place": "here",
+     "build": "head",
+     "via": "row",
+     "agent": "opencode",
+     "session": "s-head-here-opencode",
+     "argv": [
+      "/r/p350/home/.local/bin/opencode"
+     ],
+     "resumeArgv": [
+      "/r/p350/home/.local/bin/opencode"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "opencode",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": true,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "opencode line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "page",
+      "answer": {
+       "status": 200,
+       "outcome": "done",
+       "reason": null
+      },
+      "reads": [
+       "1b5b357e"
+      ],
+      "before": {
+       "top": 388
+      },
+      "after": {
+       "top": 364,
+       "first": "opencode line 0365"
+      },
+      "step": 24
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "opencode line 0389",
+      "firstAfter": "opencode line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "ctl-legacy1000",
+     "place": "here",
+     "build": "head",
+     "via": "shell",
+     "agent": "p350",
+     "session": "s-head-here-ctl-legacy1000",
+     "argv": null,
+     "resumeArgv": null,
+     "hello": {
+      "view": "fullscreen",
+      "kind": "legacy1000",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": true,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "p350 line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "page",
+      "answer": {
+       "status": 200,
+       "outcome": "done",
+       "reason": null
+      },
+      "reads": [
+       "1b5b357e"
+      ],
+      "before": {
+       "top": 388
+      },
+      "after": {
+       "top": 364,
+       "first": "p350 line 0365"
+      },
+      "step": 24
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "p350 line 0389",
+      "firstAfter": "p350 line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "ctl-altonly",
+     "place": "here",
+     "build": "head",
+     "via": "shell",
+     "agent": "p350",
+     "session": "s-head-here-ctl-altonly",
+     "argv": null,
+     "resumeArgv": null,
+     "hello": {
+      "view": "fullscreen",
+      "kind": "altonly",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": true,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "p350 line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "page",
+      "answer": {
+       "status": 200,
+       "outcome": "done",
+       "reason": null
+      },
+      "reads": [
+       "1b5b357e"
+      ],
+      "before": {
+       "top": 388
+      },
+      "after": {
+       "top": 364,
+       "first": "p350 line 0365"
+      },
+      "step": 24
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b4f411b4f411b4f411b4f411b4f411b4f411b4f411b4f411b4f41",
+      "reads": [
+       "1b4f411b4f411b4f411b4f411b4f411b4f411b4f411b4f411b4f41"
+      ],
+      "inMode": 0,
+      "firstBefore": "p350 line 0389",
+      "firstAfter": "p350 line 0389",
+      "topBefore": 388,
+      "topAfter": 388
+     }
+    },
+    {
+     "id": "ctl-leave",
+     "place": "here",
+     "build": "head",
+     "via": "shell",
+     "agent": "p350",
+     "session": "s-head-here-ctl-leave",
+     "argv": null,
+     "resumeArgv": null,
+     "hello": {
+      "view": "fullscreen",
+      "kind": "leave-on-page",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": true,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "p350 line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "page",
+      "answer": {
+       "status": 200,
+       "outcome": "done",
+       "reason": null
+      },
+      "reads": [
+       "1b5b357e"
+      ],
+      "before": {
+       "top": 388
+      },
+      "after": {
+       "top": null,
+       "first": "$"
+      },
+      "step": 24
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "shell",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "$ ~",
+      "firstAfter": "$ ~",
+      "topBefore": 0,
+      "topAfter": 0
+     },
+     "leave": {
+      "first": {
+       "kind": "page",
+       "answer": {
+        "status": 200,
+        "outcome": "done",
+        "reason": null
+       },
+       "reads": [
+        "1b5b357e"
+       ],
+       "before": {
+        "top": 388
+       },
+       "after": {
+        "top": null,
+        "first": "$"
+       },
+       "step": 24
+      },
+      "after": {
+       "alternate": false,
+       "pages": false
+      },
+      "second": {
+       "answer": {
+        "status": 200,
+        "outcome": "done",
+        "reason": null
+       },
+       "reads": [
+        "1b5b357e"
+       ]
+      },
+      "tildes": 1
+     }
+    },
+    {
+     "id": "ctl-asking",
+     "place": "here",
+     "build": "head",
+     "via": "shell",
+     "agent": "p350",
+     "session": "s-head-here-ctl-asking",
+     "argv": null,
+     "resumeArgv": null,
+     "hello": {
+      "view": "fullscreen",
+      "kind": "asking",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": true,
+      "asking": true,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "p350 line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "none",
+      "why": "asking",
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "p350 line 0389",
+      "firstAfter": "p350 line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "claude",
+     "place": "far",
+     "build": "head",
+     "via": "row",
+     "agent": "claude",
+     "session": "s-head-far-claude",
+     "argv": [
+      "/r/p350/farbin/claude"
+     ],
+     "resumeArgv": [
+      "/r/p350/farbin/claude"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "claude",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": true,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "claude line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "page",
+      "answer": {
+       "status": 200,
+       "outcome": "done",
+       "reason": null
+      },
+      "reads": [
+       "1b5b357e"
+      ],
+      "before": {
+       "top": 388
+      },
+      "after": {
+       "top": 364,
+       "first": "claude line 0365"
+      },
+      "step": 24
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "claude line 0389",
+      "firstAfter": "claude line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "codex",
+     "place": "far",
+     "build": "head",
+     "via": "row",
+     "agent": "codex",
+     "session": "s-head-far-codex",
+     "argv": [
+      "/r/p350/farbin/codex"
+     ],
+     "resumeArgv": [
+      "/r/p350/farbin/codex"
+     ],
+     "hello": {
+      "view": "inline",
+      "kind": "codex",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "codex line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "codex line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "codex line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "codex line 0377",
+      "firstAfter": "codex line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     }
+    },
+    {
+     "id": "cursor",
+     "place": "far",
+     "build": "head",
+     "via": "row",
+     "agent": "cursor",
+     "session": "s-head-far-cursor",
+     "argv": [
+      "/r/p350/farbin/cursor-agent"
+     ],
+     "resumeArgv": [
+      "/r/p350/farbin/cursor-agent"
+     ],
+     "hello": {
+      "view": "inline",
+      "kind": "cursor",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "cursor line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "cursor line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "cursor line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "cursor line 0377",
+      "firstAfter": "cursor line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     }
+    },
+    {
+     "id": "gemini",
+     "place": "far",
+     "build": "head",
+     "via": "shell",
+     "agent": "gemini",
+     "session": "s-head-far-gemini",
+     "argv": null,
+     "resumeArgv": null,
+     "hello": {
+      "view": "inline",
+      "kind": "gemini",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "gemini line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "gemini line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "gemini line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "gemini line 0377",
+      "firstAfter": "gemini line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     }
+    },
+    {
+     "id": "deepseek",
+     "place": "far",
+     "build": "head",
+     "via": "row",
+     "agent": "deepseek",
+     "session": "s-head-far-deepseek",
+     "argv": [
+      "/r/p350/farbin/codewhale"
+     ],
+     "resumeArgv": [
+      "/r/p350/farbin/codewhale"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "deepseek",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": true,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "deepseek line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "page",
+      "answer": {
+       "status": 200,
+       "outcome": "done",
+       "reason": null
+      },
+      "reads": [
+       "1b5b357e"
+      ],
+      "before": {
+       "top": 388
+      },
+      "after": {
+       "top": 364,
+       "first": "deepseek line 0365"
+      },
+      "step": 24
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "deepseek line 0389",
+      "firstAfter": "deepseek line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "antigravity",
+     "place": "far",
+     "build": "head",
+     "via": "row",
+     "agent": "antigravity",
+     "session": "s-head-far-antigravity",
+     "argv": [
+      "/r/p350/farbin/agy"
+     ],
+     "resumeArgv": [
+      "/r/p350/farbin/agy"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "antigravity",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": true,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "antigravity line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "page",
+      "answer": {
+       "status": 200,
+       "outcome": "done",
+       "reason": null
+      },
+      "reads": [
+       "1b5b357e"
+      ],
+      "before": {
+       "top": 388
+      },
+      "after": {
+       "top": 364,
+       "first": "antigravity line 0365"
+      },
+      "step": 24
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "antigravity line 0389",
+      "firstAfter": "antigravity line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "muse",
+     "place": "far",
+     "build": "head",
+     "via": "row",
+     "agent": "muse",
+     "session": "s-head-far-muse",
+     "argv": [
+      "/r/p350/farbin/muse"
+     ],
+     "resumeArgv": [
+      "/r/p350/farbin/muse"
+     ],
+     "hello": {
+      "view": "inline",
+      "kind": "muse",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "muse line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "muse line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "muse line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "muse line 0377",
+      "firstAfter": "muse line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     }
+    },
+    {
+     "id": "qwen",
+     "place": "far",
+     "build": "head",
+     "via": "row",
+     "agent": "qwen",
+     "session": "s-head-far-qwen",
+     "argv": [
+      "/r/p350/farbin/qwen"
+     ],
+     "resumeArgv": [
+      "/r/p350/farbin/qwen"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "qwen",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": true,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "qwen line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "page",
+      "answer": {
+       "status": 200,
+       "outcome": "done",
+       "reason": null
+      },
+      "reads": [
+       "1b5b357e"
+      ],
+      "before": {
+       "top": 388
+      },
+      "after": {
+       "top": 364,
+       "first": "qwen line 0365"
+      },
+      "step": 24
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "qwen line 0389",
+      "firstAfter": "qwen line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "pi",
+     "place": "far",
+     "build": "head",
+     "via": "row",
+     "agent": "pi",
+     "session": "s-head-far-pi",
+     "argv": [
+      "/r/p350/farbin/pi",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000061"
+     ],
+     "resumeArgv": [
+      "/r/p350/farbin/pi",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000061"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "pi",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows-4",
+      "band": "1.4.0",
+      "argv": [
+       "--session-id",
+       "0f3c5d1e-0000-4000-8000-000000000061"
+      ],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": true,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "pi line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "page",
+      "answer": {
+       "status": 200,
+       "outcome": "done",
+       "reason": null
+      },
+      "reads": [
+       "1b5b357e"
+      ],
+      "before": {
+       "top": 388
+      },
+      "after": {
+       "top": 368,
+       "first": "pi line 0369"
+      },
+      "step": 20
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "pi line 0389",
+      "firstAfter": "pi line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    },
+    {
+     "id": "omp",
+     "place": "far",
+     "build": "head",
+     "via": "shell",
+     "agent": "omp",
+     "session": "s-head-far-omp",
+     "argv": null,
+     "resumeArgv": null,
+     "hello": {
+      "view": "inline",
+      "kind": "omp",
+      "setModes": [],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 0,
+      "mouseAny": 0,
+      "history": 376,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": false,
+      "depth": 376,
+      "space": "0a1b2c3d4e5f",
+      "pages": false,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "omp line 0377",
+      "top": null
+     },
+     "extraPage": null,
+     "pull": {
+      "kind": "history",
+      "page": {
+       "status": 200,
+       "why": null,
+       "rows": 100,
+       "numbered": 100,
+       "first": 277,
+       "last": 376
+      },
+      "mac": {
+       "before": {
+        "inMode": 0,
+        "text": "omp line 0377\n…"
+       },
+       "after": {
+        "inMode": 0,
+        "text": "omp line 0377\n…"
+       }
+      },
+      "reads": []
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "inline",
+      "sent": "",
+      "reads": [],
+      "inMode": 1,
+      "firstBefore": "omp line 0377",
+      "firstAfter": "omp line 0377",
+      "topBefore": 0,
+      "topAfter": 0
+     },
+     "overlay": {
+      "picture": {
+       "alternate": true,
+       "depth": null,
+       "space": null,
+       "pages": true,
+       "asking": false,
+       "typable": true,
+       "rows": 24,
+       "cols": 80,
+       "first": "omp line 0389",
+       "top": 388
+      },
+      "pull": {
+       "kind": "page",
+       "answer": {
+        "status": 200,
+        "outcome": "done",
+        "reason": null
+       },
+       "reads": [
+        "1b5b357e"
+       ],
+       "before": {
+        "top": 388
+       },
+       "after": {
+        "top": 364,
+        "first": "omp line 0365"
+       },
+       "step": 24
+      }
+     }
+    },
+    {
+     "id": "grok",
+     "place": "far",
+     "build": "head",
+     "via": "row",
+     "agent": "grok",
+     "session": "s-head-far-grok",
+     "argv": [
+      "/r/p350/farbin/grok"
+     ],
+     "resumeArgv": [
+      "/r/p350/farbin/grok"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "grok",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": true,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "grok line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "page",
+      "answer": {
+       "status": 200,
+       "outcome": "done",
+       "reason": null
+      },
+      "reads": [
+       "1b5b357e"
+      ],
+      "before": {
+       "top": 388
+      },
+      "after": {
+       "top": 364,
+       "first": "grok line 0365"
+      },
+      "step": 24
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "grok line 0389",
+      "firstAfter": "grok line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     },
+     "grok": {
+      "beforeTab": {
+       "kind": "page",
+       "answer": {
+        "status": 200,
+        "outcome": "done",
+        "reason": null
+       },
+       "reads": [
+        "1b5b357e"
+       ],
+       "before": {
+        "top": 388
+       },
+       "after": {
+        "top": 388,
+        "first": "grok line 0389"
+       },
+       "step": 24
+      },
+      "tab": {
+       "status": 200,
+       "outcome": "done",
+       "reason": null
+      }
+     }
+    },
+    {
+     "id": "opencode",
+     "place": "far",
+     "build": "head",
+     "via": "row",
+     "agent": "opencode",
+     "session": "s-head-far-opencode",
+     "argv": [
+      "/r/p350/farbin/opencode"
+     ],
+     "resumeArgv": [
+      "/r/p350/farbin/opencode"
+     ],
+     "hello": {
+      "view": "fullscreen",
+      "kind": "opencode",
+      "setModes": [
+       1000,
+       1006
+      ],
+      "page": "rows",
+      "band": null,
+      "argv": [],
+      "claudeInline": false
+     },
+     "flags": {
+      "alternate": 1,
+      "mouseAny": 1,
+      "history": 0,
+      "inMode": 0,
+      "rows": 24,
+      "cols": 80,
+      "pane": "%3",
+      "dead": 0
+     },
+     "picture": {
+      "alternate": true,
+      "depth": null,
+      "space": null,
+      "pages": true,
+      "asking": false,
+      "typable": true,
+      "rows": 24,
+      "cols": 80,
+      "first": "opencode line 0389",
+      "top": 388
+     },
+     "extraPage": {
+      "status": 200,
+      "why": "moved"
+     },
+     "pull": {
+      "kind": "page",
+      "answer": {
+       "status": 200,
+       "outcome": "done",
+       "reason": null
+      },
+      "reads": [
+       "1b5b357e"
+      ],
+      "before": {
+       "top": 388
+      },
+      "after": {
+       "top": 364,
+       "first": "opencode line 0365"
+      },
+      "step": 24
+     },
+     "wheel": {
+      "geometry": "120x40",
+      "view": "fullscreen",
+      "sent": "1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d",
+      "reads": [
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d",
+       "1b5b3c36343b36303b31344d"
+      ],
+      "inMode": 0,
+      "firstBefore": "opencode line 0389",
+      "firstAfter": "opencode line 0380",
+      "topBefore": 388,
+      "topAfter": 379
+     }
+    }
+   ]
+  },
+  "B": {
+   "bands": [
+    {
+     "band": "1.4.0",
+     "create": {
+      "id": "b-1.4.0",
+      "argv": [
+       "/r/p350/home/.local/bin/pi",
+       "--tui-mode",
+       "regular",
+       "--session-id",
+       "0f3c5d1e-0000-4000-8000-000000000066"
+      ],
+      "resumeArgv": [
+       "/r/p350/home/.local/bin/pi",
+       "--tui-mode",
+       "regular",
+       "--session-id",
+       "0f3c5d1e-0000-4000-8000-000000000066"
+      ],
+      "view": "inline",
+      "alternate": 0,
+      "alive": true
+     },
+     "restore": {
+      "ok": true,
+      "at": 1,
+      "typedAt": 2,
+      "armed": "/r/p350/home/.local/bin/pi --tui-mode regular --session-id 0f3c5d1e-0000-4000-8000-000000000066",
+      "typed": [
+       "/r/p350/home/.local/bin/pi",
+       "--tui-mode",
+       "regular",
+       "--session-id",
+       "0f3c5d1e-0000-4000-8000-000000000066"
+      ],
+      "alive": true,
+      "view": "inline",
+      "alternate": 0
+     }
+    },
+    {
+     "band": "0.99.2",
+     "create": {
+      "id": "b-0.99.2",
+      "argv": [
+       "/r/p350/home/.local/bin/pi",
+       "--tui-mode",
+       "regular",
+       "--session-id",
+       "0f3c5d1e-0000-4000-8000-000000000067"
+      ],
+      "resumeArgv": [
+       "/r/p350/home/.local/bin/pi",
+       "--tui-mode",
+       "regular",
+       "--session-id",
+       "0f3c5d1e-0000-4000-8000-000000000067"
+      ],
+      "view": "inline",
+      "alternate": 0,
+      "alive": true
+     },
+     "restore": {
+      "ok": true,
+      "at": 1,
+      "typedAt": 2,
+      "armed": "/r/p350/home/.local/bin/pi --tui-mode regular --session-id 0f3c5d1e-0000-4000-8000-000000000067",
+      "typed": [
+       "/r/p350/home/.local/bin/pi",
+       "--tui-mode",
+       "regular",
+       "--session-id",
+       "0f3c5d1e-0000-4000-8000-000000000067"
+      ],
+      "alive": true,
+      "view": "inline",
+      "alternate": 0
+     }
+    },
+    {
+     "band": "0.83.0",
+     "create": {
+      "id": "b-0.83.0",
+      "argv": [
+       "/r/p350/home/.local/bin/pi",
+       "--session-id",
+       "0f3c5d1e-0000-4000-8000-000000000068"
+      ],
+      "resumeArgv": [
+       "/r/p350/home/.local/bin/pi",
+       "--session-id",
+       "0f3c5d1e-0000-4000-8000-000000000068"
+      ],
+      "view": "inline",
+      "alternate": 0,
+      "alive": true
+     },
+     "restore": {
+      "ok": true,
+      "at": 1,
+      "typedAt": 2,
+      "armed": "/r/p350/home/.local/bin/pi --session-id 0f3c5d1e-0000-4000-8000-000000000068",
+      "typed": [
+       "/r/p350/home/.local/bin/pi",
+       "--session-id",
+       "0f3c5d1e-0000-4000-8000-000000000068"
+      ],
+      "alive": true,
+      "view": "inline",
+      "alternate": 0
+     }
+    }
+   ],
+   "belowRestore": {
+    "recorded": [
+     "/r/p350/home/.local/bin/pi",
+     "--tui-mode",
+     "regular",
+     "--session-id",
+     "0f3c5d1e-0000-4000-8000-000000000065"
+    ],
+    "typed": [
+     "/r/p350/home/.local/bin/pi",
+     "--session-id",
+     "0f3c5d1e-0000-4000-8000-000000000065"
+    ],
+    "alive": true,
+    "view": "inline"
+   }
+  },
+  "D13": {
+   "head": {
+    "delayMs": 6000,
+    "firstBytesAt": 1000,
+    "askAt": 9000,
+    "versions": [
+     {
+      "at": 1200,
+      "agent": "pi",
+      "pid": 7,
+      "flag": "-v",
+      "line": "1.4.0",
+      "delayMs": 6000,
+      "phase": "start"
+     },
+     {
+      "at": 7200,
+      "agent": "pi",
+      "pid": 7,
+      "flag": "-v",
+      "line": "1.4.0",
+      "delayMs": 6000,
+      "phase": "end"
+     }
+    ],
+    "inside": {
+     "ok": true,
+     "at": 1500,
+     "typedAt": 2500,
+     "armed": null,
+     "typed": [
+      "/r/p350/home/.local/bin/pi",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000069"
+     ],
+     "alive": true,
+     "view": "fullscreen",
+     "alternate": 1,
+     "recorded": [
+      "/r/p350/home/.local/bin/pi",
+      "--tui-mode",
+      "regular",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000069"
+     ],
+     "scanAnswered": false
+    },
+    "after": {
+     "ok": true,
+     "at": 9100,
+     "typedAt": 9300,
+     "armed": null,
+     "typed": [
+      "/r/p350/home/.local/bin/pi",
+      "--tui-mode",
+      "regular",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000070"
+     ],
+     "alive": true,
+     "view": "inline",
+     "alternate": 0,
+     "recorded": [
+      "/r/p350/home/.local/bin/pi",
+      "--tui-mode",
+      "regular",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000070"
+     ]
+    },
+    "phoneStart": {
+     "at": 1300,
+     "inside": true,
+     "outcome": "done",
+     "argv": [
+      "/r/p350/home/.local/bin/pi",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000071"
+     ]
+    },
+    "sampler": [
+     {
+      "at": 1250,
+      "command": "pi stand-in.mjs --agent pi -v"
+     }
+    ]
+   },
+   "parent": {
+    "firstBytesAt": 1000,
+    "askAt": 9000,
+    "versions": [
+     {
+      "at": 9100,
+      "agent": "pi",
+      "pid": 9,
+      "flag": "-v",
+      "line": "1.4.0",
+      "delayMs": 0,
+      "phase": "start"
+     },
+     {
+      "at": 9150,
+      "agent": "pi",
+      "pid": 9,
+      "flag": "-v",
+      "line": "1.4.0",
+      "delayMs": 0,
+      "phase": "end"
+     }
+    ]
+   }
+  },
+  "PASS": {
+   "launches": [
+    {
+     "label": "p350-head",
+     "floor": "holds",
+     "rows": [
+      {
+       "id": "pre",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000072",
+       "status": "restorable",
+       "before": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000072"
+       ],
+       "after": [
+        "/r/p350/home/.local/bin/pi",
+        "--tui-mode",
+        "regular",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000072"
+       ]
+      },
+      {
+       "id": "pre-flags",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000073",
+       "status": "restorable",
+       "before": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000073",
+        "--model",
+        "m"
+       ],
+       "after": [
+        "/r/p350/home/.local/bin/pi",
+        "--tui-mode",
+        "regular",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000073",
+        "--model",
+        "m"
+       ]
+      },
+      {
+       "id": "person-fullscreen",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000074",
+       "status": "restorable",
+       "before": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000074",
+        "--tui-mode",
+        "fullscreen"
+       ],
+       "after": [
+        "/r/p350/home/.local/bin/pi",
+        "--tui-mode",
+        "regular",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000074",
+        "--tui-mode",
+        "fullscreen"
+       ]
+      },
+      {
+       "id": "head",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000075",
+       "status": "restorable",
+       "before": [
+        "/r/p350/home/.local/bin/pi",
+        "--tui-mode",
+        "regular",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000075"
+       ],
+       "after": [
+        "/r/p350/home/.local/bin/pi",
+        "--tui-mode",
+        "regular",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000075"
+       ]
+      },
+      {
+       "id": "discarded",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000076",
+       "status": "discarded",
+       "before": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000076"
+       ],
+       "after": [
+        "/r/p350/home/.local/bin/pi",
+        "--tui-mode",
+        "regular",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000076"
+       ]
+      },
+      {
+       "id": "far",
+       "agent": "pi",
+       "local": false,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000077",
+       "status": "restorable",
+       "before": [
+        "/r/p350/farbin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000077"
+       ],
+       "after": [
+        "/r/p350/farbin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000077"
+       ]
+      },
+      {
+       "id": "no-id",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": null,
+       "status": "restorable",
+       "before": null,
+       "after": null
+      },
+      {
+       "id": "wrapped",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000078",
+       "status": "restorable",
+       "before": [
+        "/r/never-run/specstory",
+        "run",
+        "pi",
+        "--no-cloud-sync",
+        "-c",
+        "/r/p350/home/.local/bin/pi --session-id 0f3c5d1e-0000-4000-8000-000000000078"
+       ],
+       "after": [
+        "/r/never-run/specstory",
+        "run",
+        "pi",
+        "--no-cloud-sync",
+        "-c",
+        "/r/p350/home/.local/bin/pi --session-id 0f3c5d1e-0000-4000-8000-000000000078"
+       ]
+      },
+      {
+       "id": "differs",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000079",
+       "status": "restorable",
+       "before": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "other"
+       ],
+       "after": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "other"
+       ]
+      }
+     ],
+     "restores": [
+      {
+       "id": "pre",
+       "shape": "pre",
+       "recorded": [
+        "/r/p350/home/.local/bin/pi",
+        "--tui-mode",
+        "regular",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000072"
+       ],
+       "typed": [
+        "/r/p350/home/.local/bin/pi",
+        "--tui-mode",
+        "regular",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000072"
+       ]
+      },
+      {
+       "id": "head",
+       "shape": "head",
+       "recorded": [
+        "/r/p350/home/.local/bin/pi",
+        "--tui-mode",
+        "regular",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000075"
+       ],
+       "typed": [
+        "/r/p350/home/.local/bin/pi",
+        "--tui-mode",
+        "regular",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000075"
+       ]
+      }
+     ]
+    },
+    {
+     "label": "p350-head-0.83.0",
+     "floor": "below",
+     "rows": [
+      {
+       "id": "pre",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000072",
+       "status": "restorable",
+       "before": [
+        "/r/p350/home/.local/bin/pi",
+        "--tui-mode",
+        "regular",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000072"
+       ],
+       "after": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000072"
+       ]
+      },
+      {
+       "id": "pre-flags",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000073",
+       "status": "restorable",
+       "before": [
+        "/r/p350/home/.local/bin/pi",
+        "--tui-mode",
+        "regular",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000073",
+        "--model",
+        "m"
+       ],
+       "after": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000073",
+        "--model",
+        "m"
+       ]
+      },
+      {
+       "id": "person-fullscreen",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000074",
+       "status": "restorable",
+       "before": [
+        "/r/p350/home/.local/bin/pi",
+        "--tui-mode",
+        "regular",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000074",
+        "--tui-mode",
+        "fullscreen"
+       ],
+       "after": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000074",
+        "--tui-mode",
+        "fullscreen"
+       ]
+      },
+      {
+       "id": "head",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000075",
+       "status": "restorable",
+       "before": [
+        "/r/p350/home/.local/bin/pi",
+        "--tui-mode",
+        "regular",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000075"
+       ],
+       "after": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000075"
+       ]
+      },
+      {
+       "id": "discarded",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000076",
+       "status": "discarded",
+       "before": [
+        "/r/p350/home/.local/bin/pi",
+        "--tui-mode",
+        "regular",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000076"
+       ],
+       "after": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000076"
+       ]
+      },
+      {
+       "id": "far",
+       "agent": "pi",
+       "local": false,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000077",
+       "status": "restorable",
+       "before": [
+        "/r/p350/farbin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000077"
+       ],
+       "after": [
+        "/r/p350/farbin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000077"
+       ]
+      },
+      {
+       "id": "no-id",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": null,
+       "status": "restorable",
+       "before": null,
+       "after": null
+      },
+      {
+       "id": "wrapped",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000078",
+       "status": "restorable",
+       "before": [
+        "/r/never-run/specstory",
+        "run",
+        "pi",
+        "--no-cloud-sync",
+        "-c",
+        "/r/p350/home/.local/bin/pi --session-id 0f3c5d1e-0000-4000-8000-000000000078"
+       ],
+       "after": [
+        "/r/never-run/specstory",
+        "run",
+        "pi",
+        "--no-cloud-sync",
+        "-c",
+        "/r/p350/home/.local/bin/pi --session-id 0f3c5d1e-0000-4000-8000-000000000078"
+       ]
+      },
+      {
+       "id": "differs",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000079",
+       "status": "restorable",
+       "before": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "other"
+       ],
+       "after": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "other"
+       ]
+      }
+     ],
+     "restores": []
+    },
+    {
+     "label": "p350-head-unread",
+     "floor": "unread",
+     "rows": [
+      {
+       "id": "pre",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000072",
+       "status": "restorable",
+       "before": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000072"
+       ],
+       "after": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000072"
+       ]
+      },
+      {
+       "id": "pre-flags",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000073",
+       "status": "restorable",
+       "before": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000073",
+        "--model",
+        "m"
+       ],
+       "after": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000073",
+        "--model",
+        "m"
+       ]
+      },
+      {
+       "id": "person-fullscreen",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000074",
+       "status": "restorable",
+       "before": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000074",
+        "--tui-mode",
+        "fullscreen"
+       ],
+       "after": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000074",
+        "--tui-mode",
+        "fullscreen"
+       ]
+      },
+      {
+       "id": "head",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000075",
+       "status": "restorable",
+       "before": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000075"
+       ],
+       "after": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000075"
+       ]
+      },
+      {
+       "id": "discarded",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000076",
+       "status": "discarded",
+       "before": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000076"
+       ],
+       "after": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000076"
+       ]
+      },
+      {
+       "id": "far",
+       "agent": "pi",
+       "local": false,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000077",
+       "status": "restorable",
+       "before": [
+        "/r/p350/farbin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000077"
+       ],
+       "after": [
+        "/r/p350/farbin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000077"
+       ]
+      },
+      {
+       "id": "no-id",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": null,
+       "status": "restorable",
+       "before": null,
+       "after": null
+      },
+      {
+       "id": "wrapped",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000078",
+       "status": "restorable",
+       "before": [
+        "/r/never-run/specstory",
+        "run",
+        "pi",
+        "--no-cloud-sync",
+        "-c",
+        "/r/p350/home/.local/bin/pi --session-id 0f3c5d1e-0000-4000-8000-000000000078"
+       ],
+       "after": [
+        "/r/never-run/specstory",
+        "run",
+        "pi",
+        "--no-cloud-sync",
+        "-c",
+        "/r/p350/home/.local/bin/pi --session-id 0f3c5d1e-0000-4000-8000-000000000078"
+       ]
+      },
+      {
+       "id": "differs",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000079",
+       "status": "restorable",
+       "before": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "other"
+       ],
+       "after": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "other"
+       ]
+      },
+      {
+       "id": "unread-head",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000080",
+       "status": "restorable",
+       "before": [
+        "/r/p350/home/.local/bin/pi",
+        "--tui-mode",
+        "regular",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000080"
+       ],
+       "after": [
+        "/r/p350/home/.local/bin/pi",
+        "--tui-mode",
+        "regular",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000080"
+       ]
+      }
+     ],
+     "restores": [
+      {
+       "id": "unread-head",
+       "shape": "unread-head",
+       "recorded": [
+        "/r/p350/home/.local/bin/pi",
+        "--tui-mode",
+        "regular",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000080"
+       ],
+       "typed": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000080"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "GRACE": {
+   "head": {
+    "settled": true,
+    "page": {
+     "status": 200,
+     "outcome": "done",
+     "reason": null
+    },
+    "reads": [
+     "1b5b357e"
+    ],
+    "samples": [
+     "idle",
+     "idle",
+     "idle",
+     "idle",
+     "idle",
+     "idle",
+     "idle",
+     "idle",
+     "idle",
+     "idle",
+     "idle",
+     "idle",
+     "idle",
+     "idle",
+     "idle",
+     "idle",
+     "idle",
+     "idle",
+     "idle",
+     "idle",
+     "idle"
+    ],
+    "wheel": {
+     "samples": [
+      "idle",
+      "running",
+      "running",
+      "running",
+      "running",
+      "idle"
+     ]
+    }
+   },
+   "parent": {
+    "settled": true,
+    "page": null,
+    "reads": [],
+    "samples": [],
+    "wheel": {
+     "samples": [
+      "idle",
+      "running",
+      "running",
+      "idle"
+     ]
+    }
+   }
+  },
+  "RP": {
+   "picture": {
+    "alternate": true,
+    "depth": null,
+    "space": null,
+    "pages": false,
+    "asking": false,
+    "typable": true,
+    "rows": 24,
+    "cols": 80,
+    "first": "pi line 0389",
+    "top": 388
+   },
+   "answers": [
+    {
+     "key": "PPage",
+     "status": 200,
+     "outcome": "refused",
+     "reason": "malformed"
+    },
+    {
+     "key": "NPage",
+     "status": 200,
+     "outcome": "refused",
+     "reason": "malformed"
+    }
+   ],
+   "reads": []
+  },
+  "RUN": {
+   "tailscalePreflight": true,
+   "dnsPreflights": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "agentsHeld": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "shadows": [
+    {
+     "label": "l0",
+     "ok": true,
+     "copies": [],
+     "unreadable": []
+    },
+    {
+     "label": "l1",
+     "ok": true,
+     "copies": [],
+     "unreadable": []
+    },
+    {
+     "label": "l2",
+     "ok": true,
+     "copies": [],
+     "unreadable": []
+    },
+    {
+     "label": "l3",
+     "ok": true,
+     "copies": [],
+     "unreadable": []
+    },
+    {
+     "label": "l4",
+     "ok": true,
+     "copies": [],
+     "unreadable": []
+    },
+    {
+     "label": "l5",
+     "ok": true,
+     "copies": [],
+     "unreadable": []
+    },
+    {
+     "label": "l6",
+     "ok": true,
+     "copies": [],
+     "unreadable": []
+    },
+    {
+     "label": "l7",
+     "ok": true,
+     "copies": [],
+     "unreadable": []
+    },
+    {
+     "label": "l8",
+     "ok": true,
+     "copies": [],
+     "unreadable": []
+    },
+    {
+     "label": "l9",
+     "ok": true,
+     "copies": [],
+     "unreadable": []
+    }
+   ],
+   "resolved": true,
+   "hiddenUnresolved": true,
+   "farResolved": true,
+   "manifest": {
+    "read": true,
+    "rows": 90,
+    "outside": [],
+    "why": null
+   },
+   "started": [
+    {
+     "id": "s1",
+     "argv0": "/r/p350/home/.local/bin/pi"
+    },
+    {
+     "id": "s2",
+     "argv0": "/r/p350/farbin/claude"
+    }
+   ],
+   "roots": [
+    "/r/p350",
+    "/r/home"
+   ],
+   "socket": "gmux-p350-wt-p350-1",
+   "launches": [
+    {
+     "label": "l0",
+     "tmuxSocket": "gmux-p350-wt-p350-1",
+     "band": "1.4.0",
+     "census": "no change"
+    },
+    {
+     "label": "l1",
+     "tmuxSocket": "gmux-p350-wt-p350-1",
+     "band": "1.4.0",
+     "census": "no change"
+    },
+    {
+     "label": "l2",
+     "tmuxSocket": "gmux-p350-wt-p350-1",
+     "band": "1.4.0",
+     "census": "no change"
+    },
+    {
+     "label": "l3",
+     "tmuxSocket": "gmux-p350-wt-p350-1",
+     "band": "1.4.0",
+     "census": "no change"
+    },
+    {
+     "label": "l4",
+     "tmuxSocket": "gmux-p350-wt-p350-1",
+     "band": "1.4.0",
+     "census": "no change"
+    },
+    {
+     "label": "l5",
+     "tmuxSocket": "gmux-p350-wt-p350-1",
+     "band": "1.4.0",
+     "census": "no change"
+    },
+    {
+     "label": "l6",
+     "tmuxSocket": "gmux-p350-wt-p350-1",
+     "band": "1.4.0",
+     "census": "no change"
+    },
+    {
+     "label": "l7",
+     "tmuxSocket": "gmux-p350-wt-p350-1",
+     "band": "1.4.0",
+     "census": "no change"
+    },
+    {
+     "label": "l8",
+     "tmuxSocket": "gmux-p350-wt-p350-1",
+     "band": "1.4.0",
+     "census": "no change"
+    },
+    {
+     "label": "l9",
+     "tmuxSocket": "gmux-p350-wt-p350-1",
+     "band": "1.4.0",
+     "census": "no change"
+    }
+   ],
+   "realTailscale": 0,
+   "samples": 900,
+   "forbidden": 0,
+   "standinLeft": 0,
+   "agentsLeft": 0,
+   "runLeft": 0,
+   "electronsLeft": 0,
+   "history": {
+    "before": "741827 1793377397|23166 1790702242",
+    "after": "741827 1793377397|23166 1790702242",
+    "quiet": null
+   }
+  }
+ },
+ "broken": [
+  {
+   "arm": "J1",
+   "name": "pi's page of history did not answer moved",
+   "expect": "fail",
+   "mustFail": [
+    "pi at the parent: the alternate screen, no depth, and a page of history answers moved"
+   ],
+   "ops": [
+    {
+     "set": "pi.extraPage.why",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "J1",
+   "name": "the parent answered a page changed",
+   "expect": "fail",
+   "mustFail": [
+    "a phone page to the parent's pi answers malformed and nothing reaches it"
+   ],
+   "ops": [
+    {
+     "set": "piKeys.0.reason",
+     "value": "changed"
+    }
+   ]
+  },
+  {
+   "arm": "J1",
+   "name": "the Mac's wheel did not move pi's view",
+   "expect": "fail",
+   "mustFail": [
+    "the Mac's real wheel moves pi's own view, and the next picture follows it"
+   ],
+   "ops": [
+    {
+     "set": "pi.wheel.topAfter",
+     "value": 388
+    }
+   ]
+  },
+  {
+   "arm": "J1",
+   "name": "the phone's page of claude's history moved the Mac into copy mode",
+   "expect": "fail",
+   "mustFail": [
+    "the phone pages claude's history with the Mac's view unchanged"
+   ],
+   "ops": [
+    {
+     "set": "claude.pull.mac.after.inMode",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "J1",
+   "name": "a Mac scroll over claude did not park copy mode",
+   "expect": "fail",
+   "mustFail": [
+    "a Mac scroll parks claude in copy mode and the phone's first row is unchanged"
+   ],
+   "ops": [
+    {
+     "set": "claude.wheel.inMode",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "arm": "J1",
+   "name": "the Mac's wheel was never turned over pi",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "pi.wheel",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "J2",
+   "name": "the door waits for a route at HEAD",
+   "expect": "fail",
+   "mustFail": [
+    "the door over the parent's agreement waits for no route (no Allow)"
+   ],
+   "ops": [
+    {
+     "set": "door.routesWaiting",
+     "value": [
+      "keys"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "J2",
+   "name": "pi's argv carries no token",
+   "expect": "fail",
+   "mustFail": [
+    "pi's argv and resume argv hold the token straight after argv[0]"
+   ],
+   "ops": [
+    {
+     "set": "pi.argv",
+     "value": [
+      "/r/p350/home/.local/bin/pi",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000043"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "J2",
+   "name": "pi's picture has no depth",
+   "expect": "fail",
+   "mustFail": [
+    "pi reads as claude: a depth, its history paged, the Mac unchanged"
+   ],
+   "ops": [
+    {
+     "set": "pi.picture.depth",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "J2",
+   "name": "a Mac scroll over pi did not park copy mode",
+   "expect": "fail",
+   "mustFail": [
+    "a Mac scroll parks pi in copy mode and the phone's first row is unchanged"
+   ],
+   "ops": [
+    {
+     "set": "pi.wheel.inMode",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "arm": "J2",
+   "name": "the person's full-screen pi received two pages for one pull",
+   "expect": "fail",
+   "mustFail": [
+    "a pi with a person's --tui-mode fullscreen reads as the parent's pi, plus exactly one ESC[5~ a page"
+   ],
+   "ops": [
+    {
+     "set": "piPerson.pull.reads",
+     "value": [
+      "1b5b357e",
+      "1b5b357e"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "J2",
+   "name": "the far pi was offered no pages",
+   "expect": "fail",
+   "mustFail": [
+    "a pi on the loopback machine reads as the parent's pi, plus exactly one ESC[5~ a page"
+   ],
+   "ops": [
+    {
+     "set": "piFar.picture.pages",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "J2",
+   "name": "a Mac scroll moved claude's picture",
+   "expect": "fail",
+   "mustFail": [
+    "claude reads at HEAD as it read at the parent, both ways"
+   ],
+   "ops": [
+    {
+     "set": "claude.wheel.firstAfter",
+     "value": "claude line 0300"
+    }
+   ]
+  },
+  {
+   "arm": "J2",
+   "name": "the far pi was never driven",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "piFar",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "M",
+   "name": "qwen's stand-in drew inline at HEAD",
+   "expect": "fail",
+   "mustFail": [
+    "every row's stand-in drew the view its agent's own rule gives what each build composed"
+   ],
+   "ops": [
+    {
+     "set": "rows.@head:here:qwen.hello.view",
+     "value": "inline"
+    }
+   ]
+  },
+  {
+   "arm": "M",
+   "name": "deepseek's full-screen picture carried a depth",
+   "expect": "fail",
+   "mustFail": [
+    "the picture names the alternate screen exactly where the view is full screen, and a depth only off it"
+   ],
+   "ops": [
+    {
+     "set": "rows.@head:here:deepseek.picture.depth",
+     "value": 376
+    }
+   ]
+  },
+  {
+   "arm": "M",
+   "name": "the parent offered pages on qwen",
+   "expect": "fail",
+   "mustFail": [
+    "pages is offered on exactly the full-screen pictures that take keys at HEAD, and on none at the parent"
+   ],
+   "ops": [
+    {
+     "set": "rows.@parent:here:qwen.picture.pages",
+     "value": true
+    }
+   ]
+  },
+  {
+   "arm": "M",
+   "name": "opencode's pull reached nothing",
+   "expect": "fail",
+   "mustFail": [
+    "one pull on a full-screen picture at HEAD sends exactly one ESC[5~ and the program pages its own view"
+   ],
+   "ops": [
+    {
+     "set": "rows.@head:here:opencode.pull.reads",
+     "value": []
+    }
+   ]
+  },
+  {
+   "arm": "M",
+   "name": "muse's page of history moved the Mac's view",
+   "expect": "fail",
+   "mustFail": [
+    "an inline picture's pull pages tmux's history, the Mac's view unchanged and nothing typed"
+   ],
+   "ops": [
+    {
+     "set": "rows.@parent:here:muse.pull.mac.after.text",
+     "value": "muse line 0300"
+    }
+   ]
+  },
+  {
+   "arm": "M",
+   "name": "a page reached deepseek at the parent",
+   "expect": "fail",
+   "mustFail": [
+    "at the parent nothing is sent to a full-screen program"
+   ],
+   "ops": [
+    {
+     "set": "rows.@parent:here:deepseek.pull.reads",
+     "value": [
+      "1b5b357e"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "M",
+   "name": "grok moved on a page before its Tab",
+   "expect": "fail",
+   "mustFail": [
+    "grok takes a page only after a Tab"
+   ],
+   "ops": [
+    {
+     "set": "rows.@head:here:grok.grok.beforeTab.after.top",
+     "value": 364
+    }
+   ]
+  },
+  {
+   "arm": "M",
+   "name": "omp's overlay at HEAD received no page",
+   "expect": "fail",
+   "mustFail": [
+    "omp's overlay takes the alternate screen and is paged by one Page Up at HEAD, and by nothing at the parent"
+   ],
+   "ops": [
+    {
+     "set": "rows.@head:here:omp.overlay.pull.reads",
+     "value": []
+    }
+   ]
+  },
+  {
+   "arm": "M",
+   "name": "the leaving control typed two ~",
+   "expect": "fail",
+   "mustFail": [
+    "a program leaving full screen mid-pull takes the page, offers no more, and types at most one ~"
+   ],
+   "ops": [
+    {
+     "set": "rows.@head:here:ctl-leave.leave.tildes",
+     "value": 2
+    }
+   ]
+  },
+  {
+   "arm": "M",
+   "name": "the asking control did not name its question",
+   "expect": "fail",
+   "mustFail": [
+    "an asking picture names its question and is sent nothing"
+   ],
+   "ops": [
+    {
+     "set": "rows.@parent:here:ctl-asking.picture.asking",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "M",
+   "name": "the Mac's wheel over the far deepseek reached nothing at HEAD",
+   "expect": "fail",
+   "mustFail": [
+    "the Mac's own wheel reads report for report as at the parent over every row whose view this phase did not move"
+   ],
+   "ops": [
+    {
+     "set": "rows.@head:far:deepseek.wheel.reads",
+     "value": []
+    }
+   ]
+  },
+  {
+   "arm": "M",
+   "name": "a far row was never read at HEAD",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "delete": "rows.@head:far:opencode"
+    }
+   ]
+  },
+  {
+   "arm": "B",
+   "name": "1.4.0's create carried no token",
+   "expect": "fail",
+   "mustFail": [
+    "the create's argv and resume argv carry the token straight after argv[0] exactly at 0.99.2 and 1.4.0"
+   ],
+   "ops": [
+    {
+     "set": "bands.0.create.argv",
+     "value": [
+      "/r/p350/home/.local/bin/pi",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000066"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "B",
+   "name": "0.83.0's pane died",
+   "expect": "fail",
+   "mustFail": [
+    "0.83.0's create carries no token and its pane lives inline"
+   ],
+   "ops": [
+    {
+     "set": "bands.2.create.alive",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "B",
+   "name": "0.99.2's restore typed no token where its band holds",
+   "expect": "fail",
+   "mustFail": [
+    "each restore's typed command draws regular by M1's table at its band, with the token exactly where the band holds"
+   ],
+   "ops": [
+    {
+     "set": "bands.1.restore.typed",
+     "value": [
+      "/r/p350/home/.local/bin/pi",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000067"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "B",
+   "name": "1.4.0's restored pane drew full screen",
+   "expect": "fail",
+   "mustFail": [
+    "every restored pane lives, inline"
+   ],
+   "ops": [
+    {
+     "set": "bands.0.restore.alternate",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "B",
+   "name": "the row with the token was restored with it below the floor",
+   "expect": "fail",
+   "mustFail": [
+    "a row created with the token, restored once pi reads 0.83.0, types none and lives"
+   ],
+   "ops": [
+    {
+     "set": "belowRestore.typed",
+     "value": [
+      "/r/p350/home/.local/bin/pi",
+      "--tui-mode",
+      "regular",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000065"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "B",
+   "name": "the 0.83.0 band was never launched",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "delete": "bands.2"
+    }
+   ]
+  },
+  {
+   "arm": "D13",
+   "name": "the restore inside the window kept the token",
+   "expect": "fail",
+   "mustFail": [
+    "inside the window the restore's typed command has no token, and the pane lives"
+   ],
+   "ops": [
+    {
+     "set": "head.inside.typed",
+     "value": [
+      "/r/p350/home/.local/bin/pi",
+      "--tui-mode",
+      "regular",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000069"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "D13",
+   "name": "the restore after the scan answered lost the token",
+   "expect": "fail",
+   "mustFail": [
+    "after the scan answered the next restore's typed command has the token"
+   ],
+   "ops": [
+    {
+     "set": "head.after.typed",
+     "value": [
+      "/r/p350/home/.local/bin/pi",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000070"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "D13",
+   "name": "the phone start inside the window composed the token",
+   "expect": "fail",
+   "mustFail": [
+    "a phone start inside the window composes no token"
+   ],
+   "ops": [
+    {
+     "set": "head.phoneStart.argv",
+     "value": [
+      "/r/p350/home/.local/bin/pi",
+      "--tui-mode",
+      "regular",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000071"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "D13",
+   "name": "a stand-in -v ran before the first terminal bytes at HEAD",
+   "expect": "fail",
+   "mustFail": [
+    "at HEAD no stand-in -v before the window's first terminal bytes, and one between them and this file's own ask (D18)"
+   ],
+   "ops": [
+    {
+     "set": "head.versions.0.at",
+     "value": 900
+    }
+   ]
+  },
+  {
+   "arm": "D13",
+   "name": "a stand-in -v ran at the parent before this file's ask",
+   "expect": "fail",
+   "mustFail": [
+    "at the parent no stand-in -v until this file's own ask"
+   ],
+   "ops": [
+    {
+     "set": "parent.versions.0.at",
+     "value": 8000
+    }
+   ]
+  },
+  {
+   "arm": "D13",
+   "name": "the first restore landed after the scan answered",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "head.inside.scanAnswered",
+     "value": true
+    }
+   ]
+  },
+  {
+   "arm": "PASS",
+   "name": "a pre-phase row was left without the token where the floor holds",
+   "expect": "fail",
+   "mustFail": [
+    "where the floor holds every eligible pi row gains the token straight after argv[0], and nothing else moves"
+   ],
+   "ops": [
+    {
+     "set": "launches.0.rows.0.after",
+     "value": [
+      "/r/p350/home/.local/bin/pi",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000072"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "PASS",
+   "name": "a HEAD row kept the token below the floor",
+   "expect": "fail",
+   "mustFail": [
+    "below the floor the token Tortie put after argv[0] comes out, and nothing else moves"
+   ],
+   "ops": [
+    {
+     "set": "launches.1.rows.3.after",
+     "value": [
+      "/r/p350/home/.local/bin/pi",
+      "--tui-mode",
+      "regular",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000075"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "PASS",
+   "name": "a row moved on an unread version",
+   "expect": "fail",
+   "mustFail": [
+    "on a version the scan could not read no row moves"
+   ],
+   "ops": [
+    {
+     "set": "launches.2.rows.9.after",
+     "value": [
+      "/r/p350/home/.local/bin/pi",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000080"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "PASS",
+   "name": "the far row gained the token",
+   "expect": "fail",
+   "mustFail": [
+    "a row on another machine, wrapped, with no id, or whose argv lacks its own id never moves"
+   ],
+   "ops": [
+    {
+     "set": "launches.0.rows.5.after",
+     "value": [
+      "/r/p350/farbin/pi",
+      "--tui-mode",
+      "regular",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000077"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "PASS",
+   "name": "a restore at holds was armed without the token",
+   "expect": "fail",
+   "mustFail": [
+    "every planted row restored after arms what it records, less the token while the floor does not hold"
+   ],
+   "ops": [
+    {
+     "set": "launches.0.restores.1.typed",
+     "value": [
+      "/r/p350/home/.local/bin/pi",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000075"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "PASS",
+   "name": "no HEAD launch read the rows",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "launches",
+     "value": []
+    }
+   ]
+  },
+  {
+   "arm": "GRACE",
+   "name": "the idle pi received two keys for one page",
+   "expect": "fail",
+   "mustFail": [
+    "one phone page reached the idle pi at HEAD as exactly one ESC[5~"
+   ],
+   "ops": [
+    {
+     "set": "head.reads",
+     "value": [
+      "1b5b357e",
+      "1b5b367e"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "GRACE",
+   "name": "the row read working after the page",
+   "expect": "fail",
+   "mustFail": [
+    "the row never read working in the 6 s after the page"
+   ],
+   "ops": [
+    {
+     "set": "head.samples.3",
+     "value": "running"
+    }
+   ]
+  },
+  {
+   "arm": "GRACE",
+   "name": "the desk's wheel no longer reads working at the parent",
+   "expect": "fail",
+   "mustFail": [
+    "the desk's wheel over it reads working at both builds, as it did"
+   ],
+   "ops": [
+    {
+     "set": "parent.wheel.samples",
+     "value": [
+      "idle",
+      "idle"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "GRACE",
+   "name": "the pi never read idle before the page",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "head.settled",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RP",
+   "name": "the parent offered pages",
+   "expect": "fail",
+   "mustFail": [
+    "the parent's full-screen picture offers no pages"
+   ],
+   "ops": [
+    {
+     "set": "picture.pages",
+     "value": true
+    }
+   ]
+  },
+  {
+   "arm": "RP",
+   "name": "the parent typed a page",
+   "expect": "fail",
+   "mustFail": [
+    "the parent answers each page key malformed"
+   ],
+   "ops": [
+    {
+     "set": "answers.1.outcome",
+     "value": "done"
+    },
+    {
+     "set": "answers.1.reason",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "RP",
+   "name": "a page reached the program at the parent",
+   "expect": "fail",
+   "mustFail": [
+    "nothing reached the program"
+   ],
+   "ops": [
+    {
+     "set": "reads",
+     "value": [
+      "1b5b357e"
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "RP",
+   "name": "the parent's picture was never read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "picture",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "the Tailscale preflight refused",
+   "expect": "fail",
+   "mustFail": [
+    "the Tailscale preflight passed"
+   ],
+   "ops": [
+    {
+     "set": "tailscalePreflight",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "one DNS preflight refused",
+   "expect": "fail",
+   "mustFail": [
+    "the DNS preflight passed at every launch"
+   ],
+   "ops": [
+    {
+     "set": "dnsPreflights.0",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "a shadow copy sat where the scan looks",
+   "expect": "fail",
+   "mustFail": [
+    "the hidden agents held at every launch, and no shadow copy of a stand-in sat where the scan looks"
+   ],
+   "ops": [
+    {
+     "set": "shadows.0.ok",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "the machine's login shell resolved a name outside the run",
+   "expect": "fail",
+   "mustFail": [
+    "every stand-in resolved to this run, here and on the machine, and no hidden one resolved"
+   ],
+   "ops": [
+    {
+     "set": "farResolved",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "a session ran a program outside the run",
+   "expect": "fail",
+   "mustFail": [
+    "every session the manifest holds ran a program of this run"
+   ],
+   "ops": [
+    {
+     "push": "manifest.outside",
+     "value": {
+      "id": "x",
+      "name": "x",
+      "agent": "pi",
+      "argv0": "/opt/homebrew/bin/pi"
+     }
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "an agent session's argv[0] is not the run's",
+   "expect": "fail",
+   "mustFail": [
+    "every agent session the run started was read with its argv[0] inside the run"
+   ],
+   "ops": [
+    {
+     "set": "started.0.argv0",
+     "value": "/opt/homebrew/bin/omp"
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "a launch named no socket, so the helper read nothing of his server",
+   "expect": "fail",
+   "mustFail": [
+    "every launch named this run's own socket, and the helper's census of his session names saw no change across it"
+   ],
+   "ops": [
+    {
+     "set": "launches.0.tmuxSocket",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "a launch named his own server",
+   "expect": "fail",
+   "mustFail": [
+    "every launch named this run's own socket, and the helper's census of his session names saw no change across it"
+   ],
+   "ops": [
+    {
+     "set": "launches.3.tmuxSocket",
+     "value": "gmux"
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "the census saw a session of his appear across a launch",
+   "expect": "fail",
+   "mustFail": [
+    "every launch named this run's own socket, and the helper's census of his session names saw no change across it"
+   ],
+   "ops": [
+    {
+     "set": "launches.2.census",
+     "value": "1 session APPEARED on his server during this launch: p350-x"
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "a launch the helper never returned from",
+   "expect": "fail",
+   "mustFail": [
+    "every launch named this run's own socket, and the helper's census of his session names saw no change across it"
+   ],
+   "ops": [
+    {
+     "set": "launches.9.census",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "a real Tailscale was sampled",
+   "expect": "fail",
+   "mustFail": [
+    "no real Tailscale in any sample, and nothing forbidden at the stand-in"
+   ],
+   "ops": [
+    {
+     "set": "realTailscale",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "an Electron was left",
+   "expect": "fail",
+   "mustFail": [
+    "every stand-in and Electron ended, and nothing of this run is left"
+   ],
+   "ops": [
+    {
+     "set": "electronsLeft",
+     "value": 1
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "his history moved and held still",
+   "expect": "fail",
+   "mustFail": [
+    "his shell history did not move across the run, or moved again while the run started nothing"
+   ],
+   "ops": [
+    {
+     "set": "history.after",
+     "value": "741900 1793377500|23166 1790702242"
+    },
+    {
+     "set": "history.quiet",
+     "value": {
+      "again": "741900 1793377500|23166 1790702242",
+      "waitedMs": 180000
+     }
+    }
+   ]
+  },
+  {
+   "arm": "RUN",
+   "name": "the manifest could not be read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "manifest.read",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "J1",
+   "name": "review: v1 the picture around the Mac's wheel over claude was never read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "claude.wheel.firstBefore",
+     "value": null
+    },
+    {
+     "set": "claude.wheel.firstAfter",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "J1",
+   "name": "review: v2 pi's view was not read after the Mac's wheel",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "pi.wheel.topAfter",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "J1",
+   "name": "review: v3 the parent's pi never said hello, so its log was never read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "piKeysReads",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "J2",
+   "name": "review: v4 the picture after the Mac's wheel over claude was never read at HEAD",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "claude.wheel.firstAfter",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "J2",
+   "name": "review: v5 the picture after the far pi's page was never read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "piFar.pull.after.read",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "M",
+   "name": "review: v6 the leaving control's screen was not captured for its ~",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "rows.@head:here:ctl-leave.leave.tildes",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "M",
+   "name": "review: v7 grok's view before its Tab was not read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "rows.@head:here:grok.grok.beforeTab.before.top",
+     "value": null
+    },
+    {
+     "set": "rows.@head:here:grok.grok.beforeTab.after.top",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "M",
+   "name": "review: v8 the picture before opencode's page was never read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "rows.@head:far:opencode.pull.before.read",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "M",
+   "name": "review: v9 the far omp's overlay was never pictured",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "rows.@head:far:omp.overlay.picture",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "D13",
+   "name": "review: v10 no pi -v was logged at the parent at all",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "parent.versions",
+     "value": []
+    }
+   ]
+  },
+  {
+   "arm": "D13",
+   "name": "review: v11 no pi -v was logged at HEAD at all",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "head.versions",
+     "value": []
+    }
+   ]
+  },
+  {
+   "arm": "PASS",
+   "name": "review: v12 the launches at holds read only rows the pass may not move",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "launches.0.rows",
+     "value": [
+      {
+       "id": "far",
+       "agent": "pi",
+       "local": false,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000077",
+       "status": "restorable",
+       "before": [
+        "/r/p350/farbin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000077"
+       ],
+       "after": [
+        "/r/p350/farbin/pi",
+        "--session-id",
+        "0f3c5d1e-0000-4000-8000-000000000077"
+       ]
+      },
+      {
+       "id": "no-id",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": null,
+       "status": "restorable",
+       "before": null,
+       "after": null
+      },
+      {
+       "id": "wrapped",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000078",
+       "status": "restorable",
+       "before": [
+        "/r/never-run/specstory",
+        "run",
+        "pi",
+        "--no-cloud-sync",
+        "-c",
+        "/r/p350/home/.local/bin/pi --session-id 0f3c5d1e-0000-4000-8000-000000000078"
+       ],
+       "after": [
+        "/r/never-run/specstory",
+        "run",
+        "pi",
+        "--no-cloud-sync",
+        "-c",
+        "/r/p350/home/.local/bin/pi --session-id 0f3c5d1e-0000-4000-8000-000000000078"
+       ]
+      },
+      {
+       "id": "differs",
+       "agent": "pi",
+       "local": true,
+       "agentSessionId": "0f3c5d1e-0000-4000-8000-000000000079",
+       "status": "restorable",
+       "before": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "other"
+       ],
+       "after": [
+        "/r/p350/home/.local/bin/pi",
+        "--session-id",
+        "other"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "PASS",
+   "name": "review: v13 the launch below the floor was never read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "delete": "launches.1"
+    }
+   ]
+  },
+  {
+   "arm": "GRACE",
+   "name": "review: v14 every status sample after the page was unread",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "head.samples",
+     "value": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "GRACE",
+   "name": "review: v15 the desk's wheel samples were unread at the parent",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "parent.wheel.samples",
+     "value": [
+      null,
+      null,
+      null,
+      null
+     ]
+    }
+   ]
+  },
+  {
+   "arm": "GRACE",
+   "name": "review: v16 the paged pi's log was never read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "head.reads",
+     "value": null
+    }
+   ]
+  },
+  {
+   "arm": "GRACE",
+   "name": "review: v17 the idle pi was never pictured before its page",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "head.pictured",
+     "value": false
+    }
+   ]
+  },
+  {
+   "arm": "RP",
+   "name": "review: v18 the parent's pi never said hello, so its log was never read",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "reads",
+     "value": null
+    }
+   ]
+  },
+  {
+   "name": "the fix round: the Mac's wheel turned over a terminal two rows shorter at HEAD, every report naming another row, reads as at the parent",
+   "arm": "M",
+   "expect": "pass",
+   "ops": [
+    {
+     "set": "rows.@head:here:gemini-opted.wheel.geometry",
+     "value": "120x38"
+    },
+    {
+     "set": "rows.@head:here:gemini-opted.wheel.sent",
+     "value": "1b5b3c36343b36303b31334d1b5b3c36343b36303b31334d1b5b3c36343b36303b31334d"
+    },
+    {
+     "set": "rows.@head:here:gemini-opted.wheel.reads",
+     "value": [
+      "1b5b3c36343b36303b31334d",
+      "1b5b3c36343b36303b31334d",
+      "1b5b3c36343b36303b31334d"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "the fix round: the Mac's wheel turned over a wider terminal at HEAD has nothing to compare",
+   "arm": "M",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "rows.@head:here:gemini-opted.wheel.geometry",
+     "value": "122x40"
+    }
+   ]
+  },
+  {
+   "name": "the fix round: the Mac's wheel at HEAD sent another button",
+   "arm": "M",
+   "expect": "fail",
+   "mustFail": [
+    "the Mac's own wheel reads report for report as at the parent over every row whose view this phase did not move"
+   ],
+   "ops": [
+    {
+     "set": "rows.@head:here:gemini-opted.wheel.sent",
+     "value": "1b5b3c36353b36303b31344d1b5b3c36343b36303b31344d1b5b3c36343b36303b31344d"
+    }
+   ]
+  },
+  {
+   "name": "the fix round: a band's restore typed a command neither its program nor this file read",
+   "arm": "B",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "bands.0.restore.typed",
+     "value": null
+    }
+   ]
+  },
+  {
+   "name": "the fix round: a misread typed line is overruled by what the program itself ran",
+   "arm": "B",
+   "expect": "pass",
+   "ops": [
+    {
+     "set": "bands.1.restore.ran",
+     "value": [
+      "/r/p350/home/.local/bin/pi",
+      "--tui-mode",
+      "regular",
+      "--session-id",
+      "0f3c5d1e-0000-4000-8000-000000000067"
+     ]
+    },
+    {
+     "set": "bands.1.restore.typed",
+     "value": [
+      "/r/p350/home/.local/bin/pi",
+      "--tui-mode",
+      "regul"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "the fix round: the restore inside the window typed a command neither its program nor this file read",
+   "arm": "D13",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "head.inside.typed",
+     "value": null
+    }
+   ]
+  },
+  {
+   "name": "the fix round: a planted row's restore typed a command this file never read",
+   "arm": "PASS",
+   "expect": "unreadable",
+   "ops": [
+    {
+     "set": "launches.0.restores.0.typed",
+     "value": null
+    }
+   ]
+  }
+ ]
+}

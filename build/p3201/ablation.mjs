@@ -50,7 +50,14 @@
  * flags road losing its -F and `k25` its marked shape answered under the
  * other road's guard (124 widened), `k26` the fallback page's -J capture
  * losing its range and `k27` the page's flags road reading -J (140 widened).
- * 127 in all.
+ * 127 in all. PHASE 350 (build/p350/SPEC.md §6 item 7, §7.5) appended Page Up
+ * and Page Down to the contract's names, 35 to 37, which conditions 102, 103
+ * and 122 read: `k3` was re-planted with all 37 names spelled out, so it
+ * breaks only the import its condition owns, and 4 were added, `k28` and `k29`
+ * Page Down dropped from the contract and the two pages swapped (122 pins the
+ * 37 in order), `k30` the probe's page near misses taken out of the hostile
+ * corpus (102 names them by label) and `k31` the probe's refused page names
+ * taken out (122 requires its 14). 131 in all.
  *
  * A GREEN GATE IS ONLY EVIDENCE IF IT CAN GO RED. Phase 320.1 opens the first
  * interactive write path on a machine's control connection, the carriage
@@ -110,6 +117,7 @@
  * Usage:
  *   node build/p3201/ablation.mjs
  *   P320_ONLY=m1,m9,r3 node build/p3201/ablation.mjs    named entries only
+ *   node build/p3201/ablation.mjs --only k1,k2,k3      the same, as an argument (Phase 350)
  *   P320_ALLOW_RED_BASE=1 node build/p3201/ablation.mjs
  */
 
@@ -146,6 +154,9 @@ const HOST = 'src/main/attach/attach-host.ts';
 // its far read through the exec plane.
 const SCREEN_KEYS = 'src/main/screen/keys.ts';
 const REMOTE_SCREEN = 'src/main/machines/remote-screen.ts';
+// PHASE 350: the contract's key names, and the gate's own probe of the carriage.
+const POCKET_CONTRACT = 'src/shared/ipc/pocket.ts';
+const MACHINES_PROBE = 'build/machines-conformance-probe.mts';
 const TESTS = [
   'src/renderer/terminal/scroll/__tests__/p3201-typing.test.ts',
   'src/renderer/terminal/scroll/__tests__/p3201-remote-surface.test.ts',
@@ -1246,7 +1257,7 @@ export const ABLATIONS = [
     check: 'machines',
     owner: 'C102',
     name: 'the eighth row takes a Meta key',
-    why: 'his yes was for the key bar\'s keys, the contract\'s 35; a modifier word is a binding the phone never sends and a far program reads as a command.',
+    why: 'his yes was for the key bar\'s keys, the contract\'s 35 and since Phase 350 its two pages, 37; a modifier word is a binding the phone never sends and a far program reads as a command.',
     file: SHAPES,
     from: "{ kind: 'one-of', words: POCKET_SCREEN_KEY_NAMES }",
     to: "{ kind: 'one-of', words: [...POCKET_SCREEN_KEY_NAMES, 'M-x'] }"
@@ -1259,14 +1270,15 @@ export const ABLATIONS = [
     why: 'the eighth row reads the contract\'s list, imported; a second spelling can drift from the phone\'s, or grow a name nobody approved.',
     file: SHAPES,
     from: "{ kind: 'one-of', words: POCKET_SCREEN_KEY_NAMES }",
-    to: "{ kind: 'one-of', words: ['Escape', 'Tab', 'BTab', 'Enter', 'BSpace', 'Up', 'Down', 'Left', 'Right', 'C-a', 'C-b', 'C-c', 'C-d', 'C-e', 'C-f', 'C-g', 'C-h', 'C-i', 'C-j', 'C-k', 'C-l', 'C-m', 'C-n', 'C-o', 'C-p', 'C-q', 'C-r', 'C-s', 'C-t', 'C-u', 'C-v', 'C-w', 'C-x', 'C-y', 'C-z'] }"
+    // PHASE 350: all 37 names spelled out, so the plant breaks the import alone and not the list.
+    to: "{ kind: 'one-of', words: ['Escape', 'Tab', 'BTab', 'Enter', 'BSpace', 'Up', 'Down', 'Left', 'Right', 'C-a', 'C-b', 'C-c', 'C-d', 'C-e', 'C-f', 'C-g', 'C-h', 'C-i', 'C-j', 'C-k', 'C-l', 'C-m', 'C-n', 'C-o', 'C-p', 'C-q', 'C-r', 'C-s', 'C-t', 'C-u', 'C-v', 'C-w', 'C-x', 'C-y', 'C-z', 'PPage', 'NPage'] }"
   },
   {
     n: 'k4',
     check: 'machines',
     owner: 'C122',
     name: 'namedKeySequence composes any name',
-    why: 'a caller\'s string reaching the far side is what the carriage door exists to refuse; the composer checks the name against the 35 again.',
+    why: 'a caller\'s string reaching the far side is what the carriage door exists to refuse; the composer checks the name against the contract\'s 37 again.',
     file: SHAPES,
     from: '  if (!POCKET_SCREEN_KEY_NAMES.some((known) => known === name)) {',
     to: '  if (name === undefined) {'
@@ -1517,6 +1529,51 @@ export const ABLATIONS = [
     from: /('capture-pane', '-p', '-e', )'-F'(, '-t', tmuxId, '-S', start, '-E', end, ';',)/,
     to: (_m, a, b) => `${a}'-J'${b}`
   },
+  // -------------------------------------------------------------------------
+  // PHASE 350, the two page keys (build/p350/SPEC.md §6 item 7): 122 pins the
+  // contract's 37 names in order, and 102 and 122 read the probe's page near
+  // misses and refused names.
+  // -------------------------------------------------------------------------
+  {
+    n: 'k28',
+    check: 'machines',
+    owner: 'C122',
+    name: 'Page Down dropped from the contract',
+    why: 'a pull up past the bottom of a full-screen program sends one Page Down, which reaches another machine through the eighth row; without the name the carriage refuses it (build/p350/SPEC.md D4).',
+    file: POCKET_CONTRACT,
+    from: "  'PPage', 'NPage'\n] as const;",
+    to: "  'PPage'\n] as const;"
+  },
+  {
+    n: 'k29',
+    check: 'machines',
+    owner: 'C122',
+    name: 'the two page keys swapped in the contract',
+    why: 'Page Up and Page Down are appended after the 35 in that order, so the 35 keep their index and the phone reads the list word for word (D24).',
+    file: POCKET_CONTRACT,
+    from: "  'PPage', 'NPage'\n] as const;",
+    to: "  'NPage', 'PPage'\n] as const;"
+  },
+  {
+    n: 'k30',
+    check: 'machines',
+    owner: 'C102',
+    name: "the probe's page near misses taken out of the hostile corpus",
+    why: 'a page spelled any other way, modified or doubled, or Home and End, must be refused before send; a corpus that no longer carries them proves nothing about them.',
+    file: MACHINES_PROBE,
+    from: "    { label: 'Page Up spelled PageUp', args: ['send-keys', '-t', '$1', 'PageUp'] },\n",
+    to: ''
+  },
+  {
+    n: 'k31',
+    check: 'machines',
+    owner: 'C122',
+    name: "the probe's refused page names taken out",
+    why: 'the composer refuses every name off the contract; with the page near misses gone from what it is asked, a composer that took PageUp or Home would pass.',
+    file: MACHINES_PROBE,
+    from: ", 'PageUp', 'ppage', 'S-PPage', 'PPage NPage', 'Home', 'End']) {",
+    to: ']) {'
+  },
   {
     n: 'r13',
     check: 'vitest',
@@ -1750,7 +1807,11 @@ const started = Date.now();
 try {
   buildClone();
   say(`clone at ${scratch}, node_modules symlinked, nothing under a home touched`);
-  const only = (process.env['P320_ONLY'] ?? '').split(',').map((s) => s.trim()).filter((s) => s !== '');
+  // Phase 350: `--only A,B` (or `--only=A,B`) beside P320_ONLY.
+  const at = process.argv.findIndex((a) => a === '--only' || a.startsWith('--only='));
+  const argOnly = at < 0 ? '' : process.argv[at].startsWith('--only=') ? process.argv[at].slice('--only='.length) : (process.argv[at + 1] ?? '');
+  const only = `${process.env['P320_ONLY'] ?? ''},${argOnly}`.split(',').map((s) => s.trim()).filter((s) => s !== '');
+  for (const name of only) if (!ABLATIONS.some((a) => a.n === name)) problems.push(`--only names ${JSON.stringify(name)}, which is no arm`);
   const wanted = ABLATIONS.filter((a) => only.length === 0 || only.includes(a.n));
   const bases = {};
   for (const check of [...new Set(wanted.map((a) => a.check))]) {

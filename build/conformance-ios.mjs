@@ -895,6 +895,33 @@
  *        rename decoded strictly beside end, the Sessions answer's renames
  *        once, leniently.
  *
+ *   PHASE 350, SCROLL BACK A FULL-SCREEN AGENT FROM THE PHONE
+ *   (build/p350/SPEC.md §7.4; John Berryman's issue 42, "In pi: I can't
+ *   scroll back on my iPhone"). Three rules move and one is new:
+ *
+ *   (ai6) the 37 names, word for word AND in the contract's order, Phase
+ *        337's 35 first and pageUp = "PPage", pageDown = "NPage" last (D24).
+ *   (az) also: SampleWorld.typeKeys takes Page Up and Page Down and draws
+ *        nothing for them, and the sample offers no page.
+ *   (t)  also: hostile-door.mjs names the two page arms (P350_ARMS), each
+ *        sending no POST: pages-absent drawn, pages-not-boolean refused whole
+ *        as a paste that is not a Boolean is.
+ *   (be) NEW, A FULL-SCREEN PAGE: be1 the scroll view's OWN pan read through
+ *        one more target, added in addGestures to pulled(_:), and no new
+ *        recogniser ((aq13) unchanged); be2 nothing in the pull, its rule or
+ *        the sender's page writes an offset, an inset, a size, a zoom or a
+ *        transform ((aq6) unchanged); be3 ScreenPull pure, travel declared
+ *        once as 44 pt, its page asked once, in the .ended arm; be4 nil unless
+ *        offered, one touch, no pinch and no selection, the offer pages,
+ *        typable and not asking, and only the travel past the room the rows
+ *        had counted; be5 the page reaches the Mac only through
+ *        ScreenKeySender.page(, whose one caller is Screen.swift's action,
+ *        guarding pages, typable and asking, one key, the one flush, no
+ *        onSend, and a waiting page dropped when the offer goes; be6 pages
+ *        decoded by decodeIfPresent(Bool.self, forKey: .pages) ?? false and
+ *        carried to ScreenPicture; be7 no Copy word, identifier or owner check
+ *        added by the pull (D10).
+ *
  * Every rule also proves its own scanner on texts it holds, before it reads a
  * file, so a scanner that stopped finding is never taken for a clean tree.
  *
@@ -11040,7 +11067,7 @@ export const SCREEN_FILES = Object.freeze([
 ]);
 const isScreenFile = (name) => /^Screens\/Screen[A-Z]?\w*\.swift$/.test(name) && name !== 'Screens/ScreenCover.swift';
 
-/** The 35 names the Mac takes, read from the contract's text (src/shared/ipc/pocket.ts). */
+/** The names the Mac takes (37 since Phase 350), read from the contract's text (src/shared/ipc/pocket.ts). */
 export function pocketKeyNames(pocketTs) {
   if (pocketTs === null) return null;
   const m = /POCKET_SCREEN_KEY_NAMES\s*=\s*\[([\s\S]*?)\]\s*as\s+const/.exec(pocketTs.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, ''));
@@ -11210,14 +11237,11 @@ export function ruleScreenKeys(files, contractNames) {
   const contract = lexedFile(files, 'Door/Contract.swift');
   const alone = contract === null ? '' : contract.bare;
   if (!/\bvar\s+standsAlone\s*:\s*Bool\s*\{[^}]*\bname\s*!=\s*\.backspace\b/.test(alone)) findings.push('Door/Contract.swift\'s KeyItem.standsAlone is not "a named key other than .backspace"');
-  // (ai6) The 35 names, word for word.
+  // (ai6) The 37 names, word for word and in the contract's order, Page Up
+  // and Page Down last (Phase 350, D24; Phase 337 read the 35 as a set).
   const raw = contract === null ? null : enumRawValues(contract.source, 'ScreenKeyName');
   said.names = raw?.length ?? 0;
-  if (raw === null) findings.push('Door/Contract.swift declares no enum ScreenKeyName: String');
-  else if (contractNames === null) findings.push('src/shared/ipc/pocket.ts declares no POCKET_SCREEN_KEY_NAMES this rule can read');
-  else if ([...raw].sort().join('\n') !== [...contractNames].sort().join('\n') || raw.length !== contractNames.length) {
-    findings.push(`ScreenKeyName's raw values (${String(raw.length)}) are not POCKET_SCREEN_KEY_NAMES (${String(contractNames.length)}) word for word: ${JSON.stringify(raw.filter((x) => !contractNames.includes(x)))} more and ${JSON.stringify(contractNames.filter((x) => !raw.includes(x)))} fewer`);
-  }
+  findings.push(...ruleKeyNamesInOrder(contract === null ? null : contract.source, contractNames));
   // (ai7) Text filtered of C0, C1 and DEL by ONE function, the one maker of a text item.
   const typed = contract === null ? '' : fnText(contract, 'typed', 'KeyItem');
   const isControl = contract === null ? '' : fnText(contract, 'isControl', 'KeyItem');
@@ -19740,6 +19764,445 @@ export function ruleSessionName(files, tests = []) {
   expect('(t) Phase 349: catches an arm expecting a word Copy does not hold', t49(T49, '') > 0);
 }
 
+
+/**
+ * (ai6) since Phase 350 (build/p350/SPEC.md D24, §7.4): ScreenKeyName's raw
+ * values are POCKET_SCREEN_KEY_NAMES word for word AND IN ITS ORDER, 37 of
+ * them, Phase 337's 35 first and Page Up and Page Down appended last as
+ * `pageUp = "PPage"` and `pageDown = "NPage"`.
+ */
+export function ruleKeyNamesInOrder(contractSource, contractNames) {
+  const raw = contractSource === null ? null : enumRawValues(contractSource, 'ScreenKeyName');
+  if (raw === null) return ['Door/Contract.swift declares no enum ScreenKeyName: String'];
+  if (contractNames === null) return ['src/shared/ipc/pocket.ts declares no POCKET_SCREEN_KEY_NAMES this rule can read'];
+  const findings = [];
+  if (contractNames.length !== 37) findings.push(`POCKET_SCREEN_KEY_NAMES holds ${String(contractNames.length)} names; Phase 337's 35 and Phase 350's two pages, 37`);
+  if (raw.join('\n') !== contractNames.join('\n')) {
+    const at = raw.findIndex((x, i) => x !== contractNames[i]);
+    findings.push(`ScreenKeyName's raw values (${String(raw.length)}) are not POCKET_SCREEN_KEY_NAMES (${String(contractNames.length)}) word for word and in its order: ${JSON.stringify(raw.filter((x) => !contractNames.includes(x)))} more, ${JSON.stringify(contractNames.filter((x) => !raw.includes(x)))} fewer, the first difference at ${String(at < 0 ? raw.length : at)}`);
+  }
+  const lx = lexSwift(contractSource);
+  const t = typeSpans(lx.bare).find((x) => x.name === 'ScreenKeyName' && x.kind === 'enum');
+  const cases = t === undefined ? [] : [...lx.bare.slice(t.open, t.close + 1).matchAll(/\bcase\s+([A-Za-z_]\w*)\s*=/g)].map((m) => m[1]);
+  if (cases.slice(-2).join(',') !== 'pageUp,pageDown' || raw.slice(-2).join(',') !== 'PPage,NPage') {
+    findings.push(`ScreenKeyName ends with ${cases.slice(-2).map((c, i) => `${c} = ${JSON.stringify(raw.slice(-2)[i])}`).join(' then ') || 'nothing'}; Phase 350 appends pageUp = "PPage" then pageDown = "NPage", after the 35 that keep their order (D24)`);
+  }
+  return findings;
+}
+
+// ---- (be) A FULL-SCREEN PAGE (Phase 350, build/p350/SPEC.md §7.4, D7, D8, D21, D22) ----
+//
+// A program on the alternate screen has no history on the phone, so since
+// Phase 350 a pull past the edge of its rows sends it ONE Page Up or Page
+// Down, which it pages its own view by. The pull is read from the scroll
+// view's OWN pan through one more target, asked once, when the finger lifts,
+// through a pure rule, and reaches the Mac only through the one key sender,
+// which stamps the picture's turn and dialog and paces it like any key. It
+// writes no offset, makes no recogniser, draws nothing and asks no Face ID.
+
+/** The finger travel past the edge of a full-screen program's rows that is one page (D21, M3). */
+export const PULL_TRAVEL_POINTS = 44;
+/** What the pull, its rule and the sender's page may never write: an offset, an inset, a size, a zoom or a transform. */
+const PULL_WRITES = /(?:^|[^.\w])(?:self\s*\.\s*)?(?:contentOffset|contentInset|contentSize|zoomScale|transform|bounds|frame)\s*=(?!=)|\bsetContentOffset\s*\(|\bscrollRectToVisible\s*\(|\bsetZoomScale\s*\(|\bzoom\s*\(/g;
+/** Words, identifiers and owner checks the pull adds none of (D10). */
+const PULL_SAYS = /\bCopy\s*\.|\bID\s*\.|\baccessibility(?:Identifier|Label|Value|Hint)\b|\bLAContext\b|\bevaluatePolicy\b|\bOwnerCheck\b|\bLocalAuthentication\b|\bline\s*=(?!=)/g;
+
+/** Rule (be), pure over the app's Swift files (`{ name, source }`). */
+export function ruleFullScreenPage(files) {
+  const findings = [];
+  const said = { targets: 0, travel: null, asked: 0, pages: 0, decodes: 0, guards: [] };
+  const all = files.map((f) => lexedFile(files, f.name)).filter((f) => f !== null);
+  const scroller = all.find((f) => f.name === SCROLLER_FILE) ?? null;
+  if (scroller === null) return { findings: [`${SCROLLER_FILE} does not exist, so the pull cannot be read`], said };
+  // be1 The scroll view's OWN pan, read through one more target, added in
+  // addGestures, to self's pulled(_:), and no recogniser made for it.
+  const targets = all.flatMap((f) => [...f.bare.matchAll(/\bpanGestureRecognizer\s*\.\s*addTarget\s*\(/g)].map((m) => ({ f, at: m.index })));
+  said.targets = targets.length;
+  if (targets.length !== 1) findings.push(`be1: panGestureRecognizer.addTarget( is called ${String(targets.length)} time(s); once, in ScreenScrollView.addGestures, the pull's one reading of the scroll view's own pan (D7)`);
+  for (const t of targets) {
+    const p = placeOf(t.f, t.at);
+    if (t.f.name !== SCROLLER_FILE || p.type !== 'ScreenScrollView' || p.fn !== 'addGestures') findings.push(`be1: ${atLine(t.f, t.at)} adds a pan target in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; the pull's one target is added in ScreenScrollView.addGestures`);
+    if (!/^panGestureRecognizer\s*\.\s*addTarget\s*\(\s*self\s*,\s*action\s*:\s*#selector\s*\(\s*pulled\s*\(\s*_\s*:\s*\)\s*\)\s*\)/.test(t.f.bare.slice(t.at, t.at + 140))) findings.push(`be1: ${atLine(t.f, t.at)} adds a pan target that is not self's pulled(_:)`);
+  }
+  const pulled = funcsNamed(scroller, 'pulled', 'ScreenScrollView')[0];
+  if (pulled === undefined) return { findings: [...findings, 'be1: ScreenScrollView declares no pulled(_:), so nothing reads a pull'], said };
+  const pulledBody = bodyText(scroller, pulled);
+  if (/\bUI\w*GestureRecognizer\s*\(/.test(pulledBody)) findings.push('be1: pulled(_:) makes a gesture recogniser; the pull is the scroll view\'s own pan, and no new recogniser (D7, aq13)');
+  const pullEnum = scroller.types.find((t) => t.name === 'ScreenPull' && t.kind === 'enum');
+  const enumBody = pullEnum === undefined ? '' : scroller.bare.slice(pullEnum.open, pullEnum.close + 1);
+  const sender = all.find((f) => f.name === SENDER_FILE) ?? null;
+  const pageFn = sender === null ? undefined : funcsNamed(sender, 'page', 'ScreenKeySender')[0];
+  const pageBody = pageFn === undefined ? '' : bodyText(sender, pageFn);
+  // be2 Nothing in the pull writes the offset, an inset, a size, a zoom or a
+  // transform (aq6 holds the offset's writers for the whole scroller).
+  for (const [what, file, text, base] of [['pulled(_:)', scroller, pulledBody, pulled.bodyOpen], ['ScreenPull', scroller, enumBody, pullEnum?.open ?? 0], ['ScreenKeySender.page', sender, pageBody, pageFn?.bodyOpen ?? 0]]) {
+    if (file === null) continue;
+    for (const m of text.matchAll(PULL_WRITES)) findings.push(`be2: ${atLine(file, base + m.index)} writes ${m[0].replace(/^[^A-Za-z]+/, '').trim()} in ${what}; the pull writes no offset and moves nothing, the rubber band is its feel (D7, aq6)`);
+  }
+  // be3 ScreenPull is pure: an enum holding travel, declared once as 44, and
+  // the static page(…) and vertical(_:) rules, nothing stored and nothing
+  // reached; and the rule is asked once, in pulled(_:)'s .ended arm.
+  if (pullEnum === undefined) findings.push(`be3: ${SCROLLER_FILE} declares no enum ScreenPull, the pull's pure rule`);
+  else {
+    if (/\bstatic\s+var\b|\blazy\b|\bTask\b|\bDispatchQueue\b|\bactions\b|\bpicture\b|\bself\s*\./.test(enumBody)) findings.push('be3: ScreenPull holds or reaches state (a static var, a task, the actions, the picture or self); its rule is pure over the numbers it is handed');
+    if (funcsNamed(scroller, 'page', 'ScreenPull').length !== 1) findings.push('be3: ScreenPull declares no one static page(translation:startOffset:minOffset:maxOffset:touches:pinched:selected:offered:)');
+  }
+  const travels = all.flatMap((f) => [...f.bare.matchAll(/\bstatic\s+let\s+travel\s*(?::\s*CGFloat)?\s*=\s*([0-9_.]+)/g)].map((m) => ({ f, at: m.index, v: Number(m[1].replace(/_/g, '')) })));
+  said.travel = travels.length === 1 ? travels[0].v : null;
+  if (travels.length !== 1 || travels[0].f.name !== SCROLLER_FILE || innermost(travels[0].f.types, travels[0].at)?.name !== 'ScreenPull' || travels[0].v !== PULL_TRAVEL_POINTS) {
+    findings.push(`be3: travel is declared ${String(travels.length)} time(s)${travels.length === 1 ? ` as ${String(travels[0].v)}` : ''}; once, in ScreenPull, as ${String(PULL_TRAVEL_POINTS)} pt (D21, M3)`);
+  }
+  const asks = all.flatMap((f) => [...f.bare.matchAll(/\bScreenPull\s*\.\s*page\s*\(/g)].map((m) => ({ f, at: m.index })));
+  said.asked = asks.length;
+  if (asks.length !== 1) findings.push(`be3: ScreenPull.page( is asked ${String(asks.length)} time(s); once, in pulled(_:), when the finger lifts`);
+  for (const a of asks) {
+    const p = placeOf(a.f, a.at);
+    if (a.f.name !== SCROLLER_FILE || p.fn !== 'pulled') {
+      findings.push(`be3: ${atLine(a.f, a.at)} asks ScreenPull.page in ${p.fn ?? 'no function'}; pulled(_:) is its one caller`);
+      continue;
+    }
+    const before = a.f.bare.slice(pulled.bodyOpen, a.at);
+    const arm = [...before.matchAll(/\bcase\s+(\.[A-Za-z]+(?:\s*,\s*\.[A-Za-z]+)*)\s*:/g)].pop()?.[1] ?? null;
+    if (arm !== '.ended' || before.lastIndexOf('default:') > before.lastIndexOf('case ')) findings.push(`be3: ScreenPull.page( is asked in pulled(_:)'s ${arm ?? 'no'} arm; a page is asked when the finger lifts, in the .ended arm alone, so it is never sent mid-pinch or mid-drag (D7)`);
+  }
+  // be4 Nil unless offered, one touch, no pinch and no selection; offered is
+  // pages, typable and not asking; the pinch, the fingers and the selection
+  // reach the rule from the pull itself.
+  const rule = funcsNamed(scroller, 'page', 'ScreenPull')[0];
+  const ruleBody = rule === undefined ? '' : bodyText(scroller, rule);
+  const guard = /\bguard\s+([^{]*?)\s*else\s*\{\s*return\s+nil\s*\}/.exec(ruleBody);
+  said.guards = guard === null ? [] : guard[1].split(',').map((s) => s.replace(/\s+/g, ' ').trim());
+  for (const need of ['offered', 'touches == 1', '!pinched', '!selected']) {
+    if (!said.guards.includes(need)) findings.push(`be4: ScreenPull.page's first guard does not refuse with ${need}; a page is nil unless the picture offers one, exactly one finger was down, the pinch did not run and no selection was held (D8)`);
+  }
+  if (guard !== null && ruleBody.indexOf(guard[0]) > ruleBody.search(/\breturn\s+\.page(?:Up|Down)\b/)) findings.push('be4: ScreenPull.page answers a page before its guard');
+  if (!/\breturn\s+\.pageUp\b/.test(ruleBody) || !/\breturn\s+\.pageDown\b/.test(ruleBody)) findings.push('be4: ScreenPull.page answers no .pageUp or no .pageDown');
+  if ((ruleBody.match(/>=\s*travel\b/g) ?? []).length !== 2) findings.push('be4: ScreenPull.page does not hold both pulls, past the top and past the bottom, to travel (>= travel)');
+  if (!/\bstartOffset\s*\)?\s*-\s*minOffset\b/.test(ruleBody) || !/\bmaxOffset\s*\)?\s*-\s*startOffset\b/.test(ruleBody)) findings.push('be4: ScreenPull.page does not count only the travel past the room the offset had (startOffset - minOffset, maxOffset - startOffset), so a pan along rows that do not fit would page (M3)');
+  for (const [field, word] of [['pages', 'true'], ['typable', 'true'], ['asking', 'false']]) {
+    if (!new RegExp(`\\bpicture\\s*\\?\\s*\\.\\s*${field}\\s*==\\s*${word}\\b`).test(pulledBody)) findings.push(`be4: pulled(_:)'s offer does not read picture?.${field} == ${word}; a page is offered only on a picture that offers pages, takes keys and does not ask (D6, D8)`);
+  }
+  if (!/\boffered\s*:\s*offered\b/.test(pulledBody)) findings.push('be4: pulled(_:) does not hand the rule its offer');
+  if (!/\bpinched\s*:\s*pullPinched\b/.test(pulledBody)) findings.push('be4: pulled(_:) does not hand the rule whether the pinch ran');
+  if (!/\btouches\s*:\s*pullTouches\b/.test(pulledBody) || !/\bpullTouches\s*=\s*max\s*\(\s*pullTouches\s*,\s*pan\s*\.\s*numberOfTouches\s*\)/.test(pulledBody)) findings.push('be4: pulled(_:) does not hand the rule the most fingers it saw');
+  if (!/\bselected\s*:[^,\n]*\bselection\s*!=\s*nil\b/.test(pulledBody)) findings.push('be4: pulled(_:) does not hand the rule whether a selection is held at the lift (M3: a drag with a selection held pans)');
+  const pinch = funcsNamed(scroller, 'pinched', 'ScreenScrollView')[0];
+  if (pinch === undefined || !/\bpullPinched\s*=\s*true\b/.test(bodyText(scroller, pinch))) findings.push('be4: pinched(_:) does not mark the pull it runs during (pullPinched = true), so a pinch could end in a page');
+  // be5 The page reaches the Mac only through ScreenKeySender.page(, whose
+  // one caller is Screen.swift's action, which guards pages, typable and
+  // asking, queues ONE key and flushes, and calls no onSend; and a page that
+  // waits behind a write is dropped if the picture stops offering it.
+  const actionsType = scroller.types.find((t) => t.name === 'ScreenScrollerActions');
+  if (actionsType === undefined || !/\bvar\s+page\s*:\s*@MainActor\s*\(\s*ScreenKeyName\s*\)\s*->\s*Void\b/.test(scroller.bare.slice(actionsType.open, actionsType.close + 1))) findings.push('be5: ScreenScrollerActions declares no page: @MainActor (ScreenKeyName) -> Void');
+  const handOffs = all.flatMap((f) => [...f.bare.matchAll(/\bactions\s*\?\s*\.\s*page\s*\(/g)].map((m) => ({ f, at: m.index })));
+  if (handOffs.length !== 1 || handOffs.some((h) => h.f.name !== SCROLLER_FILE || placeOf(h.f, h.at).fn !== 'pulled')) findings.push(`be5: actions?.page( is called ${String(handOffs.length)} time(s); once, in pulled(_:)`);
+  const senderPages = all.flatMap((f) => [...f.bare.matchAll(/\bkeys\s*\?\s*\.\s*page\s*\(/g)].map((m) => ({ f, at: m.index })));
+  said.pages = senderPages.length;
+  if (senderPages.length !== 1 || senderPages[0].f.name !== 'Screens/Screen.swift') findings.push(`be5: a key sender's page( is called ${String(senderPages.length)} time(s); once, by Screens/Screen.swift's page action`);
+  const screen = all.find((f) => f.name === 'Screens/Screen.swift') ?? null;
+  if (screen === null || !/\bpage\s*:\s*\{\s*key\s+in\s+keys\s*\?\s*\.\s*page\s*\(\s*key\s*\)\s*\}/.test(screen.bare)) findings.push('be5: Screens/Screen.swift does not wire the actions\' page to the one key sender (page: { key in keys?.page(key) })');
+  if (pageFn === undefined) findings.push('be5: ScreenKeySender declares no page(_:), so a pull has no road to the Mac');
+  else {
+    const g = /\bguard\s+([^{]*?)\s*else\s*\{\s*return\s*\}/.exec(pageBody);
+    const conds = g === null ? [] : g[1].split(',').map((s) => s.replace(/\s+/g, ' ').trim());
+    for (const need of ['key.isPage', '!stopped', 'drawn.pages', 'drawn.typable', '!drawn.asking']) {
+      if (!conds.includes(need)) findings.push(`be5: ScreenKeySender.page's guard does not ask ${need}; a page goes only as Page Up or Down, while the sender runs, against a picture that offers pages, takes keys and does not ask (D8, D22)`);
+    }
+    if (!conds.some((c) => /^let\s+drawn\s*=\s*picture\s*\(\s*\)$/.test(c))) findings.push('be5: ScreenKeySender.page does not read the picture drawn now (let drawn = picture())');
+    if ((pageBody.match(/\bpending\s*\.\s*append\s*\(/g) ?? []).length !== 1 || !/\bpending\s*\.\s*append\s*\(\s*\.\s*key\s*\(\s*\.\s*key\s*\(\s*key\s*\)\s*\)\s*\)/.test(pageBody)) findings.push('be5: ScreenKeySender.page does not queue exactly one key item, .key(.key(key))');
+    if (!/\bflush\s*\(\s*\)/.test(pageBody)) findings.push('be5: ScreenKeySender.page does not hand the page to the one flush, which stamps the turn and dialog and paces it');
+    if (/\bonSend\b/.test(pageBody)) findings.push('be5: ScreenKeySender.page calls onSend; a full-screen picture holds no phone history to return from (D22)');
+  }
+  const flush = sender === null ? '' : fnText(sender, 'flush', 'ScreenKeySender');
+  if (!/\bwhile\s+case\s+\.\s*key\s*\(\s*\.\s*key\s*\(\s*let\s+(\w+)\s*\)\s*\)\s*\?\s*=\s*pending\s*\.\s*first\s*,\s*\1\s*\.\s*isPage\s*,\s*!\s*\(\s*drawn\s*\.\s*pages\s*&&\s*!\s*drawn\s*\.\s*asking\s*\)\s*\{\s*pending\s*\.\s*removeFirst\s*\(\s*\)/.test(flush)) findings.push('be5: ScreenKeySender.flush does not drop a waiting page when the picture drawn at its write no longer offers pages or asks (D8)');
+  const contract = all.find((f) => f.name === 'Door/Contract.swift') ?? null;
+  if (contract === null || !/\bvar\s+isPage\s*:\s*Bool\s*\{\s*self\s*==\s*\.pageUp\s*\|\|\s*self\s*==\s*\.pageDown\s*\}/.test(contract.bare)) findings.push('be5: ScreenKeyName.isPage is not exactly .pageUp or .pageDown');
+  // be6 `pages` decoded by decodeIfPresent(Bool.self, forKey: .pages) ?? false,
+  // in PocketScreen's coding keys, and carried to ScreenPicture.
+  const decodes = contract === null ? [] : [...contract.bare.matchAll(/\bpages\s*=\s*try\s+c\s*\.\s*decodeIfPresent\s*\(\s*Bool\s*\.\s*self\s*,\s*forKey\s*:\s*\.pages\s*\)\s*\?\?\s*false\b/g)];
+  said.decodes = decodes.length;
+  if (decodes.length !== 1) findings.push(`be6: pages is decoded ${String(decodes.length)} time(s) as decodeIfPresent(Bool.self, forKey: .pages) ?? false; once, so absent and null read false and anything but a boolean refuses the answer, as paste's does (D6)`);
+  if (contract !== null && ![...contract.bare.matchAll(/\benum\s+CodingKeys\s*:\s*String\s*,\s*CodingKey\s*\{\s*case\s+([^\n]*)/g)].some((m) => m[1].split(',').map((s) => s.trim()).includes('pages'))) findings.push('be6: no CodingKeys case list names pages');
+  if (contract === null || !/\bvar\s+pages\s*:\s*Bool\s*=\s*false\b/.test(contract.bare)) findings.push('be6: PocketScreen declares no var pages: Bool = false');
+  const rows = all.find((f) => f.name === 'Screens/ScreenRows.swift') ?? null;
+  if (rows === null || !/\bpages\s*=\s*screen\s*\.\s*pages\b/.test(rows.bare) || !/\bvar\s+pages\s*:\s*Bool\s*=\s*false\b/.test(rows.bare)) findings.push('be6: ScreenPicture does not carry the screen\'s pages (var pages: Bool = false, set from screen.pages)');
+  // be7 No Copy word, identifier, accessibility word, owner check or line in
+  // the pull, its rule or the sender's page (D10).
+  for (const [what, file, text, base] of [['pulled(_:)', scroller, pulledBody, pulled.bodyOpen], ['ScreenPull', scroller, enumBody, pullEnum?.open ?? 0], ['ScreenKeySender.page', sender, pageBody, pageFn?.bodyOpen ?? 0]]) {
+    if (file === null) continue;
+    for (const m of text.matchAll(PULL_SAYS)) findings.push(`be7: ${atLine(file, base + m.index)} names ${m[0].trim()} in ${what}; the pull draws nothing and asks no Face ID, and the program's next picture is its answer (D10)`);
+  }
+  return { findings, said };
+}
+
+/** (az)'s Phase 350 half: the sample's switch takes Page Up and Page Down and draws nothing for them. */
+export function ruleSamplePages(files) {
+  const findings = [];
+  const world = lexedFile(files, 'Sample/SampleWorld.swift');
+  if (world === null) return { findings: ['Sample/SampleWorld.swift does not exist, so the sample\'s keys cannot be read'], said: {} };
+  const keys = fnText(world, 'typeKeys', 'SampleWorld');
+  if (keys === '') return { findings: ['SampleWorld declares no typeKeys(…), the sample\'s answer to a keys write'], said: {} };
+  const m = /\belse\s+if\s+name\s*==\s*\.pageUp\s*\|\|\s*name\s*==\s*\.pageDown\s*\{([^{}]*)\}/.exec(keys);
+  if (m === null) findings.push('(az) Phase 350: SampleWorld.typeKeys does not take .pageUp and .pageDown in a branch of their own, so a page would fall to another key\'s echo');
+  else if (/\becho\s*\.|\bscreen\s*\.|\blines\b|\bturn\b/.test(m[1])) findings.push('(az) Phase 350: SampleWorld.typeKeys draws something for a page; the sample\'s pictures are never full screen, so it takes the two names and echoes nothing');
+  if (/\bpages\s*:\s*true\b/.test(world.bare)) findings.push('(az) Phase 350: the sample offers pages; its pictures are never full screen');
+  return { findings, said: { branch: m !== null } };
+}
+
+/** The Phase 350 arms (t) requires hostile-door.mjs to name (build/p350/SPEC.md §4.4 item 7, §7.4). */
+export const HOSTILE_PAGES_ARMS = Object.freeze({
+  'pages-absent': { ends: 'drawn', at: 'screen-grid', flag: 'absent', expect: [] },
+  'pages-not-boolean': { ends: 'sentence', at: 'screen-line', flag: 'not-boolean', expect: ['screenNotAnswering'] }
+});
+
+/** (t)'s Phase 350 half, over hostile-door.mjs's text (or null) and Copy.swift's. */
+export function ruleHostilePagesArms(hostile, copy) {
+  const findings = [];
+  const said = { arms: [] };
+  if (hostile === null) return { findings: ['build/p316/hostile-door.mjs does not exist'], said };
+  const copyWords = new Set(copy === null ? [] : [...copy.matchAll(/\bstatic\s+let\s+([A-Za-z0-9_]+)\s*=\s*"/g)].map((m) => m[1]));
+  const table = /\bexport\s+const\s+P350_ARMS\s*=\s*Object\s*\.\s*freeze\s*\(\s*\{([\s\S]*?)\n\}\s*\)/.exec(hostile);
+  if (table === null) return { findings: ['build/p316/hostile-door.mjs declares no P350_ARMS table, so the page arms cannot be read'], said };
+  const named = [...table[1].matchAll(/(?:^|\n)\s*'([a-z0-9-]+)':\s*\{/g)].map((m) => m[1]);
+  for (const extra of named.filter((n) => !Object.hasOwn(HOSTILE_PAGES_ARMS, n))) findings.push(`hostile-door.mjs's P350_ARMS names ${JSON.stringify(extra)}, which no rule here reads`);
+  for (const [arm, want] of Object.entries(HOSTILE_PAGES_ARMS)) {
+    const row = new RegExp(`(?:^|\\n)\\s*'${arm}':\\s*\\{([^\\n]*)\\}`).exec(table[1]);
+    if (row === null) {
+      findings.push(`build/p316/hostile-door.mjs names no page arm ${JSON.stringify(arm)}`);
+      continue;
+    }
+    said.arms.push(arm);
+    const ends = /\bends:\s*'([^']*)'/.exec(row[1])?.[1] ?? null;
+    if (ends !== want.ends) findings.push(`hostile-door.mjs's ${arm} ends in ${JSON.stringify(ends)}, not ${want.ends}`);
+    const at = /\bat:\s*'([a-z0-9-]+)'/.exec(row[1])?.[1] ?? null;
+    if (at !== want.at) findings.push(`hostile-door.mjs's ${arm} ends at ${JSON.stringify(at)}, not ${want.at}`);
+    if (!new RegExp(`\\bpagesFlag:\\s*'${want.flag}'`).test(row[1])) findings.push(`hostile-door.mjs's ${arm} does not serve pages as ${want.flag}`);
+    if (!/\bposts:\s*0\b/.test(row[1])) findings.push(`hostile-door.mjs's ${arm} does not count NO POST (posts: 0): a pull over a picture that offers no page sends none`);
+    const words = [...(/\bexpect:\s*\[([^\]]*)\]/.exec(row[1])?.[1] ?? '').matchAll(/'([A-Za-z0-9_]+)'/g)].map((m) => m[1]);
+    if (words.join(',') !== want.expect.join(',')) findings.push(`hostile-door.mjs's ${arm} expects ${JSON.stringify(words)}, not ${JSON.stringify(want.expect)}`);
+    for (const w of words) if (!copyWords.has(w)) findings.push(`hostile-door.mjs's ${arm} expects Copy.${w}, which Copy.swift does not hold`);
+  }
+  return { findings, said };
+}
+
+// Phase 350: (be) a full-screen page, (ai6) the 37 names in order, (az)'s
+// sample switch and (t)'s page arms, each proved on texts this file holds.
+{
+  const BE_SCROLLER = [
+    'struct ScreenScrollerActions {',
+    '    let copy: @MainActor () -> Void',
+    '    var page: @MainActor (ScreenKeyName) -> Void = { _ in }',
+    '}',
+    'enum ScreenPull {',
+    '    static let travel: CGFloat = 44',
+    '    static func page(',
+    '        translation: CGFloat, startOffset: CGFloat, minOffset: CGFloat, maxOffset: CGFloat,',
+    '        touches: Int, pinched: Bool, selected: Bool, offered: Bool',
+    '    ) -> ScreenKeyName? {',
+    '        guard offered, touches == 1, !pinched, !selected else { return nil }',
+    '        let above = max(0, CGFloat(startOffset) - minOffset)',
+    '        let below = max(0, CGFloat(maxOffset) - startOffset)',
+    '        if CGFloat(translation) - above >= travel { return .pageUp }',
+    '        if -CGFloat(translation) - below >= travel { return .pageDown }',
+    '        return nil',
+    '    }',
+    '    static func vertical(_ translation: CGPoint) -> CGFloat {',
+    '        abs(CGFloat(translation.y)) > abs(translation.x) ? translation.y : 0',
+    '    }',
+    '}',
+    'final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {',
+    '    private var pullStart: CGFloat = 0',
+    '    private var pullTouches = 0',
+    '    private var pullPinched = false',
+    '    private var pullSelected = false',
+    '    private var pinching = false',
+    '    private func addGestures() {',
+    '        panGestureRecognizer.addTarget(self, action: #selector(pulled(_:)))',
+    '        let pinch = UIPinchGestureRecognizer(target: self, action: #selector(pinched(_:)))',
+    '        addGestureRecognizer(pinch)',
+    '    }',
+    '    @objc private func pinched(_ pinch: UIPinchGestureRecognizer) {',
+    '        switch pinch.state {',
+    '        case .began:',
+    '            pinching = true',
+    '            pullPinched = true',
+    '        case .ended:',
+    '            pinching = false',
+    '        default:',
+    '            break',
+    '        }',
+    '    }',
+    '    @objc private func pulled(_ pan: UIPanGestureRecognizer) {',
+    '        switch pan.state {',
+    '        case .began:',
+    '            pullStart = contentOffset.y',
+    '            pullTouches = pan.numberOfTouches',
+    '            pullPinched = pinching',
+    '            pullSelected = selection != nil',
+    '        case .changed:',
+    '            pullTouches = max(pullTouches, pan.numberOfTouches)',
+    '        case .ended:',
+    '            let offered = picture?.pages == true && picture?.typable == true && picture?.asking == false',
+    '            let key = ScreenPull.page(',
+    '                translation: ScreenPull.vertical(pan.translation(in: self)), startOffset: pullStart,',
+    '                minOffset: -CGFloat(contentInset.top), maxOffset: maxOffsetY,',
+    '                touches: pullTouches, pinched: pullPinched, selected: pullSelected || selection != nil, offered: offered',
+    '            )',
+    '            if let key { actions?.page(key) }',
+    '        default:',
+    '            break',
+    '        }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const BE_SENDER = [
+    'final class ScreenKeySender {',
+    '    func page(_ key: ScreenKeyName) {',
+    '        guard key.isPage, !stopped, let drawn = picture(), drawn.pages, drawn.typable, !drawn.asking else { return }',
+    '        pending.append(.key(.key(key)))',
+    '        flush()',
+    '    }',
+    '    private func flush() {',
+    '        guard let drawn = picture() else { return }',
+    '        while case .key(.key(let name))? = pending.first, name.isPage, !(drawn.pages && !drawn.asking) {',
+    '            pending.removeFirst()',
+    '        }',
+    '        guard !pending.isEmpty else { return }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const BE_SCREEN = 'struct ScreenPage {\n    var actions: ScreenScrollerActions {\n        ScreenScrollerActions(copy: {}, page: { key in keys?.page(key) })\n    }\n}\n';
+  const BE_CONTRACT = [
+    'struct PocketScreen: Equatable, Sendable {',
+    '    var paste: Bool = false',
+    '    var pages: Bool = false',
+    '}',
+    'extension PocketScreen: Decodable {',
+    '    enum CodingKeys: String, CodingKey {',
+    '        case cursor, alternate, paste, pages, wraps',
+    '    }',
+    '    init(from decoder: Decoder) throws {',
+    '        let c = try decoder.container(keyedBy: CodingKeys.self)',
+    '        paste = try c.decodeIfPresent(Bool.self, forKey: .paste) ?? false',
+    '        pages = try c.decodeIfPresent(Bool.self, forKey: .pages) ?? false',
+    '    }',
+    '}',
+    'enum ScreenKeyName: String, CaseIterable, Sendable {',
+    '    case escape = "Escape"',
+    '    case pageUp = "PPage"',
+    '    case pageDown = "NPage"',
+    '    var isPage: Bool {',
+    '        self == .pageUp || self == .pageDown',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const BE_ROWS = 'struct ScreenPicture: Equatable, Sendable {\n    var pages: Bool = false\n    init(_ screen: PocketScreen) {\n        pages = screen.pages\n    }\n}\n';
+  const beBase = { [SCROLLER_FILE]: BE_SCROLLER, [SENDER_FILE]: BE_SENDER, 'Screens/Screen.swift': BE_SCREEN, 'Door/Contract.swift': BE_CONTRACT, 'Screens/ScreenRows.swift': BE_ROWS };
+  const beFiles = (edits = {}) => Object.entries({ ...beBase, ...edits }).filter(([, v]) => v !== null).map(([name, source]) => ({ name, source }));
+  const be = (edits) => ruleFullScreenPage(beFiles(edits)).findings;
+  const beHas = (edits, clause) => be(edits).some((f) => f.startsWith(`${clause}:`));
+  const swap = (file, from, to) => {
+    if (!beBase[file].includes(from)) selfFailures.push(`(be) fixture: ${file} holds no ${JSON.stringify(from.slice(0, 70))}`);
+    return { [file]: beBase[file].replace(from, to) };
+  };
+  expect('(be) passes the pull in the shape build/p350/SPEC.md §4.4 names', be().length === 0 && ruleFullScreenPage(beFiles()).said.travel === 44);
+  expect('(be) be1 catches a second target on the pan', beHas(swap(SCROLLER_FILE, '        let pinch = UIPinchGestureRecognizer', '        panGestureRecognizer.addTarget(self, action: #selector(pulled(_:)))\n        let pinch = UIPinchGestureRecognizer'), 'be1'));
+  expect('(be) be1 catches the target aimed at another function', beHas(swap(SCROLLER_FILE, '#selector(pulled(_:)))', '#selector(dragged(_:)))'), 'be1'));
+  expect('(be) be1 catches a recogniser made for the pull', beHas(swap(SCROLLER_FILE, '        switch pan.state {', '        let extra = UIPanGestureRecognizer(target: nil, action: nil)\n        switch pan.state {'), 'be1'));
+  expect('(be) be2 catches the pull writing the offset', beHas(swap(SCROLLER_FILE, '            if let key { actions?.page(key) }', '            contentOffset = .zero\n            if let key { actions?.page(key) }'), 'be2'));
+  expect('(be) be2 catches the pull zooming', beHas(swap(SCROLLER_FILE, '            pullStart = contentOffset.y', '            pullStart = contentOffset.y\n            setZoomScale(1, animated: false)'), 'be2'));
+  expect('(be) be3 catches the travel at 30 pt', beHas(swap(SCROLLER_FILE, 'static let travel: CGFloat = 44', 'static let travel: CGFloat = 30'), 'be3'));
+  expect('(be) be3 catches a second travel', beHas({ [SENDER_FILE]: `${BE_SENDER}enum Other {\n    static let travel: CGFloat = 44\n}\n` }, 'be3'));
+  expect('(be) be3 catches the rule asked mid-drag', beHas(swap(SCROLLER_FILE, '        case .changed:\n            pullTouches = max(pullTouches, pan.numberOfTouches)\n        case .ended:\n            let offered', '        case .ended:\n            pullTouches = max(pullTouches, pan.numberOfTouches)\n        case .changed:\n            let offered'), 'be3'));
+  expect('(be) be3 catches the rule holding state', beHas(swap(SCROLLER_FILE, '    static let travel: CGFloat = 44\n', '    static let travel: CGFloat = 44\n    static var last: CGFloat = 0\n'), 'be3'));
+  expect('(be) be4 catches a pinch that may page', beHas(swap(SCROLLER_FILE, 'guard offered, touches == 1, !pinched, !selected else', 'guard offered, touches == 1, !selected else'), 'be4'));
+  expect('(be) be4 catches two fingers that may page', beHas(swap(SCROLLER_FILE, 'guard offered, touches == 1, !pinched, !selected else', 'guard offered, !pinched, !selected else'), 'be4'));
+  expect('(be) be4 catches a selection that may page', beHas(swap(SCROLLER_FILE, 'guard offered, touches == 1, !pinched, !selected else', 'guard offered, touches == 1, !pinched else'), 'be4'));
+  expect('(be) be4 catches an offer that ignores asking', beHas(swap(SCROLLER_FILE, ' && picture?.asking == false', ''), 'be4'));
+  expect('(be) be4 catches an offer that ignores pages', beHas(swap(SCROLLER_FILE, 'picture?.pages == true && ', ''), 'be4'));
+  expect('(be) be4 catches the room the rows had ignored', beHas(swap(SCROLLER_FILE, 'let above = max(0, CGFloat(startOffset) - minOffset)', 'let above = CGFloat(0)'), 'be4'));
+  expect('(be) be4 catches a pinch that never marks the pull', beHas(swap(SCROLLER_FILE, '            pinching = true\n            pullPinched = true\n', '            pinching = true\n'), 'be4'));
+  expect('(be) be4 catches the selection at the lift left out', beHas(swap(SCROLLER_FILE, 'selected: pullSelected || selection != nil', 'selected: pullSelected'), 'be4'));
+  expect('(be) be5 catches the sender paging an asking picture', beHas(swap(SENDER_FILE, ', !drawn.asking else { return }', ' else { return }'), 'be5'));
+  expect('(be) be5 catches the sender paging a picture that offers none', beHas(swap(SENDER_FILE, ', drawn.pages, drawn.typable,', ', drawn.typable,'), 'be5'));
+  expect('(be) be5 catches a page sent back to live', beHas(swap(SENDER_FILE, '        flush()\n    }\n    private func flush', '        onSend()\n        flush()\n    }\n    private func flush'), 'be5'));
+  expect('(be) be5 catches a page queued twice', beHas(swap(SENDER_FILE, '        pending.append(.key(.key(key)))\n', '        pending.append(.key(.key(key)))\n        pending.append(.key(.key(key)))\n'), 'be5'));
+  expect('(be) be5 catches the page not wired to the sender', beHas({ 'Screens/Screen.swift': BE_SCREEN.replace(', page: { key in keys?.page(key) }', '') }, 'be5'));
+  expect('(be) be5 catches a waiting page that is never dropped', beHas(swap(SENDER_FILE, '        while case .key(.key(let name))? = pending.first, name.isPage, !(drawn.pages && !drawn.asking) {\n            pending.removeFirst()\n        }\n', ''), 'be5'));
+  expect('(be) be5 catches isPage widened past the two pages', beHas(swap('Door/Contract.swift', 'self == .pageUp || self == .pageDown', 'self == .pageUp || self == .pageDown || self == .up'), 'be5'));
+  expect('(be) be6 catches pages decoded strictly', beHas(swap('Door/Contract.swift', 'pages = try c.decodeIfPresent(Bool.self, forKey: .pages) ?? false', 'pages = try c.decode(Bool.self, forKey: .pages)'), 'be6'));
+  expect('(be) be6 catches pages left out of the coding keys', beHas(swap('Door/Contract.swift', 'case cursor, alternate, paste, pages, wraps', 'case cursor, alternate, paste, wraps'), 'be6'));
+  expect('(be) be6 catches the picture not carrying pages', beHas({ 'Screens/ScreenRows.swift': BE_ROWS.replace('        pages = screen.pages\n', '') }, 'be6'));
+  expect('(be) be7 catches a word drawn by the pull', beHas(swap(SCROLLER_FILE, '            if let key { actions?.page(key) }', '            if let key { actions?.page(key); hint = Copy.screenPaged }'), 'be7'));
+  expect('(be) be7 catches an owner check asked by a page', beHas(swap(SENDER_FILE, '        pending.append(.key(.key(key)))\n', '        _ = LAContext()\n        pending.append(.key(.key(key)))\n'), 'be7'));
+
+  // (ai6), Phase 350: the 37 names in the contract's order, Page Up and Page Down last.
+  const AI_NAMES = ['Escape', 'Tab', 'BTab', 'Enter', 'BSpace', 'Up', 'Down', 'Left', 'Right', ...'abcdefghijklmnopqrstuvwxyz'.split('').map((l) => `C-${l}`), 'PPage', 'NPage'];
+  const aiEnum = (names, cases = names.map((n, i) => (n === 'PPage' ? 'pageUp' : n === 'NPage' ? 'pageDown' : `k${String(i)}`))) =>
+    `enum ScreenKeyName: String, CaseIterable, Sendable {\n${names.map((n, i) => `    case ${cases[i]} = "${n}"`).join('\n')}\n}\n`;
+  const ai6 = (contract, names = AI_NAMES) => ruleKeyNamesInOrder(contract, names);
+  expect('(ai6) passes the 37 names in the contract\'s order, pageUp and pageDown last', ai6(aiEnum(AI_NAMES)).length === 0);
+  expect('(ai6) catches the two pages put first', ai6(aiEnum(['PPage', 'NPage', ...AI_NAMES.slice(0, 35)])).length > 0);
+  expect('(ai6) catches the pages swapped', ai6(aiEnum([...AI_NAMES.slice(0, 35), 'NPage', 'PPage'])).length > 0);
+  expect('(ai6) catches a page case renamed', ai6(aiEnum(AI_NAMES, AI_NAMES.map((n, i) => (n === 'PPage' ? 'pageBack' : n === 'NPage' ? 'pageDown' : `k${String(i)}`)))).length > 0);
+  expect('(ai6) catches a name dropped', ai6(aiEnum(AI_NAMES.filter((n) => n !== 'NPage'))).length > 0);
+  expect('(ai6) catches the contract and the phone in another order', ai6(aiEnum([AI_NAMES[1], AI_NAMES[0], ...AI_NAMES.slice(2)])).length > 0);
+
+  // (az), Phase 350: the sample takes the two names and draws nothing for them.
+  const AZ_KEYS = [
+    'actor SampleWorld {',
+    '    func typeKeys(_ items: [KeyItem]) {',
+    '        for item in items {',
+    '            if case .key(let name) = item {',
+    '                if name == .backspace {',
+    '                    session.echo.takeBack()',
+    '                } else if name == .enter {',
+    '                    session.echo.pressReturn()',
+    '                } else if name == .pageUp || name == .pageDown {',
+    '                    // taken, and nothing is drawn',
+    '                    continue',
+    '                } else if let letter = Self.controlLetter(name) {',
+    '                    session.echo.add("^\\(letter)", room: room)',
+    '                }',
+    '            }',
+    '        }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const azp = (text) => ruleSamplePages([{ name: 'Sample/SampleWorld.swift', source: text }]).findings.length;
+  expect('(az) Phase 350: passes the sample taking the two pages and drawing nothing', azp(AZ_KEYS) === 0);
+  expect('(az) Phase 350: catches the page branch gone', azp(AZ_KEYS.replace('                } else if name == .pageUp || name == .pageDown {\n                    // taken, and nothing is drawn\n                    continue\n', '')) > 0);
+  expect('(az) Phase 350: catches a page echoed', azp(AZ_KEYS.replace('                    continue\n', '                    session.echo.add("~", room: room)\n')) > 0);
+  expect('(az) Phase 350: catches the sample offering pages', azp(`${AZ_KEYS}let fake = PocketScreen(pages: true)\n`) > 0);
+
+  // (t), Phase 350: the two page arms.
+  const T50 = [
+    'export const P350_ARMS = Object.freeze({',
+    "  'pages-absent': { what: 'no pages key', ends: 'drawn', pagesFlag: 'absent', posts: 0, at: 'screen-grid', expect: [] },",
+    "  'pages-not-boolean': { what: 'null, then 1 and \"true\"', ends: 'sentence', pagesFlag: 'not-boolean', posts: 0, at: 'screen-line', expect: ['screenNotAnswering'] }",
+    '});',
+    ''
+  ].join('\n');
+  const T50_COPY = '    static let screenNotAnswering = "x"\n';
+  const t50 = (h, c = T50_COPY) => ruleHostilePagesArms(h, c).findings.length;
+  const t50s = (from, to) => {
+    if (!T50.includes(from)) selfFailures.push(`(t) Phase 350 fixture holds no ${JSON.stringify(from)}`);
+    return T50.replace(from, to);
+  };
+  expect('(t) Phase 350: passes the two page arms', t50(T50) === 0 && ruleHostilePagesArms(T50, T50_COPY).said.arms.length === 2);
+  expect('(t) Phase 350: catches a page arm dropped', t50(T50.replace(/\n {2}'pages-absent'[^\n]*/, '')) > 0);
+  expect('(t) Phase 350: catches a page arm that sends a POST', t50(t50s("pagesFlag: 'absent', posts: 0,", "pagesFlag: 'absent', posts: 1,")) > 0);
+  expect('(t) Phase 350: catches the refused picture read as drawn', t50(t50s("'pages-not-boolean': { what: 'null, then 1 and \"true\"', ends: 'sentence',", "'pages-not-boolean': { what: 'null, then 1 and \"true\"', ends: 'drawn',")) > 0);
+  expect('(t) Phase 350: catches the refused picture ending in another word', t50(t50s("expect: ['screenNotAnswering']", "expect: ['endNoAnswer']"), `${T50_COPY}    static let endNoAnswer = "x"\n`) > 0);
+  expect('(t) Phase 350: catches a word Copy does not hold', t50(T50, '') > 0);
+  expect('(t) Phase 350: catches an arm serving the wrong pages', t50(t50s("pagesFlag: 'not-boolean'", "pagesFlag: 'absent'")) > 0);
+  expect('(t) Phase 350: catches a third page arm no rule reads', t50(t50s('\n});', ",\n  'pages-sideways': { ends: 'drawn', pagesFlag: 'absent', posts: 0, at: 'screen-grid', expect: [] }\n});")) > 0);
+}
+
 // ---------------------------------------------------------------------------
 // Run the rules over the tree
 // ---------------------------------------------------------------------------
@@ -20129,11 +20592,13 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     const p348 = ruleHostileP348Arms(existsSync(hostilePath) ? read(hostilePath) : null, existsSync(COPY_SWIFT) ? read(COPY_SWIFT) : null);
     // Phase 349: the twelve rename arms (build/p349/SPEC.md §4.4 step 7).
     const p349 = ruleHostileRenameArms(existsSync(hostilePath) ? read(hostilePath) : null, existsSync(COPY_SWIFT) ? read(COPY_SWIFT) : null);
+    // Phase 350: the two page arms (build/p350/SPEC.md §4.4 item 7, §7.4).
+    const p350 = ruleHostilePagesArms(existsSync(hostilePath) ? read(hostilePath) : null, existsSync(COPY_SWIFT) ? read(COPY_SWIFT) : null);
     record(
       't',
       'the client is pinned mutual TLS 1.3 to a public name, and reads HTTP by hand, bounded',
-      [...r.findings, ...sh.findings, ...sb.findings, ...tw.findings, ...st.findings, ...p348.findings, ...p349.findings],
-      `a local identity on every paired connection (${String(r.said.identityCalls)} exchange(s) with one, and POST /pair alone with none; ${String(r.said.connects)} connect( call(s) naming one, the writes' with the paired door's); the verify block completes with DoorPin's answer; TLS 1.3 the minimum and nothing older; a .ts.net name at 8443 or 10000, checked by the parse; one Content-Length required, Transfer-Encoding refused, Connection: close; hostile-door.mjs names ${String(r.said.arms.length)} HTTP arm(s) (${r.said.arms.join(', ')}), each ending in a Copy sentence, ${String(r.said.writeArms.length)} write arm(s), each ending where it names, in a Copy sentence or the door's own, ${String(r.said.replyArms.length)} reply arm(s), each with its verb and one POST, ending in the press line, the message line or Pairing, ${String(sh.said.arms.length)} Screen arm(s), each ending where it names, ${String(sb.said.arms.length)} scrollback arm(s), each ending in the live terminal drawn or the moved line, and the twin (${tw.said.arm ? 'its arm' : 'no arm'}, ${tw.said.flags.join(' and ') || 'no flag'}, ${tw.said.words.join(' and ') || 'no stdin word'}), the second Mac probe:p345 attacks with; and ${String(st.said.arms.length)} Start arm(s) (Phase 346), each a write with its POSTs counted where it is one; and ${String(p348.said.arms.length)} Phase 348 arm(s), the Remove and paste writes each counting their one POST, the paste flag's sending none and drawing Copy alone, the marks and the age note drawn; and ${String(p349.said.arms.length)} rename arm(s) (Phase 349), the key arms sending no POST and drawing no Name, the row and detail arms read unreadable, the answer arms counting Save name's one POST and ending on the sheet's line`
+      [...r.findings, ...sh.findings, ...sb.findings, ...tw.findings, ...st.findings, ...p348.findings, ...p349.findings, ...p350.findings],
+      `a local identity on every paired connection (${String(r.said.identityCalls)} exchange(s) with one, and POST /pair alone with none; ${String(r.said.connects)} connect( call(s) naming one, the writes' with the paired door's); the verify block completes with DoorPin's answer; TLS 1.3 the minimum and nothing older; a .ts.net name at 8443 or 10000, checked by the parse; one Content-Length required, Transfer-Encoding refused, Connection: close; hostile-door.mjs names ${String(r.said.arms.length)} HTTP arm(s) (${r.said.arms.join(', ')}), each ending in a Copy sentence, ${String(r.said.writeArms.length)} write arm(s), each ending where it names, in a Copy sentence or the door's own, ${String(r.said.replyArms.length)} reply arm(s), each with its verb and one POST, ending in the press line, the message line or Pairing, ${String(sh.said.arms.length)} Screen arm(s), each ending where it names, ${String(sb.said.arms.length)} scrollback arm(s), each ending in the live terminal drawn or the moved line, and the twin (${tw.said.arm ? 'its arm' : 'no arm'}, ${tw.said.flags.join(' and ') || 'no flag'}, ${tw.said.words.join(' and ') || 'no stdin word'}), the second Mac probe:p345 attacks with; and ${String(st.said.arms.length)} Start arm(s) (Phase 346), each a write with its POSTs counted where it is one; and ${String(p348.said.arms.length)} Phase 348 arm(s), the Remove and paste writes each counting their one POST, the paste flag's sending none and drawing Copy alone, the marks and the age note drawn; and ${String(p349.said.arms.length)} rename arm(s) (Phase 349), the key arms sending no POST and drawing no Name, the row and detail arms read unreadable, the answer arms counting Save name's one POST and ending on the sheet's line; and ${String(p350.said.arms.length)} page arm(s) (Phase 350, ${p350.said.arms.join(' and ') || 'none'}), each sending no POST, a picture with no pages drawn and one whose pages is no Boolean refused whole as a paste that is not one is`
     );
   }
   // (u)
@@ -20437,11 +20902,13 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     const out = `${w.stdout ?? ''}${w.stderr ?? ''}`.trim().split('\n').filter((l) => l.trim() !== '');
     const check = { status: w.status ?? 1, line: w.status === 0 ? (out[out.length - 1] ?? '') : out.slice(-3).join(' ') || `sample.mjs ended by ${String(w.signal ?? 'nothing')}` };
     const r = ruleSample(appNamed, { book: existsSync(join(APP, ...SAMPLE_BOOK.split('/'))), check, pinned: true });
+    // Phase 350 (build/p350/SPEC.md §7.4): the sample's switch takes Page Up and Page Down and draws nothing for them.
+    const pg = ruleSamplePages(appNamed);
     record(
       'az',
       'See a sample never reaches the network or the Keychain',
-      r.findings,
-      `${String(r.said.files.length)} Swift file(s) under ios/Tortie/${SAMPLE_DIR} (${r.said.files.map((f) => f.slice(SAMPLE_DIR.length)).join(', ') || 'none'}) and ${SAMPLE_BOOK.slice(SAMPLE_DIR.length)}; none names any of ${String(r.said.refused)} refused types (${String(r.said.derived)} derived from Door/'s top level, the paired reader's four, ${String(SAMPLE_ALSO_REFUSED.length)} more and ${String(r.said.aliases.length)} typealias(es) standing for one), a network, Keychain, store, alert, badge, way out or file write; ${String(r.said.reads)} bundle read, sample.json through FileManager.default.contents(atPath:, in SampleBook.bundled(); a SampleReader made ${String(r.said.readers)} time(s) outside the folder, by AppModel.openSample(), and SampleBar drawn ${String(r.said.bars)} time(s), in RootView's case .sample; openSample() asks the door nothing and leaveSample() its paired reader alone, behind sampleFrom == .reading; lostPairing() and openFromAlert( leave the sample first; ${r.said.check || 'the writer\'s check said nothing'}; of the app outside it the sample names only ${String(r.said.mayName)} names (the contract's decoders and SAMPLE_MAY_NAME) and calls ${String(r.said.mayCall)} extension members, keeps no static, file-scope or unsafe state, and is reached from outside at ${String(r.said.reaches)} place(s), the five AppModel and RootView sites; its reach is ${String(r.said.reach)} type(s), closed, with no refusal in any reached body; the app keeps ${String(r.said.shared)} shared place(s), each pinned with its reason`
+      [...r.findings, ...pg.findings],
+      `${String(r.said.files.length)} Swift file(s) under ios/Tortie/${SAMPLE_DIR} (${r.said.files.map((f) => f.slice(SAMPLE_DIR.length)).join(', ') || 'none'}) and ${SAMPLE_BOOK.slice(SAMPLE_DIR.length)}; none names any of ${String(r.said.refused)} refused types (${String(r.said.derived)} derived from Door/'s top level, the paired reader's four, ${String(SAMPLE_ALSO_REFUSED.length)} more and ${String(r.said.aliases.length)} typealias(es) standing for one), a network, Keychain, store, alert, badge, way out or file write; ${String(r.said.reads)} bundle read, sample.json through FileManager.default.contents(atPath:, in SampleBook.bundled(); a SampleReader made ${String(r.said.readers)} time(s) outside the folder, by AppModel.openSample(), and SampleBar drawn ${String(r.said.bars)} time(s), in RootView's case .sample; openSample() asks the door nothing and leaveSample() its paired reader alone, behind sampleFrom == .reading; lostPairing() and openFromAlert( leave the sample first; ${r.said.check || 'the writer\'s check said nothing'}; of the app outside it the sample names only ${String(r.said.mayName)} names (the contract's decoders and SAMPLE_MAY_NAME) and calls ${String(r.said.mayCall)} extension members, keeps no static, file-scope or unsafe state, and is reached from outside at ${String(r.said.reaches)} place(s), the five AppModel and RootView sites; its reach is ${String(r.said.reach)} type(s), closed, with no refusal in any reached body; the app keeps ${String(r.said.shared)} shared place(s), each pinned with its reason; SampleWorld.typeKeys ${pg.said.branch === true ? 'takes Page Up and Page Down and draws nothing for them' : 'is unread'} (Phase 350), and the sample offers no page`
     );
   }
 }
@@ -20761,6 +21228,20 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     "a session's name: the one field, the Mac's rule, one rename per press, and the offers read as the Mac sends them",
     r.findings,
     `bd1 UITextField named ${String(r.said.fields)} time(s), in ${NAME_FIELD_FILE} alone, and no SwiftUI field in ${NAME_NO_SWIFTUI_FIELD.join(', ')}; bd2 makeUIView turns off ${String(r.said.settings)} of ${String(NAME_FIELD_OFF.length)} (${NAME_FIELD_OFF.map(([p]) => p).join(', ')}); bd3 its identifier and label set there alone, none chained on a NameField(; bd4 NameRule.maxUnits 120, held as he types over UTF-16 units; bd5 RowView's ${String(r.said.menus)} long-press menu right after its tap, Rename alone behind the rename, the row's offer and End these not taking taps, on one line; bd6 NameRule trims ${String(r.said.trims)} code points (ECMAScript's), refuses ${String(r.said.ranges)} ranges (D5's) in the Mac's order, and DoorVectorTests reads every row of the vectors' names; bd7 a renamer's rename( ${String(r.said.runs)} time(s), in RenameRunner.run, never retried, no id kept; bd8 Save name .disabled(!model.canSave), canSave reading the rule, the held name, the phase and the offer, and Return saving only where Save would; bd9 the named Create's pendingName fixed at the press, ONE RenameRunner from the start's done arm, the session opened after its answer, and no KeptStart carrying a name; bd10 a row's rename decoded strictly beside end ${String(r.said.strict)} time(s), and renames ${String(r.said.lenient)} time(s), leniently`
+  );
+}
+
+// Phase 350: (be), a full-screen page (build/p350/SPEC.md §7.4), pushed as (bd) is.
+RULE_IDS.push('be');
+if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
+  record('be', 'the app', [`${rel(IOS)} does not exist, so there is no app to read`], '');
+} else {
+  const r = ruleFullScreenPage(appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) })));
+  record(
+    'be',
+    "a full-screen page: the scroll view's own pan, one page a pull on lift, only where a picture offers pages, through the one key sender, writing and drawing nothing",
+    r.findings,
+    `be1 panGestureRecognizer.addTarget( ${String(r.said.targets)} time(s), in ScreenScrollView.addGestures, to pulled(_:), and no recogniser made for the pull (aq13's one pan unchanged); be2 nothing in pulled(_:), ScreenPull or ScreenKeySender.page writes an offset, an inset, a size, a zoom or a transform (aq6 unchanged); be3 ScreenPull pure, travel ${String(r.said.travel)} pt declared once, its page asked ${String(r.said.asked)} time(s), in pulled(_:)'s .ended arm; be4 nil unless ${r.said.guards.join(', ') || 'nothing'}, the offer picture?.pages, typable and not asking, the travel counted past the room the rows had; be5 ${String(r.said.pages)} call of a key sender's page(, Screen.swift's page action, guarding pages, typable and asking, ONE key and the one flush, no onSend, and a waiting page dropped when the picture at its write no longer offers it; be6 pages decoded ${String(r.said.decodes)} time(s), decodeIfPresent(Bool.self, forKey: .pages) ?? false, and carried to ScreenPicture; be7 no Copy word, identifier, accessibility word, owner check or line in the pull`
   );
 }
 

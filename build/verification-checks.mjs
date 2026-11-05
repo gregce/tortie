@@ -1523,6 +1523,29 @@ export const CHECKS = [
   // `--grader-self-test` grades build/p349/fixtures/graders.json and starts
   // nothing.
   remote('probe:p349'),
+  // PHASE 350 (build/p350/SPEC.md §8.2): the Mac side of scrolling back pi
+  // and every full-screen agent from the phone. Electrons through
+  // build/electron-run.mjs one at a time, the parent's (`P350_PARENT_CHECKOUT`,
+  // required) FIRST on the same profile, then HEAD launched once a pi band
+  // (1.4.0, 0.99.2, 0.83.0 and one that is no version), on a scratch profile,
+  // HOME and ZDOTDIR with HISTFILE=/dev/null and the socket gmux-p350…, each
+  // launch naming that socket as its `tmuxSocket`, so the helper reads his
+  // session names before and after, read only, and ends the scratch server
+  // (his ruling of 2026-11-02), inside
+  // build/with-scratch-machine.mjs's loopback machine with the quiet shell, its
+  // own far HOME and none of his keys (the far login PATH is the run's own
+  // wrappers, written into the yard's ZDOTDIR), which is why this is `remote`.
+  // Tailscale is build/p330/tailscale-standin.mjs behind its preflight and
+  // sampler, the name check asks build/p332/dns-standin.mjs in the probe's own
+  // process, the phones are build/p316/node-phone.mjs, every agent is
+  // build/p350/stand-in.mjs behind the bare names of ten registry rows (refused
+  // to start without), the other probed rows hidden by build/hidden-agents.mjs
+  // before each launch and a shadow copy of a stand-in's name refused (exit 2).
+  // PASS plants manifest rows through the SHIPPING store under the pinned tsx
+  // while no app runs. No vendor process runs and no token is spent; every
+  // stand-in pid is ended in its `finally`. `--grader-self-test` grades
+  // build/p350/fixtures/graders.json and starts nothing.
+  remote('probe:p350'),
   // PHASE 342's measurement (build/p342/SPEC.md §7.4): the re-derivation
   // outside Electron. Through build/docker-run.mjs, one throwaway container per
   // distribution in his Docker, each the distribution's own image with its own

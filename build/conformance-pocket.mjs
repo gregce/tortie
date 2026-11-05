@@ -284,6 +284,22 @@
  * PS1 (paste no longer last), SU5, Z1 and AF2. One hundred and ninety rules in
  * all.
  *
+ * PHASE 350 PAGES A FULL-SCREEN AGENT FROM THE PHONE (build/p350/SPEC.md
+ * §7.2), John Berryman's issue 42 and the operator's word of 2026-10-30. A
+ * pull past the edge of a full-screen program's rows sends ONE `PPage` or
+ * `NPage` through the allowed `keys` write, with no route and no Allow (D5),
+ * only where the picture offers `pages: true` (D6), and the keys verb stamps
+ * the reflow grace after a write of exactly one page key, so the program's
+ * redraw is not read as work (D9, D23). Two rules joined, Z31 (the offer
+ * composed once, under exactly the alternate screen that takes keys, the
+ * revision's parts unchanged, the shipping composer DRIVEN) and Z32 (the grace
+ * wired to `noteGeometryChange` and handed to the keys verb alone), and three
+ * widened on purpose: Z3 (the 37 names, the page keys last, the shipping parse
+ * DRIVEN), Z8 (the grace beside the one status call, `isOnePage` DRIVEN) and
+ * Z11 (the offer copied as the literal with no served gate, the shipping
+ * `screenOf` DRIVEN). Each clause has its own self-test (`p350SelfTest`,
+ * sixteen plants). One hundred and ninety-two rules in all.
+ *
  * HOW IT READS. The source, parsed with the TypeScript compiler's own parser,
  * so a comment, a string and a call are each read as what they are. A rule
  * that could be satisfied by a word in a comment is not a rule, and three of
@@ -299,11 +315,11 @@
  * exist. So a missing module FAILS the rule that needed it, by name, and says
  * which module and which builder owns it.
  *
- *   node build/conformance-pocket.mjs            the gate, Phase 348's and Phase 349's self-tests included
+ *   node build/conformance-pocket.mjs            the gate, Phase 348's, 349's and 350's self-tests included
  *   node build/conformance-pocket.mjs --list     the rules, and nothing run
  *   P313_NO_SELF_TEST=1 node build/conformance-pocket.mjs   the gate without
- *       Phase 348's and Phase 349's self-tests (ablation:p313's clone sets it,
- *       and the run says so)
+ *       Phase 348's, 349's and 350's self-tests (ablation:p313's clone sets
+ *       it, and the run says so)
  */
 
 import { createHash } from 'node:crypto';
@@ -433,15 +449,15 @@ const RULES = [
   // request, and a write that types every key.
   ['Z1', 'build/p337/SPEC.md D1, §5.1; build/p348/SPEC.md §4.2 step 2; build/p349/SPEC.md §4.1 step 2', 'THE TWO ROWS: screen a signed GET read and keys a signed POST write, neither window-only, exactly one row each; SIGNED_ROUTES and WRITE_ROUTES in door/wire.ts each gain exactly that id (and WRITE_ROUTES since Phase 346 start, since Phase 348 remove and paste, since Phase 349 rename)'],
   ['Z2', 'build/p337/SPEC.md D17, §14 M15; build/p348/SPEC.md D29; build/p349/SPEC.md D6', 'THE KEYS CAP: POCKET_WRITE_BODY_CAPS is exactly end 512, choose 512, say 32,768, keys 16,384, start 512, remove 512, paste 131,072 and rename 2,048 (Y1 widened), and keys is at least twice the worst legal-shape keys body THIS GATE composes, so a C0 text is answered in words rather than dropped (the twice-the-worst rule is the keys cap’s alone; PS1 holds the paste’s)'],
-  ['Z3', 'build/p337/SPEC.md D17, §5.5, §Attack A1', 'THE KEYS PARSE: parseKeysBody compares the keys with dialog,keys,session,turn,write; holds 1 to POCKET_KEYS_MAX_ITEMS items, each exactly one own key t or k; compares a name with === against POCKET_SCREEN_KEY_NAMES; takes a named key other than BSpace only as the one item; reads turn by isQuestionId and dialog as null or isMark; and trims, normalises and replaces nothing'],
+  ['Z3', 'build/p337/SPEC.md D17, §5.5, §Attack A1; build/p350/SPEC.md D24, §7.2', 'THE KEYS PARSE: parseKeysBody compares the keys with dialog,keys,session,turn,write; holds 1 to POCKET_KEYS_MAX_ITEMS items, each exactly one own key t or k; compares a name with === against POCKET_SCREEN_KEY_NAMES; takes a named key other than BSpace only as the one item; reads turn by isQuestionId and dialog as null or isMark; and trims, normalises and replaces nothing; and (Phase 350) POCKET_SCREEN_KEY_NAMES is exactly the 37 names, Phase 337’s 35 in their order and then PPage and NPage, and DRIVEN, the shipping parse takes each page key alone, exactly as sent, and refuses it beside any other item or spelled any other way'],
   ['Z4', 'build/p337/SPEC.md §5.4, D19, D21; build/p348/SPEC.md D50', 'THE KEYS VERB’S ORDER: the text rule, the gate, ONE awaited readFresh(, then the final check’s still(, bump(, onLastCheck?.( and the act, with nothing awaited from still( to the act, and the act’s lines written in ONE statement over the control client; and (Phase 348) the paste verb in src/main/screen/paste.ts holds the same order, its one act a spawned list, PS4 its whole'],
   ['Z5', 'build/p337/SPEC.md D16, D21, D22', 'THE ONE REFUSAL: asking is the status needs_input OR detectDialogRows( .atChoice in one function the verb asks; while asking, or when the body’s dialog is not null, the verb compares the turn with turns.current( and the dialog with the fresh one and refuses changed with SCREEN_QUESTION_MOVED; hashScreen(readBackWindowOf( is spelled once, in windowMarkOf, which the verb calls'],
   ['Z6', 'build/p337/SPEC.md D18, D19, D20', 'THE ACT’S ARGV: locally only copy-mode -q -t <pane>, send-keys -t <pane> -H <hex> and send-keys -t <pane> <name>; never -l; never send-keys without -t; hex as two lowercase digits; on another machine only typePhoneKeys(, handed in by capabilities.ts as typeRemote'],
   ['Z7', 'build/p337/SPEC.md D18, D41; build/p348/SPEC.md D50, D52', 'NO TEXT IN AN ARGV, NO .message, NO LOG: a text item reaches tmux only as its bytes, and (Phase 348) a paste’s text reaches pasteRefusal( and loadWords( alone and no argv paste.ts composes; nothing in src/main/screen or remote-screen.ts reads an error’s .message or logs'],
-  ['Z8', 'build/p337/SPEC.md D23; CLAUDE.md refusal 5; build/p348/SPEC.md §4.7', 'ONE STATUS CALL A VERB: noteUserInput( exactly once in keys.ts and (Phase 348) exactly once in paste.ts, each after its act and after its final check, the paste’s only when its list succeeded; no other file in src/main/screen names it, no other status setter is named there, and needs_input is never written'],
+  ['Z8', 'build/p337/SPEC.md D23; CLAUDE.md refusal 5; build/p348/SPEC.md §4.7; build/p350/SPEC.md D9, §7.2', 'ONE STATUS CALL A VERB: noteUserInput( exactly once in keys.ts and (Phase 348) exactly once in paste.ts, each after its act and after its final check, the paste’s only when its list succeeded; no other file in src/main/screen names it, no other status setter is named there, and needs_input is never written; and (Phase 350) THE GRACE BESIDE IT: noteRepaint( exactly once in src/main/screen, in keys.ts, after its one noteUserInput( and in a try of its own, inside if (result.any && isOnePage(, isOnePage declared once and DRIVEN true for a lone PPage or NPage and for nothing else'],
   ['Z9', 'build/p337/SPEC.md D5, D6, D7, §5.3.3; build/p348/SPEC.md D44, §7.1', 'THE READS: read.ts sends only display-message -p -t <x> SCREEN_FORMAT and capture-pane -p -e [-F] -t <x>, and (Phase 348) on the fallback capture-pane -p -T -N -t <x> and capture-pane -p -J -t <x>; scrollback.ts the same with the page’s -S and -E; remote-screen.ts makes ONE execOn( a read of display ; the styled capture ; [the fallback’s two ;] display, its -F or fallback chosen by marksRoadOf( alone; marksRoadOf declared once, in compose.ts; SCREEN_FORMAT declared once and equal to the spec’s; nothing this phase adds names refresh-client, resize-window, resize-pane, attach-session, new-session, switch-client, -x or -y'],
   ['Z10', 'build/p337/SPEC.md D3, §Attack A7', 'THE HOLD: SCREEN_HOLD_MS + SCREEN_TICK_MS <= ANSWER_TIMEOUT_MS - 2,000, 2 * SCREEN_TICK_MS < DOOR_STOP_JOIN_MS and the local read deadline <= the remote one, as arithmetic over the declared constants; every read raced against its deadline; a poll answered from its own timer, whose callback asks closing( and awaits nothing'],
-  ['Z11', 'build/p337/SPEC.md D13, D15; build/p348/SPEC.md D30, D43', 'THE ANSWER FIELD BY FIELD: routes.ts’s screenOf composes the screen answer with no spread, no clone and fresh arrays; the five caps imported from the contract, each read once, and equal to the spec’s; why exactly ended, unreachable or large; and (Phase 348) paste copied only where its caller says the route is served, and wraps a fresh array of whole numbers'],
+  ['Z11', 'build/p337/SPEC.md D13, D15; build/p348/SPEC.md D30, D43; build/p350/SPEC.md D5, D6, §7.2', 'THE ANSWER FIELD BY FIELD: routes.ts’s screenOf composes the screen answer with no spread, no clone and fresh arrays; the five caps imported from the contract, each read once, and equal to the spec’s; why exactly ended, unreachable or large; and (Phase 348) paste copied only where its caller says the route is served, and wraps a fresh array of whole numbers; and (Phase 350) pages set once in the door, in screenBodyOf, as the literal true under exactly screen.pages === true and NO served gate, and DRIVEN through the shipping screenOf, true leaves as true whether or not paste is served and every other value as no key'],
   ['Z12', 'build/p337/SPEC.md §5.3.4, §Attack A16', 'THE COMPOSER IS PURE: sgr, cells, cell-widths, palette and compose import no fs, child_process, tmux, settings, config or registry and read no clock; compose.ts imports nothing outside src/main/screen and src/shared but ../activity/screen and ../reply/reader; windowMarkOf declared once, in compose.ts, the one readBackWindowOf( in src/main/screen; the width table and the palette are frozen literals'],
   ['Z13', 'build/p337/SPEC.md D3, §5.3.1', 'CLOSING HANDED TO THE READ: server.ts calls deps.answer( once, with refusal 1’s own closing, deps.shuttingDown() || door.stopping(), as its third argument'],
   ['Z14', 'build/p337/SPEC.md D32; conformance:manager T23', 'THE SCREEN ROW: /v1/session’s screen is set in ONE place, facts.screen !== undefined && screenLive(session); screenLive is declared once, in routes.ts, and answers sessionActionGates(…).live, the one live partition, naming no status; and the watcher asks screenLive( and names no status list'],
@@ -464,6 +480,11 @@ const RULES = [
   ['Z28', 'build/p3371/SPEC.md D3, D4, §5.3.4, §Attack B8, B16', 'THE LIVE DEPTH AND SPACE: SCREEN_FORMAT is declared once with #{history_size} its eighth and last field, read as WHOLE9, at most nine digits; composeScreen sets depth and space together, from the display only when the reading is steady, not the alternate screen and the history at most POCKET_SCROLLBACK_MAX_INDEX, and both null otherwise; spaceOf is declared once, in compose.ts, and imports nothing of watch.ts'],
   ['Z29', 'build/p3371/SPEC.md D12, §Attack B1', 'MOVED, AND NOTHING SENT: moved is answered for exactly D12’s conditions over each attempt’s AGREED frame (the alternate screen, cols !== wrap, h1 < depth, h1 below the previous attempt’s display, from >= h1), each BEFORE anything is composed, and the capture of a refused attempt reaches no answer, no log and no store'],
   ['Z30', 'build/p3371/SPEC.md D35', 'THE HONESTY SENTENCE names what a session’s terminal shows AND what it printed before, still typing and ending, and never says the phone can change nothing else; the Allow line’s route list is still derived from the table'],
+  // PHASE 350, page a full-screen agent from the phone (build/p350/SPEC.md
+  // §7.2): a pull sends PPage or NPage through the allowed keys write, offered
+  // by the picture, and the page's redraw is graced as a resize's is.
+  ['Z31', 'build/p350/SPEC.md D6, §4.3 step 2, §0.1 item 12, §As built (the fix round)', 'THE PAGE OFFER: pages is given a value ONCE in src/main/screen and remote-screen.ts, in compose.ts’s composeScreen, as the literal true under exactly display.alternate && extra.typable; PocketScreen.pages is an optional boolean; readingRevisionOf’s parts are Phase 348’s, unchanged, so the offer moves only with the display line; DRIVEN over the shipping composer, the alternate screen that takes keys is offered pages on this Mac and on another machine and every other screen carries no key; and (the fix round) the keys verb asks the offer’s condition again at the act: ONE if in its final check, isOnePage(input.keys) && !fresh.display.alternate, returning refused(changed, …), after the door’s last check and before the question id moves, so a page sent against a picture whose program has since left full screen types nothing'],
+  ['Z32', 'build/p350/SPEC.md D9, D23, §4.3 steps 4 and 5', 'THE GRACE’S WIRING: ScreenKeysDeps declares noteRepaint once; src/main/capabilities.ts names noteRepaint once, handing createScreenKeys( an arrow of one parameter that calls pocketCore?.activity.noteGeometryChange( with that parameter and does nothing else; it hands it to no other verb and names noteGeometryChange( nowhere else; and no production file in src/main but keys.ts and capabilities.ts names noteRepaint'],
   // PHASE 333.1, a stranger's first run (build/p3331/SPEC.md §6.1): a return
   // to the window reads Tailscale with no press, three setup presses open a
   // page, an app or the clipboard, and the sheet draws three steps.
@@ -10017,9 +10038,9 @@ function screenRules() {
       const namesRef = nodes.filter((n) => ts.isIdentifier(n) && n.text === 'POCKET_SCREEN_KEY_NAMES');
       const byIdentity = nodes.some((n) => ts.isForOfStatement(n) && n.expression.getText() === 'POCKET_SCREEN_KEY_NAMES' && descendantsOf(n.statement).some((m) => ts.isBinaryExpression(m) && m.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken)) ||
         nodes.some((n) => ts.isCallExpression(n) && /POCKET_SCREEN_KEY_NAMES\s*(?:as[^)]*\))?\s*\.\s*(?:includes|some|find)$/.test(n.expression.getText().replace(/\s+/g, ' ').replace(/\(\s*/, '')) );
-      if (namesRef.length === 0 || !byIdentity) fail('Z3', `${where(writes, parse)}: a key name is not compared with === against POCKET_SCREEN_KEY_NAMES, the contract's 35 (build/p337/SPEC.md D17); a name read any other way (a lookup, a prefix, a pattern) can admit M-x or C-Up`);
+      if (namesRef.length === 0 || !byIdentity) fail('Z3', `${where(writes, parse)}: a key name is not compared with === against POCKET_SCREEN_KEY_NAMES, the contract's 37 (build/p337/SPEC.md D17; build/p350/SPEC.md D24); a name read any other way (a lookup, a prefix, a pattern) can admit M-x or C-Up`);
       for (const bad of ['in POCKET_SCREEN_KEY_NAMES', 'hasOwnProperty', '.toLowerCase(', '.toUpperCase(', '.startsWith(', 'RegExp(']) {
-        if (text.includes(bad)) fail('Z3', `${where(writes, parse)}: the keys parse reads with ${J(bad)}; a name is one of the 35 by identity and nothing else`);
+        if (text.includes(bad)) fail('Z3', `${where(writes, parse)}: the keys parse reads with ${J(bad)}; a name is one of the 37 by identity and nothing else`);
       }
       const alone = nodes.some((n) => (ts.isIfStatement(n) || ts.isBinaryExpression(n)) && /'BSpace'/.test(n.getText()) && /\.length\s*(?:>|!==|>=)\s*[12]\b/.test(n.getText()));
       if (!alone) fail('Z3', `${where(writes, parse)}: nothing holds a named key other than BSpace to be the write's ONE item (build/p337/SPEC.md D17, §Attack A1): Escape followed by anything in the same read is read as Meta`);
@@ -19394,6 +19415,536 @@ async function p349SelfTest() {
 }
 
 // ---------------------------------------------------------------------------
+// PHASE 350: page a full-screen agent from the phone (build/p350/SPEC.md §7.2)
+// ---------------------------------------------------------------------------
+
+/**
+ * A PULL ON THE PHONE PAGES A FULL-SCREEN PROGRAM. The phone sends `PPage` or
+ * `NPage` through the allowed `keys` write (D4, D5), only where the picture it
+ * holds offers `pages` (D6), and the keys verb stamps the reflow grace after a
+ * write of exactly one page key that typed (D9, D23). Five rules hold it: Z3,
+ * Z8 and Z11 widened (the 37 names; the grace beside the one status call; the
+ * offer copied as the literal with no served gate) and Z31 and Z32 new (the
+ * offer composed once; the grace wired to the clock a resize stamps). Each
+ * reads the source with the parser, and drives the shipping function in
+ * memory where one can be driven: the parse, `isOnePage`, `screenOf` and
+ * `composeScreen`. The self-test below breaks each clause in memory and
+ * requires its rule to go red; ablation:p313 breaks them on disk.
+ */
+const P350_OWNER = "Phase 350 builder mac's";
+const P350_KEYS = join(SCREEN_DIR, 'keys.ts');
+const P350_WATCH = join(SCREEN_DIR, 'watch.ts');
+/** D24: Phase 337's 35 in their order, then the two page keys, appended so the 35 keep their index. */
+const P350_KEY_NAMES = Object.freeze([
+  'Escape', 'Tab', 'BTab', 'Enter', 'BSpace', 'Up', 'Down', 'Left', 'Right',
+  ...'abcdefghijklmnopqrstuvwxyz'.split('').map((letter) => `C-${letter}`),
+  'PPage', 'NPage'
+]);
+/**
+ * §0.1 item 12: readingRevisionOf's parts as Phase 348 left them, comments
+ * blanked and white space taken out. The display line names the alternate
+ * screen, so the offer already moves with the revision and no part is added.
+ */
+const P350_REVISION_PARTS = "[sessionId,'screen',reading.styled,reading.displayLine,turn,waitsOnHim?'1':'0',typable?'1':'0',...(marks===''?[]:['marks',marks])]";
+const P350_QID = '0123456789abcdef-42';
+const P350_WRITE_ID = '0'.repeat(28) + '0350';
+
+/** A file a Phase 350 rule needs, or null with the rule failed by name and its owner. */
+function p350File(path, id) {
+  if (existsSync(path)) return path;
+  fail(
+    id,
+    `${rel(path)} does not exist, so this rule read nothing. It is ${P350_OWNER} (build/p350/SPEC.md §10.1). ` +
+      'A gate that passed here would go green on the day the phone cannot page.'
+  );
+  return null;
+}
+
+/** Every place a file gives `pages` a value: `x.pages = v`, `{ pages: v }` or `{ pages }`. */
+function p350PagesSets(file) {
+  const out = [];
+  for (const n of nodesOf(file)) {
+    if ((ts.isPropertyAssignment(n) || ts.isShorthandPropertyAssignment(n)) && memberName(n) === 'pages') out.push({ n, value: ts.isPropertyAssignment(n) ? bare(n.initializer) : n.name });
+    if (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isPropertyAccessExpression(n.left) && n.left.name.text === 'pages') out.push({ n, value: bare(n.right) });
+  }
+  return out;
+}
+
+/** The nearest try statement whose try block holds `node`, inside its own function, or null. */
+function p350TryOf(node) {
+  for (let p = node.parent; p !== undefined; p = p.parent) {
+    if (ts.isTryStatement(p) && inside(node, p.tryBlock)) return p;
+    if (ts.isFunctionLike(p)) return null;
+  }
+  return null;
+}
+
+/** A keys body as the phone writes it, its keys sorted. */
+const p350KeysBody = (keys) => JSON.stringify({ dialog: null, keys, session: 's1', turn: P350_QID, write: P350_WRITE_ID });
+
+// ---- Z3, the 37 names, and the parse of a page key, driven ----------------------
+
+function p350NamesRule() {
+  const id = 'Z3';
+  const contract = p350File(AR_CONTRACT, id);
+  if (contract !== null) {
+    const decl = constNamed(contract, 'POCKET_SCREEN_KEY_NAMES');
+    const list = decl === null ? undefined : bare(decl.initializer);
+    const got = list !== undefined && ts.isArrayLiteralExpression(list) ? list.elements.map((e) => (ts.isStringLiteral(e) ? e.text : `?${e.getText()}`)) : null;
+    checked(id, 2);
+    if (got === null) fail(id, `${rel(contract)} declares no POCKET_SCREEN_KEY_NAMES array literal this rule can read (build/p350/SPEC.md D24)`);
+    else if (J(got) !== J(P350_KEY_NAMES)) {
+      fail(id, `${where(contract, decl)}: POCKET_SCREEN_KEY_NAMES is ${J(got).slice(0, 240)}; it is exactly the 37 names, Phase 337's 35 in their order and then PPage and NPage, appended so the 35 keep their index (build/p350/SPEC.md D24); still no Home, End, function key, Alt or modified arrow`);
+    }
+  }
+  // DRIVEN: the shipping parse takes a lone page key exactly as sent, and
+  // refuses one beside anything else or spelled any other way.
+  const writes = p350File(NS_WRITES, id);
+  if (writes === null) return;
+  const mod = arLoad(writes, id);
+  const parse = mod?.parseKeysBody;
+  checked(id);
+  if (typeof parse !== 'function') {
+    fail(id, `${rel(writes)} exports no parseKeysBody to drive (build/p337/SPEC.md §5.5)`);
+    return;
+  }
+  const run = (keys) => {
+    try {
+      return { r: parse(Buffer.from(p350KeysBody(keys), 'utf8')) };
+    } catch (err) {
+      return { threw: err instanceof Error ? err.message : String(err) };
+    }
+  };
+  for (const page of ['PPage', 'NPage']) {
+    checked(id);
+    const got = run([{ k: page }]);
+    const r = got.r;
+    const exact = got.threw === undefined && r !== null && typeof r === 'object' && r.ok === true && r.verb === 'keys' && J(r.keys) === J([{ k: page }]);
+    if (!exact) fail(id, `the shipping parseKeysBody answers ${J(r ?? got.threw).slice(0, 160)} for a lone ${page}; it takes it exactly as sent (build/p350/SPEC.md D24, §7.3 PK1)`);
+  }
+  const refused = [
+    ['PPage beside text', [{ k: 'PPage' }, { t: 'x' }]],
+    ['text beside NPage', [{ t: 'x' }, { k: 'NPage' }]],
+    ['BSpace before PPage', [{ k: 'BSpace' }, { k: 'PPage' }]],
+    ['NPage before BSpace', [{ k: 'NPage' }, { k: 'BSpace' }]],
+    ['PPage then NPage', [{ k: 'PPage' }, { k: 'NPage' }]],
+    ['PPage twice', [{ k: 'PPage' }, { k: 'PPage' }]],
+    ...['ppage', 'NPAGE', 'nPage', 'PageUp', 'PageDown', 'PgUp', 'PgDn', ' PPage', 'PPage ', 'S-PPage', 'C-NPage', 'M-PPage', 'PPage;', 'PPage NPage', 'Home', 'End'].map((name) => [`the name ${J(name)}`, [{ k: name }]])
+  ];
+  for (const [what, keys] of refused) {
+    checked(id);
+    const got = run(keys);
+    if (got.threw !== undefined) fail(id, `the shipping parseKeysBody threw on ${what} (${got.threw}); a body it cannot take answers malformed`);
+    else if (got.r === null || typeof got.r !== 'object' || got.r.ok !== false) fail(id, `the shipping parseKeysBody ACCEPTED ${what} as ${J(got.r).slice(0, 160)}; a page key is its write's only item and one of the 37 by identity (build/p337/SPEC.md D17; build/p350/SPEC.md §7.3 PK2, PK3)`);
+  }
+}
+
+// ---- Z8, the grace beside the one status call ------------------------------------
+
+function p350GraceRule() {
+  const id = 'Z8';
+  const keys = p350File(P350_KEYS, id);
+  if (keys === null) return;
+  const screenSources = [...sourcesUnder(SCREEN_DIR), ...(existsSync(REMOTE_SCREEN) ? [REMOTE_SCREEN] : [])];
+  const repaints = screenSources.flatMap((file) => callsOf(file).filter((c) => calleeName(c) === 'noteRepaint').map((c) => ({ file, c })));
+  checked(id, 2);
+  for (const x of repaints.filter((y) => y.file !== keys)) fail(id, `${where(x.file, x.c)} calls noteRepaint(; in src/main/screen only the keys verb does, once, for a write of exactly one page key (build/p350/SPEC.md D9)`);
+  const own = repaints.filter((x) => x.file === keys).map((x) => x.c);
+  if (own.length !== 1) fail(id, `src/main/screen/keys.ts calls noteRepaint( ${String(own.length)} time(s)${own.length > 0 ? ` (${own.map((c) => where(keys, c)).join(', ')})` : ''}; exactly once, after its one noteUserInput( (build/p350/SPEC.md D9, §4.3 step 4)`);
+  const k = keysAnchors(keys);
+  if (k === null) {
+    fail(id, `${rel(keys)}: createScreenKeys answers no keys verb, so where the grace is stamped cannot be read`);
+    return;
+  }
+  const notes = callsOf(keys).filter((c) => calleeName(c) === 'noteUserInput');
+  if (own.length === 1) {
+    const call = own[0];
+    const at = zAt(k.standIn(call));
+    checked(id, 3);
+    if (at === -1) fail(id, `${where(keys, call)}: noteRepaint( is not reached by the keys verb`);
+    else if (notes.length !== 1 || at <= zAt(k.standIn(notes[0]))) fail(id, `${where(keys, call)}: noteRepaint( does not come after the verb's one noteUserInput(; the grace is stamped after the funnel, beside it (build/p350/SPEC.md §4.3 step 4)`);
+    else if (k.act === undefined || at <= k.act.at) fail(id, `${where(keys, call)}: noteRepaint( comes before the act; a page is graced only once it has been typed (D9)`);
+    const guard = guardingIf(call);
+    const operands = guard === null ? [] : zAnds(guard.expression);
+    const typed = operands.some((o) => o !== undefined && ts.isPropertyAccessExpression(o) && o.name.text === 'any');
+    const onePage = operands.some((o) => o !== undefined && ts.isCallExpression(o) && calleeName(o) === 'isOnePage' && o.arguments.length === 1 && /\.keys$/.test(o.arguments[0].getText()));
+    if (guard === null || operands.length !== 2 || !typed || !onePage) {
+      fail(id, `${where(keys, call)}: noteRepaint( is asked under ${J(guard?.expression.getText() ?? null)}; it is asked inside if (result.any && isOnePage(input.keys)) and under nothing looser, so only a lone page key that typed is graced (build/p350/SPEC.md D9)`);
+    }
+    const tried = p350TryOf(call);
+    if (tried === null || notes.some((n) => inside(n, tried)) || descendantsOf(tried.tryBlock).filter((n) => ts.isExpressionStatement(n)).length !== 1) {
+      fail(id, `${where(keys, call)}: noteRepaint( is not alone in a try of its own; a clock that throws must take neither the funnel nor the nudge with it, and a key typed stays typed (build/p350/SPEC.md §4.3 step 4)`);
+    }
+  }
+  // isOnePage: declared once, and DRIVEN, lifted out of the shipping file.
+  const fns = functionsNamed(keys, 'isOnePage');
+  checked(id);
+  if (fns.length !== 1 || !ts.isFunctionDeclaration(fns[0])) {
+    fail(id, `${rel(keys)} declares isOnePage ${String(fns.length)} time(s); once, the function the grace's guard calls (build/p350/SPEC.md §4.3 step 4)`);
+    return;
+  }
+  let isOnePage = null;
+  try {
+    const js = ts.transpileModule(`${codeOfNode(keys, fns[0]).replace(/^\s*export\s+/, '')}\nreturn isOnePage;`, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText;
+    isOnePage = new Function(js)();
+  } catch (err) {
+    fail(id, `isOnePage could not be driven, lifted out of ${rel(keys)}: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  if (typeof isOnePage !== 'function') return;
+  const cases = [
+    ['a lone PPage', [{ k: 'PPage' }], true],
+    ['a lone NPage', [{ k: 'NPage' }], true],
+    ['no item', [], false],
+    ['PPage twice', [{ k: 'PPage' }, { k: 'PPage' }], false],
+    ['PPage and NPage', [{ k: 'PPage' }, { k: 'NPage' }], false],
+    ['PPage beside text', [{ k: 'PPage' }, { t: 'x' }], false],
+    ['the TEXT PPage', [{ t: 'PPage' }], false],
+    ...['Up', 'Down', 'Enter', 'Escape', 'Tab', 'BSpace', 'C-c', 'ppage', 'PageUp'].map((name) => [`a lone ${name}`, [{ k: name }], false])
+  ];
+  for (const [what, items, want] of cases) {
+    checked(id);
+    let got;
+    try {
+      got = isOnePage(items);
+    } catch (err) {
+      got = `threw ${err instanceof Error ? err.message : String(err)}`;
+    }
+    if (got !== want) fail(id, `isOnePage answers ${J(got)} for ${what}; it answers ${String(want)}: a write of exactly one PPage or NPage, and nothing else (build/p350/SPEC.md D9)`);
+  }
+}
+
+// ---- Z11, the offer copied as the literal, with no served gate --------------------
+
+function p350CopyRule() {
+  const id = 'Z11';
+  const routes = p350File(NS_ROUTES, id);
+  if (routes === null) return;
+  const body = oneFunction(routes, 'screenBodyOf');
+  const sets = p350PagesSets(routes);
+  checked(id, 2);
+  if (body === null) fail(id, `${rel(routes)} declares no single screenBodyOf, the door's copier of the screen answer (build/p350/SPEC.md §4.3 step 3)`);
+  if (sets.length !== 1) fail(id, `${rel(routes)} gives pages a value ${String(sets.length)} time(s); once, in screenBodyOf (build/p350/SPEC.md D6)`);
+  for (const { n, value } of sets) {
+    checked(id, 3);
+    if (body === null || !inside(n, body)) {
+      fail(id, `${where(routes, n)} sets pages outside screenBodyOf; the door copies the offer in one place (D6)`);
+      continue;
+    }
+    if (value?.kind !== ts.SyntaxKind.TrueKeyword) fail(id, `${where(routes, n)}: pages is copied as ${J(value?.getText() ?? null)}; it is the literal true, never a value the watcher handed on, so nothing of another shape can leave (D6)`);
+    const guard = guardingIf(n);
+    const g = guard === null ? '' : squash(codeOfNode(routes, guard.expression));
+    if (g !== 'screen.pages===true') fail(id, `${where(routes, n)}: pages is copied under ${J(guard?.expression.getText() ?? null)}; it is copied under exactly screen.pages === true, with no served gate: a page rides keys, which every allowed door serves (build/p350/SPEC.md D5, §0.1 item 11)`);
+  }
+  // DRIVEN: the shipping screenOf.
+  const mod = arLoad(routes, id);
+  const screenOf = mod?.screenOf;
+  checked(id);
+  if (typeof screenOf !== 'function') {
+    fail(id, `${rel(routes)} exports no screenOf to drive (build/p337/SPEC.md D13)`);
+    return;
+  }
+  const screen = (over) => ({
+    cols: 4,
+    rows: 2,
+    cursor: { x: 0, y: 0, visible: true },
+    alternate: true,
+    ground: '#131417',
+    ink: '#d8dbe2',
+    caret: '#e8eaed',
+    styles: [{ fg: '#d8dbe2', bg: null, bold: false, dim: false, italic: false, underline: false, strike: false }],
+    lines: [[{ text: 'abcd', style: 0, cells: 4 }], []],
+    turn: P350_QID,
+    asking: false,
+    dialog: null,
+    typable: true,
+    depth: null,
+    space: null,
+    ...over
+  });
+  const copied = (over, served) => {
+    try {
+      const answer = { sessionId: 's1', revision: '0123456789ab', at: 1, unchanged: false, screen: screen(over), why: null, sentence: null };
+      const out = served === undefined ? screenOf(answer, 's1', 1) : screenOf(answer, 's1', 1, served);
+      return { out };
+    } catch (err) {
+      return { threw: err instanceof Error ? err.message : String(err) };
+    }
+  };
+  for (const served of [true, false, undefined]) {
+    checked(id);
+    const got = copied({ pages: true }, served);
+    if (got.threw !== undefined || got.out?.screen?.pages !== true) fail(id, `the shipping screenOf answers ${J(got.out?.screen?.pages ?? got.threw ?? null)} for a composed pages: true with the paste ${served === undefined ? 'unsaid' : served ? 'served' : 'not served'}; the offer leaves as true whatever paste's Allow says (build/p350/SPEC.md D5, D6)`);
+  }
+  for (const [what, over] of [['absent', {}], ['false', { pages: false }], ['null', { pages: null }], ['1', { pages: 1 }], ["'true'", { pages: 'true' }], ['an object', { pages: {} }]]) {
+    checked(id);
+    const got = copied(over, true);
+    if (got.threw !== undefined || got.out === null || got.out?.screen === null || got.out?.screen === undefined) fail(id, `the shipping screenOf answers ${J(got.out ?? got.threw ?? null).slice(0, 120)} for pages ${what}; it still answers the screen, only without the offer`);
+    else if ('pages' in got.out.screen) fail(id, `the shipping screenOf copies pages ${what} as ${J(got.out.screen.pages)}; anything but true leaves as no key at all (build/p350/SPEC.md D6)`);
+  }
+}
+
+// ---- Z31, the offer composed once -------------------------------------------------
+
+function p350OfferRule() {
+  const id = 'Z31';
+  const compose = p350File(PS_COMPOSE, id);
+  const composeScreen = compose === null ? null : oneFunction(compose, 'composeScreen');
+  const screenSources = [...sourcesUnder(SCREEN_DIR), ...(existsSync(REMOTE_SCREEN) ? [REMOTE_SCREEN] : [])];
+  const sets = screenSources.flatMap((file) => p350PagesSets(file).map((s) => ({ file, ...s })));
+  checked(id, 2);
+  if (compose !== null && composeScreen === null) fail(id, `${rel(compose)} declares no single composeScreen, the one composer of the screen the phone draws (build/p337/SPEC.md §5.3.4)`);
+  if (sets.length !== 1) fail(id, `src/main/screen and remote-screen.ts give pages a value ${String(sets.length)} time(s)${sets.length > 0 ? ` (${sets.map((s) => where(s.file, s.n)).join(', ')})` : ''}; once, in compose.ts's composeScreen, and nowhere else (build/p350/SPEC.md §4.3 step 2)`);
+  for (const { file, n, value } of sets) {
+    checked(id, 3);
+    if (file !== compose || composeScreen === null || !inside(n, composeScreen)) {
+      fail(id, `${where(file, n)} sets pages; only composeScreen does, from the screen it composed (build/p350/SPEC.md D6)`);
+      continue;
+    }
+    if (value?.kind !== ts.SyntaxKind.TrueKeyword) fail(id, `${where(file, n)}: pages is ${J(value?.getText() ?? null)}; it is the literal true, and absent otherwise (D6)`);
+    const guard = guardingIf(n);
+    const g = guard === null ? '' : squash(codeOfNode(file, guard.expression));
+    if (g !== 'display.alternate&&extra.typable') fail(id, `${where(file, n)}: pages is set under ${J(guard?.expression.getText() ?? null)}; it is set under exactly display.alternate && extra.typable: the alternate screen that takes keys, on this Mac and on another machine alike, and on nothing else (build/p350/SPEC.md D6)`);
+  }
+  // Nothing else on the offer's road (the door's domain) gives pages a value
+  // but the door's one copy, which Z11 holds.
+  const elsewhere = arFilesNaming(DOMAIN, 'pages')
+    .filter((file) => file !== NS_ROUTES)
+    .flatMap((file) => p350PagesSets(file).map((s) => ({ file, ...s })));
+  checked(id);
+  for (const { file, n } of elsewhere) fail(id, `${where(file, n)} gives pages a value; the offer is composed in composeScreen and copied by screenBodyOf, and nowhere else on its road to the phone (build/p350/SPEC.md D6)`);
+  // The contract: optional, a boolean.
+  const contract = p350File(AR_CONTRACT, id);
+  if (contract !== null) {
+    const iface = interfaceOf(contract, 'PocketScreen');
+    const member = iface?.members.find((m) => memberName(m) === 'pages');
+    checked(id);
+    if (member === undefined || member.questionToken === undefined || member.type?.getText(astOf(contract)) !== 'boolean') {
+      fail(id, `${rel(contract)}: PocketScreen.pages is ${member === undefined ? 'absent' : J(member.getText(astOf(contract)).slice(0, 80))}; it is pages?: boolean, absent reading false, so a Mac older than Phase 350 never receives a page (D6)`);
+    }
+  }
+  // §0.1 item 12: the revision's parts are Phase 348's, unchanged.
+  const watch = p350File(P350_WATCH, id);
+  if (watch !== null) {
+    const fn = oneFunction(watch, 'readingRevisionOf');
+    const calls = fn === null ? [] : descendantsOf(fn).filter((c) => ts.isCallExpression(c) && calleeName(c) === 'screenRevisionOf');
+    const parts = calls.length === 1 && calls[0].arguments[0] !== undefined ? squash(codeOfNode(watch, calls[0].arguments[0])) : null;
+    checked(id);
+    if (parts !== P350_REVISION_PARTS) fail(id, `${fn === null ? rel(watch) : where(watch, fn)}: readingRevisionOf hashes ${J(parts)}; its parts are Phase 348's, ${P350_REVISION_PARTS}, unchanged: the display line already names the alternate screen, so the offer moves only with it and no part is added for it (build/p350/SPEC.md §0.1 item 12)`);
+  }
+  // THE FIX ROUND: the offer's own condition asked again at the act. A page sent
+  // against a full-screen picture whose program has since left it is refused
+  // in the keys verb's final check, before the question id moves, so it never
+  // reaches the shell that program left behind as a `~`.
+  const keysFile = p350File(P350_KEYS, id);
+  if (keysFile !== null) {
+    const k = keysAnchors(keysFile);
+    checked(id, 2);
+    if (k === null) {
+      fail(id, `${rel(keysFile)}: createScreenKeys answers no keys verb, so where a page is refused off the alternate screen cannot be read (§As built, the fix round)`);
+    } else {
+      const notAlternate = (o) => o !== undefined && ts.isPrefixUnaryExpression(o) && o.operator === ts.SyntaxKind.ExclamationToken && /^fresh\.display\.alternate$/.test(squash(bare(o.operand).getText()));
+      const onePage = (o) => o !== undefined && ts.isCallExpression(o) && calleeName(o) === 'isOnePage' && o.arguments.length === 1 && o.arguments[0].getText() === 'input.keys';
+      const guards = k.scope
+        .flatMap((f) => descendantsOf(f).filter((n) => ts.isIfStatement(n)))
+        .filter((n) => {
+          const ops = zAnds(n.expression);
+          return ops.some(onePage) && ops.some(notAlternate);
+        });
+      if (guards.length !== 1) {
+        fail(id, `${rel(keysFile)} asks isOnePage(input.keys) && !fresh.display.alternate in ${String(guards.length)} if statement(s); once, in the final check, so a page sent against a picture whose program has since left full screen types nothing into the shell it left (§As built, the fix round)`);
+      } else {
+        const g = guards[0];
+        const ops = zAnds(g.expression);
+        const then = ts.isBlock(g.thenStatement) && g.thenStatement.statements.length === 1 ? g.thenStatement.statements[0] : g.thenStatement;
+        const ret = then !== undefined && ts.isReturnStatement(then) && then.expression !== undefined ? bare(then.expression) : undefined;
+        const changed = ret !== undefined && ts.isCallExpression(ret) && calleeName(ret) === 'refused' && ret.arguments[0] !== undefined && ts.isStringLiteral(ret.arguments[0]) && ret.arguments[0].text === 'changed';
+        if (ops.length !== 2) fail(id, `${where(keysFile, g)}: the page check is asked under ${J(g.expression.getText())}; under exactly isOnePage(input.keys) && !fresh.display.alternate, so every page off the alternate screen is refused and nothing else is`);
+        if (!changed) fail(id, `${where(keysFile, g)}: a page off the alternate screen answers ${J(then?.getText().slice(0, 80) ?? null)}; it returns refused('changed', …), nothing typed`);
+        const at = zAt(k.standIn(g));
+        if (k.still === undefined || at <= k.still.at) fail(id, `${where(keysFile, g)}: the page check comes before the door's last check (still); it is part of the final check, read off the fresh screen`);
+        if (k.bump === undefined || at >= zAt(k.standIn(k.bump.c))) fail(id, `${where(keysFile, g)}: the page check comes after the question id moves; a refused page moves nothing, so it is asked before the id and the act`);
+      }
+    }
+  }
+  // DRIVEN: the shipping composer, over the alternate screen and the normal one, keys or none, here or there.
+  if (compose === null) return;
+  const mod = arLoad(compose, id);
+  const fn = mod?.composeScreen;
+  checked(id);
+  if (typeof fn !== 'function') {
+    fail(id, `${rel(compose)} exports no composeScreen to drive (build/p337/SPEC.md §5.3.4)`);
+    return;
+  }
+  for (const alternate of [true, false]) {
+    for (const typable of [true, false]) {
+      for (const local of [true, false]) {
+        checked(id);
+        const display = { paneId: '%9', cols: 40, rows: 4, cursorX: 0, cursorY: 0, cursorVisible: true, alternate, history: 0 };
+        const reading = { styled: 'pager line 0001\npager line 0002\n', display, displayLine: ['%9', 40, 4, 0, 0, 1, alternate ? 1 : 0, 0].join('\t'), steady: true };
+        let composed;
+        try {
+          composed = fn(reading, { turn: P350_QID, status: 'idle', typable, local });
+        } catch (err) {
+          composed = `threw ${err instanceof Error ? err.message : String(err)}`;
+        }
+        const what = `alternate ${String(alternate)}, typable ${String(typable)}, ${local ? 'this Mac' : 'another machine'}`;
+        if (composed === null || typeof composed !== 'object' || typeof composed.screen !== 'object') {
+          fail(id, `the shipping composeScreen answers ${J(composed).slice(0, 120)} for a 40x4 screen (${what}); it composes it`);
+          continue;
+        }
+        const want = alternate && typable;
+        const has = Object.prototype.hasOwnProperty.call(composed.screen, 'pages');
+        if (want && composed.screen.pages !== true) fail(id, `the shipping composeScreen offers ${J(composed.screen.pages ?? null)} on the alternate screen that takes keys (${what}); it offers pages: true (build/p350/SPEC.md D6)`);
+        if (!want && has) fail(id, `the shipping composeScreen sets pages ${J(composed.screen.pages)} (${what}); only the alternate screen that takes keys carries the key, and every other screen carries none (D6)`);
+      }
+    }
+  }
+}
+
+// ---- Z32, the grace wired to the clock a resize stamps -----------------------------
+
+function p350WiringRule() {
+  const id = 'Z32';
+  const keys = p350File(P350_KEYS, id);
+  if (keys !== null) {
+    const deps = interfaceOf(keys, 'ScreenKeysDeps');
+    const members = deps === null ? [] : deps.members.filter((m) => memberName(m) === 'noteRepaint');
+    checked(id);
+    if (members.length !== 1) fail(id, `${rel(keys)}: ScreenKeysDeps declares noteRepaint ${String(members.length)} time(s); once, the reflow grace's clock the verb is handed (build/p350/SPEC.md D23)`);
+  }
+  const caps = p350File(NS_CAPABILITIES, id);
+  if (caps !== null) {
+    const named = nodesOf(caps).filter((n) => ts.isIdentifier(n) && n.text === 'noteRepaint');
+    const props = nodesOf(caps).filter((n) => ts.isPropertyAssignment(n) && memberName(n) === 'noteRepaint');
+    checked(id, 2);
+    if (named.length !== 1 || props.length !== 1) fail(id, `${rel(caps)} names noteRepaint ${String(named.length)} time(s); once, as the one property the keys verb is handed (build/p350/SPEC.md D23)`);
+    for (const p of props) {
+      checked(id, 2);
+      const call = p.parent !== undefined && ts.isObjectLiteralExpression(p.parent) && p.parent.parent !== undefined && ts.isCallExpression(p.parent.parent) ? p.parent.parent : null;
+      const handedTo = call === null ? null : calleeName(call);
+      if (handedTo !== 'createScreenKeys') fail(id, `${where(caps, p)}: noteRepaint is handed to ${J(handedTo)}; it is the keys verb's alone, so a paste, a reply or anything else Tortie types is never graced (build/p350/SPEC.md D9)`);
+      const fn = bare(p.initializer);
+      const param = fn !== undefined && ts.isArrowFunction(fn) && fn.parameters.length === 1 && ts.isIdentifier(fn.parameters[0].name) ? fn.parameters[0].name.text : null;
+      const body = param === null || ts.isBlock(fn.body) ? undefined : bare(fn.body);
+      const stamps =
+        body !== undefined &&
+        ts.isCallExpression(body) &&
+        squash(codeOfNode(caps, body.expression)) === 'pocketCore?.activity.noteGeometryChange' &&
+        body.arguments.length === 1 &&
+        ts.isIdentifier(body.arguments[0]) &&
+        body.arguments[0].text === param;
+      if (!stamps) fail(id, `${where(caps, p)}: noteRepaint is ${J(p.initializer.getText().slice(0, 100))}; it is (sessionId) => pocketCore?.activity.noteGeometryChange(sessionId) and nothing else: the clock a resize stamps, for the session the page typed into (build/p350/SPEC.md D23)`);
+    }
+    const geometry = callsOf(caps).filter((c) => calleeName(c) === 'noteGeometryChange');
+    checked(id);
+    if (geometry.length !== 1 || props.length !== 1 || !inside(geometry[0], props[0])) fail(id, `${rel(caps)} calls noteGeometryChange( ${String(geometry.length)} time(s); once, inside the keys verb's noteRepaint, so nothing else the composition builds stamps the grace (D23)`);
+  }
+  // No production file in src/main but the verb and its composition names it.
+  const naming = arFilesNaming(join(ROOT, 'src', 'main'), 'noteRepaint').filter((file) => file !== P350_KEYS && file !== NS_CAPABILITIES);
+  checked(id);
+  for (const file of naming) {
+    const hits = nodesOf(file).filter((n) => ts.isIdentifier(n) && n.text === 'noteRepaint');
+    if (hits.length > 0) fail(id, `${where(file, hits[0])} names noteRepaint; only the keys verb (src/main/screen/keys.ts) and its one composition (src/main/capabilities.ts) do (build/p350/SPEC.md D23)`);
+  }
+}
+
+/** Z3, Z8, Z11, Z31 and Z32, each the one function that reads its Phase 350 clauses. */
+const P350_RULE_RUNS = [
+  ['Z3', p350NamesRule],
+  ['Z8', p350GraceRule],
+  ['Z11', p350CopyRule],
+  ['Z31', p350OfferRule],
+  ['Z32', p350WiringRule]
+];
+
+/** The Phase 350 clauses, then a red for a new rule that checked nothing. */
+async function p350Rules() {
+  for (const [id, run] of P350_RULE_RUNS) {
+    try {
+      await run();
+    } catch (err) {
+      fail(id, `the rule could not be read: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  for (const id of ['Z31', 'Z32']) if (checks.get(id) === 0 && failures.get(id).length === 0) fail(id, 'the rule checked nothing, so it proves nothing (build/p350/SPEC.md §7.2)');
+}
+
+/**
+ * EACH PHASE 350 CLAUSE'S OWN SELF-TEST, in Phase 348's form: every run breaks
+ * each clause IN MEMORY through {@link OVERLAY}, runs that one rule's Phase 350
+ * reading again over the broken source, puts back every finding and count the
+ * run made, and requires the rule to have gone red on a finding of its own. A
+ * plant whose text is not in its file exactly once is red under its rule, so a
+ * moved clause moves its plant in the same commit. `P313_NO_SELF_TEST=1` skips
+ * it, as ablation:p313 asks inside its clone.
+ */
+const P350_SELF_TESTS = [
+  { rule: 'Z3', what: 'the page keys swapped in the contract', file: AR_CONTRACT, from: "  'PPage', 'NPage'\n] as const;", to: "  'NPage', 'PPage'\n] as const;" },
+  { rule: 'Z3', what: 'Home appended to the contract’s names', file: AR_CONTRACT, from: "  'PPage', 'NPage'\n] as const;", to: "  'PPage', 'NPage', 'Home'\n] as const;" },
+  { rule: 'Z3', what: 'a page let beside text in the parse', file: NS_WRITES, from: "if (keys.length > 1 && keys.some((key) => 'k' in key && key.k !== 'BSpace')) return { ok: false, write };", to: "if (keys.length > 1 && keys.some((key) => 'k' in key && key.k !== 'BSpace' && key.k !== 'PPage')) return { ok: false, write };" },
+  { rule: 'Z8', what: 'the grace stamped for every key that typed', file: P350_KEYS, from: 'if (result.any && isOnePage(input.keys)) {', to: 'if (result.any) {' },
+  { rule: 'Z8', what: 'isOnePage answering yes for any lone named key', file: P350_KEYS, from: "return only !== undefined && 'k' in only && (only.k === 'PPage' || only.k === 'NPage');", to: "return only !== undefined && 'k' in only;" },
+  { rule: 'Z8', what: 'a second grace before the act', file: P350_KEYS, from: '      deps.onLastCheck?.(id);\n', to: '      deps.onLastCheck?.(id);\n      deps.noteRepaint?.(id);\n' },
+  { rule: 'Z8', what: 'the grace out of its own try', file: P350_KEYS, from: "        try {\n          deps.noteRepaint?.(id);\n        } catch {\n          // The clock is the desk's; a page typed stays typed.\n        }", to: '        deps.noteRepaint?.(id);' },
+  { rule: 'Z11', what: 'the door copying whatever pages the watcher handed it', file: NS_ROUTES, from: 'if (screen.pages === true) body.pages = true;', to: 'if (screen.pages !== undefined) body.pages = screen.pages;' },
+  { rule: 'Z11', what: 'the offer behind the paste’s served gate', file: NS_ROUTES, from: 'if (screen.pages === true) body.pages = true;', to: 'if (pasteServed && screen.pages === true) body.pages = true;' },
+  { rule: 'Z31', what: 'the offer on every screen that takes keys', file: PS_COMPOSE, from: 'if (display.alternate && extra.typable) screen.pages = true;', to: 'if (extra.typable) screen.pages = true;' },
+  { rule: 'Z31', what: 'the offer on this Mac alone', file: PS_COMPOSE, from: 'if (display.alternate && extra.typable) screen.pages = true;', to: 'if (display.alternate && extra.typable && extra.local === true) screen.pages = true;' },
+  { rule: 'Z31', what: 'a revision part added for the offer', file: P350_WATCH, from: "    typable ? '1' : '0',\n    ...(marks === '' ? [] : ['marks', marks])", to: "    typable ? '1' : '0',\n    reading.display.alternate ? 'pages' : '',\n    ...(marks === '' ? [] : ['marks', marks])" },
+  { rule: 'Z31', what: 'PocketScreen.pages made required', file: AR_CONTRACT, from: '  pages?: boolean;\n', to: '  pages: boolean;\n' },
+  { rule: 'Z31', what: 'a page typed off the alternate screen (the fix round)', file: P350_KEYS, from: "      if (isOnePage(input.keys) && !fresh.display.alternate) {\n        return refused('changed', LIFECYCLE_SESSION_CHANGED);\n      }\n", to: '' },
+  { rule: 'Z31', what: 'every key refused off the alternate screen (the fix round)', file: P350_KEYS, from: 'if (isOnePage(input.keys) && !fresh.display.alternate) {', to: 'if (!fresh.display.alternate) {' },
+  { rule: 'Z31', what: 'a page off the alternate screen answered done (the fix round)', file: P350_KEYS, from: "      if (isOnePage(input.keys) && !fresh.display.alternate) {\n        return refused('changed', LIFECYCLE_SESSION_CHANGED);\n      }\n", to: '      if (isOnePage(input.keys) && !fresh.display.alternate) {\n        return DONE;\n      }\n' },
+  { rule: 'Z32', what: 'the grace wired to the funnel', file: NS_CAPABILITIES, from: 'noteRepaint: (sessionId) => pocketCore?.activity.noteGeometryChange(sessionId),', to: 'noteRepaint: (sessionId) => pocketCore?.activity.noteUserInput(sessionId),' },
+  { rule: 'Z32', what: 'the grace not handed to the keys verb', file: NS_CAPABILITIES, from: '    noteRepaint: (sessionId) => pocketCore?.activity.noteGeometryChange(sessionId),\n', to: '' },
+  { rule: 'Z32', what: 'the grace handed to the paste as well', file: NS_CAPABILITIES, from: '  const screenPaste = createScreenPaste({\n    core: () => pocketCore,\n', to: '  const screenPaste = createScreenPaste({\n    noteRepaint: (sessionId: string) => pocketCore?.activity.noteGeometryChange(sessionId),\n    core: () => pocketCore,\n' }
+];
+
+/** What the Phase 350 self-test proved, printed above the rule table. */
+const p350SelfTestLines = [];
+
+async function p350SelfTest() {
+  if (process.env['P313_NO_SELF_TEST'] === '1') {
+    p350SelfTestLines.push('self-test skipped: P313_NO_SELF_TEST=1, which ablation:p313 sets for the read gate inside its clone');
+    return;
+  }
+  const runs = new Map(P350_RULE_RUNS);
+  for (const plant of P350_SELF_TESTS) {
+    const run = runs.get(plant.rule);
+    checked(plant.rule);
+    const text = existsSync(plant.file) ? readFileSync(plant.file, 'utf8') : null;
+    const count = text === null ? 0 : text.split(plant.from).length - 1;
+    if (run === undefined || count !== 1) {
+      fail(plant.rule, `the self-test's plant "${plant.what}" found its text ${String(count)} time(s) in ${rel(plant.file)}; it names it exactly once. Re-point the plant at the clause it breaks, or ${plant.rule}'s Phase 350 self-test plants nothing (build/p350/SPEC.md §7.2)`);
+      continue;
+    }
+    const keptFailures = new Map([...failures].map(([k, v]) => [k, [...v]]));
+    const keptChecks = new Map(checks);
+    OVERLAY.set(plant.file, text.replace(plant.from, () => plant.to));
+    overlayParsed.clear();
+    let threw = null;
+    try {
+      await run();
+    } catch (err) {
+      threw = err instanceof Error ? err.message : String(err);
+    }
+    const own = failures.get(plant.rule).slice(keptFailures.get(plant.rule).length).filter((f) => !P348_NOT_A_FINDING.test(f));
+    OVERLAY.clear();
+    overlayParsed.clear();
+    for (const [k, v] of keptFailures) failures.set(k, v);
+    for (const [k, v] of keptChecks) checks.set(k, v);
+    checked(plant.rule);
+    if (threw !== null) {
+      fail(plant.rule, `the self-test planted ${plant.what} in ${rel(plant.file)} and ${plant.rule} threw (${threw.slice(0, 120)}) rather than reading it; a rule answers a broken source with a finding (build/p350/SPEC.md §7.2)`);
+    } else if (own.length === 0) {
+      fail(plant.rule, `the self-test planted ${plant.what} in ${rel(plant.file)} and ${plant.rule} stayed green, so it cannot see the clause it exists for (build/p350/SPEC.md §7.2)`);
+    } else {
+      p350SelfTestLines.push(`self-test ${plant.rule}: ${plant.what} → red, as it must be (${own[0].slice(0, 90)}${own[0].length > 90 ? '…' : ''})`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
 
@@ -19478,7 +20029,12 @@ const PHASES = [
   // Four of its rules drive async functions in-process, so it is awaited.
   ['rename a session from the phone', p349Rules, 'RN1'],
   // Then each of its ten rules is shown red on its own clause, in memory.
-  ['the Phase 349 self-test', p349SelfTest, 'RN1']
+  ['the Phase 349 self-test', p349SelfTest, 'RN1'],
+  // PHASE 350, page a full-screen agent from the phone (build/p350/SPEC.md
+  // §7.2): Z3, Z8 and Z11 widened, Z31 and Z32 new, three of them driven.
+  ['page a full-screen agent from the phone', p350Rules, 'Z31'],
+  // Then each Phase 350 clause is shown red on its own break, in memory.
+  ['the Phase 350 self-test', p350SelfTest, 'Z31']
 ];
 
 for (const [name, run, onError] of PHASES) {
@@ -19489,7 +20045,7 @@ for (const [name, run, onError] of PHASES) {
   }
 }
 
-for (const line of [...p348SelfTestLines, ...p349SelfTestLines]) process.stdout.write(`  ${line}\n`);
+for (const line of [...p348SelfTestLines, ...p349SelfTestLines, ...p350SelfTestLines]) process.stdout.write(`  ${line}\n`);
 let red = 0;
 let total = 0;
 for (const [id, owner, title] of RULES) {

@@ -125,15 +125,17 @@
  *          `HISTORY_QUIET_MS` (180 s, starting nothing): moved again is his own
  *          terminal, held still FAILS, no re-read is UNREADABLE (`historyHeld`)
  *
- * WHAT IT REFUSES TO DO. It never names the person's tmux server or `-L
- * gmux` (it refuses any socket that is not a `gmux-p349` harness socket), and
- * nothing it starts lists that server, not even to count (his ruling, the
- * fix round of 2026-10-31): each launch hands build/electron-run.mjs its
- * socket through the app's env alone (`GMUX_TMUX_SOCKET`, `tmuxSocket:
- * null`), so the helper still refuses a socket that is not a scratch one and
- * judges the socket the app announces, and never runs its layer-4 census of
- * `-L gmux`; this file ends its own scratch server after every launch, in a
- * `finally` (`endScratchServer`), where the helper's teardown ended it. It
+ * WHAT IT REFUSES TO DO. It never names the person's tmux server (it refuses
+ * any socket that is not a `gmux-p349` harness socket). IN THE STANDARD FORM
+ * (his ruling of 2 November 2026, "ok do the allow"): each launch names this
+ * run's socket (`tmuxSocket`) beside `GMUX_TMUX_SOCKET` in the app's env, so
+ * build/electron-run.mjs refuses a socket that is not a scratch one, judges
+ * the socket the app announces, reads his session names once before and once
+ * after the launch, READ ONLY, failing the launch if one appeared or went (its
+ * layer-4 census), and its teardown ends this run's scratch server. That
+ * census is the one read of his server anything in this run makes. The fix
+ * round of 2026-10-31's "not even to count" (no `tmuxSocket` and a
+ * `kill-server` of this file's own) is withdrawn by that ruling. It
  * binds no real interface and dials nothing but 127.0.0.1, never runs a real
  * `tailscale` and never asks real DNS, reads no keychain and no credential
  * (the app runs `--use-mock-keychain`), and signals only the pids it started,
@@ -1902,12 +1904,11 @@ function launchOptions(label, checkout) {
     label,
     userDataDir: PROFILE,
     cwd: checkout,
-    // THE FIX ROUND of 2026-10-31, his ruling on the Mac lens's `-L gmux` item: no run of ours lists his server,
-    // not even to count. The socket reaches the helper through the app's env alone (GMUX_TMUX_SOCKET below), so
-    // it still refuses a socket that is not a scratch one and judges the socket the app announces (its layer 3),
-    // and its layer-4 census of `-L gmux`, which it reads only for a launch that names `tmuxSocket`, never runs.
-    // `endScratchServer` ends this run's own server after every launch instead, where the helper's teardown did.
-    tmuxSocket: null,
+    // THE STANDARD FORM (his ruling of 2 November 2026, "ok do the allow", which withdraws the fix round of
+    // 2026-10-31's "not even to count"): the helper is handed this run's socket, so it refuses a socket that is not
+    // a scratch one, judges the socket the app announces (its layer 3), reads his session names once before and
+    // once after the launch, read only (its layer-4 census), and its teardown ends this run's scratch server.
+    tmuxSocket: SOCKET,
     args: ['--remote-debugging-port=0', '--use-mock-keychain'],
     env: withoutDevRenderer({
       ...INHERITED,
@@ -1929,19 +1930,6 @@ function launchOptions(label, checkout) {
     graceMs: 8_000,
     ceilingMs: 3_600_000
   };
-}
-
-/**
- * This run's own scratch server ended, by its socket's name and nothing else (THE FIX ROUND of 2026-10-31): the
- * call build/electron-run.mjs's teardown made when this file named `tmuxSocket`, now made here because it names
- * none (`launchOptions`). It runs after every launch, in `launch`'s `finally`, so HEAD starts with no server of
- * the parent's alive, as before; build/harness-socket.mjs still ends whatever is left after the run.
- */
-function endScratchServer(label) {
-  const r = spawnSync('tmux', ['-L', SOCKET, 'kill-server'], { encoding: 'utf8', timeout: 10_000 });
-  const said = r.status === 0 ? 'ended' : String(r.stderr ?? '').trim().split('\n')[0] || `exit ${String(r.status)}`;
-  (report.readings.scratchServer ??= []).push({ label, socket: SOCKET, said });
-  say(`${label}: this run's scratch server on -L ${SOCKET}: ${said}`);
 }
 
 /** One launch through the helper, after the preflights, the shadow refusal and the hidden agents. */
@@ -1975,14 +1963,23 @@ async function launch(label, checkout, body) {
     throw new Error(`the hidden agents' precheck refused the launch: ${hiddenPre.said}`);
   }
   writeHiddenAgents(PROFILE, HIDDEN_PREFIX, HIDDEN_IDS);
+  const census = { label, census: null };
+  (report.readings.census ??= []).push(census);
   try {
-    return await launchOnce(label, checkout, body);
-  } finally {
-    endScratchServer(label);
+    const value = await launchOnce(label, checkout, body);
+    // The helper returned, so its census, which throws when one of his sessions appeared or went across a launch
+    // whose body returned, read no change; and its teardown ended this run's scratch server.
+    census.census = 'no change';
+    say(`${label}: the helper read his session names before and after this launch, read only, and saw no change`);
+    return value;
+  } catch (err) {
+    const m = String(err?.message ?? err);
+    if (/ APPEARED on | WENT from /.test(m)) census.census = m;
+    throw err;
   }
 }
 
-/** The launch itself, through the helper, with no `tmuxSocket` (see `launchOptions`). */
+/** The launch itself, through the helper, naming this run's socket (see `launchOptions`). */
 function launchOnce(label, checkout, body) {
   return withElectron(launchOptions(label, checkout), async (handle) => {
     lastShim = handle.pid;

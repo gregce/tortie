@@ -458,6 +458,17 @@
  * through screen/read.ts's one statement. `npm run ablation:p320` breaks each
  * clause (`k15` to `k23`).
  *
+ * PHASE 350 WIDENED 102, 103 AND 122 (build/p350/SPEC.md §6 item 7, D4, D24).
+ * A pull on the phone pages a full-screen program on another machine by
+ * `PPage` or `NPage`, which cross the eighth row unchanged: the contract's
+ * list is 37 names now, Phase 337's 35 in their order and index and the two
+ * page keys after them. 122 pins the 37 by value and drives `namedKeySequence`
+ * over each and over six near misses of a page key (a spelling, a case, a
+ * modifier, both at once, Home and End) beside Phase 337's eight; 102 reads
+ * the eighth row's slots as the 37 and requires the hostile corpus to hold the
+ * page keys' near misses by label, each refused; 103's import rule names the
+ * 37. Nothing else moves: no row, shape or format.
+ *
  * 55. `repo-facts` is not a one value read in the catalogue; it names a git verb
  *     other than `rev-parse`; `ALLOWED_GIT_VERBS` is not exactly `ls-files`,
  *     `rev-parse`, `show` and `status`; the script text or the bytes the door
@@ -11671,16 +11682,21 @@ const GRANT_SCAN_FIXTURES = [
 // The probe DRIVES the shipping modules with a recording send, so nothing here
 // writes to any connection. The source reads below are this file's own.
 /**
- * PHASE 337 (build/p337/SPEC.md D17, D20): the 35 key names the phone may send,
+ * PHASE 337 (build/p337/SPEC.md D17, D20): the key names the phone may send,
  * as the SPEC pins them, held here BY VALUE, and the contract's own list read
  * from src/shared/ipc/pocket.ts's text. Condition 122 holds the two equal, so a
  * name added to the contract is a visible edit to this gate as well, and the
  * eighth carriage row is compared against the contract's list (102, 103).
+ * PHASE 350 (build/p350/SPEC.md D4, D24) is that visible edit: Phase 337's 35
+ * keep their order and index, and `PPage` and `NPage` follow them, the two a
+ * pull on the phone sends to a full-screen program on another machine through
+ * the eighth row unchanged. 37 names.
  */
 const P337_KEY_NAMES_PINNED = Object.freeze([
   'Escape', 'Tab', 'BTab', 'Enter', 'BSpace', 'Up', 'Down', 'Left', 'Right',
   'C-a', 'C-b', 'C-c', 'C-d', 'C-e', 'C-f', 'C-g', 'C-h', 'C-i', 'C-j', 'C-k', 'C-l', 'C-m',
-  'C-n', 'C-o', 'C-p', 'C-q', 'C-r', 'C-s', 'C-t', 'C-u', 'C-v', 'C-w', 'C-x', 'C-y', 'C-z'
+  'C-n', 'C-o', 'C-p', 'C-q', 'C-r', 'C-s', 'C-t', 'C-u', 'C-v', 'C-w', 'C-x', 'C-y', 'C-z',
+  'PPage', 'NPage'
 ]);
 const P337_KEY_NAMES = (() => {
   try {
@@ -11906,7 +11922,7 @@ const P337_KEY_NAMES = (() => {
         );
       }
       // The eighth row's slots, word by word: send-keys, -t, a session id, and
-      // ONE of the contract's 35 names, read here from the contract's own text.
+      // ONE of the contract's 37 names, read here from the contract's own text.
       const keyRow = shapes.find((row) => row.id === 'type-key');
       const WANT_KEY = ['send-keys', '-t', 'target', `one-of:${P337_KEY_NAMES.join('|')}`];
       if (keyRow !== undefined && JSON.stringify(keyRow.slots) !== JSON.stringify(WANT_KEY)) {
@@ -11999,6 +12015,18 @@ const P337_KEY_NAMES = (() => {
           `sign, a key name, -l, -K, -M, -R, -X, -H before -t, and a name, % or = target.`
       );
     }
+    // PHASE 350 (build/p350/SPEC.md D24): the page keys by their own names
+    // alone, so a corpus that lost its rows of a page key spelled, modified or
+    // doubled, or of Home and End, reads red here and not as a pass.
+    const pageCorpus = ['Page Up spelled PageUp', 'Page Up in lowercase', 'Page Up with Shift', 'Page Down with Control', 'both page keys in one command', 'Home', 'End'];
+    const pageMissing = pageCorpus.filter((label) => !hostile.some((row) => row.label === label));
+    if (pageMissing.length > 0) {
+      fail(
+        `the hostile corpus holds no row labelled ${JSON.stringify(pageMissing)}; since Phase 350 it ` +
+          `holds the page keys spelled, modified and doubled, and Home and End, each of which the ` +
+          `eighth row refuses (build/p350/SPEC.md D24).`
+      );
+    }
     const admitted = hostile.filter((row) => row.verdict?.ok === true || row.verdict?.threw === true);
     for (const row of admitted) {
       fail(
@@ -12083,7 +12111,7 @@ const P337_KEY_NAMES = (() => {
     // never re-spelled, so the phone's names and the carriage's are one list.
     if (shapesCode !== null) {
       if (!/import\s*\{[^}]*\bPOCKET_SCREEN_KEY_NAMES\b[^}]*\}\s*from\s*'@shared\/ipc\/pocket'/.test(shapesCode)) {
-        fail('scroll-shapes.ts does not import POCKET_SCREEN_KEY_NAMES from @shared/ipc/pocket; the eighth row reads the contract’s 35 names and spells none of its own (build/p337/SPEC.md D20).');
+        fail('scroll-shapes.ts does not import POCKET_SCREEN_KEY_NAMES from @shared/ipc/pocket; the eighth row reads the contract’s 37 names and spells none of its own (build/p337/SPEC.md D20; build/p350/SPEC.md D24).');
       }
       const respelled = P337_KEY_NAMES.filter((name) => shapesCode.includes(`'${name}'`) || shapesCode.includes(`"${name}"`));
       if (respelled.length > 0) {
@@ -14508,18 +14536,19 @@ const P337_KEY_NAMES = (() => {
     if (JSON.stringify(P337_KEY_NAMES) !== JSON.stringify(P337_KEY_NAMES_PINNED)) {
       fail(
         `src/shared/ipc/pocket.ts's POCKET_SCREEN_KEY_NAMES reads ${JSON.stringify(P337_KEY_NAMES).slice(0, 200)}; it is ` +
-          `exactly the 35 names build/p337/SPEC.md D17 pins, in that order: Escape, Tab, BTab, Enter, BSpace, the four ` +
-          `arrows and C-a to C-z. A name added there is a key the phone can send to another machine, and is an edit here too.`
+          `exactly the 37 names, the 35 build/p337/SPEC.md D17 pins in that order (Escape, Tab, BTab, Enter, BSpace, the ` +
+          `four arrows and C-a to C-z) and then PPage and NPage (build/p350/SPEC.md D24). A name added there is a key the ` +
+          `phone can send to another machine, and is an edit here too.`
       );
     }
     const t = d.typeKey ?? {};
     if (t.present !== true) cantJudge(122, 'scroll-shapes.ts exports no namedKeySequence');
     else {
       if (JSON.stringify(t.names) !== JSON.stringify(P337_KEY_NAMES_PINNED)) {
-        fail(`the LOADED contract's names are ${JSON.stringify(t.names).slice(0, 160)}, not the 35 the spec pins.`);
+        fail(`the LOADED contract's names are ${JSON.stringify(t.names).slice(0, 160)}, not the 37 the specs pin (build/p337/SPEC.md D17; build/p350/SPEC.md D24).`);
       }
       const rows = Array.isArray(t.rows) ? t.rows : [];
-      if (rows.length !== 35) cantJudge(122, `namedKeySequence was driven over ${String(rows.length)} names, not 35`);
+      if (rows.length !== P337_KEY_NAMES_PINNED.length) cantJudge(122, `namedKeySequence was driven over ${String(rows.length)} names, not ${String(P337_KEY_NAMES_PINNED.length)}`);
       for (const row of rows) {
         const want = [['send-keys', '-t', '$4', '-X', 'cancel'], ['send-keys', '-t', '$4', row.name]];
         if (JSON.stringify(row.seq ?? null) !== JSON.stringify(want)) {
@@ -14532,9 +14561,13 @@ const P337_KEY_NAMES = (() => {
         }
       }
       for (const row of t.refused ?? []) {
-        if (row.threw !== true) fail(`namedKeySequence composed ${JSON.stringify(row.seq).slice(0, 120)} for the name ${JSON.stringify(row.name)}, which is not one of the 35; it refuses, so a caller's string never reaches the far side.`);
+        if (row.threw !== true) fail(`namedKeySequence composed ${JSON.stringify(row.seq).slice(0, 120)} for the name ${JSON.stringify(row.name)}, which is not one of the 37; it refuses, so a caller's string never reaches the far side.`);
       }
-      if ((t.refused ?? []).length < 8) cantJudge(122, 'namedKeySequence was not driven over the eight names it must refuse');
+      // PHASE 350: the eight names it must refuse, and six near the page keys.
+      if ((t.refused ?? []).length < 14) cantJudge(122, 'namedKeySequence was not driven over the fourteen names it must refuse');
+      for (const name of ['PageUp', 'ppage', 'S-PPage', 'PPage NPage', 'Home', 'End']) {
+        if (!(t.refused ?? []).some((row) => row.name === name)) cantJudge(122, `namedKeySequence was not driven over ${JSON.stringify(name)}, a page key's near miss it must refuse (build/p350/SPEC.md D24)`);
+      }
     }
     // By NAME, an import included, so a renamed import is still found.
     const composers = filesNaming('namedKeySequence').filter((file) => file !== 'src/main/machines/scroll-shapes.ts');
@@ -14828,7 +14861,7 @@ const P337_KEY_NAMES = (() => {
   }
 
   process.stdout.write(
-    '\nthe phone\'s keys on another machine hold: the eighth row is send-keys -t $N and one of the contract\'s 35 names, ' +
+    '\nthe phone\'s keys on another machine hold: the eighth row is send-keys -t $N and one of the contract\'s 37 names (Page Up and Page Down among them since Phase 350), ' +
       'composed only by namedKeySequence for typePhoneKeys, which asks the address and the carriage live, writes one ' +
       'cancel, every item and the read in one tick with no await and never holds; and a far screen is read by one ' +
       'execOn( of the display, the capture and the display with the one format, and a far page by one more of the ' +

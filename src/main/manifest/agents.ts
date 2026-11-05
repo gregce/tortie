@@ -723,11 +723,17 @@ export function harvestProvenance(
  * @param binPath    RESOLVED absolute path of the agent binary (Bug A: the
  *                   manifest stores absolute paths in argv AND resume_argv
  *                   so restores survive PATH drift).
+ * @param floorHolds PHASE 350 (D20). TRUE only when the caller read this Mac's
+ *                   pi at `PI_INLINE_FLOOR` or later. Handed to both
+ *                   composers, which put pi's inline token straight after
+ *                   argv[0] on the launch AND the resume argv; it changes
+ *                   nothing for any other agent or for a shell.
  */
 export function buildLaunchSpec(
   agent: LaunchableAgentKind,
   extraArgs: readonly string[] = [],
-  binPath?: string
+  binPath?: string,
+  floorHolds = false
 ): AgentLaunchSpec {
   if (agent === 'shell') {
     // GUI-launched Electron inherits a minimal env; SHELL may be unset.
@@ -758,7 +764,7 @@ export function buildLaunchSpec(
 
   const spec: AgentLaunchSpec = {
     agent,
-    argv: launchArgvFor(entry, extraArgs, binPath),
+    argv: launchArgvFor(entry, extraArgs, binPath, undefined, floorHolds),
     idCapture: 'unsupported',
     resumeStrategy: entry.resume.strategy,
     resumeTemplate: [...entry.resume.template]
@@ -780,8 +786,8 @@ export function buildLaunchSpec(
       // cleared and re-asking would only add a second chance to disagree.
       const id = randomUUID();
       spec.agentSessionId = id;
-      spec.argv = launchArgvFor(entry, extraArgs, binPath, id);
-      spec.resumeArgv = resumeArgvFor(entry, id, extraArgs, bin);
+      spec.argv = launchArgvFor(entry, extraArgs, binPath, id, floorHolds);
+      spec.resumeArgv = resumeArgvFor(entry, id, extraArgs, bin, floorHolds);
       spec.idCapture = 'preassigned';
       break;
     }
@@ -810,13 +816,17 @@ export function buildLaunchSpec(
  * A failure here is never fatal — the session still launches, it just comes
  * back as a directory instead of a conversation, and `idCapture` stays
  * 'preassigned-cmd' with no id so the UI can say which of the two happened.
+ *
+ * `floorHolds` is {@link buildLaunchSpec}'s (Phase 350, D20), handed through
+ * to every composition below.
  */
 export async function resolveLaunchSpec(
   agent: LaunchableAgentKind,
   extraArgs: readonly string[] = [],
-  binPath?: string
+  binPath?: string,
+  floorHolds = false
 ): Promise<AgentLaunchSpec> {
-  const spec = buildLaunchSpec(agent, extraArgs, binPath);
+  const spec = buildLaunchSpec(agent, extraArgs, binPath, floorHolds);
   if (agent === 'shell' || spec.idCapture !== 'preassigned-cmd') return spec;
 
   // PHASE 23: the same entry again, so the side command that mints an id comes
@@ -844,8 +854,8 @@ export async function resolveLaunchSpec(
     if (!isPlausibleSessionId(id)) return spec;
     spec.agentSessionId = id;
     // Cursor's launch argv IS its resume argv: start into the empty chat.
-    spec.argv = resumeArgvFor(entry, id, extraArgs, bin);
-    spec.resumeArgv = resumeArgvFor(entry, id, extraArgs, bin);
+    spec.argv = resumeArgvFor(entry, id, extraArgs, bin, floorHolds);
+    spec.resumeArgv = resumeArgvFor(entry, id, extraArgs, bin, floorHolds);
   } catch {
     /* an unusable id or argv rewrite — the bare launch still stands */
   }
@@ -878,7 +888,7 @@ export function claudeResumeArgv(
   extraArgs: readonly string[] = [],
   bin = 'claude'
 ): string[] {
-  return registryResumeArgv('claude', sessionId, extraArgs, bin);
+  return registryResumeArgv('claude', sessionId, extraArgs, bin, false);
 }
 
 /** `codex resume <uuid>` + the original extra flags. */
@@ -887,5 +897,5 @@ export function codexResumeArgv(
   extraArgs: readonly string[] = [],
   bin = 'codex'
 ): string[] {
-  return registryResumeArgv('codex', sessionId, extraArgs, bin);
+  return registryResumeArgv('codex', sessionId, extraArgs, bin, false);
 }

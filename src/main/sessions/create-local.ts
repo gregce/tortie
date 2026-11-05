@@ -42,7 +42,10 @@ import {
   // the resolve just found and asks whether the interpreter that line names
   // is on the PATH the pane will get. It spawns nothing.
   checkAgentBinary,
-  expandDirs
+  expandDirs,
+  // PHASE 350 (D25), and its fix round. pi's floor for the binary this create
+  // runs, read off the last resolved scan.
+  piInlineFloorFor
 } from '../agents';
 // PHASE 23. One lookup, into the merged agent table, in memory. It is used to
 // find a configured agent's binary NAME when the compiled registry has never
@@ -300,7 +303,11 @@ export async function createLocalSession(
   // guarantees they do. It is after the remote branch on purpose: a session
   // on another machine takes that machine's PATH, and this Mac's capture
   // answers nothing about it. See src/main/tmux/user-path.ts.
-  await tmux.installUserPath();
+  //
+  // PHASE 350, THE SECOND RULED ROUND. The value is kept: it is the PATH the
+  // pane's execvp walks (this process is the tmux client, and tmux hands a
+  // pane its client's PATH), which pi's floor asks below.
+  const panePath = await tmux.installUserPath();
   if (!isDirectory(input.projectPath)) {
     throw gmuxError(
       'PROJECT_NOT_FOUND',
@@ -459,12 +466,39 @@ export async function createLocalSession(
         : effectiveLogin(loginsRoot(), loginProvider);
   const loginEnv = loginPaneEnv(loginProvider, login?.dir ?? null);
 
+  // PHASE 350 (build/p350/SPEC.md §4.1 item 5, D20). The installed version is
+  // read ONCE, here, before the launch is composed, from the same last resolved
+  // scan the floor below reads, and it is the version the row records.
+  // SYNCHRONOUS since Phase 49: `peekDetectedAgents` never starts a scan and
+  // never waits on one, so a create can never stall behind a version probe, and
+  // a create that beats the first scan records NULL and composes no token,
+  // which is how every pi launched before this phase ran.
+  const agentVersion = deps.cachedAgentVersion(input.agent);
+
+  // PHASE 350, HIS RULING OF 2026-11-02, THE SECOND RULED ROUND ("Check the
+  // file that runs"). A pane spawned by its BARE NAME runs whatever file that
+  // name finds on the pane's PATH, walked from the folder tmux starts it in,
+  // and a relative entry ahead of `binPath`'s folder (`node_modules/.bin`, the
+  // common `export PATH=./node_modules/.bin:$PATH`) finds a project's own pi,
+  // which may be below the floor and stop on the token after its trust
+  // question. So pi's floor is asked for `binPath` AS THIS PANE WILL RUN IT,
+  // and holds only when that walk finds this very file. A pane spawned by the
+  // absolute path runs `binPath` itself and is handed no walk. The phone's
+  // start and Restart's replacement both reach this line.
+  const spawnedBy = bareName === undefined ? undefined : { name: bareName, path: panePath, folder: cwd };
+
   // resolveLaunchSpec (not buildLaunchSpec): cursor's id comes from a side
   // command that has to run BEFORE the pane exists.
   const spec = await resolveLaunchSpec(
     input.agent,
     input.extraArgs ?? [],
-    binPath
+    binPath,
+    // `AgentKind` is the old three-member type a create input still carries;
+    // the id it holds at run time is any launchable agent's. THE FIX ROUND:
+    // the floor of THIS binary, the one the row records and its restore runs,
+    // so a second pi install, or a pi reinstalled since the scan read it,
+    // composes no token. Stats and reads, never a spawn.
+    (input.agent as LaunchableAgentKind) === 'pi' && piInlineFloorFor(binPath, spawnedBy) === 'holds'
   );
 
   // PHASE 202, ADD LOGIN. The vendor's own sign in, as one ordinary session.
@@ -572,13 +606,13 @@ export async function createLocalSession(
   // here instead, while it is still true.
   //
   // Two awaits, neither of which spawns anything: the two realpath calls
-  // are one fs lookup each. The version read is SYNCHRONOUS since Phase 49
-  // (peekDetectedAgents never starts a scan and never waits on one), so a
-  // create can never stall behind a version probe. The resolved cwd is
-  // recorded because it is the store key for five of the eleven agents, so
-  // a moved or re-cloned checkout is the difference between finding the
-  // conversation and not.
-  const agentVersion = deps.cachedAgentVersion(input.agent);
+  // are one fs lookup each. The version the row records was read above,
+  // before the launch was composed (Phase 350), and is not read again here,
+  // so a scan that answers during this create's awaits leaves this one row's
+  // version NULL, which costs only the restore's version sentence for it. The
+  // resolved cwd is recorded because it is the store key for five of the
+  // eleven agents, so a moved or re-cloned checkout is the difference between
+  // finding the conversation and not.
   const cwdReal = await realpath(cwd).catch(() => cwd);
   const projectReal = await realpath(input.projectPath).catch(
     () => input.projectPath

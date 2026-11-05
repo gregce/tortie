@@ -141,19 +141,21 @@ describe('the table', () => {
     expect(notIdempotent).toEqual(['scroll-lines', 'type-bytes', 'type-key']);
   });
 
-  it('admits the eighth row as send-keys -t $N and exactly one of the contract\'s 35 names, read from the contract', () => {
+  it('admits the eighth row as send-keys -t $N and exactly one of the contract\'s 37 names, read from the contract', () => {
     const typeKey = SCROLL_SHAPES.find((shape) => shape.id === 'type-key');
     expect(typeKey?.argv).toHaveLength(4);
     const last = typeKey?.argv[3];
     // The contract's own frozen list, not a copy of it.
     expect(last).toEqual({ kind: 'one-of', words: POCKET_SCREEN_KEY_NAMES });
     expect(last?.kind === 'one-of' ? last.words : null).toBe(POCKET_SCREEN_KEY_NAMES);
-    expect(POCKET_SCREEN_KEY_NAMES).toHaveLength(35);
+    // Phase 337's 35, then Phase 350's two page keys (build/p350/SPEC.md D24).
+    expect(POCKET_SCREEN_KEY_NAMES).toHaveLength(37);
     for (const name of POCKET_SCREEN_KEY_NAMES) {
       expect(admitScrollArgv(['send-keys', '-t', '$3', name])).toEqual({ ok: true, shape: 'type-key' });
     }
-    // A key name the phone never sends, a modifier, a second name, and a flag.
-    for (const refused of ['M-x', 'F1', 'C-Up', 'c-c', 'C-C', 'Home', 'PageUp', 'Space', 'C-c;', ' Enter', 'Enter ']) {
+    // A key name the phone never sends, a modifier, a second name, and a flag;
+    // since Phase 350, a page key spelled any other way or modified, and Home and End.
+    for (const refused of ['M-x', 'F1', 'C-Up', 'c-c', 'C-C', 'Home', 'End', 'PageUp', 'ppage', 'NPAGE', 'S-PPage', 'C-NPage', 'Space', 'C-c;', ' Enter', 'Enter ', ' PPage', 'PPage ']) {
       expect(admitScrollArgv(['send-keys', '-t', '$3', refused]).ok, refused).toBe(false);
     }
   });

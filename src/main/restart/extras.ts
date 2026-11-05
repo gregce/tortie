@@ -146,14 +146,26 @@ export function recoverLaunchExtras(
   // Shape 1, the ordinary launch: [bin, ...registry args, ...pre-assign,
   // ...extras]. The id is passed so the pre-assign pair is rebuilt in place;
   // it is ignored for every agent that does not take one.
-  const launch = registryLaunchArgv(agent, [], bin, rec.agentSessionId);
+  //
+  // PHASE 350 (build/p350/SPEC.md D15). Both shapes are composed with pi's
+  // floor answered `true`, whatever this Mac's pi reads today. The comparison
+  // reads the argv AS TODAY'S REGISTRY WOULD HAVE LAUNCHED IT, and
+  // `fixedLaunchTokens` names pi's inline token at every version, so
+  // `asLaunched` above always carries it and the composition must too: without
+  // it a pi row recorded with the token recovers null (Restart then drops the
+  // person's own flags), and a pi row with no id recovers the token itself as a
+  // person's flag, which a Restart would hand to a pi below the floor, where it
+  // stops pi after its trust question. The recovered flags therefore never hold
+  // Tortie's token; the replacement's create composes it afresh from the floor
+  // read at that moment. For every other agent `true` changes nothing.
+  const launch = registryLaunchArgv(agent, [], bin, rec.agentSessionId, true);
   if (startsWith(asLaunched, launch)) return asLaunched.slice(launch.length);
 
   // Shape 2, cursor: the launch argv IS a resume argv, and a resume argv may
   // carry its extras in front of the template rather than behind it.
   const id = rec.agentSessionId;
   if (id !== undefined && id.length > 0) {
-    const resume = registryResumeArgv(agent, id, [], bin);
+    const resume = registryResumeArgv(agent, id, [], bin, true);
     if (resume.length > 0) {
       const position = getLaunchableEntry(agent).resume.resumeExtrasPosition;
       if (position === 'leading') {

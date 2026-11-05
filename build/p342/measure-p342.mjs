@@ -995,7 +995,8 @@ function gradeRow(r, ctx, mac) {
       if ((c.scroll?.entries ?? []).some((a) => JSON.stringify(a.slice(0, 3)) !== JSON.stringify(['copy-mode', '-e', '-H']))) out.push(`${r.row}: a machine's copy mode was entered without -H`);
       const back = c.scroll?.steps?.back30?.value;
       if (back?.inMode !== true || back?.position !== 30) out.push(`${r.row}: scrolling back 30 read ${JSON.stringify(back)}`);
-      if ((c.keys?.refused ?? []).length > 0 || (c.keys?.sent ?? 0) !== 35) out.push(`${r.row}: of the phone's key names, ${String((c.keys?.refused ?? []).length)} were refused and ${String(c.keys?.sent)} sent`);
+      // The contract's 37 names since Phase 350 (PPage and NPage appended), which the drive walks.
+      if ((c.keys?.refused ?? []).length > 0 || (c.keys?.sent ?? 0) !== 37) out.push(`${r.row}: of the phone's key names, ${String((c.keys?.refused ?? []).length)} were refused and ${String(c.keys?.sent)} sent`);
     }
     if (d.attach?.attached !== '1' || d.attach?.decoyAttached !== '0') out.push(`${r.row}: the attach's =$N attached ${JSON.stringify(d.attach)}`);
   }

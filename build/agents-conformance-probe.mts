@@ -12,9 +12,12 @@
  * exists next to it.
  *
  * IT SPAWNS NOTHING. It starts no tmux server, opens no manifest, launches no
- * Electron, reads no file under the user's home and writes nothing anywhere.
- * Every function it calls is pure. It is safe to run on a machine with live
- * sessions on it.
+ * Electron, reads no file under the user's home and writes nothing anywhere
+ * but ONE scratch folder: since Phase 350's second ruled round, row 11.11's
+ * world (a few links and small `/bin/sh` files that nothing runs) under the
+ * system's temporary folder, removed in its `finally`. Every function it calls
+ * is pure or reads files. It is safe to run on a machine with live sessions on
+ * it.
  *
  * ---------------------------------------------------------------------------
  * WHAT IT CANNOT PROVE, said here so nobody reads more into a pass
@@ -46,8 +49,23 @@
  * and `executionHash` comes from `config/confirm.ts`. All four are pure.
  */
 
+import { chmodSync, linkSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import {
+  // Phase 350's second ruled round: the one resolver of the file a bare-name
+  // spawn runs, and its comparison by device and inode. Both read files only.
+  bareNameSpawnFile,
+  bareNameSpawnRuns,
   peekDetectedAgents,
+  // Phase 350: pi's floor read off the last RESOLVED scan, for one binary
+  // (its fix round). This probe starts none, so it must answer `unread` here,
+  // which the checker requires.
+  piInlineFloorFor,
+  // Phase 350's fix round: the table a row's own composition is read from,
+  // planted for the strip's person's-own run and put back after it.
+  resetAgentTableSource,
+  setAgentTableSource,
   versionProbeCount
 } from '../src/main/agents/detection';
 import {
@@ -61,6 +79,14 @@ import {
   // Phase 331: the two argv builders every create and every resume go through.
   launchArgvFor,
   resumeArgvFor,
+  // Phase 350: pi's token, its floor, the one floor rule, the tokens a row
+  // fixes after argv[0], and the id-keyed launch composer.
+  PI_INLINE_ARGS,
+  PI_INLINE_FLOOR,
+  fixedLaunchTokens,
+  getLaunchableEntry,
+  piInlineFloor,
+  registryLaunchArgv,
   type AgentRegistryEntry
 } from '../src/main/agents/registry';
 // Phase 269: the ONE spelling of "will Tortie read this variable?", and the
@@ -98,6 +124,8 @@ import {
   serializeAgentContract
 } from '../src/main/manifest/contract';
 import { agentShortLabel, buildAgentOptions } from '../src/renderer/state/agents';
+// Phase 350: the id a row on this Mac carries, or that its absence means.
+import { LOCAL_MACHINE_ID } from '../src/shared/workspace-target';
 import type { AgentsScanResult, DetectedAgent, LaunchableAgentId } from '../src/shared/types';
 
 /** The two lines to change if C1 ever moves the loader or the confirm hash. */
@@ -1637,6 +1665,456 @@ async function p331Section(): Promise<Record<string, unknown>> {
 }
 
 // ---------------------------------------------------------------------------
+// Section 11, Phase 350 — pi's inline token behind its floor
+// ---------------------------------------------------------------------------
+//
+// build/p350/SPEC.md §7.1. pi's token (`PI_INLINE_ARGS`) is in neither its
+// launch argv nor its resume template; the two composers put it straight after
+// argv[0] only when their caller says this Mac's scan reads pi at
+// `PI_INLINE_FLOOR`. This block prints what the checker's rows 11.6 to 11.9
+// hold that to: the two constants and the fixed tokens; every launchable row
+// composed by the four composers, `buildLaunchSpec` and `composeResumeArgv` at
+// both floor answers; the one floor rule over eleven version readings; the pi
+// arm of the boot pass DRIVEN at each reading over planted rows through a
+// recording store (no manifest is opened); restore's strip DRIVEN at the one
+// reading this process can have, `unread`, because the probe starts no scan;
+// and the tokens Rule 1 of the arming composer admits. The rows are planted
+// HERE and printed with what the planting knows about them (wrapped, which
+// machine, which status), and the checker computes what each must come back as
+// from build/p350/SPEC.md §4.2 itself. Nothing is written anywhere and nothing
+// is started: the pass's log lines go to the console, which this block holds
+// for the length of the pass and hands to the checker instead of stdout.
+//
+// THE FIX ROUND. The pass now asks two readers per row: the floor of the
+// binary the row records, and the row's own composition with no token of
+// Tortie's. The reader this block hands it answers the driven reading for
+// `P350_PI` alone and `unread` for every other binary (two rows record a
+// SECOND pi install, R13 and R14), and a fourth run, `below-own`, hands it a
+// composition that leads with the two words, as an agents.json template that
+// starts with `--tui-mode regular` makes, so a person's own copy is never taken
+// out. The strip is driven twice: over the compiled table, and over a planted
+// table whose pi template leads with the two words (`stripOwn`).
+
+/** A flag of the person's own, invented so it can never be a real one. */
+const P350_OWN = '--p350-own';
+/** The conversation id every planted pi row carries, and one that is not its own. */
+const P350_ID = '019a0000-0000-7000-8000-0000000350a1';
+const P350_OTHER = '019a0000-0000-7000-8000-0000000350ff';
+const P350_PI = '/abs/p350/bin/pi';
+/** A second pi install on this Mac, whose version the reader never holds (the fix round). */
+const P350_OTHER_PI = '/opt/p350/bin/pi';
+const P350_FAR_PI = '/far/p350/bin/pi';
+const P350_SPECSTORY = '/abs/p350/specstory/bin/specstory';
+const P350_FAR = 'p350-far-machine';
+/**
+ * The version readings 11.8 drives, in the order the checker reads them: the
+ * nine of §7.1, and since the fix round three more, a line whose first dotted
+ * triple is another program's, a version with words around it, and a
+ * prerelease of the floor itself.
+ */
+const P350_VERSIONS: Array<string | null> = [
+  null,
+  '',
+  'garbage',
+  '0.83.9',
+  '0.84.0',
+  '0.84.2',
+  '0.99.2',
+  '1.4.0',
+  '10.0.0',
+  '22.11.0 node',
+  'pi 0.84.2',
+  '0.84.0-rc.1'
+];
+/**
+ * The runs the pass is driven at: each run's name, the reading its reader
+ * answers for `P350_PI`, and whether the row's own composition leads with the
+ * token (the fix round's `below-own`).
+ */
+const P350_RUNS = [
+  ['holds', 'holds', false],
+  ['below', 'below', false],
+  ['unread', 'unread', false],
+  ['below-own', 'below', true]
+] as const;
+
+interface P350Row {
+  id: string;
+  agent: string;
+  argv: string[];
+  resumeArgv?: string[];
+  agentSessionId?: string;
+  machineId?: string;
+  status: string;
+  /** A planting fact, not a reading: the row's argv is a SpecStory wrap. */
+  wrapped: boolean;
+}
+
+/** The planted rows, as M2 planted them (build/p350/SPEC.md §2.2), and the cases around them. */
+function p350Planted(): P350Row[] {
+  const T = [...PI_INLINE_ARGS];
+  const pi = (id: string, argv: string[], patch: Partial<P350Row> = {}): P350Row => ({
+    id,
+    agent: 'pi',
+    argv,
+    resumeArgv: argv,
+    agentSessionId: P350_ID,
+    status: 'restorable',
+    wrapped: false,
+    ...patch
+  });
+  const wrap = [P350_SPECSTORY, 'run', 'pi', '--no-cloud-sync', '-c', `${P350_PI} --session-id ${P350_ID}`];
+  return [
+    pi('R1', [P350_PI, '--session-id', P350_ID]),
+    pi('R2', [P350_PI, '--session-id', P350_ID, '--model', 'm']),
+    pi('R3', [P350_PI, '--session-id', P350_ID, '--tui-mode', 'fullscreen']),
+    pi('R4', [P350_PI, ...T, '--session-id', P350_ID, '--model', 'm']),
+    pi('R5', [P350_PI, ...T, '--session-id', P350_ID, '--tui-mode', 'fullscreen']),
+    pi('R6', [P350_FAR_PI, '--session-id', P350_ID], { machineId: P350_FAR }),
+    pi('R6b', [P350_FAR_PI, ...T, '--session-id', P350_ID], { machineId: P350_FAR }),
+    pi('R7', [P350_PI, '--session-id', P350_ID], { status: 'discarded' }),
+    { id: 'R8', agent: 'pi', argv: [P350_PI], status: 'restorable', wrapped: false },
+    { id: 'R9', agent: 'pi', argv: [P350_PI, '--session-id', P350_ID], agentSessionId: P350_ID, status: 'restorable', wrapped: false },
+    pi('R10', wrap, { wrapped: true }),
+    pi('R11', [P350_PI, '--session-id', P350_OTHER]),
+    pi('R12', [P350_PI, '--session-id', P350_ID, ...T]),
+    // The fix round: a second pi install's rows, and Tortie's copy before a person's own.
+    pi('R13', [P350_OTHER_PI, '--session-id', P350_ID]),
+    pi('R14', [P350_OTHER_PI, ...T, '--session-id', P350_ID, '--model', 'm']),
+    pi('R15', [P350_PI, ...T, ...T, '--session-id', P350_ID]),
+    // Three other agents carrying the same two words in the same place.
+    { id: 'C1', agent: 'codex', argv: ['/abs/p350/bin/codex', ...T], resumeArgv: ['/abs/p350/bin/codex', ...T, 'resume', P350_ID], agentSessionId: P350_ID, status: 'restorable', wrapped: false },
+    { id: 'C2', agent: 'claude', argv: ['/abs/p350/bin/claude', ...T], resumeArgv: ['/abs/p350/bin/claude', ...T, '--resume', P350_ID], agentSessionId: P350_ID, status: 'restorable', wrapped: false },
+    { id: 'C3', agent: 'omp', argv: ['/abs/p350/bin/omp', ...T], resumeArgv: ['/abs/p350/bin/omp', ...T, '--resume', P350_ID], agentSessionId: P350_ID, status: 'restorable', wrapped: false }
+  ];
+}
+
+/** A planted row as the pass reads it: a manifest record with nothing the pass does not read. */
+function p350Record(row: P350Row): Record<string, unknown> {
+  const { wrapped: _wrapped, ...rest } = row;
+  return {
+    name: `p350-${row.id}`,
+    tmuxName: `p350-${row.id}`,
+    projectPath: '/p350/w',
+    cwd: '/p350/w',
+    createdAt: 1_700_000_000_000,
+    lastSeen: 1_700_000_000_000,
+    ...JSON.parse(JSON.stringify(rest))
+  };
+}
+
+/** Hold the console for one call, so a log line never lands on the probe's stdout. */
+function p350Quiet<T>(fn: () => T): { value: T; lines: string[] } {
+  const lines: string[] = [];
+  const keep = { log: console.log, info: console.info, warn: console.warn, error: console.error, debug: console.debug };
+  const capture = (...args: unknown[]): void => {
+    lines.push(args.map(String).join(' '));
+  };
+  console.log = capture;
+  console.info = capture;
+  console.warn = capture;
+  console.error = capture;
+  console.debug = capture;
+  try {
+    return { value: fn(), lines };
+  } finally {
+    console.log = keep.log;
+    console.info = keep.info;
+    console.warn = keep.warn;
+    console.error = keep.error;
+    console.debug = keep.debug;
+  }
+}
+
+/** A random pre-assigned id written back as a placeholder, so two specs can be compared. */
+function p350Normal(argv: readonly string[] | undefined, id: string | undefined): string[] | null {
+  if (argv === undefined) return null;
+  return argv.map((t) => (id !== undefined && t === id ? '<minted>' : t));
+}
+
+async function p350Section(): Promise<Record<string, unknown>> {
+  const out: Record<string, unknown> = {
+    tokens: [...PI_INLINE_ARGS],
+    floor: PI_INLINE_FLOOR,
+    own: P350_OWN,
+    id: P350_ID,
+    fixed: Object.fromEntries(LAUNCHABLE_AGENT_IDS.map((id) => [id, [...fixedLaunchTokens(id)]])),
+    // Before anything below runs: this probe has started no scan.
+    floorNowBefore: piInlineFloorFor(P350_PI),
+    // The fix round: the one binary the pass's reader holds a reading for.
+    readerBinary: P350_PI
+  };
+
+  // 11.7, driven: every launchable row through every composer, at both answers.
+  const composed: Record<string, unknown> = {};
+  const errors: string[] = [];
+  let compose: ((rec: Record<string, unknown>, agent: string, sessionId: string, extra: readonly string[], floor: boolean) => { argv: string[] } | null) | null = null;
+  try {
+    const mod = (await import('../src/main/sessions/resume-argv')) as Record<string, unknown>;
+    if (typeof mod['composeResumeArgv'] === 'function') compose = mod['composeResumeArgv'] as typeof compose;
+    else errors.push('composeResumeArgv is not exported');
+  } catch (err) {
+    errors.push(`resume-argv did not import: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  for (const id of LAUNCHABLE_AGENT_IDS) {
+    const entry = getLaunchableEntry(id);
+    const bin = `/abs/p350/bin/${id}`;
+    const at = (floor: boolean): Record<string, unknown> => {
+      const spec = buildLaunchSpec(id, [P350_OWN], bin, floor);
+      const rec = { id: `p350-${id}`, agent: id, argv: [bin], status: 'restorable' };
+      let viaCompose: string[] | null = null;
+      try {
+        viaCompose = compose === null ? null : (compose(rec, id, P350_ID, [P350_OWN], floor)?.argv ?? null);
+      } catch (err) {
+        errors.push(`composeResumeArgv(${id}, ${String(floor)}) threw: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      return {
+        launch: launchArgvFor(entry, [P350_OWN], bin, P350_ID, floor),
+        resume: resumeArgvFor(entry, P350_ID, [P350_OWN], bin, floor),
+        registryLaunch: registryLaunchArgv(id, [P350_OWN], bin, P350_ID, floor),
+        registryResume: registryResumeArgv(id, P350_ID, [P350_OWN], bin, floor),
+        specArgv: p350Normal(spec.argv, spec.agentSessionId),
+        specResume: p350Normal(spec.resumeArgv, spec.agentSessionId),
+        composeResume: viaCompose
+      };
+    };
+    composed[id] = { held: at(true), notHeld: at(false), defaults: {
+      launch: launchArgvFor(entry, [P350_OWN], bin, P350_ID),
+      resume: resumeArgvFor(entry, P350_ID, [P350_OWN], bin)
+    } };
+  }
+  out['composed'] = composed;
+
+  // 11.8, driven: the one floor rule over the twelve readings.
+  out['readings'] = P350_VERSIONS.map((v) => ({ version: v, reading: piInlineFloor(v) }));
+
+  // 11.9, driven: the pi arm at each reading over the planted rows.
+  const planted = p350Planted();
+  out['planted'] = planted;
+  // Printed so the checker reads which machine is this Mac.
+  out['local'] = LOCAL_MACHINE_ID;
+  try {
+    const pass = (await import('../src/main/sessions/inline-repair')) as Record<string, unknown>;
+    const repair = pass['repairPiInline'];
+    if (typeof repair !== 'function') throw new Error('repairPiInline is not exported');
+    const byReading: Record<string, unknown> = {};
+    for (const [run, reading, ownLeads] of P350_RUNS) {
+      const writes: Array<{ id: string; argv: string[] }> = [];
+      const envWrites: Array<{ id: string }> = [];
+      const store = {
+        listSessions: () => planted.map(p350Record),
+        setResumeArgvColumn: (sid: string, argv: string[]) => {
+          writes.push({ id: sid, argv: [...argv] });
+        },
+        setEnvColumn: (sid: string) => {
+          envWrites.push({ id: sid });
+        }
+      };
+      // The fix round: the floor of each row's OWN binary, and its own composition.
+      const readers = {
+        floorFor: (bin: string): string => (bin === P350_PI ? reading : 'unread'),
+        ownResume: (sessionId: string): string[] => (ownLeads ? [P350_PI, ...PI_INLINE_ARGS, '--session-id', sessionId] : [])
+      };
+      const ran = p350Quiet(() => (repair as (s: unknown, r: unknown) => unknown[])(store, readers));
+      byReading[run] = {
+        reading,
+        ownLeads,
+        outcomes: (ran.value as Array<Record<string, unknown>>).map((o) => ({
+          sessionId: o['sessionId'],
+          arm: o['arm'],
+          verdict: o['verdict']
+        })),
+        writes,
+        envWrites,
+        lines: ran.lines
+      };
+    }
+    out['pass'] = byReading;
+  } catch (err) {
+    out['pass'] = null;
+    out['passWhy'] = err instanceof Error ? err.message : String(err);
+  }
+
+  // 11.9, driven at `unread`: restore's strip, and the tokens Rule 1 admits.
+  try {
+    const restore = (await import('../src/main/restore/restore')) as Record<string, unknown>;
+    const strip = restore['withoutPiTokenBelowFloor'];
+    if (typeof strip !== 'function') throw new Error('withoutPiTokenBelowFloor is not exported');
+    const stripAll = (): Array<{ id: string; argv: string[] }> =>
+      planted
+        .filter((r) => r.resumeArgv !== undefined)
+        .map((r) => ({
+          id: r.id,
+          argv: (strip as (rec: unknown, argv: string[]) => string[])(p350Record(r), [...(r.resumeArgv ?? [])])
+        }));
+    out['strip'] = stripAll();
+    // The fix round: the same strip over a table whose pi template leads with
+    // the two words, so a person's own copy is told from Tortie's. Put back in
+    // the `finally`, whatever happened.
+    try {
+      const pi = getLaunchableEntry('pi');
+      setAgentTableSource(() => [
+        { ...pi, resume: { ...pi.resume, template: [...PI_INLINE_ARGS, '--session-id', SESSION_ID_SLOT] } }
+      ]);
+      out['stripOwn'] = stripAll();
+    } finally {
+      resetAgentTableSource();
+    }
+  } catch (err) {
+    out['strip'] = null;
+    out['stripWhy'] = err instanceof Error ? err.message : String(err);
+  }
+  try {
+    const arm = (await import('../src/main/machines/remote-arm')) as Record<string, unknown>;
+    const tokens = arm['armedResumeTokens'];
+    if (typeof tokens !== 'function') throw new Error('armedResumeTokens is not exported');
+    out['armed'] = Object.fromEntries(
+      ['pi', 'codex', 'claude'].map((a) => [a, [...(tokens as (agent: string) => ReadonlySet<string>)(a)].sort()])
+    );
+  } catch (err) {
+    out['armed'] = null;
+    out['armedWhy'] = err instanceof Error ? err.message : String(err);
+  }
+
+  // 11.11, driven: the file a bare-name spawn runs, over a planted world.
+  out['spawn'] = p350SpawnWorld();
+
+  out['floorNowAfter'] = piInlineFloorFor(P350_PI);
+  out['errors'] = errors;
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 350, row 11.11 — the file that runs (his ruling of 2026-11-02, the
+// second ruled round)
+// ---------------------------------------------------------------------------
+//
+// A world planted under the system's temporary folder and walked through the
+// SHIPPING resolver (`bareNameSpawnFile`) and its comparison
+// (`bareNameSpawnRuns`), the global pi's file being the one the floor was read
+// for. Nothing in it runs: every file is a few bytes of `/bin/sh` that nobody
+// starts. The checker holds its own table of what each shape must answer. The
+// world is removed in the `finally`, its two closed folders opened first.
+
+const P350_PACKAGE_NAME = '@earendil-works/pi-coding-agent';
+
+function p350SpawnWorld(): { rows: Array<{ id: string; found: string | null; runs: boolean }>; why: string | null } {
+  const W = mkdtempSync(join(tmpdir(), 'gmux-p350-spawn-'));
+  const rows: Array<{ id: string; found: string | null; runs: boolean }> = [];
+  const file = (path: string, text: string, mode = 0o755): void => {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, text);
+    chmodSync(path, mode);
+  };
+  const link = (at: string, target: string): void => {
+    mkdirSync(dirname(at), { recursive: true });
+    symlinkSync(target, at);
+  };
+  /** pi's package at `root` (the folder named for it), at `band`: its package.json and its file. */
+  const pkg = (root: string, band: string): string => {
+    mkdirSync(join(root, 'dist'), { recursive: true });
+    writeFileSync(join(root, 'package.json'), `${JSON.stringify({ name: P350_PACKAGE_NAME, version: band, bin: { pi: 'dist/cli.js' } })}\n`);
+    file(join(root, 'dist', 'cli.js'), `#!/bin/sh\necho '${band}'\n`);
+    return join(root, 'dist', 'cli.js');
+  };
+  const stub = '#!/bin/sh\nexec "$(dirname "$0")/../node_modules/.bin/pi" "$@"\n';
+  try {
+    // The global pi at 1.4.0, as npm installs it, and the same file spelled three other ways.
+    const gcli = pkg(join(W, 'g', 'lib', 'node_modules', ...P350_PACKAGE_NAME.split('/')), '1.4.0');
+    link(join(W, 'g', 'bin', 'pi'), '../lib/node_modules/@earendil-works/pi-coding-agent/dist/cli.js');
+    link(join(W, 'g2', 'pi'), '../g/bin/pi');
+    mkdirSync(join(W, 'hard'), { recursive: true });
+    linkSync(gcli, join(W, 'hard', 'pi'));
+    symlinkSync('g/bin', join(W, 'alias'));
+    // A project that pins pi 0.83.0 as npm installs it: its .bin link, the same at its root, and a binstub.
+    pkg(join(W, 'npm', 'node_modules', ...P350_PACKAGE_NAME.split('/')), '0.83.0');
+    link(join(W, 'npm', 'node_modules', '.bin', 'pi'), '../@earendil-works/pi-coding-agent/dist/cli.js');
+    link(join(W, 'npm', 'pi'), 'node_modules/@earendil-works/pi-coding-agent/dist/cli.js');
+    file(join(W, 'npm', 'bin', 'pi'), stub);
+    // The same as pnpm installs it: the package under .pnpm, a link to it, and shell shims.
+    const inStore = '.pnpm/@earendil-works+pi-coding-agent@0.83.0/node_modules/@earendil-works/pi-coding-agent';
+    pkg(join(W, 'pnpm', 'node_modules', ...inStore.split('/')), '0.83.0');
+    link(join(W, 'pnpm', 'node_modules', ...P350_PACKAGE_NAME.split('/')), `../${inStore}`);
+    file(join(W, 'pnpm', 'node_modules', '.bin', 'pi'), `#!/bin/sh\nexec "$(dirname "$0")/../${inStore}/dist/cli.js" "$@"\n`);
+    file(join(W, 'pnpm', 'pi'), `#!/bin/sh\nexec "$(dirname "$0")/node_modules/${inStore}/dist/cli.js" "$@"\n`);
+    file(join(W, 'pnpm', 'bin', 'pi'), stub);
+    // A project with no pi of its own, folders reached through links, and a `..` through a link.
+    mkdirSync(join(W, 'plain'), { recursive: true });
+    // His ruling of 2026-11-03: projects with no pi whose folder holds a `#`, in its own name and in a parent's.
+    mkdirSync(join(W, 'C#Tools'), { recursive: true });
+    mkdirSync(join(W, 'C#', 'app'), { recursive: true });
+    // His ruling of 2026-11-04: a project with no pi whose folder ends in `\;`, which tmux's argument reader reads as `;`.
+    mkdirSync(join(W, 'semi\\;'), { recursive: true });
+    symlinkSync('npm', join(W, 'npm-link'));
+    symlinkSync('plain', join(W, 'plain-link'));
+    link(join(W, 'deep', 'link'), '../plain');
+    // Entries holding no runnable pi, and things that cannot be read.
+    file(join(W, 'noexec', 'pi'), '#!/bin/sh\n', 0o644);
+    mkdirSync(join(W, 'dirpi', 'pi'), { recursive: true });
+    link(join(W, 'dangling', 'pi'), 'nowhere');
+    link(join(W, 'loop', 'pi'), 'pi');
+    file(join(W, 'locked', 'pi'), '#!/bin/sh\n');
+    chmodSync(join(W, 'locked'), 0o000);
+    mkdirSync(join(W, 'shut'), { recursive: true });
+    chmodSync(join(W, 'shut'), 0o000);
+
+    const sys = '/usr/bin:/bin';
+    const g = join(W, 'g', 'bin');
+    const bin = join(W, 'g', 'bin', 'pi');
+    const shapes: Array<[string, string, string]> = [
+      ['nm-npm', join(W, 'npm'), `node_modules/.bin:${g}:${sys}`],
+      ['dotnm-pnpm', join(W, 'pnpm'), `./node_modules/.bin:${g}:${sys}`],
+      ['dot-npm', join(W, 'npm'), `.:${g}:${sys}`],
+      ['lead-npm', join(W, 'npm'), `:${g}:${sys}`],
+      ['double-pnpm', join(W, 'pnpm'), `/usr/bin::${g}:/bin`],
+      ['trail-npm', join(W, 'npm'), `${sys}:`],
+      ['bin-npm', join(W, 'npm'), `bin:${g}:${sys}`],
+      ['nm-plain', join(W, 'plain'), `node_modules/.bin:${g}:${sys}`],
+      ['lead-plain', join(W, 'plain'), `:${g}:${sys}`],
+      ['after-npm', join(W, 'npm'), `${g}:node_modules/.bin:${sys}`],
+      ['link-npm', join(W, 'npm-link'), `node_modules/.bin:${g}:${sys}`],
+      ['link-plain', join(W, 'plain-link'), `node_modules/.bin:${g}:${sys}`],
+      ['second', join(W, 'plain'), `${join(W, 'g2')}:${sys}`],
+      ['hard', join(W, 'plain'), `${join(W, 'hard')}:${sys}`],
+      ['alias', join(W, 'plain'), `${join(W, 'alias')}:${sys}`],
+      ['dotdot', join(W, 'deep', 'link'), `../g/bin:${sys}`],
+      ['locked', join(W, 'plain'), `${join(W, 'locked')}:${g}:${sys}`],
+      ['noexec', join(W, 'plain'), `${join(W, 'noexec')}:${g}:${sys}`],
+      ['dirpi', join(W, 'plain'), `${join(W, 'dirpi')}:${g}:${sys}`],
+      ['dangling', join(W, 'plain'), `${join(W, 'dangling')}:${g}:${sys}`],
+      ['loop', join(W, 'plain'), `${join(W, 'loop')}:${g}:${sys}`],
+      ['shut', join(W, 'shut'), `${g}:${sys}`],
+      ['relative-folder', 'plain', `${g}:${sys}`],
+      ['none', join(W, 'plain'), sys],
+      ['hash', join(W, 'C#Tools'), `node_modules/.bin:${g}:${sys}`],
+      ['hash-parent', join(W, 'C#', 'app'), `node_modules/.bin:${g}:${sys}`],
+      ['semi', join(W, 'semi\\;'), `node_modules/.bin:${g}:${sys}`]
+    ];
+    for (const [id, folder, path] of shapes) {
+      const spawn = { name: 'pi', path, folder };
+      const hit = bareNameSpawnFile(spawn);
+      rows.push({
+        id,
+        found: hit === null ? null : hit.at.startsWith(`${W}/`) ? hit.at.slice(W.length + 1) : hit.at,
+        runs: bareNameSpawnRuns(spawn, bin)
+      });
+    }
+    return { rows, why: null };
+  } catch (err) {
+    return { rows, why: err instanceof Error ? err.message : String(err) };
+  } finally {
+    for (const closed of ['locked', 'shut']) {
+      try {
+        chmodSync(join(W, closed), 0o755);
+      } catch {
+        /* never made */
+      }
+    }
+    rmSync(W, { recursive: true, force: true });
+  }
+}
+
+// ---------------------------------------------------------------------------
 
 const agents = LAUNCHABLE_AGENT_IDS.map(compiledReport);
 const seam = await seamReport();
@@ -1651,6 +2129,10 @@ const p275SealData = await p275SealSection();
 // PHASE 331. The screen record and the two inline switches, read from the
 // registry's own exports and driven through the shipping loader.
 const p331 = await p331Section();
+// PHASE 350. pi's token behind its floor: the composers at both answers, the
+// floor rule, the pass and restore's strip driven, Rule 1's tokens. It starts
+// no scan, which the budget below still asserts.
+const p350 = await p350Section();
 
 // ---------------------------------------------------------------------------
 // Phase 49 — the version probe is unreachable from the create path
@@ -1683,6 +2165,7 @@ process.stdout.write(
     p269Catalog,
     p275: { ...p275Pure, seal: p275SealData },
     p331,
+    p350,
     probeBudget
   })
 );

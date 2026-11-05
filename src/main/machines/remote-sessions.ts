@@ -1529,7 +1529,9 @@ function remoteLaunchArgv(
   agentSessionId?: string
 ): string[] {
   if (entry === null) return [];
-  return launchArgvFor(entry, extraArgs, undefined, agentSessionId);
+  // PHASE 350 (D2, D20). The literal `false`: Tortie reads no agent's version
+  // on another machine, so pi's inline token is never composed for one.
+  return launchArgvFor(entry, extraArgs, undefined, agentSessionId, false);
 }
 
 /**
@@ -1935,11 +1937,13 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
       ...(entry !== null && agentSessionId !== undefined
         ? {
             agentSessionId,
+            // PHASE 350 (D20). The far floor is the literal `false`, as above.
             resumeArgv: resumeArgvFor(
               entry,
               agentSessionId,
               input.extraArgs ?? [],
-              bin
+              bin,
+              false
             )
           }
         : {})

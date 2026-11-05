@@ -95,14 +95,53 @@
  * is recomposed, which is harmless because the value is the same. A Codex or
  * Claude patched by the person's `agents.json` with its own `launch` is not read
  * here at all, because the pass reads the compiled constants only.
+ *
+ * THE PI ARM (Phase 350, build/p350/SPEC.md §4.2 step 3, D3, D13, D14, D19).
+ * pi's inline token (`PI_INLINE_ARGS`) is composed only for a pi this Mac's
+ * agent scan read at `PI_INLINE_FLOOR` or later, so its arm cannot run at the
+ * first refresh, when no version has been read: {@link repairPiInlineOnce}
+ * runs once per process, when the scan first answers, with that scan's
+ * readers, and with its own latch. It reads every pi row on this Mac, every
+ * status, and never a row on another machine, where no version is read. Its
+ * rules are the ones above, and five more:
+ *
+ *  - IT NEVER RECOMPOSES (D14). A pre-assign agent's `--session-id <id>` reads
+ *    back as a person's own flag through `agentExtrasOf`, so the Codex arm's
+ *    recomposition would write the pair twice. The arm inserts the token at
+ *    index 1, or takes it out of indices 1 and 2, and nothing else moves.
+ *  - EACH ROW IS JUDGED BY ITS OWN BINARY (the fix round). The floor is read
+ *    for the absolute binary the row records (`piInlineFloorFor`), because a
+ *    row recorded against another pi install, or against a pi since
+ *    reinstalled, runs that file and not the one the scan read: such a row
+ *    reads `unread` and is left alone, and restore arms it without the token.
+ *  - IT HANDLES ONLY ITS OWN TOKEN (D3, and the fix round). The two words
+ *    straight after the binary are Tortie's unless the row's own
+ *    configuration composes them there itself, which an `agents.json` row
+ *    whose `resume.template` leads with `--tui-mode regular` does; then only a
+ *    second copy behind them is Tortie's (`piTokenIsTortiesIn`). A person's
+ *    own `--tui-mode`, there or anywhere else, is theirs and is byte identical.
+ *  - AN UNREAD VERSION MOVES NO ROW (D13). `no-floor` is warned about in no
+ *    line, because it is the common case on a launch whose scan cannot read pi,
+ *    and restore already takes the token out of an armed command while the
+ *    floor does not hold. A pass that read no row's floor sets no latch.
+ *  - A ROW WHOSE RESUME ARGV DOES NOT CARRY ITS OWN `--session-id <id>` IS
+ *    `recorded-differs` and left alone, and a wrapped row is `unreadable`: pi
+ *    has no SpecStory provider, so no wrap is composed for the token.
  */
 
+import type { LaunchableAgentKind } from '@shared/types';
 import { LOCAL_MACHINE_ID } from '@shared/workspace-target';
 import {
   CLAUDE_INLINE_ENV,
   CODEX_SCROLLBACK_ARGS,
+  getRegistryEntry,
   ownLaunchFlags,
-  registryResumeArgv
+  PI_INLINE_ARGS,
+  PI_INLINE_FLOOR,
+  piTokenIsTortiesIn,
+  registryResumeArgv,
+  SESSION_ID_SLOT,
+  type InlineFloorReading
 } from '../agents/registry';
 import { getLog } from '../log';
 import type { ManifestSessionRecord, ManifestStore } from '../manifest';
@@ -112,19 +151,21 @@ import { composeResumeArgv } from './resume-argv';
 
 const sessionsLog = getLog('sessions');
 
-/** Which carriage a row was judged under. */
-export type InlineRepairArm = 'argv-here' | 'argv-elsewhere' | 'env';
+/** Which carriage a row was judged under. `pi` is Phase 350's arm. */
+export type InlineRepairArm = 'argv-here' | 'argv-elsewhere' | 'env' | 'pi';
 
 /** What the pass did to a row, or why it left it alone. */
 export type InlineRepairVerdict =
   /** One write of `resumeArgv` or `env`. */
   | 'rewritten'
-  /** Byte identical: the pair or the variable is already there. */
+  /** Byte identical: the pair, the variable or pi's token is as it should be. */
   | 'already-right'
-  /** A Codex row with no conversation id. Untouched. */
+  /** A Codex or pi row with no conversation id. Untouched. */
   | 'no-id'
-  /** A Codex row with no recorded resume argv, or the composer declined. */
+  /** A Codex or pi row with no recorded resume argv, or the composer declined. */
   | 'no-resume-argv'
+  /** PHASE 350. A pi row read while this Mac's scan reads no pi version. Untouched. */
+  | 'no-floor'
   /** The wrap could not be rebuilt. Left exactly as it is, never armed bare. */
   | 'capture-lost'
   /** A wrapped argv whose inner command cannot be read back. Untouched. */
@@ -209,6 +250,190 @@ export function resetInlineRepairForTests(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 350: the pi arm (see the header)
+// ---------------------------------------------------------------------------
+
+/**
+ * PHASE 350 FIX ROUND. What the pi arm asks about one row, and nothing more:
+ * pi's floor for the absolute binary the row records, and the row's own resume
+ * composition with no token of Tortie's. The session core hands it
+ * `piInlineFloorFor` and `piOwnResumeArgv` (../agents/detection.ts), read off
+ * the scan that first answered; a test hands it what it plants.
+ */
+export interface PiPassReaders {
+  /** pi's floor for this binary, `unread` for any file the scan did not read pi's version from. */
+  floorFor(bin: string): InlineFloorReading;
+  /**
+   * The row's own resume composition for this conversation id and the launch
+   * argv it recorded (whose flags after the id are the person's own), with no
+   * token of Tortie's, or `[]`.
+   */
+  ownResume(sessionId: string, launched: readonly string[]): readonly string[];
+}
+
+/**
+ * Bring every recorded pi resume argv on this Mac to what a create at this
+ * build records for the binary each row names. The pure pass: no latch.
+ *
+ * Returns one outcome per pi row on this Mac, whether it moved or not. Every
+ * other row is absent from the answer because it was never read.
+ */
+export function repairPiInline(
+  manifest: InlineRepairStore,
+  readers: PiPassReaders
+): InlineRepairOutcome[] {
+  return piPass(manifest, readers).outcomes;
+}
+
+/** One pass's outcomes, and how many of its rows had a floor read for their binary. */
+function piPass(
+  manifest: InlineRepairStore,
+  readers: PiPassReaders
+): { outcomes: InlineRepairOutcome[]; floorsRead: number } {
+  const outcomes: InlineRepairOutcome[] = [];
+  const tally = { gave: 0, took: 0, read: 0 };
+  for (const rec of manifest.listSessions()) {
+    if ((rec.agent as LaunchableAgentKind) !== 'pi' || !isLocalRow(rec)) continue;
+    try {
+      outcomes.push(piArm(manifest, rec, readers, tally));
+    } catch (err) {
+      // THE ROW KEEPS WHAT IT HAD: the one write is one statement.
+      outcomes.push(outcomeOf(rec, 'pi', 'threw'));
+      sessionsLog.warn(
+        `the pi inline token pass left session "${rec.name}" exactly as it is: ` +
+          `threw (${reasonWord(err)}). Its next restore runs what it ran before.`
+      );
+    }
+  }
+  reportPi(outcomes, tally);
+  return { outcomes, floorsRead: tally.read };
+}
+
+/** Set only after a pi pass in this process returned having read a floor. Apart from Phase 331's. */
+let piPassed = false;
+
+/**
+ * The pi pass, once per process: null, having read nothing, once a pass has
+ * returned. The latch is set only after a pass returned without throwing AND
+ * read a floor for some row's binary, or found no pi row on this Mac to read;
+ * a pass that read no row's floor (no scan had answered, or none read pi's
+ * version for any binary a row names) leaves it open, so it never stands for
+ * a pass that brought nothing across. The session core calls it once, when
+ * the agent scan first answers (`firstScanAnswered` in
+ * ../agents/detection.ts), with that scan's readers.
+ */
+export function repairPiInlineOnce(
+  manifest: InlineRepairStore,
+  readers: PiPassReaders
+): InlineRepairOutcome[] | null {
+  if (piPassed) return null;
+  const { outcomes, floorsRead } = piPass(manifest, readers);
+  if (floorsRead > 0 || outcomes.length === 0) piPassed = true;
+  return outcomes;
+}
+
+/** Test hook: forget that a pi pass ran in this process. */
+export function resetPiInlineRepairForTests(): void {
+  piPassed = false;
+}
+
+/**
+ * One pi row on this Mac. It inserts the token at index 1 or takes Tortie's
+ * copy out of indices 1 and 2, through one write of `resumeArgv` alone, and
+ * never recomposes (D14). The floor is read for the binary this row records.
+ */
+function piArm(
+  manifest: InlineRepairStore,
+  rec: ManifestSessionRecord,
+  readers: PiPassReaders,
+  tally: { gave: number; took: number; read: number }
+): InlineRepairOutcome {
+  const left = (verdict: InlineRepairVerdict): InlineRepairOutcome =>
+    outcomeOf(rec, 'pi', verdict);
+
+  const id = rec.agentSessionId ?? '';
+  if (id.length === 0) return left('no-id');
+  // THE PASS NEVER ARMS A ROW THAT WAS NOT ARMED.
+  const recorded = rec.resumeArgv ?? [];
+  if (recorded.length === 0) return left('no-resume-argv');
+  // pi has no SpecStory provider, so no wrap is composed for the token.
+  if (isWrappedArgv(recorded)) return left('unreadable');
+  // THE FLOOR OF THIS ROW'S OWN BINARY (the fix round).
+  const floor = readers.floorFor(recorded[0] ?? '');
+  if (floor === 'unread') return left('no-floor');
+  tally.read += 1;
+  if (!carriesOwnPiId(recorded, id)) return left('recorded-differs');
+
+  if (floor === 'holds') {
+    // Two words already there, Tortie's or the person's own, keep pi inline.
+    if (piTokenLeads(recorded)) return left('already-right');
+    manifest.setResumeArgvColumn(rec.id, [
+      ...recorded.slice(0, 1),
+      ...PI_INLINE_ARGS,
+      ...recorded.slice(1)
+    ]);
+    tally.gave += 1;
+    return left('rewritten');
+  }
+  // Below the floor: only Tortie's copy at index 1 comes out, never a person's own.
+  if (!piTokenIsTortiesIn(recorded, readers.ownResume(id, rec.specstory?.agentArgv ?? rec.argv))) return left('already-right');
+  manifest.setResumeArgvColumn(rec.id, [
+    ...recorded.slice(0, 1),
+    ...recorded.slice(1 + PI_INLINE_ARGS.length)
+  ]);
+  tally.took += 1;
+  return left('rewritten');
+}
+
+/** TRUE when indices 1 and 2 are exactly {@link PI_INLINE_ARGS}. */
+function piTokenLeads(argv: readonly string[]): boolean {
+  return PI_INLINE_ARGS.every((token, i) => argv[1 + i] === token);
+}
+
+/**
+ * TRUE when the argv carries pi's compiled resume template with THIS row's own
+ * id in its slot (`--session-id <id>`), somewhere after the binary.
+ */
+function carriesOwnPiId(argv: readonly string[], id: string): boolean {
+  const pair = getRegistryEntry('pi').resume.template.map((t) =>
+    t === SESSION_ID_SLOT ? id : t
+  );
+  if (pair.length === 0) return false;
+  for (let i = 1; i + pair.length <= argv.length; i += 1) {
+    if (pair.every((token, k) => argv[i + k] === token)) return true;
+  }
+  return false;
+}
+
+/**
+ * One line when the pass read a pi row, and one warning per row left for a
+ * reason a person should know about (`no-floor` is not one). Every verdict is
+ * named with its count; no argv token, no binary and no version read from the
+ * scan.
+ */
+function reportPi(
+  outcomes: readonly InlineRepairOutcome[],
+  tally: { gave: number; took: number; read: number }
+): void {
+  if (outcomes.length === 0) return;
+  const counts = new Map<InlineRepairVerdict, number>();
+  for (const o of outcomes) counts.set(o.verdict, (counts.get(o.verdict) ?? 0) + 1);
+  const verdicts = [...counts].map(([verdict, n]) => `${verdict} ${n}`).join(', ');
+  const moved =
+    tally.read === 0
+      ? 'moved no pi row on this Mac, because no pi version was read for the binary any of them names'
+      : `gave ${tally.gave} pi row(s) on this Mac the inline token and took it out of ${tally.took}, below pi ${PI_INLINE_FLOOR}`;
+  sessionsLog.info(`the pi inline token pass ${moved}. Verdicts: ${verdicts}.`);
+  for (const o of outcomes) {
+    if (!WARNED.has(o.verdict)) continue;
+    sessionsLog.warn(
+      `the pi inline token pass left session "${o.name}" exactly as it is: ` +
+        `${o.verdict}. Its next restore runs what it ran before.`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // One row
 // ---------------------------------------------------------------------------
 
@@ -247,8 +472,9 @@ function argvArm(
   if (here) {
     // The composition the harvest's rescues and Phase 215's repair make, so the
     // person's own flags come from the one helper that sets the fixed tokens
-    // aside and a captured row is wrapped again from its own record.
-    const composed = composeResumeArgv(rec, 'codex', id, agentExtrasOf(rec));
+    // aside and a captured row is wrapped again from its own record. A Codex
+    // composition, so pi's floor is `false` (Phase 350, D20).
+    const composed = composeResumeArgv(rec, 'codex', id, agentExtrasOf(rec), false);
     if (composed === null) return left('no-resume-argv');
     if (composed.captureLost) return left('capture-lost');
     next = composed.argv;
@@ -260,7 +486,7 @@ function argvArm(
     // that machine, and the remote arm types `[binOnMachine,
     // ...recordedResumeArgv.slice(1)]`, so only the tail is recomposed.
     const own = ownLaunchFlags('codex', rec.argv);
-    const composed = registryResumeArgv('codex', id, own, recorded[0]);
+    const composed = registryResumeArgv('codex', id, own, recorded[0], false);
     if (composed.length === 0) return left('no-resume-argv');
     next = composed;
   }

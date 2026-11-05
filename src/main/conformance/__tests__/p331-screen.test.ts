@@ -38,8 +38,10 @@ beforeEach(() => {
 describe('Phase 331: the conformance harness judges each pane against its compiled screen class', () => {
   it('a switch-to-inline row on the alternate screen fails', () => {
     const switched = byClass('switch-to-inline');
-    // The two rows Phase 331 compiles a switch for, and no third.
-    expect([...switched].sort()).toEqual(['claude', 'codex']);
+    // The three rows Phases 331 and 350 compile a switch for, and no fourth
+    // (pi's behind its version floor, which this judge does not read: a pi on
+    // the alternate screen fails as Codex and Claude Code do, D11).
+    expect([...switched].sort()).toEqual(['claude', 'codex', 'pi']);
     for (const agent of switched) {
       for (const mouse of [false, true]) {
         const judged = judgeScreen(agent, reading(true, mouse, 0));

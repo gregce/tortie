@@ -33,7 +33,8 @@
  *                     shapes through the shipping scroll.ts over a runner on
  *                     `sendCommand` (a machine's runner, so the entry carries
  *                     `-H`, D11) with every argv asked of the carriage's table,
- *                     and the 35 key names the phone may send.
+ *                     and the 37 key names the phone may send (Phase
+ *                     337's 35, then Phase 350's PPage and NPage).
  *            attach   the shipping attach plan's far command, run in an outer
  *                     tmux of the probe's own inside that machine, beside a
  *                     decoy: `=$N` must attach the right session (§Attack M-A5).
@@ -266,7 +267,8 @@ try {
       entries: calls.filter((c) => c.args[0] === 'copy-mode').map((c) => c.args)
     };
 
-    // The 35 key names, into a pane that only reads.
+    // The contract's 37 key names (Phase 350 appended PPage and NPage), into a
+    // pane that only reads.
     const keySid = (
       await execOn(ctx, ['new-session', '-d', '-P', '-F', '#{session_id}', '-s', 'p342-keys', '--', '/bin/sh', '-c', 'stty raw -echo; exec cat > /dev/null'])
     ).trim();

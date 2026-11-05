@@ -487,8 +487,10 @@ export function parseSayBody(body: Buffer): PocketSayBody {
  * D17), or null. A plain object with exactly ONE own key; a text is a string
  * of one character or more, its rules (a control character, DEL, a lone
  * surrogate, the byte total) being the verb's, each with its sentence; a name
- * is compared with `===` against each of the contract's 35 and nothing else.
- * Nothing is trimmed or normalized.
+ * is compared with `===` against each of the contract's 37 and nothing else
+ * (Phase 350 appended `PPage` and `NPage`, which the rule below holds alone in
+ * their write as it holds every named key but `BSpace`). Nothing is trimmed or
+ * normalized.
  */
 function keyItemOf(value: unknown): PocketKeyItem | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;

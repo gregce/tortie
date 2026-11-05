@@ -34,7 +34,10 @@
 // THE HISTORY (Phase 337.1) is Screens/ScreenScrollback.swift's, drawn by the
 // UIKit scroll view of Screens/ScreenScroller.swift; this page holds both,
 // feeds the history every picture it draws, and returns it to the live rows
-// when he sends a key or presses the back-to-live button.
+// when he sends a key or presses the back-to-live button. A full-screen
+// program has no history here: since Phase 350 the scroll view's pull past
+// its rows hands Page Up or Page Down to the one key sender's `page(_:)`
+// (build/p350/SPEC.md D7, D22), and the program pages its own view.
 //
 // THE SCREEN KEEPS NONE OF IT (D41). It is not redacted: any redaction would
 // move cells off the Mac's. So nothing of it is stored: no file, no log, no
@@ -445,6 +448,7 @@ struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {
                     select: { selected($0) },
                     copy: { copySelection() },
                     overlap: { overlap = $0 },
+                    page: { key in keys?.page(key) },
                     pasteOffered: { keys?.pasteOffered ?? false },
                     paste: { payload in pasted(payload) }
                 )

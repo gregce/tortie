@@ -61,13 +61,16 @@
  *
  * THE EIGHTH ROW, `type-key`, ON HIS WORD OF 2026-10-05 ("Every key,
  * including Ctrl-C", build/p337/SPEC.md D20). `send-keys -t $N <Name>`: exactly
- * four elements, the last ONE of the 35 names in `POCKET_SCREEN_KEY_NAMES`
- * (src/shared/ipc/pocket.ts), imported and never re-spelled, compared with
- * `===`. tmux encodes a NAME for the program's current mode exactly as it
- * encodes the same key typed at the desk (`Up` is `ESC O A` in application
- * cursor mode, `C-c` is `03`), which no byte row can do, because the bytes
- * depend on a mode only the far tmux knows (§14 M4, M9). No modifier word
- * (`M-`, `C-Up`), no function key, no second name and no flag is on the list,
+ * four elements, the last ONE of the 37 names in `POCKET_SCREEN_KEY_NAMES`
+ * (src/shared/ipc/pocket.ts; Phase 337's 35 and, since Phase 350, `PPage` and
+ * `NPage`, which a pull on the phone sends to a full-screen program on another
+ * machine through this row unchanged, build/p350/SPEC.md D4), imported and
+ * never re-spelled, compared with `===`. tmux encodes a NAME for the program's
+ * current mode exactly as it encodes the same key typed at the desk (`Up` is
+ * `ESC O A` in application cursor mode, `C-c` is `03`, `PPage` is `ESC [ 5 ~`),
+ * which no byte row can do, because the bytes depend on a mode only the far
+ * tmux knows (§14 M4, M9). No modifier word (`M-`, `C-Up`), no Home or End, no
+ * function key, no second name and no flag is on the list,
  * so a name can bind nothing and run nothing; it is a key the phone's own key
  * bar sends. Four elements, so it cannot be read as any other `send-keys`
  * row (`scroll-lines` 7, `goto-line` 6, `top-line` and `cancel` 5,
@@ -404,7 +407,7 @@ export function typedSequence(target: string, bytes: Uint8Array): string[][] {
  * one tick, on one connection ({@link namedKeySequence}'s second argv is the
  * key; `typePhoneKeys` in ./scroll-order.ts is its one production caller).
  *
- * `name` is typed as one of the 35, and is checked again here with `===`
+ * `name` is typed as one of the 37, and is checked again here with `===`
  * against the contract's frozen list, because a caller's string reaching the
  * far side is exactly what this door exists to refuse.
  */

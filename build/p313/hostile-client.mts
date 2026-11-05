@@ -207,6 +207,24 @@
  * one (RNH11), and the log naming no typed name, refused name, 2,048-byte
  * name or write id (RNH12).
  *
+ * PHASE 350 PAGES A FULL-SCREEN AGENT FROM THE PHONE (build/p350/SPEC.md
+ * §7.3): a pull sends `PPage` or `NPage`, each the only item of a keys write,
+ * through the same shipping parse and write path, with no route of its own.
+ * The PK arms: each page key alone forwarded once with exactly its item
+ * (PK1); a page beside another item (PK2) and a page key cased, spaced or
+ * spelled as another program spells it (PK3), each malformed with the id
+ * echoed and nothing forwarded; a page against a question that moved since the
+ * phone's picture, through the SHIPPING `createScreenKeys(…).keys` over a fake
+ * core and a RECORDING control client, refused changed with no line typed and
+ * no grace stamped, beside its control, the same page against the picture as
+ * it is now, typed as `copy-mode -q` then `send-keys PPage` and graced once
+ * (PK4); and the ledger, the same bytes refused as a replay and the same
+ * write id signed afresh answered from the record, paged once (PK5). Since
+ * the fix round, PK6: a page against a picture whose program has since left
+ * full screen, through the same SHIPPING verb over a fresh read of the normal
+ * screen, refused changed with no line typed and no grace, so it never lands
+ * in the shell as a `~`, beside its control, an Up typed on that same screen.
+ *
  * It prints one line, `P313_HOSTILE:{...}`, which the runner beside it reads.
  */
 
@@ -1315,6 +1333,69 @@ try {
     drops: tmuxRun.filter((r) => r.args[0] === 'delete-buffer').length,
     stdin: tmuxRun.filter((r) => r.args[0] === 'load-buffer').map((r) => r.stdin?.toString('utf8') ?? '')
   });
+  /**
+   * PHASE 350 (build/p350/SPEC.md §7.3): THE SHIPPING KEYS VERB, for the page
+   * arm that needs it (PK4), over a fake core, a fake watcher reading one
+   * full-screen view and a RECORDING control client, so a refusal is graded
+   * on zero lines typed and no grace stamped. Only the `ses_pkv_` sessions
+   * reach it; every other keys write still reaches the recorder below.
+   */
+  const { createScreenKeys } = await import('../../src/main/screen/keys.js');
+  const { composeScreen } = await import('../../src/main/screen/compose.js');
+  const { SCREEN_QUESTION_MOVED } = await import('../../src/shared/screen-copy.js');
+  const pageRows: Session[] = [
+    aSession('ses_pkv_ask', 'page-asked', 'needs_input'),
+    // The fix round (PK6): a session whose full-screen program has left it.
+    aSession('ses_pkv_left', 'page-left', 'idle')
+  ];
+  const pageTurns = createQuestionIds('fedcba9876543210');
+  /** Every control-client line the shipping verb wrote, and every session it stamped the grace for. */
+  const pageLines: string[] = [];
+  const pageGraced: string[] = [];
+  let pageClock = 3_000_000;
+  /** A full-screen program's view: 80 by 3 on pane %8, the alternate screen; or, since the fix round, the shell it left behind. */
+  const pageReading = (alternate = true): unknown => ({
+    styled: alternate ? 'pager line 0001\npager line 0002\npager line 0003' : 'p350 %\n\n',
+    display: { paneId: '%8', cols: 80, rows: 3, cursorX: 0, cursorY: 0, cursorVisible: true, alternate, history: 0 },
+    displayLine: `%8\t80\t3\t0\t0\t1\t${alternate ? '1' : '0'}\t0`,
+    steady: true
+  });
+  const pageCore = {
+    listSessions: (): readonly Session[] => pageRows,
+    tmuxIdOf: (id: string): string | null => (pageRows.some((s) => s.id === id) ? '$9' : null),
+    manifest: { getSession: (id: string) => (pageRows.some((s) => s.id === id) ? { status: 'needs_input' as SessionStatus } : undefined) },
+    control: {
+      connected: true,
+      sendCommand: async (line: string): Promise<string[]> => {
+        pageLines.push(line);
+        return [];
+      }
+    },
+    activity: { noteUserInput: (): void => undefined }
+  };
+  const shippingKeys = createScreenKeys({
+    core: () => pageCore as unknown as ScreenCore,
+    turns: pageTurns,
+    watch: { readFresh: async (row: Session) => pageReading(row.id !== 'ses_pkv_left') as never, nudge: () => undefined },
+    noteUserInput: () => undefined,
+    noteRepaint: (id: string) => {
+      pageGraced.push(id);
+    },
+    run: async (): Promise<string> => {
+      throw new Error('the page arm types over the control client, never a spawn');
+    },
+    lastActs: createScreenLastActs(),
+    now: () => pageClock,
+    sleep: async (ms: number): Promise<void> => {
+      pageClock += ms;
+    }
+  });
+  /** The page arm's picture as the phone holds it: the turn now and the shipping composer's dialog. */
+  const pagePicture = (sessionId: string, status: SessionStatus): { turn: string; dialog: string | null } => {
+    const turn = pageTurns.current(sessionId).id;
+    const composed = composeScreen(pageReading() as never, { turn, status, typable: true });
+    return { turn, dialog: composed === 'large' ? null : composed.screen.dialog };
+  };
   const recordingWrites: PocketWrites = {
     end: async (input): Promise<PocketEndOutcome> => {
       acts.push(input);
@@ -1325,6 +1406,8 @@ try {
     choose: (input, still) => replyAnswer('choose', input, still),
     say: (input, still) => replyAnswer('say', input, still),
     keys: async (input, still): Promise<PocketReplyOutcome> => {
+      // PHASE 350 (PK4): the page arm's sessions reach the SHIPPING keys verb.
+      if (input.sessionId.startsWith('ses_pkv_')) return shippingKeys.keys(input, still);
       actsReached += 1;
       if (holdAct !== null) await holdAct;
       const allowed = still();
@@ -2813,6 +2896,93 @@ try {
         record('SK11', 'twenty keys writes on one session in two seconds, one of them refused', '19-done-1-refused-1-done-line-1-refused-line-in-2s', `${String(doneAnswers)}-done-${String(outcomes.length - doneAnswers)}-refused-${String(doneLines)}-done-line-${String(refusedLines)}-refused-line-${tookMs <= 2_000 ? 'in-2s' : `in ${String(tookMs)} ms`}`, 'D43: a phone typing would otherwise rotate his diagnosis log out in about twenty minutes; the first done is logged, the rest of the quiet minute are not, and a refusal is logged every time.');
         const typedWords = logged.filter((l) => l.includes('canary-p337') || l.includes(KQID)).length;
         record('SK11b', 'and no log line carries a key the phone typed, or the turn it carried', '0', String(typedWords), 'the one log line names the verb, the outcome and the session id, never a key or the question id.');
+      }
+
+      // ---------------------------------------------------------------------
+      // PHASE 350 (build/p350/SPEC.md §7.3): Page Up and Page Down, the two
+      // names a pull on the phone sends, through the SHIPPING keys parse and
+      // write path over the recorder (PK1 to PK3, PK5), and through the
+      // SHIPPING keys verb over a recording control client (PK4). In a parent
+      // clone (c60c2a48) PK1, PK4 and PK5 read malformed and type nothing,
+      // which is the parent's measurement; PK2 and PK3 read as here.
+      // ---------------------------------------------------------------------
+      {
+        const pageSentence = (answer: Answer): string => String(bodyOf(answer)['sentence']);
+        // PK1. Each page key alone: done, forwarded once with exactly its item.
+        for (const [n, page] of [['PK1a', 'PPage'], ['PK1b', 'NPage']] as const) {
+          const session = `ses_${n.toLowerCase()}`;
+          const answer = await writeAs(wA, '/v1/keys', keysBody(session, writeId(), { keys: [{ k: page }] }));
+          const got = keyed.filter((k) => k.sessionId === session);
+          const exact = got.length === 1 && JSON.stringify(got[0]?.input) === JSON.stringify({ sessionId: session, keys: [{ k: page }], turn: KQID, dialog: null });
+          record(n, `a keys write of ${page} alone`, '200:done-1-exact', `${said(answer)}-${String(got.length)}-${exact ? 'exact' : 'other'}`, 'D24: the two page keys are the contract’s last two names, each its write’s only item, forwarded to main exactly as the phone sent it.');
+        }
+        // PK2. A page beside another item: malformed, the id echoed, nothing forwarded.
+        const besides: [string, string, unknown[]][] = [
+          ['PK2a', 'PPage then text', [{ k: 'PPage' }, { t: 'x' }]],
+          ['PK2b', 'BSpace then PPage', [{ k: 'BSpace' }, { k: 'PPage' }]],
+          ['PK2c', 'text then NPage', [{ t: 'x' }, { k: 'NPage' }]],
+          ['PK2d', 'PPage then NPage', [{ k: 'PPage' }, { k: 'NPage' }]]
+        ];
+        for (const [n, name, keys] of besides) {
+          const id = writeId();
+          const answer = await writeAs(wA, '/v1/keys', keysBody('ses_pk2', id, { keys }));
+          record(n, `a keys body with ${name}`, `200:refused:malformed-${id}-0`, `${said(answer)}-${echoOf(answer)}-${String(keysOn('ses_pk2'))}`, 'D17, D24: a named key other than BSpace is its write’s only item, a page key too, because a program reads one write as one input.');
+        }
+        // PK3. Cased, spaced or spelled wrong: malformed, nothing forwarded.
+        const misspelt: [string, string][] = [
+          ['PK3a', 'ppage'],
+          ['PK3b', 'PageUp'],
+          ['PK3c', 'PgUp'],
+          ['PK3d', ' PPage'],
+          ['PK3e', 'PPage '],
+          ['PK3f', 'NPAGE'],
+          ['PK3g', 'PgDn'],
+          ['PK3h', 'S-PPage']
+        ];
+        for (const [n, name] of misspelt) {
+          const id = writeId();
+          const answer = await writeAs(wA, '/v1/keys', keysBody('ses_pk3', id, { keys: [{ k: name }] }));
+          record(n, `a keys body naming ${JSON.stringify(name)}`, `200:refused:malformed-${id}-0`, `${said(answer)}-${echoOf(answer)}-${String(keysOn('ses_pk3'))}`, 'D24: a name is one of the 37 by identity; a page key cased, spaced or spelled as another program spells it is no key the Mac types.');
+        }
+        // PK4. A page against a stale question picture, through the SHIPPING
+        // keys verb: refused changed, nothing typed, no grace. Then the control,
+        // the same page against the picture as it is now.
+        {
+          const stale = pagePicture('ses_pkv_ask', 'needs_input');
+          pageTurns.bump('ses_pkv_ask', 'desk');
+          const before = pageLines.length;
+          const answer = await writeAs(wA, '/v1/keys', keysBody('ses_pkv_ask', writeId(), { keys: [{ k: 'PPage' }], turn: stale.turn, dialog: stale.dialog }));
+          record('PK4', 'a page against a question that moved since the phone’s picture, through the shipping keys verb', '200:refused:changed-moved-0l-0g', `${said(answer)}-${pageSentence(answer) === SCREEN_QUESTION_MOVED ? 'moved' : `OTHER ${pageSentence(answer)}`}-${String(pageLines.length - before)}l-${String(pageGraced.length)}g`, 'D8, D21: a page is a key, so one meant for a question reaches that question or nothing; nothing is typed and nothing is graced.');
+          const now = pagePicture('ses_pkv_ask', 'needs_input');
+          const done = await writeAs(wA, '/v1/keys', keysBody('ses_pkv_ask', writeId(), { keys: [{ k: 'PPage' }], turn: now.turn, dialog: now.dialog }));
+          record('PK4z', 'the control: the same page against the picture as it is now', '200:done-["copy-mode -q -t %8","send-keys -t %8 PPage"]-1g', `${said(done)}-${JSON.stringify(pageLines.slice(before))}-${String(pageGraced.length)}g`, 'D9: the shipping verb types a page as it types every named key, copy-mode -q then send-keys PPage, and stamps the grace once.');
+        }
+        // PK6 (the fix round). A page the phone sent against its full-screen
+        // picture, whose program has since left it: the SHIPPING verb's fresh
+        // read is the normal screen, so it is refused changed, nothing typed and
+        // nothing graced; then the control, an Up on the same screen, typed.
+        {
+          const { LIFECYCLE_SESSION_CHANGED } = await import('../../src/shared/lifecycle-words.js');
+          const fullScreen = pagePicture('ses_pkv_left', 'idle');
+          const before = pageLines.length;
+          const graced = pageGraced.length;
+          const answer = await writeAs(wA, '/v1/keys', keysBody('ses_pkv_left', writeId(), { keys: [{ k: 'PPage' }], turn: fullScreen.turn, dialog: fullScreen.dialog }));
+          record('PK6', 'a page against a picture whose program has since left full screen, through the shipping keys verb', '200:refused:changed-session-0l-0g', `${said(answer)}-${pageSentence(answer) === LIFECYCLE_SESSION_CHANGED ? 'session' : `OTHER ${pageSentence(answer)}`}-${String(pageLines.length - before)}l-${String(pageGraced.length - graced)}g`, 'The fix round: the offer’s own condition asked again of the fresh screen, so a page never reaches the shell a full-screen program left behind as a ~ on his command line.');
+          const up = await writeAs(wA, '/v1/keys', keysBody('ses_pkv_left', writeId(), { keys: [{ k: 'Up' }], turn: pageTurns.current('ses_pkv_left').id, dialog: null }));
+          record('PK6z', 'the control: an Up on that same screen', '200:done-["copy-mode -q -t %8","send-keys -t %8 Up"]', `${said(up)}-${JSON.stringify(pageLines.slice(before))}`, 'Any other key on the normal screen is typed as before; only a page waits for a screen that offers it.');
+        }
+        // PK5. The ledger: the same page bytes again (a replay), then the same
+        // write id signed afresh (the recorded answer, paged once).
+        {
+          const id = writeId();
+          const body = keysBody('ses_pk5', id, { keys: [{ k: 'NPage' }] });
+          const headers = writeHeaders(wA, '/v1/keys', body);
+          const first = await ask('POST', '/v1/keys', headers, body, { as: wA });
+          const replayed = await ask('POST', '/v1/keys', headers, body, { as: wA });
+          record('PK5', 'a page write, then the same bytes again', '200:done/refused-404:replay-1', `${said(first)}/${verdict(replayed)}:${lastVerify}-${String(keysOn('ses_pk5'))}`, 'a signed request is spent once, whatever it carries.');
+          const again = await writeAs(wA, '/v1/keys', body);
+          record('PK5b', 'the same page write id, signed afresh', 'recorded-1', `${again.body === first.body ? 'recorded' : `other(${said(again)})`}-${String(keysOn('ses_pk5'))}`, 'D24 (Phase 337): the write id makes a keys write happen at most once, so a page retried after a cut answer pages once.');
+        }
       }
     }
 

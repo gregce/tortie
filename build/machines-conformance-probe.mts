@@ -1934,11 +1934,21 @@ const p3201 = await (async () => {
   const HOSTILE: { label: string; args: unknown[] }[] = [
     { label: '-l literal text', args: ['send-keys', '-t', '$1', '-l', 'abc'] },
     // PHASE 337 (build/p337/SPEC.md D20): `send-keys -t $N <Name>` is the
-    // EIGHTH shape now, for exactly the 35 names of POCKET_SCREEN_KEY_NAMES (his
-    // word of 2026-10-05, "Every key, including Ctrl-C"), admitted and driven in
+    // EIGHTH shape now, for exactly the names of POCKET_SCREEN_KEY_NAMES (his
+    // word of 2026-10-05, "Every key, including Ctrl-C"; 37 since Phase 350
+    // appended PPage and NPage, build/p350/SPEC.md D24), admitted and driven in
     // condition 122. What stays hostile is every name off that list, a second
     // name, a modifier, a flag and any target but $N.
     { label: 'a key name the eighth row does not carry', args: ['send-keys', '-t', '$1', 'F1'] },
+    // PHASE 350: the page keys by their own names alone; spelled any other
+    // way, modified, doubled, or Home and End, which no pull sends.
+    { label: 'Page Up spelled PageUp', args: ['send-keys', '-t', '$1', 'PageUp'] },
+    { label: 'Page Up in lowercase', args: ['send-keys', '-t', '$1', 'ppage'] },
+    { label: 'Page Up with Shift', args: ['send-keys', '-t', '$1', 'S-PPage'] },
+    { label: 'Page Down with Control', args: ['send-keys', '-t', '$1', 'C-NPage'] },
+    { label: 'both page keys in one command', args: ['send-keys', '-t', '$1', 'PPage', 'NPage'] },
+    { label: 'Home', args: ['send-keys', '-t', '$1', 'Home'] },
+    { label: 'End', args: ['send-keys', '-t', '$1', 'End'] },
     { label: 'a key name with Meta', args: ['send-keys', '-t', '$1', 'M-x'] },
     { label: 'a key name with Control on an arrow', args: ['send-keys', '-t', '$1', 'C-Up'] },
     { label: 'two key names', args: ['send-keys', '-t', '$1', 'Up', 'Down'] },
@@ -2365,9 +2375,10 @@ const p3201 = await (async () => {
   //
   // His word of 2026-10-05 ("Every key, including Ctrl-C", build/p337/SPEC.md
   // D20): a named key crosses on the control connection as `cancel`, then
-  // `send-keys -t $N <Name>`, one of the contract's 35. `namedKeySequence` is
-  // the one composer. It is driven here for EVERY name the contract lists,
-  // read from the loaded contract, and for names it must refuse.
+  // `send-keys -t $N <Name>`, one of the contract's 37 (Phase 337's 35, then
+  // Phase 350's PPage and NPage). `namedKeySequence` is the one composer. It
+  // is driven here for EVERY name the contract lists, read from the loaded
+  // contract, and for names it must refuse.
   const namedSeq = fn<(target: string, name: string) => string[][]>(shapesMod, 'namedKeySequence');
   const pocketContract = await load('pocketContract', 'src/shared/ipc/pocket.ts');
   const contractNames: string[] | null =
@@ -2387,7 +2398,9 @@ const p3201 = await (async () => {
     }
     typeKey['rows'] = rows;
     const refusedNames: Record<string, unknown>[] = [];
-    for (const name of ['F1', 'M-x', 'C-Up', 'enter', 'Up Down', 'C-c;', '', 'Escape ']) {
+    // PHASE 350: and the page keys spelled any other way, modified or doubled,
+    // and Home and End, which no pull sends (build/p350/SPEC.md D24).
+    for (const name of ['F1', 'M-x', 'C-Up', 'enter', 'Up Down', 'C-c;', '', 'Escape ', 'PageUp', 'ppage', 'S-PPage', 'PPage NPage', 'Home', 'End']) {
       try {
         refusedNames.push({ name, seq: namedSeq('$4', name) });
       } catch {

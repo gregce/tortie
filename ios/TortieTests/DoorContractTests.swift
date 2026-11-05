@@ -186,6 +186,53 @@ final class DoorContractTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(PocketSessionsAnswer.self, from: try JSONEncoder().encode(answer)), answer)
     }
 
+    // MARK: The page offer (Phase 350, build/p350/SPEC.md D6, section 4.4 step 1)
+
+    /// A full-screen screen answer whose screen carries `pages` as given,
+    /// left out when nil (a Mac older than 350), decoded the phone's way.
+    private func screenAnswer(pages: Any?, typable: Bool = true, paste: Any? = nil) throws -> PocketScreenAnswer {
+        var screen = ScreenSample.screen(typable: typable, alternate: true, paste: paste)
+        if let pages { screen["pages"] = pages }
+        return try ScreenSample.decode(ScreenSample.answer(screen: screen))
+    }
+
+    /// Clause (Phase 350, D6): a screen's `pages` is read with `paste`'s
+    /// strictness: `true` is the offer; absent (a Mac older than 350), null
+    /// and `false` are none; anything that is not a Boolean, `1` and the
+    /// string `"true"` among them, refuses the WHOLE answer, exactly as a
+    /// `paste` that is not a Boolean does; and the picture carries it.
+    func testTheScreensPagesIsReadStrictly() throws {
+        XCTAssertEqual(try screenAnswer(pages: true).screen?.pages, true)
+        XCTAssertEqual(try screenAnswer(pages: false).screen?.pages, false)
+        XCTAssertEqual(try screenAnswer(pages: nil).screen?.pages, false, "a Mac older than 350 offers a page")
+        XCTAssertEqual(try screenAnswer(pages: NSNull()).screen?.pages, false, "a null offer reads as an offer")
+        for broken in notBooleans {
+            XCTAssertThrowsError(try screenAnswer(pages: broken), "a screen whose pages is \(broken) drew")
+            XCTAssertThrowsError(try screenAnswer(pages: nil, paste: broken), "the control: a paste that is \(broken) drew")
+        }
+        let offered = try XCTUnwrap(try screenAnswer(pages: true).screen)
+        XCTAssertTrue(ScreenPicture(offered, revision: ScreenSample.revision).pages, "the picture drops the offer")
+        let older = try XCTUnwrap(try screenAnswer(pages: nil).screen)
+        XCTAssertFalse(ScreenPicture(older, revision: ScreenSample.revision).pages)
+    }
+
+    /// Clause (Phase 350, D6): the page offer and the paste offer are two
+    /// fields, each read on its own; and the sample's builder, the one
+    /// memberwise maker of a screen, carries the offer through.
+    func testThePageOfferStandsBesidePaste() throws {
+        let both = try XCTUnwrap(try screenAnswer(pages: true, paste: true).screen)
+        XCTAssertTrue(both.pages)
+        XCTAssertTrue(both.paste)
+        let pagesOnly = try XCTUnwrap(try screenAnswer(pages: true, paste: false).screen)
+        XCTAssertTrue(pagesOnly.pages)
+        XCTAssertFalse(pagesOnly.paste)
+        let pasteOnly = try XCTUnwrap(try screenAnswer(pages: false, paste: true).screen)
+        XCTAssertFalse(pasteOnly.pages)
+        XCTAssertTrue(pasteOnly.paste)
+        XCTAssertEqual(SampleWorld.echoed(both, rows: nil, echo: SampleEcho())?.pages, true, "the sample's builder drops the offer")
+        XCTAssertEqual(SampleWorld.echoed(pasteOnly, rows: nil, echo: SampleEcho())?.pages, false)
+    }
+
     /// Clause: `/pair` answers one of three, `allowed` alone carries the
     /// certificate and must, and nothing else decodes (build/p330/SPEC.md
     /// section 4.8.3).

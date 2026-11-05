@@ -81,6 +81,19 @@
 // it also tells the content whether the page offers Paste, hands the menu's
 // Paste to the page, and reads each row's mark for the text UIKit reads.
 //
+// THE PULL (Phase 350, build/p350/SPEC.md D7, D8, D21 and M3). On a picture
+// that offers `pages` (a program on the alternate screen that takes keys),
+// the scroll view's OWN pan, read through one more target and no new
+// recogniser, is a pull: when the finger lifts (`.ended`, and only then),
+// travel past the edge of the program's rows (the pan's translation less the
+// room the offset had to move from where the pull began) of at least
+// `ScreenPull.travel`, 44 pt, sends ONE Page Up for a pull down past the top
+// or ONE Page Down for a pull up past the bottom, through the page's one key
+// sender. Never with two fingers, a pinch run or a selection held, never on
+// a picture that asks or takes no keys, and never for a pull that went more
+// sideways than up or down. The pull writes no offset and draws nothing: the
+// rubber band is its feel, and the program's next picture its answer.
+//
 // THE DESIGN IS PASEO'S (packages/app/src/terminal/native-renderer/
 // headless-terminal-state.ts and terminal-scrollback.test.ts at
 // getpaseo/paseo 2f0cb2f54be5742d6fc7e9b85ba39808ac22ad93, Apache-2.0, by the
@@ -106,6 +119,9 @@ struct ScreenScrollerActions {
     let copy: @MainActor () -> Void
     /// The keyboard's overlap of the Terminal, in points, once per change.
     let overlap: @MainActor (CGFloat) -> Void
+    /// A pull past the edge of a full-screen program's rows lifted (Phase
+    /// 350, D7): Page Up or Page Down, for the page's one key sender.
+    var page: @MainActor (ScreenKeyName) -> Void = { _ in }
     /// Whether the edit menu offers Paste now (Phase 348, D30): false unless
     /// the page says the Mac takes a paste.
     var pasteOffered: @MainActor () -> Bool = { false }
@@ -159,6 +175,49 @@ final class ScreenGestureRules: NSObject, UIGestureRecognizerDelegate {
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         guard gestureRecognizer === handle else { return true }
         return contentView?.grabs(at: gestureRecognizer.location(in: contentView)) ?? false
+    }
+}
+
+// MARK: - The pull (Phase 350)
+
+/// THE PULL'S RULE (Phase 350, build/p350/SPEC.md D7, D8, D21), pure: what
+/// one lifted pull of the scroll view's own pan sends, from what the pan and
+/// the offset reported. Every number is the phone's own geometry, in points.
+enum ScreenPull {
+    /// The finger travel past the edge of the program's rows that is a page
+    /// (D21, M3: a drag the pan read as 30 pt past the edge does not page and
+    /// 50 pt does; PS16's drag read at least 66 pt past it on all four
+    /// devices measured).
+    static let travel: CGFloat = 44
+
+    /// The page one lifted pull sends, or nil. Nil unless the picture offers
+    /// a page (`offered`: `pages`, typable and not asking), exactly one
+    /// finger was down, the pinch did not run and no selection was held.
+    /// Then the travel past the top is the translation less the room the
+    /// offset had above it where the pull began (`startOffset - minOffset`,
+    /// never below 0), and the travel past the bottom the translation's
+    /// reverse less the room below (`maxOffset - startOffset`): at least
+    /// `travel` past the top is Page Up, past the bottom Page Down. Sideways,
+    /// zoomed, or upright on an iPhone SE the rows pan first, and only what
+    /// they could not absorb counts (M3).
+    static func page(
+        translation: CGFloat, startOffset: CGFloat, minOffset: CGFloat, maxOffset: CGFloat,
+        touches: Int, pinched: Bool, selected: Bool, offered: Bool
+    ) -> ScreenKeyName? {
+        guard offered, touches == 1, !pinched, !selected else { return nil }
+        let above = max(0, CGFloat(startOffset) - minOffset)
+        let below = max(0, CGFloat(maxOffset) - startOffset)
+        if CGFloat(translation) - above >= travel { return .pageUp }
+        if -CGFloat(translation) - below >= travel { return .pageDown }
+        return nil
+    }
+
+    /// A pull's vertical travel: the translation's `y` when the pull went
+    /// more up or down than sideways, else 0, so a sideways pan along a
+    /// zoomed program's rows, which the scroll view's directional lock keeps
+    /// on its rows, never sends a page.
+    static func vertical(_ translation: CGPoint) -> CGFloat {
+        abs(CGFloat(translation.y)) > abs(translation.x) ? translation.y : 0
     }
 }
 
@@ -227,6 +286,15 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
     private var measuredHeight: CGFloat = 0
     /// A measurement is waiting for the layout pass to end.
     private var remeasuring = false
+    /// The pull under way (Phase 350, D7, D8): the offset it began at, the
+    /// most fingers seen, whether the pinch ran during it, and whether a
+    /// selection was held when it began.
+    private var pullStart: CGFloat = 0
+    private var pullTouches = 0
+    private var pullPinched = false
+    private var pullSelected = false
+    /// The pinch is running now (Phase 350, D8).
+    private var pinching = false
 
     init(scrollback: ScrollbackModel) {
         self.scrollback = scrollback
@@ -284,6 +352,9 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
         rules.handle = handle
         rules.contentView = contentView
         panGestureRecognizer.require(toFail: handle)
+        // The pull (Phase 350, D7): the scroll view's OWN pan, read through
+        // one more target, and no new recogniser.
+        panGestureRecognizer.addTarget(self, action: #selector(pulled(_:)))
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(pinched(_:)))
         pinch.delegate = rules
         let double = UITapGestureRecognizer(target: self, action: #selector(doubleTapped(_:)))
@@ -364,13 +435,46 @@ final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {
         switch pinch.state {
         case .began:
             pinchFocal = pinch.location(in: contentView)
+            // A pull the pinch ran during sends no page (Phase 350, D8).
+            pinching = true
+            pullPinched = true
         case .changed:
             contentView.transform = scaled(pinch.scale, about: pinchFocal)
         case .ended:
+            pinching = false
             contentView.transform = .identity
             zoom(to: CGFloat(cell.width) * pinch.scale, focal: pinchFocal)
         case .cancelled, .failed:
+            pinching = false
             contentView.transform = .identity
+        default:
+            break
+        }
+    }
+
+    /// THE PULL (Phase 350, D7, D8, D21): the scroll view's own pan, read
+    /// through its target. It keeps where the offset began, the most fingers
+    /// seen, whether the pinch ran and whether a selection was held, and when
+    /// the finger lifts, and only then, asks `ScreenPull.page` and hands a
+    /// page to the page's one key sender. It writes no offset and draws
+    /// nothing.
+    @objc private func pulled(_ pan: UIPanGestureRecognizer) {
+        switch pan.state {
+        case .began:
+            pullStart = contentOffset.y
+            pullTouches = pan.numberOfTouches
+            pullPinched = pinching
+            pullSelected = selection != nil
+        case .changed:
+            pullTouches = max(pullTouches, pan.numberOfTouches)
+        case .ended:
+            let offered = picture?.pages == true && picture?.typable == true && picture?.asking == false
+            let key = ScreenPull.page(
+                translation: ScreenPull.vertical(pan.translation(in: self)), startOffset: pullStart,
+                minOffset: -CGFloat(contentInset.top), maxOffset: maxOffsetY,
+                touches: pullTouches, pinched: pullPinched, selected: pullSelected || selection != nil, offered: offered
+            )
+            if let key { actions?.page(key) }
         default:
             break
         }

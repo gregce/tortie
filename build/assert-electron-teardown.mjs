@@ -551,12 +551,26 @@ const HELPER = 'electron-run.mjs';
  * refused, `claude` and `codex` build/p318/stand-in.mjs behind their bare
  * names, and every stand-in pid ended in its `finally`.
  *
+ * PHASE 350 RAISED IT FROM 179 TO 180, by one for build/p350/probe-p350.mjs
+ * (`probe:p350`), the Mac side of scrolling back pi and every full-screen
+ * agent from the phone: Electrons through the helper ONE AT A TIME, the
+ * parent's (`P350_PARENT_CHECKOUT`, required) FIRST on the same profile, then
+ * HEAD once a pi band, on a scratch profile, HOME and ZDOTDIR with
+ * HISTFILE=/dev/null and the socket gmux-p350…, every launch naming that
+ * socket as its `tmuxSocket` (his ruling of 2026-11-02: the helper reads his
+ * session names before and after, read only, and ends the scratch server),
+ * inside build/with-scratch-machine.mjs's loopback machine with the quiet shell and
+ * its own far HOME, every probed registry row but its ten stand-ins hidden
+ * before every launch, a shadow copy of a stand-in's name refused, the
+ * agents build/p350/stand-in.mjs behind their bare names, and every stand-in
+ * pid ended in its `finally`.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 179;
+const HELPER_USER_FLOOR = 180;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

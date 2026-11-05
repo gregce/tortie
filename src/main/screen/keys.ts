@@ -23,21 +23,32 @@
  *      id, the same `$`-id or the same machine, then THE ONE REFUSAL: while the
  *      fresh screen is asking, or the picture the keys were sent against was
  *      (`dialog` not null), the question id now and the window's mark now must
- *      both be the ones the phone echoed, or nothing is typed (D21, D22);
+ *      both be the ones the phone echoed, or nothing is typed (D21, D22); and
+ *      (Phase 350's fix round) A PAGE ONLY ON THE ALTERNATE SCREEN: a write of
+ *      exactly one `PPage` or `NPage` against a fresh screen that is not the
+ *      alternate screen is refused `changed` with nothing typed, because the
+ *      program it was meant for has left full screen since the phone's picture,
+ *      and typed into the shell left behind a page is a `~` on its command line,
+ *      two where the terminal echoes it in cooked mode, which makes his next
+ *      command fail;
  *   5. the question id moves, then the act in the very next statement;
  *   6. the outcome: every `send-keys` line fulfilled is `done`, any rejected
  *      is `failed` (some keys may have reached the session; the sentence does
  *      not claim otherwise);
- *   7. the desk's own status funnel when the act typed (D23), the watcher's
- *      nudge with the fresh read's window mark (D4), and the session's
- *      last-act time for 2a.
+ *   7. the desk's own status funnel when the act typed (D23), then (Phase 350,
+ *      build/p350/SPEC.md D9) when the act typed AND the write is exactly one
+ *      `PPage` or `NPage`, the reflow grace's clock (`noteRepaint`, the clock
+ *      `noteGeometryChange` stamps), so the program's redraw of its own page
+ *      is not read as work; the watcher's nudge with the fresh read's window
+ *      mark (D4), and the session's last-act time for 2a.
  *
  * THE ACT, on this Mac (D18, D19): `copy-mode -q -t <%pane>` (typing returns
  * the pane to live output first, as the desk does), then per item either
  * `send-keys -t <%pane> -H <hh>…` (a text's UTF-8 bytes, at most 256 a line, so
  * it arrives as exactly the bytes typed) or `send-keys -t <%pane> <Name>` (one
- * of the contract's 35 names, so tmux encodes the key for the program's
- * current mode exactly as it encodes the same key typed at the desk). Every
+ * of the contract's 37 names, so tmux encodes the key for the program's
+ * current mode exactly as it encodes the same key typed at the desk; a page
+ * key is refused or typed exactly as every other named key is). Every
  * line is written in ONE statement over the core's control client, one command
  * a line; when that client is down, ONE spawned list. NEVER `-l`: over the
  * control client it expanded `$HOME`, and as an argv it dropped a trailing `;`
@@ -61,9 +72,11 @@
  * WHAT IT NEVER DOES. It logs nothing (the one log line a write gets is the
  * door's), reads no error's text (a failed tmux command's text holds its argv),
  * holds nothing on disk, and names no status setter but `noteUserInput`, the
- * desk's own funnel, which never raises `needs_input`. It retries nothing: a
- * write that could not be typed now is refused or failed, and never typed
- * later.
+ * desk's own funnel, which never raises `needs_input`. The grace's clock
+ * (`noteRepaint`, Phase 350) is no status setter: it only discounts a redraw
+ * for `REFLOW_GRACE_MS`, and a question drawn inside it is still caught on
+ * time. It retries nothing: a write that could not be typed now is refused or
+ * failed, and never typed later.
  */
 
 import {
@@ -154,6 +167,16 @@ export interface ScreenKeysDeps {
   watch: Pick<ScreenWatch, 'readFresh' | 'nudge'>;
   /** The desk's own funnel: `core.activity.noteUserInput`. */
   noteUserInput(sessionId: string): void;
+  /**
+   * THE REFLOW GRACE'S CLOCK (Phase 350, build/p350/SPEC.md D9, D23):
+   * `core.activity.noteGeometryChange`. A page's redraw is the program
+   * answering a key Tortie typed, not work, so after a write of exactly one
+   * `PPage` or `NPage` that typed, the verb stamps the clock a resize stamps.
+   * Production hands it (src/main/capabilities.ts, `conformance:pocket` Z32);
+   * a verb built without it, as a test or a measurement builds one, types the
+   * same keys and discounts nothing.
+   */
+  noteRepaint?(sessionId: string): void;
   /** The carriage's one phone writer for a session on another machine: `typePhoneKeys`. */
   typeRemote?: (sessionId: string, keys: readonly PocketKeyItem[]) => 'carriage' | 'unreachable';
   /** The spawned fallback when the control client is down. Production: `execTmux`. Tests inject. */
@@ -193,9 +216,21 @@ function wait(ms: number): Promise<void> {
   });
 }
 
-/** True for one of the contract's 35 names, compared with `===`. */
+/** True for one of the contract's 37 names, compared with `===`. */
 function isKeyName(name: unknown): boolean {
   return POCKET_SCREEN_KEY_NAMES.some((known) => known === name);
+}
+
+/**
+ * A write of EXACTLY ONE page key (Phase 350, build/p350/SPEC.md D9): one
+ * item, a named key, `PPage` or `NPage`. The only write whose redraw the grace
+ * discounts; a page beside anything else never reaches the act (step 1), and
+ * any other key is typing whose answer may be work.
+ */
+function isOnePage(keys: readonly PocketKeyItem[]): boolean {
+  if (keys.length !== 1) return false;
+  const only = keys[0];
+  return only !== undefined && 'k' in only && (only.k === 'PPage' || only.k === 'NPage');
 }
 
 /**
@@ -204,7 +239,7 @@ function isKeyName(name: unknown): boolean {
  * too, because a line break is the `Enter` key and a pasted block of lines
  * must never run line by line; the items' text is at most
  * `POCKET_KEYS_MAX_TEXT_BYTES` in all. The door's parse already holds the
- * shape; it is asked again here because a name that is not one of the 35
+ * shape; it is asked again here because a name that is not one of the 37
  * would otherwise reach a command line, and a named key that is not alone in
  * its write would be read by the program as part of one input (D17).
  */
@@ -238,7 +273,7 @@ function keysRefusal(keys: readonly PocketKeyItem[]): PocketReplyOutcome | null 
  * The act's argvs on this Mac (D18, D19), composed BEFORE the final check so
  * the act is the very next statement after the id moves: `copy-mode -q` first,
  * then per item its `-H` bytes in lines of at most `TYPED_BYTES_PER_COMMAND`,
- * or its one name. Nothing but hex bytes and the 35 names: no argv element is
+ * or its one name. Nothing but hex bytes and the 37 names: no argv element is
  * the text itself.
  */
 function localArgvs(pane: string, keys: readonly PocketKeyItem[]): string[][] {
@@ -352,6 +387,14 @@ export function createScreenKeys(deps: ScreenKeysDeps): {
       ) {
         return refused('changed', SCREEN_QUESTION_MOVED);
       }
+      // PHASE 350 FIX ROUND. A PAGE ONLY ON THE ALTERNATE SCREEN: the offer's
+      // own condition (D6) asked again of the fresh screen, so a page sent
+      // against a full-screen picture whose program has since left it types
+      // nothing into the shell it left behind. What is left is the gap between
+      // this read and the act, which the read of a question has too (above).
+      if (isOnePage(input.keys) && !fresh.display.alternate) {
+        return refused('changed', LIFECYCLE_SESSION_CHANGED);
+      }
       // 5. The id moves, then the act, in the very next statements.
       deps.turns.bump(id, 'phone');
       deps.onLastCheck?.(id);
@@ -385,6 +428,16 @@ export function createScreenKeys(deps: ScreenKeysDeps): {
           deps.noteUserInput(id);
         } catch {
           // The funnel is the desk's; a key typed stays typed.
+        }
+      }
+      // PHASE 350 (D9): a page the program answers by redrawing its view is
+      // not work, so the grace a resize earns is stamped for exactly one page
+      // key that typed, after the funnel and in its own try.
+      if (result.any && isOnePage(input.keys)) {
+        try {
+          deps.noteRepaint?.(id);
+        } catch {
+          // The clock is the desk's; a page typed stays typed.
         }
       }
       try {

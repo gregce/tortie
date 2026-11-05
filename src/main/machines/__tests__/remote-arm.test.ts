@@ -90,6 +90,55 @@ describe('the token list Tortie composes from', () => {
     // overlay is not read here on purpose.
     expect(armedResumeTokens('an-agent-somebody-added').size).toBe(0);
   });
+
+  /**
+   * PHASE 350 (build/p350/SPEC.md D16). The set holds the tokens the compiled
+   * composers fix after the program path, so a pi row recorded on this Mac at
+   * the floor, `[pi, --tui-mode, regular, --session-id, <id>]`, composes; the
+   * parent refused it on `--tui-mode`, which resume in place would then have
+   * refused for a row the build before it armed.
+   */
+  it("holds pi's inline token and nothing more of pi's than before", () => {
+    const tokens = armedResumeTokens('pi');
+    expect(tokens.has('--tui-mode')).toBe(true);
+    expect(tokens.has('regular')).toBe(true);
+    expect(tokens.has('--session-id')).toBe(true);
+    // A person's own value is not a compiled token, as at the parent.
+    expect(tokens.has('fullscreen')).toBe(false);
+
+    const PI = '/Users/someone/.npm-global/bin/pi';
+    const head = composeArmedResumeText(
+      input({
+        agent: 'pi',
+        recordedResumeArgv: ['/usr/local/bin/pi', '--tui-mode', 'regular', '--session-id', ID],
+        binOnMachine: PI
+      })
+    );
+    expect(head.refusal).toBeNull();
+    expect(head.text).toBe(`${PI} --tui-mode regular --session-id ${ID}`);
+    // The row recorded before the phase composes exactly as it did.
+    const pre = composeArmedResumeText(
+      input({ agent: 'pi', recordedResumeArgv: ['/usr/local/bin/pi', '--session-id', ID], binOnMachine: PI })
+    );
+    expect(pre.text).toBe(`${PI} --session-id ${ID}`);
+    // A person's own `--tui-mode fullscreen` is still refused on its value.
+    const theirs = composeArmedResumeText(
+      input({
+        agent: 'pi',
+        recordedResumeArgv: ['/usr/local/bin/pi', '--session-id', ID, '--tui-mode', 'fullscreen'],
+        binOnMachine: PI
+      })
+    );
+    expect(theirs.refusal).toBe('not-composed');
+    expect(theirs.detail).toContain('"fullscreen"');
+  });
+
+  it("gives every other compiled agent exactly the set it had, Codex's pair included", () => {
+    expect(armedResumeTokens('codex').has('tui.fullscreen_transcript=false')).toBe(true);
+    for (const agent of ['claude', 'codex', 'gemini', 'qwen', 'opencode']) {
+      expect(armedResumeTokens(agent).has('--tui-mode'), agent).toBe(false);
+    }
+  });
 });
 
 describe('composing the one line', () => {
