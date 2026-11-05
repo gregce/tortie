@@ -167,8 +167,11 @@ jobs:
             --password "$APPLE_APP_PWD" \
             --team-id "$APPLE_TEAM_ID" \
             --wait
-          xcrun stapler staple "$dmg"
-          xcrun stapler validate "$dmg"
+          # Apple's ticket lookup can drop its connection (Error 68).
+          # build/stapler.mjs tries only that again, four tries within two
+          # minutes, and fails on anything else, a missing ticket included.
+          node build/stapler.mjs staple "$dmg"
+          node build/stapler.mjs validate "$dmg"
           # Stapling appends the ticket. The hash, the size and the blockmap
           # recorded for the DMG at package time no longer match the file,
           # so re-align the feed with the bytes being published.

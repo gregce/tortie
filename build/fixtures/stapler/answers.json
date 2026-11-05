@@ -1,0 +1,1067 @@
+{
+  "measuredOn": "macOS 15.7.9 (24G830), Xcode 26.3 (17C529), /Applications/Xcode.app/Contents/Developer/usr/bin/stapler through /usr/bin/xcrun, 2026-11-05",
+  "answers": [
+    {
+      "id": "ok-validate-dmg",
+      "source": "measured 2026-11-05T16:57:02.834Z (online): the published 0.114.0 DMG, online; scratch log online.jsonl run 1",
+      "action": "validate",
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/dl/Tortie-0.114.0-arm64.dmg\nThe validate action worked!\n",
+      "stderr": "",
+      "ms": 798,
+      "verdict": "ok",
+      "owns": [
+        "K1"
+      ]
+    },
+    {
+      "id": "ok-validate-zip-app",
+      "source": "measured 2026-11-05T16:57:03.431Z (online): the app in the published 0.114.0 ZIP, online; scratch log online.jsonl run 1",
+      "action": "validate",
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/zip/Tortie.app\nThe validate action worked!\n",
+      "stderr": "",
+      "ms": 178,
+      "verdict": "ok",
+      "owns": [
+        "K1"
+      ]
+    },
+    {
+      "id": "ok-validate-dmg-app",
+      "source": "measured 2026-11-05T16:57:08.460Z (online): the app on the published 0.114.0 DMG, mounted read-only, online; scratch log online.jsonl run 1",
+      "action": "validate",
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/m/dmg/Tortie.app\nThe validate action worked!\n",
+      "stderr": "",
+      "ms": 162,
+      "verdict": "ok",
+      "owns": [
+        "K1"
+      ]
+    },
+    {
+      "id": "ok-staple-dmg",
+      "source": "measured 2026-11-05T16:59:10.327Z (online): a copy of the published DMG, stapled again, online (its bytes did not change); scratch log staple.jsonl run 1",
+      "action": "staple",
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/dmgcopy/on.dmg\nProcessing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/dmgcopy/on.dmg\nThe staple and validate action worked!\n",
+      "stderr": "",
+      "ms": 334,
+      "verdict": "ok",
+      "owns": [
+        "K1"
+      ]
+    },
+    {
+      "id": "ok-staple-unstapled-app",
+      "source": "measured 2026-11-05T16:59:09.798Z (online): the ZIP app with its ticket file removed, stapled, online; scratch log staple.jsonl run 1",
+      "action": "staple",
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/notick-staple-on/Tortie.app\nProcessing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/notick-staple-on/Tortie.app\nThe staple and validate action worked!\n",
+      "stderr": "",
+      "ms": 207,
+      "verdict": "ok",
+      "owns": [
+        "K1"
+      ]
+    },
+    {
+      "id": "missing-validate-unstapled-app",
+      "source": "measured 2026-11-05T16:59:09.460Z (online): the ZIP app with its ticket file removed (signed, notarized, not stapled), online; scratch log missing.jsonl run 1",
+      "action": "validate",
+      "status": 65,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/notick/Tortie.app\nTortie.app does not have a ticket stapled to it.\n",
+      "stderr": "",
+      "ms": 59,
+      "verdict": "missing",
+      "owns": [
+        "K2"
+      ]
+    },
+    {
+      "id": "missing-validate-unstapled-app-denied",
+      "source": "measured 2026-11-05T16:59:10.915Z (netdeny): the same, every outbound connection denied: the same words, no network asked; scratch log missing.jsonl run 1",
+      "action": "validate",
+      "status": 65,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/notick/Tortie.app\nTortie.app does not have a ticket stapled to it.\n",
+      "stderr": "",
+      "ms": 56,
+      "verdict": "missing",
+      "owns": [
+        "K2"
+      ]
+    },
+    {
+      "id": "missing-validate-unsigned-app",
+      "source": "measured 2026-11-05T17:08:19.795Z (online): the app `npm run package -- -c.mac.identity=null` made, online; scratch log unsigned.jsonl run 1",
+      "action": "validate",
+      "status": 65,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/pkg/wt/release/mac-arm64/Tortie.app\nTortie.app does not have a ticket stapled to it.\n",
+      "stderr": "",
+      "ms": 62,
+      "verdict": "missing",
+      "owns": [
+        "K2"
+      ]
+    },
+    {
+      "id": "missing-validate-unsigned-dmg",
+      "source": "measured 2026-11-05T17:08:20.335Z (online): the DMG the same package made, online; scratch log unsigned.jsonl run 1",
+      "action": "validate",
+      "status": 65,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/pkg/wt/release/Tortie-0.114.0-arm64.dmg\nTortie-0.114.0-arm64.dmg does not have a ticket stapled to it.\n",
+      "stderr": "",
+      "ms": 116,
+      "verdict": "missing",
+      "owns": [
+        "K2"
+      ]
+    },
+    {
+      "id": "missing-validate-plain-dmg",
+      "source": "measured 2026-11-05T16:59:55.710Z (online): a DMG hdiutil made from one text file, never signed or notarized, online; scratch log other.jsonl run 1",
+      "action": "validate",
+      "status": 65,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/plain/unsigned.dmg\nunsigned.dmg does not have a ticket stapled to it.\n",
+      "stderr": "",
+      "ms": 25,
+      "verdict": "missing",
+      "owns": [
+        "K2"
+      ]
+    },
+    {
+      "id": "missing-staple-unsigned-app",
+      "source": "measured 2026-11-05T17:08:20.071Z (online): the unsigned package app, stapled online: Apple answered that it holds no ticket; scratch log unsigned.jsonl run 1",
+      "action": "staple",
+      "status": 65,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/unsigned/on.app\nCloudKit query for on.app (2/d9244a80cc5820eaeb63618fb9d14e88356abe37) failed due to \"Record not found\".\nCould not find base64 encoded ticket in response for 2/d9244a80cc5820eaeb63618fb9d14e88356abe37\nThe staple and validate action failed! Error 65.\n",
+      "stderr": "",
+      "ms": 190,
+      "verdict": "missing",
+      "owns": [
+        "K2"
+      ]
+    },
+    {
+      "id": "missing-staple-plain-dmg",
+      "source": "measured 2026-11-05T16:59:55.888Z (online): the hdiutil DMG, stapled online: Apple answered that it holds no ticket; scratch log other.jsonl run 1",
+      "action": "staple",
+      "status": 65,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/plain/unsigned-on.dmg\nCloudKit query for unsigned-on.dmg (2/83c58cbe30c4dac41deb3d096b525f1e418c5e5d) failed due to \"Record not found\".\nCould not find base64 encoded ticket in response for 2/83c58cbe30c4dac41deb3d096b525f1e418c5e5d\nThe staple and validate action failed! Error 65.\n",
+      "stderr": "",
+      "ms": 130,
+      "verdict": "missing",
+      "owns": [
+        "K2"
+      ]
+    },
+    {
+      "id": "lookup-validate-dmg",
+      "source": "measured 2026-11-05T16:57:21.295Z (netdeny): the published DMG, every outbound connection denied; scratch log netdeny.jsonl run 1",
+      "action": "validate",
+      "status": 68,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/dl/Tortie-0.114.0-arm64.dmg\nerror is Error Domain=NSPOSIXErrorDomain Code=1 \"Operation not permitted\" UserInfo={_NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <80852FA2-AB94-460D-8C49-3A8DF1BFE707>.<1>, _kCFStreamErrorDomainKey=1, _kCFStreamErrorCodeKey=1, _NSURLErrorRelatedURLSessionTaskErrorKey=(\n    \"LocalDataTask <80852FA2-AB94-460D-8C49-3A8DF1BFE707>.<1>\"\n), _NSURLErrorNWPathKey=satisfied (Path is satisfied), interface: en0[802.11], ipv4, dns, uses wifi}\nCloudKit's response is inconsistent with expections: (null)\nThe validate action failed! Error 68.\n",
+      "stderr": "",
+      "ms": 129,
+      "verdict": "lookup",
+      "owns": [
+        "K1",
+        "K3"
+      ]
+    },
+    {
+      "id": "lookup-validate-zip-app",
+      "source": "measured 2026-11-05T16:57:21.942Z (netdeny): the app in the published ZIP, every outbound connection denied; scratch log netdeny.jsonl run 1",
+      "action": "validate",
+      "status": 68,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/zip/Tortie.app\nerror is Error Domain=NSPOSIXErrorDomain Code=1 \"Operation not permitted\" UserInfo={_NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <339C55E2-9891-4CBD-94FA-E2AD441928DA>.<1>, _kCFStreamErrorDomainKey=1, _kCFStreamErrorCodeKey=1, _NSURLErrorRelatedURLSessionTaskErrorKey=(\n    \"LocalDataTask <339C55E2-9891-4CBD-94FA-E2AD441928DA>.<1>\"\n), _NSURLErrorNWPathKey=satisfied (Path is satisfied), interface: en0[802.11], ipv4, dns, uses wifi}\nCloudKit's response is inconsistent with expections: (null)\nThe validate action failed! Error 68.\n",
+      "stderr": "",
+      "ms": 87,
+      "verdict": "lookup",
+      "owns": [
+        "K1",
+        "K3"
+      ]
+    },
+    {
+      "id": "lookup-validate-dmg-app",
+      "source": "measured 2026-11-05T16:57:22.507Z (netdeny): the app on the mounted DMG, every outbound connection denied; scratch log netdeny.jsonl run 1",
+      "action": "validate",
+      "status": 68,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/m/dmg/Tortie.app\nerror is Error Domain=NSPOSIXErrorDomain Code=1 \"Operation not permitted\" UserInfo={_NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <46FF614C-FE69-4A5F-8B31-5FA0EEC035BB>.<1>, _kCFStreamErrorDomainKey=1, _kCFStreamErrorCodeKey=1, _NSURLErrorRelatedURLSessionTaskErrorKey=(\n    \"LocalDataTask <46FF614C-FE69-4A5F-8B31-5FA0EEC035BB>.<1>\"\n), _NSURLErrorNWPathKey=satisfied (Path is satisfied), interface: en0[802.11], ipv4, dns, uses wifi}\nCloudKit's response is inconsistent with expections: (null)\nThe validate action failed! Error 68.\n",
+      "stderr": "",
+      "ms": 72,
+      "verdict": "lookup",
+      "owns": [
+        "K1",
+        "K3"
+      ]
+    },
+    {
+      "id": "lookup-validate-zip-app-ip",
+      "source": "measured 2026-11-05T16:57:46.170Z (netdeny-ip): the app in the ZIP, IP connections denied and the local DNS socket allowed; scratch log netdeny-ip.jsonl run 1",
+      "action": "validate",
+      "status": 68,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/zip/Tortie.app\nerror is Error Domain=NSPOSIXErrorDomain Code=1 \"Operation not permitted\" UserInfo={_NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <4E967DCC-7C1E-4BA2-A90F-EFF4B5A36A78>.<1>, _kCFStreamErrorDomainKey=1, _kCFStreamErrorCodeKey=1, _NSURLErrorRelatedURLSessionTaskErrorKey=(\n    \"LocalDataTask <4E967DCC-7C1E-4BA2-A90F-EFF4B5A36A78>.<1>\"\n), _NSURLErrorNWPathKey=satisfied (Path is satisfied), interface: en0[802.11], ipv4, dns, uses wifi}\nCloudKit's response is inconsistent with expections: (null)\nThe validate action failed! Error 68.\n",
+      "stderr": "",
+      "ms": 80,
+      "verdict": "lookup",
+      "owns": [
+        "K1",
+        "K3"
+      ]
+    },
+    {
+      "id": "lookup-staple-dmg",
+      "source": "measured 2026-11-05T16:59:11.384Z (netdeny): a copy of the published DMG, stapled with every outbound connection denied (its bytes did not change); scratch log staple.jsonl run 1",
+      "action": "staple",
+      "status": 68,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/dmgcopy/off.dmg\nerror is Error Domain=NSPOSIXErrorDomain Code=1 \"Operation not permitted\" UserInfo={_NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <FEEF10DC-9CFF-4D29-8DE6-69DCA75CA01A>.<1>, _kCFStreamErrorDomainKey=1, _kCFStreamErrorCodeKey=1, _NSURLErrorRelatedURLSessionTaskErrorKey=(\n    \"LocalDataTask <FEEF10DC-9CFF-4D29-8DE6-69DCA75CA01A>.<1>\"\n), _NSURLErrorNWPathKey=satisfied (Path is satisfied), interface: en0[802.11], ipv4, dns, uses wifi}\nCloudKit's response is inconsistent with expections: (null)\nThe staple and validate action failed! Error 68.\n",
+      "stderr": "",
+      "ms": 121,
+      "verdict": "lookup",
+      "owns": [
+        "K1",
+        "K3"
+      ]
+    },
+    {
+      "id": "lookup-staple-unstapled-app",
+      "source": "measured 2026-11-05T16:59:11.115Z (netdeny): the ZIP app with its ticket file removed, stapled with the network denied; scratch log staple.jsonl run 1",
+      "action": "staple",
+      "status": 68,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/notick-staple-off/Tortie.app\nerror is Error Domain=NSPOSIXErrorDomain Code=1 \"Operation not permitted\" UserInfo={_NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <6A0CC537-1D56-40F0-A09A-E8EC16E055E1>.<1>, _kCFStreamErrorDomainKey=1, _kCFStreamErrorCodeKey=1, _NSURLErrorRelatedURLSessionTaskErrorKey=(\n    \"LocalDataTask <6A0CC537-1D56-40F0-A09A-E8EC16E055E1>.<1>\"\n), _NSURLErrorNWPathKey=satisfied (Path is satisfied), interface: en0[802.11], ipv4, dns, uses wifi}\nCloudKit's response is inconsistent with expections: (null)\nThe staple and validate action failed! Error 68.\n",
+      "stderr": "",
+      "ms": 63,
+      "verdict": "lookup",
+      "owns": [
+        "K1",
+        "K3"
+      ]
+    },
+    {
+      "id": "lookup-staple-unsigned-app",
+      "source": "measured 2026-11-05T17:08:20.592Z (netdeny): the unsigned package app, stapled with the network denied: Apple could not be asked whether a ticket exists; scratch log unsigned.jsonl run 1",
+      "action": "staple",
+      "status": 68,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/unsigned/off.app\nerror is Error Domain=NSPOSIXErrorDomain Code=1 \"Operation not permitted\" UserInfo={_NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <90899F71-6374-4A35-98EB-547966851297>.<1>, _kCFStreamErrorDomainKey=1, _kCFStreamErrorCodeKey=1, _NSURLErrorRelatedURLSessionTaskErrorKey=(\n    \"LocalDataTask <90899F71-6374-4A35-98EB-547966851297>.<1>\"\n), _NSURLErrorNWPathKey=satisfied (Path is satisfied), interface: en0[802.11], ipv4, dns, uses wifi}\nCloudKit's response is inconsistent with expections: (null)\nThe staple and validate action failed! Error 68.\n",
+      "stderr": "",
+      "ms": 55,
+      "verdict": "lookup",
+      "owns": [
+        "K1",
+        "K3"
+      ]
+    },
+    {
+      "id": "failed-wrong-ticket",
+      "source": "measured 2026-11-05T17:17:50.152Z (online): the unsigned package app carrying the 0.114.0 app ticket file, online: a ticket that is not this copy; scratch log edge.jsonl run 1",
+      "action": "validate",
+      "status": 65,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/wrong/Tortie.app\n",
+      "stderr": "",
+      "ms": 79,
+      "verdict": "failed",
+      "owns": [
+        "K1",
+        "K2",
+        "K4"
+      ]
+    },
+    {
+      "id": "failed-broken-ticket",
+      "source": "measured 2026-11-05T17:17:50.325Z (online): the ZIP app with its ticket file cut to its first 100 bytes, online; scratch log edge.jsonl run 1",
+      "action": "validate",
+      "status": 65,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/broken/Tortie.app\n",
+      "stderr": "",
+      "ms": 73,
+      "verdict": "failed",
+      "owns": [
+        "K2",
+        "K4"
+      ]
+    },
+    {
+      "id": "failed-no-such-path",
+      "source": "measured 2026-11-05T16:59:56.042Z (online): a path that does not exist (its words name NSPOSIXErrorDomain, its exit is 66); scratch log other.jsonl run 1",
+      "action": "validate",
+      "status": 66,
+      "signal": null,
+      "error": null,
+      "stdout": "File /private/var/tmp/tortie-wt/scratch/p356/spec/x/plain/no-such.app does not exist. Error Domain=NSCocoaErrorDomain Code=260 \"The file “no-such.app” couldn’t be opened because there is no such file.\" UserInfo={NSURL=x/plain/no-such.app -- file:///private/var/tmp/tortie-wt/scratch/p356/spec/, NSFilePath=/private/var/tmp/tortie-wt/scratch/p356/spec/x/plain/no-such.app, NSUnderlyingError=0x6000021e4900 {Error Domain=NSPOSIXErrorDomain Code=2 \"No such file or directory\"}}\n",
+      "stderr": "",
+      "ms": 12,
+      "verdict": "failed",
+      "owns": [
+        "K3",
+        "K4"
+      ]
+    },
+    {
+      "id": "failed-zip",
+      "source": "measured 2026-11-05T16:59:56.127Z (online): the published ZIP itself, which stapler does not take; scratch log other.jsonl run 1",
+      "action": "validate",
+      "status": 66,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/plain/copy.zip\nStapler is incapable of working with ZIP archive files.\n",
+      "stderr": "",
+      "ms": 15,
+      "verdict": "failed",
+      "owns": [
+        "K1",
+        "K4"
+      ]
+    },
+    {
+      "id": "failed-text",
+      "source": "measured 2026-11-05T16:59:56.206Z (online): a plain text file; scratch log other.jsonl run 1",
+      "action": "validate",
+      "status": 66,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/plain/file.txt\nStapler is incapable of working with Plain Text Document files.\n",
+      "stderr": "",
+      "ms": 15,
+      "verdict": "failed",
+      "owns": [
+        "K4"
+      ]
+    },
+    {
+      "id": "failed-folder",
+      "source": "measured 2026-11-05T16:59:56.245Z (online): a folder that is not a bundle; scratch log other.jsonl run 1",
+      "action": "validate",
+      "status": 66,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/plain/dir\nStapler is incapable of working with Folder files.\n",
+      "stderr": "",
+      "ms": 15,
+      "verdict": "failed",
+      "owns": [
+        "K4"
+      ]
+    },
+    {
+      "id": "ci-lookup-staple",
+      "source": "constructed: the CI's words as docs/BACKLOG.md Phase 356 quotes them (0.113.0 run 39521413998 attempt 1, the DMG step; 0.114.0 run 42059523260 attempt 1, the ZIP's app), set in the shape measured here; the job logs need a credential (403 measured); owed verbatim, build/p356/SPEC.md §11",
+      "action": "staple",
+      "status": 68,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /Users/runner/work/tortie/tortie/release/Tortie-0.113.0-arm64.dmg\nerror is Error Domain=NSURLErrorDomain Code=-1005 \"The network connection was lost.\" UserInfo={NSErrorFailingURLStringKey=https://api.apple-cloudkit.com/database/1/com.apple.gk.ticket-delivery/production/public/records/lookup}\nCloudKit's response is inconsistent with expections: (null)\nThe staple and validate action failed! Error 68.\n",
+      "stderr": "",
+      "ms": null,
+      "verdict": "lookup",
+      "owns": [
+        "K1",
+        "K3"
+      ]
+    },
+    {
+      "id": "ci-lookup-validate",
+      "source": "constructed: the CI's words as docs/BACKLOG.md Phase 356 quotes them (0.113.0 run 39521413998 attempt 1, the DMG step; 0.114.0 run 42059523260 attempt 1, the ZIP's app), set in the shape measured here; the job logs need a credential (403 measured); owed verbatim, build/p356/SPEC.md §11",
+      "action": "validate",
+      "status": 68,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /var/folders/runner/T/tortie-verify-zip-0114a1/Tortie.app\nerror is Error Domain=NSURLErrorDomain Code=-1005 \"The network connection was lost.\" UserInfo={NSErrorFailingURLStringKey=https://api.apple-cloudkit.com/database/1/com.apple.gk.ticket-delivery/production/public/records/lookup}\nCloudKit's response is inconsistent with expections: (null)\nThe validate action failed! Error 68.\n",
+      "stderr": "",
+      "ms": null,
+      "verdict": "lookup",
+      "owns": [
+        "K1",
+        "K3"
+      ]
+    },
+    {
+      "id": "c-68-no-error-words",
+      "source": "constructed: lookup-validate-dmg's stdout with its three-line `error is Error Domain=…}` removed, so an exit 68 that carries no error words",
+      "action": "validate",
+      "status": 68,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/dl/Tortie-0.114.0-arm64.dmg\nCloudKit's response is inconsistent with expections: (null)\nThe validate action failed! Error 68.\n",
+      "stderr": "",
+      "ms": null,
+      "verdict": "failed",
+      "owns": [
+        "K3"
+      ]
+    },
+    {
+      "id": "c-stopped",
+      "source": "constructed: what spawnSync answers when its timeout stops the child (measured on this Mac: status null, signal SIGTERM, error code ETIMEDOUT, no output; build/p356/SPEC.md §2.7)",
+      "action": "validate",
+      "status": null,
+      "signal": "SIGTERM",
+      "error": "ETIMEDOUT",
+      "stdout": "",
+      "stderr": "",
+      "ms": null,
+      "verdict": "failed",
+      "owns": [
+        "P5"
+      ]
+    },
+    {
+      "id": "c-not-started",
+      "source": "constructed: what spawnSync answers when the program does not exist (measured on this Mac: status null, signal null, error code ENOENT, no output; build/p356/SPEC.md §2.7)",
+      "action": "validate",
+      "status": null,
+      "signal": null,
+      "error": "ENOENT",
+      "stdout": "",
+      "stderr": "",
+      "ms": null,
+      "verdict": "failed",
+      "owns": [
+        "K4"
+      ]
+    },
+    {
+      "id": "c-lookup-warning-words",
+      "source": "constructed by the fix round: ci-lookup-validate's shape with a timed-out request whose description holds WARNING, the word the release lane's gate step greps for (the verifier's hostile answer h07)",
+      "action": "validate",
+      "status": 68,
+      "signal": null,
+      "error": null,
+      "stdout": "Processing: /var/folders/runner/T/tortie-verify-zip-0114a1/Tortie.app\nerror is Error Domain=NSURLErrorDomain Code=-1001 \"WARNING: the request timed out.\" UserInfo={NSErrorFailingURLStringKey=https://api.apple-cloudkit.com/database/1/com.apple.gk.ticket-delivery/production/public/records/lookup}\nCloudKit's response is inconsistent with expections: (null)\nThe validate action failed! Error 68.\n",
+      "stderr": "",
+      "ms": null,
+      "verdict": "lookup",
+      "owns": [
+        "K3"
+      ]
+    }
+  ],
+  "sequences": [
+    {
+      "id": "s-ok",
+      "action": "validate",
+      "answers": [
+        "ok-validate-dmg"
+      ],
+      "verdict": "ok",
+      "tries": 1,
+      "waitsMs": [],
+      "limitsMs": [
+        null
+      ],
+      "seconds": 0,
+      "required": {
+        "level": "PASS",
+        "detail": null
+      },
+      "inner": {
+        "level": "PASS",
+        "detail": null
+      },
+      "notes": [],
+      "owns": [
+        "P5"
+      ]
+    },
+    {
+      "id": "s-ok-on-2nd",
+      "action": "validate",
+      "answers": [
+        "lookup-validate-dmg",
+        "ok-validate-dmg"
+      ],
+      "verdict": "ok",
+      "tries": 2,
+      "waitsMs": [
+        10000
+      ],
+      "limitsMs": [
+        null,
+        120000
+      ],
+      "seconds": 10,
+      "required": {
+        "level": "PASS",
+        "detail": "took 2 tries in 10 s"
+      },
+      "inner": {
+        "level": "PASS",
+        "detail": "took 2 tries in 10 s"
+      },
+      "notes": [
+        "Apple's ticket lookup did not answer (NSPOSIXErrorDomain 1); try 2 of 4 in 10 s"
+      ],
+      "owns": [
+        "P3",
+        "P6",
+        "R1",
+        "R5"
+      ]
+    },
+    {
+      "id": "s-ok-on-4th",
+      "action": "validate",
+      "answers": [
+        "lookup-validate-zip-app",
+        "lookup-validate-zip-app",
+        "lookup-validate-zip-app",
+        "ok-validate-zip-app"
+      ],
+      "verdict": "ok",
+      "tries": 4,
+      "waitsMs": [
+        10000,
+        30000,
+        60000
+      ],
+      "limitsMs": [
+        null,
+        120000,
+        120000,
+        120000
+      ],
+      "seconds": 100,
+      "required": {
+        "level": "PASS",
+        "detail": "took 4 tries in 100 s"
+      },
+      "inner": {
+        "level": "PASS",
+        "detail": "took 4 tries in 100 s"
+      },
+      "notes": [
+        "Apple's ticket lookup did not answer (NSPOSIXErrorDomain 1); try 2 of 4 in 10 s",
+        "Apple's ticket lookup did not answer (NSPOSIXErrorDomain 1); try 3 of 4 in 30 s",
+        "Apple's ticket lookup did not answer (NSPOSIXErrorDomain 1); try 4 of 4 in 60 s"
+      ],
+      "owns": [
+        "P2",
+        "P3"
+      ]
+    },
+    {
+      "id": "s-lookup-always",
+      "action": "validate",
+      "answers": [
+        "lookup-validate-zip-app"
+      ],
+      "verdict": "lookup",
+      "tries": 4,
+      "waitsMs": [
+        10000,
+        30000,
+        60000
+      ],
+      "limitsMs": [
+        null,
+        120000,
+        120000,
+        120000
+      ],
+      "seconds": 100,
+      "required": {
+        "level": "FAIL",
+        "detail": "Apple's ticket lookup did not answer after 4 tries in 100 s: Error Domain=NSPOSIXErrorDomain Code=1 \"Operation not permitted\""
+      },
+      "inner": {
+        "level": "FAIL",
+        "detail": "Apple's ticket lookup did not answer after 4 tries in 100 s: Error Domain=NSPOSIXErrorDomain Code=1 \"Operation not permitted\""
+      },
+      "notes": [
+        "Apple's ticket lookup did not answer (NSPOSIXErrorDomain 1); try 2 of 4 in 10 s",
+        "Apple's ticket lookup did not answer (NSPOSIXErrorDomain 1); try 3 of 4 in 30 s",
+        "Apple's ticket lookup did not answer (NSPOSIXErrorDomain 1); try 4 of 4 in 60 s"
+      ],
+      "owns": [
+        "P2",
+        "P3",
+        "R3"
+      ]
+    },
+    {
+      "id": "s-staple-ok-on-2nd",
+      "action": "staple",
+      "answers": [
+        "lookup-staple-dmg",
+        "ok-staple-dmg"
+      ],
+      "verdict": "ok",
+      "tries": 2,
+      "waitsMs": [
+        10000
+      ],
+      "limitsMs": [
+        null,
+        120000
+      ],
+      "seconds": 10,
+      "required": {
+        "level": "PASS",
+        "detail": "took 2 tries in 10 s"
+      },
+      "inner": {
+        "level": "PASS",
+        "detail": "took 2 tries in 10 s"
+      },
+      "notes": [
+        "Apple's ticket lookup did not answer (NSPOSIXErrorDomain 1); try 2 of 4 in 10 s"
+      ],
+      "owns": [
+        "R1"
+      ]
+    },
+    {
+      "id": "s-ci-staple-ok-on-2nd",
+      "action": "staple",
+      "answers": [
+        "ci-lookup-staple",
+        "ok-staple-dmg"
+      ],
+      "verdict": "ok",
+      "tries": 2,
+      "waitsMs": [
+        10000
+      ],
+      "limitsMs": [
+        null,
+        120000
+      ],
+      "seconds": 10,
+      "required": {
+        "level": "PASS",
+        "detail": "took 2 tries in 10 s"
+      },
+      "inner": {
+        "level": "PASS",
+        "detail": "took 2 tries in 10 s"
+      },
+      "notes": [
+        "Apple's ticket lookup did not answer (NSURLErrorDomain -1005); try 2 of 4 in 10 s"
+      ],
+      "owns": [
+        "K3"
+      ]
+    },
+    {
+      "id": "s-missing",
+      "action": "validate",
+      "answers": [
+        "missing-validate-unstapled-app"
+      ],
+      "verdict": "missing",
+      "tries": 1,
+      "waitsMs": [],
+      "limitsMs": [
+        null
+      ],
+      "seconds": 0,
+      "required": {
+        "level": "FAIL",
+        "detail": "Tortie.app does not have a ticket stapled to it."
+      },
+      "inner": {
+        "level": "WARN",
+        "detail": "no ticket in this copy — the archive was cut before the staple (post-hoc flow). Offline first launch from this artifact prompts; the inline notarization path staples before packaging."
+      },
+      "notes": [],
+      "owns": [
+        "P1",
+        "R2"
+      ]
+    },
+    {
+      "id": "s-lookup-then-missing",
+      "action": "validate",
+      "answers": [
+        "lookup-validate-zip-app",
+        "missing-validate-unstapled-app"
+      ],
+      "verdict": "missing",
+      "tries": 2,
+      "waitsMs": [
+        10000
+      ],
+      "limitsMs": [
+        null,
+        120000
+      ],
+      "seconds": 10,
+      "required": {
+        "level": "FAIL",
+        "detail": "Tortie.app does not have a ticket stapled to it."
+      },
+      "inner": {
+        "level": "WARN",
+        "detail": "no ticket in this copy — the archive was cut before the staple (post-hoc flow). Offline first launch from this artifact prompts; the inline notarization path staples before packaging."
+      },
+      "notes": [
+        "Apple's ticket lookup did not answer (NSPOSIXErrorDomain 1); try 2 of 4 in 10 s"
+      ],
+      "owns": [
+        "P1",
+        "P6"
+      ]
+    },
+    {
+      "id": "s-missing-staple",
+      "action": "staple",
+      "answers": [
+        "missing-staple-unsigned-app"
+      ],
+      "verdict": "missing",
+      "tries": 1,
+      "waitsMs": [],
+      "limitsMs": [
+        null
+      ],
+      "seconds": 0,
+      "required": {
+        "level": "FAIL",
+        "detail": "The staple and validate action failed! Error 65."
+      },
+      "inner": {
+        "level": "WARN",
+        "detail": "no ticket in this copy — the archive was cut before the staple (post-hoc flow). Offline first launch from this artifact prompts; the inline notarization path staples before packaging."
+      },
+      "notes": [],
+      "owns": [
+        "R2"
+      ]
+    },
+    {
+      "id": "s-failed",
+      "action": "validate",
+      "answers": [
+        "failed-wrong-ticket"
+      ],
+      "verdict": "failed",
+      "tries": 1,
+      "waitsMs": [],
+      "limitsMs": [
+        null
+      ],
+      "seconds": 0,
+      "required": {
+        "level": "FAIL",
+        "detail": "exit 65, Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/wrong/Tortie.app"
+      },
+      "inner": {
+        "level": "FAIL",
+        "detail": "exit 65, Processing: /private/var/tmp/tortie-wt/scratch/p356/spec/x/wrong/Tortie.app"
+      },
+      "notes": [],
+      "owns": [
+        "P1",
+        "R4"
+      ]
+    },
+    {
+      "id": "s-lookup-then-failed",
+      "action": "validate",
+      "answers": [
+        "lookup-validate-dmg",
+        "failed-zip"
+      ],
+      "verdict": "failed",
+      "tries": 2,
+      "waitsMs": [
+        10000
+      ],
+      "limitsMs": [
+        null,
+        120000
+      ],
+      "seconds": 10,
+      "required": {
+        "level": "FAIL",
+        "detail": "exit 66, Stapler is incapable of working with ZIP archive files."
+      },
+      "inner": {
+        "level": "FAIL",
+        "detail": "exit 66, Stapler is incapable of working with ZIP archive files."
+      },
+      "notes": [
+        "Apple's ticket lookup did not answer (NSPOSIXErrorDomain 1); try 2 of 4 in 10 s"
+      ],
+      "owns": [
+        "P1",
+        "P6"
+      ]
+    },
+    {
+      "id": "s-lookup-then-stopped",
+      "action": "validate",
+      "answers": [
+        "lookup-validate-dmg",
+        "ok-validate-dmg"
+      ],
+      "ms": [
+        0,
+        125000
+      ],
+      "verdict": "failed",
+      "tries": 2,
+      "waitsMs": [
+        10000
+      ],
+      "limitsMs": [
+        null,
+        120000
+      ],
+      "seconds": 130,
+      "required": {
+        "level": "FAIL",
+        "detail": "stapler gave no answer in 120 s and was stopped"
+      },
+      "inner": {
+        "level": "FAIL",
+        "detail": "stapler gave no answer in 120 s and was stopped"
+      },
+      "notes": [
+        "Apple's ticket lookup did not answer (NSPOSIXErrorDomain 1); try 2 of 4 in 10 s"
+      ],
+      "owns": [
+        "P5"
+      ]
+    },
+    {
+      "id": "s-not-started",
+      "action": "validate",
+      "answers": [
+        "c-not-started"
+      ],
+      "verdict": "failed",
+      "tries": 1,
+      "waitsMs": [],
+      "limitsMs": [
+        null
+      ],
+      "seconds": 0,
+      "required": {
+        "level": "FAIL",
+        "detail": "stapler did not start (ENOENT)"
+      },
+      "inner": {
+        "level": "FAIL",
+        "detail": "stapler did not start (ENOENT)"
+      },
+      "notes": [],
+      "owns": [
+        "R4"
+      ]
+    },
+    {
+      "id": "s-slow-lookups",
+      "action": "validate",
+      "answers": [
+        "lookup-validate-dmg"
+      ],
+      "ms": [
+        60000
+      ],
+      "verdict": "lookup",
+      "tries": 2,
+      "waitsMs": [
+        10000
+      ],
+      "limitsMs": [
+        null,
+        120000
+      ],
+      "seconds": 130,
+      "required": {
+        "level": "FAIL",
+        "detail": "Apple's ticket lookup did not answer after 2 tries in 130 s: Error Domain=NSPOSIXErrorDomain Code=1 \"Operation not permitted\""
+      },
+      "inner": {
+        "level": "FAIL",
+        "detail": "Apple's ticket lookup did not answer after 2 tries in 130 s: Error Domain=NSPOSIXErrorDomain Code=1 \"Operation not permitted\""
+      },
+      "notes": [
+        "Apple's ticket lookup did not answer (NSPOSIXErrorDomain 1); try 2 of 4 in 10 s"
+      ],
+      "owns": [
+        "P4"
+      ]
+    },
+    {
+      "id": "s-slow-ok",
+      "action": "validate",
+      "answers": [
+        "ok-validate-dmg"
+      ],
+      "ms": [
+        125000
+      ],
+      "verdict": "ok",
+      "tries": 1,
+      "waitsMs": [],
+      "limitsMs": [
+        null
+      ],
+      "seconds": 125,
+      "required": {
+        "level": "PASS",
+        "detail": null
+      },
+      "inner": {
+        "level": "PASS",
+        "detail": null
+      },
+      "notes": [],
+      "owns": [
+        "P5"
+      ]
+    },
+    {
+      "id": "s-budget-edge",
+      "action": "validate",
+      "answers": [
+        "lookup-validate-dmg"
+      ],
+      "ms": [
+        0,
+        110000
+      ],
+      "verdict": "lookup",
+      "tries": 3,
+      "waitsMs": [
+        10000,
+        30000
+      ],
+      "limitsMs": [
+        null,
+        120000,
+        120000
+      ],
+      "seconds": 260,
+      "required": {
+        "level": "FAIL",
+        "detail": "Apple's ticket lookup did not answer after 3 tries in 260 s: Error Domain=NSPOSIXErrorDomain Code=1 \"Operation not permitted\""
+      },
+      "inner": {
+        "level": "FAIL",
+        "detail": "Apple's ticket lookup did not answer after 3 tries in 260 s: Error Domain=NSPOSIXErrorDomain Code=1 \"Operation not permitted\""
+      },
+      "notes": [
+        "Apple's ticket lookup did not answer (NSPOSIXErrorDomain 1); try 2 of 4 in 10 s",
+        "Apple's ticket lookup did not answer (NSPOSIXErrorDomain 1); try 3 of 4 in 30 s"
+      ],
+      "owns": [
+        "P4"
+      ]
+    },
+    {
+      "id": "s-warning-words-always",
+      "action": "validate",
+      "answers": [
+        "c-lookup-warning-words"
+      ],
+      "verdict": "lookup",
+      "tries": 4,
+      "waitsMs": [
+        10000,
+        30000,
+        60000
+      ],
+      "limitsMs": [
+        null,
+        120000,
+        120000,
+        120000
+      ],
+      "seconds": 100,
+      "required": {
+        "level": "FAIL",
+        "detail": "Apple's ticket lookup did not answer after 4 tries in 100 s: Error Domain=NSURLErrorDomain Code=-1001 \"WARNING: the request timed out.\""
+      },
+      "inner": {
+        "level": "FAIL",
+        "detail": "Apple's ticket lookup did not answer after 4 tries in 100 s: Error Domain=NSURLErrorDomain Code=-1001 \"WARNING: the request timed out.\""
+      },
+      "notes": [
+        "Apple's ticket lookup did not answer (NSURLErrorDomain -1001); try 2 of 4 in 10 s",
+        "Apple's ticket lookup did not answer (NSURLErrorDomain -1001); try 3 of 4 in 30 s",
+        "Apple's ticket lookup did not answer (NSURLErrorDomain -1001); try 4 of 4 in 60 s"
+      ],
+      "owns": [
+        "R5"
+      ]
+    },
+    {
+      "id": "s-slow-first-lookup",
+      "action": "validate",
+      "answers": [
+        "lookup-validate-dmg"
+      ],
+      "ms": [
+        145000
+      ],
+      "verdict": "lookup",
+      "tries": 1,
+      "waitsMs": [],
+      "limitsMs": [
+        null
+      ],
+      "seconds": 145,
+      "required": {
+        "level": "FAIL",
+        "detail": "Apple's ticket lookup did not answer after 1 try in 145 s: Error Domain=NSPOSIXErrorDomain Code=1 \"Operation not permitted\""
+      },
+      "inner": {
+        "level": "FAIL",
+        "detail": "Apple's ticket lookup did not answer after 1 try in 145 s: Error Domain=NSPOSIXErrorDomain Code=1 \"Operation not permitted\""
+      },
+      "notes": [],
+      "owns": [
+        "P4",
+        "P5"
+      ]
+    }
+  ]
+}

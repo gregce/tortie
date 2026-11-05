@@ -1216,6 +1216,16 @@ export const CHECKS = [
     'network access to the npm registry, because drift against what the registry publishes is its subject',
     'not part of any battery chain; run it when touching the skills pin'
   ),
+  // PHASE 356. How the release lane reads Apple's stapler. build/stapler.mjs
+  // sorts an answer into ok, a missing ticket, a ticket lookup that did not
+  // answer, and failed, by stapler's exit status and its own words, and tries
+  // only the lookup again: at most four tries within two minutes, the first
+  // run as stapler always ran and each one after it stopped at 120 s. Its
+  // self-test reads stapler's answers recorded on this Mac and the CI's, and
+  // sequences of them over a fake clock, then runs 28 ablations each red on
+  // the clause it breaks. It spawns nothing and sleeps nothing, and it runs
+  // inside npm run build.
+  pure('gate:stapler'),
   adapter('verify:signed', 'macOS codesign and spctl over the packaged app', SKIP.release),
 
   // Electron smokes on scratch profiles and scratch tmux sockets.

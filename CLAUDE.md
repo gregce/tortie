@@ -297,9 +297,10 @@ on the first body line as `Phase N[.x]: summary`; no trailers.
 
 Some gates run inside `npm run build` and so cannot be skipped by anything that builds: `gate:electron`,
 `gate:background`, `gate:simulator`, `gate:docker`, `gate:knownhosts`, `gate:checks`, `conformance:ios`, `gate:onlyadd`,
-`conformance:harnessprobes` and `gate:contract`. `gate:simulator` and `conformance:ios` are Phase 316.2's,
+`conformance:harnessprobes`, `gate:stapler` and `gate:contract`. `gate:simulator` and `conformance:ios` are Phase 316.2's,
 `gate:docker` is Phase 342's,
-and neither needs Xcode; `conformance:harnessprobes` is Phase 335's. `gate:onlyadd` is Phase 333.11's: the
+and neither needs Xcode; `conformance:harnessprobes` is Phase 335's. `gate:stapler` is Phase 356's: the release
+lane's reading of Apple's stapler, held to recorded answers. `gate:onlyadd` is Phase 333.11's: the
 routes, requests, keys, words, bounds and limits the launch phone holds the door to, frozen under
 `ios/TortieTests/Fixtures/frozen/`; adding a route, an optional key or a field is allowed, and adding a word
 to a closed set the phone refuses outside of is not.

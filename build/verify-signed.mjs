@@ -48,7 +48,10 @@
  *      strips the blob after the after-pack hook ran.
  *   6. the skills CLI tree contains no Mach-O (nothing unsigned to smuggle)
  *   7. spctl --assess, interpreted per the flag above
- *   8. stapler validate (only with --expect-notarized)
+ *   8. stapler validate (only with --expect-notarized), through
+ *      build/stapler.mjs (Phase 356): a ticket lookup Apple drops is tried
+ *      again, four tries within two minutes, and one that never answers is a
+ *      FAIL in its own words; a copy with no ticket reads as before
  *
  * No credential is read or needed; everything here is public verification.
  */
@@ -58,6 +61,8 @@ import { existsSync, readdirSync, mkdtempSync, rmSync, statSync } from 'node:fs'
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
+
+import { askStapler, staplerReading } from './stapler.mjs';
 
 const require = createRequire(import.meta.url);
 const { NESTED_BINARIES, isMachO, decodeEntitlementKeys } = require('./sign-nested-binaries.cjs');
@@ -85,6 +90,16 @@ function fail(name, detail) {
 function warn(name, detail) {
   warnings += 1;
   console.log(`  WARN  ${name}${detail ? ` — ${detail}` : ''}`);
+}
+/** A dropped ticket lookup about to be tried again (build/stapler.mjs). It counts nothing. */
+function retry(name, note) {
+  console.log(`  RETRY ${name} — ${note}`);
+}
+/** One stapler reading, through the line its level names. */
+function report(name, { level, detail }) {
+  if (level === 'PASS') pass(name, detail ?? undefined);
+  else if (level === 'WARN') warn(name, detail ?? undefined);
+  else fail(name, detail ?? undefined);
 }
 
 /**
@@ -116,7 +131,9 @@ function codesignInfo(target, extra = []) {
  *   at package time) staples the .app before the DMG and ZIP are built, and
  *   then this reports PASS. WARN, not FAIL, so the post-hoc flow stays
  *   usable — but the release workflow should use the inline path and see
- *   zero warnings.
+ *   zero warnings. WARN means no ticket and only that; a lookup that never
+ *   answers, or an answer that is neither a ticket nor no ticket, FAILs on
+ *   every copy (Phase 356).
  */
 function verifyApp(app, label, stapleMode = 'required') {
   console.log(`\n${label}: ${app}`);
@@ -266,19 +283,9 @@ function verifyApp(app, label, stapleMode = 'required') {
 
   // 8. The stapled ticket, once notarization has happened.
   if (expectNotarized) {
-    const r = tryRun('/usr/bin/xcrun', ['stapler', 'validate', app]);
-    if (r.status === 0) {
-      pass('stapler validate (app)');
-    } else if (stapleMode === 'inner') {
-      warn(
-        'stapler validate (app)',
-        'no ticket in this copy — the archive was cut before the staple ' +
-          '(post-hoc flow). Offline first launch from this artifact prompts; ' +
-          'the inline notarization path staples before packaging.'
-      );
-    } else {
-      fail('stapler validate (app)', r.output.trim().split('\n').pop());
-    }
+    const name = 'stapler validate (app)';
+    const result = askStapler('validate', app, { onRetry: (note) => retry(name, note) });
+    report(name, staplerReading(result, stapleMode));
   }
 }
 
@@ -313,9 +320,9 @@ if (checkArtifacts) {
   const dmg = newestArtifact('.dmg');
   if (dmg) {
     if (expectNotarized) {
-      const r = tryRun('/usr/bin/xcrun', ['stapler', 'validate', dmg]);
-      if (r.status === 0) pass(`stapler validate (${basename(dmg)})`);
-      else fail(`stapler validate (${basename(dmg)})`, r.output.trim().split('\n').pop());
+      const name = `stapler validate (${basename(dmg)})`;
+      const result = askStapler('validate', dmg, { onRetry: (note) => retry(name, note) });
+      report(name, staplerReading(result, 'required'));
     }
     const mountRoot = mkdtempSync(join(tmpdir(), 'tortie-verify-dmg-'));
     let mounted = false;
