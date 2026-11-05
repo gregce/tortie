@@ -406,6 +406,7 @@ enum FrozenRoute {
         case "start": return try decoder.decode(PocketStartAnswer.self, from: data)
         case "remove": return try decoder.decode(PocketRemoveAnswer.self, from: data)
         case "paste": return try decoder.decode(PocketPasteAnswer.self, from: data)
+        case "rename": return try decoder.decode(PocketRenameAnswer.self, from: data)
         case "qr": return try PairingOffer.parse(String(decoding: data, as: UTF8.self))
         default: throw NoRoute(route: route)
         }
@@ -457,6 +458,8 @@ enum FrozenRoute {
         case let answer as PocketRemoveAnswer:
             if (json?["write"] as? String) == "", !answer.echoesNoId { return "lost:echoesNoId" }
         case let answer as PocketPasteAnswer:
+            if (json?["write"] as? String) == "", !answer.echoesNoId { return "lost:echoesNoId" }
+        case let answer as PocketRenameAnswer:
             if (json?["write"] as? String) == "", !answer.echoesNoId { return "lost:echoesNoId" }
         default:
             break
@@ -810,7 +813,7 @@ enum FrozenRequest {
     private static func methodOf(_ path: String) -> String? {
         switch path {
         case DoorClient.endTarget, DoorClient.chooseTarget, DoorClient.sayTarget, DoorClient.keysTarget, DoorClient.startTarget,
-             DoorClient.removeTarget, DoorClient.pasteTarget: return "POST"
+             DoorClient.removeTarget, DoorClient.pasteTarget, DoorClient.renameTarget: return "POST"
         case DoorClient.pairTarget: return nil
         default: return "GET"
         }
@@ -835,7 +838,7 @@ enum FrozenRequest {
         let number = { (name: String) -> Int? in values[name].flatMap { Int($0) } }
         switch path {
         case DoorClient.blockedTarget, DoorClient.pairTarget, DoorClient.endTarget, DoorClient.chooseTarget, DoorClient.sayTarget, DoorClient.keysTarget, DoorClient.startTarget,
-             DoorClient.removeTarget, DoorClient.pasteTarget:
+             DoorClient.removeTarget, DoorClient.pasteTarget, DoorClient.renameTarget:
             return parts.count == 1 ? (path, nil) : nil
         case "/v1/session":
             guard names == ["id"], let id = values["id"] else { return nil }
@@ -915,6 +918,10 @@ enum FrozenRequest {
             guard named == ["dialog", "session", "text", "turn", "write"], let f = fields, let session = f["session"] as? String,
                   let text = f["text"] as? String, let turn = f["turn"] as? String, let write = f["write"] as? String else { return "unreadable" }
             return encoded(PasteBody(dialog: f["dialog"] as? String, session: session, text: text, turn: turn, write: write))
+        case DoorClient.renameTarget:
+            guard named == ["name", "session", "write"], let f = fields, let name = f["name"] as? String,
+                  let session = f["session"] as? String, let write = f["write"] as? String else { return "unreadable" }
+            return encoded(RenameBody(name: name, session: session, write: write))
         default:
             return ""
         }
