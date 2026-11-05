@@ -141,12 +141,12 @@ Tortie works with the coding agents you already run. Tortie is an independent pr
 coding agent,agent sessions,terminal,developer,ai coding,session status,workflow,shell,pairing
 ```
 
-### 4. Review notes (3,960 of 4,000 bytes before your phone number is filled in)
+### 4. Review notes (3,975 of 4,000 bytes before your phone number is filled in)
 
-This is the version for build 12. Its paragraph beginning "Without a Mac" tells the reviewer how to use See a sample.
+This is the version for build 13. Its paragraph beginning "Without a Mac" tells the reviewer how to use See a sample.
 
 ```text
-WHAT THIS APP IS. Tortie for iPhone is the companion to Tortie for Mac, a free, open-source (Apache-2.0) desktop app at https://tortie.sh. Both are one open-source project by its author, Gregory Ceccarelli, who is the seller of this app; the source of both is public at https://github.com/gregce/tortie. Tortie belongs to Ita Vero, LLC, his company. Tortie for Mac keeps a developer's terminal sessions running on their own Mac through quits and crashes, and brings them back after a restart. The iPhone app is for that developer away from the Mac. It lists their sessions with the ones waiting on them first. Tapping one opens its terminal, to read, scroll back, select and copy text, and type into. It answers a numbered question from Claude Code or Codex with one tap, shows what the session said (Catch Me Up), starts a new session on the Mac, pastes into a terminal, ends a session after Face ID, Touch ID or the passcode, and removes an ended one. One phone can pair with up to four Macs, each its own space.
+WHAT THIS APP IS. Tortie for iPhone is the companion to Tortie for Mac, a free, open-source (Apache-2.0) desktop app at https://tortie.sh. Both are one open-source project by its author, Gregory Ceccarelli, who is the seller of this app; the source of both is public at https://github.com/gregce/tortie. Tortie belongs to Ita Vero, LLC, his company. Tortie for Mac keeps a developer's terminal sessions running on their own Mac through quits and crashes, and brings them back after a restart. The iPhone app is for that developer away from the Mac. It lists their sessions with the ones waiting on them first. Tapping one opens its terminal, to read, scroll or page back, select and copy text, and type into. It answers a numbered question from Claude Code or Codex with one tap, shows what the session said (Catch Me Up), starts and renames sessions on the Mac, pastes into a terminal, ends a session after Face ID, Touch ID or the passcode, and removes an ended one. One phone can pair with up to four Macs, each its own space.
 
 HOW TO REVIEW IT. The app needs the developer's own Mac. Two videos show it working on a physical iPhone: a camera video of pairing, with the code scanned and Allow pressed on the Mac, at https://tortie.sh/videos/pairing_mac.mp4, and a screen recording of use from launch, at https://tortie.sh/videos/using_tortie.mp4. The pairing video is also attached to this submission.
 
@@ -169,12 +169,12 @@ REGIONS. The same in every region. A developer tool, not a regulated field.
 CONTACT. Gregory Ceccarelli, support@tortie.sh, <phone>.
 ```
 
-### 5. What to Test, for TestFlight (654 of 4,000 characters)
+### 5. What to Test, for TestFlight (473 of 4,000 characters)
 
-Paste it in TestFlight, under build 12's Test Information, before you add the build to the Public group.
+Paste it in TestFlight, under build 13's Test Information, before you add the build to the Public group.
 
 ```text
-Build 12 polishes the app. After you pair, it opens on Sessions. Remove a session you ended: End it, then tap Remove where End was, which asks your Mac's own question and no Face ID; it moves to Past Sessions on the Mac. Paste into a session's terminal with the long-press menu's Paste, Command-V on a keyboard or a three-finger pinch open; a long command copied from the terminal pastes back as one line. Settings is grouped like the iPhone's own, the lists no longer end with a note about waits, and the tabs have the iPhone's own title bars with + at the top right. Remove and Paste need Tortie for Mac 0.113 and one Allow in its Settings, then Phone.
+Build 13 adds renaming and paging. Rename a session from its terminal's ⋯ or by holding it in a list, and name a new one when you start it; left empty, your Mac names it. In an agent that fills the screen, such as OpenCode or Qwen, pull the terminal down past its top to page back, or up past its bottom to page forward; the agent pages on your Mac too. pi now scrolls back as Claude Code does. Renaming needs Tortie for Mac 0.114 and one Allow in its Settings, then Phone.
 ```
 
 ---
