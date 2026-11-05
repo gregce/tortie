@@ -44543,7 +44543,7 @@ read 869 or 870 lines run to run, with `lastCompleteOffset` up to 1,760,864.
 - No change to what is admitted, parsed or counted beyond a line that was never whole.
 - No release.
 
-## Phase 356 — "ok fix that flake issue please" — a dropped Apple ticket lookup fails a whole release (operator, 2026-11-05)
+## Phase 356 — "ok fix that flake issue please" — a dropped Apple ticket lookup fails a whole release (operator, 2026-11-05) ✅ LANDED `7c4350d3`, 2026-11-05
 
 **Subject.** `fix(release): retry Apple's ticket lookup instead of failing the release`
 
@@ -46007,3 +46007,5 @@ cycle rather than only the evening it was written.
 - 2026-11-05, **356 QUEUED AND STARTED — a dropped Apple ticket lookup no longer fails a release**, its section above, on his word ("ok fix that flake issue please"), Tier 2, one workflow: spec, one builder, verify, fix once, an independent reverify, in `/private/var/tmp/tortie-wt/wt-p356`, beside 353.
 - 2026-11-05, **357 QUEUED AND STARTED — a session list that goes bad while Tortie runs asks for one restart**, its section above, on his report ("im on 0.114 and am getting these errors", then "can we diagnose and figure out a fix"): 0.114.0 read `malformed` from its own damaged page cache, drew a dialog per refresh and crashed closing the manifest at quit, while the file passed the full integrity check at the relaunch. Tier 3, one workflow: spec, builders on disjoint files, integrator, verify, fix once, an independent reverify, in `/private/var/tmp/tortie-wt/wt-p357`, beside 353 and 356.
 - 2026-11-05, **358 QUEUED — what damaged SQLite's page cache inside 0.114.0** (research), its section above; it starts when 356 lands.
+- 2026-11-05, **PHASE 356 LANDED, `7c4350d3` — a dropped Apple ticket lookup no longer fails a release** (no CHANGELOG item; it rides in the next release). `build/stapler.mjs` tells a lookup that did not answer from a copy with no ticket by stapler's own words, measured: denied runs say `NSPOSIXErrorDomain Code=1`, never the entry's `NSURLErrorDomain`. Only a lookup is tried again (4 tries, waits of 10, 30 and 60 s); the first try waits as stapler always did, because the verifier found a 120 s stop on it failed a late answer the parent passed, and the fix round dropped it. The reverify held Apple's real stapler 125 s with SIGSTOP: PASS at both builds. Battery green but the 5 FSEvents native tests (fseventsd pegged); the CI's verbatim lines are still owed (the agents had no credential).
+- 2026-11-05, **358 STARTED — what damaged SQLite's page cache inside 0.114.0** (research), its section above: crash reader, lifecycle reader, a reproducer under malloc debugging and an SQLITE_DEBUG build, then an adversary per candidate, a judge and one document, in `/private/var/tmp/tortie-wt/wt-p358` at `v0.114.0`, beside 353 and 357.
