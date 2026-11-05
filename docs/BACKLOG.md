@@ -44543,6 +44543,76 @@ read 869 or 870 lines run to run, with `lastCompleteOffset` up to 1,760,864.
 - No change to what is admitted, parsed or counted beyond a line that was never whole.
 - No release.
 
+## Phase 356 — "ok fix that flake issue please" — a dropped Apple ticket lookup fails a whole release (operator, 2026-11-05)
+
+**Subject.** `fix(release): retry Apple's ticket lookup instead of failing the release`
+
+**First body line.** `Phase 356: a dropped ticket lookup no longer fails a release`
+
+**Semver.** None a person meets: no CHANGELOG item. It decides only whether the release lane publishes, and a person
+never sees the lane.
+
+**Tier 2.** Invisible to a person, and it starts only Apple's own tools, so the gates are the evidence and the verifier
+re-derives. One independent method at least, an attack: the risk is a classifier that lets a copy with NO ticket
+through, which would ship an artifact whose first offline launch prompts.
+
+**Charter.** His words of 2026-11-05, "ok fix that flake issue please", answering the item owed since 0.113.0
+("`verify-signed.mjs` should tell a failed ticket lookup from a missing ticket and retry it, so a flaky Apple service
+stops costing a full release run") and met again by 0.114.0's first attempt.
+
+### What the tree says (read 2026-11-05 at `9e48f505`)
+
+- `build/verify-signed.mjs` step 8 (`:268-281`) runs `xcrun stapler validate` once. On ANY nonzero exit an inner copy
+  (the app in the ZIP, the app on the mounted DMG) reads `WARN … no ticket in this copy — the archive was cut before the
+  staple`, without reading what stapler said, and the loose app reads `FAIL` with stapler's last line. The DMG's own
+  validate (`:316-318`) runs once and reads `FAIL` on any nonzero exit.
+- `.github/workflows/release.yml` "The DMG gets its own ticket" (`:150-175`) runs `xcrun stapler staple` and
+  `xcrun stapler validate` on the DMG once each under `set -e`, and "Release gates on the signed artifacts"
+  (`:189-200`) fails the job on any `WARN` in the gate's output.
+- Every failed attempt of the last two releases was the same thing, read from the CI logs: Apple's CloudKit ticket
+  lookup (`api.apple-cloudkit.com/database/1/com.apple.gk.ticket-delivery/production/public/records/lookup`) lost its
+  connection (`NSURLErrorDomain Code=-1005 "The network connection was lost."`), which stapler reports as
+  `The validate action failed! Error 68.` or `The staple and validate action failed! Error 68.`. It met all four sites:
+  the DMG step's staple (0.113.0 run 39521413998, attempt 1), the gate's DMG validate (attempt 2), an inner copy read as
+  "no ticket" (attempts 2 and 3, and 0.114.0 run 42059523260, attempt 1), and the loose app's validate (attempt 4).
+  Apple had accepted every notarization each time, and every rerun that reached Apple cleanly passed.
+
+### The mechanism
+
+1. **One module, `build/stapler.mjs`**, runs `xcrun stapler staple|validate <path>` and classifies the answer by
+   stapler's OWN words, measured by the spec on this Mac rather than assumed: exit 0 is ok; Apple's words for a copy
+   with no ticket are missing; Error 68 with a CloudKit or NSURLErrorDomain lookup failure is a lookup; anything else is
+   failed. Only a lookup is retried, a bounded number of times with waits between them (the spec measures and chooses,
+   for example four tries within two minutes); missing and failed are never retried.
+2. **`verify-signed.mjs`'s three stapler sites call it.** Missing reads exactly as today (`WARN` for an inner copy,
+   `FAIL` for the loose app and the DMG). A lookup that is still failing after its tries is a `FAIL` in its own words
+   ("Apple's ticket lookup did not answer after N tries: …"), never a `WARN` saying there is no ticket. An ok after a
+   retry is a `PASS` that says how many tries it took.
+3. **The DMG step in `release.yml` calls the same module** for its staple and its validate, so the lane's one other
+   stapler site retries the same way. `notarytool` is not retried; its own `--wait` already polls.
+4. **A self-test over recorded answers**, every class over committed fixtures of stapler's real words (the CI's lines
+   above, and the spec's own measured success, missing and network-denied answers), with ablations each red on the
+   rule it breaks. The spec decides where it runs (inside `npm run build` like the other gates, or a script
+   `gate:checks` classifies).
+
+### The proof, run rather than read
+
+- The real tool over real artifacts: the published 0.114.0 DMG and the app in its ZIP, downloaded from the public
+  release into scratch, validated with the network (ok) and with it denied by `sandbox-exec` (a lookup, retried, then a
+  `FAIL` in its own words); an app with no ticket (the unsigned package `npm run package -- -c.mac.identity=null`
+  makes) reads missing.
+- The parent `9e48f505` over the same three inputs: with the network denied, an inner copy reads the defect
+  (`WARN … no ticket`) and the loose app `FAIL … Error 68`; the missing copy reads as at HEAD.
+- The self-test and its ablations; `release.yml` read by a YAML parser with every step present and the DMG step naming
+  the module; no secret printed.
+
+### What is NOT in this phase
+
+- No change to notarization, signing, the identity, the entitlements or `electron-builder.yml`.
+- The zero-warnings rule stays: a copy with no ticket still fails the lane.
+- No retry of `notarytool`, `codesign` or `spctl`, no retry of a missing ticket, and no unbounded wait.
+- No release, tag or rerun: the next release proves it in CI.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -45865,3 +45935,4 @@ cycle rather than only the evening it was written.
 - 2026-11-05, **PHASE 350 LANDED, `01f8e2fb` — scroll back pi and every full-screen agent from the phone** (John Berryman's issue 42; Unreleased, for 0.114.0 with phone build 13). Tortie starts and resumes pi on this Mac with `--tui-mode regular` once its scan reads pi 0.84.0 or later from pi's own package and the file the terminal will run from the session's folder is that file, so pi's conversation is tmux history and the phone pages it while the Mac stays put; anything else runs pi exactly as today, and a folder holding `#` or ending in `;` reads unread until 354 escapes what Tortie hands tmux. On the phone, a pull past a full-screen agent's edge sends one Page Up or Page Down through the allowed keys route. Seven verdicts, four ruled rounds (R1 to R7), each fix reverified independently; the fourth round's reverify stopped on a write to his shell history that he confirmed was his own terminal, and its completion approved with the real pi 0.84.2 inline (2,511 lines of history where the parent had none) and all 14 rows as written down before the run. Landed from a merge onto `ff6ffc02` with no conflict; the landing battery green but the nine known natives, the capture gate with the real pi, Claude Code and Codex and no turn, and test:ios on 26.3 and 18.3 (1,160 tests each). Two harness notes for later real-agent drivers, not product defects: the app's own `pi -v` scan ran outside the test sandbox, and a real pi renames its process, so survivors are ended by recorded pid.
 - 2026-11-05, **353 STARTED — sessions and the terminal** (294, 295, 301, 302, 305, 325, 328 and 354, his words of 2026-11-02 and 2026-11-03), its section above, Tier 3, one workflow: spec, four builders on disjoint files (session records, status, the terminal, where a session starts), integrator, probe review, three lenses reviewing together, fix once, an independent reverify, in `/private/var/tmp/tortie-wt/wt-p353` at `b1a557b8`. 354 removes Phase 350's `#` clause and `;` term in the same commit.
 - 2026-11-05, **0.114.0 PUBLISHED as Latest, `65a4eab5` (tag `v0.114.0`) — the rename and scrollback release**, on his word ("we should do a release and upload a new iphone build when 350 finishes"). It carries 349 (rename from the phone), 350 (pi's scrollback, paging a full-screen agent), 351 (no Intel-only code), 352 (files, folders and checks) and 355 (Catch Me Up's last line), beside phone build 13. The release run (42059523260) passed on its second attempt: the first stopped on the zero-warnings rule because `build/verify-signed.mjs` read one failed `stapler validate` of the ZIP's inner app as "no ticket in this copy" while Apple had accepted every notarization, the same flake 0.113.0 met; the second was clean, every artifact stapled with zero warnings. `releases/latest` and `latest-mac.yml` read 0.114.0, and tortie.sh's changelog refreshed (`f16020d8` in gregce/tortiedotsh) and serves it. Phone build 13 was archived from the tag, passed `--read-app` (team 4GRQMF5T5U, no DEBUG seam, no NetworkExtension or TailscaleKit) and is in his Organizer, because `xcodebuild -exportArchive` could not use his Xcode account ("Failed to Use Accounts") and sent nothing; build 13's wire is frozen beside build-12, build-11 and launch (`b1a557b8`, FROZEN_SETS_FLOOR 4); the store checklist holds build 13's review notes (3,975 of 4,000 bytes before his number) and What to Test, and the README names renaming and paging. Still owed, not queued: `verify-signed.mjs` telling a failed ticket lookup from a missing ticket and retrying it.
+- 2026-11-05, **356 QUEUED AND STARTED — a dropped Apple ticket lookup no longer fails a release**, its section above, on his word ("ok fix that flake issue please"), Tier 2, one workflow: spec, one builder, verify, fix once, an independent reverify, in `/private/var/tmp/tortie-wt/wt-p356`, beside 353.
