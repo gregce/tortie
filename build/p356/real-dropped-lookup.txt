@@ -1,0 +1,6 @@
+Processing: /private/var/tmp/tortie-wt/scratch/p356/verify/step/head/release/Tortie-0.114.0-arm64.dmg
+error is Error Domain=NSURLErrorDomain Code=-1005 "The network connection was lost." UserInfo={_kCFStreamErrorCodeKey=-4, NSUnderlyingError=0x600003780f30 {Error Domain=kCFErrorDomainCFNetwork Code=-1005 "(null)" UserInfo={NSErrorPeerAddressKey=<CFData 0x600001a844b0 [0x2067f7f78]>{length = 16, capacity = 16, bytes = 0x100201bb11f8e40c0000000000000000}, _kCFStreamErrorCodeKey=-4, _kCFStreamErrorDomainKey=4}}, _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <0C62D0B4-5D81-42DB-BDCE-40FB525B3158>.<1>, _NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <0C62D0B4-5D81-42DB-BDCE-40FB525B3158>.<1>"
+), NSLocalizedDescription=The network connection was lost., NSErrorFailingURLStringKey=https://api.apple-cloudkit.com/database/1/com.apple.gk.ticket-delivery/production/public/records/lookup, NSErrorFailingURLKey=https://api.apple-cloudkit.com/database/1/com.apple.gk.ticket-delivery/production/public/records/lookup, _kCFStreamErrorDomainKey=4}
+CloudKit's response is inconsistent with expections: (null)
+The staple and validate action failed! Error 68.
