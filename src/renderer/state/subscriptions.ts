@@ -36,6 +36,12 @@ import type { StoreApi } from 'zustand';
 import type { InstalledGmuxApi, SessionActivityInfo } from '@shared/ipc';
 import type { DurabilityNotice, GmuxNotice } from '@shared/notice';
 import { isDurabilityNotice } from '@shared/notice';
+// PHASE 357. The words for a session list that stopped reading correctly, said
+// once, in the shared copy file main's refusal and the phone's line read too.
+import {
+  MANIFEST_STOPPED_NOTICE,
+  MANIFEST_STOPPED_RESTART
+} from '@shared/manifest-stopped-copy';
 import { formatScrollbackBytes } from '@shared/scrollback';
 import type { GmuxErrorPayload, GmuxErrorRemedy } from '@shared/types';
 import type { AppState, BootBlock } from './app-state';
@@ -639,6 +645,27 @@ function showDegraded(store: AppStore, notice: DurabilityNotice): void {
           : {})
       }
     );
+    return;
+  }
+  if (notice.kind === 'manifest-stopped') {
+    // PHASE 357 (build/p357/SPEC.md D15). The session list stopped reading
+    // correctly while Tortie ran. The sessions themselves keep running, so the
+    // sentence says so, and its one action is the one thing that helps: a
+    // restart the person presses, never an automatic one. Sticky, which is
+    // what gives a sentence this long the lines it needs (Toasts.tsx). One
+    // sentence whatever the file check said; only the log names that. A window
+    // with no bridge gets the same toast with no button.
+    getState().toast('error', MANIFEST_STOPPED_NOTICE, {
+      sticky: true,
+      ...(gmux !== undefined && typeof gmux.relaunch === 'function'
+        ? {
+            action: {
+              label: MANIFEST_STOPPED_RESTART,
+              run: () => void gmux.relaunch()
+            }
+          }
+        : {})
+    });
     return;
   }
   // A kind added to the shared union without a sentence here fails the

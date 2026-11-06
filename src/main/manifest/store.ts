@@ -26,6 +26,31 @@
  * - ./reconciliation.ts       the manifest judged against live tmux truth
  * - ./remote-folder-pins.ts   the `remote_folder_pins` table (Phase 336)
  * - ./closed-remote-folders.ts the `closed_remote_folders` table (Phase 344)
+ *
+ * PHASE 357: THE STORE STOPS WHEN ITS CONNECTION BREAKS. On 2026-11-05 every
+ * read of the session list in one running 0.114.0 threw "database disk image
+ * is malformed", Electron drew a dialog once per refresh, and the quit crashed
+ * inside SQLite's page cache while closing this connection. The FILE passed its
+ * full check at the next launch, so the damage was in this connection's memory.
+ *
+ * So every public member of the class below is ONE statement handed to
+ * `through` (or to `quiet`, for the three that answer instead of throwing),
+ * which asks the latch first. The first error SQLite throws that says the
+ * connection can no longer account for its pages (`isBrokenConnectionError`,
+ * ../db/integrity.ts) latches the store, once: one read only check of the FILE
+ * from a fresh connection, one `manifest.stopped` log record naming the
+ * operation and the code and no row data, and one `manifest-stopped` notice.
+ * From then on every member refuses with a typed `MANIFEST_STOPPED` error
+ * before SQLite is reached, because writing pages out of a damaged cache is how
+ * damage in memory becomes damage in the file, and a read would only throw
+ * again. `MANIFEST_OPERATIONS` names every member, and
+ * build/conformance-stopped-list.mjs holds the one statement shape, so a member
+ * added later cannot walk past the latch.
+ *
+ * Two members are neither: `close`, which closes the connection on every path
+ * but one (a stopped store whose file is fine holds its connection open, so
+ * nothing runs SQLite's last close through the damaged cache), and
+ * `stoppedReading`, a read of the latch itself.
  */
 
 import Database from 'better-sqlite3';
@@ -39,15 +64,23 @@ import {
 } from '../db/sqlite';
 import { databaseFingerprint } from '../db/digest';
 import {
+  checkDatabaseIntegrity,
+  isBrokenConnectionError,
+  isUnreadable,
+  type IntegrityCheckKind
+} from '../db/integrity';
+import {
   assertDatabaseUsableAt,
   describeSchemaState,
   readSchemaState,
   stampSchemaVersion,
   type SchemaStateOnDisk
 } from '../db/schema-version';
+import { getLog, logEvent } from '../log';
 import { postDurabilityNotice } from '../notice';
 import type { ResumeProvenance } from './agents';
 import type { ContextSnapshot } from '@shared/context-snapshot';
+import { MANIFEST_STOPPED_REFUSAL } from '@shared/manifest-stopped-copy';
 import type {
   GmuxErrorPayload,
   Project,
@@ -157,6 +190,188 @@ function manifestError(
 }
 
 // ---------------------------------------------------------------------------
+// Phase 357: the latch every public member passes through. See the header.
+// ---------------------------------------------------------------------------
+
+/**
+ * Every public member of `ManifestStore`, by name, in the class's own order.
+ * `close` is here and `stoppedReading` is not: the first is a store operation
+ * that never asks the latch (it decides by it), the second is the latch's own
+ * read. The conformance gate compares this list to the class, member by member.
+ */
+export const MANIFEST_OPERATIONS = Object.freeze([
+  'close',
+  'contentFingerprint',
+  'schemaState',
+  'describeSchema',
+  'insertSession',
+  'getSession',
+  'listSessions',
+  'updateSession',
+  'setContextSnapshot',
+  'setResumeArgvColumn',
+  'setEnvColumn',
+  'renameSession',
+  'setStatus',
+  'setAgentSessionId',
+  'clearAgentSessionId',
+  'setResumeProvenance',
+  'setResumeCapture',
+  'deleteSession',
+  'markSessionRemoved',
+  'markMachinesForgotten',
+  'markProjectTabClosed',
+  'clearProjectTabClosed',
+  'projectTabClosedFor',
+  'closedRemoteFolder',
+  'setLastSeen',
+  'pruneDiscardedSessions',
+  'setRestoreResult',
+  'recordRestoreOutcome',
+  'beginRestoreAttempt',
+  'noteRestoreTmuxId',
+  'finishRestoreAttempt',
+  'listUnfinishedRestoreAttempts',
+  'getRestoreAttempt',
+  'pruneRestoreAttempts',
+  'beginRemoteExecution',
+  'finishRemoteExecution',
+  'listUnfinishedRemoteExecutions',
+  'getRemoteExecution',
+  'reconcile',
+  'upsertProject',
+  'getProjectByPath',
+  'upsertRemoteProject',
+  'getRemoteProject',
+  'listRemoteProjects',
+  'listProjects',
+  'deleteProject',
+  'remoteFolderPin',
+  'setRemoteFolderPin'
+] as const);
+
+/** One store operation, as the latch, its log record and the seam name it. */
+export type ManifestOperation = (typeof MANIFEST_OPERATIONS)[number];
+
+/**
+ * What the latch recorded, once, when the connection broke. `file` is the
+ * fresh read only check's verdict on the FILE, which is what the quit decides
+ * by: a fine file means the damage is in this connection's memory.
+ */
+interface ManifestStop {
+  /** The member whose call broke. */
+  operation: ManifestOperation;
+  /** SQLite's own code, e.g. `SQLITE_CORRUPT`. */
+  code: string;
+  /** Epoch ms. */
+  at: number;
+  file: 'fine' | 'damaged' | 'unreadable';
+  /** Which check the file got. */
+  check: IntegrityCheckKind;
+  /** How long that check took. */
+  checkMs: number;
+}
+
+/**
+ * The typed refusal every member answers once the store has stopped.
+ *
+ * The house shape: the message is a JSON `GmuxErrorPayload`, so an IPC
+ * rejection carries the sentence to the renderer's toast; `detail` names the
+ * operation that refused. The `code` PROPERTY is what main reads, through
+ * `isManifestStopped`, and the message is never parsed for it.
+ */
+export function manifestStoppedError(
+  operation: ManifestOperation
+): Error & { code: 'MANIFEST_STOPPED' } {
+  const payload: GmuxErrorPayload = {
+    code: 'MANIFEST_STOPPED',
+    message: MANIFEST_STOPPED_REFUSAL,
+    detail: operation
+  };
+  return Object.assign(new Error(JSON.stringify(payload)), {
+    code: 'MANIFEST_STOPPED' as const
+  });
+}
+
+/** True when this is the stopped store's refusal, read by its `code`. */
+export function isManifestStopped(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    (err as { code?: unknown }).code === 'MANIFEST_STOPPED'
+  );
+}
+
+/**
+ * Connections a stopped store left open because its file was fine, held here
+ * so the garbage collector cannot run better-sqlite3's destructor, which would
+ * close them through the damaged cache all the same. Nothing ever empties it:
+ * the quit asks its length and ends the process without closing them.
+ */
+const held: Database.Database[] = [];
+
+/** How many session list connections are held open after a stop. */
+export function manifestConnectionsLeftOpen(): number {
+  return held.length;
+}
+
+/**
+ * The harness seam's hook (src/main/harness/manifest-fault.ts, the one caller
+ * of the setter). Null in every launch that does not arm it. Asked once per
+ * call inside `through`'s and `quiet`'s `try`, so an error it throws is read by
+ * exactly the classifier real damage meets.
+ */
+let manifestFaultHook: ((operation: ManifestOperation) => void) | null = null;
+
+/** Arm or clear the seam's hook. The harness seam is the only caller. */
+export function setManifestFaultHook(
+  hook: ((operation: ManifestOperation) => void) | null
+): void {
+  manifestFaultHook = hook;
+}
+
+/**
+ * `schemaState`'s answer once the store has stopped: nothing read, nothing
+ * claimed. A fresh copy is handed out each time, so no caller shares it.
+ */
+const STOPPED_SCHEMA_STATE: SchemaStateOnDisk = {
+  applicationId: 0,
+  userVersion: 0,
+  minCompatible: null,
+  lastOpenedBy: null
+};
+
+/** `describeSchema`'s answer once the store has stopped, for diagnostics. */
+const STOPPED_SCHEMA_SENTENCE = 'session list: stopped reading';
+
+/**
+ * `contentFingerprint`'s answer once the store has stopped, when it never
+ * answered a fingerprint of its own before the stop (Phase 357's fix round).
+ * It is not a sha256, so it equals no fingerprint a store computes. See
+ * `contentFingerprint` for why a stopped store never answers null.
+ */
+export const STOPPED_FINGERPRINT = 'stopped';
+
+/** The latch record's `detail`: integrity text names pages, never rows. */
+const STOP_DETAIL_MAX_CHARS = 160;
+
+const manifestLog = getLog('manifest');
+
+/**
+ * The fingerprint, or today's null for any failure, except a broken
+ * connection, which goes on to the latch and answers the stopped store's
+ * fingerprint there (`contentFingerprint`).
+ */
+function fingerprintOrNull(db: Database.Database): string | null {
+  try {
+    return databaseFingerprint(db);
+  } catch (err) {
+    if (isBrokenConnectionError(err)) throw err;
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
 
@@ -259,6 +474,17 @@ export class ManifestStore {
   private readonly journal: RestoreJournal;
   private readonly remoteExecutions: RemoteExecutionJournal;
   private readonly folderPins: RemoteFolderPins;
+  /** Where the file is, for the latch's one fresh check of it (Phase 357). */
+  private readonly dbPath: string;
+  /** The latch (Phase 357). Null until the connection breaks, then never again. */
+  private stopped: ManifestStop | null = null;
+  /** `close` says once that it held the connection open. */
+  private leftOpenSaid = false;
+  /**
+   * The fingerprint `contentFingerprint` last answered (Phase 357's fix round),
+   * which a stopped store answers again. Written by that member's work alone.
+   */
+  private lastFingerprint: string | null = null;
 
   /**
    * Opens (creating if needed) the manifest DB. Pass an explicit path for
@@ -268,6 +494,9 @@ export class ManifestStore {
    *         cannot be created/opened — surface as a friendly UI state.
    */
   constructor(dbPath: string = defaultManifestDbPath()) {
+    // Phase 357. First, so a latch from one of the prunes below can check the
+    // file it names.
+    this.dbPath = dbPath;
     // Phase 21. BEFORE the writable open, and outside the try below, because a
     // refusal is not a failure to open and must not be reported as one.
     //
@@ -338,8 +567,38 @@ export class ManifestStore {
     }
   }
 
+  /**
+   * Close the connection, except in the one case where closing is the danger
+   * (Phase 357).
+   *
+   * A store that stopped because its connection broke while the FILE checked
+   * fine has the damage in this connection's memory, and its close is what
+   * crashed the operator's quit: SQLite's last close walks the page cache to
+   * free it and checkpoints the WAL into the file through that same memory. So
+   * that store closes nothing, holds the connection off the collector, and the
+   * quit ends the process without closing it (WAL needs no clean close; the
+   * next open replays the log through the integrity gate). Every other store,
+   * a stopped one whose file is damaged or unreadable included, closes exactly
+   * as before, which the parent measured clean.
+   */
   close(): void {
-    this.db.close();
+    if (this.stopped === null || this.stopped.file !== 'fine') {
+      this.db.close();
+      return;
+    }
+    if (this.leftOpenSaid) return;
+    this.leftOpenSaid = true;
+    manifestLog.info(
+      'the session list connection is left open so nothing closes a damaged cache'
+    );
+  }
+
+  /**
+   * Has the store stopped? A read of the latch itself, which touches no
+   * SQLite, so it answers whichever path latched it (Phase 357).
+   */
+  stoppedReading(): boolean {
+    return this.stopped !== null;
   }
 
   /**
@@ -354,13 +613,25 @@ export class ManifestStore {
    *
    * Null means "cannot be read", and the schedule treats that as a reason to
    * take a copy rather than a reason to skip one.
+   *
+   * PHASE 357, AND ITS FIX ROUND. A broken connection met here stops the
+   * store. A stopped store answers the fingerprint it last answered, or
+   * `STOPPED_FINGERPRINT` when it never answered one, and never null: nothing
+   * can write the file through a stopped store, so its content cannot move,
+   * and the ring's own change test then reads "unchanged" and takes nothing.
+   * The latch's first build answered null here, which the ring reads as "take
+   * one". With the file fine that took a generation at every poll past the
+   * five minute floor and rotated every generation from before the stop out of
+   * the ring, where the parent's digest answers one fixed text for a table it
+   * cannot read and takes one generation at most (build/p357/SPEC.md, the fix
+   * round).
    */
   contentFingerprint(): string | null {
-    try {
-      return databaseFingerprint(this.db);
-    } catch {
-      return null;
-    }
+    return this.quiet(
+      'contentFingerprint',
+      this.lastFingerprint ?? STOPPED_FINGERPRINT,
+      () => (this.lastFingerprint = fingerprintOrNull(this.db))
+    );
   }
 
   /**
@@ -372,12 +643,20 @@ export class ManifestStore {
    * manifest that will not open is answerable with one line of it.
    */
   schemaState(): SchemaStateOnDisk {
-    return readSchemaState(this.db);
+    return this.quiet('schemaState', { ...STOPPED_SCHEMA_STATE }, () =>
+      readSchemaState(this.db)
+    );
   }
 
-  /** That state as one sentence, e.g. the line a bug report pastes. */
+  /**
+   * That state as one sentence, e.g. the line a bug report pastes. Phase 357:
+   * it reads the state itself rather than through `schemaState`, so a broken
+   * connection met here answers this member's own sentence.
+   */
   describeSchema(): string {
-    return describeSchemaState('session list', this.schemaState());
+    return this.quiet('describeSchema', STOPPED_SCHEMA_SENTENCE, () =>
+      describeSchemaState('session list', readSchemaState(this.db))
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -386,15 +665,15 @@ export class ManifestStore {
   // -------------------------------------------------------------------------
 
   insertSession(record: ManifestSessionRecord): ManifestSessionRecord {
-    return this.sessions.insertSession(record);
+    return this.through('insertSession', () => this.sessions.insertSession(record));
   }
 
   getSession(id: string): ManifestSessionRecord | undefined {
-    return this.sessions.getSession(id);
+    return this.through('getSession', () => this.sessions.getSession(id));
   }
 
   listSessions(): ManifestSessionRecord[] {
-    return this.sessions.listSessions();
+    return this.through('listSessions', () => this.sessions.listSessions());
   }
 
   updateSession(
@@ -402,24 +681,30 @@ export class ManifestStore {
     patch: ManifestSessionPatch,
     opts: UpdateSessionOptions = {}
   ): ManifestSessionRecord {
-    return this.sessions.updateSession(id, patch, opts);
+    return this.through('updateSession', () =>
+      this.sessions.updateSession(id, patch, opts)
+    );
   }
 
   setContextSnapshot(
     id: string,
     snapshot: ContextSnapshot
   ): ManifestSessionRecord {
-    return this.sessions.setContextSnapshot(id, snapshot);
+    return this.through('setContextSnapshot', () =>
+      this.sessions.setContextSnapshot(id, snapshot)
+    );
   }
 
   /** One row's `resume_argv` and no other column. See the repository. */
   setResumeArgvColumn(id: string, argv: readonly string[]): void {
-    this.sessions.setResumeArgvColumn(id, argv);
+    this.through('setResumeArgvColumn', () =>
+      this.sessions.setResumeArgvColumn(id, argv)
+    );
   }
 
   /** One row's `env` and no other column. See the repository. */
   setEnvColumn(id: string, env: Readonly<Record<string, string>>): void {
-    this.sessions.setEnvColumn(id, env);
+    this.through('setEnvColumn', () => this.sessions.setEnvColumn(id, env));
   }
 
   renameSession(
@@ -427,11 +712,13 @@ export class ManifestStore {
     name: string,
     tmuxName: string
   ): ManifestSessionRecord {
-    return this.sessions.renameSession(id, name, tmuxName);
+    return this.through('renameSession', () =>
+      this.sessions.renameSession(id, name, tmuxName)
+    );
   }
 
   setStatus(id: string, status: SessionStatus): ManifestSessionRecord {
-    return this.sessions.setStatus(id, status);
+    return this.through('setStatus', () => this.sessions.setStatus(id, status));
   }
 
   setAgentSessionId(
@@ -440,11 +727,13 @@ export class ManifestStore {
     resumeArgv: string[],
     provenance?: ResumeProvenance
   ): ManifestSessionRecord {
-    return this.sessions.setAgentSessionId(
-      id,
-      agentSessionId,
-      resumeArgv,
-      provenance
+    return this.through('setAgentSessionId', () =>
+      this.sessions.setAgentSessionId(
+        id,
+        agentSessionId,
+        resumeArgv,
+        provenance
+      )
     );
   }
 
@@ -453,26 +742,34 @@ export class ManifestStore {
     resumeCapture: ResumeCapture,
     provenance: ResumeProvenance
   ): ManifestSessionRecord {
-    return this.sessions.clearAgentSessionId(id, resumeCapture, provenance);
+    return this.through('clearAgentSessionId', () =>
+      this.sessions.clearAgentSessionId(id, resumeCapture, provenance)
+    );
   }
 
   setResumeProvenance(
     id: string,
     provenance: ResumeProvenance
   ): ManifestSessionRecord {
-    return this.sessions.setResumeProvenance(id, provenance);
+    return this.through('setResumeProvenance', () =>
+      this.sessions.setResumeProvenance(id, provenance)
+    );
   }
 
   setResumeCapture(id: string, state: ResumeCapture): ManifestSessionRecord {
-    return this.sessions.setResumeCapture(id, state);
+    return this.through('setResumeCapture', () =>
+      this.sessions.setResumeCapture(id, state)
+    );
   }
 
   deleteSession(id: string): void {
-    this.sessions.deleteSession(id);
+    this.through('deleteSession', () => this.sessions.deleteSession(id));
   }
 
   markSessionRemoved(id: string, at: number = Date.now()): void {
-    this.sessions.markSessionRemoved(id, at);
+    this.through('markSessionRemoved', () =>
+      this.sessions.markSessionRemoved(id, at)
+    );
   }
 
   /**
@@ -484,7 +781,9 @@ export class ManifestStore {
     entries: readonly MachineTombstoneEntry[],
     hooks?: MarkMachinesForgottenHooks
   ): number {
-    return this.sessions.markMachinesForgotten(entries, hooks);
+    return this.through('markMachinesForgotten', () =>
+      this.sessions.markMachinesForgotten(entries, hooks)
+    );
   }
 
   /**
@@ -497,7 +796,9 @@ export class ManifestStore {
     target: { path: string; machineId?: string },
     tab: ClosedProjectTab
   ): number {
-    return this.sessions.markProjectTabClosed(target, tab);
+    return this.through('markProjectTabClosed', () =>
+      this.sessions.markProjectTabClosed(target, tab)
+    );
   }
 
   /**
@@ -505,7 +806,9 @@ export class ManifestStore {
    * again. Runs from both project adds, after the upsert returns.
    */
   clearProjectTabClosed(target: { path: string; machineId?: string }): number {
-    return this.sessions.clearProjectTabClosed(target);
+    return this.through('clearProjectTabClosed', () =>
+      this.sessions.clearProjectTabClosed(target)
+    );
   }
 
   /**
@@ -513,7 +816,9 @@ export class ManifestStore {
    * and that is still the record. A read; see the repository method.
    */
   projectTabClosedFor(target: { path: string; machineId?: string }): boolean {
-    return this.sessions.projectTabClosedFor(target);
+    return this.through('projectTabClosedFor', () =>
+      this.sessions.projectTabClosedFor(target)
+    );
   }
 
   /**
@@ -523,7 +828,9 @@ export class ManifestStore {
    * that have no stamp of their own; see ./closed-remote-folders.ts.
    */
   closedRemoteFolder(machineId: string, path: string): ClosedRemoteFolder | undefined {
-    return this.sessions.closedRemoteFolder(machineId, path);
+    return this.through('closedRemoteFolder', () =>
+      this.sessions.closedRemoteFolder(machineId, path)
+    );
   }
 
   /**
@@ -531,11 +838,13 @@ export class ManifestStore {
    * column, no status change, not durable. See the repository method.
    */
   setLastSeen(id: string, at: number): void {
-    this.sessions.setLastSeen(id, at);
+    this.through('setLastSeen', () => this.sessions.setLastSeen(id, at));
   }
 
   pruneDiscardedSessions(now: number = Date.now()): void {
-    this.sessions.pruneDiscardedSessions(now);
+    this.through('pruneDiscardedSessions', () =>
+      this.sessions.pruneDiscardedSessions(now)
+    );
   }
 
   setRestoreResult(
@@ -544,14 +853,18 @@ export class ManifestStore {
     status: SessionStatus,
     bind: { tmuxName?: string; panePid?: number } = {}
   ): ManifestSessionRecord {
-    return this.sessions.setRestoreResult(id, restore, status, bind);
+    return this.through('setRestoreResult', () =>
+      this.sessions.setRestoreResult(id, restore, status, bind)
+    );
   }
 
   recordRestoreOutcome(
     id: string,
     restore: SessionRestore
   ): ManifestSessionRecord {
-    return this.sessions.recordRestoreOutcome(id, restore);
+    return this.through('recordRestoreOutcome', () =>
+      this.sessions.recordRestoreOutcome(id, restore)
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -559,11 +872,15 @@ export class ManifestStore {
   // -------------------------------------------------------------------------
 
   beginRestoreAttempt(sessionId: string, at: number = Date.now()): number {
-    return this.journal.beginRestoreAttempt(sessionId, at);
+    return this.through('beginRestoreAttempt', () =>
+      this.journal.beginRestoreAttempt(sessionId, at)
+    );
   }
 
   noteRestoreTmuxId(attemptId: number, tmuxId: string): void {
-    this.journal.noteRestoreTmuxId(attemptId, tmuxId);
+    this.through('noteRestoreTmuxId', () =>
+      this.journal.noteRestoreTmuxId(attemptId, tmuxId)
+    );
   }
 
   finishRestoreAttempt(
@@ -571,19 +888,27 @@ export class ManifestStore {
     outcome: RestoreResultKind,
     at: number = Date.now()
   ): void {
-    this.journal.finishRestoreAttempt(attemptId, outcome, at);
+    this.through('finishRestoreAttempt', () =>
+      this.journal.finishRestoreAttempt(attemptId, outcome, at)
+    );
   }
 
   listUnfinishedRestoreAttempts(): RestoreAttemptRecord[] {
-    return this.journal.listUnfinishedRestoreAttempts();
+    return this.through('listUnfinishedRestoreAttempts', () =>
+      this.journal.listUnfinishedRestoreAttempts()
+    );
   }
 
   getRestoreAttempt(attemptId: number): RestoreAttemptRecord | undefined {
-    return this.journal.getRestoreAttempt(attemptId);
+    return this.through('getRestoreAttempt', () =>
+      this.journal.getRestoreAttempt(attemptId)
+    );
   }
 
   pruneRestoreAttempts(keep = 200): void {
-    this.journal.pruneRestoreAttempts(keep);
+    this.through('pruneRestoreAttempts', () =>
+      this.journal.pruneRestoreAttempts(keep)
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -598,7 +923,9 @@ export class ManifestStore {
     input: RemoteExecutionBegin,
     at: number = Date.now()
   ): number {
-    return this.remoteExecutions.beginRemoteExecution(input, at);
+    return this.through('beginRemoteExecution', () =>
+      this.remoteExecutions.beginRemoteExecution(input, at)
+    );
   }
 
   finishRemoteExecution(
@@ -606,15 +933,21 @@ export class ManifestStore {
     outcome: RemoteExecutionOutcome,
     at: number = Date.now()
   ): void {
-    this.remoteExecutions.finishRemoteExecution(id, outcome, at);
+    this.through('finishRemoteExecution', () =>
+      this.remoteExecutions.finishRemoteExecution(id, outcome, at)
+    );
   }
 
   listUnfinishedRemoteExecutions(): RemoteExecutionRecord[] {
-    return this.remoteExecutions.listUnfinishedRemoteExecutions();
+    return this.through('listUnfinishedRemoteExecutions', () =>
+      this.remoteExecutions.listUnfinishedRemoteExecutions()
+    );
   }
 
   getRemoteExecution(id: number): RemoteExecutionRecord | undefined {
-    return this.remoteExecutions.getRemoteExecution(id);
+    return this.through('getRemoteExecution', () =>
+      this.remoteExecutions.getRemoteExecution(id)
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -629,8 +962,12 @@ export class ManifestStore {
     // `this`, not the internal repository: reconcile's reads and writes go
     // through the facade's own methods, so an override of `listSessions` or
     // `updateSession` on the store (the sqlite interleaving test does this)
-    // still sits inside reconcile's transaction window.
-    return reconcileManifest(this.db, this, live, options);
+    // still sits inside reconcile's transaction window. Phase 357: those inner
+    // calls pass through the latch on their own, so one that breaks stops the
+    // store there and its refusal comes out of this call unchanged.
+    return this.through('reconcile', () =>
+      reconcileManifest(this.db, this, live, options)
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -638,11 +975,13 @@ export class ManifestStore {
   // -------------------------------------------------------------------------
 
   upsertProject(project: Project): Project {
-    return this.projects.upsertProject(project);
+    return this.through('upsertProject', () => this.projects.upsertProject(project));
   }
 
   getProjectByPath(path: string): Project | undefined {
-    return this.projects.getProjectByPath(path);
+    return this.through('getProjectByPath', () =>
+      this.projects.getProjectByPath(path)
+    );
   }
 
   /**
@@ -650,25 +989,31 @@ export class ManifestStore {
    * on `(machineId, path)`, and a second add keeps the original id.
    */
   upsertRemoteProject(input: RemoteProjectInput): Project {
-    return this.projects.upsertRemoteProject(input);
+    return this.through('upsertRemoteProject', () =>
+      this.projects.upsertRemoteProject(input)
+    );
   }
 
   /** Phase 90.3. One folder on one machine, or undefined. */
   getRemoteProject(machineId: string, path: string): Project | undefined {
-    return this.projects.getRemoteProject(machineId, path);
+    return this.through('getRemoteProject', () =>
+      this.projects.getRemoteProject(machineId, path)
+    );
   }
 
   /** Phase 90.3. Every folder on every machine. */
   listRemoteProjects(): Project[] {
-    return this.projects.listRemoteProjects();
+    return this.through('listRemoteProjects', () =>
+      this.projects.listRemoteProjects()
+    );
   }
 
   listProjects(): Project[] {
-    return this.projects.listProjects();
+    return this.through('listProjects', () => this.projects.listProjects());
   }
 
   deleteProject(id: string): void {
-    this.projects.deleteProject(id);
+    this.through('deleteProject', () => this.projects.deleteProject(id));
   }
 
   // -------------------------------------------------------------------------
@@ -685,7 +1030,9 @@ export class ManifestStore {
    * stored identity is not `<device>:<inode>`.
    */
   remoteFolderPin(machineId: string, path: string): RemoteFolderPin | undefined {
-    return this.folderPins.remoteFolderPin(machineId, path);
+    return this.through('remoteFolderPin', () =>
+      this.folderPins.remoteFolderPin(machineId, path)
+    );
   }
 
   /**
@@ -698,6 +1045,103 @@ export class ManifestStore {
     identity: string,
     at: number = Date.now()
   ): void {
-    this.folderPins.setRemoteFolderPin(machineId, path, identity, at);
+    this.through('setRemoteFolderPin', () =>
+      this.folderPins.setRemoteFolderPin(machineId, path, identity, at)
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Phase 357: the latch. See the header.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Run one member's work, unless the store has stopped.
+   *
+   * A stopped store refuses before anything else, the seam's hook included,
+   * so nothing after the latch reaches SQLite. Otherwise the hook and the work
+   * share one `try`: an error that says the connection broke latches the store
+   * and answers the typed refusal in its place, and every other error, the
+   * refusal of a nested call included, goes on exactly as it was thrown.
+   */
+  private through<T>(operation: ManifestOperation, run: () => T): T {
+    if (this.stopped !== null) throw manifestStoppedError(operation);
+    try {
+      manifestFaultHook?.(operation);
+      return run();
+    } catch (err) {
+      if (!isBrokenConnectionError(err)) throw err;
+      this.latch(operation, err);
+      throw manifestStoppedError(operation);
+    }
+  }
+
+  /** `through` for the three members that answer `fallback` instead of refusing. */
+  private quiet<T>(operation: ManifestOperation, fallback: T, run: () => T): T {
+    if (this.stopped !== null) return fallback;
+    try {
+      manifestFaultHook?.(operation);
+      return run();
+    } catch (err) {
+      if (!isBrokenConnectionError(err)) throw err;
+      this.latch(operation, err);
+      return fallback;
+    }
+  }
+
+  /**
+   * Stop the store, once.
+   *
+   * 1. Ask a fresh read only connection, with its own page cache, whether the
+   *    FILE is fine: the integrity gate's own check, synchronously, because it
+   *    measured 0 to 2 ms here and the gate runs it on the whole file at every
+   *    launch. Inside a transaction it reads the last commit, which WAL allows.
+   * 2. One log record naming the operation, SQLite's code and the verdict,
+   *    never a row value: integrity text names pages and trees.
+   * 3. When the file is fine, hold this connection off the collector (`close`).
+   * 4. One notice, which the person sees with its Restart action.
+   *
+   * Once, even when calls nest: `reconcile` runs its reads inside its own
+   * `through`, so an inner call can latch and a raw SQLite error can still
+   * reach the outer catch afterwards (a ROLLBACK that throws replaces the
+   * refusal it was unwinding). The second arrival records nothing.
+   */
+  private latch(operation: ManifestOperation, err: unknown): void {
+    if (this.stopped !== null) return;
+    const startedAt = performance.now();
+    const verdict = checkDatabaseIntegrity(this.dbPath);
+    const checkMs = Math.round((performance.now() - startedAt) * 10) / 10;
+    const file: ManifestStop['file'] = verdict.ok
+      ? 'fine'
+      : isUnreadable(verdict)
+        ? 'unreadable'
+        : 'damaged';
+    const code = String((err as { code?: unknown }).code);
+    this.stopped = {
+      operation,
+      code,
+      at: Date.now(),
+      file,
+      check: verdict.check,
+      checkMs
+    };
+    logEvent(
+      'manifest',
+      'error',
+      'manifest.stopped',
+      'the session list stopped reading correctly',
+      {
+        operation,
+        code,
+        file,
+        check: verdict.check,
+        checkMs,
+        detail: verdict.detail.slice(0, STOP_DETAIL_MAX_CHARS)
+      }
+    );
+    if (file === 'fine') held.push(this.db);
+    postDurabilityNotice({
+      kind: 'manifest-stopped',
+      fileFine: file === 'fine' ? true : file === 'damaged' ? false : null
+    });
   }
 }

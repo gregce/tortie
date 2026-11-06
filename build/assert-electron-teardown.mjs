@@ -565,12 +565,23 @@ const HELPER = 'electron-run.mjs';
  * agents build/p350/stand-in.mjs behind their bare names, and every stand-in
  * pid ended in its `finally`.
  *
+ * PHASE 357 RAISED IT FROM 180 TO 181, by one for build/p357/probe-p357.mjs
+ * (`probe:p357`), a session list that goes bad while Tortie runs: Electrons
+ * through the helper ONE AT A TIME, the parent's (`P357_PARENT_CHECKOUT`,
+ * required) FIRST, each on a scratch profile, HOME and ZDOTDIR with
+ * HISTFILE=/dev/null and the socket gmux-p357…, every launch naming that socket
+ * as its `tmuxSocket` (his ruling of 2026-11-02), every probed registry row
+ * hidden before every launch, the damage written over a page of the SCRATCH
+ * manifest or armed through the harness-only fault seam, and every stand-in pid
+ * ended in its `finally`. It never calls app.relaunch(), whose relaunched app
+ * would escape this helper's tree and its profile sweep.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 180;
+const HELPER_USER_FLOOR = 181;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

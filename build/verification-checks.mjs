@@ -1063,6 +1063,23 @@ export const CHECKS = [
   // of which must read red. It spawns nothing and reads nothing under his
   // home. About 1 s.
   pure('conformance:endtree'),
+  // PHASE 357 (build/p357/SPEC.md §7.1). A session list that goes bad while
+  // Tortie runs asks for one restart. build/conformance-stopped-list.mjs reads
+  // the manifest store, the six repository files, the classifier in
+  // src/main/db/integrity.ts, the core's list and its five event catches, the
+  // ordered disposer's last branch, the relaunch handler, the crash handlers
+  // and the harness-only fault seam with the TypeScript parser and asserts ten
+  // rules, S1 to S10: every store member passes through the latch in one
+  // statement, a broken connection is told by its code and never its words, a
+  // stopped connection whose file is fine is never closed and the quit ends
+  // with the existing hard exit, the relaunch answers only after the notice
+  // and never in a harness launch, and the fault seam is armed only inside a
+  // harness folder. Each rule is asked again over in-memory copies with it
+  // broken, every one of which must read red, beside a control that stays
+  // green. It spawns one process, the pinned tsx, for S8's driven half, which
+  // starts nothing, opens no database and reads nothing under any home. About
+  // 2 s.
+  pure('conformance:stoppedlist'),
   adapter(
     'conformance:specstory:entitlement',
     'macOS codesign and the vendored specstory binary; it signs scratch copies and runs them'
@@ -1556,6 +1573,23 @@ export const CHECKS = [
   // stand-in pid is ended in its `finally`. `--grader-self-test` grades
   // build/p350/fixtures/graders.json and starts nothing.
   remote('probe:p350'),
+  // PHASE 357 (build/p357/SPEC.md §8): a session list that goes bad while
+  // Tortie runs, at the parent and at HEAD. Electrons through
+  // build/electron-run.mjs ONE AT A TIME and never at once, the parent's
+  // (`P357_PARENT_CHECKOUT`, a built 0547383e, required) FIRST, each on a
+  // scratch profile, HOME and ZDOTDIR with HISTFILE=/dev/null and the socket
+  // gmux-p357…, every probed registry row hidden by build/hidden-agents.mjs
+  // before each launch and `agents:list` read back. The world is his recorded
+  // shape through build/p3167/seed-sessions.mts (counts only) and three shells;
+  // the damage is real, written over one page of the SCRATCH manifest, and the
+  // memory-shaped case is the harness-only fault seam. build/p357/counter.cjs
+  // counts uncaught exceptions inside main at both builds. The phone is
+  // build/p316/node-phone.mjs through build/p330/tailscale-standin.mjs behind
+  // its preflight and sampler and build/p332/dns-standin.mjs in the probe's own
+  // process. It never calls app.relaunch() and never holds main's inspector
+  // across a quit. No agent runs and no token is spent. `--grader-self-test`
+  // grades build/p357/fixtures/graders.json and starts nothing.
+  electron('probe:p357'),
   // PHASE 342's measurement (build/p342/SPEC.md §7.4): the re-derivation
   // outside Electron. Through build/docker-run.mjs, one throwaway container per
   // distribution in his Docker, each the distribution's own image with its own

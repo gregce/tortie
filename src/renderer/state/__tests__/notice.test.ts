@@ -22,6 +22,7 @@ let pending: DurabilityNotice[] = [];
 let pendingCalls = 0;
 let revealed: string[] = [];
 let logFolderOpens = 0;
+let relaunches = 0;
 
 function installGlobals(): void {
   vi.stubGlobal('window', {
@@ -59,6 +60,11 @@ function installGlobals(): void {
           logFolderOpens += 1;
           return Promise.resolve();
         }
+      },
+      // Phase 357: the stopped session list notice's Restart.
+      relaunch: () => {
+        relaunches += 1;
+        return Promise.resolve();
       }
     }
   });
@@ -93,6 +99,7 @@ function say(notice: GmuxNotice): { text: string; kind: string; action?: string 
 beforeEach(() => {
   revealed = [];
   logFolderOpens = 0;
+  relaunches = 0;
   useApp.setState({ toasts: [] } as never);
 });
 
@@ -343,6 +350,26 @@ describe('each degraded state says one plain thing', () => {
       expect(text).not.toContain('\u2014');
       expect(text).not.toContain('\u2013');
     }
+  });
+
+  /**
+   * PHASE 357. The session list stopped reading correctly while Tortie ran.
+   * It is the one sentence here longer than the two lines above, on purpose:
+   * the toast is sticky, and a sticky toast has six (Toasts.tsx), which
+   * `./p357-notice.test.ts` holds it to. So it is not in the two-line table
+   * below. Its Restart is pressed by the person, never automatic.
+   */
+  it('a session list that stopped reading says so once, sticky, with Restart', () => {
+    const out = say({ kind: 'manifest-stopped', fileFine: true });
+    expect(out.text).toBe(
+      "Tortie's session list stopped reading correctly. Your sessions are still running. Restart Tortie to load it again."
+    );
+    expect(out.kind).toBe('error');
+    expect(out.action).toBe('Restart');
+    expect(useApp.getState().toasts[0]?.sticky).toBe(true);
+    expect(relaunches).toBe(0);
+    useApp.getState().toasts[0]?.action?.run();
+    expect(relaunches).toBe(1);
   });
 });
 

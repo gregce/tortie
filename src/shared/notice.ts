@@ -357,6 +357,29 @@ export interface LoginFellBackNotice {
   login: string;
 }
 
+/**
+ * The session list stopped reading correctly while Tortie runs. Phase 357.
+ *
+ * APPENDED (Phase 357). The store's connection answered SQLite's own code for
+ * a damaged database (`SQLITE_CORRUPT` or `SQLITE_NOTADB`), so from that call
+ * on it refuses every read and every write before SQLite, because writing pages
+ * out of a damaged cache is how damage in memory becomes damage in the file. The
+ * sessions themselves are untouched and still running. One restart loads the
+ * list again, so the notice carries a Restart action.
+ *
+ * `fileFine` is what a fresh read only check of the FILE said at that moment:
+ * true when the file is fine and the damage is in this run's memory, false
+ * when the file is damaged too, null when the file could not be read. The
+ * sentence is the same for all three (src/shared/manifest-stopped-copy.ts); the
+ * field is for the log and for the quit, which closes the connection only when
+ * the file is not fine.
+ */
+export interface ManifestStoppedNotice {
+  kind: 'manifest-stopped';
+  /** True: file fine. False: file damaged. Null: file unreadable. */
+  fileFine: boolean | null;
+}
+
 /** Every degraded state Tortie can report. One kind per state, no free text. */
 export type DurabilityNotice =
   | BackupFailingNotice
@@ -373,7 +396,8 @@ export type DurabilityNotice =
   | ShellPathFallbackNotice
   | RemoteResumeNotice
   | RemoteWorkCutOffNotice
-  | LoginFellBackNotice;
+  | LoginFellBackNotice
+  | ManifestStoppedNotice;
 
 /**
  * Everything that travels on `scrollback:notice`: the three scrollback events
@@ -397,7 +421,8 @@ export const DURABILITY_NOTICE_KINDS = [
   'shell-path-fallback',
   'remote-resume',
   'remote-work-cut-off',
-  'login-fell-back'
+  'login-fell-back',
+  'manifest-stopped'
 ] as const;
 
 /** Narrow a notice off the shared channel to a degraded state. */

@@ -63,7 +63,11 @@
  *     session (`../sessions/pocket-writes.ts`'s `renameOffer`, asked only
  *     while a person allowed `rename`) and whether a person allowed `rename`.
  *     This module imports neither. Absent, no row carries `rename` and no
- *     Sessions answer carries `renames`.
+ *     Sessions answer carries `renames`;
+ *   - `listStopped` (Phase 357, build/p357/SPEC.md D22) is the core's own
+ *     read of the session list's latch, `GmuxCore.manifestStopped`, which
+ *     touches no SQLite. While it answers true the routes answer the phone in
+ *     words rather than from a list that stopped reading correctly.
  *
  * ## What this module never does
  *
@@ -118,6 +122,14 @@ export interface PocketFactsCore {
    * this module never assigns it itself.
    */
   onSessionsBroadcast: ((sessions: Session[]) => void) | null;
+  /**
+   * PHASE 357 (build/p357/SPEC.md D22). Whether the session list stopped
+   * reading correctly while Tortie ran (`GmuxCore.manifestStopped`): a READ of
+   * the store's latch itself, which touches no SQLite. Optional only because
+   * the tests' own cores predate it; the production core always has it, and
+   * absent reads as not stopped, which is every door before this phase.
+   */
+  manifestStopped?(): boolean;
 }
 
 /** What the composer hands in. */
@@ -340,6 +352,9 @@ export function createPocketFacts(deps: PocketFactsDeps): PocketFacts & {
     agentLabel: agentLabelOf,
     machineLabel: (session) => session.machine?.label ?? null,
     emptyLine: NOTHING_NEEDS_YOU,
+    // PHASE 357 (D22). The latch, read through the core and nothing else, so
+    // it answers true whichever path stopped the session list.
+    listStopped: () => core()?.manifestStopped?.() === true,
 
     async refresh(sessionId: string): Promise<OverviewSessionActivity | null> {
       const answer = await sessionActivity(deps.overview, { sessionIds: [sessionId] });

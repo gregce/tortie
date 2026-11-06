@@ -122,7 +122,11 @@ describe('every public method of GmuxCore kept its name', () => {
     // Phase 318. A READ of the live `$`-id map every reconcile rebuilds: the
     // phone's reply reads it before its reading and again in its final check,
     // so a session replaced underneath a press is never typed into.
-    'tmuxIdOf'
+    'tmuxIdOf',
+    // Phase 357. A READ of the manifest store's latch: true once the session
+    // list stopped reading correctly in this run, for the phone's door to
+    // answer its reads in words rather than a thrown request.
+    'manifestStopped'
   ];
 
   const core = read('core.ts');

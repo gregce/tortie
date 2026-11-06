@@ -8,6 +8,7 @@
  */
 
 import type Database from 'better-sqlite3';
+import { isBrokenConnectionError } from '../db/integrity';
 import { durableTransaction } from '../db/sqlite';
 import {
   serializeAgentContract,
@@ -297,6 +298,12 @@ export class SessionsRepository {
           login: record.login ?? null
         });
     } catch (err) {
+      // Phase 357. A broken connection is not a bad record. Wrapped as
+      // INVALID_INPUT its code never reached the store's latch (store.ts), so
+      // a create on a damaged list answered "Could not record session" with
+      // SQLite's words in `detail` and the store went on writing. It goes up
+      // exactly as SQLite threw it, and the latch reads its code.
+      if (isBrokenConnectionError(err)) throw err;
       throw manifestError(
         'INVALID_INPUT',
         `Could not record session "${record.name}" in the manifest`,

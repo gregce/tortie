@@ -48,6 +48,15 @@
  * If the rename cannot be done, the caller is told to refuse rather than open,
  * because an app that will not start is recoverable and an overwritten manifest
  * is not.
+ *
+ * ## One question about a connection that is already open (Phase 357)
+ *
+ * `isBrokenConnectionError` answers whether an error thrown by a LIVE
+ * connection means that connection can no longer account for the pages, which
+ * is when the manifest store stops writing through it. It sits beside
+ * `looksUnreadable` because the two are the module's two readings of an error,
+ * and they never agree: a broken connection is never "could not read it".
+ * Nothing above it moved: the gate, the check and the quarantine are Phase 19's.
  */
 
 import Database from 'better-sqlite3';
@@ -137,6 +146,45 @@ export function looksUnreadable(err: unknown): boolean {
   const message = typeof e.message === 'string' ? e.message : String(err);
   return UNREADABLE_MARKERS.some(
     (marker) => code.includes(marker) || message.includes(marker)
+  );
+}
+
+/**
+ * True when this error says the CONNECTION can no longer account for the
+ * database's pages, which is the one answer after which nothing more may be
+ * written through it (Phase 357).
+ *
+ * The answer is better-sqlite3's own `SqliteError`, read by its class and by
+ * `err.code`, never by its message: `SQLITE_CORRUPT`, any extended
+ * `SQLITE_CORRUPT_*`, or `SQLITE_NOTADB`. The class is asked because Tortie's
+ * own typed errors can carry any `code` string, and a plain `Error` that
+ * merely names the code is not SQLite saying so.
+ *
+ * MEASURED, the shipping manifest store over a real scratch file damaged under
+ * its live connection (build/p357/SPEC.md §2.1). Every damage of a page came
+ * back as a plain `SQLITE_CORRUPT`: a sessions leaf's type byte, its cell
+ * pointers, the whole leaf zeroed, the interior page's right child pointing
+ * past the end, an overflow page's next pointer, an overflow page zeroed, the
+ * file cut short and the primary key index's leaf. Every damage of the header
+ * came back as `SQLITE_NOTADB`. None arrived extended, and `looksUnreadable`
+ * was false for all of them. `SQLITE_CORRUPT_VTAB`, `_SEQUENCE` and `_INDEX`
+ * are in better-sqlite3's own code table, and the prefix keeps them.
+ *
+ * `SQLITE_IOERR_*` IS OUT, ON PURPOSE. No damage of a page produced one, in
+ * eleven kinds. A volume detached under the live connection produced no error
+ * at all: the process died with SIGBUS inside `walIndexTryHdr`, because the
+ * `-shm` is memory mapped, twice. An I/O error says the operating system
+ * refused one call, not that the connection's memory is wrong, and latching on
+ * it would refuse every write for the rest of a run that today recovers on the
+ * next call. That would be a regression against today.
+ */
+export function isBrokenConnectionError(err: unknown): boolean {
+  return (
+    err instanceof Database.SqliteError &&
+    typeof err.code === 'string' &&
+    (err.code === 'SQLITE_CORRUPT' ||
+      err.code.startsWith('SQLITE_CORRUPT_') ||
+      err.code === 'SQLITE_NOTADB')
   );
 }
 

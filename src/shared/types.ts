@@ -1247,6 +1247,14 @@ export interface GmuxErrorPayload {
     // windows are closing, and every call site already catches invoke
     // rejections.
     | 'SHUTTING_DOWN'
+    // APPENDED (Phase 357): the session list stopped reading correctly in
+    // this run, so the manifest store refuses every read and write before
+    // SQLite until Tortie is restarted. `message` is the one sentence in
+    // src/shared/manifest-stopped-copy.ts, so a refused create or rename says
+    // it in its toast; `detail` names the store operation that refused. The
+    // thrown error also carries `code: 'MANIFEST_STOPPED'` as a property,
+    // which is what main reads (`isManifestStopped`), never the message.
+    | 'MANIFEST_STOPPED'
     | 'UNKNOWN';
   message: string;
   detail?: string;

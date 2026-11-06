@@ -35,6 +35,7 @@ import type {
   GmuxPopupMenuExtras,
   GmuxPowerExtras,
   GmuxQuitExtras,
+  GmuxRelaunchExtras,
   GmuxSessionExtras,
   GmuxSettingsExtras,
   GmuxUpdatesExtras,
@@ -44,6 +45,7 @@ import type {
   PowerEventPayloadMap,
   QuitEventPayloadMap,
   QuitInvokeChannelMap,
+  RelaunchInvokeChannelMap,
   SettingsEventPayloadMap,
   SettingsInvokeChannelMap,
   ShellInvokeChannelMap,
@@ -332,7 +334,10 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   BaselinesInvokeChannelMap &
   // Phase 313. Settings then Phone: pair, see what is paired, revoke. None of
   // these is a route on the phone's door, whose own table is read only.
-  PocketInvokeChannelMap;
+  PocketInvokeChannelMap &
+  // Phase 357. The Restart on the notice that says the session list stopped
+  // reading correctly. Main answers it only after posting that notice.
+  RelaunchInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -508,7 +513,9 @@ export type InstalledGmuxApi = GmuxApi & {
   GmuxBaselinesExtras &
   // Phase 316. The `pocket` member: Settings then Phone. Installed in the same
   // commit that registers its channels in main (`conformance:pocket` B1).
-  GmuxPocketExtras;
+  GmuxPocketExtras &
+  // Phase 357. The one `relaunch` member, the stopped list notice's Restart.
+  GmuxRelaunchExtras;
 
 /**
  * PHASE 313 AND 316: WHY `GmuxPocketExtras` JOINED THE INTERSECTION ABOVE WHEN

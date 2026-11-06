@@ -62,6 +62,9 @@ const KNOWN_ERROR_CODES = [
   'TMUX_VERSION_UNTESTED',
   'TMUX_VERSION_MISMATCH',
   'SHUTTING_DOWN',
+  // Phase 357: the session list stopped reading correctly in this run, and
+  // the manifest store refuses before SQLite until Tortie is restarted.
+  'MANIFEST_STOPPED',
   'UNKNOWN'
 ] as const satisfies readonly GmuxErrorCode[];
 

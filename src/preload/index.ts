@@ -187,6 +187,9 @@ const api: InstalledGmuxApi = {
   // Phase 8.2 optional extras: first-quit toast flow (DESIGN.md §4 ⌘Q).
   onQuitRequested: (cb) => on(EVT_QUIT_REQUESTED, cb),
   quit: () => invoke('app:quit'),
+  // Phase 357: the Restart on the notice that says the session list stopped
+  // reading correctly. Main does nothing unless it posted that notice.
+  relaunch: () => invoke('app:relaunch'),
   // Phase 6 optional extras (top-level, feature-detected): login item.
   getLoginItem: () => invoke('app:getLoginItem'),
   setLoginItem: (openAtLogin) => invoke('app:setLoginItem', openAtLogin),

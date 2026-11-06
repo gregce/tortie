@@ -214,6 +214,9 @@ import {
   type PocketWriteRouteId
 } from '@shared/ipc/pocket';
 import { endSessionConfirm } from '@shared/lifecycle-words';
+// PHASE 357 (build/p357/SPEC.md D9, D22). The phone's sentence for a session
+// list that stopped reading correctly, said once, in the shared copy file.
+import { MANIFEST_STOPPED_PHONE_LINE } from '@shared/manifest-stopped-copy';
 import { SCREEN_ENDED, SCREEN_TOO_LARGE, SCREEN_UNREACHABLE, SCROLLBACK_BUSY, SCROLLBACK_MOVED } from '@shared/screen-copy';
 import { attentionRows, blockedAge, type WakeWindow } from '../tray/attention';
 // THE CEILING, IMPORTED RATHER THAN RE-SPELLED. `../overview/turn-view.ts` owns
@@ -312,6 +315,18 @@ export interface PocketFacts {
    * main's own tray string, so the door and the menu bar say one thing.
    */
   emptyLine: string;
+  /**
+   * PHASE 357 (build/p357/SPEC.md D22). Whether the session list stopped
+   * reading correctly while Tortie ran. While it answers exactly `true`,
+   * `/v1/blocked` answers no rows with {@link MANIFEST_STOPPED_PHONE_LINE} as
+   * its empty line, and every other read answers as an unknown id (404), which
+   * the phone routes back to that list, so each phone surface says the one
+   * sentence and no row is drawn from a list that stopped reading. The writes
+   * are unchanged: each verb reaches the store, which refuses before tmux.
+   * A READ. OPTIONAL, AND ABSENT IS NOT STOPPED: the push seam and the tests
+   * build their own facts.
+   */
+  listStopped?(): boolean;
   /**
    * Bring ONE session's stored conversation up to date through the one read
    * path, and answer its counts (Phase 316): `sessionActivity(deps,
@@ -1696,6 +1711,13 @@ export function createPocketRoutes(facts: PocketFacts): {
 } {
   const now = (): number => facts.now?.() ?? Date.now();
 
+  /**
+   * PHASE 357 (build/p357/SPEC.md D22). Whether the session list stopped
+   * reading correctly, asked as the FIRST statement of every read below,
+   * before any other fact is read. Only an exact `true` stops a read.
+   */
+  const listStopped = (): boolean => facts.listStopped?.() === true;
+
   const sessionById = (id: string): Session | undefined =>
     facts.sessions().find((s) => s.id === id);
 
@@ -1755,6 +1777,20 @@ export function createPocketRoutes(facts: PocketFacts): {
 
   return {
     blocked(): PocketBlockedAnswer {
+      // PHASE 357 (D22). A session list that stopped reading correctly is said
+      // in the one field the phone draws for an empty list, and no row is
+      // drawn from it. Its other reads answer 404, which the phone routes back
+      // here, so every surface on the phone says this one sentence.
+      if (listStopped()) {
+        return {
+          rows: [],
+          others: [],
+          othersOmitted: 0,
+          at: now(),
+          emptyLine: MANIFEST_STOPPED_PHONE_LINE,
+          ageNote: POCKET_AGE_HONESTY
+        };
+      }
       const at = now();
       const sessions = facts.sessions();
       const projects = facts.projects();
@@ -1801,6 +1837,8 @@ export function createPocketRoutes(facts: PocketFacts): {
     },
 
     async session(sessionId: string): Promise<PocketSessionAnswer | null> {
+      // PHASE 357 (D22): answered as an id nobody has, before any read.
+      if (listStopped()) return null;
       if (sessionById(sessionId) === undefined) return null;
       const activity = await refresh(sessionId);
       // AGAIN, after the yield: removed while the request was in flight is
@@ -1874,6 +1912,8 @@ export function createPocketRoutes(facts: PocketFacts): {
       sessionId: string,
       query: { limit?: string | null; from?: string | null; to?: string | null }
     ): Promise<PocketTurnsAnswer | null> {
+      // PHASE 357 (D22): answered as an id nobody has, before any read.
+      if (listStopped()) return null;
       const known = sessionById(sessionId);
       if (known === undefined) return null;
       const asked = Number(query.limit ?? '');
@@ -1926,6 +1966,10 @@ export function createPocketRoutes(facts: PocketFacts): {
      * and a session removed before this runs is in no answer composed after.
      */
     sessions(query: URLSearchParams): PocketSessionsAnswer | null {
+      // 0. PHASE 357 (D22): a session list that stopped reading correctly is
+      //    answered as an unknown id, before any read, and the phone draws its
+      //    Needs input list, which says why, in this tab's place.
+      if (listStopped()) return null;
       // 1. The words, or a refusal answered exactly as an unknown id is.
       const read = readSessionsQuery(query);
       if (!read.ok) return null;
@@ -2212,6 +2256,8 @@ export function createPocketRoutes(facts: PocketFacts): {
      * A READ: nothing here writes, types or sets a status.
      */
     async screen(query: URLSearchParams, closing: () => boolean): Promise<PocketScreenAnswer | null> {
+      // PHASE 357 (D22): answered as an id nobody has, before any read.
+      if (listStopped()) return null;
       const read = readScreenQuery(query);
       if (!read.ok) return null;
       const session = sessionById(read.id);
@@ -2243,6 +2289,8 @@ export function createPocketRoutes(facts: PocketFacts): {
      * READ: nothing here writes, types or sets a status.
      */
     async scrollback(query: URLSearchParams, closing: () => boolean): Promise<PocketScrollbackAnswer | null> {
+      // PHASE 357 (D22): answered as an id nobody has, before any read.
+      if (listStopped()) return null;
       const read = readScrollbackQuery(query);
       if (!read.ok) return null;
       const session = sessionById(read.id);

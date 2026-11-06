@@ -67,6 +67,15 @@ import { registerIpcHandlers } from './ipc';
 // below owes the next boot.
 import { clearLogRunSentinel, getLog, logEvent } from './log';
 import { registerLogIpc } from './log/ipc';
+// PHASE 357 (build/p357/SPEC.md D12, D13, D16). The crash log's repeat counts,
+// said once on the disposer's first synchronous lines; the count of session
+// list connections the store left open because their page cache stopped
+// reading correctly, asked on the disposer's last line; the notice latch the
+// Restart asks first; and the one harness predicate it asks second.
+import { flushCrashRepeats } from './log/crash';
+import { manifestConnectionsLeftOpen } from './manifest/store';
+import { hasSaidNotice } from './notice';
+import { isHarnessLaunch } from './harness/launch-gate';
 // Phase 68: the machines domain. The watcher teardown and the live test
 // cancellation are both in the ordered disposer below.
 import { cancelLiveMachineTest } from './machines/connection-test';
@@ -629,8 +638,47 @@ export function installMainCapabilities(
   handle(ipcMain, 'app:quit', () => {
     app.quit();
   });
+  // PHASE 357: the Restart on the notice that says the session list stopped
+  // reading correctly, beside the quit it ends in.
+  registerRelaunchIpc(ipcMain);
 
   return disposeMainCapabilities;
+}
+
+/**
+ * PHASE 357 (build/p357/SPEC.md D13, D14). The Restart on the one notice that
+ * says Tortie's session list stopped reading correctly, and the one place main
+ * relaunches the app. Registered once, beside `app:quit`, by
+ * {@link installMainCapabilities}; exported so its three answers can be driven
+ * with electron mocked.
+ *
+ *   1. It does nothing unless this run posted the `manifest-stopped` notice,
+ *      so no other surface can become a restart, and nothing relaunches the
+ *      app on its own: the person presses Restart.
+ *   2. A harness launch quits and is never relaunched. A relaunch outlives the
+ *      process that asked for it, reparents to launchd and renames itself, so
+ *      it escapes every harness teardown (measured, SPEC §2.4); a probe that
+ *      wants the next launch makes it itself.
+ *   3. Otherwise it relaunches and then quits through the ordered disposer. The
+ *      relaunch survives the disposer's hard exit too (SPEC §2.4, 81 ms after).
+ */
+export function registerRelaunchIpc(ipcMain: IpcMain): void {
+  handle(ipcMain, 'app:relaunch', () => {
+    if (!hasSaidNotice('manifest-stopped')) {
+      getLog('quit').warn(
+        'restart refused: the session list has not stopped reading in this run'
+      );
+      return;
+    }
+    if (isHarnessLaunch(process.env)) {
+      getLog('quit').info('restart asked: a harness launch is not relaunched');
+      app.quit();
+      return;
+    }
+    getLog('quit').info('restart asked: relaunching');
+    app.relaunch();
+    app.quit();
+  });
 }
 
 /**
@@ -698,6 +746,11 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
   // `joinPhoneAlerts()` below does. Cannot throw; calling it twice is calling
   // it once.
   beginPhoneAlertsShutdown();
+  // PHASE 357 (build/p357/SPEC.md D16). Then the crash log's one record of the
+  // uncaught errors this run saw more than once, counts and hashed keys only,
+  // on these same synchronous lines so it is written long before any exit,
+  // the hard one at the foot of this function included. Never throws.
+  flushCrashRepeats();
   // PHASE 211. Stop the credential watcher first: it holds fs.watch handles and
   // a slow interval, and both must be released whatever the rest of teardown
   // does. It is synchronous and cannot throw.
@@ -1056,6 +1109,27 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
       'the late watcher closes settled. Quitting cleanly.',
       { settledMs: lateMs }
     );
+  }
+  // PHASE 357 (build/p357/SPEC.md D10 to D12). The session list's connection
+  // stopped reading correctly while the FILE checked fine, so the damage is in
+  // that connection's own page cache, and closing it is what crashed his quit:
+  // the last close checkpoints the log into the file through that memory.
+  // better-sqlite3 also closes every open connection at environment teardown,
+  // so `app.quit()` would close it anyway (measured, SPEC §2.3), and the one
+  // way out that closes nothing is Phase 36's escape above, here AFTER every
+  // step of this disposer has run. Nothing durable is pending (the quit
+  // generation finished inside shutdownGmuxCore), so clearing the sentinel is
+  // truthful, and write ahead logging needs no clean close: the next launch
+  // replays the log through the integrity gate as every launch does. The line
+  // is not mirrored into app.log for the reason given above logQuit; the
+  // store's own line said it when it stopped.
+  if (manifestConnectionsLeftOpen() > 0) {
+    logQuit(
+      '[gmux] quit: the session list connection stopped reading correctly and is left open; ending the process without closing it'
+    );
+    clearLogRunSentinel();
+    process.kill(process.pid, 'SIGKILL');
+    return 'killed';
   }
   return 'proceed';
 }

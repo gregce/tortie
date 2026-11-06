@@ -15,7 +15,7 @@
  * inside gmux.app is out of scope today (docs/audits/2026-08-09-prebuild-architecture-assessment.md §5 Stream A1).
  */
 
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import { join } from 'node:path';
 import {
   disposeMainCapabilities,
@@ -45,6 +45,8 @@ import { installHarnessKeychain } from './harness/keychain-harness';
 import { installVaultDrive } from './harness/vault-drive';
 import { installMachineSeam } from './harness/machine-seam';
 import { installPushSeam } from './harness/push-seam';
+// Phase 357: the manifest fault seam, for probe:p357 and nothing else.
+import { installManifestFault } from './harness/manifest-fault';
 // Phase 208: the one observe at boot, after the manifest is open.
 import { observeLoginsAtBoot, startLoginsWatch } from './logins/ipc';
 // Phase 276: the login-shell env answer, warmed once instead of once per
@@ -53,18 +55,27 @@ import { startEnvWatch, warmEnvAtBoot } from './env/watch';
 // Phase 166: the one cache policy, applied before whenReady below.
 import { applyCachePolicy } from './cache/policy';
 // Phase 127. What counts as a harness launch, in one place. The three
-// predicates are deliberately different and this file reads two of them. See
-// the module for why merging them would change which launches take the lock.
+// predicates are deliberately different and this file reads all three: the
+// two below for the lock and the renderer's probes, and since Phase 357 the
+// widest, on its own line, for the crash dialog. See the module for why
+// merging them would change which launches take the lock.
 import { isIsolatedLaunch, probesRequested } from './harness/launch-gate';
+// Phase 357: the widest predicate, so no harness launch, a `GMUX_PROBES=0` leg
+// included, ever leaves a crash dialog on the operator's screen.
+import { isHarnessLaunch } from './harness/launch-gate';
 // Phase 35: one structured log file, local crash capture. initLogging and
 // startCrashCapture run at module scope below, before whenReady; the boot
 // sequence (sentinel, Crashpad diff, boot.env, prune) runs inside whenReady.
 import {
   getLog,
   initLogging,
+  logEvent,
   runLogBootSequence
 } from './log';
 import { startCrashCapture } from './log/crash';
+// Phase 357: the session list's own refusal, which the crash handler logs and
+// never draws, because the notice it posted has already told the person.
+import { isManifestStopped } from './manifest/store';
 // The boot.env collector, imported here rather than by ./log, because it
 // probes tmux and the tmux layer logs through ./log. This file is the
 // composition root, so it is where the two sides meet.
@@ -130,8 +141,22 @@ applyProcessIdentity(app);
 // app ready (25 to 33 ms measured, research 42 §6) and runs in EVERY mode,
 // so dumps exist even in dev profiles. uploadToServer is false and no code
 // path may ever flip it (build/assert-bundle-refusals.mjs pins the fragment).
+//
+// Phase 357: crash capture then installs the two process handlers, so every
+// uncaught exception and unhandled rejection in main is one app.log record at
+// scope crash, once per distinct error. An uncaught exception still draws
+// Electron's own dialog, once per distinct error, never in a harness launch
+// and never for the session list's refusal (build/p357/SPEC.md D16 to D18).
+// Everything the handlers write and draw through is handed in from here,
+// because ./log imports the crash module and an import back would close a
+// runtime cycle. The handlers install in every mode, like the capture.
 initLogging();
-startCrashCapture();
+startCrashCapture({
+  log: logEvent,
+  showErrorBox: (title, content) => dialog.showErrorBox(title, content),
+  harness: isHarnessLaunch(process.env),
+  isStopped: isManifestStopped
+});
 const bootLog = getLog('boot');
 
 // ---------------------------------------------------------------------------
@@ -501,6 +526,15 @@ app.whenReady().then(async () => {
   // pairs a phone through the shipping path and drives the wake through it. In
   // every ordinary launch it does nothing at all.
   installPushSeam();
+  // PHASE 357. And the MANIFEST FAULT seam, under the same three refusals: the
+  // launch is an isolated one or an armed probe run (GMUX_PROBES=1), the
+  // runner handed us GMUX_HARNESS_DIR, and the profile sits inside that
+  // directory. probe:p357 arms ONE broken-connection error at the next call of
+  // one named session list operation, which is the case real page damage
+  // cannot make: a connection that stops reading while its file is fine. It
+  // writes nothing and opens nothing but its own file. In every ordinary
+  // launch it does nothing at all.
+  installManifestFault();
 
   // A harness launch (GMUX_SMOKE / GMUX_SHOT) owns the process from here:
   // every harness ends in app.exit, or, for the quit smoke, the real

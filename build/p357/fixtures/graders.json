@@ -1,0 +1,3144 @@
+{
+  "readings": 117,
+  "honest": {
+    "PA": {
+      "counter": [
+        {
+          "at": 1,
+          "pid": 4242,
+          "installed": true,
+          "type": "browser",
+          "listeners": 2
+        },
+        {
+          "at": 3001,
+          "pid": 4242,
+          "n": 1,
+          "origin": "uncaughtException",
+          "name": "Error",
+          "code": "P357_CONTROL",
+          "message": "p357-control-exception",
+          "frames": [
+            "at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)",
+            "at listOnTimeout (node:internal/timers:588:17)",
+            "at process.processTimers (node:internal/timers:523:7)"
+          ]
+        }
+      ],
+      "counterEnd": [
+        {
+          "at": 1,
+          "pid": 4242,
+          "installed": true,
+          "type": "browser",
+          "listeners": 2
+        },
+        {
+          "at": 3001,
+          "pid": 4242,
+          "n": 1,
+          "origin": "uncaughtException",
+          "name": "Error",
+          "code": "P357_CONTROL",
+          "message": "p357-control-exception",
+          "frames": [
+            "at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)",
+            "at listOnTimeout (node:internal/timers:588:17)",
+            "at process.processTimers (node:internal/timers:523:7)"
+          ]
+        },
+        {
+          "at": 3002,
+          "pid": 4242,
+          "n": 2,
+          "origin": "uncaughtException",
+          "name": "Error",
+          "code": "P357_CONTROL",
+          "message": "p357-control-exception",
+          "frames": [
+            "at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)",
+            "at listOnTimeout (node:internal/timers:588:17)",
+            "at process.processTimers (node:internal/timers:523:7)"
+          ]
+        },
+        {
+          "at": 9003,
+          "pid": 4242,
+          "n": 3,
+          "origin": "uncaughtException",
+          "name": "SqliteError",
+          "code": "SQLITE_CORRUPT",
+          "message": "database disk image is malformed",
+          "frames": [
+            "at SessionsRepository.listSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:3301:8)",
+            "at ManifestStore.listSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:3990:26)",
+            "at GmuxCore.listSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:51211:35)",
+            "at GmuxCore.broadcastSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:50099:28)",
+            "at GmuxCore.handleExternalRename (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:49211:10)"
+          ]
+        },
+        {
+          "at": 9004,
+          "pid": 4242,
+          "n": 4,
+          "origin": "uncaughtException",
+          "name": "SqliteError",
+          "code": "SQLITE_CORRUPT",
+          "message": "database disk image is malformed",
+          "frames": [
+            "at SessionsRepository.listSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:3301:8)",
+            "at ManifestStore.listSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:3990:26)",
+            "at GmuxCore.listSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:51211:35)",
+            "at GmuxCore.broadcastSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:50099:28)",
+            "at GmuxCore.handleExternalRename (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:49211:10)"
+          ]
+        }
+      ],
+      "agents": {
+        "ok": true,
+        "said": "nothing resolved but the stand-ins"
+      },
+      "listBefore": {
+        "ok": true,
+        "ids": [
+          "seed-1",
+          "seed-2",
+          "sa",
+          "sb",
+          "sc"
+        ],
+        "names": [
+          "his-old-1",
+          "his-old-2",
+          "p357-a",
+          "p357-b",
+          "p357-c"
+        ]
+      },
+      "damage": {
+        "changed": true,
+        "pageno": 27,
+        "leaves": 34
+      },
+      "beforeDamage": 0,
+      "create": {
+        "answered": true,
+        "ok": false,
+        "raw": "Error invoking remote method 'sessions:create': SqliteError: database disk image is malformed",
+        "error": "Error invoking remote method 'sessions:create': SqliteError: database disk image is malformed",
+        "code": null,
+        "spawned": true
+      },
+      "renamesTried": 2,
+      "renamesLandedInTmux": 2,
+      "renameUncaught": 2,
+      "uncaught": 2,
+      "hisStack": 2,
+      "listAfter": {
+        "ok": false,
+        "error": "Error invoking remote method 'sessions:list': SqliteError: database disk image is malformed"
+      },
+      "quit": {
+        "code": 0,
+        "ms": 591,
+        "heldOpen": false,
+        "signal": null
+      },
+      "uncaughtAtEnd": 2,
+      "appLog": {
+        "lines": 120,
+        "crashScope": 0,
+        "crashOther": 0,
+        "canaryLines": 0,
+        "malformed": 2
+      },
+      "stopped": {
+        "count": 0,
+        "operation": null,
+        "code": null,
+        "file": null,
+        "rowData": false
+      },
+      "notice": {
+        "count": 0,
+        "kind": null
+      },
+      "relaunch": {
+        "ran": true,
+        "quarantined": true,
+        "rows": 102
+      }
+    },
+    "HA": {
+      "counter": [
+        {
+          "at": 1,
+          "pid": 4242,
+          "installed": true,
+          "type": "browser",
+          "listeners": 2
+        },
+        {
+          "at": 3001,
+          "pid": 4242,
+          "n": 1,
+          "origin": "uncaughtException",
+          "name": "Error",
+          "code": "P357_CONTROL",
+          "message": "p357-control-exception",
+          "frames": [
+            "at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)",
+            "at listOnTimeout (node:internal/timers:588:17)",
+            "at process.processTimers (node:internal/timers:523:7)"
+          ]
+        }
+      ],
+      "counterEnd": [
+        {
+          "at": 1,
+          "pid": 4242,
+          "installed": true,
+          "type": "browser",
+          "listeners": 2
+        },
+        {
+          "at": 3001,
+          "pid": 4242,
+          "n": 1,
+          "origin": "uncaughtException",
+          "name": "Error",
+          "code": "P357_CONTROL",
+          "message": "p357-control-exception",
+          "frames": [
+            "at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)",
+            "at listOnTimeout (node:internal/timers:588:17)",
+            "at process.processTimers (node:internal/timers:523:7)"
+          ]
+        },
+        {
+          "at": 3002,
+          "pid": 4242,
+          "n": 2,
+          "origin": "uncaughtException",
+          "name": "Error",
+          "code": "P357_CONTROL",
+          "message": "p357-control-exception",
+          "frames": [
+            "at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)",
+            "at listOnTimeout (node:internal/timers:588:17)",
+            "at process.processTimers (node:internal/timers:523:7)"
+          ]
+        }
+      ],
+      "agents": {
+        "ok": true,
+        "said": "nothing resolved but the stand-ins"
+      },
+      "listBefore": {
+        "ok": true,
+        "ids": [
+          "seed-1",
+          "seed-2",
+          "sa",
+          "sb",
+          "sc"
+        ],
+        "names": [
+          "his-old-1",
+          "his-old-2",
+          "p357-a",
+          "p357-b",
+          "p357-c"
+        ]
+      },
+      "damage": {
+        "changed": true,
+        "pageno": 27,
+        "leaves": 34
+      },
+      "beforeDamage": 0,
+      "create": {
+        "answered": true,
+        "ok": false,
+        "raw": "Error invoking remote method 'sessions:create': Error: {\"code\":\"MANIFEST_STOPPED\",\"message\":\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\",\"detail\":\"insertSession\"}",
+        "error": "Tortie's session list stopped reading correctly. Restart Tortie, then try again.",
+        "code": "MANIFEST_STOPPED",
+        "spawned": false
+      },
+      "renamesTried": 2,
+      "renamesLandedInTmux": 2,
+      "renameUncaught": 0,
+      "uncaught": 0,
+      "hisStack": 0,
+      "listAfter": {
+        "ok": true,
+        "ids": [
+          "seed-1",
+          "seed-2",
+          "sa",
+          "sb",
+          "sc"
+        ],
+        "names": [
+          "his-old-1",
+          "his-old-2",
+          "p357-a",
+          "p357-b",
+          "p357-c"
+        ]
+      },
+      "quit": {
+        "code": 0,
+        "ms": 640,
+        "heldOpen": false,
+        "signal": null
+      },
+      "uncaughtAtEnd": 0,
+      "appLog": {
+        "lines": 140,
+        "crashScope": 3,
+        "crashOther": 0,
+        "crashStopped": 0,
+        "crashUnexpected": 0,
+        "canaryLines": 0,
+        "malformed": 0
+      },
+      "stopped": {
+        "count": 1,
+        "operation": "listSessions",
+        "code": "SQLITE_CORRUPT",
+        "file": "damaged",
+        "rowData": false
+      },
+      "notice": {
+        "count": 1,
+        "kind": "manifest-stopped"
+      },
+      "relaunch": {
+        "ran": true,
+        "quarantined": true,
+        "rows": 102
+      }
+    },
+    "HQ": {
+      "parentMs": 591,
+      "parentCode": 0,
+      "headMs": 640,
+      "headCode": 0
+    },
+    "HB": {
+      "counter": [
+        {
+          "at": 1,
+          "pid": 4242,
+          "installed": true,
+          "type": "browser",
+          "listeners": 2
+        },
+        {
+          "at": 3001,
+          "pid": 4242,
+          "n": 1,
+          "origin": "uncaughtException",
+          "name": "Error",
+          "code": "P357_CONTROL",
+          "message": "p357-control-exception",
+          "frames": [
+            "at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)",
+            "at listOnTimeout (node:internal/timers:588:17)",
+            "at process.processTimers (node:internal/timers:523:7)"
+          ]
+        }
+      ],
+      "counterEnd": [
+        {
+          "at": 1,
+          "pid": 4242,
+          "installed": true,
+          "type": "browser",
+          "listeners": 2
+        },
+        {
+          "at": 3001,
+          "pid": 4242,
+          "n": 1,
+          "origin": "uncaughtException",
+          "name": "Error",
+          "code": "P357_CONTROL",
+          "message": "p357-control-exception",
+          "frames": [
+            "at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)",
+            "at listOnTimeout (node:internal/timers:588:17)",
+            "at process.processTimers (node:internal/timers:523:7)"
+          ]
+        },
+        {
+          "at": 3002,
+          "pid": 4242,
+          "n": 2,
+          "origin": "uncaughtException",
+          "name": "Error",
+          "code": "P357_CONTROL",
+          "message": "p357-control-exception",
+          "frames": [
+            "at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)",
+            "at listOnTimeout (node:internal/timers:588:17)",
+            "at process.processTimers (node:internal/timers:523:7)"
+          ]
+        }
+      ],
+      "agents": {
+        "ok": true,
+        "said": "nothing resolved but the stand-ins"
+      },
+      "seamInstalled": true,
+      "armed": true,
+      "listBefore": {
+        "ok": true,
+        "ids": [
+          "seed-1",
+          "seed-2",
+          "sa",
+          "sb",
+          "sc"
+        ],
+        "names": [
+          "his-old-1",
+          "his-old-2",
+          "p357-a",
+          "p357-b",
+          "p357-c"
+        ]
+      },
+      "uncaught": 0,
+      "uncaughtAtEnd": 0,
+      "stopped": {
+        "count": 1,
+        "operation": "listSessions",
+        "code": "SQLITE_CORRUPT",
+        "file": "fine",
+        "rowData": false
+      },
+      "notice": {
+        "count": 1,
+        "kind": "manifest-stopped"
+      },
+      "toast": {
+        "text": "Tortie's session list stopped reading correctly. Your sessions are still running. Restart Tortie to load it again.",
+        "button": "Restart"
+      },
+      "create": {
+        "answered": true,
+        "ok": false,
+        "raw": "Error invoking remote method 'sessions:create': Error: {\"code\":\"MANIFEST_STOPPED\",\"message\":\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\",\"detail\":\"insertSession\"}",
+        "error": "Tortie's session list stopped reading correctly. Restart Tortie, then try again.",
+        "code": "MANIFEST_STOPPED",
+        "spawned": false
+      },
+      "restart": {
+        "clicked": true,
+        "code": 1,
+        "signal": "SIGKILL",
+        "notRelaunchedLine": true,
+        "heldOpenLine": true,
+        "closeHeldLine": true,
+        "walBefore": true,
+        "walAfter": true,
+        "walBytes": 12392,
+        "sentinelBefore": true,
+        "sentinelAfter": false,
+        "crashReportsAfter": []
+      },
+      "rows": {
+        "read": true,
+        "sameIds": true,
+        "identityUnchanged": true,
+        "added": [],
+        "gone": [],
+        "mismatched": [],
+        "statusMoved": 0,
+        "before": 6,
+        "after": 6
+      },
+      "relaunch": {
+        "ran": true,
+        "inodeBefore": 58113201,
+        "inodeAfter": 58113201,
+        "quarantined": 0,
+        "unreadableNotices": 0,
+        "uncleanExit": 0,
+        "listed": {
+          "read": true,
+          "kept": 5,
+          "listed": 5,
+          "equal": true,
+          "missing": [],
+          "extra": []
+        }
+      },
+      "appLog": {
+        "lines": 150,
+        "crashScope": 3,
+        "crashOther": 0,
+        "crashStopped": 0,
+        "crashUnexpected": 0,
+        "canaryLines": 0,
+        "malformed": 0
+      }
+    },
+    "HD": {
+      "before": {
+        "blockedStatus": 200,
+        "blockedLine": "Nothing needs you right now.",
+        "blockedRows": 0,
+        "blockedOthers": 3,
+        "sessions": 200,
+        "oneSession": 200,
+        "oneId": "sa"
+      },
+      "after": {
+        "blockedStatus": 200,
+        "blockedLine": "Tortie's session list stopped reading correctly on your Mac. Restart Tortie there.",
+        "blockedRows": 0,
+        "blockedOthers": 0,
+        "sessions": 404,
+        "oneSession": 404,
+        "oneId": "sa"
+      }
+    },
+    "HC": {
+      "counter": [
+        {
+          "at": 1,
+          "pid": 4242,
+          "installed": true,
+          "type": "browser",
+          "listeners": 2
+        },
+        {
+          "at": 3001,
+          "pid": 4242,
+          "n": 1,
+          "origin": "uncaughtException",
+          "name": "Error",
+          "code": "P357_CONTROL",
+          "message": "p357-control-exception",
+          "frames": [
+            "at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)",
+            "at listOnTimeout (node:internal/timers:588:17)",
+            "at process.processTimers (node:internal/timers:523:7)"
+          ]
+        },
+        {
+          "at": 3002,
+          "pid": 4242,
+          "n": 2,
+          "origin": "uncaughtException",
+          "name": "Error",
+          "code": "P357_CONTROL",
+          "message": "p357-control-exception",
+          "frames": [
+            "at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)",
+            "at listOnTimeout (node:internal/timers:588:17)",
+            "at process.processTimers (node:internal/timers:523:7)"
+          ]
+        }
+      ],
+      "counterEnd": [
+        {
+          "at": 1,
+          "pid": 4242,
+          "installed": true,
+          "type": "browser",
+          "listeners": 2
+        },
+        {
+          "at": 3001,
+          "pid": 4242,
+          "n": 1,
+          "origin": "uncaughtException",
+          "name": "Error",
+          "code": "P357_CONTROL",
+          "message": "p357-control-exception",
+          "frames": [
+            "at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)",
+            "at listOnTimeout (node:internal/timers:588:17)",
+            "at process.processTimers (node:internal/timers:523:7)"
+          ]
+        },
+        {
+          "at": 3002,
+          "pid": 4242,
+          "n": 2,
+          "origin": "uncaughtException",
+          "name": "Error",
+          "code": "P357_CONTROL",
+          "message": "p357-control-exception",
+          "frames": [
+            "at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)",
+            "at listOnTimeout (node:internal/timers:588:17)",
+            "at process.processTimers (node:internal/timers:523:7)"
+          ]
+        }
+      ],
+      "agents": {
+        "ok": true,
+        "said": "nothing resolved but the stand-ins"
+      },
+      "mainAnswered": {
+        "ok": true,
+        "ms": 14,
+        "controlsBefore": 2
+      },
+      "quit": {
+        "code": 0,
+        "ms": 702,
+        "appText": ""
+      },
+      "appLog": {
+        "lines": 90,
+        "crashOther": 0,
+        "canaryLines": 0
+      },
+      "uncaughtRecords": 1,
+      "uncaughtName": "Error",
+      "uncaughtCode": "P357_CONTROL",
+      "uncaughtHasMessage": false,
+      "uncaughtMessageChars": 22,
+      "rejectionRecords": 1,
+      "repeatsRecords": 1,
+      "repeats": {
+        "count": 2,
+        "key": "be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f",
+        "sameKey": true
+      },
+      "dialogTitleOnStdout": false
+    },
+    "RUN": {
+      "tailscalePreflight": true,
+      "realTailscale": 0,
+      "dnsPreflights": [
+        true,
+        true
+      ],
+      "agentsHeld": [
+        true,
+        true
+      ],
+      "countersHeard": [
+        1,
+        1
+      ],
+      "serverRead": true,
+      "serverGone": true,
+      "socketsLeft": 0,
+      "processTableRead": true,
+      "electronsLeft": 0,
+      "history": {
+        "before": "742243 1793907771|23166 1790702242",
+        "after": "742243 1793907771|23166 1790702242",
+        "quiet": null
+      }
+    }
+  },
+  "broken": [
+    {
+      "arm": "PA",
+      "name": "an uncaught exception came before the damage",
+      "ops": [
+        {
+          "set": "beforeDamage",
+          "value": 1
+        }
+      ],
+      "mustFail": [
+        "no uncaught exception reached the counter before the damage"
+      ]
+    },
+    {
+      "arm": "PA",
+      "name": "the renames did not storm",
+      "ops": [
+        {
+          "set": "renameUncaught",
+          "value": 0
+        },
+        {
+          "set": "hisStack",
+          "value": 0
+        }
+      ],
+      "mustFail": [
+        "the two external renames each reached uncaughtException, his exact stack"
+      ]
+    },
+    {
+      "arm": "PA",
+      "name": "the create did not spawn",
+      "ops": [
+        {
+          "set": "create.spawned",
+          "value": false
+        }
+      ],
+      "mustFail": [
+        "the create was answered a raw SqliteError for a session it spawned"
+      ]
+    },
+    {
+      "arm": "PA",
+      "name": "a crash scope appeared in the parent’s app.log",
+      "ops": [
+        {
+          "set": "appLog.crashScope",
+          "value": 1
+        }
+      ],
+      "mustFail": [
+        "app.log held no crash scope (the parent has no handler) and the raw error at least once"
+      ]
+    },
+    {
+      "arm": "PA",
+      "name": "the parent’s quit crashed",
+      "ops": [
+        {
+          "set": "quit.code",
+          "value": 1
+        }
+      ],
+      "mustFail": [
+        "the quit exited 0 (the file is damaged, so today closes)"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "a storm of uncaught exceptions reached the counter",
+      "ops": [
+        {
+          "set": "uncaughtAtEnd",
+          "value": 30
+        }
+      ],
+      "mustFail": [
+        "no uncaught exception reached the counter from the launch to its exit"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "the file read fine, not damaged",
+      "ops": [
+        {
+          "set": "stopped.file",
+          "value": "fine"
+        }
+      ],
+      "mustFail": [
+        "one manifest.stopped record, naming the operation and SQLITE_CORRUPT, file damaged"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "the record carries a shell’s name",
+      "ops": [
+        {
+          "set": "stopped.rowData",
+          "value": true
+        }
+      ],
+      "mustFail": [
+        "that record carries no row data (no shell name, no project path)"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "two notices",
+      "ops": [
+        {
+          "set": "notice.count",
+          "value": 2
+        }
+      ],
+      "mustFail": [
+        "one notice.shown manifest-stopped, and no second one"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "a write after the latch: a rename from outside landed in the list",
+      "ops": [
+        {
+          "set": "listAfter.names",
+          "value": [
+            "his-old-1",
+            "his-old-2",
+            "p357-a",
+            "p357-b3",
+            "p357-c"
+          ]
+        }
+      ],
+      "mustFail": [
+        "sessions:list answered the last clean list: the ids and names it answered before the damage"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "the create was refused with the parent’s wrap, not the stopped sentence",
+      "ops": [
+        {
+          "set": "create.error",
+          "value": "Could not record session \"p357-after\" in the manifest"
+        },
+        {
+          "set": "create.code",
+          "value": "INVALID_INPUT"
+        }
+      ],
+      "mustFail": [
+        "the create was refused with the stopped sentence (MANIFEST_STOPPED) and nothing spawned"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "a rename reached the counter",
+      "ops": [
+        {
+          "set": "renameUncaught",
+          "value": 1
+        }
+      ],
+      "mustFail": [
+        "each external rename landed in tmux and in no uncaught exception"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "a crash record that is not the control’s",
+      "ops": [
+        {
+          "set": "appLog.crashUnexpected",
+          "value": 1
+        }
+      ],
+      "mustFail": [
+        "app.log holds no crash record but the counter’s own controls and the stopped list’s own refusals as rejections with no message text, and no control message text"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "the quit held a connection open over a damaged file",
+      "ops": [
+        {
+          "set": "quit.heldOpen",
+          "value": true
+        }
+      ],
+      "mustFail": [
+        "the quit exited 0 and closed the connection (the file is damaged, D11)"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "the quit’s left-open reading is not a boolean, so it is not a quit that closed",
+      "ops": [
+        {
+          "set": "quit.heldOpen",
+          "value": null
+        }
+      ],
+      "mustFail": [
+        "the quit exited 0 and closed the connection (the file is damaged, D11)"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "the relaunch did not quarantine",
+      "ops": [
+        {
+          "set": "relaunch.quarantined",
+          "value": false
+        }
+      ],
+      "mustFail": [
+        "the relaunch’s gate quarantined the damaged file and the relaunch read rows back"
+      ]
+    },
+    {
+      "arm": "HQ",
+      "name": "HEAD’s quit took five seconds against the parent’s 591 ms",
+      "ops": [
+        {
+          "set": "headMs",
+          "value": 5000
+        }
+      ],
+      "mustFail": [
+        "HEAD’s quit took at most twice the parent’s, or two seconds more, whichever is longer"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "a storm of uncaught exceptions reached the counter",
+      "ops": [
+        {
+          "set": "uncaughtAtEnd",
+          "value": 12
+        }
+      ],
+      "mustFail": [
+        "no uncaught exception reached the counter from the launch to its hard exit"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "the file read damaged, not fine",
+      "ops": [
+        {
+          "set": "stopped.file",
+          "value": "damaged"
+        }
+      ],
+      "mustFail": [
+        "one manifest.stopped record: listSessions, SQLITE_CORRUPT, file FINE (the case real damage cannot make)"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "the record carries the project’s path",
+      "ops": [
+        {
+          "set": "stopped.rowData",
+          "value": true
+        }
+      ],
+      "mustFail": [
+        "that record carries no row data (no shell name, no project path)"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "the toast had no Restart button",
+      "ops": [
+        {
+          "set": "toast.button",
+          "value": null
+        }
+      ],
+      "mustFail": [
+        "one notice, drawn in the window with its sentence and a Restart button"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "the create spawned",
+      "ops": [
+        {
+          "set": "create.spawned",
+          "value": true
+        }
+      ],
+      "mustFail": [
+        "the create was refused with the stopped sentence (MANIFEST_STOPPED) and nothing spawned"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "the quit crashed (SIGSEGV), not the hard exit",
+      "ops": [
+        {
+          "set": "restart.signal",
+          "value": "SIGSEGV"
+        }
+      ],
+      "mustFail": [
+        "Restart was pressed, the harness launch was not relaunched, and the app ended by SIGKILL, never a crash"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "a close ran: the -wal was gone after",
+      "ops": [
+        {
+          "set": "restart.walAfter",
+          "value": false
+        }
+      ],
+      "mustFail": [
+        "the quit closed nothing: the disposer’s left-open line, the -wal on disk before and after, the run sentinel there before and cleared after"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "a write after the latch: a row added",
+      "ops": [
+        {
+          "set": "rows.sameIds",
+          "value": false
+        },
+        {
+          "set": "rows.added",
+          "value": [
+            "p357-after"
+          ]
+        }
+      ],
+      "mustFail": [
+        "nothing was written after the latch: the same session rows, every identity column unchanged"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "the next launch quarantined and rebuilt the fine file",
+      "ops": [
+        {
+          "set": "relaunch.inodeAfter",
+          "value": 58113999
+        },
+        {
+          "set": "relaunch.quarantined",
+          "value": 1
+        }
+      ],
+      "mustFail": [
+        "the next launch kept the same file (no quarantine, no unreadable notice) and posted no unclean-exit notice"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "the next launch lost a session",
+      "ops": [
+        {
+          "set": "relaunch.listed.equal",
+          "value": false
+        },
+        {
+          "set": "relaunch.listed.missing",
+          "value": [
+            "sb"
+          ]
+        }
+      ],
+      "mustFail": [
+        "the next launch listed exactly the rows that are not removed"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "a control message in app.log",
+      "ops": [
+        {
+          "set": "appLog.canaryLines",
+          "value": 1
+        }
+      ],
+      "mustFail": [
+        "app.log holds no crash record but the counter’s own controls and the stopped list’s own refusals as rejections with no message text, and no control message text"
+      ]
+    },
+    {
+      "arm": "HD",
+      "name": "the phone drew a row from the stopped list",
+      "ops": [
+        {
+          "set": "after.blockedRows",
+          "value": 1
+        }
+      ],
+      "mustFail": [
+        "Needs input said the one sentence with no rows after the fault"
+      ]
+    },
+    {
+      "arm": "HD",
+      "name": "Sessions still answered from the stopped list",
+      "ops": [
+        {
+          "set": "after.sessions",
+          "value": 200
+        }
+      ],
+      "mustFail": [
+        "Sessions answered 404 after the fault, where it answered 200 before"
+      ]
+    },
+    {
+      "arm": "HD",
+      "name": "one session still answered from the stopped list",
+      "ops": [
+        {
+          "set": "after.oneSession",
+          "value": 200
+        }
+      ],
+      "mustFail": [
+        "one session answered 404 after the fault, where it answered 200 before"
+      ]
+    },
+    {
+      "arm": "HD",
+      "name": "the stopped sentence was said before the fault",
+      "ops": [
+        {
+          "set": "before.blockedLine",
+          "value": "Tortie's session list stopped reading correctly on your Mac. Restart Tortie there."
+        }
+      ],
+      "mustFail": [
+        "before the fault Needs input did not say the stopped sentence"
+      ]
+    },
+    {
+      "arm": "HC",
+      "name": "two crash.uncaught records for the identical exceptions",
+      "ops": [
+        {
+          "set": "uncaughtRecords",
+          "value": 2
+        }
+      ],
+      "mustFail": [
+        "one crash.uncaught record for the two identical exceptions (name Error, code P357_CONTROL, its length and never its text)"
+      ]
+    },
+    {
+      "arm": "HC",
+      "name": "no crash.rejection record",
+      "ops": [
+        {
+          "set": "rejectionRecords",
+          "value": 0
+        }
+      ],
+      "mustFail": [
+        "one crash.rejection record, the control rejection’s"
+      ]
+    },
+    {
+      "arm": "HC",
+      "name": "the repeat counted under another key",
+      "ops": [
+        {
+          "set": "repeats.sameKey",
+          "value": false
+        }
+      ],
+      "mustFail": [
+        "crash.repeats at quit counts 2 under the uncaught record’s own key"
+      ]
+    },
+    {
+      "arm": "HC",
+      "name": "a control message in app.log",
+      "ops": [
+        {
+          "set": "appLog.canaryLines",
+          "value": 2
+        }
+      ],
+      "mustFail": [
+        "no control message text anywhere in app.log"
+      ]
+    },
+    {
+      "arm": "HC",
+      "name": "main did not answer after the control exceptions (a dialog held it)",
+      "ops": [
+        {
+          "set": "mainAnswered.ok",
+          "value": false
+        }
+      ],
+      "mustFail": [
+        "no dialog held main: it answered an IPC after both control exceptions, and the quit exited 0"
+      ]
+    },
+    {
+      "arm": "RUN",
+      "name": "a real Tailscale was seen",
+      "ops": [
+        {
+          "set": "realTailscale",
+          "value": 1
+        }
+      ],
+      "mustFail": [
+        "the Tailscale preflight passed at every launch and no real Tailscale was ever seen"
+      ]
+    },
+    {
+      "arm": "RUN",
+      "name": "a DNS preflight failed",
+      "ops": [
+        {
+          "set": "dnsPreflights",
+          "value": [
+            true,
+            false
+          ]
+        }
+      ],
+      "mustFail": [
+        "the DNS preflight passed at every launch and named loopback only"
+      ]
+    },
+    {
+      "arm": "RUN",
+      "name": "an agent resolved at one launch",
+      "ops": [
+        {
+          "set": "agentsHeld",
+          "value": [
+            true,
+            false
+          ]
+        }
+      ],
+      "mustFail": [
+        "every launch’s agents:list resolved nothing but the stand-ins (none)"
+      ]
+    },
+    {
+      "arm": "RUN",
+      "name": "a counter went unheard at one launch",
+      "ops": [
+        {
+          "set": "countersHeard",
+          "value": [
+            1,
+            0
+          ]
+        }
+      ],
+      "mustFail": [
+        "the counter was loaded and heard its control exception at every launch"
+      ]
+    },
+    {
+      "arm": "RUN",
+      "name": "a p357 socket was left",
+      "ops": [
+        {
+          "set": "socketsLeft",
+          "value": 1
+        }
+      ],
+      "mustFail": [
+        "the scratch tmux server is gone and no p357 socket is left"
+      ]
+    },
+    {
+      "arm": "RUN",
+      "name": "an Electron was left",
+      "ops": [
+        {
+          "set": "electronsLeft",
+          "value": 1
+        }
+      ],
+      "mustFail": [
+        "every Electron this run started is gone"
+      ]
+    },
+    {
+      "arm": "RUN",
+      "name": "his history moved and was not read again",
+      "ops": [
+        {
+          "set": "history",
+          "value": {
+            "before": "1 2|3 4",
+            "after": "1 9|3 4",
+            "quiet": null
+          }
+        }
+      ],
+      "mustFail": [
+        "his shell history did not move across the run"
+      ]
+    }
+  ],
+  "unreadable": [
+    {
+      "arm": "PA",
+      "name": "the counter never heard its control exception",
+      "ops": [
+        {
+          "set": "counter",
+          "value": [
+            {
+              "at": 1,
+              "pid": 4242,
+              "installed": true,
+              "type": "browser",
+              "listeners": 2
+            }
+          ]
+        }
+      ],
+      "mustMiss": [
+        "the counter was installed in main and heard its own control exception, so its count can be trusted"
+      ]
+    },
+    {
+      "arm": "PA",
+      "name": "an agent resolved",
+      "ops": [
+        {
+          "set": "agents.ok",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "the agents:list answer resolved nothing but the stand-ins (none)"
+      ]
+    },
+    {
+      "arm": "PA",
+      "name": "the damage changed no byte",
+      "ops": [
+        {
+          "set": "damage.changed",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "the damage changed a byte of the scratch manifest"
+      ]
+    },
+    {
+      "arm": "PA",
+      "name": "a shell was never made",
+      "ops": [
+        {
+          "set": "listBefore.names",
+          "value": [
+            "his-old-1",
+            "his-old-2",
+            "p357-a",
+            "p357-b"
+          ]
+        }
+      ],
+      "mustMiss": [
+        "the list read before the damage, holding the three shells"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "the counter file stopped parsing by the end (not an empty file)",
+      "ops": [
+        {
+          "set": "counterEnd",
+          "value": [
+            {
+              "at": 1,
+              "pid": 4242,
+              "installed": true,
+              "type": "browser",
+              "listeners": 2
+            },
+            {
+              "at": 3001,
+              "pid": 4242,
+              "n": 1,
+              "origin": "uncaughtException",
+              "name": "Error",
+              "code": "P357_CONTROL",
+              "message": "p357-control-exception",
+              "frames": [
+                "at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)",
+                "at listOnTimeout (node:internal/timers:588:17)",
+                "at process.processTimers (node:internal/timers:523:7)"
+              ]
+            },
+            {
+              "unparsed": true
+            }
+          ]
+        }
+      ],
+      "mustMiss": [
+        "the counter was installed in main and heard its own control exception, at boot and at the end"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "an agent resolved",
+      "ops": [
+        {
+          "set": "agents.ok",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "the agents:list answer resolved nothing but the stand-ins (none)"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "the damage changed no byte",
+      "ops": [
+        {
+          "set": "damage.changed",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "the damage changed a byte of the scratch manifest"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "the list did not read before the damage",
+      "ops": [
+        {
+          "set": "listBefore.ok",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "the list read before the damage, holding the three shells"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "the relaunch never ran",
+      "ops": [
+        {
+          "set": "relaunch.ran",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "the relaunch on that profile ran"
+      ]
+    },
+    {
+      "arm": "HQ",
+      "name": "the parent’s quit timed out",
+      "ops": [
+        {
+          "set": "parentCode",
+          "value": "still running after 90 s"
+        }
+      ],
+      "mustMiss": [
+        "both quits were timed and both exited 0"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "the counter was never installed",
+      "ops": [
+        {
+          "set": "counter",
+          "value": [
+            {
+              "at": 3001,
+              "pid": 4242,
+              "n": 1,
+              "origin": "uncaughtException",
+              "name": "Error",
+              "code": "P357_CONTROL",
+              "message": "p357-control-exception",
+              "frames": [
+                "at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)",
+                "at listOnTimeout (node:internal/timers:588:17)",
+                "at process.processTimers (node:internal/timers:523:7)"
+              ]
+            }
+          ]
+        }
+      ],
+      "mustMiss": [
+        "the counter was installed in main and heard its own control exception, at boot and at the end"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "an agent resolved",
+      "ops": [
+        {
+          "set": "agents.ok",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "the agents:list answer resolved nothing but the stand-ins (none)"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "the seam did not arm",
+      "ops": [
+        {
+          "set": "armed",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "the seam was installed and armed its one fault, said on stdout"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "a shell was never made",
+      "ops": [
+        {
+          "set": "listBefore.names",
+          "value": [
+            "his-old-1",
+            "p357-b",
+            "p357-c"
+          ]
+        }
+      ],
+      "mustMiss": [
+        "the list read before the damage, holding the three shells"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "the rows could not be read",
+      "ops": [
+        {
+          "set": "rows",
+          "value": {
+            "read": false,
+            "why": "rows unread"
+          }
+        }
+      ],
+      "mustMiss": [
+        "the rows were read just before the fault (by SQLite, read only) and after the first process ended (a copy)"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "the relaunch never ran",
+      "ops": [
+        {
+          "set": "relaunch.ran",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "the relaunch on that profile ran"
+      ]
+    },
+    {
+      "arm": "HD",
+      "name": "one session answered 404 BEFORE the fault, so its 404 after says nothing",
+      "ops": [
+        {
+          "set": "before.oneSession",
+          "value": 404
+        }
+      ],
+      "mustMiss": [
+        "the phone paired and read the door before the fault: Needs input, Sessions and one session each 200"
+      ]
+    },
+    {
+      "arm": "HC",
+      "name": "the counter heard only one control exception",
+      "ops": [
+        {
+          "set": "counter",
+          "value": [
+            {
+              "at": 1,
+              "pid": 4242,
+              "installed": true,
+              "type": "browser",
+              "listeners": 2
+            },
+            {
+              "at": 3001,
+              "pid": 4242,
+              "n": 1,
+              "origin": "uncaughtException",
+              "name": "Error",
+              "code": "P357_CONTROL",
+              "message": "p357-control-exception",
+              "frames": [
+                "at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)",
+                "at listOnTimeout (node:internal/timers:588:17)",
+                "at process.processTimers (node:internal/timers:523:7)"
+              ]
+            }
+          ]
+        }
+      ],
+      "mustMiss": [
+        "the counter was installed in main and heard BOTH control exceptions, at boot and at the end"
+      ]
+    },
+    {
+      "arm": "HC",
+      "name": "an agent resolved",
+      "ops": [
+        {
+          "set": "agents.ok",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "the agents:list answer resolved nothing but the stand-ins (none)"
+      ]
+    },
+    {
+      "arm": "RUN",
+      "name": "the process table could not be read",
+      "ops": [
+        {
+          "set": "processTableRead",
+          "value": false
+        }
+      ],
+      "mustMiss": [
+        "the process table and the scratch server were read at the end"
+      ]
+    },
+    {
+      "arm": "RUN",
+      "name": "no launch reached its window, so no launch can be judged clean",
+      "ops": [
+        {
+          "set": "agentsHeld",
+          "value": []
+        }
+      ],
+      "mustMiss": [
+        "at least one launch reached its window"
+      ]
+    }
+  ],
+  "raw": [
+    {
+      "arm": "PA",
+      "name": "the parent’s create, its raw IPC rejection, a session spawned",
+      "derive": {
+        "create": {
+          "answer": {
+            "ok": false,
+            "error": "Error invoking remote method 'sessions:create': SqliteError: database disk image is malformed"
+          },
+          "namesBefore": [
+            "gmux-control",
+            "p357-a",
+            "p357-b",
+            "p357-c"
+          ],
+          "namesAfter": [
+            "gmux-control",
+            "p357-a",
+            "p357-b",
+            "p357-c",
+            "p357-after"
+          ]
+        }
+      },
+      "expect": "pass"
+    },
+    {
+      "arm": "PA",
+      "name": "the parent’s app.log: no crash scope and the raw error, read from its lines",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:28.000Z\",\"level\":\"warn\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"refresh failed: database disk image is malformed\"}",
+          "{\"ts\":\"2026-11-05T20:00:29.000Z\",\"level\":\"warn\",\"scope\":\"manifest\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"manifest generation (quit) failed: database disk image is malformed\"}"
+        ]
+      },
+      "expect": "pass"
+    },
+    {
+      "arm": "PA",
+      "name": "his stack counted from the counter’s own lines",
+      "derive": {
+        "counterDuring": [
+          "{\"at\":1,\"pid\":4242,\"installed\":true,\"type\":\"browser\",\"listeners\":2}",
+          "{\"at\":3001,\"pid\":4242,\"n\":1,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"message\":\"p357-control-exception\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"]}",
+          "{\"at\":9002,\"pid\":4242,\"n\":2,\"origin\":\"uncaughtException\",\"name\":\"SqliteError\",\"code\":\"SQLITE_CORRUPT\",\"message\":\"database disk image is malformed\",\"frames\":[\"at SessionsRepository.listSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:3301:8)\",\"at ManifestStore.listSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:3990:26)\",\"at GmuxCore.listSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:51211:35)\",\"at GmuxCore.broadcastSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:50099:28)\",\"at GmuxCore.handleExternalRename (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:49211:10)\"]}",
+          "{\"at\":9003,\"pid\":4242,\"n\":3,\"origin\":\"uncaughtException\",\"name\":\"SqliteError\",\"code\":\"SQLITE_CORRUPT\",\"message\":\"database disk image is malformed\",\"frames\":[\"at SessionsRepository.listSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:3301:8)\",\"at ManifestStore.listSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:3990:26)\",\"at GmuxCore.listSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:51211:35)\",\"at GmuxCore.broadcastSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:50099:28)\",\"at GmuxCore.handleExternalRename (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:49211:10)\"]}"
+        ]
+      },
+      "expect": "pass"
+    },
+    {
+      "arm": "PA",
+      "name": "a stack that is not his, its frames out of order",
+      "derive": {
+        "counterDuring": [
+          "{\"at\":1,\"pid\":4242,\"installed\":true,\"type\":\"browser\",\"listeners\":2}",
+          "{\"at\":3001,\"pid\":4242,\"n\":1,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"message\":\"p357-control-exception\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"]}",
+          "{\"at\":9002,\"pid\":4242,\"n\":2,\"origin\":\"uncaughtException\",\"name\":\"SqliteError\",\"code\":\"SQLITE_CORRUPT\",\"message\":\"database disk image is malformed\",\"frames\":[\"at GmuxCore.handleExternalRename (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:49211:10)\",\"at GmuxCore.broadcastSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:50099:28)\",\"at GmuxCore.listSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:51211:35)\",\"at ManifestStore.listSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:3990:26)\",\"at SessionsRepository.listSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:3301:8)\"]}",
+          "{\"at\":9003,\"pid\":4242,\"n\":3,\"origin\":\"uncaughtException\",\"name\":\"SqliteError\",\"code\":\"SQLITE_CORRUPT\",\"message\":\"database disk image is malformed\",\"frames\":[\"at GmuxCore.handleExternalRename (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:49211:10)\",\"at GmuxCore.broadcastSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:50099:28)\",\"at GmuxCore.listSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:51211:35)\",\"at ManifestStore.listSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:3990:26)\",\"at SessionsRepository.listSessions (/private/var/tmp/tortie-wt/wt-p357-parent/out/main/index.js:3301:8)\"]}"
+        ]
+      },
+      "mustFail": [
+        "the two external renames each reached uncaughtException, his exact stack"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "a real-shaped HEAD app.log: the counter’s control records are not other crashes",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:13.000Z\",\"level\":\"error\",\"scope\":\"manifest\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"manifest.stopped\",\"msg\":\"the session list stopped reading correctly\",\"operation\":\"listSessions\",\"code\":\"SQLITE_CORRUPT\",\"file\":\"damaged\",\"check\":\"integrity_check\",\"checkMs\":1.4,\"detail\":\"*** in database main ***\\nTree 5 page 27: btreeInitPage() returns error code 11\"}",
+          "{\"ts\":\"2026-11-05T20:00:14.000Z\",\"level\":\"warn\",\"scope\":\"notice\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"notice.shown\",\"msg\":\"notice shown: manifest-stopped\",\"notice\":\"manifest-stopped\",\"fileFine\":false}",
+          "{\"ts\":\"2026-11-05T20:00:15.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error P357_CONTROL\",\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:16.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error P357_CONTROL_REJECTION\",\"key\":\"d8e905be9ddc226f0bf68f61da7af9af22d9c556d1257456a152c6bbfdd3fc9f\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"P357_CONTROL_REJECTION\",\"frames\":[\"at Timeout._onTimeout (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:75:27)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:17.000Z\",\"level\":\"warn\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"refresh failed: {\\\"code\\\":\\\"MANIFEST_STOPPED\\\"}\"}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"warn\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.repeats\",\"msg\":\"errors seen more than once this run\",\"repeats\":[{\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"count\":2}]}"
+        ]
+      },
+      "expect": "pass"
+    },
+    {
+      "arm": "HA",
+      "name": "the create’s IPC rejection as Electron words it parses to the stopped sentence",
+      "derive": {
+        "create": {
+          "answer": {
+            "ok": false,
+            "error": "Error invoking remote method 'sessions:create': Error: {\"code\":\"MANIFEST_STOPPED\",\"message\":\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\",\"detail\":\"insertSession\"}"
+          },
+          "namesBefore": [
+            "gmux-control",
+            "p357-a",
+            "p357-b",
+            "p357-c"
+          ],
+          "namesAfter": [
+            "gmux-control",
+            "p357-a",
+            "p357-b",
+            "p357-c"
+          ]
+        }
+      },
+      "expect": "pass"
+    },
+    {
+      "arm": "HA",
+      "name": "a STORM: thirty refusals reached the counter",
+      "derive": {
+        "counterEnd": [
+          "{\"at\":1,\"pid\":4242,\"installed\":true,\"type\":\"browser\",\"listeners\":2}",
+          "{\"at\":3001,\"pid\":4242,\"n\":1,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"message\":\"p357-control-exception\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"]}",
+          "{\"at\":3002,\"pid\":4242,\"n\":2,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"message\":\"p357-control-exception\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"]}",
+          "{\"at\":9003,\"pid\":4242,\"n\":3,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9004,\"pid\":4242,\"n\":4,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9005,\"pid\":4242,\"n\":5,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9006,\"pid\":4242,\"n\":6,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9007,\"pid\":4242,\"n\":7,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9008,\"pid\":4242,\"n\":8,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9009,\"pid\":4242,\"n\":9,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9010,\"pid\":4242,\"n\":10,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9011,\"pid\":4242,\"n\":11,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9012,\"pid\":4242,\"n\":12,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9013,\"pid\":4242,\"n\":13,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9014,\"pid\":4242,\"n\":14,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9015,\"pid\":4242,\"n\":15,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9016,\"pid\":4242,\"n\":16,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9017,\"pid\":4242,\"n\":17,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9018,\"pid\":4242,\"n\":18,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9019,\"pid\":4242,\"n\":19,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9020,\"pid\":4242,\"n\":20,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9021,\"pid\":4242,\"n\":21,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9022,\"pid\":4242,\"n\":22,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9023,\"pid\":4242,\"n\":23,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9024,\"pid\":4242,\"n\":24,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9025,\"pid\":4242,\"n\":25,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9026,\"pid\":4242,\"n\":26,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9027,\"pid\":4242,\"n\":27,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9028,\"pid\":4242,\"n\":28,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9029,\"pid\":4242,\"n\":29,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9030,\"pid\":4242,\"n\":30,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9031,\"pid\":4242,\"n\":31,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9032,\"pid\":4242,\"n\":32,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}"
+        ]
+      },
+      "mustFail": [
+        "no uncaught exception reached the counter from the launch to its exit"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "the D18 backstop logged a refusal that escaped a timer as an UNCAUGHT exception: still a finding",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:13.000Z\",\"level\":\"error\",\"scope\":\"manifest\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"manifest.stopped\",\"msg\":\"the session list stopped reading correctly\",\"operation\":\"listSessions\",\"code\":\"SQLITE_CORRUPT\",\"file\":\"damaged\",\"check\":\"integrity_check\",\"checkMs\":1.4,\"detail\":\"*** in database main ***\\nTree 5 page 27: btreeInitPage() returns error code 11\"}",
+          "{\"ts\":\"2026-11-05T20:00:14.000Z\",\"level\":\"warn\",\"scope\":\"notice\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"notice.shown\",\"msg\":\"notice shown: manifest-stopped\",\"notice\":\"manifest-stopped\",\"fileFine\":false}",
+          "{\"ts\":\"2026-11-05T20:00:15.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error P357_CONTROL\",\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:16.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error P357_CONTROL_REJECTION\",\"key\":\"d8e905be9ddc226f0bf68f61da7af9af22d9c556d1257456a152c6bbfdd3fc9f\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"P357_CONTROL_REJECTION\",\"frames\":[\"at Timeout._onTimeout (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:75:27)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:17.000Z\",\"level\":\"warn\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"refresh failed: {\\\"code\\\":\\\"MANIFEST_STOPPED\\\"}\"}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"warn\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.repeats\",\"msg\":\"errors seen more than once this run\",\"repeats\":[{\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"count\":2}]}",
+          "{\"ts\":\"2026-11-05T20:00:30.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error MANIFEST_STOPPED\",\"key\":\"5bb5dbb808333ac4d7abcfb922ec4d38c19d7f02adb5e3119247507883e29381\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\"],\"messageChars\":160}"
+        ]
+      },
+      "mustFail": [
+        "app.log holds no crash record but the counter’s own controls and the stopped list’s own refusals as rejections with no message text, and no control message text"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "a PLANTED MESSAGE CANARY in a crash record’s frames",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:13.000Z\",\"level\":\"error\",\"scope\":\"manifest\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"manifest.stopped\",\"msg\":\"the session list stopped reading correctly\",\"operation\":\"listSessions\",\"code\":\"SQLITE_CORRUPT\",\"file\":\"damaged\",\"check\":\"integrity_check\",\"checkMs\":1.4,\"detail\":\"*** in database main ***\\nTree 5 page 27: btreeInitPage() returns error code 11\"}",
+          "{\"ts\":\"2026-11-05T20:00:14.000Z\",\"level\":\"warn\",\"scope\":\"notice\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"notice.shown\",\"msg\":\"notice shown: manifest-stopped\",\"notice\":\"manifest-stopped\",\"fileFine\":false}",
+          "{\"ts\":\"2026-11-05T20:00:16.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error P357_CONTROL_REJECTION\",\"key\":\"d8e905be9ddc226f0bf68f61da7af9af22d9c556d1257456a152c6bbfdd3fc9f\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"P357_CONTROL_REJECTION\",\"frames\":[\"at Timeout._onTimeout (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:75:27)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:17.000Z\",\"level\":\"warn\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"refresh failed: {\\\"code\\\":\\\"MANIFEST_STOPPED\\\"}\"}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"warn\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.repeats\",\"msg\":\"errors seen more than once this run\",\"repeats\":[{\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"count\":2}]}",
+          "{\"ts\":\"2026-11-05T20:00:31.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error P357_CONTROL\",\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"frames\":[\"at Error: p357-control-exception\",\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"],\"messageChars\":22}"
+        ]
+      },
+      "mustFail": [
+        "app.log holds no crash record but the counter’s own controls and the stopped list’s own refusals as rejections with no message text, and no control message text"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "the create wrapped as INVALID_INPUT, as the parent’s insertSession wraps it",
+      "derive": {
+        "create": {
+          "answer": {
+            "ok": false,
+            "error": "Error invoking remote method 'sessions:create': Error: {\"code\":\"INVALID_INPUT\",\"message\":\"Could not record session \\\"p357-after\\\" in the manifest\",\"detail\":\"database disk image is malformed\"}"
+          },
+          "namesBefore": [
+            "p357-a",
+            "p357-b",
+            "p357-c"
+          ],
+          "namesAfter": [
+            "p357-a",
+            "p357-b",
+            "p357-c"
+          ]
+        }
+      },
+      "mustFail": [
+        "the create was refused with the stopped sentence (MANIFEST_STOPPED) and nothing spawned"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "a create whose message was clipped mid-payload reads as the raw text, never the sentence",
+      "derive": {
+        "create": {
+          "answer": {
+            "ok": false,
+            "error": "Error invoking remote method 'sessions:create': Error: {\"code\":\"MANIFEST_STOPPED\",\"message\":\"Tortie's session list stopp"
+          },
+          "namesBefore": [
+            "p357-a",
+            "p357-b",
+            "p357-c"
+          ],
+          "namesAfter": [
+            "p357-a",
+            "p357-b",
+            "p357-c"
+          ]
+        }
+      },
+      "mustFail": [
+        "the create was refused with the stopped sentence (MANIFEST_STOPPED) and nothing spawned"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "the quit held the connection open over a damaged file, read from its output",
+      "derive": {
+        "quitText": "[gmux] quit: the session list connection stopped reading correctly and is left open; ending the process without closing it\n"
+      },
+      "mustFail": [
+        "the quit exited 0 and closed the connection (the file is damaged, D11)"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "the stopped record carries a shell’s name in its detail",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:14.000Z\",\"level\":\"warn\",\"scope\":\"notice\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"notice.shown\",\"msg\":\"notice shown: manifest-stopped\",\"notice\":\"manifest-stopped\",\"fileFine\":false}",
+          "{\"ts\":\"2026-11-05T20:00:15.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error P357_CONTROL\",\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:16.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error P357_CONTROL_REJECTION\",\"key\":\"d8e905be9ddc226f0bf68f61da7af9af22d9c556d1257456a152c6bbfdd3fc9f\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"P357_CONTROL_REJECTION\",\"frames\":[\"at Timeout._onTimeout (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:75:27)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:17.000Z\",\"level\":\"warn\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"refresh failed: {\\\"code\\\":\\\"MANIFEST_STOPPED\\\"}\"}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"warn\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.repeats\",\"msg\":\"errors seen more than once this run\",\"repeats\":[{\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"count\":2}]}",
+          "{\"ts\":\"2026-11-05T20:00:32.000Z\",\"level\":\"error\",\"scope\":\"manifest\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"manifest.stopped\",\"msg\":\"the session list stopped reading correctly\",\"operation\":\"listSessions\",\"code\":\"SQLITE_CORRUPT\",\"file\":\"damaged\",\"check\":\"integrity_check\",\"checkMs\":1.4,\"detail\":\"row 3 of p357-b missing\"}"
+        ]
+      },
+      "mustFail": [
+        "that record carries no row data (no shell name, no project path)"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "the notice was said twice",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:13.000Z\",\"level\":\"error\",\"scope\":\"manifest\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"manifest.stopped\",\"msg\":\"the session list stopped reading correctly\",\"operation\":\"listSessions\",\"code\":\"SQLITE_CORRUPT\",\"file\":\"damaged\",\"check\":\"integrity_check\",\"checkMs\":1.4,\"detail\":\"*** in database main ***\\nTree 5 page 27: btreeInitPage() returns error code 11\"}",
+          "{\"ts\":\"2026-11-05T20:00:14.000Z\",\"level\":\"warn\",\"scope\":\"notice\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"notice.shown\",\"msg\":\"notice shown: manifest-stopped\",\"notice\":\"manifest-stopped\",\"fileFine\":false}",
+          "{\"ts\":\"2026-11-05T20:00:15.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error P357_CONTROL\",\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:16.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error P357_CONTROL_REJECTION\",\"key\":\"d8e905be9ddc226f0bf68f61da7af9af22d9c556d1257456a152c6bbfdd3fc9f\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"P357_CONTROL_REJECTION\",\"frames\":[\"at Timeout._onTimeout (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:75:27)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:17.000Z\",\"level\":\"warn\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"refresh failed: {\\\"code\\\":\\\"MANIFEST_STOPPED\\\"}\"}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"warn\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.repeats\",\"msg\":\"errors seen more than once this run\",\"repeats\":[{\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"count\":2}]}",
+          "{\"ts\":\"2026-11-05T20:00:33.000Z\",\"level\":\"warn\",\"scope\":\"notice\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"notice.shown\",\"msg\":\"notice shown: manifest-stopped\",\"notice\":\"manifest-stopped\",\"fileFine\":false}"
+        ]
+      },
+      "mustFail": [
+        "one notice.shown manifest-stopped, and no second one"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "the stopped list’s own refusals reached the crash handler as rejections with no message text (the shape HA’s live run logged): expected, D18",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:13.000Z\",\"level\":\"error\",\"scope\":\"manifest\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"manifest.stopped\",\"msg\":\"the session list stopped reading correctly\",\"operation\":\"listSessions\",\"code\":\"SQLITE_CORRUPT\",\"file\":\"damaged\",\"check\":\"integrity_check\",\"checkMs\":1.4,\"detail\":\"*** in database main ***\\nTree 5 page 27: btreeInitPage() returns error code 11\"}",
+          "{\"ts\":\"2026-11-05T20:00:14.000Z\",\"level\":\"warn\",\"scope\":\"notice\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"notice.shown\",\"msg\":\"notice shown: manifest-stopped\",\"notice\":\"manifest-stopped\",\"fileFine\":false}",
+          "{\"ts\":\"2026-11-05T20:00:15.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error P357_CONTROL\",\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:16.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error P357_CONTROL_REJECTION\",\"key\":\"d8e905be9ddc226f0bf68f61da7af9af22d9c556d1257456a152c6bbfdd3fc9f\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"P357_CONTROL_REJECTION\",\"frames\":[\"at Timeout._onTimeout (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:75:27)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:17.000Z\",\"level\":\"warn\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"refresh failed: {\\\"code\\\":\\\"MANIFEST_STOPPED\\\"}\"}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error MANIFEST_STOPPED\",\"key\":\"3ead33c3b6ed2f1e700bd28c51aa6e48d0c9a19ce116b0b297879a287e1303ff\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"frames\":[\"at manifestStoppedError (/x/out/main/index.js:53984:24)\",\"at ManifestStore.through (/x/out/main/index.js:54504:38)\",\"at ManifestStore.getSession (/x/out/main/index.js:54186:17)\",\"at /x/out/main/index.js:66064:34\",\"at runNextTicks (node:internal/process/task_queues:65:5)\",\"at listOnTimeout (node:internal/timers:567:9)\",\"at process.processTimers (node:internal/timers:541:7)\"],\"messageChars\":142}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error MANIFEST_STOPPED\",\"key\":\"e3b84d6a3c622e514aad886365bf9857d1867afdd2b03f44a038bc3119beadaf\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"frames\":[\"at manifestStoppedError (/x/out/main/index.js:53984:24)\",\"at ManifestStore.through (/x/out/main/index.js:54504:38)\",\"at ManifestStore.getSession (/x/out/main/index.js:54186:17)\",\"at /x/out/main/index.js:66064:34\"],\"messageChars\":142}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"warn\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.repeats\",\"msg\":\"errors seen more than once this run\",\"repeats\":[{\"key\":\"3ead33c3b6ed2f1e700bd28c51aa6e48d0c9a19ce116b0b297879a287e1303ff\",\"count\":13},{\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"count\":2}]}"
+        ]
+      },
+      "expect": "pass"
+    },
+    {
+      "arm": "HA",
+      "name": "beside them, a rejection of another code (a SqliteError, its clipped text) is a finding",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:13.000Z\",\"level\":\"error\",\"scope\":\"manifest\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"manifest.stopped\",\"msg\":\"the session list stopped reading correctly\",\"operation\":\"listSessions\",\"code\":\"SQLITE_CORRUPT\",\"file\":\"damaged\",\"check\":\"integrity_check\",\"checkMs\":1.4,\"detail\":\"*** in database main ***\\nTree 5 page 27: btreeInitPage() returns error code 11\"}",
+          "{\"ts\":\"2026-11-05T20:00:14.000Z\",\"level\":\"warn\",\"scope\":\"notice\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"notice.shown\",\"msg\":\"notice shown: manifest-stopped\",\"notice\":\"manifest-stopped\",\"fileFine\":false}",
+          "{\"ts\":\"2026-11-05T20:00:15.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error P357_CONTROL\",\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:16.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error P357_CONTROL_REJECTION\",\"key\":\"d8e905be9ddc226f0bf68f61da7af9af22d9c556d1257456a152c6bbfdd3fc9f\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"P357_CONTROL_REJECTION\",\"frames\":[\"at Timeout._onTimeout (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:75:27)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:17.000Z\",\"level\":\"warn\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"refresh failed: {\\\"code\\\":\\\"MANIFEST_STOPPED\\\"}\"}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error MANIFEST_STOPPED\",\"key\":\"3ead33c3b6ed2f1e700bd28c51aa6e48d0c9a19ce116b0b297879a287e1303ff\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"frames\":[\"at manifestStoppedError (/x/out/main/index.js:53984:24)\",\"at ManifestStore.through (/x/out/main/index.js:54504:38)\",\"at ManifestStore.getSession (/x/out/main/index.js:54186:17)\",\"at /x/out/main/index.js:66064:34\",\"at runNextTicks (node:internal/process/task_queues:65:5)\",\"at listOnTimeout (node:internal/timers:567:9)\",\"at process.processTimers (node:internal/timers:541:7)\"],\"messageChars\":142}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error MANIFEST_STOPPED\",\"key\":\"e3b84d6a3c622e514aad886365bf9857d1867afdd2b03f44a038bc3119beadaf\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"frames\":[\"at manifestStoppedError (/x/out/main/index.js:53984:24)\",\"at ManifestStore.through (/x/out/main/index.js:54504:38)\",\"at ManifestStore.getSession (/x/out/main/index.js:54186:17)\",\"at /x/out/main/index.js:66064:34\"],\"messageChars\":142}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"origin\":\"rejection\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: SqliteError SQLITE_CORRUPT\",\"key\":\"8c5b3ad639b9e2f18e1c32aa240d55cde3a9adddcc4451e8cb22cf9651bd71e1\",\"name\":\"SqliteError\",\"code\":\"SQLITE_CORRUPT\",\"frames\":[\"at Statement.get (/x/out/main/index.js:51010:12)\"],\"message\":\"database disk image is malformed\"}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"warn\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.repeats\",\"msg\":\"errors seen more than once this run\",\"repeats\":[{\"key\":\"3ead33c3b6ed2f1e700bd28c51aa6e48d0c9a19ce116b0b297879a287e1303ff\",\"count\":13},{\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"count\":2}]}"
+        ]
+      },
+      "mustFail": [
+        "app.log holds no crash record but the counter’s own controls and the stopped list’s own refusals as rejections with no message text, and no control message text"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "beside them, a rejection with no code is a finding",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:13.000Z\",\"level\":\"error\",\"scope\":\"manifest\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"manifest.stopped\",\"msg\":\"the session list stopped reading correctly\",\"operation\":\"listSessions\",\"code\":\"SQLITE_CORRUPT\",\"file\":\"damaged\",\"check\":\"integrity_check\",\"checkMs\":1.4,\"detail\":\"*** in database main ***\\nTree 5 page 27: btreeInitPage() returns error code 11\"}",
+          "{\"ts\":\"2026-11-05T20:00:14.000Z\",\"level\":\"warn\",\"scope\":\"notice\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"notice.shown\",\"msg\":\"notice shown: manifest-stopped\",\"notice\":\"manifest-stopped\",\"fileFine\":false}",
+          "{\"ts\":\"2026-11-05T20:00:15.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error P357_CONTROL\",\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:16.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error P357_CONTROL_REJECTION\",\"key\":\"d8e905be9ddc226f0bf68f61da7af9af22d9c556d1257456a152c6bbfdd3fc9f\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"P357_CONTROL_REJECTION\",\"frames\":[\"at Timeout._onTimeout (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:75:27)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:17.000Z\",\"level\":\"warn\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"refresh failed: {\\\"code\\\":\\\"MANIFEST_STOPPED\\\"}\"}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error MANIFEST_STOPPED\",\"key\":\"3ead33c3b6ed2f1e700bd28c51aa6e48d0c9a19ce116b0b297879a287e1303ff\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"frames\":[\"at manifestStoppedError (/x/out/main/index.js:53984:24)\",\"at ManifestStore.through (/x/out/main/index.js:54504:38)\",\"at ManifestStore.getSession (/x/out/main/index.js:54186:17)\",\"at /x/out/main/index.js:66064:34\",\"at runNextTicks (node:internal/process/task_queues:65:5)\",\"at listOnTimeout (node:internal/timers:567:9)\",\"at process.processTimers (node:internal/timers:541:7)\"],\"messageChars\":142}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error MANIFEST_STOPPED\",\"key\":\"e3b84d6a3c622e514aad886365bf9857d1867afdd2b03f44a038bc3119beadaf\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"frames\":[\"at manifestStoppedError (/x/out/main/index.js:53984:24)\",\"at ManifestStore.through (/x/out/main/index.js:54504:38)\",\"at ManifestStore.getSession (/x/out/main/index.js:54186:17)\",\"at /x/out/main/index.js:66064:34\"],\"messageChars\":142}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"origin\":\"rejection\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error\",\"key\":\"29014e8b4920af00036676155f46e2285c30de7a3ab220891c10abc31c8079f8\",\"name\":\"Error\",\"frames\":[\"at /x/out/main/index.js:70001:9\"],\"messageChars\":31}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"warn\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.repeats\",\"msg\":\"errors seen more than once this run\",\"repeats\":[{\"key\":\"3ead33c3b6ed2f1e700bd28c51aa6e48d0c9a19ce116b0b297879a287e1303ff\",\"count\":13},{\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"count\":2}]}"
+        ]
+      },
+      "mustFail": [
+        "app.log holds no crash record but the counter’s own controls and the stopped list’s own refusals as rejections with no message text, and no control message text"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "beside them, the same refusal as an UNCAUGHT exception is a finding",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:13.000Z\",\"level\":\"error\",\"scope\":\"manifest\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"manifest.stopped\",\"msg\":\"the session list stopped reading correctly\",\"operation\":\"listSessions\",\"code\":\"SQLITE_CORRUPT\",\"file\":\"damaged\",\"check\":\"integrity_check\",\"checkMs\":1.4,\"detail\":\"*** in database main ***\\nTree 5 page 27: btreeInitPage() returns error code 11\"}",
+          "{\"ts\":\"2026-11-05T20:00:14.000Z\",\"level\":\"warn\",\"scope\":\"notice\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"notice.shown\",\"msg\":\"notice shown: manifest-stopped\",\"notice\":\"manifest-stopped\",\"fileFine\":false}",
+          "{\"ts\":\"2026-11-05T20:00:15.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error P357_CONTROL\",\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:16.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error P357_CONTROL_REJECTION\",\"key\":\"d8e905be9ddc226f0bf68f61da7af9af22d9c556d1257456a152c6bbfdd3fc9f\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"P357_CONTROL_REJECTION\",\"frames\":[\"at Timeout._onTimeout (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:75:27)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:17.000Z\",\"level\":\"warn\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"refresh failed: {\\\"code\\\":\\\"MANIFEST_STOPPED\\\"}\"}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error MANIFEST_STOPPED\",\"key\":\"3ead33c3b6ed2f1e700bd28c51aa6e48d0c9a19ce116b0b297879a287e1303ff\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"frames\":[\"at manifestStoppedError (/x/out/main/index.js:53984:24)\",\"at ManifestStore.through (/x/out/main/index.js:54504:38)\",\"at ManifestStore.getSession (/x/out/main/index.js:54186:17)\",\"at /x/out/main/index.js:66064:34\",\"at runNextTicks (node:internal/process/task_queues:65:5)\",\"at listOnTimeout (node:internal/timers:567:9)\",\"at process.processTimers (node:internal/timers:541:7)\"],\"messageChars\":142}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error MANIFEST_STOPPED\",\"key\":\"e3b84d6a3c622e514aad886365bf9857d1867afdd2b03f44a038bc3119beadaf\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"frames\":[\"at manifestStoppedError (/x/out/main/index.js:53984:24)\",\"at ManifestStore.through (/x/out/main/index.js:54504:38)\",\"at ManifestStore.getSession (/x/out/main/index.js:54186:17)\",\"at /x/out/main/index.js:66064:34\"],\"messageChars\":142}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"origin\":\"uncaught\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error MANIFEST_STOPPED\",\"key\":\"7cbedaef17337ece96c4cbf3c42ba37cecda1a2194bed737f6bcdd2c47c7e60b\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"frames\":[\"at manifestStoppedError (/x/out/main/index.js:53984:24)\",\"at ManifestStore.through (/x/out/main/index.js:54504:38)\",\"at ManifestStore.getSession (/x/out/main/index.js:54186:17)\",\"at /x/out/main/index.js:66064:34\"],\"messageChars\":142}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"warn\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.repeats\",\"msg\":\"errors seen more than once this run\",\"repeats\":[{\"key\":\"3ead33c3b6ed2f1e700bd28c51aa6e48d0c9a19ce116b0b297879a287e1303ff\",\"count\":13},{\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"count\":2}]}"
+        ]
+      },
+      "mustFail": [
+        "app.log holds no crash record but the counter’s own controls and the stopped list’s own refusals as rejections with no message text, and no control message text"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "a stopped refusal that carries a message field (its payload’s first 40 characters, short of the sentence’s words) is a finding",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:13.000Z\",\"level\":\"error\",\"scope\":\"manifest\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"manifest.stopped\",\"msg\":\"the session list stopped reading correctly\",\"operation\":\"listSessions\",\"code\":\"SQLITE_CORRUPT\",\"file\":\"damaged\",\"check\":\"integrity_check\",\"checkMs\":1.4,\"detail\":\"*** in database main ***\\nTree 5 page 27: btreeInitPage() returns error code 11\"}",
+          "{\"ts\":\"2026-11-05T20:00:14.000Z\",\"level\":\"warn\",\"scope\":\"notice\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"notice.shown\",\"msg\":\"notice shown: manifest-stopped\",\"notice\":\"manifest-stopped\",\"fileFine\":false}",
+          "{\"ts\":\"2026-11-05T20:00:15.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error P357_CONTROL\",\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:16.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error P357_CONTROL_REJECTION\",\"key\":\"d8e905be9ddc226f0bf68f61da7af9af22d9c556d1257456a152c6bbfdd3fc9f\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"P357_CONTROL_REJECTION\",\"frames\":[\"at Timeout._onTimeout (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:75:27)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:17.000Z\",\"level\":\"warn\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"refresh failed: {\\\"code\\\":\\\"MANIFEST_STOPPED\\\"}\"}",
+          "{\"ts\":\"2026-11-05T20:00:16.500Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error MANIFEST_STOPPED\",\"key\":\"3ead33c3b6ed2f1e700bd28c51aa6e48d0c9a19ce116b0b297879a287e1303ff\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"frames\":[\"at manifestStoppedError (/x/out/main/index.js:53984:24)\",\"at ManifestStore.through (/x/out/main/index.js:54504:38)\",\"at ManifestStore.getSession (/x/out/main/index.js:54186:17)\",\"at /x/out/main/index.js:66064:34\",\"at runNextTicks (node:internal/process/task_queues:65:5)\",\"at listOnTimeout (node:internal/timers:567:9)\",\"at process.processTimers (node:internal/timers:541:7)\"],\"messageChars\":142,\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"To\"}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"warn\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.repeats\",\"msg\":\"errors seen more than once this run\",\"repeats\":[{\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"count\":2}]}"
+        ]
+      },
+      "mustFail": [
+        "app.log holds no crash record but the counter’s own controls and the stopped list’s own refusals as rejections with no message text, and no control message text"
+      ]
+    },
+    {
+      "arm": "HA",
+      "name": "a stopped refusal with no message field but the refusal’s words in its frames is a finding",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:13.000Z\",\"level\":\"error\",\"scope\":\"manifest\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"manifest.stopped\",\"msg\":\"the session list stopped reading correctly\",\"operation\":\"listSessions\",\"code\":\"SQLITE_CORRUPT\",\"file\":\"damaged\",\"check\":\"integrity_check\",\"checkMs\":1.4,\"detail\":\"*** in database main ***\\nTree 5 page 27: btreeInitPage() returns error code 11\"}",
+          "{\"ts\":\"2026-11-05T20:00:14.000Z\",\"level\":\"warn\",\"scope\":\"notice\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"notice.shown\",\"msg\":\"notice shown: manifest-stopped\",\"notice\":\"manifest-stopped\",\"fileFine\":false}",
+          "{\"ts\":\"2026-11-05T20:00:15.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error P357_CONTROL\",\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:16.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error P357_CONTROL_REJECTION\",\"key\":\"d8e905be9ddc226f0bf68f61da7af9af22d9c556d1257456a152c6bbfdd3fc9f\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"P357_CONTROL_REJECTION\",\"frames\":[\"at Timeout._onTimeout (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:75:27)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:17.000Z\",\"level\":\"warn\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"refresh failed: {\\\"code\\\":\\\"MANIFEST_STOPPED\\\"}\"}",
+          "{\"ts\":\"2026-11-05T20:00:16.500Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error MANIFEST_STOPPED\",\"key\":\"3ead33c3b6ed2f1e700bd28c51aa6e48d0c9a19ce116b0b297879a287e1303ff\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"frames\":[\"at Error: {\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"getSession\\\"}\",\"at manifestStoppedError (/x/out/main/index.js:53984:24)\",\"at ManifestStore.through (/x/out/main/index.js:54504:38)\",\"at ManifestStore.getSession (/x/out/main/index.js:54186:17)\",\"at /x/out/main/index.js:66064:34\",\"at runNextTicks (node:internal/process/task_queues:65:5)\",\"at listOnTimeout (node:internal/timers:567:9)\",\"at process.processTimers (node:internal/timers:541:7)\"],\"messageChars\":142}",
+          "{\"ts\":\"2026-11-05T20:00:18.000Z\",\"level\":\"warn\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.repeats\",\"msg\":\"errors seen more than once this run\",\"repeats\":[{\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"count\":2}]}"
+        ]
+      },
+      "mustFail": [
+        "app.log holds no crash record but the counter’s own controls and the stopped list’s own refusals as rejections with no message text, and no control message text"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "a real-shaped HEAD app.log, the file fine",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:19.000Z\",\"level\":\"error\",\"scope\":\"manifest\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"manifest.stopped\",\"msg\":\"the session list stopped reading correctly\",\"operation\":\"listSessions\",\"code\":\"SQLITE_CORRUPT\",\"file\":\"fine\",\"check\":\"integrity_check\",\"checkMs\":1.4,\"detail\":\"ok\"}",
+          "{\"ts\":\"2026-11-05T20:00:20.000Z\",\"level\":\"warn\",\"scope\":\"notice\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"notice.shown\",\"msg\":\"notice shown: manifest-stopped\",\"notice\":\"manifest-stopped\",\"fileFine\":true}",
+          "{\"ts\":\"2026-11-05T20:00:21.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error P357_CONTROL\",\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:22.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error P357_CONTROL_REJECTION\",\"key\":\"d8e905be9ddc226f0bf68f61da7af9af22d9c556d1257456a152c6bbfdd3fc9f\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"P357_CONTROL_REJECTION\",\"frames\":[\"at Timeout._onTimeout (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:75:27)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:23.000Z\",\"level\":\"warn\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.repeats\",\"msg\":\"errors seen more than once this run\",\"repeats\":[{\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"count\":2}]}",
+          "{\"ts\":\"2026-11-05T20:00:24.000Z\",\"level\":\"info\",\"scope\":\"quit\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"restart asked: a harness launch is not relaunched\"}"
+        ]
+      },
+      "expect": "pass"
+    },
+    {
+      "arm": "HB",
+      "name": "the hard exit read from the shim’s and the app’s own output",
+      "derive": {
+        "exit": {
+          "text": "[gmux-harness] manifest fault seam installed: one broken connection error per new seq\n[gmux-quit] restart asked: a harness launch is not relaunched\n[gmux-manifest] the session list connection is left open so nothing closes a damaged cache\n[gmux] quit: the session list connection stopped reading correctly and is left open; ending the process without closing it\n/private/var/tmp/tortie-wt/wt-p357/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron exited with signal SIGKILL\n",
+          "code": 1
+        }
+      },
+      "expect": "pass"
+    },
+    {
+      "arm": "HB",
+      "name": "A QUIT THAT CALLED close(): no left-open line, exit 0, no signal, the -wal gone",
+      "derive": {
+        "exit": {
+          "text": "[gmux-quit] restart asked: a harness launch is not relaunched\n",
+          "code": 0
+        }
+      },
+      "ops": [
+        {
+          "set": "restart.walAfter",
+          "value": false
+        }
+      ],
+      "mustFail": [
+        "Restart was pressed, the harness launch was not relaunched, and the app ended by SIGKILL, never a crash",
+        "the quit closed nothing: the disposer’s left-open line, the -wal on disk before and after, the run sentinel there before and cleared after"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "a close that crashed: the shim says SIGSEGV, the disposer never reached its last line",
+      "derive": {
+        "exit": {
+          "text": "[gmux-quit] restart asked: a harness launch is not relaunched\n/private/var/tmp/tortie-wt/wt-p357/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron exited with signal SIGSEGV\n",
+          "code": 1
+        }
+      },
+      "mustFail": [
+        "Restart was pressed, the harness launch was not relaunched, and the app ended by SIGKILL, never a crash",
+        "the quit closed nothing: the disposer’s left-open line, the -wal on disk before and after, the run sentinel there before and cleared after"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "the handler’s line only in app.log (stdout lost to the signal) still counts",
+      "derive": {
+        "exit": {
+          "text": "[gmux] quit: the session list connection stopped reading correctly and is left open; ending the process without closing it\n/private/var/tmp/tortie-wt/wt-p357/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron exited with signal SIGKILL\n",
+          "code": 1,
+          "appLogNotRelaunched": true
+        }
+      },
+      "expect": "pass"
+    },
+    {
+      "arm": "HB",
+      "name": "A WRITE AFTER THE LATCH: a row added to the file",
+      "derive": {
+        "rowsBefore": {
+          "read": true,
+          "rows": [
+            {
+              "id": "seed-1",
+              "name": "his-old-1",
+              "tmux_name": "his-old-1",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "claude",
+              "argv": "[\"/usr/local/bin/claude\"]",
+              "created_at": 1793900000006,
+              "status": "idle",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "seed-2",
+              "name": "his-old-2",
+              "tmux_name": "his-old-2",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "pi",
+              "argv": "[\"/usr/local/bin/pi\"]",
+              "created_at": 1793900000006,
+              "status": "restorable",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "seed-3",
+              "name": "his-gone-3",
+              "tmux_name": "his-gone-3",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000006,
+              "status": "discarded",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sa",
+              "name": "p357-a",
+              "tmux_name": "p357-a",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sb",
+              "name": "p357-b",
+              "tmux_name": "p357-b",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sc",
+              "name": "p357-c",
+              "tmux_name": "p357-c",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            }
+          ]
+        },
+        "rowsAfter": {
+          "read": true,
+          "rows": [
+            {
+              "id": "seed-1",
+              "name": "his-old-1",
+              "tmux_name": "his-old-1",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "claude",
+              "argv": "[\"/usr/local/bin/claude\"]",
+              "created_at": 1793900000006,
+              "status": "idle",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "seed-2",
+              "name": "his-old-2",
+              "tmux_name": "his-old-2",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "pi",
+              "argv": "[\"/usr/local/bin/pi\"]",
+              "created_at": 1793900000006,
+              "status": "restorable",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "seed-3",
+              "name": "his-gone-3",
+              "tmux_name": "his-gone-3",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000006,
+              "status": "discarded",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sa",
+              "name": "p357-a",
+              "tmux_name": "p357-a",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sb",
+              "name": "p357-b",
+              "tmux_name": "p357-b",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sc",
+              "name": "p357-c",
+              "tmux_name": "p357-c",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sz",
+              "name": "p357-after",
+              "tmux_name": "p357-after",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            }
+          ]
+        }
+      },
+      "mustFail": [
+        "nothing was written after the latch: the same session rows, every identity column unchanged"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "A WRITE AFTER THE LATCH: a rename landed in the file",
+      "derive": {
+        "rowsBefore": {
+          "read": true,
+          "rows": [
+            {
+              "id": "seed-1",
+              "name": "his-old-1",
+              "tmux_name": "his-old-1",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "claude",
+              "argv": "[\"/usr/local/bin/claude\"]",
+              "created_at": 1793900000006,
+              "status": "idle",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "seed-2",
+              "name": "his-old-2",
+              "tmux_name": "his-old-2",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "pi",
+              "argv": "[\"/usr/local/bin/pi\"]",
+              "created_at": 1793900000006,
+              "status": "restorable",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "seed-3",
+              "name": "his-gone-3",
+              "tmux_name": "his-gone-3",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000006,
+              "status": "discarded",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sa",
+              "name": "p357-a",
+              "tmux_name": "p357-a",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sb",
+              "name": "p357-b",
+              "tmux_name": "p357-b",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sc",
+              "name": "p357-c",
+              "tmux_name": "p357-c",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            }
+          ]
+        },
+        "rowsAfter": {
+          "read": true,
+          "rows": [
+            {
+              "id": "seed-1",
+              "name": "his-old-1",
+              "tmux_name": "his-old-1",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "claude",
+              "argv": "[\"/usr/local/bin/claude\"]",
+              "created_at": 1793900000006,
+              "status": "idle",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "seed-2",
+              "name": "his-old-2",
+              "tmux_name": "his-old-2",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "pi",
+              "argv": "[\"/usr/local/bin/pi\"]",
+              "created_at": 1793900000006,
+              "status": "restorable",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "seed-3",
+              "name": "his-gone-3",
+              "tmux_name": "his-gone-3",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000006,
+              "status": "discarded",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sa",
+              "name": "p357-a",
+              "tmux_name": "p357-a",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sb",
+              "name": "p357-b2",
+              "tmux_name": "p357-b2",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sc",
+              "name": "p357-c",
+              "tmux_name": "p357-c",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            }
+          ]
+        }
+      },
+      "mustFail": [
+        "nothing was written after the latch: the same session rows, every identity column unchanged"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "only status and last_seen moved between the read and the latch: printed, not graded",
+      "derive": {
+        "rowsBefore": {
+          "read": true,
+          "rows": [
+            {
+              "id": "seed-1",
+              "name": "his-old-1",
+              "tmux_name": "his-old-1",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "claude",
+              "argv": "[\"/usr/local/bin/claude\"]",
+              "created_at": 1793900000006,
+              "status": "idle",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "seed-2",
+              "name": "his-old-2",
+              "tmux_name": "his-old-2",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "pi",
+              "argv": "[\"/usr/local/bin/pi\"]",
+              "created_at": 1793900000006,
+              "status": "restorable",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "seed-3",
+              "name": "his-gone-3",
+              "tmux_name": "his-gone-3",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000006,
+              "status": "discarded",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sa",
+              "name": "p357-a",
+              "tmux_name": "p357-a",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sb",
+              "name": "p357-b",
+              "tmux_name": "p357-b",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sc",
+              "name": "p357-c",
+              "tmux_name": "p357-c",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            }
+          ]
+        },
+        "rowsAfter": {
+          "read": true,
+          "rows": [
+            {
+              "id": "seed-1",
+              "name": "his-old-1",
+              "tmux_name": "his-old-1",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "claude",
+              "argv": "[\"/usr/local/bin/claude\"]",
+              "created_at": 1793900000006,
+              "status": "idle",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "seed-2",
+              "name": "his-old-2",
+              "tmux_name": "his-old-2",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "pi",
+              "argv": "[\"/usr/local/bin/pi\"]",
+              "created_at": 1793900000006,
+              "status": "restorable",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "seed-3",
+              "name": "his-gone-3",
+              "tmux_name": "his-gone-3",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000006,
+              "status": "discarded",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sa",
+              "name": "p357-a",
+              "tmux_name": "p357-a",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "idle",
+              "last_seen": 1793900001001
+            },
+            {
+              "id": "sb",
+              "name": "p357-b",
+              "tmux_name": "p357-b",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sc",
+              "name": "p357-c",
+              "tmux_name": "p357-c",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            }
+          ]
+        }
+      },
+      "expect": "pass"
+    },
+    {
+      "arm": "HB",
+      "name": "the next launch lists every row that is not removed, and no removed one",
+      "derive": {
+        "rowsAfter": {
+          "read": true,
+          "rows": [
+            {
+              "id": "seed-1",
+              "name": "his-old-1",
+              "tmux_name": "his-old-1",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "claude",
+              "argv": "[\"/usr/local/bin/claude\"]",
+              "created_at": 1793900000006,
+              "status": "idle",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "seed-2",
+              "name": "his-old-2",
+              "tmux_name": "his-old-2",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "pi",
+              "argv": "[\"/usr/local/bin/pi\"]",
+              "created_at": 1793900000006,
+              "status": "restorable",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "seed-3",
+              "name": "his-gone-3",
+              "tmux_name": "his-gone-3",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000006,
+              "status": "discarded",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sa",
+              "name": "p357-a",
+              "tmux_name": "p357-a",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sb",
+              "name": "p357-b",
+              "tmux_name": "p357-b",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sc",
+              "name": "p357-c",
+              "tmux_name": "p357-c",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            }
+          ]
+        },
+        "listedIds": [
+          "seed-1",
+          "seed-2",
+          "sa",
+          "sb",
+          "sc"
+        ]
+      },
+      "expect": "pass"
+    },
+    {
+      "arm": "HB",
+      "name": "the next launch lost a session",
+      "derive": {
+        "rowsAfter": {
+          "read": true,
+          "rows": [
+            {
+              "id": "seed-1",
+              "name": "his-old-1",
+              "tmux_name": "his-old-1",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "claude",
+              "argv": "[\"/usr/local/bin/claude\"]",
+              "created_at": 1793900000006,
+              "status": "idle",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "seed-2",
+              "name": "his-old-2",
+              "tmux_name": "his-old-2",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "pi",
+              "argv": "[\"/usr/local/bin/pi\"]",
+              "created_at": 1793900000006,
+              "status": "restorable",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "seed-3",
+              "name": "his-gone-3",
+              "tmux_name": "his-gone-3",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000006,
+              "status": "discarded",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sa",
+              "name": "p357-a",
+              "tmux_name": "p357-a",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sb",
+              "name": "p357-b",
+              "tmux_name": "p357-b",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sc",
+              "name": "p357-c",
+              "tmux_name": "p357-c",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            }
+          ]
+        },
+        "listedIds": [
+          "seed-1",
+          "seed-2",
+          "sa",
+          "sc"
+        ]
+      },
+      "mustFail": [
+        "the next launch listed exactly the rows that are not removed"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "a STORM on the counter",
+      "derive": {
+        "counterEnd": [
+          "{\"at\":1,\"pid\":4242,\"installed\":true,\"type\":\"browser\",\"listeners\":2}",
+          "{\"at\":3001,\"pid\":4242,\"n\":1,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"message\":\"p357-control-exception\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"]}",
+          "{\"at\":3002,\"pid\":4242,\"n\":2,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"message\":\"p357-control-exception\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"]}",
+          "{\"at\":9003,\"pid\":4242,\"n\":3,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9004,\"pid\":4242,\"n\":4,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9005,\"pid\":4242,\"n\":5,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9006,\"pid\":4242,\"n\":6,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9007,\"pid\":4242,\"n\":7,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9008,\"pid\":4242,\"n\":8,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9009,\"pid\":4242,\"n\":9,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9010,\"pid\":4242,\"n\":10,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9011,\"pid\":4242,\"n\":11,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9012,\"pid\":4242,\"n\":12,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9013,\"pid\":4242,\"n\":13,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}",
+          "{\"at\":9014,\"pid\":4242,\"n\":14,\"origin\":\"uncaughtException\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"message\":\"{\\\"code\\\":\\\"MANIFEST_STOPPED\\\",\\\"message\\\":\\\"Tortie's session list stopped reading correctly. Restart Tortie, then try again.\\\",\\\"detail\\\":\\\"listSessions\\\"}\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\",\"at GmuxCore.broadcastSessions (/x/out/main/index.js:50099:28)\"]}"
+        ]
+      },
+      "mustFail": [
+        "no uncaught exception reached the counter from the launch to its hard exit"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "a PLANTED MESSAGE CANARY: the control rejection’s words in a log line",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:19.000Z\",\"level\":\"error\",\"scope\":\"manifest\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"manifest.stopped\",\"msg\":\"the session list stopped reading correctly\",\"operation\":\"listSessions\",\"code\":\"SQLITE_CORRUPT\",\"file\":\"fine\",\"check\":\"integrity_check\",\"checkMs\":1.4,\"detail\":\"ok\"}",
+          "{\"ts\":\"2026-11-05T20:00:20.000Z\",\"level\":\"warn\",\"scope\":\"notice\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"notice.shown\",\"msg\":\"notice shown: manifest-stopped\",\"notice\":\"manifest-stopped\",\"fileFine\":true}",
+          "{\"ts\":\"2026-11-05T20:00:21.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error P357_CONTROL\",\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:22.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error P357_CONTROL_REJECTION\",\"key\":\"d8e905be9ddc226f0bf68f61da7af9af22d9c556d1257456a152c6bbfdd3fc9f\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"P357_CONTROL_REJECTION\",\"frames\":[\"at Timeout._onTimeout (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:75:27)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:23.000Z\",\"level\":\"warn\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.repeats\",\"msg\":\"errors seen more than once this run\",\"repeats\":[{\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"count\":2}]}",
+          "{\"ts\":\"2026-11-05T20:00:24.000Z\",\"level\":\"info\",\"scope\":\"quit\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"restart asked: a harness launch is not relaunched\"}",
+          "{\"ts\":\"2026-11-05T20:00:34.000Z\",\"level\":\"warn\",\"scope\":\"pocket\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"a read failed: p357-control-rejection\"}"
+        ]
+      },
+      "mustFail": [
+        "app.log holds no crash record but the counter’s own controls and the stopped list’s own refusals as rejections with no message text, and no control message text"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "a copy of the rows that could not be read",
+      "derive": {
+        "rowsBefore": {
+          "read": true,
+          "rows": [
+            {
+              "id": "seed-1",
+              "name": "his-old-1",
+              "tmux_name": "his-old-1",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "claude",
+              "argv": "[\"/usr/local/bin/claude\"]",
+              "created_at": 1793900000006,
+              "status": "idle",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "seed-2",
+              "name": "his-old-2",
+              "tmux_name": "his-old-2",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "pi",
+              "argv": "[\"/usr/local/bin/pi\"]",
+              "created_at": 1793900000006,
+              "status": "restorable",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "seed-3",
+              "name": "his-gone-3",
+              "tmux_name": "his-gone-3",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000006,
+              "status": "discarded",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sa",
+              "name": "p357-a",
+              "tmux_name": "p357-a",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sb",
+              "name": "p357-b",
+              "tmux_name": "p357-b",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            },
+            {
+              "id": "sc",
+              "name": "p357-c",
+              "tmux_name": "p357-c",
+              "project_path": "/scratch/HB/proj",
+              "cwd": "/scratch/HB/proj",
+              "agent": "shell",
+              "argv": "[\"/bin/zsh\",\"-l\"]",
+              "created_at": 1793900000002,
+              "status": "running",
+              "last_seen": 1793900001000
+            }
+          ]
+        },
+        "rowsAfter": {
+          "read": false,
+          "why": "Error: in prepare, file is not a database"
+        }
+      },
+      "mustMiss": [
+        "the rows were read just before the fault (by SQLite, read only) and after the first process ended (a copy)"
+      ]
+    },
+    {
+      "arm": "HB",
+      "name": "HB too: the stopped list’s own refusals as rejections with no message text are expected (the same clause, the same seed)",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:19.000Z\",\"level\":\"error\",\"scope\":\"manifest\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"manifest.stopped\",\"msg\":\"the session list stopped reading correctly\",\"operation\":\"listSessions\",\"code\":\"SQLITE_CORRUPT\",\"file\":\"fine\",\"check\":\"integrity_check\",\"checkMs\":1.4,\"detail\":\"ok\"}",
+          "{\"ts\":\"2026-11-05T20:00:20.000Z\",\"level\":\"warn\",\"scope\":\"notice\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"notice.shown\",\"msg\":\"notice shown: manifest-stopped\",\"notice\":\"manifest-stopped\",\"fileFine\":true}",
+          "{\"ts\":\"2026-11-05T20:00:21.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error P357_CONTROL\",\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:22.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error P357_CONTROL_REJECTION\",\"key\":\"d8e905be9ddc226f0bf68f61da7af9af22d9c556d1257456a152c6bbfdd3fc9f\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"P357_CONTROL_REJECTION\",\"frames\":[\"at Timeout._onTimeout (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:75:27)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:23.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error MANIFEST_STOPPED\",\"key\":\"3ead33c3b6ed2f1e700bd28c51aa6e48d0c9a19ce116b0b297879a287e1303ff\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"frames\":[\"at manifestStoppedError (/x/out/main/index.js:53984:24)\",\"at ManifestStore.through (/x/out/main/index.js:54504:38)\",\"at ManifestStore.getSession (/x/out/main/index.js:54186:17)\",\"at /x/out/main/index.js:66064:34\",\"at runNextTicks (node:internal/process/task_queues:65:5)\",\"at listOnTimeout (node:internal/timers:567:9)\",\"at process.processTimers (node:internal/timers:541:7)\"],\"messageChars\":142}",
+          "{\"ts\":\"2026-11-05T20:00:23.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error MANIFEST_STOPPED\",\"key\":\"e3b84d6a3c622e514aad886365bf9857d1867afdd2b03f44a038bc3119beadaf\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"frames\":[\"at manifestStoppedError (/x/out/main/index.js:53984:24)\",\"at ManifestStore.through (/x/out/main/index.js:54504:38)\",\"at ManifestStore.getSession (/x/out/main/index.js:54186:17)\",\"at /x/out/main/index.js:66064:34\"],\"messageChars\":142}",
+          "{\"ts\":\"2026-11-05T20:00:23.000Z\",\"level\":\"warn\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.repeats\",\"msg\":\"errors seen more than once this run\",\"repeats\":[{\"key\":\"3ead33c3b6ed2f1e700bd28c51aa6e48d0c9a19ce116b0b297879a287e1303ff\",\"count\":13},{\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"count\":2}]}",
+          "{\"ts\":\"2026-11-05T20:00:24.000Z\",\"level\":\"info\",\"scope\":\"quit\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"restart asked: a harness launch is not relaunched\"}"
+        ]
+      },
+      "expect": "pass"
+    },
+    {
+      "arm": "HB",
+      "name": "HB too: beside them, a rejection of another code is a finding",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:19.000Z\",\"level\":\"error\",\"scope\":\"manifest\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"manifest.stopped\",\"msg\":\"the session list stopped reading correctly\",\"operation\":\"listSessions\",\"code\":\"SQLITE_CORRUPT\",\"file\":\"fine\",\"check\":\"integrity_check\",\"checkMs\":1.4,\"detail\":\"ok\"}",
+          "{\"ts\":\"2026-11-05T20:00:20.000Z\",\"level\":\"warn\",\"scope\":\"notice\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"notice.shown\",\"msg\":\"notice shown: manifest-stopped\",\"notice\":\"manifest-stopped\",\"fileFine\":true}",
+          "{\"ts\":\"2026-11-05T20:00:21.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error P357_CONTROL\",\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:22.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error P357_CONTROL_REJECTION\",\"key\":\"d8e905be9ddc226f0bf68f61da7af9af22d9c556d1257456a152c6bbfdd3fc9f\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"P357_CONTROL_REJECTION\",\"frames\":[\"at Timeout._onTimeout (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:75:27)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:23.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error MANIFEST_STOPPED\",\"key\":\"3ead33c3b6ed2f1e700bd28c51aa6e48d0c9a19ce116b0b297879a287e1303ff\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"frames\":[\"at manifestStoppedError (/x/out/main/index.js:53984:24)\",\"at ManifestStore.through (/x/out/main/index.js:54504:38)\",\"at ManifestStore.getSession (/x/out/main/index.js:54186:17)\",\"at /x/out/main/index.js:66064:34\",\"at runNextTicks (node:internal/process/task_queues:65:5)\",\"at listOnTimeout (node:internal/timers:567:9)\",\"at process.processTimers (node:internal/timers:541:7)\"],\"messageChars\":142}",
+          "{\"ts\":\"2026-11-05T20:00:23.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error MANIFEST_STOPPED\",\"key\":\"e3b84d6a3c622e514aad886365bf9857d1867afdd2b03f44a038bc3119beadaf\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"frames\":[\"at manifestStoppedError (/x/out/main/index.js:53984:24)\",\"at ManifestStore.through (/x/out/main/index.js:54504:38)\",\"at ManifestStore.getSession (/x/out/main/index.js:54186:17)\",\"at /x/out/main/index.js:66064:34\"],\"messageChars\":142}",
+          "{\"ts\":\"2026-11-05T20:00:23.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"origin\":\"rejection\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: SqliteError SQLITE_CORRUPT\",\"key\":\"7dc801a1bdc101f26dac6c6b8befc3b4a7e8fd2ea9ead083c5ce9e768fc84359\",\"name\":\"SqliteError\",\"code\":\"SQLITE_CORRUPT\",\"frames\":[\"at Statement.get (/x/out/main/index.js:51010:12)\"],\"message\":\"database disk image is malformed\"}",
+          "{\"ts\":\"2026-11-05T20:00:23.000Z\",\"level\":\"warn\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.repeats\",\"msg\":\"errors seen more than once this run\",\"repeats\":[{\"key\":\"3ead33c3b6ed2f1e700bd28c51aa6e48d0c9a19ce116b0b297879a287e1303ff\",\"count\":13},{\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"count\":2}]}",
+          "{\"ts\":\"2026-11-05T20:00:24.000Z\",\"level\":\"info\",\"scope\":\"quit\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"restart asked: a harness launch is not relaunched\"}"
+        ]
+      },
+      "mustFail": [
+        "app.log holds no crash record but the counter’s own controls and the stopped list’s own refusals as rejections with no message text, and no control message text"
+      ]
+    },
+    {
+      "arm": "HC",
+      "name": "a real-shaped HEAD app.log",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:25.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error P357_CONTROL\",\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:26.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error P357_CONTROL_REJECTION\",\"key\":\"d8e905be9ddc226f0bf68f61da7af9af22d9c556d1257456a152c6bbfdd3fc9f\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"P357_CONTROL_REJECTION\",\"frames\":[\"at Timeout._onTimeout (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:75:27)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:27.000Z\",\"level\":\"warn\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.repeats\",\"msg\":\"errors seen more than once this run\",\"repeats\":[{\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"count\":2}]}"
+        ]
+      },
+      "expect": "pass"
+    },
+    {
+      "arm": "HC",
+      "name": "the repeats list another key first: the control’s own key is still the one read",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:25.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error P357_CONTROL\",\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:26.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error P357_CONTROL_REJECTION\",\"key\":\"d8e905be9ddc226f0bf68f61da7af9af22d9c556d1257456a152c6bbfdd3fc9f\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"P357_CONTROL_REJECTION\",\"frames\":[\"at Timeout._onTimeout (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:75:27)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:30.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error MANIFEST_STOPPED\",\"key\":\"5bb5dbb808333ac4d7abcfb922ec4d38c19d7f02adb5e3119247507883e29381\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"MANIFEST_STOPPED\",\"frames\":[\"at ManifestStore.through (/x/out/main/index.js:4001:20)\"],\"messageChars\":160}",
+          "{\"ts\":\"2026-11-05T20:00:35.000Z\",\"level\":\"warn\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.repeats\",\"msg\":\"errors seen more than once this run\",\"repeats\":[{\"key\":\"5bb5dbb808333ac4d7abcfb922ec4d38c19d7f02adb5e3119247507883e29381\",\"count\":5},{\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"count\":2}]}"
+        ]
+      },
+      "expect": "pass"
+    },
+    {
+      "arm": "HC",
+      "name": "the control’s key is absent from the repeats",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:25.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error P357_CONTROL\",\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:26.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error P357_CONTROL_REJECTION\",\"key\":\"d8e905be9ddc226f0bf68f61da7af9af22d9c556d1257456a152c6bbfdd3fc9f\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"P357_CONTROL_REJECTION\",\"frames\":[\"at Timeout._onTimeout (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:75:27)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:36.000Z\",\"level\":\"warn\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.repeats\",\"msg\":\"errors seen more than once this run\",\"repeats\":[{\"key\":\"5bb5dbb808333ac4d7abcfb922ec4d38c19d7f02adb5e3119247507883e29381\",\"count\":2}]}"
+        ]
+      },
+      "mustFail": [
+        "crash.repeats at quit counts 2 under the uncaught record’s own key"
+      ]
+    },
+    {
+      "arm": "HC",
+      "name": "a rejection that is not the control’s beside it is not counted as the control’s",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:25.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error P357_CONTROL\",\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:26.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error P357_CONTROL_REJECTION\",\"key\":\"d8e905be9ddc226f0bf68f61da7af9af22d9c556d1257456a152c6bbfdd3fc9f\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"P357_CONTROL_REJECTION\",\"frames\":[\"at Timeout._onTimeout (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:75:27)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:27.000Z\",\"level\":\"warn\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.repeats\",\"msg\":\"errors seen more than once this run\",\"repeats\":[{\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"count\":2}]}",
+          "{\"ts\":\"2026-11-05T20:00:37.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error ERR_OTHER\",\"key\":\"5bb5dbb808333ac4d7abcfb922ec4d38c19d7f02adb5e3119247507883e29381\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"ERR_OTHER\",\"frames\":[],\"messageChars\":9}"
+        ]
+      },
+      "expect": "pass"
+    },
+    {
+      "arm": "HC",
+      "name": "a PLANTED MESSAGE CANARY in the record’s frames",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:26.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error P357_CONTROL_REJECTION\",\"key\":\"d8e905be9ddc226f0bf68f61da7af9af22d9c556d1257456a152c6bbfdd3fc9f\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"P357_CONTROL_REJECTION\",\"frames\":[\"at Timeout._onTimeout (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:75:27)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:27.000Z\",\"level\":\"warn\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.repeats\",\"msg\":\"errors seen more than once this run\",\"repeats\":[{\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"count\":2}]}",
+          "{\"ts\":\"2026-11-05T20:00:31.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error P357_CONTROL\",\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"frames\":[\"at Error: p357-control-exception\",\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"],\"messageChars\":22}"
+        ]
+      },
+      "mustFail": [
+        "no control message text anywhere in app.log"
+      ]
+    },
+    {
+      "arm": "HC",
+      "name": "the record carried the message text itself",
+      "derive": {
+        "appLog": [
+          "{\"ts\":\"2026-11-05T20:00:10.000Z\",\"level\":\"info\",\"scope\":\"boot\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"boot\"}",
+          "{\"ts\":\"2026-11-05T20:00:11.000Z\",\"level\":\"info\",\"scope\":\"tmux\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"macOS login session: present\"}",
+          "{\"ts\":\"2026-11-05T20:00:12.000Z\",\"level\":\"info\",\"scope\":\"sessions\",\"pid\":4242,\"proctype\":\"main\",\"msg\":\"reconciled 357 rows against 4 live sessions\"}",
+          "{\"ts\":\"2026-11-05T20:00:26.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.rejection\",\"msg\":\"unhandled rejection: Error P357_CONTROL_REJECTION\",\"key\":\"d8e905be9ddc226f0bf68f61da7af9af22d9c556d1257456a152c6bbfdd3fc9f\",\"origin\":\"rejection\",\"name\":\"Error\",\"code\":\"P357_CONTROL_REJECTION\",\"frames\":[\"at Timeout._onTimeout (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:75:27)\"],\"messageChars\":22}",
+          "{\"ts\":\"2026-11-05T20:00:27.000Z\",\"level\":\"warn\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.repeats\",\"msg\":\"errors seen more than once this run\",\"repeats\":[{\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"count\":2}]}",
+          "{\"ts\":\"2026-11-05T20:00:38.000Z\",\"level\":\"error\",\"scope\":\"crash\",\"pid\":4242,\"proctype\":\"main\",\"event\":\"crash.uncaught\",\"msg\":\"uncaught exception: Error P357_CONTROL\",\"key\":\"be685a5a33de1717ff757face29f2e581c94133491f4d8d7af808676cdc1780f\",\"origin\":\"uncaught\",\"name\":\"Error\",\"code\":\"P357_CONTROL\",\"frames\":[\"at Timeout.controlThrow [as _onTimeout] (/private/var/tmp/tortie-wt/wt-p357/build/p357/counter.cjs:70:13)\",\"at listOnTimeout (node:internal/timers:588:17)\",\"at process.processTimers (node:internal/timers:523:7)\"],\"message\":\"p357-control-exception\"}"
+        ]
+      },
+      "mustFail": [
+        "one crash.uncaught record for the two identical exceptions (name Error, code P357_CONTROL, its length and never its text)",
+        "no control message text anywhere in app.log"
+      ]
+    },
+    {
+      "arm": "HQ",
+      "name": "at its bound: the parent’s 591 ms and two seconds",
+      "derive": {},
+      "ops": [
+        {
+          "set": "headMs",
+          "value": 2591
+        }
+      ],
+      "expect": "pass"
+    },
+    {
+      "arm": "HQ",
+      "name": "one millisecond past its bound",
+      "derive": {},
+      "ops": [
+        {
+          "set": "headMs",
+          "value": 2592
+        }
+      ],
+      "mustFail": [
+        "HEAD’s quit took at most twice the parent’s, or two seconds more, whichever is longer"
+      ]
+    },
+    {
+      "arm": "HQ",
+      "name": "a slow parent: twice its 2,783 ms bounds it",
+      "derive": {},
+      "ops": [
+        {
+          "set": "parentMs",
+          "value": 2783
+        },
+        {
+          "set": "headMs",
+          "value": 5566
+        }
+      ],
+      "expect": "pass"
+    },
+    {
+      "arm": "HQ",
+      "name": "a slow parent: one millisecond past twice its time",
+      "derive": {},
+      "ops": [
+        {
+          "set": "parentMs",
+          "value": 2783
+        },
+        {
+          "set": "headMs",
+          "value": 5567
+        }
+      ],
+      "mustFail": [
+        "HEAD’s quit took at most twice the parent’s, or two seconds more, whichever is longer"
+      ]
+    }
+  ]
+}

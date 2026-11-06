@@ -108,6 +108,11 @@ import {
   type RingTakeResult,
   type SessionIdWatch
 } from '../manifest';
+// PHASE 357 (build/p357/SPEC.md D19, D20). The one question this file asks of a
+// store refusal: did the session list stop reading correctly? Direct rather
+// than through the barrel, as ../restart does for the record type, so the
+// barrel's export list stays the store builder's.
+import { isManifestStopped } from '../manifest/store';
 // The one channel main uses to say a durability layer is degraded, and the
 // owner of the once-per-run latch (Phase 19 item 9). Never broadcast a
 // DurabilityNotice directly — the latch is the point of the module.
@@ -1100,6 +1105,18 @@ export class GmuxCore {
   onSessionsBroadcast: ((sessions: Session[]) => void) | null = null;
 
   /**
+   * PHASE 357 (build/p357/SPEC.md D19). The last list {@link listSessions}
+   * composed and returned, read only once the store has refused with
+   * `MANIFEST_STOPPED`: the window, the tray and the phone then keep the list
+   * that read cleanly instead of a throw from a timer. Null until a compose
+   * returns. A seam test's plain or `Object.create` host runs no field
+   * initializer and reads it as undefined, which `?? []` treats the same.
+   */
+  private lastCleanList: Session[] | null = null;
+  /** PHASE 357. The same, for {@link listProjects}. */
+  private lastCleanProjects: Project[] | null = null;
+
+  /**
    * PHASE 316. What the activity feed last said about one session: the
    * question it is asking, the choice it drew and when tmux last saw output.
    * A READ of the map written beside the `activity:changed` broadcast; it
@@ -1119,6 +1136,17 @@ export class GmuxCore {
    */
   tmuxIdOf(sessionId: string): string | null {
     return this.liveIds.get(sessionId) ?? null;
+  }
+
+  /**
+   * PHASE 357 (build/p357/SPEC.md D22). Whether the store has stopped because
+   * the session list stopped reading correctly. A READ of the store's latch
+   * itself, which touches no SQLite, so it is true whichever path latched it:
+   * a timer, an IPC call, a remote pass or the ring's fingerprint. The phone's
+   * door asks it before any other read (../pocket/facts.ts).
+   */
+  manifestStopped(): boolean {
+    return this.manifest.stoppedReading();
   }
 
   private constructor(manifest: ManifestStore) {
@@ -1448,19 +1476,27 @@ export class GmuxCore {
    * liveness the boundary just said it cannot back.
    */
   private applyDetectedStatus(sessionId: string, status: SessionStatus): void {
-    const rec = this.manifest.getSession(sessionId);
-    if (
-      !rec ||
-      rec.status === 'exited' ||
-      rec.status === 'restorable' ||
-      rec.status === 'unknown'
-    ) {
-      return;
+    // PHASE 357 (build/p357/SPEC.md D20). A session list that stopped reading
+    // correctly writes no flip: the store's refusal is held here and nothing
+    // more happens for this verdict, so the tick goes on and the window keeps
+    // the last list that read cleanly. Any other error is rethrown unchanged.
+    try {
+      const rec = this.manifest.getSession(sessionId);
+      if (
+        !rec ||
+        rec.status === 'exited' ||
+        rec.status === 'restorable' ||
+        rec.status === 'unknown'
+      ) {
+        return;
+      }
+      if (rec.status === status) return;
+      this.manifest.setStatus(sessionId, status);
+      broadcast(EVT_STATUS_CHANGED, sessionId, status);
+      this.scheduleSessionsBroadcast();
+    } catch (err) {
+      if (!isManifestStopped(err)) throw err;
     }
-    if (rec.status === status) return;
-    this.manifest.setStatus(sessionId, status);
-    broadcast(EVT_STATUS_CHANGED, sessionId, status);
-    this.scheduleSessionsBroadcast();
   }
 
   /**
@@ -1812,9 +1848,16 @@ export class GmuxCore {
       // non-exited row flips to 'restorable'. Snapshot first, best-effort:
       // if the server still lives (clean detach) the captures succeed; if it
       // is truly dead they fail harmlessly (research 09 §B.4 capture point).
-      void this.snapshotAllSessions('server-exit').finally(() =>
-        this.scheduleRefresh()
-      );
+      //
+      // PHASE 357 (build/p357/SPEC.md D20). A pass the store refused because
+      // the session list stopped reading correctly is held here rather than
+      // left as an unhandled rejection; the refresh is scheduled either way,
+      // and any other rejection propagates exactly as it did.
+      void this.snapshotAllSessions('server-exit')
+        .catch((err: unknown) => {
+          if (!isManifestStopped(err)) throw err;
+        })
+        .finally(() => this.scheduleRefresh());
     });
     this.control.on('error', (err) => {
       sessionsLog.warn(`control client: ${err.message}`);
@@ -1825,11 +1868,21 @@ export class GmuxCore {
     if (tmux.isControlSession(tmuxName)) return;
     const sessionId = this.byTmuxId.get(tmuxId);
     if (sessionId === undefined) return;
-    const rec = this.manifest.getSession(sessionId);
-    if (!rec || rec.tmuxName === tmuxName) return; // our own rename, synced
-    // Renamed outside gmux (or race): tmux-side name is truth for both.
-    this.manifest.renameSession(sessionId, tmuxName, tmuxName);
-    this.broadcastSessions();
+    // PHASE 357 (build/p357/SPEC.md D20). This runs inside the control
+    // client's line loop, so a throw here was an uncaught exception that also
+    // dropped the rest of that chunk's lines (measured at the parent, 2 of 2
+    // renames). A session list that stopped reading correctly records nothing:
+    // the rename has landed in tmux and the window keeps the last list that
+    // read cleanly. Any other error is rethrown unchanged.
+    try {
+      const rec = this.manifest.getSession(sessionId);
+      if (!rec || rec.tmuxName === tmuxName) return; // our own rename, synced
+      // Renamed outside gmux (or race): tmux-side name is truth for both.
+      this.manifest.renameSession(sessionId, tmuxName, tmuxName);
+      this.broadcastSessions();
+    } catch (err) {
+      if (!isManifestStopped(err)) throw err;
+    }
   }
 
   private async handleUnexpectedAttachExit(sessionId: string): Promise<void> {
@@ -1846,19 +1899,27 @@ export class GmuxCore {
       if (row !== null) markMachineQuiet(row.machineId);
       return;
     }
-    const rec = this.manifest.getSession(sessionId);
-    if (!rec || rec.status === 'exited' || rec.status === 'restorable') return;
-    // F1: no live binding ⇒ this session is not ours to ask about. Let the
-    // refresh below flip the row to 'restorable'.
-    const target = this.liveIds.get(sessionId);
-    if (target !== undefined) {
-      try {
-        if (await tmux.hasSession(target)) return; // hiccup, session lives
-      } catch {
-        /* unreachable server → refresh sorts out restorable-vs-exited */
+    // PHASE 357 (build/p357/SPEC.md D20). The attach host fires this without
+    // awaiting it, so a store refusal was an unhandled rejection with nothing
+    // to show for it. A session list that stopped reading correctly answers
+    // nothing more here; any other error is rethrown unchanged.
+    try {
+      const rec = this.manifest.getSession(sessionId);
+      if (!rec || rec.status === 'exited' || rec.status === 'restorable') return;
+      // F1: no live binding ⇒ this session is not ours to ask about. Let the
+      // refresh below flip the row to 'restorable'.
+      const target = this.liveIds.get(sessionId);
+      if (target !== undefined) {
+        try {
+          if (await tmux.hasSession(target)) return; // hiccup, session lives
+        } catch {
+          /* unreachable server → refresh sorts out restorable-vs-exited */
+        }
       }
+      this.scheduleRefresh();
+    } catch (err) {
+      if (!isManifestStopped(err)) throw err;
     }
-    this.scheduleRefresh();
   }
 
   // -------------------------------------------------------------------------
@@ -2680,76 +2741,85 @@ export class GmuxCore {
     exitCode: number | undefined,
     deadSignal: string | undefined
   ): Promise<void> {
-    const rec = this.manifest.getSession(sessionId);
-    if (!rec || rec.status === 'exited') return; // gmux's own kill got here first
-    this.attachHost.detach(sessionId); // expected teardown, not a surprise
-    // F1: a session we cannot bind to a live tmux id is not ours. Record the
-    // death, kill NOTHING.
-    const target = this.liveIds.get(sessionId);
-    // A holder rather than a bare `let`, because a value assigned inside a
-    // callback is not something the compiler can follow through the await
-    // below.
-    const captured: { text: string | null } = { text: null };
-    if (target !== undefined) {
-      await captureSessionSnapshot(target, sessionId, {
-        reason: 'session-death',
-        session: snapshotRecipeOf(rec),
-        // Phase 48. The capture is already holding the pane's text and is
-        // about to keep only the parts a replay needs. This sink is where the
-        // reaper takes its copy.
-        onPaneText: (text) => {
-          captured.text = text;
-        }
-      }).catch(() => undefined);
-      await tmux.killSession(target).catch(() => undefined);
-      this.byTmuxId.delete(target);
+    // PHASE 357 (build/p357/SPEC.md D20). The activity poll fires this
+    // without awaiting it, so a store refusal was an unhandled rejection. A
+    // session list that stopped reading correctly records nothing more here:
+    // the pane has already died, and the window keeps the last list that
+    // read cleanly. Any other error is rethrown unchanged.
+    try {
+      const rec = this.manifest.getSession(sessionId);
+      if (!rec || rec.status === 'exited') return; // gmux's own kill got here first
+      this.attachHost.detach(sessionId); // expected teardown, not a surprise
+      // F1: a session we cannot bind to a live tmux id is not ours. Record the
+      // death, kill NOTHING.
+      const target = this.liveIds.get(sessionId);
+      // A holder rather than a bare `let`, because a value assigned inside a
+      // callback is not something the compiler can follow through the await
+      // below.
+      const captured: { text: string | null } = { text: null };
+      if (target !== undefined) {
+        await captureSessionSnapshot(target, sessionId, {
+          reason: 'session-death',
+          session: snapshotRecipeOf(rec),
+          // Phase 48. The capture is already holding the pane's text and is
+          // about to keep only the parts a replay needs. This sink is where the
+          // reaper takes its copy.
+          onPaneText: (text) => {
+            captured.text = text;
+          }
+        }).catch(() => undefined);
+        await tmux.killSession(target).catch(() => undefined);
+        this.byTmuxId.delete(target);
+      }
+      this.liveIds.delete(sessionId);
+      // One write, not two: the detail goes into the same patch that already
+      // carries the status and both halves of the cause.
+      //
+      // THE DETAIL IS ALWAYS STATED, and `null` is how "nothing" is stated
+      // (Phase 48 fix round). Omitting the field left the previous death's
+      // sentence on a row that reconcile had flipped back to 'running' and that
+      // then died a second time in silence, so the user read the first death's
+      // words under the second death's exit code.
+      const exitDetail =
+        captured.text === null ? null : (exitDetailFrom(captured.text) ?? null);
+      this.manifest.updateSession(sessionId, {
+        status: 'exited',
+        lastSeen: Date.now(),
+        exitDetail,
+        ...(exitCode !== undefined ? { exitCode } : {}),
+        ...(deadSignal !== undefined ? { exitSignal: deadSignal } : {})
+      });
+      // The wrapper's own flush is the one that did NOT happen here (a
+      // non-zero exit takes the CLI's os.Exit mirror path), so this is the
+      // sync that keeps the last turn of the conversation.
+      this.queueCaptureSync(rec);
+      // The manifest row is the record of truth but it dies with a discard —
+      // this line is the copy that survives in the app log (research 21 §10).
+      //
+      // Phase 115. For a captured session the wrapper field names the process
+      // this death actually describes. tmux execs argv[0], and wrapArgv puts
+      // the specstory binary there, so the reaped process was specstory and
+      // the agent ran inside it. Without this field a killed capture wrapper
+      // reads in the log as a killed agent.
+      sessionsLog.warn(
+        `session death: id=${sessionId} name="${rec.name}" ` +
+          `agent=${rec.agent} tmux=${target ?? '(unbound)'} ` +
+          `pane_pid=${rec.panePid ?? '?'} exit=${exitCode ?? ''} ` +
+          `signal=${deadSignal ?? ''}` +
+          (rec.specstory?.enabled === true
+            ? ` wrapper=specstory@${rec.specstory.binVersion ?? '?'}`
+            : '')
+      );
+      this.activity.forget(sessionId);
+      // PHASE 141, added at integration. A session that has ended holds no
+      // handback, and this is what tells every window to drop the record rather
+      // than leaving it for the next sweep.
+      this.resumeInPlace.forget(sessionId);
+      this.hookServer.revoke(sessionId);
+      broadcast(EVT_STATUS_CHANGED, sessionId, 'exited');
+    } catch (err) {
+      if (!isManifestStopped(err)) throw err;
     }
-    this.liveIds.delete(sessionId);
-    // One write, not two: the detail goes into the same patch that already
-    // carries the status and both halves of the cause.
-    //
-    // THE DETAIL IS ALWAYS STATED, and `null` is how "nothing" is stated
-    // (Phase 48 fix round). Omitting the field left the previous death's
-    // sentence on a row that reconcile had flipped back to 'running' and that
-    // then died a second time in silence, so the user read the first death's
-    // words under the second death's exit code.
-    const exitDetail =
-      captured.text === null ? null : (exitDetailFrom(captured.text) ?? null);
-    this.manifest.updateSession(sessionId, {
-      status: 'exited',
-      lastSeen: Date.now(),
-      exitDetail,
-      ...(exitCode !== undefined ? { exitCode } : {}),
-      ...(deadSignal !== undefined ? { exitSignal: deadSignal } : {})
-    });
-    // The wrapper's own flush is the one that did NOT happen here (a
-    // non-zero exit takes the CLI's os.Exit mirror path), so this is the
-    // sync that keeps the last turn of the conversation.
-    this.queueCaptureSync(rec);
-    // The manifest row is the record of truth but it dies with a discard —
-    // this line is the copy that survives in the app log (research 21 §10).
-    //
-    // Phase 115. For a captured session the wrapper field names the process
-    // this death actually describes. tmux execs argv[0], and wrapArgv puts
-    // the specstory binary there, so the reaped process was specstory and
-    // the agent ran inside it. Without this field a killed capture wrapper
-    // reads in the log as a killed agent.
-    sessionsLog.warn(
-      `session death: id=${sessionId} name="${rec.name}" ` +
-        `agent=${rec.agent} tmux=${target ?? '(unbound)'} ` +
-        `pane_pid=${rec.panePid ?? '?'} exit=${exitCode ?? ''} ` +
-        `signal=${deadSignal ?? ''}` +
-        (rec.specstory?.enabled === true
-          ? ` wrapper=specstory@${rec.specstory.binVersion ?? '?'}`
-          : '')
-    );
-    this.activity.forget(sessionId);
-    // PHASE 141, added at integration. A session that has ended holds no
-    // handback, and this is what tells every window to drop the record rather
-    // than leaving it for the next sweep.
-    this.resumeInPlace.forget(sessionId);
-    this.hookServer.revoke(sessionId);
-    broadcast(EVT_STATUS_CHANGED, sessionId, 'exited');
   }
 
   /**
@@ -3201,111 +3271,137 @@ export class GmuxCore {
    * therefore the session rail, search over sessions, Context and the
    * project tab rollup. The Past Sessions panel reads
    * {@link listRemovedSessions} instead.
+   *
+   * PHASE 357. Once the store has stopped because the session list stopped
+   * reading correctly, this answers the last list that read cleanly, or an
+   * empty list when none ever did, and never throws that refusal.
    */
   listSessions(): Session[] {
-    // PHASE 72. ONE ROW PER ID, and this merge is the part of the rung most
-    // likely to go wrong, so the rule is written out rather than left in the
-    // shape of the code.
-    //
-    // Before this, a remote session had no manifest row and the two lists could
-    // simply be concatenated. Now a session Tortie created on a machine is in
-    // BOTH: a manifest row written at create time, and a feed row read from that
-    // machine every pass. Concatenating would draw it twice.
-    //
-    //   a manifest row on this Mac        toSession, unchanged
-    //   a manifest row on a machine       projected by that machine's own truth
-    //   a feed row with no manifest row   projected as it was in Phase 70
-    //
-    // The third case is not a leftover to clean up. It is every remote session
-    // created by 0.34 or 0.35, which wrote no row, and it is a session the pane
-    // environment rescue re-bound after a create lost its answer. Both are real
-    // sessions running right now, and dropping them from the list would hide
-    // work a person can see on the other machine.
-    const out: Session[] = [];
-    const covered = new Set<string>();
-    for (const rec of this.manifest.listSessions()) {
-      if (rec.status === 'discarded') continue;
-      covered.add(rec.id);
-      if (rec.machineId === undefined || rec.machineId === LOCAL_MACHINE) {
-        out.push(toSession(rec));
-        continue;
+    // PHASE 357 (build/p357/SPEC.md D19). The compose is the body this method
+    // had, unchanged but for its indentation. It is an arrow rather than a
+    // second method so the seam tests that borrow `listSessions` onto a plain
+    // host holding `manifest` alone still reach every line of it.
+    const compose = (): Session[] => {
+      // PHASE 72. ONE ROW PER ID, and this merge is the part of the rung most
+      // likely to go wrong, so the rule is written out rather than left in the
+      // shape of the code.
+      //
+      // Before this, a remote session had no manifest row and the two lists could
+      // simply be concatenated. Now a session Tortie created on a machine is in
+      // BOTH: a manifest row written at create time, and a feed row read from that
+      // machine every pass. Concatenating would draw it twice.
+      //
+      //   a manifest row on this Mac        toSession, unchanged
+      //   a manifest row on a machine       projected by that machine's own truth
+      //   a feed row with no manifest row   projected as it was in Phase 70
+      //
+      // The third case is not a leftover to clean up. It is every remote session
+      // created by 0.34 or 0.35, which wrote no row, and it is a session the pane
+      // environment rescue re-bound after a create lost its answer. Both are real
+      // sessions running right now, and dropping them from the list would hide
+      // work a person can see on the other machine.
+      const out: Session[] = [];
+      const covered = new Set<string>();
+      for (const rec of this.manifest.listSessions()) {
+        if (rec.status === 'discarded') continue;
+        covered.add(rec.id);
+        if (rec.machineId === undefined || rec.machineId === LOCAL_MACHINE) {
+          out.push(toSession(rec));
+          continue;
+        }
+        // PHASE 72, SECOND FIX ROUND. `toSession` stamps the instant of the copy
+        // for a local row. `projectRemoteRecord` cannot, because the machines
+        // layer is not allowed to reach into the restore layer and its own test
+        // holds that rule. So the stamp happens here, which is the one place the
+        // two lists are merged, exactly as it does in the feed loop below.
+        //
+        // Without it the saved output panel was unreachable for every remote
+        // session that HAS a manifest row, which is every remote session this
+        // build creates. The copies were on disk the whole time. The menu item
+        // stayed disabled and the kept-here line never drew, because both read
+        // this field.
+        const remote = atHomeOnItsMachine(projectRemoteRecord(rec));
+        const remoteSavedAt = savedOutputAt(remote.id);
+        // PHASE 93, FIX ROUND, and it was found by driving a real machine rather
+        // than by reading the code. `projectRemoteRecord` builds a session from
+        // eight named fields and the record's tab stamp is not one of them, so a
+        // remote row reached the window with no record of the tab a person had
+        // closed. `jumpToSession` reads exactly that field to decide whether a
+        // tab coming back needs a sentence, so every remote session was told it
+        // never had a tab. It is stamped HERE for the same reason
+        // `savedOutputAt` is: this is the one place the two lists are merged, and
+        // the machines layer is not allowed to reach into the manifest's codecs.
+        const withTab =
+          rec.projectTombstone === undefined
+            ? remote
+            : {
+                ...remote,
+                closedProject: {
+                  name: rec.projectTombstone.projectName,
+                  path: rec.projectTombstone.path,
+                  closedAt: rec.projectTombstone.closedAt
+                }
+              };
+        out.push(
+          remoteSavedAt === null
+            ? withTab
+            : { ...withTab, savedOutputAt: remoteSavedAt }
+        );
       }
-      // PHASE 72, SECOND FIX ROUND. `toSession` stamps the instant of the copy
-      // for a local row. `projectRemoteRecord` cannot, because the machines
-      // layer is not allowed to reach into the restore layer and its own test
-      // holds that rule. So the stamp happens here, which is the one place the
-      // two lists are merged, exactly as it does in the feed loop below.
+      for (const session of remoteSessions()) {
+        if (covered.has(session.id)) continue;
+        // PHASE 90.3. The folder the machine reports, so a feed row lands in the
+        // tab for a folder on that machine rather than under a tab on this Mac.
+        const shown = atHomeOnItsMachine(session);
+        // PHASE 72 FIX ROUND. A feed row has no manifest row, so `toSession` never
+        // saw it and nothing stamped the instant of the copy Tortie keeps of its
+        // output. The menu item that opens the saved output panel is offered only
+        // for a row that carries one, so without this the panel was unreachable
+        // for exactly the rows an older Tortie created.
+        //
+        // It is stamped HERE rather than in the machines layer because that layer
+        // is not allowed to reach into the restore layer, which is a rule its own
+        // test holds. This is the one place the two lists are merged, so it is the
+        // one place a field that comes from a third place belongs.
+        const savedAt = savedOutputAt(session.id);
+        out.push(savedAt === null ? shown : { ...shown, savedOutputAt: savedAt });
+      }
+      // PHASE 152. Where the agent keeps this conversation's record, stamped in
+      // the one place the two lists are merged, for exactly the reason
+      // `savedOutputAt` is stamped here: it is a fact from a third place, it is
+      // the same fact for a local row and a remote one, and one surface drawing
+      // it from a second reading is how two answers to one question begin.
       //
-      // Without it the saved output panel was unreachable for every remote
-      // session that HAS a manifest row, which is every remote session this
-      // build creates. The copies were on disk the whole time. The menu item
-      // stayed disabled and the kept-here line never drew, because both read
-      // this field.
-      const remote = atHomeOnItsMachine(projectRemoteRecord(rec));
-      const remoteSavedAt = savedOutputAt(remote.id);
-      // PHASE 93, FIX ROUND, and it was found by driving a real machine rather
-      // than by reading the code. `projectRemoteRecord` builds a session from
-      // eight named fields and the record's tab stamp is not one of them, so a
-      // remote row reached the window with no record of the tab a person had
-      // closed. `jumpToSession` reads exactly that field to decide whether a
-      // tab coming back needs a sentence, so every remote session was told it
-      // never had a tab. It is stamped HERE for the same reason
-      // `savedOutputAt` is: this is the one place the two lists are merged, and
-      // the machines layer is not allowed to reach into the manifest's codecs.
-      const withTab =
-        rec.projectTombstone === undefined
-          ? remote
-          : {
-              ...remote,
-              closedProject: {
-                name: rec.projectTombstone.projectName,
-                path: rec.projectTombstone.path,
-                closedAt: rec.projectTombstone.closedAt
-              }
-            };
-      out.push(
-        remoteSavedAt === null
-          ? withTab
-          : { ...withTab, savedOutputAt: remoteSavedAt }
-      );
-    }
-    for (const session of remoteSessions()) {
-      if (covered.has(session.id)) continue;
-      // PHASE 90.3. The folder the machine reports, so a feed row lands in the
-      // tab for a folder on that machine rather than under a tab on this Mac.
-      const shown = atHomeOnItsMachine(session);
-      // PHASE 72 FIX ROUND. A feed row has no manifest row, so `toSession` never
-      // saw it and nothing stamped the instant of the copy Tortie keeps of its
-      // output. The menu item that opens the saved output panel is offered only
-      // for a row that carries one, so without this the panel was unreachable
-      // for exactly the rows an older Tortie created.
+      // It is derived rather than stored, and ../overview/reader is the one
+      // resolver that derives it. The cost per row is one stat for a session
+      // whose record is already known, and the whole list is handed over in one
+      // call so that the re-asking about rows whose record is NOT known yet has a
+      // budget for the pass rather than a cost per row. See ./record-path.ts.
       //
-      // It is stamped HERE rather than in the machines layer because that layer
-      // is not allowed to reach into the restore layer, which is a rule its own
-      // test holds. This is the one place the two lists are merged, so it is the
-      // one place a field that comes from a third place belongs.
-      const savedAt = savedOutputAt(session.id);
-      out.push(savedAt === null ? shown : { ...shown, savedOutputAt: savedAt });
+      // PHASE 344. A session on another machine with no stamp of its own carries
+      // its folder's record of a close, because since this phase a close is
+      // recorded for the folder itself and a session this Mac holds no row for
+      // has no stamp. The window's memo re-reads the project list when that
+      // record appears or goes, and Go to session reads it. One point read per
+      // such session; a session on this Mac is never touched.
+      return stampRecordLocations(withClosedFolderRecords(out, (m, p) => this.manifest.closedRemoteFolder(m, p)));
+    };
+    try {
+      const list = compose();
+      // A copy is kept, never the answer itself, so a caller that sorts or
+      // splices the array it was handed cannot change what a stopped list
+      // answers later (the fix round).
+      this.lastCleanList = [...list];
+      return list;
+    } catch (err) {
+      // The store refused before SQLite because the session list stopped
+      // reading correctly. Answer the last list that read cleanly, as a copy
+      // so no caller can edit what the next one is handed, which is what
+      // keeps a broadcast from a timer from throwing. Anything else is
+      // today's error, unchanged.
+      if (!isManifestStopped(err)) throw err;
+      return [...(this.lastCleanList ?? [])];
     }
-    // PHASE 152. Where the agent keeps this conversation's record, stamped in
-    // the one place the two lists are merged, for exactly the reason
-    // `savedOutputAt` is stamped here: it is a fact from a third place, it is
-    // the same fact for a local row and a remote one, and one surface drawing
-    // it from a second reading is how two answers to one question begin.
-    //
-    // It is derived rather than stored, and ../overview/reader is the one
-    // resolver that derives it. The cost per row is one stat for a session
-    // whose record is already known, and the whole list is handed over in one
-    // call so that the re-asking about rows whose record is NOT known yet has a
-    // budget for the pass rather than a cost per row. See ./record-path.ts.
-    //
-    // PHASE 344. A session on another machine with no stamp of its own carries
-    // its folder's record of a close, because since this phase a close is
-    // recorded for the folder itself and a session this Mac holds no row for
-    // has no stamp. The window's memo re-reads the project list when that
-    // record appears or goes, and Go to session reads it. One point read per
-    // such session; a session on this Mac is never touched.
-    return stampRecordLocations(withClosedFolderRecords(out, (m, p) => this.manifest.closedRemoteFolder(m, p)));
   }
 
   /**
@@ -4122,8 +4218,25 @@ export class GmuxCore {
     return { ok: true, project, alreadyOpen };
   }
 
+  /**
+   * PHASE 357. Once the store has stopped because the session list stopped
+   * reading correctly, this answers the last project list that read cleanly,
+   * for the reason {@link listSessions} does, and never throws that refusal.
+   * It has to: the tray's blocked feed takes `onSessionsBroadcast` and reads
+   * this list inside EVERY broadcast (../tray/blocked-feed.ts), so a throw here
+   * escaped the very timer the session list stopped throwing from, and a
+   * window that reloads asks for both lists before it draws either.
+   */
   listProjects(): Project[] {
-    return this.manifest.listProjects();
+    try {
+      const projects = this.manifest.listProjects();
+      // A copy is kept, for the reason listSessions keeps one (the fix round).
+      this.lastCleanProjects = [...projects];
+      return projects;
+    } catch (err) {
+      if (!isManifestStopped(err)) throw err;
+      return [...(this.lastCleanProjects ?? [])];
+    }
   }
 
   removeProject(projectId: string): void {

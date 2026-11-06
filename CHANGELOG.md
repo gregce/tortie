@@ -4,6 +4,12 @@ Each commit appears once under Added, Changed or Fixed. Every bullet stays on on
 
 The operator set the style on 2026-08-23 by rewriting every entry, and it binds every entry after. An item is one or two sentences. It says what a person can now do or what no longer goes wrong, in plain words, and then stops. A limit that a person will hit goes in the same item in one clause, e.g. "Saves have no undo", and a limit nobody will hit stays in the commit body. No measured numbers unless the number is the point. No build story, no file names, no gate names. The lead paragraph says what the release is about in two or three sentences and lists nothing.
 
+## Unreleased
+
+### Fixed
+
+- If Tortie's session list stops reading correctly while it runs, Tortie says so once and offers a restart, instead of an error every few seconds and a crash when you quit; your sessions keep running either way
+
 ## 0.114.0 (2026-11-05)
 
 This release is about your iPhone, which gets build 13 of Tortie for iPhone on TestFlight. From your iPhone you can now rename a session or name a new one, scroll back through pi as you do Claude Code, and page through any agent that fills the screen. Your Mac asks you once, in Settings then Phone, to allow renaming.

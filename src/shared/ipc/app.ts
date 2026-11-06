@@ -943,3 +943,31 @@ export interface GmuxDiagnosticsDoorExtras {
  * payload and carries none.
  */
 export type FileHistoryMenuActionId = 'show-file-history';
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 357 (build/p357/SPEC.md D13). One invoke channel, the
+// Restart on the one notice that says the session list stopped reading
+// correctly while Tortie ran. New types only, nothing above was modified, and
+// folded into the two compositions in ./index.ts by one line each.
+// ---------------------------------------------------------------------------
+
+/**
+ * PHASE 357. The notice's Restart. Main does nothing unless this run posted
+ * the `manifest-stopped` notice, so no other surface can become a restart; in
+ * a harness launch it quits and never relaunches; otherwise it relaunches and
+ * quits. There is no automatic relaunch anywhere: a person presses Restart.
+ */
+export interface RelaunchInvokeChannelMap {
+  'app:relaunch': { req: []; res: void };
+}
+
+/**
+ * Top-level extra on window.gmux, required for the reason every installed
+ * member is (Phase 122): one preload, one `exposeInMainWorld` call. The one
+ * caller is the `manifest-stopped` notice's action in
+ * src/renderer/state/subscriptions.ts.
+ */
+export interface GmuxRelaunchExtras {
+  /** Restart Tortie, only after the session list stopped reading correctly. */
+  relaunch(): Promise<void>;
+}
