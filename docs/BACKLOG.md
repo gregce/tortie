@@ -44713,6 +44713,268 @@ stops costing a full release run") and met again by 0.114.0's first attempt.
 - No diagnostic build, no read of his crash dump; both wait for his word (research 143 §8 questions 6 and 7).
 - No release by itself.
 
+## Phase 359 — a second session core boots while Tortie quits (main session, from Phase 357's spec step, 2026-11-05)
+
+**Subject.** `fix(sessions): boot no session core once the quit has begun`
+
+**First body line.** `Phase 359: no second core boots during the quit`
+
+**Semver.** Patch. One CHANGELOG item under `### Fixed` only if the build measures something a person sees move. One case is expected, for example: if Tortie's session list is damaged when you quit, the next launch now tells you it was put back from a backup, instead of Tortie doing that while it quit and saying nothing.
+
+**Tier 3.** It decides when the session core may start. A core that starts inside a quit can quarantine and restore the manifest, spend a backup generation, write rows and mark a machine's sessions unknown, so it can lose or corrupt a person's work (`CLAUDE.md:268`). He did not report it, so the parent measurement is not required. It is still Method 1, because it is the proof that the defect is gone. Two independent methods at least, one of them an attack, and a fix round if any verdict is needs_work.
+
+**Charter.** Phase 357's spec step found this at 357's parent `0547383e` and recorded it as owed an entry. The sources are `build/p357/SPEC.md` §0.1 item 8 (`:125-130`), §2.2 run 2 (`:254-258`), the last row of §3's table (`:320`), §12 (`:620`), §13 item 2(a) (`:628-629`), and the "Owed entries" line of `5a6097ac`'s body.
+
+Phases 77 and 116 bind it. They closed this door for the shutdown's own window (`src/main/sessions/core.ts:4497-4522`, `:4604-4610`). They left the slot open after the shutdown on purpose, so a harness can boot again in one process (`:4613-4615`). Phase 144 stage 1's one-way quit flag (`src/main/lifecycle.ts:60-62`) is the precedent this phase extends.
+
+It starts after Phase 357.1 (the quit after damage no read saw) lands, and its parent is 357.1 as landed. 357.1 changes the end of the quit in `src/main/index.ts` (a `will-quit` hard exit) and `src/main/capabilities.ts`'s disposer, which this phase reads and may edit. A hard exit at every quit changes how long the quit's tail runs, so it can change whether the second boot happens at all.
+
+### What the tree says (read 2026-11-06 at `d0e11c31`)
+
+- **The slot reopens after the shutdown.** `getGmuxCore()` (`src/main/sessions/core.ts:4527-4545`) refuses only while its own lifecycle reads `shuttingDown` (`:4528-4530`). `shutdownGmuxCore()` sets that on its first synchronous line (`:4568`). In its `finally` it empties the slot and sets the lifecycle back to `empty` (`:4611-4615`). From then on, the next `getGmuxCore()` boots a new core (`:4531-4533`). That is the only production caller of `GmuxCore.boot()`.
+- **The quit keeps running after the shutdown.** The ordered disposer calls `shutdownGmuxCore()` at `src/main/capabilities.ts:883`. After it, the disposer still runs:
+  - the remote stops and joins (`:903-942`);
+  - a watcher drain of up to 3 s (`:948-993`);
+  - the worker joins (`:1008-1013`) and the tray (`:1022`);
+  - a late drain of up to 15 s that hides every window (`:1071-1112`, the hide at `:1082`);
+  - 357's hard exit (`:1126-1133`).
+
+  Then `before-quit` calls `app.quit()` (`src/main/index.ts:830-832`), and the window closes.
+- **Renderer calls cannot reach the slot.** The typed invoke wrapper refuses every invoke once `markAppQuitting()` has run (`src/main/typed-ipc.ts:53-59`, set at `src/main/index.ts:824`). Every production caller of `getGmuxCore()` outside the harness modules was read. Four can still run after the slot empties:
+  1. **Window focus and blur.** The poll cadence handler (`src/main/index.ts:728-739`) asks for the core in a `setTimeout(…, 0)`. The window closing at `app.quit()`, or being hidden by the late drain, can fire it. 357's spec named this the candidate, citing its parent's `:694-705`. It is not proved.
+  2. **Sleep and wake.** The power handlers' disposer (`src/main/power/index.ts:317-319`) is thrown away at `index.ts:760` and never called. So a suspend or a resume during the quit asks for the core (`index.ts:762`, `:778`, `:785`).
+  3. **Live Diagnostics.** Its tick (`src/main/diagnostics/live.ts:148`) reads the session facts through `getGmuxCore()` (`src/main/diagnostics/report.ts:237-239`, called from `finishCapture` at `:388-394`). That keeps happening until `stopLiveSampling()` runs at `capabilities.ts:983-985`, after the core shut down at `:883`. A tick lands in that gap only while the remote join waits (`:929`).
+  4. **A quit that lands before startup has asked for the core.** `shutdownGmuxCore()` returns at once when no boot was asked (`core.ts:4561`). Startup's own calls (`index.ts:611`, `:636`, `:676`, and the door's `coreReady` at `capabilities.ts:403-406`) then boot one.
+
+  Not doors: the tray asks once, at install (`src/main/tray/index.ts:214`). The phone door and the alerts are closed and joined before the core shuts down (`capabilities.ts:737-748`, `:835-866`).
+- **What the second boot does** (`GmuxCore.boot()`, `core.ts:1530-1663`). Nothing disposes it, because the quit's one `shutdownGmuxCore()` has already run.
+  - **Measured at 357's parent.** With the manifest damaged, the quitting process logged a second `macOS login session` line 1 s after its quit generation. That line is the boot's first step (`src/main/tmux/supervisor.ts:497-503`). That boot's integrity gate quarantined the file 54 ms later.
+  - **The restore is silent.** `prepareManifestForBoot` (`core.ts:1539`, `src/main/manifest/boot.ts:171`) moves a damaged file aside and puts back the newest verified generation, which can be one generation stale (`boot.ts:44-47`, `:429-480`). Its `manifest-quarantined` notice (`boot.ts:473-478`) is said once per run, to whichever renderer is listening (`src/main/notice/index.ts:10-26`, `:78-104`). During a quit, that is a window that is closing. The next launch opens the restored file and has nothing to say. As `boot.ts` puts it, "a quarantine they cannot find reads exactly like a delete" (`:468-469`). This is read from code; Method 1 measures what the next launch shows.
+  - **It spends a backup generation.** The ring's launch take (`core.ts:1605-1609`, `boot.ts:512-513`) always takes for a new schedule (`src/main/manifest/ring-schedule.ts:327`, `:411-415`). So a second boot that gets that far spends one of the five generations (`src/main/manifest/recovery.ts:325`) right after the quit's own.
+  - **It writes after the quit generation.** Its first `refresh()` reconciles and writes rows after the quit generation. It closes the restore journal as if the last run had ended (`core.ts:1591`, `:2382-2468`, `:2571-2620`).
+  - **It can re-arm native watches.** The same `refresh()` re-arms id harvests whose rescue watches subscribe through @parcel/watcher (`core.ts:2467`, `src/main/sessions/id-harvest.ts:328`, `src/main/manifest/harvest/watch.ts:933`). That happens after the disposer's drain. A watcher completion still pending at environment teardown is what Phase 36 measured aborting the process (`capabilities.ts:887-898`, `:1023-1043`). Candidate, not proved.
+  - **It starts processes nothing stops.** It starts a tmux control client, the hook server and the status poll (`core.ts:1549`, `:1582`, `:1599`), and nothing will stop them. The control client can outlive the quit, attached to the person's server, until the next launch's reap of orphaned clients (`src/main/index.ts:698-703`). Candidate, not proved.
+  - **It can mark a machine's sessions unknown.** Its sign-in to each confirmed machine (`core.ts:1661`, `:1687-1761`) is refused once the quit has begun ending remote work (`src/main/machines/execution-ledger.ts:352-361`, from `capabilities.ts:927`). Its catch reads that refusal as a machine that did not answer (`core.ts:1739-1746`). `markMachineQuiet` (`src/main/machines/remote-sessions.ts:3365-3380`) then writes that machine's rows `unknown` into the manifest, for the next launch to believe (`remote-sessions.ts:807-822`). Candidate, not proved.
+
+### The mechanism
+
+1. **Once the quit has begun, nothing BOOTS a core.** From the moment `markAppQuitting()` runs, `getGmuxCore()` still hands back the core that is running, because disposer steps before `shutdownGmuxCore()` may ask for it, but it never boots one: with the slot empty it gives the typed `SHUTTING_DOWN` refusal it already gives during the shutdown (`core.ts:4528-4530`). The check reads the app's one-way quit flag, not the core's own lifecycle. A harness that boots, shuts down and boots again never marks the app quitting, so its cycles keep working. The spec decides where the check lives and checks the import boundary.
+2. **Every caller that could boot one is found and named.** That means the four doors above and any the spec's own search finds. Each answers the refusal quietly, since each already has a catch. The spec also decides whether the doors stop asking: the power handlers' disposer called on the disposer's first synchronous lines, Live Diagnostics stopped above the core's shutdown, and the focus and blur listeners removed. Each is weighed against today's quit.
+3. **A startup refused by the quit says so.** Its log line names the quit, not `core boot failed` (`index.ts:621`).
+4. **A check pins it.** For example, a test that drives `getGmuxCore()` after `markAppQuitting()` and the shutdown and counts zero calls of `GmuxCore.boot`, with an ablation that removes the check and reads red. 357's probe also grades its boot count per pid instead of printing it (`build/p357/probe-p357.mjs:240-245`, `:1302`).
+
+### The proof, run rather than read
+
+- **Method 1, measure the parent (357.1 as landed).** One Electron per build, the parent first, each on a scratch profile, HOME and socket, with 357's boot count read from app.log. Each door is driven during a quit:
+  - the window focused at ⌘Q;
+  - Live Diagnostics left live through a quit whose remote join waits on a child held open on the loopback machine;
+  - a quit pressed before startup asks for the core;
+  - the late drain's hide, if the spec finds a way to hold a watcher close in a harness;
+  - a suspend and a resume, driven in vitest over `installPowerHandlers` with the drivable monitor (`src/main/power/drivable-monitor.ts`), where a launch cannot fire one.
+
+  The parent's extra boots are counted. HEAD must show one boot per pid.
+
+  Then 357's §2.2 run 2, with the whole sessions table damaged, at both builds. At the parent, the quit quarantines the file and the relaunch shows no `manifest-quarantined` notice. At HEAD, the quit boots nothing, and the relaunch quarantines the file and shows the notice, read in the DOM.
+- **Method 2, the attack.** The verifier finds, by its own method, every caller of `getGmuxCore()` that can run after `markAppQuitting()`, for example with a harness-only stack line at `GmuxCore.boot`. It drives each one it finds. It then tries to break the harness cycles: `smoke:fault`, the durability harnesses and `conformance:resume:capture` must still boot their second core.
+- **No regression,** over his recorded shape (`build/p3167/seed-sessions.mts --shape his`, counts only) with live shells. The quit's wall time, its snapshot pass and its quit generation read the same at both builds. Quit-and-install still installs. `smoke:quit` passes.
+- **Gates.** The battery, plus:
+  - `conformance:credentials` if the disposer's order moves;
+  - `conformance:stoppedlist`, whose S6 reads the disposer;
+  - each gate whose function a `core.ts` hunk touches, as 357's §7.2 did.
+
+### What is NOT in this phase
+
+- No change to what a boot does, or to the gate, the ring, recovery or the quarantine.
+- No change to the quit's order or to the hard exits 357 and 357.1 add.
+- No change to the harness cycles: a harness still boots a second core in one process.
+- No change to the orphaned-client reap or to the hook server.
+- Nothing reads his live profile. Every run uses a scratch profile, HOME and socket.
+- No release by itself.
+
+## Phase 360 — a create whose later step fails reports a failure for the session it started (main session, from Phase 357's spec step, 2026-11-05)
+
+**Subject.** `fix(sessions): answer the session a create started when a later step fails`
+
+**First body line.** `Phase 360: a create that started a session answers that session`
+
+**Semver.** Patch, with one CHANGELOG item under `### Fixed` in his style, for example: creating a session no longer says it failed when the session did start, so pressing Create again no longer makes a second one.
+
+**Tier 3.** This is the create path, on this Mac and on other machines. An answer that calls a running session a failure leads a person to start a second one, which is session lifecycle (`CLAUDE.md:268`). The evidence is a per-step matrix, with two independent methods at least, one of them an attack, and a fix round if any verdict is needs_work.
+
+**Charter.** Phase 357's spec step found this at 357's parent `0547383e` and recorded it as owed an entry. The sources are `build/p357/SPEC.md` §2.2 run 3 (`:240`: the create answered the raw `SqliteError` while `p357-after` ran in tmux), §3 row W2 (`:344`), §12 (`:620-621`), §13 item 2(b) (`:629-631`), and the "Owed entries" line of `5a6097ac`'s body.
+
+357's D19 (`:170`) holds the manifest's own refusal inside the broadcast. Any other error after the spawn still answers a failure, and this tree shows one more case D19 opened (item 3 below): 357's §3 row W2 says the create "answers its session" when its own broadcast is what stops the list, and the code answers the stopped refusal instead (read, 2026-11-06, `create-local.ts:850-851` beside `store.ts:671-673`).
+
+Phase 117 binds the remote half. A create whose answer was lost already says it does not know, keeps its row and starts nothing twice (`src/main/machines/remote-copy.ts:864-869`). That stays.
+
+It starts after Phase 353 (sessions and the terminal) lands or is set aside. 353's fourth builder edits `createSession` in `src/main/tmux/sessions.ts` and the remote create in `src/main/machines/remote-sessions.ts`, which are the two functions this phase works around.
+
+### What the tree says (read 2026-11-06 at `d0e11c31`)
+
+**The create on this Mac** is `createLocalSession` (`src/main/sessions/create-local.ts:175-853`), behind the ledger at `src/main/sessions/core.ts:3445-3449`. The row is written before the spawn (`:656-659`). The spawn is `tmux.createSession` (`:707-718`). Its failure removes the row and throws (`:719-725`), which is true, because nothing ran. After the spawn, only the tmux option mirror is guarded (`:777-792`). These steps can still throw into the answer:
+
+1. **`manifest.updateSession` for the pane pid and a deduped name** (`:735-742`). It runs on almost every create, because `new-session -P -F` hands back the pane pid (`:732-734`). It throws on any SQLite error a write can meet: a full disk, a busy lock, or an `SQLITE_IOERR_*`, which 357 keeps outside its latch (D2, `build/p357/SPEC.md:153`). Since 357 it also throws `MANIFEST_STOPPED` when it is the write that first meets a broken connection (`src/main/manifest/store.ts:1066-1076`).
+2. **`broadcastSessions()`** (`:850`, `core.ts:2867-2871`). D19 answers the last clean list for `MANIFEST_STOPPED` only, and rethrows any other error (`core.ts:3389-3403`). In the same call, the tray's blocked feed reads `core.listProjects()` outside its listener guard (`src/main/tray/blocked-feed.ts:52-54`, `:75-77`). That read also rethrows anything but the stopped refusal (`core.ts:4229-4239`). 357 measured this step answering a failure at the parent, and since D19 it still does for any other error.
+3. **`manifest.getSession(id)`** (`:851`). Once the store has stopped, every member refuses (`store.ts:1067`; `getSession` at `:671-673`). So when line 850's own read is what stops the store, D19 swallows the refusal there, and this line throws it. The person reads `MANIFEST_STOPPED_REFUSAL`, "Tortie's session list stopped reading correctly. Restart Tortie, then try again.", for a session that is running. Read from code, not measured.
+4. **Unguarded, with no cause found in this tree.** These are listed so the spec decides each:
+   - the two notices (`:756-772`) and the capture notice (`:821-829`), all through `broadcastEvent`, which has no guard around `webContents.send` (`src/main/typed-events.ts:50-60`);
+   - `startIdCapture` (`:798-816`, `src/main/sessions/id-harvest.ts:177-201`), whose synchronous part reads the agent's store folders (`src/main/manifest/harvest/watch.ts:465-512`).
+
+   Two steps are safe. `recordLaunchContext` (`:843-848`) cannot throw into the create (`src/main/context/snapshot.ts:159-164`). `toSession` (`:852`) reads only guarded files (`src/main/restore/snapshots.ts:443-465`).
+
+**The create on another machine** is `remoteCreate` (`src/main/machines/remote-sessions.ts:1744-2132`). The row is written before the line is sent (`:1924-1950`). The far `new-session` is `execOn` (`:1954-1966`), and a lost answer gets Phase 117's confirmation read (`:1967-2024`). After the far side has answered:
+
+5. **An answer whose first line is not a `$-id`.** The create drops the row and throws `SPAWN_FAILED` (`:2025-2032`), although `execOn` returned, so the far command ran. A create that carries shell variable names (none as shipped, `:1790-1794`) runs through that machine's login shell (`src/main/machines/context.ts:287-296`). The script runs the login files before it execs tmux, with no fence around their output (`src/main/machines/remote-env-carriage.ts:213-234`). Their output can come first, and `:1966` reads only the first line. Candidate, not proved.
+6. **A session that exists but is not listed back.** The session exists (`flight.answered`, `:2037`) and its row is kept. But when the list the feed starts (`:2082-2083`) does not show it, the create throws `SPAWN_FAILED` with `noRemoteRowFor` (`:2090-2097`). That sentence ends "Nothing was changed." (`src/main/machines/remote-copy.ts:299-304`), which is false here.
+7. **Back in `create-local.ts`.** The capture notice (`:265-273`) and `broadcastSessions()` (`:298`) behave as in item 2. The tab open guards each write (`:297`, `src/main/machines/remote-rehome.ts:358-372`), and so does the stamp loop (`remote-sessions.ts:2043-2060`).
+
+**What the person sees.**
+- The ⌘T sheet stays open with the error, and Create can be pressed again (`src/renderer/app/CreateSessionModal.tsx:1098-1100`, `:1136-1137`).
+- Quick create and the per-agent hotkeys show a sticky error toast (`src/renderer/state/sessions-slice.ts:1291-1293`).
+- The phone's start answers its own failure (`src/main/sessions/pocket-start.ts:501-505`).
+- A second press starts a second session.
+- While the list is stopped, the new session is not in the last clean list either, so the window does not draw it.
+
+### The mechanism
+
+1. **Once the spawn has answered, the create answers the session it started.** On this Mac that point is the return of `tmux.createSession` (`:707-725`). On another machine it is `flight.answered` (`:2037`). After that point, each step does one of two things. Either it cannot throw into the answer, so it logs once and says in its own words what it could not do. Or, for the manifest's own refusal, the create answers the session beside the stopped list's one notice. The spec decides each of items 1 to 7 and the words. No step may answer a failure for a running pane.
+2. **No remote sentence says nothing changed when a session may be running.** Item 6, and item 5 once the spec shows whether the far command ran, take Phase 117's own path (a kept row and the unknown sentence) or a sentence the spec writes. "Nothing was changed." stays only where nothing ran.
+3. **The window can find what it was handed.** The spec decides what the window draws for a session the last clean list does not hold, without adding a second list. D19 stays the one answer.
+4. **A check pins it.** For example, a rule read with the TypeScript parser over `createLocalSession` and `remoteCreate`: after the spawn's answer, no statement that can throw sits outside a guard. Ablations take each guard out and must read red.
+
+### The proof, run rather than read
+
+- **Method 1, measure the parent, step by step.** Vitest over the shipping `createLocalSession` and `remoteCreate`, with the store real over a scratch file and tmux and the machine faked. Each step after the spawn is made to throw in turn:
+  - through 357's hook (`setManifestFaultHook`), for `updateSession`, `listSessions`, `getSession` and `listProjects`;
+  - with a real `SqliteError` of `SQLITE_IOERR_READ` and of `SQLITE_BUSY`, which the hook cannot arm.
+
+  At the parent, every row answers a failure after a spawn ran. At HEAD, every row answers the session or Phase 117's unknown, and no row's pane is ended.
+- **The app, one run per build, the parent first,** over his recorded shape (`build/p3167/seed-sessions.mts --shape his`, counts only) with live shells.
+  - **This Mac.** 357's seam (`GMUX_HARNESS_MANIFEST_FAULT`, `src/main/harness/manifest-fault.ts`) is armed on `updateSession`, and then on `getSession`, during a create from the window. The probe reads the answer, what the sheet draws, and `list-sessions` of the scratch server. At the parent the sheet shows an error, and a second press makes two sessions. At HEAD the sheet closes on the session, and the server holds one.
+  - **Another machine.** Then on the loopback machine (`build/scratch-machine.mjs`), with Phase 326's far wrapper holding the first list (`build/p326/far-tmux.sh:129-131`) so that item 6 is reached. The probe reads the far server's sessions after one Create and after two, and the sentence shown.
+- **Method 2, the attack.** The verifier plants throws of its own at every unguarded step: an IOERR in the tray feed's project read, a window whose `send` throws, and a stopped list met first by the create's own broadcast. It drives the phone's start through `build/p316/node-phone.mjs`. It hunts for any path where a create answers a failure while a pane runs.
+- **Gates.** The battery, plus:
+  - `conformance:farattach`, which names `remoteCreate`;
+  - `conformance:machines`, for `src/main/machines/**`;
+  - `conformance:stoppedlist` if `listSessions` moves;
+  - `conformance:pocket` if the phone's start answer moves.
+
+### What is NOT in this phase
+
+- No rollback. A create never ends the session it started so that its error becomes true. Tortie never ends a session on its own.
+- No change to the order in which a create writes and spawns (the row before the spawn), to the spawn's own failure, or to Phase 117's lost-answer path.
+- No change to 357's latch, D19 or the refusal's words, beyond what a create answers after its spawn.
+- Not restore, resume in place, restart or the phone's other verbs. The spec lists their steps after a spawn, and a finding there becomes its own entry.
+- No dedupe of a second create by its name.
+- Nothing reads his live profile.
+
+## Phase 361 — two test tools that lose a verdict or leave processes behind: a gate's last lines dropped through a pipe, and the fault battery's leftover tmux pair (main session, from Phase 357's integrator, 2026-11-05)
+
+**Subject.** `fix(build): keep every gate's verdict and end the fault battery's tmux pair`
+
+**First body line.** `Phase 361: a gate's verdict reaches its reader and the fault battery ends its tmux pair`
+
+**Semver.** None a person meets: no CHANGELOG item. Nothing that ships changes.
+
+**Tier 2.** It is invisible to a person (`CLAUDE.md:272`), so the gates are the evidence and the verifier re-derives. The processes the fault battery leaves run on his Mac, and the machine discipline names that a defect. A probe "ends its own scratch tmux server there too, whatever happened" (`CLAUDE.md:112-114`), and every process a script starts is ended in a `finally` (`:115-123`). One independent method at least, an attack. The risk in (b) is a teardown that signals a process it did not start. The risk in (a) is a cure that reads a red arm as green.
+
+**Charter.** Phase 357's integrator found both and recorded them as owed entries. The sources are `build/p357/SPEC.md` "Found here, not this phase's" items 1 (`:748-754`) and 4 (`:763-773`), with the measurements at `:720-723` and `:733-734`, the run set-up at `:688-701`, and the "Owed entries" line of `5a6097ac`'s body.
+
+Phase 140's helper (`build/electron-run.mjs`) and Phase 206's rule (`CLAUDE.md:115-123`) bind (b). Phase 348 already made a check that died say how it ended (`build/ablation-p313.mjs:9154-9159`), and (a) extends that idea to a check whose last lines were lost.
+
+It starts after Phase 357.1 lands. 357.1's attack drives the fault battery's points, so the two phases never edit or run `build/fault-harness.mjs` at the same time.
+
+### What the tree says (read 2026-11-06 at `d0e11c31`)
+
+**(a) The verdict a pipe drops.**
+
+- **The measured case.** `build/conformance-pocket.mjs` writes its rule table and findings with `process.stdout.write`, then calls `process.exit(1)` (`:20048-20065`; `process.exit(0)` at `:20071`). `ablation:p313` runs it through `spawnSync`'s default pipes and reads the `[p313 <rule>]` tags out of the text (`build/ablation-p313.mjs:487-492`, `:9139-9172`). 357's integrator measured:
+  - 91,383 bytes of output for one red rule;
+  - 14 of 87 arms read as red on no rule at a load near 40, and 1 of 14 near 27, at HEAD and at the parent alike;
+  - no arm lost when the same gate wrote to a file.
+- **The count, by grep at this tree.** There are 59 gate scripts: every script behind a `conformance:*` or `gate:*` name in `package.json`, plus the four that run only inside `npm run build` (`build/assert-bundle-refusals.mjs`, `assert-preview-containment.mjs`, `assert-probe-containment.mjs`, `assert-css-order.mjs`). 57 of the 59 call `process.exit(`. This is a file-level grep; ten were read by hand, and each ends its red verdict that way after writing it. Two set `process.exitCode` instead: `build/assert-arm64-only.mjs` and `build/stapler.mjs`. Of the 57, 18 are run through a pipe by 23 ablation harnesses that decide from the printed text. None of those harnesses sets `stdio`.
+
+| Gate | Read by |
+| --- | --- |
+| `build/conformance-pocket.mjs`, `build/p313/hostile-client.mjs` | `ablation:p313` |
+| `build/conformance-push.mjs` | `ablation:p314` |
+| `build/conformance-save.mjs` | `ablation:p268`, `ablation:p273` |
+| `build/p274/conformance-samefolder.mjs` | `ablation:p274` |
+| `build/conformance-agents.mjs` | `ablation:p275`, `ablation:p331` |
+| `build/conformance-shellenv.mjs` | `ablation:p276` |
+| `build/p293/conformance-manager.mjs` | `ablation:p293` |
+| `build/conformance-handback.mjs` | `ablation:p296`, `ablation:p307` |
+| `build/assert-background-teardown.mjs`, `build/assert-known-hosts-scoped.mjs` | `ablation:p307` |
+| `build/conformance-choices.mjs` | `ablation:p312` |
+| `build/conformance-ios.mjs` | `ablation:p316` |
+| `build/conformance-machines.mjs` | `ablation:p320`, `p3202`, `p324`, `p336`, `p340`, `p342`, `p343` |
+| `build/conformance-endtree.mjs` | `ablation:p323` |
+| `build/conformance-farattach.mjs`, `build/assert-bundle-refusals.mjs` | `ablation:p326` |
+| `build/assert-door-only-adds.mjs` | `ablation:p33311` |
+
+  The other four ablation harnesses (`p300`, `p306`, `p321`, `p344`) drive vitest only.
+
+  Which of the 18 can lose lines is a measurement, not a reading. A write is lost only when it is still queued inside Node at `process.exit`. That needs more output than the pipe holds and a reader that has not drained it. Only `conformance-pocket.mjs`'s output size has been measured.
+- **Next to it in the tree.**
+  - `ablation:p316` looks for the `CONFORMANCE_IOS:` line, which the gate writes last before its exit (`build/conformance-ios.mjs:21263-21270`, `build/p316/ablation-ios.mjs:6261-6269`).
+  - `ablation:p320` already gives vitest a file for its report (`build/p3201/ablation.mjs:1734-1741`), while it reads `conformance-machines.mjs` through a pipe (`:1720-1728`). So the cure already sits in the tree beside the defect.
+  - The fault battery itself prints every case's report and then calls `process.exit` (`build/fault-harness.mjs:644`, `:655`, `:706`, `:739`).
+
+**(b) The tmux pair the fault battery leaves.**
+
+- **Measured by 357's integrator.** The full battery left the four backup cases' pairs: 8 processes, on sockets `gmux-fault-47502-13` to `-16`. Two alternated readings of those four points left 2 of 4 at HEAD and 0 at the parent, then 2 of 4 at the parent and 1 at HEAD. Each pair was the work launch's own server (`start-server`, ppid 1) and its first control client (`-C new-session -A -s gmux-control`, ppid 1). The client's stdin, stdout and stderr all read `unix ->(none)`. The socket file was already removed, and the server ignored SIGTERM until the client was ended. The battery printed PASS.
+- **Where the pair escapes, in order.**
+  1. **The work launch dies by SIGKILL.** A named point kills its own pid (`src/main/fault/inject.ts:12-16`, `:130`), and the harness kills a random case itself (`build/fault-harness.mjs:280-287`). So no core ever stops its control client (`src/main/tmux/control-client.ts:4-12`), and the client reparents to launchd with all three of its peers closed. The server was never the app's child, because tmux daemonises it.
+  2. **`withElectron` cannot see either process.** It finds what to end by `pgrep -P` of the pid it started, which is already dead (`build/electron-run.mjs:61-64`, `:155-174`). It also matches this launch's profile path on a command line, which neither process carries (`:65-71`, `:214-228`). And `runApp` names no `tmuxSocket` (`build/fault-harness.mjs:257-264`), so the helper's step 6 does not run.
+  3. **The survey launch keeps the orphan attached.** It reuses the server on the same socket (`build/fault-harness.mjs:450-456`). It is a harness launch, and a harness launch returns before normal startup's reap of orphaned clients (`src/main/index.ts:542`, `:698-703`).
+  4. **`killServer` is where it escapes** (`build/fault-harness.mjs:407-428`). It is called once per case, after the survey and outside any `finally` (`:457`). It sends one `kill-server` through whichever `tmux` is first on PATH (`:414-423`) and ignores a failure (`:423`). It never checks that the server went, and then it removes the socket file (`:427`). A server still holding the orphaned client stays up, with no name left to reach it by, and the case reports pass.
+  5. **A second way out (candidate, not proved).** The PATH's `tmux` need not be the copy the app ran, because a development build runs its checkout's own copy first (`src/main/tmux/supervisor.ts:465-470`). 357's integrator put the vendored copy first on PATH for that reason (`build/p357/SPEC.md:688-693`). A run without that may not reach the server at all.
+  6. **The helper's own step 6 has the same unchecked kill** (`build/electron-run.mjs:1164-1169`). So a probe that names `tmuxSocket` and whose app died by SIGKILL can leave the same pair. Candidate, not proved.
+  7. **`gate:background` cannot see it.** It holds what a script under `build/` starts, and the app started these two.
+- **Not known from reading.** Why only some backup points leave a pair; the spec measures it.
+
+### The mechanism
+
+**(a)**
+1. **The spec chooses where the cure lives, and measures the choice.**
+   - The harness side: one shared runner that gives a gate a scratch file for its stdout and stderr and reads the file after the exit, used by all 23 harnesses. The integrator's file runs lost nothing.
+   - The gate side: a verdict that sets `process.exitCode` and returns, or exits only once its writes have flushed, through one shared helper rather than 57 hand edits. A gate changed this way must still end whatever its `process.exit` was cutting short, some other way.
+
+   Touching 57 gates collides with any phase in flight that edits a gate. The harness side touches 23 files that phases rarely edit.
+2. **An arm whose gate's last line did not arrive reads UNREADABLE** and says why. It never reads as red on nothing.
+3. **A rule pins it,** in `gate:checks` or a gate of the spec's choosing, with an ablation: no harness reads a gate's verdict through a pipe, or the gate side's equivalent.
+
+**(b)**
+1. **`killServer` ends what it named, and proves it.**
+   - Before it asks the server to stop, it reads the server's pid and every client's pid from that server, using the copy of tmux the app ran.
+   - It sends `kill-server`, then waits, bounded, for the server pid to go.
+   - It ends each client still there by pid, after reading its command line again (it must name `-L` and this socket), and waits again.
+   - It removes the socket file only after the server is gone, and fails the case when anything it named is left.
+   - It runs in a `finally` for each case.
+2. **The battery counts once, at its end,** every process that names one of its own `gmux-fault-<pid>-` sockets, and fails on any.
+3. **The spec decides two placements.** Whether the helper's step 6 calls the same function, so that one place ends a scratch server. And whether the shape goes into `build/background-fixtures.mjs`, which is CLAUDE.md's second obligation.
+
+### The proof, run rather than read
+
+- **(a) Method 1, measure the parent.** Each of the 18 gates is made red by one arm of its own ablation, in a scratch clone, and run twice: once writing to a file, which gives the bytes it writes, and once into a pipe whose reader drains slowly. The slow reader makes the loss happen every time instead of only under load. At the parent, every gate whose red output is larger than the pipe loses its tail, and its ablation reads the arm as red on nothing. At HEAD, the bytes match and every arm reads its own rule. The 14 arms 357 read as nothing are run again at both builds under the slow reader.
+- **(a) Method 2, the attack.** The verifier tries to make HEAD read an arm wrongly. It uses a slow reader on each harness, a gate killed before its summary line, and a gate that writes more than its harness's `maxBuffer`. Each such arm must read UNREADABLE with why, never a rule. The verifier also counts the gates of this shape by its own method, for example the TypeScript parser over each gate's red branch, and its count must agree with the spec's.
+- **(b) Method 1, measure the parent.** `smoke:fault` is run whole, and its four backup points alone, each alternated with the parent. Every run's leftovers are counted once at its end, by command line (`ps -Ao pid,ppid,command` naming `gmux-fault-`). The integrator read 8 after a full battery, and 2, 0, 2 and 1 of 4 on the backup points. HEAD must leave 0 every time, and a run that leaves one must fail.
+- **(b) Method 2, the attack.** The verifier plants three things itself:
+  - the wedge: a scratch server whose control client lost its peers when the client's parent was SIGKILLed;
+  - a `tmux` first on PATH that cannot reach that server;
+  - a decoy process whose command line names a different socket.
+
+  The teardown must end exactly the two processes on its own socket, the client first. It must leave the decoy alone, and fail the case when it cannot prove the server gone. The harness still refuses `-L gmux` by name (`build/fault-harness.mjs:408`).
+- **Gates.** `gate:background`; `gate:electron` (and its floor, if a script now reaches the helper); `gate:checks`. The 23 harnesses' own self-tests and controls must read as before.
+
+### What is NOT in this phase
+
+- No change to what any gate checks, to any rule's verdict, or to any arm.
+- No change to the app, to tmux, to the vendored tmux pin, or to `-L gmux`.
+- No kill by name or pattern. Every pid ended is read from its own socket's server, and its command line is read again first.
+- No change inside tmux to why a control client with no peers keeps a server from exiting. The harness ends what its launches left. The app's own reap of orphaned clients at launch (`src/main/proc/orphans.ts`) is unchanged.
+- No release.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -46047,3 +46309,5 @@ cycle rather than only the evening it was written.
 - 2026-11-05, **357.1 QUEUED — the two gaps research 143 found in 357**, its section above: a quit after damage no read saw still reaches `manifest.close()`, and the backup check's digest hides `SQLITE_CORRUPT` from the latch, with 357's owed probe items. Tier 3. It starts once 0.114.1 is out.
 - 2026-11-06, **0.114.1 PUBLISHED as Latest, `9735a9d3` (tag `v0.114.1`) — the session list hotfix**, on his word ("u can publish a new release (and update tortiedotsh, etc) when you're ready"). It carries 357 (a session list that goes bad mid-run asks for one restart) and 356 (the release lane tries a dropped ticket lookup again), and nothing else: 353 waits on his ruling on 325 and lands after it. The release run (42165193186) passed first time, and 356 earned its keep there: Apple's ticket lookup dropped twice (`NSURLErrorDomain -1005`) and each `stapler validate` passed on its second try. Before promoting, the main session downloaded the draft's ZIP and read it on this Mac: sha512 equal to `latest-mac.yml`'s, version 0.114.1, `com.itavero.tortie`, `codesign --verify --deep --strict` OK, `spctl` accepted as Notarized Developer ID (4GRQMF5T5U), stapled, arm64 only; CI had run the gates, T1, T3 and the packaged app's basic smoke. The notes are the CHANGELOG entry verbatim. `releases/latest` and `latest-mac.yml` read 0.114.1, and tortie.sh's changelog refreshed through its own workflow (`2dea0a10` in gregce/tortiedotsh) and serves it at `/docs/changelog/`. No phone build: the app under `ios/` is unchanged since build 13, whose tag is `v0.114.0`; the only `ios/` change since is the test target's frozen copy of build 13's own wire (`b1a557b8`).
 - 2026-11-06, **357.1 STARTED — the two gaps research 143 found in 357**, its section above, Tier 3, one workflow: spec (the planted crash state, the digest's hidden error and the cost of a hard exit at every quit, each measured at the parent), builders on disjoint files, integrator, probe review, two lenses (the app run beside the parent, the attack), fix once, an independent reverify, in `/private/var/tmp/tortie-wt/wt-p3571` at `32180e60`, with research 143's checking-build sources copied into its scratch. A quit-cost trade that is his goes to him with numbers; the build proceeds on the least costly rule that prevents the crash.
+- 2026-11-06, **357.1's VERIFY APPROVED; ONE QUESTION TO HIM; LANDING ROUND STARTED.** Both lenses approved, live beside the parent: the crash's own state, in which no read fails, crashes the parent's quit in his frame (`pcache1EnforceMaxPage+0x68`) and not this build's, which relaunches with every row, the last `localStorage` writes and the Settings window's bounds; and the digest now lets a broken connection's error through, so the backup check stops the list once with the notice and takes no copy. His question (SPEC §14 Q1): every quit ends by the hard exit once the windows have closed and their storage is flushed (measured: nothing a person keeps is lost; Chromium skips writing its own caches, which it rebuilds), or only after damage was seen (today's clean quit kept, his crash case still crashing at quit). The build stands on the first, with a staged update's quit unchanged. The landing round: `smoke:quit` and `smoke:quitdoors` read the hard exit (they judge by exit code, so both read red on every run), the menu ⌘Q's 3 s fallback quit, which can reach Node's teardown before the hold engages, the flush order and stale words, then an independent reverify.
+- 2026-11-06, **359, 360 AND 361 QUEUED — the defects Phase 357 found**, their sections above: **359** a second session core boots while Tortie quits (Tier 3, after 357.1 lands); **360** a create whose later step fails answers a failure for the session it started, including the case 357's own row W2 says it closed, where the create's broadcast is what stops the list and the next line answers the stopped refusal for a running session (Tier 3, after 353 lands or is set aside); **361** a gate's last lines lost through a pipe, so an ablation reads a red rule as nothing, and the fault battery's leftover tmux server and control client (Tier 2, after 357.1 lands).
