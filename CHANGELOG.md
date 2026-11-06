@@ -8,7 +8,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 
 ### Fixed
 
-- If Tortie's session list stops reading correctly while it runs, Tortie says so once and offers a restart, instead of an error every few seconds and a crash when you quit; your sessions keep running either way
+- If Tortie's session list stops reading correctly while it runs, Tortie says so once and offers a restart, instead of an error every few seconds and a crash when you quit; your sessions keep running either way ([`5a6097ac`](https://github.com/gregce/tortie/commit/5a6097ac))
 
 ## 0.114.0 (2026-11-05)
 
