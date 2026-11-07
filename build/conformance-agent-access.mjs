@@ -105,8 +105,8 @@ const EXPECTED_NOTE =
 const RULES = [
   {
     id: 'A1',
-    section: 'the sealed switch',
-    name: 'off by default, and only a covering seal turns it on',
+    section: 'the plain switch (Phase 360; the seal is gone)',
+    name: 'off by default, and on means on with no seal asked',
     check(d) {
       const s = d.seal;
       if (!s.defaultIsFalse) return 'the default is not off';
@@ -124,39 +124,31 @@ const RULES = [
       for (const [key, value] of Object.entries(want)) {
         if (s.sanitize[key] !== value) return `the shape check reads ${key} as ${s.sanitize[key]}`;
       }
-      if (!s.sealedOnKeeps) return 'a covering seal did not keep the switch on';
-      if (!s.sealedOffDrops) return 'an uncovered switch stayed on';
-      if (!s.sealedOffRejected.includes('agentAccess')) {
-        return 'an uncovered switch was not named back to Settings';
+      // PHASE 360. Neither seal half may change the answer or name it: the
+      // switch survives a read whether the old member is covered or not.
+      if (!s.sealedOnKeeps) return 'a file true read false beside a covering seal';
+      if (!s.sealedOffKeeps) return 'a file true read false beside an empty seal';
+      if (s.sealedOnRejected.includes('agentAccess')) {
+        return 'a covered switch was still named back to Settings';
       }
-      if (!s.strippedOff) return 'the unsealable write did not save off';
-      if (!s.othersUnchanged) return 'the seal moved a member it does not own';
-      return null;
-    },
-    breakIt(d) {
-      d.seal.sealedOffDrops = false;
-    }
-  },
-  {
-    id: 'A2',
-    section: 'the sealed switch',
-    name: 'the no-danger shortcut asks the switch',
-    check(d) {
-      const s = d.seal;
-      if (!s.dangerStateOfOn) return 'an on-only state does not seal the switch';
-      if (s.emptyWithOn !== false) {
-        return 'the switch alone reads as an empty danger state, which skips the seal entirely';
+      if (s.sealedOffRejected.includes('agentAccess')) {
+        return 'the switch was still named back to Settings after the unseal';
+      }
+      // No danger member may exist for it any more.
+      if (s.inDangerState !== false) return 'the switch is still a member of the danger state';
+      if (s.emptyWithOnOnly !== true) {
+        return 'a settings object holding only the switch is not an empty danger state';
       }
       if (s.emptyWithOff !== true) return 'a settings object with everything off is not empty';
       return null;
     },
     breakIt(d) {
-      d.seal.emptyWithOn = true;
+      d.seal.sealedOffKeeps = false;
     }
   },
   {
     id: 'A3',
-    section: 'the sealed switch',
+    section: 'the plain switch',
     name: 'one switch, this Mac only, with the exact words',
     check(d) {
       const u = d.ui;
@@ -168,7 +160,7 @@ const RULES = [
       if (!u.usesSwitch) return 'the row does not use the existing Switch';
       if (!u.noDangerStyling) return 'the row is drawn as a danger switch';
       if (!u.oneUpdate) return 'the row does not press the store exactly once';
-      if (!u.readsSealedValue) return 'the row does not read the sealed answer';
+      if (!u.readsPlainValue) return 'the row does not read the plain settings answer';
       if (!u.noNewChannel) return 'the row added a settings channel of its own';
       return null;
     },
@@ -895,7 +887,7 @@ if (failures.length > 0) {
 }
 
 process.stdout.write(
-  '\nPASS. The switch is off until a covering seal turns it on; three rows ' +
+  '\nPASS. The switch is a plain off-by-default boolean no seal is asked about; three rows ' +
     'receive the bundled skill and ten receive byte-identical launches; the ' +
     'bundle ships as five data files asserted before signing; one private ' +
     'socket answers one capped request on an absolute deadline; four curated ' +

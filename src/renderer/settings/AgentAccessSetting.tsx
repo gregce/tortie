@@ -48,8 +48,12 @@ export function AgentAccessRowView({
 }
 
 /**
- * The live row. `update` is optimistic and main's answer is authoritative: a
- * failed seal visibly returns the switch to off on the next broadcast.
+ * The live row. `update` is optimistic and main's answer is authoritative.
+ *
+ * PHASE 360: the switch is a plain settings boolean, not a sealed one, so a
+ * write no longer fails closed on a keychain refusal. Main still answers with
+ * whatever the file ended up holding, and the next broadcast is what the row
+ * draws.
  */
 export function AgentAccessSetting(): React.JSX.Element {
   const checked = useSettingsStore((s) => s.settings.agentAccess);

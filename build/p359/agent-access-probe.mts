@@ -139,9 +139,17 @@ function callsIn(text) {
 }
 
 // ---------------------------------------------------------------------------
-// Section A — the sealed switch (A1, A2)
+// Section A — the plain switch (Phase 360 rewrote this; it was the seal)
 // ---------------------------------------------------------------------------
 
+/**
+ * PHASE 360. This section used to read the seal: a covering seal kept the
+ * switch on, an uncovered one dropped it and named it back to Settings, and
+ * `isDangerStateEmpty` had to ask the switch. The operator's ruling of
+ * 2026-11-07 took the switch OFF the seal, so the readings here are the
+ * opposite ones: the plain boolean survives a read with no keystore at all,
+ * and the seal keeps covering the members it still owns.
+ */
 function sealSection() {
   const defaults = defaultGmuxSettings();
   const emptyDanger = {
@@ -153,13 +161,14 @@ function sealSection() {
     envShared: []
   };
   const on = { ...defaults, agentAccess: true };
+  // Both halves of the old pair, kept as readings so the gate can assert the
+  // NEW answer on each: a covering seal and an empty one must now agree,
+  // because neither is consulted.
   const sealedOn = withSealedDangerState(on, {
     ...emptyDanger,
     agentAccess: true
   });
   const sealedOff = withSealedDangerState(on, emptyDanger);
-  const settingsOn = on;
-  const stripped = withSealedDangerState(on, emptyDanger).settings;
   return {
     defaultIsFalse: defaults.agentAccess === false,
     defaultIsBoolean: typeof defaults.agentAccess === 'boolean',
@@ -173,26 +182,17 @@ function sealSection() {
       object: sanitizeSettingsMain({ agentAccess: { on: true } }).agentAccess,
       nullish: sanitizeSettingsMain({ agentAccess: null }).agentAccess
     },
-    // The common no-danger shortcut: on-only state is NOT empty.
-    dangerStateOfOn: dangerStateOf(on).agentAccess === true,
-    dangerStateOfOff: dangerStateOf({ ...defaults }).agentAccess,
-    emptyWithOn: isDangerStateEmpty(dangerStateOf(on)),
+    // PHASE 360. The switch is no longer a danger member at all.
+    inDangerState: Object.hasOwn(dangerStateOf(on), 'agentAccess'),
+    emptyWithOnOnly: isDangerStateEmpty(dangerStateOf(on)),
     emptyWithOff: isDangerStateEmpty(dangerStateOf({ ...defaults })),
-    // A covering seal keeps it; anything else reads off and is named.
+    // The plain answer: neither seal half changes it, and neither names it.
     sealedOnKeeps: sealedOn.settings.agentAccess === true,
     sealedOnRejected: sealedOn.rejected,
-    sealedOffDrops: sealedOff.settings.agentAccess === false,
+    sealedOffKeeps: sealedOff.settings.agentAccess === true,
     sealedOffRejected: sealedOff.rejected,
-    // The strip path (safeStorage unavailable) writes the same answer.
-    strippedOff: stripped.agentAccess === false,
     // The shared settings default agrees with the store's.
-    sharedDefault: defaultGmuxSettings().agentAccess,
-    // Every other danger member is untouched by this phase.
-    othersUnchanged:
-      dangerStateOf(settingsOn).fold === null &&
-      dangerStateOf(settingsOn).arch === null &&
-      dangerStateOf(settingsOn).env.length === 0 &&
-      dangerStateOf(settingsOn).envShared.length === 0
+    sharedDefault: defaultGmuxSettings().agentAccess
   };
 }
 
@@ -1538,7 +1538,9 @@ function uiSection() {
     usesSwitch: /<Switch\b/.test(setting),
     noDangerStyling: !/danger/.test(setting),
     oneUpdate: (setting.match(/update\(/g) ?? []).length === 1,
-    readsSealedValue: /settings\.agentAccess/.test(setting),
+    // PHASE 360. Renamed from `readsSealedValue`: the row reads the plain
+    // settings boolean now, and the gate asks that it still reads THAT.
+    readsPlainValue: /settings\.agentAccess/.test(setting),
     noNewChannel: !/invoke\(|gmux\./.test(setting)
   };
 }

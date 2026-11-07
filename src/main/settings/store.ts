@@ -247,18 +247,22 @@ export interface DangerState {
   /** Danger confirms the user has accepted, which skip the confirm modal. */
   readonly acks: readonly string[];
   /**
-   * PHASE 359 (DEVIATION RECORDED: supervisor ruling, Builder A lane).
-   * `true` when the person enabled agent skill delivery in Settings. Kept
-   * OPTIONAL rather than the spec's required boolean so every existing
-   * hand-written seal literal keeps compiling: a required field would turn
-   * ten literals in files outside this phase's ownership into a type
-   * error. Fail-safe by construction: absent reads as off everywhere.
+   * PHASE 360. REMOVED. Agent skill delivery used to live in the danger
+   * seal alongside defaults/acks/fold/arch/env (`agentAccess?: boolean`,
+   * sealed-cover-keeps-true), because a file agents can write should not
+   * let an agent authorize itself. The operator's ruling of 2026-11-07
+   * removed it: the operations it gates are read/show-only, and the
+   * keychain prompt the seal costs is not worth it for this switch. The
+   * field is GONE rather than optional-with-a-comment so no later round can
+   * read the old comment and re-add the arms. The plain boolean lives in
+   * `sanitizeSettings` (`out.agentAccess = obj['agentAccess'] === true`)
+   * with no seal involvement at all.
    *
-   * An old seal has no `agentAccess` member at all, which opens as
-   * undefined and fails safe to no delivery — exactly as a pre-275 seal
-   * has no `envShared` and covers no shared name.
+   * DO NOT RE-ADD this field without re-reading the operator's ruling and
+   * the lifecycle-gated operations note in the phase 360 entry: the first
+   * phase that ships an operation acting on someone's work must gate THAT
+   * operation, not this switch.
    */
-  readonly agentAccess?: boolean;
   /**
    * "<agentId> <model>" when a fold harness is chosen, null for None
    * (Phase 138). It is here rather than in a second seal because it is the
@@ -343,11 +347,11 @@ export function dangerStateOf(settings: GmuxSettings): DangerState {
     fold,
     arch,
     env: env.sort(),
-    envShared: envShared.sort(),
-    // Phase 359. Present only when on, so a sealed-off state seals to the
-    // same text it always did and the blob does not move for a person who
-    // never opened the switch. Absent reads as off on every read path.
-    ...(settings.agentAccess === true ? { agentAccess: true as const } : {})
+    envShared: envShared.sort()
+    // Phase 360 removed the agentAccess seal member (operator ruling
+    // 2026-11-07): the switch is a plain boolean now, so it never reaches
+    // the seal either way. The blob for a person who never touched the
+    // other fields is byte-identical to before.
   };
 }
 
@@ -373,14 +377,12 @@ export function isDangerStateEmpty(state: DangerState): boolean {
     state.fold === null &&
     state.arch === null &&
     state.env.length === 0 &&
-    state.envShared.length === 0 &&
-    // Phase 359. Undefined is empty: a seal written before this phase — or
-    // produced while the switch was off — carries no member and must take
-    // the common no-keystore path, exactly as a pre-275 seal does. Forgetting
-    // this clause admits a settings.json whose ONLY danger value is the
-    // switch, unsealed; the ablation in p359-agent-access-seal.test.ts is
-    // the same shape as p275's.
-    state.agentAccess !== true
+    state.envShared.length === 0
+    // Phase 360 removed the `state.agentAccess !== true` clause with the
+    // field itself. A settings object whose ONLY non-default value is the
+    // delivery switch is now a genuinely empty danger state, and that is
+    // correct: the switch is a plain boolean, so taking the common
+    // no-keystore path costs no coverage — there is nothing to cover.
   );
 }
 
@@ -536,15 +538,11 @@ export function withSealedDangerState(
       : null;
   const archRejected = chosenArch !== null && chosenArch !== sealed.arch;
   if (archRejected) rejected.push(chosenArch);
-  // Phase 359. The delivery switch drops to off unless the seal covers
-  // `true`. It IS reported — under the opaque name `agentAccess`, with no
-  // payload — so the Settings window can correct an optimistic toggle and
-  // app.log can say why a sealed-off switch is not in effect.
-  const agentAccessKept =
-    settings.agentAccess === true && sealed.agentAccess === true;
-  const agentAccessRejected =
-    settings.agentAccess === true && !agentAccessKept;
-  if (agentAccessRejected) rejected.push('agentAccess');
+  // Phase 360. The delivery switch is NOT sealed (operator ruling
+  // 2026-11-07): it is a plain boolean read straight off the sanitized
+  // settings object, so there is no kept/rejected pair here and no
+  // `rejected.push('agentAccess')`. The seal machinery above is untouched
+  // for the members that still need it.
   const launchDefaults: GmuxSettings['launchDefaults'] = {};
   for (const [id, flags] of Object.entries(settings.launchDefaults)) {
     if (!Array.isArray(flags)) continue;
@@ -723,10 +721,6 @@ export function withSealedDangerState(
   if (
     dropped === 0 &&
     !envRestored &&
-    // Phase 359. A value this run restores (a covered `true` onto a file
-    // holding `true`) is not a change, so the identity holds whenever both
-    // halves already agree — no cross-list comparison is needed.
-    agentAccessKept === (settings.agentAccess === true) &&
     acks.length === settings.dangerAcknowledged.length
   ) {
     return { settings, rejected, missing, envRejected };
@@ -742,12 +736,9 @@ export function withSealedDangerState(
       // load would refuse.
       envPassthroughShared,
       dangerAcknowledged: acks,
-      // Phase 359. The switch is a single boolean, so the sealed answer is
-      // the boolean itself: covered `true` keeps the file's `true`, anything
-      // else reads off. The strip path in `persistSettings` runs this with an
-      // empty seal, so an unsealable write saves off rather than saving a
-      // value the next load would refuse.
-      agentAccess: agentAccessKept,
+      // Phase 360. No `agentAccess` here: the switch is not sealed, so the
+      // seal neither keeps nor drops it. The strip path in `persistSettings`
+      // therefore saves the person's own answer rather than forcing off.
       fold: foldRejected ? noFoldChosen() : settings.fold,
       // Phase 175. The seal drops the harness PAIR and only the pair. The
       // visibility switch is not sealed, because a false value hides
@@ -894,12 +885,11 @@ function openDangerSeal(blob: unknown): DangerState | null {
       // has no `envShared` member, opens as [], and covers NO shared name — so
       // an agreement a person gave to one agent's list can never come back as
       // an agreement covering every agent.
-      envShared: strings(asState.envShared),
-      // Phase 359. Literal `true` survives; everything else reads off, so
-      // an old seal (no member), a forged seal, and a seal that named any
-      // other value all cover no delivery. A pre-359 seal still opens and
-      // still covers exactly what it always covered.
-      agentAccess: asState.agentAccess === true ? true : undefined
+      envShared: strings(asState.envShared)
+      // Phase 360 removed `agentAccess` from the seal. An old seal written
+      // by a 359 build still carries the member; it is simply never read,
+      // so a file that held the switch on and was sealed by that build now
+      // reads its own `true` with no keychain question at all.
     };
   } catch {
     // Forged, truncated, or written by a different machine's key. It proves
@@ -971,9 +961,10 @@ export function sanitizeSettings(raw: unknown): GmuxSettings {
     sharedRefusedEnvKeys()
   ).names;
 
-  // PHASE 359. The delivery switch: only literal `true` survives as true.
-  // Everything else — absent, false, a string, a number — reads off. Shape
-  // only; the seal in `getSettings` is what asks who turned it on.
+  // PHASE 360. The delivery switch: a plain boolean, shape only. Only
+  // literal `true` survives as true; everything else — absent, false, a
+  // string, a number — reads off. No seal asks who turned it on any more
+  // (operator ruling 2026-11-07).
   out.agentAccess = obj['agentAccess'] === true;
 
   // Per-agent SpecStory capture defaults (Phase 15). Unknown ids dropped and

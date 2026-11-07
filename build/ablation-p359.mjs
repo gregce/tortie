@@ -30,37 +30,44 @@ const repoRoot = join(scriptDir, '..');
 
 /** One rule id the arm must turn red, and the source clause it plants over. */
 const ARMS = [
+  // PHASE 360. Arms 1 to 3 planted breaks in the seal read of the switch;
+  // the switch is no longer sealed, so those plants have nothing to break.
+  // Arm 1 is retired. Arms 2 to 4 are re-aimed at the plain boolean: the
+  // shape check is the only thing deciding off from on.
   {
     id: 1,
-    rule: 'A2',
+    rule: 'A1',
     file: 'src/main/settings/store.ts',
-    from: 'state.agentAccess !== true',
-    to: 'true',
-    note: 'the no-danger shortcut stops asking the switch, which skips the seal'
+    from: "out.agentAccess = obj['agentAccess'] === true;",
+    // `delete` rather than a rename: `out` is the settings object this
+    // function returns, so removing the assignment leaves the property off
+    // the object entirely and every read falls back to the shared default.
+    to: "delete out.agentAccess;",
+    note: 'the shape check stops writing the switch, so a file true reads the default'
   },
   {
     id: 2,
     rule: 'A1',
     file: 'src/main/settings/store.ts',
-    from: 'settings.agentAccess === true && sealed.agentAccess === true',
-    to: 'settings.agentAccess === true && sealed.agentAccess !== false',
-    note: 'an old seal with no member covers the switch'
+    from: "out.agentAccess = obj['agentAccess'] === true;",
+    to: "out.agentAccess = obj['agentAccess'] !== false;",
+    note: 'the shape check admits a forged file true as on (intended; the seal is gone)'
   },
   {
     id: 3,
     rule: 'A1',
     file: 'src/main/settings/store.ts',
-    from: 'settings.agentAccess === true && sealed.agentAccess === true',
-    to: 'settings.agentAccess === true || sealed.agentAccess === false',
-    note: 'the seal lets a mismatch through, so an uncovered switch reads on'
+    from: "out.agentAccess = obj['agentAccess'] === true;",
+    to: "out.agentAccess = true;",
+    note: 'the shape check defaults the switch on instead of off'
   },
   {
     id: 4,
     rule: 'A1',
-    file: 'src/main/settings/store.ts',
-    from: "out.agentAccess = obj['agentAccess'] === true;",
-    to: "out.agentAccess = obj['agentAccess'] !== false;",
-    note: 'a forged settings file reads on with no seal at all'
+    file: 'src/shared/settings.ts',
+    from: 'agentAccess: false,',
+    to: 'agentAccess: true,',
+    note: 'a fresh install wakes with the switch already on'
   },
   {
     id: 5,
