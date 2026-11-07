@@ -66,6 +66,13 @@ import type {
   GmuxMultilineExtras,
   MultilineInvokeChannelMap
 } from './agents';
+// Phase 359. A validated socket `open` reaches the ready renderer through one
+// typed event, and hears back through one typed invoke.
+import type {
+  AgentAccessInvokeChannelMap,
+  AgentAccessOpenEventPayloadMap,
+  GmuxAgentAccessExtras
+} from './agent-access';
 import type {
   ContextInvokeChannelMap,
   ContextSnapshotInvokeChannelMap,
@@ -229,6 +236,9 @@ export * from './baselines';
 export * from './logins';
 export * from './actions';
 export * from './agents';
+// Phase 359. The agent-access handoff's two names, through the same door as
+// every other domain.
+export * from './agent-access';
 export * from './context';
 // Phase 163. The on demand diagnostics report and the opt in heap snapshot.
 export * from './diagnostics';
@@ -337,7 +347,9 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   PocketInvokeChannelMap &
   // Phase 357. The Restart on the notice that says the session list stopped
   // reading correctly. Main answers it only after posting that notice.
-  RelaunchInvokeChannelMap;
+  RelaunchInvokeChannelMap &
+  // Phase 359. The one receipt a validated socket `open` waits on.
+  AgentAccessInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -383,7 +395,9 @@ export type AllEventPayloadMap = EventPayloadMap &
   PocketEventPayloadMap &
   // Phase 347. A watched open file changed, sent only to the window that
   // declared it.
-  GitOpenFilesEventPayloadMap;
+  GitOpenFilesEventPayloadMap &
+  // Phase 359. One validated open, from the socket to the ready renderer.
+  AgentAccessOpenEventPayloadMap;
 
 export type AllEventChannel = keyof AllEventPayloadMap;
 
@@ -515,7 +529,11 @@ export type InstalledGmuxApi = GmuxApi & {
   // commit that registers its channels in main (`conformance:pocket` B1).
   GmuxPocketExtras &
   // Phase 357. The one `relaunch` member, the stopped list notice's Restart.
-  GmuxRelaunchExtras;
+  GmuxRelaunchExtras &
+  // Phase 359. The `agentAccess` member: one subscription, one receipt. Both
+  // are installed in the same commit that registers the channel in main, for
+  // the reason the note about `GmuxPocketExtras` below gives.
+  GmuxAgentAccessExtras;
 
 /**
  * PHASE 313 AND 316: WHY `GmuxPocketExtras` JOINED THE INTERSECTION ABOVE WHEN

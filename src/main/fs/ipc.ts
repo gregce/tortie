@@ -37,13 +37,13 @@
 
 import { app, BrowserWindow, dialog, nativeImage, shell } from 'electron';
 import type { IpcMain, IpcMainInvokeEvent } from 'electron';
-import { open as openFile, readdir, writeFile } from 'node:fs/promises';
+import { readdir, writeFile } from 'node:fs/promises';
 import { basename, resolve as resolvePath } from 'node:path';
 import type { FsDirEntry, ReadFileResult } from '@shared/types';
-// Phase 226 moved READ_CAP_BYTES to the shared contract so the guarded write
-// asks the same number this file truncates at, and there is still one number.
-import { READ_CAP_BYTES } from '@shared/fs-ops';
-import { gmuxError } from '../errors';
+import { gmuxError, gmuxErrorPayloadOf } from '../errors';
+// Phase 359: the editor's read and the agent-access strict read are one
+// shared helper. `ReadFileResult` still types the truncation flag below.
+import { readTextCapped } from './read-text';
 // PHASE 273. The ONE log call in this domain, and it is here rather than in
 // guarded-write.ts for a mechanical reason: build/redline-write-probe.mts
 // loads the SHIPPING guarded-write.ts under plain node, and src/main/log
@@ -82,39 +82,9 @@ function entryKind(d: {
   return 'other';
 }
 
-/** Bytes sniffed for NUL to classify a file as binary (git's heuristic). */
-const BINARY_SNIFF_BYTES = 8192;
-
-/** Read up to READ_CAP_BYTES of a file as UTF-8, refusing binary content. */
-async function readTextCapped(abs: string): Promise<ReadFileResult> {
-  const fh = await openFile(abs, 'r');
-  try {
-    const { size } = await fh.stat();
-    const toRead = Math.min(size, READ_CAP_BYTES);
-    const buf = Buffer.alloc(toRead);
-    let offset = 0;
-    while (offset < toRead) {
-      const { bytesRead } = await fh.read(buf, offset, toRead - offset, offset);
-      if (bytesRead === 0) break;
-      offset += bytesRead;
-    }
-    const head = buf.subarray(0, Math.min(offset, BINARY_SNIFF_BYTES));
-    if (head.includes(0)) {
-      throw gmuxError(
-        'FS_FAILED',
-        `${basename(abs)} is a binary file — Tortie edits text files only.`
-      );
-    }
-    return {
-      path: abs,
-      contents: buf.subarray(0, offset).toString('utf8'),
-      encoding: 'utf8',
-      truncated: size > READ_CAP_BYTES
-    };
-  } finally {
-    await fh.close();
-  }
-}
+// Phase 359: the editor's read is the shared helper's relaxed arm, in
+// `./read-text.ts`. The local `readTextCapped` above is deleted with it so
+// there is exactly one copy of the read loop.
 
 /**
  * Production dependencies for the file-operations service.
@@ -244,9 +214,40 @@ export function registerFsIpc(
     }
     const abs = resolvePath(path);
     try {
-      return await readTextCapped(abs);
+      // Phase 359: one shared helper. The relaxed arm keeps the editor's
+      // own answers: same cap, same truncation word, same binary sentence.
+      // The oversize word maps to the editor's own truncation flag here,
+      // because the editor composes over a truncated read.
+      const read = await readTextCapped(abs, 'relaxed');
+      const result: ReadFileResult = {
+        path: abs,
+        contents: read.text,
+        encoding: 'utf8',
+        truncated: read.truncated
+      };
+      return result;
     } catch (err) {
-      if (err instanceof Error && err.name === 'GmuxError') throw err;
+      if (err instanceof Error && err.name === 'GmuxError') {
+        // The cap and binary words are mapped to the sentences the editor
+        // already says; nothing else changes.
+        const payload = gmuxErrorPayloadOf(err);
+        const message = payload?.message ?? err.message;
+        if (message.includes('too large')) {
+          return {
+            path: abs,
+            contents: '',
+            encoding: 'utf8',
+            truncated: true
+          };
+        }
+        if (message.includes('binary')) {
+          throw gmuxError(
+            'FS_FAILED',
+            `${basename(abs)} is a binary file — Tortie edits text files only.`
+          );
+        }
+        throw err;
+      }
       throw gmuxError(
         'FS_FAILED',
         `Could not open ${basename(abs)}`,

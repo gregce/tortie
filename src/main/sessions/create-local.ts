@@ -87,7 +87,13 @@ import { postDurabilityNotice } from '../notice';
 // or branch on it. See the module header for the four rules.
 import { recordLaunchContext } from '../context/snapshot';
 import {
+  applyAgentAccessArgv,
+  composeAgentAccessDelivery
+} from '../agent-access/delivery';
+import {
   captureRefusedOnMachine,
+  isWrappedArgv,
+  unwrapArgv,
   wrapForCapture,
   wrapWithRecord,
   type SpecstoryCaptureRecord
@@ -704,17 +710,43 @@ export async function createLocalSession(
     resolvedEnv = envProbe.values;
   }
 
+  // PHASE 359. Launch-scoped skill delivery, read off the sealed switch and
+  // composed AFTER every existing argv/env decision, so off is byte-identical
+  // to the parent. The manifest above keeps the pre-delivery `spec`/record;
+  // only the pane's spawn argv and env carry the pair. `GMUX_AGENT_SOCKET`
+  // merges after `paneEnvFor`, so a configured row cannot displace it.
+  const accessDelivery = composeAgentAccessDelivery({
+    agent: input.agent,
+    enabled: settings.agentAccess === true,
+    local: true
+  });
+  const deliveredArgv = applyAgentAccessArgv(
+    launchArgv,
+    capture,
+    accessDelivery,
+    isWrappedArgv,
+    unwrapArgv,
+    wrapWithRecord
+  );
+  const deliveredEnv =
+    accessDelivery === null
+      ? paneEnvFor(spec.env, resolvedEnv, id, process.env, loginEnv)
+      : {
+          ...paneEnvFor(spec.env, resolvedEnv, id, process.env, loginEnv),
+          ...accessDelivery.env
+        };
+
   let info: tmux.TmuxSessionInfo;
   try {
     info = await tmux.createSession({
       displayName: input.name,
       cwd,
-      argv: launchArgv,
+      argv: deliveredArgv,
       // PHASE 202. The login layer goes in as its own argument rather than
       // through `spec.env`, because `spec.env` is written into the manifest
       // row verbatim and replayed at restore. The row carries the NAME and
       // this directory is composed again at every launch.
-      env: paneEnvFor(spec.env, resolvedEnv, id, process.env, loginEnv)
+      env: deliveredEnv
     });
   } catch (err) {
     // Spawn never happened — a lingering row would resurrect a session

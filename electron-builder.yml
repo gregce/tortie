@@ -339,6 +339,18 @@ extraResources:
   # Settings can name the bundled version without starting anything.
   - from: build/vendor/skills/skills.json
     to: skills-cli/skills.json
+  # Phase 359 (agent access): the first-party `tortie` skill at
+  # Contents/Resources/agent-skills/tortie. Five files, Markdown and JSON
+  # only — no hook, MCP server, script, executable, URL or contribution
+  # registry — handed by launch argument to Claude Code, Pi and omp while
+  # the sealed switch is on, and never installed into a home, repo, or
+  # existing skills directory. `src/main/agent-access/delivery.ts`
+  # resolves it via process.resourcesPath in a packaged app, by the same
+  # mechanism as gmux-tmux.conf above; the packaged assertion in
+  # build/assert-agent-skills.cjs byte-compares the five files on every
+  # build, so a package that omitted them fails before signing.
+  - from: resources/agent-skills/tortie
+    to: agent-skills/tortie
 asarUnpack:
   - "**/*.node"
   # Phase 14: the vendored ripgrep Mach-O (@vscode/ripgrep-darwin-arm64) is

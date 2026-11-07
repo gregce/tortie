@@ -56,6 +56,7 @@ import {
   agentPageTabId,
   type AgentPage
 } from './AgentPages';
+import { AgentAccessSetting } from './AgentAccessSetting';
 import { AgentRow } from './AgentRow';
 import { ConfiguredAgents } from './ConfiguredAgents';
 import { MachineAgentsSection } from './MachineAgents';
@@ -166,6 +167,10 @@ export function AgentsSection(): React.JSX.Element {
           ) : null}
         </div>
       )}
+
+      {/* Phase 359. The agent-access switch: after the installed-agent
+          card and before ConfiguredAgents, on this Mac's page only. */}
+      <AgentAccessSetting />
 
       {/* Phase 23. The confirm gate's only surface. It draws nothing at all on
           a machine with no configuration file, which is almost every machine,

@@ -1,0 +1,5 @@
+{
+  "name": "tortie-agent-access",
+  "version": "1.0.0",
+  "description": "Lets Tortie sessions ask this Tortie about their own session, the session list, and opening a validated project file."
+}

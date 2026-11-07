@@ -1,5 +1,5 @@
 /**
- * after-pack.cjs — the afterPack hook, and the composition point for the five
+ * after-pack.cjs — the afterPack hook, and the composition point for the six
  * things Tortie must do to a freshly packed .app before it gets sealed:
  *
  *   1. refuse an app that carries Intel-only code, before anything below
@@ -9,13 +9,15 @@
  *   4. prove every package the main and preload bundles require is in the
  *      packed app (build/assert-main-requires.cjs);
  *   5. prove the bundled skills CLI is there and runs
- *      (build/assert-skills-cli.cjs).
+ *      (build/assert-skills-cli.cjs);
+ *   6. prove the first-party agent skill is there, byte for byte, with no
+ *      extra entry and no executable bit (build/assert-agent-skills.cjs).
  *
- * Steps 1, 3, 4 and 5 live in their own modules because each is a different
+ * Steps 1, 3, 4, 5 and 6 live in their own modules because each is a different
  * domain with a different reason to change — Phase 351's arm64 gate,
  * Appendix F's signing recipe, one entry per embedded binary, Phase 27's
- * require check, and Phase 22's packaging gate — and this file stays the hook,
- * not a junk drawer.
+ * require check, Phase 22's packaging gate, and Phase 359's bundled skill
+ * assertion — and this file stays the hook, not a junk drawer.
  *
  * SEAL WARNING (Phase 27, research 27 section 6.3): everything in this hook
  * is safe ONLY because afterPack runs BEFORE signApp seals the bundle.
@@ -54,6 +56,7 @@ const { existsSync, readdirSync } = require('node:fs');
 const { execFileSync } = require('node:child_process');
 const { join } = require('node:path');
 const { signNestedBinaries } = require('./sign-nested-binaries.cjs');
+const { assertAgentSkills } = require('./assert-agent-skills.cjs');
 const { assertSkillsCli } = require('./assert-skills-cli.cjs');
 const { assertMainRequires } = require('./assert-main-requires.cjs');
 
@@ -82,6 +85,11 @@ exports.default = async function afterPack(context) {
   // broken build, not a warning: the failure is invisible until a user tries to
   // install a skill. See build/assert-skills-cli.cjs for the one that shipped.
   assertSkillsCli(context);
+  // Phase 359. THROWS when the first-party `tortie` skill is absent from
+  // the bundle: every enabled launch hands the agent a flag that points at
+  // nothing, and the failure is invisible until a person asks an agent to
+  // use it. See build/assert-agent-skills.cjs.
+  assertAgentSkills(context);
 };
 
 /** Step 2: CFBundleName ← the bundle's own executable name, for all helpers. */

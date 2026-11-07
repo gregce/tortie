@@ -479,6 +479,11 @@ function landsInText(image: boolean, svg: boolean): boolean {
  * which is the user saying "I'm going there now") does focus the editor.
  */
 function shouldFocusFor(req: OpenFileRequest): boolean {
+  // PHASE 359. An arrival from a background/cross-project agent-access open
+  // carries `focus: false` and must never steal keyboard focus, before the
+  // existing search rule is asked: an opt-out read first can only narrow
+  // focus, never widen it.
+  if (req.focus === false) return false;
   return req.source !== 'search' || req.preview === false;
 }
 

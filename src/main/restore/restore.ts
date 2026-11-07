@@ -72,6 +72,10 @@ import { withLoginShellFlag } from '../manifest/login-shell';
 import * as tmux from '../tmux';
 import { gmuxError } from '../errors';
 import {
+  applyAgentAccessArgv,
+  composeAgentAccessDelivery
+} from '../agent-access/delivery';
+import {
   isWrappedArgv,
   resolveSpecstory,
   unwrapArgv,
@@ -1077,20 +1081,49 @@ export async function restoreSessionInTmux(
       : resolveLoginDir(loginsRoot(), loginProvider, rec.login);
   const loginEnv = loginPaneEnv(loginProvider, login?.dir ?? null);
 
+  // PHASE 359. The new pane's delivery follows the CURRENT sealed switch,
+  // applied to the freshly composed spawn argv; the manifest record is never
+  // altered. Restore re-resolves ephemeral environment at each new pane, and
+  // this delivery is one more ephemeral composition, not a record field.
+  const restoreDelivery = composeAgentAccessDelivery({
+    agent: rec.agent,
+    enabled: restoreSettings.agentAccess === true,
+    local: true
+  });
+  const deliveredShellArgv = applyAgentAccessArgv(
+    shellArgv,
+    rec.specstory,
+    restoreDelivery,
+    isWrappedArgv,
+    unwrapArgv,
+    wrapWithRecord
+  );
+  const restoreBaseEnv = paneEnvFor(
+    rec.env,
+    resolvedEnv,
+    rec.id,
+    process.env,
+    loginEnv
+  );
+  const deliveredEnv =
+    restoreDelivery === null
+      ? restoreBaseEnv
+      : { ...restoreBaseEnv, ...restoreDelivery.env };
+
   faultPoint('restore.before-spawn');
   let info: tmux.TmuxSessionInfo;
   try {
     info = await tmux.createSession({
       displayName: rec.name,
       cwd,
-      argv: shellArgv,
+      argv: deliveredShellArgv,
       // Same markers a fresh create stamps (Phase 12.7 F3): a restored session
       // is just as managed, and identity must survive the round trip. The
       // stamps stay last, over both the row's own env and the resolved
       // passthrough. See paneEnvFor.
       // Phase 202: the login layer, composed again rather than replayed. It
       // is empty for the default and for every agent that has no login.
-      env: paneEnvFor(rec.env, resolvedEnv, rec.id, process.env, loginEnv)
+      env: deliveredEnv
     });
   } catch (err) {
     return {

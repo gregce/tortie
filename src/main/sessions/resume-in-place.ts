@@ -101,7 +101,17 @@ import { buildArmedCommand } from '../restore/command';
 // The SAME two functions the local restore uses, so the command this types and
 // the command a restore arms cannot drift into two different quotings.
 import { armableResume, typeIntoPane } from '../restore/restore';
-import { isWrappedArgv, unwrapArgv } from '../specstory';
+import {
+  applyAgentAccessArgv,
+  agentAccessSocketPathDefault,
+  composeAgentAccessDelivery
+} from '../agent-access/delivery';
+import { AGENT_ACCESS_SOCKET_ENV } from '@shared/agent-access';
+import {
+  isWrappedArgv,
+  unwrapArgv,
+  wrapWithRecord
+} from '../specstory';
 import { getLog } from '../log';
 import { admitConfirmedConversationId, type IdHarvestDeps } from './id-harvest';
 import { LOCAL_MACHINE } from './reconcile-plan';
@@ -577,11 +587,98 @@ export interface ResumeInPlaceDeps {
   readProcess?: ProcessReader;
   /** Types one line with NO Enter. Injected so the test types nowhere. */
   typeInto?(target: string, text: string): Promise<void>;
+  /**
+   * The sealed switch reader. Defaults to the seal-checked settings store;
+   * injected in tests so no Electron settings file is read. Only literal
+   * `true` enables retained delivery.
+   */
+  isAgentAccessEnabled?(): boolean;
   /** claude's registry directory. Injected so the test never reads a home. */
   claudeSessionsDir?: string;
   /** antigravity's brain directory. Injected for the same reason. */
   agyBrainRoot?: string;
   now?(): number;
+}
+
+/**
+ * PHASE 359. The retained pane's recorded `GMUX_AGENT_SOCKET`, or null.
+ *
+ * Read through the same `exec` seam the pane reads use, so tests answer
+ * `show-environment` with no server. A pane whose variable is missing,
+ * empty, or unreadable keeps the command it recorded, exactly as a pane
+ * that never had delivery does.
+ */
+export async function readRetainedAgentAccessEnv(
+  target: string,
+  exec: (args: readonly string[]) => Promise<string>
+): Promise<string | null> {
+  try {
+    const out = await exec([
+      'show-environment',
+      '-t',
+      target,
+      AGENT_ACCESS_SOCKET_ENV
+    ]);
+    const line = out.split('\n')[0] ?? '';
+    const prefix = `${AGENT_ACCESS_SOCKET_ENV}=`;
+    if (!line.startsWith(prefix)) return null;
+    const value = line.slice(prefix.length);
+    return value.length > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * PHASE 359. The retained restart's delivery decision.
+ *
+ * The pane keeps the command it recorded unless BOTH halves hold: the pane
+ * already carries this profile's exact socket path AND the sealed switch is
+ * on now. A pre-enable pane (no recorded env) receives nothing after the
+ * switch turns on; a switch-off pane receives nothing even with the env.
+ * The bundle pair is the current one, applied through the shared applier so
+ * captured wrappers keep the pair inside `-c` and a failing rewrap keeps
+ * the recorded command. The manifest record is never touched.
+ */
+export function applyRetainedAgentAccess(
+  rec: ManifestSessionRecord,
+  armableArgv: readonly string[],
+  retainedEnv: string | null,
+  enabled: boolean = readSealedAgentAccessSwitch(),
+  socketPath: string = agentAccessSocketPathDefault(),
+  bundleRoot?: string
+): string[] {
+  if (retainedEnv === null || retainedEnv !== socketPath) return [...armableArgv];
+  const delivery = composeAgentAccessDelivery({
+    agent: rec.agent,
+    enabled,
+    local: true,
+    socketPath,
+    ...(bundleRoot !== undefined ? { bundleRoot } : {})
+  });
+  if (delivery === null) return [...armableArgv];
+  return applyAgentAccessArgv(
+    armableArgv,
+    rec.specstory,
+    delivery,
+    isWrappedArgv,
+    unwrapArgv,
+    wrapWithRecord
+  );
+}
+
+/** The seal-checked switch, read late so tests can inject it instead. */
+function readSealedAgentAccessSwitch(): boolean {
+  try {
+    // Lazy so this module loads without Electron in plain-node tests.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { getSettings } = require('../settings/store') as typeof import(
+      '../settings/store'
+    );
+    return getSettings().agentAccess === true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -1003,7 +1100,12 @@ export class ResumeInPlaceService {
       return refuse(namesThisAgent(running, rec) ? 'agent-back' : 'running');
     }
 
-    const text = await this.composeLocalArmedText(rec, target);
+    const retained = await readRetainedAgentAccessEnv(target, this.deps.exec);
+    const enabled =
+      this.deps.isAgentAccessEnabled !== undefined
+        ? this.deps.isAgentAccessEnabled()
+        : readSealedAgentAccessSwitch();
+    const text = await this.composeLocalArmedText(rec, target, retained, enabled);
     if (text === null) return refuse('not-composed');
     return this.armAndReadBack(rec, target, text);
   }
@@ -1017,13 +1119,29 @@ export class ResumeInPlaceService {
    * wrapper around that argv is Tortie's own record of its own bundled binary,
    * and the text that is typed is the one a restore of this row would type, so
    * the two cannot drift.
+   *
+   * PHASE 359. The retained restart also carries the current bundle pair
+   * when — and only when — the pane Tortie is typing into already holds
+   * `GMUX_AGENT_SOCKET` equal to this profile's exact socket path AND the
+   * sealed switch is on now. A session started before enablement keeps the
+   * command it recorded, even if its agent later exits: no delivery reaches
+   * a pane that never had it.
    */
   private async composeLocalArmedText(
     rec: ManifestSessionRecord,
-    target: string
+    target: string,
+    retainedEnv: string | null,
+    enabled: boolean
   ): Promise<string | null> {
     const armable = await armableResume(rec);
-    const argv = armable.argv;
+    const socketPath = agentAccessSocketPathDefault();
+    const argv = applyRetainedAgentAccess(
+      rec,
+      armable.argv,
+      retainedEnv,
+      enabled,
+      socketPath
+    );
     if (argv.length === 0) return null;
     const inner = isWrappedArgv(argv) ? unwrapArgv(argv) : argv;
     const composed = composeArmedResumeText({

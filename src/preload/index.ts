@@ -32,6 +32,11 @@ import { arch } from './arch';
 // Phase 243. The durable baseline: one read at open, one write when it moves.
 import { baselines } from './baselines';
 import { invoke, on } from './bridge';
+// Phase 359. The socket door's one typed event out and one typed receipt
+// back, through the one bridge's primitives. Installed beside the channel
+// registration in main in the same commit, for the reason the note about
+// `pocket` above gives.
+import { agentAccess } from './agent-access';
 import { config, context, contextSnapshot } from './context';
 import { diagnostics } from './diagnostics';
 import { fs, preview } from './files';
@@ -80,6 +85,7 @@ const specstory: InstalledGmuxApi['specstory'] = {
 };
 
 const api: InstalledGmuxApi = {
+  agentAccess,
   sessions,
   projects,
   recents,

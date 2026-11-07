@@ -109,6 +109,13 @@ export interface OpenFileSelection {
 }
 
 export interface OpenFileRequest {
+  /**
+   * PHASE 359. Focus predicate, additive and optional. `false` forces the
+   * background/cross-project rule in `shouldFocusFor`: an open carrying it
+   * never steals keyboard focus. Omitted behaves exactly as before, so every
+   * existing emitter still compiles and still focuses as it always has.
+   */
+  focus?: boolean;
   /** Absolute project/repo root (GitStatusResult.repoPath). */
   repoPath: string;
   /** Path relative to repoPath (GitFileStatus.path). */

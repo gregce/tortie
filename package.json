@@ -340,7 +340,10 @@
     "icon": "cp docs/brand/tortie/macos/Tortie.icns build/icon.icns && cp docs/brand/tortie/menu-bar/TortieTemplate.png docs/brand/tortie/menu-bar/TortieTemplate@2x.png resources/menu-bar/ && cp docs/brand/tortie/dock/tortie-dock-128.png src/renderer/assets/brand/tortie-128.png && cp docs/brand/tortie/dock/tortie-dock-512.png src/renderer/assets/brand/tortie-512.png",
     "probe:p101shot": "npm run build && node build/probe-p101-shot.mjs",
     "probe:p102": "node build/probe-p102-entry.mjs",
-    "probe:p102shot": "npm run build && node build/probe-p102-shot.mjs"
+    "probe:p102shot": "npm run build && node build/probe-p102-shot.mjs",
+    "conformance:agentaccess": "node build/conformance-agent-access.mjs",
+    "ablation:p359": "node build/ablation-p359.mjs",
+    "probe:p359": "node build/p359/probe-p359.mjs"
   },
   "dependencies": {
     "@parcel/watcher": "^2.6.0",

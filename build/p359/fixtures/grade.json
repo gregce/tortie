@@ -1,0 +1,134 @@
+[
+  {
+    "why": "an honest report: the switch on, two delivered agent sessions carrying a pair, one accepted open",
+    "pass": true,
+    "report": {
+      "switchOn": true,
+      "sessions": [
+        {
+          "delivered": true,
+          "argv": [
+            "claude",
+            "--plugin-dir",
+            "/x/tortie",
+            "--skill",
+            "tortie-agent-access"
+          ]
+        },
+        {
+          "delivered": true,
+          "argv": [
+            "omp",
+            "--plugin-dir",
+            "/x/tortie",
+            "--skill",
+            "tortie-agent-access"
+          ]
+        },
+        {
+          "delivered": false,
+          "argv": [
+            "/bin/zsh",
+            "-l"
+          ]
+        }
+      ],
+      "opened": {
+        "outcome": "accepted"
+      }
+    }
+  },
+  {
+    "why": "the switch did not stay on",
+    "pass": false,
+    "report": {
+      "switchOn": false,
+      "sessions": [],
+      "opened": {
+        "outcome": "accepted"
+      }
+    }
+  },
+  {
+    "why": "one row delivered, so the matrix is short",
+    "pass": false,
+    "report": {
+      "switchOn": true,
+      "sessions": [
+        {
+          "delivered": true,
+          "argv": [
+            "claude",
+            "--skill",
+            "tortie-agent-access"
+          ]
+        }
+      ],
+      "opened": {
+        "outcome": "accepted"
+      }
+    }
+  },
+  {
+    "why": "a delivered row names no pair",
+    "pass": false,
+    "report": {
+      "switchOn": true,
+      "sessions": [
+        {
+          "delivered": true,
+          "argv": [
+            "claude",
+            "-p",
+            "hi"
+          ]
+        },
+        {
+          "delivered": true,
+          "argv": [
+            "omp"
+          ]
+        }
+      ],
+      "opened": {
+        "outcome": "accepted"
+      }
+    }
+  },
+  {
+    "why": "the open was refused",
+    "pass": false,
+    "report": {
+      "switchOn": true,
+      "sessions": [
+        {
+          "delivered": true,
+          "argv": [
+            "claude",
+            "--skill",
+            "tortie-agent-access"
+          ]
+        },
+        {
+          "delivered": true,
+          "argv": [
+            "omp",
+            "--skill",
+            "tortie-agent-access"
+          ]
+        }
+      ],
+      "opened": {
+        "outcome": "refused"
+      }
+    }
+  },
+  {
+    "why": "a report missing a key is not a pass",
+    "pass": false,
+    "report": {
+      "switchOn": true,
+      "sessions": []
+    }
+  }
+]

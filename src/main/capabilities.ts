@@ -135,6 +135,8 @@ import { beginPhoneAlertsShutdown, createPhoneAlerts, joinPhoneAlerts } from './
 // ordered disposer below, beside the door's own.
 import { beginFunnelShutdown, joinFunnel } from './pocket/funnel';
 import { PocketHost, registerPocketIpc } from './pocket/ipc';
+// PHASE 359: the list shapes the private session door reads through the core.
+import type { Project, Session } from '@shared/types';
 // PHASE 317: the phone's End, implemented once outside the door's domain and
 // handed to it, beside the facts the rows carry its offer from.
 import { createPocketWrites } from './sessions/pocket-writes';
@@ -173,8 +175,21 @@ import { registerRecentsIpc } from './recents';
 import { registerRestartIpc } from './restart';
 import { registerRestoreIpc } from './restore';
 import { disposeSearchIpc, registerSearchIpc } from './search';
+// PHASE 359: Tortie sessions that can ask Tortie about itself and open a
+// file. One private socket behind a sealed switch; two lines in the ordered
+// disposer below, before the core shutdown it reads through.
+import {
+  beginAgentAccessShutdown,
+  installAgentAccess,
+  joinAgentAccess,
+  reconcileAgentAccess
+} from './agent-access/service';
+import { buildAgentAccessOpen } from './agent-access/open';
+import { agentAccessHarnessCheckpoint } from './harness/agent-access-open';
+import { AgentAccessOpenBroker } from './agent-access/open-broker';
+import { registerAgentAccessOpenIpc } from './agent-access/open-ipc';
 import { getGmuxCore, shutdownGmuxCore, type GmuxCore } from './sessions';
-import { registerSettingsIpc } from './settings';
+import { getSettings, onSettingsUpdated, registerSettingsIpc } from './settings';
 import { registerShellIpc } from './shell';
 import { disposeSymbolsIpc, registerSymbolsIpc } from './symbols';
 import { disposeTray } from './tray';
@@ -210,6 +225,13 @@ let pocketHost: PocketHost | null = null;
 
 /** The wake record the door's rows read (Phase 314's `WakeMark`), disposed at quit. */
 let pocketWakes: WakeMark | null = null;
+
+/**
+ * PHASE 359. The settings subscriber that re-asks the private session
+ * listener. Held so the ordered disposer stops it before it closes the
+ * door itself.
+ */
+let stopAgentAccess: (() => void) | null = null;
 
 /** Resolves once any window exists: at once when one already does. */
 function firstWindow(): Promise<void> {
@@ -580,6 +602,64 @@ export function installMainCapabilities(
   // Phase 10 (S13): settings store + Settings window + flag-preset catalogs
   // (settings:get/set, settings:openWindow, agents:flagPresets).
   registerSettingsIpc(ipcMain);
+  // PHASE 359. The private session door: with the sealed switch on, this
+  // Mac's sessions can ask Tortie about themselves and ask it to open a
+  // project file. Installed ONCE, over the one core the door's `beforeOpen`
+  // resolved, so a session id means the same thing to every reader. The
+  // broker is this install's only one; the open seam is built once over it,
+  // and the service dispatches through that seam. Nothing here starts a
+  // process: turning the switch on opens a listener in the running app.
+  const agentAccessBroker = new AgentAccessOpenBroker();
+  const agentAccessEnabled = (): boolean =>
+    getSettings().agentAccess === true;
+  // Phase 359, fix round (independently verified live: the pocket door's
+  // `pocketCore` is null until the phone door has opened, so reading it here
+  // made every operation `unavailable` in an app whose phone door never
+  // opened). The session door reads the LIVE core like every other
+  // registrar (`registerContextIpc`, `registerOverviewIpc` above); a harness
+  // window that answered nothing yet answers nothing here too, honestly.
+  const agentAccessCore = (): Promise<GmuxCore> => getGmuxCore();
+  const agentAccessSessions = async (): Promise<Session[]> =>
+    (await agentAccessCore()).listSessions();
+  const agentAccessProjects = async (): Promise<Project[]> =>
+    (await agentAccessCore()).listProjects();
+  installAgentAccess({
+    isEnabled: agentAccessEnabled,
+    listSessions: agentAccessSessions,
+    listProjects: agentAccessProjects,
+    tortieVersion: () => app.getVersion(),
+    open: buildAgentAccessOpen({
+      isEnabled: agentAccessEnabled,
+      listSessions: agentAccessSessions,
+      listProjects: agentAccessProjects,
+      // The ready main renderer, and never a window this door opens. A
+      // hidden or background Tortie stays hidden: nothing below shows,
+      // focuses, restores or activates.
+      mainWindow: () => {
+        const win = BrowserWindow.getAllWindows().find(
+          (one) => !one.isDestroyed()
+        );
+        return win === undefined ? null : win.webContents;
+      },
+      broker: agentAccessBroker,
+      windowFocused: () =>
+        BrowserWindow.getAllWindows().some(
+          (one) => !one.isDestroyed() && one.isFocused()
+        ),
+      harnessCheckpoint: () => agentAccessHarnessCheckpoint()
+    })
+  });
+  // The renderer's one receipt, accepted only from the window that was sent
+  // the event and only for a pending id.
+  registerAgentAccessOpenIpc(ipcMain, agentAccessBroker);
+  // Start from the sealed setting. Off is the default and opens nothing;
+  // on opens one listener at this profile's exact address.
+  reconcileAgentAccess(agentAccessEnabled());
+  // Every sealed change re-asks the listener: off closes the door in the
+  // running app, on opens it. `reconcileAgentAccess` serializes the races.
+  stopAgentAccess = onSettingsUpdated(() => {
+    reconcileAgentAccess(agentAccessEnabled());
+  });
   // Phase 24: updates:state, the one updates channel, read by the Settings
   // row. Registering in every mode is the existing convention here and it
   // costs one closure.
@@ -746,6 +826,16 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
   // `joinPhoneAlerts()` below does. Cannot throw; calling it twice is calling
   // it once.
   beginPhoneAlertsShutdown();
+  // PHASE 359. The private session door's admission closes on the same
+  // synchronous line: from here no new connection is admitted and no accepted
+  // request begins an operation. The settings subscriber that could re-open it
+  // is released FIRST, so nothing re-asks the listener after this line. They
+  // end nothing; `joinAgentAccess()` below does, and it is above
+  // `shutdownGmuxCore()` because every operation reads session truth through
+  // the core.
+  stopAgentAccess?.();
+  stopAgentAccess = null;
+  beginAgentAccessShutdown();
   // PHASE 357 (build/p357/SPEC.md D16). Then the crash log's one record of the
   // uncaught errors this run saw more than once, counts and hashed keys only,
   // on these same synchronous lines so it is written long before any exit,
@@ -864,6 +954,27 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
   // `joinPhoneAlerts`). With nothing composed it resolves in this same tick.
   // Its one line, when anything was in flight, is counts.
   await joinPhoneAlerts();
+  // PHASE 359. Then the private session door, bounded at two seconds: the
+  // accepted dispatches are joined and anything still holding a socket after
+  // that is destroyed, so an agent that stopped talking mid request cannot
+  // hold a quit open. It is ABOVE `shutdownGmuxCore()` because every
+  // operation reads session truth through the core, and it unlinks the
+  // socket path only when the path is still the exact device and inode this
+  // service created. A quit with the switch off walks a null and resolves in
+  // this same tick. The one line it logs carries counts only: never the
+  // address, never a session, never a path.
+  const agentAccess = await joinAgentAccess();
+  if (agentAccess.accepted > 0) {
+    getLog('quit').info(
+      `settled agent access work: ${agentAccess.accepted} request(s), ` +
+        `${agentAccess.joined ? 'joined' : 'NOT joined'} after ${agentAccess.waitedMs} ms`,
+      {
+        accepted: agentAccess.accepted,
+        joined: agentAccess.joined,
+        waitedMs: agentAccess.waitedMs
+      }
+    );
+  }
   // PHASE 316: and the pairing window, if one is open, is shredded — its
   // one-shot secret is zeroed now rather than left for the process's end.
   // Synchronous, cannot throw.

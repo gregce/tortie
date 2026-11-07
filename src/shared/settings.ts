@@ -28,6 +28,20 @@ export interface GmuxSettings {
    */
   defaultAgent: LaunchableAgentKind;
   /**
+   * PHASE 359. Whether new Claude Code, Pi, and omp sessions receive
+   * Tortie's first-party `tortie` skill for their launch, through which the
+   * agent may query this Tortie process (capabilities, its own session, the
+   * session list) and ask it to open a validated project file.
+   *
+   * OFF AT INSTALL AND ON SHAPE: anything that is not literally `true`
+   * reads off, which is what every settings file written before this phase
+   * means. SEALED, like the fold and arch choices: it decides what reaches
+   * a launch, so a person must confirm the bytes out of band of any agent
+   * turn (refusal 8). Lost or damaged while the keystore is unavailable, so
+   * the switch returns to off rather than lying.
+   */
+  agentAccess: boolean;
+  /**
    * Per-agent "new session" shortcut, as an Electron accelerator string
    * (e.g. "Cmd+Shift+C"). Registered as native Session-menu accelerators;
    * pressing one creates `<agent>-<n>` in the active project (S13 Hotkeys).
@@ -837,6 +851,10 @@ export type GmuxSettingsPatch = Partial<GmuxSettings>;
 export function defaultGmuxSettings(): GmuxSettings {
   return {
     defaultAgent: 'claude',
+    // PHASE 359. Off at install. This is the delivery gate for the
+    // agent-access skill; nothing is delivered until the person turns it on
+    // in Settings and the seal is produced for it.
+    agentAccess: false,
     hotkeys: {},
     launchDefaults: {},
     envPassthrough: {},

@@ -369,6 +369,14 @@ export const CHECKS = [
   // guard, one clause each, each naming the rows it owns. It launches no
   // Electron and reads nothing under the person's home.
   pure('conformance:containment'),
+  // Phase 359. The agent's door into Tortie: build/conformance-agent-access.mjs
+  // drives the SHIPPING agent-access modules under node through the pinned
+  // tsx probe (build/p359/agent-access-probe.mts), asking each of its 23 rules
+  // over an honest reading and again over a broken in-memory copy of it, with a
+  // green control. It launches no Electron: the service's listener is read from
+  // source and its framing is driven over one scratch Unix socket in the
+  // temporary directory, removed in a finally.
+  pure('conformance:agentaccess'),
   // Phase 274. The identity question this phase added: do these two paths name
   // ONE folder. build/p274/conformance-samefolder.mjs drives the SHIPPING
   // src/main/fs/folder-identity.ts under node over a fixture it builds in a
@@ -1590,6 +1598,11 @@ export const CHECKS = [
   // across a quit. No agent runs and no token is spent. `--grader-self-test`
   // grades build/p357/fixtures/graders.json and starts nothing.
   electron('probe:p357'),
+  // PHASE 359's app run: the switch, the delivery and the door driven in ONE
+  // Electron on a scratch profile, behind the agent-access harness seam. It
+  // writes its report and `--grader-self-test` grades it without launching
+  // anything. No agent runs and no token is spent.
+  electron('probe:p359'),
   // PHASE 342's measurement (build/p342/SPEC.md §7.4): the re-derivation
   // outside Electron. Through build/docker-run.mjs, one throwaway container per
   // distribution in his Docker, each the distribution's own image with its own
