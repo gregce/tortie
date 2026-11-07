@@ -337,12 +337,18 @@ function deliverySection() {
 // Section C — the bundled resource (R1, R2)
 // ---------------------------------------------------------------------------
 
+// PHASE 361: the entry file is for an agent's eyes, and the references
+// are one per domain: how to call (`calling`), the session list and self
+// (`session`), opening files (`open`). The no-longer-a-list `limits.md` and
+// the old combined `use-tortie.md` are gone; the skill states what it does
+// instead.
 const RESOURCE_FILES = [
   '.claude-plugin/plugin.json',
   '.cursor-plugin/plugin.json',
   'skills/tortie/SKILL.md',
-  'skills/tortie/references/use-tortie.md',
-  'skills/tortie/references/limits.md'
+  'skills/tortie/references/calling.md',
+  'skills/tortie/references/session.md',
+  'skills/tortie/references/open.md'
 ];
 
 function resourceSection() {
@@ -413,16 +419,17 @@ function resourceSection() {
       }
       return { keys, values };
     })(),
-    // The words the charter requires the skill to say.
+    // The words the charter requires the skill to say. Asked of the
+    // entry alone (SKILL.md), because that is where an agent reads first.
     says: {
-      howToIsNotAuthorization: /how-to|how to/i.test(skill) && /not (?:the same as )?authoriz|is not authoriz/i.test(skill),
-      offersToDoIt: /I can do that in Tortie/i.test(skill),
-      waits: /wait/i.test(skill),
-      imperativeAuthorizes: /explicit imperative/i.test(skill),
-      noInventedActions: /never invent|do not invent|never offer/i.test(skill),
-      localOnly: /this Mac/i.test(skill),
-      sameUserNotAuth: /same account|same-user|same user/i.test(skill),
-      noRepeatRequestIntoLogs: /log/i.test(skill)
+      orientsTortie: /Tortie is the IDE|agent-driven IDE/i.test(skill),
+      orientsThisSession: /one of those sessions/i.test(skill),
+      whenToUse: /When to reach for it/i.test(skill),
+      shellCant: /cannot work that out|sees only your own/i.test(skill),
+      howToIsNotAuthorization: /not a request to do it/i.test(skill),
+      offersToDoIt: /I can\s*\n?do that in Tortie/i.test(skill),
+      waits: /wait for/i.test(skill),
+      imperativeAuthorizes: /explicit imperative/i.test(skill)
     },
     // The client form: `/usr/bin/nc -w 2 -U` with the socket env, Base64 for
     // every dynamic value, and the session env for the identity.

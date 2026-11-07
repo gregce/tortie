@@ -91,11 +91,13 @@ const EXPECTED_RESOURCE_SHA256 = {
   '.cursor-plugin/plugin.json':
     'bb576dc2d8834cd6a05f9732eee090cd3c66d14a5ed30b7b19318f32e4051bb7',
   'skills/tortie/SKILL.md':
-    'b615cd228d3b4e995e34e3be50f98d9ef8e10d063d7a3280ff57f702c62d99d5',
-  'skills/tortie/references/use-tortie.md':
-    'a7014d09e272a4e8433ef5dcbde4470a1b471e957ef2847851232279cd562251',
-  'skills/tortie/references/limits.md':
-    '99ea9e170cb943f874a8affd1d29d332194e4b31ab26265cf2dcdf380edd34f1'
+    '99502730d0cc36cf870da80328ea3dcf35d49818abab1a871cdd2b63247f5068',
+  'skills/tortie/references/calling.md':
+    '07489a9951007808f3ad3102259fb801066786597ba6b915551818343d9d8a84',
+  'skills/tortie/references/session.md':
+    '9287836131693c53bbc4b6f9b6f17fedf4b1196115f80cffce0127dcf01b8ca7',
+  'skills/tortie/references/open.md':
+    'a8e179f909552b87cdcb03661e300fd60724fdd121221a02076b113436d2157c'
 };
 
 const EXPECTED_LABEL = 'Allow agents to use Tortie';
@@ -304,15 +306,15 @@ const RULES = [
   {
     id: 'R1',
     section: 'the bundled skill',
-    name: 'five files, three manifest keys, nothing that runs',
+    name: 'six files, three manifest keys, nothing that runs',
     check(d) {
       const r = d.resources;
-      if (r.files.length !== 5) return `${r.files.length} resource files were read`;
+      if (r.files.length !== 6) return `${r.files.length} resource files were read`;
       for (const file of r.files) {
         if (file.absent) return `${file.rel} is missing`;
         if (!(file.bytes > 0)) return `${file.rel} is empty`;
         const pinned = EXPECTED_RESOURCE_SHA256[file.rel];
-        if (pinned === undefined) return `${file.rel} is not one of the five measured files`;
+        if (pinned === undefined) return `${file.rel} is not one of the six measured files`;
         if (pinned !== file.sha256) {
           return `${file.rel} is not the measured bytes (${file.sha256})`;
         }
@@ -889,7 +891,7 @@ if (failures.length > 0) {
 process.stdout.write(
   '\nPASS. The switch is a plain off-by-default boolean no seal is asked about; three rows ' +
     'receive the bundled skill and ten receive byte-identical launches; the ' +
-    'bundle ships as five data files asserted before signing; one private ' +
+    'bundle ships as six data files asserted before signing; one private ' +
     'socket answers one capped request on an absolute deadline; four curated ' +
     'operations reach a live local session; open asks containment and the ' +
     'path door and an editor-only path; and no log line carries a payload.\n' +
