@@ -1,6 +1,6 @@
 ---
 name: tortie
-description: Tortie is the agent-driven IDE this session is running inside. Use it to find out which session you are in, see the other Tortie sessions, or open a project file in Tortie's editor at a line or a piece of text, when the user asks.
+description: Tortie is the agent-driven IDE this session is running inside. Use it to find out which session you are in, see the other Tortie sessions and what they are doing, or open a project file in Tortie's editor at a line or a piece of text, when the user asks.
 ---
 
 # Tortie
@@ -47,19 +47,57 @@ An explicit imperative to open something — "open it", "show me", "take me
 there" — is authorization for that one show-only operation. It opens a file in
 Tortie's editor; it never edits, runs or moves anything.
 
-Anything the user did not ask for, do not do. The door answers four questions
-and nothing else; see [session](references/session.md) and
-[open](references/open.md) for the exact calls, and
-[calling](references/calling.md) for the protocol.
+Anything the user did not ask for, do not do.
+
+## How to call it
+
+The door is a private Unix-domain socket on this Mac, named by the
+`GMUX_AGENT_SOCKET` environment variable; the caller is named by
+`GMUX_SESSION_ID`. Both are already in this pane's environment. Never invent
+values for them, and never pass them anywhere off this Mac.
+
+Every call is one JSON line through `/usr/bin/nc`, and every answer is one
+JSON line:
+
+```sh
+printf '{"version":1,"operation":"whoami","session":"%s"}\n' \
+  "$GMUX_SESSION_ID" | /usr/bin/nc -w 8 -U "$GMUX_AGENT_SOCKET"
+```
+
+Dynamic values travel Base64: encode with `/usr/bin/base64` and substitute
+only the encoded text. Never put a raw path or raw search text inside the
+JSON.
+
+`ok: true` carries the answer. `ok: false` carries an `error.code` from a
+closed set:
+
+- `disabled` — the person has not turned agent access on in Settings then
+  Agents. Say how; do not retry around it.
+- `unknown-operation` — not one of the operations below. Check the spelling.
+- `bad-request` — the line was malformed, over 64 KiB, or had a second request
+  on one connection.
+- `unavailable` — Tortie cannot answer this right now.
+
+**One timing rule, and it is the easiest way to fake a failure.** `open` asks
+the editor to confirm it drove, so its answer can take a few seconds, and the
+system `nc` closes the connection the moment its own stdin ends. For `open`,
+hold the pipe open:
+
+```sh
+{ printf '…'; sleep 6; } | /usr/bin/nc -w 8 -U "$GMUX_AGENT_SOCKET"
+```
+
+Without the held pipe you get zero bytes and an immediate close — which looks
+exactly like a refusal, and is not one. The other operations answer at once.
 
 ## What it answers today
 
-| Operation | Answers |
-| --- | --- |
-| `capabilities` | what this door can do, and which version answers |
-| `whoami` | this session's own row |
-| `sessions` | up to 200 session rows, newest first |
-| `open` | opens a project file at a line, a range, or the first exact text match |
+| Operation | Answers | Read |
+| --- | --- | --- |
+| `capabilities` | what this door can do, and which version answers | — |
+| `whoami` | this session's own row | [sessions](references/sessions.md) |
+| `sessions` | up to 200 session rows, newest first | [sessions](references/sessions.md) |
+| `open` | opens a project file at a line, a range, or the first exact text match | [editor](references/editor.md) |
 
 Every call is local to this Mac. The identity is a claimed session id that
 another process under the same account could also claim, so nothing read

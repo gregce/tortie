@@ -342,13 +342,17 @@ function deliverySection() {
 // (`session`), opening files (`open`). The no-longer-a-list `limits.md` and
 // the old combined `use-tortie.md` are gone; the skill states what it does
 // instead.
+// PHASE 361, second round (his ruling of 2026-11-07): the protocol is content
+// every use needs, so it lives in the ENTRY FILE rather than a reference an
+// agent must remember to open, and the references group BY DOMAIN rather than
+// one per operation. `sessions` is identity + the session list; `editor` is
+// the whole showing surface.
 const RESOURCE_FILES = [
   '.claude-plugin/plugin.json',
   '.cursor-plugin/plugin.json',
   'skills/tortie/SKILL.md',
-  'skills/tortie/references/calling.md',
-  'skills/tortie/references/session.md',
-  'skills/tortie/references/open.md'
+  'skills/tortie/references/sessions.md',
+  'skills/tortie/references/editor.md'
 ];
 
 function resourceSection() {
@@ -397,9 +401,11 @@ function resourceSection() {
       }
     })
     .join('\n');
-  // The client form the references must teach: exactly this one line, with
-  // Base64 for dynamic values and never a raw path or search text in JSON.
-  const referenceWords = references;
+  // PHASE 361 second round. The client form is asked of the WHOLE bundle, not
+  // of the references alone: the protocol moved into the entry file because it
+  // is needed on every use, and a clause that kept reading only the references
+  // would demand agents open a file they no longer have to.
+  const referenceWords = `${skill}\n${references}`;
   return {
     root,
     files,

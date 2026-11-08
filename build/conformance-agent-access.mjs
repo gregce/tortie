@@ -91,13 +91,11 @@ const EXPECTED_RESOURCE_SHA256 = {
   '.cursor-plugin/plugin.json':
     'bb576dc2d8834cd6a05f9732eee090cd3c66d14a5ed30b7b19318f32e4051bb7',
   'skills/tortie/SKILL.md':
-    '99502730d0cc36cf870da80328ea3dcf35d49818abab1a871cdd2b63247f5068',
-  'skills/tortie/references/calling.md':
-    '07261eec3bce81daab529b4609fb350a8853cd9ee0145318088c35ee4317cd53',
-  'skills/tortie/references/session.md':
+    'b219a21a56a63974167cef03b4aa3d14656de67b3d042039a083c69bafcb334f',
+  'skills/tortie/references/sessions.md':
     '9287836131693c53bbc4b6f9b6f17fedf4b1196115f80cffce0127dcf01b8ca7',
-  'skills/tortie/references/open.md':
-    '7f001b07aaa1fac0eef73d76df1acd22481bb5ebfff382f338db460c4b2e2f4e'
+  'skills/tortie/references/editor.md':
+    'c97d4154250be330693632337862396f948a122375260f122fb7a67caa43edd8'
 };
 
 const EXPECTED_LABEL = 'Allow agents to use Tortie';
@@ -306,15 +304,15 @@ const RULES = [
   {
     id: 'R1',
     section: 'the bundled skill',
-    name: 'six files, three manifest keys, nothing that runs',
+    name: 'five files, three manifest keys, nothing that runs',
     check(d) {
       const r = d.resources;
-      if (r.files.length !== 6) return `${r.files.length} resource files were read`;
+      if (r.files.length !== 5) return `${r.files.length} resource files were read`;
       for (const file of r.files) {
         if (file.absent) return `${file.rel} is missing`;
         if (!(file.bytes > 0)) return `${file.rel} is empty`;
         const pinned = EXPECTED_RESOURCE_SHA256[file.rel];
-        if (pinned === undefined) return `${file.rel} is not one of the six measured files`;
+        if (pinned === undefined) return `${file.rel} is not one of the five measured files`;
         if (pinned !== file.sha256) {
           return `${file.rel} is not the measured bytes (${file.sha256})`;
         }
@@ -904,7 +902,7 @@ if (failures.length > 0) {
 process.stdout.write(
   '\nPASS. The switch is a plain off-by-default boolean no seal is asked about; three rows ' +
     'receive the bundled skill and ten receive byte-identical launches; the ' +
-    'bundle ships as six data files asserted before signing; one private ' +
+    'bundle ships as five data files asserted before signing; one private ' +
     'socket answers one capped request on an absolute deadline; four curated ' +
     'operations reach a live local session; open asks containment and the ' +
     'path door and an editor-only path; and no log line carries a payload.\n' +

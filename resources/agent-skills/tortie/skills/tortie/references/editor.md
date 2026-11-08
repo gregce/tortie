@@ -18,17 +18,13 @@ session id — never a raw path or raw search text inside the JSON.
 path_b64="$(printf '%s' '/the/project/path.ts' | /usr/bin/base64)"
 { printf '{"version":1,"operation":"open","session":"%s","pathBase64":"%s","line":12}\n' \
     "$GMUX_SESSION_ID" "$path_b64"; sleep 6; } | /usr/bin/nc -w 8 -U "$GMUX_AGENT_SOCKET"
-
-**The `sleep` is not padding, and leaving it out is the single easiest way to
-see a phantom failure.** `open` asks the editor to confirm it drove, so its
-answer can take a few seconds. The system `nc` on this Mac closes the whole
-connection the moment its standard input reaches end-of-file, so a plain
-`printf ... | nc` hands you EOF and zero bytes before the answer is written —
-indistinguishable from a refusal, and reported by agents as "no response".
-Hold the pipe open for six seconds and the answer arrives. The other three
-operations answer at once; this is the only one where it matters, and doing it
-everywhere costs nothing.
 ```
+
+The `sleep 6` is not padding. `open` asks the editor to confirm it drove, so
+its answer can take a few seconds, and the system `nc` closes the connection
+the moment its own input ends. A plain `printf … | nc` therefore hands you EOF
+and zero bytes before the answer is written — indistinguishable from a
+refusal, and the single easiest way to report a working open as a failure.
 
 ## At the first exact text match
 
@@ -40,9 +36,9 @@ path_b64="$(printf '%s' '/the/project/path.ts' | /usr/bin/base64)"
 find_b64="$(printf '%s' 'the exact text' | /usr/bin/base64)"
 { printf '{"version":1,"operation":"open","session":"%s","pathBase64":"%s","findBase64":"%s"}\n' \
     "$GMUX_SESSION_ID" "$path_b64" "$find_b64"; sleep 6; } | /usr/bin/nc -w 8 -U "$GMUX_AGENT_SOCKET"
+```
 
 (Same held pipe, same reason as above.)
-```
 
 Send exactly one locator: `line` (`endLine` optional) or `findBase64`. Both at
 once, or neither, is `bad-request`.
