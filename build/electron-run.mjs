@@ -71,12 +71,17 @@
  *     with a name is a leak this file ends.
  *  5. Destroy the pipes. The shim runs with inherited stdio and a tmux server
  *     the app started inherits them, so Node never exits without this.
- *  6. End the scratch tmux server, when the caller named one. The names `gmux`
- *     and `default` are refused outright.
+ *  6. End the scratch tmux server, when the caller named one, through
+ *     `build/scratch-tmux.mjs`, which reads the server's pid and its clients
+ *     from the server, asks it to stop, ends a client it still holds by pid,
+ *     and removes the socket file only once the server has gone. The names
+ *     `gmux` and `default` are refused outright.
  *
  * There is no pkill anywhere in this file, and no kill by process name. Every
  * pid this file signals is either the one it started, a descendant of it, or a
- * process whose command line names this launch's own scratch profile.
+ * process whose command line names this launch's own scratch profile. Step 6
+ * signals one more kind, and only through build/scratch-tmux.mjs: a client of
+ * this launch's own scratch server, read from that server.
  *
  * ## The safety net for `process.exit`
  *
@@ -1091,6 +1096,79 @@ export function censusFinding(before, after) {
 }
 
 // ---------------------------------------------------------------------------
+// PHASE 361. Step 6 asks build/scratch-tmux.mjs, which proves a server gone.
+// ---------------------------------------------------------------------------
+/**
+ * WHY THE MODULE IS IMPORTED THIS WAY, and why a static import would break two
+ * things that work today. Rule 5 of build/assert-electron-teardown.mjs copies
+ * THIS FILE ALONE into a scratch folder, once per ablated clause, and imports
+ * each copy, and so does arm D of build/p261/probe-p261-socket.mjs. A static
+ * `import … from './scratch-tmux.mjs'` resolves next to the copy, where there
+ * is no such file, so every copy would fail to load. Here a load that fails is
+ * HELD rather than thrown: the copies load, no launch reaches step 6 in them,
+ * and in this tree a launch that names a scratch socket while the module did
+ * not load fails at step 6 with that reason, so the hold can never skip a
+ * teardown in silence.
+ */
+const scratchTmux = await import('./scratch-tmux.mjs').then(
+  (module) => ({ module, why: null }),
+  (err) => ({ module: null, why: `build/scratch-tmux.mjs did not load (${String(err?.message ?? err)})` })
+);
+
+/** The loaded module, or a throw that step 6 turns into a failed verdict. */
+function loadedScratchTmux() {
+  if (scratchTmux.module === null) throw new Error(scratchTmux.why);
+  return scratchTmux.module;
+}
+
+/**
+ * What step 6 hands the module for one launch: the environment the app ran
+ * with, because `TMUX_TMPDIR` in it is where `-L <socket>` lives, and the tmux
+ * the app ran, in its own order. A program inside an app bundle ran that
+ * bundle's own `Contents/Resources/bin/tmux`, so that copy is asked first.
+ */
+function scratchTeardownOptions(entry) {
+  const bundle = /^(.*\.app)\/Contents\/MacOS\/[^/]+$/.exec(entry.program ?? '');
+  const env = entry.env ?? process.env;
+  return {
+    env,
+    candidates: loadedScratchTmux().tmuxCandidates({
+      repoRoot,
+      env,
+      bundled: bundle === null ? null : join(bundle[1], 'Contents', 'Resources', 'bin', 'tmux')
+    })
+  };
+}
+
+/** A step 6 that threw, as a failed verdict, so a teardown never throws. */
+function scratchThrew(socket, err) {
+  return {
+    ok: false,
+    socket,
+    tmux: null,
+    serverPid: null,
+    socketPath: null,
+    listed: [],
+    held: [],
+    notConnected: [],
+    ended: [],
+    left: [],
+    socketFile: 'kept',
+    steps: [],
+    why: [`the teardown could not run (${String(err?.message ?? err)})`],
+    notes: []
+  };
+}
+
+/** The one line for a scratch server step 6 could not prove gone. */
+function scratchSentence(entry) {
+  return (
+    `${TAG} ${entry.label}: the scratch tmux server ${String(entry.tmuxSocket)} ` +
+    `was not proven gone: ${(entry.scratch?.why ?? []).join('; ')}`
+  );
+}
+
+// ---------------------------------------------------------------------------
 // The teardown itself
 // ---------------------------------------------------------------------------
 
@@ -1161,11 +1239,17 @@ async function teardown(entry, graceMs) {
     /* nothing to destroy */
   }
 
-  // 6. The scratch tmux server, when the caller named one.
+  // 6. The scratch tmux server, when the caller named one, ended and PROVEN
+  //    gone (Phase 361): build/scratch-tmux.mjs asks the server for its pid
+  //    and its clients, ends a client it still holds by pid, and removes the
+  //    socket file only once the server has gone. A throw is a failed verdict,
+  //    so the teardown itself never throws; withElectron says the verdict.
   if (entry.tmuxSocket !== null) {
-    spawnSync('tmux', ['-L', entry.tmuxSocket, 'kill-server'], {
-      stdio: 'ignore'
-    });
+    try {
+      entry.scratch = loadedScratchTmux().endScratchServer(entry.tmuxSocket, scratchTeardownOptions(entry));
+    } catch (err) {
+      entry.scratch = scratchThrew(entry.tmuxSocket, err);
+    }
   }
 
   live.delete(entry.id);
@@ -1212,10 +1296,14 @@ function teardownSync(entry) {
       /* already gone */
     }
   }
+  // 6. As in teardown, said here because nothing can throw it from this event.
   if (entry.tmuxSocket !== null) {
-    spawnSync('tmux', ['-L', entry.tmuxSocket, 'kill-server'], {
-      stdio: 'ignore'
-    });
+    try {
+      entry.scratch = loadedScratchTmux().endScratchServer(entry.tmuxSocket, scratchTeardownOptions(entry));
+    } catch (err) {
+      entry.scratch = scratchThrew(entry.tmuxSocket, err);
+    }
+    if (entry.scratch.ok === false) console.error(scratchSentence(entry));
   }
   live.delete(entry.id);
   return killed;
@@ -1448,6 +1536,11 @@ export async function withElectron(options, body) {
     child: null,
     userDataDir,
     tmuxSocket,
+    // Phase 361: step 6 reaches the app's server with the app's own env and
+    // its own tmux, and keeps its verdict here for the finally block below.
+    env: childEnv,
+    program: bin,
+    scratch: null,
     torn: false
   };
   live.set(entry.id, entry);
@@ -1615,9 +1708,20 @@ export async function withElectron(options, body) {
         if (bodyError !== null) {
           console.error(`${TAG} ${label}: ${finding}`);
         } else {
+          // The census failure is the one thrown, so a scratch server step 6
+          // could not prove gone is said here rather than lost (Phase 361).
+          if (entry.scratch?.ok === false) console.error(scratchSentence(entry));
           throw new Error(`${TAG} ${label}: ${finding}`);
         }
       }
+    }
+
+    // PHASE 361. Step 6's verdict, said the way the census is: THROWN when the
+    // body returned and no census failure was, and PRINTED otherwise, so it
+    // never masks the body's own error.
+    if (entry.scratch?.ok === false) {
+      if (bodyError !== null) console.error(scratchSentence(entry));
+      else throw new Error(scratchSentence(entry));
     }
   }
 }

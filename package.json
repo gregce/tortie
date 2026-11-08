@@ -298,6 +298,7 @@
     "conformance:ios": "node build/conformance-ios.mjs",
     "conformance:specstory:entitlement": "node build/probe-specstory-entitlement.mjs",
     "conformance:tmux-pair": "node build/tmux-pair.mjs",
+    "conformance:scratchtmux": "node build/scratch-tmux.mjs --self-test",
     "conformance:resume": "npm run build && node build/harness-socket.mjs gmux-conformance 'GMUX_SMOKE=conformance-resume electron . --user-data-dir=\"$GMUX_HARNESS_DIR\" -ApplePersistenceIgnoreState YES'",
     "conformance:resume:capture": "GMUX_CONF_MODE=capture npm run conformance:resume",
     "conformance:resume:specstory": "GMUX_CONF_CAPTURE=1 GMUX_SPECSTORY_NO_CLOUD=1 GMUX_CONF_AGENTS=\"${GMUX_CONF_AGENTS:-claude,codex,cursor,antigravity}\" npm run conformance:resume",

@@ -63,6 +63,14 @@
  * refuses to start the workload if either isolation is missing, and this script
  * refuses to run if the socket it was handed is the real one.
  *
+ * WHAT A CASE LEAVES (Phase 361). Each case ends its own tmux server in a
+ * `finally`, through build/scratch-tmux.mjs, which proves it gone: a SIGKILLed
+ * work launch can leave its control client held by that server, and one
+ * unchecked kill-server left both running on his Mac after a battery that
+ * printed PASS. A case whose server is not proven gone fails, and the battery
+ * counts every process naming one of its own sockets once at its end, and
+ * fails on any.
+ *
  * Usage:
  *   node build/fault-harness.mjs                     the default battery
  *   node build/fault-harness.mjs --point <name>[#n]  one chosen point
@@ -72,10 +80,10 @@
  *   node build/fault-harness.mjs --json <path>       write the full report
  *
  * Output: one JSON report per case on stdout, then a summary table and a
- * PASS/FAIL line. Exit 0 only when every invariant held in every case.
+ * PASS/FAIL line. Exit 0 only when every invariant held in every case and no
+ * process of its tmux servers is left.
  */
 
-import { execFile } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -87,11 +95,10 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { promisify } from 'node:util';
 
 import { withElectron } from './electron-run.mjs';
+import { endScratchServer, namingProcesses, tmuxCandidates } from './scratch-tmux.mjs';
 
-const execFileP = promisify(execFile);
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ELECTRON = join(
   REPO,
@@ -404,27 +411,37 @@ function records(stdout, kind) {
   return out;
 }
 
-async function killServer(socket) {
+/**
+ * End this case's tmux server and PROVE it gone (Phase 361).
+ *
+ * Until Phase 361 this sent one kill-server through whichever tmux was first
+ * on PATH, ignored a failure, never checked that the server went, and removed
+ * the socket file. A work launch that dies by SIGKILL can leave its control
+ * client held by the server, and a server holding a client ignores
+ * kill-server, so the pair stayed up with no name left to reach it by and the
+ * case passed. build/scratch-tmux.mjs reads the server's pid and its clients
+ * from the server itself through the copy of tmux the app ran, asks it to
+ * stop, ends a client it still holds by pid, and removes the socket file only
+ * once the server has gone. Its verdict is this case's teardown.
+ */
+function endCaseServer(socket) {
   if (socket === REAL_SOCKET) throw new Error('refusing to touch -L gmux');
   if (!socket.startsWith('gmux-fault-')) {
     throw new Error(`refusing to kill a server this harness did not name: ${socket}`);
   }
-  // Ask tmux where its socket is rather than guessing. tmux puts it under
-  // $TMUX_TMPDIR or /tmp, never under the TMPDIR Node reports on macOS.
-  const path = await execFileP('tmux', [
-    '-L',
-    socket,
-    'display-message',
-    '-p',
-    '#{socket_path}'
-  ])
-    .then((r) => r.stdout.trim())
-    .catch(() => '');
-  await execFileP('tmux', ['-L', socket, 'kill-server']).catch(() => undefined);
-  // A server killed while a client was attached leaves its socket file behind.
-  // Remove ours, by exact path, so a machine that runs this often does not
-  // accumulate dead sockets next to the real one.
-  if (path.endsWith(`/${socket}`)) rmSync(path, { force: true });
+  return endScratchServer(socket, {
+    candidates: tmuxCandidates({ repoRoot: REPO, env: process.env })
+  });
+}
+
+/**
+ * §5's line for the processes of this battery's tmux servers still running at
+ * its end, or null when there are none.
+ */
+function leftoverLine(leftovers) {
+  if (leftovers.length === 0) return null;
+  const each = leftovers.map((p) => `${String(p.pid)} (ppid ${String(p.ppid)}) ${p.command}`);
+  return `[fault] FAIL — ${String(leftovers.length)} process(es) of this battery's tmux servers still running: ${each.join('; ')}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -438,23 +455,35 @@ async function runCase({ name, index, root, fault, killAfterBeginMs }) {
   const socket = `gmux-fault-${process.pid}-${index}`;
   mkdirSync(profile, { recursive: true });
 
-  const work = await runApp({
-    mode: 'fault-work',
-    profile,
-    socket,
-    root: caseRoot,
-    fault,
-    trace,
-    killAfterBeginMs
-  });
-  const survey = await runApp({
-    mode: 'fault-survey',
-    profile,
-    socket,
-    root: caseRoot,
-    trace: join(caseRoot, 'survey-trace.tsv')
-  });
-  await killServer(socket);
+  let work;
+  let survey;
+  let teardown;
+  let teardownMs = 0;
+  try {
+    work = await runApp({
+      mode: 'fault-work',
+      profile,
+      socket,
+      root: caseRoot,
+      fault,
+      trace,
+      killAfterBeginMs
+    });
+    survey = await runApp({
+      mode: 'fault-survey',
+      profile,
+      socket,
+      root: caseRoot,
+      trace: join(caseRoot, 'survey-trace.tsv')
+    });
+  } finally {
+    // Whatever the two launches did, and whether or not one of them threw,
+    // this case's tmux server is ended here and proven gone (Phase 361). The
+    // survey reads that server's sessions, so it is ended once, after it.
+    const at = Date.now();
+    teardown = endCaseServer(socket);
+    teardownMs = Date.now() - at;
+  }
 
   const report = records(survey.stdout, 'survivors')[0] ?? null;
   const traceLines = existsSync(trace)
@@ -487,11 +516,25 @@ async function runCase({ name, index, root, fault, killAfterBeginMs }) {
     pointsReached: reached,
     workWindow,
     survivors: report,
+    teardown: {
+      ok: teardown.ok,
+      serverPid: teardown.serverPid,
+      held: teardown.held,
+      ended: teardown.ended,
+      notes: teardown.notes,
+      why: teardown.why,
+      ms: teardownMs
+    },
     failures: []
   };
   judge(result, {
     expectKill: fault !== undefined || killAfterBeginMs !== undefined
   });
+  if (!teardown.ok) {
+    result.failures.push(
+      `the case's tmux server on ${socket} was not proven gone: ${teardown.why.join('; ')}`
+    );
+  }
   if (result.failures.length > 0) {
     result.workStderr = work.stderr.slice(-2000);
     result.surveyStderr = survey.stderr.slice(-2000);
@@ -635,6 +678,70 @@ async function main() {
   console.log(`[fault] electron    ${ELECTRON}`);
 
   const results = [];
+  let leftovers = [];
+  let finished = false;
+  try {
+    await runCases(args, root, results);
+    finished = true;
+  } finally {
+    // PHASE 361. Counted ONCE, here, whatever the cases did: every process
+    // whose command line names one of this battery's own sockets. Each case
+    // has already ended its server from pids that server gave, so anything
+    // counted is a teardown that failed, and it fails the run. Nothing is
+    // signalled, because a count is not a kill by pattern. A case that threw
+    // skips the summary below, so the count is said here for it. A table that
+    // cannot be read fails the run, and never masks a case that threw.
+    try {
+      leftovers = namingProcesses(new RegExp(`^gmux-fault-${String(process.pid)}-\\d+$`));
+    } catch (err) {
+      if (finished) throw err;
+      console.error(`[fault] the processes of this battery's tmux servers could not be counted: ${String(err?.message ?? err)}`);
+    }
+    if (!finished && leftovers.length > 0) console.log(leftoverLine(leftovers));
+  }
+
+  const pad = (s, n) => String(s).padEnd(n);
+  console.log('');
+  console.log(
+    `${pad('case', 38)}${pad('work', 16)}${pad('survey', 10)}${pad('rows', 6)}${pad('live', 6)}${pad('snaps', 7)}verdict`
+  );
+  for (const r of results) {
+    const s = r.survivors;
+    console.log(
+      pad(r.case, 38) +
+        pad(r.work.signal ?? `exit ${String(r.work.exit)}`, 16) +
+        pad(`exit ${String(r.survey.exit)}`, 10) +
+        pad(s ? s.before.rows.length : '-', 6) +
+        pad(s ? s.before.liveSessions.length : '-', 6) +
+        pad(s ? s.before.snapshots.length : '-', 7) +
+        (r.failures.length === 0 ? 'pass' : `FAIL ${r.failures.join('; ')}`)
+    );
+  }
+
+  const failed = results.filter((r) => r.failures.length > 0);
+  if (args.jsonPath) {
+    writeFileSync(args.jsonPath, `${JSON.stringify({ root, results, leftovers }, null, 2)}\n`);
+    console.log(`[fault] report written to ${args.jsonPath}`);
+  }
+  if (!args.keep) rmSync(root, { recursive: true, force: true });
+  console.log('');
+  const stray = leftoverLine(leftovers);
+  if (stray !== null) console.log(stray);
+  if (failed.length > 0 || stray === null) {
+    console.log(
+      failed.length === 0
+        ? `[fault] PASS — ${String(results.length)} cases, every invariant held`
+        : `[fault] FAIL — ${String(failed.length)} of ${String(results.length)} cases broke an invariant`
+    );
+  }
+  process.exit(failed.length === 0 && leftovers.length === 0 ? 0 : 1);
+}
+
+/**
+ * Every case of one run, each pushed onto `results` and printed as it ends:
+ * the control, the chosen points, then the random moments.
+ */
+async function runCases(args, root, results) {
   let index = 0;
 
   // The control run first. It is the baseline for what a whole state looks
@@ -705,38 +812,6 @@ async function main() {
     results.push(r);
     console.log(JSON.stringify(r, null, 2));
   }
-
-  const pad = (s, n) => String(s).padEnd(n);
-  console.log('');
-  console.log(
-    `${pad('case', 38)}${pad('work', 16)}${pad('survey', 10)}${pad('rows', 6)}${pad('live', 6)}${pad('snaps', 7)}verdict`
-  );
-  for (const r of results) {
-    const s = r.survivors;
-    console.log(
-      pad(r.case, 38) +
-        pad(r.work.signal ?? `exit ${String(r.work.exit)}`, 16) +
-        pad(`exit ${String(r.survey.exit)}`, 10) +
-        pad(s ? s.before.rows.length : '-', 6) +
-        pad(s ? s.before.liveSessions.length : '-', 6) +
-        pad(s ? s.before.snapshots.length : '-', 7) +
-        (r.failures.length === 0 ? 'pass' : `FAIL ${r.failures.join('; ')}`)
-    );
-  }
-
-  const failed = results.filter((r) => r.failures.length > 0);
-  if (args.jsonPath) {
-    writeFileSync(args.jsonPath, `${JSON.stringify({ root, results }, null, 2)}\n`);
-    console.log(`[fault] report written to ${args.jsonPath}`);
-  }
-  if (!args.keep) rmSync(root, { recursive: true, force: true });
-  console.log('');
-  console.log(
-    failed.length === 0
-      ? `[fault] PASS — ${String(results.length)} cases, every invariant held`
-      : `[fault] FAIL — ${String(failed.length)} of ${String(results.length)} cases broke an invariant`
-  );
-  process.exit(failed.length === 0 ? 0 : 1);
 }
 
 main().catch((err) => {

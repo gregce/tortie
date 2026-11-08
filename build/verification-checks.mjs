@@ -1096,6 +1096,24 @@ export const CHECKS = [
       'the fast gate that holds the code to the number it measures'
   ),
   tmux('conformance:tmux-pair'),
+  // PHASE 361. build/scratch-tmux.mjs ends a scratch tmux server and proves it
+  // gone: the fault battery's cases and step 6 of build/electron-run.mjs call
+  // it. Its self-test plants the held pair (a control client whose parent was
+  // SIGKILLed with its reader stalled, which keeps its server up through
+  // kill-server), two decoys, a tmux that cannot reach the server, refused
+  // names, no server and a live client, reads the battery's and the helper's
+  // teardowns with the TypeScript parser, and ablates its own clauses, each
+  // red. Since the fix round it also plants raw holders in /usr/bin/perl (one
+  // whose command line changes before the signal), a run-shell job and an
+  // impostor server pid, and reads every signal it sends as guarded. Since
+  // the drop round it also plants a holder whose command line changes after
+  // its SIGTERM and runs the module over a ps that cannot answer. It needs
+  // /bin/ps and lsof, so it runs outside the history block. It is not in npm
+  // run build, because it starts tmux servers.
+  tmux(
+    'conformance:scratchtmux',
+    'the vendored tmux on scratch -L sockets of its own, /bin/ps, lsof and /usr/bin/perl; it plants a held control client, raw holders, a run-shell job, decoys, stand-in tmux copies and a stand-in ps and ends each by pid in a finally'
+  ),
   // PHASE 324. The measurement the 3.6 and 3.6b rows of both remote version
   // lists cite. build/p324/probe-p324.mjs runs build/p324/drive-p324.mts
   // through the pinned tsx, which drives the SHIPPING precheck, plan, control
