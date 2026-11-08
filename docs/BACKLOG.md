@@ -45022,6 +45022,221 @@ It starts after 357.1 lands or is set aside, and before 359; its parent is main 
 - Nothing reads his live profile. Every run uses a scratch profile, HOME and socket.
 - No release by itself.
 
+## Phase 325.1 — "2. a" — Tortie knows his own words by what he typed, not by when (operator's ruling on Phase 353's item 325, 2026-11-08)
+
+**Subject.** `fix(activity): know his own words by what he typed, not by when`
+
+**First body line.** `Phase 325.1: his own words are known by what he typed`
+
+**Semver.** Patch. One `### Fixed` item, for example: "A session no longer shows needs input because of words you typed into it yourself, and a real question that appears just after you type still shows".
+
+**Tier 3.** It decides when a session reads needs input, for every agent Tortie can start, so the evidence is a per-agent matrix over the committed captures (`CLAUDE.md:270`). The UI rule binds it: "needs input" may only be triggered by session behaviour, never by the user's own input to that session. He reported the misreading (325's entry), so the parent measurement is mandatory.
+
+**Charter.** Phase 325's entry (its section above, "→ IN PHASE 353"), research 129 §9 item 6, and Phase 353's build of it: `build/p353/SPEC.md` (its D325-1 to D325-8, its M325 measurements and the reverify's verdict), which lands with 353. 353's reverify approved seven items and answered needs_work on 325 alone. 325 told his words by TIME: a dialog first read while his keys were arriving was his. So a real question drawn within about a second of his last key was taken for his words and stayed grey until the agent redrew. Claude Code's trust gate, Codex's update prompt and qwen's second permission were never raised before his recorded answer. His ruling of 2026-11-08 ("2. a", to: ship the seven, and redo the eighth so it checks what he actually typed instead of guessing from timing). 325 as built is kept whole at `/private/var/tmp/tortie-wt/scratch/owed-p3251/` (`item-325.patch`, `README.md`), outside every phase's scratch, until this phase lands.
+
+It starts after Phase 353 lands, and its parent is 353 as landed.
+
+### What the tree says (read at 353 as landed; today's lines from `d94f898d`)
+
+- **What he types reaches main once.** The attach host's input tap (`src/main/attach/attach-host.ts:314-336`, `onInput` at `:190`, the call at `:332` under the remote and pane-report guard) tells the monitor a key arrived: `noteUserInput` (`src/main/activity/monitor.ts:535`). Phase 318's reply bumps hang off it. 353's 325 widened that one call to carry counts (D325-1, D325-2): the patch holds the counter (`src/main/attach/input-facts.ts`) that reads characters, a submit and a paste.
+- **The question is read from the screen.** `detectDialog` (`src/main/activity/screen.ts:106`), `detectDialogRows` (`:291`) and the verdict (`inferredVerdict`, `src/main/activity/state-machine.ts:327`) decide a numbered choice; Phase 321's named shapes are read only while the agent holds the terminal. Nothing compares the dialog's own text with what he typed.
+
+### The mechanism (the spec step designs it; these are the requirements)
+
+1. **His words are known by their CONTENT.** The tap keeps, per session, a bounded record of what he typed (printable characters only, the paste's text, no control bytes, no escape sequences, capped, never logged, never written to disk). A dialog read from the screen is his own only when its text is what he typed (the spec chooses the exact match rule, for example the dialog's rows found verbatim in the typed record), never because it was read soon after a key.
+2. **A real question is never held by timing alone.** A question whose text he did not type raises needs input as at the parent, however soon after his last key it was drawn.
+3. **The record forgets.** It is cleared on submit, when the session ends and on the record's cap, so a question that repeats words he typed long ago is still the agent's.
+4. **No payload in any log** (`conformance:phonecopy`'s rule for `src/main/activity/`), and the typed record never leaves main.
+5. **A check pins it.** Ablations in a gate of the spec's choosing (`conformance:choices` holds the verdict's shape), each red on its own rule: a time window put back, the record logged, the record not cleared on submit.
+
+### The proof, run rather than read
+
+- **Method 1, the parent (353 as landed).** One Electron per build, parent first, over the committed real captures and stand-ins (`build/fixtures/questions/`, `build/fixtures/reply/`), no real agent: his own words typed into each agent row (the parent's misreading reproduced, HEAD grey); and each of the reverify's misses at HEAD: a real question drawn 0.2, 0.5 and 1.0 s after his last key, Claude Code's trust gate, Codex's update prompt and qwen's second permission, each raised as the parent raises it.
+- **Method 2, the attack.** A question that quotes words he typed earlier, a paste, a dictation, an IME composition, a typed line the agent echoes back with a prefix, a restore that replays a snapshot (353's D325-8 case), and a remote session.
+- **Per-agent matrix** over every launchable registry row with a committed capture.
+- **Gates.** The battery, `conformance:choices`, `conformance:phonecopy`, `conformance:pocket` (Phase 318's tap), and every gate 353's SPEC names for the files touched.
+
+### What is NOT in this phase
+
+- No change to what counts as a numbered choice or a named shape, or to the push and the phone's door.
+- No change to the six other items 353 landed.
+- Nothing he typed is logged, stored or sent anywhere.
+- No release by itself.
+
+## Phase 361.1 — "3. a" — conformance:pocket's red verdict reaches `ablation:p313` whole (operator's ruling on Phase 361, 2026-11-08)
+
+**Subject.** `fix(build): let conformance:pocket's verdict finish writing before it exits`
+
+**First body line.** `Phase 361.1: conformance:pocket's verdict reaches its reader whole`
+
+**Semver.** None a person meets: no CHANGELOG item.
+
+**Tier 2.** Invisible to a person, so the gates are the evidence and the verifier re-derives; one independent method, an attack.
+
+**Charter.** Phase 361's half (a), dropped under his ruling of 2026-11-08 ("3. a": ship the cleanup, redo the other half as a smaller fix). 361's spec measured the pipe (`build/p361/SPEC.md`, which lands with 361): a `spawnSync` pipe holds 65,500 bytes unread; only `build/conformance-pocket.mjs`'s red output exceeds it (91,239 to 91,382 bytes under its harness), so `ablation:p313` read 14 arms as red on nothing at the parent; every other piped gate's red output is 42,917 bytes or less. A gate that sets its exit code instead of calling `process.exit`, or exits only once its writes have flushed, kept 200,023 of 200,023 bytes. 361's file runner, kept at `/private/var/tmp/tortie-wt/scratch/owed-p3611/`, is NOT this phase: it was worse than today four ways (a gate printing without end filled the disk; three readings on a nearly full volume).
+
+It starts after Phase 361 lands.
+
+### The mechanism
+
+1. **The one gate finishes writing.** `build/conformance-pocket.mjs` ends its red run with `process.stdout.write` then `process.exit(1)` (`:20065`; its green run `process.exit(0)` at `:20071`, and an earlier exit at `:1344`). It sets `process.exitCode` and returns instead, or exits from the write's own callback, so its whole report reaches any reader; whatever its `process.exit` was cutting short (timers, handles) is ended another way, measured.
+2. **The size is held.** A check, in `gate:checks` or the gate's own self-check, that every gate `ablation:*` reads through a pipe either keeps its red output under the pipe's size or finishes its writes before it exits, with an ablation; the spec chooses which, from 361's counts.
+3. **Nothing else moves.** No harness, no other gate, no rule, no verdict.
+
+### The proof, run rather than read
+
+- **Method 1, the parent.** The 14 arms 357 read as nothing, under 361's slow reader, at both builds: 14 of 14 red on nothing at the parent, 14 of 14 red on their own rule at HEAD; `conformance:pocket` green and red answering exactly as at the parent (exit codes, the rule table, byte for byte apart from timing).
+- **Method 2, the attack.** A slow reader on `ablation:p313`, a red run under load, the gate killed before its summary line (UNREADABLE, never a rule), and the check's ablation red.
+- **Gates.** `conformance:pocket`, `conformance:pocket:hostile`, `ablation:p313`'s self-test and control, `gate:checks`.
+
+### What is NOT in this phase
+
+- No file runner, no change to the 23 harnesses, no change to the other 60 gates' exits.
+- No change to any rule, arm or verdict.
+
+## Phase 363 — "4. sounds good" — what his crash dump holds near the crash (operator, 2026-11-08; research 143 §5 and §8 item 7)
+
+**Subject.** `docs(research): what an Electron crash dump keeps near the registers, and what his holds`
+
+**First body line.** `Phase 363: the cheaper first look at the session list's damage`
+
+**Semver.** None: a research document.
+
+**Lane.** Research: investigate, attack, judge, write one document (`docs/research/144-…`), commit, then one step for the main session alone.
+
+**Charter.** Research 143 §5 ("A cheaper first look, if a dump exists") and §8 item 7. Tortie starts Crashpad with uploads off (`src/main/log/crash.ts:99`, `crashReporter.start({ uploadToServer: false })`) and keeps the newest five dumps for 30 days (`:154-164`), in his profile's Crashpad folder. Research 42 measured that such a dump holds every thread's stack and the process's whole environment, a live token included, and not the full heap (`docs/research/42-logging.md:164`). Whether an Electron 43.3.0 dump also keeps memory near the registers was never measured. If it does, the bytes at x8, x10 and x19 of his crash (`Tortie-2026-11-05-144710.ips`, research 143 §2.1 and §9.3) tell a foreign free (b) from a zero-filled block that took a freed line (c) at once.
+
+**His word (2026-11-08, "4. sounds good"),** to: let the main session read only the part of his crash dump near the crash, not the rest, which holds his environment and tokens, after the method is tested on a scratch copy first. So no research agent reads his profile, and the main session reads those byte ranges and nothing else.
+
+It can start now; it touches no source file.
+
+### The questions
+
+1. Does an Electron 43.3.0 main-process minidump, written by Tortie's own Crashpad set-up, hold memory regions around the faulting thread's registers? How far either side, for which registers?
+2. If it does: which of his dumps (by name and time only) is the 2026-11-05 14:46:58 crash, and do the regions at x8, x10 and x19 exist in it?
+3. What the bytes say: a free-list entry in the guard or header (b), zeros in both (c), or a stray write whose pointers name their library (research 143 §5's reading).
+
+### The method
+
+- **Investigate, in scratch only.** A scratch Electron on a scratch profile, through `build/electron-run.mjs`, crashed on purpose in its main process with known pointers in x8, x10 and x19 (a native helper built in scratch, or the checking better-sqlite3's own fault with `P358ADV_PLANT=crash-state`, `build/p3571/SPEC.md` §2.1), with `ignoreSystemCrashHandler` so nothing reaches his reports folder (`docs/research/42-logging.md:166`). Read the dump's memory list with a minidump reader written in the repository's scratch, installing nothing. Run it at least three times, with the pointers on the heap, the stack and in the 4.6 KB SQLite class.
+- **Attack.** An adversary tries to refute that the regions are what they seem (a region that is the stack and not the heap, a region captured after the fault changed it, a region whose bytes the handler rewrote) and that the reading tells (b) from (c).
+- **Judge, then write** `docs/research/144-…` in the house shape, ending with the exact byte ranges the main session may read, or with "there is nothing near the registers to read".
+- **The main session's step, only if the ranges exist.** It lists his Crashpad folder by name and time, picks the dump of that crash, reads exactly the named ranges and nothing else (no environment, no stack strings, no module list beyond the ones that hold the ranges), records them in an addendum to research 144, and deletes any copy it made.
+
+### What is NOT in this phase
+
+- No other byte of his dump is read, copied or sent anywhere; no research agent reads his profile.
+- No change to Tortie's crash set-up (uploads stay off).
+- Nothing reaches his DiagnosticReports folder.
+
+## Phase 364 — "4. sounds good" — a diagnostic Tortie he runs as his everyday app (operator, 2026-11-08; research 143 §5 "The one next measurement")
+
+**Subject.** `build(diagnostic): a Tortie that names what damaged the session list`
+
+**First body line.** `Phase 364: a diagnostic Tortie that catches the session list's damage in the act`
+
+**Semver.** None for the normal app: the diagnostic build is never published, never offered by the updater and never tagged.
+
+**Tier 3.** It runs on his Mac as his everyday app, over his real sessions and his real session list, with a changed native module, so it can lose or corrupt his work if it is wrong (`CLAUDE.md:268`).
+
+**Charter.** Research 143 §5: "The one next measurement has to run where the damage happened: a diagnostic Tortie, built and signed for him and run as his everyday app with his agreement." His agreement, 2026-11-08 ("4. sounds good"). Its better-sqlite3 is research 143's checking build (`adv-churn/bs3-relchk`, kept at `/private/var/tmp/tortie-wt/scratch/p3571/r143-keep/adv-churn`), which reproduces the crash's exact fault from the planted state (§2.3), with:
+
+1. **A 16-byte guard in front of every SQLite allocation**, still from the default allocator, so 4,384 bytes still fits the 4,600 usable and SQLite's lines stay in the same 4.6 KB class.
+2. **One app.log line on the first failed check**: the line's address, its guard, its header, its first 64 page bytes, the page number, the database and the time, and the watcher, terminal and door events the build also logs.
+
+How to read it (§5): a free-list entry in the guard proves a foreign free; zeros in both the guard and the header mean the slot was freed and then taken by a zero-filled block; anything else is a stray write, and the pointers in it can be traced to their library.
+
+It starts after Phase 363, whose answer may make it unnecessary or change what it logs, and after Phases 357.1 and 366 land, so it carries the quit's fix and the Electron he will keep.
+
+### The mechanism (the spec step designs it; these are the requirements)
+
+1. **One build, made for him, never published.** The checking better-sqlite3 is built for Electron's ABI from the pinned 13.0.3 sources with research 143's checker, in the repository's build, never in a checkout's `node_modules` of another phase; the app is built from main at that moment. It is signed and notarized only by the release lane (`.github/workflows/release.yml`, `DEVELOPMENT.md`), as an artifact that is not a release, on his word at that step, because signing needs it; the updater's feed never names it.
+2. **It is his app, unchanged, plus the checker.** Same bundle id, same data folder; the only differences are the checker, its one log line and a visible "Diagnostic" mark in About, so he always knows which app he is running. Going back is installing the normal release.
+3. **The checker never writes his data.** It logs one line and lets the normal path continue (357's latch and notice, 357.1's quit); it never repairs, never writes the manifest, never stops a session.
+4. **It costs measured time.** The guard's cost on his recorded shape (`build/p3167/seed-sessions.mts --shape his`, counts only) beside the normal build: launch, a refresh, a quit.
+
+### The proof, run rather than read
+
+- **Method 1.** The planted crash state (357.1's CS arms) through the diagnostic build: the one line is logged with every field, and the quit still ends by 357.1's exit with every row kept; the normal build beside it logs nothing.
+- **Method 2, the attack.** Planted foreign free, zero-filled take and stray write, each read back as research 143 §5 says; a damaged page in each of the six main-process connections (research 143 §6); load; and a check that the build never reaches the update feed.
+- **His checklist** (`build/p364/CHECKLIST.md`): how to install it, what to look for, how to send the one log line, how to go back.
+
+### What is NOT in this phase
+
+- No change to the normal app or its release.
+- Nothing published, tagged or offered by the updater; no build without his word at the signing step.
+- No upload of any log or dump: he reads the line and decides what to share.
+
+## Phase 365 — "4. sounds good" — Tortie's file watches subscribe one at a time, and never to a folder that may not exist (operator, 2026-11-08; research 143 §7)
+
+**Subject.** `fix(watcher): subscribe one at a time, and never to a folder that may not exist`
+
+**First body line.** `Phase 365: Tortie's file watches no longer race each other`
+
+**Semver.** Patch. A CHANGELOG item only if the build measures something a person sees move.
+
+**Tier 3.** The watches run in the main process as native code, they rescue the resume ids sessions are restored with (`src/main/manifest/harvest/watch.ts`), and their completions are what Phase 36 measured aborting a quit, so a defect here can lose a person's work or crash the app (`CLAUDE.md:268`).
+
+**Charter.** Research 143 §2.5 and §7: a separate build phase for Tortie's use of @parcel/watcher (`^2.6.0`), justified by its measured races rather than by the crash: about 17 subscribes and 17 unsubscribes a second crashed `watcher.node` three ways in Electron 43.3.0 (a fault in `DirTree::remove` after 29 s, a call through a null pointer on the FSEvents thread after 19 minutes, and `napi_fatal_error` at quit), the registry race a failed subscribe triggers, and upstream's #271. His word, 2026-11-08 ("4. sounds good"). "If the damage comes back with the watcher outside the main process, the watcher is cleared."
+
+It starts after Phase 362 lands: both measure the quit's tail, and 362 lets the disposer, its watcher drains among it (`src/main/capabilities.ts:948`, `:1079-1087`), run to its own bounds at his scale.
+
+### What the tree says (read 2026-11-08 at `d94f898d`)
+
+- **Five subscribe sites, no shared lock.** `src/main/watcher/repo-watcher.ts:345` (the worktree) and `:541`, `src/main/config/store.ts:396`, `src/main/machines/store.ts:434`, and the harvest's rescue watches at `src/main/manifest/harvest/watch.ts:933`, reached from `src/main/sessions/id-harvest.ts:328`.
+- **The quit drains them.** The disposer's watcher drain behind a 3 s wedge guard and its late drain of up to 15 s that hides every window, Phase 36's order (`src/main/capabilities.ts:948`, `:1079-1087`).
+
+### The mechanism
+
+1. **One subscribe or unsubscribe at a time across the whole process**: one queue every site goes through, with a bounded wait and a log line on a timeout.
+2. **Never subscribe to a folder that may not exist**: each site checks the folder first and treats a vanished folder as "nothing to watch", because a failed subscribe is the path that triggers the registry race.
+3. **#271**: carry upstream's fix when it lands; until then the spec measures whether running the watcher outside the main process (a `utilityProcess` owned by main) is the smaller cure, and chooses with the numbers. Running it outside main is not loading third-party code in a new place: @parcel/watcher is already a dependency, and refusal 1 is about code Tortie did not choose.
+4. **A gate pins it**: `conformance:watcher` gains the queue and the existence check, each with an ablation.
+
+### The proof, run rather than read
+
+- **Method 1, the parent.** Research 143's three watcher faults and the registry race, driven in scratch at both builds (its `adv-teardown` and `attack-watcher-*` shapes): the parent faults, HEAD does not, over at least the run lengths research 143 used.
+- **Method 2, the attack.** Folders created and removed while subscribing, many repositories opened and closed at once, a session restored while its rescue watch is armed, a quit mid-subscribe, and `smoke:quit`'s teardown leg.
+- **No regression.** `conformance:resume:capture` (the harvest's rescue), `probe:p167`-style project open and close, `conformance:watcher` and `conformance:watcher:cap`, and the quit table.
+
+### What is NOT in this phase
+
+- No change to what Tortie watches or to the FSEvents cap of 8.
+- No change to the harvest's rules or the resume ids.
+- No other native module.
+
+## Phase 366 — "4. sounds good" — Electron moves to the newest 43.x (operator, 2026-11-08; research 143 §7)
+
+**Subject.** `build(deps): move Electron to the newest 43.x`
+
+**First body line.** `Phase 366: Electron at the newest 43.x`
+
+**Semver.** Patch. A CHANGELOG item only if a person sees something move.
+
+**Tier 3.** Electron is the runtime of every process Tortie runs, and its native modules (better-sqlite3, node-pty, @parcel/watcher) are rebuilt for it, so a defect anywhere can lose a person's work (`CLAUDE.md:268`).
+
+**Charter.** Research 143 §7: "Move to the newest 43.x in a normal dependency phase, not in this hotfix. 43.5.0 carries #53276." His word, 2026-11-08 ("4. sounds good"). Today `package.json:397` pins `^43.3.0`.
+
+It starts after Phase 365 lands, so a watcher fault cannot be mistaken for the new runtime's, and before Phase 364's build, so the diagnostic build runs on the Electron he will keep.
+
+### The mechanism
+
+1. **The version.** The spec reads the newest 43.x from the registry (a read), names what changed from 43.3.0 that touches Tortie (the release notes, #53276 above all), and moves `electron` with the lockfile; nothing else in `package.json` moves unless the new version requires it.
+2. **The native modules rebuilt** for the new ABI the way the repository builds them today, each loaded and exercised (better-sqlite3's manifest, node-pty's attach, the watcher).
+3. **The runtime gates.** `conformance:runtime` (the Node inside the new Electron against `SUPPORTED_NODE`), `gate:checks`, and the arm64-only and stapler gates the build runs.
+
+### The proof, run rather than read
+
+- **The full battery and every probe the changed surfaces trigger**, at the parent and at HEAD: `npm test`, `smoke`, `smoke:t1`, `smoke:t3`, `smoke:quit`, `smoke:quitdoors`, `package`, `conformance:resume:capture` and the full `conformance:resume` once, `probe:p167`, `probe:p292`, and a packaged app's launch through `build/electron-run.mjs`.
+- **Method 2, the attack.** The quit table, a crash dump written and read (Phase 363's reader), the phone door's pairing over the stand-ins, and a renderer crash.
+- **The release lane** runs on his word only, as for any release.
+
+### What is NOT in this phase
+
+- No move to Electron 44.
+- No other dependency upgrade beyond what the new Electron requires.
+- No release by itself.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -46363,3 +46578,6 @@ cycle rather than only the evening it was written.
 - 2026-11-06, **361 STARTED — a gate's verdict lost through a pipe, and the fault battery's leftover tmux pair**, its section above, Tier 2, one workflow (`wryux7863`): spec (both measured at the parent), builders on disjoint files, integrator, two lenses (the pipe, the pair), fix once, an independent reverify, in `/private/var/tmp/tortie-wt/wt-p361` at `d87d414c`. Its section had it wait for 357.1 so the two never run the fault battery at once; 357.1 is paused on his ruling with nothing running, so 361 goes first, and 357.1's next round starts only once 361 has finished with the battery.
 - 2026-11-07, **361's REVERIFY ANSWERED NEEDS_WORK AFTER ITS ONE FIX, SO 361 GOES TO HIM.** Half (b) works. The fault battery's teardown now reads each case's server and every client through the tmux the app ran, ends what it named (the client first, each command line read again before its signal), proves the server gone, and the battery fails on any process left on its sockets. `conformance:scratchtmux` drives it (13 cases, 22 ablations), and the tmux source says why a pair is held: a control client tmux keeps until it has written to a reader that died. Half (a), the shared runner that hands each gate files instead of a pipe, cures the measured loss (at the parent `ablation:p313`'s 14 arms read as nothing; through files each reads its own rule). It is worse than today four ways, though: a gate that prints without end fills the disk where the pipe stopped it at its buffer (six harnesses pass no timeout at all), and on a nearly full volume three readings the pipe read whole now read UNREADABLE or cut. His rule drops (a) and lands (b), and a second needs_work is his to rule on: land (b) now and requeue (a) as the smaller cure in the one gate that overflows the pipe today (`conformance:pocket`, measured lossless when it sets its exit code instead of exiting; recommended), or one more round that bounds the runner's output, or hold both.
 - 2026-11-07, **362 QUEUED — a long ⌘Q ends before the quit has saved**, its section above. ⌘Q's 3 s fallback, from the first week, quits before the ordered disposer finishes at his scale, cutting the snapshot pass, the quit's backup generation and the dispose at today's build too; on that path a damaged session list still crashes as it does today. Tier 3, after 357.1 lands or is set aside, and before 359. F1, the patch 357.1's drop round kept, is one of its three choices for him.
+- 2026-11-08, **HIS RULINGS ON 357.1, 353, 361 AND RESEARCH 143's FOLLOW-UPS** ("1. a, 2. a 3. a , 4. sounds good. queue the appropriate phases"), each asked in plain words. **357.1**: one more round that saves remembered settings as the quit begins and again at the end, and holds the hard exit, with a cap, until the write is on disk; it lands only if a busy Mac loses nothing against today's build, and otherwise comes back to him (§14's other defaults stand). **353**: ship the seven approved items and redo 325 by what he typed rather than by timing. **361**: land the fault battery's teardown now and redo the gate runner half as a smaller fix. **Research 143**: yes to the diagnostic build, to a narrow read of his crash dump after a scratch test, to a build phase for the file watches, to Electron's newest 43.x, and to reporting the better-sqlite3 bug upstream.
+- 2026-11-08, **THREE ROUNDS STARTED.** **357.1 round A** (`wughtx7t6`, in `wt-p3571`): measure when the storage write lands, choose a signal over a guess, flush on the disposer's first lines and wait at `will-quit`, S12 admitting exactly that one bounded wait, then two independent lenses (beside the parent under load; the attack), and no further fix round. **361's drop round** (`wiamplu4z`, in `wt-p361`): the gate runner half out and kept as a patch at `scratch/owed-p3611/`, the teardown half with two re-read pins, an independent reverify; it alone runs the fault battery meanwhile. **353's move to main** (`w0gap25go`, in a fresh `wt-p353b` at `d94f898d`, the old `wt-p353` kept untouched): the six conflicts with main resolved (357's quiet catch around the session-death write and 302's tombstone, both kept), 325 out and kept as a patch at `scratch/owed-p3251/`, an independent reverify beside today's main.
+- 2026-11-08, **325.1, 361.1, 363, 364, 365 AND 366 QUEUED**, their sections above. **325.1** Tortie knows his own words by what he typed (Tier 3, after 353). **361.1** conformance:pocket finishes writing its verdict before it exits (Tier 2, after 361). **363** research: what an Electron crash dump keeps near the registers, then the main session reads only those bytes of his dump (can start now; it touches no source). **364** a diagnostic Tortie he runs day to day, never published (Tier 3, after 363, 357.1 and 366). **365** the file watches subscribe one at a time and never to a missing folder (Tier 3, after 362). **366** Electron to the newest 43.x (Tier 3, after 365). The order after today's three rounds: 362, then 359; 360 and 325.1 once 353 is in; 361.1 once 361 is in; 363 beside them; then 365, 366 and 364.
