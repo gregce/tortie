@@ -13,7 +13,8 @@ printf '{"version":1,"operation":"<op>","session":"%s"}\n' \
 ```
 
 Answers are one JSON line. `ok: true` carries the answer; `ok: false` carries
-an `error.code` and a sentence. The closed codes:
+an `error.code` and a sentence. The three read operations answer at once, so
+a short wait is fine; only `open` may take its time (see [open](open.md)). The closed codes:
 
 - `disabled` — the person has not turned agent access on in Settings then
   Agents. Say how to turn it on; do not retry around it.

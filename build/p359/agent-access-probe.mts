@@ -434,7 +434,12 @@ function resourceSection() {
     // The client form: `/usr/bin/nc -w 2 -U` with the socket env, Base64 for
     // every dynamic value, and the session env for the identity.
     client: {
-      ncLine: /\/usr\/bin\/nc -w 2 -U "\$GMUX_AGENT_SOCKET"/.test(referenceWords),
+      // PHASE 361: the open arms hold their pipe open (`sleep 6` between the
+      // payload and stdin EOF), because a plain `printf | nc` closes before the
+      // receipt-backed answer is written. The probe reads the shipped one-liner
+      // shape against the references; the held-opening runs beside it.
+      ncLine: /\/usr\/bin\/nc -w [0-9]+ -U "\$GMUX_AGENT_SOCKET"/.test(referenceWords),
+      heldPipe: /sleep 6;\s*\}\s*\|/.test(referenceWords),
       sessionEnv: referenceWords.includes('GMUX_SESSION_ID'),
       base64Tool: /\/usr\/bin\/base64/.test(referenceWords),
       noRawPathInJson: !/pathBase64":"[^"]*\/[^"]*"/.test(referenceWords),
@@ -443,6 +448,8 @@ function resourceSection() {
         referenceWords.includes('unknown-operation') &&
         referenceWords.includes('bad-request') &&
         referenceWords.includes('unavailable'),
+      sessionGone:
+        referenceWords.includes('session-gone'),
       lineLocator: referenceWords.includes('line'),
       findLocator: referenceWords.includes('findBase64'),
       states:
@@ -1130,16 +1137,28 @@ async function openDrivenSection() {
       { pathBase64: pathB64('a.txt'), line: 1 },
       { mainWindow: () => null }
     );
+    // PHASE 361. A caller that is gone when the file has been read answers a
+    // REFUSAL with its own word. It used to throw OpenUnavailableError, which
+    // the transport turned into the generic `unavailable` an agent cannot
+    // tell apart from "Tortie is not running".
+    // The caller is live when the request arrives and gone by the time the
+    // file has been read: the first list answers it, every later list does not.
     const goneCaller = await buildAgentAccessOpen({
       isEnabled: () => true,
-      listSessions: () => [],
+      listSessions: (() => {
+        let asked = 0;
+        return () => {
+          asked += 1;
+          return asked <= 1 ? sessions : [];
+        };
+      })(),
       listProjects: () => projects,
       mainWindow: () => target,
       broker: new PromptBroker(),
       windowFocused: () => true,
       harnessCheckpoint: () => null
     })({ session: SESSION_A.id, pathBase64: pathB64('a.txt'), line: 1 }).catch((err) => ({
-      state: 'refused',
+      state: 'threw',
       reason: err && err.name === 'OpenUnavailableError' ? 'unavailable' : 'other'
     }));
     // The broker's own three clauses, on a raw broker with a real send.

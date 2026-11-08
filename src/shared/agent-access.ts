@@ -203,7 +203,11 @@ export type AgentAccessOpenValue =
         | 'too-large'
         | 'changed'
         | 'line-out-of-range'
-        | 'renderer-unavailable';
+        | 'renderer-unavailable'
+        // PHASE 361. The session that was live at the door may be gone by
+        // the time the file is read. `unavailable` means "Tortie cannot
+        // answer"; `session-gone` means "Tortie answered: that session moved".
+        | 'session-gone';
     };
 
 /**

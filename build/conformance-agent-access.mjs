@@ -93,11 +93,11 @@ const EXPECTED_RESOURCE_SHA256 = {
   'skills/tortie/SKILL.md':
     '99502730d0cc36cf870da80328ea3dcf35d49818abab1a871cdd2b63247f5068',
   'skills/tortie/references/calling.md':
-    '07489a9951007808f3ad3102259fb801066786597ba6b915551818343d9d8a84',
+    '07261eec3bce81daab529b4609fb350a8853cd9ee0145318088c35ee4317cd53',
   'skills/tortie/references/session.md':
     '9287836131693c53bbc4b6f9b6f17fedf4b1196115f80cffce0127dcf01b8ca7',
   'skills/tortie/references/open.md':
-    'a8e179f909552b87cdcb03661e300fd60724fdd121221a02076b113436d2157c'
+    '7f001b07aaa1fac0eef73d76df1acd22481bb5ebfff382f338db460c4b2e2f4e'
 };
 
 const EXPECTED_LABEL = 'Allow agents to use Tortie';
@@ -338,6 +338,13 @@ const RULES = [
       for (const [key, value] of Object.entries(r.client)) {
         if (!value) return `the references do not teach ${key}`;
       }
+      // PHASE 361, and it is a defect this gate missed for two rounds: the
+      // open one-liners must hold their pipe open, because macOS nc closes the
+      // connection at stdin EOF and the receipt-backed answer arrives after
+      // that. A reference that teaches `printf | nc` alone teaches agents to
+      // report a working open as silence.
+      if (!r.client.heldPipe) return 'the open one-liners do not hold the pipe open';
+      if (!r.client.sessionGone) return 'the references never name the session-gone refusal';
       if (!r.installsNothing) return 'the skill tells an agent to install something';
       return null;
     },
@@ -669,6 +676,12 @@ const RULES = [
       if (t.noProjects.reason !== 'no-project') return 'no open local project is not no-project';
       if (t.noRenderer.reason !== 'renderer-unavailable') {
         return 'no ready renderer is not renderer-unavailable';
+      }
+      // PHASE 361. A caller that moved while the file was read is a refusal
+      // with its own word, never a throw that collapses into `unavailable`.
+      if (t.goneCaller === undefined) return 'the gone-caller arm produced no reading';
+      if (t.goneCaller.state !== 'refused' || t.goneCaller.reason !== 'session-gone') {
+        return `a caller gone after the read answers ${t.goneCaller.state}/${t.goneCaller.reason}`;
       }
       if (JSON.stringify(three).includes('gamma')) return 'the answer echoes the search text';
       // The switch is read once by the caller and once before the event; the

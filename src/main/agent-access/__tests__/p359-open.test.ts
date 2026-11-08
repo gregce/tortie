@@ -340,9 +340,10 @@ describe('agent-access open', () => {
         restoreReason: null
       }
     });
-    // The open seam answers a gone/remote caller by THROWING the closed
-    // transport refusal, so the dispatch `finally` still attributes the
-    // outcome. The service catch maps it to the closed error.
+    // The open seam answers a gone/remote caller AT THE DOOR by throwing
+    // the closed transport refusal, so the dispatch `finally` still
+    // attributes the outcome. A caller that moves mid-flight answers the
+    // closed refusal word instead (PHASE 361): see the test two below.
     const { OpenUnavailableError } = await import('../open');
     const depsWithRemote: AgentAccessOpenDeps = {
       ...(deps as unknown as Record<string, unknown>),
@@ -360,6 +361,31 @@ describe('agent-access open', () => {
     }
     expect(sent).toHaveLength(0);
     void open;
+  });
+
+  it('answers session-gone when the caller moves after the door read', async () => {
+    // PHASE 361. The caller is live when the request arrives and gone when
+    // the file has been read. That used to throw OpenUnavailableError and
+    // collapse into the service's generic `unavailable`; it now answers the
+    // refusal word this operation owns.
+    const { deps, dir, sent } = world();
+    writeFileSync(join(dir, 'file.txt'), 'hi\n');
+    let asked = 0;
+    const listSessions: AgentAccessOpenDeps['listSessions'] = async () => {
+      asked += 1;
+      return asked <= 1
+        ? (deps.listSessions as () => Promise<Session[]>)()
+        : [];
+    };
+    const open = buildAgentAccessOpen({ ...deps, listSessions });
+    await expect(
+      open({
+        session: 'caller-1',
+        pathBase64: b64(join(dir, 'file.txt')),
+        line: 1
+      })
+    ).resolves.toEqual({ state: 'refused', reason: 'session-gone' });
+    expect(sent).toHaveLength(0);
   });
 
   it('refuses bad-request shapes without throwing', async () => {

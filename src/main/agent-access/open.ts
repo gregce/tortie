@@ -39,6 +39,10 @@ import {
 import { readTextCapped } from '../fs/read-text';
 import type { AgentAccessRendererOpen } from '@shared/ipc/agent-access';
 import { deliverAgentAccessOpen, type AgentAccessOpenBroker } from './open-broker';
+import { getLog } from '../log';
+
+/** The one logger this module owns: refusals and window answers, no payloads. */
+const openLog = getLog('agent-access-open');
 
 /** What the open path needs from the app. Nothing here starts anything. */
 export interface AgentAccessOpenDeps {
@@ -91,6 +95,42 @@ export class OpenUnavailableError extends Error {
     super(UNAVAILABLE_MESSAGE);
     this.name = 'OpenUnavailableError';
   }
+}
+
+export const AGENT_ACCESS_OPEN_ATTEMPT_TIMEOUT_MS = 15_000;
+
+/**
+ * PHASE 361: every refusal needs a clock reading, not an alibi.
+ *
+ * `mainWindow()` answers the window the app is willing to show an open
+ * through. In development, that is every window. Packaged, what it returns is
+ * main's Electron `BrowserWindow.getAllWindows()`: a DEVTOOLS window counts,
+ * a window on another desktop does not, and while the OS is locked or the
+ * Space is empty it is whatever Electron still reports.
+ *
+ * The call logs which of those it is, with the project's name and the
+ * requested relative path — never the absolute path — so the next "open
+ * reported success" has a receipt behind it and the next silent failure is
+ * no longer silent.
+ */
+function chooseMainWindow(
+  mainWindow: AgentAccessOpenDeps['mainWindow'],
+  project: { name: string },
+  rel: string
+): ReturnType<AgentAccessOpenDeps['mainWindow']> {
+  const target = mainWindow();
+  if (target === null) {
+    openLog?.warn?.('agent access open: no window at all', {
+      project: project.name,
+      rel
+    });
+  } else if (target.isDestroyed()) {
+    openLog?.warn?.('agent access open: the window was destroyed', {
+      project: project.name,
+      rel
+    });
+  }
+  return target;
 }
 
 function refused(
@@ -387,9 +427,15 @@ export function buildAgentAccessOpen(
     if (!deps.isEnabled()) {
       throw new OpenDisabledError();
     }
+    // PHASE 361. The caller that was live when the request arrived may be gone
+    // by the time the file has been read. That is a REFUSAL this operation can
+    // name (`renderer-unavailable` is wrong; the session is what moved), and a
+    // thrown error here used to collapse into the service's generic
+    // `unavailable`, which an agent cannot tell apart from "Tortie is not
+    // running". Answer the closed word instead.
     const live = (await deps.listSessions()).find((one) => one.id === caller.id);
     if (live === undefined || live.machine !== undefined) {
-      throw new OpenUnavailableError();
+      return refused('session-gone');
     }
     const lineCount = text.split('\n').length;
     if (decoded.line !== undefined) {
@@ -461,7 +507,7 @@ async function deliverOpen(
   input: DeliverInput,
   matches?: number
 ): Promise<AgentAccessOpenValue> {
-  const target = deps.mainWindow();
+  const target = chooseMainWindow(deps.mainWindow, input.project, input.rel);
   if (target === null || target.isDestroyed()) {
     return refused('renderer-unavailable');
   }

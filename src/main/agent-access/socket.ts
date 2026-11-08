@@ -166,7 +166,32 @@ export function acceptFramedConnections(
   });
 }
 
-/** The one `net.createServer` for this feature. No other module calls it. */
+/**
+ * The one `net.createServer` for this feature. No other module calls it.
+ *
+ * PHASE 360/361 FIX. `allowHalfOpen: true` is NOT a nicety, it is the
+ * difference between the door answering and the door going silent.
+ *
+ * Every documented caller is a pipeline — `printf ... | nc -U ...` — and a
+ * pipeline's last writer FINISHES ITS WRITE SIDE the moment the line is sent.
+ * Node's default for a server socket is `allowHalfOpen: false`, which means
+ * "when the peer stops sending, end my write side too", so the server called
+ * `end()` on itself the instant it saw that FIN. Any operation that awaited
+ * anything before answering then wrote its answer into a closed socket and the
+ * client saw EOF with ZERO BYTES and no error.
+ *
+ * MEASURED on 2026-11-07 in the running app: `capabilities`, `whoami` and
+ * `sessions` answered every time because they resolve in a microtask, while
+ * `open` — which awaits a session list, a file read and the renderer's receipt
+ * — answered 0 of 6 times, each connection ending in about 6 ms with an empty
+ * body. That is the "open works sometimes" an agent sees, and it is also why a
+ * refusal never reached anybody: the closed answer was written to a dead
+ * socket.
+ *
+ * With this flag the read side still ends at the peer's FIN (framing is
+ * unchanged), but the write side stays ours until `writeResponseAndEnd` ends
+ * it on purpose.
+ */
 export function createAgentAccessServer(): Server {
-  return createServer();
+  return createServer({ allowHalfOpen: true });
 }
