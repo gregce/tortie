@@ -15,7 +15,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 - An Antigravity session no longer shows as running while it waits at its prompt; its questions still do not turn amber, and they now read as idle ([`99e0d298`](https://github.com/gregce/tortie/commit/99e0d298))
 - A session in a folder whose name holds a # or ends in ; now starts in that folder, on this Mac and on another machine; a session started before this update and restored keeps the folder it ran in, so its conversation is found ([`99e0d298`](https://github.com/gregce/tortie/commit/99e0d298))
 - Quitting Tortie no longer crashes when its session list went bad without showing an error, and Tortie now notices that trouble through its backup check too ([`5895b12b`](https://github.com/gregce/tortie/commit/5895b12b))
-- Quitting Tortie with many busy sessions now finishes saving each session's history before it closes, instead of stopping after three seconds, and if Tortie ever crashes while it quits, the next launch says so
+- Quitting Tortie with many busy sessions now finishes saving each session's history before it closes, instead of stopping after three seconds, and if Tortie ever crashes while it quits, the next launch says so ([`d84bed31`](https://github.com/gregce/tortie/commit/d84bed31))
 
 ## 0.114.1 (2026-11-05)
 
