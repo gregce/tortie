@@ -300,6 +300,13 @@
  * `screenOf` DRIVEN). Each clause has its own self-test (`p350SelfTest`,
  * sixteen plants). One hundred and ninety-two rules in all.
  *
+ * PHASE 361.1 LETS ITS VERDICT FINISH WRITING (build/p3611/SPEC.md). Its
+ * report is about 91 KB and a pipe holds 64 KiB, so process.exit straight
+ * after the writes dropped the tail whenever the reader was behind, and
+ * ablation:p313 read 14 arms as red on nothing. All four exits now go through
+ * exitWhenWritten, which exits once stdout and stderr have handed on every
+ * byte.
+ *
  * HOW IT READS. The source, parsed with the TypeScript compiler's own parser,
  * so a comment, a string and a call are each read as what they are. A rule
  * that could be satisfied by a word in a comment is not a rule, and three of
@@ -332,6 +339,25 @@ import ts from 'typescript';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[conformance:pocket]';
 const t0 = Date.now();
+
+/**
+ * Ends the run with `code` once stdout and stderr have handed on every byte
+ * written to them (Phase 361.1). The callbacks of an empty write run only
+ * after every earlier write to that stream. The promise never settles, so
+ * nothing after the caller's await runs, as after process.exit. gate:checks
+ * clause 9 pins this function's text byte for byte, so change both together.
+ */
+function exitWhenWritten(code) {
+  process.exitCode = code;
+  let open = 2;
+  const done = () => {
+    open -= 1;
+    if (open === 0) process.exit(code);
+  };
+  process.stdout.write('', done);
+  process.stderr.write('', done);
+  return new Promise(() => {});
+}
 
 /**
  * The rules. `owner` is the clause of `build/p313/SPEC.md` or of Phase 313's
@@ -574,7 +600,7 @@ if (process.argv.includes('--list')) {
   for (const [id, owner, title] of RULES) {
     process.stdout.write(`${id.padEnd(5)} ${owner.padEnd(34)} ${title}\n`);
   }
-  process.exit(0);
+  await exitWhenWritten(0);
 }
 
 // ---------------------------------------------------------------------------
@@ -1341,7 +1367,7 @@ function routeMembershipRule() {
     const text = readFileSync(self, 'utf8');
     writeFileSync(self, text.replace(`const ROUTE_PIN = '${ROUTE_PIN}'`, `const ROUTE_PIN = '${got}'`));
     process.stdout.write(`${TAG} route pin rewritten: ${got}\n  ${lines.join('\n  ')}\n`);
-    process.exit(0);
+    return exitWhenWritten(0);
   }
   checked('R4', lines.length);
   if (got !== ROUTE_PIN) {
@@ -20062,10 +20088,10 @@ if (red > 0) {
     for (const f of failures.get(id)) process.stdout.write(`  - [p313 ${id}] ${owner}: ${f}\n`);
   }
   process.stdout.write(`\n${TAG} FAIL: ${String(red)} of ${String(RULES.length)} rules red, ${String(total)} checks, ${seconds} s.\n`);
-  process.exit(1);
+  await exitWhenWritten(1);
 }
 process.stdout.write(
   `\n${TAG} PASS: ${String(RULES.length)} rules, ${String(total)} checks, ${seconds} s. ` +
     'No Electron, no tmux, no ssh, no agent, no socket, nothing under the person’s home.\n'
 );
-process.exit(0);
+await exitWhenWritten(0);

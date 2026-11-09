@@ -15,7 +15,7 @@
  * fix pinned tsx as an exact devDependency and routed every call through
  * `build/ts-runner.mjs`. This gate is what keeps both halves true.
  *
- * ## What it asserts, in about 0.1 seconds, spawning nothing
+ * ## What it asserts, in under a second, spawning nothing
  *
  *  1. No file under build/ hands the npx program to a spawn, so no script can
  *     go back to resolving its runner outside the lockfile. Two files are
@@ -89,11 +89,24 @@
  *     restores the seven settings and their fixtures from git history
  *     (build/assert-hermetic-checks.mjs at 217f47e5) in the same commit.
  *
+ *  9. A GATE AN ABLATION HARNESS READS THROUGH A PIPE FINISHES ITS WRITES, OR
+ *     WAS MEASURED UNDER THE PIPE (Phase 361.1). A spawnSync pipe holds 65,000
+ *     to 65,536 bytes unread. A gate that writes more and then calls
+ *     process.exit loses the rest whenever its reader is behind, which is how
+ *     ablation:p313 read 14 arms as red on nothing. Every gate a file behind
+ *     ablation:* names either reaches process.exit only inside a copy of
+ *     conformance-pocket.mjs's exitWhenWritten, which exits once stdout and
+ *     stderr have both handed on every byte, or has a measured row of at most
+ *     49,152 bytes. The helper is compared byte for byte, because one that
+ *     exits on its first callback loses stdout. It reads no output, so a
+ *     measured gate that grows is not seen until its row is measured again.
+ *
  * Run it with `npm run gate:checks`. It also runs inside `npm run build`, so
  * nothing that builds can skip it.
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CHECKS, CHECK_TYPES, XCODE_HARNESS, XCODE_SKIP } from './verification-checks.mjs';
@@ -779,6 +792,617 @@ for (const path of buildScriptsDeep(buildDir)) {
 }
 
 // ---------------------------------------------------------------------------
+// 9. A gate an ablation harness reads through a pipe finishes its writes, or
+//    was measured under the pipe
+// ---------------------------------------------------------------------------
+
+// A spawnSync pipe holds 65,000 to 65,536 bytes unread, by write size
+// (build/p3611/SPEC.md §2.2). A quarter is kept back for an arm that reddens
+// several rules and for growth between measurements.
+const PIPE_HOLDS_BYTES = 65_536;
+const PIPE_MARGIN_BYTES = 16_384;
+const PIPE_CEILING_BYTES = PIPE_HOLDS_BYTES - PIPE_MARGIN_BYTES;
+const PIPED_HARNESS_FLOOR = 23;
+const PIPED_GATE_FLOOR = 18;
+
+// A row is the most bytes one run of the gate wrote, stdout and stderr together, under its harness.
+const PIPED_MEASURED = [
+  ['build/p313/hostile-client.mjs', 42_917, 'ablation:p313 A4s, 02739f4d'],
+  ['build/conformance-machines.mjs', 38_890, 'green, direct, 02739f4d (red 38,790, ablation:p340 a010a, d87d414c)'],
+  ['build/conformance-ios.mjs', 38_488, '--json green, direct, 02739f4d (red 38,369, ablation:p316 a1, d87d414c)'],
+  ['build/p293/conformance-manager.mjs', 13_089, 'ablation:p293 arm 1, d87d414c'],
+  ['build/conformance-agents.mjs', 10_600, 'ablation:p275 arm 0, d87d414c'],
+  ['build/assert-door-only-adds.mjs', 7_836, 'ablation:p33311 F1, --json, d87d414c'],
+  ['build/conformance-save.mjs', 5_988, 'ablation:p268, d87d414c'],
+  ['build/conformance-push.mjs', 5_773, 'ablation:p314 H1, d87d414c'],
+  ['build/conformance-handback.mjs', 4_867, 'ablation:p296 A1, d87d414c'],
+  ['build/conformance-choices.mjs', 3_550, 'ablation:p312, d87d414c'],
+  ['build/conformance-endtree.mjs', 2_570, 'ablation:p323 A1, --root, d87d414c'],
+  ['build/p274/conformance-samefolder.mjs', 2_500, 'ablation:p274, P274_SOURCE_ONLY, d87d414c'],
+  ['build/assert-known-hosts-scoped.mjs', 1_138, 'ablation:p307 R1, d87d414c'],
+  ['build/assert-bundle-refusals.mjs', 806, 'green, direct, 02739f4d (named by ablation:p326, which copies it and runs it not)'],
+  ['build/conformance-shellenv.mjs', 303, 'ablation:p276 R10, d87d414c'],
+  ['build/conformance-farattach.mjs', 254, 'ablation:p326 A1, --json, d87d414c'],
+  ['build/assert-background-teardown.mjs', 176, 'ablation:p307 R1, green only, d87d414c']
+];
+
+const withCommas = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+// The compiler is loaded here rather than imported at the top, so a missing
+// install is a finding with a sentence rather than a crash before any output.
+let ts = null;
+try {
+  ts = createRequire(import.meta.url)('typescript');
+} catch (err) {
+  fail(
+    `clause 9 could not load typescript from the repository install ` +
+      `(${err instanceof Error ? err.message : String(err)}), so no gate an ` +
+      `ablation harness reads was checked.`
+  );
+}
+
+const SK = ts?.SyntaxKind;
+// A slash after one of these ends an operand, so it divides; after any other
+// punctuation it opens a regular expression, and so it does after these words.
+// After break, continue or debugger a slash can only be on the next line,
+// where it begins a statement.
+const OPERAND_ENDS = ts === null ? null : new Set([SK.CloseParenToken, SK.CloseBracketToken, SK.CloseBraceToken, SK.PlusPlusToken, SK.MinusMinusToken]);
+const REGEX_AFTER = ts === null ? null : new Set([
+  SK.ReturnKeyword, SK.TypeOfKeyword, SK.InstanceOfKeyword, SK.InKeyword, SK.OfKeyword, SK.NewKeyword, SK.DeleteKeyword,
+  SK.VoidKeyword, SK.ThrowKeyword, SK.CaseKeyword, SK.DoKeyword, SK.ElseKeyword, SK.YieldKeyword, SK.AwaitKeyword,
+  SK.ExtendsKeyword, SK.DefaultKeyword, SK.BreakKeyword, SK.ContinueKeyword, SK.DebuggerKeyword
+]);
+
+// After `)` a slash opens a regular expression only when the bracket closed
+// the head of one of these, as in `if (x) /re/`; after any other `)` it divides.
+const HEADS = ts === null ? null : new Set([SK.IfKeyword, SK.ForKeyword, SK.WhileKeyword, SK.WithKeyword]);
+const TEXT_KINDS = ts === null ? null : new Set([SK.StringLiteral, SK.NoSubstitutionTemplateLiteral, SK.TemplateHead, SK.TemplateMiddle, SK.TemplateTail]);
+
+/** Is a slash after a token of this kind the start of a regular expression? */
+function slashOpensRegex(prev) {
+  if (prev === null || prev === SK.TemplateHead || prev === SK.TemplateMiddle) return true;
+  if (prev >= SK.FirstPunctuation && prev <= SK.LastPunctuation) return !OPERAND_ENDS.has(prev);
+  return REGEX_AFTER.has(prev);
+}
+
+/**
+ * Walks the tokens of `text`'s code with TypeScript's scanner, deciding each
+ * slash and closing brace as the parser does: a `}` that closes a template
+ * substitution continues the template, a slash after `)` opens a regular
+ * expression only when the bracket closed one of HEADS, and a slash after a
+ * word that follows . or ?. divides, because there the word is a name
+ * (`it.new / 2`). Comments are trivia and never seen. `visit(kind, scanner,
+ * prev)` is called per token. Answers whether the walk was exact: not when a
+ * slash came after `}`, `of`, `++` or `--`, where only the grammar can say,
+ * or the scanner met an error.
+ */
+function walkCode(text, visit) {
+  let exact = true;
+  const scanner = ts.createScanner(ts.ScriptTarget.Latest, true, ts.LanguageVariant.Standard, text, () => {
+    exact = false;
+  });
+  const depths = []; // one brace depth per open template substitution
+  const heads = []; // one flag per open `(`: did it open one of HEADS?
+  let closedHead = false;
+  let prev = null;
+  let before = null;
+  for (let kind = scanner.scan(); kind !== SK.EndOfFileToken; kind = scanner.scan()) {
+    if (kind === SK.SlashToken || kind === SK.SlashEqualsToken) {
+      if (prev === SK.CloseBraceToken || prev === SK.OfKeyword || prev === SK.PlusPlusToken || prev === SK.MinusMinusToken) exact = false;
+      if (prev === SK.CloseParenToken ? closedHead : !(before === SK.DotToken || before === SK.QuestionDotToken) && slashOpensRegex(prev)) kind = scanner.reScanSlashToken();
+    } else if (kind === SK.CloseBraceToken && depths.length > 0 && depths[depths.length - 1] === 0) {
+      kind = scanner.reScanTemplateToken(false);
+      if (kind === SK.TemplateTail) depths.pop();
+    } else if (kind === SK.OpenBraceToken && depths.length > 0) {
+      depths[depths.length - 1] += 1;
+    } else if (kind === SK.CloseBraceToken && depths.length > 0) {
+      depths[depths.length - 1] -= 1;
+    } else if (kind === SK.TemplateHead) {
+      depths.push(0);
+    } else if (kind === SK.OpenParenToken) {
+      const named = before === SK.DotToken || before === SK.QuestionDotToken; // obj.if(...) is a call
+      heads.push((HEADS.has(prev) && !named) || (prev === SK.AwaitKeyword && before === SK.ForKeyword));
+    } else if (kind === SK.CloseParenToken) {
+      if (heads.length === 0) exact = false;
+      closedHead = heads.pop() === true;
+    }
+    visit(kind, scanner, prev);
+    before = prev;
+    prev = kind;
+  }
+  return exact;
+}
+
+/**
+ * The last path segment of every string literal and template part in `text`'s
+ * code that ends in .mjs, as every gate does. Comments are never read. When the
+ * walk is not exact, the parser reads the literals instead.
+ */
+function literalTails(text) {
+  const tails = new Set();
+  const add = (value) => {
+    if (value.endsWith('.mjs')) tails.add(value.slice(value.lastIndexOf('/') + 1));
+  };
+  const exact = walkCode(text, (kind, scanner) => {
+    if (TEXT_KINDS.has(kind)) add(scanner.getTokenValue());
+  });
+  if (exact) return tails;
+  tails.clear();
+  const visit = (node) => {
+    if (TEXT_KINDS.has(node.kind)) add(node.text);
+    ts.forEachChild(node, visit);
+  };
+  visit(ts.createSourceFile('names.mjs', text, ts.ScriptTarget.Latest, false, ts.ScriptKind.JS));
+  return tails;
+}
+
+/** Each gate under its basename. */
+function byBasename(gates) {
+  const byBase = new Map();
+  for (const gate of gates) {
+    const base = gate.slice(gate.lastIndexOf('/') + 1);
+    byBase.set(base, [...(byBase.get(base) ?? []), gate]);
+  }
+  return byBase;
+}
+
+/** The gates whose basename is one of `tails`. */
+function gatesEndingIn(tails, byBase) {
+  const named = new Set();
+  for (const tail of tails) for (const gate of byBase.get(tail) ?? []) named.add(gate);
+  return named;
+}
+
+/** The gates `text` names in its code: a literal or template part ending in a gate's basename. Proved on fixtures below. */
+const gatesNamedIn = (text, gates) => gatesEndingIn(literalTails(text), byBasename(gates));
+
+const unwrapped = (node) => (ts.isParenthesizedExpression(node) ? unwrapped(node.expression) : node);
+const isProcess = (node) => {
+  const e = unwrapped(node);
+  return (ts.isIdentifier(e) && e.text === 'process') || (ts.isPropertyAccessExpression(e) && e.name.text === 'process');
+};
+
+// The one way a gate with no row may reach process.exit: conformance-pocket.mjs's
+// exitWhenWritten, pinned here byte for byte. It exits from the callback of an
+// empty write to stdout and to stderr, and only on the second call, so both
+// streams have handed on every byte. A copy that differs at all is read as not
+// finishing, because a counter taken out, or the callback handed to anything
+// else as well, exits while stdout still holds the report (the Phase 361.1
+// verifier's V2 and V3; build/p3611/SPEC.md, the fix round).
+const HELPER_COUNTED = '  let open = 2;\n  const done = () => {\n    open -= 1;\n    if (open === 0) process.exit(code);\n  };\n';
+const HELPER_HANDED = "  process.stdout.write('', done);\n  process.stderr.write('', done);\n";
+const HELPER_TEXT =
+  `function exitWhenWritten(code) {\n  process.exitCode = code;\n${HELPER_COUNTED}${HELPER_HANDED}` +
+  '  return new Promise(() => {});\n}\n';
+// The two changes the verifier showed losing the report, kept for the fixtures and ablations below.
+const HELPER_UNCOUNTED = '  const done = () => {\n    process.exit(code);\n  };\n';
+const HELPER_HANDED_TO_A_TIMER = `${HELPER_HANDED}  setTimeout(done, 5);\n`;
+
+/** Is `fn` a function declaration whose text is the pinned helper's? */
+const isTheHelper = (fn, source) => `${source.text.slice(fn.getStart(source), fn.end)}\n` === HELPER_TEXT;
+
+/**
+ * The 1-based lines at which a parsed gate reaches process.exit anywhere but
+ * inside the pinned helper. Empty means the gate finishes its writes. Each
+ * reach is judged by its own nearest function declaration alone. Proved on
+ * fixtures below.
+ */
+function exitsOutsideTheHelper(source) {
+  const text = source.text;
+  const lines = [];
+  // Lines are counted by \n alone, as grep -n and an editor count them. The
+  // compiler also breaks lines at U+2028 and U+2029, and conformance-pocket.mjs
+  // holds one in a string, so its own numbering is one line late after it.
+  const at = (node) => {
+    const start = node.getStart(source);
+    let line = 1;
+    for (let i = text.indexOf('\n'); i !== -1 && i < start; i = text.indexOf('\n', i + 1)) line += 1;
+    lines.push(line);
+  };
+  const exitNamed = (element) => (element.propertyName ?? element.name)?.text === 'exit';
+  const ancestors = [];
+  const visit = (node) => {
+    if (ts.isPropertyAccessExpression(node) && node.name.text === 'exit' && isProcess(node.expression)) {
+      const fn = ancestors.findLast((one) => ts.isFunctionDeclaration(one));
+      if (fn === undefined || !isTheHelper(fn, source)) at(node);
+    } else if (ts.isElementAccessExpression(node) && isProcess(node.expression)) {
+      const key = node.argumentExpression;
+      if (!(ts.isStringLiteralLike(key) || ts.isNumericLiteral(key)) || key.text === 'exit') at(node);
+    } else if (ts.isVariableDeclaration(node) && ts.isObjectBindingPattern(node.name) && node.initializer !== undefined && isProcess(node.initializer)) {
+      for (const element of node.name.elements) if (exitNamed(element)) at(element);
+    } else if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier) && ['process', 'node:process'].includes(node.moduleSpecifier.text)) {
+      const bindings = node.importClause?.namedBindings;
+      if (bindings !== undefined && ts.isNamedImports(bindings)) for (const element of bindings.elements) if (exitNamed(element)) at(element);
+    }
+    ancestors.push(node);
+    ts.forEachChild(node, visit);
+    ancestors.pop();
+  };
+  visit(source);
+  return lines;
+}
+
+// After one of these a `function` begins a statement, so a copy of the helper
+// there is a declaration, as the parser reads it.
+const STATEMENT_ENDS = ts === null ? null : new Set([null, SK.SemicolonToken, SK.OpenBraceToken, SK.CloseBraceToken]);
+
+/**
+ * Whether `text` may reach process.exit outside the pinned helper, read with
+ * walkCode at about a third of a parse's cost. It may when, outside a copy of
+ * the helper that begins a statement, a token spells exit (a name, or a string
+ * such as an element's key), or process is followed by anything but a dot and
+ * another name; and whenever the walk was not exact. Every reach the parser
+ * would flag holds such a token outside a copy, so a text that may not reaches
+ * process.exit nowhere else, provided the walk splits it into the parser's
+ * tokens: a slash it misplaces hides the code it swallows, as `it.new / 2` did
+ * before the ruled round (build/p3611/SPEC.md), so each placement is a flush
+ * fixture read both ways below. Only a text that may is parsed. `spans` are
+ * the copies.
+ */
+function mayReachExit(text) {
+  const helper = HELPER_TEXT.slice(0, -1);
+  const spans = [];
+  let may = false;
+  let after = 0; // the end of the copy of the helper the walk last entered
+  let processAt = 0; // 1: process was the token before, 2: then a dot
+  const exact = walkCode(text, (kind, scanner, prev) => {
+    const start = scanner.getTokenStart();
+    if (start < after) return;
+    if (kind === SK.FunctionKeyword && STATEMENT_ENDS.has(prev) && text.startsWith(helper, start)) {
+      spans.push([start, start + helper.length]);
+      after = start + helper.length;
+      return;
+    }
+    if (may) return;
+    if (processAt === 1) {
+      processAt = kind === SK.DotToken ? 2 : 0;
+      may = processAt === 0;
+      return;
+    }
+    if (processAt === 2) {
+      processAt = 0;
+      if (kind !== SK.Identifier && !(kind >= SK.FirstKeyword && kind <= SK.LastKeyword)) {
+        may = true;
+        return;
+      }
+    }
+    if (kind === SK.Identifier) {
+      const name = scanner.getTokenValue();
+      if (name === 'exit') may = true;
+      else if (name === 'process') processAt = 1;
+    } else if ((kind === SK.StringLiteral || kind === SK.NoSubstitutionTemplateLiteral) && scanner.getTokenValue() === 'exit') {
+      may = true;
+    }
+  });
+  return { may: may || !exact, spans };
+}
+
+/**
+ * What the reader finds in each text, kept by text so an ablation reads again
+ * only the text it changed: the walk always, the parse (TypeScript's parser,
+ * no parent pointers, since the reader keeps its own ancestors and the pointers
+ * cost a fifth of the parse) only when the walk says the text may reach exit.
+ */
+const readKept = new Map();
+function readExits(path, text) {
+  if (!readKept.has(text)) {
+    const { may, spans } = mayReachExit(text);
+    const lines = may ? exitsOutsideTheHelper(ts.createSourceFile(path, text, ts.ScriptTarget.Latest, false, ts.ScriptKind.JS)) : [];
+    readKept.set(text, { lines, spans });
+  }
+  return readKept.get(text);
+}
+
+/** The newlines in `text` from `from` to `to`, and nothing else, so a blanked span keeps its lines. */
+function newlinesIn(text, from, to) {
+  let n = 0;
+  for (let i = text.indexOf('\n', from); i !== -1 && i < to; i = text.indexOf('\n', i + 1)) n += 1;
+  return '\n'.repeat(n);
+}
+
+/** `text` with everything outside the disjoint `ranges` blanked to its newlines, so every line keeps its number. */
+function keepOnly(text, ranges) {
+  let out = '';
+  let from = 0;
+  for (const [start, end] of [...ranges].sort((a, b) => a[0] - b[0])) {
+    out += newlinesIn(text, from, start) + text.slice(start, end);
+    from = end;
+  }
+  return out + newlinesIn(text, from, text.length);
+}
+
+/**
+ * 9a and 9b over one set of inputs, so the ablations below can run it again
+ * over texts changed in memory. `textOf` answers null for a file that is not
+ * there. What the scan and the parse found is kept per text, so an ablation
+ * reads again only the file it changed.
+ */
+const tailsKept = new Map();
+function readPipedGates(scripts, textOf, rows) {
+  const findings = [];
+  const gates = new Set();
+  for (const [name, command] of Object.entries(scripts)) {
+    if (/^(conformance|gate):/.test(name)) {
+      const m = /^node (build\/\S+\.mjs)(?:\s|$)/.exec(String(command));
+      if (m !== null) gates.add(m[1]);
+    } else if (name === 'build') {
+      for (const m of String(command).matchAll(/(?:^|&&)\s*node (build\/\S+\.mjs)(?=\s|$)/g)) gates.add(m[1]);
+    }
+  }
+  const harnesses = [];
+  for (const [name, command] of Object.entries(scripts)) {
+    if (!name.startsWith('ablation:')) continue;
+    const m = /^node (\S+)/.exec(String(command));
+    if (m !== null) harnesses.push([name, m[1]]);
+  }
+  const byBase = byBasename(gates);
+  const piped = new Map();
+  let naming = 0;
+  for (const [script, path] of harnesses) {
+    const text = textOf(path);
+    if (text === null) {
+      findings.push(`"${script}" runs ${path}, which does not exist.`);
+      continue;
+    }
+    if (!tailsKept.has(text)) tailsKept.set(text, literalTails(text));
+    const named = [...gatesEndingIn(tailsKept.get(text), byBase)];
+    if (named.length > 0) naming += 1;
+    for (const gate of named) piped.set(gate, [...(piped.get(gate) ?? []), script]);
+  }
+  if (naming < PIPED_HARNESS_FLOOR) {
+    findings.push(`only ${String(naming)} file(s) behind ablation:* name a gate, under the floor of ${String(PIPED_HARNESS_FLOOR)}.`);
+  }
+  if (piped.size < PIPED_GATE_FLOOR) {
+    findings.push(`only ${String(piped.size)} gate(s) are named by a file behind ablation:*, under the floor of ${String(PIPED_GATE_FLOOR)}.`);
+  }
+  const rowFor = new Map(rows.map((row) => [row[0], row]));
+  let flushing = 0;
+  let measured = 0;
+  let largest = 0;
+  for (const [gate, by] of [...piped].sort(([a], [b]) => (a < b ? -1 : 1))) {
+    const row = rowFor.get(gate);
+    if (row !== undefined) {
+      measured += 1;
+      largest = Math.max(largest, row[1]);
+      if (row[1] > PIPE_CEILING_BYTES) {
+        findings.push(
+          `${gate} (read through a pipe by ${by.join(', ')}) was measured at ${withCommas(row[1])} bytes, more than ` +
+            `the ${withCommas(PIPE_CEILING_BYTES)} a row may hold. It must finish its writes before it exits.`
+        );
+      }
+      continue;
+    }
+    const text = textOf(gate);
+    if (text === null) {
+      findings.push(`${gate} is read through a pipe by ${by.join(', ')} and does not exist.`);
+      continue;
+    }
+    const { lines } = readExits(gate, text);
+    if (lines.length === 0) flushing += 1;
+    for (const line of lines) {
+      findings.push(
+        `${gate} is read through a pipe by ${by.join(', ')}, has no measured row, and ${gate}:${String(line)} reaches ` +
+          `process.exit outside exitWhenWritten, the helper this check pins byte for byte. End through that helper, ` +
+          `copied from conformance-pocket.mjs, or measure its largest output under its harness and add a row.`
+      );
+    }
+  }
+  for (const gate of rowFor.keys()) {
+    if (!piped.has(gate)) findings.push(`the row for ${gate} names a gate no file behind ablation:* names. Remove the row.`);
+  }
+  return { findings, piped: piped.size, naming, flushing, measured, largest };
+}
+
+// 9c. The two readers, proved on fixtures before they read the tree.
+const NAMES_FIXTURE_GATES = ['build/conformance-save.mjs', 'build/conformance-machines.mjs'];
+const NAMES_FIXTURES = [
+  { why: 'a gate path in a string', text: "spawnSync(process.execPath, ['build/conformance-save.mjs']);\n", want: ['build/conformance-save.mjs'] },
+  { why: 'a gate path in a template with a substitution', text: 'const gate = `${scratch}/build/conformance-save.mjs`;\n', want: ['build/conformance-save.mjs'] },
+  { why: 'a basename alone', text: "const name = 'conformance-machines.mjs';\n", want: ['build/conformance-machines.mjs'] },
+  {
+    why: 'a regular expression holding a quote, then a string naming a gate on the same line',
+    text: "const quote = /'/; const gate = 'build/conformance-save.mjs';\n",
+    want: ['build/conformance-save.mjs']
+  },
+  {
+    why: 'a division, then a string naming a gate',
+    text: "const half = total / 2; const gate = 'build/conformance-save.mjs'; const third = total / 3;\n",
+    want: ['build/conformance-save.mjs']
+  },
+  {
+    why: 'a gate named only in a line comment and in a block comment',
+    text: '// build/conformance-save.mjs\n/* conformance-machines.mjs */\nconst x = 1;\n',
+    want: []
+  },
+  {
+    why: 'a keyword read as a name and divided, then a string naming a gate',
+    text: "const n = { new: 4 }; const h = n.new / 2; const g = ['build/conformance-save.mjs']; const z = h / 2;\n",
+    want: ['build/conformance-save.mjs']
+  },
+  {
+    why: 'a slash after a closing brace opening a regular expression holding a quote, then a string naming a gate',
+    text: "function f() {}\n/'/.test(s); const g = 'build/conformance-save.mjs'; // it's\n",
+    want: ['build/conformance-save.mjs']
+  }
+];
+const FLUSH_FIXTURES = [
+  { why: 'the helper', text: `${HELPER_TEXT}await exitWhenWritten(1);\n`, finishes: true },
+  {
+    why: 'the helper exiting on its first callback',
+    text: `${HELPER_TEXT.replace(HELPER_COUNTED, () => HELPER_UNCOUNTED)}await exitWhenWritten(1);\n`,
+    finishes: false
+  },
+  {
+    why: "the helper's callback handed to a timer too",
+    text: `${HELPER_TEXT.replace(HELPER_HANDED, () => HELPER_HANDED_TO_A_TIMER)}await exitWhenWritten(1);\n`,
+    finishes: false
+  },
+  { why: 'no process.exit', text: "process.stdout.write('PASS\\n');\nprocess.exitCode = 0;\n", finishes: true },
+  {
+    why: 'process.exit only in a comment and only in a string',
+    text: "// process.exit(1) is not called here\nprocess.stdout.write('then process.exit(1)');\n",
+    finishes: true
+  },
+  { why: 'a write then process.exit(1)', text: 'process.stdout.write(report);\nprocess.exit(1);\n', finishes: false },
+  { why: 'a callback handed to one stream', text: "process.stdout.write('', () => process.exit(1));\n", finishes: false },
+  { why: 'a const callback handed to stdout alone', text: "const done = () => process.exit(1);\nprocess.stdout.write('', done);\n", finishes: false },
+  { why: 'process.exit read as a value', text: 'const exit = process.exit;\nexit(1);\n', finishes: false },
+  { why: "process['exit']", text: "process['exit'](1);\n", finishes: false },
+  { why: 'a key that spells exit only when computed', text: "process['ex' + 'it'](1);\n", finishes: false },
+  { why: 'exit taken from process by destructuring', text: 'const { exit } = process;\nexit(1);\n', finishes: false },
+  { why: 'exit imported from node:process', text: "import { exit } from 'node:process';\nexit(1);\n", finishes: false },
+  { why: 'process reached through globalThis', text: 'globalThis.process.exit(1);\n', finishes: false },
+  // The walk's own shapes: each must reach the parser, and the helper after other code must not need it.
+  { why: 'process in brackets', text: "(process)['exit'](1);\n", finishes: false },
+  { why: 'exit spelled with an escape', text: 'process.\\u0065xit(1);\n', finishes: false },
+  { why: 'the helper exported', text: `export ${HELPER_TEXT}await exitWhenWritten(1);\n`, finishes: false },
+  { why: 'a division after a bracket, then process.exit', text: 'const s = (a - b) / 1000; process.exit(1);\n', finishes: false },
+  { why: 'an if head, then a regular expression holding a quote, then process.exit', text: "if (x) /'/.test(y); process.exit(1);\n", finishes: false },
+  { why: 'a slash after a closing brace, then process.exit', text: "function f() {}\n/'/.test(y); process.exit(1);\n", finishes: false },
+  { why: 'a name of divided, then a computed key', text: "const of = 4; const h = of / 2; process['ex' + 'it'](1); const t = h / 2;\n", finishes: false },
+  { why: 'the helper after other code', text: `const half = (a + b) / 2;\n${HELPER_TEXT}await exitWhenWritten(half > 1 ? 1 : 0);\n`, finishes: true },
+  // Each slash the walk once misplaced, hiding the reach after it (build/p3611/SPEC.md, the ruled round).
+  { why: 'a keyword read as a name and divided, then a comment holding a slash', text: 'const it = { new: red };\nif (it.new / 1 > 0) process.exit(1); // https://example.com/why\n', finishes: false },
+  { why: 'the same name read through ?.', text: 'const it = { new: red };\nif (it?.new / 1 > 0) process.exit(1); // https://example.com/why\n', finishes: false },
+  { why: 'a keyword read as a name and divided, then a comment with no slash', text: 'const it = { new: red };\nif (it.new / 1 > 0) process.exit(1); // why\n', finishes: false },
+  { why: 'a class extending a regular expression holding a quote', text: "class A extends /'/.constructor {} process.exit(1); // it's\n", finishes: false },
+  { why: 'export default, then a regular expression holding a quote', text: "export default /'/; process.exit(1); // it's\n", finishes: false },
+  { why: 'break, then a regular expression holding a quote on the next line', text: "for (;;) { break\n/'/.test(s); process.exit(1); // it's\n}\n", finishes: false },
+  { why: 'continue, then a regular expression holding a quote on the next line', text: "for (;;) { continue\n/'/.test(s); process.exit(1); // it's\n}\n", finishes: false },
+  { why: 'debugger, then a regular expression holding a quote on the next line', text: "debugger\n/'/.test(s); process.exit(1); // it's\n", finishes: false },
+  { why: 'a prefix ++ before a regular expression holding a quote', text: "++/'/.lastIndex; process.exit(1); // it's\n", finishes: false },
+  { why: 'a prefix -- before a regular expression holding a quote', text: "--/'/.lastIndex; process.exit(1); // it's\n", finishes: false }
+];
+let readerFixtures = 0;
+if (ts !== null) {
+  for (const one of NAMES_FIXTURES) {
+    readerFixtures += 1;
+    const got = [...gatesNamedIn(one.text, NAMES_FIXTURE_GATES)].sort();
+    if (JSON.stringify(got) === JSON.stringify([...one.want].sort())) continue;
+    fail(`clause 9's reader got "${one.why}" wrong. It answered ${JSON.stringify(got)}.`);
+  }
+  // Each read as the tree is read (the walk, then the parse only if the walk
+  // says so) and by the parser alone, which must answer the same lines.
+  for (const one of FLUSH_FIXTURES) {
+    readerFixtures += 1;
+    const read = readExits('fixture.mjs', one.text).lines;
+    const parsed = exitsOutsideTheHelper(ts.createSourceFile('fixture.mjs', one.text, ts.ScriptTarget.Latest, false, ts.ScriptKind.JS));
+    const finishes = read.length === 0;
+    if (finishes === one.finishes && JSON.stringify(read) === JSON.stringify(parsed)) continue;
+    fail(`clause 9's reader got "${one.why}" wrong. It answered finishes ${String(finishes)} at ${JSON.stringify(read)}, the parser alone ${JSON.stringify(parsed)}.`);
+  }
+}
+
+// 9a and 9b over the tree.
+const textsRead = new Map();
+const treeText = (path) => {
+  if (!textsRead.has(path)) {
+    let text = null;
+    try {
+      text = readFileSync(join(repoRoot, path), 'utf8');
+    } catch {
+      text = null;
+    }
+    textsRead.set(path, text);
+  }
+  return textsRead.get(path);
+};
+let pipedRead = null;
+if (ts !== null) {
+  pipedRead = readPipedGates(pkg.scripts ?? {}, treeText, PIPED_MEASURED);
+  for (const message of pipedRead.findings) fail(message);
+}
+
+// 9d. The clause, run again over the shipping texts changed in memory, must go
+// red each time. Nothing here is written to disk.
+if (ts !== null) {
+  const POCKET = 'build/conformance-pocket.mjs';
+  const MACHINES = 'build/conformance-machines.mjs';
+  // The row removed and the gate named anew are small files, so the reader
+  // parses tens of kilobytes rather than conformance-machines.mjs's 830 KB and
+  // conformance-redline.mjs's 380 KB (build/p3611/SPEC.md §As built).
+  const NEAREST = 'build/p313/hostile-client.mjs';
+  const HARNESS = 'build/ablation-p313.mjs';
+  const NEW_GATE = 'build/conformance-installs.mjs';
+  const changed = (path, text) => (asked) => (asked === path ? text : treeText(asked));
+  // Three changes to conformance-pocket.mjs, each read over the gate with all
+  // but its helper and its red exit blanked to newlines, so each keeps its own
+  // line and a change is read in a millisecond where the whole file takes a
+  // hundred. Every reach is judged by its own function declaration, so the
+  // blanks change no judgement; the helper and the red exit must read clean
+  // alone first. Each change must then be red on exactly the line of the
+  // process.exit it leaves outside the pinned helper.
+  const plants = [
+    { what: "conformance-pocket.mjs's red exit was put back as process.exit(1)", from: '  await exitWhenWritten(1);\n', to: '  process.exit(1);\n', red: 'process.exit(1);', inHelper: false },
+    { what: 'exitWhenWritten exited on its first callback', from: HELPER_COUNTED, to: HELPER_UNCOUNTED, red: 'process.exit(code);', inHelper: true },
+    { what: "exitWhenWritten's callback was handed to a timer too", from: HELPER_HANDED, to: HELPER_HANDED_TO_A_TIMER, red: 'process.exit(code);', inHelper: true }
+  ];
+  const once = (text, part) => text.indexOf(part) >= 0 && text.indexOf(part) === text.lastIndexOf(part);
+  const pocketText = treeText(POCKET);
+  const planted = new Map();
+  let clean = true;
+  if (pocketText !== null) {
+    const { spans } = readExits(POCKET, pocketText);
+    const helper = spans.length === 1 ? spans[0] : null;
+    const ranges = helper === null ? [] : [helper];
+    const plantable = [];
+    for (const plant of plants) {
+      const at = pocketText.indexOf(plant.from);
+      const inside = helper !== null && helper[0] <= at && at + plant.from.length <= helper[1];
+      if (!once(pocketText, plant.from) || inside !== plant.inHelper) continue;
+      if (!plant.inHelper) ranges.push([at, at + plant.from.length]);
+      plantable.push(plant);
+    }
+    const text = keepOnly(pocketText, ranges);
+    clean = readExits(POCKET, text).lines.length === 0;
+    if (clean) for (const plant of plantable) planted.set(plant, text.replace(plant.from, () => plant.to));
+    else fail("clause 9's changes to conformance-pocket.mjs were not run: its helper and red exit, read alone, already reach process.exit.");
+  }
+  const lineOf = (text, part) => text.slice(0, text.indexOf(part)).split('\n').length;
+  const ablations = [
+    ...plants
+      .filter(() => clean)
+      .map((plant) => {
+        const text = planted.get(plant) ?? null;
+        return {
+          what: plant.what,
+          run: () => (text === null ? null : readPipedGates(pkg.scripts ?? {}, changed(POCKET, text), PIPED_MEASURED)),
+          red: (all) => {
+            const mine = all.filter((f) => f.startsWith(`${POCKET} is read through a pipe by`));
+            return mine.length === 1 && mine[0].includes(`${POCKET}:${String(lineOf(text, plant.red))} reaches`);
+          }
+        };
+      }),
+    {
+      what: 'package.json lost its ablation: names',
+      run: () =>
+        readPipedGates(Object.fromEntries(Object.entries(pkg.scripts ?? {}).filter(([name]) => !name.startsWith('ablation:'))), treeText, PIPED_MEASURED),
+      red: (all) => all.some((f) => f.endsWith(`floor of ${String(PIPED_HARNESS_FLOOR)}.`)) && all.some((f) => f.endsWith(`floor of ${String(PIPED_GATE_FLOOR)}.`))
+    },
+    {
+      what: "conformance-machines.mjs's row was raised to 91,383 bytes",
+      run: () => readPipedGates(pkg.scripts ?? {}, treeText, PIPED_MEASURED.map((row) => (row[0] === MACHINES ? [row[0], 91_383, row[2]] : row))),
+      red: (all) => all.some((f) => f.startsWith(`${MACHINES} (read through a pipe by`) && f.includes('91,383 bytes'))
+    },
+    {
+      what: "hostile-client.mjs's row, the one nearest the pipe, was removed",
+      run: () => readPipedGates(pkg.scripts ?? {}, treeText, PIPED_MEASURED.filter((row) => row[0] !== NEAREST)),
+      red: (all) => all.some((f) => f.startsWith(`${NEAREST} is read through a pipe by`))
+    },
+    {
+      what: `ablation-p313.mjs also named ${NEW_GATE}`,
+      run: () => readPipedGates(pkg.scripts ?? {}, changed(HARNESS, `${treeText(HARNESS) ?? ''}\nconst P3611_PLANT = ['${NEW_GATE}'];\n`), PIPED_MEASURED),
+      red: (all) => all.some((f) => f.startsWith(`${NEW_GATE} is read through a pipe by ablation:p313, has no measured row`))
+    }
+  ];
+  for (const one of ablations) {
+    const result = one.run();
+    if (result !== null && one.red(result.findings)) continue;
+    fail(`clause 9 did not go red when ${one.what}.`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Verdict
 // ---------------------------------------------------------------------------
 
@@ -814,6 +1438,12 @@ process.stdout.write(
 );
 process.stdout.write(
   `  0 of ${String(goRead)} scripts under build/ run Go (${String(GO_FIXTURES.length)} reader fixtures behaving).\n`
+);
+process.stdout.write(
+  `  ${String(pipedRead.piped)} gates are read through a pipe by ${String(pipedRead.naming)} ablation harnesses: ` +
+    `${String(pipedRead.flushing)} ${pipedRead.flushing === 1 ? 'finishes its writes before it exits' : 'finish their writes before they exit'} and ` +
+    `${String(pipedRead.measured)} ${pipedRead.measured === 1 ? 'was' : 'were'} measured at most ${withCommas(pipedRead.largest)} bytes ` +
+    `against ${withCommas(PIPE_CEILING_BYTES)} (${String(readerFixtures)} reader fixtures behaving).\n`
 );
 for (const type of [...CHECK_TYPES, 'aggregate']) {
   const n = counts.get(type) ?? 0;
