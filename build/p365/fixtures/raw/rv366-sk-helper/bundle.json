@@ -1,0 +1,54 @@
+{
+ "about": "A HELPER’S CRASH READ AS NOTHING: the constructed SK run with a network service dump (constructed from sk-constructed: its stdout.txt copied byte for byte, its bundle changed only as \"constructed\" says)",
+ "recorded": [],
+ "constructed": [
+  "crashpadMade: true",
+  "one dump reading of a helper that is not the watcher process, no dump file"
+ ],
+ "exit": {
+  "code": 0,
+  "signal": null
+ },
+ "env": {
+  "P365_DEL_ORDER": "before",
+  "P365_SCENARIO": "storm"
+ },
+ "dumps": [
+  {
+   "file": "constructed-network-service.dmp",
+   "firstModule": "Electron Helper",
+   "threadNames": [
+    "CrUtilityMain",
+    "ThreadPoolForegroundWorker"
+   ],
+   "threadCount": 14,
+   "watcherLoaded": false,
+   "modules": 380,
+   "stamp": 1794240050,
+   "exception": {
+    "code": "0x6",
+    "flags": "0x1",
+    "address": "0x0",
+    "params": [
+     "0xa",
+     "0xb000001",
+     "0x0"
+    ],
+    "signal": "SIGSEGV"
+   },
+   "thread": {
+    "id": 8001,
+    "name": "CrUtilityMain"
+   },
+   "frames": [
+    "Electron Framework+0x1a2b3c",
+    "lr Electron Framework+0x1a2b00"
+   ],
+   "inWatcher": []
+  }
+ ],
+ "dumpsFound": 1,
+ "reportsAdded": [],
+ "by": "Phase 366’s probe review",
+ "crashpadMade": true
+}

@@ -70,6 +70,16 @@
  *   QUIT_SMOKE_CHECKOUT=<a built checkout>  launch that checkout's app instead
  *                                       of this one's (a parent, a scratch copy)
  *
+ * PHASE 366'S PROBE REVIEW (Electron 43.3.0 to 43.8.7), two rules:
+ *   - QUIT_SMOKE_CHECKOUT moves the APP FOLDER, never the Electron: `program:
+ *     'app'` is always THIS checkout's binary. When the named checkout's own
+ *     Electron is another version, its legs would be the new runtime measured
+ *     twice, so the run REFUSES (exit 2) and says to run this file from that
+ *     checkout. Same version: unchanged.
+ *   - "No dump" is read only where Crashpad ran: every leg needs its
+ *     database (`Crashpad/settings.dat`, made at 43.3.0 and 43.8.7 alike) in
+ *     the run's profile, or a dump cannot be ruled out and the leg FAILS.
+ *
  * Exit 0 when every leg passed, 1 when one failed, 2 when it could not run.
  */
 
@@ -131,6 +141,9 @@ function commonReasons(f, lastStep) {
   else if (!said(f, lastStep)) r.push(`the smoke never reached its last step ("${lastStep}")`);
   if (f.ceiling === true) r.push('the app was still running at the ceiling, so the quit never ended');
   if (Array.isArray(f.dumpsNew) && f.dumpsNew.length > 0) r.push(`Crashpad wrote ${String(f.dumpsNew.length)} dump(s) in this run's profile (${f.dumpsNew.join(', ')})`);
+  // Phase 366's probe review: an empty dump folder says nothing unless Crashpad ran in this
+  // profile. A run whose crash capture never started, or wrote elsewhere, read "0 dumps" as clean.
+  if (f.crashpadMade !== true) r.push("Crashpad's database was never made in this run's profile, so a crash dump cannot be ruled out");
   if (f.reports === null) r.push('the macOS crash report folder could not be read, so a report cannot be ruled out');
   else if (Array.isArray(f.reports) && f.reports.length > 0) r.push(`macOS wrote ${String(f.reports.length)} crash report(s) since the launch, read by name and time only and none opened (${f.reports.join(', ')})`);
   return r;
@@ -202,7 +215,9 @@ export function doorsVerdict(f) {
 // The verdicts' own fixtures, graded on every run
 // ---------------------------------------------------------------------------
 
-const RAN = Object.freeze({ started: true, ceiling: false, dumpsNew: [], reports: [], sentinelSeen: true, sentinelAfter: false, sentinelMarked: false });
+const RAN = Object.freeze({ started: true, ceiling: false, crashpadMade: true, dumpsNew: [], reports: [], sentinelSeen: true, sentinelAfter: false, sentinelMarked: false });
+/** RAN without the Crashpad reading at all (Phase 366's probe review): a missing reading is never a pass. */
+const RAN_NO_CRASHPAD = Object.freeze(Object.fromEntries(Object.entries(RAN).filter(([k]) => k !== 'crashpadMade')));
 /** The teardown leg's run: the sentinel armed, then left marked by the log's will-quit listener (Phase 362 D4). */
 const TORN = Object.freeze({ ...RAN, sentinelAfter: true, sentinelMarked: true });
 const heldText = `${LAST_STEP.held}; …\n[gmux-manifest] ${HELD_LINE}\n`;
@@ -249,7 +264,65 @@ export const FIXTURES = Object.freeze([
   ['doors: a door failed', doorsVerdict, { ...RAN, manifestMade: true, code: 1, signal: null, text: '[gmux-smoke] FAIL: fs:writeFile was NOT refused after quit started: the handler ran\n' }, false, 'the smoke itself failed'],
   ['doors: 9/9 but exit 0', doorsVerdict, { ...RAN, manifestMade: true, code: 0, signal: null, text: doorsText }, false, 'exited 0 with the session list held open'],
   ['doors: 9/9, exit 0 and no hold said', doorsVerdict, { ...RAN, manifestMade: true, code: 0, signal: null, text: `${LAST_STEP.doors}; releasing the hold so the real quit ends\n` }, false, 'never said it held the session list: the quit closed that connection itself'],
-  ['doors: 9/9 but an abort', doorsVerdict, { ...RAN, manifestMade: true, code: null, signal: 'SIGABRT', text: doorsText }, false, 'SIGABRT, 134']
+  ['doors: 9/9 but an abort', doorsVerdict, { ...RAN, manifestMade: true, code: null, signal: 'SIGABRT', text: doorsText }, false, 'SIGABRT, 134'],
+  // Phase 366's probe review: the dumps are read only where Crashpad ran, and a missing
+  // reading of that is never a pass; and the crash shapes a new runtime can end with that
+  // isCrash does not name (a CHECK's trap on arm64, an illegal instruction, an exit that
+  // reported neither a code nor a signal) are failures of every leg, not passes.
+  ['held: Crashpad never made its database', heldVerdict, { ...RAN, manifestMade: true, code: null, signal: 'SIGKILL', text: heldText, crashpadMade: false }, false, "Crashpad's database was never made"],
+  ['held: the Crashpad reading missing', heldVerdict, { ...RAN_NO_CRASHPAD, manifestMade: true, code: null, signal: 'SIGKILL', text: heldText }, false, "Crashpad's database was never made"],
+  ['teardown: Crashpad never made its database', teardownVerdict, { ...TORN, manifestMade: false, code: 0, signal: null, text: teardownText, crashpadMade: false }, false, "Crashpad's database was never made"],
+  ['doors: Crashpad never made its database', doorsVerdict, { ...RAN, manifestMade: true, code: null, signal: 'SIGKILL', text: doorsText, crashpadMade: false }, false, "Crashpad's database was never made"],
+  ['held: a SIGTRAP (a CHECK on arm64)', heldVerdict, { ...RAN, manifestMade: true, code: null, signal: 'SIGTRAP', text: heldText }, false, 'not by the will-quit SIGKILL'],
+  ['held: a SIGILL', heldVerdict, { ...RAN, manifestMade: true, code: null, signal: 'SIGILL', text: heldText }, false, 'not by the will-quit SIGKILL'],
+  ['held: neither a code nor a signal', heldVerdict, { ...RAN, manifestMade: true, code: null, signal: null, text: heldText }, false, 'not by the will-quit SIGKILL'],
+  ['teardown: a SIGTRAP (a CHECK on arm64)', teardownVerdict, { ...TORN, manifestMade: false, code: null, signal: 'SIGTRAP', text: teardownText }, false, 'not 0'],
+  ['teardown: neither a code nor a signal', teardownVerdict, { ...TORN, manifestMade: false, code: null, signal: null, text: teardownText }, false, 'not 0'],
+  ['doors: a SIGTRAP after 9/9', doorsVerdict, { ...RAN, manifestMade: true, code: null, signal: 'SIGTRAP', text: doorsText }, false, 'not by the will-quit SIGKILL']
+]);
+
+/**
+ * The version of the development Electron a checkout would launch: its
+ * `node_modules/electron/dist/version` (the binary that runs), else the
+ * package's declared version, else null.
+ */
+export function electronVersionOf(checkout) {
+  for (const [file, read] of [
+    [join(checkout, 'node_modules', 'electron', 'dist', 'version'), (t) => t.trim()],
+    [join(checkout, 'node_modules', 'electron', 'package.json'), (t) => String(JSON.parse(t).version ?? '').trim()]
+  ]) {
+    try {
+      const v = read(readFileSync(file, 'utf8'));
+      if (v !== '') return v;
+    } catch {
+      /* the next source */
+    }
+  }
+  return null;
+}
+
+/**
+ * Phase 366's probe review: QUIT_SMOKE_CHECKOUT names another app folder, and
+ * `program: 'app'` launches it on THIS checkout's Electron. Pure: null when
+ * the run measures what it says (no other checkout, the same Electron, or a
+ * version that cannot be read on either side), else the refusal's sentence.
+ */
+export function otherCheckoutRefusal({ named, own, ownVersion, namedVersion }) {
+  if (named === own || ownVersion === null || namedVersion === null || ownVersion === namedVersion) return null;
+  return (
+    `QUIT_SMOKE_CHECKOUT names ${named}, whose Electron is ${namedVersion}, but this run launches every leg on this checkout's ` +
+    `Electron ${ownVersion} (program 'app' is always this checkout's), so that checkout would be measured on the wrong runtime. ` +
+    `Run this file from that checkout instead (its own harness line, never a rebuild there).`
+  );
+}
+
+/** [name, input, whether it refuses] for `otherCheckoutRefusal` (Phase 366's probe review). */
+export const CHECKOUT_CASES = Object.freeze([
+  ['no other checkout named', { named: '/r/head', own: '/r/head', ownVersion: '43.8.7', namedVersion: '43.8.7' }, false],
+  ['another checkout on the same Electron', { named: '/r/parent', own: '/r/head', ownVersion: '43.8.7', namedVersion: '43.8.7' }, false],
+  ['the parent on 43.3.0 from a checkout on 43.8.7', { named: '/r/parent', own: '/r/head', ownVersion: '43.8.7', namedVersion: '43.3.0' }, true],
+  ['HEAD on 43.8.7 from the parent on 43.3.0', { named: '/r/head', own: '/r/parent', ownVersion: '43.3.0', namedVersion: '43.8.7' }, true],
+  ['a checkout whose Electron cannot be read', { named: '/r/copy', own: '/r/head', ownVersion: '43.8.7', namedVersion: null }, false]
 ]);
 
 /**
@@ -281,10 +354,18 @@ export function selfTest(write = (line) => process.stdout.write(`${line}\n`)) {
     if (!ok) badTexts += 1;
     write(`${TAG} ${ok ? 'ok  ' : 'FAIL'} the sentinel reader: ${name} reads ${marked ? 'marked' : 'unmarked'}${ok ? '' : ` (read ${read ? 'marked' : 'unmarked'})`}`);
   }
-  const pass = bad === 0 && badTexts === 0;
+  let badCheckouts = 0;
+  for (const [name, input, refuses] of CHECKOUT_CASES) {
+    const why = otherCheckoutRefusal(input);
+    const ok = (why !== null) === refuses;
+    if (!ok) badCheckouts += 1;
+    write(`${TAG} ${ok ? 'ok  ' : 'FAIL'} the checkout rule: ${name} ${refuses ? 'refuses' : 'runs'}${ok ? '' : ` (answered ${why === null ? 'runs' : 'refuses'})`}`);
+  }
+  const pass = bad === 0 && badTexts === 0 && badCheckouts === 0;
   write(
     `${TAG} self-test ${pass ? 'PASS' : 'FAIL'}: ${String(FIXTURES.length - bad)} of ${String(FIXTURES.length)} fixtures answered as they say, ` +
-      `and ${String(SENTINEL_TEXTS.length - badTexts)} of ${String(SENTINEL_TEXTS.length)} sentinel texts read as they say`
+      `${String(SENTINEL_TEXTS.length - badTexts)} of ${String(SENTINEL_TEXTS.length)} sentinel texts read as they say, ` +
+      `and ${String(CHECKOUT_CASES.length - badCheckouts)} of ${String(CHECKOUT_CASES.length)} checkout cases answered as they say`
   );
   return pass;
 }
@@ -410,6 +491,8 @@ async function runLeg({ leg, mode, checkout, harness, socket, verdict }) {
   facts.sentinelAfter = existsSync(sentinel);
   facts.sentinelMarked = sentinelMarkedText(textOrNull(sentinel));
   facts.manifestMade = existsSync(join(profile, 'gmux', 'manifest.db'));
+  // Phase 366's probe review: where Crashpad ran, its handler made this database.
+  facts.crashpadMade = existsSync(join(profile, 'Crashpad', 'settings.dat'));
   facts.dumpsNew = dumpsIn(profile).filter((n) => !dumpsBefore.has(n));
   facts.reports = reportsSince(startedAt);
   return { leg, mode, facts, verdict: verdict(facts) };
@@ -443,6 +526,16 @@ async function main() {
     process.exit(2);
   }
   const checkout = resolve((process.env['QUIT_SMOKE_CHECKOUT'] ?? '').trim() || repoRoot);
+  // Phase 366's probe review: every leg runs on THIS checkout's Electron, so say which, and
+  // refuse a named checkout whose own Electron is another version.
+  const ownVersion = electronVersionOf(repoRoot);
+  const namedVersion = checkout === resolve(repoRoot) ? ownVersion : electronVersionOf(checkout);
+  const refusal = otherCheckoutRefusal({ named: checkout, own: resolve(repoRoot), ownVersion, namedVersion });
+  if (refusal !== null) {
+    process.stderr.write(`${TAG} REFUSED. ${refusal}\n`);
+    process.exit(2);
+  }
+  process.stdout.write(`${TAG} every leg runs on Electron ${String(ownVersion)} (${resolve(repoRoot)})${checkout === resolve(repoRoot) ? '' : `, the app from ${checkout} (its Electron ${String(namedVersion)})`}\n`);
   const results = [];
   for (const l of legs) {
     process.stdout.write(`${TAG} ${l.leg}: GMUX_SMOKE=${l.mode} in ${checkout}\n`);
@@ -454,7 +547,7 @@ async function main() {
       process.stdout.write(
         `${TAG} ${l.leg}: ended with exit code ${String(f.code ?? null)}, signal ${String(f.signal ?? null)} after ${String(f.ms ?? 0)} ms; ` +
           `held line ${String(typeof f.text === 'string' && f.text.includes(HELD_LINE))}, sentinel armed ${String(f.sentinelSeen)}, left ${String(f.sentinelAfter)} and marked ${String(f.sentinelMarked)}, ` +
-          `session list made ${String(f.manifestMade)}, dumps ${String((f.dumpsNew ?? []).length)}, macOS reports ${f.reports === null ? 'unread' : String((f.reports ?? []).length)}\n`
+          `session list made ${String(f.manifestMade)}, Crashpad database ${String(f.crashpadMade)}, dumps ${String((f.dumpsNew ?? []).length)}, macOS reports ${f.reports === null ? 'unread' : String((f.reports ?? []).length)}\n`
       );
     }
     process.stdout.write(`${TAG} ${r.verdict.pass ? 'PASS' : 'FAIL'} ${l.leg}${r.verdict.pass ? '' : `: ${r.verdict.reasons.join('; ')}`}\n`);

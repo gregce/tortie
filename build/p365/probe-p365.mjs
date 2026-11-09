@@ -105,6 +105,19 @@
  *
  * Exit 0 when every arm passed, 1 when one failed, 2 when it could not run or
  * an arm could not be READ.
+ *
+ * PHASE 366'S PROBE REVIEW (Electron 43.3.0 to 43.8.7, run from each checkout
+ * in turn, because `program: 'app'` is always THIS checkout's Electron). Two
+ * holes a new runtime could fall through, both closed here: "no dump" was read
+ * with no proof Crashpad ran (the storm app's `note` lines saying
+ * `crashReporter.start` or `setPath('crashDumps')` was refused were never
+ * read, and nothing asked for its database), so every storm, quit and kill
+ * grader now NEEDS `crashpad.made`, Crashpad's `settings.dat` in the run's
+ * profile with no such note (made at 43.3.0 and 43.8.7 alike); and a dump of
+ * a helper that is neither main nor a watcher process holding watcher.node
+ * (the network service, the GPU process, a watcher process that died before
+ * loading it) read as nothing, so every HEAD storm, quit and kill grader now
+ * has the clause "no dump of any other process" over `others.dumps`.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -518,6 +531,16 @@ export function stormRunOf(raw) {
   const dumps = (Array.isArray(raw?.dumps) ? raw.dumps : []).map((d) => ({ kind: dumpKind(d), fault: d?.error ? { name: null, from: null } : faultOf(d, text), error: d?.error ?? null, exception: d?.exception ?? null, frames: (d?.frames ?? []).slice(0, 8), thread: d?.thread ?? null, stamp: num(d?.stamp) ? d.stamp : null }));
   const mainDumps = dumps.filter((d) => d.kind === 'main');
   const watcherDumps = dumps.filter((d) => d.kind === 'watcher');
+  // Phase 366's probe review: a read dump of a helper that is neither main nor a watcher
+  // process holding watcher.node (the network service, the GPU process, a watcher process
+  // that died before loading it) was read and then graded by nothing.
+  const helperDumps = dumps.filter((d) => d.error === null && d.kind === 'helper');
+  // Phase 366's probe review: "no dump" is read only where Crashpad ran. The run says so by
+  // its database in the profile (raw.crashpadMade) and by no note of the storm app's that
+  // crashDumps or crashReporter.start was refused. A recorded run without the field leaves
+  // the reading out, never invented.
+  const crashpadRefused = lines.some((l) => l.kind === 'note' && (l.crashReporter !== undefined || l.crashDumps !== undefined));
+  const crashpad = typeof raw?.crashpadMade === 'boolean' ? { made: raw.crashpadMade === true && !crashpadRefused, refused: crashpadRefused } : undefined;
   const signal = typeof exit.signal === 'string' && exit.signal !== '' ? exit.signal : null;
   const nativeOf = (o) => (o?.native !== undefined && o?.native !== null && typeof o.native === 'object' ? o.native : null);
   const native = nativeOf(final) ?? nativeOf(lastStats);
@@ -548,6 +571,8 @@ export function stormRunOf(raw) {
     dumps,
     mainDumps,
     watcherDumps,
+    helperDumps,
+    crashpad,
     namedMainFault: mainDumps.map((d) => d.fault.name).find((n) => n !== null) ?? null,
     dumpsFound: num(raw?.dumpsFound) ? raw.dumpsFound : dumps.length,
     // A dump whose process cannot be named (main, the watcher process or another helper) was not read.
@@ -597,6 +622,8 @@ function stormReading(raw) {
       gaveUp: runs.some((x) => x.gaveUp)
     },
     dumps: { found: runs.reduce((n, x) => n + x.dumpsFound, 0), read: runs.reduce((n, x) => n + x.dumpsRead, 0) },
+    // Phase 366's probe review: read dumps of a helper that is neither main nor a watcher process.
+    others: { dumps: runs.reduce((n, x) => n + x.helperDumps.length, 0) },
     printed: {
       runs: runs.map((x) => ({
         exit: x.exit,
@@ -617,6 +644,8 @@ function stormReading(raw) {
   // Unread is said as unread (the key present, its value undefined), so a reading laid over
   // another one keeps the hole rather than the other one's number (the probe review).
   r.reportsAdded = runs.every((x) => x.reportsAdded !== null) ? runs.reduce((n, x) => n + x.reportsAdded, 0) : undefined;
+  // Phase 366's probe review: Crashpad ran in every run, or the reading is left out (unread).
+  if (runs.length > 0 && runs.every((x) => x.crashpad !== undefined)) r.crashpad = { made: runs.every((x) => x.crashpad.made === true) };
   if (loadedRuns.length > 0) {
     r.bundle = { head: loadedRuns.every((x) => x.loaded.host === true) };
     r.recorder = { nativeWrapped: loadedRuns.every((x) => x.loaded.nativeWrapped === true), forkWrapped: loadedRuns.every((x) => x.loaded.forkWrapped === true) };
@@ -667,7 +696,10 @@ function quitReading(raw) {
     // not the quit's. A watcher dump with no readable time leaves the count unread.
     watcher: { quitDumps: quitDumpsOf(run.watcherDumps, q) },
     dumps: { found: run.dumpsFound, read: run.dumpsRead },
-    printed: { exit: run.exit, fault: run.namedMainFault, mainDumps: run.mainDumps.map((d) => ({ fault: d.fault, frames: d.frames.slice(0, 6) })), watcherDumps: run.watcherDumps.map((d) => ({ stamp: d.stamp, fault: d.fault, frames: d.frames.slice(0, 6) })) }
+    // Phase 366's probe review: read dumps of a helper that is neither main nor a watcher process.
+    others: { dumps: run.helperDumps.length },
+    ...(run.crashpad === undefined ? {} : { crashpad: { made: run.crashpad.made === true } }),
+    printed: { exit: run.exit, fault: run.namedMainFault, mainDumps: run.mainDumps.map((d) => ({ fault: d.fault, frames: d.frames.slice(0, 6) })), watcherDumps: run.watcherDumps.map((d) => ({ stamp: d.stamp, fault: d.fault, frames: d.frames.slice(0, 6) })), helperDumps: run.helperDumps.map((d) => ({ stamp: d.stamp, fault: d.fault, frames: d.frames.slice(0, 6) })) }
   };
   if (run.loaded !== null) {
     r.bundle = { head: run.loaded.host === true };
@@ -727,6 +759,9 @@ function killReading(raw) {
     exit: run.exit,
     main: { dumps: run.mainDumps.length },
     dumps: { found: run.dumpsFound, read: run.dumpsRead },
+    // Phase 366's probe review: read dumps of a helper that is neither main nor a watcher process.
+    others: { dumps: run.helperDumps.length },
+    ...(run.crashpad === undefined ? {} : { crashpad: { made: run.crashpad.made === true } }),
     host: { linesRead: templates.some((t) => t.category === 'restart') && templates.some((t) => t.category === 'bound') },
     ...(run.loaded === null ? {} : { bundle: { head: run.loaded.host === true }, recorder: { nativeWrapped: run.loaded.nativeWrapped === true, forkWrapped: run.loaded.forkWrapped === true } }),
     printed: { exit: run.exit, crashes: run.crashes, rebound, paused: paused === null ? null : { waitedMs: paused.waitedMs, live: paused.live }, pairs, stopExit, nextFork, watcherDumps: run.watcherDumps.map((d) => ({ fault: d.fault.name, frames: d.frames.slice(0, 5) })) }
@@ -1075,20 +1110,25 @@ const N_AGENTS = ['the agents:list answer resolved nothing but the stand-ins', (
 const N_FULL = ['every run that exited 0 ran its whole storm and reached its own quit (none cut short)', (r) => r.storm.cutShort === 0];
 const N_LINES = ['every P365 line the run wrote was read whole (none torn by the other stream)', (r) => r.lines.torn === 0];
 const N_PROCESS_RATE = [`the watcher process answered at least ${String(PROCESS_RATE_FLOOR)} subscriptions a second in every run (the storm reached the native module)`, (r) => r.storm.processRateOk === true];
+// Phase 366's probe review: "no dump" is read only where Crashpad ran, and a dump of any other
+// helper is a crash of the run too (a new runtime's network service, GPU process, or a watcher
+// process that died before it loaded watcher.node).
+const N_CRASHPAD = ['Crashpad ran under the run’s profile: its database was made there, and neither crashDumps nor crashReporter.start was refused', (r) => r.crashpad.made === true];
+const C_OTHERS = ['no dump of any other process (a helper that is neither main nor a watcher process holding watcher.node)', (r) => r.others.dumps === 0];
 
-const STORM_BASE_READS = ['bundle.head', 'recorder.nativeWrapped', 'storm.runsWanted', 'storm.runsRead', 'storm.rateOk', 'dumps.found', 'dumps.read'];
+const STORM_BASE_READS = ['bundle.head', 'recorder.nativeWrapped', 'storm.runsWanted', 'storm.runsRead', 'storm.rateOk', 'dumps.found', 'dumps.read', 'crashpad.made'];
 
 function stormParent(orderNeed) {
   return {
     reads: [...STORM_BASE_READS, orderNeed === N_AFTER ? 'storm.orderAfter' : 'storm.orderBefore', 'main.signalRuns', 'main.namedSignalRuns'],
-    needs: [N_PARENT_BUNDLE, N_NATIVE_WRAP, N_RUNS, N_RATE, orderNeed, N_DUMPS],
+    needs: [N_PARENT_BUNDLE, N_NATIVE_WRAP, N_RUNS, N_RATE, orderNeed, N_DUMPS, N_CRASHPAD],
     clauses: [['main ended by a signal in at least one run, its fault named from its dump', (r) => r.main.namedSignalRuns >= 1]]
   };
 }
 function stormHead(orderNeed) {
   return {
-    reads: [...STORM_BASE_READS, orderNeed === N_AFTER ? 'storm.orderAfter' : 'storm.orderBefore', 'recorder.forkWrapped', 'main.exit0Runs', 'main.dumps', 'main.nativeCalls', 'main.nativeLoaded', 'watcherProcess.forks', 'watcherProcess.ready', 'watcherProcess.crashes', 'watcherProcess.rebound', 'reportsAdded', 'storm.cutShort', 'storm.processRateOk', 'lines.torn'],
-    needs: [N_HEAD_BUNDLE, N_NATIVE_WRAP, N_FORK_WRAP, N_RUNS, N_RATE, orderNeed, N_DUMPS, N_FORKED, N_FULL, N_LINES, N_PROCESS_RATE],
+    reads: [...STORM_BASE_READS, orderNeed === N_AFTER ? 'storm.orderAfter' : 'storm.orderBefore', 'recorder.forkWrapped', 'main.exit0Runs', 'main.dumps', 'main.nativeCalls', 'main.nativeLoaded', 'watcherProcess.forks', 'watcherProcess.ready', 'watcherProcess.crashes', 'watcherProcess.rebound', 'reportsAdded', 'storm.cutShort', 'storm.processRateOk', 'lines.torn', 'others.dumps'],
+    needs: [N_HEAD_BUNDLE, N_NATIVE_WRAP, N_FORK_WRAP, N_RUNS, N_RATE, orderNeed, N_DUMPS, N_FORKED, N_FULL, N_LINES, N_PROCESS_RATE, N_CRASHPAD],
     clauses: [
       ['main exited 0 in every run', (r) => r.main.exit0Runs === r.storm.runsRead],
       ['no dump of main', (r) => r.main.dumps === 0],
@@ -1096,13 +1136,14 @@ function stormHead(orderNeed) {
       // in-process branch) loads and runs it in main without one call the require counter can see.
       ['main made no native call and never loaded the module', (r) => r.main.nativeCalls === 0 && r.main.nativeLoaded === false],
       ['every watcher process crash was followed by a re-bind of every live watch within the backoff plus 1 s', (r) => r.watcherProcess.rebound === r.watcherProcess.crashes],
-      ['no report in his folder', (r) => r.reportsAdded === 0]
+      ['no report in his folder', (r) => r.reportsAdded === 0],
+      C_OTHERS
     ]
   };
 }
 
 const SQ_SHAPE_NEED = ['the storm ran 20 s, then the quit was marked first, main’s pool held by 8 jobs and every watch dropped', (r) => r.sq.quit.asked === true && r.sq.quit.saturated === true && r.sq.quit.marked === true && r.sq.stormMs >= SQ_STORM_MS - 1_000];
-const SQ_READS = ['bundle.head', 'recorder.nativeWrapped', 'sq.stormMs', 'sq.quit.asked', 'sq.quit.saturated', 'sq.quit.marked', 'exit.code', 'exit.signal', 'dumps.found', 'dumps.read'];
+const SQ_READS = ['bundle.head', 'recorder.nativeWrapped', 'sq.stormMs', 'sq.quit.asked', 'sq.quit.saturated', 'sq.quit.marked', 'exit.code', 'exit.signal', 'dumps.found', 'dumps.read', 'crashpad.made'];
 
 const SO_READS = ['bundle.head', 'recorder.nativeWrapped', 'exit.code', 'exit.clean', 'so.boot.ms', 'so.boot.started', 'so.boot.expected', 'so.native.subscribe', 'so.native.maxInFlight', 'so.quiet.changes', 'so.branch.changes', 'so.quit.drainMs', 'so.quit.left'];
 const SO_WORLD_NEED = [`the ordinary world was built: 20 projects, the two configuration watches and 5 rescues, ${String(SO_EXPECTED_WATCHES)} watches started`, (r) => r.so.boot.started === r.so.boot.expected];
@@ -1134,13 +1175,13 @@ export const GRADERS = {
   'SQ-parent': {
     title: 'the parent, a quit mid-storm with main’s pool held: SIGABRT, napi_fatal_error on main named from its dump',
     reads: [...SQ_READS, 'main.faults'],
-    needs: [N_PARENT_BUNDLE, N_NATIVE_WRAP, SQ_SHAPE_NEED, N_DUMPS],
+    needs: [N_PARENT_BUNDLE, N_NATIVE_WRAP, SQ_SHAPE_NEED, N_DUMPS, N_CRASHPAD],
     clauses: [['main ended by SIGABRT with napi_fatal_error named on main', (r) => r.exit.signal === 'SIGABRT' && r.main.faults.includes('napi_fatal_error')]]
   },
   'SQ-head': {
     title: 'HEAD, the same quit: exit 0 with no dump of main or of the watcher process from the quit, and lsof never lists watcher.node in main while the process holds it',
-    reads: [...SQ_READS, 'exit.clean', 'recorder.forkWrapped', 'main.dumps', 'watcher.quitDumps', 'sq.lsof.mainReads', 'sq.lsof.mainHolds', 'sq.lsof.watcherReads', 'sq.lsof.watcherHolds'],
-    needs: [N_HEAD_BUNDLE, N_NATIVE_WRAP, N_FORK_WRAP, SQ_SHAPE_NEED, N_DUMPS, ['lsof read main and the watcher process during the storm', (r) => r.sq.lsof.mainReads >= 1 && r.sq.lsof.watcherReads >= 1]],
+    reads: [...SQ_READS, 'exit.clean', 'recorder.forkWrapped', 'main.dumps', 'watcher.quitDumps', 'sq.lsof.mainReads', 'sq.lsof.mainHolds', 'sq.lsof.watcherReads', 'sq.lsof.watcherHolds', 'others.dumps'],
+    needs: [N_HEAD_BUNDLE, N_NATIVE_WRAP, N_FORK_WRAP, SQ_SHAPE_NEED, N_DUMPS, ['lsof read main and the watcher process during the storm', (r) => r.sq.lsof.mainReads >= 1 && r.sq.lsof.watcherReads >= 1], N_CRASHPAD],
     clauses: [
       // `clean` is false when the probe's ceiling ended the run: its SIGTERM quits Electron with 0.
       ['main exited 0', (r) => r.exit.code === 0 && r.exit.signal === null && r.exit.clean === true],
@@ -1150,17 +1191,19 @@ export const GRADERS = {
       // as an unclean exit at the next launch. The host now ends the process at the quit instead.
       ['no dump of the watcher process from the quit', (r) => r.watcher.quitDumps === 0],
       ['lsof never listed watcher.node in main during the storm', (r) => r.sq.lsof.mainHolds === false],
-      ['the watcher process held watcher.node', (r) => r.sq.lsof.watcherHolds === true]
+      ['the watcher process held watcher.node', (r) => r.sq.lsof.watcherHolds === true],
+      C_OTHERS
     ]
   },
   'SK-head': {
     title: 'HEAD, the watcher process SIGKILLed at 30 s and SIGSTOPped at 90 s: main never faults, one restart line, every watch re-bound with one re-scan error each, the stopped process replaced within its bound with one line and ended by the host',
-    reads: ['bundle.head', 'recorder.forkWrapped', 'host.linesRead', 'sk.paused', 'sk.kill.sent', 'sk.kill.verified', 'sk.rebind.watches', 'sk.rebind.asked', 'sk.rebind.answered', 'sk.restartLines', 'sk.rescan.projects', 'sk.rescan.known', 'sk.rescan.exact', 'sk.stop.sent', 'sk.stop.verified', 'sk.replacement.ok', 'sk.boundLines', 'sk.stoppedGone.beforeCont', 'exit.code', 'exit.signal', 'exit.clean', 'main.dumps', 'dumps.found', 'dumps.read', 'sk.cutShort', 'lines.torn'],
+    reads: ['bundle.head', 'recorder.forkWrapped', 'host.linesRead', 'sk.paused', 'sk.kill.sent', 'sk.kill.verified', 'sk.rebind.watches', 'sk.rebind.asked', 'sk.rebind.answered', 'sk.restartLines', 'sk.rescan.projects', 'sk.rescan.known', 'sk.rescan.exact', 'sk.stop.sent', 'sk.stop.verified', 'sk.replacement.ok', 'sk.boundLines', 'sk.stoppedGone.beforeCont', 'exit.code', 'exit.signal', 'exit.clean', 'main.dumps', 'dumps.found', 'dumps.read', 'sk.cutShort', 'lines.torn', 'crashpad.made', 'others.dumps'],
     needs: [
       N_HEAD_BUNDLE,
       N_FORK_WRAP,
       ['the host’s restart and reply-bound lines were read from host.ts', (r) => r.host.linesRead === true],
       N_DUMPS,
+      N_CRASHPAD,
       ['the storm paused and its watches settled before the kill', (r) => r.sk.paused === true],
       ['SIGKILL went to the run’s own watcher process, read by ps first', (r) => r.sk.kill.sent === true && r.sk.kill.verified === true],
       ['SIGSTOP went to the run’s own watcher process, read by ps first', (r) => r.sk.stop.sent === true && r.sk.stop.verified === true],
@@ -1175,7 +1218,8 @@ export const GRADERS = {
       ['each open project’s live watches were handed one re-scan error each', (r) => r.sk.rescan.exact === true],
       ['after SIGSTOP the process was replaced within the reply bound of the first unanswered request', (r) => r.sk.replacement.ok === true],
       ['with one reply-bound line', (r) => r.sk.boundLines === 1],
-      ['the stopped process was ended by the host before the probe’s SIGCONT', (r) => r.sk.stoppedGone.beforeCont === true]
+      ['the stopped process was ended by the host before the probe’s SIGCONT', (r) => r.sk.stoppedGone.beforeCont === true],
+      C_OTHERS
     ]
   },
   'SO-parent': {
@@ -1342,7 +1386,9 @@ export function rawOf(fixture) {
     const addLines = (bundle.addLines ?? []).map((o) => `P365 ${J(o)}`).join('\n');
     // A recorded `reportsAdded: null` (the folder unread) stays null, and `ceilingHit` travels.
     const has = (k) => Object.prototype.hasOwnProperty.call(bundle, k);
-    return { text: addLines === '' ? text : `${text}\n${addLines}\n`, exit: bundle.exit, dumps: bundle.dumps ?? [], dumpsFound: bundle.dumpsFound ?? (bundle.dumps ?? []).length, reportsAdded: has('reportsAdded') ? bundle.reportsAdded : [], env: bundle.env ?? {}, ...(has('ceilingHit') ? { ceilingHit: bundle.ceilingHit } : {}) };
+    // Phase 366's probe review: `crashpadMade` travels when the bundle carries it, and a recorded
+    // run without it leaves the reading out (the grader then keeps its honest reading's).
+    return { text: addLines === '' ? text : `${text}\n${addLines}\n`, exit: bundle.exit, dumps: bundle.dumps ?? [], dumpsFound: bundle.dumpsFound ?? (bundle.dumps ?? []).length, reportsAdded: has('reportsAdded') ? bundle.reportsAdded : [], env: bundle.env ?? {}, ...(has('ceilingHit') ? { ceilingHit: bundle.ceilingHit } : {}), ...(has('crashpadMade') ? { crashpadMade: bundle.crashpadMade } : {}) };
   };
   const runs = (fixture.runs ?? []).map(runOf);
   const raw = { arm: fixture.arm.split('-')[0], ...(fixture.extra ?? {}) };
@@ -2851,6 +2897,8 @@ async function stormLaunch(label, checkout, build, env, { during = null, ceiling
   raw.reportsAdded = noteReports(label, before);
   const found = dumpFiles(p.crashpad);
   raw.dumpsFound = found.length;
+  // Phase 366's probe review: Crashpad's handler made its database here, or no dump could be.
+  raw.crashpadMade = existsSync(join(p.crashpad, 'settings.dat'));
   raw.dumps = found.map((f) => {
     try {
       return readDumpFile(f, checkout);

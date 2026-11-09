@@ -263,6 +263,17 @@
  *     a run against another checkout must not rebuild this one.
  *   - A `GMUX_TMUX_BIN` that is not an executable file.
  *   - Any byte outside `GMUX_HARNESS_DIR` and the readings directory.
+ *   - (Phase 366's probe review) A `P292_CHECKOUT` whose own Electron is
+ *     another version than this checkout's: the shim is always this
+ *     checkout's, so that checkout would be measured on the wrong runtime and
+ *     a parent named that way would read as HEAD. Run the file from that
+ *     checkout instead.
+ *
+ * Since Phase 366's probe review the run also reads, by name only, what
+ * Crashpad left in its profile once the tree has ended: a dump there (a crash
+ * of the GPU process, the network service or the watcher process, which no
+ * arm's reading touches) or no database at all is a RUN finding, and the
+ * dump is left for the verifier's own reader, which deletes it after.
  *
  * ## Environment
  *
@@ -744,7 +755,12 @@ export function tokenOf(text) {
  */
 export function resizeThumbFindings(s, entry, o = {}) {
   const label = o.label ?? 'd';
-  if (!s || !isNum(s.thumbTop) || s.inMode !== true) return [];
+  // PHASE 366'S PROBE REVIEW: no sample, or a pane still scrolled back with no
+  // thumb drawn, read as no finding. A pane thrown back to live is
+  // resizeFindings' to name.
+  if (!s) return [`${label}: the pane was not read after the resize, so its thumb was not tested`];
+  if (s.inMode !== true) return [];
+  if (!isNum(s.thumbTop)) return [`${label}: after the resize the pane is still scrolled back and no thumb is drawn`];
   const r = thumbResidual(s, entry);
   if (r === null) return [`${label}: after the resize there is no thumb that says which history it was drawn from`];
   const travel = Math.max(0, s.laneH - s.thumbH);
@@ -1112,6 +1128,81 @@ export function chooseArms(raw) {
   return { arms: ALL_ARMS.filter((a) => names.includes(a)), bad };
 }
 
+/**
+ * PHASE 366'S PROBE REVIEW (Electron 43.3.0 to 43.8.7). The version of the
+ * development Electron a checkout would launch: its
+ * `node_modules/electron/dist/version`, else the package's declared version,
+ * else null.
+ */
+export function electronVersionOf(checkoutDir) {
+  for (const [file, read] of [
+    [join(checkoutDir, 'node_modules', 'electron', 'dist', 'version'), (t) => t.trim()],
+    [join(checkoutDir, 'node_modules', 'electron', 'package.json'), (t) => String(JSON.parse(t).version ?? '').trim()]
+  ]) {
+    try {
+      const v = read(readFileSync(file, 'utf8'));
+      if (v !== '') return v;
+    } catch {
+      /* the next source */
+    }
+  }
+  return null;
+}
+
+/**
+ * PHASE 366'S PROBE REVIEW. P292_CHECKOUT moves the APP FOLDER and never the
+ * Electron: the shim this file launches is THIS checkout's, so another
+ * checkout whose own Electron is another version would be measured on this
+ * one's runtime, and a parent named that way reads as HEAD by construction.
+ * Pure: null when the run measures what it says (no other checkout, the same
+ * Electron, or a version that cannot be read on either side), else the
+ * refusal's sentence.
+ */
+export function otherCheckoutRefusal({ named, own, ownVersion, namedVersion }) {
+  if (named === own || ownVersion === null || namedVersion === null || ownVersion === namedVersion) return null;
+  return (
+    `P292_CHECKOUT names ${named}, whose Electron is ${namedVersion}, but this run launches it on this checkout's Electron ` +
+    `${ownVersion} (the shim is always this checkout's), so that checkout would be measured on the wrong runtime. ` +
+    'Run this file from that checkout instead.'
+  );
+}
+
+/**
+ * PHASE 366'S PROBE REVIEW. A crash of any of the app's processes the readings
+ * never touch (the GPU process, the network service, the watcher process)
+ * left the arms green: nothing here looked. `c` is what Crashpad left in this
+ * run's profile, read by NAME only: `made` when its database is there, and
+ * every dump file. No database, or a listing that was not taken, means a
+ * crash could not be written down there, so none is ruled out.
+ */
+export function crashFindings(c) {
+  if (c === null || c === undefined || typeof c !== 'object') return ["the profile's Crashpad folder was not read, so a crash of the app cannot be ruled out"];
+  const out = [];
+  if (c.made !== true) out.push("Crashpad's database was never made in this run's profile, so a crash of the app cannot be ruled out");
+  if (!Array.isArray(c.dumps)) out.push("the dumps under this run's profile were not listed, so a crash of the app cannot be ruled out");
+  else if (c.dumps.length > 0) {
+    out.push(
+      `Crashpad wrote ${String(c.dumps.length)} dump(s) under this run's profile (${c.dumps.join(', ')}): a process of the app crashed during the run. ` +
+        "Read each with your own reader, then delete it: a dump holds the run's environment"
+    );
+  }
+  return out;
+}
+
+/** What Crashpad left under a profile, by name only: its database and its dump files. */
+function crashpadOf(profileDir) {
+  const base = join(profileDir, 'Crashpad');
+  const dumps = [];
+  for (const sub of ['pending', 'completed', 'new']) {
+    try {
+      for (const n of readdirSync(join(base, sub))) if (n.endsWith('.dmp')) dumps.push(`${sub}/${n}`);
+    } catch {
+      /* no such folder: no dump there */
+    }
+  }
+  return { dir: base, made: existsSync(join(base, 'settings.dat')), dumps };
+}
+
 // ---------------------------------------------------------------------------
 // --self-test. Every grader on a HEAD shaped fixture, on a fixture shaped like
 // pull request 30's head before this phase, and on one shaped like origin/main.
@@ -1339,7 +1430,22 @@ function selfTest() {
     ['h fix round: the notch is the park\'s own step', () => [notchOfTrail([10, 20, 30, 40]), notchOfTrail([5, 10, 15]), notchOfTrail([10, 20, 20, 30]), notchOfTrail([]), notchOfTrail(null)], [10, 5, 10, null, null]],
     ['h fix round: the alternate screen\'s end holds no line, and its re-freezes are still graded', () => [wayDownFindings({ ...wd('head'), newest: null, refreezes: 0 }, { noRefreeze: true }), count(wayDownFindings({ ...wd('head'), newest: null, refreezes: 2 }, { noRefreeze: true })), count(wayDownFindings({ ...wd('head'), newest: null }, { coverage: true }))], [[], 1, 1]],
     ['h fix round: a notch never measured is a finding, not a pass', () => count(wayDownFindings({ ...quiet(), notchLines: null }, { exact: true })), 1],
-    ['h2 no copies is a finding, not a pass', () => count(copyFindings([], [])), 2]
+    ['h2 no copies is a finding, not a pass', () => count(copyFindings([], [])), 2],
+    // PHASE 366'S PROBE REVIEW. A crash of a process the readings never touch, and the
+    // checkout knob that would run a parent on this checkout's Electron.
+    ['d review: no sample after the resize is a finding, not a pass', () => count(resizeThumbFindings(null, ENTRY, { label: 'd' })), 1],
+    ['d review: a parked pane with no thumb drawn after the resize is a finding, not a pass', () => count(resizeThumbFindings({ ...sample('head', 40), thumbTop: null }, ENTRY, { changes: 1, rate: 17.5 })), 1],
+    ['d review: a pane thrown back to live is resizeFindings\' to name, not the thumb\'s', () => resizeThumbFindings({ ...sample('head', 40), inMode: false }, ENTRY, { changes: 1, rate: 17.5 }), []],
+    ['RUN crash: the database made and no dump is no finding', () => crashFindings({ made: true, dumps: [] }), []],
+    ['RUN crash: a dump under the profile is a finding', () => count(crashFindings({ made: true, dumps: ['pending/a.dmp'] })), 1],
+    ['RUN crash: no database is a finding, not a pass', () => count(crashFindings({ made: false, dumps: [] })), 1],
+    ['RUN crash: dumps never listed is a finding, not a pass', () => count(crashFindings({ made: true })), 1],
+    ['RUN crash: a folder never read is a finding, not a pass', () => count(crashFindings(null)), 1],
+    ['checkout: no other checkout named runs', () => otherCheckoutRefusal({ named: '/r/head', own: '/r/head', ownVersion: '43.8.7', namedVersion: '43.8.7' }), null],
+    ['checkout: another checkout on the same Electron runs', () => otherCheckoutRefusal({ named: '/r/parent', own: '/r/head', ownVersion: '43.8.7', namedVersion: '43.8.7' }), null],
+    ['checkout: the parent on 43.3.0 named from a checkout on 43.8.7 refuses', () => typeof otherCheckoutRefusal({ named: '/r/parent', own: '/r/head', ownVersion: '43.8.7', namedVersion: '43.3.0' }), 'string'],
+    ['checkout: HEAD on 43.8.7 named from the parent on 43.3.0 refuses', () => typeof otherCheckoutRefusal({ named: '/r/head', own: '/r/parent', ownVersion: '43.3.0', namedVersion: '43.8.7' }), 'string'],
+    ['checkout: a checkout whose Electron cannot be read runs', () => otherCheckoutRefusal({ named: '/r/copy', own: '/r/head', ownVersion: '43.8.7', namedVersion: null }), null]
   ];
   let ok = true;
   for (const [label, run, want] of fixtures) {
@@ -1382,6 +1488,13 @@ const checkout = otherCheckout !== '' ? resolve(otherCheckout) : REPO;
 const tag = otherCheckout !== '' ? 'checkout' : 'head';
 if (!existsSync(join(checkout, 'out', 'main', 'index.js'))) {
   refuse(`${join(checkout, 'out', 'main', 'index.js')} is missing. Build that checkout first.`);
+}
+// PHASE 366'S PROBE REVIEW: the Electron every launch below runs is THIS checkout's.
+const ownElectron = electronVersionOf(REPO);
+const checkoutElectron = checkout === REPO ? ownElectron : electronVersionOf(checkout);
+{
+  const why = otherCheckoutRefusal({ named: checkout, own: REPO, ownVersion: ownElectron, namedVersion: checkoutElectron });
+  if (why !== null) refuse(why);
 }
 // THE BUILD IS THE THING MEASURED, and this script carries no build of its
 // own, so an out/ older than the scroll sources would be measured in silence
@@ -1776,7 +1889,8 @@ const ISSUE_LINES = `i=0; while :; do i=$((i+1)); printf 'line %s\\n' "$i"; slee
 const arms = Object.fromEntries(ARMS.map((a) => [a, []]));
 /** The arms that ran to their end. The summary prints `not run` for any other (Phase 320.1, D13). */
 const armsDone = new Set();
-const readings = { tag, checkout, socket, arms: chosen, readerTmux, readerVersion, tmuxOverride, loop: ISSUE_LINES, notes: [], samples: [] };
+const readings = { tag, checkout, electron: ownElectron, socket, arms: chosen, readerTmux, readerVersion, tmuxOverride, loop: ISSUE_LINES, notes: [], samples: [] };
+say(`${tag}: Electron ${String(ownElectron)} (this checkout's) runs ${checkout}`);
 const note = (l) => {
   readings.notes.push(l);
   say(`note: ${l}`);
@@ -2826,6 +2940,11 @@ try {
   spawnSync(readerTmux, ['-L', socket, 'kill-server'], { stdio: 'ignore' });
   if (MACHINE !== '') endFar();
 }
+
+// PHASE 366'S PROBE REVIEW: a crash of any of the app's processes is a finding of the run,
+// read once the helper has ended the tree, by name only; no dump is opened here.
+readings.crashpad = crashpadOf(profile);
+arms.RUN.push(...crashFindings(readings.crashpad));
 
 // -- the report -------------------------------------------------------------
 const readingsPath = join(outDir, MACHINE === '' ? `readings-${tag}-${readerVersion}.json` : `readings-${tag}-${MACHINE}-${String(farVersion)}.json`);

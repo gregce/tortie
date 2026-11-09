@@ -1,6 +1,6 @@
 {
- "readings": 251,
- "about": "probe:p365’s grader fixtures (build/p365/probe-p365.mjs --grader-self-test): one honest reading per grader; every clause broken alone and every need left unmet alone; variants a grader must not mistake; raw fixtures in raw/ driven through the one reader and laid over their grader’s honest reading; the one reader’s own numbers over the recorded raw against SPEC §2’s tables; and host sources whose lines must be read and classified. raw/<run>/bundle.json says what in each folder is recorded (the spec step’s runs, their stdout and their dump readings, no dump) and what is constructed. Written by the probe builder from the spec step’s recorded runs and the probe’s own grader names. The probe review added the entries marked \"by\": \"the probe review\" and the raw/rv-* runs (constructed, each bundle says so): a hang read as a clean exit, a run cut short, a storm slower than its rate, a storm that never reached the native module, torn lines that hid a crash, an unread reports folder, and parents that are no baseline.",
+ "readings": 270,
+ "about": "probe:p365’s grader fixtures (build/p365/probe-p365.mjs --grader-self-test): one honest reading per grader; every clause broken alone and every need left unmet alone; variants a grader must not mistake; raw fixtures in raw/ driven through the one reader and laid over their grader’s honest reading; the one reader’s own numbers over the recorded raw against SPEC §2’s tables; and host sources whose lines must be read and classified. raw/<run>/bundle.json says what in each folder is recorded (the spec step’s runs, their stdout and their dump readings, no dump) and what is constructed. Written by the probe builder from the spec step’s recorded runs and the probe’s own grader names. The probe review added the entries marked \"by\": \"the probe review\" and the raw/rv-* runs (constructed, each bundle says so): a hang read as a clean exit, a run cut short, a storm slower than its rate, a storm that never reached the native module, torn lines that hid a crash, an unread reports folder, and parents that are no baseline. Phase 366’s probe review (Electron 43.3.0 to 43.8.7) added the entries marked \"by\": \"Phase 366’s probe review\" and the raw/rv366-* runs (constructed, each bundle says so): a storm, quit or kill whose Crashpad never ran or was refused reads UNREADABLE, never \"no dump\", and a dump of a helper that is neither main nor a watcher process holding watcher.node fails every HEAD storm, quit and kill grader.",
  "honest": {
   "SP-parent": {
    "bundle": {
@@ -47,6 +47,9 @@
    "reportsAdded": 0,
    "lines": {
     "torn": 0
+   },
+   "crashpad": {
+    "made": true
    }
   },
   "SP-head": {
@@ -91,6 +94,12 @@
    "reportsAdded": 0,
    "lines": {
     "torn": 0
+   },
+   "crashpad": {
+    "made": true
+   },
+   "others": {
+    "dumps": 0
    }
   },
   "SA-parent": {
@@ -138,6 +147,9 @@
    "reportsAdded": 0,
    "lines": {
     "torn": 0
+   },
+   "crashpad": {
+    "made": true
    }
   },
   "SA-head": {
@@ -182,6 +194,12 @@
    "reportsAdded": 0,
    "lines": {
     "torn": 0
+   },
+   "crashpad": {
+    "made": true
+   },
+   "others": {
+    "dumps": 0
    }
   },
   "SQ-parent": {
@@ -221,6 +239,9 @@
    "dumps": {
     "found": 1,
     "read": 1
+   },
+   "crashpad": {
+    "made": true
    }
   },
   "SQ-head": {
@@ -261,6 +282,12 @@
    },
    "watcher": {
     "quitDumps": 0
+   },
+   "crashpad": {
+    "made": true
+   },
+   "others": {
+    "dumps": 0
    }
   },
   "SK-head": {
@@ -343,6 +370,12 @@
    },
    "lines": {
     "torn": 0
+   },
+   "crashpad": {
+    "made": true
+   },
+   "others": {
+    "dumps": 0
    }
   },
   "SO-parent": {
@@ -1390,6 +1423,62 @@
     }
    ],
    "by": "the fix round"
+  },
+  {
+   "arm": "SP-head",
+   "name": "clause broken: no dump of any other process (a helper that is neither main nor a watcher process holding watcher.node)",
+   "mustFail": [
+    "no dump of any other process (a helper that is neither main nor a watcher process holding watcher.node)"
+   ],
+   "ops": [
+    {
+     "set": "others.dumps",
+     "value": 1
+    }
+   ],
+   "by": "Phase 366’s probe review"
+  },
+  {
+   "arm": "SA-head",
+   "name": "clause broken: no dump of any other process (a helper that is neither main nor a watcher process holding watcher.node)",
+   "mustFail": [
+    "no dump of any other process (a helper that is neither main nor a watcher process holding watcher.node)"
+   ],
+   "ops": [
+    {
+     "set": "others.dumps",
+     "value": 1
+    }
+   ],
+   "by": "Phase 366’s probe review"
+  },
+  {
+   "arm": "SQ-head",
+   "name": "clause broken: no dump of any other process (a helper that is neither main nor a watcher process holding watcher.node)",
+   "mustFail": [
+    "no dump of any other process (a helper that is neither main nor a watcher process holding watcher.node)"
+   ],
+   "ops": [
+    {
+     "set": "others.dumps",
+     "value": 1
+    }
+   ],
+   "by": "Phase 366’s probe review"
+  },
+  {
+   "arm": "SK-head",
+   "name": "clause broken: no dump of any other process (a helper that is neither main nor a watcher process holding watcher.node)",
+   "mustFail": [
+    "no dump of any other process (a helper that is neither main nor a watcher process holding watcher.node)"
+   ],
+   "ops": [
+    {
+     "set": "others.dumps",
+     "value": 1
+    }
+   ],
+   "by": "Phase 366’s probe review"
   }
  ],
  "unreadable": [
@@ -2577,6 +2666,104 @@
     "the process table and his reports folder were read"
    ],
    "by": "the probe review"
+  },
+  {
+   "arm": "SP-parent",
+   "name": "need left unmet: Crashpad ran under the run’s profile: its database was made there, and neither crashDumps nor crashReporter.start was refused",
+   "mustMiss": [
+    "Crashpad ran under the run’s profile: its database was made there, and neither crashDumps nor crashReporter.start was refused"
+   ],
+   "ops": [
+    {
+     "set": "crashpad.made",
+     "value": false
+    }
+   ],
+   "by": "Phase 366’s probe review"
+  },
+  {
+   "arm": "SA-parent",
+   "name": "need left unmet: Crashpad ran under the run’s profile: its database was made there, and neither crashDumps nor crashReporter.start was refused",
+   "mustMiss": [
+    "Crashpad ran under the run’s profile: its database was made there, and neither crashDumps nor crashReporter.start was refused"
+   ],
+   "ops": [
+    {
+     "set": "crashpad.made",
+     "value": false
+    }
+   ],
+   "by": "Phase 366’s probe review"
+  },
+  {
+   "arm": "SQ-parent",
+   "name": "need left unmet: Crashpad ran under the run’s profile: its database was made there, and neither crashDumps nor crashReporter.start was refused",
+   "mustMiss": [
+    "Crashpad ran under the run’s profile: its database was made there, and neither crashDumps nor crashReporter.start was refused"
+   ],
+   "ops": [
+    {
+     "set": "crashpad.made",
+     "value": false
+    }
+   ],
+   "by": "Phase 366’s probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "need left unmet: Crashpad ran under the run’s profile: its database was made there, and neither crashDumps nor crashReporter.start was refused",
+   "mustMiss": [
+    "Crashpad ran under the run’s profile: its database was made there, and neither crashDumps nor crashReporter.start was refused"
+   ],
+   "ops": [
+    {
+     "set": "crashpad.made",
+     "value": false
+    }
+   ],
+   "by": "Phase 366’s probe review"
+  },
+  {
+   "arm": "SA-head",
+   "name": "need left unmet: Crashpad ran under the run’s profile: its database was made there, and neither crashDumps nor crashReporter.start was refused",
+   "mustMiss": [
+    "Crashpad ran under the run’s profile: its database was made there, and neither crashDumps nor crashReporter.start was refused"
+   ],
+   "ops": [
+    {
+     "set": "crashpad.made",
+     "value": false
+    }
+   ],
+   "by": "Phase 366’s probe review"
+  },
+  {
+   "arm": "SQ-head",
+   "name": "need left unmet: Crashpad ran under the run’s profile: its database was made there, and neither crashDumps nor crashReporter.start was refused",
+   "mustMiss": [
+    "Crashpad ran under the run’s profile: its database was made there, and neither crashDumps nor crashReporter.start was refused"
+   ],
+   "ops": [
+    {
+     "set": "crashpad.made",
+     "value": false
+    }
+   ],
+   "by": "Phase 366’s probe review"
+  },
+  {
+   "arm": "SK-head",
+   "name": "need left unmet: Crashpad ran under the run’s profile: its database was made there, and neither crashDumps nor crashReporter.start was refused",
+   "mustMiss": [
+    "Crashpad ran under the run’s profile: its database was made there, and neither crashDumps nor crashReporter.start was refused"
+   ],
+   "ops": [
+    {
+     "set": "crashpad.made",
+     "value": false
+    }
+   ],
+   "by": "Phase 366’s probe review"
   }
  ],
  "variants": [
@@ -5343,6 +5530,205 @@
     "lsof read main’s child processes"
    ],
    "by": "the probe review"
+  },
+  {
+   "arm": "SQ-head",
+   "name": "rv366-sq-crashpad-ok: the honest HEAD quit that carries the Crashpad reading",
+   "runs": [
+    "rv366-sq-crashpad-ok"
+   ],
+   "extra": {
+    "lsof": [
+     {
+      "at": 6000,
+      "main": "p62000\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\n",
+      "watcherPid": 62001,
+      "watcher": "p62001\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n"
+     },
+     {
+      "at": 14000,
+      "main": "p62000\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\n",
+      "watcherPid": 62001,
+      "watcher": "p62001\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n"
+     }
+    ]
+   },
+   "by": "Phase 366’s probe review"
+  },
+  {
+   "arm": "SQ-head",
+   "name": "rv366-sq-helper: A HELPER’S CRASH READ AS NOTHING: an honest HEAD quit with a network service dump",
+   "runs": [
+    "rv366-sq-helper"
+   ],
+   "extra": {
+    "lsof": [
+     {
+      "at": 6000,
+      "main": "p62000\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\n",
+      "watcherPid": 62001,
+      "watcher": "p62001\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n"
+     },
+     {
+      "at": 14000,
+      "main": "p62000\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\n",
+      "watcherPid": 62001,
+      "watcher": "p62001\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n"
+     }
+    ]
+   },
+   "mustFail": [
+    "no dump of any other process (a helper that is neither main nor a watcher process holding watcher.node)"
+   ],
+   "by": "Phase 366’s probe review"
+  },
+  {
+   "arm": "SQ-head",
+   "name": "rv366-sq-nocrashpad: NO DUMP READ WHERE CRASHPAD NEVER RAN: the honest HEAD quit with no Crashpad database in its profile",
+   "runs": [
+    "rv366-sq-nocrashpad"
+   ],
+   "extra": {
+    "lsof": [
+     {
+      "at": 6000,
+      "main": "p62000\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\n",
+      "watcherPid": 62001,
+      "watcher": "p62001\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n"
+     },
+     {
+      "at": 14000,
+      "main": "p62000\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\n",
+      "watcherPid": 62001,
+      "watcher": "p62001\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n"
+     }
+    ]
+   },
+   "mustMiss": [
+    "Crashpad ran under the run’s profile: its database was made there, and neither crashDumps nor crashReporter.start was refused"
+   ],
+   "by": "Phase 366’s probe review"
+  },
+  {
+   "arm": "SQ-head",
+   "name": "rv366-sq-refused: NO DUMP READ WHERE CRASHPAD WAS REFUSED: the honest HEAD quit whose storm app noted crashReporter.start refused",
+   "runs": [
+    "rv366-sq-refused"
+   ],
+   "extra": {
+    "lsof": [
+     {
+      "at": 6000,
+      "main": "p62000\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\n",
+      "watcherPid": 62001,
+      "watcher": "p62001\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n"
+     },
+     {
+      "at": 14000,
+      "main": "p62000\nfcwd\nn/\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\n",
+      "watcherPid": 62001,
+      "watcher": "p62001\nftxt\nn/x/Electron Helper.app/Contents/MacOS/Electron Helper\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n"
+     }
+    ]
+   },
+   "mustMiss": [
+    "Crashpad ran under the run’s profile: its database was made there, and neither crashDumps nor crashReporter.start was refused"
+   ],
+   "by": "Phase 366’s probe review"
+  },
+  {
+   "arm": "SK-head",
+   "name": "rv366-sk-helper: A HELPER’S CRASH READ AS NOTHING: the constructed SK run with a network service dump",
+   "runs": [
+    "rv366-sk-helper"
+   ],
+   "extra": {
+    "signals": {
+     "pause": {
+      "seq": 1,
+      "at": 29100
+     },
+     "kill": {
+      "pid": 50001,
+      "verified": true,
+      "sent": true,
+      "at": 29400,
+      "ppid": 49999
+     },
+     "resume": {
+      "seq": 2,
+      "at": 31790
+     },
+     "stop": {
+      "pid": 50002,
+      "verified": true,
+      "sent": true,
+      "at": 91100,
+      "ppid": 49999
+     },
+     "stoppedGone": {
+      "goneAt": 93300
+     },
+     "cont": {
+      "sent": false,
+      "at": null
+     }
+    },
+    "hostSource": "// A host-shaped source in SPEC §4.1's words, CONSTRUCTED for the probe's self-test (host.ts did not exist when it was written).\nconst log = getLog('watcher');\nlog.warn(`the file watcher process exited (code ${String(code)})`);\nlog.info(`the file watcher restarted (generation ${String(generation)}, ${String(n)} watches re-bound)`);\nlog.warn('the file watcher gave up after ' + String(WATCHER_GIVE_UP_EXITS) + ' exits in 10 minutes; nothing more is watched until the next launch');\nlog.info(`a ${op} waited ${String(waitedMs)} ms for its turn (${String(behind)} behind it)`);\nlog.warn(`the file watcher did not answer a ${kind} within ${String(boundMs)} ms; replacing it`);\n"
+   },
+   "mustFail": [
+    "no dump of any other process (a helper that is neither main nor a watcher process holding watcher.node)"
+   ],
+   "by": "Phase 366’s probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "rv366-head-helper: A HELPER’S CRASH READ AS NOTHING: the honest HEAD storm with a network service dump beside its watcher crash",
+   "runs": [
+    "rv366-head-helper"
+   ],
+   "mustFail": [
+    "no dump of any other process (a helper that is neither main nor a watcher process holding watcher.node)"
+   ],
+   "by": "Phase 366’s probe review"
+  },
+  {
+   "arm": "SP-head",
+   "name": "rv366-head-nocrashpad: NO DUMP READ WHERE CRASHPAD NEVER RAN: the honest HEAD storm with no Crashpad database in its profile",
+   "runs": [
+    "rv366-head-nocrashpad"
+   ],
+   "mustMiss": [
+    "Crashpad ran under the run’s profile: its database was made there, and neither crashDumps nor crashReporter.start was refused"
+   ],
+   "by": "Phase 366’s probe review"
+  },
+  {
+   "arm": "SQ-parent",
+   "name": "rv366-sq-parent-nocrashpad: NO DUMP READ WHERE CRASHPAD NEVER RAN: the parent’s quit abort with no Crashpad database in its profile",
+   "runs": [
+    "rv366-sq-parent-nocrashpad"
+   ],
+   "extra": {
+    "lsof": [
+     {
+      "at": 6000,
+      "main": "p65000\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n",
+      "watcherPid": null,
+      "watcher": null
+     },
+     {
+      "at": 14000,
+      "main": "p65000\nftxt\nn/x/Electron.app/Contents/MacOS/Electron\nftxt\nn/x/node_modules/@parcel/watcher-darwin-arm64/watcher.node\n",
+      "watcherPid": null,
+      "watcher": null
+     }
+    ]
+   },
+   "mustMiss": [
+    "Crashpad ran under the run’s profile: its database was made there, and neither crashDumps nor crashReporter.start was refused"
+   ],
+   "by": "Phase 366’s probe review"
   }
  ],
  "rawReads": [

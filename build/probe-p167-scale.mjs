@@ -263,6 +263,15 @@
  * rather than a silence, because the plateau it printed would say nothing
  * about the half that never ran. It is one record per FILE and not per
  * accept: the record holds the newest baseline and the ring holds two bodies.
+ *
+ * PHASE 366'S PROBE REVIEW (Electron 43.3.0 to 43.8.7). Three readings could
+ * not fail: a metric Performance.getMetrics did not return read as 0, an lsof
+ * that listed nothing read as 0 descriptors both times, and a crash of a
+ * process the rulers never touch (the GPU process, the network service, the
+ * watcher process) was never looked for. A missing asserted metric and an
+ * unread descriptor count are now failures, and so is any dump Crashpad wrote
+ * under the run's profile, or no Crashpad database there at all; dumps are
+ * counted by name and left for the verifier's own reader, which deletes them.
  */
 
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -430,24 +439,40 @@ export function judge(profile, before, blocks, budgets = DEFAULT_BUDGETS, rules 
     }
     return { value, at };
   };
+  // PHASE 366'S PROBE REVIEW. A ruler that did not answer is not a ruler that
+  // read nothing. readRenderer used to read a metric Performance.getMetrics did
+  // not return as 0, and a run of zeros is a perfect plateau, so a renderer
+  // whose metrics went missing (a new Chromium, a domain that did not enable)
+  // passed every budget. A missing asserted reading is now a failure, and its
+  // dimension is not judged.
+  const readingCount = 1 + blocks.length;
+  const unread = (k) => [before, ...blocks].filter((r) => !(typeof r?.[k] === 'number' && Number.isFinite(r[k]))).length;
+  const missingOf = (k, asserted) => {
+    const missing = asserted ? unread(k) : 0;
+    if (missing > 0) failures.push(`${profile}: the renderer's ${k} could not be read for ${String(missing)} of ${String(readingCount)} readings, so this profile cannot say whether it plateaued`);
+    return missing;
+  };
+  const missingHeap = missingOf('heapMb', true);
+  const missingNodes = missingOf('nodes', assertNodes);
+  const missingListeners = missingOf('listeners', assertListeners);
   const heapGrowth = worst('heapMb');
-  if (heapGrowth.value > budgets.heapMb) {
+  if (missingHeap === 0 && heapGrowth.value > budgets.heapMb) {
     failures.push(
       `${profile}: renderer JS heap grew ${heapGrowth.value.toFixed(1)} MB from block ${String(heapGrowth.at)} to block ${String(heapGrowth.at + 1)}, over the ${String(budgets.heapMb)} MB budget`
     );
   }
   const nodeGrowth = worst('nodes');
-  if (assertNodes && nodeGrowth.value > budgets.nodes) {
+  if (assertNodes && missingNodes === 0 && nodeGrowth.value > budgets.nodes) {
     failures.push(`${profile}: DOM nodes grew ${String(nodeGrowth.value)} from block ${String(nodeGrowth.at)} to block ${String(nodeGrowth.at + 1)}, over the ${String(budgets.nodes)} budget`);
   }
   const listenerGrowth = worst('listeners');
-  if (assertListeners && listenerGrowth.value > budgets.listeners) {
+  if (assertListeners && missingListeners === 0 && listenerGrowth.value > budgets.listeners) {
     failures.push(`${profile}: event listeners grew ${String(listenerGrowth.value)} from block ${String(listenerGrowth.at)} to block ${String(listenerGrowth.at + 1)}, over the ${String(budgets.listeners)} budget`);
   }
   // A slope: every block-to-block heap delta over half the budget, across
   // three or more blocks. A one time allocation lands in one delta and then
   // stops; a leak lands in all of them.
-  if (blocks.length >= 3) {
+  if (blocks.length >= 3 && missingHeap === 0) {
     const deltas = [];
     for (let i = 1; i < blocks.length; i += 1) deltas.push(blocks[i].heapMb - blocks[i - 1].heapMb);
     if (deltas.every((d) => d > budgets.heapMb / 2)) {
@@ -499,6 +524,14 @@ export function judge(profile, before, blocks, budgets = DEFAULT_BUDGETS, rules 
       }
     }
   }
+  // PHASE 366'S PROBE REVIEW. A profile that reads main's descriptors carries
+  // the keys in its readings; an lsof that did not answer used to read as 0 and
+  // 0 both times, which is the one regression this file exists to catch passed
+  // in silence. Unread at either end is now a failure.
+  const askedDescriptors = [before, ...blocks].some((r) => r !== null && typeof r === 'object' && ('ptmx' in r || 'ttys' in r));
+  if (askedDescriptors && ![before, last].every((r) => typeof r.ptmx === 'number' && typeof r.ttys === 'number')) {
+    failures.push(`${profile}: main's pty descriptors could not be read before the first block and after the last, so this profile cannot say main holds the descriptors it started with (Phase 167 finding 1)`);
+  }
   if (typeof before.ptmx === 'number' && typeof last.ptmx === 'number') {
     if (last.ptmx !== before.ptmx) {
       failures.push(`${profile}: main holds ${String(last.ptmx)} /dev/ptmx descriptors after the last block against ${String(before.ptmx)} before the first (Phase 167 finding 1)`);
@@ -508,6 +541,43 @@ export function judge(profile, before, blocks, budgets = DEFAULT_BUDGETS, rules 
     }
   }
   return failures;
+}
+
+/**
+ * PHASE 366'S PROBE REVIEW. A crash of any of the app's processes this file's
+ * rulers never touch (the GPU process, the network service, the watcher
+ * process) printed "every driven profile plateaued": nothing here looked. `c`
+ * is what Crashpad left in the run's profile, by NAME only: `made` when its
+ * database is there, and the dump files the run added. No database, or a
+ * listing that was not taken, means a crash could not be written down there,
+ * so none is ruled out.
+ */
+export function crashFindings(c) {
+  if (c === null || c === undefined || typeof c !== 'object') return ["crash: the profile's Crashpad folder was not read, so a crash of the app cannot be ruled out"];
+  const out = [];
+  if (c.made !== true) out.push("crash: Crashpad's database was never made in this run's profile, so a crash of the app cannot be ruled out");
+  if (!Array.isArray(c.dumps)) out.push("crash: the dumps under this run's profile were not listed, so a crash of the app cannot be ruled out");
+  else if (c.dumps.length > 0) {
+    out.push(
+      `crash: Crashpad wrote ${String(c.dumps.length)} dump(s) under this run's profile (${c.dumps.join(', ')}): a process of the app crashed during the run. ` +
+        "Read each with your own reader, then delete it: a dump holds the run's environment"
+    );
+  }
+  return out;
+}
+
+/** What Crashpad left under a profile, by name only: its database and its dump files. */
+function crashpadOf(profileDir) {
+  const base = join(profileDir, 'Crashpad');
+  const dumps = [];
+  for (const sub of ['pending', 'completed', 'new']) {
+    try {
+      for (const n of readdirSync(join(base, sub))) if (n.endsWith('.dmp')) dumps.push(`${sub}/${n}`);
+    } catch {
+      /* no such folder: no dump there */
+    }
+  }
+  return { dir: base, made: existsSync(join(base, 'settings.dat')), dumps };
 }
 
 function selfTest() {
@@ -559,7 +629,17 @@ function selfTest() {
     // A profile that records no history at all, being b and c, must not be
     // asked the workload question. Without this the two other profiles would
     // go red on a rule that is not about them.
-    { name: 'a profile with no history floor is not asked', before: d(7.2, 0, 0), blocks: [d(7.7, 4, 0), d(7.7, 4, 0), d(7.7, 4, 0)], red: false, rules: {} }
+    { name: 'a profile with no history floor is not asked', before: d(7.2, 0, 0), blocks: [d(7.7, 4, 0), d(7.7, 4, 0), d(7.7, 4, 0)], red: false, rules: {} },
+    // PHASE 366'S PROBE REVIEW. A metric Performance.getMetrics did not return used
+    // to read as 0, and a run of zeros is a perfect plateau.
+    { name: 'the heap metric missing in one block', before: b(30, 2000, 300), blocks: [b(30, 2000, 300), { ...b(30, 2000, 300), heapMb: null }, b(30.2, 2000, 300)], red: true },
+    { name: 'every metric missing in every reading (the old reader\'s run of zeros)', before: { ...b(0, 0, 0), heapMb: null, nodes: null, listeners: null }, blocks: [1, 2, 3].map(() => ({ ...b(0, 0, 0), heapMb: null, nodes: null, listeners: null })), red: true },
+    { name: 'the node metric missing under the default rules', before: b(30, 2000, 300), blocks: [b(30, 2000, 300), { ...b(30, 2000, 300), nodes: null }, b(30, 2000, 300)], red: true },
+    { name: 'the listener metric missing under the default rules', before: { ...b(30, 2000, 300), listeners: undefined }, blocks: [b(30, 2000, 300), b(30, 2000, 300), b(30, 2000, 300)], red: true },
+    { name: 'the node and listener metrics missing under the d rules are not asked', before: d(7.2, 0, 0), blocks: [{ ...d(10.3, 0, 24), nodes: null, listeners: null }, d(10.3, 0, 48), d(11.1, 0, 72)], red: false, rules: { nodes: false, listeners: false, historyFloor: 21 } },
+    { name: 'main\'s descriptors unread after the last block (lsof listed nothing)', before: b(30, 2000, 300, 1, 0), blocks: [b(30, 2000, 300, 1, 0), b(30, 2000, 300, 1, 0), { ...b(30, 2000, 300), ptmx: null, ttys: null }], red: true, rules: { nodes: false, listeners: false } },
+    { name: 'main\'s descriptors unread before the first block', before: { ...b(30, 2000, 300), ptmx: null, ttys: null }, blocks: [b(30, 2000, 300, 0, 0), b(30, 2000, 300, 0, 0), b(30, 2000, 300, 0, 0)], red: true },
+    { name: 'a profile that reads no descriptors is not asked for them', before: { heapMb: 30, nodes: 2000, listeners: 300, documents: 1, detached: 0, past: 0 }, blocks: [1, 2, 3].map(() => ({ heapMb: 30, nodes: 2000, listeners: 300, documents: 1, detached: 0, past: 0 })), red: false }
   ];
   let bad = 0;
   for (const c of cases) {
@@ -609,6 +689,20 @@ function selfTest() {
     const ok = both === c.want;
     if (!ok) bad += 1;
     say(`self-test ${ok ? 'ok  ' : 'BAD '} ${c.name}: field ${String(got.field)}, clear ${String(got.clear)}`);
+  }
+  // PHASE 366'S PROBE REVIEW. A crash of a process the rulers never touch.
+  const crashCases = [
+    { name: 'crash review: the database made and no dump is green', c: { made: true, dumps: [] }, red: false },
+    { name: 'crash review: a dump the run added is red', c: { made: true, dumps: ['pending/a.dmp'] }, red: true },
+    { name: 'crash review: no database is red, not a pass', c: { made: false, dumps: [] }, red: true },
+    { name: 'crash review: dumps never listed is red, not a pass', c: { made: true }, red: true },
+    { name: 'crash review: a folder never read is red, not a pass', c: null, red: true }
+  ];
+  for (const c of crashCases) {
+    const found = crashFindings(c.c);
+    const ok = (found.length > 0) === c.red;
+    if (!ok) bad += 1;
+    say(`self-test ${ok ? 'ok  ' : 'BAD '} ${c.name}: ${found.length > 0 ? 'red' : 'green'}${found.length > 0 ? ` (${found[0]})` : ''}`);
   }
   if (bad > 0) {
     say(`self-test: ${String(bad)} fixture(s) misjudged`);
@@ -1202,10 +1296,16 @@ function footprintMb(pid) {
   return m[2] === 'G' ? n * 1024 : m[2] === 'K' ? n / 1024 : n;
 }
 
-/** Open pty descriptors in one process: masters on /dev/ptmx and slaves on /dev/ttys. */
+/**
+ * Open pty descriptors in one process: masters on /dev/ptmx and slaves on
+ * /dev/ttys. Null and null when lsof listed nothing for the pid (Phase 366's
+ * probe review: no header line is no reading, never 0 and 0).
+ */
 function ptyDescriptors(pid) {
   const r = spawnSync('lsof', ['-n', '-P', '-p', String(pid)], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
-  const lines = r.stdout.split('\n');
+  const text = typeof r.stdout === 'string' ? r.stdout : '';
+  if (!/^COMMAND\s/m.test(text)) return { ptmx: null, ttys: null };
+  const lines = text.split('\n');
   return {
     ptmx: lines.filter((l) => /\/dev\/ptmx\b/.test(l)).length,
     ttys: lines.filter((l) => /\/dev\/ttys\d+/.test(l)).length
@@ -1341,10 +1441,16 @@ async function readRenderer(cdp) {
   await sleep(250);
   await cdp.call('HeapProfiler.collectGarbage');
   const metrics = (await cdp.call('Performance.getMetrics')).result.metrics;
-  const get = (name) => metrics.find((m) => m.name === name)?.value ?? 0;
+  // PHASE 366'S PROBE REVIEW: a metric that did not come back is null, never 0,
+  // and judge() fails a profile whose asserted metric is null.
+  const get = (name) => {
+    const v = metrics.find((m) => m.name === name)?.value;
+    return typeof v === 'number' && Number.isFinite(v) ? v : null;
+  };
+  const mb = (v) => (v === null ? null : v / (1024 * 1024));
   return {
-    heapMb: get('JSHeapUsedSize') / (1024 * 1024),
-    heapTotalMb: get('JSHeapTotalSize') / (1024 * 1024),
+    heapMb: mb(get('JSHeapUsedSize')),
+    heapTotalMb: mb(get('JSHeapTotalSize')),
     nodes: get('Nodes'),
     listeners: get('JSEventListeners'),
     documents: get('Documents'),
@@ -1984,6 +2090,9 @@ const failures = [];
 let mainPidSeen = 0;
 
 rmSync(join(profile, 'DevToolsActivePort'), { force: true });
+// PHASE 366'S PROBE REVIEW: the dumps already under this profile, by name, so
+// only a crash of THIS run is counted at the end.
+const crashpadBefore = crashpadOf(profile);
 // PHASE 200. The Architecture switch ships OFF and this profile is a fresh
 // directory, so every Architecture gesture landed on a view that was not
 // there. The audit read all 18 opens missing and had to work out that it was
@@ -2131,8 +2240,8 @@ await withElectron(
       return row;
     };
     const fmt = (row) =>
-      `heap ${row.heapMb.toFixed(1)} MB, nodes ${String(row.nodes)} (${String(row.live)} on screen), listeners ${String(row.listeners)}, documents ${String(row.documents)}, xterm ${String(row.xterm)}` +
-      (typeof row.ptmx === 'number' ? `, ptmx ${String(row.ptmx)}, ttys ${String(row.ttys)}` : '') +
+      `heap ${typeof row.heapMb === 'number' ? row.heapMb.toFixed(1) : 'unread'} MB, nodes ${String(row.nodes)} (${String(row.live)} on screen), listeners ${String(row.listeners)}, documents ${String(row.documents)}, xterm ${String(row.xterm)}` +
+      (row.ptmx !== undefined ? `, ptmx ${String(row.ptmx ?? 'unread')}, ttys ${String(row.ttys ?? 'unread')}` : '') +
       `, main ${row.mainFootprintMb === null ? '-' : row.mainFootprintMb.toFixed(1)} MB, renderer ${row.rendererFootprintMb === null ? '-' : row.rendererFootprintMb.toFixed(1)} MB`;
 
     for (const key of profilesWanted) {
@@ -2611,6 +2720,15 @@ await withElectron(
   }
 }
 
+// PHASE 366'S PROBE REVIEW: a crash of any of the app's processes is a failure
+// of the run, read once the helper has ended the tree, by name only; no dump is
+// opened here.
+{
+  const after = crashpadOf(profile);
+  report.crashpad = { ...after, dumps: after.dumps.filter((n) => !crashpadBefore.dumps.includes(n)) };
+  say(`p167: Crashpad database ${report.crashpad.made ? 'made' : 'NOT made'} in the profile, ${String(report.crashpad.dumps.length)} dump(s) this run`);
+  failures.push(...crashFindings(report.crashpad));
+}
 report.mainPid = mainPidSeen;
 report.failures = failures;
 report.remote = {
