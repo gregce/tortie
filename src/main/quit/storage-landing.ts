@@ -32,7 +32,11 @@
  *   - the newest log's size has not moved for SETTLE_MS;
  *   - and its last block is whole.
  * A torn tail, a commit landing late or a second one following it keep the
- * wait going; the caller's bound ends it whatever the file says.
+ * wait going; the caller's bound ends it whatever the file says. Each answer
+ * says whether a commit landed while it watched (`moved`): a log that appeared
+ * after a first read found none, or one whose name or size changed after it was
+ * first seen, and the bound's answer says what the watch had seen by then
+ * (Phase 362, build/p362/SPEC.md D10).
  *
  * WHAT IT REFUSES. It never writes, and nothing of Tortie's reads these files
  * but this wait. A log it cannot read (no folder, no log, a log rotated or
@@ -69,8 +73,24 @@ export interface StorageWait {
   readonly landing: StorageLanding;
   /** Milliseconds from the call to the answer. */
   readonly waitedMs: number;
-  /** True when the newest log changed while the wait watched it (a commit landed after the flush). */
+  /** True when a commit landed while the wait watched: the newest log appeared after a first read found none, or changed. */
   readonly moved: boolean;
+}
+
+/**
+ * What the watch has seen, shared with the bound's timer so that both answers
+ * say it (Phase 362, D10): whether the first read found no log (null until it
+ * has answered), and the first and the newest log it saw, as `name:size`.
+ */
+interface Seen {
+  firstAbsent: boolean | null;
+  firstKey: string | null;
+  lastKey: string | null;
+}
+
+/** A log appeared after a first read that found none, or the newest log changed after it was first seen. */
+function movedOf(seen: Seen): boolean {
+  return seen.lastKey !== null && (seen.firstAbsent === true || seen.lastKey !== seen.firstKey);
 }
 
 /** The folder Chromium keeps a session's localStorage in, or null for a session with no disk. */
@@ -181,28 +201,27 @@ async function tailWhole(dir: string, log: LogReading): Promise<boolean> {
   }
 }
 
-/** The watch itself; the bound is also enforced beside it, by the caller below. */
-async function watch(dir: string | null, boundMs: number, started: number): Promise<StorageWait> {
+/** The watch itself; the bound is also enforced beside it, by the caller below, which reads `seen` too. */
+async function watch(dir: string | null, boundMs: number, started: number, seen: Seen): Promise<StorageWait> {
   const elapsed = (): number => performance.now() - started;
-  let lastKey: string | null = null;
-  let firstKey: string | null = null;
   let lastChange = 0;
   for (;;) {
     if (elapsed() >= boundMs) break;
     const log = dir === null ? null : await newestLog(dir);
+    if (seen.firstAbsent === null) seen.firstAbsent = log === null;
     if (log !== null) {
       const key = `${log.name}:${String(log.size)}`;
-      if (firstKey === null) firstKey = key;
-      if (key !== lastKey) {
-        lastKey = key;
+      if (seen.firstKey === null) seen.firstKey = key;
+      if (key !== seen.lastKey) {
+        seen.lastKey = key;
         lastChange = elapsed();
       } else if (elapsed() >= QUIET_MS && elapsed() - lastChange >= SETTLE_MS && (await tailWhole(dir as string, log))) {
-        return { landing: 'settled', waitedMs: elapsed(), moved: key !== firstKey };
+        return { landing: 'settled', waitedMs: elapsed(), moved: movedOf(seen) };
       }
     }
     await sleep(Math.min(POLL_MS, boundMs - elapsed()));
   }
-  return { landing: 'bound', waitedMs: elapsed(), moved: lastKey !== firstKey };
+  return { landing: 'bound', waitedMs: elapsed(), moved: movedOf(seen) };
 }
 
 /**
@@ -220,13 +239,14 @@ export function storageWritten(storagePath: string | null, boundMs: number): Pro
   } catch {
     dir = null;
   }
+  const seen: Seen = { firstAbsent: null, firstKey: null, lastKey: null };
   let timer: ReturnType<typeof setTimeout> | undefined;
   const atBound = new Promise<StorageWait>((resolve) => {
     timer = setTimeout(() => {
-      resolve({ landing: 'bound', waitedMs: performance.now() - started, moved: false });
+      resolve({ landing: 'bound', waitedMs: performance.now() - started, moved: movedOf(seen) });
     }, bound);
   });
-  const watched = watch(dir, bound, started).catch((): Promise<StorageWait> => atBound);
+  const watched = watch(dir, bound, started, seen).catch((): Promise<StorageWait> => atBound);
   return Promise.race([watched, atBound]).finally(() => {
     clearTimeout(timer);
   });

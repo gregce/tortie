@@ -1,0 +1,10 @@
+{
+ "source": "constructed by the probe review: a HEAD teardown quit (GMUX_SMOKE=quit-teardown, nothing held) ended by the recorder with exit 139 at quit after writing the stand-in dump, then a relaunch, in the shapes of the spec step's PX run and src/main/log/index.ts's boot record.",
+ "shim": {"text":"","code":139},
+ "standin": "p362-standin.dmp",
+ "dumpsBefore": [],
+ "dumpsAfter": ["pending/p362-standin.dmp"],
+ "sentinelAfter": "{\"pid\":62859,\"version\":\"0.114.1\",\"bootTs\":\"2026-11-10T08:40:00.200Z\",\"dumpNames\":[],\"quitAt\":\"2026-11-10T08:40:01.529Z\"}",
+ "world": {"agents":{"ok":true,"said":"nothing resolved in the app’s own scan but the stand-ins "}},
+ "relaunch": {"ran":true}
+}

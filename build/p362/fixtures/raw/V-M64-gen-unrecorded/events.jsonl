@@ -1,0 +1,28 @@
+{"t":1794300000100,"ev":"loaded","pid":54199}
+{"t":1794300000101,"ev":"tray-wrap","ok":true}
+{"t":1794300000102,"ev":"hooked"}
+{"t":1794300000900,"ev":"ipc-wrapped","channel":"app:quit"}
+{"t":1794300000901,"ev":"ipc-wrapped","channel":"app:relaunch"}
+{"t":1794300000950,"ev":"window-created","id":1}
+{"t":1794300001300,"ev":"window-kind","id":1,"kind":"main"}
+{"t":1794300001400,"ev":"tray-menu","items":["Open Tortie","Sessions","Settings…","Quit Tortie"]}
+{"t":1794300051000,"ev":"window-created","id":2}
+{"t":1794300051400,"ev":"window-kind","id":2,"kind":"settings"}
+{"t":1794300053000,"ev":"settings-moved","bounds":{"x":233,"y":141,"width":802,"height":611}}
+{"t":1794300053100,"ev":"window-close","id":2,"kind":"settings"}
+{"t":1794300053110,"ev":"window-closed","id":2,"kind":"settings"}
+{"t":1794300053110,"ev":"settings-closed"}
+{"t":1794300060000,"ev":"menu-quit","ok":true,"label":"Quit Tortie","target":"main","windows":1}
+{"t":1794300060001,"ev":"fallback-armed","tag":"menu"}
+{"t":1794300060001,"ev":"quit-requested","id":1,"kind":"main"}
+{"t":1794300061507,"ev":"app.quit","from":"ipc"}
+{"t":1794300061507,"ev":"before-quit","pass":1,"windows":[{"id":1,"kind":"main","visible":true,"minimized":false}]}
+{"t":1794300061508,"ev":"after-first-pass","windows":[{"id":1,"kind":"main","visible":true,"minimized":false}]}
+{"t":1794300063000,"ev":"fallback-fired","tag":"menu"}
+{"t":1794300063407,"ev":"dispose"}
+{"t":1794300063407,"ev":"dispose"}
+{"t":1794300063409,"ev":"app.quit","from":"other"}
+{"t":1794300063409,"ev":"before-quit","pass":2,"windows":[{"id":1,"kind":"main","visible":true,"minimized":false}]}
+{"t":1794300063410,"ev":"window-close","id":1,"kind":"main"}
+{"t":1794300063514,"ev":"window-closed","id":1,"kind":"main"}
+{"t":1794300063514,"ev":"will-quit","windows":[],"sentinel":true,"quitAt":null}

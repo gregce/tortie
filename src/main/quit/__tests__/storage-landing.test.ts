@@ -9,13 +9,32 @@
  * exactly as LevelDB's `log::Writer::AddRecord` does. A torn record is written
  * the way a SIGKILL leaves one: the header on disk and none, or part, of its
  * payload. Nothing here reads a person's files.
+ *
+ * Phase 362 (build/p362/SPEC.md D7, D10) adds two things. The wait's timing
+ * constants keep literal floors, because cut to 0 they left every quit test and
+ * the gate green. And `moved` says a commit landed when the log first appears
+ * during the wait, on the settled answer, on the watch's bound and on the
+ * bound's own timer, which answered `moved: false` whatever it had seen. Each
+ * is asked again of a copy of the module with that rule taken back out, which
+ * must read the old answer, so the case is shown to fail without its rule.
  */
 
-import { appendFileSync, mkdtempSync, mkdirSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  mkdtempSync,
+  mkdirSync,
+  promises as fsp,
+  readFileSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
-import { lastBlockWhole, QUIET_MS, SETTLE_MS, storageFolder, storageWritten } from '../storage-landing';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { lastBlockWhole, POLL_MS, QUIET_MS, SETTLE_MS, storageFolder, storageWritten } from '../storage-landing';
+import type { StorageWait } from '../storage-landing';
 
 const BLOCK = 32_768;
 const FULL = 1;
@@ -69,6 +88,7 @@ function recordBytes(at: number, payload: Buffer): Buffer {
 
 const dirs: string[] = [];
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
 });
 
@@ -299,5 +319,215 @@ describe('storageWritten: the wait the hard exit takes', () => {
       expect(w.landing).toBe('bound');
       expect(w.waitedMs).toBeLessThan(50);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 362: the floors (D7) and `moved` (D10)
+// ---------------------------------------------------------------------------
+
+type Landing = typeof import('../storage-landing');
+
+const MODULE = join(dirname(fileURLToPath(import.meta.url)), '..', 'storage-landing.ts');
+let copies = '';
+let copyCount = 0;
+beforeAll(() => {
+  copies = mkdtempSync(join(tmpdir(), 'tortie-p362-landing-copy-'));
+});
+afterAll(() => {
+  rmSync(copies, { recursive: true, force: true });
+});
+
+/**
+ * A copy of the module with `edits` made, imported from a scratch folder (it
+ * imports only node's own modules, so it runs there as it is). An edit that no
+ * longer finds its text once fails the case, because an ablation that cannot
+ * be made proves nothing.
+ */
+async function landingCopy(edits: readonly (readonly [string, string])[]): Promise<Landing> {
+  let text = readFileSync(MODULE, 'utf8');
+  for (const [from, to] of edits) {
+    expect(text.split(from).length - 1, `the ablation finds its text once: ${from}`).toBe(1);
+    text = text.replace(from, () => to);
+  }
+  copyCount += 1;
+  const file = join(copies, `landing-${String(copyCount)}.ts`);
+  writeFileSync(file, text);
+  return (await import(/* @vite-ignore */ file)) as Landing;
+}
+
+/** The floors, with literal numbers. Answers the constants that are under theirs. */
+function floorFindings(m: Pick<Landing, 'QUIET_MS' | 'SETTLE_MS' | 'POLL_MS'>): string[] {
+  const under: string[] = [];
+  if (!(Number.isFinite(m.QUIET_MS) && m.QUIET_MS >= 100)) under.push('QUIET_MS');
+  if (!(Number.isFinite(m.POLL_MS) && m.POLL_MS >= 1)) under.push('POLL_MS');
+  if (!(Number.isFinite(m.SETTLE_MS) && m.SETTLE_MS > m.POLL_MS)) under.push('SETTLE_MS');
+  return under;
+}
+
+describe('the wait’s timing constants keep their floors (Phase 362, D7)', () => {
+  it('QUIET_MS is at least 100 ms, POLL_MS at least 1 ms, and SETTLE_MS longer than POLL_MS', () => {
+    // Round A's W0 put the worst landing of 720 flushes at 27 ms, so a quiet
+    // window of 100 ms is more than three times it; a settle no longer than a
+    // poll cannot see the log stand still between two reads.
+    expect(QUIET_MS).toBeGreaterThanOrEqual(100);
+    expect(POLL_MS).toBeGreaterThanOrEqual(1);
+    expect(SETTLE_MS).toBeGreaterThan(POLL_MS);
+    expect(floorFindings({ QUIET_MS, SETTLE_MS, POLL_MS })).toEqual([]);
+  });
+
+  it('each floor reads red on a copy of the module with that constant cut', async () => {
+    // SETTLE_MS is cut to POLL_MS's own value, written as a number: POLL_MS is
+    // declared below it, so naming it there would not evaluate.
+    const shipped = { QUIET_MS, SETTLE_MS, POLL_MS } as const;
+    const cuts: readonly (readonly [keyof typeof shipped, string])[] = [
+      ['QUIET_MS', '0'],
+      ['SETTLE_MS', '0'],
+      ['SETTLE_MS', String(POLL_MS)],
+      ['POLL_MS', '0']
+    ];
+    for (const [name, to] of cuts) {
+      const declares = `export const ${name} = `;
+      const copy = await landingCopy([[`${declares}${String(shipped[name])};`, `${declares}${to};`]]);
+      expect(floorFindings(copy), `${name} = ${to}`).toEqual([name]);
+    }
+  });
+});
+
+/** What a stood-in `readdir` has done. */
+interface Reads {
+  /** Listings answered (a read that never answers is not counted). */
+  answered: number;
+  /** Every read from now on never answers. */
+  stalled: boolean;
+}
+
+/**
+ * Stands in for `readdir` (the shared `fs.promises` object the module reads
+ * through), answering from the real one. Right after the first listing is
+ * taken, and before it is answered, it runs `afterFirstRead`, so a file that
+ * writes is not in the first read whatever the machine's load. Once a listing
+ * names a file `stallOnceListed` matches, every later read never answers: the
+ * watch is then held inside a read, so only the bound's own timer can answer.
+ */
+function standInReads(stallOnceListed: RegExp | null = null, afterFirstRead: (() => void) | null = null): Reads {
+  const reads: Reads = { answered: 0, stalled: false };
+  const real = fsp.readdir.bind(fsp) as (dir: string) => Promise<string[]>;
+  vi.spyOn(fsp, 'readdir').mockImplementation((async (dir: string) => {
+    if (reads.stalled) return new Promise<string[]>(() => undefined);
+    const names = await real(dir);
+    reads.answered += 1;
+    if (reads.answered === 1) afterFirstRead?.();
+    if (stallOnceListed !== null && names.some((n) => stallOnceListed.test(n))) reads.stalled = true;
+    return names;
+  }) as never);
+  return reads;
+}
+
+/**
+ * Waits over a scratch folder whose first read finds `before` (no log when
+ * null) and which `write` changes right after that read. Answers the wait and
+ * the reads.
+ */
+async function firstReadThen(
+  m: Landing,
+  boundMs: number,
+  write: (dir: string) => void,
+  opts: { before?: ((dir: string) => void) | null; stallOnceListed?: RegExp | null } = {}
+): Promise<{ wait: StorageWait; reads: Reads }> {
+  const p = profile();
+  opts.before?.(p.dir);
+  const reads = standInReads(opts.stallOnceListed ?? null, () => {
+    write(p.dir);
+  });
+  const wait = await m.storageWritten(p.storagePath, boundMs);
+  expect(reads.answered).toBeGreaterThanOrEqual(1);
+  return { wait, reads };
+}
+
+const writeWhole = (dir: string): void => {
+  writeLog(join(dir, '000003.log'), 2);
+};
+const writeTorn = (dir: string): void => {
+  const file = join(dir, '000003.log');
+  const len = writeLog(file, 2);
+  appendFileSync(file, recordBytes(len, Buffer.alloc(86, 4)).subarray(0, 7));
+};
+/** A newer log beside 000003: the commit that rotated it. */
+const writeNewer = (dir: string): void => {
+  writeLog(join(dir, '000004.log'), 1);
+};
+const ANY_LOG = /^\d+\.log$/;
+const NEWER_LOG = /^000004\.log$/;
+
+/** The parent's two answers, put back into a copy (D10's ablations). */
+const ABSENT_CLAUSE_DROPPED: readonly (readonly [string, string])[] = [['seen.firstAbsent === true || ', '']];
+const TIMER_SAYS_FALSE: readonly (readonly [string, string])[] = [
+  ['waitedMs: performance.now() - started, moved: movedOf(seen)', 'waitedMs: performance.now() - started, moved: false']
+];
+
+describe('moved: a log that first appears during the wait is a commit that landed (Phase 362, D10)', () => {
+  it('settled: a log absent at the first read and written whole mid-wait answers moved', async () => {
+    const { wait } = await firstReadThen(await import('../storage-landing'), 2_000, writeWhole);
+    expect(wait.landing).toBe('settled');
+    expect(wait.moved).toBe(true);
+  });
+
+  it('bound: a log absent at the first read and written torn, never finished, answers moved at the bound', async () => {
+    const { wait } = await firstReadThen(await import('../storage-landing'), 400, writeTorn);
+    expect(wait.landing).toBe('bound');
+    expect(wait.moved).toBe(true);
+    expect(wait.waitedMs).toBeGreaterThanOrEqual(395);
+  });
+
+  it('the bound’s own answer carries what the watch saw: the log appeared, then no read answered', async () => {
+    const { wait, reads } = await firstReadThen(await import('../storage-landing'), 400, writeWhole, {
+      stallOnceListed: ANY_LOG
+    });
+    // The watch was held inside a read when the bound came, so this answer is the timer's.
+    expect(reads.stalled).toBe(true);
+    expect(wait.landing).toBe('bound');
+    expect(wait.moved).toBe(true);
+    expect(wait.waitedMs).toBeGreaterThanOrEqual(395);
+  });
+
+  it('the bound’s own answer carries a change too: a newer log seen, then no read answered', async () => {
+    const { wait, reads } = await firstReadThen(await import('../storage-landing'), 400, writeNewer, {
+      before: writeWhole,
+      stallOnceListed: NEWER_LOG
+    });
+    expect(reads.stalled).toBe(true);
+    expect(wait.landing).toBe('bound');
+    expect(wait.moved).toBe(true);
+  });
+
+  it('controls: a log that never moves, no log at all, and no storage path answer not moved on every answer', async () => {
+    // The timer's answer over a log that stood still: the first read saw it, then no read answered.
+    const reads = standInReads(ANY_LOG);
+    const p = profile();
+    writeLog(join(p.dir, '000003.log'), 2);
+    const timed = await storageWritten(p.storagePath, 300);
+    expect(reads.stalled).toBe(true);
+    expect(timed).toMatchObject({ landing: 'bound', moved: false });
+    vi.restoreAllMocks();
+    // The settled answer over a log that stood still, and the bound over none.
+    expect(await storageWritten(p.storagePath, 1_000)).toMatchObject({ landing: 'settled', moved: false });
+    const empty = profile();
+    expect(await storageWritten(empty.storagePath, 250)).toMatchObject({ landing: 'bound', moved: false });
+    expect(await storageWritten(null, 250)).toMatchObject({ landing: 'bound', moved: false });
+  });
+
+  it('a copy with the first read’s absence forgotten answers the old not moved, on the settled answer and at the bound', async () => {
+    const copy = await landingCopy(ABSENT_CLAUSE_DROPPED);
+    expect((await firstReadThen(copy, 2_000, writeWhole)).wait).toMatchObject({ landing: 'settled', moved: false });
+    vi.restoreAllMocks();
+    expect((await firstReadThen(copy, 400, writeTorn)).wait).toMatchObject({ landing: 'bound', moved: false });
+  });
+
+  it('a copy whose timer says moved false again answers the old not moved for a change the watch saw', async () => {
+    const copy = await landingCopy(TIMER_SAYS_FALSE);
+    const { wait, reads } = await firstReadThen(copy, 400, writeNewer, { before: writeWhole, stallOnceListed: NEWER_LOG });
+    expect(reads.stalled).toBe(true);
+    expect(wait).toMatchObject({ landing: 'bound', moved: false });
   });
 });

@@ -1,0 +1,78 @@
+{
+ "source": "constructed by the fix round (lens 1's nit: a copy counted as kept by its body's NAME alone): eight shells, each with one app-quit record after the press and its body in the folder. Every record names its body's own size and sha256, so eight of eight are usable copies.",
+ "press": {
+  "how": "bridge",
+  "at": 1794300060000,
+  "ok": true
+ },
+ "liveIds": [
+  "sh-00",
+  "sh-01",
+  "sh-02",
+  "sh-03",
+  "sh-04",
+  "sh-05",
+  "sh-06",
+  "sh-07"
+ ],
+ "snapshots": {
+  "names": [
+   "sh-00.txt.000001",
+   "sh-00.capsules.json",
+   "sh-01.txt.000001",
+   "sh-01.capsules.json",
+   "sh-02.txt.000001",
+   "sh-02.capsules.json",
+   "sh-03.txt.000001",
+   "sh-03.capsules.json",
+   "sh-04.txt.000001",
+   "sh-04.capsules.json",
+   "sh-05.txt.000001",
+   "sh-05.capsules.json",
+   "sh-06.txt.000001",
+   "sh-06.capsules.json",
+   "sh-07.txt.000001",
+   "sh-07.capsules.json"
+  ],
+  "records": {
+   "sh-00": "{\"capsules\":[{\"generation\":1,\"reason\":\"app-quit\",\"path\":\"/s/sh-00.txt.000001\",\"capturedAt\":1794300061500,\"bytes\":83,\"sha256\":\"542186625d2f25fa9c637b3774a848e6cdf17dac239a95438632f9d7d77a9e38\"}]}",
+   "sh-01": "{\"capsules\":[{\"generation\":1,\"reason\":\"app-quit\",\"path\":\"/s/sh-01.txt.000001\",\"capturedAt\":1794300061501,\"bytes\":83,\"sha256\":\"91786c05a5def3878dbccdb86af547bc056ca35385630881a70e7ba3c15e2b2e\"}]}",
+   "sh-02": "{\"capsules\":[{\"generation\":1,\"reason\":\"app-quit\",\"path\":\"/s/sh-02.txt.000001\",\"capturedAt\":1794300061502,\"bytes\":83,\"sha256\":\"da346383cca85148df75cc279d579bea81c7d8cbd68c4c929783f831b53e12c7\"}]}",
+   "sh-03": "{\"capsules\":[{\"generation\":1,\"reason\":\"app-quit\",\"path\":\"/s/sh-03.txt.000001\",\"capturedAt\":1794300061503,\"bytes\":83,\"sha256\":\"df12200a741c2a77aa07151ba782465d0a59f2c6222a6deb6eb4e84191706966\"}]}",
+   "sh-04": "{\"capsules\":[{\"generation\":1,\"reason\":\"app-quit\",\"path\":\"/s/sh-04.txt.000001\",\"capturedAt\":1794300061504,\"bytes\":83,\"sha256\":\"b86589bccba643f903a70ef7c8a0509c3c9a1e0136b087776ffb666c6730d1a3\"}]}",
+   "sh-05": "{\"capsules\":[{\"generation\":1,\"reason\":\"app-quit\",\"path\":\"/s/sh-05.txt.000001\",\"capturedAt\":1794300061505,\"bytes\":83,\"sha256\":\"b8847ec76042202f8200366e6a5d6209d252078160c08ae5f7cc876ab7baac65\"}]}",
+   "sh-06": "{\"capsules\":[{\"generation\":1,\"reason\":\"app-quit\",\"path\":\"/s/sh-06.txt.000001\",\"capturedAt\":1794300061506,\"bytes\":83,\"sha256\":\"f30aebcf504736c37ada7979f78e8781fa4650ecf19e1a3f0ee4eed24094926c\"}]}",
+   "sh-07": "{\"capsules\":[{\"generation\":1,\"reason\":\"app-quit\",\"path\":\"/s/sh-07.txt.000001\",\"capturedAt\":1794300061507,\"bytes\":83,\"sha256\":\"ec6811a305fb1de10d46a628a2cee2b60a757c8520d93b3f00b5a721a8582de9\"}]}"
+  },
+  "mtimes": {
+   "sh-00.txt.000001": 1794300061500,
+   "sh-01.txt.000001": 1794300061501,
+   "sh-02.txt.000001": 1794300061502,
+   "sh-03.txt.000001": 1794300061503,
+   "sh-04.txt.000001": 1794300061504,
+   "sh-05.txt.000001": 1794300061505,
+   "sh-06.txt.000001": 1794300061506,
+   "sh-07.txt.000001": 1794300061507
+  },
+  "sizes": {
+   "sh-00.txt.000001": 83,
+   "sh-01.txt.000001": 83,
+   "sh-02.txt.000001": 83,
+   "sh-03.txt.000001": 83,
+   "sh-04.txt.000001": 83,
+   "sh-05.txt.000001": 83,
+   "sh-06.txt.000001": 83,
+   "sh-07.txt.000001": 83
+  },
+  "sha256": {
+   "sh-00.txt.000001": "542186625d2f25fa9c637b3774a848e6cdf17dac239a95438632f9d7d77a9e38",
+   "sh-01.txt.000001": "91786c05a5def3878dbccdb86af547bc056ca35385630881a70e7ba3c15e2b2e",
+   "sh-02.txt.000001": "da346383cca85148df75cc279d579bea81c7d8cbd68c4c929783f831b53e12c7",
+   "sh-03.txt.000001": "df12200a741c2a77aa07151ba782465d0a59f2c6222a6deb6eb4e84191706966",
+   "sh-04.txt.000001": "b86589bccba643f903a70ef7c8a0509c3c9a1e0136b087776ffb666c6730d1a3",
+   "sh-05.txt.000001": "b8847ec76042202f8200366e6a5d6209d252078160c08ae5f7cc876ab7baac65",
+   "sh-06.txt.000001": "f30aebcf504736c37ada7979f78e8781fa4650ecf19e1a3f0ee4eed24094926c",
+   "sh-07.txt.000001": "ec6811a305fb1de10d46a628a2cee2b60a757c8520d93b3f00b5a721a8582de9"
+  }
+ }
+}

@@ -42,3 +42,8 @@ docs/arch/
 # committed .xcodeproj and its shared scheme are the source of truth.
 ios/**/xcuserdata/
 ios/**/*.xcuserstate
+
+# Phase 362: probe:p362's recorded raw fixtures keep the app's own log under its
+# own name, and its grader self-test reads each one. `*.log` above would leave
+# them out of a plain `git add`, and the committed self-test would then fail.
+!build/p362/fixtures/raw/*/app.log

@@ -1,0 +1,13 @@
+{
+ "source": "constructed: a HEAD teardown quit (GMUX_SMOKE=quit-teardown) ended by the recorder with exit 139 at quit after writing the stand-in dump, then a relaunch; the spec step could not record one, because D4 (the marked sentinel and the record that carries quitAt) is new in this phase. The record's shape is D4's (build/p362/SPEC.md §1.1) and src/main/log/index.ts's boot.unclean_exit.",
+ "shim": {
+  "text": "",
+  "code": 139
+ },
+ "standin": "p362-standin.dmp",
+ "dumpsBefore": [],
+ "dumpsAfter": [
+  "pending/p362-standin.dmp"
+ ],
+ "sentinelAfter": "{\"pid\":70001,\"version\":\"0.114.1\",\"bootTs\":\"2026-11-09T02:03:12.276Z\",\"dumpNames\":[],\"quitAt\":\"2026-11-09T02:03:16.326Z\"}"
+}

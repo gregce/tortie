@@ -1,0 +1,6 @@
+{"ts":"2026-11-10T08:40:00.200Z","level":"info","scope":"boot","pid":51036,"proctype":"main","msg":"cache policy: chromium-default"}
+{"ts":"2026-11-10T08:40:00.260Z","level":"info","scope":"tmux","pid":51036,"proctype":"main","msg":"tmux server created, running 3.7b"}
+{"ts":"2026-11-10T08:41:00.144Z","level":"info","scope":"sessions","pid":51036,"proctype":"main","msg":"scrollback pass (app-quit) over 15 sessions: 3 written, 0 had nothing on screen, 12 were not running, 0 had no pane on this Mac, 0 could not be written."}
+{"ts":"2026-11-10T08:41:00.174Z","level":"info","scope":"manifest","pid":51036,"proctype":"main","msg":"the session list connection is left open at quit, so no close walks its cache"}
+{"ts":"2026-11-10T08:41:20.000Z","level":"info","scope":"boot","pid":51043,"proctype":"main","msg":"cache policy: chromium-default"}
+{"ts":"2026-11-10T08:41:23.000Z","level":"info","scope":"sessions","pid":51043,"proctype":"main","msg":"scrollback pass (app-quit) over 15 sessions: 3 written, 0 had nothing on screen, 12 were not running, 0 had no pane on this Mac, 0 could not be written."}

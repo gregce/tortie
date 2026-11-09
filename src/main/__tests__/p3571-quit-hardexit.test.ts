@@ -594,8 +594,10 @@ describe('the will-quit hard exit (D2, D6)', () => {
   it('with nothing held (no session list was ever open), the quit proceeds as before', async () => {
     const kill = stubKill();
     h.held = 0;
-    // Also the menu's 3 s fallback quit that reaches will-quit before the
-    // core's dispose: nothing is held yet, so it ends as today (Phase 362).
+    // Also a quit whose disposer threw before the core's dispose: nothing is
+    // held, so it ends through Node's teardown. Since Phase 362 the menu's 3 s
+    // fallback no longer quits once a quit has begun, so a long menu quit
+    // reaches the dispose and the exit above (p362-quit-fallback.test.ts).
     willQuit();
     await new Promise((r) => setTimeout(r, 20));
     expect(h.order).toEqual([]);

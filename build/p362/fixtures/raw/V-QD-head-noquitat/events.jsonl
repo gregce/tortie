@@ -1,0 +1,11 @@
+{"t":1794300000100,"ev":"loaded","pid":62517}
+{"t":1794300000101,"ev":"tray-wrap","ok":true}
+{"t":1794300000102,"ev":"hooked"}
+{"t":1794300001500,"ev":"app.quit","from":"other"}
+{"t":1794300001500,"ev":"before-quit","pass":1,"windows":[]}
+{"t":1794300001501,"ev":"after-first-pass","windows":[]}
+{"t":1794300001520,"ev":"app.quit","from":"other"}
+{"t":1794300001520,"ev":"before-quit","pass":2,"windows":[]}
+{"t":1794300001529,"ev":"will-quit","windows":[],"sentinel":true,"quitAt":null}
+{"t":1794300001531,"ev":"quit","sentinel":true,"quitAt":"2026-11-10T08:40:01.529Z"}
+{"t":1794300001532,"ev":"crash-now","wrote":true,"dump":"/v/V-QD-head-noquitat/profile/Crashpad/pending/p362-standin.dmp"}

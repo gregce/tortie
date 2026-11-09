@@ -1,0 +1,9 @@
+{"t":1794189792326,"ev":"loaded","pid":70001}
+{"t":1794189792327,"ev":"hooked"}
+{"t":1794189796296,"ev":"app.quit","from":"other"}
+{"t":1794189796296,"ev":"before-quit","pass":1,"windows":[]}
+{"t":1794189796316,"ev":"app.quit","from":"other"}
+{"t":1794189796316,"ev":"before-quit","pass":2,"windows":[]}
+{"t":1794189796325,"ev":"will-quit","windows":[],"sentinel":true,"quitAt":null}
+{"t":1794189796327,"ev":"quit","sentinel":true,"quitAt":"2026-11-09T02:03:16.326Z"}
+{"t":1794189796328,"ev":"crash-now","wrote":true,"dump":"/scratch/HQD/profile/Crashpad/pending/p362-standin.dmp"}

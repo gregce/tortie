@@ -1,0 +1,15 @@
+{"t":1794189953105,"ev":"cr-patch-failed","error":"Cannot find module 'electron'\nRequire stack:\n- /private/var/tmp/tortie-wt/scratch/p362/spec/tmp/gmux-p362s-parent-54938/p362s/PS/quit-recorder.cjs\n- internal/preload"}
+{"t":1794189953106,"ev":"loaded","pid":62933}
+{"t":1794189961825,"ev":"settings-moved","bounds":{"x":233,"y":141,"width":802,"height":611}}
+{"t":1794189962914,"ev":"menu-quit","ok":true,"label":"Quit Tortie","target":"settings","windows":2}
+{"t":1794189965920,"ev":"app.quit","from":"timer"}
+{"t":1794189965920,"ev":"before-quit","pass":1}
+{"t":1794189966208,"ev":"dispose"}
+{"t":1794189966208,"ev":"dispose"}
+{"t":1794189966210,"ev":"app.quit","from":"other"}
+{"t":1794189966211,"ev":"before-quit","pass":2}
+{"t":1794189966211,"ev":"window-close","id":2,"kind":"settings"}
+{"t":1794189966314,"ev":"window-close","id":1,"kind":"main"}
+{"t":1794189966418,"ev":"window-closed","id":2,"kind":"settings"}
+{"t":1794189966422,"ev":"window-closed","id":1,"kind":"main"}
+{"t":1794189966423,"ev":"will-quit","sentinel":true}

@@ -1,0 +1,11 @@
+{
+ "source": "constructed: a HEAD teardown quit (GMUX_SMOKE=quit-teardown) that exits 0, then a relaunch; the spec step could not record one, because D4 (the marked sentinel and the record that carries quitAt) is new in this phase. The record's shape is D4's (build/p362/SPEC.md §1.1) and src/main/log/index.ts's boot.unclean_exit.",
+ "shim": {
+  "text": "[gmux-smoke] 4/4 calling the REAL app.quit()\n",
+  "code": 0
+ },
+ "standin": "p362-standin.dmp",
+ "dumpsBefore": [],
+ "dumpsAfter": [],
+ "sentinelAfter": "{\"pid\":70001,\"version\":\"0.114.1\",\"bootTs\":\"2026-11-09T02:03:12.276Z\",\"dumpNames\":[],\"quitAt\":\"2026-11-09T02:03:16.326Z\"}"
+}

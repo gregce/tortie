@@ -1,0 +1,7 @@
+{"ts":"2026-11-10T08:40:00.200Z","level":"info","scope":"boot","pid":63905,"proctype":"main","msg":"cache policy: chromium-default"}
+{"ts":"2026-11-10T08:40:01.100Z","level":"info","scope":"smoke","pid":63905,"proctype":"main","msg":"1/4 core not booted: no session list connection is opened in this launch"}
+{"ts":"2026-11-10T08:40:14.000Z","level":"info","scope":"boot","pid":63914,"proctype":"main","msg":"cache policy: chromium-default"}
+{"ts":"2026-11-10T08:40:14.010Z","level":"warn","scope":"boot","pid":63914,"proctype":"main","event":"boot.unclean_exit","msg":"previous run did not exit cleanly","prev":{"pid":63905,"version":"0.114.1","bootTs":"2026-11-10T08:40:00.200Z","quitAt":"2026-11-10T08:40:01.529Z"},"dumps":{"newCount":1,"names":["p362-standin.dmp"],"bytes":4096}}
+{"ts":"2026-11-10T08:40:14.011Z","level":"warn","scope":"notice","pid":63914,"proctype":"main","event":"notice.shown","msg":"notice shown: unclean-exit","notice":"unclean-exit","newDumps":1}
+{"ts":"2026-11-10T08:40:14.012Z","level":"warn","scope":"notice","pid":63914,"proctype":"main","event":"notice.shown","msg":"notice shown: unclean-exit","notice":"unclean-exit","newDumps":1}
+{"ts":"2026-11-10T08:40:14.500Z","level":"info","scope":"quit","pid":63914,"proctype":"main","msg":"the remembered settings were on disk after 151 ms; ending the quit","landing":"settled","waitedMs":151,"moved":false}

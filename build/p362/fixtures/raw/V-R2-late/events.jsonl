@@ -1,0 +1,24 @@
+{"t":1794300000100,"ev":"loaded","pid":51732}
+{"t":1794300000101,"ev":"tray-wrap","ok":true}
+{"t":1794300000102,"ev":"hooked"}
+{"t":1794300000900,"ev":"ipc-wrapped","channel":"app:quit"}
+{"t":1794300000901,"ev":"ipc-wrapped","channel":"app:relaunch"}
+{"t":1794300000950,"ev":"window-created","id":1}
+{"t":1794300001300,"ev":"window-kind","id":1,"kind":"main"}
+{"t":1794300001400,"ev":"tray-menu","items":["Open Tortie","Sessions","Settings…","Quit Tortie"]}
+{"t":1794300051000,"ev":"window-created","id":2}
+{"t":1794300051400,"ev":"window-kind","id":2,"kind":"settings"}
+{"t":1794300053000,"ev":"settings-moved","bounds":{"x":233,"y":141,"width":802,"height":611}}
+{"t":1794300053100,"ev":"window-close","id":2,"kind":"settings"}
+{"t":1794300053110,"ev":"window-closed","id":2,"kind":"settings"}
+{"t":1794300053110,"ev":"settings-closed"}
+{"t":1794300060002,"ev":"app.quit","from":"ipc"}
+{"t":1794300060002,"ev":"before-quit","pass":1,"windows":[{"id":1,"kind":"main","visible":true,"minimized":false}]}
+{"t":1794300060003,"ev":"after-first-pass","windows":[{"id":1,"kind":"main","visible":true,"minimized":false}]}
+{"t":1794300060334,"ev":"dispose"}
+{"t":1794300060334,"ev":"dispose"}
+{"t":1794300060336,"ev":"app.quit","from":"other"}
+{"t":1794300060336,"ev":"before-quit","pass":2,"windows":[{"id":1,"kind":"main","visible":true,"minimized":false}]}
+{"t":1794300060337,"ev":"window-close","id":1,"kind":"main"}
+{"t":1794300060441,"ev":"window-closed","id":1,"kind":"main"}
+{"t":1794300060441,"ev":"will-quit","windows":[],"sentinel":true,"quitAt":null}

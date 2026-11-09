@@ -55,14 +55,14 @@
  * skips teardown, and the relaunch keeps every session, the localStorage keys
  * and the Settings bounds with no unclean-exit notice.
  *
- * THE MENU'S 3 S FALLBACK QUIT IS TODAY'S (357.1's drop round). Every arm here
- * quits through the core's dispose, which holds the connection. A menu quit so
- * long (his live-session count with their scrollback) that requestQuit()'s 3 s
- * fallback app.quit() (src/main/menu.ts) reaches will-quit before that dispose
- * holds nothing, so it ends through Node's teardown at both builds, the crash
- * state included, exactly as today. That path is Phase 362's: the landing
- * round's CM arms, which drove it, are kept with that phase's patch, and no arm
- * here drives it.
+ * THE MENU'S 3 S FALLBACK QUITS ONLY WHEN NO QUIT HAS BEGUN (Phase 362). Every
+ * arm here quits through the core's dispose, which holds the connection. Since
+ * Phase 362, requestQuit()'s 3 s fallback app.quit() (src/main/menu.ts) no
+ * longer cuts a quit that has begun, so a long menu quit (his live-session
+ * count with their scrollback) runs its disposer to that dispose and ends by the
+ * same will-quit hard exit. The long-quit and crash-state menu arms live in
+ * probe:p362 (build/p362/probe-p362.mjs, its CM arms F1's, ported), and no arm
+ * here drives them.
  *
  * THE PROBE REVIEW (2026-11-06, docs/method/HOW-WE-BUILT-THIS.md rule 9), by
  * someone who did not write it. PA describes THIS run's parent, 357 as landed

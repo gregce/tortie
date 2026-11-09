@@ -834,10 +834,21 @@ app.on('before-quit', (event) => {
   markAppQuitting();
   event.preventDefault();
   void (async () => {
+    // PHASE 362 (build/p362/SPEC.md D2). A begun quit always ends on its own.
+    // The menu's 3 s fallback no longer quits once a quit has begun
+    // (src/main/menu.ts), and it was the one thing that ended a menu quit
+    // whose disposer threw, so a throw here is one log line, never a quit left
+    // running with its window up. Only the error's name is written.
+    let outcome: MainDisposeOutcome = 'proceed';
+    try {
+      outcome = await disposeCapabilities();
+    } catch (err) {
+      const name = err instanceof Error ? err.name : typeof err;
+      getLog('quit').warn('the ordered teardown threw before it finished; quitting anyway', { name });
+    }
     // 'killed' means a wedged watcher close forced SIGKILL to self inside
     // the disposer; nothing after that call runs, and calling app.quit()
     // here would only re-enter the teardown the disposer refused to trust.
-    const outcome = await disposeCapabilities();
     if (outcome === 'killed') return;
     app.quit();
   })();
@@ -876,15 +887,18 @@ const STORAGE_WRITE_WAIT_MS = 1_000;
 // wrote), and the exit waits, at most STORAGE_WRITE_WAIT_MS, until the storage
 // log on disk stands whole and still. Whatever the flush or the wait does, the
 // sentinel is cleared and the signal sent, in the `finally` (the landing
-// round's F3). Nothing can open a window while it waits (`showAppWindow`).
+// round's F3). Nothing can open a window while it waits (`showAppWindow`, and
+// since Phase 362 `openSettingsWindow` in src/main/settings/window.ts).
 //
 // WHAT IT COVERS. A held connection: every quit whose disposer reached the
 // core's dispose, which holds it, and a store stopped with its file fine
 // (Phase 357). Two quits proceed as before: one with an update staged, so
-// Squirrel's install on quit is untouched (D6), and one with nothing held, a
-// menu quit long enough for its 3 s fallback `app.quit()` (src/main/menu.ts)
-// to reach this event before that dispose among them, which ends as today,
-// through Node's teardown, and is queued as Phase 362.
+// Squirrel's install on quit is untouched (D6), and one with nothing held (a
+// quit before the session list opened, or one whose disposer threw before the
+// core's dispose), which ends through Node's teardown. Since Phase 362 the
+// menu's 3 s fallback `app.quit()` (src/main/menu.ts) no longer reaches this
+// event once a quit has begun, so a long menu quit runs its disposer to the
+// core's dispose and ends here like any other (build/p362/SPEC.md D1).
 app.on('will-quit', (event) => {
   if (manifestConnectionsLeftOpen() > 0 && !isUpdateStaged()) {
     event.preventDefault();

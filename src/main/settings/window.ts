@@ -15,6 +15,7 @@
 import { join } from 'node:path';
 import { app, BrowserWindow } from 'electron';
 import { applyTrustedWindowPolicy } from '../security/trusted-window';
+import { appLifecycleState } from '../lifecycle';
 import { followChromeHue, schemeArgsNow, windowBackgroundNow } from './chrome';
 import {
   getSettingsWindowBounds,
@@ -54,6 +55,12 @@ export function openSettingsWindow(section?: SettingsSectionLink): void {
     settingsWindow.focus();
     return;
   }
+  // PHASE 362 (build/p362/SPEC.md D9). Never open a window into a quitting
+  // app, as `showAppWindow()` in src/main/index.ts refuses the main window.
+  // The window stays up while a quit saves, and the Settings… row clicked in
+  // that time opened a Settings window the quit then closed. A Settings
+  // window that is still up is restored and focused above, as before.
+  if (appLifecycleState() === 'quitting') return;
 
   const remembered = getSettingsWindowBounds();
   const win = new BrowserWindow({

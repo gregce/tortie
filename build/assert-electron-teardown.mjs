@@ -602,12 +602,23 @@ const HELPER = 'electron-run.mjs';
  * named as its `tmuxSocket`, and reads the signal, the store's held line, the
  * run sentinel, Crashpad's dumps and macOS's reports (by name and time).
  *
+ * PHASE 362 RAISED IT FROM 185 TO 186, by one for build/p362/probe-p362.mjs
+ * (`probe:p362`), his long ⌘Q at the parent and at HEAD: Electrons through
+ * the helper ONE AT A TIME, the parent's (`P362_PARENT_CHECKOUT`, required)
+ * first in every pair, each arm on its own scratch profile, HOME and ZDOTDIR
+ * with HISTFILE=/dev/null and the socket gmux-p362…, the arm's app launch
+ * passing `tmuxSocket: null` so its scratch server outlives the quit and the
+ * relaunch finds the shells live, the relaunch naming that socket so its
+ * teardown ends the server and the census reads around it, every probed
+ * registry row hidden before every launch, and every busy loop and stand-in
+ * pid ended in its `finally`. It never calls app.relaunch().
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 185;
+const HELPER_USER_FLOOR = 186;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

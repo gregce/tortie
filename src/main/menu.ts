@@ -90,6 +90,9 @@ import type { MenuCodicon } from '@shared/menu-codicons';
 // rebuildAppMenu from this file — the barrel would close a require cycle.
 import { getSettings } from './settings/store';
 import { sendEvent } from './typed-events';
+// Phase 362: whether a quit has begun, which the Quit row's 3 s fallback asks
+// before it quits (requestQuit below).
+import { appLifecycleState } from './lifecycle';
 import {
   closeSettingsWindowIfFocused,
   isSettingsWindow,
@@ -236,17 +239,31 @@ export function openFolderOnMachine(id: string): boolean {
  *
  * Exported for the Phase 12.85 status item: Quit means the same thing from
  * the menu bar as it does from ⌘Q, toast and all.
+ *
+ * PHASE 362 (build/p362/SPEC.md D1, D3). The event goes to the window every
+ * menu action goes to, `menuActionTarget()`: the main window whichever window
+ * has focus, because the Settings page does not listen for it, so ⌘Q with
+ * Settings in front used to wait out the fallback with no toast. With no main
+ * window the quit starts at once. And the fallback quits only a quit that has
+ * not begun. What it keeps: a renderer that never answers, or an older preload,
+ * still quits at 3 s. What it gives up: a second ⌘Q no longer cuts a quit that
+ * is saving. That cut was the defect: the renderer's quit had already begun
+ * the ordered teardown, the fallback's `app.quit()` was its second pass, and
+ * the windows closed before the snapshot pass, the quit generation and the
+ * core's dispose ran (with 64 busy sessions, 15 of 64 history copies kept on a
+ * quiet Mac and none under load, and no generation: the spec's §2.1). A begun
+ * quit now ends by its own bounds.
  */
 export function requestQuit(): void {
-  const win =
-    BrowserWindow.getFocusedWindow() ??
-    BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
-  if (!win) {
+  const win = menuActionTarget();
+  if (win === null) {
     app.quit();
     return;
   }
   sendEvent(win.webContents, EVT_QUIT_REQUESTED);
-  setTimeout(() => app.quit(), 3_000);
+  setTimeout(() => {
+    if (appLifecycleState() !== 'quitting') app.quit();
+  }, 3_000);
 }
 
 /**

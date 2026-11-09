@@ -43,6 +43,7 @@ import {
 import { pruneOldLogFiles } from './prune';
 import {
   clearRunSentinel,
+  markRunSentinelAtQuit,
   readRunSentinel,
   writeRunSentinel
 } from './sentinel';
@@ -256,14 +257,44 @@ export function writeRendererLine(
 // ---------------------------------------------------------------------------
 
 /**
- * Clear the run sentinel so this exit reads as a quit, not a crash. Called
- * from will-quit, and by the capabilities disposer immediately before its
- * SIGKILL-to-self escape — Phase 36 proved nothing durable is pending at
- * that line, so the sentinel removal is truthful there.
+ * Clear the run sentinel so this exit reads as a quit, not a crash. Exactly
+ * two callers, each the statement right before a SIGKILL to self, which
+ * skips Node's teardown and leaves no dump: the will-quit hard exit's
+ * `finally` in src/main/index.ts (Phase 357.1), and the capabilities
+ * disposer's Phase 36 escape, where Phase 36 proved nothing durable is
+ * pending, so the removal is truthful at both.
+ *
+ * The log's own will-quit listener no longer calls it (Phase 362, D4). Two
+ * quits run Node's teardown after will-quit, and a sentinel cleared there
+ * made a crash in that teardown invisible to the next launch, so the
+ * listener marks the sentinel instead (markLogRunSentinelAtQuit below).
  */
 export function clearLogRunSentinel(): void {
   try {
     clearRunSentinel(getLogsDir());
+  } catch {
+    /* never throw into the quit path */
+  }
+}
+
+/**
+ * The log's own will-quit listener (Phase 362, D4): mark the run sentinel
+ * with this moment and the Crashpad inventory read here, so the next boot
+ * can tell a clean quit (no dump new since the mark) from a crash in the
+ * teardown that follows (a dump new since the mark). On a quit the hard exit
+ * ends, this mark is written and then cleared by that exit's `finally`,
+ * because index.ts's handler is registered first and reaches its first
+ * `await` before this listener runs. Never throws, like
+ * clearLogRunSentinel. Registered only by runLogBootSequence, so only when
+ * file logging armed a sentinel at all.
+ */
+function markLogRunSentinelAtQuit(): void {
+  try {
+    markRunSentinelAtQuit(
+      getLogsDir(),
+      scanCrashDumps(app.getPath('crashDumps')).map((d) => d.name),
+      new Date().toISOString()
+    );
   } catch {
     /* never throw into the quit path */
   }
@@ -285,7 +316,9 @@ export interface LogBootDeps {
  * The whenReady half of the crash story, in research 42 section 10's order:
  * read the sentinel, diff the Crashpad directories, write boot.unclean_exit
  * and post the one quiet notice, sweep the dumps, prune the logs directory,
- * write boot.env, then arm a fresh sentinel and its will-quit removal.
+ * write boot.env, then arm a fresh sentinel and its will-quit mark. Since
+ * Phase 362 a sentinel marked at will-quit with no dump new since the mark
+ * is a clean quit: no record and no notice.
  *
  * SYNCHRONOUS on purpose, every step except the last. The notice must be
  * posted before the window exists, so the renderer either drains it from
@@ -303,8 +336,9 @@ export interface LogBootDeps {
  * The sentinel therefore survives, and the next boot of that same profile
  * reports an unclean exit that never happened. Give each probe a fresh
  * --user-data-dir, or delete run.json between boots. No shipped build can
- * reach this, because a packaged run quits through will-quit and a harness
- * run is never packaged.
+ * reach this, because a packaged run quits through will-quit, which marks
+ * the sentinel or ends the process after clearing it, and a harness run is
+ * never packaged.
  */
 export function runLogBootSequence(deps: LogBootDeps): void {
   if (!fileOn || !initialized) return;
@@ -312,7 +346,8 @@ export function runLogBootSequence(deps: LogBootDeps): void {
     const logsDir = getLogsDir();
     const crashpadDir = app.getPath('crashDumps');
 
-    // a. The sentinel: present means the previous run did not exit cleanly.
+    // a. The sentinel: present means the previous run did not exit cleanly,
+    // unless its will-quit marked it and nothing crashed after (below).
     const prev = readRunSentinel(logsDir);
 
     // b. The dump inventory, diffed against what that run had already seen.
@@ -320,24 +355,36 @@ export function runLogBootSequence(deps: LogBootDeps): void {
     if (prev !== null) {
       const seen = new Set(prev.dumpNames);
       const fresh = dumps.filter((d) => !seen.has(d.name));
-      // c. The record.
-      logEvent(
-        'boot',
-        'warn',
-        'boot.unclean_exit',
-        'previous run did not exit cleanly',
-        {
-          prev: { pid: prev.pid, version: prev.version, bootTs: prev.bootTs },
-          dumps: {
-            newCount: fresh.length,
-            names: fresh.map((d) => d.name),
-            bytes: fresh.reduce((sum, d) => sum + d.bytes, 0)
+      // PHASE 362 (D4). A sentinel marked at will-quit carries the inventory
+      // of that moment, so a dump new since the mark is a crash in the
+      // teardown that followed and reads as any crash does. With none, that
+      // run quit: no record and no notice. An unmarked sentinel is today's.
+      const teardownClean = prev.quitAt !== undefined && fresh.length === 0;
+      if (!teardownClean) {
+        // c. The record.
+        logEvent(
+          'boot',
+          'warn',
+          'boot.unclean_exit',
+          'previous run did not exit cleanly',
+          {
+            prev: {
+              pid: prev.pid,
+              version: prev.version,
+              bootTs: prev.bootTs,
+              ...(prev.quitAt !== undefined ? { quitAt: prev.quitAt } : {})
+            },
+            dumps: {
+              newCount: fresh.length,
+              names: fresh.map((d) => d.name),
+              bytes: fresh.reduce((sum, d) => sum + d.bytes, 0)
+            }
           }
-        }
-      );
-      // d. The one quiet line above the surface. The latch in src/main/notice
-      // keeps it at one per run.
-      deps.postNotice({ kind: 'unclean-exit', newDumps: fresh.length });
+        );
+        // d. The one quiet line above the surface. The latch in
+        // src/main/notice keeps it at one per run.
+        deps.postNotice({ kind: 'unclean-exit', newDumps: fresh.length });
+      }
     }
 
     // e. The dump sweep: newest 5, 30 days.
@@ -356,8 +403,10 @@ export function runLogBootSequence(deps: LogBootDeps): void {
       dumpNames: scanCrashDumps(crashpadDir).map((d) => d.name)
     });
 
-    // The clean-exit half: will-quit runs on every real quit.
-    app.on('will-quit', () => clearLogRunSentinel());
+    // The quit half: will-quit runs on every real quit, and marks the
+    // sentinel rather than clearing it (Phase 362, D4), so a crash in the
+    // Node teardown that can follow is still noticed at the next boot.
+    app.on('will-quit', () => markLogRunSentinelAtQuit());
 
     // h. The boot environment snapshot, detached because of its one spawn.
     void deps

@@ -10,6 +10,7 @@
  */
 
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -23,6 +24,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   clearRunSentinel,
+  markRunSentinelAtQuit,
   readRunSentinel,
   RUN_SENTINEL_NAME,
   writeRunSentinel
@@ -105,6 +107,124 @@ describe('the run sentinel lifecycle', () => {
     writeRunSentinel(dir, SENTINEL);
     const bytes = readFileSync(join(dir, RUN_SENTINEL_NAME), 'utf8').length;
     expect(bytes).toBeLessThan(8192);
+  });
+
+  it('reads an unmarked sentinel with no quitAt key at all, exactly as before Phase 362', () => {
+    writeRunSentinel(dir, SENTINEL);
+    const read = readRunSentinel(dir);
+    // toStrictEqual, not toEqual: a `quitAt: undefined` key would pass toEqual.
+    expect(read).toStrictEqual(SENTINEL);
+    expect(read !== null && 'quitAt' in read).toBe(false);
+  });
+});
+
+/**
+ * Phase 362 (build/p362/SPEC.md D4). The log's will-quit listener marks the
+ * sentinel instead of deleting it, so a crash in the Node teardown that two
+ * quits still run is noticed at the next boot. These hold the pure half.
+ */
+describe('the will-quit mark (Phase 362)', () => {
+  const QUIT_AT = '2026-11-08T21:30:00.123Z';
+
+  it('keeps quitAt when it is a string', () => {
+    writeFileSync(
+      join(dir, RUN_SENTINEL_NAME),
+      JSON.stringify({ ...SENTINEL, quitAt: QUIT_AT }),
+      'utf8'
+    );
+    expect(readRunSentinel(dir)).toStrictEqual({ ...SENTINEL, quitAt: QUIT_AT });
+  });
+
+  it('leaves quitAt off when it is not a string, so a damaged mark reads unmarked', () => {
+    for (const bad of [1793987027, null, true, { at: QUIT_AT }, [QUIT_AT]]) {
+      writeFileSync(
+        join(dir, RUN_SENTINEL_NAME),
+        JSON.stringify({ ...SENTINEL, quitAt: bad }),
+        'utf8'
+      );
+      expect(readRunSentinel(dir)).toStrictEqual(SENTINEL);
+    }
+  });
+
+  it('marks an existing sentinel with the time and the inventory it is handed, keeping the run', () => {
+    writeRunSentinel(dir, SENTINEL);
+    expect(markRunSentinelAtQuit(dir, ['7f3a.dmp', 'renderer.dmp'], QUIT_AT)).toBe(true);
+    expect(readRunSentinel(dir)).toStrictEqual({
+      pid: SENTINEL.pid,
+      version: SENTINEL.version,
+      bootTs: SENTINEL.bootTs,
+      dumpNames: ['7f3a.dmp', 'renderer.dmp'],
+      quitAt: QUIT_AT
+    });
+  });
+
+  it('REPLACES the inventory rather than adding to it, so a dump gone since boot is not kept', () => {
+    writeRunSentinel(dir, { ...SENTINEL, dumpNames: ['swept.dmp', 'kept.dmp'] });
+    markRunSentinelAtQuit(dir, ['kept.dmp'], QUIT_AT);
+    expect(readRunSentinel(dir)?.dumpNames).toEqual(['kept.dmp']);
+    markRunSentinelAtQuit(dir, [], QUIT_AT);
+    expect(readRunSentinel(dir)?.dumpNames).toEqual([]);
+  });
+
+  it('writes nothing and answers false when there is no sentinel', () => {
+    expect(markRunSentinelAtQuit(dir, ['x.dmp'], QUIT_AT)).toBe(false);
+    expect(existsSync(join(dir, RUN_SENTINEL_NAME))).toBe(false);
+    // Nor a directory: a run that armed nothing has nothing to mark.
+    const nested = join(dir, 'logs');
+    expect(markRunSentinelAtQuit(nested, ['x.dmp'], QUIT_AT)).toBe(false);
+    expect(existsSync(nested)).toBe(false);
+  });
+
+  it('writes nothing and answers false when the sentinel cannot be read', () => {
+    const path = join(dir, RUN_SENTINEL_NAME);
+    for (const damaged of ['not json at all', JSON.stringify({ pid: 'x' }), '']) {
+      writeFileSync(path, damaged, 'utf8');
+      expect(markRunSentinelAtQuit(dir, ['x.dmp'], QUIT_AT)).toBe(false);
+      expect(readFileSync(path, 'utf8')).toBe(damaged);
+    }
+  });
+
+  it('marks again on a second will-quit, the later mark winning', () => {
+    writeRunSentinel(dir, SENTINEL);
+    markRunSentinelAtQuit(dir, ['a.dmp'], QUIT_AT);
+    markRunSentinelAtQuit(dir, ['a.dmp', 'b.dmp'], '2026-11-08T21:30:01.000Z');
+    expect(readRunSentinel(dir)).toStrictEqual({
+      ...SENTINEL,
+      dumpNames: ['a.dmp', 'b.dmp'],
+      quitAt: '2026-11-08T21:30:01.000Z'
+    });
+  });
+
+  it('answers false rather than throwing when the write fails', () => {
+    writeRunSentinel(dir, SENTINEL);
+    const path = join(dir, RUN_SENTINEL_NAME);
+    chmodSync(path, 0o400);
+    try {
+      let answer: boolean | undefined;
+      expect(() => {
+        answer = markRunSentinelAtQuit(dir, ['x.dmp'], QUIT_AT);
+      }).not.toThrow();
+      expect(answer).toBe(false);
+      expect(readRunSentinel(dir)).toStrictEqual(SENTINEL);
+    } finally {
+      chmodSync(path, 0o600);
+    }
+  });
+
+  it('a cleared sentinel stays cleared: the hard exit clears after the mark', () => {
+    writeRunSentinel(dir, SENTINEL);
+    markRunSentinelAtQuit(dir, [], QUIT_AT);
+    clearRunSentinel(dir);
+    expect(readRunSentinel(dir)).toBeNull();
+    expect(markRunSentinelAtQuit(dir, [], QUIT_AT)).toBe(false);
+    expect(existsSync(join(dir, RUN_SENTINEL_NAME))).toBe(false);
+  });
+
+  it('is still a small file once marked', () => {
+    writeRunSentinel(dir, SENTINEL);
+    const names = Array.from({ length: 40 }, (_, i) => `${'f'.repeat(36)}-${String(i)}.dmp`);
+    markRunSentinelAtQuit(dir, names, QUIT_AT);
+    expect(readFileSync(join(dir, RUN_SENTINEL_NAME), 'utf8').length).toBeLessThan(8192);
   });
 });
 

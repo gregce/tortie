@@ -34,9 +34,9 @@ windows have closed. **For you, a quit is still just a quit.** Your window posit
 remembered settings, and the session list, are saved first: Tortie saves the remembered settings as
 the quit begins and again as the windows close, and waits for them to reach the disk (a fraction of
 a second, never more than one) before it ends. Your sessions keep running, and the next launch comes
-up clean, with no "Tortie quit unexpectedly last time." message. Two quits are unchanged on purpose:
-installing an update still quits-and-installs exactly as before, and a quit so long that Tortie's
-own 3 second fallback ends it first ends exactly as it does today (that one is queued as Phase 362).
+up clean, with no "Tortie quit unexpectedly last time." message. One quit is unchanged on purpose:
+installing an update still quits-and-installs exactly as before. Since Phase 362 a long quit, with
+many busy sessions, keeps its window until Tortie has saved them and then ends the same way.
 If the session list ever stopped (the notice above), Restart as before.
 
 ## What you should NOT see

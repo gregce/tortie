@@ -1068,26 +1068,36 @@ export const CHECKS = [
   // the manifest store, the six repository files, the classifier in
   // src/main/db/integrity.ts, the backup check's digest in
   // src/main/db/digest.ts, the core's list and its five event catches, the
-  // ordered disposer, the will-quit handler in src/main/index.ts, the
-  // updater's staged signal, the relaunch handler, the crash handlers and the
-  // harness-only fault seam with the TypeScript parser and asserts thirteen
-  // rules, S1 to S13: every store member passes through the latch in one
-  // statement, a broken connection is told by its code and never its words and
-  // the digest throws it on (Phase 357.1), a stopped connection whose file is
-  // fine is never closed, and since Phase 357.1 no close runs at the quit at
-  // all: the disposer sets the store's quit hold on its first lines, close()
-  // holds exactly when that is set or the store stopped with its file fine,
-  // and the will-quit handler ends the process by SIGKILL to self unless an
-  // update is staged; it asks the held count alone, as the handler's first
-  // statement with nothing deferring it (357.1's drop round), and since round A
-  // it prevents the quit synchronously and then takes ONE bounded wait: the
+  // ordered disposer, the will-quit and before-quit handlers in
+  // src/main/index.ts, the updater's staged signal, the relaunch handler, the
+  // crash handlers, the harness-only fault seam and (Phase 362) the menu's
+  // Quit fallback, the Settings window, the run sentinel's mark and the wait's
+  // timing with the TypeScript parser and asserts fifteen rules, S1 to S15:
+  // every store member passes through the latch in one statement, a broken
+  // connection is told by its code and never its words and the digest throws
+  // it on (Phase 357.1), a stopped connection whose file is fine is never
+  // closed, and since Phase 357.1 no close runs at the quit at all: the
+  // disposer sets the store's quit hold on its first lines, close() holds
+  // exactly when that is set or the store stopped with its file fine, and the
+  // will-quit handler ends the process by SIGKILL to self unless an update is
+  // staged; it asks the held count alone, as the handler's first statement
+  // with nothing deferring it (357.1's drop round), and since round A it
+  // prevents the quit synchronously and then takes ONE bounded wait: the
   // storage is flushed again (the disposer flushed it on its first lines), the
   // wait reads the storage log until it stands whole and still, at most one
-  // named bound, and its finally clears the sentinel and sends the signal (a
-  // menu quit whose 3 s fallback reaches will-quit before the core's dispose
-  // holds nothing and ends as today, Phase 362's); dispose closes the session
-  // list only through the store's own close(); the relaunch answers only after the notice and never in a harness
-  // launch, and the fault seam is armed only inside a harness folder. Each rule
+  // named bound, and its finally clears the sentinel and sends the signal;
+  // since Phase 362 the wait's three timing constants are literals with
+  // floors, it reads the session's own storage path, and no will-quit handler
+  // or timer the disposer arms exits the process (S12); the menu's 3 s
+  // fallback quits only when no quit has begun, so a long quit runs its own
+  // bounded disposer to the core's dispose instead of being cut, ⌘Q reaches
+  // the main window, before-quit quits whether the disposer resolved or threw,
+  // and no window opens into a quitting app (S14); and the log's will-quit
+  // listener marks the run sentinel instead of clearing it, the boot reading a
+  // marked sentinel with no new dump as a clean quit and one with a new dump
+  // as a crash (S15); dispose closes the session list only through the store's
+  // own close(); the relaunch answers only after the notice and never in a
+  // harness launch, and the fault seam is armed only inside a harness folder. Each rule
   // is asked again over in-memory copies with it broken, every one of which
   // must read red, beside a control that stays green. It spawns one process,
   // the pinned tsx, for S8's driven half, which starts nothing, opens no
@@ -1292,7 +1302,9 @@ export const CHECKS = [
   // two legs: GMUX_SMOKE=quit, whose pass is that SIGKILL with the store's held
   // line, the run sentinel cleared and no dump or macOS report, and
   // GMUX_SMOKE=quit-teardown, Phase 36's quit with nothing held, which still
-  // runs Node's teardown and passes on exit 0 alone (134 is the abort).
+  // runs Node's teardown and passes on exit 0 (134 is the abort) with, since
+  // Phase 362, the run sentinel left marked by the log's will-quit listener,
+  // so a crash in that teardown would be noticed at the next launch.
   // `smoke:quitdoors` keeps its door verdicts and reads its end as the first.
   electron('smoke:quit'),
   electron('smoke:quitdoors'),
@@ -1670,12 +1682,37 @@ export const CHECKS = [
   // node_modules: at the parent (357 as landed) the quit faults in
   // pcache1EnforceMaxPage, at HEAD it ends by the will-quit SIGKILL with the
   // relaunch keeping every session, the localStorage keys and the Settings
-  // bounds. Every HEAD quit is read as that SIGKILL. A menu quit long enough
-  // for its 3 s fallback to reach will-quit before the core's dispose ends as
-  // today at both builds and is Phase 362's, so no arm drives it (357.1's drop
-  // round). `--grader-self-test` grades build/p357/fixtures/graders.json and
+  // bounds. Every HEAD quit is read as that SIGKILL. Since Phase 362 the
+  // menu's 3 s fallback no longer cuts a quit that has begun, and the long menu
+  // quit and the crash-state menu arms are probe:p362's, so no arm here drives
+  // them. `--grader-self-test` grades build/p357/fixtures/graders.json and
   // starts nothing.
   electron('probe:p357'),
+  // PHASE 362 (build/p362/SPEC.md §8): his long ⌘Q, at the parent and at HEAD.
+  // Electrons through build/electron-run.mjs ONE AT A TIME and never at once,
+  // the parent's (`P362_PARENT_CHECKOUT`, a built 795f5a14, 357.1 as landed,
+  // required) first in every pair, each arm on its own scratch profile, HOME
+  // and ZDOTDIR with HISTFILE=/dev/null and SHELL=/bin/sh and the socket
+  // gmux-p362…; the arm's app launch passes `tmuxSocket: null` so its scratch
+  // server outlives the quit for the relaunch, which names the socket, so its
+  // teardown ends the server and the census reads around it. Every probed
+  // registry row is hidden by build/hidden-agents.mjs before each launch and
+  // `agents:list` read back, so every arm runs shells and no agent runs. The
+  // world is his recorded shape through build/p3167/seed-sessions.mts (counts
+  // only) plus 64 or 48 live shells of 12,000 lines each, and the quit is the
+  // native menu's own Quit row or the status item's, clicked in main, never
+  // through macOS. Two scratch preloads it writes, never a file under src/:
+  // a quit recorder (every app.quit() and who called it, the windows'
+  // visibility read rather than heard, will-quit, quit and the core's
+  // dispose) and a tracker of the session list connection through
+  // Module._load. M64L's busy loops each end themselves after 15 s and are
+  // ended by pid in a `finally`; the Tailscale stand-in and the DNS stand-in
+  // are probe:p357's. A teardown crash is an exit 139 with a stand-in dump in
+  // the scratch profile, never a signal macOS reports. CM, F1's crash-state
+  // arms, is opt-in and reads UNREADABLE without a checking better-sqlite3
+  // named by P3571_BS3. `--grader-self-test` grades build/p362/fixtures/ and
+  // starts nothing; `--preflight` and `--list-graders` start nothing.
+  electron('probe:p362'),
   // PHASE 342's measurement (build/p342/SPEC.md §7.4): the re-derivation
   // outside Electron. Through build/docker-run.mjs, one throwaway container per
   // distribution in his Docker, each the distribution's own image with its own

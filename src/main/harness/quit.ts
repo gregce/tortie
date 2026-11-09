@@ -37,7 +37,10 @@
  *                             held (a quit before the session list opened, or
  *                             after it could not open). It runs FreeEnvironment
  *                             exactly as Phase 36's quit did: exit 0 is its
- *                             pass and 134 its failure, as before.
+ *                             pass and 134 its failure, as before, and since
+ *                             Phase 362 its pass also needs the run sentinel
+ *                             left marked with the quit's time, so the next
+ *                             launch reads that quit as clean.
  *
  * Neither grades itself. build/quit-smoke.mjs launches each through
  * build/electron-run.mjs, reads how the process ended, and says PASS or FAIL

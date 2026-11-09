@@ -161,14 +161,104 @@
  *       `isUpdateStaged` is imported from the updater. The staged carve-out
  *       keeps quit-and-install byte-for-byte; the flushes and the wait keep a
  *       person's localStorage and window bounds. A quit that reaches
- *       will-quit before the core's dispose holds nothing, so it proceeds to
- *       Node's teardown as today (the menu's 3 s fallback on a long quit,
- *       queued as Phase 362).
+ *       will-quit holding nothing (a session list that never opened, or a
+ *       disposer that threw before the core's dispose) proceeds to Node's
+ *       teardown as before; since Phase 362 the menu's 3 s fallback no longer
+ *       quits once a quit has begun (S14), so it no longer cuts a long quit
+ *       before the core's dispose. And since Phase 362 (build/p362/SPEC.md D7
+ *       and D8, carried from 357.1's landing): the wait's three timing
+ *       constants in src/main/quit/storage-landing.ts are top-level exported
+ *       number literals with literal floors, QUIET_MS at least QUIET_FLOOR_MS
+ *       (100), POLL_MS at least POLL_FLOOR_MS (1) and SETTLE_MS above POLL_MS,
+ *       nothing in the file binds any of the three again, and the one test
+ *       that answers `landing: 'settled'` is exactly three conjuncts: the
+ *       elapsed time `>= QUIET_MS`, the time since the log moved `>=
+ *       SETTLE_MS` (each constant named once, the bare far side of its
+ *       comparison) and the whole-tail read (cut to 0, both had left every
+ *       quit test green); `storageWritten`'s first argument is exactly
+ *       `session.defaultSession.getStoragePath()`; and no `app.exit`,
+ *       `process.exit`, `process.reallyExit` or `exit` destructured out of
+ *       `app` or `process`, called or handed on, sits in any will-quit handler
+ *       under src/main, in a function of its own file that handler reaches by
+ *       name, in a function handed to `setTimeout`/`setInterval` in
+ *       `disposeMainCapabilities` or `afterMs`, or anywhere else the disposer
+ *       reaches in its file (the probe review: one in its own body, or handed
+ *       to `setImmediate`, read green), because both exits run Node's
+ *       environment teardown in Electron's main process (357's M3) and would
+ *       put the crash's close back on the quit.
  *   S13 (new, Phase 357.1) `digestOneTable`'s one catch begins
  *       `if (isBrokenConnectionError(err)) throw err;` and otherwise returns the
  *       `unreadable: <message>` text, and `digest.ts` imports the predicate from
  *       `./integrity`; otherwise the ring's change test folds `SQLITE_CORRUPT`
  *       into a fingerprint the latch never sees (Phase 357.1 Gap 2).
+ *   S14 (new, Phase 362, build/p362/SPEC.md D1 to D3, D6, D9) THE MENU'S 3 S
+ *       FALLBACK NO LONGER CUTS A QUIT THAT HAS BEGUN. At his scale (64 live
+ *       shells, 12k to 24k lines each) the snapshot pass was not done 3 s
+ *       after the press, the fallback's `app.quit()` was before-quit's second
+ *       pass, and the core's dispose never ran: 15 of 64 quit-time copies on a
+ *       quiet Mac, none under load, and no quit generation (build/p362/SPEC.md
+ *       §2.1). `requestQuit()` in src/main/menu.ts takes its
+ *       window from `menuActionTarget()` (so ⌘Q with Settings in front reaches
+ *       the main window, whose page asks the quit) and names neither
+ *       `getFocusedWindow` nor `getAllWindows`; with none it is exactly
+ *       `app.quit(); return;`; it sends the quit event, once, to that window's
+ *       webContents; and it arms exactly ONE `setTimeout`, a statement of its
+ *       own body after the event (armed on every press, its handle never kept
+ *       to clear), whose function is exactly one `if` with no else, test
+ *       `appLifecycleState() !== 'quitting'` and consequent `app.quit();`,
+ *       delay QUIT_FALLBACK_MS (3,000): a renderer that never answers still
+ *       quits at 3 s, and a quit the renderer began runs its own bounded
+ *       disposer to its end. It reaches `app.quit` exactly twice,
+ *       `appLifecycleState` is imported from ./lifecycle and bound by nothing
+ *       else in the file, and no other function handed to a timer in menu.ts,
+ *       or anywhere else under src/main (the probe review: an unguarded one
+ *       beside requestQuit() in the status item's Quit read green), reaches
+ *       `app.quit`. `before-quit` in src/main/index.ts ends every
+ *       begun quit on its own (D2: the fallback used to be the one end of a
+ *       menu quit whose disposer threw): its async body is exactly `let <o> =
+ *       'proceed';`, a `try` holding only `<o> = await disposeCapabilities();`
+ *       whose catch (and finally, if any) neither returns, throws nor exits the
+ *       process, then `if (<o> === 'killed') return;` and `app.quit();`. And
+ *       nothing opens a window into a quitting app: `showAppWindow()` (index.ts) and
+ *       `openSettingsWindow()` (src/main/settings/window.ts) each hold, before
+ *       their first `new BrowserWindow(` or `createWindow(`, an early return
+ *       on exactly `appLifecycleState() === 'quitting'`, joined at most with
+ *       one test that no window is live, each file importing the reader from
+ *       the lifecycle module and binding it nowhere else.
+ *   S15 (new, Phase 362, D4) A CRASH IN THE QUIT'S TEARDOWN IS NOTICED. The
+ *       log's own will-quit listener cleared the run sentinel before Node's
+ *       teardown, so a crash there left no sentinel and the next launch said
+ *       nothing, with the dump sitting in the inventory (measured at 357.1).
+ *       src/main/log/index.ts registers exactly ONE will-quit listener, and it
+ *       calls `markLogRunSentinelAtQuit()` once and touches the sentinel's file
+ *       no other way (nothing it reaches in its own file writes, replaces or
+ *       deletes a file by hand). `clearLogRunSentinel` is
+ *       reached only by calls (a name handed on, to a deferral or anything
+ *       else, is red wherever it sits under src/), and the calls sit in two
+ *       places: in index.ts only inside the will-quit handler that
+ *       self-SIGKILLs, at most once (its place, the finally's first statement
+ *       right before the kill, is S12's), and in capabilities.ts only inside
+ *       `disposeMainCapabilities`, at least once, each call the statement
+ *       right before a `process.kill(process.pid, 'SIGKILL')` (Phase 36's
+ *       escape); and `clearRunSentinel(` has one production caller, inside
+ *       `clearLogRunSentinel`. The marker is the one caller of
+ *       `markRunSentinelAtQuit` (imported from ./sentinel, bound by nothing
+ *       else), handing it `getLogsDir()`, an inventory read by
+ *       `scanCrashDumps(app.getPath('crashDumps'))` in the marker itself, not
+ *       the boot's, and handed on whole as `.map((d) => d.name)` (the probe
+ *       review: a filtered inventory read green and calls a clean teardown
+ *       quit a crash), and the time `new Date().toISOString()`. The boot writes
+ *       the `boot.unclean_exit` record and posts
+ *       the notice exactly when the previous sentinel is there and NOT (its
+ *       `quitAt` is set AND no dump is new), read by EVALUATING the guards in
+ *       front of each over every case, the count of new dumps being the one
+ *       the notice reports; so a skip on `quitAt` alone (a teardown crash
+ *       unnoticed) and a skip on no new dump alone (a run that died in the
+ *       middle of its session with no dump, gone quiet where today's notice
+ *       speaks) are each red. And `markRunSentinelAtQuit`
+ *       (src/main/log/sentinel.ts) reads the sentinel once into a const and
+ *       writes nothing on a path where that const may be null, so it never
+ *       creates a sentinel where none was.
  *
  * THE PROBE REVIEW (2026-11-05, docs/method/HOW-WE-BUILT-THIS.md rule 9) put
  * nineteen hostile copies of its own through this gate by `--root`; twelve were
@@ -185,9 +275,11 @@
  * the unedited tree. One copy, the spec's "a member that reads this.sessions
  * directly", names two rules on purpose, because reaching a repository outside
  * an arrow breaks the one statement shape (S1) and is itself a reach (S2). A
- * CONTROL copy, changed in four of the files these rules read but in nothing
- * they hold, must stay green on all ten. A copy whose edit no longer finds its
- * text fails the gate, because an ablation that cannot be made proves nothing;
+ * CONTROL copy, changed in nine of the files these rules read but in nothing
+ * they hold (each change names a rule's own words in a string, a comment or a
+ * helper of its own), must stay green on every rule. A copy whose edit no
+ * longer finds its text fails the gate, because an ablation that cannot be
+ * made proves nothing;
  * and a rule with no ablation fails it, because it has never been shown to
  * fail. Nothing is written to disk but S8's scratch folder.
  *
@@ -240,10 +332,18 @@ export const FILES = Object.freeze({
   subscriptions: 'src/renderer/state/subscriptions.ts',
   index: 'src/main/index.ts',
   digest: 'src/main/db/digest.ts',
-  updater: 'src/main/updates/updater.ts'
+  updater: 'src/main/updates/updater.ts',
+  // Phase 362: the fallback's file, Settings, the log's sentinel and the wait's timing.
+  menu: 'src/main/menu.ts',
+  settingsWindow: 'src/main/settings/window.ts',
+  logIndex: 'src/main/log/index.ts',
+  logSentinel: 'src/main/log/sentinel.ts',
+  storageLanding: 'src/main/quit/storage-landing.ts',
+  // The probe review: the status item, whose Quit row calls requestQuit() (S14's ablation).
+  tray: 'src/main/tray/index.ts'
 });
 
-export const RULES = Object.freeze(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12', 'S13']);
+export const RULES = Object.freeze(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12', 'S13', 'S14', 'S15']);
 
 /** The three members that answer instead of refusing (D4). */
 const QUIET_MEMBERS = Object.freeze(['contentFingerprint', 'schemaState', 'describeSchema']);
@@ -1936,31 +2036,45 @@ const LIFECYCLE_HOOKS = Object.freeze(['on', 'once', 'addListener', 'prependList
 function willQuitHandlers(tree) {
   const out = [];
   for (const rel of pathsNaming(tree, 'src/main/', 'will-quit')) {
-    const sf = sfOf(tree, rel);
-    for (const n of nodesOf(sf)) {
-      if (!ts.isCallExpression(n) || !ts.isPropertyAccessExpression(n.expression)) continue;
-      if (!LIFECYCLE_HOOKS.includes(n.expression.name.text)) continue;
-      const ev = n.arguments[0];
-      if (ev === undefined || !ts.isStringLiteralLike(ev) || ev.text !== 'will-quit') continue;
-      const fn = n.arguments.find((a) => isFunctionLike(a));
-      if (fn !== undefined) {
-        out.push({ rel, node: n, handler: fn });
-        continue;
-      }
-      const ref = n.arguments[1];
-      const named = ref !== undefined && ts.isIdentifier(ref) ? functionsNamed(sf, ref.text) : [];
-      out.push({ rel, node: n, handler: named.length === 1 ? named[0] : null });
-    }
+    for (const h of handlersIn(sfOf(tree, rel), 'will-quit')) out.push({ rel, ...h });
   }
   return out;
 }
+/**
+ * The registrations of one app lifecycle event in one file (`app.on('<event>',
+ * fn)` and its kin), each `{ node, handler }`, the handler resolved as
+ * willQuitHandlers resolves it: a function given, or the one function of that
+ * name in the file, or null.
+ */
+function handlersIn(sf, event) {
+  const out = [];
+  for (const n of nodesOf(sf)) {
+    if (!ts.isCallExpression(n) || !ts.isPropertyAccessExpression(n.expression)) continue;
+    if (!LIFECYCLE_HOOKS.includes(n.expression.name.text)) continue;
+    const ev = n.arguments[0];
+    if (ev === undefined || !ts.isStringLiteralLike(ev) || ev.text !== event) continue;
+    const fn = n.arguments.find((a) => isFunctionLike(a));
+    if (fn !== undefined) {
+      out.push({ node: n, handler: fn });
+      continue;
+    }
+    const ref = n.arguments[1];
+    const named = ref !== undefined && ts.isIdentifier(ref) ? functionsNamed(sf, ref.text) : [];
+    out.push({ node: n, handler: named.length === 1 ? named[0] : null });
+  }
+  return out;
+}
+/** An expression split at its top-level `&&`, each part peeled. */
+function splitAnd(e) {
+  const x = peel(e);
+  if (x !== undefined && ts.isBinaryExpression(x) && x.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) return [...splitAnd(x.left), ...splitAnd(x.right)];
+  return [x];
+}
+/** An expression's text, peeled and with every space dropped. */
+const flatText = (e) => peel(e).getText().replace(/\s+/g, '');
 /** A guard list as conjuncts: each `if` condition split at its top-level `&&`, an early return's condition negated, whitespace dropped. */
 function conjunctsOf(guards) {
-  const split = (e) => {
-    const x = peel(e);
-    if (ts.isBinaryExpression(x) && x.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) return [...split(x.left), ...split(x.right)];
-    return [x];
-  };
+  const split = splitAnd;
   const flat = (e) => e.getText().replace(/\s+/g, '');
   const out = [];
   for (const g of guards) {
@@ -2002,6 +2116,202 @@ function topConstNumber(sf, name) {
     }
   }
   return null;
+}
+
+// PHASE 362 (build/p362/SPEC.md D7 and D8, carried from 357.1's landing).
+
+/** The floors of the will-quit wait's timing (D7). Round A's W0 put the worst landing at 27 ms of 720, so 100 is more than three times it. */
+export const QUIET_FLOOR_MS = 100;
+export const POLL_FLOOR_MS = 1;
+const WAIT_TIMING = Object.freeze(['QUIET_MS', 'SETTLE_MS', 'POLL_MS']);
+
+/** A top-level `export const <name> = <number literal>;`: `{ node, value }`, or `{ why }` when it is not one. */
+function exportedConstNumber(sf, name) {
+  for (const s of sf.statements) {
+    if (!ts.isVariableStatement(s)) continue;
+    for (const d of s.declarationList.declarations) {
+      if (!ts.isIdentifier(d.name) || d.name.text !== name) continue;
+      if ((s.declarationList.flags & ts.NodeFlags.Const) === 0) return { why: `${name} is not a const` };
+      if (!hasModifier(s, ts.SyntaxKind.ExportKeyword)) return { why: `${name} is not exported` };
+      const init = d.initializer === undefined ? undefined : peel(d.initializer);
+      if (init === undefined || !ts.isNumericLiteral(init)) return { why: `${name} is not a number literal (\`${d.initializer?.getText() ?? 'no value'}\`)` };
+      return { node: d, value: Number(init.text.replace(/_/g, '')) };
+    }
+  }
+  return { why: `${name} is not declared at the top of the file` };
+}
+
+/** True when `e` is `<near> >= <name>` (or `<name> <= <near>`), `<name>` the bare identifier and `<near>` holding a call (the elapsed time). */
+function isAtLeast(e, name) {
+  const x = peel(e);
+  if (x === undefined || !ts.isBinaryExpression(x)) return false;
+  const op = x.operatorToken.kind;
+  const far = op === ts.SyntaxKind.GreaterThanEqualsToken ? peel(x.right) : op === ts.SyntaxKind.LessThanEqualsToken ? peel(x.left) : undefined;
+  const near = op === ts.SyntaxKind.GreaterThanEqualsToken ? x.left : x.right;
+  return far !== undefined && ts.isIdentifier(far) && far.text === name && nodesOf(near).some((n) => ts.isCallExpression(n));
+}
+
+/** D7: the wait's three timing constants are literals with floors, and the one settled test reads two of them once each. */
+function waitTimingFindings(tree, f) {
+  const sf = sfOf(tree, FILES.storageLanding);
+  if (sf === null) {
+    f.push(`${FILES.storageLanding} is missing, so the will-quit wait's timing cannot be read (Phase 362, D7)`);
+    return;
+  }
+  const value = {};
+  for (const name of WAIT_TIMING) {
+    const c = exportedConstNumber(sf, name);
+    if (c.why !== undefined) {
+      f.push(`${c.why} in ${FILES.storageLanding}; the will-quit wait's timing is three exported number literals with literal floors (Phase 362, D7)`);
+      continue;
+    }
+    value[name] = c.value;
+    for (const b of localBindings(sf, name).filter((x) => x !== c.node)) {
+      f.push(`${where(FILES.storageLanding, b)} binds its own ${name}, which stands in for the constant whose floor this rule reads (Phase 362, D7)`);
+    }
+  }
+  if (value.QUIET_MS !== undefined && !(value.QUIET_MS >= QUIET_FLOOR_MS)) {
+    f.push(`QUIET_MS is ${String(value.QUIET_MS)} ms, under its floor of ${String(QUIET_FLOOR_MS)}; the wait could end before a commit the flush started has shown on disk (round A's W0: 27 ms at the worst) (Phase 362, D7)`);
+  }
+  if (value.POLL_MS !== undefined && !(value.POLL_MS >= POLL_FLOOR_MS)) {
+    f.push(`POLL_MS is ${String(value.POLL_MS)} ms, under its floor of ${String(POLL_FLOOR_MS)} (Phase 362, D7)`);
+  }
+  if (value.SETTLE_MS !== undefined && value.POLL_MS !== undefined && !(value.SETTLE_MS > value.POLL_MS)) {
+    f.push(`SETTLE_MS (${String(value.SETTLE_MS)} ms) is not above POLL_MS (${String(value.POLL_MS)} ms), so one poll's gap reads as a log that stood still (Phase 362, D7)`);
+  }
+  // The one test that answers `landing: 'settled'`.
+  const settles = nodesOf(sf).filter((n) => {
+    if (!ts.isReturnStatement(n) || n.expression === undefined) return false;
+    const o = peel(n.expression);
+    return o !== undefined && ts.isObjectLiteralExpression(o) && o.properties.some((p) => ts.isPropertyAssignment(p) && memberName(p) === 'landing' && ts.isStringLiteralLike(peel(p.initializer)) && peel(p.initializer).text === 'settled');
+  });
+  if (settles.length !== 1) {
+    f.push(`${FILES.storageLanding} answers \`landing: 'settled'\` ${String(settles.length)} times, not once, so the wait's settled test cannot be read (Phase 362, D7)`);
+    return;
+  }
+  const test = ancestor(settles[0], (p) => ts.isIfStatement(p) && nodesOf(p.thenStatement).includes(settles[0]));
+  if (test === null) {
+    f.push(`the wait answers \`landing: 'settled'\` behind no test (${where(FILES.storageLanding, settles[0])}) (Phase 362, D7)`);
+    return;
+  }
+  const parts = splitAnd(test.expression);
+  const named = (name) => nodesOf(test.expression).filter((n) => ts.isIdentifier(n) && n.text === name).length;
+  const quiet = parts.filter((p) => isAtLeast(p, 'QUIET_MS')).length;
+  const settle = parts.filter((p) => isAtLeast(p, 'SETTLE_MS')).length;
+  const tail = parts.filter((p) => callsOf(p, 'tailWhole').length > 0).length;
+  if (parts.length !== 3 || quiet !== 1 || settle !== 1 || tail !== 1 || named('QUIET_MS') !== 1 || named('SETTLE_MS') !== 1) {
+    f.push(`the wait's settled test (${where(FILES.storageLanding, test)}) is not exactly three conjuncts, the elapsed time \`>= QUIET_MS\`, the time since the log moved \`>= SETTLE_MS\` and the whole-tail read, each constant named once; it reads ${JSON.stringify(parts.map((p) => p.getText().replace(/\s+/g, ' ')))} (Phase 362, D7)`);
+  }
+}
+
+/** True for `app` or `<x>.app`, and for `process` or `<x>.process`. */
+const isAppText = (t) => /(^|\.)app$/.test(t);
+const isProcessText = (t) => /(^|\.)process$/.test(t);
+const EXIT_NAMES = Object.freeze(['exit', 'reallyExit']);
+/**
+ * The exits that run Node's environment teardown in Electron's main process
+ * (357's M3), each called or handed on: `app.exit`, `process.exit`,
+ * `process.reallyExit`, the same by a string key, and `exit` or `reallyExit`
+ * destructured out of `app` or `process`.
+ */
+function exitsIn(node) {
+  return nodesOf(node).filter((n) => {
+    if (ts.isPropertyAccessExpression(n) && EXIT_NAMES.includes(n.name.text)) {
+      const on = peel(n.expression).getText();
+      return isAppText(on) || isProcessText(on);
+    }
+    if (ts.isElementAccessExpression(n) && ts.isStringLiteralLike(n.argumentExpression) && EXIT_NAMES.includes(n.argumentExpression.text)) {
+      const on = peel(n.expression).getText();
+      return isAppText(on) || isProcessText(on);
+    }
+    if (ts.isBindingElement(n) && EXIT_NAMES.includes((n.propertyName ?? n.name).getText())) {
+      const decl = ancestor(n, (p) => ts.isVariableDeclaration(p));
+      const init = decl === null || decl.initializer === undefined ? undefined : peel(decl.initializer);
+      return init !== undefined && (isAppText(init.getText()) || isProcessText(init.getText()));
+    }
+    return false;
+  });
+}
+/** `node`, and every top-level function of its file it reaches by name, transitively. */
+function withReached(sf, node) {
+  const fns = topFunctions(sf);
+  const out = [node];
+  const seen = new Set();
+  const stack = [node];
+  while (stack.length > 0) {
+    for (const n of nodesOf(stack.pop())) {
+      if (!ts.isIdentifier(n) || !fns.has(n.text) || seen.has(n.text)) continue;
+      seen.add(n.text);
+      const fn = fns.get(n.text);
+      if (fn === node) continue;
+      out.push(fn);
+      stack.push(fn);
+    }
+  }
+  return out;
+}
+/**
+ * The code each `setTimeout`/`setInterval` inside `scope` is handed, resolved
+ * within its file: the function given, the top-level function a name gives, or
+ * the property it hands on (`setTimeout(app.quit, …)`). A name that is no
+ * function of the file (a promise's `resolve`) hands no code of the file.
+ */
+function timerCallbacks(sf, scope) {
+  const fns = topFunctions(sf);
+  const out = [];
+  for (const call of [...callsOf(scope, 'setTimeout'), ...callsOf(scope, 'setInterval')]) {
+    const cb = call.arguments[0] === undefined ? undefined : peel(call.arguments[0]);
+    if (cb === undefined) continue;
+    if (isFunctionLike(cb) || ts.isPropertyAccessExpression(cb) || ts.isElementAccessExpression(cb)) out.push({ call, fn: cb });
+    else if (ts.isIdentifier(cb) && fns.has(cb.text)) out.push({ call, fn: fns.get(cb.text) });
+  }
+  return out;
+}
+
+/** D8's second half: no exit that runs Node's teardown in a will-quit handler or in a timer the disposer arms. */
+function waitExitFindings(tree, handlers, f) {
+  for (const h of handlers.filter((x) => x.handler !== null)) {
+    for (const scope of withReached(sfOf(tree, h.rel), h.handler)) {
+      for (const x of exitsIn(scope)) {
+        f.push(`\`${x.getText().slice(0, 60)}\` (${where(h.rel, x)}) is reached from the will-quit handler at ${where(h.rel, h.node)}; app.exit and process.exit run Node's environment teardown in Electron's main process, which closes a held session list (357's M3), so neither may end a quit (Phase 362, D8)`);
+      }
+    }
+  }
+  const caps = sfOf(tree, FILES.capabilities);
+  if (caps === null) {
+    f.push(`${FILES.capabilities} is missing, so the timers the disposer arms cannot be read (Phase 362, D8)`);
+    return;
+  }
+  const said = new Set();
+  for (const name of ['disposeMainCapabilities', 'afterMs']) {
+    const decls = functionsNamed(caps, name);
+    if (decls.length !== 1) {
+      f.push(`${name} is declared ${String(decls.length)} times in ${FILES.capabilities}, not once, so the timers the disposer arms cannot be read (Phase 362, D8)`);
+      continue;
+    }
+    for (const { call, fn } of timerCallbacks(caps, decls[0])) {
+      for (const scope of withReached(caps, fn)) {
+        for (const x of exitsIn(scope)) {
+          said.add(x);
+          f.push(`a timer ${name} arms (${where(FILES.capabilities, call)}) reaches \`${x.getText().slice(0, 60)}\` (${where(FILES.capabilities, x)}); an exit that runs Node's teardown would end the quit around the held session list (Phase 362, D8)`);
+        }
+      }
+    }
+  }
+  // THE PROBE REVIEW: nor anywhere else the disposer reaches in its file, its own
+  // body or a deferral that is not a timer (setImmediate, queueMicrotask, a
+  // promise's then). `app.exit(0)` before its `return 'proceed'` read green, and
+  // it runs Node's teardown around the held session list as a timer's would.
+  const disposer = functionsNamed(caps, 'disposeMainCapabilities');
+  if (disposer.length === 1) {
+    for (const scope of withReached(caps, disposer[0])) {
+      for (const x of exitsIn(scope)) {
+        if (said.has(x)) continue;
+        said.add(x);
+        f.push(`\`${x.getText().slice(0, 60)}\` (${where(FILES.capabilities, x)}) is reached from disposeMainCapabilities; app.exit and process.exit run Node's environment teardown in Electron's main process, which closes the session list the disposer holds (357's M3), so neither may end a quit (Phase 362, D8)`);
+      }
+    }
+  }
 }
 
 export function ruleS12(tree) {
@@ -2097,6 +2407,12 @@ export function ruleS12(tree) {
       if (awaits.length !== 1 || !isWait || !direct) {
         f.push(`the will-quit try does not hold exactly one await, \`storageWritten(<storage path>, <bound>)\`, as a statement of its own after the flush (${where(h.rel, tryStmt)}; ${String(awaits.length)} await(s)); the exit must come after that one bounded wait and nothing else (round A)`);
       } else {
+        // PHASE 362 (D8): the wait reads the windows' own storage, the folder
+        // the flush above commits to, and no other.
+        const storage = waited.arguments[0];
+        if (flatText(storage) !== 'session.defaultSession.getStoragePath()') {
+          f.push(`the bounded wait reads \`${storage.getText().slice(0, 60)}\` (${where(h.rel, storage)}), not session.defaultSession.getStoragePath(); a wait on any other folder settles on a log the flush never wrote, and the exit can land before the windows' last write (Phase 362, D8)`);
+        }
         const bound = waited.arguments[1];
         const decl = ts.isIdentifier(bound) ? topConstNumber(idx, bound.text) : null;
         if (decl === null) {
@@ -2140,6 +2456,10 @@ export function ruleS12(tree) {
     }
   }
   if (!importsName(idx, 'isUpdateStaged', ['./updates/updater'])) f.push(`${FILES.index} does not import isUpdateStaged from ./updates/updater`);
+  // PHASE 362 (D7, D8): the wait's timing has literal floors, and nothing on
+  // the quit's last stretch ends it through Node's teardown.
+  waitTimingFindings(tree, f);
+  waitExitFindings(tree, handlers, f);
   return f;
 }
 
@@ -2173,7 +2493,564 @@ export function ruleS13(tree) {
   return f;
 }
 
-export const RULE_FNS = Object.freeze({ S1: ruleS1, S2: ruleS2, S3: ruleS3, S4: ruleS4, S5: ruleS5, S6: ruleS6, S7: ruleS7, S8: ruleS8, S9: ruleS9, S10: ruleS10, S11: ruleS11, S12: ruleS12, S13: ruleS13 });
+// ---------------------------------------------------------------------------
+// S14: the menu's fallback, the quit's own end, and no window into a quit
+// ---------------------------------------------------------------------------
+
+/** The fallback's one delay (build/p362/SPEC.md D1: still armed on every press, still 3 s, never cleared). */
+export const QUIT_FALLBACK_MS = 3_000;
+/** The fallback's test, spaces aside: no quit has begun. */
+const NOT_QUITTING = Object.freeze(["appLifecycleState()!=='quitting'", "'quitting'!==appLifecycleState()"]);
+/** The window builders' refusal: a quit has begun. */
+const QUITTING = Object.freeze(["appLifecycleState()==='quitting'", "'quitting'===appLifecycleState()"]);
+/** `app.quit()`, exactly. */
+const isAppQuitCall = (e) => e !== undefined && ts.isCallExpression(e) && e.arguments.length === 0 && flatText(e.expression) === 'app.quit';
+/** A statement that is exactly `app.quit();`, bare or as a one statement block. */
+function isAppQuitStmt(s) {
+  if (s === undefined) return false;
+  if (ts.isBlock(s)) return s.statements.length === 1 && isAppQuitStmt(s.statements[0]);
+  return ts.isExpressionStatement(s) && isAppQuitCall(s.expression);
+}
+/** Every reach of the app's quit in a node, called or handed on (`setTimeout(app.quit, …)`). */
+const appQuitsIn = (node) => nodesOf(node).filter((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'quit' && isAppText(peel(n.expression).getText()));
+/** `<id> === null`, `null === <id>`, `<id> == null`, `null == <id>` or `!<id>`. */
+const isNullTestOf = (e, id) => [`${id}===null`, `null===${id}`, `${id}==null`, `null==${id}`, `!${id}`].includes(flatText(e));
+/** A refusal test: exactly one `appLifecycleState() === 'quitting'`, joined at most with one test that an identifier holds no window. */
+function isQuittingRefusal(cond) {
+  const parts = splitAnd(cond).map(flatText);
+  const rest = parts.filter((p) => !QUITTING.includes(p));
+  return parts.length - rest.length === 1 && rest.length <= 1 && rest.every((p) => /^([A-Za-z_$][\w$]*===null|null===[A-Za-z_$][\w$]*|![A-Za-z_$][\w$]*)$/.test(p));
+}
+/** A window being built: `new BrowserWindow(…)` or `createWindow()`. */
+const isWindowBuild = (n) => (ts.isNewExpression(n) && peel(n.expression).getText() === 'BrowserWindow') || (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === 'createWindow');
+
+/** D1 and D3: requestQuit's window, its event, its one guarded timer, and no second fallback in menu.ts. */
+function requestQuitFindings(tree, f) {
+  const sf = sfOf(tree, FILES.menu);
+  if (sf === null) {
+    f.push(`${FILES.menu} is missing`);
+    return;
+  }
+  const at = (n) => where(FILES.menu, n);
+  if (!importsName(sf, 'appLifecycleState', ['./lifecycle'])) f.push(`${FILES.menu} does not import appLifecycleState from ./lifecycle, so the fallback's guard may not read the one lifecycle state the quit marks (Phase 362, D1)`);
+  for (const b of localBindings(sf, 'appLifecycleState')) f.push(`${at(b)} binds its own appLifecycleState, which stands in for the lifecycle state the fallback's guard reads (Phase 362, D1)`);
+  const decls = functionsNamed(sf, 'requestQuit');
+  const fn = decls.length === 1 ? decls[0] : null;
+  const body = fn === null ? null : stmtsOf(bodyOf(fn));
+  if (fn === null || body === null) {
+    f.push(`requestQuit is declared ${String(decls.length)} times in ${FILES.menu}, not once with a body`);
+    return;
+  }
+  // D3: the window is the menu's own target, the main window whatever has focus.
+  const first = body[0];
+  const decl = first !== undefined && ts.isVariableStatement(first) && first.declarationList.declarations.length === 1 ? first.declarationList.declarations[0] : null;
+  const win = decl !== null && ts.isIdentifier(decl.name) ? decl.name.text : null;
+  if (win === null || decl.initializer === undefined || !isCallOfWith0(peel(decl.initializer), 'menuActionTarget')) {
+    f.push(`requestQuit does not begin \`const <window> = menuActionTarget();\` (${at(first ?? fn)}); with Settings in front the event would reach a page that does not ask the quit, and only the fallback would quit, with no message (Phase 362, D3)`);
+  }
+  for (const c of [...callsOf(fn, 'getFocusedWindow'), ...callsOf(fn, 'getAllWindows')]) f.push(`requestQuit asks \`${c.expression.getText()}\` (${at(c)}); its window is menuActionTarget()'s alone (Phase 362, D3)`);
+  const second = body[1];
+  const nullBranch =
+    win !== null &&
+    second !== undefined &&
+    ts.isIfStatement(second) &&
+    second.elseStatement === undefined &&
+    isNullTestOf(second.expression, win) &&
+    ts.isBlock(second.thenStatement) &&
+    second.thenStatement.statements.length === 2 &&
+    isAppQuitStmt(second.thenStatement.statements[0]) &&
+    ts.isReturnStatement(second.thenStatement.statements[1]) &&
+    second.thenStatement.statements[1].expression === undefined;
+  if (!nullBranch) f.push(`requestQuit's second statement is not \`if (${win ?? '<window>'} === null) { app.quit(); return; }\` (${at(second ?? fn)}); with no window to ask, the quit begins at once (Phase 362, D3)`);
+  const sends = callsOf(fn, 'sendEvent');
+  const sendStmt = sends.length === 1 ? body.find((s) => ts.isExpressionStatement(s) && s.expression === sends[0]) : undefined;
+  const sendOk = sendStmt !== undefined && win !== null && sends[0].arguments.length === 2 && flatText(sends[0].arguments[0]) === `${win}.webContents` && flatText(sends[0].arguments[1]) === 'EVT_QUIT_REQUESTED';
+  if (!sendOk) f.push(`requestQuit does not send EVT_QUIT_REQUESTED once, as a statement of its own, to ${win ?? '<window>'}.webContents (${at(sends[0] ?? fn)}); the renderer's quit, its message and its flag, is asked of the target window (Phase 362, D3)`);
+  // D1: exactly one timer, armed on every press, guarded on the lifecycle.
+  const timers = [...callsOf(fn, 'setTimeout'), ...callsOf(fn, 'setInterval')];
+  if (timers.length !== 1 || !ts.isIdentifier(timers[0].expression) || timers[0].expression.text !== 'setTimeout') {
+    f.push(`requestQuit arms ${String(timers.length)} timers (${timers.map(at).join(', ') || 'none'}), not exactly one setTimeout; one guarded fallback is the whole of it (Phase 362, D1)`);
+  } else {
+    const t = timers[0];
+    const stmt = body.find((s) => ts.isExpressionStatement(s) && s.expression === t);
+    if (stmt === undefined || (sendStmt !== undefined && body.indexOf(stmt) < body.indexOf(sendStmt))) {
+      f.push(`requestQuit's fallback timer is not a statement of its own body after the event (${at(t)}); it is armed on every press that sends the event, and its handle is never kept to clear (Phase 362, D1)`);
+    }
+    const cb = t.arguments[0] === undefined ? undefined : peel(t.arguments[0]);
+    const only = cb !== undefined && isFunctionLike(cb) && cb.parameters.length === 0 && ts.isBlock(cb.body) && cb.body.statements.length === 1 ? cb.body.statements[0] : undefined;
+    const guarded = only !== undefined && ts.isIfStatement(only) && only.elseStatement === undefined && NOT_QUITTING.includes(flatText(only.expression)) && isAppQuitStmt(only.thenStatement);
+    if (!guarded) f.push(`requestQuit's fallback is not exactly \`() => { if (appLifecycleState() !== 'quitting') app.quit(); }\` (${at(cb ?? t)}); a fallback that quits whatever the lifecycle says is before-quit's second pass on a quit still saving, which closes the windows before the core's dispose (Phase 362, D1)`);
+    const delay = t.arguments[1] === undefined ? undefined : peel(t.arguments[1]);
+    const ms = delay !== undefined && ts.isNumericLiteral(delay) ? Number(delay.text.replace(/_/g, '')) : null;
+    if (t.arguments.length !== 2 || ms !== QUIT_FALLBACK_MS) f.push(`requestQuit's fallback waits ${delay === undefined ? 'no delay' : `\`${delay.getText()}\``}, not ${String(QUIT_FALLBACK_MS)} ms (${at(t)}); a renderer that never answers still quits at 3 s (Phase 362, D1)`);
+  }
+  const quits = appQuitsIn(fn);
+  if (quits.length !== 2) f.push(`requestQuit reaches app.quit ${String(quits.length)} times (${quits.map(at).join(', ')}), not twice: once with no window, once in the guarded fallback (Phase 362, D1, D3)`);
+  // No second fallback anywhere else in the file.
+  for (const { call, fn: cb } of timerCallbacks(sf, sf)) {
+    if (ancestor(call, (p) => p === fn) !== null) continue;
+    for (const scope of withReached(sf, cb)) {
+      for (const q of appQuitsIn(scope)) f.push(`a timer at ${at(call)} reaches app.quit (${at(q)}), a second fallback beside requestQuit's guarded one, which would cut a quit that is saving (Phase 362, D1)`);
+    }
+  }
+  // THE PROBE REVIEW: nor anywhere else in main. An unguarded `setTimeout(() =>
+  // app.quit(), 3_000)` beside requestQuit() in the status item's Quit click read
+  // green here, and it cuts every quit begun from the menu bar exactly as the
+  // fallback did (the review's hostile copy, src/main/tray/index.ts).
+  for (const rel of quitTimerFiles(tree)) {
+    if (rel === FILES.menu) continue;
+    const other = sfOf(tree, rel);
+    for (const { call, fn: cb } of timerCallbacks(other, other)) {
+      for (const scope of withReached(other, cb)) {
+        for (const q of appQuitsIn(scope)) f.push(`a timer at ${where(rel, call)} reaches app.quit (${where(rel, q)}), a fallback outside requestQuit that no lifecycle guard holds, which would cut a quit that is saving (Phase 362, D1)`);
+      }
+    }
+  }
+}
+/** The files under src/main that arm a timer and name a quit: where a second fallback could sit (S14). */
+function quitTimerFiles(tree) {
+  return [...new Set([...pathsNaming(tree, 'src/main/', 'setTimeout'), ...pathsNaming(tree, 'src/main/', 'setInterval')])].filter((rel) => names(tree.get(rel), 'quit')).sort();
+}
+
+/** D2: before-quit's async body ends every begun quit, whether the disposer resolved or threw. */
+function beforeQuitFindings(tree, f) {
+  const sf = sfOf(tree, FILES.index);
+  if (sf === null) {
+    f.push(`${FILES.index} is missing`);
+    return;
+  }
+  const at = (n) => where(FILES.index, n);
+  const hs = handlersIn(sf, 'before-quit');
+  if (hs.length !== 1 || hs[0].handler === null) {
+    f.push(`${FILES.index} registers ${String(hs.length)} before-quit handlers this rule can read, not one`);
+    return;
+  }
+  const waits = (stmtsOf(bodyOf(hs[0].handler)) ?? []).map((s) => boundedWaitOf(s)).filter((x) => x !== null);
+  if (waits.length !== 1) {
+    f.push(`the before-quit handler (${at(hs[0].node)}) does not hand its teardown to one \`void (async () => { … })();\`, so how a begun quit ends cannot be read (Phase 362, D2)`);
+    return;
+  }
+  const fn = waits[0];
+  const body = [...fn.body.statements];
+  const tries = body.filter((s) => ts.isTryStatement(s));
+  if (tries.length !== 1) {
+    f.push(`before-quit's teardown (${at(fn)}) holds ${String(tries.length)} try statements, not one around the disposer (Phase 362, D2)`);
+    return;
+  }
+  const tr = tries[0];
+  const i = body.indexOf(tr);
+  const head = body.slice(0, i);
+  const decl = head.length === 1 && ts.isVariableStatement(head[0]) && (head[0].declarationList.flags & ts.NodeFlags.Const) === 0 && head[0].declarationList.declarations.length === 1 ? head[0].declarationList.declarations[0] : null;
+  const outcome = decl !== null && ts.isIdentifier(decl.name) ? decl.name.text : null;
+  const init = decl?.initializer === undefined ? undefined : peel(decl.initializer);
+  if (outcome === null || init === undefined || !ts.isStringLiteralLike(init) || init.text !== 'proceed') {
+    f.push(`before-quit's teardown does not begin \`let <outcome> = 'proceed';\` (${at(head[0] ?? tr)}); a disposer that throws must leave the outcome that quits (Phase 362, D2)`);
+  }
+  const inTry = tr.tryBlock.statements;
+  const assign = inTry.length === 1 && ts.isExpressionStatement(inTry[0]) && ts.isBinaryExpression(inTry[0].expression) && inTry[0].expression.operatorToken.kind === ts.SyntaxKind.EqualsToken ? inTry[0].expression : null;
+  const awaited = assign !== null && ts.isAwaitExpression(peel(assign.right)) ? peel(peel(assign.right).expression) : undefined;
+  if (!(assign !== null && outcome !== null && ts.isIdentifier(assign.left) && assign.left.text === outcome && isCallOfWith0(awaited, 'disposeCapabilities'))) {
+    f.push(`before-quit's try (${at(tr)}) is not exactly \`${outcome ?? '<outcome>'} = await disposeCapabilities();\`; the disposer is awaited there, and nothing else (Phase 362, D2)`);
+  }
+  if (tr.catchClause === undefined) f.push(`before-quit's try (${at(tr)}) has no catch, so a disposer that throws ends the teardown before app.quit() (Phase 362, D2)`);
+  for (const block of [tr.catchClause?.block, tr.finallyBlock]) {
+    if (block === undefined) continue;
+    const where2 = block === tr.finallyBlock ? 'finally' : 'catch';
+    for (const n of nodesOf(block)) {
+      if (!(ts.isReturnStatement(n) || ts.isThrowStatement(n))) continue;
+      if (ancestor(n, (p) => isFunctionLike(p) || ts.isFunctionDeclaration(p)) !== fn) continue;
+      f.push(`before-quit's ${where2} ${ts.isReturnStatement(n) ? 'returns' : 'throws'} (${at(n)}), so a disposer that throws leaves the app quitting with its window up and nothing to end it (Phase 362, D2)`);
+    }
+    // Nor does it end the process itself: an exit there runs Node's teardown
+    // around whatever the disposer had already held (357's M3).
+    for (const x of exitsIn(block)) f.push(`before-quit's ${where2} reaches \`${x.getText().slice(0, 60)}\` (${at(x)}); a begun quit ends through app.quit() and will-quit, never through Node's teardown around a held session list (Phase 362, D2, D8)`);
+  }
+  const tail = body.slice(i + 1);
+  const killed = tail[0];
+  const isBareReturn = (s) => s !== undefined && ((ts.isReturnStatement(s) && s.expression === undefined) || (ts.isBlock(s) && s.statements.length === 1 && isBareReturn(s.statements[0])));
+  const killedOk = killed !== undefined && outcome !== null && ts.isIfStatement(killed) && killed.elseStatement === undefined && [`${outcome}==='killed'`, `'killed'===${outcome}`].includes(flatText(killed.expression)) && isBareReturn(killed.thenStatement);
+  if (!(tail.length === 2 && killedOk && ts.isExpressionStatement(tail[1]) && isAppQuitCall(tail[1].expression))) {
+    f.push(`before-quit's teardown does not end \`if (${outcome ?? '<outcome>'} === 'killed') return; app.quit();\` right after the try (${at(tail[0] ?? tr)}); whatever the disposer did short of its own SIGKILL, the quit goes on (Phase 362, D2)`);
+  }
+}
+
+/** D9 and round A's W3: a window builder refuses while quitting, before it builds. */
+function refusesWhileQuitting(tree, rel, name, lifecycle, f) {
+  const sf = sfOf(tree, rel);
+  if (sf === null) {
+    f.push(`${rel} is missing`);
+    return;
+  }
+  if (!importsName(sf, 'appLifecycleState', [lifecycle])) f.push(`${rel} does not import appLifecycleState from ${lifecycle}, so ${name}'s refusal may not read the lifecycle state the quit marks (Phase 362, D9)`);
+  for (const b of localBindings(sf, 'appLifecycleState')) f.push(`${where(rel, b)} binds its own appLifecycleState, which stands in for the lifecycle state ${name}'s refusal reads (Phase 362, D9)`);
+  const decls = functionsNamed(sf, name);
+  const fn = decls.length === 1 ? decls[0] : null;
+  const body = fn === null ? null : stmtsOf(bodyOf(fn));
+  if (fn === null || body === null) {
+    f.push(`${name} is declared ${String(decls.length)} times in ${rel}, not once with a body`);
+    return;
+  }
+  const builds = nodesOf(fn).filter(isWindowBuild).sort((a, b) => a.getStart() - b.getStart());
+  if (builds.length === 0) {
+    f.push(`${name} builds no window this rule can find (${where(rel, fn)}), so its refusal during a quit cannot be read (Phase 362, D9)`);
+    return;
+  }
+  const buildStmt = body.find((s) => nodesOf(s).includes(builds[0]));
+  const before = buildStmt === undefined ? [] : body.slice(0, body.indexOf(buildStmt));
+  if (!before.some((s) => isReturnGuard(s, isQuittingRefusal))) {
+    f.push(`${name} can build a window (${where(rel, builds[0])}) with no early return before it on \`appLifecycleState() === 'quitting'\`; a window opened into a quitting app refuses what is clicked and closes a moment later (Phase 362, D9; round A's W3)`);
+  }
+}
+
+export function ruleS14(tree) {
+  const f = [];
+  requestQuitFindings(tree, f);
+  beforeQuitFindings(tree, f);
+  refusesWhileQuitting(tree, FILES.index, 'showAppWindow', './lifecycle', f);
+  refusesWhileQuitting(tree, FILES.settingsWindow, 'openSettingsWindow', '../lifecycle', f);
+  return f;
+}
+
+// ---------------------------------------------------------------------------
+// S15: the run sentinel at the quit's teardown
+// ---------------------------------------------------------------------------
+
+/** The calls that can write a file, by name. */
+const WRITE_CALLS = Object.freeze(['writeRunSentinel', 'writeFileSync', 'writeFile', 'appendFileSync', 'appendFile', 'renameSync', 'rename', 'copyFileSync', 'copyFile', 'mkdirSync', 'mkdir', 'openSync', 'createWriteStream', 'truncateSync', 'truncate']);
+/** A previous sentinel that stands in for the boot's `prev` when one is there (any object). */
+const PREV_THERE = Object.freeze({ there: true });
+
+/** Every production reach of `name` across src/, split into calls and anything else (a declaration in `home`, an import or an export aside). */
+function reachesOf(tree, name, home) {
+  const calls = [];
+  const other = [];
+  for (const { rel, sf } of filesNaming(tree, 'src/', name)) {
+    for (const n of nodesOf(sf)) {
+      if (!ts.isIdentifier(n) || n.text !== name) continue;
+      const p = n.parent;
+      if (rel === home && (ts.isFunctionDeclaration(p) || ts.isVariableDeclaration(p)) && p.name === n) continue;
+      if (ts.isImportSpecifier(p) || ts.isExportSpecifier(p)) continue;
+      if (ts.isCallExpression(p) && p.expression === n) calls.push({ rel, n: p });
+      else other.push({ rel, n });
+    }
+  }
+  return { calls, other };
+}
+
+/**
+ * (a) The log's one will-quit listener marks. That nothing it reaches clears is
+ * (b)'s, which holds every reach of either clear across src/.
+ */
+function logListenerFindings(log, f) {
+  const hs = handlersIn(log, 'will-quit');
+  if (hs.length !== 1 || hs[0].handler === null) {
+    f.push(`${FILES.logIndex} registers ${String(hs.length)} will-quit listeners this rule can read, not one (Phase 362, D4)`);
+    return;
+  }
+  const marks = callsOf(hs[0].handler, 'markLogRunSentinelAtQuit').filter((c) => ts.isIdentifier(c.expression));
+  if (marks.length !== 1 || marks[0].arguments.length !== 0) {
+    f.push(`the log's will-quit listener (${where(FILES.logIndex, hs[0].node)}) does not call markLogRunSentinelAtQuit() once; a quit that runs Node's teardown after will-quit must leave the sentinel marked, so a crash there is noticed (Phase 362, D4)`);
+  }
+  // It touches the sentinel's file only through that mark: nothing it reaches
+  // in its own file writes or deletes a file by hand (the mark itself writes in
+  // src/main/log/sentinel.ts).
+  for (const scope of withReached(log, hs[0].handler)) {
+    for (const c of nodesOf(scope).filter((n) => ts.isCallExpression(n) && FILE_TOUCH.includes(ts.isIdentifier(n.expression) ? n.expression.text : ts.isPropertyAccessExpression(n.expression) ? n.expression.name.text : ''))) {
+      f.push(`the log's will-quit listener reaches \`${c.expression.getText()}\` (${where(FILES.logIndex, c)}); it touches the run sentinel only through markRunSentinelAtQuit, so a hand-written delete or an unmarked rewrite cannot undo the mark (Phase 362, D4)`);
+    }
+  }
+}
+/** The calls that write, replace or delete a file by hand. */
+const FILE_TOUCH = Object.freeze([...WRITE_CALLS, 'unlink', 'unlinkSync', 'rm', 'rmSync', 'rmdir', 'rmdirSync', 'clearRunSentinel']);
+
+/** (b) The clear has two places, each right before a SIGKILL, and one door. */
+function clearFindings(tree, f) {
+  const at = (c) => where(c.rel, c.n);
+  const { calls, other } = reachesOf(tree, 'clearLogRunSentinel', FILES.logIndex);
+  for (const o of other) f.push(`${at(o)} names clearLogRunSentinel other than to call it, so a clear could hide behind a name (Phase 362, D4)`);
+  const idx = sfOf(tree, FILES.index);
+  const killers = idx === null ? [] : handlersIn(idx, 'will-quit').filter((h) => h.handler !== null && selfSigkillCalls(h.handler).length > 0);
+  const caps = sfOf(tree, FILES.capabilities);
+  const disposer = caps === null ? undefined : functionsNamed(caps, 'disposeMainCapabilities')[0];
+  const inHardExit = calls.filter((c) => c.rel === FILES.index && killers.some((h) => ancestor(c.n, (p) => p === h.handler) !== null));
+  const inDisposer = calls.filter((c) => c.rel === FILES.capabilities && disposer !== undefined && ancestor(c.n, (p) => p === disposer) !== null);
+  for (const c of calls.filter((x) => !inHardExit.includes(x) && !inDisposer.includes(x))) {
+    f.push(`clearLogRunSentinel() is called at ${at(c)}, outside the will-quit hard exit and Phase 36's escape; a sentinel cleared on a path that can still run Node's teardown hides a crash there (Phase 362, D4)`);
+  }
+  if (inHardExit.length > 1) f.push(`the will-quit hard exit clears the sentinel ${String(inHardExit.length)} times (${inHardExit.map(at).join(', ')}); once, in its finally right before the kill (S12), and never before the wait, where a crash would go unnoticed (Phase 362, D4)`);
+  if (inDisposer.length === 0) f.push(`disposeMainCapabilities never clears the sentinel, so Phase 36's late SIGKILL would read as a crash at the next launch (Phase 362, D4)`);
+  for (const c of inDisposer) {
+    const stmt = c.n.parent;
+    const list = stmt !== undefined && ts.isExpressionStatement(stmt) && stmt.expression === c.n ? stmtsOf(stmt.parent) : null;
+    const next = list === null ? undefined : list[list.indexOf(stmt) + 1];
+    const kills = next !== undefined && ts.isExpressionStatement(next) && selfSigkillCalls(next)[0] === next.expression;
+    if (!kills) f.push(`clearLogRunSentinel() at ${at(c)} is not the statement right before \`process.kill(process.pid, 'SIGKILL')\`; anything between the clear and the signal can still crash unnoticed (Phase 362, D4)`);
+  }
+  const raw = reachesOf(tree, 'clearRunSentinel', FILES.logSentinel);
+  for (const o of raw.other) f.push(`${at(o)} names clearRunSentinel other than to call it (Phase 362, D4)`);
+  const owned = (c) => c.rel === FILES.logIndex && ancestor(c.n, (p) => (ts.isFunctionDeclaration(p) && p.name?.text === 'clearLogRunSentinel') || (ts.isVariableDeclaration(p) && ts.isIdentifier(p.name) && p.name.text === 'clearLogRunSentinel')) !== null;
+  if (raw.calls.length !== 1 || !owned(raw.calls[0])) {
+    f.push(`clearRunSentinel( has ${String(raw.calls.length)} production callers (${raw.calls.map(at).join(', ')}); exactly one may, inside clearLogRunSentinel, or the clear has a door the two hard exits do not hold (Phase 362, D4)`);
+  }
+}
+
+/** (c) The marker is the one caller of markRunSentinelAtQuit, with the logs folder and an inventory it reads itself. */
+function markerFindings(tree, log, f) {
+  const at = (n) => where(FILES.logIndex, n);
+  if (!importsName(log, 'markRunSentinelAtQuit', ['./sentinel'])) f.push(`${FILES.logIndex} does not import markRunSentinelAtQuit from ./sentinel (Phase 362, D4)`);
+  for (const b of localBindings(log, 'markRunSentinelAtQuit')) f.push(`${at(b)} binds its own markRunSentinelAtQuit, which stands in for the sentinel module's marker (Phase 362, D4)`);
+  if (!importsName(log, 'scanCrashDumps', ['./crash'])) f.push(`${FILES.logIndex} does not import scanCrashDumps from ./crash, so the mark's inventory may not be the crash folder's (Phase 362, D4)`);
+  for (const b of localBindings(log, 'scanCrashDumps')) f.push(`${at(b)} binds its own scanCrashDumps, which stands in for the crash folder's inventory (Phase 362, D4)`);
+  const decls = functionsNamed(log, 'markLogRunSentinelAtQuit');
+  if (decls.length !== 1) {
+    f.push(`markLogRunSentinelAtQuit is declared ${String(decls.length)} times in ${FILES.logIndex}, not once (Phase 362, D4)`);
+    return;
+  }
+  const fn = decls[0];
+  const calls = [];
+  for (const { rel, sf } of filesNaming(tree, 'src/', 'markRunSentinelAtQuit')) for (const c of callsOf(sf, 'markRunSentinelAtQuit')) calls.push({ rel, n: c });
+  const mine = calls.filter((c) => c.rel === FILES.logIndex && ancestor(c.n, (p) => p === fn) !== null);
+  if (calls.length !== 1 || mine.length !== 1) {
+    f.push(`markRunSentinelAtQuit( has ${String(calls.length)} production callers (${calls.map((c) => where(c.rel, c.n)).join(', ')}); exactly one may, markLogRunSentinelAtQuit at will-quit: a sentinel marked any earlier reads a run that died with no dump as a clean quit (Phase 362, D4)`);
+  }
+  const call = mine[0]?.n;
+  if (call === undefined) return;
+  const locals = new Map();
+  for (const d of nodesOf(fn)) if (ts.isVariableDeclaration(d) && ts.isIdentifier(d.name) && d.initializer !== undefined) locals.set(d.name.text, d.initializer);
+  const expand = (e) => [e, ...nodesOf(e).filter((x) => ts.isIdentifier(x) && locals.has(x.text)).map((x) => locals.get(x.text))];
+  const [dir, names] = call.arguments;
+  if (call.arguments.length !== 3 || dir === undefined || !expand(dir).some((e) => flatText(e) === 'getLogsDir()')) {
+    f.push(`the marker's first argument is not getLogsDir() (${at(dir ?? call)}); a mark aimed at another folder leaves the boot's sentinel unmarked, so every teardown quit would read as a crash (Phase 362, D4)`);
+  }
+  const scans = names === undefined ? [] : expand(names).flatMap((e) => callsOf(e, 'scanCrashDumps')).filter((c) => ts.isIdentifier(c.expression));
+  const scanOk = scans.length === 1 && scans[0].arguments.length === 1 && expand(scans[0].arguments[0]).some((e) => /^app\.getPath\((['"])crashDumps\1\)$/.test(flatText(e)));
+  if (!scanOk) {
+    f.push(`the marker does not hand markRunSentinelAtQuit an inventory read by scanCrashDumps(app.getPath('crashDumps')) in markLogRunSentinelAtQuit itself (${at(names ?? call)}); the mark carries the dumps of that moment, or a dump written earlier in the run reads as a crash in its teardown (Phase 362, D4)`);
+  }
+  // THE PROBE REVIEW: and the scan's names WHOLE. `scanCrashDumps(…).filter(() =>
+  // false).map((d) => d.name)` read green above, and it marks an empty inventory,
+  // so every dump already on disk reads as new at the next boot and a clean
+  // teardown quit is called a crash (the review's hostile copy).
+  const local = (e) => {
+    const x = e === undefined ? undefined : peel(e);
+    return x !== undefined && ts.isIdentifier(x) && locals.has(x.text) ? peel(locals.get(x.text)) : x;
+  };
+  const inv = local(names);
+  const mapFn = inv !== undefined && ts.isCallExpression(inv) && ts.isPropertyAccessExpression(inv.expression) && inv.expression.name.text === 'map' && inv.arguments.length === 1 ? peel(inv.arguments[0]) : undefined;
+  const mapParam = mapFn !== undefined && ts.isArrowFunction(mapFn) && mapFn.parameters.length === 1 && ts.isIdentifier(mapFn.parameters[0].name) ? mapFn.parameters[0].name.text : null;
+  const whole =
+    mapParam !== null &&
+    scans.length === 1 &&
+    peel(inv.expression.expression) === scans[0] &&
+    !ts.isBlock(mapFn.body) &&
+    flatText(mapFn.body) === `${mapParam}.name`;
+  if (scanOk && !whole) {
+    f.push(`the marker does not hand markRunSentinelAtQuit the scan's names whole, \`scanCrashDumps(app.getPath('crashDumps')).map((d) => d.name)\` (${at(names ?? call)}); an inventory filtered on the way reads a dump already on disk as new since the mark, so the next launch calls a clean teardown quit a crash (Phase 362, D4)`);
+  }
+  // And the mark's time is this moment's: anything else marks no quit at all
+  // (`undefined` is dropped from the file), and the boot reads it as a crash.
+  const when = local(call.arguments[2]);
+  if (when === undefined || flatText(when) !== 'newDate().toISOString()') {
+    f.push(`the marker's third argument is not \`new Date().toISOString()\` (${at(call.arguments[2] ?? call)}); the mark is the moment of will-quit, and a sentinel marked with anything else, or with nothing, reads as unmarked, so every teardown quit would be called a crash (Phase 362, D4)`);
+  }
+}
+
+/** One expression's value over one boot case `c = { P, Q, N }`, or '?' when it cannot be known. */
+function bootValue(e, c, names, consts, depth) {
+  const x = peel(e);
+  if (x === undefined || depth > 12) return '?';
+  if (x.kind === ts.SyntaxKind.NullKeyword) return null;
+  if (x.kind === ts.SyntaxKind.TrueKeyword) return true;
+  if (x.kind === ts.SyntaxKind.FalseKeyword) return false;
+  if (ts.isIdentifier(x) && x.text === 'undefined') return undefined;
+  if (ts.isStringLiteralLike(x)) return x.text;
+  if (ts.isNumericLiteral(x)) return Number(x.text.replace(/_/g, ''));
+  if (ts.isIdentifier(x) && x.text === names.prev) return c.P ? PREV_THERE : null;
+  if (ts.isPropertyAccessExpression(x) && ts.isIdentifier(x.expression) && x.expression.text === names.prev && x.name.text === 'quitAt') return c.P && c.Q ? '2026-11-08T00:00:00.000Z' : undefined;
+  if (ts.isPropertyAccessExpression(x) && ts.isIdentifier(x.expression) && x.expression.text === names.fresh && x.name.text === 'length') return c.N ? 0 : 1;
+  if (ts.isIdentifier(x) && consts.has(x.text)) return bootValue(consts.get(x.text), c, names, consts, depth + 1);
+  if (ts.isTypeOfExpression(x)) {
+    const v = bootValue(x.expression, c, names, consts, depth + 1);
+    return v === '?' ? '?' : v === null ? 'object' : typeof v;
+  }
+  if (ts.isPrefixUnaryExpression(x) && x.operator === ts.SyntaxKind.ExclamationToken) {
+    const v = bootValue(x.operand, c, names, consts, depth + 1);
+    return v === '?' ? '?' : !v;
+  }
+  if (ts.isBinaryExpression(x)) {
+    const op = x.operatorToken.kind;
+    const l = bootValue(x.left, c, names, consts, depth + 1);
+    if (l === '?') return '?';
+    if (op === ts.SyntaxKind.AmpersandAmpersandToken) return l ? bootValue(x.right, c, names, consts, depth + 1) : l;
+    if (op === ts.SyntaxKind.BarBarToken) return l ? l : bootValue(x.right, c, names, consts, depth + 1);
+    const r = bootValue(x.right, c, names, consts, depth + 1);
+    if (r === '?') return '?';
+    /* eslint-disable eqeqeq */
+    if (op === ts.SyntaxKind.EqualsEqualsEqualsToken) return l === r;
+    if (op === ts.SyntaxKind.ExclamationEqualsEqualsToken) return l !== r;
+    if (op === ts.SyntaxKind.EqualsEqualsToken) return l == r;
+    if (op === ts.SyntaxKind.ExclamationEqualsToken) return l != r;
+    /* eslint-enable eqeqeq */
+    if (typeof l === 'number' && typeof r === 'number') {
+      if (op === ts.SyntaxKind.LessThanToken) return l < r;
+      if (op === ts.SyntaxKind.GreaterThanToken) return l > r;
+      if (op === ts.SyntaxKind.LessThanEqualsToken) return l <= r;
+      if (op === ts.SyntaxKind.GreaterThanEqualsToken) return l >= r;
+    }
+  }
+  return '?';
+}
+/** True when `e`, read through the function's consts, names one of `ids`. */
+function namesAny(e, ids, consts, depth = 0) {
+  if (depth > 12) return true;
+  return nodesOf(e).some((n) => ts.isIdentifier(n) && (ids.includes(n.text) || (consts.has(n.text) && namesAny(consts.get(n.text), ids, consts, depth + 1))));
+}
+/**
+ * The tests in front of `node` in `fn`, in the order they run: each `{ cond,
+ * want, top }`, `want` being what the test must answer for `node` to run (an
+ * enclosing then, else, ternary arm or `&&`/`||` right side, or an earlier
+ * early return), `top` true for an early return among the function's own
+ * statements.
+ */
+function testsBefore(node, fn) {
+  const out = [];
+  const body = bodyOf(fn);
+  for (let at = node; at !== undefined && at !== fn; at = at.parent) {
+    const p = at.parent;
+    if (p === undefined) break;
+    if (ts.isIfStatement(p) && p.thenStatement === at) out.push({ cond: p.expression, want: true, top: false });
+    if (ts.isIfStatement(p) && p.elseStatement === at) out.push({ cond: p.expression, want: false, top: false });
+    if (ts.isConditionalExpression(p) && p.whenTrue === at) out.push({ cond: p.condition, want: true, top: false });
+    if (ts.isConditionalExpression(p) && p.whenFalse === at) out.push({ cond: p.condition, want: false, top: false });
+    if (ts.isBinaryExpression(p) && p.right === at && p.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) out.push({ cond: p.left, want: true, top: false });
+    if (ts.isBinaryExpression(p) && p.right === at && p.operatorToken.kind === ts.SyntaxKind.BarBarToken) out.push({ cond: p.left, want: false, top: false });
+    const siblings = stmtsOf(p);
+    if (siblings !== null) {
+      for (const s of siblings.slice(0, siblings.indexOf(at)).reverse()) {
+        if (ts.isIfStatement(s) && s.elseStatement === undefined && endsInReturn(s.thenStatement)) out.push({ cond: s.expression, want: false, top: p === body });
+      }
+    }
+  }
+  return out.reverse();
+}
+/** The boot cases, and whether the record and the notice must come: there, and NOT (marked at quit AND no dump new). */
+const BOOT_CASES = Object.freeze([
+  { P: true, Q: false, N: false },
+  { P: true, Q: false, N: true },
+  { P: true, Q: true, N: false },
+  { P: true, Q: true, N: true },
+  { P: false, Q: false, N: true }
+]);
+
+/** (d) The boot speaks exactly when a sentinel is there and not (quitAt set AND no dump new). */
+function bootFindings(log, f) {
+  const at = (n) => where(FILES.logIndex, n);
+  const decls = functionsNamed(log, 'runLogBootSequence');
+  if (decls.length !== 1) {
+    f.push(`runLogBootSequence is declared ${String(decls.length)} times in ${FILES.logIndex}, not once (Phase 362, D4)`);
+    return;
+  }
+  const fn = decls[0];
+  const records = nodesOf(fn).filter((n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === 'logEvent' && n.arguments.some((a) => ts.isStringLiteralLike(a) && a.text === 'boot.unclean_exit'));
+  const notices = nodesOf(fn).filter((n) => ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && n.expression.name.text === 'postNotice');
+  if (records.length !== 1 || notices.length !== 1) {
+    f.push(`runLogBootSequence writes boot.unclean_exit ${String(records.length)} times and posts ${String(notices.length)} notices, not one of each, so when the boot speaks cannot be read (Phase 362, D4)`);
+    return;
+  }
+  const prevDecl = nodesOf(fn).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer !== undefined && isCallOfName(peel(n.initializer), 'readRunSentinel'));
+  const obj = notices[0].arguments[0] === undefined ? undefined : peel(notices[0].arguments[0]);
+  const count = obj !== undefined && ts.isObjectLiteralExpression(obj) ? obj.properties.find((p) => ts.isPropertyAssignment(p) && memberName(p) === 'newDumps') : undefined;
+  const len = count === undefined ? undefined : peel(count.initializer);
+  const fresh = len !== undefined && ts.isPropertyAccessExpression(len) && len.name.text === 'length' && ts.isIdentifier(len.expression) ? len.expression.text : null;
+  if (prevDecl === undefined || fresh === null) {
+    f.push(`runLogBootSequence ${prevDecl === undefined ? 'reads the previous sentinel into no const of its own' : "posts a notice whose newDumps is not `<new dumps>.length`"} (${at(prevDecl ?? notices[0])}), so whether a dump is new cannot be read (Phase 362, D4)`);
+    return;
+  }
+  const names = { prev: prevDecl.name.text, fresh };
+  const consts = new Map();
+  for (const s of nodesOf(fn)) {
+    if (!ts.isVariableStatement(s) || (s.declarationList.flags & ts.NodeFlags.Const) === 0) continue;
+    for (const d of s.declarationList.declarations) if (ts.isIdentifier(d.name) && d.initializer !== undefined) consts.set(d.name.text, d.initializer);
+  }
+  const say = (c) => (c.P ? `there, ${c.Q ? 'marked at quit' : 'unmarked'}, with ${c.N ? 'no dump' : 'a dump'} new since it` : 'absent');
+  for (const [label, call] of [['the boot.unclean_exit record', records[0]], ['the unclean-exit notice', notices[0]]]) {
+    const tests = testsBefore(call, fn);
+    for (const c of BOOT_CASES) {
+      const want = c.P && !(c.Q && c.N);
+      let runs = true;
+      let unread = null;
+      for (const t of tests) {
+        if (t.top && !namesAny(t.cond, [names.prev, names.fresh], consts)) continue; // the boot's own gate, the same in every case
+        const v = bootValue(t.cond, c, names, consts, 0);
+        if (v === '?') {
+          unread = t.cond;
+          break;
+        }
+        if (Boolean(v) !== t.want) {
+          runs = false;
+          break;
+        }
+      }
+      if (unread !== null) {
+        f.push(`${label}'s test \`${unread.getText().slice(0, 80)}\` (${at(unread)}) cannot be read over the previous sentinel and the new dumps, so when the boot speaks is not known (Phase 362, D4)`);
+        break;
+      }
+      if (runs !== want) {
+        f.push(`${label} ${runs ? 'comes' : 'is skipped'} when the previous sentinel is ${say(c)} (${at(call)}); it is skipped exactly when quitAt is set AND no dump is new (Phase 362, D4)`);
+        break;
+      }
+    }
+  }
+}
+/** `name(…)`, a bare call of `name`. */
+const isCallOfName = (e, name) => e !== undefined && ts.isCallExpression(e) && ts.isIdentifier(e.expression) && e.expression.text === name;
+
+/** (e) markRunSentinelAtQuit writes nothing on a path where no sentinel was read. */
+function markOnlyExistingFindings(sen, f) {
+  const at = (n) => where(FILES.logSentinel, n);
+  const decls = functionsNamed(sen, 'markRunSentinelAtQuit');
+  if (decls.length !== 1) {
+    f.push(`markRunSentinelAtQuit is declared ${String(decls.length)} times in ${FILES.logSentinel}, not once (Phase 362, D4)`);
+    return;
+  }
+  const fn = decls[0];
+  const exported = ts.isFunctionDeclaration(fn) ? hasModifier(fn, ts.SyntaxKind.ExportKeyword) : hasModifier(fn.parent.parent, ts.SyntaxKind.ExportKeyword);
+  if (!exported) f.push(`markRunSentinelAtQuit is not exported from ${FILES.logSentinel} (Phase 362, D4)`);
+  const reads = callsOf(fn, 'readRunSentinel').filter((c) => ts.isIdentifier(c.expression));
+  const readDecl = reads.length === 1 ? ancestor(reads[0], (p) => ts.isVariableDeclaration(p), fn) : null;
+  const cur = readDecl !== null && ts.isIdentifier(readDecl.name) && peel(readDecl.initializer) === reads[0] ? readDecl.name.text : null;
+  if (cur === null) {
+    f.push(`markRunSentinelAtQuit does not read the sentinel once into a const of its own, \`const <current> = readRunSentinel(dir);\` (${at(fn)}), so whether it writes only over a sentinel that is there cannot be read (Phase 362, D4)`);
+    return;
+  }
+  const writes = nodesOf(fn).filter((n) => ts.isCallExpression(n) && (ts.isIdentifier(n.expression) ? WRITE_CALLS.includes(n.expression.text) : ts.isPropertyAccessExpression(n.expression) && WRITE_CALLS.includes(n.expression.name.text)));
+  if (!writes.some((w) => isCallOfName(w, 'writeRunSentinel'))) f.push(`markRunSentinelAtQuit never calls writeRunSentinel (${at(fn)}), so it marks nothing (Phase 362, D4)`);
+  const THERE = [`${cur}!==null`, `null!==${cur}`, `${cur}!=null`, `null!=${cur}`, `!(${cur}===null)`, `!(null===${cur})`, `!(${cur}==null)`, `!(null==${cur})`, cur];
+  for (const w of writes) {
+    const guarded = conjunctsOf(guardsOf(w, fn)).some((c) => THERE.includes(c));
+    if (!guarded || w.getStart() < reads[0].getStart()) {
+      f.push(`markRunSentinelAtQuit writes (\`${w.expression.getText()}\`, ${at(w)}) on a path that has not found a sentinel there; with none it writes nothing, or a run that never armed a sentinel gets one marked at quit (Phase 362, D4)`);
+    }
+  }
+}
+
+export function ruleS15(tree) {
+  const f = [];
+  const log = sfOf(tree, FILES.logIndex);
+  const sen = sfOf(tree, FILES.logSentinel);
+  if (log === null) f.push(`${FILES.logIndex} is missing`);
+  else {
+    logListenerFindings(log, f);
+    markerFindings(tree, log, f);
+    bootFindings(log, f);
+  }
+  clearFindings(tree, f);
+  if (sen === null) f.push(`${FILES.logSentinel} is missing`);
+  else markOnlyExistingFindings(sen, f);
+  return f;
+}
+
+export const RULE_FNS = Object.freeze({ S1: ruleS1, S2: ruleS2, S3: ruleS3, S4: ruleS4, S5: ruleS5, S6: ruleS6, S7: ruleS7, S8: ruleS8, S9: ruleS9, S10: ruleS10, S11: ruleS11, S12: ruleS12, S13: ruleS13, S14: ruleS14, S15: ruleS15 });
 
 // ---------------------------------------------------------------------------
 // The ablations: in-memory copies, each with one rule broken
@@ -2233,6 +3110,89 @@ function storeCallOf(sf, name) {
 function coreMethod(sf, name) {
   const cls = classNamed(sf, 'GmuxCore');
   return cls === null ? null : methodOf(cls, name);
+}
+// PHASE 362's locators.
+/** The statement list a node's statement sits in, and its index there, or null. */
+function placeOf(stmt) {
+  const list = stmt === undefined || stmt === null ? null : stmtsOf(stmt.parent);
+  return list === null ? null : { list, at: list.indexOf(stmt) };
+}
+/** A top-level `const <name> = …` declaration of a file, or null. */
+function topDecl(sf, name) {
+  for (const s of sf.statements) {
+    if (!ts.isVariableStatement(s)) continue;
+    for (const d of s.declarationList.declarations) if (ts.isIdentifier(d.name) && d.name.text === name) return { stmt: s, decl: d };
+  }
+  return null;
+}
+/** The one return that answers `landing: 'settled'` in storage-landing.ts, and the `if` in front of it, or null. */
+function settledTest(sf) {
+  const ret = nodesOf(sf).find((n) => ts.isReturnStatement(n) && n.expression !== undefined && /landing:\s*'settled'/.test(n.expression.getText()));
+  const test = ret === undefined ? null : ancestor(ret, (p) => ts.isIfStatement(p) && nodesOf(p.thenStatement).includes(ret));
+  return test === null ? null : { ret, test, fn: ancestor(ret, (p) => isFunctionLike(p) || ts.isFunctionDeclaration(p)) };
+}
+/** requestQuit's declaration and statements in menu.ts, or null. */
+function requestQuitIn(sf) {
+  const fn = functionsNamed(sf, 'requestQuit')[0];
+  const body = fn === undefined ? null : stmtsOf(bodyOf(fn));
+  return body === null ? null : { fn, body };
+}
+/** requestQuit's fallback `setTimeout(…)` call, its statement and its one `if`, or null. */
+function fallbackIn(sf) {
+  const rq = requestQuitIn(sf);
+  const t = rq === null ? undefined : callsOf(rq.fn, 'setTimeout')[0];
+  if (t === undefined) return null;
+  const cb = t.arguments[0];
+  const only = cb !== undefined && isFunctionLike(cb) && ts.isBlock(cb.body) && ts.isIfStatement(cb.body.statements[0]) ? cb.body.statements[0] : null;
+  return { timer: t, stmt: rq.body.find((s) => nodesOf(s).includes(t)), guard: only };
+}
+/** The import of `name` from `from` in a file, or null. */
+function importOf(sf, name, from) {
+  return sf.statements.find((s) => ts.isImportDeclaration(s) && ts.isStringLiteral(s.moduleSpecifier) && s.moduleSpecifier.text === from && s.getText().includes(name)) ?? null;
+}
+/** before-quit's async teardown in index.ts, and its statements, or null. */
+function teardownIn(sf) {
+  const h = handlersIn(sf, 'before-quit')[0]?.handler;
+  const outer = h === undefined || h === null ? null : stmtsOf(bodyOf(h));
+  const fn = outer === null ? undefined : outer.map((s) => boundedWaitOf(s)).find((x) => x !== null);
+  if (fn === undefined) return null;
+  const body = [...fn.body.statements];
+  const tr = body.find((s) => ts.isTryStatement(s));
+  return tr === undefined ? null : { fn, body, tr };
+}
+/** A window builder's early return on the quitting test, or null. */
+function quittingReturnIn(sf, name) {
+  const fn = functionsNamed(sf, name)[0];
+  const body = fn === undefined ? null : stmtsOf(bodyOf(fn));
+  return body?.find((s) => isReturnGuard(s, isQuittingRefusal)) ?? null;
+}
+/** The log's one will-quit listener: its registration and its function, or null. */
+function logListenerIn(sf) {
+  const h = handlersIn(sf, 'will-quit')[0];
+  return h === undefined || h.handler === null ? null : h;
+}
+/** markLogRunSentinelAtQuit's call of markRunSentinelAtQuit, or null. */
+function markerCallIn(sf) {
+  const fn = functionsNamed(sf, 'markLogRunSentinelAtQuit')[0];
+  return (fn === undefined ? undefined : callsOf(fn, 'markRunSentinelAtQuit')[0]) ?? null;
+}
+/** The boot's `<quitAt set> && <no dump new>` test (either order), and its two sides, or null. */
+function teardownCleanIn(sf) {
+  const fn = functionsNamed(sf, 'runLogBootSequence')[0];
+  const and = fn === undefined ? undefined : nodesOf(fn).find((n) => ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken && ((n.left.getText().includes('quitAt') && /\.length\b/.test(n.right.getText())) || (n.right.getText().includes('quitAt') && /\.length\b/.test(n.left.getText()))));
+  if (and === undefined) return null;
+  const marked = and.left.getText().includes('quitAt') ? and.left : and.right;
+  return { and, marked, none: marked === and.left ? and.right : and.left };
+}
+/** markRunSentinelAtQuit in sentinel.ts: its read's declaration and its early return when none was read, or null. */
+function markerIn(sf) {
+  const fn = functionsNamed(sf, 'markRunSentinelAtQuit')[0];
+  const read = fn === undefined ? undefined : callsOf(fn, 'readRunSentinel')[0];
+  const decl = read === undefined ? null : ancestor(read, (p) => ts.isVariableDeclaration(p), fn);
+  if (decl === null || !ts.isIdentifier(decl.name)) return null;
+  const name = decl.name.text;
+  const none = nodesOf(fn).find((n) => ts.isIfStatement(n) && isNullTestOf(n.expression, name) && endsInReturn(n.thenStatement)) ?? null;
+  return { fn, decl, none };
 }
 
 export const ABLATIONS = [
@@ -2398,7 +3358,15 @@ export const ABLATIONS = [
     const stmts = fn === undefined ? null : stmtsOf(bodyOf(fn));
     const last = stmts === null ? undefined : stmts[stmts.length - 1];
     if (killStmt === undefined || last === undefined || last.getStart() < killStmt.getEnd()) return null;
-    return s.slice(0, killStmt.getStart()) + s.slice(killStmt.getEnd(), last.getStart()) + "process.kill(process.pid, 'SIGKILL');\n  " + s.slice(last.getStart());
+    // Since Phase 362 S15 holds the sentinel's clear as the statement right
+    // before this kill, so the pair moves together, as 357's old exit had them
+    // at the disposer's end; moving the kill alone breaks S15 as well.
+    const place = placeOf(killStmt);
+    const prev = place === null ? undefined : place.list[place.at - 1];
+    const clear = prev !== undefined && ts.isExpressionStatement(prev) && isCallOfWith0(prev.expression, 'clearLogRunSentinel') ? prev : undefined;
+    const from = clear ?? killStmt;
+    const moved = `${clear === undefined ? '' : 'clearLogRunSentinel();\n  '}process.kill(process.pid, 'SIGKILL');\n  `;
+    return s.slice(0, from.getStart()) + s.slice(killStmt.getEnd(), last.getStart()) + moved + s.slice(last.getStart());
   })],
   // ROUND A (W1): the disposer's storage flush, broken three ways.
   ['S6', ['S6'], 'the disposer’s storage flush removed', (t) => withFile(t, FILES.capabilities, (s, sf) => {
@@ -2582,6 +3550,111 @@ export const ABLATIONS = [
   })],
   ['S12', ['S12'], 'a second will-quit handler that prevents the quit', (t) => withFile(t, FILES.index, append("app.on('will-quit', (event) => {\n  event.preventDefault();\n});"))],
   ['S12', ['S12'], 'a storage flush in a third file', (t) => withFile(t, FILES.updater, append("import { session } from 'electron';\nexport function selfTestFlush(): void {\n  session.defaultSession.flushStorageData();\n}"))],
+  // PHASE 362 (D7, carried from 357.1's landing): the wait's timing, cut or
+  // shadowed. Cutting QUIET_MS and SETTLE_MS to 0 left every quit test and
+  // this gate green before (both of the landing's lenses).
+  ['S12', ['S12'], 'QUIET_MS cut to 0', (t) => withFile(t, FILES.storageLanding, (s, sf) => {
+    const d = topDecl(sf, 'QUIET_MS');
+    return d?.decl.initializer === undefined ? null : splice(s, d.decl.initializer, '0');
+  })],
+  ['S12', ['S12'], 'SETTLE_MS cut to 0', (t) => withFile(t, FILES.storageLanding, (s, sf) => {
+    const d = topDecl(sf, 'SETTLE_MS');
+    return d?.decl.initializer === undefined ? null : splice(s, d.decl.initializer, '0');
+  })],
+  ['S12', ['S12'], 'SETTLE_MS made POLL_MS', (t) => withFile(t, FILES.storageLanding, (s, sf) => {
+    const d = topDecl(sf, 'SETTLE_MS');
+    return d?.decl.initializer === undefined ? null : splice(s, d.decl.initializer, 'POLL_MS');
+  })],
+  ['S12', ['S12'], 'POLL_MS cut to 0', (t) => withFile(t, FILES.storageLanding, (s, sf) => {
+    const d = topDecl(sf, 'POLL_MS');
+    return d?.decl.initializer === undefined ? null : splice(s, d.decl.initializer, '0');
+  })],
+  ['S12', ['S12'], 'QUIET_MS no longer exported', (t) => withFile(t, FILES.storageLanding, (s, sf) => {
+    const d = topDecl(sf, 'QUIET_MS');
+    return d === null || !/^export\s/.test(d.stmt.getText()) ? null : splice(s, d.stmt, d.stmt.getText().replace(/^export\s+/, ''));
+  })],
+  ['S12', ['S12'], 'the QUIET_MS clause dropped from the settled test', (t) => withFile(t, FILES.storageLanding, (s, sf) => {
+    const st = settledTest(sf);
+    const parts = st === null ? [] : splitAnd(st.test.expression);
+    const kept = parts.filter((p) => !nodesOf(p).some((n) => ts.isIdentifier(n) && n.text === 'QUIET_MS'));
+    return st === null || kept.length === parts.length ? null : splice(s, st.test.expression, kept.map((p) => p.getText()).join(' && '));
+  })],
+  ['S12', ['S12'], 'a local const QUIET_MS = 0 inside the wait', (t) => withFile(t, FILES.storageLanding, (s, sf) => {
+    const st = settledTest(sf);
+    const first = st === null || st.fn === null ? undefined : stmtsOf(bodyOf(st.fn))?.[0];
+    return first === undefined ? null : insertBefore(s, first, 'const QUIET_MS = 0;\n  ');
+  })],
+  ['S12', ['S12'], 'the QUIET_MS test weakened to QUIET_MS * 0', (t) => withFile(t, FILES.storageLanding, (s, sf) => {
+    const st = settledTest(sf);
+    const id = st === null ? undefined : nodesOf(st.test.expression).find((n) => ts.isIdentifier(n) && n.text === 'QUIET_MS');
+    return id === undefined ? null : splice(s, id, 'QUIET_MS * 0');
+  })],
+  ['S12', ['S12'], 'the settled test given a fourth conjunct that never holds', (t) => withFile(t, FILES.storageLanding, (s, sf) => {
+    const st = settledTest(sf);
+    return st === null ? null : splice(s, st.test.expression, `${st.test.expression.getText()} && Date.now() < 0`);
+  })],
+  ['S12', ['S12'], 'the QUIET_MS test made to hold from the start, elapsed() + QUIET_MS >= QUIET_MS', (t) => withFile(t, FILES.storageLanding, (s, sf) => {
+    const st = settledTest(sf);
+    const cmp = st === null ? undefined : splitAnd(st.test.expression).find((p) => isAtLeast(p, 'QUIET_MS'));
+    return cmp === undefined || !ts.isBinaryExpression(cmp) ? null : splice(s, cmp.left, `${cmp.left.getText()} + QUIET_MS`);
+  })],
+  // PHASE 362 (D8): the wait's folder, and an exit that runs Node's teardown.
+  ['S12', ['S12'], 'the wait handed null for the storage path', (t) => withFile(t, FILES.index, (s, sf) => {
+    const w = waitCallIn(sf);
+    return w === null || w.arguments.length !== 2 ? null : splice(s, w.arguments[0], 'null');
+  })],
+  ['S12', ['S12'], 'the wait handed the profile folder for the storage path', (t) => withFile(t, FILES.index, (s, sf) => {
+    const w = waitCallIn(sf);
+    return w === null || w.arguments.length !== 2 ? null : splice(s, w.arguments[0], "app.getPath('userData')");
+  })],
+  ['S12', ['S12'], 'process.exit(0) before the kill in the finally', (t) => withFile(t, FILES.index, (s, sf) => {
+    const tr = flushTry(sf);
+    const kill = tr === null ? undefined : tr.finallyBlock.statements.find((x) => x.getText().startsWith('process.kill'));
+    return kill === undefined ? null : insertBefore(s, kill, 'process.exit(0);\n        ');
+  })],
+  // The two that only the exit clause catches: the try and the finally keep their shape.
+  ['S12', ['S12'], 'process.exit(0) after the wait, in the hard exit’s try', (t) => withFile(t, FILES.index, (s, sf) => {
+    const tr = flushTry(sf);
+    const waitStmt = tr === null ? undefined : tr.tryBlock.statements.find((x) => nodesOf(x).some((n) => ts.isAwaitExpression(n)));
+    return waitStmt === undefined ? null : `${s.slice(0, waitStmt.getEnd())}\n        process.exit(0);${s.slice(waitStmt.getEnd())}`;
+  })],
+  ['S12', ['S12'], 'process[\'exit\'] reached by its key, after the wait in the hard exit’s try', (t) => withFile(t, FILES.index, (s, sf) => {
+    const tr = flushTry(sf);
+    const waitStmt = tr === null ? undefined : tr.tryBlock.statements.find((x) => nodesOf(x).some((n) => ts.isAwaitExpression(n)));
+    return waitStmt === undefined ? null : `${s.slice(0, waitStmt.getEnd())}\n        process['exit'](0);${s.slice(waitStmt.getEnd())}`;
+  })],
+  ['S12', ['S12'], 'an exit reached through a function of the hard exit’s own file', (t) => withFile(t, FILES.index, (s, sf) => {
+    const tr = flushTry(sf);
+    const waitStmt = tr === null ? undefined : tr.tryBlock.statements.find((x) => nodesOf(x).some((n) => ts.isAwaitExpression(n)));
+    return waitStmt === undefined ? null : `${s.slice(0, waitStmt.getEnd())}\n        endQuitNow();${s.slice(waitStmt.getEnd())}\nfunction endQuitNow(): void {\n  process.exit(0);\n}\n`;
+  })],
+  ['S12', ['S12'], 'app.exit(0) in the wedge guard’s timer', (t) => withFile(t, FILES.capabilities, (s, sf) => {
+    const fn = functionsNamed(sf, 'afterMs')[0];
+    const cb = fn === undefined ? undefined : callsOf(fn, 'setTimeout')[0]?.arguments[0];
+    return cb === undefined ? null : splice(s, cb, `() => {\n      app.exit(0);\n      ${cb.getText()}();\n    }`);
+  })],
+  ['S12', ['S12'], 'a timer in the disposer that calls process.reallyExit', (t) => withFile(t, FILES.capabilities, (s, sf) => {
+    const fn = functionsNamed(sf, 'disposeMainCapabilities')[0];
+    const stmts = fn === undefined ? null : stmtsOf(bodyOf(fn));
+    const last = stmts === null ? undefined : stmts[stmts.length - 1];
+    return last === undefined ? null : insertBefore(s, last, 'setTimeout(() => process.reallyExit(0), 30_000);\n  ');
+  })],
+  // The probe review: an exit in the disposer's own body, and one handed to a deferral that is not a timer.
+  ['S12', ['S12'], 'app.exit(0) at the disposer’s end, before its return', (t) => withFile(t, FILES.capabilities, (s, sf) => {
+    const fn = functionsNamed(sf, 'disposeMainCapabilities')[0];
+    const ret = fn === undefined ? undefined : (stmtsOf(bodyOf(fn)) ?? []).filter((x) => ts.isReturnStatement(x)).pop();
+    return ret === undefined ? null : insertBefore(s, ret, 'app.exit(0);\n  ');
+  })],
+  ['S12', ['S12'], 'process.exit handed to setImmediate in the disposer', (t) => withFile(t, FILES.capabilities, (s, sf) => {
+    const fn = functionsNamed(sf, 'disposeMainCapabilities')[0];
+    const ret = fn === undefined ? undefined : (stmtsOf(bodyOf(fn)) ?? []).filter((x) => ts.isReturnStatement(x)).pop();
+    return ret === undefined ? null : insertBefore(s, ret, 'setImmediate(() => process.exit(0));\n  ');
+  })],
+  ['S12', ['S12'], 'exit destructured out of process in the log’s will-quit listener', (t) => withFile(t, FILES.logIndex, (s, sf) => {
+    const l = logListenerIn(sf);
+    const call = l === null ? undefined : nodesOf(l.handler).find((n) => ts.isCallExpression(n));
+    return call === undefined ? null : splice(s, l.handler, `() => {\n      ${call.getText()};\n      const { exit } = process;\n      exit(0);\n    }`);
+  })],
   // S13
   ['S13', ['S13'], 'the broken-connection rethrow removed from the digest', (t) => withFile(t, FILES.digest, (s, sf) => {
     const fn = functionsNamed(sf, 'digestOneTable')[0];
@@ -2691,17 +3764,301 @@ export const ABLATIONS = [
     const exit = nodesOf(sf).find((n) => ts.isCallExpression(n) && n.arguments[0] !== undefined && ts.isStringLiteralLike(n.arguments[0]) && n.arguments[0].text === 'server-exit' && n.arguments[1] !== undefined && isFunctionLike(n.arguments[1]));
     const snap = exit === undefined ? undefined : nodesOf(exit.arguments[1]).find((n) => ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && n.expression.name.text === 'snapshotAllSessions');
     return snap === undefined ? null : splice(s, snap, `${snap.getText()}.then(() => undefined, () => undefined)`);
+  })],
+  // S14 (Phase 362). The spec's twelve first (build/p362/SPEC.md §4.3), then
+  // one for each clause none of them reaches alone.
+  ['S14', ['S14'], 'the bare timer restored', (t) => withFile(t, FILES.menu, (s, sf) => {
+    const cb = fallbackIn(sf)?.timer.arguments[0];
+    return cb === undefined ? null : splice(s, cb, '() => app.quit()');
+  })],
+  ['S14', ['S14'], 'the fallback’s test inverted', (t) => withFile(t, FILES.menu, (s, sf) => {
+    const g = fallbackIn(sf)?.guard ?? null;
+    return g === null ? null : splice(s, g.expression, "appLifecycleState() === 'quitting'");
+  })],
+  ['S14', ['S14'], 'the fallback’s test widened with ||', (t) => withFile(t, FILES.menu, (s, sf) => {
+    const g = fallbackIn(sf)?.guard ?? null;
+    return g === null ? null : splice(s, g.expression, `${g.expression.getText()} || Date.now() > 0`);
+  })],
+  ['S14', ['S14'], 'the fallback’s test given a second conjunct', (t) => withFile(t, FILES.menu, (s, sf) => {
+    const g = fallbackIn(sf)?.guard ?? null;
+    return g === null ? null : splice(s, g.expression, `${g.expression.getText()} && Date.now() < 0`);
+  })],
+  ['S14', ['S14'], 'the fallback’s delay raised', (t) => withFile(t, FILES.menu, (s, sf) => {
+    const d = fallbackIn(sf)?.timer.arguments[1];
+    return d === undefined ? null : splice(s, d, '30_000');
+  })],
+  ['S14', ['S14'], 'getFocusedWindow() ?? put back as the target', (t) => withFile(t, FILES.menu, (s, sf) => {
+    const first = requestQuitIn(sf)?.body[0];
+    const d = first !== undefined && ts.isVariableStatement(first) ? first.declarationList.declarations[0] : undefined;
+    return d?.initializer === undefined ? null : splice(s, d.initializer, `BrowserWindow.getFocusedWindow() ?? ${d.initializer.getText()}`);
+  })],
+  ['S14', ['S14'], 'a local appLifecycleState that answers running', (t) => withFile(t, FILES.menu, (s, sf) => {
+    const imp = importOf(sf, 'appLifecycleState', './lifecycle');
+    return imp === null ? null : `${splice(s, imp, '')}\nfunction appLifecycleState(): 'running' | 'quitting' {\n  return 'running';\n}\n`;
+  })],
+  ['S14', ['S14'], 'a second fallback timer calling app.quit elsewhere in menu.ts', (t) => withFile(t, FILES.menu, append('export function selfTestLateQuit(): void {\n  setTimeout(() => app.quit(), 5_000);\n}'))],
+  // The probe review: a fallback outside menu.ts, beside requestQuit() in the status item's Quit.
+  ['S14', ['S14'], 'an unguarded fallback timer beside requestQuit() in the status item’s Quit click', (t) => withFile(t, FILES.tray, (s) => (s.includes('click: () => requestQuit()') ? s.replace('click: () => requestQuit()', 'click: () => {\n        requestQuit();\n        setTimeout(() => app.quit(), 3_000);\n      }') : null))],
+  ['S14', ['S14'], 'the try around the disposer removed', (t) => withFile(t, FILES.index, (s, sf) => {
+    const td = teardownIn(sf);
+    return td === null ? null : splice(s, td.tr, td.tr.tryBlock.statements.map((x) => x.getText()).join('\n    '));
+  })],
+  ['S14', ['S14'], 'app.quit() moved into the try', (t) => withFile(t, FILES.index, (s, sf) => {
+    const td = teardownIn(sf);
+    const quit = td === null ? undefined : td.body[td.body.length - 1];
+    const lastInTry = td === null ? undefined : td.tr.tryBlock.statements[td.tr.tryBlock.statements.length - 1];
+    if (quit === undefined || lastInTry === undefined || !isAppQuitStmt(quit)) return null;
+    const without = s.slice(0, quit.getStart()) + s.slice(quit.getEnd());
+    return `${without.slice(0, lastInTry.getEnd())}\n      ${quit.getText()}${without.slice(lastInTry.getEnd())}`;
+  })],
+  ['S14', ['S14'], 'the catch returning', (t) => withFile(t, FILES.index, (s, sf) => {
+    const c = teardownIn(sf)?.tr.catchClause;
+    return c === undefined ? null : `${s.slice(0, c.block.getEnd() - 1)}  return;\n    ${s.slice(c.block.getEnd() - 1)}`;
+  })],
+  ['S14', ['S14'], 'Settings’ quitting return removed', (t) => withFile(t, FILES.settingsWindow, (s, sf) => {
+    const g = quittingReturnIn(sf, 'openSettingsWindow');
+    return g === null ? null : splice(s, g, '');
+  })],
+  ['S14', ['S14'], 'showAppWindow’s quitting return removed', (t) => withFile(t, FILES.index, (s, sf) => {
+    const g = quittingReturnIn(sf, 'showAppWindow');
+    return g === null ? null : splice(s, g, '');
+  })],
+  ['S14', ['S14'], 'the reader imported from another module', (t) => withFile(t, FILES.menu, (s, sf) => {
+    const imp = importOf(sf, 'appLifecycleState', './lifecycle');
+    return imp === null ? null : splice(s, imp.moduleSpecifier, "'./settings/lifecycle'");
+  })],
+  ['S14', ['S14'], 'the fallback armed only when the window is visible', (t) => withFile(t, FILES.menu, (s, sf) => {
+    const fb = fallbackIn(sf);
+    const first = requestQuitIn(sf)?.body[0];
+    const win = first !== undefined && ts.isVariableStatement(first) ? first.declarationList.declarations[0]?.name.getText() : undefined;
+    return fb?.stmt === undefined || win === undefined ? null : splice(s, fb.stmt, `if (${win}.isVisible()) ${fb.stmt.getText()}`);
+  })],
+  ['S14', ['S14'], 'a second setTimeout in requestQuit that quits unguarded', (t) => withFile(t, FILES.menu, (s, sf) => {
+    const at = fallbackIn(sf)?.stmt;
+    return at === undefined ? null : `${s.slice(0, at.getEnd())}\n  setTimeout(() => app.quit(), 6_000);${s.slice(at.getEnd())}`;
+  })],
+  ['S14', ['S14'], 'the fallback’s guard moved into a helper the timer calls', (t) => withFile(t, FILES.menu, (s, sf) => {
+    const fb = fallbackIn(sf);
+    const cb = fb?.timer.arguments[0];
+    return fb === null || fb.guard === null || cb === undefined ? null : `${splice(s, cb, '() => quitIfNotQuitting()')}\nfunction quitIfNotQuitting(): void {\n  ${fb.guard.getText()}\n}\n`;
+  })],
+  ['S14', ['S14'], 'app.quit queued once more in requestQuit', (t) => withFile(t, FILES.menu, (s, sf) => {
+    const at = fallbackIn(sf)?.stmt;
+    return at === undefined ? null : insertBefore(s, at, 'queueMicrotask(() => app.quit());\n  ');
+  })],
+  ['S14', ['S14'], 'the no-window branch returning without quitting', (t) => withFile(t, FILES.menu, (s, sf) => {
+    const second = requestQuitIn(sf)?.body[1];
+    return second === undefined || !ts.isIfStatement(second) ? null : splice(s, second, `if (${second.expression.getText()}) return;`);
+  })],
+  ['S14', ['S14'], 'the quit event sent to a window other than the target', (t) => withFile(t, FILES.menu, (s, sf) => {
+    const rq = requestQuitIn(sf);
+    const send = rq === null ? undefined : callsOf(rq.fn, 'sendEvent')[0];
+    return send?.arguments[0] === undefined ? null : splice(s, send.arguments[0], 'BrowserWindow.fromId(1)!.webContents');
+  })],
+  ['S14', ['S14'], 'the catch rethrowing', (t) => withFile(t, FILES.index, (s, sf) => {
+    const c = teardownIn(sf)?.tr.catchClause;
+    return c === undefined ? null : splice(s, c, 'catch (err) {\n      throw err;\n    }');
+  })],
+  ['S14', ['S14'], 'the outcome’s default made killed, so a throw returns without quitting', (t) => withFile(t, FILES.index, (s, sf) => {
+    const td = teardownIn(sf);
+    const head = td === null ? undefined : td.body[td.body.indexOf(td.tr) - 1];
+    const d = head !== undefined && ts.isVariableStatement(head) ? head.declarationList.declarations[0] : undefined;
+    return d?.initializer === undefined ? null : splice(s, d.initializer, "'killed'");
+  })],
+  ['S14', ['S14'], 'an await between the try and the quit', (t) => withFile(t, FILES.index, (s, sf) => {
+    const td = teardownIn(sf);
+    const next = td === null ? undefined : td.body[td.body.indexOf(td.tr) + 1];
+    return next === undefined ? null : insertBefore(s, next, 'await new Promise<void>(() => undefined);\n    ');
+  })],
+  ['S14', ['S14'], 'Settings’ quitting return given a conjunct that never holds', (t) => withFile(t, FILES.settingsWindow, (s, sf) => {
+    const g = quittingReturnIn(sf, 'openSettingsWindow');
+    return g === null ? null : splice(s, g.expression, `${g.expression.getText()} && Date.now() < 0`);
+  })],
+  ['S14', ['S14'], 'Settings’ lifecycle reader a local that answers running', (t) => withFile(t, FILES.settingsWindow, (s, sf) => {
+    const imp = importOf(sf, 'appLifecycleState', '../lifecycle');
+    return imp === null ? null : `${splice(s, imp, '')}\nfunction appLifecycleState(): 'running' | 'quitting' {\n  return 'running';\n}\n`;
+  })],
+  ['S14', ['S14'], 'Settings’ reader imported from another module', (t) => withFile(t, FILES.settingsWindow, (s, sf) => {
+    const imp = importOf(sf, 'appLifecycleState', '../lifecycle');
+    return imp === null ? null : splice(s, imp.moduleSpecifier, "'../lifecycle-shim'");
+  })],
+  ['S14', ['S14'], 'Settings’ reader shadowed by a parameter that answers running', (t) => withFile(t, FILES.settingsWindow, (s, sf) => {
+    const p = functionsNamed(sf, 'openSettingsWindow')[0]?.parameters.at(-1);
+    return p === undefined ? null : `${s.slice(0, p.getEnd())}, appLifecycleState = (): string => 'running'${s.slice(p.getEnd())}`;
+  })],
+  ['S14', ['S14'], 'requestQuit’s reader shadowed by a parameter that answers running', (t) => withFile(t, FILES.menu, (s, sf) => {
+    const rq = requestQuitIn(sf);
+    const open = rq === null ? -1 : s.indexOf('(', rq.fn.name?.getEnd() ?? rq.fn.getStart());
+    return rq === null || rq.fn.parameters.length !== 0 || open === -1 ? null : `${s.slice(0, open + 1)}appLifecycleState = (): string => 'running'${s.slice(open + 1)}`;
+  })],
+  ['S14', ['S14'], 'the no-window branch without its return, so it goes on to an event for no window', (t) => withFile(t, FILES.menu, (s, sf) => {
+    const second = requestQuitIn(sf)?.body[1];
+    const ret = second !== undefined && ts.isIfStatement(second) && ts.isBlock(second.thenStatement) ? second.thenStatement.statements.find((x) => ts.isReturnStatement(x)) : undefined;
+    return ret === undefined ? null : splice(s, ret, '');
+  })],
+  ['S14', ['S14'], 'the target taken from another window lookup', (t) => withFile(t, FILES.menu, (s, sf) => {
+    const first = requestQuitIn(sf)?.body[0];
+    const d = first !== undefined && ts.isVariableStatement(first) ? first.declarationList.declarations[0] : undefined;
+    return d?.initializer === undefined ? null : splice(s, d.initializer, 'BrowserWindow.fromId(1)');
+  })],
+  ['S14', ['S14'], 'a second window question in requestQuit that returns without quitting', (t) => withFile(t, FILES.menu, (s, sf) => {
+    const rq = requestQuitIn(sf);
+    const send = rq === null ? undefined : callsOf(rq.fn, 'sendEvent')[0];
+    const stmt = send === undefined ? undefined : rq.body.find((x) => nodesOf(x).includes(send));
+    return stmt === undefined ? null : insertBefore(s, stmt, 'if (BrowserWindow.getAllWindows().length === 0) return;\n  ');
+  })],
+  ['S14', ['S14'], 'a second timer in requestQuit that quits through a helper', (t) => withFile(t, FILES.menu, (s, sf) => {
+    const at = fallbackIn(sf)?.stmt;
+    return at === undefined ? null : `${s.slice(0, at.getEnd())}\n  setTimeout(quitNow, 6_000);${s.slice(at.getEnd())}\nfunction quitNow(): void {\n  app.quit();\n}\n`;
+  })],
+  ['S14', ['S14'], 'the disposer’s answer dropped inside the try, so a killed quit is quit again', (t) => withFile(t, FILES.index, (s, sf) => {
+    const only = teardownIn(sf)?.tr.tryBlock.statements[0];
+    const awaited = only !== undefined && ts.isExpressionStatement(only) && ts.isBinaryExpression(only.expression) ? only.expression.right : undefined;
+    return awaited === undefined ? null : splice(s, only, `${awaited.getText()};`);
+  })],
+  ['S14', ['S14'], 'the catch replaced by an empty finally', (t) => withFile(t, FILES.index, (s, sf) => {
+    const c = teardownIn(sf)?.tr.catchClause;
+    return c === undefined ? null : splice(s, c, 'finally {\n      /* nothing */\n    }');
+  })],
+  ['S14', ['S14'], 'the catch ending the process itself, process.exit(1)', (t) => withFile(t, FILES.index, (s, sf) => {
+    const c = teardownIn(sf)?.tr.catchClause;
+    return c === undefined ? null : `${s.slice(0, c.block.getEnd() - 1)}  process.exit(1);\n    ${s.slice(c.block.getEnd() - 1)}`;
+  })],
+  // S15 (Phase 362). The spec's six first, then one for each clause none of them reaches alone.
+  ['S15', ['S15'], 'the log’s will-quit listener clears again', (t) => withFile(t, FILES.logIndex, (s, sf) => {
+    const l = logListenerIn(sf);
+    return l === null ? null : splice(s, l.handler, '() => clearLogRunSentinel()');
+  })],
+  ['S15', ['S15'], 'a third clearLogRunSentinel() caller, in the hard exit’s try before the wait', (t) => withFile(t, FILES.index, (s, sf) => {
+    const flush = flushTry(sf)?.tryBlock.statements[0];
+    return flush === undefined ? null : `${s.slice(0, flush.getEnd())}\n        clearLogRunSentinel();${s.slice(flush.getEnd())}`;
+  })],
+  ['S15', ['S15'], 'the marker handed the boot’s inventory, a constant', (t) => withFile(t, FILES.logIndex, (s, sf) => {
+    const c = markerCallIn(sf);
+    return c?.arguments[1] === undefined ? null : `${splice(s, c.arguments[1], 'BOOT_DUMP_NAMES')}\nconst BOOT_DUMP_NAMES: string[] = [];\n`;
+  })],
+  ['S15', ['S15'], 'the boot skips on quitAt alone, so a crash in the teardown goes unnoticed', (t) => withFile(t, FILES.logIndex, (s, sf) => {
+    const tc = teardownCleanIn(sf);
+    return tc === null ? null : splice(s, tc.and, tc.marked.getText());
+  })],
+  ['S15', ['S15'], 'the boot skips on no new dump alone, so a death with no dump goes quiet', (t) => withFile(t, FILES.logIndex, (s, sf) => {
+    const tc = teardownCleanIn(sf);
+    return tc === null ? null : splice(s, tc.and, tc.none.getText());
+  })],
+  ['S15', ['S15'], 'the marker creating a sentinel where none was', (t) => withFile(t, FILES.logSentinel, (s, sf) => {
+    const m = markerIn(sf);
+    return m === null || m.none === null ? null : splice(s, m.none, '');
+  })],
+  ['S15', ['S15'], 'the log’s listener marks, then clears through the sentinel module', (t) => withFile(t, FILES.logIndex, (s, sf) => {
+    const l = logListenerIn(sf);
+    return l === null ? null : splice(s, l.handler, '() => {\n      markLogRunSentinelAtQuit();\n      clearRunSentinel(getLogsDir());\n    }');
+  })],
+  ['S15', ['S15'], 'the log’s listener marks, then defers a clear', (t) => withFile(t, FILES.logIndex, (s, sf) => {
+    const l = logListenerIn(sf);
+    return l === null ? null : splice(s, l.handler, '() => {\n      markLogRunSentinelAtQuit();\n      setImmediate(clearLogRunSentinel);\n    }');
+  })],
+  ['S15', ['S15'], 'a second will-quit listener in the log module that writes the sentinel unmarked', (t) => withFile(t, FILES.logIndex, (s, sf) => {
+    const l = logListenerIn(sf);
+    const stmt = l === null ? null : ancestor(l.node, (p) => ts.isExpressionStatement(p));
+    return stmt === null ? null : `${s.slice(0, stmt.getEnd())}\n    app.on('will-quit', () => writeRunSentinel(getLogsDir(), { pid: process.pid, version: app.getVersion(), bootTs: new Date().toISOString(), dumpNames: [] }));${s.slice(stmt.getEnd())}`;
+  })],
+  ['S15', ['S15'], 'Phase 36’s clear moved to the disposer’s first lines, away from its SIGKILL', (t) => withFile(t, FILES.capabilities, (s, sf) => {
+    const fn = functionsNamed(sf, 'disposeMainCapabilities')[0];
+    const clear = fn === undefined ? undefined : callsOf(fn, 'clearLogRunSentinel')[0];
+    const stmt = clear === undefined ? null : ancestor(clear, (p) => ts.isExpressionStatement(p));
+    const first = fn === undefined ? undefined : stmtsOf(bodyOf(fn))?.[0];
+    if (stmt === null || first === undefined || first.getStart() >= stmt.getStart()) return null;
+    return insertBefore(s.slice(0, stmt.getStart()) + s.slice(stmt.getEnd()), first, 'clearLogRunSentinel();\n  ');
+  })],
+  ['S15', ['S15'], 'a second door to the clear: clearRunSentinel called outside clearLogRunSentinel', (t) => withFile(t, FILES.logIndex, append('export function clearLogRunSentinelQuietly(): void {\n  clearRunSentinel(getLogsDir());\n}'))],
+  ['S15', ['S15'], 'the clear handed out under another name, so its callers cannot be counted', (t) => withFile(t, FILES.index, append('export const clearSentinelLater = clearLogRunSentinel;'))],
+  ['S15', ['S15'], 'the marker aimed at another folder', (t) => withFile(t, FILES.logIndex, (s, sf) => {
+    const c = markerCallIn(sf);
+    return c?.arguments[0] === undefined ? null : splice(s, c.arguments[0], "app.getPath('userData')");
+  })],
+  ['S15', ['S15'], 'the marker reading another folder’s dumps', (t) => withFile(t, FILES.logIndex, (s, sf) => {
+    const fn = functionsNamed(sf, 'markLogRunSentinelAtQuit')[0];
+    const scan = fn === undefined ? undefined : callsOf(fn, 'scanCrashDumps')[0];
+    return scan?.arguments[0] === undefined ? null : splice(s, scan.arguments[0], "app.getPath('logs')");
+  })],
+  // The probe review: the scan's names filtered on the way, and the mark's time not the moment's.
+  ['S15', ['S15'], 'the mark’s inventory filtered to nothing, so every dump on disk reads as new', (t) => withFile(t, FILES.logIndex, (s, sf) => {
+    const fn = functionsNamed(sf, 'markLogRunSentinelAtQuit')[0];
+    const scan = fn === undefined ? undefined : callsOf(fn, 'scanCrashDumps')[0];
+    return scan === undefined ? null : splice(s, scan, `${scan.getText()}.filter(() => false)`);
+  })],
+  ['S15', ['S15'], 'the mark’s time not the moment of the mark', (t) => withFile(t, FILES.logIndex, (s, sf) => {
+    const c = markerCallIn(sf);
+    return c?.arguments[2] === undefined ? null : splice(s, c.arguments[2], 'undefined as unknown as string');
+  })],
+  ['S15', ['S15'], 'the boot marks its fresh sentinel at once', (t) => withFile(t, FILES.logIndex, (s, sf) => {
+    const fn = functionsNamed(sf, 'runLogBootSequence')[0];
+    const w = fn === undefined ? undefined : callsOf(fn, 'writeRunSentinel')[0];
+    const stmt = w === undefined ? null : ancestor(w, (p) => ts.isExpressionStatement(p));
+    return stmt === null ? null : `${s.slice(0, stmt.getEnd())}\n    markRunSentinelAtQuit(getLogsDir(), [], new Date().toISOString());${s.slice(stmt.getEnd())}`;
+  })],
+  ['S15', ['S15'], 'the boot ignores quitAt', (t) => withFile(t, FILES.logIndex, (s, sf) => {
+    const tc = teardownCleanIn(sf);
+    return tc === null ? null : splice(s, tc.and, 'false');
+  })],
+  ['S15', ['S15'], 'the marker’s read given a stand-in when none is there', (t) => withFile(t, FILES.logSentinel, (s, sf) => {
+    const m = markerIn(sf);
+    return m?.decl.initializer === undefined ? null : splice(s, m.decl.initializer, `${m.decl.initializer.getText()} ?? { pid: 0, version: '', bootTs: '', dumpNames: [] }`);
+  })],
+  ['S15', ['S15'], 'the log’s listener marks, then deletes the sentinel by hand', (t) => withFile(t, FILES.logIndex, (s, sf) => {
+    const l = logListenerIn(sf);
+    return l === null ? null : splice(s, l.handler, "() => {\n      markLogRunSentinelAtQuit();\n      unlinkSync(join(getLogsDir(), 'run.json'));\n    }");
+  })],
+  ['S15', ['S15'], 'the log’s listener marks nothing, so every clean teardown reads as a crash', (t) => withFile(t, FILES.logIndex, (s, sf) => {
+    const l = logListenerIn(sf);
+    return l === null ? null : splice(s, l.handler, '() => undefined');
+  })],
+  ['S15', ['S15'], 'a clear in before-quit’s catch, so a throwing disposer’s teardown crash goes unnoticed', (t) => withFile(t, FILES.index, (s, sf) => {
+    const c = teardownIn(sf)?.tr.catchClause;
+    return c === undefined ? null : `${s.slice(0, c.block.getEnd() - 1)}  clearLogRunSentinel();\n    ${s.slice(c.block.getEnd() - 1)}`;
+  })],
+  ['S15', ['S15'], 'Phase 36’s clear removed, so its late SIGKILL reads as a crash', (t) => withFile(t, FILES.capabilities, (s, sf) => {
+    const fn = functionsNamed(sf, 'disposeMainCapabilities')[0];
+    const clear = fn === undefined ? undefined : callsOf(fn, 'clearLogRunSentinel')[0];
+    const stmt = clear === undefined ? null : ancestor(clear, (p) => ts.isExpressionStatement(p));
+    return stmt === null ? null : splice(s, stmt, '');
+  })],
+  ['S15', ['S15'], 'a local markRunSentinelAtQuit stands in for the sentinel module’s', (t) => withFile(t, FILES.logIndex, (s, sf) => {
+    const imp = importOf(sf, 'markRunSentinelAtQuit', './sentinel');
+    const kept = imp?.importClause?.namedBindings !== undefined && ts.isNamedImports(imp.importClause.namedBindings) ? imp.importClause.namedBindings.elements.filter((e) => e.name.text !== 'markRunSentinelAtQuit') : null;
+    return imp === null || kept === null ? null : `${splice(s, imp, `import { ${kept.map((e) => e.getText()).join(', ')} } from './sentinel';`)}\nfunction markRunSentinelAtQuit(_dir: string, _names: string[], _now: string): boolean {\n  return false;\n}\n`;
+  })],
+  ['S15', ['S15'], 'a local scanCrashDumps stands in for the crash folder’s', (t) => withFile(t, FILES.logIndex, (s, sf) => {
+    const imp = importOf(sf, 'scanCrashDumps', './crash');
+    const kept = imp?.importClause?.namedBindings !== undefined && ts.isNamedImports(imp.importClause.namedBindings) ? imp.importClause.namedBindings.elements.filter((e) => e.name.text !== 'scanCrashDumps') : null;
+    return imp === null || kept === null ? null : `${splice(s, imp, `import { ${kept.map((e) => e.getText()).join(', ')} } from './crash';`)}\nfunction scanCrashDumps(_dir: string): { name: string; bytes: number }[] {\n  return [];\n}\n`;
+  })],
+  ['S15', ['S15'], 'the marker never writes, so nothing is marked', (t) => withFile(t, FILES.logSentinel, (s, sf) => {
+    const m = markerIn(sf);
+    const w = m === null ? undefined : callsOf(m.fn, 'writeRunSentinel')[0];
+    const stmt = w === undefined ? null : ancestor(w, (p) => ts.isExpressionStatement(p));
+    return stmt === null ? null : splice(s, stmt, 'void dir;');
+  })],
+  ['S15', ['S15'], 'markRunSentinelAtQuit no longer exported', (t) => withFile(t, FILES.logSentinel, (s, sf) => {
+    const m = markerIn(sf);
+    return m === null || !/^export\s/.test(m.fn.getText()) ? null : splice(s, m.fn, m.fn.getText().replace(/^export\s+/, ''));
   })]
 ];
 
-/** Changed in four of the files the rules read, in nothing they hold: every rule must read as it did. */
+/** Changed in nine of the files the rules read, in nothing they hold: every rule must read as it did. */
 export const CONTROL = [
   'a helper and a comment beside every clause',
   (t) => {
     let copy = withFile(t, FILES.store, append('export function selfTestControl(): number {\n  return MANIFEST_OPERATIONS.length;\n}'));
     copy = copy === null ? null : withFile(copy, FILES.core, append('// a control comment that names isManifestStopped( and this.manifest.listSessions( in prose only'));
     copy = copy === null ? null : withFile(copy, FILES.crash, append("export const SELF_TEST_CONTROL = 'process.on uncaughtException';"));
-    copy = copy === null ? null : withFile(copy, FILES.capabilities, append('export function selfTestControlQuit(): string {\n  return "app.relaunch() is named in a string only";\n}'));
+    copy = copy === null ? null : withFile(copy, FILES.capabilities, append('export function selfTestControlQuit(): string {\n  return "app.relaunch() and setTimeout(() => process.exit(0)) are named in a string only";\n}'));
+    // Phase 362: S12's wait, S14's fallback and windows, S15's sentinel, each named where no rule holds it.
+    copy = copy === null ? null : withFile(copy, FILES.menu, append('export function selfTestControlMenu(): string {\n  return "setTimeout(() => app.quit(), 3_000) and BrowserWindow.getFocusedWindow() are named in a string only";\n}'));
+    copy = copy === null ? null : withFile(copy, FILES.settingsWindow, append("// a control comment: new BrowserWindow( before appLifecycleState() === 'quitting', in prose only"));
+    copy = copy === null ? null : withFile(copy, FILES.logIndex, append("export const SELF_TEST_CONTROL_LOG = \"app.on('will-quit', () => clearLogRunSentinel())\";"));
+    copy = copy === null ? null : withFile(copy, FILES.logSentinel, append("export function selfTestControlSentinel(): string {\n  return 'writeRunSentinel(dir, current) and clearRunSentinel(dir) are named in a string only';\n}"));
+    copy = copy === null ? null : withFile(copy, FILES.storageLanding, append("export const SELF_TEST_CONTROL_WAIT = 'QUIET_MS = 0, and process.exit(0), in a string only';"));
     return copy;
   }
 ];
@@ -2727,8 +4084,10 @@ const RULE_INPUTS = Object.freeze({
   S9: (t) => [FILES.crash, ...PROCESS_EVENTS.flatMap((e) => pathsNaming(t, 'src/main/', e))],
   S10: () => [FILES.core],
   S11: (t) => [FILES.store, FILES.core, ...pathsNaming(t, 'src/', 'holdManifestClosesAtQuit')],
-  S12: (t) => [FILES.index, FILES.updater, ...pathsNaming(t, 'src/main/', 'will-quit'), ...pathsNaming(t, 'src/main/', 'flushStorageData')],
-  S13: () => [FILES.digest]
+  S12: (t) => [FILES.index, FILES.updater, FILES.capabilities, FILES.storageLanding, ...pathsNaming(t, 'src/main/', 'will-quit'), ...pathsNaming(t, 'src/main/', 'flushStorageData')],
+  S13: () => [FILES.digest],
+  S14: (t) => [FILES.menu, FILES.index, FILES.settingsWindow, ...quitTimerFiles(t)],
+  S15: (t) => [FILES.logIndex, FILES.logSentinel, FILES.index, FILES.capabilities, ...pathsNaming(t, 'src/', 'clearLogRunSentinel'), ...pathsNaming(t, 'src/', 'clearRunSentinel'), ...pathsNaming(t, 'src/', 'markRunSentinelAtQuit')]
 });
 const ruleCache = new Map();
 function judge(tree) {

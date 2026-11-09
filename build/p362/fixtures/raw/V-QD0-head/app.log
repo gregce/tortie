@@ -1,0 +1,4 @@
+{"ts":"2026-11-10T08:40:00.200Z","level":"info","scope":"boot","pid":61199,"proctype":"main","msg":"cache policy: chromium-default"}
+{"ts":"2026-11-10T08:40:01.100Z","level":"info","scope":"smoke","pid":61199,"proctype":"main","msg":"1/4 core not booted: no session list connection is opened in this launch"}
+{"ts":"2026-11-10T08:40:14.000Z","level":"info","scope":"boot","pid":61208,"proctype":"main","msg":"cache policy: chromium-default"}
+{"ts":"2026-11-10T08:40:14.500Z","level":"info","scope":"quit","pid":61208,"proctype":"main","msg":"the remembered settings were on disk after 151 ms; ending the quit","landing":"settled","waitedMs":151,"moved":false}

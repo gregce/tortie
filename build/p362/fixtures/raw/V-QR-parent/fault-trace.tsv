@@ -1,0 +1,16 @@
+backup.before-copy	1	1794300000400
+backup.after-copy	1	1794300000440
+backup.after-body	1	1794300000453
+backup.after-record	1	1794300000462
+quit.before-snapshots	1	1794300063003
+snapshot.before-write	1	1794300063033
+snapshot.after-write	1	1794300063053
+snapshot.after-rename	1	1794300063056
+snapshot.before-write	8	1794300063274
+snapshot.after-write	8	1794300063294
+snapshot.after-rename	8	1794300063297
+quit.after-snapshots	1	1794300063379
+backup.before-copy	2	1794300063382
+backup.after-copy	2	1794300063397
+backup.after-body	2	1794300063402
+backup.after-record	2	1794300063408

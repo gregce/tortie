@@ -37,6 +37,16 @@
  *                 PHASE 36'S GUARD WHERE IT STILL APPLIES. Exit 0 is the pass
  *                 and 134 its failure, as before; a SIGKILL there is a FAIL
  *                 too, because a quit holding nothing must reach teardown.
+ *                 Since Phase 362 (build/p362/SPEC.md D4) the pass also needs
+ *                 the run sentinel LEFT MARKED: the log's own will-quit
+ *                 listener rewrites it with `quitAt` and the dump inventory of
+ *                 that moment instead of deleting it, so a crash in the
+ *                 teardown that follows is still noticed at the next launch,
+ *                 and a clean one reads as a quit there. A sentinel left
+ *                 unmarked (the next launch would say Tortie quit
+ *                 unexpectedly), cleared before the teardown (a crash there
+ *                 would go unnoticed, the parent's quit) or never armed is a
+ *                 FAIL.
  *   quit-doors  `smoke:quitdoors`, one launch of GMUX_SMOKE=quit-doors: every
  *               door verdict is the smoke's own (its `9/9 PASS` line, or its
  *               `FAIL` line and exit 1), and its end is read as `held`'s.
@@ -45,9 +55,12 @@
  * tree in a `finally`, on a fresh profile and a scratch HOME (ZDOTDIR the same,
  * HISTFILE=/dev/null) inside the run folder build/harness-socket.mjs hands it,
  * on that script's scratch socket. GMUX_LOG_FILE=1, so the run sentinel is
- * armed and can be read cleared. The verdicts are pure functions, and every
- * invocation first grades its own fixtures with them (`--self-test` does only
- * that), so a verdict that stopped telling the shapes apart cannot pass.
+ * armed and can be read: cleared after the held quit (the hard exit's
+ * `finally` clears it after the log's mark), marked after the teardown quit.
+ * The verdicts are pure functions, and every invocation first grades its own
+ * fixtures with them, and the sentinel reader over its own texts
+ * (`--self-test` does only that), so a verdict that stopped telling the
+ * shapes apart cannot pass.
  *
  * Usage (always through the npm scripts, which build first and wrap this in
  * build/harness-socket.mjs):
@@ -85,6 +98,22 @@ export const LAST_STEP = Object.freeze({
   doors: '[gmux-smoke] 9/9 PASS (quit-doors)'
 });
 
+/**
+ * True when the run sentinel's text carries the will-quit mark (Phase 362
+ * D4): a JSON object whose `quitAt` is a string, the rule src/main/log/
+ * sentinel.ts reads it by. No file (`null`), a damaged file or a mark of any
+ * other type is false.
+ */
+export function sentinelMarkedText(text) {
+  if (typeof text !== 'string') return false;
+  try {
+    const parsed = JSON.parse(text);
+    return parsed !== null && typeof parsed === 'object' && typeof parsed.quitAt === 'string';
+  } catch {
+    return false;
+  }
+}
+
 const isAbort = (f) => f.signal === 'SIGABRT' || f.code === 134;
 const isCrash = (f) => f.signal === 'SIGSEGV' || f.signal === 'SIGBUS' || f.code === 139 || f.code === 138;
 const said = (f, needle) => typeof f.text === 'string' && f.text.includes(needle);
@@ -121,6 +150,11 @@ export function heldVerdict(f, lastStep = LAST_STEP.held) {
     else if (f.signal === 'SIGKILL') {
       if (!said(f, HELD_LINE)) reasons.push(`the store never said it held the session list at quit ("${HELD_LINE}")`);
       if (f.sentinelSeen !== true) reasons.push('the run sentinel was never seen armed, so its clear cannot be read');
+      // Phase 362: the log's will-quit listener marks the sentinel, then the
+      // hard exit's `finally` clears it before the signal. Marked and left
+      // means that clear never ran; the next launch would read it as a quit
+      // (no dump follows a SIGKILL), but the hard exit clears it by design.
+      else if (f.sentinelAfter !== false && f.sentinelMarked === true) reasons.push("the run sentinel was left behind, marked at will-quit: the hard exit's finally never cleared it before its SIGKILL (Phase 362 D4 keeps that clear)");
       else if (f.sentinelAfter !== false) reasons.push('the run sentinel was left behind, so the next launch would say Tortie quit unexpectedly');
     } else if (f.code === 0 && f.signal === null) {
       // Round A (the drop round's reverify, a nit): the reason names what the
@@ -138,7 +172,9 @@ export function heldVerdict(f, lastStep = LAST_STEP.held) {
 /**
  * The teardown quit (`smoke:quit`'s second leg): Phase 36's verdict, where it
  * still applies. Nothing is held, so the quit must run Node's teardown and
- * exit 0; 134 is the abort it was written for.
+ * exit 0; 134 is the abort it was written for. Since Phase 362 the run
+ * sentinel must be left MARKED by the log's will-quit listener (D4), the one
+ * quit a smoke can read that mark on.
  */
 export function teardownVerdict(f) {
   const reasons = commonReasons(f, LAST_STEP.teardown);
@@ -150,7 +186,9 @@ export function teardownVerdict(f) {
     else if (f.signal === 'SIGKILL' && WEDGED_LINE.test(String(f.text ?? ''))) reasons.push("Phase 36's wedged-watcher escape ended the quit (SIGKILL): the watcher closes outlived both drains");
     else if (f.signal === 'SIGKILL') reasons.push("the quit ended by SIGKILL with nothing held; a quit that holds no session list must run Node's teardown and exit 0 (Phase 357.1)");
     else if (f.code !== 0 || f.signal !== null) reasons.push(`the app ended with exit code ${String(f.code)} and signal ${String(f.signal)}, not 0`);
-    else if (f.sentinelSeen === true && f.sentinelAfter !== false) reasons.push('the run sentinel was left behind after a clean quit');
+    else if (f.sentinelAfter !== true && f.sentinelSeen !== true) reasons.push('the run sentinel was never seen armed, so its mark cannot be read');
+    else if (f.sentinelAfter !== true) reasons.push("the run sentinel was cleared before Node's teardown, so a crash in that teardown would go unnoticed at the next launch; the log's will-quit listener marks it instead (Phase 362 D4)");
+    else if (f.sentinelMarked !== true) reasons.push('the run sentinel was left unmarked, so the next launch would say Tortie quit unexpectedly');
   }
   return { pass: reasons.length === 0, reasons };
 }
@@ -164,7 +202,9 @@ export function doorsVerdict(f) {
 // The verdicts' own fixtures, graded on every run
 // ---------------------------------------------------------------------------
 
-const RAN = Object.freeze({ started: true, ceiling: false, dumpsNew: [], reports: [], sentinelSeen: true, sentinelAfter: false });
+const RAN = Object.freeze({ started: true, ceiling: false, dumpsNew: [], reports: [], sentinelSeen: true, sentinelAfter: false, sentinelMarked: false });
+/** The teardown leg's run: the sentinel armed, then left marked by the log's will-quit listener (Phase 362 D4). */
+const TORN = Object.freeze({ ...RAN, sentinelAfter: true, sentinelMarked: true });
 const heldText = `${LAST_STEP.held}; …\n[gmux-manifest] ${HELD_LINE}\n`;
 const doorsText = `${LAST_STEP.doors}; releasing the hold so the real quit ends\n[gmux-manifest] ${HELD_LINE}\n`;
 const teardownText = `${LAST_STEP.teardown}; …\n`;
@@ -180,7 +220,8 @@ export const FIXTURES = Object.freeze([
   ['held: exit 0 with no hold said (the parent’s quit)', heldVerdict, { ...RAN, manifestMade: true, code: 0, signal: null, text: `${LAST_STEP.held}; …\n` }, false, 'never said it held the session list: the quit closed that connection itself'],
   ['held: Phase 36’s SIGKILL instead', heldVerdict, { ...RAN, manifestMade: true, code: null, signal: 'SIGKILL', text: heldText + wedgedText }, false, "wedged-watcher escape"],
   ['held: no held line', heldVerdict, { ...RAN, manifestMade: true, code: null, signal: 'SIGKILL', text: `${LAST_STEP.held}\n` }, false, 'never said it held'],
-  ['held: the sentinel left behind', heldVerdict, { ...RAN, manifestMade: true, code: null, signal: 'SIGKILL', text: heldText, sentinelAfter: true }, false, 'sentinel was left behind'],
+  ['held: the sentinel left behind', heldVerdict, { ...RAN, manifestMade: true, code: null, signal: 'SIGKILL', text: heldText, sentinelAfter: true }, false, 'sentinel was left behind, so the next launch'],
+  ['held: the sentinel marked but left', heldVerdict, { ...RAN, manifestMade: true, code: null, signal: 'SIGKILL', text: heldText, sentinelAfter: true, sentinelMarked: true }, false, 'marked at will-quit'],
   ['held: the sentinel never armed', heldVerdict, { ...RAN, manifestMade: true, code: null, signal: 'SIGKILL', text: heldText, sentinelSeen: false }, false, 'never seen armed'],
   ['held: a Crashpad dump', heldVerdict, { ...RAN, manifestMade: true, code: null, signal: 'SIGKILL', text: heldText, dumpsNew: ['x.dmp'] }, false, 'Crashpad wrote'],
   ['held: a macOS report', heldVerdict, { ...RAN, manifestMade: true, code: null, signal: 'SIGKILL', text: heldText, reports: ['Tortie-2026-11-06-180000.ips'] }, false, 'macOS wrote'],
@@ -191,17 +232,19 @@ export const FIXTURES = Object.freeze([
   ['held: no session list made', heldVerdict, { ...RAN, manifestMade: false, code: null, signal: 'SIGKILL', text: heldText }, false, 'no session list was made'],
   ['held: never started', heldVerdict, { started: false, why: 'the binary is missing' }, false, 'never started'],
   ['held: the launch failed after it started (the census)', heldVerdict, { ...RAN, manifestMade: true, code: null, signal: 'SIGKILL', text: heldText, why: 'a session appeared on -L gmux' }, false, 'the launch failed'],
-  ['teardown: exit 0', teardownVerdict, { ...RAN, manifestMade: false, code: 0, signal: null, text: teardownText }, true, null],
-  ['teardown: the late drain settled, exit 0', teardownVerdict, { ...RAN, manifestMade: false, code: 0, signal: null, text: `${teardownText}[gmux] quit: the late watcher close(s) settled after 812 ms; quitting cleanly\n` }, true, null],
-  ['teardown: an abort', teardownVerdict, { ...RAN, manifestMade: false, code: null, signal: 'SIGABRT', text: teardownText }, false, "aborted in Node's environment teardown"],
-  ['teardown: exit 134', teardownVerdict, { ...RAN, manifestMade: false, code: 134, signal: null, text: teardownText }, false, "aborted in Node's environment teardown"],
-  ['teardown: a segfault', teardownVerdict, { ...RAN, manifestMade: false, code: null, signal: 'SIGSEGV', text: teardownText }, false, 'crashed in Node'],
-  ['teardown: Phase 36’s SIGKILL', teardownVerdict, { ...RAN, manifestMade: false, code: null, signal: 'SIGKILL', text: teardownText + wedgedText }, false, 'wedged-watcher escape'],
-  ['teardown: a SIGKILL with nothing held', teardownVerdict, { ...RAN, manifestMade: false, code: null, signal: 'SIGKILL', text: teardownText }, false, 'SIGKILL with nothing held'],
-  ['teardown: a session list made', teardownVerdict, { ...RAN, manifestMade: true, code: 0, signal: null, text: teardownText }, false, 'must open none'],
-  ['teardown: a held line', teardownVerdict, { ...RAN, manifestMade: false, code: 0, signal: null, text: `${teardownText}${HELD_LINE}\n` }, false, 'held a session list connection'],
-  ['teardown: exit 1', teardownVerdict, { ...RAN, manifestMade: false, code: 1, signal: null, text: teardownText }, false, 'not 0'],
-  ['teardown: the sentinel left behind', teardownVerdict, { ...RAN, manifestMade: false, code: 0, signal: null, text: teardownText, sentinelAfter: true }, false, 'sentinel was left behind'],
+  ['teardown: exit 0 with the sentinel left marked', teardownVerdict, { ...TORN, manifestMade: false, code: 0, signal: null, text: teardownText }, true, null],
+  ['teardown: the late drain settled, exit 0', teardownVerdict, { ...TORN, manifestMade: false, code: 0, signal: null, text: `${teardownText}[gmux] quit: the late watcher close(s) settled after 812 ms; quitting cleanly\n` }, true, null],
+  ['teardown: an abort', teardownVerdict, { ...TORN, manifestMade: false, code: null, signal: 'SIGABRT', text: teardownText }, false, "aborted in Node's environment teardown"],
+  ['teardown: exit 134', teardownVerdict, { ...TORN, manifestMade: false, code: 134, signal: null, text: teardownText }, false, "aborted in Node's environment teardown"],
+  ['teardown: a segfault', teardownVerdict, { ...TORN, manifestMade: false, code: null, signal: 'SIGSEGV', text: teardownText }, false, 'crashed in Node'],
+  ['teardown: Phase 36’s SIGKILL', teardownVerdict, { ...TORN, manifestMade: false, code: null, signal: 'SIGKILL', text: teardownText + wedgedText }, false, 'wedged-watcher escape'],
+  ['teardown: a SIGKILL with nothing held', teardownVerdict, { ...TORN, manifestMade: false, code: null, signal: 'SIGKILL', text: teardownText }, false, 'SIGKILL with nothing held'],
+  ['teardown: a session list made', teardownVerdict, { ...TORN, manifestMade: true, code: 0, signal: null, text: teardownText }, false, 'must open none'],
+  ['teardown: a held line', teardownVerdict, { ...TORN, manifestMade: false, code: 0, signal: null, text: `${teardownText}${HELD_LINE}\n` }, false, 'held a session list connection'],
+  ['teardown: exit 1', teardownVerdict, { ...TORN, manifestMade: false, code: 1, signal: null, text: teardownText }, false, 'not 0'],
+  ['teardown: the sentinel left unmarked', teardownVerdict, { ...TORN, manifestMade: false, code: 0, signal: null, text: teardownText, sentinelMarked: false }, false, 'left unmarked, so the next launch would say Tortie quit unexpectedly'],
+  ['teardown: the sentinel cleared before the teardown (the parent’s quit)', teardownVerdict, { ...TORN, manifestMade: false, code: 0, signal: null, text: teardownText, sentinelAfter: false, sentinelMarked: false }, false, "cleared before Node's teardown"],
+  ['teardown: the sentinel never armed', teardownVerdict, { ...TORN, manifestMade: false, code: 0, signal: null, text: teardownText, sentinelSeen: false, sentinelAfter: false, sentinelMarked: false }, false, 'never seen armed, so its mark cannot be read'],
   ['doors: 9/9 and the will-quit SIGKILL', doorsVerdict, { ...RAN, manifestMade: true, code: null, signal: 'SIGKILL', text: doorsText }, true, null],
   ['doors: a door failed', doorsVerdict, { ...RAN, manifestMade: true, code: 1, signal: null, text: '[gmux-smoke] FAIL: fs:writeFile was NOT refused after quit started: the handler ran\n' }, false, 'the smoke itself failed'],
   ['doors: 9/9 but exit 0', doorsVerdict, { ...RAN, manifestMade: true, code: 0, signal: null, text: doorsText }, false, 'exited 0 with the session list held open'],
@@ -209,7 +252,20 @@ export const FIXTURES = Object.freeze([
   ['doors: 9/9 but an abort', doorsVerdict, { ...RAN, manifestMade: true, code: null, signal: 'SIGABRT', text: doorsText }, false, 'SIGABRT, 134']
 ]);
 
-/** Every fixture against its verdict; true when each one answers as it says. */
+/**
+ * The sentinel reader's own texts (Phase 362): [name, the file's text or null
+ * for no file, whether it reads as marked]. `sentinelMarked` decides the
+ * teardown leg, so the reader is graded beside the verdicts it feeds.
+ */
+export const SENTINEL_TEXTS = Object.freeze([
+  ['marked at will-quit', '{"pid":4242,"version":"0.120.0","bootTs":"2026-11-08T20:00:00.000Z","dumpNames":["older.dmp"],"quitAt":"2026-11-08T21:00:00.000Z"}\n', true],
+  ['as the boot armed it', '{"pid":4242,"version":"0.120.0","bootTs":"2026-11-08T20:00:00.000Z","dumpNames":[]}\n', false],
+  ['a mark that is not a string', '{"pid":4242,"version":"0.120.0","bootTs":"2026-11-08T20:00:00.000Z","dumpNames":[],"quitAt":1793987027}\n', false],
+  ['a damaged file', '{"pid":4242,"quitAt":"2026-11-08T2', false],
+  ['no file', null, false]
+]);
+
+/** Every fixture against its verdict, and every sentinel text against the reader; true when each answers as it says. */
 export function selfTest(write = (line) => process.stdout.write(`${line}\n`)) {
   let bad = 0;
   for (const [name, verdict, facts, pass, words] of FIXTURES) {
@@ -218,8 +274,19 @@ export function selfTest(write = (line) => process.stdout.write(`${line}\n`)) {
     if (!ok) bad += 1;
     write(`${TAG} ${ok ? 'ok  ' : 'FAIL'} ${name}${ok ? '' : ` (answered ${v.pass ? 'PASS' : `FAIL: ${JSON.stringify(v.reasons)}`})`}`);
   }
-  write(`${TAG} self-test ${bad === 0 ? 'PASS' : 'FAIL'}: ${String(FIXTURES.length - bad)} of ${String(FIXTURES.length)} fixtures answered as they say`);
-  return bad === 0;
+  let badTexts = 0;
+  for (const [name, text, marked] of SENTINEL_TEXTS) {
+    const read = sentinelMarkedText(text);
+    const ok = read === marked;
+    if (!ok) badTexts += 1;
+    write(`${TAG} ${ok ? 'ok  ' : 'FAIL'} the sentinel reader: ${name} reads ${marked ? 'marked' : 'unmarked'}${ok ? '' : ` (read ${read ? 'marked' : 'unmarked'})`}`);
+  }
+  const pass = bad === 0 && badTexts === 0;
+  write(
+    `${TAG} self-test ${pass ? 'PASS' : 'FAIL'}: ${String(FIXTURES.length - bad)} of ${String(FIXTURES.length)} fixtures answered as they say, ` +
+      `and ${String(SENTINEL_TEXTS.length - badTexts)} of ${String(SENTINEL_TEXTS.length)} sentinel texts read as they say`
+  );
+  return pass;
 }
 
 // ---------------------------------------------------------------------------
@@ -269,6 +336,15 @@ function buildHasMode(checkout, mode) {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** A file's text, or null when it cannot be read (no file among them). */
+function textOrNull(path) {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch {
+    return null;
+  }
+}
 
 /** One leg: one launch, its facts read, its verdict. */
 async function runLeg({ leg, mode, checkout, harness, socket, verdict }) {
@@ -332,6 +408,7 @@ async function runLeg({ leg, mode, checkout, harness, socket, verdict }) {
   }
   facts.ms = Date.now() - startedAt;
   facts.sentinelAfter = existsSync(sentinel);
+  facts.sentinelMarked = sentinelMarkedText(textOrNull(sentinel));
   facts.manifestMade = existsSync(join(profile, 'gmux', 'manifest.db'));
   facts.dumpsNew = dumpsIn(profile).filter((n) => !dumpsBefore.has(n));
   facts.reports = reportsSince(startedAt);
@@ -376,7 +453,7 @@ async function main() {
     else {
       process.stdout.write(
         `${TAG} ${l.leg}: ended with exit code ${String(f.code ?? null)}, signal ${String(f.signal ?? null)} after ${String(f.ms ?? 0)} ms; ` +
-          `held line ${String(typeof f.text === 'string' && f.text.includes(HELD_LINE))}, sentinel armed ${String(f.sentinelSeen)} and left ${String(f.sentinelAfter)}, ` +
+          `held line ${String(typeof f.text === 'string' && f.text.includes(HELD_LINE))}, sentinel armed ${String(f.sentinelSeen)}, left ${String(f.sentinelAfter)} and marked ${String(f.sentinelMarked)}, ` +
           `session list made ${String(f.manifestMade)}, dumps ${String((f.dumpsNew ?? []).length)}, macOS reports ${f.reports === null ? 'unread' : String((f.reports ?? []).length)}\n`
       );
     }
