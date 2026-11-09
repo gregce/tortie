@@ -16,7 +16,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 - A session in a folder whose name holds a # or ends in ; now starts in that folder, on this Mac and on another machine; a session started before this update and restored keeps the folder it ran in, so its conversation is found ([`99e0d298`](https://github.com/gregce/tortie/commit/99e0d298))
 - Quitting Tortie no longer crashes when its session list went bad without showing an error, and Tortie now notices that trouble through its backup check too ([`5895b12b`](https://github.com/gregce/tortie/commit/5895b12b))
 - Quitting Tortie with many busy sessions now finishes saving each session's history before it closes, instead of stopping after three seconds, and if Tortie ever crashes while it quits, the next launch says so ([`d84bed31`](https://github.com/gregce/tortie/commit/d84bed31))
-- Watching folders for changes now runs in its own process, so a fault there no longer crashes Tortie
+- Watching folders for changes now runs in its own process, so a fault there no longer crashes Tortie ([`ae8599ad`](https://github.com/gregce/tortie/commit/ae8599ad))
 
 ## 0.114.1 (2026-11-05)
 
