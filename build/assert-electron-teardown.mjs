@@ -590,12 +590,24 @@ const HELPER = 'electron-run.mjs';
  * gmux-p353t…, inside build/with-scratch-machine.mjs's loopback machine with
  * the quiet shell: a session in a folder tmux reads starts in that folder).
  *
+ * PHASE 357.1'S LANDING ROUND RAISED IT BY ONE (181 TO 182 at its parent,
+ * 185 once it landed beside Phase 353's three), for build/quit-smoke.mjs,
+ * the launcher and the verdict of `smoke:quit` and
+ * `smoke:quitdoors`. Both smokes ran `electron .` from their npm scripts and
+ * took the process's exit code as their verdict; since 357.1 every quit with
+ * the session list open ends by the will-quit SIGKILL to self, so the smoke
+ * now launches each leg ITSELF through the helper (the Electron binary, so the
+ * signal is the app's own) on a fresh profile and a scratch HOME inside the run
+ * folder build/harness-socket.mjs hands it, on that script's scratch socket
+ * named as its `tmuxSocket`, and reads the signal, the store's held line, the
+ * run sentinel, Crashpad's dumps and macOS's reports (by name and time).
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 184;
+const HELPER_USER_FLOOR = 185;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

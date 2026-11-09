@@ -10,8 +10,10 @@
  * build/electron-run.mjs's `withElectron` on its OWN scratch profile, a scratch
  * HOME (ZDOTDIR the same, HISTFILE=/dev/null, no TERM_SESSION_ID) and the
  * socket build/harness-socket.mjs hands this file (`gmux-p357…`). The PARENT is
- * `P357_PARENT_CHECKOUT` (a BUILT 0547383e, required: `--preflight` refuses
- * without it). Arm PA runs at the parent; HA, HQ, HB, HD, HC and RUN at HEAD.
+ * `P357_PARENT_CHECKOUT` (a BUILT `32180e60`, 357 as landed, since Phase 357.1;
+ * required: `--preflight` refuses without it), and that one parent serves every
+ * parent arm. Arms PA and CS-parent run at the parent; HA, HQ, HB, HD, HC,
+ * CS-head and RUN at HEAD.
  *
  * WHAT IS REAL. Live shells created from the window on a scratch tmux server
  * of this run's own, seeded with his recorded shape through
@@ -39,6 +41,43 @@
  * that did not take reads UNREADABLE without hiding HB's quit. HQ holds HEAD's
  * quit in HA to the parent's quit in PA.
  *
+ * SINCE PHASE 357.1: every quit now ends by the will-quit SIGKILL rather than
+ * exit 0 (D1: the manifest is held at EVERY quit, the damaged file included),
+ * so HA's and HB's quit read a signal, not code 0, and HQ compares HEAD's
+ * signal quit to the parent's clean one. CS IS THE CRASH'S OWN STATE (research
+ * 143 §2.3): a page line taken over by a zero-filled 4 KB block, planted by the
+ * scratch checking better-sqlite3 (reused from P3571_BS3 or the spec step's
+ * build, else built in scratch from P3571_R143_KEEP; loaded by path through
+ * hook-bs3.cjs, never into any node_modules), over a manifest-shaped connection.
+ * NO read fails, so 357's latch never trips: at the PARENT (CS-parent) the quit
+ * faults in pcache1EnforceMaxPage (his report's frame, SIGSEGV, exit 139); at
+ * HEAD (CS-head) the held connection is never closed, the will-quit SIGKILL
+ * skips teardown, and the relaunch keeps every session, the localStorage keys
+ * and the Settings bounds with no unclean-exit notice.
+ *
+ * THE MENU'S 3 S FALLBACK QUIT IS TODAY'S (357.1's drop round). Every arm here
+ * quits through the core's dispose, which holds the connection. A menu quit so
+ * long (his live-session count with their scrollback) that requestQuit()'s 3 s
+ * fallback app.quit() (src/main/menu.ts) reaches will-quit before that dispose
+ * holds nothing, so it ends through Node's teardown at both builds, the crash
+ * state included, exactly as today. That path is Phase 362's: the landing
+ * round's CM arms, which drove it, are kept with that phase's patch, and no arm
+ * here drives it.
+ *
+ * THE PROBE REVIEW (2026-11-06, docs/method/HOW-WE-BUILT-THIS.md rule 9), by
+ * someone who did not write it. PA describes THIS run's parent, 357 as landed
+ * (it described `0547383e` and failed by construction, so HQ could never be
+ * read). RUN's socket clause reads only this run's socket, by whether a server
+ * still answers on it: tmux 3.7b keeps the socket FILE after `kill-server`
+ * (measured), so the `.run` filter alone still failed every live run. The
+ * stopped-words guard tests every sentence of the copy and the shared phrase,
+ * not whole values only. Every quit read as "the will-quit SIGKILL" is
+ * UNREADABLE when Phase 36's wedged-watcher escape printed its line. CS reads
+ * the frame and address from the checker's own SEGV line, WHICH connection the
+ * checker planted (the session list's own, or the preload's), that the list
+ * never stopped, that the preload moved Settings, that app.log logged both
+ * launches, and that the relaunch lists every session listed before the quit.
+ *
  * NO AGENT RUNS, not even for a version: every launch hides every probed
  * registry row (`writeHiddenAgents(profile, prefix, hiddenAgentsBesides([]))`)
  * and reads `agents:list` back (`standInsOnlyVerdict(list, { standIns: [] })`);
@@ -61,9 +100,13 @@
  *
  * VERIFIERS ONLY: it starts an Electron. Take the orchestrator's lock.
  *
- *   npm run build && P357_PARENT_CHECKOUT=<a BUILT 0547383e> npm run -s probe:p357
- *   P357_ARMS=HA,HB,…         the arms to run (default PA,HA,HB,HC; HQ with PA and HA, HD with HB; RUN is always read)
+ *   npm run build && P357_PARENT_CHECKOUT=<a BUILT parent> npm run -s probe:p357
+ *   P357_ARMS=HA,HB,…         the arms to run (default PA,HA,HB,HC,CS; HQ with PA and HA, HD with HB;
+ *                             CS runs CS-parent then CS-head, parent first; RUN is always read)
  *   P357_KEEP=1               keep the run folder and every answer for a re-derivation
+ *   P3571_BS3=<dir>           a built checking better-sqlite3 to reuse for CS (else the spec step's, else build it)
+ *   P3571_R143_KEEP=<dir>     research 143's kept sources, for building the checking build when none is reused
+ *   P3571_HOOK_BS3=<file>     research 143's hook-bs3.cjs, if not under P3571_R143_KEEP's default
  *   node build/p357/probe-p357.mjs --grader-self-test   every grader on build/p357/fixtures/; starts nothing
  *   node build/p357/probe-p357.mjs --preflight          the parent and out/; starts nothing
  *
@@ -74,6 +117,7 @@
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import {
+  appendFileSync,
   closeSync,
   existsSync,
   mkdirSync,
@@ -113,7 +157,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // What this run holds the app against, by value
 // ---------------------------------------------------------------------------
 
-export const SNAPSHOT = '0547383e';
+export const SNAPSHOT = '32180e60';
 /** His exact crash stack, the frames from the inside out (§2.2, his screenshot). */
 export const HIS_STACK = Object.freeze(['SessionsRepository.listSessions', 'ManifestStore.listSessions', 'GmuxCore.listSessions', 'GmuxCore.broadcastSessions']);
 /** The one sentence the Mac's sticky notice draws (src/shared/manifest-stopped-copy.ts). */
@@ -147,6 +191,39 @@ export const SHIM_SIGNAL_LINE = /exited with signal (SIG[A-Z0-9]+)/;
 export const QUIT_SLACK_MS = 2_000;
 /** The identity columns HB compares just before the fault and after the first process is gone. */
 export const IDENTITY_COLUMNS = Object.freeze(['id', 'name', 'tmux_name', 'project_path', 'cwd', 'agent', 'argv', 'created_at']);
+/** Where the spec step left its checking better-sqlite3 (reused when present; P3571_BS3 overrides). */
+export const CHECKING_BS3_DEFAULT = '/private/var/tmp/tortie-wt/scratch/p3571/crash/bs3';
+/** Research 143's kept sources, from which a checking build is made when none is reused (P3571_R143_KEEP overrides). */
+export const R143_KEEP_DEFAULT = '/private/var/tmp/tortie-wt/scratch/p3571/r143-keep';
+/** The frame the crash-state quit faults in, at the parent, his report's own (research 143 §2.2, SPEC §2.1). */
+export const CRASH_FRAME = 'pcache1EnforceMaxPage';
+/** The address his crash read through: `pCache->nRecyclable` of a null `pCache` (research 143 §2.1). */
+export const CRASH_ADDRESS = '0x34';
+/** The checker's SIGSEGV line, which exits 139 before any macOS crash report is written. */
+export const CRASH_SEGV_LINE = /\[p358adv-SEGV\]/;
+/**
+ * The checker's SIGSEGV line, read for its parts (adv-churn/tools/pcache-check-append.c,
+ * `p358adv_segv`): `[p358adv-SEGV] signal 11 at address 0x34, pc 0x… = pcache1EnforceMaxPage+0x68 in …`.
+ * THE PROBE REVIEW: the first build asked only whether the frame's NAME was
+ * anywhere in the launch's output, so a fault in another frame beside a line
+ * that merely named this one read as his crash.
+ */
+export const CRASH_SEGV_PARTS = /\[p358adv-SEGV\] signal (\d+) at address (0x[0-9a-f]+), pc 0x[0-9a-f]+ = ([^+\s]+)\+0x([0-9a-f]+) in /;
+/** The checker's plant line and its violation lines, read for WHICH connection was planted (cache pointer, then the file a violation names for it). */
+export const PLANT_LINE = /\[p358adv-PLANT\] crash-state at check \d+ op=\S+ cache=(0x[0-9a-f]+)/;
+export const VIOLATION_LINE = /\[p358adv-VIOLATION\] [^\n]* file=(\S+) cache=(0x[0-9a-f]+)/g;
+/**
+ * Phase 36's wedged-watcher escape in the disposer (src/main/capabilities.ts,
+ * written to stdout by `logQuit` immediately before its own SIGKILL). A quit
+ * that printed it ended by THAT SIGKILL, not the will-quit handler's, so no
+ * quit clause that reads "the will-quit SIGKILL" can be read from it (the
+ * probe review: the first build read every SIGKILL as the will-quit one).
+ */
+export const WEDGED_QUIT_LINE = /still pending after 15 s more; ending the process hard because environment teardown would abort/;
+/** The Settings-window bounds the crash preload moves to, so the relaunch can read that they survived the hard exit. */
+export const SETTINGS_MOVED_BOUNDS = Object.freeze({ x: 233, y: 141, width: 802, height: 611 });
+/** The three gmux.* localStorage keys the CS arms write in turn before the quit, the last one immediately before it. */
+export const CS_LOCAL_STORAGE_KEYS = Object.freeze(['gmux.p3571.early', 'gmux.p3571.mid', 'gmux.p3571.late']);
 
 // ---------------------------------------------------------------------------
 // The readers: ONE pure function per reading the run derives from raw text.
@@ -197,29 +274,91 @@ export function isHisStack(event) {
 /** How many of a counter's events are his stack. */
 export const hisStackCount = (r) => uncaughtEvents(r).filter((e) => isHisStack(e)).length;
 
-/** Words every one of the stopped list's sentences holds, so a record carrying any part of one is found. */
+/** Words every one of the stopped list's sentences holds; kept as the fallback when the copy file cannot be read. */
 export const STOPPED_WORDS = 'session list stopped reading';
 /**
- * THE FIX ROUND (F2). A `crash.rejection` record of the stopped store's own
- * refusal that carries no message text: code `MANIFEST_STOPPED`, no `message`
- * field, and none of the refusal's words anywhere in it. It is the D18
- * backstop working as built (SPEC T13, D17, D18): boot's id-harvest rescue
- * watches read one row when their 20 s settle, with no catch, so on the 'his'
- * seed a read after the stop is refused and reaches the handler as an
- * unhandled rejection, logged once per key with a repeat count; at the parent
- * the same reads were raw SqliteError rejections that nothing logged. Any
- * other crash record is still a finding: an uncaught exception of any code, a
- * rejection of another code or of none, and a stopped refusal carrying text.
+ * The sentences `src/shared/manifest-stopped-copy.ts` actually holds, read from
+ * that file so this check tests the real copy rather than one hardcoded phrase
+ * (Phase 357.1, Gap 3c). A quiet refusal carries NONE of them. Read once at
+ * load; if the file cannot be read, `STOPPED_WORDS` stands in, so the check
+ * never passes a record it should catch.
+ */
+export function stoppedCopyValues(root = ROOT) {
+  try {
+    const src = readFileSync(join(root, 'src', 'shared', 'manifest-stopped-copy.ts'), 'utf8');
+    const out = [];
+    const re = /export const MANIFEST_STOPPED_\w+\s*=\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g;
+    for (let m = re.exec(src); m !== null; m = re.exec(src)) {
+      const lit = m[1];
+      try {
+        out.push(lit[0] === '"' ? JSON.parse(lit) : lit.slice(1, -1).replace(/\\(['"\\])/g, '$1'));
+      } catch {
+        /* a literal that does not parse is skipped */
+      }
+    }
+    if (out.length > 0) return Object.freeze(out);
+  } catch {
+    /* fall through to the fallback below */
+  }
+  return Object.freeze([STOPPED_WORDS]);
+}
+/** The four `MANIFEST_STOPPED_*` sentences, read once. */
+export const STOPPED_COPY = stoppedCopyValues();
+/**
+ * What a quiet refusal may not carry: every whole value of the copy, EVERY
+ * SENTENCE of each (split at its full stops), and the phrase every one of them
+ * shares. THE PROBE REVIEW: the first widening tested whole values only, so a
+ * record carrying one sentence of a value ("Restart Tortie, then try again.",
+ * "Your sessions are still running.") or the phrase alone, which the parent's
+ * check caught, read as quiet. Pure over the values.
+ */
+export function stoppedCopyNeedles(values) {
+  const out = new Set([STOPPED_WORDS]);
+  for (const v of Array.isArray(values) ? values : []) {
+    if (typeof v !== 'string' || v.trim() === '') continue;
+    out.add(v);
+    for (const s of v.split(/(?<=[.!?])\s+/)) if (s.trim() !== '') out.add(s.trim());
+  }
+  return Object.freeze([...out]);
+}
+/** The needles over the copy this checkout holds. */
+export const STOPPED_NEEDLES = stoppedCopyNeedles(STOPPED_COPY);
+/**
+ * One matcher per needle. A needle of several words is a substring; a needle
+ * of ONE word (`MANIFEST_STOPPED_RESTART`, "Restart") is a whole word, so a
+ * stack frame of code that names it inside an identifier (`armRestart`,
+ * `RestartHost`, `localBeforeRestart` are all in src/main) is not the copy.
+ */
+export const stoppedNeedleMatcher = (needle) => {
+  if (/\s/.test(needle)) return (text) => text.includes(needle);
+  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const word = new RegExp(`(^|[^A-Za-z0-9_$])${escaped}([^A-Za-z0-9_$]|$)`);
+  return (text) => word.test(text);
+};
+const STOPPED_MATCHERS = STOPPED_NEEDLES.map(stoppedNeedleMatcher);
+/**
+ * THE FIX ROUND (F2), WIDENED (Phase 357.1, Gap 3c). A `crash.rejection` record
+ * of the stopped store's own refusal that carries no user-facing words: event
+ * `crash.rejection`, code `MANIFEST_STOPPED`, no `message` field, and NONE of
+ * the four sentences of `src/shared/manifest-stopped-copy.ts` (STOPPED_COPY,
+ * read from the file) anywhere in its JSON — not the single hardcoded
+ * `STOPPED_WORDS` substring, so a change to the copy cannot leave this testing a
+ * stale phrase. It is the D18 backstop working as built (SPEC T13, D17, D18):
+ * boot's id-harvest rescue watches read one row when their 20 s settle, with no
+ * catch, so on the 'his' seed a read after the stop is refused and reaches the
+ * handler as an unhandled rejection, logged once per key with a repeat count;
+ * at the parent the same reads were raw SqliteError rejections that nothing
+ * logged. Any other crash record is still a finding: an uncaught exception of
+ * any code, a rejection of another code or of none, and a stopped refusal
+ * carrying a message field, any whole value of the copy, any one of its
+ * sentences, or the phrase they share (STOPPED_NEEDLES).
  */
 export function isQuietStoppedRejection(o) {
-  return (
-    o !== null &&
-    typeof o === 'object' &&
-    o.event === 'crash.rejection' &&
-    o.code === 'MANIFEST_STOPPED' &&
-    !Object.prototype.hasOwnProperty.call(o, 'message') &&
-    !JSON.stringify(o).includes(STOPPED_WORDS)
-  );
+  if (o === null || typeof o !== 'object') return false;
+  if (o.event !== 'crash.rejection' || o.code !== 'MANIFEST_STOPPED') return false;
+  if (Object.prototype.hasOwnProperty.call(o, 'message')) return false;
+  const text = JSON.stringify(o);
+  return !STOPPED_MATCHERS.some((matches) => matches(text));
 }
 
 /**
@@ -275,7 +414,12 @@ export function readAppLog(lines, { rowCanaries = [] } = {}) {
     unreadableNotices: notices.filter((o) => o.notice === 'manifest-unreadable').length,
     notRelaunchedLine: parsed.some((o) => o.scope === 'quit' && typeof o.msg === 'string' && NOT_RELAUNCHED_LINE.test(o.msg)),
     gateLines: kept.filter((l) => /quarantin|integrity|rebuilt|damaged|recover|unclean/.test(l)).map((l) => l.slice(0, 200)),
-    bootPids
+    bootPids,
+    // Every main process that wrote a record (the envelope's `pid` and
+    // `proctype`, src/main/log/format.ts): one per launch that logged at all.
+    // The `macOS login session` line above needs SECURITYSESSIONID, so it is no
+    // count of launches; this is.
+    mainPids: [...new Set(parsed.filter((o) => o.proctype === 'main' && Number.isInteger(o.pid)).map((o) => o.pid))]
   };
 }
 export function stoppedFact(al) {
@@ -337,14 +481,97 @@ export function exitReading(text, code) {
     signal: sig === null ? null : sig[1],
     notRelaunchedLine: NOT_RELAUNCHED_LINE.test(t),
     heldOpenLine: LEFT_OPEN_QUIT_LINE.test(t),
-    closeHeldLine: CLOSE_HELD_LINE.test(t)
+    closeHeldLine: CLOSE_HELD_LINE.test(t),
+    // Phase 36's own SIGKILL said its line first (WEDGED_QUIT_LINE).
+    wedgedExit: WEDGED_QUIT_LINE.test(t)
   };
 }
-/** HA's quit: whether the disposer said it held a connection open, and the shim's signal if any. */
+/** HA's quit: whether the disposer said it held a connection open, the shim's signal if any, and whether Phase 36's escape ended it. */
 export function quitTextReading(text) {
   const e = exitReading(text, null);
-  return { heldOpen: e.heldOpenLine, signal: e.signal };
+  return { heldOpen: e.heldOpenLine, signal: e.signal, wedgedExit: e.wedgedExit };
 }
+/**
+ * The crash-state quit, read from the launch's whole output and its exit code:
+ * whether the checker's SEGV handler fired (`segv`), the frame, offset and
+ * address ITS line names, whether that is his report's (`crashFrame`:
+ * `pcache1EnforceMaxPage` reading through 0x34), the shim's signal, Phase 36's
+ * escape, and the exit code. At the parent the fault exits 139 with
+ * `segv`/`crashFrame`; at HEAD the process ends by the will-quit SIGKILL with
+ * neither.
+ */
+export function crashStateQuit(text, code) {
+  const t = typeof text === 'string' ? text : '';
+  const sig = SHIM_SIGNAL_LINE.exec(t);
+  const parts = CRASH_SEGV_PARTS.exec(t);
+  const segvFrame = parts === null ? null : parts[3];
+  const segvAddress = parts === null ? null : parts[2];
+  return {
+    code,
+    signal: sig === null ? null : sig[1],
+    segv: CRASH_SEGV_LINE.test(t),
+    segvFrame,
+    segvOffset: parts === null ? null : `0x${parts[4]}`,
+    segvAddress,
+    crashFrame: segvFrame === CRASH_FRAME && segvAddress === CRASH_ADDRESS,
+    wedgedExit: WEDGED_QUIT_LINE.test(t)
+  };
+}
+/**
+ * WHICH connection the checker planted, from its own output: the cache pointer
+ * its plant line names, then the file the first violation line naming that
+ * cache gives. `sessionList` is the arm's own manifest (the app's session list
+ * connection, his crash's), `preloadDir` the folder the crash preload opens its
+ * manifest-shaped db in. Pure over the text and the two real paths.
+ */
+export function plantTargetOf(text, { sessionList, preloadDir } = {}) {
+  const t = typeof text === 'string' ? text : '';
+  const plant = PLANT_LINE.exec(t);
+  if (plant === null) return { target: null, file: null };
+  const after = t.slice(plant.index);
+  let file = null;
+  for (const m of after.matchAll(VIOLATION_LINE)) {
+    if (m[2] === plant[1]) {
+      file = m[1];
+      break;
+    }
+  }
+  if (file === null) return { target: null, file: null };
+  if (typeof sessionList === 'string' && sessionList !== '' && file === sessionList) return { target: 'session-list', file };
+  if (typeof preloadDir === 'string' && preloadDir !== '' && file.startsWith(`${preloadDir}/`)) return { target: 'preload', file };
+  return { target: 'other', file };
+}
+/**
+ * RUN's socket reading (Phase 357.1 Gap 3a, completed by the probe review),
+ * pure over the socket directory's names. Only THIS run's socket can be this
+ * run's leftover (another run's `gmux-p357` socket, a second verifier's, is not
+ * this run's state), build/harness-socket.mjs's `<socket>.run` marker is never
+ * a socket, and a socket FILE is not a server: tmux 3.7b keeps the file after
+ * `kill-server` (measured by the probe review) and the harness unlinks it by
+ * name once this run exits. So a socket is LEFT only when a server still
+ * answers on it. `names` null means the directory could not be read.
+ */
+export function socketsLeftOf(names, socket, answers) {
+  if (!Array.isArray(names) || typeof socket !== 'string' || socket === '') return { read: false, left: null, files: [], marker: null };
+  const files = names.filter((n) => n === socket);
+  return { read: true, left: files.filter((n) => answers(n) === true).length, files, marker: names.includes(`${socket}.run`) };
+}
+/** Whether the checker said it planted the crash state (its own line, never the preload's marker). */
+export const plantedOf = (text) => typeof text === 'string' && /\[p358adv-PLANT\] crash-state/.test(text);
+/** Two id lists as sets: every id of one is in the other and neither repeats one the other lacks. */
+export function sameIdSet(a, b) {
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length === 0) return false;
+  const A = new Set(a);
+  const B = new Set(b);
+  return A.size === B.size && [...A].every((x) => B.has(x));
+}
+/** How many of the CS keys' values read back as the run's nonce. */
+export function localStorageKept(values, nonce) {
+  if (!Array.isArray(values) || typeof nonce !== 'string' || nonce === '') return null;
+  return values.filter((v) => v === nonce).length;
+}
+/** True when a window's bounds are the probe's moved size (macOS may nudge the origin, never the size it was given). */
+export const boundsMatch = (b) => b !== null && typeof b === 'object' && b.width === SETTINGS_MOVED_BOUNDS.width && b.height === SETTINGS_MOVED_BOUNDS.height;
 /** HB's rows just before the fault against the rows after the first process ended. */
 export function compareRows(before, after) {
   if (before?.read !== true || after?.read !== true || !Array.isArray(before.rows) || !Array.isArray(after.rows)) {
@@ -427,6 +654,27 @@ const counterHeldNeed = (name, times = 1) => [
   (r) => counterInstalled(r.counter) && controlHeard(r.counter) >= times && counterInstalled(r.counterEnd) && controlHeard(r.counterEnd) >= times
 ];
 const AGENTS_NEED = ['the agents:list answer resolved nothing but the stand-ins (none)', (r) => r.agents.ok === true];
+/** The crash-state arms' need: the scratch checking better-sqlite3 was built or reused (never node_modules). */
+const CS_BS3_NEED = ['the scratch checking better-sqlite3 was built or reused (never a checkout’s node_modules)', (r) => r.bs3Built === true];
+/**
+ * THE PROBE REVIEW. Every quit clause since Phase 357.1 reads "the will-quit
+ * SIGKILL" from the shim's signal alone, and Phase 36's wedged-watcher escape
+ * ends a quit by SIGKILL too, before the windows close and without the flush.
+ * A quit that printed that escape's line cannot say whether the will-quit
+ * handler ran, so it is UNREADABLE, never a pass (and never the product's FAIL).
+ */
+const NOT_WEDGED_NEED = (at) => [
+  'the quit did not take Phase 36’s wedged-watcher escape, so a SIGKILL is the will-quit handler’s',
+  (r) => (at === 'restart' ? r.restart.wedgedExit : r.quit.wedgedExit) === false
+];
+/**
+ * THE PROBE REVIEW. The crash's own state raises no error, so the session list
+ * must NOT have stopped: a `manifest.stopped` record means 357's latch, not the
+ * quit hold, explains HEAD's quit (and would make the parent hold too).
+ */
+const CS_NO_LATCH_NEED = ['the session list never stopped (no manifest.stopped record), so the crash state raised no error and 357’s latch explains nothing', (r) => r.stopped.count === 0];
+/** THE PROBE REVIEW. The plant landed in the app's own session list connection or in the preload's manifest-shaped one, read from the checker's own lines. */
+const CS_TARGET_NEED = ['the checker planted the session list’s own connection or the preload’s manifest-shaped one, read from its own lines', (r) => r.plantedIn === 'session-list' || r.plantedIn === 'preload'];
 const SHELLS_NEED = ['the list read before the damage, holding the three shells', (r) => r.listBefore.ok === true && SHELL_NAMES.every((n) => (r.listBefore.names ?? []).includes(n))];
 /**
  * HA's and HB's crash clause, one definition so the two say it word for word
@@ -441,22 +689,32 @@ const CRASH_CLAUSE = [
 ];
 
 export const GRADERS = {
+  // THE PROBE REVIEW re-scoped PA to THIS phase's parent. It described 357's
+  // own parent `0547383e` (an uncaught exception per rename, a raw SqliteError
+  // for a create it spawned, no crash scope) while SNAPSHOT and the spec name
+  // 357 as landed (`32180e60`), which fixed every one of those, so PA failed by
+  // construction against the one parent the run is handed and HQ, which times
+  // PA's quit, could never be read (the integrator's F1). At 357 as landed real
+  // damage latches exactly as HEAD's HA does, and the quit CLOSES the damaged
+  // file and exits 0 (357's D11): that clean quit is what HQ holds HEAD's
+  // will-quit SIGKILL to.
   PA: {
-    title: 'the parent: an uncaught exception per external rename, his stack; a raw SqliteError for a create it spawned; a quit that exits 0 (the file is damaged)',
-    reads: ['counter', 'counterEnd', 'agents.ok', 'damage.changed', 'listBefore.ok', 'beforeDamage', 'renameUncaught', 'hisStack', 'create.ok', 'create.raw', 'create.spawned', 'appLog.crashScope', 'appLog.malformed', 'quit.code'],
-    needs: [counterHeldNeed('the counter was installed in main and heard its own control exception, so its count can be trusted'), AGENTS_NEED, ['the damage changed a byte of the scratch manifest', (r) => r.damage.changed === true], SHELLS_NEED],
+    title: 'the parent (357 as landed), real page damage: one stop and its notice, a refused create, no uncaught exception, and a quit that closes the damaged file and exits 0',
+    reads: ['counter', 'counterEnd', 'agents.ok', 'damage.changed', 'listBefore.ok', 'listBefore.names', 'uncaughtAtEnd', 'stopped.count', 'stopped.code', 'stopped.file', 'notice.count', 'create.ok', 'create.error', 'create.code', 'create.spawned', 'appLog.crashUnexpected', 'appLog.canaryLines', 'quit.code', 'quit.signal', 'quit.wedgedExit'],
+    needs: [counterHeldNeed('the counter was installed in main and heard its own control exception, at boot and at the end'), AGENTS_NEED, ['the damage changed a byte of the scratch manifest', (r) => r.damage.changed === true], SHELLS_NEED, NOT_WEDGED_NEED('quit')],
     clauses: [
-      ['no uncaught exception reached the counter before the damage', (r) => r.beforeDamage === 0],
-      ['the two external renames each reached uncaughtException, his exact stack', (r) => r.renameUncaught >= 2 && r.hisStack >= 2],
-      ['the create was answered a raw SqliteError for a session it spawned', (r) => r.create.ok === false && /malformed/i.test(String(r.create.raw)) && r.create.spawned === true],
-      ['app.log held no crash scope (the parent has no handler) and the raw error at least once', (r) => r.appLog.crashScope === 0 && r.appLog.malformed >= 1],
-      ['the quit exited 0 (the file is damaged, so today closes)', (r) => r.quit.code === 0]
+      ['no uncaught exception reached the counter from the launch to its exit', (r) => r.uncaughtAtEnd === 0],
+      ['one manifest.stopped record, SQLITE_CORRUPT, file damaged', (r) => r.stopped.count === 1 && r.stopped.code === 'SQLITE_CORRUPT' && r.stopped.file === 'damaged'],
+      ['one notice.shown manifest-stopped, and no second one', (r) => r.notice.count === 1],
+      ['the create was refused with the stopped sentence (MANIFEST_STOPPED) and nothing spawned', (r) => r.create.ok === false && r.create.code === 'MANIFEST_STOPPED' && r.create.error === MANIFEST_STOPPED_REFUSAL && r.create.spawned === false],
+      CRASH_CLAUSE,
+      ['the quit exited 0 by no signal: at the parent a damaged file closes at quit (357’s D11)', (r) => r.quit.code === 0 && r.quit.signal === null]
     ]
   },
   HA: {
     title: 'HEAD, real page damage: one notice, the last clean list, a refused create, no uncaught exception, a clean quit',
-    reads: ['counter', 'counterEnd', 'agents.ok', 'damage.changed', 'listBefore.ok', 'listBefore.ids', 'listBefore.names', 'uncaughtAtEnd', 'stopped.count', 'stopped.operation', 'stopped.code', 'stopped.file', 'stopped.rowData', 'notice.count', 'listAfter.ok', 'create.ok', 'create.error', 'create.code', 'create.spawned', 'renamesTried', 'renamesLandedInTmux', 'renameUncaught', 'appLog.crashUnexpected', 'appLog.canaryLines', 'quit.code', 'quit.heldOpen', 'relaunch.ran', 'relaunch.quarantined', 'relaunch.rows'],
-    needs: [counterHeldNeed('the counter was installed in main and heard its own control exception, at boot and at the end'), AGENTS_NEED, ['the damage changed a byte of the scratch manifest', (r) => r.damage.changed === true], SHELLS_NEED, ['the relaunch on that profile ran', (r) => r.relaunch.ran === true]],
+    reads: ['counter', 'counterEnd', 'agents.ok', 'damage.changed', 'listBefore.ok', 'listBefore.ids', 'listBefore.names', 'uncaughtAtEnd', 'stopped.count', 'stopped.operation', 'stopped.code', 'stopped.file', 'stopped.rowData', 'notice.count', 'listAfter.ok', 'create.ok', 'create.error', 'create.code', 'create.spawned', 'renamesTried', 'renamesLandedInTmux', 'renameUncaught', 'appLog.crashUnexpected', 'appLog.canaryLines', 'quit.signal', 'quit.wedgedExit', 'relaunch.ran', 'relaunch.quarantined', 'relaunch.rows'],
+    needs: [counterHeldNeed('the counter was installed in main and heard its own control exception, at boot and at the end'), AGENTS_NEED, ['the damage changed a byte of the scratch manifest', (r) => r.damage.changed === true], SHELLS_NEED, ['the relaunch on that profile ran', (r) => r.relaunch.ran === true], NOT_WEDGED_NEED('quit')],
     clauses: [
       ['no uncaught exception reached the counter from the launch to its exit', (r) => r.uncaughtAtEnd === 0],
       ['one manifest.stopped record, naming the operation and SQLITE_CORRUPT, file damaged', (r) => r.stopped.count === 1 && typeof r.stopped.operation === 'string' && r.stopped.code === 'SQLITE_CORRUPT' && r.stopped.file === 'damaged'],
@@ -466,26 +724,35 @@ export const GRADERS = {
       ['the create was refused with the stopped sentence (MANIFEST_STOPPED) and nothing spawned', (r) => r.create.ok === false && r.create.code === 'MANIFEST_STOPPED' && r.create.error === MANIFEST_STOPPED_REFUSAL && r.create.spawned === false],
       ['each external rename landed in tmux and in no uncaught exception', (r) => r.renamesTried >= 2 && r.renamesLandedInTmux === r.renamesTried && r.renameUncaught === 0],
       CRASH_CLAUSE,
-      ['the quit exited 0 and closed the connection (the file is damaged, D11)', (r) => r.quit.code === 0 && r.quit.heldOpen === false],
+      ['the quit ended by the will-quit SIGKILL, never a crash (Phase 357.1 D1: the manifest is held at every quit, the damaged file included)', (r) => r.quit.signal === 'SIGKILL'],
       ['the relaunch’s gate quarantined the damaged file and the relaunch read rows back', (r) => r.relaunch.quarantined === true && r.relaunch.rows > 0]
     ]
   },
   HQ: {
     title: 'HEAD’s quit after real page damage, against the parent’s',
-    reads: ['parentMs', 'parentCode', 'headMs', 'headCode'],
-    needs: [['both quits were timed and both exited 0', (r) => r.parentCode === 0 && r.headCode === 0 && Number.isFinite(r.parentMs) && r.parentMs > 0 && Number.isFinite(r.headMs) && r.headMs > 0]],
+    reads: ['parentMs', 'parentCode', 'parentWedged', 'headMs', 'headSignal', 'headWedged'],
+    needs: [
+      [
+        'both quits were timed; the parent exited 0 and HEAD ended by the will-quit SIGKILL (Phase 357.1 D1)',
+        (r) => r.parentCode === 0 && r.headSignal === 'SIGKILL' && Number.isFinite(r.parentMs) && r.parentMs > 0 && Number.isFinite(r.headMs) && r.headMs > 0
+      ],
+      // THE PROBE REVIEW: a quit Phase 36's escape ended waited out its late
+      // drain first, so its time says nothing about the will-quit SIGKILL.
+      ['neither quit took Phase 36’s wedged-watcher escape', (r) => r.parentWedged === false && r.headWedged === false]
+    ],
     clauses: [['HEAD’s quit took at most twice the parent’s, or two seconds more, whichever is longer', (r) => r.headMs <= Math.max(2 * r.parentMs, r.parentMs + QUIT_SLACK_MS)]]
   },
   HB: {
     title: 'HEAD, the memory-shaped seam: the file is fine, Restart ends the process without closing it, the next launch does not quarantine, and every row is kept',
-    reads: ['counter', 'counterEnd', 'agents.ok', 'seamInstalled', 'armed', 'listBefore.ok', 'rows.read', 'uncaughtAtEnd', 'stopped.count', 'stopped.operation', 'stopped.code', 'stopped.file', 'stopped.rowData', 'notice.count', 'toast', 'create.ok', 'create.error', 'create.code', 'create.spawned', 'restart.clicked', 'restart.code', 'restart.signal', 'restart.notRelaunchedLine', 'restart.heldOpenLine', 'restart.walBefore', 'restart.walAfter', 'restart.sentinelBefore', 'restart.sentinelAfter', 'relaunch.ran', 'relaunch.quarantined', 'relaunch.unreadableNotices', 'relaunch.uncleanExit', 'relaunch.inodeBefore', 'relaunch.inodeAfter', 'relaunch.listed.read', 'appLog.crashUnexpected', 'appLog.canaryLines'],
+    reads: ['counter', 'counterEnd', 'agents.ok', 'seamInstalled', 'armed', 'listBefore.ok', 'rows.read', 'uncaughtAtEnd', 'stopped.count', 'stopped.operation', 'stopped.code', 'stopped.file', 'stopped.rowData', 'notice.count', 'toast', 'create.ok', 'create.error', 'create.code', 'create.spawned', 'restart.clicked', 'restart.code', 'restart.signal', 'restart.wedgedExit', 'restart.notRelaunchedLine', 'restart.walBefore', 'restart.walAfter', 'restart.sentinelBefore', 'restart.sentinelAfter', 'relaunch.ran', 'relaunch.quarantined', 'relaunch.unreadableNotices', 'relaunch.uncleanExit', 'relaunch.inodeBefore', 'relaunch.inodeAfter', 'relaunch.listed.read', 'appLog.crashUnexpected', 'appLog.canaryLines'],
     needs: [
       counterHeldNeed('the counter was installed in main and heard its own control exception, at boot and at the end'),
       AGENTS_NEED,
       ['the seam was installed and armed its one fault, said on stdout', (r) => r.seamInstalled === true && r.armed === true],
       SHELLS_NEED,
       ['the rows were read just before the fault (by SQLite, read only) and after the first process ended (a copy)', (r) => r.rows.read === true],
-      ['the relaunch on that profile ran', (r) => r.relaunch.ran === true]
+      ['the relaunch on that profile ran', (r) => r.relaunch.ran === true],
+      NOT_WEDGED_NEED('restart')
     ],
     clauses: [
       ['no uncaught exception reached the counter from the launch to its hard exit', (r) => r.uncaughtAtEnd === 0],
@@ -494,7 +761,7 @@ export const GRADERS = {
       ['one notice, drawn in the window with its sentence and a Restart button', (r) => r.notice.count === 1 && r.toast !== null && r.toast.text === MANIFEST_STOPPED_NOTICE && r.toast.button === MANIFEST_STOPPED_RESTART],
       ['the create was refused with the stopped sentence (MANIFEST_STOPPED) and nothing spawned', (r) => r.create.ok === false && r.create.code === 'MANIFEST_STOPPED' && r.create.error === MANIFEST_STOPPED_REFUSAL && r.create.spawned === false],
       ['Restart was pressed, the harness launch was not relaunched, and the app ended by SIGKILL, never a crash', (r) => r.restart.clicked === true && r.restart.notRelaunchedLine === true && r.restart.signal === 'SIGKILL' && r.restart.code === 1],
-      ['the quit closed nothing: the disposer’s left-open line, the -wal on disk before and after, the run sentinel there before and cleared after', (r) => r.restart.heldOpenLine === true && r.restart.walBefore === true && r.restart.walAfter === true && r.restart.sentinelBefore === true && r.restart.sentinelAfter === false],
+      ['the quit closed nothing: the -wal on disk before and after, the run sentinel there before and cleared after by the will-quit handler (Phase 357.1 D2)', (r) => r.restart.walBefore === true && r.restart.walAfter === true && r.restart.sentinelBefore === true && r.restart.sentinelAfter === false],
       ['nothing was written after the latch: the same session rows, every identity column unchanged', (r) => r.rows.sameIds === true && r.rows.identityUnchanged === true],
       ['the next launch kept the same file (no quarantine, no unreadable notice) and posted no unclean-exit notice', (r) => r.relaunch.quarantined === 0 && r.relaunch.unreadableNotices === 0 && r.relaunch.uncleanExit === 0 && Number.isInteger(r.relaunch.inodeBefore) && r.relaunch.inodeBefore === r.relaunch.inodeAfter],
       ['the next launch listed exactly the rows that are not removed', (r) => r.relaunch.listed.read === true && r.relaunch.listed.equal === true],
@@ -514,29 +781,79 @@ export const GRADERS = {
   },
   HC: {
     title: 'HEAD, the crash handlers: one record per distinct error, the repeats counted under its key, no message text, no dialog in a harness launch',
-    reads: ['counter', 'counterEnd', 'agents.ok', 'uncaughtRecords', 'uncaughtName', 'uncaughtCode', 'uncaughtHasMessage', 'uncaughtMessageChars', 'rejectionRecords', 'repeats.count', 'repeats.key', 'repeats.sameKey', 'appLog.canaryLines', 'mainAnswered.ok', 'mainAnswered.controlsBefore', 'quit.code'],
-    needs: [counterHeldNeed('the counter was installed in main and heard BOTH control exceptions, at boot and at the end', 2), AGENTS_NEED],
+    reads: ['counter', 'counterEnd', 'agents.ok', 'uncaughtRecords', 'uncaughtName', 'uncaughtCode', 'uncaughtHasMessage', 'uncaughtMessageChars', 'rejectionRecords', 'repeats.count', 'repeats.key', 'repeats.sameKey', 'appLog.canaryLines', 'mainAnswered.ok', 'mainAnswered.controlsBefore', 'quit.signal', 'quit.wedgedExit'],
+    needs: [counterHeldNeed('the counter was installed in main and heard BOTH control exceptions, at boot and at the end', 2), AGENTS_NEED, NOT_WEDGED_NEED('quit')],
     clauses: [
       ['one crash.uncaught record for the two identical exceptions (name Error, code P357_CONTROL, its length and never its text)', (r) => r.uncaughtRecords === 1 && r.uncaughtName === 'Error' && r.uncaughtCode === 'P357_CONTROL' && r.uncaughtHasMessage === false && r.uncaughtMessageChars === CONTROL_MESSAGES[0].length],
       ['one crash.rejection record, the control rejection’s', (r) => r.rejectionRecords === 1],
       ['crash.repeats at quit counts 2 under the uncaught record’s own key', (r) => r.repeats.sameKey === true && r.repeats.count === 2 && typeof r.repeats.key === 'string' && /^[0-9a-f]{64}$/.test(r.repeats.key)],
       ['no control message text anywhere in app.log', (r) => r.appLog.canaryLines === 0],
-      ['no dialog held main: it answered an IPC after both control exceptions, and the quit exited 0', (r) => r.mainAnswered.ok === true && r.mainAnswered.controlsBefore >= 2 && r.quit.code === 0]
+      // Phase 357.1's integrator: HEAD's quit no longer exits 0 (D1 holds the
+      // manifest at every quit and D2 ends the process by the will-quit
+      // SIGKILL), so reaching that SIGKILL is what says no dialog held the quit,
+      // read from the shim's own line exactly as HA's quit is.
+      ['no dialog held main: it answered an IPC after both control exceptions, and the quit reached the will-quit SIGKILL (Phase 357.1 D1/D2)', (r) => r.mainAnswered.ok === true && r.mainAnswered.controlsBefore >= 2 && r.quit.signal === 'SIGKILL']
+    ]
+  },
+  'CS-parent': {
+    title: 'the parent, the crash’s own state: no read fails, and the quit crashes in pcache1EnforceMaxPage (SIGSEGV, exit 139), his report’s frame',
+    reads: ['bs3Built', 'agents.ok', 'planted', 'plantedIn', 'readsOk', 'stopped.count', 'quit.code', 'quit.segv', 'quit.crashFrame', 'quit.wedgedExit'],
+    needs: [
+      CS_BS3_NEED,
+      AGENTS_NEED,
+      ['the checker planted the crash state and no read failed before the quit', (r) => r.planted === true && r.readsOk === true],
+      CS_TARGET_NEED,
+      CS_NO_LATCH_NEED,
+      NOT_WEDGED_NEED('quit')
+    ],
+    clauses: [
+      ['the quit faulted with SIGSEGV in pcache1EnforceMaxPage reading through 0x34 (the checker’s own report, no macOS dump)', (r) => r.quit.segv === true && r.quit.crashFrame === true],
+      ['the faulting process exited 139, not cleanly', (r) => r.quit.code === 139]
+    ]
+  },
+  'CS-head': {
+    title: 'HEAD, the crash’s own state: no read fails, the held connection is never closed, the quit ends by the will-quit SIGKILL with no crash, and the relaunch keeps everything',
+    reads: ['bs3Built', 'agents.ok', 'planted', 'plantedIn', 'readsOk', 'stopped.count', 'settingsMoved', 'listBefore.ok', 'quit.signal', 'quit.segv', 'quit.wedgedExit', 'relaunch.ran', 'relaunch.bootsLogged', 'relaunch.unclean', 'relaunch.shellsKept', 'relaunch.sameIds', 'relaunch.localStorage.kept', 'relaunch.bounds'],
+    needs: [
+      CS_BS3_NEED,
+      AGENTS_NEED,
+      ['the checker planted the crash state and no read failed before the quit', (r) => r.planted === true && r.readsOk === true],
+      CS_TARGET_NEED,
+      CS_NO_LATCH_NEED,
+      NOT_WEDGED_NEED('quit'),
+      // THE PROBE REVIEW: a Settings window the preload never moved has no
+      // bounds of the probe's to keep, so a lost size is the probe's, not a FAIL.
+      ['the preload moved the Settings window to the probe’s bounds before the quit', (r) => r.settingsMoved === true],
+      ['the window listed the sessions before the quit', (r) => r.listBefore.ok === true],
+      ['the relaunch on that profile ran', (r) => r.relaunch.ran === true],
+      // THE PROBE REVIEW: no unclean-exit notice in an app.log that never logged
+      // the relaunch's boot is no reading at all, not a clean relaunch.
+      ['app.log recorded both launches’ boots, so its notices can be read', (r) => r.relaunch.bootsLogged >= 2]
+    ],
+    clauses: [
+      ['the quit did NOT crash: no SIGSEGV, and the process ended by the will-quit SIGKILL (Phase 357.1 D1/D2)', (r) => r.quit.segv === false && r.quit.signal === 'SIGKILL'],
+      ['the relaunch posted no unclean-exit notice, so the will-quit handler cleared the run sentinel', (r) => r.relaunch.unclean === 0],
+      ['the relaunch read every seeded shell back', (r) => r.relaunch.shellsKept === true],
+      ['the relaunch listed every session the window listed before the quit, and no other', (r) => r.relaunch.sameIds === true],
+      ['localStorage survived, 3 of 3 (the synchronous flushStorageData kept it)', (r) => r.relaunch.localStorage.kept === 3],
+      ['the Settings window bounds survived the hard exit', (r) => r.relaunch.bounds === true]
     ]
   },
   RUN: {
     title: 'the preflights held, the hidden agents held, every launch clean, his history unmoved',
-    reads: ['tailscalePreflight', 'realTailscale', 'dnsPreflights', 'agentsHeld', 'countersHeard', 'serverRead', 'serverGone', 'socketsLeft', 'processTableRead', 'electronsLeft', 'history.before', 'history.after'],
+    reads: ['tailscalePreflight', 'realTailscale', 'dnsPreflights', 'agentsHeld', 'countersHeard', 'serverRead', 'serverGone', 'socketsRead', 'socketsLeft', 'processTableRead', 'electronsLeft', 'history.before', 'history.after'],
     needs: [
       ['the process table and the scratch server were read at the end', (r) => r.processTableRead === true && r.serverRead === true],
-      ['at least one launch reached its window', (r) => r.agentsHeld.length > 0]
+      ['at least one launch reached its window', (r) => r.agentsHeld.length > 0],
+      // THE PROBE REVIEW: an unreadable socket directory used to read as no socket left.
+      ['the socket directory tmux and the harness use was read', (r) => r.socketsRead === true]
     ],
     clauses: [
       ['the Tailscale preflight passed at every launch and no real Tailscale was ever seen', (r) => r.tailscalePreflight === true && r.realTailscale === 0],
       ['the DNS preflight passed at every launch and named loopback only', (r) => r.dnsPreflights.length > 0 && r.dnsPreflights.every((x) => x === true)],
       ['every launch’s agents:list resolved nothing but the stand-ins (none)', (r) => r.agentsHeld.length > 0 && r.agentsHeld.every((x) => x === true)],
       ['the counter was loaded and heard its control exception at every launch', (r) => r.countersHeard.length > 0 && r.countersHeard.every((x) => x >= 1)],
-      ['the scratch tmux server is gone and no p357 socket is left', (r) => r.serverGone === true && r.socketsLeft === 0],
+      ['the scratch tmux server is gone and no server answers on this run’s socket (its file is the harness’s to unlink)', (r) => r.serverGone === true && r.socketsLeft === 0],
       ['every Electron this run started is gone', (r) => r.electronsLeft === 0],
       ['his shell history did not move across the run', (r) => historyHeld(r.history) === 'unmoved' || historyHeld(r.history) === 'his terminal']
     ]
@@ -616,7 +933,7 @@ export function deriveReading(arm, base, derive) {
   const d = derive ?? {};
   if (d.counterEnd !== undefined) {
     reading.counterEnd = counterOf(d.counterEnd);
-    if (arm === 'HA' || arm === 'HB') reading.uncaughtAtEnd = nonControl(reading.counterEnd).length;
+    if (arm === 'HA' || arm === 'HB' || arm === 'PA') reading.uncaughtAtEnd = nonControl(reading.counterEnd).length;
   }
   if (d.counterDuring !== undefined) reading.hisStack = hisStackCount(counterOf(d.counterDuring));
   if (d.appLog !== undefined) {
@@ -626,10 +943,36 @@ export function deriveReading(arm, base, derive) {
   }
   if (d.create !== undefined) reading.create = createReading(d.create.answer, d.create.namesBefore, d.create.namesAfter, d.create.name ?? 'p357-after');
   if (d.quitText !== undefined) reading.quit = { ...reading.quit, ...quitTextReading(d.quitText) };
+  if (d.csQuit !== undefined) {
+    reading.quit = { ...reading.quit, ...crashStateQuit(d.csQuit.text, d.csQuit.code) };
+    // The plant and its connection, read from the same output, when the fixture names the arm's two paths.
+    if (d.csQuit.paths !== undefined) {
+      reading.planted = plantedOf(d.csQuit.text);
+      reading.plantedIn = plantTargetOf(d.csQuit.text, d.csQuit.paths).target;
+    }
+  }
   if (d.exit !== undefined) {
     const e = exitReading(d.exit.text, d.exit.code);
-    reading.restart = { ...reading.restart, code: e.code, signal: e.signal, heldOpenLine: e.heldOpenLine, notRelaunchedLine: e.notRelaunchedLine || d.exit.appLogNotRelaunched === true };
+    reading.restart = { ...reading.restart, code: e.code, signal: e.signal, heldOpenLine: e.heldOpenLine, wedgedExit: e.wedgedExit, notRelaunchedLine: e.notRelaunchedLine || d.exit.appLogNotRelaunched === true };
   }
+  if (d.sockets !== undefined) {
+    const answering = new Set(d.sockets.answering ?? []);
+    const s = socketsLeftOf(d.sockets.names, d.sockets.socket, (n) => answering.has(n));
+    reading.socketsRead = s.read;
+    reading.socketsLeft = s.left;
+  }
+  // The CS arms' app.log: the first launch's for the latch, both launches' for the relaunch.
+  if (d.csAppLog !== undefined) reading.stopped = stoppedFact(readAppLog(d.csAppLog));
+  if (d.csRelaunchLog !== undefined) {
+    const al = readAppLog(d.csRelaunchLog);
+    reading.relaunch = { ...reading.relaunch, unclean: al.uncleanExit, bootsLogged: al.mainPids.length };
+  }
+  if (d.localStorage !== undefined) reading.relaunch = { ...reading.relaunch, localStorage: { ...(reading.relaunch?.localStorage ?? {}), kept: localStorageKept(d.localStorage.values, d.localStorage.nonce) } };
+  if (d.bounds !== undefined) {
+    if (d.bounds.moved !== undefined) reading.settingsMoved = boundsMatch(d.bounds.moved);
+    if (d.bounds.saved !== undefined) reading.relaunch = { ...reading.relaunch, bounds: boundsMatch(d.bounds.saved) };
+  }
+  if (d.ids !== undefined) reading.relaunch = { ...reading.relaunch, sameIds: sameIdSet(d.ids.before, d.ids.after) };
   if (d.rowsBefore !== undefined) reading.rows = compareRows(d.rowsBefore, d.rowsAfter);
   if (d.listedIds !== undefined) reading.relaunch = { ...reading.relaunch, listed: listedReading(d.rowsAfter, d.listedIds) };
   return reading;
@@ -653,6 +996,12 @@ function graderSelfTest() {
   const broken = Array.isArray(fixtures.broken) ? fixtures.broken : [];
   const unread = Array.isArray(fixtures.unreadable) ? fixtures.unreadable : [];
   const raw = Array.isArray(fixtures.raw) ? fixtures.raw : [];
+  // 0. The stopped-words guard reads THIS checkout's copy, all four values, and
+  // a copy it cannot read leaves the parent's phrase, never nothing (the probe review).
+  const copyWant = [MANIFEST_STOPPED_NOTICE, MANIFEST_STOPPED_RESTART, MANIFEST_STOPPED_REFUSAL, MANIFEST_STOPPED_PHONE_LINE];
+  say(STOPPED_COPY.length === copyWant.length && copyWant.every((w) => STOPPED_COPY.includes(w)), `the stopped-words guard read the four values of src/shared/manifest-stopped-copy.ts (${String(STOPPED_COPY.length)} values, ${String(STOPPED_NEEDLES.length)} needles: every value, every sentence and the shared phrase)`);
+  const unreadCopy = stoppedCopyValues(join(ROOT, 'build', 'p357', 'fixtures', 'no-such-root'));
+  say(unreadCopy.length === 1 && unreadCopy[0] === STOPPED_WORDS && stoppedCopyNeedles(unreadCopy).includes(STOPPED_WORDS), 'a copy that cannot be read leaves the shared phrase as the needle, never nothing');
   const count = Object.keys(honest).length + broken.length + unread.length + raw.length;
   say(count === fixtures.readings, `the fixtures hold ${String(count)} readings, as their own count says (${String(fixtures.readings)})`);
   const sole = new Map(Object.keys(GRADERS).map((id) => [id, new Set()]));
@@ -748,7 +1097,7 @@ if (process.argv.includes('--grader-self-test')) process.exit(graderSelfTest() ?
 const PARENT = (process.env['P357_PARENT_CHECKOUT'] ?? '').trim();
 function preflightProblems() {
   const p = [];
-  if (PARENT === '') p.push(`P357_PARENT_CHECKOUT is not set. PA needs the parent (${SNAPSHOT}, built) to show the dialog per refresh and the quit crash`);
+  if (PARENT === '') p.push(`P357_PARENT_CHECKOUT is not set. PA, HQ and CS-parent need the parent (${SNAPSHOT}, 357 as landed, built): its clean quit after real damage and its crash on the crash's own state`);
   else if (!existsSync(join(resolve(PARENT), 'out', 'main', 'index.js'))) p.push(`${resolve(PARENT)}/out/main/index.js is missing: build the parent checkout first`);
   const bundle = join(ROOT, 'out', 'main', 'index.js');
   if (!existsSync(bundle)) p.push(`${bundle} is missing: npm run build first`);
@@ -787,7 +1136,7 @@ if (HARNESS_DIR === '') refuse('no GMUX_HARNESS_DIR, so there is nowhere scratch
 }
 
 const KEEP = (process.env['P357_KEEP'] ?? '') === '1';
-const ARMS = new Set(((process.env['P357_ARMS'] ?? '').trim() || 'PA,HA,HB,HC').split(',').map((x) => x.trim()).filter((x) => x !== ''));
+const ARMS = new Set(((process.env['P357_ARMS'] ?? '').trim() || 'PA,HA,HB,HC,CS').split(',').map((x) => x.trim()).filter((x) => x !== ''));
 const on = (id) => ARMS.has(id);
 
 mkdirSync(join(HARNESS_DIR, 'p357'), { recursive: true });
@@ -799,6 +1148,8 @@ const PUBLIC_NAME = DEFAULT_SCENARIO.dnsName.replace(/\.$/, '');
 const require_ = createRequire(join(ROOT, 'package.json'));
 const parentRequire = PARENT === '' ? null : createRequire(join(resolve(PARENT), 'package.json'));
 const COUNTER_CJS = join(ROOT, 'build', 'p357', 'counter.cjs');
+/** Research 143's require-hook that redirects `better-sqlite3` to the checking build, by path only (P3571_HOOK_BS3 overrides, else under P3571_R143_KEEP). */
+const HOOK_BS3 = (process.env['P3571_HOOK_BS3'] ?? '').trim() || join((process.env['P3571_R143_KEEP'] ?? '').trim() || R143_KEEP_DEFAULT, 'adv-churn', 'tools', 'hook-bs3.cjs');
 
 const report = { checkout: ROOT, parent: resolve(PARENT), socket: SOCKET, arms: [], readings: {}, printed: {} };
 let failures = 0;
@@ -890,7 +1241,7 @@ function paths(label) {
 /** ONE counter file per launch: a launch's verdict reads its own file and never a file an earlier launch of the profile wrote. */
 const counterFileOf = (p, label) => join(p.base, `uncaught-${label}.jsonl`);
 
-function launchOptions(label, checkout, p, counter, { seam = null } = {}) {
+function launchOptions(label, checkout, p, counter, { seam = null, crash = null } = {}) {
   const env = {
     HOME: p.home,
     ZDOTDIR: p.home,
@@ -903,10 +1254,25 @@ function launchOptions(label, checkout, p, counter, { seam = null } = {}) {
     GMUX_HARNESS_DIR: HARNESS_DIR,
     GMUX_TAILSCALE_BIN: standin.binPath,
     [NAME_SERVERS_VAR]: dns.servers,
-    NODE_OPTIONS: `--require=${COUNTER_CJS}`,
+    // The crash arm loads hook-bs3 FIRST (it redirects `better-sqlite3` to the
+    // scratch checking build), then the counter, then the crash preload; the
+    // checker's env arms the crash-state plant. No checkout's node_modules is
+    // touched: the hook resolves `better-sqlite3` to P358ADV_BS3 by path.
+    NODE_OPTIONS: crash === null ? `--require=${COUNTER_CJS}` : `--require=${HOOK_BS3} --require=${COUNTER_CJS} --require=${crash.preload}`,
     P357_COUNTER_FILE: counter,
     P357_COUNTER_CONTROL: '1',
-    ...(seam !== null ? { GMUX_HARNESS_MANIFEST_FAULT: seam } : {})
+    ...(seam !== null ? { GMUX_HARNESS_MANIFEST_FAULT: seam } : {}),
+    ...(crash !== null
+      ? {
+          P358ADV_BS3: crash.bs3,
+          P358ADV_PLANT: 'crash-state',
+          P358ADV_PLANT_AT: '500',
+          P358ADV_STEP_EVERY: '8',
+          P358ADV_SEGV_EXIT: '1',
+          P3571_CS_OUT: crash.out,
+          P3571_CS_SCRATCH: crash.scratch
+        }
+      : {})
   };
   return {
     label,
@@ -1345,6 +1711,10 @@ async function seamArm(req) {
     reading.seamInstalled = await waitForLine(handle, /manifest fault seam installed/, 5_000);
     const before = await buildWorld(win, p);
     reading.listBefore = before;
+    // Turn the door on before pairing (Phase 357.1, Gap 3b), the shape probe:p349 uses
+    // (build/p349/probe-p349.mjs): without it the door never listens and pairPhone's
+    // confirm wait times out, which is why HD stayed UNREADABLE in Phase 357.
+    await pocket(win, 'setDoor', J({ on: true }));
     // Pair the phone and read the door BEFORE the fault, so its 404s after it mean something.
     const paired = await pairPhone(win);
     if (!paired.ok) report.printed['HB-pair'] = paired.why;
@@ -1382,6 +1752,7 @@ async function seamArm(req) {
       clicked: clicked === true,
       code: e.code,
       signal: e.signal,
+      wedgedExit: e.wedgedExit,
       notRelaunchedLine: e.notRelaunchedLine,
       heldOpenLine: e.heldOpenLine,
       closeHeldLine: e.closeHeldLine,
@@ -1457,11 +1828,270 @@ async function crashArm() {
     reading.quit = await quitAndRead(win, handle);
   });
   reading.counterEnd = counterLines(counterFile);
+  // The quit's signal, read from the shim's own line by the reader HA's quit uses.
+  if (reading.quit !== undefined && reading.quit !== null) Object.assign(reading.quit, quitTextReading(reading.quit.appText));
   const al = readAppLog(appLogLines(p));
   report.printed['HC-bootsPerPid'] = al.bootPids;
   Object.assign(reading, hcFromAppLog(al));
   // Electron's own dialog title on stdout would mean a dialog's text was printed; PRINTED (showErrorBox prints nothing on macOS).
   reading.dialogTitleOnStdout = /A JavaScript error occurred in the main process/.test(reading.quit.appText ?? '');
+  return reading;
+}
+
+// ---------------------------------------------------------------------------
+// CS: the crash's OWN state (research 143 §2.3), reproduced with the scratch
+// checking better-sqlite3. No read fails, so 357's latch never trips. At the
+// PARENT the quit faults in pcache1EnforceMaxPage (his report's frame); at HEAD
+// the manifest is held and the will-quit SIGKILL skips teardown, so nothing
+// closes the damaged cache and the relaunch keeps everything.
+// ---------------------------------------------------------------------------
+
+/** A built checking better-sqlite3 directory `require()` can load and that holds the native module. */
+function checkingBs3Ok(dir) {
+  return typeof dir === 'string' && dir !== '' && existsSync(join(dir, 'build', 'Release', 'better_sqlite3.node')) && existsSync(join(dir, 'lib', 'index.js'));
+}
+/** Reuse a built checking better-sqlite3 (P3571_BS3, then the spec step's), or build one in scratch; never a checkout's node_modules. */
+function ensureCheckingBs3() {
+  if (!existsSync(HOOK_BS3)) throw new Error(`hook-bs3.cjs is not at ${HOOK_BS3}; set P3571_HOOK_BS3 or P3571_R143_KEEP to research 143's kept sources`);
+  const given = (process.env['P3571_BS3'] ?? '').trim();
+  for (const cand of [given, CHECKING_BS3_DEFAULT]) {
+    if (cand !== '' && checkingBs3Ok(cand)) {
+      say(`crash-state: reusing the checking better-sqlite3 at ${cand}`);
+      return realpathSync(cand);
+    }
+  }
+  const dir = join(RUN, 'bs3');
+  say(`crash-state: no built checking better-sqlite3 to reuse; building one in ${dir}`);
+  buildCheckingBs3(dir);
+  if (!checkingBs3Ok(dir)) throw new Error(`the checking better-sqlite3 did not build at ${dir}`);
+  return realpathSync(dir);
+}
+/**
+ * Build a checking better-sqlite3 13.0.3 in `dir`: a `cp -Rc` of the checkout's
+ * own package (never edited in place), research 143's page-cache checker
+ * appended to the amalgamation, the two breadcrumb calls patched into the
+ * objects, and `node-gyp rebuild` with every cache under this run's scratch.
+ */
+function buildCheckingBs3(dir) {
+  const keep = (process.env['P3571_R143_KEEP'] ?? '').trim() || R143_KEEP_DEFAULT;
+  const appendC = join(keep, 'adv-churn', 'tools', 'pcache-check-append.c');
+  if (!existsSync(appendC)) throw new Error(`research 143's pcache-check-append.c is not at ${appendC}; set P3571_BS3 to a built checking build or P3571_R143_KEEP to the kept sources`);
+  const srcPkg = join(ROOT, 'node_modules', 'better-sqlite3');
+  if (!existsSync(srcPkg)) throw new Error(`${srcPkg} is missing`);
+  rmSync(dir, { recursive: true, force: true });
+  const cp = spawnSync('cp', ['-Rc', srcPkg, dir], { encoding: 'utf8', timeout: 120_000 });
+  if (cp.status !== 0) throw new Error(`cp -Rc better-sqlite3 failed: ${String(cp.stderr ?? '').slice(0, 300)}`);
+  const sqlite = join(dir, 'deps', 'sqlite3', 'sqlite3.c');
+  if (!readFileSync(sqlite, 'utf8').includes('p358adv_on_entry')) appendFileSync(sqlite, `\n${readFileSync(appendC, 'utf8')}\n`);
+  const EXTERN = 'extern "C" void p358adv_on_entry(const char*, sqlite3*, sqlite3_stmt*);\n';
+  const patch = (rel, anchor, breadcrumb) => {
+    const file = join(dir, rel);
+    let text = readFileSync(file, 'utf8');
+    if (text.includes('p358adv_on_entry')) return;
+    if (!text.includes(anchor)) throw new Error(`cannot patch ${rel}: anchor not found`);
+    text = EXTERN + text.replace(anchor, `${breadcrumb}\n${anchor}`);
+    writeFileSync(file, text);
+  };
+  // The two breadcrumbs the checker is driven by: iterate() and the close.
+  patch('src/objects/statement-iterator.cpp', '\tdb_state->busy = true;', '\tp358adv_on_entry("StatementIterator::next", NULL, handle);');
+  patch('src/objects/database.cpp', '\t\tint status = sqlite3_close(db_handle);', '\t\tp358adv_on_entry("Database::close", db_handle, NULL);');
+  const gyp = require_.resolve('node-gyp/bin/node-gyp.js');
+  const home = join(RUN, 'bs3-home');
+  mkdirSync(home, { recursive: true });
+  const r = spawnSync(process.execPath, [gyp, 'rebuild', '--release', '--', '-Dforce_build=1'], {
+    cwd: dir,
+    encoding: 'utf8',
+    timeout: 480_000,
+    env: { ...process.env, HOME: home, npm_config_cache: join(RUN, 'npm-cache'), npm_config_devdir: join(RUN, 'gyp-devdir') }
+  });
+  if (r.status !== 0) throw new Error(`node-gyp rebuild failed (exit ${String(r.status)}): ${`${r.stdout ?? ''}${r.stderr ?? ''}`.slice(-800)}`);
+}
+
+/**
+ * The crash-state preload, written to scratch and loaded into MAIN after
+ * hook-bs3 and the counter. With the checking build (hook-redirected) it opens
+ * a manifest-shaped scratch db, drives iterate() until the checker plants the
+ * crash's own header state, proves no read fails, writes a marker and holds the
+ * connection off the collector. It also moves the Settings window once. It does
+ * nothing outside Electron's main process and changes nothing Tortie decides.
+ */
+const CRASH_PRELOAD = `'use strict';
+// Phase 357.1 crash-state preload. SCRATCH ONLY. Generated by probe-p357.mjs.
+const fs = require('node:fs');
+const path = require('node:path');
+if (process.type !== 'browser') return;
+const OUT = process.env.P3571_CS_OUT;
+const SCRATCH = process.env.P3571_CS_SCRATCH;
+const MOVED = ${JSON.stringify(SETTINGS_MOVED_BOUNDS)};
+const marker = { planted: false, readsOk: false, settingsMoved: null };
+const flush = () => { try { fs.writeFileSync(OUT, JSON.stringify({ t: Date.now(), ...marker })); } catch { /* never break the app */ } };
+flush();
+// Open the manifest-shaped db and drive the plant, a little after boot so the app has settled.
+setTimeout(() => {
+  let Database;
+  try { Database = require('better-sqlite3'); } catch (err) { marker.requireFailed = String(err && err.message).slice(0, 200); flush(); return; }
+  try {
+    const dir = fs.mkdtempSync(path.join(SCRATCH, 'el-'));
+    const db = new Database(path.join(dir, 'manifest.db'));
+    db.pragma('journal_mode = WAL');
+    db.exec('CREATE TABLE sessions (id TEXT PRIMARY KEY, name TEXT, created_at INTEGER, last_seen INTEGER, status TEXT, payload TEXT)');
+    const ins = db.prepare('INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?)');
+    db.transaction(() => { for (let i = 0; i < 354; i += 1) ins.run('id-' + i, 'n' + i, 1e12 + i, 0, 'idle', 'p'.repeat(12000 + (i % 5000))); })();
+    db.prepare('SELECT * FROM sessions ORDER BY created_at ASC').all();
+    for (let k = 0; k < 4000; k += 1) { for (const row of db.prepare('SELECT * FROM sessions ORDER BY 1,2,3,4,5,6').raw(true).iterate()) void row; }
+    let ok = true;
+    try { db.prepare('SELECT * FROM sessions ORDER BY created_at ASC').all(); db.prepare('SELECT * FROM sessions WHERE id = ?').get('id-3'); } catch { ok = false; }
+    globalThis.__p3571CrashDb = db;
+    marker.planted = true;
+    marker.readsOk = ok;
+    flush();
+  } catch (err) { marker.armFailed = String(err && err.message).slice(0, 200); flush(); }
+}, 12000);
+// Move the Settings window once, so the relaunch's no-regression read is real.
+setImmediate(() => {
+  let electron;
+  try { electron = require('electron'); } catch { return; }
+  const { app } = electron;
+  const move = (win) => { try { win.setBounds(MOVED); marker.settingsMoved = win.getBounds(); flush(); } catch { /* cosmetic */ } };
+  app.on('browser-window-created', (_e, win) => {
+    win.webContents.on('did-finish-load', () => { if (/settings/.test(String(win.webContents.getURL()))) setTimeout(() => move(win), 300); });
+  });
+});
+`;
+
+/** Poll the crash preload's marker until the plant loop has run (or failed), bounded. */
+async function waitForMarker(file, ms) {
+  const until = Date.now() + ms;
+  for (;;) {
+    try {
+      const o = JSON.parse(readFileSync(file, 'utf8'));
+      if (o.planted === true || o.requireFailed !== undefined || o.armFailed !== undefined) return o;
+    } catch {
+      /* not written yet */
+    }
+    if (Date.now() >= until) break;
+    await sleep(300);
+  }
+  try {
+    return JSON.parse(readFileSync(file, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+/** Poll the marker until the preload says it moved the Settings window, bounded; the last marker read either way. */
+async function waitForMove(file, ms) {
+  const until = Date.now() + ms;
+  let last = null;
+  for (;;) {
+    try {
+      last = JSON.parse(readFileSync(file, 'utf8'));
+      if (last?.settingsMoved !== null && last?.settingsMoved !== undefined) return last;
+    } catch {
+      /* not written yet */
+    }
+    if (Date.now() >= until) return last;
+    await sleep(300);
+  }
+}
+const realOrSelf = (path) => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
+};
+
+/**
+ * CS-parent (`checkout` the parent) and CS-head (`checkout` HEAD). Each: seed
+ * the world, launch with the checking build and the crash preload, build the
+ * project and three shells, write three gmux.* keys, open and move Settings,
+ * wait for the plant, then quit. CS-head then relaunches and reads back what
+ * survived.
+ */
+async function crashStateArm(id, checkout, bs3) {
+  const p = paths(id);
+  const seedOut = seed(p);
+  if (seedOut.status !== 0) throw new Error(`the seed failed: ${J(seedOut)}`);
+  report.printed[`${id}-seed`] = seedOut.out;
+  const csScratch = join(p.base, 'cs');
+  mkdirSync(csScratch, { recursive: true });
+  const preloadFile = join(p.base, 'crash-preload.cjs');
+  writeFileSync(preloadFile, CRASH_PRELOAD, { mode: 0o600 });
+  const marker = join(p.base, 'cs-armed.json');
+  rmSync(marker, { force: true });
+  const nonce = `${id}-${String(Date.now())}`;
+  const reading = { bs3Built: true };
+  let text = '';
+  await launch(`${id}-app`, checkout, p, { crash: { preload: preloadFile, bs3, out: marker, scratch: csScratch } }, async (win, handle, pre) => {
+    reading.counter = pre.boot;
+    reading.agents = pre.agents;
+    // The list before the quit, which the relaunch must answer again (the probe review: it was read and dropped).
+    reading.listBefore = await buildWorld(win, p);
+    await cdpEval(win, `(localStorage.setItem(${J(CS_LOCAL_STORAGE_KEYS[0])}, ${J(nonce)}), true)`);
+    await cdpEval(win, 'window.gmux.openSettings().then(() => true, () => false)');
+    await sleep(1_500);
+    await cdpEval(win, `(localStorage.setItem(${J(CS_LOCAL_STORAGE_KEYS[1])}, ${J(nonce)}), true)`);
+    const armed = await waitForMarker(marker, 90_000);
+    report.printed[`${id}-armed`] = armed;
+    reading.readsOk = armed?.readsOk === true;
+    // The move is the preload's own, read from its marker once it says so: a
+    // window the preload never moved has no bounds of the probe's to keep.
+    const moved = await waitForMove(marker, 10_000);
+    reading.settingsMoved = boundsMatch(moved?.settingsMoved ?? null);
+    await cdpEval(win, `(localStorage.setItem(${J(CS_LOCAL_STORAGE_KEYS[2])}, ${J(nonce)}), true)`);
+    // The quit: at the parent this faults in pcache1EnforceMaxPage; at HEAD the will-quit SIGKILL skips teardown.
+    const quitAt = Date.now();
+    await cdpEval(win, 'window.gmux.quit().then(() => true, () => false)').catch(() => null);
+    const code = await Promise.race([handle.exited, sleep(90_000).then(() => 'still running after 90 s')]);
+    // The checker's SEGV report and the shim's exit line can follow the exit on the pipe.
+    await sleep(2_500);
+    text = handle.text();
+    reading.quit = { ...crashStateQuit(text, code), ms: Date.now() - quitAt };
+    // Names and mtimes only; none opened (the checker exits 139 before any macOS report).
+    report.printed[`${id}-crashReports`] = crashReports(quitAt - 1_000);
+    reading.quitTail = text.slice(-2_000);
+  });
+  reading.counterEnd = counterLines(counterFileOf(p, `${id}-app`));
+  // The plant and WHICH connection it took, from the checker's own lines (the probe review).
+  reading.planted = plantedOf(text);
+  const target = plantTargetOf(text, { sessionList: realOrSelf(p.manifest), preloadDir: realOrSelf(csScratch) });
+  reading.plantedIn = target.target;
+  report.printed[`${id}-plantedFile`] = target.file;
+  // The first launch's app.log alone: the crash state raises no error, so nothing may have stopped the list.
+  reading.stopped = stoppedFact(readAppLog(appLogLines(p)));
+  if (id === 'CS-head') {
+    const relaunch = { ran: false };
+    try {
+      await launch('CS-head-relaunch', ROOT, p, {}, async (win, handle) => {
+        const l = await list(win);
+        relaunch.sessions = (l.ids ?? []).length;
+        relaunch.shellsKept = l.ok === true && SHELL_NAMES.every((n) => (l.names ?? []).includes(n));
+        relaunch.sameIds = l.ok === true && sameIdSet(reading.listBefore?.ids, l.ids);
+        // The page answers the raw values; the count is this file's pure reader's.
+        const values = JSON.parse(await cdpEval(win, `JSON.stringify(${J(CS_LOCAL_STORAGE_KEYS)}.map((x) => localStorage.getItem(x)))`));
+        relaunch.localStorage = { early: values[0], mid: values[1], late: values[2], kept: localStorageKept(values, nonce) };
+        let settings = null;
+        try {
+          settings = JSON.parse(readFileSync(join(p.profile, 'settings.json'), 'utf8'));
+        } catch {
+          /* none */
+        }
+        relaunch.savedBounds = settings?.settingsWindowBounds ?? null;
+        relaunch.bounds = boundsMatch(relaunch.savedBounds);
+        const q = await quitAndRead(win, handle);
+        relaunch.quitCode = q.code;
+        relaunch.ran = true;
+      });
+      const al = readAppLog(appLogLines(p));
+      relaunch.unclean = al.uncleanExit;
+      // Every main process that wrote app.log: both launches logged, or the notices are unread.
+      relaunch.bootsLogged = al.mainPids.length;
+      relaunch.gateLines = al.gateLines.slice(-6);
+    } catch (err) {
+      relaunch.why = String(err?.message ?? err);
+    }
+    reading.relaunch = relaunch;
+  }
   return reading;
 }
 
@@ -1531,7 +2161,7 @@ try {
     // HQ: HEAD's quit against the parent's, both after real page damage. Absent either, UNREADABLE.
     const pa = report.readings.PA?.quit;
     const ha = report.readings.HA?.quit;
-    arm('HQ', { parentMs: pa?.ms, parentCode: pa?.code, headMs: ha?.ms, headCode: ha?.code });
+    arm('HQ', { parentMs: pa?.ms, parentCode: pa?.code, parentWedged: pa?.wedgedExit, headMs: ha?.ms, headSignal: ha?.signal, headWedged: ha?.wedgedExit });
   }
   if (on('HB')) {
     let read = null;
@@ -1552,6 +2182,32 @@ try {
       arm('HC', await crashArm());
     } catch (err) {
       cannotRead('HC', `the arm stopped: ${String(err?.message ?? err)}`);
+    }
+  }
+  if (on('CS')) {
+    let bs3 = null;
+    try {
+      bs3 = ensureCheckingBs3();
+    } catch (err) {
+      const why = `the checking better-sqlite3 could not be made: ${String(err?.message ?? err)}`;
+      cannotRead('CS-parent', why);
+      cannotRead('CS-head', why);
+    }
+    if (bs3 !== null) {
+      // CS-parent first: it must fault, at the parent, exactly as his report did.
+      if (parentRequire === null) cannotRead('CS-parent', 'P357_PARENT_CHECKOUT is not set');
+      else {
+        try {
+          arm('CS-parent', await crashStateArm('CS-parent', resolve(PARENT), bs3));
+        } catch (err) {
+          cannotRead('CS-parent', `the arm stopped: ${String(err?.message ?? err)}`);
+        }
+      }
+      try {
+        arm('CS-head', await crashStateArm('CS-head', ROOT, bs3));
+      } catch (err) {
+        cannotRead('CS-head', `the arm stopped: ${String(err?.message ?? err)}`);
+      }
     }
   }
 } catch (err) {
@@ -1579,12 +2235,21 @@ try {
   // tmux answers a dead server with a refusal of its own; no status at all means it could not be asked.
   const serverRead = serverNow.status !== null;
   const serverGone = serverRead && serverNow.status !== 0 && /no server running|error connecting|No such file or directory/i.test(serverNow.err);
-  let socketsLeft = 0;
+  // THIS run's socket, in the directory tmux and build/harness-socket.mjs both
+  // use ($TMUX_TMPDIR or /tmp), never another run's, never the harness's own
+  // `<socket>.run` marker, and never the socket FILE alone, which tmux keeps
+  // after kill-server and the harness unlinks by name once this run exits: a
+  // socket is left when a server still answers on it (socketsLeftOf). An
+  // unreadable directory is no reading (the probe review; it read as 0).
+  const socketDir = join(process.env['TMUX_TMPDIR'] ?? '/tmp', `tmux-${String(process.getuid())}`);
+  let socketNames = null;
   try {
-    socketsLeft = readdirSync('/private/tmp/tmux-501').filter((n) => n.startsWith('gmux-p357')).length;
+    socketNames = readdirSync(socketDir);
   } catch {
-    socketsLeft = 0;
+    socketNames = null;
   }
+  const sockets = socketsLeftOf(socketNames, SOCKET, (n) => n === SOCKET && tmux('list-sessions').status === 0);
+  report.printed['RUN-sockets'] = { dir: socketDir, files: sockets.files, marker: sockets.marker, left: sockets.left };
   // His history: read now, and again after a quiet wait if it moved.
   const history = { before: HISTORY_BEFORE, after: historyStat(), quiet: null };
   if (history.after !== history.before) {
@@ -1601,7 +2266,8 @@ try {
     serverRead,
     serverGone,
     serverBefore: serverBefore.out,
-    socketsLeft,
+    socketsRead: sockets.read,
+    socketsLeft: sockets.left,
     processTableRead: after.size > 0,
     electronsLeft,
     history

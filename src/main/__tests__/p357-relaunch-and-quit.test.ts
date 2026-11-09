@@ -10,16 +10,18 @@
  *      `manifest-stopped` notice; a quit and never a relaunch in a harness
  *      launch, whichever of the four harness terms says so; otherwise a
  *      relaunch and then a quit, in that order.
- *   2. `disposeMainCapabilities`' last branch. It runs the WHOLE ordered
- *      disposer, which with nothing installed walks empty sets, so the branch
- *      is reached only after every other step (the tray's disposal among
- *      them). With no connection left open it answers `proceed`, as today.
- *      With a REAL store stopped while its file checked fine, which the store
- *      holds open on purpose, it clears the run sentinel, ends the process
- *      with SIGKILL (stubbed here) and answers `killed`, in that order. And
+ *   2. `disposeMainCapabilities`' end. It runs the WHOLE ordered disposer,
+ *      which with nothing installed walks empty sets, so its end is reached
+ *      only after every other step (the tray's disposal among them). With no
+ *      connection left open it answers `proceed`, as today. With a REAL store
+ *      stopped while its file checked fine, which the store holds open on
+ *      purpose, it answers `proceed` too: Phase 357.1 moved the hard exit for
+ *      a connection left open to the `will-quit` handler in src/main/index.ts,
+ *      after the windows close (build/p3571/SPEC.md D2), and
+ *      src/main/__tests__/p3571-quit-hardexit.test.ts drives it there. And
  *      on its FIRST synchronous lines, before anything is awaited, it writes
  *      the crash log's repeat counts once (D16), so that record is on disk
- *      long before either exit.
+ *      long before any exit.
  *
  * And, read as source, that `installMainCapabilities` registers the Restart
  * exactly once, beside `app:quit`, so the handler driven here is the one a
@@ -215,11 +217,12 @@ describe('app:relaunch (D13, D14)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// The quit's last branch (D10 to D12). ORDER MATTERS BELOW: the store's held
-// list never empties, by design, so the `proceed` case runs first.
+// The quit's end (D10 to D12, the hard exit moved to `will-quit` by Phase
+// 357.1's D2). ORDER MATTERS BELOW: the store's held list never empties, by
+// design, so the case with nothing held runs first.
 // ---------------------------------------------------------------------------
 
-describe('disposeMainCapabilities, its last branch (D12)', () => {
+describe('disposeMainCapabilities, its end (D12, moved by 357.1’s D2)', () => {
   it('proceeds exactly as today when no session list connection was left open', async () => {
     const kill = vi.spyOn(process, 'kill').mockImplementation(() => true);
     expect(manifestConnectionsLeftOpen()).toBe(0);
@@ -233,7 +236,7 @@ describe('disposeMainCapabilities, its last branch (D12)', () => {
     expect(h.quitLines).toEqual([]);
   });
 
-  it('with a connection left open, ends the process without closing it, after every other step', async () => {
+  it('with a connection left open, proceeds too: the hard exit is the will-quit handler’s now (357.1 D2)', async () => {
     const dir = mkdtempSync(join(h.userData, 'manifest-'));
     const store = new ManifestStore(join(dir, 'manifest.db'));
     setManifestFaultHook((op) => {
@@ -248,19 +251,15 @@ describe('disposeMainCapabilities, its last branch (D12)', () => {
     store.close();
     expect(manifestConnectionsLeftOpen()).toBe(1);
 
-    const kill = vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
-      h.order.push(`kill ${String(pid === process.pid)} ${String(signal)}`);
-      return true;
-    });
-    await expect(disposeMainCapabilities()).resolves.toBe('killed');
-    expect(kill).toHaveBeenCalledTimes(1);
-    expect(kill).toHaveBeenCalledWith(process.pid, 'SIGKILL');
-    // The tray is the last step before the branch; the sentinel goes before
-    // the signal, because the signal does not wait.
-    expect(h.order).toEqual(['crash.repeats', 'tray', 'sentinel', 'kill true SIGKILL']);
-    expect(h.quitLines).toEqual([
-      '[gmux] quit: the session list connection stopped reading correctly and is left open; ending the process without closing it\n'
-    ]);
+    const kill = vi.spyOn(process, 'kill').mockImplementation(() => true);
+    await expect(disposeMainCapabilities()).resolves.toBe('proceed');
+    // No sentinel clear, no signal and no quit line from the disposer: the
+    // connection stays held for `will-quit` to find after the windows close
+    // (src/main/__tests__/p3571-quit-hardexit.test.ts drives that handler).
+    expect(kill).not.toHaveBeenCalled();
+    expect(h.order).toEqual(['crash.repeats', 'tray']);
+    expect(h.quitLines).toEqual([]);
+    expect(manifestConnectionsLeftOpen()).toBe(1);
   });
 });
 

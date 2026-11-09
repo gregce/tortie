@@ -66,16 +66,28 @@
  *       `.code`, never `.message`, `.stack`, a template, `String(` or a
  *       pattern, and its codes are exactly D1's: `=== 'SQLITE_CORRUPT'`,
  *       `=== 'SQLITE_NOTADB'` and `.startsWith('SQLITE_CORRUPT_')`.
- *   S5  `close`, evaluated over the four latch states, closes the connection
- *       on every path but stopped-with-the-file-fine, where no path closes it;
- *       the latch pushes the connection onto `held` exactly when the file is
- *       fine (one push, in `latch`, under `=== 'fine'`); `held` is never
+ *   S5  `close`, evaluated over the four latch states with the quit hold
+ *       unset, closes the connection on every path but
+ *       stopped-with-the-file-fine, where no path closes it; the latch pushes
+ *       the connection onto `held` exactly when the file is fine (one push in
+ *       `latch`, under `=== 'fine'`; since Phase 357.1 `close` may hold one
+ *       push of its own, in its hold branch, which is S11's); `held` is never
  *       emptied or handed on; `manifestConnectionsLeftOpen` is
  *       `return held.length;`.
- *   S6  `disposeMainCapabilities` asks `manifestConnectionsLeftOpen() > 0`
- *       once, in the statement immediately before its last `return 'proceed'`,
- *       and that branch ends `clearLogRunSentinel(); process.kill(process.pid,
- *       'SIGKILL'); return 'killed';` in that order.
+ *   S6  (rewritten, Phase 357.1) `disposeMainCapabilities` no longer hard-exits
+ *       for the manifest at its end: it calls `holdManifestClosesAtQuit()` once,
+ *       as a statement of its own body before its first await (its first
+ *       synchronous lines) and before `shutdownGmuxCore(`, which it must call,
+ *       so the manifest is held at every quit; it asks
+ *       `manifestConnectionsLeftOpen()` nowhere (that moved to the will-quit
+ *       handler, S12); its one `process.kill(process.pid, 'SIGKILL')` is the
+ *       Phase 36 wedged-watcher branch's, read by a guard on `leftover`; and
+ *       it ends `return 'proceed';`. Since round A (W1) it also starts the
+ *       windows' storage commit on those first lines: ONE `try` statement of
+ *       its own body, before its first await, whose block is exactly
+ *       `session.defaultSession.flushStorageData();` and which catches (no
+ *       session before the app is ready must not stop the quit), and
+ *       capabilities.ts calls that flush nowhere else.
  *   S7  `app.relaunch(` occurs once under src/main, in the `app:relaunch`
  *       handler, after the `hasSaidNotice('manifest-stopped')` return and the
  *       `isHarnessLaunch(process.env)` return, and no file reaches it by its key
@@ -109,6 +121,54 @@
  *       that does not name it covers a read of the manifest (a `.then(…,
  *       onRejected)` is a catch); the predicate is imported from the store and
  *       shadowed by nothing.
+ *   S11 (new, Phase 357.1) `ManifestStore.close()` holds the connection exactly
+ *       when `holdAllCloses || (this.stopped !== null && this.stopped.file ===
+ *       'fine')` and pushes it onto `held` in that hold branch (so a held quit
+ *       counts > 0); `holdAllCloses` is a module-level `let` initialised false,
+ *       written only by `holdManifestClosesAtQuit`, which is exported, sets it
+ *       true, and has exactly one production caller (capabilities.ts). A close
+ *       that holds unconditionally would leak every rebuild and smoke close; a
+ *       condition that dropped `holdAllCloses` would close a damaged cache at
+ *       the quit and the crash would return. Since round A (the drop round's
+ *       reverify, a nit) `GmuxCore.dispose()` closes the session list by
+ *       `this.manifest.close()` once, reads nothing else off `this.manifest`
+ *       and calls no other `.close()`, so a dispose that closed the connection
+ *       itself, around the hold, is red.
+ *   S12 (new, Phase 357.1) `src/main/index.ts` holds the one will-quit handler
+ *       that self-SIGKILLs (a handler handed by a name the gate cannot resolve
+ *       in its own file is refused), and its guard is EXACTLY the two
+ *       conjuncts `manifestConnectionsLeftOpen() > 0` and `!isUpdateStaged()`
+ *       (no `||`, no third condition), the count imported from the store and
+ *       shadowed by nothing; (the drop round) that guarded `if` is the handler
+ *       body's FIRST statement, so nothing (an `await`, `setImmediate`,
+ *       `queueMicrotask`, a promise's `then`) defers the decision past
+ *       will-quit; and (round A, which made the exit WAIT for the storage
+ *       write, because the flush only starts Chromium's commit and a SIGKILL
+ *       sent at once lost the last write on a busy Mac) the guard's block is
+ *       exactly `<event>.preventDefault();`, taken synchronously so the default
+ *       quit and Node's teardown never run while it waits, then ONE bounded
+ *       wait, `void (async () => { try { … } finally { … } })();`: that
+ *       function is its try alone; the try begins
+ *       `session.defaultSession.flushStorageData();`, holds exactly one await,
+ *       `storageWritten(<storage path>, B)` from ./quit/storage-landing, as a
+ *       statement of its own, B one const of index.ts holding a whole number
+ *       of milliseconds from 1 to WAIT_CEILING_MS, and has no catch; and the
+ *       finally is exactly `clearLogRunSentinel();` then the kill, so every
+ *       path (the bound, a throw, a failed read) ends the process with the
+ *       sentinel cleared first (the landing round's F3). No other will-quit
+ *       handler prevents the quit; `flushStorageData(` is called once in
+ *       index.ts and outside it only on the disposer's first lines (S6); and
+ *       `isUpdateStaged` is imported from the updater. The staged carve-out
+ *       keeps quit-and-install byte-for-byte; the flushes and the wait keep a
+ *       person's localStorage and window bounds. A quit that reaches
+ *       will-quit before the core's dispose holds nothing, so it proceeds to
+ *       Node's teardown as today (the menu's 3 s fallback on a long quit,
+ *       queued as Phase 362).
+ *   S13 (new, Phase 357.1) `digestOneTable`'s one catch begins
+ *       `if (isBrokenConnectionError(err)) throw err;` and otherwise returns the
+ *       `unreadable: <message>` text, and `digest.ts` imports the predicate from
+ *       `./integrity`; otherwise the ring's change test folds `SQLITE_CORRUPT`
+ *       into a fingerprint the latch never sees (Phase 357.1 Gap 2).
  *
  * THE PROBE REVIEW (2026-11-05, docs/method/HOW-WE-BUILT-THIS.md rule 9) put
  * nineteen hostile copies of its own through this gate by `--root`; twelve were
@@ -178,10 +238,12 @@ export const FILES = Object.freeze({
   launchGate: 'src/main/harness/launch-gate.ts',
   foldStub: 'src/main/harness/fold-stub.ts',
   subscriptions: 'src/renderer/state/subscriptions.ts',
-  index: 'src/main/index.ts'
+  index: 'src/main/index.ts',
+  digest: 'src/main/db/digest.ts',
+  updater: 'src/main/updates/updater.ts'
 });
 
-export const RULES = Object.freeze(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10']);
+export const RULES = Object.freeze(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12', 'S13']);
 
 /** The three members that answer instead of refusing (D4). */
 const QUIET_MEMBERS = Object.freeze(['contentFingerprint', 'schemaState', 'describeSchema']);
@@ -893,14 +955,20 @@ export function ruleS4(tree) {
 // ---------------------------------------------------------------------------
 
 /**
- * One expression's value over one latch state: `{ b: true|false|'?' }` for a
- * truth, `{ v: … }` for a value, `{ v: '?' }` when it cannot be known.
+ * One expression's value over one close environment `env = { stopped,
+ * holdAllCloses }`: `{ v: … }` for a value, `{ v: '?' }` when it cannot be
+ * known. `holdAllCloses` reads the module flag (Phase 357.1): a non-quit close
+ * passes `false`, so `holdAllCloses || X` reduces to `X` (357's behaviour); the
+ * quit's hold is S11's, over `holdAllCloses: true`. An env with no
+ * `holdAllCloses` key reads the flag as unknown.
  */
-function valueOf(e, stopped) {
+function valueOf(e, env) {
   const UNKNOWN = { v: '?' };
-  if (ts.isParenthesizedExpression(e)) return valueOf(e.expression, stopped);
+  const stopped = env.stopped;
+  if (ts.isParenthesizedExpression(e)) return valueOf(e.expression, env);
   if (e.kind === ts.SyntaxKind.NullKeyword) return { v: null };
   if (ts.isIdentifier(e) && e.text === 'undefined') return { v: undefined };
+  if (ts.isIdentifier(e) && e.text === 'holdAllCloses') return { v: 'holdAllCloses' in env ? env.holdAllCloses : '?' };
   if (ts.isStringLiteralLike(e)) return { v: e.text };
   if (e.kind === ts.SyntaxKind.TrueKeyword) return { v: true };
   if (e.kind === ts.SyntaxKind.FalseKeyword) return { v: false };
@@ -910,16 +978,16 @@ function valueOf(e, stopped) {
     return { v: stopped.file };
   }
   if (ts.isPrefixUnaryExpression(e) && e.operator === ts.SyntaxKind.ExclamationToken) {
-    const t = truth(e.operand, stopped);
+    const t = truth(e.operand, env);
     return { v: t === '?' ? '?' : !t };
   }
   if (ts.isBinaryExpression(e)) {
     const op = e.operatorToken.kind;
     if (op === ts.SyntaxKind.AmpersandAmpersandToken || op === ts.SyntaxKind.BarBarToken) {
-      const l = truth(e.left, stopped);
+      const l = truth(e.left, env);
       if (op === ts.SyntaxKind.AmpersandAmpersandToken && l === false) return { v: false };
       if (op === ts.SyntaxKind.BarBarToken && l === true) return { v: true };
-      const r = truth(e.right, stopped);
+      const r = truth(e.right, env);
       if (l === '?' || r === '?') {
         if (op === ts.SyntaxKind.AmpersandAmpersandToken && r === false) return { v: false };
         if (op === ts.SyntaxKind.BarBarToken && r === true) return { v: true };
@@ -929,8 +997,8 @@ function valueOf(e, stopped) {
     }
     const eqOps = [ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken];
     if (eqOps.includes(op)) {
-      const l = valueOf(e.left, stopped);
-      const r = valueOf(e.right, stopped);
+      const l = valueOf(e.left, env);
+      const r = valueOf(e.right, env);
       if (l.v === '?' || r.v === '?') return UNKNOWN;
       const loose = op === ts.SyntaxKind.EqualsEqualsToken || op === ts.SyntaxKind.ExclamationEqualsToken;
       const same = loose ? l.v == r.v : l.v === r.v; // eslint-disable-line eqeqeq
@@ -941,15 +1009,15 @@ function valueOf(e, stopped) {
   }
   return UNKNOWN;
 }
-function truth(e, stopped) {
-  const v = valueOf(e, stopped).v;
+function truth(e, env) {
+  const v = valueOf(e, env).v;
   if (v === '?') return '?';
   return Boolean(v);
 }
 const isDbClose = (e) => e !== undefined && ts.isCallExpression(e) && e.arguments.length === 0 && e.expression.getText() === 'this.db.close';
 
-/** Every path through `stmts` under one latch state: `{ closed, ended }`, or a reason it cannot be read. */
-function pathsOf(stmts, stopped, start = [{ closed: false, ended: false }]) {
+/** Every path through `stmts` under one close environment: `{ closed, ended }`, or a reason it cannot be read. */
+function pathsOf(stmts, env, start = [{ closed: false, ended: false }]) {
   let paths = start;
   for (const s of stmts) {
     const next = [];
@@ -958,7 +1026,7 @@ function pathsOf(stmts, stopped, start = [{ closed: false, ended: false }]) {
         next.push(p);
         continue;
       }
-      const r = stepOf(s, stopped, p);
+      const r = stepOf(s, env, p);
       if (typeof r === 'string') return r;
       next.push(...r);
     }
@@ -966,9 +1034,9 @@ function pathsOf(stmts, stopped, start = [{ closed: false, ended: false }]) {
   }
   return paths;
 }
-function stepOf(s, stopped, p) {
+function stepOf(s, env, p) {
   const names = s.getText().includes('this.db.close');
-  if (ts.isBlock(s)) return pathsOf(s.statements, stopped, [p]);
+  if (ts.isBlock(s)) return pathsOf(s.statements, env, [p]);
   if (ts.isExpressionStatement(s)) {
     if (isDbClose(s.expression)) return [{ ...p, closed: true }];
     return names ? `close reaches this.db.close other than as a statement of its own (\`${s.getText().slice(0, 60)}\`)` : [p];
@@ -979,7 +1047,7 @@ function stepOf(s, stopped, p) {
   }
   if (ts.isThrowStatement(s)) return [{ ...p, ended: true }];
   if (ts.isIfStatement(s)) {
-    const t = truth(s.expression, stopped);
+    const t = truth(s.expression, env);
     const out = [];
     for (const branch of t === '?' ? [true, false] : [t]) {
       const stmt = branch ? s.thenStatement : s.elseStatement;
@@ -987,7 +1055,7 @@ function stepOf(s, stopped, p) {
         out.push(p);
         continue;
       }
-      const r = pathsOf([stmt], stopped, [p]);
+      const r = pathsOf([stmt], env, [p]);
       if (typeof r === 'string') return r;
       out.push(...r);
     }
@@ -1012,49 +1080,66 @@ export function ruleS5(tree) {
   const close = methodOf(cls, 'close');
   if (close === null || close.body === undefined) f.push('ManifestStore has no close with a body');
   else {
+    // S5 reads a NON-QUIT close (a rebuild's second store, a smoke), so
+    // holdAllCloses is false; the quit's hold (holdAllCloses true) is S11's.
     for (const state of LATCH_STATES) {
-      const paths = pathsOf(close.body.statements, state.stopped);
+      const paths = pathsOf(close.body.statements, { stopped: state.stopped, holdAllCloses: false });
       if (typeof paths === 'string') {
         f.push(`${paths} (${where(FILES.store, close)})`);
         break;
       }
       const all = paths.every((x) => x.closed);
       const none = paths.every((x) => !x.closed);
-      if (state.closes && !all) f.push(`close does not close the connection on every path when ${state.label}, which today's quit does (D11)`);
+      if (state.closes && !all) f.push(`close does not close the connection on every path when ${state.label} and holdAllCloses is false, which a rebuild/smoke close must (D11)`);
       if (!state.closes && !none) f.push(`close closes the connection on some path when ${state.label}; that close walks the damaged page cache and is what crashed his quit (D10)`);
     }
   }
-  // `held`: declared once at the top of the file, pushed once in latch under === 'fine', read once for its length.
+  // `held`: declared once at the top of the file, read once for its length. It
+  // is pushed in `latch` under === 'fine' (the mid-run stop) and MAY be pushed
+  // in `close` under the hold branch (Phase 357.1, so a held quit counts > 0);
+  // it is never emptied or handed on.
   const heldDecls = sf.statements.filter((s) => ts.isVariableStatement(s) && s.declarationList.declarations.some((d) => ts.isIdentifier(d.name) && d.name.text === 'held'));
   if (heldDecls.length !== 1) f.push(`held is declared ${String(heldDecls.length)} times at the top of ${FILES.store}, not once`);
   else if ((heldDecls[0].declarationList.flags & ts.NodeFlags.Const) === 0) f.push('held is not a const, so it can be replaced and its connections collected');
   const uses = nodesOf(sf).filter((n) => ts.isIdentifier(n) && n.text === 'held' && !(ts.isVariableDeclaration(n.parent) && n.parent.name === n));
-  let pushes = 0;
+  let latchPushes = 0;
+  let closePushes = 0;
   let lengths = 0;
   for (const u of uses) {
     const p = u.parent;
     if (ts.isPropertyAccessExpression(p) && p.expression === u && p.name.text === 'push' && ts.isCallExpression(p.parent) && p.parent.expression === p) {
-      pushes += 1;
       const call = p.parent;
       const owner = ancestor(call, (x) => ts.isMethodDeclaration(x));
       const guard = ancestor(call, (x) => ts.isIfStatement(x), owner ?? undefined);
       const argOk = call.arguments.length === 1 && isThisAccess(call.arguments[0], 'db');
-      const guardOk =
-        guard !== null &&
-        guard.elseStatement === undefined &&
-        (guard.thenStatement === call.parent || (ts.isBlock(guard.thenStatement) && nodesOf(guard.thenStatement).includes(call))) &&
-        isFineTest(guard.expression);
-      if (owner === null || memberName(owner) !== 'latch' || !argOk) f.push(`held.push( at ${where(FILES.store, call)} is not the latch's push of this.db`);
-      else if (!guardOk) f.push(`the latch pushes the connection onto held for every verdict, not only when the file is fine (${where(FILES.store, call)}); a damaged file's connection must close at quit as today (D11)`);
+      const guarded = guard !== null && guard.elseStatement === undefined && (guard.thenStatement === call.parent || (ts.isBlock(guard.thenStatement) && nodesOf(guard.thenStatement).includes(call)));
+      const ownerName = owner === null ? null : memberName(owner);
+      if (!argOk) {
+        f.push(`held.push( at ${where(FILES.store, call)} does not push this.db`);
+      } else if (ownerName === 'latch') {
+        latchPushes += 1;
+        if (!guarded || !isFineTest(guard.expression)) f.push(`the latch pushes the connection onto held for every verdict, not only when the file is fine (${where(FILES.store, call)}); a damaged file's connection must close at a non-quit close as today (D11)`);
+      } else if (ownerName === 'close') {
+        // That this close push sits inside the hold branch is S11's (it owns the
+        // hold condition); S5 only holds that `held` is an append-only counter.
+        closePushes += 1;
+      } else {
+        f.push(`held.push( at ${where(FILES.store, call)} is in ${ownerName ?? 'no method'}; only latch and close may push`);
+      }
       continue;
     }
     if (ts.isPropertyAccessExpression(p) && p.expression === u && p.name.text === 'length' && !(ts.isBinaryExpression(p.parent) && p.parent.left === p)) {
       lengths += 1;
       continue;
     }
+    // `held.includes(...)` / `held.indexOf(...)` are membership reads, not a mutation.
+    if (ts.isPropertyAccessExpression(p) && p.expression === u && ['includes', 'indexOf'].includes(p.name.text) && ts.isCallExpression(p.parent) && p.parent.expression === p) {
+      continue;
+    }
     f.push(`held is used at ${where(FILES.store, u)} (\`${p.getText().slice(0, 50)}\`), and nothing may empty it or hand it on, or the collector closes a damaged connection anyway`);
   }
-  if (pushes !== 1) f.push(`held is pushed ${String(pushes)} times, not once`);
+  if (latchPushes !== 1) f.push(`held is pushed in latch ${String(latchPushes)} times, not once`);
+  if (closePushes > 1) f.push(`held is pushed in close ${String(closePushes)} times; at most one hold push belongs there`);
   const left = functionsNamed(sf, 'manifestConnectionsLeftOpen');
   const body = left.length === 1 ? bodyOf(left[0]) : null;
   const ret = body !== null && ts.isBlock(body) && body.statements.length === 1 && ts.isReturnStatement(body.statements[0]) ? body.statements[0].expression : undefined;
@@ -1078,6 +1163,19 @@ function isFineTest(e) {
 // S6 and S7: the quit's last branch, and the one relaunch
 // ---------------------------------------------------------------------------
 
+/** The number of `process.kill(process.pid, 'SIGKILL')` statements in a node. */
+function selfSigkillCalls(node) {
+  return nodesOf(node).filter(
+    (n) =>
+      ts.isCallExpression(n) &&
+      n.expression.getText() === 'process.kill' &&
+      n.arguments.length === 2 &&
+      n.arguments[0].getText() === 'process.pid' &&
+      ts.isStringLiteralLike(n.arguments[1]) &&
+      n.arguments[1].text === 'SIGKILL'
+  );
+}
+
 export function ruleS6(tree) {
   const f = [];
   const sf = sfOf(tree, FILES.capabilities);
@@ -1092,29 +1190,71 @@ export function ruleS6(tree) {
     f.push("disposeMainCapabilities does not end `return 'proceed';`");
     return f;
   }
-  const asks = callsOf(fns[0], 'manifestConnectionsLeftOpen');
-  if (asks.length !== 1) f.push(`disposeMainCapabilities asks manifestConnectionsLeftOpen() ${String(asks.length)} times, not once`);
-  const inFile = callsOf(sf, 'manifestConnectionsLeftOpen');
-  if (inFile.length !== asks.length) f.push(`${FILES.capabilities} asks manifestConnectionsLeftOpen() outside the disposer too`);
-  const branch = stmts[stmts.length - 2];
-  const isBranch = ts.isIfStatement(branch) && callsOf(branch.expression, 'manifestConnectionsLeftOpen').length === 1 && branch.elseStatement === undefined;
-  if (!isBranch) {
-    f.push(`the statement immediately before disposeMainCapabilities' last \`return 'proceed'\` is not the branch that asks manifestConnectionsLeftOpen() (${where(FILES.capabilities, branch)}), so the hard exit does not come after every other step of the disposer (D12)`);
-    return f;
+  // Phase 357.1: the manifest is held at EVERY quit, so the disposer calls
+  // holdManifestClosesAtQuit() once, on its first synchronous lines (a
+  // statement of the body itself, before any await), so it is set before
+  // shutdownGmuxCore() runs dispose(). THE PROBE REVIEW: the first build asked
+  // only "before shutdownGmuxCore()", and only when that call was found, so a
+  // hold moved behind the disposer's awaits, or a disposer that no longer
+  // called shutdownGmuxCore() at all, read green (its hostile copies).
+  const holdCalls = callsOf(fns[0], 'holdManifestClosesAtQuit');
+  const shut = callsOf(fns[0], 'shutdownGmuxCore')[0];
+  if (shut === undefined) f.push("disposeMainCapabilities never calls shutdownGmuxCore(), so the quit hold's order against the core's dispose cannot be read");
+  if (holdCalls.length !== 1) {
+    f.push(`disposeMainCapabilities calls holdManifestClosesAtQuit() ${String(holdCalls.length)} times, not once, so the manifest is not held at quit (Phase 357.1 D1)`);
+  } else {
+    if (shut !== undefined && holdCalls[0].getStart() > shut.getStart()) {
+      f.push(`disposeMainCapabilities calls holdManifestClosesAtQuit() after shutdownGmuxCore() (${where(FILES.capabilities, holdCalls[0])}); the hold must be set before dispose() runs, or dispose's close() closes the damaged cache`);
+    }
+    const holdStmt = stmts.find((s) => nodesOf(s).includes(holdCalls[0]));
+    if (holdStmt === undefined || !ts.isExpressionStatement(holdStmt) || holdStmt.expression !== holdCalls[0]) {
+      f.push(`holdManifestClosesAtQuit() is not a statement of disposeMainCapabilities' own body (${where(FILES.capabilities, holdCalls[0])}); it belongs on the disposer's first synchronous lines (Phase 357.1 D1)`);
+    }
+    // The disposer's first await of its own (an await inside a nested function is that function's).
+    const awaits = nodesOf(body).filter((n) => ts.isAwaitExpression(n) && ancestor(n, (p) => ts.isFunctionLike(p)) === fns[0]);
+    const firstAwait = awaits.reduce((a, n) => (a === null || n.getStart() < a.getStart() ? n : a), null);
+    if (firstAwait !== null && holdCalls[0].getStart() > firstAwait.getStart()) {
+      f.push(`disposeMainCapabilities calls holdManifestClosesAtQuit() after its first await (${where(FILES.capabilities, firstAwait)}), not on its first synchronous lines (Phase 357.1 D1)`);
+    }
   }
-  // The branch asks for ANY connection left open. `> 1` would close his one
-  // held connection at environment teardown (the probe review's hostile copy G7,
-  // green on this rule before it was added; the relaunch-and-quit test holds it
-  // too, with one connection held).
-  const LEFT_OPEN_TESTS = ['manifestConnectionsLeftOpen()>0', 'manifestConnectionsLeftOpen()!==0', 'manifestConnectionsLeftOpen()>=1', '0<manifestConnectionsLeftOpen()'];
-  if (!LEFT_OPEN_TESTS.includes(peel(branch.expression).getText().replace(/\s+/g, ''))) {
-    f.push(`the branch asks \`${branch.expression.getText().slice(0, 60)}\`, not \`manifestConnectionsLeftOpen() > 0\` (${where(FILES.capabilities, branch)}), so one connection left open would be closed at teardown`);
+  // ROUND A (W1). On the same synchronous lines the disposer starts committing
+  // the windows' remembered settings, so every write made before the press is
+  // on disk long before the will-quit hard exit: ONE `try` statement of its own
+  // body, before its first await, whose block is exactly
+  // `session.defaultSession.flushStorageData();` and which catches (before the
+  // app is ready there is no session, and that must not stop the quit); and
+  // capabilities.ts calls flushStorageData( nowhere else.
+  const capFlushes = nodesOf(sf).filter((n) => ts.isCallExpression(n) && /flushStorageData$/.test(n.expression.getText()));
+  if (capFlushes.length !== 1) {
+    f.push(`${FILES.capabilities} calls flushStorageData( ${String(capFlushes.length)} times, not once on the disposer's first lines (round A, W1)`);
+  } else {
+    const fl = capFlushes[0];
+    const flStmt = ancestor(fl, (x) => ts.isExpressionStatement(x));
+    const flTry = flStmt !== null && flStmt.parent !== undefined && ts.isBlock(flStmt.parent) && flStmt.parent.parent !== undefined && ts.isTryStatement(flStmt.parent.parent) && flStmt.parent.parent.tryBlock === flStmt.parent ? flStmt.parent.parent : null;
+    if (!isDefaultSessionFlush(fl) || flTry === null || !stmts.includes(flTry) || flTry.tryBlock.statements.length !== 1 || flTry.catchClause === undefined) {
+      f.push(`the disposer's storage flush (${where(FILES.capabilities, fl)}) is not one \`try { session.defaultSession.flushStorageData(); } catch { … }\` statement of disposeMainCapabilities' own body; the writes made before the press would wait for the will-quit flush alone, or a session not yet reachable would stop the quit (round A, W1)`);
+    }
+    const ownAwaits = nodesOf(body).filter((n) => ts.isAwaitExpression(n) && ancestor(n, (p) => ts.isFunctionLike(p)) === fns[0]);
+    const firstOwnAwait = ownAwaits.reduce((a, n) => (a === null || n.getStart() < a.getStart() ? n : a), null);
+    if (firstOwnAwait !== null && fl.getStart() > firstOwnAwait.getStart()) {
+      f.push(`the disposer's storage flush comes after its first await (${where(FILES.capabilities, firstOwnAwait)}), not on its first synchronous lines (round A, W1)`);
+    }
   }
-  const inner = ts.isBlock(branch.thenStatement) ? [...branch.thenStatement.statements] : [branch.thenStatement];
-  const tail = inner.slice(-3).map((s) => s.getText().replace(/\s+/g, ''));
-  const want = ['clearLogRunSentinel();', "process.kill(process.pid,'SIGKILL');", "return'killed';"];
-  if (tail.length !== 3 || tail.some((t, i) => t !== want[i])) {
-    f.push(`the branch does not end \`clearLogRunSentinel(); process.kill(process.pid, 'SIGKILL'); return 'killed';\` in that order (${where(FILES.capabilities, branch)}); without the clear the next launch says Tortie crashed, and without the kill something closes the damaged connection`);
+  // The disposer no longer asks manifestConnectionsLeftOpen() or hard-exits for
+  // the manifest (that moved to the will-quit handler, S12). Its only self-SIGKILL
+  // is the Phase 36 wedged-watcher branch.
+  const asks = callsOf(sf, 'manifestConnectionsLeftOpen');
+  if (asks.length > 0) {
+    f.push(`${FILES.capabilities} still asks manifestConnectionsLeftOpen() (${asks.map((c) => where(FILES.capabilities, c)).join(', ')}); the manifest-held hard exit moved to the will-quit handler (Phase 357.1 D2), so the disposer's :1126 branch must be gone`);
+  }
+  const kills = selfSigkillCalls(fns[0]);
+  if (kills.length !== 1) {
+    f.push(`disposeMainCapabilities holds ${String(kills.length)} \`process.kill(process.pid, 'SIGKILL')\` calls, not one; only the Phase 36 wedged-watcher branch may remain (Phase 357.1 D2)`);
+  } else if (!guardsOf(kills[0], fns[0]).some((g) => !g.negated && /\bleftover\b/.test(g.cond.getText()))) {
+    // THE PROBE REVIEW: the first build counted the one kill and never asked
+    // whose it was, so the kill moved out of the wedged-watcher branch to the
+    // disposer's end (357's old exit, before the windows close) read green.
+    f.push(`disposeMainCapabilities' one SIGKILL (${where(FILES.capabilities, kills[0])}) is not inside Phase 36's wedged-watcher branch (a guard on \`leftover\`); a hard exit anywhere else in the disposer runs before the windows close (Phase 357.1 D2)`);
   }
   return f;
 }
@@ -1677,7 +1817,363 @@ export function ruleS10(tree) {
   return f;
 }
 
-export const RULE_FNS = Object.freeze({ S1: ruleS1, S2: ruleS2, S3: ruleS3, S4: ruleS4, S5: ruleS5, S6: ruleS6, S7: ruleS7, S8: ruleS8, S9: ruleS9, S10: ruleS10 });
+// ---------------------------------------------------------------------------
+// S11: close()'s hold condition, holdAllCloses, and holdManifestClosesAtQuit
+// ---------------------------------------------------------------------------
+
+export function ruleS11(tree) {
+  const f = [];
+  const store = storeClass(tree, f);
+  if (store === null) return f;
+  const { sf, cls } = store;
+  // holdAllCloses: one module-level `let`, initialised false, written only by holdManifestClosesAtQuit.
+  const decls = sf.statements
+    .filter((s) => ts.isVariableStatement(s))
+    .flatMap((s) => s.declarationList.declarations.map((d) => ({ s, d })))
+    .filter(({ d }) => ts.isIdentifier(d.name) && d.name.text === 'holdAllCloses');
+  if (decls.length !== 1) {
+    f.push(`holdAllCloses is declared ${String(decls.length)} times at the top of ${FILES.store}, not once`);
+  } else {
+    const { s, d } = decls[0];
+    if ((s.declarationList.flags & ts.NodeFlags.Const) !== 0) f.push('holdAllCloses is a const, so the quit cannot set it');
+    if (d.initializer === undefined || d.initializer.kind !== ts.SyntaxKind.FalseKeyword) f.push('holdAllCloses is not initialised false, so closes could be held before the quit asks');
+  }
+  // The one setter.
+  const setter = functionsNamed(sf, 'holdManifestClosesAtQuit');
+  if (setter.length !== 1) {
+    f.push(`${FILES.store} does not declare holdManifestClosesAtQuit once`);
+  } else {
+    const exported = ts.isFunctionDeclaration(setter[0]) ? hasModifier(setter[0], ts.SyntaxKind.ExportKeyword) : hasModifier(setter[0].parent.parent, ts.SyntaxKind.ExportKeyword);
+    if (!exported) f.push('holdManifestClosesAtQuit is not exported');
+    const sbody = bodyOf(setter[0]);
+    const setsTrue = sbody !== null && nodesOf(sbody).some((n) => ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isIdentifier(n.left) && n.left.text === 'holdAllCloses' && n.right.kind === ts.SyntaxKind.TrueKeyword);
+    if (!setsTrue) f.push('holdManifestClosesAtQuit does not set holdAllCloses = true');
+  }
+  // holdAllCloses is written only inside holdManifestClosesAtQuit.
+  const writes = nodesOf(sf).filter((n) => writesField2(n, 'holdAllCloses'));
+  for (const w of writes) {
+    const fn = ancestor(w, (p) => (ts.isFunctionDeclaration(p) && p.name?.text === 'holdManifestClosesAtQuit') || (ts.isVariableDeclaration(p) && ts.isIdentifier(p.name) && p.name.text === 'holdManifestClosesAtQuit'));
+    if (fn === null) f.push(`holdAllCloses is written at ${where(FILES.store, w)}, outside holdManifestClosesAtQuit, so a stopped store's close rule could be flipped from anywhere`);
+  }
+  // Exactly one production caller of holdManifestClosesAtQuit, in capabilities.ts.
+  const callers = [];
+  for (const { rel, sf: csf } of filesNaming(tree, 'src/', 'holdManifestClosesAtQuit')) {
+    for (const n of nodesOf(csf)) {
+      if (!ts.isIdentifier(n) || n.text !== 'holdManifestClosesAtQuit') continue;
+      const p = n.parent;
+      if (rel === FILES.store && ts.isFunctionDeclaration(p) && p.name === n) continue;
+      if (ts.isImportSpecifier(p)) continue;
+      if (ts.isCallExpression(p) && p.expression === n) callers.push({ rel, n: p });
+      else f.push(`${where(rel, n)} names holdManifestClosesAtQuit other than to call it`);
+    }
+  }
+  if (callers.length !== 1 || callers[0].rel !== FILES.capabilities) {
+    f.push(`holdManifestClosesAtQuit( has ${String(callers.length)} production callers (${callers.map((c) => where(c.rel, c.n)).join(', ')}); exactly one may, in ${FILES.capabilities}`);
+  }
+  // close()'s hold condition and its hold-branch push.
+  const close = methodOf(cls, 'close');
+  if (close === null || close.body === undefined) {
+    f.push('ManifestStore has no close with a body');
+    return f;
+  }
+  // When holdAllCloses is true, close holds on every path (never closes); when
+  // false, it closes except stopped-fine. If the condition dropped holdAllCloses
+  // the held-true run would close the damaged cache and the crash would return.
+  const heldTrue = pathsOf(close.body.statements, { stopped: null, holdAllCloses: true });
+  if (typeof heldTrue === 'string') f.push(`${heldTrue} (${where(FILES.store, close)})`);
+  else if (heldTrue.some((x) => x.closed)) f.push(`close closes the connection on some path when holdAllCloses is set (${where(FILES.store, close)}); the manifest must be held at every quit (Phase 357.1 D1)`);
+  for (const file of ['damaged', 'unreadable', 'fine']) {
+    const paths = pathsOf(close.body.statements, { stopped: { file }, holdAllCloses: true });
+    if (typeof paths !== 'string' && paths.some((x) => x.closed)) f.push(`close closes the connection when holdAllCloses is set and the file is ${file} (${where(FILES.store, close)}); the hold must win at the quit`);
+  }
+  // The hold branch pushes this.db, so a held quit counts manifestConnectionsLeftOpen() > 0.
+  const closePush = nodesOf(close).find((n) => ts.isCallExpression(n) && n.expression.getText() === 'held.push' && n.arguments.length === 1 && isThisAccess(n.arguments[0], 'db'));
+  if (closePush === undefined) {
+    f.push(`close() never pushes this.db onto held in its hold branch (${where(FILES.store, close)}), so a held quit counts 0 and the will-quit handler does not SIGKILL (Phase 357.1 S11)`);
+  } else {
+    const holdBranch = ancestor(closePush, (x) => ts.isIfStatement(x) && x.expression.getText().includes('holdAllCloses'), close);
+    if (holdBranch === null) f.push(`close()'s push of this.db is not inside the hold branch (an if whose condition names holdAllCloses) (${where(FILES.store, closePush)}); outside it the push could run on a close that should close`);
+  }
+  // ROUND A (the drop round's reverify, a nit). The hold works only through
+  // the store's own close(), so GmuxCore.dispose() closes the session list by
+  // `this.manifest.close()`, once, and reaches the store no other way: nothing
+  // but `.close` read off `this.manifest` there, and no other `.close()` call,
+  // so a dispose that closed the connection itself (around the hold) is red.
+  const core = sfOf(tree, FILES.core);
+  const coreCls = core === null ? null : classNamed(core, 'GmuxCore');
+  const dispose = coreCls === null ? null : methodOf(coreCls, 'dispose');
+  if (dispose === null || dispose.body === undefined) {
+    f.push(`GmuxCore has no dispose with a body in ${FILES.core}, so how the quit closes the session list cannot be read`);
+  } else {
+    const closes = nodesOf(dispose).filter((n) => ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && n.expression.name.text === 'close');
+    const storeCloses = closes.filter((c) => isThisAccess(peel(c.expression.expression), 'manifest'));
+    if (storeCloses.length !== 1) f.push(`GmuxCore.dispose() calls this.manifest.close() ${String(storeCloses.length)} times, not once (${where(FILES.core, dispose)}); the quit's hold lives in the store's close()`);
+    for (const c of closes.filter((x) => !storeCloses.includes(x))) f.push(`GmuxCore.dispose() calls \`${c.expression.getText()}()\` (${where(FILES.core, c)}), a close that is not the store's own; one that reaches the session list's connection walks past the quit's hold`);
+    const reach = nodesOf(dispose).filter((n) => (ts.isPropertyAccessExpression(n) || ts.isElementAccessExpression(n)) && isThisAccess(peel(n.expression), 'manifest') && !(ts.isPropertyAccessExpression(n) && n.name.text === 'close'));
+    for (const r of reach) f.push(`GmuxCore.dispose() reaches into the store (${where(FILES.core, r)}: ${r.getText().slice(0, 80)}); it may only call this.manifest.close(), where the quit's hold is decided`);
+  }
+  return f;
+}
+/** True for an assignment, `++`, `--` or `delete` whose target is the bare identifier `name`. */
+function writesField2(n, name) {
+  if (ts.isBinaryExpression(n) && n.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && n.operatorToken.kind <= ts.SyntaxKind.LastAssignment) return ts.isIdentifier(peel(n.left)) && peel(n.left).text === name;
+  if ((ts.isPrefixUnaryExpression(n) || ts.isPostfixUnaryExpression(n)) && [ts.SyntaxKind.PlusPlusToken, ts.SyntaxKind.MinusMinusToken].includes(n.operator)) return ts.isIdentifier(peel(n.operand)) && peel(n.operand).text === name;
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// S12: the will-quit handler that self-SIGKILLs
+// ---------------------------------------------------------------------------
+
+const LIFECYCLE_HOOKS = Object.freeze(['on', 'once', 'addListener', 'prependListener', 'prependOnceListener']);
+/**
+ * The `app.on('will-quit', fn)` registrations across a tree, with the handler
+ * function. A handler handed by NAME is resolved to the function of that name
+ * declared in the same file; one the gate cannot resolve comes back with
+ * `handler: null`, which S12 refuses, so a second hard exit cannot hide behind
+ * a name (the probe review's hostile copy: green before this).
+ */
+function willQuitHandlers(tree) {
+  const out = [];
+  for (const rel of pathsNaming(tree, 'src/main/', 'will-quit')) {
+    const sf = sfOf(tree, rel);
+    for (const n of nodesOf(sf)) {
+      if (!ts.isCallExpression(n) || !ts.isPropertyAccessExpression(n.expression)) continue;
+      if (!LIFECYCLE_HOOKS.includes(n.expression.name.text)) continue;
+      const ev = n.arguments[0];
+      if (ev === undefined || !ts.isStringLiteralLike(ev) || ev.text !== 'will-quit') continue;
+      const fn = n.arguments.find((a) => isFunctionLike(a));
+      if (fn !== undefined) {
+        out.push({ rel, node: n, handler: fn });
+        continue;
+      }
+      const ref = n.arguments[1];
+      const named = ref !== undefined && ts.isIdentifier(ref) ? functionsNamed(sf, ref.text) : [];
+      out.push({ rel, node: n, handler: named.length === 1 ? named[0] : null });
+    }
+  }
+  return out;
+}
+/** A guard list as conjuncts: each `if` condition split at its top-level `&&`, an early return's condition negated, whitespace dropped. */
+function conjunctsOf(guards) {
+  const split = (e) => {
+    const x = peel(e);
+    if (ts.isBinaryExpression(x) && x.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) return [...split(x.left), ...split(x.right)];
+    return [x];
+  };
+  const flat = (e) => e.getText().replace(/\s+/g, '');
+  const out = [];
+  for (const g of guards) {
+    if (!g.negated) {
+      for (const c of split(g.cond)) out.push(flat(c));
+      continue;
+    }
+    const x = peel(g.cond);
+    if (ts.isPrefixUnaryExpression(x) && x.operator === ts.SyntaxKind.ExclamationToken) out.push(flat(peel(x.operand)));
+    else if (ts.isCallExpression(x) || ts.isIdentifier(x) || ts.isPropertyAccessExpression(x)) out.push(`!${flat(x)}`);
+    else out.push(`!(${flat(x)})`);
+  }
+  return out;
+}
+/** `session.defaultSession.flushStorageData()`, exactly: the windows' own session. */
+const isDefaultSessionFlush = (e) => e !== undefined && ts.isCallExpression(e) && e.arguments.length === 0 && e.expression.getText().replace(/\s+/g, '') === 'session.defaultSession.flushStorageData';
+/** `name()`, a bare call with no arguments. */
+const isCallOfWith0 = (e, name) => e !== undefined && ts.isCallExpression(e) && ts.isIdentifier(e.expression) && e.expression.text === name && e.arguments.length === 0;
+/** The most milliseconds the will-quit wait's bound may hold (round A): ten seconds is already a quitting app nobody can see. */
+export const WAIT_CEILING_MS = 10_000;
+/** `void (async () => { … })();`, an async function with no parameters called at once: the function, or null. */
+function boundedWaitOf(stmt) {
+  if (stmt === undefined || !ts.isExpressionStatement(stmt) || !ts.isVoidExpression(stmt.expression)) return null;
+  const call = peel(stmt.expression.expression);
+  if (call === undefined || !ts.isCallExpression(call) || call.arguments.length !== 0) return null;
+  const fn = peel(call.expression);
+  if (fn === undefined || !isFunctionLike(fn) || !hasModifier(fn, ts.SyntaxKind.AsyncKeyword) || fn.parameters.length !== 0 || !ts.isBlock(fn.body)) return null;
+  return fn;
+}
+/** A top-level `const <name> = <number>;` of a file (numeric separators allowed): `{ node, value }`, or null. */
+function topConstNumber(sf, name) {
+  for (const s of sf.statements) {
+    if (!ts.isVariableStatement(s) || (s.declarationList.flags & ts.NodeFlags.Const) === 0) continue;
+    for (const d of s.declarationList.declarations) {
+      if (!ts.isIdentifier(d.name) || d.name.text !== name || d.initializer === undefined) continue;
+      const init = peel(d.initializer);
+      if (init !== undefined && ts.isNumericLiteral(init)) return { node: d, value: Number(init.text.replace(/_/g, '')) };
+      return null;
+    }
+  }
+  return null;
+}
+
+export function ruleS12(tree) {
+  const f = [];
+  const idx = sfOf(tree, FILES.index);
+  if (idx === null) return [`${FILES.index} is missing`];
+  // The ONE will-quit handler that self-SIGKILLs (the existing log sentinel-clear handler does not).
+  const handlers = willQuitHandlers(tree);
+  for (const h of handlers.filter((x) => x.handler === null)) {
+    f.push(`a will-quit handler is handed by a name this gate cannot resolve to a function of the same file (${where(h.rel, h.node)}), so whether it hard-exits cannot be read`);
+  }
+  const killers = handlers.filter((h) => h.handler !== null && selfSigkillCalls(h.handler).length > 0);
+  if (killers.length !== 1) {
+    f.push(`${String(killers.length)} will-quit handlers self-SIGKILL (${killers.map((h) => where(h.rel, h.node)).join(', ') || 'none'}), not one (Phase 357.1 D2)`);
+  } else {
+    const h = killers[0];
+    if (h.rel !== FILES.index) f.push(`the will-quit hard exit is in ${h.rel}, not ${FILES.index}`);
+    const kills = selfSigkillCalls(h.handler);
+    if (kills.length !== 1) f.push(`the will-quit handler holds ${String(kills.length)} self-SIGKILL calls, not one`);
+    const kill = kills[0];
+    // The guard: EXACTLY the two conjuncts `manifestConnectionsLeftOpen() > 0`
+    // and `!isUpdateStaged()`. THE PROBE REVIEW: the first build matched the
+    // two texts anywhere in the joined condition, so `… > 0 || !isUpdateStaged()`
+    // (a staged update hard-exited) and `!(manifestConnectionsLeftOpen() > 0) &&
+    // !isUpdateStaged()` (the hard exit only when nothing is held) read green.
+    const LEFT_OPEN_TESTS = ['manifestConnectionsLeftOpen()>0', 'manifestConnectionsLeftOpen()!==0', 'manifestConnectionsLeftOpen()>=1', '0<manifestConnectionsLeftOpen()'];
+    const conj = conjunctsOf(guardsOf(kill, h.handler));
+    const leftOpen = conj.filter((c) => LEFT_OPEN_TESTS.includes(c)).length;
+    const staged = conj.filter((c) => c === '!isUpdateStaged()').length;
+    const other = conj.filter((c) => !LEFT_OPEN_TESTS.includes(c) && c !== '!isUpdateStaged()');
+    if (leftOpen !== 1) f.push(`the will-quit SIGKILL is not guarded by the conjunct manifestConnectionsLeftOpen() > 0 (${where(h.rel, kill)}; its conjuncts read ${JSON.stringify(conj)}); it would hard-exit a quit that holds nothing, or skip one that does`);
+    if (staged !== 1) f.push(`the will-quit SIGKILL is not guarded by the conjunct !isUpdateStaged() (${where(h.rel, kill)}; its conjuncts read ${JSON.stringify(conj)}); a staged update would not install cleanly (Phase 357.1 D6)`);
+    if (other.length > 0) f.push(`the will-quit SIGKILL is guarded by ${JSON.stringify(other)} beside its two conjuncts (${where(h.rel, kill)}); an \`||\` or a third condition changes when the quit hard-exits`);
+    // THE DROP ROUND (the landing reverify's nit). The guarded `if` is the
+    // handler body's FIRST statement and holds the kill, so the exit is decided
+    // inside will-quit itself: a guard handed to setImmediate, queueMicrotask or
+    // a promise's `then`, or put after an `await`, read green before, and the
+    // held smoke cannot tell it from the real one, because in this Electron an
+    // immediate still runs before Node's teardown.
+    const firstStmt = stmtsOf(bodyOf(h.handler))?.[0];
+    const guardIf = firstStmt !== undefined && ts.isIfStatement(firstStmt) && nodesOf(firstStmt.thenStatement).includes(kill) ? firstStmt : null;
+    if (guardIf === null) {
+      f.push(`the will-quit handler's first statement is not the guarded \`if\` that holds the SIGKILL (${where(h.rel, firstStmt ?? h.handler)}); anything before it, an \`await\` or a deferral among them, can let the quit run on past will-quit (the drop round)`);
+    }
+    // ROUND A (build/p3571/SPEC.md "### Round A"). The flush only STARTS
+    // Chromium's commit, and a SIGKILL sent at once lost a person's last
+    // localStorage write on a busy Mac (2 quits in 22, the drop round's
+    // reverify). So the exit now waits, and the wait is ONE shape: the guard's
+    // block is exactly `<event>.preventDefault();`, taken synchronously in
+    // will-quit (so the default quit, and with it Node's environment teardown,
+    // never runs while it waits), then `void (async () => { try { … } finally
+    // { … } })();`. That function is its try alone; the try begins with the
+    // windows' own flush and holds exactly one await, `storageWritten(…, B)`,
+    // B a const of this file holding a whole number of milliseconds no greater
+    // than WAIT_CEILING_MS; it has no catch; and its finally is exactly
+    // `clearLogRunSentinel();` and the kill, so every path (the bound, a throw,
+    // a failed read) ends the process with the sentinel cleared first.
+    const ev = h.handler.parameters?.[0] !== undefined && ts.isIdentifier(h.handler.parameters[0].name) ? h.handler.parameters[0].name.text : null;
+    const isPrevent = (s) => s !== undefined && ts.isExpressionStatement(s) && ts.isCallExpression(s.expression) && s.expression.arguments.length === 0 && ev !== null && s.expression.expression.getText().replace(/\s+/g, '') === `${ev}.preventDefault`;
+    const block = guardIf !== null && ts.isBlock(guardIf.thenStatement) ? guardIf.thenStatement.statements : null;
+    if (block === null || block.length !== 2 || !isPrevent(block[0])) {
+      f.push(`the will-quit guard's block is not exactly \`${ev ?? 'event'}.preventDefault();\` and then the bounded wait (${where(h.rel, guardIf ?? h.handler)}); the default quit must be prevented synchronously, in will-quit itself, or Node's teardown runs on and closes the held session list while the exit waits (round A)`);
+    }
+    const waitFn = block === null ? null : boundedWaitOf(block[block.length - 1]);
+    if (waitFn === null) f.push(`the will-quit guard's block does not end in \`void (async () => { … })();\`, the one bounded wait (${where(h.rel, guardIf ?? h.handler)}); the exit's wait belongs to that one shape (round A)`);
+    const killFn = ancestor(kill, (x) => isFunctionLike(x) || ts.isFunctionDeclaration(x) || ts.isMethodDeclaration(x));
+    if (waitFn !== null && killFn !== waitFn) f.push(`the will-quit SIGKILL is not in the bounded wait's own function (${where(h.rel, killFn ?? kill)}), so it is not the exit the wait ends in (round A)`);
+    const killStmt = ancestor(kill, (x) => ts.isExpressionStatement(x), h.handler);
+    const fin = killStmt === null ? null : killStmt.parent;
+    const tryStmt = fin !== null && fin !== undefined && ts.isBlock(fin) && fin.parent !== undefined && ts.isTryStatement(fin.parent) && fin.parent.finallyBlock === fin ? fin.parent : null;
+    if (tryStmt === null) {
+      f.push(`the will-quit SIGKILL is not a statement of a \`finally\` block (${where(h.rel, kill)}); a throw from the flush, a failed read or the bound itself could skip the sentinel clear and the signal, and the prevented quit would leave the app running with no window (the landing round's F3, round A)`);
+    } else {
+      if (waitFn !== null && !(waitFn.body.statements.length === 1 && waitFn.body.statements[0] === tryStmt)) {
+        f.push(`the bounded wait's function is not its try alone (${where(h.rel, waitFn)}); a statement outside the try can throw past the finally, or end the process before the wait (round A)`);
+      }
+      if (tryStmt.catchClause !== undefined) f.push(`the will-quit flush's try has a catch (${where(h.rel, tryStmt)}); the exit is the finally's, and a catch can only swallow what the finally already survives`);
+      const finBody = fin.statements;
+      const isClear = (s) => s !== undefined && ts.isExpressionStatement(s) && isCallOfWith0(s.expression, 'clearLogRunSentinel');
+      if (!(finBody.length === 2 && isClear(finBody[0]) && finBody[1] === killStmt)) {
+        f.push(`the will-quit finally is not exactly \`clearLogRunSentinel();\` and the SIGKILL, in that order (${where(h.rel, fin)}); the sentinel must be cleared first, then the signal, whatever the flush or the wait did (the landing round's F3, round A)`);
+      }
+      const tryBody = tryStmt.tryBlock.statements;
+      if (!(tryBody.length >= 2 && ts.isExpressionStatement(tryBody[0]) && isDefaultSessionFlush(tryBody[0].expression))) {
+        f.push(`the will-quit try does not begin \`session.defaultSession.flushStorageData();\` (${where(h.rel, tryStmt)}); what the closing windows wrote would not be committed before the wait (Phase 357.1 D2, round A)`);
+      }
+      // Exactly one await in the try (not counting a nested function's own), and it is the bounded wait.
+      const awaits = nodesOf(tryStmt.tryBlock).filter((n) => ts.isAwaitExpression(n) && ancestor(n, (p) => isFunctionLike(p) || ts.isFunctionDeclaration(p) || ts.isMethodDeclaration(p)) === waitFn);
+      const waited = awaits.length === 1 ? peel(awaits[0].expression) : null;
+      const isWait = waited !== null && waited !== undefined && ts.isCallExpression(waited) && ts.isIdentifier(waited.expression) && waited.expression.text === 'storageWritten' && waited.arguments.length === 2;
+      const awaitStmt = awaits.length === 1 ? tryBody.find((s) => nodesOf(s).includes(awaits[0])) : undefined;
+      const direct = awaitStmt !== undefined && tryBody.indexOf(awaitStmt) >= 1 && ((ts.isExpressionStatement(awaitStmt) && peel(awaitStmt.expression) === awaits[0]) || (ts.isVariableStatement(awaitStmt) && awaitStmt.declarationList.declarations.length === 1 && peel(awaitStmt.declarationList.declarations[0].initializer) === awaits[0]));
+      if (awaits.length !== 1 || !isWait || !direct) {
+        f.push(`the will-quit try does not hold exactly one await, \`storageWritten(<storage path>, <bound>)\`, as a statement of its own after the flush (${where(h.rel, tryStmt)}; ${String(awaits.length)} await(s)); the exit must come after that one bounded wait and nothing else (round A)`);
+      } else {
+        const bound = waited.arguments[1];
+        const decl = ts.isIdentifier(bound) ? topConstNumber(idx, bound.text) : null;
+        if (decl === null) {
+          f.push(`the bounded wait's bound (${where(h.rel, bound)}, ${bound.getText()}) is not one const of ${FILES.index} holding a number of milliseconds, so the wait may have no bound (round A)`);
+        } else if (!(Number.isInteger(decl.value) && decl.value > 0 && decl.value <= WAIT_CEILING_MS)) {
+          f.push(`the bounded wait's bound ${bound.getText()} is ${String(decl.value)} ms, not a whole number from 1 to ${String(WAIT_CEILING_MS)} (${where(FILES.index, decl.node)}); an unbounded wait leaves a quitting app running with no window (round A)`);
+        }
+      }
+      if (!importsName(idx, 'storageWritten', ['./quit/storage-landing'])) f.push(`${FILES.index} does not import storageWritten from ./quit/storage-landing, so the wait is not the one that reads the storage log`);
+      if (localBindings(idx, 'storageWritten').length > 0) f.push(`${where(FILES.index, localBindings(idx, 'storageWritten')[0])} declares its own storageWritten, which stands in for the wait that reads the storage log`);
+    }
+    // ROUND A: no other will-quit handler prevents the quit, so nothing else
+    // can keep a quitting app running with no window.
+    for (const other of handlers.filter((x) => x !== h && x.handler !== null)) {
+      const prevents = nodesOf(other.handler).some((n) => ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && n.expression.name.text === 'preventDefault');
+      if (prevents) f.push(`a second will-quit handler prevents the quit (${where(other.rel, other.node)}); only the hard exit's bounded wait may hold a quit open (round A)`);
+    }
+    // The count the guard asks is the store's, imported, and nothing in
+    // index.ts stands in for it.
+    if (!importsName(idx, 'manifestConnectionsLeftOpen', ['./manifest/store'])) f.push(`${FILES.index} does not import manifestConnectionsLeftOpen from ./manifest/store, so the guard's count is not the store's`);
+    const local = localBindings(idx, 'manifestConnectionsLeftOpen');
+    if (local.length > 0) f.push(`${where(FILES.index, local[0])} declares its own manifestConnectionsLeftOpen, which shadows the store's count`);
+  }
+  // flushStorageData( is called once in index.ts (the will-quit handler's) and
+  // in no file under src/main but index.ts and capabilities.ts, whose one call
+  // on the disposer's first lines is S6's (round A's W1).
+  const flushes = pathsNaming(tree, 'src/main/', 'flushStorageData').flatMap((rel) => nodesOf(sfOf(tree, rel)).filter((n) => ts.isCallExpression(n) && /flushStorageData$/.test(n.expression.getText())).map((n) => ({ rel, n })));
+  const inIndex = flushes.filter((x) => x.rel === FILES.index);
+  const elsewhere = flushes.filter((x) => x.rel !== FILES.index && x.rel !== FILES.capabilities);
+  if (inIndex.length !== 1) f.push(`flushStorageData( is called ${String(inIndex.length)} times in ${FILES.index} (${inIndex.map((x) => where(x.rel, x.n)).join(', ')}), not once`);
+  if (elsewhere.length > 0) f.push(`flushStorageData( is called outside ${FILES.index} and the disposer (${elsewhere.map((x) => where(x.rel, x.n)).join(', ')}); a flush anywhere else is not part of the quit's two (round A)`);
+  // isUpdateStaged is exported from the updater and imported by index.ts.
+  const upd = sfOf(tree, FILES.updater);
+  if (upd === null) f.push(`${FILES.updater} is missing`);
+  else {
+    const staged = functionsNamed(upd, 'isUpdateStaged');
+    if (staged.length !== 1) f.push(`${FILES.updater} does not declare isUpdateStaged once`);
+    else {
+      const exported = ts.isFunctionDeclaration(staged[0]) ? hasModifier(staged[0], ts.SyntaxKind.ExportKeyword) : hasModifier(staged[0].parent.parent, ts.SyntaxKind.ExportKeyword);
+      if (!exported) f.push('isUpdateStaged is not exported from the updater');
+    }
+  }
+  if (!importsName(idx, 'isUpdateStaged', ['./updates/updater'])) f.push(`${FILES.index} does not import isUpdateStaged from ./updates/updater`);
+  return f;
+}
+
+// ---------------------------------------------------------------------------
+// S13: the digest lets a broken connection through
+// ---------------------------------------------------------------------------
+
+export function ruleS13(tree) {
+  const f = [];
+  const sf = sfOf(tree, FILES.digest);
+  if (sf === null) return [`${FILES.digest} is missing`];
+  if (!importsName(sf, 'isBrokenConnectionError', ['./integrity', '../db/integrity'])) f.push(`${FILES.digest} does not import isBrokenConnectionError from ./integrity`);
+  const local = localBindings(sf, 'isBrokenConnectionError');
+  if (local.length > 0) f.push(`${where(FILES.digest, local[0])} declares its own isBrokenConnectionError, which shadows the classifier`);
+  const fns = functionsNamed(sf, 'digestOneTable');
+  if (fns.length !== 1) return [...f, `digestOneTable is declared ${String(fns.length)} times in ${FILES.digest}, not once`];
+  const body = bodyOf(fns[0]);
+  const catches = body === null ? [] : nodesOf(body).filter((n) => ts.isCatchClause(n));
+  if (catches.length !== 1) {
+    f.push(`digestOneTable holds ${String(catches.length)} catch clauses, not one`);
+    return f;
+  }
+  const c = catches[0];
+  const v = c.variableDeclaration !== undefined && ts.isIdentifier(c.variableDeclaration.name) ? c.variableDeclaration.name.text : null;
+  const first = c.block.statements[0];
+  const ok = v !== null && first !== undefined && ts.isIfStatement(first) && first.elseStatement === undefined && isCallOfWith(first.expression, 'isBrokenConnectionError', v) && isThrowOf(first.thenStatement, v);
+  if (!ok) f.push(`digestOneTable's catch does not begin \`if (isBrokenConnectionError(${v ?? 'err'})) throw ${v ?? 'err'};\` (${where(FILES.digest, c)}), so the ring folds SQLITE_CORRUPT into a fingerprint the latch never sees (Phase 357.1 Gap 2)`);
+  // Otherwise it returns the `unreadable: ...` text, so every other error stays copyable.
+  const keepsText = c.block.statements.some((s) => ts.isReturnStatement(s) && s.expression !== undefined && ts.isTemplateExpression(s.expression) && s.expression.head.text.startsWith('unreadable:'));
+  if (!keepsText) f.push(`digestOneTable no longer returns the \`unreadable: <message>\` text for a non-broken error (${where(FILES.digest, c)}), which is what keeps today's diagnostics copyable`);
+  return f;
+}
+
+export const RULE_FNS = Object.freeze({ S1: ruleS1, S2: ruleS2, S3: ruleS3, S4: ruleS4, S5: ruleS5, S6: ruleS6, S7: ruleS7, S8: ruleS8, S9: ruleS9, S10: ruleS10, S11: ruleS11, S12: ruleS12, S13: ruleS13 });
 
 // ---------------------------------------------------------------------------
 // The ablations: in-memory copies, each with one rule broken
@@ -1698,6 +2194,31 @@ const insertBefore = (text, node, insertion) => text.slice(0, node.getStart()) +
 const append = (insertion) => (text) => `${text}\n${insertion}\n`;
 /** A class's closing brace, for a member inserted at its end. */
 const beforeClassEnd = (text, cls, insertion) => text.slice(0, cls.getEnd() - 1) + insertion + text.slice(cls.getEnd() - 1);
+/** The will-quit handler's `try` around the storage flush in index.ts, or null. */
+function flushTry(sf) {
+  return nodesOf(sf).find((n) => ts.isTryStatement(n) && n.finallyBlock !== undefined && n.tryBlock.getText().includes('flushStorageData')) ?? null;
+}
+/** The guarded `if` around that `try` (the will-quit handler's first statement), or null. */
+function quitGuard(sf) {
+  const tr = flushTry(sf);
+  return tr === null ? null : ancestor(tr, (x) => ts.isIfStatement(x));
+}
+/** The `<event>.preventDefault();` statement of that guard's block, or null (round A). */
+function preventIn(sf) {
+  const g = quitGuard(sf);
+  if (g === null || !ts.isBlock(g.thenStatement)) return null;
+  return g.thenStatement.statements.find((x) => ts.isExpressionStatement(x) && x.getText().includes('preventDefault')) ?? null;
+}
+/** The `storageWritten(…)` call the will-quit wait awaits, or null (round A). */
+function waitCallIn(sf) {
+  const tr = flushTry(sf);
+  return (tr === null ? undefined : nodesOf(tr.tryBlock).find((n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === 'storageWritten')) ?? null;
+}
+/** The disposer's `try { session.defaultSession.flushStorageData(); } catch …` statement, or null (round A, W1). */
+function disposerFlushTry(sf) {
+  const fn = functionsNamed(sf, 'disposeMainCapabilities')[0];
+  return (fn === undefined ? undefined : nodesOf(fn).find((n) => ts.isTryStatement(n) && n.tryBlock.getText().includes('flushStorageData'))) ?? null;
+}
 /** The one statement of a store member, or null. */
 function storeMember(sf, name) {
   const cls = classNamed(sf, 'ManifestStore');
@@ -1713,8 +2234,6 @@ function coreMethod(sf, name) {
   const cls = classNamed(sf, 'GmuxCore');
   return cls === null ? null : methodOf(cls, name);
 }
-/** The statement in `block` that holds `node`. */
-const statementHolding = (block, node) => block.statements.find((s) => nodesOf(s).includes(node)) ?? null;
 
 export const ABLATIONS = [
   // S1
@@ -1831,14 +2350,16 @@ export const ABLATIONS = [
     const inst = d === undefined ? undefined : nodesOf(d).find((n) => ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.InstanceOfKeyword);
     return inst === undefined ? null : splice(s, inst, "typeof err === 'object'");
   })],
-  // S5
-  ['S5', ['S5'], 'close calling this.db.close() unconditionally', (t) => withFile(t, FILES.store, (s, sf) => {
+  // S5. Replacing close's whole body also strips the hold condition and the
+  // hold-branch push, so S11 goes red beside S5 (on purpose).
+  ['S5', ['S5', 'S11'], 'close calling this.db.close() unconditionally', (t) => withFile(t, FILES.store, (s, sf) => {
     const m = storeMember(sf, 'close');
     return m?.body === undefined ? null : splice(s, m.body, '{\n    this.db.close();\n  }');
   })],
-  ['S5', ['S5'], 'the push made for every verdict', (t) => withFile(t, FILES.store, (s, sf) => {
-    const push = nodesOf(sf).find((n) => ts.isCallExpression(n) && n.expression.getText() === 'held.push');
-    const guard = push === undefined ? null : ancestor(push, (p) => ts.isIfStatement(p));
+  ['S5', ['S5'], 'the latch pushes for every verdict, not only when the file is fine', (t) => withFile(t, FILES.store, (s, sf) => {
+    const latch = storeMember(sf, 'latch');
+    const push = latch === null ? undefined : nodesOf(latch).find((n) => ts.isCallExpression(n) && n.expression.getText() === 'held.push');
+    const guard = push === undefined ? null : ancestor(push, (p) => ts.isIfStatement(p), latch ?? undefined);
     return guard === null ? null : splice(s, guard, 'held.push(this.db);');
   })],
   ['S5', ['S5'], 'held emptied in close', (t) => withFile(t, FILES.store, (s, sf) => {
@@ -1846,33 +2367,234 @@ export const ABLATIONS = [
     const first = m?.body?.statements[0];
     return first === undefined ? null : insertBefore(s, first, 'held.splice(0);\n    ');
   })],
-  // S6
-  ['S6', ['S6'], 'the branch above shutdownGmuxCore()', (t) => withFile(t, FILES.capabilities, (s, sf) => {
-    const fn = functionsNamed(sf, 'disposeMainCapabilities')[0];
-    const body = fn === undefined ? null : bodyOf(fn);
-    const stmts = stmtsOf(body);
-    if (stmts === null || stmts.length < 2) return null;
-    const branch = stmts[stmts.length - 2];
-    const shut = callsOf(fn, 'shutdownGmuxCore')[0];
-    const holder = shut === undefined ? null : statementHolding(body, shut);
-    if (!ts.isIfStatement(branch) || holder === null) return null;
-    const without = splice(s, branch, '');
-    return without.slice(0, holder.getStart()) + `${branch.getText()}\n  ` + without.slice(holder.getStart());
-  })],
-  ['S6', ['S6'], 'the sentinel line removed', (t) => withFile(t, FILES.capabilities, (s, sf) => {
+  // S6 (rewritten, Phase 357.1): the disposer holds at quit and no longer hard-exits for the manifest.
+  ['S6', ['S6'], 'the :1126 manifest-held hard-exit branch left in the disposer', (t) => withFile(t, FILES.capabilities, (s, sf) => {
     const fn = functionsNamed(sf, 'disposeMainCapabilities')[0];
     const stmts = fn === undefined ? null : stmtsOf(bodyOf(fn));
-    const branch = stmts === null ? undefined : stmts[stmts.length - 2];
-    if (branch === undefined || !ts.isIfStatement(branch) || !ts.isBlock(branch.thenStatement)) return null;
-    const clear = branch.thenStatement.statements.find((x) => x.getText().startsWith('clearLogRunSentinel('));
-    return clear === undefined ? null : splice(s, clear, '');
+    const last = stmts === null ? undefined : stmts[stmts.length - 1];
+    return last === undefined ? null : insertBefore(s, last, "if (manifestConnectionsLeftOpen() > 0) {\n    clearLogRunSentinel();\n    process.kill(process.pid, 'SIGKILL');\n    return 'killed';\n  }\n  ");
   })],
-  // The probe review's: green on S6 before the branch's test was pinned.
-  ['S6', ['S6'], 'the branch asks for more than one connection left open', (t) => withFile(t, FILES.capabilities, (s, sf) => {
+  // Removing the one hold call reddens S6 AND S11 (its one caller is gone), on purpose.
+  ['S6', ['S6', 'S11'], 'holdManifestClosesAtQuit no longer called at quit', (t) => withFile(t, FILES.capabilities, (s, sf) => {
     const fn = functionsNamed(sf, 'disposeMainCapabilities')[0];
+    const call = fn === undefined ? undefined : callsOf(fn, 'holdManifestClosesAtQuit')[0];
+    const stmt = call === undefined ? undefined : ancestor(call, (p) => p.parent !== undefined && (ts.isBlock(p.parent) || ts.isSourceFile(p.parent)));
+    return stmt === undefined ? null : splice(s, stmt, '');
+  })],
+  // The probe review's two, each green on S6 before it was tightened.
+  ['S6', ['S6'], 'the hold set after the disposer’s first await, just before shutdownGmuxCore()', (t) => withFile(t, FILES.capabilities, (s, sf) => {
+    const fn = functionsNamed(sf, 'disposeMainCapabilities')[0];
+    const call = fn === undefined ? undefined : callsOf(fn, 'holdManifestClosesAtQuit')[0];
+    const shut = fn === undefined ? undefined : callsOf(fn, 'shutdownGmuxCore')[0];
+    const stmt = call === undefined ? undefined : ancestor(call, (p) => p.parent !== undefined && ts.isBlock(p.parent));
+    const shutStmt = shut === undefined ? undefined : ancestor(shut, (p) => p.parent !== undefined && ts.isBlock(p.parent));
+    if (stmt === undefined || shutStmt === undefined || shutStmt.getStart() < stmt.getEnd()) return null;
+    return s.slice(0, stmt.getStart()) + s.slice(stmt.getEnd(), shutStmt.getStart()) + 'holdManifestClosesAtQuit();\n    ' + s.slice(shutStmt.getStart());
+  })],
+  ['S6', ['S6'], 'the one SIGKILL moved out of the wedged-watcher branch to the disposer’s end', (t) => withFile(t, FILES.capabilities, (s, sf) => {
+    const fn = functionsNamed(sf, 'disposeMainCapabilities')[0];
+    const kill = fn === undefined ? undefined : selfSigkillCalls(fn)[0];
+    const killStmt = kill === undefined ? undefined : ancestor(kill, (p) => ts.isExpressionStatement(p));
     const stmts = fn === undefined ? null : stmtsOf(bodyOf(fn));
-    const branch = stmts === null ? undefined : stmts[stmts.length - 2];
-    return branch === undefined || !ts.isIfStatement(branch) ? null : splice(s, branch.expression, 'manifestConnectionsLeftOpen() > 1');
+    const last = stmts === null ? undefined : stmts[stmts.length - 1];
+    if (killStmt === undefined || last === undefined || last.getStart() < killStmt.getEnd()) return null;
+    return s.slice(0, killStmt.getStart()) + s.slice(killStmt.getEnd(), last.getStart()) + "process.kill(process.pid, 'SIGKILL');\n  " + s.slice(last.getStart());
+  })],
+  // ROUND A (W1): the disposer's storage flush, broken three ways.
+  ['S6', ['S6'], 'the disposer’s storage flush removed', (t) => withFile(t, FILES.capabilities, (s, sf) => {
+    const tr = disposerFlushTry(sf);
+    return tr === null ? null : splice(s, tr, '');
+  })],
+  ['S6', ['S6'], 'the disposer’s storage flush moved to just after its first await', (t) => withFile(t, FILES.capabilities, (s, sf) => {
+    const tr = disposerFlushTry(sf);
+    const fn = functionsNamed(sf, 'disposeMainCapabilities')[0];
+    const body = fn === undefined ? null : stmtsOf(bodyOf(fn));
+    const firstAwaitStmt = body === null ? undefined : body.find((x) => nodesOf(x).some((n) => ts.isAwaitExpression(n) && ancestor(n, (p) => ts.isFunctionLike(p)) === fn));
+    if (tr === null || firstAwaitStmt === undefined || firstAwaitStmt.getStart() < tr.getEnd()) return null;
+    return s.slice(0, tr.getStart()) + s.slice(tr.getEnd(), firstAwaitStmt.getEnd()) + `\n  ${tr.getText()}` + s.slice(firstAwaitStmt.getEnd());
+  })],
+  ['S6', ['S6'], 'the disposer’s storage flush outside a try, so a session not yet there stops the quit', (t) => withFile(t, FILES.capabilities, (s, sf) => {
+    const tr = disposerFlushTry(sf);
+    return tr === null ? null : splice(s, tr, tr.tryBlock.statements.map((x) => x.getText()).join('\n  '));
+  })],
+  // S11
+  // ROUND A (the drop round's reverify, a nit): green on S11 before dispose's close was read.
+  ['S11', ['S11'], 'dispose closes the session list’s connection itself, around the store’s close()', (t) => withFile(t, FILES.core, (s, sf) => {
+    const d = coreMethod(sf, 'dispose');
+    const c = d === null ? undefined : nodesOf(d).find((n) => ts.isCallExpression(n) && n.expression.getText() === 'this.manifest.close');
+    return c === undefined ? null : splice(s, c, '(this.manifest as unknown as { db: { close(): void } }).db.close()');
+  })],
+  ['S11', ['S11'], 'the hold condition drops holdAllCloses', (t) => withFile(t, FILES.store, (s, sf) => {
+    const close = storeMember(sf, 'close');
+    const iff = close?.body === undefined ? undefined : close.body.statements.find((x) => ts.isIfStatement(x));
+    const expr = iff?.expression === undefined ? undefined : peel(iff.expression);
+    if (expr === undefined || !ts.isBinaryExpression(expr) || expr.operatorToken.kind !== ts.SyntaxKind.BarBarToken) return null;
+    return splice(s, iff.expression, expr.right.getText());
+  })],
+  ['S11', ['S11'], 'a second caller of holdManifestClosesAtQuit', (t) => withFile(t, FILES.index, append("import { holdManifestClosesAtQuit } from './manifest/store';\nexport function selfTestHold(): void {\n  holdManifestClosesAtQuit();\n}"))],
+  ['S11', ['S11'], 'holdAllCloses written outside holdManifestClosesAtQuit', (t) => withFile(t, FILES.store, append('export function selfTestFlip(): void {\n  holdAllCloses = true;\n}'))],
+  ['S11', ['S11'], 'the hold branch no longer pushes the connection', (t) => withFile(t, FILES.store, (s, sf) => {
+    const close = storeMember(sf, 'close');
+    const push = close === null ? undefined : nodesOf(close).find((n) => ts.isCallExpression(n) && n.expression.getText() === 'held.push');
+    const stmt = push === undefined ? undefined : ancestor(push, (p) => p.parent !== undefined && ts.isBlock(p.parent));
+    return stmt === undefined ? null : splice(s, stmt, '');
+  })],
+  // S12
+  ['S12', ['S12'], 'the staged carve-out removed', (t) => withFile(t, FILES.index, (s) => (s.includes('&& !isUpdateStaged()') ? s.replace('&& !isUpdateStaged()', '') : null))],
+  ['S12', ['S12'], 'a second will-quit handler that self-SIGKILLs', (t) => withFile(t, FILES.index, append("app.on('will-quit', () => {\n  process.kill(process.pid, 'SIGKILL');\n});"))],
+  ['S12', ['S12'], 'the storage flush removed', (t) => withFile(t, FILES.index, (s, sf) => {
+    const call = nodesOf(sf).find((n) => ts.isCallExpression(n) && /flushStorageData$/.test(n.expression.getText()));
+    const stmt = call === undefined ? undefined : ancestor(call, (p) => p.parent !== undefined && ts.isBlock(p.parent));
+    return stmt === undefined ? null : splice(s, stmt, '');
+  })],
+  ['S12', ['S12'], 'the sentinel clear removed from the will-quit handler', (t) => withFile(t, FILES.index, (s, sf) => {
+    const call = callsOf(sf, 'clearLogRunSentinel')[0];
+    const stmt = call === undefined ? undefined : ancestor(call, (p) => p.parent !== undefined && ts.isBlock(p.parent));
+    return stmt === undefined ? null : splice(s, stmt, '');
+  })],
+  // The probe review's five, each green on S12 before it was tightened.
+  ['S12', ['S12'], 'the guard joined by || instead of &&, so a staged update hard-exits', (t) => withFile(t, FILES.index, (s) => (s.includes('manifestConnectionsLeftOpen() > 0 && !isUpdateStaged()') ? s.replace('manifestConnectionsLeftOpen() > 0 && !isUpdateStaged()', 'manifestConnectionsLeftOpen() > 0 || !isUpdateStaged()') : null))],
+  ['S12', ['S12'], 'the left-open test negated, so the hard exit fires only when nothing is held', (t) => withFile(t, FILES.index, (s) => (s.includes('manifestConnectionsLeftOpen() > 0 && !isUpdateStaged()') ? s.replace('manifestConnectionsLeftOpen() > 0 && !isUpdateStaged()', '!(manifestConnectionsLeftOpen() > 0) && !isUpdateStaged()') : null))],
+  ['S12', ['S12'], 'the flush and the clear moved into a branch that never runs', (t) => withFile(t, FILES.index, (s, sf) => {
+    const flush = nodesOf(sf).find((n) => ts.isCallExpression(n) && isDefaultSessionFlush(n));
+    const clear = callsOf(sf, 'clearLogRunSentinel')[0];
+    const fStmt = flush === undefined ? undefined : ancestor(flush, (p) => ts.isExpressionStatement(p));
+    const cStmt = clear === undefined ? undefined : ancestor(clear, (p) => ts.isExpressionStatement(p));
+    const guard = fStmt === undefined ? null : ancestor(fStmt, (p) => ts.isIfStatement(p));
+    if (fStmt === undefined || cStmt === undefined || guard === null || cStmt.getStart() < fStmt.getEnd()) return null;
+    const moved = `if (Date.now() < 0) {\n    ${fStmt.getText()}\n    ${cStmt.getText()}\n  }\n  `;
+    return s.slice(0, guard.getStart()) + moved + s.slice(guard.getStart(), fStmt.getStart()) + s.slice(fStmt.getEnd(), cStmt.getStart()) + s.slice(cStmt.getEnd());
+  })],
+  ['S12', ['S12'], 'another session flushed instead of the windows’ own', (t) => withFile(t, FILES.index, (s) => (s.includes('session.defaultSession.flushStorageData()') ? s.replace('session.defaultSession.flushStorageData()', "session.fromPartition('p3571').flushStorageData()") : null))],
+  ['S12', ['S12'], 'a second self-SIGKILL will-quit handler handed by name', (t) => withFile(t, FILES.index, append("function selfTestLateQuit(): void {\n  process.kill(process.pid, 'SIGKILL');\n}\napp.on('will-quit', selfTestLateQuit);"))],
+  // S12, THE DROP ROUND: the count is the store's, and nothing defers the exit.
+  ['S12', ['S12'], 'the guard asks a count of index.ts’s own instead of the store’s', (t) => withFile(t, FILES.index, (s) => {
+    if (!s.includes('isManifestStopped, manifestConnectionsLeftOpen }')) return null;
+    return `${s.replace('isManifestStopped, manifestConnectionsLeftOpen }', 'isManifestStopped }')}\nfunction manifestConnectionsLeftOpen(): number {\n  return 1;\n}\n`;
+  })],
+  // The landing reverify's nit: each of the four was green on S12 before the
+  // first-statement clause, and the held smoke cannot tell the first from the
+  // real one, because in this Electron an immediate still runs before teardown.
+  ['S12', ['S12'], 'the guard deferred to setImmediate', (t) => withFile(t, FILES.index, (s, sf) => {
+    const g = quitGuard(sf);
+    return g === null ? null : splice(s, g, `setImmediate(() => {\n    ${g.getText()}\n  });`);
+  })],
+  ['S12', ['S12'], 'the guard deferred to queueMicrotask', (t) => withFile(t, FILES.index, (s, sf) => {
+    const g = quitGuard(sf);
+    return g === null ? null : splice(s, g, `queueMicrotask(() => {\n    ${g.getText()}\n  });`);
+  })],
+  ['S12', ['S12'], 'the guard deferred to a promise’s then', (t) => withFile(t, FILES.index, (s, sf) => {
+    const g = quitGuard(sf);
+    return g === null ? null : splice(s, g, `void Promise.resolve().then(() => {\n    ${g.getText()}\n  });`);
+  })],
+  ['S12', ['S12'], 'the guard put after an await in an async handler', (t) => withFile(t, FILES.index, (s, sf) => {
+    const g = quitGuard(sf);
+    const fn = g === null ? null : ancestor(g, (x) => isFunctionLike(x));
+    if (g === null || fn === null || fn.getStart() > g.getStart()) return null;
+    return `${s.slice(0, fn.getStart())}async ${s.slice(fn.getStart(), g.getStart())}await Promise.resolve();\n  ${s.slice(g.getStart())}`;
+  })],
+  // S12, THE LANDING ROUND (F3): a throw from the flush skips none of the exit.
+  ['S12', ['S12'], 'the try taken off the wait, so a throw from the flush skips the exit', (t) => withFile(t, FILES.index, (s, sf) => {
+    const tr = flushTry(sf);
+    return tr === null ? null : splice(s, tr, `${tr.tryBlock.statements.map((x) => x.getText()).join('\n      ')}\n      ${tr.finallyBlock.statements.map((x) => x.getText()).join('\n      ')}`);
+  })],
+  ['S12', ['S12'], 'the sentinel clear moved into the try, after the flush', (t) => withFile(t, FILES.index, (s, sf) => {
+    const tr = flushTry(sf);
+    const clear = tr === null ? undefined : tr.finallyBlock.statements.find((x) => x.getText().startsWith('clearLogRunSentinel'));
+    if (tr === null || clear === undefined) return null;
+    const flush = tr.tryBlock.statements[0];
+    return s.slice(0, flush.getEnd()) + `\n        ${clear.getText()}` + s.slice(flush.getEnd(), clear.getStart()) + s.slice(clear.getEnd());
+  })],
+  // ROUND A, W4: the kill outside the finally, two ways.
+  ['S12', ['S12'], 'the kill moved into the try, after the flush, before the wait', (t) => withFile(t, FILES.index, (s, sf) => {
+    const tr = flushTry(sf);
+    const kill = tr === null ? undefined : tr.finallyBlock.statements.find((x) => x.getText().startsWith('process.kill'));
+    if (tr === null || kill === undefined) return null;
+    const flush = tr.tryBlock.statements[0];
+    return s.slice(0, flush.getEnd()) + `\n        ${kill.getText()}` + s.slice(flush.getEnd(), kill.getStart()) + s.slice(kill.getEnd());
+  })],
+  ['S12', ['S12'], 'the kill moved after the try, out of the finally', (t) => withFile(t, FILES.index, (s, sf) => {
+    const tr = flushTry(sf);
+    const kill = tr === null ? undefined : tr.finallyBlock.statements.find((x) => x.getText().startsWith('process.kill'));
+    if (tr === null || kill === undefined) return null;
+    return s.slice(0, kill.getStart()) + s.slice(kill.getEnd(), tr.getEnd()) + `\n      ${kill.getText()}` + s.slice(tr.getEnd());
+  })],
+  ['S12', ['S12'], 'the sentinel cleared after the signal', (t) => withFile(t, FILES.index, (s, sf) => {
+    const tr = flushTry(sf);
+    const stmts = tr === null ? [] : tr.finallyBlock.statements;
+    if (stmts.length !== 2) return null;
+    return splice(s, tr.finallyBlock, `{\n        ${stmts[1].getText()}\n        ${stmts[0].getText()}\n      }`);
+  })],
+  ['S12', ['S12'], 'a catch that swallows the flush beside the finally', (t) => withFile(t, FILES.index, (s, sf) => {
+    const tr = flushTry(sf);
+    return tr === null ? null : s.slice(0, tr.tryBlock.getEnd()) + ' catch {\n        /* swallowed */\n      }' + s.slice(tr.tryBlock.getEnd());
+  })],
+  // ROUND A, W4: preventDefault deferred, three ways, each green on a gate that
+  // only asked for a prevent somewhere: dropped, moved behind the wait, and
+  // handed to a later turn.
+  ['S12', ['S12'], 'the prevented quit removed, so Node’s teardown runs while the exit waits', (t) => withFile(t, FILES.index, (s, sf) => {
+    const prevent = preventIn(sf);
+    return prevent === null ? null : splice(s, prevent, '');
+  })],
+  ['S12', ['S12'], 'the prevented quit deferred into the wait, after the await', (t) => withFile(t, FILES.index, (s, sf) => {
+    const prevent = preventIn(sf);
+    const tr = flushTry(sf);
+    const awaitStmt = tr === null ? undefined : tr.tryBlock.statements.find((x) => nodesOf(x).some((n) => ts.isAwaitExpression(n)));
+    if (prevent === null || awaitStmt === undefined || awaitStmt.getStart() < prevent.getEnd()) return null;
+    return s.slice(0, prevent.getStart()) + s.slice(prevent.getEnd(), awaitStmt.getEnd()) + `\n        ${prevent.getText()}` + s.slice(awaitStmt.getEnd());
+  })],
+  ['S12', ['S12'], 'the prevented quit handed to setImmediate', (t) => withFile(t, FILES.index, (s, sf) => {
+    const prevent = preventIn(sf);
+    return prevent === null ? null : splice(s, prevent, `setImmediate(() => ${prevent.getText().replace(/;\s*$/, '')});`);
+  })],
+  // ROUND A, W4: the bound removed or unbounded, and the wait not awaited.
+  ['S12', ['S12'], 'the wait’s bound removed', (t) => withFile(t, FILES.index, (s, sf) => {
+    const w = waitCallIn(sf);
+    return w === null || w.arguments.length !== 2 ? null : s.slice(0, w.arguments[0].getEnd()) + s.slice(w.arguments[1].getEnd());
+  })],
+  ['S12', ['S12'], 'the wait’s bound made Infinity', (t) => withFile(t, FILES.index, (s, sf) => {
+    const w = waitCallIn(sf);
+    return w === null || w.arguments.length !== 2 ? null : splice(s, w.arguments[1], 'Infinity');
+  })],
+  ['S12', ['S12'], 'the bound’s const raised to an hour', (t) => withFile(t, FILES.index, (s, sf) => {
+    const w = waitCallIn(sf);
+    const decl = w === null || !ts.isIdentifier(w.arguments[1]) ? null : topConstNumber(sf, w.arguments[1].text);
+    return decl === null ? null : splice(s, decl.node.initializer, '3_600_000');
+  })],
+  ['S12', ['S12'], 'the bound’s const made Number.POSITIVE_INFINITY', (t) => withFile(t, FILES.index, (s, sf) => {
+    const w = waitCallIn(sf);
+    const decl = w === null || !ts.isIdentifier(w.arguments[1]) ? null : topConstNumber(sf, w.arguments[1].text);
+    return decl === null ? null : splice(s, decl.node.initializer, 'Number.POSITIVE_INFINITY');
+  })],
+  ['S12', ['S12'], 'the wait no longer awaited, so the kill comes before the bound', (t) => withFile(t, FILES.index, (s, sf) => {
+    const tr = flushTry(sf);
+    const aw = tr === null ? undefined : nodesOf(tr.tryBlock).find((n) => ts.isAwaitExpression(n));
+    return aw === undefined ? null : splice(s, aw, aw.expression.getText());
+  })],
+  ['S12', ['S12'], 'a second unbounded wait beside the bounded one', (t) => withFile(t, FILES.index, (s, sf) => {
+    const tr = flushTry(sf);
+    const flush = tr === null ? undefined : tr.tryBlock.statements[0];
+    return flush === undefined ? null : s.slice(0, flush.getEnd()) + '\n        await new Promise<void>(() => undefined);' + s.slice(flush.getEnd());
+  })],
+  ['S12', ['S12'], 'the wait stood in by a local of index.ts', (t) => withFile(t, FILES.index, (s) => {
+    if (!s.includes("import { storageWritten } from './quit/storage-landing';")) return null;
+    return `${s.replace("import { storageWritten } from './quit/storage-landing';", '')}\nasync function storageWritten(_path: string | null, _ms: number): Promise<{ landing: string; waitedMs: number; moved: boolean }> {\n  return { landing: 'settled', waitedMs: 0, moved: false };\n}\n`;
+  })],
+  ['S12', ['S12'], 'a second will-quit handler that prevents the quit', (t) => withFile(t, FILES.index, append("app.on('will-quit', (event) => {\n  event.preventDefault();\n});"))],
+  ['S12', ['S12'], 'a storage flush in a third file', (t) => withFile(t, FILES.updater, append("import { session } from 'electron';\nexport function selfTestFlush(): void {\n  session.defaultSession.flushStorageData();\n}"))],
+  // S13
+  ['S13', ['S13'], 'the broken-connection rethrow removed from the digest', (t) => withFile(t, FILES.digest, (s, sf) => {
+    const fn = functionsNamed(sf, 'digestOneTable')[0];
+    const c = fn === undefined ? undefined : nodesOf(fn).find((n) => ts.isCatchClause(n));
+    const first = c?.block.statements[0];
+    return first === undefined ? null : splice(s, first, '');
+  })],
+  ['S13', ['S13'], 'the digest reads the message instead of the class', (t) => withFile(t, FILES.digest, (s, sf) => {
+    const fn = functionsNamed(sf, 'digestOneTable')[0];
+    const c = fn === undefined ? undefined : nodesOf(fn).find((n) => ts.isCatchClause(n));
+    const first = c?.block.statements[0];
+    const v = c?.variableDeclaration !== undefined && ts.isIdentifier(c.variableDeclaration.name) ? c.variableDeclaration.name.text : 'err';
+    return first === undefined ? null : splice(s, first, `if (String((${v} as Error).message).includes('malformed')) throw ${v};`);
   })],
   // S7
   ['S7', ['S7'], 'a second caller of app.relaunch(', (t) => withFile(t, FILES.capabilities, append('export function selfTestRelaunch(): void {\n  app.relaunch();\n}'))],
@@ -2003,7 +2725,10 @@ const RULE_INPUTS = Object.freeze({
   S7: (t) => [FILES.capabilities, ...pathsNaming(t, 'src/main/', 'relaunch'), ...pathsNaming(t, 'src/renderer/', 'relaunch')],
   S8: (t) => [FILES.store, FILES.seam, ...pathsNaming(t, 'src/', 'setManifestFaultHook')],
   S9: (t) => [FILES.crash, ...PROCESS_EVENTS.flatMap((e) => pathsNaming(t, 'src/main/', e))],
-  S10: () => [FILES.core]
+  S10: () => [FILES.core],
+  S11: (t) => [FILES.store, FILES.core, ...pathsNaming(t, 'src/', 'holdManifestClosesAtQuit')],
+  S12: (t) => [FILES.index, FILES.updater, ...pathsNaming(t, 'src/main/', 'will-quit'), ...pathsNaming(t, 'src/main/', 'flushStorageData')],
+  S13: () => [FILES.digest]
 });
 const ruleCache = new Map();
 function judge(tree) {
@@ -2111,7 +2836,7 @@ function main() {
     if (!AS_JSON) process.stderr.write(`${TAG} FAILED: ${String(problems.length)} problem(s)\n`);
     process.exit(1);
   }
-  if (!AS_JSON) process.stdout.write(`${TAG} PASS: ten rules over ${String(tree.size)} files, ${String(report.ablations.total)} ablations and a control\n`);
+  if (!AS_JSON) process.stdout.write(`${TAG} PASS: ${String(RULES.length)} rules over ${String(tree.size)} files, ${String(report.ablations.total)} ablations and a control\n`);
   process.exit(0);
 }
 

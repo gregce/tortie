@@ -16,7 +16,7 @@
  * or silence them.
  */
 
-import { app, BrowserWindow, powerMonitor, type IpcMain } from 'electron';
+import { app, BrowserWindow, powerMonitor, session, type IpcMain } from 'electron';
 import { writeSync } from 'node:fs';
 import { disposeActionsIpc, registerActionsIpc } from './actions';
 import { registerAgentsIpc } from './agents';
@@ -67,13 +67,14 @@ import { registerIpcHandlers } from './ipc';
 // below owes the next boot.
 import { clearLogRunSentinel, getLog, logEvent } from './log';
 import { registerLogIpc } from './log/ipc';
-// PHASE 357 (build/p357/SPEC.md D12, D13, D16). The crash log's repeat counts,
-// said once on the disposer's first synchronous lines; the count of session
-// list connections the store left open because their page cache stopped
-// reading correctly, asked on the disposer's last line; the notice latch the
-// Restart asks first; and the one harness predicate it asks second.
+// PHASE 357 (build/p357/SPEC.md D13, D16). The crash log's repeat counts,
+// said once on the disposer's first synchronous lines; the notice latch the
+// Restart asks first; and the one harness predicate it asks second. PHASE
+// 357.1 (build/p3571/SPEC.md D1, D2): the session list's quit hold, set on
+// those same first lines, so the core's dispose holds its connection open and
+// the process ends at `will-quit` (src/main/index.ts) without closing it.
 import { flushCrashRepeats } from './log/crash';
-import { manifestConnectionsLeftOpen } from './manifest/store';
+import { holdManifestClosesAtQuit } from './manifest/store';
 import { hasSaidNotice } from './notice';
 import { isHarnessLaunch } from './harness/launch-gate';
 // Phase 68: the machines domain. The watcher teardown and the live test
@@ -723,6 +724,27 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
   // `security` child all begin nothing, which is what makes the join below a
   // bounded thing rather than a race against work still being admitted.
   beginCredentialShutdown();
+  // PHASE 357.1 (build/p3571/SPEC.md D1). On the same synchronous lines, long
+  // before `shutdownGmuxCore()` below runs the core's dispose: from here every
+  // session list close holds its connection open instead of closing it,
+  // because a page cache damaged in a way no read saw crashes the close that
+  // walks it (research 143 §2.3). The process then ends at `will-quit`, after
+  // the windows have closed, without closing it (src/main/index.ts; a quit
+  // with an update staged proceeds as before). Cannot throw.
+  holdManifestClosesAtQuit();
+  // PHASE 357.1 ROUND A (W1). And on the same lines, start committing the
+  // windows' remembered settings (their `localStorage`: zoom, the open tabs,
+  // the first-quit tip's flag), so every write made before the press is on
+  // disk long before the hard exit at `will-quit`, which flushes once more and
+  // waits for the disk (src/main/index.ts). The flush only starts Chromium's
+  // commit and returns. Before the app is ready there is no session to reach,
+  // and the catch keeps that from stopping the quit; the will-quit flush is
+  // the second chance.
+  try {
+    session.defaultSession.flushStorageData();
+  } catch {
+    /* no session yet: nothing has been written to flush */
+  }
   // PHASE 265. Close the baseline domain's admission on the same synchronous
   // line, before any await, so a `baselines:store` arriving after quit begins
   // is refused rather than begun. The bounded join is awaited below, after the
@@ -749,7 +771,7 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
   // PHASE 357 (build/p357/SPEC.md D16). Then the crash log's one record of the
   // uncaught errors this run saw more than once, counts and hashed keys only,
   // on these same synchronous lines so it is written long before any exit,
-  // the hard one at the foot of this function included. Never throws.
+  // the hard one at `will-quit` included. Never throws.
   flushCrashRepeats();
   // PHASE 211. Stop the credential watcher first: it holds fs.watch handles and
   // a slow interval, and both must be released whatever the rest of teardown
@@ -1110,26 +1132,14 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
       { settledMs: lateMs }
     );
   }
-  // PHASE 357 (build/p357/SPEC.md D10 to D12). The session list's connection
-  // stopped reading correctly while the FILE checked fine, so the damage is in
-  // that connection's own page cache, and closing it is what crashed his quit:
-  // the last close checkpoints the log into the file through that memory.
-  // better-sqlite3 also closes every open connection at environment teardown,
-  // so `app.quit()` would close it anyway (measured, SPEC §2.3), and the one
-  // way out that closes nothing is Phase 36's escape above, here AFTER every
-  // step of this disposer has run. Nothing durable is pending (the quit
-  // generation finished inside shutdownGmuxCore), so clearing the sentinel is
-  // truthful, and write ahead logging needs no clean close: the next launch
-  // replays the log through the integrity gate as every launch does. The line
-  // is not mirrored into app.log for the reason given above logQuit; the
-  // store's own line said it when it stopped.
-  if (manifestConnectionsLeftOpen() > 0) {
-    logQuit(
-      '[gmux] quit: the session list connection stopped reading correctly and is left open; ending the process without closing it'
-    );
-    clearLogRunSentinel();
-    process.kill(process.pid, 'SIGKILL');
-    return 'killed';
-  }
+  // PHASE 357.1 (build/p3571/SPEC.md D2). Phase 357 ended the process here when
+  // the session list's connection was left open. That was during `before-quit`,
+  // before the windows close, so the Settings window's bounds were not yet
+  // saved (measured, SPEC §2.4). The hard exit for a connection left open is
+  // now the `will-quit` handler in src/main/index.ts, after the windows have
+  // closed, after their storage is flushed here on the first lines and again
+  // at will-quit, and after a capped wait for it to reach the disk. The only
+  // hard exit left in this function is Phase 36's above, because a wedged
+  // FSEvents can keep the windows from ever closing.
   return 'proceed';
 }

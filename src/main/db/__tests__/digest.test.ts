@@ -8,14 +8,34 @@
  * identical counts in every table, passed an integrity check, and was stale on
  * all 40 rows. The stale-copy test below reproduces that exact shape with a
  * real WAL rather than by simulating it.
+ *
+ * Phase 357.1 adds the last block: a broken connection's error is thrown on
+ * rather than folded into a table's text, and every other error keeps its
+ * text. The errors there are raised by SQLite's own step inside the digest's
+ * read (a function the table's generated column calls), and once by a page of
+ * a real file written over.
  */
 
 import Database from 'better-sqlite3';
-import { copyFileSync, mkdtempSync, rmSync } from 'node:fs';
+import {
+  closeSync,
+  copyFileSync,
+  mkdtempSync,
+  openSync,
+  readSync,
+  rmSync,
+  writeSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { digestDifferences, tableDigests } from '../digest';
+import {
+  databaseFingerprint,
+  digestDifferences,
+  tableDigests,
+  userTableNames
+} from '../digest';
+import { isBrokenConnectionError } from '../integrity';
 
 let dir: string;
 
@@ -209,11 +229,161 @@ describe('the encoding', () => {
     db.close();
 
     // A second connection has never heard of `vanishing`, so every read of
-    // `ghost` fails while the schema still lists it.
+    // `ghost` fails while the schema still lists it. That is SQLITE_ERROR, not
+    // a broken connection, so Phase 357.1 keeps it as text.
     const again = new Database(join(dir, 'ghost.db'), { readonly: true });
     const digests = tableDigests(again);
     expect(Object.keys(digests).sort()).toEqual(['ghost', 'real_one']);
     expect(digests.ghost).toMatch(/^unreadable: /);
     again.close();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 357.1: a broken connection is not a table it cannot read
+// ---------------------------------------------------------------------------
+
+/**
+ * One plain table, and one whose every read calls a function this connection
+ * registered, made to throw exactly the error under test. SQLite raises it
+ * from its own step inside the digest's read, and better-sqlite3 hands the
+ * very object on (measured, every shape below).
+ */
+function probed(name: string): { db: Database.Database; failWith: (err: unknown) => void } {
+  const db = new Database(join(dir, name));
+  let failure: unknown = null;
+  db.function('p3571_probe', { deterministic: true }, (v: unknown) => {
+    if (failure !== null) throw failure;
+    return String(v);
+  });
+  db.exec(
+    "CREATE TABLE plain (a TEXT); INSERT INTO plain VALUES ('x');" +
+      'CREATE TABLE probed (a TEXT, b TEXT GENERATED ALWAYS AS (p3571_probe(a)) VIRTUAL);' +
+      "INSERT INTO probed (a) VALUES ('y');"
+  );
+  return {
+    db,
+    failWith: (err) => {
+      failure = err;
+    }
+  };
+}
+
+function caughtFrom(fn: () => unknown): unknown {
+  try {
+    fn();
+  } catch (err) {
+    return err;
+  }
+  throw new Error('expected the call to throw');
+}
+
+/** Write over a file, then prove the bytes changed (the house rule). */
+function writeOver(path: string, offset: number, bytes: Buffer): void {
+  const read = (): Buffer => {
+    const fd = openSync(path, 'r');
+    try {
+      const buf = Buffer.alloc(bytes.length);
+      readSync(fd, buf, 0, bytes.length, offset);
+      return buf;
+    } finally {
+      closeSync(fd);
+    }
+  };
+  const before = read();
+  const fd = openSync(path, 'r+');
+  try {
+    writeSync(fd, bytes, 0, bytes.length, offset);
+  } finally {
+    closeSync(fd);
+  }
+  expect(read().equals(bytes)).toBe(true);
+  expect(before.equals(bytes)).toBe(false);
+}
+
+/** The errors that say the connection is broken (../integrity.ts). */
+const BROKEN = [
+  ['SQLITE_CORRUPT', 'database disk image is malformed'],
+  ['SQLITE_CORRUPT_INDEX', 'database disk image is malformed'],
+  ['SQLITE_NOTADB', 'file is not a database']
+] as const;
+
+/** Errors that do not, each one way of widening the rule turned red. */
+const NOT_BROKEN: readonly { name: string; make: () => Error }[] = [
+  {
+    name: 'SQLITE_IOERR_READ, which Phase 357 left out on purpose',
+    make: () => new Database.SqliteError('disk I/O error', 'SQLITE_IOERR_READ')
+  },
+  {
+    name: 'SQLITE_FULL',
+    make: () => new Database.SqliteError('database or disk is full', 'SQLITE_FULL')
+  },
+  {
+    name: 'a plain Error that names SQLITE_CORRUPT in SQLite’s own words',
+    make: () =>
+      Object.assign(new Error('database disk image is malformed'), { code: 'SQLITE_CORRUPT' })
+  },
+  { name: 'a TypeError', make: () => new TypeError('not a question about pages') }
+];
+
+describe('a broken connection is not a table it cannot read (Phase 357.1)', () => {
+  for (const [code, message] of BROKEN) {
+    it(`${code} comes out of the digest and the fingerprint as the same object`, () => {
+      const { db, failWith } = probed(`broken-${code}.db`);
+      expect(tableDigests(db).probed).toMatch(/^[0-9a-f]{64}$/);
+      const thrown = new Database.SqliteError(message, code);
+      expect(isBrokenConnectionError(thrown)).toBe(true);
+      failWith(thrown);
+      expect(caughtFrom(() => tableDigests(db))).toBe(thrown);
+      expect(caughtFrom(() => databaseFingerprint(db))).toBe(thrown);
+      db.close();
+    });
+  }
+
+  NOT_BROKEN.forEach((row, i) => {
+    it(`${row.name} is still the table’s text, exactly as before`, () => {
+      const { db, failWith } = probed(`text-${String(i)}.db`);
+      const healthy = tableDigests(db);
+      const before = databaseFingerprint(db);
+      const thrown = row.make();
+      expect(isBrokenConnectionError(thrown)).toBe(false);
+      failWith(thrown);
+      expect(tableDigests(db)).toEqual({
+        plain: healthy.plain,
+        probed: `unreadable: ${thrown.message}`
+      });
+      const fingerprint = databaseFingerprint(db);
+      expect(fingerprint).toMatch(/^[0-9a-f]{64}$/);
+      expect(fingerprint).not.toBe(before);
+      // Two databases that fail the same way still compare equal.
+      expect(databaseFingerprint(db)).toBe(fingerprint);
+      db.close();
+    });
+  });
+
+  it('a page of a real file written over: SQLite’s own SQLITE_CORRUPT comes out where the digest used to answer text', () => {
+    const { path, db } = build('damaged.db');
+    db.pragma('wal_checkpoint(TRUNCATE)');
+    const pageSize = db.pragma('page_size', { simple: true }) as number;
+    const leaves = db
+      .prepare<[], { pageno: number }>(
+        "SELECT pageno FROM dbstat WHERE name = 'projects' AND pagetype = 'leaf' ORDER BY pageno"
+      )
+      .all();
+    db.close();
+    expect(leaves.length).toBeGreaterThan(0);
+    expect(leaves[0]!.pageno).toBeGreaterThan(1);
+    // A b-tree page type SQLite does not know.
+    writeOver(path, (leaves[0]!.pageno - 1) * pageSize, Buffer.from([0xff]));
+
+    const fresh = new Database(path, { readonly: true, fileMustExist: true });
+    // The schema still reads, so what throws is the table's read.
+    expect(userTableNames(fresh)).toEqual(['projects', 'sessions']);
+    const err = caughtFrom(() => tableDigests(fresh));
+    expect(err).toBeInstanceOf(Database.SqliteError);
+    expect((err as { code?: unknown }).code).toBe('SQLITE_CORRUPT');
+    expect(isBrokenConnectionError(err)).toBe(true);
+    expect(caughtFrom(() => databaseFingerprint(fresh))).toBeInstanceOf(Database.SqliteError);
+    fresh.close();
   });
 });

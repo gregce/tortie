@@ -15,7 +15,7 @@
  * inside gmux.app is out of scope today (docs/audits/2026-08-09-prebuild-architecture-assessment.md §5 Stream A1).
  */
 
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, session } from 'electron';
 import { join } from 'node:path';
 import {
   disposeMainCapabilities,
@@ -67,6 +67,7 @@ import { isHarnessLaunch } from './harness/launch-gate';
 // startCrashCapture run at module scope below, before whenReady; the boot
 // sequence (sentinel, Crashpad diff, boot.env, prune) runs inside whenReady.
 import {
+  clearLogRunSentinel,
   getLog,
   initLogging,
   logEvent,
@@ -75,7 +76,9 @@ import {
 import { startCrashCapture } from './log/crash';
 // Phase 357: the session list's own refusal, which the crash handler logs and
 // never draws, because the notice it posted has already told the person.
-import { isManifestStopped } from './manifest/store';
+// Phase 357.1: and the count of its connections the quit held open, which the
+// `will-quit` hard exit below asks.
+import { isManifestStopped, manifestConnectionsLeftOpen } from './manifest/store';
 // The boot.env collector, imported here rather than by ./log, because it
 // probes tmux and the tmux layer logs through ./log. This file is the
 // composition root, so it is where the two sides meet.
@@ -123,7 +126,10 @@ import { resolveShellArrival } from './shell/arrival';
 // Phase 24: self update. The updater engine is one module, the post update
 // self check runs once per version change, and updates:state feeds the
 // Settings row. All three are wired below on normal startup paths only.
-import { initUpdater } from './updates/updater';
+// Phase 357.1: the staged signal the `will-quit` hard exit stands aside for.
+import { initUpdater, isUpdateStaged } from './updates/updater';
+// Phase 357.1 round A: how that hard exit knows the remembered settings are on disk.
+import { storageWritten } from './quit/storage-landing';
 import { runPostUpdateSelfCheck } from './updates/self-check';
 // Phase 31: the refusal surface. The first launch after a failed install
 // says why, once, from the evidence Squirrel left on disk.
@@ -446,10 +452,14 @@ function createWindow(): BrowserWindow {
  * status-item click does NOT activate the app on its own.
  */
 function showAppWindow(): void {
-  const win =
-    mainWindow !== null && !mainWindow.isDestroyed()
-      ? mainWindow
-      : (mainWindow = createWindow());
+  const live = mainWindow !== null && !mainWindow.isDestroyed() ? mainWindow : null;
+  // PHASE 357.1 ROUND A (W3). Never open a window into a quitting app. After
+  // the last window closed, a Dock click, a refused second launch or a Finder
+  // open used to make a new window while the disposer ran (and, from round A,
+  // while the hard exit waits for the remembered settings), which the quit
+  // then closed again. A window that is still up is shown as before.
+  if (live === null && appLifecycleState() === 'quitting') return;
+  const win = live ?? (mainWindow = createWindow());
   if (win.isMinimized()) win.restore();
   win.show();
   win.focus();
@@ -831,6 +841,67 @@ app.on('before-quit', (event) => {
     if (outcome === 'killed') return;
     app.quit();
   })();
+});
+
+/**
+ * The longest the quit's hard exit waits for the windows' remembered settings
+ * to reach the disk (Phase 357.1 round A). It is spent only when the storage
+ * log cannot be read; a log that stands whole and still ends the wait in about
+ * 150 ms (src/main/quit/storage-landing.ts).
+ */
+const STORAGE_WRITE_WAIT_MS = 1_000;
+
+// PHASE 357.1 (build/p3571/SPEC.md D1, D2, D6, and "### Round A"). THE QUIT
+// ENDS HERE, AND NO CLOSE WALKS THE HELD SESSION LIST'S PAGE CACHE. The
+// disposer's first lines set the store's quit hold, so the core's dispose left
+// the connection open, and Node's environment teardown, which follows this
+// event on a normal quit, would close it all the same (better-sqlite3 closes
+// every open connection there). A cache damaged in a way no read sees crashes
+// exactly that close (research 143 §2.3, his crash's frame). So the process
+// ends with SIGKILL to self, which skips teardown, at the one moment it loses
+// nothing a person keeps (SPEC §2.4): the windows have closed, so the Settings
+// window's bounds are saved, and the run sentinel is cleared, because this is
+// a quit and not a crash. Nothing durable is pending on the ordinary quit: the
+// quit generation was taken and every watcher drained in the disposer, and
+// write ahead logging needs no clean close. Registered at module scope, so it
+// runs before the log's own `will-quit`.
+//
+// THE REMEMBERED SETTINGS (round A). The windows' `localStorage` reaches the
+// disk only once Chromium commits it, and `flushStorageData()` only STARTS
+// that commit: a SIGKILL sent at once could land first, and on a busy Mac it
+// did (2 quits in 22, the drop round's reverify). So the disposer flushed once
+// as the quit began (src/main/capabilities.ts, every write made before the
+// press), and here, synchronously, the default quit is prevented (so Node's
+// teardown never runs), the storage is flushed again (what the closing windows
+// wrote), and the exit waits, at most STORAGE_WRITE_WAIT_MS, until the storage
+// log on disk stands whole and still. Whatever the flush or the wait does, the
+// sentinel is cleared and the signal sent, in the `finally` (the landing
+// round's F3). Nothing can open a window while it waits (`showAppWindow`).
+//
+// WHAT IT COVERS. A held connection: every quit whose disposer reached the
+// core's dispose, which holds it, and a store stopped with its file fine
+// (Phase 357). Two quits proceed as before: one with an update staged, so
+// Squirrel's install on quit is untouched (D6), and one with nothing held, a
+// menu quit long enough for its 3 s fallback `app.quit()` (src/main/menu.ts)
+// to reach this event before that dispose among them, which ends as today,
+// through Node's teardown, and is queued as Phase 362.
+app.on('will-quit', (event) => {
+  if (manifestConnectionsLeftOpen() > 0 && !isUpdateStaged()) {
+    event.preventDefault();
+    void (async () => {
+      try {
+        session.defaultSession.flushStorageData();
+        const wait = await storageWritten(session.defaultSession.getStoragePath(), STORAGE_WRITE_WAIT_MS);
+        getLog('quit').info(
+          `the remembered settings ${wait.landing === 'settled' ? 'were on disk' : 'could not be read on disk'} after ${String(Math.round(wait.waitedMs))} ms; ending the quit`,
+          { landing: wait.landing, waitedMs: Math.round(wait.waitedMs), moved: wait.moved }
+        );
+      } finally {
+        clearLogRunSentinel();
+        process.kill(process.pid, 'SIGKILL');
+      }
+    })();
+  }
 });
 
 // Single-window app: quitting on last-window-close is correct on macOS too —

@@ -4467,6 +4467,11 @@ export class GmuxCore {
     this.hookShutdown = this.hookServer.stop().catch(() => null);
     this.attachHost.disposeAll();
     this.control.stop();
+    // PHASE 357.1 (build/p3571/SPEC.md D3). At the real quit this close HOLDS
+    // the connection open rather than closing it, because the ordered disposer
+    // set the store's quit hold on its first lines, and the process then ends
+    // at `will-quit` without a close (src/main/index.ts). Before a quit, or
+    // without one (a harness's own shutdown), it closes as it always has.
     try {
       this.manifest.close();
     } catch {

@@ -1066,19 +1066,32 @@ export const CHECKS = [
   // PHASE 357 (build/p357/SPEC.md §7.1). A session list that goes bad while
   // Tortie runs asks for one restart. build/conformance-stopped-list.mjs reads
   // the manifest store, the six repository files, the classifier in
-  // src/main/db/integrity.ts, the core's list and its five event catches, the
-  // ordered disposer's last branch, the relaunch handler, the crash handlers
-  // and the harness-only fault seam with the TypeScript parser and asserts ten
-  // rules, S1 to S10: every store member passes through the latch in one
-  // statement, a broken connection is told by its code and never its words, a
-  // stopped connection whose file is fine is never closed and the quit ends
-  // with the existing hard exit, the relaunch answers only after the notice
-  // and never in a harness launch, and the fault seam is armed only inside a
-  // harness folder. Each rule is asked again over in-memory copies with it
-  // broken, every one of which must read red, beside a control that stays
-  // green. It spawns one process, the pinned tsx, for S8's driven half, which
-  // starts nothing, opens no database and reads nothing under any home. About
-  // 2 s.
+  // src/main/db/integrity.ts, the backup check's digest in
+  // src/main/db/digest.ts, the core's list and its five event catches, the
+  // ordered disposer, the will-quit handler in src/main/index.ts, the
+  // updater's staged signal, the relaunch handler, the crash handlers and the
+  // harness-only fault seam with the TypeScript parser and asserts thirteen
+  // rules, S1 to S13: every store member passes through the latch in one
+  // statement, a broken connection is told by its code and never its words and
+  // the digest throws it on (Phase 357.1), a stopped connection whose file is
+  // fine is never closed, and since Phase 357.1 no close runs at the quit at
+  // all: the disposer sets the store's quit hold on its first lines, close()
+  // holds exactly when that is set or the store stopped with its file fine,
+  // and the will-quit handler ends the process by SIGKILL to self unless an
+  // update is staged; it asks the held count alone, as the handler's first
+  // statement with nothing deferring it (357.1's drop round), and since round A
+  // it prevents the quit synchronously and then takes ONE bounded wait: the
+  // storage is flushed again (the disposer flushed it on its first lines), the
+  // wait reads the storage log until it stands whole and still, at most one
+  // named bound, and its finally clears the sentinel and sends the signal (a
+  // menu quit whose 3 s fallback reaches will-quit before the core's dispose
+  // holds nothing and ends as today, Phase 362's); dispose closes the session
+  // list only through the store's own close(); the relaunch answers only after the notice and never in a harness
+  // launch, and the fault seam is armed only inside a harness folder. Each rule
+  // is asked again over in-memory copies with it broken, every one of which
+  // must read red, beside a control that stays green. It spawns one process,
+  // the pinned tsx, for S8's driven half, which starts nothing, opens no
+  // database and reads nothing under any home. About 1 to 3 s.
   pure('conformance:stoppedlist'),
   adapter(
     'conformance:specstory:entitlement',
@@ -1271,6 +1284,16 @@ export const CHECKS = [
   electron('smoke:t3'),
   electron('smoke:t3:agent'),
   electron('smoke:t3:shadow'),
+  // PHASE 357.1's landing round: both quit smokes are launched and read by
+  // build/quit-smoke.mjs through build/electron-run.mjs, because every quit whose
+  // disposer reached the core's dispose, which holds the session list, now ends
+  // by the will-quit SIGKILL to self and an exit code no longer tells a healthy
+  // quit from a broken one. `smoke:quit` runs
+  // two legs: GMUX_SMOKE=quit, whose pass is that SIGKILL with the store's held
+  // line, the run sentinel cleared and no dump or macOS report, and
+  // GMUX_SMOKE=quit-teardown, Phase 36's quit with nothing held, which still
+  // runs Node's teardown and passes on exit 0 alone (134 is the abort).
+  // `smoke:quitdoors` keeps its door verdicts and reads its end as the first.
   electron('smoke:quit'),
   electron('smoke:quitdoors'),
   electron('smoke:capture'),
@@ -1627,7 +1650,8 @@ export const CHECKS = [
   // PHASE 357 (build/p357/SPEC.md §8): a session list that goes bad while
   // Tortie runs, at the parent and at HEAD. Electrons through
   // build/electron-run.mjs ONE AT A TIME and never at once, the parent's
-  // (`P357_PARENT_CHECKOUT`, a built 0547383e, required) FIRST, each on a
+  // (`P357_PARENT_CHECKOUT`, a built 32180e60, 357 as landed, required, one
+  // parent for every parent arm) FIRST, each on a
   // scratch profile, HOME and ZDOTDIR with HISTFILE=/dev/null and the socket
   // gmux-p357…, every probed registry row hidden by build/hidden-agents.mjs
   // before each launch and `agents:list` read back. The world is his recorded
@@ -1638,8 +1662,19 @@ export const CHECKS = [
   // build/p316/node-phone.mjs through build/p330/tailscale-standin.mjs behind
   // its preflight and sampler and build/p332/dns-standin.mjs in the probe's own
   // process. It never calls app.relaunch() and never holds main's inspector
-  // across a quit. No agent runs and no token is spent. `--grader-self-test`
-  // grades build/p357/fixtures/graders.json and starts nothing.
+  // across a quit. No agent runs and no token is spent. Since Phase 357.1
+  // (build/p3571/SPEC.md §8) its CS arms plant the crash's own page cache state
+  // with research 143's checking better-sqlite3, reused from P3571_BS3 or built
+  // with node-gyp under the run's scratch (spawnSync, every cache there) and
+  // loaded into main by path through its require hook, never into any
+  // node_modules: at the parent (357 as landed) the quit faults in
+  // pcache1EnforceMaxPage, at HEAD it ends by the will-quit SIGKILL with the
+  // relaunch keeping every session, the localStorage keys and the Settings
+  // bounds. Every HEAD quit is read as that SIGKILL. A menu quit long enough
+  // for its 3 s fallback to reach will-quit before the core's dispose ends as
+  // today at both builds and is Phase 362's, so no arm drives it (357.1's drop
+  // round). `--grader-self-test` grades build/p357/fixtures/graders.json and
+  // starts nothing.
   electron('probe:p357'),
   // PHASE 342's measurement (build/p342/SPEC.md §7.4): the re-derivation
   // outside Electron. Through build/docker-run.mjs, one throwaway container per

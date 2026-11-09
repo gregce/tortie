@@ -48,8 +48,9 @@
  * added later cannot walk past the latch.
  *
  * Two members are neither: `close`, which closes the connection on every path
- * but one (a stopped store whose file is fine holds its connection open, so
- * nothing runs SQLite's last close through the damaged cache), and
+ * but two (a stopped store whose file is fine holds its connection open, so
+ * nothing runs SQLite's last close through the damaged cache, and since Phase
+ * 357.1 every close the real quit asks for holds it too), and
  * `stoppedReading`, a read of the latch itself.
  */
 
@@ -303,16 +304,45 @@ export function isManifestStopped(err: unknown): boolean {
 }
 
 /**
- * Connections a stopped store left open because its file was fine, held here
- * so the garbage collector cannot run better-sqlite3's destructor, which would
- * close them through the damaged cache all the same. Nothing ever empties it:
- * the quit asks its length and ends the process without closing them.
+ * Connections a stopped store left open because its file was fine, and since
+ * Phase 357.1 every connection the real quit asked to close, held here so the
+ * garbage collector cannot run better-sqlite3's destructor, which would close
+ * them through their page cache all the same. Nothing ever empties it: the
+ * quit asks its length and ends the process without closing them.
  */
 const held: Database.Database[] = [];
 
-/** How many session list connections are held open after a stop. */
+/** How many session list connections are held open, after a stop or at the quit. */
 export function manifestConnectionsLeftOpen(): number {
   return held.length;
+}
+
+/**
+ * PHASE 357.1 (build/p3571/SPEC.md D1). Set by the real quit, once, and never
+ * cleared, because the process it is set in is ending.
+ *
+ * A page cache can be damaged in a way no read sees: research 143 §2.3
+ * planted the crash's own state, a page line taken over by a zero-filled
+ * block, and every read went on answering while the close crashed in
+ * `pcache1EnforceMaxPage` exactly as his quit did. So the store cannot latch
+ * on it, and the only safe last close is none. From the moment this is set,
+ * `close` holds every connection open instead of closing it, and the quit's
+ * hard exit at `will-quit` (src/main/index.ts) ends the process before Node's
+ * environment teardown, which would otherwise close every open connection
+ * itself (a quit with an update staged is the one that proceeds to it). Write
+ * ahead logging needs no clean close: the next open replays the log through
+ * the integrity gate, as every launch does.
+ */
+let holdAllCloses = false;
+
+/**
+ * The quit's hold. ONE production caller, the ordered disposer's first
+ * synchronous lines (src/main/capabilities.ts), so it is set before the core's
+ * dispose asks the store to close. Every other close (the rebuild's own store,
+ * the smokes) runs before or without a quit and closes exactly as it did.
+ */
+export function holdManifestClosesAtQuit(): void {
+  holdAllCloses = true;
 }
 
 /**
@@ -568,29 +598,42 @@ export class ManifestStore {
   }
 
   /**
-   * Close the connection, except in the one case where closing is the danger
-   * (Phase 357).
+   * Close the connection, except where closing is the danger (Phases 357 and
+   * 357.1).
    *
-   * A store that stopped because its connection broke while the FILE checked
-   * fine has the damage in this connection's memory, and its close is what
-   * crashed the operator's quit: SQLite's last close walks the page cache to
-   * free it and checkpoints the WAL into the file through that same memory. So
-   * that store closes nothing, holds the connection off the collector, and the
-   * quit ends the process without closing it (WAL needs no clean close; the
-   * next open replays the log through the integrity gate). Every other store,
-   * a stopped one whose file is damaged or unreadable included, closes exactly
-   * as before, which the parent measured clean.
+   * SQLite's last close walks the page cache to free it and checkpoints the WAL
+   * into the file through that same memory, and that walk is what crashed the
+   * operator's quit. So two kinds of close hold the connection open instead,
+   * on `held`, off the collector, and the quit ends the process without
+   * closing it:
+   *
+   * 1. Every close once the real quit has begun (`holdManifestClosesAtQuit`),
+   *    because damage no read saw cannot be told from a healthy cache, and the
+   *    quit's hard exit at `will-quit` keeps Node's environment teardown from
+   *    closing it either (Phase 357.1).
+   * 2. A store that stopped because its connection broke while the FILE
+   *    checked fine, which the latch already put on `held`, so it is counted
+   *    once (Phase 357).
+   *
+   * Every other close, before a quit or without one, a stopped store whose file
+   * is damaged or unreadable included, closes exactly as before.
    */
   close(): void {
-    if (this.stopped === null || this.stopped.file !== 'fine') {
-      this.db.close();
+    if (holdAllCloses || (this.stopped !== null && this.stopped.file === 'fine')) {
+      // A connection a close before the quit already closed has nothing left
+      // to hold, and counting it would say a connection is open that is not.
+      if (!this.db.open) return;
+      if (!held.includes(this.db)) held.push(this.db);
+      if (this.leftOpenSaid) return;
+      this.leftOpenSaid = true;
+      manifestLog.info(
+        this.stopped === null
+          ? 'the session list connection is left open at quit, so no close walks its cache'
+          : 'the session list connection is left open so nothing closes a damaged cache'
+      );
       return;
     }
-    if (this.leftOpenSaid) return;
-    this.leftOpenSaid = true;
-    manifestLog.info(
-      'the session list connection is left open so nothing closes a damaged cache'
-    );
+    this.db.close();
   }
 
   /**

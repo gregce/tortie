@@ -28,10 +28,29 @@
  * Phase 20 reuses this as the verification step of the backup ring, which is
  * why it lives beside the one database opener rather than inside the migration
  * that needed it first.
+ *
+ * ## A broken connection is not a table it cannot read (Phase 357.1)
+ *
+ * Every error reading a table used to come back as the text
+ * `unreadable: <message>`, and the backup ring's change test folded that text
+ * into its fingerprint. Measured over the shipping manifest store at Phase
+ * 357's tree (build/p3571/SPEC.md §2.5): with one page of `migrations` damaged
+ * in the store's own connection while the file read fine, the fingerprint
+ * answered a sha256 at every poll for an hour, the store never stopped, no
+ * notice was shown and the session list read fine throughout, because no list
+ * read touches that table and this catch hid SQLite's `SQLITE_CORRUPT`
+ * (research 143 §6). So an error that says the CONNECTION can no longer account
+ * for its pages (`isBrokenConnectionError`, ./integrity.ts) is thrown on, and
+ * the manifest store's change test stops the list on it with its one notice.
+ * Every other error keeps its text, which is what keeps a support answer
+ * copyable. The other callers read through a fresh read only connection, where
+ * the same error means the bytes read back are damaged: the evidence read
+ * answers its `error`, a snapshot is not kept, and a rebuild is not verified.
  */
 
 import Database from 'better-sqlite3';
 import { createHash } from 'node:crypto';
+import { isBrokenConnectionError } from './integrity';
 
 /** Type tags, so a string "1" and an integer 1 cannot hash the same. */
 const TAG_NULL = 0x00;
@@ -86,7 +105,8 @@ export function tableRowCounts(db: Database.Database): Record<string, number> {
  * A table this connection cannot read is reported as `unreadable: <message>`
  * rather than skipped. Two databases that fail the same way still compare
  * equal, which is the honest answer, and a table that became unreadable in one
- * of them compares unequal, which is the answer that matters.
+ * of them compares unequal, which is the answer that matters. A broken
+ * connection is the one error that is thrown instead (see the header).
  */
 export function tableDigests(db: Database.Database): Record<string, string> {
   const out: Record<string, number | string> = {};
@@ -144,6 +164,8 @@ function digestOneTable(db: Database.Database, table: string): string {
     }
     return hash.digest('hex');
   } catch (err) {
+    // Phase 357.1: thrown on, so the manifest store's latch sees it.
+    if (isBrokenConnectionError(err)) throw err;
     return `unreadable: ${(err as Error).message}`;
   }
 }

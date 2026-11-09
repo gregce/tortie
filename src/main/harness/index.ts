@@ -158,12 +158,23 @@
  *                       exact stretch where a fire-and-forget watcher
  *                       unsubscribe turns quit into a SIGABRT. Boots the
  *                       core, proves the agents.json watcher is live, queues
- *                       8 slow pbkdf2 jobs, quits for real. The process exit
- *                       code is the verdict: 0 is the pass, 134 is the bug.
- *                       When the first drain expires the quit logs the
- *                       leftover count, hides the window, and drains again
- *                       for up to 15 s, so a 0 with those lines is the
- *                       classified late quit. `npm run smoke:quit`.
+ *                       8 slow pbkdf2 jobs, quits for real. Since Phase
+ *                       357.1 that quit holds the session list open and ends
+ *                       by the will-quit SIGKILL to self, which
+ *                       build/quit-smoke.mjs reads as the pass (the signal,
+ *                       the store's held line, the sentinel cleared, no
+ *                       dump, no macOS report); an abort, a crash, an exit 0
+ *                       or Phase 36's own SIGKILL is the failure. When the
+ *                       first drain expires the quit logs the leftover count,
+ *                       hides the window, and drains again for up to 15 s.
+ *                       `npm run smoke:quit`, which also runs the next one.
+ *  - GMUX_SMOKE=quit-teardown  the same race with the core never booted
+ *                       (Phase 357.1's landing round), so no session list
+ *                       connection is ever opened and the quit runs Node's
+ *                       environment teardown as Phase 36's did: exit 0 is
+ *                       the pass and 134 is the bug, read by
+ *                       build/quit-smoke.mjs. A 0 with the late drain's lines
+ *                       is the classified late quit.
  *  - GMUX_SMOKE=shutdown-refusal  the core fails closed once shutdown starts
  *                       (Phase 116, Tier 3). Holds the REAL shutdown inside
  *                       the snapshot pass, proves `getGmuxCore()` and a real
@@ -180,7 +191,10 @@
  *                       mutation handlers from the real renderer: all four
  *                       reject with the typed SHUTTING_DOWN payload, nothing
  *                       is written or spawned, and the create admitted before
- *                       quit still resolved. `npm run smoke:quitdoors`.
+ *                       quit still resolved. Then the held quit ends, and
+ *                       since Phase 357.1 build/quit-smoke.mjs reads its end
+ *                       as GMUX_SMOKE=quit's is read: the will-quit SIGKILL.
+ *                       `npm run smoke:quitdoors`.
  *  - GMUX_SMOKE=p117-prep / p117-verify  a remote create whose answer was
  *                       lost keeps its row, and a later run binds the same
  *                       session (Phase 117, Tier 3). TWO launches against one
@@ -325,7 +339,7 @@ import { runP163CaptureSmoke } from './p163-capture';
 // was unreachable before. LEAF import, because it pulls in the session core.
 import { runP269EnvSmoke } from './p269-env';
 import { runSmokeProcId } from './procid';
-import { runSmokeQuit } from './quit';
+import { runSmokeQuit, runSmokeQuitTeardown } from './quit';
 // Phase 119: declining capture on restore. LEAF-free like the capture smoke,
 // and the only place the decline, the durable flip and the untouched ordinary
 // restore are measured against one running app rather than read.
@@ -391,6 +405,13 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
   // the bug it guards against lives between before-quit and FreeEnvironment.
   if (smoke === 'quit') {
     await runSmokeQuit();
+    return true;
+  }
+  // Phase 357.1's landing round: the same quit with the core never booted, so
+  // nothing is held and the quit still runs FreeEnvironment, Phase 36's
+  // stretch. `npm run smoke:quit` runs it after the mode above.
+  if (smoke === 'quit-teardown') {
+    await runSmokeQuitTeardown();
     return true;
   }
   // Phase 116: the core fails closed once shutdown starts. Holds the real

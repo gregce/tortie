@@ -348,6 +348,17 @@ export function getUpdateUiState(): UpdateUiState {
 }
 
 /**
+ * Is an update staged by the OS updater, so a quit from here installs it?
+ * PHASE 357.1 (build/p3571/SPEC.md D6). Read by the quit's hard exit at
+ * `will-quit` (src/main/index.ts), which stands aside while it is true, so
+ * an install that rides the quit runs through Squirrel's own quit exactly as
+ * before. The same honest moment as the staged menu item (rule 4 above).
+ */
+export function isUpdateStaged(): boolean {
+  return stagedVersion !== null;
+}
+
+/**
  * Forget this run's staging so a repaired updater can check again (Phase
  * 43). Called by ./recovery.ts after a successful clear, and by nothing
  * else. The notify rebuilds the menu, which drops the staged item that no

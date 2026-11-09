@@ -47,8 +47,11 @@
  * `assertHarnessIsolation` runs before anything else, every path this probe
  * writes is inside the harness scratch root, and the one session it creates
  * lives on the scratch tmux server that build/harness-socket.mjs ends. The
- * probe finishes by letting the REAL quit complete, so the exit code of the
- * process is the quit path's own verdict, as GMUX_SMOKE=quit is.
+ * probe finishes by letting the REAL quit complete, so how the process ends
+ * is the quit path's own verdict, as GMUX_SMOKE=quit's is. Since Phase 357.1
+ * that end is the will-quit SIGKILL to self (the session list is held at
+ * every quit), and build/quit-smoke.mjs reads it, beside this file's own
+ * `9/9 PASS` line, exactly as it reads GMUX_SMOKE=quit's.
  *
  * `npm run smoke:quitdoors` is the only supported way to run it.
  */
@@ -307,7 +310,7 @@ export async function runQuitDoorsSmoke(deps: QuitDoorsDeps): Promise<void> {
         `${String(tmuxAfter)} tmux sessions, 0 remote children owned`
     );
 
-    // --- Let the REAL quit finish; its exit code is the second verdict ----
+    // --- Let the REAL quit finish; how it ends is the second verdict ------
     smokeLog('9/9 PASS (quit-doors); releasing the hold so the real quit ends');
     releaseHold();
   } catch (err) {

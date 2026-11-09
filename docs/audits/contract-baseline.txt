@@ -541,7 +541,7 @@ GMUX_UPDATE_REHEARSAL
 GMUX_UPDATE_STATE_ROOT
 GMUX_USAGE_FIXTURE
 
-[harness.smoke.modes] count=38
+[harness.smoke.modes] count=39
 agent
 basic
 capture
@@ -569,6 +569,7 @@ power
 procid
 quit
 quit-doors
+quit-teardown
 reconstruct
 refusal
 remote-matrix

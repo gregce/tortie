@@ -26,11 +26,24 @@ with a **Restart** button beside it.
 That is the whole fix. You do not need to find or delete anything, and you never need to quit by hand
 first.
 
+## The quit, after Phase 357.1
+
+Phase 357.1 closes a last gap: some damage to the session list leaves every read working but still
+crashes the quit, so Tortie now leaves that one connection open at quit and ends itself once the
+windows have closed. **For you, a quit is still just a quit.** Your window positions, zoom and other
+remembered settings, and the session list, are saved first: Tortie saves the remembered settings as
+the quit begins and again as the windows close, and waits for them to reach the disk (a fraction of
+a second, never more than one) before it ends. Your sessions keep running, and the next launch comes
+up clean, with no "Tortie quit unexpectedly last time." message. Two quits are unchanged on purpose:
+installing an update still quits-and-installs exactly as before, and a quit so long that Tortie's
+own 3 second fallback ends it first ends exactly as it does today (that one is queued as Phase 362).
+If the session list ever stopped (the notice above), Restart as before.
+
 ## What you should NOT see
 
 - No repeated error dialogs. (Before this phase, one appeared every few seconds.)
 - No crash when you quit. (Before this phase, quitting crashed.)
-- After the restart, no "Tortie did not shut down cleanly" message, and no message that your session
+- After the restart, no "Tortie quit unexpectedly last time." message, and no message that your session
   list was damaged and rebuilt — unless the file on disk really was damaged, which is a different
   case the app already handled and still does.
 
